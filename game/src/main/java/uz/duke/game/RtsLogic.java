@@ -6,10 +6,10 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import uz.duke.core.GameLogic;
-import uz.duke.core.message.GameMessage;
-import uz.duke.core.module.AIUpdate;
-import uz.duke.core.module.WeaponUpdate;
+import uz.duke.rts.RtsSimulation;
+import uz.duke.rts.message.GameMessage;
+import uz.duke.core.module.MoveUpdate;
+import uz.duke.rts.module.WeaponUpdate;
 
 /**
  * The batteries-included RTS simulation behind {@link DukeGame}.
@@ -18,7 +18,7 @@ import uz.duke.core.module.WeaponUpdate;
  * same three commands to the same modules; this class makes that standard RTS
  * routing built in, Unity-style:
  * <ul>
- *   <li>{@code MoveTo} → the unit's {@link AIUpdate} (pathfinds and walks)</li>
+ *   <li>{@code MoveTo} → the unit's {@link MoveUpdate} (pathfinds and walks)</li>
  *   <li>{@code AttackObject} → the unit's {@link WeaponUpdate} (engages)</li>
  *   <li>{@code StopMoving} → halts movement and holds fire</li>
  * </ul>
@@ -28,7 +28,7 @@ import uz.duke.core.module.WeaponUpdate;
  * callbacks, and fires a defeat callback when a player who had units loses all
  * of them — the standard annihilation rule.
  */
-final class RtsLogic extends GameLogic {
+final class RtsLogic extends RtsSimulation {
 
     /** Commands posted from the UI thread, drained each frame on the logic thread. */
     private final Queue<GameMessage> inbox = new ConcurrentLinkedQueue<>();
@@ -81,7 +81,7 @@ final class RtsLogic extends GameLogic {
     }
 
     @Override
-    protected void onCommand(GameMessage command) {
+    protected void onRtsCommand(GameMessage command) {
         switch (command) {
             case GameMessage.MoveTo move -> {
                 for (var id : move.units()) {
@@ -89,7 +89,7 @@ final class RtsLogic extends GameLogic {
                     if (unit == null || unit.getPlayerIndex() != move.playerIndex()) {
                         continue; // gone, or not the issuer's unit to command
                     }
-                    var ai = unit.findModule(AIUpdate.class);
+                    var ai = unit.findModule(MoveUpdate.class);
                     if (ai != null) {
                         ai.moveTo(move.destination());
                     }
@@ -117,7 +117,7 @@ final class RtsLogic extends GameLogic {
                     if (unit == null || unit.getPlayerIndex() != stop.playerIndex()) {
                         continue;
                     }
-                    var ai = unit.findModule(AIUpdate.class);
+                    var ai = unit.findModule(MoveUpdate.class);
                     if (ai != null) {
                         ai.stop();
                     }
@@ -145,12 +145,12 @@ final class RtsLogic extends GameLogic {
     }
 
     /** The production module of {@code factory} if it belongs to {@code player}. */
-    private uz.duke.core.module.ProductionUpdate ownProduction(uz.duke.core.thing.ObjectId factory, int player) {
+    private uz.duke.rts.module.ProductionUpdate ownProduction(uz.duke.core.thing.ObjectId factory, int player) {
         var structure = findObject(factory);
         if (structure == null || structure.getPlayerIndex() != player) {
             return null;
         }
-        return structure.findModule(uz.duke.core.module.ProductionUpdate.class);
+        return structure.findModule(uz.duke.rts.module.ProductionUpdate.class);
     }
 
     @Override

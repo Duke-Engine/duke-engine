@@ -10,10 +10,11 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import uz.duke.core.message.GameMessage;
+import uz.duke.rts.message.GameMessage;
 import uz.duke.core.network.CommandPacket;
 import uz.duke.core.network.LockstepScheduler;
 import uz.duke.core.network.SocketTransport;
+import uz.duke.rts.network.CommandCodec;
 
 /**
  * A two-player lock-step game over TCP — one machine hosts, the other joins.
@@ -72,7 +73,7 @@ public final class MultiplayerSession implements AutoCloseable {
         }
         out.write("DUKE-WELCOME 2 " + (scenarioSpec == null || scenarioSpec.isBlank() ? "-" : scenarioSpec) + "\n");
         out.flush();
-        var session = new MultiplayerSession(SocketTransport.wrap(socket), 1);
+        var session = new MultiplayerSession(SocketTransport.wrap(socket, CommandCodec.INSTANCE), 1);
         session.scenarioSpec = scenarioSpec == null ? "" : scenarioSpec;
         return session;
     }
@@ -91,7 +92,7 @@ public final class MultiplayerSession implements AutoCloseable {
         }
         var parts = welcome.trim().split("\\s+");
         int assigned = Integer.parseInt(parts[1]);
-        var session = new MultiplayerSession(SocketTransport.wrap(socket), assigned);
+        var session = new MultiplayerSession(SocketTransport.wrap(socket, CommandCodec.INSTANCE), assigned);
         session.scenarioSpec = parts.length > 2 && !parts[2].equals("-") ? parts[2] : "";
         return session;
     }

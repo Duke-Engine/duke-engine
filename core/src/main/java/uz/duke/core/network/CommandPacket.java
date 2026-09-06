@@ -1,7 +1,7 @@
 package uz.duke.core.network;
 
 import java.util.List;
-import uz.duke.core.message.GameMessage;
+import uz.duke.core.message.Command;
 
 /**
  * One player's commands for one future frame — the unit of data exchanged over
@@ -12,7 +12,7 @@ import uz.duke.core.message.GameMessage;
  * command list is still sent so peers know the player has reported for that
  * frame.
  */
-public record CommandPacket(int frame, int playerIndex, List<GameMessage> commands) {
+public record CommandPacket(int frame, int playerIndex, List<Command> commands) {
 
     public CommandPacket {
         commands = List.copyOf(commands);

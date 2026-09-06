@@ -6,6 +6,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import uz.duke.core.GameLogic;
+import uz.duke.core.TestCommand;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.ActiveBody;
 import uz.duke.core.module.ModuleFactory;
@@ -16,37 +17,31 @@ import uz.duke.core.thing.ThingTemplate;
 /** End-to-end: a command issued one frame is applied deterministically the next. */
 class CommandPipelineTest {
 
-    /** A logic that applies commands by pattern-matching the sealed hierarchy. */
+    /** A logic that applies commands by pattern-matching its own sealed hierarchy. */
     static final class CommandLogic extends GameLogic {
-        int attacksHandled;
+        int pingsHandled;
 
         CommandLogic(ThingFactory thingFactory) {
             super(thingFactory);
         }
 
         @Override
-        protected void onCommand(GameMessage command) {
-            switch (command) {
-                case GameMessage.MoveTo move -> {
-                    for (var id : move.units()) {
-                        var unit = findObject(id);
-                        if (unit != null) {
-                            unit.setPosition(move.destination());
-                        }
-                    }
-                }
-                case GameMessage.AttackObject ignored -> attacksHandled++;
-                case GameMessage.StopMoving stop -> {
-                    for (var id : stop.units()) {
-                        var unit = findObject(id);
-                        if (unit != null) {
-                            unit.setPosition(Coord3D.ZERO);
-                        }
-                    }
-                }
-                case GameMessage.QueueProduction ignored -> {
-                }
-                case GameMessage.SetRallyPoint ignored -> {
+        protected void onCommand(Command command) {
+            if (!(command instanceof TestCommand testCommand)) {
+                return;
+            }
+            switch (testCommand) {
+                case TestCommand.Move move -> moveEach(move.units(), move.destination());
+                case TestCommand.Halt halt -> moveEach(halt.units(), Coord3D.ZERO);
+                case TestCommand.Ping ignored -> pingsHandled++;
+            }
+        }
+
+        private void moveEach(List<uz.duke.core.thing.ObjectId> units, Coord3D destination) {
+            for (var id : units) {
+                var unit = findObject(id);
+                if (unit != null) {
+                    unit.setPosition(destination);
                 }
             }
         }
@@ -71,11 +66,11 @@ class CommandPipelineTest {
     }
 
     @Test
-    void moveToCommandRepositionsUnitOnNextFrame() {
+    void moveCommandRepositionsUnitOnNextFrame() {
         GameObject unit = logic.createObject(template);
         var destination = new Coord3D(42f, 0f, 7f);
 
-        logic.issueCommand(new GameMessage.MoveTo(0, List.of(unit.getId()), destination));
+        logic.issueCommand(new TestCommand.Move(0, List.of(unit.getId()), destination));
         assertEquals(Coord3D.ZERO, unit.getPosition()); // not applied until the frame runs
 
         logic.update();
@@ -83,20 +78,19 @@ class CommandPipelineTest {
     }
 
     @Test
-    void attackCommandIsDispatched() {
-        GameObject unit = logic.createObject(template);
-        logic.issueCommand(new GameMessage.AttackObject(0, List.of(unit.getId()), unit.getId()));
+    void payloadFreeCommandIsDispatched() {
+        logic.issueCommand(new TestCommand.Ping(0, "hello"));
         logic.update();
-        assertEquals(1, logic.attacksHandled);
+        assertEquals(1, logic.pingsHandled);
     }
 
     @Test
     void commandsApplyInArrivalOrder() {
         GameObject unit = logic.createObject(template);
-        logic.issueCommand(new GameMessage.MoveTo(0, List.of(unit.getId()), new Coord3D(10f, 0f, 0f)));
-        logic.issueCommand(new GameMessage.StopMoving(0, List.of(unit.getId())));
+        logic.issueCommand(new TestCommand.Move(0, List.of(unit.getId()), new Coord3D(10f, 0f, 0f)));
+        logic.issueCommand(new TestCommand.Halt(0, List.of(unit.getId())));
         logic.update();
-        // MoveTo then StopMoving: the later command wins, leaving the unit at origin.
+        // Move then Halt: the later command wins, leaving the unit at origin.
         assertEquals(Coord3D.ZERO, unit.getPosition());
     }
 }

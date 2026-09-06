@@ -5,6 +5,7 @@ import uz.duke.core.GameClient;
 import uz.duke.core.thing.KindOf;
 import uz.duke.game.view.UnitView;
 import uz.duke.game.view.WorldSnapshot;
+import uz.duke.rts.module.PowerGrid;
 
 /**
  * The presentation client behind {@link DukeGame}: once per client frame it
@@ -53,9 +54,9 @@ final class RtsClient extends GameClient {
             var template = object.getTemplate();
             var position = object.getPosition();
             var body = object.getBody();
-            var ai = object.findModule(uz.duke.core.module.AIUpdate.class);
-            var weapon = object.findModule(uz.duke.core.module.WeaponUpdate.class);
-            var production = object.findModule(uz.duke.core.module.ProductionUpdate.class);
+            var ai = object.findModule(uz.duke.core.module.MoveUpdate.class);
+            var weapon = object.findModule(uz.duke.rts.module.WeaponUpdate.class);
+            var production = object.findModule(uz.duke.rts.module.ProductionUpdate.class);
             units.add(new UnitView(
                     object.getId().value(),
                     template.getName(),
@@ -77,7 +78,7 @@ final class RtsClient extends GameClient {
                 logic.getGameTimeSeconds(),
                 logic.isGamePaused(),
                 player == null ? 0 : player.getMoney(),
-                logic.getPlayerPowerSurplus(viewerPlayer),
+                PowerGrid.surplus(logic, viewerPlayer),
                 units,
                 banner);
     }

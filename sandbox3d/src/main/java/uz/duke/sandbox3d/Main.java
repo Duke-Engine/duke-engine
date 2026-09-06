@@ -4,7 +4,7 @@ import java.awt.Color;
 import uz.duke.client3d.Duke3D;
 import uz.duke.client3d.Visuals;
 import uz.duke.core.math.Coord3D;
-import uz.duke.core.module.ProductionUpdate;
+import uz.duke.rts.module.ProductionUpdate;
 import uz.duke.game.DukeGame;
 
 /**

@@ -43,7 +43,7 @@ class ScriptModuleTest {
               Body = ActiveBody Tag
                 MaxHealth = 50
               End
-              Update = AIUpdate Tag
+              Update = MoveUpdate Tag
                 Speed = 30
               End
               Update = Script:Walker Tag

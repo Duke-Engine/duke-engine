@@ -20,7 +20,7 @@ class GameSnapshotTest {
               Body = ActiveBody Tag
                 MaxHealth = 100
               End
-              Update = AIUpdate Tag
+              Update = MoveUpdate Tag
                 Speed = 30
               End
             End

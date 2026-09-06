@@ -1,0 +1,48 @@
+package uz.duke.rts;
+
+import java.util.logging.Logger;
+import uz.duke.core.GameLogic;
+import uz.duke.core.message.Command;
+import uz.duke.core.thing.ThingFactory;
+import uz.duke.rts.message.GameMessage;
+import uz.duke.rts.module.RtsModules;
+
+/**
+ * A {@link GameLogic} that speaks the RTS command set — the base every RTS
+ * simulation extends.
+ *
+ * <p>The engine hands commands back as the genre-neutral {@link Command}; this
+ * narrows them to {@link GameMessage} once, here, so subclasses get an
+ * exhaustive {@code switch} over a sealed hierarchy instead of repeating the
+ * cast. A command that is not an RTS command is logged rather than dropped
+ * silently — it means something is feeding the wrong game's input into this
+ * simulation.
+ *
+ * <p>It also installs the RTS module set by default, so INI can reference
+ * {@code WeaponUpdate}, {@code ProductionUpdate} and friends without extra
+ * wiring.
+ */
+public abstract class RtsSimulation extends GameLogic {
+
+    private static final Logger LOG = Logger.getLogger(RtsSimulation.class.getName());
+
+    protected RtsSimulation() {
+        super(new ThingFactory(RtsModules.withDefaults()));
+    }
+
+    protected RtsSimulation(ThingFactory thingFactory) {
+        super(thingFactory);
+    }
+
+    @Override
+    protected final void onCommand(Command command) {
+        if (command instanceof GameMessage message) {
+            onRtsCommand(message);
+            return;
+        }
+        LOG.warning(() -> "ignoring non-RTS command: " + command.getClass().getName());
+    }
+
+    /** Apply one RTS command. Implementations switch over the sealed hierarchy. */
+    protected abstract void onRtsCommand(GameMessage command);
+}

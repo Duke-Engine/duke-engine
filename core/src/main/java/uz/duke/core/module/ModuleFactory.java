@@ -32,50 +32,21 @@ public final class ModuleFactory extends SubsystemInterface {
     private final Map<String, Builder> builders = new HashMap<>();
     private final Map<String, DataParser> dataParsers = new HashMap<>();
 
-    /** A factory pre-loaded with the engine's built-in module types. */
+    /**
+     * A factory pre-loaded with the engine's genre-neutral modules: a body that
+     * holds health and a locomotor that walks to a goal. Whatever a specific
+     * genre needs on top is registered by that genre's own module set — see
+     * {@code uz.duke.rts.module.RtsModules}.
+     */
     public static ModuleFactory withDefaults() {
         var factory = new ModuleFactory();
-        factory.registerDefaults();
-        return factory;
-    }
-
-    private void registerDefaults() {
-        register("ActiveBody",
+        factory.register("ActiveBody",
                 (owner, data) -> new ActiveBody(owner, (ActiveBody.Data) data),
                 ActiveBody::parseData);
-        register("AIUpdate",
-                (owner, data) -> new AIUpdate(owner, (AIUpdate.Data) data),
-                AIUpdate::parseData);
-        register("WeaponUpdate",
-                (owner, data) -> new WeaponUpdate(owner, (WeaponUpdate.Data) data),
-                WeaponUpdate::parseData);
-        register("ProductionUpdate",
-                (owner, data) -> new ProductionUpdate(owner, (ProductionUpdate.Data) data),
-                ProductionUpdate::parseData);
-        register("ExperienceModule",
-                (owner, data) -> new ExperienceModule(owner, (ExperienceModule.Data) data),
-                ExperienceModule::parseData);
-        register("AutoHealUpdate",
-                (owner, data) -> new AutoHealUpdate(owner, (AutoHealUpdate.Data) data),
-                AutoHealUpdate::parseData);
-        register("StatusUpdate",
-                (owner, data) -> new StatusUpdate(owner, (StatusUpdate.Data) data),
-                StatusUpdate::parseData);
-        register("PowerModule",
-                (owner, data) -> new PowerModule(owner, (PowerModule.Data) data),
-                PowerModule::parseData);
-        register("SpecialPowerModule",
-                (owner, data) -> new SpecialPowerModule(owner, (SpecialPowerModule.Data) data),
-                SpecialPowerModule::parseData);
-        register("ContainModule",
-                (owner, data) -> new ContainModule(owner, (ContainModule.Data) data),
-                ContainModule::parseData);
-        register("SupplyModule",
-                (owner, data) -> new SupplyModule(owner, (SupplyModule.Data) data),
-                SupplyModule::parseData);
-        register("HarvestUpdate",
-                (owner, data) -> new HarvestUpdate(owner, (HarvestUpdate.Data) data),
-                HarvestUpdate::parseData);
+        factory.register("MoveUpdate",
+                (owner, data) -> new MoveUpdate(owner, (MoveUpdate.Data) data),
+                MoveUpdate::parseData);
+        return factory;
     }
 
     /** Register a module that is only created in code (no INI sub-block). */

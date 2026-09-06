@@ -1,7 +1,7 @@
 package uz.duke.sandbox;
 
 import java.awt.Color;
-import uz.duke.core.module.ProductionUpdate;
+import uz.duke.rts.module.ProductionUpdate;
 import uz.duke.game.DukeGame;
 
 /**

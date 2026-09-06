@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import uz.duke.core.SubsystemInterface;
-import uz.duke.core.message.GameMessage;
+import uz.duke.core.message.Command;
 
 /**
  * The heart of SAGE's lock-step networking: a frame may only be simulated once
@@ -37,7 +37,7 @@ public final class LockstepScheduler extends SubsystemInterface {
     private final Set<Integer> players;
 
     /** frame number -> (player index -> that player's commands for the frame). */
-    private final Map<Integer, Map<Integer, List<GameMessage>>> byFrame = new HashMap<>();
+    private final Map<Integer, Map<Integer, List<Command>>> byFrame = new HashMap<>();
 
     public LockstepScheduler(Collection<Integer> playerIndices) {
         this.players = Set.copyOf(playerIndices);
@@ -61,7 +61,7 @@ public final class LockstepScheduler extends SubsystemInterface {
      * Record a player's commands for a future frame. An empty list is a valid,
      * meaningful submission ("I have no commands this frame").
      */
-    public void submit(int frame, int playerIndex, List<GameMessage> commands) {
+    public void submit(int frame, int playerIndex, List<Command> commands) {
         if (!players.contains(playerIndex)) {
             throw new IllegalArgumentException("player " + playerIndex + " is not in this game");
         }
@@ -79,12 +79,12 @@ public final class LockstepScheduler extends SubsystemInterface {
      * Remove and return all commands for {@code frame}, ordered by player index
      * then submission order. Call only when {@link #isFrameReady} is true.
      */
-    public List<GameMessage> takeCommands(int frame) {
+    public List<Command> takeCommands(int frame) {
         var submissions = byFrame.remove(frame);
         if (submissions == null) {
             return List.of();
         }
-        var ordered = new ArrayList<GameMessage>();
+        var ordered = new ArrayList<Command>();
         // TreeMap → ascending player index, the deterministic drain order.
         for (var commands : new TreeMap<>(submissions).values()) {
             ordered.addAll(commands);

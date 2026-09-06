@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import uz.duke.core.GameLogic;
-import uz.duke.core.message.GameMessage;
+import uz.duke.core.message.Command;
 
 /**
  * Drives one peer's {@link GameLogic} in lock-step, connecting local input, the
@@ -29,7 +29,7 @@ public final class LockstepDriver {
     private final int frameDelay;
     private final Consumer<CommandPacket> broadcast;
 
-    private final List<GameMessage> pending = new ArrayList<>();
+    private final List<Command> pending = new ArrayList<>();
     private int nextSubmitFrame;
 
     public LockstepDriver(GameLogic logic, LockstepScheduler scheduler,
@@ -57,7 +57,7 @@ public final class LockstepDriver {
     }
 
     /** Queue a command from local input; it ships on the next {@link #tick}. */
-    public void issueLocal(GameMessage command) {
+    public void issueLocal(Command command) {
         pending.add(command);
     }
 

@@ -9,7 +9,7 @@ import uz.duke.core.SubsystemInterface;
  *
  * <p>Commands are appended as they are issued (by input handling, the AI, or the
  * network) and drained once per frame, in arrival order, to a
- * {@link GameMessageHandler}. The strict FIFO order is what keeps command
+ * {@link CommandHandler}. The strict FIFO order is what keeps command
  * application deterministic across peers — a hard requirement for lock-step.
  *
  * <p>SAGE's stream also runs an ordered chain of input translators; that
@@ -18,7 +18,7 @@ import uz.duke.core.SubsystemInterface;
  */
 public final class MessageStream extends SubsystemInterface {
 
-    private final Deque<GameMessage> queue = new ArrayDeque<>();
+    private final Deque<Command> queue = new ArrayDeque<>();
 
     @Override
     public void init() {
@@ -37,8 +37,8 @@ public final class MessageStream extends SubsystemInterface {
     }
 
     /** Add a command to the end of the stream. */
-    public void appendMessage(GameMessage message) {
-        queue.addLast(message);
+    public void appendMessage(Command command) {
+        queue.addLast(command);
     }
 
     public int size() {
@@ -51,10 +51,10 @@ public final class MessageStream extends SubsystemInterface {
 
     /**
      * Drain every queued command to {@code handler} in arrival order, leaving
-     * the stream empty. Messages appended <em>by</em> the handler are not drained
+     * the stream empty. Commands appended <em>by</em> the handler are not drained
      * in this pass; they wait for the next one.
      */
-    public void propagate(GameMessageHandler handler) {
+    public void propagate(CommandHandler handler) {
         int count = queue.size();
         for (int i = 0; i < count; i++) {
             handler.handle(queue.removeFirst());

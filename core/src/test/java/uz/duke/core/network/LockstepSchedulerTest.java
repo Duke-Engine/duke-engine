@@ -8,8 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import uz.duke.core.TestCommand;
 import uz.duke.core.math.Coord3D;
-import uz.duke.core.message.GameMessage;
+import uz.duke.core.message.Command;
 import uz.duke.core.thing.ObjectId;
 
 class LockstepSchedulerTest {
@@ -22,8 +23,8 @@ class LockstepSchedulerTest {
         scheduler.init();
     }
 
-    private static GameMessage move(int player, int unit) {
-        return new GameMessage.MoveTo(player, List.of(new ObjectId(unit)), new Coord3D(0, 0, 0));
+    private static Command move(int player, int unit) {
+        return new TestCommand.Move(player, List.of(new ObjectId(unit)), new Coord3D(0, 0, 0));
     }
 
     @Test

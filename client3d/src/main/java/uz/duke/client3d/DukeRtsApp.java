@@ -40,7 +40,7 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Logger;
 import uz.duke.core.math.Coord3D;
-import uz.duke.core.message.GameMessage;
+import uz.duke.rts.message.GameMessage;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.game.DukeGame;
 import uz.duke.game.view.UnitView;

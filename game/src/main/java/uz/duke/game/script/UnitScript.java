@@ -1,8 +1,8 @@
 package uz.duke.game.script;
 
 import uz.duke.core.math.Coord3D;
-import uz.duke.core.module.AIUpdate;
-import uz.duke.core.module.WeaponUpdate;
+import uz.duke.core.module.MoveUpdate;
+import uz.duke.rts.module.WeaponUpdate;
 import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.World;
@@ -70,7 +70,7 @@ public abstract class UnitScript {
     }
 
     protected final boolean isMoving() {
-        var ai = unit.findModule(AIUpdate.class);
+        var ai = unit.findModule(MoveUpdate.class);
         return ai != null && ai.isMoving();
     }
 
@@ -97,7 +97,7 @@ public abstract class UnitScript {
 
     /** Walk toward a point (pathfinds around obstacles if the unit can move). */
     protected final void moveTo(float x, float y) {
-        var ai = unit.findModule(AIUpdate.class);
+        var ai = unit.findModule(MoveUpdate.class);
         if (ai != null) {
             ai.moveTo(new Coord3D(x, y, 0f));
         }
@@ -113,7 +113,7 @@ public abstract class UnitScript {
 
     /** Stop moving and hold fire. */
     protected final void stop() {
-        var ai = unit.findModule(AIUpdate.class);
+        var ai = unit.findModule(MoveUpdate.class);
         if (ai != null) {
             ai.stop();
         }
@@ -133,7 +133,7 @@ public abstract class UnitScript {
 
     /** How many units this structure has queued (0 if it can't produce). */
     protected final int productionQueue() {
-        var production = unit.findModule(uz.duke.core.module.ProductionUpdate.class);
+        var production = unit.findModule(uz.duke.rts.module.ProductionUpdate.class);
         return production == null ? 0 : production.getQueueSize();
     }
 
@@ -143,7 +143,7 @@ public abstract class UnitScript {
      * the unit is off-menu, or the owner cannot afford it.
      */
     protected final boolean trainUnit(String templateName) {
-        var production = unit.findModule(uz.duke.core.module.ProductionUpdate.class);
+        var production = unit.findModule(uz.duke.rts.module.ProductionUpdate.class);
         var template = world.findTemplate(templateName);
         if (production == null || template == null || !production.canBuild(templateName)) {
             return false;
@@ -153,7 +153,7 @@ public abstract class UnitScript {
 
     /** Send this structure's finished units to a rally position. */
     protected final void setRallyPoint(float x, float y) {
-        var production = unit.findModule(uz.duke.core.module.ProductionUpdate.class);
+        var production = unit.findModule(uz.duke.rts.module.ProductionUpdate.class);
         if (production != null) {
             production.setRallyPoint(new Coord3D(x, y, 0f));
         }

@@ -43,7 +43,7 @@ public final class GameFactory {
         ini.append("    MaxHealth = ").append(unit.maxHealth).append('\n');
         ini.append("  End\n");
 
-        appendCapability(ini, unit, CapabilityType.MOVE, "Update = AIUpdate");
+        appendCapability(ini, unit, CapabilityType.MOVE, "Update = MoveUpdate");
         appendCapability(ini, unit, CapabilityType.ATTACK, "Update = WeaponUpdate");
         appendCapability(ini, unit, CapabilityType.PRODUCE, "Update = ProductionUpdate");
         appendCapability(ini, unit, CapabilityType.POWER, "Update = PowerModule");

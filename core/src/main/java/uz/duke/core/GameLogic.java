@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 import uz.duke.core.math.Coord3D;
-import uz.duke.core.message.GameMessage;
+import uz.duke.core.message.Command;
 import uz.duke.core.message.MessageStream;
 import uz.duke.core.module.ModuleFactory;
 import uz.duke.core.partition.PartitionManager;
@@ -123,11 +123,6 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return object;
     }
 
-    @Override
-    public boolean isPlayerPowered(int playerIndex) {
-        return getPlayerPowerSurplus(playerIndex) >= 0;
-    }
-
     /**
      * Whether {@code viewerPlayer} can see {@code target} — fog of war. A player
      * always sees its own units; otherwise the target must lie within the vision
@@ -160,21 +155,6 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             }
         }
         return visible;
-    }
-
-    /** A player's net power: production minus consumption across owned objects. */
-    public final int getPlayerPowerSurplus(int playerIndex) {
-        int surplus = 0;
-        for (var object : objects) {
-            if (object.getPlayerIndex() != playerIndex) {
-                continue;
-            }
-            var power = object.findModule(uz.duke.core.module.PowerModule.class);
-            if (power != null) {
-                surplus += power.getProduced() - power.getConsumed();
-            }
-        }
-        return surplus;
     }
 
     public final PartitionManager getPartition() {
@@ -232,16 +212,16 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     /** Queue a command for deterministic processing at the start of next frame. */
-    public final void issueCommand(GameMessage command) {
+    public final void issueCommand(Command command) {
         messageStream.appendMessage(command);
     }
 
     /**
      * Handle one command drained from the stream. Default does nothing; concrete
-     * simulations override it (typically a pattern-matching switch over the
-     * sealed {@link GameMessage} hierarchy) to apply the command to objects.
+     * simulations override it, narrowing {@link Command} to their own game's
+     * sealed command hierarchy and pattern-matching over it exhaustively.
      */
-    protected void onCommand(GameMessage command) {
+    protected void onCommand(Command command) {
     }
 
     /**
@@ -316,6 +296,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     /** Live objects, in creation order. Unmodifiable snapshot. */
+    @Override
     public final List<GameObject> getObjects() {
         return List.copyOf(objects);
     }

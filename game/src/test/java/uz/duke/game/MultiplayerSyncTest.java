@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import uz.duke.core.math.Coord3D;
-import uz.duke.core.message.GameMessage;
+import uz.duke.rts.message.GameMessage;
 import uz.duke.core.thing.ObjectId;
 
 /**

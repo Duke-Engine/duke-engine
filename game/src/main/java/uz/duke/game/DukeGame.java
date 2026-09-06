@@ -13,7 +13,7 @@ import javax.swing.SwingUtilities;
 import uz.duke.core.GameConstants;
 import uz.duke.core.GameLogic;
 import uz.duke.core.math.Coord3D;
-import uz.duke.core.message.GameMessage;
+import uz.duke.rts.message.GameMessage;
 import uz.duke.core.pathfind.MapLoader;
 import uz.duke.core.pathfind.PathGrid;
 import uz.duke.core.player.Relationship;
@@ -633,7 +633,7 @@ public final class DukeGame {
             return List.of();
         }
         for (var entry : factoryTemplate.getModules()) {
-            if (entry.data() instanceof uz.duke.core.module.ProductionUpdate.Data data) {
+            if (entry.data() instanceof uz.duke.rts.module.ProductionUpdate.Data data) {
                 var options = new ArrayList<BuildOption>();
                 for (var name : data.builds()) {
                     var unit = logic.getThingFactory().findTemplate(name);
@@ -720,7 +720,7 @@ public final class DukeGame {
               Body = ActiveBody Tag
                 MaxHealth = 80
               End
-              Update = AIUpdate Tag
+              Update = MoveUpdate Tag
                 Speed = 14
               End
               Update = WeaponUpdate Tag
@@ -742,7 +742,7 @@ public final class DukeGame {
               Body = ActiveBody Tag
                 MaxHealth = 300
               End
-              Update = AIUpdate Tag
+              Update = MoveUpdate Tag
                 Speed = 20
                 TurnRate = 120
               End

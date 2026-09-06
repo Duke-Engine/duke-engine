@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.duke.core.math.Coord3D;
-import uz.duke.core.message.GameMessage;
-import uz.duke.core.module.AIUpdate;
+import uz.duke.rts.message.GameMessage;
+import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.thing.ObjectId;
 
 /** The in-game production flow, command-driven — what the build menu does. */
@@ -36,7 +36,7 @@ class ProductionCommandTest {
         var produced = game.getLogic().getObjects().stream()
                 .filter(o -> o.getTemplate().getName().equals("Rifleman"))
                 .findFirst().orElseThrow();
-        boolean movingToRally = produced.findModule(AIUpdate.class).isMoving()
+        boolean movingToRally = produced.findModule(MoveUpdate.class).isMoving()
                 || produced.getPosition().distance(new Coord3D(200f, 100f, 0f)) < 15f;
         assertTrue(movingToRally, "the produced unit heads to the rally point");
     }

@@ -36,8 +36,12 @@ public interface World {
     /** Create a new object from a template at a position, owned by a player. */
     GameObject spawn(ThingTemplate template, Coord3D position, int playerIndex);
 
-    /** Whether the player's power production meets its consumption. */
-    boolean isPlayerPowered(int playerIndex);
+    /**
+     * Every live object, in creation order — the whole-world scan a module needs
+     * when a range query will not do (tallying a player's assets, say). Prefer
+     * {@link #findClosest} or {@link #objectsInRange} when they fit.
+     */
+    java.util.List<GameObject> getObjects();
 
     /**
      * The nearest object to {@code center} within {@code range} that satisfies

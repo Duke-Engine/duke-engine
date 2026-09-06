@@ -28,7 +28,7 @@ class PathFollowingTest {
         var thingFactory = new ThingFactory(ModuleFactory.withDefaults());
         var template = ThingTemplate.named("Runner")
                 .module("ActiveBody", new ActiveBody.Data(100f))
-                .module("AIUpdate", new AIUpdate.Data(100f)) // fast, so it finishes in-test
+                .module("MoveUpdate", new MoveUpdate.Data(100f)) // fast, so it finishes in-test
                 .build();
         thingFactory.addTemplate(template);
 
@@ -44,11 +44,11 @@ class PathFollowingTest {
 
         GameObject runner = logic.createObject(template);
         runner.setPosition(new Coord3D(15f, 15f, 0f)); // cell (1,1)
-        runner.findModule(AIUpdate.class).moveTo(new Coord3D(85f, 15f, 0f)); // cell (8,1)
+        runner.findModule(MoveUpdate.class).moveTo(new Coord3D(85f, 15f, 0f)); // cell (8,1)
 
         float maxY = runner.getPosition().y();
         boolean enteredBlocked = false;
-        for (int i = 0; i < 400 && runner.findModule(AIUpdate.class).isMoving(); i++) {
+        for (int i = 0; i < 400 && runner.findModule(MoveUpdate.class).isMoving(); i++) {
             logic.update();
             var p = runner.getPosition();
             maxY = Math.max(maxY, p.y());
@@ -57,7 +57,7 @@ class PathFollowingTest {
             }
         }
 
-        assertFalse(runner.findModule(AIUpdate.class).isMoving(), "runner should reach its goal");
+        assertFalse(runner.findModule(MoveUpdate.class).isMoving(), "runner should reach its goal");
         assertTrue(runner.getPosition().distance(new Coord3D(85f, 15f, 0f)) < 1f, "arrived at destination");
         assertTrue(maxY > 50f, "runner must detour up toward the gap, not phase through the wall");
         assertFalse(enteredBlocked, "runner must never stand in a blocked cell");
