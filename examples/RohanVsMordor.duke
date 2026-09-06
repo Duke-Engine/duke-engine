@@ -1,0 +1,710 @@
+{
+  "title": "Rohan vs Mordor",
+  "menuSubtitle": "Hold the passes of the White Mountains",
+  "maps": [],
+  "factions": [
+    {
+      "name": "Rohan",
+      "displayName": "Kingdom of Rohan",
+      "description": "",
+      "colorHex": "#5AAAFF",
+      "startingUnits": []
+    },
+    {
+      "name": "Mordor",
+      "displayName": "Hosts of Mordor",
+      "description": "",
+      "colorHex": "#C03A2B",
+      "startingUnits": []
+    }
+  ],
+  "units": [
+    {
+      "name": "ElfArcher",
+      "displayName": "Elf Archer",
+      "faction": "Rohan",
+      "scripts": [],
+      "structure": false,
+      "maxHealth": 70.0,
+      "buildCost": 120,
+      "buildTimeSeconds": 1.5,
+      "visionRange": 45.0,
+      "capabilities": {
+        "ATTACK": {
+          "Damage": "9.0",
+          "AttackRange": "38.0",
+          "ReloadFrames": "12",
+          "SplashRadius": "0.0",
+          "DamageType": "NORMAL"
+        },
+        "MOVE": {
+          "Speed": "13.0",
+          "TurnRate": "0.0"
+        },
+        "EXPERIENCE": {
+          "ExperienceValue": "30",
+          "ExperienceRequired": "60 180 360"
+        }
+      },
+      "modelPath": "",
+      "modelScale": 1.0,
+      "modelYOffset": 0.0,
+      "modelFacing": 0.0,
+      "idleAnim": "",
+      "walkAnim": "",
+      "attackAnim": "",
+      "fireSound": "",
+      "dieSound": ""
+    },
+    {
+      "name": "Rider",
+      "displayName": "Rider of Rohan",
+      "faction": "Rohan",
+      "scripts": [],
+      "structure": false,
+      "maxHealth": 150.0,
+      "buildCost": 250,
+      "buildTimeSeconds": 3.0,
+      "visionRange": 45.0,
+      "capabilities": {
+        "ATTACK": {
+          "Damage": "20.0",
+          "AttackRange": "8.0",
+          "ReloadFrames": "20",
+          "SplashRadius": "0.0",
+          "DamageType": "NORMAL"
+        },
+        "MOVE": {
+          "Speed": "26.0",
+          "TurnRate": "160.0"
+        },
+        "EXPERIENCE": {
+          "ExperienceValue": "60",
+          "ExperienceRequired": "120 300 600"
+        }
+      },
+      "modelPath": "",
+      "modelScale": 1.0,
+      "modelYOffset": 0.0,
+      "modelFacing": 0.0,
+      "idleAnim": "",
+      "walkAnim": "",
+      "attackAnim": "",
+      "fireSound": "",
+      "dieSound": ""
+    },
+    {
+      "name": "Legolas",
+      "displayName": "Legolas",
+      "faction": "Rohan",
+      "scripts": [],
+      "structure": false,
+      "maxHealth": 220.0,
+      "buildCost": 800,
+      "buildTimeSeconds": 8.0,
+      "visionRange": 45.0,
+      "capabilities": {
+        "ATTACK": {
+          "Damage": "26.0",
+          "AttackRange": "46.0",
+          "ReloadFrames": "8",
+          "SplashRadius": "0.0",
+          "DamageType": "NORMAL"
+        },
+        "MOVE": {
+          "Speed": "16.0",
+          "TurnRate": "0.0"
+        },
+        "EXPERIENCE": {
+          "ExperienceValue": "200",
+          "ExperienceRequired": "150 400 800"
+        },
+        "AUTO_HEAL": {
+          "HealPerSecond": "3"
+        }
+      },
+      "modelPath": "",
+      "modelScale": 1.0,
+      "modelYOffset": 0.0,
+      "modelFacing": 0.0,
+      "idleAnim": "",
+      "walkAnim": "",
+      "attackAnim": "",
+      "fireSound": "",
+      "dieSound": ""
+    },
+    {
+      "name": "RohanBarracks",
+      "displayName": "Golden Hall Barracks",
+      "faction": "Rohan",
+      "scripts": [],
+      "structure": true,
+      "maxHealth": 900.0,
+      "buildCost": 0,
+      "buildTimeSeconds": 1.0,
+      "visionRange": 50.0,
+      "capabilities": {
+        "PRODUCE": {
+          "Builds": "ElfArcher Rider Legolas"
+        }
+      },
+      "modelPath": "",
+      "modelScale": 1.0,
+      "modelYOffset": 0.0,
+      "modelFacing": 0.0,
+      "idleAnim": "",
+      "walkAnim": "",
+      "attackAnim": "",
+      "fireSound": "",
+      "dieSound": ""
+    },
+    {
+      "name": "GuardTower",
+      "displayName": "Guard Tower",
+      "faction": "Rohan",
+      "scripts": [],
+      "structure": true,
+      "maxHealth": 500.0,
+      "buildCost": 0,
+      "buildTimeSeconds": 1.0,
+      "visionRange": 50.0,
+      "capabilities": {
+        "ATTACK": {
+          "Damage": "14.0",
+          "AttackRange": "48.0",
+          "ReloadFrames": "10",
+          "SplashRadius": "0.0",
+          "DamageType": "NORMAL"
+        }
+      },
+      "modelPath": "",
+      "modelScale": 1.0,
+      "modelYOffset": 0.0,
+      "modelFacing": 0.0,
+      "idleAnim": "",
+      "walkAnim": "",
+      "attackAnim": "",
+      "fireSound": "",
+      "dieSound": ""
+    },
+    {
+      "name": "Orc",
+      "displayName": "Orc Warrior",
+      "faction": "Mordor",
+      "scripts": [
+        "Berserker"
+      ],
+      "structure": false,
+      "maxHealth": 130.0,
+      "buildCost": 90,
+      "buildTimeSeconds": 1.2,
+      "visionRange": 45.0,
+      "capabilities": {
+        "ATTACK": {
+          "Damage": "13.0",
+          "AttackRange": "6.0",
+          "ReloadFrames": "15",
+          "SplashRadius": "0.0",
+          "DamageType": "NORMAL"
+        },
+        "MOVE": {
+          "Speed": "12.0",
+          "TurnRate": "0.0"
+        },
+        "EXPERIENCE": {
+          "ExperienceValue": "25",
+          "ExperienceRequired": "75 200 400"
+        }
+      },
+      "modelPath": "",
+      "modelScale": 1.0,
+      "modelYOffset": 0.0,
+      "modelFacing": 0.0,
+      "idleAnim": "",
+      "walkAnim": "",
+      "attackAnim": "",
+      "fireSound": "",
+      "dieSound": ""
+    },
+    {
+      "name": "MordorArcher",
+      "displayName": "Orc Archer",
+      "faction": "Mordor",
+      "scripts": [
+        "Berserker"
+      ],
+      "structure": false,
+      "maxHealth": 60.0,
+      "buildCost": 110,
+      "buildTimeSeconds": 1.5,
+      "visionRange": 45.0,
+      "capabilities": {
+        "ATTACK": {
+          "Damage": "8.0",
+          "AttackRange": "32.0",
+          "ReloadFrames": "12",
+          "SplashRadius": "0.0",
+          "DamageType": "NORMAL"
+        },
+        "MOVE": {
+          "Speed": "12.0",
+          "TurnRate": "0.0"
+        },
+        "EXPERIENCE": {
+          "ExperienceValue": "25",
+          "ExperienceRequired": "75 200 400"
+        }
+      },
+      "modelPath": "",
+      "modelScale": 1.0,
+      "modelYOffset": 0.0,
+      "modelFacing": 0.0,
+      "idleAnim": "",
+      "walkAnim": "",
+      "attackAnim": "",
+      "fireSound": "",
+      "dieSound": ""
+    },
+    {
+      "name": "Troll",
+      "displayName": "Cave Troll",
+      "faction": "Mordor",
+      "scripts": [
+        "Berserker"
+      ],
+      "structure": false,
+      "maxHealth": 450.0,
+      "buildCost": 500,
+      "buildTimeSeconds": 6.0,
+      "visionRange": 45.0,
+      "capabilities": {
+        "ATTACK": {
+          "Damage": "45.0",
+          "AttackRange": "8.0",
+          "ReloadFrames": "45",
+          "SplashRadius": "7.0",
+          "DamageType": "NORMAL"
+        },
+        "MOVE": {
+          "Speed": "9.0",
+          "TurnRate": "90.0"
+        },
+        "EXPERIENCE": {
+          "ExperienceValue": "150",
+          "ExperienceRequired": "200 500 1000"
+        }
+      },
+      "modelPath": "",
+      "modelScale": 1.0,
+      "modelYOffset": 0.0,
+      "modelFacing": 0.0,
+      "idleAnim": "",
+      "walkAnim": "",
+      "attackAnim": "",
+      "fireSound": "",
+      "dieSound": ""
+    },
+    {
+      "name": "OrcPit",
+      "displayName": "Orc Pit",
+      "faction": "Mordor",
+      "scripts": [
+        "WarlordAI"
+      ],
+      "structure": true,
+      "maxHealth": 900.0,
+      "buildCost": 0,
+      "buildTimeSeconds": 1.0,
+      "visionRange": 50.0,
+      "capabilities": {
+        "PRODUCE": {
+          "Builds": "Orc MordorArcher Troll"
+        }
+      },
+      "modelPath": "",
+      "modelScale": 1.0,
+      "modelYOffset": 0.0,
+      "modelFacing": 0.0,
+      "idleAnim": "",
+      "walkAnim": "",
+      "attackAnim": "",
+      "fireSound": "",
+      "dieSound": ""
+    }
+  ],
+  "players": [
+    {
+      "name": "Theoden",
+      "colorHex": "#5AAAFF",
+      "money": 1400,
+      "team": 1,
+      "faction": "Rohan"
+    },
+    {
+      "name": "Sauron",
+      "colorHex": "#C03A2B",
+      "money": 3500,
+      "team": 2,
+      "faction": "Mordor"
+    }
+  ],
+  "scripts": [
+    {
+      "name": "Berserker",
+      "source": "package game.scripts;\n\nimport uz.duke.game.script.UnitScript;\n\n/** Hunts the nearest enemy anywhere on the map, relentlessly. */\npublic class Berserker extends UnitScript {\n\n    @Override\n    public void onUpdate() {\n        var enemy \u003d findNearestEnemy(100000);\n        if (enemy \u003d\u003d null) {\n            return;\n        }\n        if (distanceTo(enemy) \u003e 10 \u0026\u0026 !isMoving()) {\n            moveTo(enemy.getPosition().x(), enemy.getPosition().y());\n        }\n        if (!isAttacking()) {\n            attack(enemy);\n        }\n    }\n}\n"
+    },
+    {
+      "name": "WarlordAI",
+      "source": "package game.scripts;\n\nimport uz.duke.game.script.UnitScript;\n\n/** Mordor\u0027s war machine: trains waves and hurls them at Rohan. */\npublic class WarlordAI extends UnitScript {\n\n    private static final String[] WAVE \u003d {\"Orc\", \"Orc\", \"MordorArcher\", \"Orc\", \"Troll\"};\n    private int next;\n\n    @Override\n    public void onStart() {\n        setRallyPoint(170, 460); // the heart of Rohan\u0027s base\n    }\n\n    @Override\n    public void onUpdate() {\n        if (frame() % 30 !\u003d 0) {\n            return; // think once per game second\n        }\n        if (productionQueue() \u003e\u003d 2) {\n            return; // keep the forges busy but the queue short\n        }\n        if (trainUnit(WAVE[next % WAVE.length])) {\n            next++;\n        }\n    }\n}\n"
+    }
+  ],
+  "localPlayer": 0,
+  "mapCellsWide": 90,
+  "mapCellsHigh": 60,
+  "blockedCells": [
+    "42,0",
+    "42,1",
+    "42,2",
+    "42,3",
+    "42,4",
+    "42,5",
+    "42,6",
+    "42,7",
+    "42,8",
+    "42,9",
+    "42,10",
+    "42,11",
+    "42,18",
+    "42,19",
+    "42,20",
+    "42,21",
+    "42,22",
+    "42,23",
+    "42,24",
+    "42,25",
+    "42,26",
+    "42,27",
+    "42,28",
+    "42,29",
+    "42,30",
+    "42,31",
+    "42,32",
+    "42,33",
+    "42,34",
+    "42,35",
+    "42,36",
+    "42,37",
+    "42,38",
+    "42,39",
+    "42,40",
+    "42,41",
+    "42,48",
+    "42,49",
+    "42,50",
+    "42,51",
+    "42,52",
+    "42,53",
+    "42,54",
+    "42,55",
+    "42,56",
+    "42,57",
+    "42,58",
+    "42,59",
+    "43,0",
+    "43,1",
+    "43,2",
+    "43,3",
+    "43,4",
+    "43,5",
+    "43,6",
+    "43,7",
+    "43,8",
+    "43,9",
+    "43,10",
+    "43,11",
+    "43,18",
+    "43,19",
+    "43,20",
+    "43,21",
+    "43,22",
+    "43,23",
+    "43,24",
+    "43,25",
+    "43,26",
+    "43,27",
+    "43,28",
+    "43,29",
+    "43,30",
+    "43,31",
+    "43,32",
+    "43,33",
+    "43,34",
+    "43,35",
+    "43,36",
+    "43,37",
+    "43,38",
+    "43,39",
+    "43,40",
+    "43,41",
+    "43,48",
+    "43,49",
+    "43,50",
+    "43,51",
+    "43,52",
+    "43,53",
+    "43,54",
+    "43,55",
+    "43,56",
+    "43,57",
+    "43,58",
+    "43,59",
+    "44,0",
+    "44,1",
+    "44,2",
+    "44,3",
+    "44,4",
+    "44,5",
+    "44,6",
+    "44,7",
+    "44,8",
+    "44,9",
+    "44,10",
+    "44,11",
+    "44,18",
+    "44,19",
+    "44,20",
+    "44,21",
+    "44,22",
+    "44,23",
+    "44,24",
+    "44,25",
+    "44,26",
+    "44,27",
+    "44,28",
+    "44,29",
+    "44,30",
+    "44,31",
+    "44,32",
+    "44,33",
+    "44,34",
+    "44,35",
+    "44,36",
+    "44,37",
+    "44,38",
+    "44,39",
+    "44,40",
+    "44,41",
+    "44,48",
+    "44,49",
+    "44,50",
+    "44,51",
+    "44,52",
+    "44,53",
+    "44,54",
+    "44,55",
+    "44,56",
+    "44,57",
+    "44,58",
+    "44,59",
+    "45,0",
+    "45,1",
+    "45,2",
+    "45,3",
+    "45,4",
+    "45,5",
+    "45,6",
+    "45,7",
+    "45,8",
+    "45,9",
+    "45,10",
+    "45,11",
+    "45,18",
+    "45,19",
+    "45,20",
+    "45,21",
+    "45,22",
+    "45,23",
+    "45,24",
+    "45,25",
+    "45,26",
+    "45,27",
+    "45,28",
+    "45,29",
+    "45,30",
+    "45,31",
+    "45,32",
+    "45,33",
+    "45,34",
+    "45,35",
+    "45,36",
+    "45,37",
+    "45,38",
+    "45,39",
+    "45,40",
+    "45,41",
+    "45,48",
+    "45,49",
+    "45,50",
+    "45,51",
+    "45,52",
+    "45,53",
+    "45,54",
+    "45,55",
+    "45,56",
+    "45,57",
+    "45,58",
+    "45,59",
+    "46,0",
+    "46,1",
+    "46,2",
+    "46,3",
+    "46,4",
+    "46,5",
+    "46,6",
+    "46,7",
+    "46,8",
+    "46,9",
+    "46,10",
+    "46,11",
+    "46,18",
+    "46,19",
+    "46,20",
+    "46,21",
+    "46,22",
+    "46,23",
+    "46,24",
+    "46,25",
+    "46,26",
+    "46,27",
+    "46,28",
+    "46,29",
+    "46,30",
+    "46,31",
+    "46,32",
+    "46,33",
+    "46,34",
+    "46,35",
+    "46,36",
+    "46,37",
+    "46,38",
+    "46,39",
+    "46,40",
+    "46,41",
+    "46,48",
+    "46,49",
+    "46,50",
+    "46,51",
+    "46,52",
+    "46,53",
+    "46,54",
+    "46,55",
+    "46,56",
+    "46,57",
+    "46,58",
+    "46,59"
+  ],
+  "placements": [
+    {
+      "unitName": "RohanBarracks",
+      "player": 0,
+      "x": 140.0,
+      "y": 470.0
+    },
+    {
+      "unitName": "GuardTower",
+      "player": 0,
+      "x": 300.0,
+      "y": 430.0
+    },
+    {
+      "unitName": "GuardTower",
+      "player": 0,
+      "x": 300.0,
+      "y": 500.0
+    },
+    {
+      "unitName": "Legolas",
+      "player": 0,
+      "x": 250.0,
+      "y": 460.0
+    },
+    {
+      "unitName": "ElfArcher",
+      "player": 0,
+      "x": 230.0,
+      "y": 430.0
+    },
+    {
+      "unitName": "ElfArcher",
+      "player": 0,
+      "x": 230.0,
+      "y": 450.0
+    },
+    {
+      "unitName": "ElfArcher",
+      "player": 0,
+      "x": 230.0,
+      "y": 480.0
+    },
+    {
+      "unitName": "ElfArcher",
+      "player": 0,
+      "x": 230.0,
+      "y": 500.0
+    },
+    {
+      "unitName": "Rider",
+      "player": 0,
+      "x": 200.0,
+      "y": 440.0
+    },
+    {
+      "unitName": "Rider",
+      "player": 0,
+      "x": 200.0,
+      "y": 490.0
+    },
+    {
+      "unitName": "OrcPit",
+      "player": 1,
+      "x": 760.0,
+      "y": 110.0
+    },
+    {
+      "unitName": "Troll",
+      "player": 1,
+      "x": 700.0,
+      "y": 140.0
+    },
+    {
+      "unitName": "Orc",
+      "player": 1,
+      "x": 720.0,
+      "y": 90.0
+    },
+    {
+      "unitName": "Orc",
+      "player": 1,
+      "x": 730.0,
+      "y": 120.0
+    },
+    {
+      "unitName": "Orc",
+      "player": 1,
+      "x": 740.0,
+      "y": 150.0
+    },
+    {
+      "unitName": "MordorArcher",
+      "player": 1,
+      "x": 750.0,
+      "y": 80.0
+    },
+    {
+      "unitName": "MordorArcher",
+      "player": 1,
+      "x": 760.0,
+      "y": 170.0
+    }
+  ]
+}

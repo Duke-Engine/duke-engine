@@ -1,0 +1,587 @@
+# Duke Engine — hozirgi holat va ishlash tamoyili
+
+**Holat sanasi:** 2026-09-06 · **Kodga oxirgi o'zgartirish:** 2026-07-04 · **Testlar:** 158 ta, hammasi yashil (2026-09-06 da qayta yugurtirilgan, 0 failure / 0 error)
+
+Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
+Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
+
+---
+
+## 1. Bir qarashda
+
+duke-engine — C&C Generals Zero Hour ostidagi **SAGE engine**ining zamonaviy Java'dagi qayta
+implementatsiyasi, ustiga **Duke Studio** — RTS yasash uchun IDE qo'shilgan. Maqsad: istalgan
+odam Studio'ni ochib, o'z RTS o'yinini boshidan oxirigacha yasay olsin va uni .exe qilib tarqata olsin.
+
+**Toolchain:** Java 25 (Gradle toolchain), Gradle 9.3.1, `group = uz.duke`, `version = 0.1.0-SNAPSHOT`.
+Hamma modulda `-Xlint:all`, testlar JUnit 5.11.3.
+
+| Modul | Bog'liqligi | Nima |
+|---|---|---|
+| `core` | — (sof Java, tashqi kutubxonasiz) | SAGE engine yadrosi: deterministik simulyatsiya, INI, pathfinding, lock-step, save |
+| `game` | `api core` | Unity-uslub `DukeGame` fasadi, tayyor RTS mantiqi, 2D Swing klient, multiplayer sessiyasi |
+| `client3d` | `api game` + jMonkeyEngine 3.7.0-stable | To'liq 3D klient: model/animatsiya/ovoz, menyular, minimap, HUD |
+| `studio` | `client3d` + Gson 2.11.0 | Duke Studio — Swing IDE (`uz.duke.studio.StudioMain`) |
+| `sandbox` | `game` | 2D skirmish demo (~70 qator) |
+| `sandbox3d` | `client3d` + jme3-testdata | 3D skirmish demo (~74 qator) |
+
+Ishga tushirish:
+
+```
+./gradlew build                  # kompilyatsiya + testlar
+./gradlew :studio:run            # Duke Studio IDE
+./gradlew :studio:run --args="../examples/RohanVsMordor.duke"
+./gradlew :sandbox:run           # 2D demo
+./gradlew :sandbox3d:run         # 3D demo
+./gradlew :studio:writeExamples  # examples/RohanVsMordor.duke ni qayta yozadi
+./gradlew :studio:exportExample  # dist/RohanVsMordor/ mustaqil loyihasini chiqaradi
+```
+
+---
+
+## 2. Qatlamlar
+
+```
++------------------------------------------------------------+
+| studio — Duke Studio IDE (Swing + Gson)                    |
+|   .duke loyihasi = yagona haqiqat manbai                   |
+|        | Play                          | Export            |
++--------|------------------------------ |-------------------+
+         v                               v
+   +----------------------+     mustaqil Gradle loyihasi
+   | client3d — jME 3D    |     (generatsiya qilingan Main.java
+   | (yoki game'ning 2D   |      + libs/ dagi engine jar'lari)
+   |  Swing oynasi)       |
+   +----------+-----------+
+              v
+   +----------------------------------------------+
+   | game — DukeGame fasadi, RtsLogic, RtsClient  |
+   | (snapshot seami), MultiplayerSession         |
+   +----------+-----------------------------------+
+              v
+   +----------------------------------------------+
+   | core — SAGE engine (rendering YO'Q)          |
+   +----------------------------------------------+
+```
+
+Qoida: pastki qatlam yuqoridagini bilmaydi. `core` da rendering yo'q; `game` da jME yo'q;
+`client3d` faqat snapshot o'qiydi, simulyatsiyaga tegmaydi.
+
+---
+
+## 3. `core` — engine yadrosi (69 fayl)
+
+### 3.1 Asosiy sikl
+
+`GameEngine` — o'zi subsystem bo'lib, boshqa subsystemlarni egallaydi. `execute()` = asosiy sikl:
+
+- Mantiq qat'iy **30 Hz** da qadam tashlaydi (`LOGICFRAMES_PER_SECOND = 30`, `STEP_NANOS ≈ 33.33ms`).
+- Klient har aylanishda bir marta render qiladi, `maxFps` (standart 45) bilan cheklanadi.
+- Vaqt akkumulyatorda yig'iladi; uzoq qotib qolish "catch-up spirali"ga olib kelmasligi uchun
+  `MAX_ACCUMULATED_NANOS = 250ms` bilan cheklangan.
+- Kadr faqat shu shartda oldinga siljiydi: pauza emas **va** `isLogicFrameReady()` true
+  (single-player'da doim true; multiplayerda peer ma'lumotini kutadi).
+
+Bu — SAGE o'zi `@todo` qilib qoldirgan, lekin hech qachon amalga oshirmagan mantiq/render ajratishi.
+
+### 3.2 Bir mantiq kadri nima qiladi
+
+`GameLogic.update()` aniq shu tartibda:
+
+1. `messageStream.propagate(onCommand)` — navbatdagi buyruqlar qo'llanadi
+2. `updateObjects()` — har obyektning update-modullari **yaratilish tartibida** tiklanadi
+3. `reapDestroyed()` — o'lgan obyektlar dunyodan chiqariladi
+4. `simulate()` — o'yinga xos hook (`game` moduli buni to'ldiradi)
+5. `scriptEngine.evaluate()` — trigger'lar (g'alaba/mag'lubiyat, map hodisalari)
+6. `frame++`
+
+### 3.3 Obyekt-modul modeli
+
+SAGE'ning `ThingTemplate` / `Object` / `Module` tuzilishi saqlangan:
+
+- **`ThingTemplate`** — INI'dan o'qilgan tur: nom, `KindOf` bayroqlari, `BuildCost`/`BuildTime`,
+  `VisionRange`, modul ro'yxati. Yuklangandan keyin o'zgarmas.
+- **`GameObject`** — jonli nusxa: `ObjectId` (yaratilish tartibida monoton), pozitsiya, orientatsiya,
+  egasi, modullar. `findModule(Class)` bilan qidiriladi.
+- **`Module`** → `UpdateModule` (har kadr `update()`) / `BodyModule` (sog'liq, zarar).
+- **`ModuleFactory.withDefaults()`** da 12 ta tag ro'yxatdan o'tgan: `ActiveBody`, `AIUpdate`,
+  `WeaponUpdate`, `ProductionUpdate`, `ExperienceModule`, `AutoHealUpdate`, `StatusUpdate`,
+  `PowerModule`, `SpecialPowerModule`, `ContainModule`, `SupplyModule`, `HarvestUpdate`.
+- **`World`** interfeysi — modullar simulyatsiyani shu orqali so'roq qiladi (`findObject`,
+  `getRelationship`, `findPath`, `spawn`, `objectsInRange`, `isPlayerPowered`…). SAGE'dagi global
+  `TheGameLogic` o'rnini bosadi va paket sikllarini oldini oladi.
+
+### 3.4 INI ma'lumot qatlami
+
+`core.ini.Ini` — SAGE tokenizatorining sodiq porti (ajratkichlar bo'sh joy / tab / `=`, `;` = izoh,
+blok/`End` sikli, `X:Y:Z` sub-tokenlari). `FieldParseTable`/`FieldParser` C++ dagi offset+userData
+hiylasini lambda-setter bilan almashtiradi. `ThingTemplateLoader` `Object … End` bloklarini,
+ichidagi modul sub-bloklari bilan birga, template'ga aylantiradi.
+
+```ini
+Object Tank
+  DisplayName = Battle Tank
+  KindOf = VEHICLE SELECTABLE CAN_ATTACK
+  BuildCost = 700
+  BuildTime = 6.0
+  VisionRange = 45
+  Body = ActiveBody Tag
+    MaxHealth = 300
+  End
+  Update = AIUpdate Tag
+    Speed = 20
+    TurnRate = 120
+  End
+  Update = WeaponUpdate Tag
+    Damage = 40
+    AttackRange = 30
+    ReloadFrames = 45
+    SplashRadius = 6
+    DamageType = EXPLOSION
+  End
+End
+```
+
+### 3.5 Buyruq quvuri
+
+`GameMessage` — **sealed** ierarxiya, 5 ta record: `MoveTo`, `AttackObject`, `StopMoving`,
+`QueueProduction`, `SetRallyPoint`. SAGE'ning Type enum'i o'rniga sealed + pattern-switch →
+yangi buyruq qo'shsangiz kompilyator uni qo'llash kerak bo'lgan hamma joyni ko'rsatadi.
+
+`issueCommand()` → `MessageStream` (FIFO) → **keyingi kadr boshida** `onCommand()` ga drenaj
+qilinadi. Buyruq hech qachon "hozir" qo'llanmaydi — aynan shu narsa lock-step va replay'ni mumkin qiladi.
+
+### 3.6 Yo'l topish
+
+`PathGrid` (katak = 10 dunyo birligi) + `Pathfinder` = deterministik A*: butun sonli narxlar
+(to'g'ri 10 / diagonal 14), octile evristika, navbat tenglikda katak indeksi bo'yicha uziladi,
+qo'shnilar qat'iy tartibda, burchak kesish yo'q. `MapLoader` ASCII matndan grid quradi
+(`#`/`X` = to'siq). Grid o'rnatilmagan bo'lsa `findPath` to'g'ri chiziq qaytaradi.
+
+### 3.7 Tarmoq (lock-step)
+
+Klassik RTS modeli: **dunyo holati simdan o'tmaydi, faqat buyruqlar.**
+
+- `LockstepScheduler` — kadr darvozasi: `submit(frame, player, cmds)`, `isFrameReady(frame)`
+  (hamma o'yinchi hisobot berdimi), `takeCommands(frame)` o'yinchi indeksi bo'yicha o'sish tartibida.
+- `LockstepDriver` + `CommandPacket` — per-peer rejalashtirish, `frameDelay` oldindan yuborish.
+- `Transport` interfeysi → `LoopbackTransport` (in-process) va `SocketTransport` (haqiqiy TCP;
+  o'qish thread'i navbatga qo'yadi, o'yin thread'i `pump()` qiladi — thread-xavfsiz).
+- `CommandCodec` — `CommandPacket` ↔ matn qatori (exhaustive switch, `Float.toString` aniq).
+- `GameLogic.checksum()` — butun dunyoning deterministik xeshi (SAGE `VERIFY_CRC`);
+  `floatToIntBits` ishlatadi, shuning uchun float holat hamma mashinada bir xil xeshlanadi.
+
+Tashqi kutubxona **yo'q** — hammasi `java.net`.
+
+### 3.8 Boshqa tizimlar
+
+O'yinchilar/diplomatiya (`Player`, `PlayerList`, `Relationship`) · iqtisod (`ProductionUpdate`,
+`SupplyModule` + `HarvestUpdate`) · jang (`WeaponUpdate`: reload sikli, masofa, splash,
+ittifoqchini urmaydi; `DamageType` + `Armor`) · veteranlik (`ExperienceModule` + `VeterancyLevel`,
+ko'tarilishda to'liq davolanadi) · status effektlari (`ObjectStatus` DISABLED/SLOWED + `StatusUpdate`)
+· quvvat tarmog'i (`PowerModule` — quvvat yetmasa ishlab chiqarish to'xtaydi) · garnizon
+(`ContainModule`) · superqurol (`SpecialPowerModule`) · tuman (`canSee`/`getVisibleObjects` —
+o'zinikini doim ko'radi, ittifoqchilar ko'rishni bo'lishadi) · fazoviy so'rovlar (`PartitionManager`)
+· saqlash (`GameSnapshot` — matnli serializatsiya, checksum bo'yicha aynan tiklanadi) · skript
+triggerlari (`Trigger` + `ScriptEngine`) · matnli rendering (`AsciiRenderer` + `RenderingGameClient`).
+
+### 3.9 Determinizm invariantlari (buzilmasin)
+
+- `GameLogic` ichida devor-soati o'qish yo'q, `Math.random()` yo'q, tartibsiz iteratsiya yo'q.
+- Obyektlar har doim yaratilish tartibida tiklanadi; id'lar monoton.
+- Buyruqlar kadr chegarasida qo'llanadi, hech qachon o'rtada emas.
+- Float holat `floatToIntBits` orqali xeshlanadi.
+- Bir kadrda yaratilgan obyekt o'sha kadrda tiklanmaydi — kadrning obyekt to'plami aniq.
+
+---
+
+## 4. `game` — Unity-uslub qatlam (12 fayl)
+
+### 4.1 DukeGame — asosiy API
+
+```java
+var game = DukeGame.create("My RTS")
+        .loadUnits(DukeGame.STARTER_UNITS)
+        .map(70, 45);
+
+var you = game.addPlayer("USA", Color.CYAN);
+var foe = game.addPlayer("China", Color.RED);
+game.enemies(you, foe).money(you, 1500);
+
+game.spawn("Barracks", you, 100, 360);
+game.spawn("Tank", foe, 550, 100);
+
+game.start();   // oyna ochiladi, yopilguncha bloklaydi
+```
+
+Guruhlar bo'yicha:
+
+- **sozlash:** `loadUnits`, `loadUnitsFile`, `map`, `mapFromText`, `addPlayer`, `enemies`, `allies`,
+  `localPlayer`, `money`, `spawn`, `spawnNeutral`, `window`, `maxFps`, `subtitle`, `customModules`
+- **callback'lar:** `onStart`, `onTick` (har kadr), `everySeconds`, `onPlayerDefeated`
+- **skirmish:** `skirmish`, `selectSkirmish`, `getMapChoices`, `getFactionChoices`, `applyMapTerrain`
+- **multiplayer:** `hostMultiplayer`, `joinMultiplayer`, `cancelHosting`, `isMultiplayer`, `supportsMultiplayer`
+- **ishga tushirish:** `start`, `startEngineOnly`, `runHeadless`, `stop`
+- **runtime:** `getSnapshot`, `getBuildOptions`, `postCommand`, `runOnSimThread`, `togglePause`,
+  `setBanner`, `getLogic` (hamma narsaga ochqich)
+
+`DukeGame.STARTER_UNITS` — tayyor INI (PowerPlant / Barracks / Rifleman / Tank), shuning uchun
+birinchi o'yin uchun hech qanday fayl yozish shart emas.
+
+### 4.2 `setUp()` tartibi — muhim
+
+`engine.init()` subsystemlarni **reset qiladi**, shuning uchun tartib qat'iy:
+
+1. `RtsLogic` / `RtsClient` / `RtsGameEngine` yaratiladi, multiplayer bo'lsa ulanadi
+2. `engine.init()` ← **bu yerda reset bo'ladi**
+3. custom modullar ro'yxatdan o'tadi (INI ularga murojaat qilishidan oldin)
+4. INI yuklanadi → template'lar
+5. relyef (`PathGrid`) o'rnatiladi
+6. o'yinchilar qo'shiladi, viewer tanlanadi
+7. `started = true` → shundan keyin `spawn()` darhol ishlaydi
+8. scenario (spawn / pul / diplomatiya) qo'llanadi
+9. callback'lar va defeat listener ulanadi
+10. **skirmish assembler** tanlangan matchni quradi (relyef + neytrallar + har o'yinchining faction bazasi)
+11. `setInGame(true)`, so'ng `onStart` callback'lari
+
+### 4.3 Thread modeli
+
+Yagona kesishma nuqta — `RtsClient` ning `volatile` immutable `WorldSnapshot` i:
+
+```
+UI thread (Swing EDT / jME)              Sim thread ("duke-sim")
+    |                                            |
+    |- postCommand(msg) --> ConcurrentLinkedQueue --| (kadr boshida drenaj)
+    |- runOnSimThread(task) ------------------------|
+    |                                            |
+    \- getSnapshot() <-- volatile WorldSnapshot <---/ (har kadr yangilanadi)
+```
+
+`WorldSnapshot` / `UnitView` — immutable recordlar; tuman snapshot qurilishida qo'llanadi.
+UI hech qachon `GameLogic` ni to'g'ridan-to'g'ri o'qimaydi.
+
+### 4.4 RtsLogic — tayyor RTS mantiqi
+
+`MoveTo` → `AIUpdate.moveTo()` + qurolni to'xtatadi · `AttackObject` → `WeaponUpdate.attack()` ·
+`StopMoving` → ikkalasini to'xtatadi · `QueueProduction` → `ProductionUpdate.queue()` ·
+`SetRallyPoint` → rally nuqtasi.
+
+Ikkita qat'iy qoida:
+
+- **Egalik tekshiruvi** — buyruq faqat uni bergan o'yinchining birligiga ta'sir qiladi.
+- **Build menyusi = shartnoma** — `Builds` ro'yxatida bo'lmagan birlikni navbatga qo'yib bo'lmaydi.
+
+Mag'lubiyat qoidasi: birliklari bo'lgan va hammasini yo'qotgan o'yinchi mag'lub (annihilation) →
+`onPlayerDefeated` + avtomatik **VICTORY / DEFEAT** bayrog'i.
+
+### 4.5 Multiplayer
+
+`MultiplayerSession` — 2 o'yinchili TCP lock-step:
+
+1. **Qo'l berishuv xom soketda:** guest `DUKE-JOIN` → host `DUKE-WELCOME 2 <map|faction1|faction2>`
+   (URL-kodlangan). **`SocketTransport.wrap()` dan OLDIN bo'lishi shart** — transport o'qish thread'i
+   qatorlarni CommandCodec deb talqin qiladi.
+2. Host = engine o'yinchi 1, guest = 2. Guest hostning map/faction tanlovini qo'llaydi → ikkalasi
+   bir xil matchni yig'adi.
+3. `FRAME_DELAY = 3` (30 Hz da 100 ms kirish kechikishi).
+4. Har qadamdan oldin `beforeStep()`: birinchi marta 0..2 kadrlarni bo'sh paket bilan "prime" qiladi →
+   `transport.pump()` (sim thread'da) → lokal buyruqlarni `frame+3` ga jo'natadi →
+   `isFrameReady(frame)` bo'lmasa **to'xtaydi** (drift emas) → tayyor bo'lsa ikkala o'yinchi
+   buyruqlarini deterministik tartibda inject qiladi.
+
+Standart port **7777**. Multiplayerda pauza tabiiy ravishda ikkala peerni to'xtatadi.
+
+### 4.6 Custom kod — UnitScript
+
+Unity'ning MonoBehaviour naqshi, mavjud modul seami ustida:
+
+```java
+package game.scripts;
+
+import uz.duke.game.script.UnitScript;
+
+public class Berserker extends UnitScript {
+    @Override
+    public void onUpdate() {
+        var enemy = findNearestEnemy(100000);
+        if (enemy == null) return;
+        if (distanceTo(enemy) > 8 && !isMoving()) {
+            moveTo(enemy.getPosition().x(), enemy.getPosition().y());
+        }
+        if (!isAttacking()) attack(enemy);
+    }
+}
+```
+
+API: `onStart()` / `onUpdate()` (30 Hz) + yordamchilar `unit()`, `world()`, `position()`, `health()`,
+`frame()`, `isMoving()`, `isAttacking()`, `distanceTo()`, `findNearestEnemy(range)`, `moveTo()`,
+`attack()`, `stop()`, `money()`, `productionQueue()`, `trainUnit(name)`, `setRallyPoint()`.
+
+`ScriptModule` adapter qiladi va **xatoni izolyatsiya qiladi**: skript exception tashlasa, u log
+qilinadi va o'chiriladi — simulyatsiya davom etadi. INI tag'i: `Update = Script:<Nom> Tag`.
+
+Determinizm shartnomasi skriptga ham tegishli: devor-soati yo'q, `Math.random()` yo'q, thread yo'q, UI yo'q.
+
+---
+
+## 5. `client3d` — 3D klient (4 fayl, ~1290 qator)
+
+jMonkeyEngine 3.7.0-stable ustida. `Duke3D.launch(game, visuals)` oynani ochadi va yopilguncha bloklaydi.
+
+**Ekran holat mashinasi:** `MENU → PLAYING ⇄ PAUSED`, plus `SETTINGS`. Simulyatsiya faqat "Play"
+bosilganda boshlanadi.
+
+- **Bosh menyu** — sarlavha + subtitle, Play / Skirmish / Host LAN / Join LAN / Settings / Quit.
+  `MenuOverlay` GUI kutubxonasiz ishlaydi: xiralashgan quad + `BitmapText` tugmalar, hover/klik hit-testing.
+- **Skirmish menyusi** — map'ni aylantirish + har o'yinchi uchun faction tanlash → `selectSkirmish()`.
+  Faqat `getMapChoices()` bo'sh bo'lmasa va MP bo'lmasa ko'rinadi.
+- **Settings** — Fullscreen, Resolution (1280×720 / 1600×900 / 1920×1080), Volume (100…0 %).
+  `Preferences` da saqlanadi (`duke-engine/game` tuguni: `resIndex`, `fullscreen`, `volume`).
+  O'zgarish `restart()` bilan qo'llanadi; `reshape()` menyularni qayta quradi va HUD'ni joylashtiradi.
+- **Boshqaruv:** LMB tanlash (Shift — qo'shish), RMB buyruq (dushmanga = hujum, yerga = yurish,
+  zavod tanlangan bo'lsa = rally nuqtasi), WASD / o'q tugmalar kamera, g'ildirak zoom, `H` to'xtatish,
+  `P` pauza, `Esc` tanlovni bekor / pauza menyusi, `1`–`9` build menyusidan navbatga qo'yish.
+- **Minimap** — o'ng pastda: statik fon (map chegarasi + to'siq kataklari) + jonli nuqtalar
+  (o'yinchi rangi bo'yicha, inshootlar kattaroq). Minimapga LMB = kamera sakrashi (birlik tanlashdan
+  oldin tekshiriladi).
+- **Formatsiya harakati** — bir nechta birlik uchun MoveTo grid ofsetlariga bo'linadi
+  (`cols = ceil(sqrt(n))`, oraliq 5 dunyo birligi) — deterministik, MP-xavfsiz.
+- **Vizuallar** — `Visuals` Unity-uslub bog'lash:
+  `.unit("Tank", u -> u.model("Models/tank.glb").scale(1.5f).idle("Idle").walk("Drive").attack("Fire"))`.
+  glTF va Ogre modellari, `AnimComposer` va eski `AnimControl` animatsiyasi, pozitsion ovoz
+  (o't ochish — ko'tarilish qirrasida; o'lim — evristika: yo'qolganda hp < 35 % = o'lim, tuman emas),
+  sog'liq chiziqlari (`BillboardControl`), dul olovi. Modeli yo'q birliklar toza primitivlar bilan chiziladi.
+- **Koordinatalar:** sim (x, y) → jME (x, 0, z); yo'nalish `fromAngles(0, -θ, 0)`, primitivlarning oldi = +X.
+
+---
+
+## 6. `studio` — Duke Studio IDE (17 fayl)
+
+### 6.1 Loyiha modeli
+
+`.duke` fayli = JSON hujjat (`StudioProject`).
+**Loyiha — yagona haqiqat manbai; engine INI'si esa build artefakti.**
+
+- **`FactionDef`** — nom, ko'rinadigan nom, rang, tavsif va **`startingUnits`** (o'yinchi start
+  pozitsiyasida qanday baza bilan boshlaydi). Shu sababli faction istalgan map'da o'ynay oladi.
+- **`MapDef`** — nom, o'lcham, to'siq kataklari, **start pozitsiyalari** (8 tagacha), neytral
+  obyektlar. **Map'da armiya bo'lmaydi.**
+- **`UnitDef`** — nom, faction (bo'sh = umumiy), sog'liq, narx, ko'rish masofasi, `capabilities`
+  xaritasi, vizual maydonlar (model / animatsiya / ovoz), biriktirilgan skriptlar.
+- **`PlayerDef`** — nom, rang, pul, jamoa (bir jamoa = ittifoqchi), faction.
+- **`ScriptDef`** — nom + Java manba kodi.
+
+`ensureIntegrity()` har yuklashda va har o'zgarishda chaqiriladi: null'larni tuzatadi, osilib qolgan
+havolalarni tozalaydi va **eski formatni migratsiya qiladi** (bitta map + chizilgan armiyalar →
+armiya markazlari start pozitsiyalariga, armiyalarning o'zi esa faction'ning boshlang'ich bazasiga).
+
+### 6.2 Capability → engine modul jadvali
+
+Studio'da birlikka "qobiliyat" qo'shish = INI modul bloki generatsiyasi (`GameFactory.toIni`):
+
+| Studio capability | Generatsiya qilinadigan INI | Parametrlar |
+|---|---|---|
+| MOVE | `Update = AIUpdate` | Speed, TurnRate |
+| ATTACK | `Update = WeaponUpdate` | Damage, AttackRange, ReloadFrames, SplashRadius, DamageType |
+| PRODUCE | `Update = ProductionUpdate` | Builds (bo'sh joy bilan ajratilgan nomlar) |
+| POWER | `Update = PowerModule` | Produces, Consumes |
+| EXPERIENCE | `Behavior = ExperienceModule` | ExperienceValue, ExperienceRequired |
+| AUTO_HEAL | `Update = AutoHealUpdate` | HealPerSecond |
+| SUPPLY | `Behavior = SupplyModule` | Amount |
+| HARVEST | `Update = HarvestUpdate` | LoadPerTrip, FramesPerTrip |
+| (skriptlar) | `Update = Script:<Nom>` | — |
+
+`KindOf` avtomatik hisoblanadi: STRUCTURE yoki INFANTRY + SELECTABLE, ATTACK bo'lsa CAN_ATTACK,
+POWER bo'lsa POWERED.
+
+### 6.3 UI
+
+- **Chap:** faction → unit daraxti (+ "(shared units)" tuguni), `+ Faction` / `+ Unit` / `−`.
+- **Markaz:** `Map` tab (map tanlagich + `+ Map`; relyef cho'tkasi 1–3 katak, start-pozitsiya asbobi
+  slot tanlovi bilan, neytral birliklar; MMB-pan, g'ildirak zoom 1×–8×) · `Scripts` tab
+  (ro'yxat + muharrir + Compile) · `Generated INI` tab (faqat o'qish — engine nimani ko'rishini ko'rsatadi).
+- **O'ng:** CardLayout — `InspectorPanel` (birlik: faction, sog'liq, narx, qobiliyat checkbox'lari →
+  parametr formasi, model/ovoz uchun "…" browse tugmalari, custom skript checkbox'lari) yoki
+  `FactionPanel` (id / nom / rang / tavsif + **boshlang'ich baza jadvali**: unit / dx / dy).
+- **Menyular:** File (New / Open / Save / Save As / Export game) · Edit (**Ctrl+Z / Ctrl+Y undo-redo**,
+  **Ctrl+D duplicate unit**) · Game (Play 3D / Play 2D) · Project (Add faction, Players…, Add map,
+  Map size…, **Import map (text/image)…**, Game menu…) · Help.
+- **Undo/redo** — butun loyihaning JSON snapshot'lari (limit 100), har o'zgarishda push,
+  yangi o'zgarishda redo tozalanadi.
+
+### 6.4 Play yo'li
+
+`GameFactory.toGame(project, compiledScripts)`:
+
+1. `ensureIntegrity()`
+2. INI generatsiya → `loadUnits`
+3. skriptlarni `customModules` orqali ro'yxatdan o'tkazish
+4. o'yinchilar + diplomatiya (jamoa bo'yicha) + pul
+5. `skirmish(maps, factions, assembler)` — match play vaqtida tanlanadi
+
+Play tugmasi **avval skriptlarni kompilyatsiya qiladi** (`ScriptCompiler`, `javax.tools`,
+classpath = `java.class.path`; `extends UnitScript` va klass nomi tekshiriladi) va xato bo'lsa
+ishga tushirishni **rad etadi**. O'yin `duke-play` nomli thread'da, shu jarayon ichida ochiladi.
+
+### 6.5 Map va asset importi
+
+- **Map import** (`MapImporter`): `.txt` / `.map` → core `MapLoader`; **rasm** (`.png`, `.jpg`…) →
+  1 piksel = 1 katak, yorqinlik < 0.4 = to'siq; tomoni 200 katakdan katta bo'lsa avtomatik
+  kichraytiriladi. Ya'ni map'ni istalgan rasm muharririda chizsa bo'ladi.
+- **Asset import** (`AssetImporter`): loyiha asset papkasi = `.duke` fayli yonidagi `<nom>_assets/`
+  (saqlanmagan loyiha avval saqlashni so'raydi). Fayl `assets/<kategoriya>/` ga ko'chiriladi va
+  engine yo'li (`Models/x.glb`) qaytariladi. `.gltf` / `.mesh.xml` / `.obj` uchun yondosh fayllar ham
+  ko'chiriladi (.bin / .material / .skeleton.xml / .mtl / rasmlar). **`.glb` va `.j3o` tavsiya
+  etiladi** — ular o'zi-yetarli.
+
+### 6.6 Export yo'li
+
+`GameExporter.export(project, targetDir, engineRoot, assetsRoot)` mustaqil Gradle loyihasini yozadi:
+
+```
+<Nom>/
+  settings.gradle.kts
+  build.gradle.kts                   <- jME Maven'dan, toolchain 25, fatJar + packageApp tasklari
+  gradlew, gradlew.bat, gradle/wrapper/
+  README.md
+  libs/                              <- core, game, client3d jar'lari
+  src/main/java/game/Main.java       <- generatsiya qilingan
+  src/main/java/game/scripts/*.java  <- custom skriptlar (manba holida, runtime kompilyatsiya YO'Q)
+  src/main/resources/                <- assetlar (classpath'da -> locator kerak emas)
+```
+
+Chiqarilgan loyihada:
+
+- `gradlew run` — o'ynash
+- `gradlew fatJar` → `build/fat/game-all.jar` (bitta yugurtiriladigan jar)
+- `gradlew packageApp` → `build/package/<Nom>/<Nom>.exe` (o'z Java runtime'i bilan; maqsad
+  mashinada JDK kerak emas). jpackage faqat o'zi ishlayotgan OS uchun quradi — .exe / Linux / macOS
+  uchun har OS'da alohida yugurtiring.
+- `gradlew distZip` — launch skriptlari bilan portativ zip
+
+---
+
+## 7. Uchidan-uchiga oqim
+
+```
+Studio loyihasi (.duke JSON)
+   |  GameFactory.toIni()      -> engine INI matni
+   |  GameFactory.toVisuals()  -> model / ovoz bog'lashlari
+   |  ScriptCompiler           -> kompilyatsiya qilingan UnitScript klasslari
+   v
+DukeGame (fasad)
+   |  setUp(): init -> modullar -> INI -> relyef -> o'yinchilar -> scenario -> skirmish assembler
+   v
+GameEngine.execute()   -- 30 Hz mantiq / <=45 fps render
+   |
+   |--> GameLogic (deterministik dunyo) --> RtsClient --> WorldSnapshot (volatile)
+   |                                                            |
+   \--<-- buyruq navbati <-- postCommand() <---------- UI (jME 3D yoki Swing 2D)
+```
+
+Multiplayerda `postCommand` → `MultiplayerSession.issueLocal()` → `frame + 3` ga jo'natiladi →
+ikkala peer aynan bir kadrda qo'llaydi.
+
+---
+
+## 8. Nima ishlaydi (tasdiqlangan)
+
+- **158 test yashil** (core 36 klass, game 4, studio 3) — 2026-09-06 da qayta yugurtirilgan,
+  0 failure / 0 error.
+- **To'liq stack uchidan-uchiga** — sandbox: iqtisod → ishlab chiqarish → jang → g'alaba,
+  matnli minimap bilan chiziladi.
+- **Multiplayer jonli tekshirilgan** — bitta mashinada ikkita oyna, Host → Join 127.0.0.1,
+  ikkala tomon sinxron o'ynadi. `MultiplayerSyncTest`: haqiqiy localhost TCP orqali ikkita DukeGame,
+  300 ta o'zaro qadam, checksum'lar bit-aniqlikda bir xil.
+- **Rohan vs Mordor** — Studio'ning o'z modeli orqali yozilgan to'liq o'yin
+  (`examples/RohanVsMordor.duke`); `dist/RohanVsMordor/` mustaqil loyiha sifatida quriladi va
+  menyular bilan ishlaydi. `RohanVsMordorTest` 2700 kadrlik headless urushni tekshiradi
+  (AI oltin sarflaydi, talofatlar bo'ladi).
+- **Native .exe** — `Rohan-vs-Mordor.exe` ishga tushgani tasdiqlangan (~205 MB, o'z runtime'i bilan).
+
+---
+
+## 9. Nima yo'q / ochiq ishlar
+
+### Katta teshiklar
+
+1. **Chiqarilgan o'yinda map/faction tanlash yo'q.** `GameExporter.generateMain()` birinchi map'ni
+   va muallif tayinlagan faction'larni kodga "pishirib" qo'yadi; `.skirmish(…)` katalogi
+   generatsiya qilinmaydi. Natijada `DukeRtsApp.showSkirmishMenu()` chiqarilgan o'yinda hech qachon
+   ko'rinmaydi (u `getMapChoices()` bo'sh emasligini talab qiladi). Studio ichidagi Play'da menyu bor.
+   Sabab: model va `GameFactory` `game` + `client3d` dan yuqori modulda — ularni shipping qilish kerak.
+2. **Multiplayer faqat 2 o'yinchi.** `MultiplayerSession` `LockstepScheduler(List.of(1, 2))` ni
+   qattiq kodlagan. N-o'yinchili lobbi va qayta ulanish yo'q.
+3. **Desync aniqlash jonli ulanmagan.** `GameLogic.checksum()` bor va testlarda ishlatiladi, lekin
+   ishlayotgan o'yinda peer'lar bilan almashilmaydi va solishtirilmaydi.
+4. **Save / load UI'ga ulanmagan.** `GameSnapshot` faqat `core` da; `game` / `client3d` / `studio`
+   da umuman ishlatilmaydi — o'yin ichida saqlash/yuklash yo'q. Bundan tashqari modul ichidagi
+   "in-flight" holat (masalan ishlab chiqarish taymerlari) serializatsiya qilinmaydi — yuklashda
+   modullar yangidan quriladi.
+
+### Studio'da ochilmagan engine imkoniyatlari
+
+Bular `core` da bor va qo'lda INI yozib ishlatsa bo'ladi, lekin Studio UI'sida yo'q va yuqori
+qatlamlarda umuman ishlatilmaydi: `StatusUpdate`, `SpecialPowerModule`, `ContainModule`, `Armor`
+(zirh turlari), `Upgrade` / `purchaseUpgrade`, core `Trigger` / `ScriptEngine`, `AsciiRenderer`.
+
+### Studio'ning kichikroq kamchiliklari
+
+3D preview embed yo'q · INI'ni orqaga import qilish yo'q · per-inshoot rally nuqtasi yo'q ·
+2D `GamePanel` da build menyusi yo'q.
+
+### Infratuzilma
+
+- **Git yo'q** — 104 faylli loyiha versiya nazoratisiz turibdi (`.gitignore` bor, `.git` yo'q).
+  Repo ochilsa `dist/` ni ignore qilish kerak.
+- `README.md` eskirgan — "133 test" deydi va `studio` moduli umuman tilga olinmagan.
+- `:sandbox3d:startScripts` `jme3-testdata` jar'ini talab qiladi; tarmoq sekin bo'lsa
+  `./gradlew build` aynan shu yerda yiqiladi (kod muammosi emas).
+
+---
+
+## 10. Tuzoqlar (gotchas)
+
+- **Reset tuzog'i:** `GameEngine.init()` subsystemlarni init qilgandan keyin `resetAll()` chaqiradi —
+  `GameLogic.init()` ichida yaratilgan obyektlar o'chib ketadi. Template'lar, modul-builderlar va
+  o'yinchilar reset'dan omon qoladi. Obyektlarni reset'dan **keyin** yarating.
+- **jpackage tuzog'i:** oddiy `commandLine("jpackage", …)` PATH'dagi JDK 21 jpackage'ini oladi →
+  Java 21 runtime + Java 25 klasslari = `UnsupportedClassVersionError` (class 69 vs 65), oynali exe
+  jimgina exit 1 bilan o'ladi. Yechim (allaqachon qo'llangan): jpackage Gradle toolchain'idan olinadi.
+  Nosozlikni ko'rish uchun `--win-console` varianti yordam beradi.
+- **MP qo'l berishuvi:** `DUKE-JOIN` / `DUKE-WELCOME` `SocketTransport.wrap()` dan **oldin** bo'lishi
+  shart, aks holda transport o'quvchisi qo'l berishuv qatorini buyruq deb talqin qiladi.
+- **MP test yozish tuzog'i:** ikkita simni o'zaro qadamlatganda ular bir kadrga fazoviy siljiydi —
+  checksum'ni har **yarim** qadamdan keyin solishtiring, aks holda solishtiriladigan kadr qolmaydi.
+- **Minimap y o'qi:** ekran y dunyo y ga teskari.
+- **Quvvat tuzog'i:** o'yinchi quvvatsiz bo'lsa ishlab chiqarish to'xtaydi (Generals mexanikasi) —
+  iste'molchi spawn qiladigan testlarga PowerPlant kerak.
+- **Template nomlari** vergul, `|`, `;`, `:` belgilarini o'z ichiga olmasin — `CommandCodec` sim
+  formati buziladi.
+- **Skript paketi:** generatsiya qilingan `Main` da lokal o'zgaruvchi `dukeGame` deb ataladi, chunki
+  `game` nomi `game.scripts` paketi bilan to'qnashadi.
+
+---
+
+## 11. Fayl xaritasi (asosiylari)
+
+| Yo'l | Nima |
+|---|---|
+| `core/…/core/GameEngine.java` | asosiy sikl, 30 Hz akkumulyator |
+| `core/…/core/GameLogic.java` | deterministik dunyo, kadr tartibi, checksum, tuman |
+| `core/…/core/thing/{ThingTemplate,GameObject,ThingFactory,World}.java` | obyekt modeli |
+| `core/…/core/module/*.java` | 12 ta o'yin moduli |
+| `core/…/core/ini/Ini.java` | SAGE tokenizatori |
+| `core/…/core/pathfind/{PathGrid,Pathfinder,MapLoader}.java` | deterministik A* |
+| `core/…/core/network/{LockstepScheduler,LockstepDriver,CommandCodec,SocketTransport}.java` | lock-step |
+| `game/…/game/DukeGame.java` | asosiy API (762 qator) |
+| `game/…/game/RtsLogic.java` | buyruq routingi, mag'lubiyat qoidasi |
+| `game/…/game/MultiplayerSession.java` | 2 o'yinchili TCP lock-step |
+| `game/…/game/script/UnitScript.java` | custom kod API'si |
+| `client3d/…/client3d/DukeRtsApp.java` | 3D klient (1024 qator) |
+| `client3d/…/client3d/Visuals.java` | asset bog'lashlari |
+| `studio/…/studio/model/StudioProject.java` | `.duke` hujjat modeli |
+| `studio/…/studio/model/GameFactory.java` | loyiha → INI / Visuals / DukeGame |
+| `studio/…/studio/export/GameExporter.java` | mustaqil o'yin loyihasi generatori |
+| `studio/…/studio/ui/StudioWindow.java` | IDE asosiy oynasi |
+| `studio/…/studio/examples/RohanVsMordor.java` | namunaviy o'yinning muallifligi |

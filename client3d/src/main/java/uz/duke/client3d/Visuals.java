@@ -1,0 +1,122 @@
+package uz.duke.client3d;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Consumer;
+
+/**
+ * Unity-style asset binding: attach models, animations and sounds to unit
+ * templates by name — no engine code, just configuration.
+ *
+ * <pre>{@code
+ * var visuals = Visuals.create()
+ *         .unit("Tank", u -> u
+ *                 .model("Models/tank.gltf").scale(1.5f).facing(90)
+ *                 .idle("Idle").walk("Drive").attack("Fire")
+ *                 .fireSound("Sounds/cannon.ogg").dieSound("Sounds/boom.ogg"))
+ *         .unit("Rifleman", u -> u.model("Models/soldier.gltf").walk("Walk"));
+ * }</pre>
+ *
+ * <p>Every setting is optional. A unit with no model gets a clean primitive
+ * (box for structures, capsule for units) in its player's colour, so a game is
+ * playable before a single asset exists — add art when you have it.
+ */
+public final class Visuals {
+
+    /** Per-template visual/audio configuration. All fields optional. */
+    public static final class UnitVisual {
+        String modelPath;
+        float scale = 1f;
+        float yOffset;
+        float facingDegrees; // extra yaw if the model's authored "forward" isn't +X
+        String idleAnim;
+        String walkAnim;
+        String attackAnim;
+        String fireSound;
+        String dieSound;
+
+        public UnitVisual model(String assetPath) {
+            this.modelPath = assetPath;
+            return this;
+        }
+
+        public UnitVisual scale(float scale) {
+            this.scale = scale;
+            return this;
+        }
+
+        /** Raise (or sink) the model relative to the ground. */
+        public UnitVisual yOffset(float yOffset) {
+            this.yOffset = yOffset;
+            return this;
+        }
+
+        /** Extra rotation when the model file doesn't face the engine's +X. */
+        public UnitVisual facing(float degrees) {
+            this.facingDegrees = degrees;
+            return this;
+        }
+
+        public UnitVisual idle(String animName) {
+            this.idleAnim = animName;
+            return this;
+        }
+
+        public UnitVisual walk(String animName) {
+            this.walkAnim = animName;
+            return this;
+        }
+
+        public UnitVisual attack(String animName) {
+            this.attackAnim = animName;
+            return this;
+        }
+
+        public UnitVisual fireSound(String assetPath) {
+            this.fireSound = assetPath;
+            return this;
+        }
+
+        public UnitVisual dieSound(String assetPath) {
+            this.dieSound = assetPath;
+            return this;
+        }
+    }
+
+    private final Map<String, UnitVisual> units = new HashMap<>();
+    private final UnitVisual defaults = new UnitVisual();
+    private String assetRoot;
+
+    private Visuals() {
+    }
+
+    public static Visuals create() {
+        return new Visuals();
+    }
+
+    /**
+     * A directory to load assets from (in addition to the classpath). This is
+     * how the Studio points the game at a project's assets folder; exported
+     * games instead ship assets on the classpath and don't need it.
+     */
+    public Visuals assetRoot(String directory) {
+        this.assetRoot = directory;
+        return this;
+    }
+
+    public String getAssetRoot() {
+        return assetRoot;
+    }
+
+    /** Configure the look and sound of one unit template. */
+    public Visuals unit(String templateName, Consumer<UnitVisual> config) {
+        var visual = units.computeIfAbsent(templateName, n -> new UnitVisual());
+        config.accept(visual);
+        return this;
+    }
+
+    /** The configuration for a template (empty defaults if none was set). */
+    public UnitVisual of(String templateName) {
+        return units.getOrDefault(templateName, defaults);
+    }
+}

@@ -1,0 +1,17 @@
+package uz.duke.core.module;
+
+/**
+ * Immutable configuration for a {@link Module}, ported from SAGE's
+ * {@code ModuleData}.
+ *
+ * <p>One {@code ModuleData} is parsed from a module's INI sub-block and shared
+ * by every instance built from the same template — it is the "class" half of a
+ * module, while the {@link Module} itself holds the per-object mutable state.
+ * Concrete data types are records.
+ */
+public interface ModuleData {
+
+    /** Data for modules that need no configuration. */
+    ModuleData NONE = new ModuleData() {
+    };
+}
