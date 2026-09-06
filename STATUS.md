@@ -1,9 +1,13 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-06 · **Kodga oxirgi o'zgartirish:** 2026-07-04 · **Testlar:** 158 ta, hammasi yashil (2026-09-06 da qayta yugurtirilgan, 0 failure / 0 error)
+**Holat sanasi:** 2026-09-06 · **Testlar:** 165 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
+
+> **2026-09-06 — engine ikkiga bo'lindi.** `core` endi janrsiz universal engine;
+> RTS'ga xos hamma narsa yangi `rts` moduliga chiqdi. Quyidagi hujjat shu holatni
+> aks ettiradi. Tarix: `git log` (4 ta commit, `9d1cc10` baseline).
 
 ---
 
@@ -18,12 +22,17 @@ Hamma modulda `-Xlint:all`, testlar JUnit 5.11.3.
 
 | Modul | Bog'liqligi | Nima |
 |---|---|---|
-| `core` | — (sof Java, tashqi kutubxonasiz) | SAGE engine yadrosi: deterministik simulyatsiya, INI, pathfinding, lock-step, save |
-| `game` | `api core` | Unity-uslub `DukeGame` fasadi, tayyor RTS mantiqi, 2D Swing klient, multiplayer sessiyasi |
+| `core` | — (sof Java, tashqi kutubxonasiz) | **Janrsiz** engine: deterministik simulyatsiya, INI, obyekt/modul tizimi, pathfinding, lock-step, tuman |
+| `rts` | `api core` | RTS: buyruq to'plami, jang, ishlab chiqarish, iqtisod, veteranlik, quvvat, lug'at, save formati |
+| `game` | `api rts` | Unity-uslub `DukeGame` fasadi, 2D Swing klient, multiplayer sessiyasi |
 | `client3d` | `api game` + jMonkeyEngine 3.7.0-stable | To'liq 3D klient: model/animatsiya/ovoz, menyular, minimap, HUD |
 | `studio` | `client3d` + Gson 2.11.0 | Duke Studio — Swing IDE (`uz.duke.studio.StudioMain`) |
 | `sandbox` | `game` | 2D skirmish demo (~70 qator) |
 | `sandbox3d` | `client3d` + jme3-testdata | 3D skirmish demo (~74 qator) |
+
+**Asosiy qoida:** `core` hech qachon `rts` ni import qilmaydi. RTS bo'lmagan o'yin
+yozmoqchi bo'lsangiz faqat `core` ga bog'lanasiz va o'z buyruqlaringiz, modullaringiz
+va lug'atingizni berasiz — pastdagi "Kengaytirish choklari" bo'limiga qarang.
 
 Ishga tushirish:
 
@@ -60,16 +69,39 @@ Ishga tushirish:
    +----------+-----------------------------------+
               v
    +----------------------------------------------+
-   | core — SAGE engine (rendering YO'Q)          |
+   | rts — RTS: buyruqlar, jang, iqtisod, lug'at  |
+   +----------+-----------------------------------+
+              v
+   +----------------------------------------------+
+   | core — janrsiz engine (rendering YO'Q,       |
+   |        buyruq YO'Q, gameplay YO'Q)           |
    +----------------------------------------------+
 ```
 
-Qoida: pastki qatlam yuqoridagini bilmaydi. `core` da rendering yo'q; `game` da jME yo'q;
-`client3d` faqat snapshot o'qiydi, simulyatsiyaga tegmaydi.
+Qoida: pastki qatlam yuqoridagini bilmaydi. `core` da rendering yo'q va hech qanday
+o'yin mazmuni yo'q; `rts` da jME yo'q; `client3d` faqat snapshot o'qiydi,
+simulyatsiyaga tegmaydi.
+
+### Kengaytirish choklari
+
+`core` o'z-o'zidan hech qanday o'yin mazmunini bermaydi. Beshta chok orqali o'yin
+o'zinikini qo'yadi; `rts` — har birining ishlangan namunasi:
+
+| Chok | `core` beradi | O'yin beradi (`rts` misolida) |
+|---|---|---|
+| Buyruqlar | `Command` markeri + `MessageStream` | sealed `GameMessage` (Move/Attack/Stop/Queue/Rally) |
+| Sim formati | `SocketTransport` dagi `PacketCodec` plagi | `CommandCodec` |
+| Xulq modullari | `ModuleFactory.withDefaults()` — `ActiveBody`, `MoveUpdate` | `RtsModules` — qurol, ishlab chiqarish, iqtisod… |
+| O'yinchilar | `Player` (identity+diplomatiya) + `PlayerList(PlayerFactory)` | `RtsPlayer` (pul, upgrade) |
+| Tasniflash | `Kind` — nom bo'yicha interned | `RtsKinds` (`STRUCTURE`, `INFANTRY`, …) |
+
+**Nega buyruqlar core'da emas:** sealed ierarxiya modul chegarasidan o'ta olmaydi.
+Bu cheklov aslida to'g'ri shakl — engine qaysi o'yin qurilayotganini bilmasligi kerak,
+o'yin esa o'z buyruqlari ustidan exhaustive `switch` yozadi.
 
 ---
 
-## 3. `core` — engine yadrosi (69 fayl)
+## 3. `core` — janrsiz engine yadrosi
 
 ### 3.1 Asosiy sikl
 
@@ -99,17 +131,20 @@ Bu — SAGE o'zi `@todo` qilib qoldirgan, lekin hech qachon amalga oshirmagan ma
 
 SAGE'ning `ThingTemplate` / `Object` / `Module` tuzilishi saqlangan:
 
-- **`ThingTemplate`** — INI'dan o'qilgan tur: nom, `KindOf` bayroqlari, `BuildCost`/`BuildTime`,
+- **`ThingTemplate`** — INI'dan o'qilgan tur: nom, `Kind` bayroqlari, `BuildCost`/`BuildTime`,
   `VisionRange`, modul ro'yxati. Yuklangandan keyin o'zgarmas.
 - **`GameObject`** — jonli nusxa: `ObjectId` (yaratilish tartibida monoton), pozitsiya, orientatsiya,
   egasi, modullar. `findModule(Class)` bilan qidiriladi.
 - **`Module`** → `UpdateModule` (har kadr `update()`) / `BodyModule` (sog'liq, zarar).
-- **`ModuleFactory.withDefaults()`** da 12 ta tag ro'yxatdan o'tgan: `ActiveBody`, `AIUpdate`,
-  `WeaponUpdate`, `ProductionUpdate`, `ExperienceModule`, `AutoHealUpdate`, `StatusUpdate`,
-  `PowerModule`, `SpecialPowerModule`, `ContainModule`, `SupplyModule`, `HarvestUpdate`.
+- **`ModuleFactory.withDefaults()`** faqat 2 ta janrsiz tag beradi: `ActiveBody` (sog'liq+zirh)
+  va `MoveUpdate` (nuqtaga yurish). Qolgan 10 tasi RTS'niki — `RtsModules` ro'yxatdan o'tkazadi.
+- **`Kind`** — tasniflash bayrog'i, **nom bo'yicha interned** (`Kind.of("STRUCTURE")`). Eski
+  23 qiymatli `KindOf` enum'i o'chirildi: engine "HARVESTER" nima ekanini bilmasligi kerak.
+  Solishtirish baribir identity tekshiruvi, ya'ni enum kabi arzon.
 - **`World`** interfeysi — modullar simulyatsiyani shu orqali so'roq qiladi (`findObject`,
-  `getRelationship`, `findPath`, `spawn`, `objectsInRange`, `isPlayerPowered`…). SAGE'dagi global
-  `TheGameLogic` o'rnini bosadi va paket sikllarini oldini oladi.
+  `getRelationship`, `getPlayer`, `findTemplate`, `spawn`, `findPath`, `findClosest`,
+  `objectsInRange`, `getObjects`). SAGE'dagi global `TheGameLogic` o'rnini bosadi va
+  paket sikllarini oldini oladi.
 
 ### 3.4 INI ma'lumot qatlami
 
@@ -128,7 +163,7 @@ Object Tank
   Body = ActiveBody Tag
     MaxHealth = 300
   End
-  Update = AIUpdate Tag
+  Update = MoveUpdate Tag
     Speed = 20
     TurnRate = 120
   End
@@ -144,12 +179,18 @@ End
 
 ### 3.5 Buyruq quvuri
 
-`GameMessage` — **sealed** ierarxiya, 5 ta record: `MoveTo`, `AttackObject`, `StopMoving`,
-`QueueProduction`, `SetRallyPoint`. SAGE'ning Type enum'i o'rniga sealed + pattern-switch →
-yangi buyruq qo'shsangiz kompilyator uni qo'llash kerak bo'lgan hamma joyni ko'rsatadi.
+`core` faqat **`Command`** markerini biladi (bitta metod: `playerIndex()`). Buyruqlarning
+o'zi o'yinniki — `rts` da **sealed** `GameMessage` ierarxiyasi, 5 ta record: `MoveTo`,
+`AttackObject`, `StopMoving`, `QueueProduction`, `SetRallyPoint`. SAGE'ning Type enum'i
+o'rniga sealed + pattern-switch → yangi buyruq qo'shsangiz kompilyator uni qo'llash kerak
+bo'lgan hamma joyni ko'rsatadi.
 
 `issueCommand()` → `MessageStream` (FIFO) → **keyingi kadr boshida** `onCommand()` ga drenaj
 qilinadi. Buyruq hech qachon "hozir" qo'llanmaydi — aynan shu narsa lock-step va replay'ni mumkin qiladi.
+
+`RtsSimulation` `Command` ni bir marta `GameMessage` ga toraytiradi (`onRtsCommand`), shuning
+uchun har bir RTS mantiq sinfi exhaustive `switch` yozadi, cast takrorlanmaydi. RTS bo'lmagan
+buyruq jimgina tashlanmaydi — WARNING bilan log qilinadi.
 
 ### 3.6 Yo'l topish
 
@@ -167,23 +208,46 @@ Klassik RTS modeli: **dunyo holati simdan o'tmaydi, faqat buyruqlar.**
 - `LockstepDriver` + `CommandPacket` — per-peer rejalashtirish, `frameDelay` oldindan yuborish.
 - `Transport` interfeysi → `LoopbackTransport` (in-process) va `SocketTransport` (haqiqiy TCP;
   o'qish thread'i navbatga qo'yadi, o'yin thread'i `pump()` qiladi — thread-xavfsiz).
-- `CommandCodec` — `CommandPacket` ↔ matn qatori (exhaustive switch, `Float.toString` aniq).
+- `PacketCodec` — sim formati **plagi**: `SocketTransport` uni konstruktorda oladi, chunki
+  formatni bilish uchun o'yinning buyruq to'plamini bilish kerak. RTS implementatsiyasi —
+  `rts` dagi `CommandCodec` (exhaustive switch, `Float.toString` aniq).
 - `GameLogic.checksum()` — butun dunyoning deterministik xeshi (SAGE `VERIFY_CRC`);
   `floatToIntBits` ishlatadi, shuning uchun float holat hamma mashinada bir xil xeshlanadi.
 
 Tashqi kutubxona **yo'q** — hammasi `java.net`.
 
-### 3.8 Boshqa tizimlar
+### 3.8 Boshqa core tizimlari
 
-O'yinchilar/diplomatiya (`Player`, `PlayerList`, `Relationship`) · iqtisod (`ProductionUpdate`,
-`SupplyModule` + `HarvestUpdate`) · jang (`WeaponUpdate`: reload sikli, masofa, splash,
-ittifoqchini urmaydi; `DamageType` + `Armor`) · veteranlik (`ExperienceModule` + `VeterancyLevel`,
-ko'tarilishda to'liq davolanadi) · status effektlari (`ObjectStatus` DISABLED/SLOWED + `StatusUpdate`)
-· quvvat tarmog'i (`PowerModule` — quvvat yetmasa ishlab chiqarish to'xtaydi) · garnizon
-(`ContainModule`) · superqurol (`SpecialPowerModule`) · tuman (`canSee`/`getVisibleObjects` —
-o'zinikini doim ko'radi, ittifoqchilar ko'rishni bo'lishadi) · fazoviy so'rovlar (`PartitionManager`)
-· saqlash (`GameSnapshot` — matnli serializatsiya, checksum bo'yicha aynan tiklanadi) · skript
-triggerlari (`Trigger` + `ScriptEngine`) · matnli rendering (`AsciiRenderer` + `RenderingGameClient`).
+O'yinchilar/diplomatiya (`Player` — index, nom, munosabat; `PlayerList` o'yinning o'z
+`Player` tipini yaratadigan `PlayerFactory` bilan; `Relationship`) · sog'liq va zarar
+(`BodyModule`/`ActiveBody`, `DamageType`, `Armor`) · harakat (`MoveUpdate` — tezlik,
+burilish tezligi, waypoint'lar) · tuman (`canSee`/`getVisibleObjects` — o'zinikini doim
+ko'radi, ittifoqchilar ko'rishni bo'lishadi) · fazoviy so'rovlar (`PartitionManager` +
+`PartitionFilter`) · skript triggerlari (`Trigger` + `ScriptEngine`) · rendering choki
+(`Renderer` + `RenderingGameClient`) · saqlash **mexanizmi** (`clearWorld`, `setFrame`,
+`setNextObjectId`, `restoreObject` — format o'yinniki).
+
+---
+
+## 3b. `rts` — RTS moduli
+
+`core` ustidagi RTS qatlami. Ichida:
+
+- **`RtsSimulation`** — RTS mantiqining bazasi: `Command` → `GameMessage` toraytirish,
+  `RtsModules` o'rnatish, `RtsPlayer` rosteri, `purchaseUpgrade`, `getRtsPlayer`.
+- **`message.GameMessage`** — sealed RTS buyruq to'plami; **`network.CommandCodec`** — sim formati.
+- **`module.*`** — `WeaponUpdate` (reload, masofa, splash, ittifoqchini urmaydi),
+  `ProductionUpdate` (navbat, pul yechish, rally), `SupplyModule` + `HarvestUpdate`,
+  `PowerModule` + `PowerGrid` (quvvat yetmasa ishlab chiqarish to'xtaydi),
+  `ExperienceModule` + `VeterancyLevel` (ko'tarilishda to'liq davolanadi),
+  `StatusUpdate` (DISABLED/SLOWED muddat bilan), `ContainModule` (garnizon),
+  `SpecialPowerModule` (superqurol), `AutoHealUpdate`. Hammasi `RtsModules` orqali
+  INI tagiga bog'lanadi.
+- **`player.RtsPlayer`** (pul, upgrade'lar, qurol bonusi) va **`player.Upgrade`**.
+- **`thing.RtsKinds`** — RTS lug'ati: `SELECTABLE`, `CAN_ATTACK`, `STRUCTURE`, `INFANTRY`,
+  `VEHICLE`, `POWERED`.
+- **`save.GameSnapshot`** — matnli serializatsiya, checksum bo'yicha aynan tiklanadi.
+- **`client.AsciiRenderer`** — tumanni hisobga oluvchi matnli minimap.
 
 ### 3.9 Determinizm invariantlari (buzilmasin)
 
@@ -262,7 +326,7 @@ UI hech qachon `GameLogic` ni to'g'ridan-to'g'ri o'qimaydi.
 
 ### 4.4 RtsLogic — tayyor RTS mantiqi
 
-`MoveTo` → `AIUpdate.moveTo()` + qurolni to'xtatadi · `AttackObject` → `WeaponUpdate.attack()` ·
+`MoveTo` → `MoveUpdate.moveTo()` + qurolni to'xtatadi · `AttackObject` → `WeaponUpdate.attack()` ·
 `StopMoving` → ikkalasini to'xtatadi · `QueueProduction` → `ProductionUpdate.queue()` ·
 `SetRallyPoint` → rally nuqtasi.
 
@@ -381,7 +445,7 @@ Studio'da birlikka "qobiliyat" qo'shish = INI modul bloki generatsiyasi (`GameFa
 
 | Studio capability | Generatsiya qilinadigan INI | Parametrlar |
 |---|---|---|
-| MOVE | `Update = AIUpdate` | Speed, TurnRate |
+| MOVE | `Update = MoveUpdate` | Speed, TurnRate |
 | ATTACK | `Update = WeaponUpdate` | Damage, AttackRange, ReloadFrames, SplashRadius, DamageType |
 | PRODUCE | `Update = ProductionUpdate` | Builds (bo'sh joy bilan ajratilgan nomlar) |
 | POWER | `Update = PowerModule` | Produces, Consumes |
@@ -486,8 +550,9 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **158 test yashil** (core 36 klass, game 4, studio 3) — 2026-09-06 da qayta yugurtirilgan,
-  0 failure / 0 error.
+- **165 test yashil** (core 78, rts 66, game 13, studio 8) — 0 failure / 0 error.
+- **Engine bo'linishi tasdiqlangan** — `core` `rts` ni umuman ko'rmaydi (Gradle bog'liqligi
+  bir tomonlama), va bo'linishdan oldingi hamma test hali ham o'tadi.
 - **To'liq stack uchidan-uchiga** — sandbox: iqtisod → ishlab chiqarish → jang → g'alaba,
   matnli minimap bilan chiziladi.
 - **Multiplayer jonli tekshirilgan** — bitta mashinada ikkita oyna, Host → Join 127.0.0.1,
@@ -530,11 +595,15 @@ qatlamlarda umuman ishlatilmaydi: `StatusUpdate`, `SpecialPowerModule`, `Contain
 3D preview embed yo'q · INI'ni orqaga import qilish yo'q · per-inshoot rally nuqtasi yo'q ·
 2D `GamePanel` da build menyusi yo'q.
 
+### `core` da qolgan RTS izlari
+
+`ThingTemplate` hali ham `BuildCost` / `BuildTime` / `VisionRange` maydonlarini saqlaydi —
+birinchi ikkitasi sof RTS/strategiya tushunchasi. Ularni chiqarish uchun template'ga
+kengaytma-ma'lumot mexanizmi va `ThingTemplateLoader` ga maydon-registratsiyasi kerak
+(o'yin o'z INI maydonlarini qo'sha olsin). **Hali qilinmagan — ochiq qaror.**
+
 ### Infratuzilma
 
-- **Git yo'q** — 104 faylli loyiha versiya nazoratisiz turibdi (`.gitignore` bor, `.git` yo'q).
-  Repo ochilsa `dist/` ni ignore qilish kerak.
-- `README.md` eskirgan — "133 test" deydi va `studio` moduli umuman tilga olinmagan.
 - `:sandbox3d:startScripts` `jme3-testdata` jar'ini talab qiladi; tarmoq sekin bo'lsa
   `./gradlew build` aynan shu yerda yiqiladi (kod muammosi emas).
 
@@ -560,6 +629,13 @@ qatlamlarda umuman ishlatilmaydi: `StatusUpdate`, `SpecialPowerModule`, `Contain
   formati buziladi.
 - **Skript paketi:** generatsiya qilingan `Main` da lokal o'zgaruvchi `dukeGame` deb ataladi, chunki
   `game` nomi `game.scripts` paketi bilan to'qnashadi.
+- **Sealed modul chegarasidan o'tmaydi:** shuning uchun buyruq to'plami `core` da tura olmaydi.
+  Yangi janr qo'shsangiz — o'z sealed `Command` ierarxiyangizni o'z modulingizda e'lon qiling.
+- **`java.lang.Module` to'qnashuvi:** `uz.duke.core.module.Module` ni boshqa paketdan
+  ishlatganda importni unutmang, aks holda kompilyator jimgina `java.lang.Module` ni oladi va
+  xato "cannot inherit from final Module" bo'lib chiqadi.
+- **`Kind` identity bo'yicha solishtiriladi:** `Kind.of(...)` interned, shuning uchun
+  `equals`/`hashCode` `Object` dan olinadi — ataylab. `new Kind(...)` yo'q.
 
 ---
 
@@ -569,11 +645,19 @@ qatlamlarda umuman ishlatilmaydi: `StatusUpdate`, `SpecialPowerModule`, `Contain
 |---|---|
 | `core/…/core/GameEngine.java` | asosiy sikl, 30 Hz akkumulyator |
 | `core/…/core/GameLogic.java` | deterministik dunyo, kadr tartibi, checksum, tuman |
-| `core/…/core/thing/{ThingTemplate,GameObject,ThingFactory,World}.java` | obyekt modeli |
-| `core/…/core/module/*.java` | 12 ta o'yin moduli |
+| `core/…/core/thing/{ThingTemplate,GameObject,ThingFactory,World,Kind}.java` | obyekt modeli + tasniflash |
+| `core/…/core/module/{ActiveBody,Armor,DamageType,MoveUpdate}.java` | janrsiz modullar |
+| `core/…/core/message/{Command,MessageStream}.java` | buyruq navbati (buyruqlarning o'zi emas) |
 | `core/…/core/ini/Ini.java` | SAGE tokenizatori |
 | `core/…/core/pathfind/{PathGrid,Pathfinder,MapLoader}.java` | deterministik A* |
-| `core/…/core/network/{LockstepScheduler,LockstepDriver,CommandCodec,SocketTransport}.java` | lock-step |
+| `core/…/core/network/{LockstepScheduler,LockstepDriver,PacketCodec,SocketTransport}.java` | lock-step + format plagi |
+| `rts/…/rts/RtsSimulation.java` | RTS mantiqining bazasi |
+| `rts/…/rts/message/GameMessage.java` | sealed RTS buyruq to'plami |
+| `rts/…/rts/network/CommandCodec.java` | RTS sim formati |
+| `rts/…/rts/module/*.java` | 10 ta RTS moduli + `RtsModules`, `PowerGrid` |
+| `rts/…/rts/player/{RtsPlayer,Upgrade}.java` | pul, upgrade'lar |
+| `rts/…/rts/thing/RtsKinds.java` | RTS lug'ati |
+| `rts/…/rts/save/GameSnapshot.java` | RTS save formati |
 | `game/…/game/DukeGame.java` | asosiy API (762 qator) |
 | `game/…/game/RtsLogic.java` | buyruq routingi, mag'lubiyat qoidasi |
 | `game/…/game/MultiplayerSession.java` | 2 o'yinchili TCP lock-step |

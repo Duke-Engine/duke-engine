@@ -1,8 +1,9 @@
 # duke-engine
 
 A from-scratch reimplementation of the **SAGE engine** (the engine behind
-*Command & Conquer: Generals — Zero Hour*) in modern Java — now with a
-**Unity-style API for building RTS games in a few lines**:
+*Command & Conquer: Generals — Zero Hour*) in modern Java — split into a
+genre-neutral engine and an RTS built on top of it, with a **Unity-style API
+for building a game in a few lines**:
 
 ```java
 var game = DukeGame.create("My RTS")
@@ -21,11 +22,40 @@ game.start(); // opens a window: select with LMB, order with RMB
 
 The core is a faithful but Java-idiomatic port of SAGE's architecture: a
 subsystem framework driving a deterministic, lock-step simulation cleanly
-separated from presentation. The `game` module layers the easy API on top.
+separated from presentation. The `rts` module adds the RTS; the `game` module
+layers the easy API on top.
 
 The original C++ source (EA's GPL release) lives at
 `../CnC_Generals_Zero_Hour` and is used purely as a reference for behaviour and
 structure.
+
+## Modules
+
+```
+studio  →  client3d  →  game  →  rts  →  core
+```
+
+- **core** — the genre-neutral engine. Subsystems and the fixed-timestep loop,
+  objects/templates/modules, the INI data layer, spatial queries, pathfinding,
+  lock-step networking, fog of war, scripting triggers. It knows nothing about
+  any particular game: no commands, no weapons, no economy.
+- **rts** — the RTS on top of it: the command set, combat, production, economy,
+  veterancy, power, transports, superweapons, the RTS classification vocabulary
+  and the save format.
+- **game** — the Unity-style API: the `DukeGame` facade, a built-in Swing 2D
+  renderer, camera, unit selection, right-click orders, HUD, two-player
+  lock-step multiplayer over TCP. Zero external dependencies.
+- **client3d** — the full 3D client on jMonkeyEngine: glTF/Ogre **model
+  loading**, skeletal **animation**, positional **sound**, RTS camera,
+  ray-picked selection, health bars, menus and a minimap. Assets bind
+  Unity-style via `Visuals`; units without art get clean primitives.
+- **studio** — Duke Studio, the Swing editor: author factions, units, maps and
+  scripts, press Play, export a standalone cross-platform game.
+- **sandbox** / **sandbox3d** — the 2D and 3D demo skirmishes, ~70 lines each.
+
+`core` never imports `rts`. Building a game that is not an RTS means depending
+on `core` alone and supplying your own commands, modules and vocabulary — see
+**Extending** below.
 
 ## Architecture
 
@@ -51,28 +81,22 @@ to `maxFps` (default 45). Game time therefore tracks wall time regardless of
 render rate. This implements the decoupling SAGE's own `update()` flagged as a
 `@todo` but never shipped.
 
-## Modules
+## Extending — what a game supplies
 
-- **core** — the engine framework and all simulation systems (no rendering).
-- **game** — the Unity-style API: `DukeGame` facade, built-in Swing 2D
-  renderer, camera, unit selection, right-click orders, HUD. Zero external
-  dependencies.
-- **client3d** — the full 3D client on jMonkeyEngine: glTF/Ogre **model
-  loading**, skeletal **animation** (idle/walk/attack per unit), positional
-  **sound** (fire/death), RTS camera, ray-picked selection and orders, health
-  bars. Assets bind Unity-style via `Visuals`; units without art get clean
-  primitives:
+The engine deliberately ships no game content. Five seams let a game fill in
+its own, and the `rts` module is the worked example of each:
 
-  ```java
-  var visuals = Visuals.create()
-          .unit("Tank", u -> u.model("Models/tank.gltf").scale(1.5f)
-                  .idle("Idle").walk("Drive").attack("Fire")
-                  .fireSound("Sounds/cannon.ogg").dieSound("Sounds/boom.ogg"));
-  Duke3D.launch(game, visuals);
-  ```
-- **sandbox** — the 2D skirmish (~40 lines). `./gradlew :sandbox:run`
-- **sandbox3d** — the 3D skirmish with an animated demo model (~60 lines).
-  `./gradlew :sandbox3d:run`
+| Seam | core | rts |
+|---|---|---|
+| Commands | `Command` marker + `MessageStream` | sealed `GameMessage` (Move/Attack/Stop/Queue/Rally) |
+| Wire format | `PacketCodec` plug on `SocketTransport` | `CommandCodec` |
+| Behaviour modules | `ModuleFactory.withDefaults()` — `ActiveBody`, `MoveUpdate` | `RtsModules` — weapons, production, economy, … |
+| Players | `Player` (identity, diplomacy) + `PlayerList(PlayerFactory)` | `RtsPlayer` (money, upgrades) |
+| Classification | `Kind`, interned by name | `RtsKinds` (`STRUCTURE`, `INFANTRY`, …) |
+
+Command hierarchies are sealed on purpose, so a new command is a compile error
+at every dispatch site until it is handled — and sealed types cannot cross a
+module boundary, which is exactly why the engine holds only the marker.
 
 ## Build
 
@@ -80,11 +104,15 @@ Requires nothing pre-installed beyond the wrapper — Gradle provisions the
 **Java 25** toolchain.
 
 ```
-./gradlew build          # compile + test (87 tests)
-./gradlew :sandbox:run   # run the integrated demo scenario
+./gradlew build            # compile + test (165 tests)
+./gradlew :studio:run      # the Duke Studio editor
+./gradlew :sandbox:run     # the 2D demo skirmish
+./gradlew :sandbox3d:run   # the 3D demo skirmish
 ```
 
 ## Implemented
+
+**core** — genre-neutral:
 
 - **Subsystem framework + main loop** — `SubsystemInterface`, `SubsystemList`,
   `GameEngine` (fixed-timestep 30Hz logic / capped render).
@@ -93,66 +121,55 @@ Requires nothing pre-installed beyond the wrapper — Gradle provisions the
   tables, scan helpers.
 - **Math** (`uz.duke.core.math`) — `Coord3D` / `Coord2D` / `ICoord3D`.
 - **Thing/Object/Module system** — `ThingTemplate`, `ThingFactory`,
-  `GameObject`, composable `Module`s (`ActiveBody`, `AIUpdate`, …),
-  `ModuleFactory`. `GameLogic` owns objects, ticks them, reaps the dead.
+  `GameObject`, composable `Module`s, `ModuleFactory`, `Kind` classification.
+  `GameLogic` owns objects, ticks them, reaps the dead.
 - **Data-driven objects** — `ThingTemplateLoader` loads `Object` INI blocks,
   including nested module sub-blocks, into templates.
-- **Command pipeline** — sealed `GameMessage` hierarchy + `MessageStream`;
-  `GameLogic.issueCommand` queues commands, drained deterministically each frame
-  to `onCommand`.
-- **Movement** — `AIUpdate` steers an object toward a goal at its configured
-  speed, on the fixed logic clock.
-- **Players** — `Player` / `PlayerList` with `Relationship` diplomacy and money.
-- **Combat** — `WeaponUpdate` deals damage on a reload cycle, range-gated, never
-  hits allies, and auto-acquires the nearest enemy when idle.
-- **Spatial queries** — `PartitionManager` + composable `PartitionFilter`
-  (objects-in-range, closest-matching).
-- **Lock-step core** — `LockstepScheduler` gates each frame until every player's
-  commands have arrived; backs `GameEngine.isLogicFrameReady()`.
-- **Pathfinding** — deterministic A* (`Pathfinder`/`PathGrid`/`Path`); `AIUpdate`
-  follows the resulting waypoints, routing around obstacles. `MapLoader` builds a
-  grid from ASCII text.
-- **Economy & production** — `ThingTemplate` build cost/time; `ProductionUpdate`
-  queues units, charges the owner, builds over time, spawns them.
-- **Veterancy** — `ExperienceModule` + `VeterancyLevel`; units earn XP from kills,
-  rank up, and deal more damage. `AutoHealUpdate` regenerates health over time.
-- **Desync detection** — `GameLogic.checksum()` hashes the whole world each frame
-  (SAGE's `VERIFY_CRC`), the lock-step desync check.
-- **Multiplayer core** — `LockstepDriver` + `CommandPacket`: per-peer scheduling,
-  frame-delay lookahead, transport-agnostic. Two peers exchanging only commands
-  stay bit-identical (proven by test).
-- **Upgrades** — `Upgrade` + `GameLogic.purchaseUpgrade`; player-wide combat
-  bonuses.
-- **Status effects** — `ObjectStatus` (DISABLED/SLOWED) + timed `StatusUpdate`;
-  honoured by movement and combat.
-- **Power grid** — `PowerModule`; production stalls when a base is under-powered.
+- **Command pipeline** — `Command` + `MessageStream`; commands are queued and
+  drained deterministically at the start of each frame.
+- **Movement** — `MoveUpdate` steers an object toward a goal at its configured
+  speed, with an optional turn rate, on the fixed logic clock.
+- **Health & damage** — `BodyModule`/`ActiveBody`, `DamageType`, `Armor`.
+- **Players** — `Player` / `PlayerList` with `Relationship` diplomacy.
+- **Spatial queries** — `PartitionManager` + composable `PartitionFilter`.
+- **Pathfinding** — deterministic A* (`Pathfinder`/`PathGrid`/`Path`);
+  `MapLoader` builds a grid from ASCII text.
+- **Lock-step networking** — `LockstepScheduler`/`LockstepDriver` gate each
+  frame until every player's commands have arrived; `Transport` +
+  `LoopbackTransport`/`SocketTransport` (real TCP, no external dependency).
+- **Desync detection** — `GameLogic.checksum()` hashes the whole world each
+  frame (SAGE's `VERIFY_CRC`).
+- **Fog of war** — vision ranges; `canSee` / `getVisibleObjects`, allies share
+  sight.
+- **Scripting** — `Trigger` + `ScriptEngine` for victory/defeat and map events.
+- **Rendering seam** — `Renderer` + `RenderingGameClient`.
+
+**rts** — the RTS on top:
+
+- **Combat** — `WeaponUpdate`: reload cycle, range gating, splash, never fires
+  on allies, typed damage against armor.
+- **Economy & production** — build cost/time, `ProductionUpdate` (queue, charge,
+  rally point), `SupplyModule` piles + `HarvestUpdate` gather loop.
+- **Veterancy** — `ExperienceModule` + `VeterancyLevel`; kills earn XP, ranks
+  raise damage and heal to full.
+- **Power grid** — `PowerModule` + `PowerGrid`; production stalls when a base is
+  under-powered.
+- **Upgrades** — `Upgrade` + `RtsSimulation.purchaseUpgrade`, player-wide bonuses.
+- **Status effects** — `StatusUpdate` applying DISABLED/SLOWED for a duration.
+- **Garrison / transport** — `ContainModule`.
+- **Special powers** — `SpecialPowerModule`, a rechargeable area-damage superweapon.
+- **Commands & wire format** — sealed `GameMessage` + `CommandCodec`.
 - **Save / load** — `GameSnapshot` serializes the world to text and restores it
   to a checksum-identical state.
-- **Networking** — `CommandCodec` (wire format) + `Transport`
-  (`LoopbackTransport` in-process, `SocketTransport` real TCP). Lock-step over
-  actual sockets, no external dependency.
-- **Fog of war** — vision ranges; `GameLogic.canSee` / `getVisibleObjects`,
-  allies share sight.
-- **Scripting** — `Trigger` + `ScriptEngine` for victory/defeat and map events.
-- **Special powers** — `SpecialPowerModule`: rechargeable area-damage superweapon.
-- **Damage types & armor** — `DamageType` + `Armor`; weapons deal typed damage,
-  bodies resist/are weak to it per type.
-- **Garrison / transport** — `ContainModule`; loaded units go idle and untargetable
-  until unloaded.
-- **Harvesting economy** — `SupplyModule` resource piles + `HarvestUpdate` gather
-  loop that turns resources into money.
-- **Rendering** — `Renderer` seam + `AsciiRenderer` (top-down text minimap,
-  fog-of-war aware) + `RenderingGameClient`. A 3D backend (jME) is a drop-in
-  alternative `Renderer`.
-
-The `sandbox` demo runs an integrated scenario end to end: a barracks spends
-money to build soldiers who auto-engage and destroy an advancing enemy — and
-prints the world as a text minimap.
+- **Text rendering** — `AsciiRenderer`, a fog-aware top-down minimap.
 
 ## Status
 
-Every major SAGE category is implemented (133 tests): the deterministic
-simulation, lock-step multiplayer over real TCP, save/load, and a (text)
-rendering backend. Remaining work is polish: a real 3D `Renderer` (jME — needs
-a dependency and a display), richer binary map formats, and per-module
-in-flight save/load fidelity.
+The engine is split and green at 165 tests: a genre-neutral core, an RTS on top
+of it, lock-step multiplayer over real TCP, save/load, a 3D client and an
+editor that exports standalone games.
+
+Known gaps: exported games bake in one map and faction set instead of offering
+the skirmish menu; multiplayer is two players only and does not yet compare
+checksums live; save/load is not wired into any UI; per-module in-flight state
+(move goals, reload counters, build queues) is not yet serialized.

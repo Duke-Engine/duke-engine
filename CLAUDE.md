@@ -7,6 +7,29 @@ This is the engine itself, not a game. Reference C++ source:
 Toolchain: **Java 25** (Gradle toolchain), **Gradle 9**. No runtime deps yet —
 core is pure Java; a render/audio backend comes later.
 
+## Module boundaries (the most important rule)
+
+- **`core` is genre-neutral.** Any game — RTS, RPG, platformer — is built on it.
+  If a name or a rule only makes sense for an RTS (harvesting, build cost,
+  rally points, a `MoveTo` command), it does **not** belong in `core`.
+- **`rts` is the RTS on top of core.** Its command set, gameplay modules,
+  economy, vocabulary and save format live here.
+- `game` → `rts` → `core`. Never the other way; `core` never imports `rts`.
+
+The three seams that keep `core` genre-free — extend these rather than
+special-casing:
+
+| Seam | Core supplies | A game supplies |
+|---|---|---|
+| Commands | `Command`, `MessageStream` | its own **sealed** command hierarchy (sealed types cannot cross modules) |
+| Wire format | `PacketCodec` plug on `SocketTransport` | a codec for its commands |
+| Modules | `ModuleFactory.withDefaults()` (body + locomotor) | its own module set, e.g. `RtsModules` |
+| Players | `Player` (identity + diplomacy), `PlayerList(PlayerFactory)` | its `Player` subtype, e.g. `RtsPlayer` |
+| Classification | `Kind`, interned by name | its vocabulary, e.g. `RtsKinds` |
+
+Before adding anything to `core`, ask: *would a game that is not an RTS want
+this?* If the answer is no, it goes in `rts`.
+
 ## Porting philosophy
 
 - **Faithful, not transliterated.** Preserve SAGE's architecture and behaviour
@@ -53,3 +76,5 @@ core is pure Java; a render/audio backend comes later.
 - `./gradlew build` passes.
 - `./gradlew :sandbox:run` still drives the loop.
 - No new `-Xlint:all` warnings.
+- `core` still compiles with no reference to `rts` (it cannot see it — but
+  check that nothing genre-specific leaked in the other direction either).
