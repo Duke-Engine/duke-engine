@@ -35,9 +35,9 @@ class ThingTemplateLoaderTest {
         var template = thingFactory.findTemplate("Crusader");
         assertNotNull(template);
         assertEquals("Crusader Tank", template.getDisplayName());
-        assertTrue(template.isKindOf(KindOf.VEHICLE));
-        assertTrue(template.isKindOf(KindOf.CAN_ATTACK));
-        assertFalse(template.isKindOf(KindOf.STRUCTURE));
+        assertTrue(template.isKindOf(Kind.of("VEHICLE")));
+        assertTrue(template.isKindOf(Kind.of("CAN_ATTACK")));
+        assertFalse(template.isKindOf(Kind.of("STRUCTURE")));
 
         // The body module data round-trips into a built object.
         var object = thingFactory.newObject(template, new ObjectId(1));
@@ -64,8 +64,8 @@ class ThingTemplateLoaderTest {
 
         assertNotNull(thingFactory.findTemplate("Alpha"));
         assertNotNull(thingFactory.findTemplate("Beta"));
-        assertTrue(thingFactory.findTemplate("Alpha").isKindOf(KindOf.STRUCTURE));
-        assertTrue(thingFactory.findTemplate("Beta").isKindOf(KindOf.INFANTRY));
+        assertTrue(thingFactory.findTemplate("Alpha").isKindOf(Kind.of("STRUCTURE")));
+        assertTrue(thingFactory.findTemplate("Beta").isKindOf(Kind.of("INFANTRY")));
 
         var beta = thingFactory.newObject(thingFactory.findTemplate("Beta"), new ObjectId(2));
         assertEquals(50f, beta.getBody().getMaxHealth(), 1e-6f);

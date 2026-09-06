@@ -2,7 +2,7 @@ package uz.duke.game;
 
 import java.util.ArrayList;
 import uz.duke.core.GameClient;
-import uz.duke.core.thing.KindOf;
+import uz.duke.rts.thing.RtsKinds;
 import uz.duke.game.view.UnitView;
 import uz.duke.game.view.WorldSnapshot;
 import uz.duke.rts.module.PowerGrid;
@@ -66,8 +66,8 @@ final class RtsClient extends GameClient {
                     object.getOrientation(),
                     body == null ? 0f : body.getHealth(),
                     body == null ? 0f : body.getMaxHealth(),
-                    template.isKindOf(KindOf.STRUCTURE),
-                    template.isKindOf(KindOf.SELECTABLE),
+                    template.isKindOf(RtsKinds.STRUCTURE),
+                    template.isKindOf(RtsKinds.SELECTABLE),
                     ai != null && ai.isMoving(),
                     weapon != null && weapon.isAttacking(),
                     production == null ? -1 : production.getQueueSize()));

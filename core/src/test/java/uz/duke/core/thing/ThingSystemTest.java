@@ -56,7 +56,7 @@ class ThingSystemTest {
 
         tankTemplate = ThingTemplate.named("TestTank")
                 .displayName("Test Tank")
-                .kindOf(KindOf.VEHICLE, KindOf.SELECTABLE, KindOf.CAN_ATTACK)
+                .kindOf(Kind.of("VEHICLE"), Kind.of("SELECTABLE"), Kind.of("CAN_ATTACK"))
                 .module("ActiveBody", new ActiveBody.Data(100f))
                 .module("Mover", new MoverUpdate.Data(new Coord3D(1f, 0f, 0f)))
                 .build();
@@ -78,8 +78,8 @@ class ThingSystemTest {
     @Test
     void objectInheritsTemplateClassificationAndBody() {
         var tank = logic.createObject(tankTemplate);
-        assertTrue(tank.isKindOf(KindOf.VEHICLE));
-        assertFalse(tank.isKindOf(KindOf.STRUCTURE));
+        assertTrue(tank.isKindOf(Kind.of("VEHICLE")));
+        assertFalse(tank.isKindOf(Kind.of("STRUCTURE")));
         assertSame(tankTemplate, tank.getTemplate());
         assertEquals(100f, tank.getBody().getMaxHealth(), 1e-6f);
         assertEquals(100f, tank.getBody().getHealth(), 1e-6f);

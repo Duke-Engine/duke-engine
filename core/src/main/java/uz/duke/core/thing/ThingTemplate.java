@@ -2,8 +2,9 @@ package uz.duke.core.thing;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import uz.duke.core.module.ModuleData;
 
 /**
@@ -24,7 +25,7 @@ public final class ThingTemplate {
 
     private final String name;
     private final String displayName;
-    private final EnumSet<KindOf> kindOf;
+    private final Set<Kind> kinds;
     private final List<ModuleEntry> modules;
     private final int buildCost;
     private final int buildTimeFrames;
@@ -33,7 +34,7 @@ public final class ThingTemplate {
     private ThingTemplate(Builder b) {
         this.name = b.name;
         this.displayName = b.displayName;
-        this.kindOf = b.kindOf.isEmpty() ? EnumSet.noneOf(KindOf.class) : EnumSet.copyOf(b.kindOf);
+        this.kinds = Set.copyOf(b.kinds);
         this.modules = List.copyOf(b.modules);
         this.buildCost = b.buildCost;
         this.buildTimeFrames = b.buildTimeFrames;
@@ -52,13 +53,13 @@ public final class ThingTemplate {
         return displayName;
     }
 
-    public boolean isKindOf(KindOf kind) {
-        return kindOf.contains(kind);
+    public boolean isKindOf(Kind kind) {
+        return kinds.contains(kind);
     }
 
-    /** Unmodifiable view of this template's classification flags. */
-    public EnumSet<KindOf> getKindOf() {
-        return EnumSet.copyOf(kindOf.isEmpty() ? EnumSet.noneOf(KindOf.class) : kindOf);
+    /** This template's classification flags. Unmodifiable. */
+    public Set<Kind> getKinds() {
+        return kinds;
     }
 
     public List<ModuleEntry> getModules() {
@@ -84,7 +85,7 @@ public final class ThingTemplate {
     public static final class Builder {
         private final String name;
         private String displayName = "";
-        private final EnumSet<KindOf> kindOf = EnumSet.noneOf(KindOf.class);
+        private final Set<Kind> kinds = new LinkedHashSet<>();
         private final List<ModuleEntry> modules = new ArrayList<>();
         private int buildCost;
         private int buildTimeFrames;
@@ -114,13 +115,13 @@ public final class ThingTemplate {
             return this;
         }
 
-        public Builder kindOf(KindOf... kinds) {
-            Collections.addAll(kindOf, kinds);
+        public Builder kindOf(Kind... kinds) {
+            Collections.addAll(this.kinds, kinds);
             return this;
         }
 
-        public Builder addKindOf(KindOf kind) {
-            kindOf.add(kind);
+        public Builder addKindOf(Kind kind) {
+            kinds.add(kind);
             return this;
         }
 

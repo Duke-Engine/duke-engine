@@ -55,7 +55,7 @@ public final class ThingTemplateLoader {
 
     private void parseKindOf(Ini ini, ThingTemplate.Builder builder) {
         for (var token = ini.getNextTokenOrNull(); token != null; token = ini.getNextTokenOrNull()) {
-            builder.addKindOf(Ini.scanEnum(KindOf.class, token));
+            builder.addKindOf(Kind.of(token));
         }
     }
 

@@ -2,7 +2,7 @@ package uz.duke.core.partition;
 
 import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
-import uz.duke.core.thing.KindOf;
+import uz.duke.core.thing.Kind;
 import uz.duke.core.thing.World;
 
 /**
@@ -46,7 +46,7 @@ public interface PartitionFilter {
     }
 
     /** Accepts objects carrying the given classification flag. */
-    static PartitionFilter ofKind(KindOf kind) {
+    static PartitionFilter ofKind(Kind kind) {
         return candidate -> candidate.isKindOf(kind);
     }
 

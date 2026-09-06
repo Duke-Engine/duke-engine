@@ -84,7 +84,7 @@ public final class GameObject {
         return template;
     }
 
-    public boolean isKindOf(KindOf kind) {
+    public boolean isKindOf(Kind kind) {
         return template.isKindOf(kind);
     }
 

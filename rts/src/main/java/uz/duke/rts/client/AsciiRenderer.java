@@ -1,9 +1,10 @@
-package uz.duke.core.client;
+package uz.duke.rts.client;
 
 import java.util.Arrays;
 import uz.duke.core.GameLogic;
+import uz.duke.core.client.Renderer;
 import uz.duke.core.thing.GameObject;
-import uz.duke.core.thing.KindOf;
+import uz.duke.rts.thing.RtsKinds;
 
 /**
  * A dependency-free {@link Renderer} that draws the world to a grid of
@@ -12,7 +13,7 @@ import uz.duke.core.thing.KindOf;
  * <p>World ground coordinates ({@code x} east, {@code y} north) are mapped onto a
  * {@code cols}×{@code rows} character grid spanning {@code worldWidth}×
  * {@code worldHeight}. Each visible object is a glyph chosen by its
- * {@link KindOf} — {@code B}uilding, {@code V}ehicle, {@code I}nfantry, else
+ * {@link RtsKinds kind} — {@code B}uilding, {@code V}ehicle, {@code I}nfantry, else
  * {@code O} — upper-case for the viewing player's own units, lower-case for
  * everyone else. Fog of war is honoured: only objects the viewer can see appear.
  *
@@ -61,11 +62,11 @@ public final class AsciiRenderer implements Renderer {
 
     private static char glyph(GameObject object, int viewerPlayer) {
         char base;
-        if (object.isKindOf(KindOf.STRUCTURE)) {
+        if (object.isKindOf(RtsKinds.STRUCTURE)) {
             base = 'B';
-        } else if (object.isKindOf(KindOf.VEHICLE)) {
+        } else if (object.isKindOf(RtsKinds.VEHICLE)) {
             base = 'V';
-        } else if (object.isKindOf(KindOf.INFANTRY)) {
+        } else if (object.isKindOf(RtsKinds.INFANTRY)) {
             base = 'I';
         } else {
             base = 'O';

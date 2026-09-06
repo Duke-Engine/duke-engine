@@ -1,4 +1,4 @@
-package uz.duke.core.client;
+package uz.duke.rts.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -6,12 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import uz.duke.core.client.RenderingGameClient;
+import uz.duke.core.thing.Kind;
 import uz.duke.core.GameLogic;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.ActiveBody;
 import uz.duke.core.module.ModuleFactory;
 import uz.duke.core.thing.GameObject;
-import uz.duke.core.thing.KindOf;
 import uz.duke.core.thing.ThingFactory;
 import uz.duke.core.thing.ThingTemplate;
 
@@ -44,7 +45,7 @@ class AsciiRendererTest {
         renderer = new AsciiRenderer(10, 10, 100f, 100f);
     }
 
-    private ThingTemplate template(String name, float vision, KindOf... kinds) {
+    private ThingTemplate template(String name, float vision, Kind... kinds) {
         var t = ThingTemplate.named(name).module("ActiveBody", new ActiveBody.Data(100f)).visionRange(vision);
         for (var k : kinds) {
             t.addKindOf(k);
@@ -65,7 +66,7 @@ class AsciiRendererTest {
 
     @Test
     void ownUnitRendersAsUppercaseGlyphAtMappedCell() {
-        var tank = template("Tank", 0f, KindOf.VEHICLE);
+        var tank = template("Tank", 0f, Kind.of("VEHICLE"));
         thingFactory.addTemplate(tank);
         spawn(tank, usa, 25f, 25f); // -> col 2, row 2
 
@@ -75,7 +76,7 @@ class AsciiRendererTest {
 
     @Test
     void enemyHiddenByFogIsNotDrawn() {
-        var tank = template("Tank", 0f, KindOf.VEHICLE);
+        var tank = template("Tank", 0f, Kind.of("VEHICLE"));
         thingFactory.addTemplate(tank);
         spawn(tank, china, 95f, 95f); // enemy, no friendly vision -> hidden
 
@@ -85,8 +86,8 @@ class AsciiRendererTest {
 
     @Test
     void enemyInVisionRendersAsLowercase() {
-        var watchtower = template("Tower", 200f, KindOf.STRUCTURE);
-        var tank = template("Tank", 0f, KindOf.VEHICLE);
+        var watchtower = template("Tower", 200f, Kind.of("STRUCTURE"));
+        var tank = template("Tank", 0f, Kind.of("VEHICLE"));
         thingFactory.addTemplate(watchtower);
         thingFactory.addTemplate(tank);
 
@@ -100,7 +101,7 @@ class AsciiRendererTest {
 
     @Test
     void renderingClientStoresLatestFrame() {
-        var tank = template("Tank", 0f, KindOf.VEHICLE);
+        var tank = template("Tank", 0f, Kind.of("VEHICLE"));
         thingFactory.addTemplate(tank);
         spawn(tank, usa, 50f, 50f);
 
