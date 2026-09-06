@@ -9,6 +9,7 @@ import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ThingTemplate;
+import uz.duke.rts.player.RtsPlayer;
 
 /**
  * Builds units over time, ported in spirit from SAGE's {@code ProductionUpdate}.
@@ -106,7 +107,7 @@ public final class ProductionUpdate extends UpdateModule {
         if (world == null) {
             return false;
         }
-        var player = world.getPlayer(getOwner().getPlayerIndex());
+        var player = RtsPlayer.of(world, getOwner().getPlayerIndex());
         if (player == null || !player.withdraw(unit.getBuildCost())) {
             return false;
         }

@@ -16,7 +16,27 @@ public final class PlayerList extends SubsystemInterface {
 
     public static final int NEUTRAL_INDEX = 0;
 
+    /**
+     * Builds the player object for an index and name. A game that extends
+     * {@link Player} passes its own constructor here, so every player in the
+     * roster — including the neutral one — is of the game's type.
+     */
+    @FunctionalInterface
+    public interface PlayerFactory {
+        Player create(int index, String name);
+    }
+
+    private final PlayerFactory playerFactory;
     private final List<Player> players = new ArrayList<>();
+
+    /** A roster of plain engine {@link Player}s. */
+    public PlayerList() {
+        this(Player::new);
+    }
+
+    public PlayerList(PlayerFactory playerFactory) {
+        this.playerFactory = playerFactory;
+    }
 
     @Override
     public void init() {
@@ -27,7 +47,7 @@ public final class PlayerList extends SubsystemInterface {
     public void reset() {
         players.clear();
         // A game always has at least the neutral player at index 0.
-        players.add(new Player(NEUTRAL_INDEX, "Neutral"));
+        players.add(playerFactory.create(NEUTRAL_INDEX, "Neutral"));
     }
 
     @Override
@@ -36,7 +56,7 @@ public final class PlayerList extends SubsystemInterface {
 
     /** Add a player; its index must be the next free slot. */
     public Player addPlayer(String name) {
-        var player = new Player(players.size(), name);
+        var player = playerFactory.create(players.size(), name);
         players.add(player);
         return player;
     }

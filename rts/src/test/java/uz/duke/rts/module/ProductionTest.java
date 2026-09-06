@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import uz.duke.rts.RtsSimulation;
+import uz.duke.rts.message.GameMessage;
 import uz.duke.core.GameLogic;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.ActiveBody;
@@ -16,9 +18,13 @@ import uz.duke.core.thing.ThingTemplateLoader;
 
 class ProductionTest {
 
-    static final class TestLogic extends GameLogic {
+    static final class TestLogic extends RtsSimulation {
         TestLogic(ThingFactory thingFactory) {
             super(thingFactory);
+        }
+
+        @Override
+        protected void onRtsCommand(GameMessage command) {
         }
 
         @Override
@@ -50,7 +56,7 @@ class ProductionTest {
         logic = new TestLogic(thingFactory);
         logic.init();
         usa = logic.getPlayerList().addPlayer("USA").getIndex();
-        logic.getPlayerList().getPlayer(usa).deposit(250);
+        logic.getRtsPlayer(usa).deposit(250);
 
         barracks = logic.createObject(barracksTemplate);
         barracks.setPlayerIndex(usa);
@@ -64,9 +70,9 @@ class ProductionTest {
     @Test
     void queueingChargesThePlayer() {
         assertTrue(production().queue(soldier));
-        assertEquals(150, logic.getPlayerList().getPlayer(usa).getMoney());
+        assertEquals(150, logic.getRtsPlayer(usa).getMoney());
         assertTrue(production().queue(soldier));
-        assertEquals(50, logic.getPlayerList().getPlayer(usa).getMoney());
+        assertEquals(50, logic.getRtsPlayer(usa).getMoney());
     }
 
     @Test
@@ -74,7 +80,7 @@ class ProductionTest {
         production().queue(soldier); // 250 -> 150
         production().queue(soldier); // 150 -> 50
         assertFalse(production().queue(soldier)); // 50 < 100
-        assertEquals(50, logic.getPlayerList().getPlayer(usa).getMoney());
+        assertEquals(50, logic.getRtsPlayer(usa).getMoney());
         assertEquals(2, production().getQueueSize());
     }
 

@@ -29,7 +29,7 @@ class ProductionCommandTest {
         });
         game.runHeadless(60); // rifleman build time is 1.5s = 45 frames
 
-        assertEquals(500 - 120, game.getLogic().getPlayer(you.getIndex()).getMoney(),
+        assertEquals(500 - 120, game.getLogic().getRtsPlayer(you.getIndex()).getMoney(),
                 "queueing charges the rifleman's cost");
         assertEquals(3, game.getLogic().getObjectCount(), "the rifleman was produced");
 
@@ -52,7 +52,7 @@ class ProductionCommandTest {
                 new ObjectId(1), "PowerPlant"))); // structures are not on the menu
         game.runHeadless(10);
 
-        assertEquals(5000, game.getLogic().getPlayer(you.getIndex()).getMoney(),
+        assertEquals(5000, game.getLogic().getRtsPlayer(you.getIndex()).getMoney(),
                 "off-menu requests are refused and never charged");
         assertEquals(1, game.getLogic().getObjectCount());
     }
@@ -70,7 +70,7 @@ class ProductionCommandTest {
                 new ObjectId(1), "Rifleman")));
         game.runHeadless(60);
 
-        assertEquals(500, game.getLogic().getPlayer(foe.getIndex()).getMoney());
+        assertEquals(500, game.getLogic().getRtsPlayer(foe.getIndex()).getMoney());
         assertEquals(1, game.getLogic().getObjectCount(), "no unit for the enemy");
     }
 

@@ -2,6 +2,7 @@ package uz.duke.game.script;
 
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.MoveUpdate;
+import uz.duke.rts.player.RtsPlayer;
 import uz.duke.rts.module.WeaponUpdate;
 import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
@@ -127,7 +128,7 @@ public abstract class UnitScript {
 
     /** This unit's owner's current money. */
     protected final int money() {
-        var player = world.getPlayer(unit.getPlayerIndex());
+        var player = RtsPlayer.of(world, unit.getPlayerIndex());
         return player == null ? 0 : player.getMoney();
     }
 

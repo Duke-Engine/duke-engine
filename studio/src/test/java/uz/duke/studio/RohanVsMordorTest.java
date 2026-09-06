@@ -54,7 +54,7 @@ class RohanVsMordorTest {
 
         var logic = game.getLogic();
         int mordor = 2; // player index: Sauron
-        assertTrue(logic.getPlayer(mordor).getMoney() < 3500,
+        assertTrue(logic.getRtsPlayer(mordor).getMoney() < 3500,
                 "the WarlordAI script must spend gold training waves");
 
         boolean anyCasualties = logic.getObjectCount() != startingObjects;

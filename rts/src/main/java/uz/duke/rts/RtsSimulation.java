@@ -3,9 +3,12 @@ package uz.duke.rts;
 import java.util.logging.Logger;
 import uz.duke.core.GameLogic;
 import uz.duke.core.message.Command;
+import uz.duke.core.player.PlayerList;
 import uz.duke.core.thing.ThingFactory;
 import uz.duke.rts.message.GameMessage;
 import uz.duke.rts.module.RtsModules;
+import uz.duke.rts.player.RtsPlayer;
+import uz.duke.rts.player.Upgrade;
 
 /**
  * A {@link GameLogic} that speaks the RTS command set — the base every RTS
@@ -27,11 +30,11 @@ public abstract class RtsSimulation extends GameLogic {
     private static final Logger LOG = Logger.getLogger(RtsSimulation.class.getName());
 
     protected RtsSimulation() {
-        super(new ThingFactory(RtsModules.withDefaults()));
+        this(new ThingFactory(RtsModules.withDefaults()));
     }
 
     protected RtsSimulation(ThingFactory thingFactory) {
-        super(thingFactory);
+        super(thingFactory, new PlayerList(RtsPlayer::new));
     }
 
     @Override
@@ -45,4 +48,26 @@ public abstract class RtsSimulation extends GameLogic {
 
     /** Apply one RTS command. Implementations switch over the sealed hierarchy. */
     protected abstract void onRtsCommand(GameMessage command);
+
+    /** The RTS player at {@code index}, or {@code null} if there is none. */
+    public final RtsPlayer getRtsPlayer(int index) {
+        return getPlayerList().getPlayer(index) instanceof RtsPlayer player ? player : null;
+    }
+
+    /**
+     * Purchase an upgrade for a player: charge its cost and apply its effect,
+     * once. Returns false if already owned or unaffordable.
+     */
+    public final boolean purchaseUpgrade(int playerIndex, Upgrade upgrade) {
+        var player = getRtsPlayer(playerIndex);
+        if (player == null || player.hasUpgrade(upgrade.name())) {
+            return false;
+        }
+        if (!player.withdraw(upgrade.cost())) {
+            return false;
+        }
+        player.addUpgrade(upgrade.name());
+        player.multiplyWeaponDamageBonus(upgrade.weaponDamageMultiplier());
+        return true;
+    }
 }

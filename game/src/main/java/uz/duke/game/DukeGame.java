@@ -11,7 +11,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javax.swing.SwingUtilities;
 import uz.duke.core.GameConstants;
-import uz.duke.core.GameLogic;
+import uz.duke.rts.RtsSimulation;
 import uz.duke.core.math.Coord3D;
 import uz.duke.rts.message.GameMessage;
 import uz.duke.core.pathfind.MapLoader;
@@ -170,7 +170,7 @@ public final class DukeGame {
 
     /** Give a player starting money. */
     public DukeGame money(GamePlayer player, int amount) {
-        scenario.add(() -> logic.getPlayer(player.getIndex()).deposit(amount));
+        scenario.add(() -> logic.getRtsPlayer(player.getIndex()).deposit(amount));
         return this;
     }
 
@@ -665,7 +665,7 @@ public final class DukeGame {
     }
 
     /** The full simulation — the escape hatch to everything the engine can do. */
-    public GameLogic getLogic() {
+    public RtsSimulation getLogic() {
         return logic;
     }
 

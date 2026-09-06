@@ -2,6 +2,7 @@ package uz.duke.core.player;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -58,14 +59,24 @@ class PlayerListTest {
         assertEquals(Relationship.ENEMIES, players.getRelationship(usa.getIndex(), china.getIndex()));
     }
 
+    /** A game's own player type, the way the RTS module supplies RtsPlayer. */
+    static final class ScoredPlayer extends Player {
+        int score;
+
+        ScoredPlayer(int index, String name) {
+            super(index, name);
+        }
+    }
+
     @Test
-    void moneyDepositAndWithdraw() {
-        var usa = players.addPlayer("USA");
-        usa.deposit(1000);
-        assertTrue(usa.withdraw(600));
-        assertEquals(400, usa.getMoney());
-        assertFalse(usa.withdraw(500)); // not enough
-        assertEquals(400, usa.getMoney());
+    void aGameSuppliesItsOwnPlayerType() {
+        var roster = new PlayerList(ScoredPlayer::new);
+        roster.init();
+
+        var added = roster.addPlayer("USA");
+        assertInstanceOf(ScoredPlayer.class, added);
+        // even the neutral player created by reset() is the game's type
+        assertInstanceOf(ScoredPlayer.class, roster.getNeutralPlayer());
     }
 
     @Test

@@ -72,7 +72,7 @@ final class RtsClient extends GameClient {
                     weapon != null && weapon.isAttacking(),
                     production == null ? -1 : production.getQueueSize()));
         }
-        var player = logic.getPlayer(viewerPlayer);
+        var player = logic.getRtsPlayer(viewerPlayer);
         snapshot = new WorldSnapshot(
                 logic.getFrame(),
                 logic.getGameTimeSeconds(),

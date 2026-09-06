@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import uz.duke.rts.RtsSimulation;
+import uz.duke.rts.message.GameMessage;
 import uz.duke.core.GameLogic;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.ActiveBody;
@@ -14,9 +16,13 @@ import uz.duke.core.thing.ThingTemplate;
 
 class HarvestTest {
 
-    static final class TestLogic extends GameLogic {
+    static final class TestLogic extends RtsSimulation {
         TestLogic(ThingFactory thingFactory) {
             super(thingFactory);
+        }
+
+        @Override
+        protected void onRtsCommand(GameMessage command) {
         }
 
         @Override
@@ -59,17 +65,17 @@ class HarvestTest {
     void harvesterDepositsMoneyEachTrip() {
         spawn(harvester);
         spawn(supplyPile);
-        assertEquals(0, logic.getPlayerList().getPlayer(usa).getMoney());
+        assertEquals(0, logic.getRtsPlayer(usa).getMoney());
 
         for (int i = 0; i < 10; i++) {
             logic.update();
         }
-        assertEquals(100, logic.getPlayerList().getPlayer(usa).getMoney()); // one trip
+        assertEquals(100, logic.getRtsPlayer(usa).getMoney()); // one trip
 
         for (int i = 0; i < 20; i++) {
             logic.update();
         }
-        assertEquals(300, logic.getPlayerList().getPlayer(usa).getMoney()); // three trips total
+        assertEquals(300, logic.getRtsPlayer(usa).getMoney()); // three trips total
     }
 
     @Test
@@ -85,7 +91,7 @@ class HarvestTest {
         for (int i = 0; i < 100; i++) {
             logic.update();
         }
-        assertEquals(250, logic.getPlayerList().getPlayer(usa).getMoney()); // never exceeds the pile
+        assertEquals(250, logic.getRtsPlayer(usa).getMoney()); // never exceeds the pile
         assertEquals(0, pile.findModule(SupplyModule.class).getRemaining());
     }
 
@@ -95,7 +101,7 @@ class HarvestTest {
         for (int i = 0; i < 50; i++) {
             logic.update();
         }
-        assertEquals(0, logic.getPlayerList().getPlayer(usa).getMoney());
+        assertEquals(0, logic.getRtsPlayer(usa).getMoney());
     }
 
     @Test

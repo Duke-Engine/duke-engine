@@ -1,4 +1,4 @@
-package uz.duke.core;
+package uz.duke.rts;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -6,15 +6,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import uz.duke.rts.message.GameMessage;
 import uz.duke.core.module.ModuleFactory;
-import uz.duke.core.player.Upgrade;
+import uz.duke.rts.player.Upgrade;
 import uz.duke.core.thing.ThingFactory;
 
 class UpgradeTest {
 
-    static final class TestLogic extends GameLogic {
+    static final class TestLogic extends RtsSimulation {
         TestLogic(ThingFactory thingFactory) {
             super(thingFactory);
+        }
+
+        @Override
+        protected void onRtsCommand(GameMessage command) {
         }
 
         @Override
@@ -30,7 +35,7 @@ class UpgradeTest {
         logic = new TestLogic(new ThingFactory(ModuleFactory.withDefaults()));
         logic.init();
         usa = logic.getPlayerList().addPlayer("USA").getIndex();
-        logic.getPlayerList().getPlayer(usa).deposit(500);
+        logic.getRtsPlayer(usa).deposit(500);
     }
 
     @Test
@@ -38,7 +43,7 @@ class UpgradeTest {
         var training = new Upgrade("AdvancedTraining", 200, 1.5f);
 
         assertTrue(logic.purchaseUpgrade(usa, training));
-        var player = logic.getPlayerList().getPlayer(usa);
+        var player = logic.getRtsPlayer(usa);
         assertEquals(300, player.getMoney());
         assertTrue(player.hasUpgrade("AdvancedTraining"));
         assertEquals(1.5f, player.getWeaponDamageBonus(), 1e-6f);
@@ -53,14 +58,14 @@ class UpgradeTest {
     void cannotAffordIsRejected() {
         var expensive = new Upgrade("Superweapon", 9999, 2.0f);
         assertFalse(logic.purchaseUpgrade(usa, expensive));
-        assertEquals(500, logic.getPlayerList().getPlayer(usa).getMoney());
-        assertFalse(logic.getPlayerList().getPlayer(usa).hasUpgrade("Superweapon"));
+        assertEquals(500, logic.getRtsPlayer(usa).getMoney());
+        assertFalse(logic.getRtsPlayer(usa).hasUpgrade("Superweapon"));
     }
 
     @Test
     void upgradesStackMultiplicatively() {
         logic.purchaseUpgrade(usa, new Upgrade("A", 100, 1.5f));
         logic.purchaseUpgrade(usa, new Upgrade("B", 100, 2.0f));
-        assertEquals(3.0f, logic.getPlayerList().getPlayer(usa).getWeaponDamageBonus(), 1e-6f);
+        assertEquals(3.0f, logic.getRtsPlayer(usa).getWeaponDamageBonus(), 1e-6f);
     }
 }

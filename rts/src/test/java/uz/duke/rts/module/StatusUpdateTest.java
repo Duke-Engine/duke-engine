@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import uz.duke.rts.RtsSimulation;
+import uz.duke.rts.message.GameMessage;
 import uz.duke.core.GameLogic;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.ActiveBody;
@@ -17,9 +19,13 @@ import uz.duke.core.thing.ThingTemplate;
 
 class StatusUpdateTest {
 
-    static final class TestLogic extends GameLogic {
+    static final class TestLogic extends RtsSimulation {
         TestLogic(ThingFactory thingFactory) {
             super(thingFactory);
+        }
+
+        @Override
+        protected void onRtsCommand(GameMessage command) {
         }
 
         @Override

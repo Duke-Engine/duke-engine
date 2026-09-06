@@ -1,4 +1,4 @@
-package uz.duke.core.save;
+package uz.duke.rts.save;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;
@@ -6,6 +6,8 @@ import uz.duke.core.GameLogic;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.core.thing.ObjectStatus;
+import uz.duke.rts.RtsSimulation;
+import uz.duke.rts.player.RtsPlayer;
 
 /**
  * Saves and restores the deterministic world state as portable text, ported in
@@ -29,14 +31,14 @@ public final class GameSnapshot {
     }
 
     /** Serialize the world to text. */
-    public static String save(GameLogic logic) {
+    public static String save(RtsSimulation logic) {
         var sb = new StringBuilder();
         sb.append("FRAME ").append(logic.getFrame()).append('\n');
         sb.append("NEXTID ").append(logic.getNextObjectId()).append('\n');
 
         var players = logic.getPlayerList();
         for (int i = 0; i < players.getPlayerCount(); i++) {
-            var p = players.getPlayer(i);
+            var p = logic.getRtsPlayer(i);
             var upgrades = p.getUpgrades().stream().sorted().collect(Collectors.joining(","));
             sb.append("PLAYER ").append(i).append('|').append(p.getName()).append('|')
                     .append(p.getMoney()).append('|')
@@ -63,7 +65,7 @@ public final class GameSnapshot {
     }
 
     /** Restore a saved world into {@code logic}, which must have the templates loaded. */
-    public static void load(String text, GameLogic logic) {
+    public static void load(String text, RtsSimulation logic) {
         logic.reset(); // baseline: empty world, neutral player only
         for (var line : text.split("\n")) {
             if (line.isBlank()) {
@@ -82,7 +84,7 @@ public final class GameSnapshot {
         }
     }
 
-    private static void loadPlayer(String rest, GameLogic logic) {
+    private static void loadPlayer(String rest, RtsSimulation logic) {
         var parts = rest.split("\\|", -1);
         int index = Integer.parseInt(parts[0]);
         var name = parts[1];
@@ -91,7 +93,10 @@ public final class GameSnapshot {
         var upgrades = parts[4];
 
         var players = logic.getPlayerList();
-        var player = index == 0 ? players.getNeutralPlayer() : players.addPlayer(name);
+        if (index != 0) {
+            players.addPlayer(name); // index 0 (neutral) already exists after reset
+        }
+        var player = (RtsPlayer) players.getPlayer(index);
         player.deposit(money);
         player.multiplyWeaponDamageBonus(bonus); // players start at 1.0 after reset
         if (!upgrades.isEmpty()) {
@@ -101,7 +106,7 @@ public final class GameSnapshot {
         }
     }
 
-    private static void loadObject(String rest, GameLogic logic) {
+    private static void loadObject(String rest, RtsSimulation logic) {
         var parts = rest.split("\\|", -1);
         int id = Integer.parseInt(parts[0]);
         var templateName = parts[1];

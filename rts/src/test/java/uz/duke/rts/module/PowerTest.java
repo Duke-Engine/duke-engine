@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import uz.duke.rts.RtsSimulation;
+import uz.duke.rts.message.GameMessage;
 import uz.duke.core.GameLogic;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.ActiveBody;
@@ -15,9 +17,13 @@ import uz.duke.core.thing.ThingTemplate;
 
 class PowerTest {
 
-    static final class TestLogic extends GameLogic {
+    static final class TestLogic extends RtsSimulation {
         TestLogic(ThingFactory thingFactory) {
             super(thingFactory);
+        }
+
+        @Override
+        protected void onRtsCommand(GameMessage command) {
         }
 
         @Override
@@ -56,7 +62,7 @@ class PowerTest {
         logic = new TestLogic(thingFactory);
         logic.init();
         usa = logic.getPlayerList().addPlayer("USA").getIndex();
-        logic.getPlayerList().getPlayer(usa).deposit(500);
+        logic.getRtsPlayer(usa).deposit(500);
     }
 
     private GameObject spawn(ThingTemplate template) {

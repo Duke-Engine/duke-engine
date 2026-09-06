@@ -1,13 +1,16 @@
-package uz.duke.core.save;
+package uz.duke.rts.save;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import uz.duke.rts.player.RtsPlayer;
+import uz.duke.rts.RtsSimulation;
+import uz.duke.rts.message.GameMessage;
 import uz.duke.core.GameLogic;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.ModuleFactory;
-import uz.duke.core.player.Upgrade;
+import uz.duke.rts.player.Upgrade;
 import uz.duke.core.thing.ObjectStatus;
 import uz.duke.core.thing.ThingFactory;
 import uz.duke.core.thing.ThingTemplateLoader;
@@ -26,9 +29,13 @@ class GameSnapshotTest {
             End
             """;
 
-    static final class TestLogic extends GameLogic {
+    static final class TestLogic extends RtsSimulation {
         TestLogic(ThingFactory thingFactory) {
             super(thingFactory);
+        }
+
+        @Override
+        protected void onRtsCommand(GameMessage command) {
         }
 
         @Override
@@ -47,7 +54,7 @@ class GameSnapshotTest {
     @Test
     void roundTripRestoresIdenticalWorld() {
         var orig = newLogic();
-        var usa = orig.getPlayerList().addPlayer("USA");
+        var usa = (RtsPlayer) orig.getPlayerList().addPlayer("USA");
         var china = orig.getPlayerList().addPlayer("China");
         usa.deposit(500);
         orig.purchaseUpgrade(usa.getIndex(), new Upgrade("Training", 100, 1.5f)); // money 400, bonus 1.5
@@ -78,7 +85,7 @@ class GameSnapshotTest {
         assertEquals(2, restored.getObjectCount());
 
         // Player state round-trips.
-        var rUsa = restored.getPlayerList().getPlayer(usa.getIndex());
+        var rUsa = restored.getRtsPlayer(usa.getIndex());
         assertEquals(400, rUsa.getMoney());
         assertEquals(1.5f, rUsa.getWeaponDamageBonus(), 1e-6f);
         assertTrue(rUsa.hasUpgrade("Training"));

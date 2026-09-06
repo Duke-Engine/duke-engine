@@ -33,7 +33,7 @@ class DukeGameTest {
         game.runHeadless(10);
 
         assertEquals(3, game.getLogic().getObjectCount());
-        assertEquals(1000, game.getLogic().getPlayer(you.getIndex()).getMoney());
+        assertEquals(1000, game.getLogic().getRtsPlayer(you.getIndex()).getMoney());
 
         var snapshot = game.getSnapshot();
         assertEquals(10, snapshot.frame());

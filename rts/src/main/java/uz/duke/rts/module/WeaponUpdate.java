@@ -10,6 +10,7 @@ import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.core.thing.ObjectStatus;
+import uz.duke.rts.player.RtsPlayer;
 
 /**
  * Fires at a target object, applying damage on a reload cycle — a lean fusion of
@@ -147,7 +148,7 @@ public final class WeaponUpdate extends UpdateModule {
         if (experience != null) {
             dealt *= experience.getDamageMultiplier(); // veterancy bonus
         }
-        var shooter = world.getPlayer(owner.getPlayerIndex());
+        var shooter = RtsPlayer.of(world, owner.getPlayerIndex());
         if (shooter != null) {
             dealt *= shooter.getWeaponDamageBonus(); // player-wide upgrade bonus
         }

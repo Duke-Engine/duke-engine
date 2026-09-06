@@ -1,4 +1,4 @@
-package uz.duke.core.player;
+package uz.duke.rts.player;
 
 /**
  * A purchasable technology, ported in spirit from SAGE's {@code Upgrade}/

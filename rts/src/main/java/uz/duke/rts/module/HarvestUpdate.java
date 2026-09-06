@@ -6,6 +6,7 @@ import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
+import uz.duke.rts.player.RtsPlayer;
 
 /**
  * Gathers resources from the nearest {@link SupplyModule} pile and turns them
@@ -75,7 +76,7 @@ public final class HarvestUpdate extends UpdateModule {
         elapsed = 0;
 
         int taken = pile.findModule(SupplyModule.class).take(loadPerTrip);
-        var player = world.getPlayer(owner.getPlayerIndex());
+        var player = RtsPlayer.of(world, owner.getPlayerIndex());
         if (taken > 0 && player != null) {
             player.deposit(taken);
         }

@@ -37,8 +37,8 @@ import uz.duke.core.thing.World;
 public abstract class GameLogic extends SubsystemInterface implements World {
 
     private final ThingFactory thingFactory;
+    private final PlayerList playerList;
     private final MessageStream messageStream = new MessageStream();
-    private final PlayerList playerList = new PlayerList();
     private final PartitionManager partition = new PartitionManager(this::getObjects);
     private final uz.duke.core.script.ScriptEngine scriptEngine = new uz.duke.core.script.ScriptEngine();
     private final List<GameObject> objects = new ArrayList<>();
@@ -54,7 +54,16 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     protected GameLogic(ThingFactory thingFactory) {
+        this(thingFactory, new PlayerList());
+    }
+
+    /**
+     * @param playerList the roster; pass one built with a {@code PlayerFactory}
+     *     to give the game its own {@link uz.duke.core.player.Player} subtype
+     */
+    protected GameLogic(ThingFactory thingFactory, PlayerList playerList) {
         this.thingFactory = thingFactory;
+        this.playerList = playerList;
     }
 
     public final ThingFactory getThingFactory() {
@@ -63,23 +72,6 @@ public abstract class GameLogic extends SubsystemInterface implements World {
 
     public final PlayerList getPlayerList() {
         return playerList;
-    }
-
-    /**
-     * Purchase an upgrade for a player: charge its cost and apply its effect,
-     * once. Returns false if already owned or unaffordable.
-     */
-    public final boolean purchaseUpgrade(int playerIndex, uz.duke.core.player.Upgrade upgrade) {
-        var player = playerList.getPlayer(playerIndex);
-        if (player == null || player.hasUpgrade(upgrade.name())) {
-            return false;
-        }
-        if (!player.withdraw(upgrade.cost())) {
-            return false;
-        }
-        player.addUpgrade(upgrade.name());
-        player.multiplyWeaponDamageBonus(upgrade.weaponDamageMultiplier());
-        return true;
     }
 
     @Override

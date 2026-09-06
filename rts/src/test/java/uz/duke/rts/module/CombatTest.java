@@ -148,7 +148,7 @@ class CombatTest {
 
     @Test
     void playerUpgradeIncreasesWeaponDamage() {
-        logic.purchaseUpgrade(usa, new uz.duke.core.player.Upgrade("Training", 0, 1.5f));
+        logic.purchaseUpgrade(usa, new uz.duke.rts.player.Upgrade("Training", 0, 1.5f));
         var attacker = spawn(usa, Coord3D.ZERO);
         var victim = spawn(china, new Coord3D(5f, 0f, 0f));
         logic.issueCommand(new GameMessage.AttackObject(usa, List.of(attacker.getId()), victim.getId()));
