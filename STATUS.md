@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-07 · **Testlar:** 206 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-07 · **Testlar:** 213 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -325,6 +325,41 @@ farq qilmaydi.
 Nima yopildi: 3D klient endi o'limni `hp < 35%` evristikasi bilan **taxmin
 qilmaydi** va dul olovini devor-soati bo'yicha miltillatmaydi — o't ochish ovozi
 har **o'q** uchun chalinadi, har jang uchun bir marta emas.
+
+### 3.6e Replay — o'yinni yozib olish
+
+Deterministik simulyatsiya — bu **boshlang'ich shart + qo'llangan buyruqlar**ning
+funksiyasi. Demak yozib olinadigan narsa aynan shu ikkitasi; dunyoning o'zini
+saqlash shart emas, uni qaytadan hisoblab chiqarsa bo'ladi. Bu — lock-step
+allaqachon tayanadigan xususiyatning o'zi.
+
+`uz.duke.core.replay`: `FrameLog` (yozib olish choki) · `ReplayRecorder` ·
+`Replay` (o'qish + haydash) · `ReplayMismatch`.
+
+- **Format = sim protokolining o'zi.** Yozuv `NetFraming` bilan yoziladi:
+  buyruqli kadrlar `C …`, tekshirish nuqtalari `K …`. Replay — bu tashlab
+  yuborilmasdan saqlab qolingan tarmoq oqimi, shuning uchun unga alohida format
+  o'ylab topilmadi.
+- **Nima yoziladi:** simulyatsiya **haqiqatan iste'mol qilgan** buyruqlar, kimdir
+  bosgan tugma emas. Tarmoq o'yinida bular farq qiladi (kirish kadrlar oldin
+  jo'natiladi va peer'lar kelishgan tartibda keladi) — iste'mol qilinganini
+  yozish bitta recorder'ni single-player uchun ham, multiplayer uchun ham
+  ishlatadi.
+- **Tekshirish nuqtalari — asosiy qiymat.** Har 30 kadrda dunyo xeshi yoziladi.
+  Qayta o'ynatishda mos kelmasa — bu determinizm nosozligi **build ichida**, kadr
+  raqami bilan ushlangan bo'ladi; jonli o'yinda, birovning mashinasida, hech
+  qanday iz qoldirmay emas.
+- **Tuzoq (yopilgan):** simulyatsiyaning o'zi buyruq yaratsa (skript, taymerli
+  kuchaytirish), qayta o'ynatishda u **ikki marta** qo'llanardi — bir marta o'zi
+  yaratgani uchun, bir marta yozuvdan. Shuning uchun `Replay.beforeStep` avval
+  `discardPendingCommands()` qiladi: yozuv — kadr kirishi haqidagi yagona haqiqat.
+- **O'yinning o'zi faylda yo'q.** Yozuv faqat o'zini yaratgan build va o'yin
+  ta'rifiga qarshi ma'noga ega; boshqasiga qarshi birinchi tekshirish nuqtasi
+  buni aytadi.
+
+`DukeGame`: `recordReplay()` / `getReplayText()` / `playReplay(text)`.
+Qayta o'ynatishda jonli kirish e'tiborsiz qoladi — yozuv nima bo'lganini
+allaqachon aytgan.
 
 ### 3.7 Tarmoq (lock-step)
 
@@ -769,7 +804,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **206 test yashil** (core 111, rts 71, game 16, studio 8) — 0 failure / 0 error.
+- **213 test yashil** (core 116, rts 71, game 18, studio 8) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -803,6 +838,11 @@ ikkala peer aynan bir kadrda qo'llaydi.
   qotardi) va uni **aynan bir kadrda** kutishdan to'xtaydi; host'ni yo'qotgan
   mehmon esa qadam tashlamaydi. `NetworkTransportTest`: host relay qiladi, va
   uzilish xabari o'sha peerning oxirgi paketidan **keyin** keladi.
+- **Determinizm har build'da tekshiriladi** — `ReplayRoundTripTest`: haqiqiy
+  skirmish (jang + ishlab chiqarish + skriptli buyruqlar) yozib olinadi va qayta
+  o'ynatiladi; tekshirish nuqtalari mos kelishi va yakuniy checksum bir xil
+  bo'lishi shart. `ReplayTest`: soxtalashtirilgan tekshirish nuqtasi **o'sha
+  kadrda** ushlanadi, va o'zi buyruq yaratadigan dunyo ham aynan qayta o'ynaydi.
 - **Desync aniqlash** — `LockstepGateTest`: kelishayotgan peer'lar hech qachon
   yolg'on signal bermaydi; dunyosi jimgina farq qilib qolgan peer **ushlanadi**
   (hamma tomondan, tekshiriladigan kadrda) va bu **bir marta** xabar qilinadi,
@@ -858,8 +898,10 @@ qatlamlarda umuman ishlatilmaydi: `StatusUpdate`, `SpecialPowerModule`, `Contain
    o'tish avvalgidan muhimroq bo'lib qoldi.
 7. **Ikkita `Box` bir-biriga qarshi** o'rab turuvchi doira bilan taqqoslanadi
    (burchaklarda ortiqcha teginish). Birlik ↔ istalgan shakl aniq.
-8. **Replay yo'q.** Deterministik sim + buyruq oqimi bor, ya'ni replay deyarli
-   tekin — lekin yozish/qaytarish implementatsiyasi yo'q.
+8. **Replay bor, lekin ko'rish uchun UI yo'q.** Yozib olish va qayta o'ynatish
+   ishlaydi (`DukeGame.recordReplay()` / `playReplay(...)`), ammo klientda
+   "Replay ko'rish" tugmasi, tezlashtirish/orqaga qaytarish yoki faylga saqlash
+   oqimi yo'q. Determinizm mashinasi sifatida esa allaqachon ishlatilmoqda.
 
 ### `core` da qolgan RTS izlari
 

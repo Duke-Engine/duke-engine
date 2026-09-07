@@ -14,8 +14,12 @@ package uz.duke.core.network;
  * game owns only the command payload, through its {@link PacketCodec}. That
  * split is why membership can be managed for a game the engine knows nothing
  * about.
+ *
+ * <p>It is also the format a recording is written in — a replay is this same
+ * stream of commands and checksums, kept instead of thrown away. See
+ * {@code uz.duke.core.replay}.
  */
-final class NetFraming {
+public final class NetFraming {
 
     private static final char COMMANDS = 'C';
     private static final char LEFT = 'L';
@@ -24,7 +28,7 @@ final class NetFraming {
     private NetFraming() {
     }
 
-    static String encode(NetMessage message, PacketCodec codec) {
+    public static String encode(NetMessage message, PacketCodec codec) {
         return switch (message) {
             case CommandPacket packet -> COMMANDS + " " + codec.encode(packet);
             case PeerLeft left -> LEFT + " " + left.playerIndex() + " " + left.fromFrame();
@@ -33,7 +37,7 @@ final class NetFraming {
         };
     }
 
-    static NetMessage decode(String line, PacketCodec codec) {
+    public static NetMessage decode(String line, PacketCodec codec) {
         if (line.length() < 2 || line.charAt(1) != ' ') {
             throw new IllegalArgumentException("malformed net message: " + line);
         }

@@ -14,6 +14,7 @@ final class RtsGameEngine extends GameEngine {
     private final RtsLogic rtsLogic;
     private final RtsClient rtsClient;
     private MultiplayerSession session;
+    private uz.duke.core.replay.Replay replay;
 
     RtsGameEngine(RtsLogic rtsLogic, RtsClient rtsClient) {
         this.rtsLogic = rtsLogic;
@@ -24,9 +25,22 @@ final class RtsGameEngine extends GameEngine {
         this.session = session;
     }
 
-    /** In multiplayer a logic frame may only run once both players' input is in. */
+    void setReplay(uz.duke.core.replay.Replay replay) {
+        this.replay = replay;
+    }
+
+    /**
+     * Where a frame's input comes from, and whether there is any yet.
+     *
+     * <p>Three cases, one question. On its own the game is always ready. In
+     * multiplayer it waits until every player has reported. Replaying, it is ready
+     * by definition — the input was decided long ago.
+     */
     @Override
     protected boolean isLogicFrameReady() {
+        if (replay != null) {
+            return replay.beforeStep(rtsLogic);
+        }
         return session == null || session.beforeStep(rtsLogic);
     }
 

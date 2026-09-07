@@ -16,6 +16,7 @@ import uz.duke.core.pathfind.Path;
 import uz.duke.core.pathfind.PathGrid;
 import uz.duke.core.pathfind.Pathfinder;
 import uz.duke.core.player.PlayerList;
+import uz.duke.core.replay.FrameLog;
 import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.Footprint;
 import uz.duke.core.thing.GameObject;
@@ -50,6 +51,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     private final List<GameObject> objects = new ArrayList<>();
     private PathGrid pathGrid; // null = open terrain (direct paths)
     private boolean staticObstaclesDirty = true;
+    private FrameLog frameLog;
 
     /** Enough to hold a busy frame's worth; a headless run with no client drops the excess. */
     private static final int MAX_PENDING_EVENTS = 1024;
@@ -344,12 +346,53 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     @Override
     public final void update() {
         refreshStaticObstacles(); // before commands: a MoveTo issued now must see the world as it is
+        recordFrame();
         messageStream.propagate(this::onCommand);
         updateObjects();
         reapDestroyed();
         simulate();
         scriptEngine.evaluate(this);
         frame++;
+    }
+
+    /**
+     * Throw away commands queued but not yet applied.
+     *
+     * <p>For a replay, which is the sole authority on what a frame's input was.
+     * A simulation can generate commands of its own — a scripted attack, a
+     * timed reinforcement — and on playback it would generate them again; without
+     * this they would be applied twice, once from the game and once from the
+     * recording.
+     */
+    public final void discardPendingCommands() {
+        messageStream.clear();
+    }
+
+    /**
+     * Watch every frame's input, so the game can be written down and replayed.
+     * Pass {@code null} to stop recording.
+     */
+    public final void setFrameLog(FrameLog frameLog) {
+        this.frameLog = frameLog;
+    }
+
+    /**
+     * Hand this frame to the recorder before anything is applied.
+     *
+     * <p>The checkpoint is taken first, and deliberately: it is the world as the
+     * frame <em>begins</em>, which is the state a replay can be checked against
+     * before it, too, applies the frame's commands.
+     */
+    private void recordFrame() {
+        if (frameLog == null) {
+            return;
+        }
+        if (frameLog.wantsCheckpoint(frame)) {
+            frameLog.checkpoint(frame, checksum());
+        }
+        if (!messageStream.isEmpty()) {
+            frameLog.commands(frame, messageStream.peekAll());
+        }
     }
 
     /** Register a map/mission {@link uz.duke.core.script.Trigger}. */

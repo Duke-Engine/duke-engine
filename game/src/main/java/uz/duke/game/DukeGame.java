@@ -14,6 +14,7 @@ import uz.duke.core.GameConstants;
 import uz.duke.rts.RtsSimulation;
 import uz.duke.core.math.Coord3D;
 import uz.duke.rts.message.GameMessage;
+import uz.duke.rts.network.CommandCodec;
 import uz.duke.core.pathfind.MapLoader;
 import uz.duke.core.pathfind.PathGrid;
 import uz.duke.core.player.Relationship;
@@ -78,6 +79,8 @@ public final class DukeGame {
 
     private MultiplayerSession multiplayer;
     private volatile java.net.ServerSocket hostingSocket;
+    private uz.duke.core.replay.ReplayRecorder recorder;
+    private uz.duke.core.replay.Replay replay;
 
     private DukeGame(String title) {
         this.title = title;
@@ -433,6 +436,40 @@ public final class DukeGame {
         return multiplayer != null;
     }
 
+    // ---- replay ----
+
+    /**
+     * Write the game down as it is played, so it can be watched again — and so a
+     * build can prove the simulation still produces the same world from the same
+     * input. Call before starting.
+     */
+    public DukeGame recordReplay() {
+        requireNotStarted();
+        recorder = new uz.duke.core.replay.ReplayRecorder(CommandCodec.INSTANCE);
+        return this;
+    }
+
+    /** The recording so far. Empty if {@link #recordReplay()} was never called. */
+    public String getReplayText() {
+        return recorder == null ? "" : recorder.toText();
+    }
+
+    /**
+     * Play a recording instead of taking input. The game is set up exactly as it
+     * was, and the recorded commands are fed in on the frames they were taken
+     * from; live input is ignored, since the recording already says what happened.
+     */
+    public DukeGame playReplay(String replayText) {
+        requireNotStarted();
+        replay = uz.duke.core.replay.Replay.parse(replayText, CommandCodec.INSTANCE);
+        return this;
+    }
+
+    /** The replay driving this game, or {@code null} if it is being played live. */
+    public uz.duke.core.replay.Replay getReplay() {
+        return replay;
+    }
+
     /** Whether the project has enough players for a network game. */
     public boolean supportsMultiplayer() {
         return players.size() >= 2;
@@ -532,6 +569,12 @@ public final class DukeGame {
         logic = new RtsLogic();
         client = new RtsClient(logic);
         engine = new RtsGameEngine(logic, client);
+        if (recorder != null) {
+            logic.setFrameLog(recorder);
+        }
+        if (replay != null) {
+            engine.setReplay(replay);
+        }
         if (multiplayer != null) {
             logic.setSession(multiplayer);   // local commands go over the wire
             engine.setSession(multiplayer);  // frames wait for every player's input

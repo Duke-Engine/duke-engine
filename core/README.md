@@ -9,7 +9,7 @@ qurol bor, na pul, na `MoveTo` buyrug'i.
 | Bog'liqligi | **yo'q** — sof Java, tashqi kutubxonasiz |
 | Kim bunga bog'lanadi | `rts` (→ `game` → `client3d` → `studio`) |
 | Hajmi | 58 fayl, ~4 020 qator |
-| Testlar | 111 ta |
+| Testlar | 116 ta |
 
 **Asosiy invariant:** `core` hech qachon `rts` ni import qilmaydi. Bu Gradle
 darajasida ta'minlangan (`core/build.gradle.kts` da bironta bog'liqlik yo'q),
@@ -107,6 +107,25 @@ chegaralangan: hech kim drenaj qilmasa eng eskisi tashlanadi.
 **Bir tomonlama:** simulyatsiya ularni qaytib o'qimaydi, `checksum()` ga
 kirmaydi. Simulyatsiyani o'zgartiradigan narsa — hodisa emas, **modul**:
 `DieModule` vayronani qoldiradi, `ObjectDied` esa renderga portlashni aytadi.
+
+### `uz.duke.core.replay` — o'yinni yozib olish
+
+`FrameLog` (yozib olish choki) · `ReplayRecorder` · `Replay` · `ReplayMismatch`.
+
+Deterministik sim = boshlang'ich shart + buyruqlar funksiyasi, demak yozib
+olinadigan narsa faqat shu ikkitasi — dunyoni saqlash shart emas, qaytadan
+hisoblanadi. Format ham yangi emas: yozuv `NetFraming` bilan yoziladi, ya'ni
+**replay — saqlab qolingan tarmoq oqimi**.
+
+Har 30 kadrda dunyo xeshi yoziladi. Qayta o'ynatishda mos kelmasa —
+`ReplayMismatch`, ya'ni determinizm nosozligi **build ichida**, kadr raqami
+bilan ushlanadi. Aynan shu narsa replay'ni demo'dan ko'ra qimmatliroq qiladi.
+
+**Yoziladigan narsa** — sim *iste'mol qilgan* buyruqlar, kimdir bosgan tugma
+emas; shu tufayli bitta recorder single-player va multiplayer uchun birdek
+ishlaydi. `Replay.beforeStep` avval `discardPendingCommands()` qiladi, aks holda
+simning o'zi yaratgan buyruq (skript, taymer) qayta o'ynatishda ikki marta
+qo'llanardi.
 
 ### `uz.duke.core.network` — lock-step
 

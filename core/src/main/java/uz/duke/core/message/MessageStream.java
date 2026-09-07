@@ -1,6 +1,7 @@
 package uz.duke.core.message;
 
 import java.util.ArrayDeque;
+import java.util.List;
 import java.util.Deque;
 import uz.duke.core.SubsystemInterface;
 
@@ -47,6 +48,19 @@ public final class MessageStream extends SubsystemInterface {
 
     public boolean isEmpty() {
         return queue.isEmpty();
+    }
+
+    /** Throw away everything queued, unapplied. */
+    public void clear() {
+        queue.clear();
+    }
+
+    /**
+     * Everything queued, in the order it will be applied, without draining it —
+     * for a recorder that needs to see a frame's input before the frame consumes it.
+     */
+    public List<Command> peekAll() {
+        return List.copyOf(queue);
     }
 
     /**
