@@ -8,8 +8,8 @@ qurol bor, na pul, na `MoveTo` buyrug'i.
 |---|---|
 | Bog'liqligi | **yo'q** — sof Java, tashqi kutubxonasiz |
 | Kim bunga bog'lanadi | `rts` (→ `game` → `client3d` → `studio`) |
-| Hajmi | 57 fayl, ~3 950 qator |
-| Testlar | 91 ta |
+| Hajmi | 58 fayl, ~4 020 qator |
+| Testlar | 96 ta |
 
 **Asosiy invariant:** `core` hech qachon `rts` ni import qilmaydi. Bu Gradle
 darajasida ta'minlangan (`core/build.gradle.kts` da bironta bog'liqlik yo'q),
@@ -71,7 +71,8 @@ beshta chok orqali o'zingiznikini qo'yasiz:
 
 | Fayl | Qator | Vazifa |
 |---|---|---|
-| `MoveUpdate` | 200 | waypoint harakati, tezlik, burilish tezligi + **to'qnashuv**: har qadamdan oldin `World.findBlocker`, band bo'lsa ±45°/±90° chetlab o'tish, ilgarilamasa 2 soniyada voz kechish |
+| `MoveUpdate` | 202 | waypoint harakati, tezlik, burilish tezligi + **to'qnashuv**: har qadamdan oldin `World.findBlocker`, band bo'lsa ±45°/±90° chetlab o'tish, ilgarilamasa 2 soniyada voz kechish |
+| `Locomotor` | 19 | marker interfeys: "bu modul obyektni o'z kuchi bilan harakatlantira oladi". Engine shu orqali janrsiz so'raydi — bu obyekt relyefning bir qismimi? |
 | `ActiveBody` / `BodyModule` | 99 / 42 | sog'liq, zarar, davolash |
 | `ModuleFactory` | 93 | INI tag → modul builder. `withDefaults()` faqat 2 ta: `ActiveBody`, `MoveUpdate` |
 | `Armor` / `DamageType` | 47 / 18 | zarar turi ↔ zirh ko'paytirgichi |
@@ -106,6 +107,17 @@ Tashqi kutubxona yo'q — hammasi `java.net`.
 `Pathfinder` (146 — deterministik A*: butun sonli narxlar 10/14, octile
 evristika, tenglikda katak indeksi bo'yicha uziladi, qat'iy qo'shni tartibi) ·
 `PathGrid` (katak = 10 dunyo birligi) · `Path` · `MapLoader` (ASCII → grid).
+
+`PathGrid` **ikki qatlamli**: *relyef* (map yozadi, hech qachon o'zgarmaydi) va
+*to'siqlar* (simulyatsiya yozadi — binolar va boshqa harakatlanmaydigan jismlar).
+`isBlocked` = ikkalasining OR'i. Ajratilgani sababli, qoyaga tiralib qurilgan
+bino buzilganda qoyada teshik qolmaydi.
+
+Harakatlanmaydigan geometrik obyekt to'siq qatlamiga bosiladi, ya'ni **A* ni
+binolar aylanib o'tadi** — lokal chetlab o'tishga tayanib qolmaydi.
+"Harakatlanmaydigan" janrsiz aniqlanadi: obyektda `Locomotor` moduli bormi?
+Qatlam butunlay qayta quriladi (sanoq yuritilmaydi — u dunyodan ajralib qolishi
+mumkin), `staticObstaclesDirty` bayrog'i bilan faqat kerak bo'lganda.
 
 ### `uz.duke.core.player` — o'yinchilar
 
@@ -184,7 +196,8 @@ qilishi mumkin, bu esa desync. `StrictMath` hamma joyda bit-aniq bir xil.
    so'raladi, ya'ni SAGE'ning katak-gridiga o'tish avvalgidan muhimroq.
 3. `MapLoader` faqat ASCII bilan cheklangan — haqiqiy relyef formati yo'q;
    dunyo hali ham tekis (`Coord3D.z` faqat xeshda o'qiladi).
-4. Inshootlar `PathGrid` ga bosilmaydi — A* ular haqida bilmaydi, faqat
-   `MoveUpdate` ning lokal chetlab o'tishi ishlaydi. Uzoq yo'lda bu yetarli emas.
+4. **Yo'l bloklansa xabar berilmaydi:** allaqachon yo'lda ketayotgan birlik
+   to'siq qatlami o'zgarganini bilmaydi va eski waypoint'lari bo'yicha yuraveradi
+   (lokal chetlab o'tishga tayanadi). Qayta yo'l tuzish kerak.
 5. Ikkita `Box` bir-biriga qarshi tekshirilganda o'rab turuvchi doira
    ishlatiladi (burchaklarda ortiqcha teginish). Birlik ↔ har qanday shakl aniq.

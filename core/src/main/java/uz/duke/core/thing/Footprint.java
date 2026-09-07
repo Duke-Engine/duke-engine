@@ -59,9 +59,17 @@ public record Footprint(Geometry shape, Coord3D center, float orientation) {
         };
     }
 
+    /**
+     * The gap from this shape's outline to a bare point: 0 on the outline,
+     * negative inside, positive outside.
+     */
+    public float distanceTo(Coord3D point) {
+        return separation(new Footprint(Geometry.POINT, point, 0f));
+    }
+
     /** True when {@code point} lies inside this shape's ground outline. */
     public boolean contains(Coord3D point) {
-        return separation(new Footprint(Geometry.POINT, point, 0f)) <= 0f;
+        return distanceTo(point) <= 0f;
     }
 
     private float circleTo(float radius, Footprint other) {

@@ -45,6 +45,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     private final uz.duke.core.script.ScriptEngine scriptEngine = new uz.duke.core.script.ScriptEngine();
     private final List<GameObject> objects = new ArrayList<>();
     private PathGrid pathGrid; // null = open terrain (direct paths)
+    private boolean staticObstaclesDirty = true;
 
     private int frame;
     private int nextObjectId = 1;
@@ -195,6 +196,10 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     private boolean isGroundClear(Geometry shape, Coord3D position) {
+        if (pathGrid != null
+                && pathGrid.isTerrainBlocked(pathGrid.toCellX(position), pathGrid.toCellY(position))) {
+            return false; // the map itself forbids it — nothing may be placed in a cliff
+        }
         var footprint = new Footprint(shape, position, 0f);
         return partition.firstOverlapping(footprint,
                 candidate -> !candidate.isDestroyed()
@@ -217,6 +222,51 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     /** Install a navigation grid so movement routes around terrain obstacles. */
     public final void setPathGrid(PathGrid pathGrid) {
         this.pathGrid = pathGrid;
+        this.staticObstaclesDirty = true;
+    }
+
+    /**
+     * Bake every immobile object into the navigation grid's obstacle layer, so
+     * paths route around buildings instead of into them.
+     *
+     * <p>Rebuilt wholesale rather than tracked incrementally: the set is small
+     * (only things that cannot move), and a full rebuild cannot drift out of sync
+     * with the world the way a running tally can. Runs only when something has
+     * actually changed.
+     *
+     * <p>A cell counts as occupied when the object's outline comes within half a
+     * cell of the cell's centre. Erring toward under-blocking is deliberate: a
+     * cell wrongly left open is caught by {@code MoveUpdate}'s per-step collision
+     * check, whereas a cell wrongly closed can seal a building's own doorway.
+     */
+    private void refreshStaticObstacles() {
+        if (!staticObstaclesDirty || pathGrid == null) {
+            return;
+        }
+        staticObstaclesDirty = false;
+        pathGrid.clearObstacles();
+        float cellSize = pathGrid.getCellSize();
+        float halfCell = cellSize * 0.5f;
+        for (var object : objects) {
+            var shape = object.getTemplate().getGeometry();
+            if (object.isMobile() || shape.isPoint()) {
+                continue;
+            }
+            var footprint = Footprint.of(object);
+            var position = object.getPosition();
+            float reach = shape.footprintRadius() + halfCell;
+            int minX = (int) Math.floor((position.x() - reach) / cellSize);
+            int maxX = (int) Math.floor((position.x() + reach) / cellSize);
+            int minY = (int) Math.floor((position.y() - reach) / cellSize);
+            int maxY = (int) Math.floor((position.y() + reach) / cellSize);
+            for (int cy = minY; cy <= maxY; cy++) {
+                for (int cx = minX; cx <= maxX; cx++) {
+                    if (footprint.distanceTo(pathGrid.cellCenter(cx, cy)) <= halfCell) {
+                        pathGrid.setObstacle(cx, cy, true);
+                    }
+                }
+            }
+        }
     }
 
     public final PathGrid getPathGrid() {
@@ -228,11 +278,13 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         if (pathGrid == null) {
             return new Path(List.of(to)); // open terrain: go straight there
         }
+        refreshStaticObstacles();
         return Pathfinder.findPath(pathGrid, from, to);
     }
 
     private void clearState() {
         objects.clear();
+        staticObstaclesDirty = true;
         frame = 0;
         nextObjectId = 1;
         paused = false;
@@ -241,6 +293,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
 
     @Override
     public final void update() {
+        refreshStaticObstacles(); // before commands: a MoveTo issued now must see the world as it is
         messageStream.propagate(this::onCommand);
         updateObjects();
         reapDestroyed();
@@ -286,7 +339,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                 object.markDestroyed();
             }
         }
-        objects.removeIf(GameObject::isDestroyed);
+        if (objects.removeIf(GameObject::isDestroyed)) {
+            staticObstaclesDirty = true; // a demolished building reopens its ground
+        }
     }
 
     /** Advance game-specific state by one logic frame. */
@@ -297,6 +352,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         var object = thingFactory.newObject(template, new ObjectId(nextObjectId++));
         object.setWorld(this);
         objects.add(object);
+        staticObstaclesDirty = true;
         return object;
     }
 

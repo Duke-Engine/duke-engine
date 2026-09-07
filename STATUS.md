@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-07 · **Testlar:** 181 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-07 · **Testlar:** 186 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -120,6 +120,9 @@ Bu — SAGE o'zi `@todo` qilib qoldirgan, lekin hech qachon amalga oshirmagan ma
 
 `GameLogic.update()` aniq shu tartibda:
 
+0. `refreshStaticObstacles()` — dunyo o'zgargan bo'lsa navigatsiya gridining
+   to'siq qatlami qayta quriladi (shu kadrda beriladigan `MoveTo` dunyoni
+   hozirgi holida ko'rishi uchun buyruqlardan **oldin**)
 1. `messageStream.propagate(onCommand)` — navbatdagi buyruqlar qo'llanadi
 2. `updateObjects()` — har obyektning update-modullari **yaratilish tartibida** tiklanadi
 3. `reapDestroyed()` — o'lgan obyektlar dunyodan chiqariladi
@@ -146,6 +149,10 @@ SAGE'ning `ThingTemplate` / `Object` / `Module` tuzilishi saqlangan:
 - **`Module`** → `UpdateModule` (har kadr `update()`) / `BodyModule` (sog'liq, zarar).
 - **`ModuleFactory.withDefaults()`** faqat 2 ta janrsiz tag beradi: `ActiveBody` (sog'liq+zirh)
   va `MoveUpdate` (nuqtaga yurish). Qolgan 10 tasi RTS'niki — `RtsModules` ro'yxatdan o'tkazadi.
+- **`Locomotor`** — marker interfeys: "bu modul obyektni o'z kuchi bilan
+  harakatlantira oladi". `MoveUpdate` uni implement qiladi. Engine shu orqali
+  janrsiz savolga javob beradi: bu obyekt relyefning bir qismimi?
+  (`GameObject.isMobile()`)
 - **`Kind`** — tasniflash bayrog'i, **nom bo'yicha interned** (`Kind.of("STRUCTURE")`). Eski
   23 qiymatli `KindOf` enum'i o'chirildi: engine "HARVESTER" nima ekanini bilmasligi kerak.
   Solishtirish baribir identity tekshiruvi, ya'ni enum kabi arzon.
@@ -214,6 +221,16 @@ buyruq jimgina tashlanmaydi — WARNING bilan log qilinadi.
 qo'shnilar qat'iy tartibda, burchak kesish yo'q. `MapLoader` ASCII matndan grid quradi
 (`#`/`X` = to'siq). Grid o'rnatilmagan bo'lsa `findPath` to'g'ri chiziq qaytaradi.
 
+`PathGrid` **ikki qatlamli**, va bu ataylab:
+
+| Qatlam | Kim yozadi | Qachon o'zgaradi |
+|---|---|---|
+| **relyef** (`setBlocked` / `isTerrainBlocked`) | map: qoyalar, suv, devorlar | hech qachon — bir marta muallif yozadi |
+| **to'siqlar** (`setObstacle` / `clearObstacles`) | simulyatsiya: binolar va boshqa harakatlanmaydigan jismlar | obyekt paydo bo'lganda/o'lganda |
+
+`isBlocked` = ikkalasining OR'i. Ajratilgani shuning uchunki, qoyaga tiralib
+qurilgan bino buzilganda **qoyada teshik qolmasligi** kerak.
+
 ### 3.6b To'qnashuv — obyektlar fizik jism
 
 Obyektning `Geometry` si bo'lsa, u yer egallaydi va boshqasi u yerda tura olmaydi.
@@ -237,6 +254,29 @@ RTS tomonda bu ikki qoidani o'zgartirdi: ishlab chiqarilgan birlik zavod
 devoridan **tashqarida, bo'sh yerda** paydo bo'ladi (`findClearPosition`), va
 qurol masofasi **yuzadan yuzaga** o'lchanadi — devorga tiralgan piyoda katta
 binoni ura oladi, garchi markazlar orasi masofa qurol radiusidan katta bo'lsa ham.
+
+### 3.6c Harakatlanmaydigan jism = relyef
+
+Lokal chetlab o'tish o'nlab birlik masofasida ishlaydi, baza bo'ylab emas —
+A* ning o'zi binolarni bilishi kerak. Shuning uchun **harakatlanmaydigan
+geometrik obyekt `PathGrid` ning to'siq qatlamiga bosiladi.**
+
+- **"Harakatlanmaydigan" janrsiz aniqlanadi.** `core` `STRUCTURE` degan RTS
+  lug'atini bilmaydi. O'rniga: obyektda **`Locomotor`** (yangi marker interfeys,
+  `MoveUpdate` uni implement qiladi) bormi? Yo'q bo'lsa, u harakatlana olmaydi —
+  o'yin uni nima deb atashidan qat'i nazar. O'z harakat moduli bor o'yin shu
+  interfeysni implement qiladi va boshqa hech narsa ulash kerak emas.
+- **Butunlay qayta quriladi, sanoq yuritilmaydi.** To'plam kichik (faqat
+  harakatlanmaydigan narsalar), va to'liq qayta qurish dunyodan ajralib qola
+  olmaydi — sanoqli hisob esa ajralib qoladi. `staticObstaclesDirty` bayrog'i
+  bilan faqat kerak bo'lganda ishlaydi (obyekt yaratilganda, o'lganda, grid
+  o'rnatilganda), `update()` boshida va `findPath` da tekshiriladi.
+- **Katak band deb hisoblanadi**, agar obyekt konturi katak markazidan yarim
+  katak masofagacha yaqin bo'lsa. **Ataylab kam bloklanadi:** noto'g'ri ochiq
+  qolgan katakni `MoveUpdate` ning har qadamdagi tekshiruvi ushlaydi, noto'g'ri
+  yopilgan katak esa binoning o'z eshigini berkitib qo'yishi mumkin.
+- `findClearPosition` endi relyefni ham hurmat qiladi — birlik qoyaning ichida
+  paydo bo'lmaydi.
 
 ### 3.7 Tarmoq (lock-step)
 
@@ -592,13 +632,17 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **181 test yashil** (core 91, rts 69, game 13, studio 8) — 0 failure / 0 error.
+- **186 test yashil** (core 96, rts 69, game 13, studio 8) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
   birlikning chiqib keta olishini va geometriyasiz kontentning avvalgidek
   ishlashini tekshiradi; `SolidWorldTest` ishlab chiqarish chiqishini va
   yuzadan-yuzaga qurol masofasini tekshiradi.
+- **Yo'l qidiruvi binolarni biladi** — `StaticObstacleTest`: bo'sh koridorda
+  yo'l to'g'ri, bino qo'yilsa marshrut uni aylanib o'tadi (bironta waypoint band
+  katakda emas), **harakatlanuvchi** texnika esa map'ni qayta yozmaydi, bino
+  buzilganda yer ochiladi, va buzilish relyefdagi to'siqqa tegmaydi.
 - **Engine bo'linishi tasdiqlangan** — `core` `rts` ni umuman ko'rmaydi (Gradle bog'liqligi
   bir tomonlama), va bo'linishdan oldingi hamma test hali ham o'tadi.
 - **To'liq stack uchidan-uchiga** — sandbox: iqtisod → ishlab chiqarish → jang → g'alaba,
@@ -648,10 +692,10 @@ qatlamlarda umuman ishlatilmaydi: `StatusUpdate`, `SpecialPowerModule`, `Contain
 5. **Dunyo tekis.** `Coord3D.z` faqat xeshlash va serializatsiyada o'qiladi —
    balandlik, qiyalik, relyef turi (harakat narxi), tepalik ortidan ko'rinmaslik
    yo'q. `PathGrid` faqat "o'tsa bo'ladi / bo'lmaydi" biladi.
-6. **Inshootlar `PathGrid` ga bosilmaydi.** A* binolar haqida bilmaydi; ular
-   faqat `MoveUpdate` ning lokal chetlab o'tishi bilan aylanib o'tiladi. Xona
-   ichida yoki uzun devor bo'ylab bu yetarli emas — yo'l qidiruvi ularni
-   hisobga olishi kerak.
+6. **Yo'l bloklansa xabar berilmaydi.** Bino qurilib mavjud marshrutni yopsa,
+   allaqachon yo'lda ketayotgan birlik eski waypoint'lari bo'yicha yuraveradi va
+   lokal chetlab o'tishga tayanadi — yo'l qayta hisoblanmaydi. To'siq qatlami
+   o'zgarganda harakatdagilarga qayta yo'l tuzish kerak.
 7. **`PartitionManager` hali brute-force.** Endi u har kadr, har harakatlanuvchi
    birlik uchun to'qnashuv savolini ham oladi, ya'ni SAGE'ning katak-gridiga
    o'tish avvalgidan muhimroq bo'lib qoldi.

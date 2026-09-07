@@ -5,6 +5,7 @@ import java.util.EnumSet;
 import java.util.List;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.BodyModule;
+import uz.duke.core.module.Locomotor;
 import uz.duke.core.module.Module;
 import uz.duke.core.module.UpdateModule;
 
@@ -31,6 +32,7 @@ public final class GameObject {
     private final List<Module> modules = new ArrayList<>();
     private final List<UpdateModule> updateModules = new ArrayList<>();
     private BodyModule body;
+    private boolean mobile;
 
     private Coord3D position = Coord3D.ZERO;
     private float orientation; // facing angle in radians, 0 = +x
@@ -59,6 +61,9 @@ public final class GameObject {
         modules.add(module);
         if (module instanceof UpdateModule u) {
             updateModules.add(u);
+        }
+        if (module instanceof Locomotor) {
+            mobile = true;
         }
         if (module instanceof BodyModule b) {
             if (body != null) {
@@ -121,6 +126,18 @@ public final class GameObject {
             }
         }
         return null;
+    }
+
+    /**
+     * True when some module can move this object — i.e. it carries a
+     * {@link Locomotor}.
+     *
+     * <p>What cannot move is effectively terrain, and the simulation treats it
+     * that way: an immobile object with a shape is baked into the navigation grid
+     * so paths route around it instead of into it.
+     */
+    public boolean isMobile() {
+        return mobile;
     }
 
     /** The body module, or {@code null} if this object has none. */
