@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-07 · **Testlar:** 225 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-07 · **Testlar:** 231 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -225,6 +225,26 @@ buyruq jimgina tashlanmaydi — WARNING bilan log qilinadi.
 qo'shnilar qat'iy tartibda, burchak kesish yo'q. `MapLoader` ASCII matndan grid quradi
 (`#`/`X` = to'siq). Grid o'rnatilmagan bo'lsa `findPath` to'g'ri chiziq qaytaradi.
 
+**Qidiruvdan keyin ikkita qadam, va ular harakat qanday ko'rinishiga qidiruvning
+o'zidan ko'ra ko'proq ta'sir qiladi:**
+
+- **Yo'l to'g'rilanadi (string pulling).** Grid qidiruvi faqat kataklar bilan
+  javob bera oladi, ya'ni waypoint'lar — katak markazlari, va bo'sh maydondan
+  yurish zinapoyaga aylanadi: o'ng, diagonal, o'ng, diagonal — to'g'ri chiziq
+  butunlay bo'sh bo'lsa ham. Shuning uchun kataklar topilgach, ulardan
+  burchaklar tortib olinadi: faqat **oldindan ko'rib bo'lmaydigan** waypoint'lar
+  qoladi. Ochiq yerda bu bittagina waypoint qoldiradi va birlik to'g'ri yuradi.
+- **Yo'l birlikning kengligini hisobga oladi.** Qidiruv uchun kataklar — nuqta,
+  birliklar esa nuqta emas. Burchakka tegib o'tadigan yo'l nuqta uchun to'g'ri,
+  **tana** uchun noto'g'ri; tana buni to'qnashib bilib oladi, va bu tashqaridan
+  sababsiz yoy chizib yurishga o'xshaydi. `World.findPath(mover, to)` birlikning
+  `Geometry.footprintRadius()` ini uzatadi; qidiruv ham, to'g'rilash ham shu
+  masofani toshdan saqlaydi. **Yetarli keng yo'l topilmasa**, qidiruv kenglikni
+  hisobga olmasdan qayta yuritiladi — siqilib o'tish umuman yurmaslikdan yaxshi.
+
+Determinizm: to'g'rilash chiziqni **chorak katak** qadam bilan namuna oladi,
+faqat `sqrt`/`floor`/`ceil` va butun sonli sikllar — trigonometriya yo'q.
+
 `PathGrid` **ikki qatlamli**, va bu ataylab:
 
 | Qatlam | Kim yozadi | Qachon o'zgaradi |
@@ -248,6 +268,14 @@ Obyektning `Geometry` si bo'lsa, u yer egallaydi va boshqasi u yerda tura olmayd
   sanash" uni abadiy aylantiradi. Shuning uchun waypoint'gacha bo'lgan eng
   yaqin masofa yodda tutiladi; 2 soniya davomida sezilarli yaqinlashish
   bo'lmasa, yo'ldan voz kechiladi (birlik yeta oladigan eng yaqin joyda to'xtaydi).
+- **Nishonning ustiga yuborilgan birlik uni aylanmaydi.** Boshqa birlikning
+  tanasi ichidagi nuqtaga hech qachon yetib bo'lmaydi, urinishda davom etgan
+  birlik esa joyida turmaydi — chetga qadam tashlaydi, uni bo'sh deb topadi,
+  yana chetga tashlaydi va nishon atrofida sekin doira chizadi. Shuning uchun
+  yo'lni to'sib turgan narsa **manzilni o'z ichiga olsa**, bu yetib borish deb
+  hisoblanadi va birlik to'xtaydi. Tekshiruv ataylab tor: boshqa har qanday
+  to'siq — aylanib o'tiladigan narsa, aylanib o'tish esa vaqtincha maqsaddan
+  uzoqlashishni talab qiladi.
 - **Ichkarida paydo bo'lgan birlik qulflanmaydi.** Agar obyekt hozir allaqachon
   biror narsa bilan kesishib tursa, u chiqib ketguncha to'qnashuv tekshiruvi
   o'tkazib yuboriladi.
@@ -832,7 +860,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **225 test yashil** (core 118, rts 71, game 18, client3d 5, studio 8, dungeon 5) — 0 failure / 0 error.
+- **231 test yashil** (core 124, rts 71, game 18, client3d 5, studio 8, dungeon 5) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan

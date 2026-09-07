@@ -79,6 +79,16 @@ public interface World {
     Path findPath(Coord3D from, Coord3D to);
 
     /**
+     * A route for {@code mover} to {@code to}, wide enough for its body and
+     * pulled straight wherever it can see ahead.
+     *
+     * <p>The version to use for anything that actually walks. A path found for a
+     * point grazes corners the mover then collides with, and comes out of cell
+     * centres as a staircase across ground it could have crossed in a line.
+     */
+    Path findPath(GameObject mover, Coord3D to);
+
+    /**
      * Increments whenever the navigable world changes shape — a building goes up
      * or comes down.
      *

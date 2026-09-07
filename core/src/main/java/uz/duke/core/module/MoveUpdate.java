@@ -5,6 +5,7 @@ import uz.duke.core.GameConstants;
 import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
 import uz.duke.core.math.Coord3D;
+import uz.duke.core.thing.Footprint;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectStatus;
 import uz.duke.core.thing.World;
@@ -114,7 +115,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         if (world == null) {
             this.waypoints = List.of(destination);
         } else {
-            var path = world.findPath(getOwner().getPosition(), destination);
+            // Asked for this owner, so the route allows for its width and comes
+            // back straightened rather than as a walk of cell centres.
+            var path = world.findPath(getOwner(), destination);
             this.waypoints = path.isEmpty() ? List.of() : path.getWaypoints();
             this.navigationVersion = world.getNavigationVersion();
         }
@@ -191,6 +194,11 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
                 : rotateToward(owner.getOrientation(), desired, turnPerFrame);
         owner.setOrientation(facing);
 
+        if (!escaping && standingOnTheDestination(owner, position.add(headingVector(facing).scale(step)))) {
+            stop(); // pressed against the thing we were sent to — this is arrival
+            return;
+        }
+
         for (var swerve : SWERVE_ANGLES) {
             var next = position.add(headingVector(facing + swerve).scale(step));
             if (escaping || isClear(owner, next)) {
@@ -225,6 +233,29 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             return false;
         }
         return ++framesWithoutProgress >= STUCK_FRAME_LIMIT;
+    }
+
+    /**
+     * Whether the way forward is blocked by the very thing the unit was sent to
+     * stand on.
+     *
+     * <p>A destination inside something's body can never be reached, and a unit
+     * that keeps trying does not stand still — it steps aside, finds that clear,
+     * steps aside again, and walks a slow circle around its target until the
+     * progress check gives up on it. Which is exactly what it looks like.
+     *
+     * <p>The test is narrow on purpose: only a blocker that <em>covers the
+     * destination</em> counts. Anything else in the way is an obstacle to get
+     * round, and getting round things means moving away from the goal for a
+     * while.
+     */
+    private boolean standingOnTheDestination(GameObject mover, Coord3D step) {
+        var world = mover.getWorld();
+        if (world == null || destination == null) {
+            return false;
+        }
+        var blocker = world.findBlocker(mover, step);
+        return blocker != null && Footprint.of(blocker).contains(destination);
     }
 
     private static boolean isClear(GameObject mover, Coord3D position) {

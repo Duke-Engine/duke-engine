@@ -103,6 +103,32 @@ class CollisionTest {
     }
 
     @Test
+    void aUnitSentAtSomethingStopsAgainstItRatherThanCirclingIt() {
+        var logic = logicWith(WALKER);
+        var parked = spawn(logic, WALKER, 100f, 50f);
+        var walker = spawn(logic, WALKER, 10f, 50f);
+
+        // Ordered to stand exactly where something already stands — the shape of
+        // "click the enemy" in any game built on this.
+        walker.findModule(MoveUpdate.class).moveTo(parked.getPosition());
+
+        float travelled = 0f;
+        var previous = walker.getPosition();
+        for (int frame = 0; frame < 300; frame++) {
+            logic.update();
+            travelled += walker.getPosition().distance(previous);
+            previous = walker.getPosition();
+        }
+
+        float direct = 90f - 6f; // the 90 between them, less the two bodies
+        assertTrue(travelled < direct + 20f,
+                "it should walk there and stop, not walk there and then around it: "
+                        + travelled + " units for a " + direct + " unit trip");
+        assertFalse(walker.findModule(MoveUpdate.class).isMoving());
+        assertFalse(overlapping(walker, parked));
+    }
+
+    @Test
     void aUnitSpawnedInsideAnotherCanWalkFree() {
         var logic = logicWith(WALKER);
         var parked = spawn(logic, WALKER, 100f, 50f);

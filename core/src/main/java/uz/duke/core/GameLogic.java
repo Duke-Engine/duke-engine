@@ -334,6 +334,16 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return Pathfinder.findPath(pathGrid, from, to);
     }
 
+    @Override
+    public Path findPath(GameObject mover, Coord3D to) {
+        if (pathGrid == null) {
+            return new Path(List.of(to));
+        }
+        refreshStaticObstacles();
+        return Pathfinder.findPath(pathGrid, mover.getPosition(), to,
+                mover.getTemplate().getGeometry().footprintRadius());
+    }
+
     private void clearState() {
         objects.clear();
         staticObstaclesDirty = true;

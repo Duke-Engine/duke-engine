@@ -14,15 +14,35 @@ import uz.duke.core.math.Coord3D;
  * grid (orthogonal step cost 10, diagonal 14, matching SAGE's integer cost
  * scale), then returns it as world-space {@link Path} waypoints.
  *
+ * <p>Two things happen after the search, and both matter more than the search
+ * itself does to how movement looks.
+ *
+ * <p><b>The route is pulled straight.</b> A grid search can only answer in cells,
+ * so its waypoints are cell centres and a walk across open floor comes out as a
+ * staircase — right, diagonal, right, diagonal — even where a straight line was
+ * free the whole way. So once the cells are known, the corners are pulled out of
+ * them: keep only the waypoints you cannot see past. On open ground that leaves
+ * exactly one, and the unit walks straight there.
+ *
+ * <p><b>The route respects the mover's width.</b> Cells are points to a search
+ * and units are not. A path that grazes a corner is fine for a point and wrong
+ * for a body, and the body then discovers it by colliding, which comes out as a
+ * unit arcing around things for no visible reason. Given a {@code clearance} the
+ * search and the straightening both keep that much room from stone.
+ *
  * <p>Determinism is essential for lock-step: the open set is ordered by
  * {@code f = g + h} and ties are broken by cell index, neighbours are always
- * visited in the same fixed order, and all costs are integers — so the same
- * grid and endpoints always yield the same path on every machine.
+ * visited in the same fixed order, costs are integers, and the straightening
+ * samples at a fixed fraction of a cell — so the same grid and endpoints always
+ * yield the same path on every machine.
  */
 public final class Pathfinder {
 
     private static final int ORTHOGONAL_COST = 10;
     private static final int DIAGONAL_COST = 14;
+
+    /** How finely a straight line is sampled when testing whether it is clear. */
+    private static final float LINE_SAMPLE_FRACTION = 0.25f;
 
     // Fixed neighbour order: orthogonals first, then diagonals.
     private static final int[][] NEIGHBOURS = {
@@ -33,8 +53,29 @@ public final class Pathfinder {
     private Pathfinder() {
     }
 
-    /** Find a path from {@code from} to {@code to}, or {@link Path#EMPTY} if none. */
+    /** Find a path for something with no width — a marker, a camera, a test. */
     public static Path findPath(PathGrid grid, Coord3D from, Coord3D to) {
+        return findPath(grid, from, to, 0f);
+    }
+
+    /**
+     * Find a path from {@code from} to {@code to} wide enough for a body of
+     * {@code clearance} radius, or {@link Path#EMPTY} if there is none.
+     *
+     * <p>If no route wide enough exists, the search is run again ignoring width
+     * rather than reporting no route at all. A unit that has to squeeze is still
+     * better off than a unit that refuses to move — and the alternative is a
+     * mover that silently stops working the moment it grows.
+     */
+    public static Path findPath(PathGrid grid, Coord3D from, Coord3D to, float clearance) {
+        var path = search(grid, from, to, clearance);
+        if (path.isEmpty() && clearance > 0f) {
+            path = search(grid, from, to, 0f);
+        }
+        return path;
+    }
+
+    private static Path search(PathGrid grid, Coord3D from, Coord3D to, float clearance) {
         int startX = grid.toCellX(from);
         int startY = grid.toCellY(from);
         int goalX = grid.toCellX(to);
@@ -70,7 +111,7 @@ public final class Pathfinder {
         while (!open.isEmpty()) {
             int current = open.poll();
             if (current == goalIndex) {
-                return reconstruct(grid, cameFrom, current, startIndex, to);
+                return reconstruct(grid, cameFrom, current, startIndex, from, to, clearance);
             }
             if (closed[current]) {
                 continue; // stale entry from a superseded g-score
@@ -81,7 +122,7 @@ public final class Pathfinder {
             int cy = current / width;
             for (var step : NEIGHBOURS) {
                 expand(grid, gScore, fScore, cameFrom, closed, open,
-                        cx, cy, step[0], step[1], goalX, goalY);
+                        cx, cy, step[0], step[1], goalX, goalY, clearance);
             }
         }
         return Path.EMPTY;
@@ -89,10 +130,10 @@ public final class Pathfinder {
 
     private static void expand(PathGrid grid, int[] gScore, int[] fScore, int[] cameFrom,
             boolean[] closed, PriorityQueue<Integer> open,
-            int cx, int cy, int dx, int dy, int goalX, int goalY) {
+            int cx, int cy, int dx, int dy, int goalX, int goalY, float clearance) {
         int nx = cx + dx;
         int ny = cy + dy;
-        if (grid.isBlocked(nx, ny)) {
+        if (!fits(grid, nx, ny, clearance)) {
             return;
         }
         boolean diagonal = dx != 0 && dy != 0;
@@ -123,7 +164,8 @@ public final class Pathfinder {
         return DIAGONAL_COST * min + ORTHOGONAL_COST * (max - min);
     }
 
-    private static Path reconstruct(PathGrid grid, int[] cameFrom, int goal, int start, Coord3D exactTo) {
+    private static Path reconstruct(PathGrid grid, int[] cameFrom, int goal, int start,
+            Coord3D exactFrom, Coord3D exactTo, float clearance) {
         int width = grid.getWidth();
         var cells = new ArrayList<Integer>();
         for (int cell = goal; cell != -1 && cell != start; cell = cameFrom[cell]) {
@@ -141,6 +183,90 @@ public final class Pathfinder {
                 waypoints.add(grid.cellCenter(cell % width, cell / width));
             }
         }
-        return new Path(waypoints);
+        return new Path(straighten(grid, exactFrom, waypoints, clearance));
+    }
+
+    /**
+     * Drop every waypoint the mover can already see past.
+     *
+     * <p>The cells are a proof that a route exists, not an instruction to walk
+     * their centres. Starting from where the mover stands, take the furthest
+     * waypoint still reachable in a straight line, and throw away everything
+     * between. Across open floor that collapses the whole staircase into the
+     * destination.
+     */
+    private static List<Coord3D> straighten(PathGrid grid, Coord3D from,
+            List<Coord3D> waypoints, float clearance) {
+        if (waypoints.size() < 2) {
+            return waypoints;
+        }
+        var straightened = new ArrayList<Coord3D>();
+        var anchor = from;
+        int i = 0;
+        while (i < waypoints.size()) {
+            int furthest = i;
+            for (int j = waypoints.size() - 1; j > i; j--) {
+                if (isClearLine(grid, anchor, waypoints.get(j), clearance)) {
+                    furthest = j;
+                    break;
+                }
+            }
+            anchor = waypoints.get(furthest);
+            straightened.add(anchor);
+            i = furthest + 1;
+        }
+        return straightened;
+    }
+
+    /**
+     * Whether a body of {@code clearance} radius can travel the straight line
+     * between two points without touching stone.
+     *
+     * <p>Sampled rather than traced exactly. At zero clearance a sample can slip
+     * past the very corner of a cell — which is harmless, because something with
+     * no width has nothing to catch on it.
+     */
+    private static boolean isClearLine(PathGrid grid, Coord3D a, Coord3D b, float clearance) {
+        float dx = b.x() - a.x();
+        float dy = b.y() - a.y();
+        float distance = (float) Math.sqrt(dx * dx + dy * dy);
+        int samples = Math.max(1,
+                (int) Math.ceil(distance / (grid.getCellSize() * LINE_SAMPLE_FRACTION)));
+        for (int i = 0; i <= samples; i++) {
+            float t = (float) i / samples;
+            if (!isClearAround(grid, a.x() + dx * t, a.y() + dy * t, clearance)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Whether a cell can hold a body of {@code clearance} radius at its centre. */
+    private static boolean fits(PathGrid grid, int cx, int cy, float clearance) {
+        if (grid.isBlocked(cx, cy)) {
+            return false;
+        }
+        if (clearance <= 0f) {
+            return true;
+        }
+        var center = grid.cellCenter(cx, cy);
+        return isClearAround(grid, center.x(), center.y(), clearance);
+    }
+
+    /** Whether every cell a body of {@code clearance} radius would touch is free. */
+    private static boolean isClearAround(PathGrid grid, float x, float y, float clearance) {
+        float cell = grid.getCellSize();
+        int minX = (int) Math.floor((x - clearance) / cell);
+        int maxX = (int) Math.floor((x + clearance) / cell);
+        int minY = (int) Math.floor((y - clearance) / cell);
+        int maxY = (int) Math.floor((y + clearance) / cell);
+        for (int cy = minY; cy <= maxY; cy++) {
+            for (int cx = minX; cx <= maxX; cx++) {
+                if (grid.isBlocked(cx, cy)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 }

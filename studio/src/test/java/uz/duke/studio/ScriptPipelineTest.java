@@ -28,9 +28,13 @@ class ScriptPipelineTest {
 
         // The Berserker script hunts enemies: the scripted Orcs must have moved
         // toward the elves (or already be fighting) — i.e. the code took effect.
+        // Orcs spawn at x 535 and 545 and the elves are away to the west, so any
+        // real progress shows up as a much smaller x. How much smaller is not the
+        // point: it depends on the shape of the route, and a straight route
+        // spends less of itself on x than a staircase of cell centres did.
         boolean orcMoved = game.getLogic().getObjects().stream()
                 .filter(o -> o.getTemplate().getName().equals("Orc"))
-                .anyMatch(o -> o.getPosition().x() < 495f);
+                .anyMatch(o -> o.getPosition().x() < 520f);
         boolean casualties = game.getLogic().getObjectCount() < 4;
         assertTrue(orcMoved || casualties, "scripted orcs should hunt the enemy");
     }

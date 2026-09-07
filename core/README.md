@@ -9,7 +9,7 @@ qurol bor, na pul, na `MoveTo` buyrug'i.
 | Bog'liqligi | **yo'q** — sof Java, tashqi kutubxonasiz |
 | Kim bunga bog'lanadi | `rts` (→ `game` → `client3d` → `studio`) |
 | Hajmi | 58 fayl, ~4 020 qator |
-| Testlar | 118 ta |
+| Testlar | 124 ta |
 
 **Asosiy invariant:** `core` hech qachon `rts` ni import qilmaydi. Bu Gradle
 darajasida ta'minlangan (`core/build.gradle.kts` da bironta bog'liqlik yo'q),
@@ -172,9 +172,19 @@ Tashqi kutubxona yo'q — hammasi `java.net`.
 
 ### `uz.duke.core.pathfind` — yo'l topish
 
-`Pathfinder` (146 — deterministik A*: butun sonli narxlar 10/14, octile
+`Pathfinder` (250 — deterministik A*: butun sonli narxlar 10/14, octile
 evristika, tenglikda katak indeksi bo'yicha uziladi, qat'iy qo'shni tartibi) ·
 `PathGrid` (katak = 10 dunyo birligi) · `Path` · `MapLoader` (ASCII → grid).
+
+**Qidiruvdan keyin yo'l to'g'rilanadi va kenglikka moslanadi.** Grid qidiruvi
+faqat kataklar bilan javob beradi, ya'ni waypoint'lar katak markazlari bo'lib,
+bo'sh maydondan yurish zinapoyaga aylanadi. Shuning uchun ko'rib bo'ladigan
+waypoint'lar tashlanadi (*string pulling*) — ochiq yerda yo'l **bitta
+waypoint**ga, ya'ni to'g'ri chiziqqa aylanadi. Va `World.findPath(mover, to)`
+birlikning `footprintRadius()` ini uzatadi: qidiruv ham, to'g'rilash ham shu
+masofani toshdan saqlaydi, aks holda yo'l burchakka tegib o'tadi va **tana**
+to'qnashib yoy chizadi. Yetarli keng yo'l bo'lmasa, kenglikni hisobga olmagan
+qidiruv qayta yuritiladi — siqilib o'tish umuman yurmaslikdan yaxshi.
 
 `PathGrid` **ikki qatlamli**: *relyef* (map yozadi, hech qachon o'zgarmaydi) va
 *to'siqlar* (simulyatsiya yozadi — binolar va boshqa harakatlanmaydigan jismlar).
