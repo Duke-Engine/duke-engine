@@ -331,21 +331,28 @@ final class DukeRtsApp extends SimpleApplication {
     // ---- multiplayer flows (menu thread-hops: network blocks, jME must not) ----
 
     private void hostFlow() {
-        menu.show(game.getTitle(),
-                "hosting on port " + uz.duke.game.MultiplayerSession.DEFAULT_PORT
-                        + " — waiting for a player…",
-                java.util.List.of(new MenuOverlay.Item("Cancel", () -> {
-                    game.cancelHosting();
-                    showMainMenu();
-                })));
+        int port = uz.duke.game.MultiplayerSession.DEFAULT_PORT;
+        int wanted = game.getMaxNetworkPlayers();
+        showLobby(port, 0, wanted);
         new Thread(() -> {
             try {
-                game.hostMultiplayer(uz.duke.game.MultiplayerSession.DEFAULT_PORT);
+                // The count comes back as each guest arrives, so the host can see
+                // who is still missing instead of staring at "waiting…".
+                game.hostMultiplayer(port, wanted, joined -> enqueue(() -> showLobby(port, joined, wanted)));
                 enqueue(this::startGame);
             } catch (Exception e) {
                 enqueue(this::showMainMenu); // cancelled or failed — back to the menu
             }
         }, "duke-host").start();
+    }
+
+    private void showLobby(int port, int joined, int wanted) {
+        menu.show(game.getTitle(),
+                "hosting on port " + port + " — " + (joined + 1) + " of " + wanted + " players in",
+                java.util.List.of(new MenuOverlay.Item("Cancel", () -> {
+                    game.cancelHosting();
+                    showMainMenu();
+                })));
     }
 
     private void joinFlow() {

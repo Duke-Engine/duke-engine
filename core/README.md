@@ -9,7 +9,7 @@ qurol bor, na pul, na `MoveTo` buyrug'i.
 | Bog'liqligi | **yo'q** — sof Java, tashqi kutubxonasiz |
 | Kim bunga bog'lanadi | `rts` (→ `game` → `client3d` → `studio`) |
 | Hajmi | 58 fayl, ~4 020 qator |
-| Testlar | 104 ta |
+| Testlar | 108 ta |
 
 **Asosiy invariant:** `core` hech qachon `rts` ni import qilmaydi. Bu Gradle
 darajasida ta'minlangan (`core/build.gradle.kts` da bironta bog'liqlik yo'q),
@@ -110,11 +110,25 @@ kirmaydi. Simulyatsiyani o'zgartiradigan narsa — hodisa emas, **modul**:
 
 ### `uz.duke.core.network` — lock-step
 
-`LockstepScheduler` (94 — kadr darvozasi) · `LockstepDriver` (94 — per-peer
-rejalashtirish) · `CommandPacket` · `Transport` interfeysi · `SocketTransport`
-(123 — haqiqiy TCP; reader thread navbatga qo'yadi, o'yin thread'i `pump()`
-qiladi) · `PacketCodec` (sim format plagi) · `LoopbackTransport` (31 —
-in-process fan-out, **faqat testda ishlatiladi**).
+**Ikkita plan bitta ulanishda:** `NetMessage` sealed — `CommandPacket`
+(*ma'lumot* plani, o'yinniki, o'yinning `PacketCodec` i kodlaydi) va `PeerLeft`
+(*boshqaruv* plani, engine'niki). Konvert — `NetFraming` (`C …` / `L …`).
+Shu ajratish tufayli engine o'zi bilmaydigan o'yin uchun ham a'zolikni boshqaradi.
+
+| Fayl | Vazifa |
+|---|---|
+| `LockstepGate` | engine har kadr so'raydigan darvoza: prime → `pump` → lokal buyruqni `frame+delay` ga jo'natish → tayyor bo'lmasa **to'xtash**. Uzilishni **faqat host** qarorga aylantiradi |
+| `LockstepScheduler` | kadr darvozasining hisobi; a'zolik **kadrga bog'liq** (`retirePlayer(player, fromFrame)`) |
+| `HostTransport` | host tomoni: har mehmonga bitta ulanish, kelgan xabarni qolganlarga **uzatadi** |
+| `SocketTransport` | bitta ulanish (mehmon tomoni); reader thread navbatga qo'yadi, o'yin thread'i `pump()` qiladi |
+| `LoopbackTransport` | in-process fan-out (hotseat, replay, test) |
+| `PacketCodec` | sim format plagi — o'yin o'z buyruqlarini kodlaydi |
+
+**Uzilish = qaror, muzlash emas.** Har bir peer o'zicha sezsa, ular turli
+kadrlarda kutishdan to'xtaydi va dunyolar ajraladi. Shuning uchun host ketgan
+o'yinchining jimligini to'ldiradi va `PeerLeft(player, fromFrame)` e'lon qiladi;
+hamma **aynan o'sha kadrda** to'xtaydi. Mehmon host'ni yo'qotsa hech narsa hal
+qilmaydi — `isConnectionLost()` bo'ladi.
 
 Tashqi kutubxona yo'q — hammasi `java.net`.
 

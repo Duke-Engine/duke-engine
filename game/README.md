@@ -17,7 +17,7 @@ game.start();   // oyna ochiladi, yopilguncha bloklaydi
 | Bog'liqligi | `api project(":rts")`. Tashqi kutubxona **yo'q** (Swing = JDK) |
 | Kim bunga bog'lanadi | `client3d` (→ `studio`), `sandbox` |
 | Hajmi | 12 fayl, ~2 010 qator |
-| Testlar | 15 ta |
+| Testlar | 16 ta |
 
 ---
 
@@ -44,11 +44,15 @@ game.start();   // oyna ochiladi, yopilguncha bloklaydi
 
 | Fayl | Qator | Vazifa |
 |---|---|---|
-| `MultiplayerSession` | 163 | 2 o'yinchili TCP lock-step: xom soketda `DUKE-JOIN`/`DUKE-WELCOME` qo'l berishuvi, `FRAME_DELAY = 3`, `beforeStep()` darvozasi (prime → pump → submit → ready bo'lmasa **to'xtaydi**) |
+| `MultiplayerSession` | 200 | **N o'yinchili** TCP lock-step lobbisi: `DUKE-JOIN` / `DUKE-WELCOME <idx> <soni> <scenario>` / `DUKE-START` (hamma yig'ilgach). Lock-step qoidalari `core` dagi `LockstepGate` da |
+
+Host = o'yinchi 1, mehmonlar kelish tartibida. Mehmonlar bir-biri bilan
+ulanmagan — hamma narsa host orqali uzatiladi.
 
 **Jonli tekshirilgan:** bir mashinada ikkita oyna, Host → Join 127.0.0.1, ikkala
-tomon sinxron o'ynadi. `MultiplayerSyncTest` haqiqiy localhost TCP orqali 300 ta
-o'zaro qadamda checksum'larni bit-aniqlikda solishtiradi.
+tomon sinxron o'ynadi. `MultiplayerSyncTest` (2 o'yinchi) va
+`ThreePlayerSyncTest` (3 o'yinchi, mehmonlar bir-birini faqat host orqali
+eshitadi) haqiqiy localhost TCP orqali checksum'larni bit-aniqlikda solishtiradi.
 
 ### Custom kod
 

@@ -39,6 +39,9 @@ public final class LockstepScheduler extends SubsystemInterface {
     /** frame number -> (player index -> that player's commands for the frame). */
     private final Map<Integer, Map<Integer, List<Command>>> byFrame = new HashMap<>();
 
+    /** player index -> the first frame they are no longer expected to report for. */
+    private final Map<Integer, Integer> retiredFrom = new HashMap<>();
+
     public LockstepScheduler(Collection<Integer> playerIndices) {
         this.players = Set.copyOf(playerIndices);
     }
@@ -51,6 +54,40 @@ public final class LockstepScheduler extends SubsystemInterface {
     @Override
     public void reset() {
         byFrame.clear();
+        retiredFrom.clear();
+    }
+
+    /** Everyone who started the game, whether or not they are still in it. */
+    public Set<Integer> getPlayers() {
+        return players;
+    }
+
+    /**
+     * Stop expecting {@code playerIndex} from {@code fromFrame} onward — they
+     * dropped out.
+     *
+     * <p>Retirement is bound to a frame rather than applied "now" because every
+     * peer must stop waiting at the <em>same</em> frame. A peer that keeps
+     * waiting stalls forever; a peer that stops early runs a frame the others
+     * have not, and the worlds diverge. The host decides the frame and announces
+     * it ({@link PeerLeft}); this records it.
+     */
+    public void retirePlayer(int playerIndex, int fromFrame) {
+        if (!players.contains(playerIndex)) {
+            throw new IllegalArgumentException("player " + playerIndex + " is not in this game");
+        }
+        retiredFrom.merge(playerIndex, fromFrame, Math::min);
+    }
+
+    /** Whether {@code playerIndex} is still expected to report for {@code frame}. */
+    public boolean isExpectedAt(int frame, int playerIndex) {
+        return frame < retiredFrom.getOrDefault(playerIndex, Integer.MAX_VALUE);
+    }
+
+    /** Whether that player's commands for that frame are already in hand. */
+    public boolean hasSubmitted(int frame, int playerIndex) {
+        var submissions = byFrame.get(frame);
+        return submissions != null && submissions.containsKey(playerIndex);
     }
 
     @Override
@@ -69,10 +106,18 @@ public final class LockstepScheduler extends SubsystemInterface {
                 .put(playerIndex, List.copyOf(commands));
     }
 
-    /** True once every player has submitted for {@code frame}. */
+    /** True once every player still in the game at {@code frame} has submitted for it. */
     public boolean isFrameReady(int frame) {
         var submissions = byFrame.get(frame);
-        return submissions != null && submissions.keySet().containsAll(players);
+        for (var player : players) {
+            if (!isExpectedAt(frame, player)) {
+                continue; // they had already left by this frame
+            }
+            if (submissions == null || !submissions.containsKey(player)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -86,8 +131,13 @@ public final class LockstepScheduler extends SubsystemInterface {
         }
         var ordered = new ArrayList<Command>();
         // TreeMap → ascending player index, the deterministic drain order.
-        for (var commands : new TreeMap<>(submissions).values()) {
-            ordered.addAll(commands);
+        for (var entry : new TreeMap<>(submissions).entrySet()) {
+            // A packet from someone who had already left by this frame is ignored,
+            // so it makes no difference whether it happened to arrive before the
+            // disconnection was noticed. Retirement is the single source of truth.
+            if (isExpectedAt(frame, entry.getKey())) {
+                ordered.addAll(entry.getValue());
+            }
         }
         return ordered;
     }

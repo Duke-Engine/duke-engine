@@ -5,27 +5,27 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * An in-process {@link Transport} that fans every broadcast out to all
- * subscribers immediately on the calling thread.
+ * An in-process {@link Transport} that hands every message to all subscribers
+ * immediately, on the calling thread.
  *
- * <p>For single-machine games — hotseat, skirmish-vs-AI, or replays — where all
- * peers share one process. Multiple {@link LockstepDriver}s share one instance;
- * a packet broadcast by any of them reaches every subscriber (including the
- * sender). No threads, fully deterministic.
+ * <p>For peers that share one process — a hotseat game, an AI match, a replay, or
+ * a test of several {@link LockstepGate}s at once. No sockets, no threads, and
+ * nothing to {@link #pump()}: fully deterministic, which is what makes lock-step
+ * testable without a network.
  */
 public final class LoopbackTransport implements Transport {
 
-    private final List<Consumer<CommandPacket>> listeners = new ArrayList<>();
+    private final List<Consumer<NetMessage>> listeners = new ArrayList<>();
 
     @Override
-    public void subscribe(Consumer<CommandPacket> listener) {
+    public void subscribe(Consumer<NetMessage> listener) {
         listeners.add(listener);
     }
 
     @Override
-    public void broadcast(CommandPacket packet) {
-        for (var listener : listeners) {
-            listener.accept(packet);
+    public void send(NetMessage message) {
+        for (var listener : List.copyOf(listeners)) {
+            listener.accept(message);
         }
     }
 }

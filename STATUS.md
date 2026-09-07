@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-07 · **Testlar:** 197 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-07 · **Testlar:** 203 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -330,18 +330,64 @@ har **o'q** uchun chalinadi, har jang uchun bir marta emas.
 
 Klassik RTS modeli: **dunyo holati simdan o'tmaydi, faqat buyruqlar.**
 
-- `LockstepScheduler` — kadr darvozasi: `submit(frame, player, cmds)`, `isFrameReady(frame)`
-  (hamma o'yinchi hisobot berdimi), `takeCommands(frame)` o'yinchi indeksi bo'yicha o'sish tartibida.
-- `LockstepDriver` + `CommandPacket` — per-peer rejalashtirish, `frameDelay` oldindan yuborish.
-- `Transport` interfeysi → `LoopbackTransport` (in-process) va `SocketTransport` (haqiqiy TCP;
-  o'qish thread'i navbatga qo'yadi, o'yin thread'i `pump()` qiladi — thread-xavfsiz).
-- `PacketCodec` — sim formati **plagi**: `SocketTransport` uni konstruktorda oladi, chunki
-  formatni bilish uchun o'yinning buyruq to'plamini bilish kerak. RTS implementatsiyasi —
-  `rts` dagi `CommandCodec` (exhaustive switch, `Float.toString` aniq).
+**Ikkita plan bitta ulanishda.** `NetMessage` — sealed: `CommandPacket` (**ma'lumot**
+plani, o'yinniki, o'yinning `PacketCodec` i kodlaydi) va `PeerLeft` (**boshqaruv**
+plani, engine'niki, engine o'zi kodlaydi). Tashqi konvert — `NetFraming`
+(`C <yuk>` / `L <idx> <frame>`). Ajratilgani sababli engine o'zi hech narsa
+bilmaydigan o'yin uchun ham a'zolikni boshqara oladi.
+
+- `LockstepScheduler` — kadr darvozasi: `submit`, `isFrameReady`, `takeCommands`
+  (o'yinchi indeksi bo'yicha o'sish tartibida). A'zolik **kadrga bog'liq**:
+  `retirePlayer(player, fromFrame)`, `isExpectedAt(frame, player)`.
+- `LockstepGate` — engine har kadr so'raydigan darvoza: "shu kadr o'tsinmi, o'tsa
+  hamma nima qildi?". Prime, `pump`, lokal buyruqni `frame + frameDelay` ga
+  jo'natish, tayyor bo'lmasa **to'xtash**. (Eski `LockstepDriver` o'chirildi — u
+  `logic.update()` ni o'zi chaqirardi, ya'ni siklni `GameEngine` boshqaradigan
+  jonli yo'lga to'g'ri kelmasdi.)
+- `Transport` — `send` / `subscribe` / `pump` / `onLinkLost`. Implementatsiyalar:
+  `LoopbackTransport` (in-process), `SocketTransport` (bitta ulanish — mehmon
+  tomoni), **`HostTransport`** (host tomoni: har mehmonga bitta ulanish, kelgan
+  har xabarni qolganlarga **uzatadi**).
+- `PacketCodec` — sim formati **plagi**; RTS implementatsiyasi `rts` dagi
+  `CommandCodec` (exhaustive switch, `Float.toString` aniq).
 - `GameLogic.checksum()` — butun dunyoning deterministik xeshi (SAGE `VERIFY_CRC`);
   `floatToIntBits` ishlatadi, shuning uchun float holat hamma mashinada bir xil xeshlanadi.
 
 Tashqi kutubxona **yo'q** — hammasi `java.net`.
+
+### 3.7b Topologiya: host = markaz
+
+Mehmonlar bir-biri bilan ulanmagan — faqat host bilan, host esa uzatadi.
+Shuning uchun **xabar oqimi tartibga solinadigan yagona nuqta host**: har bir
+mehmon host nimani qabul qilgan bo'lsa, aynan o'sha tartibda oladi. Bu butun
+dizayn tayanadigan xususiyat.
+
+Narxi: host alohida — uning kechikishi hech kimga muammo emas, lekin o'ziga
+afzallik; host chiqsa o'yin tugaydi. To'liq mesh buni har juftlik orasida ulanish
+va har mashinada port ochish evaziga almashtiradi.
+
+### 3.7c Uzilish — muzlash emas, qaror
+
+Lock-step'ning kuchi to'xtashda: kimdir yetishmasa, taxmin qilinmaydi. Xavfi ham
+shunda — g'oyib bo'lgan o'yinchi hammani abadiy to'xtatib qo'yadi. (Ilgari aynan
+shunday edi: mehmon Alt+F4 qilsa, host'ning o'yini jimgina o'lardi.)
+
+Uzilishni har bir peer o'zicha sezishi **mumkin emas** — ikki peer uchinchisini
+turli kadrlarda kutishdan to'xtasa, ular turli buyruq to'plamini qo'llaydi va
+dunyolar ajraladi. Shuning uchun:
+
+1. Qaror **faqat host**niki. U ketgan o'yinchining jimligini `frame + frameDelay`
+   gacha bo'sh paketlar bilan to'ldiradi (hali hech kim o'ynamagan kadr), so'ng
+   `PeerLeft(player, fromFrame)` e'lon qiladi.
+2. To'ldirish paketlari ham xuddi shu relay orqali ketadi, ya'ni hech bir peer
+   "u ketishidan oldin nima qilgan edi" degan savolga boshqacha javob bermaydi.
+3. Har bir peer o'sha **aynan bir kadrda** o'yinchini kutishdan to'xtaydi.
+4. `takeCommands` allaqachon nafaqaga chiqqan o'yinchining paketini e'tiborsiz
+   qoldiradi — ya'ni paket yetib ulgurgani yoki ulgurmagani ahamiyatsiz.
+
+Mehmon host'ni yo'qotsa, o'zi hech narsa hal qila olmaydi: `isConnectionLost()`
+true bo'ladi va o'yin buni aytadi ("CONNECTION LOST") — chunki tashqaridan
+uzilgan peer bilan sekin o'yinchini kutayotgan peer bir xil ko'rinadi.
 
 ### 3.8 Boshqa core tizimlari
 
@@ -470,20 +516,35 @@ Mag'lubiyat qoidasi: birliklari bo'lgan va hammasini yo'qotgan o'yinchi mag'lub 
 
 ### 4.5 Multiplayer
 
-`MultiplayerSession` — 2 o'yinchili TCP lock-step:
+`MultiplayerSession` — **N o'yinchili** TCP lock-step. U faqat lobbi qo'l
+berishuvi va `DukeGame` ga ulanishni egallaydi; lock-step qoidalarining o'zi
+`core` dagi `LockstepGate` da.
 
-1. **Qo'l berishuv xom soketda:** guest `DUKE-JOIN` → host `DUKE-WELCOME 2 <map|faction1|faction2>`
-   (URL-kodlangan). **`SocketTransport.wrap()` dan OLDIN bo'lishi shart** — transport o'qish thread'i
-   qatorlarni CommandCodec deb talqin qiladi.
-2. Host = engine o'yinchi 1, guest = 2. Guest hostning map/faction tanlovini qo'llaydi → ikkalasi
-   bir xil matchni yig'adi.
-3. `FRAME_DELAY = 3` (30 Hz da 100 ms kirish kechikishi).
-4. Har qadamdan oldin `beforeStep()`: birinchi marta 0..2 kadrlarni bo'sh paket bilan "prime" qiladi →
-   `transport.pump()` (sim thread'da) → lokal buyruqlarni `frame+3` ga jo'natadi →
-   `isFrameReady(frame)` bo'lmasa **to'xtaydi** (drift emas) → tayyor bo'lsa ikkala o'yinchi
-   buyruqlarini deterministik tartibda inject qiladi.
+**Lobbi protokoli** (xom soketda, lock-step xabarlari boshlanishidan oldin):
 
-Standart port **7777**. Multiplayerda pauza tabiiy ravishda ikkala peerni to'xtatadi.
+```
+guest → host   DUKE-JOIN
+host  → guest  DUKE-WELCOME <senIndeksing> <o'yinchiSoni> <scenario>
+host  → guest  DUKE-START                (hamma yig'ilgach)
+```
+
+- Host = o'yinchi 1, mehmonlar kelish tartibida 2, 3, … `hostMultiplayer(port,
+  playerCount, onGuestJoined)` har mehmon kelganda xabar beradi, ya'ni lobbi
+  "3 dan 2 tasi kirdi" deb ko'rsata oladi.
+- **Hamma yig'ilmaguncha hech kim boshlamaydi** (`DUKE-START`) — aks holda
+  kelganlar hali ulanmagan o'yinchini kutib to'xtab turardi.
+- Mehmonlar hostning map/faction tanlovini qo'llaydi → hamma bir xil matchni yig'adi.
+- `FRAME_DELAY = 3` (30 Hz da 100 ms kirish kechikishi). Standart port **7777**.
+- Multiplayerda pauza tabiiy ravishda hamma peerni to'xtatadi.
+
+**Tuzoq (tuzatilgan):** qo'l berishuv `BufferedReader` bilan o'qilsa, u o'z
+qatoridan **oshirib** o'qib qo'yishi va tashlab yuborilganda birinchi lock-step
+xabarlarini olib ketishi mumkin. Endi qo'l berishuv baytma-bayt o'qiladi —
+ulanish qo'l berishuvdan uzoq yashaydi, demak qo'l berishuv o'ziga tegishli
+bo'lmagan biror baytga tegmasligi kerak.
+
+`onPlayerLeft(...)` — o'yinchi chiqib ketganda (armiyasi yo'q qilinganda emas);
+ulanish uzilsa "CONNECTION LOST" bayrog'i chiqadi.
 
 ### 4.6 Custom kod — UnitScript
 
@@ -680,7 +741,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **197 test yashil** (core 104, rts 70, game 15, studio 8) — 0 failure / 0 error.
+- **203 test yashil** (core 108, rts 71, game 16, studio 8) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -707,6 +768,13 @@ ikkala peer aynan bir kadrda qo'llaydi.
 - **Multiplayer jonli tekshirilgan** — bitta mashinada ikkita oyna, Host → Join 127.0.0.1,
   ikkala tomon sinxron o'ynadi. `MultiplayerSyncTest`: haqiqiy localhost TCP orqali ikkita DukeGame,
   300 ta o'zaro qadam, checksum'lar bit-aniqlikda bir xil.
+- **N o'yinchi va uzilish** — `ThreePlayerSyncTest`: uchta `DukeGame` haqiqiy TCP
+  orqali; 2- va 3-mehmon bir-biri bilan **umuman ulanmagan**, lekin ikkalasining
+  buyrug'i ham har uchala dunyoga bir xil yetadi. `LockstepGateTest`: uch peer
+  bit-aniq bir xil; biri chiqib ketsa qolganlar **davom etadi** (avval abadiy
+  qotardi) va uni **aynan bir kadrda** kutishdan to'xtaydi; host'ni yo'qotgan
+  mehmon esa qadam tashlamaydi. `NetworkTransportTest`: host relay qiladi, va
+  uzilish xabari o'sha peerning oxirgi paketidan **keyin** keladi.
 - **Rohan vs Mordor** — Studio'ning o'z modeli orqali yozilgan to'liq o'yin
   (`examples/RohanVsMordor.duke`); `dist/RohanVsMordor/` mustaqil loyiha sifatida quriladi va
   menyular bilan ishlaydi. `RohanVsMordorTest` 2700 kadrlik headless urushni tekshiradi
@@ -724,8 +792,9 @@ ikkala peer aynan bir kadrda qo'llaydi.
    generatsiya qilinmaydi. Natijada `DukeRtsApp.showSkirmishMenu()` chiqarilgan o'yinda hech qachon
    ko'rinmaydi (u `getMapChoices()` bo'sh emasligini talab qiladi). Studio ichidagi Play'da menyu bor.
    Sabab: model va `GameFactory` `game` + `client3d` dan yuqori modulda — ularni shipping qilish kerak.
-2. **Multiplayer faqat 2 o'yinchi.** `MultiplayerSession` `LockstepScheduler(List.of(1, 2))` ni
-   qattiq kodlagan. N-o'yinchili lobbi va qayta ulanish yo'q.
+2. **Qayta ulanish yo'q.** Chiqib ketgan o'yinchi qaytib kira olmaydi (bunga
+   uning dunyosini tiklash kerak — save/load bilan bir xil mexanizm). Kechikish
+   ham moslashuvchan emas: `FRAME_DELAY` qat'iy 3, haqiqiy pingdan qat'i nazar.
 3. **Desync aniqlash jonli ulanmagan.** `GameLogic.checksum()` bor va testlarda ishlatiladi, lekin
    ishlayotgan o'yinda peer'lar bilan almashilmaydi va solishtirilmaydi.
 4. **Save / load UI'ga ulanmagan.** `GameSnapshot` faqat `core` da; `game` / `client3d` / `studio`
@@ -819,7 +888,8 @@ kengaytma-ma'lumot mexanizmi va `ThingTemplateLoader` ga maydon-registratsiyasi 
 | `core/…/core/message/{Command,MessageStream}.java` | buyruq navbati (buyruqlarning o'zi emas) |
 | `core/…/core/ini/Ini.java` | SAGE tokenizatori |
 | `core/…/core/pathfind/{PathGrid,Pathfinder,MapLoader}.java` | deterministik A* |
-| `core/…/core/network/{LockstepScheduler,LockstepDriver,PacketCodec,SocketTransport}.java` | lock-step + format plagi |
+| `core/…/core/network/{LockstepGate,LockstepScheduler}.java` | lock-step darvozasi + a'zolik |
+| `core/…/core/network/{HostTransport,SocketTransport,NetMessage,NetFraming}.java` | relay topologiyasi + sim protokoli |
 | `rts/…/rts/RtsSimulation.java` | RTS mantiqining bazasi |
 | `rts/…/rts/message/GameMessage.java` | sealed RTS buyruq to'plami |
 | `rts/…/rts/network/CommandCodec.java` | RTS sim formati |

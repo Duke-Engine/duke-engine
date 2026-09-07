@@ -13,7 +13,7 @@ Bu modul ikki vazifani bajaradi:
 | Bog'liqligi | `api project(":core")` |
 | Kim bunga bog'lanadi | `game` (→ `client3d` → `studio`) |
 | Hajmi | 21 fayl, ~1 750 qator |
-| Testlar | 70 ta |
+| Testlar | 71 ta |
 
 ---
 

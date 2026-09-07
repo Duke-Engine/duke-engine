@@ -12,7 +12,7 @@ import uz.duke.core.message.Command;
  * command list is still sent so peers know the player has reported for that
  * frame.
  */
-public record CommandPacket(int frame, int playerIndex, List<Command> commands) {
+public record CommandPacket(int frame, int playerIndex, List<Command> commands) implements NetMessage {
 
     public CommandPacket {
         commands = List.copyOf(commands);

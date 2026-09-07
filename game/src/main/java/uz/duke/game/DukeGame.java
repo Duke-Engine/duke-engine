@@ -59,6 +59,7 @@ public final class DukeGame {
     private final List<double[]> intervalSeconds = new ArrayList<>(); // [seconds, callbackIndex]
     private final List<Consumer<DukeGame>> intervalCallbacks = new ArrayList<>();
     private final List<BiConsumer<DukeGame, GamePlayer>> defeatCallbacks = new ArrayList<>();
+    private final List<BiConsumer<DukeGame, GamePlayer>> leftCallbacks = new ArrayList<>();
 
     private final List<Consumer<uz.duke.core.module.ModuleFactory>> moduleCustomizers = new ArrayList<>();
     private PathGrid terrain;
@@ -249,6 +250,15 @@ public final class DukeGame {
         return this;
     }
 
+    /**
+     * Runs when a player drops out of a network game — their machine is gone, as
+     * opposed to their army being destroyed.
+     */
+    public DukeGame onPlayerLeft(BiConsumer<DukeGame, GamePlayer> callback) {
+        leftCallbacks.add(callback);
+        return this;
+    }
+
     // ---- skirmish (map + faction selection, the real-RTS flow) ----
 
     /** Builds the chosen scenario (terrain, bases, neutrals) at boot time. */
@@ -325,20 +335,31 @@ public final class DukeGame {
     // ---- multiplayer (before start) ----
 
     /**
-     * Host a two-player LAN game: blocks until a guest connects, then binds
-     * this machine to the <b>first</b> player. Call before {@link #start()}.
-     * Both machines must run the same game definition.
+     * Host a LAN game for every player in the project, binding this machine to
+     * the <b>first</b> of them. Blocks until all the others have joined.
      */
     public MultiplayerSession hostMultiplayer(int port) throws java.io.IOException {
+        return hostMultiplayer(port, players.size(), null);
+    }
+
+    /**
+     * Host a LAN game for {@code playerCount} players and wait for the other
+     * {@code playerCount - 1} to join. Call before starting the engine; every
+     * machine must run the same game definition.
+     *
+     * @param onGuestJoined told how many guests are in so far, for a lobby screen
+     */
+    public MultiplayerSession hostMultiplayer(int port, int playerCount,
+            java.util.function.IntConsumer onGuestJoined) throws java.io.IOException {
         requireNotStarted();
-        requireTwoPlayers();
+        requireNetworkPlayers(playerCount);
         try (var server = new java.net.ServerSocket(port)) {
             hostingSocket = server;
-            multiplayer = MultiplayerSession.host(server, encodeSkirmishSpec());
+            multiplayer = MultiplayerSession.host(server, playerCount, encodeSkirmishSpec(), onGuestJoined);
         } finally {
             hostingSocket = null;
         }
-        localPlayer = players.get(0);
+        localPlayer = players.get(multiplayer.getLocalPlayerIndex() - 1);
         return multiplayer;
     }
 
@@ -391,14 +412,15 @@ public final class DukeGame {
     }
 
     /**
-     * Join a hosted LAN game; this machine becomes the <b>second</b> player.
-     * Blocks until the host answers. Call before {@link #start()}.
+     * Join a hosted LAN game. The host says which player this machine is; the
+     * call blocks until the host has everyone and starts the game.
      */
     public MultiplayerSession joinMultiplayer(String host, int port) throws java.io.IOException {
         requireNotStarted();
-        requireTwoPlayers();
+        requireNetworkPlayers(2);
         multiplayer = MultiplayerSession.join(host, port);
-        localPlayer = players.get(1);
+        requireNetworkPlayers(multiplayer.getPlayerCount());
+        localPlayer = players.get(multiplayer.getLocalPlayerIndex() - 1);
         applySkirmishSpec(multiplayer.getScenarioSpec()); // play the host's chosen match
         return multiplayer;
     }
@@ -413,9 +435,28 @@ public final class DukeGame {
         return players.size() >= 2;
     }
 
-    private void requireTwoPlayers() {
-        if (players.size() < 2) {
-            throw new IllegalStateException("a multiplayer game needs two players in the project");
+    /** The most players this game definition can seat over the network. */
+    public int getMaxNetworkPlayers() {
+        return players.size();
+    }
+
+    private void announcePlayerLeft(int playerIndex) {
+        if (playerIndex < 1 || playerIndex > players.size()) {
+            return;
+        }
+        var who = players.get(playerIndex - 1);
+        for (var callback : leftCallbacks) {
+            callback.accept(this, who);
+        }
+    }
+
+    private void requireNetworkPlayers(int needed) {
+        if (needed < 2) {
+            throw new IllegalStateException("a network game needs at least two players");
+        }
+        if (players.size() < needed) {
+            throw new IllegalStateException("this game defines only " + players.size()
+                    + " players, but the match needs " + needed);
         }
     }
 
@@ -490,7 +531,11 @@ public final class DukeGame {
         engine = new RtsGameEngine(logic, client);
         if (multiplayer != null) {
             logic.setSession(multiplayer);   // local commands go over the wire
-            engine.setSession(multiplayer);  // frames wait for both players' input
+            engine.setSession(multiplayer);  // frames wait for every player's input
+            multiplayer.onPlayerLeft(this::announcePlayerLeft);
+            // A cut-off peer and a peer waiting on a slow one look identical from
+            // the outside — both stopped — so say which this is.
+            multiplayer.onConnectionLost(() -> setBanner("CONNECTION LOST"));
         }
         engine.setMaxFps(maxFps);
         engine.init(); // note: engine init resets subsystems — apply scenario after
