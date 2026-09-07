@@ -9,6 +9,7 @@ import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ThingTemplate;
+import uz.duke.core.thing.World;
 import uz.duke.rts.player.RtsPlayer;
 
 /**
@@ -39,8 +40,14 @@ public final class ProductionUpdate extends UpdateModule {
         }
     }
 
-    /** Where finished units appear relative to the producer. */
-    private static final Coord3D SPAWN_OFFSET = new Coord3D(0f, -10f, 0f);
+    /** Which way finished units step out of the producer. */
+    private static final Coord3D EXIT_DIRECTION = new Coord3D(0f, -1f, 0f);
+
+    /** Breathing room between the producer's wall and the unit that just left it. */
+    private static final float EXIT_CLEARANCE = 10f;
+
+    /** How far to look for free ground when the doorway is crowded. */
+    private static final float EXIT_SEARCH_RADIUS = 60f;
 
     private static final class DataBuilder {
         final java.util.List<String> builds = new java.util.ArrayList<>();
@@ -141,7 +148,7 @@ public final class ProductionUpdate extends UpdateModule {
 
         var owner = getOwner();
         if (world != null) {
-            var produced = world.spawn(head.unit, owner.getPosition().add(SPAWN_OFFSET), owner.getPlayerIndex());
+            var produced = world.spawn(head.unit, exitPosition(world, owner, head.unit), owner.getPlayerIndex());
             if (rallyPoint != null) {
                 var ai = produced.findModule(MoveUpdate.class);
                 if (ai != null) {
@@ -149,5 +156,21 @@ public final class ProductionUpdate extends UpdateModule {
                 }
             }
         }
+    }
+
+    /**
+     * Where a finished unit appears: clear of the producer's own walls, and clear
+     * of whatever else is already standing outside them.
+     *
+     * <p>Both objects are shapes now, so a fixed offset would bury a tank inside
+     * the barracks that built it. The exit is pushed out by the two footprints
+     * plus a margin, then nudged to genuinely free ground.
+     */
+    private static Coord3D exitPosition(World world, GameObject producer, ThingTemplate unit) {
+        var unitShape = unit.getGeometry();
+        float distance = producer.getTemplate().getGeometry().footprintRadius()
+                + unitShape.footprintRadius() + EXIT_CLEARANCE;
+        var doorway = producer.getPosition().add(EXIT_DIRECTION.scale(distance));
+        return world.findClearPosition(unitShape, doorway, EXIT_SEARCH_RADIUS);
     }
 }

@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-06 · **Testlar:** 165 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-07 · **Testlar:** 181 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -132,7 +132,15 @@ Bu — SAGE o'zi `@todo` qilib qoldirgan, lekin hech qachon amalga oshirmagan ma
 SAGE'ning `ThingTemplate` / `Object` / `Module` tuzilishi saqlangan:
 
 - **`ThingTemplate`** — INI'dan o'qilgan tur: nom, `Kind` bayroqlari, `BuildCost`/`BuildTime`,
-  `VisionRange`, modul ro'yxati. Yuklangandan keyin o'zgarmas.
+  `VisionRange`, **`Geometry`**, modul ro'yxati. Yuklangandan keyin o'zgarmas.
+- **`Geometry`** — obyektning **fizik shakli** (SAGE `GeometryInfo`): sealed
+  `Sphere` / `Cylinder` / `Box`. `Box` obyekt bilan birga buriladi. Standart —
+  `Geometry.POINT` (o'lchamsiz, hech narsa bilan to'qnashmaydi), shuning uchun
+  geometriyadan oldin yozilgan ma'lumot avvalgidek ishlaydi.
+- **`Footprint`** — shakl + joy + yo'nalish, ya'ni "yer ustidagi iz":
+  `overlaps`, `separation` (**yuzadan yuzaga**, ustma-ust tushsa manfiy),
+  `contains`. Birlik ↔ istalgan shakl aniq hisoblanadi; ikkita `Box` bir-biriga
+  qarshi o'rab turuvchi doira bilan taqqoslanadi (yagona taqribiylik).
 - **`GameObject`** — jonli nusxa: `ObjectId` (yaratilish tartibida monoton), pozitsiya, orientatsiya,
   egasi, modullar. `findModule(Class)` bilan qidiriladi.
 - **`Module`** → `UpdateModule` (har kadr `update()`) / `BodyModule` (sog'liq, zarar).
@@ -144,7 +152,10 @@ SAGE'ning `ThingTemplate` / `Object` / `Module` tuzilishi saqlangan:
 - **`World`** interfeysi — modullar simulyatsiyani shu orqali so'roq qiladi (`findObject`,
   `getRelationship`, `getPlayer`, `findTemplate`, `spawn`, `findPath`, `findClosest`,
   `objectsInRange`, `getObjects`). SAGE'dagi global `TheGameLogic` o'rnini bosadi va
-  paket sikllarini oldini oladi.
+  paket sikllarini oldini oladi. **Fizik dunyo qismi:** `findBlocker(mover, pos)`
+  ("shu yerga qadam tashlasam kim xalaqit beradi?"), `findClearPosition(shape,
+  near, radius)` ("bu shakl qayerga sig'adi?"), `findClosestInReach(from, reach,
+  filter)` va `World.reachBetween(a, b)` (masofa markazdan emas, devordan devorga).
 
 ### 3.4 INI ma'lumot qatlami
 
@@ -157,6 +168,10 @@ ichidagi modul sub-bloklari bilan birga, template'ga aylantiradi.
 Object Tank
   DisplayName = Battle Tank
   KindOf = VEHICLE SELECTABLE CAN_ATTACK
+  Geometry = BOX
+  GeometryMajorRadius = 8
+  GeometryMinorRadius = 5
+  GeometryHeight = 6
   BuildCost = 700
   BuildTime = 6.0
   VisionRange = 45
@@ -199,6 +214,30 @@ buyruq jimgina tashlanmaydi — WARNING bilan log qilinadi.
 qo'shnilar qat'iy tartibda, burchak kesish yo'q. `MapLoader` ASCII matndan grid quradi
 (`#`/`X` = to'siq). Grid o'rnatilmagan bo'lsa `findPath` to'g'ri chiziq qaytaradi.
 
+### 3.6b To'qnashuv — obyektlar fizik jism
+
+Obyektning `Geometry` si bo'lsa, u yer egallaydi va boshqasi u yerda tura olmaydi.
+
+- **Har qadamdan oldin tekshiriladi.** `MoveUpdate` qadam tashlashdan avval
+  `World.findBlocker(mover, keyingiJoy)` ni so'raydi. Band bo'lsa, qat'iy
+  tartibda chetlab o'tishga urinadi: to'g'ri → +45° → −45° → +90° → −90°.
+  Tartib qat'iy, chunki ikkala peer to'siqni bir tomondan aylanib o'tishi shart.
+- **Qotib qolish o'lchovi = ilgarilash, bloklanish emas.** To'siq atrofida
+  aylanayotgan birlik har kadr bo'sh yo'l topadi, ya'ni "bloklangan kadrlarni
+  sanash" uni abadiy aylantiradi. Shuning uchun waypoint'gacha bo'lgan eng
+  yaqin masofa yodda tutiladi; 2 soniya davomida sezilarli yaqinlashish
+  bo'lmasa, yo'ldan voz kechiladi (birlik yeta oladigan eng yaqin joyda to'xtaydi).
+- **Ichkarida paydo bo'lgan birlik qulflanmaydi.** Agar obyekt hozir allaqachon
+  biror narsa bilan kesishib tursa, u chiqib ketguncha to'qnashuv tekshiruvi
+  o'tkazib yuboriladi.
+- **Geometriyasi yo'q obyekt** (`POINT`) hech narsa bilan to'qnashmaydi — eski
+  ma'lumot xatti-harakati bit-aniq saqlanadi.
+
+RTS tomonda bu ikki qoidani o'zgartirdi: ishlab chiqarilgan birlik zavod
+devoridan **tashqarida, bo'sh yerda** paydo bo'ladi (`findClearPosition`), va
+qurol masofasi **yuzadan yuzaga** o'lchanadi — devorga tiralgan piyoda katta
+binoni ura oladi, garchi markazlar orasi masofa qurol radiusidan katta bo'lsa ham.
+
 ### 3.7 Tarmoq (lock-step)
 
 Klassik RTS modeli: **dunyo holati simdan o'tmaydi, faqat buyruqlar.**
@@ -221,9 +260,9 @@ Tashqi kutubxona **yo'q** — hammasi `java.net`.
 O'yinchilar/diplomatiya (`Player` — index, nom, munosabat; `PlayerList` o'yinning o'z
 `Player` tipini yaratadigan `PlayerFactory` bilan; `Relationship`) · sog'liq va zarar
 (`BodyModule`/`ActiveBody`, `DamageType`, `Armor`) · harakat (`MoveUpdate` — tezlik,
-burilish tezligi, waypoint'lar) · tuman (`canSee`/`getVisibleObjects` — o'zinikini doim
-ko'radi, ittifoqchilar ko'rishni bo'lishadi) · fazoviy so'rovlar (`PartitionManager` +
-`PartitionFilter`) · skript triggerlari (`Trigger` + `ScriptEngine`) · rendering choki
+burilish tezligi, waypoint'lar, **to'qnashuv**) · tuman (`canSee`/`getVisibleObjects` —
+o'zinikini doim ko'radi, ittifoqchilar ko'rishni bo'lishadi) · fazoviy so'rovlar
+(`PartitionManager` + `PartitionFilter`) · skript triggerlari (`Trigger` + `ScriptEngine`) · rendering choki
 (`Renderer` + `RenderingGameClient`) · saqlash **mexanizmi** (`clearWorld`, `setFrame`,
 `setNextObjectId`, `restoreObject` — format o'yinniki).
 
@@ -255,6 +294,9 @@ ko'radi, ittifoqchilar ko'rishni bo'lishadi) · fazoviy so'rovlar (`PartitionMan
 - Obyektlar har doim yaratilish tartibida tiklanadi; id'lar monoton.
 - Buyruqlar kadr chegarasida qo'llanadi, hech qachon o'rtada emas.
 - Float holat `floatToIntBits` orqali xeshlanadi.
+- **Trigonometriya `StrictMath` orqali.** `Math.sin`/`cos`/`atan2` faqat 1 ulp
+  aniqlikda kafolatlanadi va platforma intrinsic'laridan foydalanishi mumkin —
+  ikki peer oxirgi bitda farq qilsa, bu desync. `Math.sqrt`/`abs` aniq, ular mumkin.
 - Bir kadrda yaratilgan obyekt o'sha kadrda tiklanmaydi — kadrning obyekt to'plami aniq.
 
 ---
@@ -550,7 +592,13 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **165 test yashil** (core 78, rts 66, game 13, studio 8) — 0 failure / 0 error.
+- **181 test yashil** (core 91, rts 69, game 13, studio 8) — 0 failure / 0 error.
+- **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
+  burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
+  o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
+  birlikning chiqib keta olishini va geometriyasiz kontentning avvalgidek
+  ishlashini tekshiradi; `SolidWorldTest` ishlab chiqarish chiqishini va
+  yuzadan-yuzaga qurol masofasini tekshiradi.
 - **Engine bo'linishi tasdiqlangan** — `core` `rts` ni umuman ko'rmaydi (Gradle bog'liqligi
   bir tomonlama), va bo'linishdan oldingi hamma test hali ham o'tadi.
 - **To'liq stack uchidan-uchiga** — sandbox: iqtisod → ishlab chiqarish → jang → g'alaba,
@@ -595,6 +643,26 @@ qatlamlarda umuman ishlatilmaydi: `StatusUpdate`, `SpecialPowerModule`, `Contain
 3D preview embed yo'q · INI'ni orqaga import qilish yo'q · per-inshoot rally nuqtasi yo'q ·
 2D `GamePanel` da build menyusi yo'q.
 
+### Fizika va relyef
+
+5. **Dunyo tekis.** `Coord3D.z` faqat xeshlash va serializatsiyada o'qiladi —
+   balandlik, qiyalik, relyef turi (harakat narxi), tepalik ortidan ko'rinmaslik
+   yo'q. `PathGrid` faqat "o'tsa bo'ladi / bo'lmaydi" biladi.
+6. **Inshootlar `PathGrid` ga bosilmaydi.** A* binolar haqida bilmaydi; ular
+   faqat `MoveUpdate` ning lokal chetlab o'tishi bilan aylanib o'tiladi. Xona
+   ichida yoki uzun devor bo'ylab bu yetarli emas — yo'l qidiruvi ularni
+   hisobga olishi kerak.
+7. **`PartitionManager` hali brute-force.** Endi u har kadr, har harakatlanuvchi
+   birlik uchun to'qnashuv savolini ham oladi, ya'ni SAGE'ning katak-gridiga
+   o'tish avvalgidan muhimroq bo'lib qoldi.
+8. **Ikkita `Box` bir-biriga qarshi** o'rab turuvchi doira bilan taqqoslanadi
+   (burchaklarda ortiqcha teginish). Birlik ↔ istalgan shakl aniq.
+9. **O'lim hodisasi seami yo'q.** `GameLogic` o'lgan obyektni jimgina olib
+   tashlaydi; `DieModule` yoki klient eshitadigan hodisa navbati yo'q, shuning
+   uchun 3D klient o'limni evristika bilan **taxmin qiladi** (hp < 35%).
+10. **Replay yo'q.** Deterministik sim + buyruq oqimi bor, ya'ni replay deyarli
+    tekin — lekin yozish/qaytarish implementatsiyasi yo'q.
+
 ### `core` da qolgan RTS izlari
 
 `ThingTemplate` hali ham `BuildCost` / `BuildTime` / `VisionRange` maydonlarini saqlaydi —
@@ -636,6 +704,12 @@ kengaytma-ma'lumot mexanizmi va `ThingTemplateLoader` ga maydon-registratsiyasi 
   xato "cannot inherit from final Module" bo'lib chiqadi.
 - **`Kind` identity bo'yicha solishtiriladi:** `Kind.of(...)` interned, shuning uchun
   `equals`/`hashCode` `Object` dan olinadi — ataylab. `new Kind(...)` yo'q.
+- **`Math` vs `StrictMath`:** mantiq yo'lida trigonometriya uchun `Math` ishlatmang
+  (yuqoridagi determinizm bandiga qarang). Klient/HUD kodida `Math` mumkin.
+- **Geometriya qo'shsangiz joylashuvni tekshiring:** template'ga `Geometry`
+  bergan zahoti u yer egallaydi. Bir-biriga juda yaqin qo'yilgan eski
+  spawn koordinatalari endi kesishishi mumkin — birliklar chiqib ketguncha
+  bir-birining ichidan o'tadi.
 
 ---
 
@@ -646,6 +720,7 @@ kengaytma-ma'lumot mexanizmi va `ThingTemplateLoader` ga maydon-registratsiyasi 
 | `core/…/core/GameEngine.java` | asosiy sikl, 30 Hz akkumulyator |
 | `core/…/core/GameLogic.java` | deterministik dunyo, kadr tartibi, checksum, tuman |
 | `core/…/core/thing/{ThingTemplate,GameObject,ThingFactory,World,Kind}.java` | obyekt modeli + tasniflash |
+| `core/…/core/thing/{Geometry,Footprint}.java` | fizik shakl va to'qnashuv matematikasi |
 | `core/…/core/module/{ActiveBody,Armor,DamageType,MoveUpdate}.java` | janrsiz modullar |
 | `core/…/core/message/{Command,MessageStream}.java` | buyruq navbati (buyruqlarning o'zi emas) |
 | `core/…/core/ini/Ini.java` | SAGE tokenizatori |

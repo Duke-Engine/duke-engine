@@ -40,6 +40,11 @@ this?* If the answer is no, it goes in `rts`.
   frame number + command stream. No wall-clock reads, no unordered iteration, no
   floating-point nondeterminism inside `GameLogic`. If in doubt, keep it out of
   the logic path.
+- **`StrictMath` for trigonometry in the logic path.** `Math.sin`/`cos`/`atan2`
+  /`pow`/`hypot` are only specified to within 1 ulp and may use platform
+  intrinsics, so two peers can differ in the last bit — a desync. `StrictMath`
+  is bit-identical everywhere. `Math.sqrt` and `Math.abs` are exact and fine.
+  Presentation code (renderers, HUD) may use `Math` freely.
 - **Cite the source.** When a constant or rule comes from SAGE (e.g.
   `LOGICFRAMES_PER_SECOND = 30`), keep the name and note the origin so it stays
   verifiable against the C++.

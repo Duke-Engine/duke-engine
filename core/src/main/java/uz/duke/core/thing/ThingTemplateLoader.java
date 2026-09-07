@@ -1,10 +1,13 @@
 package uz.duke.core.thing;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import uz.duke.core.GameConstants;
 import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
+import uz.duke.core.ini.IniException;
 
 /**
  * Loads {@code Object} definitions from INI into {@link ThingTemplate}s, ported
@@ -18,6 +21,10 @@ import uz.duke.core.ini.Ini;
  * Object Crusader
  *   DisplayName = Crusader Tank
  *   KindOf = SELECTABLE VEHICLE CAN_ATTACK
+ *   Geometry = BOX
+ *   GeometryMajorRadius = 8
+ *   GeometryMinorRadius = 5
+ *   GeometryHeight = 6
  *   Body = ActiveBody ModuleTag_01
  *     MaxHealth = 480.0
  *   End
@@ -46,7 +53,11 @@ public final class ThingTemplateLoader {
                 .add("BuildCost", Ini.integer((b, v) -> b.buildCost(v)))
                 .add("BuildTime", (ini, b) -> b.buildTimeFrames(
                         Math.round(Ini.scanReal(ini.getNextToken()) * GameConstants.LOGICFRAMES_PER_SECOND)))
-                .add("VisionRange", Ini.real((b, v) -> b.visionRange(v)));
+                .add("VisionRange", Ini.real((b, v) -> b.visionRange(v)))
+                .add("Geometry", this::parseGeometryType)
+                .add("GeometryMajorRadius", Ini.real((b, v) -> b.geometryMajorRadius = v))
+                .add("GeometryMinorRadius", Ini.real((b, v) -> b.geometryMinorRadius = v))
+                .add("GeometryHeight", Ini.real((b, v) -> b.geometryHeight = v));
         for (var field : MODULE_FIELDS) {
             table.add(field, this::parseModule);
         }
@@ -56,6 +67,20 @@ public final class ThingTemplateLoader {
     private void parseKindOf(Ini ini, ThingTemplate.Builder builder) {
         for (var token = ini.getNextTokenOrNull(); token != null; token = ini.getNextTokenOrNull()) {
             builder.addKindOf(Kind.of(token));
+        }
+    }
+
+    /**
+     * Reads {@code Geometry = SPHERE|CYLINDER|BOX}. Validated here rather than at
+     * build time so a typo is reported with the line that caused it.
+     */
+    private void parseGeometryType(Ini ini, ThingTemplate.Builder builder) {
+        var token = ini.getNextToken();
+        try {
+            builder.geometryType = ThingTemplate.GeometryType.valueOf(token.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new IniException("unknown Geometry '" + token + "' — expected "
+                    + Arrays.toString(ThingTemplate.GeometryType.values()));
         }
     }
 

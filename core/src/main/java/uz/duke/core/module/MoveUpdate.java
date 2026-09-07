@@ -7,6 +7,7 @@ import uz.duke.core.ini.Ini;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectStatus;
+import uz.duke.core.thing.World;
 
 /**
  * Drives an object toward a goal position each frame, ported in spirit from
@@ -18,8 +19,19 @@ import uz.duke.core.thing.ObjectStatus;
  * Speed is authored in world-units-per-second and converted to a per-frame step
  * using the fixed logic rate, so movement is identical regardless of render fps.
  *
+ * <p>Movement is solid: before every step the locomotor asks the world whether
+ * the space it is about to occupy is free ({@link World#findBlocker}), and steers
+ * around whatever is in the way. Objects with no {@link uz.duke.core.thing.Geometry}
+ * pass through each other exactly as before.
+ *
  * <p>SAGE's real locomotor models acceleration, turn rates and movement
  * surfaces; this is the straight-line core those build on.
+ *
+ * <p>Determinism: trigonometry goes through {@link StrictMath}, not
+ * {@link Math}. {@code Math.sin}/{@code cos}/{@code atan2} are only required to
+ * land within 1 ulp and are free to use platform intrinsics, so two peers can
+ * disagree in the last bit — which is a desync. {@code StrictMath} is defined to
+ * produce the same bits everywhere.
  */
 public final class MoveUpdate extends UpdateModule {
 
@@ -54,16 +66,34 @@ public final class MoveUpdate extends UpdateModule {
         return builder.build();
     }
 
+    /**
+     * Directions tried when the way ahead is blocked: straight on first, then
+     * progressively wider swerves to each side. The order is fixed so every peer
+     * picks the same way round an obstacle.
+     */
+    private static final float[] SWERVE_ANGLES = {
+        0f,
+        (float) Math.toRadians(45), (float) Math.toRadians(-45),
+        (float) Math.toRadians(90), (float) Math.toRadians(-90),
+    };
+
+    /** Give up on a leg after this long without getting any closer to it. */
+    private static final int STUCK_FRAME_LIMIT = 2 * GameConstants.LOGICFRAMES_PER_SECOND;
+
     private final float stepPerFrame;
     private final float turnPerFrame; // radians/frame; 0 = instant turning
+    private final float progressEpsilon;
     private List<Coord3D> waypoints = List.of();
     private int waypointIndex;
+    private float closestApproach;
+    private int framesWithoutProgress;
 
     public MoveUpdate(GameObject owner, Data data) {
         super(owner);
         this.stepPerFrame = data.speedPerSecond() * GameConstants.SECONDS_PER_LOGICFRAME;
         this.turnPerFrame = (float) Math.toRadians(
                 data.turnRateDegreesPerSecond() * GameConstants.SECONDS_PER_LOGICFRAME);
+        this.progressEpsilon = stepPerFrame * 0.25f;
     }
 
     /**
@@ -80,12 +110,19 @@ public final class MoveUpdate extends UpdateModule {
             this.waypoints = path.isEmpty() ? List.of() : path.getWaypoints();
         }
         this.waypointIndex = 0;
+        resetProgress();
     }
 
     /** Cancel any current move. */
     public void stop() {
         this.waypoints = List.of();
         this.waypointIndex = 0;
+        resetProgress();
+    }
+
+    private void resetProgress() {
+        this.closestApproach = Float.MAX_VALUE;
+        this.framesWithoutProgress = 0;
     }
 
     public boolean isMoving() {
@@ -113,29 +150,74 @@ public final class MoveUpdate extends UpdateModule {
         var delta = target.sub(position);
         float distance = delta.length();
 
-        if (distance <= step || distance == 0f) {
-            owner.setPosition(target);
-            waypointIndex++; // advance to the next leg (or finish the path)
+        if (madeNoProgress(distance)) {
+            stop(); // as close as it is ever going to get — stop rather than circle forever
             return;
         }
 
-        float desired = (float) Math.atan2(delta.y(), delta.x());
-        if (turnPerFrame <= 0f) {
-            // Instant turning: head straight for the waypoint.
-            owner.setOrientation(desired);
-            owner.setPosition(position.add(delta.normalize().scale(step)));
+        // A unit that spawned on top of something is already overlapping; let it
+        // walk free rather than lock it in place forever.
+        boolean escaping = isBlocked(owner, position);
+
+        if (distance <= step || distance == 0f) {
+            if (escaping || isClear(owner, target)) {
+                owner.setPosition(target);
+                waypointIndex++; // advance to the next leg (or finish the path)
+                resetProgress();
+            }
             return;
         }
-        // Rotate toward the goal and advance along the new facing (curving in).
-        float facing = rotateToward(owner.getOrientation(), desired, turnPerFrame);
+
+        float desired = (float) StrictMath.atan2(delta.y(), delta.x());
+        float facing = turnPerFrame <= 0f
+                ? desired // instant turning: head straight for the waypoint
+                : rotateToward(owner.getOrientation(), desired, turnPerFrame);
         owner.setOrientation(facing);
-        var heading = new Coord3D((float) Math.cos(facing), (float) Math.sin(facing), 0f);
-        owner.setPosition(position.add(heading.scale(step)));
+
+        for (var swerve : SWERVE_ANGLES) {
+            var next = position.add(headingVector(facing + swerve).scale(step));
+            if (escaping || isClear(owner, next)) {
+                owner.setPosition(next);
+                return;
+            }
+        }
+        // Hemmed in on every side: hold position and let the progress check time it out.
+    }
+
+    /**
+     * True once the unit has spent {@link #STUCK_FRAME_LIMIT} frames without
+     * closing meaningfully on its waypoint.
+     *
+     * <p>Counting blocked frames is not enough: a unit circling an obstacle finds
+     * a free step every frame and would orbit forever. What actually matters is
+     * whether it is getting closer, so that is what is measured.
+     */
+    private boolean madeNoProgress(float distance) {
+        if (distance < closestApproach - progressEpsilon) {
+            closestApproach = distance;
+            framesWithoutProgress = 0;
+            return false;
+        }
+        return ++framesWithoutProgress >= STUCK_FRAME_LIMIT;
+    }
+
+    private static boolean isClear(GameObject mover, Coord3D position) {
+        return !isBlocked(mover, position);
+    }
+
+    private static boolean isBlocked(GameObject mover, Coord3D position) {
+        var world = mover.getWorld();
+        return world != null && world.findBlocker(mover, position) != null;
+    }
+
+    private static Coord3D headingVector(float angle) {
+        return new Coord3D((float) StrictMath.cos(angle), (float) StrictMath.sin(angle), 0f);
     }
 
     /** Step {@code current} toward {@code target} by at most {@code maxStep} radians. */
     private static float rotateToward(float current, float target, float maxStep) {
-        float diff = (float) Math.atan2(Math.sin(target - current), Math.cos(target - current));
+        float diff = (float) StrictMath.atan2(
+                StrictMath.sin(target - current), StrictMath.cos(target - current));
         if (Math.abs(diff) <= maxStep) {
             return target;
         }

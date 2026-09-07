@@ -685,6 +685,10 @@ public final class DukeGame {
             Object PowerPlant
               DisplayName = Power Plant
               KindOf = STRUCTURE SELECTABLE POWERED
+              Geometry = BOX
+              GeometryMajorRadius = 18
+              GeometryMinorRadius = 14
+              GeometryHeight = 16
               BuildCost = 600
               BuildTime = 4.0
               VisionRange = 30
@@ -698,6 +702,10 @@ public final class DukeGame {
             Object Barracks
               DisplayName = Barracks
               KindOf = STRUCTURE SELECTABLE
+              Geometry = BOX
+              GeometryMajorRadius = 20
+              GeometryMinorRadius = 16
+              GeometryHeight = 14
               BuildCost = 500
               BuildTime = 5.0
               VisionRange = 35
@@ -714,6 +722,9 @@ public final class DukeGame {
             Object Rifleman
               DisplayName = Rifleman
               KindOf = INFANTRY SELECTABLE CAN_ATTACK
+              Geometry = CYLINDER
+              GeometryMajorRadius = 3
+              GeometryHeight = 9
               BuildCost = 120
               BuildTime = 1.5
               VisionRange = 40
@@ -736,6 +747,10 @@ public final class DukeGame {
             Object Tank
               DisplayName = Battle Tank
               KindOf = VEHICLE SELECTABLE CAN_ATTACK
+              Geometry = BOX
+              GeometryMajorRadius = 8
+              GeometryMinorRadius = 5
+              GeometryHeight = 6
               BuildCost = 700
               BuildTime = 6.0
               VisionRange = 45

@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.function.Supplier;
 import uz.duke.core.SubsystemInterface;
 import uz.duke.core.math.Coord3D;
+import uz.duke.core.thing.Footprint;
 import uz.duke.core.thing.GameObject;
 
 /**
@@ -50,6 +51,65 @@ public final class PartitionManager extends SubsystemInterface {
             }
         }
         return result;
+    }
+
+    /**
+     * Every object whose physical {@link Footprint} overlaps {@code footprint}
+     * and passes {@code filter}, in creation order.
+     */
+    public List<GameObject> objectsOverlapping(Footprint footprint, PartitionFilter filter) {
+        var result = new ArrayList<GameObject>();
+        for (var candidate : objectSource.get()) {
+            if (filter.accept(candidate) && footprint.overlaps(Footprint.of(candidate))) {
+                result.add(candidate);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * The first object standing in the way of {@code footprint}, or {@code null}
+     * if the space is clear — the question movement asks every frame, so it stops
+     * at the first hit instead of collecting them all.
+     */
+    public GameObject firstOverlapping(Footprint footprint, PartitionFilter filter) {
+        for (var candidate : objectSource.get()) {
+            if (filter.accept(candidate) && footprint.overlaps(Footprint.of(candidate))) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The nearest object whose shape comes within {@code reach} of {@code from}'s
+     * shape — "what can I touch from here?", the question a weapon, a repair arm
+     * or a capture attempt all ask.
+     *
+     * <p>Distances are surface to surface on the ground plane, so a wide building
+     * is in reach as soon as its wall is, not its centre. Objects with no
+     * geometry measure centre to centre, exactly as {@link #closestObject} does.
+     * Ties broken by lowest object id.
+     */
+    public GameObject closestWithinReach(Footprint from, float reach, PartitionFilter filter) {
+        GameObject best = null;
+        float bestSeparation = Float.MAX_VALUE;
+        for (var candidate : objectSource.get()) {
+            if (!filter.accept(candidate)) {
+                continue;
+            }
+            float separation = from.separation(Footprint.of(candidate));
+            if (separation > reach) {
+                continue;
+            }
+            if (separation < bestSeparation
+                    || (separation == bestSeparation && best != null
+                        && candidate.getId().value() < best.getId().value())) {
+                best = candidate;
+                bestSeparation = separation;
+            }
+        }
+        return best;
     }
 
     /**

@@ -136,7 +136,7 @@ public final class WeaponUpdate extends UpdateModule {
             target = null; // never fire on allies
             return;
         }
-        if (owner.getPosition().distance(victim.getPosition()) > attackRange) {
+        if (rangeTo(owner, victim) > attackRange) {
             return; // out of range — wait for movement to close in
         }
         if (cooldown > 0) {
@@ -192,9 +192,18 @@ public final class WeaponUpdate extends UpdateModule {
         }
     }
 
+    /**
+     * How far the target is, measured wall to wall. A tank parked against a
+     * barracks is at range 0 from it, not half a building away — the same rule
+     * SAGE uses, and the reason a short-ranged unit can hit a big structure.
+     */
+    private static float rangeTo(GameObject owner, GameObject victim) {
+        return uz.duke.core.thing.World.reachBetween(owner, victim);
+    }
+
     /** Pick the nearest living enemy within range as the new target, if any. */
     private void acquireTarget(uz.duke.core.thing.World world, GameObject owner) {
-        var enemy = world.findClosest(owner.getPosition(), attackRange, candidate ->
+        var enemy = world.findClosestInReach(owner, attackRange, candidate ->
                 candidate != owner
                         && !candidate.isContained()
                         && candidate.getBody() != null

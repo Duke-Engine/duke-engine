@@ -30,6 +30,7 @@ public final class ThingTemplate {
     private final int buildCost;
     private final int buildTimeFrames;
     private final float visionRange;
+    private final Geometry geometry;
 
     private ThingTemplate(Builder b) {
         this.name = b.name;
@@ -39,6 +40,26 @@ public final class ThingTemplate {
         this.buildCost = b.buildCost;
         this.buildTimeFrames = b.buildTimeFrames;
         this.visionRange = b.visionRange;
+        this.geometry = b.geometryType == null ? b.geometry : composeGeometry(b);
+    }
+
+    /**
+     * INI spells a shape over several lines ({@code Geometry},
+     * {@code GeometryMajorRadius}, …), so the pieces are gathered on the builder
+     * and assembled once, here. The type token is validated where it is read, by
+     * {@link ThingTemplateLoader}.
+     */
+    private static Geometry composeGeometry(Builder b) {
+        return switch (b.geometryType) {
+            case SPHERE -> new Geometry.Sphere(b.geometryMajorRadius);
+            case CYLINDER -> new Geometry.Cylinder(b.geometryMajorRadius, b.geometryHeight);
+            case BOX -> new Geometry.Box(b.geometryMajorRadius, b.geometryMinorRadius, b.geometryHeight);
+        };
+    }
+
+    /** The shape names INI understands in {@code Geometry = …}. */
+    enum GeometryType {
+        SPHERE, CYLINDER, BOX
     }
 
     public static Builder named(String name) {
@@ -81,6 +102,14 @@ public final class ThingTemplate {
         return visionRange;
     }
 
+    /**
+     * The physical shape instances occupy. Never {@code null}: a template that
+     * declares no geometry gets {@link Geometry#POINT} and collides with nothing.
+     */
+    public Geometry getGeometry() {
+        return geometry;
+    }
+
     /** Mutable builder; the resulting {@link ThingTemplate} is immutable. */
     public static final class Builder {
         private final String name;
@@ -90,6 +119,14 @@ public final class ThingTemplate {
         private int buildCost;
         private int buildTimeFrames;
         private float visionRange;
+        private Geometry geometry = Geometry.POINT;
+
+        // Set by ThingTemplateLoader as the INI lines arrive; a non-null type
+        // means "INI authored a shape" and wins over any geometry() call.
+        GeometryType geometryType;
+        float geometryMajorRadius;
+        float geometryMinorRadius;
+        float geometryHeight;
 
         private Builder(String name) {
             this.name = name;
@@ -112,6 +149,11 @@ public final class ThingTemplate {
 
         public Builder visionRange(float visionRange) {
             this.visionRange = visionRange;
+            return this;
+        }
+
+        public Builder geometry(Geometry geometry) {
+            this.geometry = geometry;
             return this;
         }
 

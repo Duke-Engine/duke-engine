@@ -51,6 +51,22 @@ public interface World {
      */
     GameObject findClosest(Coord3D center, float range, Predicate<GameObject> filter);
 
+    /**
+     * The nearest object {@code from} can reach within {@code reach}, measured
+     * surface to surface rather than centre to centre — so a wide building counts
+     * as soon as its wall is in range.
+     *
+     * <p>This is what anything with a working distance should use: weapons,
+     * repair, capture, boarding. Objects with no {@link Geometry} measure centre
+     * to centre, so data written before shapes existed behaves as it always did.
+     */
+    GameObject findClosestInReach(GameObject from, float reach, Predicate<GameObject> filter);
+
+    /** How far {@code a} is from {@code b}, surface to surface; negative if they overlap. */
+    static float reachBetween(GameObject a, GameObject b) {
+        return Footprint.of(a).separation(Footprint.of(b));
+    }
+
     /** Every object within {@code range} of {@code center} that satisfies {@code filter}. */
     java.util.List<GameObject> objectsInRange(Coord3D center, float range, Predicate<GameObject> filter);
 
@@ -60,4 +76,27 @@ public interface World {
      * Empty if no route exists.
      */
     Path findPath(Coord3D from, Coord3D to);
+
+    /**
+     * The object that would be in the way if {@code mover} stood at
+     * {@code position}, or {@code null} if the space is free — the question a
+     * locomotor asks before every step.
+     *
+     * <p>{@code mover} never blocks itself, and neither do objects that are not
+     * physically present: the dead (already leaving the world) and the contained
+     * (riding inside something else). An object with no {@link Geometry} blocks
+     * nothing and is blocked by nothing.
+     */
+    GameObject findBlocker(GameObject mover, Coord3D position);
+
+    /**
+     * Somewhere at or near {@code near} where {@code shape} fits without
+     * overlapping anything — where to put a newly produced unit, a dropped
+     * passenger, or anything else that must appear beside something solid.
+     *
+     * <p>Searches {@code near} first, then outward in rings, and gives up at
+     * {@code searchRadius} by returning {@code near} itself: better a unit that
+     * has to walk out of a crowd than a unit that never appears.
+     */
+    Coord3D findClearPosition(Geometry shape, Coord3D near, float searchRadius);
 }

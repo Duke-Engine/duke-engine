@@ -13,7 +13,9 @@ import uz.duke.core.pathfind.PathGrid;
 import uz.duke.core.pathfind.Pathfinder;
 import uz.duke.core.player.PlayerList;
 import uz.duke.core.player.Relationship;
+import uz.duke.core.thing.Footprint;
 import uz.duke.core.thing.GameObject;
+import uz.duke.core.thing.Geometry;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.core.thing.ThingFactory;
 import uz.duke.core.thing.ThingTemplate;
@@ -161,6 +163,55 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     @Override
     public List<GameObject> objectsInRange(Coord3D center, float range, Predicate<GameObject> filter) {
         return partition.objectsInRange(center, range, filter::test);
+    }
+
+    @Override
+    public GameObject findClosestInReach(GameObject from, float reach, Predicate<GameObject> filter) {
+        return partition.closestWithinReach(Footprint.of(from), reach, filter::test);
+    }
+
+    /** Directions probed when looking for free ground, in this fixed order. */
+    private static final int CLEAR_POSITION_SAMPLES = 8;
+
+    @Override
+    public Coord3D findClearPosition(Geometry shape, Coord3D near, float searchRadius) {
+        if (shape.isPoint() || isGroundClear(shape, near)) {
+            return near;
+        }
+        float ringStep = Math.max(shape.footprintRadius(), 1f);
+        for (float radius = ringStep; radius <= searchRadius; radius += ringStep) {
+            for (int sample = 0; sample < CLEAR_POSITION_SAMPLES; sample++) {
+                double angle = 2 * Math.PI * sample / CLEAR_POSITION_SAMPLES;
+                var candidate = new Coord3D(
+                        near.x() + radius * (float) StrictMath.cos(angle),
+                        near.y() + radius * (float) StrictMath.sin(angle),
+                        near.z());
+                if (isGroundClear(shape, candidate)) {
+                    return candidate;
+                }
+            }
+        }
+        return near;
+    }
+
+    private boolean isGroundClear(Geometry shape, Coord3D position) {
+        var footprint = new Footprint(shape, position, 0f);
+        return partition.firstOverlapping(footprint,
+                candidate -> !candidate.isDestroyed()
+                        && !candidate.isEffectivelyDead()
+                        && !candidate.isContained()) == null;
+    }
+
+    @Override
+    public GameObject findBlocker(GameObject mover, Coord3D position) {
+        if (mover.getTemplate().getGeometry().isPoint()) {
+            return null; // no body, nothing to bump into
+        }
+        return partition.firstOverlapping(Footprint.of(mover, position),
+                candidate -> candidate != mover
+                        && !candidate.isDestroyed()
+                        && !candidate.isEffectivelyDead()
+                        && !candidate.isContained());
     }
 
     /** Install a navigation grid so movement routes around terrain obstacles. */
