@@ -43,8 +43,20 @@ final class RtsClient extends GameClient {
 
     @Override
     protected void render() {
+        // Drained every client frame, viewer or not: the queue is bounded, and
+        // leaving it to fill would silently start dropping the oldest moments.
+        var drained = logic.drainEvents();
         if (viewerPlayer < 0) {
             return; // no viewer bound yet — nothing to show
+        }
+        // Fog applies to moments as much as to state: without this you would hear
+        // an explosion in territory you have no eyes on.
+        var events = new ArrayList<uz.duke.core.event.WorldEvent>();
+        for (var event : drained) {
+            var where = event.where();
+            if (where == null || logic.canSee(viewerPlayer, where)) {
+                events.add(event);
+            }
         }
         var units = new ArrayList<UnitView>();
         for (var object : logic.getVisibleObjects(viewerPlayer)) {
@@ -80,6 +92,7 @@ final class RtsClient extends GameClient {
                 player == null ? 0 : player.getMoney(),
                 PowerGrid.surplus(logic, viewerPlayer),
                 units,
+                events,
                 banner);
     }
 }

@@ -26,9 +26,17 @@ special-casing:
 | Modules | `ModuleFactory.withDefaults()` (body + locomotor) | its own module set, e.g. `RtsModules` |
 | Players | `Player` (identity + diplomacy), `PlayerList(PlayerFactory)` | its `Player` subtype, e.g. `RtsPlayer` |
 | Classification | `Kind`, interned by name | its vocabulary, e.g. `RtsKinds` |
+| Events | `WorldEvent` + the post/drain channel | its own events, e.g. `WeaponFired` |
 
 Before adding anything to `core`, ask: *would a game that is not an RTS want
 this?* If the answer is no, it goes in `rts`.
+
+**State vs moments.** A snapshot says what *is*; it cannot say what *happened*.
+If a client would have to infer something ("it vanished while hurt, so it must
+have died"), the simulation should say it outright — post a `WorldEvent`. Events
+flow one way, take no part in `checksum()`, and dropping them all must not change
+a single frame. Anything that does change the simulation is a module, not an
+event: `DieModule` leaves the wreck, `ObjectDied` tells the renderer to explode it.
 
 ## Porting philosophy
 

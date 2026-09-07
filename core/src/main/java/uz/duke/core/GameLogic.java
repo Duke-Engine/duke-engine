@@ -1,11 +1,15 @@
 package uz.duke.core;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
+import uz.duke.core.event.ObjectDied;
+import uz.duke.core.event.WorldEvent;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.message.Command;
 import uz.duke.core.message.MessageStream;
+import uz.duke.core.module.DieModule;
 import uz.duke.core.module.ModuleFactory;
 import uz.duke.core.partition.PartitionManager;
 import uz.duke.core.pathfind.Path;
@@ -47,6 +51,11 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     private PathGrid pathGrid; // null = open terrain (direct paths)
     private boolean staticObstaclesDirty = true;
 
+    /** Enough to hold a busy frame's worth; a headless run with no client drops the excess. */
+    private static final int MAX_PENDING_EVENTS = 1024;
+
+    private final ArrayDeque<WorldEvent> pendingEvents = new ArrayDeque<>();
+
     private int frame;
     private int nextObjectId = 1;
     private boolean paused;
@@ -83,6 +92,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         messageStream.init();
         playerList.init();
         scriptEngine.init();
+        pendingEvents.clear();
         clearState();
     }
 
@@ -92,6 +102,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         messageStream.reset();
         playerList.reset();
         scriptEngine.reset();
+        pendingEvents.clear();
         clearState();
     }
 
@@ -124,9 +135,15 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      * range of one of the viewer's (or an ally's) living units.
      */
     public final boolean canSee(int viewerPlayer, GameObject target) {
-        if (target.getPlayerIndex() == viewerPlayer) {
-            return true;
-        }
+        return target.getPlayerIndex() == viewerPlayer || canSee(viewerPlayer, target.getPosition());
+    }
+
+    /**
+     * Whether {@code viewerPlayer} has eyes on a point of the map — the question
+     * to ask about a place rather than a thing, such as where something just
+     * happened after the thing itself has gone.
+     */
+    public final boolean canSee(int viewerPlayer, Coord3D position) {
         for (var watcher : objects) {
             if (watcher.isEffectivelyDead() || watcher.getTemplate().getVisionRange() <= 0f) {
                 continue;
@@ -134,7 +151,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             boolean friendlyEye = watcher.getPlayerIndex() == viewerPlayer
                     || getRelationship(viewerPlayer, watcher.getPlayerIndex()) == Relationship.ALLIES;
             if (friendlyEye
-                    && watcher.getPosition().distance(target.getPosition()) <= watcher.getTemplate().getVisionRange()) {
+                    && watcher.getPosition().distance(position) <= watcher.getTemplate().getVisionRange()) {
                 return true;
             }
         }
@@ -275,6 +292,33 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return pathGrid == null ? 0 : pathGrid.getObstacleVersion();
     }
 
+    @Override
+    public final void post(WorldEvent event) {
+        if (pendingEvents.size() >= MAX_PENDING_EVENTS) {
+            // Nobody is draining (a headless run, say). Drop the oldest rather than
+            // grow without bound; events are presentation only, so nothing breaks.
+            pendingEvents.pollFirst();
+        }
+        pendingEvents.addLast(event);
+    }
+
+    /**
+     * Take everything announced since the last call, in the order it happened.
+     *
+     * <p>Drained rather than cleared per frame because the engine may run several
+     * logic frames for one client frame while catching up; anything else would
+     * silently lose the moments in between. Call from the engine thread — the
+     * client runs there too.
+     */
+    public final List<WorldEvent> drainEvents() {
+        if (pendingEvents.isEmpty()) {
+            return List.of();
+        }
+        var drained = List.copyOf(pendingEvents);
+        pendingEvents.clear();
+        return drained;
+    }
+
     public final PathGrid getPathGrid() {
         return pathGrid;
     }
@@ -339,14 +383,36 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     private void reapDestroyed() {
-        // Dead objects leave the world (the engine's default DieModule behaviour).
+        List<GameObject> leaving = null;
         for (var object : objects) {
             if (object.isEffectivelyDead()) {
                 object.markDestroyed();
             }
+            if (object.isDestroyed()) {
+                if (leaving == null) {
+                    leaving = new ArrayList<>();
+                }
+                leaving.add(object);
+            }
         }
-        if (objects.removeIf(GameObject::isDestroyed)) {
-            staticObstaclesDirty = true; // a demolished building reopens its ground
+        if (leaving == null) {
+            return;
+        }
+        objects.removeAll(leaving);
+        staticObstaclesDirty = true; // a demolished building reopens its ground
+
+        // Announce and react only once the corpses are gone, so a die module that
+        // spawns wreckage builds it in a world that no longer holds the body.
+        for (var object : leaving) {
+            if (object.isEffectivelyDead()) {
+                post(new ObjectDied(frame, object.getId(), object.getTemplate().getName(),
+                        object.getPlayerIndex(), object.getPosition()));
+            }
+            for (var module : object.getModules()) {
+                if (module instanceof DieModule die) {
+                    die.onDie();
+                }
+            }
         }
     }
 

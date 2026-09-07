@@ -39,12 +39,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Logger;
+import uz.duke.core.event.ObjectDied;
 import uz.duke.core.math.Coord3D;
-import uz.duke.rts.message.GameMessage;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.game.DukeGame;
 import uz.duke.game.view.UnitView;
 import uz.duke.game.view.WorldSnapshot;
+import uz.duke.rts.event.WeaponFired;
+import uz.duke.rts.message.GameMessage;
 
 /**
  * The 3D presentation of a {@link DukeGame}: renders the simulation with
@@ -62,7 +64,9 @@ import uz.duke.game.view.WorldSnapshot;
 final class DukeRtsApp extends SimpleApplication {
 
     private static final Logger LOG = Logger.getLogger(DukeRtsApp.class.getName());
-    private static final float DEATH_FX_HEALTH_FRACTION = 0.35f;
+
+    /** How long a muzzle flash stays lit after a shot. Display time, not game time. */
+    private static final float MUZZLE_FLASH_SECONDS = 0.08f;
 
     private enum Screen { MENU, PLAYING, PAUSED, SETTINGS }
 
@@ -88,6 +92,7 @@ final class DukeRtsApp extends SimpleApplication {
     private final Set<String> missingAssets = new HashSet<>();
 
     private WorldSnapshot snapshot = WorldSnapshot.EMPTY;
+    private WorldSnapshot lastEventedSnapshot = WorldSnapshot.EMPTY;
     private final Vector3f camTarget = new Vector3f();
     private float camDistance = 140f;
     private final boolean[] pan = new boolean[4]; // W A S D
@@ -113,7 +118,7 @@ final class DukeRtsApp extends SimpleApplication {
         AnimComposer composer;
         AnimChannel legacyChannel;
         String currentAnim = "";
-        float lastHealthFraction = 1f;
+        float flashUntil;
         UnitView view;
     }
 
@@ -728,6 +733,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         updateCamera(tpf);
         syncUnits();
+        handleEvents();
         syncMinimap();
         updateHud();
         updateBanner();
@@ -765,13 +771,37 @@ final class DukeRtsApp extends SimpleApplication {
             if (seen.contains(entry.getKey())) {
                 continue;
             }
-            var node = entry.getValue();
-            if (node.lastHealthFraction < DEATH_FX_HEALTH_FRACTION) {
-                playSound(visuals.of(node.view.templateName()).dieSound, node.root.getLocalTranslation());
-            }
-            node.root.removeFromParent();
+            entry.getValue().root.removeFromParent();
             selected.remove(entry.getKey());
             gone.remove();
+        }
+    }
+
+    /**
+     * React to what happened this frame, as opposed to what merely is.
+     *
+     * <p>A unit leaving the snapshot used to be all the client had to go on, so it
+     * guessed: gone while badly hurt meant dead, gone while healthy meant fog.
+     * That was wrong at both ends. The simulation now says outright what died and
+     * what fired, already filtered through fog of war.
+     */
+    private void handleEvents() {
+        if (snapshot == lastEventedSnapshot) {
+            return; // the sim has not produced a new frame; do not replay this one
+        }
+        lastEventedSnapshot = snapshot;
+        for (var event : snapshot.events()) {
+            if (event instanceof ObjectDied died) {
+                playSound(visuals.of(died.templateName()).dieSound,
+                        new Vector3f(died.position().x(), 0f, died.position().y()));
+            } else if (event instanceof WeaponFired fired) {
+                var node = unitNodes.get(fired.shooter().value());
+                if (node != null) {
+                    node.flashUntil = timer.getTimeInSeconds() + MUZZLE_FLASH_SECONDS;
+                    playSound(visuals.of(node.view.templateName()).fireSound,
+                            node.root.getLocalTranslation());
+                }
+            }
         }
     }
 
@@ -872,10 +902,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void updateUnitNode(UnitNode node, UnitView view) {
-        boolean justStartedFiring = node.view != null && !node.view.attacking() && view.attacking();
         node.view = view;
-        node.lastHealthFraction = view.healthFraction();
-
         node.root.setLocalTranslation(view.x(), 0, view.y());
         node.root.setLocalRotation(new Quaternion().fromAngles(0, -view.orientation(), 0));
 
@@ -891,12 +918,9 @@ final class DukeRtsApp extends SimpleApplication {
                     fraction > 0.5f ? ColorRGBA.Green : fraction > 0.25f ? ColorRGBA.Orange : ColorRGBA.Red);
         }
 
-        // Muzzle flash blinks while attacking; fire sound on the rising edge.
-        boolean flashOn = view.attacking() && (timer.getTimeInSeconds() % 0.4f) < 0.15f;
-        node.flash.setCullHint(flashOn ? Spatial.CullHint.Never : Spatial.CullHint.Always);
-        if (justStartedFiring) {
-            playSound(visuals.of(view.templateName()).fireSound, node.root.getLocalTranslation());
-        }
+        // The flash is lit by an actual shot, not by a timer running while "attacking".
+        node.flash.setCullHint(timer.getTimeInSeconds() < node.flashUntil
+                ? Spatial.CullHint.Never : Spatial.CullHint.Always);
 
         animate(node, view);
     }

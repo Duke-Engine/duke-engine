@@ -1,6 +1,7 @@
 package uz.duke.core.thing;
 
 import java.util.function.Predicate;
+import uz.duke.core.event.WorldEvent;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.pathfind.Path;
 import uz.duke.core.player.Player;
@@ -87,6 +88,15 @@ public interface World {
      * rethinking.
      */
     int getNavigationVersion();
+
+    /**
+     * Announce that something happened, for the presentation layer to react to.
+     *
+     * <p>One way only: nothing in the simulation reads these back, so posting one
+     * can never change what happens next. Modules use it to report moments a
+     * snapshot cannot express — a shot fired, a wall breached.
+     */
+    void post(WorldEvent event);
 
     /**
      * The object that would be in the way if {@code mover} stood at

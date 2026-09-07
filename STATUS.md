@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-07 · **Testlar:** 189 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-07 · **Testlar:** 197 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -94,6 +94,7 @@ o'zinikini qo'yadi; `rts` — har birining ishlangan namunasi:
 | Xulq modullari | `ModuleFactory.withDefaults()` — `ActiveBody`, `MoveUpdate` | `RtsModules` — qurol, ishlab chiqarish, iqtisod… |
 | O'yinchilar | `Player` (identity+diplomatiya) + `PlayerList(PlayerFactory)` | `RtsPlayer` (pul, upgrade) |
 | Tasniflash | `Kind` — nom bo'yicha interned | `RtsKinds` (`STRUCTURE`, `INFANTRY`, …) |
+| Hodisalar | `WorldEvent` + post/drain kanali | `WeaponFired` (core `ObjectDied` yonida) |
 
 **Nega buyruqlar core'da emas:** sealed ierarxiya modul chegarasidan o'ta olmaydi.
 Bu cheklov aslida to'g'ri shakl — engine qaysi o'yin qurilayotganini bilmasligi kerak,
@@ -125,7 +126,8 @@ Bu — SAGE o'zi `@todo` qilib qoldirgan, lekin hech qachon amalga oshirmagan ma
    hozirgi holida ko'rishi uchun buyruqlardan **oldin**)
 1. `messageStream.propagate(onCommand)` — navbatdagi buyruqlar qo'llanadi
 2. `updateObjects()` — har obyektning update-modullari **yaratilish tartibida** tiklanadi
-3. `reapDestroyed()` — o'lgan obyektlar dunyodan chiqariladi
+3. `reapDestroyed()` — o'lgan obyektlar dunyodan chiqariladi, so'ng `ObjectDied` e'lon
+   qilinadi va `DieModule` lar ishlaydi (jasad allaqachon yo'q dunyoda)
 4. `simulate()` — o'yinga xos hook (`game` moduli buni to'ldiradi)
 5. `scriptEngine.evaluate()` — trigger'lar (g'alaba/mag'lubiyat, map hodisalari)
 6. `frame++`
@@ -291,6 +293,38 @@ navigatsiya xaritasi ancha kam o'zgaradi. `commitObstacles()` yangi qatlamni
 eskisi bilan solishtiradi va faqat haqiqatan farq bo'lsa versiyani oshiradi —
 aks holda har bir tayyor bo'lgan piyoda butun armiyani qayta yo'l tuzishga
 majbur qilardi.
+
+### 3.6d Hodisalar — holat emas, **lahza**
+
+Snapshot nima **bor**ligini aytadi; nima **bo'lgan**ini ayta olmaydi. "Bu birlik
+40 sog'liqda" — holat; "bu birlik hozir portladi" — yo'q, chunki klient qaraganda
+obyekt dunyoda yo'q. Kanalsiz klient taxmin qilishga majbur bo'ladi, taxmin esa
+chekkalarda xato: o'lgani uchun yo'qolgan birlik tuman ortiga kirgan birlikdan
+farq qilmaydi.
+
+- **`WorldEvent`** — marker (`frame()`, ixtiyoriy `where()`), xuddi `Command`
+  kabi. `core` o'zining janrsiz hodisasini beradi — **`ObjectDied`** (nima edi,
+  kimniki, qayerda — chunki o'qilganda obyekt yo'q); o'yin o'zinikini yoniga
+  qo'yadi — `rts` da **`WeaponFired`**.
+- **Bir tomonlama.** Simulyatsiya ularni qaytib o'qimaydi, `checksum()` ga
+  kirmaydi, hammasini tashlab yuborilsa ham bironta kadr natijasi o'zgarmaydi.
+  Aynan shu ularni renderga berishni xavfsiz qiladi.
+- **Drenaj qilinadi, tozalanmaydi.** Engine bitta klient kadriga bir nechta
+  mantiq kadrini yugurtirishi mumkin (catch-up), shuning uchun "har kadr tozalash"
+  oradagi lahzalarni jimgina yo'qotardi. Navbat chegaralangan (1024) — hech kim
+  drenaj qilmasa (headless) eng eskisi tashlanadi.
+- **Tuman hodisaga ham tegishli.** `RtsClient` ularni `canSee(viewer, where)`
+  orqali filtrlaydi — aks holda o'yinchi ko'zi yetmagan hududdagi portlashni
+  eshitardi. Shu uchun `GameLogic` da `canSee(viewer, Coord3D)` overloadi bor:
+  narsa haqida emas, **joy** haqida savol.
+- **`DieModule`** — o'limning gameplay yarmi (vayrona, portlash zarari). Obyekt
+  dunyodan chiqqandan **keyin** chaqiriladi, ya'ni u yaratgan vayrona jasad
+  turgan dunyoga tushmaydi. Modul simulyatsiyani o'zgartiradi va deterministik
+  bo'lishi shart; hodisa esa faqat renderga xabar beradi.
+
+Nima yopildi: 3D klient endi o'limni `hp < 35%` evristikasi bilan **taxmin
+qilmaydi** va dul olovini devor-soati bo'yicha miltillatmaydi — o't ochish ovozi
+har **o'q** uchun chalinadi, har jang uchun bir marta emas.
 
 ### 3.7 Tarmoq (lock-step)
 
@@ -646,13 +680,19 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **189 test yashil** (core 99, rts 69, game 13, studio 8) — 0 failure / 0 error.
+- **197 test yashil** (core 104, rts 70, game 15, studio 8) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
   birlikning chiqib keta olishini va geometriyasiz kontentning avvalgidek
   ishlashini tekshiradi; `SolidWorldTest` ishlab chiqarish chiqishini va
   yuzadan-yuzaga qurol masofasini tekshiradi.
+- **Lahzalar kanali** — `WorldEventTest`: o'lim obyekt yo'qolgandan keyin ham
+  chizishga yetarli ma'lumot bilan e'lon qilinadi, `DieModule` jasadsiz dunyoda
+  ishlaydi, o'ldirilmagan (shunchaki olib tashlangan) obyekt o'lim hisoblanmaydi,
+  drenaj har lahzani bir marta beradi, navbat chegaralangan. `WeaponFiredTest`:
+  60 kadr / 10 kadrlik reload = **6 ta hodisa**, 60 ta emas. `EventVisibilityTest`:
+  tuman ortidagi o'lim snapshot'ga tushmaydi.
 - **Yo'l qidiruvi binolarni biladi** — `StaticObstacleTest`: bo'sh koridorda
   yo'l to'g'ri, bino qo'yilsa marshrut uni aylanib o'tadi (bironta waypoint band
   katakda emas), **harakatlanuvchi** texnika esa map'ni qayta yozmaydi, bino
@@ -714,10 +754,7 @@ qatlamlarda umuman ishlatilmaydi: `StatusUpdate`, `SpecialPowerModule`, `Contain
    o'tish avvalgidan muhimroq bo'lib qoldi.
 7. **Ikkita `Box` bir-biriga qarshi** o'rab turuvchi doira bilan taqqoslanadi
    (burchaklarda ortiqcha teginish). Birlik ↔ istalgan shakl aniq.
-8. **O'lim hodisasi seami yo'q.** `GameLogic` o'lgan obyektni jimgina olib
-   tashlaydi; `DieModule` yoki klient eshitadigan hodisa navbati yo'q, shuning
-   uchun 3D klient o'limni evristika bilan **taxmin qiladi** (hp < 35%).
-9. **Replay yo'q.** Deterministik sim + buyruq oqimi bor, ya'ni replay deyarli
+8. **Replay yo'q.** Deterministik sim + buyruq oqimi bor, ya'ni replay deyarli
    tekin — lekin yozish/qaytarish implementatsiyasi yo'q.
 
 ### `core` da qolgan RTS izlari

@@ -17,7 +17,7 @@ game.start();   // oyna ochiladi, yopilguncha bloklaydi
 | Bog'liqligi | `api project(":rts")`. Tashqi kutubxona **yo'q** (Swing = JDK) |
 | Kim bunga bog'lanadi | `client3d` (→ `studio`), `sandbox` |
 | Hajmi | 12 fayl, ~2 010 qator |
-| Testlar | 13 ta |
+| Testlar | 15 ta |
 
 ---
 

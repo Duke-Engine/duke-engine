@@ -9,7 +9,7 @@ qurol bor, na pul, na `MoveTo` buyrug'i.
 | Bog'liqligi | **yo'q** — sof Java, tashqi kutubxonasiz |
 | Kim bunga bog'lanadi | `rts` (→ `game` → `client3d` → `studio`) |
 | Hajmi | 58 fayl, ~4 020 qator |
-| Testlar | 99 ta |
+| Testlar | 104 ta |
 
 **Asosiy invariant:** `core` hech qachon `rts` ni import qilmaydi. Bu Gradle
 darajasida ta'minlangan (`core/build.gradle.kts` da bironta bog'liqlik yo'q),
@@ -25,6 +25,7 @@ beshta chok orqali o'zingiznikini qo'yasiz:
 | Xulq modullari | `ModuleFactory.withDefaults()` = tana + harakat | o'z modul to'plami |
 | O'yinchilar | `Player` (identity + diplomatiya) + `PlayerList(PlayerFactory)` | o'z `Player` subtipi |
 | Tasniflash | `Kind` — nom bo'yicha interned | o'z lug'ati |
+| Hodisalar | `WorldEvent` + post/drain kanali | o'z hodisalari |
 
 ---
 
@@ -91,6 +92,21 @@ beshta chok orqali o'zingiznikini qo'yasiz:
 boshida drenaj) · `CommandHandler`. Buyruqlarning **o'zi** bu yerda emas —
 sealed ierarxiya modul chegarasidan o'ta olmaydi, shuning uchun buyruq to'plami
 o'yinniki.
+
+### `uz.duke.core.event` — lahzalar kanali
+
+`WorldEvent` (marker: `frame()`, ixtiyoriy `where()`) · `ObjectDied` (nima edi,
+kimniki, qayerda — chunki o'qilganda obyekt dunyoda yo'q).
+
+Snapshot nima **bor**ligini aytadi, nima **bo'lgan**ini emas. Kanalsiz klient
+taxmin qilishga majbur: "yo'qoldi va yarador edi = o'ldi". `GameLogic.post()`
+e'lon qiladi, klient `drainEvents()` bilan oladi (tozalash emas — engine bitta
+klient kadriga bir nechta mantiq kadrini yugurtirishi mumkin). Navbat
+chegaralangan: hech kim drenaj qilmasa eng eskisi tashlanadi.
+
+**Bir tomonlama:** simulyatsiya ularni qaytib o'qimaydi, `checksum()` ga
+kirmaydi. Simulyatsiyani o'zgartiradigan narsa — hodisa emas, **modul**:
+`DieModule` vayronani qoldiradi, `ObjectDied` esa renderga portlashni aytadi.
 
 ### `uz.duke.core.network` — lock-step
 

@@ -10,6 +10,7 @@ import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.core.thing.ObjectStatus;
+import uz.duke.rts.event.WeaponFired;
 import uz.duke.rts.player.RtsPlayer;
 
 /**
@@ -154,6 +155,8 @@ public final class WeaponUpdate extends UpdateModule {
         }
         victim.getBody().damage(dealt, damageType); // scaled by the victim's armor
         cooldown = reloadFrames;
+        world.post(new WeaponFired(world.getFrame(), owner.getId(), victim.getId(),
+                owner.getPosition(), victim.getPosition()));
 
         if (splashRadius > 0f) {
             applySplash(world, owner, victim, dealt);
