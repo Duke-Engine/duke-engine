@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-07 · **Testlar:** 220 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-07 · **Testlar:** 225 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -662,15 +662,23 @@ Determinizm shartnomasi skriptga ham tegishli: devor-soati yo'q, `Math.random()`
 
 ---
 
-## 5. `client3d` — 3D klient (4 fayl, ~1290 qator)
+## 5. `client3d` — 3D klient (5 fayl, ~1470 qator)
 
-jMonkeyEngine 3.7.0-stable ustida. `Duke3D.launch(game, visuals)` oynani ochadi va yopilguncha bloklaydi.
+jMonkeyEngine 3.7.0-stable ustida. `Duke3D.launch(game, visuals[, shell])` oynani ochadi va
+yopilguncha bloklaydi.
 
-**Ekran holat mashinasi:** `MENU → PLAYING ⇄ PAUSED`, plus `SETTINGS`. Simulyatsiya faqat "Play"
-bosilganda boshlanadi.
+**Ekran holat mashinasi:** `MENU → PLAYING ⇄ PAUSED`, plus `SETTINGS`. Simulyatsiya "Play"
+bosilganda (yoki `Shell.none()` bo'lsa — darhol) boshlanadi.
 
-- **Bosh menyu** — sarlavha + subtitle, Play / Skirmish / Host LAN / Join LAN / Settings / Quit.
-  `MenuOverlay` GUI kutubxonasiz ishlaydi: xiralashgan quad + `BitmapText` tugmalar, hover/klik hit-testing.
+- **Bosh menyu — o'yinniki, klientniki emas.** Ilgari klient uni o'zi qurardi va
+  ikkita o'yinchi slot bo'lsa "Host LAN Game" taklif qilardi; bir kishilik
+  dungeon'da esa ikkinchi slot skeletlar egasi bo'lib chiqdi. Bu engine
+  strukturaviy fakt asosida mahsulot qarorini chiqarishi edi. Endi **mexanizm
+  klientniki** (`MenuOverlay` — xiralashgan quad + `BitmapText` tugmalar, GUI
+  kutubxonasiz), **mazmun o'yinniki** (`Shell`): qaysi bandlar, qanday nomlanadi,
+  yoki umuman menyusiz. Klient faqat bandning ma'nosi borligini tekshiradi.
+  `Shell.standard()` — avvalgi xulq, ya'ni mavjud demolar o'zgarmaydi.
+  **Tizim masalalari klientda qoladi:** Settings, pauza menyusi, chiqish.
 - **Skirmish menyusi** — map'ni aylantirish + har o'yinchi uchun faction tanlash → `selectSkirmish()`.
   Faqat `getMapChoices()` bo'sh bo'lmasa va MP bo'lmasa ko'rinadi.
 - **Settings** — Fullscreen, Resolution (1280×720 / 1600×900 / 1920×1080), Volume (100…0 %).
@@ -824,7 +832,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **220 test yashil** (core 118, rts 71, game 18, studio 8, dungeon 5) — 0 failure / 0 error.
+- **225 test yashil** (core 118, rts 71, game 18, client3d 5, studio 8, dungeon 5) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan

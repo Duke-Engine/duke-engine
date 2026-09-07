@@ -8,8 +8,8 @@ va `DukeGame.postCommand()` orqali buyruq qaytaradi.
 |---|---|
 | Bog'liqligi | `api project(":game")` + **jMonkeyEngine 3.7.0-stable** (jme3-core / desktop / lwjgl3 / plugins / jogg) |
 | Kim bunga bog'lanadi | `studio`, `sandbox3d` |
-| Hajmi | **4 fayl, ~1 350 qator** |
-| Testlar | **0 ta** |
+| Hajmi | 5 fayl, ~1 470 qator |
+| Testlar | 5 ta (`Shell` — jME talab qilmaydigan yagona qism) |
 
 Bu — loyihadagi yagona og'ir tashqi bog'liqlik. `core`, `rts`, `game` sof Java;
 jME faqat shu yerdan boshlanadi.
@@ -23,7 +23,33 @@ jME faqat shu yerdan boshlanadi.
 | `DukeRtsApp` | **1 024** | butun klient: snapshot→sahna sinxronizatsiyasi, glTF/Ogre model yuklash, `AnimComposer` va eski `AnimControl` animatsiyasi, pozitsion ovoz, RTS kamera, ray-pick tanlash, sog'liq chiziqlari, HUD, build menyusi, minimap, formatsiya harakati, ekran holat mashinasi (MENU → PLAYING ⇄ PAUSED + SETTINGS) |
 | `MenuOverlay` | 140 | GUI kutubxonasiz menyu: xiralashgan quad + `BitmapText` tugmalar, hover/klik hit-testing |
 | `Visuals` | 122 | Unity-uslub asset bog'lash: `.unit("Tank", u -> u.model("Models/tank.glb").walk("Drive").fireSound("..."))`. Modeli yo'q birliklar primitiv bilan chiziladi |
-| `Duke3D` | 64 | `launch(game, visuals)` — oyna ochadi, yopilguncha bloklaydi |
+| `Duke3D` | 80 | `launch(game, visuals[, shell])` — oyna ochadi, yopilguncha bloklaydi |
+| `Shell` | 120 | **bosh menyuni o'yin belgilaydi**: qaysi bandlar, qanday nomlanadi, yoki umuman menyusiz |
+
+### Menyu kimniki
+
+Ilgari klient bosh menyuni o'zi qurardi va buni yomon qilardi: ikkita o'yinchi
+slot bo'lsa "Host LAN Game" taklif qilardi — bir kishilik dungeon'da esa
+ikkinchi slot bu skeletlar egasi. Bu — engine strukturaviy fakt asosida
+mahsulot qarorini chiqarishi, va bu uning qarori emas.
+
+Endi chegara aniq: **mexanizm klientniki** (`MenuOverlay` — xiralashgan qatlam
+va bosiladigan matn), **mazmun o'yinniki** (`Shell`). Klient faqat bandning
+ma'nosi bor-yo'qligini tekshiradi (bir kishilik o'yinga LAN bandi ko'rsatilmaydi).
+
+**Tizim masalalari klientda qoladi** — Settings (o'lcham, ovoz, fullscreen),
+pauza menyusi, chiqish: bular mashina haqida, o'yin haqida emas.
+
+```java
+Duke3D.launch(game, visuals, Shell.create()
+        .entry(Shell.Entry.PLAY, "Enter the dungeon")
+        .entry(Shell.Entry.SETTINGS)
+        .entry(Shell.Entry.QUIT));
+```
+
+`Shell.standard()` — avvalgi xulq (standart, ya'ni mavjud demolar va
+chiqarilgan o'yinlar o'zgarmaydi) · `Shell.none()` — menyusiz, oyna
+ochilishi bilan o'yin boshlanadi.
 
 ### Boshqaruv
 

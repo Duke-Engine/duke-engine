@@ -15,6 +15,10 @@ import uz.duke.game.DukeGame;
  *
  * <p>The simulation runs deterministically on its own thread; the jME window is
  * pure presentation. Closing the window stops both.
+ *
+ * <p>Pass a {@link Shell} to say what the game puts in front of itself — its own
+ * menu entries, or none at all. Without one it gets the client's standard menu,
+ * which is what every game got before it could choose.
  */
 public final class Duke3D {
 
@@ -22,12 +26,21 @@ public final class Duke3D {
     }
 
     public static void launch(DukeGame game, Visuals visuals) {
-        launch(game, visuals, 1280, 720);
+        launch(game, visuals, Shell.standard());
+    }
+
+    public static void launch(DukeGame game, Visuals visuals, Shell shell) {
+        launch(game, visuals, shell, 1280, 720);
     }
 
     public static void launch(DukeGame game, Visuals visuals, int width, int height) {
-        // the simulation starts when the player presses Play on the main menu
-        var app = new DukeRtsApp(game, visuals);
+        launch(game, visuals, Shell.standard(), width, height);
+    }
+
+    public static void launch(DukeGame game, Visuals visuals, Shell shell, int width, int height) {
+        // the simulation starts when the player presses Play — or at once, if the
+        // game asked for no menu at all
+        var app = new DukeRtsApp(game, visuals, shell);
         var settings = new AppSettings(true);
         settings.setTitle(game.getTitle());
         // saved display settings win over the caller's defaults

@@ -41,7 +41,7 @@ u yo'qolib ketardi.
 
 ## Klient — engine'ning 3D klienti
 
-`Duke3D.launch(game, Visuals.create())`, tamom. Hech qanday `Visuals`
+`Duke3D.launch(game, Visuals.create(), shell)`, tamom. Hech qanday `Visuals`
 bog'lanmagan, shuning uchun har bir jonzot **rangli primitiv** bo'lib
 chiziladi — bu bosqichda shakllar o'yinning o'zi, san'atning o'rinbosari emas.
 
@@ -49,6 +49,9 @@ Kamera yerdan ~55° burchakda turadi (`(0, d×0.82, d×0.57)`), ya'ni tepadan
 vertikal emas. Boshqaruv — engine'niki: qahramonni **LMB** bilan tanlaysiz,
 **RMB** bilan yerga (yurish) yoki skeletga (hujum) buyruq berasiz.
 
+> Bosh menyu ham shu o'yinniki: "Enter the dungeon / Settings / Quit" — LAN
+> bandisiz.
+>
 > Boshida bu modul o'z 2D Swing oynasi bilan yozilgan edi (bitta klik = bitta
 > buyruq). Ekranda ko'rilgach ma'lum bo'ldiki, u o'yinga emas, o'yin
 > diagrammasiga o'xshaydi — shuning uchun engine'ning 3D klientiga

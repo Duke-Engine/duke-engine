@@ -78,6 +78,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     private final DukeGame game;
     private final Visuals visuals;
+    private final Shell shell;
     private final CountDownLatch stopped = new CountDownLatch(1);
 
     private Screen screen = Screen.MENU;
@@ -122,9 +123,10 @@ final class DukeRtsApp extends SimpleApplication {
         UnitView view;
     }
 
-    DukeRtsApp(DukeGame game, Visuals visuals) {
+    DukeRtsApp(DukeGame game, Visuals visuals, Shell shell) {
         this.game = game;
         this.visuals = visuals;
+        this.shell = shell;
     }
 
     /** The simulation thread, if the player ever pressed Play. */
@@ -280,20 +282,43 @@ final class DukeRtsApp extends SimpleApplication {
     private String chosenMap;
     private final java.util.List<String> chosenFactions = new java.util.ArrayList<>();
 
+    /**
+     * Show the front menu the game asked for.
+     *
+     * <p>Which entries exist is the game's call ({@link Shell}); whether one of
+     * them would mean anything is still the client's. Offering a LAN game to a
+     * game that seats one player, or a map choice to one with a single map, would
+     * be a dead button.
+     */
     private void showMainMenu() {
+        if (shell.startsImmediately()) {
+            startGame(); // this game has no front menu; nothing to come back to
+            return;
+        }
         screen = Screen.MENU;
         var items = new java.util.ArrayList<MenuOverlay.Item>();
-        items.add(new MenuOverlay.Item("Play", this::startGame));
-        if (!game.getMapChoices().isEmpty() && !game.isMultiplayer()) {
-            items.add(new MenuOverlay.Item("Skirmish: map & factions", this::showSkirmishMenu));
+        for (var chosen : shell.entries()) {
+            var action = actionFor(chosen.getKey());
+            if (action != null) {
+                items.add(new MenuOverlay.Item(chosen.getValue(), action));
+            }
         }
-        if (game.supportsMultiplayer() && !game.isMultiplayer()) {
-            items.add(new MenuOverlay.Item("Host LAN Game", this::hostFlow));
-            items.add(new MenuOverlay.Item("Join LAN Game", this::joinFlow));
-        }
-        items.add(new MenuOverlay.Item("Settings", () -> showSettingsMenu(Screen.MENU)));
-        items.add(new MenuOverlay.Item("Quit", this::stop));
         menu.show(game.getTitle(), game.getSubtitle(), items);
+    }
+
+    /** What an entry does, or {@code null} when it would do nothing worth offering. */
+    private Runnable actionFor(Shell.Entry entry) {
+        return switch (entry) {
+            case PLAY -> this::startGame;
+            case SKIRMISH -> !game.getMapChoices().isEmpty() && !game.isMultiplayer()
+                    ? this::showSkirmishMenu : null;
+            case HOST_LAN -> game.supportsMultiplayer() && !game.isMultiplayer()
+                    ? this::hostFlow : null;
+            case JOIN_LAN -> game.supportsMultiplayer() && !game.isMultiplayer()
+                    ? this::joinFlow : null;
+            case SETTINGS -> () -> showSettingsMenu(Screen.MENU);
+            case QUIT -> this::stop;
+        };
     }
 
     /** Choose the map and cycle each player's faction before playing. */
