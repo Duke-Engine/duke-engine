@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-07 · **Testlar:** 203 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-07 · **Testlar:** 206 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -389,6 +389,34 @@ Mehmon host'ni yo'qotsa, o'zi hech narsa hal qila olmaydi: `isConnectionLost()`
 true bo'ladi va o'yin buni aytadi ("CONNECTION LOST") — chunki tashqaridan
 uzilgan peer bilan sekin o'yinchini kutayotgan peer bir xil ko'rinadi.
 
+### 3.7d Desync aniqlash — va'dani tekshirish
+
+Lock-step — bu **va'da**, mexanizm emas: peer'lar buyruq almashadi va ularni
+ishlatish hamma joyda bir xil dunyo beradi deb **ishonadi**. Buni hech narsa
+tekshirmasdi. Bitta tartibsiz iteratsiya, bitta devor-soati o'qish, bitta
+platformaga bog'liq `Math.sin` — va'da jimgina buziladi, buni esa o'yinchilar
+bilib qoladi: har biri boshqalar ko'rmaydigan o'yinni o'ynayotgan bo'ladi.
+
+Endi har **`CHECKSUM_INTERVAL = 30`** kadrda (30 Hz da soniyada bir marta) har
+bir peer o'z dunyosini xeshlaydi va raqamni ovoz chiqarib aytadi
+(`FrameChecksum`). Relay tufayli hamma hammanikini oladi va solishtiradi; farq
+chiqsa — `Desync(frame, localPlayer, localChecksum, otherPlayer, otherChecksum)`.
+
+Uchta qaror:
+
+- **Xesh kadr *boshlanishidan oldin* olinadi.** Bu oldingi kadrdan keyingi holat
+  — har bir peer o'tadigan aniq nuqta, va post-step hook'siz kelishish mumkin
+  bo'lgan yagona nuqta.
+- **Bir marta xabar beriladi.** Ajralish kuchayib boradi: birinchi
+  nomuvofiqlikdan keyin har bir kadr farq qiladi, takrorlash yangi hech narsa
+  aytmaydi. Muhimi — **birinchi** kadr raqami: qidiruv aynan o'sha yerdan
+  boshlanadi, chunki ajralish bosqichma-bosqich emas.
+- **Hech narsa tuzatilmaydi va bu ataylab.** To'xtatish, ayblini o'yindan
+  chiqarish yoki snapshot'dan qayta sinxronlash — bular aniq bir o'yin haqidagi
+  qarorlar, engine haqidagi emas. Engine qiladigan ish: jimgina va isbotlab
+  bo'lmaydigan nosozlikni kadr raqami bor baland ovozli nosozlikka aylantirish.
+  `DukeGame` standarti — "OUT OF SYNC" bayrog'i + `SEVERE` log.
+
 ### 3.8 Boshqa core tizimlari
 
 O'yinchilar/diplomatiya (`Player` — index, nom, munosabat; `PlayerList` o'yinning o'z
@@ -741,7 +769,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **203 test yashil** (core 108, rts 71, game 16, studio 8) — 0 failure / 0 error.
+- **206 test yashil** (core 111, rts 71, game 16, studio 8) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -775,6 +803,10 @@ ikkala peer aynan bir kadrda qo'llaydi.
   qotardi) va uni **aynan bir kadrda** kutishdan to'xtaydi; host'ni yo'qotgan
   mehmon esa qadam tashlamaydi. `NetworkTransportTest`: host relay qiladi, va
   uzilish xabari o'sha peerning oxirgi paketidan **keyin** keladi.
+- **Desync aniqlash** — `LockstepGateTest`: kelishayotgan peer'lar hech qachon
+  yolg'on signal bermaydi; dunyosi jimgina farq qilib qolgan peer **ushlanadi**
+  (hamma tomondan, tekshiriladigan kadrda) va bu **bir marta** xabar qilinadi,
+  har soniyada takrorlanmaydi.
 - **Rohan vs Mordor** — Studio'ning o'z modeli orqali yozilgan to'liq o'yin
   (`examples/RohanVsMordor.duke`); `dist/RohanVsMordor/` mustaqil loyiha sifatida quriladi va
   menyular bilan ishlaydi. `RohanVsMordorTest` 2700 kadrlik headless urushni tekshiradi
@@ -795,8 +827,11 @@ ikkala peer aynan bir kadrda qo'llaydi.
 2. **Qayta ulanish yo'q.** Chiqib ketgan o'yinchi qaytib kira olmaydi (bunga
    uning dunyosini tiklash kerak — save/load bilan bir xil mexanizm). Kechikish
    ham moslashuvchan emas: `FRAME_DELAY` qat'iy 3, haqiqiy pingdan qat'i nazar.
-3. **Desync aniqlash jonli ulanmagan.** `GameLogic.checksum()` bor va testlarda ishlatiladi, lekin
-   ishlayotgan o'yinda peer'lar bilan almashilmaydi va solishtirilmaydi.
+3. **Desync topiladi, lekin tuzatilmaydi.** Nomuvofiqlik e'lon qilinadi va
+   ko'rsatiladi; o'yinni to'xtatish, ayblini chiqarish yoki snapshot'dan qayta
+   sinxronlash yo'q. Qaysi peer haq ekanini aniqlash ham yo'q (host tabiiy
+   nomzod). Shuningdek desync sababini topish uchun ma'lumot kam — kadr raqami
+   bor, lekin *nima* farq qilgani yo'q (obyekt-daraja xeshlari kerak bo'lardi).
 4. **Save / load UI'ga ulanmagan.** `GameSnapshot` faqat `core` da; `game` / `client3d` / `studio`
    da umuman ishlatilmaydi — o'yin ichida saqlash/yuklash yo'q. Bundan tashqari modul ichidagi
    "in-flight" holat (masalan ishlab chiqarish taymerlari) serializatsiya qilinmaydi — yuklashda

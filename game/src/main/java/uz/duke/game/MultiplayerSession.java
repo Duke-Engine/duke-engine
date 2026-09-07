@@ -167,6 +167,16 @@ public final class MultiplayerSession implements AutoCloseable {
         gate.onConnectionLost(listener);
     }
 
+    /** Told once, the first time this machine's world disagrees with another's. */
+    public void onDesync(java.util.function.Consumer<uz.duke.core.network.Desync> listener) {
+        gate.onDesync(listener);
+    }
+
+    /** The first disagreement found, or {@code null} while every peer still agrees. */
+    public uz.duke.core.network.Desync getDesync() {
+        return gate.getDesync();
+    }
+
     /** Buffer a local command; it ships with the next frame submission. */
     void issueLocal(GameMessage command) {
         gate.issueLocal(command);

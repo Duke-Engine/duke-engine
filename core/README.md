@@ -9,7 +9,7 @@ qurol bor, na pul, na `MoveTo` buyrug'i.
 | Bog'liqligi | **yo'q** — sof Java, tashqi kutubxonasiz |
 | Kim bunga bog'lanadi | `rts` (→ `game` → `client3d` → `studio`) |
 | Hajmi | 58 fayl, ~4 020 qator |
-| Testlar | 108 ta |
+| Testlar | 111 ta |
 
 **Asosiy invariant:** `core` hech qachon `rts` ni import qilmaydi. Bu Gradle
 darajasida ta'minlangan (`core/build.gradle.kts` da bironta bog'liqlik yo'q),
@@ -111,9 +111,10 @@ kirmaydi. Simulyatsiyani o'zgartiradigan narsa — hodisa emas, **modul**:
 ### `uz.duke.core.network` — lock-step
 
 **Ikkita plan bitta ulanishda:** `NetMessage` sealed — `CommandPacket`
-(*ma'lumot* plani, o'yinniki, o'yinning `PacketCodec` i kodlaydi) va `PeerLeft`
-(*boshqaruv* plani, engine'niki). Konvert — `NetFraming` (`C …` / `L …`).
-Shu ajratish tufayli engine o'zi bilmaydigan o'yin uchun ham a'zolikni boshqaradi.
+(*ma'lumot* plani, o'yinniki, o'yinning `PacketCodec` i kodlaydi) hamda
+`PeerLeft` va `FrameChecksum` (*boshqaruv* plani, engine'niki). Konvert —
+`NetFraming` (`C …` / `L …` / `K …`). Shu ajratish tufayli engine o'zi
+bilmaydigan o'yin uchun ham a'zolikni boshqaradi va determinizmni tekshiradi.
 
 | Fayl | Vazifa |
 |---|---|
@@ -129,6 +130,15 @@ kadrlarda kutishdan to'xtaydi va dunyolar ajraladi. Shuning uchun host ketgan
 o'yinchining jimligini to'ldiradi va `PeerLeft(player, fromFrame)` e'lon qiladi;
 hamma **aynan o'sha kadrda** to'xtaydi. Mehmon host'ni yo'qotsa hech narsa hal
 qilmaydi — `isConnectionLost()` bo'ladi.
+
+**Desync aniqlash.** Lock-step — va'da, mexanizm emas: buyruqlar bir xil dunyo
+beradi deb *ishoniladi*, buni esa hech narsa tekshirmasdi. Har
+`CHECKSUM_INTERVAL = 30` kadrda peer'lar dunyosini xeshlab e'lon qiladi
+(`FrameChecksum`), farq chiqsa `Desync` xabar qilinadi — **bir marta**, chunki
+ajralish kuchayib boradi va takrorlash yangi hech narsa aytmaydi. Xesh kadr
+*boshlanishidan oldin* olinadi: bu peer'lar post-step hook'siz kelishishi mumkin
+bo'lgan yagona nuqta. Engine hech narsani tuzatmaydi — to'xtatish yoki qayta
+sinxronlash o'yin qarori.
 
 Tashqi kutubxona yo'q — hammasi `java.net`.
 

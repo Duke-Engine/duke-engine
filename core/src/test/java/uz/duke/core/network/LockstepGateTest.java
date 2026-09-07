@@ -2,6 +2,8 @@ package uz.duke.core.network;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -106,6 +108,7 @@ class LockstepGateTest {
         final PeerLogic logic = new PeerLogic();
         final LockstepGate gate;
         final List<Integer> departed = new ArrayList<>();
+        final List<Desync> desyncs = new ArrayList<>();
 
         /** What this peer computed the world to be, frame by frame. */
         final java.util.Map<Integer, Long> checksums = new java.util.HashMap<>();
@@ -117,6 +120,7 @@ class LockstepGateTest {
             scheduler.init();
             this.gate = new LockstepGate(scheduler, board.portFor(index), index, 3, index == 1);
             this.gate.onPlayerLeft(departed::add);
+            this.gate.onDesync(desyncs::add);
             // Every peer simulates the whole world, not just its own corner of it:
             // unit N belongs to player N, and exists identically on every machine.
             for (int player = 1; player <= playerCount; player++) {
@@ -196,6 +200,64 @@ class LockstepGateTest {
         for (var peer : peers) {
             assertTrue(peer.logic.getFrame() > 100,
                     "peer " + peer.index + " barely moved: frame " + peer.logic.getFrame());
+        }
+    }
+
+    @Test
+    void peersThatAgreeNeverCryDesync() {
+        var board = new Switchboard();
+        var peers = peers(3, board);
+
+        for (int turn = 0; turn < 150; turn++) {
+            stepAll(peers);
+        }
+
+        assertTrue(peers.get(0).logic.getFrame() > LockstepGate.CHECKSUM_INTERVAL * 3,
+                "the game must run long enough to have been checked several times");
+        for (var peer : peers) {
+            assertNull(peer.gate.getDesync(), "peer " + peer.index + " cried wolf");
+            assertTrue(peer.desyncs.isEmpty());
+        }
+    }
+
+    @Test
+    void aPeerRunningADifferentWorldIsCaught() {
+        var board = new Switchboard();
+        var peers = peers(3, board);
+        // Peer 2's world quietly gains something nobody else has. This is the shape
+        // every real desync takes: the same commands, a different world.
+        peers.get(1).logic.spawn(RUNNER, new Coord3D(999f, 999f, 0f), 2);
+
+        for (int turn = 0; turn < 150; turn++) {
+            stepAll(peers);
+        }
+
+        for (var peer : peers) {
+            var desync = peer.gate.getDesync();
+            assertNotNull(desync, "peer " + peer.index + " never noticed it was alone");
+            assertEquals(0, desync.frame() % LockstepGate.CHECKSUM_INTERVAL,
+                    "divergence is reported on a checked frame");
+            assertTrue(desync.localChecksum() != desync.otherChecksum(),
+                    "a report must actually name two different worlds");
+            assertEquals(peer.index, desync.localPlayer());
+        }
+    }
+
+    @Test
+    void aDesyncIsReportedOnceNotEverySecondForever() {
+        var board = new Switchboard();
+        var peers = peers(2, board);
+        peers.get(1).logic.spawn(RUNNER, new Coord3D(999f, 999f, 0f), 2);
+
+        for (int turn = 0; turn < 300; turn++) {
+            stepAll(peers);
+        }
+
+        assertTrue(peers.get(0).logic.getFrame() > LockstepGate.CHECKSUM_INTERVAL * 5,
+                "long enough for several more checks to have failed");
+        for (var peer : peers) {
+            assertEquals(1, peer.desyncs.size(),
+                    "divergence compounds, so repeating it says nothing new");
         }
     }
 

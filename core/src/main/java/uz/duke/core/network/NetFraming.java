@@ -7,6 +7,7 @@ package uz.duke.core.network;
  * <pre>
  * C &lt;whatever the game's PacketCodec produced&gt;
  * L &lt;playerIndex&gt; &lt;fromFrame&gt;
+ * K &lt;playerIndex&gt; &lt;frame&gt; &lt;checksum&gt;
  * </pre>
  *
  * <p>The engine owns this outer envelope and the control plane inside it; the
@@ -18,6 +19,7 @@ final class NetFraming {
 
     private static final char COMMANDS = 'C';
     private static final char LEFT = 'L';
+    private static final char CHECKSUM = 'K';
 
     private NetFraming() {
     }
@@ -26,6 +28,8 @@ final class NetFraming {
         return switch (message) {
             case CommandPacket packet -> COMMANDS + " " + codec.encode(packet);
             case PeerLeft left -> LEFT + " " + left.playerIndex() + " " + left.fromFrame();
+            case FrameChecksum sum ->
+                    CHECKSUM + " " + sum.playerIndex() + " " + sum.frame() + " " + sum.checksum();
         };
     }
 
@@ -37,16 +41,27 @@ final class NetFraming {
         return switch (line.charAt(0)) {
             case COMMANDS -> codec.decode(body);
             case LEFT -> decodeLeft(body);
+            case CHECKSUM -> decodeChecksum(body);
             default -> throw new IllegalArgumentException("unknown net message kind: " + line);
         };
     }
 
     private static PeerLeft decodeLeft(String body) {
-        int space = body.indexOf(' ');
-        if (space < 0) {
-            throw new IllegalArgumentException("malformed peer-left message: " + body);
+        var parts = fields(body, 2, "peer-left");
+        return new PeerLeft(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
+    }
+
+    private static FrameChecksum decodeChecksum(String body) {
+        var parts = fields(body, 3, "checksum");
+        return new FrameChecksum(Integer.parseInt(parts[1]), Integer.parseInt(parts[0]),
+                Long.parseLong(parts[2]));
+    }
+
+    private static String[] fields(String body, int expected, String what) {
+        var parts = body.split(" ", expected);
+        if (parts.length != expected) {
+            throw new IllegalArgumentException("malformed " + what + " message: " + body);
         }
-        return new PeerLeft(Integer.parseInt(body.substring(0, space)),
-                Integer.parseInt(body.substring(space + 1)));
+        return parts;
     }
 }

@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.network.CommandPacket;
+import uz.duke.core.network.FrameChecksum;
 import uz.duke.core.network.HostTransport;
 import uz.duke.core.network.LoopbackTransport;
 import uz.duke.core.network.NetMessage;
@@ -92,6 +93,12 @@ class NetworkTransportTest {
                     client.send(new PeerLeft(2, 90));
                     pumpUntil(() -> received.size() > 1, far::pump);
                     assertEquals(new PeerLeft(2, 90), received.get(1));
+
+                    // Checksums carry a full long, negatives included.
+                    var sum = new FrameChecksum(120, 3, -5512490980485146533L);
+                    client.send(sum);
+                    pumpUntil(() -> received.size() > 2, far::pump);
+                    assertEquals(sum, received.get(2));
                 } finally {
                     far.close();
                 }

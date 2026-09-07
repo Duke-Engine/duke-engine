@@ -50,6 +50,9 @@ import uz.duke.game.view.WorldSnapshot;
  */
 public final class DukeGame {
 
+    private static final java.util.logging.Logger LOG =
+            java.util.logging.Logger.getLogger(DukeGame.class.getName());
+
     private final String title;
     private final List<String> unitIniTexts = new ArrayList<>();
     private final List<GamePlayer> players = new ArrayList<>();
@@ -536,6 +539,12 @@ public final class DukeGame {
             // A cut-off peer and a peer waiting on a slow one look identical from
             // the outside — both stopped — so say which this is.
             multiplayer.onConnectionLost(() -> setBanner("CONNECTION LOST"));
+            multiplayer.onDesync(desync -> {
+                // The players are no longer in the same game. Saying so beats
+                // letting them go on making decisions about a world only they see.
+                LOG.severe(desync::toString);
+                setBanner("OUT OF SYNC");
+            });
         }
         engine.setMaxFps(maxFps);
         engine.init(); // note: engine init resets subsystems — apply scenario after
