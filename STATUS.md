@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-07 · **Testlar:** 215 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-07 · **Testlar:** 220 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -29,6 +29,7 @@ Hamma modulda `-Xlint:all`, testlar JUnit 5.11.3.
 | `studio` | `client3d` + Gson 2.11.0 | Duke Studio — Swing IDE (`uz.duke.studio.StudioMain`) |
 | `sandbox` | `game` | 2D skirmish demo (~70 qator) |
 | `sandbox3d` | `client3d` + jme3-testdata | 3D skirmish demo (~74 qator) |
+| `dungeon` | `game` | **Duke Dungeon** — engine ustidagi ilk o'yin (top-down roguelike, primitiv shakllar) |
 
 **Asosiy qoida:** `core` hech qachon `rts` ni import qilmaydi. RTS bo'lmagan o'yin
 yozmoqchi bo'lsangiz faqat `core` ga bog'lanasiz va o'z buyruqlaringiz, modullaringiz
@@ -42,6 +43,7 @@ Ishga tushirish:
 ./gradlew :studio:run --args="../examples/RohanVsMordor.duke"
 ./gradlew :sandbox:run           # 2D demo
 ./gradlew :sandbox3d:run         # 3D demo
+./gradlew :dungeon:run           # Duke Dungeon — engine ustidagi ilk o'yin
 ./gradlew :studio:writeExamples  # examples/RohanVsMordor.duke ni qayta yozadi
 ./gradlew :studio:exportExample  # dist/RohanVsMordor/ mustaqil loyihasini chiqaradi
 ```
@@ -822,7 +824,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **215 test yashil** (core 118, rts 71, game 18, studio 8) — 0 failure / 0 error.
+- **220 test yashil** (core 118, rts 71, game 18, studio 8, dungeon 5) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -856,6 +858,11 @@ ikkala peer aynan bir kadrda qo'llaydi.
   qotardi) va uni **aynan bir kadrda** kutishdan to'xtaydi; host'ni yo'qotgan
   mehmon esa qadam tashlamaydi. `NetworkTransportTest`: host relay qiladi, va
   uzilish xabari o'sha peerning oxirgi paketidan **keyin** keladi.
+- **Engine ustida o'yin yozilmoqda** — `dungeon` moduli (Duke Dungeon): bitta
+  xona, qahramon, uchta skelet. Muhimi: **engine'ga bironta narsa qo'shilmadi**
+  — o'yin faqat mavjud API'ni ishlatadi. `DungeonTest` headless tekshiradi:
+  qahramon buyurilgan joyga boradi, skeletni o'ldiradi, skeletlar javob qaytaradi
+  va devorlar qattiq (400 kadr davomida hech qachon tosh ustida turmaydi).
 - **Determinizm har build'da tekshiriladi** — `ReplayRoundTripTest`: haqiqiy
   skirmish (jang + ishlab chiqarish + skriptli buyruqlar) yozib olinadi va qayta
   o'ynatiladi; tekshirish nuqtalari mos kelishi va yakuniy checksum bir xil
