@@ -9,7 +9,7 @@ qurol bor, na pul, na `MoveTo` buyrug'i.
 | Bog'liqligi | **yo'q** — sof Java, tashqi kutubxonasiz |
 | Kim bunga bog'lanadi | `rts` (→ `game` → `client3d` → `studio`) |
 | Hajmi | 58 fayl, ~4 020 qator |
-| Testlar | 96 ta |
+| Testlar | 99 ta |
 
 **Asosiy invariant:** `core` hech qachon `rts` ni import qilmaydi. Bu Gradle
 darajasida ta'minlangan (`core/build.gradle.kts` da bironta bog'liqlik yo'q),
@@ -119,6 +119,13 @@ binolar aylanib o'tadi** — lokal chetlab o'tishga tayanib qolmaydi.
 Qatlam butunlay qayta quriladi (sanoq yuritilmaydi — u dunyodan ajralib qolishi
 mumkin), `staticObstaclesDirty` bayrog'i bilan faqat kerak bo'lganda.
 
+Qatlamning **versiyasi** bor (`getObstacleVersion` / `World.getNavigationVersion`).
+Har bir `MoveUpdate` marshrutini qaysi versiyada tuzganini eslab qoladi va farq
+sezsa yo'lni qayta tuzadi — yo'l qolmagan bo'lsa to'xtaydi. Versiya **natijaga**
+qo'yiladi: `commitObstacles()` yangi qatlamni eskisi bilan solishtiradi va faqat
+haqiqatan farq bo'lsa oshiradi, aks holda har bir tayyor bo'lgan piyoda butun
+armiyani qayta yo'l tuzishga majbur qilardi.
+
 ### `uz.duke.core.player` — o'yinchilar
 
 `PlayerList` (88 — `PlayerFactory` orqali o'yin o'z subtipini qo'yadi) ·
@@ -196,8 +203,5 @@ qilishi mumkin, bu esa desync. `StrictMath` hamma joyda bit-aniq bir xil.
    so'raladi, ya'ni SAGE'ning katak-gridiga o'tish avvalgidan muhimroq.
 3. `MapLoader` faqat ASCII bilan cheklangan — haqiqiy relyef formati yo'q;
    dunyo hali ham tekis (`Coord3D.z` faqat xeshda o'qiladi).
-4. **Yo'l bloklansa xabar berilmaydi:** allaqachon yo'lda ketayotgan birlik
-   to'siq qatlami o'zgarganini bilmaydi va eski waypoint'lari bo'yicha yuraveradi
-   (lokal chetlab o'tishga tayanadi). Qayta yo'l tuzish kerak.
-5. Ikkita `Box` bir-biriga qarshi tekshirilganda o'rab turuvchi doira
+4. Ikkita `Box` bir-biriga qarshi tekshirilganda o'rab turuvchi doira
    ishlatiladi (burchaklarda ortiqcha teginish). Birlik ↔ har qanday shakl aniq.

@@ -31,8 +31,10 @@ public final class PathGrid {
     private final int width;
     private final int height;
     private final float cellSize;
-    private final boolean[] blocked;   // terrain: authored by the map, never changes
-    private final boolean[] obstacle;  // objects: rebuilt by the simulation
+    private final boolean[] blocked;         // terrain: authored by the map, never changes
+    private final boolean[] obstacle;        // objects: the committed layer everyone reads
+    private final boolean[] obstacleScratch; // objects: the layer being rebuilt
+    private int obstacleVersion;
 
     public PathGrid(int width, int height) {
         this(width, height, DEFAULT_CELL_SIZE);
@@ -47,6 +49,7 @@ public final class PathGrid {
         this.cellSize = cellSize;
         this.blocked = new boolean[width * height];
         this.obstacle = new boolean[width * height];
+        this.obstacleScratch = new boolean[width * height];
     }
 
     public int getWidth() {
@@ -91,16 +94,49 @@ public final class PathGrid {
         }
     }
 
-    /** Mark a cell as occupied by an object. Cleared wholesale by {@link #clearObstacles}. */
-    public void setObstacle(int cx, int cy, boolean value) {
+    /**
+     * Start rebuilding the obstacle layer from scratch.
+     *
+     * <p>The layer is derived state — a snapshot of what is standing on the map —
+     * so it is rebuilt whole rather than patched. Writes between here and
+     * {@link #commitObstacles()} go to a scratch copy, so readers keep seeing a
+     * consistent world while the rebuild runs.
+     */
+    public void beginObstacles() {
+        java.util.Arrays.fill(obstacleScratch, false);
+    }
+
+    /** Mark a cell as occupied. Only meaningful between begin and commit. */
+    public void setObstacle(int cx, int cy) {
         if (inBounds(cx, cy)) {
-            obstacle[cy * width + cx] = value;
+            obstacleScratch[cy * width + cx] = true;
         }
     }
 
-    /** Forget every object obstacle, leaving the terrain layer untouched. */
-    public void clearObstacles() {
-        java.util.Arrays.fill(obstacle, false);
+    /**
+     * Publish the rebuilt layer, bumping {@link #getObstacleVersion()} only if it
+     * actually differs from what was there before.
+     *
+     * <p>That comparison is the point: a rebuild is triggered whenever any object
+     * is created or dies, which in an RTS is constantly, but the navigable map
+     * changes far more rarely. Versioning the <em>result</em> rather than the
+     * rebuild keeps everything that watches for changes quiet.
+     */
+    public void commitObstacles() {
+        if (java.util.Arrays.equals(obstacle, obstacleScratch)) {
+            return;
+        }
+        System.arraycopy(obstacleScratch, 0, obstacle, 0, obstacle.length);
+        obstacleVersion++;
+    }
+
+    /**
+     * Increments whenever the obstacle layer changes shape — a building goes up
+     * or comes down. Anything holding a path can compare it to know the route it
+     * planned may no longer be valid.
+     */
+    public int getObstacleVersion() {
+        return obstacleVersion;
     }
 
     /** Block the cell containing the given world position. */

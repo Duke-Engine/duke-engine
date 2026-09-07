@@ -244,7 +244,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             return;
         }
         staticObstaclesDirty = false;
-        pathGrid.clearObstacles();
+        pathGrid.beginObstacles();
         float cellSize = pathGrid.getCellSize();
         float halfCell = cellSize * 0.5f;
         for (var object : objects) {
@@ -262,11 +262,17 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             for (int cy = minY; cy <= maxY; cy++) {
                 for (int cx = minX; cx <= maxX; cx++) {
                     if (footprint.distanceTo(pathGrid.cellCenter(cx, cy)) <= halfCell) {
-                        pathGrid.setObstacle(cx, cy, true);
+                        pathGrid.setObstacle(cx, cy);
                     }
                 }
             }
         }
+        pathGrid.commitObstacles();
+    }
+
+    @Override
+    public int getNavigationVersion() {
+        return pathGrid == null ? 0 : pathGrid.getObstacleVersion();
     }
 
     public final PathGrid getPathGrid() {

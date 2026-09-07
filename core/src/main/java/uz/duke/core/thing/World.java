@@ -78,6 +78,17 @@ public interface World {
     Path findPath(Coord3D from, Coord3D to);
 
     /**
+     * Increments whenever the navigable world changes shape — a building goes up
+     * or comes down.
+     *
+     * <p>A path is a plan made against the world as it was. Rather than have the
+     * simulation hunt down everything holding a stale plan, anything that keeps
+     * one remembers this number and notices for itself that its route needs
+     * rethinking.
+     */
+    int getNavigationVersion();
+
+    /**
      * The object that would be in the way if {@code mover} stood at
      * {@code position}, or {@code null} if the space is free — the question a
      * locomotor asks before every step.

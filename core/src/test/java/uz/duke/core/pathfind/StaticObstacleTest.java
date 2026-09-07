@@ -43,6 +43,13 @@ class StaticObstacleTest {
             .module("MoveUpdate", new MoveUpdate.Data(20f))
             .build();
 
+    /** Small and quick, for walking the length of the map in a test. */
+    private static final ThingTemplate WALKER = ThingTemplate.named("Walker")
+            .geometry(new Geometry.Cylinder(3f, 9f))
+            .module("ActiveBody", new ActiveBody.Data(100f))
+            .module("MoveUpdate", new MoveUpdate.Data(60f))
+            .build();
+
     private static final Coord3D START = new Coord3D(25f, 105f, 0f);
     private static final Coord3D GOAL = new Coord3D(185f, 105f, 0f);
 
@@ -50,6 +57,7 @@ class StaticObstacleTest {
         var thingFactory = new ThingFactory(ModuleFactory.withDefaults());
         thingFactory.addTemplate(BUNKER);
         thingFactory.addTemplate(TANK);
+        thingFactory.addTemplate(WALKER);
         var logic = new TestLogic(thingFactory);
         logic.init();
         logic.setPathGrid(new PathGrid(20, 20)); // 200x200 world units
@@ -116,6 +124,74 @@ class StaticObstacleTest {
 
         assertTrue(maxDetour(logic.findPath(START, GOAL)) < 15f,
                 "once it is gone the ground is walkable again");
+    }
+
+    @Test
+    void aUnitAlreadyOnItsWayRerouteWhenSomethingIsBuiltAcrossIt() {
+        var logic = logicOn20x20Grid();
+        var walker = place(logic, WALKER, START.x(), START.y());
+        walker.findModule(MoveUpdate.class).moveTo(GOAL);
+
+        for (int frame = 0; frame < 20; frame++) {
+            logic.update(); // gets under way down a clear corridor
+        }
+        var bunker = place(logic, BUNKER, 105f, 105f); // built across the route, mid-journey
+
+        boolean everInsideTheBunker = false;
+        for (int frame = 0; frame < 600; frame++) {
+            logic.update();
+            if (uz.duke.core.thing.Footprint.of(walker)
+                    .overlaps(uz.duke.core.thing.Footprint.of(bunker))) {
+                everInsideTheBunker = true;
+            }
+        }
+
+        assertFalse(everInsideTheBunker, "it must never end up inside the new building");
+        assertTrue(walker.getPosition().distance(GOAL) < 5f,
+                "it must rethink its route and still arrive, but stopped at "
+                        + walker.getPosition());
+    }
+
+    @Test
+    void aUnitGivesUpWhenTheWayIsSealedBehindIt() {
+        var logic = logicOn20x20Grid();
+        var grid = logic.getPathGrid();
+        for (int cx = 0; cx < 20; cx++) { // a canyon: the only way through is row 9-11
+            grid.setBlocked(cx, 8, true);
+            grid.setBlocked(cx, 12, true);
+        }
+
+        var walker = place(logic, WALKER, START.x(), START.y());
+        walker.findModule(MoveUpdate.class).moveTo(GOAL);
+        for (int frame = 0; frame < 20; frame++) {
+            logic.update();
+        }
+        place(logic, BUNKER, 105f, 105f); // plugs the canyon completely
+
+        for (int frame = 0; frame < 200; frame++) {
+            logic.update();
+        }
+
+        assertFalse(walker.findModule(MoveUpdate.class).isMoving(),
+                "with no route left it must stop rather than walk at the wall forever");
+        assertTrue(walker.getPosition().x() < 100f, "and it never got past the plug");
+    }
+
+    @Test
+    void ordinaryTrafficDoesNotCountAsTheWorldChanging() {
+        var logic = logicOn20x20Grid();
+        place(logic, BUNKER, 105f, 105f);
+        logic.update();
+        int settled = logic.getNavigationVersion();
+
+        var walker = place(logic, WALKER, 25f, 25f); // units come and go constantly
+        logic.update();
+        walker.getBody().damage(1000f);
+        logic.update();
+
+        assertTrue(logic.getNavigationVersion() == settled,
+                "only the navigable shape counts; otherwise every unit built would "
+                        + "make the whole army rethink its routes");
     }
 
     @Test

@@ -85,6 +85,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     private final float progressEpsilon;
     private List<Coord3D> waypoints = List.of();
     private int waypointIndex;
+    private Coord3D destination;      // where it was told to go, as opposed to the next corner
+    private int navigationVersion;    // the world's shape when this route was planned
     private float closestApproach;
     private int framesWithoutProgress;
 
@@ -102,12 +104,19 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
      * world or no navigation grid.
      */
     public void moveTo(Coord3D destination) {
+        this.destination = destination;
+        planRoute();
+    }
+
+    /** Work out the way to {@link #destination} from wherever the owner stands now. */
+    private void planRoute() {
         var world = getOwner().getWorld();
         if (world == null) {
             this.waypoints = List.of(destination);
         } else {
             var path = world.findPath(getOwner().getPosition(), destination);
             this.waypoints = path.isEmpty() ? List.of() : path.getWaypoints();
+            this.navigationVersion = world.getNavigationVersion();
         }
         this.waypointIndex = 0;
         resetProgress();
@@ -117,6 +126,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     public void stop() {
         this.waypoints = List.of();
         this.waypointIndex = 0;
+        this.destination = null;
         resetProgress();
     }
 
@@ -129,9 +139,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         return waypointIndex < waypoints.size();
     }
 
-    /** The final destination of the current path, or {@code null} if not moving. */
+    /** Where the unit was ordered to go, or {@code null} if it has no orders. */
     public Coord3D getGoal() {
-        return waypoints.isEmpty() ? null : waypoints.get(waypoints.size() - 1);
+        return destination;
     }
 
     @Override
@@ -144,6 +154,13 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             return; // dead, inside a transport, or frozen — cannot move
         }
         float step = owner.hasStatus(ObjectStatus.SLOWED) ? stepPerFrame * 0.5f : stepPerFrame;
+
+        if (routeIsStale(owner)) {
+            planRoute(); // something was built or destroyed across the way — think again
+            if (!isMoving()) {
+                return; // no way through any more
+            }
+        }
 
         var position = owner.getPosition();
         var target = waypoints.get(waypointIndex);
@@ -182,6 +199,15 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             }
         }
         // Hemmed in on every side: hold position and let the progress check time it out.
+    }
+
+    /**
+     * True when the world has changed shape since this route was planned, so the
+     * remaining waypoints may lead through something that is now solid.
+     */
+    private boolean routeIsStale(GameObject owner) {
+        var world = owner.getWorld();
+        return world != null && world.getNavigationVersion() != navigationVersion;
     }
 
     /**

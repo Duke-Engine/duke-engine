@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-07 · **Testlar:** 186 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-07 · **Testlar:** 189 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -277,6 +277,20 @@ geometrik obyekt `PathGrid` ning to'siq qatlamiga bosiladi.**
   yopilgan katak esa binoning o'z eshigini berkitib qo'yishi mumkin.
 - `findClearPosition` endi relyefni ham hurmat qiladi — birlik qoyaning ichida
   paydo bo'lmaydi.
+
+**Yo'lda ketayotgan birlik dunyo o'zgarganini biladi.** Yo'l — dunyoning o'sha
+paytdagi holatiga qurilgan reja. Simulyatsiya eskirgan rejani ushlab turganlarni
+qidirib yurmaydi; o'rniga `PathGrid` **to'siq qatlami versiyasini** yuritadi va
+har bir `MoveUpdate` o'z marshrutini qaysi versiyada tuzganini eslab qoladi.
+Raqamlar farq qilsa, birlik turgan joyidan yo'lni qayta tuzadi; yo'l qolmagan
+bo'lsa — to'xtaydi.
+
+Versiya **natijaga** qo'yiladi, qayta qurishga emas: to'siq qatlami har bir
+obyekt paydo bo'lganda/o'lganda qayta quriladi (RTS'da bu doimiy), lekin
+navigatsiya xaritasi ancha kam o'zgaradi. `commitObstacles()` yangi qatlamni
+eskisi bilan solishtiradi va faqat haqiqatan farq bo'lsa versiyani oshiradi —
+aks holda har bir tayyor bo'lgan piyoda butun armiyani qayta yo'l tuzishga
+majbur qilardi.
 
 ### 3.7 Tarmoq (lock-step)
 
@@ -632,7 +646,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **186 test yashil** (core 96, rts 69, game 13, studio 8) — 0 failure / 0 error.
+- **189 test yashil** (core 99, rts 69, game 13, studio 8) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -642,7 +656,10 @@ ikkala peer aynan bir kadrda qo'llaydi.
 - **Yo'l qidiruvi binolarni biladi** — `StaticObstacleTest`: bo'sh koridorda
   yo'l to'g'ri, bino qo'yilsa marshrut uni aylanib o'tadi (bironta waypoint band
   katakda emas), **harakatlanuvchi** texnika esa map'ni qayta yozmaydi, bino
-  buzilganda yer ochiladi, va buzilish relyefdagi to'siqqa tegmaydi.
+  buzilganda yer ochiladi, va buzilish relyefdagi to'siqqa tegmaydi. Yo'lda
+  ketayotgan birlik ustiga bino qurilsa — marshrutni qayta tuzib baribir yetib
+  boradi; yo'l butunlay yopilsa — to'xtaydi. Oddiy birlik kelib-ketishi
+  navigatsiya versiyasini o'zgartirmaydi (qayta yo'l tuzish bo'roni bo'lmaydi).
 - **Engine bo'linishi tasdiqlangan** — `core` `rts` ni umuman ko'rmaydi (Gradle bog'liqligi
   bir tomonlama), va bo'linishdan oldingi hamma test hali ham o'tadi.
 - **To'liq stack uchidan-uchiga** — sandbox: iqtisod → ishlab chiqarish → jang → g'alaba,
@@ -692,20 +709,16 @@ qatlamlarda umuman ishlatilmaydi: `StatusUpdate`, `SpecialPowerModule`, `Contain
 5. **Dunyo tekis.** `Coord3D.z` faqat xeshlash va serializatsiyada o'qiladi —
    balandlik, qiyalik, relyef turi (harakat narxi), tepalik ortidan ko'rinmaslik
    yo'q. `PathGrid` faqat "o'tsa bo'ladi / bo'lmaydi" biladi.
-6. **Yo'l bloklansa xabar berilmaydi.** Bino qurilib mavjud marshrutni yopsa,
-   allaqachon yo'lda ketayotgan birlik eski waypoint'lari bo'yicha yuraveradi va
-   lokal chetlab o'tishga tayanadi — yo'l qayta hisoblanmaydi. To'siq qatlami
-   o'zgarganda harakatdagilarga qayta yo'l tuzish kerak.
-7. **`PartitionManager` hali brute-force.** Endi u har kadr, har harakatlanuvchi
+6. **`PartitionManager` hali brute-force.** Endi u har kadr, har harakatlanuvchi
    birlik uchun to'qnashuv savolini ham oladi, ya'ni SAGE'ning katak-gridiga
    o'tish avvalgidan muhimroq bo'lib qoldi.
-8. **Ikkita `Box` bir-biriga qarshi** o'rab turuvchi doira bilan taqqoslanadi
+7. **Ikkita `Box` bir-biriga qarshi** o'rab turuvchi doira bilan taqqoslanadi
    (burchaklarda ortiqcha teginish). Birlik ↔ istalgan shakl aniq.
-9. **O'lim hodisasi seami yo'q.** `GameLogic` o'lgan obyektni jimgina olib
+8. **O'lim hodisasi seami yo'q.** `GameLogic` o'lgan obyektni jimgina olib
    tashlaydi; `DieModule` yoki klient eshitadigan hodisa navbati yo'q, shuning
    uchun 3D klient o'limni evristika bilan **taxmin qiladi** (hp < 35%).
-10. **Replay yo'q.** Deterministik sim + buyruq oqimi bor, ya'ni replay deyarli
-    tekin — lekin yozish/qaytarish implementatsiyasi yo'q.
+9. **Replay yo'q.** Deterministik sim + buyruq oqimi bor, ya'ni replay deyarli
+   tekin — lekin yozish/qaytarish implementatsiyasi yo'q.
 
 ### `core` da qolgan RTS izlari
 
