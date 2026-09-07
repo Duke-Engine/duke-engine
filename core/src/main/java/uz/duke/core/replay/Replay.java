@@ -12,6 +12,7 @@ import uz.duke.core.network.FrameChecksum;
 import uz.duke.core.network.NetFraming;
 import uz.duke.core.network.PacketCodec;
 import uz.duke.core.network.PeerLeft;
+import uz.duke.core.network.SessionHalted;
 
 /**
  * A recorded game, played back into a fresh simulation.
@@ -68,6 +69,10 @@ public final class Replay {
                 case PeerLeft ignored -> {
                     // Membership is a fact about a live network, not about a game
                     // that already happened; a recording has no use for it.
+                }
+                case SessionHalted ignored -> {
+                    // Likewise: a recording of a game that ended in a desync still
+                    // replays as far as it goes, and stops where the frames run out.
                 }
             }
         }

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
+import java.util.logging.Logger;
 import uz.duke.core.GameLogic;
 import uz.duke.core.message.Command;
 
@@ -29,11 +30,17 @@ import uz.duke.core.message.Command;
  *
  * <p>All of that rests on determinism actually holding, which nothing else
  * verifies. So every {@link #CHECKSUM_INTERVAL} frames the peers hash their
- * worlds and say the number out loud ({@link FrameChecksum}); a mismatch is
- * reported as a {@link Desync}. It fixes nothing — it turns a silent failure,
- * where players quietly stop sharing a game, into a loud one with a frame number.
+ * worlds and say the number out loud ({@link FrameChecksum}). A mismatch
+ * <b>ends the game</b>: the {@link SessionState} goes to
+ * {@link SessionState#DESYNCED}, this gate never opens again, and the host tells
+ * everyone else with a {@link SessionHalted} so no one is left playing on alone.
+ * Nothing is repaired — the peers are computing different worlds, and every frame
+ * after that is a player deciding about a game only they can see. Stopping where
+ * it broke, and saying so, is the honest end.
  */
 public final class LockstepGate {
+
+    private static final Logger LOG = Logger.getLogger(LockstepGate.class.getName());
 
     private final LockstepScheduler scheduler;
     private final Transport transport;
@@ -66,7 +73,7 @@ public final class LockstepGate {
     private int nextSubmitFrame;
     private int lastCheckedFrame = -1;
     private boolean primed;
-    private boolean connectionLost;
+    private SessionState state = SessionState.RUNNING;
     private Desync desync;
 
     /**
@@ -100,12 +107,23 @@ public final class LockstepGate {
     }
 
     /**
+     * Whether the game can still advance, and if not, why.
+     *
+     * <p>Every reason to stop looks the same from outside — the simulation is
+     * simply not moving — so this is what tells a waiting peer apart from a
+     * broken one.
+     */
+    public SessionState getState() {
+        return state;
+    }
+
+    /**
      * True once this peer can no longer reach the game — for a guest, that the
      * host has gone. Nothing can advance after this; the game should say so
      * rather than sit there frozen.
      */
     public boolean isConnectionLost() {
-        return connectionLost;
+        return state == SessionState.DISCONNECTED;
     }
 
     /** Told, by player index, when a player has been dropped from the game. */
@@ -153,6 +171,11 @@ public final class LockstepGate {
      * @return false to stall: someone's input for this frame has not arrived
      */
     public boolean beforeStep(GameLogic logic) {
+        if (!state.canAdvance()) {
+            // Stopped for good. Nothing more is sent either: a peer that has left
+            // the game should not keep talking as though it were still in it.
+            return false;
+        }
         if (!primed) {
             primed = true;
             // Nobody has any input yet, but the first frames still need everyone's
@@ -168,7 +191,9 @@ public final class LockstepGate {
         submitLocal(frame);
         compareWorlds(logic, frame);
 
-        if (connectionLost || !scheduler.isFrameReady(frame)) {
+        // compareWorlds may have just stopped the game, so the state is re-checked
+        // here rather than only on the way in.
+        if (!state.canAdvance() || !scheduler.isFrameReady(frame)) {
             return false;
         }
         for (var command : scheduler.takeCommands(frame)) {
@@ -197,6 +222,11 @@ public final class LockstepGate {
                     listener.accept(left.playerIndex());
                 }
             }
+            case SessionHalted halted ->
+                    // The host found a divergence, possibly one this peer had no
+                    // way to see. Its word is enough; stopping needs no second opinion.
+                    halt(new Desync(halted.frame(), localPlayer, halted.expected(),
+                            halted.playerIndex(), halted.actual()));
             case FrameChecksum reported -> {
                 if (reported.playerIndex() != localPlayer) { // our own send echoes back
                     reportedChecksums
@@ -239,9 +269,31 @@ public final class LockstepGate {
         if (own == null || own == theirs || desync != null) {
             return; // not there yet, agreed, or already reported
         }
-        desync = new Desync(frame, localPlayer, own, otherPlayer, theirs);
+        halt(new Desync(frame, localPlayer, own, otherPlayer, theirs));
+        if (host) {
+            // Say so to everyone. A peer that has not compared this frame yet, or
+            // that agrees with whoever it happened to hear from, would otherwise
+            // carry on playing a game the rest have left.
+            transport.send(new SessionHalted(frame, otherPlayer, own, theirs));
+        }
+    }
+
+    /**
+     * Stop the game and say why.
+     *
+     * <p>Stopping is the point. A desync is not a glitch to ride out: the peers
+     * are computing different worlds, so from here on every player would be making
+     * decisions about a game only they can see. Better to end it where it broke.
+     */
+    private void halt(Desync found) {
+        if (desync != null) {
+            return;
+        }
+        desync = found;
+        state = SessionState.DESYNCED;
+        LOG.severe(found::toString);
         for (var listener : desyncListeners) {
-            listener.accept(desync);
+            listener.accept(found);
         }
     }
 
@@ -265,7 +317,7 @@ public final class LockstepGate {
         var lost = List.copyOf(lostLinks);
         lostLinks.clear();
         if (!host) {
-            connectionLost = true; // a guest's only link is the host
+            state = SessionState.DISCONNECTED; // a guest's only link is the host
             for (var listener : lostConnectionListeners) {
                 listener.run();
             }

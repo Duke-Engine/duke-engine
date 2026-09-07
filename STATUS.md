@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-07 · **Testlar:** 213 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-07 · **Testlar:** 215 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -437,20 +437,38 @@ bir peer o'z dunyosini xeshlaydi va raqamni ovoz chiqarib aytadi
 (`FrameChecksum`). Relay tufayli hamma hammanikini oladi va solishtiradi; farq
 chiqsa — `Desync(frame, localPlayer, localChecksum, otherPlayer, otherChecksum)`.
 
-Uchta qaror:
+**Nomuvofiqlik o'yinni tugatadi.** `SessionState` `RUNNING` dan `DESYNCED` ga
+o'tadi, darvoza boshqa hech qachon ochilmaydi — keyingi kadr hisoblanmaydi va
+boshqa paket ham jo'natilmaydi. Sabab oddiy: peer'lar endi **boshqa-boshqa
+dunyo** hisoblamoqda, ya'ni har bir keyingi kadr — o'yinchining faqat o'zi
+ko'radigan o'yin haqida qaror qabul qilishi. Buzilgan joyda to'xtash va sababni
+aytish — halol yakun.
+
+Qarorlar:
 
 - **Xesh kadr *boshlanishidan oldin* olinadi.** Bu oldingi kadrdan keyingi holat
   — har bir peer o'tadigan aniq nuqta, va post-step hook'siz kelishish mumkin
   bo'lgan yagona nuqta.
 - **Bir marta xabar beriladi.** Ajralish kuchayib boradi: birinchi
   nomuvofiqlikdan keyin har bir kadr farq qiladi, takrorlash yangi hech narsa
-  aytmaydi. Muhimi — **birinchi** kadr raqami: qidiruv aynan o'sha yerdan
-  boshlanadi, chunki ajralish bosqichma-bosqich emas.
-- **Hech narsa tuzatilmaydi va bu ataylab.** To'xtatish, ayblini o'yindan
-  chiqarish yoki snapshot'dan qayta sinxronlash — bular aniq bir o'yin haqidagi
-  qarorlar, engine haqidagi emas. Engine qiladigan ish: jimgina va isbotlab
-  bo'lmaydigan nosozlikni kadr raqami bor baland ovozli nosozlikka aylantirish.
-  `DukeGame` standarti — "OUT OF SYNC" bayrog'i + `SEVERE` log.
+  aytmaydi. Muhimi — **birinchi** kadr raqami, chunki ajralish bosqichma-bosqich
+  emas: bir kadr dunyolar bir xil, keyingisida yo'q.
+- **Host e'lon qiladi** (`SessionHalted` — ham "to'xta" buyrug'i, ham sababi:
+  kadr, ikkala xesh, peer indeksi). Nima uchun bu yetarli: hamma hammaning
+  xeshini oladi va tenglik tranzitiv, demak har qanday nomuvofiqlikda **host
+  albatta ishtirok etadi**. Ikkita mehmon bir-biridan farq qilib, ikkalasi ham
+  host bilan mos kelishi mumkin emas. Shuning uchun alohida arbitratsiya kerak
+  emas — "qaysi peer haq" degan savol qo'yilmaydi, hamma to'xtaydi.
+- **Peer'lar bir kadr farq bilan to'xtashi mumkin** — nomuvofiqlikni faqat
+  qarshi tomonning xeshi kelgach bilish mumkin, o'shangacha biri yana bir qadam
+  tashlab ulgurishi mumkin. Bu zararsiz: o'yin baribir tugadi, muhimi hech biri
+  yana qadam tashlamasligi.
+- **Tuzatish yo'q va bu ataylab.** Qayta sinxronlash yoki qayta ulanish — aniq
+  bir o'yin haqidagi qarorlar, engine haqidagi emas. `LockstepGate` `SEVERE`
+  log yozadi (kadr, kutilgan xesh, kelgan xesh, peer id), `DukeGame` esa
+  `Synchronization lost - game stopped` bayrog'ini qo'yadi — uni ikkala klient
+  ham (2D `GamePanel`, 3D `DukeRtsApp`) markazda chizadi, ya'ni ekran jimgina
+  qotib qolmaydi.
 
 ### 3.8 Boshqa core tizimlari
 
@@ -804,7 +822,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **213 test yashil** (core 116, rts 71, game 18, studio 8) — 0 failure / 0 error.
+- **215 test yashil** (core 118, rts 71, game 18, studio 8) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -843,10 +861,12 @@ ikkala peer aynan bir kadrda qo'llaydi.
   o'ynatiladi; tekshirish nuqtalari mos kelishi va yakuniy checksum bir xil
   bo'lishi shart. `ReplayTest`: soxtalashtirilgan tekshirish nuqtasi **o'sha
   kadrda** ushlanadi, va o'zi buyruq yaratadigan dunyo ham aynan qayta o'ynaydi.
-- **Desync aniqlash** — `LockstepGateTest`: kelishayotgan peer'lar hech qachon
-  yolg'on signal bermaydi; dunyosi jimgina farq qilib qolgan peer **ushlanadi**
-  (hamma tomondan, tekshiriladigan kadrda) va bu **bir marta** xabar qilinadi,
-  har soniyada takrorlanmaydi.
+- **Desync aniqlanadi va o'yinni to'xtatadi** — `LockstepGateTest`: kelishayotgan
+  peer'lar yolg'on signal bermaydi va `RUNNING` bo'lib qoladi; **bitta buyruqni
+  tashlab ketgan** peer ushlanadi (birinchi tekshirish kadrida), ikkovi ham
+  `DESYNCED` ga o'tadi, kadr raqami muzlaydi va keyingi 100 urinishda ham
+  qimirlamaydi; nomuvofiqlikni o'zi ko'rmagan peer host'ning `SessionHalted`
+  xabari bilan to'xtaydi. `NetworkTransportTest`: bu xabar sim orqali ham o'tadi.
 - **Rohan vs Mordor** — Studio'ning o'z modeli orqali yozilgan to'liq o'yin
   (`examples/RohanVsMordor.duke`); `dist/RohanVsMordor/` mustaqil loyiha sifatida quriladi va
   menyular bilan ishlaydi. `RohanVsMordorTest` 2700 kadrlik headless urushni tekshiradi
@@ -867,11 +887,10 @@ ikkala peer aynan bir kadrda qo'llaydi.
 2. **Qayta ulanish yo'q.** Chiqib ketgan o'yinchi qaytib kira olmaydi (bunga
    uning dunyosini tiklash kerak — save/load bilan bir xil mexanizm). Kechikish
    ham moslashuvchan emas: `FRAME_DELAY` qat'iy 3, haqiqiy pingdan qat'i nazar.
-3. **Desync topiladi, lekin tuzatilmaydi.** Nomuvofiqlik e'lon qilinadi va
-   ko'rsatiladi; o'yinni to'xtatish, ayblini chiqarish yoki snapshot'dan qayta
-   sinxronlash yo'q. Qaysi peer haq ekanini aniqlash ham yo'q (host tabiiy
-   nomzod). Shuningdek desync sababini topish uchun ma'lumot kam — kadr raqami
-   bor, lekin *nima* farq qilgani yo'q (obyekt-daraja xeshlari kerak bo'lardi).
+3. **Desync'dan keyin tiklanish yo'q.** O'yin toza to'xtaydi va sabab
+   ko'rsatiladi, lekin qayta sinxronlash yoki qayta ulanish yo'q — desync = o'yin
+   tugadi. Shuningdek sababni topish uchun ma'lumot kam: kadr raqami bor, lekin
+   *nima* farq qilgani yo'q (buning uchun obyekt-daraja xeshlari kerak bo'lardi).
 4. **Save / load UI'ga ulanmagan.** `GameSnapshot` faqat `core` da; `game` / `client3d` / `studio`
    da umuman ishlatilmaydi — o'yin ichida saqlash/yuklash yo'q. Bundan tashqari modul ichidagi
    "in-flight" holat (masalan ishlab chiqarish taymerlari) serializatsiya qilinmaydi — yuklashda

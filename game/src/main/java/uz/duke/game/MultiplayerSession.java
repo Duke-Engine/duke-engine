@@ -157,6 +157,19 @@ public final class MultiplayerSession implements AutoCloseable {
         return gate.isConnectionLost();
     }
 
+    /**
+     * Whether the game can still advance, and if not, why — a peer waiting on a
+     * slow player looks exactly like one whose game has ended.
+     */
+    public uz.duke.core.network.SessionState getState() {
+        return gate.getState();
+    }
+
+    /** True once the worlds have diverged and the game has been stopped. */
+    public boolean isDesynced() {
+        return gate.getState() == uz.duke.core.network.SessionState.DESYNCED;
+    }
+
     /** Told, by player index, when a player drops out of the game. */
     public void onPlayerLeft(IntConsumer listener) {
         gate.onPlayerLeft(listener);

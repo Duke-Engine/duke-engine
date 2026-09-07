@@ -8,6 +8,7 @@ package uz.duke.core.network;
  * C &lt;whatever the game's PacketCodec produced&gt;
  * L &lt;playerIndex&gt; &lt;fromFrame&gt;
  * K &lt;playerIndex&gt; &lt;frame&gt; &lt;checksum&gt;
+ * H &lt;frame&gt; &lt;playerIndex&gt; &lt;expected&gt; &lt;actual&gt;
  * </pre>
  *
  * <p>The engine owns this outer envelope and the control plane inside it; the
@@ -24,6 +25,7 @@ public final class NetFraming {
     private static final char COMMANDS = 'C';
     private static final char LEFT = 'L';
     private static final char CHECKSUM = 'K';
+    private static final char HALTED = 'H';
 
     private NetFraming() {
     }
@@ -34,6 +36,8 @@ public final class NetFraming {
             case PeerLeft left -> LEFT + " " + left.playerIndex() + " " + left.fromFrame();
             case FrameChecksum sum ->
                     CHECKSUM + " " + sum.playerIndex() + " " + sum.frame() + " " + sum.checksum();
+            case SessionHalted halted -> HALTED + " " + halted.frame() + " " + halted.playerIndex()
+                    + " " + halted.expected() + " " + halted.actual();
         };
     }
 
@@ -46,8 +50,15 @@ public final class NetFraming {
             case COMMANDS -> codec.decode(body);
             case LEFT -> decodeLeft(body);
             case CHECKSUM -> decodeChecksum(body);
+            case HALTED -> decodeHalted(body);
             default -> throw new IllegalArgumentException("unknown net message kind: " + line);
         };
+    }
+
+    private static SessionHalted decodeHalted(String body) {
+        var parts = fields(body, 4, "session-halted");
+        return new SessionHalted(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]),
+                Long.parseLong(parts[2]), Long.parseLong(parts[3]));
     }
 
     private static PeerLeft decodeLeft(String body) {

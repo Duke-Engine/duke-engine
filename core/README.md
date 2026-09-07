@@ -9,7 +9,7 @@ qurol bor, na pul, na `MoveTo` buyrug'i.
 | Bog'liqligi | **yo'q** — sof Java, tashqi kutubxonasiz |
 | Kim bunga bog'lanadi | `rts` (→ `game` → `client3d` → `studio`) |
 | Hajmi | 58 fayl, ~4 020 qator |
-| Testlar | 116 ta |
+| Testlar | 118 ta |
 
 **Asosiy invariant:** `core` hech qachon `rts` ni import qilmaydi. Bu Gradle
 darajasida ta'minlangan (`core/build.gradle.kts` da bironta bog'liqlik yo'q),
@@ -131,9 +131,14 @@ qo'llanardi.
 
 **Ikkita plan bitta ulanishda:** `NetMessage` sealed — `CommandPacket`
 (*ma'lumot* plani, o'yinniki, o'yinning `PacketCodec` i kodlaydi) hamda
-`PeerLeft` va `FrameChecksum` (*boshqaruv* plani, engine'niki). Konvert —
-`NetFraming` (`C …` / `L …` / `K …`). Shu ajratish tufayli engine o'zi
-bilmaydigan o'yin uchun ham a'zolikni boshqaradi va determinizmni tekshiradi.
+`PeerLeft`, `FrameChecksum`, `SessionHalted` (*boshqaruv* plani, engine'niki).
+Konvert — `NetFraming` (`C …` / `L …` / `K …` / `H …`). Shu ajratish tufayli
+engine o'zi bilmaydigan o'yin uchun ham a'zolikni boshqaradi, determinizmni
+tekshiradi va kerak bo'lsa o'yinni to'xtatadi.
+
+`SessionState`: `RUNNING` → `DESYNCED` yoki `DISCONNECTED`. Tashqaridan har
+qanday to'xtash bir xil ko'rinadi (sim qimirlamaydi), shuning uchun sekin
+o'yinchini kutayotgan peer bilan o'yini tugagan peer aynan shu bilan farqlanadi.
 
 | Fayl | Vazifa |
 |---|---|
@@ -150,14 +155,18 @@ o'yinchining jimligini to'ldiradi va `PeerLeft(player, fromFrame)` e'lon qiladi;
 hamma **aynan o'sha kadrda** to'xtaydi. Mehmon host'ni yo'qotsa hech narsa hal
 qilmaydi — `isConnectionLost()` bo'ladi.
 
-**Desync aniqlash.** Lock-step — va'da, mexanizm emas: buyruqlar bir xil dunyo
-beradi deb *ishoniladi*, buni esa hech narsa tekshirmasdi. Har
+**Desync aniqlash va to'xtatish.** Lock-step — va'da, mexanizm emas: buyruqlar
+bir xil dunyo beradi deb *ishoniladi*, buni esa hech narsa tekshirmasdi. Har
 `CHECKSUM_INTERVAL = 30` kadrda peer'lar dunyosini xeshlab e'lon qiladi
-(`FrameChecksum`), farq chiqsa `Desync` xabar qilinadi — **bir marta**, chunki
-ajralish kuchayib boradi va takrorlash yangi hech narsa aytmaydi. Xesh kadr
-*boshlanishidan oldin* olinadi: bu peer'lar post-step hook'siz kelishishi mumkin
-bo'lgan yagona nuqta. Engine hech narsani tuzatmaydi — to'xtatish yoki qayta
-sinxronlash o'yin qarori.
+(`FrameChecksum`). Farq chiqsa — holat `DESYNCED`, darvoza boshqa ochilmaydi, va
+host `SessionHalted` bilan hammaga aytadi. Xesh kadr *boshlanishidan oldin*
+olinadi: bu peer'lar post-step hook'siz kelishishi mumkin bo'lgan yagona nuqta.
+
+**Nega host yetarli:** hamma hammaning xeshini oladi va tenglik tranzitiv, demak
+har qanday nomuvofiqlikda host albatta ishtirok etadi — ikkita mehmon
+bir-biridan farq qilib, ikkalasi ham host bilan mos kelishi mumkin emas.
+Shuning uchun "qaysi peer haq" degan arbitratsiya yo'q: hamma to'xtaydi.
+Tiklash (resync/reconnect) engine ishi emas.
 
 Tashqi kutubxona yo'q — hammasi `java.net`.
 

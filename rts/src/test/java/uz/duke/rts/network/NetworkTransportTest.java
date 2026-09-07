@@ -20,6 +20,7 @@ import uz.duke.core.network.HostTransport;
 import uz.duke.core.network.LoopbackTransport;
 import uz.duke.core.network.NetMessage;
 import uz.duke.core.network.PeerLeft;
+import uz.duke.core.network.SessionHalted;
 import uz.duke.core.network.SocketTransport;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.rts.message.GameMessage;
@@ -99,6 +100,13 @@ class NetworkTransportTest {
                     client.send(sum);
                     pumpUntil(() -> received.size() > 2, far::pump);
                     assertEquals(sum, received.get(2));
+
+                    // The order to stop has to survive the wire, or a peer that
+                    // never noticed the divergence would play on by itself.
+                    var halted = new SessionHalted(150, 2, -1L, 8_000_000_000L);
+                    client.send(halted);
+                    pumpUntil(() -> received.size() > 3, far::pump);
+                    assertEquals(halted, received.get(3));
                 } finally {
                     far.close();
                 }

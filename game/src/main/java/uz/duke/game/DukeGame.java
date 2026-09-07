@@ -54,6 +54,12 @@ public final class DukeGame {
     private static final java.util.logging.Logger LOG =
             java.util.logging.Logger.getLogger(DukeGame.class.getName());
 
+    /**
+     * Shown when the worlds diverge. Plain ASCII on purpose: the 3D client draws
+     * banners with a bitmap font that has no glyph for a dash it has never seen.
+     */
+    static final String DESYNC_MESSAGE = "Synchronization lost - game stopped";
+
     private final String title;
     private final List<String> unitIniTexts = new ArrayList<>();
     private final List<GamePlayer> players = new ArrayList<>();
@@ -582,12 +588,10 @@ public final class DukeGame {
             // A cut-off peer and a peer waiting on a slow one look identical from
             // the outside — both stopped — so say which this is.
             multiplayer.onConnectionLost(() -> setBanner("CONNECTION LOST"));
-            multiplayer.onDesync(desync -> {
-                // The players are no longer in the same game. Saying so beats
-                // letting them go on making decisions about a world only they see.
-                LOG.severe(desync::toString);
-                setBanner("OUT OF SYNC");
-            });
+            // The simulation has already been stopped by the gate; all that is left
+            // is to say why, so the screen does not simply freeze. The detail is
+            // logged by the gate itself, which is where the two worlds were compared.
+            multiplayer.onDesync(desync -> setBanner(DESYNC_MESSAGE));
         }
         engine.setMaxFps(maxFps);
         engine.init(); // note: engine init resets subsystems — apply scenario after

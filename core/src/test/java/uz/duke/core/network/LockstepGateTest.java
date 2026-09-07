@@ -36,6 +36,10 @@ class LockstepGateTest {
 
     /** One player's simulation, applying the commands the gate hands it. */
     static final class PeerLogic extends GameLogic {
+
+        /** Set to make this peer quietly miss the next order it is given. */
+        boolean dropNextCommand;
+
         PeerLogic() {
             super(newFactory());
         }
@@ -48,6 +52,10 @@ class LockstepGateTest {
 
         @Override
         protected void onCommand(Command command) {
+            if (dropNextCommand) {
+                dropNextCommand = false;
+                return;
+            }
             if (command instanceof TestCommand.Move move) {
                 for (var id : move.units()) {
                     var unit = findObject(id);
@@ -204,7 +212,7 @@ class LockstepGateTest {
     }
 
     @Test
-    void peersThatAgreeNeverCryDesync() {
+    void peersThatAgreeNeverCryDesyncAndKeepRunning() {
         var board = new Switchboard();
         var peers = peers(3, board);
 
@@ -217,6 +225,7 @@ class LockstepGateTest {
         for (var peer : peers) {
             assertNull(peer.gate.getDesync(), "peer " + peer.index + " cried wolf");
             assertTrue(peer.desyncs.isEmpty());
+            assertEquals(SessionState.RUNNING, peer.gate.getState());
         }
     }
 
@@ -244,7 +253,7 @@ class LockstepGateTest {
     }
 
     @Test
-    void aDesyncIsReportedOnceNotEverySecondForever() {
+    void aDesyncIsReportedOnceAndTheGameStops() {
         var board = new Switchboard();
         var peers = peers(2, board);
         peers.get(1).logic.spawn(RUNNER, new Coord3D(999f, 999f, 0f), 2);
@@ -253,12 +262,81 @@ class LockstepGateTest {
             stepAll(peers);
         }
 
-        assertTrue(peers.get(0).logic.getFrame() > LockstepGate.CHECKSUM_INTERVAL * 5,
-                "long enough for several more checks to have failed");
         for (var peer : peers) {
+            assertEquals(SessionState.DESYNCED, peer.gate.getState());
             assertEquals(1, peer.desyncs.size(),
                     "divergence compounds, so repeating it says nothing new");
         }
+    }
+
+    @Test
+    void oneMissedCommandEndsTheGameForEveryone() {
+        var board = new Switchboard();
+        var peers = peers(2, board);
+        // Player 2's machine quietly loses one order. Everything else about it is
+        // right, which is precisely what makes this the hard case: nothing is
+        // obviously broken, the two worlds simply stop being the same.
+        peers.get(1).logic.dropNextCommand = true;
+        peers.get(0).gate.issueLocal(new TestCommand.Move(1,
+                List.of(new ObjectId(1)), new Coord3D(400f, 200f, 0f)));
+
+        for (int turn = 0; turn < 200; turn++) {
+            stepAll(peers);
+        }
+
+        var stoppedAt = new java.util.HashMap<Integer, Integer>();
+        for (var peer : peers) {
+            assertEquals(SessionState.DESYNCED, peer.gate.getState(),
+                    "peer " + peer.index + " should have stopped");
+            assertNotNull(peer.gate.getDesync());
+            assertEquals(LockstepGate.CHECKSUM_INTERVAL, peer.gate.getDesync().frame(),
+                    "caught at the first check after the worlds parted");
+            stoppedAt.put(peer.index, peer.logic.getFrame());
+        }
+
+        // Peers can come to rest a frame apart: a disagreement can only be noticed
+        // once the other side's hash has arrived, by which time one of them may
+        // have taken one more step. That is harmless — the game is over either
+        // way — so what matters is that neither of them takes another.
+        for (int turn = 0; turn < 100; turn++) {
+            stepAll(peers);
+        }
+        for (var peer : peers) {
+            assertEquals(stoppedAt.get(peer.index), peer.logic.getFrame(),
+                    "a stopped game must not creep forward");
+            assertFalse(peer.gate.beforeStep(peer.logic));
+        }
+    }
+
+    @Test
+    void aPeerThatSawNothingWrongStopsBecauseTheHostSaysSo() {
+        var scheduler = new LockstepScheduler(List.of(1, 2));
+        scheduler.init();
+        var listeners = new ArrayList<Consumer<NetMessage>>();
+        var transport = new Transport() {
+            @Override
+            public void send(NetMessage message) {
+            }
+
+            @Override
+            public void subscribe(Consumer<NetMessage> listener) {
+                listeners.add(listener);
+            }
+        };
+        var logic = new PeerLogic();
+        logic.init();
+        var gate = new LockstepGate(scheduler, transport, 2, 3, false);
+        var reported = new ArrayList<Desync>();
+        gate.onDesync(reported::add);
+
+        assertEquals(SessionState.RUNNING, gate.getState());
+        listeners.forEach(l -> l.accept(new SessionHalted(90, 3, 111L, 222L)));
+
+        assertEquals(SessionState.DESYNCED, gate.getState(),
+                "a guest cannot check every peer itself; the host's word is enough");
+        assertFalse(gate.beforeStep(logic));
+        assertEquals(1, reported.size(), "and the player is told, so the screen is not just frozen");
+        assertEquals(90, reported.get(0).frame());
     }
 
     @Test
