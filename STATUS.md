@@ -29,7 +29,7 @@ Hamma modulda `-Xlint:all`, testlar JUnit 5.11.3.
 | `studio` | `client3d` + Gson 2.11.0 | Duke Studio — Swing IDE (`uz.duke.studio.StudioMain`) |
 | `sandbox` | `game` | 2D skirmish demo (~70 qator) |
 | `sandbox3d` | `client3d` + jme3-testdata | 3D skirmish demo (~74 qator) |
-| `dungeon` | `game` | **Duke Dungeon** — engine ustidagi ilk o'yin (top-down roguelike, primitiv shakllar) |
+| `dungeon` | `client3d` | **Duke Dungeon** — engine ustidagi ilk o'yin (3D roguelike, primitiv shakllar) |
 
 **Asosiy qoida:** `core` hech qachon `rts` ni import qilmaydi. RTS bo'lmagan o'yin
 yozmoqchi bo'lsangiz faqat `core` ga bog'lanasiz va o'z buyruqlaringiz, modullaringiz

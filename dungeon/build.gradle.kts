@@ -4,9 +4,10 @@ plugins {
 }
 
 dependencies {
-    // The game talks to the engine's public API and nothing else. No jME: a
-    // top-down dungeon of primitives has nothing a 3D renderer would add yet.
-    implementation(project(":game"))
+    // The 3D client, for an angled camera over a world of solid shapes. No models
+    // are bound, so every creature renders as a coloured primitive — which is the
+    // point at this stage: the shapes are the game, not a stand-in for art.
+    implementation(project(":client3d"))
 }
 
 application {

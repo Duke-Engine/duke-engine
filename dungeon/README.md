@@ -7,8 +7,8 @@ talab qilsa, demak engine tugallanmagan.
 
 | | |
 |---|---|
-| Bog'liqligi | `implementation project(":game")` — jME yo'q, sof Java |
-| Hajmi | 4 fayl, ~450 qator |
+| Bog'liqligi | `implementation project(":client3d")` — engine'ning 3D klienti |
+| Hajmi | 3 fayl, ~270 qator |
 | Testlar | 5 ta (headless) |
 | Ishga tushirish | `./gradlew :dungeon:run` |
 
@@ -39,14 +39,24 @@ ularga umuman yeta olmasdi. Bu modul ularni mebel emas, jonzot qiladi.
 `AttackObject` **keyin** kelishi shart, aks holda qahramon yetib borgunicha
 u yo'qolib ketardi.
 
-## Nega o'z oynasi bor
+## Klient — engine'ning 3D klienti
 
-`DukeGame.start()` beradigan tayyor panel — RTS ko'rinishi: birlikni tanla,
-keyin o'ng tugma bilan buyruq ber. Dungeon boshqacha o'qiladi: **bitta klik**,
-va qahramon bosilgan narsa bilan shug'ullanadi. Farq faqat kiritishda,
-shuning uchun u engine o'zgarishiga emas, kichik o'z oynasiga arziydi
-(`DungeonView`). U simulyatsiyaga tegmaydi — `WorldSnapshot` o'qiydi va
-`postCommand` yuboradi, ya'ni engine beradigan yagona thread choki.
+`Duke3D.launch(game, Visuals.create())`, tamom. Hech qanday `Visuals`
+bog'lanmagan, shuning uchun har bir jonzot **rangli primitiv** bo'lib
+chiziladi — bu bosqichda shakllar o'yinning o'zi, san'atning o'rinbosari emas.
+
+Kamera yerdan ~55° burchakda turadi (`(0, d×0.82, d×0.57)`), ya'ni tepadan
+vertikal emas. Boshqaruv — engine'niki: qahramonni **LMB** bilan tanlaysiz,
+**RMB** bilan yerga (yurish) yoki skeletga (hujum) buyruq berasiz.
+
+> Boshida bu modul o'z 2D Swing oynasi bilan yozilgan edi (bitta klik = bitta
+> buyruq). Ekranda ko'rilgach ma'lum bo'ldiki, u o'yinga emas, o'yin
+> diagrammasiga o'xshaydi — shuning uchun engine'ning 3D klientiga
+> o'tkazildi. Kiritish endi RTS uslubida, chunki klient shunday.
+
+**Ma'lum vizual cheklov:** devor bloklari past (balandligi 6 birlik, katak
+eni 10) — bu `client3d` ning relyef chizishida qattiq yozilgan, o'yin uni
+o'zgartira olmaydi. Baland devorlar kerak bo'lsa, bu engine ishi bo'ladi.
 
 ## Keyingi qadamlar (hozir YO'Q)
 
