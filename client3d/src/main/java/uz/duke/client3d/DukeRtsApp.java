@@ -87,6 +87,18 @@ final class DukeRtsApp extends SimpleApplication {
     private Thread simThread; // started when the player presses Play
 
     private final Node unitsNode = new Node("units");
+    /**
+     * Terrain lives in its own node so a new world can replace it wholesale. It
+     * used to hang straight off the root, which meant it could be built but never
+     * rebuilt — and a game that lays out a new world (a roguelike starting a fresh
+     * run) kept the old one on screen while everything else moved on.
+     */
+    private final Node terrainNode = new Node("terrain");
+    private final TerrainScene terrain = new TerrainScene(terrainNode, this::lit);
+    /** The grid the terrain was built from — a different instance means a new world. */
+    private uz.duke.core.pathfind.PathGrid builtFrom;
+    /** Set when a new world appears: aim the camera at the player's units again. */
+    private boolean recenterOnOwnUnit;
     private final Map<Integer, UnitNode> unitNodes = new HashMap<>();
     private final Set<Integer> selected = new HashSet<>();
     private final Map<String, AudioNode> audioCache = new HashMap<>();
@@ -104,10 +116,14 @@ final class DukeRtsApp extends SimpleApplication {
     // minimap: fixed-size overlay in the bottom-right corner
     private static final float MINIMAP_SIZE = 190f;
     private final Node minimapNode = new Node("minimap");
+    /** Backdrop and rock cells — replaced as a unit when the world changes. */
+    private final Node minimapTerrainNode = new Node("minimap-terrain");
     private final Map<Integer, Geometry> minimapDots = new HashMap<>();
-    private float minimapScale;   // screen px per world unit
+    private MinimapProjection minimap = new MinimapProjection(700f, 450f, MINIMAP_SIZE);
     private float minimapX;       // screen position of the minimap's origin
     private float minimapY;
+    /** The camera's footprint, drawn as an outline over the minimap. */
+    private Geometry viewportOutline;
 
     /** Everything the scene keeps per live unit. */
     private static final class UnitNode {
@@ -163,6 +179,7 @@ final class DukeRtsApp extends SimpleApplication {
         rootNode.addLight(sun);
         rootNode.addLight(new AmbientLight(new ColorRGBA(0.45f, 0.45f, 0.5f, 1f)));
 
+        rootNode.attachChild(terrainNode);
         buildTerrain();
         rootNode.attachChild(unitsNode);
 
@@ -195,22 +212,35 @@ final class DukeRtsApp extends SimpleApplication {
         applyVolume();
     }
 
-    /** Static minimap backdrop: map bounds + blocked terrain; unit dots update live. */
+    /** Assemble the minimap once: its terrain layer, then the viewport outline over it. */
     private void buildMinimap() {
+        minimapY = 34f; // above the hint line
+        minimapNode.attachChild(minimapTerrainNode);
+        rebuildMinimapTerrain();
+        buildViewportOutline();
+        guiNode.attachChild(minimapNode);
+    }
+
+    /**
+     * The minimap's static layer — map bounds and blocked terrain — for the world
+     * as it stands now. Like the 3D terrain it empties its node first, so a new
+     * world replaces the old picture instead of being drawn over it.
+     */
+    private void rebuildMinimapTerrain() {
+        minimapTerrainNode.detachAllChildren();
         var grid = game.getTerrain();
         float worldW = grid == null ? 700f : grid.getWidth() * grid.getCellSize();
         float worldH = grid == null ? 450f : grid.getHeight() * grid.getCellSize();
-        minimapScale = MINIMAP_SIZE / Math.max(worldW, worldH);
-        minimapX = cam.getWidth() - worldW * minimapScale - 12f;
-        minimapY = 34f; // above the hint line
+        minimap = new MinimapProjection(worldW, worldH, MINIMAP_SIZE);
+        minimapX = cam.getWidth() - minimap.widthPixels() - 12f;
 
-        var backdrop = new Geometry("mm-bg", new Quad(worldW * minimapScale, worldH * minimapScale));
+        var backdrop = new Geometry("mm-bg", new Quad(minimap.widthPixels(), minimap.heightPixels()));
         backdrop.setMaterial(unshaded(new ColorRGBA(0.10f, 0.14f, 0.08f, 1f)));
-        minimapNode.attachChild(backdrop);
+        minimapTerrainNode.attachChild(backdrop);
 
         if (grid != null) {
             var rock = unshaded(new ColorRGBA(0.35f, 0.32f, 0.26f, 1f));
-            float cellPx = grid.getCellSize() * minimapScale;
+            float cellPx = grid.getCellSize() * minimap.scale();
             for (int cy = 0; cy < grid.getHeight(); cy++) {
                 for (int cx = 0; cx < grid.getWidth(); cx++) {
                     if (!grid.isBlocked(cx, cy)) {
@@ -220,35 +250,94 @@ final class DukeRtsApp extends SimpleApplication {
                     cell.setMaterial(rock);
                     // minimap y grows up the screen, world y grows down the map
                     cell.setLocalTranslation(cx * cellPx, (grid.getHeight() - 1 - cy) * cellPx, 0);
-                    minimapNode.attachChild(cell);
+                    minimapTerrainNode.attachChild(cell);
                 }
             }
         }
         minimapNode.setLocalTranslation(minimapX, minimapY, 0);
-        guiNode.attachChild(minimapNode);
-    }
-
-    /** World → minimap screen position (y flipped: screen up vs map down). */
-    private com.jme3.math.Vector2f minimapPoint(float worldX, float worldY) {
-        var grid = game.getTerrain();
-        float worldH = grid == null ? 450f : grid.getHeight() * grid.getCellSize();
-        return new com.jme3.math.Vector2f(worldX * minimapScale, (worldH - worldY) * minimapScale);
     }
 
     /** If the cursor is over the minimap, move the camera there. Returns true if handled. */
     private boolean minimapClick() {
         var cursor = inputManager.getCursorPosition();
-        var grid = game.getTerrain();
-        float worldW = grid == null ? 700f : grid.getWidth() * grid.getCellSize();
-        float worldH = grid == null ? 450f : grid.getHeight() * grid.getCellSize();
         float localX = cursor.x - minimapX;
         float localY = cursor.y - minimapY;
-        if (localX < 0 || localY < 0
-                || localX > worldW * minimapScale || localY > worldH * minimapScale) {
+        if (!minimap.contains(localX, localY)) {
             return false;
         }
-        camTarget.set(localX / minimapScale, 0, worldH - localY / minimapScale);
+        camTarget.set(minimap.toWorldX(localX), 0, minimap.toWorldY(localY));
         return true;
+    }
+
+    /**
+     * The outline showing what the camera can see, drawn as an empty loop.
+     *
+     * <p>An outline rather than a filled box on purpose: the minimap's whole job is
+     * showing where the rooms and the fighting are, and a translucent rectangle
+     * over a third of it would dim exactly the part the player is looking at.
+     */
+    private void buildViewportOutline() {
+        var mesh = new com.jme3.scene.Mesh();
+        mesh.setMode(com.jme3.scene.Mesh.Mode.LineLoop);
+        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Position, 3, new float[VIEWPORT_CORNERS * 3]);
+        mesh.setDynamic();
+        mesh.updateBound();
+
+        viewportOutline = new Geometry("mm-viewport", mesh);
+        viewportOutline.setMaterial(unshaded(new ColorRGBA(1f, 1f, 1f, 0.85f)));
+        viewportOutline.setLocalTranslation(0, 0, 2); // above the dots
+        minimapNode.attachChild(viewportOutline);
+    }
+
+    private static final int VIEWPORT_CORNERS = 4;
+
+    /**
+     * Redraw the viewport outline from where the camera is now — it moves and
+     * resizes as the player pans and zooms.
+     *
+     * <p>The camera looks at the ground from an angle, so what it sees is a
+     * trapezium rather than a rectangle: the far edge of the screen covers more
+     * ground than the near one. Rather than approximate that with a box, each
+     * screen corner is cast onto the ground and the true quadrilateral is drawn.
+     */
+    private void syncViewportOutline() {
+        float w = cam.getWidth();
+        float h = cam.getHeight();
+        // Clockwise from the bottom-left of the screen, so the loop does not cross.
+        float[][] corners = {{0, 0}, {w, 0}, {w, h}, {0, h}};
+        var worldXs = new float[VIEWPORT_CORNERS];
+        var worldYs = new float[VIEWPORT_CORNERS];
+        for (int i = 0; i < VIEWPORT_CORNERS; i++) {
+            var ground = groundUnder(corners[i][0], corners[i][1]);
+            // World y is the ground plane's z: the map lies in x/z, y is height.
+            worldXs[i] = ground.x;
+            worldYs[i] = ground.z;
+        }
+
+        var outline = minimap.viewportOutline(worldXs, worldYs);
+        var vertices = new float[VIEWPORT_CORNERS * 3];
+        for (int i = 0; i < outline.length; i++) {
+            vertices[i * 3] = outline[i].x();
+            vertices[i * 3 + 1] = outline[i].y();
+        }
+        var mesh = viewportOutline.getMesh();
+        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Position, 3, vertices);
+        mesh.updateBound();
+    }
+
+    /**
+     * Where the ray through a screen point meets the ground.
+     *
+     * <p>A corner above the horizon never meets it, so the ray is followed a long
+     * way instead and the projection clamps the result to the map — which is what
+     * the player sees anyway: the view running off the edge of the world.
+     */
+    private Vector3f groundUnder(float screenX, float screenY) {
+        var near = cam.getWorldCoordinates(new Vector2f(screenX, screenY), 0f);
+        var dir = cam.getWorldCoordinates(new Vector2f(screenX, screenY), 1f)
+                .subtract(near).normalizeLocal();
+        float t = Math.abs(dir.y) < 1e-6f ? -1f : -near.y / dir.y;
+        return near.add(dir.mult(t < 0 ? 10_000f : t));
     }
 
     /** Live unit dots, coloured by player, sized up for structures. */
@@ -263,8 +352,8 @@ final class DukeRtsApp extends SimpleApplication {
                 minimapNode.attachChild(geometry);
                 return geometry;
             });
-            var point = minimapPoint(view.x(), view.y());
-            dot.setLocalTranslation(point.x - 2f, point.y - 2f, 1);
+            var point = minimap.toMinimap(view.x(), view.y());
+            dot.setLocalTranslation(point.x() - 2f, point.y() - 2f, 1);
         }
         var gone = minimapDots.entrySet().iterator();
         while (gone.hasNext()) {
@@ -496,9 +585,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         hud.setLocalTranslation(10, height - 10f, 0);
         buildMenu.setLocalTranslation(10, height - 40f, 0);
-        var grid = game.getTerrain();
-        float worldW = grid == null ? 700f : grid.getWidth() * grid.getCellSize();
-        minimapX = width - worldW * minimapScale - 12f;
+        minimapX = width - minimap.widthPixels() - 12f;
         minimapNode.setLocalTranslation(minimapX, minimapY, 0);
         // menus are sized to the screen — rebuild the current one
         menu.destroy();
@@ -511,33 +598,30 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /** Build (or rebuild) the ground and rocks for the world as it stands now. */
     private void buildTerrain() {
-        var grid = game.getTerrain();
-        float worldW = grid == null ? 700f : grid.getWidth() * grid.getCellSize();
-        float worldH = grid == null ? 450f : grid.getHeight() * grid.getCellSize();
+        builtFrom = game.getTerrain();
+        terrain.rebuild(builtFrom);
+    }
 
-        var ground = new Geometry("ground", new Quad(worldW, worldH));
-        ground.setMaterial(lit(new ColorRGBA(0.16f, 0.22f, 0.13f, 1f)));
-        ground.rotate(-FastMath.HALF_PI, 0, 0);
-        ground.setLocalTranslation(0, 0, worldH);
-        rootNode.attachChild(ground);
-
-        if (grid == null) {
+    /**
+     * Notice that the game has swapped in a different world and rebuild
+     * everything that was drawn from the old one.
+     *
+     * <p>The simulation says so simply by having a different terrain grid: laying
+     * out a new world replaces the grid instance, so comparing identity is enough
+     * and the client never has to be told. Units need no help — they already
+     * appear and vanish with the snapshot — but terrain, the minimap backdrop and
+     * the camera were all built once and would otherwise keep showing the world
+     * that has been left behind.
+     */
+    private void refreshWorldIfChanged() {
+        if (game.getTerrain() == builtFrom) {
             return;
         }
-        float cell = grid.getCellSize();
-        var rockMat = lit(new ColorRGBA(0.25f, 0.23f, 0.20f, 1f));
-        for (int cy = 0; cy < grid.getHeight(); cy++) {
-            for (int cx = 0; cx < grid.getWidth(); cx++) {
-                if (!grid.isBlocked(cx, cy)) {
-                    continue;
-                }
-                var rock = new Geometry("rock", new Box(cell / 2f, 3f, cell / 2f));
-                rock.setMaterial(rockMat);
-                rock.setLocalTranslation((cx + 0.5f) * cell, 3f, (cy + 0.5f) * cell);
-                rootNode.attachChild(rock);
-            }
-        }
+        buildTerrain();
+        rebuildMinimapTerrain();
+        recenterOnOwnUnit = true;
     }
 
     private void centerCameraOnOwnBase() {
@@ -763,12 +847,32 @@ final class DukeRtsApp extends SimpleApplication {
             buildMenu.setText("");
             return; // the world starts when the player presses Play
         }
+        refreshWorldIfChanged(); // a new run lays out a new world; redraw it
+        followOwnUnitsIntoNewWorld();
         updateCamera(tpf);
         syncUnits();
         handleEvents();
         syncMinimap();
+        syncViewportOutline();
         updateHud();
         updateBanner();
+    }
+
+    /**
+     * After a new world appears, put the camera back on the player — his units are
+     * somewhere else entirely now, and the old view is looking at nothing.
+     */
+    private void followOwnUnitsIntoNewWorld() {
+        if (!recenterOnOwnUnit) {
+            return;
+        }
+        for (var view : snapshot.units()) {
+            if (view.playerIndex() == game.getLocalPlayerIndex()) {
+                camTarget.set(view.x(), 0, view.y());
+                recenterOnOwnUnit = false;
+                return;
+            }
+        }
     }
 
     private void updateCamera(float tpf) {
