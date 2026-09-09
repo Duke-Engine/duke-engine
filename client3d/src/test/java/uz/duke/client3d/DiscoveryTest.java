@@ -166,4 +166,104 @@ class DiscoveryTest {
         assertEquals(12 * 8, seen.exploredCells(), "a sight that wide opens the whole small floor");
         assertEquals(Discovery.State.UNSEEN, seen.stateAt(20, 15), "off the map is off the map");
     }
+
+    // ---- softening ----
+
+    /** Run the fog on until it has stopped moving. */
+    private static void settle(Discovery seen) {
+        for (int frame = 0; frame < 120; frame++) {
+            seen.soften(1f / 30f);
+        }
+    }
+
+    /**
+     * The whole point, and the thing that could quietly go wrong: softening
+     * decides how bright a cell is drawn and never what the player may see.
+     *
+     * <p>A blur that wrote back into what is explored would open ground nobody
+     * has walked -- a little more of it every frame, spreading outward for as long
+     * as the run lasted.
+     */
+    @Test
+    void softeningOpensNothing() {
+        var seen = discovery();
+        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f);
+        int opened = seen.exploredCells();
+        int inSight = seen.visibleCells();
+
+        settle(seen);
+
+        assertEquals(opened, seen.exploredCells(), "the fog spread itself across the map");
+        assertEquals(inSight, seen.visibleCells(), "and gave him eyes he has not got");
+    }
+
+    /** Ground in sight is drawn full, and ground never walked stays black. */
+    @Test
+    void sightIsFullAndTheUnwalkedStaysBlack() {
+        var seen = discovery();
+        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f);
+
+        settle(seen);
+
+        assertTrue(seen.lightAt(20, 15) > 0.95f, "he is standing there");
+        assertEquals(0f, seen.lightAt(2, 2), 0.001f, "and has never been over there");
+    }
+
+    /**
+     * Between the two there is a slope rather than a step.
+     *
+     * <p>This is what makes the floor look like fog instead of a staircase: the
+     * cells at the rim of his sight are drawn part-lit, so the boundary falls
+     * across a couple of cells rather than on one line.
+     */
+    @Test
+    void theEdgeOfSightIsASlope() {
+        var seen = discovery();
+        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f);
+
+        settle(seen);
+
+        // Straight out from him along one row, from the middle of his sight to
+        // well past the edge of it.
+        float previous = seen.lightAt(20, 15);
+        boolean sawAPartLitCell = false;
+        for (int cx = 21; cx <= 26; cx++) {
+            float here = seen.lightAt(cx, 15);
+            assertTrue(here <= previous + 0.001f, "the light should only fall going outward");
+            sawAPartLitCell |= here > 0.05f && here < 0.95f;
+            previous = here;
+        }
+        assertTrue(sawAPartLitCell, "it went straight from lit to black, which is the staircase");
+    }
+
+    /**
+     * And it takes time. A cell does not jump to its brightness the instant it is
+     * revealed, or walking would flip rows of cells on and off.
+     */
+    @Test
+    void theFogTakesAMomentToOpen() {
+        var seen = discovery();
+        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f);
+
+        seen.soften(1f / 30f);
+        float afterOneFrame = seen.lightAt(20, 15);
+        settle(seen);
+
+        assertTrue(afterOneFrame > 0f, "it should have begun to open");
+        assertTrue(afterOneFrame < seen.lightAt(20, 15) - 0.1f,
+                "and it should not have arrived all at once");
+    }
+
+    /** A new floor is black again, brightness and all. */
+    @Test
+    void aNewFloorIsDarkFromTheFirstFrame() {
+        var seen = discovery();
+        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f);
+        settle(seen);
+
+        seen.reset(GRID);
+
+        assertEquals(0f, seen.lightAt(20, 15), 0.001f,
+                "the last floor's light should not be shining on this one");
+    }
 }

@@ -21,7 +21,21 @@ import uz.duke.core.pathfind.PathGrid;
 final class TileLayout {
 
     /** The kinds of piece a floor is built from. */
-    enum Piece { FLOOR, WALL, CORNER }
+    enum Piece {
+        FLOOR,
+        WALL,
+        CORNER,
+        /**
+         * A lid over the stone, level with the tops of the walls.
+         *
+         * <p>Stone is not drawn — it is only what the walls face — so the rock
+         * behind a wall is an empty hole, and a camera looking across the floor
+         * sees over the wall into it. The room reads as a house with the roof off.
+         * A lid closes the hole, and then a wall is the near face of something
+         * solid rather than a standing screen.
+         */
+        CAP
+    }
 
     /**
      * One piece, placed. {@code yaw} turns it about the vertical axis, in degrees.
@@ -79,7 +93,8 @@ final class TileLayout {
         for (int cy = 0; cy < grid.getHeight(); cy++) {
             for (int cx = 0; cx < grid.getWidth(); cx++) {
                 if (solid(grid, cx, cy)) {
-                    continue; // stone is not drawn; it is what the walls face
+                    addCap(placements, grid, cx, cy, cell);
+                    continue; // stone itself is not drawn; it is what the walls face
                 }
                 placements.add(new Placement(Piece.FLOOR, cx, cy,
                         (cx + 0.5f) * cell, (cy + 0.5f) * cell, 0f));
@@ -88,6 +103,46 @@ final class TileLayout {
             }
         }
         return placements;
+    }
+
+    /**
+     * The eight neighbours of a cell, in a fixed order — which is what decides
+     * which room owns a lid when several look at the same rock.
+     */
+    private static final int[][] AROUND = {
+        {0, -1}, {1, 0}, {0, 1}, {-1, 0}, {-1, -1}, {1, -1}, {1, 1}, {-1, 1},
+    };
+
+    /**
+     * Roof this piece of stone, if anyone can see it.
+     *
+     * <p>Only rock that touches open ground is covered. Deeper stone is behind a
+     * lid already and would be a few hundred more tiles for a view nobody has.
+     *
+     * <p>The lid is <em>owned</em> by the room next to it rather than by the rock
+     * it covers, because fog is per cell and rock has no cell to be fogged: a lid
+     * appears when the room that overlooks it has been walked, and is remembered
+     * with it. Diagonals count as overlooking, or the rock in a corner would stay
+     * open while the walls either side of it were roofed.
+     *
+     * <p>One lid, one owner — the first open neighbour in {@link #AROUND} — since
+     * two rooms roofing the same rock would put two tiles in the same place and
+     * leave them fighting over which is in front.
+     */
+    private static void addCap(List<Placement> into, PathGrid grid, int cx, int cy, float cell) {
+        for (var around : AROUND) {
+            int nx = cx + around[0];
+            int ny = cy + around[1];
+            if (inside(grid, nx, ny) && !solid(grid, nx, ny)) {
+                into.add(new Placement(Piece.CAP, nx, ny,
+                        (cx + 0.5f) * cell, (cy + 0.5f) * cell, 0f));
+                return;
+            }
+        }
+    }
+
+    private static boolean inside(PathGrid grid, int cx, int cy) {
+        return cx >= 0 && cy >= 0 && cx < grid.getWidth() && cy < grid.getHeight();
     }
 
     private static void addWalls(List<Placement> into, PathGrid grid, int cx, int cy, float cell) {

@@ -19,11 +19,14 @@ interface TileSource {
     Spatial piece(String assetPath);
 
     /**
-     * Draw a piece as lit, or as ground the player has walked and left.
+     * Draw a piece at a brightness: 1 for ground in sight, 0 for black, and
+     * anything between for the fog's soft edge and for ground the player has
+     * walked and left.
      *
      * <p>Kept here rather than in the scene because "dimmer" is a property of
      * whatever material the kit turned out to use, and the scene should not have
-     * to know.
+     * to know. A source is free to round to as few steps as it likes -- what it
+     * must not do is treat this as a flag.
      */
-    void shade(Spatial piece, boolean lit);
+    void shade(Spatial piece, float light);
 }

@@ -252,6 +252,7 @@ class TerrainSceneTest {
     private static final class StubTiles implements TileSource {
         final java.util.List<com.jme3.scene.Spatial> lit = new java.util.ArrayList<>();
         final java.util.List<com.jme3.scene.Spatial> dimmed = new java.util.ArrayList<>();
+        final java.util.Map<com.jme3.scene.Spatial, Float> brightness = new java.util.HashMap<>();
 
         @Override
         public com.jme3.scene.Spatial piece(String assetPath) {
@@ -259,13 +260,27 @@ class TerrainSceneTest {
         }
 
         @Override
-        public void shade(com.jme3.scene.Spatial piece, boolean isLit) {
-            (isLit ? lit : dimmed).add(piece);
+        public void shade(com.jme3.scene.Spatial piece, float light) {
+            brightness.put(piece, light);
+            (light > 0.9f ? lit : dimmed).add(piece);
         }
     }
 
     private static Tileset kit() {
         return Tileset.create().floor("floor").wall("wall").corner("corner").tileSize(4f);
+    }
+
+    /**
+     * The pieces of a kind that are lying on the floor.
+     *
+     * <p>The lid over the rock is a floor tile as well — the same asset, laid at
+     * the top of the walls — so anything counting floors has to say which it
+     * means.
+     */
+    private static java.util.List<com.jme3.scene.Spatial> laidOnTheGround(Node root, String named) {
+        return pieces(root, named).stream()
+                .filter(piece -> piece.getLocalTranslation().y == 0f)
+                .toList();
     }
 
     /** Every piece in the scene, however deeply the cell nodes nest them. */
@@ -293,10 +308,39 @@ class TerrainSceneTest {
 
         terrain.rebuild(MapLoader.fromText(ROOM));
 
-        assertEquals(9, pieces(root, "floor").size(), "a floor tile per open cell");
+        assertEquals(9, laidOnTheGround(root, "floor").size(), "a floor tile per open cell");
         assertTrue(pieces(root, "wall").size() > 0, "and walls around the outside");
         assertTrue(root.getChildren().stream().noneMatch(c -> c.getName().equals("ground")),
                 "the ground plane belongs to the block version");
+    }
+
+    /**
+     * The rock is roofed, and the roof is up at the top of the walls.
+     *
+     * <p>Without it a camera looking across the room sees over the far wall into
+     * an empty hole, because stone is never drawn — it is only what the walls
+     * face. The lid is what makes a wall the near side of something solid.
+     *
+     * <p>The height is the kit's, not a guess: it is what the kit says a wall
+     * stands, scaled the same way every other piece is.
+     */
+    @Test
+    void theRockIsRoofedAtTheTopOfTheWalls() {
+        var root = new Node("terrain");
+        var terrain = new TerrainScene(root, color -> null, true, kit(), new StubTiles());
+        var grid = MapLoader.fromText(ROOM);
+
+        terrain.rebuild(grid);
+
+        var lids = pieces(root, "floor").stream()
+                .filter(piece -> piece.getLocalTranslation().y > 0f)
+                .toList();
+        assertEquals(16, lids.size(), "one lid over every piece of rock the room can see");
+        float expected = kit().getWallHeight() * (grid.getCellSize() / kit().getTileSize());
+        for (var lid : lids) {
+            assertEquals(expected, lid.getLocalTranslation().y, 0.001f,
+                    "a lid below the wall tops is a hole with a shelf in it");
+        }
     }
 
     /** A rebuild replaces the tiled world too, however many runs are played. */
@@ -324,7 +368,8 @@ class TerrainSceneTest {
 
         terrain.rebuild(MapLoader.fromText(ROOM));
 
-        assertEquals(9, pieces(root, "floor").size());
+        assertEquals(9, pieces(root, "floor").size(),
+                "the floor, and no lids: there are no walls here to roof");
         assertEquals(0, pieces(root, "wall").size(), "it never named a wall");
     }
 
@@ -343,9 +388,17 @@ class TerrainSceneTest {
                 "nobody has been anywhere, so nothing should be drawn");
     }
 
-    /** Where he stands is drawn lit; where he has been is drawn dimmer. */
+    /**
+     * Where he stands is drawn lit, where he has been is drawn dimmer, and the
+     * ground between them takes every value in between.
+     *
+     * <p>That last part is the whole of it. Three shades give a floor of hard
+     * squares and a staircase where the light stops; a brightness per cell gives
+     * an edge. What the scene has to do is pass the number through rather than
+     * round it back to a flag.
+     */
     @Test
-    void aWalkedTileIsDrawnDimmerThanOneInSight() {
+    void groundIsDrawnAtEveryBrightnessBetweenSightAndMemory() {
         var root = new Node("terrain");
         var grid = MapLoader.fromText(ROOM);
         var stub = new StubTiles();
@@ -355,9 +408,21 @@ class TerrainSceneTest {
 
         seen.reveal(java.util.List.of(unit(15f, 15f)), 0, 12f); // one corner of the room
         seen.reveal(java.util.List.of(unit(35f, 35f)), 0, 12f); // and away to the other
+        settle(seen);
         terrain.applyDiscovery(seen);
 
-        assertTrue(!stub.lit.isEmpty(), "something is in sight");
-        assertTrue(!stub.dimmed.isEmpty(), "and something is only remembered");
+        var shades = stub.brightness.values().stream().sorted().toList();
+        assertTrue(shades.size() > 2, "several pieces should have been drawn");
+        assertTrue(shades.get(shades.size() - 1) > 0.8f, "where he stands is in full sight");
+        assertTrue(shades.get(0) < 0.5f, "and what he only remembers is dim");
+        assertTrue(shades.stream().anyMatch(light -> light > 0.5f && light < 0.8f),
+                "with ground in between, which is what makes it an edge and not a step");
+    }
+
+    /** Run the fog on until it has stopped moving, so a test reads a settled floor. */
+    private static void settle(Discovery seen) {
+        for (int frame = 0; frame < 120; frame++) {
+            seen.soften(1f / 30f);
+        }
     }
 }

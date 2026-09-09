@@ -21,6 +21,7 @@ public final class Tileset {
     private String wall;
     private String corner;
     private float tileSize = 4f;
+    private float wallHeight = 4f;
 
     private Tileset() {
     }
@@ -53,6 +54,22 @@ public final class Tileset {
     }
 
     /** How wide one tile is in the model's own units. Kenney's kits are 4. */
+    /**
+     * How tall the wall piece stands, in the same model units as the tile size.
+     *
+     * <p>What it is for is the lid over the stone: a roof has to sit level with
+     * the tops of the walls, and how tall those are is a fact about the kit rather
+     * than about the map.
+     */
+    public Tileset wallHeight(float modelUnits) {
+        this.wallHeight = modelUnits;
+        return this;
+    }
+
+    public float getWallHeight() {
+        return wallHeight;
+    }
+
     public Tileset tileSize(float modelUnits) {
         this.tileSize = modelUnits;
         return this;

@@ -195,7 +195,11 @@ final class TerrainScene {
             piece.setLocalScale(scale);
             piece.setLocalRotation(new com.jme3.math.Quaternion()
                     .fromAngleAxis(FastMath.DEG_TO_RAD * placement.yaw(), Vector3f.UNIT_Y));
-            piece.setLocalTranslation(placement.x(), 0f, placement.z());
+            // Everything lies on the floor except the lid over the stone, which
+            // sits level with the tops of the walls it roofs.
+            float y = placement.piece() == TileLayout.Piece.CAP
+                    ? tileset.getWallHeight() * scale : 0f;
+            piece.setLocalTranslation(placement.x(), y, placement.z());
             cellNode(placement.cellY() * cellsWide + placement.cellX()).attachChild(piece);
         }
     }
@@ -207,18 +211,28 @@ final class TerrainScene {
      * <p>Per cell rather than per piece, which is what the node-per-cell is for: a
      * floor a hundred cells wide is a hundred calls a frame, not a thousand.
      */
+    /**
+     * Drawn at the brightness the fog has settled on rather than at one of three
+     * shades, which is what turns a staircase of hard cells into an edge.
+     *
+     * <p>The cull is still all or nothing — a cell is built into the picture or it
+     * is not — but it now happens at the point the light has actually run out
+     * rather than at the first cell the hero has not stood in. What that buys is
+     * a rim of nearly-black ground around the edge of the known world, which is
+     * the difference between fog and a hole cut in the floor.
+     */
     private void applyDiscoveryToTiles(Discovery seen) {
         for (int index = 0; index < cellNodes.length; index++) {
             var node = cellNodes[index];
             if (node == null) {
                 continue; // stone; nothing was built here
             }
-            var state = seen.stateAt(index % cellsWide, index / cellsWide);
-            node.setCullHint(state == Discovery.State.UNSEEN
+            float light = seen.lightAt(index % cellsWide, index / cellsWide);
+            node.setCullHint(light <= Discovery.DARK
                     ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
-            if (state != Discovery.State.UNSEEN) {
+            if (light > Discovery.DARK) {
                 for (var piece : node.getChildren()) {
-                    tiles.shade(piece, state == Discovery.State.VISIBLE);
+                    tiles.shade(piece, light);
                 }
             }
         }
@@ -229,6 +243,10 @@ final class TerrainScene {
             case FLOOR -> tileset.getFloor();
             case WALL -> tileset.getWall();
             case CORNER -> tileset.getCorner();
+            // A floor tile, laid on top of the rock rather than under the room --
+            // and only where there are walls to roof. A kit with no walls has
+            // nothing to see over, and its lids would float above bare ground.
+            case CAP -> tileset.getWall() == null ? null : tileset.getFloor();
         };
     }
 

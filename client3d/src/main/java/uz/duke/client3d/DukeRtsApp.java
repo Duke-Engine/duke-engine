@@ -750,7 +750,7 @@ final class DukeRtsApp extends SimpleApplication {
      * whether anyone is looking at it or not — which is the only way fog can be
      * added to a deterministic game without becoming part of it.
      */
-    private void syncDiscovery() {
+    private void syncDiscovery(float tpf) {
         if (discovery == null) {
             return;
         }
@@ -763,6 +763,9 @@ final class DukeRtsApp extends SimpleApplication {
             discoveryRadius = template.getVisionRange();
         }
         discovery.reveal(snapshot.units(), game.getLocalPlayerIndex(), discoveryRadius);
+        // What is open is decided above; how it is drawn eases toward that, so the
+        // edge sweeps rather than switching. Seconds, not frames.
+        discovery.soften(tpf);
         terrain.applyDiscovery(discovery);
         applyMinimapDiscovery(builtFrom);
     }
@@ -1257,7 +1260,7 @@ final class DukeRtsApp extends SimpleApplication {
             return; // the world starts when the player presses Play
         }
         refreshWorldIfChanged(); // a new run lays out a new world; redraw it
-        syncDiscovery();
+        syncDiscovery(tpf);
         camera.focusOnOwnUnit(snapshot.units(), game.getLocalPlayerIndex());
         updateCamera(tpf);
         // Before the units, not after: a death has to take the body out of the
@@ -1853,11 +1856,22 @@ final class DukeRtsApp extends SimpleApplication {
      * exactly two materials for the whole kit — lit and remembered — so making a
      * cell dimmer is swapping which of the two it points at, not building one.
      */
+    /** How many rungs the brightness ladder has. */
+    private static final int SHADES = 12;
+
     private final class KitTiles implements TileSource {
 
         private final Map<String, Spatial> masters = new HashMap<>();
-        private Material litTile;
-        private Material rememberedTile;
+        /**
+         * The kit's material at a ladder of brightnesses, black at one end and
+         * full daylight at the other.
+         *
+         * <p>Steps rather than a material per piece: a floor is several hundred
+         * pieces and each wants its own shade, but a shade repeats all over the
+         * map, so the ladder is shared and each piece points at a rung. Enough
+         * rungs that the eye reads a gradient and not a contour map.
+         */
+        private Material[] shades;
 
         @Override
         public Spatial piece(String assetPath) {
@@ -1877,19 +1891,23 @@ final class DukeRtsApp extends SimpleApplication {
                 masters.put(assetPath, master);
             }
             var copy = master.clone(false); // share the mesh and the material
-            shade(copy, true);
+            shade(copy, 1f);
             return copy;
         }
 
-        /** One pair of materials for the whole kit, from the first piece's texture. */
+        /** The ladder, built once for the whole kit from the first piece's texture. */
         private void buildMaterials(Spatial master) {
-            if (litTile != null) {
+            if (shades != null) {
                 return;
             }
             var atlas = textureOf(master);
-            litTile = tileMaterial(atlas, ColorRGBA.White, new ColorRGBA(0.55f, 0.55f, 0.62f, 1f));
-            rememberedTile = tileMaterial(atlas,
-                    new ColorRGBA(0.22f, 0.22f, 0.26f, 1f), new ColorRGBA(0.10f, 0.10f, 0.13f, 1f));
+            var litDiffuse = ColorRGBA.White;
+            var litAmbient = new ColorRGBA(0.55f, 0.55f, 0.62f, 1f);
+            shades = new Material[SHADES];
+            for (int rung = 0; rung < SHADES; rung++) {
+                float light = rung / (float) (SHADES - 1);
+                shades[rung] = tileMaterial(atlas, litDiffuse.mult(light), litAmbient.mult(light));
+            }
         }
 
         private Material tileMaterial(com.jme3.texture.Texture atlas,
@@ -1925,11 +1943,12 @@ final class DukeRtsApp extends SimpleApplication {
         }
 
         @Override
-        public void shade(Spatial piece, boolean isLit) {
-            var material = isLit ? litTile : rememberedTile;
-            if (material != null) {
-                piece.setMaterial(material);
+        public void shade(Spatial piece, float light) {
+            if (shades == null) {
+                return;
             }
+            int rung = Math.round(Math.max(0f, Math.min(1f, light)) * (SHADES - 1));
+            piece.setMaterial(shades[rung]);
         }
     }
 
