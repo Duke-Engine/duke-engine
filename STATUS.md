@@ -1148,9 +1148,14 @@ o'shanda chok qanday bo'lishi kerakligi taxmin emas, dalil bilan aniq bo'ladi.
 `VisionRange` esa **janrsiz** — tuman `core` ning o'z tizimi, RPG'da ham,
 roguelike'da ham kerak; u `core` da qoladi.
 
-⚠️ **`CLAUDE.md` eskirgan:** u hali `rts` ni "SAGE/Generals qatlami" deb ta'riflaydi va
-"`rts` — RTS on top of core" deydi. Yangi printsip — `rts` **aniq o'yinni bilmaydi** —
-u yerga ham yozilishi kerak.
+`CLAUDE.md` ham yangilandi: loyiha endi "SAGE'ning qayta implementatsiyasi" emas,
+**SAGE'dan ilhomlangan** engine. `core` — janrdan qat'i nazar o'yin tuzsa bo'ladigan
+asosiy engine; `rts` — SAGE'dan ilhomlangan, RTS o'yinlar uchun **kutubxona**;
+`generals` — bir o'yinning qoidalari. U yerda `rts` ga qo'shishdan oldin so'raladigan
+savol ("BFME'da ham, WC3'da ham, Generals'da ham kerakmi?") va choklar jadvali bor,
+hamda porting falsafasiga yangi band: **SAGE'ning arxitekturasini ol, Generals'ning
+dizaynini emas** — qoidani sodiq ko'chirish sodiq engine bermaydi, u har bir o'yinni
+o'sha o'yinga aylantiradi.
 
 ### Duke Dungeon — ataylab qilinmagan narsalar
 

@@ -1,8 +1,23 @@
 # duke-engine — coding rules
 
-A reimplementation of the **SAGE engine** (C&C Generals Zero Hour) in Java.
+A game engine in Java, **inspired by the SAGE engine** (C&C Generals Zero Hour).
 This is the engine itself, not a game. Reference C++ source:
 `../CnC_Generals_Zero_Hour` (GeneralsMD = Zero Hour, Generals = base game).
+
+Inspired by, not a port of. SAGE is where the architecture and many of the hard
+lessons come from — the fixed-rate deterministic logic, the logic/client split,
+the object/module composition — and those are kept faithfully. What is *not* kept
+is Generals' game design. SAGE was one game's engine; this is meant to be many
+games'.
+
+- **`core`** — the base engine. Anything can be built on it: RTS, RPG,
+  platformer, roguelike. It knows nothing about any genre.
+- **`rts`** — a **library for making RTS games**, drawing on SAGE for how an RTS
+  is put together. It is not "the Generals layer": it gives every RTS the
+  mechanisms they share and leaves the rules to the game.
+- **`generals`** — Generals' own rules, as one game among the games that could be
+  built here. It exists to prove that point, and to keep the Generals-specific
+  work rather than throw it away.
 
 Toolchain: **Java 25** (Gradle toolchain), **Gradle 9**. No runtime deps yet —
 core is pure Java; a render/audio backend comes later.
@@ -12,11 +27,38 @@ core is pure Java; a render/audio backend comes later.
 - **`core` is genre-neutral.** Any game — RTS, RPG, platformer — is built on it.
   If a name or a rule only makes sense for an RTS (harvesting, build cost,
   rally points, a `MoveTo` command), it does **not** belong in `core`.
-- **`rts` is the RTS on top of core.** Its command set, gameplay modules,
-  economy, vocabulary and save format live here.
-- `game` → `rts` → `core`. Never the other way; `core` never imports `rts`.
+- **`rts` knows no particular game.** It is the RTS library on top of core — the
+  command set, combat, production, economy, vocabulary and save format — but only
+  the parts every RTS shares. A rule one game happens to have is the game's.
+- `game` → `rts` → `core`, and `generals` → `rts`. Never the other way; `core`
+  never imports `rts`.
 
-The three seams that keep `core` genre-free — extend these rather than
+**The question to ask before adding to `rts`:** *would BFME need this, and
+Warcraft III, and Generals?*
+
+| Candidate | Answer | Where |
+|---|---|---|
+| a unit accumulates experience | all of them | mechanism → `rts` |
+| four ranks, each +10% damage | Generals only | rule → the game writes it |
+| a building produces units | all of them | mechanism → `rts` |
+| production stalls without power | Generals only | rule → an opt-in module |
+
+The test is not whether something is *useful* but whether it is a **decision**.
+A mechanism carries a question; a rule answers it. `rts` asks, games answer.
+
+**Seams `rts` offers so a game can answer without editing the engine** — extend
+these rather than special-casing:
+
+| Seam | `rts` supplies | The game supplies |
+|---|---|---|
+| Damage | `DamageModifier`, multiplied by `WeaponUpdate` | per-unit bonuses: levels, buffs, ranks |
+| Production | `ProductionGate`, asked by the factory | what stalls the line, or nothing |
+| Progression | `ExperienceModule` — XP plus a configurable rung table | how many rungs, what each costs and is worth |
+| Bodies | `BodyModule` (abstract) | a body that grows, or armours differently |
+| Player bonuses | named bonuses on `RtsPlayer`, multi-effect `Upgrade` | what the names mean |
+| HUD | `WorldSnapshot.status`, which the engine never reads | whatever this game counts |
+
+The seams that keep `core` genre-free — extend these rather than
 special-casing:
 
 | Seam | Core supplies | A game supplies |
@@ -40,10 +82,15 @@ event: `DieModule` leaves the wreck, `ObjectDied` tells the renderer to explode 
 
 ## Porting philosophy
 
-- **Faithful, not transliterated.** Preserve SAGE's architecture and behaviour
-  (subsystem lifecycle, fixed-rate deterministic logic, logic/client split),
-  but write idiomatic Java 25 — do not copy C++ idioms (manual memory, raw
-  pointers, `Bool`/`Int` typedefs, singletons-as-globals).
+- **Faithful, not transliterated.** Preserve SAGE's architecture (subsystem
+  lifecycle, fixed-rate deterministic logic, logic/client split, object/module
+  composition), but write idiomatic Java 25 — do not copy C++ idioms (manual
+  memory, raw pointers, `Bool`/`Int` typedefs, singletons-as-globals).
+- **Take SAGE's architecture, not Generals' design.** Where SAGE hard-codes a
+  decision one game made — four veterancy ranks, production stalling without
+  power, an upgrade that can only raise damage — port the *mechanism* and let the
+  game supply the number, the table or the condition. A faithful port of a rule
+  is an unfaithful engine: it makes every game built here that game.
 - **Determinism is sacred.** The logic simulation must be reproducible from a
   frame number + command stream. No wall-clock reads, no unordered iteration, no
   floating-point nondeterminism inside `GameLogic`. If in doubt, keep it out of
@@ -91,3 +138,6 @@ event: `DieModule` leaves the wreck, `ObjectDied` tells the renderer to explode 
 - No new `-Xlint:all` warnings.
 - `core` still compiles with no reference to `rts` (it cannot see it — but
   check that nothing genre-specific leaked in the other direction either).
+- Nothing new in `rts` answers a question only one game would ask. If it does,
+  it belongs behind a seam, with the answer in the game — `generals` is where
+  Generals' answers live.
