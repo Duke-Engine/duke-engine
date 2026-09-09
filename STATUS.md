@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 496 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 497 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -957,7 +957,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **496 test yashil** (core 133, rts 100, generals 5, game 28, client3d 75, studio 8, dungeon 147) — 0 failure / 0 error.
+- **497 test yashil** (core 133, rts 100, generals 5, game 28, client3d 75, studio 8, dungeon 148) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1050,6 +1050,17 @@ ikkala peer aynan bir kadrda qo'llaydi.
   - **O'ldirsa XP ni o'q beradi** — qurol hech kimni hisobga ololmaydi, chunki u
     qo'yib yuborganda nishon tirik edi. Bu bo'lmasa levelling kamonchilik
     kelgan kuni jimgina to'xtardi (test bor).
+  - **O'q modeli qahramonning o'z faylida bor edi** — kamondagi o'q, bor-yo'g'i
+    **80 uchburchak**. `Visuals.modelPart` fayldan bitta nomlangan meshni sug'urib
+    oladi (kitlar propni personaj bilan birga beradi), egasining transformini
+    tashlab, o'z boshlanishiga qo'yadi — aks holda u ko'rinmas kamonchi qo'lida
+    uchib yurardi.
+  - **Tuzoq: kit meshlarining nomlari almashib ketgan.** `Eyes` deb atalgani —
+    0.75 uzun, 0.04 yo'g'on, ya'ni **o'q**; `Arrow` deb atalgani — kiyim;
+    `Eyelashes` — butun tana. Ya'ni INI'da "xato"dek ko'rinadigan nom turibdi va
+    uni "tuzatish" — buzish. Test nomga ishonmaydi, **o'lchaydi**: uzun, ingichka
+    va arzon bo'lishi shart.
+  - `Map.of` 10 juftlikda tugaydi, INI bloklari 11 taga yetdi → `Map.ofEntries`.
   - **`StuckDiagnosisTest` soxta signal berdi**: u hamma obyektni sanardi, o'q
     esa devor ichidan **ataylab** o'tadi. Endi u faqat **yuradigan** birliklarni
     qaraydi — pathfinder yordam berishi kerak bo'lganlarni.

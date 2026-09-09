@@ -1226,6 +1226,38 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /**
+     * Lift one named mesh out of a loaded model and stand it on its own.
+     *
+     * <p>Taken out of its parents entirely rather than hidden among them: the
+     * piece is wanted at the origin, pointing along its own axis, and it arrives
+     * carrying wherever it sat on the character — in a hand, at an angle, at head
+     * height. Dropping that transform is what makes an arrow an arrow rather than
+     * an arrow held by an invisible archer.
+     *
+     * <p>A part that is not there leaves the whole model, which is visibly wrong
+     * and says so in the log — better than a unit that quietly disappears.
+     */
+    private Spatial partOf(Spatial model, String partName, String path) {
+        var found = new Spatial[1];
+        model.depthFirstTraversal(spatial -> {
+            if (found[0] == null && spatial instanceof Geometry
+                    && partName.equals(spatial.getName())) {
+                found[0] = spatial;
+            }
+        });
+        if (found[0] == null) {
+            warnOnce(path + "#" + partName, "model part");
+            return model;
+        }
+        var piece = found[0];
+        piece.removeFromParent();
+        piece.setLocalTransform(new com.jme3.math.Transform()); // its own origin
+        var holder = new Node(partName);
+        holder.attachChild(piece);
+        return holder;
+    }
+
     /** A body playing out its death, and when to take it away. */
     private record Dying(Node root, float until) {
     }
@@ -1294,6 +1326,9 @@ final class DukeRtsApp extends SimpleApplication {
         if (visual.modelPath != null) {
             try {
                 body = assetManager.loadModel(visual.modelPath);
+                if (visual.modelPart != null) {
+                    body = partOf(body, visual.modelPart, visual.modelPath);
+                }
                 body.setLocalScale(visual.scale);
                 body.setLocalTranslation(0, visual.yOffset, 0);
                 body.setLocalRotation(new Quaternion().fromAngles(0,

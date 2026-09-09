@@ -128,10 +128,23 @@ public final class Main {
             });
         }
         // Arrows are units like any other — they are in the world, so the client
-        // draws them without being told anything special. Small and pale, and
-        // pointed the way they are flying, because the simulation turns them.
-        visuals.unit(settings.arrowTemplate(),
-                unit -> unit.colour(new java.awt.Color(240, 226, 170)).scale(0.28f));
+        // draws them without being told anything special, and the simulation
+        // turns them so they point the way they are flying.
+        var arrow = settings.arrowLook();
+        visuals.unit(settings.arrowTemplate(), unit -> {
+            unit.colour(arrow.awtTint()); // the minimap dot, and the fallback shape
+            if (arrow.hasModel()) {
+                unit.modelPart(arrow.model(), arrow.part())
+                        .scale(arrow.scale())
+                        .facing(arrow.facing())
+                        // Not decoration: the tint is what gets it a material this
+                        // client can light. Without one it keeps the loader's PBR
+                        // and the arrow is a black splinter.
+                        .tint(arrow.awtTint());
+            } else {
+                unit.scale(0.28f);
+            }
+        });
 
         // The floor is black until he walks it. Named rather than given a
         // distance: the radius is the hero's own VisionRange from creatures.ini,

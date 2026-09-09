@@ -35,6 +35,7 @@ public final class Visuals {
     /** Per-template visual/audio configuration. All fields optional. */
     public static final class UnitVisual {
         String modelPath;
+        String modelPart;
         String texturePath;
         /** Where this unit's animations come from, in the order they were named. */
         final java.util.List<AnimationSource> animations = new java.util.ArrayList<>();
@@ -52,6 +53,25 @@ public final class Visuals {
 
         public UnitVisual model(String assetPath) {
             this.modelPath = assetPath;
+            return this;
+        }
+
+        /**
+         * One named piece out of a model file, rather than the whole thing.
+         *
+         * <p>Kits bundle props with the character carrying them — a bow, a shield,
+         * the arrow on the string — and those are the props the game needs when it
+         * comes to draw one on its own. Without this the only way to use the arrow
+         * a character is holding is to load the character.
+         *
+         * <p>The name is the one inside the file, which is not always the name the
+         * thing deserves: exporters mislabel, and a mesh called "Eyes" can turn out
+         * to be an arrow. Naming it here rather than in code keeps that where
+         * somebody can see it.
+         */
+        public UnitVisual modelPart(String assetPath, String partName) {
+            this.modelPath = assetPath;
+            this.modelPart = partName;
             return this;
         }
 

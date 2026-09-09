@@ -403,6 +403,47 @@ class DungeonMonsterArtTest {
     }
 
     /**
+     * The arrow really is the mesh named in the file, and really is arrow-shaped.
+     *
+     * <p>The kit's exporter shuffled its mesh names: the one called {@code Eyes}
+     * is a metre of shaft four centimetres thick, the one called {@code Arrow} is
+     * the clothes, and the one called {@code Eyelashes} is the entire body. The
+     * settings file therefore names something that reads as a mistake, and the
+     * obvious correction is wrong.
+     *
+     * <p>So this measures rather than trusts: whatever the file names has to be
+     * long, thin, and cheap. Change the name to the sensible one and this says
+     * what it found instead.
+     */
+    @Test
+    void theArrowIsTheLongThinMeshWhateverItIsCalled() {
+        var arrow = SETTINGS.arrowLook();
+        assertTrue(arrow.hasModel(), "the settings should name a mesh for the arrow");
+
+        var model = assets().loadModel(arrow.model());
+        var found = new com.jme3.scene.Geometry[1];
+        model.depthFirstTraversal(spatial -> {
+            if (spatial instanceof com.jme3.scene.Geometry geometry
+                    && arrow.part().equals(geometry.getName())) {
+                found[0] = geometry;
+            }
+        });
+        assertNotNull(found[0], arrow.part() + " is not in " + arrow.model());
+
+        found[0].updateModelBound();
+        var box = (BoundingBox) found[0].getModelBound();
+        float length = box.getZExtent() * 2f;
+        float thickness = Math.max(box.getXExtent(), box.getYExtent()) * 2f;
+
+        assertTrue(length > 0.4f, "an arrow should be long, but this is " + length);
+        assertTrue(thickness < length / 5f,
+                "and thin, but this is " + thickness + " across against " + length + " long");
+        assertTrue(found[0].getMesh().getTriangleCount() < 500,
+                "a projectile drawn by the dozen should be cheap, not "
+                        + found[0].getMesh().getTriangleCount() + " triangles");
+    }
+
+    /**
      * The hero and the monsters are on skeletons that share nothing.
      *
      * <p>Not a problem — a creature is animated from a library built on its own

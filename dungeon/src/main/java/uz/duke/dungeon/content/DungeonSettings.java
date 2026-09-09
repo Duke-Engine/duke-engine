@@ -110,54 +110,60 @@ public final class DungeonSettings {
      */
     public static DungeonSettings parse(String iniText) {
         var settings = new DungeonSettings();
-        var ini = Ini.of(iniText, Map.of(
-                "DungeonGeneration", reader -> {
+        // Entries rather than Map.of: that stops at ten pairs, and the file has
+        // more blocks than that now. Nothing else about this changed.
+        var ini = Ini.of(iniText, Map.ofEntries(
+                Map.entry("DungeonGeneration", reader -> {
                     reader.getNextToken(); // the block's name, which we do not need
                     reader.initFromIni(settings, LAYOUT);
-                },
-                "DungeonCombat", reader -> {
+                }),
+                Map.entry("DungeonCombat", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, BEHAVIOUR);
-                },
-                "DungeonRun", reader -> {
+                }),
+                Map.entry("DungeonRun", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, RUN);
-                },
-                "DungeonLeveling", reader -> {
+                }),
+                Map.entry("DungeonLeveling", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, LEVELLING);
-                },
+                }),
                 // Repeatable: the block's name is the monster's, so the list of
                 // kinds is the file's, not a constant somewhere in Java.
-                "DungeonMonster", reader -> {
+                Map.entry("DungeonMonster", reader -> {
                     var kind = new MonsterBuilder(reader.getNextToken());
                     reader.initFromIni(kind, MONSTER);
                     settings.monsters.add(kind.build());
-                },
-                "DungeonDepth", reader -> {
+                }),
+                Map.entry("DungeonDepth", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, DEPTH);
-                },
-                "DungeonTiles", reader -> {
+                }),
+                Map.entry("DungeonTiles", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, TILES);
-                },
-                "DungeonAnimations", reader -> {
+                }),
+                Map.entry("DungeonAnimations", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, ANIMATIONS);
-                },
-                "DungeonHero", reader -> {
+                }),
+                Map.entry("DungeonHero", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, HERO_LOOK);
-                },
+                }),
+                Map.entry("DungeonArrow", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, ARROW_LOOK);
+                }),
                 // Repeatable, and named by whose skill it is: the block header is
                 // the hero's template and the key that casts it. A second hero is
                 // four more of these and no Java — the roster lives in the file.
-                "DungeonSkill", reader -> {
+                Map.entry("DungeonSkill", (Ini.BlockParser) reader -> {
                     var skill = new SkillBuilder(reader.getNextToken(), reader.getNextToken());
                     reader.initFromIni(skill, SKILL);
                     settings.skills.add(skill.build());
-                }));
+                })));
         ini.load();
         if (!readingShippedFile) {
             settings.fillInMissingMonsters();
@@ -493,6 +499,41 @@ public final class DungeonSettings {
                 : new HeroLook(heroModel, heroTexture, heroModelScale, heroFacing,
                         heroIdleFrom, heroWalkFrom, heroAttackFrom, heroDeathFrom);
     }
+
+    private String arrowModel;
+    private String arrowPart;
+    private float arrowScale = 1f;
+    private float arrowFacing = 90f;
+    private int arrowTint = 0xFFFFFF;
+
+    /**
+     * What an arrow is drawn as: one named mesh out of a model file, or nothing,
+     * in which case it falls back to a coloured shape.
+     *
+     * @param part the name <em>inside</em> the file, which need not be a sensible
+     *             one — see the block's comment in {@code dungeon.ini}
+     */
+    public record ArrowLook(String model, String part, float scale, float facing, int tint) {
+        public boolean hasModel() {
+            return model != null && part != null;
+        }
+
+        public java.awt.Color awtTint() {
+            return new java.awt.Color(tint);
+        }
+    }
+
+    public ArrowLook arrowLook() {
+        return new ArrowLook(arrowModel, arrowPart, arrowScale, arrowFacing, arrowTint);
+    }
+
+    private static final FieldParseTable<DungeonSettings> ARROW_LOOK =
+            new FieldParseTable<DungeonSettings>()
+                    .add("Model", Ini.string((s, v) -> s.arrowModel = v))
+                    .add("Part", Ini.string((s, v) -> s.arrowPart = v))
+                    .add("Scale", Ini.real((s, v) -> s.arrowScale = v))
+                    .add("Facing", Ini.real((s, v) -> s.arrowFacing = v))
+                    .add("Tint", (ini, s) -> s.arrowTint = Integer.decode(ini.getNextToken()));
 
     private static final FieldParseTable<DungeonSettings> HERO_LOOK =
             new FieldParseTable<DungeonSettings>()
