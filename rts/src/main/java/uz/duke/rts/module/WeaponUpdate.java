@@ -149,11 +149,20 @@ public final class WeaponUpdate extends UpdateModule {
         if (shooter != null) {
             dealt *= shooter.getWeaponDamageBonus(); // player-wide upgrade bonus
         }
-        victim.getBody().damage(dealt, damageType); // scaled by the victim's armor
+
+        // A shot was fired either way — the reload runs and the moment is
+        // announced — but whether it lands now is the launcher's to decide.
+        boolean inFlight = handOver(owner, victim, dealt);
+        if (!inFlight) {
+            victim.getBody().damage(dealt, damageType); // scaled by the victim's armor
+        }
         cooldown = reloadFrames;
         world.post(new WeaponFired(world.getFrame(), owner.getId(), victim.getId(),
                 owner.getPosition(), victim.getPosition()));
 
+        if (inFlight) {
+            return; // nothing has been hit yet; splash and the kill wait with it
+        }
         if (splashRadius > 0f) {
             applySplash(world, owner, victim, dealt);
         }
@@ -162,6 +171,24 @@ public final class WeaponUpdate extends UpdateModule {
             grantKillExperience(owner, victim);
             target = null;
         }
+    }
+
+    /**
+     * Offer the shot to a {@link ProjectileLauncher} on this unit, if it has one.
+     *
+     * <p>The first one found, in module order, which is fixed when the object is
+     * built — so two peers hand the same shot to the same launcher.
+     *
+     * @return whether one took it
+     */
+    private boolean handOver(GameObject owner, GameObject victim, float dealt) {
+        for (var module : owner.getModules()) {
+            if (module instanceof ProjectileLauncher launcher
+                    && launcher.launch(owner, victim, dealt, damageType)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
