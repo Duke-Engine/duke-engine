@@ -7,7 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import uz.duke.core.math.Coord3D;
 import uz.duke.core.thing.GameObject;
+import uz.duke.core.thing.ObjectId;
 import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.skill.CastSkill;
@@ -68,6 +70,62 @@ class SkillCastingTest {
                 .findFirst().orElse(null);
     }
 
+    /**
+     * The shipped creatures with the hero's bow taken away.
+     *
+     * <p>His strike is no longer instant — he draws, looses, and the arrow crosses
+     * the room — so a test about it has to let the world run, and a world that runs
+     * is a world in which his ordinary bow is also shooting. Then "the skeleton
+     * lost health" says nothing about the skill.
+     *
+     * <p>A weapon that reaches nothing acquires nothing, so with this file anything
+     * that gets hurt was hurt by a skill. His skills are untouched: their range is
+     * their own, in {@code dungeon.ini}.
+     */
+    private static String creaturesWithNoBow() {
+        var lines = Content.read(Content.CREATURES).split("\n", -1);
+        boolean inHero = false;
+        var edited = new StringBuilder();
+        for (var line : lines) {
+            if (line.startsWith("Object ")) {
+                inHero = line.trim().equals("Object Hero");
+            }
+            edited.append(inHero && line.trim().startsWith("AttackRange")
+                    ? "    AttackRange = 0" : line).append('\n');
+        }
+        return edited.toString();
+    }
+
+    /** An arena where only his skills can hurt anything. */
+    private static Arena skillsOnly(float... skeletonXy) {
+        return arena(SETTINGS, creaturesWithNoBow(), skeletonXy);
+    }
+
+    /**
+     * Cast, then run the world on until the shot has been drawn, loosed and landed.
+     *
+     * <p>What the older tests asked — "cast it, is it hurt?" — is now a question
+     * about two moments rather than one.
+     */
+    private static boolean castAndWait(Arena arena, char key, int level, ObjectId at) {
+        boolean cast = arena.book().cast(key, level, at, null);
+        arena.game().runHeadless(untilItLands(key));
+        return cast;
+    }
+
+    /** The skill's own wind-up, plus flight enough to cross its whole range. */
+    private static int untilItLands(char key) {
+        var skill = SETTINGS.skillsFor("Hero").stream()
+                .filter(s -> s.key() == key).findFirst().orElseThrow();
+        return skill.windUpFrames() + 60;
+    }
+
+    private static long arrowsInTheAir(DukeGame game, String template) {
+        return game.getLogic().getObjects().stream()
+                .filter(object -> object.getTemplate().getName().equals(template))
+                .count();
+    }
+
     private static long livingSkeletons(DukeGame game) {
         return game.getLogic().getObjects().stream()
                 .filter(object -> object.getTemplate().getName().equals("Skeleton"))
@@ -89,11 +147,11 @@ class SkillCastingTest {
     /** Q hurts one thing. */
     @Test
     void theStrikeWoundsTheNearestEnemy() {
-        var arena = arena(SETTINGS, 170f, 150f);
+        var arena = skillsOnly(170f, 150f);
         var skeleton = creature(arena.game(), "Skeleton");
         float before = skeleton.getBody().getHealth();
 
-        assertTrue(arena.book().cast('Q', 1));
+        assertTrue(castAndWait(arena, 'Q', 1, null));
 
         assertTrue(skeleton.getBody().getHealth() < before,
                 "it should have been hit, and was still on " + skeleton.getBody().getHealth());
@@ -102,17 +160,251 @@ class SkillCastingTest {
     /** And picks the nearest, not whichever the world happens to list first. */
     @Test
     void theStrikeChoosesTheNearest() {
-        var arena = arena(SETTINGS, 180f, 150f, 160f, 150f);
+        var arena = skillsOnly(180f, 150f, 160f, 150f);
         var far = arena.game().getLogic().getObjects().stream()
                 .filter(object -> object.getTemplate().getName().equals("Skeleton"))
                 .filter(object -> object.getPosition().x() > 170f)
                 .findFirst().orElseThrow();
         float farBefore = far.getBody().getHealth();
 
-        arena.book().cast('Q', 1);
+        castAndWait(arena, 'Q', 1, null);
 
         assertEquals(farBefore, far.getBody().getHealth(), 0.01f,
                 "the further skeleton should not have been touched");
+    }
+
+    // ---- the drawn shot ----
+
+    /** The skill the file describes, by key. */
+    private static uz.duke.dungeon.skill.Skill skillNamed(char key) {
+        return SETTINGS.skillsFor("Hero").stream()
+                .filter(skill -> skill.key() == key).findFirst().orElseThrow();
+    }
+
+    /**
+     * He draws before he looses, and nothing happens while he is drawing.
+     *
+     * <p>The whole reason for the wind-up: an instant strike is a monster losing
+     * health with nothing on screen to explain it. What the player has to be able
+     * to see is the archer taking aim, and that is only visible if the damage
+     * waits for him.
+     */
+    @Test
+    void theStrikeIsDrawnBeforeItIsLoosed() {
+        var q = skillNamed('Q');
+        assertTrue(q.windUpFrames() > 1, "the shipped Q draws; this test is about that");
+        var arena = skillsOnly(170f, 150f);
+        var skeleton = creature(arena.game(), "Skeleton");
+        float before = skeleton.getBody().getHealth();
+
+        assertTrue(arena.book().cast('Q', 1));
+        arena.game().runHeadless(q.windUpFrames() - 1);
+
+        assertEquals(before, skeleton.getBody().getHealth(), 0.01f,
+                "he is still drawing; nothing has left the bow");
+        assertEquals(0, arrowsInTheAir(arena.game(), q.projectile()),
+                "and nothing is in the air yet");
+    }
+
+    /**
+     * And what he looses is a real arrow, which has to get there.
+     *
+     * <p>Same doctrine as his ordinary shot: the damage happens where and when the
+     * arrow does. A skill that simply subtracted health at range would be the thing
+     * the wind-up was added to stop being.
+     */
+    @Test
+    void theDrawnShotIsAnArrowThatHasToArrive() {
+        var q = skillNamed('Q');
+        assertTrue(q.hasProjectile(), "the shipped Q looses something");
+        var arena = skillsOnly(200f, 150f); // far enough that the flight is worth watching
+        var skeleton = creature(arena.game(), "Skeleton");
+        float before = skeleton.getBody().getHealth();
+
+        arena.book().cast('Q', 1);
+        arena.game().runHeadless(q.windUpFrames() + 1);
+
+        assertEquals(1, arrowsInTheAir(arena.game(), q.projectile()),
+                "it should have left the bow");
+        assertEquals(before, skeleton.getBody().getHealth(), 0.01f, "and not arrived yet");
+
+        arena.game().runHeadless(untilItLands('Q'));
+
+        assertTrue(skeleton.getBody().getHealth() < before, "it should have got there");
+        assertEquals(0, arrowsInTheAir(arena.game(), q.projectile()),
+                "and been taken away once it had");
+    }
+
+    /**
+     * The cooldown starts when he commits, not when the arrow lands.
+     *
+     * <p>Otherwise a shot across the room would be cheaper than one at his feet,
+     * which is backwards — and a player would have no way of knowing when he could
+     * cast again except by watching an arrow.
+     */
+    @Test
+    void theCooldownStartsWhenHePressesTheKey() {
+        var arena = skillsOnly(200f, 150f);
+
+        assertTrue(arena.book().cast('Q', 1));
+
+        assertEquals(skillNamed('Q').cooldownAt(1), arena.book().cooldownOf('Q'),
+                "it should be recharging while he is still drawing");
+    }
+
+    // ---- the ultimate ----
+
+    /**
+     * The ultimate makes his skills hit harder, not only his bow.
+     *
+     * <p>Which is what {@code dungeon.ini} says it is for — "a window, during
+     * which everything else he does is worth more" — and for a while it was not
+     * true: the boost rode the engine's weapon seam, and a skill that damages a
+     * body directly never passes through a weapon.
+     *
+     * <p>Fought against the boss because a skeleton dies to either version, and
+     * two kills are not a comparison.
+     */
+    @Test
+    void theUltimateMakesHisSkillsHitHarderToo() {
+        int level = skillNamed('R').unlockLevel();
+
+        assertTrue(damageFrom('Q', level, true) > damageFrom('Q', level, false),
+                "the strike should have been worth more inside the window");
+        assertTrue(damageFrom('W', level, true) > damageFrom('W', level, false),
+                "and so should the burst");
+    }
+
+    /** What one cast takes off the boss, with or without the ultimate up first. */
+    private static float damageFrom(char key, int level, boolean underTheUltimate) {
+        var world = Dungeon.world(arena(), SETTINGS, creaturesWithNoBow());
+        var game = world.game();
+        game.spawn("Hero", world.hero(), 150f, 150f);
+        game.spawn(DungeonSettings.BOSS, world.dungeon(), 170f, 150f);
+        game.runHeadless(1);
+        var book = creature(game, "Hero").findModule(SkillBook.class);
+        var boss = creature(game, DungeonSettings.BOSS);
+
+        if (underTheUltimate) {
+            assertTrue(book.cast('R', level), "the ultimate should have gone up");
+        }
+        float before = boss.getBody().getHealth();
+        book.cast(key, level);
+        game.runHeadless(untilItLands(key));
+        return before - boss.getBody().getHealth();
+    }
+
+    // ---- aiming ----
+
+    /**
+     * Pointed at one skeleton, it hits that one — not whichever happens to be
+     * nearest when the frame comes round.
+     *
+     * <p>This is the whole point of aiming. A player who clicked the wounded one at
+     * the back and hit the fresh one in front has been given a skill he cannot aim,
+     * and has spent the cooldown he needed on the wrong creature.
+     */
+    @Test
+    void aStrikeHitsTheOneItWasPointedAt() {
+        var arena = skillsOnly(160f, 150f, 180f, 150f);
+        var chosen = skeletonBeyond(arena.game(), 170f);
+        var nearer = skeletonBeyond(arena.game(), 0f);
+        float nearerBefore = nearer.getBody().getHealth();
+        float chosenBefore = chosen.getBody().getHealth();
+
+        assertTrue(castAndWait(arena, 'Q', 1, chosen.getId()));
+
+        assertTrue(chosen.getBody().getHealth() < chosenBefore,
+                "the one he clicked should have been hit");
+        assertEquals(nearerBefore, nearer.getBody().getHealth(), 0.01f,
+                "and the nearer one left alone");
+    }
+
+    /**
+     * Aimed at something it cannot reach, it refuses — and keeps its cooldown.
+     *
+     * <p>Going off at something else would be worse than doing nothing, and
+     * spending the cooldown for it worse again.
+     */
+    @Test
+    void aStrikeAimedOutOfRangeIsRefusedAndCostsNothing() {
+        var q = SETTINGS.skillsFor("Hero").stream()
+                .filter(skill -> skill.key() == 'Q').findFirst().orElseThrow();
+        var arena = arena(SETTINGS, 150f + q.range() + 60f, 150f);
+        var far = skeletonBeyond(arena.game(), 0f);
+
+        assertFalse(arena.book().cast('Q', 1, far.getId(), null), "it is out of reach");
+        assertEquals(0, arena.book().cooldownOf('Q'), "so the cooldown is still his");
+        assertEquals(far.getBody().getMaxHealth(), far.getBody().getHealth(), 0.01f);
+    }
+
+    /** And aiming it at himself is not aiming it at an enemy. */
+    @Test
+    void aStrikeCannotBeAimedAtSomethingThatIsNotAnEnemy() {
+        var arena = arena(SETTINGS, 170f, 150f);
+
+        assertFalse(arena.book().cast('Q', 1, arena.hero().getId(), null));
+        assertEquals(0, arena.book().cooldownOf('Q'));
+    }
+
+    /**
+     * The dash goes where he was pointed, whichever way he happened to be looking.
+     *
+     * <p>Along his facing is what it did before there was anything to point at,
+     * and it is still the fallback — but a dash you cannot steer is one you use to
+     * escape and then find you have run into the room you were escaping.
+     */
+    @Test
+    void aDashGoesWhereItWasPointed() {
+        var arena = arena(SETTINGS);
+        var from = arena.hero().getPosition();
+        // Straight up the room, which is not where he starts out facing.
+        var towards = new Coord3D(from.x(), from.y() + 200f, 0f);
+
+        assertTrue(arena.book().cast('E', 1, null, towards));
+
+        var landed = arena.hero().getPosition();
+        assertTrue(landed.y() - from.y() > 40f, "he should have gone that way: " + landed);
+        assertEquals(from.x(), landed.x(), 6f, "and not sideways");
+    }
+
+    /**
+     * Sent somewhere close, he stops there rather than being flung past it.
+     *
+     * <p>The click says where, and "where" is a place, not a direction with the
+     * full distance attached to it.
+     */
+    @Test
+    void aDashPointedNearbyStopsThere() {
+        var arena = arena(SETTINGS);
+        var from = arena.hero().getPosition();
+        var towards = new Coord3D(from.x() + 20f, from.y(), 0f);
+
+        assertTrue(arena.book().cast('E', 1, null, towards));
+
+        float travelled = arena.hero().getPosition().distance(from);
+        assertTrue(travelled <= 21f, "he overshot the click by " + (travelled - 20f));
+        assertTrue(travelled > 10f, "and he should have gone most of the way: " + travelled);
+    }
+
+    /** Nothing pointed at is still the old behaviour, for the skills that need none. */
+    @Test
+    void anUnaimedCastStillWorksTheWayItDid() {
+        var arena = skillsOnly(170f, 150f);
+        var skeleton = skeletonBeyond(arena.game(), 0f);
+        float before = skeleton.getBody().getHealth();
+
+        assertTrue(castAndWait(arena, 'Q', 1, null), "the nearest, as before");
+
+        assertTrue(skeleton.getBody().getHealth() < before);
+    }
+
+    /** The first living skeleton past {@code x}, in creation order. */
+    private static GameObject skeletonBeyond(DukeGame game, float x) {
+        return game.getLogic().getObjects().stream()
+                .filter(object -> object.getTemplate().getName().equals("Skeleton"))
+                .filter(object -> object.getPosition().x() > x)
+                .findFirst().orElseThrow();
     }
 
     /** W hurts everything close. */
@@ -257,10 +549,10 @@ class SkillCastingTest {
 
     /** How much health one Q takes off a fresh skeleton, cast by a hero of {@code level}. */
     private static float damageDealtByStrike(int level) {
-        var arena = arena(SETTINGS, 170f, 150f);
+        var arena = skillsOnly(170f, 150f);
         var skeleton = creature(arena.game(), "Skeleton");
         float before = skeleton.getBody().getHealth();
-        arena.book().cast('Q', level);
+        castAndWait(arena, 'Q', level, null);
         return before - skeleton.getBody().getHealth();
     }
 
@@ -350,6 +642,50 @@ class SkillCastingTest {
 
         assertTrue(hero.getPosition().distance(from) > 20f,
                 "the dash never happened; he is at " + hero.getPosition());
+    }
+
+    /**
+     * And what the player pointed at survives the trip.
+     *
+     * <p>The click happens on the render thread and the cast on the simulation's,
+     * a frame later, with a command in between. Everything above tests the far end
+     * of that; this is the one test that would notice the near end quietly dropping
+     * what it was carrying.
+     */
+    @Test
+    void whatWasPointedAtSurvivesTheCommand() {
+        // A real run, because the command is only routed by one — but with the two
+        // skeletons carried to known spots, so the geometry is the test's rather
+        // than the seed's.
+        var session = Dungeon.newSession(11L, SETTINGS);
+        var game = session.game();
+        game.runHeadless(2);
+        var hero = creature(game, "Hero");
+        var skeletons = game.getLogic().getObjects().stream()
+                .filter(object -> object.getTemplate().getName().equals("Skeleton"))
+                .filter(object -> !object.isEffectivelyDead())
+                .limit(2).toList();
+        assertEquals(2, skeletons.size(), "this floor should have two to choose between");
+
+        var nearer = skeletons.get(0);
+        var chosen = skeletons.get(1);
+        nearer.setPosition(new Coord3D(hero.getPosition().x() + 25f, hero.getPosition().y(), 0f));
+        chosen.setPosition(new Coord3D(hero.getPosition().x() + 45f, hero.getPosition().y(), 0f));
+        float nearerBefore = nearer.getBody().getHealth();
+        float chosenBefore = chosen.getBody().getHealth();
+
+        game.postCommand(new CastSkill(game.getLocalPlayerIndex(), 'Q',
+                chosen.getId(), null));
+        game.runHeadless(untilItLands('Q'));
+
+        // His bow is his own here — this is a real run — and it takes the nearest,
+        // always. So the far one being hurt can only be the strike, and the strike
+        // could only have chosen it from the command.
+        assertTrue(chosen.getBody().getHealth() < chosenBefore,
+                "the one the command named should have been hit");
+        assertTrue(nearerBefore - nearer.getBody().getHealth()
+                        < chosenBefore - chosen.getBody().getHealth(),
+                "the nearer one took the heavier hit, which is what a dropped target looks like");
     }
 
     /** And a new run hands him a book with nothing on cooldown. */

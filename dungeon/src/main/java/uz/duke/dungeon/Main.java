@@ -5,6 +5,7 @@ import uz.duke.client3d.Hotkeys;
 import uz.duke.client3d.Shell;
 import uz.duke.client3d.Tileset;
 import uz.duke.client3d.Visuals;
+import uz.duke.core.thing.ObjectId;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.content.HeroLook;
 import uz.duke.dungeon.skill.CastSkill;
@@ -41,6 +42,30 @@ public final class Main {
         }
     }
 
+    /**
+     * An arrow's look. Two creatures use it — his ordinary shot and the one Q
+     * looses — differing only in the numbers, which is why it is one method.
+     */
+    private static void arrow(Visuals visuals, String template, DungeonSettings.ArrowLook look) {
+        visuals.unit(template, unit -> {
+            unit.colour(look.awtTint()); // the minimap dot, and the fallback shape
+            if (!look.hasModel()) {
+                unit.scale(0.28f);
+                return;
+            }
+            unit.modelPart(look.model(), look.part())
+                    .scale(look.scale())
+                    .facing(look.facing())
+                    // Drawing only: the simulation is flat, so height is not a
+                    // position but the line the shot is drawn along.
+                    .yOffset(look.height())
+                    // Not decoration: the tint is what gets it a material this
+                    // client can light. Without one it keeps the loader's PBR and
+                    // the arrow is a black splinter.
+                    .tint(look.awtTint());
+        });
+    }
+
     public static void main(String[] args) {
         var settings = DungeonSettings.load();
         Duke3D.launch(Dungeon.create(System.nanoTime(), settings), looks(settings), Shell.create()
@@ -56,14 +81,27 @@ public final class Main {
      * <p>Read out of the settings rather than written here, so adding a fifth
      * skill — or a second hero with different keys — binds its key by being in the
      * file. A press does one thing: post the command. Deciding whether the skill
-     * is ready, unlocked, or aimed at anything is the simulation's, on its own
-     * thread, on a frame boundary.
+     * is ready, unlocked, or able to reach what it was aimed at is the
+     * simulation's, on its own thread, on a frame boundary.
+     *
+     * <p>Which of the three ways a key is bound follows from what the skill does,
+     * because the effect is what knows: a strike is pointed at a creature, a dash
+     * at a spot, and the two that go off around the caster are pointed at nothing.
+     * The client keeps the press-then-click; this only says what to send once the
+     * player has chosen.
      */
     private static Hotkeys controls(DungeonSettings settings) {
         var keys = Hotkeys.create();
         for (var skill : settings.skills()) {
             char key = skill.key();
-            keys.on(key, game -> game.postCommand(new CastSkill(game.getLocalPlayerIndex(), key)));
+            switch (skill.effect().aim()) {
+                case UNIT -> keys.onUnit(key, (game, id) -> game.postCommand(new CastSkill(
+                        game.getLocalPlayerIndex(), key, new ObjectId(id), null)));
+                case GROUND -> keys.onGround(key, (game, spot) -> game.postCommand(new CastSkill(
+                        game.getLocalPlayerIndex(), key, null, spot)));
+                case SELF -> keys.on(key, game -> game.postCommand(
+                        new CastSkill(game.getLocalPlayerIndex(), key)));
+            }
         }
         return keys;
     }
@@ -130,24 +168,11 @@ public final class Main {
         // Arrows are units like any other — they are in the world, so the client
         // draws them without being told anything special, and the simulation
         // turns them so they point the way they are flying.
-        var arrow = settings.arrowLook();
-        visuals.unit(settings.arrowTemplate(), unit -> {
-            unit.colour(arrow.awtTint()); // the minimap dot, and the fallback shape
-            if (arrow.hasModel()) {
-                unit.modelPart(arrow.model(), arrow.part())
-                        .scale(arrow.scale())
-                        .facing(arrow.facing())
-                        // Drawing only: the simulation is flat, so height is not
-                        // a position but the line the shot is drawn along.
-                        .yOffset(arrow.height())
-                        // Not decoration: the tint is what gets it a material this
-                        // client can light. Without one it keeps the loader's PBR
-                        // and the arrow is a black splinter.
-                        .tint(arrow.awtTint());
-            } else {
-                unit.scale(0.28f);
-            }
-        });
+        arrow(visuals, settings.arrowTemplate(), settings.arrowLook());
+        // The one Q looses: the same shaft, drawn bigger and in torch colour, so
+        // the shot the player chose to spend is not mistaken for the ones he gets
+        // for free.
+        arrow(visuals, settings.heavyArrowTemplate(), settings.heavyArrowLook());
 
         // The floor is black until he walks it. Named rather than given a
         // distance: the radius is the hero's own VisionRange from creatures.ini,

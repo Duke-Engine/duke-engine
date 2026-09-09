@@ -180,7 +180,9 @@ class DungeonShapeTest {
                 End
                 """);
 
-        var narrowFloor = DungeonGenerator.generate(9L, SETTINGS, 1);
+        // Both from the same defaults, differing only in the corridor: comparing a
+        // re-tuned file against the shipped one would be measuring the rooms.
+        var narrowFloor = DungeonGenerator.generate(9L, DungeonSettings.parse(""), 1);
         var wideFloor = DungeonGenerator.generate(9L, wide, 1);
 
         assertTrue(openCells(wideFloor) > openCells(narrowFloor),

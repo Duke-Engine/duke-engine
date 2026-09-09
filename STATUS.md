@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 499 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 534 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -957,7 +957,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **499 test yashil** (core 133, rts 100, generals 5, game 28, client3d 75, studio 8, dungeon 150) — 0 failure / 0 error.
+- **534 test yashil** (core 133, rts 105, generals 5, game 28, client3d 85, studio 8, dungeon 170) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1383,6 +1383,64 @@ ikkala peer aynan bir kadrda qo'llaydi.
   menyular bilan ishlaydi. `RohanVsMordorTest` 2700 kadrlik headless urushni tekshiradi
   (AI oltin sarflaydi, talofatlar bo'ladi).
 - **Native .exe** — `Rohan-vs-Mordor.exe` ishga tushgani tasdiqlangan (~205 MB, o'z runtime'i bilan).
+- **Qahramon paneli** — `HeroPanel` (client3d): tosh o'ymasi uslubidagi jon/tajriba
+  barlari, to'rt skill uyasi (tayyor / kuluar / yopiq), rim raqamli chuqurlik.
+  - **Klient mexanizmni saqlaydi, o'yin so'zlarni beradi.** Panel snapshotning
+    status kanalidan chiziladi; formatni tanimasa — **yashirinadi** va eski matn
+    HUD qoladi. `client3d` ni yana 3 ta o'yin ishlatadi, shuning uchun bu shart.
+    Panelda bitta ham inglizcha so'z yo'q: `CHUQURLIK` va `-daraja` `dungeon.ini`
+    dagi `DungeonHud` blokidan.
+  - Format ikki tomondan qulflangan: `HeroStatusTest` yozuvchi tomonni,
+    `HeroPanelTest` o'quvchi tomonni tekshiradi. Biri o'zgarsa — biri qizaradi.
+  - Kuluar soyasi **kvadratga qirqilgan** konus (doira emas), aks holda u tosh
+    ustidagi tangaga o'xshardi. Belgilar SVG emas, chiziq-mesh — uyaning rangini
+    o'zi oladi va rasm fayli kerak emas.
+  - Qahramon nomi `DisplayName = Erika` (`creatures.ini`). Template nomi `Hero`
+    bo'lib qoladi — uni spawner, skill bloklari va hamma test shunday chaqiradi.
+- **Yo yuradi, yo otadi** — `AttackOnTheMove = Yes|No` (`WeaponUpdate`, default
+  `Yes`, ya'ni mavjud hamma birlik o'zgarishsiz).
+  - **Nega engine'da, skriptda emas:** qurol nishonni **o'zi topadi va o'sha
+    chaqiruvda otadi**. Tashqaridan `holdFire()` qilgan skript keyingi kadrda
+    quroldan **keyin** ishlaydi — ya'ni qurol allaqachon qayta nishonlab otib
+    bo'lgan. Bu haqiqatan yetkazilgan bug edi: kamonchi har kadr o'q otishni
+    to'xtatib, baribir otardi. `AttackOnTheMoveTest` ikkalasini ham qulflaydi.
+  - Yurayotganda **reload ketaveradi va nishon saqlanadi**, ya'ni to'xtagan zahoti
+    o'q uchadi. Aks holda har qadam bir reload turardi.
+  - `HeroBrain` bundan **soddalashdi**: qurol nishonni butun yo'l bo'yi saqlagani
+    uchun brain uning o'rniga hech narsa eslab turmaydi, va `MoveTo` buyrug'i
+    quroldan nishonni olib tashlagani uchun ataka buyrug'ining bekor bo'lishi
+    **o'z-o'zidan** ishlaydi.
+- **Nishonli skillar** — `CastSkill` endi o'yinchi nimani bosganini olib yuradi.
+  - `SkillEffect` har bir effekt nimaga qaratilishini biladi: `STRIKE` → maxluq,
+    `DASH` → yer, `AREA_DAMAGE`/`EMPOWER` → hech narsa. `Main` shunga qarab
+    klavishni bog'laydi; klient bosish-keyin-klik mexanizmini saqlaydi
+    (`Hotkeys.onUnit` / `onGround`), o'yin esa nima jo'natishni aytadi.
+  - **Yetib bormaydigan narsaga qaratilgan skill rad etadi va kuluarni sarflamaydi.**
+    Bosgan maxluqni emas, boshqasini urish — bu nishonlab bo'lmaydigan skill, va
+    yo'qotilgan kuluar aynan kerak bo'lgani.
+  - Dash bosilgan **joyga** boradi (yo'nalishga emas): yaqin joy bosilsa o'sha
+    yerda to'xtaydi, uzoq bo'lsa qanchaga yetsa. Bordi-yu qaragan tomoni boshqa
+    bo'lsa — avval buriladi.
+  - Kutayotgan uya **nafas oladi** (mash'al rangli lab). Bekor qilish: o'sha
+    klavisha yana, o'ng tugma yoki Esc. Tayyor bo'lmagan skill umuman qurollanmaydi.
+- **Q endi haqiqiy o'q otadi** — `WindUpFrames` (kamonni tortish) + `Projectile`
+  (uchadigan narsa), ikkalasi ham `DungeonSkill` blokida.
+  - Bosilganda darrov jon ketmaydi: qahramon nishonga buriladi, quroli unga
+    qaraydi (ya'ni otish animatsiyasi o'ynaydi), va **15 kadrdan keyin** o'q
+    chiqadi. Chiqqanda `WeaponFired` yuboriladi — klient shundan otish yorug'ligi
+    va tovushini oladi, oddiy kamon bilan bir xil yo'ldan.
+  - Uchadigan narsa `HeavyArrow`: aynan o'sha model va mesh, **~2 barobar katta**,
+    mash'al rangida va **sekinroq** (120 vs 170) — sarflangan o'q ko'z bilan
+    kuzatiladigani bo'lsin uchun. `Shot` sinfi endi kamon va skill uchun umumiy.
+  - Kuluar **bosilganda** boshlanadi, o'q tekkanda emas: aks holda uzoqdagi otish
+    yaqindagisidan arzon bo'lardi.
+  - Tortayotganda nishon o'lsa — o'q yo'qoladi va kuluar sarflangan bo'lib qoladi.
+    Vaqt talab qiladigan skillning narxi shu, va u shuning uchun qattiqroq uradi.
+- **R endi Q va W ni ham kuchaytiradi** — `dungeon.ini` da yozilganidek. Ilgari
+  boost engine'ning zarar chokida yurardi, uni esa faqat **qurol** o'qiydi;
+  `getBody().damage(...)` chaqiradigan skill undan o'tmasdi. Darajadagi +12% esa
+  qurolnikiligicha qoladi — skillar o'z `DamagePerLevel` i bilan o'sadi, ikkalasi
+  qo'shilsa daraja ikki marta hisoblanardi.
 
 ---
 
@@ -1629,7 +1687,9 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/run/DungeonRun.java` | run loop: o'lim → yangi seed → yangi dungeon |
 | `dungeon/…/dungeon/skill/{Skill,SkillEffect}.java` | skill ma'lumoti + daraja arifmetikasi (sof) |
 | `dungeon/…/dungeon/skill/SkillBook.java` | qahramon moduli: kuluar, effektlar, `DamageModifier` |
-| `dungeon/…/dungeon/skill/{CastSkill,Skills}.java` | o'yinning o'z buyrug'i + HUD paneli |
+| `dungeon/…/dungeon/skill/{CastSkill,Skills}.java` | o'yinning o'z buyrug'i (nishoni bilan) + status qatori |
+| `dungeon/…/dungeon/run/HeroStatus.java` | panel o'qiydigan qator — so'zlar shu yerda tugaydi |
+| `client3d/…/client3d/HeroPanel.java` | qahramon paneli — tosh uyalar, barlar, chuqurlik |
 | `client3d/…/client3d/Hotkeys.java` | o'yin da'vo qilgan klavishlar → `postCommand`; klavish to'qnashuvini hal qiladi |
 | `dungeon/…/dungeon/level/Levelling.java` | daraja qoidalari — sof, INI qiymatlaridan |
 | `dungeon/…/dungeon/level/HeroBody.java` | o'sadigan tana (engine'niki final) + `Armor` |

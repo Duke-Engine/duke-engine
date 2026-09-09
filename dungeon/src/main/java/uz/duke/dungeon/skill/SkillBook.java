@@ -2,11 +2,18 @@ package uz.duke.dungeon.skill;
 
 import java.util.List;
 import uz.duke.core.math.Coord3D;
+import uz.duke.core.module.DamageType;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
+import uz.duke.core.thing.ObjectId;
 import uz.duke.core.thing.World;
+import uz.duke.dungeon.ai.Facing;
+import uz.duke.dungeon.combat.Shot;
+import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.rts.event.WeaponFired;
 import uz.duke.rts.module.DamageModifier;
+import uz.duke.rts.module.WeaponUpdate;
 
 /**
  * The skills a hero has, what they are doing right now, and how long until he can
@@ -37,14 +44,33 @@ public final class SkillBook extends UpdateModule implements DamageModifier {
     private final List<Skill> skills;
     private final int[] cooldowns;
 
+    /** Where an arrow comes out and how fast it travels — the archer's, not the skill's. */
+    private final DungeonSettings settings;
+
     /** Frames of {@code EMPOWER} left, and what it is worth while it lasts. */
     private int boostFrames;
     private int boostPercent;
 
-    public SkillBook(GameObject owner, List<Skill> skills) {
+    // ---- a shot begun and not yet loosed ----
+
+    /**
+     * The heavy shot in progress: which skill, at what level, and at whom.
+     *
+     * <p>A skill that takes time to cast needs somewhere to be while it is being
+     * cast, and this is it. Held rather than queued because a hero draws one arrow
+     * at a time: casting again is refused by the cooldown, which started the moment
+     * he committed.
+     */
+    private Skill drawing;
+    private int drawnAtLevel;
+    private ObjectId drawnFor;
+    private int loosesIn;
+
+    public SkillBook(GameObject owner, List<Skill> skills, DungeonSettings settings) {
         super(owner);
         this.skills = List.copyOf(skills);
         this.cooldowns = new int[skills.size()];
+        this.settings = settings;
     }
 
     private static final uz.duke.core.ini.FieldParseTable<Object> NO_FIELDS =
@@ -96,6 +122,23 @@ public final class SkillBook extends UpdateModule implements DamageModifier {
      * has not unlocked it — an ultimate refuses rather than fires weakly.
      */
     public boolean cast(char key, int level) {
+        return cast(key, level, null, null);
+    }
+
+    /**
+     * Cast at what the player pointed at.
+     *
+     * <p>An aimed skill that cannot reach what it was aimed at <em>refuses</em>,
+     * leaving its cooldown untouched, rather than going off at something else. A
+     * player who clicked one skeleton and hit a different one has been given a
+     * skill he cannot aim, and the cooldown he wasted is the one he needed.
+     *
+     * @param at        the creature a {@code UNIT} skill was aimed at, or null for
+     *                  the old behaviour of taking whatever is nearest
+     * @param towards   where a {@code GROUND} skill was aimed, or null to use the
+     *                  caster's current facing
+     */
+    public boolean cast(char key, int level, ObjectId at, Coord3D towards) {
         int slot = slotOf(key);
         if (slot < 0 || cooldowns[slot] > 0) {
             return false;
@@ -109,25 +152,46 @@ public final class SkillBook extends UpdateModule implements DamageModifier {
         if (world == null || owner.isEffectivelyDead()) {
             return false;
         }
-        apply(skill, level, owner, world);
+        if (!apply(skill, level, owner, world, at, towards)) {
+            return false; // aimed at nothing it could reach; the cooldown is not spent
+        }
         cooldowns[slot] = skill.cooldownAt(level);
         return true;
     }
 
-    private void apply(Skill skill, int level, GameObject owner, World world) {
+    /** @return whether it went off, which an aimed skill may decline */
+    private boolean apply(Skill skill, int level, GameObject owner, World world,
+            ObjectId at, Coord3D towards) {
         switch (skill.effect()) {
             case STRIKE -> {
-                var victim = nearestEnemy(owner, world, skill.range());
-                if (victim != null) {
-                    victim.getBody().damage(skill.damageAt(level));
+                var victim = at == null
+                        ? nearestEnemy(owner, world, skill.range())
+                        : aimedAt(owner, world, at, skill.range());
+                if (at != null && victim == null) {
+                    return false;
+                }
+                if (victim == null) {
+                    break; // nothing in reach; he has still spent the cast
+                }
+                if (skill.windUpFrames() > 0) {
+                    beginDrawing(skill, level, owner, victim);
+                } else {
+                    land(skill, level, owner, victim);
                 }
             }
             case AREA_DAMAGE -> {
                 for (var victim : enemiesWithin(owner, world, skill.radius())) {
-                    victim.getBody().damage(skill.damageAt(level));
+                    victim.getBody().damage(skill.damageAt(level) * damageMultiplier());
                 }
             }
-            case DASH -> owner.setPosition(dashEnd(owner, world, skill.distance()));
+            case DASH -> {
+                if (towards != null) {
+                    // Face where he was sent before he goes, so the model and the
+                    // travel agree — and so the next thing he does looks that way.
+                    Facing.turnToward(owner, towards);
+                }
+                owner.setPosition(dashEnd(owner, world, reachOf(skill, owner, towards)));
+            }
             case EMPOWER -> {
                 // Re-casting refreshes rather than stacking: two overlapping copies
                 // of the same buff is a question with no obvious answer, and the
@@ -136,6 +200,101 @@ public final class SkillBook extends UpdateModule implements DamageModifier {
                 boostPercent = skill.boostAt(level);
             }
         }
+        return true;
+    }
+
+    /**
+     * Take aim. Nothing is hurt yet — that is the whole point of a wind-up.
+     *
+     * <p>He turns to the target and his weapon is pointed at it, so the archer on
+     * screen is visibly drawing on something rather than standing idle while a
+     * monster's health drops for no reason the player can see. Pointing the weapon
+     * is not a cheat: he really is aiming at it, and if it is inside his ordinary
+     * range he would have been shooting at it anyway.
+     */
+    private void beginDrawing(Skill skill, int level, GameObject owner, GameObject victim) {
+        drawing = skill;
+        drawnAtLevel = level;
+        drawnFor = victim.getId();
+        loosesIn = skill.windUpFrames();
+        Facing.turnToward(owner, victim);
+        var weapon = owner.findModule(WeaponUpdate.class);
+        if (weapon != null) {
+            weapon.attack(victim.getId());
+        }
+    }
+
+    /**
+     * The drawn shot goes.
+     *
+     * <p>Its target may have died while he was drawing, and then the shot is simply
+     * lost — he committed when he pressed the key, and the cooldown went with it.
+     * That is the cost of a skill that takes time, and it is the reason it hits
+     * harder than the one that does not.
+     */
+    private void looseTheDrawnShot() {
+        var skill = drawing;
+        var owner = getOwner();
+        var world = owner.getWorld();
+        drawing = null;
+        if (world == null || owner.isEffectivelyDead()) {
+            return;
+        }
+        var victim = world.findObject(drawnFor);
+        if (victim == null || victim.isEffectivelyDead() || victim.getBody() == null) {
+            return;
+        }
+        Facing.turnToward(owner, victim);
+        land(skill, drawnAtLevel, owner, victim);
+    }
+
+    /**
+     * Deal a strike's damage — as an arrow if the skill has one, otherwise where
+     * the victim stands.
+     *
+     * <p>The figure is settled here rather than when the key was pressed, the same
+     * instant an ordinary shot settles its own: what he is worth is what he is
+     * worth as the string leaves his fingers.
+     */
+    private void land(Skill skill, int level, GameObject owner, GameObject victim) {
+        float damage = skill.damageAt(level) * damageMultiplier();
+        if (skill.hasProjectile() && Shot.loose(owner, victim, damage, DamageType.NORMAL,
+                skill.projectile(), settings.heavyArrowSpeed(), settings.arrowMuzzleOffset())) {
+            // The client draws a muzzle flash and plays the shooting sound off this
+            // — the same moment the bow announces, for the same reason.
+            var world = owner.getWorld();
+            world.post(new WeaponFired(world.getFrame(), owner.getId(), victim.getId(),
+                    owner.getPosition(), victim.getPosition()));
+            return;
+        }
+        victim.getBody().damage(damage);
+    }
+
+    /**
+     * The creature the player clicked, if it is still something he may hit from
+     * where he stands. Everything the un-aimed path checks, asked of one named
+     * thing instead of all of them.
+     */
+    private static GameObject aimedAt(GameObject owner, World world, ObjectId at, float range) {
+        var victim = world.findObject(at);
+        if (victim == null || victim.getBody() == null || victim.isEffectivelyDead()) {
+            return null;
+        }
+        if (world.getRelationship(owner.getPlayerIndex(), victim.getPlayerIndex())
+                != Relationship.ENEMIES) {
+            return null;
+        }
+        return World.reachBetween(owner, victim) <= range ? victim : null;
+    }
+
+    /**
+     * How far a dash actually carries: the skill's distance, or the spot he was
+     * pointed at if that is nearer. Sent two steps away he takes two steps —
+     * being flung the full distance past a click is not what the click said.
+     */
+    private static float reachOf(Skill skill, GameObject owner, Coord3D towards) {
+        return towards == null ? skill.distance()
+                : Math.min(skill.distance(), owner.getPosition().distance(towards));
     }
 
     /**
@@ -205,6 +364,9 @@ public final class SkillBook extends UpdateModule implements DamageModifier {
         }
         if (boostFrames > 0) {
             boostFrames--;
+        }
+        if (drawing != null && --loosesIn <= 0) {
+            looseTheDrawnShot();
         }
     }
 }

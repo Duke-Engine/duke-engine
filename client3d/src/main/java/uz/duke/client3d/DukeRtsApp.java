@@ -128,6 +128,7 @@ final class DukeRtsApp extends SimpleApplication {
     private BitmapText hud;
     private BitmapText buildMenu;
     private BitmapText banner;
+    private HeroPanel heroPanel;
 
     // minimap: fixed-size overlay in the bottom-right corner
     private static final float MINIMAP_SIZE = 190f;
@@ -154,6 +155,7 @@ final class DukeRtsApp extends SimpleApplication {
         Geometry ring;
         Node healthBar;
         Geometry healthFill;
+        Spatial body;      // the shape a click has to hit
         Geometry flash;
         AnimComposer composer;
         AnimChannel legacyChannel;
@@ -234,6 +236,8 @@ final class DukeRtsApp extends SimpleApplication {
         hint.setLocalTranslation(10, hint.getLineHeight() + 6f, 0);
         hint.setAlpha(0.6f);
         guiNode.attachChild(hint);
+
+        heroPanel = new HeroPanel(assetManager, guiFont, guiNode, cam.getWidth());
 
         buildMinimap();
         buildDragRectangle();
@@ -708,6 +712,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         hud.setLocalTranslation(10, height - 10f, 0);
         buildMenu.setLocalTranslation(10, height - 40f, 0);
+        heroPanel.resize(width);
         minimapX = width - minimap.widthPixels() - 12f;
         minimapNode.setLocalTranslation(minimapX, minimapY, 0);
         // menus are sized to the screen — rebuild the current one
@@ -827,15 +832,25 @@ final class DukeRtsApp extends SimpleApplication {
                     if (pressed && menu.isVisible()) {
                         menu.click(inputManager.getCursorPosition());
                     } else if (screen == Screen.PLAYING) {
-                        if (pressed) {
+                        if (pressed && arming != null) {
+                            // This click belongs to the armed key, not to selection.
+                            // The release is swallowed with it, or letting go would
+                            // end a drag that never began.
+                            aimArmedKey();
+                        } else if (pressed) {
                             beginDrag();
-                        } else {
+                        } else if (dragFrom != null) {
                             endDrag(shiftHeld[0]);
                         }
                     }
                 }
                 case "Order" -> {
-                    if (pressed && screen == Screen.PLAYING) {
+                    if (!pressed || screen != Screen.PLAYING) {
+                        break;
+                    }
+                    if (arming != null) {
+                        disarm(); // second thoughts, the way a right-click always means
+                    } else {
                         order();
                     }
                 }
@@ -855,7 +870,9 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                     switch (screen) {
                         case PLAYING -> {
-                            if (selected.isEmpty()) {
+                            if (arming != null) {
+                                disarm(); // back out of the aim before anything else
+                            } else if (selected.isEmpty()) {
                                 showPauseMenu();
                             } else {
                                 selected.clear();
@@ -874,12 +891,7 @@ final class DukeRtsApp extends SimpleApplication {
                     if (name.startsWith("Build")) {
                         queueBuild(Integer.parseInt(name.substring(5)) - 1);
                     } else if (name.startsWith(HOTKEY)) {
-                        // The game's own key. All it may do here is post a command;
-                        // the render thread has no business in the simulation.
-                        var action = hotkeys.all().get(name.charAt(HOTKEY.length()));
-                        if (action != null) {
-                            action.accept(game);
-                        }
+                        pressHotkey(name.charAt(HOTKEY.length()));
                     }
                 }
             }
@@ -924,21 +936,50 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /** The unit under the mouse cursor, or {@code null}. */
+    /**
+     * The unit under the cursor, found by the space it occupies rather than by its
+     * triangles.
+     *
+     * <p>Triangle-accurate picking stopped working the day the creatures got
+     * models. A skinned mesh is deformed on the graphics card; the copy this side
+     * keeps is the pose it was modelled in, so the shape the ray is tested against
+     * is not the shape on screen. Clicking a monster missed it and the click fell
+     * through to the floor behind — which reads as an order given to the wrong
+     * place rather than as a click that hit nothing.
+     *
+     * <p>Its bounding box does not care how a thing is posed. It is a more
+     * generous target than the mesh, which is the right way to be wrong: in a
+     * dungeon the cost of a click landing on the monster you meant is nothing, and
+     * the cost of it landing on the floor behind him is a hero who walks into a
+     * room instead of shooting into it.
+     *
+     * <p>Only things the game says are selectable, so an arrow crossing in front
+     * of a monster cannot be clicked instead of it.
+     */
     private UnitNode pickUnit() {
         var click = inputManager.getCursorPosition();
         var near = cam.getWorldCoordinates(new Vector2f(click.x, click.y), 0f);
-        var far = cam.getWorldCoordinates(new Vector2f(click.x, click.y), 1f);
-        var results = new CollisionResults();
-        unitsNode.collideWith(new Ray(near, far.subtract(near).normalizeLocal()), results);
-        for (var result : results) {
-            for (Spatial s = result.getGeometry(); s != null; s = s.getParent()) {
-                Integer id = s.getUserData("unitId");
-                if (id != null) {
-                    return unitNodes.get(id);
-                }
+        var ray = new Ray(near, cam.getWorldCoordinates(new Vector2f(click.x, click.y), 1f)
+                .subtract(near).normalizeLocal());
+        UnitNode nearest = null;
+        float closest = Float.MAX_VALUE;
+        for (var node : unitNodes.values()) {
+            if (node.view == null || !node.view.selectable() || node.body == null) {
+                continue;
+            }
+            var bound = node.body.getWorldBound();
+            if (bound == null || !bound.intersects(ray)) {
+                continue;
+            }
+            // Nearest to the camera wins, so clicking a monster standing in front
+            // of another picks the one you can see.
+            float away = bound.getCenter().distance(near);
+            if (away < closest) {
+                closest = away;
+                nearest = node;
             }
         }
-        return null;
+        return nearest;
     }
 
     /** Where the mouse ray hits the ground plane, or {@code null}. */
@@ -967,6 +1008,73 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** Where the left button went down, or {@code null} when it is not down. */
     private Vector2f dragFrom;
+
+    /** The game key that has been pressed and is waiting to be pointed at something. */
+    private Character arming;
+
+    /**
+     * A game key was pressed.
+     *
+     * <p>Most act at once. One that needs pointing at something instead goes
+     * quiet and waits for the next click — pressed again it thinks better of it,
+     * and so does a right-click or escape. All any of this may do in the end is
+     * post a command: the render thread has no business in the simulation.
+     */
+    private void pressHotkey(char key) {
+        var binding = hotkeys.all().get(key);
+        if (binding == null) {
+            return;
+        }
+        if (binding.aim() == Hotkeys.Aim.NOW) {
+            disarm();
+            binding.run().accept(game, null);
+            return;
+        }
+        if (arming != null && arming == key) {
+            disarm();
+            return;
+        }
+        // Refusing here rather than arming and going quiet: a slot the panel is
+        // already showing as spent would take a click and do nothing with it.
+        if (!heroPanel.readyToCast(key)) {
+            return;
+        }
+        arming = key;
+        heroPanel.arm(key);
+    }
+
+    private void disarm() {
+        arming = null;
+        heroPanel.arm(null);
+    }
+
+    /**
+     * The click that completes an armed key. Clicking nothing usable drops it,
+     * rather than leaving the player armed and wondering why nothing happened.
+     */
+    private void aimArmedKey() {
+        var binding = hotkeys.all().get(arming);
+        disarm();
+        if (binding == null) {
+            return;
+        }
+        if (binding.aim() == Hotkeys.Aim.UNIT) {
+            var unit = pickUnit();
+            if (unit == null) {
+                return;
+            }
+            binding.run().accept(game, new Hotkeys.Aimed(unit.view.id(), null));
+            markOrder(unit.view.x(), unit.view.y(), OrderMarkers.Kind.ATTACK);
+            return;
+        }
+        var ground = pickGround();
+        if (ground == null) {
+            return;
+        }
+        binding.run().accept(game,
+                new Hotkeys.Aimed(0, new Coord3D(ground.x, ground.z, 0f)));
+        markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
+    }
 
     private void beginDrag() {
         if (minimapClick()) {
@@ -1353,6 +1461,7 @@ final class DukeRtsApp extends SimpleApplication {
             body.setLocalScale(visual.scale);
             body.setLocalTranslation(0, visual.yOffset, 0);
         }
+        node.body = body;
         node.root.attachChild(body);
 
         node.ring = buildSelectionRing(view);
@@ -1645,10 +1754,14 @@ final class DukeRtsApp extends SimpleApplication {
         String power = snapshot.localPlayerPowerSurplus() >= 0
                 ? "+" + snapshot.localPlayerPowerSurplus()
                 : String.valueOf(snapshot.localPlayerPowerSurplus());
+        // A game whose status the panel can draw gets it drawn; anything else is
+        // still written out along the top, which is what every game got before.
+        boolean drawn = heroPanel.show(snapshot.hasStatus() ? snapshot.status() : null,
+                (float) timer.getTimeInSeconds());
         hud.setText("$ %d    power %s    t=%.1fs    selected %d%s%s%s".formatted(
                 snapshot.localPlayerMoney(), power, snapshot.gameTimeSeconds(),
                 selected.size(), selectedHealth(),
-                snapshot.hasStatus() ? "    " + snapshot.status() : "",
+                snapshot.hasStatus() && !drawn ? "    " + snapshot.status() : "",
                 snapshot.paused() ? "    [PAUSED]" : ""));
 
         var producer = selectedProducer();

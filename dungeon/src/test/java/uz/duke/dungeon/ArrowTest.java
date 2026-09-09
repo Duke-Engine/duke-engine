@@ -81,7 +81,7 @@ class ArrowTest {
     /** Firing puts something in the world rather than simply hurting the target. */
     @Test
     void aShotBecomesAnArrow() {
-        var duel = shootAt(70f);
+        var duel = shootAt(50f);
 
         duel.game().runHeadless(2);
 
@@ -97,7 +97,7 @@ class ArrowTest {
      */
     @Test
     void nothingIsHurtWhileTheArrowIsStillFlying() {
-        var duel = shootAt(70f);
+        var duel = shootAt(50f);
         float before = duel.victim().getBody().getHealth();
 
         duel.game().runHeadless(2);
@@ -110,7 +110,7 @@ class ArrowTest {
     /** It arrives, and then it hurts. */
     @Test
     void whenItArrivesTheDamageLands() {
-        var duel = shootAt(70f);
+        var duel = shootAt(50f);
         float before = duel.victim().getBody().getHealth();
 
         duel.game().runHeadless(30);
@@ -128,7 +128,7 @@ class ArrowTest {
      */
     @Test
     void itChasesATargetThatIsMoving() {
-        var duel = shootAt(80f);
+        var duel = shootAt(50f);
         var startedAt = duel.victim().getPosition();
         float before = duel.victim().getBody().getHealth();
 
@@ -148,7 +148,7 @@ class ArrowTest {
      */
     @Test
     void anArrowStartsOutInFrontOfTheArcher() {
-        var duel = shootAt(70f);
+        var duel = shootAt(50f);
         var arrow = firstArrow(duel);
 
         float outInFront = arrow.getPosition().distance(duel.hero().getPosition());
@@ -194,7 +194,7 @@ class ArrowTest {
     /** Nothing stays in the air for ever: an arrow that lands is gone. */
     @Test
     void anArrowThatArrivesIsTakenAway() {
-        var duel = shootAt(40f);
+        var duel = shootAt(30f);
 
         duel.game().runHeadless(2);
         assertTrue(arrowsInTheAir(duel.game()) > 0);
@@ -211,7 +211,7 @@ class ArrowTest {
      */
     @Test
     void anArrowWhoseTargetDiesFirstIsGivenUp() {
-        var duel = shootAt(80f);
+        var duel = shootAt(50f);
         duel.game().runHeadless(2);
         assertTrue(arrowsInTheAir(duel.game()) > 0, "one is in the air");
 
@@ -231,7 +231,7 @@ class ArrowTest {
      */
     @Test
     void killingWithAnArrowStillEarnsExperience() {
-        var duel = shootAt(60f);
+        var duel = shootAt(45f);
         var experience = duel.hero().findModule(ExperienceModule.class);
         assertNotNull(experience);
         assertEquals(0, experience.getExperience(), "he has killed nothing yet");
@@ -253,7 +253,7 @@ class ArrowTest {
      */
     @Test
     void anArrowIsNeitherATargetNorAnObstacle() {
-        var duel = shootAt(80f);
+        var duel = shootAt(50f);
         duel.game().runHeadless(2);
 
         var arrow = creature(duel.game(), "Arrow");
@@ -264,10 +264,96 @@ class ArrowTest {
                 "with a shape, it would shoulder monsters aside on its way past");
     }
 
+    /**
+     * He shoots or he walks, never both.
+     *
+     * <p>A bow is drawn standing still. An archer who looses arrows at a jog is an
+     * archer for whom moving costs nothing, and then the range is not something he
+     * has to hold — it is something he keeps while retreating for ever.
+     */
+    @Test
+    void heDoesNotShootWhileWalking() {
+        var world = Dungeon.world(arena(), SETTINGS);
+        var game = world.game();
+        game.spawn("Hero", world.hero(), 150f, 150f);
+        // Beyond his bow to begin with, and beyond it again when he arrives, so
+        // the only stretch in which he could hit it is the walk past it.
+        game.spawn("Skeleton", world.dungeon(), 300f, 150f);
+        game.runHeadless(1);
+        var hero = creature(game, "Hero");
+        var victim = creature(game, "Skeleton");
+        var destination = new Coord3D(450f, 150f, 0f);
+
+        game.postCommand(new GameMessage.MoveTo(game.getLocalPlayerIndex(),
+                List.of(hero.getId()), destination));
+        game.runHeadless(360);
+
+        assertTrue(hero.getPosition().distance(destination) < 20f,
+                "he should have walked past it and arrived, but stopped at "
+                        + hero.getPosition());
+        assertEquals(victim.getBody().getMaxHealth(), victim.getBody().getHealth(), 0.01f,
+                "he shot it on the way past");
+    }
+
+    /** And starts again the moment he stops. */
+    @Test
+    void heShootsAgainOnceHeIsStanding() {
+        var world = Dungeon.world(arena(), SETTINGS);
+        var game = world.game();
+        game.spawn("Hero", world.hero(), 150f, 150f);
+        game.spawn("Skeleton", world.dungeon(), 300f, 150f);
+        game.runHeadless(1);
+        var hero = creature(game, "Hero");
+        var victim = creature(game, "Skeleton");
+
+        // Sent to a spot the skeleton is standing within bow-shot of, and then
+        // left there long enough for the bow to come up.
+        game.postCommand(new GameMessage.MoveTo(game.getLocalPlayerIndex(),
+                List.of(hero.getId()), new Coord3D(250f, 150f, 0f)));
+        game.runHeadless(240);
+
+        assertTrue(victim.getBody().getHealth() < victim.getBody().getMaxHealth(),
+                "standing within reach of it, he should have shot it");
+    }
+
+    /**
+     * Sending him somewhere still outranks an attack order, which is the thing
+     * remembering the target himself could most easily have broken.
+     *
+     * <p>The brain now keeps hold of what he was pointed at, because walking
+     * disarms him and a disarmed weapon has forgotten. Something has to notice
+     * when the player changes his mind, and what notices is where he is headed.
+     */
+    @Test
+    void aMoveOrderStillCancelsAnAttackOrder() {
+        var world = Dungeon.world(arena(), SETTINGS);
+        var game = world.game();
+        game.spawn("Hero", world.hero(), 150f, 150f);
+        game.spawn("Skeleton", world.dungeon(), 320f, 150f); // beyond his bow: an order
+        game.runHeadless(1);
+        var hero = creature(game, "Hero");
+        var victim = creature(game, "Skeleton");
+
+        game.postCommand(new GameMessage.AttackObject(game.getLocalPlayerIndex(),
+                List.of(hero.getId()), victim.getId()));
+        game.runHeadless(20);
+        assertTrue(hero.getPosition().x() > 155f, "he should have set off toward it");
+
+        // Well off his line to the skeleton, and inside the arena: the map this
+        // test builds is 60 by 30 cells, which is 600 by 300 in world units.
+        var away = new Coord3D(150f, 250f, 0f);
+        game.postCommand(new GameMessage.MoveTo(game.getLocalPlayerIndex(),
+                List.of(hero.getId()), away));
+        game.runHeadless(500);
+
+        assertTrue(hero.getPosition().distance(away) < 25f,
+                "he went back to the skeleton instead, ending at " + hero.getPosition());
+    }
+
     /** The hero still fights: none of this leaves him unable to kill anything. */
     @Test
     void heCanStillKillWhatHeShootsAt() {
-        var duel = shootAt(70f);
+        var duel = shootAt(50f);
 
         duel.game().runHeadless(400);
 

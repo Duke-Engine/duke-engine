@@ -12,18 +12,44 @@ package uz.duke.dungeon.skill;
  * hit one thing hard, hit everything near you, be somewhere else, be briefly
  * stronger. A fifth shape is a new constant and one branch in
  * {@link SkillBook}; a fifth <em>skill</em> is neither.
+ *
+ * <p>Each carries what the player has to point at before it can be cast. That is
+ * a property of the effect rather than of the skill: a strike is aimed at
+ * something whatever its numbers say, and there is no useful sense in which one
+ * hero's dash is aimed and another's is not.
  */
 public enum SkillEffect {
 
-    /** Damage the nearest enemy within range. */
-    STRIKE,
+    /** Damage one chosen enemy within range. */
+    STRIKE(Aim.UNIT),
 
     /** Damage every enemy within a radius of the caster. */
-    AREA_DAMAGE,
+    AREA_DAMAGE(Aim.SELF),
 
-    /** Move the caster forward along their facing — closing or escaping. */
-    DASH,
+    /** Move the caster toward a chosen spot — closing or escaping. */
+    DASH(Aim.GROUND),
 
     /** Raise the caster's own damage for a while. */
-    EMPOWER
+    EMPOWER(Aim.SELF);
+
+    /** What a player has to click before the cast can go through. */
+    public enum Aim {
+        /** Nothing: it goes off where he stands, the moment the key is pressed. */
+        SELF,
+        /** A creature. */
+        UNIT,
+        /** A spot on the floor. */
+        GROUND
+    }
+
+    private final Aim aim;
+
+    SkillEffect(Aim aim) {
+        this.aim = aim;
+    }
+
+    /** What has to be pointed at for this effect to be cast. */
+    public Aim aim() {
+        return aim;
+    }
 }

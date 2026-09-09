@@ -31,6 +31,12 @@ package uz.duke.dungeon.skill;
  * @param cooldownFrames how long before it can be cast again, at the first level
  * @param cooldownPerLevel  frames added per level — negative to sharpen with level
  * @param unlockLevel   the level it becomes usable at; an ultimate waits
+ * @param windUpFrames  how long the caster spends preparing before it goes off —
+ *     zero for a skill that is instant. A drawn shot has to be seen being drawn,
+ *     or the monster simply loses health for no reason anyone can point at.
+ * @param projectile    the creature a {@code STRIKE} becomes on its way, or empty
+ *     to land where it stands. An arrow that crosses the room is the difference
+ *     between a shot and an accusation.
  */
 public record Skill(
         String heroTemplate,
@@ -46,7 +52,9 @@ public record Skill(
         int durationFrames,
         int cooldownFrames,
         int cooldownPerLevel,
-        int unlockLevel) {
+        int unlockLevel,
+        int windUpFrames,
+        String projectile) {
 
     /**
      * A cooldown can shorten with level but never vanish: a skill castable every
@@ -74,5 +82,10 @@ public record Skill(
     /** Whether a hero of this level may cast it at all. */
     public boolean unlockedAt(int level) {
         return level >= unlockLevel;
+    }
+
+    /** Whether it becomes something that has to cross the room to arrive. */
+    public boolean hasProjectile() {
+        return projectile != null && !projectile.isBlank();
     }
 }

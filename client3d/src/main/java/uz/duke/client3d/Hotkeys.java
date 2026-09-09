@@ -3,7 +3,9 @@ package uz.duke.client3d;
 import com.jme3.input.KeyInput;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import uz.duke.core.math.Coord3D;
 import uz.duke.game.DukeGame;
 
 /**
@@ -32,8 +34,32 @@ public final class Hotkeys {
         KeyInput.KEY_Z,
     };
 
+    /**
+     * What a key needs before it can do anything.
+     *
+     * <p>Some orders are not complete without a thing to aim them at, and the only
+     * one who knows what that is is the player. So the client keeps the two-step:
+     * press the key, then click; press it again, click elsewhere, or press escape
+     * to think better of it. What to do once it is aimed stays the game's.
+     */
+    public enum Aim {
+        /** Nothing: the key acts the moment it is pressed. */
+        NOW,
+        /** A creature, chosen by clicking one. */
+        UNIT,
+        /** A spot on the floor, chosen by clicking it. */
+        GROUND
+    }
+
+    /** What the player pointed at — one of the two is filled in, per the aim. */
+    record Aimed(int unitId, Coord3D point) {
+    }
+
+    record Binding(Aim aim, BiConsumer<DukeGame, Aimed> run) {
+    }
+
     /** In declaration order, so a game's own listing order is what gets bound. */
-    private final Map<Character, Consumer<DukeGame>> bindings = new LinkedHashMap<>();
+    private final Map<Character, Binding> bindings = new LinkedHashMap<>();
 
     private Hotkeys() {
     }
@@ -53,11 +79,31 @@ public final class Hotkeys {
      * controls are the ones it knows it needs.
      */
     public Hotkeys on(char key, Consumer<DukeGame> action) {
-        bindings.put(Character.toUpperCase(key), action);
+        return bind(key, Aim.NOW, (game, aimed) -> action.accept(game));
+    }
+
+    /**
+     * Bind a letter that first asks the player to click a creature.
+     *
+     * <p>The press arms it and nothing is sent; the next left-click on a creature
+     * sends the order with that creature's id. Clicking anywhere else, pressing the
+     * key again, or pressing escape drops it.
+     */
+    public Hotkeys onUnit(char key, java.util.function.ObjIntConsumer<DukeGame> action) {
+        return bind(key, Aim.UNIT, (game, aimed) -> action.accept(game, aimed.unitId()));
+    }
+
+    /** The same, for a letter that first asks the player to click the floor. */
+    public Hotkeys onGround(char key, BiConsumer<DukeGame, Coord3D> action) {
+        return bind(key, Aim.GROUND, (game, aimed) -> action.accept(game, aimed.point()));
+    }
+
+    private Hotkeys bind(char key, Aim aim, BiConsumer<DukeGame, Aimed> run) {
+        bindings.put(Character.toUpperCase(key), new Binding(aim, run));
         return this;
     }
 
-    Map<Character, Consumer<DukeGame>> all() {
+    Map<Character, Binding> all() {
         return bindings;
     }
 

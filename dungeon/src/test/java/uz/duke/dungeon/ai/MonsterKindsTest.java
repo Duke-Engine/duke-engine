@@ -80,7 +80,7 @@ class MonsterKindsTest {
     void theRunnerClosesFasterThanTheBrute() {
         // Inside the brute's shorter notice, so both have seen him and only
         // their speed differs.
-        float start = 65f;
+        float start = 35f;
         var runner = fight("Runner", start);
         var brute = fight("Brute", start);
 
@@ -169,7 +169,7 @@ class MonsterKindsTest {
     /** The skeleton, by contrast, walks all the way in. */
     @Test
     void theSkeletonClosesAllTheWay() {
-        var fight = fight("Skeleton", 80f);
+        var fight = fight("Skeleton", 30f);
 
         fight.game().runHeadless(400);
 
@@ -275,7 +275,7 @@ class MonsterKindsTest {
         var arena = Dungeon.world(ARENA, blind);
         var game = arena.game();
         game.spawn("Hero", arena.hero(), 150f, 200f);
-        game.spawn("Skeleton", arena.dungeon(), 230f, 200f); // inside his bow, outside its ears
+        game.spawn("Skeleton", arena.dungeon(), 200f, 200f); // inside his bow, outside its ears
         game.runHeadless(1);
         var monster = creature(game, "Skeleton");
         var hero = creature(game, "Hero");

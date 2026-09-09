@@ -113,22 +113,15 @@ public final class DungeonRun {
     }
 
     /**
-     * The line the HUD shows: where he is and what he has become.
+     * What the hero's panel shows: where he is and what he has become.
      *
      * <p>Goes through the snapshot's status channel, which the engine carries and
      * never reads — depth and levels are this game's arithmetic and the engine has
-     * no name for either.
+     * no name for either. See {@link HeroStatus} for what is in the line.
      */
     private void showStatus(DukeGame game) {
-        var line = new StringBuilder("Depth %d    Level %d    xp %d/%d".formatted(
-                depth, progress.getLevel(), progress.getExperienceIntoLevel(),
-                progress.getExperienceForNextLevel()));
-        var hero = Skills.heroOf(game.getLogic(), heroPlayer.getIndex());
-        var book = hero == null ? null : hero.findModule(SkillBook.class);
-        if (book != null && !book.getSkills().isEmpty()) {
-            line.append("        ").append(Skills.bar(book, progress.getLevel()));
-        }
-        game.setStatus(line.toString());
+        game.setStatus(HeroStatus.of(Skills.heroOf(game.getLogic(), heroPlayer.getIndex()),
+                progress, depth, settings));
     }
 
     private void whileDead(DukeGame game) {

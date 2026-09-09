@@ -87,7 +87,7 @@ class DungeonFogTest {
         assertTrue(creaturesSeeing(80).contains("VisionRange = 80"));
         assertFalse(creaturesSeeing(80).contains("VisionRange = 600"));
         // Only his: a monster's own sight is its own block and must be untouched.
-        assertTrue(creaturesSeeing(80).contains("VisionRange = 90"),
+        assertTrue(creaturesSeeing(80).contains("VisionRange = 58"),
                 "the skeleton's sight should not have been rewritten too");
     }
 

@@ -117,7 +117,7 @@ public final class Dungeon {
                     // and his own DungeonSkill blocks, and no code at all.
                     factory.register("SkillBook",
                             (owner, data) -> new SkillBook(owner,
-                                    settings.skillsFor(owner.getTemplate().getName())),
+                                    settings.skillsFor(owner.getTemplate().getName()), settings),
                             SkillBook::parseData);
                     // An archer's shots become things in the world. The engine's
                     // weapon still aims and reloads; these two decide what

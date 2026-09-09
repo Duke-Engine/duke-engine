@@ -41,48 +41,14 @@ public final class Bow extends Module implements ProjectileLauncher {
             new uz.duke.core.ini.FieldParseTable<>();
 
     /**
-     * Where the arrow appears: out at the bow rather than in the middle of the
-     * archer.
-     *
-     * <p>Starting it at his position puts it inside him, and what the player sees
-     * is a shaft squeezing out of his chest and setting off. The bow is held out
-     * in front, and in front is where he is facing — he turns to shoot, so his
-     * heading is the line of the shot.
-     *
-     * <p>Never further out than the target is, so a shot at something almost
-     * touching him does not begin behind it and have to turn round.
+     * Declining rather than swallowing the shot: a hero whose arrow is missing
+     * from the data files should still be able to fight, and the weapon then lands
+     * it the old way. See {@link Shot} for where it comes out and how it flies —
+     * shared with his heavy shot, which is a skill rather than a weapon.
      */
-    private uz.duke.core.math.Coord3D atTheBow(GameObject shooter, GameObject victim) {
-        var from = shooter.getPosition();
-        float reach = Math.min(settings.arrowMuzzleOffset(),
-                from.distance(victim.getPosition()) * 0.5f);
-        float facing = shooter.getOrientation();
-        return new uz.duke.core.math.Coord3D(
-                from.x() + (float) StrictMath.cos(facing) * reach,
-                from.y() + (float) StrictMath.sin(facing) * reach,
-                from.z());
-    }
-
     @Override
     public boolean launch(GameObject shooter, GameObject victim, float damage, DamageType type) {
-        var world = shooter.getWorld();
-        if (world == null) {
-            return false;
-        }
-        var template = world.findTemplate(settings.arrowTemplate());
-        if (template == null) {
-            // Declining rather than swallowing the shot: a hero whose arrow is
-            // missing from the data files should still be able to fight, and the
-            // weapon lands it the old way.
-            return false;
-        }
-        var arrow = world.spawn(template, atTheBow(shooter, victim), shooter.getPlayerIndex());
-        var flight = arrow.findModule(ArrowUpdate.class);
-        if (flight == null) {
-            arrow.markDestroyed();
-            return false; // the template exists but is not an arrow
-        }
-        flight.loose(shooter, victim, damage, type, settings.arrowSpeed());
-        return true;
+        return Shot.loose(shooter, victim, damage, type, settings.arrowTemplate(),
+                settings.arrowSpeed(), settings.arrowMuzzleOffset());
     }
 }

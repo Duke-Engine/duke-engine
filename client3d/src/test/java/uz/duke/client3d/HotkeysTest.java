@@ -90,6 +90,56 @@ class HotkeysTest {
         assertEquals(-1, Hotkeys.codeOf(' '));
     }
 
+    // ---- keys that wait to be pointed at something ----
+
+    /**
+     * A plain key acts on the press; the other two go quiet and wait for a click.
+     *
+     * <p>Which is the whole difference the client needs to know about. What is done
+     * with the creature or the spot once it is chosen stays the game's, and this
+     * class never looks inside it.
+     */
+    @Test
+    void aKeyKnowsWhetherItNeedsPointingAtSomething() {
+        var keys = Hotkeys.create();
+        keys.on('W', game -> { });
+        keys.onUnit('Q', (game, id) -> { });
+        keys.onGround('E', (game, spot) -> { });
+
+        assertEquals(Hotkeys.Aim.NOW, keys.all().get('W').aim());
+        assertEquals(Hotkeys.Aim.UNIT, keys.all().get('Q').aim());
+        assertEquals(Hotkeys.Aim.GROUND, keys.all().get('E').aim());
+    }
+
+    /** An aimed key still takes its letter off the client's own controls. */
+    @Test
+    void anAimedKeyIsClaimedLikeAnyOther() {
+        var keys = Hotkeys.create();
+        keys.onGround('S', (game, spot) -> { });
+
+        assertTrue(keys.claims(KeyInput.KEY_S));
+        assertArrayEquals(new int[] {KeyInput.KEY_DOWN},
+                keys.unclaimed(KeyInput.KEY_S, KeyInput.KEY_DOWN));
+    }
+
+    /** What the player pointed at reaches the game's own code, unchanged. */
+    @Test
+    void whatWasPointedAtIsHandedOn() {
+        var chosen = new int[] {-1};
+        var landed = new uz.duke.core.math.Coord3D[1];
+        var keys = Hotkeys.create();
+        keys.onUnit('Q', (game, id) -> chosen[0] = id);
+        keys.onGround('E', (game, spot) -> landed[0] = spot);
+
+        keys.all().get('Q').run().accept(null, new Hotkeys.Aimed(42, null));
+        keys.all().get('E').run().accept(null,
+                new Hotkeys.Aimed(0, new uz.duke.core.math.Coord3D(7f, 9f, 0f)));
+
+        assertEquals(42, chosen[0]);
+        assertEquals(7f, landed[0].x(), 0.001f);
+        assertEquals(9f, landed[0].y(), 0.001f);
+    }
+
     /** The letters really are the letters, not an off-by-one through the table. */
     @Test
     void everyLetterMapsToItsOwnKey() {

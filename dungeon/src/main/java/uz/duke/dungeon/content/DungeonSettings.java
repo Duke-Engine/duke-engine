@@ -162,6 +162,10 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, ARROW_LOOK);
                 }),
+                Map.entry("DungeonHud", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, HUD);
+                }),
                 // Repeatable, and named by whose skill it is: the block header is
                 // the hero's template and the key that casts it. A second hero is
                 // four more of these and no Java — the roster lives in the file.
@@ -396,6 +400,8 @@ public final class DungeonSettings {
         int cooldownFrames = 90;
         int cooldownPerLevel;
         int unlockLevel = 1;
+        int windUpFrames;
+        String projectile = "";
 
         SkillBuilder(String heroTemplate, String key) {
             this.heroTemplate = heroTemplate;
@@ -405,7 +411,7 @@ public final class DungeonSettings {
         Skill build() {
             return new Skill(heroTemplate, key, effect, damage, damagePerLevel, radius, range,
                     distance, boostPercent, boostPerLevel, durationFrames, cooldownFrames,
-                    cooldownPerLevel, unlockLevel);
+                    cooldownPerLevel, unlockLevel, windUpFrames, projectile);
         }
     }
 
@@ -422,7 +428,9 @@ public final class DungeonSettings {
                     .add("DurationFrames", Ini.integer((s, v) -> s.durationFrames = v))
                     .add("CooldownFrames", Ini.integer((s, v) -> s.cooldownFrames = v))
                     .add("CooldownPerLevel", Ini.integer((s, v) -> s.cooldownPerLevel = v))
-                    .add("UnlockLevel", Ini.integer((s, v) -> s.unlockLevel = v));
+                    .add("UnlockLevel", Ini.integer((s, v) -> s.unlockLevel = v))
+                    .add("WindUpFrames", Ini.integer((s, v) -> s.windUpFrames = v))
+                    .add("Projectile", Ini.string((s, v) -> s.projectile = v));
 
     /**
      * The modular kit the floor is drawn from, with each piece's full asset path.
@@ -537,6 +545,30 @@ public final class DungeonSettings {
                 arrowHeight, arrowTint);
     }
 
+    private String heavyArrowTemplate = "HeavyArrow";
+    private float heavyArrowScale = 16f;
+    private float heavyArrowSpeed = 120f;
+    private int heavyArrowTint = 0xE8A33D;
+
+    /** The creature a drawn shot becomes — the same shaft, drawn bigger. */
+    public String heavyArrowTemplate() {
+        return heavyArrowTemplate;
+    }
+
+    /**
+     * Slower than an ordinary arrow, on purpose. It is the one shot the player
+     * chose to spend, so it is the one worth watching cross the room.
+     */
+    public float heavyArrowSpeed() {
+        return heavyArrowSpeed;
+    }
+
+    /** The same model and part as an ordinary arrow, bigger and lit differently. */
+    public ArrowLook heavyArrowLook() {
+        return new ArrowLook(arrowModel, arrowPart, heavyArrowScale, arrowFacing,
+                arrowHeight, heavyArrowTint);
+    }
+
     private static final FieldParseTable<DungeonSettings> ARROW_LOOK =
             new FieldParseTable<DungeonSettings>()
                     .add("Model", Ini.string((s, v) -> s.arrowModel = v))
@@ -544,7 +576,33 @@ public final class DungeonSettings {
                     .add("Scale", Ini.real((s, v) -> s.arrowScale = v))
                     .add("Facing", Ini.real((s, v) -> s.arrowFacing = v))
                     .add("Height", Ini.real((s, v) -> s.arrowHeight = v))
-                    .add("Tint", (ini, s) -> s.arrowTint = Integer.decode(ini.getNextToken()));
+                    .add("Tint", (ini, s) -> s.arrowTint = Integer.decode(ini.getNextToken()))
+                    .add("HeavyTemplate", Ini.string((s, v) -> s.heavyArrowTemplate = v))
+                    .add("HeavyScale", Ini.real((s, v) -> s.heavyArrowScale = v))
+                    .add("HeavySpeed", Ini.real((s, v) -> s.heavyArrowSpeed = v))
+                    .add("HeavyTint",
+                            (ini, s) -> s.heavyArrowTint = Integer.decode(ini.getNextToken()));
+
+    private String hudDepthWord = "DEPTH";
+    private String hudRankSuffix = "-lv";
+
+    /** The word under the depth numeral on the hero's panel. */
+    public String hudDepthWord() {
+        return hudDepthWord;
+    }
+
+    /**
+     * What turns a level into the words beside his name — added straight onto the
+     * number, so "-daraja" makes "7-daraja" and " lv" would make "7 lv".
+     */
+    public String hudRankSuffix() {
+        return hudRankSuffix;
+    }
+
+    private static final FieldParseTable<DungeonSettings> HUD =
+            new FieldParseTable<DungeonSettings>()
+                    .add("DepthWord", Ini.restOfLine((s, v) -> s.hudDepthWord = v))
+                    .add("RankSuffix", Ini.restOfLine((s, v) -> s.hudRankSuffix = v));
 
     private static final FieldParseTable<DungeonSettings> HERO_LOOK =
             new FieldParseTable<DungeonSettings>()

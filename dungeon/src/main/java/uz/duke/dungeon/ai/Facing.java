@@ -1,5 +1,6 @@
 package uz.duke.dungeon.ai;
 
+import uz.duke.core.math.Coord3D;
 import uz.duke.core.thing.GameObject;
 
 /**
@@ -21,15 +22,20 @@ import uz.duke.core.thing.GameObject;
  * {@code Math.atan2} may use platform intrinsics and differ in the last bit, and
  * orientation is part of the world's checksum.
  */
-final class Facing {
+public final class Facing {
 
     private Facing() {
     }
 
     /** Turn {@code fighter} to look at {@code target}, if they are not on the same spot. */
-    static void turnToward(GameObject fighter, GameObject target) {
-        float dx = target.getPosition().x() - fighter.getPosition().x();
-        float dy = target.getPosition().y() - fighter.getPosition().y();
+    public static void turnToward(GameObject fighter, GameObject target) {
+        turnToward(fighter, target.getPosition());
+    }
+
+    /** Turn {@code fighter} to look at a spot — where he was sent, rather than at whom. */
+    public static void turnToward(GameObject fighter, Coord3D spot) {
+        float dx = spot.x() - fighter.getPosition().x();
+        float dy = spot.y() - fighter.getPosition().y();
         if (dx == 0f && dy == 0f) {
             return; // nothing to aim at; keep the heading we have
         }

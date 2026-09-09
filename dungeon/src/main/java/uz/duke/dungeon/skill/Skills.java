@@ -29,7 +29,8 @@ public final class Skills {
             return false;
         }
         var book = hero.findModule(SkillBook.class);
-        return book != null && book.cast(order.key(), level);
+        return book != null
+                && book.cast(order.key(), level, order.target(), order.point());
     }
 
     /** The player's living unit that has skills, in creation order. */
@@ -45,36 +46,33 @@ public final class Skills {
     }
 
     /**
-     * The skill bar, as one line of the status channel.
+     * The four slots, as fields of the status channel — one {@code |skill=…} each,
+     * in the order the file lists them.
      *
-     * <p>Each skill is its key and its state: ready, the seconds left, or the level
-     * it is waiting for. Seconds rather than frames here and only here — frames are
-     * what the simulation counts, and a player reading a number off the screen
-     * thinks in seconds.
+     * <p>A slot is its key and one of three states: {@code ready}, {@code cool}
+     * with the frames left and the frames it started from, or {@code lock} with the
+     * words to write across it. The cooldown crosses as a pair rather than as a
+     * count of seconds because the panel draws it as well as writes it, and a
+     * fraction is what a shadow sweeping round a slot is made of.
+     *
+     * <p>{@code rankSuffix} is the game's word for a level, so that a locked slot
+     * can say what it is waiting for in the same language as the rest of the panel.
      */
-    public static String bar(SkillBook book, int level) {
-        var line = new StringBuilder();
+    public static String slots(SkillBook book, int level, String rankSuffix) {
+        var fields = new StringBuilder();
         for (var skill : book.getSkills()) {
-            if (!line.isEmpty()) {
-                line.append("  ");
+            fields.append("|skill=").append(skill.key()).append(',');
+            if (!skill.unlockedAt(level)) {
+                fields.append("lock,").append(skill.unlockLevel()).append(rankSuffix);
+                continue;
             }
-            line.append(skill.key()).append(' ').append(state(book, skill, level));
+            int left = book.cooldownOf(skill.key());
+            if (left <= 0) {
+                fields.append("ready");
+            } else {
+                fields.append("cool,").append(left).append(',').append(skill.cooldownAt(level));
+            }
         }
-        return line.toString();
+        return fields.toString();
     }
-
-    private static String state(SkillBook book, Skill skill, int level) {
-        if (!skill.unlockedAt(level)) {
-            return "lv" + skill.unlockLevel();
-        }
-        int left = book.cooldownOf(skill.key());
-        if (left <= 0) {
-            return "ready";
-        }
-        // Rounded up, so a bar never reads 0 while the skill is still refusing.
-        return (left + FRAMES_PER_SECOND - 1) / FRAMES_PER_SECOND + "s";
-    }
-
-    private static final int FRAMES_PER_SECOND =
-            uz.duke.core.GameConstants.LOGICFRAMES_PER_SECOND;
 }
