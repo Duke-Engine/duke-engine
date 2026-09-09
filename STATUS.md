@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 347 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 370 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -924,7 +924,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **347 test yashil** (core 133, rts 94, generals 5, game 23, client3d 39, studio 8, dungeon 45) — 0 failure / 0 error.
+- **370 test yashil** (core 133, rts 94, generals 5, game 23, client3d 39, studio 8, dungeon 68) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1025,6 +1025,32 @@ ikkala peer aynan bir kadrda qo'llaydi.
   `hp joriy/maksimal` i — HP o'sishi shu orqali ko'rinadi. To'liq daraja/XP qatori
   hozircha **yo'q**: `WorldSnapshot` da o'yin belgilaydigan ko'rsatkich uchun maydon yo'q
   va `game` ga tegilmadi. Buning uchun snapshotga bitta "status line" maydoni kerak.
+- **Dushman xilma-xilligi va chuqurlik** — besh tur (Skeleton, Runner, Brute, Archer,
+  Revenant) va boss. **Bitta miya, turlar bo'yicha parametrlar:** archer boshqa aql
+  emas, u shunchaki uzoqroqda to'xtaydigan aql (`CloseDistance` — yaqinlashadigan
+  narsa bilan otadigan narsa orasidagi butun farq). Har turga alohida sinf yozilsa,
+  beshinchi tur bitta sinf, yigirmanchisi yigirmata bo'lardi.
+  **Yangi tur = ikki blok INI, Java yo'q:** `dungeon.ini` da `DungeonMonster` bloki
+  (xulq + qaysi chuqurlikdan chiqadi + qanchalik tez-tez + rang/o'lcham) va
+  `monsters.ini` da template. O'yin brainlarni shu ro'yxatdan ro'yxatga oladi.
+  Revenant `AutoHealUpdate` ni ishlatadi — engine'da allaqachon bor modul.
+- **Chuqurlik** — boss eng uzoq xonada (koridorlar soni bo'yicha, metr emas: to'g'ridan
+  koridori bor uzoq xona aslida qo'shni). Boss o'ldirilsa keyingi qavat: yangi seed,
+  kuchliroq aholi, **lekin o'sha qahramon** — daraja, XP va tanasi bilan. O'lim esa
+  hammasini 1-qavatga qaytaradi.
+  ⚠️ **Nozik joy:** ikkalasi ham qahramon obyektini almashtiradi. "Yangi qahramon
+  ko'rindi ⇒ darajani nolla" mantiqi har qavatda darajani o'chirardi — shuning uchun
+  run loop `HeroProgress` ga qaysi biri ekanini **aniq aytadi** (`carryOver` yoki
+  `reset`), taxmin qilinmaydi.
+- **Chuqurlik balansi** — HP o'sadigan tana orqali, zarar `DamageModifier` moduli
+  orqali (generalizatsiya refaktorida ochilgan chok aynan shu uchun kerak bo'ldi),
+  XP esa `replaceModule` bilan almashtirilgan `ExperienceModule` orqali. Hammasi
+  `DungeonDepth` blokidagi foizlardan, chuqurlikdan **bir qadamda** hisoblanadi.
+- **Vizual farqlash** — `Visuals.colour()` qo'shildi (`client3d`): o'yinchi rangi
+  "bu kimniki?" degan savolga javob beradi, bu esa RTS so'raydigan yagona savol.
+  Bir tomonda bir necha xil narsa bo'lgan o'yinda ikkinchi savol bor — "bu nima?" —
+  va modelsiz unga javob beradigan boshqa narsa yo'q: hamma dushman bitta ko'k
+  kapsula bo'lib qolardi, ekranda ham, minimapda ham.
 - **Generatsiya ham determinizm shartnomasida** — `DeterministicRng` (xorshift64,
   faqat butun sonli amallar). Generatsiya yo'lida `Math.random`, devor-soati va
   trigonometriya yo'q; har keyingi run'ning seed'i oldingisidan shu zanjir bilan

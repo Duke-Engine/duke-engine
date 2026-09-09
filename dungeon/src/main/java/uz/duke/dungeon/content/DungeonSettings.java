@@ -120,16 +120,38 @@ public final class DungeonSettings {
                     reader.initFromIni(settings, DEPTH);
                 }));
         ini.load();
-        if (settings.monsters.isEmpty() && !readingShippedFile) {
-            // A file that names no monsters keeps the shipped ones, exactly as a
-            // file that names no map size keeps the shipped map. A partial file is
-            // a few overrides, not a demand that everything else cease to exist —
-            // and a dungeon with nothing living in it would fail far from here,
-            // when a creature referenced a behaviour nobody had registered.
-            settings.monsters.addAll(shippedMonsters());
+        if (!readingShippedFile) {
+            settings.fillInMissingMonsters();
         }
         settings.validate();
         return settings;
+    }
+
+    /**
+     * Keep the monsters this file did not mention, in the order the shipped file
+     * lists them.
+     *
+     * <p>A monster block overrides the kind of that name and leaves the rest alone,
+     * which is how every other setting in this file already behaves: naming the map
+     * width does not delete the room count. The alternative — a declared list
+     * replacing the whole roster — reads the same in the file and fails a long way
+     * from the edit, when a creature definition asks for a behaviour nobody
+     * registered because its kind quietly stopped existing.
+     *
+     * <p>Order is the shipped order, since that is the order a seed draws through:
+     * overriding a kind must not silently change which monster a seed picks.
+     */
+    private void fillInMissingMonsters() {
+        var declared = new java.util.ArrayList<>(monsters);
+        monsters.clear();
+        for (var shipped : shippedMonsters()) {
+            var override = declared.stream()
+                    .filter(kind -> kind.name().equals(shipped.name()))
+                    .findFirst();
+            monsters.add(override.orElse(shipped));
+            override.ifPresent(declared::remove);
+        }
+        monsters.addAll(declared); // kinds this file invented
     }
 
     private static final List<MonsterKind> SHIPPED_MONSTERS = new java.util.ArrayList<>();
