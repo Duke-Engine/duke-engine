@@ -13,6 +13,7 @@ import javax.swing.SwingUtilities;
 import uz.duke.core.GameConstants;
 import uz.duke.rts.RtsSimulation;
 import uz.duke.core.math.Coord3D;
+import uz.duke.core.message.Command;
 import uz.duke.rts.message.GameMessage;
 import uz.duke.rts.network.CommandCodec;
 import uz.duke.core.pathfind.MapLoader;
@@ -617,6 +618,9 @@ public final class DukeGame {
             action.run();
         }
 
+        if (commandHandler != null) {
+            logic.setGameCommandHandler(commandHandler);
+        }
         for (var callback : tickCallbacks) {
             logic.addTickCallback(() -> callback.accept(this));
         }
@@ -769,6 +773,44 @@ public final class DukeGame {
     public void postCommand(GameMessage command) {
         logic.post(command);
     }
+
+    /**
+     * The same, for a command the game declared itself — see {@link #onCommand}.
+     *
+     * <p>Separate from the overload above only so the standard orders keep their
+     * exact type; both end up in the same queue, on the same frame boundary, in
+     * the same replay log.
+     */
+    public void postCommand(Command command) {
+        logic.post(command);
+    }
+
+    /**
+     * Handle commands outside the standard RTS set — the ones this game invented.
+     *
+     * <p>The engine's contract has always been that a game declares its own
+     * command set ({@link Command}); {@link GameMessage} is the RTS library's set,
+     * not the only one a game on it might want. A roguelike's "cast the third
+     * ability" is not an RTS order and never will be, but it has to travel the
+     * same road: queued from the input thread, applied at the start of a frame,
+     * written to the replay log. That is what this hook is for.
+     *
+     * <p>The handler runs on the simulation thread inside the frame, so it must be
+     * deterministic — the same rule every other simulation callback follows.
+     *
+     * <p>A game that never calls this is unaffected: a foreign command is still
+     * logged and ignored, exactly as before.
+     */
+    public DukeGame onCommand(Consumer<Command> handler) {
+        this.commandHandler = handler;
+        if (logic != null) {
+            logic.setGameCommandHandler(handler);
+        }
+        return this;
+    }
+
+    /** Held until boot, like every other callback: the simulation exists only then. */
+    private Consumer<Command> commandHandler;
 
     /** Thread-safe: run work on the simulation thread next frame. */
     public void runOnSimThread(Runnable task) {

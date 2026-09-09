@@ -5,7 +5,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import uz.duke.core.message.Command;
 import uz.duke.rts.RtsSimulation;
 import uz.duke.rts.message.GameMessage;
 import uz.duke.core.module.MoveUpdate;
@@ -30,8 +32,21 @@ import uz.duke.rts.module.WeaponUpdate;
  */
 final class RtsLogic extends RtsSimulation {
 
-    /** Commands posted from the UI thread, drained each frame on the logic thread. */
-    private final Queue<GameMessage> inbox = new ConcurrentLinkedQueue<>();
+    private static final java.util.logging.Logger LOG =
+            java.util.logging.Logger.getLogger(RtsLogic.class.getName());
+
+    /**
+     * Commands posted from the UI thread, drained each frame on the logic thread.
+     *
+     * <p>{@link Command} rather than {@link GameMessage}: a game built on this may
+     * declare commands of its own, and they belong in the same queue as the
+     * standard orders — that queue is what makes input land on a frame boundary
+     * and reach the replay log.
+     */
+    private final Queue<Command> inbox = new ConcurrentLinkedQueue<>();
+
+    /** Where a command outside the RTS set goes, if the game handles any. */
+    private Consumer<Command> gameCommands;
 
     /** Arbitrary work posted from other threads, run on the logic thread. */
     private final Queue<Runnable> tasks = new ConcurrentLinkedQueue<>();
@@ -59,8 +74,22 @@ final class RtsLogic extends RtsSimulation {
     }
 
     /** Thread-safe: post a command from any thread (typically the Swing EDT). */
-    void post(GameMessage command) {
+    void post(Command command) {
         inbox.add(command);
+    }
+
+    /** Install the handler for the game's own commands. */
+    void setGameCommandHandler(Consumer<Command> handler) {
+        this.gameCommands = handler;
+    }
+
+    @Override
+    protected void onOtherCommand(Command command) {
+        if (gameCommands == null) {
+            super.onOtherCommand(command); // no game set declared: still a mistake
+            return;
+        }
+        gameCommands.accept(command);
     }
 
     /** Thread-safe: run {@code task} on the logic thread next frame. */
@@ -159,9 +188,18 @@ final class RtsLogic extends RtsSimulation {
             task.run();
         }
         for (var command = inbox.poll(); command != null; command = inbox.poll()) {
-            if (session != null) {
-                session.issueLocal(command); // ships to both peers, applied in lock-step
+            if (session != null && command instanceof GameMessage rts) {
+                session.issueLocal(rts); // ships to both peers, applied in lock-step
             } else {
+                if (session != null) {
+                    // The wire codec speaks the RTS set. A game that wants its own
+                    // commands in a network game has to supply a codec for them;
+                    // applying this one locally would desync, so say so loudly.
+                    var unsendable = command;
+                    LOG.warning(() -> "game command cannot be sent to peers: "
+                            + unsendable.getClass().getName());
+                    continue;
+                }
                 issueCommand(command); // applied at the start of the next frame
             }
         }

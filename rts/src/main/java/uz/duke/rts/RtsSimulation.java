@@ -17,9 +17,18 @@ import uz.duke.rts.player.Upgrade;
  * <p>The engine hands commands back as the genre-neutral {@link Command}; this
  * narrows them to {@link GameMessage} once, here, so subclasses get an
  * exhaustive {@code switch} over a sealed hierarchy instead of repeating the
- * cast. A command that is not an RTS command is logged rather than dropped
- * silently — it means something is feeding the wrong game's input into this
- * simulation.
+ * cast.
+ *
+ * <p>Anything that is not an RTS command goes to {@link #onOtherCommand}, which
+ * by default logs it as input fed to the wrong simulation. That default is
+ * usually right — but not always, and a game that overrides it is the reason the
+ * hook exists. {@link Command} says a game declares its own command set, and
+ * {@link GameMessage} is <em>this library's</em> set, not every set a game built
+ * on it could want: a roguelike's "cast the third ability" is not an RTS order
+ * and never will be, yet it belongs in the same stream, because that stream is
+ * what makes input replayable and network-safe. Without the hook such a game had
+ * to reach around the command pipeline entirely, which is exactly the property
+ * the pipeline exists to provide.
  *
  * <p>It also installs the RTS module set by default, so INI can reference
  * {@code WeaponUpdate}, {@code ProductionUpdate} and friends without extra
@@ -43,11 +52,27 @@ public abstract class RtsSimulation extends GameLogic {
             onRtsCommand(message);
             return;
         }
-        LOG.warning(() -> "ignoring non-RTS command: " + command.getClass().getName());
+        onOtherCommand(command);
     }
 
     /** Apply one RTS command. Implementations switch over the sealed hierarchy. */
     protected abstract void onRtsCommand(GameMessage command);
+
+    /**
+     * Apply a command that is not part of the RTS set — a command the game built
+     * on this library declared for itself.
+     *
+     * <p>The default assumes there is no such set and says so, because for most
+     * simulations a foreign command really is a mistake and silence would hide it.
+     * A game with commands of its own overrides this and dispatches over its own
+     * sealed hierarchy, exactly as {@link #onRtsCommand} does over this one.
+     *
+     * <p>Whatever it does must be deterministic: this runs inside the frame, from
+     * the same queue, on every peer.
+     */
+    protected void onOtherCommand(Command command) {
+        LOG.warning(() -> "ignoring non-RTS command: " + command.getClass().getName());
+    }
 
     /** The RTS player at {@code index}, or {@code null} if there is none. */
     public final RtsPlayer getRtsPlayer(int index) {
