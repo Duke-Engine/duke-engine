@@ -29,8 +29,28 @@ import uz.duke.rts.module.WeaponUpdate;
  */
 public final class MonsterBrain extends UnitScript {
 
+    /**
+     * Far enough to find anyone on the floor. Used by something that has been
+     * hurt: whoever did it is coming to answer for it wherever they are standing.
+     */
+    private static final float THE_WHOLE_FLOOR = 100_000f;
+
     private final MonsterKind kind;
     private boolean chasing;
+
+    /**
+     * Whether it has been hit, and the health it had when last asked.
+     *
+     * <p>A monster that is being shot at from beyond its own hearing would
+     * otherwise stand there being killed — which is not a monster, it is a
+     * target. There is no need to be told who fired: the dungeon holds one hero,
+     * so losing health means he did it, and he is what it goes after.
+     *
+     * <p>Health going <em>up</em> is not a hit, which matters because one of these
+     * heals itself.
+     */
+    private boolean wounded;
+    private float healthWhenLastLooked = -1f;
 
     public MonsterBrain(MonsterKind kind) {
         this.kind = kind;
@@ -38,8 +58,11 @@ public final class MonsterBrain extends UnitScript {
 
     @Override
     public void onUpdate() {
-        // Once roused, it keeps looking further than it first noticed.
-        float reachOut = chasing ? kind.chaseRadius() : kind.senseRadius();
+        noticeAnyWound();
+        // Once roused, it keeps looking further than it first noticed — and once
+        // hurt, it stops looking and simply comes.
+        float reachOut = wounded ? THE_WHOLE_FLOOR
+                : chasing ? kind.chaseRadius() : kind.senseRadius();
         var hero = findNearestEnemy(reachOut);
         if (hero == null) {
             if (chasing) {
@@ -74,6 +97,19 @@ public final class MonsterBrain extends UnitScript {
         if (!move.isMoving() || frame() % repath == stagger) {
             moveTo(hero.getPosition().x(), hero.getPosition().y());
         }
+    }
+
+    /** Compare what health it has with what it had, and remember being hit. */
+    private void noticeAnyWound() {
+        var body = unit().getBody();
+        if (body == null) {
+            return;
+        }
+        float now = body.getHealth();
+        if (healthWhenLastLooked >= 0f && now < healthWhenLastLooked) {
+            wounded = true;
+        }
+        healthWhenLastLooked = now;
     }
 
     private void giveUp() {

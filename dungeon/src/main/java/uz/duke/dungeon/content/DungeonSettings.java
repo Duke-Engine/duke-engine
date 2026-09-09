@@ -437,6 +437,7 @@ public final class DungeonSettings {
     private String defaultIdle;
     private String defaultWalk;
     private String defaultAttack;
+    private String defaultDeath;
 
     /**
      * The file every monster's animations are taken from, or {@code null} for
@@ -451,6 +452,11 @@ public final class DungeonSettings {
     }
 
     /** A kind's look with the game's default clip names filled in. */
+    /** The clip every monster plays as it falls, or {@code null} for none. */
+    public String deathClip() {
+        return defaultDeath;
+    }
+
     public MonsterLook lookOf(MonsterKind kind) {
         return kind.look().withDefaults(defaultIdle, defaultWalk, defaultAttack);
     }
@@ -462,6 +468,7 @@ public final class DungeonSettings {
     private String heroIdleFrom;
     private String heroWalkFrom;
     private String heroAttackFrom;
+    private String heroDeathFrom;
 
     /**
      * What the hero is drawn as. {@link HeroLook#NONE} when the file names no
@@ -470,7 +477,7 @@ public final class DungeonSettings {
     public HeroLook hero() {
         return heroModel == null ? HeroLook.NONE
                 : new HeroLook(heroModel, heroTexture, heroModelScale, heroFacing,
-                        heroIdleFrom, heroWalkFrom, heroAttackFrom);
+                        heroIdleFrom, heroWalkFrom, heroAttackFrom, heroDeathFrom);
     }
 
     private static final FieldParseTable<DungeonSettings> HERO_LOOK =
@@ -484,14 +491,16 @@ public final class DungeonSettings {
                     // carries the same exporter-generated name inside it.
                     .add("IdleFrom", Ini.string((s, v) -> s.heroIdleFrom = v))
                     .add("WalkFrom", Ini.string((s, v) -> s.heroWalkFrom = v))
-                    .add("AttackFrom", Ini.string((s, v) -> s.heroAttackFrom = v));
+                    .add("AttackFrom", Ini.string((s, v) -> s.heroAttackFrom = v))
+                    .add("DeathFrom", Ini.string((s, v) -> s.heroDeathFrom = v));
 
     private static final FieldParseTable<DungeonSettings> ANIMATIONS =
             new FieldParseTable<DungeonSettings>()
                     .add("Library", Ini.string((s, v) -> s.animationLibrary = v))
                     .add("Idle", Ini.string((s, v) -> s.defaultIdle = v))
                     .add("Walk", Ini.string((s, v) -> s.defaultWalk = v))
-                    .add("Attack", Ini.string((s, v) -> s.defaultAttack = v));
+                    .add("Attack", Ini.string((s, v) -> s.defaultAttack = v))
+                    .add("Death", Ini.string((s, v) -> s.defaultDeath = v));
 
     private static final FieldParseTable<DungeonSettings> DEPTH =
             new FieldParseTable<DungeonSettings>()

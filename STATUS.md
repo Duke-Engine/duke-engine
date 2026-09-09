@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 478 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 481 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -940,7 +940,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **478 test yashil** (core 133, rts 94, generals 5, game 28, client3d 75, studio 8, dungeon 135) — 0 failure / 0 error.
+- **481 test yashil** (core 133, rts 94, generals 5, game 28, client3d 75, studio 8, dungeon 138) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1017,10 +1017,27 @@ ikkala peer aynan bir kadrda qo'llaydi.
     masofasi (`AttackRange` 8) undan kattaroq, shuning uchun **har bir**
     avto-tanlangan nishon "buyurilgan" bo'lib o'qilardi. Chegara qahramonning
     o'z `ThingTemplate` idan o'qiladi, o'yinda takrorlanmaydi.
-- **Qahramon endi kamonchi** — `AttackRange` 8 → **70**, `CloseDistance` 4 → **55**,
-  `ReloadFrames` 15 → 24. Monstrlar 8–14 masofada uradi, ya'ni u zindonni besh
+- **Otish va javob** — kamonchi qahramon monstrlarni tinch o'ldirib turmasligi uchun.
+  - Qahramon `VisionRange` 80 → **110**, `AttackRange` 70 → **95**; monstrlarning
+    sezish radiusi tushdi (eng kattasi **85**). Ya'ni u ularni **sezilmasdan
+    turib** otishi mumkin: jangni u boshlaydi.
+  - **Zarba olgan monster otgan odamga boradi** — masofasiga qaramay
+    (`MonsterBrain`). Unga kim otganini aytish shart emas: zindonda bitta
+    qahramon bor, demak joni kamaysa — o'sha qilgan. Joni **ko'payishi** zarba
+    hisoblanmaydi, chunki Revenant o'zini davolaydi (test bor).
+  - Shu bilan otish tekin bo'lmay qoladi: birinchi o'q jangni **boshlaydi**,
+    undan qochirmaydi.
+  - Ikkita test asosi shundan o'zgardi — endi ular ikki qo'zg'atuvchini
+    (sezish va zarba) **ajratib** tekshiradi, aks holda biri ikkinchisini yopardi.
+- **O'lim animatsiyasi** — jasad darrov g'oyib bo'lmaydi, klipini o'ynab, keyin
+  olib ketiladi. **Snapshotdan chiqib ketish emas, o'lim hodisasi** bilan
+  boshqariladi: tuman tufayli burchakni aylangan monster ham snapshotdan chiqadi,
+  va har safar jasad tashlab ketish umuman jasadsizdan yomonroq bo'lardi.
+  Jon chizig'i va tanlov halqasi darhol olinadi — tirik narsaning belgilari.
+- **Qahramon endi kamonchi** — `AttackRange` 8 → **95**, `CloseDistance` 4 → **75**,
+  `ReloadFrames` 15 → 24. Monstrlar 8–14 masofada uradi, ya'ni u zindonni ko'p
   barobar ortiqcha masofadan uradi: uzoqdan yutadi, yonига kelishsa yutqazadi.
-  `AttackRange` `VisionRange` (80) ichida qoladi — aks holda tuman ko'rsatmagan
+  `AttackRange` `VisionRange` (110) ichida qoladi — aks holda tuman ko'rsatmagan
   narsaga o'q otardi, chunki qurol tumandan bexabar.
   - `CloseDistance` endi **faqat qahramonniki** (monstrlarning o'z qiymatlari
     bor). Eski test uni hammaga umumiy deb hisoblardi — toraytirildi.

@@ -195,6 +195,29 @@ class DungeonMonsterArtTest {
     }
 
     /**
+     * Everything down here has something to play as it falls.
+     *
+     * <p>A body that blinks out of existence the instant it dies reads as a bug
+     * even when it is not one, so the client keeps it a moment and plays this. A
+     * clip name that is not in the library would put that back the way it was,
+     * silently.
+     */
+    @Test
+    void everythingHasADeathToPlay() {
+        var composer = control(assets().loadModel(SETTINGS.animationLibrary()), AnimComposer.class);
+
+        assertNotNull(SETTINGS.deathClip(), "the monsters were left without one");
+        assertNotNull(composer.getAnimClip(SETTINGS.deathClip()),
+                SETTINGS.deathClip() + " is named in dungeon.ini but not in the library");
+
+        var hero = SETTINGS.hero();
+        assertNotNull(hero.deathFrom(), "and so was the hero");
+        var his = control(assets().loadModel(hero.deathFrom()), AnimComposer.class);
+        assertNotNull(his, hero.deathFrom() + " holds no animation");
+        assertEquals(1, his.getAnimClipsNames().size(), "one movement per file, as with the rest");
+    }
+
+    /**
      * The monsters and the library are on the same skeleton, so the clips can
      * actually be put on them.
      *

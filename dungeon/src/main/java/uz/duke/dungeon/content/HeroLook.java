@@ -32,15 +32,18 @@ public record HeroLook(
         float facing,
         String idleFrom,
         String walkFrom,
-        String attackFrom) {
+        String attackFrom,
+        String deathFrom) {
 
     /** The names the game gives these clips once they are on him. */
     public static final String IDLE = "Idle";
     public static final String WALK = "Walk";
     public static final String ATTACK = "Attack";
+    public static final String DEATH = "Death";
 
     /** No art: he is drawn as a shape, as he was before there was a model. */
-    public static final HeroLook NONE = new HeroLook(null, null, 1f, 0f, null, null, null);
+    public static final HeroLook NONE =
+            new HeroLook(null, null, 1f, 0f, null, null, null, null);
 
     public boolean hasModel() {
         return model != null;

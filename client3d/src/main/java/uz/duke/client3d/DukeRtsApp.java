@@ -1152,8 +1152,12 @@ final class DukeRtsApp extends SimpleApplication {
         syncDiscovery();
         camera.focusOnOwnUnit(snapshot.units(), game.getLocalPlayerIndex());
         updateCamera(tpf);
-        syncUnits();
+        // Before the units, not after: a death has to take the body out of the
+        // live list before anything decides it merely vanished. It also means a
+        // shot lights its muzzle on the frame it was fired rather than the next.
         handleEvents();
+        syncUnits();
+        reapTheDead();
         syncMinimap();
         syncViewportOutline();
         syncDragRectangle();
@@ -1210,6 +1214,7 @@ final class DukeRtsApp extends SimpleApplication {
             if (event instanceof ObjectDied died) {
                 playSound(visuals.of(died.templateName()).dieSound,
                         new Vector3f(died.position().x(), 0f, died.position().y()));
+                layOut(died.object().value());
             } else if (event instanceof WeaponFired fired) {
                 var node = unitNodes.get(fired.shooter().value());
                 if (node != null) {
@@ -1219,6 +1224,64 @@ final class DukeRtsApp extends SimpleApplication {
                 }
             }
         }
+    }
+
+    /** A body playing out its death, and when to take it away. */
+    private record Dying(Node root, float until) {
+    }
+
+    private final java.util.List<Dying> dying = new java.util.ArrayList<>();
+
+    /**
+     * Let something that has just died fall over before it goes.
+     *
+     * <p>Driven by the death <em>event</em> rather than by a unit leaving the
+     * snapshot, because those are not the same thing: with fog, a monster walking
+     * out of sight leaves the snapshot too, and a corpse dropped every time
+     * something rounded a corner would be worse than none at all.
+     *
+     * <p>The body is taken out of the live units at once — it is no longer part of
+     * the game, cannot be selected, and must not be given a walk animation because
+     * the simulation says it is moving. What is left is a clip and a timer.
+     */
+    private void layOut(int unitId) {
+        var node = unitNodes.remove(unitId);
+        selected.remove(unitId);
+        if (node == null) {
+            return;
+        }
+        var clipName = visuals.of(node.view.templateName()).dieAnim;
+        var clip = clipName == null || node.composer == null
+                ? null : node.composer.getAnimClip(clipName);
+        if (clip == null) {
+            node.root.removeFromParent(); // nothing to play; it simply goes
+            return;
+        }
+        // The trappings of something alive: a health bar on a corpse, and a
+        // selection ring under one, both read as a thing still in the fight.
+        node.healthBar.removeFromParent();
+        node.ring.removeFromParent();
+        node.flash.removeFromParent();
+
+        // Once through, not looping: a corpse that gets up and dies again forever
+        // is worse than one that never fell over.
+        node.composer.setCurrentAction(clipName, AnimComposer.DEFAULT_LAYER, false);
+        dying.add(new Dying(node.root,
+                (float) (timer.getTimeInSeconds() + clip.getLength() + CORPSE_LINGER)));
+    }
+
+    /** How long a body stays after its death animation has played out. */
+    private static final float CORPSE_LINGER = 1.5f;
+
+    private void reapTheDead() {
+        float now = (float) timer.getTimeInSeconds();
+        dying.removeIf(body -> {
+            if (now < body.until()) {
+                return false;
+            }
+            body.root().removeFromParent();
+            return true;
+        });
     }
 
     private UnitNode createUnitNode(UnitView view) {
@@ -1330,7 +1393,8 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void borrowAnimations(Spatial body, Visuals.UnitVisual visual) {
         var wanted = new java.util.ArrayList<String>();
-        for (var name : new String[] {visual.idleAnim, visual.walkAnim, visual.attackAnim}) {
+        for (var name : new String[] {visual.idleAnim, visual.walkAnim,
+                visual.attackAnim, visual.dieAnim}) {
             if (name != null) {
                 wanted.add(name);
             }
@@ -1433,7 +1497,14 @@ final class DukeRtsApp extends SimpleApplication {
         node.healthBar.attachChild(node.healthFill);
         node.healthBar.addControl(new BillboardControl());
         node.healthBar.setLocalTranslation(0, heightOf(body, view) + 1.2f, 0);
-        node.healthBar.setQueueBucket(RenderQueue.Bucket.Translucent); // after the world
+        // Two buckets, one apiece, purely for the order they are drawn in.
+        // Ignoring the depth buffer is what puts the bar over the world, but it
+        // also stops the hair of clearance between the backdrop and the fill from
+        // meaning anything — and then the sort inside a bucket is by distance, so
+        // the dark backdrop won and the bar read as a black stripe. Buckets are
+        // drawn in a fixed order, which is the one thing here that cannot tie.
+        back.setQueueBucket(RenderQueue.Bucket.Transparent);
+        node.healthFill.setQueueBucket(RenderQueue.Bucket.Translucent);
         node.healthBar.setCullHint(Spatial.CullHint.Always);
         node.root.attachChild(node.healthBar);
     }

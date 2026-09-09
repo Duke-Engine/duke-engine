@@ -237,7 +237,10 @@ class MonsterKindsTest {
         var arena = Dungeon.world(ARENA, blind);
         var game = arena.game();
         game.spawn("Hero", arena.hero(), 150f, 200f);
-        game.spawn("Skeleton", arena.dungeon(), 230f, 200f);
+        // Beyond the hero's bow as well as its own sight. Being shot at rouses a
+        // monster whatever its sense radius, which is right — but it is a second
+        // way to wake one, and this test is about the first.
+        game.spawn("Skeleton", arena.dungeon(), 300f, 200f);
         game.runHeadless(1);
         var monster = creature(game, "Skeleton");
         var startedAt = monster.getPosition();
@@ -246,6 +249,66 @@ class MonsterKindsTest {
 
         assertEquals(0f, monster.getPosition().distance(startedAt), 1f,
                 "a skeleton that can see one unit ahead should never notice him");
+    }
+
+    /**
+     * Shoot something and it comes for you, however deaf it is.
+     *
+     * <p>The same blind skeleton as the test above, at a distance it could never
+     * notice anyone from — but this time inside the hero's bow. An archer who
+     * outranges the whole floor would otherwise stand in the dark killing things
+     * one at a time while they waited their turn, and a monster that can be shot
+     * without answering is not a monster, it is a target.
+     *
+     * <p>Nothing tells it who fired. It does not need telling: there is one hero
+     * down here, so losing health means he did it.
+     */
+    @Test
+    void somethingShotComesForTheShooterHoweverDeafItIs() {
+        var blind = DungeonSettings.parse("""
+                DungeonMonster Skeleton
+                  SenseRadius = 1
+                  ChaseRadius = 1
+                  CloseDistance = 4
+                End
+                """);
+        var arena = Dungeon.world(ARENA, blind);
+        var game = arena.game();
+        game.spawn("Hero", arena.hero(), 150f, 200f);
+        game.spawn("Skeleton", arena.dungeon(), 230f, 200f); // inside his bow, outside its ears
+        game.runHeadless(1);
+        var monster = creature(game, "Skeleton");
+        var hero = creature(game, "Hero");
+        float gapBefore = monster.getPosition().distance(hero.getPosition());
+
+        game.runHeadless(200);
+
+        assertTrue(monster.getPosition().distance(hero.getPosition()) < gapBefore - 20f,
+                "it was shot and stayed where it was, " + gapBefore + " away");
+    }
+
+    /** Being healed is not being hit — one of these mends itself as it fights. */
+    @Test
+    void mendingItselfDoesNotCountAsBeingAttacked() {
+        var blind = DungeonSettings.parse("""
+                DungeonMonster Revenant
+                  SenseRadius = 1
+                  ChaseRadius = 1
+                  CloseDistance = 4
+                End
+                """);
+        var arena = Dungeon.world(ARENA, blind);
+        var game = arena.game();
+        game.spawn("Hero", arena.hero(), 150f, 200f);
+        game.spawn("Revenant", arena.dungeon(), 320f, 200f); // beyond bow and ears alike
+        game.runHeadless(1);
+        var monster = creature(game, "Revenant");
+        var startedAt = monster.getPosition();
+
+        game.runHeadless(300);
+
+        assertEquals(0f, monster.getPosition().distance(startedAt), 1f,
+                "its own healing woke it up");
     }
 
     /** The arena is only the stage; the coordinates are the test's. */

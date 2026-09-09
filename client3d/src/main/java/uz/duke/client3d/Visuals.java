@@ -44,6 +44,7 @@ public final class Visuals {
         String idleAnim;
         String walkAnim;
         String attackAnim;
+        String dieAnim;
         String fireSound;
         String dieSound;
         java.awt.Color colour; // null = the owning player's colour
@@ -158,6 +159,12 @@ public final class Visuals {
 
         public UnitVisual attack(String animName) {
             this.attackAnim = animName;
+            return this;
+        }
+
+        /** What it plays as it dies, before the body is taken away. */
+        public UnitVisual die(String animName) {
+            this.dieAnim = animName;
             return this;
         }
 

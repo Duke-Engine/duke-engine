@@ -98,6 +98,7 @@ public final class Main {
                         .idle(look.idle())
                         .walk(look.walk())
                         .attack(look.attack());
+                unit.die(settings.deathClip());
                 if (settings.animationLibrary() != null) {
                     unit.animationsFrom(settings.animationLibrary());
                 }
@@ -115,13 +116,15 @@ public final class Main {
                         .facing(hero.facing())
                         .idle(HeroLook.IDLE)
                         .walk(HeroLook.WALK)
-                        .attack(HeroLook.ATTACK);
+                        .attack(HeroLook.ATTACK)
+                        .die(HeroLook.DEATH);
                 if (hero.texture() != null) {
                     unit.texture(hero.texture());
                 }
                 animation(unit, hero.idleFrom(), HeroLook.IDLE);
                 animation(unit, hero.walkFrom(), HeroLook.WALK);
                 animation(unit, hero.attackFrom(), HeroLook.ATTACK);
+                animation(unit, hero.deathFrom(), HeroLook.DEATH);
             });
         }
         // The floor is black until he walks it. Named rather than given a

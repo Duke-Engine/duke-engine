@@ -118,18 +118,22 @@ class DungeonFogTest {
      */
     @Test
     void groundHeHasLeftGivesNothingAway() {
-        // Off to one side of his route rather than on it: walked into, he would
-        // cut it down on the way through and the test would pass on a corpse.
-        var game = fight(60f, 90f, 80);
-        assertTrue(seesASkeleton(game), "he starts with it in view");
-
-        // Walk him to the far side of the room, out of its sight and its reach.
+        var game = fight(300f, 80);
         var hero = game.getLogic().getObjects().stream()
                 .filter(object -> object.getTemplate().getName().equals("Hero"))
                 .findFirst().orElseThrow();
-        game.postCommand(new GameMessage.MoveTo(game.getLocalPlayerIndex(),
-                List.of(hero.getId()), new Coord3D(380f, 150f, 0f)));
-        game.runHeadless(400);
+        assertFalse(seesASkeleton(game), "240 away to begin with, and out of sight");
+
+        // Carried rather than walked, and only for a frame at a time. Walking him
+        // over would have him shoot it on the way and chase it about afterwards,
+        // and then this would be a test about combat: what it asks is only whether
+        // ground he has been on gives away what is standing on it.
+        hero.setPosition(new Coord3D(280f, 150f, 0f));
+        game.runHeadless(1);
+        assertTrue(seesASkeleton(game), "standing next to it, he should see it");
+
+        hero.setPosition(new Coord3D(60f, 150f, 0f));
+        game.runHeadless(1);
 
         assertTrue(game.getLogic().getObjects().stream()
                         .anyMatch(object -> object.getTemplate().getName().equals("Skeleton")
