@@ -1071,9 +1071,10 @@ ikkala peer aynan bir kadrda qo'llaydi.
     esa devor ichidan **ataylab** o'tadi. Endi u faqat **yuradigan** birliklarni
     qaraydi — pathfinder yordam berishi kerak bo'lganlarni.
 - **Otish va javob** — kamonchi qahramon monstrlarni tinch o'ldirib turmasligi uchun.
-  - Qahramon `VisionRange` 80 → **110**, `AttackRange` 70 → **95**; monstrlarning
-    sezish radiusi tushdi (eng kattasi **85**). Ya'ni u ularni **sezilmasdan
-    turib** otishi mumkin: jangni u boshlaydi.
+  - Qahramon `VisionRange` **70**, `AttackRange` **60**; monstrlarning sezish
+    radiusi tushdi (eng kattasi **55**). Ya'ni u ularni **sezilmasdan turib**
+    otishi mumkin: jangni u boshlaydi. (Sonlar keyin 0.65 ga qayta o'lchandi —
+    pastdagi "Xonalar kattaroq" bandiga qarang; muhimi nisbat, o'sha saqlangan.)
   - **Zarba olgan monster otgan odamga boradi** — masofasiga qaramay
     (`MonsterBrain`). Unga kim otganini aytish shart emas: zindonda bitta
     qahramon bor, demak joni kamaysa — o'sha qilgan. Joni **ko'payishi** zarba
@@ -1087,10 +1088,10 @@ ikkala peer aynan bir kadrda qo'llaydi.
   boshqariladi: tuman tufayli burchakni aylangan monster ham snapshotdan chiqadi,
   va har safar jasad tashlab ketish umuman jasadsizdan yomonroq bo'lardi.
   Jon chizig'i va tanlov halqasi darhol olinadi — tirik narsaning belgilari.
-- **Qahramon endi kamonchi** — `AttackRange` 8 → **95**, `CloseDistance` 4 → **75**,
+- **Qahramon endi kamonchi** — `AttackRange` 8 → **60**, `CloseDistance` 4 → **48**,
   `ReloadFrames` 15 → 24. Monstrlar 8–14 masofada uradi, ya'ni u zindonni ko'p
   barobar ortiqcha masofadan uradi: uzoqdan yutadi, yoniga kelishsa yutqazadi.
-  `AttackRange` `VisionRange` (110) ichida qoladi — aks holda tuman ko'rsatmagan
+  `AttackRange` `VisionRange` (70) ichida qoladi — aks holda tuman ko'rsatmagan
   narsaga o'q otardi, chunki qurol tumandan bexabar.
   - `CloseDistance` endi **faqat qahramonniki** (monstrlarning o'z qiymatlari
     bor). Eski test uni hammaga umumiy deb hisoblardi — toraytirildi.
@@ -1383,6 +1384,27 @@ ikkala peer aynan bir kadrda qo'llaydi.
   menyular bilan ishlaydi. `RohanVsMordorTest` 2700 kadrlik headless urushni tekshiradi
   (AI oltin sarflaydi, talofatlar bo'ladi).
 - **Native .exe** — `Rohan-vs-Mordor.exe` ishga tushgani tasdiqlangan (~205 MB, o'z runtime'i bilan).
+- **Xonalar kattaroq, hamma narsa sekinroq** — karta xonaga to'ldi va masofalar
+  bir xil ulushda qisqardi.
+  - `MinRooms 6`, `MaxRooms 15`, xona o'lchami 7–13, `PlacementAttempts 3000`:
+    o'lchandi — o'rtacha **8.5 xona, 44% pol** (ilgari 6.5 va 21%).
+  - `MinRooms` — **so'rov, kafolat emas.** Generator sig'adiganini qo'yadi.
+    Jo'natilgan sonlar haqiqatan oltitasini sig'diradi — bu 201 seed ustida
+    o'lchangan, bahslashilmagan. Kim ko'tarmoqchi bo'lsa, fayl shuni aytadi.
+  - Keyin **har bir tezlik va har bir ko'rish masofasi 0.65 ga ko'paytirildi** —
+    qahramon ham, maxluqlar ham. Xonalar kattaroq va ularni kesib o'tish uzoqroq:
+    bu bitta o'zgarish, ikki marta aytilgani.
+  - Uni kamonchi qiladigan nisbatlar saqlandi: eng uzoq sezuvchi maxluq (**55**)
+    uning kamoni (**60**) ichida, u esa uning ko'rishi (**70**) ichida.
+  - O'nta test shundan qizardi va hammasi **masofa** sababli edi (nishon endi
+    yangi masofadan tashqarida qolgan). Bittasi boshqacha: `roomCountStaysInRange`
+    kafolat kutardi — yuqoridagi izoh o'shandan chiqqan.
+- **Maxluqqa bosish hitboxi** — ilgari maxluq modeliga bosilsa, orqasidagi yerga
+  yurish buyrug'i ketardi. Klient butun tugun bo'yicha uchburchak to'qnashuvini
+  qidirardi; pozadagi skinlangan model uchun bu ko'ringan joyida emas. Endi
+  modelning dunyo chegarasi bilan tekshiriladi (`pickUnit`).
+  - **Test bilan qoplanmagan:** kamera va oyna kerak, headless'da tekshirib
+    bo'lmaydi. Faqat ko'z bilan.
 - **Qahramon paneli** — `HeroPanel` (client3d): tosh o'ymasi uslubidagi jon/tajriba
   barlari, to'rt skill uyasi (tayyor / kuluar / yopiq), rim raqamli chuqurlik.
   - **Klient mexanizmni saqlaydi, o'yin so'zlarni beradi.** Panel snapshotning
@@ -1692,7 +1714,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `rts/…/rts/module/DamageModifier.java` | birlik bo'yicha zarar choki |
 | `rts/…/rts/module/ProjectileLauncher.java` | o'q choki — zarar qachon tushishini o'yin hal qiladi |
 | `rts/…/rts/module/WeaponHold.java` | band birlik otmaydi — modul qurolni vaqtincha jim qiladi |
-| `dungeon/…/dungeon/combat/{Bow,ArrowUpdate}.java` | kamon va uchayotgan o'q |
+| `dungeon/…/dungeon/combat/{Bow,ArrowUpdate,Shot}.java` | kamon, uchayotgan o'q, va o'qni havoga qo'yish |
 | `rts/…/rts/module/{ProductionGate,CapacityGate}.java` | ishlab chiqarish sharti choki + sig'im qoidasi |
 | `rts/…/rts/module/ExperienceModule.java` | XP + sozlanadigan rank narvoni |
 | `generals/…/generals/GeneralsVeterancy.java` | Generals'ning 4 rankli narvoni — bir o'yinning jadvali |
