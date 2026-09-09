@@ -40,7 +40,7 @@ class UpgradeTest {
 
     @Test
     void purchaseChargesAndAppliesEffectOnce() {
-        var training = new Upgrade("AdvancedTraining", 200, 1.5f);
+        var training = Upgrade.weaponDamage("AdvancedTraining", 200, 1.5f);
 
         assertTrue(logic.purchaseUpgrade(usa, training));
         var player = logic.getRtsPlayer(usa);
@@ -56,7 +56,7 @@ class UpgradeTest {
 
     @Test
     void cannotAffordIsRejected() {
-        var expensive = new Upgrade("Superweapon", 9999, 2.0f);
+        var expensive = Upgrade.weaponDamage("Superweapon", 9999, 2.0f);
         assertFalse(logic.purchaseUpgrade(usa, expensive));
         assertEquals(500, logic.getRtsPlayer(usa).getMoney());
         assertFalse(logic.getRtsPlayer(usa).hasUpgrade("Superweapon"));
@@ -64,8 +64,8 @@ class UpgradeTest {
 
     @Test
     void upgradesStackMultiplicatively() {
-        logic.purchaseUpgrade(usa, new Upgrade("A", 100, 1.5f));
-        logic.purchaseUpgrade(usa, new Upgrade("B", 100, 2.0f));
+        logic.purchaseUpgrade(usa, Upgrade.weaponDamage("A", 100, 1.5f));
+        logic.purchaseUpgrade(usa, Upgrade.weaponDamage("B", 100, 2.0f));
         assertEquals(3.0f, logic.getRtsPlayer(usa).getWeaponDamageBonus(), 1e-6f);
     }
 }

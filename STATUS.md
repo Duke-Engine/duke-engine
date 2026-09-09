@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 339 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 347 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -924,7 +924,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **339 test yashil** (core 133, rts 86, generals 5, game 23, client3d 39, studio 8, dungeon 45) — 0 failure / 0 error.
+- **347 test yashil** (core 133, rts 94, generals 5, game 23, client3d 39, studio 8, dungeon 45) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1117,19 +1117,36 @@ qolganini ochib berdi. Uch bosqich bajarildi:
    turgan ekan (Rohan/Mordor quvvat ishlatmagani uchun balansi 0 bo'lib,
    ko'rinmagan) — ya'ni "faqat Generals'da" degani noto'g'ri edi.
 
-**Qolgan ikkita ish:**
+4. **`Upgrade` nomlangan bonuslarga** — `Upgrade` Generals qoidasi emas ekan
+   (WC3 smithy, AoE blacksmith — hamma RTS'da bor), shuning uchun `rts` da qoldi.
+   Lekin u **to'liq bo'lmagan mexanizm** edi: bitta `weaponDamageMultiplier`, ya'ni
+   sotib olishga arziydigan yagona narsa zarar deb qaror qilingan. Endi `Upgrade`
+   nomlangan effektlar to'plamini olib yuradi va `RtsPlayer` nomlangan bonuslarni
+   saqlaydi — zirh, tezlik, masofa o'yin tomonidan nomlanadi, engine ularning
+   ma'nosini bilmaydi. `setBonus` qo'shildi: qiymat ma'lum bo'lganda uni
+   **to'g'ridan-to'g'ri** qo'yish mumkin (ilgari faqat ko'paytirish bor edi, shuning
+   uchun aniq qiymat kerak bo'lgan kod eskisini teskari songa bo'lib chiqarardi —
+   Duke Dungeon leveling aynan shunday qilardi, endi qilmaydi).
 
-- **`Upgrade` ni ko'rib chiqish (kichik).** `RtsPlayer.weaponDamageBonus` +
-  `Upgrade` — bu aslida umumiy RTS mexanizmi (WC3 smithy, AoE blacksmith), ajratadigan
-  Generals qoidasi ko'rinmadi. Birlik-bo'yicha bonus muammosi `DamageModifier` bilan
-  allaqachon yopilgan. Ehtimol faqat hujjatlashtirish kerak — **tasdiqlanmagan**.
-- **`BuildCost`/`BuildTime` ni `core` dan chiqarish (katta).** `ThingTemplate` hali
-  ularni saqlaydi — sof RTS/strategiya tushunchasi. Buning uchun template'ga
-  kengaytma-ma'lumot mexanizmi va `ThingTemplateLoader` ga maydon-registratsiyasi
-  kerak (o'yin o'z INI maydonlarini qo'sha olsin). `ProductionUpdate`,
-  `DukeGame.getBuildOptions`, Studio va `.duke` formatiga tegadi. **Hali qilinmagan.**
-  `VisionRange` esa **janrsiz** deb baholandi — tuman `core` ning o'z tizimi, RPG'da
-  ham, roguelike'da ham kerak; u `core` da qoladi.
+**Determinizm tekshiruvi (natija: bug yo'q edi).** `RtsPlayer.upgrades` `HashSet`
+edi va `GameSnapshot` ga yoziladi — desync xavfi deb shubha qilindi. Tekshirildi:
+`GameSnapshot` allaqachon `.sorted()` qilar ekan va `checksum()` o'yinchi holatiga
+umuman tegmaydi (faqat obyektlar), ya'ni **haqiqiy bug bo'lmagan**. Baribir
+kafolat har bir kelajakdagi chaqiruvchining eslashiga bog'liq edi, shuning uchun
+to'plamlar manbada tartiblandi (`TreeSet`/`TreeMap`) — kafolat endi tipniki,
+chaqiruvchiniki emas.
+
+**Ataylab qilinmagan: `BuildCost`/`BuildTime` ni `core` dan chiqarish.**
+`ThingTemplate` ularni hali saqlaydi va bu sof RTS tushunchasi. Lekin **hozir
+hech kimga og'riq keltirmayapti**: Duke Dungeon `core` ga tayanadi va bu maydonlar
+unga xalaqit qilmadi. Chiqarish uchun template kengaytma-ma'lumoti + loader
+maydon-registratsiyasi kerak, u `ProductionUpdate`, `DukeGame.getBuildOptions`,
+Studio, `.duke` formati va deyarli hamma `rts` testiga tegadi — ustiga "ro'yxatdan
+o'tmagan maydon jimgina yo'qoladi" xavfi bor. **Qaror: kimdir `core` ustida
+RTS bo'lmagan o'yin yozib, bu maydon haqiqatan xalaqit qilganda qilinadi** —
+o'shanda chok qanday bo'lishi kerakligi taxmin emas, dalil bilan aniq bo'ladi.
+`VisionRange` esa **janrsiz** — tuman `core` ning o'z tizimi, RPG'da ham,
+roguelike'da ham kerak; u `core` da qoladi.
 
 ⚠️ **`CLAUDE.md` eskirgan:** u hali `rts` ni "SAGE/Generals qatlami" deb ta'riflaydi va
 "`rts` — RTS on top of core" deydi. Yangi printsip — `rts` **aniq o'yinni bilmaydi** —
@@ -1236,7 +1253,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `rts/…/rts/module/{ProductionGate,CapacityGate}.java` | ishlab chiqarish sharti choki + sig'im qoidasi |
 | `rts/…/rts/module/ExperienceModule.java` | XP + sozlanadigan rank narvoni |
 | `generals/…/generals/GeneralsVeterancy.java` | Generals'ning 4 rankli narvoni — bir o'yinning jadvali |
-| `rts/…/rts/player/{RtsPlayer,Upgrade}.java` | pul, upgrade'lar |
+| `rts/…/rts/player/{RtsPlayer,Upgrade}.java` | pul, nomlangan bonuslar, ko'p effektli upgrade'lar |
 | `rts/…/rts/thing/RtsKinds.java` | RTS lug'ati |
 | `rts/…/rts/save/GameSnapshot.java` | RTS save formati |
 | `game/…/game/DukeGame.java` | asosiy API (762 qator) |

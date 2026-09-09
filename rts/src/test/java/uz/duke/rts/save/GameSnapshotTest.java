@@ -57,7 +57,7 @@ class GameSnapshotTest {
         var usa = (RtsPlayer) orig.getPlayerList().addPlayer("USA");
         var china = orig.getPlayerList().addPlayer("China");
         usa.deposit(500);
-        orig.purchaseUpgrade(usa.getIndex(), new Upgrade("Training", 100, 1.5f)); // money 400, bonus 1.5
+        orig.purchaseUpgrade(usa.getIndex(), Upgrade.weaponDamage("Training", 100, 1.5f)); // money 400, bonus 1.5
 
         var tank = orig.getThingFactory().findTemplate("Tank");
         var a = orig.createObject(tank);

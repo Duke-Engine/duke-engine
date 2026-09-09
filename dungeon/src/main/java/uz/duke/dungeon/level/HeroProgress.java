@@ -89,9 +89,10 @@ public final class HeroProgress {
     /**
      * Set the weapon bonus to exactly what this level is worth.
      *
-     * <p>The engine offers multiplication rather than assignment, so this divides
-     * out whatever is there before applying the new value — one step from the
-     * level, never a running product, which would drift as levels accumulated.
+     * <p>Assigned rather than compounded: the bonus is a function of the level, so
+     * it is computed from the level in one step. Accumulating it would drift as
+     * levels stacked, and a hero at level seven must be the same hero however he
+     * got there.
      *
      * <p>The bonus belongs to the player rather than the unit, which is exact
      * while the player commands one hero and would need revisiting the day he has
@@ -99,14 +100,9 @@ public final class HeroProgress {
      */
     private void applyDamageBonus(DukeGame game, int atLevel) {
         var player = game.getLogic().getRtsPlayer(heroPlayer.getIndex());
-        if (player == null) {
-            return;
+        if (player != null) {
+            player.setWeaponDamageBonus(rules.damageMultiplier(atLevel));
         }
-        float current = player.getWeaponDamageBonus();
-        if (current <= 0f) {
-            return;
-        }
-        player.multiplyWeaponDamageBonus(rules.damageMultiplier(atLevel) / current);
     }
 
     private void applyArmour(GameObject hero, int atLevel) {

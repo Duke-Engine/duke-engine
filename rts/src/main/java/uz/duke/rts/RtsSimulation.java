@@ -67,7 +67,11 @@ public abstract class RtsSimulation extends GameLogic {
             return false;
         }
         player.addUpgrade(upgrade.name());
-        player.multiplyWeaponDamageBonus(upgrade.weaponDamageMultiplier());
+        // Name order, so every machine compounds the same bonuses in the same
+        // sequence — the effects map is sorted for exactly this reason.
+        for (var effect : upgrade.effects().entrySet()) {
+            player.multiplyBonus(effect.getKey(), effect.getValue());
+        }
         return true;
     }
 }
