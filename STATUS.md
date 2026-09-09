@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 497 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 499 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -957,7 +957,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **497 test yashil** (core 133, rts 100, generals 5, game 28, client3d 75, studio 8, dungeon 148) — 0 failure / 0 error.
+- **499 test yashil** (core 133, rts 100, generals 5, game 28, client3d 75, studio 8, dungeon 150) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1050,6 +1050,12 @@ ikkala peer aynan bir kadrda qo'llaydi.
   - **O'ldirsa XP ni o'q beradi** — qurol hech kimni hisobga ololmaydi, chunki u
     qo'yib yuborganda nishon tirik edi. Bu bo'lmasa levelling kamonchilik
     kelgan kuni jimgina to'xtardi (test bor).
+  - **O'q kamondan chiqadi, ko'kragidan emas** — `ArrowMuzzleOffset` uni
+    qahramon **qaragan tomonga** siljitadi (u otish uchun buriladi, ya'ni yo'nalishi
+    otish chizig'i). Nishondan uzoqroqqa siljimaydi: yonginasidagi narsaga otilgan
+    o'q uning **orqasida** paydo bo'lib, qaytib kelishi kerak bo'lmasin.
+    Balandlik esa `Height` — simulyatsiya tekis, ya'ni bu pozitsiya emas, faqat
+    o'q chiziladigan chiziq.
   - **O'q modeli qahramonning o'z faylida bor edi** — kamondagi o'q, bor-yo'g'i
     **80 uchburchak**. `Visuals.modelPart` fayldan bitta nomlangan meshni sug'urib
     oladi (kitlar propni personaj bilan birga beradi), egasining transformini

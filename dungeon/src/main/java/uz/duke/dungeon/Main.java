@@ -137,6 +137,9 @@ public final class Main {
                 unit.modelPart(arrow.model(), arrow.part())
                         .scale(arrow.scale())
                         .facing(arrow.facing())
+                        // Drawing only: the simulation is flat, so height is not
+                        // a position but the line the shot is drawn along.
+                        .yOffset(arrow.height())
                         // Not decoration: the tint is what gets it a material this
                         // client can light. Without one it keeps the loader's PBR
                         // and the arrow is a black splinter.

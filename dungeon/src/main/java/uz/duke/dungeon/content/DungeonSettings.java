@@ -52,6 +52,12 @@ public final class DungeonSettings {
     private int heroRepathFrames = 10;
     private String arrowTemplate = "Arrow";
     private float arrowSpeed = 260f;
+    private float arrowMuzzleOffset = 5f;
+
+    /** How far in front of an archer his arrow appears — the bow, not his chest. */
+    public float arrowMuzzleOffset() {
+        return arrowMuzzleOffset;
+    }
 
     /** The creature an archer's shot becomes once it is in the air. */
     public String arrowTemplate() {
@@ -316,7 +322,8 @@ public final class DungeonSettings {
                     .add("CloseDistance", Ini.real((s, v) -> s.closeDistance = v))
                     .add("HeroRepathFrames", Ini.integer((s, v) -> s.heroRepathFrames = v))
                     .add("ArrowTemplate", Ini.string((s, v) -> s.arrowTemplate = v))
-                    .add("ArrowSpeed", Ini.real((s, v) -> s.arrowSpeed = v));
+                    .add("ArrowSpeed", Ini.real((s, v) -> s.arrowSpeed = v))
+                    .add("ArrowMuzzleOffset", Ini.real((s, v) -> s.arrowMuzzleOffset = v));
 
     /** Accumulates one {@code DungeonMonster} block. */
     private static final class MonsterBuilder {
@@ -504,6 +511,7 @@ public final class DungeonSettings {
     private String arrowPart;
     private float arrowScale = 1f;
     private float arrowFacing = 90f;
+    private float arrowHeight;
     private int arrowTint = 0xFFFFFF;
 
     /**
@@ -513,7 +521,8 @@ public final class DungeonSettings {
      * @param part the name <em>inside</em> the file, which need not be a sensible
      *             one — see the block's comment in {@code dungeon.ini}
      */
-    public record ArrowLook(String model, String part, float scale, float facing, int tint) {
+    public record ArrowLook(String model, String part, float scale, float facing,
+            float height, int tint) {
         public boolean hasModel() {
             return model != null && part != null;
         }
@@ -524,7 +533,8 @@ public final class DungeonSettings {
     }
 
     public ArrowLook arrowLook() {
-        return new ArrowLook(arrowModel, arrowPart, arrowScale, arrowFacing, arrowTint);
+        return new ArrowLook(arrowModel, arrowPart, arrowScale, arrowFacing,
+                arrowHeight, arrowTint);
     }
 
     private static final FieldParseTable<DungeonSettings> ARROW_LOOK =
@@ -533,6 +543,7 @@ public final class DungeonSettings {
                     .add("Part", Ini.string((s, v) -> s.arrowPart = v))
                     .add("Scale", Ini.real((s, v) -> s.arrowScale = v))
                     .add("Facing", Ini.real((s, v) -> s.arrowFacing = v))
+                    .add("Height", Ini.real((s, v) -> s.arrowHeight = v))
                     .add("Tint", (ini, s) -> s.arrowTint = Integer.decode(ini.getNextToken()));
 
     private static final FieldParseTable<DungeonSettings> HERO_LOOK =

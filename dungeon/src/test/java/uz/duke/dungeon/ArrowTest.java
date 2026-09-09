@@ -59,6 +59,13 @@ class ArrowTest {
         return new Duel(game, hero, victim);
     }
 
+    /**
+     * The first frame after the spawn is when the shot is loosed: everything here
+     * is inside his bow, so his weapon acquires and fires without waiting for the
+     * order to be applied. The order is posted anyway, since aiming him at a
+     * particular thing is what the test means.
+     */
+
     private static GameObject creature(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
                 .filter(object -> object.getTemplate().getName().equals(template))
@@ -130,6 +137,58 @@ class ArrowTest {
         assertTrue(duel.victim().getPosition().distance(startedAt) > 5f,
                 "the skeleton should have been moving for this to say anything");
         assertTrue(duel.victim().getBody().getHealth() < before, "and still been hit");
+    }
+
+    /**
+     * It appears at the bow, not inside the archer.
+     *
+     * <p>Started at his own position it comes out of his chest, which is what it
+     * looked like. The bow is held out in front, and in front is where he is
+     * facing, because he turns to shoot.
+     */
+    @Test
+    void anArrowStartsOutInFrontOfTheArcher() {
+        var duel = shootAt(70f);
+        var arrow = firstArrow(duel);
+
+        float outInFront = arrow.getPosition().distance(duel.hero().getPosition());
+        assertTrue(outInFront > 1f, "it started inside him, " + outInFront + " away");
+        assertTrue(arrow.getPosition().distance(duel.victim().getPosition())
+                        < duel.hero().getPosition().distance(duel.victim().getPosition()),
+                "and in front of him rather than behind");
+    }
+
+    /**
+     * Except against something almost touching him, where "in front" would be
+     * past it, and the arrow would have to turn round and come back.
+     */
+    @Test
+    void aShotAtSomethingCloseStartsShortOfIt() {
+        var duel = shootAt(12f);
+        var arrow = firstArrow(duel);
+
+        float heroToVictim = duel.hero().getPosition().distance(duel.victim().getPosition());
+        float arrowToVictim = arrow.getPosition().distance(duel.victim().getPosition());
+        assertTrue(arrowToVictim > 0f && arrowToVictim <= heroToVictim,
+                "it should have appeared between them, not past the target");
+    }
+
+    /**
+     * The arrow as it is loosed, before it has moved.
+     *
+     * <p>Caught on the frame it is made rather than a frame later, because at
+     * close range there is no later: an arrow crosses eight units a frame, so one
+     * loosed at something twelve away has already landed and gone by the next
+     * time anybody looks.
+     */
+    private static GameObject firstArrow(Duel duel) {
+        var arrow = creature(duel.game(), "Arrow");
+        if (arrow == null) {
+            duel.game().runHeadless(1);
+            arrow = creature(duel.game(), "Arrow");
+        }
+        assertNotNull(arrow, "one should have been loosed");
+        return arrow;
     }
 
     /** Nothing stays in the air for ever: an arrow that lands is gone. */

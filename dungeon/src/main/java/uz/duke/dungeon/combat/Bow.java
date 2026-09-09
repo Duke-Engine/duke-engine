@@ -40,6 +40,29 @@ public final class Bow extends Module implements ProjectileLauncher {
     private static final uz.duke.core.ini.FieldParseTable<Object> NO_FIELDS =
             new uz.duke.core.ini.FieldParseTable<>();
 
+    /**
+     * Where the arrow appears: out at the bow rather than in the middle of the
+     * archer.
+     *
+     * <p>Starting it at his position puts it inside him, and what the player sees
+     * is a shaft squeezing out of his chest and setting off. The bow is held out
+     * in front, and in front is where he is facing — he turns to shoot, so his
+     * heading is the line of the shot.
+     *
+     * <p>Never further out than the target is, so a shot at something almost
+     * touching him does not begin behind it and have to turn round.
+     */
+    private uz.duke.core.math.Coord3D atTheBow(GameObject shooter, GameObject victim) {
+        var from = shooter.getPosition();
+        float reach = Math.min(settings.arrowMuzzleOffset(),
+                from.distance(victim.getPosition()) * 0.5f);
+        float facing = shooter.getOrientation();
+        return new uz.duke.core.math.Coord3D(
+                from.x() + (float) StrictMath.cos(facing) * reach,
+                from.y() + (float) StrictMath.sin(facing) * reach,
+                from.z());
+    }
+
     @Override
     public boolean launch(GameObject shooter, GameObject victim, float damage, DamageType type) {
         var world = shooter.getWorld();
@@ -53,7 +76,7 @@ public final class Bow extends Module implements ProjectileLauncher {
             // weapon lands it the old way.
             return false;
         }
-        var arrow = world.spawn(template, shooter.getPosition(), shooter.getPlayerIndex());
+        var arrow = world.spawn(template, atTheBow(shooter, victim), shooter.getPlayerIndex());
         var flight = arrow.findModule(ArrowUpdate.class);
         if (flight == null) {
             arrow.markDestroyed();
