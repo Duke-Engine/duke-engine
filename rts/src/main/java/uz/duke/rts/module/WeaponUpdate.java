@@ -26,22 +26,41 @@ import uz.duke.rts.player.RtsPlayer;
  *
  * <p>Targeting reads the world through {@link GameObject#getWorld()}, the role
  * SAGE's global {@code TheGameLogic} plays.
+ *
+ * <p>A weapon fires on the move unless its data says otherwise. {@code
+ * AttackOnTheMove = No} is for the ones that have to be stood still for — a drawn
+ * bow, a deployed gun — and it belongs to the weapon rather than to whatever is
+ * steering the unit, because a weapon finds its own target and fires in one call:
+ * a script that disarmed it would be undone before the script ran again.
  */
 public final class WeaponUpdate extends UpdateModule {
 
     /**
      * INI configuration: {@code Damage}, {@code AttackRange}, {@code ReloadFrames},
-     * a {@link DamageType}, and a {@code SplashRadius} for area damage. The shorter
-     * forms default the trailing fields, keeping existing call sites working.
+     * a {@link DamageType}, a {@code SplashRadius} for area damage, and whether the
+     * weapon may be used on the move. The shorter forms default the trailing
+     * fields, keeping existing call sites working.
+     *
+     * @param attackOnTheMove  whether it fires while its owner is walking. Yes for
+     *     everything by default, which is what an RTS unit does and what every
+     *     weapon did before this existed. No is for the weapons that have to be
+     *     stood still for — a drawn bow, a deployed siege gun: the owner keeps its
+     *     target and keeps reloading, but the shot waits until it stops.
      */
     public record Data(float damage, float attackRange, int reloadFrames,
-            DamageType damageType, float splashRadius) implements ModuleData {
+            DamageType damageType, float splashRadius,
+            boolean attackOnTheMove) implements ModuleData {
         public Data(float damage, float attackRange, int reloadFrames) {
             this(damage, attackRange, reloadFrames, DamageType.NORMAL, 0f);
         }
 
         public Data(float damage, float attackRange, int reloadFrames, DamageType damageType) {
             this(damage, attackRange, reloadFrames, damageType, 0f);
+        }
+
+        public Data(float damage, float attackRange, int reloadFrames, DamageType damageType,
+                float splashRadius) {
+            this(damage, attackRange, reloadFrames, damageType, splashRadius, true);
         }
     }
 
@@ -51,9 +70,11 @@ public final class WeaponUpdate extends UpdateModule {
         int reloadFrames;
         DamageType damageType = DamageType.NORMAL;
         float splashRadius;
+        boolean attackOnTheMove = true;
 
         Data build() {
-            return new Data(damage, attackRange, reloadFrames, damageType, splashRadius);
+            return new Data(damage, attackRange, reloadFrames, damageType, splashRadius,
+                    attackOnTheMove);
         }
     }
 
@@ -62,7 +83,8 @@ public final class WeaponUpdate extends UpdateModule {
             .add("AttackRange", Ini.real((b, v) -> b.attackRange = v))
             .add("ReloadFrames", Ini.integer((b, v) -> b.reloadFrames = v))
             .add("DamageType", Ini.enumeration(DamageType.class, (b, v) -> b.damageType = v))
-            .add("SplashRadius", Ini.real((b, v) -> b.splashRadius = v));
+            .add("SplashRadius", Ini.real((b, v) -> b.splashRadius = v))
+            .add("AttackOnTheMove", Ini.bool((b, v) -> b.attackOnTheMove = v));
 
     public static ModuleData parseData(Ini ini) {
         var builder = new DataBuilder();
@@ -75,6 +97,7 @@ public final class WeaponUpdate extends UpdateModule {
     private final int reloadFrames;
     private final DamageType damageType;
     private final float splashRadius;
+    private final boolean attackOnTheMove;
 
     private ObjectId target;
     private int cooldown;
@@ -86,6 +109,7 @@ public final class WeaponUpdate extends UpdateModule {
         this.reloadFrames = data.reloadFrames();
         this.damageType = data.damageType();
         this.splashRadius = data.splashRadius();
+        this.attackOnTheMove = data.attackOnTheMove();
     }
 
     /** Order this weapon to engage {@code target}. */
@@ -116,6 +140,13 @@ public final class WeaponUpdate extends UpdateModule {
         }
 
         var owner = getOwner();
+        if (!attackOnTheMove && isWalking(owner)) {
+            // Reloading on the way, and keeping whatever it was aimed at, but not
+            // firing. This has to live here rather than in whatever is steering the
+            // unit: a weapon acquires its own target and fires in the same call, so
+            // anything outside it can only ever disarm it a frame too late.
+            return;
+        }
         var world = owner.getWorld();
         if (world == null) {
             return;
@@ -171,6 +202,12 @@ public final class WeaponUpdate extends UpdateModule {
             grantKillExperience(owner, victim);
             target = null;
         }
+    }
+
+    /** Whether the owner is under way — nothing to say if it cannot move at all. */
+    private static boolean isWalking(GameObject owner) {
+        var locomotor = owner.findModule(MoveUpdate.class);
+        return locomotor != null && locomotor.isMoving();
     }
 
     /**
