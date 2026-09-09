@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 430 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 437 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -940,7 +940,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **430 test yashil** (core 133, rts 94, generals 5, game 28, client3d 52, studio 8, dungeon 110) — 0 failure / 0 error.
+- **437 test yashil** (core 133, rts 94, generals 5, game 28, client3d 59, studio 8, dungeon 110) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1069,6 +1069,12 @@ ikkala peer aynan bir kadrda qo'llaydi.
     bilan yuradi va **qadam-qadam** — to'g'ridan-to'g'ri qo'shilsa qahramon
     devor ichida qolardi.
   - **HUD** mavjud `status` kanalida: `Q ready  W 3s  E ready  R lv5`.
+  - **Klavish bittasiga tegishli.** `W` skillni ham ishga tushirib, kamerani ham
+    surardi: jME'da bitta klavishning har bog'lanishi ishlaydi, keyin qo'shilgani
+    avvalgisini **almashtirmaydi**. Shuning uchun klient o'z boshqaruvlarini
+    bog'layotganda o'yin da'vo qilgan harfni umuman olmaydi (`Hotkeys.unclaimed`).
+    Faqat o'sha harf ketadi — kamera o'q tugmalarida qoladi, ya'ni o'yin WASD ni
+    to'liq olsa ham suriladi.
   - **Reset tekin keladi:** har run va har chuqurlikda yangi Hero obyekti
     quriladi, ya'ni yangi `SkillBook`, nol kuluar; ultimate esa darajadan
     kelib chiqadi, daraja o'limda nolga qaytadi.
@@ -1430,7 +1436,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/skill/{Skill,SkillEffect}.java` | skill ma'lumoti + daraja arifmetikasi (sof) |
 | `dungeon/…/dungeon/skill/SkillBook.java` | qahramon moduli: kuluar, effektlar, `DamageModifier` |
 | `dungeon/…/dungeon/skill/{CastSkill,Skills}.java` | o'yinning o'z buyrug'i + HUD paneli |
-| `client3d/…/client3d/Hotkeys.java` | o'yin da'vo qilgan klavishlar → `postCommand` |
+| `client3d/…/client3d/Hotkeys.java` | o'yin da'vo qilgan klavishlar → `postCommand`; klavish to'qnashuvini hal qiladi |
 | `dungeon/…/dungeon/level/Levelling.java` | daraja qoidalari — sof, INI qiymatlaridan |
 | `dungeon/…/dungeon/level/HeroBody.java` | o'sadigan tana (engine'niki final) + `Armor` |
 | `dungeon/…/dungeon/level/HeroProgress.java` | XP → daraja → atributlar, run'da nolga qaytish |

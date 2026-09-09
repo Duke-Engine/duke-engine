@@ -61,6 +61,44 @@ public final class Hotkeys {
         return bindings;
     }
 
+    /** Whether the game has taken this key, leaving the client without it. */
+    boolean claims(int keyCode) {
+        for (var key : bindings.keySet()) {
+            if (codeOf(key) == keyCode) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Of the keys a client control would like, the ones still free.
+     *
+     * <p>Two mappings on one key both fire — an input manager adds bindings, it
+     * never replaces them — so a dungeon whose W casts a skill was panning the
+     * camera with it as well. The client cannot fix that by binding later; it has
+     * to not bind the key at all.
+     *
+     * <p>Only the taken key goes. A control with a second key keeps it, which is
+     * why a game may claim WASD and the camera still pans on the arrows.
+     */
+    int[] unclaimed(int... codes) {
+        int free = 0;
+        for (int code : codes) {
+            if (!claims(code)) {
+                free++;
+            }
+        }
+        var left = new int[free];
+        int at = 0;
+        for (int code : codes) {
+            if (!claims(code)) {
+                left[at++] = code;
+            }
+        }
+        return left;
+    }
+
     /** The jME key code for a letter, or -1 for anything that is not one. */
     static int codeOf(char key) {
         char letter = Character.toUpperCase(key);

@@ -794,13 +794,13 @@ final class DukeRtsApp extends SimpleApplication {
     private void installInput() {
         inputManager.addMapping("Select", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
         inputManager.addMapping("Order", new MouseButtonTrigger(MouseInput.BUTTON_RIGHT));
-        inputManager.addMapping("PanUp", new KeyTrigger(KeyInput.KEY_W), new KeyTrigger(KeyInput.KEY_UP));
-        inputManager.addMapping("PanLeft", new KeyTrigger(KeyInput.KEY_A), new KeyTrigger(KeyInput.KEY_LEFT));
-        inputManager.addMapping("PanDown", new KeyTrigger(KeyInput.KEY_S), new KeyTrigger(KeyInput.KEY_DOWN));
-        inputManager.addMapping("PanRight", new KeyTrigger(KeyInput.KEY_D), new KeyTrigger(KeyInput.KEY_RIGHT));
+        bindKeys("PanUp", KeyInput.KEY_W, KeyInput.KEY_UP);
+        bindKeys("PanLeft", KeyInput.KEY_A, KeyInput.KEY_LEFT);
+        bindKeys("PanDown", KeyInput.KEY_S, KeyInput.KEY_DOWN);
+        bindKeys("PanRight", KeyInput.KEY_D, KeyInput.KEY_RIGHT);
         inputManager.addMapping("Shift", new KeyTrigger(KeyInput.KEY_LSHIFT), new KeyTrigger(KeyInput.KEY_RSHIFT));
-        inputManager.addMapping("Halt", new KeyTrigger(KeyInput.KEY_H));
-        inputManager.addMapping("Pause", new KeyTrigger(KeyInput.KEY_P));
+        bindKeys("Halt", KeyInput.KEY_H);
+        bindKeys("Pause", KeyInput.KEY_P);
         inputManager.addMapping("Deselect", new KeyTrigger(KeyInput.KEY_ESCAPE));
         inputManager.addMapping("ZoomIn", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, false));
         inputManager.addMapping("ZoomOut", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, true));
@@ -883,7 +883,6 @@ final class DukeRtsApp extends SimpleApplication {
                 "Shift", "Halt", "Pause", "Deselect",
                 "Build1", "Build2", "Build3", "Build4", "Build5", "Build6", "Build7", "Build8", "Build9");
 
-        // Added last, so a game that wants a letter the client already uses gets it.
         for (var key : hotkeys.all().keySet()) {
             int code = Hotkeys.codeOf(key);
             if (code < 0) {
@@ -898,6 +897,25 @@ final class DukeRtsApp extends SimpleApplication {
         AnalogListener zoom = (name, value, tpf) ->
                 camera.zoomBy(name.equals("ZoomIn") ? 0.92f : 1.09f);
         inputManager.addListener(zoom, "ZoomIn", "ZoomOut");
+    }
+
+    /**
+     * Bind a control to whichever of these keys the game has not claimed — see
+     * {@link Hotkeys#unclaimed}.
+     *
+     * <p>Binding nothing is fine: the listener registers the name either way, and
+     * a mapping with no trigger simply never fires.
+     */
+    private void bindKeys(String mapping, int... codes) {
+        var free = hotkeys.unclaimed(codes);
+        if (free.length == 0) {
+            return;
+        }
+        var triggers = new com.jme3.input.controls.Trigger[free.length];
+        for (int i = 0; i < free.length; i++) {
+            triggers[i] = new KeyTrigger(free[i]);
+        }
+        inputManager.addMapping(mapping, triggers);
     }
 
     /** The unit under the mouse cursor, or {@code null}. */
