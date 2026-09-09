@@ -42,8 +42,7 @@ public final class DungeonSettings {
     private float skeletonSenseRadius = 90f;
     private float skeletonChaseRadius = 150f;
     private int skeletonRepathFrames = 10;
-    private float skeletonAttackRange = 10f;
-    private float heroAttackRange = 8f;
+    private float closeDistance = 4f;
     private int heroRepathFrames = 10;
 
     // ---- run loop ----
@@ -101,6 +100,7 @@ public final class DungeonSettings {
                 "a skeleton should not give up closer than it first notices");
         require(skeletonRepathFrames >= 1 && heroRepathFrames >= 1,
                 "re-planning every zero frames is not a plan");
+        require(closeDistance >= 0, "CloseDistance cannot be negative");
         require(respawnDelayFrames >= 0, "the death pause cannot be negative");
     }
 
@@ -128,8 +128,7 @@ public final class DungeonSettings {
                     .add("SkeletonSenseRadius", Ini.real((s, v) -> s.skeletonSenseRadius = v))
                     .add("SkeletonChaseRadius", Ini.real((s, v) -> s.skeletonChaseRadius = v))
                     .add("SkeletonRepathFrames", Ini.integer((s, v) -> s.skeletonRepathFrames = v))
-                    .add("SkeletonAttackRange", Ini.real((s, v) -> s.skeletonAttackRange = v))
-                    .add("HeroAttackRange", Ini.real((s, v) -> s.heroAttackRange = v))
+                    .add("CloseDistance", Ini.real((s, v) -> s.closeDistance = v))
                     .add("HeroRepathFrames", Ini.integer((s, v) -> s.heroRepathFrames = v));
 
     private static final FieldParseTable<DungeonSettings> RUN =
@@ -192,12 +191,12 @@ public final class DungeonSettings {
         return skeletonRepathFrames;
     }
 
-    public float skeletonAttackRange() {
-        return skeletonAttackRange;
-    }
-
-    public float heroAttackRange() {
-        return heroAttackRange;
+    /**
+     * How close a fighter walks before stopping to let its weapon work. Shorter
+     * than any weapon's reach on purpose — see {@code dungeon.ini}.
+     */
+    public float closeDistance() {
+        return closeDistance;
     }
 
     public int heroRepathFrames() {

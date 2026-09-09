@@ -235,6 +235,31 @@ class DungeonCombatTest {
                 StrictMath.sin(difference), StrictMath.cos(difference)));
     }
 
+    /**
+     * A skeleton that walks up and starts hitting the hero gets hit back, with no
+     * order given. This is the case the player is actually in most of the time —
+     * standing still while the dungeon comes to him — and it is the one that broke
+     * when the skeletons learned to advance: they stopped at their own maximum
+     * reach, which was further than the hero's, so he stood there being chipped at
+     * and never once swung back.
+     */
+    @Test
+    void theHeroFightsBackAgainstWhateverAttacksHim() {
+        float gap = SETTINGS.skeletonSenseRadius() * 0.7f;
+        var fight = fight(150f, 150f, 150f + gap, 150f);
+        var skeleton = fight.skeleton();
+        float skeletonHealthBefore = skeleton.getBody().getHealth();
+
+        // The hero is given no orders whatsoever. Everything that happens is the
+        // skeleton advancing and the hero answering on his own.
+        fight.game().runHeadless(400);
+
+        assertTrue(skeleton.getBody().getHealth() < skeletonHealthBefore
+                        || fight.game().getLogic().findObject(skeleton.getId()) == null,
+                "a skeleton attacking the hero should have been fought back, but it is "
+                        + "untouched at " + skeleton.getBody().getHealth() + " health");
+    }
+
     /** Skeletons fight back once they arrive — the advance is not a harmless parade. */
     @Test
     void anAdvancingSkeletonDrawsBlood() {

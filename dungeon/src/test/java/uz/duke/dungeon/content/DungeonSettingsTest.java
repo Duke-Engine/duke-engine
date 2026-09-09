@@ -98,19 +98,30 @@ class DungeonSettingsTest {
     }
 
     /**
-     * The brains need to know how close is close enough to stop walking, and the
-     * weapon's real range lives in creatures.ini where the engine reads it. The two
-     * files have to agree or the hero walks up, stops, and never swings.
+     * Fighters must close to inside every weapon's reach, not merely to the edge of
+     * their own.
+     *
+     * <p>Stopping at your own maximum range parks you at the edge of it, and if your
+     * reach is longer than your opponent's you end up standing outside his — which
+     * is how the skeletons came to chip away at a hero who could not see them. One
+     * distance, shorter than any weapon here, keeps a fight mutual no matter what
+     * the weapons reach.
      */
     @Test
-    void theAttackRangesMatchTheCreatureData() {
+    void fightersCloseToInsideEveryWeaponsReach() {
         var settings = DungeonSettings.load();
         var creatures = Content.read(Content.CREATURES);
 
-        assertTrue(creatures.contains("AttackRange = " + (int) settings.heroAttackRange()),
-                "creatures.ini should give the hero the range dungeon.ini expects");
-        assertTrue(creatures.contains("AttackRange = " + (int) settings.skeletonAttackRange()),
-                "and the skeleton likewise");
+        var ranges = java.util.regex.Pattern.compile("AttackRange\\s*=\\s*(\\d+)")
+                .matcher(creatures).results()
+                .map(match -> Integer.parseInt(match.group(1)))
+                .toList();
+        assertTrue(ranges.size() >= 2, "both creatures should carry a weapon");
+        for (int reach : ranges) {
+            assertTrue(settings.closeDistance() < reach,
+                    "CloseDistance " + settings.closeDistance()
+                            + " must be inside every weapon's reach, but one reaches only " + reach);
+        }
     }
 
     /** The creature data really is loadable content, not a file nobody reads. */

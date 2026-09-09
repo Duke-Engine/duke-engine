@@ -56,7 +56,7 @@ public final class HeroBrain extends UnitScript {
             return;
         }
         // Measured the same way the weapon measures it: surface to surface.
-        if (World.reachBetween(unit(), target) <= settings.heroAttackRange()) {
+        if (World.reachBetween(unit(), target) <= settings.closeDistance()) {
             if (move.isMoving()) {
                 move.stop(); // arrived — hold position and let the weapon work
             }

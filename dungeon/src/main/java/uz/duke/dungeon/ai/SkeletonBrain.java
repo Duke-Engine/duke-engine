@@ -64,7 +64,7 @@ public final class SkeletonBrain extends UnitScript {
         if (move == null) {
             return;
         }
-        if (World.reachBetween(unit(), hero) <= settings.skeletonAttackRange()) {
+        if (World.reachBetween(unit(), hero) <= settings.closeDistance()) {
             if (move.isMoving()) {
                 move.stop(); // close enough to swing
             }

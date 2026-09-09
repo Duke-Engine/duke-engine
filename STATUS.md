@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 266 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 267 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -872,7 +872,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **266 test yashil** (core 124, rts 71, game 18, client3d 16, studio 8, dungeon 29) — 0 failure / 0 error.
+- **267 test yashil** (core 124, rts 71, game 18, client3d 16, studio 8, dungeon 30) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1071,11 +1071,14 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
   ko'rinardi. Qoida: qayta qurilishi mumkin bo'lgan narsa **o'z tugunida** yashasin va
   qayta qurish har doim `detachAllChildren()` dan boshlansin (aks holda xato bir run
   uchun to'g'ri ko'rinadi, keyin xotira yeydi).
-- **INI'da ikki joyda turadigan qiymat:** `AttackRange` ham `creatures.ini` da (engine
-  quroli o'qiydi), ham `dungeon.ini` da (brain "yetib bordim" ni shundan biladi) turadi —
-  `WeaponUpdate` masofasini tashqariga bermaydi. Ular ajralib ketsa qahramon nishonga
-  yetib kelib to'xtaydi-yu, hech qachon urmaydi. Shuning uchun `DungeonSettingsTest`
-  ikkalasini bir xil bo'lishga majbur qiladi.
+- **O'z masofangda to'xtash tuzog'i (tuzatilgan):** yaqinlashayotgan narsa **o'zining
+  eng uzoq masofasida** to'xtasa, u shu masofaning chekkasida parkovka qiladi — va agar
+  uning masofasi raqibinikidan uzun bo'lsa, raqibning masofasidan **tashqarida** turadi.
+  Skeletlar 10 da to'xtardi, qahramonning avto-tanlashi esa `findClosestInReach(…, 8)`
+  edi: qahramon ko'rmaydigan narsa uni urib turardi, ya'ni avto-ataka jimgina o'ldi.
+  Yechim — bitta `CloseDistance` (har qanday quroldan qisqa): jang qurollar masofasidan
+  qat'i nazar ikki tomonlama bo'ladi. Yon foyda: `AttackRange` endi faqat
+  `creatures.ini` da, ikki faylda takrorlanmaydi.
 - **MP qo'l berishuvi:** `DUKE-JOIN` / `DUKE-WELCOME` `SocketTransport.wrap()` dan **oldin** bo'lishi
   shart, aks holda transport o'quvchisi qo'l berishuv qatorini buyruq deb talqin qiladi.
 - **MP test yozish tuzog'i:** ikkita simni o'zaro qadamlatganda ular bir kadrga fazoviy siljiydi —
