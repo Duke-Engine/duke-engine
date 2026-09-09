@@ -27,7 +27,9 @@ package uz.duke.dungeon.content;
  * @param weight       how often it is picked relative to the other kinds
  * @param colour       what to draw it as, packed {@code 0xRRGGBB} — with no models
  *                     yet, colour and size are all a player has to tell them apart
- * @param scale        drawn size relative to its geometry
+ * @param scale        drawn size relative to its geometry, when drawn as a shape
+ * @param look         the model, skin and animations to draw it with — empty when
+ *                     this kind has no art, and then it falls back to a shape
  */
 public record MonsterKind(
         String name,
@@ -38,7 +40,8 @@ public record MonsterKind(
         int minDepth,
         int weight,
         int colour,
-        float scale) {
+        float scale,
+        MonsterLook look) {
 
     /** The behaviour tag a creature definition references: {@code Script:<name>Brain}. */
     public String brainTag() {

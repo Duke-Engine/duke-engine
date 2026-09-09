@@ -26,6 +26,8 @@ public final class Visuals {
     /** Per-template visual/audio configuration. All fields optional. */
     public static final class UnitVisual {
         String modelPath;
+        String texturePath;
+        String animationLibrary;
         float scale = 1f;
         float yOffset;
         float facingDegrees; // extra yaw if the model's authored "forward" isn't +X
@@ -35,9 +37,40 @@ public final class Visuals {
         String fireSound;
         String dieSound;
         java.awt.Color colour; // null = the owning player's colour
+        java.awt.Color tint;   // multiplied over the model's own texture
 
         public UnitVisual model(String assetPath) {
             this.modelPath = assetPath;
+            return this;
+        }
+
+        /**
+         * The colour map to draw this model with, overriding whatever the file
+         * came with.
+         *
+         * <p>Two reasons, and the first is not optional. Model kits routinely ship
+         * a base colour texture that jME's glTF loader does not bind, so the
+         * creature arrives untextured and nobody finds out until they look at it.
+         * The second is that a kit with two creatures and three colourways for
+         * each has six creatures in it, if you can say which colourway you want —
+         * and a dungeon needs more kinds of monster than a free kit ships models.
+         */
+        public UnitVisual texture(String assetPath) {
+            this.texturePath = assetPath;
+            return this;
+        }
+
+        /**
+         * Take this unit's animations from another file — a library built on the
+         * same skeleton as the model.
+         *
+         * <p>Creature kits and animation libraries are sold separately and meet on
+         * the standard humanoid rig, so one library moves every creature in a kit.
+         * Only the clips named by {@link #idle}, {@link #walk} and {@link #attack}
+         * are taken: a library holds dozens, and a monster needs three.
+         */
+        public UnitVisual animationsFrom(String assetPath) {
+            this.animationLibrary = assetPath;
             return this;
         }
 
@@ -54,6 +87,20 @@ public final class Visuals {
          */
         public UnitVisual colour(java.awt.Color colour) {
             this.colour = colour;
+            return this;
+        }
+
+        /**
+         * A wash of colour over the model's own texture.
+         *
+         * <p>Distinct from {@link #colour}, which replaces a shape's colour and is
+         * what the minimap dot is drawn in. A tint multiplies whatever the skin
+         * already is, so it separates two monsters sharing one texture without
+         * flattening either into a single colour — and without changing what the
+         * player reads on the minimap.
+         */
+        public UnitVisual tint(java.awt.Color tint) {
+            this.tint = tint;
             return this;
         }
 

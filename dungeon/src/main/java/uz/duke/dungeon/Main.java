@@ -30,6 +30,16 @@ import uz.duke.dungeon.skill.CastSkill;
  */
 public final class Main {
 
+    /**
+     * Turn applied to every creature model.
+     *
+     * <p>Humanoid kits are modelled facing down -Z, which is what a character
+     * artist means by "forward"; the engine's orientation of 0 points along +X.
+     * Without this every monster walks sideways — which reads as a bug in the
+     * pathfinder rather than as an axis convention.
+     */
+    private static final float MODEL_FACING = -90f;
+
     private Main() {
     }
 
@@ -73,7 +83,28 @@ public final class Main {
     private static Visuals looks(DungeonSettings settings) {
         var visuals = Visuals.create();
         for (var kind : settings.monsters()) {
-            visuals.unit(kind.name(), unit -> unit.colour(kind.awtColour()).scale(kind.scale()));
+            var look = settings.lookOf(kind);
+            visuals.unit(kind.name(), unit -> {
+                // The colour is set either way: it is what the minimap dot is
+                // drawn in, and what the creature falls back to if its model is
+                // missing. A shape in the right colour beats nothing on screen.
+                unit.colour(kind.awtColour()).scale(kind.scale());
+                if (!look.hasModel()) {
+                    return;
+                }
+                unit.model(look.model())
+                        .texture(look.texture())
+                        .tint(look.awtTint())
+                        .scale(look.modelScale())
+                        // Creature kits face down -Z; the engine's units face +X.
+                        .facing(MODEL_FACING)
+                        .idle(look.idle())
+                        .walk(look.walk())
+                        .attack(look.attack());
+                if (settings.animationLibrary() != null) {
+                    unit.animationsFrom(settings.animationLibrary());
+                }
+            });
         }
         // The floor is black until he walks it. Named rather than given a
         // distance: the radius is the hero's own VisionRange from creatures.ini,

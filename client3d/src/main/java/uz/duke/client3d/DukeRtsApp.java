@@ -1234,11 +1234,13 @@ final class DukeRtsApp extends SimpleApplication {
                 body.setLocalTranslation(0, visual.yOffset, 0);
                 body.setLocalRotation(new Quaternion().fromAngles(0,
                         FastMath.DEG_TO_RAD * visual.facingDegrees, 0));
+                dressModel(body, visual, view);
                 node.composer = findControl(body, AnimComposer.class);
                 var legacy = findControl(body, AnimControl.class);
                 if (node.composer == null && legacy != null) {
                     node.legacyChannel = legacy.createChannel();
                 }
+                borrowAnimations(body, visual);
             } catch (RuntimeException e) {
                 warnOnce(visual.modelPath, "model");
                 body = null;
@@ -1258,6 +1260,101 @@ final class DukeRtsApp extends SimpleApplication {
         unitsNode.attachChild(node.root);
         return node;
     }
+
+    /**
+     * Give a loaded model the colour map and tint the game asked for.
+     *
+     * <p>The material the loader built is kept and only added to. It is the
+     * material jME's own glTF pipeline produced, so skinning and lighting are
+     * already wired through it, and swapping it for one of ours would mean
+     * rebuilding both for no gain.
+     *
+     * <p>What is missing from it is the base colour: kits routinely bind a normal
+     * map and an emissive map and no colour map, and a creature with no colour map
+     * still loads — it just comes out blank, and nothing says so. The tint on top
+     * is how one model becomes several monsters.
+     */
+    private void dressModel(Spatial body, Visuals.UnitVisual visual, UnitView view) {
+        if (visual.texturePath == null && visual.tint == null) {
+            return;
+        }
+        com.jme3.texture.Texture skin = null;
+        if (visual.texturePath != null) {
+            try {
+                skin = assetManager.loadTexture(visual.texturePath);
+            } catch (RuntimeException e) {
+                warnOnce(visual.texturePath, "texture");
+            }
+        }
+        var tint = visual.tint == null ? null : toColor(visual.tint);
+        var texture = skin;
+        body.depthFirstTraversal(spatial -> {
+            if (!(spatial instanceof Geometry geometry) || geometry.getMaterial() == null) {
+                return;
+            }
+            var material = geometry.getMaterial();
+            if (texture != null) {
+                setIfDefined(material, "BaseColorMap", texture);
+                setIfDefined(material, "DiffuseMap", texture);
+            }
+            if (tint != null) {
+                setIfDefined(material, "BaseColor", tint);
+                setIfDefined(material, "Diffuse", tint);
+            }
+        });
+    }
+
+    /** Set a parameter only if this material definition has one, whatever it is. */
+    private static void setIfDefined(Material material, String name, Object value) {
+        if (material.getMaterialDef().getMaterialParam(name) == null) {
+            return;
+        }
+        if (value instanceof com.jme3.texture.Texture texture) {
+            material.setTexture(name, texture);
+        } else if (value instanceof ColorRGBA colour) {
+            material.setColor(name, colour);
+        }
+    }
+
+    /**
+     * Fetch this unit's animations out of a library file built on the same
+     * skeleton, and put them on the model that has none.
+     *
+     * <p>The library is loaded once and kept: it is a large file and every monster
+     * on the floor wants clips out of it. What each monster gets is its own,
+     * though — a clip's tracks point straight at the joints they drive, so a clip
+     * shared between two monsters would animate whichever of them was built first
+     * and leave the other standing.
+     */
+    private void borrowAnimations(Spatial body, Visuals.UnitVisual visual) {
+        if (visual.animationLibrary == null) {
+            return;
+        }
+        var library = animationLibraries.get(visual.animationLibrary);
+        if (library == null) {
+            try {
+                library = assetManager.loadModel(visual.animationLibrary);
+            } catch (RuntimeException e) {
+                warnOnce(visual.animationLibrary, "animation library");
+                return;
+            }
+            animationLibraries.put(visual.animationLibrary, library);
+        }
+        var wanted = new java.util.ArrayList<String>();
+        for (var name : new String[] {visual.idleAnim, visual.walkAnim, visual.attackAnim}) {
+            if (name != null) {
+                wanted.add(name);
+            }
+        }
+        if (AnimationLibrary.copy(library, body, wanted) == 0 && !wanted.isEmpty()
+                && missingAssets.add(visual.animationLibrary + "#clips")) {
+            LOG.warning(() -> "no animation was taken from " + visual.animationLibrary
+                    + " — the model and the library are on different skeletons");
+        }
+    }
+
+    /** Animation libraries, loaded once each and shared by everything that borrows. */
+    private final Map<String, Spatial> animationLibraries = new HashMap<>();
 
     /**
      * What colour to draw this unit: the type's own if the game gave it one,

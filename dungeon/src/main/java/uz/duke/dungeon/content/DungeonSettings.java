@@ -130,6 +130,10 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, TILES);
                 },
+                "DungeonAnimations", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, ANIMATIONS);
+                },
                 // Repeatable, and named by whose skill it is: the block header is
                 // the hero's template and the key that casts it. A second hero is
                 // four more of these and no Java — the roster lives in the file.
@@ -301,6 +305,13 @@ public final class DungeonSettings {
         int weight;
         int colour = 0xFFFFFF;
         float scale = 1f;
+        String model;
+        String texture;
+        float modelScale = 1f;
+        int tint = 0xFFFFFF;
+        String idle;
+        String walk;
+        String attack;
 
         MonsterBuilder(String name) {
             this.name = name;
@@ -308,7 +319,8 @@ public final class DungeonSettings {
 
         MonsterKind build() {
             return new MonsterKind(name, senseRadius, chaseRadius, closeDistance,
-                    repathFrames, minDepth, weight, colour, scale);
+                    repathFrames, minDepth, weight, colour, scale,
+                    new MonsterLook(model, texture, modelScale, tint, idle, walk, attack));
         }
     }
 
@@ -323,7 +335,17 @@ public final class DungeonSettings {
                     // Decoded rather than scanned so a file can write 0xRRGGBB,
                     // which is how anyone actually writes a colour.
                     .add("Colour", (ini, m) -> m.colour = Integer.decode(ini.getNextToken()))
-                    .add("Scale", Ini.real((m, v) -> m.scale = v));
+                    .add("Scale", Ini.real((m, v) -> m.scale = v))
+                    // What it is drawn as. Read here rather than in a block of its
+                    // own so a new monster stays one block: its behaviour and its
+                    // appearance are written together, where they are decided.
+                    .add("Model", Ini.string((m, v) -> m.model = v))
+                    .add("Texture", Ini.string((m, v) -> m.texture = v))
+                    .add("ModelScale", Ini.real((m, v) -> m.modelScale = v))
+                    .add("Tint", (ini, m) -> m.tint = Integer.decode(ini.getNextToken()))
+                    .add("Idle", Ini.string((m, v) -> m.idle = v))
+                    .add("Walk", Ini.string((m, v) -> m.walk = v))
+                    .add("Attack", Ini.string((m, v) -> m.attack = v));
 
     /** Accumulates one {@code DungeonSkill <hero> <key>} block. */
     private static final class SkillBuilder {
@@ -404,6 +426,35 @@ public final class DungeonSettings {
                     .add("Wall", Ini.string((s, v) -> s.tileWall = v))
                     .add("Corner", Ini.string((s, v) -> s.tileCorner = v))
                     .add("TileSize", Ini.real((s, v) -> s.tileSize = v));
+
+    private String animationLibrary;
+    private String defaultIdle;
+    private String defaultWalk;
+    private String defaultAttack;
+
+    /**
+     * The file every monster's animations are taken from, or {@code null} for
+     * none.
+     *
+     * <p>One library for the whole bestiary, because a creature kit and an
+     * animation library meet on a shared skeleton — so what animates one monster
+     * animates all of them, and a new monster needs no animation work at all.
+     */
+    public String animationLibrary() {
+        return animationLibrary;
+    }
+
+    /** A kind's look with the game's default clip names filled in. */
+    public MonsterLook lookOf(MonsterKind kind) {
+        return kind.look().withDefaults(defaultIdle, defaultWalk, defaultAttack);
+    }
+
+    private static final FieldParseTable<DungeonSettings> ANIMATIONS =
+            new FieldParseTable<DungeonSettings>()
+                    .add("Library", Ini.string((s, v) -> s.animationLibrary = v))
+                    .add("Idle", Ini.string((s, v) -> s.defaultIdle = v))
+                    .add("Walk", Ini.string((s, v) -> s.defaultWalk = v))
+                    .add("Attack", Ini.string((s, v) -> s.defaultAttack = v));
 
     private static final FieldParseTable<DungeonSettings> DEPTH =
             new FieldParseTable<DungeonSettings>()

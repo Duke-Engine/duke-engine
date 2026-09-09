@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 460 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 470 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -940,7 +940,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **460 test yashil** (core 133, rts 94, generals 5, game 28, client3d 75, studio 8, dungeon 117) — 0 failure / 0 error.
+- **470 test yashil** (core 133, rts 94, generals 5, game 28, client3d 75, studio 8, dungeon 127) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1017,6 +1017,36 @@ ikkala peer aynan bir kadrda qo'llaydi.
     masofasi (`AttackRange` 8) undan kattaroq, shuning uchun **har bir**
     avto-tanlangan nishon "buyurilgan" bo'lib o'qilardi. Chegara qahramonning
     o'z `ThingTemplate` idan o'qiladi, o'yinda takrorlanmaydi.
+- **Monstrlar model bilan, harakatlanadi** — Quaternius Bestiary (2 model) +
+  Universal Animation Library (CC0, 43 klip).
+  - **Ikkalasi bir xil skeletda.** Model kiti va animatsiya kutubxonasi alohida
+    sotiladi va standart gumanoid rigda uchrashadi: monsterning 55 suyagining
+    **hammasi** kutubxonada bor (kutubxonadagi ortiqcha 10 tasi — jimjiloq va
+    oyoq uchi — tashlanadi). Shuning uchun bitta kutubxona butun bestiariyni
+    harakatga keltiradi va yangi monster uchun animatsiya ishi umuman yo'q.
+  - **Klipni shundoq berib bo'lmaydi — bu jimgina ishlamaydigan tuzoq.**
+    `AnimClip` treklari maqsad suyakka **to'g'ridan-to'g'ri havola** saqlaydi.
+    Kutubxonadan olingan klipni monsterga qo'shsangiz, u monsterni emas,
+    **kutubxonaning ko'rinmas skeletini** harakatga keltiradi: klip bor, o'ynaydi,
+    monster qimirlamaydi, xato ham chiqmaydi. `AnimationLibrary.copy` har trekni
+    nom bo'yicha qayta quradi. Ikkita test qulflaydi — biri qayta ulash ishlashini,
+    ikkinchisi **sodda ko'chirish ishlamasligini** (u ishlab ketsa, qayta ulash
+    keraksiz bo'lgan bo'lardi).
+  - **2 model, 6 tur.** Bepul kitda faqat Imp va Puglin bor (saytdagi 7 tasi
+    pullik versiyada). Har modelning **3 ta teri varianti** bor, shuning uchun tur
+    = model + teri + bo'y + rang: `noTwoKindsLookAlike` ikki turning bir xil
+    ko'rinmasligini qulflaydi.
+  - **Tekstura alohida bog'lanadi.** jME'ning glTF yuklovchisi bu modellarda
+    `NormalMap` va `EmissiveMap` ni bog'laydi, `BaseColorMap` ni esa **yo'q** —
+    monster rangsiz chiqadi va hech narsa xato bermaydi. Klient uni o'zi
+    bog'laydi. Yuklovchi qurgan PBR materiali saqlanadi (skinning o'sha orqali
+    ishlaydi), faqat yetishmagani qo'shiladi.
+  - `Tint` `Colour` dan alohida: `Colour` — minimap nuqtasi va model topilmasa
+    tushadigan shakl rangi; `Tint` esa terining ustidan ko'paytiriladi, ya'ni
+    bitta teridan ikki xil monster chiqadi, minimapdagi o'qish esa buzilmaydi.
+  - **Tuzoq:** bu fayllar katta (31 MB) va 2048² terilar bilan keladi. Testlarda
+    har test o'z asset managerini yasasa, 512 MB heap **yetmaydi va JVM o'ladi** —
+    bitta manager baham ko'riladi, o'yindagidek.
 - **Zamin modulli to'plamdan quriladi** — Kenney Modular Dungeon Kit (CC0),
   `template-floor` / `template-wall` / `template-wall-corner`.
   - **Devor — katak emas, chegara.** To'plamning devori plitka **chekkasida**
@@ -1456,7 +1486,10 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/Discovery.java` | kashfiyot tumani — qora / xotira / ko'rinayotgan (faqat klient) |
 | `client3d/…/client3d/TileLayout.java` | qaysi plitka qayerda — sof arifmetika, jME'siz |
 | `client3d/…/client3d/{Tileset,TileSource}.java` | to'plam ta'rifi + bo'lak yuklovchisi choki |
+| `client3d/…/client3d/AnimationLibrary.java` | klipni boshqa skeletga nom bo'yicha qayta ulash |
+| `dungeon/…/dungeon/content/MonsterLook.java` | model/teri/bo'y/rang — turdan alohida, simulyatsiya o'qimaydi |
 | `dungeon/src/main/resources/Models/dungeon/` | Kenney to'plami (CC0) + `colormap.png` atlasi |
+| `dungeon/src/main/resources/Models/monsters/` | Quaternius Bestiary + Universal Animation Library |
 | `dungeon/…/dungeon/Dungeon.java` | o'yinni yig'ish (fixture xona va haqiqiy o'yin) |
 | `dungeon/…/dungeon/content/DungeonSettings.java` | `dungeon.ini` — generatsiya va xulq sozlamalari |
 | `dungeon/…/dungeon/gen/DungeonGenerator.java` | seed'dan xonalar + koridorlar (ulanish kafolati) |
