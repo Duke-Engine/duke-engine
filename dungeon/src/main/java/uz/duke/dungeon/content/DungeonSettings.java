@@ -134,6 +134,10 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, ANIMATIONS);
                 },
+                "DungeonHero", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, HERO_LOOK);
+                },
                 // Repeatable, and named by whose skill it is: the block header is
                 // the hero's template and the key that casts it. A second hero is
                 // four more of these and no Java — the roster lives in the file.
@@ -309,6 +313,7 @@ public final class DungeonSettings {
         String texture;
         float modelScale = 1f;
         int tint = 0xFFFFFF;
+        float facing = 90f;
         String idle;
         String walk;
         String attack;
@@ -320,7 +325,7 @@ public final class DungeonSettings {
         MonsterKind build() {
             return new MonsterKind(name, senseRadius, chaseRadius, closeDistance,
                     repathFrames, minDepth, weight, colour, scale,
-                    new MonsterLook(model, texture, modelScale, tint, idle, walk, attack));
+                    new MonsterLook(model, texture, modelScale, tint, facing, idle, walk, attack));
         }
     }
 
@@ -343,6 +348,7 @@ public final class DungeonSettings {
                     .add("Texture", Ini.string((m, v) -> m.texture = v))
                     .add("ModelScale", Ini.real((m, v) -> m.modelScale = v))
                     .add("Tint", (ini, m) -> m.tint = Integer.decode(ini.getNextToken()))
+                    .add("Facing", Ini.real((m, v) -> m.facing = v))
                     .add("Idle", Ini.string((m, v) -> m.idle = v))
                     .add("Walk", Ini.string((m, v) -> m.walk = v))
                     .add("Attack", Ini.string((m, v) -> m.attack = v));
@@ -448,6 +454,37 @@ public final class DungeonSettings {
     public MonsterLook lookOf(MonsterKind kind) {
         return kind.look().withDefaults(defaultIdle, defaultWalk, defaultAttack);
     }
+
+    private String heroModel;
+    private String heroTexture;
+    private float heroModelScale = 1f;
+    private float heroFacing = 90f;
+    private String heroIdleFrom;
+    private String heroWalkFrom;
+    private String heroAttackFrom;
+
+    /**
+     * What the hero is drawn as. {@link HeroLook#NONE} when the file names no
+     * model, and then he is a coloured shape as he was before there was one.
+     */
+    public HeroLook hero() {
+        return heroModel == null ? HeroLook.NONE
+                : new HeroLook(heroModel, heroTexture, heroModelScale, heroFacing,
+                        heroIdleFrom, heroWalkFrom, heroAttackFrom);
+    }
+
+    private static final FieldParseTable<DungeonSettings> HERO_LOOK =
+            new FieldParseTable<DungeonSettings>()
+                    .add("Model", Ini.string((s, v) -> s.heroModel = v))
+                    .add("Texture", Ini.string((s, v) -> s.heroTexture = v))
+                    .add("ModelScale", Ini.real((s, v) -> s.heroModelScale = v))
+                    .add("Facing", Ini.real((s, v) -> s.heroFacing = v))
+                    // Files rather than clip names: one movement per file is how
+                    // animation sites hand their work out, and every such file
+                    // carries the same exporter-generated name inside it.
+                    .add("IdleFrom", Ini.string((s, v) -> s.heroIdleFrom = v))
+                    .add("WalkFrom", Ini.string((s, v) -> s.heroWalkFrom = v))
+                    .add("AttackFrom", Ini.string((s, v) -> s.heroAttackFrom = v));
 
     private static final FieldParseTable<DungeonSettings> ANIMATIONS =
             new FieldParseTable<DungeonSettings>()

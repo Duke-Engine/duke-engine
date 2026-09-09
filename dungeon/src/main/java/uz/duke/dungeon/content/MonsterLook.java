@@ -32,12 +32,14 @@ public record MonsterLook(
         String texture,
         float modelScale,
         int tint,
+        float facing,
         String idle,
         String walk,
         String attack) {
 
     /** No art at all: this kind is drawn as a coloured shape, as everything was. */
-    public static final MonsterLook NONE = new MonsterLook(null, null, 1f, 0xFFFFFF, null, null, null);
+    public static final MonsterLook NONE =
+            new MonsterLook(null, null, 1f, 0xFFFFFF, 90f, null, null, null);
 
     /** Whether there is a model to draw rather than a shape. */
     public boolean hasModel() {
@@ -51,7 +53,7 @@ public record MonsterLook(
 
     /** This look with any unset clip name filled in from the game's defaults. */
     public MonsterLook withDefaults(String defaultIdle, String defaultWalk, String defaultAttack) {
-        return new MonsterLook(model, texture, modelScale, tint,
+        return new MonsterLook(model, texture, modelScale, tint, facing,
                 idle == null ? defaultIdle : idle,
                 walk == null ? defaultWalk : walk,
                 attack == null ? defaultAttack : attack);

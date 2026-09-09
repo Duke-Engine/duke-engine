@@ -241,6 +241,107 @@ class DungeonMonsterArtTest {
                 "the clip was copied but drives nothing — its tracks point elsewhere");
     }
 
+    // ---- the hero ----
+
+    /**
+     * The hero's model and his three movements are all shipped and all load.
+     *
+     * <p>He comes from a different kit on a different skeleton, delivered one
+     * movement per file, so none of what holds for the monsters holds for him and
+     * all of it is worth asking again.
+     */
+    @Test
+    void theHeroAndEachOfHisMovementsAreShipped() {
+        var hero = SETTINGS.hero();
+        assertTrue(hero.hasModel(), "the settings file should give the hero a model");
+
+        assertNotNull(assets().loadModel(hero.model()));
+        for (var path : new String[] {hero.idleFrom(), hero.walkFrom(), hero.attackFrom()}) {
+            assertNotNull(path, "he was left without one of his three movements");
+            assertNotNull(assets().loadModel(path), path + " is named but missing");
+        }
+    }
+
+    /**
+     * Each of his animation files holds exactly one animation.
+     *
+     * <p>Which is the whole reason he is described by file rather than by clip
+     * name: they all arrive called the same thing, so a file holding two would
+     * leave no way to say which was wanted — and the copy would silently take
+     * neither.
+     */
+    @Test
+    void eachOfTheHerosFilesHoldsExactlyOneAnimation() {
+        var hero = SETTINGS.hero();
+        for (var path : new String[] {hero.idleFrom(), hero.walkFrom(), hero.attackFrom()}) {
+            var composer = control(assets().loadModel(path), AnimComposer.class);
+            assertNotNull(composer, path + " holds no animation at all");
+            assertEquals(1, composer.getAnimClipsNames().size(),
+                    path + " holds " + composer.getAnimClipsNames());
+        }
+    }
+
+    /** And each really goes onto him, under the name the game asks for. */
+    @Test
+    void theHeroWearsAllThreeOfHisMovements() {
+        var hero = SETTINGS.hero();
+        var him = assets().loadModel(hero.model());
+
+        assertTrue(AnimationLibrary.copySingle(
+                assets().loadModel(hero.idleFrom()), him, uz.duke.dungeon.content.HeroLook.IDLE));
+        assertTrue(AnimationLibrary.copySingle(
+                assets().loadModel(hero.walkFrom()), him, uz.duke.dungeon.content.HeroLook.WALK));
+        assertTrue(AnimationLibrary.copySingle(
+                assets().loadModel(hero.attackFrom()), him, uz.duke.dungeon.content.HeroLook.ATTACK));
+
+        var composer = control(him, AnimComposer.class);
+        assertTrue(composer.getAnimClipsNames().containsAll(List.of(
+                        uz.duke.dungeon.content.HeroLook.IDLE,
+                        uz.duke.dungeon.content.HeroLook.WALK,
+                        uz.duke.dungeon.content.HeroLook.ATTACK)),
+                "he ended up with " + composer.getAnimClipsNames());
+    }
+
+    /** And running actually moves him, rather than being copied onto nothing. */
+    @Test
+    void theHeroReallyRuns() {
+        var hero = SETTINGS.hero();
+        var him = assets().loadModel(hero.model());
+        AnimationLibrary.copySingle(assets().loadModel(hero.walkFrom()), him,
+                uz.duke.dungeon.content.HeroLook.WALK);
+
+        var armature = control(him, SkinningControl.class).getArmature();
+        var knee = armature.getJoint("mixamorig:LeftLeg");
+        assertNotNull(knee, "his skeleton is not the one the animations were built on");
+        var before = knee.getLocalRotation().clone();
+
+        var composer = control(him, AnimComposer.class);
+        composer.setCurrentAction(uz.duke.dungeon.content.HeroLook.WALK);
+        for (int frame = 0; frame < 12; frame++) {
+            composer.update(0.05f);
+            him.updateLogicalState(0.05f);
+        }
+
+        assertFalse(before.equals(knee.getLocalRotation()), "he is standing still");
+    }
+
+    /**
+     * The hero and the monsters are on skeletons that share nothing.
+     *
+     * <p>Not a problem — a creature is animated from a library built on its own
+     * rig — but worth stating, because it is the reason he has his own files at
+     * all. If someone ever points him at the monsters' library, this says why
+     * nothing happened.
+     */
+    @Test
+    void theHeroAndTheMonstersAreOnDifferentSkeletons() {
+        var library = assets().loadModel(SETTINGS.animationLibrary());
+        var him = assets().loadModel(SETTINGS.hero().model());
+
+        assertEquals(0, AnimationLibrary.copy(library, him, List.of("Walk_Loop", "Idle_Loop")),
+                "the monsters' library moved the hero, so he could share it");
+    }
+
     /**
      * Copying a clip without retargeting it does nothing, which is why
      * {@link AnimationLibrary} exists.

@@ -6,6 +6,7 @@ import uz.duke.client3d.Shell;
 import uz.duke.client3d.Tileset;
 import uz.duke.client3d.Visuals;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.content.HeroLook;
 import uz.duke.dungeon.skill.CastSkill;
 
 /**
@@ -30,20 +31,14 @@ import uz.duke.dungeon.skill.CastSkill;
  */
 public final class Main {
 
-    /**
-     * Turn applied to every creature model.
-     *
-     * <p>The client points a unit's local +X the way the simulation says it faces,
-     * and this kit's creatures are modelled looking along +Z, so they need a
-     * quarter turn to agree.
-     *
-     * <p>Worth stating rather than fiddling with: an axis convention got wrong by
-     * a quarter makes monsters walk sideways and by a half makes them slide at you
-     * backwards, and both read as a broken pathfinder rather than as a number.
-     */
-    private static final float MODEL_FACING = 90f;
-
     private Main() {
+    }
+
+    /** One movement, from the file that holds it, under the name the game uses. */
+    private static void animation(Visuals.UnitVisual unit, String assetPath, String clipName) {
+        if (assetPath != null) {
+            unit.animationFrom(assetPath, clipName);
+        }
     }
 
     public static void main(String[] args) {
@@ -99,14 +94,34 @@ public final class Main {
                         .texture(look.texture())
                         .tint(look.awtTint())
                         .scale(look.modelScale())
-                        // Creature kits face down -Z; the engine's units face +X.
-                        .facing(MODEL_FACING)
+                        .facing(look.facing())
                         .idle(look.idle())
                         .walk(look.walk())
                         .attack(look.attack());
                 if (settings.animationLibrary() != null) {
                     unit.animationsFrom(settings.animationLibrary());
                 }
+            });
+        }
+
+        // The hero comes from a different kit on a different skeleton, and his
+        // animations arrive one movement per file — so he is described his own
+        // way rather than squeezed into the monsters'.
+        var hero = settings.hero();
+        if (hero.hasModel()) {
+            visuals.unit("Hero", unit -> {
+                unit.model(hero.model())
+                        .scale(hero.modelScale())
+                        .facing(hero.facing())
+                        .idle(HeroLook.IDLE)
+                        .walk(HeroLook.WALK)
+                        .attack(HeroLook.ATTACK);
+                if (hero.texture() != null) {
+                    unit.texture(hero.texture());
+                }
+                animation(unit, hero.idleFrom(), HeroLook.IDLE);
+                animation(unit, hero.walkFrom(), HeroLook.WALK);
+                animation(unit, hero.attackFrom(), HeroLook.ATTACK);
             });
         }
         // The floor is black until he walks it. Named rather than given a

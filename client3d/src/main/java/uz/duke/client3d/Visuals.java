@@ -23,11 +23,21 @@ import java.util.function.Consumer;
  */
 public final class Visuals {
 
+    /**
+     * One file animations are taken from.
+     *
+     * <p>{@code clipName} is what to call the file's single animation, or
+     * {@code null} to take every clip in it under its own name.
+     */
+    record AnimationSource(String assetPath, String clipName) {
+    }
+
     /** Per-template visual/audio configuration. All fields optional. */
     public static final class UnitVisual {
         String modelPath;
         String texturePath;
-        String animationLibrary;
+        /** Where this unit's animations come from, in the order they were named. */
+        final java.util.List<AnimationSource> animations = new java.util.ArrayList<>();
         float scale = 1f;
         float yOffset;
         float facingDegrees; // extra yaw if the model's authored "forward" isn't +X
@@ -67,10 +77,25 @@ public final class Visuals {
          * <p>Creature kits and animation libraries are sold separately and meet on
          * the standard humanoid rig, so one library moves every creature in a kit.
          * Only the clips named by {@link #idle}, {@link #walk} and {@link #attack}
-         * are taken: a library holds dozens, and a monster needs three.
+         * are taken: a library holds dozens, and a unit needs three.
          */
         public UnitVisual animationsFrom(String assetPath) {
-            this.animationLibrary = assetPath;
+            animations.add(new AnimationSource(assetPath, null));
+            return this;
+        }
+
+        /**
+         * The same, for a file that holds exactly one animation: call it
+         * {@code clipName} here, and name it with {@link #idle} and friends.
+         *
+         * <p>Animation sites hand their work out one movement per file, and every
+         * one of those files carries the same exporter-generated clip name. The
+         * file is then the only thing that says which is the run and which is the
+         * punch, so the name has to be given on the way in. Call this once per
+         * animation.
+         */
+        public UnitVisual animationFrom(String assetPath, String clipName) {
+            animations.add(new AnimationSource(assetPath, clipName));
             return this;
         }
 

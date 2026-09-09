@@ -1328,29 +1328,32 @@ final class DukeRtsApp extends SimpleApplication {
      * and leave the other standing.
      */
     private void borrowAnimations(Spatial body, Visuals.UnitVisual visual) {
-        if (visual.animationLibrary == null) {
-            return;
-        }
-        var library = animationLibraries.get(visual.animationLibrary);
-        if (library == null) {
-            try {
-                library = assetManager.loadModel(visual.animationLibrary);
-            } catch (RuntimeException e) {
-                warnOnce(visual.animationLibrary, "animation library");
-                return;
-            }
-            animationLibraries.put(visual.animationLibrary, library);
-        }
         var wanted = new java.util.ArrayList<String>();
         for (var name : new String[] {visual.idleAnim, visual.walkAnim, visual.attackAnim}) {
             if (name != null) {
                 wanted.add(name);
             }
         }
-        if (AnimationLibrary.copy(library, body, wanted) == 0 && !wanted.isEmpty()
-                && missingAssets.add(visual.animationLibrary + "#clips")) {
-            LOG.warning(() -> "no animation was taken from " + visual.animationLibrary
-                    + " — the model and the library are on different skeletons");
+        for (var source : visual.animations) {
+            var library = animationLibraries.get(source.assetPath());
+            if (library == null) {
+                try {
+                    library = assetManager.loadModel(source.assetPath());
+                } catch (RuntimeException e) {
+                    warnOnce(source.assetPath(), "animation library");
+                    continue;
+                }
+                animationLibraries.put(source.assetPath(), library);
+            }
+            boolean arrived = source.clipName() == null
+                    ? AnimationLibrary.copy(library, body, wanted) > 0
+                    : AnimationLibrary.copySingle(library, body, source.clipName());
+            if (!arrived && missingAssets.add(source.assetPath() + "#clips")) {
+                var path = source.assetPath();
+                LOG.warning(() -> "no animation was taken from " + path
+                        + " — either it holds none, or it and the model are on"
+                        + " different skeletons");
+            }
         }
     }
 

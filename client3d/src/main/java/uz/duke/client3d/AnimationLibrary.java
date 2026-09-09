@@ -74,15 +74,56 @@ public final class AnimationLibrary {
         return copied;
     }
 
+    /**
+     * Take the one animation in {@code library} and put it on {@code target} under
+     * a name of our choosing.
+     *
+     * <p>For libraries that are a single animation per file, which is how most
+     * animation sites hand them out — and they all arrive carrying the same
+     * exporter-generated name, so the file is the only thing that says which is
+     * the walk and which is the punch. Naming it here is what lets three
+     * identically-named clips live on one character.
+     *
+     * @return whether it arrived; false if the file holds no animation, or more
+     *         than one, in which case there is nothing for a single name to mean
+     */
+    public static boolean copySingle(Spatial library, Spatial target, String nameToGive) {
+        var source = findControl(library, AnimComposer.class);
+        var destination = findControl(target, AnimComposer.class);
+        var skin = findControl(target, SkinningControl.class);
+        if (source == null || destination == null || skin == null || nameToGive == null) {
+            return false;
+        }
+        var names = source.getAnimClipsNames();
+        if (names.size() != 1) {
+            return false;
+        }
+        var retargeted = retarget(source.getAnimClip(names.iterator().next()), skin.getArmature());
+        if (retargeted == null) {
+            return false;
+        }
+        var named = new AnimClip(nameToGive);
+        named.setTracks(retargeted.getTracks());
+        var taken = destination.getAnimClip(nameToGive);
+        if (taken != null) {
+            destination.removeAnimClip(taken); // asked for twice; the last one wins
+        }
+        destination.addAnimClip(named);
+        return true;
+    }
+
     /** The same clip, driving {@code armature}'s joints instead of its own. */
     private static AnimClip retarget(AnimClip clip, Armature armature) {
         var tracks = new ArrayList<AnimTrack<?>>();
         for (AnimTrack<?> track : clip.getTracks()) {
-            if (!(track instanceof TransformTrack transform)
-                    || !(transform.getTarget() instanceof Joint joint)) {
-                continue; // morph and other tracks have no joint to match
+            if (!(track instanceof TransformTrack transform)) {
+                continue; // morph and other tracks have no bone to match
             }
-            var mine = armature.getJoint(joint.getName());
+            var name = nameOfTarget(transform.getTarget());
+            if (name == null) {
+                continue;
+            }
+            var mine = armature.getJoint(name);
             if (mine == null) {
                 continue; // a joint this creature was not modelled with
             }
@@ -96,6 +137,28 @@ public final class AnimationLibrary {
         var copy = new AnimClip(clip.getName());
         copy.setTracks(tracks.toArray(new AnimTrack<?>[0]));
         return copy;
+    }
+
+    /**
+     * What a track calls the thing it drives, whether that is a joint or a node.
+     *
+     * <p>Both shapes turn up and the difference is not a detail. A library that
+     * ships a creature <em>with</em> its animations has a skinned mesh, so a
+     * loader builds a skeleton and the tracks drive {@code Joint}s. A library that
+     * ships animation <em>alone</em> — which is the small, cheap kind, and the
+     * kind most sites hand out — carries no mesh, so there is no skin, so there is
+     * no skeleton, and the very same bones arrive as ordinary nodes.
+     *
+     * <p>Matching only joints therefore finds nothing in half the files anyone
+     * would use, without saying so: the clip is copied, it holds no tracks, and
+     * the character stands still.
+     */
+    private static String nameOfTarget(Object target) {
+        return switch (target) {
+            case Joint joint -> joint.getName();
+            case Spatial spatial -> spatial.getName();
+            default -> null;
+        };
     }
 
     /** The first control of this type anywhere in the model. */

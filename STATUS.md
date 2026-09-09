@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 472 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 477 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -940,7 +940,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **472 test yashil** (core 133, rts 94, generals 5, game 28, client3d 75, studio 8, dungeon 129) — 0 failure / 0 error.
+- **477 test yashil** (core 133, rts 94, generals 5, game 28, client3d 75, studio 8, dungeon 134) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1017,6 +1017,28 @@ ikkala peer aynan bir kadrda qo'llaydi.
     masofasi (`AttackRange` 8) undan kattaroq, shuning uchun **har bir**
     avto-tanlangan nishon "buyurilgan" bo'lib o'qilardi. Chegara qahramonning
     o'z `ThingTemplate` idan o'qiladi, o'yinda takrorlanmaydi.
+- **Qahramon ham model bilan** — Mixamo (Erika Archer) + Pro Longbow Pack.
+  - **Boshqa skeletda, va bu muammo emas.** Qahramon `mixamorig:` riginda,
+    monstrlar UE mannequin'da — bitta ham umumiy suyak nomi yo'q. Har jonzot
+    **o'z rigiga** qurilgan kutubxonadan animatsiya oladi, ya'ni ikki to'plam
+    yonma-yon yashaydi. Test buni ataylab qulflaydi: monstrlar kutubxonasi
+    qahramonga **0 ta** klip beradi, va bu kutilgan natija.
+  - **Animatsiya har harakat uchun alohida fayl.** Saytlar ishni shunday beradi,
+    va har faylning ichidagi klip **bir xil** nom bilan keladi (`mixamo.com`) —
+    ya'ni qaysi biri yugurish ekanini **fayl** aytadi, nom emas. Shuning uchun
+    `DungeonHero` blokida `IdleFrom`/`WalkFrom`/`AttackFrom` — yo'l, nom emas
+    (`DungeonAnimations` da esa aksincha: bitta kutubxona, nomlar ajratadi).
+  - **Tuzoq — animatsiya faylida `skins` yo'q.** "Without skin" fayl mesh
+    olib yurmaydi, ya'ni skin yo'q, ya'ni **skelet ham yo'q** — va o'sha suyaklar
+    oddiy `Node` bo'lib keladi. Faqat `Joint` ga qaraydigan qayta ulash bunday
+    fayllarda **hech nima topmaydi** va buni aytmaydi ham: klip ko'chadi, ichida
+    trek bo'lmaydi, personaj qimirlamaydi. Endi nom `Joint` dan ham, `Spatial`
+    dan ham olinadi.
+  - **FBX ishlamadi, GLB ishladi.** jME FBX'ni `Bind poses don't match` bilan
+    rad etdi; `fbx2gltf` (npm) bilan GLB ga o'girilgach — 1450 ms da yuklandi,
+    21k uchburchak, 70 suyak, teksturalar ichida. Blender kerak bo'lmadi.
+  - `Facing` endi INI'da (qahramonda ham, monstrlarda ham) — model burilishini
+    tuzatish uchun qayta kompilyatsiya kerak emas.
 - **Monstrlar model bilan, harakatlanadi** — Quaternius Bestiary (2 model) +
   Universal Animation Library (CC0, 43 klip).
   - **Ikkalasi bir xil skeletda.** Model kiti va animatsiya kutubxonasi alohida
@@ -1503,6 +1525,8 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/content/MonsterLook.java` | model/teri/bo'y/rang — turdan alohida, simulyatsiya o'qimaydi |
 | `dungeon/src/main/resources/Models/dungeon/` | Kenney to'plami (CC0) + `colormap.png` atlasi |
 | `dungeon/src/main/resources/Models/monsters/` | Quaternius Bestiary + Universal Animation Library |
+| `dungeon/src/main/resources/Models/hero/` | Mixamo qahramoni + har harakat uchun bitta fayl |
+| `dungeon/…/dungeon/content/HeroLook.java` | qahramon ko'rinishi — animatsiyasi fayl bo'yicha, nom bo'yicha emas |
 | `dungeon/…/dungeon/Dungeon.java` | o'yinni yig'ish (fixture xona va haqiqiy o'yin) |
 | `dungeon/…/dungeon/content/DungeonSettings.java` | `dungeon.ini` — generatsiya va xulq sozlamalari |
 | `dungeon/…/dungeon/gen/DungeonGenerator.java` | seed'dan xonalar + koridorlar (ulanish kafolati) |
