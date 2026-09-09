@@ -1036,12 +1036,12 @@ ikkala peer aynan bir kadrda qo'llaydi.
   Jon chizig'i va tanlov halqasi darhol olinadi — tirik narsaning belgilari.
 - **Qahramon endi kamonchi** — `AttackRange` 8 → **95**, `CloseDistance` 4 → **75**,
   `ReloadFrames` 15 → 24. Monstrlar 8–14 masofada uradi, ya'ni u zindonni ko'p
-  barobar ortiqcha masofadan uradi: uzoqdan yutadi, yonига kelishsa yutqazadi.
+  barobar ortiqcha masofadan uradi: uzoqdan yutadi, yoniga kelishsa yutqazadi.
   `AttackRange` `VisionRange` (110) ichida qoladi — aks holda tuman ko'rsatmagan
   narsaga o'q otardi, chunki qurol tumandan bexabar.
   - `CloseDistance` endi **faqat qahramonniki** (monstrlarning o'z qiymatlari
     bor). Eski test uni hammaga umumiy deb hisoblardi — toraytirildi.
-  - Q "zarba" o'rniga **og'ir o'q** (Range 40 → 90), W esa ochilish emas,
+  - Q "zarba" o'rniga **og'ir o'q** (Range 40 → 130), W esa ochilish emas,
     **panika tugmasi** bo'ldi — yaqinlashib qolganlarga.
   - `HeroProgressTest` yaqin masofadagi jangda qahramonni o'lchardi; endi bu u
     **yutqazadigan** jang, shuning uchun test unga o'lchov tugaguncha yetadigan
