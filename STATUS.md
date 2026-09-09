@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 379 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 381 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -924,7 +924,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **379 test yashil** (core 133, rts 94, generals 5, game 23, client3d 39, studio 8, dungeon 77) — 0 failure / 0 error.
+- **381 test yashil** (core 133, rts 94, generals 5, game 23, client3d 39, studio 8, dungeon 79) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -987,6 +987,20 @@ ikkala peer aynan bir kadrda qo'llaydi.
   to'g'ri bo'lgan qoida dungeon'da qahramonni joyida qotirardi. Harakat buyruq
   quvuridan emas, locomotorga to'g'ridan-to'g'ri beriladi — `MoveTo` **buyrug'i**
   qurol nishonini tozalar va o'zi yuborgan atakani bekor qilardi.
+- **Yurish buyrug'i yo'lda uchragan dushmandan ustun** — dushman yonidan olib
+  o'tmoqchi bo'lganda qahramon to'xtab jang boshlab yuborardi. `HeroBrain` endi
+  nishonni **paydo bo'lgan lahzada bir marta** hukm qiladi: avto-tanlash faqat
+  qurol masofasidagi narsani ola oladi, demak undan uzoqdagi nishon faqat
+  buyurilgan bo'lishi mumkin. Buyurilganini quvadi; yo'lda uchraganini
+  **to'xtamasdan** uradi (qurol baribir otadi), va tik turgan bo'lsagina unga
+  buriladi. Ikkita test qulflaydi: yonidan o'tib manzilga yetishi, va yetib
+  borgach orqasidan ergashganini o'ldirishi.
+  - Ikki tuzoq shu yerda: (1) har kadr qayta hukm qilish — o'tib ketilgan dushman
+    bir lahzadan keyin masofadan chiqadi va "buyurilgan"ga aylanadi, qahramon
+    orqasiga qaytadi; (2) chegara sifatida `CloseDistance` (4) ni olish — qurol
+    masofasi (`AttackRange` 8) undan kattaroq, shuning uchun **har bir**
+    avto-tanlangan nishon "buyurilgan" bo'lib o'qilardi. Chegara qahramonning
+    o'z `ThingTemplate` idan o'qiladi, o'yinda takrorlanmaydi.
 - **Skeletlar qahramonni quvadi** — `SkeletonBrain` ikki radius bilan: sezish
   (~bitta xona, aggro xonama-xona tarqaladi) va quvish (kengroq, lekin cheklangan).
   Skelet qahramondan sekinroq, shuning uchun jangdan chiqib ketish haqiqiy taktika.

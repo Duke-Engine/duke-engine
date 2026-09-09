@@ -114,6 +114,46 @@ class DungeonCombatTest {
     }
 
     /**
+     * Sent somewhere, he goes there — even straight past something that takes a
+     * swing at him on the way.
+     *
+     * <p>His weapon picks up whatever comes within reach, and the game's own
+     * closing behaviour used to read that as "arrived" and halt him. So walking a
+     * hero past a skeleton stopped him dead in front of it: the game cancelled the
+     * order the player had just given. Where he was sent outranks what his weapon
+     * noticed, and the weapon fires in passing anyway.
+     */
+    @Test
+    void aMoveOrderOutranksSomethingHePassesOnTheWay() {
+        // The skeleton sits beside the line he is walking, close enough for his
+        // weapon to reach it and for it to reach him.
+        var fight = fight(60f, 150f, 180f, 150f);
+        var destination = new Coord3D(320f, 150f, 0f);
+
+        fight.game().postCommand(new GameMessage.MoveTo(fight.game().getLocalPlayerIndex(),
+                List.of(fight.hero().getId()), destination));
+        fight.game().runHeadless(500);
+
+        assertTrue(fight.hero().getPosition().distance(destination) < 20f,
+                "he should have walked past it and arrived, but stopped at "
+                        + fight.hero().getPosition());
+    }
+
+    /** And once he has arrived, he defends himself again. */
+    @Test
+    void havingArrivedHeFightsWhateverFollowedHim() {
+        var fight = fight(60f, 150f, 180f, 150f);
+        var skeletonId = fight.skeleton().getId();
+
+        fight.game().postCommand(new GameMessage.MoveTo(fight.game().getLocalPlayerIndex(),
+                List.of(fight.hero().getId()), new Coord3D(320f, 150f, 0f)));
+        fight.game().runHeadless(900);
+
+        assertNull(fight.game().getLogic().findObject(skeletonId),
+                "the skeleton that chased him down should have been dealt with");
+    }
+
+    /**
      * The skeletons are no longer furniture: one that notices the hero comes to
      * him. The hero is given no orders at all, so any closing is the skeleton's
      * own doing.

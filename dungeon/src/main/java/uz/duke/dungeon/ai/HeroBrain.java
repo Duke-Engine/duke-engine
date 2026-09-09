@@ -1,6 +1,7 @@
 package uz.duke.dungeon.ai;
 
 import uz.duke.core.module.MoveUpdate;
+import uz.duke.core.thing.ObjectId;
 import uz.duke.core.thing.World;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.game.script.UnitScript;
@@ -36,6 +37,23 @@ public final class HeroBrain extends UnitScript {
 
     private final DungeonSettings settings;
 
+    /**
+     * Whether the hero was sent at his current target rather than having noticed it
+     * in passing.
+     *
+     * <p>The engine cannot say which it is: a target is a target. But it does not
+     * have to, because auto-acquire only ever picks something already within his
+     * weapon's range. Anything further away can only have been ordered, and that is
+     * enough to tell the two apart — once, when it appears.
+     */
+    private boolean sentAtIt;
+
+    /** The target {@link #sentAtIt} was decided for, so it is decided only once. */
+    private ObjectId decidedFor;
+
+    /** Cached: his weapon's range, read from his own template. See {@link #reachOfHisWeapon}. */
+    private float weaponRange = -1f;
+
     public HeroBrain(DungeonSettings settings) {
         this.settings = settings;
     }
@@ -43,30 +61,70 @@ public final class HeroBrain extends UnitScript {
     @Override
     public void onUpdate() {
         var weapon = unit().findModule(WeaponUpdate.class);
-        if (weapon == null || !weapon.isAttacking()) {
-            return; // nothing to chase; auto-acquire handles anything in reach
-        }
-        var target = world().findObject(weapon.getTarget());
+        var target = weapon == null || !weapon.isAttacking() ? null
+                : world().findObject(weapon.getTarget());
         if (target == null || target.isEffectivelyDead()) {
+            forget();
             return; // the weapon drops dead targets by itself
         }
-
         var move = unit().findModule(MoveUpdate.class);
         if (move == null) {
             return;
         }
-        // Measured the same way the weapon measures it: surface to surface.
-        if (World.reachBetween(unit(), target) <= settings.closeDistance()) {
-            if (move.isMoving()) {
-                move.stop(); // arrived — hold position and let the weapon work
+
+        float gap = World.reachBetween(unit(), target);
+        if (!target.getId().equals(decidedFor)) {
+            // Judged once, when the target appears, and never revisited. Judging it
+            // every frame reads the same target differently as the distance closes:
+            // something he was walking past ends up beyond his weapon a moment later
+            // and turns into something he was sent at, and he goes back for it.
+            decidedFor = target.getId();
+            sentAtIt = gap > reachOfHisWeapon();
+        }
+
+        if (!sentAtIt) {
+            // Something that wandered into reach. Where the player sent him outranks
+            // it, so he is never stopped or steered for it — the weapon fires in
+            // passing regardless. Standing still, he at least turns to face it,
+            // because the locomotor only sets a heading while walking.
+            if (!move.isMoving()) {
+                Facing.turnToward(unit(), target);
             }
-            // Standing still, nothing else would turn him: the locomotor only sets
-            // a heading while walking, so he would strike over his shoulder.
+            return;
+        }
+
+        if (gap <= settings.closeDistance()) {
+            if (move.isMoving()) {
+                move.stop(); // arrived at what he was sent at
+            }
+            sentAtIt = false;
             Facing.turnToward(unit(), target);
             return;
         }
         if (!move.isMoving() || frame() % settings.heroRepathFrames() == 0) {
             moveTo(target.getPosition().x(), target.getPosition().y());
         }
+    }
+
+    private void forget() {
+        sentAtIt = false;
+        decidedFor = null;
+    }
+
+    /**
+     * How far his weapon reaches, taken from his own template rather than named
+     * here — the two numbers have to agree, and a copy in the game would let them
+     * drift apart the moment someone re-tuned the hero.
+     */
+    private float reachOfHisWeapon() {
+        if (weaponRange < 0f) {
+            weaponRange = 0f;
+            for (var module : unit().getTemplate().getModules()) {
+                if (module.data() instanceof WeaponUpdate.Data weapon) {
+                    weaponRange = Math.max(weaponRange, weapon.attackRange());
+                }
+            }
+        }
+        return weaponRange;
     }
 }
