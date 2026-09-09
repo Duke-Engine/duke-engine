@@ -71,9 +71,10 @@ Ishga tushirish:
    | (snapshot seami), MultiplayerSession         |
    +----------+-----------------------------------+
               v
-   +----------------------------------------------+
-   | rts — RTS: buyruqlar, jang, iqtisod, lug'at  |
-   +----------+-----------------------------------+
+   +----------------------------------------------+     +--------------------+
+   | rts — RTS BAZASI: buyruqlar, jang, iqtisod,  |<----| generals — Generals|
+   |       lug'at. Mexanizmlar, qoidalar emas     |     | o'yinining qoidalari|
+   +----------+-----------------------------------+     +--------------------+
               v
    +----------------------------------------------+
    | core — janrsiz engine (rendering YO'Q,       |
@@ -84,6 +85,22 @@ Ishga tushirish:
 Qoida: pastki qatlam yuqoridagini bilmaydi. `core` da rendering yo'q va hech qanday
 o'yin mazmuni yo'q; `rts` da jME yo'q; `client3d` faqat snapshot o'qiydi,
 simulyatsiyaga tegmaydi.
+
+### `rts` — mexanizm, qoida emas
+
+`core` janrni bilmaydi; **`rts` esa aniq o'yinni bilmasligi kerak.** U har RTS'ga
+umumiy base mexanizmlarni beradi, qoidalarni o'yin yozadi. Har qo'shilma uchun
+savol: *"Bu BFME'da ham, Warcraft III'da ham, Generals'da ham kerakmi?"*
+
+| Savol | Javob | Qayerda |
+|---|---|---|
+| Birlik XP to'playdi | ha, hammasida | **mexanizm** — `rts` |
+| 4 rank, har biri 1.1x zarar | yo'q, faqat Generals | **qoida** — o'yin yozadi |
+| Bino birlik chiqaradi | ha | **mexanizm** — `rts` |
+| Ishlab chiqarish quvvat talab qiladi | yo'q, faqat Generals | **qoida** — ixtiyoriy modul |
+
+`generals` moduli shu printsipning isboti: Generals ham shunchaki bir o'yin, o'z
+qoidalarini o'zi yozadi va buning uchun engine'ga tegmaydi.
 
 ### Kengaytirish choklari
 
@@ -102,6 +119,18 @@ o'zinikini qo'yadi; `rts` — har birining ishlangan namunasi:
 **Nega buyruqlar core'da emas:** sealed ierarxiya modul chegarasidan o'ta olmaydi.
 Bu cheklov aslida to'g'ri shakl — engine qaysi o'yin qurilayotganini bilmasligi kerak,
 o'yin esa o'z buyruqlari ustidan exhaustive `switch` yozadi.
+
+**`rts` ustidagi choklar** — o'yin RTS qoidalarini shular orqali yozadi, `rts` ga
+tegmasdan:
+
+| Chok | `rts` beradi | O'yin beradi |
+|---|---|---|
+| Zarar modifikatsiyasi | `DamageModifier` — `WeaponUpdate` hammasini ko'paytiradi | daraja bonusi, buff, veteranlik — **birlik bo'yicha** |
+| Ishlab chiqarish sharti | `ProductionGate` — zavod hammasidan so'raydi | quvvat/food/nima bo'lsa; hech narsa bo'lmasa to'xtovsiz quriladi |
+| Daraja narvoni | `ExperienceModule` — XP + sozlanadigan rung jadvali | nechta rung, har biri necha XP va qancha bonus |
+| Tana | `BodyModule` (abstract) | o'sadigan tana, maxsus zirh — `ActiveBody` ni almashtirib |
+| HUD ko'rsatkichi | `WorldSnapshot.status` — engine hech qachon o'qimaydi | daraja, to'lqin raqami, taymer |
+| Kompozitsiya | `addModule` / `removeModule` / `replaceModule` | birlik ish vaqtida nima ekanini o'zgartirishi |
 
 ---
 
@@ -1069,12 +1098,42 @@ qatlamlarda umuman ishlatilmaydi: `StatusUpdate`, `SpecialPowerModule`, `Contain
    "Replay ko'rish" tugmasi, tezlashtirish/orqaga qaytarish yoki faylga saqlash
    oqimi yo'q. Determinizm mashinasi sifatida esa allaqachon ishlatilmoqda.
 
-### `core` da qolgan RTS izlari
+### Engine generalizatsiyasi — bajarilgani va qolgani
 
-`ThingTemplate` hali ham `BuildCost` / `BuildTime` / `VisionRange` maydonlarini saqlaydi —
-birinchi ikkitasi sof RTS/strategiya tushunchasi. Ularni chiqarish uchun template'ga
-kengaytma-ma'lumot mexanizmi va `ThingTemplateLoader` ga maydon-registratsiyasi kerak
-(o'yin o'z INI maydonlarini qo'sha olsin). **Hali qilinmagan — ochiq qaror.**
+Duke Dungeon'ning leveling ishi `rts` ning amalda "Generals qatlami" bo'lib
+qolganini ochib berdi. Uch bosqich bajarildi:
+
+1. **Choklar ochildi** — `removeModule`/`replaceModule`, `DamageModifier`
+   (birlik bo'yicha zarar), `WorldSnapshot.status` (o'yinning HUD qatori).
+   Yo'l-yo'lakay tuzoq topildi: modulni o'z `update()` idan olib tashlash
+   **istisno tashlamas ekan** — `ArrayList` ning oxirgi elementi o'chirilsa
+   iterator jimgina tugaydi va bo'shliqqa tushgan modul umuman ishlamaydi.
+   Endi sikl buni aniq sezadi.
+2. **Veteranlik → sozlanadigan narvon** — 4 rank va enum ichidagi 1.1/1.2/1.3
+   `generals` ga ko'chdi; `rts` da thresholds + har rungning bonusi (INI'dan)
+   qoldi. `HealOnPromotion` ham so'raladi, taxmin qilinmaydi.
+3. **Ishlab chiqarish sharti → `ProductionGate`** — quvvat tekshiruvi
+   `ProductionUpdate` ichidan chiqdi. Muhim topilma: u **hamma o'yinda** ishlab
+   turgan ekan (Rohan/Mordor quvvat ishlatmagani uchun balansi 0 bo'lib,
+   ko'rinmagan) — ya'ni "faqat Generals'da" degani noto'g'ri edi.
+
+**Qolgan ikkita ish:**
+
+- **`Upgrade` ni ko'rib chiqish (kichik).** `RtsPlayer.weaponDamageBonus` +
+  `Upgrade` — bu aslida umumiy RTS mexanizmi (WC3 smithy, AoE blacksmith), ajratadigan
+  Generals qoidasi ko'rinmadi. Birlik-bo'yicha bonus muammosi `DamageModifier` bilan
+  allaqachon yopilgan. Ehtimol faqat hujjatlashtirish kerak — **tasdiqlanmagan**.
+- **`BuildCost`/`BuildTime` ni `core` dan chiqarish (katta).** `ThingTemplate` hali
+  ularni saqlaydi — sof RTS/strategiya tushunchasi. Buning uchun template'ga
+  kengaytma-ma'lumot mexanizmi va `ThingTemplateLoader` ga maydon-registratsiyasi
+  kerak (o'yin o'z INI maydonlarini qo'sha olsin). `ProductionUpdate`,
+  `DukeGame.getBuildOptions`, Studio va `.duke` formatiga tegadi. **Hali qilinmagan.**
+  `VisionRange` esa **janrsiz** deb baholandi — tuman `core` ning o'z tizimi, RPG'da
+  ham, roguelike'da ham kerak; u `core` da qoladi.
+
+⚠️ **`CLAUDE.md` eskirgan:** u hali `rts` ni "SAGE/Generals qatlami" deb ta'riflaydi va
+"`rts` — RTS on top of core" deydi. Yangi printsip — `rts` **aniq o'yinni bilmaydi** —
+u yerga ham yozilishi kerak.
 
 ### Duke Dungeon — ataylab qilinmagan narsalar
 
@@ -1173,7 +1232,10 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `rts/…/rts/RtsSimulation.java` | RTS mantiqining bazasi |
 | `rts/…/rts/message/GameMessage.java` | sealed RTS buyruq to'plami |
 | `rts/…/rts/network/CommandCodec.java` | RTS sim formati |
-| `rts/…/rts/module/*.java` | 10 ta RTS moduli + `RtsModules`, `PowerGrid` |
+| `rts/…/rts/module/DamageModifier.java` | birlik bo'yicha zarar choki |
+| `rts/…/rts/module/{ProductionGate,CapacityGate}.java` | ishlab chiqarish sharti choki + sig'im qoidasi |
+| `rts/…/rts/module/ExperienceModule.java` | XP + sozlanadigan rank narvoni |
+| `generals/…/generals/GeneralsVeterancy.java` | Generals'ning 4 rankli narvoni — bir o'yinning jadvali |
 | `rts/…/rts/player/{RtsPlayer,Upgrade}.java` | pul, upgrade'lar |
 | `rts/…/rts/thing/RtsKinds.java` | RTS lug'ati |
 | `rts/…/rts/save/GameSnapshot.java` | RTS save formati |
