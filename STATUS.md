@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 534 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 541 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -957,7 +957,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **534 test yashil** (core 133, rts 105, generals 5, game 28, client3d 85, studio 8, dungeon 170) — 0 failure / 0 error.
+- **541 test yashil** (core 133, rts 110, generals 5, game 28, client3d 85, studio 8, dungeon 172) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1436,6 +1436,11 @@ ikkala peer aynan bir kadrda qo'llaydi.
     yaqindagisidan arzon bo'lardi.
   - Tortayotganda nishon o'lsa — o'q yo'qoladi va kuluar sarflangan bo'lib qoladi.
     Vaqt talab qiladigan skillning narxi shu, va u shuning uchun qattiqroq uradi.
+  - **Tortayotganda kamoni jim turadi** — `WeaponHold` choki orqali. Busiz bitta
+    bosishga **ikkita** o'q chiqardi: skill ko'zlash uchun quroliga nishon
+    qo'yadi, qurol esa `SkillBook` dan **oldin** yurib o'sha zahoti otib yuborardi.
+    Reload ostidan ketaveradi, ya'ni og'ir o'q chiqqach oddiy otish darrov
+    tiklanadi — skill ishlatgani uchun qo'shimcha kutish yo'q.
 - **R endi Q va W ni ham kuchaytiradi** — `dungeon.ini` da yozilganidek. Ilgari
   boost engine'ning zarar chokida yurardi, uni esa faqat **qurol** o'qiydi;
   `getBody().damage(...)` chaqiradigan skill undan o'tmasdi. Darajadagi +12% esa
@@ -1649,6 +1654,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `rts/…/rts/network/CommandCodec.java` | RTS sim formati |
 | `rts/…/rts/module/DamageModifier.java` | birlik bo'yicha zarar choki |
 | `rts/…/rts/module/ProjectileLauncher.java` | o'q choki — zarar qachon tushishini o'yin hal qiladi |
+| `rts/…/rts/module/WeaponHold.java` | band birlik otmaydi — modul qurolni vaqtincha jim qiladi |
 | `dungeon/…/dungeon/combat/{Bow,ArrowUpdate}.java` | kamon va uchayotgan o'q |
 | `rts/…/rts/module/{ProductionGate,CapacityGate}.java` | ishlab chiqarish sharti choki + sig'im qoidasi |
 | `rts/…/rts/module/ExperienceModule.java` | XP + sozlanadigan rank narvoni |

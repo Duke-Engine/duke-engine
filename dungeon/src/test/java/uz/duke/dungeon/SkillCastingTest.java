@@ -102,6 +102,21 @@ class SkillCastingTest {
     }
 
     /**
+     * The hero and the boss, which is what to use when the test needs its target
+     * to still be there afterwards — a skeleton dies to one heavy shot, and a
+     * question about what he does next cannot be asked of an empty room.
+     */
+    private static Arena bossArena(String creaturesIni, float distance) {
+        var world = Dungeon.world(arena(), SETTINGS, creaturesIni);
+        var game = world.game();
+        game.spawn("Hero", world.hero(), 150f, 150f);
+        game.spawn(DungeonSettings.BOSS, world.dungeon(), 150f + distance, 150f);
+        game.runHeadless(1);
+        var hero = creature(game, "Hero");
+        return new Arena(game, hero, hero.findModule(SkillBook.class));
+    }
+
+    /**
      * Cast, then run the world on until the shot has been drawn, loosed and landed.
      *
      * <p>What the older tests asked — "cast it, is it hurt?" — is now a question
@@ -236,6 +251,87 @@ class SkillCastingTest {
     }
 
     /**
+     * One keypress, one arrow.
+     *
+     * <p>He loosed two: the skill points his weapon at the target so that he is
+     * visibly taking aim, and his weapon — which updates before his skills do —
+     * took that as an order and fired the ordinary shot on the spot. He has one
+     * bow, so while he is drawing with it, it holds.
+     *
+     * <p>His real bow here, not the disarmed one the other strike tests use: the
+     * whole question is what the bow does.
+     */
+    @Test
+    void hisBowKeepsQuietWhileHeDraws() {
+        var q = skillNamed('Q');
+        // Inside his ordinary range as well as the skill's, which is the case that
+        // was broken — out of the bow's reach it could not have fired anyway.
+        var arena = bossArena(Content.read(Content.CREATURES), 50f);
+        // He is standing in front of a skeleton, so of course he was already
+        // shooting. What is being watched is whether a *new* arrow leaves, not
+        // whether the air is empty.
+        var already = ordinaryArrows(arena.game());
+
+        assertTrue(arena.book().cast('Q', 1));
+        for (int frame = 0; frame < q.windUpFrames(); frame++) {
+            arena.game().runHeadless(1);
+            assertTrue(already.containsAll(ordinaryArrows(arena.game())),
+                    "he loosed an ordinary arrow while he was still drawing");
+        }
+
+        assertEquals(1, arrowsInTheAir(arena.game(), q.projectile()),
+                "and the drawn one has gone");
+    }
+
+    /**
+     * And picks his ordinary shooting straight back up once it has gone.
+     *
+     * <p>Held, not stopped: the reload ran underneath the draw, so he does not
+     * start a fresh wait for having used a skill.
+     */
+    @Test
+    void hisBowStartsAgainOnceTheShotHasGone() {
+        var q = skillNamed('Q');
+        var arena = bossArena(Content.read(Content.CREATURES), 50f);
+        var already = ordinaryArrows(arena.game());
+
+        arena.book().cast('Q', 1);
+        // Watched frame by frame rather than looked at once at the end: an arrow
+        // that has already arrived is not in the air to be counted, and this is a
+        // question about whether one ever left.
+        boolean shotAgain = false;
+        int watch = q.windUpFrames() + heroReloadFrames() + 5;
+        for (int frame = 0; frame < watch && !shotAgain; frame++) {
+            arena.game().runHeadless(1);
+            shotAgain = !already.containsAll(ordinaryArrows(arena.game()));
+        }
+
+        assertTrue(shotAgain, "he never went back to shooting");
+    }
+
+    /** Every ordinary arrow in the air right now, by id. */
+    private static java.util.Set<Integer> ordinaryArrows(DukeGame game) {
+        return game.getLogic().getObjects().stream()
+                .filter(o -> o.getTemplate().getName().equals(SETTINGS.arrowTemplate()))
+                .map(o -> o.getId().value())
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
+    /** {@code ReloadFrames} from the hero's own block, rather than a copy of it. */
+    private static int heroReloadFrames() {
+        boolean inHero = false;
+        for (var line : Content.read(Content.CREATURES).split("\n")) {
+            var trimmed = line.trim();
+            if (trimmed.startsWith("Object ")) {
+                inHero = trimmed.equals("Object Hero");
+            } else if (inHero && trimmed.startsWith("ReloadFrames")) {
+                return Integer.parseInt(trimmed.substring(trimmed.indexOf('=') + 1).trim());
+            }
+        }
+        throw new AssertionError("the hero has no ReloadFrames");
+    }
+
+    /**
      * The cooldown starts when he commits, not when the arrow lands.
      *
      * <p>Otherwise a shot across the room would be cheaper than one at his feet,
@@ -277,12 +373,9 @@ class SkillCastingTest {
 
     /** What one cast takes off the boss, with or without the ultimate up first. */
     private static float damageFrom(char key, int level, boolean underTheUltimate) {
-        var world = Dungeon.world(arena(), SETTINGS, creaturesWithNoBow());
-        var game = world.game();
-        game.spawn("Hero", world.hero(), 150f, 150f);
-        game.spawn(DungeonSettings.BOSS, world.dungeon(), 170f, 150f);
-        game.runHeadless(1);
-        var book = creature(game, "Hero").findModule(SkillBook.class);
+        var arena = bossArena(creaturesWithNoBow(), 20f);
+        var game = arena.game();
+        var book = arena.book();
         var boss = creature(game, DungeonSettings.BOSS);
 
         if (underTheUltimate) {

@@ -13,6 +13,7 @@ import uz.duke.dungeon.combat.Shot;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.rts.event.WeaponFired;
 import uz.duke.rts.module.DamageModifier;
+import uz.duke.rts.module.WeaponHold;
 import uz.duke.rts.module.WeaponUpdate;
 
 /**
@@ -36,7 +37,7 @@ import uz.duke.rts.module.WeaponUpdate;
  * a {@code STRIKE} is the nearest enemy with ties broken by object id; a
  * {@code DASH} walks with {@link StrictMath}. Nothing here asks the clock.
  */
-public final class SkillBook extends UpdateModule implements DamageModifier {
+public final class SkillBook extends UpdateModule implements DamageModifier, WeaponHold {
 
     /** How far apart a dash checks the ground it is crossing. */
     private static final float DASH_STEP = 5f;
@@ -353,6 +354,22 @@ public final class SkillBook extends UpdateModule implements DamageModifier {
     @Override
     public float damageMultiplier() {
         return boostFrames > 0 ? 1f + boostPercent / 100f : 1f;
+    }
+
+    /**
+     * His bow keeps quiet while he is drawing a heavy shot.
+     *
+     * <p>Without this he loosed two arrows for one keypress: the skill points his
+     * weapon at the target so that he is visibly taking aim, and his weapon —
+     * which updates before this module does — took that as an order and fired the
+     * ordinary shot on the spot. He has one bow and he is using it.
+     *
+     * <p>The reload runs on underneath, so his ordinary shooting resumes the frame
+     * after the heavy one leaves rather than starting a fresh wait.
+     */
+    @Override
+    public boolean holdingFire() {
+        return drawing != null;
     }
 
     @Override
