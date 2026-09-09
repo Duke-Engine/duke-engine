@@ -127,6 +127,12 @@ public final class Main {
                 animation(unit, hero.deathFrom(), HeroLook.DEATH);
             });
         }
+        // Arrows are units like any other — they are in the world, so the client
+        // draws them without being told anything special. Small and pale, and
+        // pointed the way they are flying, because the simulation turns them.
+        visuals.unit(settings.arrowTemplate(),
+                unit -> unit.colour(new java.awt.Color(240, 226, 170)).scale(0.28f));
+
         // The floor is black until he walks it. Named rather than given a
         // distance: the radius is the hero's own VisionRange from creatures.ini,
         // which is also what the engine's fog uses to decide whether a monster is

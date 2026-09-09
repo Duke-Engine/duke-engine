@@ -88,6 +88,13 @@ class StuckDiagnosisTest {
         int neverMoved = 0;
         int total = 0;
         for (var unit : game.getLogic().getObjects()) {
+            if (unit.findModule(uz.duke.core.module.MoveUpdate.class) == null) {
+                // Only things that walk. What this measures is a unit the
+                // pathfinder can no longer help, and an arrow has no pathfinder:
+                // it goes through stone on purpose, and counting it as stuck
+                // reports a bug in the one thing that is working as intended.
+                continue;
+            }
             total++;
             if (terrain.isBlocked(terrain.toCellX(unit.getPosition()),
                     terrain.toCellY(unit.getPosition()))) {

@@ -3,6 +3,8 @@ package uz.duke.dungeon;
 import java.awt.Color;
 import uz.duke.dungeon.ai.HeroBrain;
 import uz.duke.dungeon.ai.MonsterBrain;
+import uz.duke.dungeon.combat.ArrowUpdate;
+import uz.duke.dungeon.combat.Bow;
 import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.gen.DungeonGenerator;
@@ -117,6 +119,13 @@ public final class Dungeon {
                             (owner, data) -> new SkillBook(owner,
                                     settings.skillsFor(owner.getTemplate().getName())),
                             SkillBook::parseData);
+                    // An archer's shots become things in the world. The engine's
+                    // weapon still aims and reloads; these two decide what
+                    // happens between letting go and landing.
+                    factory.register("Bow",
+                            (owner, data) -> new Bow(owner, settings), Bow::parseData);
+                    factory.register("ArrowUpdate",
+                            ArrowUpdate::new, ArrowUpdate::parseData);
                 })
                 .loadUnits(creaturesIni)
                 .loadUnits(Content.read(Content.MONSTERS))

@@ -1312,6 +1312,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
         if (body == null) {
             body = buildPrimitive(view);
+            // Size applies to a shape as much as to a model. Without this a game
+            // could say how big a thing is only by shipping art for it, and
+            // anything small — a dart, a spark, a rat — came out unit-sized.
+            body.setLocalScale(visual.scale);
+            body.setLocalTranslation(0, visual.yOffset, 0);
         }
         node.root.attachChild(body);
 

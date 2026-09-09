@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 487 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 496 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -101,6 +101,23 @@ savol: *"Bu BFME'da ham, Warcraft III'da ham, Generals'da ham kerakmi?"*
 
 `generals` moduli shu printsipning isboti: Generals ham shunchaki bir o'yin, o'z
 qoidalarini o'zi yozadi va buning uchun engine'ga tegmaydi.
+
+**Snaryadlar.** `WeaponUpdate` otgan zahoti tegadi — miltiq uchun to'g'ri, lekin
+o'q, snaryad, raketa — **hech biri ifodalanmasdi**. Xohlagan o'yin `WeaponUpdate`
+dan butunlay voz kechishi kerak edi, u bilan birga nishon tanlash, kuluar, buyruq
+yo'naltirish va `WeaponFired` hodisasidan ham. Endi qurol o'sha hammasini
+bajaradi va faqat **oxirgi qadamni** beradi: egasida `ProjectileLauncher` bo'lsa,
+o'q unga ketadi, zarar qachon (va tegadimi) — o'yinning ishi.
+
+`DamageModifier`ning ko'zgusi: u zarba **qanchalik qattiq** tekkanini o'zgartiradi,
+bu esa **tegadimi va qachon** tekkanini. Launcher'i yo'q birlik avvalgidek hitscan.
+
+> Uchta qaror ataylab: berilgan zarar **yakuniy** (barcha modifikatorlar
+> qo'llangan); o'q **baribir e'lon qilinadi va kuluarni yeydi**, chunki tepki
+> tortilgan; va **rad etish xato emas** — joy topolmagan launcher shunday deydi,
+> qurol esa o'qni o'zi tushiradi, birlik jimgina zararsiz bo'lib qolmaydi.
+> Va bitta haqiqiy farq test bilan yozib qo'yilgan: **havodagi o'q uchun o'ldirish
+> hisobga olinmaydi** — qurol qo'yib yuborganda nishon tirik edi.
 
 **O'yinning o'z buyruqlari.** `core` ning `Command` shartnomasi doim shuni degan:
 *"o'yin o'z buyruq to'plamini e'lon qiladi"*. Lekin `rts` uni bloklardi —
@@ -940,7 +957,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **487 test yashil** (core 133, rts 100, generals 5, game 28, client3d 75, studio 8, dungeon 138) — 0 failure / 0 error.
+- **496 test yashil** (core 133, rts 100, generals 5, game 28, client3d 75, studio 8, dungeon 147) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1017,6 +1034,25 @@ ikkala peer aynan bir kadrda qo'llaydi.
     masofasi (`AttackRange` 8) undan kattaroq, shuning uchun **har bir**
     avto-tanlangan nishon "buyurilgan" bo'lib o'qilardi. Chegara qahramonning
     o'z `ThingTemplate` idan o'qiladi, o'yinda takrorlanmaydi.
+- **O'qlar haqiqiy** — kamondan chiqadi, masofani bosib o'tadi, zarar **yetib
+  kelganda** tushadi. 260 tezlikda to'liq masofada ~0.35 sekund havoda turadi.
+  - **Nishonni quvadi**, oldini olmaydi: yetaklab otilgan o'q nishon burilishi
+    bilan tegmay qolardi va qahramonning masofasi tavsiyaga aylanardi. Quvgani
+    uchun **tegmay qolish yo'q** — parvoz vaqt turadi, xolos.
+  - O'q **tanasiz va geometriyasiz**: tanasi yo'qligi uchun uni hech kim nishon
+    qilib ololmaydi (`acquireTarget` tanasi borlarni izlaydi), geometriyasi
+    yo'qligi uchun u dunyodan **o'tib ketadi**, monstrlarni turtmaydi. Ikkalasi
+    ham faylda **yo'qlik** bilan ifodalangan, shuning uchun test bilan yozib
+    qo'yilgan.
+  - **Zarar o'q bilan yuradi**, yetib kelganda qayta hisoblanmaydi: qurol qo'yib
+    yuborganida raqam yakuniy edi, va o'sha 0.35 sekundda otuvchi daraja olishi
+    ham, o'lishi ham mumkin.
+  - **O'ldirsa XP ni o'q beradi** — qurol hech kimni hisobga ololmaydi, chunki u
+    qo'yib yuborganda nishon tirik edi. Bu bo'lmasa levelling kamonchilik
+    kelgan kuni jimgina to'xtardi (test bor).
+  - **`StuckDiagnosisTest` soxta signal berdi**: u hamma obyektni sanardi, o'q
+    esa devor ichidan **ataylab** o'tadi. Endi u faqat **yuradigan** birliklarni
+    qaraydi — pathfinder yordam berishi kerak bo'lganlarni.
 - **Otish va javob** — kamonchi qahramon monstrlarni tinch o'ldirib turmasligi uchun.
   - Qahramon `VisionRange` 80 → **110**, `AttackRange` 70 → **95**; monstrlarning
     sezish radiusi tushdi (eng kattasi **85**). Ya'ni u ularni **sezilmasdan
@@ -1537,6 +1573,8 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `rts/…/rts/message/GameMessage.java` | sealed RTS buyruq to'plami |
 | `rts/…/rts/network/CommandCodec.java` | RTS sim formati |
 | `rts/…/rts/module/DamageModifier.java` | birlik bo'yicha zarar choki |
+| `rts/…/rts/module/ProjectileLauncher.java` | o'q choki — zarar qachon tushishini o'yin hal qiladi |
+| `dungeon/…/dungeon/combat/{Bow,ArrowUpdate}.java` | kamon va uchayotgan o'q |
 | `rts/…/rts/module/{ProductionGate,CapacityGate}.java` | ishlab chiqarish sharti choki + sig'im qoidasi |
 | `rts/…/rts/module/ExperienceModule.java` | XP + sozlanadigan rank narvoni |
 | `generals/…/generals/GeneralsVeterancy.java` | Generals'ning 4 rankli narvoni — bir o'yinning jadvali |

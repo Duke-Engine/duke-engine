@@ -50,6 +50,18 @@ public final class DungeonSettings {
     private int skeletonRepathFrames = 10;
     private float closeDistance = 4f;
     private int heroRepathFrames = 10;
+    private String arrowTemplate = "Arrow";
+    private float arrowSpeed = 260f;
+
+    /** The creature an archer's shot becomes once it is in the air. */
+    public String arrowTemplate() {
+        return arrowTemplate;
+    }
+
+    /** How fast it travels, in world units per second. */
+    public float arrowSpeed() {
+        return arrowSpeed;
+    }
 
     // ---- run loop ----
 
@@ -296,7 +308,9 @@ public final class DungeonSettings {
                     .add("SkeletonChaseRadius", Ini.real((s, v) -> s.skeletonChaseRadius = v))
                     .add("SkeletonRepathFrames", Ini.integer((s, v) -> s.skeletonRepathFrames = v))
                     .add("CloseDistance", Ini.real((s, v) -> s.closeDistance = v))
-                    .add("HeroRepathFrames", Ini.integer((s, v) -> s.heroRepathFrames = v));
+                    .add("HeroRepathFrames", Ini.integer((s, v) -> s.heroRepathFrames = v))
+                    .add("ArrowTemplate", Ini.string((s, v) -> s.arrowTemplate = v))
+                    .add("ArrowSpeed", Ini.real((s, v) -> s.arrowSpeed = v));
 
     /** Accumulates one {@code DungeonMonster} block. */
     private static final class MonsterBuilder {
