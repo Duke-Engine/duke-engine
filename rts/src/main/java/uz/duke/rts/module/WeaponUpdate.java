@@ -32,6 +32,9 @@ import uz.duke.rts.player.RtsPlayer;
  * bow, a deployed gun — and it belongs to the weapon rather than to whatever is
  * steering the unit, because a weapon finds its own target and fires in one call:
  * a script that disarmed it would be undone before the script ran again.
+ *
+ * <p>{@link WeaponHold} is the same idea for a moment rather than a movement: any
+ * module on the unit may say it is busy, and the weapon keeps quiet while it is.
  */
 public final class WeaponUpdate extends UpdateModule {
 
@@ -140,6 +143,9 @@ public final class WeaponUpdate extends UpdateModule {
         }
 
         var owner = getOwner();
+        if (heldByAModule(owner)) {
+            return; // busy with something else — see WeaponHold
+        }
         if (!attackOnTheMove && isWalking(owner)) {
             // Reloading on the way, and keeping whatever it was aimed at, but not
             // firing. This has to live here rather than in whatever is steering the
@@ -202,6 +208,21 @@ public final class WeaponUpdate extends UpdateModule {
             grantKillExperience(owner, victim);
             target = null;
         }
+    }
+
+    /**
+     * Whether anything on this unit is holding its fire.
+     *
+     * <p>Walked in module order, which is fixed when the object is built — the
+     * same rule {@link #damageModifiers} follows, and for the same reason.
+     */
+    private static boolean heldByAModule(GameObject owner) {
+        for (var module : owner.getModules()) {
+            if (module instanceof WeaponHold hold && hold.holdingFire()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Whether the owner is under way — nothing to say if it cannot move at all. */
