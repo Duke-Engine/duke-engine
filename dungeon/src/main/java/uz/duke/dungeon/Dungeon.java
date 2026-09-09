@@ -81,6 +81,15 @@ public final class Dungeon {
      * testing a world nobody plays.
      */
     public static Arena world(String asciiMap, DungeonSettings settings) {
+        return world(asciiMap, settings, Content.read(Content.CREATURES));
+    }
+
+    /**
+     * The same, on a creature file the caller supplies — the seam for asking what
+     * a re-tuned creature does, next to {@link #newSession(long, DungeonSettings)}
+     * for re-tuned generation.
+     */
+    public static Arena world(String asciiMap, DungeonSettings settings, String creaturesIni) {
         var game = DukeGame.create("Duke Dungeon")
                 .subtitle("a different dungeon every run")
                 .customModules(factory -> {
@@ -98,7 +107,7 @@ public final class Dungeon {
                             (owner, data) -> new GrowableBody(owner, (GrowableBody.Data) data),
                             GrowableBody::parseData);
                 })
-                .loadUnits(Content.read(Content.CREATURES))
+                .loadUnits(creaturesIni)
                 .loadUnits(Content.read(Content.MONSTERS))
                 .mapFromText(asciiMap);
 

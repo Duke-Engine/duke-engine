@@ -119,4 +119,130 @@ class TerrainSceneTest {
         assertEquals(1, root.getChildren().size());
         assertTrue(root.getChildren().stream().anyMatch(c -> c.getName().equals("ground")));
     }
+
+    // ---- discovery ----
+
+    /** A three-by-three room with stone all round it, in a grid 5 cells wide. */
+    private static final String ROOM = """
+            #####
+            #...#
+            #...#
+            #...#
+            #####
+            """;
+
+    private static TerrainScene discovering(Node root) {
+        return new TerrainScene(root, color -> null, true);
+    }
+
+    /** Whether a cell's cover is drawn — the thing that makes ground black. */
+    private static boolean lidShown(Node root, int cellX, int cellY) {
+        return shown(root, "fog", cellX, cellY);
+    }
+
+    private static boolean rockShown(Node root, int cellX, int cellY) {
+        return shown(root, "rock", cellX, cellY);
+    }
+
+    /**
+     * Found by where it stands rather than by index: a lid is laid out from the
+     * cell's near corner and a rock from its centre, so each is looked up on its
+     * own terms and the test cannot be fooled by a change of ordering.
+     */
+    private static boolean shown(Node root, String name, int cellX, int cellY) {
+        float cell = uz.duke.core.pathfind.PathGrid.DEFAULT_CELL_SIZE;
+        float x = name.equals("rock") ? (cellX + 0.5f) * cell : cellX * cell;
+        float z = name.equals("rock") ? (cellY + 0.5f) * cell : (cellY + 1) * cell;
+        for (var child : root.getChildren()) {
+            var at = child.getLocalTranslation();
+            if (child.getName().equals(name)
+                    && Math.abs(at.x - x) < 0.01f && Math.abs(at.z - z) < 0.01f) {
+                return child.getCullHint() != com.jme3.scene.Spatial.CullHint.Always;
+            }
+        }
+        return false; // no such thing in the scene at all
+    }
+
+    /**
+     * A game that did not ask for discovery gets exactly what it always got — no
+     * lids, no per-cell bookkeeping, and being handed a discovery changes nothing.
+     */
+    @Test
+    void aGameWithoutDiscoveryIsDrawnAsBefore() {
+        var root = new Node("terrain");
+        var terrain = scene(root);
+        terrain.rebuild(MapLoader.fromText(ROOM));
+        int children = root.getChildren().size();
+
+        terrain.applyDiscovery(new Discovery(MapLoader.fromText(ROOM)));
+
+        assertEquals(blockedCells(ROOM) + 1, children, "ground and stone, nothing else");
+        assertEquals(children, root.getChildren().size(), "and nothing appeared");
+        assertTrue(rockShown(root, 2, 0), "its walls are drawn whether anyone has been there or not");
+    }
+
+    /**
+     * Undiscovered stone is hidden, not blacked out. The lid lies flat on the floor
+     * and a wall stands six units above it, so a black lid alone would leave the
+     * wall sticking up out of the dark — handing the player the shape of a room he
+     * has never entered.
+     */
+    @Test
+    void wallsNobodyHasSeenAreNotDrawnAtAll() {
+        var root = new Node("terrain");
+        var terrain = discovering(root);
+        terrain.rebuild(MapLoader.fromText(ROOM));
+
+        terrain.applyDiscovery(new Discovery(MapLoader.fromText(ROOM)));
+
+        assertTrue(lidShown(root, 2, 2), "the floor is covered");
+        assertTrue(!rockShown(root, 2, 0), "and the wall is not there to be seen");
+    }
+
+    /** Where he is standing, the cover comes off and the world is drawn lit. */
+    @Test
+    void whereHeStandsIsUncovered() {
+        var root = new Node("terrain");
+        var terrain = discovering(root);
+        var grid = MapLoader.fromText(ROOM);
+        terrain.rebuild(grid);
+
+        terrain.applyDiscovery(seenFrom(grid, 25f, 25f, 20f));
+
+        assertTrue(!lidShown(root, 2, 2), "the cell he is in should be open");
+        assertTrue(rockShown(root, 2, 0), "and the wall beside him drawn");
+    }
+
+    /**
+     * Walked out of and left behind: the wall stays on the map — that is the
+     * memory — but the ground goes back under a cover, which is what tells the
+     * player at a glance that he is no longer looking at it.
+     */
+    @Test
+    void aRoomHeHasLeftKeepsItsWallsUnderCover() {
+        var root = new Node("terrain");
+        var terrain = discovering(root);
+        var grid = MapLoader.fromText(ROOM);
+        terrain.rebuild(grid);
+        var seen = new Discovery(grid);
+
+        seen.reveal(java.util.List.of(unit(25f, 25f)), 0, 20f);
+        seen.reveal(java.util.List.of(unit(500f, 500f)), 0, 20f); // gone off elsewhere
+        terrain.applyDiscovery(seen);
+
+        assertTrue(rockShown(root, 2, 0), "he should still know the wall is there");
+        assertTrue(lidShown(root, 2, 2), "but it is not lit any more");
+    }
+
+    private static Discovery seenFrom(uz.duke.core.pathfind.PathGrid grid,
+            float x, float y, float radius) {
+        var seen = new Discovery(grid);
+        seen.reveal(java.util.List.of(unit(x, y)), 0, radius);
+        return seen;
+    }
+
+    private static uz.duke.game.view.UnitView unit(float x, float y) {
+        return new uz.duke.game.view.UnitView(
+                1, "Hero", 0, x, y, 0f, 10f, 10f, false, true, false, false, -1);
+    }
 }

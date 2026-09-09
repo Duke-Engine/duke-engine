@@ -103,6 +103,7 @@ public final class Visuals {
     private final Map<String, UnitVisual> units = new HashMap<>();
     private final UnitVisual defaults = new UnitVisual();
     private String assetRoot;
+    private String discoveryTemplate;
 
     private Visuals() {
     }
@@ -135,5 +136,31 @@ public final class Visuals {
     /** The configuration for a template (empty defaults if none was set). */
     public UnitVisual of(String templateName) {
         return units.getOrDefault(templateName, defaults);
+    }
+
+    /**
+     * Hide the map until the player has been there, and open it up around the
+     * units built from {@code templateName} — a dungeon crawler's fog rather than
+     * an RTS's.
+     *
+     * <p>An RTS shows the ground and hides what walks on it: the map is a briefing,
+     * and the game is about what you cannot see moving across it. A crawler hides
+     * the ground too, because there the map <em>is</em> the thing being discovered.
+     * The engine only knows the first kind, so this is the client's answer to the
+     * second, and games get it only by asking.
+     *
+     * <p>A template name rather than a distance on purpose. The radius is that
+     * template's {@code VisionRange} — the very number the engine's own fog uses to
+     * decide which creatures the player can see — so the ground opening up and the
+     * monsters appearing are one setting in one file, and cannot be tuned apart.
+     */
+    public Visuals discoveredBy(String templateName) {
+        this.discoveryTemplate = templateName;
+        return this;
+    }
+
+    /** The template whose vision opens the map, or {@code null} for no discovery. */
+    public String getDiscoveryTemplate() {
+        return discoveryTemplate;
     }
 }

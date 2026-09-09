@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 381 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 399 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -924,7 +924,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **381 test yashil** (core 133, rts 94, generals 5, game 23, client3d 39, studio 8, dungeon 79) — 0 failure / 0 error.
+- **399 test yashil** (core 133, rts 94, generals 5, game 23, client3d 52, studio 8, dungeon 84) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1001,6 +1001,35 @@ ikkala peer aynan bir kadrda qo'llaydi.
     masofasi (`AttackRange` 8) undan kattaroq, shuning uchun **har bir**
     avto-tanlangan nishon "buyurilgan" bo'lib o'qilardi. Chegara qahramonning
     o'z `ThingTemplate` idan o'qiladi, o'yinda takrorlanmaydi.
+- **Kashfiyot tumani — xarita qora, qahramon uni ochib boradi.** Uch holat:
+  ko'rilmagan (qora — na yer, na devor, na dushman), ochilgan (devorlar ko'rinadi,
+  dushmanlar yo'q), hozir ko'rinayotgan (hammasi). Ikki qatlamdan yig'ilgan:
+  - **Dushmanlar — engine'niki, tekin.** `GameLogic.canSee` allaqachon jonli
+    ko'rish bo'yicha filtrlaydi va **xotirasi yo'q** — ya'ni dushman radiusdan
+    chiqsa snapshotdan butunlay yo'qoladi, oxirgi joyida "arvoh" qolmaydi. Kerak
+    bo'lgan yagona narsa `creatures.ini` dagi raqam edi: `VisionRange` 600 →
+    **80**. 600 — 500x360 xaritaning uzoq burchagiga yetadi, ya'ni tuman butun
+    o'yinni o'zidan yashirayotgan edi.
+  - **Yer va devorlar — klientniki, yangi.** `core` "ochilgan yer" tushunchasini
+    bilmaydi (RTS'da relyef ko'rinadi, faqat birliklar yashirin). `Discovery`
+    (client3d) katak bo'yicha ikkita `BitSet` yuritadi: `explored` (hech qachon
+    tozalanmaydi = xotira) va `visible` (har kadr qayta yoziladi = ko'zlar).
+    `TerrainScene` har katakka "qopqoq" beradi, minimap esa har katakni holat
+    bo'yicha bo'yaydi.
+  - **Radius bitta manbadan.** `Visuals.discoveredBy("Hero")` — masofa emas,
+    **template nomi**: radius o'sha template'ning `VisionRange`i, ya'ni aynan
+    engine tumani ishlatadigan raqam. Shuning uchun yer ochilishi va dushman
+    ko'rinishi ajralib qola olmaydi.
+  - **Simulyatsiyaga ta'sir qilmasligi tuzilmaviy.** `canSee` va `getVisionRange`
+    butun repoda faqat `RtsClient` (snapshot) va `AsciiRenderer` dan chaqiriladi —
+    simulyatsiyada bitta ham chaqiruv yo'q. `Discovery` esa umuman `client3d` da,
+    snapshot ustida. `DungeonFogTest` buni raqam bilan qulflaydi: bir xil dunyo,
+    `VisionRange` 600 va 80 — checksumlar bit-aniq bir xil.
+  - Tuman `refreshWorldIfChanged` da nolga qaytadi, ya'ni yangi run ham, yangi
+    chuqurlik ham qop-qora boshlanadi (`applyMapTerrain` grid nusxasini
+    almashtiradi — klientга alohida signal kerak emas).
+  - Tumanni **so'ramagan o'yin hech narsa to'lamaydi**: qopqoq qurilmaydi, sikl
+    ishlamaydi. `studio` va oddiy RTS xulqi o'zgarmagan.
 - **Skeletlar qahramonni quvadi** — `SkeletonBrain` ikki radius bilan: sezish
   (~bitta xona, aggro xonama-xona tarqaladi) va quvish (kengroq, lekin cheklangan).
   Skelet qahramondan sekinroq, shuning uchun jangdan chiqib ketish haqiqiy taktika.
@@ -1346,6 +1375,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/MinimapProjection.java` | dunyo ↔ minimap matematikasi + viewport konturi |
 | `client3d/…/client3d/CameraFocus.java` | kamera nishoni/zoom — boshda o'z birligiga, keyin erkin |
 | `client3d/…/client3d/{SelectionBox,Formation,OrderMarkers}.java` | drag-select, guruh joylashuvi, buyruq metkalari |
+| `client3d/…/client3d/Discovery.java` | kashfiyot tumani — qora / xotira / ko'rinayotgan (faqat klient) |
 | `dungeon/…/dungeon/Dungeon.java` | o'yinni yig'ish (fixture xona va haqiqiy o'yin) |
 | `dungeon/…/dungeon/content/DungeonSettings.java` | `dungeon.ini` — generatsiya va xulq sozlamalari |
 | `dungeon/…/dungeon/gen/DungeonGenerator.java` | seed'dan xonalar + koridorlar (ulanish kafolati) |

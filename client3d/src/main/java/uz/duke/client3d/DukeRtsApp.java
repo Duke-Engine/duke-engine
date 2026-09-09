@@ -94,9 +94,21 @@ final class DukeRtsApp extends SimpleApplication {
      * run) kept the old one on screen while everything else moved on.
      */
     private final Node terrainNode = new Node("terrain");
-    private final TerrainScene terrain = new TerrainScene(terrainNode, this::lit);
+    private final TerrainScene terrain;
     /** The grid the terrain was built from — a different instance means a new world. */
     private uz.duke.core.pathfind.PathGrid builtFrom;
+
+    /**
+     * What the player has seen, when the game asked to be discovered rather than
+     * shown. {@code null} for every other game, and then nothing below runs.
+     */
+    private Discovery discovery;
+    /** The discovering template's {@code VisionRange}, resolved once the game is up. */
+    private float discoveryRadius = -1f;
+    /** Minimap cells, one per grid cell, recoloured by what the player knows. */
+    private Geometry[] minimapCells = new Geometry[0];
+    /** Minimap colours per state, made once: black, remembered, and in sight. */
+    private Material[] minimapPalette;
     private final Map<Integer, UnitNode> unitNodes = new HashMap<>();
     private final Set<Integer> selected = new HashSet<>();
     private final Map<String, AudioNode> audioCache = new HashMap<>();
@@ -147,6 +159,7 @@ final class DukeRtsApp extends SimpleApplication {
         this.game = game;
         this.visuals = visuals;
         this.shell = shell;
+        this.terrain = new TerrainScene(terrainNode, this::lit, visuals.getDiscoveryTemplate() != null);
     }
 
     /** The simulation thread, if the player ever pressed Play. */
@@ -244,12 +257,20 @@ final class DukeRtsApp extends SimpleApplication {
         backdrop.setMaterial(unshaded(new ColorRGBA(0.10f, 0.14f, 0.08f, 1f)));
         minimapTerrainNode.attachChild(backdrop);
 
+        minimapCells = new Geometry[0];
         if (grid != null) {
             var rock = unshaded(new ColorRGBA(0.35f, 0.32f, 0.26f, 1f));
             float cellPx = grid.getCellSize() * minimap.scale();
+            boolean discovered = visuals.getDiscoveryTemplate() != null;
+            if (discovered) {
+                minimapCells = new Geometry[grid.getWidth() * grid.getHeight()];
+            }
             for (int cy = 0; cy < grid.getHeight(); cy++) {
                 for (int cx = 0; cx < grid.getWidth(); cx++) {
-                    if (!grid.isBlocked(cx, cy)) {
+                    // With discovery every cell gets a square, floor included: an
+                    // undiscovered floor has to be as black as undiscovered stone,
+                    // and the backdrop showing through would draw it as open ground.
+                    if (!discovered && !grid.isBlocked(cx, cy)) {
                         continue;
                     }
                     var cell = new Geometry("mm-rock", new Quad(cellPx, cellPx));
@@ -257,10 +278,52 @@ final class DukeRtsApp extends SimpleApplication {
                     // minimap y grows up the screen, world y grows down the map
                     cell.setLocalTranslation(cx * cellPx, (grid.getHeight() - 1 - cy) * cellPx, 0);
                     minimapTerrainNode.attachChild(cell);
+                    if (discovered) {
+                        minimapCells[cy * grid.getWidth() + cx] = cell;
+                    }
                 }
             }
         }
         minimapNode.setLocalTranslation(minimapX, minimapY, 0);
+        minimapPalette = null; // rebuilt lazily against the new grid
+    }
+
+    /**
+     * Paint the minimap with what the player knows: black where they have not
+     * been, dim where they have, bright where they are looking.
+     *
+     * <p>The unit dots need no help — the snapshot only ever carries what the
+     * engine's own fog lets through, so a monster in a room the player walked out
+     * of is already gone from it. That is the whole "where did it go?" of the
+     * thing, and it comes free.
+     */
+    private void applyMinimapDiscovery(uz.duke.core.pathfind.PathGrid grid) {
+        if (discovery == null || grid == null || minimapCells.length == 0) {
+            return;
+        }
+        if (minimapPalette == null) {
+            minimapPalette = new Material[] {
+                unshaded(new ColorRGBA(0.02f, 0.02f, 0.03f, 1f)),   // never been there
+                unshaded(new ColorRGBA(0.13f, 0.12f, 0.10f, 1f)),   // remembered stone
+                unshaded(new ColorRGBA(0.06f, 0.08f, 0.05f, 1f)),   // remembered floor
+                unshaded(new ColorRGBA(0.35f, 0.32f, 0.26f, 1f)),   // stone in sight
+                unshaded(new ColorRGBA(0.16f, 0.22f, 0.13f, 1f)),   // floor in sight
+            };
+        }
+        for (int index = 0; index < minimapCells.length; index++) {
+            var cell = minimapCells[index];
+            if (cell == null) {
+                continue;
+            }
+            int cx = index % grid.getWidth();
+            int cy = index / grid.getWidth();
+            boolean stone = grid.isBlocked(cx, cy);
+            cell.setMaterial(switch (discovery.stateAt(cx, cy)) {
+                case UNSEEN -> minimapPalette[0];
+                case REMEMBERED -> stone ? minimapPalette[1] : minimapPalette[2];
+                case VISIBLE -> stone ? minimapPalette[3] : minimapPalette[4];
+            });
+        }
     }
 
     /** If the cursor is over the minimap, move the camera there. Returns true if handled. */
@@ -651,6 +714,41 @@ final class DukeRtsApp extends SimpleApplication {
     private void buildTerrain() {
         builtFrom = game.getTerrain();
         terrain.rebuild(builtFrom);
+        if (visuals.getDiscoveryTemplate() == null) {
+            return;
+        }
+        // A new floor is a floor nobody has walked: memory belongs to one world,
+        // and carrying it over would open rooms in a dungeon nobody has entered.
+        if (discovery == null) {
+            discovery = new Discovery(builtFrom);
+        } else {
+            discovery.reset(builtFrom);
+        }
+    }
+
+    /**
+     * Open the map around the player's own units and redraw what that changes.
+     *
+     * <p>Entirely a matter of what is drawn. It reads the snapshot the client is
+     * already given and writes nothing back, so the simulation runs the same
+     * whether anyone is looking at it or not — which is the only way fog can be
+     * added to a deterministic game without becoming part of it.
+     */
+    private void syncDiscovery() {
+        if (discovery == null) {
+            return;
+        }
+        if (discoveryRadius < 0f) {
+            var template = game.getLogic() == null
+                    ? null : game.getLogic().findTemplate(visuals.getDiscoveryTemplate());
+            if (template == null) {
+                return; // the game has not finished booting; the map stays black
+            }
+            discoveryRadius = template.getVisionRange();
+        }
+        discovery.reveal(snapshot.units(), game.getLocalPlayerIndex(), discoveryRadius);
+        terrain.applyDiscovery(discovery);
+        applyMinimapDiscovery(builtFrom);
     }
 
     /**
@@ -1000,6 +1098,7 @@ final class DukeRtsApp extends SimpleApplication {
             return; // the world starts when the player presses Play
         }
         refreshWorldIfChanged(); // a new run lays out a new world; redraw it
+        syncDiscovery();
         camera.focusOnOwnUnit(snapshot.units(), game.getLocalPlayerIndex());
         updateCamera(tpf);
         syncUnits();

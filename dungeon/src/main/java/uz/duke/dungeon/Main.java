@@ -53,6 +53,12 @@ public final class Main {
         for (var kind : settings.monsters()) {
             visuals.unit(kind.name(), unit -> unit.colour(kind.awtColour()).scale(kind.scale()));
         }
+        // The floor is black until he walks it. Named rather than given a
+        // distance: the radius is the hero's own VisionRange from creatures.ini,
+        // which is also what the engine's fog uses to decide whether a monster is
+        // on screen — so the ground he uncovers and the things he can see are the
+        // same number, and re-tuning one cannot leave the other behind.
+        visuals.discoveredBy("Hero");
         return visuals;
     }
 }
