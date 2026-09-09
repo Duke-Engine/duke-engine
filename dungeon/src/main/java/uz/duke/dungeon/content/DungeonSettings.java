@@ -36,6 +36,8 @@ public final class DungeonSettings {
     private int maxRoomSize = 9;
     private int roomGap = 1;
     private int placementAttempts = 600;
+    private int corridorWidth = 2;
+    private int maxRoomSpacing = 24;
     private int minSkeletonsPerRoom = 2;
     private int maxSkeletonsPerRoom = 6;
 
@@ -196,6 +198,8 @@ public final class DungeonSettings {
         require(skeletonRepathFrames >= 1 && heroRepathFrames >= 1,
                 "re-planning every zero frames is not a plan");
         require(closeDistance >= 0, "CloseDistance cannot be negative");
+        require(corridorWidth >= 1, "a corridor narrower than one cell is a wall");
+        require(maxRoomSpacing > maxRoomSize, "rooms could never reach one another");
         require(respawnDelayFrames >= 0, "the death pause cannot be negative");
         require(maxLevel >= Levelling.FIRST_LEVEL, "MaxLevel cannot be below the first level");
         require(xpBase > 0, "XpBase must be positive or no level is ever reached");
@@ -223,6 +227,8 @@ public final class DungeonSettings {
                     .add("MaxRoomSize", Ini.integer((s, v) -> s.maxRoomSize = v))
                     .add("RoomGap", Ini.integer((s, v) -> s.roomGap = v))
                     .add("PlacementAttempts", Ini.integer((s, v) -> s.placementAttempts = v))
+                    .add("CorridorWidth", Ini.integer((s, v) -> s.corridorWidth = v))
+                    .add("MaxRoomSpacing", Ini.integer((s, v) -> s.maxRoomSpacing = v))
                     .add("MinSkeletonsPerRoom", Ini.integer((s, v) -> s.minSkeletonsPerRoom = v))
                     .add("MaxSkeletonsPerRoom", Ini.integer((s, v) -> s.maxSkeletonsPerRoom = v));
 
@@ -331,6 +337,16 @@ public final class DungeonSettings {
 
     public int placementAttempts() {
         return placementAttempts;
+    }
+
+    /** Corridor width in cells — wide enough for the largest creature to pass. */
+    public int corridorWidth() {
+        return corridorWidth;
+    }
+
+    /** How far a new room may sit from the nearest already placed, in cells. */
+    public int maxRoomSpacing() {
+        return maxRoomSpacing;
     }
 
     public int minSkeletonsPerRoom() {

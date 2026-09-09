@@ -79,7 +79,7 @@ public final class DungeonGenerator {
         for (var room : rooms) {
             carveRoom(cells, room);
         }
-        var links = connectRooms(cells, rng, rooms);
+        var links = connectRooms(cells, rng, rooms, settings.corridorWidth());
 
         var hero = worldCenter(rooms.get(0).centerCellX(), rooms.get(0).centerCellY());
         int bossRoom = furthestRoomFromStart(rooms.size(), links);
@@ -135,7 +135,8 @@ public final class DungeonGenerator {
      * <p>Ties fall to the lowest room index by iteration order, so the result is
      * the same everywhere.
      */
-    private static List<Link> connectRooms(char[][] cells, DeterministicRng rng, List<Room> rooms) {
+    private static List<Link> connectRooms(char[][] cells, DeterministicRng rng, List<Room> rooms,
+            int width) {
         var links = new ArrayList<Link>();
         var joined = new boolean[rooms.size()];
         joined[0] = true;
@@ -161,7 +162,7 @@ public final class DungeonGenerator {
                 }
             }
             joined[bestOutside] = true;
-            carveCorridor(cells, rng, rooms.get(bestInside), rooms.get(bestOutside));
+            carveCorridor(cells, rng, rooms.get(bestInside), rooms.get(bestOutside), width);
             links.add(new Link(bestInside, bestOutside));
         }
         return links;
@@ -185,11 +186,36 @@ public final class DungeonGenerator {
             int x = rng.nextInt(1, settings.mapWidth() - w - 2);
             int y = rng.nextInt(1, settings.mapHeight() - h - 2);
             var room = new Room(x, y, w, h);
-            if (!overlapsAny(room, rooms, settings.roomGap())) {
+            if (!overlapsAny(room, rooms, settings.roomGap())
+                    && withinReach(room, rooms, settings.maxRoomSpacing())) {
                 rooms.add(room);
             }
         }
         return rooms;
+    }
+
+    /**
+     * Whether this room is close enough to something already placed to belong to
+     * the same dungeon.
+     *
+     * <p>Rejection sampling over the whole map scatters rooms into corners, and two
+     * rooms in opposite corners are joined by a corridor across everything — the
+     * part of a dungeon a player walks rather than plays. Requiring each new room
+     * to sit near an existing one grows the dungeon outward from the first instead
+     * of sprinkling it. The first room has nothing to be near, so it goes anywhere.
+     */
+    private static boolean withinReach(Room room, List<Room> placed, int maxSpacing) {
+        if (placed.isEmpty()) {
+            return true;
+        }
+        for (var other : placed) {
+            int distance = Math.abs(room.centerCellX() - other.centerCellX())
+                    + Math.abs(room.centerCellY() - other.centerCellY());
+            if (distance <= maxSpacing) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean overlapsAny(Room room, List<Room> placed, int gap) {
@@ -214,30 +240,51 @@ public final class DungeonGenerator {
         }
     }
 
-    private static void carveCorridor(char[][] cells, DeterministicRng rng, Room from, Room to) {
+    private static void carveCorridor(char[][] cells, DeterministicRng rng, Room from, Room to,
+            int width) {
         int x1 = from.centerCellX();
         int y1 = from.centerCellY();
         int x2 = to.centerCellX();
         int y2 = to.centerCellY();
         // An L-bend: which leg comes first is a coin-flip, so corridors vary.
         if (rng.nextBoolean()) {
-            carveHorizontal(cells, y1, x1, x2);
-            carveVertical(cells, x2, y1, y2);
+            carveHorizontal(cells, y1, x1, x2, width);
+            carveVertical(cells, x2, y1, y2, width);
         } else {
-            carveVertical(cells, x1, y1, y2);
-            carveHorizontal(cells, y2, x1, x2);
+            carveVertical(cells, x1, y1, y2, width);
+            carveHorizontal(cells, y2, x1, x2, width);
         }
     }
 
-    private static void carveHorizontal(char[][] cells, int y, int xa, int xb) {
-        for (int x = Math.min(xa, xb); x <= Math.max(xa, xb); x++) {
-            cells[y][x] = FLOOR;
+    /**
+     * Carve a band {@code width} cells thick, centred on the line.
+     *
+     * <p>A one-cell corridor is ten world units and the largest creature is
+     * sixteen across, which does not merely look tight — a mover with no room to
+     * step aside swerves into stone, and stone is where it stays. The width is a
+     * correctness setting, not a matter of taste.
+     */
+    private static void carveHorizontal(char[][] cells, int y, int xa, int xb, int width) {
+        for (int offset = -(width - 1) / 2; offset <= width / 2; offset++) {
+            int row = y + offset;
+            if (row <= 0 || row >= cells.length - 1) {
+                continue; // never breach the map's own border
+            }
+            for (int x = Math.min(xa, xb); x <= Math.max(xa, xb); x++) {
+                cells[row][x] = FLOOR;
+            }
         }
     }
 
-    private static void carveVertical(char[][] cells, int x, int ya, int yb) {
-        for (int y = Math.min(ya, yb); y <= Math.max(ya, yb); y++) {
-            cells[y][x] = FLOOR;
+    private static void carveVertical(char[][] cells, int x, int ya, int yb, int width) {
+        for (int offset = -(width - 1) / 2; offset <= width / 2; offset++) {
+            int column = x + offset;
+            if (column <= 0 || column >= cells[0].length - 1) {
+                continue;
+            }
+            for (int y = Math.min(ya, yb); y <= Math.max(ya, yb); y++) {
+                cells[y][column] = FLOOR;
+            }
         }
     }
 

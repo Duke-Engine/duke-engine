@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 370 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 379 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -924,7 +924,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **370 test yashil** (core 133, rts 94, generals 5, game 23, client3d 39, studio 8, dungeon 68) — 0 failure / 0 error.
+- **379 test yashil** (core 133, rts 94, generals 5, game 23, client3d 39, studio 8, dungeon 77) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1025,6 +1025,36 @@ ikkala peer aynan bir kadrda qo'llaydi.
   `hp joriy/maksimal` i — HP o'sishi shu orqali ko'rinadi. To'liq daraja/XP qatori
   hozircha **yo'q**: `WorldSnapshot` da o'yin belgilaydigan ko'rsatkich uchun maydon yo'q
   va `game` ga tegilmadi. Buning uchun snapshotga bitta "status line" maydoni kerak.
+- **Devorga kirib qolish tuzatildi (engine)** — o'yinchi "unitlar yurayotganda devor
+  orasiga tiqilib qoladi" deb xabar berdi. Taxmin qilinmadi, **o'lchandi**: 12 ta
+  dungeonda qahramon ov qilgandan keyin nechta unit tosh ichida turgani sanaldi —
+  **15 ta** edi, endi **0**. Sabab engine'dagi ikki teshik, ular faqat koridorda
+  uchrashadi:
+  1. Harakatning har qadamdagi tekshiruvi `findBlocker` ni so'raydi, u **kim**
+     to'sayotganini aytadi, **nima** emas. Devorlar butunlay pathfinderga qoldirilgan
+     edi — "marshrut devordan o'tmaydi" degan mulohaza bilan, va bu unit marshrutiga
+     **ergashsagina** to'g'ri. Qo'shnini chetlab o'tish marshrut rejalashtirmagan
+     qadam, va tor koridorda yagona yo'l yon tomonga, toshga.
+  2. Va nega halokatli: **boshlang'ich katagi bloklangan A\* hech narsa qaytarmaydi**.
+     Devorga kirgan unit o'yin oxirigacha reja tuza olmaydi — qisilgan emas, rejasiz.
+
+  Yechim: `World.isGroundBlocked` qo'shildi va `MoveUpdate` yerni ham so'raydi
+  (toshda turgan unit istisno, aks holda devor qafasga aylanadi); `Pathfinder`
+  toshdan boshlanganda eng yaqin turish mumkin bo'lgan katakka bitta waypoint
+  qaytaradi, halqalar bo'yicha qat'iy tartibda.
+- **Koridor kengligi endi korrektlik sozlamasi** — `CorridorWidth = 2` (20 birlik).
+  Bitta katak 10 birlik edi, boss esa 16 kenglikda: u koridorga **sig'masdi**, va
+  chetga qadam tashlashga joyi yo'q unit aynan toshga kirib qolardi. Test eng katta
+  radiusni **INI'dan o'qib** solishtiradi, ya'ni koridordan kattaroq monstr qo'shilsa
+  jimgina emas, baland ovozda yiqiladi.
+- **Zichroq joylashuv** — `MaxRoomSpacing`: yangi xona allaqachon qo'yilganlaridan
+  shu masofadan uzoqqa tusha olmaydi. Butun xarita bo'ylab rad etish namunasi
+  xonalarni burchaklarga sochib yuborardi, ikki burchakdagi xona esa butun xarita
+  bo'ylab koridor bilan ulanardi.
+- **Boss oxirida** — u allaqachon koridorlar soni bo'yicha eng uzoq xonada edi; endi
+  yo'lda kamida 2 xona, va o'rtacha yarmi bo'lishi test bilan qulflandi. Minimapda
+  oq va eng katta — modelsiz o'yinda qavatning oxiri qayerda ekanini aytadigan
+  yagona narsa.
 - **Dushman xilma-xilligi va chuqurlik** — besh tur (Skeleton, Runner, Brute, Archer,
   Revenant) va boss. **Bitta miya, turlar bo'yicha parametrlar:** archer boshqa aql
   emas, u shunchaki uzoqroqda to'xtaydigan aql (`CloseDistance` — yaqinlashadigan
