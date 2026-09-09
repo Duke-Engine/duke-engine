@@ -18,6 +18,11 @@ import uz.duke.client3d.Visuals;
  *
  * <p>Controls are the engine's own: left-click the hero to select him,
  * right-click the floor to walk or a skeleton to attack it.
+ *
+ * <p>Each launch draws a different dungeon. The seed is the one thing here the
+ * clock touches — and it is outside the simulation, choosing <em>which</em>
+ * deterministic dungeon to play rather than reaching into how one is built. From
+ * that seed on, generation and the run loop are a pure, reproducible chain.
  */
 public final class Main {
 
@@ -25,7 +30,7 @@ public final class Main {
     }
 
     public static void main(String[] args) {
-        Duke3D.launch(Dungeon.create(), Visuals.create(), Shell.create()
+        Duke3D.launch(Dungeon.create(System.nanoTime()), Visuals.create(), Shell.create()
                 .entry(Shell.Entry.PLAY, "Enter the dungeon")
                 .entry(Shell.Entry.SETTINGS)
                 .entry(Shell.Entry.QUIT));

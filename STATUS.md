@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-07 · **Testlar:** 231 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 238 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -29,7 +29,7 @@ Hamma modulda `-Xlint:all`, testlar JUnit 5.11.3.
 | `studio` | `client3d` + Gson 2.11.0 | Duke Studio — Swing IDE (`uz.duke.studio.StudioMain`) |
 | `sandbox` | `game` | 2D skirmish demo (~70 qator) |
 | `sandbox3d` | `client3d` + jme3-testdata | 3D skirmish demo (~74 qator) |
-| `dungeon` | `client3d` | **Duke Dungeon** — engine ustidagi ilk o'yin (3D roguelike, primitiv shakllar) |
+| `dungeon` | `client3d` | **Duke Dungeon** — engine ustidagi ilk o'yin (3D roguelike: seed'li generatsiya + run loop, primitiv shakllar) |
 
 **Asosiy qoida:** `core` hech qachon `rts` ni import qilmaydi. RTS bo'lmagan o'yin
 yozmoqchi bo'lsangiz faqat `core` ga bog'lanasiz va o'z buyruqlaringiz, modullaringiz
@@ -860,7 +860,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **231 test yashil** (core 124, rts 71, game 18, client3d 5, studio 8, dungeon 5) — 0 failure / 0 error.
+- **238 test yashil** (core 124, rts 71, game 18, client3d 5, studio 8, dungeon 12) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -894,11 +894,34 @@ ikkala peer aynan bir kadrda qo'llaydi.
   qotardi) va uni **aynan bir kadrda** kutishdan to'xtaydi; host'ni yo'qotgan
   mehmon esa qadam tashlamaydi. `NetworkTransportTest`: host relay qiladi, va
   uzilish xabari o'sha peerning oxirgi paketidan **keyin** keladi.
-- **Engine ustida o'yin yozilmoqda** — `dungeon` moduli (Duke Dungeon): bitta
-  xona, qahramon, uchta skelet. Muhimi: **engine'ga bironta narsa qo'shilmadi**
-  — o'yin faqat mavjud API'ni ishlatadi. `DungeonTest` headless tekshiradi:
-  qahramon buyurilgan joyga boradi, skeletni o'ldiradi, skeletlar javob qaytaradi
-  va devorlar qattiq (400 kadr davomida hech qachon tosh ustida turmaydi).
+- **Engine ustida o'yin yozilmoqda** — `dungeon` moduli (Duke Dungeon).
+  Muhimi: **engine'ga bironta narsa qo'shilmadi** — o'yin faqat mavjud API'ni
+  ishlatadi. `DungeonTest` qo'lda chizilgan xonada headless tekshiradi: qahramon
+  buyurilgan joyga boradi, skeletni o'ldiradi, skeletlar javob qaytaradi va
+  devorlar qattiq (400 kadr davomida hech qachon tosh ustida turmaydi).
+- **Dungeon seed'dan generatsiya qilinadi** — `DungeonGenerator`: 5–8 xona,
+  koridorlar bilan bog'langan, qahramon boshlang'ich xonada, skeletlar
+  qolganlarida. Ulanish **konstruksiya orqali kafolatlangan**: har xona o'zidan
+  oldingisiga koridor bilan ulanadi, ya'ni xonalar bitta qamrab oluvchi daraxt —
+  izolyatsiya qilingan xona chiqishi mumkin emas, "ulanganmi?" degan tekshiruv
+  omad bilan o'tib keta olmaydi. `DungeonGeneratorTest`: bir seed → aynan bir
+  dungeon, har xil seed → har xil, va **0..200 seed uchun** qahramon
+  katagidan pol bo'ylab flood-fill har bir xona markazi va har bir skeletga
+  yetib boradi (engine'ning o'z `findPath` i ham tasdiqlaydi).
+- **Run loop — o'lsang boshdan** — `DungeonRun`: `RUNNING` → qahramon HP tugadi
+  yoki dunyodan ketdi → `DEAD` ("You died") → ~2 soniyadan keyin yangi seed,
+  yangi dungeon, to'liq HP bilan yangi run. Progress saqlanmaydi (save/load yo'q).
+  Dunyo o'rnida qayta quriladi — engine'ning save/load choki (`clearWorld` +
+  `applyMapTerrain` + respawn); o'yinchilar tegilmaydi, shuning uchun egalik
+  indekslari amal qiladi. `DungeonRunTest` holat almashinuvini va yangi run
+  to'liq HP bilan boshlanishini qulflaydi.
+- **Generatsiya ham determinizm shartnomasida** — `DeterministicRng` (xorshift64,
+  faqat butun sonli amallar). Generatsiya yo'lida `Math.random`, devor-soati va
+  trigonometriya yo'q; har keyingi run'ning seed'i oldingisidan shu zanjir bilan
+  olinadi, ya'ni bitta boshlang'ich seed butun sessiyaning dungeonlar ketma-ketligini
+  belgilaydi. Soatga tegadigan yagona joy — `Main` dagi boshlang'ich seed tanlovi,
+  u simulyatsiyadan **tashqarida**: qaysi deterministik olamni o'ynashni tanlaydi,
+  dungeon qanday qurilishiga aralashmaydi.
 - **Determinizm har build'da tekshiriladi** — `ReplayRoundTripTest`: haqiqiy
   skirmish (jang + ishlab chiqarish + skriptli buyruqlar) yozib olinadi va qayta
   o'ynatiladi; tekshirish nuqtalari mos kelishi va yakuniy checksum bir xil
@@ -971,6 +994,18 @@ qatlamlarda umuman ishlatilmaydi: `StatusUpdate`, `SpecialPowerModule`, `Contain
 birinchi ikkitasi sof RTS/strategiya tushunchasi. Ularni chiqarish uchun template'ga
 kengaytma-ma'lumot mexanizmi va `ThingTemplateLoader` ga maydon-registratsiyasi kerak
 (o'yin o'z INI maydonlarini qo'sha olsin). **Hali qilinmagan — ochiq qaror.**
+
+### Duke Dungeon — ataylab qilinmagan narsalar
+
+O'yin hozir "o'ynash mumkinmi?" savolini tekshiryapti, shuning uchun uni yashira
+oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchilik emas:
+
+- **Model, tekstura, ovoz yo'q** — hamma narsa rangli primitiv shakl.
+- **Boss, leveling, kuch tanlash yo'q** — skelet bitta tur, qahramon o'smaydi.
+- **Relyef yo'q, dunyo tekis** — xonalar (X, Z) tekisligida; `Coord3D.z` ishlatilmaydi.
+- **Bitta daraja** — dungeon ichida chuqurlik (daraja ichida daraja) yo'q; o'lsang boshdan.
+- Qo'lda chizilgan xona (`Dungeon.create()`) hali turibdi — engine o'ynasa bo'ladiganini
+  ko'rsatadigan ma'lum javobli dunyo. Haqiqiy o'yin `create(long seed)`.
 
 ### Infratuzilma
 
@@ -1047,3 +1082,7 @@ kengaytma-ma'lumot mexanizmi va `ThingTemplateLoader` ga maydon-registratsiyasi 
 | `studio/…/studio/export/GameExporter.java` | mustaqil o'yin loyihasi generatori |
 | `studio/…/studio/ui/StudioWindow.java` | IDE asosiy oynasi |
 | `studio/…/studio/examples/RohanVsMordor.java` | namunaviy o'yinning muallifligi |
+| `dungeon/…/dungeon/Dungeon.java` | o'yin ta'rifi (INI, o'yinchilar, ikki rejim) |
+| `dungeon/…/dungeon/DungeonGenerator.java` | seed'dan xonalar + koridorlar (ulanish kafolati) |
+| `dungeon/…/dungeon/DungeonRun.java` | run loop: o'lim → yangi seed → yangi dungeon |
+| `dungeon/…/dungeon/DeterministicRng.java` | xorshift64 — generatsiyaning yagona tasodif manbai |

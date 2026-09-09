@@ -108,7 +108,11 @@ public final class Dungeon {
     static final Color HERO_COLOUR = new Color(90, 170, 255);
     static final Color SKELETON_COLOUR = new Color(225, 95, 80);
 
-    /** Build the dungeon, ready to be started. */
+    /**
+     * The hand-drawn room — one hero, three fixed skeletons, no run loop. Kept as
+     * the plainest proof the engine can be played: a known world with known
+     * answers. The real game is {@link #create(long)}.
+     */
     public static DukeGame create() {
         var game = DukeGame.create("Duke Dungeon")
                 .subtitle("one room, one hero, three skeletons")
@@ -129,5 +133,41 @@ public final class Dungeon {
                 .spawn("Skeleton", dungeon, 310f, 60f);
 
         return game;
+    }
+
+    /** A game and the run loop that keeps it going — what a test needs to see both. */
+    record Session(DukeGame game, DungeonRun run) {
+    }
+
+    /**
+     * The real dungeon: a fresh layout drawn from {@code seed}, and a run loop
+     * that generates the next one each time the hero dies. Same seed, same first
+     * dungeon and same sequence of dungeons after it.
+     */
+    public static DukeGame create(long seed) {
+        return newSession(seed).game();
+    }
+
+    /** Build the game and expose its run loop (the entry point tests build on). */
+    static Session newSession(long seed) {
+        var dungeon = DungeonGenerator.generate(seed);
+
+        var game = DukeGame.create("Duke Dungeon")
+                .subtitle("a different dungeon every run")
+                .loadUnits(CREATURES)
+                .mapFromText(dungeon.asciiMap());
+
+        var heroPlayer = game.addPlayer("Hero", HERO_COLOUR);
+        var dungeonPlayer = game.addPlayer("Dungeon", SKELETON_COLOUR);
+        game.enemies(heroPlayer, dungeonPlayer).localPlayer(heroPlayer);
+
+        game.spawn("Hero", heroPlayer, dungeon.hero().x(), dungeon.hero().y());
+        for (var skeleton : dungeon.skeletons()) {
+            game.spawn("Skeleton", dungeonPlayer, skeleton.x(), skeleton.y());
+        }
+
+        var run = new DungeonRun(heroPlayer, dungeonPlayer, seed);
+        game.onTick(run::tick);
+        return new Session(game, run);
     }
 }
