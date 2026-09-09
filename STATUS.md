@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 274 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 290 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -712,7 +712,17 @@ bosilganda (yoki `Shell.none()` bo'lsa — darhol) boshlanadi.
 - **Settings** — Fullscreen, Resolution (1280×720 / 1600×900 / 1920×1080), Volume (100…0 %).
   `Preferences` da saqlanadi (`duke-engine/game` tuguni: `resIndex`, `fullscreen`, `volume`).
   O'zgarish `restart()` bilan qo'llanadi; `reshape()` menyularni qayta quradi va HUD'ni joylashtiradi.
-- **Boshqaruv:** LMB tanlash (Shift — qo'shish), RMB buyruq (dushmanga = hujum, yerga = yurish,
+- **Drag-select** — LMB'ni bosib sudrash kvadrat chizadi (kontur, ichi bo'yalmaydi) va ichidagi
+  **o'yinchining o'z** birliklarini tanlaydi; dushman hech qachon tanlanmaydi. Tanlov — klient
+  holati (`Set<Integer>`), simulyatsiya undan bexabar; simga faqat buyruq ketadi.
+  Kichik siljish **klik** deb hisoblanadi va eski bitta-birlik yo'liga tushadi — chegara
+  bo'lmasa qo'l hech qachon aynan 0 piksel sudramagani uchun har bir klik kichkina bo'sh
+  kvadratga aylanib, jimgina hech narsa tanlamay qo'yardi (`SelectionBox`).
+- **Buyruq metkasi** — yerga buyruq berilganda klik nuqtasida halqa chiqadi va ~1.2s da
+  so'nadi (harakat = yashil, hujum = qizil). Bir necha birlik tanlansa ham **bitta** metka:
+  bu bitta qaror edi. Vaqt `timer.getTimeInSeconds()` dan — sof render tomonda
+  (dul olovi bilan bir xil idioma), simulyatsiyaga aloqasiz (`OrderMarkers`).
+- **Boshqaruv:** LMB tanlash yoki sudrab kvadrat (Shift — qo'shish), RMB buyruq (dushmanga = hujum, yerga = yurish,
   zavod tanlangan bo'lsa = rally nuqtasi), WASD / o'q tugmalar kamera, g'ildirak zoom, `H` to'xtatish,
   `P` pauza, `Esc` tanlovni bekor / pauza menyusi, `1`–`9` build menyusidan navbatga qo'yish.
 - **Minimap** — o'ng pastda: relyef qatlami (map chegarasi + to'siq kataklari) + jonli nuqtalar
@@ -879,7 +889,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **274 test yashil** (core 124, rts 71, game 18, client3d 23, studio 8, dungeon 30) — 0 failure / 0 error.
+- **290 test yashil** (core 124, rts 71, game 18, client3d 39, studio 8, dungeon 30) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1148,6 +1158,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/TerrainScene.java` | relyef sahnasi — qayta qurish almashtiradi, qo'shmaydi |
 | `client3d/…/client3d/MinimapProjection.java` | dunyo ↔ minimap matematikasi + viewport konturi |
 | `client3d/…/client3d/CameraFocus.java` | kamera nishoni/zoom — boshda o'z birligiga, keyin erkin |
+| `client3d/…/client3d/{SelectionBox,Formation,OrderMarkers}.java` | drag-select, guruh joylashuvi, buyruq metkalari |
 | `dungeon/…/dungeon/Dungeon.java` | o'yinni yig'ish (fixture xona va haqiqiy o'yin) |
 | `dungeon/…/dungeon/content/DungeonSettings.java` | `dungeon.ini` — generatsiya va xulq sozlamalari |
 | `dungeon/…/dungeon/gen/DungeonGenerator.java` | seed'dan xonalar + koridorlar (ulanish kafolati) |

@@ -122,6 +122,13 @@ final class DukeRtsApp extends SimpleApplication {
     /** The camera's footprint, drawn as an outline over the minimap. */
     private Geometry viewportOutline;
 
+    /** The box the player is dragging, drawn over the world while the button is down. */
+    private Geometry dragRectangle;
+
+    /** Brief flashes acknowledging orders, and the node they are drawn in. */
+    private final OrderMarkers orderMarkers = new OrderMarkers();
+    private final Node markerNode = new Node("order-markers");
+
     /** Everything the scene keeps per live unit. */
     private static final class UnitNode {
         Node root;
@@ -179,6 +186,7 @@ final class DukeRtsApp extends SimpleApplication {
         rootNode.attachChild(terrainNode);
         buildTerrain();
         rootNode.attachChild(unitsNode);
+        rootNode.attachChild(markerNode);
 
         centerCameraOnMap();
         installInput();
@@ -204,6 +212,7 @@ final class DukeRtsApp extends SimpleApplication {
         guiNode.attachChild(hint);
 
         buildMinimap();
+        buildDragRectangle();
         menu = new MenuOverlay(guiFont, assetManager, guiNode, cam.getWidth(), cam.getHeight());
         showMainMenu();
         applyVolume();
@@ -287,6 +296,46 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private static final int VIEWPORT_CORNERS = 4;
+
+    /** The selection box: an outline, so it never hides what is being selected. */
+    private void buildDragRectangle() {
+        var mesh = new com.jme3.scene.Mesh();
+        mesh.setMode(com.jme3.scene.Mesh.Mode.LineLoop);
+        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Position, 3, new float[4 * 3]);
+        mesh.setDynamic();
+        mesh.updateBound();
+
+        dragRectangle = new Geometry("drag-box", mesh);
+        dragRectangle.setMaterial(unshaded(new ColorRGBA(0.5f, 1f, 0.5f, 0.9f)));
+        dragRectangle.setCullHint(Spatial.CullHint.Always);
+        guiNode.attachChild(dragRectangle);
+    }
+
+    /**
+     * Draw the order markers, fading each one out over its short life.
+     *
+     * <p>Rebuilt from scratch each frame rather than kept and mutated: there are
+     * only ever a handful, and emptying the node first is what stops a session's
+     * worth of markers accumulating in the scene.
+     */
+    private void syncOrderMarkers() {
+        float now = timer.getTimeInSeconds();
+        orderMarkers.prune(now);
+        markerNode.detachAllChildren();
+        for (var marker : orderMarkers.markers()) {
+            float fade = OrderMarkers.remaining(marker, now);
+            var colour = marker.kind() == OrderMarkers.Kind.ATTACK
+                    ? new ColorRGBA(1f, 0.35f, 0.3f, fade)
+                    : new ColorRGBA(0.6f, 1f, 0.6f, fade);
+            // Grows a little as it fades, so the eye catches it even mid-fight.
+            float radius = 3f + (1f - fade) * 2.5f;
+            var ring = new Geometry("order-mark", new Cylinder(2, 24, radius, 0.05f, true));
+            ring.setMaterial(unshaded(colour));
+            ring.rotate(FastMath.HALF_PI, 0, 0);
+            ring.setLocalTranslation(marker.x(), 0.2f, marker.y());
+            markerNode.attachChild(ring);
+        }
+    }
 
     /**
      * Redraw the viewport outline from where the camera is now — it moves and
@@ -621,6 +670,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         buildTerrain();
         rebuildMinimapTerrain();
+        orderMarkers.clear(); // orders given in the old world mean nothing here
         camera.requestOwnUnit(); // his units are somewhere else entirely now
     }
 
@@ -667,9 +717,11 @@ final class DukeRtsApp extends SimpleApplication {
                 case "Select" -> {
                     if (pressed && menu.isVisible()) {
                         menu.click(inputManager.getCursorPosition());
-                    } else if (pressed && screen == Screen.PLAYING) {
-                        if (!minimapClick()) {
-                            select(shiftHeld[0]);
+                    } else if (screen == Screen.PLAYING) {
+                        if (pressed) {
+                            beginDrag();
+                        } else {
+                            endDrag(shiftHeld[0]);
                         }
                     }
                 }
@@ -762,6 +814,79 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    // ---- drag selection ----
+
+    /** Where the left button went down, or {@code null} when it is not down. */
+    private Vector2f dragFrom;
+
+    private void beginDrag() {
+        if (minimapClick()) {
+            return; // the minimap took the press; not a selection
+        }
+        var cursor = inputManager.getCursorPosition();
+        dragFrom = new Vector2f(cursor.x, cursor.y);
+    }
+
+    /**
+     * Finish a press: a box if the mouse travelled, the old single-unit pick if it
+     * did not.
+     *
+     * <p>Falling back to the click matters — a click is a drag of zero pixels and a
+     * real hand never quite manages zero, so without the distinction every click
+     * would become a tiny empty box that selects nothing.
+     */
+    private void endDrag(boolean add) {
+        var from = dragFrom;
+        dragFrom = null;
+        dragRectangle.setCullHint(Spatial.CullHint.Always);
+        if (from == null) {
+            return; // the press was taken by the minimap or a menu
+        }
+        var cursor = inputManager.getCursorPosition();
+        if (!SelectionBox.isDrag(from.x, from.y, cursor.x, cursor.y)) {
+            select(add);
+            return;
+        }
+        if (!add) {
+            selected.clear();
+        }
+        selected.addAll(SelectionBox.inside(from.x, from.y, cursor.x, cursor.y, onScreenUnits()));
+    }
+
+    /** Every unit in the snapshot, projected to where it is drawn on screen. */
+    private List<SelectionBox.Candidate> onScreenUnits() {
+        int local = game.getLocalPlayerIndex();
+        var candidates = new java.util.ArrayList<SelectionBox.Candidate>();
+        for (var view : snapshot.units()) {
+            var screen = cam.getScreenCoordinates(new Vector3f(view.x(), 0f, view.y()));
+            candidates.add(new SelectionBox.Candidate(view.id(), screen.x, screen.y,
+                    view.playerIndex() == local, view.selectable()));
+        }
+        return candidates;
+    }
+
+    /** Redraw the box while the button is held, as an outline over the world. */
+    private void syncDragRectangle() {
+        if (dragFrom == null) {
+            return;
+        }
+        var cursor = inputManager.getCursorPosition();
+        if (!SelectionBox.isDrag(dragFrom.x, dragFrom.y, cursor.x, cursor.y)) {
+            dragRectangle.setCullHint(Spatial.CullHint.Always);
+            return;
+        }
+        float[] corners = {
+            dragFrom.x, dragFrom.y, 0f,
+            cursor.x, dragFrom.y, 0f,
+            cursor.x, cursor.y, 0f,
+            dragFrom.x, cursor.y, 0f,
+        };
+        var mesh = dragRectangle.getMesh();
+        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Position, 3, corners);
+        mesh.updateBound();
+        dragRectangle.setCullHint(Spatial.CullHint.Never);
+    }
+
     private void order() {
         var units = selectedIds();
         if (units.isEmpty()) {
@@ -771,6 +896,7 @@ final class DukeRtsApp extends SimpleApplication {
         var enemy = pickUnit();
         if (enemy != null && enemy.view.playerIndex() != local && enemy.view.playerIndex() != 0) {
             game.postCommand(new GameMessage.AttackObject(local, units, new ObjectId(enemy.view.id())));
+            markOrder(enemy.view.x(), enemy.view.y(), OrderMarkers.Kind.ATTACK);
             return;
         }
         var ground = pickGround();
@@ -782,18 +908,22 @@ final class DukeRtsApp extends SimpleApplication {
         if (producer != null) {
             game.postCommand(new GameMessage.SetRallyPoint(local,
                     new ObjectId(producer.id()), new Coord3D(ground.x, ground.z, 0f)));
+            markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
             return;
         }
-        // formation: spread the group in a grid around the click, one order per
-        // unit, so they don't all fight for the same spot
-        int columns = (int) Math.ceil(Math.sqrt(units.size()));
-        float spacing = 5f;
+        // Spread the group around the click so they don't all fight for one spot.
+        var spots = Formation.spread(units.size(), ground.x, ground.z);
         for (int i = 0; i < units.size(); i++) {
-            float offsetX = (i % columns - (columns - 1) / 2f) * spacing;
-            float offsetY = (i / columns - (units.size() / columns) / 2f) * spacing;
             game.postCommand(new GameMessage.MoveTo(local, List.of(units.get(i)),
-                    new Coord3D(ground.x + offsetX, ground.z + offsetY, 0f)));
+                    new Coord3D(spots.get(i).x(), spots.get(i).y(), 0f)));
         }
+        // One mark for the order, not one per unit: it was a single decision.
+        markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
+    }
+
+    /** Acknowledge an order where the player clicked. Presentation only. */
+    private void markOrder(float worldX, float worldY, OrderMarkers.Kind kind) {
+        orderMarkers.add(worldX, worldY, kind, timer.getTimeInSeconds());
     }
 
     /** The single selected own production structure, or {@code null}. */
@@ -856,6 +986,8 @@ final class DukeRtsApp extends SimpleApplication {
         handleEvents();
         syncMinimap();
         syncViewportOutline();
+        syncDragRectangle();
+        syncOrderMarkers();
         updateHud();
         updateBanner();
     }
