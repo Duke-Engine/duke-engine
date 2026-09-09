@@ -1,5 +1,6 @@
 package uz.duke.dungeon.content;
 
+import java.util.List;
 import java.util.Map;
 import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
@@ -61,6 +62,21 @@ public final class DungeonSettings {
     private int minDamageTakenPercent = 40;
     private int levelUpBannerFrames = 60;
 
+    // ---- monsters and depth ----
+
+    /** In file order, which is the order a seed picks through them. */
+    private final java.util.List<MonsterKind> monsters = new java.util.ArrayList<>();
+
+    private int monsterHealthPercentPerDepth = 25;
+    private int monsterDamagePercentPerDepth = 15;
+    private int monsterCountPercentPerDepth = 20;
+    private int bossHealthPercentPerDepth = 40;
+    private int bossDamagePercentPerDepth = 25;
+    private int experiencePercentPerDepth = 30;
+
+    /** The kind placed in the furthest room. Named, not flagged, so it is findable. */
+    public static final String BOSS = "Boss";
+
     private DungeonSettings() {
     }
 
@@ -91,10 +107,51 @@ public final class DungeonSettings {
                 "DungeonLeveling", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, LEVELLING);
+                },
+                // Repeatable: the block's name is the monster's, so the list of
+                // kinds is the file's, not a constant somewhere in Java.
+                "DungeonMonster", reader -> {
+                    var kind = new MonsterBuilder(reader.getNextToken());
+                    reader.initFromIni(kind, MONSTER);
+                    settings.monsters.add(kind.build());
+                },
+                "DungeonDepth", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, DEPTH);
                 }));
         ini.load();
+        if (settings.monsters.isEmpty() && !readingShippedFile) {
+            // A file that names no monsters keeps the shipped ones, exactly as a
+            // file that names no map size keeps the shipped map. A partial file is
+            // a few overrides, not a demand that everything else cease to exist —
+            // and a dungeon with nothing living in it would fail far from here,
+            // when a creature referenced a behaviour nobody had registered.
+            settings.monsters.addAll(shippedMonsters());
+        }
         settings.validate();
         return settings;
+    }
+
+    private static final List<MonsterKind> SHIPPED_MONSTERS = new java.util.ArrayList<>();
+    private static boolean readingShippedFile;
+
+    /**
+     * The monster list from the shipped file, read once and kept.
+     *
+     * <p>Read by parsing that file the ordinary way — a second, partial parser
+     * would be a second thing to keep in step with the first. The flag is what
+     * stops that parse from asking itself the same question forever.
+     */
+    private static List<MonsterKind> shippedMonsters() {
+        if (SHIPPED_MONSTERS.isEmpty() && !readingShippedFile) {
+            readingShippedFile = true;
+            try {
+                SHIPPED_MONSTERS.addAll(parse(Content.read(Content.SETTINGS)).monsters);
+            } finally {
+                readingShippedFile = false;
+            }
+        }
+        return SHIPPED_MONSTERS;
     }
 
     /**
@@ -154,6 +211,56 @@ public final class DungeonSettings {
                     .add("SkeletonRepathFrames", Ini.integer((s, v) -> s.skeletonRepathFrames = v))
                     .add("CloseDistance", Ini.real((s, v) -> s.closeDistance = v))
                     .add("HeroRepathFrames", Ini.integer((s, v) -> s.heroRepathFrames = v));
+
+    /** Accumulates one {@code DungeonMonster} block. */
+    private static final class MonsterBuilder {
+        private final String name;
+        float senseRadius = 90f;
+        float chaseRadius = 150f;
+        float closeDistance = 4f;
+        int repathFrames = 10;
+        int minDepth = 1;
+        int weight;
+        int colour = 0xFFFFFF;
+        float scale = 1f;
+
+        MonsterBuilder(String name) {
+            this.name = name;
+        }
+
+        MonsterKind build() {
+            return new MonsterKind(name, senseRadius, chaseRadius, closeDistance,
+                    repathFrames, minDepth, weight, colour, scale);
+        }
+    }
+
+    private static final FieldParseTable<MonsterBuilder> MONSTER =
+            new FieldParseTable<MonsterBuilder>()
+                    .add("SenseRadius", Ini.real((m, v) -> m.senseRadius = v))
+                    .add("ChaseRadius", Ini.real((m, v) -> m.chaseRadius = v))
+                    .add("CloseDistance", Ini.real((m, v) -> m.closeDistance = v))
+                    .add("RepathFrames", Ini.integer((m, v) -> m.repathFrames = v))
+                    .add("MinDepth", Ini.integer((m, v) -> m.minDepth = v))
+                    .add("Weight", Ini.integer((m, v) -> m.weight = v))
+                    // Decoded rather than scanned so a file can write 0xRRGGBB,
+                    // which is how anyone actually writes a colour.
+                    .add("Colour", (ini, m) -> m.colour = Integer.decode(ini.getNextToken()))
+                    .add("Scale", Ini.real((m, v) -> m.scale = v));
+
+    private static final FieldParseTable<DungeonSettings> DEPTH =
+            new FieldParseTable<DungeonSettings>()
+                    .add("MonsterHealthPercentPerDepth",
+                            Ini.integer((s, v) -> s.monsterHealthPercentPerDepth = v))
+                    .add("MonsterDamagePercentPerDepth",
+                            Ini.integer((s, v) -> s.monsterDamagePercentPerDepth = v))
+                    .add("MonsterCountPercentPerDepth",
+                            Ini.integer((s, v) -> s.monsterCountPercentPerDepth = v))
+                    .add("BossHealthPercentPerDepth",
+                            Ini.integer((s, v) -> s.bossHealthPercentPerDepth = v))
+                    .add("BossDamagePercentPerDepth",
+                            Ini.integer((s, v) -> s.bossDamagePercentPerDepth = v))
+                    .add("ExperiencePercentPerDepth",
+                            Ini.integer((s, v) -> s.experiencePercentPerDepth = v));
 
     private static final FieldParseTable<DungeonSettings> RUN =
             new FieldParseTable<DungeonSettings>()
@@ -255,5 +362,76 @@ public final class DungeonSettings {
     /** How long "Level 2!" stays on screen, in logic frames. */
     public int levelUpBannerFrames() {
         return levelUpBannerFrames;
+    }
+
+    // ---- monsters and depth ----
+
+    /** Every kind the file describes, in file order. */
+    public java.util.List<MonsterKind> monsters() {
+        return java.util.List.copyOf(monsters);
+    }
+
+    /** One kind by name, or {@code null} if the file never described it. */
+    public MonsterKind monster(String name) {
+        for (var kind : monsters) {
+            if (kind.name().equals(name)) {
+                return kind;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The kinds that can fill a room at this depth: deep enough to have appeared,
+     * and carrying a weight, which is how the file says "placed deliberately, not
+     * scattered" — the boss has none.
+     */
+    public java.util.List<MonsterKind> roomFillersAt(int depth) {
+        var available = new java.util.ArrayList<MonsterKind>();
+        for (var kind : monsters) {
+            if (kind.weight() > 0 && kind.minDepth() <= depth) {
+                available.add(kind);
+            }
+        }
+        return available;
+    }
+
+    public MonsterKind boss() {
+        return monster(BOSS);
+    }
+
+    /** What a monster's health, damage or numbers are multiplied by at this depth. */
+    public float monsterHealthAt(int depth) {
+        return scaled(monsterHealthPercentPerDepth, depth);
+    }
+
+    public float monsterDamageAt(int depth) {
+        return scaled(monsterDamagePercentPerDepth, depth);
+    }
+
+    public float monsterCountAt(int depth) {
+        return scaled(monsterCountPercentPerDepth, depth);
+    }
+
+    public float bossHealthAt(int depth) {
+        return scaled(bossHealthPercentPerDepth, depth);
+    }
+
+    public float bossDamageAt(int depth) {
+        return scaled(bossDamagePercentPerDepth, depth);
+    }
+
+    public float experienceAt(int depth) {
+        return scaled(experiencePercentPerDepth, depth);
+    }
+
+    /**
+     * Linear growth from the first depth: {@code 1 + (depth - 1) * percent / 100}.
+     *
+     * <p>Computed from the depth in one step rather than compounded, so the tenth
+     * floor is the same whether you arrived by playing or by asking.
+     */
+    private static float scaled(int percentPerDepth, int depth) {
+        return 1f + Math.max(0, depth - 1) * percentPerDepth / 100f;
     }
 }

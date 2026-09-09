@@ -3,6 +3,7 @@ package uz.duke.dungeon;
 import uz.duke.client3d.Duke3D;
 import uz.duke.client3d.Shell;
 import uz.duke.client3d.Visuals;
+import uz.duke.dungeon.content.DungeonSettings;
 
 /**
  * Opens the dungeon in the engine's 3D client.
@@ -30,9 +31,28 @@ public final class Main {
     }
 
     public static void main(String[] args) {
-        Duke3D.launch(Dungeon.create(System.nanoTime()), Visuals.create(), Shell.create()
+        var settings = DungeonSettings.load();
+        Duke3D.launch(Dungeon.create(System.nanoTime(), settings), looks(settings), Shell.create()
                 .entry(Shell.Entry.PLAY, "Enter the dungeon")
                 .entry(Shell.Entry.SETTINGS)
                 .entry(Shell.Entry.QUIT));
+    }
+
+    /**
+     * What each kind of monster looks like, taken from the same file that says how
+     * it behaves.
+     *
+     * <p>With no models yet, colour and size are the only things telling one
+     * monster from another — and telling a runner from a brute is a decision the
+     * player has to make in the second before they reach him. Player colour cannot
+     * do it: every monster belongs to the same side, so they would all be one
+     * shade of red, on screen and on the minimap alike.
+     */
+    private static Visuals looks(DungeonSettings settings) {
+        var visuals = Visuals.create();
+        for (var kind : settings.monsters()) {
+            visuals.unit(kind.name(), unit -> unit.colour(kind.awtColour()).scale(kind.scale()));
+        }
+        return visuals;
     }
 }

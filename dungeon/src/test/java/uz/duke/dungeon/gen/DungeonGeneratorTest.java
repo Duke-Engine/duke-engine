@@ -32,7 +32,9 @@ class DungeonGeneratorTest {
 
         assertEquals(a.asciiMap(), b.asciiMap(), "the map must be identical for one seed");
         assertEquals(a.hero(), b.hero());
-        assertEquals(a.skeletons(), b.skeletons());
+        assertEquals(a.monsters(), b.monsters());
+        assertEquals(a.boss(), b.boss());
+        assertEquals(a.bossRoom(), b.bossRoom());
         assertEquals(a.rooms(), b.rooms());
     }
 
@@ -71,12 +73,12 @@ class DungeonGeneratorTest {
                 assertTrue(reached.contains(cell(room.centerCellX(), room.centerCellY())),
                         "seed " + seed + ": a room centre is unreachable from the hero");
             }
-            for (var skeleton : dungeon.skeletons()) {
-                int cx = (int) Math.floor(skeleton.x() / PathGrid.DEFAULT_CELL_SIZE);
-                int cy = (int) Math.floor(skeleton.y() / PathGrid.DEFAULT_CELL_SIZE);
-                assertTrue(reached.contains(cell(cx, cy)),
-                        "seed " + seed + ": a skeleton is walled off from the hero");
+            for (var monster : dungeon.monsters()) {
+                assertTrue(reached.contains(cellOf(monster.at())),
+                        "seed " + seed + ": a monster is walled off from the hero");
             }
+            assertTrue(reached.contains(cellOf(dungeon.boss().at())),
+                    "seed " + seed + ": the boss is walled off, so the floor cannot be finished");
         }
     }
 
@@ -203,6 +205,11 @@ class DungeonGeneratorTest {
 
     private static boolean isFloor(char[][] grid, int x, int y) {
         return y >= 0 && y < grid.length && x >= 0 && x < grid[y].length && grid[y][x] != '#';
+    }
+
+    private static long cellOf(GeneratedDungeon.Placement at) {
+        return cell((int) Math.floor(at.x() / PathGrid.DEFAULT_CELL_SIZE),
+                (int) Math.floor(at.y() / PathGrid.DEFAULT_CELL_SIZE));
     }
 
     private static long cell(int x, int y) {

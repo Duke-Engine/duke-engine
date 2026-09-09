@@ -23,6 +23,9 @@ public final class Content {
     /** Generation and behaviour tuning — everything that is not a unit stat. */
     public static final String SETTINGS = "dungeon.ini";
 
+    /** The monsters, one template per kind named in the settings file. */
+    public static final String MONSTERS = "monsters.ini";
+
     /** The hand-drawn room's own frozen creatures, independent of the game's. */
     public static final String FIXTURE_CREATURES = "fixture-creatures.ini";
 

@@ -9,7 +9,7 @@ import uz.duke.core.module.ModuleData;
 import uz.duke.core.thing.GameObject;
 
 /**
- * A body that can grow — the hero's, because his does.
+ * A body whose maximum health and armour can change after it is built.
  *
  * <p>The engine's {@code ActiveBody} fixes maximum health and armour when the
  * unit is created, which is right for an RTS where a rifleman is a rifleman.
@@ -26,7 +26,7 @@ import uz.duke.core.thing.GameObject;
  * which turns "keep killing" into a way of avoiding the fight rather than a
  * reward for winning it.
  */
-public final class HeroBody extends BodyModule {
+public final class GrowableBody extends BodyModule {
 
     /** INI configuration: the same {@code MaxHealth} field every body reads. */
     public record Data(float maxHealth) implements ModuleData {
@@ -49,7 +49,7 @@ public final class HeroBody extends BodyModule {
     private float health;
     private Armor armor = Armor.NONE;
 
-    public HeroBody(GameObject owner, Data data) {
+    public GrowableBody(GameObject owner, Data data) {
         super(owner);
         this.maxHealth = data.maxHealth();
         this.health = data.maxHealth();

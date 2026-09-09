@@ -8,6 +8,7 @@ import uz.duke.core.thing.ThingTemplate;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.gen.DungeonGenerator;
 import uz.duke.dungeon.gen.GeneratedDungeon;
+import uz.duke.dungeon.level.HeroProgress;
 import uz.duke.game.DukeGame;
 import uz.duke.game.GamePlayer;
 
@@ -44,18 +45,35 @@ public final class DungeonRun {
     private final GamePlayer dungeonPlayer;
     private final DungeonSettings settings;
 
+    private final HeroProgress progress;
+
     private long seed;
     private State state = State.RUNNING;
     private ObjectId heroId;
+    private ObjectId bossId;
+    private int depth = 1;
     private int deathFrame;
     private int runCount; // how many times a new dungeon has been generated after a death
 
     public DungeonRun(GamePlayer heroPlayer, GamePlayer dungeonPlayer, long seed,
-            DungeonSettings settings) {
+            DungeonSettings settings, HeroProgress progress) {
         this.heroPlayer = heroPlayer;
         this.dungeonPlayer = dungeonPlayer;
         this.seed = seed;
         this.settings = settings;
+        this.progress = progress;
+    }
+
+    /**
+     * Put the first floor in the world.
+     *
+     * <p>Goes through the same placement every later floor does, so the one the
+     * player always sees and the ones he rarely reaches cannot drift apart.
+     */
+    public void openOn(DukeGame game, GeneratedDungeon floor) {
+        var placed = Spawner.place(game, heroPlayer, dungeonPlayer, floor, settings, depth);
+        heroId = placed.hero().getId();
+        bossId = placed.boss() == null ? null : placed.boss().getId();
     }
 
     /** Called every logic frame on the simulation thread. */
@@ -81,38 +99,64 @@ public final class DungeonRun {
             state = State.DEAD;
             deathFrame = logic.getFrame();
             game.setBanner("You died");
+            return;
         }
+        if (bossId != null && logic.findObject(bossId) == null) {
+            // The floor is finished. Down one, keeping everything he has earned.
+            depth++;
+            descend(game);
+            game.setBanner("Depth " + depth);
+        }
+        showStatus(game);
+    }
+
+    /**
+     * The line the HUD shows: where he is and what he has become.
+     *
+     * <p>Goes through the snapshot's status channel, which the engine carries and
+     * never reads — depth and levels are this game's arithmetic and the engine has
+     * no name for either.
+     */
+    private void showStatus(DukeGame game) {
+        game.setStatus("Depth %d    Level %d    xp %d/%d".formatted(
+                depth, progress.getLevel(), progress.getExperienceIntoLevel(),
+                progress.getExperienceForNextLevel()));
     }
 
     private void whileDead(DukeGame game) {
         if (game.getLogic().getFrame() - deathFrame < settings.respawnDelayFrames()) {
             return;
         }
-        seed = DungeonGenerator.nextSeed(seed); // the next run is a different dungeon
-        regenerate(game, DungeonGenerator.generate(seed, settings));
+        // A death is the end of everything, not just of this floor.
+        depth = 1;
+        progress.reset();
+        descend(game);
         runCount++;
         state = State.RUNNING;
         game.setBanner("");
     }
 
-    /** Tear the world down and lay out a freshly generated dungeon in its place. */
-    private void regenerate(DukeGame game, GeneratedDungeon dungeon) {
+    /**
+     * Down a floor: a new seed, a new layout, and tougher inhabitants — but the
+     * same hero, still carrying what he has earned.
+     *
+     * <p>The distinction from a death is the whole point of depth, and it has to
+     * be stated rather than inferred. Both replace the hero object, so anything
+     * watching for a new hero to decide whether to reset would wipe his levels on
+     * every floor: {@link HeroProgress} is told which of the two this is.
+     */
+    private void descend(DukeGame game) {
+        seed = DungeonGenerator.nextSeed(seed);
+        var floor = DungeonGenerator.generate(seed, settings, depth);
+
         var logic = game.getLogic();
         logic.clearWorld();
-        game.applyMapTerrain(MapLoader.fromText(dungeon.asciiMap()));
+        game.applyMapTerrain(MapLoader.fromText(floor.asciiMap()));
 
-        ThingTemplate heroTemplate = logic.getThingFactory().findTemplate("Hero");
-        ThingTemplate skeletonTemplate = logic.getThingFactory().findTemplate("Skeleton");
-
-        var hero = logic.spawn(heroTemplate, world(dungeon.hero()), heroPlayer.getIndex());
-        heroId = hero.getId(); // the new hero, at full health straight from the template
-        for (var placement : dungeon.skeletons()) {
-            logic.spawn(skeletonTemplate, world(placement), dungeonPlayer.getIndex());
-        }
-    }
-
-    private static Coord3D world(GeneratedDungeon.Placement placement) {
-        return new Coord3D(placement.x(), placement.y(), 0f);
+        var placed = Spawner.place(game, heroPlayer, dungeonPlayer, floor, settings, depth);
+        heroId = placed.hero().getId();
+        bossId = placed.boss() == null ? null : placed.boss().getId();
+        progress.carryOver(game, placed.hero());
     }
 
     private GameObject findHero(DukeGame game) {
@@ -134,5 +178,10 @@ public final class DungeonRun {
     /** How many new dungeons this session has generated after a death (0 at first). */
     public int getRunCount() {
         return runCount;
+    }
+
+    /** Which floor the hero is on. One at the start of every run.  */
+    public int getDepth() {
+        return depth;
     }
 }

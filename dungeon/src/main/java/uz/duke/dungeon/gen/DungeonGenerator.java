@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 import uz.duke.core.pathfind.PathGrid;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.content.MonsterKind;
 import uz.duke.dungeon.gen.GeneratedDungeon.Link;
+import uz.duke.dungeon.gen.GeneratedDungeon.Monster;
 import uz.duke.dungeon.gen.GeneratedDungeon.Placement;
 import uz.duke.dungeon.gen.GeneratedDungeon.Room;
 
@@ -53,7 +55,19 @@ public final class DungeonGenerator {
         return DeterministicRng.advance(seed);
     }
 
+    /** The first floor. */
     public static GeneratedDungeon generate(long seed, DungeonSettings settings) {
+        return generate(seed, settings, 1);
+    }
+
+    /**
+     * A floor of the dungeon at {@code depth}.
+     *
+     * <p>Depth changes who lives here and how many of them, not the shape: the
+     * rooms and corridors are drawn the same way at every depth, so the thing that
+     * gets harder is the fighting rather than the walking.
+     */
+    public static GeneratedDungeon generate(long seed, DungeonSettings settings, int depth) {
         var rng = new DeterministicRng(seed);
 
         var cells = new char[settings.mapHeight()][settings.mapWidth()];
@@ -68,10 +82,42 @@ public final class DungeonGenerator {
         var links = connectRooms(cells, rng, rooms);
 
         var hero = worldCenter(rooms.get(0).centerCellX(), rooms.get(0).centerCellY());
-        var skeletons = placeSkeletons(rng, rooms, settings);
+        int bossRoom = furthestRoomFromStart(rooms.size(), links);
+        var monsters = populate(rng, rooms, settings, depth, bossRoom);
+        var boss = new Monster(DungeonSettings.BOSS,
+                worldCenter(rooms.get(bossRoom).centerCellX(), rooms.get(bossRoom).centerCellY()));
 
-        return new GeneratedDungeon(render(cells), hero, skeletons,
+        return new GeneratedDungeon(render(cells), hero, monsters, boss, bossRoom,
                 List.copyOf(rooms), List.copyOf(links));
+    }
+
+    /**
+     * The room furthest from where the hero starts, counted in corridors rather
+     * than in metres.
+     *
+     * <p>Corridors are what the player actually walks, so the room at the end of
+     * the longest chain of them is the one that feels like the end — a room across
+     * the map with a direct corridor to the start is next door, whatever the
+     * distance says. Ties fall to the lowest room index, so a seed names one room.
+     */
+    private static int furthestRoomFromStart(int roomCount, List<Link> links) {
+        var stepsFromStart = new int[roomCount];
+        java.util.Arrays.fill(stepsFromStart, -1);
+        stepsFromStart[0] = 0;
+
+        // The links form a tree grown outward from room 0, so one pass in link
+        // order reaches every room with its true distance.
+        for (var link : links) {
+            stepsFromStart[link.to()] = stepsFromStart[link.from()] + 1;
+        }
+
+        int furthest = 0;
+        for (int room = 1; room < roomCount; room++) {
+            if (stepsFromStart[room] > stepsFromStart[furthest]) {
+                furthest = room;
+            }
+        }
+        return furthest;
     }
 
     /**
@@ -195,25 +241,66 @@ public final class DungeonGenerator {
         }
     }
 
-    private static List<Placement> placeSkeletons(DeterministicRng rng, List<Room> rooms,
-            DungeonSettings settings) {
-        var skeletons = new ArrayList<Placement>();
+    /**
+     * Fill the rooms the hero does not start in, drawing a kind for each monster
+     * from what the data file makes available at this depth.
+     *
+     * <p>The boss's room is left to the boss. It is meant to be the end of the
+     * floor, and a crowd standing around it would turn the fight that gates the
+     * next depth into a brawl the player stumbles into sideways.
+     */
+    private static List<Monster> populate(DeterministicRng rng, List<Room> rooms,
+            DungeonSettings settings, int depth, int bossRoom) {
+        var available = settings.roomFillersAt(depth);
+        var monsters = new ArrayList<Monster>();
+        if (available.isEmpty()) {
+            return monsters;
+        }
+        int totalWeight = 0;
+        for (var kind : available) {
+            totalWeight += kind.weight();
+        }
+
         for (int i = 1; i < rooms.size(); i++) {
+            if (i == bossRoom) {
+                continue;
+            }
             var room = rooms.get(i);
-            int count = rng.nextInt(settings.minSkeletonsPerRoom(), settings.maxSkeletonsPerRoom());
+            int count = Math.round(rng.nextInt(settings.minSkeletonsPerRoom(),
+                    settings.maxSkeletonsPerRoom()) * settings.monsterCountAt(depth));
             var used = new ArrayList<int[]>();
             for (int n = 0; n < count; n++) {
                 // Interior cells only — always floor, never on the room's wall line.
                 int cx = rng.nextInt(room.x() + 1, room.x() + room.w() - 2);
                 int cy = rng.nextInt(room.y() + 1, room.y() + room.h() - 2);
                 if (occupied(used, cx, cy)) {
-                    continue; // one skeleton per cell, so they never spawn overlapping
+                    continue; // one per cell, so they never spawn overlapping
                 }
                 used.add(new int[] {cx, cy});
-                skeletons.add(worldCenter(cx, cy));
+                monsters.add(new Monster(draw(rng, available, totalWeight).name(),
+                        worldCenter(cx, cy)));
             }
         }
-        return skeletons;
+        return monsters;
+    }
+
+    /**
+     * Pick a kind, the commoner ones more often.
+     *
+     * <p>Walked in list order — which is file order — so a seed draws the same
+     * creature everywhere, and re-ordering the blocks in the file is a change to
+     * the dungeons it generates rather than a silent no-op.
+     */
+    private static MonsterKind draw(DeterministicRng rng, List<MonsterKind> available,
+            int totalWeight) {
+        int roll = rng.nextInt(totalWeight);
+        for (var kind : available) {
+            roll -= kind.weight();
+            if (roll < 0) {
+                return kind;
+            }
+        }
+        return available.get(available.size() - 1);
     }
 
     private static boolean occupied(List<int[]> used, int cx, int cy) {

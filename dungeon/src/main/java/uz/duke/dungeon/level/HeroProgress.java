@@ -40,6 +40,10 @@ public final class HeroProgress {
     private ObjectId heroId;
     private int level = Levelling.FIRST_LEVEL;
     private int clearBannerAtFrame; // 0 when no message of ours is showing
+    /** Experience earned on floors already left behind. */
+    private int carriedExperience;
+    /** This body's own total, remembered so it can be banked when he descends. */
+    private int lastKnownExperience;
 
     public HeroProgress(GamePlayer heroPlayer, Levelling rules, int bannerFrames) {
         this.heroPlayer = heroPlayer;
@@ -53,29 +57,56 @@ public final class HeroProgress {
         if (hero == null) {
             return; // no hero to advance; the run loop owns the screen now
         }
-        if (!hero.getId().equals(heroId)) {
-            beginRun(game, hero);
+        if (heroId == null) {
+            carryOver(game, hero); // the first hero of a run
         }
-        int earned = rules.levelFor(experienceOf(hero));
+        lastKnownExperience = experienceOf(hero);
+        int earned = rules.levelFor(getExperience());
         if (earned > level) {
             promote(game, hero, earned);
         }
         expireBanner(game);
     }
 
-    /** A new hero: back to level one, and the player's weapon bonus with him. */
-    private void beginRun(DukeGame game, GameObject hero) {
-        heroId = hero.getId();
+    /**
+     * Everything back to nothing: a run has ended.
+     *
+     * <p>Told rather than inferred. Both dying and descending replace the hero
+     * object, so noticing a new hero and resetting would wipe his levels every
+     * time he went down a floor — which is the opposite of what a floor is for.
+     */
+    public void reset() {
+        heroId = null;
         level = Levelling.FIRST_LEVEL;
+        carriedExperience = 0;
         clearBannerAtFrame = 0;
-        applyDamageBonus(game, Levelling.FIRST_LEVEL);
-        applyArmour(hero, Levelling.FIRST_LEVEL);
+    }
+
+    /**
+     * A new hero on a deeper floor, who is the same hero: re-apply to his fresh
+     * body and weapon everything the last one had earned.
+     *
+     * <p>His experience total is on the module the old body carried, and the new
+     * one starts at zero — so it is carried here and added to whatever the new
+     * body goes on to earn.
+     */
+    public void carryOver(DukeGame game, GameObject hero) {
+        if (heroId != null) {
+            carriedExperience += lastKnownExperience;
+        }
+        heroId = hero.getId();
+        lastKnownExperience = 0;
+        applyDamageBonus(game, level);
+        applyArmour(hero, level);
+        if (hero.getBody() instanceof GrowableBody body) {
+            body.growMaxHealth(rules.bonusHealth(level));
+        }
     }
 
     private void promote(DukeGame game, GameObject hero, int earned) {
         // Grow by the difference, so skipping two levels at once is worth two.
         float extraHealth = rules.bonusHealth(earned) - rules.bonusHealth(level);
-        if (hero.getBody() instanceof HeroBody body) {
+        if (hero.getBody() instanceof GrowableBody body) {
             body.growMaxHealth(extraHealth);
         }
         level = earned;
@@ -106,7 +137,7 @@ public final class HeroProgress {
     }
 
     private void applyArmour(GameObject hero, int atLevel) {
-        if (hero.getBody() instanceof HeroBody body) {
+        if (hero.getBody() instanceof GrowableBody body) {
             body.setDamageTaken(rules.damageTakenMultiplier(atLevel));
         }
     }
@@ -137,5 +168,18 @@ public final class HeroProgress {
 
     public int getLevel() {
         return level;
+    }
+
+    /** Everything earned this run, across every floor of it. */
+    public int getExperience() {
+        return carriedExperience + lastKnownExperience;
+    }
+
+    public int getExperienceIntoLevel() {
+        return rules.xpIntoLevel(getExperience());
+    }
+
+    public int getExperienceForNextLevel() {
+        return rules.xpToNextLevel(getExperience());
     }
 }

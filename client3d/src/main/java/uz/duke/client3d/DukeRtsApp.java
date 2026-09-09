@@ -394,7 +394,7 @@ final class DukeRtsApp extends SimpleApplication {
             var dot = minimapDots.computeIfAbsent(view.id(), id -> {
                 float size = view.structure() ? 6f : 3.5f;
                 var geometry = new Geometry("mm-dot", new Quad(size, size));
-                geometry.setMaterial(unshaded(toColor(game.getColor(view.playerIndex()))));
+                geometry.setMaterial(unshaded(colourOf(view)));
                 minimapNode.attachChild(geometry);
                 return geometry;
             });
@@ -1110,9 +1110,22 @@ final class DukeRtsApp extends SimpleApplication {
         return node;
     }
 
+    /**
+     * What colour to draw this unit: the type's own if the game gave it one,
+     * otherwise its player's.
+     *
+     * <p>Player colour says whose it is, which is all an RTS usually needs. A
+     * game fielding several kinds of thing per side needs to say what it is too,
+     * and with no models yet there is nothing else to say it with.
+     */
+    private ColorRGBA colourOf(UnitView view) {
+        var own = visuals.of(view.templateName()).colour;
+        return toColor(own != null ? own : game.getColor(view.playerIndex()));
+    }
+
     /** A clean placeholder in the player's colour when no model is assigned. */
     private Spatial buildPrimitive(UnitView view) {
-        var color = toColor(game.getColor(view.playerIndex()));
+        var color = colourOf(view);
         var group = new Node("primitive");
         if (view.structure()) {
             var box = new Geometry("b", new Box(2.6f, 1.8f, 2.6f));

@@ -15,8 +15,10 @@ import java.util.List;
  * @param asciiMap  the map in the same {@code #}=stone / {@code .}=floor form the
  *                  engine's {@code MapLoader} already reads; row 0 is {@code cy=0}
  * @param hero      where the hero starts (world units)
- * @param skeletons where the skeletons wait (world units), spread across the
- *                  rooms the hero does not start in
+ * @param monsters  what fills the rooms the hero does not start in, each with
+ *                  the kind that was drawn for it
+ * @param boss      the one in the furthest room — killing it opens the way down
+ * @param bossRoom  which room that is, so the client can point at it
  * @param rooms     the carved rooms, in placement order — {@code rooms[0]} is the
  *                  start room
  * @param links     which rooms were joined by a corridor. Exposed because "the
@@ -27,12 +29,24 @@ import java.util.List;
 public record GeneratedDungeon(
         String asciiMap,
         Placement hero,
-        List<Placement> skeletons,
+        List<Monster> monsters,
+        Monster boss,
+        int bossRoom,
         List<Room> rooms,
         List<Link> links) {
 
     /** A spot in the world, in world units (not cells). */
     public record Placement(float x, float y) {
+    }
+
+    /**
+     * Something to fight, and what kind of thing it is.
+     *
+     * <p>The kind is a name rather than a type because the list of kinds lives in
+     * a data file: the generator picks from what the file describes and never
+     * learns what a Runner is.
+     */
+    public record Monster(String kind, Placement at) {
     }
 
     /** A carved rectangle of floor, in cell coordinates. */

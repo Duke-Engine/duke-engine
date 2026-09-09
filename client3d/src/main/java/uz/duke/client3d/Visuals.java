@@ -34,9 +34,26 @@ public final class Visuals {
         String attackAnim;
         String fireSound;
         String dieSound;
+        java.awt.Color colour; // null = the owning player's colour
 
         public UnitVisual model(String assetPath) {
             this.modelPath = assetPath;
+            return this;
+        }
+
+        /**
+         * Draw this unit type in a colour of its own instead of its player's.
+         *
+         * <p>Player colour answers "whose is it?", which is the only question an
+         * RTS asks of a shape. A game whose sides each field several kinds of
+         * thing has a second question — "what is it?" — and with no models yet
+         * there is nothing left to answer it with: every enemy is the same
+         * capsule in the same colour, on screen and on the minimap alike.
+         *
+         * <p>Left unset, the player's colour is used exactly as before.
+         */
+        public UnitVisual colour(java.awt.Color colour) {
+            this.colour = colour;
             return this;
         }
 

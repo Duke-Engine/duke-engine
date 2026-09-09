@@ -2,11 +2,11 @@ package uz.duke.dungeon;
 
 import java.awt.Color;
 import uz.duke.dungeon.ai.HeroBrain;
-import uz.duke.dungeon.ai.SkeletonBrain;
+import uz.duke.dungeon.ai.MonsterBrain;
 import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.gen.DungeonGenerator;
-import uz.duke.dungeon.level.HeroBody;
+import uz.duke.dungeon.level.GrowableBody;
 import uz.duke.dungeon.level.HeroProgress;
 import uz.duke.dungeon.run.DungeonRun;
 import uz.duke.game.DukeGame;
@@ -85,14 +85,21 @@ public final class Dungeon {
                 .subtitle("a different dungeon every run")
                 .customModules(factory -> {
                     ScriptModule.registerScript(factory, "HeroBrain", () -> new HeroBrain(settings));
-                    ScriptModule.registerScript(factory, "SkeletonBrain",
-                            () -> new SkeletonBrain(settings));
-                    // The hero needs a body that can grow; the engine's cannot.
-                    factory.register("HeroBody",
-                            (owner, data) -> new HeroBody(owner, (HeroBody.Data) data),
-                            HeroBody::parseData);
+                    // One brain per kind, wired from the list the settings file
+                    // names — so adding a monster is two blocks of INI and no Java.
+                    for (var kind : settings.monsters()) {
+                        ScriptModule.registerScript(factory, kind.brainTag(),
+                                () -> new MonsterBrain(kind));
+                    }
+                    // Hero and monsters alike need a body that can grow: levels
+                    // raise his, depth raises theirs, and the engine's fixes its
+                    // maximum when the unit is built.
+                    factory.register("GrowableBody",
+                            (owner, data) -> new GrowableBody(owner, (GrowableBody.Data) data),
+                            GrowableBody::parseData);
                 })
                 .loadUnits(Content.read(Content.CREATURES))
+                .loadUnits(Content.read(Content.MONSTERS))
                 .mapFromText(asciiMap);
 
         var heroPlayer = game.addPlayer("Hero", HERO_COLOUR);
@@ -110,6 +117,11 @@ public final class Dungeon {
         return newSession(seed).game();
     }
 
+    /** The same, on settings already loaded — so a caller can read them once. */
+    public static DukeGame create(long seed, DungeonSettings settings) {
+        return newSession(seed, settings).game();
+    }
+
     /** Build the game and expose its run loop (the entry point tests build on). */
     public static Session newSession(long seed) {
         return newSession(seed, DungeonSettings.load());
@@ -117,20 +129,18 @@ public final class Dungeon {
 
     /** The same, on settings the caller supplies — the seam for testing a re-tuned game. */
     public static Session newSession(long seed, DungeonSettings settings) {
-        var dungeon = DungeonGenerator.generate(seed, settings);
-        var arena = world(dungeon.asciiMap(), settings);
+        var floor = DungeonGenerator.generate(seed, settings, 1);
+        var arena = world(floor.asciiMap(), settings);
         var game = arena.game();
-
-        game.spawn("Hero", arena.hero(), dungeon.hero().x(), dungeon.hero().y());
-        for (var skeleton : dungeon.skeletons()) {
-            game.spawn("Skeleton", arena.dungeon(), skeleton.x(), skeleton.y());
-        }
-
-        var run = new DungeonRun(arena.hero(), arena.dungeon(), seed, settings);
-        game.onTick(run::tick);
 
         var progress = new HeroProgress(arena.hero(), settings.levelling(),
                 settings.levelUpBannerFrames());
+        var run = new DungeonRun(arena.hero(), arena.dungeon(), seed, settings, progress);
+
+        // The first floor is laid out the same way every later one is, so the
+        // deep floors nobody plays as often cannot drift from the first.
+        game.onStart(started -> run.openOn(started, floor));
+        game.onTick(run::tick);
         game.onTick(progress::tick);
 
         return new Session(game, run, progress);
