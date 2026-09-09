@@ -44,6 +44,9 @@ public final class RtsModules {
         factory.register("PowerModule",
                 (owner, data) -> new PowerModule(owner, (PowerModule.Data) data),
                 PowerModule::parseData);
+        factory.register("CapacityGate",
+                (owner, data) -> new CapacityGate(owner, (CapacityGate.Data) data),
+                CapacityGate::parseData);
         factory.register("SpecialPowerModule",
                 (owner, data) -> new SpecialPowerModule(owner, (SpecialPowerModule.Data) data),
                 SpecialPowerModule::parseData);

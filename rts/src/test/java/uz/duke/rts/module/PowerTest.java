@@ -50,6 +50,8 @@ class PowerTest {
                 .module("ActiveBody", new ActiveBody.Data(400f))
                 .module("ProductionUpdate", new ProductionUpdate.Data())
                 .module("PowerModule", new PowerModule.Data(0, 8)) // consumes 8
+                // The stall rule is opt-in now: a factory that wants it says so.
+                .module("CapacityGate", new CapacityGate.Data())
                 .build();
         powerPlant = ThingTemplate.named("PowerPlant")
                 .module("ActiveBody", new ActiveBody.Data(300f))

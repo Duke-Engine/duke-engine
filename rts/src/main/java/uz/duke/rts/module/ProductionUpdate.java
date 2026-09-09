@@ -130,6 +130,23 @@ public final class ProductionUpdate extends UpdateModule {
         return queue.size();
     }
 
+    /**
+     * Whether every gate attached to this factory agrees the line may move.
+     *
+     * <p>A factory with no gates builds without interruption, which is the plain
+     * mechanism. What used to be here instead was one game's condition — a power
+     * check — applied to every game built on the engine, including those with no
+     * idea what power was.
+     */
+    private boolean gatesAllow() {
+        for (var module : getOwner().getModules()) {
+            if (module instanceof ProductionGate gate && !gate.canProduce()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     @Override
     public void update() {
         var head = queue.peekFirst();
@@ -137,8 +154,8 @@ public final class ProductionUpdate extends UpdateModule {
             return;
         }
         var world = getOwner().getWorld();
-        if (world != null && !PowerGrid.isPowered(world, getOwner().getPlayerIndex())) {
-            return; // base is under-powered — production stalls
+        if (!gatesAllow()) {
+            return; // something attached to this factory is holding the line
         }
         head.framesRemaining--;
         if (head.framesRemaining > 0) {

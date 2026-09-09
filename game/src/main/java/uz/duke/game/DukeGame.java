@@ -834,6 +834,11 @@ public final class DukeGame {
               Update = PowerModule Tag
                 Consumes = 3
               End
+              ; Stall the line when the base outgrows its plants. Asked for here
+              ; rather than assumed by the engine — a game with no notion of
+              ; capacity simply leaves this off.
+              Behavior = CapacityGate Tag
+              End
             End
             Object Rifleman
               DisplayName = Rifleman

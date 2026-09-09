@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 335 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 339 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -523,7 +523,11 @@ o'zinikini doim ko'radi, ittifoqchilar ko'rishni bo'lishadi) · fazoviy so'rovla
 - **`message.GameMessage`** — sealed RTS buyruq to'plami; **`network.CommandCodec`** — sim formati.
 - **`module.*`** — `WeaponUpdate` (reload, masofa, splash, ittifoqchini urmaydi),
   `ProductionUpdate` (navbat, pul yechish, rally), `SupplyModule` + `HarvestUpdate`,
-  `PowerModule` + `PowerGrid` (quvvat yetmasa ishlab chiqarish to'xtaydi),
+  `PowerModule` + `PowerGrid` (tomonning sig'im balansi — Generals'da quvvat,
+  WC3'da food, BFME'da sobit cap: bitta mexanizm) va **ixtiyoriy** `CapacityGate`
+  (balans manfiy bo'lsa ishlab chiqarish to'xtaydi — bu **qoida**, shuning uchun
+  zavod uni o'z ta'rifida so'raydi; `ProductionGate` choki orqali o'yin o'z
+  shartini ham yozishi mumkin),
   `ExperienceModule` — **sozlanadigan rank narvoni** (nechta rung, har biri necha XP va
   qancha zarar bonusi — hammasi INI'dan; `HealOnPromotion` ham so'raladi, taxmin qilinmaydi),
   `StatusUpdate` (DISABLED/SLOWED muddat bilan), `ContainModule` (garnizon),
@@ -891,7 +895,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **335 test yashil** (core 133, rts 82, generals 5, game 23, client3d 39, studio 8, dungeon 45) — 0 failure / 0 error.
+- **339 test yashil** (core 133, rts 86, generals 5, game 23, client3d 39, studio 8, dungeon 45) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan

@@ -24,6 +24,8 @@ public enum CapabilityType {
     PRODUCE("Produce units (factory)", List.of(
             new Param("Builds", "Units it can build (space-separated names)", ""))),
 
+    CAPACITY_GATE("Stall production without spare capacity", List.of()),
+
     POWER("Power grid", List.of(
             new Param("Produces", "Power produced", "0"),
             new Param("Consumes", "Power consumed", "0"))),

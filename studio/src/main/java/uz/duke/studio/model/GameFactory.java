@@ -47,6 +47,7 @@ public final class GameFactory {
         appendCapability(ini, unit, CapabilityType.ATTACK, "Update = WeaponUpdate");
         appendCapability(ini, unit, CapabilityType.PRODUCE, "Update = ProductionUpdate");
         appendCapability(ini, unit, CapabilityType.POWER, "Update = PowerModule");
+        appendCapability(ini, unit, CapabilityType.CAPACITY_GATE, "Behavior = CapacityGate");
         appendCapability(ini, unit, CapabilityType.EXPERIENCE, "Behavior = ExperienceModule");
         appendCapability(ini, unit, CapabilityType.AUTO_HEAL, "Update = AutoHealUpdate");
         appendCapability(ini, unit, CapabilityType.SUPPLY, "Behavior = SupplyModule");
