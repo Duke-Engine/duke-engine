@@ -163,11 +163,14 @@ class HeroProgressTest {
         hero.setPosition(new Coord3D(200f, 150f, 0f));
         // Twelve apart, which is exactly the closing distance for two bodies of
         // radius four — so neither takes a step and walking cannot skew the clock.
-        game.spawn("Skeleton", fight.arena().dungeon(), 212f, 150f);
+        // A target tough enough that the hero needs several blows: against
+        // something he fells in one, a stronger hero is not measurably faster and
+        // the test would say nothing about levelling.
+        game.spawn("Boss", fight.arena().dungeon(), 216f, 150f);
         game.runHeadless(1);
-        var skeleton = creature(game, "Skeleton");
-        assertNotNull(skeleton);
-        var skeletonId = skeleton.getId();
+        var target = creature(game, "Boss");
+        assertNotNull(target);
+        var skeletonId = target.getId();
 
         game.postCommand(new GameMessage.AttackObject(game.getLocalPlayerIndex(),
                 List.of(hero.getId()), skeletonId));

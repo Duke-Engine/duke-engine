@@ -52,12 +52,17 @@ class DungeonCombatTest {
 
     /** A hero and one skeleton, placed exactly where the test wants them. */
     private static Fight fight(float heroX, float heroY, float skeletonX, float skeletonY) {
+        return fight(heroX, heroY, skeletonX, skeletonY, "Skeleton");
+    }
+
+    /** The same, against a named kind — for a fight the hero must not end at once. */
+    private static Fight fight(float heroX, float heroY, float foeX, float foeY, String kind) {
         var world = Dungeon.world(ARENA, SETTINGS);
         var game = world.game();
         game.spawn("Hero", world.hero(), heroX, heroY);
-        game.spawn("Skeleton", world.dungeon(), skeletonX, skeletonY);
+        game.spawn(kind, world.dungeon(), foeX, foeY);
         game.runHeadless(1);
-        return new Fight(game, creature(game, "Hero"), creature(game, "Skeleton"));
+        return new Fight(game, creature(game, "Hero"), creature(game, kind));
     }
 
     private static GameObject creature(DukeGame game, String template) {
@@ -195,7 +200,11 @@ class DungeonCombatTest {
     void theHeroTurnsToFaceWhatHeIsAttacking() {
         // Close enough to swing without walking, and directly behind him: any
         // turning here is the game's doing, since he never takes a step.
-        var fight = fight(200f, 150f, 186f, 150f);
+        // The boss, not a skeleton: a skeleton spawned inside the hero's reach is
+        // killed in the boot frame and never survives to be faced. What is being
+        // asked here is which way he turns, and that must not depend on how hard
+        // the game currently has him hitting.
+        var fight = fight(200f, 150f, 182f, 150f, "Boss");
         var hero = fight.hero();
         var skeleton = fight.skeleton();
         hero.setOrientation(0f); // looking east; the skeleton is west
@@ -214,7 +223,7 @@ class DungeonCombatTest {
     /** And so does a skeleton: it looks at the hero it is hitting. */
     @Test
     void aSkeletonTurnsToFaceTheHero() {
-        var fight = fight(200f, 150f, 186f, 150f);
+        var fight = fight(200f, 150f, 182f, 150f, "Boss");
         var skeleton = fight.skeleton();
         skeleton.setOrientation((float) StrictMath.PI); // looking away from the hero
 

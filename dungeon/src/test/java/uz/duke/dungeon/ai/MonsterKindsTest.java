@@ -84,8 +84,10 @@ class MonsterKindsTest {
         var runner = fight("Runner", start);
         var brute = fight("Brute", start);
 
-        runner.game().runHeadless(120);
-        brute.game().runHeadless(120);
+        // A short window, before either has arrived: this is about speed, and once
+        // both have reached their fighting distance it would measure only that.
+        runner.game().runHeadless(30);
+        brute.game().runHeadless(30);
 
         assertTrue(gapBetween(runner) < gapBetween(brute),
                 "the runner should have closed further, but was " + gapBetween(runner)

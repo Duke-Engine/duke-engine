@@ -262,9 +262,30 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         return !isBlocked(mover, position);
     }
 
+    /**
+     * Whether a mover may not stand at {@code position} — someone in the way, or
+     * the ground itself.
+     *
+     * <p>Terrain used to be left entirely to pathfinding, on the reasoning that a
+     * route never crosses a wall. That holds only while the mover follows its
+     * route: swerving around a neighbour is a step the path never planned, and in
+     * a corridor barely wider than the mover the only way past is sideways into
+     * stone. Nothing refused it, and once a mover's centre was inside a wall it
+     * could never leave — a search that starts on blocked ground has nowhere to
+     * begin, so it returned no path at all, for ever.
+     *
+     * <p>A mover already standing in stone is not held there. Refusing its steps
+     * too would make the wall it should be escaping into a cage.
+     */
     private static boolean isBlocked(GameObject mover, Coord3D position) {
         var world = mover.getWorld();
-        return world != null && world.findBlocker(mover, position) != null;
+        if (world == null) {
+            return false;
+        }
+        if (world.findBlocker(mover, position) != null) {
+            return true;
+        }
+        return world.isGroundBlocked(position) && !world.isGroundBlocked(mover.getPosition());
     }
 
     private static Coord3D headingVector(float angle) {

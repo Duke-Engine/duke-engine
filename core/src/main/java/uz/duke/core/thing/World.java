@@ -121,6 +121,21 @@ public interface World {
     GameObject findBlocker(GameObject mover, Coord3D position);
 
     /**
+     * Whether the ground at {@code position} cannot be walked on.
+     *
+     * <p>The question a locomotor has to ask before every step, and could not.
+     * {@link #findBlocker} answers "who is in the way", which is only half of what
+     * is in the way: walls were left entirely to pathfinding, so anything that
+     * moved for a reason the path did not anticipate — swerving around a
+     * neighbour, most of all — could walk into stone unopposed. Once there it was
+     * beyond help, because a search that starts on blocked ground has nowhere to
+     * begin.
+     *
+     * <p>False where a world has no navigation grid at all: open ground everywhere.
+     */
+    boolean isGroundBlocked(Coord3D position);
+
+    /**
      * Somewhere at or near {@code near} where {@code shape} fits without
      * overlapping anything — where to put a newly produced unit, a dropped
      * passenger, or anything else that must appear beside something solid.

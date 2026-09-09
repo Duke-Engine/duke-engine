@@ -68,12 +68,51 @@ public final class Pathfinder {
      * mover that silently stops working the moment it grows.
      */
     public static Path findPath(PathGrid grid, Coord3D from, Coord3D to, float clearance) {
+        // Standing on blocked ground, the only useful first move is off it. A
+        // search from there finds nothing at all, which used to leave anything
+        // that ended up inside a wall unable to plan its way out for the rest of
+        // the game — permanently frozen rather than merely wedged.
+        if (grid.isBlocked(grid.toCellX(from), grid.toCellY(from))) {
+            var escape = nearestOpenCell(grid, from);
+            return escape == null ? Path.EMPTY : new Path(List.of(escape));
+        }
         var path = search(grid, from, to, clearance);
         if (path.isEmpty() && clearance > 0f) {
             path = search(grid, from, to, 0f);
         }
         return path;
     }
+
+    /**
+     * The centre of the closest cell that can be stood on, or {@code null} if the
+     * search gives up.
+     *
+     * <p>Rings outward from the mover, and within a ring in a fixed order, so two
+     * machines pick the same way out. Bounded because a world can be solid stone,
+     * and a mover in the middle of one should stop rather than scan it all.
+     */
+    private static Coord3D nearestOpenCell(PathGrid grid, Coord3D from) {
+        int cx = grid.toCellX(from);
+        int cy = grid.toCellY(from);
+        for (int ring = 1; ring <= ESCAPE_RINGS; ring++) {
+            for (int dy = -ring; dy <= ring; dy++) {
+                for (int dx = -ring; dx <= ring; dx++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dy)) != ring) {
+                        continue; // only the edge of this ring; the inside was searched
+                    }
+                    int x = cx + dx;
+                    int y = cy + dy;
+                    if (!grid.isBlocked(x, y)) { // out of bounds counts as blocked
+                        return grid.cellCenter(x, y);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /** How far to look for a way out before deciding there is none. */
+    private static final int ESCAPE_RINGS = 8;
 
     private static Path search(PathGrid grid, Coord3D from, Coord3D to, float clearance) {
         int startX = grid.toCellX(from);

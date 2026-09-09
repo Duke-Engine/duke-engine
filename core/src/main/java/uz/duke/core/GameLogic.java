@@ -214,6 +214,14 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return near;
     }
 
+    @Override
+    public final boolean isGroundBlocked(Coord3D position) {
+        // The terrain layer only: a building standing here is an obstacle a mover
+        // may walk around, and findBlocker is what answers for those.
+        return pathGrid != null
+                && pathGrid.isTerrainBlocked(pathGrid.toCellX(position), pathGrid.toCellY(position));
+    }
+
     private boolean isGroundClear(Geometry shape, Coord3D position) {
         if (pathGrid != null
                 && pathGrid.isTerrainBlocked(pathGrid.toCellX(position), pathGrid.toCellY(position))) {
