@@ -177,6 +177,49 @@ class MonsterKindsTest {
                 "a melee monster should have closed, but stopped at " + gapBetween(fight));
     }
 
+    /**
+     * A blow it has begun, it finishes.
+     *
+     * <p>Step out of reach mid-swing and the monster stands there completing it,
+     * rather than lowering its arm and setting off after you. That window is the
+     * whole reward for moving: without it a monster followed the hero around the
+     * room with its arm permanently raised, never landing anything and never
+     * costing him anything either.
+     *
+     * <p>Fought with the brute, which has the longest swing in the dungeon and so
+     * the widest window — the mechanism is the same for all of them, and a short
+     * one would be measuring the frame counter rather than the behaviour.
+     */
+    @Test
+    void aMonsterFinishesTheBlowItHasStarted() {
+        var brute = SETTINGS.monsters().stream()
+                .filter(kind -> kind.name().equals("Brute")).findFirst().orElseThrow();
+        var fight = fight("Brute", 6f); // already within reach
+        float health = fight.hero().getBody().getHealth();
+
+        // Run until it actually lands one. Recovery follows the blow, not the
+        // standing about beforehand.
+        int waited = 0;
+        while (fight.hero().getBody().getHealth() >= health && waited++ < 200) {
+            fight.game().runHeadless(1);
+        }
+        assertTrue(waited < 200, "the brute never hit him, so there is no swing to finish");
+
+        // Carried out of reach the instant it struck, so what follows is only the
+        // swing. Walked, he would still be within reach for some of it.
+        fight.hero().setPosition(new Coord3D(400f, 200f, 0f));
+        var stoodAt = fight.monster().getPosition();
+        fight.game().runHeadless(brute.swingFrames() - 2);
+
+        assertEquals(0f, fight.monster().getPosition().distance(stoodAt), 0.5f,
+                "it should still be finishing the blow, not chasing");
+
+        fight.game().runHeadless(20);
+
+        assertTrue(fight.monster().getPosition().distance(stoodAt) > 2f,
+                "and then it should have come after him");
+    }
+
     /** The revenant heals itself: hurt it and leave it, and the damage comes back. */
     @Test
     void theRevenantHealsWhatYouDoNotFinish() {

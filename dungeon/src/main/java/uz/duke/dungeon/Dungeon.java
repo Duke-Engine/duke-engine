@@ -5,6 +5,7 @@ import uz.duke.dungeon.ai.HeroBrain;
 import uz.duke.dungeon.ai.MonsterBrain;
 import uz.duke.dungeon.combat.ArrowUpdate;
 import uz.duke.dungeon.combat.Bow;
+import uz.duke.dungeon.combat.Swing;
 import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.gen.DungeonGenerator;
@@ -126,6 +127,9 @@ public final class Dungeon {
                             (owner, data) -> new Bow(owner, settings), Bow::parseData);
                     factory.register("ArrowUpdate",
                             ArrowUpdate::new, ArrowUpdate::parseData);
+                    // A monster's blow lands where it stands, as it always did.
+                    // This is only how the brain finds out that it struck.
+                    factory.register("Swing", Swing::new, Swing::parseData);
                 })
                 .loadUnits(creaturesIni)
                 .loadUnits(Content.read(Content.MONSTERS))

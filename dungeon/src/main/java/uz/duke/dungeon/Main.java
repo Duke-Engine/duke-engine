@@ -190,7 +190,8 @@ public final class Main {
                     .floor(art.floor())
                     .wall(art.wall())
                     .corner(art.corner())
-                    .tileSize(art.tileSize()));
+                    .tileSize(art.tileSize())
+                    .wallHeight(art.wallHeight()));
         }
         return visuals;
     }

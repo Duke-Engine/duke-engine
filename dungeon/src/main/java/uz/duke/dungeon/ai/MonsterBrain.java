@@ -3,6 +3,7 @@ package uz.duke.dungeon.ai;
 import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.World;
+import uz.duke.dungeon.combat.Swing;
 import uz.duke.dungeon.content.MonsterKind;
 import uz.duke.game.script.UnitScript;
 import uz.duke.rts.module.WeaponUpdate;
@@ -81,14 +82,39 @@ public final class MonsterBrain extends UnitScript {
         // Measured surface to surface, the way the weapon measures range. This
         // one distance is what separates a thing that closes from a thing that
         // shoots: an archer's is long, a brute's is nearly nothing.
-        if (World.reachBetween(unit(), hero) <= kind.closeDistance()) {
+        if (World.reachBetween(unit(), hero) <= kind.closeDistance() || midBlow()) {
             if (move.isMoving()) {
-                move.stop(); // close enough to fight from here
+                move.stop(); // close enough to fight from here, or still swinging
             }
             Facing.turnToward(unit(), hero); // look at what it is hitting
             return;
         }
         advanceOn(move, hero);
+    }
+
+    /**
+     * Whether the blow it last landed is still in progress.
+     *
+     * <p>A blow is not free. Without this a monster that reached the hero and
+     * raised its arm went straight back to walking the instant he stepped away --
+     * so it followed him around the room with its arm up and never landed
+     * anything, and stepping away cost him nothing either, because the step cost
+     * the monster nothing. What it buys the player is the window: get out of reach
+     * and the monster is still finishing the blow you left.
+     *
+     * <p>Tied to a blow it actually struck, not to having come close. Paying the
+     * recovery for merely brushing past would mean anything faster than it could
+     * walk away for free, losing it ground every time it caught up and never
+     * hitting anything.
+     *
+     * <p>How long a swing is belongs to the kind -- a brute's is slow and a
+     * runner's is not -- so it is in dungeon.ini. The animation follows without
+     * being told: a monster standing still with a target is exactly the state the
+     * client draws as attacking.
+     */
+    private boolean midBlow() {
+        var swing = unit().findModule(Swing.class);
+        return swing != null && swing.stillSwinging(frame(), kind.swingFrames());
     }
 
     private void advanceOn(MoveUpdate move, GameObject hero) {

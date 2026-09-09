@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 541 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 548 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -957,7 +957,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **541 test yashil** (core 133, rts 110, generals 5, game 28, client3d 85, studio 8, dungeon 172) — 0 failure / 0 error.
+- **548 test yashil** (core 133, rts 110, generals 5, game 28, client3d 91, studio 8, dungeon 173) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1410,6 +1410,43 @@ ikkala peer aynan bir kadrda qo'llaydi.
     uchun brain uning o'rniga hech narsa eslab turmaydi, va `MoveTo` buyrug'i
     quroldan nishonni olib tashlagani uchun ataka buyrug'ining bekor bo'lishi
     **o'z-o'zidan** ishlaydi.
+- **Zarbani oxirigacha yetkazish** — maxluq urishni boshlagach, hero chetga chiqsa
+  ham turib zarbani tugatadi, keyin quvadi. `SwingFrames` har bir turnikida
+  (`DungeonMonster` bloki): brute 22, runner 8.
+  - **Yaqinlashganiga emas, haqiqiy zarbaga bog'langan.** Avval oddiygina
+    "masofa ichida bo'lsa" deb yozgan edim — o'shanda maxluq yonidan o'tib
+    ketilganda ham 12 kadr yo'qotardi, ya'ni undan tezroq har kim tekinga qochib
+    ketardi (o'lchab ko'rdim: skeleton chase radiusidan chiqib qolardi).
+  - Zarba qachon tushganini `Swing` moduli aytadi — u `ProjectileLauncher` ni
+    implement qiladi va **hech narsa uchirmaydi** (`false` qaytaradi, ya'ni zarar
+    odatdagidek joyida tushadi). Bu engine'ning qurol otgan lahzadagi yagona
+    ilgagi; engine'ga tegilmadi.
+  - Animatsiya o'z-o'zidan to'g'ri chiqadi: nishoni bor va turgan maxluq — bu
+    aynan klient "urayapti" deb chizadigan holat.
+- **Toshning tomi yopildi** — `TileLayout.Piece.CAP`. Ilgari tosh hujayralar
+  umuman chizilmasdi, ya'ni devor ortida **bo'shliq** turardi va kamera devor
+  ustidan o'sha teshikka qarardi — tomsiz uy.
+  - Qopqoq devor balandligida yotadi (`WallHeight`, `DungeonTiles` blokida), va
+    ochiq yerga tegib turgan har bir tosh hujayraga qo'yiladi (diagonal ham).
+  - Qopqoqning **egasi** — yonidagi xona, tosh emas: tuman hujayra bo'yicha
+    ishlaydi va toshning hujayrasi yo'q. Ya'ni qopqoq xona ochilganda paydo
+    bo'ladi va u bilan birga eslab qolinadi. Bitta tosh — bitta ega (birinchi
+    ochiq qo'shni), aks holda ikkita plitka bir joyda urishardi.
+  - Devori yo'q to'plamga qopqoq qo'yilmaydi — yopadigan narsa yo'q.
+- **Fog of war silliqlandi** — uch shakldan uzluksiz yorug'likka.
+  - **Fazoviy:** har bir hujayraning yorqinligi qo'shnilari bilan 4-2-1 yadro
+    bo'yicha o'rtachalanadi, ya'ni chegara bitta chiziqqa emas, bir necha
+    hujayraga yoyiladi. **Tosh o'rtachaga kirmaydi** — u qorong'i yer emas,
+    devorning o'zi; busiz ikki hujayra kenglikdagi koridor hech qachon to'liq
+    yoritilmasdi.
+  - **Vaqt bo'yicha:** hech narsa sakramaydi, sekundiga 7 ulush bilan maqsadiga
+    yaqinlashadi — kadrga emas, sekundga, aks holda tezroq mashinada tuman
+    tezroq ochilardi.
+  - `TileSource.shade` endi `boolean` emas, `float` oladi; `KitTiles` 12 pog'onali
+    material narvonini bir marta quradi va har bir bo'lak o'z pog'onasiga ishora
+    qiladi.
+  - **Ochiladigan narsa o'zgarmadi:** silliqlash ochilgan hujayralar to'plamini
+    faqat o'qiydi, hech qachon yozmaydi (`softeningOpensNothing` shuni qulflaydi).
 - **Nishonli skillar** — `CastSkill` endi o'yinchi nimani bosganini olib yuradi.
   - `SkillEffect` har bir effekt nimaga qaratilishini biladi: `STRIKE` → maxluq,
     `DASH` → yer, `AREA_DAMAGE`/`EMPOWER` → hech narsa. `Main` shunga qarab
@@ -1677,7 +1714,8 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/MinimapProjection.java` | dunyo ↔ minimap matematikasi + viewport konturi |
 | `client3d/…/client3d/CameraFocus.java` | kamera nishoni/zoom — boshda o'z birligiga, keyin erkin |
 | `client3d/…/client3d/{SelectionBox,Formation,OrderMarkers}.java` | drag-select, guruh joylashuvi, buyruq metkalari |
-| `client3d/…/client3d/Discovery.java` | kashfiyot tumani — qora / xotira / ko'rinayotgan (faqat klient) |
+| `client3d/…/client3d/Discovery.java` | kashfiyot tumani — uzluksiz yorug'lik, fazoviy+vaqt silliqlash (faqat klient) |
+| `dungeon/…/dungeon/combat/Swing.java` | zarba qachon tushganini aytadi — hech narsa uchirmaydi |
 | `client3d/…/client3d/TileLayout.java` | qaysi plitka qayerda — sof arifmetika, jME'siz |
 | `client3d/…/client3d/{Tileset,TileSource}.java` | to'plam ta'rifi + bo'lak yuklovchisi choki |
 | `client3d/…/client3d/AnimationLibrary.java` | klipni boshqa skeletga nom bo'yicha qayta ulash |

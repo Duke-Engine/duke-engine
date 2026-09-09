@@ -336,6 +336,7 @@ public final class DungeonSettings {
         float chaseRadius = 150f;
         float closeDistance = 4f;
         int repathFrames = 10;
+        int swingFrames = 12;
         int minDepth = 1;
         int weight;
         int colour = 0xFFFFFF;
@@ -355,7 +356,7 @@ public final class DungeonSettings {
 
         MonsterKind build() {
             return new MonsterKind(name, senseRadius, chaseRadius, closeDistance,
-                    repathFrames, minDepth, weight, colour, scale,
+                    repathFrames, swingFrames, minDepth, weight, colour, scale,
                     new MonsterLook(model, texture, modelScale, tint, facing, idle, walk, attack));
         }
     }
@@ -366,6 +367,7 @@ public final class DungeonSettings {
                     .add("ChaseRadius", Ini.real((m, v) -> m.chaseRadius = v))
                     .add("CloseDistance", Ini.real((m, v) -> m.closeDistance = v))
                     .add("RepathFrames", Ini.integer((m, v) -> m.repathFrames = v))
+                    .add("SwingFrames", Ini.integer((m, v) -> m.swingFrames = v))
                     .add("MinDepth", Ini.integer((m, v) -> m.minDepth = v))
                     .add("Weight", Ini.integer((m, v) -> m.weight = v))
                     // Decoded rather than scanned so a file can write 0xRRGGBB,
@@ -442,7 +444,8 @@ public final class DungeonSettings {
      *
      * @param floor  {@code null} when no kit is named, meaning plain blocks
      */
-    public record TileArt(String floor, String wall, String corner, float tileSize) {
+    public record TileArt(String floor, String wall, String corner, float tileSize,
+            float wallHeight) {
     }
 
     private String tileFolder = "";
@@ -450,10 +453,12 @@ public final class DungeonSettings {
     private String tileWall;
     private String tileCorner;
     private float tileSize = 4f;
+    private float tileWallHeight = 4f;
 
     /** The kit to draw the floor with; {@code floor()} is null if the file named none. */
     public TileArt tiles() {
-        return new TileArt(path(tileFloor), path(tileWall), path(tileCorner), tileSize);
+        return new TileArt(path(tileFloor), path(tileWall), path(tileCorner), tileSize,
+                tileWallHeight);
     }
 
     private String path(String piece) {
@@ -466,7 +471,8 @@ public final class DungeonSettings {
                     .add("Floor", Ini.string((s, v) -> s.tileFloor = v))
                     .add("Wall", Ini.string((s, v) -> s.tileWall = v))
                     .add("Corner", Ini.string((s, v) -> s.tileCorner = v))
-                    .add("TileSize", Ini.real((s, v) -> s.tileSize = v));
+                    .add("TileSize", Ini.real((s, v) -> s.tileSize = v))
+                    .add("WallHeight", Ini.real((s, v) -> s.tileWallHeight = v));
 
     private String animationLibrary;
     private String defaultIdle;

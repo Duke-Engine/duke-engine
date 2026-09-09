@@ -37,6 +37,7 @@ public record MonsterKind(
         float chaseRadius,
         float closeDistance,
         int repathFrames,
+        int swingFrames,
         int minDepth,
         int weight,
         int colour,
