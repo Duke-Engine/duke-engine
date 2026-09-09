@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 238 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 263 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -29,7 +29,7 @@ Hamma modulda `-Xlint:all`, testlar JUnit 5.11.3.
 | `studio` | `client3d` + Gson 2.11.0 | Duke Studio — Swing IDE (`uz.duke.studio.StudioMain`) |
 | `sandbox` | `game` | 2D skirmish demo (~70 qator) |
 | `sandbox3d` | `client3d` + jme3-testdata | 3D skirmish demo (~74 qator) |
-| `dungeon` | `client3d` | **Duke Dungeon** — engine ustidagi ilk o'yin (3D roguelike: seed'li generatsiya + run loop, primitiv shakllar) |
+| `dungeon` | `client3d` | **Duke Dungeon** — engine ustidagi ilk o'yin (3D roguelike: seed'li generatsiya + run loop + AI, ma'lumoti INI fayllarda, primitiv shakllar) |
 
 **Asosiy qoida:** `core` hech qachon `rts` ni import qilmaydi. RTS bo'lmagan o'yin
 yozmoqchi bo'lsangiz faqat `core` ga bog'lanasiz va o'z buyruqlaringiz, modullaringiz
@@ -715,9 +715,21 @@ bosilganda (yoki `Shell.none()` bo'lsa — darhol) boshlanadi.
 - **Boshqaruv:** LMB tanlash (Shift — qo'shish), RMB buyruq (dushmanga = hujum, yerga = yurish,
   zavod tanlangan bo'lsa = rally nuqtasi), WASD / o'q tugmalar kamera, g'ildirak zoom, `H` to'xtatish,
   `P` pauza, `Esc` tanlovni bekor / pauza menyusi, `1`–`9` build menyusidan navbatga qo'yish.
-- **Minimap** — o'ng pastda: statik fon (map chegarasi + to'siq kataklari) + jonli nuqtalar
-  (o'yinchi rangi bo'yicha, inshootlar kattaroq). Minimapga LMB = kamera sakrashi (birlik tanlashdan
-  oldin tekshiriladi).
+- **Minimap** — o'ng pastda: relyef qatlami (map chegarasi + to'siq kataklari) + jonli nuqtalar
+  (o'yinchi rangi bo'yicha, inshootlar kattaroq) + **viewport konturi**. Minimapga LMB = kamera
+  sakrashi (birlik tanlashdan oldin tekshiriladi).
+  Kamera yerga qiya qaraydi, ya'ni ko'radigan hududi to'rtburchak emas **trapetsiya**: ekranning
+  4 burchagidan yerga nur tushiriladi va haqiqiy to'rtburchak `LineLoop` bilan chiziladi. Ichi
+  bo'yalmaydi — minimapning butun vazifasi qayerda jang ketayotganini ko'rsatish, yarim shaffof
+  to'rtburchak esa aynan o'sha joyni xiralashtirardi. Xarita chetidan chiqqan burchak minimap
+  chegarasiga qirqiladi. Matematikasi `MinimapProjection` da (jME'siz, testlanadi).
+- **Dunyo almashsa sahna qayta quriladi** — relyef `TerrainScene` ga tegishli o'z tugunida
+  yashaydi va **har qayta qurish avval uni bo'shatadi**, ya'ni sahna run'lar bo'ylab o'smaydi.
+  Klient dunyo almashganini o'zi sezadi: `applyMapTerrain()` yangi `PathGrid` **instance** qo'yadi,
+  klient esa sahna qurilgan grid'ni identity bo'yicha solishtiradi — simulyatsiya klientga hech
+  narsa aytmaydi. Almashganda relyef, minimap foni qayta quriladi va kamera o'yinchining yangi
+  birligiga o'tadi. (Birliklar avvaldan to'g'ri ishlardi — ular snapshot bilan paydo bo'lib
+  yo'qoladi; qotib qolgani faqat bir marta qurilgan narsalar edi.)
 - **Formatsiya harakati** — bir nechta birlik uchun MoveTo grid ofsetlariga bo'linadi
   (`cols = ceil(sqrt(n))`, oraliq 5 dunyo birligi) — deterministik, MP-xavfsiz.
 - **Vizuallar** — `Visuals` Unity-uslub bog'lash:
@@ -860,7 +872,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **238 test yashil** (core 124, rts 71, game 18, client3d 5, studio 8, dungeon 12) — 0 failure / 0 error.
+- **263 test yashil** (core 124, rts 71, game 18, client3d 16, studio 8, dungeon 26) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -915,6 +927,25 @@ ikkala peer aynan bir kadrda qo'llaydi.
   `applyMapTerrain` + respawn); o'yinchilar tegilmaydi, shuning uchun egalik
   indekslari amal qiladi. `DungeonRunTest` holat almashinuvini va yangi run
   to'liq HP bilan boshlanishini qulflaydi.
+- **Combat ikki yo'l bilan** — `DungeonCombatTest` (maxsus arenada, lekin o'yinning
+  o'z creature va xulqi bilan): uzoqdagi skeletga klik qahramonni yuborib o'ldiradi,
+  buyruqsiz yaqinlashganda avto-ataka baribir ishlaydi. Klik-atakani o'yin o'zi
+  to'ldiradi (`HeroBrain`) — engine quroli **ataylab** nishonga yurmaydi ("bu
+  locomotor ishi"), klient esa RMB'da faqat `AttackObject` yuboradi, ya'ni RTS'da
+  to'g'ri bo'lgan qoida dungeon'da qahramonni joyida qotirardi. Harakat buyruq
+  quvuridan emas, locomotorga to'g'ridan-to'g'ri beriladi — `MoveTo` **buyrug'i**
+  qurol nishonini tozalar va o'zi yuborgan atakani bekor qilardi.
+- **Skeletlar qahramonni quvadi** — `SkeletonBrain` ikki radius bilan: sezish
+  (~bitta xona, aggro xonama-xona tarqaladi) va quvish (kengroq, lekin cheklangan).
+  Skelet qahramondan sekinroq, shuning uchun jangdan chiqib ketish haqiqiy taktika.
+  Test radiusda skeletning yaqinlashishini va radiusdan tashqarida **qimirlamasligini**
+  qulflaydi; qiymatlar testga yozilmaydi — sozlamalardan o'qiladi.
+- **O'yin ma'lumoti kodda emas, faylda** — `creatures.ini` (engine'ning o'z
+  `ThingTemplateLoader` i o'qiydi) va `dungeon.ini` (engine'ning `Ini` +
+  `FieldParseTable` bloklari). Balansni sozlash uchun qayta kompilyatsiya kerak emas;
+  `DungeonSettingsTest` boshqacha INI matni boshqacha o'yin berishini isbotlaydi va
+  buzuq faylni **yuklash vaqtida** maydonini nomlab rad etadi. Sozlamalar global
+  static emas — kerak bo'lgan joyga uzatiladi, ya'ni simulyatsiyaning kirishlari oshkora.
 - **Generatsiya ham determinizm shartnomasida** — `DeterministicRng` (xorshift64,
   faqat butun sonli amallar). Generatsiya yo'lida `Math.random`, devor-soati va
   trigonometriya yo'q; har keyingi run'ning seed'i oldingisidan shu zanjir bilan
@@ -1023,6 +1054,18 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
   Java 21 runtime + Java 25 klasslari = `UnsupportedClassVersionError` (class 69 vs 65), oynali exe
   jimgina exit 1 bilan o'ladi. Yechim (allaqachon qo'llangan): jpackage Gradle toolchain'idan olinadi.
   Nosozlikni ko'rish uchun `--win-console` varianti yordam beradi.
+- **Sahna tuzog'i (tuzatilgan):** klientda bir marta quriladigan narsa dunyo bir marta
+  quriladi deb **jimgina** taxmin qiladi. Relyef `simpleInitApp` da `rootNode` ga
+  ulanardi, shuning uchun yangi run boshlanganda birliklar yangi dungeon'da yurar,
+  devorlar esa eskisidan qolardi — minimap nuqtalari to'g'ri ko'rinib, xato faqat 3D'da
+  ko'rinardi. Qoida: qayta qurilishi mumkin bo'lgan narsa **o'z tugunida** yashasin va
+  qayta qurish har doim `detachAllChildren()` dan boshlansin (aks holda xato bir run
+  uchun to'g'ri ko'rinadi, keyin xotira yeydi).
+- **INI'da ikki joyda turadigan qiymat:** `AttackRange` ham `creatures.ini` da (engine
+  quroli o'qiydi), ham `dungeon.ini` da (brain "yetib bordim" ni shundan biladi) turadi —
+  `WeaponUpdate` masofasini tashqariga bermaydi. Ular ajralib ketsa qahramon nishonga
+  yetib kelib to'xtaydi-yu, hech qachon urmaydi. Shuning uchun `DungeonSettingsTest`
+  ikkalasini bir xil bo'lishga majbur qiladi.
 - **MP qo'l berishuvi:** `DUKE-JOIN` / `DUKE-WELCOME` `SocketTransport.wrap()` dan **oldin** bo'lishi
   shart, aks holda transport o'quvchisi qo'l berishuv qatorini buyruq deb talqin qiladi.
 - **MP test yozish tuzog'i:** ikkita simni o'zaro qadamlatganda ular bir kadrga fazoviy siljiydi —
@@ -1082,7 +1125,11 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `studio/…/studio/export/GameExporter.java` | mustaqil o'yin loyihasi generatori |
 | `studio/…/studio/ui/StudioWindow.java` | IDE asosiy oynasi |
 | `studio/…/studio/examples/RohanVsMordor.java` | namunaviy o'yinning muallifligi |
-| `dungeon/…/dungeon/Dungeon.java` | o'yin ta'rifi (INI, o'yinchilar, ikki rejim) |
-| `dungeon/…/dungeon/DungeonGenerator.java` | seed'dan xonalar + koridorlar (ulanish kafolati) |
-| `dungeon/…/dungeon/DungeonRun.java` | run loop: o'lim → yangi seed → yangi dungeon |
-| `dungeon/…/dungeon/DeterministicRng.java` | xorshift64 — generatsiyaning yagona tasodif manbai |
+| `client3d/…/client3d/TerrainScene.java` | relyef sahnasi — qayta qurish almashtiradi, qo'shmaydi |
+| `client3d/…/client3d/MinimapProjection.java` | dunyo ↔ minimap matematikasi + viewport konturi |
+| `dungeon/…/dungeon/Dungeon.java` | o'yinni yig'ish (fixture xona va haqiqiy o'yin) |
+| `dungeon/…/dungeon/content/DungeonSettings.java` | `dungeon.ini` — generatsiya va xulq sozlamalari |
+| `dungeon/…/dungeon/gen/DungeonGenerator.java` | seed'dan xonalar + koridorlar (ulanish kafolati) |
+| `dungeon/…/dungeon/ai/{HeroBrain,SkeletonBrain}.java` | klik-ataka va skelet AI'si |
+| `dungeon/…/dungeon/run/DungeonRun.java` | run loop: o'lim → yangi seed → yangi dungeon |
+| `dungeon/src/main/resources/uz/duke/dungeon/*.ini` | o'yin ma'lumoti — kompilyatsiyasiz sozlanadi |

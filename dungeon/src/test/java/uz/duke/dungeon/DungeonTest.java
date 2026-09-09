@@ -76,10 +76,12 @@ class DungeonTest {
                 List.of(hero.getId()), skeletonId));
         game.runHeadless(500);
 
+        // Behaviour, not balance: he reached it, it died, he lived. Asserting a
+        // health figure would make this test fail every time the game is tuned,
+        // which teaches you to edit the test rather than believe it.
         assertNull(game.getLogic().findObject(skeletonId), "the skeleton should be dead and gone");
-        assertTrue(hero.getBody().getHealth() > 100f,
-                "and the hero should have survived one of them comfortably, at "
-                        + hero.getBody().getHealth());
+        assertNotNull(game.getLogic().findObject(hero.getId()), "the hero should still be alive");
+        assertTrue(hero.getBody().getHealth() > 0f, "the hero should have survived the fight");
     }
 
     @Test

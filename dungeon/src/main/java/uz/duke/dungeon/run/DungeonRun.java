@@ -1,10 +1,13 @@
-package uz.duke.dungeon;
+package uz.duke.dungeon.run;
 
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.pathfind.MapLoader;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.core.thing.ThingTemplate;
+import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.gen.DungeonGenerator;
+import uz.duke.dungeon.gen.GeneratedDungeon;
 import uz.duke.game.DukeGame;
 import uz.duke.game.GamePlayer;
 
@@ -37,11 +40,9 @@ public final class DungeonRun {
         DEAD
     }
 
-    /** A short pause on the death screen before the next dungeon appears. */
-    static final int RESPAWN_DELAY_FRAMES = 60; // ~2 seconds at 30 Hz
-
     private final GamePlayer heroPlayer;
     private final GamePlayer dungeonPlayer;
+    private final DungeonSettings settings;
 
     private long seed;
     private State state = State.RUNNING;
@@ -49,14 +50,16 @@ public final class DungeonRun {
     private int deathFrame;
     private int runCount; // how many times a new dungeon has been generated after a death
 
-    DungeonRun(GamePlayer heroPlayer, GamePlayer dungeonPlayer, long seed) {
+    public DungeonRun(GamePlayer heroPlayer, GamePlayer dungeonPlayer, long seed,
+            DungeonSettings settings) {
         this.heroPlayer = heroPlayer;
         this.dungeonPlayer = dungeonPlayer;
         this.seed = seed;
+        this.settings = settings;
     }
 
     /** Called every logic frame on the simulation thread. */
-    void tick(DukeGame game) {
+    public void tick(DukeGame game) {
         switch (state) {
             case RUNNING -> whileRunning(game);
             case DEAD -> whileDead(game);
@@ -82,11 +85,11 @@ public final class DungeonRun {
     }
 
     private void whileDead(DukeGame game) {
-        if (game.getLogic().getFrame() - deathFrame < RESPAWN_DELAY_FRAMES) {
+        if (game.getLogic().getFrame() - deathFrame < settings.respawnDelayFrames()) {
             return;
         }
-        seed = DeterministicRng.advance(seed); // the next run is a different dungeon
-        regenerate(game, DungeonGenerator.generate(seed));
+        seed = DungeonGenerator.nextSeed(seed); // the next run is a different dungeon
+        regenerate(game, DungeonGenerator.generate(seed, settings));
         runCount++;
         state = State.RUNNING;
         game.setBanner("");
@@ -122,14 +125,14 @@ public final class DungeonRun {
         return null;
     }
 
-    // ---- observation (for tests) ----
+    // ---- observation ----
 
-    State getState() {
+    public State getState() {
         return state;
     }
 
     /** How many new dungeons this session has generated after a death (0 at first). */
-    int getRunCount() {
+    public int getRunCount() {
         return runCount;
     }
 }

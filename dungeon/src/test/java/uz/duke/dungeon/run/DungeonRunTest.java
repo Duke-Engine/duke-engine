@@ -1,4 +1,4 @@
-package uz.duke.dungeon;
+package uz.duke.dungeon.run;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.junit.jupiter.api.Test;
 import uz.duke.core.thing.GameObject;
+import uz.duke.dungeon.Dungeon;
+import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.game.DukeGame;
 
 /**
@@ -13,6 +15,13 @@ import uz.duke.game.DukeGame;
  * back at full health and nothing carried over.
  */
 class DungeonRunTest {
+
+    private static final DungeonSettings SETTINGS = DungeonSettings.load();
+
+    /** Long enough for the death pause to elapse, whatever the file says it is. */
+    private static int pastTheDeathPause() {
+        return SETTINGS.respawnDelayFrames() + 3;
+    }
 
     private static GameObject heroOf(DukeGame game) {
         return game.getLogic().getObjects().stream()
@@ -39,7 +48,7 @@ class DungeonRunTest {
         assertEquals(DungeonRun.State.DEAD, run.getState(), "losing the hero ends the run");
 
         // After the death pause, a new dungeon is generated and play resumes.
-        game.runHeadless(DungeonRun.RESPAWN_DELAY_FRAMES + 2);
+        game.runHeadless(pastTheDeathPause());
         assertEquals(DungeonRun.State.RUNNING, run.getState(), "a new run should have begun");
         assertEquals(1, run.getRunCount(), "exactly one new dungeon after one death");
 
@@ -58,7 +67,7 @@ class DungeonRunTest {
         var hero = heroOf(game);
         // Wound the hero, then kill him, so we can tell a fresh spawn from a survivor.
         game.getLogic().destroyObject(hero);
-        game.runHeadless(DungeonRun.RESPAWN_DELAY_FRAMES + 3);
+        game.runHeadless(pastTheDeathPause());
 
         assertEquals(1, run.getRunCount());
         var revived = heroOf(game);

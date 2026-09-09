@@ -1,4 +1,4 @@
-package uz.duke.dungeon;
+package uz.duke.dungeon.gen;
 
 import java.util.List;
 
@@ -19,12 +19,17 @@ import java.util.List;
  *                  rooms the hero does not start in
  * @param rooms     the carved rooms, in placement order — {@code rooms[0]} is the
  *                  start room
+ * @param links     which rooms were joined by a corridor. Exposed because "the
+ *                  corridors are short" is a property worth testing directly, and
+ *                  an L-shaped corridor's length is exactly the Manhattan distance
+ *                  between the two room centres
  */
 public record GeneratedDungeon(
         String asciiMap,
         Placement hero,
         List<Placement> skeletons,
-        List<Room> rooms) {
+        List<Room> rooms,
+        List<Link> links) {
 
     /** A spot in the world, in world units (not cells). */
     public record Placement(float x, float y) {
@@ -40,5 +45,14 @@ public record GeneratedDungeon(
         int centerCellY() {
             return y + h / 2;
         }
+    }
+
+    /**
+     * A corridor between two rooms, by index. {@code from} was already part of the
+     * connected set when the corridor was carved and {@code to} was joined to it by
+     * this corridor — which is what makes the links a spanning tree and so the
+     * dungeon one reachable space.
+     */
+    public record Link(int from, int to) {
     }
 }

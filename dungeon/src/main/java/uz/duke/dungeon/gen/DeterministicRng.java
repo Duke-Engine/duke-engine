@@ -1,4 +1,4 @@
-package uz.duke.dungeon;
+package uz.duke.dungeon.gen;
 
 /**
  * A tiny seeded random source — the one the dungeon is built from.
