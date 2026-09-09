@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 470 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 471 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -940,7 +940,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **470 test yashil** (core 133, rts 94, generals 5, game 28, client3d 75, studio 8, dungeon 127) — 0 failure / 0 error.
+- **471 test yashil** (core 133, rts 94, generals 5, game 28, client3d 75, studio 8, dungeon 128) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1036,11 +1036,14 @@ ikkala peer aynan bir kadrda qo'llaydi.
     pullik versiyada). Har modelning **3 ta teri varianti** bor, shuning uchun tur
     = model + teri + bo'y + rang: `noTwoKindsLookAlike` ikki turning bir xil
     ko'rinmasligini qulflaydi.
-  - **Tekstura alohida bog'lanadi.** jME'ning glTF yuklovchisi bu modellarda
-    `NormalMap` va `EmissiveMap` ni bog'laydi, `BaseColorMap` ni esa **yo'q** —
-    monster rangsiz chiqadi va hech narsa xato bermaydi. Klient uni o'zi
-    bog'laydi. Yuklovchi qurgan PBR materiali saqlanadi (skinning o'sha orqali
-    ishlaydi), faqat yetishmagani qo'shiladi.
+  - **Material almashtiriladi — monstrlar avval QOP-QORA chiqdi.** jME glTF dan
+    **PBR** material yasaydi, PBR esa ambient yorug.likni env-mapdan (light probe)
+    oladi; bizda probe yo.q, ya.ni model yoritilmaydi. Ekranda bu "tekstura
+    yuklanmadi" bo.lib ko.rinadi, aslida esa yorug.lik masalasi. Ustiga yuklovchi
+    `BaseColorMap` ni umuman bog.lamaydi va `UseVertexColor` ni yoqadi. Material
+    plitkalardagidek `Lighting` ga o.tkazildi (atlas `DiffuseMap`) — unda
+    `NumberOfBones` bor, ya.ni skinning saqlanadi. Test terilarning qora emasligini
+    qulflaydi, shunda keyingi safar qora monster **faqat** yorug.lik bo.ladi.
   - `Tint` `Colour` dan alohida: `Colour` — minimap nuqtasi va model topilmasa
     tushadigan shakl rangi; `Tint` esa terining ustidan ko'paytiriladi, ya'ni
     bitta teridan ikki xil monster chiqadi, minimapdagi o'qish esa buzilmaydi.

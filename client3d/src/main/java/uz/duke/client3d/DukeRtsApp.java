@@ -1234,7 +1234,7 @@ final class DukeRtsApp extends SimpleApplication {
                 body.setLocalTranslation(0, visual.yOffset, 0);
                 body.setLocalRotation(new Quaternion().fromAngles(0,
                         FastMath.DEG_TO_RAD * visual.facingDegrees, 0));
-                dressModel(body, visual, view);
+                dressModel(body, visual);
                 node.composer = findControl(body, AnimComposer.class);
                 var legacy = findControl(body, AnimControl.class);
                 if (node.composer == null && legacy != null) {
@@ -1262,19 +1262,27 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * Give a loaded model the colour map and tint the game asked for.
+     * Give a loaded model the colour map and tint the game asked for, on a
+     * material this client can actually light.
      *
-     * <p>The material the loader built is kept and only added to. It is the
-     * material jME's own glTF pipeline produced, so skinning and lighting are
-     * already wired through it, and swapping it for one of ours would mean
-     * rebuilding both for no gain.
+     * <p>The loader's own material is replaced rather than added to, and the
+     * reason is the whole bug this fixes. jME's glTF loader builds a
+     * <b>PBR</b> material, and physically based shading takes its ambient light
+     * from an environment map — a light probe. This client has a sun and a flat
+     * ambient and no probe, so a PBR model comes out black: not untextured, not
+     * mis-scaled, simply unlit. It looks exactly like a missing texture, which is
+     * what makes it worth a comment.
      *
-     * <p>What is missing from it is the base colour: kits routinely bind a normal
-     * map and an emissive map and no colour map, and a creature with no colour map
-     * still loads — it just comes out blank, and nothing says so. The tint on top
-     * is how one model becomes several monsters.
+     * <p>Plain lighting over the same colour map is what the tiles already use and
+     * what these flat-shaded kits are drawn for. It carries {@code NumberOfBones}
+     * and {@code BoneMatrices}, so skinning keeps working — the one thing the PBR
+     * material was being kept for.
+     *
+     * <p>A material per geometry per unit, never shared: a skinned material holds
+     * the pose of the skeleton driving it, so two monsters on one material would
+     * both stand in whichever pose was written last.
      */
-    private void dressModel(Spatial body, Visuals.UnitVisual visual, UnitView view) {
+    private void dressModel(Spatial body, Visuals.UnitVisual visual) {
         if (visual.texturePath == null && visual.tint == null) {
             return;
         }
@@ -1286,34 +1294,27 @@ final class DukeRtsApp extends SimpleApplication {
                 warnOnce(visual.texturePath, "texture");
             }
         }
-        var tint = visual.tint == null ? null : toColor(visual.tint);
+        var tint = visual.tint == null ? ColorRGBA.White : toColor(visual.tint);
         var texture = skin;
         body.depthFirstTraversal(spatial -> {
-            if (!(spatial instanceof Geometry geometry) || geometry.getMaterial() == null) {
-                return;
-            }
-            var material = geometry.getMaterial();
-            if (texture != null) {
-                setIfDefined(material, "BaseColorMap", texture);
-                setIfDefined(material, "DiffuseMap", texture);
-            }
-            if (tint != null) {
-                setIfDefined(material, "BaseColor", tint);
-                setIfDefined(material, "Diffuse", tint);
+            if (spatial instanceof Geometry geometry) {
+                geometry.setMaterial(creatureMaterial(texture, tint));
             }
         });
     }
 
-    /** Set a parameter only if this material definition has one, whatever it is. */
-    private static void setIfDefined(Material material, String name, Object value) {
-        if (material.getMaterialDef().getMaterialParam(name) == null) {
-            return;
+    /** Flat lighting over a kit's own colour map, tinted. */
+    private Material creatureMaterial(com.jme3.texture.Texture skin, ColorRGBA tint) {
+        var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
+        material.setBoolean("UseMaterialColors", true);
+        material.setColor("Diffuse", tint);
+        material.setColor("Ambient", tint.mult(0.55f));
+        material.setColor("Specular", ColorRGBA.Black); // kit art has no highlights
+        material.setFloat("Shininess", 1f);
+        if (skin != null) {
+            material.setTexture("DiffuseMap", skin);
         }
-        if (value instanceof com.jme3.texture.Texture texture) {
-            material.setTexture(name, texture);
-        } else if (value instanceof ColorRGBA colour) {
-            material.setColor(name, colour);
-        }
+        return material;
     }
 
     /**

@@ -102,6 +102,38 @@ class DungeonMonsterArtTest {
     }
 
     /**
+     * The skins are real pictures, not black squares.
+     *
+     * <p>Written after the monsters first appeared entirely black. That has two
+     * possible causes which look identical — a skin that is dark, or a material
+     * the client cannot light — and each would have sent someone looking in the
+     * wrong place. This settles the first for good: if a monster is ever black
+     * again, it is the lighting.
+     */
+    @Test
+    void everySkinIsAColouredPictureRatherThanADarkOne() {
+        for (var look : looks()) {
+            var image = assets().loadTexture(look.texture()).getImage();
+            assertTrue(image.getWidth() >= 512 && image.getHeight() >= 512,
+                    look.texture() + " is only " + image.getWidth() + "x" + image.getHeight());
+
+            var pixels = image.getData(0).duplicate();
+            pixels.rewind();
+            long total = 0;
+            int samples = 0;
+            // Every few thousand bytes, so a big skin costs a glance rather than a scan.
+            for (int at = 0; at + 3 < pixels.limit(); at += 997) {
+                total += (pixels.get(at) & 0xFF) + (pixels.get(at + 1) & 0xFF)
+                        + (pixels.get(at + 2) & 0xFF);
+                samples += 3;
+            }
+            float brightness = total / (float) samples;
+            assertTrue(brightness > 30f,
+                    look.texture() + " averages " + brightness + "/255 — it really is a dark image");
+        }
+    }
+
+    /**
      * Each kind is drawn as its own thing.
      *
      * <p>A free kit ships two models and the dungeon has six kinds, so kinds share
