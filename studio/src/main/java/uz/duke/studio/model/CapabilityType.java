@@ -30,7 +30,9 @@ public enum CapabilityType {
 
     EXPERIENCE("Veterancy (gains ranks)", List.of(
             new Param("ExperienceValue", "Worth to killer (XP)", "30"),
-            new Param("ExperienceRequired", "XP for VET ELITE HEROIC", "60 180 360"))),
+            new Param("ExperienceRequired", "XP per rank (any number)", "60 180 360"),
+            new Param("LevelDamageBonus", "Damage multiplier per rank", "1.1 1.2 1.3"),
+            new Param("HealOnPromotion", "Full heal on promotion", "Yes"))),
 
     AUTO_HEAL("Self-healing", List.of(
             new Param("HealPerSecond", "Health regained per second", "2"))),

@@ -858,6 +858,8 @@ public final class DukeGame {
               Behavior = ExperienceModule Tag
                 ExperienceValue = 30
                 ExperienceRequired = 60 180 360
+                LevelDamageBonus = 1.1 1.2 1.3
+                HealOnPromotion = Yes
               End
             End
             Object Tank
@@ -887,6 +889,8 @@ public final class DukeGame {
               Behavior = ExperienceModule Tag
                 ExperienceValue = 100
                 ExperienceRequired = 200 500 1000
+                LevelDamageBonus = 1.1 1.2 1.3
+                HealOnPromotion = Yes
               End
             End
             """;

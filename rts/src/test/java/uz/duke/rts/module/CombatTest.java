@@ -53,7 +53,7 @@ class CombatTest {
         soldier = ThingTemplate.named("Soldier")
                 .module("ActiveBody", new ActiveBody.Data(100f))
                 .module("WeaponUpdate", new WeaponUpdate.Data(25f, 10f, 2))
-                .module("ExperienceModule", new ExperienceModule.Data(100, 100, 300, 600))
+                .module("ExperienceModule", ExperienceModule.Data.ofThresholds(100, 100, 300, 600))
                 .build();
         thingFactory.addTemplate(soldier);
 
@@ -131,7 +131,7 @@ class CombatTest {
         var xp = attacker.findModule(ExperienceModule.class);
         assertTrue(victim.isEffectivelyDead());
         assertEquals(100, xp.getExperience()); // victim was worth 100
-        assertEquals(VeterancyLevel.VETERAN, xp.getLevel());
+        assertEquals(1, xp.getLevel(), "the first rung of its ladder");
     }
 
     @Test

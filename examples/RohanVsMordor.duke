@@ -43,7 +43,9 @@
         },
         "EXPERIENCE": {
           "ExperienceValue": "30",
-          "ExperienceRequired": "60 180 360"
+          "ExperienceRequired": "60 180 360",
+          "LevelDamageBonus": "1.1 1.2 1.3",
+          "HealOnPromotion": "Yes"
         }
       },
       "modelPath": "",
@@ -80,7 +82,9 @@
         },
         "EXPERIENCE": {
           "ExperienceValue": "60",
-          "ExperienceRequired": "120 300 600"
+          "ExperienceRequired": "120 300 600",
+          "LevelDamageBonus": "1.1 1.2 1.3",
+          "HealOnPromotion": "Yes"
         }
       },
       "modelPath": "",
@@ -117,7 +121,9 @@
         },
         "EXPERIENCE": {
           "ExperienceValue": "200",
-          "ExperienceRequired": "150 400 800"
+          "ExperienceRequired": "150 400 800",
+          "LevelDamageBonus": "1.1 1.2 1.3",
+          "HealOnPromotion": "Yes"
         },
         "AUTO_HEAL": {
           "HealPerSecond": "3"
@@ -213,7 +219,9 @@
         },
         "EXPERIENCE": {
           "ExperienceValue": "25",
-          "ExperienceRequired": "75 200 400"
+          "ExperienceRequired": "75 200 400",
+          "LevelDamageBonus": "1.1 1.2 1.3",
+          "HealOnPromotion": "Yes"
         }
       },
       "modelPath": "",
@@ -252,7 +260,9 @@
         },
         "EXPERIENCE": {
           "ExperienceValue": "25",
-          "ExperienceRequired": "75 200 400"
+          "ExperienceRequired": "75 200 400",
+          "LevelDamageBonus": "1.1 1.2 1.3",
+          "HealOnPromotion": "Yes"
         }
       },
       "modelPath": "",
@@ -291,7 +301,9 @@
         },
         "EXPERIENCE": {
           "ExperienceValue": "150",
-          "ExperienceRequired": "200 500 1000"
+          "ExperienceRequired": "200 500 1000",
+          "LevelDamageBonus": "1.1 1.2 1.3",
+          "HealOnPromotion": "Yes"
         }
       },
       "modelPath": "",

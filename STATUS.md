@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 305 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 335 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -23,7 +23,8 @@ Hamma modulda `-Xlint:all`, testlar JUnit 5.11.3.
 | Modul | Bog'liqligi | Nima |
 |---|---|---|
 | `core` | — (sof Java, tashqi kutubxonasiz) | **Janrsiz** engine: deterministik simulyatsiya, INI, obyekt/modul tizimi, pathfinding, lock-step, tuman |
-| `rts` | `api core` | RTS: buyruq to'plami, jang, ishlab chiqarish, iqtisod, veteranlik, quvvat, lug'at, save formati |
+| `rts` | `api core` | **Janrsiz RTS bazasi**: buyruq to'plami, jang, ishlab chiqarish, iqtisod, tajriba narvoni, lug'at, save formati — mexanizmlar, qoidalar emas |
+| `generals` | `api rts` | Generals'ning **o'z qoidalari** (4 rank veteranlik va h.k.) — "Generals ham shunchaki bir o'yin" isboti |
 | `game` | `api rts` | Unity-uslub `DukeGame` fasadi, 2D Swing klient, multiplayer sessiyasi |
 | `client3d` | `api game` + jMonkeyEngine 3.7.0-stable | To'liq 3D klient: model/animatsiya/ovoz, menyular, minimap, HUD |
 | `studio` | `client3d` + Gson 2.11.0 | Duke Studio — Swing IDE (`uz.duke.studio.StudioMain`) |
@@ -523,7 +524,8 @@ o'zinikini doim ko'radi, ittifoqchilar ko'rishni bo'lishadi) · fazoviy so'rovla
 - **`module.*`** — `WeaponUpdate` (reload, masofa, splash, ittifoqchini urmaydi),
   `ProductionUpdate` (navbat, pul yechish, rally), `SupplyModule` + `HarvestUpdate`,
   `PowerModule` + `PowerGrid` (quvvat yetmasa ishlab chiqarish to'xtaydi),
-  `ExperienceModule` + `VeterancyLevel` (ko'tarilishda to'liq davolanadi),
+  `ExperienceModule` — **sozlanadigan rank narvoni** (nechta rung, har biri necha XP va
+  qancha zarar bonusi — hammasi INI'dan; `HealOnPromotion` ham so'raladi, taxmin qilinmaydi),
   `StatusUpdate` (DISABLED/SLOWED muddat bilan), `ContainModule` (garnizon),
   `SpecialPowerModule` (superqurol), `AutoHealUpdate`. Hammasi `RtsModules` orqali
   INI tagiga bog'lanadi.
@@ -788,7 +790,7 @@ Studio'da birlikka "qobiliyat" qo'shish = INI modul bloki generatsiyasi (`GameFa
 | ATTACK | `Update = WeaponUpdate` | Damage, AttackRange, ReloadFrames, SplashRadius, DamageType |
 | PRODUCE | `Update = ProductionUpdate` | Builds (bo'sh joy bilan ajratilgan nomlar) |
 | POWER | `Update = PowerModule` | Produces, Consumes |
-| EXPERIENCE | `Behavior = ExperienceModule` | ExperienceValue, ExperienceRequired |
+| EXPERIENCE | `Behavior = ExperienceModule` | ExperienceValue, ExperienceRequired, LevelDamageBonus, HealOnPromotion |
 | AUTO_HEAL | `Update = AutoHealUpdate` | HealPerSecond |
 | SUPPLY | `Behavior = SupplyModule` | Amount |
 | HARVEST | `Update = HarvestUpdate` | LoadPerTrip, FramesPerTrip |
@@ -889,7 +891,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **305 test yashil** (core 124, rts 71, game 18, client3d 39, studio 8, dungeon 45) — 0 failure / 0 error.
+- **335 test yashil** (core 133, rts 82, generals 5, game 23, client3d 39, studio 8, dungeon 45) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan

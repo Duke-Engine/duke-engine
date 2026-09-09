@@ -90,11 +90,15 @@ class DepthTest {
         var trooper = ThingTemplate.named("Trooper")
                 .module("ActiveBody", new ActiveBody.Data(100f))
                 .module("WeaponUpdate", new WeaponUpdate.Data(40f, 10f, 1))
-                .module("ExperienceModule", new ExperienceModule.Data(0, 10, 50, 100))
+                // Healing on promotion is asked for here, since that is what this tests.
+                .module("ExperienceModule", new ExperienceModule.Data(0,
+                        java.util.List.of(new ExperienceModule.Rank(10, 1f),
+                                new ExperienceModule.Rank(50, 1f),
+                                new ExperienceModule.Rank(100, 1f)), true))
                 .build();
         var dummy = ThingTemplate.named("Dummy")
                 .module("ActiveBody", new ActiveBody.Data(30f))
-                .module("ExperienceModule", new ExperienceModule.Data(20, 10, 50, 100)) // worth 20 -> VETERAN
+                .module("ExperienceModule", ExperienceModule.Data.ofThresholds(20, 10, 50, 100)) // worth 20 -> first rank
                 .build();
         var logic = logicWith(trooper, dummy);
         int me = logic.getPlayerList().addPlayer("Me").getIndex();
@@ -112,7 +116,7 @@ class DepthTest {
             logic.update();
         }
         assertTrue(victim.isEffectivelyDead());
-        assertEquals(VeterancyLevel.VETERAN, attacker.findModule(ExperienceModule.class).getLevel());
+        assertEquals(1, attacker.findModule(ExperienceModule.class).getLevel());
         assertEquals(100f, attacker.getBody().getHealth(), 1e-4f); // promotion fully healed it
     }
 
