@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 267 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 274 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -723,6 +723,13 @@ bosilganda (yoki `Shell.none()` bo'lsa — darhol) boshlanadi.
   bo'yalmaydi — minimapning butun vazifasi qayerda jang ketayotganini ko'rsatish, yarim shaffof
   to'rtburchak esa aynan o'sha joyni xiralashtirardi. Xarita chetidan chiqqan burchak minimap
   chegarasiga qirqiladi. Matematikasi `MinimapProjection` da (jME'siz, testlanadi).
+- **Kamera o'yinchiniki** (`CameraFocus`) — o'yin boshlanganda va yangi run boshlanganda
+  kamera o'yinchining **o'z birligiga** qo'yiladi (avval xarita markazida turardi va
+  o'yinchi qahramonini qidirib topishi kerak edi). Bu **bir martalik so'rov, kuzatuv emas**:
+  so'rov qo'yiladi, birinchi o'z birligi ko'ringan snapshot uni bajaradi va o'chiradi —
+  shundan keyin kamera erkin. Kuzatib yuradigan kamera pan'ni tortib olardi, turgan
+  qahramon atrofiga qarab chiqish esa RTS o'ynashning yarmi. So'rov dunyo hali paydo
+  bo'lmaganda ham kutib turadi (o'yin snapshotdan bir-ikki kadr oldin boshlanadi).
 - **Dunyo almashsa sahna qayta quriladi** — relyef `TerrainScene` ga tegishli o'z tugunida
   yashaydi va **har qayta qurish avval uni bo'shatadi**, ya'ni sahna run'lar bo'ylab o'smaydi.
   Klient dunyo almashganini o'zi sezadi: `applyMapTerrain()` yangi `PathGrid` **instance** qo'yadi,
@@ -872,7 +879,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **267 test yashil** (core 124, rts 71, game 18, client3d 16, studio 8, dungeon 30) — 0 failure / 0 error.
+- **274 test yashil** (core 124, rts 71, game 18, client3d 23, studio 8, dungeon 30) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1140,6 +1147,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `studio/…/studio/examples/RohanVsMordor.java` | namunaviy o'yinning muallifligi |
 | `client3d/…/client3d/TerrainScene.java` | relyef sahnasi — qayta qurish almashtiradi, qo'shmaydi |
 | `client3d/…/client3d/MinimapProjection.java` | dunyo ↔ minimap matematikasi + viewport konturi |
+| `client3d/…/client3d/CameraFocus.java` | kamera nishoni/zoom — boshda o'z birligiga, keyin erkin |
 | `dungeon/…/dungeon/Dungeon.java` | o'yinni yig'ish (fixture xona va haqiqiy o'yin) |
 | `dungeon/…/dungeon/content/DungeonSettings.java` | `dungeon.ini` — generatsiya va xulq sozlamalari |
 | `dungeon/…/dungeon/gen/DungeonGenerator.java` | seed'dan xonalar + koridorlar (ulanish kafolati) |

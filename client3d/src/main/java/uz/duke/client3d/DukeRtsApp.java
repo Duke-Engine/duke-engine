@@ -97,8 +97,6 @@ final class DukeRtsApp extends SimpleApplication {
     private final TerrainScene terrain = new TerrainScene(terrainNode, this::lit);
     /** The grid the terrain was built from — a different instance means a new world. */
     private uz.duke.core.pathfind.PathGrid builtFrom;
-    /** Set when a new world appears: aim the camera at the player's units again. */
-    private boolean recenterOnOwnUnit;
     private final Map<Integer, UnitNode> unitNodes = new HashMap<>();
     private final Set<Integer> selected = new HashSet<>();
     private final Map<String, AudioNode> audioCache = new HashMap<>();
@@ -106,8 +104,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     private WorldSnapshot snapshot = WorldSnapshot.EMPTY;
     private WorldSnapshot lastEventedSnapshot = WorldSnapshot.EMPTY;
-    private final Vector3f camTarget = new Vector3f();
-    private float camDistance = 140f;
+    private final CameraFocus camera = new CameraFocus();
     private final boolean[] pan = new boolean[4]; // W A S D
     private BitmapText hud;
     private BitmapText buildMenu;
@@ -183,7 +180,7 @@ final class DukeRtsApp extends SimpleApplication {
         buildTerrain();
         rootNode.attachChild(unitsNode);
 
-        centerCameraOnOwnBase();
+        centerCameraOnMap();
         installInput();
 
         hud = new BitmapText(guiFont);
@@ -265,7 +262,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (!minimap.contains(localX, localY)) {
             return false;
         }
-        camTarget.set(minimap.toWorldX(localX), 0, minimap.toWorldY(localY));
+        camera.lookAt(minimap.toWorldX(localX), minimap.toWorldY(localY));
         return true;
     }
 
@@ -501,6 +498,9 @@ final class DukeRtsApp extends SimpleApplication {
         if (simThread == null) {
             simThread = game.startEngineOnly();
         }
+        // Open on the player's own units rather than the middle of the map, which
+        // left him hunting the map for whatever he is supposed to be controlling.
+        camera.requestOwnUnit();
         menu.hide();
         screen = Screen.PLAYING;
     }
@@ -621,13 +621,17 @@ final class DukeRtsApp extends SimpleApplication {
         }
         buildTerrain();
         rebuildMinimapTerrain();
-        recenterOnOwnUnit = true;
+        camera.requestOwnUnit(); // his units are somewhere else entirely now
     }
 
-    private void centerCameraOnOwnBase() {
-        // Aim at the first own unit once the first snapshot arrives; start mid-map.
+    /**
+     * Somewhere to look before there is anything to look at. The moment the game
+     * starts, {@link CameraFocus#requestOwnUnit()} replaces this with the player's
+     * own units — this is only what fills the screen until then.
+     */
+    private void centerCameraOnMap() {
         var grid = game.getTerrain();
-        camTarget.set(grid == null ? 350f : grid.getWidth() * grid.getCellSize() / 2f, 0,
+        camera.lookAt(grid == null ? 350f : grid.getWidth() * grid.getCellSize() / 2f,
                 grid == null ? 225f : grid.getHeight() * grid.getCellSize() / 2f);
     }
 
@@ -713,10 +717,8 @@ final class DukeRtsApp extends SimpleApplication {
                 "Shift", "Halt", "Pause", "Deselect",
                 "Build1", "Build2", "Build3", "Build4", "Build5", "Build6", "Build7", "Build8", "Build9");
 
-        AnalogListener zoom = (name, value, tpf) -> {
-            camDistance *= name.equals("ZoomIn") ? 0.92f : 1.09f;
-            camDistance = FastMath.clamp(camDistance, 40f, 400f);
-        };
+        AnalogListener zoom = (name, value, tpf) ->
+                camera.zoomBy(name.equals("ZoomIn") ? 0.92f : 1.09f);
         inputManager.addListener(zoom, "ZoomIn", "ZoomOut");
     }
 
@@ -848,7 +850,7 @@ final class DukeRtsApp extends SimpleApplication {
             return; // the world starts when the player presses Play
         }
         refreshWorldIfChanged(); // a new run lays out a new world; redraw it
-        followOwnUnitsIntoNewWorld();
+        camera.focusOnOwnUnit(snapshot.units(), game.getLocalPlayerIndex());
         updateCamera(tpf);
         syncUnits();
         handleEvents();
@@ -858,40 +860,16 @@ final class DukeRtsApp extends SimpleApplication {
         updateBanner();
     }
 
-    /**
-     * After a new world appears, put the camera back on the player — his units are
-     * somewhere else entirely now, and the old view is looking at nothing.
-     */
-    private void followOwnUnitsIntoNewWorld() {
-        if (!recenterOnOwnUnit) {
-            return;
-        }
-        for (var view : snapshot.units()) {
-            if (view.playerIndex() == game.getLocalPlayerIndex()) {
-                camTarget.set(view.x(), 0, view.y());
-                recenterOnOwnUnit = false;
-                return;
-            }
-        }
-    }
-
     private void updateCamera(float tpf) {
-        float speed = camDistance * 0.9f * tpf;
-        if (pan[0]) {
-            camTarget.z -= speed;
-        }
-        if (pan[2]) {
-            camTarget.z += speed;
-        }
-        if (pan[1]) {
-            camTarget.x -= speed;
-        }
-        if (pan[3]) {
-            camTarget.x += speed;
-        }
-        var offset = new Vector3f(0, camDistance * 0.82f, camDistance * 0.57f);
-        cam.setLocation(camTarget.add(offset));
-        cam.lookAt(camTarget, Vector3f.UNIT_Y);
+        float speed = camera.panSpeed() * tpf;
+        float dx = (pan[3] ? speed : 0f) - (pan[1] ? speed : 0f);
+        float dz = (pan[2] ? speed : 0f) - (pan[0] ? speed : 0f);
+        camera.panBy(dx, dz);
+
+        float distance = camera.distance();
+        var target = new Vector3f(camera.targetX(), 0f, camera.targetZ());
+        cam.setLocation(target.add(new Vector3f(0, distance * 0.82f, distance * 0.57f)));
+        cam.lookAt(target, Vector3f.UNIT_Y);
     }
 
     private void syncUnits() {
