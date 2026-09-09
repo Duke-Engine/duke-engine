@@ -1048,12 +1048,12 @@ ikkala peer aynan bir kadrda qo'llaydi.
     va testda o'z monsteri bilan qulflanadi.
   - **Material almashtiriladi — monstrlar avval QOP-QORA chiqdi.** jME glTF dan
     **PBR** material yasaydi, PBR esa ambient yorug'likni env-mapdan (light probe)
-    oladi; bizda probe yo.q, ya.ni model yoritilmaydi. Ekranda bu "tekstura
-    yuklanmadi" bo.lib ko.rinadi, aslida esa yorug.lik masalasi. Ustiga yuklovchi
-    `BaseColorMap` ni umuman bog.lamaydi va `UseVertexColor` ni yoqadi. Material
-    plitkalardagidek `Lighting` ga o.tkazildi (atlas `DiffuseMap`) — unda
-    `NumberOfBones` bor, ya.ni skinning saqlanadi. Test terilarning qora emasligini
-    qulflaydi, shunda keyingi safar qora monster **faqat** yorug.lik bo.ladi.
+    oladi; bizda probe yo'q, ya'ni model yoritilmaydi. Ekranda bu "tekstura
+    yuklanmadi" bo'lib ko'rinadi, aslida esa yorug'lik masalasi. Ustiga yuklovchi
+    `BaseColorMap` ni umuman bog'lamaydi va `UseVertexColor` ni yoqadi. Material
+    plitkalardagidek `Lighting` ga o'tkazildi (atlas `DiffuseMap`) — unda
+    `NumberOfBones` bor, ya'ni skinning saqlanadi. Test terilarning qora emasligini
+    qulflaydi, shunda keyingi safar qora monster **faqat** yorug'lik bo'ladi.
   - `Tint` `Colour` dan alohida: `Colour` — minimap nuqtasi va model topilmasa
     tushadigan shakl rangi; `Tint` esa terining ustidan ko'paytiriladi, ya'ni
     bitta teridan ikki xil monster chiqadi, minimapdagi o'qish esa buzilmaydi.
