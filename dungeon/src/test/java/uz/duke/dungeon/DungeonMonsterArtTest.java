@@ -326,6 +326,60 @@ class DungeonMonsterArtTest {
     }
 
     /**
+     * A clip that walks the character forward is held in place.
+     *
+     * <p>The hero's run was authored travelling — three units of it, twenty once
+     * scaled — because in engines where animation drives movement that is how a
+     * run is made. Here the simulation owns the position, so the mesh simply drew
+     * itself further and further from its own unit: he walked out of his selection
+     * ring, and his health bar stayed where he had been. Nothing about that looks
+     * like an animation setting.
+     *
+     * <p>The stride's rise and fall is kept, since that happens on the spot.
+     */
+    @Test
+    void theHerosRunDoesNotCarryHimOutOfHisOwnUnit() {
+        var hero = SETTINGS.hero();
+        var him = assets().loadModel(hero.model());
+        AnimationLibrary.copySingle(assets().loadModel(hero.walkFrom()), him,
+                uz.duke.dungeon.content.HeroLook.WALK);
+
+        var clip = control(him, AnimComposer.class)
+                .getAnimClip(uz.duke.dungeon.content.HeroLook.WALK);
+        var armature = control(him, SkinningControl.class).getArmature();
+        boolean sawTheRoot = false;
+        for (com.jme3.anim.AnimTrack<?> track : clip.getTracks()) {
+            if (!(track instanceof com.jme3.anim.TransformTrack transform)
+                    || !(transform.getTarget() instanceof com.jme3.anim.Joint joint)
+                    || joint.getParent() != null
+                    || transform.getTranslations() == null) {
+                continue;
+            }
+            sawTheRoot = true;
+            float travel = 0f;
+            for (var step : transform.getTranslations()) {
+                travel = Math.max(travel, Math.abs(step.x) + Math.abs(step.z));
+            }
+            assertTrue(travel < 0.001f, joint.getName() + " still travels " + travel);
+        }
+        assertTrue(sawTheRoot, "the root joint has no translation to check — did the rig change?");
+
+        // And the original really did travel, or this proves nothing.
+        var raw = control(assets().loadModel(hero.walkFrom()), AnimComposer.class);
+        var source = raw.getAnimClip(raw.getAnimClipsNames().iterator().next());
+        float authored = 0f;
+        for (com.jme3.anim.AnimTrack<?> track : source.getTracks()) {
+            if (track instanceof com.jme3.anim.TransformTrack transform
+                    && transform.getTranslations() != null) {
+                for (var step : transform.getTranslations()) {
+                    authored = Math.max(authored, Math.abs(step.z));
+                }
+            }
+        }
+        assertTrue(authored > 0.5f, "the source clip does not travel, so nothing was held back");
+    }
+
+    /**
      * The hero and the monsters are on skeletons that share nothing.
      *
      * <p>Not a problem — a creature is animated from a library built on its own

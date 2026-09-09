@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.thing.GameObject;
 import uz.duke.dungeon.Dungeon;
+import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.game.DukeGame;
 import uz.duke.rts.message.GameMessage;
@@ -60,8 +61,21 @@ class HeroProgressTest {
         }
     }
 
+    /**
+     * The hero with health enough to outlast a measurement.
+     *
+     * <p>What these tests time is how hard he hits, so he must not die in the
+     * middle of the clock — and he would: he is an archer now, and a stand-up
+     * fight at arm's length against something that hits back is exactly the fight
+     * he is built to lose. Giving him the health to finish keeps the measurement
+     * about his damage rather than about whether the match-up is fair, which is a
+     * question for balance and not for this.
+     */
+    private static final String STOUT_HERO =
+            Content.read(Content.CREATURES).replace("MaxHealth = 550", "MaxHealth = 20000");
+
     private static Fight start(DungeonSettings settings) {
-        var arena = Dungeon.world(ARENA, settings);
+        var arena = Dungeon.world(ARENA, settings, STOUT_HERO);
         var game = arena.game();
         game.spawn("Hero", arena.hero(), 200f, 150f);
         var progress = new HeroProgress(arena.hero(), settings.levelling(),

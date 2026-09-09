@@ -7,6 +7,7 @@ import com.jme3.anim.Armature;
 import com.jme3.anim.Joint;
 import com.jme3.anim.SkinningControl;
 import com.jme3.anim.TransformTrack;
+import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.control.Control;
@@ -128,8 +129,8 @@ public final class AnimationLibrary {
                 continue; // a joint this creature was not modelled with
             }
             tracks.add(new TransformTrack(mine, transform.getTimes(),
-                    transform.getTranslations(), transform.getRotations(),
-                    transform.getScales()));
+                    heldInPlace(mine, transform.getTranslations()),
+                    transform.getRotations(), transform.getScales()));
         }
         if (tracks.isEmpty()) {
             return null; // nothing in common: a different skeleton altogether
@@ -137,6 +138,35 @@ public final class AnimationLibrary {
         var copy = new AnimClip(clip.getName());
         copy.setTracks(tracks.toArray(new AnimTrack<?>[0]));
         return copy;
+    }
+
+    /**
+     * The same movement with the walking taken out of it.
+     *
+     * <p>Animations come in two kinds, and the difference is invisible in a file
+     * listing. "In place" ones run on the spot; the other kind carries <b>root
+     * motion</b> — the whole skeleton is authored travelling forward, because in
+     * some engines the animation is what moves the character.
+     *
+     * <p>Here it is not: the simulation owns every position, and a clip that also
+     * moves the model makes it drift out of its own unit. What that looks like is
+     * a hero who walks away from his own selection ring and health bar, since
+     * those sit on the unit while the mesh wanders off — and it is not obviously
+     * an animation problem at all.
+     *
+     * <p>So the root joint's horizontal travel is dropped and its vertical kept:
+     * a run still rises and falls on each stride, it simply does it here. Only the
+     * root is touched, since every other joint moves relative to it.
+     */
+    private static Vector3f[] heldInPlace(Joint joint, Vector3f[] translations) {
+        if (translations == null || joint.getParent() != null) {
+            return translations;
+        }
+        var held = new Vector3f[translations.length];
+        for (int at = 0; at < translations.length; at++) {
+            held[at] = new Vector3f(0f, translations[at].y, 0f);
+        }
+        return held;
     }
 
     /**

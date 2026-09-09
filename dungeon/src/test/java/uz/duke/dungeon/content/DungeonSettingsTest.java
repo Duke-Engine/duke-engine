@@ -98,30 +98,31 @@ class DungeonSettingsTest {
     }
 
     /**
-     * Fighters must close to inside every weapon's reach, not merely to the edge of
-     * their own.
+     * The hero stops inside his own reach, not at the edge of it.
      *
-     * <p>Stopping at your own maximum range parks you at the edge of it, and if your
-     * reach is longer than your opponent's you end up standing outside his — which
-     * is how the skeletons came to chip away at a hero who could not see them. One
-     * distance, shorter than any weapon here, keeps a fight mutual no matter what
-     * the weapons reach.
+     * <p>{@code CloseDistance} is his: each monster carries its own further down
+     * the file, and those are checked where the monsters are. It used to be
+     * everyone's, back when everything in the dungeon brawled and one short
+     * distance served them all — a hero who shoots needs a long one, and the two
+     * cannot be the same number any more.
+     *
+     * <p>Inside rather than equal, because stopping at maximum range parks him on
+     * the edge of it: one step by either of them, and the target is outside and he
+     * stands there doing nothing. The margin is what makes the range usable.
      */
     @Test
-    void fightersCloseToInsideEveryWeaponsReach() {
+    void theHeroStopsInsideHisOwnReach() {
         var settings = DungeonSettings.load();
-        var creatures = Content.read(Content.CREATURES);
+        var hero = Content.read(Content.CREATURES).split("Object Skeleton")[0];
 
-        var ranges = java.util.regex.Pattern.compile("AttackRange\\s*=\\s*(\\d+)")
-                .matcher(creatures).results()
+        var reach = java.util.regex.Pattern.compile("AttackRange\\s*=\\s*(\\d+)")
+                .matcher(hero).results()
                 .map(match -> Integer.parseInt(match.group(1)))
-                .toList();
-        assertTrue(ranges.size() >= 2, "both creatures should carry a weapon");
-        for (int reach : ranges) {
-            assertTrue(settings.closeDistance() < reach,
-                    "CloseDistance " + settings.closeDistance()
-                            + " must be inside every weapon's reach, but one reaches only " + reach);
-        }
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("the hero carries no weapon"));
+
+        assertTrue(settings.closeDistance() < reach,
+                "he stops at " + settings.closeDistance() + " but reaches only " + reach);
     }
 
     /** The creature data really is loadable content, not a file nobody reads. */

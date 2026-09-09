@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 477 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 478 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -940,7 +940,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **477 test yashil** (core 133, rts 94, generals 5, game 28, client3d 75, studio 8, dungeon 134) — 0 failure / 0 error.
+- **478 test yashil** (core 133, rts 94, generals 5, game 28, client3d 75, studio 8, dungeon 135) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1017,7 +1017,30 @@ ikkala peer aynan bir kadrda qo'llaydi.
     masofasi (`AttackRange` 8) undan kattaroq, shuning uchun **har bir**
     avto-tanlangan nishon "buyurilgan" bo'lib o'qilardi. Chegara qahramonning
     o'z `ThingTemplate` idan o'qiladi, o'yinda takrorlanmaydi.
-- **Qahramon ham model bilan** — Mixamo (Erika Archer) + Pro Longbow Pack.
+- **Qahramon endi kamonchi** — `AttackRange` 8 → **70**, `CloseDistance` 4 → **55**,
+  `ReloadFrames` 15 → 24. Monstrlar 8–14 masofada uradi, ya'ni u zindonni besh
+  barobar ortiqcha masofadan uradi: uzoqdan yutadi, yonига kelishsa yutqazadi.
+  `AttackRange` `VisionRange` (80) ichida qoladi — aks holda tuman ko'rsatmagan
+  narsaga o'q otardi, chunki qurol tumandan bexabar.
+  - `CloseDistance` endi **faqat qahramonniki** (monstrlarning o'z qiymatlari
+    bor). Eski test uni hammaga umumiy deb hisoblardi — toraytirildi.
+  - Q "zarba" o'rniga **og'ir o'q** (Range 40 → 90), W esa ochilish emas,
+    **panika tugmasi** bo'ldi — yaqinlashib qolganlarga.
+  - `HeroProgressTest` yaqin masofadagi jangda qahramonni o'lchardi; endi bu u
+    **yutqazadigan** jang, shuning uchun test unga o'lchov tugaguncha yetadigan
+    jon beradi — o'lchanayotgan narsa uning **zarari**, yutishi emas.
+- **Ikki vizual tuzoq** — ikkalasi ham modellar kelgach paydo bo'ldi:
+  - **Root motion.** Yugurish klipi skeletni 3 birlik oldinga olib ketardi
+    (masshtabda ~20) — model o'z tugunidan chiqib ketib, yashil halqa va jon
+    chizig'i orqada qolardi. Bu animatsiya sozlamasidek **umuman ko'rinmaydi**.
+    Simulyatsiya pozitsiyani o'zi boshqaradi, shuning uchun ildiz suyakning
+    gorizontal siljishi olib tashlanadi, vertikali (qadam ko'tarilishi) qoladi.
+    Test manba klipda siljish **borligini** ham tekshiradi — aks holda u hech
+    nimani isbotlamasdi.
+  - **Jon chizig'i model ichida qolardi** — balandligi qat'iy 4.5 edi, kapsulaga
+    mos, qahramon esa ~12, boss ~22. Endi tananing haqiqiy chegarasidan
+    o'lchanadi va `depthTest` o'chirilgan holda **doim ustidan** chiziladi: jon
+    chizig'i dunyodagi narsa emas, ko'rsatkich.
   - **Boshqa skeletda, va bu muammo emas.** Qahramon `mixamorig:` riginda,
     monstrlar UE mannequin'da — bitta ham umumiy suyak nomi yo'q. Har jonzot
     **o'z rigiga** qurilgan kutubxonadan animatsiya oladi, ya'ni ikki to'plam

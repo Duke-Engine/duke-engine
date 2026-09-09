@@ -24,6 +24,7 @@ import com.jme3.math.Quaternion;
 import com.jme3.math.Ray;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
+import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
@@ -1253,7 +1254,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         node.ring = buildSelectionRing(view);
         node.root.attachChild(node.ring);
-        buildHealthBar(node, view);
+        buildHealthBar(node, view, body);
         node.flash = buildMuzzleFlash(view);
         node.root.attachChild(node.flash);
 
@@ -1406,20 +1407,60 @@ final class DukeRtsApp extends SimpleApplication {
         return ring;
     }
 
-    private void buildHealthBar(UnitNode node, UnitView view) {
+    /**
+     * The health bar, floating clear of whatever it belongs to and drawn over it.
+     *
+     * <p>Both of those had to be said out loud once there were models. The height
+     * used to be a constant that suited a capsule, and a creature kit's hero
+     * stands three times taller than one — the bar ended up inside his chest.
+     * It is measured off the body instead, so it clears a rat and a boss alike.
+     *
+     * <p>And it ignores the depth buffer. A bar at the right height is still lost
+     * the moment the thing turns and an arm crosses in front of it, or another
+     * monster walks between; a health bar is a readout rather than a thing in the
+     * world, and it is worth nothing if it can be hidden by the creature it
+     * describes.
+     */
+    private void buildHealthBar(UnitNode node, UnitView view, Spatial body) {
         node.healthBar = new Node("hp");
         var back = new Geometry("hp-back", new Quad(3.6f, 0.45f));
-        back.setMaterial(unshaded(new ColorRGBA(0.1f, 0.1f, 0.1f, 1f)));
+        back.setMaterial(overlay(new ColorRGBA(0.1f, 0.1f, 0.1f, 1f)));
         back.setLocalTranslation(-1.8f, 0, -0.01f);
         node.healthFill = new Geometry("hp-fill", new Quad(3.5f, 0.35f));
-        node.healthFill.setMaterial(unshaded(ColorRGBA.Green));
+        node.healthFill.setMaterial(overlay(ColorRGBA.Green));
         node.healthFill.setLocalTranslation(-1.75f, 0.05f, 0f);
         node.healthBar.attachChild(back);
         node.healthBar.attachChild(node.healthFill);
         node.healthBar.addControl(new BillboardControl());
-        node.healthBar.setLocalTranslation(0, view.structure() ? 6.5f : 4.5f, 0);
+        node.healthBar.setLocalTranslation(0, heightOf(body, view) + 1.2f, 0);
+        node.healthBar.setQueueBucket(RenderQueue.Bucket.Translucent); // after the world
         node.healthBar.setCullHint(Spatial.CullHint.Always);
         node.root.attachChild(node.healthBar);
+    }
+
+    /** A colour that is drawn over the scene rather than into it. */
+    private Material overlay(ColorRGBA colour) {
+        var material = unshaded(colour);
+        material.getAdditionalRenderState().setDepthTest(false);
+        return material;
+    }
+
+    /**
+     * How tall this unit stands, measured rather than assumed.
+     *
+     * <p>A model's height depends on the kit it came from and the scale the game
+     * gave it, neither of which the client can guess. The fallback is the old
+     * constant, for the primitives that have no bounds worth measuring.
+     */
+    private static float heightOf(Spatial body, UnitView view) {
+        float fallback = view.structure() ? 6.5f : 4.5f;
+        if (body == null) {
+            return fallback;
+        }
+        body.updateModelBound();
+        body.updateGeometricState();
+        return body.getWorldBound() instanceof com.jme3.bounding.BoundingBox box
+                ? Math.max(fallback, box.getYExtent() * 2f) : fallback;
     }
 
     private Geometry buildMuzzleFlash(UnitView view) {
