@@ -33,12 +33,15 @@ public final class Main {
     /**
      * Turn applied to every creature model.
      *
-     * <p>Humanoid kits are modelled facing down -Z, which is what a character
-     * artist means by "forward"; the engine's orientation of 0 points along +X.
-     * Without this every monster walks sideways — which reads as a bug in the
-     * pathfinder rather than as an axis convention.
+     * <p>The client points a unit's local +X the way the simulation says it faces,
+     * and this kit's creatures are modelled looking along +Z, so they need a
+     * quarter turn to agree.
+     *
+     * <p>Worth stating rather than fiddling with: an axis convention got wrong by
+     * a quarter makes monsters walk sideways and by a half makes them slide at you
+     * backwards, and both read as a broken pathfinder rather than as a number.
      */
-    private static final float MODEL_FACING = -90f;
+    private static final float MODEL_FACING = 90f;
 
     private Main() {
     }

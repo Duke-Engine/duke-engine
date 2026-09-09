@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 471 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 472 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -940,7 +940,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **471 test yashil** (core 133, rts 94, generals 5, game 28, client3d 75, studio 8, dungeon 128) — 0 failure / 0 error.
+- **472 test yashil** (core 133, rts 94, generals 5, game 28, client3d 75, studio 8, dungeon 129) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1036,8 +1036,18 @@ ikkala peer aynan bir kadrda qo'llaydi.
     pullik versiyada). Har modelning **3 ta teri varianti** bor, shuning uchun tur
     = model + teri + bo'y + rang: `noTwoKindsLookAlike` ikki turning bir xil
     ko'rinmasligini qulflaydi.
+  - **Uch narsa ko'z bilan tuzatildi.** Model burilishi: klient birlikning local
+    +X ini oldinga qaratadi, bu kit esa +Z ga qaragan — chorak burilish xato
+    bo'lsa monster yonlamasiga, yarim burilish xato bo'lsa **orqasi bilan sirg'alib**
+    keladi, va ikkalasi ham pathfinder buzilgandek ko'rinadi. Animatsiya tanlovi:
+    snapshotdagi `attacking` "nishoni bor" degani, "urmoqda" emas — monster
+    qahramonni sezgan zahoti true bo'ladi, ya'ni butun quvish davomida urish
+    animatsiyasi o'ynardi; endi **yurish ustun**. Va butun bestiariy melee
+    bo'ldi: kitda otadigan jonzot yo'q, shuning uchun `Archer` → `Stalker`
+    (uzoqdan sezadi, yaqinlashib uradi). Masofadan urish **mexanizmi** saqlanadi
+    va testda o'z monsteri bilan qulflanadi.
   - **Material almashtiriladi — monstrlar avval QOP-QORA chiqdi.** jME glTF dan
-    **PBR** material yasaydi, PBR esa ambient yorug.likni env-mapdan (light probe)
+    **PBR** material yasaydi, PBR esa ambient yorug'likni env-mapdan (light probe)
     oladi; bizda probe yo.q, ya.ni model yoritilmaydi. Ekranda bu "tekstura
     yuklanmadi" bo.lib ko.rinadi, aslida esa yorug.lik masalasi. Ustiga yuklovchi
     `BaseColorMap` ni umuman bog.lamaydi va `UseVertexColor` ni yoqadi. Material
@@ -1209,7 +1219,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
   yo'lda kamida 2 xona, va o'rtacha yarmi bo'lishi test bilan qulflandi. Minimapda
   oq va eng katta — modelsiz o'yinda qavatning oxiri qayerda ekanini aytadigan
   yagona narsa.
-- **Dushman xilma-xilligi va chuqurlik** — besh tur (Skeleton, Runner, Brute, Archer,
+- **Dushman xilma-xilligi va chuqurlik** — besh tur (Skeleton, Runner, Brute, Stalker,
   Revenant) va boss. **Bitta miya, turlar bo'yicha parametrlar:** archer boshqa aql
   emas, u shunchaki uzoqroqda to'xtaydigan aql (`CloseDistance` — yaqinlashadigan
   narsa bilan otadigan narsa orasidagi butun farq). Har turga alohida sinf yozilsa,

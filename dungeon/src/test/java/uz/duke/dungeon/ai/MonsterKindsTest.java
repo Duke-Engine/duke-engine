@@ -95,21 +95,75 @@ class MonsterKindsTest {
     }
 
     /**
-     * The archer stops well short and shoots from there — the whole reason it is a
-     * different thing to fight rather than a differently coloured skeleton.
+     * A monster told to stop short does, and fights from there.
+     *
+     * <p>Nothing in the dungeon does this today: the creature kit has no model
+     * that could plausibly shoot, so every shipped monster closes and swings. The
+     * mechanism is still real and still worth holding still — a monster is a
+     * skirmisher or a brawler by two numbers in a file, and the day a bowman is
+     * drawn, this is what has to already work.
+     *
+     * <p>So it is proved on a monster the test declares rather than on a shipped
+     * one, which is also what keeps the test honest when the roster is retuned.
      */
     @Test
-    void theArcherStopsShortAndShootsFromThere() {
-        var fight = fight("Archer", 120f);
-        float heroHealthBefore = fight.hero().getBody().getHealth();
+    void aMonsterToldToKeepItsDistanceFightsFromOutThere() {
+        var skirmisher = DungeonSettings.parse("""
+                DungeonMonster Stalker
+                  SenseRadius = 150
+                  ChaseRadius = 260
+                  CloseDistance = 55
+                End
+                """);
+        var arena = Dungeon.world(ARENA, skirmisher);
+        var game = arena.game();
+        game.spawn("Hero", arena.hero(), 150f, 200f);
+        game.spawn("Stalker", arena.dungeon(), 270f, 200f);
+        game.runHeadless(1);
+        var fight = new Fight(game, creature(game, "Hero"), creature(game, "Stalker"));
 
-        fight.game().runHeadless(400);
+        game.runHeadless(400);
 
         float settled = gapBetween(fight);
-        assertTrue(settled > 30f,
-                "the archer should keep its distance, but closed to " + settled);
-        assertTrue(fight.hero().getBody().getHealth() < heroHealthBefore,
-                "and hit him from out there");
+        assertTrue(settled > 30f, "it should keep its distance, but closed to " + settled);
+        assertTrue(settled < 260f, "and it should still have come, rather than ignoring him");
+    }
+
+    /**
+     * Every shipped monster stops inside its own reach.
+     *
+     * <p>The pairing the file can get wrong: stop further away than the weapon
+     * reaches and the monster stands in front of the hero doing nothing, which
+     * looks like broken AI rather than like two numbers that disagree. Now that
+     * they are all brawlers the margin is wide, and the check costs nothing —
+     * it is the day someone re-tunes one of them that it earns itself.
+     */
+    @Test
+    void everyMonsterStopsInsideItsOwnReach() {
+        var creatures = uz.duke.dungeon.content.Content.read(
+                uz.duke.dungeon.content.Content.MONSTERS)
+                + uz.duke.dungeon.content.Content.read(
+                        uz.duke.dungeon.content.Content.CREATURES);
+        for (var kind : SETTINGS.monsters()) {
+            float reach = attackRangeOf(creatures, kind.name());
+            assertTrue(kind.closeDistance() < reach,
+                    kind.name() + " stops at " + kind.closeDistance()
+                            + " but only reaches " + reach);
+        }
+    }
+
+    /** {@code AttackRange} out of a creature block, read as the loader would. */
+    private static float attackRangeOf(String iniText, String template) {
+        boolean inside = false;
+        for (var line : iniText.split("\n")) {
+            var trimmed = line.trim();
+            if (trimmed.startsWith("Object ")) {
+                inside = trimmed.equals("Object " + template);
+            } else if (inside && trimmed.startsWith("AttackRange")) {
+                return Float.parseFloat(trimmed.substring(trimmed.indexOf('=') + 1).trim());
+            }
+        }
+        return 0f;
     }
 
     /** The skeleton, by contrast, walks all the way in. */

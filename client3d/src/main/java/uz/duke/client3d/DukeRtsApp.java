@@ -1451,10 +1451,23 @@ final class DukeRtsApp extends SimpleApplication {
         animate(node, view);
     }
 
+    /**
+     * Choose the clip that matches what the unit is doing.
+     *
+     * <p>Moving wins over attacking, and the order matters more than it looks.
+     * A snapshot's {@code attacking} means the unit <em>has a target</em>, not
+     * that it is swinging: a monster that has noticed the hero across a room is
+     * attacking by that definition for the whole chase. Letting that win made
+     * every monster in the dungeon slide toward the player throwing punches at
+     * the air.
+     *
+     * <p>Attacking therefore reads as "engaging something and not going anywhere",
+     * which is when a creature does actually swing.
+     */
     private void animate(UnitNode node, UnitView view) {
         var visual = visuals.of(view.templateName());
-        String wanted = view.attacking() && visual.attackAnim != null ? visual.attackAnim
-                : view.moving() && visual.walkAnim != null ? visual.walkAnim
+        String wanted = view.moving() && visual.walkAnim != null ? visual.walkAnim
+                : view.attacking() && visual.attackAnim != null ? visual.attackAnim
                 : visual.idleAnim;
         if (wanted == null || wanted.equals(node.currentAnim)) {
             return;
