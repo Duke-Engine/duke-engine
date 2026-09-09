@@ -37,10 +37,23 @@ public final class Duke3D {
         launch(game, visuals, Shell.standard(), width, height);
     }
 
+    /**
+     * With keys of the game's own — see {@link Hotkeys}. The client keeps its
+     * standard controls; these are what a particular game adds on top.
+     */
+    public static void launch(DukeGame game, Visuals visuals, Shell shell, Hotkeys hotkeys) {
+        launch(game, visuals, shell, hotkeys, 1280, 720);
+    }
+
     public static void launch(DukeGame game, Visuals visuals, Shell shell, int width, int height) {
+        launch(game, visuals, shell, Hotkeys.none(), width, height);
+    }
+
+    public static void launch(DukeGame game, Visuals visuals, Shell shell, Hotkeys hotkeys,
+            int width, int height) {
         // the simulation starts when the player presses Play — or at once, if the
         // game asked for no menu at all
-        var app = new DukeRtsApp(game, visuals, shell);
+        var app = new DukeRtsApp(game, visuals, shell, hotkeys);
         var settings = new AppSettings(true);
         settings.setTitle(game.getTitle());
         // saved display settings win over the caller's defaults

@@ -65,6 +65,9 @@ final class DukeRtsApp extends SimpleApplication {
 
     private static final Logger LOG = Logger.getLogger(DukeRtsApp.class.getName());
 
+    /** Prefix of the input mapping for a key the game claimed. */
+    private static final String HOTKEY = "Hotkey";
+
     /** How long a muzzle flash stays lit after a shot. Display time, not game time. */
     private static final float MUZZLE_FLASH_SECONDS = 0.08f;
 
@@ -79,6 +82,8 @@ final class DukeRtsApp extends SimpleApplication {
     private final DukeGame game;
     private final Visuals visuals;
     private final Shell shell;
+    /** Keys this game claimed for itself, over and above the standard controls. */
+    private final Hotkeys hotkeys;
     private final CountDownLatch stopped = new CountDownLatch(1);
 
     private Screen screen = Screen.MENU;
@@ -155,10 +160,11 @@ final class DukeRtsApp extends SimpleApplication {
         UnitView view;
     }
 
-    DukeRtsApp(DukeGame game, Visuals visuals, Shell shell) {
+    DukeRtsApp(DukeGame game, Visuals visuals, Shell shell, Hotkeys hotkeys) {
         this.game = game;
         this.visuals = visuals;
         this.shell = shell;
+        this.hotkeys = hotkeys == null ? Hotkeys.none() : hotkeys;
         this.terrain = new TerrainScene(terrainNode, this::lit, visuals.getDiscoveryTemplate() != null);
     }
 
@@ -857,8 +863,18 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                 }
                 default -> {
-                    if (pressed && screen == Screen.PLAYING && name.startsWith("Build")) {
+                    if (!pressed || screen != Screen.PLAYING) {
+                        return;
+                    }
+                    if (name.startsWith("Build")) {
                         queueBuild(Integer.parseInt(name.substring(5)) - 1);
+                    } else if (name.startsWith(HOTKEY)) {
+                        // The game's own key. All it may do here is post a command;
+                        // the render thread has no business in the simulation.
+                        var action = hotkeys.all().get(name.charAt(HOTKEY.length()));
+                        if (action != null) {
+                            action.accept(game);
+                        }
                     }
                 }
             }
@@ -866,6 +882,18 @@ final class DukeRtsApp extends SimpleApplication {
         inputManager.addListener(actions, "Select", "Order", "PanUp", "PanLeft", "PanDown", "PanRight",
                 "Shift", "Halt", "Pause", "Deselect",
                 "Build1", "Build2", "Build3", "Build4", "Build5", "Build6", "Build7", "Build8", "Build9");
+
+        // Added last, so a game that wants a letter the client already uses gets it.
+        for (var key : hotkeys.all().keySet()) {
+            int code = Hotkeys.codeOf(key);
+            if (code < 0) {
+                continue;
+            }
+            String mapping = HOTKEY + key;
+            inputManager.deleteMapping(mapping);
+            inputManager.addMapping(mapping, new KeyTrigger(code));
+            inputManager.addListener(actions, mapping);
+        }
 
         AnalogListener zoom = (name, value, tpf) ->
                 camera.zoomBy(name.equals("ZoomIn") ? 0.92f : 1.09f);

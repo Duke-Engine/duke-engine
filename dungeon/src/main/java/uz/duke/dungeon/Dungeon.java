@@ -8,6 +8,9 @@ import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.gen.DungeonGenerator;
 import uz.duke.dungeon.level.GrowableBody;
 import uz.duke.dungeon.level.HeroProgress;
+import uz.duke.dungeon.skill.CastSkill;
+import uz.duke.dungeon.skill.SkillBook;
+import uz.duke.dungeon.skill.Skills;
 import uz.duke.dungeon.run.DungeonRun;
 import uz.duke.game.DukeGame;
 import uz.duke.game.GamePlayer;
@@ -106,6 +109,14 @@ public final class Dungeon {
                     factory.register("GrowableBody",
                             (owner, data) -> new GrowableBody(owner, (GrowableBody.Data) data),
                             GrowableBody::parseData);
+                    // Which skills a hero has is not in his creature block — it is
+                    // in dungeon.ini, under his template's name. So the block says
+                    // only that he has some, and a second hero needs the same line
+                    // and his own DungeonSkill blocks, and no code at all.
+                    factory.register("SkillBook",
+                            (owner, data) -> new SkillBook(owner,
+                                    settings.skillsFor(owner.getTemplate().getName())),
+                            SkillBook::parseData);
                 })
                 .loadUnits(creaturesIni)
                 .loadUnits(Content.read(Content.MONSTERS))
@@ -145,6 +156,15 @@ public final class Dungeon {
         var progress = new HeroProgress(arena.hero(), settings.levelling(),
                 settings.levelUpBannerFrames());
         var run = new DungeonRun(arena.hero(), arena.dungeon(), seed, settings, progress);
+
+        // Q, W, E and R arrive as this game's own command, through the same queue
+        // the standard orders use — so a keypress lands on a frame boundary and is
+        // recorded, rather than reaching into the simulation from the input thread.
+        game.onCommand(command -> {
+            if (command instanceof CastSkill cast) {
+                Skills.cast(game.getLogic(), cast, progress.getLevel());
+            }
+        });
 
         // The first floor is laid out the same way every later one is, so the
         // deep floors nobody plays as often cannot drift from the first.

@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Map;
 import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
+import uz.duke.dungeon.skill.Skill;
+import uz.duke.dungeon.skill.SkillEffect;
 import uz.duke.dungeon.level.Levelling;
 
 /**
@@ -69,6 +71,9 @@ public final class DungeonSettings {
     /** In file order, which is the order a seed picks through them. */
     private final java.util.List<MonsterKind> monsters = new java.util.ArrayList<>();
 
+    /** Every hero's skills, in file order — the order a HUD lists them in. */
+    private final java.util.List<Skill> skills = new java.util.ArrayList<>();
+
     private int monsterHealthPercentPerDepth = 25;
     private int monsterDamagePercentPerDepth = 15;
     private int monsterCountPercentPerDepth = 20;
@@ -120,10 +125,19 @@ public final class DungeonSettings {
                 "DungeonDepth", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, DEPTH);
+                },
+                // Repeatable, and named by whose skill it is: the block header is
+                // the hero's template and the key that casts it. A second hero is
+                // four more of these and no Java — the roster lives in the file.
+                "DungeonSkill", reader -> {
+                    var skill = new SkillBuilder(reader.getNextToken(), reader.getNextToken());
+                    reader.initFromIni(skill, SKILL);
+                    settings.skills.add(skill.build());
                 }));
         ini.load();
         if (!readingShippedFile) {
             settings.fillInMissingMonsters();
+            settings.fillInMissingSkills();
         }
         settings.validate();
         return settings;
@@ -156,7 +170,27 @@ public final class DungeonSettings {
         monsters.addAll(declared); // kinds this file invented
     }
 
+    /**
+     * The same rule for skills, keyed by hero <em>and</em> key rather than by
+     * name: naming one hero's Q re-tunes that one skill and leaves the other
+     * three, and every other hero, alone.
+     */
+    private void fillInMissingSkills() {
+        var declared = new java.util.ArrayList<>(skills);
+        skills.clear();
+        for (var shipped : shippedSkills()) {
+            var override = declared.stream()
+                    .filter(skill -> skill.heroTemplate().equals(shipped.heroTemplate())
+                            && skill.key() == shipped.key())
+                    .findFirst();
+            skills.add(override.orElse(shipped));
+            override.ifPresent(declared::remove);
+        }
+        skills.addAll(declared); // skills — and heroes — this file invented
+    }
+
     private static final List<MonsterKind> SHIPPED_MONSTERS = new java.util.ArrayList<>();
+    private static final List<Skill> SHIPPED_SKILLS = new java.util.ArrayList<>();
     private static boolean readingShippedFile;
 
     /**
@@ -167,15 +201,27 @@ public final class DungeonSettings {
      * stops that parse from asking itself the same question forever.
      */
     private static List<MonsterKind> shippedMonsters() {
-        if (SHIPPED_MONSTERS.isEmpty() && !readingShippedFile) {
-            readingShippedFile = true;
-            try {
-                SHIPPED_MONSTERS.addAll(parse(Content.read(Content.SETTINGS)).monsters);
-            } finally {
-                readingShippedFile = false;
-            }
-        }
+        readShippedFile();
         return SHIPPED_MONSTERS;
+    }
+
+    private static List<Skill> shippedSkills() {
+        readShippedFile();
+        return SHIPPED_SKILLS;
+    }
+
+    private static void readShippedFile() {
+        if (!SHIPPED_MONSTERS.isEmpty() || readingShippedFile) {
+            return;
+        }
+        readingShippedFile = true;
+        try {
+            var shipped = parse(Content.read(Content.SETTINGS));
+            SHIPPED_MONSTERS.addAll(shipped.monsters);
+            SHIPPED_SKILLS.addAll(shipped.skills);
+        } finally {
+            readingShippedFile = false;
+        }
     }
 
     /**
@@ -274,6 +320,50 @@ public final class DungeonSettings {
                     // which is how anyone actually writes a colour.
                     .add("Colour", (ini, m) -> m.colour = Integer.decode(ini.getNextToken()))
                     .add("Scale", Ini.real((m, v) -> m.scale = v));
+
+    /** Accumulates one {@code DungeonSkill <hero> <key>} block. */
+    private static final class SkillBuilder {
+        private final String heroTemplate;
+        private final char key;
+        SkillEffect effect = SkillEffect.STRIKE;
+        float damage;
+        float damagePerLevel;
+        float radius;
+        float range;
+        float distance;
+        int boostPercent;
+        int boostPerLevel;
+        int durationFrames;
+        int cooldownFrames = 90;
+        int cooldownPerLevel;
+        int unlockLevel = 1;
+
+        SkillBuilder(String heroTemplate, String key) {
+            this.heroTemplate = heroTemplate;
+            this.key = Character.toUpperCase(key.charAt(0));
+        }
+
+        Skill build() {
+            return new Skill(heroTemplate, key, effect, damage, damagePerLevel, radius, range,
+                    distance, boostPercent, boostPerLevel, durationFrames, cooldownFrames,
+                    cooldownPerLevel, unlockLevel);
+        }
+    }
+
+    private static final FieldParseTable<SkillBuilder> SKILL =
+            new FieldParseTable<SkillBuilder>()
+                    .add("Effect", Ini.enumeration(SkillEffect.class, (s, v) -> s.effect = v))
+                    .add("Damage", Ini.real((s, v) -> s.damage = v))
+                    .add("DamagePerLevel", Ini.real((s, v) -> s.damagePerLevel = v))
+                    .add("Radius", Ini.real((s, v) -> s.radius = v))
+                    .add("Range", Ini.real((s, v) -> s.range = v))
+                    .add("Distance", Ini.real((s, v) -> s.distance = v))
+                    .add("BoostPercent", Ini.integer((s, v) -> s.boostPercent = v))
+                    .add("BoostPerLevel", Ini.integer((s, v) -> s.boostPerLevel = v))
+                    .add("DurationFrames", Ini.integer((s, v) -> s.durationFrames = v))
+                    .add("CooldownFrames", Ini.integer((s, v) -> s.cooldownFrames = v))
+                    .add("CooldownPerLevel", Ini.integer((s, v) -> s.cooldownPerLevel = v))
+                    .add("UnlockLevel", Ini.integer((s, v) -> s.unlockLevel = v));
 
     private static final FieldParseTable<DungeonSettings> DEPTH =
             new FieldParseTable<DungeonSettings>()
@@ -407,6 +497,26 @@ public final class DungeonSettings {
     /** Every kind the file describes, in file order. */
     public java.util.List<MonsterKind> monsters() {
         return java.util.List.copyOf(monsters);
+    }
+
+    /** Every skill in the file, whoever it belongs to. */
+    public java.util.List<Skill> skills() {
+        return java.util.List.copyOf(skills);
+    }
+
+    /**
+     * The skills of one hero, in file order — which is the order a HUD lists
+     * them, so writing Q W E R in the file is what puts them in that order on
+     * screen. A template with none simply has none.
+     */
+    public java.util.List<Skill> skillsFor(String heroTemplate) {
+        var his = new java.util.ArrayList<Skill>();
+        for (var skill : skills) {
+            if (skill.heroTemplate().equals(heroTemplate)) {
+                his.add(skill);
+            }
+        }
+        return java.util.List.copyOf(his);
     }
 
     /** One kind by name, or {@code null} if the file never described it. */

@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 399 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 430 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -101,6 +101,22 @@ savol: *"Bu BFME'da ham, Warcraft III'da ham, Generals'da ham kerakmi?"*
 
 `generals` moduli shu printsipning isboti: Generals ham shunchaki bir o'yin, o'z
 qoidalarini o'zi yozadi va buning uchun engine'ga tegmaydi.
+
+**O'yinning o'z buyruqlari.** `core` ning `Command` shartnomasi doim shuni degan:
+*"o'yin o'z buyruq to'plamini e'lon qiladi"*. Lekin `rts` uni bloklardi —
+`RtsSimulation.onCommand` `final` edi va `GameMessage` bo'lmagan har qanday
+buyruqni jimgina tashlab yuborardi, ya'ni `rts` ustidagi **birorta** o'yin o'z
+buyrug'iga ega bo'la olmasdi. Endi u `onOtherCommand(Command)` ga uzatadi;
+sukut bo'yicha — avvalgidek ogohlantirish, ya'ni bugungi hech narsa
+o'zgarmaydi. O'yin uni override qiladi (`DukeGame.onCommand`) va o'z sealed
+to'plami bo'yicha dispatch qiladi. Muhimi buyruq **qaysi yo'ldan** borishi:
+kirish ipidan navbatga, kadr boshida qo'llanadi, frame log'ga yoziladi. Duke
+Dungeon ning `CastSkill` i shu yo'ldan boradi.
+
+> Bitta halol cheklov, jimgina emas — **log bilan**: sim protokoli (`CommandCodec`)
+> RTS to'plamini biladi, shuning uchun tarmoq o'yinida o'yin buyrug'i lokal
+> qo'llanib desync bermaydi, balki rad etiladi. O'z buyrug'ini simdan o'tkazmoqchi
+> bo'lgan o'yin unga codec berishi kerak.
 
 ### Kengaytirish choklari
 
@@ -924,7 +940,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **399 test yashil** (core 133, rts 94, generals 5, game 23, client3d 52, studio 8, dungeon 84) — 0 failure / 0 error.
+- **430 test yashil** (core 133, rts 94, generals 5, game 28, client3d 52, studio 8, dungeon 110) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1030,6 +1046,36 @@ ikkala peer aynan bir kadrda qo'llaydi.
     almashtiradi — klientга alohida signal kerak emas).
   - Tumanni **so'ramagan o'yin hech narsa to'lamaydi**: qopqoq qurilmaydi, sikl
     ishlamaydi. `studio` va oddiy RTS xulqi o'zgarmagan.
+- **Qahramonda 4 ta skill (Q W E R)** — `STRIKE` (eng yaqin dushmanga zarba),
+  `AREA_DAMAGE` (atrofdagilarga), `DASH` (yuzi tomon otilish), `EMPOWER`
+  (ultimate: vaqtincha zarar oshishi, 5-darajadan ochiladi).
+  - **Skilllar hero'ga bog'langan, ma'lumot bilan.** `dungeon.ini` da
+    `DungeonSkill <Hero> <Key>` bloklari; kod faqat **effekt turlarini** beradi.
+    Ikkinchi hero = to'rt blok INI + creature blokida bitta `SkillBook` qatori,
+    **noldan Java**. Test buni qulflaydi: faqat INI'da ta'riflangan `Rogue` o'z
+    ikkita skilli bilan ishlaydi, hero'ning `Q` si esa unga tegishli emas.
+  - **`SpecialPowerModule` ishlatilmadi** — u SAGE superquroli: bitta shakl
+    (nuqtaga maydon zarari), qiymatlar konstruktorda muzlatilgan (daraja bilan
+    o'smaydi), ochilish darajasi yo'q, va bitta birlikdagi 4 tasi adreslanmaydi
+    (`findModule` birinchisini qaytaradi). `GrowableBody`/`HeroProgress` naqshi
+    takrorlandi.
+  - **`DamageModifier` choki ishlatildi** — `EMPOWER` uchun. `SkillBook` ning
+    o'zi uni implement qiladi, buff modulini ulab-uzmaydi: kadr ichida modul
+    ulash/uzish engine'ning modul ro'yxati **ataylab** rad etadigan narsa
+    (aks holda keyingi modul jimgina o'tkazib yuborilardi), muddati o'tadigan
+    bayroq esa xuddi shu narsa, tuzoqsiz.
+  - **Determinizm:** kuluar `int[]` kadrlarda sanaladi, soatda emas; `STRIKE`
+    nishoni eng yaqini, teng masofada `ObjectId` bo'yicha; `DASH` `StrictMath`
+    bilan yuradi va **qadam-qadam** — to'g'ridan-to'g'ri qo'shilsa qahramon
+    devor ichida qolardi.
+  - **HUD** mavjud `status` kanalida: `Q ready  W 3s  E ready  R lv5`.
+  - **Reset tekin keladi:** har run va har chuqurlikda yangi Hero obyekti
+    quriladi, ya'ni yangi `SkillBook`, nol kuluar; ultimate esa darajadan
+    kelib chiqadi, daraja o'limda nolga qaytadi.
+- **Skilllar buyruq quvuridan o'tadi** — `CastSkill` bu **o'yinning o'z
+  buyrug'i**. Klavish bosilishi klientda faqat `postCommand` qiladi; nishon
+  tanlash, kuluar, daraja tekshiruvi — hammasi simulyatsiyada, kadr chegarasida.
+  Buning uchun engine chokining o'zi ochildi (quyida).
 - **Skeletlar qahramonni quvadi** — `SkeletonBrain` ikki radius bilan: sezish
   (~bitta xona, aggro xonama-xona tarqaladi) va quvish (kengroq, lekin cheklangan).
   Skelet qahramondan sekinroq, shuning uchun jangdan chiqib ketish haqiqiy taktika.
@@ -1381,6 +1427,10 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/gen/DungeonGenerator.java` | seed'dan xonalar + koridorlar (ulanish kafolati) |
 | `dungeon/…/dungeon/ai/{HeroBrain,SkeletonBrain}.java` | klik-ataka va skelet AI'si |
 | `dungeon/…/dungeon/run/DungeonRun.java` | run loop: o'lim → yangi seed → yangi dungeon |
+| `dungeon/…/dungeon/skill/{Skill,SkillEffect}.java` | skill ma'lumoti + daraja arifmetikasi (sof) |
+| `dungeon/…/dungeon/skill/SkillBook.java` | qahramon moduli: kuluar, effektlar, `DamageModifier` |
+| `dungeon/…/dungeon/skill/{CastSkill,Skills}.java` | o'yinning o'z buyrug'i + HUD paneli |
+| `client3d/…/client3d/Hotkeys.java` | o'yin da'vo qilgan klavishlar → `postCommand` |
 | `dungeon/…/dungeon/level/Levelling.java` | daraja qoidalari — sof, INI qiymatlaridan |
 | `dungeon/…/dungeon/level/HeroBody.java` | o'sadigan tana (engine'niki final) + `Armor` |
 | `dungeon/…/dungeon/level/HeroProgress.java` | XP → daraja → atributlar, run'da nolga qaytish |

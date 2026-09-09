@@ -1,9 +1,11 @@
 package uz.duke.dungeon;
 
 import uz.duke.client3d.Duke3D;
+import uz.duke.client3d.Hotkeys;
 import uz.duke.client3d.Shell;
 import uz.duke.client3d.Visuals;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.skill.CastSkill;
 
 /**
  * Opens the dungeon in the engine's 3D client.
@@ -35,7 +37,26 @@ public final class Main {
         Duke3D.launch(Dungeon.create(System.nanoTime(), settings), looks(settings), Shell.create()
                 .entry(Shell.Entry.PLAY, "Enter the dungeon")
                 .entry(Shell.Entry.SETTINGS)
-                .entry(Shell.Entry.QUIT));
+                .entry(Shell.Entry.QUIT), controls(settings));
+    }
+
+    /**
+     * The keys that cast skills, taken from the same file that says what the
+     * skills are.
+     *
+     * <p>Read out of the settings rather than written here, so adding a fifth
+     * skill — or a second hero with different keys — binds its key by being in the
+     * file. A press does one thing: post the command. Deciding whether the skill
+     * is ready, unlocked, or aimed at anything is the simulation's, on its own
+     * thread, on a frame boundary.
+     */
+    private static Hotkeys controls(DungeonSettings settings) {
+        var keys = Hotkeys.create();
+        for (var skill : settings.skills()) {
+            char key = skill.key();
+            keys.on(key, game -> game.postCommand(new CastSkill(game.getLocalPlayerIndex(), key)));
+        }
+        return keys;
     }
 
     /**

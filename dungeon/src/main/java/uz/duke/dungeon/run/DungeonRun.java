@@ -9,6 +9,8 @@ import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.gen.DungeonGenerator;
 import uz.duke.dungeon.gen.GeneratedDungeon;
 import uz.duke.dungeon.level.HeroProgress;
+import uz.duke.dungeon.skill.SkillBook;
+import uz.duke.dungeon.skill.Skills;
 import uz.duke.game.DukeGame;
 import uz.duke.game.GamePlayer;
 
@@ -118,9 +120,15 @@ public final class DungeonRun {
      * no name for either.
      */
     private void showStatus(DukeGame game) {
-        game.setStatus("Depth %d    Level %d    xp %d/%d".formatted(
+        var line = new StringBuilder("Depth %d    Level %d    xp %d/%d".formatted(
                 depth, progress.getLevel(), progress.getExperienceIntoLevel(),
                 progress.getExperienceForNextLevel()));
+        var hero = Skills.heroOf(game.getLogic(), heroPlayer.getIndex());
+        var book = hero == null ? null : hero.findModule(SkillBook.class);
+        if (book != null && !book.getSkills().isEmpty()) {
+            line.append("        ").append(Skills.bar(book, progress.getLevel()));
+        }
+        game.setStatus(line.toString());
     }
 
     private void whileDead(DukeGame game) {
