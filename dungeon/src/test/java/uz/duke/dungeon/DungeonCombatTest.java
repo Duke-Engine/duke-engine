@@ -139,6 +139,102 @@ class DungeonCombatTest {
                 "a skeleton that cannot sense the hero should not have moved");
     }
 
+    /**
+     * Sent back the way he came, the hero turns round rather than driving a
+     * circle. {@code TurnRate} is SAGE's vehicle parameter, and with one set the
+     * hero banked like a tank; a man pivots.
+     *
+     * <p>Checked by the shape of the path, not by any number in the data: an arc
+     * swings wide of the line it is travelling along, so if he never leaves that
+     * line he never arced.
+     */
+    @Test
+    void reversingDirectionTurnsOnTheSpotInsteadOfDrivingACircle() {
+        var world = Dungeon.world(ARENA, SETTINGS);
+        var game = world.game();
+        game.spawn("Hero", world.hero(), 120f, 150f);
+        game.runHeadless(1);
+        var hero = creature(game, "Hero");
+        int player = game.getLocalPlayerIndex();
+
+        // Get him walking east, so he has a heading to reverse.
+        game.postCommand(new GameMessage.MoveTo(player, List.of(hero.getId()),
+                new Coord3D(260f, 150f, 0f)));
+        game.runHeadless(40);
+        float turnedAtX = hero.getPosition().x();
+
+        // Now straight back the way he came: a 180° reversal.
+        game.postCommand(new GameMessage.MoveTo(player, List.of(hero.getId()),
+                new Coord3D(120f, 150f, 0f)));
+
+        float widestSwing = 0f;
+        float furthestEast = turnedAtX;
+        for (int frame = 0; frame < 120; frame++) {
+            game.runHeadless(1);
+            widestSwing = Math.max(widestSwing, Math.abs(hero.getPosition().y() - 150f));
+            furthestEast = Math.max(furthestEast, hero.getPosition().x());
+        }
+
+        assertTrue(widestSwing < 5f,
+                "turning round should not swing him off the line, but he strayed "
+                        + widestSwing + " units sideways");
+        assertTrue(furthestEast - turnedAtX < 10f,
+                "nor should he coast onward while turning, but he ran "
+                        + (furthestEast - turnedAtX) + " units past the turn");
+        assertTrue(hero.getPosition().x() < turnedAtX,
+                "and he should be heading back west");
+    }
+
+    /**
+     * A hero attacking something behind him turns to face it. The engine sets a
+     * heading only while walking, so a fighter who has arrived — or who never
+     * moved, because the fight came to him — would otherwise strike over his
+     * shoulder.
+     */
+    @Test
+    void theHeroTurnsToFaceWhatHeIsAttacking() {
+        // Close enough to swing without walking, and directly behind him: any
+        // turning here is the game's doing, since he never takes a step.
+        var fight = fight(200f, 150f, 186f, 150f);
+        var hero = fight.hero();
+        var skeleton = fight.skeleton();
+        hero.setOrientation(0f); // looking east; the skeleton is west
+
+        assertTrue(offBy(hero, skeleton) > 1f, "he should start out looking the wrong way");
+
+        fight.game().runHeadless(30);
+
+        assertNotNull(fight.game().getLogic().findObject(skeleton.getId()),
+                "the skeleton should still be alive for him to be facing");
+        assertTrue(offBy(hero, skeleton) < 0.2f,
+                "the hero should have turned to face it, but was off by "
+                        + offBy(hero, skeleton) + " radians");
+    }
+
+    /** And so does a skeleton: it looks at the hero it is hitting. */
+    @Test
+    void aSkeletonTurnsToFaceTheHero() {
+        var fight = fight(200f, 150f, 186f, 150f);
+        var skeleton = fight.skeleton();
+        skeleton.setOrientation((float) StrictMath.PI); // looking away from the hero
+
+        fight.game().runHeadless(30);
+
+        assertTrue(offBy(skeleton, fight.hero()) < 0.2f,
+                "the skeleton should be looking at what it is hitting");
+    }
+
+    /** How far {@code fighter}'s heading is from pointing at {@code target}, in radians. */
+    private static float offBy(GameObject fighter, GameObject target) {
+        float wanted = (float) StrictMath.atan2(
+                target.getPosition().y() - fighter.getPosition().y(),
+                target.getPosition().x() - fighter.getPosition().x());
+        float difference = fighter.getOrientation() - wanted;
+        // Shortest way round, so 359° counts as 1° rather than as nearly a full turn.
+        return (float) Math.abs(StrictMath.atan2(
+                StrictMath.sin(difference), StrictMath.cos(difference)));
+    }
+
     /** Skeletons fight back once they arrive — the advance is not a harmless parade. */
     @Test
     void anAdvancingSkeletonDrawsBlood() {

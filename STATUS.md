@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 263 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 266 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -872,7 +872,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **263 test yashil** (core 124, rts 71, game 18, client3d 16, studio 8, dungeon 26) — 0 failure / 0 error.
+- **266 test yashil** (core 124, rts 71, game 18, client3d 16, studio 8, dungeon 29) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1054,6 +1054,16 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
   Java 21 runtime + Java 25 klasslari = `UnsupportedClassVersionError` (class 69 vs 65), oynali exe
   jimgina exit 1 bilan o'ladi. Yechim (allaqachon qo'llangan): jpackage Gradle toolchain'idan olinadi.
   Nosozlikni ko'rish uchun `--win-console` varianti yordam beradi.
+- **`TurnRate` tuzog'i (tuzatilgan):** `MoveUpdate` da `TurnRate = 0` **maxsus qiymat** —
+  "joyida bir zumda burilish"; musbat qiymat esa SAGE'ning texnika xulqi: nishonga tomon
+  asta buriladi va o'z yo'nalishi bo'ylab **yoy chizadi**. Dungeon creature'lariga
+  `TurnRate = 720` yozilgan edi, natijada odam qahramon teskari yuborilganda mashinadek
+  aylana chizardi. Bu engine kamchiligi emas — noto'g'ri kontent qiymati; tuzatish INI'da.
+- **Jangda yo'nalish:** engine yo'nalishni **faqat yurayotganda** o'rnatadi (locomotor uni
+  keyingi waypointga qaratadi). To'xtab urayotgan narsa oxirgi yurgan tomoniga qarab
+  qolaveradi — ya'ni yelkasi orqali uradi. Yo'nalish simulyatsiya hisobiga kirmaydi
+  (qurol unga qaramaydi), lekin klient faqat snapshotda borini chizadi, shuning uchun
+  uni **o'yin o'zi** o'rnatadi (`ai/Facing`), deterministik qadam ichida, `StrictMath` bilan.
 - **Sahna tuzog'i (tuzatilgan):** klientda bir marta quriladigan narsa dunyo bir marta
   quriladi deb **jimgina** taxmin qiladi. Relyef `simpleInitApp` da `rootNode` ga
   ulanardi, shuning uchun yangi run boshlanganda birliklar yangi dungeon'da yurar,

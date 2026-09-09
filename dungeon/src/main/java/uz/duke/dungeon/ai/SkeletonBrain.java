@@ -68,6 +68,7 @@ public final class SkeletonBrain extends UnitScript {
             if (move.isMoving()) {
                 move.stop(); // close enough to swing
             }
+            Facing.turnToward(unit(), hero); // look at what it is hitting
             return;
         }
         advanceOn(move, hero);

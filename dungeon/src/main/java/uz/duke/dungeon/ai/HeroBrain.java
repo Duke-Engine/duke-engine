@@ -60,6 +60,9 @@ public final class HeroBrain extends UnitScript {
             if (move.isMoving()) {
                 move.stop(); // arrived — hold position and let the weapon work
             }
+            // Standing still, nothing else would turn him: the locomotor only sets
+            // a heading while walking, so he would strike over his shoulder.
+            Facing.turnToward(unit(), target);
             return;
         }
         if (!move.isMoving() || frame() % settings.heroRepathFrames() == 0) {
