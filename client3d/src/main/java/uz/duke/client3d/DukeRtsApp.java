@@ -926,6 +926,26 @@ final class DukeRtsApp extends SimpleApplication {
         orderMarkers.add(worldX, worldY, kind, timer.getTimeInSeconds());
     }
 
+    /**
+     * The selected unit's health, when exactly one is selected.
+     *
+     * <p>Read from the snapshot like everything else here. It is worth showing
+     * because a hero's maximum health is not fixed in every game — a roguelike
+     * hero's rises as he levels, and the number moving is the player seeing that
+     * happen.
+     */
+    private String selectedHealth() {
+        if (selected.size() != 1) {
+            return "";
+        }
+        for (var view : snapshot.units()) {
+            if (selected.contains(view.id())) {
+                return "    hp %.0f/%.0f".formatted(view.health(), view.maxHealth());
+            }
+        }
+        return "";
+    }
+
     /** The single selected own production structure, or {@code null}. */
     private UnitView selectedProducer() {
         if (selected.size() != 1) {
@@ -1197,9 +1217,9 @@ final class DukeRtsApp extends SimpleApplication {
         String power = snapshot.localPlayerPowerSurplus() >= 0
                 ? "+" + snapshot.localPlayerPowerSurplus()
                 : String.valueOf(snapshot.localPlayerPowerSurplus());
-        hud.setText("$ %d    power %s    t=%.1fs    selected %d%s".formatted(
+        hud.setText("$ %d    power %s    t=%.1fs    selected %d%s%s".formatted(
                 snapshot.localPlayerMoney(), power, snapshot.gameTimeSeconds(),
-                selected.size(), snapshot.paused() ? "    [PAUSED]" : ""));
+                selected.size(), selectedHealth(), snapshot.paused() ? "    [PAUSED]" : ""));
 
         var producer = selectedProducer();
         if (producer == null) {

@@ -6,6 +6,8 @@ import uz.duke.dungeon.ai.SkeletonBrain;
 import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.gen.DungeonGenerator;
+import uz.duke.dungeon.level.HeroBody;
+import uz.duke.dungeon.level.HeroProgress;
 import uz.duke.dungeon.run.DungeonRun;
 import uz.duke.game.DukeGame;
 import uz.duke.game.GamePlayer;
@@ -67,8 +69,8 @@ public final class Dungeon {
     public record Arena(DukeGame game, GamePlayer hero, GamePlayer dungeon) {
     }
 
-    /** A game and the run loop that keeps it going. */
-    public record Session(DukeGame game, DungeonRun run) {
+    /** A game, the run loop that keeps it going, and the hero's progression. */
+    public record Session(DukeGame game, DungeonRun run, HeroProgress progress) {
     }
 
     /**
@@ -85,6 +87,10 @@ public final class Dungeon {
                     ScriptModule.registerScript(factory, "HeroBrain", () -> new HeroBrain(settings));
                     ScriptModule.registerScript(factory, "SkeletonBrain",
                             () -> new SkeletonBrain(settings));
+                    // The hero needs a body that can grow; the engine's cannot.
+                    factory.register("HeroBody",
+                            (owner, data) -> new HeroBody(owner, (HeroBody.Data) data),
+                            HeroBody::parseData);
                 })
                 .loadUnits(Content.read(Content.CREATURES))
                 .mapFromText(asciiMap);
@@ -122,6 +128,11 @@ public final class Dungeon {
 
         var run = new DungeonRun(arena.hero(), arena.dungeon(), seed, settings);
         game.onTick(run::tick);
-        return new Session(game, run);
+
+        var progress = new HeroProgress(arena.hero(), settings.levelling(),
+                settings.levelUpBannerFrames());
+        game.onTick(progress::tick);
+
+        return new Session(game, run, progress);
     }
 }

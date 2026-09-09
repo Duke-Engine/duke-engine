@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 290 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 305 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -889,7 +889,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **290 test yashil** (core 124, rts 71, game 18, client3d 39, studio 8, dungeon 30) — 0 failure / 0 error.
+- **305 test yashil** (core 124, rts 71, game 18, client3d 39, studio 8, dungeon 45) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -963,6 +963,33 @@ ikkala peer aynan bir kadrda qo'llaydi.
   `DungeonSettingsTest` boshqacha INI matni boshqacha o'yin berishini isbotlaydi va
   buzuq faylni **yuklash vaqtida** maydonini nomlab rad etadi. Sozlamalar global
   static emas — kerak bo'lgan joyga uzatiladi, ya'ni simulyatsiyaning kirishlari oshkora.
+- **Qahramon kuchayadi (leveling)** — skelet o'ldirilsa XP, yetarli XP'da daraja, har
+  darajada ko'proq jon / ko'proq zarar / kamroq zarar olish. Daraja run ichida o'sadi va
+  o'lim bilan **nolga qaytadi** (roguelike, meta-progress yo'q).
+  **Engine'ning qaysi qismi ishlatildi va nega:** `ExperienceModule` XP'ni hisoblash uchun
+  (`WeaponUpdate` allaqachon o'ldiruvchiga qurbonning `ExperienceValue` ini beradi — ya'ni
+  "kim kimni o'ldirdi" savolini engine hal qiladi), lekin uning **rank tizimi emas**:
+  `VeterancyLevel` — 4 ta qattiq rank, ko'paytirgichlari enum ichida hard-code, HP/DEF
+  o'sishi yo'q. Shuning uchun `ExperienceRequired = 0 0 0` bilan ranklar o'chirilgan va u
+  toza XP hisoblagichiga aylantirilgan; darajalar qoidasi o'yinniki (`level.Levelling`).
+  **HP va DEF uchun o'z tanasi:** `ActiveBody` da `maxHealth` va `armor` **final**, shuning
+  uchun o'yin `BodyModule` dan o'z `HeroBody` sini beradi — bu engine'ni o'zgartirish emas,
+  aynan "Kengaytirish choklari" dagi modul choki. DEF engine'ning `Armor` i orqali, har
+  darajada qayta qurilib, barcha `DamageType` lar uchun.
+  **ATK cheklovi:** `WeaponUpdate.damage` final, `removeModule` yo'q, `ExperienceModule`
+  esa `final` — ya'ni birlik bo'yicha zararni oshirish yo'li yo'q. Yagona ochiq ilmoq —
+  `RtsPlayer.multiplyWeaponDamageBonus`, u **o'yinchi bo'yicha**. Qahramon o'yinchining
+  yagona birligi bo'lgani uchun bu hozir aynan uning ATK'si; hamroh unitlar qo'shilsa
+  qayta ko'rish kerak. Bonus `clearWorld` dan omon qoladi, shuning uchun yangi run'da
+  qo'lda qaytariladi (aks holda daraja nolga tushib, ATK qolib ketardi).
+  **Sozlanishi:** hammasi `dungeon.ini` dagi `DungeonLeveling` blokida — maksimal daraja,
+  har daraja narxi, HP/ATK/DEF o'sishi, zarar poli; skeletning qiymati `creatures.ini` da.
+  Ko'paytirgichlar darajadan **bir qadamda** hisoblanadi, to'plab borilmaydi — 7-darajali
+  qahramon unga qanday yetgani bilan farq qilmasin.
+  **HUD (hozircha):** daraja oshganda banner ("Level 2!"), va tanlangan birlikning
+  `hp joriy/maksimal` i — HP o'sishi shu orqali ko'rinadi. To'liq daraja/XP qatori
+  hozircha **yo'q**: `WorldSnapshot` da o'yin belgilaydigan ko'rsatkich uchun maydon yo'q
+  va `game` ga tegilmadi. Buning uchun snapshotga bitta "status line" maydoni kerak.
 - **Generatsiya ham determinizm shartnomasida** — `DeterministicRng` (xorshift64,
   faqat butun sonli amallar). Generatsiya yo'lida `Math.random`, devor-soati va
   trigonometriya yo'q; har keyingi run'ning seed'i oldingisidan shu zanjir bilan
@@ -1164,4 +1191,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/gen/DungeonGenerator.java` | seed'dan xonalar + koridorlar (ulanish kafolati) |
 | `dungeon/…/dungeon/ai/{HeroBrain,SkeletonBrain}.java` | klik-ataka va skelet AI'si |
 | `dungeon/…/dungeon/run/DungeonRun.java` | run loop: o'lim → yangi seed → yangi dungeon |
+| `dungeon/…/dungeon/level/Levelling.java` | daraja qoidalari — sof, INI qiymatlaridan |
+| `dungeon/…/dungeon/level/HeroBody.java` | o'sadigan tana (engine'niki final) + `Armor` |
+| `dungeon/…/dungeon/level/HeroProgress.java` | XP → daraja → atributlar, run'da nolga qaytish |
 | `dungeon/src/main/resources/uz/duke/dungeon/*.ini` | o'yin ma'lumoti — kompilyatsiyasiz sozlanadi |

@@ -3,6 +3,7 @@ package uz.duke.dungeon.content;
 import java.util.Map;
 import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
+import uz.duke.dungeon.level.Levelling;
 
 /**
  * Every tuning number that is not a unit stat, read from {@code dungeon.ini}.
@@ -49,6 +50,17 @@ public final class DungeonSettings {
 
     private int respawnDelayFrames = 60;
 
+    // ---- leveling ----
+
+    private int maxLevel = 10;
+    private int xpBase = 30;
+    private int xpStep = 15;
+    private int healthPerLevel = 20;
+    private int damagePercentPerLevel = 12;
+    private int armourPercentPerLevel = 5;
+    private int minDamageTakenPercent = 40;
+    private int levelUpBannerFrames = 60;
+
     private DungeonSettings() {
     }
 
@@ -75,6 +87,10 @@ public final class DungeonSettings {
                 "DungeonRun", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, RUN);
+                },
+                "DungeonLeveling", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, LEVELLING);
                 }));
         ini.load();
         settings.validate();
@@ -102,6 +118,14 @@ public final class DungeonSettings {
                 "re-planning every zero frames is not a plan");
         require(closeDistance >= 0, "CloseDistance cannot be negative");
         require(respawnDelayFrames >= 0, "the death pause cannot be negative");
+        require(maxLevel >= Levelling.FIRST_LEVEL, "MaxLevel cannot be below the first level");
+        require(xpBase > 0, "XpBase must be positive or no level is ever reached");
+        require(xpStep >= 0, "XpStep cannot make later levels cheaper");
+        require(healthPerLevel >= 0 && damagePercentPerLevel >= 0 && armourPercentPerLevel >= 0,
+                "a level cannot take something away");
+        require(minDamageTakenPercent > 0 && minDamageTakenPercent <= 100,
+                "the damage floor must leave some way to lose");
+        require(levelUpBannerFrames >= 0, "the level-up message cannot last negative frames");
     }
 
     private static void require(boolean condition, String message) {
@@ -134,6 +158,17 @@ public final class DungeonSettings {
     private static final FieldParseTable<DungeonSettings> RUN =
             new FieldParseTable<DungeonSettings>()
                     .add("RespawnDelayFrames", Ini.integer((s, v) -> s.respawnDelayFrames = v));
+
+    private static final FieldParseTable<DungeonSettings> LEVELLING =
+            new FieldParseTable<DungeonSettings>()
+                    .add("MaxLevel", Ini.integer((s, v) -> s.maxLevel = v))
+                    .add("XpBase", Ini.integer((s, v) -> s.xpBase = v))
+                    .add("XpStep", Ini.integer((s, v) -> s.xpStep = v))
+                    .add("HealthPerLevel", Ini.integer((s, v) -> s.healthPerLevel = v))
+                    .add("DamagePercentPerLevel", Ini.integer((s, v) -> s.damagePercentPerLevel = v))
+                    .add("ArmourPercentPerLevel", Ini.integer((s, v) -> s.armourPercentPerLevel = v))
+                    .add("MinDamageTakenPercent", Ini.integer((s, v) -> s.minDamageTakenPercent = v))
+                    .add("LevelUpBannerFrames", Ini.integer((s, v) -> s.levelUpBannerFrames = v));
 
     // ---- layout ----
 
@@ -207,5 +242,18 @@ public final class DungeonSettings {
 
     public int respawnDelayFrames() {
         return respawnDelayFrames;
+    }
+
+    // ---- leveling ----
+
+    /** The progression rules, as one value the leveling code can be handed. */
+    public Levelling levelling() {
+        return new Levelling(maxLevel, xpBase, xpStep, healthPerLevel,
+                damagePercentPerLevel, armourPercentPerLevel, minDamageTakenPercent);
+    }
+
+    /** How long "Level 2!" stays on screen, in logic frames. */
+    public int levelUpBannerFrames() {
+        return levelUpBannerFrames;
     }
 }
