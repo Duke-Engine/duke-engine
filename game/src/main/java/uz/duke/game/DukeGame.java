@@ -677,6 +677,21 @@ public final class DukeGame {
         }
     }
 
+    /**
+     * Put the game's own figures on the HUD: a hero's level, a wave number, a
+     * countdown — whatever this particular game counts that the engine has no
+     * name for.
+     *
+     * <p>The engine carries the line to the client and never reads it. Without
+     * this a game could only reach the screen through the banner, which is a
+     * different thing: the banner interrupts, this reports.
+     */
+    public void setStatus(String status) {
+        if (client != null) {
+            client.setStatus(status);
+        }
+    }
+
     /** Ask the engine loop to exit; {@link #start()} then returns. */
     public void stop() {
         if (engine != null) {

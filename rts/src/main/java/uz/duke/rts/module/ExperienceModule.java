@@ -17,7 +17,7 @@ import uz.duke.core.thing.GameObject;
  * in turn boosts its combat performance. Holds no per-frame behaviour, so it is
  * a plain {@link Module}, not an {@link UpdateModule}.
  */
-public final class ExperienceModule extends Module {
+public class ExperienceModule extends Module implements DamageModifier {
 
     /**
      * INI config: how much this unit is worth when killed, and the experience
@@ -51,7 +51,7 @@ public final class ExperienceModule extends Module {
         return builder.build();
     }
 
-    private final Data data;
+    protected final Data data;
     private int experience;
     private VeterancyLevel level = VeterancyLevel.REGULAR;
 
@@ -74,14 +74,14 @@ public final class ExperienceModule extends Module {
     }
 
     /** Promotion fully heals the unit, as in Generals. */
-    private void onPromoted() {
+    protected void onPromoted() {
         var body = getOwner().getBody();
         if (body != null) {
             body.heal(body.getMaxHealth());
         }
     }
 
-    private VeterancyLevel levelFor(int xp) {
+    protected VeterancyLevel levelFor(int xp) {
         if (data.heroicXp() > 0 && xp >= data.heroicXp()) {
             return VeterancyLevel.HEROIC;
         }
@@ -107,8 +107,21 @@ public final class ExperienceModule extends Module {
         return level;
     }
 
-    /** The combat damage multiplier from the current rank. */
-    public float getDamageMultiplier() {
+    /**
+     * The combat damage multiplier from the current rank.
+     *
+     * <p>Implements {@link DamageModifier}, so a rank raising damage is now one
+     * example of a general seam rather than a rule wired into the weapon: a game
+     * that wants different levels, or none, attaches something else.
+     */
+    @Override
+    public float damageMultiplier() {
         return level.getDamageMultiplier();
+    }
+
+    /** @deprecated use {@link #damageMultiplier()} — the seam every modifier shares. */
+    @Deprecated
+    public float getDamageMultiplier() {
+        return damageMultiplier();
     }
 }

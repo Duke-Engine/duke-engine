@@ -33,6 +33,8 @@ public final class GameObject {
     private final List<UpdateModule> updateModules = new ArrayList<>();
     private BodyModule body;
     private boolean mobile;
+    /** Bumped whenever the module list changes shape, so a tick can notice. */
+    private int moduleRevision;
 
     private Coord3D position = Coord3D.ZERO;
     private float orientation; // facing angle in radians, 0 = +x
@@ -58,6 +60,7 @@ public final class GameObject {
 
     /** Attach a module. Called during construction; order is preserved. */
     public void addModule(Module module) {
+        moduleRevision++;
         modules.add(module);
         if (module instanceof UpdateModule u) {
             updateModules.add(u);
@@ -74,10 +77,99 @@ public final class GameObject {
         }
     }
 
-    /** Tick every update module once, in attachment order. */
+    /**
+     * Detach a module, undoing everything {@link #addModule} derived from it.
+     *
+     * <p>Composition is only half a mechanism if things can be added and never
+     * taken away: a unit that changes what it is — losing a weapon, being
+     * upgraded into something else — has to be able to stop carrying the module
+     * that made it the old thing.
+     *
+     * <p>Order is preserved for everything that stays, so the frame's update
+     * sequence is unchanged apart from the gap. Structurally changing the module
+     * list from <em>inside</em> a module's own {@code update()} is not supported
+     * and fails loudly rather than silently skipping a neighbour, which would be
+     * a determinism bug that only showed up as a desync much later.
+     *
+     * @return whether the module was attached in the first place
+     */
+    public boolean removeModule(Module module) {
+        if (!modules.remove(module)) {
+            return false;
+        }
+        moduleRevision++;
+        if (module instanceof UpdateModule u) {
+            updateModules.remove(u);
+        }
+        if (module == body) {
+            body = null;
+        }
+        if (module instanceof Locomotor) {
+            // Another locomotor may still be attached, so this is recomputed
+            // rather than simply cleared.
+            mobile = modules.stream().anyMatch(Locomotor.class::isInstance);
+        }
+        return true;
+    }
+
+    /**
+     * Swap one module for another, with the replacement taking the old one's
+     * place in the update order rather than going to the back.
+     *
+     * <p>Position matters: modules run in attachment order, and a unit whose
+     * weapon was replaced mid-game should still fire at the same point in the
+     * frame as before. Appending instead would quietly reorder the simulation.
+     */
+    public void replaceModule(Module oldModule, Module newModule) {
+        int at = modules.indexOf(oldModule);
+        if (at < 0) {
+            throw new IllegalArgumentException("module is not attached to this object");
+        }
+        removeModule(oldModule);
+        modules.add(at, newModule);
+        if (newModule instanceof UpdateModule u) {
+            // Sit in the same relative place among the update modules, too.
+            int updateAt = 0;
+            for (var module : modules) {
+                if (module == newModule) {
+                    break;
+                }
+                if (module instanceof UpdateModule) {
+                    updateAt++;
+                }
+            }
+            updateModules.add(updateAt, u);
+        }
+        if (newModule instanceof Locomotor) {
+            mobile = true;
+        }
+        if (newModule instanceof BodyModule b) {
+            if (body != null) {
+                throw new IllegalStateException(
+                        "object '" + template.getName() + "' has more than one body module");
+            }
+            body = b;
+        }
+    }
+
+    /**
+     * Tick every update module once, in attachment order.
+     *
+     * <p>Refuses a module that restructures the list while the list is being
+     * walked. This is checked explicitly rather than left to the iterator, which
+     * does not reliably catch it: removing the last element leaves the cursor at
+     * the new size, so the loop simply ends and whatever was in the gap never
+     * ticks. A silently skipped module is a divergence between two machines that
+     * would surface as a desync, far from its cause.
+     */
     public void updateModules() {
-        for (var update : updateModules) {
-            update.update();
+        int revision = moduleRevision;
+        for (int i = 0; i < updateModules.size(); i++) {
+            updateModules.get(i).update();
+            if (moduleRevision != revision) {
+                throw new java.util.ConcurrentModificationException(
+                        "object '" + template.getName() + "' changed its modules while updating");
+            }
         }
     }
 

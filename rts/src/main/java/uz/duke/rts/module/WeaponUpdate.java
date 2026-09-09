@@ -144,11 +144,7 @@ public final class WeaponUpdate extends UpdateModule {
             return; // still reloading
         }
 
-        float dealt = damage;
-        var experience = owner.findModule(ExperienceModule.class);
-        if (experience != null) {
-            dealt *= experience.getDamageMultiplier(); // veterancy bonus
-        }
+        float dealt = damage * damageModifiers(owner);
         var shooter = RtsPlayer.of(world, owner.getPlayerIndex());
         if (shooter != null) {
             dealt *= shooter.getWeaponDamageBonus(); // player-wide upgrade bonus
@@ -166,6 +162,23 @@ public final class WeaponUpdate extends UpdateModule {
             grantKillExperience(owner, victim);
             target = null;
         }
+    }
+
+    /**
+     * Everything attached to this unit that changes how hard it hits, multiplied
+     * together.
+     *
+     * <p>Walked in module order, which is fixed when the object is built, so the
+     * product is the same on every machine and in every replay.
+     */
+    private static float damageModifiers(GameObject owner) {
+        float multiplier = 1f;
+        for (var module : owner.getModules()) {
+            if (module instanceof DamageModifier modifier) {
+                multiplier *= modifier.damageMultiplier();
+            }
+        }
+        return multiplier;
     }
 
     /** Deal area damage to other enemies around the impact point. */

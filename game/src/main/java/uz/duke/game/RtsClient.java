@@ -22,10 +22,16 @@ final class RtsClient extends GameClient {
     private volatile int viewerPlayer = -1; // bound once players exist, at game start
     private volatile WorldSnapshot snapshot = WorldSnapshot.EMPTY;
     private volatile String banner = "";
+    /** The game's own HUD line — the engine sets it, never reads it. */
+    private volatile String status = "";
 
     /** Big centered message ("VICTORY") shown by the display layer. */
     void setBanner(String banner) {
         this.banner = banner == null ? "" : banner;
+    }
+
+    void setStatus(String status) {
+        this.status = status == null ? "" : status;
     }
 
     RtsClient(RtsLogic logic) {
@@ -93,6 +99,7 @@ final class RtsClient extends GameClient {
                 PowerGrid.surplus(logic, viewerPlayer),
                 units,
                 events,
-                banner);
+                banner,
+                status);
     }
 }

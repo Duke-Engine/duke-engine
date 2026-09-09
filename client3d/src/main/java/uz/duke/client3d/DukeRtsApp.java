@@ -1217,9 +1217,11 @@ final class DukeRtsApp extends SimpleApplication {
         String power = snapshot.localPlayerPowerSurplus() >= 0
                 ? "+" + snapshot.localPlayerPowerSurplus()
                 : String.valueOf(snapshot.localPlayerPowerSurplus());
-        hud.setText("$ %d    power %s    t=%.1fs    selected %d%s%s".formatted(
+        hud.setText("$ %d    power %s    t=%.1fs    selected %d%s%s%s".formatted(
                 snapshot.localPlayerMoney(), power, snapshot.gameTimeSeconds(),
-                selected.size(), selectedHealth(), snapshot.paused() ? "    [PAUSED]" : ""));
+                selected.size(), selectedHealth(),
+                snapshot.hasStatus() ? "    " + snapshot.status() : "",
+                snapshot.paused() ? "    [PAUSED]" : ""));
 
         var producer = selectedProducer();
         if (producer == null) {
