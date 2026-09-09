@@ -126,6 +126,10 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, DEPTH);
                 },
+                "DungeonTiles", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, TILES);
+                },
                 // Repeatable, and named by whose skill it is: the block header is
                 // the hero's template and the key that casts it. A second hero is
                 // four more of these and no Java — the roster lives in the file.
@@ -364,6 +368,42 @@ public final class DungeonSettings {
                     .add("CooldownFrames", Ini.integer((s, v) -> s.cooldownFrames = v))
                     .add("CooldownPerLevel", Ini.integer((s, v) -> s.cooldownPerLevel = v))
                     .add("UnlockLevel", Ini.integer((s, v) -> s.unlockLevel = v));
+
+    /**
+     * The modular kit the floor is drawn from, with each piece's full asset path.
+     *
+     * <p>Look rather than rule, like a monster's colour and size in the same file:
+     * the simulation never reads it. It is here because it is a thing someone
+     * retunes — swap the kit, swap the dungeon's whole appearance — and that is
+     * what this file is for.
+     *
+     * @param floor  {@code null} when no kit is named, meaning plain blocks
+     */
+    public record TileArt(String floor, String wall, String corner, float tileSize) {
+    }
+
+    private String tileFolder = "";
+    private String tileFloor;
+    private String tileWall;
+    private String tileCorner;
+    private float tileSize = 4f;
+
+    /** The kit to draw the floor with; {@code floor()} is null if the file named none. */
+    public TileArt tiles() {
+        return new TileArt(path(tileFloor), path(tileWall), path(tileCorner), tileSize);
+    }
+
+    private String path(String piece) {
+        return piece == null ? null : tileFolder + piece;
+    }
+
+    private static final FieldParseTable<DungeonSettings> TILES =
+            new FieldParseTable<DungeonSettings>()
+                    .add("Folder", Ini.string((s, v) -> s.tileFolder = v))
+                    .add("Floor", Ini.string((s, v) -> s.tileFloor = v))
+                    .add("Wall", Ini.string((s, v) -> s.tileWall = v))
+                    .add("Corner", Ini.string((s, v) -> s.tileCorner = v))
+                    .add("TileSize", Ini.real((s, v) -> s.tileSize = v));
 
     private static final FieldParseTable<DungeonSettings> DEPTH =
             new FieldParseTable<DungeonSettings>()

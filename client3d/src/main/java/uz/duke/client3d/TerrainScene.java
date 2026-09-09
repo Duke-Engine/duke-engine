@@ -3,6 +3,7 @@ package uz.duke.client3d;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
+import com.jme3.math.Vector3f;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
@@ -65,6 +66,17 @@ final class TerrainScene {
     private final Function<ColorRGBA, Material> material;
     private final boolean discovery;
 
+    /** The kit the ground is built from, or {@code null} to lay down blocks. */
+    private final Tileset tileset;
+    private final TileSource tiles;
+
+    /**
+     * One node per open cell, holding its floor and whatever walls and posts stand
+     * on its edges. A node rather than a list of pieces because fog is decided per
+     * cell: hiding a cell is one call, not one per piece it happens to own.
+     */
+    private Node[] cellNodes = new Node[0];
+
     /**
      * Per-cell handles, kept only when there is discovery to apply. Indexed
      * {@code cy * width + cx}; a cell with no stone in it has no rock.
@@ -82,9 +94,20 @@ final class TerrainScene {
     }
 
     TerrainScene(Node root, Function<ColorRGBA, Material> material, boolean discovery) {
+        this(root, material, discovery, null, null);
+    }
+
+    TerrainScene(Node root, Function<ColorRGBA, Material> material, boolean discovery,
+            Tileset tileset, TileSource tiles) {
         this.root = root;
         this.material = material;
         this.discovery = discovery;
+        this.tileset = tileset != null && tileset.isUsable() && tiles != null ? tileset : null;
+        this.tiles = tiles;
+    }
+
+    private boolean tiled() {
+        return tileset != null;
     }
 
     Node node() {
@@ -94,6 +117,11 @@ final class TerrainScene {
     /** Lay out {@code grid}, discarding whatever world was there before. */
     void rebuild(PathGrid grid) {
         root.detachAllChildren();
+        cellNodes = new Node[0];
+        if (tiled()) {
+            rebuildFromTiles(grid);
+            return;
+        }
 
         float worldW = grid == null ? DEFAULT_WIDTH : grid.getWidth() * grid.getCellSize();
         float worldH = grid == null ? DEFAULT_HEIGHT : grid.getHeight() * grid.getCellSize();
@@ -139,6 +167,79 @@ final class TerrainScene {
         }
     }
 
+    /**
+     * Lay the floor out of a modular kit.
+     *
+     * <p>No ground plane and no black covers, unlike the block version: with a kit
+     * there is nothing under an unvisited cell to hide, so an undiscovered part of
+     * the map is simply not built into the picture and the background shows
+     * through. Black, which is what it should be.
+     */
+    private void rebuildFromTiles(PathGrid grid) {
+        if (grid == null) {
+            return;
+        }
+        cellsWide = grid.getWidth();
+        cellNodes = new Node[grid.getWidth() * grid.getHeight()];
+        float scale = grid.getCellSize() / tileset.getTileSize();
+
+        for (var placement : TileLayout.of(grid)) {
+            String asset = assetFor(placement.piece());
+            if (asset == null) {
+                continue; // a kit without corner posts is a kit with square notches
+            }
+            var piece = tiles.piece(asset);
+            if (piece == null) {
+                continue;
+            }
+            piece.setLocalScale(scale);
+            piece.setLocalRotation(new com.jme3.math.Quaternion()
+                    .fromAngleAxis(FastMath.DEG_TO_RAD * placement.yaw(), Vector3f.UNIT_Y));
+            piece.setLocalTranslation(placement.x(), 0f, placement.z());
+            cellNode(placement.cellY() * cellsWide + placement.cellX()).attachChild(piece);
+        }
+    }
+
+    /**
+     * A cell the player has never reached is not drawn at all; one he has walked
+     * and left is drawn dimmer.
+     *
+     * <p>Per cell rather than per piece, which is what the node-per-cell is for: a
+     * floor a hundred cells wide is a hundred calls a frame, not a thousand.
+     */
+    private void applyDiscoveryToTiles(Discovery seen) {
+        for (int index = 0; index < cellNodes.length; index++) {
+            var node = cellNodes[index];
+            if (node == null) {
+                continue; // stone; nothing was built here
+            }
+            var state = seen.stateAt(index % cellsWide, index / cellsWide);
+            node.setCullHint(state == Discovery.State.UNSEEN
+                    ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
+            if (state != Discovery.State.UNSEEN) {
+                for (var piece : node.getChildren()) {
+                    tiles.shade(piece, state == Discovery.State.VISIBLE);
+                }
+            }
+        }
+    }
+
+    private String assetFor(TileLayout.Piece piece) {
+        return switch (piece) {
+            case FLOOR -> tileset.getFloor();
+            case WALL -> tileset.getWall();
+            case CORNER -> tileset.getCorner();
+        };
+    }
+
+    private Node cellNode(int index) {
+        if (cellNodes[index] == null) {
+            cellNodes[index] = new Node("cell");
+            root.attachChild(cellNodes[index]);
+        }
+        return cellNodes[index];
+    }
+
     /** The cover over one cell: black while unseen, dim once remembered. */
     private Geometry lid(int cellX, int cellY, float cell) {
         var quad = new Geometry("fog", new Quad(cell, cell));
@@ -164,6 +265,10 @@ final class TerrainScene {
      */
     void applyDiscovery(Discovery seen) {
         if (!discovery || seen == null) {
+            return;
+        }
+        if (tiled()) {
+            applyDiscoveryToTiles(seen);
             return;
         }
         for (int index = 0; index < lids.length; index++) {

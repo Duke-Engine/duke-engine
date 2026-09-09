@@ -3,6 +3,7 @@ package uz.duke.dungeon;
 import uz.duke.client3d.Duke3D;
 import uz.duke.client3d.Hotkeys;
 import uz.duke.client3d.Shell;
+import uz.duke.client3d.Tileset;
 import uz.duke.client3d.Visuals;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.skill.CastSkill;
@@ -80,6 +81,18 @@ public final class Main {
         // on screen — so the ground he uncovers and the things he can see are the
         // same number, and re-tuning one cannot leave the other behind.
         visuals.discoveredBy("Hero");
+
+        // The floor is a modular kit, laid out by the client from the same grid
+        // the pathfinder uses. Named in dungeon.ini rather than here, so swapping
+        // the kit — or dropping back to plain blocks — is an edit, not a rebuild.
+        var art = settings.tiles();
+        if (art.floor() != null) {
+            visuals.tiles(Tileset.create()
+                    .floor(art.floor())
+                    .wall(art.wall())
+                    .corner(art.corner())
+                    .tileSize(art.tileSize()));
+        }
         return visuals;
     }
 }

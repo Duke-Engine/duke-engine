@@ -245,4 +245,119 @@ class TerrainSceneTest {
         return new uz.duke.game.view.UnitView(
                 1, "Hero", 0, x, y, 0f, 10f, 10f, false, true, false, false, -1);
     }
+
+    // ---- built from a modular kit ----
+
+    /** A kit whose pieces are named nodes, so a test can see what was placed where. */
+    private static final class StubTiles implements TileSource {
+        final java.util.List<com.jme3.scene.Spatial> lit = new java.util.ArrayList<>();
+        final java.util.List<com.jme3.scene.Spatial> dimmed = new java.util.ArrayList<>();
+
+        @Override
+        public com.jme3.scene.Spatial piece(String assetPath) {
+            return new Node(assetPath);
+        }
+
+        @Override
+        public void shade(com.jme3.scene.Spatial piece, boolean isLit) {
+            (isLit ? lit : dimmed).add(piece);
+        }
+    }
+
+    private static Tileset kit() {
+        return Tileset.create().floor("floor").wall("wall").corner("corner").tileSize(4f);
+    }
+
+    /** Every piece in the scene, however deeply the cell nodes nest them. */
+    private static java.util.List<com.jme3.scene.Spatial> pieces(Node root, String named) {
+        var found = new java.util.ArrayList<com.jme3.scene.Spatial>();
+        for (var cell : root.getChildren()) {
+            for (var piece : ((Node) cell).getChildren()) {
+                if (piece.getName().equals(named)) {
+                    found.add(piece);
+                }
+            }
+        }
+        return found;
+    }
+
+    /**
+     * With a kit, the ground is tiles rather than one big plane and a block per
+     * rock — and there is no plane at all, so an undiscovered cell has nothing
+     * behind it to show through.
+     */
+    @Test
+    void aTiledWorldIsBuiltOfPiecesAndHasNoGroundPlane() {
+        var root = new Node("terrain");
+        var terrain = new TerrainScene(root, color -> null, true, kit(), new StubTiles());
+
+        terrain.rebuild(MapLoader.fromText(ROOM));
+
+        assertEquals(9, pieces(root, "floor").size(), "a floor tile per open cell");
+        assertTrue(pieces(root, "wall").size() > 0, "and walls around the outside");
+        assertTrue(root.getChildren().stream().noneMatch(c -> c.getName().equals("ground")),
+                "the ground plane belongs to the block version");
+    }
+
+    /** A rebuild replaces the tiled world too, however many runs are played. */
+    @Test
+    void rebuildingReplacesATiledWorld() {
+        var root = new Node("terrain");
+        var terrain = new TerrainScene(root, color -> null, true, kit(), new StubTiles());
+
+        terrain.rebuild(MapLoader.fromText(ROOM));
+        int first = pieces(root, "floor").size();
+        for (int run = 0; run < 5; run++) {
+            terrain.rebuild(MapLoader.fromText(run % 2 == 0 ? SMALL : ROOM));
+        }
+        terrain.rebuild(MapLoader.fromText(ROOM));
+
+        assertEquals(first, pieces(root, "floor").size(), "one world's worth, not six");
+    }
+
+    /** A kit with no corner post still builds; the notches are simply left square. */
+    @Test
+    void aKitWithoutEveryPieceStillBuilds() {
+        var root = new Node("terrain");
+        var partial = Tileset.create().floor("floor").tileSize(4f);
+        var terrain = new TerrainScene(root, color -> null, true, partial, new StubTiles());
+
+        terrain.rebuild(MapLoader.fromText(ROOM));
+
+        assertEquals(9, pieces(root, "floor").size());
+        assertEquals(0, pieces(root, "wall").size(), "it never named a wall");
+    }
+
+    /** Fog works the same on tiles: unseen ground is not drawn at all. */
+    @Test
+    void anUndiscoveredTileIsNotDrawn() {
+        var root = new Node("terrain");
+        var grid = MapLoader.fromText(ROOM);
+        var terrain = new TerrainScene(root, color -> null, true, kit(), new StubTiles());
+        terrain.rebuild(grid);
+
+        terrain.applyDiscovery(new Discovery(grid));
+
+        assertTrue(root.getChildren().stream()
+                        .allMatch(cell -> cell.getCullHint() == com.jme3.scene.Spatial.CullHint.Always),
+                "nobody has been anywhere, so nothing should be drawn");
+    }
+
+    /** Where he stands is drawn lit; where he has been is drawn dimmer. */
+    @Test
+    void aWalkedTileIsDrawnDimmerThanOneInSight() {
+        var root = new Node("terrain");
+        var grid = MapLoader.fromText(ROOM);
+        var stub = new StubTiles();
+        var terrain = new TerrainScene(root, color -> null, true, kit(), stub);
+        terrain.rebuild(grid);
+        var seen = new Discovery(grid);
+
+        seen.reveal(java.util.List.of(unit(15f, 15f)), 0, 12f); // one corner of the room
+        seen.reveal(java.util.List.of(unit(35f, 35f)), 0, 12f); // and away to the other
+        terrain.applyDiscovery(seen);
+
+        assertTrue(!stub.lit.isEmpty(), "something is in sight");
+        assertTrue(!stub.dimmed.isEmpty(), "and something is only remembered");
+    }
 }

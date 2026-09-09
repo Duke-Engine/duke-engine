@@ -104,6 +104,7 @@ public final class Visuals {
     private final UnitVisual defaults = new UnitVisual();
     private String assetRoot;
     private String discoveryTemplate;
+    private Tileset tileset;
 
     private Visuals() {
     }
@@ -162,5 +163,24 @@ public final class Visuals {
     /** The template whose vision opens the map, or {@code null} for no discovery. */
     public String getDiscoveryTemplate() {
         return discoveryTemplate;
+    }
+
+    /**
+     * Build the ground from a modular kit rather than from coloured blocks.
+     *
+     * <p>The same bargain as {@link #discoveredBy}: the client knows how to lay a
+     * kit out — floor on open ground, walls on the boundary, posts in the corners
+     * — and the game says which kit. A game that never asks keeps the blocks,
+     * which is the right picture for a map that is a battlefield rather than a
+     * building.
+     */
+    public Visuals tiles(Tileset tileset) {
+        this.tileset = tileset;
+        return this;
+    }
+
+    /** The kit the ground is built from, or {@code null} for plain blocks. */
+    public Tileset getTiles() {
+        return tileset;
     }
 }

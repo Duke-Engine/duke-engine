@@ -99,7 +99,8 @@ final class DukeRtsApp extends SimpleApplication {
      * run) kept the old one on screen while everything else moved on.
      */
     private final Node terrainNode = new Node("terrain");
-    private final TerrainScene terrain;
+    /** Built at init rather than construction: a modular kit needs the asset manager. */
+    private TerrainScene terrain;
     /** The grid the terrain was built from — a different instance means a new world. */
     private uz.duke.core.pathfind.PathGrid builtFrom;
 
@@ -165,7 +166,6 @@ final class DukeRtsApp extends SimpleApplication {
         this.visuals = visuals;
         this.shell = shell;
         this.hotkeys = hotkeys == null ? Hotkeys.none() : hotkeys;
-        this.terrain = new TerrainScene(terrainNode, this::lit, visuals.getDiscoveryTemplate() != null);
     }
 
     /** The simulation thread, if the player ever pressed Play. */
@@ -196,6 +196,10 @@ final class DukeRtsApp extends SimpleApplication {
             assetManager.registerLocator(visuals.getAssetRoot(),
                     com.jme3.asset.plugins.FileLocator.class);
         }
+
+        // Needs the locators above, so it cannot be built with the app itself.
+        terrain = new TerrainScene(terrainNode, this::lit,
+                visuals.getDiscoveryTemplate() != null, visuals.getTiles(), new KitTiles());
 
         var sun = new DirectionalLight(new Vector3f(-0.4f, -1f, -0.5f).normalizeLocal(),
                 new ColorRGBA(1f, 0.97f, 0.9f, 1f));
@@ -1452,6 +1456,102 @@ final class DukeRtsApp extends SimpleApplication {
             }
         });
         return type.cast(found[0]);
+    }
+
+    /**
+     * Loads a modular kit's pieces and shades them.
+     *
+     * <p>Two things happen here that are easy to miss until the dungeon comes out
+     * black. First, jME's glTF loader gives every piece a <b>PBR</b> material, and
+     * PBR takes its ambient light from an environment map — of which this client
+     * has none, only a sun and a flat ambient, so a PBR scene renders nearly
+     * unlit. Kenney's kits are flat-shaded palette art anyway, so the material is
+     * rebuilt as plain lighting over the same texture, which is both correct and
+     * what the art was drawn for.
+     *
+     * <p>Second, a floor of several hundred tiles is several hundred copies of
+     * three meshes. They are cloned without cloning materials, and there are
+     * exactly two materials for the whole kit — lit and remembered — so making a
+     * cell dimmer is swapping which of the two it points at, not building one.
+     */
+    private final class KitTiles implements TileSource {
+
+        private final Map<String, Spatial> masters = new HashMap<>();
+        private Material litTile;
+        private Material rememberedTile;
+
+        @Override
+        public Spatial piece(String assetPath) {
+            var master = masters.get(assetPath);
+            if (master == null) {
+                try {
+                    master = assetManager.loadModel(assetPath);
+                } catch (RuntimeException e) {
+                    // A missing piece is a missing file, not a broken client: draw
+                    // the rest of the floor and say which one went missing.
+                    if (missingAssets.add(assetPath)) {
+                        LOG.warning(() -> "tile not found: " + assetPath + " (" + e.getMessage() + ")");
+                    }
+                    return null;
+                }
+                buildMaterials(master);
+                masters.put(assetPath, master);
+            }
+            var copy = master.clone(false); // share the mesh and the material
+            shade(copy, true);
+            return copy;
+        }
+
+        /** One pair of materials for the whole kit, from the first piece's texture. */
+        private void buildMaterials(Spatial master) {
+            if (litTile != null) {
+                return;
+            }
+            var atlas = textureOf(master);
+            litTile = tileMaterial(atlas, ColorRGBA.White, new ColorRGBA(0.55f, 0.55f, 0.62f, 1f));
+            rememberedTile = tileMaterial(atlas,
+                    new ColorRGBA(0.22f, 0.22f, 0.26f, 1f), new ColorRGBA(0.10f, 0.10f, 0.13f, 1f));
+        }
+
+        private Material tileMaterial(com.jme3.texture.Texture atlas,
+                ColorRGBA diffuse, ColorRGBA ambient) {
+            var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
+            material.setBoolean("UseMaterialColors", true);
+            material.setColor("Diffuse", diffuse);
+            material.setColor("Ambient", ambient);
+            if (atlas != null) {
+                material.setTexture("DiffuseMap", atlas);
+            }
+            return material;
+        }
+
+        /** The kit's colour atlas, taken off whatever material the loader made. */
+        private com.jme3.texture.Texture textureOf(Spatial model) {
+            if (model instanceof Geometry geometry && geometry.getMaterial() != null) {
+                for (var param : geometry.getMaterial().getParams()) {
+                    if (param.getValue() instanceof com.jme3.texture.Texture texture) {
+                        return texture;
+                    }
+                }
+            }
+            if (model instanceof Node node) {
+                for (var child : node.getChildren()) {
+                    var found = textureOf(child);
+                    if (found != null) {
+                        return found;
+                    }
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public void shade(Spatial piece, boolean isLit) {
+            var material = isLit ? litTile : rememberedTile;
+            if (material != null) {
+                piece.setMaterial(material);
+            }
+        }
     }
 
     private Material lit(ColorRGBA color) {

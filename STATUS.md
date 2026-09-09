@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 437 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-09 · **Testlar:** 460 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -940,7 +940,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **437 test yashil** (core 133, rts 94, generals 5, game 28, client3d 59, studio 8, dungeon 110) — 0 failure / 0 error.
+- **460 test yashil** (core 133, rts 94, generals 5, game 28, client3d 75, studio 8, dungeon 117) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1017,6 +1017,32 @@ ikkala peer aynan bir kadrda qo'llaydi.
     masofasi (`AttackRange` 8) undan kattaroq, shuning uchun **har bir**
     avto-tanlangan nishon "buyurilgan" bo'lib o'qilardi. Chegara qahramonning
     o'z `ThingTemplate` idan o'qiladi, o'yinda takrorlanmaydi.
+- **Zamin modulli to'plamdan quriladi** — Kenney Modular Dungeon Kit (CC0),
+  `template-floor` / `template-wall` / `template-wall-corner`.
+  - **Devor — katak emas, chegara.** To'plamning devori plitka **chekkasida**
+    turadigan bo'lak. Shuning uchun u tosh katakning markaziga emas, ochiq katak
+    bilan tosh orasidagi **chiziqqa** qo'yiladi — ya'ni pathfinder qahramonni
+    to'xtatadigan aynan o'sha chiziqqa. Ko'rinadigan devor bilan to'qnashuv
+    devori bir xil bo'ladi (eski quti usulida ular yarim katak farq qilardi).
+  - **O'lcham tasodifan silliq:** plitka 4 model birligi, katak 10 dunyo birligi
+    → masshtab **2.5**, hech qanday "taxminan" yo'q. `DungeonTilesTest` buni
+    ikki tomondan qulflaydi: modelning haqiqiy o'lchami va INI'dagi raqam.
+  - **Ikki burchak bo'lagi devor uchrashgan joydagi kvadrat o'yiqni to'ldiradi** —
+    aks holda xona ichidan devor teshigi ko'rinadi.
+  - **Tuman tekin mos tushdi:** har ochiq katak o'z `Node`i, ya'ni ko'rilmagan
+    katak butunlay chizilmaydi (zamin tekisligi ham yo'q — orqa fon qora),
+    ochilgani xira materialda. Kadr uchun katak boshiga bitta chaqiruv.
+  - **Chizish soni kamaydi:** haqiqiy qavatlarda eng yomoni 866 bo'lak
+    (527 pol + 306 devor + 33 burchak) — eskisi 1800 tuman qopqog'i + toshlar edi.
+  - **Tuzoq:** jME'ning glTF yuklovchisi **PBR** material yasaydi, PBR esa ambient
+    yorug'likni env-map'dan oladi — klientda `LightProbe` yo'q, natijada plitkalar
+    deyarli qop-qora chiqadi. Material `Lighting.j3md` ga qayta qurildi (atlas
+    `DiffuseMap` sifatida). Kenney uslubi baribir tekis, ya'ni bu ham to'g'ri,
+    ham chizilgan narsaga mos.
+  - **To'plam so'ramagan o'yin avvalgidek** — quti va zamin tekisligi. `studio`,
+    sandbox va RTS ko'rinishi o'zgarmagan.
+  - Yo'llar `dungeon.ini` da (`DungeonTiles`), `MonsterKind` rangi kabi: to'plamni
+    almashtirish — tahrir, qayta kompilyatsiya emas. `Floor` nomlanmasa — qutilar.
 - **Kashfiyot tumani — xarita qora, qahramon uni ochib boradi.** Uch holat:
   ko'rilmagan (qora — na yer, na devor, na dushman), ochilgan (devorlar ko'rinadi,
   dushmanlar yo'q), hozir ko'rinayotgan (hammasi). Ikki qatlamdan yig'ilgan:
@@ -1428,6 +1454,9 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/CameraFocus.java` | kamera nishoni/zoom — boshda o'z birligiga, keyin erkin |
 | `client3d/…/client3d/{SelectionBox,Formation,OrderMarkers}.java` | drag-select, guruh joylashuvi, buyruq metkalari |
 | `client3d/…/client3d/Discovery.java` | kashfiyot tumani — qora / xotira / ko'rinayotgan (faqat klient) |
+| `client3d/…/client3d/TileLayout.java` | qaysi plitka qayerda — sof arifmetika, jME'siz |
+| `client3d/…/client3d/{Tileset,TileSource}.java` | to'plam ta'rifi + bo'lak yuklovchisi choki |
+| `dungeon/src/main/resources/Models/dungeon/` | Kenney to'plami (CC0) + `colormap.png` atlasi |
 | `dungeon/…/dungeon/Dungeon.java` | o'yinni yig'ish (fixture xona va haqiqiy o'yin) |
 | `dungeon/…/dungeon/content/DungeonSettings.java` | `dungeon.ini` — generatsiya va xulq sozlamalari |
 | `dungeon/…/dungeon/gen/DungeonGenerator.java` | seed'dan xonalar + koridorlar (ulanish kafolati) |
