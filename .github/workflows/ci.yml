@@ -1,0 +1,265 @@
+# Duke Dungeon: the gate on master, and the release when a version is tagged.
+#
+# One file for both, because they are one pipeline with a longer tail rather than
+# two pipelines. Every push to master is built and tested on all three platforms
+# it ships to; a tag runs the same jobs and then keeps what they produced.
+#
+# What a release contains is a self-contained bundle per platform — the game, its
+# art, and a Java runtime — so a player installs nothing. That is also why there
+# are three runners: jpackage builds for the machine it is standing on and cannot
+# cross-compile, so the Windows bundle can only be made on Windows.
+#
+#   git tag v0.1.0 && git push origin v0.1.0
+#
+# Or run it by hand from the Actions tab with a version, for a release without a
+# tag on the history.
+
+name: CI
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, without the v (e.g. 0.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write # the release job creates a release and uploads to it
+
+concurrency:
+  # One run per branch or tag. A second push while the first is still packaging
+  # cancels it — except for tags, where a cancelled run is a half-made release.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  APP_NAME: Duke Dungeon
+  MAIN_CLASS: uz.duke.dungeon.Main
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # The gate. Runs on everything, including pull requests.
+  # ---------------------------------------------------------------------------
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false # one platform failing should not hide the other two
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # No display anywhere in the suite: asset loading needs none, which is what
+      # lets a broken model fail a build rather than fail in front of a player.
+      - name: Build and test
+        run: ./gradlew build --no-daemon --stacktrace
+        shell: bash
+
+      - name: Keep the reports when it fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.os }}
+          path: '**/build/reports/tests/**'
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # The bundles. Only for a tag, or when asked by hand.
+  # ---------------------------------------------------------------------------
+  package:
+    name: Package for ${{ matrix.label }}
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows-x64
+            archive: zip
+          - os: macos-latest
+            label: macos-arm64
+            archive: dmg
+          - os: ubuntu-latest
+            label: linux-x64
+            archive: tar.gz
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # A tag is v0.1.0 and jpackage wants 0.1.0 — on Windows it insists, because
+      # the version goes into the executable's own metadata.
+      - name: Work out the version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Assemble the game
+        shell: bash
+        run: ./gradlew :dungeon:installDist --no-daemon
+
+      # --add-modules is spelled out rather than left to the default: LWJGL needs
+      # sun.misc.Unsafe, which lives in jdk.unsupported, and a runtime built
+      # without it fails at the first frame instead of at build time.
+      - name: Bundle it with a runtime
+        shell: bash
+        run: |
+          MAIN_JAR=$(cd dungeon/build/install/dungeon/lib && ls dungeon-*.jar | head -1)
+          echo "main jar: $MAIN_JAR"
+          # $JAVA_HOME rather than the bare name. A jpackage from an older JDK
+          # builds an older runtime, which then refuses the classes it was handed
+          # — and on Windows the windowed exe dies with exit 1 and no message,
+          # which is a long afternoon for whoever meets it next.
+          "$JAVA_HOME/bin/jpackage" \
+            --type app-image \
+            --name "$APP_NAME" \
+            --app-version "${{ steps.version.outputs.value }}" \
+            --vendor "${{ github.repository_owner }}" \
+            --description "A dungeon crawler on the duke-engine" \
+            --input dungeon/build/install/dungeon/lib \
+            --main-jar "$MAIN_JAR" \
+            --main-class "$MAIN_CLASS" \
+            --add-modules java.se,jdk.unsupported \
+            --java-options "-Xmx2g" \
+            ${{ matrix.os == 'macos-latest' && '--java-options -XstartOnFirstThread' || '' }} \
+            --dest build/package
+
+      - name: Wrap it up
+        id: archive
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.value }}"
+          NAME="duke-dungeon-$VERSION-${{ matrix.label }}"
+          mkdir -p build/release
+          case "${{ matrix.archive }}" in
+            zip)
+              # Windows has no tar with the exec bit to preserve, and every
+              # Windows machine can open a zip without being told how.
+              powershell -Command "Compress-Archive -Path 'build/package/*' -DestinationPath 'build/release/$NAME.zip'"
+              ;;
+            tar.gz)
+              # tar, not zip: zip loses the executable bit, and a launcher that
+              # will not launch is a strange thing to ship.
+              tar -C build/package -czf "build/release/$NAME.tar.gz" .
+              ;;
+            dmg)
+              # jpackage makes the disc image itself, from the app image it has
+              # just built, so the .app inside is the one that was tested.
+              "$JAVA_HOME/bin/jpackage" \
+                --type dmg \
+                --name "$APP_NAME" \
+                --app-version "$VERSION" \
+                --vendor "${{ github.repository_owner }}" \
+                --app-image "build/package/$APP_NAME.app" \
+                --dest build/release
+              # jpackage names the image after the app and its version; which of
+              # the two spellings it picks has changed between releases, so take
+              # whatever it made rather than guessing at the name.
+              mv build/release/*.dmg "build/release/$NAME.dmg"
+              ;;
+          esac
+          ls -la build/release
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.archive.outputs.name }}
+          path: build/release/*
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # The release itself: one per tag, holding all three bundles.
+  # ---------------------------------------------------------------------------
+  release:
+    name: Publish the release
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the notes are written from the log since the last tag
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: bundles
+          merge-multiple: true
+
+      - name: Work out the version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Write the notes
+        id: notes
+        shell: bash
+        run: |
+          PREVIOUS=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          {
+            echo '## What is in it'
+            echo
+            if [ -n "$PREVIOUS" ]; then
+              git log --no-merges --pretty='- %s' "$PREVIOUS..HEAD"
+            else
+              git log --no-merges --pretty='- %s' -20
+            fi
+            echo
+            echo '## Which file'
+            echo
+            echo 'Each one carries its own Java runtime, so there is nothing to install first.'
+            echo
+            echo '| You are on | Download | Then |'
+            echo '|---|---|---|'
+            echo '| Windows | `…-windows-x64.zip` | Unzip it and run `Duke Dungeon.exe`. |'
+            echo '| macOS (Apple silicon) | `…-macos-arm64.dmg` | Open it, drag the app across. It is unsigned, so the first time: right-click the app and choose Open. |'
+            echo '| Linux | `…-linux-x64.tar.gz` | `tar -xzf …` and run `Duke Dungeon/bin/Duke Dungeon`. |'
+          } > notes.md
+          cat notes.md
+
+      # gh, rather than one of the release actions: it is on the runner already,
+      # so the only things this workflow trusts are GitHub's own and Gradle's.
+      - name: Publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}"
+          test -n "$(ls bundles)" || { echo "nothing was packaged"; exit 1; }
+          ls -la bundles
+          gh release create "$TAG" bundles/* \
+            --title "Duke Dungeon ${{ steps.version.outputs.value }}" \
+            --notes-file notes.md \
+            --target "$GITHUB_SHA"

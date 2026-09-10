@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-10 · **Testlar:** 657 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-10 · **Testlar:** 672 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -1549,6 +1549,30 @@ ikkala peer aynan bir kadrda qo'llaydi.
     burchagi meniki" deyish uchun; siluet buni qiladi.
   - Panelga bitta ham inglizcha so'z qo'shilmadi: `Kuchlar`, `Zarba`, `Zirh`,
     `Tezlik` va tanlov ekranining sarlavhasi `DungeonHud` blokidan keladi.
+  - **Uyada endi ikonka bor, va u INI'da tanlanadi.** Uya ilgari klavishning
+    harfini chizardi. Endi har `DungeonSkill` bloki `Icon = arrowhead.png` deydi,
+    `DungeonHud` esa `IconFolder = Icons/skills/` — tayyor yo'l status qatorida
+    ketadi (`skill=Q,Icons/skills/arrowhead.png,ready`), klient esa berilgan
+    yo'ldagi rasmni chizadi. **Kodda birorta ikonka nomi yo'q**: beshinchi skill —
+    faylning beshinchi bloki, Java'ga tegilmaydi. Klient uchta boshqa o'yinga
+    ham xizmat qiladi va ularning birortasi rasmni qayerda saqlashini bilmasligi
+    kerak, shuning uchun **nom emas, yo'l** uzatiladi.
+    - **Rasm oq, bo'yash chizishda.** Bitta fayl uch holatga yetadi: tayyor —
+      mash'al rangi, kuluarda — sovuq kulrang, yopiq — deyarli o'chgan. `dress()`
+      avvalgidek `Color` ni o'rnatadi va qo'lida harfmi yoki tekstura ekanini
+      bilmaydi.
+    - **Topilmasa — harf.** Rasmni o'yin nomlaydi, klient imlosini tekshira
+      olmaydi; yo'q fayl logga bir marta yoziladi (`HeroPanel.iconTexture`) va uya
+      rasmlar paydo bo'lishidan oldingi ko'rinishiga qaytadi. Panel yo'qolmaydi.
+    - **PNG, va faqat PNG.** jME SVG o'qimaydi, shuning uchun to'rt ikonka
+      128×128 shaffof PNG qilib chiqarilgan va faqat shu repoda yotadi. Gradle
+      qadami yo'q — ikonka ham san'at, va san'at modellar kabi tayyor holda
+      saqlanadi. Asl `.svg`/`.png` fayllar game-icons.net'da, havolalari
+      `License.txt` da.
+    - **Ikonkalar CC BY 3.0** (Lorc, game-icons.net) — atribut talab qilinadi va
+      `CREDITS.md` da hamda `Icons/skills/License.txt` da berilgan. Asl fayllarda
+      birinchi path — qora fon kvadrati; u olib tashlangan, aks holda tosh uya
+      ustida qora plitka chiqardi.
 - **Skillni sichqoncha bilan ham ishlatish** — uyaga bosish klavishani bosish
   bilan **bir xil yo'ldan** boradi: klik klientning o'z `pressHotkey` iga tushadi,
   ya'ni nishon talab qiladigan skill xuddi shunday qurollanadi va kutadi,
@@ -1942,6 +1966,23 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 
 ### Infratuzilma
 
+- **CI/CD: `.github/workflows/ci.yml`** — bitta fayl, ikkita ish.
+  - **Darvoza:** `master`ga har push va har PR → uch platformada (`ubuntu`,
+    `windows`, `macos`) `./gradlew build`. Testlar ekran talab qilmaydi, shuning
+    uchun headless runner'da to'liq ishlaydi. Yiqilsa test hisobotlari artifact
+    bo'lib saqlanadi.
+  - **Release:** `v*` tegi push qilinganda (yoki Actions'dan qo'lda, versiya
+    kiritib). Har platformada `jpackage --type app-image` → **o'z Java 25
+    runtime'i bilan** to'plam; o'yinchi hech narsa o'rnatmaydi. Windows `.zip`
+    (~92 MB), macOS `.dmg`, Linux `.tar.gz` (zip emas — zip exec bitini
+    yo'qotadi). Keyin `gh release create` hammasini bitta release'ga qo'yadi.
+  - **Nega uch runner:** `jpackage` faqat o'zi turgan mashina uchun quradi,
+    cross-compile qilmaydi. Windows to'plamini faqat Windows'da yasash mumkin.
+  - **`--add-modules java.se,jdk.unsupported`** — atayin yozilgan: LWJGL
+    `sun.misc.Unsafe` ishlatadi, u `jdk.unsupported`da. Usiz runtime quriladi-yu,
+    o'yin birinchi kadrda yiqiladi.
+  - Uchinchi tomon action'i yo'q — faqat GitHub'niki va Gradle'niki (`gh` CLI
+    runner'da bor).
 - `:sandbox3d:startScripts` `jme3-testdata` jar'ini talab qiladi; tarmoq sekin bo'lsa
   `./gradlew build` aynan shu yerda yiqiladi (kod muammosi emas).
 
@@ -1949,6 +1990,12 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 
 ## 10. Tuzoqlar (gotchas)
 
+- **macOS `-XstartOnFirstThread` tuzog'i:** GLFW macOS'da asosiy oqimni talab
+  qiladi, shuning uchun release to'plamiga bu flag qo'shiladi. Yon ta'siri bor:
+  shu flag bilan macOS'da **Swing ishlamaydi**. Hozir zarar yo'q
+  (`DukeRtsApp.askText` faqat LAN'ga ulanishda ishlatiladi, dungeon esa LAN
+  entry'sini so'ramaydi) — lekin dungeon LAN qo'shsa, macOS'da o'sha dialog
+  qotib qoladi.
 - **Reset tuzog'i:** `GameEngine.init()` subsystemlarni init qilgandan keyin `resetAll()` chaqiradi —
   `GameLogic.init()` ichida yaratilgan obyektlar o'chib ketadi. Template'lar, modul-builderlar va
   o'yinchilar reset'dan omon qoladi. Obyektlarni reset'dan **keyin** yarating.
@@ -2111,7 +2158,9 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/skill/{CastSkill,Skills}.java` | o'yinning o'z buyrug'i (nishoni bilan) + status qatori |
 | `dungeon/…/dungeon/run/HeroStatus.java` | panel o'qiydigan qator — so'zlar shu yerda tugaydi |
 | `client3d/…/client3d/{Preload,LoadingOverlay}.java` | o'yin so'raydigan hamma faylning ro'yxati + yuklash ekrani |
-| `client3d/…/client3d/HeroPanel.java` | qahramon paneli — tosh uyalar, barlar, chuqurlik |
+| `client3d/…/client3d/HeroPanel.java` | qahramon paneli — tosh uyalar, barlar, chuqurlik; ikonka yo'li INI'dan keladi |
+| `dungeon/src/main/resources/Icons/skills/` | skill ikonkalari — 128×128 shaffof PNG (Lorc, CC BY 3.0) |
+| `CREDITS.md` | san'at mualliflari va litsenziyalari — CC BY talab qiladigan atribut |
 | `client3d/…/client3d/Hotkeys.java` | o'yin da'vo qilgan klavishlar → `postCommand`; klavish to'qnashuvini hal qiladi |
 | `dungeon/…/dungeon/level/Levelling.java` | daraja qoidalari — sof, INI qiymatlaridan |
 | `dungeon/…/dungeon/level/HeroBody.java` | o'sadigan tana (engine'niki final) + `Armor` |

@@ -771,6 +771,14 @@ final class DukeRtsApp extends SimpleApplication {
      * work only the render thread may do — so it is done here a piece at a time,
      * between frames, while the bar keeps moving. It is the half that matters:
      * a file read but never handed over stalls on first sight exactly as before.
+     *
+     * <p>Both halves keep what they load, and that is not tidiness. jME's asset
+     * cache holds what it has parsed through a <em>weak</em> reference: an asset
+     * nobody is holding is collected, and the next request for it reads the file
+     * again. Load twenty megabytes, drop it on the floor, and the collector is
+     * free to undo the entire exercise before the first monster walks in — with
+     * no error, no warning, and a stall in exactly the frame this exists to spare.
+     * So one instance of each is kept for the life of the window.
      */
     private final class ArtLoad {
 
@@ -807,19 +815,23 @@ final class DukeRtsApp extends SimpleApplication {
                 reading = job.assetPath();
                 try {
                     switch (job.kind()) {
-                        case MODEL, TILE -> assetManager.loadModel(job.assetPath());
+                        case MODEL, TILE -> keep(assetManager.loadModel(job.assetPath()));
                         case ANIMATIONS -> animationLibraries.computeIfAbsent(job.assetPath(),
                                 assetManager::loadModel);
-                        case TEXTURE -> assetManager.loadTexture(job.assetPath());
+                        case TEXTURE -> keep(assetManager.loadTexture(job.assetPath()));
                         // Sound is the render thread's: an audio node goes into the
                         // scene, and the scene is not this thread's to touch.
                         case SOUND -> { }
                     }
-                } catch (RuntimeException e) {
+                } catch (RuntimeException | LinkageError e) {
                     warnOnce(job.assetPath(), job.kind().name().toLowerCase(
                             java.util.Locale.ROOT));
+                } finally {
+                    // In a finally, because a thread that dies holding the count
+                    // leaves the loading screen up for ever, and a game that will
+                    // not start is worse than a game missing one texture.
+                    read.incrementAndGet();
                 }
-                read.incrementAndGet();
             }
             reading = "";
         }
@@ -878,10 +890,12 @@ final class DukeRtsApp extends SimpleApplication {
                     body = partOf(body, look.modelPart, look.modelPath);
                 }
                 dressModel(body, look);
+                // Left in the scene, culled, for as long as the window lasts. A
+                // clone is what holds a parsed model in jME's cache; drop it and
+                // the file is read again the first time a creature needs it.
                 warmNode.attachChild(body);
                 rootNode.updateGeometricState();
                 renderManager.preloadScene(body);
-                body.removeFromParent();
             } catch (RuntimeException e) {
                 warnOnce(look.modelPath, "model");
             }
@@ -889,13 +903,22 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * Where a creature stands for the one frame it is shown to the graphics card.
+     * Where one of each creature stands, culled, for the life of the window.
      *
      * <p>In the scene rather than off to the side of it, because a spatial with no
      * parent has no world transform and jME says so with an assertion. Never
-     * drawn: it is culled outright, and nothing is in it between frames anyway.
+     * drawn — the node is culled outright — and never emptied, because these
+     * are the references that hold the parsed models in the asset cache.
      */
     private final Node warmNode = new Node("warm");
+
+    /** Textures and pieces with nothing else holding them. See {@link ArtLoad}. */
+    private final List<Object> artKeptAlive =
+            java.util.Collections.synchronizedList(new ArrayList<>());
+
+    private void keep(Object asset) {
+        artKeptAlive.add(asset);
+    }
 
     private void showPauseMenu() {
         screen = Screen.PAUSED;
