@@ -48,7 +48,7 @@ final class HeroStatus {
 
     /** The line, or the empty string if there is no hero to describe. */
     static String of(GameObject hero, HeroProgress progress, int depth,
-            DungeonSettings settings, PowerChoice powers, int frame) {
+            DungeonSettings settings, PowerChoice powers, int frame, String look) {
         if (hero == null || hero.getBody() == null) {
             return "";
         }
@@ -75,6 +75,12 @@ final class HeroStatus {
         var found = progress.getLoot().noteAt(frame);
         if (!found.isEmpty()) {
             line.append("|note=").append(found);
+        }
+        // How this floor is drawn: a theme and one of its variations, by name. The
+        // client keeps every look it was given at launch and is only ever told
+        // which of them is current -- see Visuals.theme.
+        if (look != null && !look.isBlank()) {
+            line.append("|look=").append(look);
         }
         return line.toString();
     }

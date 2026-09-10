@@ -187,6 +187,29 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, HUD);
                 }),
+                // How a floor looks, and which floor looks like what. Repeatable
+                // and named, the same way monsters and skills are: a fourth theme
+                // is three more blocks here and a folder of models.
+                Map.entry("DungeonTheme", (Ini.BlockParser) reader -> {
+                    var theme = new ThemeBuilder(reader.getNextToken());
+                    reader.initFromIni(theme, THEME);
+                    settings.themes.add(theme);
+                }),
+                Map.entry("DungeonTone", (Ini.BlockParser) reader -> {
+                    var tone = new ToneBuilder(reader.getNextToken(), reader.getNextToken());
+                    reader.initFromIni(tone, TONE);
+                    settings.tones.add(tone);
+                }),
+                Map.entry("DungeonThemeMonster", (Ini.BlockParser) reader -> {
+                    var themed = new ThemeMonsterBuilder(
+                            reader.getNextToken(), reader.getNextToken());
+                    reader.initFromIni(themed, THEME_MONSTER);
+                    settings.themeMonsters.add(themed);
+                }),
+                Map.entry("DungeonThemes", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, THEME_ORDER);
+                }),
                 Map.entry("DungeonFog", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, FOG);
@@ -468,6 +491,135 @@ public final class DungeonSettings {
                     .add("ArrowMuzzleOffset", Ini.real((s, v) -> s.arrowMuzzleOffset = v));
 
     /** Accumulates one {@code DungeonMonster} block. */
+    // ---- themes ----
+
+    private final java.util.List<ThemeBuilder> themes = new java.util.ArrayList<>();
+    private final java.util.List<ToneBuilder> tones = new java.util.ArrayList<>();
+    private final java.util.List<ThemeMonsterBuilder> themeMonsters = new java.util.ArrayList<>();
+    private final java.util.List<String> themeOrder = new java.util.ArrayList<>();
+    private Themes.WhenExhausted whenExhausted = Themes.WhenExhausted.REPEAT;
+
+    private static final class ThemeBuilder {
+        private final String name;
+        String folder = "";
+        float tileSize = 4f;
+        float wallTileSize;
+        float wallHeight = 4f;
+        float wallLift;
+        float wallShift;
+        boolean ownMaterials;
+        int fogTint;
+
+        ThemeBuilder(String name) {
+            this.name = name;
+        }
+    }
+
+    private static final class ToneBuilder {
+        private final String theme;
+        private final String name;
+        String floor;
+        String wall;
+        String corner;
+        int tint = 0xFFFFFF;
+
+        ToneBuilder(String theme, String name) {
+            this.theme = theme;
+            this.name = name;
+        }
+    }
+
+    private static final class ThemeMonsterBuilder {
+        private final String theme;
+        private final String template;
+        final MonsterBuilder art = new MonsterBuilder("themed");
+        String animationsFrom;
+        String death;
+
+        ThemeMonsterBuilder(String theme, String template) {
+            this.theme = theme;
+            this.template = template;
+        }
+    }
+
+    private static final FieldParseTable<ThemeBuilder> THEME =
+            new FieldParseTable<ThemeBuilder>()
+                    .add("Folder", Ini.string((t, v) -> t.folder = v))
+                    .add("TileSize", Ini.real((t, v) -> t.tileSize = v))
+                    .add("WallTileSize", Ini.real((t, v) -> t.wallTileSize = v))
+                    .add("WallHeight", Ini.real((t, v) -> t.wallHeight = v))
+                    .add("WallLift", Ini.real((t, v) -> t.wallLift = v))
+                    .add("WallShift", Ini.real((t, v) -> t.wallShift = v))
+                    .add("OwnMaterials", Ini.bool((t, v) -> t.ownMaterials = v))
+                    .add("FogTint", (ini, t) -> t.fogTint = Integer.decode(ini.getNextToken()));
+
+    private static final FieldParseTable<ToneBuilder> TONE =
+            new FieldParseTable<ToneBuilder>()
+                    .add("Floor", Ini.string((t, v) -> t.floor = v))
+                    .add("Wall", Ini.string((t, v) -> t.wall = v))
+                    .add("Corner", Ini.string((t, v) -> t.corner = v))
+                    .add("Tint", (ini, t) -> t.tint = Integer.decode(ini.getNextToken()));
+
+    /** A themed creature is described exactly as any other, plus where its clips live. */
+    private static final FieldParseTable<ThemeMonsterBuilder> THEME_MONSTER =
+            new FieldParseTable<ThemeMonsterBuilder>()
+                    .add("Model", Ini.string((t, v) -> t.art.model = v))
+                    .add("Texture", Ini.string((t, v) -> t.art.texture = v))
+                    .add("ModelScale", Ini.real((t, v) -> t.art.modelScale = v))
+                    .add("Tint", (ini, t) -> t.art.tint = Integer.decode(ini.getNextToken()))
+                    .add("Facing", Ini.real((t, v) -> t.art.facing = v))
+                    .add("Idle", Ini.string((t, v) -> t.art.idle = v))
+                    .add("Walk", Ini.string((t, v) -> t.art.walk = v))
+                    .add("Attack", Ini.string((t, v) -> t.art.attack = v))
+                    .add("AnimationsFrom", Ini.string((t, v) -> t.animationsFrom = v))
+                    .add("Death", Ini.string((t, v) -> t.death = v));
+
+    private static final FieldParseTable<DungeonSettings> THEME_ORDER =
+            new FieldParseTable<DungeonSettings>()
+                    // Repeatable in one line: the order is a list, and a list of
+                    // names reads better across a line than down a column.
+                    .add("Order", (ini, s) -> {
+                        for (var name : ini.getRestOfLine().trim().split("\\s+")) {
+                            if (!name.isBlank()) {
+                                s.themeOrder.add(name);
+                            }
+                        }
+                    })
+                    .add("WhenExhausted", Ini.enumeration(Themes.WhenExhausted.class,
+                            (s, v) -> s.whenExhausted = v));
+
+    /**
+     * The themes the file described, assembled — each with its own variations and
+     * whatever creatures it redraws.
+     *
+     * <p>Built here rather than kept as it was parsed because a theme's parts
+     * arrive in three separate blocks, and nothing outside this class should have
+     * to put them back together.
+     */
+    public Themes themes() {
+        var built = new java.util.ArrayList<ThemeArt>();
+        for (var theme : themes) {
+            var itsTones = new java.util.ArrayList<ThemeArt.Tone>();
+            for (var tone : tones) {
+                if (tone.theme.equals(theme.name)) {
+                    itsTones.add(new ThemeArt.Tone(tone.name, tone.floor, tone.wall,
+                            tone.corner, tone.tint));
+                }
+            }
+            var itsMonsters = new java.util.ArrayList<ThemeArt.ThemeMonster>();
+            for (var themed : themeMonsters) {
+                if (themed.theme.equals(theme.name)) {
+                    itsMonsters.add(new ThemeArt.ThemeMonster(themed.template,
+                            themed.art.look(), themed.animationsFrom, themed.death));
+                }
+            }
+            built.add(new ThemeArt(theme.name, theme.folder, theme.tileSize,
+                    theme.wallTileSize, theme.wallHeight, theme.wallLift, theme.wallShift,
+                    theme.ownMaterials, theme.fogTint, itsTones, itsMonsters));
+        }
+        return new Themes(themeOrder, whenExhausted, built);
+    }
+
     private static final class MonsterBuilder {
         private final String name;
         float senseRadius = 90f;
@@ -494,8 +646,12 @@ public final class DungeonSettings {
 
         MonsterKind build() {
             return new MonsterKind(name, senseRadius, chaseRadius, closeDistance,
-                    repathFrames, swingFrames, minDepth, weight, colour, scale,
-                    new MonsterLook(model, texture, modelScale, tint, facing, idle, walk, attack));
+                    repathFrames, swingFrames, minDepth, weight, colour, scale, look());
+        }
+
+        /** Just the art of it, which is all a theme overriding a creature needs. */
+        MonsterLook look() {
+            return new MonsterLook(model, texture, modelScale, tint, facing, idle, walk, attack);
         }
     }
 

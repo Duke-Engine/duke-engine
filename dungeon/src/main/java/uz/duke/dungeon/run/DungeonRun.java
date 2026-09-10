@@ -61,6 +61,10 @@ public final class DungeonRun {
     private int deathFrame;
     /** When the floor closes behind him, or 0 while the boss is still alive. */
     private int descendAtFrame;
+
+    /** The themes the file described, and how this floor is drawn from them. */
+    private final uz.duke.dungeon.content.Themes themes;
+    private String look;
     private int runCount; // how many times a new dungeon has been generated after a death
 
     public DungeonRun(GamePlayer heroPlayer, GamePlayer dungeonPlayer, long seed,
@@ -73,6 +77,21 @@ public final class DungeonRun {
         this.progress = progress;
         this.powers = powers;
         this.drops = drops;
+        this.themes = settings.themes();
+        this.look = lookOfThisFloor();
+    }
+
+    /**
+     * How this floor is drawn, as the two names the client is told.
+     *
+     * <p>Looks and nothing else. It is worked out from the seed and the depth --
+     * both of which the run already has -- with a generator of its own, so asking
+     * what a floor looks like cannot move the world's dice by a step. Held rather
+     * than recomputed because it is asked for every frame and settled once a floor.
+     */
+    private String lookOfThisFloor() {
+        var chosen = themes.pick(seed, depth);
+        return chosen == null ? null : chosen.asStatus();
     }
 
     /**
@@ -82,6 +101,7 @@ public final class DungeonRun {
      * player always sees and the ones he rarely reaches cannot drift apart.
      */
     public void openOn(DukeGame game, GeneratedDungeon floor) {
+        look = lookOfThisFloor();
         var placed = Spawner.place(game, heroPlayer, dungeonPlayer, floor, settings, depth, drops);
         heroId = placed.hero().getId();
         bossId = placed.boss() == null ? null : placed.boss().getId();
@@ -134,7 +154,7 @@ public final class DungeonRun {
      */
     private void showStatus(DukeGame game) {
         game.setStatus(HeroStatus.of(Skills.heroOf(game.getLogic(), heroPlayer.getIndex()),
-                progress, depth, settings, powers, game.getLogic().getFrame()));
+                progress, depth, settings, powers, game.getLogic().getFrame(), look));
     }
 
     /**
@@ -185,6 +205,7 @@ public final class DungeonRun {
         var placed = Spawner.place(game, heroPlayer, dungeonPlayer, floor, settings, depth, drops);
         heroId = placed.hero().getId();
         bossId = placed.boss() == null ? null : placed.boss().getId();
+        look = lookOfThisFloor();
         progress.carryOver(game, placed.hero());
         powers.carryOver(placed.hero());
     }

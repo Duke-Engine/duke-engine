@@ -32,14 +32,15 @@ import uz.duke.core.pathfind.PathGrid;
  * <p>Materials arrive through a factory rather than an {@code AssetManager} so the
  * shape of the scene can be checked without one.
  *
- * <p>A game may ask for <b>discovery</b>, in which case the scene keeps a handle
- * per cell and can be told, each frame, which of them to leave out of the picture
- * — see {@link #applyDiscovery}. What it does <em>not</em> do is decide how bright
- * anything is drawn: that is one sheet over the whole map, in {@link FogOverlay},
- * because a brightness per cell is a floor of squares whatever it is computed
- * from. Games that do not ask for discovery pay nothing — no handles are kept and
- * the loop never runs, which matters because an RTS map is many times larger than
- * a dungeon floor.
+ * <p>A game may ask for <b>discovery</b>, in which case the scene can be told,
+ * each frame, what to leave out of the picture — see {@link #applyDiscovery}.
+ * What it does <em>not</em> do is decide how bright anything is drawn: the fog is
+ * a picture of the map ({@link FogMap}) that the terrain's own material samples by
+ * world position, so a brightness decided here — per cell, per piece, per anything
+ * but per fragment — would be a floor of squares whatever it was computed from.
+ * Games that do not ask for discovery pay nothing: no handles are kept and the
+ * loop never runs, which matters because an RTS map is many times larger than a
+ * dungeon floor.
  */
 final class TerrainScene {
 
@@ -57,8 +58,15 @@ final class TerrainScene {
     private final Function<ColorRGBA, Material> material;
     private final boolean discovery;
 
-    /** The kit the ground is built from, or {@code null} to lay down blocks. */
-    private final Tileset tileset;
+    /**
+     * The kit the ground is built from, or {@code null} to lay down blocks.
+     *
+     * <p>Not final, because a game may lay out its next world from a different one
+     * — a dungeon whose floors are meant to look like different places. What a
+     * rebuild does is replace, and the kit is part of what it replaces.
+     */
+    private Tileset tileset;
+    private final Tileset defaultTileset;
     private final TileSource tiles;
 
     /**
@@ -88,7 +96,9 @@ final class TerrainScene {
         this.root = root;
         this.material = material;
         this.discovery = discovery;
-        this.tileset = tileset != null && tileset.isUsable() && tiles != null ? tileset : null;
+        this.defaultTileset = tileset != null && tileset.isUsable() && tiles != null
+                ? tileset : null;
+        this.tileset = this.defaultTileset;
         this.tiles = tiles;
     }
 
@@ -100,27 +110,20 @@ final class TerrainScene {
         return root;
     }
 
-    /**
-     * How high the world stands — the top of a wall, or of a block of stone.
-     *
-     * <p>Asked by the fog, which hangs its sheet at exactly this height. A sheet
-     * is flat and the world is not, so the two only line up at one height, and the
-     * one to choose is the height of the surfaces with <em>edges</em>: a roof over
-     * the rock is a tile with a wall along the side of it, and a sheet hung
-     * anywhere else covers half of it and leaves the other half lit. The floor,
-     * which is where the sheet then does not line up, has no edges of its own —
-     * only a gradient, which slides a fraction of a cell and looks the same.
-     */
-    float standingHeight(PathGrid grid) {
-        if (!tiled()) {
-            return BLOCK_HALF_HEIGHT * 2f;
-        }
-        float cell = grid == null ? PathGrid.DEFAULT_CELL_SIZE : grid.getCellSize();
-        return tileset.getWallHeight() * (cell / tileset.getTileSize());
+    /** Lay out {@code grid} with the kit the game started with. */
+    void rebuild(PathGrid grid) {
+        rebuild(grid, defaultTileset);
     }
 
-    /** Lay out {@code grid}, discarding whatever world was there before. */
-    void rebuild(PathGrid grid) {
+    /**
+     * Lay out {@code grid} from {@code kit}, discarding whatever world was there
+     * before — and whatever kit it was built from.
+     *
+     * <p>A kit that is not usable, or none at all, falls back to the one the game
+     * started with. A game that never named a kit still gets blocks.
+     */
+    void rebuild(PathGrid grid, Tileset kit) {
+        this.tileset = kit != null && kit.isUsable() && tiles != null ? kit : defaultTileset;
         root.detachAllChildren();
         cellNodes = new Node[0];
         if (tiled()) {
@@ -170,7 +173,7 @@ final class TerrainScene {
      * <p>No ground plane, unlike the block version: with a kit there is nothing
      * under an unvisited cell to hide, so an undiscovered part of the map is
      * simply not built into the picture and the background shows through — which
-     * is the fog's own colour, and so the same dark the sheet paints.
+     * is the fog's own colour, and so the same dark the fog itself paints.
      */
     private void rebuildFromTiles(PathGrid grid) {
         if (grid == null) {
@@ -178,7 +181,11 @@ final class TerrainScene {
         }
         cellsWide = grid.getWidth();
         cellNodes = new Node[grid.getWidth() * grid.getHeight()];
-        float scale = grid.getCellSize() / tileset.getTileSize();
+        float cell = grid.getCellSize();
+        float floorScale = cell / tileset.getTileSize();
+        // Walls may have been modelled on a different module from the floors, and
+        // then they have their own scale — see Tileset.wallTileSize.
+        float wallScale = cell / tileset.getWallTileSize();
 
         for (var placement : TileLayout.of(grid)) {
             String asset = assetFor(placement.piece());
@@ -189,37 +196,57 @@ final class TerrainScene {
             if (piece == null) {
                 continue;
             }
+            boolean standing = placement.piece() == TileLayout.Piece.WALL
+                    || placement.piece() == TileLayout.Piece.CORNER;
+            float scale = standing ? wallScale : floorScale;
             piece.setLocalScale(scale);
+            float yaw = FastMath.DEG_TO_RAD * placement.yaw();
             piece.setLocalRotation(new com.jme3.math.Quaternion()
-                    .fromAngleAxis(FastMath.DEG_TO_RAD * placement.yaw(), Vector3f.UNIT_Y));
+                    .fromAngleAxis(yaw, Vector3f.UNIT_Y));
             // Everything lies on the floor except the lid over the stone, which
             // sits level with the tops of the walls it roofs.
             float y = placement.piece() == TileLayout.Piece.CAP
-                    ? tileset.getWallHeight() * scale : 0f;
-            piece.setLocalTranslation(placement.x(), y, placement.z());
+                    ? tileset.getWallHeight() * wallScale
+                    : standing ? tileset.getWallLift() * wallScale : 0f;
+            // A wall's face belongs on the boundary, and where its own kit put its
+            // origin decides how far back that is. Along the wall's own facing,
+            // which the yaw has just turned.
+            float back = standing ? tileset.getWallShift() * wallScale : 0f;
+            piece.setLocalTranslation(
+                    placement.x() + back * FastMath.sin(yaw),
+                    y,
+                    placement.z() + back * FastMath.cos(yaw));
             cellNode(placement.cellY() * cellsWide + placement.cellX()).attachChild(piece);
         }
     }
 
     /**
-     * A cell nobody could see even if it were drawn is left out of the picture.
+     * Anything nobody could see even if it were drawn is left out of the picture.
      *
-     * <p>All this does now is cull. How bright a cell is drawn belongs to the fog
-     * sheet laid over the whole map — see {@link FogOverlay} — and doing it here
-     * as well is what made the floor a field of squares: a brightness per cell,
-     * painted flat over every tile in it, however smooth the number itself was.
+     * <p>All this does is cull. How bright a piece is drawn belongs to its own
+     * material, which samples the fog at the place the fragment stands — see
+     * {@link FogMap}.
      *
-     * <p>Per cell rather than per piece, which is what the node-per-cell is for: a
-     * floor a hundred cells wide is a hundred calls a frame, not a thousand.
+     * <p>Per <b>piece</b>, and asked about where the piece stands rather than
+     * which cell it was filed under. Those are not the same thing: a wall sits on
+     * the line between two cells and a roof lies over rock that can be diagonal to
+     * the room it was built with. Culling by the cell a piece belonged to dropped
+     * walls and roofs that stood beside a fully lit room — the light ran out, and
+     * instead of the wall going dim it went out, which reads as a bug in the
+     * scene rather than as fog.
      */
     private void applyDiscoveryToTiles(Discovery seen) {
-        for (int index = 0; index < cellNodes.length; index++) {
-            var node = cellNodes[index];
+        for (var node : cellNodes) {
             if (node == null) {
                 continue; // stone; nothing was built here
             }
-            node.setCullHint(seen.hidden(index % cellsWide, index / cellsWide)
-                    ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
+            var pieces = node.getChildren();
+            for (int i = 0; i < pieces.size(); i++) {
+                var piece = pieces.get(i);
+                var at = piece.getLocalTranslation();
+                piece.setCullHint(seen.hiddenAt(at.x, at.z)
+                        ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
+            }
         }
     }
 
@@ -251,10 +278,10 @@ final class TerrainScene {
      * hero and a rebuild per step would rebuild the floor several hundred times a
      * walk.
      *
-     * <p>Unseen stone is <em>hidden</em> rather than left to the sheet. A rock
-     * stands six units above the ground, so the fog over it is the fog of the
-     * ground a little way behind — and a wall sticking up out of the dark hands
-     * the player the shape of a room they have not entered.
+     * <p>Hiding is only for what the fog has already blacked out. A rock the
+     * player has walked past stays in the picture, drawn through the dark like
+     * everything else — a wall that switches off at the edge of the light reads as
+     * a hole in the world rather than as somewhere he cannot see.
      */
     void applyDiscovery(Discovery seen) {
         if (!discovery || seen == null) {

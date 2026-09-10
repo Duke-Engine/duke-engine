@@ -33,6 +33,7 @@ import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Cylinder;
 import com.jme3.scene.shape.Quad;
 import com.jme3.scene.shape.Sphere;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -103,14 +104,16 @@ final class DukeRtsApp extends SimpleApplication {
     /** Built at init rather than construction: a modular kit needs the asset manager. */
     private TerrainScene terrain;
     /**
-     * The dark, as one sheet over the whole map rather than a shade per cell.
-     *
-     * <p>Its own node, and not the terrain's: the sheet is drawn over everything
-     * in the world — walls, chests, whatever is standing in a room the hero has
-     * left — so hanging it off the terrain would say it belonged to the ground.
+     * The dark, as a picture of the map that the terrain's material reads by world
+     * position — see {@link FogMap}. {@code null} for a game that never asked to be
+     * discovered, and then the terrain is drawn plainly.
      */
-    private final Node fogNode = new Node("fog");
-    private FogOverlay fogOverlay;
+    private FogMap fogMap;
+    /**
+     * Every material that samples the fog. Kept because the one thing in them that
+     * changes with the world is its size, and a new floor is a different size.
+     */
+    private final List<Material> fogged = new ArrayList<>();
     /** The grid the terrain was built from — a different instance means a new world. */
     private uz.duke.core.pathfind.PathGrid builtFrom;
 
@@ -235,20 +238,19 @@ final class DukeRtsApp extends SimpleApplication {
                     com.jme3.asset.plugins.FileLocator.class);
         }
 
-        // Needs the locators above, so it cannot be built with the app itself.
-        terrain = new TerrainScene(terrainNode, this::lit,
-                visuals.getDiscoveryTemplate() != null, visuals.getTiles(), new KitTiles());
+        // Before the terrain, which builds materials that read it.
         if (visuals.getDiscoveryTemplate() != null) {
-            fogOverlay = new FogOverlay(fogNode, this::fogMaterial, visuals.getFog());
+            fogMap = new FogMap(visuals.getFog());
         }
+        // Needs the locators above, so it cannot be built with the app itself.
+        terrain = new TerrainScene(terrainNode,
+                fogMap == null ? this::lit : this::foggedTerrain,
+                visuals.getDiscoveryTemplate() != null, visuals.getTiles(), new KitTiles());
 
-        var sun = new DirectionalLight(new Vector3f(-0.4f, -1f, -0.5f).normalizeLocal(),
-                new ColorRGBA(1f, 0.97f, 0.9f, 1f));
-        rootNode.addLight(sun);
-        rootNode.addLight(new AmbientLight(new ColorRGBA(0.45f, 0.45f, 0.5f, 1f)));
+        rootNode.addLight(new DirectionalLight(SUN_DIRECTION, SUN_COLOUR));
+        rootNode.addLight(new AmbientLight(AMBIENT_COLOUR));
 
         rootNode.attachChild(terrainNode);
-        rootNode.attachChild(fogNode);
         buildTerrain();
         rootNode.attachChild(unitsNode);
         rootNode.attachChild(markerNode);
@@ -976,14 +978,112 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    // ---- themes ----
+
+    /** The look the game last named, as it wrote it: a theme and a variation. */
+    private String currentLook;
+    private Visuals.Theme currentTheme;
+    private Tileset currentKit;
+
+    /**
+     * Whether the look has moved since the world was last built.
+     *
+     * <p>Noted rather than acted on, so that a change of look and a change of
+     * floor -- which arrive together -- are one rebuild and not two. It also
+     * covers the first frame of all: the world is built when the window opens,
+     * before any snapshot has said what it is made of.
+     */
+    private boolean lookChanged;
+
+    /**
+     * Take up the look the game says this floor wears.
+     *
+     * <p>The game names one of the themes it registered at launch, in the status
+     * channel, and that is the whole of the conversation: the client holds every
+     * look it was given and is told which of them is current. A game with no
+     * themes never gets here, and one whose look has not changed does nothing.
+     *
+     * <p>Everything a theme changes is presentation — the kit the floor is built
+     * from, the colour of the dark, and what some creatures are drawn as. None of
+     * it reaches the simulation, which is what lets a floor's look be decided from
+     * a seed without the world noticing.
+     */
+    private void adoptTheLookTheGameNames() {
+        if (!visuals.hasThemes()) {
+            return;
+        }
+        var named = lookNamedInStatus();
+        if (java.util.Objects.equals(named, currentLook)) {
+            return;
+        }
+        currentLook = named;
+        // Whatever the game wrote is the name of a theme it registered. The
+        // client does not take the name apart: a look is one thing to it, and
+        // whether the game builds that name out of a theme and a variation is
+        // the game's own arrangement.
+        currentTheme = visuals.getTheme(named);
+        currentKit = currentTheme == null ? null : currentTheme.getTiles();
+        if (currentTheme != null && currentTheme.getFogTint() != null && fogMap != null) {
+            // The tint lives in the fog picture's own texels rather than in a
+            // material, so a new colour is the next repaint — which the new floor
+            // is about to ask for anyway.
+            var tint = new ColorRGBA(
+                    ((currentTheme.getFogTint() >> 16) & 0xFF) / 255f,
+                    ((currentTheme.getFogTint() >> 8) & 0xFF) / 255f,
+                    (currentTheme.getFogTint() & 0xFF) / 255f, 1f);
+            fogMap.tint(tint);
+            viewPort.setBackgroundColor(tint);
+        }
+        lookChanged = true;
+        // Every creature is drawn again, because some of them are drawn
+        // differently now and the ones that are not cost a node each.
+        for (var node : unitNodes.values()) {
+            node.root.removeFromParent();
+        }
+        unitNodes.clear();
+    }
+
+    /** The {@code look=} field of the status line, or {@code null}. */
+    private String lookNamedInStatus() {
+        if (snapshot == null || !snapshot.hasStatus()) {
+            return null;
+        }
+        var status = snapshot.status();
+        int at = status.indexOf("|look=");
+        if (at < 0) {
+            return null;
+        }
+        var field = status.substring(at + "|look=".length());
+        int end = field.indexOf('|');
+        return end < 0 ? field : field.substring(0, end);
+    }
+
+    /**
+     * How a creature is drawn: what the current theme says, or what the game said
+     * about it outside any theme.
+     */
+    /** The kit in force: the theme's, or the one the game started with. */
+    private Tileset activeKit() {
+        return currentKit != null ? currentKit : visuals.getTiles();
+    }
+
+    private Visuals.UnitVisual visualFor(String templateName) {
+        var themed = currentTheme == null ? null : currentTheme.of(templateName);
+        return themed != null ? themed : visuals.of(templateName);
+    }
+
     /** Build (or rebuild) the ground and rocks for the world as it stands now. */
     private void buildTerrain() {
         builtFrom = game.getTerrain();
-        terrain.rebuild(builtFrom);
+        terrain.rebuild(builtFrom, currentKit);
         if (visuals.getDiscoveryTemplate() == null) {
             return;
         }
-        fogOverlay.rebuild(builtFrom, terrain.standingHeight(builtFrom));
+        fogMap.resize(builtFrom);
+        // The one thing in a fogged material that a new world changes.
+        for (var material : fogged) {
+            material.setVector2("FogSize", fogMap.worldSize());
+        }
         // A new floor is a floor nobody has walked: memory belongs to one world,
         // and carrying it over would open rooms in a dungeon nobody has entered.
         if (discovery == null) {
@@ -1017,9 +1117,9 @@ final class DukeRtsApp extends SimpleApplication {
         // What is open is decided above; how it is drawn eases toward that, so the
         // edge sweeps rather than switching. Seconds, not frames.
         discovery.soften(tpf);
-        // The sheet is what the player actually sees the dark as; the terrain is
-        // only told which cells are so far behind it that drawing them is waste.
-        fogOverlay.update(discovery);
+        // The picture is what the player actually sees the dark as; the terrain is
+        // only told what is so far behind it that drawing it is waste.
+        fogMap.update(discovery);
         terrain.applyDiscovery(discovery);
         applyMinimapDiscovery(builtFrom);
     }
@@ -1036,9 +1136,10 @@ final class DukeRtsApp extends SimpleApplication {
      * that has been left behind.
      */
     private void refreshWorldIfChanged() {
-        if (game.getTerrain() == builtFrom) {
+        if (game.getTerrain() == builtFrom && !lookChanged) {
             return;
         }
+        lookChanged = false;
         buildTerrain();
         rebuildMinimapTerrain();
         orderMarkers.clear(); // orders given in the old world mean nothing here
@@ -1570,6 +1671,10 @@ final class DukeRtsApp extends SimpleApplication {
             buildMenu.setText("");
             return; // the world starts when the player presses Play
         }
+        // Before the world is rebuilt, not after: a new floor and the look it
+        // wears arrive in the same snapshot, and terrain built from the last
+        // floor's kit would be a floor of the wrong stone until the next one.
+        adoptTheLookTheGameNames();
         refreshWorldIfChanged(); // a new run lays out a new world; redraw it
         syncDiscovery(tpf);
         camera.focusOnOwnUnit(snapshot.units(), game.getLocalPlayerIndex());
@@ -1758,14 +1863,14 @@ final class DukeRtsApp extends SimpleApplication {
         lastEventedSnapshot = snapshot;
         for (var event : snapshot.events()) {
             if (event instanceof ObjectDied died) {
-                playSound(visuals.of(died.templateName()).dieSound,
+                playSound(visualFor(died.templateName()).dieSound,
                         new Vector3f(died.position().x(), 0f, died.position().y()));
                 layOut(died.object().value());
             } else if (event instanceof WeaponFired fired) {
                 var node = unitNodes.get(fired.shooter().value());
                 if (node != null) {
                     node.flashUntil = timer.getTimeInSeconds() + MUZZLE_FLASH_SECONDS;
-                    playSound(visuals.of(node.view.templateName()).fireSound,
+                    playSound(visualFor(node.view.templateName()).fireSound,
                             node.root.getLocalTranslation());
                 }
             }
@@ -1828,7 +1933,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (node == null) {
             return;
         }
-        var clipName = visuals.of(node.view.templateName()).dieAnim;
+        var clipName = visualFor(node.view.templateName()).dieAnim;
         var clip = clipName == null || node.composer == null
                 ? null : node.composer.getAnimClip(clipName);
         if (clip == null) {
@@ -1863,7 +1968,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private UnitNode createUnitNode(UnitView view) {
-        var visual = visuals.of(view.templateName());
+        var visual = visualFor(view.templateName());
         var node = new UnitNode();
         node.root = new Node("unit-" + view.id());
         node.root.setUserData("unitId", view.id());
@@ -2021,7 +2126,7 @@ final class DukeRtsApp extends SimpleApplication {
      * and with no models yet there is nothing else to say it with.
      */
     private ColorRGBA colourOf(UnitView view) {
-        var own = visuals.of(view.templateName()).colour;
+        var own = visualFor(view.templateName()).colour;
         return toColor(own != null ? own : game.getColor(view.playerIndex()));
     }
 
@@ -2167,7 +2272,7 @@ final class DukeRtsApp extends SimpleApplication {
      * which is when a creature does actually swing.
      */
     private void animate(UnitNode node, UnitView view) {
-        var visual = visuals.of(view.templateName());
+        var visual = visualFor(view.templateName());
         String wanted = view.moving() && visual.walkAnim != null ? visual.walkAnim
                 : view.attacking() && visual.attackAnim != null ? visual.attackAnim
                 : visual.idleAnim;
@@ -2288,20 +2393,49 @@ final class DukeRtsApp extends SimpleApplication {
      *
      * <p>Second, a floor of several hundred tiles is several hundred copies of
      * three meshes. They are cloned without cloning materials, and there is
-     * exactly <em>one</em> material for the whole kit: the dark is a sheet over the
-     * map now — see {@link FogOverlay} — so no piece is ever drawn at anything but
-     * its own brightness.
+     * exactly <em>one</em> material for the whole kit: how dark a piece looks is
+     * decided by where its fragments stand, in the shader, so no piece needs a
+     * material of its own to be dimmer than its neighbour.
      */
     private final class KitTiles implements TileSource {
 
         private final Map<String, Spatial> masters = new HashMap<>();
 
-        /** The kit's own material, built once from the first piece's texture. */
-        private Material skin;
+        /**
+         * The atlas kit's shared material, one per tint.
+         *
+         * <p>Per tint because a tone may ask for the same stone in a colder cast,
+         * and one skin for the lot would give whichever floor was built first the
+         * casting vote over every later one.
+         */
+        private final Map<Integer, Material> skins = new HashMap<>();
 
+        /**
+         * One ready piece, dressed the way its kit wants and holding the fog.
+         *
+         * <p>Kits come in two sorts and the difference is not cosmetic. One is
+         * drawn on a single colour atlas: every piece is the same picture, so one
+         * material serves the lot and sharing it is most of what keeps a floor of
+         * six hundred tiles cheap. The other ships no texture at all and says in
+         * its own materials what colour each part of each piece is; give that one
+         * a single skin and the whole kit turns one flat grey.
+         *
+         * <p>Either way the material has to be one that reads the fog, or the
+         * pieces would be lit and never darkened. So the second sort is not left
+         * with what it came with — it is rebuilt, one fogged material per material
+         * it brought, keeping the colour and gaining the dark.
+         *
+         * <p>Cached by kit and tint rather than by path alone, because the same
+         * piece under two tints is two different masters and every copy of one
+         * shares its materials.
+         */
         @Override
         public Spatial piece(String assetPath) {
-            var master = masters.get(assetPath);
+            var kit = activeKit();
+            boolean own = kit != null && kit.keepsOwnMaterials();
+            int tint = kit == null ? 0xFFFFFF : kit.getTint();
+            String key = own ? assetPath + "#" + Integer.toHexString(tint) : assetPath;
+            var master = masters.get(key);
             if (master == null) {
                 try {
                     master = assetManager.loadModel(assetPath);
@@ -2313,21 +2447,77 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                     return null;
                 }
-                if (skin == null) {
-                    skin = tileMaterial(textureOf(master));
+                if (own) {
+                    refogOwnMaterials(master, toColor(new java.awt.Color(tint)));
+                } else {
+                    // One skin for the whole atlas kit — but one per tint, or the
+                    // first floor built would decide the colour of every later one.
+                    var loaded = master;
+                    master.setMaterial(skins.computeIfAbsent(tint,
+                            colour -> tileMaterial(textureOf(loaded),
+                                    toColor(new java.awt.Color(colour)))));
                 }
-                masters.put(assetPath, master);
+                masters.put(key, master);
             }
-            var copy = master.clone(false); // share the mesh and the material
-            copy.setMaterial(skin);
-            return copy;
+            return master.clone(false); // share the mesh and the material
         }
 
-        private Material tileMaterial(com.jme3.texture.Texture atlas) {
+        /**
+         * Rebuild every material a model brought as one that reads the fog,
+         * keeping the colour it was given and multiplying the kit's tint over it.
+         */
+        private void refogOwnMaterials(Spatial model, ColorRGBA tint) {
+            if (model instanceof Geometry geometry) {
+                var was = geometry.getMaterial();
+                var colour = colourOf(was).mult(tint);
+                geometry.setMaterial(fogMap == null
+                        ? litKitMaterial(colour, textureOf(geometry))
+                        : fogged(colour, AMBIENT_COLOUR.mult(KIT_AMBIENT), textureOf(geometry)));
+                return;
+            }
+            if (model instanceof Node node) {
+                for (var child : node.getChildren()) {
+                    refogOwnMaterials(child, tint);
+                }
+            }
+        }
+
+        /** What colour a loaded material says its surface is; white if it says nothing. */
+        private ColorRGBA colourOf(Material material) {
+            if (material == null) {
+                return ColorRGBA.White;
+            }
+            for (var name : new String[] {"Diffuse", "Color", "BaseColor"}) {
+                var param = material.getParam(name);
+                if (param != null && param.getValue() instanceof ColorRGBA colour) {
+                    return colour.clone();
+                }
+            }
+            return ColorRGBA.White;
+        }
+
+        private Material litKitMaterial(ColorRGBA colour, com.jme3.texture.Texture atlas) {
             var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
             material.setBoolean("UseMaterialColors", true);
-            material.setColor("Diffuse", ColorRGBA.White);
-            material.setColor("Ambient", new ColorRGBA(0.55f, 0.55f, 0.62f, 1f));
+            material.setColor("Diffuse", colour);
+            material.setColor("Ambient", KIT_AMBIENT.mult(colour));
+            if (atlas != null) {
+                material.setTexture("DiffuseMap", atlas);
+            }
+            return material;
+        }
+
+        /** How much of the ambient the kit's palette art returns. */
+        private static final ColorRGBA KIT_AMBIENT = new ColorRGBA(0.55f, 0.55f, 0.62f, 1f);
+
+        private Material tileMaterial(com.jme3.texture.Texture atlas, ColorRGBA tint) {
+            if (fogMap != null) {
+                return fogged(tint, AMBIENT_COLOUR.mult(KIT_AMBIENT).mult(tint), atlas);
+            }
+            var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
+            material.setBoolean("UseMaterialColors", true);
+            material.setColor("Diffuse", tint);
+            material.setColor("Ambient", KIT_AMBIENT.mult(tint));
             if (atlas != null) {
                 material.setTexture("DiffuseMap", atlas);
             }
@@ -2356,24 +2546,53 @@ final class DukeRtsApp extends SimpleApplication {
 
     }
 
-    /**
-     * The sheet the fog is painted on: the darkness texture, unlit and blended.
-     *
-     * <p>Unshaded on purpose. It is not a surface in the world catching the sun —
-     * it is the absence of light over one, and a sun falling on the dark would be
-     * a contradiction the player can see when they pan the camera.
-     */
-    private Material fogMaterial(com.jme3.texture.Texture darkness) {
-        var material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        material.setTexture("ColorMap", darkness);
-        return material;
-    }
-
     private Material lit(ColorRGBA color) {
         var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
         material.setBoolean("UseMaterialColors", true);
         material.setColor("Diffuse", color);
         material.setColor("Ambient", color.mult(0.7f));
+        return material;
+    }
+
+    /** The one sun and the one flat ambient the whole scene is lit by. */
+    private static final Vector3f SUN_DIRECTION =
+            new Vector3f(-0.4f, -1f, -0.5f).normalizeLocal();
+    private static final ColorRGBA SUN_COLOUR = new ColorRGBA(1f, 0.97f, 0.9f, 1f);
+    private static final ColorRGBA AMBIENT_COLOUR = new ColorRGBA(0.45f, 0.45f, 0.5f, 1f);
+
+    /** How much of the ambient plain terrain returns — what {@link #lit} asks for. */
+    private static final float PLAIN_AMBIENT = 0.7f;
+
+    private Material foggedTerrain(ColorRGBA color) {
+        return fogged(color, AMBIENT_COLOUR.mult(PLAIN_AMBIENT), null);
+    }
+
+    /**
+     * Terrain that reads the dark out of {@link FogMap} at the place each fragment
+     * stands.
+     *
+     * <p>The lighting is written out here rather than handed to the engine's
+     * because the shader is only ever used on terrain and the terrain is lit by
+     * exactly one sun and one flat ambient. Passing them as material parameters is
+     * a few lines; a shader that spoke the engine's light protocol would be a copy
+     * of its whole lighting pipeline, for a scene that has one light in it.
+     *
+     * @param ambient how much of the ambient the surface returns, already
+     *                multiplied by the ambient light itself
+     */
+    private Material fogged(ColorRGBA color, ColorRGBA ambient,
+            com.jme3.texture.Texture atlas) {
+        var material = new Material(assetManager, "MatDefs/duke/FoggedTerrain.j3md");
+        material.setColor("Color", color);
+        material.setColor("Ambient", ambient);
+        material.setColor("Sun", SUN_COLOUR);
+        material.setVector3("SunDirection", SUN_DIRECTION);
+        material.setTexture("FogMap", fogMap.texture());
+        material.setVector2("FogSize", fogMap.worldSize());
+        if (atlas != null) {
+            material.setTexture("ColorMap", atlas);
+        }
+        fogged.add(material);
         return material;
     }
 

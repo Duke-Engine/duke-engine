@@ -1,0 +1,37 @@
+MaterialDef Fogged Terrain {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+
+        // The surface itself: a colour, and a texture atlas if the kit has one.
+        Texture2D ColorMap
+        Color Color
+        // How much of the scene's ambient light this surface returns, already
+        // multiplied by the ambient light itself -- the client has one sun and one
+        // flat ambient and hands them over rather than asking the engine's light
+        // system for them, because this shader is only ever used on terrain.
+        Color Ambient
+        Color Sun
+        Vector3 SunDirection
+
+        // The dark: rgb is its colour, a is how much of it there is.
+        Texture2D FogMap
+        // How wide and deep the map is, so a vertex can say where on it it stands.
+        Vector2 FogSize
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/FoggedTerrain.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/FoggedTerrain.frag
+
+        WorldParameters {
+            WorldViewProjectionMatrix
+            WorldMatrix
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER: BoundDrawBuffer
+            HAS_COLORMAP : ColorMap
+        }
+    }
+}

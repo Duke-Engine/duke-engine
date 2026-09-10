@@ -33,6 +33,14 @@ final class TileLayout {
          * sees over the wall into it. The room reads as a house with the roof off.
          * A lid closes the hole, and then a wall is the near face of something
          * solid rather than a standing screen.
+         *
+         * <p><b>Every</b> piece of rock is roofed, not only the ring of it that
+         * touches open ground. A one-cell ring is a lid on a wall rather than a
+         * roof over a mass: the rock beyond it is a straight-edged hole in the
+         * picture, and from a camera that looks across the map it reads as the
+         * roof having been cut off in a line. What made the ring look like enough
+         * was that a lid used to belong to the room beside it, and rock further in
+         * had no room to belong to.
          */
         CAP
     }
@@ -40,10 +48,11 @@ final class TileLayout {
     /**
      * One piece, placed. {@code yaw} turns it about the vertical axis, in degrees.
      *
-     * <p>{@code cellX}/{@code cellY} is the open cell this piece belongs to, which
-     * is not always the cell it stands in — a wall stands on the boundary and a
-     * corner post in the stone. It is recorded because fog is per cell: a wall is
-     * remembered by the room it was seen from.
+     * <p>{@code cellX}/{@code cellY} is the cell this piece was built for, which is
+     * not always the cell it stands in — a wall stands on the boundary and a corner
+     * post in the stone. It is a grouping and nothing more: the renderer decides
+     * what to draw from where a piece actually <em>stands</em>, not from what it
+     * was filed under.
      */
     record Placement(Piece piece, int cellX, int cellY, float x, float z, float yaw) {
     }
@@ -93,8 +102,12 @@ final class TileLayout {
         for (int cy = 0; cy < grid.getHeight(); cy++) {
             for (int cx = 0; cx < grid.getWidth(); cx++) {
                 if (solid(grid, cx, cy)) {
-                    addCap(placements, grid, cx, cy, cell);
-                    continue; // stone itself is not drawn; it is what the walls face
+                    // Roofed, and roofed under itself. Stone has as good a place on
+                    // the map as anything else does, and the fog is read at the
+                    // place a piece stands rather than at the cell that owns it.
+                    placements.add(new Placement(Piece.CAP, cx, cy,
+                            (cx + 0.5f) * cell, (cy + 0.5f) * cell, 0f));
+                    continue; // the stone itself is not drawn; it is what the walls face
                 }
                 placements.add(new Placement(Piece.FLOOR, cx, cy,
                         (cx + 0.5f) * cell, (cy + 0.5f) * cell, 0f));
@@ -103,46 +116,6 @@ final class TileLayout {
             }
         }
         return placements;
-    }
-
-    /**
-     * The eight neighbours of a cell, in a fixed order — which is what decides
-     * which room owns a lid when several look at the same rock.
-     */
-    private static final int[][] AROUND = {
-        {0, -1}, {1, 0}, {0, 1}, {-1, 0}, {-1, -1}, {1, -1}, {1, 1}, {-1, 1},
-    };
-
-    /**
-     * Roof this piece of stone, if anyone can see it.
-     *
-     * <p>Only rock that touches open ground is covered. Deeper stone is behind a
-     * lid already and would be a few hundred more tiles for a view nobody has.
-     *
-     * <p>The lid is <em>owned</em> by the room next to it rather than by the rock
-     * it covers, because fog is per cell and rock has no cell to be fogged: a lid
-     * appears when the room that overlooks it has been walked, and is remembered
-     * with it. Diagonals count as overlooking, or the rock in a corner would stay
-     * open while the walls either side of it were roofed.
-     *
-     * <p>One lid, one owner — the first open neighbour in {@link #AROUND} — since
-     * two rooms roofing the same rock would put two tiles in the same place and
-     * leave them fighting over which is in front.
-     */
-    private static void addCap(List<Placement> into, PathGrid grid, int cx, int cy, float cell) {
-        for (var around : AROUND) {
-            int nx = cx + around[0];
-            int ny = cy + around[1];
-            if (inside(grid, nx, ny) && !solid(grid, nx, ny)) {
-                into.add(new Placement(Piece.CAP, nx, ny,
-                        (cx + 0.5f) * cell, (cy + 0.5f) * cell, 0f));
-                return;
-            }
-        }
-    }
-
-    private static boolean inside(PathGrid grid, int cx, int cy) {
-        return cx >= 0 && cy >= 0 && cx < grid.getWidth() && cy < grid.getHeight();
     }
 
     private static void addWalls(List<Placement> into, PathGrid grid, int cx, int cy, float cell) {

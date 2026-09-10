@@ -25,7 +25,7 @@ import com.jme3.math.ColorRGBA;
  * @param openPerSecond   how fast the fog moves toward what it ought to be, as a
  *                        share of the remaining gap each second
  * @param textureSize     how many texels across the fog layer is drawn at, whatever
- *                        the map's own size — see {@link FogOverlay}
+ *                        the map's own size — see {@link FogMap}
  * @param tint            what unlit ground fades toward — the fog's own colour,
  *                        which is not black in any game worth looking at
  */

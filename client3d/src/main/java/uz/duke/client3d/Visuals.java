@@ -320,4 +320,89 @@ public final class Visuals {
     public Tileset getTiles() {
         return tileset;
     }
+
+    // ---- themes ----
+
+    /**
+     * One named way a world can look: a kit to build it from, a colour for the
+     * dark, and whatever creatures are drawn differently while it lasts.
+     *
+     * <p>Everything in it is optional. A theme that names only a kit changes only
+     * the floor; one that overrides one monster leaves every other creature
+     * exactly as the game described it outside any theme.
+     */
+    public static final class Theme {
+
+        private Tileset tileset;
+        private Integer fogTint;
+        private final Map<String, UnitVisual> units = new HashMap<>();
+
+        private Theme() {
+        }
+
+        public Theme tiles(Tileset tileset) {
+            this.tileset = tileset;
+            return this;
+        }
+
+        /** What the dark is coloured while this theme lasts, packed {@code 0xRRGGBB}. */
+        public Theme fogTint(int packedRgb) {
+            this.fogTint = packedRgb;
+            return this;
+        }
+
+        /**
+         * How one creature is drawn while this theme lasts.
+         *
+         * <p>A whole replacement, not a patch: a themed creature is described from
+         * nothing, so a theme that gives it a model has to give it that model's
+         * scale and clips too. Patching would mean a half-described creature
+         * wearing one kit's animation names on another kit's skeleton.
+         */
+        public Theme unit(String templateName, Consumer<UnitVisual> config) {
+            var visual = units.computeIfAbsent(templateName, n -> new UnitVisual());
+            config.accept(visual);
+            return this;
+        }
+
+        Tileset getTiles() {
+            return tileset;
+        }
+
+        Integer getFogTint() {
+            return fogTint;
+        }
+
+        /** How this theme draws a creature, or {@code null} if it has no opinion. */
+        UnitVisual of(String templateName) {
+            return units.get(templateName);
+        }
+    }
+
+    private final Map<String, Theme> themes = new HashMap<>();
+
+    /**
+     * Register a named theme. Which one is current is the <em>game's</em> to say,
+     * frame by frame, through the snapshot's status channel — see
+     * {@code DukeRtsApp}. The client only ever asks "which of these, now".
+     *
+     * <p>Kept out of {@link #tiles} and {@link #fog} on purpose: those are what a
+     * game looks like, full stop, and most games have exactly one answer. A theme
+     * is for a game whose answer changes as it is played.
+     */
+    public Visuals theme(String name, Consumer<Theme> config) {
+        var theme = themes.computeIfAbsent(name, n -> new Theme());
+        config.accept(theme);
+        return this;
+    }
+
+    /** The theme of that name, or {@code null} — including for a null name. */
+    public Theme getTheme(String name) {
+        return name == null ? null : themes.get(name);
+    }
+
+    /** Whether this game has any themes at all; most do not. */
+    public boolean hasThemes() {
+        return !themes.isEmpty();
+    }
 }

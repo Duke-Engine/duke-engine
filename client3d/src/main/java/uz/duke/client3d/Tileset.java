@@ -21,9 +21,105 @@ public final class Tileset {
     private String wall;
     private String corner;
     private float tileSize = 4f;
+    private float wallTileSize = 0f;
     private float wallHeight = 4f;
+    private float wallLift;
+    private float wallShift;
+    private boolean ownMaterials;
+    private int tint = 0xFFFFFF;
 
     private Tileset() {
+    }
+
+    /**
+     * How wide the <em>wall</em> pieces were modelled, when that is not the floor's
+     * own tile size.
+     *
+     * <p>Kits are not all authored on one module. One of the kits this client draws
+     * lays its rooms out of two-unit floor tiles and closes them with four-unit
+     * walls — each wall spans two tiles. Scaled by the floor's number a wall like
+     * that comes out twice as wide as the cell it stands on and twice as tall as
+     * it should be; scaled by its own it lands exactly.
+     *
+     * <p>Defaults to the tile size, which is the usual case and what every kit did
+     * before this existed.
+     */
+    public Tileset wallTileSize(float modelUnits) {
+        this.wallTileSize = modelUnits;
+        return this;
+    }
+
+    public float getWallTileSize() {
+        return wallTileSize > 0f ? wallTileSize : tileSize;
+    }
+
+    /**
+     * How far up a wall has to be moved to stand on the floor, in model units.
+     *
+     * <p>Where a kit puts a wall's origin is the kit's own business and they do not
+     * agree: one stands its walls on the ground, another centres them, and a
+     * centred wall drawn as authored is half sunk into the floor.
+     */
+    public Tileset wallLift(float modelUnits) {
+        this.wallLift = modelUnits;
+        return this;
+    }
+
+    public float getWallLift() {
+        return wallLift;
+    }
+
+    /**
+     * How far back a wall has to be moved for its face to land on the boundary,
+     * in model units — negative moves it into the stone.
+     *
+     * <p>The face of a wall belongs on the line the pathfinder will not let anyone
+     * cross, and its body behind that line. A kit that centres its wall slab on
+     * its origin puts half the slab into the room.
+     */
+    public Tileset wallShift(float modelUnits) {
+        this.wallShift = modelUnits;
+        return this;
+    }
+
+    public float getWallShift() {
+        return wallShift;
+    }
+
+    /**
+     * Keep the materials the models were shipped with, rather than putting the
+     * kit's own skin on every piece.
+     *
+     * <p>Which is right depends entirely on the kit. One drawn on a single colour
+     * atlas wants one material for the lot — it is the same picture on every piece,
+     * and sharing it is most of what keeps a floor of six hundred tiles cheap. One
+     * that carries no texture at all and says what colour each of its parts is
+     * wants exactly what it came with; giving those a single skin paints the whole
+     * kit one flat grey and throws away the only colour it had.
+     */
+    public Tileset ownMaterials(boolean keep) {
+        this.ownMaterials = keep;
+        return this;
+    }
+
+    public boolean keepsOwnMaterials() {
+        return ownMaterials;
+    }
+
+    /**
+     * A colour multiplied over the whole kit, packed {@code 0xRRGGBB}.
+     *
+     * <p>White leaves it alone. What it is for is telling two floors built from the
+     * same kit apart — the same stone, colder or warmer — without a second set of
+     * models.
+     */
+    public Tileset tint(int packedRgb) {
+        this.tint = packedRgb;
+        return this;
+    }
+
+    public int getTint() {
+        return tint;
     }
 
     public static Tileset create() {

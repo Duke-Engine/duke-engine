@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-10 · **Testlar:** 626 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-10 · **Testlar:** 657 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -957,7 +957,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **617 test yashil** (core 133, rts 110, generals 5, game 28, client3d 110, studio 8, dungeon 223) — 0 failure / 0 error.
+- **657 test yashil** (core 133, rts 110, generals 5, game 28, client3d 130, studio 8, dungeon 243) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1215,9 +1215,9 @@ ikkala peer aynan bir kadrda qo'llaydi.
     bilmaydi (RTS'da relyef ko'rinadi, faqat birliklar yashirin). `Discovery`
     (client3d) katak bo'yicha ikkita `BitSet` yuritadi: `explored` (hech qachon
     tozalanmaydi = xotira) va `visible` (har kadr qayta yoziladi = ko'zlar).
-    `TerrainScene` ko'rinmaydigan kataklarni rasmdan chiqaradi, qorong'ilikning
-    o'zini xarita ustidagi parda chizadi (`FogOverlay`), minimap esa har katakni
-    holat bo'yicha bo'yaydi.
+    `TerrainScene` butunlay qorong'i qolgan bo'laklarni rasmdan chiqaradi,
+    qorong'ilikning o'zini relyef materiali `FogMap` teksturasidan o'qiydi,
+    minimap esa har katakni holat bo'yicha bo'yaydi.
   - **Radius bitta manbadan.** `Visuals.discoveredBy("Hero")` — masofa emas,
     **template nomi**: radius o'sha template'ning `VisionRange`i, ya'ni aynan
     engine tumani ishlatadigan raqam. Shuning uchun yer ochilishi va dushman
@@ -1230,9 +1230,9 @@ ikkala peer aynan bir kadrda qo'llaydi.
   - Tuman `refreshWorldIfChanged` da nolga qaytadi, ya'ni yangi run ham, yangi
     chuqurlik ham qop-qora boshlanadi (`applyMapTerrain` grid nusxasini
     almashtiradi — klientга alohida signal kerak emas).
-  - Tumanni **so'ramagan o'yin hech narsa to'lamaydi**: parda qurilmaydi, katak
-    bo'yicha hisob yuritilmaydi, sikl ishlamaydi. `studio` va oddiy RTS xulqi
-    o'zgarmagan.
+  - Tumanni **so'ramagan o'yin hech narsa to'lamaydi**: tekstura qurilmaydi,
+    relyef odatdagi `Lighting.j3md` bilan chiziladi, sikl ishlamaydi. `studio` va
+    oddiy RTS xulqi o'zgarmagan.
 - **Qahramonda 4 ta skill (Q W E R)** — `STRIKE` (eng yaqin dushmanga zarba),
   `AREA_DAMAGE` (atrofdagilarga), `DASH` (yuzi tomon otilish), `EMPOWER`
   (ultimate: vaqtincha zarar oshishi, 5-darajadan ochiladi).
@@ -1654,35 +1654,89 @@ ikkala peer aynan bir kadrda qo'llaydi.
     xulqining aynan o'zi.
   - Shu sababli **Resolution — keyingi ishga tushirish sozlamasi** (menyu shunday
     deb yozadi), Fullscreen esa darhol.
-- **Tuman — geometriyaning xossasi emas, xarita ustidagi bitta parda**
-  (`client3d/FogOverlay`). Ilgari har hujayra o'z yorqinligini olib, uni butun
-  plitkasiga tekis bo'yardi — natijada pol 10 birlikli kvadratlarga bo'linardi.
-  Silliqlash bor edi, lekin **noto'g'ri o'lchamda** ishlardi.
-  - **Parda = tekstura.** O'lchami `TextureSize` (INI, standart 256) — plitka
+- **Tuman — geometriyaning xossasi emas, xaritaning surati** (`client3d/FogMap`).
+  Ilgari har hujayra o'z yorqinligini olib, uni butun plitkasiga tekis bo'yardi —
+  natijada pol 10 birlikli kvadratlarga bo'linardi. Silliqlash bor edi, lekin
+  **noto'g'ri o'lchamda** ishlardi.
+  - **Tuman = tekstura.** O'lchami `TextureSize` (INI, standart 256) — plitka
     o'lchamiga hech qanday aloqasi yo'q. Har kadrda har teksel **o'z nuqtasining**
     yorqinligini so'raydi (`Discovery.lightAtPoint`), karta esa tekseller orasini
     o'zi to'ldiradi (Bilinear) — chekka piksel o'lchamida silliq bo'ladi.
-    **Shader yo'q**: RGBA8 alfa teksturasi va oddiy alpha-blend.
   - **Interpolatsiya smoothstep** bilan: to'g'ri chiziqli og'irliklar uzluksiz,
     lekin **qiyaligi** uzluksiz emas, va har hujayra chegarasidagi qiyalik
     o'zgarishi kvadratlar kabi ko'zga tashlanadigan burma beradi.
-  - **Parda devor balandligida osilgan, polda emas.** Tekis parda dunyo bilan
-    faqat bitta balandlikda mos tushadi; **qirralari bor** yuzalar — tosh
-    ustidagi qopqoqlar — o'sha yerda. Polda ossa, har qopqoqning yarmi qorayib,
-    yarmi yoritilgan qolardi. Pol esa faqat gradient, va yarim hujayra siljigan
-    gradient — o'sha gradient (`TerrainScene.standingHeight`).
-  - **Depth-test o'chiq**, oxirgi bo'lib chiziladi — ya'ni pol, devor, sandiq,
-    qahramon ketib qolgan xonadagi hamma narsa bitta pardaning ostida birga
-    qorayadi. Ilgari faqat plitkalar qorayardi.
+  - **Proyeksiya, parda emas.** Birinchi urinish xarita ustiga tekis quad yopardi.
+    Tekis parda dunyo bilan **faqat bitta balandlikda** mos tushadi: kamera 55°
+    burchakda, ya'ni har bir dunyo birligi balandlik uchun qiymat 0.7 birlik
+    siljiydi. Polda ossa — tosh ustidagi qopqoqlarning yarmi yoritilgan qolardi;
+    devor balandligida ossa — devorning **pastki yarmi** boshqa yorqinlikda
+    chiqardi. Endi relyefning **o'z materiali** teksturani dunyo `x`/`z` bo'yicha
+    o'qiydi (`MatDefs/duke/FoggedTerrain.frag`) — `y` umuman ishlatilmaydi, ya'ni
+    devorning tepasi ham, poyi ham bitta qiymat oladi va devor bo'ylab gradient
+    chiqadi. Bu `client3d` dagi **birinchi va yagona shader**; jME'ning
+    `GLSLCompat.glsllib` bilan bitta manba GLSL100 dan GLSL310 gacha ishlaydi.
+    Yoritish (bitta quyosh + tekis ambient) material parametri sifatida beriladi —
+    engine'ning light protokolini gapiradigan shader butun lighting quvurini
+    ko'chirish bo'lardi, bitta chiroqli sahna uchun.
   - `TerrainScene` endi **faqat cull qiladi**, hech narsani bo'yamaydi;
     `TileSource` bitta `piece()` metodiga qisqardi (12 pog'onali material narvoni
-    va qora "qopqoq" quadlar o'chdi). Cull qoidasi ikki hujayra atrofni
-    tekshiradi (`Discovery.hidden`) — aks holda parda hali shaffofmas bo'lmagan
-    joyda geometriya o'chib, teshik qolardi.
+    va qora "qopqoq" quadlar o'chdi).
+  - **Cull har bo'lak uchun, o'z joyi bo'yicha** (`Discovery.hiddenAt`) — bo'lak
+    qaysi katakka "yozilgan" bo'yicha emas. Bular boshqa joylar: devor ikki katak
+    orasidagi chiziqda turadi, tosh ustidagi qopqoq esa o'zi qurilgan xonaga
+    diagonal bo'lishi mumkin. Katak bo'yicha cull yoritilgan xona yonidagi devorni
+    o'chirib yuborardi — yorug'lik tugaganda devor xiralashish o'rniga **yo'qolardi**,
+    va bu tuman emas, sahnadagi xato bo'lib ko'rinadi. Cull chetlanishi 1 katak
+    (`CULL_MARGIN`): tuman katak markazlari orasida chizilgani uchun.
   - **Uch qatlam ravshanligi INI'da**: `UnseenPercent` / `RememberedPercent` /
-    `VisiblePercent`. Fon rangi endi aynan `Tint` (ilgari `Tint × 0.55` edi) —
-    xarita ichidagi ochilmagan joy va xaritadan tashqarisi bir xil bo'lsin, aks
-    holda parda xarita chegarasini to'rtburchak qilib chizardi.
+    `VisiblePercent`. Xotira darajasi endi devorga ham **o'z joyi bo'yicha**
+    qo'llanadi: bir marta ko'rilgan devor xira bo'lib turadi, yo'qolmaydi. Fon
+    rangi aynan `Tint` (ilgari `Tint × 0.55` edi) — xarita ichidagi ochilmagan joy
+    va xaritadan tashqarisi bir xil bo'lsin, aks holda xarita chegarasi
+    to'rtburchak bo'lib chizilardi.
+
+---
+
+- **Har chuqurlik boshqacha ko'rinadi** — model to'plami, rangi va tumani almashadi.
+  To'rtta to'plam: **Kenney** (o'zining eski kiti), **Dungeon**, **Ruins**, **SciFi**.
+  - **Ko'rinish, boshqa hech narsa emas.** Xona joylashuvi, dushman turlari, hamma
+    son o'zgarmaydi. `DungeonThemeTest` bitta seed'ni ikki xil to'plamda o'ynab
+    checksum'larni taqqoslaydi — aynan tuman uchun yozilgan testning shakli.
+  - **Tanlov INI'da:** `DungeonThemes Order` chuqurlik→to'plam tartibini beradi,
+    `WhenExhausted` esa ro'yxat tugagach `Repeat` (aylanadi) yoki `Last` (oxirgisi
+    qoladi) deydi.
+  - **Ohanglar** (`DungeonTone`) — bitta to'plam ichidagi kichik farq: boshqa pol
+    naqshi, boshqa devor, yoki bir xil toshning sovuqroq quyilishi. Qaysi biri —
+    **seed va chuqurlikdan** deterministik. `Math.random` yo'q.
+  - **Yangi to'plam = INI + modellar.** Java yozilmaydi.
+- **Sim → klient simi** — to'plam nomi status kanalida (`|look=Ruins,Fallen`).
+  - Snapshot — sinxronizatsiya nuqtasi: klient yangi kartani va yangi to'plamni
+    **bitta kadrda** biladi. Yon kanal (volatile maydon) bir kadr adashishi mumkin
+    edi, va bu aynan ko'rinadigan xato bo'lardi — eski kit bilan qurilgan qavat.
+  - `Visuals.theme(nom, ...)` — klient har bir ko'rinishni **launch'da** oladi va
+    faqat "hozir qaysi biri" deb aytiladi. Klient nomni bo'laklarga ajratmaydi:
+    "Ruins,Fallen" — unga bitta narsa; uni to'plam va ohangdan yasash o'yinning
+    o'z ishi.
+- **Ikkita o'lchov paketlardan chiqdi, taxmin qilinmadi** (Faza 0 da o'lchandi):
+  - **`WallTileSize`** — Sci-Fi poli 2 birlik, devori esa **4**: paketda devor
+    ikkita plitkani qoplaydi. Pol raqami bilan masshtablansa devor ikki barobar
+    keng va ikki barobar baland chiqadi.
+  - **`WallLift` / `WallShift`** — paketlar devor pivotini har xil qo'yadi.
+    Dungeon paketida devor markazda, ya'ni yarmi yer ostida qoladi.
+  - `DungeonTilesTest` har bir to'plamning har bir bo'lagini yuklab, o'lchamini
+    va devor yerga tegishini tekshiradi — ro'yxat INI'dan olinadi, ya'ni yangi
+    to'plam ta'riflangani uchun qoplanadi.
+- **`OwnMaterials`** — paket o'z ranglarini olib kelganda ularni saqlash.
+  - Uch yangi paket **teksturasiz**: MTL'da har bo'lak o'z rangini aytadi. Bitta
+    umumiy "skin" ularning hammasini yassi kulrangga aylantirardi.
+  - Lekin materiallar **fog'ni o'qishi shart**, aks holda bo'laklar yoritiladi va
+    hech qachon qorong'ilashmaydi. Shuning uchun ular saqlanmaydi — **qayta
+    quriladi**: har bir material uchun bitta fogli material, rangi o'zinikicha.
+  - Atlasli to'plamda esa tone tinti umumiy skinga tushadi (tint bo'yicha bitta).
+- **Robot faqat Sci-Fi'da** — `DungeonThemeMonster SciFi Skeleton/Runner/Brute/Boss`.
+  Bir xil miya, bir xil son, boshqa model; o'lcham va rang bilan ajratilgan.
+  Kliplari o'z GLB'sidan (`AnimationsFrom`), umumiy kutubxonadan emas — u boshqa
+  skeletda.
 
 ---
 
@@ -1967,6 +2021,8 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/src/main/resources/Models/dungeon/` | Kenney to'plami (CC0) + `colormap.png` atlasi |
 | `dungeon/src/main/resources/Models/monsters/` | Quaternius Bestiary + Universal Animation Library |
 | `dungeon/src/main/resources/Models/hero/` | Mixamo qahramoni + har harakat uchun bitta fayl |
+| `dungeon/src/main/resources/Models/theme-*/` | uchta to'plam (CC0 OBJ) + Sci-Fi roboti |
+| `dungeon/…/dungeon/content/{ThemeArt,Themes}.java` | to'plam ta'rifi + chuqurlik→to'plam tanlovi (sof) |
 | `dungeon/…/dungeon/content/HeroLook.java` | qahramon ko'rinishi — animatsiyasi fayl bo'yicha, nom bo'yicha emas |
 | `dungeon/…/dungeon/Dungeon.java` | o'yinni yig'ish (fixture xona va haqiqiy o'yin) |
 | `dungeon/…/dungeon/content/DungeonSettings.java` | `dungeon.ini` — generatsiya va xulq sozlamalari |
@@ -1992,6 +2048,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/combat/EyesOnly.java` | ko'rmaganiga otmaydi; engine'ning avto-tanlashini o'chiradi |
 | `client3d/…/client3d/LevelUpOverlay.java` | daraja tanlash ekrani — mexanizm klientniki, so'zlar o'yinniki |
 | `client3d/…/client3d/Fog.java` | tuman sozlamasi (LOS, uch qatlam yorqinligi, yumshoqlik, tekstura o'lchami, rang) |
-| `client3d/…/client3d/FogOverlay.java` | tumanning o'zi — xarita ustidagi bitta alfa-tekstura pardasi |
+| `client3d/…/client3d/FogMap.java` | tumanning o'zi — xaritaning qorong'ilik surati (alfa-tekstura) |
+| `client3d/src/main/resources/MatDefs/duke/` | relyef materiali: tumanni dunyo x/z bo'yicha o'qiydigan shader |
 | `client3d/…/client3d/EdgeScroll.java` | kursor bilan kamerani surish sozlamasi |
 | `dungeon/src/main/resources/uz/duke/dungeon/*.ini` | o'yin ma'lumoti — kompilyatsiyasiz sozlanadi |

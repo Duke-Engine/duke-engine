@@ -108,6 +108,23 @@ class HeroPanelTest {
         assertEquals("QWER", keys.toString());
     }
 
+    /**
+     * A field the panel draws nothing for still has to be a field it knows.
+     *
+     * <p>The line is one line. It carries which look the floor wears as well as
+     * what the hero is, and the panel has no picture for that -- but a parser that
+     * refuses what it cannot draw would refuse the whole line and take the panel
+     * with it.
+     */
+    @Test
+    void aFieldThePanelDrawsNothingForIsStillReadable() {
+        var reading = HeroPanel.Reading.parse(LINE + "|look=SciFi,Bare");
+
+        assertNotNull(reading, "the panel went blank over a field meant for somebody else");
+        assertEquals("Erika", reading.name());
+        assertEquals(4, reading.skills().size(), "and read everything it does draw");
+    }
+
     /** A hero with no skills at all is still a hero with health. */
     @Test
     void aPanelWithoutSkillsIsStillAPanel() {

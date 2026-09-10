@@ -145,6 +145,149 @@ class DungeonTilesTest {
                         + bounds.getXExtent() * 2f + " across");
     }
 
+    // ---- the themed kits ----
+
+    /**
+     * Every piece of every theme is on the classpath and really loads.
+     *
+     * <p>Driven off the file rather than off a list here, so a fourth theme is
+     * covered by being described. That matters more than it sounds: a theme names
+     * a folder and a dozen paths, and every way of getting one wrong — a typo, a
+     * file nobody copied, a loader that is not registered for the format — comes
+     * out as the same thing on screen, which is a floor that is not there.
+     */
+    @Test
+    void everyThemeShipsThePiecesItNames() {
+        var themes = uz.duke.dungeon.content.DungeonSettings.load().themes();
+        var assets = assets();
+
+        for (var theme : themes.all()) {
+            for (var variation : theme.tones()) {
+                var tone = theme.toneWithPaths(variation);
+                for (var path : new String[] {tone.floor(), tone.wall(), tone.corner()}) {
+                    if (path == null) {
+                        continue; // a kit is allowed to have no corner post
+                    }
+                    assertNotNull(assets.loadModel(path),
+                            theme.name() + "/" + variation.name() + " names " + path
+                                    + ", which is not shipped");
+                }
+            }
+        }
+    }
+
+    /**
+     * And the sizes in the file are the sizes the models were authored at.
+     *
+     * <p>These are the numbers that cannot be checked by looking, because getting
+     * one wrong gives a floor that is merely <em>wrong</em> rather than missing —
+     * tiles that overlap, walls at the wrong height, a gap along every seam. They
+     * were measured off the models to write down, and this is what keeps them
+     * measured.
+     */
+    @Test
+    void everyThemeIsTheSizeItSaysItIs() {
+        var themes = uz.duke.dungeon.content.DungeonSettings.load().themes();
+        var assets = assets();
+
+        for (var theme : themes.all()) {
+            var tone = theme.toneWithPaths(theme.tones().get(0));
+            var floor = boundsOf(assets.loadModel(tone.floor()));
+            assertEquals(theme.tileSize() / 2f, floor.getXExtent(), 0.05f,
+                    theme.name() + " says its tiles are " + theme.tileSize()
+                            + " but they are " + floor.getXExtent() * 2f);
+            if (tone.wall() == null) {
+                continue;
+            }
+            var wall = boundsOf(assets.loadModel(tone.wall()));
+            assertEquals(theme.wallTileSize() / 2f, wall.getXExtent(), 0.05f,
+                    theme.name() + " says its walls are " + theme.wallTileSize()
+                            + " wide but they are " + wall.getXExtent() * 2f);
+            // Loosely, and on purpose. WallHeight is where the roof is laid, which
+            // is the height of the wall proper — a kit whose walls carry a moulded
+            // top edge stands a few percent taller than the line a roof belongs on.
+            // What this catches is the mistake that matters: a number off by a
+            // factor, which puts the roof through the floor or into the sky.
+            float stands = wall.getYExtent() * 2f;
+            assertTrue(Math.abs(stands - theme.wallHeight()) < stands * 0.15f,
+                    theme.name() + " says its walls stand " + theme.wallHeight()
+                            + " but they stand " + stands);
+        }
+    }
+
+    /**
+     * A wall lifted by what the file says stands on the floor rather than in it.
+     *
+     * <p>Kits disagree about where a wall's origin is and the correction is a
+     * number somebody worked out once. This is that number, checked: the bottom of
+     * the lifted wall should land on the ground.
+     */
+    @Test
+    void everyThemeLiftsItsWallsOntoTheFloor() {
+        var themes = uz.duke.dungeon.content.DungeonSettings.load().themes();
+        var assets = assets();
+
+        for (var theme : themes.all()) {
+            var tone = theme.toneWithPaths(theme.tones().get(0));
+            if (tone.wall() == null) {
+                continue;
+            }
+            var wall = boundsOf(assets.loadModel(tone.wall()));
+            float bottom = wall.getCenter().y - wall.getYExtent() + theme.wallLift();
+            assertEquals(0f, bottom, 0.05f,
+                    theme.name() + " stands its walls " + bottom + " off the floor");
+        }
+    }
+
+    /**
+     * A themed creature's model is shipped, and carries the clips the file asks it
+     * to play.
+     *
+     * <p>A clip named in the file and missing from the model is silent: the
+     * creature stands in its bind pose and nothing says why. Which is exactly the
+     * kind of thing worth failing a build over.
+     */
+    @Test
+    void everyThemedCreatureCarriesTheClipsItIsGiven() {
+        var themes = uz.duke.dungeon.content.DungeonSettings.load().themes();
+        var assets = assets();
+
+        for (var theme : themes.all()) {
+            for (var themed : theme.monsters()) {
+                var art = theme.monsterWithPaths(themed);
+                var model = assets.loadModel(art.look().model());
+                assertNotNull(model, art.look().model() + " is named but not shipped");
+                var clips = clipsOf(model);
+                for (var wanted : new String[] {art.look().idle(), art.look().walk(),
+                    art.look().attack(), art.death()}) {
+                    if (wanted == null) {
+                        continue;
+                    }
+                    assertTrue(clips.contains(wanted),
+                            theme.name() + "/" + art.template() + " asks for " + wanted
+                                    + ", and the model carries " + clips);
+                }
+            }
+        }
+    }
+
+    /** Every clip name in a model, wherever the loader hung the composer. */
+    private static java.util.Set<String> clipsOf(Spatial model) {
+        var composer = model.getControl(com.jme3.anim.AnimComposer.class);
+        if (composer != null) {
+            return composer.getAnimClipsNames();
+        }
+        if (model instanceof Node node) {
+            for (var child : node.getChildren()) {
+                var found = clipsOf(child);
+                if (!found.isEmpty()) {
+                    return found;
+                }
+            }
+        }
+        return java.util.Set.of();
+    }
+
     private static boolean hasTexture(Spatial model) {
         if (model instanceof Geometry geometry) {
             var material = geometry.getMaterial();

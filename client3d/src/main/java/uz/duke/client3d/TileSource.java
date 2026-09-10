@@ -17,7 +17,7 @@ interface TileSource {
      * a floor appears several hundred times and each copy stands somewhere else.
      *
      * <p>Always at full brightness. How dark a piece looks is the fog sheet's
-     * — see {@link FogOverlay} — and a kit that dimmed its own pieces as well
+     * — see {@link FogMap} — and a kit that dimmed its own pieces as well
      * would be drawing the dark twice, in squares the size of a tile.
      */
     Spatial piece(String assetPath);

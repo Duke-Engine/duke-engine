@@ -350,15 +350,14 @@ final class Discovery {
     /**
      * How far around a cell the dark has to reach before the cell may be dropped.
      *
-     * <p>One cell for the fog's own smoothness — it is drawn between cell centres,
-     * so a black cell beside a lit one is only black at its own centre — and a
-     * second because the sheet it is drawn on hangs at the height of the walls and
-     * therefore does not line up with the floor to better than about a cell. Cull
-     * too eagerly and the result is a hole with the void showing through it, which
-     * is the one way a softer fog can look worse than a hard one. Culling too
-     * little only draws something nobody can see.
+     * <p>One cell, because the fog is drawn between cell centres: a black cell
+     * beside a lit one is only black at its own centre, and half way to its
+     * neighbour the dark has already begun to clear. Cull on the cell alone and
+     * that half is a hole with the void showing through it, which is the one way a
+     * softer fog can look worse than a hard one. Culling too little only draws
+     * something nobody can see.
      */
-    private static final int CULL_MARGIN = 2;
+    private static final int CULL_MARGIN = 1;
 
     /**
      * Whether anything standing in this cell would be entirely behind the fog.
@@ -376,6 +375,21 @@ final class Discovery {
             }
         }
         return true;
+    }
+
+    /**
+     * The same question asked about a <em>place</em> rather than a cell.
+     *
+     * <p>Which is what the renderer actually has. A wall stands on the line
+     * between two cells and a roof lies over a piece of rock that may be diagonal
+     * to the room it was built with — so asking about the cell a piece was
+     * <em>filed under</em> can drop a wall that stands beside a lit room, and did.
+     */
+    boolean hiddenAt(float worldX, float worldY) {
+        if (cellSize <= 0f) {
+            return false;
+        }
+        return hidden((int) Math.floor(worldX / cellSize), (int) Math.floor(worldY / cellSize));
     }
 
     /**

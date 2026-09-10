@@ -10,6 +10,7 @@ import uz.duke.client3d.Visuals;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.content.HeroLook;
+import uz.duke.dungeon.content.ThemeArt;
 import uz.duke.dungeon.power.ChoosePower;
 import uz.duke.dungeon.skill.CastSkill;
 
@@ -66,6 +67,71 @@ public final class Main {
                     // client can light. Without one it keeps the loader's PBR and
                     // the arrow is a black splinter.
                     .tint(look.awtTint());
+        });
+    }
+
+    /**
+     * Every way a floor can look, handed to the client at launch.
+     *
+     * <p>One registered look per theme <em>and</em> variation, because a variation
+     * changes the kit and the client only ever holds finished looks. Which of them
+     * a floor wears is the run's to say, floor by floor, down the status channel
+     * — see {@code DungeonRun} and {@code HeroStatus}.
+     *
+     * <p>Nothing here is a decision. Every number and every path comes out of
+     * {@code dungeon.ini}, so a fourth theme is three blocks and a folder of
+     * models, and this method does not change.
+     */
+    private static void themes(Visuals visuals, DungeonSettings settings) {
+        for (var theme : settings.themes().all()) {
+            for (var variation : theme.tones()) {
+                var tone = theme.toneWithPaths(variation);
+                visuals.theme(theme.name() + "," + variation.name(), look -> {
+                    look.tiles(Tileset.create()
+                            .floor(tone.floor())
+                            .wall(tone.wall())
+                            .corner(tone.corner())
+                            .tileSize(theme.tileSize())
+                            .wallTileSize(theme.wallTileSize())
+                            .wallHeight(theme.wallHeight())
+                            .wallLift(theme.wallLift())
+                            .wallShift(theme.wallShift())
+                            .ownMaterials(theme.ownMaterials())
+                            .tint(tone.tint()));
+                    look.fogTint(theme.fogTint());
+                    for (var themed : theme.monsters()) {
+                        themedCreature(look, theme.monsterWithPaths(themed), settings);
+                    }
+                });
+            }
+        }
+    }
+
+    /** One creature drawn the way a theme wants it, described from nothing. */
+    private static void themedCreature(Visuals.Theme look, ThemeArt.ThemeMonster themed,
+            DungeonSettings settings) {
+        var art = themed.look();
+        look.unit(themed.template(), unit -> {
+            unit.colour(art.awtTint());
+            if (!art.hasModel()) {
+                return;
+            }
+            unit.model(art.model())
+                    .texture(art.texture())
+                    .tint(art.awtTint())
+                    .scale(art.modelScale())
+                    .facing(art.facing())
+                    .idle(art.idle())
+                    .walk(art.walk())
+                    .attack(art.attack())
+                    .die(themed.death() != null ? themed.death() : settings.deathClip());
+            // Its own clips when it carries them, and the game's shared library
+            // when it does not — a robot brings its own; a skeleton borrows.
+            var clips = themed.animationsFrom() != null
+                    ? themed.animationsFrom() : settings.animationLibrary();
+            if (clips != null) {
+                unit.animationsFrom(clips);
+            }
         });
     }
 
@@ -230,6 +296,8 @@ public final class Main {
                 settings.fogUnseenPercent() / 100f, settings.fogRememberedPercent() / 100f,
                 settings.fogVisiblePercent() / 100f, settings.fogSoftenCells(),
                 settings.fogOpenPerSecond(), settings.fogTextureSize(), settings.fogTint()));
+
+        themes(visuals, settings);
 
         // The floor is a modular kit, laid out by the client from the same grid
         // the pathfinder uses. Named in dungeon.ini rather than here, so swapping

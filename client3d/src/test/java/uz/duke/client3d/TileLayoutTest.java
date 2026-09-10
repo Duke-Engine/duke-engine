@@ -149,13 +149,60 @@ class TileLayoutTest {
         }
     }
 
-    /** Every piece knows which open cell it belongs to, because fog is per cell. */
+    /**
+     * A piece is filed under the cell it was built for: the room, for what a room
+     * is made of, and the rock itself, for the roof over it.
+     */
     @Test
-    void everyPieceIsFiledUnderTheCellItWasSeenFrom() {
+    void everyPieceIsFiledUnderTheCellItWasBuiltFor() {
+        var grid = MapLoader.fromText(CORRIDOR);
         for (var placement : layout(CORRIDOR)) {
-            assertTrue(placement.cellY() == 1 && placement.cellX() >= 1 && placement.cellX() <= 3,
-                    "a piece was filed under stone: " + placement);
+            assertEquals(placement.piece() == TileLayout.Piece.CAP,
+                    grid.isBlocked(placement.cellX(), placement.cellY()),
+                    "only a roof is filed under stone: " + placement);
         }
+    }
+
+    /**
+     * A stone mass with rock in the middle of it — nothing there touches open
+     * ground.
+     */
+    private static final String MASS = """
+            #######
+            #.....#
+            #.###.#
+            #.###.#
+            #.###.#
+            #.....#
+            #######
+            """;
+
+    /**
+     * Every piece of rock is roofed, not only the ring of it a room can reach.
+     *
+     * <p>Roofing the ring alone was enough while a lid belonged to the room beside
+     * it, because rock further in had no room to belong to. It is not enough to
+     * look at: the rock beyond the ring is a straight-edged hole in the picture,
+     * and from a camera that looks across the map the roof reads as having been
+     * cut off in a line.
+     */
+    @Test
+    void everyPieceOfRockIsRoofedAndNotJustTheRing() {
+        var grid = MapLoader.fromText(MASS);
+        int stone = 0;
+        for (int cy = 0; cy < grid.getHeight(); cy++) {
+            for (int cx = 0; cx < grid.getWidth(); cx++) {
+                if (grid.isBlocked(cx, cy)) {
+                    stone++;
+                }
+            }
+        }
+        var caps = only(MASS, TileLayout.Piece.CAP);
+
+        assertEquals(stone, caps.size(), "one roof per piece of rock and no more");
+        assertTrue(caps.stream().anyMatch(cap -> Math.abs(cap.x() - 3.5f * CELL) < 0.001f
+                        && Math.abs(cap.z() - 3.5f * CELL) < 0.001f),
+                "including the middle of the mass, which no room is next to");
     }
 
     /** The same map lays out the same way twice, piece for piece. */

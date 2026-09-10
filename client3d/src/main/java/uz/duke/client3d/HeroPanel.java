@@ -1221,6 +1221,11 @@ final class HeroPanel {
                     case "pw" -> powers.add(power(value));
                     case "offer" -> offerHead[0] = value;
                     case "opt" -> cards.add(card(value));
+                    // How the floor is drawn. Nothing on the panel, but the line
+                    // is one line: a field this panel has no picture for still has
+                    // to be a field it recognises, or it would refuse the whole
+                    // thing as somebody else's.
+                    case "look" -> { }
                     default -> {
                         return null; // a field this client does not know: not ours
                     }
