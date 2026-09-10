@@ -427,4 +427,108 @@ class DiscoveryTest {
 
         assertEquals(opened, seen.exploredCells(), "softening reads the map, it never writes it");
     }
+
+    // ---- height ----
+
+    /**
+     * A map with a raised room in the middle of it: cells 20 and up along x stand
+     * a storey higher, and there is no stone anywhere.
+     */
+    private static PathGrid terraced() {
+        var grid = new PathGrid(40, 30);
+        grid.setLevelHeight(10f);
+        for (int cy = 0; cy < 30; cy++) {
+            for (int cx = 20; cx < 40; cx++) {
+                grid.setLevel(cx, cy, 1);
+            }
+        }
+        return grid;
+    }
+
+    private static Discovery seeingTerraced() {
+        return new Discovery(terraced(), new Fog(true, 0f, 0.3f, 1f, 0, 7f, 256, 0x000000));
+    }
+
+    /**
+     * The room upstairs is not visible from downstairs — the whole reason for
+     * building a dungeon upward.
+     *
+     * <p>Nothing is in the way of it: no stone, no door, an open floor the whole
+     * distance. What hides it is that it is above him, and he is looking at the
+     * side of its floor.
+     */
+    @Test
+    void aRoomAStoreyUpIsHiddenUntilItIsClimbedTo() {
+        var seen = seeingTerraced();
+
+        seen.reveal(List.of(at(LOCAL, 155f, 155f)), LOCAL, 120f, "Hero");
+
+        assertEquals(Discovery.State.VISIBLE, seen.stateAt(18, 15), "his own floor is open");
+        assertEquals(Discovery.State.UNSEEN, seen.stateAt(21, 15),
+                "the floor above him should be behind its own edge");
+        assertEquals(Discovery.State.UNSEEN, seen.stateAt(24, 15),
+                "and everything further into it");
+    }
+
+    /** Climb it and it opens. */
+    @Test
+    void climbingToItOpensIt() {
+        var seen = seeingTerraced();
+
+        seen.reveal(List.of(at(LOCAL, 245f, 155f)), LOCAL, 120f, "Hero");
+
+        assertEquals(Discovery.State.VISIBLE, seen.stateAt(24, 15), "he is standing on it");
+        assertEquals(Discovery.State.VISIBLE, seen.stateAt(21, 15));
+    }
+
+    /**
+     * And from up there he can see down over the edge.
+     *
+     * <p>The rule is one-sided on purpose. Standing on a balcony you can see the
+     * floor below you; standing under one you cannot see the balcony. Making both
+     * invisible would be simpler and would throw away the reward for climbing.
+     */
+    @Test
+    void fromUpstairsHeLooksDownOnWhatIsBelow() {
+        var seen = seeingTerraced();
+
+        seen.reveal(List.of(at(LOCAL, 215f, 155f)), LOCAL, 120f, "Hero");
+
+        assertEquals(Discovery.State.VISIBLE, seen.stateAt(18, 15),
+                "the lower floor is in plain view from above it");
+    }
+
+    /**
+     * A raised room between him and something else hides what is behind it, the
+     * way a wall does.
+     */
+    @Test
+    void aRaisedRoomBlocksTheViewOfWhatIsBeyondIt() {
+        var grid = new PathGrid(40, 30);
+        grid.setLevelHeight(10f);
+        for (int cy = 0; cy < 30; cy++) {
+            grid.setLevel(20, cy, 1); // a raised ridge one cell thick
+        }
+        var seen = new Discovery(grid, new Fog(true, 0f, 0.3f, 1f, 0, 7f, 256, 0x000000));
+
+        seen.reveal(List.of(at(LOCAL, 155f, 155f)), LOCAL, 150f, "Hero");
+
+        assertEquals(Discovery.State.UNSEEN, seen.stateAt(20, 15), "the ridge itself is above him");
+        assertEquals(Discovery.State.UNSEEN, seen.stateAt(25, 15),
+                "and the ground beyond it is behind it");
+    }
+
+    /** A flat map is discovered exactly as it was before there was any height. */
+    @Test
+    void aFlatMapIsUnaffectedByAnyOfThis() {
+        var flat = seeing(new PathGrid(40, 30), true);
+        var same = seeing(new PathGrid(40, 30), true);
+
+        flat.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 60f, "Hero");
+        same.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 60f, "Hero");
+
+        assertEquals(same.exploredCells(), flat.exploredCells());
+        assertEquals(Discovery.State.VISIBLE, flat.stateAt(24, 15),
+                "open ground on one level is open ground");
+    }
 }

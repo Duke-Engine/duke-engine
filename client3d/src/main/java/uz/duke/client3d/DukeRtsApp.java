@@ -131,6 +131,8 @@ final class DukeRtsApp extends SimpleApplication {
     private Geometry[] minimapCells = new Geometry[0];
     /** Minimap colours per state, made once: black, remembered, and in sight. */
     private Material[] minimapPalette;
+    /** Floor tones by state and storey: [remembered|in sight][storey]. */
+    private Material[][] minimapFloors;
     private final Map<Integer, UnitNode> unitNodes = new HashMap<>();
     private final Set<Integer> selected = new HashSet<>();
     private final Map<String, AudioNode> audioCache = new HashMap<>();
@@ -410,6 +412,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         placeMinimap();
         minimapPalette = null; // rebuilt lazily against the new grid
+        minimapFloors = null;
     }
 
     /**
@@ -458,14 +461,26 @@ final class DukeRtsApp extends SimpleApplication {
             // The two dark ends follow the fog, so the little map and the world
             // it stands for are the same colour of nothing.
             var dark = visuals.getFog().tintColour();
+            var rememberedFloor = dark.mult(0.9f).add(new ColorRGBA(0.04f, 0.06f, 0.03f, 0f));
+            var litFloor = new ColorRGBA(0.16f, 0.22f, 0.13f, 1f);
+            // A floor per storey, each one paler than the one below it. The map is
+            // a plan view and a plan view cannot show height at all — two rooms one
+            // above the other are the same square of paper — so the only thing left
+            // is to say it in tone, the way a contour map does.
+            int storeys = highestStorey(grid);
+            var remembered = new Material[storeys + 1];
+            var lit = new Material[storeys + 1];
+            for (int storey = 0; storey <= storeys; storey++) {
+                float lift = 1f + 0.45f * storey;
+                remembered[storey] = unshaded(rememberedFloor.mult(lift));
+                lit[storey] = unshaded(litFloor.mult(lift));
+            }
+            minimapFloors = new Material[][] {remembered, lit};
             minimapPalette = new Material[] {
                 unshaded(dark.mult(0.45f)),                          // never been there
                 unshaded(dark.mult(0.9f).add(                        // remembered stone
                         new ColorRGBA(0.09f, 0.08f, 0.07f, 0f))),
-                unshaded(dark.mult(0.9f).add(                        // remembered floor
-                        new ColorRGBA(0.04f, 0.06f, 0.03f, 0f))),
                 unshaded(new ColorRGBA(0.35f, 0.32f, 0.26f, 1f)),   // stone in sight
-                unshaded(new ColorRGBA(0.16f, 0.22f, 0.13f, 1f)),   // floor in sight
             };
         }
         for (int index = 0; index < minimapCells.length; index++) {
@@ -476,12 +491,24 @@ final class DukeRtsApp extends SimpleApplication {
             int cx = index % grid.getWidth();
             int cy = index / grid.getWidth();
             boolean stone = grid.isBlocked(cx, cy);
+            int storey = Math.clamp(grid.level(cx, cy), 0, minimapFloors[0].length - 1);
             cell.setMaterial(switch (discovery.stateAt(cx, cy)) {
                 case UNSEEN -> minimapPalette[0];
-                case REMEMBERED -> stone ? minimapPalette[1] : minimapPalette[2];
-                case VISIBLE -> stone ? minimapPalette[3] : minimapPalette[4];
+                case REMEMBERED -> stone ? minimapPalette[1] : minimapFloors[0][storey];
+                case VISIBLE -> stone ? minimapPalette[2] : minimapFloors[1][storey];
             });
         }
+    }
+
+    /** The highest storey anywhere on this map, so the minimap has a tone for each. */
+    private static int highestStorey(uz.duke.core.pathfind.PathGrid grid) {
+        int highest = 0;
+        for (int cy = 0; cy < grid.getHeight(); cy++) {
+            for (int cx = 0; cx < grid.getWidth(); cx++) {
+                highest = Math.max(highest, grid.level(cx, cy));
+            }
+        }
+        return highest;
     }
 
     /** If the cursor is over the minimap, move the camera there. Returns true if handled. */

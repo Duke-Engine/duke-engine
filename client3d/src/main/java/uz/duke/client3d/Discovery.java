@@ -55,6 +55,21 @@ final class Discovery {
      */
     private final BitSet solid = new BitSet();
 
+    /**
+     * Which storey each cell stands on.
+     *
+     * <p>Height hides things the way stone does, and more completely. A room a
+     * storey above you is behind its own floor: standing in the corridor beneath
+     * it there is nothing of it to see, however open the map looks from above.
+     * Ground <em>below</em> is another matter — you are looking down on it from
+     * the edge — so the rule is one-sided, and what is hidden is whatever is
+     * higher than the eyes looking.
+     *
+     * <p>Zero everywhere on a flat map, and then every test below is {@code 0 > 0}
+     * and the fog behaves exactly as it did before there was any height.
+     */
+    private int[] storey = new int[0];
+
     /** What the game asked the dark to be worth — see {@link Fog}. */
     private final Fog fog;
 
@@ -81,11 +96,13 @@ final class Discovery {
         explored.clear();
         visible.clear();
         solid.clear();
+        storey = new int[width * height];
         for (int cy = 0; cy < height; cy++) {
             for (int cx = 0; cx < width; cx++) {
                 if (grid.isBlocked(cx, cy)) {
                     solid.set(cy * width + cx);
                 }
+                storey[cy * width + cx] = grid.level(cx, cy);
             }
         }
         light = new float[width * height];
@@ -143,6 +160,7 @@ final class Discovery {
         float radiusSquared = radius * radius;
         int fromX = Math.clamp((int) (x / cellSize), 0, Math.max(0, width - 1));
         int fromY = Math.clamp((int) (y / cellSize), 0, Math.max(0, height - 1));
+        int eyes = storey[fromY * width + fromX];
         for (int cy = minY; cy <= maxY; cy++) {
             float dy = (cy + 0.5f) * cellSize - y;
             for (int cx = minX; cx <= maxX; cx++) {
@@ -152,7 +170,13 @@ final class Discovery {
                 if (dx * dx + dy * dy > radiusSquared) {
                     continue;
                 }
-                if (fog.lineOfSight() && !inSight(fromX, fromY, cx, cy)) {
+                // Anything standing higher than the eyes is behind its own floor.
+                // Climb to it and it opens; until then a raised room is as good as
+                // rock, which is the whole point of building the dungeon upward.
+                if (storey[cy * width + cx] > eyes) {
+                    continue;
+                }
+                if (fog.lineOfSight() && !inSight(fromX, fromY, cx, cy, eyes)) {
                     continue;
                 }
                 visible.set(cy * width + cx);
@@ -176,7 +200,7 @@ final class Discovery {
      * trigonometry and no square roots — and no shader either: this is arithmetic
      * over a grid the pathfinder already keeps.
      */
-    private boolean inSight(int fromX, int fromY, int toX, int toY) {
+    private boolean inSight(int fromX, int fromY, int toX, int toY, int eyes) {
         int dx = Math.abs(toX - fromX);
         int dy = -Math.abs(toY - fromY);
         int stepX = fromX < toX ? 1 : -1;
@@ -197,7 +221,10 @@ final class Discovery {
             if (x == toX && y == toY) {
                 return true; // arrived; the far cell is allowed to be stone
             }
-            if (solid.get(y * width + x)) {
+            // Stone stops the line, and so does a floor standing above the eyes:
+            // a raised room between here and there is a wall with a room on top
+            // of it, and what is behind it is behind it.
+            if (solid.get(y * width + x) || storey[y * width + x] > eyes) {
                 return false;
             }
         }

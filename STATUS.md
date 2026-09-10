@@ -2054,6 +2054,13 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
   `StoreyHeight`, `StairLength`, `EntranceStorey`, `BossStorey`.
   `MaxStorey = 0` — eski tekis dungeon, aynan avvalgidek.
   **Hali chizilmaydi** — klient 3-bosqichda qavatlarni ko'radi.
+- **Balandlik ko'rishni to'sadi** — ko'zdan **yuqori** qavatdagi katak ko'rinmaydi
+  va nurni devordek to'sadi; pastdagi qavat esa chetidan qaralganda ko'rinadi.
+  Ya'ni tepadagi xona unga chiqmaguningizcha qorong'u qoladi, chiqqandan keyin
+  esa pastga qarab ko'rasiz — bir tomonlama qoida ataylab, chunki ikkalasini ham
+  yashirish ko'tarilishning mukofotini yo'q qiladi. Minimapda har qavat o'z
+  ochiqligida (kontur xaritasidek): plan ko'rinish balandlikni boshqacha
+  ko'rsatolmaydi. Tuman uch qatlami o'zgarmadi.
 - **Yo'nalishga bog'liq ko'rish yo'q** — orqadan kelgan narsa ham xuddi shunday
   ko'rinadi; tuman faqat devorni biladi.
 - Qo'lda chizilgan xona (`Dungeon.create()`) hali turibdi — engine o'ynasa bo'ladiganini
