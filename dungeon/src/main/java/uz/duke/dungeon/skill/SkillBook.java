@@ -454,27 +454,32 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     }
 
     /**
-     * How far forward the caster actually gets.
+     * Where the caster comes down.
      *
-     * <p>Walked in steps rather than jumped, and the last clear step is where he
-     * lands. A dash that simply added the distance would put him inside a wall
-     * whenever the room was too small for it — and a unit whose centre is in stone
-     * is the bug that took a day to find the last time.
+     * <p>He goes <em>over</em> what is between: a wall in the way is a wall he
+     * clears, and a skeleton in the way is one he is past before it can turn
+     * round. That is the whole point of the skill — an escape that any corridor
+     * could cancel is not an escape, and a dash that stops at the first thing it
+     * meets stops at the thing it was meant to get away from.
+     *
+     * <p>What he may not do is land inside something. So the arc is walked from
+     * the far end back, and he comes down on the first clear spot at or before
+     * where he was pointed: aimed into rock he falls short of it rather than into
+     * it, and a unit whose centre is in stone stays the bug it was the day it took
+     * an afternoon to find.
      */
     private static Coord3D dashEnd(GameObject owner, World world, float distance) {
         float facing = owner.getOrientation();
         float dx = (float) StrictMath.cos(facing);
         float dy = (float) StrictMath.sin(facing);
         var from = owner.getPosition();
-        var landed = from;
-        for (float gone = DASH_STEP; gone <= distance; gone += DASH_STEP) {
+        for (float gone = distance; gone >= DASH_STEP; gone -= DASH_STEP) {
             var step = new Coord3D(from.x() + dx * gone, from.y() + dy * gone, from.z());
-            if (world.isGroundBlocked(step) || world.findBlocker(owner, step) != null) {
-                break; // as far as he gets; the rest of the dash is wall
+            if (!world.isGroundBlocked(step) && world.findBlocker(owner, step) == null) {
+                return step;
             }
-            landed = step;
         }
-        return landed;
+        return from; // nowhere to come down: he stays where he is
     }
 
     @Override

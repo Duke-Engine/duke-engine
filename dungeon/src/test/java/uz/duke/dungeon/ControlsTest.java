@@ -56,7 +56,7 @@ class ControlsTest {
             assertNotNull(aim, "no binding for " + skill.key());
             assertEquals(switch (skill.effect().aim()) {
                 case UNIT -> Hotkeys.Aim.UNIT;
-                case GROUND -> Hotkeys.Aim.GROUND;
+                case OPEN_GROUND -> Hotkeys.Aim.OPEN_GROUND;
                 case SELF -> Hotkeys.Aim.NOW;
             }, aim, skill.key() + " asks for the wrong thing");
         }
@@ -75,6 +75,6 @@ class ControlsTest {
 
         assertTrue(Main.controls(settings).claimedKeys().contains('Z'),
                 "a skill nobody wrote Java for should still have a key");
-        assertEquals(Hotkeys.Aim.GROUND, Main.controls(settings).aimOf('Z'));
+        assertEquals(Hotkeys.Aim.OPEN_GROUND, Main.controls(settings).aimOf('Z'));
     }
 }

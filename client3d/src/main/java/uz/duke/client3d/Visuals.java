@@ -199,7 +199,9 @@ public final class Visuals {
         }
     }
 
-    private final Map<String, UnitVisual> units = new HashMap<>();
+    // Linked, so the order a game declares its units in is the order anything
+    // walking them sees -- which is what a loading bar advances through.
+    private final Map<String, UnitVisual> units = new java.util.LinkedHashMap<>();
     private final UnitVisual defaults = new UnitVisual();
     private String assetRoot;
     private String discoveryTemplate;
@@ -335,7 +337,7 @@ public final class Visuals {
 
         private Tileset tileset;
         private Integer fogTint;
-        private final Map<String, UnitVisual> units = new HashMap<>();
+        private final Map<String, UnitVisual> units = new java.util.LinkedHashMap<>();
 
         private Theme() {
         }
@@ -379,7 +381,7 @@ public final class Visuals {
         }
     }
 
-    private final Map<String, Theme> themes = new HashMap<>();
+    private final Map<String, Theme> themes = new java.util.LinkedHashMap<>();
 
     /**
      * Register a named theme. Which one is current is the <em>game's</em> to say,
@@ -404,5 +406,38 @@ public final class Visuals {
     /** Whether this game has any themes at all; most do not. */
     public boolean hasThemes() {
         return !themes.isEmpty();
+    }
+
+    // ---- what all of this adds up to ----
+
+    /**
+     * Every look this game can draw: the ones it named, and the ones its themes
+     * name on top of them.
+     *
+     * <p>For {@link Preload}, which needs to know what will be asked for before it
+     * is. A themed look is included even though nothing will wear it for another
+     * ten floors — that is exactly the one whose file is not read yet when the
+     * floor changes.
+     */
+    java.util.List<UnitVisual> allLooks() {
+        var all = new java.util.ArrayList<>(units.values());
+        for (var theme : themes.values()) {
+            all.addAll(theme.units.values());
+        }
+        return all;
+    }
+
+    /** Every kit a world may be built from: the game's own, and its themes'. */
+    java.util.List<Tileset> allKits() {
+        var all = new java.util.ArrayList<Tileset>();
+        if (tileset != null) {
+            all.add(tileset);
+        }
+        for (var theme : themes.values()) {
+            if (theme.tileset != null) {
+                all.add(theme.tileset);
+            }
+        }
+        return all;
     }
 }

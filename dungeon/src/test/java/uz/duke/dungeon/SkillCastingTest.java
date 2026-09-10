@@ -533,12 +533,12 @@ class SkillCastingTest {
     }
 
     /**
-     * And never into stone. A dash that simply added its distance would put his
-     * centre inside a wall whenever the room was too small for it, and a unit
-     * standing in stone is a bug that costs a day.
+     * And never into stone. A dash aimed further than there is room for falls
+     * short of the rock rather than landing in it, and a unit whose centre is
+     * inside a wall is a bug that costs a day.
      */
     @Test
-    void theDashStopsAtTheWall() {
+    void theDashNeverLandsInStone() {
         var world = Dungeon.world(arena(), SETTINGS);
         var game = world.game();
         // Facing the eastern wall from two cells away, with a 90-unit dash.
@@ -554,7 +554,67 @@ class SkillCastingTest {
         assertTrue(hero.getPosition().distance(from) > 0f,
                 "and he did move — a dash that goes nowhere passes this trivially");
         assertTrue(hero.getPosition().distance(from) < 90f,
-                "but not the whole way, because the wall was in it");
+                "but not the whole way, because there is no floor that far east");
+    }
+
+    /** A room split down the middle, so a dash across it has to clear the wall. */
+    private static String walledArena() {
+        int width = 40;
+        int height = 30;
+        var text = new StringBuilder();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                boolean edge = x == 0 || y == 0 || x == width - 1 || y == height - 1;
+                text.append(edge || x == 20 ? '#' : '.');
+            }
+            text.append('\n');
+        }
+        return text.toString();
+    }
+
+    /**
+     * He goes over the wall, not up to it.
+     *
+     * <p>Which is the whole of what the skill is for. An escape a corridor can
+     * cancel is not an escape, and the thing a player most wants to be on the far
+     * side of is usually the thing standing between him and the far side. Aimed
+     * past a wall he clears it and comes down beyond.
+     */
+    @Test
+    void theDashCarriesHimOverAWall() {
+        var world = Dungeon.world(walledArena(), SETTINGS);
+        var game = world.game();
+        game.spawn("Hero", world.hero(), 155f, 155f);
+        game.runHeadless(1);
+        var hero = creature(game, "Hero");
+
+        // The wall stands at cell 20, which is 200 to 210. He is west of it and
+        // pointed at open floor four cells east of it.
+        hero.findModule(SkillBook.class).cast('E', 1, null, new Coord3D(245f, 155f, 0f));
+
+        assertTrue(hero.getPosition().x() > 210f,
+                "the wall stopped him at " + hero.getPosition());
+        assertFalse(game.getLogic().isGroundBlocked(hero.getPosition()),
+                "and he came down on floor, not on the wall");
+    }
+
+    /**
+     * And past whatever is standing in the way.
+     *
+     * <p>Same reasoning, one step further: a skeleton is exactly what he is
+     * dashing away from, so being stopped by one is being stopped by the problem.
+     */
+    @Test
+    void theDashCarriesHimPastACreature() {
+        var arena = arena(SETTINGS, 200f, 155f);
+        var hero = arena.hero();
+        hero.setPosition(new Coord3D(155f, 155f, 0f));
+        arena.game().runHeadless(1);
+
+        assertTrue(arena.book().cast('E', 1, null, new Coord3D(245f, 155f, 0f)));
+
+        assertTrue(hero.getPosition().x() > 210f,
+                "the skeleton stopped him at " + hero.getPosition());
     }
 
     /** R makes him hit harder while it lasts. */

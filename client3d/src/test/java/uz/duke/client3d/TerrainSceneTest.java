@@ -216,8 +216,8 @@ class TerrainSceneTest {
         terrain.rebuild(grid);
         var seen = new Discovery(grid);
 
-        seen.reveal(java.util.List.of(unit(25f, 25f)), 0, 20f);
-        seen.reveal(java.util.List.of(unit(500f, 500f)), 0, 20f); // gone off elsewhere
+        seen.reveal(java.util.List.of(unit(25f, 25f)), 0, 20f, null);
+        seen.reveal(java.util.List.of(unit(500f, 500f)), 0, 20f, null); // gone off elsewhere
         settle(seen);
         terrain.applyDiscovery(seen);
 
@@ -235,7 +235,7 @@ class TerrainSceneTest {
     private static Discovery seenFrom(uz.duke.core.pathfind.PathGrid grid,
             float x, float y, float radius) {
         var seen = new Discovery(grid);
-        seen.reveal(java.util.List.of(unit(x, y)), 0, radius);
+        seen.reveal(java.util.List.of(unit(x, y)), 0, radius, null);
         settle(seen);
         return seen;
     }
@@ -395,7 +395,7 @@ class TerrainSceneTest {
         var seen = new Discovery(grid);
 
         // A tight circle at one end, so the far end of the corridor stays black.
-        seen.reveal(java.util.List.of(unit(15f, 15f)), 0, 12f);
+        seen.reveal(java.util.List.of(unit(15f, 15f)), 0, 12f, null);
         settle(seen);
         terrain.applyDiscovery(seen);
 
@@ -425,7 +425,7 @@ class TerrainSceneTest {
         terrain.rebuild(grid);
         var seen = new Discovery(grid);
 
-        seen.reveal(java.util.List.of(unit(15f, 15f)), 0, 12f);
+        seen.reveal(java.util.List.of(unit(15f, 15f)), 0, 12f, null);
         settle(seen);
         terrain.applyDiscovery(seen);
 

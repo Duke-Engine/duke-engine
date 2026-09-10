@@ -48,7 +48,19 @@ public final class Hotkeys {
         /** A creature, chosen by clicking one. */
         UNIT,
         /** A spot on the floor, chosen by clicking it. */
-        GROUND
+        GROUND,
+        /**
+         * The same, but only somewhere the player could stand and has already
+         * seen -- not into stone, and not into the dark.
+         *
+         * <p>The two halves are one idea. A leap that ends inside a wall is not a
+         * leap, and a leap into ground nobody has walked is a guess: the player
+         * cannot see whether it is a room, a corridor or the middle of the rock,
+         * so letting him aim there is offering him a coin toss dressed as a
+         * decision. Ground he lit once and has since forgotten stays fair game --
+         * he knows what is there, even if he cannot see it now.
+         */
+        OPEN_GROUND
     }
 
     /** What the player pointed at — one of the two is filled in, per the aim. */
@@ -99,6 +111,18 @@ public final class Hotkeys {
     /** The same, for a letter that first asks the player to click the floor. */
     public Hotkeys onGround(char key, BiConsumer<DukeGame, Coord3D> action) {
         return bind(key, Aim.GROUND, (game, aimed) -> action.accept(game, aimed.point()));
+    }
+
+    /**
+     * The same again, for a letter that may only be pointed at open ground the
+     * player has already seen -- see {@link Aim#OPEN_GROUND}.
+     *
+     * <p>The client enforces it, because the client is the one holding what the
+     * player has seen. A click on stone or on the dark drops the aim and sends
+     * nothing, exactly as a click on nothing does.
+     */
+    public Hotkeys onOpenGround(char key, BiConsumer<DukeGame, Coord3D> action) {
+        return bind(key, Aim.OPEN_GROUND, (game, aimed) -> action.accept(game, aimed.point()));
     }
 
     private Hotkeys bind(char key, Aim aim, BiConsumer<DukeGame, Aimed> run) {

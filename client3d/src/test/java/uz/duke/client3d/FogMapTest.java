@@ -58,7 +58,7 @@ class FogMapTest {
     /** What the hero has opened up, run on until the fog has stopped moving. */
     private static Discovery seenFrom(PathGrid grid, float x, float y, float radius) {
         var seen = new Discovery(grid, fog(64));
-        seen.reveal(List.of(unit(x, y)), 0, radius);
+        seen.reveal(List.of(unit(x, y)), 0, radius, null);
         for (int frame = 0; frame < 120; frame++) {
             seen.soften(1f / 30f);
         }
@@ -213,8 +213,8 @@ class FogMapTest {
         var map = fogMap(64, grid);
         var seen = new Discovery(grid, fog(64));
 
-        seen.reveal(List.of(unit(1.5f * CELL, 2.5f * CELL)), 0, 2f * CELL);
-        seen.reveal(List.of(unit(11.5f * CELL, 2.5f * CELL)), 0, 2f * CELL); // gone off
+        seen.reveal(List.of(unit(1.5f * CELL, 2.5f * CELL)), 0, 2f * CELL, null);
+        seen.reveal(List.of(unit(11.5f * CELL, 2.5f * CELL)), 0, 2f * CELL, null); // gone off
         for (int frame = 0; frame < 120; frame++) {
             seen.soften(1f / 30f);
         }

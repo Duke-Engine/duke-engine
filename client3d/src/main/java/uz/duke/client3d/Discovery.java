@@ -104,10 +104,17 @@ final class Discovery {
      * and note what is in sight this instant.
      *
      * <p>Only the viewer's units open the map. An enemy's eyes are its own
-     * business — this is the player's view of the world, not a shared one — and
+     * business -- this is the player's view of the world, not a shared one -- and
      * a monster that wandered somewhere must not light it up.
+     *
+     * <p>And only the ones named by {@code eyesOf}, because owning a thing is not
+     * the same as seeing through it. An arrow is a unit like any other and it is
+     * the player's, so a map opened around everything he owns is a map opened
+     * along the flight of every shot he takes -- which turns a bow into a flare
+     * gun and the dark into something you can simply shoot away. Null for a game
+     * where anything of his that has a position also has eyes.
      */
-    void reveal(List<UnitView> units, int localPlayer, float radius) {
+    void reveal(List<UnitView> units, int localPlayer, float radius, String eyesOf) {
         visible.clear();
         if (radius <= 0f || width == 0) {
             return;
@@ -115,6 +122,9 @@ final class Discovery {
         for (var unit : units) {
             if (unit.playerIndex() != localPlayer) {
                 continue;
+            }
+            if (eyesOf != null && !eyesOf.equals(unit.templateName())) {
+                continue; // his, but not his eyes
             }
             revealAround(unit.x(), unit.y(), radius);
         }

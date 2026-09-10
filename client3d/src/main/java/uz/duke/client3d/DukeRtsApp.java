@@ -73,7 +73,7 @@ final class DukeRtsApp extends SimpleApplication {
     /** How long a muzzle flash stays lit after a shot. Display time, not game time. */
     private static final float MUZZLE_FLASH_SECONDS = 0.08f;
 
-    private enum Screen { MENU, PLAYING, PAUSED, SETTINGS }
+    private enum Screen { MENU, LOADING, PLAYING, PAUSED, SETTINGS }
 
     /** Persisted display/audio settings, shared by every duke-engine game. */
     static final java.util.prefs.Preferences PREFS =
@@ -132,6 +132,11 @@ final class DukeRtsApp extends SimpleApplication {
     private final Set<Integer> selected = new HashSet<>();
     private final Map<String, AudioNode> audioCache = new HashMap<>();
     private final Set<String> missingAssets = new HashSet<>();
+    /** Up while the game's art is being read; see {@link ArtLoad}. */
+    private LoadingOverlay loading;
+    private ArtLoad artLoad;
+    /** Set once every file the game named has been read and handed to the card. */
+    private boolean artIsReady;
 
     private WorldSnapshot snapshot = WorldSnapshot.EMPTY;
     private WorldSnapshot lastEventedSnapshot = WorldSnapshot.EMPTY;
@@ -254,6 +259,8 @@ final class DukeRtsApp extends SimpleApplication {
         buildTerrain();
         rootNode.attachChild(unitsNode);
         rootNode.attachChild(markerNode);
+        warmNode.setCullHint(Spatial.CullHint.Always);
+        rootNode.attachChild(warmNode);
 
         centerCameraOnMap();
         installInput();
@@ -285,6 +292,8 @@ final class DukeRtsApp extends SimpleApplication {
         buildMinimap();
         buildDragRectangle();
         menu = new MenuOverlay(guiFont, assetManager, guiNode, cam.getWidth(), cam.getHeight());
+        loading = new LoadingOverlay(guiFont, assetManager, guiNode,
+                cam.getWidth(), cam.getHeight());
         showMainMenu();
         applyVolume();
     }
@@ -699,6 +708,10 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void startGame() {
+        if (!artIsReady) {
+            beginLoadingArt();
+            return; // the world waits until there is something to draw it with
+        }
         if (simThread == null) {
             simThread = game.startEngineOnly();
         }
@@ -708,6 +721,181 @@ final class DukeRtsApp extends SimpleApplication {
         menu.hide();
         screen = Screen.PLAYING;
     }
+
+    // ---- reading the art before it is wanted ----
+
+    /**
+     * Read everything the game will draw, now, rather than in the frame it is
+     * first drawn in.
+     *
+     * <p>What this fixes is a stall with a very specific shape: the game runs at
+     * its full rate until the first monster of a kind arrives, then drops to
+     * twenty for a second, then runs again. The cause is not the monster. It is
+     * that drawing one means reading nine megabytes of model and seven of
+     * animation library off the disc and handing a megabyte and a half of texture
+     * to the graphics card — and all of that happens on the thread that draws, in
+     * the frame that asked, because that is the frame in which the client first
+     * learned it was needed.
+     *
+     * <p>It could not have learned earlier from the game, but it could have asked
+     * {@link Visuals}, which has known since before the window opened.
+     */
+    private void beginLoadingArt() {
+        artLoad = new ArtLoad();
+        menu.hide();
+        loading.show(game.getTitle());
+        screen = Screen.LOADING;
+    }
+
+    private void advanceLoadingArt() {
+        loading.progress(artLoad.done(), artLoad.what());
+        if (!artLoad.step()) {
+            return;
+        }
+        artIsReady = true;
+        artLoad = null;
+        loading.hide();
+        startGame();
+    }
+
+    /**
+     * One pass over every file the game named, in two halves.
+     *
+     * <p>The reading half runs on a thread of its own, because that is the slow
+     * part and doing it here would freeze the very screen that exists to show it
+     * happening. jME's asset manager is built for this: a loader off the render
+     * thread parses into the shared cache, and nothing touches the scene graph.
+     *
+     * <p>The second half cannot be moved and does not need to be. Handing a mesh
+     * or a texture to the card, and compiling the shader that will draw it, is
+     * work only the render thread may do — so it is done here a piece at a time,
+     * between frames, while the bar keeps moving. It is the half that matters:
+     * a file read but never handed over stalls on first sight exactly as before.
+     */
+    private final class ArtLoad {
+
+        /** How many pieces are handed to the card per frame, so the bar still moves. */
+        private static final int WARM_PER_FRAME = 1;
+
+        private final List<Preload.Job> files = Preload.plan(visuals);
+        /**
+         * One look per model, not one per creature: six kinds cut from one kit
+         * share a file, and showing the card the same mesh six times teaches it
+         * nothing it did not know after the first.
+         */
+        private final List<Visuals.UnitVisual> looks = visuals.allLooks().stream()
+                .filter(look -> look.modelPath != null)
+                .collect(java.util.stream.Collectors.toMap(look -> look.modelPath,
+                        look -> look, (first, next) -> first, java.util.LinkedHashMap::new))
+                .values().stream().toList();
+        private final List<String> sounds = files.stream()
+                .filter(job -> job.kind() == Preload.Kind.SOUND)
+                .map(Preload.Job::assetPath).toList();
+        private final java.util.concurrent.atomic.AtomicInteger read =
+                new java.util.concurrent.atomic.AtomicInteger();
+        private volatile String reading = "";
+        private int warmed;
+
+        ArtLoad() {
+            var reader = new Thread(this::readEverything, "duke-art");
+            reader.setDaemon(true); // a window closed mid-load must still close
+            reader.start();
+        }
+
+        private void readEverything() {
+            for (var job : files) {
+                reading = job.assetPath();
+                try {
+                    switch (job.kind()) {
+                        case MODEL, TILE -> assetManager.loadModel(job.assetPath());
+                        case ANIMATIONS -> animationLibraries.computeIfAbsent(job.assetPath(),
+                                assetManager::loadModel);
+                        case TEXTURE -> assetManager.loadTexture(job.assetPath());
+                        // Sound is the render thread's: an audio node goes into the
+                        // scene, and the scene is not this thread's to touch.
+                        case SOUND -> { }
+                    }
+                } catch (RuntimeException e) {
+                    warnOnce(job.assetPath(), job.kind().name().toLowerCase(
+                            java.util.Locale.ROOT));
+                }
+                read.incrementAndGet();
+            }
+            reading = "";
+        }
+
+        /** How far along, counting both halves as one. */
+        float done() {
+            return (read.get() + warmed) / (float) Math.max(1, total());
+        }
+
+        String what() {
+            return reading;
+        }
+
+        private int total() {
+            return files.size() + looks.size() + sounds.size() + 1;
+        }
+
+        /** Do this frame's share of the work; {@code true} once there is none left. */
+        boolean step() {
+            if (read.get() < files.size()) {
+                return false; // still reading; the bar is the only thing to do
+            }
+            for (int i = 0; i < WARM_PER_FRAME && warmed < looks.size() + sounds.size() + 1; i++) {
+                warmOne();
+                warmed++;
+            }
+            return warmed >= looks.size() + sounds.size() + 1;
+        }
+
+        private void warmOne() {
+            if (warmed < looks.size()) {
+                warmLook(looks.get(warmed));
+            } else if (warmed < looks.size() + sounds.size()) {
+                soundNode(sounds.get(warmed - looks.size()));
+            } else {
+                // The floor is already standing, and its several hundred tiles are
+                // three meshes and one material the card has still never seen.
+                renderManager.preloadScene(terrainNode);
+            }
+        }
+
+        /**
+         * Build one of this creature exactly as the game will, show it to the card,
+         * and throw it away.
+         *
+         * <p>Thrown away and still worth doing, because what is kept is not the
+         * model: it is the parsed file in the asset cache, the texture in graphics
+         * memory, and the compiled shader for the one material every creature of
+         * this kit shares. The next one built is the cheap one.
+         */
+        private void warmLook(Visuals.UnitVisual look) {
+            reading = look.modelPath;
+            try {
+                var body = assetManager.loadModel(look.modelPath);
+                if (look.modelPart != null) {
+                    body = partOf(body, look.modelPart, look.modelPath);
+                }
+                dressModel(body, look);
+                warmNode.attachChild(body);
+                rootNode.updateGeometricState();
+                renderManager.preloadScene(body);
+                body.removeFromParent();
+            } catch (RuntimeException e) {
+                warnOnce(look.modelPath, "model");
+            }
+        }
+    }
+
+    /**
+     * Where a creature stands for the one frame it is shown to the graphics card.
+     *
+     * <p>In the scene rather than off to the side of it, because a spatial with no
+     * parent has no world transform and jME says so with an assertion. Never
+     * drawn: it is culled outright, and nothing is in it between frames anyway.
+     */
+    private final Node warmNode = new Node("warm");
 
     private void showPauseMenu() {
         screen = Screen.PAUSED;
@@ -1113,7 +1301,8 @@ final class DukeRtsApp extends SimpleApplication {
             }
             discoveryRadius = template.getVisionRange();
         }
-        discovery.reveal(snapshot.units(), game.getLocalPlayerIndex(), discoveryRadius);
+        discovery.reveal(snapshot.units(), game.getLocalPlayerIndex(), discoveryRadius,
+                visuals.getDiscoveryTemplate());
         // What is open is decided above; how it is drawn eases toward that, so the
         // edge sweeps rather than switching. Seconds, not frames.
         discovery.soften(tpf);
@@ -1459,9 +1648,37 @@ final class DukeRtsApp extends SimpleApplication {
         if (ground == null) {
             return;
         }
+        if (binding.aim() == Hotkeys.Aim.OPEN_GROUND && !isOpenAndSeen(ground)) {
+            return; // stone, or somewhere he has never been — nothing is sent
+        }
         binding.run().accept(game,
                 new Hotkeys.Aimed(0, new Coord3D(ground.x, ground.z, 0f)));
         markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
+    }
+
+    /**
+     * Whether that spot is somewhere the player could stand and has already seen.
+     *
+     * <p>Asked here rather than of the simulation because both halves are the
+     * client's to answer. The map's shape it has; what the player has <em>seen</em>
+     * of it only it has — that is a fact about this screen, not about the world,
+     * and the simulation would be wrong to hold it.
+     *
+     * <p>A game with no discovery at all has seen everything, which is the right
+     * answer rather than a special case: with the whole map on screen there is no
+     * such thing as aiming into the dark.
+     */
+    private boolean isOpenAndSeen(Vector3f ground) {
+        var grid = game.getTerrain();
+        if (grid == null) {
+            return true;
+        }
+        int cx = grid.toCellX(new Coord3D(ground.x, ground.z, 0f));
+        int cy = grid.toCellY(new Coord3D(ground.x, ground.z, 0f));
+        if (!grid.inBounds(cx, cy) || grid.isTerrainBlocked(cx, cy)) {
+            return false;
+        }
+        return discovery == null || discovery.stateAt(cx, cy) != Discovery.State.UNSEEN;
     }
 
     /**
@@ -1670,6 +1887,10 @@ final class DukeRtsApp extends SimpleApplication {
             hud.setText("");
             buildMenu.setText("");
             return; // the world starts when the player presses Play
+        }
+        if (screen == Screen.LOADING) {
+            advanceLoadingArt();
+            return; // and it waits until there is art to start it with
         }
         // Before the world is rebuilt, not after: a new floor and the look it
         // wears arrive in the same snapshot, and terrain built from the last
@@ -2115,7 +2336,8 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /** Animation libraries, loaded once each and shared by everything that borrows. */
-    private final Map<String, Spatial> animationLibraries = new HashMap<>();
+    private final Map<String, Spatial> animationLibraries =
+            new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * What colour to draw this unit: the type's own if the game gave it one,
@@ -2340,8 +2562,24 @@ final class DukeRtsApp extends SimpleApplication {
     // ---- assets & helpers ----
 
     private void playSound(String assetPath, Vector3f position) {
-        if (assetPath == null || missingAssets.contains(assetPath)) {
+        var audio = soundNode(assetPath);
+        if (audio == null) {
             return;
+        }
+        audio.setLocalTranslation(position);
+        audio.playInstance();
+    }
+
+    /**
+     * This sound, ready to play, or {@code null} if it is not there.
+     *
+     * <p>Kept rather than built per shot, and built ahead of the first shot by
+     * {@link ArtLoad}: decoding a sound is not much work, but it is work in the
+     * frame the arrow leaves the bow, which is the frame that can least afford it.
+     */
+    private AudioNode soundNode(String assetPath) {
+        if (assetPath == null || missingAssets.contains(assetPath)) {
+            return null;
         }
         var audio = audioCache.computeIfAbsent(assetPath, path -> {
             try {
@@ -2357,10 +2595,8 @@ final class DukeRtsApp extends SimpleApplication {
         });
         if (audio == null) {
             missingAssets.add(assetPath);
-            return;
         }
-        audio.setLocalTranslation(position);
-        audio.playInstance();
+        return audio;
     }
 
     private void warnOnce(String asset, String kind) {

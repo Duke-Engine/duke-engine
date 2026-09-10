@@ -1762,6 +1762,59 @@ ikkala peer aynan bir kadrda qo'llaydi.
   qolardi. Endi plitka **o'lchanadi** va yuzasi nolga tushiriladi — ya'ni to'plam
   jo'natilgani uchun to'g'ri, INI'da raqam yo'q.
 
+
+### 8.x San'at oldindan o'qiladi — yuklash ekrani
+
+- **Muammo:** birinchi maxluq maydonga chiqqan kadrda klient 9 MB model
+  (`Imp.glb`), 7.6 MB animatsiya kutubxonasi (`UAL1_Standard.glb`) va 1.4 MB
+  tekstura o'qirdi — hammasi **chizuvchi oqimda**, o'sha kadrda. FPS 20-30 ga
+  tushardi, keyin yana tiklanardi, keyin keyingi tur maxluqda takrorlanardi.
+- **Yechim:** `Preload` (`client3d`) — `Visuals`dan o'yin so'raydigan **hamma**
+  faylni chiqaradi: modellar, animatsiya kutubxonalari, teksturalar, to'plam
+  bo'laklari, tovushlar. Har biri **bir marta** (oltita maxluq bitta kutubxonani
+  bo'lishsa, u bir marta o'qiladi). Mavzular ham kiradi — 10-qavatda kiyiladigan
+  model 10-qavatda emas, hozir o'qiladi.
+- **Ikki bosqich, va ikkinchisi asosiy:**
+  1. *O'qish* — alohida oqimda (`duke-art`, daemon). jME asset manager buni
+     ko'taradi: parsing umumiy keshga tushadi, sahna grafiga tegilmaydi. Shuning
+     uchun yuklash ekrani 60 FPS'da chiziladi va polosa siljiydi.
+  2. *Kartaga berish* — faqat chizuvchi oqimda bo'ladi: `renderManager
+     .preloadScene(...)` bilan mesh/tekstura videoxotiraga, shader kompilyatsiya
+     qilinadi. Kadr boshiga bittadan. **Faqat o'qilgan fayl birinchi ko'rinishda
+     xuddi ilgarigidek to'xtatadi** — muhim yarmi shu.
+- `LoadingOverlay` — `MenuOverlay` bilan bir xil materiallar; polosa bitta quad
+  (kadrda yangi obyekt yaratilmaydi), tagida o'qilayotgan fayl nomi.
+- `Screen.LOADING` — Play bosilgach shu holatga o'tiladi, simulyatsiya **yuklash
+  tugagandan keyin** boshlanadi.
+- Yo'lda: `Visuals` xaritalari `LinkedHashMap` (o'yin e'lon qilgan tartib =
+  polosa yuradigan tartib), `animationLibraries` `ConcurrentHashMap`.
+
+### 8.y Dash devordan o'tadi, lekin faqat ko'rilgan yerga
+
+- **Simulyatsiyada** (`SkillBook.dashEnd`): endi yo'ldagi hech narsa to'xtatmaydi
+  — devor ham, maxluq ham. Yoy **oxiridan orqaga** yuriladi va u nishonga yoki
+  undan berigi birinchi bo'sh nuqtaga tushadi. Ya'ni ustidan o'tadi, lekin
+  **ichiga tushmaydi** (markazi toshda turgan birlik — bir kunlik bug).
+- **Klientda** (`Hotkeys.Aim.OPEN_GROUND`): nishon toshda yoki **hech qachon
+  yoritilmagan** (`Discovery.State.UNSEEN`) katakda bo'lsa, klik hech narsa
+  yubormaydi. Bir marta yoritilgan, keyin unutilgan joy — mumkin: u yerda nima
+  borligini o'yinchi biladi.
+- Ikkala shart ham klientniki, chunki ikkalasining javobi ham unda: xaritaning
+  shakli bor, **o'yinchi nimani ko'rganini esa faqat u biladi** — bu ekran
+  haqidagi fakt, dunyo haqidagi emas, va simulyatsiya uni ushlab turishi xato
+  bo'lardi.
+- `SkillEffect.Aim.GROUND` → `OPEN_GROUND`.
+
+### 8.z O'q endi yoritmaydi
+
+- **Sabab:** `Discovery.reveal` o'yinchining **hamma** birligi atrofida xaritani
+  ochardi. O'q ham birlik, u ham o'yinchiniki — demak har otilgan o'q xonani
+  kesib o'tarkan yo'lini yoritib ketardi. Yoy fonarga aylangan edi.
+- **Yechim:** `reveal(..., String eyesOf)` — faqat `Visuals.discoveredBy` aytgan
+  shablon ko'radi. Bu yangi qoida emas: hujjat boshidan "kimning ko'zi" deb
+  yozilgan edi (radius o'sha shablonning `VisionRange`i), kod esa hammaga
+  ochardi. `null` = hammasi ko'radi (RTS uchun eski xatti-harakat saqlangan).
+
 ---
 
 ## 9. Nima yo'q / ochiq ishlar
@@ -2057,6 +2110,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/skill/SkillBook.java` | qahramon moduli: kuluar, effektlar, `DamageModifier` |
 | `dungeon/…/dungeon/skill/{CastSkill,Skills}.java` | o'yinning o'z buyrug'i (nishoni bilan) + status qatori |
 | `dungeon/…/dungeon/run/HeroStatus.java` | panel o'qiydigan qator — so'zlar shu yerda tugaydi |
+| `client3d/…/client3d/{Preload,LoadingOverlay}.java` | o'yin so'raydigan hamma faylning ro'yxati + yuklash ekrani |
 | `client3d/…/client3d/HeroPanel.java` | qahramon paneli — tosh uyalar, barlar, chuqurlik |
 | `client3d/…/client3d/Hotkeys.java` | o'yin da'vo qilgan klavishlar → `postCommand`; klavish to'qnashuvini hal qiladi |
 | `dungeon/…/dungeon/level/Levelling.java` | daraja qoidalari — sof, INI qiymatlaridan |

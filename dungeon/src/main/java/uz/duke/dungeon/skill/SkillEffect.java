@@ -27,7 +27,7 @@ public enum SkillEffect {
     AREA_DAMAGE(Aim.SELF),
 
     /** Move the caster toward a chosen spot — closing or escaping. */
-    DASH(Aim.GROUND),
+    DASH(Aim.OPEN_GROUND),
 
     /** Raise the caster's own damage for a while. */
     EMPOWER(Aim.SELF);
@@ -38,8 +38,15 @@ public enum SkillEffect {
         SELF,
         /** A creature. */
         UNIT,
-        /** A spot on the floor. */
-        GROUND
+        /**
+         * A spot on the floor he could stand on and has already seen.
+         *
+         * <p>Not stone, because a leap that ends in rock is not a leap; and not
+         * the unlit dark, because there the player cannot tell rock from room and
+         * would be guessing rather than choosing. Somewhere he lit once and has
+         * since forgotten still counts -- he knows what is there.
+         */
+        OPEN_GROUND
     }
 
     private final Aim aim;
