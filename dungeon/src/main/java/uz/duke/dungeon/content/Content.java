@@ -15,7 +15,7 @@ import java.nio.charset.StandardCharsets;
  */
 public final class Content {
 
-    private static final String ROOT = "/uz/duke/dungeon/";
+    private static final String ROOT = "/ini/";
 
     /** The creatures the real game plays with. */
     public static final String CREATURES = "creatures.ini";

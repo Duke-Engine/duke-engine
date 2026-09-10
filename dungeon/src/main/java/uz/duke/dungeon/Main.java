@@ -323,10 +323,11 @@ public final class Main {
         visuals.sounds(soundsOf(settings));
 
         // The lettering the menus are set in -- carved Roman capitals, baked from
-        // the TTF by BitmapFontBaker. Named here rather than in the client
-        // because three other games are drawn by it and none of them is a dungeon.
+        // the TTF by BitmapFontBaker. Named in the file rather than here for the
+        // same reason every other asset is: a path in Java is a path that needs a
+        // rebuild to move. See DungeonMenu in dungeon.ini.
         visuals.menuStyle(new uz.duke.client3d.MenuStyle(
-                "fonts/cinzel-22.fnt", "fonts/cinzel-17.fnt"));
+                settings.menuTitleFont(), settings.menuRowFont()));
 
         // What the dark is worth: whether stone stops sight, how dim a room he
         // has left should be, and what colour nothing is. All of it drawing, and

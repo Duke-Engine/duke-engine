@@ -199,6 +199,10 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, HUD);
                 }),
+                Map.entry("DungeonMenu", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, MENU);
+                }),
                 // How a floor looks, and which floor looks like what. Repeatable
                 // and named, the same way monsters and skills are: a fourth theme
                 // is three more blocks here and a folder of models.
@@ -1336,6 +1340,29 @@ public final class DungeonSettings {
                     .add("ArmourWord", Ini.restOfLine((s, v) -> s.hudArmourWord = v))
                     .add("SpeedWord", Ini.restOfLine((s, v) -> s.hudSpeedWord = v))
                     .add("IconFolder", Ini.string((s, v) -> s.hudIconFolder = v));
+
+    // ---- the lettering the menus are set in ----
+
+    private String menuTitleFont = "";
+    private String menuRowFont = "";
+
+    /**
+     * The font a menu title is drawn in, or {@code null} when the file names
+     * none and the engine's own lettering should be used.
+     */
+    public String menuTitleFont() {
+        return menuTitleFont.isBlank() ? null : menuTitleFont;
+    }
+
+    /** The font a menu row is drawn in, or {@code null} for the engine's own. */
+    public String menuRowFont() {
+        return menuRowFont.isBlank() ? null : menuRowFont;
+    }
+
+    private static final FieldParseTable<DungeonSettings> MENU =
+            new FieldParseTable<DungeonSettings>()
+                    .add("TitleFont", Ini.string((s, v) -> s.menuTitleFont = v))
+                    .add("RowFont", Ini.string((s, v) -> s.menuRowFont = v));
 
     private static final FieldParseTable<DungeonSettings> HERO_LOOK =
             new FieldParseTable<DungeonSettings>()
