@@ -4,10 +4,11 @@
 # two pipelines. Every push to master is built and tested on all three platforms
 # it ships to; a tag runs the same jobs and then keeps what they produced.
 #
-# What a release contains is a self-contained bundle per platform — the game, its
-# art, and a Java runtime — so a player installs nothing. That is also why there
-# are three runners: jpackage builds for the machine it is standing on and cannot
-# cross-compile, so the Windows bundle can only be made on Windows.
+# What a release contains is one installer per platform — an MSI, a DMG and a
+# .deb — each built by that platform's own packaging tools and carrying its own
+# Java runtime, so a player installs the game and nothing else. That is also why
+# there are three runners: jpackage builds for the machine it is standing on and
+# cannot cross-compile, so the MSI can only be made on Windows.
 #
 #   git tag v0.1.0 && git push origin v0.1.0
 #
@@ -79,7 +80,7 @@ jobs:
           retention-days: 7
 
   # ---------------------------------------------------------------------------
-  # The bundles. Only for a tag, or when asked by hand.
+  # The installers. Only for a tag, or when asked by hand.
   # ---------------------------------------------------------------------------
   package:
     name: Package for ${{ matrix.label }}
@@ -92,13 +93,13 @@ jobs:
         include:
           - os: windows-latest
             label: windows-x64
-            archive: zip
+            type: msi
           - os: macos-latest
             label: macos-arm64
-            archive: dmg
+            type: dmg
           - os: ubuntu-latest
             label: linux-x64
-            archive: tar.gz
+            type: deb
     steps:
       - uses: actions/checkout@v4
 
@@ -110,8 +111,35 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # jpackage shells out to the platform's own packaging tools and says so
+      # only when it cannot find them, so both are put there first.
+      - name: WiX, which jpackage needs to write an MSI
+        if: matrix.type == 'msi'
+        shell: bash
+        run: |
+          # The runner image usually ships it. When it does not, take the
+          # binaries from WiX's own release rather than a package manager:
+          # a pinned zip on the PATH cannot quietly become a different version.
+          for dir in "/c/Program Files (x86)/WiX Toolset v3.14/bin" \
+                     "/c/Program Files (x86)/WiX Toolset v3.11/bin"; do
+            if [ -x "$dir/candle.exe" ]; then
+              echo "found $dir"
+              cygpath -w "$dir" >> "$GITHUB_PATH"
+              exit 0
+            fi
+          done
+          echo "no WiX on the image; fetching it"
+          curl -sSL -o wix.zip \
+            https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip
+          mkdir -p "$RUNNER_TEMP/wix" && unzip -oq wix.zip -d "$RUNNER_TEMP/wix"
+          cygpath -w "$RUNNER_TEMP/wix" >> "$GITHUB_PATH"
+
+      - name: fakeroot, which jpackage needs to write a .deb
+        if: matrix.type == 'deb'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq fakeroot
+
       # A tag is v0.1.0 and jpackage wants 0.1.0 — on Windows it insists, because
-      # the version goes into the executable's own metadata.
+      # the version goes into the installer's own metadata.
       - name: Work out the version
         id: version
         shell: bash
@@ -126,22 +154,43 @@ jobs:
         shell: bash
         run: ./gradlew :dungeon:installDist --no-daemon
 
-      # --add-modules is spelled out rather than left to the default: LWJGL needs
-      # sun.misc.Unsafe, which lives in jdk.unsupported, and a runtime built
-      # without it fails at the first frame instead of at build time.
-      - name: Bundle it with a runtime
+      # One installer, built by the platform's own tools, carrying its own Java
+      # runtime. --add-modules is spelled out rather than left to the default:
+      # LWJGL needs sun.misc.Unsafe, which lives in jdk.unsupported, and a
+      # runtime built without it fails at the first frame rather than at build
+      # time. The per-platform flags below are all about where the game ends up
+      # and how it is started, which is the part an archive left to the player.
+      - name: Build the installer
+        id: installer
         shell: bash
         run: |
+          VERSION="${{ steps.version.outputs.value }}"
           MAIN_JAR=$(cd dungeon/build/install/dungeon/lib && ls dungeon-*.jar | head -1)
           echo "main jar: $MAIN_JAR"
+          case "${{ matrix.type }}" in
+            msi)
+              # Per-user, so nobody has to be an administrator to play a game.
+              EXTRA=(--win-dir-chooser --win-menu --win-shortcut --win-per-user-install)
+              ;;
+            dmg)
+              # GLFW wants the process's first thread on macOS, and the flag has
+              # to be baked in here — there is no command line to add it to.
+              EXTRA=(--java-options -XstartOnFirstThread)
+              ;;
+            deb)
+              # dpkg will not have a package name with a capital or a space in it.
+              EXTRA=(--linux-package-name duke-dungeon --linux-shortcut
+                     --linux-menu-group Game)
+              ;;
+          esac
           # $JAVA_HOME rather than the bare name. A jpackage from an older JDK
           # builds an older runtime, which then refuses the classes it was handed
           # — and on Windows the windowed exe dies with exit 1 and no message,
           # which is a long afternoon for whoever meets it next.
           "$JAVA_HOME/bin/jpackage" \
-            --type app-image \
+            --type "${{ matrix.type }}" \
             --name "$APP_NAME" \
-            --app-version "${{ steps.version.outputs.value }}" \
+            --app-version "$VERSION" \
             --vendor "${{ github.repository_owner }}" \
             --description "A dungeon crawler on the duke-engine" \
             --input dungeon/build/install/dungeon/lib \
@@ -149,49 +198,21 @@ jobs:
             --main-class "$MAIN_CLASS" \
             --add-modules java.se,jdk.unsupported \
             --java-options "-Xmx2g" \
-            ${{ matrix.os == 'macos-latest' && '--java-options -XstartOnFirstThread' || '' }} \
-            --dest build/package
-
-      - name: Wrap it up
-        id: archive
-        shell: bash
-        run: |
-          VERSION="${{ steps.version.outputs.value }}"
+            "${EXTRA[@]}" \
+            --dest build/installer
+          # Each platform names its own output its own way — "Duke Dungeon-0.1.0.msi",
+          # "duke-dungeon_0.1.0-1_amd64.deb" — so take whatever was made and give
+          # it the one name a release page can list three of and stay readable.
           NAME="duke-dungeon-$VERSION-${{ matrix.label }}"
           mkdir -p build/release
-          case "${{ matrix.archive }}" in
-            zip)
-              # Windows has no tar with the exec bit to preserve, and every
-              # Windows machine can open a zip without being told how.
-              powershell -Command "Compress-Archive -Path 'build/package/*' -DestinationPath 'build/release/$NAME.zip'"
-              ;;
-            tar.gz)
-              # tar, not zip: zip loses the executable bit, and a launcher that
-              # will not launch is a strange thing to ship.
-              tar -C build/package -czf "build/release/$NAME.tar.gz" .
-              ;;
-            dmg)
-              # jpackage makes the disc image itself, from the app image it has
-              # just built, so the .app inside is the one that was tested.
-              "$JAVA_HOME/bin/jpackage" \
-                --type dmg \
-                --name "$APP_NAME" \
-                --app-version "$VERSION" \
-                --vendor "${{ github.repository_owner }}" \
-                --app-image "build/package/$APP_NAME.app" \
-                --dest build/release
-              # jpackage names the image after the app and its version; which of
-              # the two spellings it picks has changed between releases, so take
-              # whatever it made rather than guessing at the name.
-              mv build/release/*.dmg "build/release/$NAME.dmg"
-              ;;
-          esac
+          BUILT=$(ls build/installer | head -1)
+          mv "build/installer/$BUILT" "build/release/$NAME.${{ matrix.type }}"
           ls -la build/release
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.archive.outputs.name }}
+          name: ${{ steps.installer.outputs.name }}
           path: build/release/*
           retention-days: 7
 
@@ -243,9 +264,9 @@ jobs:
             echo
             echo '| You are on | Download | Then |'
             echo '|---|---|---|'
-            echo '| Windows | `…-windows-x64.zip` | Unzip it and run `Duke Dungeon.exe`. |'
-            echo '| macOS (Apple silicon) | `…-macos-arm64.dmg` | Open it, drag the app across. It is unsigned, so the first time: right-click the app and choose Open. |'
-            echo '| Linux | `…-linux-x64.tar.gz` | `tar -xzf …` and run `Duke Dungeon/bin/Duke Dungeon`. |'
+            echo '| Windows | `…-windows-x64.msi` | Run it. It installs for you alone, so no administrator is needed. Unsigned, so SmartScreen asks once: More info → Run anyway. |'
+            echo '| macOS (Apple silicon) | `…-macos-arm64.dmg` | Open it and drag the app to Applications. Unsigned, so the first launch is right-click → Open. |'
+            echo '| Linux (Debian, Ubuntu) | `…-linux-x64.deb` | `sudo apt install ./duke-dungeon-…-linux-x64.deb`, then find it in the menu. |'
           } > notes.md
           cat notes.md
 

@@ -1972,12 +1972,19 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
     uchun headless runner'da to'liq ishlaydi. Yiqilsa test hisobotlari artifact
     bo'lib saqlanadi.
   - **Release:** `v*` tegi push qilinganda (yoki Actions'dan qo'lda, versiya
-    kiritib). Har platformada `jpackage --type app-image` → **o'z Java 25
-    runtime'i bilan** to'plam; o'yinchi hech narsa o'rnatmaydi. Windows `.zip`
-    (~92 MB), macOS `.dmg`, Linux `.tar.gz` (zip emas — zip exec bitini
-    yo'qotadi). Keyin `gh release create` hammasini bitta release'ga qo'yadi.
+    kiritib). Har platformada bitta **installer**, o'sha platformaning o'z
+    paketlash vositasi bilan, **o'z Java 25 runtime'i ichida**:
+    Windows `.msi` (~93 MB), macOS `.dmg`, Linux `.deb`. Keyin `gh release`
+    uchtasini bitta release'ga qo'yadi.
+  - **Installer nimani talab qiladi:** `msi` uchun **WiX 3** (`candle`/`light`)
+    — runner image'ida bo'lsa o'shani oladi, bo'lmasa WiX'ning o'z release'idan
+    pinlangan zip'ni PATH'ga qo'yadi; `deb` uchun **fakeroot**. jpackage bularni
+    topolmasa faqat shunda aytadi, shuning uchun oldindan qo'yiladi.
+  - `--win-per-user-install` — o'yin o'ynash uchun administrator bo'lish shart
+    emas. `--linux-package-name duke-dungeon` — dpkg katta harf va probelni
+    qabul qilmaydi.
   - **Nega uch runner:** `jpackage` faqat o'zi turgan mashina uchun quradi,
-    cross-compile qilmaydi. Windows to'plamini faqat Windows'da yasash mumkin.
+    cross-compile qilmaydi. MSI'ni faqat Windows'da, `.deb`'ni faqat Linux'da.
   - **`--add-modules java.se,jdk.unsupported`** — atayin yozilgan: LWJGL
     `sun.misc.Unsafe` ishlatadi, u `jdk.unsupported`da. Usiz runtime quriladi-yu,
     o'yin birinchi kadrda yiqiladi.
