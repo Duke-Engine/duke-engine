@@ -69,6 +69,9 @@ public final class Duke3D {
         app.setSettings(settings);
         app.setShowSettings(false);
         app.setDisplayStatView(false);
+        // Frames per second is a developer's number. It sat over the line of
+        // controls at the bottom of the screen, and neither could be read.
+        app.setDisplayFps(false);
         app.setPauseOnLostFocus(false);
         app.start();
 

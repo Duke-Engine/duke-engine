@@ -135,6 +135,8 @@ final class DukeRtsApp extends SimpleApplication {
     private final Set<String> missingAssets = new HashSet<>();
     /** Every noise the game makes, and what it makes them for. */
     private GameSounds noises;
+    /** The line of controls along the bottom, which belongs to play and not to a menu. */
+    private BitmapText controlsHint;
     /** Which menu button the cursor was over last, so a move onto one is a moment. */
     private int lastHovered = -1;
     /** Up while the game's art is being read; see {@link ArtLoad}. */
@@ -245,6 +247,12 @@ final class DukeRtsApp extends SimpleApplication {
     public void simpleInitApp() {
         flyCam.setEnabled(false);
         inputManager.setCursorVisible(true);
+        // jME binds Escape to quit, in SimpleApplication, before a game gets a
+        // say. Both bindings then fire and the quit wins -- which is why the
+        // pause menu below has never once been seen. Taken off here rather than
+        // worked around, because a game that pauses on Escape and a client that
+        // exits on Escape cannot both be right.
+        inputManager.deleteMapping(INPUT_MAPPING_EXIT);
         // What shows where nothing is drawn at all, which is every cell the
         // player has never been in. The fog's own colour exactly, not a shade of
         // it: unwalked ground inside the map is the sheet at full strength, and
@@ -295,7 +303,8 @@ final class DukeRtsApp extends SimpleApplication {
         banner.setColor(new ColorRGBA(1f, 0.9f, 0.3f, 1f));
         guiNode.attachChild(banner);
 
-        var hint = new BitmapText(guiFont);
+        controlsHint = new BitmapText(guiFont);
+        var hint = controlsHint;
         hint.setText("LMB select   Shift+LMB add   RMB move/attack   WASD pan   wheel zoom   H halt   P pause   Esc menu");
         hint.setLocalTranslation(10, hint.getLineHeight() + 6f, 0);
         hint.setAlpha(0.6f);
@@ -2041,6 +2050,7 @@ final class DukeRtsApp extends SimpleApplication {
     @Override
     public void simpleUpdate(float tpf) {
         followTheWindowSize();
+        showOnlyWhilePlaying();
         snapshot = game.getSnapshot();
         if (menu.isVisible()) {
             menu.updateHover(inputManager.getCursorPosition());
@@ -2118,6 +2128,27 @@ final class DukeRtsApp extends SimpleApplication {
         var logic = game.getLogic();
         if (logic != null && logic.isGamePaused() != paused) {
             logic.setGamePaused(paused);
+        }
+    }
+
+    /**
+     * Hide what belongs to playing while something else is on the screen.
+     *
+     * <p>A menu is a different room. The minimap, the list of controls and the
+     * hero's own bar are all answers to questions a player is asking of the world,
+     * and none of them is being asked while he is deciding whether to quit — they
+     * are just left over, sitting behind the menu, saying the client forgot to
+     * put them away.
+     */
+    private void showOnlyWhilePlaying() {
+        var hint = screen == Screen.PLAYING
+                ? Spatial.CullHint.Never : Spatial.CullHint.Always;
+        minimapNode.setCullHint(hint);
+        if (controlsHint != null) {
+            controlsHint.setCullHint(hint);
+        }
+        if (heroPanel != null && screen != Screen.PLAYING) {
+            heroPanel.hide();
         }
     }
 
@@ -2783,10 +2814,14 @@ final class DukeRtsApp extends SimpleApplication {
         // still written out along the top, which is what every game got before.
         boolean drawn = heroPanel.show(snapshot.hasStatus() ? snapshot.status() : null,
                 (float) timer.getTimeInSeconds());
-        hud.setText("$ %d    power %s    t=%.1fs    selected %d%s%s%s".formatted(
+        // Money, power and a selection count are an RTS's figures, and a game
+        // that draws its own panel has already said what it wants said. Writing
+        // them along the top of a dungeon anyway is the client talking over the
+        // game about a resource the game does not have.
+        hud.setText(drawn ? "" : "$ %d    power %s    t=%.1fs    selected %d%s%s%s".formatted(
                 snapshot.localPlayerMoney(), power, snapshot.gameTimeSeconds(),
                 selected.size(), selectedHealth(),
-                snapshot.hasStatus() && !drawn ? "    " + snapshot.status() : "",
+                snapshot.hasStatus() ? "    " + snapshot.status() : "",
                 snapshot.paused() ? "    [PAUSED]" : ""));
 
         var producer = selectedProducer();
