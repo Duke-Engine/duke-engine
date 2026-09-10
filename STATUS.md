@@ -1733,19 +1733,29 @@ ikkala peer aynan bir kadrda qo'llaydi.
     hech qachon qorong'ilashmaydi. Shuning uchun ular saqlanmaydi — **qayta
     quriladi**: har bir material uchun bitta fogli material, rangi o'zinikicha.
   - Atlasli to'plamda esa tone tinti umumiy skinga tushadi (tint bo'yicha bitta).
-- **Robot faqat Sci-Fi'da** — `DungeonThemeMonster SciFi Skeleton/Runner/Brute/Boss`.
-  Bir xil miya, bir xil son, boshqa model; o'lcham va rang bilan ajratilgan.
-  - **U qimirlamaydi, va bu ma'lum kamchilik.** Paket robotni rigli va animatsiyali
-    beradi, lekin bu riggning FBX→glTF konvertatsiyasini jME noto'g'ri o'qiydi:
-    skeletni ham, kliplarni ham quradi, keyin qo'llarni to'liq o'lchamda, tanani
-    esa yuzdan bir o'lchamda chizadi — natijada faqat qo'l ko'rinadi. **O'lchandi,
-    taxmin emas:** glTF faylning o'z bbox'i to'g'ri (6.6 × 4.5 × 2.6), jME'niki esa
-    6.6 × 2.9 × 0.87. `gltf-transform flatten` yomonlashtirdi.
-  - Shuning uchun hozir **statik OBJ** — u to'g'ri yuklanadi. Animatsiya uchun
-    riggni `.blend` dan Blender orqali qayta eksport qilish kerak.
-  - Yo'lda bir narsa tuzatildi: `AnimationsFrom` endi **faqat aytilganda** qarz
-    oladi. Ilgari themed maxluq umumiy kutubxonaga tushardi, va model o'z
-    klipini o'ziga ko'chirsa treklar noto'g'ri skeletga bog'lanardi.
+- **Maxluqlar hamma to'plamda o'zimizniki** — `DungeonThemeMonster` mexanizmi bor
+  va ishlaydi (blok o'qiladi, ko'rinish almashadi, simulyatsiya raqami qimirlamaydi),
+  lekin hech bir to'plam undan foydalanmaydi. Sci-Fi qavati uchun paketdagi
+  animatsiyali robot sinab ko'rildi va **tashlab yuborildi**:
+  - FBX→glTF konvertatsiyasi bu rigni ikki xil o'lchamda beradi — ikkita terili
+    (skinned) bilak-qo'l bir birlikda, qolgan qattiq bo'laklar yuzdan birida,
+    o'rnini uchta tugunga osilgan `scale = 100` bosadi. Spetsifikatsiyaga amal
+    qiladigan ko'ruvchida to'g'ri; jME'da esa **qo'llar to'g'ri, tanasi yo'q**:
+    bo'g'inga mahkamlangan mesh `attachnode`ga tushadi, `attachnode` esa armature
+    o'lchamini meros olmaydi. Ekranda ko'ringani — havoda uchayotgan bir juft qo'l.
+  - **O'lchandi, taxmin emas:** jME'da qo'llar `scale (100,100,100)` bilan 1.65
+    birlik, qattiq bo'laklar `scale 1` bilan 0.015 birlik chiqadi.
+  - Ikkinchi, alohida nuqson: Blender bo'g'in uchlari uchun bo'sh `_end` tugunlar
+    beradi, jME esa bir bo'g'inga **faqat bitta** bo'sh bola saqlaydi
+    (`GltfLoader.findChildren`, `jw.attachedSpatial = s` — qo'shmaydi, o'rnini
+    bosadi). Besh bo'g'inda ikkitadan bo'la bor edi, ya'ni bosh, oyoqlar va
+    boldirlar — o'lcham to'g'irlangandan keyin ham yo'qolgan bo'laklar.
+  - Bir nechta tuzatish (uniform bake, tugunlarni ko'chirish, uchlarni o'chirish)
+    o'lchamni to'g'irladi, lekin modelni yaxlit chiqara olmadi. To'g'ri yechim —
+    riggni `.blend` dan Blender orqali qayta eksport qilish; Blender yo'q.
+  - Yo'lda bir narsa tuzatildi va **qoldi**: `AnimationsFrom` endi **faqat
+    aytilganda** qarz oladi. Ilgari themed maxluq umumiy kutubxonaga tushardi, va
+    model o'z klipini o'ziga ko'chirsa treklar noto'g'ri skeletga bog'lanardi.
 - **Pol yuzasi y=0 da** — birlik y=0 da turadi, yerga chiziladigan hamma narsa ham
   (tanlov halqasi, buyruq metkasi). Kenney plitkasi tekis tekislik, ya'ni yuzasi
   aynan nolda edi; yangi to'plamlarning plitkasi qalin, va halqa pol ostida
@@ -2035,7 +2045,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/src/main/resources/Models/dungeon/` | Kenney to'plami (CC0) + `colormap.png` atlasi |
 | `dungeon/src/main/resources/Models/monsters/` | Quaternius Bestiary + Universal Animation Library |
 | `dungeon/src/main/resources/Models/hero/` | Mixamo qahramoni + har harakat uchun bitta fayl |
-| `dungeon/src/main/resources/Models/theme-*/` | uchta to'plam (CC0 OBJ) + Sci-Fi roboti |
+| `dungeon/src/main/resources/Models/theme-*/` | uchta to'plam (CC0 OBJ) |
 | `dungeon/…/dungeon/content/{ThemeArt,Themes}.java` | to'plam ta'rifi + chuqurlik→to'plam tanlovi (sof) |
 | `dungeon/…/dungeon/content/HeroLook.java` | qahramon ko'rinishi — animatsiyasi fayl bo'yicha, nom bo'yicha emas |
 | `dungeon/…/dungeon/Dungeon.java` | o'yinni yig'ish (fixture xona va haqiqiy o'yin) |
