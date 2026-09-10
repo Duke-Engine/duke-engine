@@ -89,13 +89,28 @@ class ThreePlayerSyncTest {
         guestTwo.postCommand(new GameMessage.MoveTo(2, List.of(new ObjectId(2)), new Coord3D(250f, 60f, 0f)));
         guestThree.postCommand(new GameMessage.MoveTo(3, List.of(new ObjectId(3)), new Coord3D(60f, 250f, 0f)));
 
+        // Frames, not attempts. A lock-step game that is waiting on a peer takes a
+        // turn of runHeadless and advances nothing — which is correct, and which
+        // means a loop counting its own turns is really counting how fast the
+        // machine is. On a slow one the four hundred turns are spent waiting, ten
+        // frames pass, the ordered unit has not gone anywhere, and the failure
+        // lands on an assertion about movement that had nothing to do with it.
         int comparableFrames = 0;
-        for (int i = 0; i < 400; i++) {
+        long giveUp = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
+        while (host.getLogic().getFrame() < 400 && System.nanoTime() < giveUp) {
+            int wasAt = host.getLogic().getFrame();
             for (var game : games) {
                 game.runHeadless(1);
                 comparableFrames += compareAllOnSameFrame(games);
             }
+            if (host.getLogic().getFrame() == wasAt) {
+                // Held for a peer. Spinning on it would be a poll loop racing the
+                // network and losing; there is nothing to do here but wait.
+                Thread.sleep(1);
+            }
         }
+        assertTrue(host.getLogic().getFrame() >= 400,
+                "the worlds never got through 400 frames: " + host.getLogic().getFrame());
         assertTrue(comparableFrames > 100,
                 "the three must actually run in lock-step, got " + comparableFrames + " comparisons");
 
