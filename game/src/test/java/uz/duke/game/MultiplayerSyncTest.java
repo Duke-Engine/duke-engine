@@ -62,13 +62,30 @@ class MultiplayerSyncTest {
 
         // Interleaved stepping phase-shifts the two sims by up to a frame, so
         // compare after EACH half-step, whenever the frame counters line up.
+        //
+        // Counted in frames rather than in turns of this loop, and the difference
+        // is not pedantry. A lock-step game waiting on its peer takes a turn of
+        // runHeadless and advances nothing, which is exactly what it should do —
+        // so a loop of three hundred turns measures how fast the machine is. On a
+        // slow one the turns go on waiting, a handful of frames pass, and the
+        // failure arrives as an assertion about a unit that has not moved yet.
         int comparableFrames = 0;
-        for (int i = 0; i < 300; i++) {
+        long giveUp = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
+        while (frameOf(host) < 300 && frameOf(guest) < 300 && System.nanoTime() < giveUp) {
+            int wasAt = frameOf(host) + frameOf(guest);
             host.runHeadless(1);
             comparableFrames += compareIfSameFrame(host, guest);
             guest.runHeadless(1);
             comparableFrames += compareIfSameFrame(host, guest);
+            if (frameOf(host) + frameOf(guest) == wasAt) {
+                // Both held for the other's orders. Spinning on that would be a
+                // poll loop racing the network; there is nothing to do but wait.
+                Thread.sleep(1);
+            }
         }
+        assertTrue(frameOf(host) >= 300 || frameOf(guest) >= 300,
+                "the worlds never got through 300 frames: host at " + frameOf(host)
+                        + ", guest at " + frameOf(guest));
         assertTrue(comparableFrames > 100, "the games must actually run in lock-step, got "
                 + comparableFrames + " comparable frames");
 
@@ -78,6 +95,10 @@ class MultiplayerSyncTest {
         assertTrue(guestView.getPosition().x() < 290f, "guest's unit moved in its own world");
         assertEquals(guestView.getPosition().x(), hostView.getPosition().x(), 1e-6f,
                 "and its position is bit-identical in the host's world");
+    }
+
+    private static int frameOf(DukeGame game) {
+        return game.getLogic().getFrame();
     }
 
     /** Returns 1 and asserts checksum equality when both sims are on the same frame. */
