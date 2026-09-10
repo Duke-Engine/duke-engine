@@ -637,7 +637,7 @@ final class DukeRtsApp extends SimpleApplication {
         var dir = cam.getWorldCoordinates(new Vector2f(screenX, screenY), 1f)
                 .subtract(near).normalizeLocal();
         var terrain = game.getTerrain();
-        return pickGround(near, dir, terrain == null ? 0f : terrain.getLevelHeight(),
+        return groundHit(near, dir, terrain == null ? 0f : terrain.getLevelHeight(),
                 mapStoreys, this::floorHeightAt);
     }
 
@@ -660,7 +660,7 @@ final class DukeRtsApp extends SimpleApplication {
      *     stair is somewhere between two storeys — so the plane is met once more
      *     at that exact height rather than at the storey's
      */
-    static Vector3f pickGround(Vector3f near, Vector3f dir, float storeyHeight, int storeys,
+    static Vector3f groundHit(Vector3f near, Vector3f dir, float storeyHeight, int storeys,
             java.util.function.BiFunction<Float, Float, Float> floorAt) {
         for (int storey = Math.max(storeys, 0); storey >= 0; storey--) {
             float height = storey * storeyHeight;
@@ -2025,16 +2025,19 @@ final class DukeRtsApp extends SimpleApplication {
         return nearest;
     }
 
-    /** Where the mouse ray hits the ground plane, or {@code null}. */
+    /**
+     * Where the mouse is pointing at the ground.
+     *
+     * <p>One way of answering this, used by everything that asks — orders,
+     * markers, aimed skills, the minimap's outline. There were two: this one met
+     * the plane at zero and was what every click actually went through, while the
+     * one that knew about storeys was only being asked by the outline. So the
+     * click kept landing a pace beyond the cursor upstairs however carefully the
+     * other was fixed.
+     */
     private Vector3f pickGround() {
         var click = inputManager.getCursorPosition();
-        var near = cam.getWorldCoordinates(new Vector2f(click.x, click.y), 0f);
-        var dir = cam.getWorldCoordinates(new Vector2f(click.x, click.y), 1f).subtract(near).normalizeLocal();
-        if (Math.abs(dir.y) < 1e-6f) {
-            return null;
-        }
-        float t = -near.y / dir.y;
-        return t < 0 ? null : near.add(dir.mult(t));
+        return groundUnder(click.x, click.y);
     }
 
     private void select(boolean add) {

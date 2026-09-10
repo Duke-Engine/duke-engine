@@ -33,7 +33,7 @@ class GroundPickTest {
     }
 
     private static Vector3f pick(Vector3f from) {
-        return DukeRtsApp.pickGround(from, DOWNWARD, STOREY, 1, GroundPickTest::terraced);
+        return DukeRtsApp.groundHit(from, DOWNWARD, STOREY, 1, GroundPickTest::terraced);
     }
 
     /** On flat ground the answer is the plain one: where the ray meets zero. */
@@ -72,7 +72,7 @@ class GroundPickTest {
     /** A stair is between two storeys, and a click on one lands on the slope. */
     @Test
     void aClickOnAStairLandsOnTheSlope() {
-        var hit = DukeRtsApp.pickGround(new Vector3f(150f, 40f, 100f), DOWNWARD, STOREY, 1,
+        var hit = DukeRtsApp.groundHit(new Vector3f(150f, 40f, 100f), DOWNWARD, STOREY, 1,
                 (x, z) -> 4f); // a ramp, halfway up
 
         assertEquals(4f, hit.y, 0.001f, "on the step it is actually standing on");
@@ -81,7 +81,7 @@ class GroundPickTest {
     /** A game with no height in it is answered exactly as it always was. */
     @Test
     void aFlatMapIsPickedAtZero() {
-        var hit = DukeRtsApp.pickGround(new Vector3f(150f, 40f, 100f), DOWNWARD, 0f, 0,
+        var hit = DukeRtsApp.groundHit(new Vector3f(150f, 40f, 100f), DOWNWARD, 0f, 0,
                 (x, z) -> 0f);
 
         assertEquals(0f, hit.y, 0.001f);
@@ -94,7 +94,7 @@ class GroundPickTest {
      */
     @Test
     void aRayIntoTheSkyStillAnswers() {
-        var hit = DukeRtsApp.pickGround(new Vector3f(50f, 40f, 100f),
+        var hit = DukeRtsApp.groundHit(new Vector3f(50f, 40f, 100f),
                 new Vector3f(0f, 0.8f, -0.6f).normalizeLocal(), STOREY, 1, (x, z) -> 0f);
 
         assertTrue(hit.length() > 1000f, "it should run off toward the edge of the world");
