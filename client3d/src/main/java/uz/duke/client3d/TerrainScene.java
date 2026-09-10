@@ -199,15 +199,21 @@ final class TerrainScene {
             boolean standing = placement.piece() == TileLayout.Piece.WALL
                     || placement.piece() == TileLayout.Piece.CORNER;
             float scale = standing ? wallScale : floorScale;
+            // Measured before it is scaled, because the answer is a fact about the
+            // model and the same for every copy of it.
+            float surface = placement.piece() == TileLayout.Piece.FLOOR
+                    ? topOf(asset, piece) * scale : 0f;
             piece.setLocalScale(scale);
             float yaw = FastMath.DEG_TO_RAD * placement.yaw();
             piece.setLocalRotation(new com.jme3.math.Quaternion()
                     .fromAngleAxis(yaw, Vector3f.UNIT_Y));
             // Everything lies on the floor except the lid over the stone, which
             // sits level with the tops of the walls it roofs.
+            // The ground everything stands on is y = 0, so that is where a floor
+            // tile's top surface belongs — sunk by however thick the tile is.
             float y = placement.piece() == TileLayout.Piece.CAP
                     ? tileset.getWallHeight() * wallScale
-                    : standing ? tileset.getWallLift() * wallScale : 0f;
+                    : standing ? tileset.getWallLift() * wallScale : -surface;
             // A wall's face belongs on the boundary, and where its own kit put its
             // origin decides how far back that is. Along the wall's own facing,
             // which the yaw has just turned.
@@ -218,6 +224,30 @@ final class TerrainScene {
                     placement.z() + back * FastMath.cos(yaw));
             cellNode(placement.cellY() * cellsWide + placement.cellX()).attachChild(piece);
         }
+    }
+
+    /** How high a floor tile's surface sits above its own origin, per asset. */
+    private final java.util.Map<String, Float> tileTops = new java.util.HashMap<>();
+
+    /**
+     * The top of a floor tile in its own model units.
+     *
+     * <p>Kits disagree about this and it is not a detail: a unit stands at y = 0
+     * and so does everything drawn on the ground — the ring under a selected
+     * creature, the mark where an order landed. A kit whose tile is a flat plane
+     * at its origin puts its surface at zero and those show; a kit whose tile is a
+     * slab a fifth of a unit thick buries them, and the player is left clicking
+     * with nothing to show for it.
+     *
+     * <p>Measured rather than written down, so a kit is right by being shipped.
+     */
+    private float topOf(String asset, Spatial piece) {
+        return tileTops.computeIfAbsent(asset, path -> {
+            piece.updateModelBound();
+            piece.updateGeometricState();
+            return piece.getWorldBound() instanceof com.jme3.bounding.BoundingBox box
+                    ? box.getCenter().y + box.getYExtent() : 0f;
+        });
     }
 
     /**

@@ -1735,8 +1735,22 @@ ikkala peer aynan bir kadrda qo'llaydi.
   - Atlasli to'plamda esa tone tinti umumiy skinga tushadi (tint bo'yicha bitta).
 - **Robot faqat Sci-Fi'da** — `DungeonThemeMonster SciFi Skeleton/Runner/Brute/Boss`.
   Bir xil miya, bir xil son, boshqa model; o'lcham va rang bilan ajratilgan.
-  Kliplari o'z GLB'sidan (`AnimationsFrom`), umumiy kutubxonadan emas — u boshqa
-  skeletda.
+  - **U qimirlamaydi, va bu ma'lum kamchilik.** Paket robotni rigli va animatsiyali
+    beradi, lekin bu riggning FBX→glTF konvertatsiyasini jME noto'g'ri o'qiydi:
+    skeletni ham, kliplarni ham quradi, keyin qo'llarni to'liq o'lchamda, tanani
+    esa yuzdan bir o'lchamda chizadi — natijada faqat qo'l ko'rinadi. **O'lchandi,
+    taxmin emas:** glTF faylning o'z bbox'i to'g'ri (6.6 × 4.5 × 2.6), jME'niki esa
+    6.6 × 2.9 × 0.87. `gltf-transform flatten` yomonlashtirdi.
+  - Shuning uchun hozir **statik OBJ** — u to'g'ri yuklanadi. Animatsiya uchun
+    riggni `.blend` dan Blender orqali qayta eksport qilish kerak.
+  - Yo'lda bir narsa tuzatildi: `AnimationsFrom` endi **faqat aytilganda** qarz
+    oladi. Ilgari themed maxluq umumiy kutubxonaga tushardi, va model o'z
+    klipini o'ziga ko'chirsa treklar noto'g'ri skeletga bog'lanardi.
+- **Pol yuzasi y=0 da** — birlik y=0 da turadi, yerga chiziladigan hamma narsa ham
+  (tanlov halqasi, buyruq metkasi). Kenney plitkasi tekis tekislik, ya'ni yuzasi
+  aynan nolda edi; yangi to'plamlarning plitkasi qalin, va halqa pol ostida
+  qolardi. Endi plitka **o'lchanadi** va yuzasi nolga tushiriladi — ya'ni to'plam
+  jo'natilgani uchun to'g'ri, INI'da raqam yo'q.
 
 ---
 

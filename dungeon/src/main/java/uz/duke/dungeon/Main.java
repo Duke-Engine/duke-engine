@@ -125,12 +125,14 @@ public final class Main {
                     .walk(art.walk())
                     .attack(art.attack())
                     .die(themed.death() != null ? themed.death() : settings.deathClip());
-            // Its own clips when it carries them, and the game's shared library
-            // when it does not — a robot brings its own; a skeleton borrows.
-            var clips = themed.animationsFrom() != null
-                    ? themed.animationsFrom() : settings.animationLibrary();
-            if (clips != null) {
-                unit.animationsFrom(clips);
+            // Borrowed only when the file says so. A themed creature usually comes
+            // with a model of its own, and a model of its own carries its own
+            // clips -- copying them onto it from a second copy of the same file
+            // rebinds the tracks to the wrong skeleton and the thing collapses.
+            // Naming the game's shared library here is for a theme that re-skins a
+            // creature with another model from that same kit.
+            if (themed.animationsFrom() != null) {
+                unit.animationsFrom(themed.animationsFrom());
             }
         });
     }
