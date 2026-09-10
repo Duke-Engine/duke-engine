@@ -8,6 +8,7 @@ import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.core.thing.World;
+import uz.duke.dungeon.power.PowerBook;
 import uz.duke.rts.module.ExperienceModule;
 
 /**
@@ -45,8 +46,18 @@ public final class ArrowUpdate extends UpdateModule {
     private float stepPerFrame;
     private int flownFor;
 
-    public ArrowUpdate(GameObject owner, ModuleData ignored) {
+    /**
+     * The run's powers, so that an arrow can pay its archer back.
+     *
+     * <p>Held by the arrow rather than looked up on landing because the arrow is
+     * the only thing that knows how much it dealt, and the archer may be somebody
+     * else's by then — a monster's shot must not heal the hero.
+     */
+    private final PowerBook powers;
+
+    public ArrowUpdate(GameObject owner, ModuleData ignored, PowerBook powers) {
         super(owner);
+        this.powers = powers;
     }
 
     /** The empty block that puts this on the arrow; a shot fills the rest in. */
@@ -118,6 +129,7 @@ public final class ArrowUpdate extends UpdateModule {
      */
     private void strike(World world, GameObject victim) {
         victim.getBody().damage(damage, damageType);
+        drinkFor(world.findObject(shooter));
         if (victim.isEffectivelyDead()) {
             var archer = world.findObject(shooter);
             var earned = victim.findModule(ExperienceModule.class);
@@ -127,5 +139,21 @@ public final class ArrowUpdate extends UpdateModule {
             }
         }
         getOwner().markDestroyed();
+    }
+
+    /**
+     * A share of what this arrow carried, back to whoever loosed it.
+     *
+     * <p>Only for a shooter who has skills — which in this dungeon means the hero,
+     * and says so without the arrow having to be told who he is. Powers belong to
+     * the run, and the run has one hero.
+     */
+    private void drinkFor(GameObject archer) {
+        float share = powers == null ? 0f : powers.lifestealFraction();
+        if (share <= 0f || archer == null || archer.getBody() == null
+                || archer.findModule(uz.duke.dungeon.skill.SkillBook.class) == null) {
+            return;
+        }
+        archer.getBody().heal(damage * share);
     }
 }

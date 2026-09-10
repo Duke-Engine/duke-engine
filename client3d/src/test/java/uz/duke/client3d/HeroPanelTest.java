@@ -117,4 +117,97 @@ class HeroPanelTest {
         assertNotNull(reading);
         assertTrue(reading.skills().isEmpty());
     }
+
+    // ---- the parts a level-up run adds ----
+
+    /**
+     * The fuller line: the same hero, plus the figures under his bars, the powers
+     * he has picked up, and three cards waiting to be chosen from.
+     */
+    private static final String FULL = LINE
+            + "|stat=Zarba,34|stat=Zirh,12|stat=Tezlik,52"
+            + "|pwWord=Kuchlar|pw=shot,2|pw=boot,1"
+            + "|note=O'tkir tig'"
+            + "|offer=3,8-daraja,Bittasini tanlang"
+            + "|opt=shot,O'tkir uch,Q zarari +25%"
+            + "|opt=clock,Tez qo'l,W kuluari -20%"
+            + "|opt=heart,Qon ichuvchi,Zarbadan 10% jon qaytadi";
+
+    @Test
+    void theFiguresUnderTheBarsAreRead() {
+        var stats = HeroPanel.Reading.parse(FULL).stats();
+
+        assertEquals(3, stats.size());
+        assertEquals("Zarba", stats.get(0).word());
+        assertEquals("34", stats.get(0).value());
+        assertEquals("Tezlik", stats.get(2).word());
+    }
+
+    @Test
+    void theStripOfPowersIsRead() {
+        var reading = HeroPanel.Reading.parse(FULL);
+
+        assertEquals("Kuchlar", reading.powersWord());
+        assertEquals(2, reading.powers().size());
+        assertEquals("shot", reading.powers().get(0).icon());
+        assertEquals(2, reading.powers().get(0).count(),
+                "three of one card is one mark reading three");
+        assertEquals(1, reading.powers().get(1).count());
+    }
+
+    @Test
+    void theLevelUpCardsAreRead() {
+        var offer = HeroPanel.Reading.parse(FULL).offer();
+
+        assertNotNull(offer);
+        assertEquals(3, offer.id(),
+                "which offer this is, so a late click cannot spend it twice");
+        assertEquals("8-daraja", offer.title());
+        assertEquals("Bittasini tanlang", offer.hint());
+        assertEquals(3, offer.cards().size());
+        assertEquals("shot", offer.cards().get(0).icon());
+        assertEquals("O'tkir uch", offer.cards().get(0).name());
+        // The description is the rest of the field, so a percentage sign or a
+        // dash in it is words rather than punctuation the parser has to survive.
+        assertEquals("Q zarari +25%", offer.cards().get(0).description());
+        assertEquals("Zarbadan 10% jon qaytadi", offer.cards().get(2).description());
+    }
+
+    /**
+     * What he just picked up, said once and then not.
+     *
+     * <p>A line rather than the banner: the banner interrupts and belongs to
+     * dying and to going down a floor, and finding a sword is news rather than an
+     * interruption. The game stops sending it when it has been read long enough.
+     */
+    @Test
+    void thePickupNoteIsRead() {
+        assertEquals("O'tkir tig'", HeroPanel.Reading.parse(FULL).note());
+        assertEquals("", HeroPanel.Reading.parse(LINE).note(),
+                "an ordinary frame has nothing to announce");
+    }
+
+    @Test
+    void aLineWithNoOfferHasNoCards() {
+        assertNull(HeroPanel.Reading.parse(LINE).offer(),
+                "an ordinary frame must not put a level-up screen on the player");
+        assertTrue(HeroPanel.Reading.parse(LINE).powers().isEmpty());
+    }
+
+    @Test
+    void anOfferWithoutCardsIsNotAnOffer() {
+        assertNull(HeroPanel.Reading.parse(LINE + "|offer=3,8-daraja,tanlang").offer(),
+                "a heading with nothing under it would be an empty screen with no way out");
+    }
+
+    /** The glyph vocabulary is by name, and an unknown name is a shape, not a gap. */
+    @Test
+    void everyIconNameDrawsSomething() {
+        for (var icon : new String[] {"shot", "burst", "dash", "star", "clock", "heart",
+            "boot", "plus", "times", "Q", "W", "E", "R", "no-such-icon"}) {
+            var mesh = HeroPanel.glyph(icon, 24f);
+            assertNotNull(mesh, icon);
+            assertTrue(mesh.getVertexCount() > 0, icon + " drew nothing at all");
+        }
+    }
 }

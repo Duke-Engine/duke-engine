@@ -1,6 +1,8 @@
 package uz.duke.dungeon;
 
 import uz.duke.client3d.Duke3D;
+import uz.duke.client3d.EdgeScroll;
+import uz.duke.client3d.Fog;
 import uz.duke.client3d.Hotkeys;
 import uz.duke.client3d.Shell;
 import uz.duke.client3d.Tileset;
@@ -8,6 +10,7 @@ import uz.duke.client3d.Visuals;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.content.HeroLook;
+import uz.duke.dungeon.power.ChoosePower;
 import uz.duke.dungeon.skill.CastSkill;
 
 /**
@@ -90,8 +93,13 @@ public final class Main {
      * The client keeps the press-then-click; this only says what to send once the
      * player has chosen.
      */
-    private static Hotkeys controls(DungeonSettings settings) {
+    static Hotkeys controls(DungeonSettings settings) {
         var keys = Hotkeys.create();
+        // The level-up cards. The client draws them and reports which was taken;
+        // which power that is, and what it is worth, is settled in the simulation
+        // when the command comes round — the same road a keypress travels.
+        keys.onChoose((game, index) -> game.postCommand(new ChoosePower(
+                game.getLocalPlayerIndex(), index, offeredId(game))));
         for (var skill : settings.skills()) {
             char key = skill.key();
             switch (skill.effect().aim()) {
@@ -104,6 +112,30 @@ public final class Main {
             }
         }
         return keys;
+    }
+
+    /**
+     * Which offer the player is answering, read back out of the line the game
+     * itself wrote.
+     *
+     * <p>The client knows the number — it is drawing the screen — but handing it
+     * back through the callback would have made a general seam carry one game's
+     * field. Reading it here keeps the client's side of the bargain to "the
+     * player took the second card", which is all it can honestly claim to know.
+     */
+    private static int offeredId(uz.duke.game.DukeGame game) {
+        var status = game.getSnapshot().status();
+        int at = status.indexOf("|offer=");
+        if (at < 0) {
+            return -1;
+        }
+        var field = status.substring(at + "|offer=".length());
+        int comma = field.indexOf(',');
+        try {
+            return Integer.parseInt(comma < 0 ? field : field.substring(0, comma));
+        } catch (NumberFormatException broken) {
+            return -1;
+        }
     }
 
     /**
@@ -165,6 +197,11 @@ public final class Main {
                 animation(unit, hero.deathFrom(), HeroLook.DEATH);
             });
         }
+        // What a dead monster leaves lying about. No chest in the kit, so it is
+        // a box in torch colour -- which is what a thing worth walking over to
+        // has to be, whatever it is eventually modelled as.
+        visuals.unit("Chest", unit -> unit.colour(new java.awt.Color(0xE8A33D)).scale(0.5f));
+
         // Arrows are units like any other — they are in the world, so the client
         // draws them without being told anything special, and the simulation
         // turns them so they point the way they are flying.
@@ -180,6 +217,18 @@ public final class Main {
         // on screen — so the ground he uncovers and the things he can see are the
         // same number, and re-tuning one cannot leave the other behind.
         visuals.discoveredBy("Hero");
+
+        // What the dark is worth: whether stone stops sight, how dim a room he
+        // has left should be, and what colour nothing is. All of it drawing, and
+        // all of it in the file — see DungeonFog in dungeon.ini.
+        // Shoving the camera with the cursor, on top of the keys — see
+        // DungeonCamera in dungeon.ini.
+        visuals.edgeScroll(new EdgeScroll(settings.edgeScrollMargin(),
+                settings.edgeScrollSpeedPercent()));
+
+        visuals.fog(new Fog(settings.fogLineOfSight(),
+                settings.fogRememberedPercent() / 100f, settings.fogSoftenCells(),
+                settings.fogOpenPerSecond(), settings.fogTint()));
 
         // The floor is a modular kit, laid out by the client from the same grid
         // the pathfinder uses. Named in dungeon.ini rather than here, so swapping

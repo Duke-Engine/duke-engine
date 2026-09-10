@@ -9,6 +9,8 @@ import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.gen.DungeonGenerator;
 import uz.duke.dungeon.gen.GeneratedDungeon;
 import uz.duke.dungeon.level.HeroProgress;
+import uz.duke.dungeon.loot.LootTable;
+import uz.duke.dungeon.power.PowerChoice;
 import uz.duke.dungeon.skill.SkillBook;
 import uz.duke.dungeon.skill.Skills;
 import uz.duke.game.DukeGame;
@@ -48,6 +50,8 @@ public final class DungeonRun {
     private final DungeonSettings settings;
 
     private final HeroProgress progress;
+    private final PowerChoice powers;
+    private final LootTable drops;
 
     private long seed;
     private State state = State.RUNNING;
@@ -55,15 +59,20 @@ public final class DungeonRun {
     private ObjectId bossId;
     private int depth = 1;
     private int deathFrame;
+    /** When the floor closes behind him, or 0 while the boss is still alive. */
+    private int descendAtFrame;
     private int runCount; // how many times a new dungeon has been generated after a death
 
     public DungeonRun(GamePlayer heroPlayer, GamePlayer dungeonPlayer, long seed,
-            DungeonSettings settings, HeroProgress progress) {
+            DungeonSettings settings, HeroProgress progress, PowerChoice powers,
+            LootTable drops) {
         this.heroPlayer = heroPlayer;
         this.dungeonPlayer = dungeonPlayer;
         this.seed = seed;
         this.settings = settings;
         this.progress = progress;
+        this.powers = powers;
+        this.drops = drops;
     }
 
     /**
@@ -73,7 +82,7 @@ public final class DungeonRun {
      * player always sees and the ones he rarely reaches cannot drift apart.
      */
     public void openOn(DukeGame game, GeneratedDungeon floor) {
-        var placed = Spawner.place(game, heroPlayer, dungeonPlayer, floor, settings, depth);
+        var placed = Spawner.place(game, heroPlayer, dungeonPlayer, floor, settings, depth, drops);
         heroId = placed.hero().getId();
         bossId = placed.boss() == null ? null : placed.boss().getId();
     }
@@ -103,11 +112,15 @@ public final class DungeonRun {
             game.setBanner("You died");
             return;
         }
-        if (bossId != null && logic.findObject(bossId) == null) {
-            // The floor is finished. Down one, keeping everything he has earned.
+        if (bossId != null && logic.findObject(bossId) == null && descendAtFrame == 0) {
+            // The floor is finished, but not left yet — see below.
+            descendAtFrame = logic.getFrame() + settings.descendDelayFrames();
+            game.setBanner("Depth " + (depth + 1));
+        }
+        if (descendAtFrame > 0 && logic.getFrame() >= descendAtFrame) {
             depth++;
             descend(game);
-            game.setBanner("Depth " + depth);
+            game.setBanner("");
         }
         showStatus(game);
     }
@@ -121,16 +134,30 @@ public final class DungeonRun {
      */
     private void showStatus(DukeGame game) {
         game.setStatus(HeroStatus.of(Skills.heroOf(game.getLogic(), heroPlayer.getIndex()),
-                progress, depth, settings));
+                progress, depth, settings, powers, game.getLogic().getFrame()));
     }
 
+    /**
+     * Why the floor does not close the instant the boss falls.
+     *
+     * <p>Two reasons, and the first is a bug the second would have hidden: the
+     * boss leaves something behind, and rebuilding the world in the same frame
+     * takes it away again before anyone could walk to it. Beyond that, being
+     * moved somewhere else the instant a fight ends reads as a glitch — a floor
+     * wants a moment to have been finished in.
+     */
     private void whileDead(DukeGame game) {
         if (game.getLogic().getFrame() - deathFrame < settings.respawnDelayFrames()) {
             return;
         }
         // A death is the end of everything, not just of this floor.
         depth = 1;
+        descendAtFrame = 0;
         progress.reset();
+        // A death takes everything, the cards included. Told rather than
+        // inferred, for the same reason progression is: descending replaces the
+        // hero too, and there he keeps them.
+        powers.reset();
         descend(game);
         runCount++;
         state = State.RUNNING;
@@ -147,6 +174,7 @@ public final class DungeonRun {
      * every floor: {@link HeroProgress} is told which of the two this is.
      */
     private void descend(DukeGame game) {
+        descendAtFrame = 0;
         seed = DungeonGenerator.nextSeed(seed);
         var floor = DungeonGenerator.generate(seed, settings, depth);
 
@@ -154,10 +182,11 @@ public final class DungeonRun {
         logic.clearWorld();
         game.applyMapTerrain(MapLoader.fromText(floor.asciiMap()));
 
-        var placed = Spawner.place(game, heroPlayer, dungeonPlayer, floor, settings, depth);
+        var placed = Spawner.place(game, heroPlayer, dungeonPlayer, floor, settings, depth, drops);
         heroId = placed.hero().getId();
         bossId = placed.boss() == null ? null : placed.boss().getId();
         progress.carryOver(game, placed.hero());
+        powers.carryOver(placed.hero());
     }
 
     private GameObject findHero(DukeGame game) {

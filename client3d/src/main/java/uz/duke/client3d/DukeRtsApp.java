@@ -129,6 +129,17 @@ final class DukeRtsApp extends SimpleApplication {
     private BitmapText buildMenu;
     private BitmapText banner;
     private HeroPanel heroPanel;
+    private LevelUpOverlay levelUp;
+    /**
+     * The offer already answered, so the screen does not come back while the
+     * simulation catches up.
+     *
+     * <p>The world is held still behind the level-up screen, which means the
+     * client goes on drawing the snapshot it already has — the one that still
+     * carries the offer. Without remembering which one was answered, letting the
+     * world run again would put the same screen straight back up.
+     */
+    private int answeredOffer = Integer.MIN_VALUE;
 
     // minimap: fixed-size overlay in the bottom-right corner
     private static final float MINIMAP_SIZE = 190f;
@@ -139,6 +150,15 @@ final class DukeRtsApp extends SimpleApplication {
     private MinimapProjection minimap = new MinimapProjection(700f, 450f, MINIMAP_SIZE);
     private float minimapX;       // screen position of the minimap's origin
     private float minimapY;
+    /**
+     * How much the minimap is shrunk to fit the hero bar's socket, or 1 when it
+     * is drawn in the corner as an RTS draws it.
+     *
+     * <p>Scaled rather than rebuilt at the socket's size: the projection and the
+     * cells are laid out once per world, and a window resize must not mean
+     * rebuilding a few thousand quads.
+     */
+    private float minimapScale = 1f;
     /** The camera's footprint, drawn as an outline over the minimap. */
     private Geometry viewportOutline;
 
@@ -192,7 +212,12 @@ final class DukeRtsApp extends SimpleApplication {
     public void simpleInitApp() {
         flyCam.setEnabled(false);
         inputManager.setCursorVisible(true);
-        viewPort.setBackgroundColor(new ColorRGBA(0.05f, 0.07f, 0.10f, 1f));
+        // What shows where nothing is drawn at all, which is every cell the
+        // player has never been in. It is the fog's own colour when a game names
+        // one, because those two are the same dark seen two ways.
+        viewPort.setBackgroundColor(visuals.getDiscoveryTemplate() == null
+                ? new ColorRGBA(0.05f, 0.07f, 0.10f, 1f)
+                : visuals.getFog().tintColour().mult(0.55f));
 
         // project assets folder (Studio Play); exported games use the classpath
         if (visuals.getAssetRoot() != null) {
@@ -238,6 +263,8 @@ final class DukeRtsApp extends SimpleApplication {
         guiNode.attachChild(hint);
 
         heroPanel = new HeroPanel(assetManager, guiFont, guiNode, cam.getWidth());
+        levelUp = new LevelUpOverlay(assetManager, guiFont, guiNode,
+                cam.getWidth(), cam.getHeight());
 
         buildMinimap();
         buildDragRectangle();
@@ -248,7 +275,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** Assemble the minimap once: its terrain layer, then the viewport outline over it. */
     private void buildMinimap() {
-        minimapY = 34f; // above the hint line
+        minimapY = 34f; // above the hint line, until a hero bar claims it
         minimapNode.attachChild(minimapTerrainNode);
         rebuildMinimapTerrain();
         buildViewportOutline();
@@ -299,8 +326,37 @@ final class DukeRtsApp extends SimpleApplication {
                 }
             }
         }
-        minimapNode.setLocalTranslation(minimapX, minimapY, 0);
+        placeMinimap();
         minimapPalette = null; // rebuilt lazily against the new grid
+    }
+
+    /**
+     * Put the minimap where the hero bar says, or back in the corner when there
+     * is no bar.
+     *
+     * <p>The bar owns the socket because it owns the arrangement; the minimap owns
+     * the picture. Neither has to know the other's arithmetic — one hands over a
+     * rectangle in window pixels and the other fits itself to it.
+     */
+    private void placeMinimap() {
+        if (heroPanel != null && heroPanel.isShowing()) {
+            var socket = heroPanel.minimapRect();
+            minimapScale = socket[2] / Math.max(1f, Math.max(minimap.widthPixels(),
+                    minimap.heightPixels()));
+            // Centred in its socket: a map that is not square leaves a margin, and
+            // the margin belongs on both sides rather than all on one.
+            minimapX = socket[0] + (socket[2] - minimap.widthPixels() * minimapScale) / 2f;
+            minimapY = socket[1] + (socket[2] - minimap.heightPixels() * minimapScale) / 2f;
+        } else {
+            minimapScale = 1f;
+            minimapX = cam.getWidth() - minimap.widthPixels() - 12f;
+            minimapY = 34f;
+        }
+        minimapNode.setLocalScale(minimapScale);
+        // Above the socket it sits in. The GUI bucket is drawn in order of depth,
+        // and the socket's own floor is at 3 -- without this the map is behind the
+        // hole cut for it, which looks exactly like a minimap that stopped working.
+        minimapNode.setLocalTranslation(minimapX, minimapY, minimapScale < 1f ? 4f : 0f);
     }
 
     /**
@@ -317,10 +373,15 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         if (minimapPalette == null) {
+            // The two dark ends follow the fog, so the little map and the world
+            // it stands for are the same colour of nothing.
+            var dark = visuals.getFog().tintColour();
             minimapPalette = new Material[] {
-                unshaded(new ColorRGBA(0.02f, 0.02f, 0.03f, 1f)),   // never been there
-                unshaded(new ColorRGBA(0.13f, 0.12f, 0.10f, 1f)),   // remembered stone
-                unshaded(new ColorRGBA(0.06f, 0.08f, 0.05f, 1f)),   // remembered floor
+                unshaded(dark.mult(0.45f)),                          // never been there
+                unshaded(dark.mult(0.9f).add(                        // remembered stone
+                        new ColorRGBA(0.09f, 0.08f, 0.07f, 0f))),
+                unshaded(dark.mult(0.9f).add(                        // remembered floor
+                        new ColorRGBA(0.04f, 0.06f, 0.03f, 0f))),
                 unshaded(new ColorRGBA(0.35f, 0.32f, 0.26f, 1f)),   // stone in sight
                 unshaded(new ColorRGBA(0.16f, 0.22f, 0.13f, 1f)),   // floor in sight
             };
@@ -344,8 +405,8 @@ final class DukeRtsApp extends SimpleApplication {
     /** If the cursor is over the minimap, move the camera there. Returns true if handled. */
     private boolean minimapClick() {
         var cursor = inputManager.getCursorPosition();
-        float localX = cursor.x - minimapX;
-        float localY = cursor.y - minimapY;
+        float localX = (cursor.x - minimapX) / minimapScale;
+        float localY = (cursor.y - minimapY) / minimapScale;
         if (!minimap.contains(localX, localY)) {
             return false;
         }
@@ -682,6 +743,19 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /**
+     * In and out of fullscreen, from anywhere, without going through the menu.
+     *
+     * <p>The same switch the settings menu throws, so the two cannot disagree and
+     * the choice is remembered for the next launch either way. Everything that is
+     * sized to the window — the hero's bar, the minimap in it, the level-up screen,
+     * the menus — is laid out again by {@code reshape}, which the restart calls.
+     */
+    private void toggleFullscreen() {
+        PREFS.putBoolean("fullscreen", !PREFS.getBoolean("fullscreen", false));
+        applyDisplaySettings();
+    }
+
     /** Apply resolution/fullscreen by restarting the display context. */
     private void applyDisplaySettings() {
         int resIndex = PREFS.getInt("resIndex", 0);
@@ -713,8 +787,8 @@ final class DukeRtsApp extends SimpleApplication {
         hud.setLocalTranslation(10, height - 10f, 0);
         buildMenu.setLocalTranslation(10, height - 40f, 0);
         heroPanel.resize(width);
-        minimapX = width - minimap.widthPixels() - 12f;
-        minimapNode.setLocalTranslation(minimapX, minimapY, 0);
+        levelUp.resize(width, height);
+        placeMinimap();
         // menus are sized to the screen — rebuild the current one
         menu.destroy();
         menu = new MenuOverlay(guiFont, assetManager, guiNode, width, height);
@@ -736,7 +810,7 @@ final class DukeRtsApp extends SimpleApplication {
         // A new floor is a floor nobody has walked: memory belongs to one world,
         // and carrying it over would open rooms in a dungeon nobody has entered.
         if (discovery == null) {
-            discovery = new Discovery(builtFrom);
+            discovery = new Discovery(builtFrom, visuals.getFog());
         } else {
             discovery.reset(builtFrom);
         }
@@ -814,6 +888,7 @@ final class DukeRtsApp extends SimpleApplication {
         inputManager.addMapping("Shift", new KeyTrigger(KeyInput.KEY_LSHIFT), new KeyTrigger(KeyInput.KEY_RSHIFT));
         bindKeys("Halt", KeyInput.KEY_H);
         bindKeys("Pause", KeyInput.KEY_P);
+        inputManager.addMapping("Fullscreen", new KeyTrigger(KeyInput.KEY_F11));
         inputManager.addMapping("Deselect", new KeyTrigger(KeyInput.KEY_ESCAPE));
         inputManager.addMapping("ZoomIn", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, false));
         inputManager.addMapping("ZoomOut", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, true));
@@ -834,7 +909,16 @@ final class DukeRtsApp extends SimpleApplication {
                 case "Select" -> {
                     if (pressed && menu.isVisible()) {
                         menu.click(inputManager.getCursorPosition());
+                    } else if (pressed && levelUp.isShowing()) {
+                        // The level-up screen is over everything and takes the
+                        // click whether or not it landed on a card.
+                        takeOffer(levelUp.cardAt(inputManager.getCursorPosition().x,
+                                inputManager.getCursorPosition().y));
                     } else if (screen == Screen.PLAYING) {
+                        if (pressed && clickedASkillSlot()) {
+                            // The bar took it; nothing else may have it.
+                            break;
+                        }
                         if (pressed && arming != null) {
                             // This click belongs to the armed key, not to selection.
                             // The release is swallowed with it, or letting go would
@@ -848,8 +932,12 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                 }
                 case "Order" -> {
-                    if (!pressed || screen != Screen.PLAYING) {
+                    if (!pressed || screen != Screen.PLAYING || levelUp.isShowing()) {
                         break;
+                    }
+                    var over = inputManager.getCursorPosition();
+                    if (arming == null && heroPanel.contains(over.x, over.y)) {
+                        break; // a right-click on the bar is not an order to the world
                     }
                     if (arming != null) {
                         disarm(); // second thoughts, the way a right-click always means
@@ -862,9 +950,17 @@ final class DukeRtsApp extends SimpleApplication {
                         haltSelected();
                     }
                 }
+                case "Fullscreen" -> {
+                    if (pressed) {
+                        toggleFullscreen();
+                    }
+                }
                 case "Pause" -> {
-                    if (pressed && screen == Screen.PLAYING) {
-                        game.togglePause();
+                    // Set here rather than queued for the simulation: a paused
+                    // engine does not step, so a task asking it to resume would
+                    // never be reached and the pause could not be lifted.
+                    if (pressed && screen == Screen.PLAYING && !levelUp.isShowing()) {
+                        setSimulationPaused(!game.getLogic().isGamePaused());
                     }
                 }
                 case "Deselect" -> {
@@ -873,6 +969,9 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                     switch (screen) {
                         case PLAYING -> {
+                            if (levelUp.isShowing()) {
+                                break; // a level has to be spent before anything else
+                            }
                             if (arming != null) {
                                 disarm(); // back out of the aim before anything else
                             } else if (selected.isEmpty()) {
@@ -892,7 +991,12 @@ final class DukeRtsApp extends SimpleApplication {
                         return;
                     }
                     if (name.startsWith("Build")) {
-                        queueBuild(Integer.parseInt(name.substring(5)) - 1);
+                        int index = Integer.parseInt(name.substring(5)) - 1;
+                        if (levelUp.isShowing()) {
+                            takeOffer(index); // the numbers pick a card while one is up
+                        } else {
+                            queueBuild(index);
+                        }
                     } else if (name.startsWith(HOTKEY)) {
                         pressHotkey(name.charAt(HOTKEY.length()));
                     }
@@ -900,7 +1004,7 @@ final class DukeRtsApp extends SimpleApplication {
             }
         };
         inputManager.addListener(actions, "Select", "Order", "PanUp", "PanLeft", "PanDown", "PanRight",
-                "Shift", "Halt", "Pause", "Deselect",
+                "Shift", "Halt", "Pause", "Deselect", "Fullscreen",
                 "Build1", "Build2", "Build3", "Build4", "Build5", "Build6", "Build7", "Build8", "Build9");
 
         for (var key : hotkeys.all().keySet()) {
@@ -1077,6 +1181,32 @@ final class DukeRtsApp extends SimpleApplication {
         binding.run().accept(game,
                 new Hotkeys.Aimed(0, new Coord3D(ground.x, ground.z, 0f)));
         markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
+    }
+
+    /**
+     * A click on a skill slot casts it, exactly as pressing its key would.
+     *
+     * <p>Down the same road, deliberately: the click ends in {@link #pressHotkey},
+     * so a skill that needs pointing at something arms and waits for the next
+     * click just as the keyboard's does, and a skill that does not goes off at
+     * once. Anything else would be a second copy of the rules for casting, and the
+     * two would drift.
+     *
+     * <p>A slot that is cooling or locked eats the click and does nothing, which
+     * is what a stone slot with a shadow over it looks like it should do.
+     *
+     * @return whether the bar took the click
+     */
+    private boolean clickedASkillSlot() {
+        var cursor = inputManager.getCursorPosition();
+        var key = heroPanel.slotAt(cursor.x, cursor.y);
+        if (key != null) {
+            pressHotkey(key);
+            return true;
+        }
+        // The rest of the bar swallows clicks too. Without this, clicking the
+        // portrait sends the hero walking to wherever the bar happens to cover.
+        return heroPanel.contains(cursor.x, cursor.y);
     }
 
     private void beginDrag() {
@@ -1275,18 +1405,126 @@ final class DukeRtsApp extends SimpleApplication {
         syncOrderMarkers();
         updateHud();
         updateBanner();
+        updateLevelUp();
+        updateHover();
+        placeMinimap();
+    }
+
+    /**
+     * Put the level-up screen up when the game offers one, and hold the world
+     * still while it is up.
+     *
+     * <p>The pause is set directly rather than queued for the simulation thread,
+     * and it has to be: a paused engine does not step, so a task queued for the
+     * next frame would never run and the game could not be started again. The flag
+     * is a plain boolean, it takes no part in the checksum, and pausing changes
+     * when frames happen rather than what is in them.
+     */
+    private void updateLevelUp() {
+        var offer = screen == Screen.PLAYING ? heroPanel.offer() : null;
+        if (offer != null && offer.id() != answeredOffer) {
+            levelUp.show(offer);
+            setSimulationPaused(true);
+            return;
+        }
+        if (levelUp.isShowing()) {
+            levelUp.hide();
+            setSimulationPaused(false);
+        }
+    }
+
+    /** Freeze or resume the simulation. See {@link #updateLevelUp()} for why directly. */
+    private void setSimulationPaused(boolean paused) {
+        var logic = game.getLogic();
+        if (logic != null && logic.isGamePaused() != paused) {
+            logic.setGamePaused(paused);
+        }
+    }
+
+    /** Light whatever the cursor is resting on: a skill slot, or a card. */
+    private void updateHover() {
+        var cursor = inputManager.getCursorPosition();
+        if (levelUp.isShowing()) {
+            levelUp.hover(levelUp.cardAt(cursor.x, cursor.y));
+            heroPanel.hover(null);
+            return;
+        }
+        heroPanel.hover(screen == Screen.PLAYING ? heroPanel.slotAt(cursor.x, cursor.y) : null);
+    }
+
+    /**
+     * A card was taken, by click or by number.
+     *
+     * <p>The client says which one and the game says what that means — the
+     * callback posts a command, and the simulation applies it on a frame boundary
+     * once the world starts again. The screen comes down here rather than waiting
+     * for the next snapshot to stop mentioning it, because the world is not
+     * running yet and that snapshot cannot arrive until it is.
+     */
+    private void takeOffer(int index) {
+        var offer = heroPanel.offer();
+        if (offer == null || index < 0 || index >= offer.cards().size()) {
+            return;
+        }
+        answeredOffer = offer.id();
+        hotkeys.choose(game, index);
+        levelUp.hide();
+        setSimulationPaused(false);
     }
 
     private void updateCamera(float tpf) {
         float speed = camera.panSpeed() * tpf;
         float dx = (pan[3] ? speed : 0f) - (pan[1] ? speed : 0f);
         float dz = (pan[2] ? speed : 0f) - (pan[0] ? speed : 0f);
-        camera.panBy(dx, dz);
+        var shove = edgeShove(speed);
+        camera.panBy(dx + shove.x, dz + shove.y);
 
         float distance = camera.distance();
         var target = new Vector3f(camera.targetX(), 0f, camera.targetZ());
         cam.setLocation(target.add(new Vector3f(0, distance * 0.82f, distance * 0.57f)));
         cam.lookAt(target, Vector3f.UNIT_Y);
+    }
+
+    /**
+     * How far the cursor shoves the camera this frame, resting against an edge.
+     *
+     * <p>Added to whatever the keys are doing rather than replacing it, so both
+     * hands work at once. It is measured as a share of the keys' own speed, which
+     * is itself a function of how far out the camera is — so shoving at full zoom
+     * moves the same amount of <em>screen</em> as shoving up close.
+     *
+     * <p>Nothing happens while a menu or the level-up screen is up: those are
+     * moments when the cursor is being used for something else, and a view that
+     * drifted out from under a choice would be its own kind of bug.
+     *
+     * <p>The world's bottom edge is the top of the hero's bar rather than the
+     * bottom of the window, because on a screen with a bar those are not the same
+     * line — the bottom of the window is halfway down a skill slot. So the band
+     * that scrolls sits just above the bar, and the bar itself scrolls nothing at
+     * all: resting the cursor on a slot has to be free.
+     */
+    private Vector2f edgeShove(float keySpeed) {
+        var wanted = visuals.getEdgeScroll();
+        var still = new Vector2f(0f, 0f);
+        if (!wanted.wanted() || screen != Screen.PLAYING || menu.isVisible()
+                || levelUp.isShowing()) {
+            return still;
+        }
+        var cursor = inputManager.getCursorPosition();
+        float floor = heroPanel.heightPixels();
+        if (cursor.y < floor) {
+            return still; // on the bar; it is not a piece of the world
+        }
+        float margin = wanted.marginPixels();
+        float speed = keySpeed * wanted.speedPercent() / 100f;
+        float width = cam.getWidth();
+        float height = cam.getHeight();
+        // jME's cursor y grows upward, so the top of the screen is the far side of
+        // the map — the same direction the up key sends the camera.
+        return new Vector2f(
+                (cursor.x >= width - margin ? speed : 0f) - (cursor.x <= margin ? speed : 0f),
+                (cursor.y <= floor + margin ? speed : 0f)
+                        - (cursor.y >= height - margin ? speed : 0f));
     }
 
     private void syncUnits() {
@@ -1903,11 +2141,25 @@ final class DukeRtsApp extends SimpleApplication {
             var atlas = textureOf(master);
             var litDiffuse = ColorRGBA.White;
             var litAmbient = new ColorRGBA(0.55f, 0.55f, 0.62f, 1f);
+            // The bottom of the ladder is the fog's colour rather than black.
+            // Remembered stone is not unlit stone — it is stone seen through the
+            // dark, and a dark with a colour is the difference between a room the
+            // player has been in and a hole in the screen.
+            var fog = visuals.getFog().tintColour();
             shades = new Material[SHADES];
             for (int rung = 0; rung < SHADES; rung++) {
                 float light = rung / (float) (SHADES - 1);
-                shades[rung] = tileMaterial(atlas, litDiffuse.mult(light), litAmbient.mult(light));
+                shades[rung] = tileMaterial(atlas, fade(fog, litDiffuse, light),
+                        fade(fog.mult(0.8f), litAmbient, light));
             }
+        }
+
+        /** {@code from} at no light, {@code to} at full, straight between. */
+        private ColorRGBA fade(ColorRGBA from, ColorRGBA to, float light) {
+            return new ColorRGBA(
+                    from.r + (to.r - from.r) * light,
+                    from.g + (to.g - from.g) * light,
+                    from.b + (to.b - from.b) * light, 1f);
         }
 
         private Material tileMaterial(com.jme3.texture.Texture atlas,

@@ -11,6 +11,12 @@ import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.gen.DungeonGenerator;
 import uz.duke.dungeon.level.GrowableBody;
 import uz.duke.dungeon.level.HeroProgress;
+import uz.duke.dungeon.loot.LootBag;
+import uz.duke.dungeon.loot.LootTable;
+import uz.duke.dungeon.loot.LootUpdate;
+import uz.duke.dungeon.power.ChoosePower;
+import uz.duke.dungeon.power.PowerBook;
+import uz.duke.dungeon.power.PowerChoice;
 import uz.duke.dungeon.skill.CastSkill;
 import uz.duke.dungeon.skill.SkillBook;
 import uz.duke.dungeon.skill.Skills;
@@ -75,8 +81,12 @@ public final class Dungeon {
     public record Arena(DukeGame game, GamePlayer hero, GamePlayer dungeon) {
     }
 
-    /** A game, the run loop that keeps it going, and the hero's progression. */
-    public record Session(DukeGame game, DungeonRun run, HeroProgress progress) {
+    /**
+     * A game, the run loop that keeps it going, the hero's progression, and the
+     * powers he is offered as he levels.
+     */
+    public record Session(DukeGame game, DungeonRun run, HeroProgress progress,
+            PowerChoice powers) {
     }
 
     /**
@@ -91,11 +101,21 @@ public final class Dungeon {
     }
 
     /**
+     * The same, for a caller with no interest in level-up powers — a fresh book,
+     * empty and staying empty because nothing offers from it.
+     */
+    public static Arena world(String asciiMap, DungeonSettings settings, String creaturesIni) {
+        return world(asciiMap, settings, creaturesIni,
+                new PowerBook(settings.powerMinCooldownPercent()), new LootBag());
+    }
+
+    /**
      * The same, on a creature file the caller supplies — the seam for asking what
      * a re-tuned creature does, next to {@link #newSession(long, DungeonSettings)}
      * for re-tuned generation.
      */
-    public static Arena world(String asciiMap, DungeonSettings settings, String creaturesIni) {
+    public static Arena world(String asciiMap, DungeonSettings settings, String creaturesIni,
+            PowerBook powers, LootBag bag) {
         var game = DukeGame.create("Duke Dungeon")
                 .subtitle("a different dungeon every run")
                 .customModules(factory -> {
@@ -118,7 +138,8 @@ public final class Dungeon {
                     // and his own DungeonSkill blocks, and no code at all.
                     factory.register("SkillBook",
                             (owner, data) -> new SkillBook(owner,
-                                    settings.skillsFor(owner.getTemplate().getName()), settings),
+                                    settings.skillsFor(owner.getTemplate().getName()), settings,
+                                    powers),
                             SkillBook::parseData);
                     // An archer's shots become things in the world. The engine's
                     // weapon still aims and reloads; these two decide what
@@ -126,10 +147,18 @@ public final class Dungeon {
                     factory.register("Bow",
                             (owner, data) -> new Bow(owner, settings), Bow::parseData);
                     factory.register("ArrowUpdate",
-                            ArrowUpdate::new, ArrowUpdate::parseData);
+                            (owner, data) -> new ArrowUpdate(owner, data, powers),
+                            ArrowUpdate::parseData);
                     // A monster's blow lands where it stands, as it always did.
                     // This is only how the brain finds out that it struck.
                     factory.register("Swing", Swing::new, Swing::parseData);
+                    // What a dead monster leaves lying about. The chest is a
+                    // creature like any other -- it is in the world, so the client
+                    // draws it without being told anything special.
+                    factory.register("LootUpdate",
+                            (owner, data) -> new LootUpdate(owner, bag,
+                                    settings.lootPickupRange(), settings.lootNoteFrames()),
+                            LootUpdate::parseData);
                 })
                 .loadUnits(creaturesIni)
                 .loadUnits(Content.read(Content.MONSTERS))
@@ -163,19 +192,38 @@ public final class Dungeon {
     /** The same, on settings the caller supplies — the seam for testing a re-tuned game. */
     public static Session newSession(long seed, DungeonSettings settings) {
         var floor = DungeonGenerator.generate(seed, settings, 1);
-        var arena = world(floor.asciiMap(), settings);
+        // The book is built before the world because the hero's modules read it:
+        // his skills ask it what they hit for, and his arrows what they give back.
+        var book = new PowerBook(settings.powerMinCooldownPercent());
+        var bag = new LootBag();
+        var arena = world(floor.asciiMap(), settings, Content.read(Content.CREATURES), book, bag);
         var game = arena.game();
 
         var progress = new HeroProgress(arena.hero(), settings.levelling(),
-                settings.levelUpBannerFrames());
-        var run = new DungeonRun(arena.hero(), arena.dungeon(), seed, settings, progress);
+                settings.levelUpBannerFrames(), bag);
+        // Drawn from the run's seed as well, so a seed is the whole run: the same
+        // one drops the same things off the same monsters.
+        var drops = new LootTable(settings.loot(), seed, settings.lootDropPercent(),
+                settings.lootBossDropPercent(), settings.lootValuePercentPerDepth());
+        // Cards drawn from the run's own seed, so a seed is still a whole run:
+        // the same one offers the same three at the same levels.
+        var powers = new PowerChoice(book, settings.powers(), seed, settings.powerOfferCount());
+        var run = new DungeonRun(arena.hero(), arena.dungeon(), seed, settings, progress, powers,
+                drops);
 
         // Q, W, E and R arrive as this game's own command, through the same queue
         // the standard orders use — so a keypress lands on a frame boundary and is
         // recorded, rather than reaching into the simulation from the input thread.
         game.onCommand(command -> {
-            if (command instanceof CastSkill cast) {
-                Skills.cast(game.getLogic(), cast, progress.getLevel());
+            switch (command) {
+                case CastSkill cast -> Skills.cast(game.getLogic(), cast, progress.getLevel());
+                // Picking a card is an order like any other: it lands on a frame
+                // boundary rather than reaching in from whatever drew the screen.
+                case ChoosePower choice -> powers.choose(choice.index(), choice.offerId(),
+                        Skills.heroOf(game.getLogic(), choice.playerIndex()));
+                default -> {
+                    // Not one of ours; rts has already said so.
+                }
             }
         });
 
@@ -184,7 +232,10 @@ public final class Dungeon {
         game.onStart(started -> run.openOn(started, floor));
         game.onTick(run::tick);
         game.onTick(progress::tick);
+        // After progression, which is what it watches: a level appearing is what
+        // puts cards on the table.
+        game.onTick(ignored -> powers.tick(progress.getLevel()));
 
-        return new Session(game, run, progress);
+        return new Session(game, run, progress, powers);
     }
 }

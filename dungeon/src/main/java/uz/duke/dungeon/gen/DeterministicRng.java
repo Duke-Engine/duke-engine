@@ -15,15 +15,15 @@ package uz.duke.dungeon.gen;
  * differently. A zero seed would stick at zero, so it is nudged to a non-zero
  * constant.
  */
-final class DeterministicRng {
+public final class DeterministicRng {
 
     private long state;
 
-    DeterministicRng(long seed) {
+    public DeterministicRng(long seed) {
         this.state = seed == 0L ? 0x9E3779B97F4A7C15L : seed;
     }
 
-    long nextLong() {
+    public long nextLong() {
         long x = state;
         x ^= x << 13;
         x ^= x >>> 7;
@@ -33,7 +33,7 @@ final class DeterministicRng {
     }
 
     /** A value in {@code [0, bound)}. */
-    int nextInt(int bound) {
+    public int nextInt(int bound) {
         if (bound <= 0) {
             throw new IllegalArgumentException("bound must be positive: " + bound);
         }
@@ -41,7 +41,7 @@ final class DeterministicRng {
     }
 
     /** A value in {@code [origin, boundInclusive]}. */
-    int nextInt(int origin, int boundInclusive) {
+    public int nextInt(int origin, int boundInclusive) {
         return origin + nextInt(boundInclusive - origin + 1);
     }
 

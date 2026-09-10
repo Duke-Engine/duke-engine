@@ -7,6 +7,8 @@ import uz.duke.core.thing.GameObject;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.gen.GeneratedDungeon;
 import uz.duke.dungeon.level.GrowableBody;
+import uz.duke.dungeon.loot.LootDrop;
+import uz.duke.dungeon.loot.LootTable;
 import uz.duke.game.DukeGame;
 import uz.duke.game.GamePlayer;
 import uz.duke.rts.module.ExperienceModule;
@@ -41,6 +43,18 @@ public final class Spawner {
      */
     public static Placed place(DukeGame game, GamePlayer heroPlayer, GamePlayer dungeonPlayer,
             GeneratedDungeon dungeon, DungeonSettings settings, int depth) {
+        return place(game, heroPlayer, dungeonPlayer, dungeon, settings, depth, null);
+    }
+
+    /**
+     * The same, with a table saying what the inhabitants leave behind.
+     *
+     * <p>Hung on each monster as it is placed rather than written into its
+     * creature block, beside the depth bonus and for the same reason: a template
+     * says what a thing is, and what it leaves depends on where it was met.
+     */
+    public static Placed place(DukeGame game, GamePlayer heroPlayer, GamePlayer dungeonPlayer,
+            GeneratedDungeon dungeon, DungeonSettings settings, int depth, LootTable drops) {
         var logic = game.getLogic();
         var hero = logic.spawn(logic.getThingFactory().findTemplate("Hero"),
                 at(dungeon.hero()), heroPlayer.getIndex());
@@ -51,6 +65,7 @@ public final class Spawner {
             if (spawned != null) {
                 scale(spawned, settings.monsterHealthAt(depth), settings.monsterDamageAt(depth),
                         settings.experienceAt(depth));
+                dropsFrom(spawned, drops, settings, depth, false);
                 monsters.add(spawned);
             }
         }
@@ -59,6 +74,7 @@ public final class Spawner {
         if (boss != null) {
             scale(boss, settings.bossHealthAt(depth), settings.bossDamageAt(depth),
                     settings.experienceAt(depth));
+            dropsFrom(boss, drops, settings, depth, true);
         }
         return new Placed(hero, boss, List.copyOf(monsters));
     }
@@ -97,6 +113,14 @@ public final class Spawner {
             var scaled = new ExperienceModule.Data(
                     Math.round(worth.getExperienceValue() * experience), List.of(), false);
             monster.replaceModule(worth, new ExperienceModule(monster, scaled));
+        }
+    }
+
+    /** Give a monster something to leave behind, if the game asked for loot at all. */
+    private static void dropsFrom(GameObject monster, LootTable drops, DungeonSettings settings,
+            int depth, boolean boss) {
+        if (drops != null && !settings.lootTemplate().isBlank()) {
+            monster.addModule(new LootDrop(monster, drops, settings.lootTemplate(), depth, boss));
         }
     }
 

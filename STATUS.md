@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-09 · **Testlar:** 548 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-10 · **Testlar:** 605 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -957,7 +957,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **548 test yashil** (core 133, rts 110, generals 5, game 28, client3d 91, studio 8, dungeon 173) — 0 failure / 0 error.
+- **605 test yashil** (core 133, rts 110, generals 5, game 28, client3d 110, studio 8, dungeon 211) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1506,6 +1506,113 @@ ikkala peer aynan bir kadrda qo'llaydi.
   qurolnikiligicha qoladi — skillar o'z `DamagePerLevel` i bilan o'sadi, ikkalasi
   qo'shilsa daraja ikki marta hisoblanardi.
 
+- **Daraja oshganda kuch tanlanadi** — har darajada uchta karta, bittasi olinadi va
+  run oxirigacha qoladi. Ikki run bir xil oltinchi darajaga yetsa ham ikki xil
+  qahramon bo'ladi, chunki tanlov o'yinchiniki.
+  - **Kod effekt turini beradi, INI qolganini.** `PowerEffect` beshta shakl:
+    `SKILL_DAMAGE`, `COOLDOWN`, `MOVE_SPEED`, `LIFESTEAL`, `EXTRA_CHARGE`. Yangi
+    kuch = `dungeon.ini` da bitta `DungeonPower` bloki, **noldan Java**; yangi
+    *tur* — enum'da bitta konstanta va o'qiladigan joyda bitta shox.
+  - **Uchtasi seed'dan chiqadi** — `PowerDraft` sof: seed + daraja kirsa, ro'yxat
+    chiqadi. `Math.random` yo'q, ya'ni bitta seed butun run'ni belgilaydi,
+    kartalar ham. Chegarasiga yetgan (`MaxStacks`) kuch taklif qilinmaydi;
+    `MinLevel` esa kartani run boshida ushlab turadi.
+  - **Stack qo'shiladi, ko'paymaydi.** Ikkita "+25%" = +50%, 1.25² emas: ikkinchi
+    kartani o'qigan o'yinchi uni birinchisicha qadrli deb kutadi, va ko'paytirish
+    olingan tartibga qarab sirg'anadi.
+  - **Buyruq quvuridan o'tadi** — `ChoosePower` bu o'yinning **ikkinchi** buyrug'i
+    (`CastSkill` yonida). Klik faqat `postCommand` qiladi; qaysi karta ekani va u
+    nima berishi kadr chegarasida, simulyatsiyada hal bo'ladi.
+  - **Taklif *raqami* daraja emas, ketma-ket nomer.** O'lim darajani birga
+    qaytaradi, ya'ni har run'ning "2-daraja" taklifi bo'ladi — darajani nom qilib
+    olsak, klient birinchisini javoblaganini eslab ikkinchisini **umuman
+    ko'rsatmasdi**. Test shuni qulflaydi.
+  - **Ekran o'yinni to'xtatib turadi** — pauzani **klient** qo'yadi va oladi,
+    to'g'ridan-to'g'ri (pastdagi tuzoqqa qarang). Tanlangach buyruq jo'natiladi va
+    dunyo yana yuradi; javob berilgan taklif qaytib chiqmaydi.
+  - **Zaryadlar tuzog'i (tuzatilgan):** "E ikki marta" kartasi cheksiz bo'lib
+    qolgan edi — ikkinchi zaryad sarflangach uya kuluarsiz qolar, keyingi kadr esa
+    uni to'ldirar edi. Endi **shift** (`chargeCap`) eslab qolinadi: to'ldirish
+    faqat kuluar tugaganda, va karta olinganda faqat **farq** beriladi.
+- **Warcraft uslubidagi pastki panel** — `HeroPanel` bitta tosh plitaga aylandi:
+  chapda minimap uyasi, o'rtada portret va tirik ko'rsatkichlar, o'ngda skill
+  uyalari va ular ostida olingan kuchlar qatori, chekkada chuqurlik. Bo'limlar
+  o'yma chiziq bilan ajratiladi — alohida quticha emas.
+  - **Maket piksellarida chiziladi, keyin oynaga masshtablanadi** (`DESIGN_WIDTH`
+    1180). Shuning uchun nisbatlar har ekranda saqlanadi va `reshape` bitta
+    `layOut()` chaqiradi.
+  - **Minimap panelga ko'chdi.** Panel uyaning to'rtburchagini oyna piksellarida
+    beradi (`minimapRect`), klient minimapni o'shanga moslaydi — hech biri
+    ikkinchisining arifmetikasini bilmaydi. Panel yo'q o'yinda minimap avvalgidek
+    burchakda qoladi.
+  - **Portret 3D render emas, siluet.** Ikkinchi kamera bilan jonli qahramonni
+    teksturaga chizish — haqiqiy narsa, lekin ramka aslida "ekranning qaysi
+    burchagi meniki" deyish uchun; siluet buni qiladi.
+  - Panelga bitta ham inglizcha so'z qo'shilmadi: `Kuchlar`, `Zarba`, `Zirh`,
+    `Tezlik` va tanlov ekranining sarlavhasi `DungeonHud` blokidan keladi.
+- **Skillni sichqoncha bilan ham ishlatish** — uyaga bosish klavishani bosish
+  bilan **bir xil yo'ldan** boradi: klik klientning o'z `pressHotkey` iga tushadi,
+  ya'ni nishon talab qiladigan skill xuddi shunday qurollanadi va kutadi,
+  talab qilmaydigani darhol ketadi. Ikkinchi nusxa qoida yo'q.
+  - Kuluar yoki yopiq uya klikni **yutadi va hech nima qilmaydi** — tosh uyaning
+    ustida soya turganda aynan shunday ko'rinishi kerak.
+  - Kursor uya ustida bo'lsa uya yorishadi; qurollangan uya esa avvalgidek nafas
+    oladi. Ikkalasi ikki xil, chunki ikki xil narsa deydi.
+  - **Panelning qolgani ham klikni yutadi**: portretga bosganda qahramon panel
+    ortidagi yerga yurib ketardi.
+  - **Uya koordinatasi tuzog'i (tuzatilgan):** uya `skillRow` ichida, `skillRow`
+    esa markazlashtirilgan blok ichida — faqat blokning siljishini qo'shsak, klik
+    chizilgan joydan bir ustun chapga tushardi. Endi uya o'z joyini maket
+    piksellarida **eslab qoladi** (`PanelHitTest`).
+- **Tuman devorni pisand qiladi (line of sight)** — har katak uchun qahramondan
+  to'g'ri chiziq (Bresenham, butun sonlarda) tekshiriladi: yo'lda tosh bo'lsa katak
+  yoritilmaydi. **Devorning o'zi ko'rinadi**, ortidagi yo'q — shuning uchun faqat
+  **oradagi** kataklar so'raladi. Shader yo'q, trigonometriya yo'q: pathfinder
+  allaqachon yuritadigan gridning ustida arifmetika.
+  - Busiz yorug'lik nimadan o'tayotgani bilan qiziqmaydigan doira edi: koridorda
+    turish ikki tomondagi xonalarni ham yoritardi.
+  - **Chekka yumshoqligi sozlanadi** — silliqlash yadrosi endi piramida
+    (`SoftenCells` radiusi): 1 da eski 4-2-1, kattaroq radiusda asta so'nadi.
+  - **Tuman rangi bor.** Plitka materiallari narvonining quyi uchi qora emas,
+    `Tint` — ochilgan xona "yoritilmagan tosh" emas, "qorong'idan ko'ringan tosh"
+    bo'ladi. O'sha rang oynaning fon rangi ham (ikkalasi bitta qorong'ilik).
+  - Hammasi `DungeonFog` blokida; `Fog` yozuvi klientda, so'ramagan o'yin
+    avvalgidek qoladi (LOS o'chiq, qora tuman).
+- **Loot — o'lgan monster nimadir qoldiradi** — ustiga borilsa olinadi va run
+  oxirigacha qoladi: ATK (foiz), HP (yassi) yoki DEF (foiz). Inventar yo'q va
+  atayin yo'q: qaror — "borib olamanmi", va oxirida ikkinchi qaror rasmiyatchilik
+  bo'lardi.
+  - **Engine'ning `DieModule` chokida** — jasad dunyodan chiqqach ishlaydi, ya'ni
+    tushgan narsa tana yo'q joyga tushadi. Modul spawn paytida osiladi (depth
+    bonusi kabi), creature blokida emas: template narsaning **nima** ekanini
+    aytadi, **qayerda uchraganini** emas.
+  - **Deterministik va tartibdan mustaqil**: qur'a run seed'i **va monsterning
+    o'z id'si** dan chiqadi, aylanayotgan generatordan emas. Shuning uchun monster
+    birinchi o'ldirilganda ham, oxirgi o'ldirilganda ham bir xil narsa qoldiradi —
+    aks holda replay o'yinchining marshrutiga bog'lanib qolardi.
+  - Chuqurlik ikki tomondan ta'sir qiladi: `MinDepth` yaxshi narsalarni yuqori
+    qavatlarda ushlab turadi, `ValuePercentPerDepth` esa topilganini qimmatlashtiradi.
+  - **Qavat boss o'lgan zahoti yopilmaydi** (`DescendDelayFrames`). Bu bug edi:
+    boss ham narsa qoldiradi, dunyo esa o'sha kadrda qayta qurilib uni olib
+    ketardi. Yon foydasi — tugagan jangga bir lahza beriladi.
+  - Olingan narsa **`HeroProgress` orqali** qo'llanadi, tushgan joyda emas: ATK va
+    DEF darajadan **hisoblanadi** (tayinlanadi), shuning uchun sandiq o'zi
+    yozganini keyingi daraja o'chirib yuborardi.
+  - Modeli yo'q — kitda sandiq yo'q, shuning uchun mash'al rangli quti.
+- **Edge scrolling** — kursor ekran chetiga borsa kamera suriladi, WASD va g'ildirak
+  bilan **birga**. Tezlik `EdgeSpeedPercent` — klavishlar tezligining ulushi, va u
+  masofaga bog'liq, ya'ni har zoomda bir xil miqdorda **ekran** suriladi.
+  - **Dunyoning pastki chekkasi — panelning tepasi**, oynaning tepasi emas: panel
+    bor ekranda oynaning pastki cheti skill uyasining o'rtasidan o'tadi. Panelning
+    o'zi hech nimani surmaydi — uya ustida turish tekin bo'lishi kerak.
+  - Menyu yoki tanlov ekrani ochiq bo'lsa surilmaydi.
+  - So'ramagan o'yinda o'chiq (`EdgeScroll.NONE`), ya'ni studio va sandbox
+    o'zgarmagan.
+- **Fullscreen F11 bilan** — sozlamalar menyusidagi o'sha tugmachaning o'zi, ya'ni
+  ikkovi kelisha olmaydi va tanlov keyingi ishga tushirishda ham esda qoladi.
+  Oyna o'lchami o'zgarganda panel, undagi minimap, tanlov ekrani va menyular
+  `reshape` da qayta joylashadi.
+
 ---
 
 ## 9. Nima yo'q / ochiq ishlar
@@ -1619,10 +1726,15 @@ o'sha o'yinga aylantiradi.
 O'yin hozir "o'ynash mumkinmi?" savolini tekshiryapti, shuning uchun uni yashira
 oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchilik emas:
 
-- **Model, tekstura, ovoz yo'q** — hamma narsa rangli primitiv shakl.
-- **Boss, leveling, kuch tanlash yo'q** — skelet bitta tur, qahramon o'smaydi.
+- **Ovoz yo'q** — musiqa ham, effekt ham.
+- **Inventar yo'q** — loot to'g'ridan-to'g'ri doimiy bonus beradi, almashtiriladigan
+  narsa emas. Ataylab: qaror "borib olamanmi", va oxirida ikkinchi qaror
+  rasmiyatchilik bo'lardi.
+- **Sandiqning modeli yo'q** — Kenney to'plamida sandiq yo'q, shuning uchun u
+  mash'al rangli quti. Model topilsa — `Main.looks()` da bitta qator.
 - **Relyef yo'q, dunyo tekis** — xonalar (X, Z) tekisligida; `Coord3D.z` ishlatilmaydi.
-- **Bitta daraja** — dungeon ichida chuqurlik (daraja ichida daraja) yo'q; o'lsang boshdan.
+- **Yo'nalishga bog'liq ko'rish yo'q** — orqadan kelgan narsa ham xuddi shunday
+  ko'rinadi; tuman faqat devorni biladi.
 - Qo'lda chizilgan xona (`Dungeon.create()`) hali turibdi — engine o'ynasa bo'ladiganini
   ko'rsatadigan ma'lum javobli dunyo. Haqiqiy o'yin `create(long seed)`.
 
@@ -1687,6 +1799,31 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
   `equals`/`hashCode` `Object` dan olinadi — ataylab. `new Kind(...)` yo'q.
 - **`Math` vs `StrictMath`:** mantiq yo'lida trigonometriya uchun `Math` ishlatmang
   (yuqoridagi determinizm bandiga qarang). Klient/HUD kodida `Math` mumkin.
+- **Pauza qo'yilgan engine hech qachon qadam tashlamaydi — demak navbatdagi
+  vazifa bilan uni ocholmaysiz.** `GameEngine.update()` `logic.isGamePaused()`
+  bo'lsa `logic.update()` ni **umuman** chaqirmaydi, `runOnSimThread` esa
+  `simulate()` ichida drenaj qilinadi. Ya'ni `DukeGame.togglePause()` bilan bir
+  marta to'xtatib bo'lgach, ikkinchi bosish hech qachon yetib bormaydi — `P`
+  tugmasi shu sababdan **hamma o'yinda** buzuq edi. Klient endi bayroqni
+  to'g'ridan-to'g'ri qo'yadi (`getLogic().setGamePaused(...)`): u checksum'ga
+  kirmaydi va **qachon** kadr bo'lishini o'zgartiradi, kadr ichida **nima**
+  bo'lishini emas. Daraja tanlash ekrani ham shu yo'ldan pauza qiladi.
+- **Vertex ranglari sRGB konversiyasidan o'tmaydi.** Klient sRGB frame buffer'ga
+  chizadi; material rangi shader'ga ketayotib o'giriladi, mesh'ning rang buferiga
+  yozilgani esa **yo'q**. Natijada bitta hex gradient sifatida quti sifatidagidan
+  ikki pog'ona ochroq chiqadi — qon-qizil bar pushti bo'lib turardi. `HeroPanel`
+  o'sha konversiyani qo'lda qiladi (`linear(...)`), va uni **hamma** rangiga
+  qo'llaydi, aks holda ikkisi kelishmaydi.
+- **`clearWorld()` `DieModule` larni ishga tushirmaydi** — u shunchaki ro'yxatni
+  tozalaydi. Bu yaxshi: aks holda qavat almashganda butun dungeon sandiq yog'dirardi.
+  Lekin o'lim orqali bo'ladigan hamma narsa (loot, XP) faqat **haqiqiy** o'limda
+  bo'ladi degani.
+- **Qisman `dungeon.ini` ro'yxatlarni saqlaydi, skalyarlarni saqlamaydi.**
+  `DungeonSettings.parse(...)` da nomlanmagan `DungeonMonster` / `DungeonSkill` /
+  `DungeonPower` / `DungeonLootItem` bloklari shipping fayldan qo'shiladi, lekin
+  `MapWidth` yoki `DepthWord` kabi **alohida maydonlar** Java'dagi standart
+  qiymatiga tushadi. Test uchun shuni kutish kerak: qisman fayl bilan qurilgan
+  o'yinda panel so'zlari inglizcha chiqadi.
 - **Geometriya qo'shsangiz joylashuvni tekshiring:** template'ga `Geometry`
   bergan zahoti u yer egallaydi. Bir-biriga juda yaqin qo'yilgan eski
   spawn koordinatalari endi kesishishi mumkin — birliklar chiqib ketguncha
@@ -1760,4 +1897,13 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/level/Levelling.java` | daraja qoidalari — sof, INI qiymatlaridan |
 | `dungeon/…/dungeon/level/HeroBody.java` | o'sadigan tana (engine'niki final) + `Armor` |
 | `dungeon/…/dungeon/level/HeroProgress.java` | XP → daraja → atributlar, run'da nolga qaytish |
+| `dungeon/…/dungeon/power/{Power,PowerEffect}.java` | daraja kuchi: ma'lumot + effekt turlari (kod faqat shu yerda) |
+| `dungeon/…/dungeon/power/PowerDraft.java` | uchta kartani seed'dan tanlash — sof, dunyosiz |
+| `dungeon/…/dungeon/power/{PowerBook,PowerChoice}.java` | olingan kuchlar va ular nimaga teng + taklif holati |
+| `dungeon/…/dungeon/power/ChoosePower.java` | o'yinning ikkinchi buyrug'i — "o'shani olaman" |
+| `dungeon/…/dungeon/loot/{Loot,LootKind,LootTable}.java` | tushadigan narsa: ma'lumot, turlar, deterministik qur'a |
+| `dungeon/…/dungeon/loot/{LootBag,LootDrop,LootUpdate}.java` | topilganlar + `DieModule` cho'ntagi + poldagi sandiq |
+| `client3d/…/client3d/LevelUpOverlay.java` | daraja tanlash ekrani — mexanizm klientniki, so'zlar o'yinniki |
+| `client3d/…/client3d/Fog.java` | tuman sozlamasi (LOS, xotira yorqinligi, yumshoqlik, rang) |
+| `client3d/…/client3d/EdgeScroll.java` | kursor bilan kamerani surish sozlamasi |
 | `dungeon/src/main/resources/uz/duke/dungeon/*.ini` | o'yin ma'lumoti — kompilyatsiyasiz sozlanadi |

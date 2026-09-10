@@ -264,6 +264,44 @@ public final class Visuals {
         return discoveryTemplate;
     }
 
+    private Fog fog = Fog.DEFAULT;
+
+    /**
+     * How the dark behaves and what colour it is — see {@link Fog}.
+     *
+     * <p>Separate from {@link #discoveredBy} because they answer different
+     * questions. That one says whose eyes open the map, which the client cannot
+     * guess; this one says what the dark is worth, which the client has a
+     * perfectly good default for and only a crawler wants to change.
+     */
+    public Visuals fog(Fog fog) {
+        this.fog = fog == null ? Fog.DEFAULT : fog;
+        return this;
+    }
+
+    public Fog getFog() {
+        return fog;
+    }
+
+    private EdgeScroll edgeScroll = EdgeScroll.NONE;
+
+    /**
+     * Let the cursor shove the camera when it reaches the edge of the screen —
+     * see {@link EdgeScroll}.
+     *
+     * <p>Asked for rather than assumed, because it is taste rather than
+     * correctness: a game that never asks keeps the keys and nothing else, which
+     * is what every game had.
+     */
+    public Visuals edgeScroll(EdgeScroll edgeScroll) {
+        this.edgeScroll = edgeScroll == null ? EdgeScroll.NONE : edgeScroll;
+        return this;
+    }
+
+    public EdgeScroll getEdgeScroll() {
+        return edgeScroll;
+    }
+
     /**
      * Build the ground from a modular kit rather than from coloured blocks.
      *

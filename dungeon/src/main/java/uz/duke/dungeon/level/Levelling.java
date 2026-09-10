@@ -84,7 +84,19 @@ public record Levelling(
      * with no way to lose.
      */
     public float damageTakenMultiplier(int level) {
-        float taken = 1f - (level - FIRST_LEVEL) * armourPercentPerLevel / 100f;
+        return damageTakenWith(level, 0);
+    }
+
+    /**
+     * The same, with armour found on the floor added to armour earned by levelling.
+     *
+     * <p>Here rather than at the call site so that the floor is applied once, to
+     * the total. Applied twice — once to the level's share and once to the loot's
+     * — it would stop being a floor and start being a discount.
+     */
+    public float damageTakenWith(int level, int extraArmourPercent) {
+        float taken = 1f - ((level - FIRST_LEVEL) * armourPercentPerLevel + extraArmourPercent)
+                / 100f;
         return Math.max(minDamageTakenPercent / 100f, taken);
     }
 }

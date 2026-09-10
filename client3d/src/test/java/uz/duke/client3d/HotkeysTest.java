@@ -3,6 +3,7 @@ package uz.duke.client3d;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.jme3.input.KeyInput;
@@ -148,5 +149,53 @@ class HotkeysTest {
         assertEquals(KeyInput.KEY_Z, Hotkeys.codeOf('Z'));
         assertEquals(KeyInput.KEY_W, Hotkeys.codeOf('W'));
         assertEquals(KeyInput.KEY_R, Hotkeys.codeOf('R'));
+    }
+
+    // ---- choices the game puts on screen ----
+
+    /**
+     * A choice the client drew reaches the game, by position and nothing else.
+     *
+     * <p>The client knows there were three cards and which one was clicked; what
+     * that means is the game's, so what crosses is an index. Keeping it to that is
+     * what lets the seam serve a level-up screen without knowing what a level is.
+     */
+    @Test
+    void aChoiceIsReportedByItsPosition() {
+        var taken = new int[] {-1};
+        var keys = Hotkeys.create().onChoose((game, index) -> taken[0] = index);
+
+        keys.choose(null, 2);
+
+        assertEquals(2, taken[0]);
+    }
+
+    /** A game that offers nothing binds nothing, and a stray click does nothing. */
+    @Test
+    void aGameThatOffersNothingIgnoresAChoice() {
+        Hotkeys.none().choose(null, 1); // must not throw
+    }
+
+    /**
+     * The letters a game claimed, readable by the game itself.
+     *
+     * <p>What a key does stays the client's — the same work whether the letter was
+     * pressed or the slot on the bar was clicked — but which letters were claimed,
+     * and what each asks to be pointed at, is something a game may check against
+     * its own data file.
+     */
+    @Test
+    void aGameCanReadBackTheKeysItClaimed() {
+        var keys = Hotkeys.create()
+                .on('q', game -> { })
+                .onUnit('w', (game, id) -> { })
+                .onGround('e', (game, spot) -> { });
+
+        assertEquals(java.util.List.of('Q', 'W', 'E'),
+                java.util.List.copyOf(keys.claimedKeys()), "in the order they were claimed");
+        assertEquals(Hotkeys.Aim.NOW, keys.aimOf('Q'));
+        assertEquals(Hotkeys.Aim.UNIT, keys.aimOf('w'), "asked for in either case");
+        assertEquals(Hotkeys.Aim.GROUND, keys.aimOf('E'));
+        assertNull(keys.aimOf('Z'), "a letter nobody claimed");
     }
 }

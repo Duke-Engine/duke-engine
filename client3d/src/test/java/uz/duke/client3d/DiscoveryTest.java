@@ -266,4 +266,116 @@ class DiscoveryTest {
         assertEquals(0f, seen.lightAt(20, 15), 0.001f,
                 "the last floor's light should not be shining on this one");
     }
+
+    // ---- line of sight ----
+
+    /** A wall down the middle, with a doorway, so a line can be blocked or not. */
+    private static PathGrid walled() {
+        var grid = new PathGrid(40, 30);
+        for (int cy = 0; cy < 30; cy++) {
+            grid.setBlocked(20, cy, cy != 15); // a wall with one gap in it
+        }
+        return grid;
+    }
+
+    private static Discovery seeing(PathGrid grid, boolean lineOfSight) {
+        // No softening and no easing: this is about what is revealed, and the two
+        // of them are about how it is drawn.
+        return new Discovery(grid, new Fog(lineOfSight, 0.3f, 0, 7f, 0x000000));
+    }
+
+    /**
+     * Stone stops sight.
+     *
+     * <p>The hero stands one side of a wall and looks at it; the cell behind it is
+     * inside his radius and stays dark. Without this the whole point of a dungeon
+     * goes: a corridor lights the rooms on both sides of it.
+     */
+    @Test
+    void aWallHidesWhatIsBehindIt() {
+        var seen = seeing(walled(), true);
+
+        // At cell (17, 10), well within reach of cells on both sides of the wall.
+        seen.reveal(List.of(at(LOCAL, 175f, 105f)), LOCAL, 80f);
+
+        assertEquals(Discovery.State.VISIBLE, seen.stateAt(19, 10), "his own side of the wall");
+        assertEquals(Discovery.State.VISIBLE, seen.stateAt(20, 10),
+                "the wall itself is seen -- it is what he is looking at");
+        assertEquals(Discovery.State.UNSEEN, seen.stateAt(21, 10),
+                "and the room on the far side of it is not");
+        assertEquals(Discovery.State.UNSEEN, seen.stateAt(24, 10));
+    }
+
+    /** Through the doorway he can see, because there is nothing in the way. */
+    @Test
+    void aDoorwayLetsSightThrough() {
+        var seen = seeing(walled(), true);
+
+        // Standing in line with the gap at (20, 15).
+        seen.reveal(List.of(at(LOCAL, 175f, 155f)), LOCAL, 80f);
+
+        assertEquals(Discovery.State.VISIBLE, seen.stateAt(21, 15),
+                "straight through the gap");
+        assertEquals(Discovery.State.UNSEEN, seen.stateAt(21, 10),
+                "but not through the wall beside it");
+    }
+
+    /** Turned off, the light is a circle again and does not care what it crosses. */
+    @Test
+    void withoutLineOfSightTheWallIsIgnored() {
+        var seen = seeing(walled(), false);
+
+        seen.reveal(List.of(at(LOCAL, 175f, 105f)), LOCAL, 80f);
+
+        assertEquals(Discovery.State.VISIBLE, seen.stateAt(24, 10),
+                "the old behaviour, which every other game still gets");
+    }
+
+    /** Sight is symmetrical about the wall, not about the direction he walked in. */
+    @Test
+    void theWallStopsSightFromEitherSide() {
+        var seen = seeing(walled(), true);
+
+        seen.reveal(List.of(at(LOCAL, 235f, 105f)), LOCAL, 80f); // cell (23, 10)
+
+        assertEquals(Discovery.State.VISIBLE, seen.stateAt(21, 10));
+        assertEquals(Discovery.State.UNSEEN, seen.stateAt(19, 10),
+                "the far side is dark whichever side he is standing on");
+    }
+
+    /**
+     * How much the softening spreads the edge is the game's number, and a wider
+     * one really is wider.
+     */
+    @Test
+    void theFileDecidesHowSoftTheEdgeIs() {
+        var sharp = new Discovery(GRID, new Fog(false, 0.3f, 0, 7f, 0x000000));
+        var soft = new Discovery(GRID, new Fog(false, 0.3f, 3, 7f, 0x000000));
+        var standing = List.of(at(LOCAL, 205f, 155f));
+
+        sharp.reveal(standing, LOCAL, 40f);
+        soft.reveal(standing, LOCAL, 40f);
+        // One long step, so both have arrived at their targets.
+        sharp.soften(10f);
+        soft.soften(10f);
+
+        assertEquals(1f, sharp.lightAt(20, 15), 0.001f, "no softening: full light at the centre");
+        assertTrue(soft.lightAt(20, 15) < sharp.lightAt(20, 15),
+                "a wide kernel borrows from the dark around it, so even the middle dims");
+        assertTrue(soft.lightAt(20, 15) > 0.5f, "but it is still plainly the lit part");
+    }
+
+    /** Nothing about any of this opens a cell that was not already open. */
+    @Test
+    void sighteningOpensNothingByItself() {
+        var seen = seeing(walled(), true);
+        seen.reveal(List.of(at(LOCAL, 175f, 105f)), LOCAL, 80f);
+        int opened = seen.exploredCells();
+
+        for (int i = 0; i < 20; i++) {
+            seen.soften(0.1f);
+        }
+
+        assertEquals(opened, seen.exploredCells(), "softening reads the map, it never writes it");
+    }
 }

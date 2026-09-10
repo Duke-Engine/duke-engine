@@ -83,12 +83,35 @@ class DepthTest {
         return nearest;
     }
 
-    /** Remove the boss the way killing it would, and let the run loop notice. */
+    /**
+     * Remove the boss the way killing it would, and wait for the floor to close.
+     *
+     * <p>It does not close in the same frame: the boss leaves something behind,
+     * and rebuilding the world at once would take it away before anyone could walk
+     * to it. So the wait is the file's own {@code DescendDelayFrames} rather than
+     * a number written here, and re-tuning that moves this with it.
+     */
     private static void defeatTheBoss(DukeGame game) {
         var boss = find(game, "Boss");
         assertNotNull(boss, "there should be a boss to defeat");
         game.getLogic().destroyObject(boss);
+        game.runHeadless(BRISK.descendDelayFrames() + 4);
+    }
+
+    /** The floor stays open for a moment after the boss falls, and then closes. */
+    @Test
+    void theFloorDoesNotCloseInTheSameFrameAsTheBoss() {
+        var session = Dungeon.newSession(11L, BRISK);
+        var game = session.game();
+        game.runHeadless(1);
+
+        game.getLogic().destroyObject(find(game, "Boss"));
         game.runHeadless(3);
+        assertEquals(1, session.run().getDepth(),
+                "there has to be a moment to pick up what the boss left");
+
+        game.runHeadless(BRISK.descendDelayFrames() + 4);
+        assertEquals(2, session.run().getDepth(), "and then the floor closes");
     }
 
     @Test
@@ -140,7 +163,15 @@ class DepthTest {
                 "and so should the experience behind them");
     }
 
-    /** A levelled hero arrives on the new floor with the body his levels bought. */
+    /**
+     * A levelled hero arrives on the new floor with the body he earned.
+     *
+     * <p>Measured against what he has when he gets there rather than against what
+     * he had when he set off: the fight for the floor goes on while the boss is
+     * dying, so he may well have taken another level or walked over something on
+     * the way. What is being held still is that the new body is the base plus
+     * everything he has — not that he stopped earning.
+     */
     @Test
     void hisStrengthArrivesWithHim() {
         var session = Dungeon.newSession(11L, BRISK);
@@ -149,14 +180,14 @@ class DepthTest {
         float baseCeiling = hero(game).getBody().getMaxHealth();
 
         levelUp(game, session);
-        int level = session.progress().getLevel();
-        assertTrue(level > 1);
+        assertTrue(session.progress().getLevel() > 1);
 
         defeatTheBoss(game);
 
-        assertEquals(baseCeiling + BRISK.levelling().bonusHealth(level),
+        assertEquals(baseCeiling + BRISK.levelling().bonusHealth(session.progress().getLevel())
+                        + session.progress().getLoot().health(),
                 hero(game).getBody().getMaxHealth(), 0.01f,
-                "the new body should be as tough as the levels he arrived with");
+                "the new body should be as tough as everything he arrived with");
     }
 
     /** And dying takes all of it: level, experience and depth alike. */

@@ -2,6 +2,7 @@ package uz.duke.dungeon.level;
 
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectId;
+import uz.duke.dungeon.loot.LootBag;
 import uz.duke.game.DukeGame;
 import uz.duke.game.GamePlayer;
 import uz.duke.rts.module.ExperienceModule;
@@ -37,6 +38,23 @@ public final class HeroProgress {
     private final Levelling rules;
     private final int bannerFrames;
 
+    /**
+     * What he has found on the floor, which moves the same three figures a level
+     * does.
+     *
+     * <p>Folded in here rather than applied where it is picked up, because two of
+     * the three are <em>assigned</em> rather than added: the weapon bonus and the
+     * armour are functions of the level, so a chest that set them itself would be
+     * overwritten by the next level, and a level would undo the chest. One place
+     * computes each figure from everything that goes into it.
+     */
+    private final LootBag loot;
+
+    /** How many items had been found when they were last applied. */
+    private int lootStamp = -1;
+    /** The health those items had already added to this body. */
+    private float lootHealthOnThisBody;
+
     private ObjectId heroId;
     private int level = Levelling.FIRST_LEVEL;
     private int clearBannerAtFrame; // 0 when no message of ours is showing
@@ -46,9 +64,19 @@ public final class HeroProgress {
     private int lastKnownExperience;
 
     public HeroProgress(GamePlayer heroPlayer, Levelling rules, int bannerFrames) {
+        this(heroPlayer, rules, bannerFrames, new LootBag());
+    }
+
+    public HeroProgress(GamePlayer heroPlayer, Levelling rules, int bannerFrames, LootBag loot) {
         this.heroPlayer = heroPlayer;
         this.rules = rules;
         this.bannerFrames = bannerFrames;
+        this.loot = loot;
+    }
+
+    /** What he has picked up this run. */
+    public LootBag getLoot() {
+        return loot;
     }
 
     /** Called every logic frame on the simulation thread. */
@@ -65,6 +93,9 @@ public final class HeroProgress {
         if (earned > level) {
             promote(game, hero, earned);
         }
+        if (loot.getFound().size() != lootStamp) {
+            applyLoot(game, hero);
+        }
         expireBanner(game);
     }
 
@@ -80,6 +111,27 @@ public final class HeroProgress {
         level = Levelling.FIRST_LEVEL;
         carriedExperience = 0;
         clearBannerAtFrame = 0;
+        loot.clear();
+        lootStamp = -1;
+        lootHealthOnThisBody = 0f;
+    }
+
+    /**
+     * Something new in the bag: give him what it is worth.
+     *
+     * <p>Health is grown by the difference, so picking up a second breastplate is
+     * worth a second breastplate rather than both of them again. The other two are
+     * recomputed from scratch, which is what they are: functions of everything he
+     * has.
+     */
+    private void applyLoot(DukeGame game, GameObject hero) {
+        lootStamp = loot.getFound().size();
+        if (hero.getBody() instanceof GrowableBody body) {
+            body.growMaxHealth(loot.health() - lootHealthOnThisBody);
+            lootHealthOnThisBody = loot.health();
+        }
+        applyDamageBonus(game, level);
+        applyArmour(hero, level);
     }
 
     /**
@@ -98,8 +150,11 @@ public final class HeroProgress {
         lastKnownExperience = 0;
         applyDamageBonus(game, level);
         applyArmour(hero, level);
+        // A new body has none of what the old one was given, the loot included.
+        lootHealthOnThisBody = 0f;
         if (hero.getBody() instanceof GrowableBody body) {
-            body.growMaxHealth(rules.bonusHealth(level));
+            body.growMaxHealth(rules.bonusHealth(level) + loot.health());
+            lootHealthOnThisBody = loot.health();
         }
     }
 
@@ -132,13 +187,17 @@ public final class HeroProgress {
     private void applyDamageBonus(DukeGame game, int atLevel) {
         var player = game.getLogic().getRtsPlayer(heroPlayer.getIndex());
         if (player != null) {
-            player.setWeaponDamageBonus(rules.damageMultiplier(atLevel));
+            // Added to the level's multiplier rather than multiplied by it: a
+            // sword is worth the same swing whatever level he found it at, which
+            // is what makes an early one worth going out of the way for.
+            player.setWeaponDamageBonus(
+                    rules.damageMultiplier(atLevel) + loot.attackPercent() / 100f);
         }
     }
 
     private void applyArmour(GameObject hero, int atLevel) {
         if (hero.getBody() instanceof GrowableBody body) {
-            body.setDamageTaken(rules.damageTakenMultiplier(atLevel));
+            body.setDamageTaken(rules.damageTakenWith(atLevel, loot.armourPercent()));
         }
     }
 

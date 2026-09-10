@@ -1,8 +1,11 @@
 package uz.duke.dungeon.run;
 
+import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.thing.GameObject;
+import uz.duke.core.thing.ThingTemplate;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.level.HeroProgress;
+import uz.duke.dungeon.power.PowerChoice;
 import uz.duke.dungeon.skill.SkillBook;
 import uz.duke.dungeon.skill.Skills;
 
@@ -16,7 +19,17 @@ import uz.duke.dungeon.skill.Skills;
  * <pre>
  * name=Erika|rank=7-daraja|hp=128/200|xp=38/100|depth=III|depthWord=CHUQURLIK
  *   |skill=Q,ready|skill=W,cool,72,165|skill=E,ready|skill=R,lock,5-daraja
+ *   |pwWord=Kuchlar|pw=shot,2|pw=boot,1
+ *   |offer=3,8-daraja,Bittasini tanlang
+ *   |opt=shot,O'tkir uch,Q zarari +25%
  * </pre>
+ *
+ * <p>{@code offer} is the level-up screen: which offer it is, then the two lines
+ * of its heading, then one {@code opt} per card. The number is there so a click
+ * arriving late cannot spend the next offer's card on the last one's picture —
+ * the world is held still behind that screen and the client goes on drawing the
+ * snapshot it already has. It counts up through the session rather than naming
+ * the level, because a new run starts the levels again.
  *
  * <p>The split between the two halves is: whatever is <em>words</em> is finished
  * here, and whatever is <em>drawn</em> is sent as numbers. So the client never
@@ -35,7 +48,7 @@ final class HeroStatus {
 
     /** The line, or the empty string if there is no hero to describe. */
     static String of(GameObject hero, HeroProgress progress, int depth,
-            DungeonSettings settings) {
+            DungeonSettings settings, PowerChoice powers, int frame) {
         if (hero == null || hero.getBody() == null) {
             return "";
         }
@@ -49,11 +62,113 @@ final class HeroStatus {
                 .append('/').append(progress.getExperienceForNextLevel())
                 .append("|depth=").append(roman(depth))
                 .append("|depthWord=").append(settings.hudDepthWord());
+        appendStats(line, hero, progress, powers, settings);
         var book = hero.findModule(SkillBook.class);
         if (book != null) {
             line.append(Skills.slots(book, level, settings.hudRankSuffix()));
         }
+        appendPowers(line, powers, settings);
+        appendOffer(line, powers, settings);
+        // What he just picked up, for as long as it is worth saying. A line rather
+        // than a banner: the banner interrupts, and finding a sword is news, not
+        // an interruption.
+        var found = progress.getLoot().noteAt(frame);
+        if (!found.isEmpty()) {
+            line.append("|note=").append(found);
+        }
         return line.toString();
+    }
+
+    /**
+     * The strip of what he has picked up: one field per power, in the order they
+     * were taken, each an icon and how many of it he holds.
+     *
+     * <p>Sent as a count rather than as repeated entries so that three of the same
+     * card is one mark reading three, which is what the strip has room for.
+     */
+    private static void appendPowers(StringBuilder line, PowerChoice powers,
+            DungeonSettings settings) {
+        if (powers == null) {
+            return;
+        }
+        line.append("|pwWord=").append(settings.hudPowersWord());
+        // Insertion-ordered, so the strip lists them in the order he took them
+        // and not in whatever order a hash happens to produce.
+        var held = new java.util.LinkedHashMap<String, int[]>();
+        var icons = new java.util.LinkedHashMap<String, String>();
+        for (var power : powers.getBook().getTaken()) {
+            held.computeIfAbsent(power.id(), id -> new int[1])[0]++;
+            icons.putIfAbsent(power.id(), power.icon());
+        }
+        for (var entry : held.entrySet()) {
+            line.append("|pw=").append(icons.get(entry.getKey()))
+                    .append(',').append(entry.getValue()[0]);
+        }
+    }
+
+    /** The cards on the table, or nothing at all when none are. */
+    private static void appendOffer(StringBuilder line, PowerChoice powers,
+            DungeonSettings settings) {
+        if (powers == null || !powers.hasOffer()) {
+            return;
+        }
+        line.append("|offer=").append(powers.getOfferId())
+                .append(',').append(powers.getOfferLevel()).append(settings.hudRankSuffix())
+                .append(',').append(settings.hudChooseWord());
+        for (var power : powers.getOffer()) {
+            line.append("|opt=").append(power.icon())
+                    .append(',').append(power.name())
+                    .append(',').append(power.description());
+        }
+    }
+
+    /**
+     * The three figures under the bars: what he hits for, what he shrugs off, and
+     * how fast he moves.
+     *
+     * <p>Worked out rather than read off the hero, because the engine's weapon and
+     * locomotor do not hand their numbers back — and because what a level is worth
+     * is this game's arithmetic anyway. The base of each comes from his template,
+     * so {@code creatures.ini} stays the one place the starting hero is written.
+     *
+     * <p>Everything that moves them is counted: the level, the powers he chose and
+     * what he found on the floor. A panel that showed only two of the three would
+     * be a panel a player learns not to believe.
+     */
+    private static void appendStats(StringBuilder line, GameObject hero, HeroProgress progress,
+            PowerChoice powers, DungeonSettings settings) {
+        var rules = settings.levelling();
+        var found = progress.getLoot();
+        int level = progress.getLevel();
+        float attack = weaponDamage(hero.getTemplate())
+                * (rules.damageMultiplier(level) + found.attackPercent() / 100f);
+        int armour = Math.round(
+                (1f - rules.damageTakenWith(level, found.armourPercent())) * 100f);
+        float speed = walkingSpeed(hero.getTemplate())
+                * (powers == null ? 1f : powers.getBook().moveSpeedMultiplier());
+        line.append("|stat=").append(settings.hudAttackWord()).append(',')
+                .append(Math.round(attack))
+                .append("|stat=").append(settings.hudArmourWord()).append(',').append(armour)
+                .append("|stat=").append(settings.hudSpeedWord()).append(',')
+                .append(Math.round(speed));
+    }
+
+    private static float weaponDamage(ThingTemplate template) {
+        for (var entry : template.getModules()) {
+            if (entry.data() instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
+                return weapon.damage();
+            }
+        }
+        return 0f;
+    }
+
+    private static float walkingSpeed(ThingTemplate template) {
+        for (var entry : template.getModules()) {
+            if (entry.data() instanceof MoveUpdate.Data move) {
+                return move.speedPerSecond();
+            }
+        }
+        return 0f;
     }
 
     /** What the player calls him, falling back to what the code calls him. */

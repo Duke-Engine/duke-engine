@@ -4,6 +4,10 @@ import java.util.List;
 import java.util.Map;
 import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
+import uz.duke.dungeon.loot.Loot;
+import uz.duke.dungeon.loot.LootKind;
+import uz.duke.dungeon.power.Power;
+import uz.duke.dungeon.power.PowerEffect;
 import uz.duke.dungeon.skill.Skill;
 import uz.duke.dungeon.skill.SkillEffect;
 import uz.duke.dungeon.level.Levelling;
@@ -72,6 +76,7 @@ public final class DungeonSettings {
     // ---- run loop ----
 
     private int respawnDelayFrames = 60;
+    private int descendDelayFrames = 75;
 
     // ---- leveling ----
 
@@ -91,6 +96,22 @@ public final class DungeonSettings {
 
     /** Every hero's skills, in file order — the order a HUD lists them in. */
     private final java.util.List<Skill> skills = new java.util.ArrayList<>();
+
+    /** Every level-up power, in file order — the order a draw walks through. */
+    private final java.util.List<Power> powers = new java.util.ArrayList<>();
+
+    private int powerOfferCount = 3;
+    private int powerMinCooldownPercent = 25;
+
+    /** Everything that can be found on a floor, in file order. */
+    private final java.util.List<Loot> loot = new java.util.ArrayList<>();
+
+    private String lootTemplate = "";
+    private int lootDropPercent = 20;
+    private int lootBossDropPercent = 100;
+    private float lootPickupRange = 14f;
+    private int lootValuePercentPerDepth = 20;
+    private int lootNoteFrames = 90;
 
     private int monsterHealthPercentPerDepth = 25;
     private int monsterDamagePercentPerDepth = 15;
@@ -166,6 +187,25 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, HUD);
                 }),
+                Map.entry("DungeonFog", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, FOG);
+                }),
+                Map.entry("DungeonCamera", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, CAMERA);
+                }),
+                Map.entry("DungeonLoot", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, LOOT_RULES);
+                }),
+                // Repeatable, headed by the item's id: a new thing to find is a
+                // block here and no Java.
+                Map.entry("DungeonLootItem", (Ini.BlockParser) reader -> {
+                    var item = new LootBuilder(reader.getNextToken());
+                    reader.initFromIni(item, LOOT);
+                    settings.loot.add(item.build());
+                }),
                 // Repeatable, and named by whose skill it is: the block header is
                 // the hero's template and the key that casts it. A second hero is
                 // four more of these and no Java — the roster lives in the file.
@@ -173,11 +213,24 @@ public final class DungeonSettings {
                     var skill = new SkillBuilder(reader.getNextToken(), reader.getNextToken());
                     reader.initFromIni(skill, SKILL);
                     settings.skills.add(skill.build());
+                }),
+                Map.entry("DungeonPowers", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, POWER_RULES);
+                }),
+                // Repeatable, headed by the power's id: a new thing to be offered
+                // at level-up is a block here and no Java at all.
+                Map.entry("DungeonPower", (Ini.BlockParser) reader -> {
+                    var power = new PowerBuilder(reader.getNextToken());
+                    reader.initFromIni(power, POWER);
+                    settings.powers.add(power.build());
                 })));
         ini.load();
         if (!readingShippedFile) {
             settings.fillInMissingMonsters();
             settings.fillInMissingSkills();
+            settings.fillInMissingPowers();
+            settings.fillInMissingLoot();
         }
         settings.validate();
         return settings;
@@ -229,8 +282,38 @@ public final class DungeonSettings {
         skills.addAll(declared); // skills — and heroes — this file invented
     }
 
+    /** The same rule once more, keyed by the power's id. */
+    private void fillInMissingPowers() {
+        var declared = new java.util.ArrayList<>(powers);
+        powers.clear();
+        for (var shipped : shippedPowers()) {
+            var override = declared.stream()
+                    .filter(power -> power.id().equals(shipped.id()))
+                    .findFirst();
+            powers.add(override.orElse(shipped));
+            override.ifPresent(declared::remove);
+        }
+        powers.addAll(declared); // powers this file invented
+    }
+
+    /** The same rule again, keyed by the item's id. */
+    private void fillInMissingLoot() {
+        var declared = new java.util.ArrayList<>(loot);
+        loot.clear();
+        for (var shipped : shippedLoot()) {
+            var override = declared.stream()
+                    .filter(item -> item.id().equals(shipped.id()))
+                    .findFirst();
+            loot.add(override.orElse(shipped));
+            override.ifPresent(declared::remove);
+        }
+        loot.addAll(declared); // items this file invented
+    }
+
     private static final List<MonsterKind> SHIPPED_MONSTERS = new java.util.ArrayList<>();
     private static final List<Skill> SHIPPED_SKILLS = new java.util.ArrayList<>();
+    private static final List<Power> SHIPPED_POWERS = new java.util.ArrayList<>();
+    private static final List<Loot> SHIPPED_LOOT = new java.util.ArrayList<>();
     private static boolean readingShippedFile;
 
     /**
@@ -250,6 +333,16 @@ public final class DungeonSettings {
         return SHIPPED_SKILLS;
     }
 
+    private static List<Power> shippedPowers() {
+        readShippedFile();
+        return SHIPPED_POWERS;
+    }
+
+    private static List<Loot> shippedLoot() {
+        readShippedFile();
+        return SHIPPED_LOOT;
+    }
+
     private static void readShippedFile() {
         if (!SHIPPED_MONSTERS.isEmpty() || readingShippedFile) {
             return;
@@ -259,6 +352,8 @@ public final class DungeonSettings {
             var shipped = parse(Content.read(Content.SETTINGS));
             SHIPPED_MONSTERS.addAll(shipped.monsters);
             SHIPPED_SKILLS.addAll(shipped.skills);
+            SHIPPED_POWERS.addAll(shipped.powers);
+            SHIPPED_LOOT.addAll(shipped.loot);
         } finally {
             readingShippedFile = false;
         }
@@ -287,6 +382,7 @@ public final class DungeonSettings {
         require(corridorWidth >= 1, "a corridor narrower than one cell is a wall");
         require(maxRoomSpacing > maxRoomSize, "rooms could never reach one another");
         require(respawnDelayFrames >= 0, "the death pause cannot be negative");
+        require(descendDelayFrames >= 0, "the pause before descending cannot be negative");
         require(maxLevel >= Levelling.FIRST_LEVEL, "MaxLevel cannot be below the first level");
         require(xpBase > 0, "XpBase must be positive or no level is ever reached");
         require(xpStep >= 0, "XpStep cannot make later levels cheaper");
@@ -295,6 +391,39 @@ public final class DungeonSettings {
         require(minDamageTakenPercent > 0 && minDamageTakenPercent <= 100,
                 "the damage floor must leave some way to lose");
         require(levelUpBannerFrames >= 0, "the level-up message cannot last negative frames");
+        require(edgeScrollMargin >= 0, "the screen's edge cannot be a negative width");
+        require(edgeScrollSpeedPercent >= 0, "a camera cannot be shoved backwards");
+        require(fogRememberedPercent >= 0 && fogRememberedPercent <= 100,
+                "RememberedPercent is a share of a lit room");
+        require(fogSoftenCells >= 0, "the fog cannot be smeared over negative cells");
+        require(fogOpenPerSecond > 0, "fog that never opens is a black screen");
+        require(lootDropPercent >= 0 && lootDropPercent <= 100,
+                "DropPercent is a chance, not a count");
+        require(lootBossDropPercent >= 0 && lootBossDropPercent <= 100,
+                "BossDropPercent is a chance, not a count");
+        require(lootPickupRange > 0, "something he can never reach is not loot");
+        require(lootNoteFrames >= 0, "the pickup message cannot last negative frames");
+        for (var item : loot) {
+            require(sayable(item.name()),
+                    "an item's Name may not contain ',' or '|': " + item.id());
+        }
+        require(powerOfferCount >= 1, "a level-up that offers nothing is not a choice");
+        require(powerMinCooldownPercent > 0 && powerMinCooldownPercent <= 100,
+                "PowerMinCooldownPercent must leave a cooldown to sharpen");
+        for (var power : powers) {
+            require(power.maxStacks() >= 1, "a power that may be taken no times is not a power");
+            require(power.minLevel() >= Levelling.FIRST_LEVEL,
+                    "a power cannot be offered before the first level");
+            // The panel's words cross to the client on one line, with these two
+            // characters separating its fields. A name carrying either would be
+            // read as the end of the card, and the card after it as nonsense.
+            require(sayable(power.name()) && sayable(power.description()),
+                    "a power's Name and Desc may not contain ',' or '|': " + power.id());
+        }
+    }
+
+    private static boolean sayable(String words) {
+        return words != null && words.indexOf(',') < 0 && words.indexOf('|') < 0;
     }
 
     private static void require(boolean condition, String message) {
@@ -433,6 +562,121 @@ public final class DungeonSettings {
                     .add("UnlockLevel", Ini.integer((s, v) -> s.unlockLevel = v))
                     .add("WindUpFrames", Ini.integer((s, v) -> s.windUpFrames = v))
                     .add("Projectile", Ini.string((s, v) -> s.projectile = v));
+
+    /** Accumulates one {@code DungeonLootItem <id>} block. */
+    private static final class LootBuilder {
+        private final String id;
+        String name;
+        LootKind kind = LootKind.ATTACK;
+        int value;
+        int weight = 10;
+        int minDepth = 1;
+
+        LootBuilder(String id) {
+            this.id = id;
+            this.name = id;
+        }
+
+        Loot build() {
+            return new Loot(id, name, kind, value, weight, minDepth);
+        }
+    }
+
+    private static final FieldParseTable<LootBuilder> LOOT =
+            new FieldParseTable<LootBuilder>()
+                    .add("Name", Ini.restOfLine((l, v) -> l.name = v))
+                    .add("Kind", Ini.enumeration(LootKind.class, (l, v) -> l.kind = v))
+                    .add("Value", Ini.integer((l, v) -> l.value = v))
+                    .add("Weight", Ini.integer((l, v) -> l.weight = v))
+                    .add("MinDepth", Ini.integer((l, v) -> l.minDepth = v));
+
+    private static final FieldParseTable<DungeonSettings> LOOT_RULES =
+            new FieldParseTable<DungeonSettings>()
+                    .add("Template", Ini.string((s, v) -> s.lootTemplate = v))
+                    .add("DropPercent", Ini.integer((s, v) -> s.lootDropPercent = v))
+                    .add("BossDropPercent", Ini.integer((s, v) -> s.lootBossDropPercent = v))
+                    .add("PickupRange", Ini.real((s, v) -> s.lootPickupRange = v))
+                    .add("ValuePercentPerDepth",
+                            Ini.integer((s, v) -> s.lootValuePercentPerDepth = v))
+                    .add("NoteFrames", Ini.integer((s, v) -> s.lootNoteFrames = v));
+
+    /** Everything that can be found on a floor, in file order. */
+    public java.util.List<Loot> loot() {
+        return java.util.List.copyOf(loot);
+    }
+
+    /** The creature a dropped item becomes; empty means nothing is ever dropped. */
+    public String lootTemplate() {
+        return lootTemplate;
+    }
+
+    public int lootDropPercent() {
+        return lootDropPercent;
+    }
+
+    public int lootBossDropPercent() {
+        return lootBossDropPercent;
+    }
+
+    /** How close he has to walk before it is his. */
+    public float lootPickupRange() {
+        return lootPickupRange;
+    }
+
+    public int lootValuePercentPerDepth() {
+        return lootValuePercentPerDepth;
+    }
+
+    /** How long the panel says what he just found, in logic frames. */
+    public int lootNoteFrames() {
+        return lootNoteFrames;
+    }
+
+    /** Accumulates one {@code DungeonPower <id>} block. */
+    private static final class PowerBuilder {
+        private final String id;
+        String name;
+        String description = "";
+        String icon = "";
+        PowerEffect effect = PowerEffect.SKILL_DAMAGE;
+        char skillKey = PowerEffect.EVERY_SKILL;
+        int value;
+        int weight = 10;
+        int maxStacks = 1;
+        int minLevel = Levelling.FIRST_LEVEL;
+
+        PowerBuilder(String id) {
+            this.id = id;
+            this.name = id; // a card with no Name at least says which power it is
+        }
+
+        Power build() {
+            return new Power(id, name, description, icon, effect, skillKey, value, weight,
+                    maxStacks, minLevel);
+        }
+    }
+
+    private static final FieldParseTable<PowerBuilder> POWER =
+            new FieldParseTable<PowerBuilder>()
+                    // Words, so the rest of the line: a card's title is a phrase.
+                    .add("Name", Ini.restOfLine((p, v) -> p.name = v))
+                    .add("Desc", Ini.restOfLine((p, v) -> p.description = v))
+                    .add("Icon", Ini.string((p, v) -> p.icon = v))
+                    .add("Effect", Ini.enumeration(PowerEffect.class, (p, v) -> p.effect = v))
+                    // Which skill it is about; a lone star means every one he has.
+                    .add("Skill", Ini.string((p, v) ->
+                            p.skillKey = v.isEmpty() ? PowerEffect.EVERY_SKILL
+                                    : Character.toUpperCase(v.charAt(0))))
+                    .add("Value", Ini.integer((p, v) -> p.value = v))
+                    .add("Weight", Ini.integer((p, v) -> p.weight = v))
+                    .add("MaxStacks", Ini.integer((p, v) -> p.maxStacks = v))
+                    .add("MinLevel", Ini.integer((p, v) -> p.minLevel = v));
+
+    private static final FieldParseTable<DungeonSettings> POWER_RULES =
+            new FieldParseTable<DungeonSettings>()
+                    .add("OfferCount", Ini.integer((s, v) -> s.powerOfferCount = v))
+                    .add("MinCooldownPercent",
+                            Ini.integer((s, v) -> s.powerMinCooldownPercent = v));
 
     /**
      * The modular kit the floor is drawn from, with each piece's full asset path.
@@ -589,8 +833,83 @@ public final class DungeonSettings {
                     .add("HeavyTint",
                             (ini, s) -> s.heavyArrowTint = Integer.decode(ini.getNextToken()));
 
+    // ---- the camera ----
+
+    private float edgeScrollMargin;
+    private int edgeScrollSpeedPercent = 100;
+
+    /** How close to the edge the cursor has to be to shove the camera; 0 is off. */
+    public float edgeScrollMargin() {
+        return edgeScrollMargin;
+    }
+
+    /** How fast it shoves, as a percentage of what the keys move the camera at. */
+    public int edgeScrollSpeedPercent() {
+        return edgeScrollSpeedPercent;
+    }
+
+    private static final FieldParseTable<DungeonSettings> CAMERA =
+            new FieldParseTable<DungeonSettings>()
+                    .add("EdgeMargin", Ini.real((s, v) -> s.edgeScrollMargin = v))
+                    .add("EdgeSpeedPercent",
+                            Ini.integer((s, v) -> s.edgeScrollSpeedPercent = v));
+
+    // ---- the dark ----
+
+    private boolean fogLineOfSight = true;
+    private int fogRememberedPercent = 34;
+    private int fogSoftenCells = 2;
+    private int fogOpenPerSecond = 7;
+    private int fogTint = 0x000000;
+
+    /**
+     * How the dark behaves and what colour it is.
+     *
+     * <p>Look rather than rule, like the tile kit and a monster's colour: the
+     * simulation never reads it. What the player can see does not change what is
+     * there — which is what makes fog something the client may have an opinion
+     * about at all.
+     */
+    public boolean fogLineOfSight() {
+        return fogLineOfSight;
+    }
+
+    /** How brightly a room he has left is drawn, as a percentage of a lit one. */
+    public int fogRememberedPercent() {
+        return fogRememberedPercent;
+    }
+
+    /** How many cells the edge of the light is smeared over. */
+    public int fogSoftenCells() {
+        return fogSoftenCells;
+    }
+
+    /** How fast the dark gives way, as a share of the remaining gap per second. */
+    public int fogOpenPerSecond() {
+        return fogOpenPerSecond;
+    }
+
+    /** What unlit stone fades toward — the colour of the dark itself. */
+    public int fogTint() {
+        return fogTint;
+    }
+
+    private static final FieldParseTable<DungeonSettings> FOG =
+            new FieldParseTable<DungeonSettings>()
+                    .add("LineOfSight", Ini.bool((s, v) -> s.fogLineOfSight = v))
+                    .add("RememberedPercent",
+                            Ini.integer((s, v) -> s.fogRememberedPercent = v))
+                    .add("SoftenCells", Ini.integer((s, v) -> s.fogSoftenCells = v))
+                    .add("OpenPerSecond", Ini.integer((s, v) -> s.fogOpenPerSecond = v))
+                    .add("Tint", (ini, s) -> s.fogTint = Integer.decode(ini.getNextToken()));
+
     private String hudDepthWord = "DEPTH";
     private String hudRankSuffix = "-lv";
+    private String hudPowersWord = "";
+    private String hudChooseWord = "";
+    private String hudAttackWord = "";
+    private String hudArmourWord = "";
+    private String hudSpeedWord = "";
 
     /** The word under the depth numeral on the hero's panel. */
     public String hudDepthWord() {
@@ -605,10 +924,38 @@ public final class DungeonSettings {
         return hudRankSuffix;
     }
 
+    /** The label over the strip of powers he has picked up. */
+    public String hudPowersWord() {
+        return hudPowersWord;
+    }
+
+    /** What the level-up screen says under the new level. */
+    public String hudChooseWord() {
+        return hudChooseWord;
+    }
+
+    /** The three figures under the bars, in the order the panel writes them. */
+    public String hudAttackWord() {
+        return hudAttackWord;
+    }
+
+    public String hudArmourWord() {
+        return hudArmourWord;
+    }
+
+    public String hudSpeedWord() {
+        return hudSpeedWord;
+    }
+
     private static final FieldParseTable<DungeonSettings> HUD =
             new FieldParseTable<DungeonSettings>()
                     .add("DepthWord", Ini.restOfLine((s, v) -> s.hudDepthWord = v))
-                    .add("RankSuffix", Ini.restOfLine((s, v) -> s.hudRankSuffix = v));
+                    .add("RankSuffix", Ini.restOfLine((s, v) -> s.hudRankSuffix = v))
+                    .add("PowersWord", Ini.restOfLine((s, v) -> s.hudPowersWord = v))
+                    .add("ChooseWord", Ini.restOfLine((s, v) -> s.hudChooseWord = v))
+                    .add("AttackWord", Ini.restOfLine((s, v) -> s.hudAttackWord = v))
+                    .add("ArmourWord", Ini.restOfLine((s, v) -> s.hudArmourWord = v))
+                    .add("SpeedWord", Ini.restOfLine((s, v) -> s.hudSpeedWord = v));
 
     private static final FieldParseTable<DungeonSettings> HERO_LOOK =
             new FieldParseTable<DungeonSettings>()
@@ -649,7 +996,8 @@ public final class DungeonSettings {
 
     private static final FieldParseTable<DungeonSettings> RUN =
             new FieldParseTable<DungeonSettings>()
-                    .add("RespawnDelayFrames", Ini.integer((s, v) -> s.respawnDelayFrames = v));
+                    .add("RespawnDelayFrames", Ini.integer((s, v) -> s.respawnDelayFrames = v))
+                    .add("DescendDelayFrames", Ini.integer((s, v) -> s.descendDelayFrames = v));
 
     private static final FieldParseTable<DungeonSettings> LEVELLING =
             new FieldParseTable<DungeonSettings>()
@@ -746,6 +1094,16 @@ public final class DungeonSettings {
         return respawnDelayFrames;
     }
 
+    /**
+     * How long the finished floor stays open after the boss falls.
+     *
+     * <p>Long enough to walk to what it left behind — a floor that closed in the
+     * same frame took the boss's own drop away with it.
+     */
+    public int descendDelayFrames() {
+        return descendDelayFrames;
+    }
+
     // ---- leveling ----
 
     /** The progression rules, as one value the leveling code can be handed. */
@@ -769,6 +1127,21 @@ public final class DungeonSettings {
     /** Every skill in the file, whoever it belongs to. */
     public java.util.List<Skill> skills() {
         return java.util.List.copyOf(skills);
+    }
+
+    /** Every level-up power the file describes, in file order. */
+    public java.util.List<Power> powers() {
+        return java.util.List.copyOf(powers);
+    }
+
+    /** How many cards a level puts on the table. */
+    public int powerOfferCount() {
+        return powerOfferCount;
+    }
+
+    /** How far powers may sharpen a cooldown, as a percentage of what it was. */
+    public int powerMinCooldownPercent() {
+        return powerMinCooldownPercent;
     }
 
     /**

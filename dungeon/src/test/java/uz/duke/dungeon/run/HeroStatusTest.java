@@ -123,4 +123,60 @@ class HeroStatusTest {
         assertEquals("0", HeroStatus.roman(0));
         assertEquals("4000", HeroStatus.roman(4000));
     }
+
+    // ---- what a levelling run adds to the line ----
+
+    /**
+     * The figures under the bars come from the creature file and his level, and
+     * are named by {@code dungeon.ini}.
+     */
+    @Test
+    void theFiguresUnderTheBarsAreThere() {
+        var settings = DungeonSettings.load();
+        var line = lineFrom(4321L);
+
+        for (var word : new String[] {settings.hudAttackWord(), settings.hudArmourWord(),
+            settings.hudSpeedWord()}) {
+            assertFalse(word.isBlank(), "the shipped file should name its own figures");
+            assertTrue(line.contains("|stat=" + word + ","), word + " missing from " + line);
+        }
+    }
+
+    /** With nothing picked up yet, the strip is labelled and empty. */
+    @Test
+    void theStripOfPowersStartsEmpty() {
+        var line = lineFrom(4321L);
+        assertTrue(line.contains("|pwWord="), line);
+        assertFalse(line.contains("|pw="), "he has taken nothing yet: " + line);
+    }
+
+    /**
+     * A level puts the cards on the line, headed by the level they belong to.
+     *
+     * <p>The heading's number is what the client answers with, so it has to be
+     * there and it has to be the offer's own level.
+     */
+    @Test
+    void aLevelPutsItsCardsOnTheLine() {
+        var session = Dungeon.newSession(4321L);
+        var game = session.game();
+        game.runHeadless(1);
+        var hero = game.getLogic().getObjects().stream()
+                .filter(object -> object.getTemplate().getName().equals("Hero"))
+                .findFirst().orElseThrow();
+        hero.findModule(uz.duke.rts.module.ExperienceModule.class)
+                .addExperience(DungeonSettings.load().levelling().totalXpFor(2));
+        game.runHeadless(3);
+
+        var line = game.getSnapshot().status();
+        assertTrue(line.contains("|offer=" + session.powers().getOfferId() + ","), line);
+        int cards = line.split("\\|opt=", -1).length - 1;
+        assertEquals(session.powers().getOffer().size(), cards, line);
+        // Every card's own field is icon, name and description, and neither the
+        // name nor the description may carry the separators.
+        for (var power : session.powers().getOffer()) {
+            assertTrue(line.contains("|opt=" + power.icon() + "," + power.name() + ","
+                    + power.description()), power.id() + " missing from " + line);
+        }
+    }
 }
