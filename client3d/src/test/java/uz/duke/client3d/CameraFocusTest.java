@@ -133,4 +133,102 @@ class CameraFocusTest {
 
         assertTrue(far.panSpeed() > close.panSpeed());
     }
+
+    // ---- the edge of the map ----
+
+    /**
+     * Held down, a pan key stops at the edge rather than going on into nothing.
+     *
+     * <p>Off the map there is no ground, no landmark and no minimap mark to say
+     * which way home is — a player who leans on a key for a second is lost, and
+     * the only way back is to guess.
+     */
+    @Test
+    void panningStopsAtTheEdgeOfTheMap() {
+        var camera = new CameraFocus();
+        camera.keepInside(700f, 450f);
+        camera.lookAt(350f, 225f);
+
+        for (int i = 0; i < 100; i++) {
+            camera.panBy(40f, 40f);
+        }
+        assertEquals(700f, camera.targetX(), 0.001f, "the far corner of the map, and no further");
+        assertEquals(450f, camera.targetZ(), 0.001f);
+
+        for (int i = 0; i < 100; i++) {
+            camera.panBy(-40f, -40f);
+        }
+        assertEquals(0f, camera.targetX(), 0.001f, "and the near corner going back");
+        assertEquals(0f, camera.targetZ(), 0.001f);
+    }
+
+    /** Whoever does the looking — the minimap, a new run, the hero key — is inside it too. */
+    @Test
+    void nothingCanPutTheCameraOffTheMap() {
+        var camera = new CameraFocus();
+        camera.keepInside(700f, 450f);
+
+        camera.lookAt(-500f, 9000f); // a minimap click at the very corner
+        assertEquals(0f, camera.targetX(), 0.001f);
+        assertEquals(450f, camera.targetZ(), 0.001f);
+
+        camera.requestOwnUnit();
+        camera.focusOnOwnUnit(List.of(unit(1, HERO_PLAYER, 1200f, 90f)), HERO_PLAYER);
+        assertEquals(700f, camera.targetX(), 0.001f, "even a unit outside the map");
+    }
+
+    /**
+     * A smaller map moves the camera in, rather than leaving it outside.
+     *
+     * <p>Every new floor is laid out afresh and may be smaller than the last;
+     * the camera was on the old one when it was.
+     */
+    @Test
+    void aNewSmallerMapPullsTheCameraOntoIt() {
+        var camera = new CameraFocus();
+        camera.keepInside(700f, 450f);
+        camera.lookAt(690f, 440f);
+
+        camera.keepInside(200f, 200f);
+
+        assertEquals(200f, camera.targetX(), 0.001f);
+        assertEquals(200f, camera.targetZ(), 0.001f);
+    }
+
+    /** A game that never says how big its world is keeps the old free camera. */
+    @Test
+    void withNoMapSaidThereIsNoFence() {
+        var camera = new CameraFocus();
+
+        camera.panBy(-5000f, 9000f);
+
+        assertEquals(-5000f, camera.targetX(), 0.001f);
+        assertEquals(9000f, camera.targetZ(), 0.001f);
+    }
+
+    // ---- back to the hero ----
+
+    /**
+     * The key that fetches the camera back is the same one-shot request a new run
+     * makes, and it may be asked for again and again.
+     *
+     * <p>It has to be a request rather than a jump: the hero the player wants to
+     * see is in the next snapshot, not in the keypress.
+     */
+    @Test
+    void theCameraCanBeCalledBackToTheHeroWheneverHeAsks() {
+        var camera = new CameraFocus();
+        var hero = List.of(unit(1, HERO_PLAYER, 120f, 260f));
+        camera.requestOwnUnit();
+        camera.focusOnOwnUnit(hero, HERO_PLAYER);
+
+        camera.panBy(300f, -200f);
+        assertEquals(420f, camera.targetX(), 0.001f, "panned away, as it should be");
+
+        camera.requestOwnUnit();
+        assertTrue(camera.focusOnOwnUnit(hero, HERO_PLAYER));
+        assertEquals(120f, camera.targetX(), 0.001f, "and called straight back");
+        assertEquals(260f, camera.targetZ(), 0.001f);
+        assertFalse(camera.isAwaitingOwnUnit(), "the request is spent, so it stays his");
+    }
 }

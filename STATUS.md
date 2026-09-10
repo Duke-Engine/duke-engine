@@ -813,7 +813,8 @@ bosilganda (yoki `Shell.none()` bo'lsa — darhol) boshlanadi.
   bu bitta qaror edi. Vaqt `timer.getTimeInSeconds()` dan — sof render tomonda
   (dul olovi bilan bir xil idioma), simulyatsiyaga aloqasiz (`OrderMarkers`).
 - **Boshqaruv:** LMB tanlash yoki sudrab kvadrat (Shift — qo'shish), RMB buyruq (dushmanga = hujum, yerga = yurish,
-  zavod tanlangan bo'lsa = rally nuqtasi), WASD / o'q tugmalar kamera, g'ildirak zoom, `H` to'xtatish,
+  zavod tanlangan bo'lsa = rally nuqtasi), WASD / o'q tugmalar kamera, `Probel` kamerani
+  qahramonga qaytaradi (menyu ochiq bo'lsa — tanlash), g'ildirak zoom, `H` to'xtatish,
   `P` pauza, `Esc` tanlovni bekor / pauza menyusi, `1`–`9` build menyusidan navbatga qo'yish.
 - **Minimap** — o'ng pastda: relyef qatlami (map chegarasi + to'siq kataklari) + jonli nuqtalar
   (o'yinchi rangi bo'yicha, inshootlar kattaroq) + **viewport konturi**. Minimapga LMB = kamera
@@ -830,6 +831,14 @@ bosilganda (yoki `Shell.none()` bo'lsa — darhol) boshlanadi.
   shundan keyin kamera erkin. Kuzatib yuradigan kamera pan'ni tortib olardi, turgan
   qahramon atrofiga qarab chiqish esa RTS o'ynashning yarmi. So'rov dunyo hali paydo
   bo'lmaganda ham kutib turadi (o'yin snapshotdan bir-ikki kadr oldin boshlanadi).
+  **`Probel` — kamerani qahramon ustiga qaytaradi:** xuddi shu bir martalik so'rov,
+  ya'ni qo'ygandan keyin kamera yana o'yinchiniki (kuzatib yurmaydi).
+- **Kamera xaritadan chiqib ketmaydi** (`CameraFocus.keepInside`) — qaraydigan nuqta
+  minimap chizadigan **aynan o'sha to'rtburchak** ichida ushlanadi. Chegaradan tashqarida
+  na yer, na mo'ljal, na minimapda belgi bor: pan tugmasini bir soniya bosib turgan
+  o'yinchi adashib qolardi va qaytish yo'lini topolmasdi. Chegara har yangi qavatda
+  minimap bilan birga yangilanadi; xarita kichrayса kamera ichkariga tortiladi.
+  Xaritasini aytmagan o'yin uchun chegara yo'q (eski erkin kamera).
 - **Dunyo almashsa sahna qayta quriladi** — relyef `TerrainScene` ga tegishli o'z tugunida
   yashaydi va **har qayta qurish avval uni bo'shatadi**, ya'ni sahna run'lar bo'ylab o'smaydi.
   Klient dunyo almashganini o'zi sezadi: `applyMapTerrain()` yangi `PathGrid` **instance** qo'yadi,

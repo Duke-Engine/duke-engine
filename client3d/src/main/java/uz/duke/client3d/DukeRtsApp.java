@@ -307,7 +307,8 @@ final class DukeRtsApp extends SimpleApplication {
 
         controlsHint = new BitmapText(guiFont);
         var hint = controlsHint;
-        hint.setText("LMB select   Shift+LMB add   RMB move/attack   WASD pan   wheel zoom   H halt   P pause   Esc menu");
+        hint.setText("LMB select   Shift+LMB add   RMB move/attack   WASD pan   Space centre"
+                + "   wheel zoom   H halt   P pause   Esc menu");
         hint.setLocalTranslation(10, hint.getLineHeight() + 6f, 0);
         hint.setAlpha(0.6f);
         guiNode.attachChild(hint);
@@ -368,6 +369,10 @@ final class DukeRtsApp extends SimpleApplication {
         float worldW = grid == null ? 700f : grid.getWidth() * grid.getCellSize();
         float worldH = grid == null ? 450f : grid.getHeight() * grid.getCellSize();
         minimap = new MinimapProjection(worldW, worldH, MINIMAP_SIZE);
+        // The camera may look at exactly what the minimap draws, and no further.
+        // Until there is a map there is nothing to fence it into: the sizes above
+        // are only something to draw an empty minimap at.
+        camera.keepInside(grid == null ? 0f : worldW, grid == null ? 0f : worldH);
         minimapX = cam.getWidth() - minimap.widthPixels() - 12f;
 
         var backdrop = new Geometry("mm-bg", new Quad(minimap.widthPixels(), minimap.heightPixels()));
@@ -1723,8 +1728,18 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                 }
                 case "Take" -> {
-                    if (pressed && menu.isVisible() && menu.enter()) {
-                        noises.moment("menu_click", (float) timer.getTimeInSeconds());
+                    if (!pressed) {
+                        break;
+                    }
+                    if (menu.isVisible()) {
+                        if (menu.enter()) {
+                            noises.moment("menu_click", (float) timer.getTimeInSeconds());
+                        }
+                    } else if (screen == Screen.PLAYING && !levelUp.isShowing()) {
+                        // Back to the hero, wherever the pan keys have got to. The
+                        // same one-shot request a new run makes, so the camera is
+                        // his again the moment it lands.
+                        camera.requestOwnUnit();
                     }
                 }
                 case "Select" -> {

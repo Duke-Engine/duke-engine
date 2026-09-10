@@ -42,11 +42,41 @@ final class CameraFocus {
     private float targetZ;
     private float distance = START_DISTANCE;
     private boolean wantsOwnUnit;
+    private float groundWidth;
+    private float groundHeight;
 
     /** Look here — used before there is a world, and by the minimap. */
     void lookAt(float worldX, float worldY) {
         this.targetX = worldX;
         this.targetZ = worldY;
+        keepOnTheGround();
+    }
+
+    /**
+     * The ground there is to look at: the map, in world units.
+     *
+     * <p>Without it a player who holds a pan key wanders off into black nothing
+     * and has no way back — the map is behind him and there is no landmark
+     * anywhere to say which way. The same rectangle the minimap draws, so what he
+     * can look at and what the minimap shows are one thing rather than two.
+     *
+     * <p>The point that is kept inside is the one the camera looks at, not the
+     * whole view, so the edge of the map can still be reached and seen with a
+     * little void beyond it — which is how it should look. Zero means no map yet
+     * and no limit; a demo that never says gets the old free camera.
+     */
+    void keepInside(float worldWidth, float worldHeight) {
+        this.groundWidth = Math.max(0f, worldWidth);
+        this.groundHeight = Math.max(0f, worldHeight);
+        keepOnTheGround();
+    }
+
+    private void keepOnTheGround() {
+        if (groundWidth <= 0f || groundHeight <= 0f) {
+            return;
+        }
+        targetX = Math.clamp(targetX, 0f, groundWidth);
+        targetZ = Math.clamp(targetZ, 0f, groundHeight);
     }
 
     /**
@@ -88,6 +118,7 @@ final class CameraFocus {
     void panBy(float dx, float dz) {
         targetX += dx;
         targetZ += dz;
+        keepOnTheGround();
     }
 
     /** Zoom by a factor, kept between the nearest and furthest useful distances. */
