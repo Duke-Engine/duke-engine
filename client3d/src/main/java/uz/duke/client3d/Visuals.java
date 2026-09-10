@@ -431,6 +431,25 @@ public final class Visuals {
         return !themes.isEmpty();
     }
 
+    // ---- menus ----
+
+    private MenuStyle menuStyle = MenuStyle.PLAIN;
+
+    /**
+     * How this game's menus are lettered — see { MenuStyle}.
+     *
+     * <p>The same bargain as everywhere else: the client knows how to draw a
+     * menu and the game says what it should look like.
+     */
+    public Visuals menuStyle(MenuStyle style) {
+        this.menuStyle = style == null ? MenuStyle.PLAIN : style;
+        return this;
+    }
+
+    public MenuStyle getMenuStyle() {
+        return menuStyle;
+    }
+
     // ---- noise ----
 
     private SoundBank sounds = SoundBank.silent();

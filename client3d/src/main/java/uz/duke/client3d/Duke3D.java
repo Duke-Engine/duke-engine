@@ -57,14 +57,13 @@ public final class Duke3D {
         var settings = new AppSettings(true);
         settings.setTitle(game.getTitle());
         // saved display settings win over the caller's defaults
-        int resIndex = DukeRtsApp.PREFS.getInt("resIndex", -1);
-        if (resIndex >= 0 && resIndex < 3) {
-            int[][] resolutions = {{1280, 720}, {1600, 900}, {1920, 1080}};
-            settings.setResolution(resolutions[resIndex][0], resolutions[resIndex][1]);
-        } else {
-            settings.setResolution(width, height);
-        }
-        settings.setFullscreen(DukeRtsApp.PREFS.getBoolean("fullscreen", false));
+        // What the player last chose, from the file beside him. The caller's
+        // numbers are only the answer for somebody who has never chosen.
+        var chosen = new uz.duke.client3d.GameSettings();
+        chosen.inheritFrom(DukeRtsApp.PREFS, "volume", "fullscreen", "volEffects",
+                "volVoice", "volMusic", "musicTrack");
+        settings.setResolution(chosen.number("width", width), chosen.number("height", height));
+        settings.setFullscreen(chosen.flag("fullscreen", false));
         settings.setVSync(true);
         app.setSettings(settings);
         app.setShowSettings(false);

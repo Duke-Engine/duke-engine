@@ -321,6 +321,12 @@ public final class Main {
         // and this is the only place that knows what a moment sounds like.
         visuals.sounds(soundsOf(settings));
 
+        // The lettering the menus are set in -- carved Roman capitals, baked from
+        // the TTF by BitmapFontBaker. Named here rather than in the client
+        // because three other games are drawn by it and none of them is a dungeon.
+        visuals.menuStyle(new uz.duke.client3d.MenuStyle(
+                "fonts/cinzel-22.fnt", "fonts/cinzel-17.fnt"));
+
         // What the dark is worth: whether stone stops sight, how dim a room he
         // has left should be, and what colour nothing is. All of it drawing, and
         // all of it in the file — see DungeonFog in dungeon.ini.

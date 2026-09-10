@@ -1,0 +1,685 @@
+package uz.duke.client3d;
+
+import com.jme3.font.BitmapFont;
+import com.jme3.font.BitmapText;
+import com.jme3.math.ColorRGBA;
+import com.jme3.math.Vector2f;
+import com.jme3.renderer.queue.RenderQueue;
+import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
+
+/**
+ * Every screen that is not the game: a title over a slab, a column of lines, one
+ * of them lit.
+ *
+ * <p>One component for the front menu, the pause menu and the settings, because
+ * they are the same thing with different rows in it. A menu is rows that do
+ * something; settings are rows that hold a value. Splitting them would be two
+ * copies of the same navigation, the same lighting, the same layout arithmetic —
+ * and two looks that drift apart the first time one of them is adjusted.
+ *
+ * <p>Drawn from {@link StoneCraft}, which is what the hero's bar is drawn from, so
+ * a menu is made of the same stone as the panel it covers.
+ *
+ * <p>Keyboard and mouse both, always: up and down move, left and right change,
+ * Enter takes, Escape backs out — and the same rows answer a cursor. A menu that
+ * insists on one or the other is a menu somebody has to be told how to use.
+ */
+final class StoneMenu {
+
+    /** The design these numbers were written against; everything scales from it. */
+    private static final float DESIGN_HEIGHT = 600f;
+    /** Below this the lettering stops being worth shrinking and the list scrolls. */
+    private static final float LEAST_SCALE = 0.62f;
+
+    private static final float ROW_HEIGHT = 44f;
+    private static final float ROW_WIDTH = 560f;
+    private static final float MENU_WIDTH = 330f;
+    private static final float CONTROL_WIDTH = 190f;
+    private static final float SLIDER_HEIGHT = 9f;
+
+    // ---- what a screen is made of ----
+
+    /** One line of a screen. */
+    sealed interface Row {
+        String label();
+    }
+
+    /** A line that does something when taken. */
+    record Action(String label, Runnable take, boolean danger) implements Row {
+        Action(String label, Runnable take) {
+            this(label, take, false);
+        }
+    }
+
+    /** A line holding one of a short list of choices, changed in place. */
+    record Choice(String label, List<String> options, IntSupplier read, IntConsumer write)
+            implements Row {
+    }
+
+    /**
+     * The same, but too long a list to cycle through — so it opens.
+     *
+     * <p>Cycling is fine for two or three and unusable for fifteen: a player
+     * looking for a resolution should see the resolutions, not press right until
+     * one of them goes past.
+     */
+    record Opens(String label, List<String> options, IntSupplier read, IntConsumer write)
+            implements Row {
+    }
+
+    /** A line holding a number from nothing to all of it, drawn as a bar. */
+    record Level(String label, IntSupplier read, IntConsumer write, int step) implements Row {
+    }
+
+    /** A line that is only there to be read. */
+    record Words(String label, String value) implements Row {
+    }
+
+    // ---- state ----
+
+    private final StoneCraft craft;
+    private final BitmapFont titleFont;
+    private final BitmapFont rowFont;
+    private final Node root = new Node("stone-menu");
+    private final Node sheet = new Node("stone-menu-sheet");
+
+    private String title = "";
+    private String subtitle = "";
+    private String hint = "";
+    private String corner = "";
+    private List<Row> rows = List.of();
+    private final List<Node> drawn = new ArrayList<>();
+    private final List<float[]> hitBoxes = new ArrayList<>(); // x, y, w, h per row
+    private int chosen;
+    /** Which row is open, or -1 — only an {@link Opens} row can be. */
+    private int opened = -1;
+    private int openedAt;
+    /** How far the list is scrolled, in rows, when even the smallest will not fit. */
+    private int scrolledBy;
+
+    private float screenWidth;
+    private float screenHeight;
+    private float scale = 1f;
+    private boolean overGame;
+
+    StoneMenu(StoneCraft craft, BitmapFont titleFont, BitmapFont rowFont, Node guiNode,
+            float screenWidth, float screenHeight) {
+        this.craft = craft;
+        this.titleFont = titleFont == null ? craft.font() : titleFont;
+        this.rowFont = rowFont == null ? craft.font() : rowFont;
+        this.screenWidth = screenWidth;
+        this.screenHeight = screenHeight;
+        root.setQueueBucket(RenderQueue.Bucket.Gui);
+        root.attachChild(sheet);
+        guiNode.attachChild(root);
+        hide();
+    }
+
+    // ---- showing ----
+
+    /**
+     * Put a screen up.
+     *
+     * @param overGame  whether the world is behind it. The front menu is drawn on
+     *     its own stone; a pause menu is drawn over the room the player stopped
+     *     in, dimmed but still legible, so he does not forget where he was
+     */
+    void show(String title, String subtitle, List<Row> rows, String hint, String corner,
+            boolean overGame) {
+        this.title = title == null ? "" : title;
+        this.subtitle = subtitle == null ? "" : subtitle;
+        this.rows = List.copyOf(rows);
+        this.hint = hint == null ? "" : hint;
+        this.corner = corner == null ? "" : corner;
+        this.overGame = overGame;
+        if (chosen >= this.rows.size() || !takeable(chosen)) {
+            chosen = firstTakeable();
+        }
+        opened = -1;
+        rebuild();
+        root.setCullHint(Spatial.CullHint.Never);
+    }
+
+    /** Redraw with the same rows — after a value changed under one of them. */
+    void refresh() {
+        if (isVisible()) {
+            rebuild();
+        }
+    }
+
+    void hide() {
+        root.setCullHint(Spatial.CullHint.Always);
+    }
+
+    /** Take it off the screen for good — the window changed shape and this is stale. */
+    void destroy() {
+        root.removeFromParent();
+    }
+
+    boolean isVisible() {
+        return root.getCullHint() != Spatial.CullHint.Always;
+    }
+
+    void resize(float width, float height) {
+        this.screenWidth = width;
+        this.screenHeight = height;
+        refresh();
+    }
+
+    // ---- moving about ----
+
+    void up() {
+        step(-1);
+    }
+
+    void down() {
+        step(1);
+    }
+
+    private void step(int by) {
+        if (rows.isEmpty()) {
+            return;
+        }
+        if (opened >= 0) {
+            var open = (Opens) rows.get(opened);
+            openedAt = Math.clamp(openedAt + by, 0, open.options().size() - 1);
+            rebuild();
+            return;
+        }
+        for (int i = 0; i < rows.size(); i++) {
+            chosen = Math.floorMod(chosen + by, rows.size());
+            if (takeable(chosen)) {
+                break;
+            }
+        }
+        keepChosenInView();
+        rebuild();
+    }
+
+    /** Change the chosen row's value, if it has one. */
+    void left() {
+        nudge(-1);
+    }
+
+    void right() {
+        nudge(1);
+    }
+
+    private void nudge(int by) {
+        if (opened >= 0 || rows.isEmpty()) {
+            return;
+        }
+        switch (rows.get(chosen)) {
+            case Choice choice -> {
+                int next = Math.floorMod(choice.read().getAsInt() + by, choice.options().size());
+                choice.write().accept(next);
+            }
+            case Level level -> level.write().accept(
+                    Math.clamp(level.read().getAsInt() + by * level.step(), 0, 100));
+            // A list too long to cycle is opened rather than stepped through, and
+            // a line that only does something has nothing to nudge.
+            case Opens ignored -> {
+                return;
+            }
+            default -> {
+                return;
+            }
+        }
+        rebuild();
+    }
+
+    /**
+     * Take the chosen row.
+     *
+     * @return whether anything happened, so a caller can make a noise about it
+     */
+    boolean enter() {
+        if (rows.isEmpty()) {
+            return false;
+        }
+        if (opened >= 0) {
+            var open = (Opens) rows.get(opened);
+            open.write().accept(openedAt);
+            opened = -1;
+            rebuild();
+            return true;
+        }
+        switch (rows.get(chosen)) {
+            case Action action -> {
+                action.take().run();
+                return true;
+            }
+            case Opens open -> {
+                opened = chosen;
+                openedAt = Math.clamp(open.read().getAsInt(), 0, open.options().size() - 1);
+                rebuild();
+                return true;
+            }
+            default -> {
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Back out of whatever is innermost.
+     *
+     * @return whether it was the open list that closed, so the screen itself stays
+     */
+    boolean escape() {
+        if (opened < 0) {
+            return false;
+        }
+        opened = -1;
+        rebuild();
+        return true;
+    }
+
+    boolean isOpen() {
+        return opened >= 0;
+    }
+
+    private boolean takeable(int index) {
+        return index >= 0 && index < rows.size() && !(rows.get(index) instanceof Words);
+    }
+
+    private int firstTakeable() {
+        for (int i = 0; i < rows.size(); i++) {
+            if (takeable(i)) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    // ---- the mouse ----
+
+    /**
+     * Light whatever the cursor is over.
+     *
+     * @return whether that changed, so a caller can make a noise about it
+     */
+    boolean hover(Vector2f cursor) {
+        int was = opened >= 0 ? openedAt : chosen;
+        int under = rowAt(cursor);
+        if (under >= 0) {
+            if (opened >= 0) {
+                openedAt = under;
+            } else {
+                chosen = under;
+            }
+        }
+        boolean moved = (opened >= 0 ? openedAt : chosen) != was;
+        if (moved) {
+            rebuild();
+        }
+        return moved && under >= 0;
+    }
+
+    /** @return whether the click landed on a row */
+    boolean click(Vector2f cursor) {
+        int under = rowAt(cursor);
+        if (under < 0) {
+            return false;
+        }
+        if (opened >= 0) {
+            openedAt = under;
+        } else {
+            chosen = under;
+        }
+        return enter();
+    }
+
+    private int rowAt(Vector2f cursor) {
+        for (int i = 0; i < hitBoxes.size(); i++) {
+            var box = hitBoxes.get(i);
+            if (cursor.x >= box[0] && cursor.x <= box[0] + box[2]
+                    && cursor.y >= box[1] && cursor.y <= box[1] + box[3]) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    // ---- drawing ----
+
+    private void rebuild() {
+        sheet.detachAllChildren();
+        drawn.clear();
+        hitBoxes.clear();
+
+        boolean settings = rows.stream().anyMatch(row ->
+                row instanceof Choice || row instanceof Level || row instanceof Opens);
+        float wanted = wantedHeight(settings);
+        scale = Math.min(1f, screenHeight / Math.max(wanted, 1f));
+        boolean scrolls = scale < LEAST_SCALE;
+        if (scrolls) {
+            scale = LEAST_SCALE;
+        } else {
+            scrolledBy = 0;
+        }
+        sheet.setLocalScale(scale);
+
+        if (overGame) {
+            drawDim();
+        } else {
+            drawBackdrop();
+        }
+        float top = drawTitle(settings);
+        if (settings) {
+            drawRows(top, ROW_WIDTH, scrolls);
+        } else {
+            drawItems(top, scrolls);
+        }
+        drawFooter();
+    }
+
+    /** How tall the whole screen wants to be, at full size. */
+    private float wantedHeight(boolean settings) {
+        float titleBlock = title.isEmpty() ? 0f : (settings ? 110f : 210f);
+        float body = rows.size() * (settings ? ROW_HEIGHT : ROW_HEIGHT);
+        return titleBlock + body + 70f;
+    }
+
+    private void drawBackdrop() {
+        float w = screenWidth / scale;
+        float h = screenHeight / scale;
+        StoneCraft.attach(sheet, craft.shaded("gloom", w, h,
+                StoneCraft.rgb(0x0C0A08), StoneCraft.rgb(0x241E19),
+                StoneCraft.rgb(0x0C0A08)), 0f, 0f, 0f);
+        // Two torches, off the edges, throwing light in. What makes it a room
+        // rather than a colour.
+        float pool = h * 0.30f;
+        StoneCraft.attach(sheet, craft.glow("torch-left", pool,
+                StoneCraft.TORCH, 0.09f), -pool * 0.25f, h * 0.58f, 1f);
+        StoneCraft.attach(sheet, craft.glow("torch-right", pool,
+                StoneCraft.TORCH, 0.09f), w + pool * 0.25f, h * 0.58f, 1f);
+    }
+
+    private void drawDim() {
+        // Dark enough to read a menu over, thin enough to see the room he stopped
+        // in. A player who cannot see where he was has to remember instead.
+        StoneCraft.attach(sheet, craft.flat("dim", screenWidth / scale, screenHeight / scale,
+                new ColorRGBA(0.03f, 0.024f, 0.02f, 0.78f)), 0f, 0f, 0f);
+    }
+
+    /** @return the y the rows should start below, in the sheet's own units */
+    private float drawTitle(boolean settings) {
+        float w = screenWidth / scale;
+        float h = screenHeight / scale;
+        if (title.isEmpty()) {
+            return h * 0.72f;
+        }
+        float size = settings ? 30f : 46f;
+        var text = craft.text(titleFont, size, StoneCraft.TORCH, 0f, 0f, w,
+                BitmapFont.Align.Center);
+        text.setText(title);
+        float plaqueWidth = Math.min(w - 40f, craft.widthOf(titleFont, size, title) + 92f);
+        float plaqueHeight = size + (subtitle.isEmpty() ? 30f : 54f);
+        float plaqueY = h - (settings ? 44f : 74f) - plaqueHeight;
+        var plaque = craft.slab("plaque", plaqueWidth, plaqueHeight);
+        StoneCraft.attach(sheet, plaque, (w - plaqueWidth) / 2f, plaqueY, 2f);
+
+        float textY = plaqueY + plaqueHeight - size - (subtitle.isEmpty() ? 16f : 14f);
+        // The box places it; a translation on top of that would move it twice,
+        // which puts a title off the top of the screen and leaves a bare slab.
+        text.setBox(new com.jme3.font.Rectangle(0f, textY + size, w, size * 1.4f));
+        StoneCraft.attach(sheet, text, 0f, 0f, 4f);
+        if (!subtitle.isEmpty()) {
+            var sub = craft.text(rowFont, 14f, StoneCraft.rgb(0x8B8171), 0f,
+                    textY - 24f, w, BitmapFont.Align.Center);
+            sub.setText(subtitle);
+            // In front of the plaque, like the title. Attached plainly it lands
+            // at z zero, which is behind the stone it is written on.
+            StoneCraft.attach(sheet, sub, 0f, 0f, 4f);
+        }
+        return plaqueY - (settings ? 26f : 46f);
+    }
+
+    /** The front and pause menus: a column of lit lines. */
+    private void drawItems(float top, boolean scrolls) {
+        float w = screenWidth / scale;
+        float left = (w - MENU_WIDTH) / 2f;
+        int from = scrolls ? scrolledBy : 0;
+        int fits = scrolls ? (int) (top / ROW_HEIGHT) : rows.size();
+        for (int i = 0; i < rows.size(); i++) {
+            float y = top - (i - from + 1) * ROW_HEIGHT;
+            if (i < from || i >= from + fits) {
+                hitBoxes.add(new float[] {-1f, -1f, 0f, 0f});
+                continue;
+            }
+            var row = rows.get(i);
+            boolean lit = i == chosen;
+            boolean danger = row instanceof Action action && action.danger();
+            var node = new Node("item-" + i);
+            if (lit) {
+                StoneCraft.attach(node, craft.shaded("lit", MENU_WIDTH, ROW_HEIGHT - 6f,
+                        StoneCraft.fade(danger ? StoneCraft.BLOOD : StoneCraft.TORCH, 0f),
+                        StoneCraft.fade(danger ? StoneCraft.BLOOD : StoneCraft.TORCH, 0.13f),
+                        StoneCraft.fade(danger ? StoneCraft.BLOOD : StoneCraft.TORCH, 0f)),
+                        0f, 3f, 1f);
+            }
+            var mark = lit ? (danger ? StoneCraft.BLOOD : StoneCraft.TORCH)
+                    : StoneCraft.rgb(0x3A322A);
+            StoneCraft.attach(node, craft.flat("rule-l", 30f, 1f, mark), 14f,
+                    ROW_HEIGHT / 2f, 2f);
+            StoneCraft.attach(node, craft.flat("rule-r", 30f, 1f, mark),
+                    MENU_WIDTH - 44f, ROW_HEIGHT / 2f, 2f);
+            if (lit) {
+                StoneCraft.attach(node, craft.arrowhead("mark-l", 9f, true, mark),
+                        52f, ROW_HEIGHT / 2f - 4.5f, 3f);
+                StoneCraft.attach(node, craft.arrowhead("mark-r", 9f, false, mark),
+                        MENU_WIDTH - 61f, ROW_HEIGHT / 2f - 4.5f, 3f);
+            }
+            var colour = lit
+                    ? (danger ? StoneCraft.rgb(0xE08A80) : StoneCraft.TORCH_HOT)
+                    : StoneCraft.rgb(0xA69B87);
+            var text = craft.text(titleFont, 19f, colour, 0f, ROW_HEIGHT / 2f - 12f,
+                    MENU_WIDTH, BitmapFont.Align.Center);
+            text.setText(row.label());
+            StoneCraft.attach(node, text, 0f, 0f, 3f);
+
+            StoneCraft.attach(sheet, node, left, y, 3f);
+            drawn.add(node);
+            hitBoxes.add(new float[] {(left) * scale, (y + 3f) * scale,
+                MENU_WIDTH * scale, (ROW_HEIGHT - 6f) * scale});
+        }
+    }
+
+    /** The settings: a label, a control, and what it currently says. */
+    private void drawRows(float top, float width, boolean scrolls) {
+        float w = screenWidth / scale;
+        float left = (w - width) / 2f;
+        int from = scrolls ? scrolledBy : 0;
+        int fits = scrolls ? Math.max(1, (int) (top / ROW_HEIGHT)) : rows.size();
+        for (int i = 0; i < rows.size(); i++) {
+            float y = top - (i - from + 1) * ROW_HEIGHT;
+            if (i < from || i >= from + fits) {
+                hitBoxes.add(new float[] {-1f, -1f, 0f, 0f});
+                continue;
+            }
+            boolean lit = i == chosen && opened < 0;
+            // While a list is open the rows behind it go quiet, so there is one
+            // place to look rather than two lit at once.
+            boolean dimmed = opened >= 0 && i != opened;
+            var node = new Node("row-" + i);
+            if (lit) {
+                StoneCraft.attach(node, craft.shaded("lit", width, ROW_HEIGHT - 4f,
+                        StoneCraft.fade(StoneCraft.TORCH, 0.11f),
+                        StoneCraft.fade(StoneCraft.TORCH, 0.02f),
+                        StoneCraft.fade(StoneCraft.TORCH, 0f)), 0f, 2f, 1f);
+            }
+            StoneCraft.attach(node, craft.flat("groove", width, 1f,
+                    StoneCraft.rgb(0x2A241D)), 0f, 0f, 1f);
+
+            var row = rows.get(i);
+            var labelColour = dimmed ? StoneCraft.rgb(0x5A5346)
+                    : lit ? StoneCraft.TORCH_HOT : StoneCraft.rgb(0xA69B87);
+            var label = craft.text(titleFont, 15f, labelColour, 16f,
+                    ROW_HEIGHT / 2f - 10f, width * 0.45f, BitmapFont.Align.Left);
+            label.setText(row.label());
+            StoneCraft.attach(node, label, 0f, 0f, 3f);
+
+            float controlLeft = width * 0.46f;
+            drawControl(node, row, controlLeft, lit, dimmed, i);
+
+            StoneCraft.attach(sheet, node, left, y, 3f);
+            drawn.add(node);
+            hitBoxes.add(new float[] {left * scale, y * scale, width * scale,
+                ROW_HEIGHT * scale});
+        }
+        if (opened >= 0) {
+            drawOpenList(top, left, width);
+        }
+    }
+
+    private void drawControl(Node node, Row row, float x, boolean lit, boolean dimmed,
+            int index) {
+        var arrowColour = dimmed ? StoneCraft.rgb(0x3A322A)
+                : lit ? StoneCraft.TORCH : StoneCraft.rgb(0x5D5548);
+        boolean nudgeable = row instanceof Choice || row instanceof Level;
+        if (nudgeable) {
+            StoneCraft.attach(node, craft.arrowhead("less", 8f, false, arrowColour),
+                    x - 16f, ROW_HEIGHT / 2f - 4f, 3f);
+            StoneCraft.attach(node, craft.arrowhead("more", 8f, true, arrowColour),
+                    x + CONTROL_WIDTH + 8f, ROW_HEIGHT / 2f - 4f, 3f);
+        }
+        switch (row) {
+            case Choice choice -> {
+                int at = Math.clamp(choice.read().getAsInt(), 0, choice.options().size() - 1);
+                for (int o = 0; o < choice.options().size(); o++) {
+                    float each = CONTROL_WIDTH / choice.options().size();
+                    boolean on = o == at;
+                    StoneCraft.attach(node, craft.shaded("cell", each - 4f, 20f,
+                            on ? StoneCraft.rgb(0x4A3A1E) : StoneCraft.STONE_DEEP,
+                            on ? StoneCraft.rgb(0x2E2413) : StoneCraft.STONE_DEEP),
+                            x + o * each, ROW_HEIGHT / 2f - 10f, 2f);
+                    var word = craft.text(rowFont, 12f,
+                            on ? StoneCraft.TORCH : StoneCraft.rgb(0x5D5548),
+                            0f, ROW_HEIGHT / 2f - 8f, each - 4f, BitmapFont.Align.Center);
+                    word.setText(choice.options().get(o));
+                    StoneCraft.attach(node, word, x + o * each, 0f, 3f);
+                }
+            }
+            case Level level -> {
+                int value = Math.clamp(level.read().getAsInt(), 0, 100);
+                StoneCraft.attach(node, craft.flat("trough", CONTROL_WIDTH, SLIDER_HEIGHT,
+                        StoneCraft.STONE_DEEP), x, ROW_HEIGHT / 2f - 4f, 2f);
+                if (value > 0) {
+                    StoneCraft.attach(node, craft.shaded("fill",
+                            (CONTROL_WIDTH - 2f) * value / 100f, SLIDER_HEIGHT - 2f,
+                            StoneCraft.rgb(0xF0BC6B), StoneCraft.TORCH,
+                            StoneCraft.rgb(0xA06D1F)), x + 1f, ROW_HEIGHT / 2f - 3f, 3f);
+                }
+                var shown = craft.text(titleFont, 13f,
+                        dimmed ? StoneCraft.rgb(0x5A5346) : StoneCraft.BONE,
+                        0f, ROW_HEIGHT / 2f - 9f, 58f, BitmapFont.Align.Right);
+                shown.setText(value == 0 ? "OFF" : value + "%");
+                StoneCraft.attach(node, shown, x + CONTROL_WIDTH + 22f, 0f, 3f);
+            }
+            case Opens open -> {
+                int at = Math.clamp(open.read().getAsInt(), 0, open.options().size() - 1);
+                var shown = craft.text(titleFont, 14f,
+                        dimmed ? StoneCraft.rgb(0x5A5346) : StoneCraft.BONE,
+                        0f, ROW_HEIGHT / 2f - 9f, CONTROL_WIDTH, BitmapFont.Align.Center);
+                shown.setText(open.options().isEmpty() ? "—" : open.options().get(at));
+                StoneCraft.attach(node, shown, x, 0f, 3f);
+                // A chevron rather than the two arrows: this one opens, and the
+                // mark should say which of the two things a row does.
+                StoneCraft.attach(node, craft.arrowhead("opens", 8f, true,
+                        lit ? StoneCraft.TORCH : StoneCraft.rgb(0x5D5548)),
+                        x + CONTROL_WIDTH + 8f, ROW_HEIGHT / 2f - 4f, 3f);
+            }
+            case Words words -> {
+                var shown = craft.text(titleFont, 14f, StoneCraft.MUTE, 0f,
+                        ROW_HEIGHT / 2f - 9f, CONTROL_WIDTH, BitmapFont.Align.Center);
+                shown.setText(words.value());
+                StoneCraft.attach(node, shown, x, 0f, 3f);
+            }
+            default -> {
+                // An Action in a settings list is a button; its label is enough.
+            }
+        }
+    }
+
+    /** The open list, over everything, with the current choice marked. */
+    private void drawOpenList(float top, float left, float width) {
+        var open = (Opens) rows.get(opened);
+        float rowHeight = 26f;
+        int count = open.options().size();
+        float listHeight = count * rowHeight + 12f;
+        float listWidth = 240f;
+        float x = left + width - listWidth - 20f;
+        float y = Math.max(8f, top - (opened + 1) * ROW_HEIGHT - listHeight + ROW_HEIGHT);
+
+        var list = new Node("open");
+        StoneCraft.attach(list, craft.slab("list", listWidth, listHeight), 0f, 0f, 0f);
+        hitBoxes.clear();
+        for (int i = 0; i < rows.size(); i++) {
+            hitBoxes.add(new float[] {-1f, -1f, 0f, 0f});
+        }
+        for (int o = 0; o < count; o++) {
+            float rowY = listHeight - 6f - (o + 1) * rowHeight;
+            boolean lit = o == openedAt;
+            if (lit) {
+                StoneCraft.attach(list, craft.flat("lit", listWidth - 12f, rowHeight - 2f,
+                        StoneCraft.fade(StoneCraft.TORCH, 0.16f)), 6f, rowY, 1f);
+            }
+            boolean current = o == Math.clamp(open.read().getAsInt(), 0, count - 1);
+            if (current) {
+                StoneCraft.attach(list, craft.arrowhead("dot", 6f, true, StoneCraft.TORCH),
+                        12f, rowY + rowHeight / 2f - 3f, 2f);
+            }
+            var text = craft.text(titleFont, 13f,
+                    lit ? StoneCraft.TORCH_HOT : StoneCraft.rgb(0xA69B87),
+                    24f, rowY + rowHeight / 2f - 8f, listWidth - 36f, BitmapFont.Align.Left);
+            text.setText(open.options().get(o));
+            StoneCraft.attach(list, text, 0f, 0f, 2f);
+        }
+        StoneCraft.attach(sheet, list, x, y, 8f);
+        // While it is open the list owns the mouse: the rows behind it are not
+        // hit-testable, or a click would land on two things at once.
+        for (int o = 0; o < count; o++) {
+            float rowY = listHeight - 6f - (o + 1) * rowHeight;
+            hitBoxes.add(new float[] {(x + 6f) * scale, (y + rowY) * scale,
+                (listWidth - 12f) * scale, (rowHeight - 2f) * scale});
+        }
+    }
+
+    private void drawFooter() {
+        float w = screenWidth / scale;
+        if (!hint.isEmpty()) {
+            var line = craft.text(rowFont, 13f, StoneCraft.rgb(0x5D5548), 0f, 14f, w,
+                    BitmapFont.Align.Center);
+            line.setText(hint);
+            StoneCraft.attach(sheet, line, 0f, 0f, 5f);
+        }
+        if (!corner.isEmpty()) {
+            var line = craft.text(rowFont, 12f, StoneCraft.rgb(0x443E35), 0f, 12f, w - 16f,
+                    BitmapFont.Align.Right);
+            line.setText(corner);
+            StoneCraft.attach(sheet, line, 0f, 0f, 5f);
+        }
+    }
+
+    /** Scroll so the chosen row is on screen, when the list is too long to fit. */
+    private void keepChosenInView() {
+        int fits = Math.max(1, (int) (screenHeight / (ROW_HEIGHT * LEAST_SCALE)) - 4);
+        if (chosen < scrolledBy) {
+            scrolledBy = chosen;
+        } else if (chosen >= scrolledBy + fits) {
+            scrolledBy = chosen - fits + 1;
+        }
+    }
+
+    /** Which row is lit, for whatever wants to know without asking the screen. */
+    int chosenIndex() {
+        return chosen;
+    }
+
+}
