@@ -125,6 +125,49 @@ event: `DieModule` leaves the wreck, `ObjectDied` tells the renderer to explode 
 - **No silent drops** — an unmatched `switch`/`instanceof` on expected input
   logs at WARNING (sealed types make this a compile error instead).
 
+## Assets
+
+Models, animations, textures, audio, icons and fonts belong to the **game**, not
+to the engine: `core`, `rts` and `game` ship none, and `client3d` ships only the
+shader it draws terrain with. A game's assets live under its own
+`src/main/resources`, sorted by what a thing **is** rather than by which pack it
+arrived in:
+
+```
+models/     heroes/ · monsters/ · tiles/<theme>/ · props/<theme>/
+animations/ clips that are not inside a model, by who they move
+audio/      sfx/ · ui/ · voice/ · music/
+icons/      skills/ and any other interface art
+fonts/      bitmap fonts, baked by BitmapFontBaker
+ini/        the data files, read through the game's own Content class
+```
+
+**Naming:** lower case, underscores, and what the thing is —
+`skeleton_warrior.glb`, `bow_shot.ogg`, `floor_squares.obj`. The pack's own
+`character_medieval_2.glb` or `impactMetal_003.ogg` is renamed on the way in.
+Variants of one thing are numbered: `footstep_01.ogg`, `imp_1.png`.
+
+**Every path lives in INI, never in Java.** A path in a `.java` file is a path
+that needs a rebuild to move. The game hands the client a `Visuals` built from
+its own data file; the client has never heard of a file name.
+
+**Adding an asset means adding a row to `CREDITS.md`** — what it is, who made
+it, its licence, and where it sits — and keeping the pack's own `License.txt`
+beside the files. Where the terms are not plain, say so on that page rather than
+deciding quietly: a licence that turns out to forbid something is cheap to find
+now and expensive to find after a release.
+
+**Two traps that have already been paid for:**
+
+- A `.obj` names its `.mtl` inside itself (`mtllib`), so renaming one means
+  renaming both and rewriting that line. A `.glb` can name its texture the same
+  way — check with `grep -a` before moving the folder it points at, and keep the
+  case exactly: Linux is case-sensitive and Windows is not, so a wrong letter
+  passes locally and fails in CI.
+- Git on Windows runs with `core.ignorecase`, and will merge `models/` into an
+  existing `Models/` without a word. Rename through a temporary name
+  (`Models` → `Models_tmp` → `models`) and check `git ls-files` afterwards.
+
 ## Comment discipline
 
 - Default: no comment; well-named identifiers carry the "what".

@@ -1,9 +1,4 @@
-| The hero and her animations | Mixamo (Adobe) | Mixamo terms | `dungeon/src/main/resources/Models/hero/` |
-| RPG Audio — cloth, coins, a door, a knife drawn | Kenney ([kenney.nl](https://kenney.nl)) | CC0 | `dungeon/src/main/resources/audio/` |
-| Impact Sounds — what an arrow and a fist land like, and footsteps on stone | Kenney | CC0 | `dungeon/src/main/resources/audio/` |
-| Interface Sounds — the screen: clicks, a level, a gong | Kenney | CC0 | `dungeon/src/main/resources/audio/ui/` |
-| Voiceover Pack — what Erika says | Kenney | CC0 | `dungeon/src/main/resources/audio/voice/` |
-| Three pieces of music | see below | **see below — unconfirmed** | `dungeon/src/main/resources/audio/music/` |# Credits
+# Credits
 
 Art and audio the engine and its games are built from, and what each of them asks
 for in return. Where a licence requires attribution it is given here; where it
@@ -12,18 +7,58 @@ only invites it, it is given anyway.
 The licence text as it shipped is kept beside the files themselves, in a
 `License.txt` in each folder — this page is the index, not the terms.
 
+**Adding an asset means adding a row here.** See the rule in `CLAUDE.md`.
+
 ## Duke Dungeon
+
+Everything lives under `dungeon/src/main/resources/`, so the paths below are
+written from there.
 
 | What | Who | Licence | Where |
 |---|---|---|---|
-| Skill icons — arrowhead, arrow cluster, sprint, hood | **Lorc** ([game-icons.net](https://game-icons.net)) | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) — **attribution required** | `dungeon/src/main/resources/Icons/skills/` |
-| Modular Dungeon Kit — floors, walls, corner posts | Kenney ([kenney.nl](https://kenney.nl)) | CC0 | `dungeon/src/main/resources/Models/dungeon/` |
-| Updated Modular Dungeon — floor, wall, stairs, column, statue, barrel | Kenney | CC0 | `dungeon/src/main/resources/Models/theme-dungeon/` |
-| Ultimate Modular Ruins — floors, walls, stairs, column, dead tree, barrel | Kenney | CC0 | `dungeon/src/main/resources/Models/theme-ruins/` |
-| Ultimate Modular Sci-Fi — floors, walls, staircase, column, plinth | Kenney | CC0 | `dungeon/src/main/resources/Models/theme-scifi/` |
-| Monsters — the bestiary the dungeon is populated from | Quaternius | CC0 | `dungeon/src/main/resources/Models/monsters/` |
-| Universal Animation Library — what moves the bestiary | Quaternius | CC0 | `dungeon/src/main/resources/Models/monsters/` |
-| The hero and her animations | Mixamo (Adobe) | Mixamo terms | `dungeon/src/main/resources/Models/hero/` |
+| Skill icons — arrowhead, arrow cluster, sprint, hood | **Lorc** ([game-icons.net](https://game-icons.net)) | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) — **attribution required** | `icons/skills/` |
+| Modular Dungeon Kit — floor, wall, corner post | Kenney ([kenney.nl](https://kenney.nl)) | CC0 | `models/tiles/kenney/` |
+| Updated Modular Dungeon — floor, wall, stairs | Quaternius ([quaternius.com](https://quaternius.com)) | CC0 | `models/tiles/dungeon/` |
+| …and its column, statue and barrel | Quaternius | CC0 | `models/props/dungeon/` |
+| Ultimate Modular Ruins — floors, walls, stairs | Quaternius | CC0 | `models/tiles/ruins/` |
+| …and its column, dead tree and barrel | Quaternius | CC0 | `models/props/ruins/` |
+| Ultimate Modular Sci-Fi — floors, walls, staircase | Quaternius | CC0 | `models/tiles/scifi/` |
+| …and its column and plinth | Quaternius | CC0 | `models/props/scifi/` |
+| Universal Animation Library — what moves the bestiary | Quaternius | CC0 | `animations/monsters/` |
+| Bestiary — the Imp and the Puglin, and their skins | Quaternius | **QAL 1.0** — free in any product, no credit needed, **but the files themselves may not be redistributed as assets** | `models/monsters/` |
+| The hero, and the clips that move her | Mixamo (Adobe) | **Adobe/Mixamo terms — unconfirmed, see below** | `models/heroes/`, `animations/hero/` |
+| RPG Audio — cloth, coins, a door, a knife drawn | Kenney | CC0 | `audio/sfx/` |
+| Impact Sounds — what an arrow and a fist land like, and footsteps | Kenney | CC0 | `audio/sfx/` |
+| Interface Sounds — clicks, a level, a gong | Kenney | CC0 | `audio/ui/` |
+| Voiceover Pack — what Erika says | Kenney | CC0 | `audio/voice/` |
+| Three pieces of music | freesound.org | **unconfirmed, see below** | `audio/music/` |
+| Cinzel — the lettering the menus are set in | Natanael Gama / the Cinzel Project Authors | [SIL OFL 1.1](https://openfontlicense.org) | `fonts/` |
+
+### The two that need a decision
+
+Everything above is settled except these, and both say the same kind of thing:
+*use them in your game freely, do not hand out the files themselves*. A game
+repository is an awkward fit for that, because the files can be downloaded from
+it one by one — which is a different act from shipping a built game.
+
+**Mixamo (the hero).** `erika.glb` and her four clips came from Mixamo, which is
+Adobe's, and is neither CC0 nor any of the Creative Commons licences. Their terms
+are a licence to use the characters and animations in projects rather than a
+grant of the files, and no licence text shipped with the download to keep beside
+them. **What to check:** whether the current Adobe/Mixamo terms allow the source
+files to sit in a public repository. If the answer is awkward, the fix is a
+straight swap — a CC0 rigged character of the same shape, of which KayKit's
+Ranger is one — and nothing in the game changes but a path in `dungeon.ini`.
+
+**Quaternius Bestiary (the monsters).** The QAL is explicit and shipped with the
+files: *"You may not extract, repackage, sublicense, sell, or otherwise
+redistribute the Assets (in original or modified form) as a standalone asset,
+asset pack, stock file, template, or similar product… It does not restrict
+distributing a completed Product that merely incorporates the Assets."* Building
+and releasing the game is plainly allowed. Whether a public git tree counts as
+"distributing them as a standalone asset" is the question, and it is a judgement
+call rather than a rule. Their other packs here (the three modular kits and the
+animation library) are CC0 and have no such clause.
 
 ### The icons, in full
 
@@ -44,8 +79,7 @@ drawings themselves are untouched. See the folder's `License.txt`.
 Four packs by **Kenney** ([kenney.nl](https://kenney.nl)), all CC0 — no
 attribution required, given anyway. Roughly sixty of their four hundred files are
 shipped: the ones a dungeon has a use for, renamed from `impactSoft_medium_000`
-to what they are actually for, and sorted into `combat/`, `foley/`, `ui/` and
-`voice/`.
+to what they are actually for, and sorted into `sfx/`, `ui/` and `voice/`.
 
 The voiceover pack is a game-show and military set rather than a fantasy one.
 The lines that carry over are used — *go*, *target engaged*, *fire in the hole*,
@@ -63,7 +97,6 @@ Ogg Vorbis (12 MB of PCM to 200 KB, which is the whole reason):
 | Uncertainty | [774883](https://freesound.org/s/774883/) | destructo20 |
 | The Sentinel | [868449](https://freesound.org/s/868449/) | logicmoon |
 
-**These three are the one thing on this page whose terms have not been checked.**
 Freesound hosts CC0, CC BY and CC BY-NC side by side, and which of them applies
 is per upload rather than per site. Before this is shipped anywhere, each of the
 three pages above needs looking at: CC0 needs nothing, CC BY needs a line here
@@ -73,13 +106,19 @@ forgotten.
 
 ### The lettering
 
-The menus are set in **Cinzel** — the Cinzel Project Authors, Natanael Gama — under the
-[SIL Open Font License 1.1](https://openfontlicense.org) — the licence ships
-with it at `dungeon/src/main/resources/fonts/License-Cinzel.txt`, as the OFL
-requires.
+The menus are set in **Cinzel** — the Cinzel Project Authors, Natanael Gama —
+under the [SIL Open Font License 1.1](https://openfontlicense.org). The licence
+ships with it at `fonts/License-Cinzel.txt`, as the OFL requires.
 
 jME cannot read a TrueType font, so what ships is a bitmap of it: a PNG of every
 glyph and an AngelCode `.fnt` saying where each one sits, in three sizes. Those
 were baked here rather than downloaded — `client3d`'s `BitmapFontBaker` turns a
-`.ttf` into the pair — so the OFL's terms are met by the original, and anyone
-can re-bake them from it.
+`.ttf` into the pair — so the OFL's terms are met by the original, and anyone can
+re-bake them from it.
+
+### Nothing uses these
+
+`_unused/` holds five files nothing references — a spare monster skin, two
+Mixamo clips for moves the hero does not have, and two patterned floor tiles no
+theme names. They are kept out of the way rather than deleted; the folder's own
+README says what each one is.

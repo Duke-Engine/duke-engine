@@ -1631,8 +1631,8 @@ ikkala peer aynan bir kadrda qo'llaydi.
     `Tezlik` va tanlov ekranining sarlavhasi `DungeonHud` blokidan keladi.
   - **Uyada endi ikonka bor, va u INI'da tanlanadi.** Uya ilgari klavishning
     harfini chizardi. Endi har `DungeonSkill` bloki `Icon = arrowhead.png` deydi,
-    `DungeonHud` esa `IconFolder = Icons/skills/` — tayyor yo'l status qatorida
-    ketadi (`skill=Q,Icons/skills/arrowhead.png,ready`), klient esa berilgan
+    `DungeonHud` esa `IconFolder = icons/skills/` — tayyor yo'l status qatorida
+    ketadi (`skill=Q,icons/skills/arrowhead.png,ready`), klient esa berilgan
     yo'ldagi rasmni chizadi. **Kodda birorta ikonka nomi yo'q**: beshinchi skill —
     faylning beshinchi bloki, Java'ga tegilmaydi. Klient uchta boshqa o'yinga
     ham xizmat qiladi va ularning birortasi rasmni qayerda saqlashini bilmasligi
@@ -1650,7 +1650,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
       saqlanadi. Asl `.svg`/`.png` fayllar game-icons.net'da, havolalari
       `License.txt` da.
     - **Ikonkalar CC BY 3.0** (Lorc, game-icons.net) — atribut talab qilinadi va
-      `CREDITS.md` da hamda `Icons/skills/License.txt` da berilgan. Asl fayllarda
+      `CREDITS.md` da hamda `icons/skills/License.txt` da berilgan. Asl fayllarda
       birinchi path — qora fon kvadrati; u olib tashlangan, aks holda tosh uya
       ustida qora plitka chiqardi.
 - **Skillni sichqoncha bilan ham ishlatish** — uyaga bosish klavishani bosish
@@ -1878,6 +1878,11 @@ ikkala peer aynan bir kadrda qo'llaydi.
   bo'laklari, tovushlar. Har biri **bir marta** (oltita maxluq bitta kutubxonani
   bo'lishsa, u bir marta o'qiladi). Mavzular ham kiradi — 10-qavatda kiyiladigan
   model 10-qavatda emas, hozir o'qiladi.
+- **Ochiq kamchilik: zinapoya ro'yxatda yo'q.** `Preload.plan` to'plamdan
+  pol/devor/burchakni oladi, `Tileset.getStairs()` ni esa emas — u qavatlar
+  bilan birga qo'shilganda unutilgan. Ya'ni birinchi zinapoya ko'ringanda model
+  chizuvchi oqimda o'qiladi. Bitta qatorlik tuzatish, ataylab keyinga
+  qoldirilgan: asset ko'chirish refactori bilan aralashmasin.
 - **Ikki bosqich, va ikkinchisi asosiy:**
   1. *O'qish* — alohida oqimda (`duke-art`, daemon). jME asset manager buni
      ko'taradi: parsing umumiy keshga tushadi, sahna grafiga tegilmaydi. Shuning
@@ -2308,10 +2313,12 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/{Tileset,TileSource}.java` | to'plam ta'rifi + bo'lak yuklovchisi choki |
 | `client3d/…/client3d/AnimationLibrary.java` | klipni boshqa skeletga nom bo'yicha qayta ulash |
 | `dungeon/…/dungeon/content/MonsterLook.java` | model/teri/bo'y/rang — turdan alohida, simulyatsiya o'qimaydi |
-| `dungeon/src/main/resources/Models/dungeon/` | Kenney to'plami (CC0) + `colormap.png` atlasi |
-| `dungeon/src/main/resources/Models/monsters/` | Quaternius Bestiary + Universal Animation Library |
-| `dungeon/src/main/resources/Models/hero/` | Mixamo qahramoni + har harakat uchun bitta fayl |
-| `dungeon/src/main/resources/Models/theme-*/` | uchta to'plam (CC0 OBJ) |
+| `dungeon/src/main/resources/models/tiles/<tema>/` | pol, devor, burchak, zinapoya — tema bo'yicha (Kenney glb + uchta Quaternius OBJ kiti). `kenney/Textures/` — atlas, nomi `.glb` ichida yozilgani uchun katta harfli |
+| `dungeon/src/main/resources/models/props/<tema>/` | ustun, haykal, bochka — tema bo'yicha |
+| `dungeon/src/main/resources/models/monsters/` | Quaternius Bestiary + `textures/` |
+| `dungeon/src/main/resources/models/heroes/` | Mixamo qahramoni |
+| `dungeon/src/main/resources/animations/{hero,monsters}/` | modeldan tashqaridagi klip fayllar |
+| `dungeon/src/main/resources/_unused/` | hech kim murojaat qilmaydigan 5 fayl — README bilan |
 | `dungeon/…/dungeon/content/{ThemeArt,Themes}.java` | to'plam ta'rifi + chuqurlik→to'plam tanlovi (sof) |
 | `dungeon/…/dungeon/content/HeroLook.java` | qahramon ko'rinishi — animatsiyasi fayl bo'yicha, nom bo'yicha emas |
 | `dungeon/…/dungeon/Dungeon.java` | o'yinni yig'ish (fixture xona va haqiqiy o'yin) |
@@ -2327,7 +2334,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/{SoundBank,Sounds,SoundSink,AudioSink,GameSounds}.java` | ovoz: o'yin aytgani, qoidalar, chiqish joyi, jME, kadr→lahza |
 | `dungeon/src/main/resources/audio/` | to'rt Kenney to'plami (CC0) + uchta trek; nomlari ma'noli |
 | `client3d/…/client3d/HeroPanel.java` | qahramon paneli — tosh uyalar, barlar, chuqurlik; ikonka yo'li INI'dan keladi |
-| `dungeon/src/main/resources/Icons/skills/` | skill ikonkalari — 128×128 shaffof PNG (Lorc, CC BY 3.0) |
+| `dungeon/src/main/resources/icons/skills/` | skill ikonkalari — 128×128 shaffof PNG (Lorc, CC BY 3.0) |
 | `CREDITS.md` | san'at mualliflari va litsenziyalari — CC BY talab qiladigan atribut |
 | `client3d/…/client3d/Hotkeys.java` | o'yin da'vo qilgan klavishlar → `postCommand`; klavish to'qnashuvini hal qiladi |
 | `dungeon/…/dungeon/level/Levelling.java` | daraja qoidalari — sof, INI qiymatlaridan |
@@ -2346,4 +2353,4 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/FogMap.java` | tumanning o'zi — xaritaning qorong'ilik surati (alfa-tekstura) |
 | `client3d/src/main/resources/MatDefs/duke/` | relyef materiali: tumanni dunyo x/z bo'yicha o'qiydigan shader |
 | `client3d/…/client3d/EdgeScroll.java` | kursor bilan kamerani surish sozlamasi |
-| `dungeon/src/main/resources/uz/duke/dungeon/*.ini` | o'yin ma'lumoti — kompilyatsiyasiz sozlanadi |
+| `dungeon/src/main/resources/ini/*.ini` | o'yin ma'lumoti — kompilyatsiyasiz sozlanadi |
