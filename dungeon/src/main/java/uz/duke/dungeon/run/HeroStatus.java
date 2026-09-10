@@ -18,7 +18,8 @@ import uz.duke.dungeon.skill.Skills;
  *
  * <pre>
  * name=Erika|rank=7-daraja|hp=128/200|xp=38/100|depth=III|depthWord=CHUQURLIK
- *   |skill=Q,ready|skill=W,cool,72,165|skill=E,ready|skill=R,lock,5-daraja
+ *   |skill=Q,Icons/skills/arrowhead.png,ready|skill=W,Icons/skills/arrow-cluster.png,cool,72,165
+ *   |skill=E,Icons/skills/sprint.png,ready|skill=R,Icons/skills/hood.png,lock,5-daraja
  *   |pwWord=Kuchlar|pw=shot,2|pw=boot,1
  *   |offer=3,8-daraja,Bittasini tanlang
  *   |opt=shot,O'tkir uch,Q zarari +25%
@@ -65,7 +66,7 @@ final class HeroStatus {
         appendStats(line, hero, progress, powers, settings);
         var book = hero.findModule(SkillBook.class);
         if (book != null) {
-            line.append(Skills.slots(book, level, settings.hudRankSuffix()));
+            line.append(Skills.slots(book, level, settings.hudRankSuffix(), settings::hudIcon));
         }
         appendPowers(line, powers, settings);
         appendOffer(line, powers, settings);

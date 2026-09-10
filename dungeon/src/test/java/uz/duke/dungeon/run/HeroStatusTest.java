@@ -88,9 +88,31 @@ class HeroStatusTest {
                         new AssertionError("nothing is locked at level one any more"));
 
         assertTrue(lineFrom(5L).contains(
-                        "|skill=" + waiting.key() + ",lock,"
-                                + waiting.unlockLevel() + settings.hudRankSuffix()),
+                        "|skill=" + waiting.key() + "," + settings.hudIcon(waiting.icon())
+                                + ",lock," + waiting.unlockLevel() + settings.hudRankSuffix()),
                 "the locked slot should name its level the way the panel names them");
+    }
+
+    /**
+     * Each slot carries the picture the file gave it, found where the file says to
+     * look for it.
+     *
+     * <p>The whole point of naming icons in INI: the client is handed a path and
+     * draws whatever is at it, so a fifth skill is a fifth block of the file rather
+     * than a line of Java. This is that from the writing end — {@code HeroPanelTest}
+     * holds the other.
+     */
+    @Test
+    void everySlotCarriesThePictureTheFileGaveIt() {
+        var line = lineFrom(77L);
+        var settings = DungeonSettings.load();
+
+        for (var skill : settings.skills()) {
+            var icon = settings.hudIcon(skill.icon());
+            assertFalse(icon.isBlank(), skill.key() + " was given no Icon in dungeon.ini");
+            assertTrue(line.contains("|skill=" + skill.key() + "," + icon + ","),
+                    skill.key() + " should carry " + icon + " in " + line);
+        }
     }
 
     /** The panel's words are the file's — the client writes none of its own. */

@@ -49,19 +49,27 @@ public final class Skills {
      * The four slots, as fields of the status channel — one {@code |skill=…} each,
      * in the order the file lists them.
      *
-     * <p>A slot is its key and one of three states: {@code ready}, {@code cool}
-     * with the frames left and the frames it started from, or {@code lock} with the
-     * words to write across it. The cooldown crosses as a pair rather than as a
-     * count of seconds because the panel draws it as well as writes it, and a
-     * fraction is what a shadow sweeping round a slot is made of.
+     * <p>A slot is its key, the picture to draw in it, and one of three states:
+     * {@code ready}, {@code cool} with the frames left and the frames it started
+     * from, or {@code lock} with the words to write across it. The cooldown crosses
+     * as a pair rather than as a count of seconds because the panel draws it as
+     * well as writes it, and a fraction is what a shadow sweeping round a slot is
+     * made of.
+     *
+     * <p>The picture crosses as a <em>path</em> rather than as a name. The client
+     * serves other games and has no business knowing where this one keeps its art;
+     * naming the file here means a fifth skill is a fifth block of INI. An empty
+     * one is allowed and means the slot falls back to the letter of its key.
      *
      * <p>{@code rankSuffix} is the game's word for a level, so that a locked slot
      * can say what it is waiting for in the same language as the rest of the panel.
      */
-    public static String slots(SkillBook book, int level, String rankSuffix) {
+    public static String slots(SkillBook book, int level, String rankSuffix,
+            java.util.function.UnaryOperator<String> iconPath) {
         var fields = new StringBuilder();
         for (var skill : book.getSkills()) {
-            fields.append("|skill=").append(skill.key()).append(',');
+            fields.append("|skill=").append(skill.key()).append(',')
+                    .append(iconPath.apply(skill.icon())).append(',');
             if (!skill.unlockedAt(level)) {
                 fields.append("lock,").append(skill.unlockLevel()).append(rankSuffix);
                 continue;

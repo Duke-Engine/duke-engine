@@ -37,6 +37,10 @@ package uz.duke.dungeon.skill;
  * @param projectile    the creature a {@code STRIKE} becomes on its way, or empty
  *     to land where it stands. An arrow that crosses the room is the difference
  *     between a shot and an accusation.
+ * @param icon          the picture the panel draws in this skill's slot, as a file
+ *     beside the other art, or empty for the letter the key is called. Which
+ *     drawing goes with which skill is a matter for the file: a fifth skill should
+ *     be a fifth block of INI, and nothing in Java should have to learn its name.
  */
 public record Skill(
         String heroTemplate,
@@ -54,7 +58,8 @@ public record Skill(
         int cooldownPerLevel,
         int unlockLevel,
         int windUpFrames,
-        String projectile) {
+        String projectile,
+        String icon) {
 
     /**
      * A cooldown can shorten with level but never vanish: a skill castable every

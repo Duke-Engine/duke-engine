@@ -452,6 +452,13 @@ public final class DungeonSettings {
             require(sayable(power.name()) && sayable(power.description()),
                     "a power's Name and Desc may not contain ',' or '|': " + power.id());
         }
+        require(sayable(hudIconFolder), "IconFolder may not contain ',' or '|'");
+        for (var skill : skills) {
+            // The panel is told which picture to draw down the status line, and
+            // the line is split on those two characters.
+            require(sayable(skill.icon()),
+                    "a skill's Icon may not contain ',' or '|': " + skill.key());
+        }
     }
 
     private static boolean sayable(String words) {
@@ -698,6 +705,7 @@ public final class DungeonSettings {
         int unlockLevel = 1;
         int windUpFrames;
         String projectile = "";
+        String icon = "";
 
         SkillBuilder(String heroTemplate, String key) {
             this.heroTemplate = heroTemplate;
@@ -707,7 +715,7 @@ public final class DungeonSettings {
         Skill build() {
             return new Skill(heroTemplate, key, effect, damage, damagePerLevel, radius, range,
                     distance, boostPercent, boostPerLevel, durationFrames, cooldownFrames,
-                    cooldownPerLevel, unlockLevel, windUpFrames, projectile);
+                    cooldownPerLevel, unlockLevel, windUpFrames, projectile, icon);
         }
     }
 
@@ -726,7 +734,8 @@ public final class DungeonSettings {
                     .add("CooldownPerLevel", Ini.integer((s, v) -> s.cooldownPerLevel = v))
                     .add("UnlockLevel", Ini.integer((s, v) -> s.unlockLevel = v))
                     .add("WindUpFrames", Ini.integer((s, v) -> s.windUpFrames = v))
-                    .add("Projectile", Ini.string((s, v) -> s.projectile = v));
+                    .add("Projectile", Ini.string((s, v) -> s.projectile = v))
+                    .add("Icon", Ini.string((s, v) -> s.icon = v));
 
     /** Accumulates one {@code DungeonLootItem <id>} block. */
     private static final class LootBuilder {
@@ -1133,6 +1142,17 @@ public final class DungeonSettings {
         return hudSpeedWord;
     }
 
+    private String hudIconFolder = "";
+
+    /**
+     * Where a skill's {@code Icon} is to be found, joined onto the front of it —
+     * the same arrangement the tile kit uses, and for the same reason: a folder
+     * written once beats a folder written on every line that names a file.
+     */
+    public String hudIcon(String icon) {
+        return icon == null || icon.isBlank() ? "" : hudIconFolder + icon;
+    }
+
     private static final FieldParseTable<DungeonSettings> HUD =
             new FieldParseTable<DungeonSettings>()
                     .add("DepthWord", Ini.restOfLine((s, v) -> s.hudDepthWord = v))
@@ -1141,7 +1161,8 @@ public final class DungeonSettings {
                     .add("ChooseWord", Ini.restOfLine((s, v) -> s.hudChooseWord = v))
                     .add("AttackWord", Ini.restOfLine((s, v) -> s.hudAttackWord = v))
                     .add("ArmourWord", Ini.restOfLine((s, v) -> s.hudArmourWord = v))
-                    .add("SpeedWord", Ini.restOfLine((s, v) -> s.hudSpeedWord = v));
+                    .add("SpeedWord", Ini.restOfLine((s, v) -> s.hudSpeedWord = v))
+                    .add("IconFolder", Ini.string((s, v) -> s.hudIconFolder = v));
 
     private static final FieldParseTable<DungeonSettings> HERO_LOOK =
             new FieldParseTable<DungeonSettings>()

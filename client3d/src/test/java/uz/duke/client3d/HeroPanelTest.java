@@ -26,7 +26,10 @@ class HeroPanelTest {
     /** A line of the kind the dungeon sends, with all three skill states in it. */
     private static final String LINE =
             "name=Erika|rank=7-daraja|hp=128/200|xp=38/100|depth=III|depthWord=CHUQURLIK"
-                    + "|skill=Q,ready|skill=W,cool,72,165|skill=E,ready|skill=R,lock,5-daraja";
+                    + "|skill=Q,Icons/skills/arrowhead.png,ready"
+                    + "|skill=W,Icons/skills/arrow-cluster.png,cool,72,165"
+                    + "|skill=E,Icons/skills/sprint.png,ready"
+                    + "|skill=R,Icons/skills/hood.png,lock,5-daraja";
 
     @Test
     void aDungeonLineIsRead() {
@@ -70,7 +73,7 @@ class HeroPanelTest {
     @Test
     void aLongCooldownIsRoundedToWholeSeconds() {
         var skills = HeroPanel.Reading.parse(
-                "name=E|rank=1|hp=1/1|xp=0/1|depth=I|depthWord=D|skill=R,cool,820,900").skills();
+                "name=E|rank=1|hp=1/1|xp=0/1|depth=I|depthWord=D|skill=R,,cool,820,900").skills();
 
         assertEquals("27", skills.get(0).label());
     }
@@ -90,8 +93,8 @@ class HeroPanelTest {
     void aBrokenLineIsRefused() {
         assertNull(HeroPanel.Reading.parse("name=Erika|hp=lots/200"));
         assertNull(HeroPanel.Reading.parse("name=Erika|hp=200"));
-        assertNull(HeroPanel.Reading.parse("name=Erika|skill=Q,melted"));
-        assertNull(HeroPanel.Reading.parse("name=Erika|skill=Q,cool,72"),
+        assertNull(HeroPanel.Reading.parse("name=Erika|skill=Q,,melted"));
+        assertNull(HeroPanel.Reading.parse("name=Erika|skill=Q,,cool,72"),
                 "a cooldown without its total has no fraction to sweep");
     }
 
@@ -123,6 +126,77 @@ class HeroPanelTest {
         assertNotNull(reading, "the panel went blank over a field meant for somebody else");
         assertEquals("Erika", reading.name());
         assertEquals(4, reading.skills().size(), "and read everything it does draw");
+    }
+
+    // ---- the picture in the slot ----
+
+    /**
+     * Which picture goes in which slot is the game's answer, carried down the
+     * line — so changing it in the file changes what the panel draws.
+     *
+     * <p>The point of the whole arrangement. The client serves three other games
+     * and cannot be the place that knows a dungeon's ultimate is an explosion; a
+     * fifth skill has to be a fifth block of INI and no Java at all. This is that
+     * promise from the reading end: the same line with a different name in it comes
+     * out as a different picture.
+     */
+    @Test
+    void thePictureForASlotComesDownTheLine() {
+        var skills = HeroPanel.Reading.parse(LINE).skills();
+
+        assertEquals("Icons/skills/arrowhead.png", skills.get(0).icon());
+        assertEquals("Icons/skills/arrow-cluster.png", skills.get(1).icon(),
+                "a slot on cooldown still knows what it is a picture of");
+        assertEquals("Icons/skills/hood.png", skills.get(3).icon(),
+                "and so does one that is still locked");
+
+        var renamed = HeroPanel.Reading.parse(
+                LINE.replace("Icons/skills/arrowhead.png", "Some/Other/picture.png")).skills();
+        assertEquals("Some/Other/picture.png", renamed.get(0).icon(),
+                "the file said a different picture, so the slot gets a different picture");
+    }
+
+    /**
+     * A slot with no picture named is a slot, not a hole.
+     *
+     * <p>Every other game this client serves sends no icons at all, and this one
+     * sent none until there were any. The empty field has to survive.
+     */
+    @Test
+    void aSlotWithNoPictureIsStillRead() {
+        var skills = HeroPanel.Reading.parse(
+                "name=E|rank=1|hp=1/1|xp=0/1|depth=I|depthWord=D|skill=Q,,ready").skills();
+
+        assertEquals(1, skills.size());
+        assertEquals("", skills.get(0).icon());
+        assertEquals(HeroPanel.Reading.State.READY, skills.get(0).state());
+    }
+
+    /**
+     * A picture the client cannot find costs the panel a slot's carving, not the
+     * game.
+     *
+     * <p>The game names its own art and nothing checks the spelling until the file
+     * is asked for. So the miss has to end in a fallback rather than in an
+     * exception: no name, a name nothing answers to, and no asset manager at all
+     * are all "draw the letter instead".
+     */
+    @Test
+    void aPictureThatWillNotLoadFallsBackInsteadOfThrowing() {
+        var assets = new com.jme3.asset.DesktopAssetManager(true);
+        var missing = new java.util.HashSet<String>();
+
+        assertNull(HeroPanel.iconTexture(assets, "Icons/skills/no-such-icon.png", missing),
+                "a name nothing answers to");
+        assertNull(HeroPanel.iconTexture(assets, "", missing), "no name at all");
+        assertNull(HeroPanel.iconTexture(assets, null, missing));
+        assertNull(HeroPanel.iconTexture(null, "Common/Textures/dot.png", missing),
+                "and no asset manager, which is what a test harness has");
+
+        assertEquals(1, missing.size(),
+                "the miss is worth saying once; a slot is redrawn many times a second");
+        assertNotNull(HeroPanel.iconTexture(assets, "Common/Textures/dot.png", missing),
+                "and something that is really there still loads");
     }
 
     /** A hero with no skills at all is still a hero with health. */

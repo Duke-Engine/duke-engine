@@ -15,9 +15,13 @@ import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.VertexBuffer;
 import com.jme3.scene.shape.Quad;
+import com.jme3.texture.Texture;
 import com.jme3.util.BufferUtils;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.logging.Logger;
 import uz.duke.core.GameConstants;
 
 /**
@@ -120,6 +124,19 @@ final class HeroPanel {
 
     /** The key the design draws an ultimate for. Any other key gets an ordinary slot. */
     private static final char ULTIMATE_KEY = 'R';
+
+    /**
+     * How much of a slot the icon fills, leaving stone showing round it.
+     *
+     * <p>A picture pressed to the edges of a socket stops reading as something set
+     * into stone; the margin is what makes it a carving rather than a sticker.
+     */
+    private static final float ICON_SHARE = 0.62f;
+
+    private static final Logger LOG = Logger.getLogger(HeroPanel.class.getName());
+
+    /** Icons the game named and the client could not find — warned about once each. */
+    private final Set<String> missingIcons = new HashSet<>();
 
     private final AssetManager assets;
     private final BitmapFont font;
@@ -614,13 +631,16 @@ final class HeroPanel {
     private final Node skillRow = new Node("skills");
 
     private void showSkills(List<Reading.SkillReading> reading) {
-        var keys = new StringBuilder();
+        // The picture is part of what a slot IS, not part of what it is doing, so
+        // a changed icon rebuilds the row exactly as a changed key does. Which is
+        // also what lets an icon be swapped in the file and seen without a build.
+        var carving = new StringBuilder();
         for (var skill : reading) {
-            keys.append(skill.key);
+            carving.append(skill.key()).append(skill.icon()).append(';');
         }
-        if (!keys.toString().equals(builtFor)) {
+        if (!carving.toString().equals(builtFor)) {
             buildSlots(reading);
-            builtFor = keys.toString();
+            builtFor = carving.toString();
         }
         for (int i = 0; i < slots.size() && i < reading.size(); i++) {
             dress(slots.get(i), reading.get(i));
@@ -636,8 +656,8 @@ final class HeroPanel {
             contents.attachChild(skillRow);
         }
         for (var skill : reading) {
-            var slot = new Slot(skill.key, skill.key == ULTIMATE_KEY ? ULT_SLOT : SLOT);
-            carve(slot);
+            var slot = new Slot(skill.key(), skill.key() == ULTIMATE_KEY ? ULT_SLOT : SLOT);
+            carve(slot, skill.icon());
             slots.add(slot);
             skillRow.attachChild(slot.node);
         }
@@ -645,7 +665,7 @@ final class HeroPanel {
     }
 
     /** Cut one slot out of the stone: drop, edge, face, lit lip, inner shadow. */
-    private void carve(Slot slot) {
+    private void carve(Slot slot, String icon) {
         float size = slot.size;
         attach(slot.node, flat("drop", size + 4f, size + 4f, DROP), -2f, -2f - DROP_DEPTH, 0f);
         // A torch-coloured lip around the socket, shown only while this is the
@@ -677,9 +697,16 @@ final class HeroPanel {
         attach(slot.node, slot.warm, 0f, 0f, 5.5f);
         slot.warm.setCullHint(Spatial.CullHint.Always);
 
-        slot.glyph = new Geometry("glyph", Glyphs.of(String.valueOf(slot.key), size * 0.53f));
-        slot.glyph.setMaterial(lines(TORCH));
-        attach(slot.node, slot.glyph, size / 2f, size / 2f, 6f);
+        slot.glyph = picture(icon, size);
+        if (slot.glyph == null) {
+            slot.glyph = new Geometry("glyph", Glyphs.of(String.valueOf(slot.key), size * 0.53f));
+            slot.glyph.setMaterial(lines(TORCH));
+            attach(slot.node, slot.glyph, size / 2f, size / 2f, 6f);
+        } else {
+            // A quad grows from its own corner, so it is placed rather than centred.
+            float inset = size * (1f - ICON_SHARE) / 2f;
+            attach(slot.node, slot.glyph, inset, inset, 6f);
+        }
 
         slot.sweep = new Geometry("sweep", new Mesh());
         slot.sweep.setMaterial(unshaded(new ColorRGBA(0.031f, 0.024f, 0.02f, 0.82f)));
@@ -697,6 +724,56 @@ final class HeroPanel {
         key.setText(String.valueOf(slot.key));
         key.setLocalTranslation(0f, key.getLocalTranslation().y, 8f);
         slot.node.attachChild(key);
+    }
+
+    /**
+     * The game's own picture for a slot, or {@code null} to fall back to the letter
+     * of the key.
+     *
+     * <p>The image is white and is <em>tinted</em> as it is drawn, exactly as the
+     * letter was: one file then serves a slot that is ready, one that is reloading
+     * and one that is still locked, and {@link #dress} goes on setting a colour
+     * without caring which of the two it has.
+     *
+     * <p>A picture that will not load is not a reason to lose the panel. The game
+     * names its own art and the client cannot check the spelling — so a missing one
+     * is said once, in the log, and the slot falls back to what it looked like
+     * before there were any pictures.
+     */
+    private Geometry picture(String icon, float size) {
+        var texture = iconTexture(assets, icon, missingIcons);
+        if (texture == null) {
+            return null;
+        }
+        float side = size * ICON_SHARE;
+        var quad = new Geometry("icon", new Quad(side, side));
+        var material = unshaded(TORCH);
+        material.setTexture("ColorMap", texture);
+        quad.setMaterial(material);
+        return quad;
+    }
+
+    /**
+     * Load an icon, or give back {@code null} — for no name, or for a name nothing
+     * answers to.
+     *
+     * <p>Static and handed everything it needs so that the fallback can be held
+     * still by a test: what happens when the file is not there is the part of this
+     * nobody exercises by playing.
+     */
+    static Texture iconTexture(AssetManager assets, String icon, Set<String> missing) {
+        if (assets == null || icon == null || icon.isBlank()) {
+            return null;
+        }
+        try {
+            return assets.loadTexture(icon);
+        } catch (RuntimeException e) {
+            if (missing.add(icon)) {
+                LOG.warning(() -> "skill icon not found: " + icon + " (" + e.getMessage()
+                        + ") — drawing the key instead");
+            }
+            return null;
+        }
     }
 
     private void dress(Slot slot, Reading.SkillReading skill) {
@@ -1157,8 +1234,17 @@ final class HeroPanel {
 
         enum State { READY, COOLING, LOCKED }
 
-        /** One slot: its key, its state, the words on it, and how much shadow is left. */
-        record SkillReading(char key, State state, String label, float left) {
+        /**
+         * One slot: its key, the picture to draw in it, its state, the words on it,
+         * and how much shadow is left.
+         *
+         * <p>{@code icon} is a path to an image, given by the game, and empty when
+         * the game named none — which is not a failure: a slot with no picture is
+         * drawn with the letter of its key, as every slot was before there were any
+         * pictures. The client never invents one, because it has three other games
+         * to serve and no idea where any of them keeps its art.
+         */
+        record SkillReading(char key, String icon, State state, String label, float left) {
         }
 
         /** One figure under the bars: what it is called and what it is. */
@@ -1253,20 +1339,28 @@ final class HeroPanel {
             }
         }
 
-        /** {@code Q,ready} — {@code W,cool,72,165} — {@code R,lock,5-daraja}. */
+        /**
+         * {@code Q,icon,ready} — {@code W,icon,cool,72,165} — {@code R,icon,lock,5-daraja}.
+         *
+         * <p>The icon comes second because it belongs to the slot rather than to
+         * the state: a skill's picture does not change when it goes on cooldown,
+         * and putting it before the state keeps the three states the same shape as
+         * each other. It may be empty.
+         */
         private static SkillReading skill(String value) {
-            var parts = value.split(",");
-            if (parts.length < 2 || parts[0].length() != 1) {
+            var parts = value.split(",", -1);
+            if (parts.length < 3 || parts[0].length() != 1) {
                 return null;
             }
             char key = parts[0].charAt(0);
+            String icon = parts[1];
             try {
-                return switch (parts[1]) {
-                    case "ready" -> new SkillReading(key, State.READY, "", 0f);
-                    case "lock" -> parts.length < 3 ? null
-                            : new SkillReading(key, State.LOCKED, parts[2], 1f);
-                    case "cool" -> parts.length < 4 ? null : cooling(key,
-                            Integer.parseInt(parts[2]), Integer.parseInt(parts[3]));
+                return switch (parts[2]) {
+                    case "ready" -> new SkillReading(key, icon, State.READY, "", 0f);
+                    case "lock" -> parts.length < 4 ? null
+                            : new SkillReading(key, icon, State.LOCKED, parts[3], 1f);
+                    case "cool" -> parts.length < 5 ? null : cooling(key, icon,
+                            Integer.parseInt(parts[3]), Integer.parseInt(parts[4]));
                     default -> null;
                 };
             } catch (NumberFormatException e) {
@@ -1322,12 +1416,12 @@ final class HeroPanel {
          * and must, but a player reading a number off a slot thinks in seconds —
          * and the conversion is the engine's own constant, not a second copy of it.
          */
-        private static SkillReading cooling(char key, int left, int total) {
+        private static SkillReading cooling(char key, String icon, int left, int total) {
             float seconds = left / (float) GameConstants.LOGICFRAMES_PER_SECOND;
             var label = seconds >= 10f
                     ? String.valueOf(Math.round(seconds))
                     : String.format(java.util.Locale.ROOT, "%.1f", seconds);
-            return new SkillReading(key, State.COOLING, label,
+            return new SkillReading(key, icon, State.COOLING, label,
                     total <= 0 ? 0f : left / (float) total);
         }
     }
