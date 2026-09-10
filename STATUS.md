@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-10 · **Testlar:** 617 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-10 · **Testlar:** 626 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -1215,8 +1215,9 @@ ikkala peer aynan bir kadrda qo'llaydi.
     bilmaydi (RTS'da relyef ko'rinadi, faqat birliklar yashirin). `Discovery`
     (client3d) katak bo'yicha ikkita `BitSet` yuritadi: `explored` (hech qachon
     tozalanmaydi = xotira) va `visible` (har kadr qayta yoziladi = ko'zlar).
-    `TerrainScene` har katakka "qopqoq" beradi, minimap esa har katakni holat
-    bo'yicha bo'yaydi.
+    `TerrainScene` ko'rinmaydigan kataklarni rasmdan chiqaradi, qorong'ilikning
+    o'zini xarita ustidagi parda chizadi (`FogOverlay`), minimap esa har katakni
+    holat bo'yicha bo'yaydi.
   - **Radius bitta manbadan.** `Visuals.discoveredBy("Hero")` — masofa emas,
     **template nomi**: radius o'sha template'ning `VisionRange`i, ya'ni aynan
     engine tumani ishlatadigan raqam. Shuning uchun yer ochilishi va dushman
@@ -1229,8 +1230,9 @@ ikkala peer aynan bir kadrda qo'llaydi.
   - Tuman `refreshWorldIfChanged` da nolga qaytadi, ya'ni yangi run ham, yangi
     chuqurlik ham qop-qora boshlanadi (`applyMapTerrain` grid nusxasini
     almashtiradi — klientга alohida signal kerak emas).
-  - Tumanni **so'ramagan o'yin hech narsa to'lamaydi**: qopqoq qurilmaydi, sikl
-    ishlamaydi. `studio` va oddiy RTS xulqi o'zgarmagan.
+  - Tumanni **so'ramagan o'yin hech narsa to'lamaydi**: parda qurilmaydi, katak
+    bo'yicha hisob yuritilmaydi, sikl ishlamaydi. `studio` va oddiy RTS xulqi
+    o'zgarmagan.
 - **Qahramonda 4 ta skill (Q W E R)** — `STRIKE` (eng yaqin dushmanga zarba),
   `AREA_DAMAGE` (atrofdagilarga), `DASH` (yuzi tomon otilish), `EMPOWER`
   (ultimate: vaqtincha zarar oshishi, 5-darajadan ochiladi).
@@ -1464,9 +1466,6 @@ ikkala peer aynan bir kadrda qo'llaydi.
   - **Vaqt bo'yicha:** hech narsa sakramaydi, sekundiga 7 ulush bilan maqsadiga
     yaqinlashadi — kadrga emas, sekundga, aks holda tezroq mashinada tuman
     tezroq ochilardi.
-  - `TileSource.shade` endi `boolean` emas, `float` oladi; `KitTiles` 12 pog'onali
-    material narvonini bir marta quradi va har bir bo'lak o'z pog'onasiga ishora
-    qiladi.
   - **Ochiladigan narsa o'zgarmadi:** silliqlash ochilgan hujayralar to'plamini
     faqat o'qiydi, hech qachon yozmaydi (`softeningOpensNothing` shuni qulflaydi).
 - **Nishonli skillar** — `CastSkill` endi o'yinchi nimani bosganini olib yuradi.
@@ -1573,9 +1572,9 @@ ikkala peer aynan bir kadrda qo'llaydi.
     turish ikki tomondagi xonalarni ham yoritardi.
   - **Chekka yumshoqligi sozlanadi** — silliqlash yadrosi endi piramida
     (`SoftenCells` radiusi): 1 da eski 4-2-1, kattaroq radiusda asta so'nadi.
-  - **Tuman rangi bor.** Plitka materiallari narvonining quyi uchi qora emas,
-    `Tint` — ochilgan xona "yoritilmagan tosh" emas, "qorong'idan ko'ringan tosh"
-    bo'ladi. O'sha rang oynaning fon rangi ham (ikkalasi bitta qorong'ilik).
+  - **Tuman rangi bor.** Qorong'ilik qora emas, `Tint` — ochilgan xona
+    "yoritilmagan tosh" emas, "qorong'idan ko'ringan tosh" bo'ladi. O'sha rang
+    oynaning fon rangi ham (ikkalasi bitta qorong'ilik).
   - Hammasi `DungeonFog` blokida; `Fog` yozuvi klientda, so'ramagan o'yin
     avvalgidek qoladi (LOS o'chiq, qora tuman).
 - **Loot — o'lgan monster nimadir qoldiradi** — ustiga borilsa olinadi va run
@@ -1655,6 +1654,35 @@ ikkala peer aynan bir kadrda qo'llaydi.
     xulqining aynan o'zi.
   - Shu sababli **Resolution — keyingi ishga tushirish sozlamasi** (menyu shunday
     deb yozadi), Fullscreen esa darhol.
+- **Tuman — geometriyaning xossasi emas, xarita ustidagi bitta parda**
+  (`client3d/FogOverlay`). Ilgari har hujayra o'z yorqinligini olib, uni butun
+  plitkasiga tekis bo'yardi — natijada pol 10 birlikli kvadratlarga bo'linardi.
+  Silliqlash bor edi, lekin **noto'g'ri o'lchamda** ishlardi.
+  - **Parda = tekstura.** O'lchami `TextureSize` (INI, standart 256) — plitka
+    o'lchamiga hech qanday aloqasi yo'q. Har kadrda har teksel **o'z nuqtasining**
+    yorqinligini so'raydi (`Discovery.lightAtPoint`), karta esa tekseller orasini
+    o'zi to'ldiradi (Bilinear) — chekka piksel o'lchamida silliq bo'ladi.
+    **Shader yo'q**: RGBA8 alfa teksturasi va oddiy alpha-blend.
+  - **Interpolatsiya smoothstep** bilan: to'g'ri chiziqli og'irliklar uzluksiz,
+    lekin **qiyaligi** uzluksiz emas, va har hujayra chegarasidagi qiyalik
+    o'zgarishi kvadratlar kabi ko'zga tashlanadigan burma beradi.
+  - **Parda devor balandligida osilgan, polda emas.** Tekis parda dunyo bilan
+    faqat bitta balandlikda mos tushadi; **qirralari bor** yuzalar — tosh
+    ustidagi qopqoqlar — o'sha yerda. Polda ossa, har qopqoqning yarmi qorayib,
+    yarmi yoritilgan qolardi. Pol esa faqat gradient, va yarim hujayra siljigan
+    gradient — o'sha gradient (`TerrainScene.standingHeight`).
+  - **Depth-test o'chiq**, oxirgi bo'lib chiziladi — ya'ni pol, devor, sandiq,
+    qahramon ketib qolgan xonadagi hamma narsa bitta pardaning ostida birga
+    qorayadi. Ilgari faqat plitkalar qorayardi.
+  - `TerrainScene` endi **faqat cull qiladi**, hech narsani bo'yamaydi;
+    `TileSource` bitta `piece()` metodiga qisqardi (12 pog'onali material narvoni
+    va qora "qopqoq" quadlar o'chdi). Cull qoidasi ikki hujayra atrofni
+    tekshiradi (`Discovery.hidden`) — aks holda parda hali shaffofmas bo'lmagan
+    joyda geometriya o'chib, teshik qolardi.
+  - **Uch qatlam ravshanligi INI'da**: `UnseenPercent` / `RememberedPercent` /
+    `VisiblePercent`. Fon rangi endi aynan `Tint` (ilgari `Tint × 0.55` edi) —
+    xarita ichidagi ochilmagan joy va xaritadan tashqarisi bir xil bo'lsin, aks
+    holda parda xarita chegarasini to'rtburchak qilib chizardi.
 
 ---
 
@@ -1963,6 +1991,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/ai/SightLine.java` | devor ko'rishni to'sadimi — sof arifmetika, grid ustida |
 | `dungeon/…/dungeon/combat/EyesOnly.java` | ko'rmaganiga otmaydi; engine'ning avto-tanlashini o'chiradi |
 | `client3d/…/client3d/LevelUpOverlay.java` | daraja tanlash ekrani — mexanizm klientniki, so'zlar o'yinniki |
-| `client3d/…/client3d/Fog.java` | tuman sozlamasi (LOS, xotira yorqinligi, yumshoqlik, rang) |
+| `client3d/…/client3d/Fog.java` | tuman sozlamasi (LOS, uch qatlam yorqinligi, yumshoqlik, tekstura o'lchami, rang) |
+| `client3d/…/client3d/FogOverlay.java` | tumanning o'zi — xarita ustidagi bitta alfa-tekstura pardasi |
 | `client3d/…/client3d/EdgeScroll.java` | kursor bilan kamerani surish sozlamasi |
 | `dungeon/src/main/resources/uz/duke/dungeon/*.ini` | o'yin ma'lumoti — kompilyatsiyasiz sozlanadi |

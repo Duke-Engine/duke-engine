@@ -393,10 +393,19 @@ public final class DungeonSettings {
         require(levelUpBannerFrames >= 0, "the level-up message cannot last negative frames");
         require(edgeScrollMargin >= 0, "the screen's edge cannot be a negative width");
         require(edgeScrollSpeedPercent >= 0, "a camera cannot be shoved backwards");
+        require(fogUnseenPercent >= 0 && fogUnseenPercent <= 100,
+                "UnseenPercent is a share of a lit room");
         require(fogRememberedPercent >= 0 && fogRememberedPercent <= 100,
                 "RememberedPercent is a share of a lit room");
+        require(fogVisiblePercent >= 0 && fogVisiblePercent <= 100,
+                "VisiblePercent is a share of a lit room");
+        require(fogUnseenPercent <= fogRememberedPercent
+                        && fogRememberedPercent <= fogVisiblePercent,
+                "the three shades have to darken in that order, or the map reads backwards");
         require(fogSoftenCells >= 0, "the fog cannot be smeared over negative cells");
         require(fogOpenPerSecond > 0, "fog that never opens is a black screen");
+        require(fogTextureSize >= 8 && fogTextureSize <= 2048,
+                "TextureSize is the fog sheet's own resolution, between 8 and 2048");
         require(lootDropPercent >= 0 && lootDropPercent <= 100,
                 "DropPercent is a chance, not a count");
         require(lootBossDropPercent >= 0 && lootBossDropPercent <= 100,
@@ -857,9 +866,12 @@ public final class DungeonSettings {
     // ---- the dark ----
 
     private boolean fogLineOfSight = true;
+    private int fogUnseenPercent;
     private int fogRememberedPercent = 34;
+    private int fogVisiblePercent = 100;
     private int fogSoftenCells = 2;
     private int fogOpenPerSecond = 7;
+    private int fogTextureSize = 256;
     private int fogTint = 0x000000;
 
     /**
@@ -874,9 +886,19 @@ public final class DungeonSettings {
         return fogLineOfSight;
     }
 
+    /** How brightly ground nobody has walked is drawn; 0 is a black floor. */
+    public int fogUnseenPercent() {
+        return fogUnseenPercent;
+    }
+
     /** How brightly a room he has left is drawn, as a percentage of a lit one. */
     public int fogRememberedPercent() {
         return fogRememberedPercent;
+    }
+
+    /** How brightly a room in sight is drawn; 100 is the scene's own light. */
+    public int fogVisiblePercent() {
+        return fogVisiblePercent;
     }
 
     /** How many cells the edge of the light is smeared over. */
@@ -889,6 +911,11 @@ public final class DungeonSettings {
         return fogOpenPerSecond;
     }
 
+    /** How many texels across the fog sheet is drawn — nothing to do with cells. */
+    public int fogTextureSize() {
+        return fogTextureSize;
+    }
+
     /** What unlit stone fades toward — the colour of the dark itself. */
     public int fogTint() {
         return fogTint;
@@ -897,10 +924,13 @@ public final class DungeonSettings {
     private static final FieldParseTable<DungeonSettings> FOG =
             new FieldParseTable<DungeonSettings>()
                     .add("LineOfSight", Ini.bool((s, v) -> s.fogLineOfSight = v))
+                    .add("UnseenPercent", Ini.integer((s, v) -> s.fogUnseenPercent = v))
                     .add("RememberedPercent",
                             Ini.integer((s, v) -> s.fogRememberedPercent = v))
+                    .add("VisiblePercent", Ini.integer((s, v) -> s.fogVisiblePercent = v))
                     .add("SoftenCells", Ini.integer((s, v) -> s.fogSoftenCells = v))
                     .add("OpenPerSecond", Ini.integer((s, v) -> s.fogOpenPerSecond = v))
+                    .add("TextureSize", Ini.integer((s, v) -> s.fogTextureSize = v))
                     .add("Tint", (ini, s) -> s.fogTint = Integer.decode(ini.getNextToken()));
 
     private String hudDepthWord = "DEPTH";

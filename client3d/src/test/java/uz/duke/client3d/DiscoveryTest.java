@@ -281,7 +281,7 @@ class DiscoveryTest {
     private static Discovery seeing(PathGrid grid, boolean lineOfSight) {
         // No softening and no easing: this is about what is revealed, and the two
         // of them are about how it is drawn.
-        return new Discovery(grid, new Fog(lineOfSight, 0.3f, 0, 7f, 0x000000));
+        return new Discovery(grid, new Fog(lineOfSight, 0f, 0.3f, 1f, 0, 7f, 256, 0x000000));
     }
 
     /**
@@ -349,8 +349,8 @@ class DiscoveryTest {
      */
     @Test
     void theFileDecidesHowSoftTheEdgeIs() {
-        var sharp = new Discovery(GRID, new Fog(false, 0.3f, 0, 7f, 0x000000));
-        var soft = new Discovery(GRID, new Fog(false, 0.3f, 3, 7f, 0x000000));
+        var sharp = new Discovery(GRID, new Fog(false, 0f, 0.3f, 1f, 0, 7f, 256, 0x000000));
+        var soft = new Discovery(GRID, new Fog(false, 0f, 0.3f, 1f, 3, 7f, 256, 0x000000));
         var standing = List.of(at(LOCAL, 205f, 155f));
 
         sharp.reveal(standing, LOCAL, 40f);

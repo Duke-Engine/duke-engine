@@ -135,27 +135,19 @@ class TerrainSceneTest {
         return new TerrainScene(root, color -> null, true);
     }
 
-    /** Whether a cell's cover is drawn — the thing that makes ground black. */
-    private static boolean lidShown(Node root, int cellX, int cellY) {
-        return shown(root, "fog", cellX, cellY);
-    }
-
-    private static boolean rockShown(Node root, int cellX, int cellY) {
-        return shown(root, "rock", cellX, cellY);
-    }
-
     /**
-     * Found by where it stands rather than by index: a lid is laid out from the
-     * cell's near corner and a rock from its centre, so each is looked up on its
-     * own terms and the test cannot be fooled by a change of ordering.
+     * Whether a cell's stone is built into the picture.
+     *
+     * <p>Found by where it stands rather than by index, so the test cannot be
+     * fooled by a change of ordering.
      */
-    private static boolean shown(Node root, String name, int cellX, int cellY) {
+    private static boolean rockShown(Node root, int cellX, int cellY) {
         float cell = uz.duke.core.pathfind.PathGrid.DEFAULT_CELL_SIZE;
-        float x = name.equals("rock") ? (cellX + 0.5f) * cell : cellX * cell;
-        float z = name.equals("rock") ? (cellY + 0.5f) * cell : (cellY + 1) * cell;
+        float x = (cellX + 0.5f) * cell;
+        float z = (cellY + 0.5f) * cell;
         for (var child : root.getChildren()) {
             var at = child.getLocalTranslation();
-            if (child.getName().equals(name)
+            if (child.getName().equals("rock")
                     && Math.abs(at.x - x) < 0.01f && Math.abs(at.z - z) < 0.01f) {
                 return child.getCullHint() != com.jme3.scene.Spatial.CullHint.Always;
             }
@@ -165,7 +157,7 @@ class TerrainSceneTest {
 
     /**
      * A game that did not ask for discovery gets exactly what it always got — no
-     * lids, no per-cell bookkeeping, and being handed a discovery changes nothing.
+     * per-cell bookkeeping, and being handed a discovery changes nothing.
      */
     @Test
     void aGameWithoutDiscoveryIsDrawnAsBefore() {
@@ -182,10 +174,10 @@ class TerrainSceneTest {
     }
 
     /**
-     * Undiscovered stone is hidden, not blacked out. The lid lies flat on the floor
-     * and a wall stands six units above it, so a black lid alone would leave the
-     * wall sticking up out of the dark — handing the player the shape of a room he
-     * has never entered.
+     * Undiscovered stone is hidden rather than left to the fog sheet. The sheet is
+     * aligned to the ground and a rock stands six units above it, so a rock is
+     * dimmed by the ground a little way behind it — and a wall standing out of the
+     * dark hands the player the shape of a room he has never entered.
      */
     @Test
     void wallsNobodyHasSeenAreNotDrawnAtAll() {
@@ -195,11 +187,10 @@ class TerrainSceneTest {
 
         terrain.applyDiscovery(new Discovery(MapLoader.fromText(ROOM)));
 
-        assertTrue(lidShown(root, 2, 2), "the floor is covered");
-        assertTrue(!rockShown(root, 2, 0), "and the wall is not there to be seen");
+        assertTrue(!rockShown(root, 2, 0), "the wall is not there to be seen");
     }
 
-    /** Where he is standing, the cover comes off and the world is drawn lit. */
+    /** Where he is standing, the world is built into the picture. */
     @Test
     void whereHeStandsIsUncovered() {
         var root = new Node("terrain");
@@ -209,17 +200,16 @@ class TerrainSceneTest {
 
         terrain.applyDiscovery(seenFrom(grid, 25f, 25f, 20f));
 
-        assertTrue(!lidShown(root, 2, 2), "the cell he is in should be open");
-        assertTrue(rockShown(root, 2, 0), "and the wall beside him drawn");
+        assertTrue(rockShown(root, 2, 0), "the wall beside him should be drawn");
     }
 
     /**
      * Walked out of and left behind: the wall stays on the map — that is the
-     * memory — but the ground goes back under a cover, which is what tells the
-     * player at a glance that he is no longer looking at it.
+     * memory. How dim it is drawn is the sheet's; whether it is drawn at all is
+     * this class's, and the answer has to stay yes.
      */
     @Test
-    void aRoomHeHasLeftKeepsItsWallsUnderCover() {
+    void aRoomHeHasLeftKeepsItsWalls() {
         var root = new Node("terrain");
         var terrain = discovering(root);
         var grid = MapLoader.fromText(ROOM);
@@ -228,16 +218,25 @@ class TerrainSceneTest {
 
         seen.reveal(java.util.List.of(unit(25f, 25f)), 0, 20f);
         seen.reveal(java.util.List.of(unit(500f, 500f)), 0, 20f); // gone off elsewhere
+        settle(seen);
         terrain.applyDiscovery(seen);
 
         assertTrue(rockShown(root, 2, 0), "he should still know the wall is there");
-        assertTrue(lidShown(root, 2, 2), "but it is not lit any more");
     }
 
+    /**
+     * Stood at a point and looked around, with the fog given time to open.
+     *
+     * <p>The settling is not decoration. What is drawn follows the eased light
+     * rather than the three states, so a discovery that has never been softened is
+     * a map still entirely black — which is right, and is what the first frame of
+     * a new floor looks like.
+     */
     private static Discovery seenFrom(uz.duke.core.pathfind.PathGrid grid,
             float x, float y, float radius) {
         var seen = new Discovery(grid);
         seen.reveal(java.util.List.of(unit(x, y)), 0, radius);
+        settle(seen);
         return seen;
     }
 
@@ -250,19 +249,9 @@ class TerrainSceneTest {
 
     /** A kit whose pieces are named nodes, so a test can see what was placed where. */
     private static final class StubTiles implements TileSource {
-        final java.util.List<com.jme3.scene.Spatial> lit = new java.util.ArrayList<>();
-        final java.util.List<com.jme3.scene.Spatial> dimmed = new java.util.ArrayList<>();
-        final java.util.Map<com.jme3.scene.Spatial, Float> brightness = new java.util.HashMap<>();
-
         @Override
         public com.jme3.scene.Spatial piece(String assetPath) {
             return new Node(assetPath);
-        }
-
-        @Override
-        public void shade(com.jme3.scene.Spatial piece, float light) {
-            brightness.put(piece, light);
-            (light > 0.9f ? lit : dimmed).add(piece);
         }
     }
 
@@ -341,6 +330,10 @@ class TerrainSceneTest {
             assertEquals(expected, lid.getLocalTranslation().y, 0.001f,
                     "a lid below the wall tops is a hole with a shelf in it");
         }
+        // The fog hangs at this height, and a sheet that missed it by so much as a
+        // wall would leave every roof lit down one side of it.
+        assertEquals(expected, terrain.standingHeight(grid), 0.001f,
+                "the height the world stands is the height the roofs are laid at");
     }
 
     /** A rebuild replaces the tiled world too, however many runs are played. */
@@ -389,34 +382,54 @@ class TerrainSceneTest {
     }
 
     /**
-     * Where he stands is drawn lit, where he has been is drawn dimmer, and the
-     * ground between them takes every value in between.
+     * A cell too dark to see is culled — but only if its neighbours are dark too.
      *
-     * <p>That last part is the whole of it. Three shades give a floor of hard
-     * squares and a staircase where the light stops; a brightness per cell gives
-     * an edge. What the scene has to do is pass the number through rather than
-     * round it back to a flag.
+     * <p>The fog is drawn smoothly between cell centres, so a black cell beside a
+     * lit one is only black at its own centre: half way across it the sheet has
+     * already begun to clear. Cull on the cell's own brightness alone and that
+     * half is a hole with the void showing through it, which is the one way a
+     * softer fog can look worse than a hard one.
      */
     @Test
-    void groundIsDrawnAtEveryBrightnessBetweenSightAndMemory() {
+    void aCellIsOnlyCulledWhenTheDarkReachesRightAcrossIt() {
         var root = new Node("terrain");
-        var grid = MapLoader.fromText(ROOM);
-        var stub = new StubTiles();
-        var terrain = new TerrainScene(root, color -> null, true, kit(), stub);
+        var grid = MapLoader.fromText(WIDE);
+        var terrain = new TerrainScene(root, color -> null, true, kit(), new StubTiles());
         terrain.rebuild(grid);
         var seen = new Discovery(grid);
 
-        seen.reveal(java.util.List.of(unit(15f, 15f)), 0, 12f); // one corner of the room
-        seen.reveal(java.util.List.of(unit(35f, 35f)), 0, 12f); // and away to the other
+        // A tight circle at one end, so the far end of the corridor stays black.
+        seen.reveal(java.util.List.of(unit(15f, 15f)), 0, 12f);
         settle(seen);
         terrain.applyDiscovery(seen);
 
-        var shades = stub.brightness.values().stream().sorted().toList();
-        assertTrue(shades.size() > 2, "several pieces should have been drawn");
-        assertTrue(shades.get(shades.size() - 1) > 0.8f, "where he stands is in full sight");
-        assertTrue(shades.get(0) < 0.5f, "and what he only remembers is dim");
-        assertTrue(shades.stream().anyMatch(light -> light > 0.5f && light < 0.8f),
-                "with ground in between, which is what makes it an edge and not a step");
+        assertTrue(drawn(root, 1, 1), "where he stands");
+        assertTrue(drawn(root, 3, 1),
+                "and the cell past the edge of the light, which the sheet is still clearing");
+        assertTrue(!drawn(root, 7, 1), "but not the far end, which is black right across");
+    }
+
+    /** A row of open cells long enough to run out of light half way along. */
+    private static final String WIDE = """
+            ##########
+            #........#
+            ##########
+            """;
+
+    /** Whether the pieces of one cell are built into the picture. */
+    private static boolean drawn(Node root, int cellX, int cellY) {
+        float cell = uz.duke.core.pathfind.PathGrid.DEFAULT_CELL_SIZE;
+        for (var child : root.getChildren()) {
+            for (var piece : ((Node) child).getChildren()) {
+                var at = piece.getLocalTranslation();
+                if (piece.getName().equals("floor") && at.y == 0f
+                        && Math.abs(at.x - (cellX + 0.5f) * cell) < 0.01f
+                        && Math.abs(at.z - (cellY + 0.5f) * cell) < 0.01f) {
+                    return child.getCullHint() != com.jme3.scene.Spatial.CullHint.Always;
+                }
+            }
+        }
+        return false;
     }
 
     /** Run the fog on until it has stopped moving, so a test reads a settled floor. */

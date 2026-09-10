@@ -227,8 +227,9 @@ public final class Main {
                 settings.edgeScrollSpeedPercent()));
 
         visuals.fog(new Fog(settings.fogLineOfSight(),
-                settings.fogRememberedPercent() / 100f, settings.fogSoftenCells(),
-                settings.fogOpenPerSecond(), settings.fogTint()));
+                settings.fogUnseenPercent() / 100f, settings.fogRememberedPercent() / 100f,
+                settings.fogVisiblePercent() / 100f, settings.fogSoftenCells(),
+                settings.fogOpenPerSecond(), settings.fogTextureSize(), settings.fogTint()));
 
         // The floor is a modular kit, laid out by the client from the same grid
         // the pathfinder uses. Named in dungeon.ini rather than here, so swapping

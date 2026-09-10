@@ -32,35 +32,26 @@ import uz.duke.core.pathfind.PathGrid;
  * <p>Materials arrive through a factory rather than an {@code AssetManager} so the
  * shape of the scene can be checked without one.
  *
- * <p>A game may ask for <b>discovery</b>, in which case the scene also carries a
- * lid over every cell and can be told, each frame, which cells the player has seen
- * — see {@link #applyDiscovery}. Games that do not ask pay nothing: no lids are
- * built and the loop never runs, which matters because an RTS map is many times
- * larger than a dungeon floor.
+ * <p>A game may ask for <b>discovery</b>, in which case the scene keeps a handle
+ * per cell and can be told, each frame, which of them to leave out of the picture
+ * — see {@link #applyDiscovery}. What it does <em>not</em> do is decide how bright
+ * anything is drawn: that is one sheet over the whole map, in {@link FogOverlay},
+ * because a brightness per cell is a floor of squares whatever it is computed
+ * from. Games that do not ask for discovery pay nothing — no handles are kept and
+ * the loop never runs, which matters because an RTS map is many times larger than
+ * a dungeon floor.
  */
 final class TerrainScene {
 
     private static final ColorRGBA GROUND = new ColorRGBA(0.16f, 0.22f, 0.13f, 1f);
     private static final ColorRGBA ROCK = new ColorRGBA(0.25f, 0.23f, 0.20f, 1f);
 
-    /**
-     * Remembered ground and stone: the same colours turned well down.
-     *
-     * <p>Drawn as flat colours rather than a translucent veil over the lit scene.
-     * A veil would need a blended material, and the whole scene is built from
-     * opaque primitives handed a colour — so the memory is a darker world, not a
-     * dimmer light on this one.
-     */
-    private static final ColorRGBA GROUND_REMEMBERED = new ColorRGBA(0.06f, 0.08f, 0.05f, 1f);
-    private static final ColorRGBA ROCK_REMEMBERED = new ColorRGBA(0.10f, 0.09f, 0.08f, 1f);
-    private static final ColorRGBA UNSEEN = new ColorRGBA(0f, 0f, 0f, 1f);
-
-    /** Just clear of the ground, so the lid wins the depth test against it. */
-    private static final float LID_HEIGHT = 0.08f;
-
     /** Fallback size for a game that never set a map. */
     private static final float DEFAULT_WIDTH = 700f;
     private static final float DEFAULT_HEIGHT = 450f;
+
+    /** Half the height of a stone block, which is drawn about a body tall. */
+    private static final float BLOCK_HALF_HEIGHT = 3f;
 
     private final Node root;
     private final Function<ColorRGBA, Material> material;
@@ -82,12 +73,7 @@ final class TerrainScene {
      * {@code cy * width + cx}; a cell with no stone in it has no rock.
      */
     private Geometry[] rocks = new Geometry[0];
-    private Geometry[] lids = new Geometry[0];
     private int cellsWide;
-    private Material unseenMaterial;
-    private Material rememberedGround;
-    private Material litRock;
-    private Material rememberedRock;
 
     TerrainScene(Node root, Function<ColorRGBA, Material> material) {
         this(root, material, false);
@@ -114,6 +100,25 @@ final class TerrainScene {
         return root;
     }
 
+    /**
+     * How high the world stands — the top of a wall, or of a block of stone.
+     *
+     * <p>Asked by the fog, which hangs its sheet at exactly this height. A sheet
+     * is flat and the world is not, so the two only line up at one height, and the
+     * one to choose is the height of the surfaces with <em>edges</em>: a roof over
+     * the rock is a tile with a wall along the side of it, and a sheet hung
+     * anywhere else covers half of it and leaves the other half lit. The floor,
+     * which is where the sheet then does not line up, has no edges of its own —
+     * only a gradient, which slides a fraction of a cell and looks the same.
+     */
+    float standingHeight(PathGrid grid) {
+        if (!tiled()) {
+            return BLOCK_HALF_HEIGHT * 2f;
+        }
+        float cell = grid == null ? PathGrid.DEFAULT_CELL_SIZE : grid.getCellSize();
+        return tileset.getWallHeight() * (cell / tileset.getTileSize());
+    }
+
     /** Lay out {@code grid}, discarding whatever world was there before. */
     void rebuild(PathGrid grid) {
         root.detachAllChildren();
@@ -134,34 +139,26 @@ final class TerrainScene {
 
         if (grid == null) {
             rocks = new Geometry[0];
-            lids = new Geometry[0];
             cellsWide = 0;
             return;
         }
         float cell = grid.getCellSize();
         cellsWide = grid.getWidth();
-        int cells = grid.getWidth() * grid.getHeight();
-        rocks = discovery ? new Geometry[cells] : new Geometry[0];
-        lids = discovery ? new Geometry[cells] : new Geometry[0];
-        litRock = material.apply(ROCK);
-        if (discovery) {
-            unseenMaterial = material.apply(UNSEEN);
-            rememberedGround = material.apply(GROUND_REMEMBERED);
-            rememberedRock = material.apply(ROCK_REMEMBERED);
-        }
+        rocks = discovery ? new Geometry[grid.getWidth() * grid.getHeight()] : new Geometry[0];
+        var stone = material.apply(ROCK);
         for (int cy = 0; cy < grid.getHeight(); cy++) {
             for (int cx = 0; cx < grid.getWidth(); cx++) {
-                if (grid.isBlocked(cx, cy)) {
-                    var rock = new Geometry("rock", new Box(cell / 2f, 3f, cell / 2f));
-                    rock.setMaterial(litRock);
-                    rock.setLocalTranslation((cx + 0.5f) * cell, 3f, (cy + 0.5f) * cell);
-                    root.attachChild(rock);
-                    if (discovery) {
-                        rocks[cy * cellsWide + cx] = rock;
-                    }
+                if (!grid.isBlocked(cx, cy)) {
+                    continue;
                 }
+                var rock = new Geometry("rock",
+                        new Box(cell / 2f, BLOCK_HALF_HEIGHT, cell / 2f));
+                rock.setMaterial(stone);
+                rock.setLocalTranslation((cx + 0.5f) * cell, BLOCK_HALF_HEIGHT,
+                        (cy + 0.5f) * cell);
+                root.attachChild(rock);
                 if (discovery) {
-                    lids[cy * cellsWide + cx] = lid(cx, cy, cell);
+                    rocks[cy * cellsWide + cx] = rock;
                 }
             }
         }
@@ -170,10 +167,10 @@ final class TerrainScene {
     /**
      * Lay the floor out of a modular kit.
      *
-     * <p>No ground plane and no black covers, unlike the block version: with a kit
-     * there is nothing under an unvisited cell to hide, so an undiscovered part of
-     * the map is simply not built into the picture and the background shows
-     * through. Black, which is what it should be.
+     * <p>No ground plane, unlike the block version: with a kit there is nothing
+     * under an unvisited cell to hide, so an undiscovered part of the map is
+     * simply not built into the picture and the background shows through — which
+     * is the fog's own colour, and so the same dark the sheet paints.
      */
     private void rebuildFromTiles(PathGrid grid) {
         if (grid == null) {
@@ -205,21 +202,15 @@ final class TerrainScene {
     }
 
     /**
-     * A cell the player has never reached is not drawn at all; one he has walked
-     * and left is drawn dimmer.
+     * A cell nobody could see even if it were drawn is left out of the picture.
+     *
+     * <p>All this does now is cull. How bright a cell is drawn belongs to the fog
+     * sheet laid over the whole map — see {@link FogOverlay} — and doing it here
+     * as well is what made the floor a field of squares: a brightness per cell,
+     * painted flat over every tile in it, however smooth the number itself was.
      *
      * <p>Per cell rather than per piece, which is what the node-per-cell is for: a
      * floor a hundred cells wide is a hundred calls a frame, not a thousand.
-     */
-    /**
-     * Drawn at the brightness the fog has settled on rather than at one of three
-     * shades, which is what turns a staircase of hard cells into an edge.
-     *
-     * <p>The cull is still all or nothing — a cell is built into the picture or it
-     * is not — but it now happens at the point the light has actually run out
-     * rather than at the first cell the hero has not stood in. What that buys is
-     * a rim of nearly-black ground around the edge of the known world, which is
-     * the difference between fog and a hole cut in the floor.
      */
     private void applyDiscoveryToTiles(Discovery seen) {
         for (int index = 0; index < cellNodes.length; index++) {
@@ -227,14 +218,8 @@ final class TerrainScene {
             if (node == null) {
                 continue; // stone; nothing was built here
             }
-            float light = seen.lightAt(index % cellsWide, index / cellsWide);
-            node.setCullHint(light <= Discovery.DARK
+            node.setCullHint(seen.hidden(index % cellsWide, index / cellsWide)
                     ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
-            if (light > Discovery.DARK) {
-                for (var piece : node.getChildren()) {
-                    tiles.shade(piece, light);
-                }
-            }
         }
     }
 
@@ -258,28 +243,18 @@ final class TerrainScene {
         return cellNodes[index];
     }
 
-    /** The cover over one cell: black while unseen, dim once remembered. */
-    private Geometry lid(int cellX, int cellY, float cell) {
-        var quad = new Geometry("fog", new Quad(cell, cell));
-        quad.setMaterial(unseenMaterial);
-        quad.rotate(-FastMath.HALF_PI, 0, 0);
-        // Laid out like the ground quad, which spans upward from the z it sits at.
-        quad.setLocalTranslation(cellX * cell, LID_HEIGHT, (cellY + 1) * cell);
-        root.attachChild(quad);
-        return quad;
-    }
-
     /**
      * Draw the world as the player currently knows it.
      *
-     * <p>Cheap enough to run every frame: nothing is created or destroyed, only
-     * shown, hidden and recoloured, because the fog moves with the hero and a
-     * rebuild per step would rebuild the floor several hundred times a walk.
+     * <p>Cheap enough to run every frame: nothing is created or destroyed and
+     * nothing is recoloured, only shown and hidden, because the fog moves with the
+     * hero and a rebuild per step would rebuild the floor several hundred times a
+     * walk.
      *
-     * <p>Unseen stone is <em>hidden</em> rather than blacked out. A lid lies flat
-     * on the ground and a rock stands six units above it, so painting the lid
-     * black would leave the wall itself sticking up out of the dark — which would
-     * hand the player the shape of a room they have not entered.
+     * <p>Unseen stone is <em>hidden</em> rather than left to the sheet. A rock
+     * stands six units above the ground, so the fog over it is the fog of the
+     * ground a little way behind — and a wall sticking up out of the dark hands
+     * the player the shape of a room they have not entered.
      */
     void applyDiscovery(Discovery seen) {
         if (!discovery || seen == null) {
@@ -289,23 +264,11 @@ final class TerrainScene {
             applyDiscoveryToTiles(seen);
             return;
         }
-        for (int index = 0; index < lids.length; index++) {
-            var state = seen.stateAt(index % cellsWide, index / cellsWide);
-            var lid = lids[index];
-            if (lid != null) {
-                lid.setCullHint(state == Discovery.State.VISIBLE
-                        ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
-                if (state == Discovery.State.REMEMBERED) {
-                    lid.setMaterial(rememberedGround);
-                } else if (state == Discovery.State.UNSEEN) {
-                    lid.setMaterial(unseenMaterial);
-                }
-            }
+        for (int index = 0; index < rocks.length; index++) {
             var rock = rocks[index];
             if (rock != null) {
-                rock.setCullHint(state == Discovery.State.UNSEEN
+                rock.setCullHint(seen.hidden(index % cellsWide, index / cellsWide)
                         ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
-                rock.setMaterial(state == Discovery.State.VISIBLE ? litRock : rememberedRock);
             }
         }
     }

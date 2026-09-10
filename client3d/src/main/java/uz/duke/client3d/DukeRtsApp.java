@@ -102,6 +102,15 @@ final class DukeRtsApp extends SimpleApplication {
     private final Node terrainNode = new Node("terrain");
     /** Built at init rather than construction: a modular kit needs the asset manager. */
     private TerrainScene terrain;
+    /**
+     * The dark, as one sheet over the whole map rather than a shade per cell.
+     *
+     * <p>Its own node, and not the terrain's: the sheet is drawn over everything
+     * in the world — walls, chests, whatever is standing in a room the hero has
+     * left — so hanging it off the terrain would say it belonged to the ground.
+     */
+    private final Node fogNode = new Node("fog");
+    private FogOverlay fogOverlay;
     /** The grid the terrain was built from — a different instance means a new world. */
     private uz.duke.core.pathfind.PathGrid builtFrom;
 
@@ -213,11 +222,12 @@ final class DukeRtsApp extends SimpleApplication {
         flyCam.setEnabled(false);
         inputManager.setCursorVisible(true);
         // What shows where nothing is drawn at all, which is every cell the
-        // player has never been in. It is the fog's own colour when a game names
-        // one, because those two are the same dark seen two ways.
+        // player has never been in. The fog's own colour exactly, not a shade of
+        // it: unwalked ground inside the map is the sheet at full strength, and
+        // the two meeting at the map's edge would otherwise draw its outline.
         viewPort.setBackgroundColor(visuals.getDiscoveryTemplate() == null
                 ? new ColorRGBA(0.05f, 0.07f, 0.10f, 1f)
-                : visuals.getFog().tintColour().mult(0.55f));
+                : visuals.getFog().tintColour());
 
         // project assets folder (Studio Play); exported games use the classpath
         if (visuals.getAssetRoot() != null) {
@@ -228,6 +238,9 @@ final class DukeRtsApp extends SimpleApplication {
         // Needs the locators above, so it cannot be built with the app itself.
         terrain = new TerrainScene(terrainNode, this::lit,
                 visuals.getDiscoveryTemplate() != null, visuals.getTiles(), new KitTiles());
+        if (visuals.getDiscoveryTemplate() != null) {
+            fogOverlay = new FogOverlay(fogNode, this::fogMaterial, visuals.getFog());
+        }
 
         var sun = new DirectionalLight(new Vector3f(-0.4f, -1f, -0.5f).normalizeLocal(),
                 new ColorRGBA(1f, 0.97f, 0.9f, 1f));
@@ -235,6 +248,7 @@ final class DukeRtsApp extends SimpleApplication {
         rootNode.addLight(new AmbientLight(new ColorRGBA(0.45f, 0.45f, 0.5f, 1f)));
 
         rootNode.attachChild(terrainNode);
+        rootNode.attachChild(fogNode);
         buildTerrain();
         rootNode.attachChild(unitsNode);
         rootNode.attachChild(markerNode);
@@ -969,6 +983,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (visuals.getDiscoveryTemplate() == null) {
             return;
         }
+        fogOverlay.rebuild(builtFrom, terrain.standingHeight(builtFrom));
         // A new floor is a floor nobody has walked: memory belongs to one world,
         // and carrying it over would open rooms in a dungeon nobody has entered.
         if (discovery == null) {
@@ -1002,6 +1017,9 @@ final class DukeRtsApp extends SimpleApplication {
         // What is open is decided above; how it is drawn eases toward that, so the
         // edge sweeps rather than switching. Seconds, not frames.
         discovery.soften(tpf);
+        // The sheet is what the player actually sees the dark as; the terrain is
+        // only told which cells are so far behind it that drawing them is waste.
+        fogOverlay.update(discovery);
         terrain.applyDiscovery(discovery);
         applyMinimapDiscovery(builtFrom);
     }
@@ -2258,7 +2276,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * Loads a modular kit's pieces and shades them.
+     * Loads a modular kit's pieces.
      *
      * <p>Two things happen here that are easy to miss until the dungeon comes out
      * black. First, jME's glTF loader gives every piece a <b>PBR</b> material, and
@@ -2269,26 +2287,17 @@ final class DukeRtsApp extends SimpleApplication {
      * what the art was drawn for.
      *
      * <p>Second, a floor of several hundred tiles is several hundred copies of
-     * three meshes. They are cloned without cloning materials, and there are
-     * exactly two materials for the whole kit — lit and remembered — so making a
-     * cell dimmer is swapping which of the two it points at, not building one.
+     * three meshes. They are cloned without cloning materials, and there is
+     * exactly <em>one</em> material for the whole kit: the dark is a sheet over the
+     * map now — see {@link FogOverlay} — so no piece is ever drawn at anything but
+     * its own brightness.
      */
-    /** How many rungs the brightness ladder has. */
-    private static final int SHADES = 12;
-
     private final class KitTiles implements TileSource {
 
         private final Map<String, Spatial> masters = new HashMap<>();
-        /**
-         * The kit's material at a ladder of brightnesses, black at one end and
-         * full daylight at the other.
-         *
-         * <p>Steps rather than a material per piece: a floor is several hundred
-         * pieces and each wants its own shade, but a shade repeats all over the
-         * map, so the ladder is shared and each piece points at a rung. Enough
-         * rungs that the eye reads a gradient and not a contour map.
-         */
-        private Material[] shades;
+
+        /** The kit's own material, built once from the first piece's texture. */
+        private Material skin;
 
         @Override
         public Spatial piece(String assetPath) {
@@ -2304,49 +2313,21 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                     return null;
                 }
-                buildMaterials(master);
+                if (skin == null) {
+                    skin = tileMaterial(textureOf(master));
+                }
                 masters.put(assetPath, master);
             }
             var copy = master.clone(false); // share the mesh and the material
-            shade(copy, 1f);
+            copy.setMaterial(skin);
             return copy;
         }
 
-        /** The ladder, built once for the whole kit from the first piece's texture. */
-        private void buildMaterials(Spatial master) {
-            if (shades != null) {
-                return;
-            }
-            var atlas = textureOf(master);
-            var litDiffuse = ColorRGBA.White;
-            var litAmbient = new ColorRGBA(0.55f, 0.55f, 0.62f, 1f);
-            // The bottom of the ladder is the fog's colour rather than black.
-            // Remembered stone is not unlit stone — it is stone seen through the
-            // dark, and a dark with a colour is the difference between a room the
-            // player has been in and a hole in the screen.
-            var fog = visuals.getFog().tintColour();
-            shades = new Material[SHADES];
-            for (int rung = 0; rung < SHADES; rung++) {
-                float light = rung / (float) (SHADES - 1);
-                shades[rung] = tileMaterial(atlas, fade(fog, litDiffuse, light),
-                        fade(fog.mult(0.8f), litAmbient, light));
-            }
-        }
-
-        /** {@code from} at no light, {@code to} at full, straight between. */
-        private ColorRGBA fade(ColorRGBA from, ColorRGBA to, float light) {
-            return new ColorRGBA(
-                    from.r + (to.r - from.r) * light,
-                    from.g + (to.g - from.g) * light,
-                    from.b + (to.b - from.b) * light, 1f);
-        }
-
-        private Material tileMaterial(com.jme3.texture.Texture atlas,
-                ColorRGBA diffuse, ColorRGBA ambient) {
+        private Material tileMaterial(com.jme3.texture.Texture atlas) {
             var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
             material.setBoolean("UseMaterialColors", true);
-            material.setColor("Diffuse", diffuse);
-            material.setColor("Ambient", ambient);
+            material.setColor("Diffuse", ColorRGBA.White);
+            material.setColor("Ambient", new ColorRGBA(0.55f, 0.55f, 0.62f, 1f));
             if (atlas != null) {
                 material.setTexture("DiffuseMap", atlas);
             }
@@ -2373,14 +2354,19 @@ final class DukeRtsApp extends SimpleApplication {
             return null;
         }
 
-        @Override
-        public void shade(Spatial piece, float light) {
-            if (shades == null) {
-                return;
-            }
-            int rung = Math.round(Math.max(0f, Math.min(1f, light)) * (SHADES - 1));
-            piece.setMaterial(shades[rung]);
-        }
+    }
+
+    /**
+     * The sheet the fog is painted on: the darkness texture, unlit and blended.
+     *
+     * <p>Unshaded on purpose. It is not a surface in the world catching the sun —
+     * it is the absence of light over one, and a sun falling on the dark would be
+     * a contradiction the player can see when they pan the camera.
+     */
+    private Material fogMaterial(com.jme3.texture.Texture darkness) {
+        var material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        material.setTexture("ColorMap", darkness);
+        return material;
     }
 
     private Material lit(ColorRGBA color) {

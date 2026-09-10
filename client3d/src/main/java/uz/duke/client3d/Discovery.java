@@ -282,17 +282,17 @@ final class Discovery {
         }
         int index = cellY * width + cellX;
         if (visible.get(index)) {
-            return 1f;
+            return fog.visibleLight();
         }
-        return explored.get(index) ? fog.rememberedLight() : 0f;
+        return explored.get(index) ? fog.rememberedLight() : fog.unseenLight();
     }
 
     /**
      * How brightly to draw a cell, from 0 for black to 1 for full daylight.
      *
-     * <p>The smooth counterpart of {@link #stateAt}, and what the floor is drawn
-     * from. The three states are still the truth underneath; this is that truth
-     * with the corners taken off.
+     * <p>The smooth counterpart of {@link #stateAt}, and what the fog layer is
+     * drawn from. The three states are still the truth underneath; this is that
+     * truth with the corners taken off.
      */
     float lightAt(int cellX, int cellY) {
         if (cellX < 0 || cellY < 0 || cellX >= width || cellY >= height
@@ -300,6 +300,82 @@ final class Discovery {
             return 0f;
         }
         return light[cellY * width + cellX];
+    }
+
+    /**
+     * The brightness at a <em>point</em> rather than at a cell, taken smoothly
+     * between the cell centres around it.
+     *
+     * <p>What this is for is that a cell is ten units of ground and the eye can
+     * see every one of them. Reading one value per cell and painting it over the
+     * whole cell is what drew the fog as a field of squares, however carefully the
+     * cells themselves had been blurred beforehand — the softening was real, it
+     * was simply happening at the wrong size.
+     *
+     * <p>The weights are eased rather than straight, so the slope is flat as it
+     * passes through each cell centre. Straight weights are continuous but their
+     * slope is not, and a change of slope on every cell boundary is a crease the
+     * eye picks out as readily as the squares did.
+     */
+    float lightAtPoint(float worldX, float worldY) {
+        if (width == 0 || height == 0 || cellSize <= 0f || light.length != width * height) {
+            return 0f;
+        }
+        float atX = worldX / cellSize - 0.5f;
+        float atY = worldY / cellSize - 0.5f;
+        int leftX = (int) Math.floor(atX);
+        int topY = (int) Math.floor(atY);
+        float alongX = ease(atX - leftX);
+        float alongY = ease(atY - topY);
+        float top = between(clampedLight(leftX, topY), clampedLight(leftX + 1, topY), alongX);
+        float bottom = between(clampedLight(leftX, topY + 1),
+                clampedLight(leftX + 1, topY + 1), alongX);
+        return between(top, bottom, alongY);
+    }
+
+    /** Smoothstep: 0 and 1 where it started, and flat at both ends. */
+    private static float ease(float along) {
+        return along * along * (3f - 2f * along);
+    }
+
+    private static float between(float from, float to, float along) {
+        return from + (to - from) * along;
+    }
+
+    /** The map's edge is a wall, not a cliff: past it, the outermost cell repeats. */
+    private float clampedLight(int cellX, int cellY) {
+        return light[Math.clamp(cellY, 0, height - 1) * width + Math.clamp(cellX, 0, width - 1)];
+    }
+
+    /**
+     * How far around a cell the dark has to reach before the cell may be dropped.
+     *
+     * <p>One cell for the fog's own smoothness — it is drawn between cell centres,
+     * so a black cell beside a lit one is only black at its own centre — and a
+     * second because the sheet it is drawn on hangs at the height of the walls and
+     * therefore does not line up with the floor to better than about a cell. Cull
+     * too eagerly and the result is a hole with the void showing through it, which
+     * is the one way a softer fog can look worse than a hard one. Culling too
+     * little only draws something nobody can see.
+     */
+    private static final int CULL_MARGIN = 2;
+
+    /**
+     * Whether anything standing in this cell would be entirely behind the fog.
+     *
+     * <p>The cull the renderer wants: not "is this cell dark" but "is the dark
+     * thick enough, right across and a little way around, that drawing here would
+     * change no pixel".
+     */
+    boolean hidden(int cellX, int cellY) {
+        for (int dy = -CULL_MARGIN; dy <= CULL_MARGIN; dy++) {
+            for (int dx = -CULL_MARGIN; dx <= CULL_MARGIN; dx++) {
+                if (lightAt(cellX + dx, cellY + dy) > DARK) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /**
