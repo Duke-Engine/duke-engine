@@ -318,6 +318,55 @@ faqat `sqrt`/`floor`/`ceil` va butun sonli sikllar — trigonometriya yo'q.
 `isBlocked` = ikkalasining OR'i. Ajratilgani shuning uchunki, qoyaga tiralib
 qurilgan bino buzilganda **qoyada teshik qolmasligi** kerak.
 
+### 3.5c Balandlik — diskret qavatlar
+
+Katakning **butun sonli qavati** bor (`level`), va har xil qavatdagi ikki katak
+qo'shni **emas**: orasidagi qadam devor kabi rad etiladi. Ularni bog'laydigan
+narsa — **ramp** kataki (`isRamp`): "bu katak o'z qavatini qo'shnisiga ulaydi".
+Zinapoyami, pandusmi, narvonmi, liftmi — bu **o'yinning** gapi; `core` faqat
+"bu katak ulaydi" deb biladi. Shu sababli `core` da "zinapoya" so'zi yo'q.
+
+Yagona qoida — `PathGrid.canStep(from, to)`:
+
+| Shart | Natija |
+|---|---|
+| ikkala katak ochiq emas | ✗ |
+| qavatlar teng | ✓ |
+| farq 1 dan katta | ✗ |
+| diagonal + qavat farqi | ✗ (burchakdan ko'tarilgan jism qadam davomida devor ichida bo'ladi) |
+| farq aynan 1, to'g'ri qadam, uchidan biri ramp | ✓ |
+
+**Nega butun son:** butun son har mashinada bir xil xeshlanadi, yaxlitlashdan
+siljimaydi va simulyatsiya balandlikdan so'raydigan **yagona** savolga javob
+beradi — u yerga yura olamanmi, biz bir qavatdamizmi. Uzluksiz relyef, qiyalik
+va harakat narxi — butunlay boshqa va ancha qimmat narsa; bu yerdagi hech nima
+unga qadam emas.
+
+Qoida **uchta** joyda ushlanishi shart, va ikkinchisi ko'zdan yashirin:
+`Pathfinder.expand` (qidiruv), `Pathfinder.isClearLine` (**to'g'rilash** — qidiruv
+zinapoyadan ko'tarilgandan keyin to'g'rilash o'sha waypointlarni tashlab yuboradi
+va to'g'ri chiziq har bir katakda ochiq ko'rinadi), va `MoveUpdate` ning har
+qadami.
+
+Yondosh natijalar: `cellCenter` endi `z = level × levelHeight` qaytaradi;
+`MoveUpdate` har qadamdan keyin `z` ni **yerdan o'qiydi** (ko'tarib yurmaydi —
+aks holda zinapoyaga chiqqan jism tepada ham pastdagi balandligida turadi);
+`findBlocker` faqat **bir xil qavatdagi** jismni to'siq deb biladi (yuqoridagi
+xona ostidagi koridor — bir xil katak, boshqa joy).
+
+**Tekis dunyo hech narsani sezmaydi.** Hech kim aytmagan grid: hamma qavat 0,
+ramp yo'q, `levelHeight = 0` — yuqoridagi har bir qoida avvalgisiga qaytadi va
+`Coord3D.z` 0 bo'lib qoladi, ya'ni checksum bit-ma-bit o'zgarmaydi. Buni
+`FlatWorldChecksumTest` **golden master** bilan qulflaydi: devor atrofidan yo'l,
+to'qnashuv, chetlab o'tish va kelish bor dunyo 300 kadr yuritiladi va butun
+dunyoning xeshi balandlik qo'shilishidan **oldingi** engine'dan olingan songa
+solishtiriladi. O'sha son testni o'tkazish uchun yangilanmaydi.
+
+Matndan o'qish (ixtiyoriy, ikkinchi qatlam): `MapLoader.levels(grid, text)` —
+`0`–`9` qavat, `.` = 0, `/` = ramp (atrofidagi eng past qavatda turadi, ya'ni
+zinapoyaning **etagida**), `#`/`X`/bo'shliq = tosh. Tanilmagan belgi — **istisno**,
+jimgina 0 emas.
+
 ### 3.6b To'qnashuv — obyektlar fizik jism
 
 Obyektning `Geometry` si bo'lsa, u yer egallaydi va boshqasi u yerda tura olmaydi.

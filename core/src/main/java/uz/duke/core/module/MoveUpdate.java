@@ -181,7 +181,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
         if (distance <= step || distance == 0f) {
             if (escaping || isClear(owner, target)) {
-                owner.setPosition(target);
+                owner.setPosition(onGround(owner, target));
                 waypointIndex++; // advance to the next leg (or finish the path)
                 resetProgress();
             }
@@ -202,7 +202,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         for (var swerve : SWERVE_ANGLES) {
             var next = position.add(headingVector(facing + swerve).scale(step));
             if (escaping || isClear(owner, next)) {
-                owner.setPosition(next);
+                owner.setPosition(onGround(owner, next));
                 return;
             }
         }
@@ -285,7 +285,28 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         if (world.findBlocker(mover, position) != null) {
             return true;
         }
-        return world.isGroundBlocked(position) && !world.isGroundBlocked(mover.getPosition());
+        // Stone, or a floor this one is not joined to. A step onto a higher floor
+        // is refused for the same reason a wall is: from here, it is not ground.
+        return !world.canStep(mover.getPosition(), position)
+                && !world.isGroundBlocked(mover.getPosition());
+    }
+
+    /**
+     * The same point, standing on the floor under it.
+     *
+     * <p>Where a mover is walking has always been decided in two dimensions and
+     * still is; how high it stands while doing so is read off the ground beneath
+     * it, every step. Read rather than carried, because the ground is what
+     * decides — a mover that kept its own height would climb a stair and arrive
+     * at the top still standing at the bottom's.
+     *
+     * <p>On flat ground this returns z = 0, which is where everything already was.
+     */
+    private static Coord3D onGround(GameObject mover, Coord3D position) {
+        var world = mover.getWorld();
+        return world == null
+                ? position
+                : new Coord3D(position.x(), position.y(), world.groundHeight(position));
     }
 
     private static Coord3D headingVector(float angle) {

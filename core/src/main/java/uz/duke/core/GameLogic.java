@@ -196,7 +196,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     @Override
     public Coord3D findClearPosition(Geometry shape, Coord3D near, float searchRadius) {
         if (shape.isPoint() || isGroundClear(shape, near)) {
-            return near;
+            return onGround(near);
         }
         float ringStep = Math.max(shape.footprintRadius(), 1f);
         for (float radius = ringStep; radius <= searchRadius; radius += ringStep) {
@@ -205,13 +205,18 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                 var candidate = new Coord3D(
                         near.x() + radius * (float) StrictMath.cos(angle),
                         near.y() + radius * (float) StrictMath.sin(angle),
-                        near.z());
+                        0f);
                 if (isGroundClear(shape, candidate)) {
-                    return candidate;
+                    return onGround(candidate);
                 }
             }
         }
-        return near;
+        return onGround(near);
+    }
+
+    /** The same point, standing on the floor that is under it. */
+    private Coord3D onGround(Coord3D position) {
+        return new Coord3D(position.x(), position.y(), groundHeight(position));
     }
 
     @Override
@@ -222,28 +227,62 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                 && pathGrid.isTerrainBlocked(pathGrid.toCellX(position), pathGrid.toCellY(position));
     }
 
+    @Override
+    public final boolean canStep(Coord3D from, Coord3D to) {
+        return pathGrid == null || pathGrid.canStep(
+                pathGrid.toCellX(from), pathGrid.toCellY(from),
+                pathGrid.toCellX(to), pathGrid.toCellY(to));
+    }
+
+    @Override
+    public final float groundHeight(Coord3D position) {
+        return pathGrid == null ? 0f : pathGrid.groundHeight(position);
+    }
+
+    /**
+     * Which floor a point is on — the number two objects have to share before
+     * either can be in the other's way.
+     */
+    private int levelAt(Coord3D position) {
+        return pathGrid == null
+                ? 0
+                : pathGrid.level(pathGrid.toCellX(position), pathGrid.toCellY(position));
+    }
+
     private boolean isGroundClear(Geometry shape, Coord3D position) {
         if (pathGrid != null
                 && pathGrid.isTerrainBlocked(pathGrid.toCellX(position), pathGrid.toCellY(position))) {
             return false; // the map itself forbids it — nothing may be placed in a cliff
         }
         var footprint = new Footprint(shape, position, 0f);
+        int level = levelAt(position);
         return partition.firstOverlapping(footprint,
                 candidate -> !candidate.isDestroyed()
                         && !candidate.isEffectivelyDead()
-                        && !candidate.isContained()) == null;
+                        && !candidate.isContained()
+                        && levelAt(candidate.getPosition()) == level) == null;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Only what is standing on the same floor can be in the way. A corridor
+     * that runs under a raised room shares its ground with nothing: the two are
+     * the same square of map and different places, and a body in one has never
+     * been anywhere near a body in the other.
+     */
     @Override
     public GameObject findBlocker(GameObject mover, Coord3D position) {
         if (mover.getTemplate().getGeometry().isPoint()) {
             return null; // no body, nothing to bump into
         }
+        int level = levelAt(position);
         return partition.firstOverlapping(Footprint.of(mover, position),
                 candidate -> candidate != mover
                         && !candidate.isDestroyed()
                         && !candidate.isEffectivelyDead()
-                        && !candidate.isContained());
+                        && !candidate.isContained()
+                        && levelAt(candidate.getPosition()) == level);
     }
 
     /** Install a navigation grid so movement routes around terrain obstacles. */

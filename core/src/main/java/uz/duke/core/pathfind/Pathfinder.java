@@ -172,7 +172,7 @@ public final class Pathfinder {
             int cx, int cy, int dx, int dy, int goalX, int goalY, float clearance) {
         int nx = cx + dx;
         int ny = cy + dy;
-        if (!fits(grid, nx, ny, clearance)) {
+        if (!fits(grid, nx, ny, clearance) || !grid.canStep(cx, cy, nx, ny)) {
             return;
         }
         boolean diagonal = dx != 0 && dy != 0;
@@ -264,6 +264,14 @@ public final class Pathfinder {
      * <p>Sampled rather than traced exactly. At zero clearance a sample can slip
      * past the very corner of a cell — which is harmless, because something with
      * no width has nothing to catch on it.
+     *
+     * <p>The line has to obey height as well, and this is the place it is easiest
+     * to forget: the search itself climbs only where a ramp lets it, and then the
+     * straightening throws away the waypoints that made it do so. A line drawn
+     * from one floor to another without a stair under it looks perfectly clear
+     * cell by cell — every one of them is open ground. So each time the line
+     * crosses into a new cell, that crossing is asked the same question a step
+     * would be asked.
      */
     private static boolean isClearLine(PathGrid grid, Coord3D a, Coord3D b, float clearance) {
         float dx = b.x() - a.x();
@@ -271,11 +279,22 @@ public final class Pathfinder {
         float distance = (float) Math.sqrt(dx * dx + dy * dy);
         int samples = Math.max(1,
                 (int) Math.ceil(distance / (grid.getCellSize() * LINE_SAMPLE_FRACTION)));
+        int lastX = grid.toCellX(a);
+        int lastY = grid.toCellY(a);
         for (int i = 0; i <= samples; i++) {
             float t = (float) i / samples;
-            if (!isClearAround(grid, a.x() + dx * t, a.y() + dy * t, clearance)) {
+            float x = a.x() + dx * t;
+            float y = a.y() + dy * t;
+            if (!isClearAround(grid, x, y, clearance)) {
                 return false;
             }
+            int cx = (int) Math.floor(x / grid.getCellSize());
+            int cy = (int) Math.floor(y / grid.getCellSize());
+            if ((cx != lastX || cy != lastY) && !grid.canStep(lastX, lastY, cx, cy)) {
+                return false;
+            }
+            lastX = cx;
+            lastY = cy;
         }
         return true;
     }

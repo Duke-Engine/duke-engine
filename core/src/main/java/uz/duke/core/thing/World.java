@@ -136,6 +136,28 @@ public interface World {
     boolean isGroundBlocked(Coord3D position);
 
     /**
+     * Whether something may move between two points that are a step apart.
+     *
+     * <p>Stone is one reason it may not, and the one that has always been here.
+     * The other is height: a floor that stands above the one you are on is not
+     * somewhere you can walk, however open the ground looks from below. Where the
+     * two are joined — a stair, a slope, a ladder — this says yes.
+     *
+     * <p>True everywhere in a world with no navigation grid, and true for any two
+     * points on flat ground, which is every world that never sets a level.
+     */
+    boolean canStep(Coord3D from, Coord3D to);
+
+    /**
+     * How high the ground stands under a position — what an object's {@code z}
+     * should be while it is standing there.
+     *
+     * <p>Zero on flat ground, which is to say almost everywhere: a world only has
+     * a height under it once a map has said so.
+     */
+    float groundHeight(Coord3D position);
+
+    /**
      * Somewhere at or near {@code near} where {@code shape} fits without
      * overlapping anything — where to put a newly produced unit, a dropped
      * passenger, or anything else that must appear beside something solid.

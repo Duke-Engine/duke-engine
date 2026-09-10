@@ -22,6 +22,24 @@ import uz.duke.core.math.Coord3D;
  * </ul>
  * Keeping them apart is what lets a building be demolished without punching a
  * hole in the cliff it was built against.
+ *
+ * <p><b>Height.</b> A cell also stands at a whole-numbered {@link #level}, and
+ * two cells at different levels are not neighbours: the step between them is
+ * refused exactly as a wall is. What joins them is a {@link #isRamp ramp} — a
+ * cell that links one level to the next. Whether that is a staircase, a slope, a
+ * ladder or a lift is the game's business; the grid knows only that this cell
+ * connects.
+ *
+ * <p>Levels are integers rather than a height field on purpose. A whole number
+ * hashes identically on every machine, cannot drift by a rounding, and answers
+ * the only questions a simulation asks of height — may I walk there, are we on
+ * the same floor. Continuous terrain, slopes and movement costs are a different
+ * and much more expensive thing, and nothing here is a step toward it.
+ *
+ * <p>A grid nobody tells about height is flat: every cell is level 0, no cell is
+ * a ramp, {@link #getLevelHeight()} is zero, and every rule above collapses back
+ * into the one that was there before it — which is the promise made to every
+ * game that will never have a second floor.
  */
 public final class PathGrid {
 
@@ -35,6 +53,9 @@ public final class PathGrid {
     private final boolean[] obstacle;        // objects: the committed layer everyone reads
     private final boolean[] obstacleScratch; // objects: the layer being rebuilt
     private int obstacleVersion;
+    private final int[] level;               // which floor this cell stands on; 0 everywhere
+    private final boolean[] ramp;            // cells that link one level to the next
+    private float levelHeight;               // world units per level; 0 = the world is flat
 
     public PathGrid(int width, int height) {
         this(width, height, DEFAULT_CELL_SIZE);
@@ -50,6 +71,8 @@ public final class PathGrid {
         this.blocked = new boolean[width * height];
         this.obstacle = new boolean[width * height];
         this.obstacleScratch = new boolean[width * height];
+        this.level = new int[width * height];
+        this.ramp = new boolean[width * height];
     }
 
     public int getWidth() {
@@ -130,6 +153,89 @@ public final class PathGrid {
         obstacleVersion++;
     }
 
+    // ---- height ----
+
+    /**
+     * Which floor a cell stands on. Zero unless a map says otherwise, and zero
+     * for anything off the grid.
+     */
+    public int level(int cx, int cy) {
+        return inBounds(cx, cy) ? level[cy * width + cx] : 0;
+    }
+
+    public void setLevel(int cx, int cy, int value) {
+        if (inBounds(cx, cy)) {
+            level[cy * width + cx] = value;
+        }
+    }
+
+    /**
+     * Whether this cell links its level to the one above or below it — a
+     * staircase, a slope, a ladder. Without one, a change of level is a wall.
+     */
+    public boolean isRamp(int cx, int cy) {
+        return inBounds(cx, cy) && ramp[cy * width + cx];
+    }
+
+    public void setRamp(int cx, int cy, boolean value) {
+        if (inBounds(cx, cy)) {
+            ramp[cy * width + cx] = value;
+        }
+    }
+
+    /**
+     * How far apart two levels stand, in world units.
+     *
+     * <p>Zero — the default — means the grid has levels that block but no height
+     * to speak of, which is what a flat world has and what a test usually wants.
+     */
+    public float getLevelHeight() {
+        return levelHeight;
+    }
+
+    public void setLevelHeight(float levelHeight) {
+        this.levelHeight = levelHeight;
+    }
+
+    /** How high the floor of a cell stands. Zero on a flat grid, always. */
+    public float groundHeight(int cx, int cy) {
+        return level(cx, cy) * levelHeight;
+    }
+
+    /** How high the floor stands under a world position. */
+    public float groundHeight(Coord3D worldPos) {
+        return groundHeight(toCellX(worldPos), toCellY(worldPos));
+    }
+
+    /**
+     * Whether something may move from one cell to a neighbouring one.
+     *
+     * <p>The rule the whole of height rests on. Both cells have to be open, as
+     * ever — and then they have to be on the same floor, or joined: one level
+     * apart, straight rather than diagonally, with a ramp at one end of the step.
+     *
+     * <p>Diagonals are not allowed to change level. A body crossing a corner
+     * between two floors is halfway up a wall for the length of that step, and
+     * the geometry of a staircase drawn there never looks like anything a person
+     * could climb.
+     *
+     * <p>On a flat grid the level test is {@code 0 == 0} for every pair, so this
+     * is the passability check that was here before it.
+     */
+    public boolean canStep(int fromX, int fromY, int toX, int toY) {
+        if (isBlocked(fromX, fromY) || isBlocked(toX, toY)) {
+            return false;
+        }
+        int climb = level(toX, toY) - level(fromX, fromY);
+        if (climb == 0) {
+            return true;
+        }
+        if (climb > 1 || climb < -1 || (fromX != toX && fromY != toY)) {
+            return false;
+        }
+        return isRamp(fromX, fromY) || isRamp(toX, toY);
+    }
+
     /**
      * Increments whenever the obstacle layer changes shape — a building goes up
      * or comes down. Anything holding a path can compare it to know the route it
@@ -152,9 +258,9 @@ public final class PathGrid {
         return (int) Math.floor(worldPos.y() / cellSize);
     }
 
-    /** The world position at the centre of a cell. */
+    /** The world position at the centre of a cell, on its own floor. */
     public Coord3D cellCenter(int cx, int cy) {
-        return new Coord3D((cx + 0.5f) * cellSize, (cy + 0.5f) * cellSize, 0f);
+        return new Coord3D((cx + 0.5f) * cellSize, (cy + 0.5f) * cellSize, groundHeight(cx, cy));
     }
 
     /** Linear index of a cell, used as a deterministic tie-breaker in search. */
