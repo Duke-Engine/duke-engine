@@ -133,6 +133,8 @@ final class DukeRtsApp extends SimpleApplication {
     private Material[] minimapPalette;
     /** Floor tones by state and storey: [remembered|in sight][storey]. */
     private Material[][] minimapFloors;
+    /** The highest storey anywhere on this map — how many planes a click has to try. */
+    private int mapStoreys;
     private final Map<Integer, UnitNode> unitNodes = new HashMap<>();
     private final Set<Integer> selected = new HashSet<>();
     private final Map<String, AudioNode> audioCache = new HashMap<>();
@@ -373,6 +375,7 @@ final class DukeRtsApp extends SimpleApplication {
         float worldW = grid == null ? 700f : grid.getWidth() * grid.getCellSize();
         float worldH = grid == null ? 450f : grid.getHeight() * grid.getCellSize();
         minimap = new MinimapProjection(worldW, worldH, MINIMAP_SIZE);
+        mapStoreys = grid == null ? 0 : highestStorey(grid);
         // The camera may look at exactly what the minimap draws, and no further.
         // Until there is a map there is nothing to fence it into: the sizes above
         // are only something to draw an empty minimap at.
@@ -467,7 +470,7 @@ final class DukeRtsApp extends SimpleApplication {
             // a plan view and a plan view cannot show height at all — two rooms one
             // above the other are the same square of paper — so the only thing left
             // is to say it in tone, the way a contour map does.
-            int storeys = highestStorey(grid);
+            int storeys = mapStoreys;
             var remembered = new Material[storeys + 1];
             var lit = new Material[storeys + 1];
             for (int storey = 0; storey <= storeys; storey++) {
@@ -633,23 +636,41 @@ final class DukeRtsApp extends SimpleApplication {
         var near = cam.getWorldCoordinates(new Vector2f(screenX, screenY), 0f);
         var dir = cam.getWorldCoordinates(new Vector2f(screenX, screenY), 1f)
                 .subtract(near).normalizeLocal();
-        // Meet the ground floor first, then ask how high the floor actually is
-        // where that landed and meet it again. A room on the second storey is
-        // drawn a storey nearer the camera than the plane under it, so a click on
-        // it read against y = 0 lands somewhere behind the room — and the order
-        // goes to a place the player did not point at. Two or three passes settle
-        // it; a click that falls between two storeys settles on one of them.
-        float height = 0f;
-        var hit = meetsAt(near, dir, height);
-        for (int pass = 0; pass < 3; pass++) {
-            float floor = floorHeightAt(hit.x, hit.z);
-            if (floor == height) {
-                break;
+        var terrain = game.getTerrain();
+        return pickGround(near, dir, terrain == null ? 0f : terrain.getLevelHeight(),
+                mapStoreys, this::floorHeightAt);
+    }
+
+    /**
+     * Where the ray under the cursor first meets the ground, whichever storey that
+     * turns out to be.
+     *
+     * <p>Every storey is a level plane, so each one is tried in turn from the top
+     * down — the camera looks down at the map, so a higher plane is met earlier
+     * along the ray, and the first plane whose meeting point is really standing on
+     * that storey is the surface the player is pointing at.
+     *
+     * <p>Starting at the ground floor and working up does not do it, which is what
+     * was here before and what put the marker a pace beyond the cursor. A click on
+     * a raised room, read against the plane at zero, carries on past the room and
+     * lands behind it; the floor there is at zero as well, so the answer looks
+     * settled and is wrong by however far the ray travelled underneath.
+     *
+     * @param floorAt how high the floor is at a point on the map, which for a
+     *     stair is somewhere between two storeys — so the plane is met once more
+     *     at that exact height rather than at the storey's
+     */
+    static Vector3f pickGround(Vector3f near, Vector3f dir, float storeyHeight, int storeys,
+            java.util.function.BiFunction<Float, Float, Float> floorAt) {
+        for (int storey = Math.max(storeys, 0); storey >= 0; storey--) {
+            float height = storey * storeyHeight;
+            var hit = meetsAt(near, dir, height);
+            float floor = floorAt.apply(hit.x, hit.z);
+            if (storeyHeight <= 0f || Math.abs(floor - height) <= storeyHeight * 0.5f) {
+                return floor == height ? hit : meetsAt(near, dir, floor);
             }
-            height = floor;
-            hit = meetsAt(near, dir, height);
         }
-        return hit;
+        return meetsAt(near, dir, 0f);
     }
 
     /**

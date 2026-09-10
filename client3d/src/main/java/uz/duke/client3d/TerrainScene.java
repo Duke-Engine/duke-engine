@@ -228,7 +228,8 @@ final class TerrainScene {
                 continue;
             }
             boolean standing = placement.piece() == TileLayout.Piece.WALL
-                    || placement.piece() == TileLayout.Piece.CORNER;
+                    || placement.piece() == TileLayout.Piece.CORNER
+                    || placement.piece() == TileLayout.Piece.LEDGE;
             float scale = standing ? wallScale : floorScale;
             // Measured before it is scaled, because the answer is a fact about the
             // model and the same for every copy of it.
@@ -242,9 +243,14 @@ final class TerrainScene {
             // stone, which sits level with the tops of the walls it roofs. A floor
             // tile's top surface is what has to land on the floor's own height, so
             // it is sunk by however thick the tile is.
-            float y = placement.ground() + (placement.piece() == TileLayout.Piece.CAP
-                    ? tileset.getWallHeight() * wallScale
-                    : standing ? tileset.getWallLift() * wallScale : -surface);
+            // A ledge stands on the roof rather than on the floor: it is the face
+            // of the step between two lids, and a lid sits a wall's height up.
+            float y = placement.ground() + switch (placement.piece()) {
+                case CAP -> tileset.getWallHeight() * wallScale;
+                case LEDGE -> (tileset.getWallHeight() + tileset.getWallLift()) * wallScale;
+                case WALL, CORNER -> tileset.getWallLift() * wallScale;
+                default -> -surface;
+            };
             // A wall's face belongs on the boundary, and where its own kit put its
             // origin decides how far back that is. Along the wall's own facing,
             // which the yaw has just turned.
@@ -465,6 +471,7 @@ final class TerrainScene {
             // and only where there are walls to roof. A kit with no walls has
             // nothing to see over, and its lids would float above bare ground.
             case CAP -> tileset.getWall() == null ? null : tileset.getFloor();
+            case LEDGE -> tileset.getWall();
             case STAIR -> tileset.getStairs();
         };
     }

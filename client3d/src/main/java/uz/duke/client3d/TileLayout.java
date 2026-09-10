@@ -44,6 +44,18 @@ final class TileLayout {
          */
         CAP,
         /**
+         * The step where one lid of rock stands higher than the next.
+         *
+         * <p>The lid over a piece of rock sits level with the walls around it, so
+         * rock beside a raised room is roofed a storey higher than the rock behind
+         * it. That difference is a vertical face, and nothing was drawing it: from
+         * the corridor below you looked along the roof and straight into the
+         * inside of the map, which is black.
+         *
+         * <p>Drawn from the wall piece, like everything else standing up.
+         */
+        LEDGE,
+        /**
          * A flight of steps from one storey to the next.
          *
          * <p>Placed on the cell the grid marks as a ramp, turned so that it climbs
@@ -122,9 +134,10 @@ final class TileLayout {
                     // Roofed, and roofed under itself. Stone has as good a place on
                     // the map as anything else does, and the fog is read at the
                     // place a piece stands rather than at the cell that owns it.
+                    float lid = highestFloorAround(grid, cx, cy);
                     placements.add(new Placement(Piece.CAP, cx, cy,
-                            (cx + 0.5f) * cell, (cy + 0.5f) * cell, 0f,
-                            highestFloorAround(grid, cx, cy)));
+                            (cx + 0.5f) * cell, (cy + 0.5f) * cell, 0f, lid));
+                    addLedges(placements, grid, cx, cy, cell, lid);
                     continue; // the stone itself is not drawn; it is what the walls face
                 }
                 float ground = grid.groundHeight(cx, cy);
@@ -169,9 +182,21 @@ final class TileLayout {
             float x = (cx + 0.5f + side[0] * 0.5f) * cell;
             float z = (cy + 0.5f + side[1] * 0.5f) * cell;
 
+            float storey = grid.getLevelHeight();
             if (solid(grid, nx, ny)) {
-                into.add(new Placement(Piece.WALL, cx, cy, x, z, side[2],
-                        grid.groundHeight(cx, cy)));
+                // Up to the lid the rock wears, which beside a raised room is a
+                // storey higher than the room's own floor. One piece was enough
+                // while every floor was at zero; against a rock roofed higher than
+                // this cell it leaves a band open above the wall, and through that
+                // band you see the inside of the map.
+                float lid = highestFloorAround(grid, nx, ny);
+                float here = grid.groundHeight(cx, cy);
+                for (float foot = here; foot <= lid + 0.001f; foot += Math.max(storey, 1f)) {
+                    into.add(new Placement(Piece.WALL, cx, cy, x, z, side[2], foot));
+                    if (storey <= 0f) {
+                        break; // one storey everywhere: one wall, as it always was
+                    }
+                }
                 continue;
             }
             if (grid.canStep(cx, cy, nx, ny)) {
@@ -179,13 +204,45 @@ final class TileLayout {
             }
             float here = grid.groundHeight(cx, cy);
             float there = grid.groundHeight(nx, ny);
-            float storey = grid.getLevelHeight();
             if (here <= there || storey <= 0f) {
                 continue; // the higher of the two puts up the wall
             }
             float outward = (side[2] + 180f) % 360f;
             for (float foot = there; foot < here - storey * 0.5f; foot += storey) {
                 into.add(new Placement(Piece.WALL, cx, cy, x, z, outward, foot));
+            }
+        }
+    }
+
+    /**
+     * The face of the step where this piece of rock is roofed higher than the
+     * next.
+     *
+     * <p>The same rule the retaining walls follow, one surface up: where two
+     * surfaces meet at different heights, the difference is a wall, and it belongs
+     * to the higher of the two and faces the lower.
+     */
+    private static void addLedges(List<Placement> into, PathGrid grid, int cx, int cy, float cell,
+            float lid) {
+        float storey = grid.getLevelHeight();
+        if (storey <= 0f) {
+            return; // one storey everywhere: the roof is flat and has no steps in it
+        }
+        for (var side : SIDES) {
+            int nx = cx + side[0];
+            int ny = cy + side[1];
+            if (!solid(grid, nx, ny)) {
+                continue; // the open side is the floor's business, and it walls it
+            }
+            float theirs = highestFloorAround(grid, nx, ny);
+            if (theirs >= lid) {
+                continue; // the taller one puts up the wall
+            }
+            float x = (cx + 0.5f + side[0] * 0.5f) * cell;
+            float z = (cy + 0.5f + side[1] * 0.5f) * cell;
+            float outward = (side[2] + 180f) % 360f;
+            for (float foot = theirs; foot < lid - storey * 0.5f; foot += storey) {
+                into.add(new Placement(Piece.LEDGE, cx, cy, x, z, outward, foot));
             }
         }
     }
