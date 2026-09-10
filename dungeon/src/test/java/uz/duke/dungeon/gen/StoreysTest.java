@@ -185,6 +185,59 @@ class StoreysTest {
         }
     }
 
+    // ---- determinism, with height in it ----
+
+    /**
+     * A run reduced to what the simulation ended up as, over several floors.
+     *
+     * <p>The same shape {@code DungeonThemeTest} uses. What is being asked here is
+     * different: not whether the look changes the game, but whether a game with
+     * height in it is still the same game twice.
+     */
+    private static String playedOut(DungeonSettings settings) {
+        var game = uz.duke.dungeon.Dungeon.newSession(20250910L, settings).game();
+        game.runHeadless(1);
+        var signature = new StringBuilder();
+        for (int step = 0; step < 8; step++) {
+            game.runHeadless(120);
+            signature.append(game.getLogic().getObjectCount()).append(':')
+                    .append(game.getLogic().checksum()).append('|');
+        }
+        return signature.toString();
+    }
+
+    /** A seed with storeys in it plays out the same way twice. */
+    @Test
+    void aRunThroughARaisedDungeonIsTheSameRunTwice() {
+        var first = playedOut(SETTINGS);
+        var again = playedOut(SETTINGS);
+
+        assertTrue(first.length() > 10, "something has to have happened");
+        assertEquals(first, again, "the same seed played out differently the second time");
+    }
+
+    /**
+     * And height really does reach the simulation.
+     *
+     * <p>The counterpart to every "nothing changed" test above: if the storeys
+     * were only paint, flattening them would leave the run identical, and every
+     * guarantee in this file would be guarding nothing.
+     */
+    @Test
+    void takingTheHeightAwayChangesTheRun() {
+        var raised = playedOut(SETTINGS);
+        var flattened = playedOut(DungeonSettings.parse(Content.read(Content.SETTINGS) + """
+
+                DungeonGeneration Layout
+                  MaxStorey = 0
+                End
+                """));
+
+        assertTrue(!raised.equals(flattened),
+                "a dungeon with storeys played out exactly like a flat one, so the "
+                        + "height never reached the simulation at all");
+    }
+
     // ---- helpers ----
 
     private static int cellIndex(PathGrid grid, float worldX, float worldY) {
