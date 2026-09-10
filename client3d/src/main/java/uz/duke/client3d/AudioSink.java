@@ -48,7 +48,7 @@ final class AudioSink implements SoundSink {
 
     @Override
     public void play(String assetPath, float gain, Vector3f at) {
-        var node = nodeFor(assetPath, false);
+        var node = nodeFor(assetPath, false, at != null);
         if (node == null) {
             return;
         }
@@ -72,7 +72,7 @@ final class AudioSink implements SoundSink {
         // Streamed rather than held in memory: a loop is a minute of audio where
         // a footstep is a tenth of a second, and it is played once from start to
         // finish rather than fired off a hundred times.
-        music = nodeFor(assetPath, true);
+        music = nodeFor(assetPath, true, false);
         if (music == null) {
             return;
         }
@@ -97,7 +97,7 @@ final class AudioSink implements SoundSink {
      * as it is a sound, and handing the same one out twice gives two players one
      * playhead.
      */
-    private AudioNode nodeFor(String assetPath, boolean streamed) {
+    private AudioNode nodeFor(String assetPath, boolean streamed, boolean positional) {
         if (assetPath == null || missing.contains(assetPath)) {
             return null;
         }
@@ -111,8 +111,21 @@ final class AudioSink implements SoundSink {
             var node = new AudioNode(assets, assetPath,
                     streamed ? AudioData.DataType.Stream : AudioData.DataType.Buffer);
             if (!streamed) {
-                node.setPositional(true);
-                node.setRefDistance(REFERENCE_DISTANCE);
+                // Placed only if it is meant to be and can be. OpenAL will not
+                // place a stereo sound -- it is already two places -- and asking
+                // it to throws, which is a crash rather than a wrong noise. The
+                // packs ship a mixture, so the positional ones were down-mixed;
+                // this keeps a stereo one that slips in later merely unplaced.
+                if (!positional) {
+                    node.setPositional(false); // a voice line is nowhere in particular
+                } else if (isMono(node)) {
+                    node.setPositional(true);
+                    node.setRefDistance(REFERENCE_DISTANCE);
+                } else {
+                    node.setPositional(false);
+                    LOG.warning(() -> assetPath + " is meant to come from somewhere but"
+                            + " is stereo, so it cannot -- down-mix it to mono");
+                }
                 root.attachChild(node);
                 nodes.put(assetPath, node);
             }
@@ -125,8 +138,13 @@ final class AudioSink implements SoundSink {
         }
     }
 
+    private static boolean isMono(AudioNode node) {
+        var data = node.getAudioData();
+        return data == null || data.getChannels() == 1;
+    }
+
     /** Read a file now so the frame that first wants it does not have to. */
-    void warm(String assetPath) {
-        nodeFor(assetPath, false);
+    void warm(String assetPath, boolean positional) {
+        nodeFor(assetPath, false, positional);
     }
 }

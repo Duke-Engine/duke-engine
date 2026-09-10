@@ -69,6 +69,30 @@ class DungeonSoundTest {
         }
     }
 
+    /**
+     * Anything meant to come from somewhere is mono.
+     *
+     * <p>Not a preference. OpenAL will not place a stereo sound — it is already
+     * two places at once — and being asked to throws, which crashed the game the
+     * first time an arrow was loosed. The packs ship a mixture, so the positional
+     * ones were down-mixed; this is what stops the next file being added back in
+     * stereo and taking the game down at the first shot.
+     */
+    @Test
+    void everythingPlacedInTheWorldIsMono() {
+        var assets = new com.jme3.asset.DesktopAssetManager(true);
+        for (var cue : SETTINGS.sounds()) {
+            if (!cue.positional()) {
+                continue; // a menu click is nowhere, and may be as wide as it likes
+            }
+            for (var file : cue.files()) {
+                assertEquals(1, assets.loadAudio(file).getChannels(),
+                        file + " is placed in the world but is not mono — OpenAL"
+                                + " refuses that, and refusing it is a crash");
+            }
+        }
+    }
+
     /** And every channel named is one of the four the client has a knob for. */
     @Test
     void everyChannelNamedIsOneTheClientHas() {
