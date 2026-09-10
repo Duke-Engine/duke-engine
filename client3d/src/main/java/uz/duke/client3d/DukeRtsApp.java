@@ -150,6 +150,8 @@ final class DukeRtsApp extends SimpleApplication {
     private WorldSnapshot snapshot = WorldSnapshot.EMPTY;
     private WorldSnapshot lastEventedSnapshot = WorldSnapshot.EMPTY;
     private final CameraFocus camera = new CameraFocus();
+    /** How high the camera is looking, eased toward the ground under its target. */
+    private float cameraHeight;
     private final boolean[] pan = new boolean[4]; // W A S D
     private BitmapText hud;
     private BitmapText buildMenu;
@@ -551,7 +553,10 @@ final class DukeRtsApp extends SimpleApplication {
             var ring = new Geometry("order-mark", new Cylinder(2, 24, radius, 0.05f, true));
             ring.setMaterial(unshaded(colour));
             ring.rotate(FastMath.HALF_PI, 0, 0);
-            ring.setLocalTranslation(marker.x(), 0.2f, marker.y());
+            // A hand's breadth over the floor it was ordered on -- which is not
+            // always the ground floor.
+            ring.setLocalTranslation(marker.x(),
+                    floorHeightAt(marker.x(), marker.y()) + 0.2f, marker.y());
             markerNode.attachChild(ring);
         }
     }
@@ -601,7 +606,34 @@ final class DukeRtsApp extends SimpleApplication {
         var near = cam.getWorldCoordinates(new Vector2f(screenX, screenY), 0f);
         var dir = cam.getWorldCoordinates(new Vector2f(screenX, screenY), 1f)
                 .subtract(near).normalizeLocal();
-        float t = Math.abs(dir.y) < 1e-6f ? -1f : -near.y / dir.y;
+        // Meet the ground floor first, then ask how high the floor actually is
+        // where that landed and meet it again. A room on the second storey is
+        // drawn a storey nearer the camera than the plane under it, so a click on
+        // it read against y = 0 lands somewhere behind the room — and the order
+        // goes to a place the player did not point at. Two or three passes settle
+        // it; a click that falls between two storeys settles on one of them.
+        float height = 0f;
+        var hit = meetsAt(near, dir, height);
+        for (int pass = 0; pass < 3; pass++) {
+            float floor = floorHeightAt(hit.x, hit.z);
+            if (floor == height) {
+                break;
+            }
+            height = floor;
+            hit = meetsAt(near, dir, height);
+        }
+        return hit;
+    }
+
+    /**
+     * Where a ray meets a level plane at {@code height}.
+     *
+     * <p>A ray above the horizon never meets it, so it is followed a long way
+     * instead and the projection clamps the result to the map — which is what the
+     * player sees anyway: the view running off the edge of the world.
+     */
+    private static Vector3f meetsAt(Vector3f near, Vector3f dir, float height) {
+        float t = Math.abs(dir.y) < 1e-6f ? -1f : (height - near.y) / dir.y;
         return near.add(dir.mult(t < 0 ? 10_000f : t));
     }
 
@@ -2436,8 +2468,15 @@ final class DukeRtsApp extends SimpleApplication {
         var shove = edgeShove(speed);
         camera.panBy(dx + shove.x, dz + shove.y);
 
+        // The camera rides up with the ground under what it is looking at, or a
+        // room on the second storey is a room seen from underneath. Eased rather
+        // than stepped: a storey is a whole body's height and arriving at one in a
+        // single frame reads as the world jumping.
+        float wanted = floorHeightAt(camera.targetX(), camera.targetZ());
+        cameraHeight += (wanted - cameraHeight) * Math.min(1f, tpf * 6f);
+
         float distance = camera.distance();
-        var target = new Vector3f(camera.targetX(), 0f, camera.targetZ());
+        var target = new Vector3f(camera.targetX(), cameraHeight, camera.targetZ());
         cam.setLocation(target.add(new Vector3f(0, distance * 0.82f, distance * 0.57f)));
         cam.lookAt(target, Vector3f.UNIT_Y);
     }
@@ -2521,6 +2560,20 @@ final class DukeRtsApp extends SimpleApplication {
      * <p>His own things are always drawn — they are his, and an arrow of his own
      * that vanished mid-flight would be a bug rather than a fog.
      */
+    /**
+     * How high the floor stands at a place on the map.
+     *
+     * <p>Read off the same grid the simulation walks on rather than sent in the
+     * snapshot. The snapshot carries what a unit is and where it stands on the
+     * ground plane; how far up that ground is, is a fact about the map, and the
+     * client already has the map — it draws the walls from it.
+     */
+    private float floorHeightAt(float worldX, float worldY) {
+        var terrain = game.getTerrain();
+        return terrain == null ? 0f
+                : terrain.groundHeight(new uz.duke.core.math.Coord3D(worldX, worldY, 0f));
+    }
+
     private boolean outOfSight(UnitView view) {
         return discovery != null
                 && view.playerIndex() != game.getLocalPlayerIndex()
@@ -2937,7 +2990,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     private void updateUnitNode(UnitNode node, UnitView view) {
         node.view = view;
-        node.root.setLocalTranslation(view.x(), 0, view.y());
+        node.root.setLocalTranslation(view.x(), floorHeightAt(view.x(), view.y()), view.y());
         node.root.setLocalRotation(new Quaternion().fromAngles(0, -view.orientation(), 0));
 
         node.ring.setCullHint(selected.contains(view.id())

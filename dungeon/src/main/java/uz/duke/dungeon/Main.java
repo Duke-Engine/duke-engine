@@ -119,6 +119,7 @@ public final class Main {
                             .floor(tone.floor())
                             .wall(tone.wall())
                             .corner(tone.corner())
+                            .stairs(theme.stairsPath())
                             .tileSize(theme.tileSize())
                             .wallTileSize(theme.wallTileSize())
                             .wallHeight(theme.wallHeight())
@@ -351,6 +352,7 @@ public final class Main {
                     .floor(art.floor())
                     .wall(art.wall())
                     .corner(art.corner())
+                    .stairs(art.stairs())
                     .tileSize(art.tileSize())
                     .wallHeight(art.wallHeight()));
         }

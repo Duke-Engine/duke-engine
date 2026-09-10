@@ -216,4 +216,122 @@ class TileLayoutTest {
     void noMapLaysOutNothing() {
         assertEquals(List.of(), TileLayout.of(null));
     }
+
+    // ---- height ----
+
+    /**
+     * A corridor at the bottom, a room a storey above it, and one stair between
+     * them. Read as two layers: the first says what is stone, the second how high
+     * each cell stands.
+     */
+    private static final String TWO_STOREYS = """
+            #######
+            #00/11#
+            #00.11#
+            #######
+            """;
+
+    private static final float STOREY = 10f;
+
+    private static PathGrid twoStoreys() {
+        var grid = MapLoader.fromText(TWO_STOREYS);
+        MapLoader.levels(grid, TWO_STOREYS);
+        grid.setLevelHeight(STOREY);
+        return grid;
+    }
+
+    private static List<TileLayout.Placement> only(PathGrid grid, TileLayout.Piece piece) {
+        return TileLayout.of(grid).stream().filter(p -> p.piece() == piece).toList();
+    }
+
+    /** Each floor tile belongs to the storey its own cell stands on. */
+    @Test
+    void aFloorIsLaidOnItsOwnStorey() {
+        var floors = only(twoStoreys(), TileLayout.Piece.FLOOR);
+
+        for (var floor : floors) {
+            float expected = floor.cellX() >= 4 ? STOREY : 0f;
+            assertEquals(expected, floor.ground(), 0.001f,
+                    "the floor of cell " + floor.cellX() + "," + floor.cellY());
+        }
+    }
+
+    /**
+     * The edge of a raised room is walled, though there is no stone anywhere near
+     * it.
+     *
+     * <p>This is the whole of what makes a storey read as a storey: open floor
+     * ending in a drop looks like open floor, and the player walks at it and is
+     * stopped by nothing he can see. The rule is the pathfinder's own — a wall
+     * goes wherever a body may not cross — so the picture and the collision
+     * cannot drift apart.
+     */
+    @Test
+    void aDropIsWalledEvenWithNoStoneThere() {
+        var grid = twoStoreys();
+        var walls = only(grid, TileLayout.Piece.WALL);
+
+        // The boundary between cell (3,2) at the bottom and (4,2) a storey up.
+        var holdingUp = walls.stream()
+                .filter(w -> Math.abs(w.x() - 4f * CELL) < 0.001f)
+                .filter(w -> Math.abs(w.z() - 2.5f * CELL) < 0.001f)
+                .toList();
+
+        assertEquals(1, holdingUp.size(), "the raised room's edge should be held up");
+        assertEquals(4, holdingUp.get(0).cellX(), "and the wall belongs to the higher cell");
+        assertEquals(0f, holdingUp.get(0).ground(), 0.001f,
+                "standing on the lower floor, reaching up to the higher one");
+    }
+
+    /** But never across the stair, which is the one place a body may cross. */
+    @Test
+    void theWayUpIsLeftOpen() {
+        var grid = twoStoreys();
+
+        var acrossTheStair = only(grid, TileLayout.Piece.WALL).stream()
+                .filter(w -> Math.abs(w.x() - 4f * CELL) < 0.001f)
+                .filter(w -> Math.abs(w.z() - 1.5f * CELL) < 0.001f)
+                .toList();
+
+        assertEquals(List.of(), acrossTheStair, "a wall was built across the way up");
+    }
+
+    /** And the steps are drawn on the ramp cell, turned toward what they climb. */
+    @Test
+    void aStairIsDrawnTurnedTowardWhatItClimbs() {
+        var stairs = only(twoStoreys(), TileLayout.Piece.STAIR);
+
+        assertEquals(1, stairs.size(), "one ramp cell, one flight of steps");
+        var stair = stairs.get(0);
+        assertEquals(3, stair.cellX());
+        assertEquals(3.5f * CELL, stair.x(), 0.001f, "in the middle of its own cell");
+        assertEquals(0f, stair.ground(), 0.001f, "starting on the floor it climbs from");
+        // The room it serves is to the east, and jME turns +z toward +x at 90°.
+        assertEquals(90f, stair.yaw(), 0.001f, "the steps should climb toward the room");
+    }
+
+    /** Rock beside a raised room is roofed at the room's height, not the corridor's. */
+    @Test
+    void theLidOverRockRisesWithTheRoomsBesideIt() {
+        var caps = only(twoStoreys(), TileLayout.Piece.CAP);
+
+        var besideTheRoom = caps.stream()
+                .filter(c -> c.cellX() == 6 && c.cellY() == 1).findFirst().orElseThrow();
+        var besideTheCorridor = caps.stream()
+                .filter(c -> c.cellX() == 0 && c.cellY() == 1).findFirst().orElseThrow();
+
+        assertEquals(STOREY, besideTheRoom.ground(), 0.001f);
+        assertEquals(0f, besideTheCorridor.ground(), 0.001f);
+    }
+
+    /** A map with no height in it lays out exactly as it always did. */
+    @Test
+    void aFlatMapIsUntouched() {
+        for (var placement : layout(CORRIDOR)) {
+            assertEquals(0f, placement.ground(), 0f,
+                    placement.piece() + " at " + placement.cellX() + "," + placement.cellY());
+            assertTrue(placement.piece() != TileLayout.Piece.STAIR,
+                    "a flat map has nothing to climb");
+        }
+    }
 }

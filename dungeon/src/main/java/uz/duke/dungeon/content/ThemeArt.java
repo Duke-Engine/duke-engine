@@ -31,6 +31,8 @@ import java.util.List;
  * @param ownMaterials  whether the models carry their own colours. A kit drawn on
  *     one atlas wants one shared skin; a kit that ships no texture and says what
  *     colour each of its parts is wants what it came with
+ * @param stairs        the flight of steps between two storeys, or null for a kit
+ *     that ships none — then the client builds them out of blocks
  * @param fogTint       what the dark is coloured here, packed {@code 0xRRGGBB} —
  *     bluish under ice, red under lava, black in plain stone
  */
@@ -43,6 +45,7 @@ public record ThemeArt(
         float wallLift,
         float wallShift,
         boolean ownMaterials,
+        String stairs,
         int fogTint,
         List<Tone> tones,
         List<ThemeMonster> monsters) {
@@ -85,6 +88,11 @@ public record ThemeArt(
      */
     public record ThemeMonster(String template, MonsterLook look, String animationsFrom,
             String death) {
+    }
+
+    /** The steps between storeys, with the folder in front of them. */
+    public String stairsPath() {
+        return path(stairs);
     }
 
     /** The theme with every asset path made whole. */

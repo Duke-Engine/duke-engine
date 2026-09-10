@@ -134,11 +134,11 @@ final class TerrainScene {
         float worldW = grid == null ? DEFAULT_WIDTH : grid.getWidth() * grid.getCellSize();
         float worldH = grid == null ? DEFAULT_HEIGHT : grid.getHeight() * grid.getCellSize();
 
-        var ground = new Geometry("ground", new Quad(worldW, worldH));
-        ground.setMaterial(material.apply(GROUND));
-        ground.rotate(-FastMath.HALF_PI, 0, 0);
-        ground.setLocalTranslation(0, 0, worldH);
-        root.attachChild(ground);
+        var plane = new Geometry("ground", new Quad(worldW, worldH));
+        plane.setMaterial(material.apply(GROUND));
+        plane.rotate(-FastMath.HALF_PI, 0, 0);
+        plane.setLocalTranslation(0, 0, worldH);
+        root.attachChild(plane);
 
         if (grid == null) {
             rocks = new Geometry[0];
@@ -149,22 +149,49 @@ final class TerrainScene {
         cellsWide = grid.getWidth();
         rocks = discovery ? new Geometry[grid.getWidth() * grid.getHeight()] : new Geometry[0];
         var stone = material.apply(ROCK);
+        var raised = material.apply(GROUND);
         for (int cy = 0; cy < grid.getHeight(); cy++) {
             for (int cx = 0; cx < grid.getWidth(); cx++) {
                 if (!grid.isBlocked(cx, cy)) {
+                    // A room standing above the ground plane needs something under
+                    // it, or its floor is a colour on the ground and the units
+                    // walking about on it are in mid-air.
+                    float ground = grid.groundHeight(cx, cy);
+                    if (ground > 0f) {
+                        var plinth = new Geometry("plinth",
+                                new Box(cell / 2f, ground / 2f, cell / 2f));
+                        plinth.setMaterial(raised);
+                        plinth.setLocalTranslation((cx + 0.5f) * cell, ground / 2f,
+                                (cy + 0.5f) * cell);
+                        root.attachChild(plinth);
+                    }
                     continue;
                 }
-                var rock = new Geometry("rock",
-                        new Box(cell / 2f, BLOCK_HALF_HEIGHT, cell / 2f));
+                // Rock stands as tall as the tallest floor beside it, so a raised
+                // room is walled in rather than looked over.
+                float top = highestFloorAround(grid, cx, cy) + BLOCK_HALF_HEIGHT * 2f;
+                var rock = new Geometry("rock", new Box(cell / 2f, top / 2f, cell / 2f));
                 rock.setMaterial(stone);
-                rock.setLocalTranslation((cx + 0.5f) * cell, BLOCK_HALF_HEIGHT,
-                        (cy + 0.5f) * cell);
+                rock.setLocalTranslation((cx + 0.5f) * cell, top / 2f, (cy + 0.5f) * cell);
                 root.attachChild(rock);
                 if (discovery) {
                     rocks[cy * cellsWide + cx] = rock;
                 }
             }
         }
+    }
+
+    /** The tallest floor touching a cell, so rock and lids rise with the rooms. */
+    private static float highestFloorAround(PathGrid grid, int cx, int cy) {
+        float highest = 0f;
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                if (grid.inBounds(cx + dx, cy + dy) && !grid.isBlocked(cx + dx, cy + dy)) {
+                    highest = Math.max(highest, grid.groundHeight(cx + dx, cy + dy));
+                }
+            }
+        }
+        return highest;
     }
 
     /**
@@ -188,6 +215,10 @@ final class TerrainScene {
         float wallScale = cell / tileset.getWallTileSize();
 
         for (var placement : TileLayout.of(grid)) {
+            if (placement.piece() == TileLayout.Piece.STAIR) {
+                addStair(grid, placement, cell);
+                continue;
+            }
             String asset = assetFor(placement.piece());
             if (asset == null) {
                 continue; // a kit without corner posts is a kit with square notches
@@ -207,13 +238,13 @@ final class TerrainScene {
             float yaw = FastMath.DEG_TO_RAD * placement.yaw();
             piece.setLocalRotation(new com.jme3.math.Quaternion()
                     .fromAngleAxis(yaw, Vector3f.UNIT_Y));
-            // Everything lies on the floor except the lid over the stone, which
-            // sits level with the tops of the walls it roofs.
-            // The ground everything stands on is y = 0, so that is where a floor
-            // tile's top surface belongs — sunk by however thick the tile is.
-            float y = placement.piece() == TileLayout.Piece.CAP
+            // Everything lies on the floor it belongs to except the lid over the
+            // stone, which sits level with the tops of the walls it roofs. A floor
+            // tile's top surface is what has to land on the floor's own height, so
+            // it is sunk by however thick the tile is.
+            float y = placement.ground() + (placement.piece() == TileLayout.Piece.CAP
                     ? tileset.getWallHeight() * wallScale
-                    : standing ? tileset.getWallLift() * wallScale : -surface;
+                    : standing ? tileset.getWallLift() * wallScale : -surface);
             // A wall's face belongs on the boundary, and where its own kit put its
             // origin decides how far back that is. Along the wall's own facing,
             // which the yaw has just turned.
@@ -224,6 +255,145 @@ final class TerrainScene {
                     placement.z() + back * FastMath.cos(yaw));
             cellNode(placement.cellY() * cellsWide + placement.cellX()).attachChild(piece);
         }
+    }
+
+    /**
+     * A flight of steps, made to fit the cell it stands on and the storey it
+     * climbs.
+     *
+     * <p>Two things about a stair model are measured rather than written down,
+     * because kits disagree about both and neither is guessable from a file name.
+     * How big it is: scaled so its run is a cell and its rise is a storey, so the
+     * top step lands exactly on the floor above rather than a hand's breadth over
+     * or under it. And which way it climbs: one kit's steps rise toward -z and the
+     * next kit's toward +x, so the model is turned by the difference between the
+     * way it happens to face and the way this one has to.
+     */
+    private void addStair(PathGrid grid, TileLayout.Placement placement, float cell) {
+        var asset = tileset == null ? null : tileset.getStairs();
+        var piece = asset == null ? null : tiles.piece(asset);
+        if (piece == null) {
+            addBuiltSteps(placement, cell, grid.getLevelHeight());
+            return;
+        }
+        var box = boundsOf(asset, piece);
+        var climb = climbOf(asset, piece);
+        float run = Math.max(0.001f, Math.abs(climb.x) > Math.abs(climb.z)
+                ? box.getXExtent() * 2f : box.getZExtent() * 2f);
+        float rise = Math.max(0.001f, box.getYExtent() * 2f);
+        piece.setLocalScale(cell / run, grid.getLevelHeight() / rise, cell / run);
+
+        float own = FastMath.atan2(climb.x, climb.z);
+        float yaw = FastMath.DEG_TO_RAD * placement.yaw() - own;
+        piece.setLocalRotation(new com.jme3.math.Quaternion()
+                .fromAngleAxis(yaw, Vector3f.UNIT_Y));
+        // Its foot on the lower floor: the model's own bottom is wherever its kit
+        // put the origin, so it is lifted by however far it hangs below.
+        piece.setLocalTranslation(placement.x(),
+                placement.ground() + (box.getYExtent() - box.getCenter().y)
+                        * (grid.getLevelHeight() / rise),
+                placement.z());
+        cellNode(placement.cellY() * cellsWide + placement.cellX()).attachChild(piece);
+    }
+
+    /**
+     * Steps built out of blocks, for a kit that ships no stair of its own.
+     *
+     * <p>Plain, but never wrong: four boxes, each a quarter of the climb, laid up
+     * the cell in the direction the player has to walk. A kit that names a stair
+     * gets its own.
+     */
+    private void addBuiltSteps(TileLayout.Placement placement, float cell, float storey) {
+        if (storey <= 0f) {
+            return;
+        }
+        int steps = 4;
+        var stone = material.apply(ROCK);
+        float yaw = FastMath.DEG_TO_RAD * placement.yaw();
+        var node = new Node("steps");
+        for (int i = 0; i < steps; i++) {
+            float depth = cell / steps;
+            float height = storey * (i + 1) / steps;
+            var step = new Geometry("step", new Box(cell / 2f, height / 2f, depth / 2f));
+            step.setMaterial(stone);
+            // Along the climb: the deepest step is the highest, at the far end.
+            float along = (i + 0.5f) * depth - cell / 2f;
+            step.setLocalTranslation(along * FastMath.sin(yaw), height / 2f,
+                    along * FastMath.cos(yaw));
+            node.attachChild(step);
+        }
+        node.setLocalRotation(new com.jme3.math.Quaternion()
+                .fromAngleAxis(yaw, Vector3f.UNIT_Y));
+        node.setLocalTranslation(placement.x(), placement.ground(), placement.z());
+        cellNode(placement.cellY() * cellsWide + placement.cellX()).attachChild(node);
+    }
+
+    private final java.util.Map<String, com.jme3.bounding.BoundingBox> tileBounds =
+            new java.util.HashMap<>();
+    private final java.util.Map<String, Vector3f> tileClimb = new java.util.HashMap<>();
+
+    private com.jme3.bounding.BoundingBox boundsOf(String asset, Spatial piece) {
+        return tileBounds.computeIfAbsent(asset, path -> {
+            piece.updateModelBound();
+            piece.updateGeometricState();
+            return piece.getWorldBound() instanceof com.jme3.bounding.BoundingBox box
+                    ? (com.jme3.bounding.BoundingBox) box.clone()
+                    : new com.jme3.bounding.BoundingBox(Vector3f.ZERO, 1f, 1f, 1f);
+        });
+    }
+
+    /**
+     * Which way a model climbs, in its own axes.
+     *
+     * <p>Read off the mesh: the middle of its highest vertices, less the middle of
+     * its lowest. A staircase is the one piece whose meaning is a direction, and
+     * no kit says which way it faces.
+     */
+    private Vector3f climbOf(String asset, Spatial piece) {
+        return tileClimb.computeIfAbsent(asset, path -> {
+            var high = new Vector3f();
+            var low = new Vector3f();
+            var counts = new int[2];
+            var box = boundsOf(asset, piece);
+            float top = box.getCenter().y + box.getYExtent();
+            float bottom = box.getCenter().y - box.getYExtent();
+            float cut = bottom + (top - bottom) * 0.8f;
+            float floor = bottom + (top - bottom) * 0.2f;
+            for (var vertex : verticesOf(piece)) {
+                if (vertex.y >= cut) {
+                    high.addLocal(vertex);
+                    counts[0]++;
+                } else if (vertex.y <= floor) {
+                    low.addLocal(vertex);
+                    counts[1]++;
+                }
+            }
+            if (counts[0] == 0 || counts[1] == 0) {
+                return Vector3f.UNIT_Z.clone();
+            }
+            var direction = high.divide(counts[0]).subtract(low.divide(counts[1]));
+            direction.y = 0f;
+            return direction.lengthSquared() < 0.0001f ? Vector3f.UNIT_Z.clone()
+                    : direction.normalizeLocal();
+        });
+    }
+
+    private static java.util.List<Vector3f> verticesOf(Spatial piece) {
+        var points = new java.util.ArrayList<Vector3f>();
+        piece.depthFirstTraversal(spatial -> {
+            if (!(spatial instanceof Geometry geometry)) {
+                return;
+            }
+            var buffer = geometry.getMesh().getFloatBuffer(
+                    com.jme3.scene.VertexBuffer.Type.Position);
+            if (buffer == null) {
+                return;
+            }
+            for (int i = 0; i + 2 < buffer.limit(); i += 3) {
+                points.add(new Vector3f(buffer.get(i), buffer.get(i + 1), buffer.get(i + 2)));
+            }
+        });
+        return points;
     }
 
     /** How high a floor tile's surface sits above its own origin, per asset. */
@@ -289,6 +459,7 @@ final class TerrainScene {
             // and only where there are walls to roof. A kit with no walls has
             // nothing to see over, and its lids would float above bare ground.
             case CAP -> tileset.getWall() == null ? null : tileset.getFloor();
+            case STAIR -> tileset.getStairs();
         };
     }
 

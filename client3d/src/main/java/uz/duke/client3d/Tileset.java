@@ -3,10 +3,11 @@ package uz.duke.client3d;
 /**
  * A modular kit the client can build a floor out of, instead of coloured blocks.
  *
- * <p>Three pieces are enough for a dungeon: a floor tile, a wall that stands on a
- * tile's edge, and a post for the notch where two walls meet at a right angle.
- * Everything else a kit ships — doors, stairs, prefabricated rooms — belongs to a
- * game that lays its world out by hand, not to one that generates it.
+ * <p>Four pieces are enough for a dungeon: a floor tile, a wall that stands on a
+ * tile's edge, a post for the notch where two walls meet at a right angle, and a
+ * flight of steps for a map with more than one storey to it. Everything else a
+ * kit ships — doors, prefabricated rooms, furniture — belongs to a game that lays
+ * its world out by hand, not to one that generates it.
  *
  * <p>{@link #tileSize} is what the pieces were modelled at, and the only number
  * that has to be right: the client scales it to the map's own cell size, so a kit
@@ -20,6 +21,7 @@ public final class Tileset {
     private String floor;
     private String wall;
     private String corner;
+    private String stairs;
     private float tileSize = 4f;
     private float wallTileSize = 0f;
     private float wallHeight = 4f;
@@ -149,6 +151,20 @@ public final class Tileset {
         return this;
     }
 
+    /**
+     * A flight of steps from one storey to the next.
+     *
+     * <p>Optional, like the corner post: a kit without one gets steps built from
+     * plain blocks, which is what every kit got before this existed. The model is
+     * scaled to the cell it stands on and the storey it climbs, and turned by
+     * whichever way its own steps happen to face -- kits do not agree about that
+     * any more than they agree about where a wall origin sits.
+     */
+    public Tileset stairs(String assetPath) {
+        this.stairs = assetPath;
+        return this;
+    }
+
     /** How wide one tile is in the model's own units. Kenney's kits are 4. */
     /**
      * How tall the wall piece stands, in the same model units as the tile size.
@@ -181,6 +197,10 @@ public final class Tileset {
 
     public String getCorner() {
         return corner;
+    }
+
+    public String getStairs() {
+        return stairs;
     }
 
     public float getTileSize() {

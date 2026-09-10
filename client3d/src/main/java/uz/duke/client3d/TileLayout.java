@@ -42,7 +42,16 @@ final class TileLayout {
          * was that a lid used to belong to the room beside it, and rock further in
          * had no room to belong to.
          */
-        CAP
+        CAP,
+        /**
+         * A flight of steps from one storey to the next.
+         *
+         * <p>Placed on the cell the grid marks as a ramp, turned so that it climbs
+         * toward the higher of its neighbours. It is the only piece whose whole
+         * job is height, and the one place a player is told, without a word, that
+         * this map has more than one floor to it.
+         */
+        STAIR
     }
 
     /**
@@ -53,8 +62,16 @@ final class TileLayout {
      * post in the stone. It is a grouping and nothing more: the renderer decides
      * what to draw from where a piece actually <em>stands</em>, not from what it
      * was filed under.
+     *
+     * <p>{@code ground} is the height of the floor this piece belongs to, which is
+     * not always the height of its own cell either: a wall holding up a raised
+     * room stands on the lower floor beside it, and the lid over a piece of rock
+     * sits level with the tallest floor around it. What the renderer adds on top
+     * — how thick a tile is, how far up a kit's wall has to be nudged — is the
+     * kit's business and stays there.
      */
-    record Placement(Piece piece, int cellX, int cellY, float x, float z, float yaw) {
+    record Placement(Piece piece, int cellX, int cellY, float x, float z, float yaw,
+            float ground) {
     }
 
     private TileLayout() {
@@ -106,29 +123,118 @@ final class TileLayout {
                     // the map as anything else does, and the fog is read at the
                     // place a piece stands rather than at the cell that owns it.
                     placements.add(new Placement(Piece.CAP, cx, cy,
-                            (cx + 0.5f) * cell, (cy + 0.5f) * cell, 0f));
+                            (cx + 0.5f) * cell, (cy + 0.5f) * cell, 0f,
+                            highestFloorAround(grid, cx, cy)));
                     continue; // the stone itself is not drawn; it is what the walls face
                 }
+                float ground = grid.groundHeight(cx, cy);
                 placements.add(new Placement(Piece.FLOOR, cx, cy,
-                        (cx + 0.5f) * cell, (cy + 0.5f) * cell, 0f));
+                        (cx + 0.5f) * cell, (cy + 0.5f) * cell, 0f, ground));
                 addWalls(placements, grid, cx, cy, cell);
                 addCorners(placements, grid, cx, cy, cell);
+                addStair(placements, grid, cx, cy, cell, ground);
             }
         }
         return placements;
     }
 
+    /**
+     * Walls, wherever a body cannot cross — which is not the same as wherever
+     * there is stone.
+     *
+     * <p>A room standing a storey above the corridor beside it has an edge that
+     * nobody may step over, and nothing there to say so: open floor, then open
+     * floor, and a drop between them that the eye has no way to see. So the rule
+     * is the pathfinder's own rule. Where {@code canStep} says no, something is
+     * drawn — stone or no stone — and the room reads as being held up rather than
+     * as floating.
+     *
+     * <p>The wall belongs to the higher of the two, and there is one for each
+     * storey of the drop, stacked from the lower floor up.
+     */
     private static void addWalls(List<Placement> into, PathGrid grid, int cx, int cy, float cell) {
         for (var side : SIDES) {
-            if (!solid(grid, cx + side[0], cy + side[1])) {
-                continue;
-            }
+            int nx = cx + side[0];
+            int ny = cy + side[1];
             // Halfway to the neighbour: the face of the wall lands on the very
             // line the pathfinder will not let anyone cross.
             float x = (cx + 0.5f + side[0] * 0.5f) * cell;
             float z = (cy + 0.5f + side[1] * 0.5f) * cell;
-            into.add(new Placement(Piece.WALL, cx, cy, x, z, side[2]));
+
+            if (solid(grid, nx, ny)) {
+                into.add(new Placement(Piece.WALL, cx, cy, x, z, side[2],
+                        grid.groundHeight(cx, cy)));
+                continue;
+            }
+            if (grid.canStep(cx, cy, nx, ny)) {
+                continue; // open ground to open ground: nothing stands between them
+            }
+            float here = grid.groundHeight(cx, cy);
+            float there = grid.groundHeight(nx, ny);
+            float storey = grid.getLevelHeight();
+            if (here <= there || storey <= 0f) {
+                continue; // the higher of the two puts up the wall
+            }
+            for (float foot = there; foot < here - storey * 0.5f; foot += storey) {
+                into.add(new Placement(Piece.WALL, cx, cy, x, z, side[2], foot));
+            }
         }
+    }
+
+    /** A flight of steps on a ramp cell, turned toward whatever it climbs to. */
+    private static void addStair(List<Placement> into, PathGrid grid, int cx, int cy, float cell,
+            float ground) {
+        if (!grid.isRamp(cx, cy)) {
+            return;
+        }
+        for (var side : SIDES) {
+            int nx = cx + side[0];
+            int ny = cy + side[1];
+            if (solid(grid, nx, ny) || grid.level(nx, ny) != grid.level(cx, cy) + 1
+                    || !grid.canStep(cx, cy, nx, ny)) {
+                continue;
+            }
+            into.add(new Placement(Piece.STAIR, cx, cy,
+                    (cx + 0.5f) * cell, (cy + 0.5f) * cell, climbYaw(side[0], side[1]), ground));
+            return; // one flight per cell, toward the first storey it can reach
+        }
+    }
+
+    /**
+     * The turn that points a piece's own {@code +z} at a neighbour.
+     *
+     * <p>jME turns {@code +z} toward {@code (sin yaw, 0, cos yaw)}, and the grid's
+     * y is the world's z, so this is the compass bearing of a step from one cell
+     * to the next.
+     */
+    private static float climbYaw(int dx, int dy) {
+        if (dx > 0) {
+            return 90f;
+        }
+        if (dx < 0) {
+            return 270f;
+        }
+        return dy > 0 ? 0f : 180f;
+    }
+
+    /**
+     * How high the tallest floor touching a piece of rock stands.
+     *
+     * <p>The lid over the rock sits level with the tops of the walls around it, so
+     * beside a raised room it has to rise with the room — otherwise the room's
+     * own retaining wall stands proud of the rock behind it and the player is
+     * looking over the top of the map.
+     */
+    private static float highestFloorAround(PathGrid grid, int cx, int cy) {
+        float highest = 0f;
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                if (!solid(grid, cx + dx, cy + dy)) {
+                    highest = Math.max(highest, grid.groundHeight(cx + dx, cy + dy));
+                }
+            }
+        }
+        return highest;
     }
 
     /**
@@ -146,7 +252,8 @@ final class TileLayout {
                 continue; // only where both sides are walled does a notch exist
             }
             into.add(new Placement(Piece.CORNER, cx, cy,
-                    (cx + corner[0]) * cell, (cy + corner[1]) * cell, corner[2]));
+                    (cx + corner[0]) * cell, (cy + corner[1]) * cell, corner[2],
+                    grid.groundHeight(cx, cy)));
         }
     }
 

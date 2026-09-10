@@ -616,6 +616,7 @@ public final class DungeonSettings {
         float wallLift;
         float wallShift;
         boolean ownMaterials;
+        String stairs;
         int fogTint;
 
         ThemeBuilder(String name) {
@@ -659,6 +660,7 @@ public final class DungeonSettings {
                     .add("WallLift", Ini.real((t, v) -> t.wallLift = v))
                     .add("WallShift", Ini.real((t, v) -> t.wallShift = v))
                     .add("OwnMaterials", Ini.bool((t, v) -> t.ownMaterials = v))
+                    .add("Stairs", Ini.string((t, v) -> t.stairs = v))
                     .add("FogTint", (ini, t) -> t.fogTint = Integer.decode(ini.getNextToken()));
 
     private static final FieldParseTable<ToneBuilder> TONE =
@@ -724,7 +726,7 @@ public final class DungeonSettings {
             }
             built.add(new ThemeArt(theme.name, theme.folder, theme.tileSize,
                     theme.wallTileSize, theme.wallHeight, theme.wallLift, theme.wallShift,
-                    theme.ownMaterials, theme.fogTint, itsTones, itsMonsters));
+                    theme.ownMaterials, theme.stairs, theme.fogTint, itsTones, itsMonsters));
         }
         return new Themes(themeOrder, whenExhausted, built);
     }
@@ -967,21 +969,22 @@ public final class DungeonSettings {
      *
      * @param floor  {@code null} when no kit is named, meaning plain blocks
      */
-    public record TileArt(String floor, String wall, String corner, float tileSize,
-            float wallHeight) {
+    public record TileArt(String floor, String wall, String corner, String stairs,
+            float tileSize, float wallHeight) {
     }
 
     private String tileFolder = "";
     private String tileFloor;
     private String tileWall;
     private String tileCorner;
+    private String tileStairs;
     private float tileSize = 4f;
     private float tileWallHeight = 4f;
 
     /** The kit to draw the floor with; {@code floor()} is null if the file named none. */
     public TileArt tiles() {
-        return new TileArt(path(tileFloor), path(tileWall), path(tileCorner), tileSize,
-                tileWallHeight);
+        return new TileArt(path(tileFloor), path(tileWall), path(tileCorner),
+                path(tileStairs), tileSize, tileWallHeight);
     }
 
     private String path(String piece) {
@@ -994,6 +997,7 @@ public final class DungeonSettings {
                     .add("Floor", Ini.string((s, v) -> s.tileFloor = v))
                     .add("Wall", Ini.string((s, v) -> s.tileWall = v))
                     .add("Corner", Ini.string((s, v) -> s.tileCorner = v))
+                    .add("Stairs", Ini.string((s, v) -> s.tileStairs = v))
                     .add("TileSize", Ini.real((s, v) -> s.tileSize = v))
                     .add("WallHeight", Ini.real((s, v) -> s.tileWallHeight = v));
 

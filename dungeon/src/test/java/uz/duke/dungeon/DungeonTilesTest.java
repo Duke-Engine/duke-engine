@@ -177,6 +177,36 @@ class DungeonTilesTest {
     }
 
     /**
+     * The stairs a theme names are shipped, and they really are stairs.
+     *
+     * <p>A flight of steps is the one piece whose meaning is a direction, and the
+     * client works out both its size and which way it climbs by measuring the
+     * model. That only works on a model that has a rise to measure: something flat
+     * loaded under the name of a stair gives a climb direction of nothing at all,
+     * and the player gets steps pointing whichever way the fallback guessed.
+     */
+    @Test
+    void everyStairAThemeNamesIsShippedAndClimbs() {
+        var themes = uz.duke.dungeon.content.DungeonSettings.load().themes();
+        var assets = assets();
+        int found = 0;
+
+        for (var theme : themes.all()) {
+            var path = theme.stairsPath();
+            if (path == null) {
+                continue; // a kit with no stair of its own gets steps built from blocks
+            }
+            var stairs = assets.loadModel(path);
+            assertNotNull(stairs, theme.name() + " names " + path + ", which is not shipped");
+            var bounds = boundsOf(stairs);
+            assertTrue(bounds.getYExtent() > 0.05f,
+                    theme.name() + "'s stair is flat: " + path + " has no rise to climb");
+            found++;
+        }
+        assertTrue(found > 0, "no theme ships a stair, so nothing here was checked");
+    }
+
+    /**
      * And the sizes in the file are the sizes the models were authored at.
      *
      * <p>These are the numbers that cannot be checked by looking, because getting
