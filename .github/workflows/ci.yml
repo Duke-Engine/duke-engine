@@ -259,7 +259,18 @@ jobs:
           TAG="${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}"
           test -n "$(ls bundles)" || { echo "nothing was packaged"; exit 1; }
           ls -la bundles
-          gh release create "$TAG" bundles/* \
-            --title "Duke Dungeon ${{ steps.version.outputs.value }}" \
-            --notes-file notes.md \
-            --target "$GITHUB_SHA"
+          # Upload if the release is already there, create it if it is not.
+          # Both happen: a tag pushed from a terminal arrives with no release
+          # attached, while "Draft a new release" in the web interface makes the
+          # tag and the release together and then triggers this — and a bare
+          # "create" would fail on the second of those, after ten minutes of
+          # packaging, with everything built and nowhere to put it.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG exists; uploading to it"
+            gh release upload "$TAG" bundles/* --clobber
+          else
+            gh release create "$TAG" bundles/* \
+              --title "Duke Dungeon ${{ steps.version.outputs.value }}" \
+              --notes-file notes.md \
+              --target "$GITHUB_SHA"
+          fi
