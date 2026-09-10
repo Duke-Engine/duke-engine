@@ -24,7 +24,8 @@ class StuckDiagnosisTest {
 
     private static final DungeonSettings SETTINGS = DungeonSettings.load();
 
-    private record Report(int unitsInStone, int unitsThatNeverMoved, int totalUnits) {
+    private record Report(int unitsInStone, int unitsThatNeverMoved, int unitsOffTheGround,
+            int totalUnits) {
     }
 
     /**
@@ -86,6 +87,7 @@ class StuckDiagnosisTest {
         var terrain = game.getTerrain();
         int inStone = 0;
         int neverMoved = 0;
+        int offTheGround = 0;
         int total = 0;
         for (var unit : game.getLogic().getObjects()) {
             if (unit.findModule(uz.duke.core.module.MoveUpdate.class) == null) {
@@ -103,8 +105,11 @@ class StuckDiagnosisTest {
             if (furthestMoved.getOrDefault(unit.getId().value(), 0f) < 1f) {
                 neverMoved++;
             }
+            if (unit.getPosition().z() != terrain.groundHeight(unit.getPosition())) {
+                offTheGround++;
+            }
         }
-        return new Report(inStone, neverMoved, total);
+        return new Report(inStone, neverMoved, offTheGround, total);
     }
 
     /**
@@ -152,5 +157,29 @@ class StuckDiagnosisTest {
                     .append(report.totalUnits());
         }
         assertEquals(0, stuckInStone, "units ended the fight inside walls:" + detail);
+    }
+
+    /**
+     * And everything is standing on the floor it is standing on.
+     *
+     * <p>The dungeon has storeys now, and height is read off the ground under a
+     * unit every step rather than carried with it. A unit whose z has drifted
+     * from the ground beneath it is one the client will draw sunk into the floor
+     * or hovering over it, and neither has anything on screen to explain it.
+     */
+    @Test
+    void nothingIsLeftFloatingOverItsOwnFloor() {
+        var detail = new StringBuilder();
+        int offTheGround = 0;
+        for (long seed = 0; seed < 12; seed++) {
+            var report = run(seed, 900);
+            offTheGround += report.unitsOffTheGround();
+            if (report.unitsOffTheGround() > 0) {
+                detail.append("\n  seed ").append(seed).append(": ")
+                        .append(report.unitsOffTheGround()).append(" of ")
+                        .append(report.totalUnits()).append(" at the wrong height");
+            }
+        }
+        assertEquals(0, offTheGround, "units are not standing on their own storey:" + detail);
     }
 }

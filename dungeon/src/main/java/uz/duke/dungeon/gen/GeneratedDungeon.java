@@ -14,6 +14,10 @@ import java.util.List;
  *
  * @param asciiMap  the map in the same {@code #}=stone / {@code .}=floor form the
  *                  engine's {@code MapLoader} already reads; row 0 is {@code cy=0}
+ * @param levelMap  the same grid again, saying how high each cell stands: a digit
+ *                  is a storey and {@code /} is a stair. Read by
+ *                  {@code MapLoader.levels}, so the rule for what may be walked
+ *                  between two of them belongs to the engine rather than here
  * @param hero      where the hero starts (world units)
  * @param monsters  what fills the rooms the hero does not start in, each with
  *                  the kind that was drawn for it
@@ -25,15 +29,20 @@ import java.util.List;
  *                  corridors are short" is a property worth testing directly, and
  *                  an L-shaped corridor's length is exactly the Manhattan distance
  *                  between the two room centres
+ * @param roomStoreys how high each room ended up standing, in the same order as
+ *                  {@code rooms} — what the generator decided, after any climb it
+ *                  had to give up to keep the dungeon walkable
  */
 public record GeneratedDungeon(
         String asciiMap,
+        String levelMap,
         Placement hero,
         List<Monster> monsters,
         Monster boss,
         int bossRoom,
         List<Room> rooms,
-        List<Link> links) {
+        List<Link> links,
+        List<Integer> roomStoreys) {
 
     /** A spot in the world, in world units (not cells). */
     public record Placement(float x, float y) {

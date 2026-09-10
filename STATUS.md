@@ -1955,9 +1955,12 @@ qatlamlarda umuman ishlatilmaydi: `StatusUpdate`, `SpecialPowerModule`, `Contain
 
 ### Fizika va relyef
 
-5. **Dunyo tekis.** `Coord3D.z` faqat xeshlash va serializatsiyada o'qiladi —
-   balandlik, qiyalik, relyef turi (harakat narxi), tepalik ortidan ko'rinmaslik
-   yo'q. `PathGrid` faqat "o'tsa bo'ladi / bo'lmaydi" biladi.
+5. **Uzluksiz relyef yo'q.** Diskret qavatlar **bor** (3.5c va Duke Dungeon
+   qismiga qarang): katakning butun sonli qavati, ramp bilan bog'lanish,
+   `Coord3D.z` yerdan o'qiladi. Yo'q qolgani — qiyalik, relyef turi (harakat
+   narxi) va uzluksiz balandlik maydoni. Ular ataylab qilinmadi: butun son
+   deterministik va arzon, uzluksiz relyef esa ancha qimmat va bu o'yinga
+   kerak emas.
 6. **`PartitionManager` hali brute-force.** Endi u har kadr, har harakatlanuvchi
    birlik uchun to'qnashuv savolini ham oladi, ya'ni SAGE'ning katak-gridiga
    o'tish avvalgidan muhimroq bo'lib qoldi.
@@ -2038,7 +2041,19 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
   rasmiyatchilik bo'lardi.
 - **Sandiqning modeli yo'q** — Kenney to'plamida sandiq yo'q, shuning uchun u
   mash'al rangli quti. Model topilsa — `Main.looks()` da bitta qator.
-- **Relyef yo'q, dunyo tekis** — xonalar (X, Z) tekisligida; `Coord3D.z` ishlatilmaydi.
+- **Qavatlar** — xonalar har xil balandlikda turadi, koridorlar esa **tekis**:
+  hammasi kirish qavatida yotadi va ko'tarilish **xona og'zida** bo'ladi
+  (ko'tarilgan xonadan chiqayotib bir zina tushasan). Bu ko'rinish uchun emas —
+  koridorlar bir-birini doim kesib o'tadi, va har xil qavatdagi ikki koridorning
+  kesishmasi ikkalasini ham kesib qo'yadigan, xaritada ko'rinmaydigan devor
+  bo'lardi. Ulanish kafolati endi **tekshiriladi**: generator o'z dungeonini
+  engine qoidasi (`canStep`) bilan yurib chiqadi, yetib bo'lmaydigan xona
+  topilsa uning ko'tarilishi olib tashlanadi va xarita qayta chiziladi;
+  urinishlar soni chegaralangan, oxirida ham ulanmasa **istisno** tashlanadi.
+  Sozlamalari `dungeon.ini` da: `MaxStorey`, `StoreyChangePercent`,
+  `StoreyHeight`, `StairLength`, `EntranceStorey`, `BossStorey`.
+  `MaxStorey = 0` — eski tekis dungeon, aynan avvalgidek.
+  **Hali chizilmaydi** — klient 3-bosqichda qavatlarni ko'radi.
 - **Yo'nalishga bog'liq ko'rish yo'q** — orqadan kelgan narsa ham xuddi shunday
   ko'rinadi; tuman faqat devorni biladi.
 - Qo'lda chizilgan xona (`Dungeon.create()`) hali turibdi — engine o'ynasa bo'ladiganini

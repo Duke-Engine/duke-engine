@@ -98,28 +98,66 @@ public final class MapLoader {
         }
         // Ramps last: a ramp stands at the foot of what it climbs, and it can
         // only know that once the floors around it have been read.
+        var done = new boolean[grid.getHeight() * grid.getWidth()];
         for (int cy = 0; cy < lines.length; cy++) {
             var line = lines[cy];
             for (int cx = 0; cx < line.length(); cx++) {
-                if (line.charAt(cx) == '/') {
-                    grid.setRamp(cx, cy, true);
-                    grid.setLevel(cx, cy, lowestNeighbour(grid, cx, cy));
+                if (line.charAt(cx) == '/' && grid.inBounds(cx, cy)
+                        && !done[cy * grid.getWidth() + cx]) {
+                    settleStair(grid, lines, done, cx, cy);
                 }
             }
         }
     }
 
-    private static int lowestNeighbour(PathGrid grid, int cx, int cy) {
-        int lowest = Integer.MAX_VALUE;
+    /**
+     * Put a whole run of ramp cells on the floor it climbs from.
+     *
+     * <p>A stair is rarely one cell: it is as wide as the corridor it sits in and
+     * as long as it takes to climb, and every cell of it belongs to the same
+     * step. Asking each of them separately what is next to it does not work —
+     * the cell in the middle of the run has ramps on every side and no floor to
+     * take a number from. So the run is found first, and then the lowest floor
+     * touching <em>any</em> of it is the floor all of it stands on.
+     */
+    private static void settleStair(PathGrid grid, String[] lines, boolean[] done,
+            int fromX, int fromY) {
+        var run = new java.util.ArrayList<int[]>();
+        var queue = new java.util.ArrayDeque<int[]>();
         int[][] around = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        for (var step : around) {
-            int x = cx + step[0];
-            int y = cy + step[1];
-            if (grid.inBounds(x, y) && !grid.isTerrainBlocked(x, y)) {
-                lowest = Math.min(lowest, grid.level(x, y));
+        queue.add(new int[] {fromX, fromY});
+        done[fromY * grid.getWidth() + fromX] = true;
+        int lowest = Integer.MAX_VALUE;
+
+        while (!queue.isEmpty()) {
+            var at = queue.poll();
+            run.add(at);
+            for (var step : around) {
+                int x = at[0] + step[0];
+                int y = at[1] + step[1];
+                if (!grid.inBounds(x, y) || charAt(lines, x, y) == 0) {
+                    continue;
+                }
+                if (charAt(lines, x, y) == '/') {
+                    if (!done[y * grid.getWidth() + x]) {
+                        done[y * grid.getWidth() + x] = true;
+                        queue.add(new int[] {x, y});
+                    }
+                } else if (!grid.isTerrainBlocked(x, y)) {
+                    lowest = Math.min(lowest, grid.level(x, y));
+                }
             }
         }
-        return lowest == Integer.MAX_VALUE ? 0 : lowest;
+
+        int foot = lowest == Integer.MAX_VALUE ? 0 : lowest;
+        for (var cell : run) {
+            grid.setRamp(cell[0], cell[1], true);
+            grid.setLevel(cell[0], cell[1], foot);
+        }
+    }
+
+    private static char charAt(String[] lines, int cx, int cy) {
+        return cy < lines.length && cx < lines[cy].length() ? lines[cy].charAt(cx) : 0;
     }
 
     private static String stripTrailing(String s) {

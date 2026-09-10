@@ -57,11 +57,11 @@ public final class Spawner {
             GeneratedDungeon dungeon, DungeonSettings settings, int depth, LootTable drops) {
         var logic = game.getLogic();
         var hero = logic.spawn(logic.getThingFactory().findTemplate("Hero"),
-                at(dungeon.hero()), heroPlayer.getIndex());
+                at(logic, dungeon.hero()), heroPlayer.getIndex());
 
         var monsters = new ArrayList<GameObject>();
         for (var monster : dungeon.monsters()) {
-            var spawned = spawn(game, dungeonPlayer, monster.kind(), at(monster.at()));
+            var spawned = spawn(game, dungeonPlayer, monster.kind(), at(logic, monster.at()));
             if (spawned != null) {
                 scale(spawned, settings.monsterHealthAt(depth), settings.monsterDamageAt(depth),
                         settings.experienceAt(depth));
@@ -70,7 +70,7 @@ public final class Spawner {
             }
         }
 
-        var boss = spawn(game, dungeonPlayer, dungeon.boss().kind(), at(dungeon.boss().at()));
+        var boss = spawn(game, dungeonPlayer, dungeon.boss().kind(), at(logic, dungeon.boss().at()));
         if (boss != null) {
             scale(boss, settings.bossHealthAt(depth), settings.bossDamageAt(depth),
                     settings.experienceAt(depth));
@@ -124,7 +124,14 @@ public final class Spawner {
         }
     }
 
-    private static Coord3D at(GeneratedDungeon.Placement placement) {
-        return new Coord3D(placement.x(), placement.y(), 0f);
+    /**
+     * Where the generator put something, standing on the floor that is under it.
+     *
+     * <p>A dungeon has storeys now, and a monster spawned at zero on the second
+     * one is a monster sunk to the waist in its own floor until it takes a step.
+     */
+    private static Coord3D at(uz.duke.core.GameLogic logic, GeneratedDungeon.Placement placement) {
+        var ground = new Coord3D(placement.x(), placement.y(), 0f);
+        return new Coord3D(placement.x(), placement.y(), logic.groundHeight(ground));
     }
 }

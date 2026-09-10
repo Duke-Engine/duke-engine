@@ -47,6 +47,18 @@ public final class DungeonSettings {
     private int minSkeletonsPerRoom = 2;
     private int maxSkeletonsPerRoom = 6;
 
+    // ---- height ----
+    //
+    // "Storey" rather than level or floor: a level is what the hero has, and a
+    // floor is a whole dungeon at a depth. This is how high a room stands.
+
+    private int maxStorey = 2;
+    private int storeyChangePercent = 45;
+    private float storeyHeight = 6f;
+    private int stairLength = 1;
+    private int entranceStorey = 0;
+    private int bossStorey = 2;
+
     // ---- behaviour ----
 
     private float skeletonSenseRadius = 90f;
@@ -415,6 +427,20 @@ public final class DungeonSettings {
         require(closeDistance >= 0, "CloseDistance cannot be negative");
         require(corridorWidth >= 1, "a corridor narrower than one cell is a wall");
         require(maxRoomSpacing > maxRoomSize, "rooms could never reach one another");
+        require(maxStorey >= 0, "MaxStorey cannot be negative");
+        require(maxStorey <= 9, "a storey is one character in the level map, so 9 is the ceiling");
+        require(storeyChangePercent >= 0 && storeyChangePercent <= 100,
+                "StoreyChangePercent is a percentage");
+        require(storeyHeight >= 0f, "StoreyHeight cannot be negative");
+        // A stair narrower than the corridor it sits in is a bottleneck, and a
+        // bottleneck is where the biggest creature wedges — see the corridor
+        // width above, which is a correctness setting for the same reason.
+        require(stairLength >= 1, "a stair of no cells is a cliff");
+        // Not checked against MaxStorey: turning height off with MaxStorey = 0
+        // should not then demand two more fields be edited to match. Both are
+        // read back through the ceiling — see entranceStorey() and bossStorey().
+        require(entranceStorey >= 0, "EntranceStorey cannot be negative");
+        require(bossStorey >= 0, "BossStorey cannot be negative");
         require(respawnDelayFrames >= 0, "the death pause cannot be negative");
         require(descendDelayFrames >= 0, "the pause before descending cannot be negative");
         require(maxLevel >= Levelling.FIRST_LEVEL, "MaxLevel cannot be below the first level");
@@ -495,7 +521,13 @@ public final class DungeonSettings {
                     .add("CorridorWidth", Ini.integer((s, v) -> s.corridorWidth = v))
                     .add("MaxRoomSpacing", Ini.integer((s, v) -> s.maxRoomSpacing = v))
                     .add("MinSkeletonsPerRoom", Ini.integer((s, v) -> s.minSkeletonsPerRoom = v))
-                    .add("MaxSkeletonsPerRoom", Ini.integer((s, v) -> s.maxSkeletonsPerRoom = v));
+                    .add("MaxSkeletonsPerRoom", Ini.integer((s, v) -> s.maxSkeletonsPerRoom = v))
+                    .add("MaxStorey", Ini.integer((s, v) -> s.maxStorey = v))
+                    .add("StoreyChangePercent", Ini.integer((s, v) -> s.storeyChangePercent = v))
+                    .add("StoreyHeight", Ini.real((s, v) -> s.storeyHeight = v))
+                    .add("StairLength", Ini.integer((s, v) -> s.stairLength = v))
+                    .add("EntranceStorey", Ini.integer((s, v) -> s.entranceStorey = v))
+                    .add("BossStorey", Ini.integer((s, v) -> s.bossStorey = v));
 
     // ---- what the game sounds like ----
 
@@ -1339,6 +1371,36 @@ public final class DungeonSettings {
     /** How far a new room may sit from the nearest already placed, in cells. */
     public int maxRoomSpacing() {
         return maxRoomSpacing;
+    }
+
+    /** The highest a room may stand. Zero is a dungeon on one level, as before. */
+    public int maxStorey() {
+        return maxStorey;
+    }
+
+    /** How often a corridor changes storey rather than running level, as a percentage. */
+    public int storeyChangePercent() {
+        return storeyChangePercent;
+    }
+
+    /** How far apart two storeys stand, in world units. */
+    public float storeyHeight() {
+        return storeyHeight;
+    }
+
+    /** How many cells of a corridor a stair takes up. */
+    public int stairLength() {
+        return stairLength;
+    }
+
+    /** Which storey the hero starts on, never above the dungeon's own ceiling. */
+    public int entranceStorey() {
+        return Math.min(entranceStorey, maxStorey);
+    }
+
+    /** Which storey the boss waits on — the top of the dungeon, by default. */
+    public int bossStorey() {
+        return Math.min(bossStorey, maxStorey);
     }
 
     public int minSkeletonsPerRoom() {

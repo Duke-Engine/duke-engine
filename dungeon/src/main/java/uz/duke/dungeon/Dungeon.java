@@ -117,6 +117,18 @@ public final class Dungeon {
      */
     public static Arena world(String asciiMap, DungeonSettings settings, String creaturesIni,
             PowerBook powers, LootBag bag) {
+        return world(asciiMap, null, settings, creaturesIni, powers, bag);
+    }
+
+    /**
+     * The same, on a dungeon that has height in it.
+     *
+     * <p>{@code levelMap} is the second layer the generator draws — which storey
+     * each cell stands on and where the stairs are. A hand-written arena passes
+     * {@code null} and gets the flat world it drew.
+     */
+    public static Arena world(String asciiMap, String levelMap, DungeonSettings settings,
+            String creaturesIni, PowerBook powers, LootBag bag) {
         var game = DukeGame.create("Duke Dungeon")
                 .subtitle("a different dungeon every run")
                 .customModules(factory -> {
@@ -168,6 +180,14 @@ public final class Dungeon {
                 .loadUnits(Content.read(Content.MONSTERS))
                 .mapFromText(asciiMap);
 
+        if (levelMap != null) {
+            // The height layer over the map that was just read. The engine owns
+            // what a storey means and what may be walked between two of them;
+            // this only hands it the picture the generator drew.
+            uz.duke.core.pathfind.MapLoader.levels(game.getTerrain(), levelMap);
+            game.getTerrain().setLevelHeight(settings.storeyHeight());
+        }
+
         var heroPlayer = game.addPlayer("Hero", HERO_COLOUR);
         var dungeonPlayer = game.addPlayer("Dungeon", SKELETON_COLOUR);
         game.enemies(heroPlayer, dungeonPlayer).localPlayer(heroPlayer);
@@ -200,7 +220,8 @@ public final class Dungeon {
         // his skills ask it what they hit for, and his arrows what they give back.
         var book = new PowerBook(settings.powerMinCooldownPercent());
         var bag = new LootBag();
-        var arena = world(floor.asciiMap(), settings, Content.read(Content.CREATURES), book, bag);
+        var arena = world(floor.asciiMap(), floor.levelMap(), settings,
+                Content.read(Content.CREATURES), book, bag);
         var game = arena.game();
 
         var progress = new HeroProgress(arena.hero(), settings.levelling(),

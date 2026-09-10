@@ -79,16 +79,21 @@ public final class DungeonGenerator {
         for (var room : rooms) {
             carveRoom(cells, room);
         }
-        var links = connectRooms(cells, rng, rooms, settings.corridorWidth());
+        var corridors = connectRooms(cells, rng, rooms, settings.corridorWidth());
+        var links = new ArrayList<Link>(corridors.size());
+        for (var corridor : corridors) {
+            links.add(new Link(corridor.from(), corridor.to()));
+        }
 
         var hero = worldCenter(rooms.get(0).centerCellX(), rooms.get(0).centerCellY());
         int bossRoom = furthestRoomFromStart(rooms.size(), links);
+        var storeys = Storeys.of(rng, rooms, corridors, bossRoom, settings, cells);
         var monsters = populate(rng, rooms, settings, depth, bossRoom);
         var boss = new Monster(DungeonSettings.BOSS,
                 worldCenter(rooms.get(bossRoom).centerCellX(), rooms.get(bossRoom).centerCellY()));
 
-        return new GeneratedDungeon(render(cells), hero, monsters, boss, bossRoom,
-                List.copyOf(rooms), List.copyOf(links));
+        return new GeneratedDungeon(render(cells), render(storeys.map()), hero, monsters, boss,
+                bossRoom, List.copyOf(rooms), List.copyOf(links), storeys.perRoom());
     }
 
     /**
@@ -135,9 +140,9 @@ public final class DungeonGenerator {
      * <p>Ties fall to the lowest room index by iteration order, so the result is
      * the same everywhere.
      */
-    private static List<Link> connectRooms(char[][] cells, DeterministicRng rng, List<Room> rooms,
-            int width) {
-        var links = new ArrayList<Link>();
+    private static List<Corridor> connectRooms(char[][] cells, DeterministicRng rng,
+            List<Room> rooms, int width) {
+        var links = new ArrayList<Corridor>();
         var joined = new boolean[rooms.size()];
         joined[0] = true;
 
@@ -162,8 +167,7 @@ public final class DungeonGenerator {
                 }
             }
             joined[bestOutside] = true;
-            carveCorridor(cells, rng, rooms.get(bestInside), rooms.get(bestOutside), width);
-            links.add(new Link(bestInside, bestOutside));
+            links.add(carveCorridor(cells, rng, bestInside, bestOutside, rooms, width));
         }
         return links;
     }
@@ -240,19 +244,59 @@ public final class DungeonGenerator {
         }
     }
 
-    private static void carveCorridor(char[][] cells, DeterministicRng rng, Room from, Room to,
-            int width) {
+    private static Corridor carveCorridor(char[][] cells, DeterministicRng rng, int fromRoom,
+            int toRoom, List<Room> rooms, int width) {
+        var from = rooms.get(fromRoom);
+        var to = rooms.get(toRoom);
         int x1 = from.centerCellX();
         int y1 = from.centerCellY();
         int x2 = to.centerCellX();
         int y2 = to.centerCellY();
         // An L-bend: which leg comes first is a coin-flip, so corridors vary.
-        if (rng.nextBoolean()) {
+        boolean horizontalFirst = rng.nextBoolean();
+        if (horizontalFirst) {
             carveHorizontal(cells, y1, x1, x2, width);
             carveVertical(cells, x2, y1, y2, width);
         } else {
             carveVertical(cells, x1, y1, y2, width);
             carveHorizontal(cells, y2, x1, x2, width);
+        }
+        return new Corridor(fromRoom, toRoom, spine(x1, y1, x2, y2, horizontalFirst), width);
+    }
+
+    /**
+     * The corridor's centre line, in the order it is walked from one room to the
+     * other.
+     *
+     * <p>Carving does not need an order — a floor is a floor whichever end it was
+     * cut from. Height does: a stair is somewhere <em>along</em> a corridor, with
+     * one storey behind it and another ahead, and that is a question about a
+     * journey rather than about a set of cells.
+     */
+    private static List<int[]> spine(int x1, int y1, int x2, int y2, boolean horizontalFirst) {
+        var walk = new ArrayList<int[]>();
+        if (horizontalFirst) {
+            walkX(walk, y1, x1, x2);
+            walkY(walk, x2, y1, y2);
+        } else {
+            walkY(walk, x1, y1, y2);
+            walkX(walk, y2, x1, x2);
+        }
+        return walk;
+    }
+
+    /** {@code {x, y, alongX}} — the flag says which way the corridor's width runs. */
+    private static void walkX(List<int[]> walk, int y, int from, int to) {
+        int step = from <= to ? 1 : -1;
+        for (int x = from; x != to + step; x += step) {
+            walk.add(new int[] {x, y, 1});
+        }
+    }
+
+    private static void walkY(List<int[]> walk, int x, int from, int to) {
+        int step = from <= to ? 1 : -1;
+        for (int y = from; y != to + step; y += step) {
+            walk.add(new int[] {x, y, 0});
         }
     }
 

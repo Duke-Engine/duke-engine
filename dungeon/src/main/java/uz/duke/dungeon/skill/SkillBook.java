@@ -474,7 +474,11 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         float dy = (float) StrictMath.sin(facing);
         var from = owner.getPosition();
         for (float gone = distance; gone >= DASH_STEP; gone -= DASH_STEP) {
-            var step = new Coord3D(from.x() + dx * gone, from.y() + dy * gone, from.z());
+            var overThere = new Coord3D(from.x() + dx * gone, from.y() + dy * gone, from.z());
+            // On the floor he lands on, not the one he left. He clears whatever is
+            // between, and that can include a step up: coming down on the storey
+            // he took off from would put him inside its floor.
+            var step = new Coord3D(overThere.x(), overThere.y(), world.groundHeight(overThere));
             if (!world.isGroundBlocked(step) && world.findBlocker(owner, step) == null) {
                 return step;
             }

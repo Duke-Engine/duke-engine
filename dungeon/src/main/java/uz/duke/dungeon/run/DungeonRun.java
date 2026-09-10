@@ -193,6 +193,22 @@ public final class DungeonRun {
      * watching for a new hero to decide whether to reset would wipe his levels on
      * every floor: {@link HeroProgress} is told which of the two this is.
      */
+    /**
+     * The next floor's ground: what is stone, how high each cell stands, and how
+     * far apart two storeys are.
+     *
+     * <p>All three arrive together because they are one map. A grid built from
+     * the walls alone would lay the new floor out flat and leave the hero walking
+     * through the storeys of the last one.
+     */
+    private static uz.duke.core.pathfind.PathGrid terrainOf(
+            uz.duke.dungeon.gen.GeneratedDungeon floor, DungeonSettings settings) {
+        var grid = MapLoader.fromText(floor.asciiMap());
+        MapLoader.levels(grid, floor.levelMap());
+        grid.setLevelHeight(settings.storeyHeight());
+        return grid;
+    }
+
     private void descend(DukeGame game) {
         descendAtFrame = 0;
         seed = DungeonGenerator.nextSeed(seed);
@@ -200,7 +216,7 @@ public final class DungeonRun {
 
         var logic = game.getLogic();
         logic.clearWorld();
-        game.applyMapTerrain(MapLoader.fromText(floor.asciiMap()));
+        game.applyMapTerrain(terrainOf(floor, settings));
 
         var placed = Spawner.place(game, heroPlayer, dungeonPlayer, floor, settings, depth, drops);
         heroId = placed.hero().getId();
