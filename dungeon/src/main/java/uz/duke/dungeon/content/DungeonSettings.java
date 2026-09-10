@@ -678,6 +678,7 @@ public final class DungeonSettings {
         float wallLift;
         float wallShift;
         boolean ownMaterials;
+        String propFolder = "";
         String stairs;
         int fogTint;
 
@@ -722,6 +723,7 @@ public final class DungeonSettings {
                     .add("WallLift", Ini.real((t, v) -> t.wallLift = v))
                     .add("WallShift", Ini.real((t, v) -> t.wallShift = v))
                     .add("OwnMaterials", Ini.bool((t, v) -> t.ownMaterials = v))
+                    .add("PropFolder", Ini.string((t, v) -> t.propFolder = v))
                     .add("Stairs", Ini.string((t, v) -> t.stairs = v))
                     .add("FogTint", (ini, t) -> t.fogTint = Integer.decode(ini.getNextToken()));
 
@@ -788,7 +790,8 @@ public final class DungeonSettings {
             }
             built.add(new ThemeArt(theme.name, theme.folder, theme.tileSize,
                     theme.wallTileSize, theme.wallHeight, theme.wallLift, theme.wallShift,
-                    theme.ownMaterials, theme.stairs, theme.fogTint, itsTones, itsMonsters));
+                    theme.ownMaterials, theme.propFolder, theme.stairs, theme.fogTint,
+                    itsTones, itsMonsters));
         }
         return new Themes(themeOrder, whenExhausted, built);
     }

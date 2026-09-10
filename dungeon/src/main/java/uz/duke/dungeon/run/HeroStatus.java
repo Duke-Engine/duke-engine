@@ -18,8 +18,8 @@ import uz.duke.dungeon.skill.Skills;
  *
  * <pre>
  * name=Erika|rank=7-daraja|hp=128/200|xp=38/100|depth=III|depthWord=CHUQURLIK
- *   |skill=Q,Icons/skills/arrowhead.png,ready|skill=W,Icons/skills/arrow-cluster.png,cool,72,165
- *   |skill=E,Icons/skills/sprint.png,ready|skill=R,Icons/skills/hood.png,lock,5-daraja
+ *   |skill=Q,icons/skills/arrowhead.png,ready|skill=W,icons/skills/arrow_cluster.png,cool,72,165
+ *   |skill=E,icons/skills/sprint.png,ready|skill=R,icons/skills/hood.png,lock,5-daraja
  *   |pwWord=Kuchlar|pw=shot,2|pw=boot,1
  *   |offer=3,8-daraja,Bittasini tanlang
  *   |opt=shot,O'tkir uch,Q zarari +25%

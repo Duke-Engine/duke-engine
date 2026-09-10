@@ -26,10 +26,10 @@ class HeroPanelTest {
     /** A line of the kind the dungeon sends, with all three skill states in it. */
     private static final String LINE =
             "name=Erika|rank=7-daraja|hp=128/200|xp=38/100|depth=III|depthWord=CHUQURLIK"
-                    + "|skill=Q,Icons/skills/arrowhead.png,ready"
-                    + "|skill=W,Icons/skills/arrow-cluster.png,cool,72,165"
-                    + "|skill=E,Icons/skills/sprint.png,ready"
-                    + "|skill=R,Icons/skills/hood.png,lock,5-daraja";
+                    + "|skill=Q,icons/skills/arrowhead.png,ready"
+                    + "|skill=W,icons/skills/arrow_cluster.png,cool,72,165"
+                    + "|skill=E,icons/skills/sprint.png,ready"
+                    + "|skill=R,icons/skills/hood.png,lock,5-daraja";
 
     @Test
     void aDungeonLineIsRead() {
@@ -144,14 +144,14 @@ class HeroPanelTest {
     void thePictureForASlotComesDownTheLine() {
         var skills = HeroPanel.Reading.parse(LINE).skills();
 
-        assertEquals("Icons/skills/arrowhead.png", skills.get(0).icon());
-        assertEquals("Icons/skills/arrow-cluster.png", skills.get(1).icon(),
+        assertEquals("icons/skills/arrowhead.png", skills.get(0).icon());
+        assertEquals("icons/skills/arrow_cluster.png", skills.get(1).icon(),
                 "a slot on cooldown still knows what it is a picture of");
-        assertEquals("Icons/skills/hood.png", skills.get(3).icon(),
+        assertEquals("icons/skills/hood.png", skills.get(3).icon(),
                 "and so does one that is still locked");
 
         var renamed = HeroPanel.Reading.parse(
-                LINE.replace("Icons/skills/arrowhead.png", "Some/Other/picture.png")).skills();
+                LINE.replace("icons/skills/arrowhead.png", "Some/Other/picture.png")).skills();
         assertEquals("Some/Other/picture.png", renamed.get(0).icon(),
                 "the file said a different picture, so the slot gets a different picture");
     }
@@ -186,7 +186,7 @@ class HeroPanelTest {
         var assets = new com.jme3.asset.DesktopAssetManager(true);
         var missing = new java.util.HashSet<String>();
 
-        assertNull(HeroPanel.iconTexture(assets, "Icons/skills/no-such-icon.png", missing),
+        assertNull(HeroPanel.iconTexture(assets, "icons/skills/no-such-icon.png", missing),
                 "a name nothing answers to");
         assertNull(HeroPanel.iconTexture(assets, "", missing), "no name at all");
         assertNull(HeroPanel.iconTexture(assets, null, missing));

@@ -31,6 +31,10 @@ import java.util.List;
  * @param ownMaterials  whether the models carry their own colours. A kit drawn on
  *     one atlas wants one shared skin; a kit that ships no texture and says what
  *     colour each of its parts is wants what it came with
+ * @param propFolder    where this theme's own props and re-skinned creatures
+ *     live. Apart from the tiles because the two are different kinds of thing
+ *     and a folder each is what makes a tree worth having; empty falls back to
+ *     the tile folder, which is what a kit with everything in one place wants
  * @param stairs        the flight of steps between two storeys, or null for a kit
  *     that ships none — then the client builds them out of blocks
  * @param fogTint       what the dark is coloured here, packed {@code 0xRRGGBB} —
@@ -45,6 +49,7 @@ public record ThemeArt(
         float wallLift,
         float wallShift,
         boolean ownMaterials,
+        String propFolder,
         String stairs,
         int fogTint,
         List<Tone> tones,
@@ -109,10 +114,25 @@ public record ThemeArt(
     public ThemeMonster monsterWithPaths(ThemeMonster themed) {
         var look = themed.look();
         return new ThemeMonster(themed.template(),
-                new MonsterLook(path(look.model()), path(look.texture()), look.modelScale(),
+                new MonsterLook(inProps(look.model()), inProps(look.texture()), look.modelScale(),
                         look.tint(), look.facing(), look.idle(), look.walk(), look.attack(),
                         look.hurt()),
-                path(themed.animationsFrom()), themed.death());
+                inProps(themed.animationsFrom()), themed.death());
+    }
+
+    /**
+     * A path under the theme's props, which is where everything that is not a
+     * tile lives — the pillars and statues, and any creature this theme draws
+     * differently.
+     *
+     * <p>Falls back to the tile folder when a theme names no second one, so a kit
+     * that keeps everything in one place says nothing and gets what it had.
+     */
+    private String inProps(String piece) {
+        if (piece == null) {
+            return null;
+        }
+        return (propFolder == null || propFolder.isBlank() ? folder : propFolder) + piece;
     }
 
     public java.awt.Color awtFogTint() {

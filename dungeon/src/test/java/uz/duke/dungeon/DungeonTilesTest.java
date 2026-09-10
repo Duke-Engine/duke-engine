@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
 class DungeonTilesTest {
 
     /** Where the models live on the classpath, and the size one tile is authored at. */
-    private static final String TILES = "Models/dungeon/";
+    private static final String TILES = "models/tiles/kenney/";
     private static final float TILE = 4f;
 
     private static AssetManager assets() {
@@ -47,7 +47,7 @@ class DungeonTilesTest {
     /** The floor tile loads, and is one tile across. */
     @Test
     void theFloorTileLoadsAtTheSizeWeAssume() {
-        var floor = assets().loadModel(TILES + "template-floor.glb");
+        var floor = assets().loadModel(TILES + "floor.glb");
 
         assertNotNull(floor);
         var bounds = boundsOf(floor);
@@ -79,7 +79,7 @@ class DungeonTilesTest {
      */
     @Test
     void theWallStandsOnAnEdgeAndIsTallerThanItIsDeep() {
-        var bounds = boundsOf(assets().loadModel(TILES + "template-wall.glb"));
+        var bounds = boundsOf(assets().loadModel(TILES + "wall.glb"));
 
         assertEquals(TILE / 2f, bounds.getXExtent(), 0.01f, "as wide as the tile");
         assertTrue(bounds.getZExtent() < TILE / 2f + 0.01f,
@@ -91,8 +91,8 @@ class DungeonTilesTest {
     /** The corner post is a quarter of a tile, to fill where two walls meet. */
     @Test
     void theCornerPostIsSmallerThanAWall() {
-        var corner = boundsOf(assets().loadModel(TILES + "template-wall-corner.glb"));
-        var wall = boundsOf(assets().loadModel(TILES + "template-wall.glb"));
+        var corner = boundsOf(assets().loadModel(TILES + "wall_corner.glb"));
+        var wall = boundsOf(assets().loadModel(TILES + "wall.glb"));
 
         assertTrue(corner.getXExtent() < wall.getXExtent(),
                 "a post, not a wall: " + corner.getXExtent());
@@ -110,7 +110,7 @@ class DungeonTilesTest {
      */
     @Test
     void everyTileIsTexturedRatherThanLoadingBlank() {
-        for (var tile : new String[] {"template-floor", "template-wall", "template-wall-corner"}) {
+        for (var tile : new String[] {"floor", "wall", "wall_corner"}) {
             var model = assets().loadModel(TILES + tile + ".glb");
 
             assertTrue(hasTexture(model), tile + " loaded without its texture");
