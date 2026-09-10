@@ -1,6 +1,7 @@
 package uz.duke.client3d;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -450,24 +451,32 @@ class DiscoveryTest {
     }
 
     /**
-     * The room upstairs is not visible from downstairs — the whole reason for
+     * The room upstairs is not in sight from downstairs — the whole reason for
      * building a dungeon upward.
      *
      * <p>Nothing is in the way of it: no stone, no door, an open floor the whole
      * distance. What hides it is that it is above him, and he is looking at the
      * side of its floor.
+     *
+     * <p>Not in sight, but not unseen either. What is being hidden is whatever
+     * stands up there — the client draws no creature on a cell it cannot see —
+     * and the stone itself is in plain view from below. Left properly unseen, the
+     * floor above is cut out of the picture altogether, and a black rectangle in
+     * the middle of a lit room reads as a hole rather than as a storey. That is
+     * what it looked like on screen, and it is why the state here is remembered.
      */
     @Test
-    void aRoomAStoreyUpIsHiddenUntilItIsClimbedTo() {
+    void aRoomAStoreyUpIsOutOfSightUntilItIsClimbedTo() {
         var seen = seeingTerraced();
 
         seen.reveal(List.of(at(LOCAL, 155f, 155f)), LOCAL, 120f, "Hero");
 
         assertEquals(Discovery.State.VISIBLE, seen.stateAt(18, 15), "his own floor is open");
-        assertEquals(Discovery.State.UNSEEN, seen.stateAt(21, 15),
-                "the floor above him should be behind its own edge");
-        assertEquals(Discovery.State.UNSEEN, seen.stateAt(24, 15),
-                "and everything further into it");
+        assertEquals(Discovery.State.REMEMBERED, seen.stateAt(21, 15),
+                "the floor above him is drawn, but nothing on it is in sight");
+        assertEquals(Discovery.State.REMEMBERED, seen.stateAt(24, 15),
+                "and the same further into it");
+        assertFalse(seen.canSee(215f, 155f), "so a creature standing up there is hidden");
     }
 
     /** Climb it and it opens. */
@@ -513,9 +522,9 @@ class DiscoveryTest {
 
         seen.reveal(List.of(at(LOCAL, 155f, 155f)), LOCAL, 150f, "Hero");
 
-        assertEquals(Discovery.State.UNSEEN, seen.stateAt(20, 15), "the ridge itself is above him");
+        assertFalse(seen.canSee(205f, 155f), "the ridge itself is above him");
         assertEquals(Discovery.State.UNSEEN, seen.stateAt(25, 15),
-                "and the ground beyond it is behind it");
+                "and the ground beyond it is behind it, and not even remembered");
     }
 
     /** A flat map is discovered exactly as it was before there was any height. */

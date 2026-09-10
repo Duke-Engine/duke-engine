@@ -193,20 +193,16 @@ final class TileLayout {
     /** A flight of steps on a ramp cell, turned toward whatever it climbs to. */
     private static void addStair(List<Placement> into, PathGrid grid, int cx, int cy, float cell,
             float ground) {
-        if (!grid.isRamp(cx, cy)) {
+        // Asked of the grid rather than worked out again here: the height read
+        // under a body climbing the stair comes from the same answer, and a
+        // staircase drawn one way with a slope running the other is a body
+        // walking up thin air beside its own steps.
+        var rise = grid.rampDirection(cx, cy);
+        if (rise == null) {
             return;
         }
-        for (var side : SIDES) {
-            int nx = cx + side[0];
-            int ny = cy + side[1];
-            if (solid(grid, nx, ny) || grid.level(nx, ny) != grid.level(cx, cy) + 1
-                    || !grid.canStep(cx, cy, nx, ny)) {
-                continue;
-            }
-            into.add(new Placement(Piece.STAIR, cx, cy,
-                    (cx + 0.5f) * cell, (cy + 0.5f) * cell, climbYaw(side[0], side[1]), ground));
-            return; // one flight per cell, toward the first storey it can reach
-        }
+        into.add(new Placement(Piece.STAIR, cx, cy,
+                (cx + 0.5f) * cell, (cy + 0.5f) * cell, climbYaw(rise[0], rise[1]), ground));
     }
 
     /**

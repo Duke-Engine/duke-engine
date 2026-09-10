@@ -111,6 +111,46 @@ class LevelsTest {
         assertEquals(0f, grid.groundHeight(5, 3), 0f, "a ramp stands at the foot of what it climbs");
     }
 
+    /**
+     * A ramp is the one place the floor is a slope rather than a step.
+     *
+     * <p>Levels are whole numbers and walking is unchanged by this; what changes
+     * is the height <em>between</em> two of them, which only something standing
+     * there asks about. Without it a body crosses the whole stair at the lower
+     * height and jumps a storey at the far edge — on screen, a hero sinking into
+     * the steps and appearing on top of them.
+     */
+    @Test
+    void aRampRisesAcrossItsOwnCell() {
+        var grid = grid();
+        grid.setLevelHeight(10f);
+        float cell = PathGrid.DEFAULT_CELL_SIZE;
+
+        // The ramp at (5,3) climbs east, so height rises with x across that cell.
+        float atTheFoot = grid.groundHeight(new Coord3D(5.02f * cell, 3.5f * cell, 0f));
+        float halfway = grid.groundHeight(new Coord3D(5.5f * cell, 3.5f * cell, 0f));
+        float atTheTop = grid.groundHeight(new Coord3D(5.98f * cell, 3.5f * cell, 0f));
+
+        assertEquals(0f, atTheFoot, 0.3f, "it starts on the floor it climbs from");
+        assertEquals(5f, halfway, 0.3f, "half a storey halfway across");
+        assertEquals(10f, atTheTop, 0.3f, "and meets the floor above at the far edge");
+        assertEquals(10f, grid.groundHeight(new Coord3D(6.5f * cell, 3.5f * cell, 0f)), 0.001f,
+                "which is exactly where the floor above stands, so the two join");
+    }
+
+    /** Everywhere else the floor is flat within its cell, as a storey should be. */
+    @Test
+    void ordinaryGroundIsLevelAcrossItsCell() {
+        var grid = grid();
+        grid.setLevelHeight(10f);
+        float cell = PathGrid.DEFAULT_CELL_SIZE;
+
+        assertEquals(0f, grid.groundHeight(new Coord3D(1.1f * cell, 1.5f * cell, 0f)), 0f);
+        assertEquals(0f, grid.groundHeight(new Coord3D(1.9f * cell, 1.5f * cell, 0f)), 0f);
+        assertEquals(10f, grid.groundHeight(new Coord3D(7.1f * cell, 1.5f * cell, 0f)), 0f);
+        assertEquals(10f, grid.groundHeight(new Coord3D(7.9f * cell, 1.5f * cell, 0f)), 0f);
+    }
+
     // ---- reading one from text ----
 
     @Test

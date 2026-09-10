@@ -168,7 +168,13 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         var position = owner.getPosition();
         var target = waypoints.get(waypointIndex);
         var delta = target.sub(position);
-        float distance = delta.length();
+        // On the ground plane, because that is where walking happens: a step is
+        // taken in x and y and the height is read off the floor afterwards. Once
+        // the world had storeys in it, a waypoint one floor up stayed a storey
+        // away however close the mover got — so it never arrived, shuffled about
+        // on the spot, and was eventually stopped by the stuck check two seconds
+        // later. That is what the shivering on the top step was.
+        float distance = (float) Math.sqrt(delta.x() * delta.x() + delta.y() * delta.y());
 
         if (madeNoProgress(distance)) {
             stop(); // as close as it is ever going to get — stop rather than circle forever

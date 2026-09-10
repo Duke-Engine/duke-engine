@@ -170,10 +170,19 @@ final class Discovery {
                 if (dx * dx + dy * dy > radiusSquared) {
                     continue;
                 }
-                // Anything standing higher than the eyes is behind its own floor.
-                // Climb to it and it opens; until then a raised room is as good as
-                // rock, which is the whole point of building the dungeon upward.
+                // Anything standing higher than the eyes is behind its own floor:
+                // not in sight, so nothing on it is drawn and the room keeps its
+                // secret until it is climbed to.
+                //
+                // But it is remembered rather than unseen. A raised floor is a
+                // thing in plain view — you are looking at the side of it — and
+                // leaving it out of the picture altogether cuts a black rectangle
+                // out of the middle of a lit room, which reads as a hole rather
+                // than as a storey. Remembered draws the stone and hides whoever
+                // is standing on it, which is what "you cannot see up there"
+                // actually looks like.
                 if (storey[cy * width + cx] > eyes) {
+                    explored.set(cy * width + cx);
                     continue;
                 }
                 if (fog.lineOfSight() && !inSight(fromX, fromY, cx, cy, eyes)) {

@@ -95,6 +95,48 @@ class ClimbingTest {
                 "it ended at " + walker.getPosition() + " rather than on the far floor");
     }
 
+    /**
+     * Having arrived upstairs, it stands still.
+     *
+     * <p>The symptom was a hero shivering on the top step for two seconds and then
+     * stopping for no visible reason. The cause: how far there was left to go was
+     * measured in three dimensions while the walking happened in two, so a
+     * destination a storey higher stayed a storey away however close he got. He
+     * never arrived; he was eventually given up on by the check that catches a
+     * mover going round in circles, which is what the two seconds were.
+     *
+     * <p>So this measures the shivering itself — how far it travels after it
+     * should already have stopped.
+     */
+    @Test
+    void itStopsDeadOnceItIsThere() {
+        var logic = world(MAP);
+        var walker = walker(logic, 1, 1);
+        var target = at(10, 1);
+        walker.findModule(MoveUpdate.class).moveTo(target);
+
+        for (int frame = 0; frame < 900 && walker.findModule(MoveUpdate.class).isMoving(); frame++) {
+            logic.update();
+        }
+        var restedAt = walker.getPosition();
+        float wandered = 0f;
+        for (int frame = 0; frame < 60; frame++) {
+            logic.update();
+            wandered = Math.max(wandered, restedAt.distance(walker.getPosition()));
+        }
+
+        // Arriving is the one thing that puts a mover exactly on its destination —
+        // the last leg ends by setting the position rather than stepping toward
+        // it. Anything else stops it somewhere nearby instead, which is what
+        // giving up looks like and is indistinguishable from arrival by distance
+        // alone.
+        assertEquals(target.x(), restedAt.x(), 0.001f,
+                "it stopped near the destination rather than on it, which is what "
+                        + "being given up on looks like");
+        assertEquals(target.y(), restedAt.y(), 0.001f);
+        assertEquals(0f, wandered, 0.001f, "and then stood still rather than shuffling");
+    }
+
     /** And while it walks, it stands on whatever is under it — not on where it began. */
     @Test
     void itStandsAtTheHeightOfTheGroundBeneathIt() {

@@ -202,10 +202,62 @@ public final class PathGrid {
         return level(cx, cy) * levelHeight;
     }
 
-    /** How high the floor stands under a world position. */
+    /**
+     * How high the floor stands under a world position.
+     *
+     * <p>Flat within a cell, except on a ramp, which is the one place the floor
+     * is a slope: it rises across the cell from the level it stands on to the
+     * level it joins. Without that a body crossing a stair keeps the lower height
+     * for the whole cell and then jumps a storey at the far edge — which on
+     * screen is a hero sinking into the steps and appearing on top of them.
+     *
+     * <p>The levels either side are still whole numbers and nothing about
+     * walking changes; this is the height <em>between</em> them, which is a
+     * question only something standing there asks.
+     */
     public float groundHeight(Coord3D worldPos) {
-        return groundHeight(toCellX(worldPos), toCellY(worldPos));
+        int cx = toCellX(worldPos);
+        int cy = toCellY(worldPos);
+        var rise = rampDirection(cx, cy);
+        if (rise == null) {
+            return groundHeight(cx, cy);
+        }
+        // How far across the cell it is, along the way the ramp climbs: nothing at
+        // the near edge, all of it at the far one.
+        float alongX = worldPos.x() / cellSize - cx;
+        float alongY = worldPos.y() / cellSize - cy;
+        float across = rise[0] != 0
+                ? (rise[0] > 0 ? alongX : 1f - alongX)
+                : (rise[1] > 0 ? alongY : 1f - alongY);
+        return groundHeight(cx, cy) + levelHeight * Math.clamp(across, 0f, 1f);
     }
+
+    /**
+     * Which way a ramp climbs, as {@code {dx, dy}}, or {@code null} where the cell
+     * is not a ramp or has nothing above it to climb to.
+     *
+     * <p>One place decides it, because two would drift: the height read under a
+     * mover and the flight of steps drawn for the player have to agree about
+     * which way the stair faces or the two are a staircase and a body walking up
+     * it sideways.
+     */
+    public int[] rampDirection(int cx, int cy) {
+        if (!isRamp(cx, cy)) {
+            return null;
+        }
+        int here = level(cx, cy);
+        for (var step : ORTHOGONAL) {
+            int nx = cx + step[0];
+            int ny = cy + step[1];
+            if (!isBlocked(nx, ny) && level(nx, ny) == here + 1 && canStep(cx, cy, nx, ny)) {
+                return step;
+            }
+        }
+        return null;
+    }
+
+    /** East, west, south, north — a fixed order, so a ramp climbs one way only. */
+    private static final int[][] ORTHOGONAL = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
     /**
      * Whether something may move from one cell to a neighbouring one.

@@ -296,34 +296,40 @@ final class TerrainScene {
         cellNode(placement.cellY() * cellsWide + placement.cellX()).attachChild(piece);
     }
 
+    /** How many blocks a built flight of steps is cut into. */
+    private static final int BUILT_STEPS = 6;
+
     /**
      * Steps built out of blocks, for a kit that ships no stair of its own.
      *
-     * <p>Plain, but never wrong: four boxes, each a quarter of the climb, laid up
-     * the cell in the direction the player has to walk. A kit that names a stair
-     * gets its own.
+     * <p>Plain, but a flight of steps rather than a lump: six treads, each one
+     * tread deeper into the cell and one step higher, so the top of the last one
+     * lands exactly on the floor above.
+     *
+     * <p>Every block is laid out along the node's own {@code +z} and the node is
+     * turned once at the end. Turning both — the blocks by the yaw and then the
+     * node by it again — was what made this a grey box: the treads were rotated
+     * twice and piled up on one another in the middle of the cell, which is
+     * exactly what a hero walks into and then pops out of the top of.
      */
     private void addBuiltSteps(TileLayout.Placement placement, float cell, float storey) {
         if (storey <= 0f) {
             return;
         }
-        int steps = 4;
         var stone = material.apply(ROCK);
-        float yaw = FastMath.DEG_TO_RAD * placement.yaw();
         var node = new Node("steps");
-        for (int i = 0; i < steps; i++) {
-            float depth = cell / steps;
-            float height = storey * (i + 1) / steps;
+        float depth = cell / BUILT_STEPS;
+        for (int i = 0; i < BUILT_STEPS; i++) {
+            // Each tread is a slab standing on the floor, as tall as the climb has
+            // got by the time you are on it.
+            float height = storey * (i + 1) / BUILT_STEPS;
             var step = new Geometry("step", new Box(cell / 2f, height / 2f, depth / 2f));
             step.setMaterial(stone);
-            // Along the climb: the deepest step is the highest, at the far end.
-            float along = (i + 0.5f) * depth - cell / 2f;
-            step.setLocalTranslation(along * FastMath.sin(yaw), height / 2f,
-                    along * FastMath.cos(yaw));
+            step.setLocalTranslation(0f, height / 2f, (i + 0.5f) * depth - cell / 2f);
             node.attachChild(step);
         }
         node.setLocalRotation(new com.jme3.math.Quaternion()
-                .fromAngleAxis(yaw, Vector3f.UNIT_Y));
+                .fromAngleAxis(FastMath.DEG_TO_RAD * placement.yaw(), Vector3f.UNIT_Y));
         node.setLocalTranslation(placement.x(), placement.ground(), placement.z());
         cellNode(placement.cellY() * cellsWide + placement.cellX()).attachChild(node);
     }
