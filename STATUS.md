@@ -1990,6 +1990,17 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
     o'yin birinchi kadrda yiqiladi.
   - Uchinchi tomon action'i yo'q — faqat GitHub'niki va Gradle'niki (`gh` CLI
     runner'da bor).
+  - **O'sha installer'ni lokalda ham:** `./gradlew :dungeon:packageInstaller`
+    (versiya: `-PinstallerVersion=1.2.0`, standarti `1.0.0`). CI bilan **bir xil
+    yo'l va bir xil flaglar** — ikki joyda ikki xil yozilsa ular darrov ajralib
+    ketadi. O'zi turgan OS uchun quradi: Windows'da `.msi`, macOS'da `.dmg`,
+    Linux'da `.deb`. Natija `dungeon/build/installer/` da.
+    - `jpackage` **toolchain'dan** olinadi, PATH'dan emas (10-bo'limdagi tuzoq).
+    - Windows'da **WiX** kerak (v3 `candle`/`light` yoki v4/v5 `wix.exe`),
+      PATH'da. Bo'lmasa jpackage o'zi aniq aytadi: *"Can not find WiX tools…
+      Download WiX 3.0 or later from wixtoolset.org and add it to the PATH."*
+    - Loyihaning `0.1.0-SNAPSHOT` versiyasi bu yerga yaramaydi: jpackage bir-uch
+      butun sondan boshqasini olmaydi, macOS esa boshidagi nolni ham rad etadi.
 - `:sandbox3d:startScripts` `jme3-testdata` jar'ini talab qiladi; tarmoq sekin bo'lsa
   `./gradlew build` aynan shu yerda yiqiladi (kod muammosi emas).
 
