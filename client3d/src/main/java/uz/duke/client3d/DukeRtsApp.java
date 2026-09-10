@@ -718,10 +718,11 @@ final class DukeRtsApp extends SimpleApplication {
         int volume = PREFS.getInt("volume", 100);
         menu.show(game.getTitle(), "settings", java.util.List.of(
                 new MenuOverlay.Item("Fullscreen: " + (fullscreen ? "ON" : "OFF"), () -> {
-                    PREFS.putBoolean("fullscreen", !fullscreen);
-                    applyDisplaySettings();
+                    toggleFullscreen();
+                    showSettingsMenu(settingsReturn); // the label says what it now is
                 }),
-                new MenuOverlay.Item("Resolution: " + RESOLUTIONS[resIndex][0] + "×" + RESOLUTIONS[resIndex][1],
+                new MenuOverlay.Item("Resolution: " + RESOLUTIONS[resIndex][0] + "×"
+                        + RESOLUTIONS[resIndex][1] + "  (next launch)",
                         () -> {
                             PREFS.putInt("resIndex", (resIndex + 1) % RESOLUTIONS.length);
                             applyDisplaySettings();
@@ -749,20 +750,106 @@ final class DukeRtsApp extends SimpleApplication {
      * <p>The same switch the settings menu throws, so the two cannot disagree and
      * the choice is remembered for the next launch either way. Everything that is
      * sized to the window — the hero's bar, the minimap in it, the level-up screen,
-     * the menus — is laid out again by {@code reshape}, which the restart calls.
+     * the menus — is laid out again when the new size arrives.
      */
     private void toggleFullscreen() {
-        PREFS.putBoolean("fullscreen", !PREFS.getBoolean("fullscreen", false));
-        applyDisplaySettings();
+        boolean wanted = !PREFS.getBoolean("fullscreen", false);
+        if (fillTheScreen(wanted)) {
+            PREFS.putBoolean("fullscreen", wanted);
+            settings.setFullscreen(wanted);
+        }
     }
 
-    /** Apply resolution/fullscreen by restarting the display context. */
+    /** Where the window was before it filled the screen: x, y, width, height. */
+    private int[] windowedBounds;
+
+    /**
+     * Move the window between filling the screen and sitting in it — without
+     * rebuilding anything.
+     *
+     * <p>The obvious way is {@code restart()}, and it does not work here: it tears
+     * the display context down and stands another one up, and what comes back is a
+     * window that renders a frozen picture of a game that has stopped. It is also
+     * more than was asked for — the pictures, the meshes and the shaders are all
+     * still perfectly good, and the only thing that needs to change is which
+     * monitor the window belongs to.
+     *
+     * <p>So it is said to the window directly. GLFW moves it to the monitor and
+     * back, keeps the GL context, and reports the new size the way it reports any
+     * other resize — which the HUD already follows.
+     *
+     * <p><b>At the size it already is</b>, which is the part that took finding
+     * out. Filling the screen at the monitor's own resolution looks like the right
+     * answer and half works: the world is drawn at full sharpness, and the HUD
+     * disappears. Everything on it is in the scene, in the right place and
+     * unculled — the engine's GUI simply does not survive its window changing size
+     * underneath it, and rebuilding every piece of it does not help either. The
+     * same game <em>started</em> fullscreen is perfect, because then nothing
+     * changed size.
+     *
+     * <p>So nothing changes size here either. The window keeps the framebuffer it
+     * has and only moves onto the monitor, which switches the screen to that mode
+     * for as long as the game is up — the ordinary bargain of an exclusive
+     * fullscreen game, and exactly what starting fullscreen already did.
+     *
+     * @return whether there was a window to say it to
+     */
+    private boolean fillTheScreen(boolean fullscreen) {
+        if (!(getContext() instanceof com.jme3.system.lwjgl.LwjglWindow display)) {
+            return false;
+        }
+        long window = display.getWindowHandle();
+        if (window == 0L) {
+            return false;
+        }
+        if (fullscreen) {
+            windowedBounds = boundsOf(window);
+            long monitor = org.lwjgl.glfw.GLFW.glfwGetPrimaryMonitor();
+            if (monitor == 0L) {
+                return false;
+            }
+            org.lwjgl.glfw.GLFW.glfwSetWindowMonitor(window, monitor, 0, 0,
+                    windowedBounds[2], windowedBounds[3],
+                    org.lwjgl.glfw.GLFW.GLFW_DONT_CARE);
+            return true;
+        }
+        var back = windowedBounds != null ? windowedBounds : startingBounds();
+        org.lwjgl.glfw.GLFW.glfwSetWindowMonitor(window, 0L, back[0], back[1], back[2], back[3],
+                org.lwjgl.glfw.GLFW.GLFW_DONT_CARE);
+        return true;
+    }
+
+    private static int[] boundsOf(long window) {
+        var x = new int[1];
+        var y = new int[1];
+        var width = new int[1];
+        var height = new int[1];
+        org.lwjgl.glfw.GLFW.glfwGetWindowPos(window, x, y);
+        org.lwjgl.glfw.GLFW.glfwGetWindowSize(window, width, height);
+        return new int[] {x[0], y[0], width[0], height[0]};
+    }
+
+    /** Where a window that has never been anywhere else should go back to. */
+    private int[] startingBounds() {
+        int resIndex = Math.clamp(PREFS.getInt("resIndex", 0), 0, RESOLUTIONS.length - 1);
+        return new int[] {60, 60, RESOLUTIONS[resIndex][0], RESOLUTIONS[resIndex][1]};
+    }
+
+    /**
+     * Remember the chosen resolution for the next launch.
+     *
+     * <p>It is not applied to the window that is open, and that is the honest
+     * thing rather than a shortcut: a window that changes size takes the HUD with
+     * it — see {@link #fillTheScreen} — so a resolution applied live would leave
+     * the player looking at a game with no bar and no minimap. A new window is
+     * built at the right size and everything is laid out once, which is what a
+     * launch does.
+     */
     private void applyDisplaySettings() {
-        int resIndex = PREFS.getInt("resIndex", 0);
+        int resIndex = Math.clamp(PREFS.getInt("resIndex", 0), 0, RESOLUTIONS.length - 1);
         settings.setResolution(RESOLUTIONS[resIndex][0], RESOLUTIONS[resIndex][1]);
         settings.setFullscreen(PREFS.getBoolean("fullscreen", false));
-        setSettings(settings);
-        restart(); // reshape() rebuilds the menu at the new size
+        showSettingsMenu(settingsReturn); // the label says what it now is
     }
 
     private void applyVolume() {
@@ -778,18 +865,62 @@ final class DukeRtsApp extends SimpleApplication {
         return 0;
     }
 
+    /**
+     * The window is a different size.
+     *
+     * <p>A window on its way between the desktop and a monitor passes through
+     * being no size at all, and the engine reports that faithfully: a
+     * {@code 0 x 0} reshape resizes the cameras to nothing, which gives the 3D
+     * camera a frustum it can never see anything through again. Everything then
+     * goes on running with an empty screen — the HUD still draws, because the GUI
+     * camera is orthographic and survives it, which is exactly why the symptom
+     * reads as "the world vanished" rather than as a resize going wrong.
+     *
+     * <p>So a size of nothing is not a size. What the window settles on arrives a
+     * moment later, and {@link #followTheWindowSize()} catches it either way.
+     */
     @Override
     public void reshape(int width, int height) {
+        if (width <= 0 || height <= 0) {
+            return;
+        }
         super.reshape(width, height);
+        layOutForTheWindow(width, height);
+    }
+
+    /** The size everything on the HUD was last laid out for. */
+    private int laidOutFor;
+
+    /**
+     * Put the HUD back together at whatever size the window is now.
+     *
+     * <p>Called from {@code reshape}, and again from the frame loop whenever the
+     * camera turns out to be a different size from the one the HUD was built at.
+     * The second is not belt and braces: coming back from a display restart, the
+     * size the engine reshapes with and the size the camera ends up with are not
+     * always the same one, and the difference is a menu drawn off the edge of the
+     * screen. Comparing costs two integers a frame.
+     */
+    private void layOutForTheWindow(int width, int height) {
         if (hud == null) {
             return; // not initialised yet
         }
+        laidOutFor = width * 100_000 + height;
         hud.setLocalTranslation(10, height - 10f, 0);
         buildMenu.setLocalTranslation(10, height - 40f, 0);
-        heroPanel.resize(width);
-        levelUp.resize(width, height);
+        // Everything drawn out of quads is rebuilt rather than moved. Laying the
+        // hero's bar out again at the new size leaves it in the scene, in the
+        // right place, unculled — and not on the screen: something in what the
+        // engine holds about a piece of GUI does not survive the window changing
+        // size under it. The menu has always been rebuilt for the same reason, and
+        // is the reason it was the one thing that came back looking right.
+        var armed = heroPanel.armedKey();
+        heroPanel.destroy();
+        heroPanel = new HeroPanel(assetManager, guiFont, guiNode, width);
+        heroPanel.arm(armed);
+        levelUp.destroy();
+        levelUp = new LevelUpOverlay(assetManager, guiFont, guiNode, width, height);
         placeMinimap();
-        // menus are sized to the screen — rebuild the current one
         menu.destroy();
         menu = new MenuOverlay(guiFont, assetManager, guiNode, width, height);
         switch (screen) {
@@ -797,6 +928,37 @@ final class DukeRtsApp extends SimpleApplication {
             case PAUSED -> showPauseMenu();
             case SETTINGS -> showSettingsMenu(settingsReturn);
             case PLAYING -> menu.hide();
+        }
+    }
+
+    /**
+     * Keep the cameras and the HUD on the size the window really is.
+     *
+     * <p>Asked of the window rather than waited for, because the order the engine
+     * reports a fullscreen switch in is not dependable — the sizes arrive, but
+     * with a nothing-sized one among them and not always last. Reading the
+     * framebuffer is the one answer that is true at the moment it is asked, and
+     * comparing it with what the cameras have costs two integers a frame.
+     */
+    private void followTheWindowSize() {
+        if (hud == null || cam == null) {
+            return;
+        }
+        int width = cam.getWidth();
+        int height = cam.getHeight();
+        if (getContext() instanceof com.jme3.system.lwjgl.LwjglWindow display
+                && display.getFramebufferWidth() > 0 && display.getFramebufferHeight() > 0) {
+            width = display.getFramebufferWidth();
+            height = display.getFramebufferHeight();
+        }
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        if (width != cam.getWidth() || height != cam.getHeight()) {
+            super.reshape(width, height); // the cameras, which the engine may have missed
+        }
+        if (laidOutFor != width * 100_000 + height) {
+            layOutForTheWindow(width, height);
         }
     }
 
@@ -1380,6 +1542,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     @Override
     public void simpleUpdate(float tpf) {
+        followTheWindowSize();
         snapshot = game.getSnapshot();
         if (menu.isVisible()) {
             menu.updateHover(inputManager.getCursorPosition());
@@ -1497,11 +1660,11 @@ final class DukeRtsApp extends SimpleApplication {
      * moments when the cursor is being used for something else, and a view that
      * drifted out from under a choice would be its own kind of bug.
      *
-     * <p>The world's bottom edge is the top of the hero's bar rather than the
-     * bottom of the window, because on a screen with a bar those are not the same
-     * line — the bottom of the window is halfway down a skill slot. So the band
-     * that scrolls sits just above the bar, and the bar itself scrolls nothing at
-     * all: resting the cursor on a slot has to be free.
+     * <p>All four edges are the screen's own, the bottom one included. The bar
+     * covers the foot of the screen, but the band that scrolls is a few pixels
+     * deep and the skill slots sit well above it — so pushing the cursor to the
+     * very bottom still means "look further down", which is where a hand goes for
+     * it, and reaching for a slot still means reaching for a slot.
      */
     private Vector2f edgeShove(float keySpeed) {
         var wanted = visuals.getEdgeScroll();
@@ -1511,10 +1674,6 @@ final class DukeRtsApp extends SimpleApplication {
             return still;
         }
         var cursor = inputManager.getCursorPosition();
-        float floor = heroPanel.heightPixels();
-        if (cursor.y < floor) {
-            return still; // on the bar; it is not a piece of the world
-        }
         float margin = wanted.marginPixels();
         float speed = keySpeed * wanted.speedPercent() / 100f;
         float width = cam.getWidth();
@@ -1523,13 +1682,16 @@ final class DukeRtsApp extends SimpleApplication {
         // the map — the same direction the up key sends the camera.
         return new Vector2f(
                 (cursor.x >= width - margin ? speed : 0f) - (cursor.x <= margin ? speed : 0f),
-                (cursor.y <= floor + margin ? speed : 0f)
+                (cursor.y <= margin ? speed : 0f)
                         - (cursor.y >= height - margin ? speed : 0f));
     }
 
     private void syncUnits() {
         var seen = new HashSet<Integer>();
         for (var view : snapshot.units()) {
+            if (outOfSight(view)) {
+                continue; // behind a wall: not drawn, and taken away if it was
+            }
             seen.add(view.id());
             var node = unitNodes.computeIfAbsent(view.id(), id -> createUnitNode(view));
             updateUnitNode(node, view);
@@ -1554,6 +1716,23 @@ final class DukeRtsApp extends SimpleApplication {
      * That was wrong at both ends. The simulation now says outright what died and
      * what fired, already filtered through fog of war.
      */
+    /**
+     * Whether something is standing where the player cannot see it.
+     *
+     * <p>The engine's fog is a circle and does not know about walls, so a monster
+     * in the next room is in the snapshot and would be drawn standing in the dark.
+     * Discovery already knows which cells he can see into; this asks it the same
+     * question about a creature.
+     *
+     * <p>His own things are always drawn — they are his, and an arrow of his own
+     * that vanished mid-flight would be a bug rather than a fog.
+     */
+    private boolean outOfSight(UnitView view) {
+        return discovery != null
+                && view.playerIndex() != game.getLocalPlayerIndex()
+                && !discovery.canSee(view.x(), view.y());
+    }
+
     private void handleEvents() {
         if (snapshot == lastEventedSnapshot) {
             return; // the sim has not produced a new frame; do not replay this one

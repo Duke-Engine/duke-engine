@@ -214,6 +214,11 @@ final class HeroPanel {
         return true;
     }
 
+    /** Take the bar out of the scene, so a fresh one can be built at a new size. */
+    void destroy() {
+        root.removeFromParent();
+    }
+
     void hide() {
         showing = false;
         reading = null;
@@ -228,6 +233,11 @@ final class HeroPanel {
     /** Whether the bar is on screen at all — nothing may be clicked while it is not. */
     boolean isShowing() {
         return showing;
+    }
+
+    /** Which skill is waiting to be pointed at something, so a rebuilt bar can be told. */
+    Character armedKey() {
+        return armed;
     }
 
     /**

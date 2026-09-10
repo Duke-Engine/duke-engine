@@ -302,6 +302,20 @@ final class Discovery {
         return light[cellY * width + cellX];
     }
 
+    /**
+     * Whether a point in the world is in sight this instant.
+     *
+     * <p>The crisp truth rather than the eased brightness: what is drawn fades,
+     * but whether a monster is visible must not depend on how long the light has
+     * had to arrive.
+     */
+    boolean canSee(float worldX, float worldY) {
+        if (cellSize <= 0f) {
+            return true;
+        }
+        return stateAt((int) (worldX / cellSize), (int) (worldY / cellSize)) == State.VISIBLE;
+    }
+
     State stateAt(int cellX, int cellY) {
         if (cellX < 0 || cellY < 0 || cellX >= width || cellY >= height) {
             return State.UNSEEN;

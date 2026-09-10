@@ -134,6 +134,11 @@ final class LevelUpOverlay {
         root.setCullHint(Spatial.CullHint.Inherit);
     }
 
+    /** Take it out of the scene, so a fresh one can be built at a new size. */
+    void destroy() {
+        root.removeFromParent();
+    }
+
     void hide() {
         showing = false;
         hovered = -1;

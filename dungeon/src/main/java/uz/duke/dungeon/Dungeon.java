@@ -5,6 +5,7 @@ import uz.duke.dungeon.ai.HeroBrain;
 import uz.duke.dungeon.ai.MonsterBrain;
 import uz.duke.dungeon.combat.ArrowUpdate;
 import uz.duke.dungeon.combat.Bow;
+import uz.duke.dungeon.combat.EyesOnly;
 import uz.duke.dungeon.combat.Swing;
 import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
@@ -146,6 +147,9 @@ public final class Dungeon {
                     // happens between letting go and landing.
                     factory.register("Bow",
                             (owner, data) -> new Bow(owner, settings), Bow::parseData);
+                    // Stone stops his shots as well as his eyes.
+                    factory.register("EyesOnly",
+                            (owner, data) -> new EyesOnly(owner), EyesOnly::parseData);
                     factory.register("ArrowUpdate",
                             (owner, data) -> new ArrowUpdate(owner, data, powers),
                             ArrowUpdate::parseData);

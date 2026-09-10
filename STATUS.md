@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-10 · **Testlar:** 605 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-10 · **Testlar:** 617 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -957,7 +957,7 @@ ikkala peer aynan bir kadrda qo'llaydi.
 
 ## 8. Nima ishlaydi (tasdiqlangan)
 
-- **605 test yashil** (core 133, rts 110, generals 5, game 28, client3d 110, studio 8, dungeon 211) — 0 failure / 0 error.
+- **617 test yashil** (core 133, rts 110, generals 5, game 28, client3d 110, studio 8, dungeon 223) — 0 failure / 0 error.
 - **Obyektlar fizik jism** — `GeometryTest` shakl matematikasini (burilgan box,
   burchaklar, teginish) qulflaydi; `CollisionTest` birlikning binoni aylanib
   o'tishini, birliklarning ustma-ust tushmasligini, ichkarida paydo bo'lgan
@@ -1610,8 +1610,51 @@ ikkala peer aynan bir kadrda qo'llaydi.
     o'zgarmagan.
 - **Fullscreen F11 bilan** — sozlamalar menyusidagi o'sha tugmachaning o'zi, ya'ni
   ikkovi kelisha olmaydi va tanlov keyingi ishga tushirishda ham esda qoladi.
-  Oyna o'lchami o'zgarganda panel, undagi minimap, tanlov ekrani va menyular
-  `reshape` da qayta joylashadi.
+
+- **Ko'rmasa otmaydi ham** — tuman devorni bilardi, o'q esa bilmasdi: qahramon
+  devor ortidagi monstrni bemalol o'ldirardi.
+  - **`SightLine`** — sof arifmetika (Bresenham, butun sonlarda) `World.isGroundBlocked`
+    ustida. Devorning **o'zi** ko'rinadi, ortidagi yo'q, ya'ni faqat **oradagi**
+    kataklar so'raladi. Klientdagi tuman bilan bir xil qoida, lekin **alohida**
+    yozilgan: o'yinchiga nima ko'rsatilishi jang natijasini hech qachon
+    belgilamasligi kerak.
+  - **`EyesOnly`** — `WeaponHold` choki, qurolning **oldida** ishlaydigan yagona
+    ilgak. Ikki narsani to'xtatadi: ko'rinmayotgan nishonga otishni, va **umuman
+    nishonsiz turishni** — ikkinchisi engine'ning o'z avto-tanlashini o'chiradi,
+    chunki u "eng yaqin dushman" izlaydi va devorni bilmaydi. Tanlash `HeroBrain`
+    ga o'tadi, u esa biladi. Narxi bir kadr; foydasi — aylanib o'tib bo'lmaydigan
+    qoida.
+  - **`HeroBrain` soddalashdi.** Endi har nishon yo shu klass qo'yganidir, yo
+    o'yinchi — demak "buyurilganmi yoki yo'lda uchraganmi" **fakt**, taxmin emas.
+    Eski masofa-evristikasi va uning "aynan bir marta hukm qilish" tuzog'i
+    o'chdi.
+  - **Klient ham ko'rsatmaydi** — engine tumani doira, ya'ni devor ortidagi
+    monster snapshotda bor edi va qorong'ida turgan holda chizilardi. Endi
+    `Discovery.canSee` bo'yicha filtrlanadi; qahramonning o'z narsalari doim
+    chiziladi.
+- **O'yinchining oxirgi buyrug'i ustun** — "bir vaqtda bitta ish".
+  - Yurib ketayotganda ataka buyurilsa — **to'xtaydi va otadi**. Buni bilish
+    uchun brain yurayotganda o'zi nishon tanlamaydi: shunda qurolda paydo
+    bo'lgan har qanday nishon **faqat o'yinchiniki** bo'ladi, hatto u brain
+    tanlagan bo'lardigan o'sha monster bo'lsa ham. Hech narsa yo'qolmaydi —
+    kamon yurganda baribir otmaydi (`AttackOnTheMove = No`).
+  - Skill ishlatilsa — **to'xtaydi**, va quvish **tugaydi** (pauza emas):
+    o'zidan qochib dash qilgan o'yinchi fikridan qaytgan, keyin orqaga yurish
+    dash uchun emas edi. Buning uchun quroldan nishon ham olinadi, aks holda
+    keyingi kadr uni **yangi** buyruq deb o'qib, qahramonni qaytarib yuborardi.
+  - Ikki yo'l `SkillBook` orqali gaplashadi (`lastCastFrame`, `lastAimedAt`) —
+    `ScriptModule` o'z skriptini ko'rsatmaydi, va u `game` moduli.
+- **Fullscreen ishlaydi — F11 bilan, joyida** (`glfwSetWindowMonitor`).
+  - **`restart()` ishlatilmaydi.** U kontekstni buzib qayta quradi, va bu yerda
+    `destroy()` chaqiradi — ya'ni sozlamalar menyusidan ekran o'lchamiga tegish
+    **o'yinni tugatardi** (yozilganidan beri shunday edi, F11 buni ko'rinadigan
+    qildi).
+  - **Oyna o'lchamini o'zgartirmaydi**, faqat monitorga ko'chiradi. Sababi
+    pastdagi tuzoq: engine'ning GUI'si o'z oynasi o'lchami o'zgarishidan omon
+    chiqmaydi. Ekran rejimi o'yin uchun almashadi — bu eski "start'da fullscreen"
+    xulqining aynan o'zi.
+  - Shu sababli **Resolution — keyingi ishga tushirish sozlamasi** (menyu shunday
+    deb yozadi), Fullscreen esa darhol.
 
 ---
 
@@ -1824,6 +1867,20 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
   `MapWidth` yoki `DepthWord` kabi **alohida maydonlar** Java'dagi standart
   qiymatiga tushadi. Test uchun shuni kutish kerak: qisman fayl bilan qurilgan
   o'yinda panel so'zlari inglizcha chiqadi.
+- **Engine'ning GUI'si oyna o'lchami o'zgarishidan omon chiqmaydi.** Fullscreen'ga
+  monitorning o'z rejimida o'tsangiz dunyo to'g'ri chiziladi va **butun HUD
+  yo'qoladi** — panel sahnada, to'g'ri joyda, culling'siz turadi, `hud`
+  `BitmapText` esa ko'rinadi. Har bo'lagini qaytadan qurish ham yordam bermaydi.
+  O'sha o'yin **fullscreen boshlansa** hammasi joyida, chunki hech narsa o'lchamini
+  o'zgartirmagan. Shuning uchun F11 oynaning **o'lchamini saqlab** monitorga
+  ko'chadi, Resolution esa keyingi ishga tushirishga qoldiriladi.
+- **`restart()` `destroy()` chaqiradi** — ya'ni `Duke3D` ning `awaitStop()` i
+  qaytadi va o'yin tugaydi. Ekran sozlamasi uchun uni ishlatmang; GLFW'ga
+  to'g'ridan-to'g'ri ayting (`LwjglWindow.getWindowHandle()` ochiq).
+- **Oyna monitorlar orasida ko'chayotganda engine `reshape(0, 0)` beradi** — bu
+  kameralarni nolga keltiradi va 3D kamerasining frustumi boshqa hech narsani
+  ko'rmaydigan bo'lib qoladi (HUD ortografik bo'lgani uchun omon qoladi, shuning
+  uchun kasallik "dunyo yo'qoldi" bo'lib ko'rinadi). Nol o'lcham — o'lcham emas.
 - **Geometriya qo'shsangiz joylashuvni tekshiring:** template'ga `Geometry`
   bergan zahoti u yer egallaydi. Bir-biriga juda yaqin qo'yilgan eski
   spawn koordinatalari endi kesishishi mumkin — birliklar chiqib ketguncha
@@ -1903,6 +1960,8 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/power/ChoosePower.java` | o'yinning ikkinchi buyrug'i — "o'shani olaman" |
 | `dungeon/…/dungeon/loot/{Loot,LootKind,LootTable}.java` | tushadigan narsa: ma'lumot, turlar, deterministik qur'a |
 | `dungeon/…/dungeon/loot/{LootBag,LootDrop,LootUpdate}.java` | topilganlar + `DieModule` cho'ntagi + poldagi sandiq |
+| `dungeon/…/dungeon/ai/SightLine.java` | devor ko'rishni to'sadimi — sof arifmetika, grid ustida |
+| `dungeon/…/dungeon/combat/EyesOnly.java` | ko'rmaganiga otmaydi; engine'ning avto-tanlashini o'chiradi |
 | `client3d/…/client3d/LevelUpOverlay.java` | daraja tanlash ekrani — mexanizm klientniki, so'zlar o'yinniki |
 | `client3d/…/client3d/Fog.java` | tuman sozlamasi (LOS, xotira yorqinligi, yumshoqlik, rang) |
 | `client3d/…/client3d/EdgeScroll.java` | kursor bilan kamerani surish sozlamasi |

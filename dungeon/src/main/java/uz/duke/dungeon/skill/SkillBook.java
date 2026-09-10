@@ -3,6 +3,7 @@ package uz.duke.dungeon.skill;
 import java.util.List;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.DamageType;
+import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
@@ -83,6 +84,17 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     private int boostFrames;
     private int boostPercent;
 
+    /**
+     * The frame of his last cast, and what it pointed his weapon at.
+     *
+     * <p>Both are for {@link uz.duke.dungeon.ai.HeroBrain}, which has to tell the
+     * player's orders from everything else the hero does. A cast is the player's
+     * most recent word and supersedes an attack order; the target a cast aims at
+     * is the skill's own and must not be read as one.
+     */
+    private int lastCastFrame = Integer.MIN_VALUE;
+    private ObjectId lastAimedAt;
+
     // ---- a shot begun and not yet loosed ----
 
     /**
@@ -158,6 +170,16 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         return boostFrames;
     }
 
+    /** The frame he last committed to a skill, or a long time ago if he never has. */
+    public int getLastCastFrame() {
+        return lastCastFrame;
+    }
+
+    /** What his last cast pointed his weapon at, or {@code null}. */
+    public ObjectId getLastAimedAt() {
+        return lastAimedAt;
+    }
+
     private int slotOf(char key) {
         for (int slot = 0; slot < skills.size(); slot++) {
             if (skills.get(slot).key() == key) {
@@ -207,6 +229,14 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
             return false; // aimed at nothing it could reach; the cooldown is not spent
         }
         spend(slot, skill, level);
+        lastCastFrame = world.getFrame();
+        // He does one thing at a time. Casting is the player's latest word, so
+        // whatever errand he was on ends here rather than resuming underneath it —
+        // a dash that lands him somewhere and then walks him back is not a dash.
+        var legs = owner.findModule(MoveUpdate.class);
+        if (legs != null) {
+            legs.stop();
+        }
         return true;
     }
 
@@ -290,6 +320,9 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         var weapon = owner.findModule(WeaponUpdate.class);
         if (weapon != null) {
             weapon.attack(victim.getId());
+            // Pointing his weapon is part of drawing, not an order. Said out loud
+            // so his brain does not read it as one and send him chasing.
+            lastAimedAt = victim.getId();
         }
     }
 
