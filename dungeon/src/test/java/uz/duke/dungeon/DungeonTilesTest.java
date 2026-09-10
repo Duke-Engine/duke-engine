@@ -145,6 +145,33 @@ class DungeonTilesTest {
                         + bounds.getXExtent() * 2f + " across");
     }
 
+    /**
+     * The skill icons the settings file names are shipped where it says.
+     *
+     * <p>The one asset group with nothing else watching it. An icon goes from the
+     * file, through the status line, to a panel that falls back to nothing when
+     * the file will not load — so a moved or misspelt icon is an empty square in
+     * the corner of the bar and not one word anywhere. The folder and the file
+     * name are joined in the settings, so this asks the settings rather than
+     * guessing at a path.
+     */
+    @Test
+    void everySkillIconTheSettingsFileNamesIsThere() {
+        var settings = uz.duke.dungeon.content.DungeonSettings.load();
+        int checked = 0;
+
+        for (var skill : settings.skillsFor("Hero")) {
+            var path = settings.hudIcon(skill.icon());
+            if (path.isBlank()) {
+                continue; // a skill drawn with a word rather than a picture
+            }
+            assertNotNull(DungeonTilesTest.class.getClassLoader().getResource(path),
+                    skill.key() + " asks for " + path + ", which is not shipped");
+            checked++;
+        }
+        assertTrue(checked >= 4, "the hero has four skills with pictures, found " + checked);
+    }
+
     // ---- the themed kits ----
 
     /**
