@@ -178,6 +178,7 @@ public final class Dungeon {
                 })
                 .loadUnits(creaturesIni)
                 .loadUnits(Content.read(Content.MONSTERS))
+                .loadUnits(Content.read(Content.PROPS))
                 .mapFromText(asciiMap);
 
         if (levelMap != null) {

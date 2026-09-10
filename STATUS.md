@@ -2053,7 +2053,16 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
   Sozlamalari `dungeon.ini` da: `MaxStorey`, `StoreyChangePercent`,
   `StoreyHeight`, `StairLength`, `EntranceStorey`, `BossStorey`.
   `MaxStorey = 0` — eski tekis dungeon, aynan avvalgidek.
-  **Hali chizilmaydi** — klient 3-bosqichda qavatlarni ko'radi.
+- **Xonalarda narsalar bor** (`props.ini` + `DungeonProp` bloklari) — ustun,
+  haykal, bochka. Ular oddiy template: **`Geometry` bor** (engine ularni
+  navigatsiya gridiga bosadi, ya'ni yo'l aylanib o'tadi va jism to'xtaydi) va
+  **`Body` yo'q** (ikkala miya ham faqat tanasi bori nishon deb qaraydi, ya'ni
+  hech kim ularga o'q otmaydi — sandiq shu tariqa ishlaydi). Qanday chizilishi
+  temaniki: `DungeonThemeMonster` istalgan template'ni qayta kiyintiradi.
+  Joylashuvi: xona ichida, devordan ikki katak ichkarida (eshik og'zi band
+  bo'lmasin), zinapoyada emas, va **hech kimning ustida emas** — ustiga tushgan
+  skelet to'siq ichida qoladi va boshqa hech qachon yurolmaydi (bloklangan
+  katakdan boshlangan qidiruv yo'l topmaydi). `PropsTest` shu ikkisini qulflaydi.
 - **Balandlik ko'rishni to'sadi** — ko'zdan **yuqori** qavatdagi katak ko'rinmaydi
   va nurni devordek to'sadi; pastdagi qavat esa chetidan qaralganda ko'rinadi.
   Ya'ni tepadagi xona unga chiqmaguningizcha qorong'u qoladi, chiqqandan keyin

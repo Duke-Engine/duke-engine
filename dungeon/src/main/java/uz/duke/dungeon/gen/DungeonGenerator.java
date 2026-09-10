@@ -8,6 +8,7 @@ import uz.duke.dungeon.content.MonsterKind;
 import uz.duke.dungeon.gen.GeneratedDungeon.Link;
 import uz.duke.dungeon.gen.GeneratedDungeon.Monster;
 import uz.duke.dungeon.gen.GeneratedDungeon.Placement;
+import uz.duke.dungeon.gen.GeneratedDungeon.Prop;
 import uz.duke.dungeon.gen.GeneratedDungeon.Room;
 
 /**
@@ -91,9 +92,10 @@ public final class DungeonGenerator {
         var monsters = populate(rng, rooms, settings, depth, bossRoom);
         var boss = new Monster(DungeonSettings.BOSS,
                 worldCenter(rooms.get(bossRoom).centerCellX(), rooms.get(bossRoom).centerCellY()));
+        var props = scatter(rng, rooms, settings, storeys.map(), monsters, hero, boss.at());
 
         return new GeneratedDungeon(render(cells), render(storeys.map()), hero, monsters, boss,
-                bossRoom, List.copyOf(rooms), List.copyOf(links), storeys.perRoom());
+                bossRoom, List.copyOf(rooms), List.copyOf(links), storeys.perRoom(), props);
     }
 
     /**
@@ -373,6 +375,83 @@ public final class DungeonGenerator {
             }
         }
         return monsters;
+    }
+
+    /**
+     * Scatter things through the rooms: a pillar to walk round, a statue, a barrel.
+     *
+     * <p>Solid, and that is the point — a room with nothing in it is a floor with
+     * a fight on it, and something to put between yourself and a skeleton is the
+     * difference between a room and a place. They are ordinary templates with a
+     * shape and no body, so the engine bakes them into the navigation grid and
+     * nothing shoots at them.
+     *
+     * <p>Kept away from the walls, and off the stairs. A pillar in a doorway is a
+     * doorway a wide monster cannot use, and this game has spent enough of its
+     * life on units wedged in corridors.
+     *
+     * <p>And never where something already stands. A solid thing dropped on a
+     * skeleton leaves the skeleton inside an obstacle, which is not merely untidy:
+     * a search that begins on blocked ground finds no path at all, so that
+     * skeleton never moves again and the room it was guarding is a room the
+     * player walks through unopposed.
+     */
+    private static List<Prop> scatter(DeterministicRng rng, List<Room> rooms,
+            DungeonSettings settings, char[][] storeys, List<Monster> monsters,
+            Placement hero, Placement boss) {
+        var kinds = settings.propKinds();
+        var props = new ArrayList<Prop>();
+        if (kinds.isEmpty() || settings.maxPropsPerRoom() <= 0) {
+            return List.copyOf(props);
+        }
+        int totalWeight = 0;
+        for (var kind : kinds) {
+            totalWeight += kind.weight();
+        }
+        if (totalWeight <= 0) {
+            return List.copyOf(props);
+        }
+
+        var taken = new java.util.HashSet<Long>();
+        for (var monster : monsters) {
+            taken.add(cellKey(monster.at()));
+        }
+        taken.add(cellKey(hero));
+        taken.add(cellKey(boss));
+
+        for (var room : rooms) {
+            int count = rng.nextInt(settings.minPropsPerRoom(), settings.maxPropsPerRoom());
+            for (int i = 0; i < count; i++) {
+                // Two cells in from the wall: one is the wall line itself, and the
+                // one beside it is where a doorway opens.
+                int cx = rng.nextInt(room.x() + 2, room.x() + room.w() - 3);
+                int cy = rng.nextInt(room.y() + 2, room.y() + room.h() - 3);
+                if (cx <= room.x() + 1 || cy <= room.y() + 1 || storeys[cy][cx] == '/'
+                        || !taken.add(((long) cy << 32) | cx)) {
+                    continue; // one to a cell, never on a stair, never on anybody
+                }
+                props.add(new Prop(drawProp(rng, kinds, totalWeight), worldCenter(cx, cy)));
+            }
+        }
+        return List.copyOf(props);
+    }
+
+    private static long cellKey(Placement at) {
+        long cx = (long) Math.floor(at.x() / PathGrid.DEFAULT_CELL_SIZE);
+        long cy = (long) Math.floor(at.y() / PathGrid.DEFAULT_CELL_SIZE);
+        return (cy << 32) | cx;
+    }
+
+    private static String drawProp(DeterministicRng rng,
+            List<DungeonSettings.PropKind> kinds, int totalWeight) {
+        int roll = rng.nextInt(totalWeight);
+        for (var kind : kinds) {
+            roll -= kind.weight();
+            if (roll < 0) {
+                return kind.template();
+            }
+        }
+        return kinds.get(kinds.size() - 1).template();
     }
 
     /**

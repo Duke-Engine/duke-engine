@@ -18,6 +18,9 @@ The licence text as it shipped is kept beside the files themselves, in a
 |---|---|---|---|
 | Skill icons — arrowhead, arrow cluster, sprint, hood | **Lorc** ([game-icons.net](https://game-icons.net)) | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) — **attribution required** | `dungeon/src/main/resources/Icons/skills/` |
 | Modular Dungeon Kit — floors, walls, corner posts | Kenney ([kenney.nl](https://kenney.nl)) | CC0 | `dungeon/src/main/resources/Models/dungeon/` |
+| Updated Modular Dungeon — floor, wall, stairs, column, statue, barrel | Kenney | CC0 | `dungeon/src/main/resources/Models/theme-dungeon/` |
+| Ultimate Modular Ruins — floors, walls, stairs, column, dead tree, barrel | Kenney | CC0 | `dungeon/src/main/resources/Models/theme-ruins/` |
+| Ultimate Modular Sci-Fi — floors, walls, staircase, column, plinth | Kenney | CC0 | `dungeon/src/main/resources/Models/theme-scifi/` |
 | Monsters — the bestiary the dungeon is populated from | Quaternius | CC0 | `dungeon/src/main/resources/Models/monsters/` |
 | Universal Animation Library — what moves the bestiary | Quaternius | CC0 | `dungeon/src/main/resources/Models/monsters/` |
 | The hero and her animations | Mixamo (Adobe) | Mixamo terms | `dungeon/src/main/resources/Models/hero/` |

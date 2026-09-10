@@ -26,6 +26,9 @@ public final class Content {
     /** The monsters, one template per kind named in the settings file. */
     public static final String MONSTERS = "monsters.ini";
 
+    /** The things standing about in the rooms — solid, and not alive. */
+    public static final String PROPS = "props.ini";
+
     /** The hand-drawn room's own frozen creatures, independent of the game's. */
     public static final String FIXTURE_CREATURES = "fixture-creatures.ini";
 

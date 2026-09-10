@@ -29,6 +29,7 @@ import java.util.List;
  *                  corridors are short" is a property worth testing directly, and
  *                  an L-shaped corridor's length is exactly the Manhattan distance
  *                  between the two room centres
+ * @param props       what stands about in the rooms — solid, and not alive
  * @param roomStoreys how high each room ended up standing, in the same order as
  *                  {@code rooms} — what the generator decided, after any climb it
  *                  had to give up to keep the dungeon walkable
@@ -42,7 +43,8 @@ public record GeneratedDungeon(
         int bossRoom,
         List<Room> rooms,
         List<Link> links,
-        List<Integer> roomStoreys) {
+        List<Integer> roomStoreys,
+        List<Prop> props) {
 
     /** A spot in the world, in world units (not cells). */
     public record Placement(float x, float y) {
@@ -56,6 +58,16 @@ public record GeneratedDungeon(
      * learns what a Runner is.
      */
     public record Monster(String kind, Placement at) {
+    }
+
+    /**
+     * Something standing in a room: a pillar, a statue, a barrel.
+     *
+     * <p>A kind and a place, like a monster — and for the same reason. What a
+     * Pillar is lives in props.ini and how it is drawn lives in the theme; the
+     * generator only decides that one goes here.
+     */
+    public record Prop(String kind, Placement at) {
     }
 
     /** A carved rectangle of floor, in cell coordinates. */

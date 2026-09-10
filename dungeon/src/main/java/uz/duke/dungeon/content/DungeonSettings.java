@@ -222,6 +222,18 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, THEME_ORDER);
                 }),
+                // What stands about in the rooms. Named and repeatable like the
+                // monsters, and for the same reason: a fourth kind of thing to
+                // walk round is a block here and a template in props.ini.
+                Map.entry("DungeonProp", (Ini.BlockParser) reader -> {
+                    var prop = new PropBuilder(reader.getNextToken());
+                    reader.initFromIni(prop, PROP);
+                    settings.props.add(prop);
+                }),
+                Map.entry("DungeonProps", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, PROPS);
+                }),
                 // What the game sounds like. One block per moment, and the client
                 // asks for moments by name -- it has never heard of a bow.
                 Map.entry("DungeonSound", (Ini.BlockParser) reader -> {
@@ -427,6 +439,9 @@ public final class DungeonSettings {
         require(closeDistance >= 0, "CloseDistance cannot be negative");
         require(corridorWidth >= 1, "a corridor narrower than one cell is a wall");
         require(maxRoomSpacing > maxRoomSize, "rooms could never reach one another");
+        require(minPropsPerRoom >= 0, "a room cannot hold fewer than no things");
+        require(maxPropsPerRoom >= minPropsPerRoom,
+                "MaxPerRoom must not be below MinPerRoom");
         require(maxStorey >= 0, "MaxStorey cannot be negative");
         require(maxStorey <= 9, "a storey is one character in the level map, so 9 is the ceiling");
         require(storeyChangePercent >= 0 && storeyChangePercent <= 100,
@@ -606,6 +621,49 @@ public final class DungeonSettings {
     private final java.util.List<ThemeMonsterBuilder> themeMonsters = new java.util.ArrayList<>();
     private final java.util.List<String> themeOrder = new java.util.ArrayList<>();
     private Themes.WhenExhausted whenExhausted = Themes.WhenExhausted.REPEAT;
+
+    /** One kind of thing that stands about in a room, and how often it is drawn. */
+    public record PropKind(String template, int weight) {
+    }
+
+    private static final class PropBuilder {
+        private final String template;
+        int weight = 1;
+
+        PropBuilder(String template) {
+            this.template = template;
+        }
+    }
+
+    private final java.util.List<PropBuilder> props = new java.util.ArrayList<>();
+    private int minPropsPerRoom;
+    private int maxPropsPerRoom = 3;
+
+    private static final FieldParseTable<PropBuilder> PROP =
+            new FieldParseTable<PropBuilder>()
+                    .add("Weight", Ini.integer((p, v) -> p.weight = v));
+
+    private static final FieldParseTable<DungeonSettings> PROPS =
+            new FieldParseTable<DungeonSettings>()
+                    .add("MinPerRoom", Ini.integer((s, v) -> s.minPropsPerRoom = v))
+                    .add("MaxPerRoom", Ini.integer((s, v) -> s.maxPropsPerRoom = v));
+
+    /** What may be scattered through the rooms, in file order. */
+    public java.util.List<PropKind> propKinds() {
+        var kinds = new java.util.ArrayList<PropKind>(props.size());
+        for (var prop : props) {
+            kinds.add(new PropKind(prop.template, prop.weight));
+        }
+        return java.util.List.copyOf(kinds);
+    }
+
+    public int minPropsPerRoom() {
+        return minPropsPerRoom;
+    }
+
+    public int maxPropsPerRoom() {
+        return maxPropsPerRoom;
+    }
 
     private static final class ThemeBuilder {
         private final String name;

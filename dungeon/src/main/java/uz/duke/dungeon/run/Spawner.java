@@ -70,6 +70,14 @@ public final class Spawner {
             }
         }
 
+        // Whatever stands about in the rooms. Spawned like anything else and then
+        // left alone: they have a shape, so the engine bakes them into the
+        // navigation grid and bodies stop at them, and no body, so neither brain
+        // will ever pick one as something to hit.
+        for (var prop : dungeon.props()) {
+            spawn(game, dungeonPlayer, prop.kind(), at(logic, prop.at()));
+        }
+
         var boss = spawn(game, dungeonPlayer, dungeon.boss().kind(), at(logic, dungeon.boss().at()));
         if (boss != null) {
             scale(boss, settings.bossHealthAt(depth), settings.bossDamageAt(depth),
