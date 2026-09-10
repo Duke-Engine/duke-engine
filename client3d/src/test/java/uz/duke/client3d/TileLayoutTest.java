@@ -283,6 +283,60 @@ class TileLayoutTest {
                 "standing on the lower floor, reaching up to the higher one");
     }
 
+    /**
+     * And it faces the corridor it is seen from, not the room it holds up.
+     *
+     * <p>A wall piece is one-sided: its back is not drawn at all. Against stone
+     * the face looks into the room, because that is where anyone standing is.
+     * Holding up a raised floor it has to look the other way — the player is
+     * below it — and the same yaw as a stone wall turns its face into the earth
+     * and leaves the drop as a black gap with the world visible through it.
+     *
+     * <p>This is what that looked like on screen, and what nothing here noticed:
+     * every wall was in the right place, at the right height, in the right
+     * number.
+     */
+    @Test
+    void aRetainingWallFacesTheWayItIsLookedAt() {
+        var grid = twoStoreys();
+
+        var holdingUp = only(grid, TileLayout.Piece.WALL).stream()
+                .filter(w -> Math.abs(w.x() - 4f * CELL) < 0.001f)
+                .filter(w -> Math.abs(w.z() - 2.5f * CELL) < 0.001f)
+                .findFirst().orElseThrow();
+        var againstStone = only(grid, TileLayout.Piece.WALL).stream()
+                .filter(w -> w.cellX() == 4 && w.cellY() == 1)
+                .filter(w -> Math.abs(w.z() - 1f * CELL) < 0.001f)
+                .findFirst().orElseThrow();
+
+        // A wall's face points along (sin yaw, cos yaw), which is how the stone
+        // case puts it into the room it belongs to.
+        assertTrue(facesToward(againstStone, 0f, 1f),
+                "a wall against stone faces into its own room");
+        assertTrue(facesToward(holdingUp, -1f, 0f),
+                "and the one holding up the floor faces the corridor beside it, "
+                        + "not back into the room");
+    }
+
+    /** Whether this piece's face points the given way, in world x and z. */
+    private static boolean facesToward(TileLayout.Placement wall, float x, float z) {
+        double yaw = Math.toRadians(wall.yaw());
+        return Math.abs(Math.sin(yaw) - x) < 0.001 && Math.abs(Math.cos(yaw) - z) < 0.001;
+    }
+
+    /** The post at a raised room's corner is stacked down to the floor below it. */
+    @Test
+    void aCornerPostReachesDownToWhateverIsBesideIt() {
+        var grid = twoStoreys();
+
+        var posts = only(grid, TileLayout.Piece.CORNER).stream()
+                .filter(p -> p.cellX() == 4 && p.cellY() == 2)
+                .toList();
+
+        assertTrue(posts.stream().anyMatch(p -> Math.abs(p.ground()) < 0.001f),
+                "the notch beside the drop needs filling at the corridor's own level");
+    }
+
     /** But never across the stair, which is the one place a body may cross. */
     @Test
     void theWayUpIsLeftOpen() {

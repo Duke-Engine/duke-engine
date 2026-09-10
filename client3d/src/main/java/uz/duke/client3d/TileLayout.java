@@ -151,6 +151,14 @@ final class TileLayout {
      *
      * <p>The wall belongs to the higher of the two, and there is one for each
      * storey of the drop, stacked from the lower floor up.
+     *
+     * <p><b>And it faces the other way from a wall against stone.</b> A wall
+     * piece has a front and a back, and its back is not drawn at all — the face
+     * looks out of the solid side toward whoever can see it. Against stone the
+     * solid side is the neighbour, so the face looks back into this room. Holding
+     * up a raised floor the solid side is <em>this</em> cell, and whoever is
+     * looking stands below in the corridor — so the same yaw would turn its face
+     * into the earth and leave the drop showing as a black gap with nothing in it.
      */
     private static void addWalls(List<Placement> into, PathGrid grid, int cx, int cy, float cell) {
         for (var side : SIDES) {
@@ -175,8 +183,9 @@ final class TileLayout {
             if (here <= there || storey <= 0f) {
                 continue; // the higher of the two puts up the wall
             }
+            float outward = (side[2] + 180f) % 360f;
             for (float foot = there; foot < here - storey * 0.5f; foot += storey) {
-                into.add(new Placement(Piece.WALL, cx, cy, x, z, side[2], foot));
+                into.add(new Placement(Piece.WALL, cx, cy, x, z, outward, foot));
             }
         }
     }
@@ -243,18 +252,40 @@ final class TileLayout {
      * <p>Each wall covers half the depth of the cell beyond it, so two
      * perpendicular walls leave a square notch in the stone between their ends.
      * From inside the room that notch is a hole straight through the wall.
+     *
+     * <p>A raised floor has the same corners and the same notch, so the rule is
+     * the same one the walls use — wherever a body may not cross — and the post
+     * is stacked down to whichever of the two neighbours lies lowest.
      */
     private static void addCorners(List<Placement> into, PathGrid grid, int cx, int cy, float cell) {
         for (var corner : CORNERS) {
             int dx = corner[0] == 0 ? -1 : 1;
             int dy = corner[1] == 0 ? -1 : 1;
-            if (!solid(grid, cx + dx, cy) || !solid(grid, cx, cy + dy)) {
+            if (!walled(grid, cx, cy, cx + dx, cy) || !walled(grid, cx, cy, cx, cy + dy)) {
                 continue; // only where both sides are walled does a notch exist
             }
-            into.add(new Placement(Piece.CORNER, cx, cy,
-                    (cx + corner[0]) * cell, (cy + corner[1]) * cell, corner[2],
-                    grid.groundHeight(cx, cy)));
+            float here = grid.groundHeight(cx, cy);
+            float storey = grid.getLevelHeight();
+            float foot = Math.min(openGround(grid, cx + dx, cy, here),
+                    openGround(grid, cx, cy + dy, here));
+            for (float y = foot; y < here + 0.001f; y += Math.max(storey, 1f)) {
+                into.add(new Placement(Piece.CORNER, cx, cy,
+                        (cx + corner[0]) * cell, (cy + corner[1]) * cell, corner[2], y));
+                if (storey <= 0f) {
+                    break; // a flat map has one post and no stack
+                }
+            }
         }
+    }
+
+    /** Whether something has to stand between these two cells: stone, or a drop. */
+    private static boolean walled(PathGrid grid, int cx, int cy, int nx, int ny) {
+        return solid(grid, nx, ny) || !grid.canStep(cx, cy, nx, ny);
+    }
+
+    /** The floor of a neighbour, or {@code ifStone} where there is no floor to stand on. */
+    private static float openGround(PathGrid grid, int cx, int cy, float ifStone) {
+        return solid(grid, cx, cy) ? ifStone : grid.groundHeight(cx, cy);
     }
 
     /** Off the map counts as stone, so the outermost rooms are walled in. */
