@@ -758,7 +758,7 @@ Determinizm shartnomasi skriptga ham tegishli: devor-soati yo'q, `Math.random()`
 
 ---
 
-## 5. `client3d` — 3D klient (5 fayl, ~1470 qator)
+## 5. `client3d` — 3D klient (33 fayl, ~11 000 qator)
 
 jMonkeyEngine 3.7.0-stable ustida. `Duke3D.launch(game, visuals[, shell])` oynani ochadi va
 yopilguncha bloklaydi.
@@ -770,16 +770,38 @@ bosilganda (yoki `Shell.none()` bo'lsa — darhol) boshlanadi.
   ikkita o'yinchi slot bo'lsa "Host LAN Game" taklif qilardi; bir kishilik
   dungeon'da esa ikkinchi slot skeletlar egasi bo'lib chiqdi. Bu engine
   strukturaviy fakt asosida mahsulot qarorini chiqarishi edi. Endi **mexanizm
-  klientniki** (`MenuOverlay` — xiralashgan quad + `BitmapText` tugmalar, GUI
-  kutubxonasiz), **mazmun o'yinniki** (`Shell`): qaysi bandlar, qanday nomlanadi,
+  klientniki**, **mazmun o'yinniki** (`Shell`): qaysi bandlar, qanday nomlanadi,
   yoki umuman menyusiz. Klient faqat bandning ma'nosi borligini tekshiradi.
   `Shell.standard()` — avvalgi xulq, ya'ni mavjud demolar o'zgarmaydi.
   **Tizim masalalari klientda qoladi:** Settings, pauza menyusi, chiqish.
+- **Menyular toshdan** (`StoneCraft` + `StoneMenu`) — bosh menyu, pauza menyusi va
+  sozlamalar **bitta komponent**: ular bir xil narsa, faqat qatorlari boshqa.
+  `StoneCraft` — chizish lug'ati (palitra, `slab` = yoritilgan plita + tepa qirra +
+  soya, `glow` = mash'al hovuzi, `arrowhead`, `text`); qahramon paneli ham shundan
+  chizilgan, shuning uchun menyu panel bilan bir xil toshdan. `StoneMenu.Row` —
+  sealed: `Action` (`danger` bayrog'i bilan — qizil), `Choice` (yonma-yon kataklar),
+  `Opens` (ochiladigan ro'yxat), `Level` (polzunok), `Words` (faqat o'qish uchun),
+  `Buttons` (oyoqdagi juft tugma). Klaviatura ham, mishka ham: har qator o'z hit-box'i
+  bilan, polzunokni **bosib sudrash** mumkin (bosilganda ushlaydi, qo'yib yuborilganda
+  bo'shatadi — `drag`/`release`), ochiq ro'yxat kursor turgan qatorni tanlaydi.
+  Kichik ekranda avval kichrayadi (`LEAST_SCALE 0.62`), undan keyin scroll qiladi.
+  Shrift `Visuals.menuStyle(...)` orqali o'yinniki (dungeon — Cinzel).
+- **Pauza menyusi** — `Esc` **har doim** menyuni ochadi (o'q nishonga olinayotgan
+  bo'lsa avval o'sha bekor qilinadi) va simulyatsiyani to'xtatadi. To'xtatish
+  **to'g'ridan-to'g'ri** qo'yiladi, `runOnSimThread` bilan emas: to'xtagan engine
+  qadam tashlamaydi, ya'ni navbatga qo'yilgan "davom et" vazifasi hech qachon
+  bajarilmasdi va o'yin qotib qolardi. Qatorlari: CHUQURLIK / daraja (o'yinning
+  o'z status qatoridan o'qiladi), Resume, Settings, qizil "Abandon the run" →
+  tasdiq ekrani. Menyu ochiq bo'lsa HUD (panel, minimap, holat satri) yo'qoladi.
 - **Skirmish menyusi** — map'ni aylantirish + har o'yinchi uchun faction tanlash → `selectSkirmish()`.
   Faqat `getMapChoices()` bo'sh bo'lmasa va MP bo'lmasa ko'rinadi.
-- **Settings** — Fullscreen, Resolution (1280×720 / 1600×900 / 1920×1080), Volume (100…0 %).
-  `Preferences` da saqlanadi (`duke-engine/game` tuguni: `resIndex`, `fullscreen`, `volume`).
-  O'zgarish `restart()` bilan qo'llanadi; `reshape()` menyularni qayta quradi va HUD'ni joylashtiradi.
+- **Settings** — Fullscreen, Size (monitor **haqiqiy** rejimlaridan, dropdown),
+  Volume / Effects / Voice / Music polzunoklari, Track (musiqa — dropdown), va
+  oyoqda **Save / Cancel** tosh uyalarda. Har o'zgarish **darhol** qo'llanadi
+  (ovozni eshitmasdan tanlab bo'lmaydi), lekin `Cancel` hammasini ortga qaytaradi:
+  `GameSettings` ikki qatlam — `saved` (fayl) + `draft` (hali tasdiqlanmagani).
+  Fayl **foydalanuvchi papkasida**: `~/.duke-engine/settings.properties` (ilgari
+  `java.util.prefs` = Windows registri edi; eski qiymatlar bir marta ko'chiriladi).
 - **Drag-select** — LMB'ni bosib sudrash kvadrat chizadi (kontur, ichi bo'yalmaydi) va ichidagi
   **o'yinchining o'z** birliklarini tanlaydi; dushman hech qachon tanlanmaydi. Tanlov — klient
   holati (`Set<Integer>`), simulyatsiya undan bexabar; simga faqat buyruq ketadi.

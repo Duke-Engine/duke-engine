@@ -992,11 +992,19 @@ final class DukeRtsApp extends SimpleApplication {
 
     private void showPauseMenu() {
         screen = Screen.PAUSED;
-        game.runOnSimThread(() -> game.getLogic().setGamePaused(true));
+        // Set here rather than queued for the simulation thread, and it has to be:
+        // a paused engine does not step, so the task that would unpause it never
+        // runs and the game never starts again. The flag takes no part in the
+        // checksum -- pausing changes when frames happen, not what is in them.
+        setSimulationPaused(true);
         var rows = new java.util.ArrayList<StoneMenu.Row>();
         // What he stopped in the middle of. Read off the game's own status line
-        // rather than counted here, so a game that says nothing shows nothing.
-        var run = heroPanel.reading();
+        // rather than counted here, so a game that says nothing shows nothing —
+        // and parsed from the snapshot rather than taken from the panel, which
+        // has been put away by the time a menu is up.
+        var run = snapshot != null && snapshot.hasStatus()
+                ? HeroPanel.Reading.parse(snapshot.status())
+                : null;
         if (run != null) {
             rows.add(new StoneMenu.Words(run.depthWord().isEmpty() ? "DEPTH"
                     : run.depthWord(), run.depth()));
@@ -1059,7 +1067,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void resumeGame() {
-        game.runOnSimThread(() -> game.getLogic().setGamePaused(false));
+        setSimulationPaused(false);
         menu.hide();
         screen = Screen.PLAYING;
     }
@@ -1097,7 +1105,10 @@ final class DukeRtsApp extends SimpleApplication {
             rows.add(volumeRow("Music", "volMusic", 60));
             var tracks = visuals.getSounds().musicCues();
             if (tracks.size() > 1) {
-                rows.add(new StoneMenu.Choice("Track",
+                // A list that drops open, not cells side by side: a track is
+                // called "The Sentinel", and three of those across one row is
+                // three names too small to read.
+                rows.add(new StoneMenu.Opens("Track",
                         tracks.stream().map(SoundBank.Cue::shown).toList(),
                         () -> Math.clamp(preferences.number("musicTrack", 0), 0, tracks.size() - 1),
                         to -> {
@@ -1106,14 +1117,13 @@ final class DukeRtsApp extends SimpleApplication {
                         }));
             }
         }
-        if (preferences.dirty()) {
-            rows.add(new StoneMenu.Words("", "unsaved changes"));
-        }
-        rows.add(new StoneMenu.Action("Save", () -> {
+        // The two buttons, in sockets rather than as two more rows: they are not
+        // settings, they are what happens to the settings.
+        rows.add(new StoneMenu.Buttons("", "Save", () -> {
             preferences.save();
             menu.refresh();
-        }));
-        rows.add(new StoneMenu.Action("Cancel", this::undoSettings));
+        }, "Cancel", this::undoSettings,
+                preferences.dirty() ? "unsaved changes" : ""));
         menu.show("SETTINGS", "", rows,
                 "UP DOWN choose    LEFT RIGHT change    ESC back", "",
                 settingsReturn == Screen.PAUSED);
@@ -1718,8 +1728,10 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                 }
                 case "Select" -> {
-                    if (pressed && menu.isVisible()) {
-                        if (menu.click(inputManager.getCursorPosition())) {
+                    if (menu.isVisible()) {
+                        if (!pressed) {
+                            menu.release(); // letting go lets go of the slider
+                        } else if (menu.click(inputManager.getCursorPosition())) {
                             noises.moment("menu_click", (float) timer.getTimeInSeconds());
                         }
                     } else if (pressed && levelUp.isShowing()) {
@@ -1785,12 +1797,15 @@ final class DukeRtsApp extends SimpleApplication {
                             if (levelUp.isShowing()) {
                                 break; // a level has to be spent before anything else
                             }
+                            // Escape opens the menu. It used to clear the selection
+                            // first, so a player who had a hero selected -- which
+                            // is a player who is playing -- had to press it twice
+                            // to stop. Letting go of a unit is what clicking the
+                            // floor is for; Escape is for leaving.
                             if (arming != null) {
-                                disarm(); // back out of the aim before anything else
-                            } else if (selected.isEmpty()) {
-                                showPauseMenu();
+                                disarm(); // he is mid-aim, and that is one keypress deep
                             } else {
-                                selected.clear();
+                                showPauseMenu();
                             }
                         }
                         case PAUSED -> {
@@ -2249,7 +2264,12 @@ final class DukeRtsApp extends SimpleApplication {
         showOnlyWhilePlaying();
         snapshot = game.getSnapshot();
         if (menu.isVisible()) {
-            if (menu.hover(inputManager.getCursorPosition())) {
+            // A held slider follows the hand every frame; nothing else does, and
+            // it makes no noise about it — a knob being pulled would be forty
+            // clicks a second.
+            if (menu.isDragging()) {
+                menu.drag(inputManager.getCursorPosition());
+            } else if (menu.hover(inputManager.getCursorPosition())) {
                 noises.moment("menu_hover", (float) timer.getTimeInSeconds());
             }
         }
@@ -3017,6 +3037,15 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void updateHud() {
+        // With a menu up there is no panel and no figures along the top: the
+        // menu is what he is looking at, and a bar left showing underneath it
+        // has a hole in it where the minimap was culled.
+        if (screen != Screen.PLAYING) {
+            heroPanel.hide();
+            hud.setText("");
+            buildMenu.setText("");
+            return;
+        }
         String power = snapshot.localPlayerPowerSurplus() >= 0
                 ? "+" + snapshot.localPlayerPowerSurplus()
                 : String.valueOf(snapshot.localPlayerPowerSurplus());

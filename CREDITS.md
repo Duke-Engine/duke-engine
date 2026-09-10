@@ -67,3 +67,16 @@ three pages above needs looking at: CC0 needs nothing, CC BY needs a line here
 naming the author, and CC BY-NC would mean the track cannot ship in anything
 sold. They are named here so that the question is on the page rather than
 forgotten.
+
+### The lettering
+
+The menus are set in **Cinzel** — the Cinzel Project Authors, Natanael Gama — under the
+[SIL Open Font License 1.1](https://openfontlicense.org) — the licence ships
+with it at `dungeon/src/main/resources/fonts/License-Cinzel.txt`, as the OFL
+requires.
+
+jME cannot read a TrueType font, so what ships is a bitmap of it: a PNG of every
+glyph and an AngelCode `.fnt` saying where each one sits, in three sizes. Those
+were baked here rather than downloaded — `client3d`'s `BitmapFontBaker` turns a
+`.ttf` into the pair — so the OFL's terms are met by the original, and anyone
+can re-bake them from it.

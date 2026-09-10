@@ -80,6 +80,20 @@ final class StoneMenu {
     record Words(String label, String value) implements Row {
     }
 
+    /**
+     * A pair of buttons at the foot of a screen, cut into stone sockets.
+     *
+     * <p>Apart from the rows above them on purpose. Save and Cancel are not two
+     * more settings -- they are what happens to the settings -- and drawn as rows
+     * they read as a third and fourth thing to adjust.
+     *
+     *  note  what is pending, shown between the rows and the buttons, or
+     *     empty when there is nothing waiting
+     */
+    record Buttons(String label, String take, Runnable onTake, String leave,
+            Runnable onLeave, String note) implements Row {
+    }
+
     // ---- state ----
 
     private final StoneCraft craft;
@@ -94,7 +108,31 @@ final class StoneMenu {
     private String corner = "";
     private List<Row> rows = List.of();
     private final List<Node> drawn = new ArrayList<>();
-    private final List<float[]> hitBoxes = new ArrayList<>(); // x, y, w, h per row
+    /**
+     * Where each row is on the screen, and where inside it the thing that can be
+     * dragged or clicked sits.
+     *
+     * <p>Kept in screen pixels rather than in the sheet's own units, because a
+     * cursor arrives in screen pixels and converting one number once beats
+     * converting it at every comparison.
+     */
+    private record Hit(float x, float y, float width, float height,
+            float controlX, float controlWidth) {
+        boolean holds(Vector2f cursor) {
+            return cursor.x >= x && cursor.x <= x + width
+                    && cursor.y >= y && cursor.y <= y + height;
+        }
+    }
+
+    private final List<Hit> hitBoxes = new ArrayList<>();
+    /** The open list's options, kept apart so an index is never two things. */
+    private final List<Hit> optionBoxes = new ArrayList<>();
+    private static final Hit OFF_SCREEN = new Hit(-1f, -1f, 0f, 0f, 0f, 0f);
+    /** Where the two buttons at the foot are, and which of them is under the hand. */
+    private final Hit[] buttonBoxes = {OFF_SCREEN, OFF_SCREEN};
+    private int buttonSide;
+    /** The slider the hand has hold of, or -1 — it keeps it until the button comes up. */
+    private int held = -1;
     private int chosen;
     /** Which row is open, or -1 — only an {@link Opens} row can be. */
     private int opened = -1;
@@ -141,6 +179,7 @@ final class StoneMenu {
             chosen = firstTakeable();
         }
         opened = -1;
+        held = -1; // these are not the rows he had hold of
         rebuild();
         root.setCullHint(Spatial.CullHint.Never);
     }
@@ -221,6 +260,8 @@ final class StoneMenu {
             }
             case Level level -> level.write().accept(
                     Math.clamp(level.read().getAsInt() + by * level.step(), 0, 100));
+            // The pair at the foot is one row wide and two things across.
+            case Buttons ignored -> buttonSide = Math.clamp(buttonSide + by, 0, 1);
             // A list too long to cycle is opened rather than stepped through, and
             // a line that only does something has nothing to nudge.
             case Opens ignored -> {
@@ -252,6 +293,10 @@ final class StoneMenu {
         switch (rows.get(chosen)) {
             case Action action -> {
                 action.take().run();
+                return true;
+            }
+            case Buttons buttons -> {
+                (buttonSide == 0 ? buttons.onTake() : buttons.onLeave()).run();
                 return true;
             }
             case Opens open -> {
@@ -305,41 +350,143 @@ final class StoneMenu {
      * @return whether that changed, so a caller can make a noise about it
      */
     boolean hover(Vector2f cursor) {
-        int was = opened >= 0 ? openedAt : chosen;
-        int under = rowAt(cursor);
-        if (under >= 0) {
-            if (opened >= 0) {
-                openedAt = under;
-            } else {
-                chosen = under;
+        if (opened >= 0) {
+            int over = optionAt(cursor);
+            if (over < 0 || over == openedAt) {
+                return false;
             }
-        }
-        boolean moved = (opened >= 0 ? openedAt : chosen) != was;
-        if (moved) {
+            openedAt = over;
             rebuild();
+            return true;
         }
-        return moved && under >= 0;
+        int under = rowAt(cursor);
+        if (under < 0 || under == chosen) {
+            return false;
+        }
+        chosen = under;
+        rebuild();
+        return true;
     }
 
-    /** @return whether the click landed on a row */
+    /**
+     * Take whatever the cursor is on, at the place it is on it.
+     *
+     * <p>A settings row is three things across: a nudge left, the control itself,
+     * a nudge right. Clicking the bar of a slider sets it where the cursor is,
+     * which is the one gesture everybody tries first and the reason a keyboard-only
+     * settings screen feels broken rather than austere.
+     *
+     * @return whether the click landed on something
+     */
     boolean click(Vector2f cursor) {
+        if (opened >= 0) {
+            int over = optionAt(cursor);
+            if (over < 0) {
+                opened = -1; // clicked away from it; that is a way of closing it
+                rebuild();
+                return false;
+            }
+            openedAt = over;
+            return enter();
+        }
         int under = rowAt(cursor);
         if (under < 0) {
             return false;
         }
-        if (opened >= 0) {
-            openedAt = under;
-        } else {
-            chosen = under;
+        chosen = under;
+        var row = rows.get(under);
+        var box = hitBoxes.get(under);
+        if (row instanceof Buttons) {
+            for (int side = 0; side < 2; side++) {
+                if (buttonBoxes[side].holds(cursor)) {
+                    buttonSide = side;
+                    return enter();
+                }
+            }
+            return false; // the stone between the two buttons is not a button
+        }
+        if (box.controlWidth() > 0f && (row instanceof Level || row instanceof Choice)) {
+            if (cursor.x < box.controlX()) {
+                left();
+                return true;
+            }
+            if (cursor.x > box.controlX() + box.controlWidth()) {
+                right();
+                return true;
+            }
+            float across = (cursor.x - box.controlX()) / box.controlWidth();
+            switch (row) {
+                case Level level -> {
+                    held = under; // and it keeps it until he lets go
+                    level.write().accept(Math.clamp(Math.round(across * 100f), 0, 100));
+                    rebuild();
+                }
+                case Choice choice -> {
+                    int cell = Math.clamp((int) (across * choice.options().size()),
+                            0, choice.options().size() - 1);
+                    choice.write().accept(cell);
+                    rebuild();
+                }
+                default -> {
+                    return false;
+                }
+            }
+            return true;
         }
         return enter();
     }
 
+    /**
+     * Keep the slider the hand took following it.
+     *
+     * <p>A volume is found by ear, not by arithmetic: you pull it until the room
+     * sounds right. Clicking a bar sets it and dragging is that same gesture gone
+     * on, so the bar is held from the press until the release and the cursor is
+     * allowed to wander off the row in between — off the end it simply sits at
+     * nothing or at everything, which is what a slider does everywhere else.
+     *
+     * @return whether the value moved, so a caller can spare itself the redraw
+     */
+    boolean drag(Vector2f cursor) {
+        if (held < 0 || held >= rows.size() || !(rows.get(held) instanceof Level level)) {
+            return false;
+        }
+        var box = hitBoxes.get(held);
+        if (box.controlWidth() <= 0f) {
+            return false;
+        }
+        float across = (cursor.x - box.controlX()) / box.controlWidth();
+        int value = Math.clamp(Math.round(across * 100f), 0, 100);
+        if (value == level.read().getAsInt()) {
+            return false;
+        }
+        level.write().accept(value);
+        rebuild();
+        return true;
+    }
+
+    /** Whether a slider is being pulled, and the frame should keep asking. */
+    boolean isDragging() {
+        return held >= 0;
+    }
+
+    /** He let go. */
+    void release() {
+        held = -1;
+    }
+
     private int rowAt(Vector2f cursor) {
         for (int i = 0; i < hitBoxes.size(); i++) {
-            var box = hitBoxes.get(i);
-            if (cursor.x >= box[0] && cursor.x <= box[0] + box[2]
-                    && cursor.y >= box[1] && cursor.y <= box[1] + box[3]) {
+            if (hitBoxes.get(i).holds(cursor)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private int optionAt(Vector2f cursor) {
+        for (int i = 0; i < optionBoxes.size(); i++) {
+            if (optionBoxes.get(i).holds(cursor)) {
                 return i;
             }
         }
@@ -352,6 +499,7 @@ final class StoneMenu {
         sheet.detachAllChildren();
         drawn.clear();
         hitBoxes.clear();
+        optionBoxes.clear();
 
         boolean settings = rows.stream().anyMatch(row ->
                 row instanceof Choice || row instanceof Level || row instanceof Opens);
@@ -450,7 +598,7 @@ final class StoneMenu {
         for (int i = 0; i < rows.size(); i++) {
             float y = top - (i - from + 1) * ROW_HEIGHT;
             if (i < from || i >= from + fits) {
-                hitBoxes.add(new float[] {-1f, -1f, 0f, 0f});
+                hitBoxes.add(OFF_SCREEN);
                 continue;
             }
             var row = rows.get(i);
@@ -486,8 +634,8 @@ final class StoneMenu {
 
             StoneCraft.attach(sheet, node, left, y, 3f);
             drawn.add(node);
-            hitBoxes.add(new float[] {(left) * scale, (y + 3f) * scale,
-                MENU_WIDTH * scale, (ROW_HEIGHT - 6f) * scale});
+            hitBoxes.add(new Hit(left * scale, (y + 3f) * scale, MENU_WIDTH * scale,
+                    (ROW_HEIGHT - 6f) * scale, 0f, 0f));
         }
     }
 
@@ -500,13 +648,17 @@ final class StoneMenu {
         for (int i = 0; i < rows.size(); i++) {
             float y = top - (i - from + 1) * ROW_HEIGHT;
             if (i < from || i >= from + fits) {
-                hitBoxes.add(new float[] {-1f, -1f, 0f, 0f});
+                hitBoxes.add(OFF_SCREEN);
                 continue;
             }
             boolean lit = i == chosen && opened < 0;
             // While a list is open the rows behind it go quiet, so there is one
             // place to look rather than two lit at once.
             boolean dimmed = opened >= 0 && i != opened;
+            if (rows.get(i) instanceof Buttons buttons) {
+                drawButtons(buttons, left, y, width, lit);
+                continue;
+            }
             var node = new Node("row-" + i);
             if (lit) {
                 StoneCraft.attach(node, craft.shaded("lit", width, ROW_HEIGHT - 4f,
@@ -530,12 +682,58 @@ final class StoneMenu {
 
             StoneCraft.attach(sheet, node, left, y, 3f);
             drawn.add(node);
-            hitBoxes.add(new float[] {left * scale, y * scale, width * scale,
-                ROW_HEIGHT * scale});
+            hitBoxes.add(new Hit(left * scale, y * scale, width * scale,
+                    ROW_HEIGHT * scale, (left + width * 0.46f) * scale,
+                    CONTROL_WIDTH * scale));
         }
         if (opened >= 0) {
             drawOpenList(top, left, width);
         }
+    }
+
+    /**
+     * The two buttons at the foot of the settings, in sockets rather than rows.
+     *
+     * <p>Cut from the same stone as the hero's skill slots, because they are the
+     * same idea: a thing you press, sunk into the panel. Save is lit; Cancel is
+     * left cold, so the eye lands on the one that keeps the work.
+     */
+    private void drawButtons(Buttons buttons, float left, float y, float width, boolean lit) {
+        var node = new Node("buttons");
+        float socketWidth = 150f;
+        float socketHeight = ROW_HEIGHT - 12f;
+        float gap = 18f;
+        float from = (width - socketWidth * 2f - gap) / 2f;
+
+        if (!buttons.note().isEmpty()) {
+            var note = craft.text(rowFont, 12f, StoneCraft.TORCH, 0f,
+                    ROW_HEIGHT - 6f, width, BitmapFont.Align.Center);
+            note.setText(buttons.note());
+            StoneCraft.attach(node, note, 0f, 0f, 3f);
+        }
+        // Two, side by side. The lit one is whichever the player is on: this row
+        // is a pair, and left and right move between them.
+        for (int side = 0; side < 2; side++) {
+            float x = from + side * (socketWidth + gap);
+            boolean onThis = lit && buttonSide == side;
+            var socket = craft.slab("socket", socketWidth, socketHeight);
+            StoneCraft.attach(node, socket, x, 0f, 1f);
+            if (onThis) {
+                StoneCraft.attach(node, craft.flat("socket-lit", socketWidth, socketHeight,
+                        StoneCraft.fade(StoneCraft.TORCH, 0.16f)), x, 0f, 2f);
+            }
+            var word = craft.text(titleFont, 14f,
+                    onThis ? StoneCraft.TORCH_HOT
+                            : side == 0 ? StoneCraft.BONE : StoneCraft.MUTE,
+                    0f, socketHeight / 2f - 9f, socketWidth, BitmapFont.Align.Center);
+            word.setText(side == 0 ? buttons.take() : buttons.leave());
+            StoneCraft.attach(node, word, x, 0f, 3f);
+            buttonBoxes[side] = new Hit((left + x) * scale, y * scale,
+                    socketWidth * scale, socketHeight * scale, 0f, 0f);
+        }
+        StoneCraft.attach(sheet, node, left, y, 3f);
+        hitBoxes.add(new Hit(left * scale, y * scale, width * scale,
+                ROW_HEIGHT * scale, 0f, 0f));
     }
 
     private void drawControl(Node node, Row row, float x, boolean lit, boolean dimmed,
@@ -552,8 +750,10 @@ final class StoneMenu {
         switch (row) {
             case Choice choice -> {
                 int at = Math.clamp(choice.read().getAsInt(), 0, choice.options().size() - 1);
+                // Cells side by side, so a row of two or three is one glance. A
+                // longer list, or longer words, belongs in an Opens.
+                float each = CONTROL_WIDTH / choice.options().size();
                 for (int o = 0; o < choice.options().size(); o++) {
-                    float each = CONTROL_WIDTH / choice.options().size();
                     boolean on = o == at;
                     StoneCraft.attach(node, craft.shaded("cell", each - 4f, 20f,
                             on ? StoneCraft.rgb(0x4A3A1E) : StoneCraft.STONE_DEEP,
@@ -619,10 +819,6 @@ final class StoneMenu {
 
         var list = new Node("open");
         StoneCraft.attach(list, craft.slab("list", listWidth, listHeight), 0f, 0f, 0f);
-        hitBoxes.clear();
-        for (int i = 0; i < rows.size(); i++) {
-            hitBoxes.add(new float[] {-1f, -1f, 0f, 0f});
-        }
         for (int o = 0; o < count; o++) {
             float rowY = listHeight - 6f - (o + 1) * rowHeight;
             boolean lit = o == openedAt;
@@ -642,12 +838,13 @@ final class StoneMenu {
             StoneCraft.attach(list, text, 0f, 0f, 2f);
         }
         StoneCraft.attach(sheet, list, x, y, 8f);
-        // While it is open the list owns the mouse: the rows behind it are not
-        // hit-testable, or a click would land on two things at once.
+        // The list owns the mouse while it is up, and its options are kept in
+        // their own list: an index that could mean either a row or an option is
+        // an index that eventually means the wrong one.
         for (int o = 0; o < count; o++) {
             float rowY = listHeight - 6f - (o + 1) * rowHeight;
-            hitBoxes.add(new float[] {(x + 6f) * scale, (y + rowY) * scale,
-                (listWidth - 12f) * scale, (rowHeight - 2f) * scale});
+            optionBoxes.add(new Hit((x + 6f) * scale, (y + rowY) * scale,
+                    (listWidth - 12f) * scale, (rowHeight - 2f) * scale, 0f, 0f));
         }
     }
 

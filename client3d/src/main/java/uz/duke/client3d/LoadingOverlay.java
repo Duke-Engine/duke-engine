@@ -14,7 +14,7 @@ import com.jme3.scene.shape.Quad;
  * What the player looks at while the game reads its art: a title, a bar, and the
  * name of the file being read.
  *
- * <p>Same materials and the same bitmap text as {@link MenuOverlay}, and for the
+ * <p>Same materials and the same bitmap text as the menus, and for the
  * same reason — this appears before anything else has been drawn, so whatever it
  * needs is whatever has to be ready first.
  *
