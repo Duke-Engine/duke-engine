@@ -210,6 +210,17 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, THEME_ORDER);
                 }),
+                // What the game sounds like. One block per moment, and the client
+                // asks for moments by name -- it has never heard of a bow.
+                Map.entry("DungeonSound", (Ini.BlockParser) reader -> {
+                    var cue = new SoundBuilder(reader.getNextToken());
+                    reader.initFromIni(cue, SOUND);
+                    settings.sounds.add(cue);
+                }),
+                Map.entry("DungeonSounds", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, SOUNDS);
+                }),
                 Map.entry("DungeonFog", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, FOG);
@@ -486,6 +497,64 @@ public final class DungeonSettings {
                     .add("MinSkeletonsPerRoom", Ini.integer((s, v) -> s.minSkeletonsPerRoom = v))
                     .add("MaxSkeletonsPerRoom", Ini.integer((s, v) -> s.maxSkeletonsPerRoom = v));
 
+    // ---- what the game sounds like ----
+
+    private final java.util.List<SoundBuilder> sounds = new java.util.ArrayList<>();
+    private String soundFolder = "";
+    private float voiceGapSeconds = 1.5f;
+
+    private static final class SoundBuilder {
+        private final String name;
+        String channel = "Effects";
+        boolean positional = true;
+        float gain = 1f;
+        float gap;
+        String label;
+        final java.util.List<String> files = new java.util.ArrayList<>();
+
+        SoundBuilder(String name) {
+            this.name = name;
+        }
+    }
+
+    private static final FieldParseTable<SoundBuilder> SOUND =
+            new FieldParseTable<SoundBuilder>()
+                    .add("Channel", Ini.string((s, v) -> s.channel = v))
+                    .add("Positional", Ini.bool((s, v) -> s.positional = v))
+                    .add("Gain", Ini.real((s, v) -> s.gain = v))
+                    .add("GapSeconds", Ini.real((s, v) -> s.gap = v))
+                    // Repeated on purpose: each File line adds one more way this
+                    // moment can sound, and a moment heard a hundred times a run
+                    // wants several.
+                    .add("File", Ini.string((s, v) -> s.files.add(v)))
+                    // Only the music is ever named on screen, and only because
+                    // the player picks from it -- so a label is optional and the
+                    // rest of the cues never write one.
+                    .add("Label", Ini.restOfLine((s, v) -> s.label = v));
+
+    private static final FieldParseTable<DungeonSettings> SOUNDS =
+            new FieldParseTable<DungeonSettings>()
+                    .add("Folder", Ini.string((s, v) -> s.soundFolder = v))
+                    .add("VoiceGapSeconds", Ini.real((s, v) -> s.voiceGapSeconds = v));
+
+    /** Every moment the game has a sound for, each file path made whole. */
+    public java.util.List<SoundArt> sounds() {
+        return sounds.stream()
+                .map(cue -> new SoundArt(cue.name, cue.channel, cue.positional, cue.gain,
+                        cue.gap, cue.files, cue.label).withFolder(soundFolder))
+                .toList();
+    }
+
+    /**
+     * The least time between two of the hero's lines.
+     *
+     * <p>Here rather than on each cue because what is being prevented is two
+     * voices at once, and it is no better when they are saying different things.
+     */
+    public float voiceGapSeconds() {
+        return voiceGapSeconds;
+    }
+
     private static final FieldParseTable<DungeonSettings> BEHAVIOUR =
             new FieldParseTable<DungeonSettings>()
                     .add("SkeletonSenseRadius", Ini.real((s, v) -> s.skeletonSenseRadius = v))
@@ -578,6 +647,7 @@ public final class DungeonSettings {
                     .add("Idle", Ini.string((t, v) -> t.art.idle = v))
                     .add("Walk", Ini.string((t, v) -> t.art.walk = v))
                     .add("Attack", Ini.string((t, v) -> t.art.attack = v))
+                    .add("Hurt", Ini.string((t, v) -> t.art.hurt = v))
                     .add("AnimationsFrom", Ini.string((t, v) -> t.animationsFrom = v))
                     .add("Death", Ini.string((t, v) -> t.death = v));
 
@@ -646,6 +716,7 @@ public final class DungeonSettings {
         String idle;
         String walk;
         String attack;
+        String hurt;
 
         MonsterBuilder(String name) {
             this.name = name;
@@ -658,7 +729,8 @@ public final class DungeonSettings {
 
         /** Just the art of it, which is all a theme overriding a creature needs. */
         MonsterLook look() {
-            return new MonsterLook(model, texture, modelScale, tint, facing, idle, walk, attack);
+            return new MonsterLook(model, texture, modelScale, tint, facing, idle, walk, attack,
+                    hurt);
         }
     }
 
@@ -685,7 +757,8 @@ public final class DungeonSettings {
                     .add("Facing", Ini.real((m, v) -> m.facing = v))
                     .add("Idle", Ini.string((m, v) -> m.idle = v))
                     .add("Walk", Ini.string((m, v) -> m.walk = v))
-                    .add("Attack", Ini.string((m, v) -> m.attack = v));
+                    .add("Attack", Ini.string((m, v) -> m.attack = v))
+                    .add("Hurt", Ini.string((m, v) -> m.hurt = v));
 
     /** Accumulates one {@code DungeonSkill <hero> <key>} block. */
     private static final class SkillBuilder {
@@ -896,6 +969,7 @@ public final class DungeonSettings {
     private String defaultIdle;
     private String defaultWalk;
     private String defaultAttack;
+    private String defaultHurt;
     private String defaultDeath;
 
     /**
@@ -910,14 +984,19 @@ public final class DungeonSettings {
         return animationLibrary;
     }
 
-    /** A kind's look with the game's default clip names filled in. */
     /** The clip every monster plays as it falls, or {@code null} for none. */
     public String deathClip() {
         return defaultDeath;
     }
 
+    /** The swing a creature gets when its own block names none. */
+    public String defaultAttack() {
+        return defaultAttack;
+    }
+
+    /** A kind's look with the game's default clip names filled in. */
     public MonsterLook lookOf(MonsterKind kind) {
-        return kind.look().withDefaults(defaultIdle, defaultWalk, defaultAttack);
+        return kind.look().withDefaults(defaultIdle, defaultWalk, defaultAttack, defaultHurt);
     }
 
     private String heroModel;
@@ -1184,6 +1263,7 @@ public final class DungeonSettings {
                     .add("Idle", Ini.string((s, v) -> s.defaultIdle = v))
                     .add("Walk", Ini.string((s, v) -> s.defaultWalk = v))
                     .add("Attack", Ini.string((s, v) -> s.defaultAttack = v))
+                    .add("Hurt", Ini.string((s, v) -> s.defaultHurt = v))
                     .add("Death", Ini.string((s, v) -> s.defaultDeath = v));
 
     private static final FieldParseTable<DungeonSettings> DEPTH =

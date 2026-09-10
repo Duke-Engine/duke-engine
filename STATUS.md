@@ -1964,6 +1964,43 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 - Qo'lda chizilgan xona (`Dungeon.create()`) hali turibdi — engine o'ynasa bo'ladiganini
   ko'rsatadigan ma'lum javobli dunyo. Haqiqiy o'yin `create(long seed)`.
 
+### 8.s Ovoz — INI'da bog'langan lahzalar
+
+- **Klient lahzalarni nom bilan ko'taradi, faylni bilmaydi.** `client3d` to'rtta
+  o'yin chizadi, shuning uchun unda birorta ham fayl nomi yo'q: u
+  `died.Boss`, `struck.Arrow`, `walking.Hero` deb so'raydi, javob esa
+  `dungeon.ini` da. **Yangi ovoz = INI'da bitta blok**, Java yozilmaydi.
+- **Nuqtali nom + fallback:** `died.Boss` topilmasa `died` chalinadi. Shuning
+  uchun klientda birorta maxluq nomi yo'q, o'yin esa xohlagancha aniq bo'ladi.
+- **Fayllar:**
+  | Fayl | Nima |
+  |---|---|
+  | `SoundBank` | O'yin aytgani: nom → fayllar, kanal, gain, kuluar. jME yo'q, **sof** |
+  | `Sounds` | Qoidalar: qaysi fayl, kuluar o'tdimi, to'rt tugmadan keyin qancha baland |
+  | `SoundSink` | Ovoz qayerga ketadi — jME yoki jimlik. **Headless'ning kaliti** |
+  | `AudioSink` | jME ustidagi amalga oshirish: fayl boshiga bitta tugun, `playInstance` |
+  | `GameSounds` | Kadrni lahzaga aylantiradi: hodisalar + oldingi kadr bilan solishtirish |
+- **Vaqt parametr sifatida keladi**, soatdan o'qilmaydi — shuning uchun kuluarni
+  kutmasdan test qilish mumkin. "Faqat kutib ko'riladigan qoida" — tekshirilmaydigan
+  qoida.
+- **Engine hech narsa qo'shmadi.** Ikki hodisa (`WeaponFired`, `ObjectDied`) bor;
+  qolgani **solishtirishdan** chiqadi: ro'yxatda yo'q bo'lgan o'q — tegdi, kamaygan
+  jon — zarba, oldin bo'lmagan birlik — paydo bo'ldi. Status qatori (`HeroStatus`)
+  daraja, chuqurlik, loot va skill kuluarini beradi.
+- **`struck.` va `gone.`** — o'q nishonni ta'qib qiladi, ya'ni deyarli har doim
+  tegadi; lekin nishoni yo'lda o'lsa xona o'rtasida to'xtaydi. Shuning uchun
+  "ketishdan oldin **boshqa o'yinchining** birligiga tegib turganmi" tekshiriladi,
+  va **oldingi kadr bo'yicha** — o'ldiruvchi zarbada qurbon o'sha nafasda yo'qoladi,
+  va eshitilishi kerak bo'lgan aynan o'sha o'q.
+- **Voiceover:** kanal bo'yicha kuluar (INI'da 1.6 s) — ikki ovoz bir-birini
+  bosmaydi, hatto boshqa gap bo'lsa ham. Faqat **o'z** buyrug'ida chalinadi.
+- **Musiqa:** uchta trek, settings'dan almashtiriladi (`Label` INI'da). Oqim
+  bilan chalinadi, keshlanmaydi. Preload'ga kirmaydi — u diskdan oqadi.
+- **To'rt tugma:** Master / Effects / Voice / Music. UI effektlar bilan yuradi.
+  `PREFS` da saqlanadi. Voice `OFF` gacha tushadi.
+- **Fayl topilmasa** bir marta logga yoziladi va boshqa so'ralmaydi — o'yin jim
+  davom etadi.
+
 ### Infratuzilma
 
 - **CI/CD: `.github/workflows/ci.yml`** — bitta fayl, ikkita ish.
@@ -2176,6 +2213,8 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/skill/{CastSkill,Skills}.java` | o'yinning o'z buyrug'i (nishoni bilan) + status qatori |
 | `dungeon/…/dungeon/run/HeroStatus.java` | panel o'qiydigan qator — so'zlar shu yerda tugaydi |
 | `client3d/…/client3d/{Preload,LoadingOverlay}.java` | o'yin so'raydigan hamma faylning ro'yxati + yuklash ekrani |
+| `client3d/…/client3d/{SoundBank,Sounds,SoundSink,AudioSink,GameSounds}.java` | ovoz: o'yin aytgani, qoidalar, chiqish joyi, jME, kadr→lahza |
+| `dungeon/src/main/resources/audio/` | to'rt Kenney to'plami (CC0) + uchta trek; nomlari ma'noli |
 | `client3d/…/client3d/HeroPanel.java` | qahramon paneli — tosh uyalar, barlar, chuqurlik; ikonka yo'li INI'dan keladi |
 | `dungeon/src/main/resources/Icons/skills/` | skill ikonkalari — 128×128 shaffof PNG (Lorc, CC BY 3.0) |
 | `CREDITS.md` | san'at mualliflari va litsenziyalari — CC BY talab qiladigan atribut |

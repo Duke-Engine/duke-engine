@@ -110,11 +110,29 @@ final class MenuOverlay {
         return root.getCullHint() != com.jme3.scene.Spatial.CullHint.Always;
     }
 
+    private int hovered = -1;
+
     /** Highlight the button under the cursor. Call each frame while visible. */
     void updateHover(Vector2f cursor) {
+        hovered = -1;
         for (int i = 0; i < buttons.size(); i++) {
-            buttons.get(i).setColor(hit(buttons.get(i), cursor) ? HOVER : IDLE);
+            boolean under = hit(buttons.get(i), cursor);
+            buttons.get(i).setColor(under ? HOVER : IDLE);
+            if (under) {
+                hovered = i;
+            }
         }
+    }
+
+    /**
+     * Which button the cursor is over, or -1 for none.
+     *
+     * <p>Read by whatever wants to make a noise about it. The overlay does not
+     * make noises itself -- it draws four games' menus and has no opinion about
+     * what any of them sounds like.
+     */
+    int hoveredIndex() {
+        return hovered;
     }
 
     /** Run the clicked button's action. Returns true if the click hit a button. */

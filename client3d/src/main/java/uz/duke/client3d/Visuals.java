@@ -45,6 +45,7 @@ public final class Visuals {
         String idleAnim;
         String walkAnim;
         String attackAnim;
+        String hurtAnim;
         String dieAnim;
         String fireSound;
         String dieSound;
@@ -177,8 +178,30 @@ public final class Visuals {
             return this;
         }
 
+        /**
+         * What it plays for one blow — <em>once</em> per blow, not on a loop.
+         *
+         * <p>A unit that has a target is "attacking" for the whole engagement,
+         * reload and all, so a clip chosen from that state runs at its own tempo
+         * and has nothing to do with when the weapon actually lets go. The client
+         * plays this on the shot instead, which is a moment the game already
+         * announces.
+         */
         public UnitVisual attack(String animName) {
             this.attackAnim = animName;
+            return this;
+        }
+
+        /**
+         * What it plays when something takes health off it — a short flinch, over
+         * whatever else it was doing.
+         *
+         * <p>Driven by the health in the snapshot rather than by whatever fired,
+         * so a blow, an arrow arriving a moment after it was loosed, and a spell
+         * with no shooter at all all read the same: it flinches when it is hurt.
+         */
+        public UnitVisual hurt(String animName) {
+            this.hurtAnim = animName;
             return this;
         }
 
@@ -406,6 +429,27 @@ public final class Visuals {
     /** Whether this game has any themes at all; most do not. */
     public boolean hasThemes() {
         return !themes.isEmpty();
+    }
+
+    // ---- noise ----
+
+    private SoundBank sounds = SoundBank.silent();
+
+    /**
+     * What this game sounds like — see {@link SoundBank}.
+     *
+     * <p>The same bargain as {@link #tiles}: the client raises the moments,
+     * because it is the one drawing them, and the game says what each one sounds
+     * like, because it is the one that knows. A game that never asks is silent,
+     * which is what every game here was.
+     */
+    public Visuals sounds(SoundBank bank) {
+        this.sounds = bank == null ? SoundBank.silent() : bank;
+        return this;
+    }
+
+    public SoundBank getSounds() {
+        return sounds;
     }
 
     // ---- what all of this adds up to ----

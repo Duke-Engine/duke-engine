@@ -26,6 +26,10 @@ package uz.duke.dungeon.content;
  *                    monsters that share one
  * @param idle        clip names, taken from the animation library named in the
  *                    settings; null falls back to the library's defaults
+ * @param hurt        what it plays when something takes health off it — a short
+ *                    flinch, played over whatever else it was doing. Without one a
+ *                    monster absorbs a blow with no sign that it landed, which
+ *                    reads as the weapon having missed
  */
 public record MonsterLook(
         String model,
@@ -35,11 +39,12 @@ public record MonsterLook(
         float facing,
         String idle,
         String walk,
-        String attack) {
+        String attack,
+        String hurt) {
 
     /** No art at all: this kind is drawn as a coloured shape, as everything was. */
     public static final MonsterLook NONE =
-            new MonsterLook(null, null, 1f, 0xFFFFFF, 90f, null, null, null);
+            new MonsterLook(null, null, 1f, 0xFFFFFF, 90f, null, null, null, null);
 
     /** Whether there is a model to draw rather than a shape. */
     public boolean hasModel() {
@@ -52,10 +57,12 @@ public record MonsterLook(
     }
 
     /** This look with any unset clip name filled in from the game's defaults. */
-    public MonsterLook withDefaults(String defaultIdle, String defaultWalk, String defaultAttack) {
+    public MonsterLook withDefaults(String defaultIdle, String defaultWalk, String defaultAttack,
+            String defaultHurt) {
         return new MonsterLook(model, texture, modelScale, tint, facing,
                 idle == null ? defaultIdle : idle,
                 walk == null ? defaultWalk : walk,
-                attack == null ? defaultAttack : attack);
+                attack == null ? defaultAttack : attack,
+                hurt == null ? defaultHurt : hurt);
     }
 }

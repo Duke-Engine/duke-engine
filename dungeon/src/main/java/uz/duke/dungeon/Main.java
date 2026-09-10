@@ -71,6 +71,34 @@ public final class Main {
     }
 
     /**
+     * Every moment the game has a sound for, handed to the client at launch.
+     *
+     * <p>Nothing here is a decision. Which channel, how loud, how far apart and
+     * which files all come out of {@code dungeon.ini}, so a new sound is a block
+     * in that file and this method does not change. An unknown channel name is
+     * read as an effect rather than refused: a typo should cost the right knob,
+     * not the sound.
+     */
+    private static uz.duke.client3d.SoundBank soundsOf(DungeonSettings settings) {
+        var bank = uz.duke.client3d.SoundBank.create();
+        bank.voiceGap(settings.voiceGapSeconds());
+        for (var cue : settings.sounds()) {
+            bank.cue(cue.name(), channelOf(cue.channel()), cue.positional(), cue.gain(),
+                    cue.gapSeconds(), cue.files(), cue.label());
+        }
+        return bank.build();
+    }
+
+    private static uz.duke.client3d.SoundBank.Channel channelOf(String named) {
+        for (var channel : uz.duke.client3d.SoundBank.Channel.values()) {
+            if (channel.name().equalsIgnoreCase(named)) {
+                return channel;
+            }
+        }
+        return uz.duke.client3d.SoundBank.Channel.EFFECTS;
+    }
+
+    /**
      * Every way a floor can look, handed to the client at launch.
      *
      * <p>One registered look per theme <em>and</em> variation, because a variation
@@ -124,6 +152,7 @@ public final class Main {
                     .idle(art.idle())
                     .walk(art.walk())
                     .attack(art.attack())
+                    .hurt(art.hurt())
                     .die(themed.death() != null ? themed.death() : settings.deathClip());
             // Borrowed only when the file says so. A themed creature usually comes
             // with a model of its own, and a model of its own carries its own
@@ -235,7 +264,8 @@ public final class Main {
                         .facing(look.facing())
                         .idle(look.idle())
                         .walk(look.walk())
-                        .attack(look.attack());
+                        .attack(look.attack())
+                        .hurt(look.hurt());
                 unit.die(settings.deathClip());
                 if (settings.animationLibrary() != null) {
                     unit.animationsFrom(settings.animationLibrary());
@@ -285,6 +315,11 @@ public final class Main {
         // on screen — so the ground he uncovers and the things he can see are the
         // same number, and re-tuning one cannot leave the other behind.
         visuals.discoveredBy("Hero");
+
+        // What it all sounds like — see DungeonSound in dungeon.ini. Handed over
+        // whole, like the tiles and the themes: the client raises moments by name
+        // and this is the only place that knows what a moment sounds like.
+        visuals.sounds(soundsOf(settings));
 
         // What the dark is worth: whether stone stops sight, how dim a room he
         // has left should be, and what colour nothing is. All of it drawing, and

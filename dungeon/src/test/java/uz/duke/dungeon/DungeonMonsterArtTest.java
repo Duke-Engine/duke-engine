@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.jme3.anim.AnimComposer;
 import com.jme3.anim.SkinningControl;
@@ -191,6 +192,58 @@ class DungeonMonsterArtTest {
                 assertNotNull(composer.getAnimClip(clip),
                         clip + " is named in dungeon.ini but not in the library");
             }
+            // Optional, and off in the shipped file — but a name that is there has
+            // to be a name the library answers to, or switching it on is a silence.
+            if (look.hurt() != null) {
+                assertNotNull(composer.getAnimClip(look.hurt()),
+                        look.hurt() + " is named in dungeon.ini but not in the library");
+            }
+        }
+    }
+
+    /** The clips a creature actually asked for, in the order the client wants them. */
+    private static List<String> clipsOf(uz.duke.dungeon.content.MonsterLook look) {
+        var named = new ArrayList<String>();
+        for (var clip : new String[] {look.idle(), look.walk(), look.attack(), look.hurt()}) {
+            if (clip != null) {
+                named.add(clip);
+            }
+        }
+        return named;
+    }
+
+    /**
+     * Everything down here strikes the same way.
+     *
+     * <p>A deliberate choice rather than an accident of the defaults. The library
+     * has a jab and a cross as well, and the small monsters had them — the jab is
+     * a twitch, and a twitch does not read as a blow however much health it takes
+     * off. One recognisable overhead swing, from the smallest to the boss, is what
+     * makes a hit look like a hit, and a creature block quietly taking one of the
+     * others back would undo it without showing up as anything but a diff.
+     */
+    @Test
+    void everythingStrikesTheSameWay() {
+        for (var kind : SETTINGS.monsters()) {
+            assertEquals(SETTINGS.defaultAttack(), SETTINGS.lookOf(kind).attack(),
+                    kind.name() + " swings differently from the rest of the dungeon");
+        }
+    }
+
+    /**
+     * The flinch is off, and off is a decision.
+     *
+     * <p>A blow struck and a blow taken are the same one-shot channel, so a
+     * monster shot mid-swing drops the swing: hitting one reads as cancelling its
+     * attack, which is a strange thing to hand out for nothing. It comes back as
+     * something bought. Until then the file names none, and this is here so that
+     * switching it on is a decision too rather than a merge.
+     */
+    @Test
+    void nothingFlinchesYet() {
+        for (var kind : SETTINGS.monsters()) {
+            assertNull(SETTINGS.lookOf(kind).hurt(),
+                    kind.name() + " has a flinch again — see the note in dungeon.ini");
         }
     }
 
@@ -233,9 +286,11 @@ class DungeonMonsterArtTest {
         for (var look : looks()) {
             var monster = loader.loadModel(look.model());
             int copied = AnimationLibrary.copy(library, monster,
-                    List.of(look.idle(), look.walk(), look.attack()));
+                    clipsOf(look));
 
-            assertEquals(3, copied, look.model() + " took only " + copied + " of its three clips");
+            assertEquals(clipsOf(look).size(), copied,
+                    look.model() + " took only " + copied + " of its "
+                            + clipsOf(look).size() + " clips");
         }
     }
 

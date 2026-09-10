@@ -243,6 +243,18 @@ final class HeroPanel {
     }
 
     /** The level-up offer the last status line carried, or {@code null} for none. */
+    /**
+     * The status line as the panel read it.
+     *
+     * <p>Shared rather than parsed twice: the game's line carries a level, a
+     * floor, and what he just picked up, and those are moments worth hearing as
+     * well as worth drawing — see {@link GameSounds}. Two readers of one line
+     * would drift the first time the line grew a field.
+     */
+    Reading reading() {
+        return reading;
+    }
+
     Reading.Offer offer() {
         return reading == null ? null : reading.offer();
     }

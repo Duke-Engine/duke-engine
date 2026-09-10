@@ -102,7 +102,8 @@ public record ThemeArt(
         var look = themed.look();
         return new ThemeMonster(themed.template(),
                 new MonsterLook(path(look.model()), path(look.texture()), look.modelScale(),
-                        look.tint(), look.facing(), look.idle(), look.walk(), look.attack()),
+                        look.tint(), look.facing(), look.idle(), look.walk(), look.attack(),
+                        look.hurt()),
                 path(themed.animationsFrom()), themed.death());
     }
 

@@ -1,6 +1,7 @@
 package uz.duke.client3d;
 
 import com.jme3.anim.AnimComposer;
+import com.jme3.anim.tween.action.BlendableAction;
 import com.jme3.animation.AnimChannel;
 import com.jme3.animation.AnimControl;
 import com.jme3.app.SimpleApplication;
@@ -132,6 +133,10 @@ final class DukeRtsApp extends SimpleApplication {
     private final Set<Integer> selected = new HashSet<>();
     private final Map<String, AudioNode> audioCache = new HashMap<>();
     private final Set<String> missingAssets = new HashSet<>();
+    /** Every noise the game makes, and what it makes them for. */
+    private GameSounds noises;
+    /** Which menu button the cursor was over last, so a move onto one is a moment. */
+    private int lastHovered = -1;
     /** Up while the game's art is being read; see {@link ArtLoad}. */
     private LoadingOverlay loading;
     private ArtLoad artLoad;
@@ -198,6 +203,17 @@ final class DukeRtsApp extends SimpleApplication {
         AnimChannel legacyChannel;
         String currentAnim = "";
         float flashUntil;
+        /**
+         * Until when a one-shot clip owns the model — a blow, or a flinch.
+         *
+         * <p>What a unit <em>is doing</em> is a loop and what <em>happens to it</em>
+         * is not, and the second has to be able to interrupt the first without the
+         * first taking it straight back. So while this is in the future the state
+         * machine keeps its hands off.
+         */
+        float actionUntil;
+        /** The health it had in the last snapshot: a drop is a blow that landed. */
+        float lastHealth = Float.NaN;
         UnitView view;
     }
 
@@ -294,7 +310,30 @@ final class DukeRtsApp extends SimpleApplication {
         menu = new MenuOverlay(guiFont, assetManager, guiNode, cam.getWidth(), cam.getHeight());
         loading = new LoadingOverlay(guiFont, assetManager, guiNode,
                 cam.getWidth(), cam.getHeight());
+        buildSounds();
         showMainMenu();
+        applyVolume();
+    }
+
+    /**
+     * Wire up the game's noise, or wire up silence.
+     *
+     * <p>A machine with no audio device gets {@link SoundSink#SILENT} and
+     * everything above it runs unchanged — which is what a headless build is, and
+     * what a test suite is. The alternative is every caller asking first whether
+     * there is a speaker, and one of them eventually forgetting to.
+     */
+    private void buildSounds() {
+        var sink = audioRenderer == null
+                ? SoundSink.SILENT : new AudioSink(assetManager, rootNode);
+        var sounds = new Sounds(visuals.getSounds(), sink);
+        sounds.voiceGap(visuals.getSounds().voiceGapSeconds());
+        // What counts as landing on somebody: a cell of the map the pathfinder
+        // already keeps, rather than a number invented here.
+        var grid = game.getTerrain();
+        noises = new GameSounds(sounds,
+                grid == null ? uz.duke.core.pathfind.PathGrid.DEFAULT_CELL_SIZE
+                        : grid.getCellSize());
         applyVolume();
     }
 
@@ -595,6 +634,10 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         screen = Screen.MENU;
+        if (noises != null) {
+            noises.sounds().music(null); // the dungeon is behind him for now
+        }
+        screen = Screen.MENU;
         var items = new java.util.ArrayList<MenuOverlay.Item>();
         for (var chosen : shell.entries()) {
             var action = actionFor(chosen.getKey());
@@ -719,6 +762,8 @@ final class DukeRtsApp extends SimpleApplication {
         // left him hunting the map for whatever he is supposed to be controlling.
         camera.requestOwnUnit();
         menu.hide();
+        // Underneath everything from here on, until he goes back to the menu.
+        playChosenMusic();
         screen = Screen.PLAYING;
     }
 
@@ -796,9 +841,21 @@ final class DukeRtsApp extends SimpleApplication {
                 .collect(java.util.stream.Collectors.toMap(look -> look.modelPath,
                         look -> look, (first, next) -> first, java.util.LinkedHashMap::new))
                 .values().stream().toList();
-        private final List<String> sounds = files.stream()
-                .filter(job -> job.kind() == Preload.Kind.SOUND)
-                .map(Preload.Job::assetPath).toList();
+        /**
+         * Every sound, from both places a game may name one.
+         *
+         * <p>A unit's fire and death sounds are named on the unit; everything else
+         * is in the bank. The music is left out on purpose — it is streamed from
+         * disc as it plays rather than held, so reading it here would be reading a
+         * megabyte to throw it away.
+         */
+        private final List<String> sounds = java.util.stream.Stream.concat(
+                files.stream().filter(job -> job.kind() == Preload.Kind.SOUND)
+                        .map(Preload.Job::assetPath),
+                visuals.getSounds().all().stream()
+                        .filter(cue -> cue.channel() != SoundBank.Channel.MUSIC)
+                        .flatMap(cue -> cue.files().stream()))
+                .distinct().toList();
         private final java.util.concurrent.atomic.AtomicInteger read =
                 new java.util.concurrent.atomic.AtomicInteger();
         private volatile String reading = "";
@@ -942,25 +999,37 @@ final class DukeRtsApp extends SimpleApplication {
         screen = Screen.SETTINGS;
         boolean fullscreen = PREFS.getBoolean("fullscreen", false);
         int resIndex = PREFS.getInt("resIndex", 0);
-        int volume = PREFS.getInt("volume", 100);
-        menu.show(game.getTitle(), "settings", java.util.List.of(
-                new MenuOverlay.Item("Fullscreen: " + (fullscreen ? "ON" : "OFF"), () -> {
-                    toggleFullscreen();
-                    showSettingsMenu(settingsReturn); // the label says what it now is
-                }),
-                new MenuOverlay.Item("Resolution: " + RESOLUTIONS[resIndex][0] + "×"
-                        + RESOLUTIONS[resIndex][1] + "  (next launch)",
-                        () -> {
-                            PREFS.putInt("resIndex", (resIndex + 1) % RESOLUTIONS.length);
-                            applyDisplaySettings();
-                        }),
-                new MenuOverlay.Item("Volume: " + volume + "%", () -> {
-                    int next = VOLUMES[(indexOf(VOLUMES, volume) + 1) % VOLUMES.length];
-                    PREFS.putInt("volume", next);
-                    applyVolume();
-                    showSettingsMenu(settingsReturn); // refresh the label
-                }),
-                new MenuOverlay.Item("Back", this::leaveSettings)));
+        var items = new java.util.ArrayList<MenuOverlay.Item>();
+        items.add(new MenuOverlay.Item("Fullscreen: " + (fullscreen ? "ON" : "OFF"), () -> {
+            toggleFullscreen();
+            showSettingsMenu(settingsReturn); // the label says what it now is
+        }));
+        items.add(new MenuOverlay.Item("Resolution: " + RESOLUTIONS[resIndex][0] + "×"
+                + RESOLUTIONS[resIndex][1] + "  (next launch)",
+                () -> {
+                    PREFS.putInt("resIndex", (resIndex + 1) % RESOLUTIONS.length);
+                    applyDisplaySettings();
+                }));
+        items.add(volumeItem("Volume", "volume", 100));
+        // Only offered by a game that has any: three other games are drawn by this
+        // client and a knob for a channel with nothing on it is a dead button.
+        if (!visuals.getSounds().isEmpty()) {
+            items.add(volumeItem("Effects", "volEffects", 100));
+            items.add(volumeItem("Voice", "volVoice", 100));
+            items.add(volumeItem("Music", "volMusic", 60));
+            var tracks = visuals.getSounds().musicCues();
+            if (tracks.size() > 1) {
+                var track = chosenTrack();
+                items.add(new MenuOverlay.Item("Track: " + track.shown(), () -> {
+                    PREFS.putInt("musicTrack",
+                            (PREFS.getInt("musicTrack", 0) + 1) % tracks.size());
+                    playChosenMusic(); // heard at once, rather than on the next run
+                    showSettingsMenu(settingsReturn);
+                }));
+            }
+        }
+        items.add(new MenuOverlay.Item("Back", this::leaveSettings));
+        menu.show(game.getTitle(), "settings", items);
     }
 
     private void leaveSettings() {
@@ -1079,8 +1148,63 @@ final class DukeRtsApp extends SimpleApplication {
         showSettingsMenu(settingsReturn); // the label says what it now is
     }
 
+    /**
+     * Put every knob where the player last left it.
+     *
+     * <p>Four of them, because one is not enough for the same person: keeping the
+     * music low while still hearing what is behind you is an ordinary thing to
+     * want, and so is silencing a hero who will not stop talking. The screen's own
+     * sounds follow the effects knob rather than getting a fifth — a menu click is
+     * an effect that happens to be on a menu.
+     */
     private void applyVolume() {
-        listener.setVolume(PREFS.getInt("volume", 100) / 100f);
+        listener.setVolume(1f); // the knobs are per channel now; the listener is not
+        if (noises == null) {
+            return;
+        }
+        var sounds = noises.sounds();
+        sounds.masterVolume(PREFS.getInt("volume", 100) / 100f);
+        float effects = PREFS.getInt("volEffects", 100) / 100f;
+        sounds.volume(SoundBank.Channel.EFFECTS, effects);
+        sounds.volume(SoundBank.Channel.UI, effects);
+        sounds.volume(SoundBank.Channel.VOICE, PREFS.getInt("volVoice", 100) / 100f);
+        sounds.volume(SoundBank.Channel.MUSIC, PREFS.getInt("volMusic", 60) / 100f);
+    }
+
+    /**
+     * The track the player chose, or the first the game listed.
+     *
+     * <p>Music is the one channel where the choice is his rather than the
+     * moment's: an effect belongs to whatever just happened, and what plays
+     * underneath a dungeon for an hour is taste.
+     */
+    /**
+     * One knob, worded and wired the same way as the rest.
+     *
+     * <p>Written once because there are four of them and they differ only in which
+     * setting they turn — four copies of this would be four places to forget to
+     * call {@link #applyVolume}.
+     */
+    private MenuOverlay.Item volumeItem(String word, String setting, int fallback) {
+        int now = PREFS.getInt(setting, fallback);
+        return new MenuOverlay.Item(word + ": " + (now == 0 ? "OFF" : now + "%"), () -> {
+            PREFS.putInt(setting, VOLUMES[(indexOf(VOLUMES, now) + 1) % VOLUMES.length]);
+            applyVolume();
+            showSettingsMenu(settingsReturn); // refresh the label
+        });
+    }
+
+    private SoundBank.Cue chosenTrack() {
+        var tracks = visuals.getSounds().musicCues();
+        if (tracks.isEmpty()) {
+            return null;
+        }
+        return tracks.get(Math.clamp(PREFS.getInt("musicTrack", 0), 0, tracks.size() - 1));
+    }
+
+    private void playChosenMusic() {
+        var track = chosenTrack();
+        noises.sounds().music(track == null ? null : track.name());
     }
 
     private static int indexOf(int[] values, int value) {
@@ -1354,6 +1478,7 @@ final class DukeRtsApp extends SimpleApplication {
         lookChanged = false;
         buildTerrain();
         rebuildMinimapTerrain();
+        noises.forget(); // a new floor; nothing about the last one is news
         orderMarkers.clear(); // orders given in the old world mean nothing here
         camera.requestOwnUnit(); // his units are somewhere else entirely now
     }
@@ -1401,6 +1526,9 @@ final class DukeRtsApp extends SimpleApplication {
                 case "PanRight" -> pan[3] = pressed;
                 case "Select" -> {
                     if (pressed && menu.isVisible()) {
+                        if (menu.hoveredIndex() >= 0) {
+                            noises.moment("menu_click", (float) timer.getTimeInSeconds());
+                        }
                         menu.click(inputManager.getCursorPosition());
                     } else if (pressed && levelUp.isShowing()) {
                         // The level-up screen is over everything and takes the
@@ -1600,7 +1728,10 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var hit = pickUnit();
         if (hit != null && hit.view.selectable() && hit.view.playerIndex() == game.getLocalPlayerIndex()) {
-            selected.add(hit.view.id());
+            boolean isNew = selected.add(hit.view.id());
+            if (isNew) {
+                noises.moment("vo.select", (float) timer.getTimeInSeconds());
+            }
         }
     }
 
@@ -1665,6 +1796,7 @@ final class DukeRtsApp extends SimpleApplication {
             }
             binding.run().accept(game, new Hotkeys.Aimed(unit.view.id(), null));
             markOrder(unit.view.x(), unit.view.y(), OrderMarkers.Kind.ATTACK);
+            noises.moment("vo.attack", (float) timer.getTimeInSeconds());
             return;
         }
         var ground = pickGround();
@@ -1808,6 +1940,9 @@ final class DukeRtsApp extends SimpleApplication {
         if (enemy != null && enemy.view.playerIndex() != local && enemy.view.playerIndex() != 0) {
             game.postCommand(new GameMessage.AttackObject(local, units, new ObjectId(enemy.view.id())));
             markOrder(enemy.view.x(), enemy.view.y(), OrderMarkers.Kind.ATTACK);
+            // His own orders only. In a game with more than one player at it,
+            // each hears his own hero answer and nobody hears anyone else's.
+            noises.moment("vo.attack", (float) timer.getTimeInSeconds());
             return;
         }
         var ground = pickGround();
@@ -1830,6 +1965,10 @@ final class DukeRtsApp extends SimpleApplication {
         }
         // One mark for the order, not one per unit: it was a single decision.
         markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
+        // And one answer, for the same reason. His own orders only: in a game
+        // with more than one player at it each hears his own hero and nobody
+        // hears anyone else's.
+        noises.moment("vo.move", (float) timer.getTimeInSeconds());
     }
 
     /** Acknowledge an order where the player clicked. Presentation only. */
@@ -1905,6 +2044,12 @@ final class DukeRtsApp extends SimpleApplication {
         snapshot = game.getSnapshot();
         if (menu.isVisible()) {
             menu.updateHover(inputManager.getCursorPosition());
+            if (menu.hoveredIndex() != lastHovered) {
+                lastHovered = menu.hoveredIndex();
+                if (lastHovered >= 0) {
+                    noises.moment("menu_hover", (float) timer.getTimeInSeconds());
+                }
+            }
         }
         if (screen == Screen.MENU) {
             hud.setText("");
@@ -1927,12 +2072,17 @@ final class DukeRtsApp extends SimpleApplication {
         // live list before anything decides it merely vanished. It also means a
         // shot lights its muzzle on the frame it was fired rather than the next.
         handleEvents();
+        // What this frame is worth hearing. Reads the same snapshot everything
+        // else does and writes nothing back -- see GameSounds.
+        noises.frame(snapshot, game.getLocalPlayerIndex(),
+                (float) timer.getTimeInSeconds());
         syncUnits();
         reapTheDead();
         syncMinimap();
         syncViewportOutline();
         syncDragRectangle();
         syncOrderMarkers();
+        noises.status(heroPanel.reading(), (float) timer.getTimeInSeconds());
         updateHud();
         updateBanner();
         updateLevelUp();
@@ -1997,6 +2147,7 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         answeredOffer = offer.id();
+        noises.moment("power_taken", (float) timer.getTimeInSeconds());
         hotkeys.choose(game, index);
         levelUp.hide();
         setSimulationPaused(false);
@@ -2116,6 +2267,9 @@ final class DukeRtsApp extends SimpleApplication {
                     node.flashUntil = timer.getTimeInSeconds() + MUZZLE_FLASH_SECONDS;
                     playSound(visualFor(node.view.templateName()).fireSound,
                             node.root.getLocalTranslation());
+                    // The swing, on the frame the weapon let go. Nothing else in
+                    // the snapshot says when that was.
+                    playOnce(node, visualFor(node.view.templateName()).attackAnim);
                 }
             }
         }
@@ -2235,6 +2389,8 @@ final class DukeRtsApp extends SimpleApplication {
                     node.legacyChannel = legacy.createChannel();
                 }
                 borrowAnimations(body, visual);
+                snap(node.composer, visual.attackAnim);
+                snap(node.composer, visual.hurtAnim);
             } catch (RuntimeException e) {
                 warnOnce(visual.modelPath, "model");
                 body = null;
@@ -2317,6 +2473,30 @@ final class DukeRtsApp extends SimpleApplication {
         return material;
     }
 
+    /** How long the old clip is faded out under a new one, on the legacy path. */
+    private static final float BLEND_SECONDS = 0.2f;
+
+    /**
+     * How long a <em>blow</em> is allowed to fade in over what came before.
+     *
+     * <p>jME cross-fades into every clip and gives it four tenths of a second to
+     * do it, which is right for settling from a walk into a stand and quite wrong
+     * for a punch: the clip is one second long, so nearly half of it was spent
+     * arriving, and the strike had no snap in it at all. A blow is a moment and
+     * has to start on the frame it starts.
+     */
+    private static final float SNAP_SECONDS = 0.08f;
+
+    /** Let this clip start at once rather than easing in over the default fade. */
+    private static void snap(AnimComposer composer, String clipName) {
+        if (composer == null || clipName == null || composer.getAnimClip(clipName) == null) {
+            return;
+        }
+        if (composer.action(clipName) instanceof BlendableAction blendable) {
+            blendable.setTransitionLength(SNAP_SECONDS);
+        }
+    }
+
     /**
      * Fetch this unit's animations out of a library file built on the same
      * skeleton, and put them on the model that has none.
@@ -2330,7 +2510,7 @@ final class DukeRtsApp extends SimpleApplication {
     private void borrowAnimations(Spatial body, Visuals.UnitVisual visual) {
         var wanted = new java.util.ArrayList<String>();
         for (var name : new String[] {visual.idleAnim, visual.walkAnim,
-                visual.attackAnim, visual.dieAnim}) {
+                visual.attackAnim, visual.hurtAnim, visual.dieAnim}) {
             if (name != null) {
                 wanted.add(name);
             }
@@ -2500,41 +2680,98 @@ final class DukeRtsApp extends SimpleApplication {
         node.flash.setCullHint(timer.getTimeInSeconds() < node.flashUntil
                 ? Spatial.CullHint.Never : Spatial.CullHint.Always);
 
+        flinch(node, view);
         animate(node, view);
+    }
+
+    /**
+     * A short flinch when something has taken health off it.
+     *
+     * <p>Read off the health in the snapshot rather than off whatever fired,
+     * which is not the same moment and sometimes not the same thing at all: an
+     * arrow is loosed a third of a second before it arrives, and splash, a spell
+     * or a floor's own trap have no shot to listen for. A drop between two
+     * snapshots is not a guess about what happened — it is the thing that
+     * happened, and it is already in hand.
+     *
+     * <p>Without it a monster absorbs a blow with no sign that it landed, and a
+     * fight reads as two things standing near each other.
+     */
+    private void flinch(UnitNode node, UnitView view) {
+        float before = node.lastHealth;
+        node.lastHealth = view.health();
+        // Nothing on the first sight of a unit, and nothing on the blow that
+        // killed it: that one has a death to play and this would talk over it.
+        if (!Float.isNaN(before) && view.health() < before && view.health() > 0f) {
+            playOnce(node, visualFor(view.templateName()).hurtAnim);
+        }
     }
 
     /**
      * Choose the clip that matches what the unit is doing.
      *
-     * <p>Moving wins over attacking, and the order matters more than it looks.
-     * A snapshot's {@code attacking} means the unit <em>has a target</em>, not
-     * that it is swinging: a monster that has noticed the hero across a room is
-     * attacking by that definition for the whole chase. Letting that win made
-     * every monster in the dungeon slide toward the player throwing punches at
-     * the air.
+     * <p>What a unit is <em>doing</em> is only ever moving or standing. Attacking
+     * used to be here as a third state and it was never a state: a snapshot's
+     * {@code attacking} means the unit <em>has a target</em>, which stays true for
+     * the whole engagement — the walk in, the reload, the standing about between
+     * blows. A clip chosen from it therefore ran on a loop at its own tempo, so a
+     * monster threw punches continuously and none of them was the blow. Worse, the
+     * loop's rate is the clip's: the heavy one that strikes every 1.6 seconds threw
+     * a one-second punch, so it punched half again as often as it hit.
      *
-     * <p>Attacking therefore reads as "engaging something and not going anywhere",
-     * which is when a creature does actually swing.
+     * <p>The swing is a moment and is played as one, on the shot — see
+     * {@link #playOnce}. Between blows a unit that has run out of things to do is
+     * standing, which is what it looks like.
      */
     private void animate(UnitNode node, UnitView view) {
+        if (timer.getTimeInSeconds() < node.actionUntil) {
+            return; // a blow or a flinch has the model; it will hand it back
+        }
         var visual = visualFor(view.templateName());
-        String wanted = view.moving() && visual.walkAnim != null ? visual.walkAnim
-                : view.attacking() && visual.attackAnim != null ? visual.attackAnim
-                : visual.idleAnim;
+        String wanted = view.moving() && visual.walkAnim != null
+                ? visual.walkAnim : visual.idleAnim;
         if (wanted == null || wanted.equals(node.currentAnim)) {
             return;
         }
+        play(node, view.templateName(), wanted, true);
+    }
+
+    /**
+     * Play a clip once, over whatever the unit was doing, and give the model back
+     * when it has finished.
+     *
+     * <p>For the things that <em>happen</em> — a blow struck, a blow taken. They
+     * are moments, and a moment played on a loop is not the same thing slower: it
+     * is a different thing entirely, and it is what made a monster in a fight look
+     * like a monster shadow-boxing.
+     */
+    private void playOnce(UnitNode node, String clipName) {
+        if (clipName == null || node.composer == null) {
+            return;
+        }
+        var clip = node.composer.getAnimClip(clipName);
+        if (clip == null) {
+            return;
+        }
+        play(node, node.view.templateName(), clipName, false);
+        node.actionUntil = (float) (timer.getTimeInSeconds() + clip.getLength());
+    }
+
+    private void play(UnitNode node, String templateName, String clipName, boolean loop) {
         try {
             if (node.composer != null) {
-                node.composer.setCurrentAction(wanted);
-                node.currentAnim = wanted;
+                node.composer.setCurrentAction(clipName, AnimComposer.DEFAULT_LAYER, loop);
             } else if (node.legacyChannel != null) {
-                node.legacyChannel.setAnim(wanted, 0.2f);
-                node.currentAnim = wanted;
+                node.legacyChannel.setAnim(clipName, BLEND_SECONDS);
+                node.legacyChannel.setLoopMode(loop
+                        ? com.jme3.animation.LoopMode.Loop : com.jme3.animation.LoopMode.DontLoop);
+            } else {
+                return;
             }
+            node.currentAnim = clipName;
         } catch (IllegalArgumentException e) {
-            warnOnce(view.templateName() + "/" + wanted, "animation");
-            node.currentAnim = wanted; // don't retry every frame
+            warnOnce(templateName + "/" + clipName, "animation");
+            node.currentAnim = clipName; // don't retry every frame
         }
     }
 
