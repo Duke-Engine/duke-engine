@@ -807,7 +807,7 @@ Determinizm shartnomasi skriptga ham tegishli: devor-soati yo'q, `Math.random()`
 
 ---
 
-## 5. `client3d` — 3D klient (33 fayl, ~11 000 qator)
+## 5. `client3d` — 3D klient (47 fayl, ~16 800 qator)
 
 jMonkeyEngine 3.7.0-stable ustida. `Duke3D.launch(game, visuals[, shell])` oynani ochadi va
 yopilguncha bloklaydi.
@@ -1696,9 +1696,12 @@ ikkala peer aynan bir kadrda qo'llaydi.
     beradi (`minimapRect`), klient minimapni o'shanga moslaydi — hech biri
     ikkinchisining arifmetikasini bilmaydi. Panel yo'q o'yinda minimap avvalgidek
     burchakda qoladi.
-  - **Portret 3D render emas, siluet.** Ikkinchi kamera bilan jonli qahramonni
-    teksturaga chizish — haqiqiy narsa, lekin ramka aslida "ekranning qaysi
-    burchagi meniki" deyish uchun; siluet buni qiladi.
+  - **Portret — tirik 3D sahna** (`HeroPortrait`, 8.ag). Ilgari siluet edi va
+    izohda sababi ham yozilgan edi: "ramka aslida ekranning qaysi burchagi meniki
+    deyish uchun". Bu to'g'ri edi, lekin to'liq emas — ramka yana o'yinchi ikki
+    klik orasida qaraydigan yagona joy, va nafas oladigan, jangga tayyorlanadigan,
+    o'lganda yiqiladigan odam siluet ayta olmaydigan savolga javob beradi.
+    Siluet qoldi — portreti yo'q maxluq va zaxira yo'l uchun.
   - Panelga bitta ham inglizcha so'z qo'shilmadi: `Kuchlar`, `Zarba`, `Zirh`,
     `Tezlik` va tanlov ekranining sarlavhasi `DungeonHud` blokidan keladi.
   - **Uyada endi ikonka bor, va u INI'da tanlanadi.** Uya ilgari klavishning
@@ -2327,6 +2330,131 @@ qahramon avtomatik tanlansin desangiz — bu bitta qator.
 ning oxirida turardi, menyu va yuklash ekrani esa undan oldin `return` qiladi —
 ya'ni o'yinchi Play tugmasini tizimning oq strelkasi bilan bosardi, va bu uning
 o'yindan ko'rgan birinchi narsasi. Chaqiruv yuqoriga ko'chdi.
+
+### 8.ag Portret — rasm emas, kichkina sahna
+
+Warcraft III ning portreti rasm emas: u qahramonning **o'z modeli**, yuziga yaqin
+turgan kamera va o'z animatsiyasi. Shuning uchun u tirik ko'rinadi. Endi bizda
+ham shunday — jME'ning `ViewPort` + `FrameBuffer` (render-to-texture) imkoniyati
+bilan, yangi mexanizmsiz.
+
+**Uch fayl, ikkitasi jME'siz:**
+
+| Fayl | Nima | jME |
+|---|---|---|
+| `PortraitLook` | o'yin beradigan sozlama: kamera + holat→klip | yo'q |
+| `PortraitMood` | portretning **soati va miyasi**: holat, klip, chastota | yo'q |
+| `HeroPortrait` | kamera, FrameBuffer, preView viewport, model nusxasi | ha |
+
+- **Alohida nusxa, hech qachon dunyodagi model emas.** Ikki sabab, ikkinchisi
+  ko'rinmaydi: birinchisi — dunyodagi qahramon simulyatsiya qo'ygan joyda va
+  yurgan tomoniga qarab turadi, bu portret emas. Ikkinchisi — **skinning
+  materiali skeletning pozasini ushlab turadi**, ya'ni umumiy material bo'lsa
+  ikkalasi har kadr bir-birining pozasini yozib ketardi. Dunyodagi birliklar ham
+  aynan shu sababdan material bo'lishmaydi.
+- **Tana bitta joyda quriladi** (`DukeRtsApp.buildBody`) — `createUnitNode` dan
+  ajratildi. Aks holda portret "biroz boshqa" odamning portreti bo'lardi: boshqa
+  tint, kamonsiz kamonchi, yoritilmagan model.
+- **Fon shaffof.** Panelning o'z gradiyenti, oltin romi, burchak bezaklari va
+  daraja nishoni joyida qoladi — maketdagi `.inner` radial gradiyent aynan fon
+  bo'lib ishlaydi. Portret ular orasiga, z = 2.5 ga tushadi.
+- **Yorug'lik portretniki.** Dungeon yorug'ligi tuman ostida va yarim qavat
+  narida; portret o'z key/fill/ambient rigi bilan yoritiladi.
+- **Bitta blok butun bestiariyni qamraydi.** `DungeonPortraits Everyone` —
+  **tanlash mumkin bo'lgan har bir** maxluq oladigan portret;
+  `DungeonPortrait <Template>` — boshqacha xohlagani uchun override (qahramonda
+  ikkita holat monstrlarda yo'q: tayyor kamon va daraja bayrami). Darvoza —
+  engine'ning o'z so'zi `selectable`: o'q, sandiq va bochkaning ham modeli bor,
+  lekin ularning hech biri panel yozayotgan narsa emas.
+- **Nom berilmagan holat maxluqning O'Z klipini kiyadi** — yurish idle'i turish
+  uchun, o'z o'limi o'lish uchun. Monstr portreti aynan shu sababdan tekin:
+  ikkala klip unda allaqachon bog'langan. Jang va yaralanish esa idle'ga qaytadi,
+  hujum klipiga emas — hujum bitta zarba, aylantirilsa monstr soya bilan
+  boksga tushadi (dunyo animatsiyasi shu xatoni bir marta to'lagan).
+- **Kamera maxluq bo'yining ULUSHIDA o'lchanadi**, dunyo birliklarida emas —
+  aynan shu bitta blokni butun bestiariyga yetkazadi. `Yaw = 0` — to'g'ri
+  qarshisidan, chunki `Facing` modelning oldini `+X` ga allaqachon burgan.
+- **Ramkada NIMA turishini `Show` to'g'ridan-to'g'ri aytadi** (bo'yning ulushi),
+  masofa esa undan va linzadan hisoblanadi. Teskarisi — masofa + linza berib,
+  kadrlashni ulardan chiqarish — har maxluq uchun ikkala raqamni birga sozlashni
+  talab qiladi, va odam birinchi bo'lib qo'l uradigan narsa (yuzni kamroq
+  egadigan kengroq linza) jimgina masshtabni kichraytiradi.
+- **Balandlik = tepasi yerdan qancha baland**, qutisi qancha baland emas.
+  Oyoqda turgan narsada ikkalasi bir xil, turmaganda esa yo'q: Stalker va Reaper
+  modellari suzib yurgan poldan pastga cho'ziladi, ya'ni qutisi 3.05, o'zi esa
+  2.17. Quti bo'yicha o'lchansa kamera aynan shu ikkitasida uchdan bir tana past
+  qaraydi — hech kim tekshirmaydigan ikkitasida.
+- **Beshta holat klientniki, kliplar o'yinniki.** Klient holat NIMA ekanini
+  biladi (demak klip aylanadimi yo'qmi ham): `Calm`/`Fight`/`Hurt` aylanadi,
+  `Dead`/`LevelUp` bir marta ketadi va oxirgi poza qoladi. **Kodda birorta klip
+  nomi yo'q** — hammasi INI'da.
+
+**★ Birinchi ko'rinishda topilgan kamchilik (ko'z, arifmetika emas).** Kamera
+`Head = 0.86` da edi va ekranda **faqat peshana** ko'rindi. Sababi o'lchab
+topildi: bu kit qahramonlarni **bosh bo'yining deyarli yarmi** qilib chizadi —
+`head` bo'g'ini modelning 0.55 da, sochning tepasi 1.0 da. Ya'ni 0.86 peshananing
+o'rtasi. Endi `Head = 0.74`, `Show = 0.64` — ramka 0.42 dan 1.06 gacha, ko'krakdan
+boshning tepasidan bir oz yuqorigacha. **Bu raqamlar taxmin emas, o'lchov**:
+modellar headless test bilan o'lchandi, keyin o'sha test o'chirildi va o'lchov
+`PortraitCameraTest` ga aylandi.
+- **Holat `getSnapshot()` dan.** `attacking()` → Fight, `healthFraction()` →
+  Hurt, `ObjectDied` hodisasi → Dead, status qatoridagi `rank` o'zgarishi →
+  LevelUp. Simulyatsiyaga bitta ham yozuv yo'q.
+- **Kam HP jangdan ustun.** U o'yinning ko'p qismida jangda; o'n foiz jonda esa
+  o'yinchi qochish yoki qolishni hal qiladigan bir necha soniyada — ramka aynan
+  o'sha lahza uchun.
+- **Kitda "charchagan" klip yo'q**, shuning uchun `HurtSpeed = 1.5` — tezlik uni
+  san'atsiz aytadi.
+- **O'lim ramkani kartadan uzoqroq ushlaydi.** O'lim maxluqni snapshotdan,
+  snapshot tanlovdan, tanlov kartadan chiqaradi — hammasi u yiqilgan kadrda.
+  Kartaga ergashgan portret o'ziga berilgan o'lim klipining bitta kadrini ham
+  chizmasdi. Lekin ramka **faqat hech kimga qarshi** ushlanadi: keyingi bosilgan
+  maxluq uni oladi, aks holda o'lik qahramon sessiya oxirigacha ramkada qolardi.
+- **Chastota — shift, maqsad emas** (`PortraitFps = 24`). `advance()` vaqtni
+  to'playdi va kadr qarzi yig'ilganda sarflaydi; oradagi kadrlarda viewport
+  **o'chiriladi**, `RenderManager.renderViewPort` esa birinchi qatorda
+  `if (!vp.isEnabled()) return;` qiladi — ya'ni ular tekin. Uzoq to'xtash bir
+  qadamda sarflanmaydi (0.25s shift), aks holda model boshqa pozaga sakrardi.
+- **Sahnani qo'lda qadamlaymiz.** Faqat viewport'ga ulangan sahna
+  `SimpleApplication.update()` ga kirmaydi (u faqat `rootNode`/`guiNode` ni
+  yangilaydi) — ya'ni animatsiya o'zi yurmaydi. Bu tuzoq emas, qulaylik bo'lib
+  chiqdi: uni faqat chiziladigan kadrda qadamlash aynan chastota cheklovi.
+- **FrameBuffer/viewport bir marta**, model esa faqat template o'zgarsa.
+  Almashganda avval `detachAllChildren()` — sahna run'lar bo'ylab o'smaydi.
+- **Zaxira yo'l hamma joyda.** Render-to-texture yo'q yoki xato bersa — siluet.
+  Model yuklanmasa — siluet. Klip modelda bo'lmasa — `Calm` ga qaytadi va logga
+  bir marta yoziladi. `Calm` ham bo'lmasa — portret o'chadi. Headless'da
+  (`renderManager == null`) hammasi quriladi, ishlaydi, yopiladi va hech nima
+  chizmaydi — ovozsiz mashina `SoundSink.SILENT` olgani bilan bir xil bitim.
+- **Portret tanlovga ergashadi**, doim qahramonga emas: panelning qolgani
+  (ism, HP, raqamlar) tanlangan narsani ko'rsatadi, portret esa boshqa odamni
+  ko'rsatsa panel o'zi bilan o'zi ziddiyatga tushardi. Shu sababdan portret
+  **har qanday template uchun** sozlanadi — skelet blokini yozsangiz u ham tirik
+  portret oladi.
+
+**Panel maketga keltirildi:** rom 112×130 → **126×150**. Siluet o'z 112'lik
+kvadratida qoldi va kengroq romda markazlashtirildi — u qo'lda chizilgan
+koordinatalar, kattalashtirilsa cho'zilib ketardi.
+
+**Yo'l-yo'lakay tuzatilgan:** panel 640px oynada 2.4 piksel chiqib ketdi.
+`MIN_SCALE` ni ko'chirish o'rniga masshtab endi **o'lchangan kenglikdan** ham
+oladi (`scaleFor`): `min(o'qilishi mumkin bo'lgan, sig'adigan)`. Ilgari eng
+kichik masshtab bir marta qo'lda tekshirilgan raqam edi va panelda biror narsa
+kattalashsa jimgina buzilardi.
+
+**Ko'p qahramon — endi haqiqatan INI'da.** `DungeonHero` bloki nomlanadigan va
+takrorlanadigan bo'ldi (`DungeonHero Hero`), `HeroLook` ro'yxatga aylandi
+(`settings.heroes()`), `Main` ular bo'ylab aylanadi. Ilgari u nomsiz blok edi va
+maydonlari to'g'ridan-to'g'ri settings'ga yozilardi — ya'ni ikkinchi blok
+birinchisini **jimgina** ustidan yozardi. `DungeonSkill <Hero> <Key>` allaqachon
+qahramonini nomi bilan bilar edi, ya'ni ikkinchi qahramon endi: creatures.ini
+bloki + `DungeonHero` + `DungeonPortrait` + to'rtta skill bloki, Java'ga
+tegilmaydi.
+
+**Ko'z bilan tekshirish kerak** (men ishga tushirmadim): kadrlash endi to'g'rimi,
+yorug'lik yetarlimi, monstrlar — ayniqsa suzib yuradigan Stalker va Reaper —
+ramkada qanday ko'rinadi, va `LevelUp = Spawn_Ground` g'alaba ko'rinishini
+beradimi yoki paydo bo'lishga o'xshaydimi. Hammasi INI'dagi bitta so'z yoki raqam.
 
 ---
 

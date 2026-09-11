@@ -111,8 +111,22 @@ final class HeroPanel {
      * <p>A square read as a picture of a square thing. Head and shoulders are a
      * standing shape, and the badge that hangs under it wants the height.
      */
-    private static final float PORTRAIT = 112f;
-    private static final float PORTRAIT_HEIGHT = 130f;
+    private static final float PORTRAIT = 126f;
+    private static final float PORTRAIT_HEIGHT = 150f;
+
+    /**
+     * The square the drawn figure was drawn in, which is not the frame any more.
+     *
+     * <p>The frame grew to the design's when it learned to hold a live creature;
+     * the silhouette behind it is a hand-plotted set of coordinates and would come
+     * out stretched if it were simply scaled up. So it keeps its own box and is
+     * centred in the wider one — which is what a fallback should do anyway: look
+     * exactly as it always did.
+     */
+    private static final float FIGURE = 112f;
+
+    /** How far in from the frame the live picture sits, as the design draws it. */
+    private static final float PORTRAIT_INSET = 6f;
     /** The level badge slung under the portrait, straddling its bottom edge. */
     private static final float BADGE_HEIGHT = 21f;
     private static final float BADGE_WIDTH = 86f;
@@ -571,14 +585,21 @@ final class HeroPanel {
     private Node portrait;
 
     /**
-     * A square framed portrait with a figure cut into it.
+     * A framed portrait, with a live creature in it where the game asked for one
+     * and a figure cut into the stone where it did not.
      *
-     * <p>Drawn from the same primitives as the rest rather than rendered from the
-     * model. A second camera drawing a live hero into a texture is a real thing to
-     * want and a real thing to pay for — a render target, a light rig of its own,
-     * a frame's worth of work every frame for something that changes when he
-     * levels — and what the frame is actually for is telling the player which
-     * corner of the screen is his. A silhouette does that.
+     * <p>It was the drawing alone, and the note here said why: a second camera
+     * drawing a live hero into a texture was a real thing to want and a real thing
+     * to pay for, and what the frame was <em>for</em> was telling the player which
+     * corner of the screen is his. That was true and it was not the whole of it.
+     * The frame is also the one place a player looks between clicks, and a person
+     * who breathes, stands ready and falls over answers a question a drawing
+     * cannot — see {@link HeroPortrait}, which pays for it at a third of the frame
+     * rate and nothing at all while the game is not running.
+     *
+     * <p>Both are built. The drawing is what a game that named no portrait gets,
+     * what a creature nobody described one for gets, and what is left standing in
+     * the frame if the render target cannot be had.
      */
     private void buildPortrait() {
         portrait = new Node("portrait");
@@ -591,13 +612,23 @@ final class HeroPanel {
         attach(portrait, flat("inner", PORTRAIT + 2f, 2f, rgb(0x5A4E3C)),
                 -1f, PORTRAIT_HEIGHT, 2f);
 
+        // Where the live creature lands, inset the way the design insets it. Built
+        // empty and kept that way until a picture arrives: it is under the corner
+        // brackets and over the lit recess, so what shows through the gaps is the
+        // frame's own stone rather than a grey card.
+        live = new Geometry("live", new Quad(PORTRAIT - PORTRAIT_INSET * 2f,
+                PORTRAIT_HEIGHT - PORTRAIT_INSET * 2f));
+        live.setMaterial(unshaded(ColorRGBA.White));
+        live.setCullHint(Spatial.CullHint.Always);
+        attach(portrait, live, PORTRAIT_INSET, PORTRAIT_INSET, 2.5f);
+
         // Head and shoulders. The figure is drawn in a square as it always was and
         // sits at the bottom of a taller frame, so the extra height is headroom
         // rather than a stretched man.
         var head = new Geometry("head", disc(17f, 16));
         head.setMaterial(unshaded(FLESH));
-        attach(figure, head, PORTRAIT / 2f, PORTRAIT_HEIGHT - 44f, 3f);
-        var body = new Geometry("body", polygon(shoulders(), PORTRAIT));
+        attach(figure, head, FIGURE / 2f, PORTRAIT_HEIGHT - 44f, 3f);
+        var body = new Geometry("body", polygon(shoulders(), FIGURE));
         body.setMaterial(unshaded(FLESH));
         attach(figure, body, 0f, 0f, 3f);
 
@@ -605,10 +636,10 @@ final class HeroPanel {
         // limb bows out to the right and the string cuts straight back.
         var bow = new Geometry("bow", strokes(new float[][] {
             bowLimb(), {64, 26, 62, 62},
-        }, PORTRAIT));
+        }, FIGURE));
         bow.setMaterial(lines(TORCH));
-        attach(figure, bow, 0f, PORTRAIT_HEIGHT - PORTRAIT, 4f);
-        attach(portrait, figure, 0f, 0f, 0f);
+        attach(figure, bow, 0f, PORTRAIT_HEIGHT - FIGURE, 4f);
+        attach(portrait, figure, (PORTRAIT - FIGURE) / 2f, 0f, 0f);
 
         buildBadge();
         if (framed(portrait, PanelSkin.PORTRAIT, -3f, -3f,
@@ -641,6 +672,40 @@ final class HeroPanel {
      */
     private final Node figure = new Node("figure");
 
+    /** The socket the live picture is drawn in, empty until one arrives. */
+    private Geometry live;
+
+    /** The picture currently hung in it, compared by identity — see {@link #live}. */
+    private Texture livePicture;
+
+    /**
+     * Hang a live creature in the frame, or take the last one down.
+     *
+     * <p>The panel does not own it, look at it, or know what is in it: somebody
+     * else keeps the little scene and the camera — see {@link HeroPortrait} — and
+     * this is only the wall it is hung on. Which is what lets the bar be thrown
+     * away and rebuilt on every resize without the render target going with it.
+     *
+     * <p>Compared by identity rather than by value because the same picture
+     * arrives every frame: it is one texture being drawn into, not a new one each
+     * time, so anything but identity would rebuild the socket sixty times a second.
+     *
+     * <p>Called <em>before</em> {@link #show}, which is what decides between this
+     * and the drawing.
+     */
+    void live(Texture picture) {
+        if (picture == livePicture) {
+            return;
+        }
+        livePicture = picture;
+        if (picture == null) {
+            live.setCullHint(Spatial.CullHint.Always);
+            return;
+        }
+        live.getMaterial().setTexture("ColorMap", picture);
+        live.setCullHint(Spatial.CullHint.Inherit);
+    }
+
     /** What stands in the frame instead of him, when something else is selected. */
     private Geometry faceGlyph;
 
@@ -649,6 +714,17 @@ final class HeroPanel {
 
     /** Draw the figure the card names, or his own silhouette when it names none. */
     private void showFace(String named, boolean anybody) {
+        if (livePicture != null) {
+            // Somebody live is in the frame, so neither drawing belongs in it. The
+            // frame, its brackets and the badge stay: those are the furniture.
+            figure.setCullHint(Spatial.CullHint.Always);
+            if (faceGlyph != null) {
+                faceGlyph.removeFromParent();
+                faceGlyph = null;
+                facedWith = "";
+            }
+            return;
+        }
         if (!anybody) {
             // Nobody is selected: an empty frame, and no figure in it. The frame
             // stays because it is furniture; the face is what the card carries.
@@ -1597,14 +1673,6 @@ final class HeroPanel {
      * to be.
      */
     private void layOut() {
-        this.scale = Math.clamp(screenWidth / DESIGN_WIDTH, MIN_SCALE, MAX_SCALE);
-        root.setLocalScale(scale);
-        buildSlab();
-        // Centred on the window rather than on the design, so it sits over the
-        // middle of the bar however wide the window is.
-        note.setBox(new Rectangle(0f, SLAB_HEIGHT + 6f + NOTE_SIZE,
-                screenWidth / scale, NOTE_SIZE * 1.4f));
-
         var blocks = new ArrayList<Block>();
         float mapBlock = MINIMAP + (orderButtons.isEmpty() ? 0f
                 : ORDER_COLUMN_GAP + ORDER_BUTTON);
@@ -1628,6 +1696,16 @@ final class HeroPanel {
         for (var block : blocks) {
             total += block.width();
         }
+
+        // Measured first, and the scale settled from it: see scaleFor.
+        this.scale = scaleFor(total);
+        root.setLocalScale(scale);
+        buildSlab();
+        // Centred on the window rather than on the design, so it sits over the
+        // middle of the bar however wide the window is.
+        note.setBox(new Rectangle(0f, SLAB_HEIGHT + 6f + NOTE_SIZE,
+                screenWidth / scale, NOTE_SIZE * 1.4f));
+
         // The bar spans the window; its contents are centred on it, so a wide
         // screen puts empty stone at both ends rather than all of it at one.
         float left = Math.max(PAD, (screenWidth / scale - total) / 2f);
@@ -1646,6 +1724,32 @@ final class HeroPanel {
         for (int spare = blocks.size() - 1; spare < dividers.size(); spare++) {
             hideDivider(spare); // grooves the last card needed and this one does not
         }
+    }
+
+    /**
+     * How much the design is shrunk to reach this window, in the design's own
+     * pixels — and never so little that the bar runs off the edge.
+     *
+     * <p>Two answers, and the smaller wins. The first is the design's: a share of
+     * the width it was drawn at, held between a size below which it is unreadable
+     * and one above which it is silly. That one is about <em>legibility</em>, and
+     * it knows nothing about how wide the card in hand happens to be.
+     *
+     * <p>The second is arithmetic: what actually fits. It has to be asked because
+     * the clamp cannot be told the answer in advance — a card carries whatever
+     * blocks the game sent, so the bar is a different width for a hero and for a
+     * skeleton, and any fixed floor is a number somebody has to re-check every
+     * time anything on the bar changes size. It was re-checked exactly once, and
+     * the portrait growing to the size the design draws it at was enough to push
+     * the far end of a narrow window off the screen by two pixels.
+     *
+     * <p>So the floor is kept for what it is good at and the overrun is made
+     * impossible rather than unlikely.
+     */
+    private float scaleFor(float total) {
+        float legible = Math.clamp(screenWidth / DESIGN_WIDTH, MIN_SCALE, MAX_SCALE);
+        float fits = (screenWidth - PAD * 2f) / Math.max(1f, total);
+        return Math.min(legible, fits);
     }
 
     /** As wide as the sockets come to, and never narrower than the design's four. */

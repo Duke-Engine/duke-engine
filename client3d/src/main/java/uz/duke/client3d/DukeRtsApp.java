@@ -163,6 +163,15 @@ final class DukeRtsApp extends SimpleApplication {
     private BitmapText buildMenu;
     private BitmapText banner;
     private HeroPanel heroPanel;
+    /**
+     * The live creature in the panel's frame.
+     *
+     * <p>Held here rather than by the panel, and the reason is the resize: the bar
+     * is thrown away and built again at every new window width, and a render
+     * target that went with it would be a new frame buffer every time the window
+     * was dragged. This outlives the panel and is simply hung on the next one.
+     */
+    private HeroPortrait portrait = HeroPortrait.none();
     private LevelUpOverlay levelUp;
     /**
      * The offer already answered, so the screen does not come back while the
@@ -250,6 +259,9 @@ final class DukeRtsApp extends SimpleApplication {
 
     @Override
     public void destroy() {
+        // Before the application goes, because it owns the render manager the
+        // portrait's viewport is standing in.
+        portrait.close();
         super.destroy();
         stopped.countDown();
     }
@@ -344,6 +356,10 @@ final class DukeRtsApp extends SimpleApplication {
 
         heroPanel = new HeroPanel(assetManager, guiFont, guiNode, cam.getWidth(),
                 visuals.getPanelSkin());
+        // Built the same way units are -- see buildBody -- so the face in the
+        // frame is the creature that is on the floor and not a second version
+        // of it.
+        portrait = HeroPortrait.open(renderManager, visuals, this::buildBody);
         levelUp = new LevelUpOverlay(assetManager, guiFont, guiNode,
                 cam.getWidth(), cam.getHeight());
 
@@ -2781,11 +2797,56 @@ final class DukeRtsApp extends SimpleApplication {
         syncDragRectangle();
         syncOrderMarkers();
         noises.status(heroPanel.reading(), (float) timer.getTimeInSeconds());
+        // Before the bar is drawn, because the bar decides between the live
+        // picture and the drawing and has to be told which it has.
+        drawThePortrait(tpf);
         updateHud();
         updateBanner();
         updateLevelUp();
         updateHover();
         placeMinimap();
+    }
+
+    /**
+     * Keep the panel's frame filled with whoever is selected, alive.
+     *
+     * <p>The level it is told is the one the bar read <em>last</em> frame, and
+     * that is deliberate rather than sloppy. Nothing here draws a level; the only
+     * use it is put to is noticing that it changed, and a change noticed one frame
+     * late is still noticed exactly once.
+     *
+     * <p>A menu is a different room and the portrait stops with everything else in
+     * it. The level-up screen is not: it holds the world still, and it is the one
+     * moment the frame has a flourish to play — so it is the single paused screen
+     * the portrait goes on drawing through.
+     */
+    private void drawThePortrait(float tpf) {
+        var reading = heroPanel.reading();
+        portrait.show(portraitSubject(), reading == null ? "" : reading.rank());
+        portrait.update(tpf, screen == Screen.PLAYING && !menu.isVisible()
+                && (!snapshot.paused() || levelUp.isShowing()));
+        heroPanel.live(portrait.texture());
+    }
+
+    /**
+     * The one creature the bar is describing, or nobody.
+     *
+     * <p>The same rule the card itself is built from — see
+     * {@link #tellTheGameWhatHeIsLookingAt} — because the frame is part of the
+     * card. A portrait that showed the hero while the name beside it said
+     * "Skeleton" would be the panel disagreeing with itself.
+     */
+    private UnitView portraitSubject() {
+        if (screen != Screen.PLAYING || selected.size() != 1) {
+            return null;
+        }
+        int only = selected.iterator().next();
+        for (var view : snapshot.units()) {
+            if (view.id() == only) {
+                return view;
+            }
+        }
+        return null;
     }
 
     /**
@@ -2855,6 +2916,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
         if (heroPanel != null && screen != Screen.PLAYING) {
             heroPanel.hide();
+            // And the frame stops being redrawn with it. Said here rather than
+            // beside the rest of the portrait's work because the menu and the
+            // loading screen leave this method before reaching that, and a
+            // viewport nobody switches off goes on drawing.
+            portrait.rest();
         }
     }
 
@@ -3081,6 +3147,10 @@ final class DukeRtsApp extends SimpleApplication {
         lastEventedSnapshot = snapshot;
         for (var event : snapshot.events()) {
             if (event instanceof ObjectDied died) {
+                // Told outright, and it has to be: a dead creature is gone from
+                // the next snapshot, so by the time the frame could notice there
+                // would be nothing left to play a death on.
+                portrait.died(died.object().value());
                 var where = new Vector3f(died.position().x(), 0f, died.position().y());
                 playSound(visualFor(died.templateName()).dieSound, where);
                 // "Destroyed" is what this event means, so it is the arrow landing
@@ -3201,34 +3271,15 @@ final class DukeRtsApp extends SimpleApplication {
         node.root = new Node("unit-" + view.id());
         node.root.setUserData("unitId", view.id());
 
-        Spatial body = null;
-        if (visual.modelPath != null) {
-            try {
-                body = assetManager.loadModel(visual.modelPath);
-                if (visual.modelPart != null) {
-                    body = partOf(body, visual.modelPart, visual.modelPath);
-                }
-                body.setLocalScale(visual.scale);
-                body.setLocalTranslation(0, visual.yOffset, 0);
-                body.setLocalRotation(new Quaternion().fromAngles(0,
-                        FastMath.DEG_TO_RAD * visual.facingDegrees, 0));
-                dressModel(body, visual);
-                // After being dressed, because dressing replaces every material on
-                // it and would put the fire out again.
-                effects.lightThePartsOf(body, visual.effect);
-                putInHisHand(body, visual);
-                node.composer = findControl(body, AnimComposer.class);
-                var legacy = findControl(body, AnimControl.class);
-                if (node.composer == null && legacy != null) {
-                    node.legacyChannel = legacy.createChannel();
-                }
-                borrowAnimations(body, visual);
-                snap(node.composer, visual.attackAnim);
-                snap(node.composer, visual.hurtAnim);
-            } catch (RuntimeException e) {
-                warnOnce(visual.modelPath, "model");
-                body = null;
+        Spatial body = buildBody(visual, java.util.List.of());
+        if (body != null) {
+            node.composer = findControl(body, AnimComposer.class);
+            var legacy = findControl(body, AnimControl.class);
+            if (node.composer == null && legacy != null) {
+                node.legacyChannel = legacy.createChannel();
             }
+            snap(node.composer, visual.attackAnim);
+            snap(node.composer, visual.hurtAnim);
         }
         if (body == null) {
             // A fireball has no model and should not be given the capsule-with-a-
@@ -3258,6 +3309,53 @@ final class DukeRtsApp extends SimpleApplication {
 
         unitsNode.attachChild(node.root);
         return node;
+    }
+
+    /**
+     * A creature's body: its model, its skin, its tint, whatever it carries, and
+     * the clips it was named — or {@code null} for a thing that has no model, or
+     * whose model would not load.
+     *
+     * <p>Pulled out of {@link #createUnitNode} because the hero panel's live
+     * portrait wants the same body built the same way, and a second copy of this
+     * paragraph would be a portrait of somebody slightly else — a different tint,
+     * an unarmed archer, a model that is lit and one that is not. Everything about
+     * what a creature <em>is</em> is here; where it stands and what it is doing
+     * belong to whoever asked for it.
+     *
+     * <p>Every material is its own, never shared with another body. A skinned
+     * material holds the pose of the skeleton driving it, so two things on one
+     * material both stand in whichever pose was written last — which is why the
+     * portrait needs a body of its own rather than the one in the world.
+     *
+     * @param alsoWanted clips beyond the creature's own five. A unit asks for
+     *     none; the portrait asks for the ones only it plays, and nothing else
+     *     would ever fetch them off the library
+     */
+    private Spatial buildBody(Visuals.UnitVisual visual, java.util.Collection<String> alsoWanted) {
+        if (visual.modelPath == null) {
+            return null;
+        }
+        try {
+            var body = assetManager.loadModel(visual.modelPath);
+            if (visual.modelPart != null) {
+                body = partOf(body, visual.modelPart, visual.modelPath);
+            }
+            body.setLocalScale(visual.scale);
+            body.setLocalTranslation(0, visual.yOffset, 0);
+            body.setLocalRotation(new Quaternion().fromAngles(0,
+                    FastMath.DEG_TO_RAD * visual.facingDegrees, 0));
+            dressModel(body, visual);
+            // After being dressed, because dressing replaces every material on
+            // it and would put the fire out again.
+            effects.lightThePartsOf(body, visual.effect);
+            putInHisHand(body, visual);
+            borrowAnimations(body, visual, alsoWanted);
+            return body;
+        } catch (RuntimeException e) {
+            warnOnce(visual.modelPath, "model");
+            return null;
+        }
     }
 
     /**
@@ -3414,11 +3512,17 @@ final class DukeRtsApp extends SimpleApplication {
      * shared between two monsters would animate whichever of them was built first
      * and leave the other standing.
      */
-    private void borrowAnimations(Spatial body, Visuals.UnitVisual visual) {
+    private void borrowAnimations(Spatial body, Visuals.UnitVisual visual,
+            java.util.Collection<String> alsoWanted) {
         var wanted = new java.util.ArrayList<String>();
         for (var name : new String[] {visual.idleAnim, visual.walkAnim,
                 visual.attackAnim, visual.hurtAnim, visual.dieAnim}) {
             if (name != null) {
+                wanted.add(name);
+            }
+        }
+        for (var name : alsoWanted) {
+            if (name != null && !wanted.contains(name)) {
                 wanted.add(name);
             }
         }

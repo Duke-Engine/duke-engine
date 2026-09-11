@@ -352,15 +352,63 @@ class DungeonMonsterArtTest {
         assertTrue(inAMonsterLibrary(SETTINGS.deathClip()),
                 SETTINGS.deathClip() + " is named in dungeon.ini but is in no library");
 
-        var hero = SETTINGS.hero();
+        var hero = hero();
         assertNotNull(hero.death(), "and so was the hero");
         assertTrue(inOneOfHisLibraries(hero.death()),
                 hero.death() + " is named for the hero but is in none of his libraries");
     }
 
+    /**
+     * The hero the game ships.
+     *
+     * <p>A list now, because the roster is the file's — a second hero is a block
+     * in {@code dungeon.ini} and no Java. Most of what is asked below is about
+     * <em>this</em> one and could not be asked of another: which side his bow's
+     * string is on, and which knee his run bends. What generalises is asked of
+     * every hero named, in {@link #everyHeroNamedIsShippedWithHisClips}.
+     */
+    private static uz.duke.dungeon.content.HeroLook hero() {
+        var heroes = SETTINGS.heroes();
+        assertFalse(heroes.isEmpty(), "the settings file names no hero at all");
+        return heroes.getFirst();
+    }
+
+    /**
+     * Every hero the file names has his art, and every clip he asks for is in a
+     * library he names.
+     *
+     * <p>The test a second hero costs nothing to be covered by. Everything else
+     * here is about the archer, so a hero added to the file would have arrived
+     * completely unchecked — which is the failure this whole class exists to
+     * prevent, moved one block along.
+     */
+    @Test
+    void everyHeroNamedIsShippedWithHisClips() {
+        for (var him : SETTINGS.heroes()) {
+            if (!him.hasModel()) {
+                continue; // a hero drawn as a coloured shape asks for no art
+            }
+            assertNotNull(assets().loadModel(him.model()), him.model() + " is missing");
+            assertFalse(him.animations().isEmpty(),
+                    him.name() + " was left with nowhere to take clips from");
+            var carried = new ArrayList<AnimComposer>();
+            for (var path : him.animations()) {
+                var library = assets().loadModel(path);
+                assertNotNull(library, path + " is named for " + him.name() + " but missing");
+                carried.add(control(library, AnimComposer.class));
+            }
+            for (var clip : him.clips()) {
+                assertTrue(carried.stream().anyMatch(
+                        composer -> composer != null && composer.getAnimClip(clip) != null),
+                        clip + " is asked for by " + him.name()
+                                + " but is in none of " + him.animations());
+            }
+        }
+    }
+
     /** Whether any library the hero names carries a clip under this name. */
     private static boolean inOneOfHisLibraries(String clip) {
-        for (var path : SETTINGS.hero().animations()) {
+        for (var path : hero().animations()) {
             var composer = control(assets().loadModel(path), AnimComposer.class);
             if (composer != null && composer.getAnimClip(clip) != null) {
                 return true;
@@ -430,7 +478,7 @@ class DungeonMonsterArtTest {
      */
     @Test
     void theHeroAndEverythingHeCarriesAreShipped() {
-        var hero = SETTINGS.hero();
+        var hero = hero();
         assertTrue(hero.hasModel(), "the settings file should give the hero a model");
 
         assertNotNull(assets().loadModel(hero.model()));
@@ -451,7 +499,7 @@ class DungeonMonsterArtTest {
      */
     @Test
     void theBoneHisBowHangsOnIsOneHeHas() {
-        var hero = SETTINGS.hero();
+        var hero = hero();
         var armature = control(assets().loadModel(hero.model()), SkinningControl.class)
                 .getArmature();
 
@@ -479,7 +527,7 @@ class DungeonMonsterArtTest {
      */
     @Test
     void theBowIsTurnedToSuitWhichSideItsStringIsOn() {
-        var hero = SETTINGS.hero();
+        var hero = hero();
         float[] middle = {Float.MAX_VALUE, -Float.MAX_VALUE};
         float[] tips = {Float.MAX_VALUE, -Float.MAX_VALUE};
         assets().loadModel(hero.held().model()).depthFirstTraversal(spatial -> {
@@ -571,7 +619,7 @@ class DungeonMonsterArtTest {
         for (var kind : SETTINGS.monsters()) {
             carried.add(SETTINGS.lookOf(kind).held());
         }
-        carried.add(SETTINGS.hero().held());
+        carried.add(hero().held());
 
         for (var held : carried) {
             if (!held.isCarried()) {
@@ -655,7 +703,7 @@ class DungeonMonsterArtTest {
     /** Every clip he asks for is in one of the libraries he names. */
     @Test
     void everyClipTheHeroAsksForIsInOneOfHisLibraries() {
-        var hero = SETTINGS.hero();
+        var hero = hero();
         assertEquals(5, hero.clips().size(),
                 "idle, walk, attack, hurt and death — he was left short of " + hero.clips());
         for (var clip : hero.clips()) {
@@ -667,7 +715,7 @@ class DungeonMonsterArtTest {
     /** And every one of them really goes onto him. */
     @Test
     void theHeroWearsEveryClipHeAsksFor() {
-        var hero = SETTINGS.hero();
+        var hero = hero();
         var him = assets().loadModel(hero.model());
 
         for (var path : hero.animations()) {
@@ -683,7 +731,7 @@ class DungeonMonsterArtTest {
     /** And running actually moves him, rather than being copied onto nothing. */
     @Test
     void theHeroReallyRuns() {
-        var hero = SETTINGS.hero();
+        var hero = hero();
         var him = assets().loadModel(hero.model());
         for (var path : hero.animations()) {
             AnimationLibrary.copy(assets().loadModel(path), him, hero.clips());
@@ -723,7 +771,7 @@ class DungeonMonsterArtTest {
      */
     @Test
     void theHerosRunDoesNotCarryHimOutOfHisOwnUnit() {
-        var hero = SETTINGS.hero();
+        var hero = hero();
         var him = assets().loadModel(hero.model());
         for (var path : hero.animations()) {
             AnimationLibrary.copy(assets().loadModel(path), him, hero.clips());
@@ -801,7 +849,7 @@ class DungeonMonsterArtTest {
      */
     @Test
     void theHeroAndTheMonstersShareTheirClips() {
-        var him = assets().loadModel(SETTINGS.hero().model());
+        var him = assets().loadModel(hero().model());
         var walk = SETTINGS.lookOf(SETTINGS.monsters().get(0)).walk();
         int copied = 0;
         for (var path : SETTINGS.animationLibraries()) {

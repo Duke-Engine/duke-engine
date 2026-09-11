@@ -16,6 +16,15 @@ import java.util.List;
  * under names that mean something — and so the names moved into this file and the
  * four fields became two.
  *
+ * <p>Named, and so repeatable: the name is the creature template in
+ * {@code creatures.ini} this describes, and it is the same name his skills are
+ * already headed with. So a second hero is a block in each of the two files and
+ * no Java at all — which is the promise the rest of the game's data layer makes
+ * about monsters, themes and skills, and it was the one thing here that could not
+ * keep it.
+ *
+ * @param name       the creature template this is the look of — {@code Hero}, and
+ *                   whatever the next one is called
  * @param model      the mesh, or {@code null} to fall back to a coloured shape
  * @param texture    a colour map to override the model's own, or {@code null} to
  *                   keep whatever it shipped with
@@ -36,6 +45,7 @@ import java.util.List;
  * @param held       the bow in his hand — see {@link Held}
  */
 public record HeroLook(
+        String name,
         String model,
         String texture,
         float modelScale,
@@ -53,7 +63,7 @@ public record HeroLook(
     }
 
     /** No art: he is drawn as a shape, as he was before there was a model. */
-    public static final HeroLook NONE = new HeroLook(null, null, 1f, 0f, List.of(),
+    public static final HeroLook NONE = new HeroLook("Hero", null, null, 1f, 0f, List.of(),
             null, null, null, null, null, Held.NOTHING);
 
     public boolean hasModel() {

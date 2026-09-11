@@ -658,6 +658,80 @@ public final class Visuals {
         return rangeLook;
     }
 
+    // ---- the portrait ----
+
+    private final Map<String, PortraitLook> portraits = new LinkedHashMap<>();
+    private PortraitLook everyPortrait;
+    private int portraitFps = 24;
+
+    /**
+     * Draw this template <em>alive</em> in the hero panel's frame, rather than as
+     * the silhouette that stands there otherwise — see {@link PortraitLook}.
+     *
+     * <p>Named by the creature's own template, and so repeatable. No art is named
+     * here — the model, its scale and the libraries its clips come from are bound
+     * once in {@link #unit}, under this same name, and the portrait takes them
+     * from there.
+     *
+     * <p>An override rather than the way in: {@link #portraits} already gives a
+     * face to everything the player can select. This is for the creature that
+     * wants a different one — a hero who holds his bow ready rather than standing
+     * about, and has a flourish for a new level.
+     */
+    public Visuals portrait(String templateName, PortraitLook look) {
+        if (templateName != null && look != null) {
+            portraits.put(templateName, look);
+        }
+        return this;
+    }
+
+    /**
+     * One portrait for everything the player can select, without naming any of
+     * them.
+     *
+     * <p>The whole of what a game has to do to give every monster in it a face.
+     * Nothing about a portrait is per-creature except where the camera stands, and
+     * that is already written as fractions of whatever it is looking at — so one
+     * block frames a skeleton, a hero and whatever is added next, each by its own
+     * measured height. The clips need not be named either: a creature's own idle
+     * and death are already bound on it.
+     *
+     * <p>Naming none leaves every frame to the drawing, which is what every game
+     * on this client had.
+     */
+    public Visuals portraits(PortraitLook look) {
+        this.everyPortrait = look;
+        return this;
+    }
+
+    /**
+     * How that template is drawn in the frame — its own, or the one every
+     * selectable creature gets, or {@code null} for the silhouette.
+     */
+    public PortraitLook getPortrait(String templateName) {
+        var own = templateName == null ? null : portraits.get(templateName);
+        return own != null ? own : everyPortrait;
+    }
+
+    /**
+     * How many times a second the portrait is worth redrawing.
+     *
+     * <p>A ceiling rather than a target, and the whole of what a live portrait
+     * costs. A hundred and fifty pixels of one creature redrawn on every frame of
+     * a game that is drawing a floor of the dungeon is work nobody can see; at a
+     * third of that it still breathes, and the two frames in between cost
+     * literally nothing, because a viewport that is switched off is skipped before
+     * anything in it is touched.
+     */
+    public Visuals portraitFps(int framesPerSecond) {
+        this.portraitFps = Math.clamp(framesPerSecond, 1, 60);
+        return this;
+    }
+
+    public int getPortraitFps() {
+        return portraitFps;
+    }
+
     /**
      * Build the ground from a modular kit rather than from coloured blocks.
      *

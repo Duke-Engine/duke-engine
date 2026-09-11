@@ -230,9 +230,33 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, ANIMATIONS);
                 }),
-                Map.entry("DungeonHero", reader -> {
+                // Repeatable and named after the creature template he is, exactly
+                // as DungeonSkill already is: his four skill blocks are headed
+                // with the same word. A second hero is a block here, four there,
+                // and no Java.
+                Map.entry("DungeonHero", (Ini.BlockParser) reader -> {
+                    var hero = new HeroBuilder(reader.getNextToken());
+                    reader.initFromIni(hero, HERO_LOOK);
+                    settings.heroes.add(hero);
+                }),
+                // And what he looks like in the panel's frame, alive. Named after
+                // the same template, and separate from the block above because it
+                // is asking a different question: that one is what he is made of,
+                // this one is where the little camera stands and what he does in
+                // front of it.
+                Map.entry("DungeonPortrait", (Ini.BlockParser) reader -> {
+                    var portrait = new PortraitBuilder(reader.getNextToken());
+                    reader.initFromIni(portrait, PORTRAIT);
+                    settings.portraits.add(portrait);
+                }),
+                // And the one every selectable creature gets, which is what makes
+                // the whole bestiary a block rather than a block each: the camera
+                // is written in fractions of whatever it is looking at, and a
+                // creature's own idle and death are already bound on it.
+                Map.entry("DungeonPortraits", reader -> {
                     reader.getNextToken();
-                    reader.initFromIni(settings, HERO_LOOK);
+                    settings.portraitsDeclared = true;
+                    reader.initFromIni(settings.everyPortrait, PORTRAIT);
                 }),
                 Map.entry("DungeonArrow", reader -> {
                     reader.getNextToken();
@@ -1231,33 +1255,120 @@ public final class DungeonSettings {
         return kind.look().withDefaults(defaultIdle, defaultWalk, defaultAttack, defaultHurt);
     }
 
-    private String heroModel;
-    private String heroTexture;
-    private float heroModelScale = 1f;
-    private float heroFacing = 90f;
-    private final java.util.List<String> heroAnimations = new java.util.ArrayList<>();
-    private String heroIdle;
-    private String heroWalk;
-    private String heroAttack;
-    private String heroHurt;
-    private String heroDeath;
-    private String heroHolds;
-    private String heroHeldIn;
-    private float heroHeldScale = 1f;
-    private float heroHeldPitch;
-    private float heroHeldYaw;
-    private float heroHeldRoll;
+    private final java.util.List<HeroBuilder> heroes = new java.util.ArrayList<>();
+    private final java.util.List<PortraitBuilder> portraits = new java.util.ArrayList<>();
 
     /**
-     * What the hero is drawn as. {@link HeroLook#NONE} when the file names no
-     * model, and then he is a coloured shape as he was before there was one.
+     * What each hero the file describes is drawn as, in the order it names them.
+     *
+     * <p>A list because the roster is the file's. He used to be a set of fields on
+     * this class — one hero, and a second block would have silently overwritten
+     * the first — which was the one place the data layer could not keep the
+     * promise it keeps about monsters, skills, powers and loot.
+     *
+     * <p>Empty when the file names none, and then whoever is playing is a coloured
+     * shape, as he was before there was a model.
      */
-    public HeroLook hero() {
-        return heroModel == null ? HeroLook.NONE
-                : new HeroLook(heroModel, heroTexture, heroModelScale, heroFacing,
-                        heroAnimations, heroIdle, heroWalk, heroAttack, heroHurt, heroDeath,
-                        new Held(heroHolds, heroHeldIn, heroHeldScale,
-                                heroHeldPitch, heroHeldYaw, heroHeldRoll));
+    public java.util.List<HeroLook> heroes() {
+        return heroes.stream().map(HeroBuilder::build).toList();
+    }
+
+    /** Every live portrait the file describes, by the creature it is the face of. */
+    public java.util.List<PortraitArt> portraits() {
+        return portraits.stream().map(PortraitBuilder::build).toList();
+    }
+
+    private final PortraitBuilder everyPortrait = new PortraitBuilder("");
+    private boolean portraitsDeclared;
+
+    /**
+     * The portrait every selectable creature gets, or {@code null} if the file
+     * asked for none.
+     *
+     * <p>One block for the whole bestiary. Nothing about a portrait is
+     * per-creature except where the camera stands, and that is written as
+     * fractions of whatever it is looking at — so this frames a skeleton, a hero
+     * and whatever is added next, each by its own measured height.
+     */
+    public PortraitArt everyPortrait() {
+        return portraitsDeclared ? everyPortrait.build() : null;
+    }
+
+    /**
+     * How many times a second the portrait is redrawn. A ceiling, not a target —
+     * see {@code uz.duke.client3d.PortraitMood}.
+     */
+    private int portraitFps = 24;
+
+    public int portraitFps() {
+        return portraitFps;
+    }
+
+    /**
+     * One hero, as his block spells him.
+     *
+     * <p>Everything about his art except the two things that are only true in a
+     * portrait, which are in {@link PortraitBuilder} beside it.
+     */
+    private static final class HeroBuilder {
+        private final String name;
+        String model;
+        String texture;
+        float modelScale = 1f;
+        float facing = 90f;
+        final java.util.List<String> animations = new java.util.ArrayList<>();
+        String idle;
+        String walk;
+        String attack;
+        String hurt;
+        String death;
+        String holds;
+        String heldIn;
+        float heldScale = 1f;
+        float heldPitch;
+        float heldYaw;
+        float heldRoll;
+
+        HeroBuilder(String name) {
+            this.name = name;
+        }
+
+        HeroLook build() {
+            return new HeroLook(name, model, texture, modelScale, facing, animations,
+                    idle, walk, attack, hurt, death,
+                    new Held(holds, heldIn, heldScale, heldPitch, heldYaw, heldRoll));
+        }
+    }
+
+    /**
+     * One creature's live portrait.
+     *
+     * <p>The numbers here are the file's; these are what a block that leaves a
+     * line out falls back to, the same way a monster falls back to facing 90.
+     */
+    private static final class PortraitBuilder {
+        private final String name;
+        float head = 0.74f;
+        float show = 0.64f;
+        float yaw = 22f;
+        float pitch = -4f;
+        float fov = 34f;
+        String calm;
+        String fight;
+        String hurt;
+        String dead;
+        String levelUp;
+        float hurtBelowPercent = 30f;
+        float hurtSpeed = 1.5f;
+
+        PortraitBuilder(String name) {
+            this.name = name;
+        }
+
+        PortraitArt build() {
+            return new PortraitArt(name, head, show, yaw, pitch, fov,
+                    calm, fight, hurt, dead, levelUp, hurtBelowPercent, hurtSpeed);
+        }
     }
 
     private String arrowModel;
@@ -1984,7 +2095,11 @@ public final class DungeonSettings {
                     .add("CmdGuardWord", Ini.restOfLine((s, v) -> s.hudGuardWord = v))
                     .add("IconFolder", Ini.string((s, v) -> s.hudIconFolder = v))
                     .add("SkinFolder", Ini.string((s, v) -> s.hudSkinFolder = v))
-                    .add("CursorFolder", Ini.string((s, v) -> s.hudCursorFolder = v));
+                    .add("CursorFolder", Ini.string((s, v) -> s.hudCursorFolder = v))
+                    // Panel-wide rather than per-hero: what a portrait costs is a
+                    // fact about the machine drawing it, not about whose face is in
+                    // it. See DungeonPortrait for the faces themselves.
+                    .add("PortraitFps", Ini.integer((s, v) -> s.portraitFps = v));
 
     // ---- the lettering the menus are set in ----
 
@@ -2009,27 +2124,49 @@ public final class DungeonSettings {
                     .add("TitleFont", Ini.string((s, v) -> s.menuTitleFont = v))
                     .add("RowFont", Ini.string((s, v) -> s.menuRowFont = v));
 
-    private static final FieldParseTable<DungeonSettings> HERO_LOOK =
-            new FieldParseTable<DungeonSettings>()
-                    .add("Model", Ini.string((s, v) -> s.heroModel = v))
-                    .add("Texture", Ini.string((s, v) -> s.heroTexture = v))
-                    .add("ModelScale", Ini.real((s, v) -> s.heroModelScale = v))
-                    .add("Facing", Ini.real((s, v) -> s.heroFacing = v))
+    private static final FieldParseTable<HeroBuilder> HERO_LOOK =
+            new FieldParseTable<HeroBuilder>()
+                    .add("Model", Ini.string((s, v) -> s.model = v))
+                    .add("Texture", Ini.string((s, v) -> s.texture = v))
+                    .add("ModelScale", Ini.real((s, v) -> s.modelScale = v))
+                    .add("Facing", Ini.real((s, v) -> s.facing = v))
                     // Repeatable: a kit sorts its clips by what the movement is
                     // for, so standing and dying come out of one file and a bow
                     // out of another, and he needs all of them.
-                    .add("AnimationsFrom", Ini.string((s, v) -> s.heroAnimations.add(v)))
-                    .add("Idle", Ini.string((s, v) -> s.heroIdle = v))
-                    .add("Walk", Ini.string((s, v) -> s.heroWalk = v))
-                    .add("Attack", Ini.string((s, v) -> s.heroAttack = v))
-                    .add("Hurt", Ini.string((s, v) -> s.heroHurt = v))
-                    .add("Death", Ini.string((s, v) -> s.heroDeath = v))
-                    .add("Holds", Ini.string((s, v) -> s.heroHolds = v))
-                    .add("HeldIn", Ini.string((s, v) -> s.heroHeldIn = v))
-                    .add("HeldScale", Ini.real((s, v) -> s.heroHeldScale = v))
-                    .add("HeldPitch", Ini.real((s, v) -> s.heroHeldPitch = v))
-                    .add("HeldYaw", Ini.real((s, v) -> s.heroHeldYaw = v))
-                    .add("HeldRoll", Ini.real((s, v) -> s.heroHeldRoll = v));
+                    .add("AnimationsFrom", Ini.string((s, v) -> s.animations.add(v)))
+                    .add("Idle", Ini.string((s, v) -> s.idle = v))
+                    .add("Walk", Ini.string((s, v) -> s.walk = v))
+                    .add("Attack", Ini.string((s, v) -> s.attack = v))
+                    .add("Hurt", Ini.string((s, v) -> s.hurt = v))
+                    .add("Death", Ini.string((s, v) -> s.death = v))
+                    .add("Holds", Ini.string((s, v) -> s.holds = v))
+                    .add("HeldIn", Ini.string((s, v) -> s.heldIn = v))
+                    .add("HeldScale", Ini.real((s, v) -> s.heldScale = v))
+                    .add("HeldPitch", Ini.real((s, v) -> s.heldPitch = v))
+                    .add("HeldYaw", Ini.real((s, v) -> s.heldYaw = v))
+                    .add("HeldRoll", Ini.real((s, v) -> s.heldRoll = v));
+
+    /**
+     * The live portrait's block.
+     *
+     * <p>No model, no scale and no library: those are in his own block above,
+     * under the same name, and a portrait that named its own art could drift out
+     * of step with the creature it is the face of.
+     */
+    private static final FieldParseTable<PortraitBuilder> PORTRAIT =
+            new FieldParseTable<PortraitBuilder>()
+                    .add("Head", Ini.real((s, v) -> s.head = v))
+                    .add("Show", Ini.real((s, v) -> s.show = v))
+                    .add("Yaw", Ini.real((s, v) -> s.yaw = v))
+                    .add("Pitch", Ini.real((s, v) -> s.pitch = v))
+                    .add("Fov", Ini.real((s, v) -> s.fov = v))
+                    .add("Calm", Ini.string((s, v) -> s.calm = v))
+                    .add("Fight", Ini.string((s, v) -> s.fight = v))
+                    .add("Hurt", Ini.string((s, v) -> s.hurt = v))
+                    .add("Dead", Ini.string((s, v) -> s.dead = v))
+                    .add("LevelUp", Ini.string((s, v) -> s.levelUp = v))
+                    .add("HurtBelowPercent", Ini.real((s, v) -> s.hurtBelowPercent = v))
+                    .add("HurtSpeed", Ini.real((s, v) -> s.hurtSpeed = v));
 
     private static final FieldParseTable<DungeonSettings> ANIMATIONS =
             new FieldParseTable<DungeonSettings>()

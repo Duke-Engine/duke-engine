@@ -52,40 +52,68 @@ public record PortraitLook(Camera camera, Clips clips, float hurtBelowPercent, f
     }
 
     /**
-     * Where the little camera stands, in fractions of the model's own height
+     * Where the little camera stands, in fractions of the creature's own height
      * rather than in world units.
      *
-     * <p>Deliberately relative. Heroes are not the same size — a model's height is
-     * a fact about the file it came out of — and a portrait described in world
-     * units would put the second hero's camera in his chest or a metre over his
-     * head. Described as fractions, a hero nobody has tuned still gets a usable
-     * portrait, and the per-hero numbers are a correction rather than a
-     * requirement.
+     * <p>Deliberately relative, and this is the part that makes one block serve
+     * every creature in the game. A model's height is a fact about the file it
+     * came out of — a hero, a skeleton and whatever is added next are all
+     * different — and a camera described in world units would sit in one
+     * creature's chest and a metre over another's head.
      *
-     * @param head     how far up him the camera looks, 1 being the top of his head
-     * @param distance how far back it stands, as a share of his height
-     * @param yaw      degrees round him from straight ahead. Straight ahead is his
-     *     own authored forward, because {@code Visuals.facing} has already been
+     * <p><b>How much is in the frame is said outright.</b> {@code show} is the
+     * share of the creature that fills the frame from top to bottom, and the
+     * distance is worked out from it and the lens. Said the other way round — a
+     * distance and a lens, with the framing left to fall out of them — the two
+     * numbers have to be re-tuned together for every creature, and widening the
+     * lens silently zooms out.
+     *
+     * @param head  how far up the creature the camera looks, 1 being the top of it
+     * @param show  how much of its height fills the frame: 0.5 is its top half
+     * @param yaw   degrees round it from straight ahead. Straight ahead is its own
+     *     authored forward, because {@code Visuals.facing} has already been
      *     applied — so 0 means the same thing for every model
-     * @param pitch    degrees above him, looking down; negative looks up at him
-     * @param fov      the lens, in degrees. Narrow flatters a face, wide bends it
+     * @param pitch degrees above it, looking down; negative looks up at it
+     * @param fov   the lens, in degrees. Narrow flatters a face, wide bends it —
+     *     and it no longer changes how much is in the frame, only how it is bent
      */
-    public record Camera(float head, float distance, float yaw, float pitch, float fov) {
+    public record Camera(float head, float show, float yaw, float pitch, float fov) {
 
-        /** Head and shoulders, three-quarters on — the portrait everybody draws. */
-        public static final Camera DEFAULT = new Camera(0.86f, 0.75f, 22f, -4f, 34f);
+        /**
+         * Head and shoulders, three-quarters on — the portrait everybody draws.
+         *
+         * <p>Measured rather than chosen. The kit these were written for draws its
+         * characters with a head nearly half their height: the jaw sits at 0.55 of
+         * the model and the top of the hair at 1.0. Framing from 0.42 to 1.06 is
+         * therefore the chest up, with the head filling about seven-tenths of the
+         * frame and a little air over it.
+         */
+        public static final Camera DEFAULT = new Camera(0.74f, 0.64f, 22f, -4f, 34f);
+
+        /** How far back the camera has to stand to frame {@code show} of this one. */
+        float distanceFor(float standingHeight) {
+            float visible = Math.max(0.001f, show * standingHeight);
+            float halfLens = com.jme3.math.FastMath.DEG_TO_RAD * Math.clamp(fov, 1f, 170f) / 2f;
+            return visible / 2f / com.jme3.math.FastMath.tan(halfLens);
+        }
     }
 
     /**
      * Which clip each state plays, by the names the model's own libraries use.
      *
-     * <p>Every one may be {@code null}, and a state with no clip falls back to
-     * {@link #calm} — a portrait that stops dead because the kit has no death
-     * animation would be worse than one that goes on standing.
+     * <p>Every one may be {@code null}, and a creature's own clips are used where
+     * the portrait names none — its walking-about idle for standing, its death for
+     * dying. Which is what lets one block serve every monster in the game: a
+     * skeleton needs no portrait of its own to breathe in the frame and fall over
+     * in it, because those two clips are already bound on it.
+     *
+     * <p>Naming them is for the states a creature has no clip for anyway: a bow
+     * held ready, which is not the same as the blow a unit's attack clip is, and a
+     * flourish for a level nothing but a hero has.
      */
     public record Clips(String calm, String fight, String hurt, String dead, String levelUp) {
 
-        /** For a game that has named none, which leaves the portrait standing still. */
+        /** For a game that names none and leaves every creature its own. */
         public static final Clips NONE = new Clips(null, null, null, null, null);
     }
 

@@ -74,6 +74,17 @@ public final class Main {
         });
     }
 
+    /** One portrait block, in the words the client keeps them in. */
+    private static uz.duke.client3d.PortraitLook portraitLook(
+            uz.duke.dungeon.content.PortraitArt art) {
+        return new uz.duke.client3d.PortraitLook(
+                new uz.duke.client3d.PortraitLook.Camera(art.head(), art.show(),
+                        art.yaw(), art.pitch(), art.fov()),
+                new uz.duke.client3d.PortraitLook.Clips(art.calm(), art.fight(),
+                        art.hurt(), art.dead(), art.levelUp()),
+                art.hurtBelowPercent(), art.hurtSpeed());
+    }
+
     /** What this creature has in its hand, if the file gave it anything. */
     private static void carry(Visuals.UnitVisual unit, uz.duke.dungeon.content.Held held) {
         if (held.isCarried()) {
@@ -445,12 +456,15 @@ public final class Main {
             });
         }
 
-        // The hero comes from a different kit on a different skeleton, and he
-        // carries something — so he is described his own way rather than squeezed
-        // into the monsters'.
-        var hero = settings.hero();
-        if (hero.hasModel()) {
-            visuals.unit("Hero", unit -> {
+        // The heroes come from a different kit on a different skeleton, and they
+        // carry something — so they are described their own way rather than
+        // squeezed into the monsters'. One block each, named after the creature
+        // template, so a second hero is a block rather than an edit here.
+        for (var hero : settings.heroes()) {
+            if (!hero.hasModel()) {
+                continue;
+            }
+            visuals.unit(hero.name(), unit -> {
                 unit.model(hero.model())
                         .scale(hero.modelScale())
                         .facing(hero.facing())
@@ -468,6 +482,21 @@ public final class Main {
                 }
             });
         }
+
+        // And what everything looks like in the panel's frame, alive. One block
+        // for the whole bestiary — the camera is written in fractions of whatever
+        // it is looking at, so it frames a skeleton and a hero each by its own
+        // measured height — and a block per creature that wants a different one.
+        // No art is named anywhere here: a portrait takes the model, the scale and
+        // the libraries from the creature's own block, under the same name.
+        var everyone = settings.everyPortrait();
+        if (everyone != null) {
+            visuals.portraits(portraitLook(everyone));
+        }
+        for (var portrait : settings.portraits()) {
+            visuals.portrait(portrait.name(), portraitLook(portrait));
+        }
+        visuals.portraitFps(settings.portraitFps());
         // What a dead monster leaves lying about. No chest in the kit, so it is
         // a box in torch colour -- which is what a thing worth walking over to
         // has to be, whatever it is eventually modelled as.
