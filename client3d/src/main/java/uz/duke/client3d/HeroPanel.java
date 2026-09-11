@@ -69,6 +69,9 @@ final class HeroPanel {
     private static final ColorRGBA STONE_DEAD_LIT = rgb(0x231F1A);
     private static final ColorRGBA STONE_DEAD = rgb(0x191510);
     private static final ColorRGBA TORCH = rgb(0xE8A33D);
+    private static final ColorRGBA GOLD = rgb(0xC9A24B);
+    private static final ColorRGBA GOLD_HI = rgb(0xF0D48A);
+    private static final ColorRGBA GAIN = rgb(0x7FBF6A);
     private static final ColorRGBA BONE = rgb(0xD9CFBA);
     private static final ColorRGBA BLOOD = rgb(0xA8322B);
     private static final ColorRGBA ARCANE = rgb(0x5F8C7B);
@@ -88,7 +91,7 @@ final class HeroPanel {
     // ---- the layout, in the pixels the design was drawn at ----
 
     /** The width the design was drawn for; everything is scaled from it. */
-    private static final float DESIGN_WIDTH = 1180f;
+    private static final float DESIGN_WIDTH = 1300f;
 
     /** Below this the bar is unreadable, above it silly. Both are the design's. */
     private static final float MIN_SCALE = 0.55f;
@@ -102,13 +105,42 @@ final class HeroPanel {
     private static final float MINIMAP = BAND;
     private static final float DIVIDER = 3f;
     private static final float DIVIDER_MARGIN = 10f;
-    private static final float PORTRAIT = 96f;
+    /**
+     * The portrait, which is taller than it is wide.
+     *
+     * <p>A square read as a picture of a square thing. Head and shoulders are a
+     * standing shape, and the badge that hangs under it wants the height.
+     */
+    private static final float PORTRAIT = 112f;
+    private static final float PORTRAIT_HEIGHT = 130f;
+    /** The level badge slung under the portrait, straddling its bottom edge. */
+    private static final float BADGE_HEIGHT = 21f;
+    private static final float BADGE_WIDTH = 86f;
+    private static final float BADGE_DROP = 11f;
     private static final float PORTRAIT_GAP = 10f;
-    private static final float VITALS_WIDTH = 190f;
+    private static final float VITALS_WIDTH = 292f;
+
+    /** The column of order buttons that stands beside the map. */
+    private static final float ORDER_BUTTON = 38f;
+    private static final float ORDER_GAP = 5f;
+    private static final float ORDER_COLUMN_GAP = 7f;
+
+    /** His bag: three across, two down. */
+    private static final float ITEM_SLOT = 42f;
+    private static final float ITEM_GAP = 5f;
+    private static final int ITEM_COLUMNS = 3;
+    private static final int ITEM_ROWS = 2;
+
+    /** The gold heading over a block — "NARSALAR", "MAHORAT". */
+    private static final float HEADING_SIZE = 12f;
+    private static final float HEADING_GAP = 6f;
+
+    /** The little square a stat's drawing sits in, beside its word. */
+    private static final float STAT_ICON = 22f;
     private static final float BAR_HEIGHT = 17f;
     private static final float XP_HEIGHT = 10f;
     private static final float NAME_HEIGHT = 20f;
-    private static final float STATS_HEIGHT = 16f;
+    private static final float TITLE_HEIGHT = 15f;
     /** Space between one figure and the word after it. */
     private static final float STAT_GAP = 10f;
     private static final float SLOT = 62f;
@@ -152,7 +184,6 @@ final class HeroPanel {
     private final Node contents = new Node("contents");
 
     private BitmapText name;
-    private BitmapText rank;
     private BitmapText health;
     private Geometry healthFill;
     private Geometry experienceFill;
@@ -201,6 +232,7 @@ final class HeroPanel {
         buildPortrait();
         buildVitals();
         buildPowersLabel();
+        buildHeadings();
         buildNote();
         buildDepth();
         // Placed now rather than when the first slot is carved: a hero with no
@@ -225,7 +257,8 @@ final class HeroPanel {
         showing = true;
         root.setCullHint(Spatial.CullHint.Inherit);
         name.setText(reading.name);
-        rank.setText(reading.rank);
+        title.setText(reading.title);
+        badge.setText(reading.rank);
         health.setText(Math.round(reading.health) + " / " + Math.round(reading.maxHealth));
         fillTo(healthFill, fraction(reading.health, reading.maxHealth));
         fillTo(experienceFill, fraction(reading.experience, reading.needed));
@@ -240,8 +273,11 @@ final class HeroPanel {
         }
         depthWord.setText(reading.depthWord);
         powersWord.setText(reading.powersWord);
+        skillsWord.setText(reading.skillsWord);
         note.setText(reading.note);
         showStats(reading.stats);
+        showOrders(reading.orders);
+        showItems(reading.items, reading.itemsWord);
         showSkills(reading.skills);
         showPowers(reading.powers);
         return true;
@@ -341,6 +377,25 @@ final class HeroPanel {
         for (var slot : slots) {
             if (hits(screenX / scale, screenY / scale, slot.atX, slot.atY, slot.size)) {
                 return slot.key;
+            }
+        }
+        return orderAt(screenX, screenY);
+    }
+
+    /**
+     * The order button under a point, if any.
+     *
+     * <p>Answered through the same door the skill sockets are, so a click on a
+     * button is the same thing as its key being pressed and neither of them can
+     * grow a rule the other does not have.
+     */
+    Character orderAt(float screenX, float screenY) {
+        if (!showing) {
+            return null;
+        }
+        for (var button : orderButtons) {
+            if (hits(screenX / scale, screenY / scale, button.atX, button.atY, ORDER_BUTTON)) {
+                return button.key;
             }
         }
         return null;
@@ -471,16 +526,20 @@ final class HeroPanel {
     private void buildPortrait() {
         portrait = new Node("portrait");
         contents.attachChild(portrait);
-        attach(portrait, flat("frame", PORTRAIT + 4f, PORTRAIT + 4f, DROP), -2f, -2f, 0f);
-        var face = new Geometry("face", gradient(PORTRAIT, PORTRAIT, rgb(0x4A4034), rgb(0x241E17)));
+        attach(portrait, flat("frame", PORTRAIT + 4f, PORTRAIT_HEIGHT + 4f, DROP), -2f, -2f, 0f);
+        var face = new Geometry("face",
+                gradient(PORTRAIT, PORTRAIT_HEIGHT, rgb(0x4A4034), rgb(0x241E17)));
         face.setMaterial(vertexColoured());
         attach(portrait, face, 0f, 0f, 1f);
-        attach(portrait, flat("inner", PORTRAIT + 2f, 2f, rgb(0x5A4E3C)), -1f, PORTRAIT, 2f);
+        attach(portrait, flat("inner", PORTRAIT + 2f, 2f, rgb(0x5A4E3C)),
+                -1f, PORTRAIT_HEIGHT, 2f);
 
-        // Head and shoulders, in the design's own 96-square coordinates.
-        var head = new Geometry("head", disc(15f, 16));
+        // Head and shoulders. The figure is drawn in a square as it always was and
+        // sits at the bottom of a taller frame, so the extra height is headroom
+        // rather than a stretched man.
+        var head = new Geometry("head", disc(17f, 16));
         head.setMaterial(unshaded(FLESH));
-        attach(portrait, head, 48f, PORTRAIT - 36f, 3f);
+        attach(portrait, head, PORTRAIT / 2f, PORTRAIT_HEIGHT - 44f, 3f);
         var body = new Geometry("body", polygon(shoulders(), PORTRAIT));
         body.setMaterial(unshaded(FLESH));
         attach(portrait, body, 0f, 0f, 3f);
@@ -491,14 +550,16 @@ final class HeroPanel {
             bowLimb(), {64, 26, 62, 62},
         }, PORTRAIT));
         bow.setMaterial(lines(TORCH));
-        attach(portrait, bow, 0f, 0f, 4f);
+        attach(portrait, bow, 0f, PORTRAIT_HEIGHT - PORTRAIT, 4f);
 
-        if (framed(portrait, PanelSkin.PORTRAIT, -3f, -3f, PORTRAIT + 6f, PORTRAIT + 6f, 5f)) {
+        buildBadge();
+        if (framed(portrait, PanelSkin.PORTRAIT, -3f, -3f,
+                PORTRAIT + 6f, PORTRAIT_HEIGHT + 6f, 5f)) {
             return; // a painted frame has corners of its own; two sets would fight
         }
         // Torch-coloured corner brackets, the mark of a framed thing.
-        float[][] corners = {{3, 3}, {PORTRAIT - 12, 3}, {3, PORTRAIT - 12},
-            {PORTRAIT - 12, PORTRAIT - 12}};
+        float[][] corners = {{3, 3}, {PORTRAIT - 12, 3}, {3, PORTRAIT_HEIGHT - 12},
+            {PORTRAIT - 12, PORTRAIT_HEIGHT - 12}};
         for (int i = 0; i < corners.length; i++) {
             boolean left = i % 2 == 0;
             boolean low = i < 2;
@@ -511,25 +572,271 @@ final class HeroPanel {
         }
     }
 
+    /** The level, on a plate slung across the bottom edge of the portrait. */
+    private BitmapText badge;
+
+    /**
+     * What level he is, hung under his picture rather than written beside his
+     * name.
+     *
+     * <p>It belongs to the figure, not to the line of text: a level is what he is
+     * rather than something he has, and on the portrait it is where the eye
+     * already is. Straddling the frame's edge rather than sitting under it is what
+     * makes it read as fixed to the picture instead of as a caption.
+     */
+    private void buildBadge() {
+        var plate = new Node("badge");
+        attach(plate, flat("badge-edge", BADGE_WIDTH, BADGE_HEIGHT, TORCH), 0f, 0f, 6f);
+        attach(plate, flat("badge-face", BADGE_WIDTH - 4f, BADGE_HEIGHT - 4f, rgb(0x3A2D12)),
+                2f, 2f, 7f);
+        badge = text(13f, GOLD_HI, 0f, 4f, BADGE_WIDTH, BitmapFont.Align.Center);
+        badge.setLocalTranslation(0f, badge.getLocalTranslation().y, 8f);
+        plate.attachChild(badge);
+        attach(portrait, plate, (PORTRAIT - BADGE_WIDTH) / 2f, -BADGE_DROP, 6f);
+    }
+
+    // ---- the orders beside the map ----
+
+    /** One button: the order it gives, and the parts of it that change. */
+    private static final class OrderButton {
+        private final char key;
+        private final Node node = new Node("order");
+        private Geometry lit;
+        private Geometry glyph;
+        private float atX;
+        private float atY;
+
+        private OrderButton(char key) {
+            this.key = key;
+        }
+    }
+
+    private final Node orderColumn = new Node("orders");
+    private final List<OrderButton> orderButtons = new ArrayList<>();
+    /** The orders the column was built for; a different set means building it again. */
+    private String ordersBuiltFor = "";
+
+    /**
+     * The four orders, in a column beside the map.
+     *
+     * <p>Every one of them can already be given with the mouse, and three of them
+     * are what the mouse does. They are drawn anyway, because a right-click is not
+     * a thing a player can be shown: the buttons are how he finds out that walking
+     * somewhere, attacking something, stopping and standing your ground are four
+     * separate orders rather than one and a half.
+     *
+     * <p>Which orders exist is the game's, like everything else on this bar — they
+     * arrive down the status line with their keys, their drawings and their words.
+     * A game that names none gets no column and the space back.
+     */
+    private void showOrders(List<Reading.OrderReading> reading) {
+        var signature = new StringBuilder();
+        for (var order : reading) {
+            signature.append(order.key()).append(order.icon()).append(',');
+        }
+        if (!signature.toString().equals(ordersBuiltFor)) {
+            ordersBuiltFor = signature.toString();
+            for (var button : orderButtons) {
+                button.node.removeFromParent();
+            }
+            orderButtons.clear();
+            for (var order : reading) {
+                var button = new OrderButton(order.key());
+                cut(button, order);
+                orderButtons.add(button);
+                orderColumn.attachChild(button.node);
+            }
+            layOut();
+        }
+        for (int i = 0; i < orderButtons.size() && i < reading.size(); i++) {
+            var button = orderButtons.get(i);
+            boolean on = reading.get(i).on() || Character.valueOf(button.key).equals(armed)
+                    || Character.valueOf(button.key).equals(hovered);
+            button.lit.setCullHint(on ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+            button.glyph.getMaterial().setColor("Color", linear(on ? GOLD_HI : GOLD));
+        }
+    }
+
+    /** One button cut out of the stone, the same way a skill socket is. */
+    private void cut(OrderButton button, Reading.OrderReading order) {
+        float size = ORDER_BUTTON;
+        attach(button.node, flat("drop", size + 3f, size + 3f, DROP), -1.5f, -1.5f - 2f, 0f);
+        // The lit ring, shown while the order is on or waiting to be pointed at
+        // something. Under the edge, so it reads as stone catching light.
+        button.lit = flat("order-lit", size + 6f, size + 6f, TORCH);
+        attach(button.node, button.lit, -3f, -3f, 1f);
+        button.lit.setCullHint(Spatial.CullHint.Always);
+        attach(button.node, flat("edge", size + 3f, size + 3f, EDGE), -1.5f, -1.5f, 2f);
+        var stone = new Geometry("stone", gradient(size, size, STONE_LIT, STONE));
+        stone.setMaterial(vertexColoured());
+        attach(button.node, stone, 0f, 0f, 3f);
+        button.glyph = new Geometry("order-glyph", Glyphs.of(order.icon(), size * 0.52f));
+        button.glyph.setMaterial(lines(GOLD));
+        attach(button.node, button.glyph, size / 2f, size / 2f, 4f);
+        // The key in the corner, because the button's whole job is to teach it.
+        var key = text(10f, LABEL, 0f, -1f, size - 2f, BitmapFont.Align.Right);
+        key.setText(String.valueOf(button.key));
+        key.setLocalTranslation(0f, key.getLocalTranslation().y, 5f);
+        button.node.attachChild(key);
+        framed(button.node, PanelSkin.BUTTON, -1.5f, -1.5f, size + 3f, size + 3f, 4.5f);
+    }
+
+    // ---- his bag ----
+
+    /** One socket in the bag. Six of them, whatever he is carrying. */
+    private static final class ItemSlot {
+        private final Node node = new Node("item");
+        private Geometry glyph;
+        private Geometry empty;
+        private BitmapText count;
+    }
+
+    private final Node itemGrid = new Node("items");
+    private final List<ItemSlot> itemSlots = new ArrayList<>();
+    private BitmapText itemsWord;
+    /** What the grid was last filled with, so it is not rebuilt every frame. */
+    private String itemsBuiltFor = "";
+
+    /**
+     * Six sockets, filled with what he is carrying and empty where he is not.
+     *
+     * <p>Always six, whether he has one thing or none. A grid that grew as he
+     * picked things up would move everything to the right of it half a screen
+     * every time he opened a chest, and an empty socket is information: it says
+     * there is room, and it says how much of the floor he has left to search.
+     *
+     * <p>Nothing can be used or dropped. What he finds already works the moment he
+     * finds it — the figures under the bars are worked out from this very bag — so
+     * what the grid shows is what made him stronger, which is what finding a thing
+     * in a dungeon means. A bag he can rummage in is a different game and would
+     * start in the simulation, not here.
+     */
+    private void showItems(List<Reading.ItemReading> reading, String word) {
+        if (itemSlots.isEmpty()) {
+            for (int i = 0; i < ITEM_COLUMNS * ITEM_ROWS; i++) {
+                var slot = new ItemSlot();
+                socket(slot, i);
+                itemSlots.add(slot);
+                itemGrid.attachChild(slot.node);
+            }
+        }
+        if (itemsWord != null) {
+            itemsWord.setText(word);
+        }
+        var signature = new StringBuilder();
+        for (var item : reading) {
+            signature.append(item.icon()).append(':').append(item.count()).append(',');
+        }
+        if (signature.toString().equals(itemsBuiltFor)) {
+            return;
+        }
+        itemsBuiltFor = signature.toString();
+        for (int i = 0; i < itemSlots.size(); i++) {
+            var slot = itemSlots.get(i);
+            var item = i < reading.size() ? reading.get(i) : null;
+            fillSocket(slot, item, i);
+        }
+    }
+
+    /** Put a thing in a socket, or leave it showing that it is empty. */
+    private void fillSocket(ItemSlot slot, Reading.ItemReading item, int index) {
+        if (slot.glyph != null) {
+            slot.glyph.removeFromParent();
+            slot.glyph = null;
+        }
+        slot.empty.setCullHint(item == null ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        slot.count.setText(item != null && item.count() > 1 ? String.valueOf(item.count()) : "");
+        if (item == null) {
+            return;
+        }
+        slot.glyph = new Geometry("item-glyph", Glyphs.of(item.icon(), ITEM_SLOT * 0.56f));
+        slot.glyph.setMaterial(lines(ITEM_COLOURS[index % ITEM_COLOURS.length]));
+        attach(slot.node, slot.glyph, ITEM_SLOT / 2f, ITEM_SLOT / 2f, 4f);
+    }
+
+    /**
+     * What each socket's drawing is coloured.
+     *
+     * <p>By socket rather than by what is in it, which sounds backwards and is not:
+     * the client has no idea what a flask does, and colouring by the picture would
+     * mean it deciding that flasks are green. Six settled colours give the grid the
+     * look the design has — a row of different things — without the client claiming
+     * to know what any of them is.
+     */
+    private static final ColorRGBA[] ITEM_COLOURS = {
+        rgb(0xC4564A), rgb(0x5F8C7B), rgb(0xC9A24B), rgb(0xE8A33D), rgb(0x8FA8C4), rgb(0xB08CC4),
+    };
+
+    /** One empty socket, cut like the skill slots but smaller. */
+    private void socket(ItemSlot slot, int index) {
+        attach(slot.node, flat("drop", ITEM_SLOT + 3f, ITEM_SLOT + 3f, DROP), -1.5f, -3.5f, 0f);
+        attach(slot.node, flat("edge", ITEM_SLOT + 3f, ITEM_SLOT + 3f, EDGE), -1.5f, -1.5f, 1f);
+        var stone = new Geometry("stone",
+                gradient(ITEM_SLOT, ITEM_SLOT, rgb(0x3E3529), rgb(0x201A14)));
+        stone.setMaterial(vertexColoured());
+        attach(slot.node, stone, 0f, 0f, 2f);
+        // The dashed inner square that says a socket is empty rather than dark.
+        slot.empty = new Geometry("empty", dashedBox(ITEM_SLOT - 14f));
+        slot.empty.setMaterial(lines(new ColorRGBA(STONE_LIT.r, STONE_LIT.g, STONE_LIT.b, 0.7f)));
+        attach(slot.node, slot.empty, 7f, 7f, 3f);
+        slot.count = text(11f, BONE, 0f, -1f, ITEM_SLOT - 3f, BitmapFont.Align.Right);
+        slot.count.setLocalTranslation(0f, slot.count.getLocalTranslation().y, 5f);
+        slot.node.attachChild(slot.count);
+        var number = text(10f, rgb(0x7A7062), 2f, ITEM_SLOT - 13f, ITEM_SLOT,
+                BitmapFont.Align.Left);
+        number.setText(String.valueOf(index + 1));
+        number.setLocalTranslation(number.getLocalTranslation().x,
+                number.getLocalTranslation().y, 5f);
+        slot.node.attachChild(number);
+        framed(slot.node, PanelSkin.ITEM, -1.5f, -1.5f, ITEM_SLOT + 3f, ITEM_SLOT + 3f, 4.5f);
+    }
+
+    /** A square of short strokes — the mark of a socket with nothing in it. */
+    private static Mesh dashedBox(float side) {
+        var dashes = new ArrayList<float[]>();
+        float step = side / 7f;
+        for (int i = 0; i < 7; i += 2) {
+            float from = i * step;
+            float to = Math.min(side, from + step);
+            dashes.add(new float[] {from, 0f, to, 0f});
+            dashes.add(new float[] {from, side, to, side});
+            dashes.add(new float[] {0f, from, 0f, to});
+            dashes.add(new float[] {side, from, side, to});
+        }
+        return strokes(dashes.toArray(new float[0][]), 0f);
+    }
+
     // ---- the vitals column ----
 
     private Node vitals;
+
+    /** What he is, under his name. */
+    private BitmapText title;
 
     private void buildVitals() {
         vitals = new Node("vitals");
         contents.attachChild(vitals);
 
-        // Spread over the band the way the design does: name at the top, the
-        // stats at the foot, the two bars evenly between them.
-        float slackPerGap = (BAND - NAME_HEIGHT - BAR_HEIGHT - XP_HEIGHT - STATS_HEIGHT) / 3f;
+        // Down the band the way the design does it: who he is at the top, what is
+        // left of him under that, and what he is worth at the foot.
         float nameY = BAND - NAME_HEIGHT;
-        float healthY = nameY - slackPerGap - BAR_HEIGHT;
-        float experienceY = healthY - slackPerGap - XP_HEIGHT;
+        float titleY = nameY - TITLE_HEIGHT - 2f;
+        float healthY = titleY - 12f - BAR_HEIGHT;
+        float experienceY = healthY - 9f - XP_HEIGHT;
+        this.statsTop = experienceY - 14f;
 
-        name = text(15f, BONE, 0f, nameY, VITALS_WIDTH, BitmapFont.Align.Left);
-        rank = text(14f, TORCH, 0f, nameY, VITALS_WIDTH, BitmapFont.Align.Right);
+        name = text(17f, BONE, 0f, nameY, VITALS_WIDTH, BitmapFont.Align.Center);
         vitals.attachChild(name);
-        vitals.attachChild(rank);
+        // A wash behind the title, which is what stops a second centred line from
+        // reading as a second name.
+        var wash = new Geometry("title-wash",
+                sideways(VITALS_WIDTH, TITLE_HEIGHT + 3f, new ColorRGBA(GOLD.r, GOLD.g,
+                        GOLD.b, 0.14f)));
+        wash.setMaterial(vertexColoured());
+        attach(vitals, wash, 0f, titleY - 2f, 0f);
+        title = text(13f, GOLD, 0f, titleY, VITALS_WIDTH, BitmapFont.Align.Center);
+        title.setLocalTranslation(0f, title.getLocalTranslation().y, 1f);
+        vitals.attachChild(title);
 
         vitals.attachChild(trough(0f, healthY, VITALS_WIDTH, BAR_HEIGHT));
         healthFill = fill(VITALS_WIDTH - 2f, BAR_HEIGHT - 2f, BLOOD);
@@ -554,40 +861,92 @@ final class HeroPanel {
                 VITALS_WIDTH + 2f, XP_HEIGHT + 2f, 1.5f);
     }
 
+    /** Where the grid of figures begins, worked out with the rest of the column. */
+    private float statsTop;
+
+    /** What each figure is drawn with, in the order the game sends them. */
+    private static final String[] STAT_GLYPHS = {"blade", "shield", "bolt", "heart"};
+
+    private final List<BitmapText> statBonuses = new ArrayList<>();
+    private final List<Node> statBoxes = new ArrayList<>();
+
     /**
-     * The row of figures under the bars: a word and a number, as many as the game
-     * sends.
+     * The figures under the bars, two across and as many rows as it takes.
+     *
+     * <p>A grid rather than a row, because a row of three in a column this wide
+     * spreads each word half a screen from its own number. Each is a small drawing
+     * in a socket, the word, the figure, and — when he has borrowed any of it — how
+     * much, in green.
+     *
+     * <p><b>The green is the point of the whole grid.</b> A figure that only ever
+     * goes up says nothing about whether the sword he just picked up was worth
+     * picking up; the difference does, and it is the only number on the panel that
+     * answers "was that any good".
      *
      * <p>Built to fit whatever arrives rather than to a fixed three, for the same
      * reason the skill row is: what a game counts is the game's business.
      */
     private void showStats(List<Reading.Stat> stats) {
         if (statLabels.size() != stats.size()) {
+            for (var box : statBoxes) {
+                box.removeFromParent();
+            }
             for (var line : statLabels) {
                 line.removeFromParent();
             }
             for (var line : statValues) {
                 line.removeFromParent();
             }
+            for (var line : statBonuses) {
+                line.removeFromParent();
+            }
+            statBoxes.clear();
             statLabels.clear();
             statValues.clear();
-            float each = stats.isEmpty() ? VITALS_WIDTH : VITALS_WIDTH / stats.size();
+            statBonuses.clear();
+            float cell = VITALS_WIDTH / 2f;
             for (int i = 0; i < stats.size(); i++) {
-                var label = text(12f, LABEL, i * each, 0f, each, BitmapFont.Align.Left);
-                // Short of the next word by a clear space, or the figure and the
-                // word after it run together into one unreadable string.
-                var value = text(13f, BONE, i * each, 0f, each - STAT_GAP,
-                        BitmapFont.Align.Right);
+                float x = (i % 2) * cell;
+                float y = statsTop - (i / 2) * (STAT_ICON + 6f) - STAT_ICON;
+                statBoxes.add(statBox(x, y, i));
+                // Word, then figure, then what is lent -- in reading order, each
+                // given the room the one before it did not use.
+                var label = text(12f, LABEL, x + STAT_ICON + 6f, y + 4f, cell - STAT_ICON - 6f,
+                        BitmapFont.Align.Left);
+                var value = text(13f, BONE, x + STAT_ICON + 6f, y + 4f,
+                        cell - STAT_ICON - 6f - 34f, BitmapFont.Align.Right);
+                var bonus = text(12f, GAIN, x + STAT_ICON + 6f, y + 4f,
+                        cell - STAT_ICON - 6f - STAT_GAP, BitmapFont.Align.Right);
                 statLabels.add(label);
                 statValues.add(value);
+                statBonuses.add(bonus);
                 vitals.attachChild(label);
                 vitals.attachChild(value);
+                vitals.attachChild(bonus);
             }
         }
         for (int i = 0; i < stats.size(); i++) {
             statLabels.get(i).setText(stats.get(i).word());
             statValues.get(i).setText(stats.get(i).value());
+            statBonuses.get(i).setText(stats.get(i).bonus());
         }
+    }
+
+    /** One figure's drawing, in a socket of its own beside the word. */
+    private Node statBox(float x, float y, int index) {
+        var box = new Node("stat-box");
+        attach(box, flat("stat-edge", STAT_ICON, STAT_ICON, EDGE), 0f, 0f, 0f);
+        var stone = new Geometry("stat-stone",
+                gradient(STAT_ICON - 2f, STAT_ICON - 2f, STONE_LIT, STONE));
+        stone.setMaterial(vertexColoured());
+        attach(box, stone, 1f, 1f, 1f);
+        var glyph = new Geometry("stat-glyph",
+                Glyphs.of(STAT_GLYPHS[Math.min(index, STAT_GLYPHS.length - 1)], STAT_ICON * 0.6f));
+        glyph.setMaterial(lines(GOLD));
+        attach(box, glyph, STAT_ICON / 2f, STAT_ICON / 2f, 2f);
+        framed(box, PanelSkin.CHIP, 0f, 0f, STAT_ICON, STAT_ICON, 2.5f);
+        attach(vitals, box, x, y, 0f);
+        return box;
     }
 
     /** A sunken trough for a bar to sit in. */
@@ -988,6 +1347,32 @@ final class HeroPanel {
         powerRow.attachChild(powersWord);
     }
 
+    /** The gold heading over a block, on a wash that fades out at both ends. */
+    private BitmapText heading(Node block, float width) {
+        var wash = new Geometry("heading-wash",
+                sideways(width, HEADING_SIZE + 5f, new ColorRGBA(GOLD.r, GOLD.g, GOLD.b, 0.16f)));
+        wash.setMaterial(vertexColoured());
+        attach(block, wash, 0f, -3f, 0f);
+        var word = text(HEADING_SIZE, GOLD, 0f, 0f, width, BitmapFont.Align.Center);
+        word.setLocalTranslation(0f, word.getLocalTranslation().y, 1f);
+        block.attachChild(word);
+        return word;
+    }
+
+    private BitmapText skillsWord;
+    private final Node skillHeading = new Node("skill-heading");
+    private final Node itemHeading = new Node("item-heading");
+
+    /** The two gold headings the design puts over the bag and the skill row. */
+    private void buildHeadings() {
+        contents.attachChild(itemGrid);
+        contents.attachChild(orderColumn);
+        contents.attachChild(itemHeading);
+        contents.attachChild(skillHeading);
+        itemsWord = heading(itemHeading, ITEM_COLUMNS * ITEM_SLOT + (ITEM_COLUMNS - 1) * ITEM_GAP);
+        skillsWord = heading(skillHeading, SLOT * 3f + ULT_SLOT + SLOT_GAP * 3f);
+    }
+
     private void showPowers(List<Reading.PowerReading> reading) {
         var signature = new StringBuilder();
         for (var power : reading) {
@@ -1043,9 +1428,14 @@ final class HeroPanel {
         for (int i = 0; i < slots.size(); i++) {
             skillsWidth += slots.get(i).size + (i == 0 ? 0f : SLOT_GAP);
         }
+        skillsWidth = Math.max(skillsWidth, SLOT * 3f + ULT_SLOT + SLOT_GAP * 3f);
         float gap = DIVIDER + DIVIDER_MARGIN * 2f;
+        float mapBlock = MINIMAP + (orderButtons.isEmpty() ? 0f
+                : ORDER_COLUMN_GAP + ORDER_BUTTON);
         float who = PORTRAIT + PORTRAIT_GAP + VITALS_WIDTH;
-        float total = MINIMAP + gap + who + gap + Math.max(skillsWidth, 160f) + gap + DEPTH_WIDTH;
+        float bagWidth = ITEM_COLUMNS * ITEM_SLOT + (ITEM_COLUMNS - 1) * ITEM_GAP;
+        float total = mapBlock + gap + who + gap + bagWidth + gap + skillsWidth
+                + gap + DEPTH_WIDTH;
 
         // The bar spans the window; its contents are centred on it, so a wide
         // screen puts empty stone at both ends rather than all of it at one.
@@ -1054,25 +1444,44 @@ final class HeroPanel {
 
         float x = 0f;
         minimapSocket.setLocalTranslation(x, 0f, 0f);
-        x += MINIMAP + DIVIDER_MARGIN;
+        placeOrders(x + MINIMAP + ORDER_COLUMN_GAP, left);
+        x += mapBlock + DIVIDER_MARGIN;
         placeDivider(0, x);
         x += DIVIDER + DIVIDER_MARGIN;
 
-        // The portrait sits at the top of the band, as the design draws it; the
-        // vitals fill the whole height beside it.
-        portrait.setLocalTranslation(x, BAND - PORTRAIT, 0f);
+        // The portrait hangs from the top of the band with its badge below it;
+        // the vitals fill the whole height beside it.
+        portrait.setLocalTranslation(x, BAND - PORTRAIT_HEIGHT, 0f);
         vitals.setLocalTranslation(x + PORTRAIT + PORTRAIT_GAP, 0f, 0f);
         x += who + DIVIDER_MARGIN;
         placeDivider(1, x);
         x += DIVIDER + DIVIDER_MARGIN;
 
-        // Skills and the powers strip are one column, centred in the band.
-        float columnHeight = ULT_SLOT + POWERS_TOP_GAP + POWER_CHIP;
+        // His bag: a heading with the grid under it, the pair centred in the band.
+        float bagHeight = ITEM_ROWS * ITEM_SLOT + (ITEM_ROWS - 1) * ITEM_GAP;
+        float bagBottom = (BAND - bagHeight - HEADING_SIZE - HEADING_GAP) / 2f;
+        itemGrid.setLocalTranslation(x, bagBottom, 0f);
+        itemHeading.setLocalTranslation(x, bagBottom + bagHeight + HEADING_GAP, 0f);
+        for (int i = 0; i < itemSlots.size(); i++) {
+            // Filled across then down, which is the order they are read in and the
+            // order the game sends them.
+            float column = i % ITEM_COLUMNS;
+            float row = i / ITEM_COLUMNS;
+            itemSlots.get(i).node.setLocalTranslation(column * (ITEM_SLOT + ITEM_GAP),
+                    (ITEM_ROWS - 1 - row) * (ITEM_SLOT + ITEM_GAP), 0f);
+        }
+        x += bagWidth + DIVIDER_MARGIN;
+        placeDivider(2, x);
+        x += DIVIDER + DIVIDER_MARGIN;
+
+        // Skills: a heading, the row of sockets, and the powers strip under it.
+        float columnHeight = HEADING_SIZE + HEADING_GAP + ULT_SLOT + POWERS_TOP_GAP + POWER_CHIP;
         float columnBottom = (BAND - columnHeight) / 2f;
         powerRow.setLocalTranslation(x, columnBottom, 0f);
-        skillRow.setLocalTranslation(x, columnBottom + POWER_CHIP + POWERS_TOP_GAP, 0f);
-        float slotX = 0f;
         float rowY = columnBottom + POWER_CHIP + POWERS_TOP_GAP;
+        skillRow.setLocalTranslation(x, rowY, 0f);
+        skillHeading.setLocalTranslation(x, rowY + ULT_SLOT + HEADING_GAP, 0f);
+        float slotX = 0f;
         for (var slot : slots) {
             // Tops aligned, so an ultimate is bigger by hanging lower — which is
             // how the design draws it and how the eye finds it.
@@ -1081,11 +1490,29 @@ final class HeroPanel {
             slot.atY = PAD + rowY + ULT_SLOT - slot.size;
             slotX += slot.size + SLOT_GAP;
         }
-        x += Math.max(skillsWidth, 160f) + DIVIDER_MARGIN;
-        placeDivider(2, x);
+        x += skillsWidth + DIVIDER_MARGIN;
+        placeDivider(3, x);
         x += DIVIDER + DIVIDER_MARGIN;
 
         depth.setLocalTranslation(x, 0f, 0f);
+    }
+
+    /** The order buttons, stacked beside the map and centred against it. */
+    private void placeOrders(float x, float left) {
+        if (orderButtons.isEmpty()) {
+            return;
+        }
+        float height = orderButtons.size() * ORDER_BUTTON
+                + (orderButtons.size() - 1) * ORDER_GAP;
+        float top = (BAND + height) / 2f;
+        orderColumn.setLocalTranslation(x, 0f, 0f);
+        for (int i = 0; i < orderButtons.size(); i++) {
+            var button = orderButtons.get(i);
+            float y = top - (i + 1) * ORDER_BUTTON - i * ORDER_GAP;
+            button.node.setLocalTranslation(0f, y, 0f);
+            button.atX = left + x;
+            button.atY = PAD + y;
+        }
     }
 
     private final List<Node> dividers = new ArrayList<>();
@@ -1109,6 +1536,49 @@ final class HeroPanel {
         var geometry = new Geometry(what, new Quad(width, height));
         geometry.setMaterial(unshaded(colour));
         return geometry;
+    }
+
+    /**
+     * A band of colour that fades out at both ends, running across rather than
+     * down.
+     *
+     * <p>Behind the headings — a title, "NARSALAR", "MAHORAT". A ruled box round a
+     * heading would say the heading is a thing; a wash that has no edges says only
+     * "this is the top of something", which is what a heading is for. Both ends
+     * fade so that it belongs to the column rather than to the stone beside it.
+     */
+    private static Mesh sideways(float width, float height, ColorRGBA colour) {
+        var clear = new ColorRGBA(colour.r, colour.g, colour.b, 0f);
+        var stops = new ColorRGBA[] {clear, colour, colour, clear};
+        float[] at = {0f, width * 0.25f, width * 0.75f, width};
+        var positions = new float[stops.length * 2 * 3];
+        var colours = new float[stops.length * 2 * 4];
+        var indices = new int[(stops.length - 1) * 6];
+        for (int column = 0; column < stops.length; column++) {
+            for (int side = 0; side < 2; side++) {
+                int vertex = column * 2 + side;
+                positions[vertex * 3] = at[column];
+                positions[vertex * 3 + 1] = side == 0 ? 0f : height;
+                var linear = linear(stops[column]);
+                colours[vertex * 4] = linear.r;
+                colours[vertex * 4 + 1] = linear.g;
+                colours[vertex * 4 + 2] = linear.b;
+                colours[vertex * 4 + 3] = linear.a;
+            }
+            if (column < stops.length - 1) {
+                int base = column * 6;
+                int corner = column * 2;
+                indices[base] = corner;
+                indices[base + 1] = corner + 2;
+                indices[base + 2] = corner + 3;
+                indices[base + 3] = corner;
+                indices[base + 4] = corner + 3;
+                indices[base + 5] = corner + 1;
+            }
+        }
+        var mesh = meshOf(positions, indices);
+        mesh.setBuffer(VertexBuffer.Type.Color, 4, BufferUtils.createFloatBuffer(colours));
+        return mesh;
     }
 
     /**
@@ -1381,10 +1851,11 @@ final class HeroPanel {
      * slot has to look like — which is the whole reason the game sends finished
      * words and the client sends none.
      */
-    record Reading(String name, String rank, float health, float maxHealth,
+    record Reading(String name, String title, String rank, float health, float maxHealth,
             float experience, float needed, String depth, String depthWord,
-            String powersWord, String note, List<Stat> stats, List<SkillReading> skills,
-            List<PowerReading> powers, Offer offer) {
+            String powersWord, String skillsWord, String itemsWord, String note,
+            List<Stat> stats, List<SkillReading> skills, List<PowerReading> powers,
+            List<ItemReading> items, List<OrderReading> orders, Offer offer) {
 
         enum State { READY, COOLING, LOCKED }
 
@@ -1401,8 +1872,26 @@ final class HeroPanel {
         record SkillReading(char key, String icon, State state, String label, float left) {
         }
 
-        /** One figure under the bars: what it is called and what it is. */
-        record Stat(String word, String value) {
+        /**
+         * One figure under the bars: what it is called, what it is, and how much
+         * of that he borrowed.
+         *
+         * <p>{@code bonus} is empty when nothing is lent. It is a finished word
+         * rather than a number because the sign is part of it and the panel is not
+         * in the business of deciding whether a thing that went down is good news.
+         */
+        record Stat(String word, String value, String bonus) {
+        }
+
+        /** One socket in his bag: which drawing, and how many of it he carries. */
+        record ItemReading(String icon, int count) {
+        }
+
+        /**
+         * One button beside the map: its key, its drawing, its word, and whether
+         * it is a standing order that is currently on.
+         */
+        record OrderReading(char key, String icon, String word, boolean on) {
         }
 
         /** One mark in the powers strip: which drawing, and how many he holds. */
@@ -1429,16 +1918,21 @@ final class HeroPanel {
                 return null;
             }
             String name = "";
+            String title = "";
             String rank = "";
             String depth = "";
             String depthWord = "";
             String powersWord = "";
+            String skillsWord = "";
+            String itemsWord = "";
             String note = "";
             var health = new float[] {0f, 0f};
             var experience = new float[] {0f, 0f};
             var skills = new ArrayList<SkillReading>();
             var stats = new ArrayList<Stat>();
             var powers = new ArrayList<PowerReading>();
+            var items = new ArrayList<ItemReading>();
+            var orders = new ArrayList<OrderReading>();
             var cards = new ArrayList<Card>();
             var offerHead = new String[] {null, null, null};
             for (var field : status.split("\\|")) {
@@ -1449,10 +1943,15 @@ final class HeroPanel {
                 var value = field.substring(split + 1);
                 switch (field.substring(0, split)) {
                     case "name" -> name = value;
+                    case "title" -> title = value;
                     case "rank" -> rank = value;
                     case "depth" -> depth = value;
                     case "depthWord" -> depthWord = value;
                     case "pwWord" -> powersWord = value;
+                    case "skWord" -> skillsWord = value;
+                    case "itWord" -> itemsWord = value;
+                    case "it" -> items.add(item(value));
+                    case "cmd" -> orders.add(order(value));
                     case "note" -> note = value;
                     case "hp" -> health = pair(value);
                     case "xp" -> experience = pair(value);
@@ -1472,13 +1971,16 @@ final class HeroPanel {
                 }
                 if (health == null || experience == null || skills.contains(null)
                         || stats.contains(null) || powers.contains(null)
+                        || items.contains(null) || orders.contains(null)
                         || cards.contains(null)) {
                     return null;
                 }
             }
-            return new Reading(name, rank, health[0], health[1], experience[0], experience[1],
-                    depth, depthWord, powersWord, note, List.copyOf(stats), List.copyOf(skills),
-                    List.copyOf(powers), offer(offerHead[0], cards));
+            return new Reading(name, title, rank, health[0], health[1],
+                    experience[0], experience[1], depth, depthWord, powersWord, skillsWord,
+                    itemsWord, note, List.copyOf(stats), List.copyOf(skills),
+                    List.copyOf(powers), List.copyOf(items), List.copyOf(orders),
+                    offer(offerHead[0], cards));
         }
 
         private static float[] pair(String value) {
@@ -1524,9 +2026,32 @@ final class HeroPanel {
 
         /** {@code Zarba,34} — a word and whatever the game counts under it. */
         private static Stat stat(String value) {
-            int comma = value.indexOf(',');
-            return comma < 0 ? null
-                    : new Stat(value.substring(0, comma), value.substring(comma + 1));
+            var parts = value.split(",", -1);
+            return parts.length < 2 ? null
+                    : new Stat(parts[0], parts[1], parts.length > 2 ? parts[2] : "");
+        }
+
+        /** {@code flask,3} — which drawing is in the socket, and how many of it. */
+        private static ItemReading item(String value) {
+            var parts = value.split(",");
+            if (parts.length < 2) {
+                return null;
+            }
+            try {
+                return new ItemReading(parts[0], Integer.parseInt(parts[1]));
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+
+        /** {@code A,march,Yur,off} — key, drawing, word, and whether it is lit. */
+        private static OrderReading order(String value) {
+            var parts = value.split(",", -1);
+            if (parts.length < 4 || parts[0].length() != 1) {
+                return null;
+            }
+            return new OrderReading(parts[0].charAt(0), parts[1], parts[2],
+                    "on".equals(parts[3]));
         }
 
         /** {@code shot,2} — which drawing, and how many of it. */
@@ -1642,6 +2167,50 @@ final class HeroPanel {
             {5, 6, 12, 13}, {12, 6, 5, 13}, {14, 18, 16, 16, 16, 20, 20, 20},
         };
 
+        /** A blade on the diagonal, with its guard — what he hits for. */
+        private static final float[][] BLADE = {
+            {4, 20, 20, 4}, {14, 4, 20, 4, 20, 10}, {6, 14, 10, 18}, {4, 16, 8, 20},
+        };
+
+        /** A shield — what gets through, and the order to stand behind one. */
+        private static final float[][] SHIELD = {
+            {12, 3, 20, 6, 20, 12, 12, 21, 4, 12, 4, 6, 12, 3},
+        };
+
+        /** A bolt — how fast he moves. */
+        private static final float[][] BOLT = {
+            {13, 2, 4, 14, 11, 14, 10, 22, 19, 10, 12, 10, 13, 2},
+        };
+
+        /** A flask — something drunk, or eaten, or otherwise used up. */
+        private static final float[][] FLASK = {
+            {9, 3, 9, 9, 5, 18, 6, 21, 18, 21, 19, 18, 15, 9, 15, 3},
+            {8, 3, 16, 3}, {6.5f, 15, 17.5f, 15},
+        };
+
+        /** Banded armour — the heavier of the two things that stop a blow. */
+        private static final float[][] PLATE = {
+            {12, 3, 20, 6, 20, 12, 12, 21, 4, 12, 4, 6, 12, 3},
+            {5, 10, 19, 10}, {5.5f, 14, 18.5f, 14},
+        };
+
+        /** An arrow coming down onto a line — "walk to there". */
+        private static final float[][] MARCH = {
+            {12, 3, 12, 15}, {7, 11, 12, 16, 17, 11}, {5, 20, 19, 20},
+        };
+
+        /** A filled-looking square — "stop". */
+        private static final float[][] HALT = {
+            {6, 6, 18, 6, 18, 18, 6, 18, 6, 6},
+            {8.5f, 8.5f, 15.5f, 8.5f, 15.5f, 15.5f, 8.5f, 15.5f, 8.5f, 8.5f},
+        };
+
+        /** A cut stone — the sort of thing found in a chest. */
+        private static final float[][] GEM = {
+            {12, 3, 20, 10, 12, 21, 4, 10, 12, 3}, {4, 10, 20, 10}, {12, 3, 8, 10, 12, 21},
+            {12, 3, 16, 10, 12, 21},
+        };
+
         /** Anything the design did not draw: a plain lozenge, so nothing is blank. */
         private static final float[][] PLAIN = {
             {12, 4, 19, 12, 12, 20, 5, 12, 12, 4},
@@ -1689,6 +2258,14 @@ final class HeroPanel {
                 case "boot" -> BOOT;
                 case "plus" -> PLUS;
                 case "times" -> TIMES;
+                case "blade" -> BLADE;
+                case "shield" -> SHIELD;
+                case "bolt" -> BOLT;
+                case "flask" -> FLASK;
+                case "plate" -> PLATE;
+                case "march" -> MARCH;
+                case "halt" -> HALT;
+                case "gem" -> GEM;
                 default -> PLAIN;
             };
             int segments = 0;

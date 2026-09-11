@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-11 · **Testlar:** 862 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-11 · **Testlar:** 875 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -2148,6 +2148,51 @@ UI Borders (CC0) o'yma ramkalari bilan bo'yaladi.
   uya 6.05, chip 3.0, bar bezeli 1.65. Hammasi tanib olinarli — `double/` oilasiga
   o'tish kerak bo'lmadi. Ikkala chekkada skrinshot bilan ko'z bilan tasdiqlandi.
 
+### 8.ac Panel maketga to'liq keltirildi
+
+Bo'yoq qo'yilgandan keyin panel maketning **joylashuvi** bilan farq qilardi.
+Endi farq yo'q: chapda minimap va yonida to'rtta buyruq tugmasi, portret oltin
+romda va ostida daraja nishoni, o'rtada ismi/unvoni/barlari va 2×2 ko'rsatkich
+to'ri, keyin narsalar to'ri, mahorat ustuni, chekkada chuqurlik.
+
+- **Buyruq tugmalari (A/S/D/F).** Uchtasi engine'niki (`MoveTo`, `AttackObject`,
+  `StopMoving`) va sichqoncha allaqachon beradi; tugma shuning uchun borki,
+  o'ng-klik o'zini ko'rsata olmaydi — o'yinchi bu to'rt buyruq alohida ekanini
+  boshqa yo'l bilan bilib ololmasdi. To'rtinchisi o'yinniki:
+  `HoldGround` — "joyingda tur, hech kim bilan urishma". Engine buni ayta
+  olmaydi: `StopMoving` yurishni bekor qiladi va kamon haqida hech narsa
+  demaydi. **Diqqat:** o'yin A/S/D ni egallagani uchun kamera endi strelkalar
+  bilan suriladi; pastdagi yordam qatori buni o'zi bilib yozadi.
+- **`Orders`** — buyruq bilan uni bajaradigan miya o'rtasidagi yagona ko'prik.
+  Buyruq handler'ida o'yinchi raqami bor, miya esa obyektdagi modul; engine
+  skript modulini qaytarib bermaydi, bergan taqdirda ham o'yin engine
+  modullarini titkilashi noto'g'ri bo'lardi. Sessiyada bir marta yasaladi va
+  `PowerBook`/`LootBag` kabi ikkala uchiga beriladi.
+- **Ushlab turish qanday ishlaydi.** Nishonni "tanlamaslik" yetarli emas edi:
+  `WeaponUpdate` nishonni o'zi topadi va **o'sha chaqiruvda otadi**, ya'ni
+  tashqaridan faqat kech bo'ladi. Shuning uchun miya har kadrda `holdFire()`
+  deydi. Buyurilgan nishon bundan mustasno — "boshlama" degani "eshitma" emas.
+- **Narsalar to'ri = `LootBag`.** Yangi mexanika emas: sumka allaqachon bor va
+  barlar ostidagi raqamlar aynan undan hisoblanadi. To'r shuni ko'rsatadi.
+  Doim oltita uya — o'sadigan to'r har sandiqda o'ng tomondagi hamma narsani
+  surib yuborardi, bo'sh uya esa ma'lumot: joy bor va qavatda hali qidiriladigan
+  narsa bor. Ishlatib/tashlab bo'lmaydi; narsa topilgan zahoti ta'sir qiladi.
+- **Yashil raqam.** `stat=` endi uchinchi maydon olishi mumkin: shu ko'rsatkichda
+  **qarzga olingani** (kuchlar + topilgan narsalar). Faqat o'sadigan raqam
+  "hozir topgan qiliching arzidimi?" degan savolga javob bermaydi, farq esa
+  beradi — bu paneldagi yagona shu savolga javob beradigan son.
+- **Testlar ko'z o'rniga.** `PanelLayoutTest` bloklarni sahna grafigidan
+  o'lchaydi: ustma-ust tushmasligi, tartibi, to'rt xil oyna kengligida sig'ishi,
+  va balandlik bo'yicha chiqib ketmasligi. Bu — maket qurilayotganda yo'l
+  qo'yilishi mumkin bo'lgan har bir joylashuv xatosini ushlaydigan yagona
+  tekshiruv, va u oyna talab qilmaydi. Ko'rmaydigani — **harflar**: jME
+  `BitmapText` ga chizilmaguncha chegara bermaydi.
+
+**Qarz:** `HeroPanel.java` 1727 → **2304 qator**. Kelishilganidek aytyapman:
+2000 dan oshdi. Ichida uchta mustaqil narsa bor (buyruq ustuni, sumka,
+ko'rsatkich to'ri) va ular alohida sinfga chiqarilishi mumkin — lekin bu vizual
+ish emas, shuning uchun qilinmadi.
+
 ---
 
 ## 9. Nima yo'q / ochiq ishlar
@@ -2555,6 +2600,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/gen/DungeonGenerator.java` | seed'dan xonalar + koridorlar (ulanish kafolati) |
 | `dungeon/…/dungeon/ai/{HeroBrain,MonsterBrain}.java` | klik-ataka va maxluq AI'si (xonani chaqirish shu yerda) |
 | `dungeon/…/dungeon/ai/Chasing.java` | quvishni qachon qayta rejalash kerak — tiqilgan narsa to'xtab qolishining yagona sababi |
+| `dungeon/…/dungeon/ai/{HoldGround,Orders}.java` | "joyingda tur" — o'yinning to'rtinchi buyrug'i + uni buyruqdan miyagacha olib boradigan yagona ko'prik |
 | `dungeon/…/dungeon/run/DungeonRun.java` | run loop: o'lim → yangi seed → yangi dungeon |
 | `dungeon/…/dungeon/skill/{Skill,SkillEffect}.java` | skill ma'lumoti + daraja arifmetikasi (sof) |
 | `dungeon/…/dungeon/skill/SkillBook.java` | qahramon moduli: kuluar, effektlar, `DamageModifier` |

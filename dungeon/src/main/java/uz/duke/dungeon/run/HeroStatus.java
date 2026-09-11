@@ -50,12 +50,26 @@ final class HeroStatus {
     /** The line, or the empty string if there is no hero to describe. */
     static String of(GameObject hero, HeroProgress progress, int depth,
             DungeonSettings settings, PowerChoice powers, int frame, String look) {
+        return of(hero, progress, depth, settings, powers, frame, look, false);
+    }
+
+    /**
+     * The same, told whether he has been ordered to hold his ground.
+     *
+     * <p>The one thing on the panel that is neither a number on the hero nor a
+     * word in the file: a standing order lives beside the brain that obeys it —
+     * see {@code uz.duke.dungeon.ai.Orders} — and has to be carried in from there.
+     */
+    static String of(GameObject hero, HeroProgress progress, int depth,
+            DungeonSettings settings, PowerChoice powers, int frame, String look,
+            boolean holding) {
         if (hero == null || hero.getBody() == null) {
             return "";
         }
         int level = progress.getLevel();
         var line = new StringBuilder()
                 .append("name=").append(nameOf(hero))
+                .append("|title=").append(settings.hudHeroTitle())
                 .append("|rank=").append(level).append(settings.hudRankSuffix())
                 .append("|hp=").append(Math.round(hero.getBody().getHealth()))
                 .append('/').append(Math.round(hero.getBody().getMaxHealth()))
@@ -64,8 +78,11 @@ final class HeroStatus {
                 .append("|depth=").append(howFarDown(depth, settings))
                 .append("|depthWord=").append(settings.hudDepthWord());
         appendStats(line, hero, progress, powers, settings);
+        appendOrders(line, settings, holding);
+        appendItems(line, progress, settings);
         var book = hero.findModule(SkillBook.class);
         if (book != null) {
+            line.append("|skWord=").append(settings.hudSkillsWord());
             line.append(Skills.slots(book, level, settings.hudRankSuffix(), settings::hudIcon));
         }
         appendPowers(line, powers, settings);
@@ -113,6 +130,64 @@ final class HeroStatus {
         }
     }
 
+    /**
+     * The four orders on the buttons beside the map: key, drawing, word, state.
+     *
+     * <p>Sent rather than assumed because three of the four are the engine's and
+     * one is this game's, and the client has no way of knowing which orders a game
+     * offers — the same reason the skill row is sent rather than assumed. The keys
+     * match what {@code Main.controls} claims, and the words come out of the file
+     * with every other word on the panel.
+     *
+     * <p>Only the last of them has a state worth sending: holding ground is a
+     * standing order and the button has to show whether it is on. The other three
+     * happen and are over.
+     */
+    private static void appendOrders(StringBuilder line, DungeonSettings settings,
+            boolean holding) {
+        var words = settings.hudOrderWords();
+        String[][] buttons = {
+            {"A", "march"}, {"S", "blade"}, {"D", "halt"}, {"F", "shield"},
+        };
+        for (int i = 0; i < buttons.length; i++) {
+            String word = i < words.size() ? words.get(i) : "";
+            if (word.isBlank()) {
+                continue; // a game that does not name an order does not offer it
+            }
+            line.append("|cmd=").append(buttons[i][0]).append(',').append(buttons[i][1])
+                    .append(',').append(word)
+                    .append(',').append(i == buttons.length - 1 && holding ? "on" : "off");
+        }
+    }
+
+    /**
+     * What he is carrying, as one field per kind of thing with how many of it.
+     *
+     * <p>The bag is already there — every item he picks up goes into it and its
+     * totals are what the figures under the bars are worked out from — so this
+     * shows what the game already knows rather than inventing an inventory. He
+     * cannot use or drop any of it yet; what the grid says today is "these are the
+     * things that made you stronger", which is what finding them means.
+     *
+     * <p>Grouped and counted like the powers strip beside it, and for the same
+     * reason: three of the same sword is one drawing reading three, which is what
+     * six sockets have room for.
+     */
+    private static void appendItems(StringBuilder line, HeroProgress progress,
+            DungeonSettings settings) {
+        line.append("|itWord=").append(settings.hudItemsWord());
+        var held = new java.util.LinkedHashMap<String, int[]>();
+        var icons = new java.util.LinkedHashMap<String, String>();
+        for (var item : progress.getLoot().getFound()) {
+            held.computeIfAbsent(item.id(), id -> new int[1])[0]++;
+            icons.putIfAbsent(item.id(), item.icon());
+        }
+        for (var entry : held.entrySet()) {
+            line.append("|it=").append(icons.get(entry.getKey()))
+                    .append(',').append(entry.getValue()[0]);
+        }
+    }
+
     /** The cards on the table, or nothing at all when none are. */
     private static void appendOffer(StringBuilder line, PowerChoice powers,
             DungeonSettings settings) {
@@ -153,11 +228,24 @@ final class HeroStatus {
                 (1f - rules.damageTakenWith(level, found.armourPercent())) * 100f);
         float speed = walkingSpeed(hero.getTemplate())
                 * (powers == null ? 1f : powers.getBook().moveSpeedMultiplier());
-        line.append("|stat=").append(settings.hudAttackWord()).append(',')
-                .append(Math.round(attack))
-                .append("|stat=").append(settings.hudArmourWord()).append(',').append(armour)
-                .append("|stat=").append(settings.hudSpeedWord()).append(',')
-                .append(Math.round(speed));
+        // What he would have without anything he found or chose. The difference is
+        // the number in green, and it is worth showing on its own: a figure that
+        // only goes up says nothing about whether the last thing he picked up was
+        // worth picking up.
+        float bareAttack = weaponDamage(hero.getTemplate()) * rules.damageMultiplier(level);
+        int bareArmour = Math.round((1f - rules.damageTakenWith(level, 0)) * 100f);
+        float bareSpeed = walkingSpeed(hero.getTemplate());
+        stat(line, settings.hudAttackWord(), Math.round(attack), Math.round(bareAttack));
+        stat(line, settings.hudArmourWord(), armour, bareArmour);
+        stat(line, settings.hudSpeedWord(), Math.round(speed), Math.round(bareSpeed));
+    }
+
+    /** One figure: its word, what it is now, and how much of that is borrowed. */
+    private static void stat(StringBuilder line, String word, int now, int bare) {
+        line.append("|stat=").append(word).append(',').append(now);
+        if (now != bare) {
+            line.append(',').append(now > bare ? "+" : "").append(now - bare);
+        }
     }
 
     private static float weaponDamage(ThingTemplate template) {

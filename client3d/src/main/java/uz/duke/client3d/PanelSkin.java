@@ -35,8 +35,14 @@ public record PanelSkin(Map<String, Piece> pieces) {
     /** The trough a health or experience bar sits in. */
     public static final String GAUGE = "Gauge";
 
-    /** The little square a power he has taken is shown in. */
+    /** The little square a power he has taken is shown in, and a figure's drawing. */
     public static final String CHIP = "Chip";
+
+    /** One of the order buttons beside the map. */
+    public static final String BUTTON = "Button";
+
+    /** One socket of his bag. */
+    public static final String ITEM = "Item";
 
     /**
      * The line between two sections of the bar.

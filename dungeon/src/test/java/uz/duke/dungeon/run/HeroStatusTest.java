@@ -173,6 +173,58 @@ class HeroStatusTest {
     }
 
     /**
+     * Everything the design asks for is on the line the game really sends.
+     *
+     * <p>The panel and this class are two halves of one format that no compiler
+     * checks, so every field the design added is worth naming: a heading the game
+     * forgets is a heading the panel draws as an empty gold wash, which looks
+     * deliberate and is not.
+     */
+    @Test
+    void theLineCarriesEveryPartOfTheDesign() {
+        var session = Dungeon.newSession(7L);
+        var game = session.game();
+        game.runHeadless(30);
+        var line = game.getSnapshot().status();
+
+        assertTrue(line.contains("|title="), "what he is, under his name: " + line);
+        assertTrue(line.contains("|itWord="), "the heading over his bag: " + line);
+        assertTrue(line.contains("|skWord="), "the heading over his skills: " + line);
+        // Four orders, each with a key, a drawing, a word and a state.
+        int orders = line.split(java.util.regex.Pattern.quote("|cmd="), -1).length - 1;
+        assertEquals(4, orders, "the four buttons beside the map: " + line);
+        assertTrue(line.contains("|cmd=F,shield,"), "the one order the engine has no word for");
+        assertTrue(line.contains(",off"), "and an order that is not on says so");
+    }
+
+    /**
+     * A thing picked up shows in his bag and in green under the bars.
+     *
+     * <p>Two fields from one event, and the pair is the point: the socket says he
+     * has it and the green says what it was worth. Neither is worth much alone.
+     */
+    @Test
+    void whatHeFindsReachesTheBagAndTheFigures() {
+        var session = Dungeon.newSession(11L);
+        var game = session.game();
+        game.runHeadless(2);
+        var before = game.getSnapshot().status();
+        assertFalse(before.contains("|it="), "he starts with nothing: " + before);
+
+        var settings = DungeonSettings.load();
+        var blade = settings.loot().stream()
+                .filter(item -> item.kind() == uz.duke.dungeon.loot.LootKind.ATTACK)
+                .findFirst().orElseThrow();
+        session.progress().getLoot().take(blade, game.getLogic().getFrame(), 60);
+        game.runHeadless(2);
+
+        var line = game.getSnapshot().status();
+        assertTrue(line.contains("|it=" + blade.icon() + ",1"),
+                blade.id() + " should be in his bag: " + line);
+        assertTrue(line.contains(",+"), "and what it is worth should be in green: " + line);
+    }
+
+    /**
      * A level puts the cards on the line, headed by the level they belong to.
      *
      * <p>The heading's number is what the client answers with, so it has to be

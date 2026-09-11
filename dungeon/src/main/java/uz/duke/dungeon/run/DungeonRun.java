@@ -84,9 +84,20 @@ public final class DungeonRun {
     private String look;
     private int runCount; // how many times a new dungeon has been generated after a death
 
+    /** The standing orders his player has given; only the panel reads them. */
+    private final uz.duke.dungeon.ai.Orders orders;
+
     public DungeonRun(GamePlayer heroPlayer, GamePlayer dungeonPlayer, long seed,
             DungeonSettings settings, HeroProgress progress, PowerChoice powers,
             LootTable drops) {
+        this(heroPlayer, dungeonPlayer, seed, settings, progress, powers, drops,
+                new uz.duke.dungeon.ai.Orders());
+    }
+
+    public DungeonRun(GamePlayer heroPlayer, GamePlayer dungeonPlayer, long seed,
+            DungeonSettings settings, HeroProgress progress, PowerChoice powers,
+            LootTable drops, uz.duke.dungeon.ai.Orders orders) {
+        this.orders = orders;
         this.heroPlayer = heroPlayer;
         this.dungeonPlayer = dungeonPlayer;
         this.seed = seed;
@@ -182,7 +193,8 @@ public final class DungeonRun {
      */
     private void showStatus(DukeGame game) {
         game.setStatus(HeroStatus.of(Skills.heroOf(game.getLogic(), heroPlayer.getIndex()),
-                progress, depth, settings, powers, game.getLogic().getFrame(), look));
+                progress, depth, settings, powers, game.getLogic().getFrame(), look,
+                orders.isHolding(heroPlayer.getIndex())));
     }
 
     /**

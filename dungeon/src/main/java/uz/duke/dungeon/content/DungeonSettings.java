@@ -1011,6 +1011,7 @@ public final class DungeonSettings {
     private static final class LootBuilder {
         private final String id;
         String name;
+        String icon = "";
         LootKind kind = LootKind.ATTACK;
         int value;
         int weight = 10;
@@ -1022,13 +1023,14 @@ public final class DungeonSettings {
         }
 
         Loot build() {
-            return new Loot(id, name, kind, value, weight, minDepth);
+            return new Loot(id, name, icon, kind, value, weight, minDepth);
         }
     }
 
     private static final FieldParseTable<LootBuilder> LOOT =
             new FieldParseTable<LootBuilder>()
                     .add("Name", Ini.restOfLine((l, v) -> l.name = v))
+                    .add("Icon", Ini.string((l, v) -> l.icon = v))
                     .add("Kind", Ini.enumeration(LootKind.class, (l, v) -> l.kind = v))
                     .add("Value", Ini.integer((l, v) -> l.value = v))
                     .add("Weight", Ini.integer((l, v) -> l.weight = v))
@@ -1667,8 +1669,35 @@ public final class DungeonSettings {
         return hudSpeedWord;
     }
 
+    private String hudSkillsWord = "";
+    private String hudItemsWord = "";
+    private String hudHeroTitle = "";
+    private String hudMoveWord = "";
+    private String hudAttackOrderWord = "";
+    private String hudStopWord = "";
+    private String hudGuardWord = "";
     private String hudIconFolder = "";
     private String hudSkinFolder = "";
+
+    /** The heading over the skill row. */
+    public String hudSkillsWord() {
+        return hudSkillsWord;
+    }
+
+    /** The heading over his bag. */
+    public String hudItemsWord() {
+        return hudItemsWord;
+    }
+
+    /** What he is, drawn under his name. */
+    public String hudHeroTitle() {
+        return hudHeroTitle;
+    }
+
+    /** The four orders on the buttons beside the map, in the order they are drawn. */
+    public java.util.List<String> hudOrderWords() {
+        return java.util.List.of(hudMoveWord, hudAttackOrderWord, hudStopWord, hudGuardWord);
+    }
 
     /**
      * Where a skill's {@code Icon} is to be found, joined onto the front of it —
@@ -1688,6 +1717,13 @@ public final class DungeonSettings {
                     .add("AttackWord", Ini.restOfLine((s, v) -> s.hudAttackWord = v))
                     .add("ArmourWord", Ini.restOfLine((s, v) -> s.hudArmourWord = v))
                     .add("SpeedWord", Ini.restOfLine((s, v) -> s.hudSpeedWord = v))
+                    .add("SkillsWord", Ini.restOfLine((s, v) -> s.hudSkillsWord = v))
+                    .add("ItemsWord", Ini.restOfLine((s, v) -> s.hudItemsWord = v))
+                    .add("HeroTitle", Ini.restOfLine((s, v) -> s.hudHeroTitle = v))
+                    .add("CmdMoveWord", Ini.restOfLine((s, v) -> s.hudMoveWord = v))
+                    .add("CmdAttackWord", Ini.restOfLine((s, v) -> s.hudAttackOrderWord = v))
+                    .add("CmdStopWord", Ini.restOfLine((s, v) -> s.hudStopWord = v))
+                    .add("CmdGuardWord", Ini.restOfLine((s, v) -> s.hudGuardWord = v))
                     .add("IconFolder", Ini.string((s, v) -> s.hudIconFolder = v))
                     .add("SkinFolder", Ini.string((s, v) -> s.hudSkinFolder = v));
 

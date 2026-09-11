@@ -127,6 +127,7 @@ public final class Main {
         var known = java.util.Set.of(uz.duke.client3d.PanelSkin.MINIMAP,
                 uz.duke.client3d.PanelSkin.PORTRAIT, uz.duke.client3d.PanelSkin.SLOT,
                 uz.duke.client3d.PanelSkin.GAUGE, uz.duke.client3d.PanelSkin.CHIP,
+                uz.duke.client3d.PanelSkin.BUTTON, uz.duke.client3d.PanelSkin.ITEM,
                 uz.duke.client3d.PanelSkin.DIVIDER);
         for (var piece : settings.skin()) {
             if (!known.contains(piece.name())) {
@@ -285,7 +286,55 @@ public final class Main {
                         new CastSkill(game.getLocalPlayerIndex(), key)));
             }
         }
+        orders(keys);
         return keys;
+    }
+
+    /**
+     * The four orders the buttons beside the map give.
+     *
+     * <p>Three of them are the engine's own and the mouse already gives them; the
+     * buttons are there because a right-click never told the player they existed,
+     * and because a key is a faster way to say "walk there" than aiming at a piece
+     * of floor that might have a skeleton on it.
+     *
+     * <p>The fourth is this game's — see {@link uz.duke.dungeon.ai.HoldGround} —
+     * and it is the one the engine cannot express: stop cancels a walk and says
+     * nothing about his bow.
+     *
+     * <p>Claimed through the same seam the skills are, so the client's rule about
+     * one key doing one thing covers all eight of them together.
+     */
+    private static void orders(Hotkeys keys) {
+        keys.onOpenGround('A', (game, spot) -> game.postCommand(
+                new uz.duke.rts.message.GameMessage.MoveTo(
+                        game.getLocalPlayerIndex(), selected(game), spot)));
+        keys.onUnit('S', (game, id) -> game.postCommand(
+                new uz.duke.rts.message.GameMessage.AttackObject(
+                        game.getLocalPlayerIndex(), selected(game), new ObjectId(id))));
+        keys.on('D', game -> game.postCommand(
+                new uz.duke.rts.message.GameMessage.StopMoving(
+                        game.getLocalPlayerIndex(), selected(game))));
+        keys.on('F', game -> game.postCommand(
+                new uz.duke.dungeon.ai.HoldGround(game.getLocalPlayerIndex())));
+    }
+
+    /**
+     * Whose orders these are: every unit the player owns.
+     *
+     * <p>A dungeon holds one hero, so "his units" and "the selection" are the same
+     * list — and taking it from the world rather than from the client is what lets
+     * a key work when nothing has been clicked on, which is the whole point of
+     * having the key.
+     */
+    private static java.util.List<ObjectId> selected(uz.duke.game.DukeGame game) {
+        var mine = new java.util.ArrayList<ObjectId>();
+        for (var unit : game.getSnapshot().units()) {
+            if (unit.playerIndex() == game.getLocalPlayerIndex() && unit.selectable()) {
+                mine.add(new ObjectId(unit.id()));
+            }
+        }
+        return mine;
     }
 
     /**

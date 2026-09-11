@@ -82,8 +82,8 @@ public final class LootTable {
         int grown = Math.max(0, depth - 1);
         int value = item.value() + item.value() * grown * valuePercentPerDepth / 100;
         return value == item.value() ? item
-                : new Loot(item.id(), item.name(), item.kind(), value, item.weight(),
-                        item.minDepth());
+                : new Loot(item.id(), item.name(), item.icon(), item.kind(), value,
+                        item.weight(), item.minDepth());
     }
 
     private static int weightedPick(DeterministicRng rng, List<Loot> pool) {

@@ -72,8 +72,16 @@ public final class HeroBrain extends UnitScript {
      */
     private Coord3D sentAfter;
 
+    /** The standing orders his player has given; see {@link Orders}. */
+    private final Orders orders;
+
     public HeroBrain(DungeonSettings settings) {
+        this(settings, new Orders());
+    }
+
+    public HeroBrain(DungeonSettings settings, Orders orders) {
         this.settings = settings;
+        this.orders = orders == null ? new Orders() : orders;
     }
 
     @Override
@@ -206,6 +214,16 @@ public final class HeroBrain extends UnitScript {
      * same creature are indistinguishable, and the second silently does nothing.
      */
     private void standAndShoot(WeaponUpdate weapon, MoveUpdate move, GameObject current) {
+        if (orders.isHolding(unit().getPlayerIndex())) {
+            // Told to start nothing -- see HoldGround. Said again every frame
+            // rather than set once, because the weapon finds its own targets: it
+            // acquires and fires in the same call, so anything outside it can only
+            // take a target away after the weapon has already chosen one.
+            if (current != null) {
+                weapon.holdFire();
+            }
+            return;
+        }
         if (current != null) {
             if (!move.isMoving()) {
                 Facing.turnToward(unit(), current);

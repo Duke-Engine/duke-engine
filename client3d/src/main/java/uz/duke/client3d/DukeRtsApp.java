@@ -321,7 +321,14 @@ final class DukeRtsApp extends SimpleApplication {
 
         controlsHint = new BitmapText(guiFont);
         var hint = controlsHint;
-        hint.setText("LMB select   Shift+LMB add   RMB move/attack   WASD pan   Space centre"
+        // What the keys actually do, which depends on what the game took. A game
+        // that claims WASD for its own orders leaves the camera on the arrows —
+        // see bindKeys — and a line still promising WASD would be a lie the player
+        // discovers by pressing one.
+        boolean panKeysTaken = hotkeys.unclaimed(new int[] {
+            KeyInput.KEY_A, KeyInput.KEY_S, KeyInput.KEY_D}).length < 3;
+        hint.setText("LMB select   Shift+LMB add   RMB move/attack   "
+                + (panKeysTaken ? "arrows pan" : "WASD pan") + "   Space centre"
                 + "   wheel zoom   H halt   P pause   Esc menu");
         hint.setLocalTranslation(10, hint.getLineHeight() + 6f, 0);
         hint.setAlpha(0.6f);

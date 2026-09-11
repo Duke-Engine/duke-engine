@@ -12,6 +12,8 @@ package uz.duke.dungeon.loot;
  *
  * @param id       what the block is headed by; never seen by the player
  * @param name     what the message says he picked up, in the game's own language
+ * @param icon     the drawing the panel puts in his bag, by the name the client
+ *                 knows it under -- the same vocabulary a power's Icon uses
  * @param kind     which of the three figures it moves
  * @param value    percent for {@code ATTACK} and {@code ARMOUR}, flat health for
  *                 {@code HEALTH} — the same convention {@code DungeonLeveling}
@@ -21,5 +23,6 @@ package uz.duke.dungeon.loot;
  * @param minDepth the floor below which it is not found at all, which is what
  *                 makes going deeper worth the monsters
  */
-public record Loot(String id, String name, LootKind kind, int value, int weight, int minDepth) {
+public record Loot(String id, String name, String icon, LootKind kind, int value, int weight,
+        int minDepth) {
 }

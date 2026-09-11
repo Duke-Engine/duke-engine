@@ -2,6 +2,7 @@ package uz.duke.dungeon;
 
 import java.awt.Color;
 import uz.duke.dungeon.ai.HeroBrain;
+import uz.duke.dungeon.ai.Orders;
 import uz.duke.dungeon.ai.MonsterBrain;
 import uz.duke.dungeon.combat.ArrowUpdate;
 import uz.duke.dungeon.combat.Bow;
@@ -79,7 +80,12 @@ public final class Dungeon {
     }
 
     /** An empty world of the game's own making: its creatures, behaviour and sides. */
-    public record Arena(DukeGame game, GamePlayer hero, GamePlayer dungeon) {
+    /**
+     * @param orders the standing orders the hero has been given -- held here
+     *               because the command that sets one and the brain that obeys it
+     *               have no other way to reach each other. See {@link Orders}
+     */
+    public record Arena(DukeGame game, GamePlayer hero, GamePlayer dungeon, Orders orders) {
     }
 
     /**
@@ -87,7 +93,7 @@ public final class Dungeon {
      * powers he is offered as he levels.
      */
     public record Session(DukeGame game, DungeonRun run, HeroProgress progress,
-            PowerChoice powers) {
+            PowerChoice powers, Orders orders) {
     }
 
     /**
@@ -129,10 +135,12 @@ public final class Dungeon {
      */
     public static Arena world(String asciiMap, String levelMap, DungeonSettings settings,
             String creaturesIni, PowerBook powers, LootBag bag) {
+        var orders = new Orders();
         var game = DukeGame.create("Duke Dungeon")
                 .subtitle("a different dungeon every run")
                 .customModules(factory -> {
-                    ScriptModule.registerScript(factory, "HeroBrain", () -> new HeroBrain(settings));
+                    ScriptModule.registerScript(factory, "HeroBrain",
+                            () -> new HeroBrain(settings, orders));
                     // One brain per kind, wired from the list the settings file
                     // names — so adding a monster is two blocks of INI and no Java.
                     for (var kind : settings.monsters()) {
@@ -193,7 +201,7 @@ public final class Dungeon {
         var heroPlayer = game.addPlayer("Hero", HERO_COLOUR);
         var dungeonPlayer = game.addPlayer("Dungeon", SKELETON_COLOUR);
         game.enemies(heroPlayer, dungeonPlayer).localPlayer(heroPlayer);
-        return new Arena(game, heroPlayer, dungeonPlayer);
+        return new Arena(game, heroPlayer, dungeonPlayer, orders);
     }
 
     /**
@@ -236,7 +244,7 @@ public final class Dungeon {
         // the same one offers the same three at the same levels.
         var powers = new PowerChoice(book, settings.powers(), seed, settings.powerOfferCount());
         var run = new DungeonRun(arena.hero(), arena.dungeon(), seed, settings, progress, powers,
-                drops);
+                drops, arena.orders());
 
         // Q, W, E and R arrive as this game's own command, through the same queue
         // the standard orders use — so a keypress lands on a frame boundary and is
@@ -248,6 +256,10 @@ public final class Dungeon {
                 // boundary rather than reaching in from whatever drew the screen.
                 case ChoosePower choice -> powers.choose(choice.index(), choice.offerId(),
                         Skills.heroOf(game.getLogic(), choice.playerIndex()));
+                // "Stand and pick no fights", which none of the engine's three
+                // orders can say. See HoldGround.
+                case uz.duke.dungeon.ai.HoldGround hold ->
+                        arena.orders().toggleHold(hold.playerIndex());
                 default -> {
                     // Not one of ours; rts has already said so.
                 }
@@ -263,6 +275,6 @@ public final class Dungeon {
         // puts cards on the table.
         game.onTick(ignored -> powers.tick(progress.getLevel()));
 
-        return new Session(game, run, progress, powers);
+        return new Session(game, run, progress, powers, arena.orders());
     }
 }

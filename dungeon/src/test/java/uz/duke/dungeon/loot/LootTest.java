@@ -27,8 +27,8 @@ class LootTest {
     private static final DungeonSettings SHIPPED = DungeonSettings.load();
 
     private static final List<Loot> DECK = List.of(
-            new Loot("Blade", "Blade", LootKind.ATTACK, 10, 10, 1),
-            new Loot("Plate", "Plate", LootKind.ARMOUR, 5, 10, 3));
+            new Loot("Blade", "Blade", "", LootKind.ATTACK, 10, 10, 1),
+            new Loot("Plate", "Plate", "", LootKind.ARMOUR, 5, 10, 3));
 
     /** Always drops, so a test about what drops is not a test about whether. */
     private static LootTable always(long seed) {
@@ -212,7 +212,7 @@ class LootTest {
         float plain = player.getWeaponDamageBonus();
 
         session.progress().getLoot().take(
-                new Loot("Blade", "Blade", LootKind.ATTACK, 25, 10, 1), 0, 30);
+                new Loot("Blade", "Blade", "", LootKind.ATTACK, 25, 10, 1), 0, 30);
         game.runHeadless(2);
         assertTrue(player.getWeaponDamageBonus() > plain,
                 "a sword he found should reach the arrow he looses");

@@ -180,8 +180,11 @@ class PanelSkinTest {
     @Test
     void aLockedSocketsRimGoesDeadWithIt() {
         var gui = panelWith(skinOf(REAL, 8f, 1f, new Color(0xC9A24B)));
+        // Skill sockets only: the bag and the order buttons wear the same picture,
+        // and it is the skill row that has states.
         var rims = frames(gui).stream()
-                .filter(geometry -> geometry.getName().equals("frame-" + PanelSkin.SLOT))
+                .filter(geometry -> geometry.getName().equals("frame-" + PanelSkin.SLOT)
+                        && "slot".equals(geometry.getParent().getName()))
                 .map(geometry -> (ColorRGBA) geometry.getMaterial().getParam("Color").getValue())
                 .toList();
 
