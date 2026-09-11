@@ -9,6 +9,12 @@ import uz.duke.rts.module.WeaponUpdate;
 /**
  * He shoots at what he can see, and at nothing else.
  *
+ * <p><em>See</em>, not <em>have a clear line to</em>. Stone is one of three things
+ * that hide a creature and the other two are as ordinary: it may be further off
+ * than his eyes reach, or standing on a floor above his own. {@link SightLine#sees}
+ * holds all three, and holding them here is what lets his bow outrange his eyes
+ * without him shooting into the dark.
+ *
  * <p>The engine's weapon finds its own target and fires in the same call, so
  * anything outside it can only ever disarm it a frame too late — that is written
  * down in {@code WeaponUpdate} and it is why {@code AttackOnTheMove} had to be a
@@ -37,8 +43,18 @@ import uz.duke.rts.module.WeaponUpdate;
  */
 public final class EyesOnly extends Module implements WeaponHold {
 
-    public EyesOnly(GameObject owner) {
+    /**
+     * Read for one number: how far apart two storeys are.
+     *
+     * <p>Which is a fact about the floor rather than about him, and there is no
+     * asking the world for it — so it arrives the way {@code Bow}'s numbers do,
+     * from the game that registered this module.
+     */
+    private final uz.duke.dungeon.content.DungeonSettings settings;
+
+    public EyesOnly(GameObject owner, uz.duke.dungeon.content.DungeonSettings settings) {
         super(owner);
+        this.settings = settings;
     }
 
     /** The empty block that puts this on a creature; it has nothing to configure. */
@@ -63,6 +79,6 @@ public final class EyesOnly extends Module implements WeaponHold {
             return true; // nothing named yet, and the weapon is not to name one
         }
         var victim = world.findObject(target);
-        return victim != null && !SightLine.clear(owner, victim);
+        return victim != null && !SightLine.sees(owner, victim, settings.storeyHeight());
     }
 }

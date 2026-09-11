@@ -88,7 +88,7 @@ public final class HeroBrain extends UnitScript {
         }
 
         if (World.reachBetween(unit(), ordered) <= settings.closeDistance()
-                && SightLine.clear(unit(), ordered)) {
+                && canSee(ordered)) {
             move.stop(); // close enough and in sight; standing still is how he fires
             Facing.turnToward(unit(), ordered);
         } else if (!move.isMoving() || frame() % settings.heroRepathFrames() == 0) {
@@ -97,6 +97,17 @@ public final class HeroBrain extends UnitScript {
             // them puts him here too, which is what walking round one looks like.
             moveTo(ordered.getPosition().x(), ordered.getPosition().y());
         }
+    }
+
+    /**
+     * Whether he can see a creature — near enough, nothing between, nothing
+     * standing higher.
+     *
+     * <p>Three questions rather than one, and the one that used to be asked here
+     * was only the middle of them. See {@link SightLine#sees}.
+     */
+    private boolean canSee(GameObject creature) {
+        return SightLine.sees(unit(), creature, settings.storeyHeight());
     }
 
     /**
@@ -137,20 +148,20 @@ public final class HeroBrain extends UnitScript {
     }
 
     /**
-     * Let go of a target that is dead, or that he has no line to and was never
-     * sent at.
+     * Let go of a target that is dead, or that he cannot see and was never sent
+     * at.
      *
-     * <p>Something he was <em>sent</em> at is kept behind its wall on purpose: he
-     * walks round until he can see it, which is what being pointed at something
-     * out of sight ought to mean. Something he merely picked up is dropped, so the
-     * next frame can name something he can actually shoot.
+     * <p>Something he was <em>sent</em> at is kept out of sight on purpose: he
+     * walks until he can see it, which is what being pointed at something round a
+     * corner or off in the dark ought to mean. Something he merely picked up is
+     * dropped, so the next frame can name something he can actually shoot.
      */
     private GameObject dropWhatHeCannotShoot(WeaponUpdate weapon, GameObject current) {
         if (current == null) {
             return null;
         }
         boolean ordered = current.getId().equals(sentAt);
-        if (current.isEffectivelyDead() || (!ordered && !SightLine.clear(unit(), current))) {
+        if (current.isEffectivelyDead() || (!ordered && !canSee(current))) {
             weapon.holdFire();
             if (ordered) {
                 sentAt = null;
@@ -194,7 +205,7 @@ public final class HeroBrain extends UnitScript {
                         && !candidate.isEffectivelyDead()
                         && world().getRelationship(unit().getPlayerIndex(),
                                 candidate.getPlayerIndex()) == Relationship.ENEMIES
-                        && SightLine.clear(unit(), candidate));
+                        && canSee(candidate));
         if (seen != null) {
             picked = seen.getId();
             weapon.attack(seen.getId());

@@ -1721,6 +1721,24 @@ ikkala peer aynan bir kadrda qo'llaydi.
     kataklar so'raladi. Klientdagi tuman bilan bir xil qoida, lekin **alohida**
     yozilgan: o'yinchiga nima ko'rsatilishi jang natijasini hech qachon
     belgilamasligi kerak.
+  - **`sees` uchta savol so'raydi, bitta emas** — va ular klient tumani so'raydigan
+    o'sha uchtasi. Ajratilgan, lekin **kelishmovchilikka yo'l yo'q**: ko'rsatilmagan
+    narsaga otish mumkin emas.
+    1. **Yetarlicha yaqinmi** — `VisionRange`, va **katak** bo'yicha, klient qaysi
+       katakni yoritsa o'shasi. Ilgari bu tekshirilmasdi: `AttackRange` (60) shunchaki
+       `VisionRange` (70) dan kichik qilib qo'yilgandi va ikkita raqam bir-birini
+       ushlab turardi. Endi yo'q — **kamon ko'zdan uzunroq bo'lishi mumkin**, otishni
+       to'xtatadigan narsa qorong'ilik.
+    2. **Orada hech narsa yo'qmi** — tosh, avvalgidek.
+    3. **Balandda turgan narsa yo'qmi** — o'z qavatidan yuqoridagi pol o'z chetining
+       ortida: pastdagi koridordan uning ustiga ko'rinmaydi, va klient ham shunday
+       chizadi. Qavatlar qo'shilganda bu yerda hech narsa o'rganilmagan edi, ya'ni
+       qahramon ko'tarilgan xonadagi — hech qayerda chizilmagan — monstrlarni otardi.
+    - Zina **pastki qavatga tegishli**: qavat pastga yaxlitlanadi, chunki zina
+      katagining o'rtasi yarim qavat balandda turadi va yaqiniga yaxlitlansa zina
+      o'zini o'zi yashirardi.
+    - `StoreyHeight` `EyesOnly` ga registratsiyadagi closure orqali keladi
+      (`Bow` va `SkillBook` kabi), ya'ni INI'da takror raqam yo'q.
   - **`EyesOnly`** — `WeaponHold` choki, qurolning **oldida** ishlaydigan yagona
     ilgak. Ikki narsani to'xtatadi: ko'rinmayotgan nishonga otishni, va **umuman
     nishonsiz turishni** — ikkinchisi engine'ning o'z avto-tanlashini o'chiradi,
@@ -2382,7 +2400,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/power/ChoosePower.java` | o'yinning ikkinchi buyrug'i — "o'shani olaman" |
 | `dungeon/…/dungeon/loot/{Loot,LootKind,LootTable}.java` | tushadigan narsa: ma'lumot, turlar, deterministik qur'a |
 | `dungeon/…/dungeon/loot/{LootBag,LootDrop,LootUpdate}.java` | topilganlar + `DieModule` cho'ntagi + poldagi sandiq |
-| `dungeon/…/dungeon/ai/SightLine.java` | devor ko'rishni to'sadimi — sof arifmetika, grid ustida |
+| `dungeon/…/dungeon/ai/SightLine.java` | ko'ra oladimi: yetarlicha yaqinmi, orada tosh bormi, balandda turibdimi — sof arifmetika, grid ustida |
 | `dungeon/…/dungeon/combat/EyesOnly.java` | ko'rmaganiga otmaydi; engine'ning avto-tanlashini o'chiradi |
 | `client3d/…/client3d/LevelUpOverlay.java` | daraja tanlash ekrani — mexanizm klientniki, so'zlar o'yinniki |
 | `client3d/…/client3d/Fog.java` | tuman sozlamasi (LOS, uch qatlam yorqinligi, yumshoqlik, tekstura o'lchami, rang) |

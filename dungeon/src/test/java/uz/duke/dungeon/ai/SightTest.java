@@ -75,12 +75,59 @@ class SightTest {
     }
 
     private static Arena arena(int wallColumn, int heroCell, int skeletonCell) {
-        var world = Dungeon.world(arena(wallColumn), SETTINGS);
+        return arena(Dungeon.world(arena(wallColumn), SETTINGS), heroCell, skeletonCell);
+    }
+
+    private static Arena arena(Dungeon.Arena world, int heroCell, int skeletonCell) {
         var game = world.game();
         game.spawn("Hero", world.hero(), at(heroCell), at(15));
         game.spawn("Skeleton", world.dungeon(), at(skeletonCell), at(15));
         game.runHeadless(1);
         return new Arena(game, creature(game, "Hero"), creature(game, "Skeleton"));
+    }
+
+    /** The shipped hero, re-tuned: his bow drawn further than his eyes reach. */
+    private static String longBow() {
+        var creatures = uz.duke.dungeon.content.Content.read(
+                uz.duke.dungeon.content.Content.CREATURES);
+        assertTrue(creatures.contains("AttackRange = 60"), "the hero's bow should still be 60");
+        return creatures.replace("AttackRange = 60", "AttackRange = 200");
+    }
+
+    private static Dungeon.Arena flatWorld(String creaturesIni) {
+        return Dungeon.world(arena(NO_WALL), null, SETTINGS, creaturesIni,
+                new uz.duke.dungeon.power.PowerBook(SETTINGS.powerMinCooldownPercent()),
+                new uz.duke.dungeon.loot.LootBag());
+    }
+
+    /**
+     * The same room with its far half a storey up, and a flight of stairs at the
+     * column where it rises — or a sheer edge, which is the case that matters.
+     */
+    private static String storeys(int raisedFrom, boolean withStair) {
+        var text = new StringBuilder();
+        for (int y = 0; y < HIGH; y++) {
+            for (int x = 0; x < WIDE; x++) {
+                boolean edge = x == 0 || y == 0 || x == WIDE - 1 || y == HIGH - 1;
+                text.append(edge ? '#'
+                        : withStair && x == raisedFrom - 1 ? '/'
+                        : x >= raisedFrom ? '1' : '0');
+            }
+            text.append('\n');
+        }
+        return text.toString();
+    }
+
+    private static Arena raisedArena(int raisedFrom, boolean withStair, int heroCell,
+            int skeletonCell) {
+        return arena(Dungeon.world(arena(NO_WALL), storeys(raisedFrom, withStair), SETTINGS,
+                uz.duke.dungeon.content.Content.read(uz.duke.dungeon.content.Content.CREATURES),
+                new uz.duke.dungeon.power.PowerBook(SETTINGS.powerMinCooldownPercent()),
+                new uz.duke.dungeon.loot.LootBag()), heroCell, skeletonCell);
+    }
+
+    private static boolean sees(Arena arena) {
+        return SightLine.sees(arena.hero(), arena.skeleton(), SETTINGS.storeyHeight());
     }
 
     private static GameObject creature(DukeGame game, String template) {
@@ -115,6 +162,66 @@ class SightTest {
     void sightIsTheSameFromEitherEnd() {
         var arena = arena(13, 10, 15);
         assertFalse(SightLine.clear(arena.skeleton(), arena.hero()));
+    }
+
+    // ---- and the two things besides stone that hide a creature ----
+
+    /**
+     * The dark hides as well as stone does.
+     *
+     * <p>His eyes reach 70 and this is 250 away down an empty room: on screen
+     * there is nothing there at all, because the fog is drawn to the same number.
+     */
+    @Test
+    void aCreatureBeyondHisEyesIsHiddenHoweverClearTheLineIs() {
+        var arena = arena(NO_WALL, 5, 30);
+
+        assertTrue(SightLine.clear(arena.hero(), arena.skeleton()),
+                "there is nothing whatever in the way");
+        assertFalse(sees(arena), "but it is standing in the dark, and the dark is where he stops");
+    }
+
+    /** And inside them it is not hidden, so the test above is about the distance. */
+    @Test
+    void aCreatureInsideThemIsSeen() {
+        assertTrue(sees(arena(NO_WALL, 10, 15)));
+    }
+
+    /**
+     * A floor above his own hides whoever is standing on it.
+     *
+     * <p>It is behind its own edge: from the corridor beneath you see the wall
+     * holding it up and not the room on top, which is exactly what the client
+     * draws. Nothing here knew that until floors had storeys in them, so he shot
+     * at monsters the player was never shown.
+     */
+    @Test
+    void aCreatureOnTheFloorAboveIsHiddenFromBelow() {
+        var arena = raisedArena(12, false, 10, 14);
+
+        assertTrue(SightLine.clear(arena.hero(), arena.skeleton()),
+                "there is no stone between them; the floor is simply higher");
+        assertFalse(sees(arena), "and you cannot see onto a floor above your own");
+    }
+
+    /** The same room without the step in it: the same two cells, in plain view. */
+    @Test
+    void andOnTheSameFloorItIsNotHidden() {
+        assertTrue(sees(raisedArena(20, false, 10, 14)));
+    }
+
+    /**
+     * A staircase is something you can see up.
+     *
+     * <p>A stair cell's floor climbs across it, so its middle stands half a storey
+     * above the room it starts from. Rounded to the nearest that is the upper
+     * storey and the stair hides itself — and with it whoever is halfway up. It
+     * belongs to the floor it starts from, which is what the client says too.
+     */
+    @Test
+    void aCreatureOnTheStairsIsSeenFromTheFootOfThem() {
+        assertTrue(sees(raisedArena(12, true, 10, 11)),
+                "he is looking straight up the steps at it");
     }
 
     // ---- and what he does about it ----
@@ -152,6 +259,58 @@ class SightTest {
 
         assertTrue(healthOf(arena.skeleton()) < before,
                 "with nothing in the way he opens fire on his own");
+    }
+
+    /**
+     * A bow may be drawn further than his eyes reach, and then the dark is what
+     * stops the shot.
+     *
+     * <p>This is the rule the shipped numbers used to stand in for: the hero's bow
+     * was kept shorter than his sight so that nothing had to check the distance,
+     * and the two numbers were left to keep each other honest. They are free of
+     * each other now — the bow here reaches 200 and the target is 130 off, well
+     * inside the bow, twice as far as his eyes, and further than the skeleton's
+     * own senses so that it stays where it was put.
+     */
+    @Test
+    void aBowThatOutrangesHisEyesDoesNotFireIntoTheDark() {
+        var arena = arena(flatWorld(longBow()), 5, 18);
+        float before = healthOf(arena.skeleton());
+
+        arena.game().runHeadless(200);
+
+        assertEquals(before, healthOf(arena.skeleton()), 0.001f,
+                "nothing he has not been shown is something to shoot at");
+        assertNull(arena.hero().findModule(WeaponUpdate.class).getTarget(),
+                "and he has not taken aim at it either");
+    }
+
+    /** The same long bow, inside the light: it fires, so the test above is the dark. */
+    @Test
+    void theSameBowFiresAtWhatTheLightReaches() {
+        var arena = arena(flatWorld(longBow()), 10, 16);
+        float before = healthOf(arena.skeleton());
+
+        arena.game().runHeadless(200);
+
+        assertTrue(healthOf(arena.skeleton()) < before, "60 units off and lit; he shoots");
+    }
+
+    /**
+     * And he does not shoot at what is standing on the floor above him.
+     *
+     * <p>Inside his reach, inside his eyes, nothing but air between — and drawn
+     * nowhere, because the client will not show you a storey you have not climbed.
+     */
+    @Test
+    void heDoesNotShootAtTheFloorAboveHim() {
+        var arena = raisedArena(12, false, 10, 14);
+        float before = healthOf(arena.skeleton());
+
+        arena.game().runHeadless(200);
+
+        assertEquals(before, healthOf(arena.skeleton()), 0.001f,
+                "a room he has not climbed into is a room he cannot fight in");
     }
 
     /**

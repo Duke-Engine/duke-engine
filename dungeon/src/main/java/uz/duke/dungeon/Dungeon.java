@@ -161,7 +161,7 @@ public final class Dungeon {
                             (owner, data) -> new Bow(owner, settings), Bow::parseData);
                     // Stone stops his shots as well as his eyes.
                     factory.register("EyesOnly",
-                            (owner, data) -> new EyesOnly(owner), EyesOnly::parseData);
+                            (owner, data) -> new EyesOnly(owner, settings), EyesOnly::parseData);
                     factory.register("ArrowUpdate",
                             (owner, data) -> new ArrowUpdate(owner, data, powers),
                             ArrowUpdate::parseData);
