@@ -67,6 +67,19 @@ class DungeonMonsterArtTest {
         return null;
     }
 
+    /** Whether a model carries a colour map of its own, however deep it is hung. */
+    private static boolean hasTexture(Spatial model) {
+        if (model instanceof com.jme3.scene.Geometry geometry) {
+            var material = geometry.getMaterial();
+            return material != null && material.getParams().stream()
+                    .anyMatch(param -> param.getValue() instanceof com.jme3.texture.Texture);
+        }
+        if (model instanceof Node node) {
+            return node.getChildren().stream().anyMatch(DungeonMonsterArtTest::hasTexture);
+        }
+        return false;
+    }
+
     private static List<uz.duke.dungeon.content.MonsterLook> looks() {
         var all = new ArrayList<uz.duke.dungeon.content.MonsterLook>();
         for (var kind : SETTINGS.monsters()) {
@@ -93,17 +106,15 @@ class DungeonMonsterArtTest {
         }
     }
 
-    /** As is every skin — a model whose texture is missing loads, and comes out blank. */
-    @Test
-    void everySkinNamedIsShipped() {
-        for (var look : looks()) {
-            assertNotNull(assets().loadTexture(look.texture()),
-                    look.texture() + " is named but missing");
-        }
-    }
-
     /**
-     * The skins are real pictures, not black squares.
+     * Every monster is drawn in colours, whether the settings name them or not.
+     *
+     * <p>Two ways a creature gets its colours and both have to end somewhere real.
+     * A kit that ships a skin beside the model has it named here, and a named file
+     * that is missing loads to a blank creature. A kit that packs the picture into
+     * the model names nothing — and then "no texture" has to mean <em>the one it
+     * came with</em> rather than none, which is how a barrel once came out plain
+     * white.
      *
      * <p>Written after the monsters first appeared entirely black. That has two
      * possible causes which look identical — a skin that is dark, or a material
@@ -112,8 +123,13 @@ class DungeonMonsterArtTest {
      * again, it is the lighting.
      */
     @Test
-    void everySkinIsAColouredPictureRatherThanADarkOne() {
+    void everyMonsterIsDrawnInColoursRatherThanBlank() {
         for (var look : looks()) {
+            if (look.texture() == null) {
+                assertTrue(hasTexture(assets().loadModel(look.model())),
+                        look.model() + " names no skin and carries none — it would render blank");
+                continue;
+            }
             var image = assets().loadTexture(look.texture()).getImage();
             assertTrue(image.getWidth() >= 512 && image.getHeight() >= 512,
                     look.texture() + " is only " + image.getWidth() + "x" + image.getHeight());
@@ -131,6 +147,29 @@ class DungeonMonsterArtTest {
             float brightness = total / (float) samples;
             assertTrue(brightness > 30f,
                     look.texture() + " averages " + brightness + "/255 — it really is a dark image");
+        }
+    }
+
+    /**
+     * What each monster carries is shipped, and hangs on a bone it has.
+     *
+     * <p>A misspelt bone is a monster that quietly carries nothing, which looks
+     * exactly like a weapon that failed to load — and a skeleton swinging an empty
+     * fist through a clip built around a blade reads as a bug in the animation.
+     */
+    @Test
+    void everyMonsterCarriesSomethingItCanHold() {
+        for (var look : looks()) {
+            var held = look.held();
+            if (!held.isCarried()) {
+                continue; // an empty-handed monster is allowed; it just punches
+            }
+            assertNotNull(assets().loadModel(held.model()),
+                    held.model() + " is named but missing");
+            var armature = control(assets().loadModel(look.model()), SkinningControl.class)
+                    .getArmature();
+            assertNotNull(armature.getJoint(held.bone()),
+                    held.bone() + " is not a joint on " + look.model());
         }
     }
 
@@ -170,35 +209,47 @@ class DungeonMonsterArtTest {
 
     // ---- animation ----
 
-    /** The library is shipped, and it is a library: many clips, no creature of its own. */
+    /** The libraries are shipped, and they are libraries: many clips, no creature. */
     @Test
-    void theAnimationLibraryIsShippedAndFullOfClips() {
-        var library = assets().loadModel(SETTINGS.animationLibrary());
-        var composer = control(library, AnimComposer.class);
-
-        assertNotNull(composer, "the library has no animations in it at all");
-        assertTrue(composer.getAnimClipsNames().size() > 10,
-                "only " + composer.getAnimClipsNames().size() + " clips");
+    void theAnimationLibrariesAreShippedAndFullOfClips() {
+        assertFalse(SETTINGS.animationLibraries().isEmpty(),
+                "the monsters were left with nowhere to take clips from");
+        int clips = 0;
+        for (var path : SETTINGS.animationLibraries()) {
+            var composer = control(assets().loadModel(path), AnimComposer.class);
+            assertNotNull(composer, path + " has no animations in it at all");
+            clips += composer.getAnimClipsNames().size();
+        }
+        assertTrue(clips > 10, "only " + clips + " clips between them");
     }
 
-    /** Every clip the settings name — defaults and per-kind overrides — is in it. */
+    /** Every clip the settings name — defaults and per-kind overrides — is in one. */
     @Test
-    void everyClipNamedIsInTheLibrary() {
-        var composer = control(assets().loadModel(SETTINGS.animationLibrary()), AnimComposer.class);
-
+    void everyClipNamedIsInOneOfTheLibraries() {
         for (var look : looks()) {
             for (var clip : new String[] {look.idle(), look.walk(), look.attack()}) {
                 assertNotNull(clip, "a monster was left without one of its three clips");
-                assertNotNull(composer.getAnimClip(clip),
-                        clip + " is named in dungeon.ini but not in the library");
+                assertTrue(inAMonsterLibrary(clip),
+                        clip + " is named in dungeon.ini but is in none of the libraries");
             }
             // Optional, and off in the shipped file — but a name that is there has
-            // to be a name the library answers to, or switching it on is a silence.
+            // to be a name a library answers to, or switching it on is a silence.
             if (look.hurt() != null) {
-                assertNotNull(composer.getAnimClip(look.hurt()),
-                        look.hurt() + " is named in dungeon.ini but not in the library");
+                assertTrue(inAMonsterLibrary(look.hurt()),
+                        look.hurt() + " is named in dungeon.ini but is in no library");
             }
         }
+    }
+
+    /** Whether any library the monsters share carries a clip under this name. */
+    private static boolean inAMonsterLibrary(String clip) {
+        for (var path : SETTINGS.animationLibraries()) {
+            var composer = control(assets().loadModel(path), AnimComposer.class);
+            if (composer != null && composer.getAnimClip(clip) != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** The clips a creature actually asked for, in the order the client wants them. */
@@ -257,11 +308,9 @@ class DungeonMonsterArtTest {
      */
     @Test
     void everythingHasADeathToPlay() {
-        var composer = control(assets().loadModel(SETTINGS.animationLibrary()), AnimComposer.class);
-
         assertNotNull(SETTINGS.deathClip(), "the monsters were left without one");
-        assertNotNull(composer.getAnimClip(SETTINGS.deathClip()),
-                SETTINGS.deathClip() + " is named in dungeon.ini but not in the library");
+        assertTrue(inAMonsterLibrary(SETTINGS.deathClip()),
+                SETTINGS.deathClip() + " is named in dungeon.ini but is in no library");
 
         var hero = SETTINGS.hero();
         assertNotNull(hero.death(), "and so was the hero");
@@ -291,12 +340,12 @@ class DungeonMonsterArtTest {
     @Test
     void everyMonsterCanWearTheLibrarysAnimations() {
         var loader = assets();
-        var library = loader.loadModel(SETTINGS.animationLibrary());
-
         for (var look : looks()) {
             var monster = loader.loadModel(look.model());
-            int copied = AnimationLibrary.copy(library, monster,
-                    clipsOf(look));
+            int copied = 0;
+            for (var path : SETTINGS.animationLibraries()) {
+                copied += AnimationLibrary.copy(loader.loadModel(path), monster, clipsOf(look));
+            }
 
             assertEquals(clipsOf(look).size(), copied,
                     look.model() + " took only " + copied + " of its "
@@ -308,13 +357,14 @@ class DungeonMonsterArtTest {
     @Test
     void anAnimatedMonsterReallyMoves() {
         var loader = assets();
-        var library = loader.loadModel(SETTINGS.animationLibrary());
         var look = looks().get(0);
         var monster = loader.loadModel(look.model());
-        AnimationLibrary.copy(library, monster, List.of(look.walk()));
+        for (var path : SETTINGS.animationLibraries()) {
+            AnimationLibrary.copy(loader.loadModel(path), monster, List.of(look.walk()));
+        }
 
         var armature = control(monster, SkinningControl.class).getArmature();
-        var knee = armature.getJoint("calf_l");
+        var knee = armature.getJoint("lowerleg.l");
         assertNotNull(knee, "the creature kit's skeleton is not the one we think it is");
         var before = knee.getLocalRotation().clone();
 
@@ -344,8 +394,8 @@ class DungeonMonsterArtTest {
         assertTrue(hero.hasModel(), "the settings file should give the hero a model");
 
         assertNotNull(assets().loadModel(hero.model()));
-        assertNotNull(hero.holds(), "an archer with no bow is an archer miming");
-        assertNotNull(assets().loadModel(hero.holds()), hero.holds() + " is named but missing");
+        assertNotNull(hero.held().model(), "an archer with no bow is an archer miming");
+        assertNotNull(assets().loadModel(hero.held().model()), hero.held().model() + " is named but missing");
         assertFalse(hero.animations().isEmpty(), "he was left with nowhere to take clips from");
         for (var path : hero.animations()) {
             assertNotNull(assets().loadModel(path), path + " is named but missing");
@@ -365,9 +415,9 @@ class DungeonMonsterArtTest {
         var armature = control(assets().loadModel(hero.model()), SkinningControl.class)
                 .getArmature();
 
-        assertNotNull(hero.heldIn(), "the settings should say which bone holds the bow");
-        assertNotNull(armature.getJoint(hero.heldIn()),
-                hero.heldIn() + " is not a joint on his rig; it has "
+        assertNotNull(hero.held().bone(), "the settings should say which bone holds the bow");
+        assertNotNull(armature.getJoint(hero.held().bone()),
+                hero.held().bone() + " is not a joint on his rig; it has "
                         + armature.getJointList().stream().map(com.jme3.anim.Joint::getName)
                                 .toList());
     }
@@ -392,7 +442,7 @@ class DungeonMonsterArtTest {
         var hero = SETTINGS.hero();
         float[] middle = {Float.MAX_VALUE, -Float.MAX_VALUE};
         float[] tips = {Float.MAX_VALUE, -Float.MAX_VALUE};
-        assets().loadModel(hero.holds()).depthFirstTraversal(spatial -> {
+        assets().loadModel(hero.held().model()).depthFirstTraversal(spatial -> {
             if (!(spatial instanceof com.jme3.scene.Geometry geometry)) {
                 return;
             }
@@ -412,7 +462,7 @@ class DungeonMonsterArtTest {
                 "neither side of this bow bulges in the middle, so it has no grip to find: "
                         + "middle x " + middle[0] + ".." + middle[1]
                         + ", tips x " + tips[0] + ".." + tips[1]);
-        assertEquals(gripTowardPositiveX ? 180f : 0f, hero.heldRoll(), 0.001f,
+        assertEquals(gripTowardPositiveX ? 180f : 0f, hero.held().roll(), 0.001f,
                 "the grip is toward " + (gripTowardPositiveX ? "+x" : "-x")
                         + " and the bone points +x at the archer, so HeldRoll is wrong");
     }
@@ -554,35 +604,37 @@ class DungeonMonsterArtTest {
     }
 
     /**
-     * The hero's own libraries are the ones that move him.
+     * The hero and the monsters share their rig, and therefore their libraries.
      *
-     * <p>This used to say the opposite way round — that the monsters' library
-     * could not touch him at all, because his rig and theirs shared no joint
-     * names. The kit he comes from now happens to share a few, so a clip copies
-     * across; what it does not do is move him. That is the fact worth holding,
-     * and it is the one that matters: a clip can be added and drive nothing, which
-     * is a hero standing perfectly still with a full list of animations.
+     * <p>This has said three things in its life and the change each time was the
+     * art rather than the rule. It began as "the two share no joint at all, so a
+     * clip cannot cross" — true of a Mixamo hero and a Quaternius bestiary. Then
+     * as "a clip crosses and moves nothing", when the hero changed kits and a few
+     * names happened to match. Now both come out of one pack on one rig, and the
+     * fact worth holding is the plain one: the files the monsters use really do
+     * move him, which is why there is one folder of clips and not two.
      */
     @Test
-    void theMonstersLibraryDoesNotMoveTheHero() {
+    void theHeroAndTheMonstersShareTheirClips() {
         var him = assets().loadModel(SETTINGS.hero().model());
-        AnimationLibrary.copy(assets().loadModel(SETTINGS.animationLibrary()), him,
-                List.of("Walk_Loop"));
-        var composer = control(him, AnimComposer.class);
-        if (composer == null || composer.getAnimClip("Walk_Loop") == null) {
-            return; // nothing crossed at all, which is the older and simpler answer
+        var walk = SETTINGS.lookOf(SETTINGS.monsters().get(0)).walk();
+        int copied = 0;
+        for (var path : SETTINGS.animationLibraries()) {
+            copied += AnimationLibrary.copy(assets().loadModel(path), him, List.of(walk));
         }
+        assertEquals(1, copied, walk + " did not go onto the hero at all");
 
         var knee = control(him, SkinningControl.class).getArmature().getJoint("lowerleg.l");
         var before = knee.getLocalRotation().clone();
-        composer.setCurrentAction("Walk_Loop");
+        var composer = control(him, AnimComposer.class);
+        composer.setCurrentAction(walk);
         for (int frame = 0; frame < 12; frame++) {
             composer.update(0.05f);
             him.updateLogicalState(0.05f);
         }
 
-        assertEquals(before, knee.getLocalRotation(),
-                "the monsters' library moved his legs, so he could share it");
+        assertFalse(before.equals(knee.getLocalRotation()),
+                "the monsters' walk went onto him and moved nothing — the rigs have parted");
     }
 
     /**
@@ -595,15 +647,21 @@ class DungeonMonsterArtTest {
     @Test
     void aClipHandedOverUnchangedWouldDriveNothing() {
         var loader = assets();
-        var library = loader.loadModel(SETTINGS.animationLibrary());
         var look = looks().get(0);
         var monster = loader.loadModel(look.model());
 
-        var borrowed = control(library, AnimComposer.class).getAnimClip(look.walk());
+        com.jme3.anim.AnimClip borrowed = null;
+        for (var path : SETTINGS.animationLibraries()) {
+            var held = control(loader.loadModel(path), AnimComposer.class).getAnimClip(look.walk());
+            if (held != null) {
+                borrowed = held;
+            }
+        }
+        assertNotNull(borrowed, look.walk() + " is in none of the libraries");
         var composer = control(monster, AnimComposer.class);
         composer.addAnimClip(borrowed); // the naive way
 
-        var knee = control(monster, SkinningControl.class).getArmature().getJoint("calf_l");
+        var knee = control(monster, SkinningControl.class).getArmature().getJoint("lowerleg.l");
         var before = knee.getLocalRotation().clone();
         composer.setCurrentAction(look.walk());
         for (int frame = 0; frame < 12; frame++) {

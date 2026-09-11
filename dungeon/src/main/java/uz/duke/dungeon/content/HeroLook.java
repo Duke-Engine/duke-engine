@@ -5,19 +5,16 @@ import java.util.List;
 /**
  * What the hero is drawn as.
  *
- * <p>Separate from {@link MonsterLook} because he carries things a monster does
- * not — a bow in his hand — and because his clips come from more than one
- * library. The shape is otherwise the same one, and it was not always: he used to
- * be described as one file per movement, because that is how an animation site
- * hands its work out, and every one of those files carried the same
- * exporter-generated clip name so the file was the only thing saying which was
- * the run. A character <em>kit</em> is the other way round — a handful of
- * libraries, each holding dozens of clips under names that mean something — and
- * so the names moved into this file and the four fields became two.
- *
- * <p>He and the bestiary sit on different skeletons, which is fine and worth
- * saying: a creature is animated from a library built on <em>its</em> rig, and
- * nothing requires every creature in a game to share one.
+ * <p>Separate from {@link MonsterLook} because he takes his clips from several
+ * libraries rather than one, and because there is only ever one of him — a kind
+ * of monster is a template the generator picks from, and he is not. The shape is
+ * otherwise the same, and it was not always: he used to be described as one file
+ * per movement, because that is how an animation site hands its work out, and
+ * every one of those files carried the same exporter-generated clip name so the
+ * file was the only thing saying which was the run. A character <em>kit</em> is
+ * the other way round — a handful of libraries, each holding dozens of clips
+ * under names that mean something — and so the names moved into this file and the
+ * four fields became two.
  *
  * @param model      the mesh, or {@code null} to fall back to a coloured shape
  * @param texture    a colour map to override the model's own, or {@code null} to
@@ -36,20 +33,7 @@ import java.util.List;
  * @param hurt       the clip he flinches in, or {@code null} for a hero who does
  *                   not flinch
  * @param death      the clip he falls in
- * @param holds      a second model carried on one of his bones — a bow — or
- *                   {@code null} for a hero who carries nothing
- * @param heldIn     the bone it hangs on. Character kits ship a bone for exactly
- *                   this and it is worth using: the hand is what the clips move,
- *                   so a weapon parented to it needs nothing kept in step
- * @param heldScale  what to multiply the held model by, when it and the body were
- *                   not authored at the same size
- * @param heldPitch  degrees of turn to put it the right way round on that bone.
- *                   The bone gets it into the hand; which way round it goes is
- *                   between the bone and the model, and a kit does not always lay
- *                   every model out the same way
- * @param heldYaw    the same, about the second axis
- * @param heldRoll   the same, about the third — which for a weapon standing up
- *                   out of the fist is the one that turns it face about
+ * @param held       the bow in his hand — see {@link Held}
  */
 public record HeroLook(
         String model,
@@ -62,12 +46,7 @@ public record HeroLook(
         String attack,
         String hurt,
         String death,
-        String holds,
-        String heldIn,
-        float heldScale,
-        float heldPitch,
-        float heldYaw,
-        float heldRoll) {
+        Held held) {
 
     public HeroLook {
         animations = List.copyOf(animations);
@@ -75,7 +54,7 @@ public record HeroLook(
 
     /** No art: he is drawn as a shape, as he was before there was a model. */
     public static final HeroLook NONE = new HeroLook(null, null, 1f, 0f, List.of(),
-            null, null, null, null, null, null, null, 1f, 0f, 0f, 0f);
+            null, null, null, null, null, Held.NOTHING);
 
     public boolean hasModel() {
         return model != null;

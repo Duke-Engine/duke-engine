@@ -754,6 +754,9 @@ public final class DungeonSettings {
                     .add("Walk", Ini.string((t, v) -> t.art.walk = v))
                     .add("Attack", Ini.string((t, v) -> t.art.attack = v))
                     .add("Hurt", Ini.string((t, v) -> t.art.hurt = v))
+                    .add("Holds", Ini.string((t, v) -> t.art.holds = v))
+                    .add("HeldIn", Ini.string((t, v) -> t.art.heldIn = v))
+                    .add("HeldScale", Ini.real((t, v) -> t.art.heldScale = v))
                     .add("AnimationsFrom", Ini.string((t, v) -> t.animationsFrom = v))
                     .add("Death", Ini.string((t, v) -> t.death = v));
 
@@ -826,6 +829,12 @@ public final class DungeonSettings {
         String walk;
         String attack;
         String hurt;
+        String holds;
+        String heldIn;
+        float heldScale = 1f;
+        float heldPitch;
+        float heldYaw;
+        float heldRoll;
 
         MonsterBuilder(String name) {
             this.name = name;
@@ -839,7 +848,7 @@ public final class DungeonSettings {
         /** Just the art of it, which is all a theme overriding a creature needs. */
         MonsterLook look() {
             return new MonsterLook(model, texture, modelScale, tint, facing, idle, walk, attack,
-                    hurt);
+                    hurt, new Held(holds, heldIn, heldScale, heldPitch, heldYaw, heldRoll));
         }
     }
 
@@ -867,7 +876,13 @@ public final class DungeonSettings {
                     .add("Idle", Ini.string((m, v) -> m.idle = v))
                     .add("Walk", Ini.string((m, v) -> m.walk = v))
                     .add("Attack", Ini.string((m, v) -> m.attack = v))
-                    .add("Hurt", Ini.string((m, v) -> m.hurt = v));
+                    .add("Hurt", Ini.string((m, v) -> m.hurt = v))
+                    .add("Holds", Ini.string((m, v) -> m.holds = v))
+                    .add("HeldIn", Ini.string((m, v) -> m.heldIn = v))
+                    .add("HeldScale", Ini.real((m, v) -> m.heldScale = v))
+                    .add("HeldPitch", Ini.real((m, v) -> m.heldPitch = v))
+                    .add("HeldYaw", Ini.real((m, v) -> m.heldYaw = v))
+                    .add("HeldRoll", Ini.real((m, v) -> m.heldRoll = v));
 
     /** Accumulates one {@code DungeonSkill <hero> <key>} block. */
     private static final class SkillBuilder {
@@ -1080,7 +1095,7 @@ public final class DungeonSettings {
                     .add("WallLift", Ini.real((s, v) -> s.tileWallLift = v))
                     .add("WallShift", Ini.real((s, v) -> s.tileWallShift = v));
 
-    private String animationLibrary;
+    private final java.util.List<String> animationLibraries = new java.util.ArrayList<>();
     private String defaultIdle;
     private String defaultWalk;
     private String defaultAttack;
@@ -1088,15 +1103,19 @@ public final class DungeonSettings {
     private String defaultDeath;
 
     /**
-     * The file every monster's animations are taken from, or {@code null} for
-     * none.
+     * The files every monster's animations are taken from.
      *
-     * <p>One library for the whole bestiary, because a creature kit and an
+     * <p>The same libraries for the whole bestiary, because a creature kit and an
      * animation library meet on a shared skeleton — so what animates one monster
      * animates all of them, and a new monster needs no animation work at all.
+     *
+     * <p>Several rather than one, because a kit sorts its clips by what the
+     * movement is for: standing and dying in one file, walking in another, a swing
+     * in a third. It was one file when the bestiary came from a library that
+     * bundled everything together.
      */
-    public String animationLibrary() {
-        return animationLibrary;
+    public java.util.List<String> animationLibraries() {
+        return java.util.List.copyOf(animationLibraries);
     }
 
     /** The clip every monster plays as it falls, or {@code null} for none. */
@@ -1139,8 +1158,8 @@ public final class DungeonSettings {
         return heroModel == null ? HeroLook.NONE
                 : new HeroLook(heroModel, heroTexture, heroModelScale, heroFacing,
                         heroAnimations, heroIdle, heroWalk, heroAttack, heroHurt, heroDeath,
-                        heroHolds, heroHeldIn, heroHeldScale,
-                        heroHeldPitch, heroHeldYaw, heroHeldRoll);
+                        new Held(heroHolds, heroHeldIn, heroHeldScale,
+                                heroHeldPitch, heroHeldYaw, heroHeldRoll));
     }
 
     private String arrowModel;
@@ -1421,7 +1440,7 @@ public final class DungeonSettings {
 
     private static final FieldParseTable<DungeonSettings> ANIMATIONS =
             new FieldParseTable<DungeonSettings>()
-                    .add("Library", Ini.string((s, v) -> s.animationLibrary = v))
+                    .add("Library", Ini.string((s, v) -> s.animationLibraries.add(v)))
                     .add("Idle", Ini.string((s, v) -> s.defaultIdle = v))
                     .add("Walk", Ini.string((s, v) -> s.defaultWalk = v))
                     .add("Attack", Ini.string((s, v) -> s.defaultAttack = v))

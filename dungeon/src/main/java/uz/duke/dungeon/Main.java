@@ -46,6 +46,14 @@ public final class Main {
         }
     }
 
+    /** What this creature has in its hand, if the file gave it anything. */
+    private static void carry(Visuals.UnitVisual unit, uz.duke.dungeon.content.Held held) {
+        if (held.isCarried()) {
+            unit.holds(held.model(), held.bone(), held.scale())
+                    .heldTurn(held.pitch(), held.yaw(), held.roll());
+        }
+    }
+
     /**
      * An arrow's look. Two creatures use it — his ordinary shot and the one Q
      * looses — differing only in the numbers, which is why it is one method.
@@ -159,6 +167,7 @@ public final class Main {
                     .attack(art.attack())
                     .hurt(art.hurt())
                     .die(themed.death() != null ? themed.death() : settings.deathClip());
+            carry(unit, art.held());
             // Borrowed only when the file says so. A themed creature usually comes
             // with a model of its own, and a model of its own carries its own
             // clips -- copying them onto it from a second copy of the same file
@@ -271,9 +280,10 @@ public final class Main {
                         .walk(look.walk())
                         .attack(look.attack())
                         .hurt(look.hurt());
+                carry(unit, look.held());
                 unit.die(settings.deathClip());
-                if (settings.animationLibrary() != null) {
-                    unit.animationsFrom(settings.animationLibrary());
+                for (var library : settings.animationLibraries()) {
+                    unit.animationsFrom(library);
                 }
             });
         }
@@ -295,10 +305,7 @@ public final class Main {
                 if (hero.texture() != null) {
                     unit.texture(hero.texture());
                 }
-                if (hero.holds() != null && hero.heldIn() != null) {
-                    unit.holds(hero.holds(), hero.heldIn(), hero.heldScale())
-                            .heldTurn(hero.heldPitch(), hero.heldYaw(), hero.heldRoll());
-                }
+                carry(unit, hero.held());
                 for (var library : hero.animations()) {
                     unit.animationsFrom(library);
                 }

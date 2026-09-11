@@ -22,10 +22,9 @@ written from there.
 | …and the dirt floors the forest is laid on | KayKit | CC0 | `models/tiles/forest/` |
 | Forest Nature Pack — the trees that stand where a wall would | KayKit | CC0 | `models/tiles/forest/` |
 | …and its rocks and bare trees | KayKit | CC0 | `models/props/forest/` |
-| Universal Animation Library — what moves the bestiary | Quaternius | CC0 | `animations/monsters/` |
-| Bestiary — the Imp and the Puglin, and their skins | Quaternius | **QAL 1.0** — free in any product, no credit needed, **but the files themselves may not be redistributed as assets** | `models/monsters/` |
+| Skeletons — everything that walks the floors, and its blades, axes and staves | KayKit | CC0 | `models/monsters/` |
 | Adventurers — the hero, his bow and his arrows | KayKit | CC0 | `models/heroes/` |
-| Character Animations — everything he does | KayKit | CC0 | `animations/hero/` |
+| Character Animations — everything anything down here does | KayKit | CC0 | `animations/characters/` |
 | RPG Audio — cloth, coins, a door, a knife drawn | Kenney | CC0 | `audio/sfx/` |
 | Impact Sounds — what an arrow and a fist land like, and footsteps | Kenney | CC0 | `audio/sfx/` |
 | Interface Sounds — clicks, a level, a gong | Kenney | CC0 | `audio/ui/` |
@@ -33,25 +32,30 @@ written from there.
 | Three pieces of music | freesound.org | **unconfirmed, see below** | `audio/music/` |
 | Cinzel — the lettering the menus are set in | Natanael Gama / the Cinzel Project Authors | [SIL OFL 1.1](https://openfontlicense.org) | `fonts/` |
 
-### The one that needs a decision
+### The two that needed a decision, and no longer do
 
-There were two. The other was the hero: she came from Mixamo, which is Adobe's
-and is neither CC0 nor any of the Creative Commons licences, and no licence text
-shipped with the download to keep beside her. The fix was the straight swap this
-page predicted — *"a CC0 rigged character of the same shape, of which KayKit's
-Ranger is one"* — and it turned out to be exactly that, plus a bow, an arrow and
-three libraries of movement, all CC0 and all from the pack the world is already
-built from. She is gone from the tree and so is the question.
+Both are settled, and both the same way. This section is kept rather than deleted
+because the reasoning is worth having next time a free asset arrives with terms
+attached.
 
-**Quaternius Bestiary (the monsters).** The QAL is explicit and shipped with the
-files: *"You may not extract, repackage, sublicense, sell, or otherwise
-redistribute the Assets (in original or modified form) as a standalone asset,
-asset pack, stock file, template, or similar product… It does not restrict
-distributing a completed Product that merely incorporates the Assets."* Building
-and releasing the game is plainly allowed. Whether a public git tree counts as
-"distributing them as a standalone asset" is the question, and it is a judgement
-call rather than a rule. Their animation library, also here, is CC0 and has no such clause. The world
-itself is KayKit now, and CC0 throughout.
+**The hero** came from Mixamo, which is Adobe's and is neither CC0 nor any of the
+Creative Commons licences, and no licence text shipped with the download to keep
+beside her. The fix was the straight swap this page predicted — *"a CC0 rigged
+character of the same shape, of which KayKit's Ranger is one"* — and it turned
+out to be exactly that, plus a bow, an arrow and three libraries of movement.
+
+**The monsters** were Quaternius's Bestiary, under the QAL: *"You may not
+extract, repackage, sublicense, sell, or otherwise redistribute the Assets… as a
+standalone asset, asset pack, stock file, template, or similar product."*
+Building and releasing the game was plainly allowed; whether a public git tree
+counts as handing the files out was a judgement call rather than a rule, and the
+kind of question that does not get easier by being left. They are gone too.
+
+Every model and every clip in the tree is now CC0, out of one maker's packs.
+Nothing left in the art turns on how a repository is read. What is still open is
+smaller and of a different kind: the four icons ask for a line of credit, which
+they have below, and three pieces of music have licences nobody has looked up —
+see the end of this page.
 
 ### The icons, in full
 
@@ -109,8 +113,3 @@ were baked here rather than downloaded — `client3d`'s `BitmapFontBaker` turns 
 `.ttf` into the pair — so the OFL's terms are met by the original, and anyone can
 re-bake them from it.
 
-### Nothing uses these
-
-`_unused/` holds one file nothing references — a spare monster skin. It held two
-Mixamo clips as well, and they went out with the hero they belonged to. It is
-kept out of the way rather than deleted; the folder's own README says what it is.

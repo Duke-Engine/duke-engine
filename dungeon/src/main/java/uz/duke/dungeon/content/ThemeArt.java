@@ -153,7 +153,7 @@ public record ThemeArt(
         return new ThemeMonster(themed.template(),
                 new MonsterLook(inProps(look.model()), inProps(look.texture()), look.modelScale(),
                         look.tint(), look.facing(), look.idle(), look.walk(), look.attack(),
-                        look.hurt()),
+                        look.hurt(), look.held().under(this::inProps)),
                 inProps(themed.animationsFrom()), themed.death());
     }
 
