@@ -1191,6 +1191,11 @@ public final class DungeonSettings {
         return defaultAttack;
     }
 
+    /** And how it stands when it is doing nothing in particular. */
+    public String defaultIdle() {
+        return defaultIdle;
+    }
+
     /** A kind's look with the game's default clip names filled in. */
     public MonsterLook lookOf(MonsterKind kind) {
         return kind.look().withDefaults(defaultIdle, defaultWalk, defaultAttack, defaultHurt);

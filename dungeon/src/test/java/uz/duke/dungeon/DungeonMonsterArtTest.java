@@ -550,6 +550,63 @@ class DungeonMonsterArtTest {
         return found[0];
     }
 
+    /**
+     * Anything that shoots stands with its weapon up.
+     *
+     * <p>The half of a ranged creature that nobody thinks of, and the half that
+     * decides whether the other one is visible at all. The shot itself is one
+     * clip a second or two apart; what the player is looking at the rest of the
+     * time is the idle, and in the ordinary idle a skeleton's weapon hand hangs
+     * at its side. A mage with its staff lying at its feet that twitches once
+     * every two seconds is not casting — it is standing there, occasionally
+     * flinching, while fireballs come out of its chest.
+     *
+     * <p>Measured off the rig rather than named: how high the hand that holds the
+     * weapon ends up. Anything that shoots has to hold it higher than a creature
+     * that is doing nothing does.
+     */
+    @Test
+    void anythingThatShootsStandsWithItsWeaponUp() {
+        var atRest = weaponHandHeight(SETTINGS.defaultIdle());
+        for (var kind : SETTINGS.monsters()) {
+            var look = SETTINGS.lookOf(kind);
+            if (!look.attack().startsWith(RANGED) || !look.hasModel()) {
+                continue;
+            }
+            float ready = weaponHandHeight(look.idle());
+            assertTrue(ready > atRest + 0.2f,
+                    kind.name() + " shoots but stands at rest: its weapon hand is at " + ready
+                            + " in " + look.idle() + " against " + atRest + " doing nothing, so"
+                            + " its weapon hangs at its feet between shots");
+        }
+    }
+
+    /**
+     * How high {@code handslot.r} ends up once a clip has been playing a moment.
+     *
+     * <p>Half a second in rather than on the first frame: a clip starts from
+     * wherever the bind pose left the arm and takes a beat to get where it is
+     * going, and the first frame of an aiming pose looks exactly like the first
+     * frame of standing still.
+     */
+    private static float weaponHandHeight(String clip) {
+        var model = assets().loadModel(SETTINGS.lookOf(SETTINGS.monsters().get(0)).model());
+        for (var path : SETTINGS.animationLibraries()) {
+            AnimationLibrary.copy(assets().loadModel(path), model, List.of(clip));
+        }
+        var composer = control(model, AnimComposer.class);
+        assertNotNull(composer, "nothing carries " + clip);
+        assertNotNull(composer.getAnimClip(clip), clip + " is in none of the libraries");
+        composer.setCurrentAction(clip, AnimComposer.DEFAULT_LAYER, true);
+        for (int frame = 0; frame < 12; frame++) {
+            composer.update(0.04f);
+            model.updateLogicalState(0.04f);
+        }
+        var armature = control(model, SkinningControl.class).getArmature();
+        armature.update();
+        return armature.getJoint("handslot.r").getModelTransform().getTranslation().y;
+    }
+
     /** Every clip he asks for is in one of the libraries he names. */
     @Test
     void everyClipTheHeroAsksForIsInOneOfHisLibraries() {
