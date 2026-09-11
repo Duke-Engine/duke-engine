@@ -33,7 +33,6 @@ import com.jme3.scene.control.BillboardControl;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Cylinder;
 import com.jme3.scene.shape.Quad;
-import com.jme3.scene.shape.Sphere;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -70,9 +69,6 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** Prefix of the input mapping for a key the game claimed. */
     private static final String HOTKEY = "Hotkey";
-
-    /** How long a muzzle flash stays lit after a shot. Display time, not game time. */
-    private static final float MUZZLE_FLASH_SECONDS = 0.08f;
 
     private enum Screen { MENU, LOADING, PLAYING, PAUSED, SETTINGS }
 
@@ -239,11 +235,9 @@ final class DukeRtsApp extends SimpleApplication {
         Node healthBar;
         Geometry healthFill;
         Spatial body;      // the shape a click has to hit
-        Geometry flash;
         AnimComposer composer;
         AnimChannel legacyChannel;
         String currentAnim = "";
-        float flashUntil;
         /**
          * Until when a one-shot clip owns the model — a blow, or a flinch.
          *
@@ -3237,7 +3231,6 @@ final class DukeRtsApp extends SimpleApplication {
             } else if (event instanceof WeaponFired fired) {
                 var node = unitNodes.get(fired.shooter().value());
                 if (node != null) {
-                    node.flashUntil = timer.getTimeInSeconds() + MUZZLE_FLASH_SECONDS;
                     playSound(visualFor(node.view.templateName()).fireSound,
                             node.root.getLocalTranslation());
                     // The swing, on the frame the weapon let go. Nothing else in
@@ -3315,7 +3308,6 @@ final class DukeRtsApp extends SimpleApplication {
         // selection ring under one, both read as a thing still in the fight.
         node.healthBar.removeFromParent();
         node.ring.removeFromParent();
-        node.flash.removeFromParent();
 
         // Once through, not looping: a corpse that gets up and dies again forever
         // is worse than one that never fell over.
@@ -3377,8 +3369,6 @@ final class DukeRtsApp extends SimpleApplication {
         node.ring = buildSelectionRing(view);
         node.root.attachChild(node.ring);
         buildHealthBar(node, view, body);
-        node.flash = buildMuzzleFlash(view);
-        node.root.attachChild(node.flash);
 
         unitsNode.attachChild(node.root);
         return node;
@@ -3744,14 +3734,6 @@ final class DukeRtsApp extends SimpleApplication {
                 ? Math.max(fallback, box.getYExtent() * 2f) : fallback;
     }
 
-    private Geometry buildMuzzleFlash(UnitView view) {
-        var flash = new Geometry("flash", new Sphere(8, 8, 0.5f));
-        flash.setMaterial(unshaded(new ColorRGBA(1f, 0.85f, 0.3f, 1f)));
-        flash.setLocalTranslation(view.structure() ? 3.2f : 2.6f, view.structure() ? 2.5f : 1.5f, 0);
-        flash.setCullHint(Spatial.CullHint.Always);
-        return flash;
-    }
-
     private void updateUnitNode(UnitNode node, UnitView view) {
         node.view = view;
         node.root.setLocalTranslation(view.x(), floorHeightAt(view.x(), view.y()), view.y());
@@ -3768,10 +3750,6 @@ final class DukeRtsApp extends SimpleApplication {
             node.healthFill.getMaterial().setColor("Color",
                     fraction > 0.5f ? ColorRGBA.Green : fraction > 0.25f ? ColorRGBA.Orange : ColorRGBA.Red);
         }
-
-        // The flash is lit by an actual shot, not by a timer running while "attacking".
-        node.flash.setCullHint(timer.getTimeInSeconds() < node.flashUntil
-                ? Spatial.CullHint.Never : Spatial.CullHint.Always);
 
         flinch(node, view);
         animate(node, view);
