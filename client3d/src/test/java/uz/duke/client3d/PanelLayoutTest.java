@@ -189,61 +189,80 @@ class PanelLayoutTest {
         assertTrue(slabTop <= (172f + 20f) * scale + 1f,
                 "something stands proud of the bar at " + slabTop);
     }
-
-    /**
-     * A creature's card is drawn short rather than drawn empty.
-     *
-     * <p>The bar was written for one card and every block on it always had
-     * something in it. A skeleton has no experience being earned, no skills, no
-     * bag and no level — and blocks drawn with nothing in them do not read as
-     * "this creature has none of that", they read as a broken panel.
-     */
-    @Test
-    void aCreaturesCardLeavesOutWhatIsNotItsOwn() {
-        var assets = new DesktopAssetManager(true);
-        var font = assets.loadFont("Interface/Fonts/Default.fnt");
-        var gui = new Node("gui");
-        var hero = new HeroPanel(assets, font, gui, 1600f, PanelSkin.NONE);
-        assertTrue(hero.show(CREATURE, 0f), "the panel should have taken a creature's card");
-        gui.updateGeometricState();
-
-        for (var gone : List.of("items", "item-heading", "skill-heading", "experience", "badge")) {
-            assertEquals(Spatial.CullHint.Always, find(gui, gone).getLocalCullHint(),
-                    gone + " is his, not the creature's, and should not be drawn");
-        }
-        // And what the card does say is still there.
-        for (var kept : List.of("minimap-socket", "portrait", "vitals", "depth")) {
-            assertNotEquals(Spatial.CullHint.Always, find(gui, kept).getLocalCullHint(),
-                    kept + " belongs to the floor or the creature and should stay");
-        }
-        assertNotNull(find(gui, "face-glyph"),
-                "an archer's silhouette on a skeleton's card would be the panel lying");
-    }
-
-    /** And the blocks that remain close up rather than leaving a hole. */
-    @Test
-    void theShortCardClosesItsOwnGaps() {
-        var assets = new DesktopAssetManager(true);
-        var font = assets.loadFont("Interface/Fonts/Default.fnt");
-        var gui = new Node("gui");
-        var hero = new HeroPanel(assets, font, gui, 1600f, PanelSkin.NONE);
-        hero.show(CREATURE, 0f);
-        gui.updateGeometricState();
-
-        float vitalsEnd = spanOf(gui, "vitals").to();
-        float depthStart = spanOf(gui, "depth").from();
-        // Two blocks' worth of empty stone between them would be the hole.
-        assertTrue(depthStart - vitalsEnd < 120f,
-                "the bar should have closed up, but left " + (depthStart - vitalsEnd) + " units");
-    }
-
     /** The card the game sends for something that is not his. */
     private static final String CREATURE =
             "name=Skeleton|hp=34/40|depth=III / IV|depthWord=CHUQURLIK|face=skull"
+                    + "|itWord=NARSALAR|skWord=MAHORAT"
                     + "|stat=Zarba,7|stat=Tezlik,16";
 
     /** And the card it sends when nothing at all is selected. */
-    private static final String NOBODY = "name=|depth=III / IV|depthWord=CHUQURLIK";
+    private static final String NOBODY =
+            "name=|depth=III / IV|depthWord=CHUQURLIK|itWord=NARSALAR|skWord=MAHORAT";
+
+    private static Node showing(String card) {
+        var assets = new DesktopAssetManager(true);
+        var font = assets.loadFont("Interface/Fonts/Default.fnt");
+        var gui = new Node("gui");
+        var hero = new HeroPanel(assets, font, gui, 1600f, PanelSkin.NONE);
+        assertTrue(hero.show(card, 0f), "the panel should have taken the card");
+        gui.updateGeometricState();
+        return gui;
+    }
+
+    /**
+     * The bar is the same shape whatever is selected — or nothing is.
+     *
+     * <p>The rule the whole panel is built on, and the one a player notices being
+     * broken without being able to say what broke: <b>the sockets are furniture
+     * and what goes in them is data.</b> Six sockets in his bag whether he is
+     * carrying six things or none; four skill sockets whether they hold skills or
+     * nothing; a portrait frame whether there is a face for it. A bar that changed
+     * shape every time the player clicked would make him hunt for the thing he was
+     * about to press.
+     *
+     * <p>So every block is measured against every card, and they have to agree.
+     */
+    @Test
+    void theBarIsTheSameShapeWhateverIsSelected() {
+        var his = blocks(panel(1600f));
+        for (var card : List.of(CREATURE, NOBODY)) {
+            var other = blocks(showing(card));
+            for (var name : his.keySet()) {
+                assertEquals(his.get(name).from(), other.get(name).from(), 1f,
+                        name + " moved when the selection changed");
+                assertEquals(his.get(name).to(), other.get(name).to(), 1f,
+                        name + " changed width when the selection changed");
+            }
+        }
+    }
+
+    /**
+     * And what the card does not say is simply not drawn in it.
+     *
+     * <p>The other half of the same rule. The furniture stays; the figure in the
+     * portrait, the level on its badge and the experience being earned are the
+     * card's, and a card that carries none of them shows none of them.
+     */
+    @Test
+    void whatTheCardDoesNotSayIsNotDrawnInIt() {
+        var nobody = showing(NOBODY);
+
+        assertNothingDrawn(nobody, "figure");
+        assertEquals(null, find(nobody, "face-glyph"),
+                "an empty frame has no face in it, not even a borrowed one");
+        assertEquals(Spatial.CullHint.Always, find(nobody, "badge").getLocalCullHint(),
+                "nobody is any level");
+        assertEquals(Spatial.CullHint.Always, find(nobody, "title-line").getLocalCullHint(),
+                "and nobody is anything");
+        assertEquals(Spatial.CullHint.Always, find(nobody, "fill").getLocalCullHint(),
+                "nor earning anything");
+
+        // A creature has a face of its own and still none of the rest.
+        var skeleton = showing(CREATURE);
+        assertNotNull(find(skeleton, "face-glyph"), "a skeleton is not an archer");
+        assertEquals(Spatial.CullHint.Always, find(skeleton, "badge").getLocalCullHint(),
+                "a skeleton holds no level");
+    }
 
     /**
      * Nothing of that block reaches the screen — by any of the three ways a block
@@ -264,57 +283,7 @@ class PanelLayoutTest {
             return; // built and hidden
         }
         assertTrue(block instanceof Node empty && empty.getChildren().isEmpty(),
-                name + " is about a creature and there is no creature, but it is still drawn");
-    }
-
-    private static Node showing(String card) {
-        var assets = new DesktopAssetManager(true);
-        var font = assets.loadFont("Interface/Fonts/Default.fnt");
-        var gui = new Node("gui");
-        var hero = new HeroPanel(assets, font, gui, 1600f, PanelSkin.NONE);
-        assertTrue(hero.show(card, 0f), "the panel should have taken the card");
-        gui.updateGeometricState();
-        return gui;
-    }
-
-    /**
-     * With nothing selected the bar keeps the screen and loses the creature.
-     *
-     * <p>The map is still the map and the floor is still the floor; everything
-     * else on the bar was about somebody, and there is nobody. A portrait frame
-     * with no face in it beside a health bar at zero does not read as "nothing is
-     * selected" — it reads as a panel that has lost its hero.
-     */
-    @Test
-    void withNothingSelectedOnlyTheScreensOwnThingsAreLeft() {
-        var gui = showing(NOBODY);
-
-        for (var gone : List.of("portrait", "vitals", "items", "skills", "orders")) {
-            assertNothingDrawn(gui, gone);
-        }
-        for (var kept : List.of("minimap-socket", "depth")) {
-            assertNotEquals(Spatial.CullHint.Always, find(gui, kept).getLocalCullHint(),
-                    kept + " belongs to the screen and should stay");
-        }
-    }
-
-    /**
-     * And what is left closes up rather than sitting where it always sat.
-     *
-     * <p>The map at one end and the floor at the other with a screen of empty
-     * stone between them would be the shape of the bar that is missing, which is
-     * the thing the player should not be shown.
-     */
-    @Test
-    void theEmptyBarClosesUp() {
-        float full = spanOf(panel(1600f), "depth").from()
-                - spanOf(panel(1600f), "minimap-socket").to();
-        var gui = showing(NOBODY);
-
-        float empty = spanOf(gui, "depth").from() - spanOf(gui, "minimap-socket").to();
-
-        assertTrue(empty < full / 3f,
-                "the bar should have closed up, but left " + empty + " of the full " + full);
+                name + " is the card's and the card does not carry it, but it is drawn");
     }
 
     /** Six sockets in the bag whatever he is carrying, and three of them full. */

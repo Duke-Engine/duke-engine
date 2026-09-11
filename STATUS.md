@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-11 · **Testlar:** 908 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-11 · **Testlar:** 906 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -2298,15 +2298,19 @@ mash'al.
 Panel doim kimnidir yozardi. Endi u tanlanganini yozadi, va hech narsa
 tanlanmagan bo'lsa — hech kimni.
 
-- **Nima qoladi:** ekranniki — minimap va chuqurlik. **Nima ketadi:** portret,
-  ko'rsatkichlar, sumka, mahoratlar, buyruq tugmalari. Bo'sh portret romi va
-  nolga tushgan bar "hech narsa tanlanmagan" deb emas, "panel qahramonini
-  yo'qotdi" deb o'qiladi.
-- **Qolganlari yopiladi** — xaritadan chuqurlikgacha bir ekran bo'sh tosh emas.
-- **`layOut` ro'yxatga aylandi.** To'rtta mustaqil ixtiyoriy blok = o'n olti xil
-  joylashuv, va o'n olti joylashuvni bir marta yozishning yagona yo'li har bir
-  blokni tasvirlab, sikл ularni joylashtirishi. Groove faqat qo'shni juftlar
-  orasiga tushadi.
+**Qoida (Warcraft'dagi kabi): uyalar — MEBEL, ichidagisi — MA'LUMOT.** Panel
+shaklini umuman o'zgartirmaydi: portret romi, ikkita bar chuqurchasi, oltita
+narsa uyasi, to'rtta mahorat uyasi va to'rtta buyruq tugmasi doim chiziladi.
+Yo'qoladigani — ichidagisi: figura, ism, unvon, daraja nishoni, raqamlar,
+ikonkalar. Klik qilganda shaklini o'zgartiradigan panel o'yinchini har safar
+bosmoqchi bo'lgan narsasini qidirishga majbur qiladi.
+
+Sumkaning oltita uyasi boshidan shunday ishlardi (nechta narsa bo'lishidan
+qat'i nazar oltita) — mahorat va buyruq uyalari ham endi shunday.
+
+- **`layOut` ro'yxatga aylandi.** Beshta blok doim bor, groove faqat qo'shni
+  juftlar orasiga tushadi — bitta sikl, hech qanday shart.
+- **Bo'sh uya boshqaruv emas:** klik qabul qilmaydi va kursor ostida yonmaydi.
 - **Bo'sh kartada ham `look=` bor va bu majburiy.** Run boshlanganda hech narsa
   tanlanmagan bo'ladi, ya'ni klient o'qiydigan BIRINCHI qator — shu. Undan
   `look=` tushib qolsa, birinchi qavat noto'g'ri toshdan quriladi.
@@ -2315,9 +2319,14 @@ tanlanmagan bo'lsa — hech kimni.
   panel yozayotgan qahramon, va o'limning o'z ekrani bor.
 
 **Diqqat — xulq o'zgardi:** run boshlanganda panel bo'sh, chunki hech narsa
-tanlanmagan. Qahramonni bosmaguncha mahorat uyalari ham ko'rinmaydi (skill
-klavishlari ishlayveradi, chunki ular tanlovga bog'liq emas). Agar run
-boshlanishida qahramon avtomatik tanlansin desangiz — bu bitta qator.
+tanlanmagan. Uyalar ko'rinadi, lekin ichi bo'sh; skill klavishlari esa
+ishlayveradi, chunki ular tanlovga bog'liq emas. Agar run boshlanishida
+qahramon avtomatik tanlansin desangiz — bu bitta qator.
+
+**Kursor endi menyudan boshlab ishlaydi.** `showTheRightPointer()` `simpleUpdate`
+ning oxirida turardi, menyu va yuklash ekrani esa undan oldin `return` qiladi —
+ya'ni o'yinchi Play tugmasini tizimning oq strelkasi bilan bosardi, va bu uning
+o'yindan ko'rgan birinchi narsasi. Chaqiruv yuqoriga ko'chdi.
 
 ---
 

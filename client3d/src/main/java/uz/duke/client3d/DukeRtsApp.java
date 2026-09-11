@@ -2522,6 +2522,11 @@ final class DukeRtsApp extends SimpleApplication {
         followTheWindowSize();
         showOnlyWhilePlaying();
         snapshot = game.getSnapshot();
+        // Before every early return below, not after them. The menu and the
+        // loading screen are screens too, and a pointer that only appears once
+        // the world does leaves the player clicking Play with the operating
+        // system's arrow -- which is the first thing he sees of the game.
+        showTheRightPointer();
         if (menu.isVisible()) {
             // A held slider follows the hand every frame; nothing else does, and
             // it makes no noise about it — a knob being pulled would be forty
@@ -2574,7 +2579,6 @@ final class DukeRtsApp extends SimpleApplication {
         updateBanner();
         updateLevelUp();
         updateHover();
-        showTheRightPointer();
         placeMinimap();
     }
 

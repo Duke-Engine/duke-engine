@@ -170,6 +170,20 @@ final class HeroPanel {
 
     private static final Logger LOG = Logger.getLogger(HeroPanel.class.getName());
 
+    /**
+     * The key a socket carries when it belongs to nobody.
+     *
+     * <p>The bar's sockets are furniture and what goes in them is data — the same
+     * arrangement his bag has always had, where six sockets are drawn whether he
+     * is carrying six things or none. A row that appeared and vanished with the
+     * selection would make the bar a different shape every time the player
+     * clicked, which is the one thing a bar must not be.
+     */
+    private static final char BLANK = '\0';
+
+    /** How the design's own row is shaped, for a card that names no skills. */
+    private static final float[] BLANK_ROW = {SLOT, SLOT, SLOT, ULT_SLOT};
+
     /** Pictures the game named and the client could not find — warned about once each. */
     private final Set<String> missingIcons = new HashSet<>();
 
@@ -197,8 +211,15 @@ final class HeroPanel {
 
     private final List<Slot> slots = new ArrayList<>();
     private final List<PowerChip> powerChips = new ArrayList<>();
-    /** The keys the slots were built for; a different set means rebuilding them. */
-    private String builtFor = "";
+    /**
+     * The keys the slots were built for; a different set means rebuilding them.
+     *
+     * <p>Null rather than empty to begin with, and that is not tidiness: a card
+     * naming no skills has an empty signature, so starting at the empty string
+     * would make the first such card look like no change at all and the row would
+     * never be built — no sockets, and the block missing from the bar.
+     */
+    private String builtFor;
     /** The icons the power strip was built for, same idea. */
     private String powersBuiltFor = "";
     private float screenWidth;
@@ -259,7 +280,10 @@ final class HeroPanel {
         name.setText(reading.name);
         title.setText(reading.title);
         badge.setText(reading.rank);
-        health.setText(Math.round(reading.health) + " / " + Math.round(reading.maxHealth));
+        // No reading over an empty trough: "0 / 0" is a number, and a number is a
+        // claim about somebody.
+        health.setText(reading.maxHealth <= 0f ? ""
+                : Math.round(reading.health) + " / " + Math.round(reading.maxHealth));
         fillTo(healthFill, fraction(reading.health, reading.maxHealth));
         fillTo(experienceFill, fraction(reading.experience, reading.needed));
         depthNumber.setText(reading.depth);
@@ -275,7 +299,7 @@ final class HeroPanel {
         powersWord.setText(reading.powersWord);
         skillsWord.setText(reading.skillsWord);
         note.setText(reading.note);
-        showFace(reading.face);
+        showFace(reading.face, !reading.name.isBlank());
         showStats(reading.stats);
         showOrders(reading.orders);
         showItems(reading.items, reading.itemsWord);
@@ -302,40 +326,14 @@ final class HeroPanel {
         boolean levels = reading.needed > 0f;
         boolean named = !reading.title.isBlank();
         boolean ranked = !reading.rank.isBlank();
-        experienceBar.setCullHint(levels ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        // Only these three, and all three are ornaments hung off the furniture
+        // rather than part of it: a plate with a level on it, a line of italics
+        // under a name, a bar for experience nothing is earning. None of them
+        // moves anything else when it goes.
+        experienceFill.setCullHint(levels ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
         titleLine.setCullHint(named ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
         badgePlate.setCullHint(ranked ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-        skillHeading.setCullHint(reading.skills.isEmpty()
-                ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
-        boolean carries = !reading.itemsWord.isBlank();
-        itemGrid.setCullHint(carries ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-        itemHeading.setCullHint(carries ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-        // A card with no name on it is nobody: nothing is selected. The portrait
-        // and the figures go with it, because a frame with no face in it beside a
-        // health bar at zero is not "nothing is selected" — it is a panel that has
-        // lost its hero, and a player would read it as one.
-        boolean somebody = !reading.name.isBlank();
-        portrait.setCullHint(somebody ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-        vitals.setCullHint(somebody ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-        if (carries != showingBag || somebody != showingWho) {
-            showingBag = carries;
-            showingWho = somebody;
-            layOut(); // a block is gone; the ones after it move up to fill it
-        }
     }
-
-    /** Whether the bag is on the bar, so its coming and going re-lays the rest. */
-    private boolean showingBag = true;
-
-    /**
-     * Whether anybody is being described at all.
-     *
-     * <p>With nothing selected the bar keeps what belongs to the screen -- the
-     * map, the floor -- and loses everything that belongs to a creature. An empty
-     * portrait frame beside a name with nothing in it is not "nothing is
-     * selected", it is a panel that has lost its hero.
-     */
-    private boolean showingWho = true;
 
     /** Take the bar out of the scene, so a fresh one can be built at a new size. */
     void destroy() {
@@ -429,7 +427,10 @@ final class HeroPanel {
             return null;
         }
         for (var slot : slots) {
-            if (hits(screenX / scale, screenY / scale, slot.atX, slot.atY, slot.size)) {
+            // An empty socket is furniture, not a control: it takes no click and
+            // does not light under the cursor.
+            if (slot.key != BLANK
+                    && hits(screenX / scale, screenY / scale, slot.atX, slot.atY, slot.size)) {
                 return slot.key;
             }
         }
@@ -448,7 +449,9 @@ final class HeroPanel {
             return null;
         }
         for (var button : orderButtons) {
-            if (hits(screenX / scale, screenY / scale, button.atX, button.atY, ORDER_BUTTON)) {
+            if (button.key != BLANK
+                    && hits(screenX / scale, screenY / scale, button.atX, button.atY,
+                            ORDER_BUTTON)) {
                 return button.key;
             }
         }
@@ -645,7 +648,18 @@ final class HeroPanel {
     private BitmapText badge;
 
     /** Draw the figure the card names, or his own silhouette when it names none. */
-    private void showFace(String named) {
+    private void showFace(String named, boolean anybody) {
+        if (!anybody) {
+            // Nobody is selected: an empty frame, and no figure in it. The frame
+            // stays because it is furniture; the face is what the card carries.
+            figure.setCullHint(Spatial.CullHint.Always);
+            if (faceGlyph != null) {
+                faceGlyph.removeFromParent();
+                faceGlyph = null;
+                facedWith = "";
+            }
+            return;
+        }
         boolean his = named == null || named.isBlank();
         figure.setCullHint(his ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
         if (his) {
@@ -709,10 +723,23 @@ final class HeroPanel {
         }
     }
 
+    /**
+     * The column drawn empty when the card offers no orders.
+     *
+     * <p>Four of them because the design has four. Furniture, like the sockets
+     * beside them and the six in his bag: a column that came and went with the
+     * selection would move the whole bar every time the player clicked.
+     */
+    private static final List<Reading.OrderReading> BLANK_ORDERS = List.of(
+            new Reading.OrderReading(BLANK, "", "", false),
+            new Reading.OrderReading(BLANK, "", "", false),
+            new Reading.OrderReading(BLANK, "", "", false),
+            new Reading.OrderReading(BLANK, "", "", false));
+
     private final Node orderColumn = new Node("orders");
     private final List<OrderButton> orderButtons = new ArrayList<>();
-    /** The orders the column was built for; a different set means building it again. */
-    private String ordersBuiltFor = "";
+    /** The orders the column was built for; null to begin with, as above. */
+    private String ordersBuiltFor;
 
     /**
      * The four orders, in a column beside the map.
@@ -738,7 +765,8 @@ final class HeroPanel {
                 button.node.removeFromParent();
             }
             orderButtons.clear();
-            for (var order : reading) {
+            var drawn = reading.isEmpty() ? BLANK_ORDERS : reading;
+            for (var order : drawn) {
                 var button = new OrderButton(order.key());
                 cut(button, order);
                 orderButtons.add(button);
@@ -768,12 +796,14 @@ final class HeroPanel {
         var stone = new Geometry("stone", gradient(size, size, STONE_LIT, STONE));
         stone.setMaterial(vertexColoured());
         attach(button.node, stone, 0f, 0f, 3f);
-        button.glyph = new Geometry("order-glyph", Glyphs.of(order.icon(), size * 0.52f));
-        button.glyph.setMaterial(lines(GOLD));
+        boolean blank = button.key == BLANK && order.icon().isBlank();
+        button.glyph = new Geometry("order-glyph",
+                blank ? new Mesh() : Glyphs.of(order.icon(), size * 0.52f));
+        button.glyph.setMaterial(lines(blank ? DEAD : GOLD));
         attach(button.node, button.glyph, size / 2f, size / 2f, 4f);
         // The key in the corner, because the button's whole job is to teach it.
         var key = text(10f, LABEL, 0f, -1f, size - 2f, BitmapFont.Align.Right);
-        key.setText(String.valueOf(button.key));
+        key.setText(button.key == BLANK ? "" : String.valueOf(button.key));
         key.setLocalTranslation(0f, key.getLocalTranslation().y, 5f);
         button.node.attachChild(key);
         framed(button.node, PanelSkin.BUTTON, -1.5f, -1.5f, size + 3f, size + 3f, 4.5f);
@@ -1165,6 +1195,14 @@ final class HeroPanel {
         if (skillRow.getParent() == null) {
             contents.attachChild(skillRow);
         }
+        if (reading.isEmpty()) {
+            for (float size : BLANK_ROW) {
+                var slot = new Slot(BLANK, size);
+                carve(slot, "");
+                slots.add(slot);
+                skillRow.attachChild(slot.node);
+            }
+        }
         for (var skill : reading) {
             var slot = new Slot(skill.key(), skill.key() == ULTIMATE_KEY ? ULT_SLOT : SLOT);
             carve(slot, skill.icon());
@@ -1172,6 +1210,15 @@ final class HeroPanel {
             skillRow.attachChild(slot.node);
         }
         layOut();
+    }
+
+    /** Take a painted rim down to its dead shade, when there is one to take down. */
+    private void dimTheRim(Slot slot) {
+        var painted = skin.piece(PanelSkin.SLOT);
+        if (slot.rim != null && painted != null) {
+            slot.rim.getMaterial().setColor("Color",
+                    linear(darker(rgb(painted.tint().getRGB()), 0.6f)));
+        }
     }
 
     /** Cut one slot out of the stone: drop, edge, face, lit lip, inner shadow. */
@@ -1212,7 +1259,16 @@ final class HeroPanel {
         slot.warm.setCullHint(Spatial.CullHint.Always);
 
         slot.glyph = picture(icon, size);
-        if (slot.glyph == null) {
+        if (slot.glyph == null && slot.key == BLANK) {
+            // An empty socket. Not a slot with a picture missing: a slot with
+            // nothing in it, because nothing is selected. The stone goes dead so
+            // it does not read as a skill that is merely waiting.
+            slot.glyph = new Geometry("glyph", new Mesh());
+            slot.glyph.setMaterial(lines(DEAD));
+            attach(slot.node, slot.glyph, size / 2f, size / 2f, 6f);
+            slot.deadStone.setCullHint(Spatial.CullHint.Inherit);
+            dimTheRim(slot);
+        } else if (slot.glyph == null) {
             slot.glyph = new Geometry("glyph", Glyphs.of(String.valueOf(slot.key), size * 0.53f));
             slot.glyph.setMaterial(lines(TORCH));
             attach(slot.node, slot.glyph, size / 2f, size / 2f, 6f);
@@ -1235,7 +1291,7 @@ final class HeroPanel {
         slot.node.attachChild(slot.locked);
 
         var key = text(14f, BONE, 0f, 1f, size - 3f, BitmapFont.Align.Right);
-        key.setText(String.valueOf(slot.key));
+        key.setText(slot.key == BLANK ? "" : String.valueOf(slot.key));
         key.setLocalTranslation(0f, key.getLocalTranslation().y, 8f);
         slot.node.attachChild(key);
     }
@@ -1556,21 +1612,15 @@ final class HeroPanel {
             minimapSocket.setLocalTranslation(x, 0f, 0f);
             placeOrders(x + MINIMAP + ORDER_COLUMN_GAP, left);
         }));
-        if (showingWho) {
-            blocks.add(new Block(PORTRAIT + PORTRAIT_GAP + VITALS_WIDTH, (x, left) -> {
-                // The portrait hangs from the top of the band with its badge
-                // below it; the vitals fill the whole height beside it.
-                portrait.setLocalTranslation(x, BAND - PORTRAIT_HEIGHT, 0f);
-                vitals.setLocalTranslation(x + PORTRAIT + PORTRAIT_GAP, 0f, 0f);
-            }));
-        }
-        if (showingBag) {
-            blocks.add(new Block(ITEM_COLUMNS * ITEM_SLOT + (ITEM_COLUMNS - 1) * ITEM_GAP,
-                    (x, left) -> placeBag(x)));
-        }
-        if (!slots.isEmpty()) {
-            blocks.add(new Block(skillRowWidth(), this::placeSkills));
-        }
+        blocks.add(new Block(PORTRAIT + PORTRAIT_GAP + VITALS_WIDTH, (x, left) -> {
+            // The portrait hangs from the top of the band with its badge below
+            // it; the vitals fill the whole height beside it.
+            portrait.setLocalTranslation(x, BAND - PORTRAIT_HEIGHT, 0f);
+            vitals.setLocalTranslation(x + PORTRAIT + PORTRAIT_GAP, 0f, 0f);
+        }));
+        blocks.add(new Block(ITEM_COLUMNS * ITEM_SLOT + (ITEM_COLUMNS - 1) * ITEM_GAP,
+                (x, left) -> placeBag(x)));
+        blocks.add(new Block(skillRowWidth(), this::placeSkills));
         blocks.add(new Block(DEPTH_WIDTH, (x, left) -> depth.setLocalTranslation(x, 0f, 0f)));
 
         float gap = DIVIDER + DIVIDER_MARGIN * 2f;

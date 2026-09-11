@@ -71,7 +71,12 @@ final class HeroStatus {
         var line = new StringBuilder()
                 .append("name=")
                 .append("|depth=").append(howFarDown(depth, settings))
-                .append("|depthWord=").append(settings.hudDepthWord());
+                .append("|depthWord=").append(settings.hudDepthWord())
+                // The headings belong to the furniture rather than to whoever is
+                // selected: the sockets under them are drawn empty, and an empty
+                // grid with no heading over it is a hole rather than a bag.
+                .append("|itWord=").append(settings.hudItemsWord())
+                .append("|skWord=").append(settings.hudSkillsWord());
         if (note != null && !note.isEmpty()) {
             // Finding a sword is worth saying whether or not he is selected.
             line.append("|note=").append(note);
@@ -111,7 +116,11 @@ final class HeroStatus {
                 .append("|hp=").append(Math.round(creature.getBody().getHealth()))
                 .append('/').append(Math.round(creature.getBody().getMaxHealth()))
                 .append("|depth=").append(howFarDown(depth, settings))
-                .append("|depthWord=").append(settings.hudDepthWord());
+                .append("|depthWord=").append(settings.hudDepthWord())
+                // Headings again: a skeleton has no bag and no skills, and the
+                // empty sockets under these words say so better than a gap would.
+                .append("|itWord=").append(settings.hudItemsWord())
+                .append("|skWord=").append(settings.hudSkillsWord());
         if (!settings.hudMonsterFace().isBlank()) {
             line.append("|face=").append(settings.hudMonsterFace());
         }
