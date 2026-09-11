@@ -13,6 +13,7 @@ import uz.duke.dungeon.content.HeroLook;
 import uz.duke.dungeon.content.ThemeArt;
 import uz.duke.dungeon.power.ChoosePower;
 import uz.duke.dungeon.skill.CastSkill;
+import uz.duke.dungeon.stage.Stages;
 
 /**
  * Opens the dungeon in the engine's 3D client.
@@ -258,10 +259,29 @@ public final class Main {
 
     public static void main(String[] args) {
         var settings = DungeonSettings.load();
-        Duke3D.launch(Dungeon.create(System.nanoTime(), settings), looks(settings), Shell.create()
+        Duke3D.launch(chosenGame(args, settings), looks(settings), Shell.create()
                 .entry(Shell.Entry.PLAY, "Enter the dungeon")
                 .entry(Shell.Entry.SETTINGS)
                 .entry(Shell.Entry.QUIT), controls(settings));
+    }
+
+    /**
+     * The endless dungeon, or the stage somebody asked for.
+     *
+     * <p>A broken stage stops here, loudly, with the list of what is wrong with
+     * it. It does not fall back to the endless dungeon: a player who asked for a
+     * stage and silently got a random floor instead would have no way of knowing
+     * anything had gone wrong, and an author editing one would think his last
+     * change had worked.
+     */
+    private static uz.duke.game.DukeGame chosenGame(String[] args, DungeonSettings settings) {
+        var path = Stages.chosen(args, settings);
+        if (path == null) {
+            // The seed is the one thing the clock touches, and it is outside the
+            // simulation: it chooses WHICH deterministic dungeon to play.
+            return Dungeon.create(System.nanoTime(), settings);
+        }
+        return Dungeon.createStage(Stages.load(path, settings), settings);
     }
 
     /**

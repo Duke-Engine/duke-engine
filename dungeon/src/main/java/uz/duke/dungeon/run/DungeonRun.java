@@ -6,7 +6,6 @@ import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.core.thing.ThingTemplate;
 import uz.duke.dungeon.content.DungeonSettings;
-import uz.duke.dungeon.gen.DungeonGenerator;
 import uz.duke.dungeon.gen.GeneratedDungeon;
 import uz.duke.dungeon.level.HeroProgress;
 import uz.duke.dungeon.loot.LootTable;
@@ -31,6 +30,12 @@ import uz.duke.game.GamePlayer;
  * ever, each a little harder, and the only question one could ask was how much
  * further. It stops at the floor the last boss stands on — see {@code Bosses} in
  * the settings file, which is both who they are and how many floors there are.
+ *
+ * <p>Where the floors themselves come from is not this class's business — see
+ * {@link Floors}. A descent draws each one from the next seed along the chain; a
+ * stage hands back the same frozen floor every time, and the boss standing on it
+ * is the bottom of a one-floor game. The loop is the same either way, which is
+ * the point: a stage is not a second mode with a second run loop in it.
  *
  * <p>This runs as a per-frame tick on the simulation thread, so it must stay
  * deterministic like everything else there: it reads the frame counter, never the
@@ -69,7 +74,8 @@ public final class DungeonRun {
     private final PowerChoice powers;
     private final LootTable drops;
 
-    private long seed;
+    /** Where each floor comes from: the seed chain, or the file one was frozen into. */
+    private final Floors floors;
     private State state = State.RUNNING;
     private ObjectId heroId;
     private ObjectId bossId;
@@ -87,20 +93,13 @@ public final class DungeonRun {
     /** The standing orders his player has given; only the panel reads them. */
     private final uz.duke.dungeon.ai.Orders orders;
 
-    public DungeonRun(GamePlayer heroPlayer, GamePlayer dungeonPlayer, long seed,
-            DungeonSettings settings, HeroProgress progress, PowerChoice powers,
-            LootTable drops) {
-        this(heroPlayer, dungeonPlayer, seed, settings, progress, powers, drops,
-                new uz.duke.dungeon.ai.Orders());
-    }
-
-    public DungeonRun(GamePlayer heroPlayer, GamePlayer dungeonPlayer, long seed,
+    public DungeonRun(GamePlayer heroPlayer, GamePlayer dungeonPlayer, Floors floors,
             DungeonSettings settings, HeroProgress progress, PowerChoice powers,
             LootTable drops, uz.duke.dungeon.ai.Orders orders) {
         this.orders = orders;
         this.heroPlayer = heroPlayer;
         this.dungeonPlayer = dungeonPlayer;
-        this.seed = seed;
+        this.floors = floors;
         this.settings = settings;
         this.progress = progress;
         this.powers = powers;
@@ -118,7 +117,7 @@ public final class DungeonRun {
      * than recomputed because it is asked for every frame and settled once a floor.
      */
     private String lookOfThisFloor() {
-        var chosen = themes.pick(seed, depth);
+        var chosen = themes.pick(floors.seed(), depth);
         return chosen == null ? null : chosen.asStatus();
     }
 
@@ -166,7 +165,7 @@ public final class DungeonRun {
             // than the door to the next floor. The banner is the whole of what
             // says so, and it is the only thing in this run loop that is not a
             // beginning of something.
-            if (settings.finalDepth() > 0 && depth >= settings.finalDepth()) {
+            if (floors.lastDepth() > 0 && depth >= floors.lastDepth()) {
                 state = State.WON;
                 endedFrame = logic.getFrame();
                 game.setBanner("won|" + settings.wonWord());
@@ -205,7 +204,8 @@ public final class DungeonRun {
         boolean his = creature != null && creature.getPlayerIndex() == heroPlayer.getIndex();
         if (his && Skills.heroOf(game.getLogic(), heroPlayer.getIndex()) == creature) {
             game.setStatus(HeroStatus.of(Skills.heroOf(game.getLogic(), heroPlayer.getIndex()),
-                    progress, depth, settings, powers, game.getLogic().getFrame(), look,
+                    progress, depth, floors.lastDepth(), settings, powers,
+                    game.getLogic().getFrame(), look,
                     orders.isHolding(heroPlayer.getIndex())));
             return;
         }
@@ -213,13 +213,14 @@ public final class DungeonRun {
             // Somebody else's creature, or one of his that is not the hero: the
             // card describes it, and the buttons are live only if he could give it
             // an order.
-            game.setStatus(HeroStatus.creature(creature, depth, settings, look, his));
+            game.setStatus(HeroStatus.creature(creature, depth, floors.lastDepth(), settings,
+                    look, his));
             return;
         }
         // Nothing selected, or what was selected has died: the bar keeps the floor
         // and loses the creature. A panel describing a corpse until the player
         // thinks to click somewhere is a panel that looks broken.
-        game.setStatus(HeroStatus.nothing(depth, settings,
+        game.setStatus(HeroStatus.nothing(depth, floors.lastDepth(), settings,
                 progress.getLoot().noteAt(game.getLogic().getFrame()), look));
     }
 
@@ -299,8 +300,7 @@ public final class DungeonRun {
 
     private void descend(DukeGame game) {
         descendAtFrame = 0;
-        seed = DungeonGenerator.nextSeed(seed);
-        var floor = DungeonGenerator.generate(seed, settings, depth);
+        var floor = floors.next(depth);
 
         var logic = game.getLogic();
         logic.clearWorld();

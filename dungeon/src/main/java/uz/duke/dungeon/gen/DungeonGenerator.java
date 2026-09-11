@@ -2,7 +2,6 @@ package uz.duke.dungeon.gen;
 
 import java.util.ArrayList;
 import java.util.List;
-import uz.duke.core.pathfind.PathGrid;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.content.MonsterKind;
 import uz.duke.dungeon.gen.GeneratedDungeon.Link;
@@ -437,9 +436,7 @@ public final class DungeonGenerator {
     }
 
     private static long cellKey(Placement at) {
-        long cx = (long) Math.floor(at.x() / PathGrid.DEFAULT_CELL_SIZE);
-        long cy = (long) Math.floor(at.y() / PathGrid.DEFAULT_CELL_SIZE);
-        return (cy << 32) | cx;
+        return ((long) at.cellY() << 32) | at.cellX();
     }
 
     private static String drawProp(DeterministicRng rng,
@@ -483,8 +480,7 @@ public final class DungeonGenerator {
     }
 
     private static Placement worldCenter(int cx, int cy) {
-        float cell = PathGrid.DEFAULT_CELL_SIZE;
-        return new Placement((cx + 0.5f) * cell, (cy + 0.5f) * cell);
+        return Placement.atCell(cx, cy);
     }
 
     private static String render(char[][] cells) {

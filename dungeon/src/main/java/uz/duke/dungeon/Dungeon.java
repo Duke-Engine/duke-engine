@@ -23,6 +23,8 @@ import uz.duke.dungeon.skill.CastSkill;
 import uz.duke.dungeon.skill.SkillBook;
 import uz.duke.dungeon.skill.Skills;
 import uz.duke.dungeon.run.DungeonRun;
+import uz.duke.dungeon.run.Floors;
+import uz.duke.dungeon.stage.Stage;
 import uz.duke.game.DukeGame;
 import uz.duke.game.GamePlayer;
 import uz.duke.game.script.ScriptModule;
@@ -136,8 +138,10 @@ public final class Dungeon {
     public static Arena world(String asciiMap, String levelMap, DungeonSettings settings,
             String creaturesIni, PowerBook powers, LootBag bag) {
         var orders = new Orders();
+        // No subtitle here: what this world is called depends on why it was built,
+        // and only the caller knows — an endless descent, or one named stage. See
+        // the two entry points below.
         var game = DukeGame.create("Duke Dungeon")
-                .subtitle("a different dungeon every run")
                 .customModules(factory -> {
                     ScriptModule.registerScript(factory, "HeroBrain",
                             () -> new HeroBrain(settings, orders));
@@ -218,6 +222,19 @@ public final class Dungeon {
         return newSession(seed, settings).game();
     }
 
+    /**
+     * A stage: the one floor somebody built, and the boss on it is the end of the
+     * game rather than a door down.
+     *
+     * <p>The same game in every other respect, and deliberately so — the stage was
+     * cut from a generated floor, so handing it to the same assembly is what makes
+     * "it plays exactly like the dungeon it came from" true by construction rather
+     * than by care. What it swaps is where floors come from; see {@link Floors}.
+     */
+    public static DukeGame createStage(Stage stage, DungeonSettings settings) {
+        return newStageSession(stage, settings).game();
+    }
+
     /** Build the game and expose its run loop (the entry point tests build on). */
     public static Session newSession(long seed) {
         return newSession(seed, DungeonSettings.load());
@@ -225,14 +242,42 @@ public final class Dungeon {
 
     /** The same, on settings the caller supplies — the seam for testing a re-tuned game. */
     public static Session newSession(long seed, DungeonSettings settings) {
-        var floor = DungeonGenerator.generate(seed, settings, 1);
+        return open(DungeonGenerator.generate(seed, settings, 1), seed,
+                Floors.generated(seed, settings), settings, "a different dungeon every run");
+    }
+
+    /** The stage's own session, for a test that wants at its run loop. */
+    public static Session newStageSession(Stage stage, DungeonSettings settings) {
+        var told = stage.name() == null || stage.name().isBlank() ? stage.id() : stage.name();
+        var about = stage.description() == null || stage.description().isBlank()
+                ? told : told + " — " + stage.description();
+        return open(stage.floor(), stage.seed(), Floors.ofStage(stage), settings, about);
+    }
+
+    /**
+     * Assemble the game around a first floor and a place for the next one to come
+     * from.
+     *
+     * <p>One method for both kinds because everything below the floors is the same
+     * game: the same creatures, the same hero, the same commands, the same loot
+     * table drawn from the same seed. A second copy of this for stages would drift,
+     * and what it drifted into would be a stage that no longer played like the
+     * dungeon it was frozen from.
+     *
+     * @param seed what the run's own dice are wound to — the loot, the level-up
+     *             cards and the floor's look. A stage carries the seed it was cut
+     *             from so that it is the same run every time, not merely the same
+     *             rooms
+     */
+    private static Session open(uz.duke.dungeon.gen.GeneratedDungeon floor, long seed,
+            Floors floors, DungeonSettings settings, String subtitle) {
         // The book is built before the world because the hero's modules read it:
         // his skills ask it what they hit for, and his arrows what they give back.
         var book = new PowerBook(settings.powerMinCooldownPercent());
         var bag = new LootBag();
         var arena = world(floor.asciiMap(), floor.levelMap(), settings,
                 Content.read(Content.CREATURES), book, bag);
-        var game = arena.game();
+        var game = arena.game().subtitle(subtitle);
 
         // Told which creature is the hero and what he already wears: both are
         // per-hero and the file says them -- see DefaultHero and DungeonHero.
@@ -246,7 +291,7 @@ public final class Dungeon {
         // Cards drawn from the run's own seed, so a seed is still a whole run:
         // the same one offers the same three at the same levels.
         var powers = new PowerChoice(book, settings.powers(), seed, settings.powerOfferCount());
-        var run = new DungeonRun(arena.hero(), arena.dungeon(), seed, settings, progress, powers,
+        var run = new DungeonRun(arena.hero(), arena.dungeon(), floors, settings, progress, powers,
                 drops, arena.orders());
 
         // Q, W, E and R arrive as this game's own command, through the same queue

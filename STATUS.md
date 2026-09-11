@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-11 · **Testlar:** 1040 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-11 · **Testlar:** 1120 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -31,6 +31,7 @@ Hamma modulda `-Xlint:all`, testlar JUnit 5.11.3.
 | `sandbox` | `game` | 2D skirmish demo (~70 qator) |
 | `sandbox3d` | `client3d` + jme3-testdata | 3D skirmish demo (~74 qator) |
 | `dungeon` | `client3d` | **Duke Dungeon** — engine ustidagi ilk o'yin (3D roguelike: seed'li generatsiya + run loop + AI, ma'lumoti INI fayllarda, primitiv shakllar) |
+| `worldbuilder` | `dungeon` | **Duke World Builder** — Duke Dungeon uchun qotirilgan xarita (`.stage`) muharriri, Swing (`uz.duke.worldbuilder.WorldBuilderMain`) |
 
 **Asosiy qoida:** `core` hech qachon `rts` ni import qilmaydi. RTS bo'lmagan o'yin
 yozmoqchi bo'lsangiz faqat `core` ga bog'lanasiz va o'z buyruqlaringiz, modullaringiz
@@ -45,6 +46,10 @@ Ishga tushirish:
 ./gradlew :sandbox:run           # 2D demo
 ./gradlew :sandbox3d:run         # 3D demo
 ./gradlew :dungeon:run           # Duke Dungeon — engine ustidagi ilk o'yin
+./gradlew :dungeon:run --args="--stage=stages/first.stage"   # qotirilgan xarita
+./gradlew :worldbuilder:run      # Duke World Builder — stage muharriri
+./gradlew :worldbuilder:run --args="dungeon/src/main/resources/stages/first.stage"
+./gradlew :worldbuilder:writeExampleStage  # shipping stage'ni qayta yozadi
 ./gradlew :studio:writeExamples  # examples/RohanVsMordor.duke ni qayta yozadi
 ./gradlew :studio:exportExample  # dist/RohanVsMordor/ mustaqil loyihasini chiqaradi
 ```
@@ -2648,17 +2653,112 @@ uzuni 68):
 joyidan siljitmaydi: tanani surish navigatsiya gridiga tegishli savol, skillga
 emas.
 
-**★ Modeli hali yo'q** — `knight.glb` loyihaga qo'yilmagan, ikonkalar ham. U
-hozir **rangli kapsula** va uyalarida **klavish harflari** bilan o'ynaladi, ya'ni
-mexanika to'liq sinaladi. INI'da beshta qator `★` bilan belgilangan, fayllar
-kelganda izohdan chiqariladi. Shu sababdan `KnightTest` uning san'atini
-**ataylab tekshirmaydi**.
+**Modeli keldi** — `knight.glb` + `knight_texture.png` + `sword_2handed`, hammasi
+kamonchi chiqqan o'sha KayKit Adventurers 2.0 paketidan (CC0), ya'ni rig bir xil
+va sakkizta klipning hammasi hech narsa qilmasdan ko'chdi.
+
+**Ikki qo'llagan qilich — bu bezak emas.** Kitda `Melee_1H_Idle` **yo'q**, ya'ni
+bir qo'llagan qilich bilan u `Melee_Unarmed_Idle` da turishi kerak bo'lardi va
+qilichini unutgan odamga o'xshardi. Ikki qo'l qolgan tavsifiga ham mos: sekin,
+og'ir, ichkariga kiradi.
+
+**★ Raqamlar o'lchandi.** Knight **2.543** balandlikda (kamonchi 2.275), boshi esa
+nisbatan **pastroq**: `head` bo'g'ini 0.488 da (kamonchida 0.546). Ya'ni u
+**balandroq model, boshi esa nisbatan kichikroq** — shuning uchun:
+- `ModelScale = 4.72` (12 / 2.543), kamonchida 5.3. Ikkalasi ekranda bir xil
+  bo'yda turadi, chunki ikkalasi ham 12 birlik jonzot.
+- Portret kamerasi ham boshqacha: `Head = 0.70`, `Show = 0.68` (kamonchida
+  0.74 / 0.64). Kamonchining raqamlari bilan kadr baland tushib, dubulg'asi
+  ustida bo'sh joy qolardi.
+
+Aynan shu **per-hero blok nima uchun kerakligining isboti** — ikkinchi qahramon
+birinchisining raqamlarini kiyib bo'lmaydi.
+
+**Qilich `+Y` bo'ylab yotibdi**, ya'ni `HeldRoll` kerak emas — buni taxmin
+qilmadim, `aWeaponLaidOutAcrossTheKitsGrainIsTurned` testi tekshiradi. Lekin u
+test faqat **birinchi** qahramonning qurolini olardi; endi hammasini oladi —
+noto'g'ri osilgan qurol ko'z bilan ko'rilmaguncha bilinmaydi, va ikkinchi
+qahramonning boshqa turdagi quroli aynan o'sha test o'tkazib yuboradigan holat
+edi.
+
+**Ikonkalari hali yo'q** — uyalarida klavish harflari turadi (klientning o'z
+zaxira yo'li). Foydalanuvchi o'zi topadi.
 
 **22 ta test**, ichida eng muhimi ikkitasi: `aWholeRunStartsWithTheKnightInIt`
 (haqiqiy dungeon generatsiya qilib, uni ichiga qo'yib, 4 soniya yurgizadi) va
 `theArcherWasNotRebalanced` (kamonchining beshta raqami yozib qo'yilgan — ikkinchi
 qahramonni birinchisini surib balanslash eng klassik xato).
 
+
+### 8.am Stage — o'zgarmaydigan xarita, va uni yasaydigan asbob
+
+O'yinning ikkinchi turi, va u birinchisining aksi. Roguelike tushishi har run'da
+yangi qavat chizadi, ya'ni har qavat — birinchi ko'rish; savol "qanchaga
+tushdim?". **Stage** — qotirilgan qavat: o'sha xonalar, o'sha burchaklarda o'sha
+maxluqlar, har safar. Savol "shuni yengaman-mi?" ga aylanadi, ya'ni yutqazish
+bir narsa o'rgatadi va ikkinchi urinish birinchisidan yaxshiroq bo'ladi.
+Warcraft custom map uslubi.
+
+**Stage fayli — muzlatilgan `GeneratedDungeon`.** Ikkinchi xil daraja emas,
+generatorning o'z natijasi faylga yozilgani. Shu sababli `Spawner` qotirilgan
+qavatni bir daqiqa oldin chizilganidan **ajrata olmaydi**, va "stage o'zi
+kesilgan dungeon bilan aynan bir xil o'ynaladi" degani ehtiyotkorlikdan emas,
+qurilishdan kelib chiqadi. `StagePlayTest` buni 100 kadrdan keyingi
+`checksum()` bilan qulflaydi — ya'ni tarmoq ikki mashina bir xil o'yin
+o'ynayotganini isbotlaydigan o'sha dalil, peer o'rniga faylga qaratilgan.
+
+**Format:** matn, engine'ning o'z INI o'quvchisi bilan
+(`dungeon/src/main/resources/stages/first.stage`, 189 qator). Binar format —
+hech kim ocholmaydigan daraja; g'alati ishlaydigan stage kimdir ochib, o'qib,
+xatoni **ko'ra oladigan** fayl bo'lishi kerak. Koordinatalar dunyo birligida
+emas, **katakda**: dungeon hamma narsani katak markaziga qo'yadi, ya'ni ikkalasi
+bir xil fakt, lekin faqat bittasini tepadagi xarita bo'yicha ko'z bilan sanash
+mumkin. Fayl seed'ni ham saqlaydi — loot, daraja kartalari va temani o'sha
+beradi, saqlanmasa "o'sha xonalar, boshqa hamma narsa" chiqardi.
+
+**Yuklashda ulanish qayta tekshiriladi** (`StageCheck`). Generatorga bu kerak
+emas: koridorlari qamrovchi daraxt, kafolat qurilishdan keladi. Stage'da esa
+qalamni odam ushlab turibdi, va fayl — maxluqni devor ichiga qo'yish mumkin
+bo'lgan joy. Shuning uchun dungeon **engine'ning o'z qadam qoidasi**
+(`PathGrid.canStep`) bilan yurib chiqiladi — nusxasi bilan emas, aks holda
+tekshiruv o'zi bilan kelishib, o'yin bilan kelishmasdi. Javob — **ro'yxat**,
+birinchi xato emas: bitta xatoni tuzatib, saqlab, keyingisini eshitadigan
+muallifga haqiqat bir gapdan aytilgan bo'lardi.
+
+**`Floors` choki** — `DungeonRun` dagi yagona o'zgarish. Ilgari u seed'ni o'zi
+ushlab turardi va `descend()` ichida generatsiya qilardi; endi qavat qayerdan
+kelishini chok hal qiladi: `GeneratedFloors` (seed zanjiri, `lastDepth =
+Bosses.size()`) yoki `StageFloors` (o'sha qavat, `lastDepth = 1`). Chok
+**holatli**, ataylab: roguelike'da o'lim ham `descend()` chaqiradi, ya'ni seed
+o'limlardan ham oldinga suriladi — sof `floorAt(depth)` har yangi run'ni bir xil
+birinchi qavatdan boshlardi, bu esa boshqa o'yin.
+
+**Rejim tanlash:** `dungeon.ini` da `DungeonStage Play / File = `, yoki
+`--stage=stages/first.stage`. Bo'sh — roguelike, aynan avvalgidek. Buzuq
+stage **jimgina roguelike'ga qaytmaydi**: stage so'ragan o'yinchi tasodifiy
+qavat olsa, nimadir buzilganini bilishning iloji qolmaydi.
+
+**`worldbuilder` moduli** — Swing muharriri, `dungeon` ga bog'langan (Studio
+o'zgarmadi; u RTS uchun). Mehnat taqsimoti: **generator joyni chizadi, muallif
+uni to'ldiradi**. Xona, koridor, qavat, zinapoya — seed'dan, va bu yerda
+tahrirlanmaydi; tahrirlanadigani ichida nima turishi. Shuning uchun pol/devor
+chizish asbobi yo'q, 3D preview yo'q, xona qo'shish yo'q: yoqmasa — yangi seed.
+Maxluq va prop ro'yxati `DungeonSettings` dan, ya'ni muharrir o'yin spawn qila
+olmaydigan narsani taklif qila olmaydi. Pastdagi xatolar ro'yxati —
+**yuklashdagi aynan o'sha tekshiruv**, shuning uchun bu yerda bir narsa, Play
+bosganda boshqa narsa aytilmaydi. Muharrir buzuq stage'ni saqlaydi (muallif
+ishni yarmida to'xtaydi), **o'yin** esa o'ynashdan bosh tortadi — noto'g'rilik
+qimmatga tushadigan joy o'sha.
+
+Undo — stage'ning o'z matnidan iborat stek: hujjat bir necha kilobayt, va format
+allaqachon to'g'ri o'qilishi shart bo'lgan narsa, ya'ni ikkinchi tasvir yo'q.
+
+**33 ta yangi test.** Eng muhimlari: `aStageComesBackTheDungeonItWasCutFrom`
+(100 seed, to'liq record tengligi), `aStagePlaysExactlyLikeTheDungeonItWasCutFrom`
+(checksum), `dyingPutsHimBackOnTheSameFloor`, `killingTheBossWinsTheStage` va
+`theShippedStageCanBePlayed` (shipping fayl classpath'dan, o'yinchidagi yo'l
+bilan). Muharrirning 9 tasi `StageDraft` ustida — Swing'siz, chunki bu build'da
+hech qayerda ekran yo'q.
 ---
 
 ## 9. Nima yo'q / ochiq ishlar
@@ -3077,7 +3177,14 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/run/Watching.java` | "o'shani tanladim" — hech narsa qilishni so'ramaydigan yagona buyruq; panel kimni yozishini hal qiladi |
 | `client3d/…/client3d/Cursors.java` | kursor nima ustida turganini aytadi; jME'ning pastdan-yuqoriga rasmi, pastdan hot-spoti va rangga bo'yash shu yerda |
 | `dungeon/src/main/resources/ui/cursors/` | Kenney Cursor Pack 1.1 (CC0) — Outline oilasi, 32px va 64px |
-| `dungeon/…/dungeon/run/DungeonRun.java` | run loop: o'lim → yangi seed → yangi dungeon |
+| `dungeon/…/dungeon/run/DungeonRun.java` | run loop: o'lim → yangi qavat; qaysi qavat ekanini `Floors` aytadi |
+| `dungeon/…/dungeon/run/{Floors,GeneratedFloors,StageFloors}.java` | qavat qayerdan keladi — seed zanjiri yoki muzlatilgan fayl; holatli, ataylab |
+| `dungeon/…/dungeon/stage/{Stage,StageFile}.java` | qotirilgan dungeon + metama'lumot, va uning matn formati (engine INI'si, koordinatalar katakda) |
+| `dungeon/…/dungeon/stage/StageCheck.java` | qo'lda tahrirlangan fayl bilan nima noto'g'ri — yurish `PathGrid.canStep` bilan, javob ro'yxat |
+| `dungeon/…/dungeon/stage/Stages.java` | qaysi stage o'ynaladi (`--stage=` > INI) va fayl qayerdan topiladi (disk > classpath) |
+| `dungeon/src/main/resources/stages/first.stage` | shipping stage — `:worldbuilder:writeExampleStage` qayta yozadi |
+| `worldbuilder/…/worldbuilder/StageDraft.java` | tahrirlash qoidalari, Swing'siz — muharrirning testlanadigan yarmi |
+| `worldbuilder/…/worldbuilder/ui/{BuilderWindow,StageCanvas,Palette}.java` | oyna, tepadan ko'rinish, nima qo'yiladi |
 | `dungeon/…/dungeon/skill/{Skill,SkillEffect}.java` | skill ma'lumoti + daraja arifmetikasi (sof) |
 | `dungeon/…/dungeon/skill/SkillBook.java` | qahramon moduli: kuluar, effektlar, `DamageModifier` |
 | `dungeon/…/dungeon/skill/{CastSkill,Skills}.java` | o'yinning o'z buyrug'i (nishoni bilan) + status qatori |

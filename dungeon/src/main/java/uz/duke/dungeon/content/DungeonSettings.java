@@ -217,6 +217,13 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, RUN);
                 }),
+                // Which stage this build opens on, if it opens on one at all. A
+                // blank file is the endless dungeon, which is what the game is
+                // when nobody has said otherwise.
+                Map.entry("DungeonStage", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, STAGE);
+                }),
                 Map.entry("DungeonLeveling", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, LEVELLING);
@@ -1305,6 +1312,20 @@ public final class DungeonSettings {
         return playedHero;
     }
 
+    private String stageFile = "";
+
+    /**
+     * The stage this build opens on, or blank for the endless dungeon.
+     *
+     * <p>A path rather than a switch, because there is nothing to switch between:
+     * the game is the descent unless somebody has frozen a floor and named the
+     * file. Beaten by {@code --stage=} on the command line, which is what an
+     * author uses while he is building one.
+     */
+    public String stageFile() {
+        return stageFile;
+    }
+
     /** That hero's block, or {@link HeroLook#NONE} if the file describes no such one. */
     public HeroLook heroNamed(String templateName) {
         for (var hero : heroes) {
@@ -2284,6 +2305,12 @@ public final class DungeonSettings {
                     // Which hero walks into the dungeon. Named rather than chosen,
                     // until there is a screen to choose on.
                     .add("DefaultHero", Ini.string((s, v) -> s.playedHero = v));
+
+    private static final FieldParseTable<DungeonSettings> STAGE =
+            new FieldParseTable<DungeonSettings>()
+                    // restOfLine rather than a token: a path may have a space in it,
+                    // and a stage found at half its own name is a stage not found.
+                    .add("File", Ini.restOfLine((s, v) -> s.stageFile = v));
 
     private static final FieldParseTable<DungeonSettings> LEVELLING =
             new FieldParseTable<DungeonSettings>()

@@ -1,6 +1,7 @@
 package uz.duke.dungeon.gen;
 
 import java.util.List;
+import uz.duke.core.pathfind.PathGrid;
 
 /**
  * The result of generating a dungeon: everything the game needs to lay one out,
@@ -48,6 +49,28 @@ public record GeneratedDungeon(
 
     /** A spot in the world, in world units (not cells). */
     public record Placement(float x, float y) {
+
+        /**
+         * The centre of a cell, which is where a dungeon stands everything it
+         * places — hero, monster, boss and prop alike.
+         *
+         * <p>Here rather than inside the generator because a stage file writes
+         * cells and reads them back. Two copies of this arithmetic is a frozen
+         * dungeon that plays half a cell away from the one it was cut from, and
+         * half a cell is the difference between a doorway and a wall.
+         */
+        public static Placement atCell(int cx, int cy) {
+            float cell = PathGrid.DEFAULT_CELL_SIZE;
+            return new Placement((cx + 0.5f) * cell, (cy + 0.5f) * cell);
+        }
+
+        public int cellX() {
+            return (int) Math.floor(x / PathGrid.DEFAULT_CELL_SIZE);
+        }
+
+        public int cellY() {
+            return (int) Math.floor(y / PathGrid.DEFAULT_CELL_SIZE);
+        }
     }
 
     /**
@@ -73,11 +96,19 @@ public record GeneratedDungeon(
     /** A carved rectangle of floor, in cell coordinates. */
     public record Room(int x, int y, int w, int h) {
 
-        int centerCellX() {
+        /**
+         * The cell the room is walked to and from.
+         *
+         * <p>Public because the reachability walk is not only the generator's any
+         * more: a hand-edited stage is checked by the same rule, and a check that
+         * measured rooms from a different corner would pass floors the generator
+         * would have rejected.
+         */
+        public int centerCellX() {
             return x + w / 2;
         }
 
-        int centerCellY() {
+        public int centerCellY() {
             return y + h / 2;
         }
     }

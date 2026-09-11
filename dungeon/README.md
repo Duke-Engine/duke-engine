@@ -65,3 +65,51 @@ o'zgartira olmaydi. Baland devorlar kerak bo'lsa, bu engine ishi bo'ladi.
 
 Procedural generatsiya · ko'p xona, boss, leveling · o'lim/qaytadan sikli ·
 model, tekstura, ovoz, musiqa.
+
+## Stage rejimi — o'zgarmaydigan xarita
+
+O'yinning ikkinchi turi. Roguelike tushishi har run'da yangi qavat chizadi va
+savol "qanchaga tushdim?" bo'ladi. **Stage** — qotirilgan qavat: o'sha xonalar,
+o'sha burchaklarda o'sha maxluqlar, har safar. Savol "shuni yengaman-mi?" ga
+aylanadi — Warcraft custom map uslubi.
+
+```
+./gradlew :dungeon:run --args="--stage=stages/first.stage"
+```
+
+yoki `dungeon.ini` da:
+
+```ini
+DungeonStage Play
+  File = stages/first.stage
+End
+```
+
+Yo'l **bo'sh bo'lsa — roguelike**, aynan avvalgidek. Argument INI'dan ustun
+turadi. Yo'l avval diskdan, topilmasa classpath'dan qidiriladi (shipping stage
+installer ichida yuradi).
+
+**Stage'da:** o'lsang — o'sha stage boshidan (yangi dungeon EMAS). Bossni
+o'ldirsang — g'alaba, chunki ostida qavat yo'q.
+
+### Format — `dungeon/src/main/resources/stages/first.stage`
+
+Matn, engine'ning o'z INI o'quvchisi bilan. Binar format — hech kim ocholmaydigan
+daraja: g'alati ishlaydigan stage kimdir ochib, o'qib, xatoni ko'ra oladigan fayl
+bo'lishi kerak. Koordinatalar **katakda** (dunyo birligida emas), chunki ular bir
+xil fakt va faqat birini tepadagi xarita bo'yicha ko'z bilan sanash mumkin.
+
+Fayl ichida: metama'lumot + seed, ikki xarita qatlami (tosh va qavat), xonalar,
+koridor ulanishlari, kirish, boss, maxluqlar, prop'lar.
+
+**Stage fayli — muzlatilgan `GeneratedDungeon`.** Ya'ni `Spawner` qotirilgan
+qavatni bir daqiqa oldin chizilganidan ajrata olmaydi — "stage o'zi kesilgan
+dungeon bilan aynan bir xil o'ynaladi" degani shundan kelib chiqadi, ehtiyotkorlikdan
+emas. `StagePlayTest` buni checksum bilan qulflaydi.
+
+**Yuklashda qayta tekshiriladi** (`StageCheck`): qo'lda tahrirlangan fayl
+yetib bo'lmaydigan xona, toshdagi maxluq yoki belgilanmagan boss bilan kelsa,
+o'yin **hammasini ro'yxat qilib to'xtaydi** — jimgina roguelike'ga qaytmaydi.
+Yurish engine'ning `PathGrid.canStep` i bilan tekshiriladi, nusxasi bilan emas.
+
+Stage yasash — `worldbuilder` moduli (`./gradlew :worldbuilder:run`).

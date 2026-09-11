@@ -48,12 +48,6 @@ final class HeroStatus {
     private HeroStatus() {
     }
 
-    /** The line, or the empty string if there is no hero to describe. */
-    static String of(GameObject hero, HeroProgress progress, int depth,
-            DungeonSettings settings, PowerChoice powers, int frame, String look) {
-        return of(hero, progress, depth, settings, powers, frame, look, false);
-    }
-
     /**
      * The card for nobody: the floor, and nothing else.
      *
@@ -68,10 +62,11 @@ final class HeroStatus {
      * says which stone this floor is built from. A card that left it out would
      * have the first floor drawn in the wrong kit until something was clicked.
      */
-    static String nothing(int depth, DungeonSettings settings, String note, String look) {
+    static String nothing(int depth, int lastDepth, DungeonSettings settings, String note,
+            String look) {
         var line = new StringBuilder()
                 .append("name=")
-                .append("|depth=").append(howFarDown(depth, settings))
+                .append("|depth=").append(howFarDown(depth, lastDepth))
                 .append("|depthWord=").append(settings.hudDepthWord())
                 // The headings belong to the furniture rather than to whoever is
                 // selected: the sockets under them are drawn empty, and an empty
@@ -114,8 +109,8 @@ final class HeroStatus {
      * hero's three are worked out — and because what a floor multiplies a monster
      * by is this game's arithmetic. See {@code Spawner.scale}.
      */
-    static String creature(GameObject creature, int depth, DungeonSettings settings, String look,
-            boolean his) {
+    static String creature(GameObject creature, int depth, int lastDepth,
+            DungeonSettings settings, String look, boolean his) {
         if (creature == null || creature.getBody() == null) {
             return "";
         }
@@ -123,7 +118,7 @@ final class HeroStatus {
                 .append("name=").append(nameOf(creature))
                 .append("|hp=").append(Math.round(creature.getBody().getHealth()))
                 .append('/').append(Math.round(creature.getBody().getMaxHealth()))
-                .append("|depth=").append(howFarDown(depth, settings))
+                .append("|depth=").append(howFarDown(depth, lastDepth))
                 .append("|depthWord=").append(settings.hudDepthWord())
                 // Headings again: a skeleton has no bag and no skills, and the
                 // empty sockets under these words say so better than a gap would.
@@ -159,7 +154,7 @@ final class HeroStatus {
      * word in the file: a standing order lives beside the brain that obeys it —
      * see {@code uz.duke.dungeon.ai.Orders} — and has to be carried in from there.
      */
-    static String of(GameObject hero, HeroProgress progress, int depth,
+    static String of(GameObject hero, HeroProgress progress, int depth, int lastDepth,
             DungeonSettings settings, PowerChoice powers, int frame, String look,
             boolean holding) {
         if (hero == null || hero.getBody() == null) {
@@ -174,7 +169,7 @@ final class HeroStatus {
                 .append('/').append(Math.round(hero.getBody().getMaxHealth()))
                 .append("|xp=").append(progress.getExperienceIntoLevel())
                 .append('/').append(progress.getExperienceForNextLevel())
-                .append("|depth=").append(howFarDown(depth, settings))
+                .append("|depth=").append(howFarDown(depth, lastDepth))
                 .append("|depthWord=").append(settings.hudDepthWord());
         appendStats(line, hero, progress, powers, settings);
         appendOrders(line, settings, Doing.of(hero, holding), true);
@@ -417,10 +412,15 @@ final class HeroStatus {
      * <p>Composed here rather than sent as two fields, for the same reason every
      * other word on the panel is: the client draws four games and has no idea how
      * any of them counts its floors.
+     *
+     * <p>Told how deep it goes rather than reading it off the settings, because
+     * that is a property of what is being played: a stage is one floor deep
+     * however long the file's list of bosses is, and a panel promising nine more
+     * floors that do not exist is a panel lying to the player. See {@code Floors}.
      */
-    private static String howFarDown(int depth, DungeonSettings settings) {
-        return settings.finalDepth() > 0
-                ? roman(depth) + " / " + roman(settings.finalDepth())
+    private static String howFarDown(int depth, int lastDepth) {
+        return lastDepth > 0
+                ? roman(depth) + " / " + roman(lastDepth)
                 : roman(depth);
     }
 

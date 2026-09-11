@@ -51,6 +51,11 @@ studio  →  client3d  →  game  →  rts  →  core
   Unity-style via `Visuals`; units without art get clean primitives.
 - **studio** — Duke Studio, the Swing editor: author factions, units, maps and
   scripts, press Play, export a standalone cross-platform game.
+- **dungeon** — Duke Dungeon, the first game written on the engine: a 3D
+  roguelike whose floors are drawn from a seed, or a **stage** — one floor
+  frozen into a text file and played the same way every time.
+- **worldbuilder** — the stage editor for that game: generate a floor, fill its
+  rooms, freeze it. Separate from the Studio, which makes RTS games.
 - **sandbox** / **sandbox3d** — the 2D and 3D demo skirmishes, ~70 lines each.
 
 `core` never imports `rts`. Building a game that is not an RTS means depending
@@ -108,6 +113,8 @@ Requires nothing pre-installed beyond the wrapper — Gradle provisions the
 ./gradlew :studio:run      # the Duke Studio editor
 ./gradlew :sandbox:run     # the 2D demo skirmish
 ./gradlew :sandbox3d:run   # the 3D demo skirmish
+./gradlew :dungeon:run     # Duke Dungeon
+./gradlew :worldbuilder:run  # the stage editor for it
 ```
 
 ## Implemented
