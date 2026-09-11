@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-11 · **Testlar:** 895 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-11 · **Testlar:** 900 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -2259,11 +2259,27 @@ o'yin boshqaruvining yarmi "bu yerda o'ng-klik boshqa ma'noni beradi", va buni
   yomonroq), logga bir marta yoziladi. Hech narsa nomlamagan o'yin tizim
   strelkasida qoladi.
 
-**LITSENZIYA OCHIQ:** Wenrexa Magic Cursors Pack ichida litsenziya matni YO'Q —
-faqat ikkita havola va rahmat kartasi. Shartlar itch.io sahifasida, va uni hech
-kim o'qimagan. `CREDITS.md` da uchta javob va uchta oqibat yozilgan. Shuning
-uchun yetti o'lchamdan faqat bittasi (488 KB) ko'chirildi: kerak bo'lsa bitta
-papka o'chadi.
+**Bitta xato uchta shikoyat bo'lib ko'rindi.** `loadTexture(String)` rasmni
+ALLAQACHON ag'daradi — tekstura OpenGL'da pastdan namunalanadi va bu klient
+yuklaydigan qolgan hamma rasm uchun to'g'ri standart. Kursor esa tekstura emas,
+u oynaga uzatiladi. Ikki ag'darish bir-birini bekor qilmaydi: kursor boshida
+turadi VA ko'rinadigan strelka hot-spotdan ~45 piksel narida chiziladi — ya'ni
+dushman ustida kursor almashsa ham, farqi qaralayotgan joydan uzoqda qoladi.
+Endi `TextureKey(path, false)` bilan yuklanadi.
+
+**Nega unit testlar ushlamadi:** hammasi xotirada yasalgan rasmdan boshlanardi,
+xato esa undan OLDIN, yuklovchida edi. Yangi test fayldan boshlanadi — diskka
+PNG yoziladi, `Cursors` uni haqiqatda qanday o'qisa shunday o'qiladi, va burchak
+jME oynaga uzatadigan joyda qidiriladi. Eski xatoni qaytarib qo'yib tekshirdim:
+test qizaradi.
+
+**"Qaysi kursor, qachon" ham endi sof funksiya** (`Cursors.situationFor`, olti
+fakt) va oltita testi bor. "Dushman ustida kursor almashmayapti" — bu shu
+funksiya haqidagi gap, va uni sichqoncha surib emas, so'rab bilish kerak.
+
+**Paket olib tashlandi.** Yoqmadi, va litsenziya matni ham yo'q edi — ikkalasi
+ham yetarli sabab. Mexanizm qoldi va testda; o'yin hozir tizim strelkasida
+ishlaydi. Yangi paket = papka + beshta INI bloki.
 
 ---
 
@@ -2675,7 +2691,6 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/ai/{HoldGround,Orders}.java` | "joyingda tur" — o'yinning to'rtinchi buyrug'i + uni buyruqdan miyagacha olib boradigan yagona ko'prik |
 | `dungeon/…/dungeon/run/Watching.java` | "o'shani tanladim" — hech narsa qilishni so'ramaydigan yagona buyruq; panel kimni yozishini hal qiladi |
 | `client3d/…/client3d/Cursors.java` | kursor nima ustida turganini aytadi; jME'ning pastdan-yuqoriga rasmi va pastdan hot-spoti shu yerda ag'dariladi |
-| `dungeon/src/main/resources/ui/cursors/` | Wenrexa Magic Cursors (48px, 77 dona) — **litsenziyasi tasdiqlanmagan, CREDITS.md ga qara** |
 | `dungeon/…/dungeon/run/DungeonRun.java` | run loop: o'lim → yangi seed → yangi dungeon |
 | `dungeon/…/dungeon/skill/{Skill,SkillEffect}.java` | skill ma'lumoti + daraja arifmetikasi (sof) |
 | `dungeon/…/dungeon/skill/SkillBook.java` | qahramon moduli: kuluar, effektlar, `DamageModifier` |

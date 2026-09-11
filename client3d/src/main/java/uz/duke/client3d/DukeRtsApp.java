@@ -2668,30 +2668,27 @@ final class DukeRtsApp extends SimpleApplication {
         if (cursors == null || !cursors.any()) {
             return;
         }
-        if (screen != Screen.PLAYING || menu.isVisible() || levelUp.isShowing()) {
-            cursors.show(Cursors.POINT);
-            return;
+        cursors.show(Cursors.situationFor(whatThePointerIsOver()));
+    }
+
+    /** The six facts about the screen the choice is made from. */
+    private Cursors.Over whatThePointerIsOver() {
+        boolean playing = screen == Screen.PLAYING && !menu.isVisible() && !levelUp.isShowing();
+        if (!playing) {
+            return new Cursors.Over(false, false, false, false, false, false);
         }
         var at = inputManager.getCursorPosition();
-        if (arming != null) {
+        boolean aiming = arming != null;
+        boolean canAim = true;
+        if (aiming) {
             var binding = hotkeys.all().get(arming);
-            var ground = groundUnder(at.x, at.y);
-            boolean canGoThere = binding == null || binding.aim() != Hotkeys.Aim.OPEN_GROUND
-                    || isOpenAndSeen(ground);
-            cursors.show(canGoThere ? Cursors.AIM : Cursors.DENY);
-            return;
+            canAim = binding == null || binding.aim() != Hotkeys.Aim.OPEN_GROUND
+                    || isOpenAndSeen(groundUnder(at.x, at.y));
         }
-        if (heroPanel.contains(at.x, at.y) || overTheMinimap(at)) {
-            cursors.show(Cursors.POINT);
-            return;
-        }
-        var over = pickUnit();
-        if (over == null || !over.view.selectable()) {
-            cursors.show(Cursors.POINT);
-            return;
-        }
-        cursors.show(over.view.playerIndex() == game.getLocalPlayerIndex()
-                ? Cursors.FRIEND : Cursors.ATTACK);
+        var over = aiming ? null : pickUnit();
+        return new Cursors.Over(true, aiming, canAim,
+                heroPanel.contains(at.x, at.y) || overTheMinimap(at),
+                over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex());
     }
 
     /** Whether a screen point is inside the minimap, which takes its own clicks. */

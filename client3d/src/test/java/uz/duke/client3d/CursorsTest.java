@@ -90,6 +90,92 @@ class CursorsTest {
                 "opaque red in, opaque red out");
     }
 
+    /**
+     * And the right way up after going through the asset manager, which is where
+     * it went wrong.
+     *
+     * <p>Everything above is arithmetic on an image built in memory, and all of it
+     * passed while the shipped pointer stood on its head. The flip that was missed
+     * happens before any of it: {@code loadTexture(String)} turns a picture upside
+     * down, because a texture is sampled from the bottom and that is the right
+     * default for every other picture this client loads. Two flips cancel into a
+     * pointer on its head, and no test that starts after the loader can see it.
+     *
+     * <p>So this one starts at a file. A picture with one opaque corner is written
+     * to disk, read back the way {@link Cursors} really reads one, and the corner
+     * is looked for where jME will hand it to the window.
+     */
+    @Test
+    void aPointerReadFromAFileIsTheRightWayUp() throws Exception {
+        var folder = java.nio.file.Files.createTempDirectory("pointers");
+        var file = folder.resolve("corner.png");
+        var picture = new java.awt.image.BufferedImage(8, 6,
+                java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        picture.setRGB(0, 0, 0xFFFF0000); // opaque red, top-left and nowhere else
+        javax.imageio.ImageIO.write(picture, "png", file.toFile());
+
+        var assets = new com.jme3.asset.DesktopAssetManager(true);
+        assets.registerLocator(folder.toAbsolutePath().toString(),
+                com.jme3.asset.plugins.FileLocator.class);
+        var cursors = new Cursors(assets, null,
+                Map.of(Cursors.POINT, new Cursors.Look("corner.png", 0, 0)));
+
+        var cursor = cursors.load(Cursors.POINT);
+        assertNotNull(cursor, "the picture is there and should have loaded");
+        assertEquals(0xFFFF0000, cursor.getImagesData().get((6 - 1) * 8),
+                "the picture's top-left corner should be in the buffer's last row, "
+                        + "which is the row jME hands the window first");
+    }
+
+    // ---- which pointer, and when ----
+
+    private static Cursors.Over overNothing() {
+        return new Cursors.Over(true, false, false, false, false, false);
+    }
+
+    @Test
+    void overOpenGroundItIsThePlainPointer() {
+        assertEquals(Cursors.POINT, Cursors.situationFor(overNothing()));
+    }
+
+    @Test
+    void overACreatureItSaysWhoseItIs() {
+        assertEquals(Cursors.ATTACK, Cursors.situationFor(
+                new Cursors.Over(true, false, false, false, true, false)));
+        assertEquals(Cursors.FRIEND, Cursors.situationFor(
+                new Cursors.Over(true, false, false, false, true, true)));
+    }
+
+    /**
+     * An armed skill outranks whatever is standing there.
+     *
+     * <p>It is the reason the next click will not do what a click usually does, so
+     * while one waits the pointer answers one question only: may it go here. A
+     * pointer that went on saying "there is a monster there" would be answering a
+     * question the player is not asking.
+     */
+    @Test
+    void anArmedSkillOutranksWhatIsUnderThePointer() {
+        assertEquals(Cursors.AIM, Cursors.situationFor(
+                new Cursors.Over(true, true, true, false, true, false)));
+        assertEquals(Cursors.DENY, Cursors.situationFor(
+                new Cursors.Over(true, true, false, false, true, false)));
+    }
+
+    /** The bar takes clicks and gives no orders, so it is plain. */
+    @Test
+    void overTheBarItIsPlainEvenWithACreatureBehindIt() {
+        assertEquals(Cursors.POINT, Cursors.situationFor(
+                new Cursors.Over(true, false, false, true, true, false)));
+    }
+
+    /** And a menu is on top of everything, including an armed skill. */
+    @Test
+    void aMenuIsOnTopOfEverything() {
+        assertEquals(Cursors.POINT, Cursors.situationFor(
+                new Cursors.Over(false, true, true, false, true, false)));
+    }
+
     @Test
     void aGameThatNamesNoPointersHasNone() {
         assertNotNull(new Cursors(null, null, Map.of()));

@@ -29,7 +29,6 @@ written from there.
 | Impact Sounds — what an arrow and a fist land like, and footsteps | Kenney | CC0 | `audio/sfx/` |
 | Interface Sounds — clicks, a level, a gong | Kenney | CC0 | `audio/ui/` |
 | Fantasy UI Borders — the carved frames the hero panel's edges are painted with | Kenney | CC0 | `ui/borders/` |
-| Magic Cursors Pack — the mouse pointers | **Wenrexa** | **unconfirmed, see below** | `ui/cursors/` |
 | Voiceover Pack — what Erika says | Kenney | CC0 | `audio/voice/` |
 | Three pieces of music | freesound.org | **unconfirmed, see below** | `audio/music/` |
 | Cinzel — the lettering the menus are set in | Natanael Gama / the Cinzel Project Authors | [SIL OFL 1.1](https://openfontlicense.org) | `fonts/` |
@@ -137,32 +136,23 @@ All 280 were copied rather than the eight in use, at 388 KB the lot, so that
 choosing a different frame is an edit to `dungeon.ini` rather than a trip back to
 the pack.
 
-### The pointers — a licence to confirm
+### The pointers — tried, and taken out again
 
-The mouse pointers are **Wenrexa**'s *Assets: Magic Cursors Pack*, at
-`ui/cursors/`. Seventy-seven drawings at 48×48, of which five are used; the
-folder holds them all so that choosing a different one is an edit to
-`dungeon.ini` rather than a trip back to the pack. Names were lower-cased and
-spaces turned to underscores — `Cursor Attack Red.png` → `attack_red.png` — and
-nothing else about them was touched.
+Wenrexa's *Assets: Magic Cursors Pack* was shipped at `ui/cursors/` for one
+commit and removed in the next. Two reasons, either of which would have been
+enough.
 
-**No licence text ships with it.** The download contains the pictures, two links
-(Discord and Twitter) and a thank-you card, and that is all. Wenrexa's packs are
-published free on itch.io and the terms are stated on the pack's own page rather
-than in the zip, so the terms that apply here are whatever that page says and
-nobody has read it.
+It was not liked, which is the whole of the first reason and needs no more.
 
-This is the same shape of question the hero and the monsters once posed, and it
-was answered both times by not guessing. Before this is shipped anywhere — and
-before the repository is made public if it is not already — the pack's page needs
-looking at. Three answers and three consequences:
+**And no licence text shipped with it.** The download contains the pictures, a
+Discord link, a Twitter link and a thank-you card. Wenrexa publishes free on
+itch.io and states the terms on the pack's page rather than in the zip, so the
+terms that apply are whatever that page says and nobody had read it. That is the
+same shape of question the hero and the monsters posed, and it was answered the
+same way both times: not by guessing.
 
-- free for any use, including commercial: nothing to do beyond this row;
-- free with attribution: a line here naming Wenrexa, which is written above
-  anyway;
-- free to *use* but not to *redistribute* — the wording that ended Quaternius's
-  Bestiary — in which case the folder comes out of the tree and the pointers are
-  named in a file the player supplies, exactly as `dungeon.ini` already allows.
-
-The third is the reason only one size was copied rather than all seven: 488 KB
-and one directory to remove, instead of three megabytes and seven.
+The machinery stayed. `Cursors` in `client3d` and the `DungeonCursor` blocks in
+`dungeon.ini` are still there and still tested; the game simply names no pointers
+and runs on the system arrow. **A new pack is five blocks of INI and a folder** —
+and whatever it is, its licence goes in the table above before it is committed,
+not after.

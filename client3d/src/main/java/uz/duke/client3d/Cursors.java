@@ -74,6 +74,49 @@ final class Cursors {
     record Look(String image, int hotX, int hotY) {
     }
 
+    /**
+     * Everything about the screen that decides which pointer is right.
+     *
+     * @param playing    whether the world is up at all; a menu or a loading
+     *                   screen is neither
+     * @param aiming     a skill is armed and waiting to be pointed at something
+     * @param canAim     and this is somewhere it may go
+     * @param overPanel  the bar or the minimap, which take clicks and give no
+     *                   orders
+     * @param overUnit   a selectable creature is under the pointer
+     * @param ownUnit    and it is his
+     */
+    record Over(boolean playing, boolean aiming, boolean canAim, boolean overPanel,
+            boolean overUnit, boolean ownUnit) {
+    }
+
+    /**
+     * Which pointer belongs over that.
+     *
+     * <p>Pulled out as arithmetic on six facts because the alternative is finding
+     * out by moving a mouse. "The pointer does not change over a monster" is a
+     * sentence about this function, and reading it out of a running game is
+     * slower and less certain than asking it here.
+     *
+     * <p>The order is the order of what overrides what. A menu is on top of
+     * everything. An armed skill is the next loudest thing on the screen — it is
+     * the whole reason the next click will not do what a click usually does — and
+     * while one waits the pointer says only whether this is somewhere it can go,
+     * not what is standing there. Then the bar. Then the world.
+     */
+    static String situationFor(Over over) {
+        if (!over.playing()) {
+            return POINT;
+        }
+        if (over.aiming()) {
+            return over.canAim() ? AIM : DENY;
+        }
+        if (over.overPanel() || !over.overUnit()) {
+            return POINT;
+        }
+        return over.ownUnit() ? FRIEND : ATTACK;
+    }
+
     private final AssetManager assets;
     private final InputManager input;
     private final Map<String, Look> looks;
@@ -115,6 +158,11 @@ final class Cursors {
         input.setMouseCursor(cursor);
     }
 
+    /** The cursor for a situation, built and kept. Package-private so it can be checked. */
+    JmeCursor load(String situation) {
+        return cursorFor(situation);
+    }
+
     private JmeCursor cursorFor(String situation) {
         if (made.containsKey(situation)) {
             return made.get(situation);
@@ -126,7 +174,14 @@ final class Cursors {
         }
         JmeCursor cursor = null;
         try {
-            cursor = build(assets.loadTexture(look.image()).getImage(), look);
+            // Asked for unflipped ON PURPOSE. loadTexture(String) turns a picture
+            // upside down -- textures are sampled from the bottom in OpenGL and
+            // that is the right default for everything else the client loads. A
+            // cursor is not a texture: it is handed to the window, and the flip it
+            // needs is the one below. Taking the default gives two flips and a
+            // pointer standing on its head, which is what shipped the first time.
+            cursor = build(assets.loadTexture(
+                    new com.jme3.asset.TextureKey(look.image(), false)).getImage(), look);
         } catch (RuntimeException e) {
             if (missing.add(look.image())) {
                 LOG.warning(() -> "pointer not found: " + look.image() + " (" + e.getMessage()
