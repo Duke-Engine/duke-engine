@@ -302,7 +302,7 @@ class DungeonSettingsTest {
                 case STRIKE, AREA_AT_SPOT, SKILLSHOT -> skill.range();
                 case DASH -> skill.distance();
                 case AREA_DAMAGE -> skill.radius();
-                case EMPOWER -> 1f; // his own width; the look says how wide
+                case EMPOWER, GUARD -> 1f; // his own width; the look says how wide
             };
             assertTrue(reach > 0f, skill.heroTemplate() + "'s " + skill.key() + " is a "
                     + skill.effect() + " and has nothing to draw a ring from");

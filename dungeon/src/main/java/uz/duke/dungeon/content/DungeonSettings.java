@@ -1022,6 +1022,7 @@ public final class DungeonSettings {
         int boostPercent;
         int boostPerLevel;
         int durationFrames;
+        int tickFrames;
         int cooldownFrames = 90;
         int cooldownPerLevel;
         int unlockLevel = 1;
@@ -1036,8 +1037,9 @@ public final class DungeonSettings {
 
         Skill build() {
             return new Skill(heroTemplate, key, effect, damage, damagePerLevel, radius, range,
-                    distance, boostPercent, boostPerLevel, durationFrames, cooldownFrames,
-                    cooldownPerLevel, unlockLevel, windUpFrames, projectile, icon);
+                    distance, boostPercent, boostPerLevel, durationFrames, tickFrames,
+                    cooldownFrames, cooldownPerLevel, unlockLevel, windUpFrames, projectile,
+                    icon);
         }
     }
 
@@ -1052,6 +1054,9 @@ public final class DungeonSettings {
                     .add("BoostPercent", Ini.integer((s, v) -> s.boostPercent = v))
                     .add("BoostPerLevel", Ini.integer((s, v) -> s.boostPerLevel = v))
                     .add("DurationFrames", Ini.integer((s, v) -> s.durationFrames = v))
+                    // How often a lasting AREA_DAMAGE lands. Zero lands it once,
+                    // which is every skill written before there was a whirlwind.
+                    .add("TickFrames", Ini.integer((s, v) -> s.tickFrames = v))
                     .add("CooldownFrames", Ini.integer((s, v) -> s.cooldownFrames = v))
                     .add("CooldownPerLevel", Ini.integer((s, v) -> s.cooldownPerLevel = v))
                     .add("UnlockLevel", Ini.integer((s, v) -> s.unlockLevel = v))
@@ -1283,6 +1288,38 @@ public final class DungeonSettings {
         return heroes.stream().map(HeroBuilder::build).toList();
     }
 
+    private String playedHero = "Hero";
+
+    /**
+     * Which of them is being played.
+     *
+     * <p>The one thing about a roster that cannot be worked out from the roster.
+     * It was the literal word {@code Hero} in six places in Java, so a second hero
+     * could be described in full and never walk into a dungeon.
+     *
+     * <p>A settings line rather than a screen because a choosing screen is a
+     * different piece of work; this is what makes the second hero playable enough
+     * to be balanced.
+     */
+    public String playedHero() {
+        return playedHero;
+    }
+
+    /** That hero's block, or {@link HeroLook#NONE} if the file describes no such one. */
+    public HeroLook heroNamed(String templateName) {
+        for (var hero : heroes) {
+            if (hero.name.equals(templateName)) {
+                return hero.build();
+            }
+        }
+        return HeroLook.NONE;
+    }
+
+    /** The one being played, which is what the run spawns and the panel describes. */
+    public HeroLook playedHeroLook() {
+        return heroNamed(playedHero);
+    }
+
     /** Every live portrait the file describes, by the creature it is the face of. */
     public java.util.List<PortraitArt> portraits() {
         return portraits.stream().map(PortraitBuilder::build).toList();
@@ -1322,6 +1359,8 @@ public final class DungeonSettings {
      */
     private static final class HeroBuilder {
         private final String name;
+        String title = "";
+        int armourPercent;
         String model;
         String texture;
         float modelScale = 1f;
@@ -1344,8 +1383,8 @@ public final class DungeonSettings {
         }
 
         HeroLook build() {
-            return new HeroLook(name, model, texture, modelScale, facing, animations,
-                    idle, walk, attack, hurt, death,
+            return new HeroLook(name, title, armourPercent, model, texture, modelScale, facing,
+                    animations, idle, walk, attack, hurt, death,
                     new Held(holds, heldIn, heldScale, heldPitch, heldYaw, heldRoll));
         }
     }
@@ -2150,6 +2189,15 @@ public final class DungeonSettings {
 
     private static final FieldParseTable<HeroBuilder> HERO_LOOK =
             new FieldParseTable<HeroBuilder>()
+                    // What the panel calls him under his name. His, not the
+                    // panel's: one line in DungeonHud was the archer's title on
+                    // every hero who came after him.
+                    .add("Title", Ini.restOfLine((s, v) -> s.title = v))
+                    // What he shrugs off before earning a level. Here rather than
+                    // in his creature block because a hero's armour is rewritten
+                    // from his level whenever it changes, so a template's own
+                    // figure would not survive the first one.
+                    .add("ArmourPercent", Ini.integer((s, v) -> s.armourPercent = v))
                     .add("Model", Ini.string((s, v) -> s.model = v))
                     .add("Texture", Ini.string((s, v) -> s.texture = v))
                     .add("ModelScale", Ini.real((s, v) -> s.modelScale = v))
@@ -2232,7 +2280,10 @@ public final class DungeonSettings {
                     .add("VictoryFrames", Ini.integer((s, v) -> s.victoryFrames = v))
                     .add("DiedWord", Ini.restOfLine((s, v) -> s.diedWord = v))
                     .add("WonWord", Ini.restOfLine((s, v) -> s.wonWord = v))
-                    .add("NextDepthWord", Ini.restOfLine((s, v) -> s.nextDepthWord = v));
+                    .add("NextDepthWord", Ini.restOfLine((s, v) -> s.nextDepthWord = v))
+                    // Which hero walks into the dungeon. Named rather than chosen,
+                    // until there is a screen to choose on.
+                    .add("DefaultHero", Ini.string((s, v) -> s.playedHero = v));
 
     private static final FieldParseTable<DungeonSettings> LEVELLING =
             new FieldParseTable<DungeonSettings>()

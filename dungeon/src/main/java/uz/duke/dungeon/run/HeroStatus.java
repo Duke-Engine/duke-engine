@@ -168,7 +168,7 @@ final class HeroStatus {
         int level = progress.getLevel();
         var line = new StringBuilder()
                 .append("name=").append(nameOf(hero))
-                .append("|title=").append(settings.hudHeroTitle())
+                .append("|title=").append(titleOf(hero, settings))
                 .append("|rank=").append(level).append(settings.hudRankSuffix())
                 .append("|hp=").append(Math.round(hero.getBody().getHealth()))
                 .append('/').append(Math.round(hero.getBody().getMaxHealth()))
@@ -333,8 +333,12 @@ final class HeroStatus {
         int level = progress.getLevel();
         float attack = weaponDamage(hero.getTemplate())
                 * (rules.damageMultiplier(level) + found.attackPercent() / 100f);
+        // What he was born in counts with what he has found, exactly as the body
+        // counts it — otherwise the figure on the panel is not the one taking the
+        // blows, and a knight reads as an archer in a shirt.
+        int worn = settings.heroNamed(hero.getTemplate().getName()).armourPercent();
         int armour = Math.round(
-                (1f - rules.damageTakenWith(level, found.armourPercent())) * 100f);
+                (1f - rules.damageTakenWith(level, worn + found.armourPercent())) * 100f);
         float speed = walkingSpeed(hero.getTemplate())
                 * (powers == null ? 1f : powers.getBook().moveSpeedMultiplier());
         // What he would have without anything he found or chose. The difference is
@@ -342,7 +346,9 @@ final class HeroStatus {
         // only goes up says nothing about whether the last thing he picked up was
         // worth picking up.
         float bareAttack = weaponDamage(hero.getTemplate()) * rules.damageMultiplier(level);
-        int bareArmour = Math.round((1f - rules.damageTakenWith(level, 0)) * 100f);
+        // His own plate is not borrowed, so it belongs on both sides of the sum:
+        // the green figure is what he picked up, not what he was made with.
+        int bareArmour = Math.round((1f - rules.damageTakenWith(level, worn)) * 100f);
         float bareSpeed = walkingSpeed(hero.getTemplate());
         stat(line, settings.hudAttackWord(), Math.round(attack), Math.round(bareAttack));
         stat(line, settings.hudArmourWord(), armour, bareArmour);
@@ -373,6 +379,19 @@ final class HeroStatus {
             }
         }
         return 0f;
+    }
+
+    /**
+     * What he is, under his name.
+     *
+     * <p>His own block's word, and the panel's only if he has none. It used to be
+     * the panel's outright — one line in {@code DungeonHud} — which was right
+     * while there was one hero and became the archer's title on a knight the
+     * moment there were two.
+     */
+    private static String titleOf(GameObject hero, DungeonSettings settings) {
+        var his = settings.heroNamed(hero.getTemplate().getName()).title();
+        return his == null || his.isBlank() ? settings.hudHeroTitle() : his;
     }
 
     /** What the player calls him, falling back to what the code calls him. */

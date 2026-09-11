@@ -10,9 +10,16 @@ package uz.duke.dungeon.skill;
  *
  * <p>These are the shapes a dungeon hero needs: hit one thing hard, hit
  * everything near you, drop something on a spot, fire something down a line, be
- * somewhere else, be briefly stronger. A new shape is a constant here and one
- * branch in {@link SkillBook}; a new <em>skill</em> is neither, and that is the
- * point of the split — a second hero is blocks of INI and no Java at all.
+ * somewhere else, be briefly stronger, be briefly harder to kill. A new shape is
+ * a constant here and one branch in {@link SkillBook}; a new <em>skill</em> is
+ * neither, and that is the point of the split — a second hero is blocks of INI
+ * and no Java at all.
+ *
+ * <p>Two of them do double duty rather than having been split in half, and the
+ * file decides which: {@link #AREA_DAMAGE} lands once or goes on landing, and
+ * {@link #DASH} carries him harmlessly or through whoever is in the way. Both are
+ * the same shape at two settings, so a knight's whirlwind and an archer's sprint
+ * cost no new constant here and leave every existing skill exactly as it was.
  *
  * <p>Each carries what the player has to point at before it can be cast. That is
  * a property of the effect rather than of the skill: a strike is aimed at
@@ -53,7 +60,21 @@ public enum SkillEffect {
     DASH(Aim.OPEN_GROUND),
 
     /** Raise the caster's own damage for a while. */
-    EMPOWER(Aim.SELF);
+    EMPOWER(Aim.SELF),
+
+    /**
+     * Take less damage for a while.
+     *
+     * <p>{@link #EMPOWER}'s mirror, and it had to be its own shape rather than a
+     * negative one of it: that raises what he <em>deals</em>, through the player's
+     * weapon bonus, and this lowers what he <em>takes</em>, through his body's
+     * armour. Two different numbers on two different objects.
+     *
+     * <p>The shape a hero who has to walk into the room needs and an archer does
+     * not. An archer's answer to being surrounded is to not be there; a knight's
+     * is to be harder to kill while he is.
+     */
+    GUARD(Aim.SELF);
 
     /** What a player has to click before the cast can go through. */
     public enum Aim {

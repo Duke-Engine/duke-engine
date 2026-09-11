@@ -51,7 +51,9 @@ class ControlsTest {
     void whatAKeyAsksForFollowsFromWhatTheSkillDoes() {
         var controls = Main.controls(SHIPPED);
 
-        for (var skill : SHIPPED.skills()) {
+        // The played hero's four. Both heroes cast on the same four keys, so the
+        // file has two skills on Q and only one of them is bound.
+        for (var skill : SHIPPED.skillsFor(SHIPPED.playedHero())) {
             var aim = controls.aimOf(skill.key());
             assertNotNull(aim, "no binding for " + skill.key());
             assertEquals(switch (skill.effect().aim()) {
@@ -62,10 +64,20 @@ class ControlsTest {
         }
     }
 
-    /** A hero the file invented gets his keys the same way, with no Java at all. */
+    /**
+     * A hero the file invented gets his keys the same way, with no Java at all.
+     *
+     * <p>Two lines of file: who is being played, and what he can do. The first was
+     * not needed while there was one hero and is the whole point now — keys belong
+     * to whoever walks into the dungeon, because two heroes cast on the same four
+     * letters and only one of them can have Q.
+     */
     @Test
     void aSecondHerosKeysComeFromTheFileToo() {
         var settings = DungeonSettings.parse("""
+                DungeonRun Loop
+                  DefaultHero = Rogue
+                End
                 DungeonSkill Rogue Z
                   Effect = DASH
                   Distance = 40
@@ -76,5 +88,52 @@ class ControlsTest {
         assertTrue(Main.controls(settings).claimedKeys().contains('Z'),
                 "a skill nobody wrote Java for should still have a key");
         assertEquals(Hotkeys.Aim.OPEN_GROUND, Main.controls(settings).aimOf('Z'));
+    }
+
+    /**
+     * And the hero who is <em>not</em> being played gets none of them.
+     *
+     * <p>The fault this is really about. Both of the shipped heroes cast on Q, W,
+     * E and R, and what a key asks the player to point at follows from the skill
+     * behind it — so binding every skill in the file would leave Q asking for
+     * whatever the last hero read wanted. The archer's Q wants a creature and the
+     * knight's wants a patch of floor, and the wrong one of those is not a small
+     * wrongness: the click is refused and the skill never goes off.
+     */
+    @Test
+    void theHeroWhoIsNotPlayedGetsNoKeys() {
+        var settings = DungeonSettings.parse("""
+                DungeonRun Loop
+                  DefaultHero = Rogue
+                End
+                DungeonSkill Rogue Z
+                  Effect = DASH
+                  Distance = 40
+                  CooldownFrames = 60
+                End
+                DungeonSkill Bard Y
+                  Effect = AREA_DAMAGE
+                  Radius = 20
+                  CooldownFrames = 60
+                End
+                """);
+
+        var controls = Main.controls(settings);
+
+        assertTrue(controls.claimedKeys().contains('Z'));
+        assertFalse(controls.claimedKeys().contains('Y'),
+                "a hero nobody is playing took a key off the one who is");
+    }
+
+    /** The shipped file's two heroes really do share their four letters. */
+    @Test
+    void bothShippedHeroesCastOnTheSameFourKeys() {
+        var archer = SHIPPED.skillsFor("Hero").stream().map(s -> s.key()).sorted().toList();
+        var knight = SHIPPED.skillsFor("Knight").stream().map(s -> s.key()).sorted().toList();
+
+        assertEquals(archer, knight,
+                "if they stopped sharing keys, binding only the played hero's would be"
+                        + " a precaution against nothing -- worth knowing either way");
+        assertFalse(archer.isEmpty(), "the archer lost his skills");
     }
 }

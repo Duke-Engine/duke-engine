@@ -56,7 +56,10 @@ public final class Spawner {
     public static Placed place(DukeGame game, GamePlayer heroPlayer, GamePlayer dungeonPlayer,
             GeneratedDungeon dungeon, DungeonSettings settings, int depth, LootTable drops) {
         var logic = game.getLogic();
-        var hero = logic.spawn(logic.getThingFactory().findTemplate("Hero"),
+        // Whichever hero the file says is being played -- see DefaultHero. The
+        // word used to be here, so a second hero could be described in full and
+        // still never walk into a dungeon.
+        var hero = logic.spawn(logic.getThingFactory().findTemplate(settings.playedHero()),
                 at(logic, dungeon.hero()), heroPlayer.getIndex());
 
         var monsters = new ArrayList<GameObject>();

@@ -84,6 +84,24 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     private int boostFrames;
     private int boostPercent;
 
+    /** Frames of {@code GUARD} left, and how much of a blow it turns aside. */
+    private int guardFrames;
+    private int guardPercent;
+
+    /**
+     * An {@code AREA_DAMAGE} that has not finished happening.
+     *
+     * <p>What it is worth is worked out when it is cast rather than when it lands,
+     * so a whirlwind is not sharpened halfway through by the level he reaches
+     * during it — and so that it goes on being his even if something about him
+     * changes while it turns.
+     */
+    private int lastingFrames;
+    private int lastingEvery;
+    private int lastingNext;
+    private float lastingDamage;
+    private float lastingRadius;
+
     /**
      * The frame of his last cast, and what it pointed his weapon at.
      *
@@ -278,9 +296,15 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
             }
             case AREA_DAMAGE -> {
                 float each = damageOf(skill, level);
-                for (var victim : enemiesWithin(owner, world, skill.radius())) {
-                    victim.getBody().damage(each);
-                    stealLife(owner, each);
+                strikeAround(owner, world, each, skill.radius());
+                if (skill.lasts()) {
+                    // It has landed once already; the rest is the file's business.
+                    // Re-casting refreshes rather than stacking, as EMPOWER does.
+                    lastingFrames = skill.durationFrames();
+                    lastingEvery = skill.tickFrames();
+                    lastingNext = skill.tickFrames();
+                    lastingDamage = each;
+                    lastingRadius = skill.radius();
                 }
             }
             case AREA_AT_SPOT -> {
@@ -319,7 +343,15 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
                     // travel agree — and so the next thing he does looks that way.
                     Facing.turnToward(owner, towards);
                 }
+                var from = owner.getPosition();
                 owner.setPosition(dashEnd(owner, world, reachOf(skill, owner, towards)));
+                // A charge hurts what it goes through; a sprint does not. Which of
+                // the two it is, is a number in the file rather than a second
+                // effect here — so the archer's sprint is untouched by having said
+                // nothing about damage.
+                if (skill.damage() > 0f) {
+                    trample(owner, world, from, damageOf(skill, level), skill.radius());
+                }
             }
             case EMPOWER -> {
                 // Re-casting refreshes rather than stacking: two overlapping copies
@@ -327,6 +359,14 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
                 // cooldown already decides how often it can be had.
                 boostFrames = skill.durationFrames();
                 boostPercent = skill.boostAt(level);
+            }
+            case GUARD -> {
+                // The same bargain as EMPOWER above, and the same refresh. What it
+                // is worth reaches his body through HeroProgress, which is the one
+                // place that computes armour out of everything that goes into it —
+                // his level, what he has found, what he was born in, and this.
+                guardFrames = skill.durationFrames();
+                guardPercent = Math.clamp(skill.boostAt(level), 0, 100);
             }
         }
         return true;
@@ -542,9 +582,68 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         return from; // nowhere to come down: he stays where he is
     }
 
+    /** Hurt everything of the other side within {@code radius} of him. */
+    private void strikeAround(GameObject owner, uz.duke.core.thing.World world,
+            float each, float radius) {
+        for (var victim : enemiesWithin(owner, world, radius)) {
+            victim.getBody().damage(each);
+            stealLife(owner, each);
+        }
+    }
+
+    /**
+     * Hurt whoever he went through, rather than only whoever he landed among.
+     *
+     * <p>Sampled along the line he travelled instead of taken at either end,
+     * because the whole of a charge is the monsters between here and there. Three
+     * samples rather than a swept shape: a charge is short, a monster is wide, and
+     * an exact sweep would be a lot of arithmetic for a difference nobody could
+     * see. Each victim is hurt once however many samples find it.
+     *
+     * <p>It does not <em>shove</em> anything. Pushing a body out of the way is a
+     * question about collision and the navigation grid rather than about a skill,
+     * and it is not one this answers.
+     */
+    private void trample(GameObject owner, uz.duke.core.thing.World world,
+            uz.duke.core.math.Coord3D from, float each, float radius) {
+        var to = owner.getPosition();
+        // Ordered, so the same charge hurts the same monsters in the same order on
+        // every machine -- enemiesWithin is already ordered, and this keeps it.
+        var struck = new java.util.LinkedHashSet<GameObject>();
+        for (int sample = 0; sample <= 2; sample++) {
+            float along = sample / 2f;
+            var at = new uz.duke.core.math.Coord3D(
+                    from.x() + (to.x() - from.x()) * along,
+                    from.y() + (to.y() - from.y()) * along,
+                    from.z() + (to.z() - from.z()) * along);
+            struck.addAll(enemiesWithin(owner, world, at, radius));
+        }
+        for (var victim : struck) {
+            victim.getBody().damage(each);
+            stealLife(owner, each);
+        }
+    }
+
     @Override
     public float damageMultiplier() {
         return boostFrames > 0 ? 1f + boostPercent / 100f : 1f;
+    }
+
+    /**
+     * How much of a blow he is currently turning aside, in percent.
+     *
+     * <p>Read rather than applied. A body's armour is a function of his level,
+     * what he has found and what he was born in, and {@code HeroProgress} is the
+     * one place that adds those up — a guard that set the armour itself would be
+     * undone by the next level, and a level would end the guard.
+     */
+    public int getGuardPercent() {
+        return guardFrames > 0 ? guardPercent : 0;
+    }
+
+    /** Frames of protection left, for anything that wants to draw it. */
+    public int getGuardFrames() {
+        return guardFrames;
     }
 
     /**
@@ -589,8 +688,35 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         if (boostFrames > 0) {
             boostFrames--;
         }
+        if (guardFrames > 0) {
+            guardFrames--;
+        }
+        turnTheWhirlwind();
         if (drawing != null && --loosesIn <= 0) {
             looseTheDrawnShot();
+        }
+    }
+
+    /**
+     * A lasting {@code AREA_DAMAGE}, landing again.
+     *
+     * <p>It follows him, which is what makes it a whirlwind rather than a fire on
+     * the floor: it is measured from wherever he is standing each time it lands,
+     * so walking into a second group carries it with him and walking out of a
+     * fight ends it for them.
+     */
+    private void turnTheWhirlwind() {
+        if (lastingFrames <= 0) {
+            return;
+        }
+        lastingFrames--;
+        if (--lastingNext > 0) {
+            return;
+        }
+        lastingNext = lastingEvery;
+        var owner = getOwner();
+        if (owner != null && owner.getWorld() != null) {
+            strikeAround(owner, owner.getWorld(), lastingDamage, lastingRadius);
         }
     }
 }

@@ -2595,6 +2595,70 @@ so'raydi. Va uning ikkinchi yarmi shart: yangi dunyoda qahramon **bir marta**
 avtomatik tanlanadi — har qavat yangi obyekt beradi, ya'ni eski tanlov yaroqsiz
 bo'lib, skillar jimgina ishlamay qolardi.
 
+### 8.al Ikkinchi qahramon — Knight, va u'ning aksi
+
+Kamonchining teskarisi: ko'p jon, sekin, uzoqdan hech narsa qila olmaydi. Uni
+qo'shish **asosan INI ishi bo'ldi** — mexanizm oldingi ishda tayyorlangan edi —
+lekin "asosan" so'zi muhim, va quyidagi beshta joyda Java kerak bo'ldi.
+
+**★ Eng muhimi: qaysi qahramon o'ynalishi Java'da qattiq yozilgan ekan.** `"Hero"`
+literal sifatida olti joyda turardi (`Spawner`, `HeroProgress`, `DungeonRun`,
+`Main.discoveredBy` va boshqalar). Ya'ni ikkinchi qahramonni **to'liq tasvirlab
+ham, u hech qachon dungeon'ga kira olmasdi**. Endi `DefaultHero = Knight` —
+`DungeonRun` blokida bitta qator. Tanlash ekrani keyingi ish; bu uni sinash va
+balanslash uchun yetarli.
+
+**Klavish skillga emas, UYAGA tegishli.** Ikkala qahramon ham Q/W/E/R da o'ynaydi,
+ya'ni faylda Q'da ikkita skill bor. `Main.controls` va indikator halqalari endi
+**faqat o'ynalayotgan** qahramonnikini bog'laydi. Bu kichik nozik narsa emas:
+kamonchining Q si *jonzotga*, Knight'niki *yerga* mo'ljallanadi — noto'g'risi
+bog'lansa klik rad etiladi va skill umuman ketmaydi.
+
+**Ikkita effekt ikki vazifani bajaradi, faylga qarab** — yangi enum qo'shmasdan,
+va shu sababdan kamonchining biror skili bir zarra ham o'zgarmadi:
+
+| Effekt | Sozlama yo'q | Sozlama bor |
+|---|---|---|
+| `AREA_DAMAGE` | bir marta tushadi (kamonchining W si) | `DurationFrames` + `TickFrames` → **aylanma bo'ron**, va u qahramonga **ergashadi** |
+| `DASH` | zararsiz sakrash (kamonchining E si) | `Damage` → **otilish**, yo'ldagilarni uradi |
+
+Uchinchisi — `GUARD` — haqiqatan yangi shakl edi. `EMPOWER` **chiquvchi** zararni
+oshiradi (o'yinchining qurol bonusi orqali); `GUARD` **kiruvchi** ni kamaytiradi
+(tananing zirhi orqali). Ikki xil raqam, ikki xil obyektda — shuning uchun
+`EMPOWER` ning manfiysi bo'la olmaydi. Zirh esa `HeroProgress` orqali o'tadi,
+chunki **zirhni bitta joy hisoblaydi**: daraja + topilgan narsa + tug'ma zirh +
+guard. Aks holda keyingi daraja guard'ni, guard esa darajani bekor qilardi.
+
+**Per-hero ikkita yangi maydon.** `Title` — ilgari `DungeonHud` da bitta qator
+edi, ya'ni Knight HUD'da "O'q ustasi" deb turardi. `ArmourPercent` — tug'ma zirh,
+jonzot blokida tura olmaydi, chunki qahramonning zirhi har safar darajasidan
+**qayta yoziladi**. Ikkalasi ham `DungeonHero` blokida.
+
+**Knight'ning to'rttasi** (barchasi 34 dan uzoqqa yetmaydi — kamonchining eng
+uzuni 68):
+
+| | Skill | Effekt | Nega shunday |
+|---|---|---|---|
+| Q | Cleave | `AREA_AT_SPOT` | Konus shakli o'yinda yo'q; qisqa `Range` + o'rtacha `Radius` o'ynashda aynan cleave bo'ladi |
+| W | Charge | `DASH` + `Damage` | Kamonchining E si bilan bir xil effekt, faqat zarari bor |
+| E | Guard | `GUARD` | Kamonchida bunday narsa yo'q va bo'lmasligi kerak |
+| R | Whirlwind | `AREA_DAMAGE` + davomiylik | 4 soniya, sekundiga 2 marta — ya'ni undan **chiqib ketish mumkin** |
+
+**Surish (push) qilinmadi.** Otilish yo'ldagilarga zarar beradi, lekin ularni
+joyidan siljitmaydi: tanani surish navigatsiya gridiga tegishli savol, skillga
+emas.
+
+**★ Modeli hali yo'q** — `knight.glb` loyihaga qo'yilmagan, ikonkalar ham. U
+hozir **rangli kapsula** va uyalarida **klavish harflari** bilan o'ynaladi, ya'ni
+mexanika to'liq sinaladi. INI'da beshta qator `★` bilan belgilangan, fayllar
+kelganda izohdan chiqariladi. Shu sababdan `KnightTest` uning san'atini
+**ataylab tekshirmaydi**.
+
+**22 ta test**, ichida eng muhimi ikkitasi: `aWholeRunStartsWithTheKnightInIt`
+(haqiqiy dungeon generatsiya qilib, uni ichiga qo'yib, 4 soniya yurgizadi) va
+`theArcherWasNotRebalanced` (kamonchining beshta raqami yozib qo'yilgan — ikkinchi
+qahramonni birinchisini surib balanslash eng klassik xato).
+
 ---
 
 ## 9. Nima yo'q / ochiq ishlar

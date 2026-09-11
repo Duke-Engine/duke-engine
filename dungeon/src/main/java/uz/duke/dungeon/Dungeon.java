@@ -234,8 +234,11 @@ public final class Dungeon {
                 Content.read(Content.CREATURES), book, bag);
         var game = arena.game();
 
+        // Told which creature is the hero and what he already wears: both are
+        // per-hero and the file says them -- see DefaultHero and DungeonHero.
         var progress = new HeroProgress(arena.hero(), settings.levelling(),
-                settings.levelUpBannerFrames(), bag);
+                settings.levelUpBannerFrames(), bag, settings.playedHero(),
+                settings.playedHeroLook().armourPercent());
         // Drawn from the run's seed as well, so a seed is the whole run: the same
         // one drops the same things off the same monsters.
         var drops = new LootTable(settings.loot(), seed, settings.lootDropPercent(),

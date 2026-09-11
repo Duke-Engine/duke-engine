@@ -287,7 +287,12 @@ public final class Main {
         // when the command comes round — the same road a keypress travels.
         keys.onChoose((game, index) -> game.postCommand(new ChoosePower(
                 game.getLocalPlayerIndex(), index, offeredId(game))));
-        for (var skill : settings.skills()) {
+        // The played hero's four, not the file's eight. Both heroes cast on Q, W,
+        // E and R — a key belongs to a slot rather than to a skill — so binding
+        // every skill in the file would have whichever hero was read last deciding
+        // what Q asks the player to point at. Which is not a small wrongness: the
+        // archer's Q wants a creature and the knight's wants a patch of floor.
+        for (var skill : settings.skillsFor(settings.playedHero())) {
             char key = skill.key();
             switch (skill.effect().aim()) {
                 case UNIT -> keys.onUnit(key, (game, id) -> game.postCommand(new CastSkill(
@@ -328,13 +333,15 @@ public final class Main {
             case SKILLSHOT -> uz.duke.client3d.SkillRange.Shape.DOWN_A_LANE;
             case DASH -> uz.duke.client3d.SkillRange.Shape.AT_A_SPOT;
             case AREA_DAMAGE -> uz.duke.client3d.SkillRange.Shape.AROUND_HIM;
-            case EMPOWER -> uz.duke.client3d.SkillRange.Shape.ON_HIMSELF;
+            // Neither of these reaches past him: one sharpens his sword, the
+            // other thickens his skin.
+            case EMPOWER, GUARD -> uz.duke.client3d.SkillRange.Shape.ON_HIMSELF;
         };
         float reach = switch (skill.effect()) {
             case STRIKE, AREA_AT_SPOT, SKILLSHOT -> skill.range();
             case DASH -> skill.distance();
             case AREA_DAMAGE -> skill.radius();
-            case EMPOWER -> selfRadius;
+            case EMPOWER, GUARD -> selfRadius;
         };
         // What it LEAVES where it lands: a blast's radius, a lane's width. A dash
         // leaves a man, and a circle round a man-sized spot is a second ring saying
@@ -530,7 +537,9 @@ public final class Main {
         // which is also what the engine's fog uses to decide whether a monster is
         // on screen — so the ground he uncovers and the things he can see are the
         // same number, and re-tuning one cannot leave the other behind.
-        visuals.discoveredBy("Hero");
+        // Whoever is being played: a knight sees a shorter way than an archer, and
+        // the floor has to open up around the eyes that are actually there.
+        visuals.discoveredBy(settings.playedHero());
 
         // What it all sounds like — see DungeonSound in dungeon.ini. Handed over
         // whole, like the tiles and the themes: the client raises moments by name
@@ -585,7 +594,10 @@ public final class Main {
                 settings.ringHeight(), settings.ringPulseDepth(), settings.ringPulsePerSecond(),
                 settings.ringSegments(), settings.ringAllowColour(), settings.ringDenyColour(),
                 settings.ringAreaColour(), settings.ringBrightness()));
-        for (var skill : settings.skills()) {
+        // The played hero's, for the same reason his keys are — see controls. A
+        // ring is keyed by the letter, and the archer's Q and the knight's Q are
+        // two very different circles.
+        for (var skill : settings.skillsFor(settings.playedHero())) {
             visuals.skillRange(rangeOf(skill, settings.ringSelfRadius()));
         }
 

@@ -115,9 +115,12 @@ class HeroStatusTest {
         var line = lineFrom(77L);
         var settings = DungeonSettings.load();
 
-        assertEquals(settings.skills().size(), line.split("\\|skill=", -1).length - 1,
+        // His skills, not the file's: the panel describes whoever is being played,
+        // and the file holds a second hero's four as well now.
+        var his = settings.skillsFor(settings.playedHero());
+        assertEquals(his.size(), line.split("\\|skill=", -1).length - 1,
                 "a slot each, no more and no fewer: " + line);
-        for (var skill : settings.skills()) {
+        for (var skill : his) {
             assertTrue(line.contains("|skill=" + skill.key() + ","),
                     skill.key() + " has no slot in " + line);
         }
@@ -152,17 +155,42 @@ class HeroStatusTest {
      * draws whatever is at it, so a fifth skill is a fifth block of the file rather
      * than a line of Java. This is that from the writing end — {@code HeroPanelTest}
      * holds the other.
+     *
+     * <p>A skill that names <em>no</em> icon is not a fault: the slot draws the
+     * letter of its key, which is what every slot did before there were any
+     * pictures, and a hero whose art has not arrived yet is playable that way on
+     * purpose. So what is held here is that a named picture arrives — not that one
+     * was named.
      */
     @Test
     void everySlotCarriesThePictureTheFileGaveIt() {
         var line = lineFrom(77L);
         var settings = DungeonSettings.load();
 
-        for (var skill : settings.skills()) {
+        for (var skill : settings.skillsFor(settings.playedHero())) {
             var icon = settings.hudIcon(skill.icon());
-            assertFalse(icon.isBlank(), skill.key() + " was given no Icon in dungeon.ini");
+            if (icon.isBlank()) {
+                continue; // no picture named: the slot draws the letter, as it always did
+            }
             assertTrue(line.contains("|skill=" + skill.key() + "," + icon + ","),
                     skill.key() + " should carry " + icon + " in " + line);
+        }
+    }
+
+    /**
+     * And the archer's four, who have had pictures for a long time, still have them.
+     *
+     * <p>The half of the check above that was worth keeping once a hero was allowed
+     * to have none. Losing an icon is silent — the slot falls back to its letter —
+     * so the hero who has them needs somebody to say so.
+     */
+    @Test
+    void theArcherStillHasAllFourOfHisPictures() {
+        var settings = DungeonSettings.load();
+
+        for (var skill : settings.skillsFor("Hero")) {
+            assertFalse(settings.hudIcon(skill.icon()).isBlank(),
+                    "the archer's " + skill.key() + " lost the Icon it had");
         }
     }
 

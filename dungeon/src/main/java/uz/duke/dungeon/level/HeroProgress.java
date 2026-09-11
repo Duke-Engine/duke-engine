@@ -38,6 +38,12 @@ public final class HeroProgress {
     private final Levelling rules;
     private final int bannerFrames;
 
+    /** Which creature is him. His player owns his arrows too. */
+    private final String heroTemplate;
+
+    /** What he shrugs off before a single level — see the constructor. */
+    private final int armourPercent;
+
     /**
      * What he has found on the floor, which moves the same three figures a level
      * does.
@@ -68,10 +74,34 @@ public final class HeroProgress {
     }
 
     public HeroProgress(GamePlayer heroPlayer, Levelling rules, int bannerFrames, LootBag loot) {
+        this(heroPlayer, rules, bannerFrames, loot, "Hero", 0);
+    }
+
+    /**
+     * The same, told which creature is the hero and what he wears before he has
+     * earned anything.
+     *
+     * <p>Both are per-hero facts and neither could be read off the world. The
+     * template because his player owns his arrows as well as him; the armour
+     * because a hero's is <em>rewritten</em> from his level and his loot every
+     * time either changes, so a figure in his creature block would not survive his
+     * first level.
+     *
+     * <p>The shorter constructors above keep the archer's answers, which is what
+     * every caller that has not heard of a second hero should get.
+     *
+     * @param heroTemplate  the creature template being played
+     * @param armourPercent what he shrugs off at level one, counted exactly like a
+     *     breastplate he found — so the file's floor on damage taken still holds
+     */
+    public HeroProgress(GamePlayer heroPlayer, Levelling rules, int bannerFrames, LootBag loot,
+            String heroTemplate, int armourPercent) {
         this.heroPlayer = heroPlayer;
         this.rules = rules;
         this.bannerFrames = bannerFrames;
         this.loot = loot;
+        this.heroTemplate = heroTemplate;
+        this.armourPercent = armourPercent;
     }
 
     /** What he has picked up this run. */
@@ -197,7 +227,11 @@ public final class HeroProgress {
 
     private void applyArmour(GameObject hero, int atLevel) {
         if (hero.getBody() instanceof GrowableBody body) {
-            body.setDamageTaken(rules.damageTakenWith(atLevel, loot.armourPercent()));
+            // His own plate counts exactly like a breastplate he found, so the
+            // file's floor on damage taken holds for a knight as it does for an
+            // archer who has picked up four of them.
+            body.setDamageTaken(
+                    rules.damageTakenWith(atLevel, armourPercent + loot.armourPercent()));
         }
     }
 
@@ -211,7 +245,7 @@ public final class HeroProgress {
     private GameObject findHero(DukeGame game) {
         for (var object : game.getLogic().getObjects()) {
             if (object.getPlayerIndex() == heroPlayer.getIndex()
-                    && object.getTemplate().getName().equals("Hero")) {
+                    && object.getTemplate().getName().equals(heroTemplate)) {
                 return object;
             }
         }

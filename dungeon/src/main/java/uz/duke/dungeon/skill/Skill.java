@@ -25,9 +25,17 @@ package uz.duke.dungeon.skill;
  * @param radius        how far {@code AREA_DAMAGE} reaches around the caster
  * @param range         how far {@code STRIKE} can find a victim
  * @param distance      how far {@code DASH} carries the caster
- * @param boostPercent  how much more damage {@code EMPOWER} grants, in percent
+ * @param boostPercent  what this skill is worth in percent — damage added by
+ *     {@code EMPOWER}, damage avoided by {@code GUARD}. One field because it is
+ *     one question ("how much is it worth?") asked of two mirrored effects
  * @param boostPerLevel that percentage's growth per level
- * @param durationFrames how long {@code EMPOWER} lasts
+ * @param durationFrames how long it lasts: {@code EMPOWER}'s extra damage,
+ *     {@code GUARD}'s protection, or how long an {@code AREA_DAMAGE} goes on
+ *     landing. Zero for a skill that happens and is over
+ * @param tickFrames    how often a lasting {@code AREA_DAMAGE} lands, in frames.
+ *     Zero lands it once, which is what every skill written before there was a
+ *     whirlwind does — so the damage figure means "per landing" either way and no
+ *     existing skill changed by a hair
  * @param cooldownFrames how long before it can be cast again, at the first level
  * @param cooldownPerLevel  frames added per level — negative to sharpen with level
  * @param unlockLevel   the level it becomes usable at; an ultimate waits
@@ -54,6 +62,7 @@ public record Skill(
         int boostPercent,
         int boostPerLevel,
         int durationFrames,
+        int tickFrames,
         int cooldownFrames,
         int cooldownPerLevel,
         int unlockLevel,
@@ -92,5 +101,16 @@ public record Skill(
     /** Whether it becomes something that has to cross the room to arrive. */
     public boolean hasProjectile() {
         return projectile != null && !projectile.isBlank();
+    }
+
+    /**
+     * Whether this one goes on happening after it is cast.
+     *
+     * <p>Both halves are required and that is the point: a duration with no tick
+     * would be a skill that lasts and never lands, and a tick with no duration a
+     * skill that lands for ever.
+     */
+    public boolean lasts() {
+        return durationFrames > 0 && tickFrames > 0;
     }
 }

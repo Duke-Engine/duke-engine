@@ -3,7 +3,16 @@ package uz.duke.dungeon.content;
 import java.util.List;
 
 /**
- * What the hero is drawn as.
+ * One hero: what he is drawn as, what he is called, and the one number about him
+ * that is neither art nor a template field.
+ *
+ * <p>Mostly art, and it was all art until there were two of them. A second hero
+ * brought two facts with him that have nowhere else to live: what the panel calls
+ * him under his name, which used to be a single line in {@code DungeonHud} and so
+ * was the archer's title on everybody; and how much of a blow he shrugs off before
+ * a single level is earned, which is the difference between an archer and a man
+ * in plate and cannot be said in {@code creatures.ini} because the game rewrites
+ * armour from his level every time it changes.
  *
  * <p>Separate from {@link MonsterLook} because he takes his clips from several
  * libraries rather than one, and because there is only ever one of him — a kind
@@ -25,6 +34,15 @@ import java.util.List;
  *
  * @param name       the creature template this is the look of — {@code Hero}, and
  *                   whatever the next one is called
+ * @param title      what the panel calls him under his name — what he <em>does</em>,
+ *                   where the name says which hero. Empty to fall back to the one
+ *                   word {@code DungeonHud} names for everybody
+ * @param armourPercent how much incoming damage he shrugs off before he has
+ *                   earned a single level, as a percentage. Here rather than in
+ *                   his creature block because the game sets a hero's armour from
+ *                   his level and what he has found, and would overwrite anything
+ *                   the template said. Counted exactly like a found breastplate,
+ *                   so the file's own floor on damage taken still holds
  * @param model      the mesh, or {@code null} to fall back to a coloured shape
  * @param texture    a colour map to override the model's own, or {@code null} to
  *                   keep whatever it shipped with
@@ -46,6 +64,8 @@ import java.util.List;
  */
 public record HeroLook(
         String name,
+        String title,
+        int armourPercent,
         String model,
         String texture,
         float modelScale,
@@ -63,8 +83,8 @@ public record HeroLook(
     }
 
     /** No art: he is drawn as a shape, as he was before there was a model. */
-    public static final HeroLook NONE = new HeroLook("Hero", null, null, 1f, 0f, List.of(),
-            null, null, null, null, null, Held.NOTHING);
+    public static final HeroLook NONE = new HeroLook("Hero", "", 0, null, null, 1f, 0f,
+            List.of(), null, null, null, null, null, Held.NOTHING);
 
     public boolean hasModel() {
         return model != null;

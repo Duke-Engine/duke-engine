@@ -314,10 +314,17 @@ public final class DungeonRun {
         powers.carryOver(placed.hero());
     }
 
+    /**
+     * Him, out of everything his player owns.
+     *
+     * <p>The template check is not redundant beside the player check: his arrows
+     * are his too, and one of them is not the hero. Which template that is comes
+     * out of the file, because there is more than one hero now.
+     */
     private GameObject findHero(DukeGame game) {
         for (var object : game.getLogic().getObjects()) {
             if (object.getPlayerIndex() == heroPlayer.getIndex()
-                    && object.getTemplate().getName().equals("Hero")) {
+                    && object.getTemplate().getName().equals(settings.playedHero())) {
                 return object;
             }
         }
