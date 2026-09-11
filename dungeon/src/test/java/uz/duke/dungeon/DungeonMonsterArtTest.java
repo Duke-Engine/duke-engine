@@ -372,6 +372,51 @@ class DungeonMonsterArtTest {
                                 .toList());
     }
 
+    /**
+     * The bow is turned to match which side of it the string is on.
+     *
+     * <p>The hand bone gets a weapon into the hand and settles nothing about which
+     * way round it goes: that is between the bone and the model, and this kit does
+     * not lay every model out the same way — every other weapon in it runs along
+     * its own {@code +Y} and the bow runs along {@code +Z}. Hung as it came, the
+     * bow stood up correctly and faced the wrong way: string outward, knuckles
+     * against the grip.
+     *
+     * <p>So the half-turn in the settings is not a preference, it is a consequence
+     * of where the string is — and this is where the two are held together. Ship a
+     * bow with its string on the other side and this says so rather than leaving
+     * somebody to notice from a chair.
+     */
+    @Test
+    void theBowIsTurnedToSuitWhichSideItsStringIsOn() {
+        var hero = SETTINGS.hero();
+        float[] middle = {Float.MAX_VALUE, -Float.MAX_VALUE};
+        float[] tips = {Float.MAX_VALUE, -Float.MAX_VALUE};
+        assets().loadModel(hero.holds()).depthFirstTraversal(spatial -> {
+            if (!(spatial instanceof com.jme3.scene.Geometry geometry)) {
+                return;
+            }
+            var buffer = geometry.getMesh().getFloatBuffer(
+                    com.jme3.scene.VertexBuffer.Type.Position);
+            for (int i = 0; i + 2 < buffer.limit(); i += 3) {
+                var into = Math.abs(buffer.get(i + 2)) > 0.8f ? tips : middle;
+                into[0] = Math.min(into[0], buffer.get(i));
+                into[1] = Math.max(into[1], buffer.get(i));
+            }
+        });
+
+        // The grip bulges out of the middle of the bow to one side; the string is
+        // the straight line the length of it on the other.
+        boolean gripTowardPositiveX = middle[1] - tips[1] > Math.abs(tips[0] - middle[0]);
+        assertTrue(gripTowardPositiveX || middle[0] < tips[0],
+                "neither side of this bow bulges in the middle, so it has no grip to find: "
+                        + "middle x " + middle[0] + ".." + middle[1]
+                        + ", tips x " + tips[0] + ".." + tips[1]);
+        assertEquals(gripTowardPositiveX ? 180f : 0f, hero.heldRoll(), 0.001f,
+                "the grip is toward " + (gripTowardPositiveX ? "+x" : "-x")
+                        + " and the bone points +x at the archer, so HeldRoll is wrong");
+    }
+
     /** Every clip he asks for is in one of the libraries he names. */
     @Test
     void everyClipTheHeroAsksForIsInOneOfHisLibraries() {

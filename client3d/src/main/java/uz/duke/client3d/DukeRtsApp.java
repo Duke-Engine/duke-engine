@@ -2845,7 +2845,8 @@ final class DukeRtsApp extends SimpleApplication {
      * the weapon is moved by the same clip that moves the hand and there is
      * nothing to keep in step each frame. What it does <em>not</em> do is dress
      * it: a weapon loads with the same PBR material the body does, and this client
-     * cannot light one, so an undressed bow is a black bow.
+     * cannot light one, so an undressed bow is a black bow. Nor does it know which
+     * way round the model goes — see {@link Visuals.UnitVisual#heldTurn}.
      *
      * <p>A bone the rig does not have is a warning rather than a failure. The unit
      * is drawn empty-handed, which is a thing you can see and think about; a
@@ -2874,6 +2875,10 @@ final class DukeRtsApp extends SimpleApplication {
             }
         });
         held.setLocalScale(visual.heldScale);
+        held.setLocalRotation(new Quaternion().fromAngles(
+                FastMath.DEG_TO_RAD * visual.heldPitch,
+                FastMath.DEG_TO_RAD * visual.heldYaw,
+                FastMath.DEG_TO_RAD * visual.heldRoll));
         skin.getAttachmentsNode(visual.heldBone).attachChild(held);
     }
 

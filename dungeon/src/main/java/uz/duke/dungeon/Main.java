@@ -296,7 +296,8 @@ public final class Main {
                     unit.texture(hero.texture());
                 }
                 if (hero.holds() != null && hero.heldIn() != null) {
-                    unit.holds(hero.holds(), hero.heldIn(), hero.heldScale());
+                    unit.holds(hero.holds(), hero.heldIn(), hero.heldScale())
+                            .heldTurn(hero.heldPitch(), hero.heldYaw(), hero.heldRoll());
                 }
                 for (var library : hero.animations()) {
                     unit.animationsFrom(library);

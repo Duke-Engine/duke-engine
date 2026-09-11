@@ -1127,6 +1127,9 @@ public final class DungeonSettings {
     private String heroHolds;
     private String heroHeldIn;
     private float heroHeldScale = 1f;
+    private float heroHeldPitch;
+    private float heroHeldYaw;
+    private float heroHeldRoll;
 
     /**
      * What the hero is drawn as. {@link HeroLook#NONE} when the file names no
@@ -1136,7 +1139,8 @@ public final class DungeonSettings {
         return heroModel == null ? HeroLook.NONE
                 : new HeroLook(heroModel, heroTexture, heroModelScale, heroFacing,
                         heroAnimations, heroIdle, heroWalk, heroAttack, heroHurt, heroDeath,
-                        heroHolds, heroHeldIn, heroHeldScale);
+                        heroHolds, heroHeldIn, heroHeldScale,
+                        heroHeldPitch, heroHeldYaw, heroHeldRoll);
     }
 
     private String arrowModel;
@@ -1410,7 +1414,10 @@ public final class DungeonSettings {
                     .add("Death", Ini.string((s, v) -> s.heroDeath = v))
                     .add("Holds", Ini.string((s, v) -> s.heroHolds = v))
                     .add("HeldIn", Ini.string((s, v) -> s.heroHeldIn = v))
-                    .add("HeldScale", Ini.real((s, v) -> s.heroHeldScale = v));
+                    .add("HeldScale", Ini.real((s, v) -> s.heroHeldScale = v))
+                    .add("HeldPitch", Ini.real((s, v) -> s.heroHeldPitch = v))
+                    .add("HeldYaw", Ini.real((s, v) -> s.heroHeldYaw = v))
+                    .add("HeldRoll", Ini.real((s, v) -> s.heroHeldRoll = v));
 
     private static final FieldParseTable<DungeonSettings> ANIMATIONS =
             new FieldParseTable<DungeonSettings>()

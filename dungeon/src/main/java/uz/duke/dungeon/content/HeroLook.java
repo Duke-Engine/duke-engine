@@ -43,6 +43,13 @@ import java.util.List;
  *                   so a weapon parented to it needs nothing kept in step
  * @param heldScale  what to multiply the held model by, when it and the body were
  *                   not authored at the same size
+ * @param heldPitch  degrees of turn to put it the right way round on that bone.
+ *                   The bone gets it into the hand; which way round it goes is
+ *                   between the bone and the model, and a kit does not always lay
+ *                   every model out the same way
+ * @param heldYaw    the same, about the second axis
+ * @param heldRoll   the same, about the third — which for a weapon standing up
+ *                   out of the fist is the one that turns it face about
  */
 public record HeroLook(
         String model,
@@ -57,7 +64,10 @@ public record HeroLook(
         String death,
         String holds,
         String heldIn,
-        float heldScale) {
+        float heldScale,
+        float heldPitch,
+        float heldYaw,
+        float heldRoll) {
 
     public HeroLook {
         animations = List.copyOf(animations);
@@ -65,7 +75,7 @@ public record HeroLook(
 
     /** No art: he is drawn as a shape, as he was before there was a model. */
     public static final HeroLook NONE = new HeroLook(null, null, 1f, 0f, List.of(),
-            null, null, null, null, null, null, null, 1f);
+            null, null, null, null, null, null, null, 1f, 0f, 0f, 0f);
 
     public boolean hasModel() {
         return model != null;

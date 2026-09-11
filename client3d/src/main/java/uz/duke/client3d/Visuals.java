@@ -40,6 +40,9 @@ public final class Visuals {
         String heldPath;
         String heldBone;
         float heldScale = 1f;
+        float heldPitch;
+        float heldYaw;
+        float heldRoll;
         /** Where this unit's animations come from, in the order they were named. */
         final java.util.List<AnimationSource> animations = new java.util.ArrayList<>();
         float scale = 1f;
@@ -87,20 +90,40 @@ public final class Visuals {
          * the body, and they do it on purpose: one ranger and a rack of weapons is
          * every armed ranger there is, where a ranger-with-a-bow is one of them.
          * The rig has a bone for it — KayKit's is {@code handslot.l} — authored so
-         * that a weapon hung there with no transform of its own lands in the hand
-         * and stays in it through every clip, because the hand is what the clip
-         * moves.
-         *
-         * <p>Which is why there is no rotation to set here. If a kit needed one,
-         * the bone would not be doing its job.
+         * that a weapon hung there lands in the hand and stays in it through every
+         * clip, because the hand is what the clip moves.
          *
          * @param scale what to multiply the held model by, when it and the body
          *     were not authored at the same size; 1 for a kit that ships both
+         * @see #heldTurn
          */
         public UnitVisual holds(String assetPath, String boneName, float scale) {
             this.heldPath = assetPath;
             this.heldBone = boneName;
             this.heldScale = scale;
+            return this;
+        }
+
+        /**
+         * How far to turn what he carries, in degrees, before it goes on the bone.
+         *
+         * <p>The bone gets a weapon into the hand and does not settle which way
+         * round it is, because that is between the bone and the <em>model</em> and
+         * a kit does not always lay every model out the same way. KayKit's bow is
+         * the case in point: every other weapon in the pack runs along its own
+         * {@code +Y} and the bow runs along {@code +Z}, so the bone that points a
+         * sword's blade out of the fist points the bow's length straight up, which
+         * is right — and then hands it over with the string facing away from the
+         * archer and the grip against his knuckles, which is not.
+         *
+         * <p>So this is the same kind of number as a wall's shift or a unit's
+         * facing: a fact about the art, measured once and written down where it
+         * can be seen.
+         */
+        public UnitVisual heldTurn(float pitchDegrees, float yawDegrees, float rollDegrees) {
+            this.heldPitch = pitchDegrees;
+            this.heldYaw = yawDegrees;
+            this.heldRoll = rollDegrees;
             return this;
         }
 
