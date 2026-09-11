@@ -260,6 +260,10 @@ public final class Dungeon {
                 // orders can say. See HoldGround.
                 case uz.duke.dungeon.ai.HoldGround hold ->
                         arena.orders().toggleHold(hold.playerIndex());
+                // Nothing in the world changes; the panel starts describing
+                // something else. See Watching.
+                case uz.duke.dungeon.run.Watching looking ->
+                        arena.orders().watch(looking.playerIndex(), looking.unit());
                 default -> {
                     // Not one of ours; rts has already said so.
                 }

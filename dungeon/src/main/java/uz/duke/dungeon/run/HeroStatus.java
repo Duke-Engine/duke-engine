@@ -54,6 +54,55 @@ final class HeroStatus {
     }
 
     /**
+     * The card for a creature that is not his: name, what is left of it, and what
+     * it hits for.
+     *
+     * <p>Deliberately shorter than the hero's, and not because it was easier. A
+     * skeleton has no experience the player is earning, no skills he can cast, no
+     * bag and no orders — writing those fields with a monster's numbers in them
+     * would be inventing a second hero. What is left is what is actually worth
+     * knowing about a thing across the room: how much of it there is and how hard
+     * it hits.
+     *
+     * <p>The floor's own line stays. Depth belongs to the dungeon rather than to
+     * whatever happens to be selected, and a panel whose corner went blank when
+     * the player clicked a skeleton would look broken.
+     *
+     * <p>Worked out here rather than read off the creature because the engine's
+     * weapon and locomotor do not hand their numbers back — the same reason the
+     * hero's three are worked out — and because what a floor multiplies a monster
+     * by is this game's arithmetic. See {@code Spawner.scale}.
+     */
+    static String creature(GameObject creature, int depth, DungeonSettings settings, String look) {
+        if (creature == null || creature.getBody() == null) {
+            return "";
+        }
+        var line = new StringBuilder()
+                .append("name=").append(nameOf(creature))
+                .append("|hp=").append(Math.round(creature.getBody().getHealth()))
+                .append('/').append(Math.round(creature.getBody().getMaxHealth()))
+                .append("|depth=").append(howFarDown(depth, settings))
+                .append("|depthWord=").append(settings.hudDepthWord());
+        if (!settings.hudMonsterFace().isBlank()) {
+            line.append("|face=").append(settings.hudMonsterFace());
+        }
+        float damage = weaponDamage(creature.getTemplate()) * settings.monsterDamageAt(depth);
+        if (damage > 0f) {
+            line.append("|stat=").append(settings.hudAttackWord()).append(',')
+                    .append(Math.round(damage));
+        }
+        float speed = walkingSpeed(creature.getTemplate());
+        if (speed > 0f) {
+            line.append("|stat=").append(settings.hudSpeedWord()).append(',')
+                    .append(Math.round(speed));
+        }
+        if (look != null && !look.isBlank()) {
+            line.append("|look=").append(look);
+        }
+        return line.toString();
+    }
+
+    /**
      * The same, told whether he has been ordered to hold his ground.
      *
      * <p>The one thing on the panel that is neither a number on the hero nor a

@@ -287,6 +287,10 @@ public final class Main {
             }
         }
         orders(keys);
+        // Which single creature he has picked out. The panel describes it, and
+        // only the simulation can say what it is worth -- see Watching.
+        keys.onWatch((game, id) -> game.postCommand(new uz.duke.dungeon.run.Watching(
+                game.getLocalPlayerIndex(), id < 0 ? null : new ObjectId(id))));
         return keys;
     }
 

@@ -1669,6 +1669,7 @@ public final class DungeonSettings {
         return hudSpeedWord;
     }
 
+    private String hudMonsterFace = "";
     private String hudSkillsWord = "";
     private String hudItemsWord = "";
     private String hudHeroTitle = "";
@@ -1678,6 +1679,11 @@ public final class DungeonSettings {
     private String hudGuardWord = "";
     private String hudIconFolder = "";
     private String hudSkinFolder = "";
+
+    /** The drawing that stands in the portrait for something that is not his. */
+    public String hudMonsterFace() {
+        return hudMonsterFace;
+    }
 
     /** The heading over the skill row. */
     public String hudSkillsWord() {
@@ -1717,6 +1723,7 @@ public final class DungeonSettings {
                     .add("AttackWord", Ini.restOfLine((s, v) -> s.hudAttackWord = v))
                     .add("ArmourWord", Ini.restOfLine((s, v) -> s.hudArmourWord = v))
                     .add("SpeedWord", Ini.restOfLine((s, v) -> s.hudSpeedWord = v))
+                    .add("MonsterFace", Ini.string((s, v) -> s.hudMonsterFace = v))
                     .add("SkillsWord", Ini.restOfLine((s, v) -> s.hudSkillsWord = v))
                     .add("ItemsWord", Ini.restOfLine((s, v) -> s.hudItemsWord = v))
                     .add("HeroTitle", Ini.restOfLine((s, v) -> s.hudHeroTitle = v))

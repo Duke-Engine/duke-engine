@@ -129,19 +129,27 @@ final class GameSounds {
         if (reading == null) {
             return;
         }
-        if (!reading.rank().equals(lastRank)) {
-            if (!lastRank.isEmpty()) {
-                sounds.play("level_up", now);
-                sounds.play("vo.level_up", now);
-            }
-            lastRank = reading.rank();
-        }
         if (!reading.depth().equals(lastDepth)) {
             if (!lastDepth.isEmpty()) {
                 sounds.play("depth", now);
                 sounds.play("vo.depth", now);
             }
             lastDepth = reading.depth();
+        }
+        // A card with no level on it is not his — the player has picked out
+        // something else and the bar is describing that. The floor above is still
+        // the floor; nothing below this line is, and reading a creature's card as
+        // his own turns every click on a skeleton into a level-up fanfare and a
+        // second one on the way back.
+        if (reading.rank().isEmpty()) {
+            return;
+        }
+        if (!reading.rank().equals(lastRank)) {
+            if (!lastRank.isEmpty()) {
+                sounds.play("level_up", now);
+                sounds.play("vo.level_up", now);
+            }
+            lastRank = reading.rank();
         }
         // A note stays up for a while, so it is its arrival that is the moment.
         var note = reading.note() == null ? "" : reading.note();

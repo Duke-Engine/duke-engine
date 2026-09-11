@@ -275,13 +275,49 @@ final class HeroPanel {
         powersWord.setText(reading.powersWord);
         skillsWord.setText(reading.skillsWord);
         note.setText(reading.note);
+        showFace(reading.face);
         showStats(reading.stats);
         showOrders(reading.orders);
         showItems(reading.items, reading.itemsWord);
         showSkills(reading.skills);
         showPowers(reading.powers);
+        showOnlyWhatTheCardHas(reading);
         return true;
     }
+
+    /**
+     * Hide every part of the bar the card says nothing about.
+     *
+     * <p>The panel was written for one card — his — and every block on it always
+     * had something in it. A creature's card is shorter on purpose: a skeleton has
+     * no experience the player is earning, no skills, no bag and no level. Drawn
+     * as empty sockets and a bar at zero, those blocks would not read as "this
+     * creature has none of that" but as "the panel has broken".
+     *
+     * <p>So a block with nothing to say is not drawn at all, and {@link #layOut}
+     * closes the gap where it was. Which is also the honest rule for the four
+     * other games this client draws: none of them sends skills or a bag either.
+     */
+    private void showOnlyWhatTheCardHas(Reading reading) {
+        boolean levels = reading.needed > 0f;
+        boolean named = !reading.title.isBlank();
+        boolean ranked = !reading.rank.isBlank();
+        experienceBar.setCullHint(levels ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        titleLine.setCullHint(named ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        badgePlate.setCullHint(ranked ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        skillHeading.setCullHint(reading.skills.isEmpty()
+                ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
+        boolean carries = !reading.itemsWord.isBlank();
+        itemGrid.setCullHint(carries ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        itemHeading.setCullHint(carries ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        if (carries != showingBag) {
+            showingBag = carries;
+            layOut(); // the block is gone; the blocks after it move up to fill it
+        }
+    }
+
+    /** Whether the bag is on the bar, so its coming and going re-lays the rest. */
+    private boolean showingBag = true;
 
     /** Take the bar out of the scene, so a fresh one can be built at a new size. */
     void destroy() {
@@ -539,10 +575,10 @@ final class HeroPanel {
         // rather than a stretched man.
         var head = new Geometry("head", disc(17f, 16));
         head.setMaterial(unshaded(FLESH));
-        attach(portrait, head, PORTRAIT / 2f, PORTRAIT_HEIGHT - 44f, 3f);
+        attach(figure, head, PORTRAIT / 2f, PORTRAIT_HEIGHT - 44f, 3f);
         var body = new Geometry("body", polygon(shoulders(), PORTRAIT));
         body.setMaterial(unshaded(FLESH));
-        attach(portrait, body, 0f, 0f, 3f);
+        attach(figure, body, 0f, 0f, 3f);
 
         // A bow held at his side: the one line saying which hero this is. The
         // limb bows out to the right and the string cuts straight back.
@@ -550,7 +586,8 @@ final class HeroPanel {
             bowLimb(), {64, 26, 62, 62},
         }, PORTRAIT));
         bow.setMaterial(lines(TORCH));
-        attach(portrait, bow, 0f, PORTRAIT_HEIGHT - PORTRAIT, 4f);
+        attach(figure, bow, 0f, PORTRAIT_HEIGHT - PORTRAIT, 4f);
+        attach(portrait, figure, 0f, 0f, 0f);
 
         buildBadge();
         if (framed(portrait, PanelSkin.PORTRAIT, -3f, -3f,
@@ -572,8 +609,49 @@ final class HeroPanel {
         }
     }
 
+    /**
+     * The archer's silhouette, kept together so it can step aside.
+     *
+     * <p>The portrait is his; when the player picks out something that is not, the
+     * frame stays and the figure in it has to change or the panel is lying about
+     * what is selected. The game says what to put there instead — see
+     * {@code face} on the status line — and the client draws it from the same
+     * vocabulary of line glyphs everything else on the bar is drawn from.
+     */
+    private final Node figure = new Node("figure");
+
+    /** What stands in the frame instead of him, when something else is selected. */
+    private Geometry faceGlyph;
+
     /** The level, on a plate slung across the bottom edge of the portrait. */
     private BitmapText badge;
+
+    /** Draw the figure the card names, or his own silhouette when it names none. */
+    private void showFace(String named) {
+        boolean his = named == null || named.isBlank();
+        figure.setCullHint(his ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        if (his) {
+            if (faceGlyph != null) {
+                faceGlyph.removeFromParent();
+                faceGlyph = null;
+                facedWith = "";
+            }
+            return;
+        }
+        if (named.equals(facedWith)) {
+            return;
+        }
+        facedWith = named;
+        if (faceGlyph != null) {
+            faceGlyph.removeFromParent();
+        }
+        faceGlyph = new Geometry("face-glyph", Glyphs.of(named, PORTRAIT * 0.62f));
+        faceGlyph.setMaterial(lines(BONE));
+        attach(portrait, faceGlyph, PORTRAIT / 2f, PORTRAIT_HEIGHT / 2f, 4f);
+    }
+
+    /** What the frame is currently showing, so the glyph is not rebuilt every frame. */
+    private String facedWith = "";
 
     /**
      * What level he is, hung under his picture rather than written beside his
@@ -584,8 +662,10 @@ final class HeroPanel {
      * already is. Straddling the frame's edge rather than sitting under it is what
      * makes it read as fixed to the picture instead of as a caption.
      */
+    private final Node badgePlate = new Node("badge");
+
     private void buildBadge() {
-        var plate = new Node("badge");
+        var plate = badgePlate;
         attach(plate, flat("badge-edge", BADGE_WIDTH, BADGE_HEIGHT, TORCH), 0f, 0f, 6f);
         attach(plate, flat("badge-face", BADGE_WIDTH - 4f, BADGE_HEIGHT - 4f, rgb(0x3A2D12)),
                 2f, 2f, 7f);
@@ -810,8 +890,11 @@ final class HeroPanel {
 
     private Node vitals;
 
-    /** What he is, under his name. */
+    /** What he is, under his name, and the wash it sits on. */
     private BitmapText title;
+    private final Node titleLine = new Node("title-line");
+    /** The experience bar, kept together so it can go when nothing is levelling. */
+    private final Node experienceBar = new Node("experience");
 
     private void buildVitals() {
         vitals = new Node("vitals");
@@ -833,10 +916,11 @@ final class HeroPanel {
                 sideways(VITALS_WIDTH, TITLE_HEIGHT + 3f, new ColorRGBA(GOLD.r, GOLD.g,
                         GOLD.b, 0.14f)));
         wash.setMaterial(vertexColoured());
-        attach(vitals, wash, 0f, titleY - 2f, 0f);
+        attach(titleLine, wash, 0f, titleY - 2f, 0f);
         title = text(13f, GOLD, 0f, titleY, VITALS_WIDTH, BitmapFont.Align.Center);
         title.setLocalTranslation(0f, title.getLocalTranslation().y, 1f);
-        vitals.attachChild(title);
+        titleLine.attachChild(title);
+        vitals.attachChild(titleLine);
 
         vitals.attachChild(trough(0f, healthY, VITALS_WIDTH, BAR_HEIGHT));
         healthFill = fill(VITALS_WIDTH - 2f, BAR_HEIGHT - 2f, BLOOD);
@@ -847,17 +931,18 @@ final class HeroPanel {
         health.setLocalTranslation(0f, health.getLocalTranslation().y, 2f);
         vitals.attachChild(health);
 
-        vitals.attachChild(trough(0f, experienceY, VITALS_WIDTH, XP_HEIGHT));
+        attach(experienceBar, trough(0f, experienceY, VITALS_WIDTH, XP_HEIGHT), 0f, 0f, 0f);
         experienceFill = fill(VITALS_WIDTH - 2f, XP_HEIGHT - 2f, ARCANE);
         experienceFill.setLocalTranslation(1f, experienceY + 1f, 1f);
-        vitals.attachChild(experienceFill);
+        experienceBar.attachChild(experienceFill);
+        vitals.attachChild(experienceBar);
 
         // The bezels last and highest: a bar fills from under its own rim, and
         // the reading rides over both. A gauge is the one place the picture is
         // asked for a plain square -- the rim IS the ornament at this size.
         framed(vitals, PanelSkin.GAUGE, -1f, healthY - 1f,
                 VITALS_WIDTH + 2f, BAR_HEIGHT + 2f, 1.5f);
-        framed(vitals, PanelSkin.GAUGE, -1f, experienceY - 1f,
+        framed(experienceBar, PanelSkin.GAUGE, -1f, experienceY - 1f,
                 VITALS_WIDTH + 2f, XP_HEIGHT + 2f, 1.5f);
     }
 
@@ -1433,8 +1518,15 @@ final class HeroPanel {
         float mapBlock = MINIMAP + (orderButtons.isEmpty() ? 0f
                 : ORDER_COLUMN_GAP + ORDER_BUTTON);
         float who = PORTRAIT + PORTRAIT_GAP + VITALS_WIDTH;
-        float bagWidth = ITEM_COLUMNS * ITEM_SLOT + (ITEM_COLUMNS - 1) * ITEM_GAP;
-        float total = mapBlock + gap + who + gap + bagWidth + gap + skillsWidth
+        // A card with no bag on it -- a creature's -- takes the block away and the
+        // rest of the bar closes up, rather than leaving a hole where his things
+        // would be if he were the one selected.
+        float bagWidth = showingBag
+                ? ITEM_COLUMNS * ITEM_SLOT + (ITEM_COLUMNS - 1) * ITEM_GAP : 0f;
+        float bagGap = showingBag ? gap : 0f;
+        float skillsGap = slots.isEmpty() ? 0f : gap;
+        float skillsRoom = slots.isEmpty() ? 0f : skillsWidth;
+        float total = mapBlock + gap + who + bagGap + bagWidth + skillsGap + skillsRoom
                 + gap + DEPTH_WIDTH;
 
         // The bar spans the window; its contents are centred on it, so a wide
@@ -1453,9 +1545,14 @@ final class HeroPanel {
         // the vitals fill the whole height beside it.
         portrait.setLocalTranslation(x, BAND - PORTRAIT_HEIGHT, 0f);
         vitals.setLocalTranslation(x + PORTRAIT + PORTRAIT_GAP, 0f, 0f);
-        x += who + DIVIDER_MARGIN;
-        placeDivider(1, x);
-        x += DIVIDER + DIVIDER_MARGIN;
+        x += who;
+        if (showingBag) {
+            x += DIVIDER_MARGIN;
+            placeDivider(1, x);
+            x += DIVIDER + DIVIDER_MARGIN;
+        } else {
+            hideDivider(1);
+        }
 
         // His bag: a heading with the grid under it, the pair centred in the band.
         float bagHeight = ITEM_ROWS * ITEM_SLOT + (ITEM_ROWS - 1) * ITEM_GAP;
@@ -1470,9 +1567,14 @@ final class HeroPanel {
             itemSlots.get(i).node.setLocalTranslation(column * (ITEM_SLOT + ITEM_GAP),
                     (ITEM_ROWS - 1 - row) * (ITEM_SLOT + ITEM_GAP), 0f);
         }
-        x += bagWidth + DIVIDER_MARGIN;
-        placeDivider(2, x);
-        x += DIVIDER + DIVIDER_MARGIN;
+        x += bagWidth;
+        if (!slots.isEmpty()) {
+            x += DIVIDER_MARGIN;
+            placeDivider(2, x);
+            x += DIVIDER + DIVIDER_MARGIN;
+        } else {
+            hideDivider(2);
+        }
 
         // Skills: a heading, the row of sockets, and the powers strip under it.
         float columnHeight = HEADING_SIZE + HEADING_GAP + ULT_SLOT + POWERS_TOP_GAP + POWER_CHIP;
@@ -1490,7 +1592,7 @@ final class HeroPanel {
             slot.atY = PAD + rowY + ULT_SLOT - slot.size;
             slotX += slot.size + SLOT_GAP;
         }
-        x += skillsWidth + DIVIDER_MARGIN;
+        x += skillsRoom + DIVIDER_MARGIN;
         placeDivider(3, x);
         x += DIVIDER + DIVIDER_MARGIN;
 
@@ -1517,12 +1619,20 @@ final class HeroPanel {
 
     private final List<Node> dividers = new ArrayList<>();
 
+    /** Take a groove off the bar, for a card whose blocks do not need dividing. */
+    private void hideDivider(int index) {
+        if (index < dividers.size()) {
+            dividers.get(index).setCullHint(Spatial.CullHint.Always);
+        }
+    }
+
     private void placeDivider(int index, float x) {
         while (dividers.size() <= index) {
             var line = divider();
             dividers.add(line);
             contents.attachChild(line);
         }
+        dividers.get(index).setCullHint(Spatial.CullHint.Inherit);
         dividers.get(index).setLocalTranslation(x, 0f, 0f);
     }
 
@@ -1851,7 +1961,8 @@ final class HeroPanel {
      * slot has to look like — which is the whole reason the game sends finished
      * words and the client sends none.
      */
-    record Reading(String name, String title, String rank, float health, float maxHealth,
+    record Reading(String name, String title, String face, String rank,
+            float health, float maxHealth,
             float experience, float needed, String depth, String depthWord,
             String powersWord, String skillsWord, String itemsWord, String note,
             List<Stat> stats, List<SkillReading> skills, List<PowerReading> powers,
@@ -1919,6 +2030,7 @@ final class HeroPanel {
             }
             String name = "";
             String title = "";
+            String face = "";
             String rank = "";
             String depth = "";
             String depthWord = "";
@@ -1944,6 +2056,7 @@ final class HeroPanel {
                 switch (field.substring(0, split)) {
                     case "name" -> name = value;
                     case "title" -> title = value;
+                    case "face" -> face = value;
                     case "rank" -> rank = value;
                     case "depth" -> depth = value;
                     case "depthWord" -> depthWord = value;
@@ -1976,7 +2089,7 @@ final class HeroPanel {
                     return null;
                 }
             }
-            return new Reading(name, title, rank, health[0], health[1],
+            return new Reading(name, title, face, rank, health[0], health[1],
                     experience[0], experience[1], depth, depthWord, powersWord, skillsWord,
                     itemsWord, note, List.copyOf(stats), List.copyOf(skills),
                     List.copyOf(powers), List.copyOf(items), List.copyOf(orders),
@@ -2167,6 +2280,15 @@ final class HeroPanel {
             {5, 6, 12, 13}, {12, 6, 5, 13}, {14, 18, 16, 16, 16, 20, 20, 20},
         };
 
+        /** A skull: two sockets, a nose and a jaw. Something that is not his. */
+        private static final float[][] SKULL = {
+            {4, 10, 4, 16, 7, 19, 7, 21, 17, 21, 17, 19, 20, 16, 20, 10,
+                17, 4, 12, 2, 7, 4, 4, 10},
+            circle(9f, 12f, 2.4f, 10), circle(15f, 12f, 2.4f, 10),
+            {12, 15, 10.6f, 17.5f, 13.4f, 17.5f, 12, 15},
+            {9.5f, 19, 9.5f, 21}, {12, 19, 12, 21}, {14.5f, 19, 14.5f, 21},
+        };
+
         /** A blade on the diagonal, with its guard — what he hits for. */
         private static final float[][] BLADE = {
             {4, 20, 20, 4}, {14, 4, 20, 4, 20, 10}, {6, 14, 10, 18}, {4, 16, 8, 20},
@@ -2258,6 +2380,7 @@ final class HeroPanel {
                 case "boot" -> BOOT;
                 case "plus" -> PLUS;
                 case "times" -> TIMES;
+                case "skull" -> SKULL;
                 case "blade" -> BLADE;
                 case "shield" -> SHIELD;
                 case "bolt" -> BOLT;

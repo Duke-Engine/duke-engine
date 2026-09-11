@@ -176,6 +176,42 @@ public final class Hotkeys {
         }
     }
 
+    private java.util.function.ObjIntConsumer<DukeGame> watched;
+
+    /**
+     * What to do when the player picks out one unit to look at.
+     *
+     * <p>Selection is the client's — it is a thing about this screen, and the
+     * simulation neither has one nor should. But <em>what a creature is worth</em>
+     * is the simulation's and nothing else can answer it: how hard it hits is its
+     * template times whatever this floor multiplies by, and the client has never
+     * seen a template. So the two meet here, the same way they meet over a
+     * level-up card: the client says which one, the game says what to make of it.
+     *
+     * <p>Reported when the selection changes rather than every frame, and only
+     * when it is a single unit — a panel describing one creature cannot describe
+     * nine. {@code -1} means he has let go of everything.
+     *
+     * <p>A game that never binds this gets whatever status line it writes on its
+     * own, which is what every game had.
+     */
+    public Hotkeys onWatch(java.util.function.ObjIntConsumer<DukeGame> action) {
+        this.watched = action;
+        return this;
+    }
+
+    /** Tell the game what the player is looking at. Ignored if it does not care. */
+    void watch(DukeGame game, int unitId) {
+        if (watched != null) {
+            watched.accept(game, unitId);
+        }
+    }
+
+    /** Whether the game wants to be told what is selected at all. */
+    boolean watches() {
+        return watched != null;
+    }
+
     /** Whether the game has taken this key, leaving the client without it. */
     boolean claims(int keyCode) {
         for (var key : bindings.keySet()) {

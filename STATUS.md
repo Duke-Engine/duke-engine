@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-11 · **Testlar:** 875 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-11 · **Testlar:** 887 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -2193,6 +2193,44 @@ to'ri, keyin narsalar to'ri, mahorat ustuni, chekkada chuqurlik.
 ko'rsatkich to'ri) va ular alohida sinfga chiqarilishi mumkin — lekin bu vizual
 ish emas, shuning uchun qilinmadi.
 
+### 8.ad Panel tanlangan narsani ko'rsatadi, doim geroyni emas
+
+Panel har doim geroyni yozardi. Endi nimani tanlagan bo'lsang, o'shani.
+
+- **Ikki yarim bir-birini ko'rmaydi.** *Qaysi* maxluq — klient bilади: tanlov
+  ekran haqidagi fakt, va tanlovi bor simulyatsiya — ichida kamerasi bor
+  simulyatsiya. *U nimaga arziydi* — simulyatsiya biladi: skeletning zarari uning
+  shabloni × shu qavat ko'paytirgichi, klient esa shablonni umuman ko'rmagan.
+  Render oqimidan simulyatsiya obyektlarini o'qish sekin yoki xunuk emas —
+  shunchaki noto'g'ri.
+- **Shuning uchun bitta buyruq:** `Watching` — hech narsa qilishni so'ramaydigan
+  yagona buyruq. Dunyoda hech narsa o'zgarmaydi; u status qatori yoziladigan
+  bitta raqamni suradi, status qatori esa snapshotning engine o'qimaydigan
+  yagona qismi. Aynan shuning uchun tanlov umuman buyruq bo'la oladi. Har kadrda
+  emas, **o'zgarganda** yuboriladi: sekundiga qirq marta "hali ham o'sha"
+  hech kim o'qiy olmaydigan buyruq oqimi va hech kim qidira olmaydigan replay.
+- **Klient chokidan:** `Hotkeys.onWatch` — `onChoose` bilan bir xil naqsh,
+  "klient qaysi birini deydi, o'yin nima ekanini aytadi".
+- **Endi dushmanni tanlash mumkin.** Ilgari faqat o'z birligi tanlanardi.
+  Boshqasini bosish — uni **ko'zdan kechirish**; buyruq unga hech qachon
+  yetmaydi (`selectedIds` faqat o'zinikini beradi), va halqasi yashil emas
+  **qizil**: yashil halqa keyingi o'ng-klik bermaydigan buyruqni va'da qilardi.
+  Guruhga ham qo'shilmaydi — "nima tanlangan" bir vaqtda ikki xil ma'no berardi.
+- **Maxluq kartasi ataylab qisqa.** Skeletda o'yinchi yig'ayotgan tajriba yo'q,
+  skill yo'q, sumka yo'q, daraja yo'q. Geroynikidan nusxa olib raqamlarini
+  almashtirish — bu ikkinchi geroy yasash bo'lardi. Qolgani: qanchasi bor va
+  qanchaga uradi. **Chuqurlik qoladi** — u qavatniki, tanlanganniki emas.
+- **Panel bo'sh blokni chizmaydi, umuman chizmaydi.** Bo'sh uyalar va nolga
+  tushgan bar "bu maxluqda bunaqasi yo'q" deb emas, "panel buzildi" deb
+  o'qiladi. Blok yo'qolganda `layOut` teshikni yopadi.
+- **Portretdagi figura ham almashadi** (`face=skull`): skelet kartasida
+  kamonchi siluети panelning yolg'oni bo'lardi.
+- **Bir tuzoq topildi va tuzatildi.** `GameSounds` darajani `rank` o'zgarishidan
+  eshitadi; maxluq kartasida `rank` yo'q, ya'ni har bosishda "daraja oshdi"
+  jiringlardi — bosганда bir marta, qo'yib yuborganda yana. Endi darajasiz karta
+  uniki emas deb o'qiladi. Skrinshotda ko'rinmaydigan, o'yinda quloqni
+  qoqadigan xato — shuning uchun alohida testi bor.
+
 ---
 
 ## 9. Nima yo'q / ochiq ishlar
@@ -2601,6 +2639,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/ai/{HeroBrain,MonsterBrain}.java` | klik-ataka va maxluq AI'si (xonani chaqirish shu yerda) |
 | `dungeon/…/dungeon/ai/Chasing.java` | quvishni qachon qayta rejalash kerak — tiqilgan narsa to'xtab qolishining yagona sababi |
 | `dungeon/…/dungeon/ai/{HoldGround,Orders}.java` | "joyingda tur" — o'yinning to'rtinchi buyrug'i + uni buyruqdan miyagacha olib boradigan yagona ko'prik |
+| `dungeon/…/dungeon/run/Watching.java` | "o'shani tanladim" — hech narsa qilishni so'ramaydigan yagona buyruq; panel kimni yozishini hal qiladi |
 | `dungeon/…/dungeon/run/DungeonRun.java` | run loop: o'lim → yangi seed → yangi dungeon |
 | `dungeon/…/dungeon/skill/{Skill,SkillEffect}.java` | skill ma'lumoti + daraja arifmetikasi (sof) |
 | `dungeon/…/dungeon/skill/SkillBook.java` | qahramon moduli: kuluar, effektlar, `DamageModifier` |

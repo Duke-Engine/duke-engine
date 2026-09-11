@@ -192,9 +192,37 @@ public final class DungeonRun {
      * no name for either. See {@link HeroStatus} for what is in the line.
      */
     private void showStatus(DukeGame game) {
+        var watched = watchedCreature(game);
+        if (watched != null) {
+            game.setStatus(HeroStatus.creature(watched, depth, settings, look));
+            return;
+        }
         game.setStatus(HeroStatus.of(Skills.heroOf(game.getLogic(), heroPlayer.getIndex()),
                 progress, depth, settings, powers, game.getLogic().getFrame(), look,
                 orders.isHolding(heroPlayer.getIndex())));
+    }
+
+    /**
+     * The creature the player has picked out, when it is not his own and is still
+     * alive.
+     *
+     * <p>His own hero selected is not a different card — it is the card, with his
+     * skills and his bag on it — so only something belonging to somebody else
+     * takes the panel over. And a creature that has died goes back to him rather
+     * than leaving its last health on screen: the alternative is a panel
+     * describing a corpse until the player thinks to click somewhere.
+     */
+    private uz.duke.core.thing.GameObject watchedCreature(DukeGame game) {
+        var picked = orders.watchedBy(heroPlayer.getIndex());
+        if (picked == null) {
+            return null;
+        }
+        var creature = game.getLogic().findObject(picked);
+        if (creature == null || creature.isEffectivelyDead()
+                || creature.getPlayerIndex() == heroPlayer.getIndex()) {
+            return null;
+        }
+        return creature;
     }
 
     /**

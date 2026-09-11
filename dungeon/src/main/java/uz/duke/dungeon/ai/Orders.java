@@ -1,12 +1,17 @@
 package uz.duke.dungeon.ai;
 
 /**
- * The standing orders a player has given, which outlive the frame they arrived
- * on.
+ * What a player has told the game that outlives the frame it arrived on.
  *
- * <p>One today: whether his hero has been told to hold his ground. A command is a
- * moment and this is a state, so something has to remember it between the two,
- * and this is the smallest thing that can.
+ * <p>Two things, and a command is a moment while both of these are states, so
+ * something has to remember them between the two and this is the smallest thing
+ * that can: whether his hero has been told to hold his ground, and which single
+ * creature he has picked out to look at.
+ *
+ * <p>The second is not an order at all -- nothing in the world changes because of
+ * it -- and it lives here anyway, because it has exactly the shape of one: it
+ * arrives as a command, it lasts until the next, and the thing that needs it
+ * cannot be addressed from the thing that sets it.
  *
  * <p>Held beside the brain rather than inside it because the two ends cannot see
  * each other: the command arrives at the session's command handler, which has a
@@ -38,8 +43,27 @@ public final class Orders {
         return holding.contains(playerIndex);
     }
 
+    /** By player, for the same reason: one screen each, one selection each. */
+    private final java.util.Map<Integer, uz.duke.core.thing.ObjectId> watching =
+            new java.util.HashMap<>();
+
+    /** Say which creature a player has picked out, or {@code null} for none. */
+    public void watch(int playerIndex, uz.duke.core.thing.ObjectId unit) {
+        if (unit == null) {
+            watching.remove(playerIndex);
+        } else {
+            watching.put(playerIndex, unit);
+        }
+    }
+
+    /** The creature that player has picked out, or {@code null}. */
+    public uz.duke.core.thing.ObjectId watchedBy(int playerIndex) {
+        return watching.get(playerIndex);
+    }
+
     /** Forget everything — a new run is a new set of orders. */
     public void clear() {
         holding.clear();
+        watching.clear();
     }
 }

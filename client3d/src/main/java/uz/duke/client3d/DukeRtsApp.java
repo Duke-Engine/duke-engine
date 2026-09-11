@@ -2117,14 +2117,30 @@ final class DukeRtsApp extends SimpleApplication {
         return groundUnder(click.x, click.y);
     }
 
+    /**
+     * Click a unit to select it — anyone's, not only the player's own.
+     *
+     * <p>Clicking something that is not his is <em>inspecting</em> it: the panel
+     * describes whatever is selected, and being able to read a monster's health
+     * and what it hits for is most of what makes a dungeon's bar worth looking at.
+     * Nothing can be ordered with it — see {@link #selectedIds} — so an enemy in
+     * the selection is a thing being looked at rather than a thing being
+     * commanded.
+     *
+     * <p>Which is also why it never joins a group: shift-clicking a skeleton onto
+     * a selection of his own units would make "what is selected" mean two
+     * different things at once, and every order after it would have to decide
+     * which half it applied to. One enemy on its own, or his own units.
+     */
     private void select(boolean add) {
-        if (!add) {
+        var hit = pickUnit();
+        boolean mine = hit != null && hit.view.playerIndex() == game.getLocalPlayerIndex();
+        if (!add || !mine) {
             selected.clear();
         }
-        var hit = pickUnit();
-        if (hit != null && hit.view.selectable() && hit.view.playerIndex() == game.getLocalPlayerIndex()) {
+        if (hit != null && hit.view.selectable()) {
             boolean isNew = selected.add(hit.view.id());
-            if (isNew) {
+            if (isNew && mine) {
                 noises.moment("vo.select", (float) timer.getTimeInSeconds());
             }
         }
@@ -2255,6 +2271,38 @@ final class DukeRtsApp extends SimpleApplication {
         // The rest of the bar swallows clicks too. Without this, clicking the
         // portrait sends the hero walking to wherever the bar happens to cover.
         return heroPanel.contains(cursor.x, cursor.y);
+    }
+
+    /** The unit the game was last told about, so it is only told when it changes. */
+    private int watching = -1;
+
+    /**
+     * Say which single unit the player has picked out, when that changes.
+     *
+     * <p>Selection belongs here and the simulation has none — but what a creature
+     * is worth does not belong here and the simulation is the only thing that
+     * knows it. A monster's damage is its template times what this floor
+     * multiplies by, and this side has never seen a template; reading one across
+     * the thread that is mutating it would be worse than not knowing.
+     *
+     * <p>So the fact travels the way every other fact from this side does: as a
+     * command, on a frame boundary. Sent on change rather than every frame,
+     * because forty a second of "still that one" is a command stream nobody can
+     * read and a replay nobody can search.
+     *
+     * <p>One unit only. A panel that describes a creature cannot describe nine,
+     * and {@code -1} — nothing, or a whole box of them — puts it back to
+     * describing the player's own.
+     */
+    private void tellTheGameWhatHeIsLookingAt() {
+        if (!hotkeys.watches()) {
+            return;
+        }
+        int single = selected.size() == 1 ? selected.iterator().next() : -1;
+        if (single != watching) {
+            watching = single;
+            hotkeys.watch(game, single);
+        }
     }
 
     private void beginDrag() {
@@ -2447,9 +2495,19 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /**
+     * The selected units an order may be given to: his own, and only his own.
+     *
+     * <p>The selection may hold something that is not his -- clicking a monster
+     * is how its health and its damage are read off the bar -- and an order must
+     * never reach it. Filtered here rather than at the click, so that inspecting
+     * a creature and commanding one stay two different questions with two
+     * different answers.
+     */
     private List<ObjectId> selectedIds() {
         return snapshot.units().stream()
-                .filter(u -> selected.contains(u.id()))
+                .filter(u -> selected.contains(u.id())
+                        && u.playerIndex() == game.getLocalPlayerIndex())
                 .map(u -> new ObjectId(u.id()))
                 .toList();
     }
@@ -2496,6 +2554,7 @@ final class DukeRtsApp extends SimpleApplication {
         // else does and writes nothing back -- see GameSounds.
         noises.frame(snapshot, game.getLocalPlayerIndex(),
                 (float) timer.getTimeInSeconds());
+        tellTheGameWhatHeIsLookingAt();
         syncUnits();
         // After the units, because a burst lit this frame has to reach the stone
         // this frame — the terrain reads its lights off a material parameter, not
@@ -3159,10 +3218,19 @@ final class DukeRtsApp extends SimpleApplication {
         return group;
     }
 
+    /**
+     * The ring under a selected unit — green for his own, red for anything else.
+     *
+     * <p>Not decoration. Something that is not his can be selected, because that
+     * is how its health and its damage are read off the bar, and it cannot be
+     * ordered. A green ring under a skeleton would promise a command that the
+     * next right-click is not going to give.
+     */
     private Geometry buildSelectionRing(UnitView view) {
         float radius = view.structure() ? 4.2f : 2.2f;
         var ring = new Geometry("ring", new Cylinder(2, 24, radius, 0.06f, true));
-        ring.setMaterial(unshaded(new ColorRGBA(0.4f, 1f, 0.4f, 1f)));
+        ring.setMaterial(unshaded(view.playerIndex() == game.getLocalPlayerIndex()
+                ? new ColorRGBA(0.4f, 1f, 0.4f, 1f) : new ColorRGBA(1f, 0.36f, 0.3f, 1f)));
         ring.rotate(FastMath.HALF_PI, 0, 0);
         ring.setLocalTranslation(0, 0.06f, 0);
         ring.setCullHint(Spatial.CullHint.Always);
