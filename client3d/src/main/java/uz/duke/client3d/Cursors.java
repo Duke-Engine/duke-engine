@@ -70,8 +70,15 @@ final class Cursors {
      * @param hotX how far from the <em>left</em> of the picture the tip is
      * @param hotY how far from the <em>top</em> of the picture the tip is — read
      *             off the file the way a person reads it, and turned round here
+     * @param tint what to paint it, as packed RGB. White leaves the drawing alone,
+     *             which is what a pack that is already coloured wants
      */
-    record Look(String image, int hotX, int hotY) {
+    record Look(String image, int hotX, int hotY, int tint) {
+
+        /** The ordinary case: paint it as it was drawn. */
+        Look(String image, int hotX, int hotY) {
+            this(image, hotX, hotY, 0xFFFFFF);
+        }
     }
 
     /**
@@ -206,7 +213,8 @@ final class Cursors {
         for (int row = 0; row < height; row++) {
             for (int column = 0; column < width; column++) {
                 // Bottom-up: the buffer's last row is the picture's first.
-                data.put((height - 1 - row) * width + column, pixels[row * width + column]);
+                data.put((height - 1 - row) * width + column,
+                        painted(pixels[row * width + column], look.tint()));
             }
         }
         var cursor = new JmeCursor();
@@ -224,6 +232,32 @@ final class Cursors {
 
     private static int clamp(int at, int size) {
         return Math.max(0, Math.min(size - 1, at));
+    }
+
+    /**
+     * One pixel painted, by multiplying it into the tint.
+     *
+     * <p>Multiplying rather than replacing, and that is the whole trick. These
+     * pointers are white shapes inside a black outline: white times a colour is
+     * that colour, black times anything is still black, and the grey pixels along
+     * an anti-aliased edge come out as darker shades of the same colour. So a
+     * tinted pointer is a coloured arrow that still has its black keyline, which
+     * is the thing that lets it be seen against a dark floor and a lit wall alike.
+     *
+     * <p>Replacing the colour instead would flood the outline too and leave a
+     * shape with no edge — legible over stone and invisible over torchlight.
+     *
+     * <p>Alpha is never touched: what is transparent stays exactly as transparent,
+     * or the pointer grows a square halo.
+     */
+    private static int painted(int argb, int tint) {
+        if (tint == 0xFFFFFF) {
+            return argb; // as drawn, and no arithmetic on a pack that is already coloured
+        }
+        int red = ((argb >> 16) & 0xFF) * ((tint >> 16) & 0xFF) / 255;
+        int green = ((argb >> 8) & 0xFF) * ((tint >> 8) & 0xFF) / 255;
+        int blue = (argb & 0xFF) * (tint & 0xFF) / 255;
+        return (argb & 0xFF000000) | (red << 16) | (green << 8) | blue;
     }
 
     /**

@@ -29,6 +29,7 @@ written from there.
 | Impact Sounds — what an arrow and a fist land like, and footsteps | Kenney | CC0 | `audio/sfx/` |
 | Interface Sounds — clicks, a level, a gong | Kenney | CC0 | `audio/ui/` |
 | Fantasy UI Borders — the carved frames the hero panel's edges are painted with | Kenney | CC0 | `ui/borders/` |
+| Cursor Pack — the mouse pointers | Kenney | CC0 | `ui/cursors/` |
 | Voiceover Pack — what Erika says | Kenney | CC0 | `audio/voice/` |
 | Three pieces of music | freesound.org | **unconfirmed, see below** | `audio/music/` |
 | Cinzel — the lettering the menus are set in | Natanael Gama / the Cinzel Project Authors | [SIL OFL 1.1](https://openfontlicense.org) | `fonts/` |
@@ -136,23 +137,26 @@ All 280 were copied rather than the eight in use, at 388 KB the lot, so that
 choosing a different frame is an edit to `dungeon.ini` rather than a trip back to
 the pack.
 
-### The pointers — tried, and taken out again
+### The pointers
 
-Wenrexa's *Assets: Magic Cursors Pack* was shipped at `ui/cursors/` for one
-commit and removed in the next. Two reasons, either of which would have been
-enough.
+The mouse pointers are Kenney's **Cursor Pack 1.1** (CC0), at `ui/cursors/`,
+with its `License.txt` beside them. The *Outline* family in both sizes — 182
+drawings at 32 pixels in `default/` and the same 182 at 64 in `double/` — so
+swapping size is one word in `dungeon.ini`. Five are used.
 
-It was not liked, which is the whole of the first reason and needs no more.
+Only *Outline* was copied, and that is a decision rather than a preference. The
+pack's other family, *Basic*, is pure white with no keyline: measured, one colour
+and one colour only. A white pointer is invisible over a lit floor, and a
+dungeon has both a lit floor and a dark one. The outlined drawings are white
+**inside a black line**, which is what lets the client tint them — see
+`DungeonCursor` — and what keeps them readable whatever they are over.
 
-**And no licence text shipped with it.** The download contains the pictures, a
-Discord link, a Twitter link and a thank-you card. Wenrexa publishes free on
-itch.io and states the terms on the pack's page rather than in the zip, so the
-terms that apply are whatever that page says and nobody had read it. That is the
-same shape of question the hero and the monsters posed, and it was answered the
-same way both times: not by guessing.
+### The pointers that came before
 
-The machinery stayed. `Cursors` in `client3d` and the `DungeonCursor` blocks in
-`dungeon.ini` are still there and still tested; the game simply names no pointers
-and runs on the system arrow. **A new pack is five blocks of INI and a folder** —
-and whatever it is, its licence goes in the table above before it is committed,
-not after.
+Wenrexa's *Assets: Magic Cursors Pack* was shipped for one commit and removed in
+the next. It was not liked, and no licence text shipped with it: the download
+contained the pictures, a Discord link, a Twitter link and a thank-you card, with
+the terms on the pack's page rather than in the zip. Either reason would have
+been enough on its own. The note is kept because the rule it followed is worth
+keeping: **an asset's licence goes in the table above before it is committed,
+not after.**

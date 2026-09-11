@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-11 · **Testlar:** 900 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-11 · **Testlar:** 904 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -2277,9 +2277,21 @@ test qizaradi.
 fakt) va oltita testi bor. "Dushman ustida kursor almashmayapti" — bu shu
 funksiya haqidagi gap, va uni sichqoncha surib emas, so'rab bilish kerak.
 
-**Paket olib tashlandi.** Yoqmadi, va litsenziya matni ham yo'q edi — ikkalasi
-ham yetarli sabab. Mexanizm qoldi va testda; o'yin hozir tizim strelkasida
-ishlaydi. Yangi paket = papka + beshta INI bloki.
+**Paket almashtirildi:** Kenney Cursor Pack 1.1 (CC0, litsenziyasi ichida).
+Faqat *Outline* oilasi ko'chirildi, va bu did emas qaror: paketning ikkinchi
+oilasi *Basic* — sof oq, konturisiz (o'lchandi: bitta rang). Oq kursor yorug'
+pol ustida ko'rinmaydi, zindonda esa ikkalasi ham bor.
+
+**Rang: bo'yash mumkin va `Tint` INI'da.** Chizmalar qora kontur ichidagi oq
+shakl, va rang **ko'paytiriladi**, ustiga bo'yalmaydi: oq → rang, qora ×
+nimadir → qora, chekkadagi kulrang → o'sha rangning to'qroq soyasi. Ya'ni
+bo'yalgan kursor konturini saqlaydi — aynan shu uni qorong'i pol ustida ham,
+mash'al yorug'ida ham o'qiladigan qiladi. Ustiga bo'yash konturni ham bosib
+ketardi va chekkasi yo'q shakl qolardi. `0xFFFFFF` = "chizilganidek", va umuman
+arifmetika qilinmaydi. Ranglar panelnikidan olingan: suyak / yashil / qon /
+mash'al.
+
+**Ikki o'lcham** (`default/` 32px, `double/` 64px) — almashtirish bitta so'z.
 
 ---
 
@@ -2690,7 +2702,8 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/ai/Chasing.java` | quvishni qachon qayta rejalash kerak — tiqilgan narsa to'xtab qolishining yagona sababi |
 | `dungeon/…/dungeon/ai/{HoldGround,Orders}.java` | "joyingda tur" — o'yinning to'rtinchi buyrug'i + uni buyruqdan miyagacha olib boradigan yagona ko'prik |
 | `dungeon/…/dungeon/run/Watching.java` | "o'shani tanladim" — hech narsa qilishni so'ramaydigan yagona buyruq; panel kimni yozishini hal qiladi |
-| `client3d/…/client3d/Cursors.java` | kursor nima ustida turganini aytadi; jME'ning pastdan-yuqoriga rasmi va pastdan hot-spoti shu yerda ag'dariladi |
+| `client3d/…/client3d/Cursors.java` | kursor nima ustida turganini aytadi; jME'ning pastdan-yuqoriga rasmi, pastdan hot-spoti va rangga bo'yash shu yerda |
+| `dungeon/src/main/resources/ui/cursors/` | Kenney Cursor Pack 1.1 (CC0) — Outline oilasi, 32px va 64px |
 | `dungeon/…/dungeon/run/DungeonRun.java` | run loop: o'lim → yangi seed → yangi dungeon |
 | `dungeon/…/dungeon/skill/{Skill,SkillEffect}.java` | skill ma'lumoti + daraja arifmetikasi (sof) |
 | `dungeon/…/dungeon/skill/SkillBook.java` | qahramon moduli: kuluar, effektlar, `DamageModifier` |

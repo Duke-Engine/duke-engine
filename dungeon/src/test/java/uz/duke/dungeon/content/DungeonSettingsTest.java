@@ -189,22 +189,60 @@ class DungeonSettingsTest {
     }
 
     /**
-     * A pointer the file names is a picture that is really there.
+     * Every pointer names a picture that is there, with its tip inside it.
      *
-     * <p>No pack is named today -- the first one was taken out again -- so this
-     * checks nothing and passes, which is right: the rule is about what happens
-     * when a pack IS named, and it is the rule that has to survive the gap. The
-     * next pack is five lines and nobody will remember to write this then.
+     * <p>Two mistakes that cost nothing at compile time and everything at run
+     * time. A misspelt file is not an error -- the client keeps the pointer it has
+     * rather than lose the mouse -- so it shows up as "the cursor sometimes does
+     * not change", which nobody reports precisely and nobody finds quickly. And a
+     * tip named outside its own picture is pulled back to the edge, so it cannot
+     * crash; it can only be quietly wrong, and a click landing away from the arrow
+     * is the most irritating kind of wrong there is.
+     *
+     * <p>The size is read out of the file rather than assumed, because a pack is
+     * swapped by editing five lines and the next one will not be 32 pixels.
      */
     @Test
-    void aNamedPointerIsAPictureThatIsThere() {
-        for (var pointer : DungeonSettings.load().cursors()) {
+    void everyPointerNamesAPictureWithItsTipInsideIt() {
+        var pointers = DungeonSettings.load().cursors();
+        assertTrue(pointers.size() >= 5, "the client knows five situations: " + pointers.size());
+
+        for (var pointer : pointers) {
+            byte[] png;
             try (var file = Content.class.getResourceAsStream("/" + pointer.image())) {
                 assertNotNull(file, pointer.name() + " names a picture that is not there: "
                         + pointer.image());
+                png = file.readAllBytes();
             } catch (java.io.IOException e) {
                 throw new AssertionError(pointer.image(), e);
             }
+            int width = size(png, 16);
+            int height = size(png, 20);
+            assertTrue(pointer.hotX() >= 0 && pointer.hotX() < width,
+                    pointer.name() + "'s tip is " + pointer.hotX() + " across a picture "
+                            + width + " wide");
+            assertTrue(pointer.hotY() >= 0 && pointer.hotY() < height,
+                    pointer.name() + "'s tip is " + pointer.hotY() + " down a picture "
+                            + height + " tall");
+        }
+    }
+
+    /** A PNG says how big it is in four big-endian bytes of its header. */
+    private static int size(byte[] png, int at) {
+        return ((png[at] & 0xFF) << 24) | ((png[at + 1] & 0xFF) << 16)
+                | ((png[at + 2] & 0xFF) << 8) | (png[at + 3] & 0xFF);
+    }
+
+    /** And the five the client draws are all painted. */
+    @Test
+    void everySituationTheClientKnowsIsPainted() {
+        var named = DungeonSettings.load().cursors().stream()
+                .map(DungeonSettings.CursorLook::name).toList();
+
+        for (var situation : java.util.List.of("Point", "Friend", "Attack", "Aim", "Deny")) {
+            assertTrue(named.contains(situation),
+                    situation + " is a situation the client draws and the file does not paint: "
+                            + named);
         }
     }
 

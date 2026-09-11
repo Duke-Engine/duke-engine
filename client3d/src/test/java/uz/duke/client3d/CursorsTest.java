@@ -127,6 +127,69 @@ class CursorsTest {
                         + "which is the row jME hands the window first");
     }
 
+    // ---- painting ----
+
+    /**
+     * A picture of the kind these packs ship: a white shape inside a black
+     * outline, with an anti-aliased grey between them.
+     */
+    private static Image outlined() {
+        var bytes = BufferUtils.createByteBuffer(3 * 1 * 4);
+        bytes.rewind();
+        int[] pixels = {0xFF000000, 0xFF808080, 0xFFFFFFFF}; // outline, edge, fill
+        for (int pixel : pixels) {
+            bytes.put((byte) ((pixel >> 16) & 0xFF)).put((byte) ((pixel >> 8) & 0xFF))
+                    .put((byte) (pixel & 0xFF)).put((byte) ((pixel >>> 24) & 0xFF));
+        }
+        bytes.rewind();
+        return new Image(Image.Format.RGBA8, 3, 1, bytes, ColorSpace.sRGB);
+    }
+
+    private static int pixelAt(com.jme3.cursors.plugins.JmeCursor cursor, int column) {
+        return cursor.getImagesData().get(column);
+    }
+
+    /**
+     * The tint colours the shape and leaves the outline alone.
+     *
+     * <p>The whole reason it is multiplied rather than painted over. White times a
+     * colour is that colour; black times anything is still black. A pointer that
+     * lost its keyline would be legible over stone and invisible over torchlight,
+     * which is the one place a player most needs to see where he is pointing.
+     */
+    @Test
+    void aTintColoursTheShapeAndKeepsTheOutline() {
+        var green = Cursors.build(outlined(), new Cursors.Look("x", 0, 0, 0x7FBF6A));
+
+        assertEquals(0xFF000000, pixelAt(green, 0), "the outline must stay black");
+        assertEquals(0xFF7FBF6A, pixelAt(green, 2), "and the white shape takes the colour");
+        // The grey along the edge comes out as a darker shade of the same colour,
+        // which is what keeps the edge smooth instead of jagged.
+        int edge = pixelAt(green, 1);
+        assertTrue(((edge >> 16) & 0xFF) < 0x7F && ((edge >> 16) & 0xFF) > 0x30,
+                "the anti-aliased edge should be a darker shade, was "
+                        + Integer.toHexString(edge));
+    }
+
+    /** And what is transparent stays transparent, or the pointer grows a halo. */
+    @Test
+    void aTintNeverTouchesWhatIsSeeThrough() {
+        var clear = Cursors.build(cornerMarked(4, 4), new Cursors.Look("x", 0, 0, 0xFF0000));
+
+        assertEquals(0, pixelAt(clear, 1) >>> 24, "an empty pixel must stay empty");
+    }
+
+    /** White is "as drawn", so a pack that is already coloured is left alone. */
+    @Test
+    void whiteMeansLeaveItAsItWasDrawn() {
+        var plain = Cursors.build(outlined(), new Cursors.Look("x", 0, 0));
+        var white = Cursors.build(outlined(), new Cursors.Look("x", 0, 0, 0xFFFFFF));
+
+        for (int column = 0; column < 3; column++) {
+            assertEquals(pixelAt(plain, column), pixelAt(white, column));
+        }
+    }
+
     // ---- which pointer, and when ----
 
     private static Cursors.Over overNothing() {

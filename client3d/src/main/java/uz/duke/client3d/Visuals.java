@@ -760,8 +760,13 @@ public final class Visuals {
      * @param hotY how far from the top of it — read the way anyone reads a file
      */
     public Visuals pointer(String situation, String assetPath, int hotX, int hotY) {
+        return pointer(situation, assetPath, hotX, hotY, 0xFFFFFF);
+    }
+
+    /** The same, painted: the drawings are white, so this is what colours them. */
+    public Visuals pointer(String situation, String assetPath, int hotX, int hotY, int tint) {
         if (situation != null && assetPath != null && !assetPath.isBlank()) {
-            pointers.put(situation, new Cursors.Look(assetPath, hotX, hotY));
+            pointers.put(situation, new Cursors.Look(assetPath, hotX, hotY, tint));
         }
         return this;
     }

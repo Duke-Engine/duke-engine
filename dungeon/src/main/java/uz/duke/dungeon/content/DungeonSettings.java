@@ -1472,7 +1472,7 @@ public final class DungeonSettings {
      * @param hotX how far from the left of the picture the tip is, in pixels
      * @param hotY how far from the TOP of it -- read the way anyone reads a file
      */
-    public record CursorLook(String name, String image, int hotX, int hotY) {
+    public record CursorLook(String name, String image, int hotX, int hotY, int tint) {
     }
 
     private final java.util.List<CursorBuilder> cursors = new java.util.ArrayList<>();
@@ -1482,13 +1482,14 @@ public final class DungeonSettings {
         String image = "";
         int hotX;
         int hotY;
+        int tint = 0xFFFFFF;
 
         CursorBuilder(String name) {
             this.name = name;
         }
 
         CursorLook look(String folder) {
-            return new CursorLook(name, folder + image, hotX, hotY);
+            return new CursorLook(name, folder + image, hotX, hotY, tint);
         }
     }
 
@@ -1501,7 +1502,8 @@ public final class DungeonSettings {
             new FieldParseTable<CursorBuilder>()
                     .add("Image", Ini.string((c, v) -> c.image = v))
                     .add("HotX", Ini.integer((c, v) -> c.hotX = v))
-                    .add("HotY", Ini.integer((c, v) -> c.hotY = v));
+                    .add("HotY", Ini.integer((c, v) -> c.hotY = v))
+                    .add("Tint", (ini, c) -> c.tint = Integer.decode(ini.getNextToken()));
 
     private static final FieldParseTable<SkinBuilder> SKIN =
             new FieldParseTable<SkinBuilder>()

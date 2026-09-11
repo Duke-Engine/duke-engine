@@ -474,7 +474,8 @@ public final class Main {
         // DungeonCursor in dungeon.ini. The client knows what is under the
         // pointer; this says what to draw there.
         for (var pointer : settings.cursors()) {
-            visuals.pointer(pointer.name(), pointer.image(), pointer.hotX(), pointer.hotY());
+            visuals.pointer(pointer.name(), pointer.image(), pointer.hotX(), pointer.hotY(),
+                    pointer.tint());
         }
 
         // What the dark is worth: whether stone stops sight, how dim a room he
