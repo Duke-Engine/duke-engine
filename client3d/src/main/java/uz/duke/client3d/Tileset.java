@@ -28,7 +28,7 @@ public final class Tileset {
     private float wallLift;
     private float wallShift;
     private boolean ownMaterials;
-    private boolean wallGrows;
+    private boolean wallFillsRock;
     private int wallClump = 1;
     private float wallSpread;
     private float wallVariety;
@@ -38,28 +38,32 @@ public final class Tileset {
     }
 
     /**
-     * Whether a wall more than one storey high is <em>one</em> piece grown to fit
-     * rather than a stack of them.
+     * Whether the wall piece <em>fills</em> a piece of rock rather than facing it.
      *
-     * <p>Masonry stacks. A course of stone on a course of stone is how a wall is
-     * built, and stretching one block to twice its height would stretch the
-     * stonework drawn on it, so stacking is right and is what every kit did before
-     * this existed.
+     * <p>Masonry faces. A wall is a surface on the boundary the player is stopped
+     * at: one piece per face, one course per storey. A block of rock a single cell
+     * thick is walled from both sides and that is right, because stone has two
+     * faces and you can stand on either of them; a taller drop is more courses,
+     * every one the same size, because that is how a wall is built.
      *
-     * <p>A tree does not stack. A kit whose wall piece is a single standing thing
-     * — a tree, a pillar, a menhir — gets a second copy balanced on the first one's
-     * canopy, which is what two storeys of forest looked like: a tree, the floor
-     * above cutting through it, and another tree growing out of that. What a
-     * two-storey tree actually is is a bigger tree, and a bigger tree is bigger all
-     * round rather than taller and no wider, so it is grown rather than stretched.
+     * <p>A tree is not a surface, and every one of those is wrong for it. It has
+     * one body, so drawing both faces of a thin wall drew the same tree twice —
+     * once at the foot of the rock and once on the roof, with the lid between them,
+     * which is what two storeys of forest looked like. And two storeys of tree is
+     * not two trees: it is a bigger tree, bigger all round rather than taller and
+     * no wider.
+     *
+     * <p>So a kit that says yes here is drawn once per piece of rock, in the middle
+     * of it, grown from the lowest floor beside it to the highest. The rock is the
+     * thing; the tree is how this kit draws it.
      */
-    public Tileset wallGrows(boolean grows) {
-        this.wallGrows = grows;
+    public Tileset wallFillsRock(boolean fills) {
+        this.wallFillsRock = fills;
         return this;
     }
 
-    public boolean wallGrows() {
-        return wallGrows;
+    public boolean wallFillsRock() {
+        return wallFillsRock;
     }
 
     /**
@@ -85,11 +89,14 @@ public final class Tileset {
     }
 
     /**
-     * How far a clump's pieces stand from the wall line, as a fraction of a cell.
+     * How far a clump's pieces stand from the point the plan gives them, as a
+     * fraction of a cell.
      *
-     * <p>The ring is pushed back into the solid side by its own radius, so what
-     * leans out over open ground is canopy rather than trunk: the boundary the
-     * player is stopped at stays where the pathfinder put it.
+     * <p>A piece filling a block of rock scatters about the middle of it and keeps
+     * to its own cell. A piece facing a boundary scatters <em>behind</em> the line
+     * by the ring's own radius, so what leans out over open ground is canopy rather
+     * than trunk: the boundary the player is stopped at stays where the pathfinder
+     * put it.
      */
     public Tileset wallSpread(float fractionOfCell) {
         this.wallSpread = fractionOfCell;
@@ -245,7 +252,6 @@ public final class Tileset {
         return this;
     }
 
-    /** How wide one tile is in the model's own units. Kenney's kits are 4. */
     /**
      * How tall the wall piece stands, in the same model units as the tile size.
      *
@@ -262,6 +268,7 @@ public final class Tileset {
         return wallHeight;
     }
 
+    /** How wide one tile is in the model's own units. KayKit's are 4. */
     public Tileset tileSize(float modelUnits) {
         this.tileSize = modelUnits;
         return this;

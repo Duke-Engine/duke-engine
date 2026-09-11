@@ -498,39 +498,58 @@ class TerrainSceneTest {
         return pieces(root, "wall");
     }
 
-    /** Where a piece stands on the plan — which is what makes it one of a stack. */
-    private static String spot(com.jme3.scene.Spatial piece) {
-        var at = piece.getLocalTranslation();
-        return Math.round(at.x * 100f) + "," + Math.round(at.z * 100f);
+    /**
+     * A corridor at the bottom and a room a storey above it, with a single cell of
+     * rock between them. Nothing connects the two, which is not the point: the
+     * point is the piece of rock, walled from both sides and roofed a storey up.
+     */
+    private static final String WALL_BETWEEN = """
+            #######
+            #00#11#
+            #00#11#
+            #######
+            """;
+
+    /** The pieces standing on one cell, whichever cell node they were filed under. */
+    private static java.util.List<com.jme3.scene.Spatial> onCell(
+            java.util.List<com.jme3.scene.Spatial> pieces, int cellX, int cellY, float cell) {
+        return pieces.stream().filter(piece -> {
+            var at = piece.getLocalTranslation();
+            return Math.abs(at.x - (cellX + 0.5f) * cell) <= cell / 2f + 0.001f
+                    && Math.abs(at.z - (cellY + 0.5f) * cell) <= cell / 2f + 0.001f;
+        }).toList();
     }
 
     /**
-     * Two storeys of masonry is two courses of it; two storeys of forest is one
-     * bigger tree.
+     * Masonry draws every face of a piece of rock; a thing is drawn once, however
+     * many sides it can be seen from.
      *
-     * <p>Stacking is right for a surface and wrong for a thing. A second tree
-     * balanced on the first one's canopy, with the floor above cutting between
-     * them, is what two storeys of wood looked like.
+     * <p>This is the whole bug. One cell of rock between a corridor and a room a
+     * storey above it is walled from the corridor — twice over, once per storey of
+     * the drop — and again from the room on top. Three faces, which for stone is
+     * three surfaces you could walk up to. For a wood it was the same tree drawn
+     * three times: one at the foot of the rock, one halfway up it, and one on the
+     * roof with the floor between them.
      */
     @Test
-    void aKitWhoseWallGrowsPutsOnePieceWhereAStackWouldStand() {
-        var grid = twoStoreys();
-        var stacked = wallsOf(kit(), grid);
-        var grown = wallsOf(kit().wallGrows(true), grid);
+    void aKitThatFillsRockDrawsOneBodyWhereMasonryDrawsEveryFace() {
+        var grid = MapLoader.fromText(WALL_BETWEEN);
+        MapLoader.levels(grid, WALL_BETWEEN);
+        grid.setLevelHeight(10f);
+        float cell = grid.getCellSize();
 
-        var tall = stacked.stream()
-                .collect(java.util.stream.Collectors.groupingBy(TerrainSceneTest::spot))
-                .values().stream().filter(run -> run.size() == 2).findFirst()
-                .orElseThrow(() -> new AssertionError("this map should wall something twice"));
+        var faces = onCell(wallsOf(kit(), grid), 3, 1, cell);
+        var body = onCell(wallsOf(kit().wallFillsRock(true), grid), 3, 1, cell);
 
-        var there = grown.stream().filter(piece -> spot(piece).equals(spot(tall.get(0)))).toList();
-        assertEquals(1, there.size(), "a tree does not stand on another tree's canopy");
-        assertEquals(2f * tall.get(0).getLocalScale().x, there.get(0).getLocalScale().x, 0.001f,
-                "and the one that stands covers what the two of them did");
-        float foot = (float) tall.stream()
-                .mapToDouble(piece -> piece.getLocalTranslation().y).min().orElseThrow();
-        assertEquals(foot, there.get(0).getLocalTranslation().y, 0.001f,
-                "grown from the foot of the run rather than from the top of it");
+        assertEquals(3, faces.size(),
+                "masonry walls the rock from both sides and again on its roof");
+        assertEquals(1, body.size(), "a tree has one body, however many sides it is seen from");
+        assertEquals(0f, body.get(0).getLocalTranslation().y, 0.001f,
+                "growing from the lowest floor beside the rock, not from its roof");
+        assertEquals(2f * faces.get(0).getLocalScale().x, body.get(0).getLocalScale().x, 0.001f,
+                "and as big as the rock it stands for, which here is two storeys");
+        assertEquals((3 + 0.5f) * cell, body.get(0).getLocalTranslation().x, 0.001f,
+                "in the middle of the rock rather than on one of its faces");
     }
 
     /**
@@ -599,15 +618,16 @@ class TerrainSceneTest {
     }
 
     /**
-     * A kit whose stair carries rails above its top step, as a real one does: four
-     * deep and four high, boxing 5.1 because the newel posts at the head of the
-     * flight stand a rail's height above the landing they guard.
+     * A kit whose stair is shaped like a real one: four deep and four high, boxing
+     * 5.1 because the newel posts at the head of the flight stand a rail above the
+     * landing they guard — and with its origin at the foot of the bottom step
+     * rather than in the middle, which is where KayKit puts it.
      */
     private static final class RailedStair implements TileSource {
         @Override
         public com.jme3.scene.Spatial piece(String assetPath) {
-            return new com.jme3.scene.Geometry(assetPath,
-                    new com.jme3.scene.shape.Box(2f, 2.55f, 2f));
+            return new com.jme3.scene.Geometry(assetPath, new com.jme3.scene.shape.Box(
+                    new com.jme3.math.Vector3f(0f, 2.55f, 2f), 2f, 2.55f, 2f));
         }
     }
 
@@ -628,5 +648,31 @@ class TerrainSceneTest {
                 "four model units of climb make one storey; scaling by the 5.1 the model "
                         + "boxes leaves the top step short of the floor it joins, and you can "
                         + "see through the gap");
+    }
+
+    /**
+     * And it stands on the cell the map marks as a ramp, all of it.
+     *
+     * <p>Where a kit puts a stair's origin is its own business: the middle of the
+     * flight, or the foot of the bottom step. Laid by its origin, the second sort
+     * covers half its own cell and half of the next — hanging over the drop it was
+     * meant to join, with a cell of nothing under one end.
+     */
+    @Test
+    void aStairStandsOnItsOwnCellHoweverItsKitPutItsOrigin() {
+        var grid = twoStoreys();
+        float cell = grid.getCellSize();
+        var root = new Node("terrain");
+        new TerrainScene(root, color -> null, true, kit().stairs("stairs"), new RailedStair())
+                .rebuild(grid);
+        root.updateGeometricState();
+
+        var stair = pieces(root, "stairs").get(0);
+        var footprint = (com.jme3.bounding.BoundingBox) stair.getWorldBound();
+        // Cell (3,1) is the ramp in this map.
+        assertEquals((3 + 0.5f) * cell, footprint.getCenter().x, 0.01f,
+                "half a cell out is a flight hanging over the drop it should join");
+        assertEquals((1 + 0.5f) * cell, footprint.getCenter().z, 0.01f,
+                "and the same across the corridor");
     }
 }

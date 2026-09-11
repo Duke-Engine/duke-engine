@@ -1835,6 +1835,11 @@ ikkala peer aynan bir kadrda qo'llaydi.
     roppa-rosa 4 ga ko'tariladi, lekin qutisi **5.1** — quti bo'yicha
     masshtablanganda zina 4/5 ga siqilib, tepa qavatdan bir enlik pastda
     tugardi, va orada ko'rinadigan bo'shliq qolardi.
+  - **Zinaning markazi kataknining markaziga.** Paket pivotni qayerga qo'ygani —
+    uning o'z ishi: KayKit'niki pastki zinaning etagida, o'rtasida emas. Pivot
+    bo'yicha qo'yilgan model yarim katak siljib, tushish joyi ustida osilib
+    qolardi. Markaz `getCenter().x/z` dan olinib, **avval burilib**, keyin
+    ayriladi — siljish modelning o'z o'qlarida.
   - `DungeonTilesTest` har bir to'plamning har bir bo'lagini yuklab, o'lchamini
     va devor yerga tegishini tekshiradi — ro'yxat INI'dan olinadi, ya'ni yangi
     to'plam ta'riflangani uchun qoplanadi.
@@ -1850,16 +1855,22 @@ ikkala peer aynan bir kadrda qo'llaydi.
     bo'lak birinchi yuklangan bo'lsa, o'shaning rasmi hammasiga tushardi. Daraxtlar
     shuning uchun oq poyada kulrang qo'ziqorin bo'lib chiqqan edi.
 - **Devor sirtmi yoki narsami** — to'plam aytadigan yagona "o'lchov bo'lmagan" gap.
-  - Sirt taxlanadi: ikki qavatlik devor — ikki qator g'isht, hammasi bir xil.
-  - Narsa taxlanmaydi. Ikki qavatlik daraxt — **bitta kattaroq daraxt**, va
-    kattaroq daraxt faqat balandroq emas, har tomonga kattaroq. Taxlanganda
-    daraxt ustidan yuqori qavat poli kesib o'tib, undan yana bitta daraxt
-    o'sardi. `WallGrows = Yes` shuni tugatadi.
+  - **Sirt** chegarada turadi: har yuzga bitta bo'lak, har qavatga bitta qator.
+    Bir katak qalinlikdagi tosh ikki tomondan devorlanadi — tosh uchun to'g'ri,
+    chunki toshning ikkita yuzi bor va ikkalasida ham turish mumkin.
+  - **Narsa** uchun bularning hammasi noto'g'ri. Daraxtning bitta tanasi bor:
+    ikki yuz chizilganda **bitta daraxt ikki marta** chizilardi — biri toshning
+    etagida, ikkinchisi uning tomida, orasida qopqoq bilan. Ikki qavat esa yana
+    ikki marta, ustma-ust. `WallFillsRock = Yes` — bo'lak **har tosh katagiga
+    bitta**, uning o'rtasida, yonidagi eng past poldan eng balandigacha
+    o'stirilgan holda chiziladi. Bitta daraxt, tosh qanchalik baland bo'lsa
+    shunchalik katta.
   - Har katakda bitta bir xil daraxt — bog', o'rmon emas: ko'z avval qatorni
-    ko'radi. `WallClump` / `WallSpread` / `WallVariety` — devor chizig'ining
-    orqasida halqa bo'ylab bir nechta, har biri boshqa hajmda va boshqa tomonga
-    qaragan. Halqa **o'z radiusicha ichkariga suriladi**, ya'ni ochiq yerga
-    shoxi osiladi, tanasi emas — pathfinder qo'ygan chegara joyida qoladi.
+    ko'radi. `WallClump` / `WallSpread` / `WallVariety` — halqa bo'ylab bir
+    nechta, har biri boshqa hajmda va boshqa tomonga qaragan. Toshni to'ldiruvchi
+    bo'lak o'z markazi atrofida sochiladi va katagidan chiqmaydi; chegarada
+    turgani (tayanch devor) esa **chiziq orqasiga** o'z radiusicha suriladi —
+    ochiq yerga shoxi osiladi, tanasi emas.
   - Sochilish **tasodifiy emas**: joy hashidan. Har qayta qurishda o'zgaradigan
     o'rmonni hech kim yodlab ololmaydi (`TerrainScene.steady`).
 - **Maxluqlar hamma to'plamda o'zimizniki** — `DungeonThemeMonster` mexanizmi bor

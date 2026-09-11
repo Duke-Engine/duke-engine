@@ -678,7 +678,7 @@ public final class DungeonSettings {
         float wallLift;
         float wallShift;
         boolean ownMaterials;
-        boolean wallGrows;
+        boolean wallFillsRock;
         int wallClump = 1;
         float wallSpread;
         float wallVariety;
@@ -727,7 +727,7 @@ public final class DungeonSettings {
                     .add("WallLift", Ini.real((t, v) -> t.wallLift = v))
                     .add("WallShift", Ini.real((t, v) -> t.wallShift = v))
                     .add("OwnMaterials", Ini.bool((t, v) -> t.ownMaterials = v))
-                    .add("WallGrows", Ini.bool((t, v) -> t.wallGrows = v))
+                    .add("WallFillsRock", Ini.bool((t, v) -> t.wallFillsRock = v))
                     .add("WallClump", Ini.integer((t, v) -> t.wallClump = v))
                     .add("WallSpread", Ini.real((t, v) -> t.wallSpread = v))
                     .add("WallVariety", Ini.real((t, v) -> t.wallVariety = v))
@@ -799,7 +799,7 @@ public final class DungeonSettings {
             built.add(new ThemeArt(theme.name, theme.folder, theme.tileSize,
                     theme.wallTileSize, theme.wallHeight, theme.wallLift, theme.wallShift,
                     theme.ownMaterials, theme.propFolder, theme.stairs, theme.fogTint,
-                    new ThemeArt.Standing(theme.wallGrows, theme.wallClump,
+                    new ThemeArt.Standing(theme.wallFillsRock, theme.wallClump,
                             theme.wallSpread, theme.wallVariety),
                     itsTones, itsMonsters));
         }

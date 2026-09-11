@@ -214,84 +214,157 @@ final class TerrainScene {
         // then they have their own scale — see Tileset.wallTileSize.
         float wallScale = cell / tileset.getWallTileSize();
 
-        var layout = TileLayout.of(grid);
-        var stacks = tileset.wallGrows() ? stacksIn(layout) : java.util.Map.<Standing, int[]>of();
-
-        for (var placement : layout) {
-            if (placement.piece() == TileLayout.Piece.STAIR) {
-                addStair(grid, placement, cell);
+        for (var standing : plan(TileLayout.of(grid), grid)) {
+            if (standing.piece() == TileLayout.Piece.STAIR) {
+                addStair(grid, standing, cell);
                 continue;
             }
-            String asset = assetFor(placement.piece());
+            String asset = assetFor(standing.piece());
             if (asset == null) {
                 continue; // a kit without corner posts is a kit with square notches
             }
-            boolean standing = placement.piece() == TileLayout.Piece.WALL
-                    || placement.piece() == TileLayout.Piece.CORNER
-                    || placement.piece() == TileLayout.Piece.LEDGE;
-            // A kit whose wall grows rather than stacks draws the whole run once,
-            // off its lowest piece, and lets the rest of the stack go.
-            int storeys = 1;
-            if (standing && !stacks.isEmpty()) {
-                var stack = stacks.get(new Standing(placement.x(), placement.z(), placement.yaw()));
-                if (stack != null) {
-                    if (placement.ground() > Float.intBitsToFloat(stack[1]) + 0.001f) {
-                        continue;
-                    }
-                    storeys = stack[0];
-                }
-            }
-            int clump = standing ? tileset.getWallClump() : 1;
+            int clump = standing.upright() ? tileset.getWallClump() : 1;
             for (int copy = 0; copy < clump; copy++) {
-                addKitPiece(asset, placement, standing, storeys, copy, clump,
-                        standing ? wallScale : floorScale, wallScale, cell);
+                addKitPiece(asset, standing, copy, clump,
+                        standing.upright() ? wallScale : floorScale, wallScale, cell);
             }
         }
     }
 
-    /** A place a standing piece is put, which the stack above it shares. */
-    private record Standing(float x, float z, float yaw) {
+    /**
+     * One piece to draw: where it stands, what it stands on, and how many storeys
+     * of the map it stands for.
+     *
+     * <p>A layout placement and this are not the same thing, and the difference is
+     * the whole of what a kit of trees needs. The layout speaks in <em>faces</em>:
+     * a boundary the player may not cross, one piece of it per storey of drop. A
+     * tree is not a face. It has one body, it stands somewhere rather than facing
+     * somewhere, and it is as big as the thing it stands for.
+     *
+     * @param inRock whether it stands <em>inside</em> a piece of rock rather than
+     *     against it — then it is already where it belongs, needs no nudging back
+     *     off a boundary, and scatters evenly about its own point instead of
+     *     behind a line
+     */
+    private record Standing(TileLayout.Piece piece, int cellX, int cellY, float x, float z,
+            float yaw, float ground, int storeys, boolean inRock) {
+
+        static Standing facing(TileLayout.Placement of, int storeys) {
+            return new Standing(of.piece(), of.cellX(), of.cellY(), of.x(), of.z(), of.yaw(),
+                    of.ground(), storeys, false);
+        }
+
+        /** Whether this is a piece that stands up rather than one that lies flat. */
+        boolean upright() {
+            return piece == TileLayout.Piece.WALL || piece == TileLayout.Piece.CORNER
+                    || piece == TileLayout.Piece.LEDGE;
+        }
     }
 
     /**
-     * How many pieces each stack of standing ones is, and where its foot is —
-     * packed as {@code {count, floatBits(lowestGround)}}.
+     * What to draw, which is the layout for a kit of masonry and a rearrangement
+     * of it for a kit of things.
+     *
+     * <p>Two rearrangements, and both are the same idea. A stack becomes one piece
+     * grown to the height of the stack — a tree with the floor above cutting
+     * through it and a second tree growing out of that is not what two storeys of
+     * wood looks like. And the <b>two faces of one piece of rock become one
+     * body</b>: a wall a single cell thick is walled from both sides, which for
+     * stone is right, because stone has two faces and you can stand on either
+     * side of it. A tree seen from both sides is one tree, and drawing it twice
+     * put a tree at the foot of the rock and a second one on the roof with the lid
+     * between them — which is exactly the picture this is here to stop.
+     *
+     * <p>So a thing is drawn once per piece of rock, in the middle of it, from the
+     * lowest floor beside it to the highest. What is left facing rather than
+     * filling is the retaining wall: the edge of a raised floor with no rock in it
+     * at all, where there is nothing to stand in and the piece belongs on the line.
      */
-    private static java.util.Map<Standing, int[]> stacksIn(java.util.List<TileLayout.Placement> of) {
-        var stacks = new java.util.HashMap<Standing, int[]>();
-        for (var placement : of) {
-            if (placement.piece() == TileLayout.Piece.FLOOR
-                    || placement.piece() == TileLayout.Piece.CAP
-                    || placement.piece() == TileLayout.Piece.STAIR) {
+    private java.util.List<Standing> plan(java.util.List<TileLayout.Placement> layout,
+            PathGrid grid) {
+        var plan = new java.util.ArrayList<Standing>();
+        if (!tileset.wallFillsRock()) {
+            for (var placement : layout) {
+                plan.add(Standing.facing(placement, 1));
+            }
+            return plan;
+        }
+        float cell = grid.getCellSize();
+        float storey = Math.max(grid.getLevelHeight(), 0f);
+        // Per piece of rock: the lowest floor beside it, the highest, and the turn
+        // and cell of whichever face was met first — a body has no facing of its
+        // own, but the cell it is filed under decides when the fog hides it.
+        var bodies = new java.util.LinkedHashMap<Integer, float[]>();
+        var stacks = new java.util.LinkedHashMap<String, Standing>();
+        for (var placement : layout) {
+            if (!Standing.facing(placement, 1).upright()) {
+                plan.add(Standing.facing(placement, 1));
                 continue;
             }
-            stacks.compute(new Standing(placement.x(), placement.z(), placement.yaw()),
-                    (key, was) -> was == null
-                            ? new int[] {1, Float.floatToIntBits(placement.ground())}
-                            : new int[] {was[0] + 1, Float.floatToIntBits(
-                                    Math.min(Float.intBitsToFloat(was[1]), placement.ground()))});
+            int rock = rockFacedBy(placement, grid, cell);
+            if (rock < 0) {
+                // Nothing to stand in: a retaining wall, or the edge of the map.
+                // It keeps the line, and only its stack is collapsed.
+                var where = placement.piece() + "@" + placement.x() + "," + placement.z()
+                        + "," + placement.yaw();
+                stacks.merge(where, Standing.facing(placement, 1), (was, one) -> new Standing(
+                        was.piece(), was.cellX(), was.cellY(), was.x(), was.z(), was.yaw(),
+                        Math.min(was.ground(), one.ground()), was.storeys() + 1, false));
+                continue;
+            }
+            bodies.merge(rock,
+                    new float[] {placement.ground(), placement.ground(), placement.yaw(),
+                        placement.cellX(), placement.cellY()},
+                    (was, one) -> new float[] {Math.min(was[0], one[0]), Math.max(was[1], one[1]),
+                        was[2], was[3], was[4]});
         }
-        return stacks;
+        plan.addAll(stacks.values());
+        for (var body : bodies.entrySet()) {
+            int rock = body.getKey();
+            var span = body.getValue();
+            int storeys = storey <= 0f ? 1 : Math.round((span[1] - span[0]) / storey) + 1;
+            plan.add(new Standing(TileLayout.Piece.WALL, (int) span[3], (int) span[4],
+                    (rock % grid.getWidth() + 0.5f) * cell,
+                    (rock / grid.getWidth() + 0.5f) * cell,
+                    span[2], span[0], storeys, true));
+        }
+        return plan;
     }
 
     /**
-     * One piece of a kit, laid where the layout says and dressed the way the kit
+     * The piece of rock a wall faces, as {@code cy * width + cx}, or {@code -1}
+     * where there is none — a retaining wall, or the edge of the map.
+     *
+     * <p>Read back off the placement rather than passed down with it: a wall is put
+     * halfway to its neighbour, so which neighbour that is is written in where it
+     * ended up.
+     */
+    private static int rockFacedBy(TileLayout.Placement placement, PathGrid grid, float cell) {
+        int nx = placement.cellX()
+                + Math.round((placement.x() / cell - (placement.cellX() + 0.5f)) * 2f);
+        int ny = placement.cellY()
+                + Math.round((placement.z() / cell - (placement.cellY() + 0.5f)) * 2f);
+        return grid.inBounds(nx, ny) && grid.isBlocked(nx, ny) ? ny * grid.getWidth() + nx : -1;
+    }
+
+    /**
+     * One piece of a kit, laid where the plan says and dressed the way the kit
      * asks.
      *
      * <p>{@code copy} of {@code clump} is which of the several things standing
      * where the layout asked for one wall this is — one, for masonry. They are
-     * arranged in a ring behind the wall line, each a different size and facing,
-     * and which size and which facing is settled by where the ring stands rather
-     * than by chance, so the same wood grows the same way every time it is built.
+     * arranged in a ring, each a different size and facing, and which size and
+     * which facing is settled by where the ring stands rather than by chance, so
+     * the same wood grows the same way every time it is built.
      */
-    private void addKitPiece(String asset, TileLayout.Placement placement, boolean standing,
-            int storeys, int copy, int clump, float pieceScale, float wallScale, float cell) {
+    private void addKitPiece(String asset, Standing placement, int copy, int clump,
+            float pieceScale, float wallScale, float cell) {
         var piece = tiles.piece(asset);
         if (piece == null) {
             return;
         }
         float yaw = FastMath.DEG_TO_RAD * placement.yaw();
-        float scale = pieceScale * storeys;
+        float scale = pieceScale * placement.storeys();
         float facing = yaw;
         float side = 0f;
         float ring = 0f;
@@ -301,15 +374,18 @@ final class TerrainScene {
             float radius = tileset.getWallSpread() * cell
                     * (0.55f + 0.45f * steady(placement.x(), placement.z(), copy, 1));
             side = radius * FastMath.sin(turn);
-            // Behind the line by its own radius, so what leans over open ground is
-            // canopy and the trunk stays in the solid side.
-            ring = -radius * (1f + FastMath.cos(turn));
+            // A body scatters about its own middle and stays in its cell. A face
+            // scatters behind its line by the ring's own radius, so what leans out
+            // over open ground is canopy and the trunk keeps to the solid side.
+            ring = radius * (placement.inRock() ? FastMath.cos(turn)
+                    : -(1f + FastMath.cos(turn)));
             facing = FastMath.TWO_PI * steady(placement.x(), placement.z(), copy, 2);
         }
-        if (tileset.getWallVariety() > 0f && standing) {
+        if (tileset.getWallVariety() > 0f && placement.upright()) {
             scale *= 1f + tileset.getWallVariety()
                     * (steady(placement.x(), placement.z(), copy, 3) - 0.5f);
         }
+        boolean standing = placement.upright();
         // Measured before it is scaled, because the answer is a fact about the
         // model and the same for every copy of it.
         float surface = placement.piece() == TileLayout.Piece.FLOOR
@@ -332,7 +408,11 @@ final class TerrainScene {
         // A wall's face belongs on the boundary, and where its own kit put its
         // origin decides how far back that is. Along the wall's own facing,
         // which the yaw has just turned.
-        float back = (standing ? tileset.getWallShift() * wallScale : 0f) + ring;
+        //
+        // A body standing in the rock is not on a boundary and takes none of it:
+        // the shift exists to move a face off a line, and there is no line.
+        float back = (standing && !placement.inRock()
+                ? tileset.getWallShift() * wallScale : 0f) + ring;
         piece.setLocalTranslation(
                 placement.x() + back * FastMath.sin(yaw) + side * FastMath.cos(yaw),
                 y,
@@ -366,8 +446,14 @@ final class TerrainScene {
      * or under it. And which way it climbs: one kit's steps rise toward -z and the
      * next kit's toward +x, so the model is turned by the difference between the
      * way it happens to face and the way this one has to.
+     *
+     * <p>Where its origin sits is a third, and is measured the same way. A kit may
+     * put it in the middle of the flight or at the foot of the bottom step, and a
+     * model whose origin is at one end, laid by its origin on the middle of a
+     * cell, ends up half a cell out — hanging over the drop it was meant to join,
+     * with its foot in the room behind.
      */
-    private void addStair(PathGrid grid, TileLayout.Placement placement, float cell) {
+    private void addStair(PathGrid grid, Standing placement, float cell) {
         var asset = tileset == null ? null : tileset.getStairs();
         var piece = asset == null ? null : tiles.piece(asset);
         if (piece == null) {
@@ -396,10 +482,21 @@ final class TerrainScene {
                 .fromAngleAxis(yaw, Vector3f.UNIT_Y));
         // Its foot on the lower floor: the model's own bottom is wherever its kit
         // put the origin, so it is lifted by however far it hangs below.
-        piece.setLocalTranslation(placement.x(),
+        //
+        // And the middle of the flight on the middle of the cell. Where a kit put
+        // the origin across the floor is its own business too, and KayKit's is at
+        // the foot of the bottom step rather than in the middle — so the flight
+        // laid by its origin covered half this cell and half the next, hanging
+        // over the drop with a whole cell of nothing under one end of it. Turned
+        // first, because the offset is in the model's axes and the model has just
+        // been turned out of them.
+        float across = box.getCenter().x * (cell / run);
+        float along = box.getCenter().z * (cell / run);
+        piece.setLocalTranslation(
+                placement.x() - (across * FastMath.cos(yaw) + along * FastMath.sin(yaw)),
                 placement.ground() + (box.getYExtent() - box.getCenter().y)
                         * (grid.getLevelHeight() / rise),
-                placement.z());
+                placement.z() - (along * FastMath.cos(yaw) - across * FastMath.sin(yaw)));
         cellNode(placement.cellY() * cellsWide + placement.cellX()).attachChild(piece);
     }
 
@@ -419,7 +516,7 @@ final class TerrainScene {
      * twice and piled up on one another in the middle of the cell, which is
      * exactly what a hero walks into and then pops out of the top of.
      */
-    private void addBuiltSteps(TileLayout.Placement placement, float cell, float storey) {
+    private void addBuiltSteps(Standing placement, float cell, float storey) {
         if (storey <= 0f) {
             return;
         }

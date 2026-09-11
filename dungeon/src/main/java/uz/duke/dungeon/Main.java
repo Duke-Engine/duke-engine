@@ -126,7 +126,7 @@ public final class Main {
                             .wallLift(theme.wallLift())
                             .wallShift(theme.wallShift())
                             .ownMaterials(theme.ownMaterials())
-                            .wallGrows(theme.standing().grows())
+                            .wallFillsRock(theme.standing().fillsRock())
                             .wallClump(theme.standing().clump())
                             .wallSpread(theme.standing().spread())
                             .wallVariety(theme.standing().variety())

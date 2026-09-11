@@ -67,18 +67,21 @@ public record ThemeArt(
      * the boundary faces, and that is right; a wall that varied would not read as a
      * wall.
      *
-     * <p>A thing does none of that. Two storeys of tree is not two trees, it is a
-     * bigger tree. A row of identical trees at identical spacing is not a wood, it
-     * is an orchard — and the eye reads the spacing before it reads the tree, so
-     * the grid the map is built on shows straight through the art.
+     * <p>A thing does none of that. It has one body, so a block of rock one cell
+     * thick is one tree rather than a face on each side of it — drawing both put a
+     * tree at the foot of the rock and a second on the roof with the lid between
+     * them. Two storeys of tree is not two trees either, it is a bigger tree. And
+     * a row of identical trees at identical spacing is not a wood, it is an
+     * orchard: the eye reads the spacing before it reads the tree, so the grid the
+     * map is built on shows straight through the art.
      *
-     * @param grows   a run taller than one storey is one piece grown to fit
-     * @param clump   how many stand where the layout asks for one
-     * @param spread  how far from the wall line they scatter, as a fraction of a
-     *     cell
+     * @param fillsRock  the piece fills a block of rock instead of facing it —
+     *     once per block, in the middle of it, grown to its height
+     * @param clump   how many stand where the plan asks for one
+     * @param spread  how far from that point they scatter, as a fraction of a cell
      * @param variety how much they differ in size, as a fraction either way
      */
-    public record Standing(boolean grows, int clump, float spread, float variety) {
+    public record Standing(boolean fillsRock, int clump, float spread, float variety) {
 
         /** A wall that is a wall: one piece per storey, all alike. */
         public static final Standing MASONRY = new Standing(false, 1, 0f, 0f);
