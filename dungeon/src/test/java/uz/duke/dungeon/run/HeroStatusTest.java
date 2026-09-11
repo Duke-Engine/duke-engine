@@ -24,11 +24,57 @@ import uz.duke.dungeon.content.DungeonSettings;
  */
 class HeroStatusTest {
 
-    /** One frame of a real dungeon, which is enough for the run to describe itself. */
+    /**
+     * One frame of a real dungeon with the hero picked out, which is what the
+     * player does before he reads anything about him.
+     *
+     * <p>Selecting him first is not scaffolding: the bar describes whatever is
+     * selected, and with nothing selected it describes nobody on purpose. See
+     * {@link #withNothingSelectedTheBarIsEmpty}.
+     */
     private static String lineFrom(long seed) {
         var session = Dungeon.newSession(seed);
+        var game = session.game();
+        game.runHeadless(1);
+        var hero = game.getLogic().getObjects().stream()
+                .filter(o -> o.getTemplate().getName().equals("Hero"))
+                .findFirst().orElseThrow();
+        session.orders().watch(hero.getPlayerIndex(), hero.getId());
+        game.runHeadless(1);
+        return game.getSnapshot().status();
+    }
+
+    /** Pick the hero out, the way a player does before reading anything about him. */
+    private static void pickOutTheHero(Dungeon.Session session) {
+        var hero = session.game().getLogic().getObjects().stream()
+                .filter(o -> o.getTemplate().getName().equals("Hero"))
+                .findFirst().orElseThrow();
+        session.orders().watch(hero.getPlayerIndex(), hero.getId());
+    }
+
+    /**
+     * With nothing selected the bar is about the floor and nobody else.
+     *
+     * <p>Which is the first thing a run ever says: nothing is selected when one
+     * begins. So the line has to carry what belongs to the screen rather than to a
+     * creature -- and in particular the floor's LOOK, because this is the line the
+     * client learns which stone to build the first floor out of from.
+     */
+    @Test
+    void withNothingSelectedTheBarIsEmpty() {
+        var session = Dungeon.newSession(4321L);
         session.game().runHeadless(1);
-        return session.game().getSnapshot().status();
+        var line = session.game().getSnapshot().status();
+
+        assertTrue(line.startsWith("name="), "the panel reads nothing else: " + line);
+        assertTrue(line.startsWith("name=|") || line.equals("name="),
+                "nobody is selected, so nobody is named: " + line);
+        assertFalse(line.contains("|hp="), "nothing has health: " + line);
+        assertFalse(line.contains("|skill="), "nothing has skills: " + line);
+        assertFalse(line.contains("|cmd="), "and there is nothing to give orders to: " + line);
+        assertTrue(line.contains("|depth="), "the floor is still the floor: " + line);
+        assertTrue(line.contains("|look="),
+                "and the client learns the floor's stone from this line: " + line);
     }
 
     @Test
@@ -184,6 +230,8 @@ class HeroStatusTest {
     void theLineCarriesEveryPartOfTheDesign() {
         var session = Dungeon.newSession(7L);
         var game = session.game();
+        game.runHeadless(2);
+        pickOutTheHero(session);
         game.runHeadless(30);
         var line = game.getSnapshot().status();
 
@@ -208,6 +256,8 @@ class HeroStatusTest {
         var session = Dungeon.newSession(11L);
         var game = session.game();
         game.runHeadless(2);
+        pickOutTheHero(session);
+        game.runHeadless(1);
         var before = game.getSnapshot().status();
         assertFalse(before.contains("|it="), "he starts with nothing: " + before);
 
@@ -235,6 +285,7 @@ class HeroStatusTest {
         var session = Dungeon.newSession(4321L);
         var game = session.game();
         game.runHeadless(1);
+        pickOutTheHero(session);
         var hero = game.getLogic().getObjects().stream()
                 .filter(object -> object.getTemplate().getName().equals("Hero"))
                 .findFirst().orElseThrow();

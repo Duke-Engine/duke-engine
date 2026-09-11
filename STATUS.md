@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-11 · **Testlar:** 904 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-11 · **Testlar:** 908 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -2292,6 +2292,32 @@ arifmetika qilinmaydi. Ranglar panelnikidan olingan: suyak / yashil / qon /
 mash'al.
 
 **Ikki o'lcham** (`default/` 32px, `double/` 64px) — almashtirish bitta so'z.
+
+### 8.af Hech narsa tanlanmagan bo'lsa panel bo'sh
+
+Panel doim kimnidir yozardi. Endi u tanlanganini yozadi, va hech narsa
+tanlanmagan bo'lsa — hech kimni.
+
+- **Nima qoladi:** ekranniki — minimap va chuqurlik. **Nima ketadi:** portret,
+  ko'rsatkichlar, sumka, mahoratlar, buyruq tugmalari. Bo'sh portret romi va
+  nolga tushgan bar "hech narsa tanlanmagan" deb emas, "panel qahramonini
+  yo'qotdi" deb o'qiladi.
+- **Qolganlari yopiladi** — xaritadan chuqurlikgacha bir ekran bo'sh tosh emas.
+- **`layOut` ro'yxatga aylandi.** To'rtta mustaqil ixtiyoriy blok = o'n olti xil
+  joylashuv, va o'n olti joylashuvni bir marta yozishning yagona yo'li har bir
+  blokni tasvirlab, sikл ularni joylashtirishi. Groove faqat qo'shni juftlar
+  orasiga tushadi.
+- **Bo'sh kartada ham `look=` bor va bu majburiy.** Run boshlanganda hech narsa
+  tanlanmagan bo'ladi, ya'ni klient o'qiydigan BIRINCHI qator — shu. Undan
+  `look=` tushib qolsa, birinchi qavat noto'g'ri toshdan quriladi.
+- **O'lgan narsa ham panelni bo'shatadi** (jasadni yozib turgan panel buzilgan
+  panelga o'xshaydi), lekin **o'layotgan qahramon bundan mustasno** — u hali ham
+  panel yozayotgan qahramon, va o'limning o'z ekrani bor.
+
+**Diqqat — xulq o'zgardi:** run boshlanganda panel bo'sh, chunki hech narsa
+tanlanmagan. Qahramonni bosmaguncha mahorat uyalari ham ko'rinmaydi (skill
+klavishlari ishlayveradi, chunki ular tanlovga bog'liq emas). Agar run
+boshlanishida qahramon avtomatik tanlansin desangiz — bu bitta qator.
 
 ---
 

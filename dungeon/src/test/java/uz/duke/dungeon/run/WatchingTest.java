@@ -61,9 +61,29 @@ class WatchingTest {
         return new Watched(game, hero, skeleton, session.orders());
     }
 
+    /**
+     * With nothing picked out the bar is about nobody.
+     *
+     * <p>Not about him either. The bar describes what is selected, and at the
+     * start of a run nothing is -- so it keeps the map and the floor and drops
+     * everything that belongs to a creature.
+     */
     @Test
-    void withNothingPickedOutTheBarIsHis() {
+    void withNothingPickedOutTheBarIsAboutNobody() {
         var watched = standoff();
+
+        var line = watched.line();
+
+        assertTrue(line.startsWith("name=|") || line.equals("name="), line);
+        assertFalse(line.contains("|skill="), "nobody has skills: " + line);
+        assertTrue(line.contains("|depth="), "but the floor is still the floor: " + line);
+    }
+
+    /** And picking him out is what puts his own card up. */
+    @Test
+    void pickingHimOutPutsHisCardUp() {
+        var watched = standoff();
+        watched.pickOut(watched.hero());
 
         var line = watched.line();
 
@@ -117,16 +137,17 @@ class WatchingTest {
         assertTrue(line.contains("|face="), "and the frame should stop showing an archer: " + line);
     }
 
-    /** Letting go puts his own card back. */
+    /** Letting go empties the bar rather than falling back to him. */
     @Test
-    void lettingGoGivesHimTheBarBack() {
+    void lettingGoEmptiesTheBar() {
         var watched = standoff();
         watched.pickOut(watched.skeleton());
-        assertFalse(watched.line().startsWith("name=Erika"));
+        assertTrue(watched.line().contains("|hp="));
 
         watched.pickOut(null);
 
-        assertTrue(watched.line().startsWith("name=Erika"), "his own card should be back");
+        assertFalse(watched.line().contains("|hp="),
+                "nothing is selected, so there is nothing to have health");
     }
 
     /**
@@ -146,16 +167,16 @@ class WatchingTest {
         assertTrue(line.contains("|skill="), "his own card, entire: " + line);
     }
 
-    /** And a creature that dies hands the bar back rather than leaving a corpse on it. */
+    /** And a creature that dies empties the bar rather than leaving a corpse on it. */
     @Test
-    void aDeadCreatureGivesTheBarBack() {
+    void aDeadCreatureEmptiesTheBar() {
         var watched = standoff();
         watched.pickOut(watched.skeleton());
-        assertFalse(watched.line().startsWith("name=Erika"));
+        assertTrue(watched.line().contains("|hp="));
 
         watched.skeleton().getBody().damage(100000f, uz.duke.core.module.DamageType.EXPLOSION);
 
-        assertTrue(watched.line().startsWith("name=Erika"),
+        assertFalse(watched.line().contains("|hp="),
                 "a panel describing a corpse is a panel that looks broken");
     }
 }

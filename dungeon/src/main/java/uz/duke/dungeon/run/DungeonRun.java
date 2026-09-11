@@ -191,38 +191,32 @@ public final class DungeonRun {
      * never reads — depth and levels are this game's arithmetic and the engine has
      * no name for either. See {@link HeroStatus} for what is in the line.
      */
+    /**
+     * What the bar says this frame, which is whatever the player has picked out.
+     *
+     * <p>Three answers and they are tried in this order, which is the order of
+     * what is most specific. His own is asked first and asked before the creature
+     * is looked at at all: a dying hero is still the hero the bar is about, and
+     * the run has a screen of its own for what happens next.
+     */
     private void showStatus(DukeGame game) {
-        var watched = watchedCreature(game);
-        if (watched != null) {
-            game.setStatus(HeroStatus.creature(watched, depth, settings, look));
+        var picked = orders.watchedBy(heroPlayer.getIndex());
+        var creature = picked == null ? null : game.getLogic().findObject(picked);
+        if (creature != null && creature.getPlayerIndex() == heroPlayer.getIndex()) {
+            game.setStatus(HeroStatus.of(Skills.heroOf(game.getLogic(), heroPlayer.getIndex()),
+                    progress, depth, settings, powers, game.getLogic().getFrame(), look,
+                    orders.isHolding(heroPlayer.getIndex())));
             return;
         }
-        game.setStatus(HeroStatus.of(Skills.heroOf(game.getLogic(), heroPlayer.getIndex()),
-                progress, depth, settings, powers, game.getLogic().getFrame(), look,
-                orders.isHolding(heroPlayer.getIndex())));
-    }
-
-    /**
-     * The creature the player has picked out, when it is not his own and is still
-     * alive.
-     *
-     * <p>His own hero selected is not a different card — it is the card, with his
-     * skills and his bag on it — so only something belonging to somebody else
-     * takes the panel over. And a creature that has died goes back to him rather
-     * than leaving its last health on screen: the alternative is a panel
-     * describing a corpse until the player thinks to click somewhere.
-     */
-    private uz.duke.core.thing.GameObject watchedCreature(DukeGame game) {
-        var picked = orders.watchedBy(heroPlayer.getIndex());
-        if (picked == null) {
-            return null;
+        if (creature != null && !creature.isEffectivelyDead()) {
+            game.setStatus(HeroStatus.creature(creature, depth, settings, look));
+            return;
         }
-        var creature = game.getLogic().findObject(picked);
-        if (creature == null || creature.isEffectivelyDead()
-                || creature.getPlayerIndex() == heroPlayer.getIndex()) {
-            return null;
-        }
-        return creature;
+        // Nothing selected, or what was selected has died: the bar keeps the floor
+        // and loses the creature. A panel describing a corpse until the player
+        // thinks to click somewhere is a panel that looks broken.
+        game.setStatus(HeroStatus.nothing(depth, settings,
+                progress.getLoot().noteAt(game.getLogic().getFrame()), look));
     }
 
     /**

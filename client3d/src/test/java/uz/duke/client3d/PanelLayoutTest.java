@@ -242,6 +242,81 @@ class PanelLayoutTest {
             "name=Skeleton|hp=34/40|depth=III / IV|depthWord=CHUQURLIK|face=skull"
                     + "|stat=Zarba,7|stat=Tezlik,16";
 
+    /** And the card it sends when nothing at all is selected. */
+    private static final String NOBODY = "name=|depth=III / IV|depthWord=CHUQURLIK";
+
+    /**
+     * Nothing of that block reaches the screen — by any of the three ways a block
+     * can be absent.
+     *
+     * <p>They really are three different things and all three are correct: a block
+     * the panel hides is culled, a block built from a list the card did not send
+     * is empty, and a block only built when something needs it was never attached
+     * at all. Insisting on one of them would be a test about how the panel is put
+     * together rather than about what the player sees.
+     */
+    private static void assertNothingDrawn(Node gui, String name) {
+        var block = find(gui, name);
+        if (block == null) {
+            return; // never built
+        }
+        if (block.getLocalCullHint() == Spatial.CullHint.Always) {
+            return; // built and hidden
+        }
+        assertTrue(block instanceof Node empty && empty.getChildren().isEmpty(),
+                name + " is about a creature and there is no creature, but it is still drawn");
+    }
+
+    private static Node showing(String card) {
+        var assets = new DesktopAssetManager(true);
+        var font = assets.loadFont("Interface/Fonts/Default.fnt");
+        var gui = new Node("gui");
+        var hero = new HeroPanel(assets, font, gui, 1600f, PanelSkin.NONE);
+        assertTrue(hero.show(card, 0f), "the panel should have taken the card");
+        gui.updateGeometricState();
+        return gui;
+    }
+
+    /**
+     * With nothing selected the bar keeps the screen and loses the creature.
+     *
+     * <p>The map is still the map and the floor is still the floor; everything
+     * else on the bar was about somebody, and there is nobody. A portrait frame
+     * with no face in it beside a health bar at zero does not read as "nothing is
+     * selected" — it reads as a panel that has lost its hero.
+     */
+    @Test
+    void withNothingSelectedOnlyTheScreensOwnThingsAreLeft() {
+        var gui = showing(NOBODY);
+
+        for (var gone : List.of("portrait", "vitals", "items", "skills", "orders")) {
+            assertNothingDrawn(gui, gone);
+        }
+        for (var kept : List.of("minimap-socket", "depth")) {
+            assertNotEquals(Spatial.CullHint.Always, find(gui, kept).getLocalCullHint(),
+                    kept + " belongs to the screen and should stay");
+        }
+    }
+
+    /**
+     * And what is left closes up rather than sitting where it always sat.
+     *
+     * <p>The map at one end and the floor at the other with a screen of empty
+     * stone between them would be the shape of the bar that is missing, which is
+     * the thing the player should not be shown.
+     */
+    @Test
+    void theEmptyBarClosesUp() {
+        float full = spanOf(panel(1600f), "depth").from()
+                - spanOf(panel(1600f), "minimap-socket").to();
+        var gui = showing(NOBODY);
+
+        float empty = spanOf(gui, "depth").from() - spanOf(gui, "minimap-socket").to();
+
+        assertTrue(empty < full / 3f,
+                "the bar should have closed up, but left " + empty + " of the full " + full);
+    }
+
     /** Six sockets in the bag whatever he is carrying, and three of them full. */
     @Test
     void theBagAlwaysHasSixSockets() {

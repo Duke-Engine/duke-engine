@@ -54,6 +54,35 @@ final class HeroStatus {
     }
 
     /**
+     * The card for nobody: the floor, and nothing else.
+     *
+     * <p>What the bar says when the player has selected nothing. It is not a
+     * shorter hero's card — it has no hero on it at all, and the panel answers by
+     * taking the portrait, the figures, the bag and the skills off the bar and
+     * closing the gap. What is left is what was never about a creature: the map,
+     * how far down he is, and anything that has just happened.
+     *
+     * <p><b>The floor's look has to be here.</b> It is the first line the client
+     * ever reads — nothing is selected when a run begins — and it is the line that
+     * says which stone this floor is built from. A card that left it out would
+     * have the first floor drawn in the wrong kit until something was clicked.
+     */
+    static String nothing(int depth, DungeonSettings settings, String note, String look) {
+        var line = new StringBuilder()
+                .append("name=")
+                .append("|depth=").append(howFarDown(depth, settings))
+                .append("|depthWord=").append(settings.hudDepthWord());
+        if (note != null && !note.isEmpty()) {
+            // Finding a sword is worth saying whether or not he is selected.
+            line.append("|note=").append(note);
+        }
+        if (look != null && !look.isBlank()) {
+            line.append("|look=").append(look);
+        }
+        return line.toString();
+    }
+
+    /**
      * The card for a creature that is not his: name, what is left of it, and what
      * it hits for.
      *

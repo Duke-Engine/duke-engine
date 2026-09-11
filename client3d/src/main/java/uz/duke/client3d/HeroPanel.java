@@ -310,14 +310,32 @@ final class HeroPanel {
         boolean carries = !reading.itemsWord.isBlank();
         itemGrid.setCullHint(carries ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
         itemHeading.setCullHint(carries ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-        if (carries != showingBag) {
+        // A card with no name on it is nobody: nothing is selected. The portrait
+        // and the figures go with it, because a frame with no face in it beside a
+        // health bar at zero is not "nothing is selected" — it is a panel that has
+        // lost its hero, and a player would read it as one.
+        boolean somebody = !reading.name.isBlank();
+        portrait.setCullHint(somebody ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        vitals.setCullHint(somebody ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        if (carries != showingBag || somebody != showingWho) {
             showingBag = carries;
-            layOut(); // the block is gone; the blocks after it move up to fill it
+            showingWho = somebody;
+            layOut(); // a block is gone; the ones after it move up to fill it
         }
     }
 
     /** Whether the bag is on the bar, so its coming and going re-lays the rest. */
     private boolean showingBag = true;
+
+    /**
+     * Whether anybody is being described at all.
+     *
+     * <p>With nothing selected the bar keeps what belongs to the screen -- the
+     * map, the floor -- and loses everything that belongs to a creature. An empty
+     * portrait frame beside a name with nothing in it is not "nothing is
+     * selected", it is a panel that has lost its hero.
+     */
+    private boolean showingWho = true;
 
     /** Take the bar out of the scene, so a fresh one can be built at a new size. */
     void destroy() {
@@ -1500,6 +1518,28 @@ final class HeroPanel {
 
     // ---- placing the whole thing ----
 
+    /** Where one block of the bar goes, once it is known what is left of it. */
+    private interface Placing {
+        void at(float x, float left);
+    }
+
+    /** One block: how wide it is, and how to put it down. */
+    private record Block(float width, Placing place) {
+    }
+
+    /**
+     * Put the bar together out of whatever blocks this card has.
+     *
+     * <p>A list rather than a chain of ifs, because the blocks are independently
+     * optional — a creature's card has no bag and no skills, and with nothing
+     * selected at all there is no portrait either. Four optional blocks is
+     * sixteen arrangements, and the only way to write sixteen arrangements once
+     * is to describe each block and let the loop space them.
+     *
+     * <p>A groove goes between every neighbouring pair and nowhere else, which is
+     * what makes the bar close up rather than leave a hole where something used
+     * to be.
+     */
     private void layOut() {
         this.scale = Math.clamp(screenWidth / DESIGN_WIDTH, MIN_SCALE, MAX_SCALE);
         root.setLocalScale(scale);
@@ -1509,56 +1549,70 @@ final class HeroPanel {
         note.setBox(new Rectangle(0f, SLAB_HEIGHT + 6f + NOTE_SIZE,
                 screenWidth / scale, NOTE_SIZE * 1.4f));
 
-        float skillsWidth = 0f;
-        for (int i = 0; i < slots.size(); i++) {
-            skillsWidth += slots.get(i).size + (i == 0 ? 0f : SLOT_GAP);
-        }
-        skillsWidth = Math.max(skillsWidth, SLOT * 3f + ULT_SLOT + SLOT_GAP * 3f);
-        float gap = DIVIDER + DIVIDER_MARGIN * 2f;
+        var blocks = new ArrayList<Block>();
         float mapBlock = MINIMAP + (orderButtons.isEmpty() ? 0f
                 : ORDER_COLUMN_GAP + ORDER_BUTTON);
-        float who = PORTRAIT + PORTRAIT_GAP + VITALS_WIDTH;
-        // A card with no bag on it -- a creature's -- takes the block away and the
-        // rest of the bar closes up, rather than leaving a hole where his things
-        // would be if he were the one selected.
-        float bagWidth = showingBag
-                ? ITEM_COLUMNS * ITEM_SLOT + (ITEM_COLUMNS - 1) * ITEM_GAP : 0f;
-        float bagGap = showingBag ? gap : 0f;
-        float skillsGap = slots.isEmpty() ? 0f : gap;
-        float skillsRoom = slots.isEmpty() ? 0f : skillsWidth;
-        float total = mapBlock + gap + who + bagGap + bagWidth + skillsGap + skillsRoom
-                + gap + DEPTH_WIDTH;
+        blocks.add(new Block(mapBlock, (x, left) -> {
+            minimapSocket.setLocalTranslation(x, 0f, 0f);
+            placeOrders(x + MINIMAP + ORDER_COLUMN_GAP, left);
+        }));
+        if (showingWho) {
+            blocks.add(new Block(PORTRAIT + PORTRAIT_GAP + VITALS_WIDTH, (x, left) -> {
+                // The portrait hangs from the top of the band with its badge
+                // below it; the vitals fill the whole height beside it.
+                portrait.setLocalTranslation(x, BAND - PORTRAIT_HEIGHT, 0f);
+                vitals.setLocalTranslation(x + PORTRAIT + PORTRAIT_GAP, 0f, 0f);
+            }));
+        }
+        if (showingBag) {
+            blocks.add(new Block(ITEM_COLUMNS * ITEM_SLOT + (ITEM_COLUMNS - 1) * ITEM_GAP,
+                    (x, left) -> placeBag(x)));
+        }
+        if (!slots.isEmpty()) {
+            blocks.add(new Block(skillRowWidth(), this::placeSkills));
+        }
+        blocks.add(new Block(DEPTH_WIDTH, (x, left) -> depth.setLocalTranslation(x, 0f, 0f)));
 
+        float gap = DIVIDER + DIVIDER_MARGIN * 2f;
+        float total = gap * (blocks.size() - 1);
+        for (var block : blocks) {
+            total += block.width();
+        }
         // The bar spans the window; its contents are centred on it, so a wide
         // screen puts empty stone at both ends rather than all of it at one.
         float left = Math.max(PAD, (screenWidth / scale - total) / 2f);
         contents.setLocalTranslation(left, PAD, 1f);
 
         float x = 0f;
-        minimapSocket.setLocalTranslation(x, 0f, 0f);
-        placeOrders(x + MINIMAP + ORDER_COLUMN_GAP, left);
-        x += mapBlock + DIVIDER_MARGIN;
-        placeDivider(0, x);
-        x += DIVIDER + DIVIDER_MARGIN;
-
-        // The portrait hangs from the top of the band with its badge below it;
-        // the vitals fill the whole height beside it.
-        portrait.setLocalTranslation(x, BAND - PORTRAIT_HEIGHT, 0f);
-        vitals.setLocalTranslation(x + PORTRAIT + PORTRAIT_GAP, 0f, 0f);
-        x += who;
-        if (showingBag) {
-            x += DIVIDER_MARGIN;
-            placeDivider(1, x);
-            x += DIVIDER + DIVIDER_MARGIN;
-        } else {
-            hideDivider(1);
+        for (int i = 0; i < blocks.size(); i++) {
+            if (i > 0) {
+                x += DIVIDER_MARGIN;
+                placeDivider(i - 1, x);
+                x += DIVIDER + DIVIDER_MARGIN;
+            }
+            blocks.get(i).place().at(x, left);
+            x += blocks.get(i).width();
         }
+        for (int spare = blocks.size() - 1; spare < dividers.size(); spare++) {
+            hideDivider(spare); // grooves the last card needed and this one does not
+        }
+    }
 
-        // His bag: a heading with the grid under it, the pair centred in the band.
+    /** As wide as the sockets come to, and never narrower than the design's four. */
+    private float skillRowWidth() {
+        float wide = 0f;
+        for (int i = 0; i < slots.size(); i++) {
+            wide += slots.get(i).size + (i == 0 ? 0f : SLOT_GAP);
+        }
+        return Math.max(wide, SLOT * 3f + ULT_SLOT + SLOT_GAP * 3f);
+    }
+
+    /** His bag: a heading with the grid under it, the pair centred in the band. */
+    private void placeBag(float x) {
         float bagHeight = ITEM_ROWS * ITEM_SLOT + (ITEM_ROWS - 1) * ITEM_GAP;
-        float bagBottom = (BAND - bagHeight - HEADING_SIZE - HEADING_GAP) / 2f;
-        itemGrid.setLocalTranslation(x, bagBottom, 0f);
-        itemHeading.setLocalTranslation(x, bagBottom + bagHeight + HEADING_GAP, 0f);
+        float bottom = (BAND - bagHeight - HEADING_SIZE - HEADING_GAP) / 2f;
+        itemGrid.setLocalTranslation(x, bottom, 0f);
+        itemHeading.setLocalTranslation(x, bottom + bagHeight + HEADING_GAP, 0f);
         for (int i = 0; i < itemSlots.size(); i++) {
             // Filled across then down, which is the order they are read in and the
             // order the game sends them.
@@ -1567,20 +1621,14 @@ final class HeroPanel {
             itemSlots.get(i).node.setLocalTranslation(column * (ITEM_SLOT + ITEM_GAP),
                     (ITEM_ROWS - 1 - row) * (ITEM_SLOT + ITEM_GAP), 0f);
         }
-        x += bagWidth;
-        if (!slots.isEmpty()) {
-            x += DIVIDER_MARGIN;
-            placeDivider(2, x);
-            x += DIVIDER + DIVIDER_MARGIN;
-        } else {
-            hideDivider(2);
-        }
+    }
 
-        // Skills: a heading, the row of sockets, and the powers strip under it.
+    /** Skills: a heading, the row of sockets, and the powers strip under it. */
+    private void placeSkills(float x, float left) {
         float columnHeight = HEADING_SIZE + HEADING_GAP + ULT_SLOT + POWERS_TOP_GAP + POWER_CHIP;
-        float columnBottom = (BAND - columnHeight) / 2f;
-        powerRow.setLocalTranslation(x, columnBottom, 0f);
-        float rowY = columnBottom + POWER_CHIP + POWERS_TOP_GAP;
+        float bottom = (BAND - columnHeight) / 2f;
+        powerRow.setLocalTranslation(x, bottom, 0f);
+        float rowY = bottom + POWER_CHIP + POWERS_TOP_GAP;
         skillRow.setLocalTranslation(x, rowY, 0f);
         skillHeading.setLocalTranslation(x, rowY + ULT_SLOT + HEADING_GAP, 0f);
         float slotX = 0f;
@@ -1592,11 +1640,6 @@ final class HeroPanel {
             slot.atY = PAD + rowY + ULT_SLOT - slot.size;
             slotX += slot.size + SLOT_GAP;
         }
-        x += skillsRoom + DIVIDER_MARGIN;
-        placeDivider(3, x);
-        x += DIVIDER + DIVIDER_MARGIN;
-
-        depth.setLocalTranslation(x, 0f, 0f);
     }
 
     /** The order buttons, stacked beside the map and centred against it. */
