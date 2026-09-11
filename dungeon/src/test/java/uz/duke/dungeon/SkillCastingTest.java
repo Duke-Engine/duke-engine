@@ -110,7 +110,8 @@ class SkillCastingTest {
         var world = Dungeon.world(arena(), SETTINGS, creaturesIni);
         var game = world.game();
         game.spawn("Hero", world.hero(), 150f, 150f);
-        game.spawn(DungeonSettings.BOSS, world.dungeon(), 150f + distance, 150f);
+        game.spawn(SETTINGS.bossKindAt(SETTINGS.finalDepth()), world.dungeon(),
+                150f + distance, 150f);
         game.runHeadless(1);
         var hero = creature(game, "Hero");
         return new Arena(game, hero, hero.findModule(SkillBook.class));
@@ -376,7 +377,7 @@ class SkillCastingTest {
         var arena = bossArena(creaturesWithNoBow(), 20f);
         var game = arena.game();
         var book = arena.book();
-        var boss = creature(game, DungeonSettings.BOSS);
+        var boss = creature(game, SETTINGS.bossKindAt(SETTINGS.finalDepth()));
 
         if (underTheUltimate) {
             assertTrue(book.cast('R', level), "the ultimate should have gone up");

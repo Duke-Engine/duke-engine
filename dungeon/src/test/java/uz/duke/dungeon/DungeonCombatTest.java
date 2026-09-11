@@ -244,7 +244,7 @@ class DungeonCombatTest {
         // killed in the boot frame and never survives to be faced. What is being
         // asked here is which way he turns, and that must not depend on how hard
         // the game currently has him hitting.
-        var fight = fight(200f, 150f, 182f, 150f, "Boss");
+        var fight = fight(200f, 150f, 182f, 150f, "Champion");
         var hero = fight.hero();
         var skeleton = fight.skeleton();
         hero.setOrientation(0f); // looking east; the skeleton is west
@@ -263,7 +263,7 @@ class DungeonCombatTest {
     /** And so does a skeleton: it looks at the hero it is hitting. */
     @Test
     void aSkeletonTurnsToFaceTheHero() {
-        var fight = fight(200f, 150f, 182f, 150f, "Boss");
+        var fight = fight(200f, 150f, 182f, 150f, "Champion");
         var skeleton = fight.skeleton();
         skeleton.setOrientation((float) StrictMath.PI); // looking away from the hero
 

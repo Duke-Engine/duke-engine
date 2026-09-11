@@ -180,9 +180,9 @@ class HeroProgressTest {
         // A target tough enough that the hero needs several blows: against
         // something he fells in one, a stronger hero is not measurably faster and
         // the test would say nothing about levelling.
-        game.spawn("Boss", fight.arena().dungeon(), 216f, 150f);
+        game.spawn("Champion", fight.arena().dungeon(), 216f, 150f);
         game.runHeadless(1);
-        var target = creature(game, "Boss");
+        var target = creature(game, "Champion");
         assertNotNull(target);
         var skeletonId = target.getId();
 

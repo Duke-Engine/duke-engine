@@ -89,6 +89,9 @@ public final class DungeonSettings {
 
     private int respawnDelayFrames = 60;
     private int descendDelayFrames = 75;
+    private int victoryFrames = 150;
+    private String diedWord = "You died";
+    private String wonWord = "You won";
 
     // ---- leveling ----
 
@@ -132,8 +135,47 @@ public final class DungeonSettings {
     private int bossDamagePercentPerDepth = 25;
     private int experiencePercentPerDepth = 30;
 
-    /** The kind placed in the furthest room. Named, not flagged, so it is findable. */
+    /**
+     * The kind placed in the furthest room when the file names no others. Named,
+     * not flagged, so it is findable.
+     */
     public static final String BOSS = "Boss";
+
+    /**
+     * One boss per depth, in order, from {@code DungeonDepth Descent}.
+     *
+     * <p>Empty means the descent has no bottom: one boss, the same one every
+     * floor, going down for ever — which is what this game did before it had an
+     * ending.
+     */
+    private final java.util.List<String> bosses = new java.util.ArrayList<>();
+
+    /**
+     * Which kind waits in the furthest room at this depth.
+     *
+     * <p>Clamped rather than wrapped, because past the last boss there is no floor
+     * to be on: {@link #finalDepth()} is where the descent stops.
+     */
+    public String bossKindAt(int depth) {
+        return bosses.isEmpty() ? BOSS
+                : bosses.get(Math.clamp(depth, 1, bosses.size()) - 1);
+    }
+
+    /** The boss of this depth, whole. */
+    public MonsterKind bossAt(int depth) {
+        return monster(bossKindAt(depth));
+    }
+
+    /**
+     * The depth the last boss stands on, or {@code 0} for a descent with no
+     * bottom.
+     *
+     * <p>Derived from the list rather than given a number of its own, so there is
+     * no second figure to keep in step with it: the bosses <em>are</em> the floors.
+     */
+    public int finalDepth() {
+        return bosses.size();
+    }
 
     private DungeonSettings() {
     }
@@ -1459,13 +1501,25 @@ public final class DungeonSettings {
                             Ini.integer((s, v) -> s.bossHealthPercentPerDepth = v))
                     .add("BossDamagePercentPerDepth",
                             Ini.integer((s, v) -> s.bossDamagePercentPerDepth = v))
+                    // One per floor, in order, and the list is also how many floors
+                    // there are: kill the last of them and the run is won.
+                    .add("Bosses", (ini, s) -> {
+                        for (var name : ini.getRestOfLine().trim().split("\s+")) {
+                            if (!name.isBlank()) {
+                                s.bosses.add(name);
+                            }
+                        }
+                    })
                     .add("ExperiencePercentPerDepth",
                             Ini.integer((s, v) -> s.experiencePercentPerDepth = v));
 
     private static final FieldParseTable<DungeonSettings> RUN =
             new FieldParseTable<DungeonSettings>()
                     .add("RespawnDelayFrames", Ini.integer((s, v) -> s.respawnDelayFrames = v))
-                    .add("DescendDelayFrames", Ini.integer((s, v) -> s.descendDelayFrames = v));
+                    .add("DescendDelayFrames", Ini.integer((s, v) -> s.descendDelayFrames = v))
+                    .add("VictoryFrames", Ini.integer((s, v) -> s.victoryFrames = v))
+                    .add("DiedWord", Ini.restOfLine((s, v) -> s.diedWord = v))
+                    .add("WonWord", Ini.restOfLine((s, v) -> s.wonWord = v));
 
     private static final FieldParseTable<DungeonSettings> LEVELLING =
             new FieldParseTable<DungeonSettings>()
@@ -1593,6 +1647,26 @@ public final class DungeonSettings {
     }
 
     /**
+     * How long the word stays up after the last boss falls.
+     *
+     * <p>Longer than a death's, and that is the whole of the difference in how
+     * the two are handled: a death is an interruption and a win is an ending, and
+     * an ending wants to be looked at.
+     */
+    public int victoryFrames() {
+        return victoryFrames;
+    }
+
+    /** What the banner says when the run is lost, and when it is finished. */
+    public String diedWord() {
+        return diedWord;
+    }
+
+    public String wonWord() {
+        return wonWord;
+    }
+
+    /**
      * How long the finished floor stays open after the boss falls.
      *
      * <p>Long enough to walk to what it left behind — a floor that closed in the
@@ -1680,10 +1754,6 @@ public final class DungeonSettings {
             }
         }
         return available;
-    }
-
-    public MonsterKind boss() {
-        return monster(BOSS);
     }
 
     /** What a monster's health, damage or numbers are multiplied by at this depth. */

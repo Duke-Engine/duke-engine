@@ -3,6 +3,8 @@ package uz.duke.dungeon.gen;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.HashSet;
 import org.junit.jupiter.api.Test;
@@ -139,20 +141,48 @@ class DungeonShapeTest {
         }
     }
 
-    /** The boss looks like nothing else, because on the minimap that is all there is. */
+    /**
+     * Every boss looks like nothing else, because on the minimap that is all there
+     * is.
+     *
+     * <p>Every one of them, now that there are four: the last floor is not the
+     * only one whose furthest room has to announce itself.
+     */
     @Test
-    void theBossIsDrawnUnlikeAnythingElse() {
-        var boss = SETTINGS.boss();
-        var seen = new HashSet<Integer>();
+    void everyBossIsDrawnUnlikeAnythingElse() {
+        assertTrue(SETTINGS.finalDepth() > 0, "the descent was left without a bottom");
+        var bossNames = new HashSet<String>();
+        for (int depth = 1; depth <= SETTINGS.finalDepth(); depth++) {
+            bossNames.add(SETTINGS.bossKindAt(depth));
+        }
+        var ordinary = new HashSet<Integer>();
         for (var kind : SETTINGS.monsters()) {
-            if (!kind.name().equals(boss.name())) {
-                seen.add(kind.colour());
+            if (!bossNames.contains(kind.name())) {
+                ordinary.add(kind.colour());
             }
         }
 
-        assertTrue(!seen.contains(boss.colour()),
-                "the boss shares its colour with an ordinary monster");
-        assertTrue(boss.scale() > 1.5f, "and should be visibly the biggest thing down there");
+        for (var name : bossNames) {
+            var boss = SETTINGS.monster(name);
+            assertNotNull(boss, name + " is named as a boss but is no kind of monster");
+            assertFalse(ordinary.contains(boss.colour()),
+                    name + " shares its colour with an ordinary monster");
+            assertTrue(boss.scale() > 1.5f,
+                    name + " should be visibly bigger than anything it is met with");
+            assertEquals(0, boss.weight(),
+                    name + " would be rolled into an ordinary room as well as its own");
+        }
+    }
+
+    /** And one waits on every floor there is, up to the last. */
+    @Test
+    void everyDepthHasABossOfItsOwn() {
+        var seen = new HashSet<String>();
+        for (int depth = 1; depth <= SETTINGS.finalDepth(); depth++) {
+            assertTrue(seen.add(SETTINGS.bossKindAt(depth)),
+                    "depth " + depth + " repeats a boss the player has already beaten");
+        }
+        assertEquals(SETTINGS.finalDepth(), seen.size());
     }
 
     /** Packing the rooms closer must not strand one. */

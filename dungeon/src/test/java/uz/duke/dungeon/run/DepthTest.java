@@ -21,8 +21,14 @@ import uz.duke.game.DukeGame;
  */
 class DepthTest {
 
-    /** Levels that arrive on the first kill, so a floor's worth of them is visible. */
+    /** The shipped file, for the one thing these tests read out of it: who the bosses are. */
+    private static final DungeonSettings SHIPPED = DungeonSettings.load();
+
+    /** Levels that arrive on the first kill, and the shipped four floors under them. */
     private static final DungeonSettings BRISK = DungeonSettings.parse("""
+            DungeonDepth Descent
+              Bosses = Warden Reaper Necromancer Champion
+            End
             DungeonLeveling Progression
               MaxLevel = 20
               XpBase = 5
@@ -91,11 +97,70 @@ class DepthTest {
      * to it. So the wait is the file's own {@code DescendDelayFrames} rather than
      * a number written here, and re-tuning that moves this with it.
      */
-    private static void defeatTheBoss(DukeGame game) {
-        var boss = find(game, "Boss");
+    private static void defeatTheBoss(uz.duke.dungeon.Dungeon.Session session) {
+        var game = session.game();
+        var boss = bossOf(session);
         assertNotNull(boss, "there should be a boss to defeat");
         game.getLogic().destroyObject(boss);
         game.runHeadless(BRISK.descendDelayFrames() + 4);
+    }
+
+    /**
+     * Whichever of the four is waiting on the floor the run is on.
+     *
+     * <p>Asked of the settings rather than named here: there is one boss per
+     * floor now, and a test that hunted for a template called "Boss" would be
+     * looking for a creature that stopped existing when the descent got a bottom.
+     */
+    private static GameObject bossOf(uz.duke.dungeon.Dungeon.Session session) {
+        return find(session.game(), SHIPPED.bossKindAt(session.run().getDepth()));
+    }
+
+    // ---- the bottom of it ----
+
+    /**
+     * The last boss ends the game rather than opening another floor.
+     *
+     * <p>The one thing this whole arrangement is for. A descent with no bottom
+     * asks only how much further; this one can be finished, and the difference is
+     * a single comparison in the run loop plus a list of four names in the file.
+     */
+    @Test
+    void beatingTheLastBossWinsTheRunInsteadOfOpeningAnotherFloor() {
+        var session = Dungeon.newSession(11L, BRISK);
+        session.game().runHeadless(1);
+        for (int floor = 1; floor < BRISK.finalDepth(); floor++) {
+            defeatTheBoss(session);
+        }
+        assertEquals(BRISK.finalDepth(), session.run().getDepth(), "at the bottom of it");
+
+        session.game().getLogic().destroyObject(bossOf(session));
+        session.game().runHeadless(BRISK.descendDelayFrames() + 4);
+
+        assertEquals(DungeonRun.State.WON, session.run().getState(), "the run should be won");
+        assertEquals(BRISK.finalDepth(), session.run().getDepth(),
+                "and there is no fifth floor to be sent to");
+    }
+
+    /** And a won run, like a lost one, starts again with nothing. */
+    @Test
+    void aWonRunStartsAgainFromTheTopWithNothing() {
+        var session = Dungeon.newSession(11L, BRISK);
+        var game = session.game();
+        game.runHeadless(1);
+        levelUp(game, session);
+        assertTrue(session.progress().getLevel() > 1, "he needs something to lose");
+        for (int floor = 1; floor < BRISK.finalDepth(); floor++) {
+            defeatTheBoss(session);
+        }
+        game.getLogic().destroyObject(bossOf(session));
+        game.runHeadless(BRISK.descendDelayFrames() + 4);
+
+        game.runHeadless(BRISK.victoryFrames() + 4);
+
+        assertEquals(DungeonRun.State.RUNNING, session.run().getState());
+        assertEquals(1, session.run().getDepth(), "back to the top");
+        assertEquals(1, session.progress().getLevel(), "and starting over");
     }
 
     /** The floor stays open for a moment after the boss falls, and then closes. */
@@ -105,7 +170,7 @@ class DepthTest {
         var game = session.game();
         game.runHeadless(1);
 
-        game.getLogic().destroyObject(find(game, "Boss"));
+        game.getLogic().destroyObject(bossOf(session));
         game.runHeadless(3);
         assertEquals(1, session.run().getDepth(),
                 "there has to be a moment to pick up what the boss left");
@@ -119,7 +184,7 @@ class DepthTest {
         var session = Dungeon.newSession(11L, BRISK);
         session.game().runHeadless(1);
 
-        assertNotNull(find(session.game(), "Boss"));
+        assertNotNull(bossOf(session));
         assertEquals(1, session.run().getDepth(), "a run opens on the first floor");
     }
 
@@ -130,10 +195,10 @@ class DepthTest {
         game.runHeadless(1);
         var firstHero = hero(game).getId();
 
-        defeatTheBoss(game);
+        defeatTheBoss(session);
 
         assertEquals(2, session.run().getDepth(), "the boss was the way down");
-        assertNotNull(find(game, "Boss"), "and the next floor has its own");
+        assertNotNull(bossOf(session), "and the next floor has its own");
         assertNotEquals(firstHero, hero(game).getId(), "on a freshly laid-out floor");
     }
 
@@ -153,7 +218,7 @@ class DepthTest {
         int experienceBefore = session.progress().getExperience();
         assertTrue(levelBefore > 1, "he needs to have levelled for this to mean anything");
 
-        defeatTheBoss(game);
+        defeatTheBoss(session);
 
         assertEquals(2, session.run().getDepth());
         assertTrue(session.progress().getLevel() >= levelBefore,
@@ -182,7 +247,7 @@ class DepthTest {
         levelUp(game, session);
         assertTrue(session.progress().getLevel() > 1);
 
-        defeatTheBoss(game);
+        defeatTheBoss(session);
 
         assertEquals(baseCeiling + BRISK.levelling().bonusHealth(session.progress().getLevel())
                         + session.progress().getLoot().health(),
@@ -197,8 +262,8 @@ class DepthTest {
         var game = session.game();
         game.runHeadless(1);
 
-        defeatTheBoss(game);
-        defeatTheBoss(game);
+        defeatTheBoss(session);
+        defeatTheBoss(session);
         assertEquals(3, session.run().getDepth(), "two floors down");
 
         game.getLogic().destroyObject(hero(game));
@@ -213,11 +278,12 @@ class DepthTest {
     /** Monsters get harder as the floors go down, by the factors the file states. */
     @Test
     void deeperMonstersAreTougher() {
+        int bottom = SHIPPED.finalDepth();
         float shallow = healthOfFirstMonster(1);
-        float deep = healthOfFirstMonster(5);
+        float deep = healthOfFirstMonster(bottom);
 
-        assertTrue(deep > shallow,
-                "a depth-5 monster should outlast a depth-1 one, got " + deep + " against " + shallow);
+        assertTrue(deep > shallow, "a depth-" + bottom + " monster should outlast a depth-1 one, "
+                + "got " + deep + " against " + shallow);
     }
 
     private static float healthOfFirstMonster(int depth) {
@@ -226,12 +292,12 @@ class DepthTest {
         var game = session.game();
         game.runHeadless(1);
         for (int floor = 1; floor < depth; floor++) {
-            defeatTheBoss(game);
+            defeatTheBoss(session);
         }
         assertEquals(depth, session.run().getDepth());
 
         // The boss is the one creature guaranteed on every floor.
-        var boss = find(game, "Boss");
+        var boss = bossOf(session);
         assertNotNull(boss);
         return boss.getBody().getMaxHealth();
     }
@@ -251,7 +317,7 @@ class DepthTest {
         for (int floor = 0; floor < 3; floor++) {
             signature.append(game.getLogic().getObjectCount()).append(':')
                     .append(game.getLogic().checksum()).append('|');
-            defeatTheBoss(game);
+            defeatTheBoss(session);
         }
         return signature.toString();
     }

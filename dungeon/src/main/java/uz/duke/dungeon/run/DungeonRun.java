@@ -21,9 +21,16 @@ import uz.duke.game.GamePlayer;
  *
  * <p>Duke Dungeon is a roguelike in the oldest sense — there is no saving and no
  * carrying anything forward. A run is the stretch between spawning at full health
- * and dying; when it ends the world is torn down and rebuilt from a new seed, and
- * the hero starts over with nothing but full health. Progress is not meant to
- * survive death, so none is kept.
+ * and its ending, and it can end two ways: on a floor, or at the bottom of the
+ * last one. Either way the world is torn down and rebuilt from a new seed and the
+ * hero starts over with nothing but full health, because progress is not meant to
+ * survive an ending of either sort.
+ *
+ * <p>That there are two is recent and is the shape of the game rather than a
+ * detail of this class. The descent used to have no bottom: floors went down for
+ * ever, each a little harder, and the only question one could ask was how much
+ * further. It stops at the floor the last boss stands on — see {@code Bosses} in
+ * the settings file, which is both who they are and how many floors there are.
  *
  * <p>This runs as a per-frame tick on the simulation thread, so it must stay
  * deterministic like everything else there: it reads the frame counter, never the
@@ -39,10 +46,19 @@ import uz.duke.game.GamePlayer;
  */
 public final class DungeonRun {
 
-    /** How the run is going right now. */
+    /**
+     * How the run is going right now.
+     *
+     * <p>{@code WON} is the newest and the one that changes what this game is. A
+     * descent with no bottom is a scoreboard: you go down until you stop, and the
+     * only question a floor asks is how much further. A descent with a last floor
+     * on it can be finished, and then every floor before it is on the way
+     * somewhere — which is the difference between a run and a session.
+     */
     public enum State {
         RUNNING,
-        DEAD
+        DEAD,
+        WON
     }
 
     private final GamePlayer heroPlayer;
@@ -58,7 +74,8 @@ public final class DungeonRun {
     private ObjectId heroId;
     private ObjectId bossId;
     private int depth = 1;
-    private int deathFrame;
+    /** When the run ended, whether it was lost or won. */
+    private int endedFrame;
     /** When the floor closes behind him, or 0 while the boss is still alive. */
     private int descendAtFrame;
 
@@ -112,6 +129,7 @@ public final class DungeonRun {
         switch (state) {
             case RUNNING -> whileRunning(game);
             case DEAD -> whileDead(game);
+            case WON -> whileWon(game);
         }
     }
 
@@ -128,11 +146,21 @@ public final class DungeonRun {
         boolean dead = hero == null || hero.getBody().getHealth() <= 0f;
         if (dead) {
             state = State.DEAD;
-            deathFrame = logic.getFrame();
-            game.setBanner("You died");
+            endedFrame = logic.getFrame();
+            game.setBanner(settings.diedWord());
             return;
         }
         if (bossId != null && logic.findObject(bossId) == null && descendAtFrame == 0) {
+            // Nothing below this one: the last boss is the end of the game rather
+            // than the door to the next floor. The banner is the whole of what
+            // says so, and it is the only thing in this run loop that is not a
+            // beginning of something.
+            if (settings.finalDepth() > 0 && depth >= settings.finalDepth()) {
+                state = State.WON;
+                endedFrame = logic.getFrame();
+                game.setBanner(settings.wonWord());
+                return;
+            }
             // The floor is finished, but not left yet — see below.
             descendAtFrame = logic.getFrame() + settings.descendDelayFrames();
             game.setBanner("Depth " + (depth + 1));
@@ -167,16 +195,38 @@ public final class DungeonRun {
      * wants a moment to have been finished in.
      */
     private void whileDead(DukeGame game) {
-        if (game.getLogic().getFrame() - deathFrame < settings.respawnDelayFrames()) {
+        if (game.getLogic().getFrame() - endedFrame < settings.respawnDelayFrames()) {
             return;
         }
-        // A death is the end of everything, not just of this floor.
+        begin(game);
+    }
+
+    /**
+     * Having finished it: the same clearing away as a death, after a longer look
+     * at the word.
+     *
+     * <p>The two are one act with two names, which is worth saying because it
+     * would be easy to think a win deserves machinery of its own. It does not: a
+     * run that has ended is a run that has ended, and everything the hero earned
+     * belonged to it. What a win gets that a death does not is time — long enough
+     * to have been a win rather than an interruption.
+     */
+    private void whileWon(DukeGame game) {
+        if (game.getLogic().getFrame() - endedFrame < settings.victoryFrames()) {
+            return;
+        }
+        begin(game);
+    }
+
+    /** A fresh run: the first floor, a hero with nothing, and the banner cleared. */
+    private void begin(DukeGame game) {
+        // An ending is the end of everything, not just of this floor.
         depth = 1;
         descendAtFrame = 0;
         progress.reset();
-        // A death takes everything, the cards included. Told rather than
-        // inferred, for the same reason progression is: descending replaces the
-        // hero too, and there he keeps them.
+        // It takes everything, the cards included. Told rather than inferred, for
+        // the same reason progression is: descending replaces the hero too, and
+        // there he keeps them.
         powers.reset();
         descend(game);
         runCount++;

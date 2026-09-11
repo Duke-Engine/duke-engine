@@ -252,7 +252,7 @@ class MonsterKindsTest {
     void aHarderMonsterIsWorthMoreExperience() {
         int runner = experienceValueOf("Runner");
         int brute = experienceValueOf("Brute");
-        int boss = experienceValueOf("Boss");
+        int boss = experienceValueOf("Champion");
 
         assertTrue(brute > runner, "a brute should be worth more than a runner");
         assertTrue(boss > brute, "and the boss more than either");

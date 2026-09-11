@@ -41,7 +41,8 @@ class MonsterPlacementTest {
                 assertTrue(known.contains(monster.kind()),
                         "seed " + seed + " placed an unknown kind: " + monster.kind());
             }
-            assertEquals(DungeonSettings.BOSS, floor.boss().kind());
+            assertEquals(SETTINGS.bossKindAt(5), floor.boss().kind(),
+                    "the floor should hold the boss the file names for its depth");
         }
     }
 

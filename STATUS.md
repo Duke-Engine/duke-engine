@@ -1444,6 +1444,22 @@ ikkala peer aynan bir kadrda qo'llaydi.
   koridori bor uzoq xona aslida qo'shni). Boss o'ldirilsa keyingi qavat: yangi seed,
   kuchliroq aholi, **lekin o'sha qahramon** — daraja, XP va tanasi bilan. O'lim esa
   hammasini 1-qavatga qaytaradi.
+- **Tushishning tubi bor** — va bu o'yinning shaklini o'zgartiradi. Ilgari qavatlar
+  cheksiz pastga ketardi: har biri bir oz qiyinroq, va qavat beradigan yagona savol
+  "yana qancha?" edi. Endi **har qavatga o'z bossi**, va oxirgisini yenggach —
+  **g'alaba** (`DungeonRun.State.WON`).
+  - **Ro'yxat = qavatlar soni.** `DungeonDepth Descent / Bosses = Warden Reaper
+    Necromancer Champion`. Nechta qavat borligini aytadigan **ikkinchi son yo'q** —
+    ikkinchi son bu ro'yxat bilan kelisha olmaydigan son bo'lardi.
+  - Hech qanday `Bosses` aytilmasa — eski xulq: bitta `Boss`, har qavatda o'sha,
+    cheksiz pastga. Ya'ni tubsiz tushish o'chirilmadi, shunchaki tanlovga aylandi.
+  - G'alaba ham, o'lim ham runni tugatadi va hammasini 1-qavatga qaytaradi:
+    farqi — so'z va `VictoryFrames` (uzunroq, chunki o'lim uzilish, g'alaba esa
+    tugash).
+  - To'rtta boss — paketning to'rtta skeletoni, kattalashtirilgan. Kuch pog'onasi
+    esa avvalgi `BossHealthPercentPerDepth` ko'paytirgichi: Warden 1-qavatda
+    (ko'paytirgich 1.0), Champion 4-da (2.2) — ya'ni Champion aynan ilgarigi
+    bossning 4-qavatdagi kuchida qoladi.
   ⚠️ **Nozik joy:** ikkalasi ham qahramon obyektini almashtiradi. "Yangi qahramon
   ko'rindi ⇒ darajani nolla" mantiqi har qavatda darajani o'chirardi — shuning uchun
   run loop `HeroProgress` ga qaysi biri ekanini **aniq aytadi** (`carryOver` yoki

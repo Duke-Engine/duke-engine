@@ -90,7 +90,7 @@ public final class DungeonGenerator {
         int bossRoom = furthestRoomFromStart(rooms.size(), links);
         var storeys = Storeys.of(rng, rooms, corridors, bossRoom, settings, cells);
         var monsters = populate(rng, rooms, settings, depth, bossRoom);
-        var boss = new Monster(DungeonSettings.BOSS,
+        var boss = new Monster(settings.bossKindAt(depth),
                 worldCenter(rooms.get(bossRoom).centerCellX(), rooms.get(bossRoom).centerCellY()));
         var props = scatter(rng, rooms, settings, storeys.map(), monsters, hero, boss.at());
 
