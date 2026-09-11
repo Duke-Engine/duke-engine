@@ -282,4 +282,41 @@ class DungeonSettingsTest {
         assertNotEquals(shipped.moveColour(), shipped.attackColour(),
                 "walking and killing are not the same order");
     }
+
+    /**
+     * Every skill in the shipped file can have its reach drawn.
+     *
+     * <p>The indicator's numbers are the skill's own — see {@code Main.rangeOf} —
+     * so the way this goes wrong is a skill whose relevant figure was never filled
+     * in: a strike with no Range, a blast with no Radius. Nothing refuses such a
+     * file; the player simply gets a ring of nothing and no way to tell that from
+     * a skill that reaches nowhere.
+     */
+    @Test
+    void everySkillCarriesTheFigureItsRingIsDrawnFrom() {
+        for (var skill : DungeonSettings.load().skills()) {
+            float reach = switch (skill.effect()) {
+                case STRIKE, AREA_AT_SPOT, SKILLSHOT -> skill.range();
+                case DASH -> skill.distance();
+                case AREA_DAMAGE -> skill.radius();
+                case EMPOWER -> 1f; // his own width; the look says how wide
+            };
+            assertTrue(reach > 0f, skill.heroTemplate() + "'s " + skill.key() + " is a "
+                    + skill.effect() + " and has nothing to draw a ring from");
+        }
+    }
+
+    /** And the file sets the ring's look itself rather than leaving the client's. */
+    @Test
+    void theShippedFileSetsTheSkillRingItself() {
+        var settings = DungeonSettings.load();
+
+        assertTrue(settings.ringDashes() > 1, "a ring with one dash is a ring");
+        assertTrue(settings.ringDashShare() < 1f, "and one with no gaps is not dashed at all");
+        assertTrue(settings.ringSelfRadius() > 0f, "a self-only skill still needs a ring");
+        assertTrue(settings.ringFillAlpha() < settings.ringEdgeAlpha(),
+                "the wash inside should be fainter than the ring itself");
+        assertNotEquals(settings.ringAllowColour(), settings.ringDenyColour(),
+                "yes and no are the two answers the ring gives");
+    }
 }

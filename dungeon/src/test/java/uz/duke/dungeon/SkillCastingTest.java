@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -868,6 +869,159 @@ class SkillCastingTest {
     void theSameCastsGiveTheSameWorld() {
         assertEquals(playedOut(true), playedOut(true));
         assertNotEquals(playedOut(true), playedOut(false), "and the casting mattered");
+    }
+
+    // ---- the two shapes no hero uses yet, for the heroes that come next ----
+
+    /**
+     * A hero whose Q is the shape being tested, with the rest of him untouched.
+     *
+     * <p>Written as a file rather than as a fifth skill on the shipped hero,
+     * because that is exactly how the next hero will arrive: a block of INI and no
+     * Java. If these tests need a line of code changed to run, the claim they are
+     * making is false.
+     */
+    private static DungeonSettings heroWhose(String q) {
+        return DungeonSettings.parse("DungeonSkill Hero Q\n" + q + "\nEnd\n");
+    }
+
+    /**
+     * A blast the player puts on a spot hurts what is standing there, not what is
+     * standing near him.
+     *
+     * <p>The whole difference from the area skill he already has, and the reason
+     * it is worth being a second kind: one is a panic button and the other is a
+     * shot he has to place.
+     */
+    @Test
+    void aBlastAimedAtASpotLandsOnTheSpot() {
+        var settings = heroWhose("""
+                  Effect = AREA_AT_SPOT
+                  Damage = 40
+                  Range = 120
+                  Radius = 25
+                  CooldownFrames = 30
+                """);
+        // One skeleton out where the blast is aimed, one at his elbow.
+        var arena = arena(settings, creaturesWithNoBow(), 250f, 150f, 170f, 150f);
+        var far = creature(arena.game(), "Skeleton");
+        var near = arena.game().getLogic().getObjects().stream()
+                .filter(o -> o.getTemplate().getName().equals("Skeleton"))
+                .skip(1).findFirst().orElseThrow();
+        float wasFar = far.getBody().getHealth();
+        float wasNear = near.getBody().getHealth();
+
+        assertTrue(arena.book().cast('Q', 1, null, new Coord3D(250f, 150f, 0f)));
+        arena.game().runHeadless(3);
+
+        assertTrue(far.getBody().getHealth() < wasFar, "it should have landed where he put it");
+        assertEquals(wasNear, near.getBody().getHealth(), 0.01f,
+                "and left the one beside him alone, or it is not aimed at all");
+    }
+
+    /** Pointing past its reach throws it as far as it goes, rather than refusing. */
+    @Test
+    void aBlastAimedTooFarLandsAtTheEdgeOfHisReach() {
+        var settings = heroWhose("""
+                  Effect = AREA_AT_SPOT
+                  Damage = 40
+                  Range = 60
+                  Radius = 25
+                  CooldownFrames = 30
+                """);
+        // Beyond his reach of 60 from 150, but within it once the click is pulled
+        // back to the edge: the picture on screen promises exactly this.
+        var arena = arena(settings, creaturesWithNoBow(), 205f, 150f);
+        var skeleton = creature(arena.game(), "Skeleton");
+        float was = skeleton.getBody().getHealth();
+
+        assertTrue(arena.book().cast('Q', 1, null, new Coord3D(400f, 150f, 0f)));
+        arena.game().runHeadless(3);
+
+        assertTrue(skeleton.getBody().getHealth() < was,
+                "the ring says 'as far that way as you can', and the cast has to agree");
+    }
+
+    /**
+     * A shot down a lane hits whoever is standing in it — and misses when nobody
+     * is.
+     *
+     * <p>Both halves matter and the second one is the point of the shape: this is
+     * the skill that can be wasted, which is what makes placing it worth anything.
+     */
+    @Test
+    void aShotDownALaneHitsWhatIsInTheWayAndMissesWhatIsNot() {
+        var settings = heroWhose("""
+                  Effect = SKILLSHOT
+                  Damage = 30
+                  Range = 200
+                  Radius = 6
+                  Projectile = HeavyArrow
+                  CooldownFrames = 1
+                """);
+        var arena = arena(settings, creaturesWithNoBow(), 250f, 150f);
+        var skeleton = creature(arena.game(), "Skeleton");
+        float was = skeleton.getBody().getHealth();
+
+        // Pointed at it.
+        assertTrue(arena.book().cast('Q', 1, null, new Coord3D(280f, 150f, 0f)));
+        arena.game().runHeadless(40);
+        float afterAHit = skeleton.getBody().getHealth();
+        assertTrue(afterAHit < was, "a shot down its lane should have hit it");
+
+        // Pointed the other way, at nothing at all.
+        assertTrue(arena.book().cast('Q', 1, null, new Coord3D(150f, 250f, 0f)));
+        arena.game().runHeadless(40);
+
+        assertEquals(afterAHit, skeleton.getBody().getHealth(), 0.01f,
+                "and a shot at nothing should have missed — it does not chase");
+    }
+
+    /** It stops at a wall rather than carrying on through the map. */
+    @Test
+    void aShotDownALaneIsSpentAgainstStone() {
+        var settings = heroWhose("""
+                  Effect = SKILLSHOT
+                  Damage = 30
+                  Range = 400
+                  Radius = 6
+                  Projectile = HeavyArrow
+                  CooldownFrames = 1
+                """);
+        var arena = arena(settings, creaturesWithNoBow());
+
+        assertTrue(arena.book().cast('Q', 1, null, new Coord3D(150f, 10f, 0f)),
+                "straight at the north wall");
+        arena.game().runHeadless(1);
+        assertNotNull(creature(arena.game(), "HeavyArrow"), "it left the bow");
+
+        arena.game().runHeadless(90);
+
+        assertNull(creature(arena.game(), "HeavyArrow"),
+                "the lane the client drew stops at the wall, and the shot has to as well");
+    }
+
+    /** And the two new shapes keep the world reproducible, like everything else. */
+    @Test
+    void theNewShapesAreDeterministic() {
+        assertEquals(lanesPlayedOut(), lanesPlayedOut());
+    }
+
+    private static long lanesPlayedOut() {
+        var settings = heroWhose("""
+                  Effect = SKILLSHOT
+                  Damage = 30
+                  Range = 200
+                  Radius = 6
+                  Projectile = HeavyArrow
+                  CooldownFrames = 10
+                """);
+        var arena = arena(settings, creaturesWithNoBow(), 250f, 150f, 200f, 200f);
+        for (int shot = 0; shot < 4; shot++) {
+            arena.book().cast('Q', 1, null, new Coord3D(250f + shot, 150f + shot, 0f));
+            arena.game().runHeadless(20);
+        }
+        return arena.game().getLogic().checksum();
     }
 
     private static long playedOut(boolean cast) {

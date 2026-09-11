@@ -1,6 +1,7 @@
 package uz.duke.client3d;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -621,6 +622,40 @@ public final class Visuals {
 
     public OrderMark getOrderMark() {
         return orderMark;
+    }
+
+    private RangeLook rangeLook = RangeLook.DEFAULT;
+    private final Map<Character, SkillRange> skillRanges = new LinkedHashMap<>();
+
+    /**
+     * How far each of the game's keys reaches, and what the player is aiming when
+     * he presses it — see {@link SkillRange}.
+     *
+     * <p>The client keeps the press-then-click and knows nothing about skills, and
+     * that was enough while all it had to do was forward the click. It is not
+     * enough to draw one: "how far does this go" is a number, and the number is
+     * the game's. A key the game says nothing about simply gets no ring, which is
+     * what every game on this client had.
+     */
+    public Visuals skillRange(SkillRange range) {
+        if (range != null) {
+            skillRanges.put(range.key(), range);
+        }
+        return this;
+    }
+
+    public SkillRange getSkillRange(char key) {
+        return skillRanges.get(key);
+    }
+
+    /** How a reach is drawn — one look for every skill in the game. */
+    public Visuals rangeLook(RangeLook rangeLook) {
+        this.rangeLook = rangeLook == null ? RangeLook.DEFAULT : rangeLook;
+        return this;
+    }
+
+    public RangeLook getRangeLook() {
+        return rangeLook;
     }
 
     /**

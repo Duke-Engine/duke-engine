@@ -306,6 +306,7 @@ final class DukeRtsApp extends SimpleApplication {
         rootNode.attachChild(unitsNode);
         rootNode.attachChild(markerNode);
         chevrons = new Chevrons(assetManager, markerNode, visuals.getOrderMark());
+        rangeRings = new RangeRings(assetManager, markerNode, visuals.getRangeLook());
         warmNode.setCullHint(Spatial.CullHint.Always);
         rootNode.attachChild(warmNode);
 
@@ -594,6 +595,52 @@ final class DukeRtsApp extends SimpleApplication {
         float now = timer.getTimeInSeconds();
         orderMarkers.prune(now, visuals.getOrderMark().seconds());
         chevrons.show(orderMarkers.markers(), now, this::floorHeightAt);
+        syncSkillRange(now);
+    }
+
+    /**
+     * Draw how far the armed skill reaches, and whether the click as it stands
+     * would be obeyed.
+     *
+     * <p>Round the hero rather than round the selection: a skill is cast by the
+     * man who has it whether or not the player has him clicked, so a ring drawn at
+     * the selection would be in the wrong place exactly when he had picked a
+     * monster out to look at.
+     */
+    private void syncSkillRange(float now) {
+        var range = arming == null ? null : visuals.getSkillRange(arming);
+        if (range == null || screen != Screen.PLAYING || levelUp.isShowing()) {
+            rangeRings.hide();
+            return;
+        }
+        var hero = whereHisHeroIs();
+        if (hero == null) {
+            rangeRings.hide();
+            return;
+        }
+        Coord3D pointer = null;
+        boolean allowed = true;
+        if (range.needsAiming()) {
+            var at = inputManager.getCursorPosition();
+            var ground = groundUnder(at.x, at.y);
+            pointer = new Coord3D(ground.x, ground.z, 0f);
+            // Out of reach is not a refusal -- the click is pulled back to the
+            // edge, and the ring is what says so. What refuses is ground he
+            // cannot aim at: stone, or somewhere he has never been.
+            allowed = isOpenAndSeen(ground);
+        }
+        rangeRings.show(range, hero, pointer, allowed, now - armedAt, now, this::floorHeightAt);
+    }
+
+    /** Where the player's own unit is standing, or null before there is one. */
+    private Coord3D whereHisHeroIs() {
+        int local = game.getLocalPlayerIndex();
+        for (var view : snapshot.units()) {
+            if (view.playerIndex() == local && view.selectable()) {
+                return new Coord3D(view.x(), view.y(), 0f);
+            }
+        }
+        return null;
     }
 
     /**
@@ -1902,9 +1949,16 @@ final class DukeRtsApp extends SimpleApplication {
                         takeOffer(levelUp.cardAt(inputManager.getCursorPosition().x,
                                 inputManager.getCursorPosition().y));
                     } else if (screen == Screen.PLAYING) {
+                        if (!pressed && holdingASkill()) {
+                            letGoOfHeldSkill(true); // he pressed its slot; this is the cast
+                            break;
+                        }
                         if (pressed && clickedASkillSlot()) {
                             // The bar took it; nothing else may have it.
                             break;
+                        }
+                        if (holdingASkill()) {
+                            break; // the mouse has no part in a skill being held
                         }
                         if (pressed && arming != null) {
                             // This click belongs to the armed key, not to selection.
@@ -1990,7 +2044,16 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                 }
                 default -> {
-                    if (!pressed || screen != Screen.PLAYING) {
+                    if (screen != Screen.PLAYING) {
+                        return;
+                    }
+                    if (!pressed) {
+                        // Letting go of a skill that was drawn while it was held.
+                        // See SkillRange.castOnRelease.
+                        if (name.startsWith(HOTKEY) && arming != null
+                                && arming == name.charAt(HOTKEY.length())) {
+                            letGoOfHeldSkill(false);
+                        }
                         return;
                     }
                     if (name.startsWith("Build")) {
@@ -2001,7 +2064,7 @@ final class DukeRtsApp extends SimpleApplication {
                             queueBuild(index);
                         }
                     } else if (name.startsWith(HOTKEY)) {
-                        pressHotkey(name.charAt(HOTKEY.length()));
+                        pressHotkey(name.charAt(HOTKEY.length()), false);
                     }
                 }
             }
@@ -2144,6 +2207,22 @@ final class DukeRtsApp extends SimpleApplication {
     /** The game key that has been pressed and is waiting to be pointed at something. */
     private Character arming;
 
+    /** When it was armed, so its ring can open out rather than appear. */
+    private float armedAt;
+
+    /**
+     * Whether it was armed by clicking its slot rather than by pressing its key.
+     *
+     * <p>Only a held skill cares, and it cares a great deal: what casts it is
+     * letting go of the same thing that armed it. Without this, arming with the
+     * keyboard and then releasing a mouse button that happened to be down would
+     * fire it.
+     */
+    private boolean armedByMouse;
+
+    /** Draws how far an armed skill reaches. See RangeRings. */
+    private RangeRings rangeRings;
+
     /**
      * A game key was pressed.
      *
@@ -2152,12 +2231,24 @@ final class DukeRtsApp extends SimpleApplication {
      * and so does a right-click or escape. All any of this may do in the end is
      * post a command: the render thread has no business in the simulation.
      */
-    private void pressHotkey(char key) {
+    private void pressHotkey(char key, boolean byMouse) {
         var binding = hotkeys.all().get(key);
         if (binding == null) {
             return;
         }
+        var range = visuals.getSkillRange(key);
         if (binding.aim() == Hotkeys.Aim.NOW) {
+            if (range != null && range.castOnRelease()) {
+                // Held rather than spent. A skill with nothing to point at used to
+                // go off the instant the key went down, which left the player no
+                // way to ask how far it reaches except by spending it. Holding
+                // shows him; letting go casts, so a tap is still a cast and all
+                // that has changed is that looking is now free.
+                if (heroPanel.readyToCast(key)) {
+                    arm(key, byMouse);
+                }
+                return;
+            }
             disarm();
             binding.run().accept(game, null);
             return;
@@ -2171,13 +2262,50 @@ final class DukeRtsApp extends SimpleApplication {
         if (!heroPanel.readyToCast(key)) {
             return;
         }
+        arm(key, byMouse);
+    }
+
+    /** Arm a key: the panel lights its slot, and its reach opens out on the floor. */
+    private void arm(char key, boolean byMouse) {
         arming = key;
+        armedByMouse = byMouse;
+        armedAt = timer.getTimeInSeconds();
         heroPanel.arm(key);
+    }
+
+    /**
+     * Letting go of a held skill casts it.
+     *
+     * <p>Whichever way it was armed and only that way: the key it was pressed
+     * with, or the mouse, if he pressed its slot on the bar. Otherwise releasing
+     * the mouse after arming from the keyboard would fire it before the player had
+     * aimed his eyes, never mind his hand.
+     */
+    private void letGoOfHeldSkill(boolean byMouse) {
+        if (!holdingASkill() || armedByMouse != byMouse) {
+            return;
+        }
+        var binding = hotkeys.all().get(arming);
+        disarm();
+        if (binding != null) {
+            binding.run().accept(game, null);
+        }
+    }
+
+    /** Whether what is armed is drawn while held and cast when let go. */
+    private boolean holdingASkill() {
+        if (arming == null) {
+            return false;
+        }
+        var range = visuals.getSkillRange(arming);
+        return range != null && range.castOnRelease();
     }
 
     private void disarm() {
         arming = null;
+        armedByMouse = false;
         heroPanel.arm(null);
+        rangeRings.hide();
     }
 
     /**
@@ -2290,7 +2418,7 @@ final class DukeRtsApp extends SimpleApplication {
         var cursor = inputManager.getCursorPosition();
         var key = heroPanel.slotAt(cursor.x, cursor.y);
         if (key != null) {
-            pressHotkey(key);
+            pressHotkey(key, true);
             return true;
         }
         // The rest of the bar swallows clicks too. Without this, clicking the

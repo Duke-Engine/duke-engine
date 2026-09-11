@@ -49,6 +49,51 @@ public final class Shot {
     }
 
     /**
+     * Loose an arrow <em>down a line</em>, to hit whoever is standing in the way.
+     *
+     * <p>The opposite bargain from {@link #loose}. That one is given a victim and
+     * chases it, so it never misses and the skill is a click; this one is given a
+     * direction and forgets it at once, so it can miss and the skill is a
+     * judgement. Everything after the loosing is the same arrow.
+     *
+     * @param towards  where the player pointed — a direction, not a destination:
+     *                 what matters is which way, and {@code distance} says how far
+     * @param distance how far it travels before it is spent
+     * @return whether one actually left
+     */
+    public static boolean looseAlong(GameObject shooter, Coord3D towards, float damage,
+            DamageType type, String template, float speed, float muzzleOffset, float distance) {
+        var world = shooter.getWorld();
+        if (world == null || template == null || template.isBlank() || towards == null) {
+            return false;
+        }
+        var thing = world.findTemplate(template);
+        if (thing == null) {
+            return false;
+        }
+        var arrow = world.spawn(thing, alongThatWay(shooter, towards, muzzleOffset),
+                shooter.getPlayerIndex());
+        var flight = arrow.findModule(ArrowUpdate.class);
+        if (flight == null) {
+            arrow.markDestroyed();
+            return false;
+        }
+        flight.looseAlong(shooter, towards, damage, type, speed, distance);
+        return true;
+    }
+
+    /** The bow again, but pointed at a place rather than at a creature. */
+    private static Coord3D alongThatWay(GameObject shooter, Coord3D towards, float offset) {
+        var from = shooter.getPosition();
+        float reach = Math.min(offset, from.distance(towards) * 0.5f);
+        float facing = (float) StrictMath.atan2(towards.y() - from.y(), towards.x() - from.x());
+        return new Coord3D(
+                from.x() + (float) StrictMath.cos(facing) * reach,
+                from.y() + (float) StrictMath.sin(facing) * reach,
+                from.z());
+    }
+
+    /**
      * Where the arrow appears: out at the bow rather than in the middle of the
      * archer.
      *

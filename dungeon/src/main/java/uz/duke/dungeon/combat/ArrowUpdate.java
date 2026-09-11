@@ -5,6 +5,7 @@ import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.DamageType;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.UpdateModule;
+import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.core.thing.World;
@@ -46,6 +47,9 @@ public final class ArrowUpdate extends UpdateModule {
     private float stepPerFrame;
     private int flownFor;
 
+    /** How far a free-flying shot has left to go; not a number a homing one uses. */
+    private float travelLeft;
+
     /**
      * The run's powers, so that an arrow can pay its archer back.
      *
@@ -79,12 +83,36 @@ public final class ArrowUpdate extends UpdateModule {
         aimAt(at.getPosition());
     }
 
+    /**
+     * Send it down a line instead, to hit whoever is standing in the way.
+     *
+     * <p>The same arrow with the target left out. Everything after the flight —
+     * the damage, the experience, the archer's share — is the same, which is why
+     * this is a second way of being loosed rather than a second module: a shot
+     * that misses and a shot that homes differ only in how they choose what to
+     * hit.
+     */
+    void looseAlong(GameObject from, Coord3D towards, float carrying, DamageType type,
+            float speed, float distance) {
+        this.shooter = from.getId();
+        this.target = null;
+        this.damage = carrying;
+        this.damageType = type;
+        this.stepPerFrame = speed * GameConstants.SECONDS_PER_LOGICFRAME;
+        this.travelLeft = distance;
+        aimAt(towards);
+    }
+
     @Override
     public void update() {
         var owner = getOwner();
         var world = owner.getWorld();
-        if (world == null || target == null || ++flownFor > LONGEST_FLIGHT) {
+        if (world == null || ++flownFor > LONGEST_FLIGHT) {
             owner.markDestroyed();
+            return;
+        }
+        if (target == null) {
+            flyOn(owner, world);
             return;
         }
         var victim = world.findObject(target);
@@ -111,6 +139,44 @@ public final class ArrowUpdate extends UpdateModule {
         }
         owner.setPosition(new Coord3D(here.x() + dx / distance * stepPerFrame,
                 here.y() + dy / distance * stepPerFrame, here.z()));
+    }
+
+    /**
+     * One step of a shot that was never given anything to chase.
+     *
+     * <p>Three ways it ends and all three are the player's to read: it runs out of
+     * travel, it meets stone, or it meets somebody. The stone matters as much as
+     * the body — the lane the client drew stops at a wall, and a shot that carried
+     * on through one would make that picture a lie.
+     */
+    private void flyOn(GameObject owner, World world) {
+        if (travelLeft <= 0f) {
+            owner.markDestroyed();
+            return;
+        }
+        var hit = world.findClosestInReach(owner, stepPerFrame, candidate ->
+                candidate != owner
+                        && candidate.getBody() != null
+                        && !candidate.isEffectivelyDead()
+                        && !candidate.isContained()
+                        && world.getRelationship(owner.getPlayerIndex(),
+                                candidate.getPlayerIndex()) == Relationship.ENEMIES);
+        if (hit != null) {
+            strike(world, hit);
+            return;
+        }
+        float facing = owner.getOrientation();
+        var here = owner.getPosition();
+        var next = new Coord3D(
+                here.x() + (float) StrictMath.cos(facing) * stepPerFrame,
+                here.y() + (float) StrictMath.sin(facing) * stepPerFrame,
+                here.z());
+        if (world.isGroundBlocked(next)) {
+            owner.markDestroyed(); // spent against a wall
+            return;
+        }
+        travelLeft -= stepPerFrame;
+        owner.setPosition(next);
     }
 
     /** Point along the flight, so it is drawn as an arrow rather than a splinter. */

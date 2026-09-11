@@ -8,10 +8,11 @@ package uz.duke.dungeon.skill;
  * how they grow with a level — is written in {@code dungeon.ini}, so a second hero
  * with a different four is a file change and nothing more.
  *
- * <p>Kept to four on purpose. These are the shapes a melee dungeon hero needs:
- * hit one thing hard, hit everything near you, be somewhere else, be briefly
- * stronger. A fifth shape is a new constant and one branch in
- * {@link SkillBook}; a fifth <em>skill</em> is neither.
+ * <p>These are the shapes a dungeon hero needs: hit one thing hard, hit
+ * everything near you, drop something on a spot, fire something down a line, be
+ * somewhere else, be briefly stronger. A new shape is a constant here and one
+ * branch in {@link SkillBook}; a new <em>skill</em> is neither, and that is the
+ * point of the split — a second hero is blocks of INI and no Java at all.
  *
  * <p>Each carries what the player has to point at before it can be cast. That is
  * a property of the effect rather than of the skill: a strike is aimed at
@@ -25,6 +26,28 @@ public enum SkillEffect {
 
     /** Damage every enemy within a radius of the caster. */
     AREA_DAMAGE(Aim.SELF),
+
+    /**
+     * Damage every enemy within a radius of a chosen spot.
+     *
+     * <p>The difference from {@link #AREA_DAMAGE} is the whole of what makes it a
+     * different skill to play: one is a panic button and the other is a shot you
+     * have to place. It is the shape every game has and this one did not — a
+     * blast the player aims, with a reach he has to respect and a radius he has to
+     * judge.
+     */
+    AREA_AT_SPOT(Aim.OPEN_GROUND),
+
+    /**
+     * Send something flying in a direction, hitting whatever it meets.
+     *
+     * <p>The opposite bargain from {@link #STRIKE}, which picks a victim and whose
+     * arrow then chases it and never misses. This one is aimed at a <em>place</em>
+     * and forgets it at once: what it hits is whoever is standing in the way. It
+     * can miss, which is the point — it is the skill that rewards the player for
+     * reading where a monster is going rather than for clicking on it.
+     */
+    SKILLSHOT(Aim.OPEN_GROUND),
 
     /** Move the caster toward a chosen spot — closing or escaping. */
     DASH(Aim.OPEN_GROUND),

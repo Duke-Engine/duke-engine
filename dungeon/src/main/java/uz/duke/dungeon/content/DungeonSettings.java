@@ -337,6 +337,10 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, ORDER_MARK);
                 }),
+                Map.entry("DungeonSkillRing", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, SKILL_RING);
+                }),
                 Map.entry("DungeonLoot", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, LOOT_RULES);
@@ -1682,6 +1686,135 @@ public final class DungeonSettings {
     public int markAttackColour() {
         return markAttackColour;
     }
+
+    // ---- the ring a skill draws while it is being aimed ----
+
+    private float ringBandWidth = 1.6f;
+    private int ringDashes = 48;
+    private float ringDashShare = 0.55f;
+    private float ringFillAlpha = 0.10f;
+    private float ringEdgeAlpha = 0.85f;
+    private float ringHeight = 0.3f;
+    private float ringOpenSeconds = 0.18f;
+    private float ringSpinPerSecond = 9f;
+    private float ringPulseDepth = 0.25f;
+    private float ringPulsePerSecond = 1.4f;
+    private int ringSegments = 96;
+    private int ringAllowColour = 0x53E0FF;
+    private int ringDenyColour = 0xFF4436;
+    private int ringAreaColour = 0xFFB347;
+    private float ringBrightness = 1.5f;
+
+    /**
+     * How wide the ring hugging the hero is when a skill only affects him.
+     *
+     * <p>A number of its own because a self-buff has no reach to draw: the ring
+     * has to be some size, and the size that says "only me" is his own width and
+     * a little more.
+     */
+    private float ringSelfRadius = 9f;
+
+    /** How thick the dashed ring is drawn. */
+    public float ringBandWidth() {
+        return ringBandWidth;
+    }
+
+    /** How many dashes go round it — the dash is what stops it reading as a wall. */
+    public int ringDashes() {
+        return ringDashes;
+    }
+
+    /** How much of each dash's slot is drawn rather than skipped. */
+    public float ringDashShare() {
+        return ringDashShare;
+    }
+
+    /** How strongly the inside of a ring is washed in. */
+    public float ringFillAlpha() {
+        return ringFillAlpha;
+    }
+
+    /** How strongly the ring itself is drawn. */
+    public float ringEdgeAlpha() {
+        return ringEdgeAlpha;
+    }
+
+    /** How far above the floor it lies. */
+    public float ringHeight() {
+        return ringHeight;
+    }
+
+    /** How long it takes to open out when it appears. */
+    public float ringOpenSeconds() {
+        return ringOpenSeconds;
+    }
+
+    /** How fast the dashes travel round, in degrees a second. */
+    public float ringSpinPerSecond() {
+        return ringSpinPerSecond;
+    }
+
+    /** How much the ring breathes. */
+    public float ringPulseDepth() {
+        return ringPulseDepth;
+    }
+
+    /** How often it breathes. */
+    public float ringPulsePerSecond() {
+        return ringPulsePerSecond;
+    }
+
+    /** How many straight pieces the circle is really made of. */
+    public int ringSegments() {
+        return ringSegments;
+    }
+
+    /** The colour of a cast that will go through. */
+    public int ringAllowColour() {
+        return ringAllowColour;
+    }
+
+    /** The colour of one that will not. */
+    public int ringDenyColour() {
+        return ringDenyColour;
+    }
+
+    /** The colour of the blast itself. */
+    public int ringAreaColour() {
+        return ringAreaColour;
+    }
+
+    /** What every ring colour is multiplied by; over 1, because it is added. */
+    public float ringBrightness() {
+        return ringBrightness;
+    }
+
+    /** How wide the ring is for a skill that only touches the caster. */
+    public float ringSelfRadius() {
+        return ringSelfRadius;
+    }
+
+    private static final FieldParseTable<DungeonSettings> SKILL_RING =
+            new FieldParseTable<DungeonSettings>()
+                    .add("BandWidth", Ini.real((s, v) -> s.ringBandWidth = v))
+                    .add("Dashes", Ini.integer((s, v) -> s.ringDashes = v))
+                    .add("DashShare", Ini.real((s, v) -> s.ringDashShare = v))
+                    .add("FillAlpha", Ini.real((s, v) -> s.ringFillAlpha = v))
+                    .add("EdgeAlpha", Ini.real((s, v) -> s.ringEdgeAlpha = v))
+                    .add("Height", Ini.real((s, v) -> s.ringHeight = v))
+                    .add("OpenSeconds", Ini.real((s, v) -> s.ringOpenSeconds = v))
+                    .add("SpinPerSecond", Ini.real((s, v) -> s.ringSpinPerSecond = v))
+                    .add("PulseDepth", Ini.real((s, v) -> s.ringPulseDepth = v))
+                    .add("PulsePerSecond", Ini.real((s, v) -> s.ringPulsePerSecond = v))
+                    .add("Segments", Ini.integer((s, v) -> s.ringSegments = v))
+                    .add("SelfRadius", Ini.real((s, v) -> s.ringSelfRadius = v))
+                    .add("Brightness", Ini.real((s, v) -> s.ringBrightness = v))
+                    .add("AllowColour",
+                            (ini, s) -> s.ringAllowColour = Integer.decode(ini.getNextToken()))
+                    .add("DenyColour",
+                            (ini, s) -> s.ringDenyColour = Integer.decode(ini.getNextToken()))
+                    .add("AreaColour",
+                            (ini, s) -> s.ringAreaColour = Integer.decode(ini.getNextToken()));
 
     private static final FieldParseTable<DungeonSettings> ORDER_MARK =
             new FieldParseTable<DungeonSettings>()

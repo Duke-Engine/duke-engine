@@ -295,6 +295,46 @@ public final class Main {
     }
 
     /**
+     * What one skill's ring should look like, worked out from the skill itself.
+     *
+     * <p>The effect is what knows. A strike is pointed at a creature within its
+     * range whatever its numbers say; a blast dropped on a spot needs both how far
+     * it can be thrown and how much it covers; a shot down a lane needs the length
+     * and the width of the lane. So nothing here is a second set of numbers to
+     * keep in step with the skills — every figure is the skill's own, and a hero
+     * added next month gets his rings by having skills.
+     *
+     * <p>The one number that is not a skill's is the ring for something that only
+     * touches the caster: there is no reach to draw, so the look says how wide to
+     * draw "just him".
+     */
+    private static uz.duke.client3d.SkillRange rangeOf(
+            uz.duke.dungeon.skill.Skill skill, float selfRadius) {
+        var shape = switch (skill.effect()) {
+            case STRIKE -> uz.duke.client3d.SkillRange.Shape.AT_A_CREATURE;
+            case AREA_AT_SPOT -> uz.duke.client3d.SkillRange.Shape.AT_A_SPOT;
+            case SKILLSHOT -> uz.duke.client3d.SkillRange.Shape.DOWN_A_LANE;
+            case DASH -> uz.duke.client3d.SkillRange.Shape.AT_A_SPOT;
+            case AREA_DAMAGE -> uz.duke.client3d.SkillRange.Shape.AROUND_HIM;
+            case EMPOWER -> uz.duke.client3d.SkillRange.Shape.ON_HIMSELF;
+        };
+        float reach = switch (skill.effect()) {
+            case STRIKE, AREA_AT_SPOT, SKILLSHOT -> skill.range();
+            case DASH -> skill.distance();
+            case AREA_DAMAGE -> skill.radius();
+            case EMPOWER -> selfRadius;
+        };
+        // What it leaves where it lands: a blast's radius, a lane's width. A dash
+        // lands a hero rather than a blast, so the spot it marks is his own size.
+        float area = switch (skill.effect()) {
+            case AREA_AT_SPOT, SKILLSHOT -> skill.radius();
+            case DASH -> selfRadius;
+            default -> 0f;
+        };
+        return new uz.duke.client3d.SkillRange(skill.key(), shape, reach, area);
+    }
+
+    /**
      * The four orders the buttons beside the map give.
      *
      * <p>Three of them are the engine's own and the mouse already gives them; the
@@ -498,6 +538,19 @@ public final class Main {
                 settings.markEasePower(), settings.markFadeFrom(), settings.markSpinDegrees(),
                 settings.markBrightness(), settings.markMoveColour(),
                 settings.markAttackColour()));
+
+        // How far each skill reaches, so the client can draw it before it is spent
+        // — see DungeonSkillRing, and SkillRange for what each shape means.
+        visuals.rangeLook(new uz.duke.client3d.RangeLook(
+                settings.ringBandWidth(), settings.ringDashes(), settings.ringDashShare(),
+                settings.ringFillAlpha(), settings.ringEdgeAlpha(), settings.ringHeight(),
+                settings.ringOpenSeconds(), settings.ringSpinPerSecond(),
+                settings.ringPulseDepth(), settings.ringPulsePerSecond(),
+                settings.ringSegments(), settings.ringAllowColour(), settings.ringDenyColour(),
+                settings.ringAreaColour(), settings.ringBrightness()));
+        for (var skill : settings.skills()) {
+            visuals.skillRange(rangeOf(skill, settings.ringSelfRadius()));
+        }
 
         themes(visuals, settings);
 

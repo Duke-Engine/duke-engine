@@ -283,6 +283,36 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
                     stealLife(owner, each);
                 }
             }
+            case AREA_AT_SPOT -> {
+                if (towards == null) {
+                    return false; // it has to be put somewhere; nowhere is not a spot
+                }
+                // Pulled back to the edge of his reach rather than refused. The
+                // client draws the ring and clamps the click to it, so a click
+                // outside is a player asking for "as far that way as I can" --
+                // and the two have to agree or the picture is a lie.
+                var spot = withinReach(owner, towards, skill.range());
+                float each = damageOf(skill, level);
+                for (var victim : enemiesWithin(owner, world, spot, skill.radius())) {
+                    victim.getBody().damage(each);
+                    stealLife(owner, each);
+                }
+                world.post(new WeaponFired(world.getFrame(), owner.getId(), null,
+                        owner.getPosition(), spot));
+            }
+            case SKILLSHOT -> {
+                if (towards == null) {
+                    return false;
+                }
+                Facing.turnToward(owner, towards);
+                if (!Shot.looseAlong(owner, towards, damageOf(skill, level), DamageType.NORMAL,
+                        skill.projectile(), settings.heavyArrowSpeed(),
+                        settings.arrowMuzzleOffset(), skill.range())) {
+                    return false; // no arrow to throw; the cooldown is not spent
+                }
+                world.post(new WeaponFired(world.getFrame(), owner.getId(), null,
+                        owner.getPosition(), towards));
+            }
             case DASH -> {
                 if (towards != null) {
                     // Face where he was sent before he goes, so the model and the
@@ -419,6 +449,26 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
      * pointed at if that is nearer. Sent two steps away he takes two steps —
      * being flung the full distance past a click is not what the click said.
      */
+    /**
+     * A chosen spot, pulled back to the edge of what the skill can reach.
+     *
+     * <p>The same rule the client's ring draws, written once more here because the
+     * simulation cannot take the client's word for anything: a command arrives
+     * from a machine that may be running a different version of the game, or none.
+     * What it must not do is <em>refuse</em> — the picture on screen says "as far
+     * that way as you can", and the two have to say the same thing.
+     */
+    private static Coord3D withinReach(GameObject owner, Coord3D wanted, float reach) {
+        var from = owner.getPosition();
+        float away = from.distance(wanted);
+        if (away <= reach || away <= 0.0001f) {
+            return wanted;
+        }
+        float share = reach / away;
+        return new Coord3D(from.x() + (wanted.x() - from.x()) * share,
+                from.y() + (wanted.y() - from.y()) * share, wanted.z());
+    }
+
     private static float reachOf(Skill skill, GameObject owner, Coord3D towards) {
         return towards == null ? skill.distance()
                 : Math.min(skill.distance(), owner.getPosition().distance(towards));
@@ -445,8 +495,14 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     }
 
     private static List<GameObject> enemiesWithin(GameObject owner, World world, float radius) {
+        return enemiesWithin(owner, world, owner.getPosition(), radius);
+    }
+
+    /** The same, round a spot the player chose rather than round the caster. */
+    private static List<GameObject> enemiesWithin(GameObject owner, World world, Coord3D centre,
+            float radius) {
         int player = owner.getPlayerIndex();
-        return world.objectsInRange(owner.getPosition(), radius, candidate ->
+        return world.objectsInRange(centre, radius, candidate ->
                 candidate.getBody() != null
                         && !candidate.isEffectivelyDead()
                         && world.getRelationship(player, candidate.getPlayerIndex())
