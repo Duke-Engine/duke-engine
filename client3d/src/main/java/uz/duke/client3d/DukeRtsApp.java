@@ -2856,6 +2856,9 @@ final class DukeRtsApp extends SimpleApplication {
                 body.setLocalRotation(new Quaternion().fromAngles(0,
                         FastMath.DEG_TO_RAD * visual.facingDegrees, 0));
                 dressModel(body, visual);
+                // After being dressed, because dressing replaces every material on
+                // it and would put the fire out again.
+                effects.lightThePartsOf(body, visual.effect);
                 putInHisHand(body, visual);
                 node.composer = findControl(body, AnimComposer.class);
                 var legacy = findControl(body, AnimControl.class);
@@ -2873,7 +2876,11 @@ final class DukeRtsApp extends SimpleApplication {
         if (body == null) {
             // A fireball has no model and should not be given the capsule-with-a-
             // gun-barrel every other modelless thing gets. Its effect is its body.
-            body = effects.bodyFor(visual.effect);
+            // It comes back already standing where its own fire burns from, and
+            // at the width the recipe asked for: the scale on this visual is for
+            // the plain shape a modelless thing falls back to, and an orb is
+            // given its size in world units.
+            body = effects.bodyFor(visual);
         }
         if (body == null) {
             body = buildPrimitive(view);

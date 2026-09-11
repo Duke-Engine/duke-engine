@@ -423,10 +423,20 @@ public final class Visuals {
         public static final String FLAME_TRAIL = "FLAME_TRAIL";
         public static final String GLOW_ORB = "GLOW_ORB";
         public static final String IMPACT_BURST = "IMPACT_BURST";
+        /**
+         * Named pieces of a model, lit from inside.
+         *
+         * <p>The one of these that is not about something in flight, and the reason
+         * the whole arrangement was worth generalising: a skeleton's eye sockets, a
+         * rune on a door, the coals in a brazier. It costs one material and no
+         * light at all, which is what makes it affordable on every creature in a
+         * room — a torch each would be over the budget before the second one.
+         */
+        public static final String GLOW_PARTS = "GLOW_PARTS";
 
         /** All of them, for a game that wants to check a settings file against it. */
         public static java.util.Set<String> allKinds() {
-            return java.util.Set.of(FLAME_TRAIL, GLOW_ORB, IMPACT_BURST);
+            return java.util.Set.of(FLAME_TRAIL, GLOW_ORB, IMPACT_BURST, GLOW_PARTS);
         }
 
         /**
@@ -438,6 +448,8 @@ public final class Visuals {
          * instead of stopping the game.
          */
         final java.util.Set<String> kinds = new java.util.LinkedHashSet<>();
+        /** Words that name the pieces GLOW_PARTS lights; see {@link #part}. */
+        final java.util.List<String> parts = new java.util.ArrayList<>();
         java.awt.Color colour = java.awt.Color.WHITE;
         java.awt.Color fade;
         java.awt.Color lightColour;
@@ -494,6 +506,19 @@ public final class Visuals {
         /** How wide the glowing body is, for a projectile that has no model. */
         public EffectVisual orb(float size) {
             this.orbSize = size;
+            return this;
+        }
+
+        /**
+         * A piece of the model to light from inside, by a word in its name.
+         *
+         * <p>A word rather than the whole name, because a kit names the same piece
+         * differently on every creature it ships — {@code Skeleton_Warrior_Eyes},
+         * {@code Skeleton_Mage_Eyes} — and a game should be able to say "the eyes"
+         * once for all of them.
+         */
+        public EffectVisual part(String nameContains) {
+            parts.add(nameContains);
             return this;
         }
 

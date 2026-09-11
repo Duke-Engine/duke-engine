@@ -41,7 +41,8 @@ public record MonsterLook(
         String walk,
         String attack,
         String hurt,
-        Held held) {
+        Held held,
+        String effect) {
 
     public MonsterLook {
         held = held == null ? Held.NOTHING : held;
@@ -49,7 +50,7 @@ public record MonsterLook(
 
     /** No art at all: this kind is drawn as a coloured shape, as everything was. */
     public static final MonsterLook NONE = new MonsterLook(null, null, 1f, 0xFFFFFF, 90f,
-            null, null, null, null, Held.NOTHING);
+            null, null, null, null, Held.NOTHING, null);
 
     /** Whether there is a model to draw rather than a shape. */
     public boolean hasModel() {
@@ -69,6 +70,6 @@ public record MonsterLook(
                 walk == null ? defaultWalk : walk,
                 attack == null ? defaultAttack : attack,
                 hurt == null ? defaultHurt : hurt,
-                held);
+                held, effect);
     }
 }

@@ -1454,6 +1454,11 @@ ikkala peer aynan bir kadrda qo'llaydi.
     `MuzzleOffset`). Bo'sh blok avvalgidek qahramonning o'qini oladi.
   - **Ikkalasi ham `EyesOnly` oladi** — aks holda birinchi uzoq otuvchi jonzot
     qahramonni **devor orqali** otardi. Engine quroli devorni bilmaydi.
+  - **Poza ham muhim ekan.** Klip to'g'ri o'ynardi va hech kim ko'rmasdi: qo'llari
+    tushgan skelet, yonida osilgan arbalet, va ular orasida bir soniyalik klip —
+    bu otish emas, ko'kragidan o'q chiqqandek ko'rinadi. `Idle` — narsa vaqtining
+    to'qqiz ulushida qanday turishi, ya'ni arbaletchi uchun u **mo'ljalga olgan**
+    bo'lishi kerak (`Ranged_2H_Aiming`). `MuzzleOffset` ham qurolga chiqarildi.
 - **Uchayotgan narsa yonadi** — `ProjectileEffects` (faqat klient).
   - Klient **turlarni** biladi (`FLAME_TRAIL`, `GLOW_ORB`, `IMPACT_BURST`), INI
     esa qaysi snaryad qaysi retseptga ega ekanini va **har bir sonni** aytadi.
@@ -1467,6 +1472,11 @@ ikkala peer aynan bir kadrda qo'llaydi.
     o'zi olib yuradi. Ya'ni `PointLight` jonzotlarni yoritardi, polni esa yo'q.
     `FoggedTerrain` ga **to'rtta ko'chma point light** qo'shildi; bo'sh uya qora
     rang bilan o'tadi (shox emas, bir xil narx).
+  - **GLOW_PARTS** — uchmaydigan yagona tur, va eng arzoni: model ichidagi nomlangan
+    bo'laklarni ichidan yoritadi (skeletlarning ko'zlari). Bitta material, **nol**
+    yorug'lik — xonada yigirmata skelet bo'lishi mumkin, har biriga mash'al
+    ikkinchisidayoq byudjetdan chiqardi. Nom **so'z bo'yicha** mos keladi
+    (`Skeleton_Warrior_Eyes`, `Skeleton_Mage_Eyes` — bitta `Part = Eyes`).
   - **Pool va byudjet.** Emitterlar, yorug'liklar va portlashlar bir marta
     yasaladi va qaytariladi. Chegaradan oshgani **yorug'liksiz uchadi** — izi
     qoladi, ya'ni yo'qoladigan narsa poldagi yaltirash, otish emas. Uchqun

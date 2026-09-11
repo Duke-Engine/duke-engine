@@ -58,6 +58,7 @@ final class ProjectileEffects {
     static final String FLAME_TRAIL = Visuals.EffectVisual.FLAME_TRAIL;
     static final String GLOW_ORB = Visuals.EffectVisual.GLOW_ORB;
     static final String IMPACT_BURST = Visuals.EffectVisual.IMPACT_BURST;
+    static final String GLOW_PARTS = Visuals.EffectVisual.GLOW_PARTS;
 
     /** How wide the generated spark is, in pixels. Small on purpose: it is a blur. */
     private static final int SPARK_PIXELS = 32;
@@ -145,12 +146,17 @@ final class ProjectileEffects {
      * fireball drawn as a capsule with a gun barrel on it is worse than no
      * fireball at all.
      */
-    Spatial bodyFor(String recipeName) {
-        var recipe = visuals.effectNamed(recipeName);
+    Spatial bodyFor(Visuals.UnitVisual visual) {
+        var recipe = visuals.effectNamed(visual == null ? null : visual.effect);
         if (recipe == null || !recipe.has(GLOW_ORB) || recipe.orbSize <= 0f) {
             return null;
         }
         var orb = new Geometry("orb", new Sphere(8, 12, recipe.orbSize));
+        // At the point its own fire burns from, and nowhere else. Left at the
+        // node's origin it sat on the FLOOR while the flame flew at bow height,
+        // and what the player saw was a yellow disc sliding along the ground
+        // under a streak of sparks.
+        orb.setLocalTranslation(visual.effectForward, visual.yOffset, 0f);
         var material = new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
         material.setColor("Color", toColour(recipe.colour, 1f));
         material.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.AlphaAdditive);
@@ -158,6 +164,51 @@ final class ProjectileEffects {
         orb.setMaterial(material);
         orb.setQueueBucket(RenderQueue.Bucket.Transparent);
         return orb;
+    }
+
+    /**
+     * Light the named pieces of a model from inside — a skeleton's eye sockets,
+     * a rune, the coals in a brazier.
+     *
+     * <p>The one effect here that is not about something in flight, and the
+     * cheapest by a distance: one material per piece and no light at all. Which is
+     * the point. A torch on every skeleton in a room would be over the light
+     * budget before the second one; a pair of burning eyes on every skeleton in
+     * the game costs one draw call each and reads across a dark room better than a
+     * light would.
+     *
+     * <p>Unshaded on purpose: a glowing thing is glowing, not lit. Lighting it
+     * would make it dimmer in the dark, which is the opposite of the idea.
+     */
+    void lightThePartsOf(Spatial model, String recipeName) {
+        var recipe = visuals.effectNamed(recipeName);
+        if (model == null || recipe == null || !recipe.has(GLOW_PARTS) || recipe.parts.isEmpty()) {
+            return;
+        }
+        model.depthFirstTraversal(spatial -> {
+            if (!(spatial instanceof Geometry geometry) || !named(geometry, recipe.parts)) {
+                return;
+            }
+            var material = new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
+            material.setColor("Color", toColour(recipe.colour, 1f));
+            material.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.AlphaAdditive);
+            geometry.setMaterial(material);
+            geometry.setQueueBucket(RenderQueue.Bucket.Transparent);
+            geometry.setShadowMode(RenderQueue.ShadowMode.Off);
+        });
+    }
+
+    private static boolean named(Geometry geometry, List<String> parts) {
+        var name = geometry.getName();
+        if (name == null) {
+            return false;
+        }
+        for (var part : parts) {
+            if (name.contains(part)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

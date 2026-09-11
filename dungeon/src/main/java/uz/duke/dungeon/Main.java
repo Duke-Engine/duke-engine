@@ -59,6 +59,9 @@ public final class Main {
             for (var kind : look.kinds()) {
                 recipe.kind(kind);
             }
+            for (var part : look.parts()) {
+                recipe.part(part);
+            }
             recipe.colours(look.awtColour(), look.awtFade())
                     .light(look.awtLight(), look.lightPower(), look.lightRadius())
                     .particles(look.particles(), look.particleSize(), look.particleLife(),
@@ -192,6 +195,7 @@ public final class Main {
                     .walk(art.walk())
                     .attack(art.attack())
                     .hurt(art.hurt())
+                    .effect(art.effect())
                     .die(themed.death() != null ? themed.death() : settings.deathClip());
             carry(unit, art.held());
             // Borrowed only when the file says so. A themed creature usually comes
@@ -305,7 +309,8 @@ public final class Main {
                         .idle(look.idle())
                         .walk(look.walk())
                         .attack(look.attack())
-                        .hurt(look.hurt());
+                        .hurt(look.hurt())
+                        .effect(look.effect());
                 carry(unit, look.held());
                 unit.die(settings.deathClip());
                 for (var library : settings.animationLibraries()) {

@@ -507,6 +507,49 @@ class DungeonMonsterArtTest {
                         + " and the bone points +x at the archer, so HeldRoll is wrong");
     }
 
+    /**
+     * A creature told to glow has something on it that can.
+     *
+     * <p>The whole of {@code GLOW_PARTS} is a word matched against the names of a
+     * model's meshes, and a word that matches nothing is the quietest kind of
+     * mistake: the creature loads, is dressed, and simply does not glow. Nothing
+     * raises and nothing logs, and from a chair it is indistinguishable from the
+     * effect not having been written yet.
+     */
+    @Test
+    void everyCreatureToldToGlowHasSomethingThatCan() {
+        var settings = SETTINGS;
+        for (var kind : settings.monsters()) {
+            var look = settings.lookOf(kind);
+            if (look.effect() == null || !look.hasModel()) {
+                continue;
+            }
+            var recipe = settings.effects().stream()
+                    .filter(e -> e.name().equals(look.effect())).findFirst().orElseThrow();
+            if (!recipe.kinds().contains(uz.duke.client3d.Visuals.EffectVisual.GLOW_PARTS)) {
+                continue;
+            }
+            var model = assets().loadModel(look.model());
+            for (var part : recipe.parts()) {
+                assertTrue(hasPartNamed(model, part),
+                        kind.name() + " is told to light its " + part + ", and "
+                                + look.model() + " has no mesh with that in its name");
+            }
+        }
+    }
+
+    /** Whether any mesh in the model carries this word in its name. */
+    private static boolean hasPartNamed(Spatial model, String word) {
+        var found = new boolean[1];
+        model.depthFirstTraversal(spatial -> {
+            if (spatial instanceof com.jme3.scene.Geometry geometry
+                    && geometry.getName() != null && geometry.getName().contains(word)) {
+                found[0] = true;
+            }
+        });
+        return found[0];
+    }
+
     /** Every clip he asks for is in one of the libraries he names. */
     @Test
     void everyClipTheHeroAsksForIsInOneOfHisLibraries() {

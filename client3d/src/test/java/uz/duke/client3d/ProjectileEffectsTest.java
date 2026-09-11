@@ -196,7 +196,7 @@ class ProjectileEffectsTest {
 
         assertEquals(0, scene.effects().litCount());
         assertEquals(before, scene.root().getQuantity());
-        assertNull(scene.effects().bodyFor("NoSuchEffect"));
+        assertNull(scene.effects().bodyFor(scene.shot()));
     }
 
     /**
@@ -208,15 +208,74 @@ class ProjectileEffectsTest {
      */
     @Test
     void whatTheSettingsSayIsWhatIsBuilt() {
-        var plain = Visuals.create().effect("Orb", recipe -> recipe
-                .kind(Visuals.EffectVisual.GLOW_ORB).orb(2f));
-        var noOrb = Visuals.create().effect("Orb", recipe -> recipe
-                .kind(Visuals.EffectVisual.FLAME_TRAIL).orb(2f));
+        var plain = orbing(Visuals.EffectVisual.GLOW_ORB);
+        var noOrb = orbing(Visuals.EffectVisual.FLAME_TRAIL);
 
-        assertNotNull(scene(plain).effects().bodyFor("Orb"),
+        assertNotNull(scene(plain).effects().bodyFor(plain.of("Ball")),
                 "a recipe that says it is a glowing orb should draw one");
-        assertNull(scene(noOrb).effects().bodyFor("Orb"),
+        assertNull(scene(noOrb).effects().bodyFor(noOrb.of("Ball")),
                 "and one that does not, should not — however big it says the orb is");
+    }
+
+    private static Visuals orbing(String kind) {
+        return Visuals.create()
+                .effect("Orb", recipe -> recipe.kind(kind).orb(2f))
+                .unit("Ball", unit -> unit.effect("Orb").yOffset(BOW_HEIGHT));
+    }
+
+    /**
+     * The body of a thing with no model stands where its own fire does.
+     *
+     * <p>Which it did not. Left at the node's origin it sat on the floor while the
+     * flame flew at bow height, and what the player saw was a yellow disc sliding
+     * along the ground beneath a streak of sparks — two halves of one fireball,
+     * three units apart.
+     */
+    @Test
+    void theBodyOfAModellessThingStandsWhereItsFireDoes() {
+        var visuals = orbing(Visuals.EffectVisual.GLOW_ORB);
+        var orb = scene(visuals).effects().bodyFor(visuals.of("Ball"));
+
+        assertNotNull(orb);
+        assertEquals(BOW_HEIGHT, orb.getLocalTranslation().y, 0.001f,
+                "the fireball is rolling along the floor under its own flame");
+    }
+
+    /**
+     * Lighting a model's eyes lights its eyes, and nothing else it is made of.
+     *
+     * <p>The cheap half of the arrangement, and the half that gets used most: a
+     * word matched against mesh names. Matching too much would put a skeleton's
+     * whole ribcage on fire — which is a thing somebody might want, and is not
+     * what "Part = Eyes" says.
+     */
+    @Test
+    void lightingThePartsLightsThosePartsOnly() {
+        var visuals = Visuals.create().effect("Embers", recipe -> recipe
+                .kind(Visuals.EffectVisual.GLOW_PARTS)
+                .part("Eyes")
+                .colours(java.awt.Color.ORANGE, java.awt.Color.RED));
+        var scene = scene(visuals);
+        var assets = new DesktopAssetManager(true);
+
+        var body = new com.jme3.scene.Geometry("Skeleton_Warrior_Body",
+                new com.jme3.scene.shape.Box(1f, 1f, 1f));
+        var eyes = new com.jme3.scene.Geometry("Skeleton_Warrior_Eyes",
+                new com.jme3.scene.shape.Box(1f, 1f, 1f));
+        var plain = new com.jme3.material.Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
+        body.setMaterial(plain);
+        eyes.setMaterial(plain);
+        var model = new Node("skeleton");
+        model.attachChild(body);
+        model.attachChild(eyes);
+
+        scene.effects().lightThePartsOf(model, "Embers");
+
+        assertTrue(eyes.getMaterial() != plain, "the eyes kept the material they came with");
+        assertEquals(new com.jme3.math.ColorRGBA(1f, 200f / 255f, 0f, 1f),
+                eyes.getMaterial().getParam("Color").getValue(),
+                "and are not the colour the recipe asked for");
+        assertTrue(body.getMaterial() == plain, "the whole skeleton caught fire");
     }
 
     /** Far-off things are not worth the budget, and are given none of it. */

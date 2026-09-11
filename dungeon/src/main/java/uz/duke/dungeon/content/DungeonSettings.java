@@ -813,6 +813,7 @@ public final class DungeonSettings {
                     .add("Walk", Ini.string((t, v) -> t.art.walk = v))
                     .add("Attack", Ini.string((t, v) -> t.art.attack = v))
                     .add("Hurt", Ini.string((t, v) -> t.art.hurt = v))
+                    .add("Effect", Ini.string((t, v) -> t.art.effect = v))
                     .add("Holds", Ini.string((t, v) -> t.art.holds = v))
                     .add("HeldIn", Ini.string((t, v) -> t.art.heldIn = v))
                     .add("HeldScale", Ini.real((t, v) -> t.art.heldScale = v))
@@ -888,6 +889,7 @@ public final class DungeonSettings {
         String walk;
         String attack;
         String hurt;
+        String effect;
         String holds;
         String heldIn;
         float heldScale = 1f;
@@ -907,7 +909,8 @@ public final class DungeonSettings {
         /** Just the art of it, which is all a theme overriding a creature needs. */
         MonsterLook look() {
             return new MonsterLook(model, texture, modelScale, tint, facing, idle, walk, attack,
-                    hurt, new Held(holds, heldIn, heldScale, heldPitch, heldYaw, heldRoll));
+                    hurt, new Held(holds, heldIn, heldScale, heldPitch, heldYaw, heldRoll),
+                    effect);
         }
     }
 
@@ -936,6 +939,7 @@ public final class DungeonSettings {
                     .add("Walk", Ini.string((m, v) -> m.walk = v))
                     .add("Attack", Ini.string((m, v) -> m.attack = v))
                     .add("Hurt", Ini.string((m, v) -> m.hurt = v))
+                    .add("Effect", Ini.string((m, v) -> m.effect = v))
                     .add("Holds", Ini.string((m, v) -> m.holds = v))
                     .add("HeldIn", Ini.string((m, v) -> m.heldIn = v))
                     .add("HeldScale", Ini.real((m, v) -> m.heldScale = v))
@@ -1329,13 +1333,15 @@ public final class DungeonSettings {
      * number in them is here, so a new burning thing is a block of settings and
      * not a class.
      */
-    public record EffectLook(String name, java.util.List<String> kinds, int colour, int fade,
+    public record EffectLook(String name, java.util.List<String> kinds,
+            java.util.List<String> parts, int colour, int fade,
             int lightColour, float lightPower, float lightRadius,
             int particles, float particleSize, float particleLife, float spread,
             float orbSize, int burstParticles, float burstSize, float burstSeconds) {
 
         public EffectLook {
             kinds = java.util.List.copyOf(kinds);
+            parts = java.util.List.copyOf(parts);
         }
 
         public java.awt.Color awtColour() {
@@ -1356,6 +1362,7 @@ public final class DungeonSettings {
     private static final class EffectBuilder {
         private final String name;
         final java.util.List<String> kinds = new java.util.ArrayList<>();
+        final java.util.List<String> parts = new java.util.ArrayList<>();
         int colour = 0xFFFFFF;
         int fade = 0x000000;
         int lightColour = 0xFFFFFF;
@@ -1375,7 +1382,7 @@ public final class DungeonSettings {
         }
 
         EffectLook look() {
-            return new EffectLook(name, kinds, colour, fade, lightColour, lightPower,
+            return new EffectLook(name, kinds, parts, colour, fade, lightColour, lightPower,
                     lightRadius, particles, particleSize, particleLife, spread, orbSize,
                     burstParticles, burstSize, burstSeconds);
         }
@@ -1401,6 +1408,8 @@ public final class DungeonSettings {
                     .add("ParticleLife", Ini.real((e, v) -> e.particleLife = v))
                     .add("Spread", Ini.real((e, v) -> e.spread = v))
                     .add("OrbSize", Ini.real((e, v) -> e.orbSize = v))
+                    // Repeatable: "the eyes and the jaw" is two lines.
+                    .add("Part", Ini.string((e, v) -> e.parts.add(v)))
                     .add("BurstParticles", Ini.integer((e, v) -> e.burstParticles = v))
                     .add("BurstSize", Ini.real((e, v) -> e.burstSize = v))
                     .add("BurstSeconds", Ini.real((e, v) -> e.burstSeconds = v));
