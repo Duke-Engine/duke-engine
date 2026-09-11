@@ -1802,7 +1802,8 @@ ikkala peer aynan bir kadrda qo'llaydi.
 ---
 
 - **Har chuqurlik boshqacha ko'rinadi** — model to'plami, rangi va tumani almashadi.
-  To'rtta to'plam: **Kenney** (o'zining eski kiti), **Dungeon**, **Ruins**, **SciFi**.
+  Ikkita to'plam, ikkalasi ham KayKit (CC0): **Dungeon** (ishlangan tosh) va
+  **Forest** (tuproq pol, devor o'rnida daraxt qatori).
   - **Ko'rinish, boshqa hech narsa emas.** Xona joylashuvi, dushman turlari, hamma
     son o'zgarmaydi. `DungeonThemeTest` bitta seed'ni ikki xil to'plamda o'ynab
     checksum'larni taqqoslaydi — aynan tuman uchun yozilgan testning shakli.
@@ -1822,21 +1823,45 @@ ikkala peer aynan bir kadrda qo'llaydi.
     "Ruins,Fallen" — unga bitta narsa; uni to'plam va ohangdan yasash o'yinning
     o'z ishi.
 - **Ikkita o'lchov paketlardan chiqdi, taxmin qilinmadi** (Faza 0 da o'lchandi):
-  - **`WallTileSize`** — Sci-Fi poli 2 birlik, devori esa **4**: paketda devor
-    ikkita plitkani qoplaydi. Pol raqami bilan masshtablansa devor ikki barobar
-    keng va ikki barobar baland chiqadi.
+  - **`WallTileSize`** — pol 4 birlik, o'rmon "devori" (daraxt) esa **3.2**:
+    paketlar bir modulda chizilmagan. Pol raqami bilan masshtablansa daraxt
+    o'zidan kattaroq chiqadi.
   - **`WallLift` / `WallShift`** — paketlar devor pivotini har xil qo'yadi.
     Dungeon paketida devor markazda, ya'ni yarmi yer ostida qoladi.
+  - **Zinaning ko'tarilishi = uzunligi**, quti balandligi EMAS. Modulli zina
+    bitta katakni to'ldiradi va tepadagi qavatga ulanadi — shuning uchun ikkalasi
+    bir xil son, va u modelning o'z izidan olinadi. Quti balandligi boshqa narsa:
+    zinada panjara bo'ladi, panjara esa maydonchadan baland turadi. KayKit zinasi
+    roppa-rosa 4 ga ko'tariladi, lekin qutisi **5.1** — quti bo'yicha
+    masshtablanganda zina 4/5 ga siqilib, tepa qavatdan bir enlik pastda
+    tugardi, va orada ko'rinadigan bo'shliq qolardi.
   - `DungeonTilesTest` har bir to'plamning har bir bo'lagini yuklab, o'lchamini
     va devor yerga tegishini tekshiradi — ro'yxat INI'dan olinadi, ya'ni yangi
     to'plam ta'riflangani uchun qoplanadi.
 - **`OwnMaterials`** — paket o'z ranglarini olib kelganda ularni saqlash.
-  - Uch yangi paket **teksturasiz**: MTL'da har bo'lak o'z rangini aytadi. Bitta
-    umumiy "skin" ularning hammasini yassi kulrangga aylantirardi.
+  - Teksturasiz paket (MTL'da har bo'lak o'z rangini aytadi) uchun: bitta umumiy
+    "skin" ularning hammasini yassi kulrangga aylantirardi.
   - Lekin materiallar **fog'ni o'qishi shart**, aks holda bo'laklar yoritiladi va
     hech qachon qorong'ilashmaydi. Shuning uchun ular saqlanmaydi — **qayta
     quriladi**: har bir material uchun bitta fogli material, rangi o'zinikicha.
-  - Atlasli to'plamda esa tone tinti umumiy skinga tushadi (tint bo'yicha bitta).
+  - Atlasli to'plamda umumiy skin **rasm bo'yicha** kalitlanadi, tema bo'yicha
+    emas. Tema har doim ham bitta atlas emas: o'rmonning poli zindon atlasidan,
+    daraxti o'rmon atlasidan — bitta skin ikkalasini kiyintira olmaydi va qaysi
+    bo'lak birinchi yuklangan bo'lsa, o'shaning rasmi hammasiga tushardi. Daraxtlar
+    shuning uchun oq poyada kulrang qo'ziqorin bo'lib chiqqan edi.
+- **Devor sirtmi yoki narsami** — to'plam aytadigan yagona "o'lchov bo'lmagan" gap.
+  - Sirt taxlanadi: ikki qavatlik devor — ikki qator g'isht, hammasi bir xil.
+  - Narsa taxlanmaydi. Ikki qavatlik daraxt — **bitta kattaroq daraxt**, va
+    kattaroq daraxt faqat balandroq emas, har tomonga kattaroq. Taxlanganda
+    daraxt ustidan yuqori qavat poli kesib o'tib, undan yana bitta daraxt
+    o'sardi. `WallGrows = Yes` shuni tugatadi.
+  - Har katakda bitta bir xil daraxt — bog', o'rmon emas: ko'z avval qatorni
+    ko'radi. `WallClump` / `WallSpread` / `WallVariety` — devor chizig'ining
+    orqasida halqa bo'ylab bir nechta, har biri boshqa hajmda va boshqa tomonga
+    qaragan. Halqa **o'z radiusicha ichkariga suriladi**, ya'ni ochiq yerga
+    shoxi osiladi, tanasi emas — pathfinder qo'ygan chegara joyida qoladi.
+  - Sochilish **tasodifiy emas**: joy hashidan. Har qayta qurishda o'zgaradigan
+    o'rmonni hech kim yodlab ololmaydi (`TerrainScene.steady`).
 - **Maxluqlar hamma to'plamda o'zimizniki** — `DungeonThemeMonster` mexanizmi bor
   va ishlaydi (blok o'qiladi, ko'rinish almashadi, simulyatsiya raqami qimirlamaydi),
   lekin hech bir to'plam undan foydalanmaydi. Sci-Fi qavati uchun paketdagi
@@ -2313,12 +2338,12 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/{Tileset,TileSource}.java` | to'plam ta'rifi + bo'lak yuklovchisi choki |
 | `client3d/…/client3d/AnimationLibrary.java` | klipni boshqa skeletga nom bo'yicha qayta ulash |
 | `dungeon/…/dungeon/content/MonsterLook.java` | model/teri/bo'y/rang — turdan alohida, simulyatsiya o'qimaydi |
-| `dungeon/src/main/resources/models/tiles/<tema>/` | pol, devor, burchak, zinapoya — tema bo'yicha (Kenney glb + uchta Quaternius OBJ kiti). `kenney/Textures/` — atlas, nomi `.glb` ichida yozilgani uchun katta harfli |
+| `dungeon/src/main/resources/models/tiles/<tema>/` | pol, devor, zinapoya — tema bo'yicha (KayKit `.gltf` + `.bin` + atlas PNG). Bitta papkada ikkita atlas bo'lishi mumkin: o'rmonda pol zindonnikidan, daraxt o'rmonnikidan |
 | `dungeon/src/main/resources/models/props/<tema>/` | ustun, haykal, bochka — tema bo'yicha |
 | `dungeon/src/main/resources/models/monsters/` | Quaternius Bestiary + `textures/` |
 | `dungeon/src/main/resources/models/heroes/` | Mixamo qahramoni |
 | `dungeon/src/main/resources/animations/{hero,monsters}/` | modeldan tashqaridagi klip fayllar |
-| `dungeon/src/main/resources/_unused/` | hech kim murojaat qilmaydigan 5 fayl — README bilan |
+| `dungeon/src/main/resources/_unused/` | hech kim murojaat qilmaydigan 3 fayl — README bilan |
 | `dungeon/…/dungeon/content/{ThemeArt,Themes}.java` | to'plam ta'rifi + chuqurlik→to'plam tanlovi (sof) |
 | `dungeon/…/dungeon/content/HeroLook.java` | qahramon ko'rinishi — animatsiyasi fayl bo'yicha, nom bo'yicha emas |
 | `dungeon/…/dungeon/Dungeon.java` | o'yinni yig'ish (fixture xona va haqiqiy o'yin) |

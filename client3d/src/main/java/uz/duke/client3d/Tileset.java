@@ -28,9 +28,89 @@ public final class Tileset {
     private float wallLift;
     private float wallShift;
     private boolean ownMaterials;
+    private boolean wallGrows;
+    private int wallClump = 1;
+    private float wallSpread;
+    private float wallVariety;
     private int tint = 0xFFFFFF;
 
     private Tileset() {
+    }
+
+    /**
+     * Whether a wall more than one storey high is <em>one</em> piece grown to fit
+     * rather than a stack of them.
+     *
+     * <p>Masonry stacks. A course of stone on a course of stone is how a wall is
+     * built, and stretching one block to twice its height would stretch the
+     * stonework drawn on it, so stacking is right and is what every kit did before
+     * this existed.
+     *
+     * <p>A tree does not stack. A kit whose wall piece is a single standing thing
+     * — a tree, a pillar, a menhir — gets a second copy balanced on the first one's
+     * canopy, which is what two storeys of forest looked like: a tree, the floor
+     * above cutting through it, and another tree growing out of that. What a
+     * two-storey tree actually is is a bigger tree, and a bigger tree is bigger all
+     * round rather than taller and no wider, so it is grown rather than stretched.
+     */
+    public Tileset wallGrows(boolean grows) {
+        this.wallGrows = grows;
+        return this;
+    }
+
+    public boolean wallGrows() {
+        return wallGrows;
+    }
+
+    /**
+     * How many pieces stand where the layout asks for one wall. One by default,
+     * which is a wall.
+     *
+     * <p>More than one is for the kit whose wall is a thing rather than a surface.
+     * One tree per cell on a square grid reads as a plantation — the picture the
+     * eye gets is the grid, not the wood — and no amount of better art fixes that,
+     * because the regularity is the problem. Three of them in a ring, each a
+     * different size and facing, and the grid disappears behind them.
+     *
+     * @see #wallSpread
+     * @see #wallVariety
+     */
+    public Tileset wallClump(int pieces) {
+        this.wallClump = Math.max(1, pieces);
+        return this;
+    }
+
+    public int getWallClump() {
+        return wallClump;
+    }
+
+    /**
+     * How far a clump's pieces stand from the wall line, as a fraction of a cell.
+     *
+     * <p>The ring is pushed back into the solid side by its own radius, so what
+     * leans out over open ground is canopy rather than trunk: the boundary the
+     * player is stopped at stays where the pathfinder put it.
+     */
+    public Tileset wallSpread(float fractionOfCell) {
+        this.wallSpread = fractionOfCell;
+        return this;
+    }
+
+    public float getWallSpread() {
+        return wallSpread;
+    }
+
+    /**
+     * How much the pieces of a clump differ in size, as a fraction either way —
+     * {@code 0.4} is anything from four fifths to six fifths of full size.
+     */
+    public Tileset wallVariety(float fraction) {
+        this.wallVariety = fraction;
+        return this;
+    }
+
+    public float getWallVariety() {
+        return wallVariety;
     }
 
     /**

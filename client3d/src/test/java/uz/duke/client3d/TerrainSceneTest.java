@@ -469,4 +469,164 @@ class TerrainSceneTest {
             seen.soften(1f / 30f);
         }
     }
+
+    // ---- a kit whose wall is a thing rather than a surface ----
+
+    /**
+     * A corridor at the bottom, a room a storey above it, and a stair between
+     * them. Read as two layers: the first says what is stone, the second how high
+     * each cell stands.
+     */
+    private static final String TWO_STOREYS = """
+            #######
+            #00/11#
+            #00.11#
+            #######
+            """;
+
+    private static uz.duke.core.pathfind.PathGrid twoStoreys() {
+        var grid = MapLoader.fromText(TWO_STOREYS);
+        MapLoader.levels(grid, TWO_STOREYS);
+        grid.setLevelHeight(10f);
+        return grid;
+    }
+
+    private static java.util.List<com.jme3.scene.Spatial> wallsOf(Tileset kit,
+            uz.duke.core.pathfind.PathGrid grid) {
+        var root = new Node("terrain");
+        new TerrainScene(root, color -> null, true, kit, new StubTiles()).rebuild(grid);
+        return pieces(root, "wall");
+    }
+
+    /** Where a piece stands on the plan — which is what makes it one of a stack. */
+    private static String spot(com.jme3.scene.Spatial piece) {
+        var at = piece.getLocalTranslation();
+        return Math.round(at.x * 100f) + "," + Math.round(at.z * 100f);
+    }
+
+    /**
+     * Two storeys of masonry is two courses of it; two storeys of forest is one
+     * bigger tree.
+     *
+     * <p>Stacking is right for a surface and wrong for a thing. A second tree
+     * balanced on the first one's canopy, with the floor above cutting between
+     * them, is what two storeys of wood looked like.
+     */
+    @Test
+    void aKitWhoseWallGrowsPutsOnePieceWhereAStackWouldStand() {
+        var grid = twoStoreys();
+        var stacked = wallsOf(kit(), grid);
+        var grown = wallsOf(kit().wallGrows(true), grid);
+
+        var tall = stacked.stream()
+                .collect(java.util.stream.Collectors.groupingBy(TerrainSceneTest::spot))
+                .values().stream().filter(run -> run.size() == 2).findFirst()
+                .orElseThrow(() -> new AssertionError("this map should wall something twice"));
+
+        var there = grown.stream().filter(piece -> spot(piece).equals(spot(tall.get(0)))).toList();
+        assertEquals(1, there.size(), "a tree does not stand on another tree's canopy");
+        assertEquals(2f * tall.get(0).getLocalScale().x, there.get(0).getLocalScale().x, 0.001f,
+                "and the one that stands covers what the two of them did");
+        float foot = (float) tall.stream()
+                .mapToDouble(piece -> piece.getLocalTranslation().y).min().orElseThrow();
+        assertEquals(foot, there.get(0).getLocalTranslation().y, 0.001f,
+                "grown from the foot of the run rather than from the top of it");
+    }
+
+    /**
+     * Several things in a ring where one wall would stand, and not one of them on
+     * the room's side of the line.
+     *
+     * <p>The ring is the point — one piece per cell on a square grid reads as the
+     * grid — but it may not cost the player the boundary they are stopped at. What
+     * leans over the floor is canopy; the trunk stays in the solid side.
+     */
+    @Test
+    void aClumpScattersBehindTheWallLineAndNeverInFrontOfIt() {
+        var grid = MapLoader.fromText(ROOM);
+        float cell = grid.getCellSize();
+        var root = new Node("terrain");
+        new TerrainScene(root, color -> null, true,
+                kit().wallClump(3).wallSpread(0.3f).wallVariety(0.5f), new StubTiles())
+                .rebuild(grid);
+
+        assertEquals(wallsOf(kit(), grid).size() * 3, pieces(root, "wall").size(),
+                "three standing where one wall stood");
+
+        int checked = 0;
+        for (var cellNode : root.getChildren()) {
+            var floor = ((Node) cellNode).getChildren().stream()
+                    .filter(piece -> piece.getName().equals("floor"))
+                    .filter(piece -> piece.getLocalTranslation().y == 0f)
+                    .findFirst().orElse(null);
+            if (floor == null) {
+                continue; // rock, whose lid is not a floor to measure a wall against
+            }
+            var middle = floor.getLocalTranslation();
+            for (var piece : ((Node) cellNode).getChildren()) {
+                if (!piece.getName().equals("wall")) {
+                    continue;
+                }
+                var at = piece.getLocalTranslation();
+                assertTrue(Math.hypot(at.x - middle.x, at.z - middle.z) >= cell / 2f - 0.001f,
+                        "a trunk on the room's side of the line is a tree you walk through");
+                checked++;
+            }
+        }
+        assertTrue(checked > 0, "the walk should have found walls to check");
+    }
+
+    /**
+     * The same map grows the same wood every time it is built.
+     *
+     * <p>Scatter is exactly the place a {@code Math.random} creeps in, and a wood
+     * that rearranged itself between one rebuild and the next is a wood nobody can
+     * learn their way around.
+     */
+    @Test
+    void theSameMapGrowsTheSameWoodTwice() {
+        var grid = MapLoader.fromText(ROOM);
+        var kit = kit().wallClump(3).wallSpread(0.3f).wallVariety(0.5f);
+
+        assertEquals(placed(wallsOf(kit, grid)), placed(wallsOf(kit, grid)),
+                "two builds of one map should stand the same trees in the same places");
+    }
+
+    private static java.util.List<String> placed(java.util.List<com.jme3.scene.Spatial> pieces) {
+        return pieces.stream()
+                .map(piece -> piece.getLocalTranslation() + " x" + piece.getLocalScale())
+                .toList();
+    }
+
+    /**
+     * A kit whose stair carries rails above its top step, as a real one does: four
+     * deep and four high, boxing 5.1 because the newel posts at the head of the
+     * flight stand a rail's height above the landing they guard.
+     */
+    private static final class RailedStair implements TileSource {
+        @Override
+        public com.jme3.scene.Spatial piece(String assetPath) {
+            return new com.jme3.scene.Geometry(assetPath,
+                    new com.jme3.scene.shape.Box(2f, 2.55f, 2f));
+        }
+    }
+
+    /**
+     * A stair is scaled by what it climbs, and what it climbs is its run — not by
+     * how tall its model happens to box.
+     */
+    @Test
+    void aStairIsScaledByWhatItClimbsRatherThanByHowTallItsModelBoxes() {
+        var grid = twoStoreys();
+        var root = new Node("terrain");
+        new TerrainScene(root, color -> null, true, kit().stairs("stairs"), new RailedStair())
+                .rebuild(grid);
+
+        var stairs = pieces(root, "stairs");
+        assertEquals(1, stairs.size(), "one flight, on the cell the map marks as a ramp");
+        assertEquals(grid.getLevelHeight() / 4f, stairs.get(0).getLocalScale().y, 0.001f,
+                "four model units of climb make one storey; scaling by the 5.1 the model "
+                        + "boxes leaves the top step short of the floor it joins, and you can "
+                        + "see through the gap");
+    }
 }

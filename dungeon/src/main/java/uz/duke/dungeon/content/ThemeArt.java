@@ -39,6 +39,8 @@ import java.util.List;
  *     that ships none — then the client builds them out of blocks
  * @param fogTint       what the dark is coloured here, packed {@code 0xRRGGBB} —
  *     bluish under ice, red under lava, black in plain stone
+ * @param standing      whether the wall piece is a thing that stands rather than
+ *     a surface that tiles, and how it is scattered if it is
  */
 public record ThemeArt(
         String name,
@@ -52,14 +54,46 @@ public record ThemeArt(
         String propFolder,
         String stairs,
         int fogTint,
+        Standing standing,
         List<Tone> tones,
         List<ThemeMonster> monsters) {
+
+    /**
+     * What a theme's wall piece is, when it is not masonry.
+     *
+     * <p>Every number here answers the same question: is the piece a <em>surface</em>
+     * — a course of stone, a panel, a fence — or a <em>thing</em>? A surface tiles.
+     * Two storeys of it is two courses, every one the same size, all facing the way
+     * the boundary faces, and that is right; a wall that varied would not read as a
+     * wall.
+     *
+     * <p>A thing does none of that. Two storeys of tree is not two trees, it is a
+     * bigger tree. A row of identical trees at identical spacing is not a wood, it
+     * is an orchard — and the eye reads the spacing before it reads the tree, so
+     * the grid the map is built on shows straight through the art.
+     *
+     * @param grows   a run taller than one storey is one piece grown to fit
+     * @param clump   how many stand where the layout asks for one
+     * @param spread  how far from the wall line they scatter, as a fraction of a
+     *     cell
+     * @param variety how much they differ in size, as a fraction either way
+     */
+    public record Standing(boolean grows, int clump, float spread, float variety) {
+
+        /** A wall that is a wall: one piece per storey, all alike. */
+        public static final Standing MASONRY = new Standing(false, 1, 0f, 0f);
+
+        public Standing {
+            clump = Math.max(1, clump);
+        }
+    }
 
     public ThemeArt {
         // A kit whose walls are on the same module as its floors says so by not
         // saying anything, and then this record has to give the answer rather than
         // the zero it was handed — or every reader has to know to ask twice.
         wallTileSize = wallTileSize > 0f ? wallTileSize : tileSize;
+        standing = standing == null ? Standing.MASONRY : standing;
         tones = List.copyOf(tones);
         monsters = List.copyOf(monsters);
     }

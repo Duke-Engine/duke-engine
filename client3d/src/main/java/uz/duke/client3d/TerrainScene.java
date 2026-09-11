@@ -214,7 +214,10 @@ final class TerrainScene {
         // then they have their own scale — see Tileset.wallTileSize.
         float wallScale = cell / tileset.getWallTileSize();
 
-        for (var placement : TileLayout.of(grid)) {
+        var layout = TileLayout.of(grid);
+        var stacks = tileset.wallGrows() ? stacksIn(layout) : java.util.Map.<Standing, int[]>of();
+
+        for (var placement : layout) {
             if (placement.piece() == TileLayout.Piece.STAIR) {
                 addStair(grid, placement, cell);
                 continue;
@@ -223,44 +226,133 @@ final class TerrainScene {
             if (asset == null) {
                 continue; // a kit without corner posts is a kit with square notches
             }
-            var piece = tiles.piece(asset);
-            if (piece == null) {
-                continue;
-            }
             boolean standing = placement.piece() == TileLayout.Piece.WALL
                     || placement.piece() == TileLayout.Piece.CORNER
                     || placement.piece() == TileLayout.Piece.LEDGE;
-            float scale = standing ? wallScale : floorScale;
-            // Measured before it is scaled, because the answer is a fact about the
-            // model and the same for every copy of it.
-            float surface = placement.piece() == TileLayout.Piece.FLOOR
-                    ? topOf(asset, piece) * scale : 0f;
-            piece.setLocalScale(scale);
-            float yaw = FastMath.DEG_TO_RAD * placement.yaw();
-            piece.setLocalRotation(new com.jme3.math.Quaternion()
-                    .fromAngleAxis(yaw, Vector3f.UNIT_Y));
-            // Everything lies on the floor it belongs to except the lid over the
-            // stone, which sits level with the tops of the walls it roofs. A floor
-            // tile's top surface is what has to land on the floor's own height, so
-            // it is sunk by however thick the tile is.
-            // A ledge stands on the roof rather than on the floor: it is the face
-            // of the step between two lids, and a lid sits a wall's height up.
-            float y = placement.ground() + switch (placement.piece()) {
-                case CAP -> tileset.getWallHeight() * wallScale;
-                case LEDGE -> (tileset.getWallHeight() + tileset.getWallLift()) * wallScale;
-                case WALL, CORNER -> tileset.getWallLift() * wallScale;
-                default -> -surface;
-            };
-            // A wall's face belongs on the boundary, and where its own kit put its
-            // origin decides how far back that is. Along the wall's own facing,
-            // which the yaw has just turned.
-            float back = standing ? tileset.getWallShift() * wallScale : 0f;
-            piece.setLocalTranslation(
-                    placement.x() + back * FastMath.sin(yaw),
-                    y,
-                    placement.z() + back * FastMath.cos(yaw));
-            cellNode(placement.cellY() * cellsWide + placement.cellX()).attachChild(piece);
+            // A kit whose wall grows rather than stacks draws the whole run once,
+            // off its lowest piece, and lets the rest of the stack go.
+            int storeys = 1;
+            if (standing && !stacks.isEmpty()) {
+                var stack = stacks.get(new Standing(placement.x(), placement.z(), placement.yaw()));
+                if (stack != null) {
+                    if (placement.ground() > Float.intBitsToFloat(stack[1]) + 0.001f) {
+                        continue;
+                    }
+                    storeys = stack[0];
+                }
+            }
+            int clump = standing ? tileset.getWallClump() : 1;
+            for (int copy = 0; copy < clump; copy++) {
+                addKitPiece(asset, placement, standing, storeys, copy, clump,
+                        standing ? wallScale : floorScale, wallScale, cell);
+            }
         }
+    }
+
+    /** A place a standing piece is put, which the stack above it shares. */
+    private record Standing(float x, float z, float yaw) {
+    }
+
+    /**
+     * How many pieces each stack of standing ones is, and where its foot is —
+     * packed as {@code {count, floatBits(lowestGround)}}.
+     */
+    private static java.util.Map<Standing, int[]> stacksIn(java.util.List<TileLayout.Placement> of) {
+        var stacks = new java.util.HashMap<Standing, int[]>();
+        for (var placement : of) {
+            if (placement.piece() == TileLayout.Piece.FLOOR
+                    || placement.piece() == TileLayout.Piece.CAP
+                    || placement.piece() == TileLayout.Piece.STAIR) {
+                continue;
+            }
+            stacks.compute(new Standing(placement.x(), placement.z(), placement.yaw()),
+                    (key, was) -> was == null
+                            ? new int[] {1, Float.floatToIntBits(placement.ground())}
+                            : new int[] {was[0] + 1, Float.floatToIntBits(
+                                    Math.min(Float.intBitsToFloat(was[1]), placement.ground()))});
+        }
+        return stacks;
+    }
+
+    /**
+     * One piece of a kit, laid where the layout says and dressed the way the kit
+     * asks.
+     *
+     * <p>{@code copy} of {@code clump} is which of the several things standing
+     * where the layout asked for one wall this is — one, for masonry. They are
+     * arranged in a ring behind the wall line, each a different size and facing,
+     * and which size and which facing is settled by where the ring stands rather
+     * than by chance, so the same wood grows the same way every time it is built.
+     */
+    private void addKitPiece(String asset, TileLayout.Placement placement, boolean standing,
+            int storeys, int copy, int clump, float pieceScale, float wallScale, float cell) {
+        var piece = tiles.piece(asset);
+        if (piece == null) {
+            return;
+        }
+        float yaw = FastMath.DEG_TO_RAD * placement.yaw();
+        float scale = pieceScale * storeys;
+        float facing = yaw;
+        float side = 0f;
+        float ring = 0f;
+        if (clump > 1) {
+            float turn = FastMath.TWO_PI
+                    * (copy + steady(placement.x(), placement.z(), copy, 0)) / clump;
+            float radius = tileset.getWallSpread() * cell
+                    * (0.55f + 0.45f * steady(placement.x(), placement.z(), copy, 1));
+            side = radius * FastMath.sin(turn);
+            // Behind the line by its own radius, so what leans over open ground is
+            // canopy and the trunk stays in the solid side.
+            ring = -radius * (1f + FastMath.cos(turn));
+            facing = FastMath.TWO_PI * steady(placement.x(), placement.z(), copy, 2);
+        }
+        if (tileset.getWallVariety() > 0f && standing) {
+            scale *= 1f + tileset.getWallVariety()
+                    * (steady(placement.x(), placement.z(), copy, 3) - 0.5f);
+        }
+        // Measured before it is scaled, because the answer is a fact about the
+        // model and the same for every copy of it.
+        float surface = placement.piece() == TileLayout.Piece.FLOOR
+                ? topOf(asset, piece) * scale : 0f;
+        piece.setLocalScale(scale);
+        piece.setLocalRotation(new com.jme3.math.Quaternion()
+                .fromAngleAxis(facing, Vector3f.UNIT_Y));
+        // Everything lies on the floor it belongs to except the lid over the
+        // stone, which sits level with the tops of the walls it roofs. A floor
+        // tile's top surface is what has to land on the floor's own height, so
+        // it is sunk by however thick the tile is.
+        // A ledge stands on the roof rather than on the floor: it is the face
+        // of the step between two lids, and a lid sits a wall's height up.
+        float y = placement.ground() + switch (placement.piece()) {
+            case CAP -> tileset.getWallHeight() * wallScale;
+            case LEDGE -> (tileset.getWallHeight() + tileset.getWallLift()) * wallScale;
+            case WALL, CORNER -> tileset.getWallLift() * wallScale;
+            default -> -surface;
+        };
+        // A wall's face belongs on the boundary, and where its own kit put its
+        // origin decides how far back that is. Along the wall's own facing,
+        // which the yaw has just turned.
+        float back = (standing ? tileset.getWallShift() * wallScale : 0f) + ring;
+        piece.setLocalTranslation(
+                placement.x() + back * FastMath.sin(yaw) + side * FastMath.cos(yaw),
+                y,
+                placement.z() + back * FastMath.cos(yaw) - side * FastMath.sin(yaw));
+        cellNode(placement.cellY() * cellsWide + placement.cellX()).attachChild(piece);
+    }
+
+    /**
+     * A settled number in {@code [0, 1)} for a place, a copy and a purpose.
+     *
+     * <p>Not chance: a wood that rearranged itself every time the map was redrawn
+     * would be a wood you could not learn, and the same seed has to grow the same
+     * map. So it is a hash of where the thing stands, and nothing else.
+     */
+    private static float steady(float x, float z, int copy, int purpose) {
+        int hash = Float.floatToIntBits(x) * 0x27d4eb2d;
+        hash = (hash ^ Float.floatToIntBits(z)) * 0x165667b1;
+        hash = (hash ^ (copy * 0x9e3779b9 + purpose)) * 0x85ebca6b;
+        hash ^= hash >>> 15;
+        return (hash >>> 8) / (float) (1 << 24);
     }
 
     /**
@@ -286,7 +378,16 @@ final class TerrainScene {
         var climb = climbOf(asset, piece);
         float run = Math.max(0.001f, Math.abs(climb.x) > Math.abs(climb.z)
                 ? box.getXExtent() * 2f : box.getZExtent() * 2f);
-        float rise = Math.max(0.001f, box.getYExtent() * 2f);
+        // Its rise is its run. A modular stair fills one cell and joins the floor
+        // above it — that is what makes it modular — so the two are the same
+        // number, and taking it from the model's own footprint costs nothing.
+        //
+        // The height of the box is *not* that number, and the difference shows.
+        // A flight has rails, and rails stand a hand above the landing they guard:
+        // KayKit's climbs exactly 4 and boxes 5.1, so measuring the box squashed
+        // the stair to four fifths and left it ending in mid-air a fifth of a
+        // storey below the floor it was supposed to reach.
+        float rise = run;
         piece.setLocalScale(cell / run, grid.getLevelHeight() / rise, cell / run);
 
         float own = FastMath.atan2(climb.x, climb.z);

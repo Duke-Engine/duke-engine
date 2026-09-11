@@ -2819,9 +2819,6 @@ final class DukeRtsApp extends SimpleApplication {
      * both stand in whichever pose was written last.
      */
     private void dressModel(Spatial body, Visuals.UnitVisual visual) {
-        if (visual.texturePath == null && visual.tint == null) {
-            return;
-        }
         com.jme3.texture.Texture skin = null;
         if (visual.texturePath != null) {
             try {
@@ -2831,12 +2828,35 @@ final class DukeRtsApp extends SimpleApplication {
             }
         }
         var tint = visual.tint == null ? ColorRGBA.White : toColor(visual.tint);
-        var texture = skin;
+        var named = skin;
         body.depthFirstTraversal(spatial -> {
             if (spatial instanceof Geometry geometry) {
-                geometry.setMaterial(creatureMaterial(texture, tint));
+                geometry.setMaterial(creatureMaterial(
+                        named != null ? named : skinOf(geometry.getMaterial()), tint));
             }
         });
+    }
+
+    /**
+     * The colour map a loaded material already holds.
+     *
+     * <p>Creatures come with a skin beside them and the game names it; kit props
+     * do not — a barrel carries its colours inside its own glTF, pointing at the
+     * pack's atlas. Naming no texture therefore means <em>the one it came
+     * with</em>, not <em>none</em>. Reading it as none is how a barrel and a bare
+     * tree came out plain white: the right shape, lit correctly, wearing the
+     * tint over nothing at all.
+     */
+    private com.jme3.texture.Texture skinOf(Material material) {
+        if (material == null) {
+            return null;
+        }
+        for (var param : material.getParams()) {
+            if (param.getValue() instanceof com.jme3.texture.Texture texture) {
+                return texture;
+            }
+        }
+        return null;
     }
 
     /** Flat lighting over a kit's own colour map, tinted. */
@@ -3291,13 +3311,20 @@ final class DukeRtsApp extends SimpleApplication {
         private final Map<String, Spatial> masters = new HashMap<>();
 
         /**
-         * The atlas kit's shared material, one per tint.
+         * The atlas kit's shared materials, one per picture and cast.
          *
          * <p>Per tint because a tone may ask for the same stone in a colder cast,
          * and one skin for the lot would give whichever floor was built first the
          * casting vote over every later one.
+         *
+         * <p>And per texture, because a kit is not always one atlas. A floor of
+         * beaten earth with a line of trees standing along its edges is two packs
+         * and two pictures, and one skin over both hands the trees the floor's
+         * atlas — every leaf then reads its colour from whatever happens to sit at
+         * those coordinates on the other sheet, which came out as a row of grey
+         * mushrooms.
          */
-        private final Map<Integer, Material> skins = new HashMap<>();
+        private final Map<String, Material> skins = new HashMap<>();
 
         /**
          * One ready piece, dressed the way its kit wants and holding the fog.
@@ -3323,7 +3350,7 @@ final class DukeRtsApp extends SimpleApplication {
             var kit = activeKit();
             boolean own = kit != null && kit.keepsOwnMaterials();
             int tint = kit == null ? 0xFFFFFF : kit.getTint();
-            String key = own ? assetPath + "#" + Integer.toHexString(tint) : assetPath;
+            String key = assetPath + "#" + Integer.toHexString(tint);
             var master = masters.get(key);
             if (master == null) {
                 try {
@@ -3339,12 +3366,11 @@ final class DukeRtsApp extends SimpleApplication {
                 if (own) {
                     refogOwnMaterials(master, toColor(new java.awt.Color(tint)));
                 } else {
-                    // One skin for the whole atlas kit — but one per tint, or the
-                    // first floor built would decide the colour of every later one.
-                    var loaded = master;
-                    master.setMaterial(skins.computeIfAbsent(tint,
-                            colour -> tileMaterial(textureOf(loaded),
-                                    toColor(new java.awt.Color(colour)))));
+                    // One skin per picture the kit draws on, and per tint over it.
+                    var atlas = textureOf(master);
+                    master.setMaterial(skins.computeIfAbsent(
+                            nameOf(atlas) + "#" + Integer.toHexString(tint),
+                            ignored -> tileMaterial(atlas, toColor(new java.awt.Color(tint)))));
                 }
                 masters.put(key, master);
             }
@@ -3411,6 +3437,12 @@ final class DukeRtsApp extends SimpleApplication {
                 material.setTexture("DiffuseMap", atlas);
             }
             return material;
+        }
+
+        /** What a texture is called, for keying a skin by it; untextured pieces share one name. */
+        private String nameOf(com.jme3.texture.Texture atlas) {
+            var key = atlas == null ? null : atlas.getKey();
+            return key == null ? "" : key.getName();
         }
 
         /** The kit's colour atlas, taken off whatever material the loader made. */

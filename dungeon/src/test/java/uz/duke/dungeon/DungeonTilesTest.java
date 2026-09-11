@@ -367,6 +367,90 @@ class DungeonTilesTest {
         return java.util.Set.of();
     }
 
+    /**
+     * A themed prop carries its own colours, because nothing else gives it any.
+     *
+     * <p>A creature is dressed from a skin the file names beside it; a kit prop is
+     * not — a barrel points at the pack's atlas from inside its own glTF, and the
+     * file says only which model to use. So "no texture named" has to mean
+     * <em>the one it came with</em> rather than <em>none</em>, and a prop that
+     * stopped carrying one would come out a plain white barrel-shaped nothing,
+     * correctly lit and completely blank.
+     */
+    @Test
+    void everyThemedPropCarriesTheColoursNobodyNamesForIt() {
+        var themes = uz.duke.dungeon.content.DungeonSettings.load().themes();
+        var assets = assets();
+
+        for (var theme : themes.all()) {
+            for (var themed : theme.monsters()) {
+                var art = theme.monsterWithPaths(themed);
+                if (art.look().texture() != null) {
+                    continue; // dressed from a skin of its own, like a creature
+                }
+                assertTrue(hasTexture(assets.loadModel(art.look().model())),
+                        theme.name() + "/" + art.template() + " is drawn from "
+                                + art.look().model() + ", which names no texture and is "
+                                + "given none — it would render blank white");
+            }
+        }
+    }
+
+    /**
+     * A theme is not always one picture, and the client may not assume it is.
+     *
+     * <p>An atlas kit gets one shared material for the whole floor, which is most
+     * of what keeps six hundred tiles cheap. One skin for the whole <em>theme</em>
+     * is a different claim and a false one: a forest is dirt from one pack and
+     * trees from another, two atlases in one folder, and whichever piece loaded
+     * first decided the picture for the lot. The trees came out wearing the floor's
+     * atlas — grey lumps on white stalks.
+     *
+     * <p>So the skin is keyed by the texture, and this is the fact that makes that
+     * necessary rather than tidy.
+     */
+    @Test
+    void aThemeMayBeDrawnOnMoreThanOnePicture() {
+        var themes = uz.duke.dungeon.content.DungeonSettings.load().themes();
+        var assets = assets();
+        var pictures = new java.util.HashSet<String>();
+
+        for (var theme : themes.all()) {
+            for (var variation : theme.tones()) {
+                var tone = theme.toneWithPaths(variation);
+                for (var path : new String[] {tone.floor(), tone.wall(), theme.stairsPath()}) {
+                    if (path != null) {
+                        pictures.add(theme.name() + " " + textureNameOf(assets.loadModel(path)));
+                    }
+                }
+            }
+        }
+        assertTrue(pictures.stream().filter(named -> named.startsWith("Forest ")).count() > 1,
+                "the forest is dirt from one pack and trees from another, and a client "
+                        + "that skins a theme once would paint one over the other: " + pictures);
+    }
+
+    /** What a model's first texture is called, or {@code "none"}. */
+    private static String textureNameOf(Spatial model) {
+        if (model instanceof Geometry geometry && geometry.getMaterial() != null) {
+            for (var param : geometry.getMaterial().getParams()) {
+                if (param.getValue() instanceof com.jme3.texture.Texture texture
+                        && texture.getKey() != null) {
+                    return texture.getKey().getName();
+                }
+            }
+        }
+        if (model instanceof Node node) {
+            for (var child : node.getChildren()) {
+                var found = textureNameOf(child);
+                if (!found.equals("none")) {
+                    return found;
+                }
+            }
+        }
+        return "none";
+    }
+
     private static boolean hasTexture(Spatial model) {
         if (model instanceof Geometry geometry) {
             var material = geometry.getMaterial();

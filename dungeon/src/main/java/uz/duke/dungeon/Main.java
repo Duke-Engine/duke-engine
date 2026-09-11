@@ -126,6 +126,10 @@ public final class Main {
                             .wallLift(theme.wallLift())
                             .wallShift(theme.wallShift())
                             .ownMaterials(theme.ownMaterials())
+                            .wallGrows(theme.standing().grows())
+                            .wallClump(theme.standing().clump())
+                            .wallSpread(theme.standing().spread())
+                            .wallVariety(theme.standing().variety())
                             .tint(tone.tint()));
                     look.fogTint(theme.fogTint());
                     for (var themed : theme.monsters()) {
