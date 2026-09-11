@@ -87,13 +87,15 @@ final class Cursors {
      * @param playing    whether the world is up at all; a menu or a loading
      *                   screen is neither
      * @param aiming     a skill is armed and waiting to be pointed at something
-     * @param canAim     and this is somewhere it may go
+     * @param canReach   whether the spot under the pointer will take what the next
+     *                   click would do -- somewhere a skill may go when one is
+     *                   armed, and somewhere he may walk when none is
      * @param overPanel  the bar or the minimap, which take clicks and give no
      *                   orders
      * @param overUnit   a selectable creature is under the pointer
      * @param ownUnit    and it is his
      */
-    record Over(boolean playing, boolean aiming, boolean canAim, boolean overPanel,
+    record Over(boolean playing, boolean aiming, boolean canReach, boolean overPanel,
             boolean overUnit, boolean ownUnit) {
     }
 
@@ -116,12 +118,18 @@ final class Cursors {
             return POINT;
         }
         if (over.aiming()) {
-            return over.canAim() ? AIM : DENY;
+            return over.canReach() ? AIM : DENY;
         }
-        if (over.overPanel() || !over.overUnit()) {
+        if (over.overPanel()) {
             return POINT;
         }
-        return over.ownUnit() ? FRIEND : ATTACK;
+        if (over.overUnit()) {
+            return over.ownUnit() ? FRIEND : ATTACK;
+        }
+        // Open ground, and the same question asked of it: stone, or somewhere he
+        // has never been, will not take a walking order any more than it will take
+        // a skill. One refusal, drawn one way.
+        return over.canReach() ? POINT : DENY;
     }
 
     private final AssetManager assets;

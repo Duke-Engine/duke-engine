@@ -2251,6 +2251,41 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
+     * Whether that spot is somewhere he could put his feet, as far as the player
+     * knows.
+     *
+     * <p>A different question from {@link #isOpenAndSeen}, and the difference is
+     * the whole of what each is for. A skill has to be <em>aimed</em>, so it may
+     * only be sent somewhere the player has actually seen. A walking order is not
+     * aimed — it may be given anywhere on the map, the dark included, and how far
+     * he gets is the simulation's business. See {@link Destination}.
+     *
+     * <p>So the dark reads as open here. Not as a kindness: a pointer that turned
+     * away over undiscovered stone would be reading the map out to the player
+     * through the shape of his own cursor.
+     *
+     * <p>What it does say no to is a place he plainly cannot stand — a wall, or
+     * the barrel in the middle of the room. That is a warning and not a veto: the
+     * click still goes, and he walks as near it as the floor allows.
+     */
+    private boolean couldStandThere(Vector3f ground) {
+        var grid = game.getTerrain();
+        if (grid == null) {
+            return true;
+        }
+        var at = new Coord3D(ground.x, ground.z, 0f);
+        int cx = grid.toCellX(at);
+        int cy = grid.toCellY(at);
+        if (!grid.inBounds(cx, cy)) {
+            return false;
+        }
+        if (discovery != null && discovery.stateAt(cx, cy) == Discovery.State.UNSEEN) {
+            return true; // unknown ground is not known to be bad
+        }
+        return !grid.isBlocked(cx, cy);
+    }
+
+    /**
      * A click on a skill slot casts it, exactly as pressing its key would.
      *
      * <p>Down the same road, deliberately: the click ends in {@link #pressHotkey},
@@ -2412,10 +2447,13 @@ final class DukeRtsApp extends SimpleApplication {
             game.postCommand(new GameMessage.MoveTo(local, List.of(units.get(i)),
                     new Coord3D(spots.get(i).x(), spots.get(i).y(), 0f)));
         }
-        // One mark for the order, not one per unit: it was a single decision.
-        // Put where they are really going, so a click into stone answers with the
-        // place they will stop rather than with a promise nothing can keep.
-        markOrder(target.x(), target.y(), OrderMarkers.Kind.MOVE);
+        // One mark for the order, not one per unit: it was a single decision. And
+        // put WHERE HE CLICKED rather than where they will end up. The mark is an
+        // answer to the click -- "that, understood" -- and moving it to the place
+        // they can reach answers a question the player did not ask and hides the
+        // one thing he wants to see, which is whether he clicked where he meant
+        // to. How far they actually get is theirs to work out on the way.
+        markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
         // And one answer, for the same reason. His own orders only: in a game
         // with more than one player at it each hears his own hero and nobody
         // hears anyone else's.
@@ -2683,14 +2721,16 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var at = inputManager.getCursorPosition();
         boolean aiming = arming != null;
-        boolean canAim = true;
+        boolean canReach = true;
         if (aiming) {
             var binding = hotkeys.all().get(arming);
-            canAim = binding == null || binding.aim() != Hotkeys.Aim.OPEN_GROUND
+            canReach = binding == null || binding.aim() != Hotkeys.Aim.OPEN_GROUND
                     || isOpenAndSeen(groundUnder(at.x, at.y));
+        } else {
+            canReach = couldStandThere(groundUnder(at.x, at.y));
         }
         var over = aiming ? null : pickUnit();
-        return new Cursors.Over(true, aiming, canAim,
+        return new Cursors.Over(true, aiming, canReach,
                 heroPanel.contains(at.x, at.y) || overTheMinimap(at),
                 over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex());
     }

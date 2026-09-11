@@ -20,10 +20,18 @@ import uz.duke.core.pathfind.PathGrid;
  * the same kind of question is already answered for aiming a skill — see
  * {@code isOpenAndSeen} — about the same map and for the same reason.
  *
- * <p><b>The map, not the moment.</b> Only stone counts as impassable here, never
- * a creature standing in the doorway. Bodies move; shortening an order because
- * something happened to be in the way at the instant of the click would be a
- * worse fault than the one this fixes, and a much harder one to see.
+ * <p><b>The map, not the moment.</b> Stone and the furniture standing on it — a
+ * pillar, a barrel, a chest — but never a creature in the doorway. Bodies move;
+ * shortening an order because something happened to be in the way at the instant
+ * of the click would be a worse fault than the one this fixes, and a much harder
+ * one to see. The two are already apart in the grid: its obstacle layer is baked
+ * from things that cannot move, so nothing alive is ever in it.
+ *
+ * <p>Counting the furniture is what makes a click on a barrel an order at all.
+ * The mover's own search refuses a goal cell it cannot enter and comes back with
+ * no route, so pointing at a barrel was a click that did nothing — which is
+ * exactly the fault this class was written to end, surviving in the one place
+ * nobody thought to look for it.
  */
 final class Destination {
 
@@ -119,9 +127,10 @@ final class Destination {
     /**
      * Whether the map allows a step from one cell to the next.
      *
-     * <p>{@link PathGrid#canStep} in every respect but one: what is standing on a
-     * cell does not count, only what the map is made of. The mover's own search
-     * asks whether it can go there now; this asks whether it could ever, and the
+     * <p>{@link PathGrid#canStep} in every respect but one: it asks the grid,
+     * which knows the map and what is bolted to it, rather than the world, which
+     * also knows who is standing where this instant. The mover's own search asks
+     * whether it can go there now; this asks whether it could ever, and the
      * difference between the two questions is exactly a monster in a corridor.
      *
      * <p>The corner rule and the level rule are the mover's, because a route this
@@ -129,11 +138,11 @@ final class Destination {
      * standing still — which is the whole of what is being fixed.
      */
     private static boolean canWalk(PathGrid grid, int fromX, int fromY, int toX, int toY) {
-        if (grid.isTerrainBlocked(toX, toY)) {
+        if (grid.isBlocked(toX, toY)) {
             return false;
         }
         boolean diagonal = fromX != toX && fromY != toY;
-        if (diagonal && (grid.isTerrainBlocked(toX, fromY) || grid.isTerrainBlocked(fromX, toY))) {
+        if (diagonal && (grid.isBlocked(toX, fromY) || grid.isBlocked(fromX, toY))) {
             return false; // no cutting round the corner of a wall
         }
         int climb = grid.level(toX, toY) - grid.level(fromX, fromY);

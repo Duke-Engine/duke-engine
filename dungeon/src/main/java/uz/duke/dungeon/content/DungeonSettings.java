@@ -66,6 +66,7 @@ public final class DungeonSettings {
     private int skeletonRepathFrames = 10;
     private float closeDistance = 4f;
     private int heroRepathFrames = 10;
+    private float wayAheadProbe = 5f;
     private String arrowTemplate = "Arrow";
     private float arrowSpeed = 260f;
     private float arrowMuzzleOffset = 5f;
@@ -688,6 +689,7 @@ public final class DungeonSettings {
                     .add("SkeletonRepathFrames", Ini.integer((s, v) -> s.skeletonRepathFrames = v))
                     .add("CloseDistance", Ini.real((s, v) -> s.closeDistance = v))
                     .add("HeroRepathFrames", Ini.integer((s, v) -> s.heroRepathFrames = v))
+                    .add("WayAheadProbe", Ini.real((s, v) -> s.wayAheadProbe = v))
                     .add("ArrowTemplate", Ini.string((s, v) -> s.arrowTemplate = v))
                     .add("ArrowSpeed", Ini.real((s, v) -> s.arrowSpeed = v))
                     .add("ArrowMuzzleOffset", Ini.real((s, v) -> s.arrowMuzzleOffset = v));
@@ -1982,6 +1984,11 @@ public final class DungeonSettings {
      */
     public float closeDistance() {
         return closeDistance;
+    }
+
+    /** How far ahead a walking thing looks for a body; see {@code WayAhead}. */
+    public float wayAheadProbe() {
+        return wayAheadProbe;
     }
 
     public int heroRepathFrames() {

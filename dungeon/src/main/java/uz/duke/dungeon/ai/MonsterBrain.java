@@ -5,6 +5,7 @@ import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.World;
 import uz.duke.dungeon.combat.Swing;
+import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.content.MonsterKind;
 import uz.duke.game.script.UnitScript;
 import uz.duke.rts.module.WeaponUpdate;
@@ -38,6 +39,7 @@ public final class MonsterBrain extends UnitScript {
     private static final float THE_WHOLE_FLOOR = 100_000f;
 
     private final MonsterKind kind;
+    private final DungeonSettings settings;
     private boolean chasing;
 
     /**
@@ -61,8 +63,18 @@ public final class MonsterBrain extends UnitScript {
      */
     private Coord3D sentAfter;
 
-    public MonsterBrain(MonsterKind kind) {
+    /**
+     * The spot in front of it that a body is standing in, while one is — so it
+     * stands still instead of shoving. Null when it is free to walk.
+     *
+     * <p>The spot rather than "am I blocked", because it has to keep asking about
+     * the <em>same</em> piece of floor: see {@link WayAhead}.
+     */
+    private Coord3D waitingOn;
+
+    public MonsterBrain(MonsterKind kind, DungeonSettings settings) {
         this.kind = kind;
+        this.settings = settings;
     }
 
     @Override
@@ -133,6 +145,27 @@ public final class MonsterBrain extends UnitScript {
     }
 
     private void advanceOn(MoveUpdate move, GameObject hero) {
+        if (waitingOn != null) {
+            if (WayAhead.stillShut(unit(), waitingOn, hero)) {
+                return; // the way is shut. Stand, and look again next frame.
+            }
+            // It opened — or the wait stopped being about anything. Go, whether or
+            // not he has moved since: what changed was the road, not the quarry,
+            // and Chasing knows only about quarries.
+            waitingOn = null;
+            sendAfter(hero);
+            return;
+        }
+        var ahead = WayAhead.justAhead(unit(), settings.wayAheadProbe());
+        if (WayAhead.occupied(unit(), ahead, hero)) {
+            // Nothing in front of it but a body: stand rather than shove, and
+            // remember the spot rather than the heading. See WayAhead.
+            waitingOn = ahead;
+            if (move.isMoving()) {
+                move.stop();
+            }
+            return;
+        }
         if (!Chasing.worthReplanning(sentAfter, hero.getPosition())) {
             return; // already on its way to where he is; see Chasing
         }
@@ -199,6 +232,7 @@ public final class MonsterBrain extends UnitScript {
     private void giveUp() {
         chasing = false;
         sentAfter = null; // the next fight is a new chase, not the tail of this one
+        waitingOn = null;
         var move = unit().findModule(MoveUpdate.class);
         if (move != null) {
             move.stop();

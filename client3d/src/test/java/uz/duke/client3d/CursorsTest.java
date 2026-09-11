@@ -192,13 +192,27 @@ class CursorsTest {
 
     // ---- which pointer, and when ----
 
-    private static Cursors.Over overNothing() {
-        return new Cursors.Over(true, false, false, false, false, false);
+    /** Nothing under it but floor he could walk on. */
+    private static Cursors.Over overOpenGround() {
+        return new Cursors.Over(true, false, true, false, false, false);
     }
 
     @Test
     void overOpenGroundItIsThePlainPointer() {
-        assertEquals(Cursors.POINT, Cursors.situationFor(overNothing()));
+        assertEquals(Cursors.POINT, Cursors.situationFor(overOpenGround()));
+    }
+
+    /**
+     * And over somewhere he cannot put his feet, the same refusal a skill gets.
+     *
+     * <p>One drawing for one meaning: "the next click cannot do that <em>here</em>".
+     * A wall refuses a walking order for the same reason it refuses a fire-trap,
+     * and a player who has learnt the picture once has learnt it for both.
+     */
+    @Test
+    void overStoneItRefuses() {
+        assertEquals(Cursors.DENY, Cursors.situationFor(
+                new Cursors.Over(true, false, false, false, false, false)));
     }
 
     @Test

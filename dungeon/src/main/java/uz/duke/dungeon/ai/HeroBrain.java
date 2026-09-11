@@ -72,6 +72,16 @@ public final class HeroBrain extends UnitScript {
      */
     private Coord3D sentAfter;
 
+    /**
+     * The spot in front of him that a body is standing in, while one is — so he
+     * stands still instead of shoving. Null when he is free to walk.
+     *
+     * <p>The spot rather than "am I blocked", because he has to keep asking about
+     * the <em>same</em> piece of floor even as he turns to face what he is
+     * shooting: see {@link WayAhead}.
+     */
+    private Coord3D waitingOn;
+
     /** The standing orders his player has given; see {@link Orders}. */
     private final Orders orders;
 
@@ -107,13 +117,49 @@ public final class HeroBrain extends UnitScript {
                 && canSee(ordered)) {
             move.stop(); // close enough and in sight; standing still is how he fires
             Facing.turnToward(unit(), ordered);
-        } else if (Chasing.worthReplanning(sentAfter, ordered.getPosition())
+            waitingOn = null;
+        } else {
+            advanceOn(move, ordered);
+        }
+    }
+
+    /**
+     * Walk at what he was sent at — unless there is a body in the doorway, in
+     * which case stand and let it pass.
+     *
+     * <p>Standing still is the fix rather than a symptom of giving up. With no
+     * room in front of him the locomotor steps aside instead, is pushed back, and
+     * tries again thirty times a second, and re-planning less often cannot stop it
+     * because the shuffle happens between the orders rather than because of them.
+     * See {@link WayAhead}.
+     */
+    private void advanceOn(MoveUpdate move, GameObject quarry) {
+        if (waitingOn != null) {
+            if (WayAhead.stillShut(unit(), waitingOn, quarry)) {
+                return; // the way is shut. Stand, and look again next frame.
+            }
+            // It opened — or the wait stopped being about anything. Off he goes,
+            // whether or not the quarry has moved since: what changed was the
+            // road, and Chasing knows only about quarries.
+            waitingOn = null;
+            sendAfter(quarry);
+            return;
+        }
+        var ahead = WayAhead.justAhead(unit(), settings.wayAheadProbe());
+        if (WayAhead.occupied(unit(), ahead, quarry)) {
+            waitingOn = ahead;
+            if (move.isMoving()) {
+                move.stop();
+            }
+            return;
+        }
+        if (Chasing.worthReplanning(sentAfter, quarry.getPosition())
                 && (!move.isMoving() || frame() % settings.heroRepathFrames() == 0)) {
             // Off at once when he is standing, and corrected on the way — but
             // only when there is something to correct. See Chasing: ordering him
             // to the place he is already going restarts him, and it was the
             // restarting that kept him shoving at a body he could not pass.
-            sendAfter(ordered);
+            sendAfter(quarry);
         }
     }
 
@@ -168,6 +214,7 @@ public final class HeroBrain extends UnitScript {
         sentAt = id;
         orderedAtFrame = frame();
         sentAfter = null; // a new order is a new chase, however near the old one stood
+        waitingOn = null;
         move.stop();
         return current;
     }
@@ -269,6 +316,7 @@ public final class HeroBrain extends UnitScript {
             weapon.holdFire();
         }
         sentAt = null;
+        waitingOn = null;
     }
 
     /** The target a skill pointed his weapon at, which is the skill's and not an order. */

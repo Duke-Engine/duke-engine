@@ -145,7 +145,7 @@ public final class Dungeon {
                     // names — so adding a monster is two blocks of INI and no Java.
                     for (var kind : settings.monsters()) {
                         ScriptModule.registerScript(factory, kind.brainTag(),
-                                () -> new MonsterBrain(kind));
+                                () -> new MonsterBrain(kind, settings));
                     }
                     // Hero and monsters alike need a body that can grow: levels
                     // raise his, depth raises theirs, and the engine's fixes its

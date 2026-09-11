@@ -121,23 +121,64 @@ class DestinationTest {
                 "with a stair it is an ordinary walk and the click should stand");
     }
 
+    /**
+     * A statue in the doorway is a wall with a statue in it.
+     *
+     * <p>This test used to say the opposite, and used to be right about the wrong
+     * thing. Its worry was a <em>creature</em> in the doorway — cutting an order
+     * short because a skeleton happened to be standing there at the instant of the
+     * click would be a worse fault than the one this class fixes, and an
+     * intermittent one, which is the hardest kind to find. That worry stands. What
+     * was wrong was the way it was written: creatures are never in this layer at
+     * all. The grid's obstacle layer is baked from things that <b>cannot move</b>
+     * — see {@code GameLogic.refreshStaticObstacles}, and
+     * {@code WedgedTest.aCreatureIsNeverBakedIntoTheMap} for the same fact
+     * measured on a running game — so putting a creature in it to prove creatures
+     * are exempt proved nothing, and kept the real fault alive: a click on a
+     * barrel was an order the mover's own search could not answer, and the hero
+     * stood there.
+     */
     @Test
-    void aBodyInTheDoorwayDoesNotShortenTheOrder() {
+    void furnitureInTheDoorwayDoesShortenTheOrder() {
         var grid = openFloor();
         for (int y = 0; y < 20; y++) {
             grid.setBlocked(10, y, y != 9); // a wall with one gap in it
         }
         grid.beginObstacles();
-        grid.setObstacle(10, 9); // and something standing in the gap
+        grid.setObstacle(10, 9); // and a statue standing in the gap
         grid.commitObstacles();
 
-        var wanted = at(155f, 95f); // the far side of the wall
-        var target = Destination.asCloseAsHeCanGet(grid, at(25f, 95f), wanted);
+        var target = Destination.asCloseAsHeCanGet(grid, at(25f, 95f), at(155f, 95f));
 
-        // Creatures move. Cutting the order short because one happened to be in
-        // the doorway at the instant of the click would be a worse fault, and an
-        // intermittent one -- the hardest kind to find.
-        assertSame(wanted, target, "a monster in the door does not make the far room unreachable");
+        assertTrue(grid.toCellX(target) < 10,
+                "the only way through is stopped up, so he stays on his own side: he was sent to "
+                        + grid.toCellX(target) + "," + grid.toCellY(target));
+    }
+
+    /**
+     * A click on the barrel in the middle of the room walks him up to the barrel.
+     *
+     * <p>The plainest shape of the fault and the last one left: nothing is between
+     * them, the floor all round it is open, and the one cell he was pointed at is
+     * the one cell he cannot stand in. Judged by the map alone that click was
+     * reachable, so it was passed through untouched — and then the mover's own
+     * search, which does know about the barrel, found no route and he never moved.
+     */
+    @Test
+    void aClickOnFurnitureWalksHimUpToIt() {
+        var grid = openFloor();
+        grid.beginObstacles();
+        grid.setObstacle(10, 10); // one barrel, standing in the open
+        grid.commitObstacles();
+        var barrel = at(105f, 105f); // the middle of that cell
+
+        var target = Destination.asCloseAsHeCanGet(grid, at(25f, 105f), barrel);
+
+        assertFalse(grid.isBlocked(grid.toCellX(target), grid.toCellY(target)),
+                "he cannot be sent to stand inside the barrel");
+        assertTrue(target.distance(barrel) <= 15f,
+                "he should stop against it rather than short of it, but stopped "
+                        + target.distance(barrel) + " away");
     }
 
     @Test
