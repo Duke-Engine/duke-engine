@@ -2344,18 +2344,41 @@ final class DukeRtsApp extends SimpleApplication {
             markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
             return;
         }
+        // Pointed at somewhere he cannot get to, he goes as near it as he can
+        // rather than nowhere at all. See Destination.
+        var target = asNearAsTheyCanGet(ground);
         // Spread the group around the click so they don't all fight for one spot.
-        var spots = Formation.spread(units.size(), ground.x, ground.z);
+        var spots = Formation.spread(units.size(), target.x(), target.y());
         for (int i = 0; i < units.size(); i++) {
             game.postCommand(new GameMessage.MoveTo(local, List.of(units.get(i)),
                     new Coord3D(spots.get(i).x(), spots.get(i).y(), 0f)));
         }
         // One mark for the order, not one per unit: it was a single decision.
-        markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
+        // Put where they are really going, so a click into stone answers with the
+        // place they will stop rather than with a promise nothing can keep.
+        markOrder(target.x(), target.y(), OrderMarkers.Kind.MOVE);
         // And one answer, for the same reason. His own orders only: in a game
         // with more than one player at it each hears his own hero and nobody
         // hears anyone else's.
         noises.moment("vo.move", (float) timer.getTimeInSeconds());
+    }
+
+    /**
+     * The click, pulled back to the nearest place the selected units can reach.
+     *
+     * <p>Measured from the first of them. A dungeon holds one hero, and even with
+     * a party behind him the map is the same map — a click into stone is out of
+     * everyone's reach, and which of them worked that out does not show.
+     */
+    private Coord3D asNearAsTheyCanGet(Vector3f ground) {
+        var wanted = new Coord3D(ground.x, ground.z, 0f);
+        for (var view : snapshot.units()) {
+            if (selected.contains(view.id())) {
+                return Destination.asCloseAsHeCanGet(game.getTerrain(),
+                        new Coord3D(view.x(), view.y(), 0f), wanted);
+            }
+        }
+        return wanted;
     }
 
     /** Acknowledge an order where the player clicked. Presentation only. */

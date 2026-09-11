@@ -21,6 +21,9 @@ package uz.duke.dungeon.content;
  * @param closeDistance how close it walks before stopping to attack — the whole
  *                     difference between something that closes and something that
  *                     shoots from a distance
+ * @param alertRadius  how far its shout carries when it starts fighting -- anything
+ *                     of its own within that and in plain sight of it joins in.
+ *                     Zero for something that fights alone
  * @param repathFrames frames between re-planning its route
  * @param minDepth     the first depth it appears at, so the dungeon gets nastier
  *                     without ever showing everything at once
@@ -36,6 +39,7 @@ public record MonsterKind(
         float senseRadius,
         float chaseRadius,
         float closeDistance,
+        float alertRadius,
         int repathFrames,
         int swingFrames,
         int minDepth,

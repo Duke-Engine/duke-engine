@@ -1,5 +1,6 @@
 package uz.duke.dungeon.ai;
 
+import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.World;
@@ -53,6 +54,13 @@ public final class MonsterBrain extends UnitScript {
     private boolean wounded;
     private float healthWhenLastLooked = -1f;
 
+    /**
+     * Where the last order sent it, so the next one is only given if the hero has
+     * actually gone somewhere. See {@link Chasing} for why re-ordering a mover to
+     * the place it is already heading is not free.
+     */
+    private Coord3D sentAfter;
+
     public MonsterBrain(MonsterKind kind) {
         this.kind = kind;
     }
@@ -65,6 +73,13 @@ public final class MonsterBrain extends UnitScript {
         float reachOut = wounded ? THE_WHOLE_FLOOR
                 : chasing ? kind.chaseRadius() : kind.senseRadius();
         var hero = findNearestEnemy(reachOut);
+        if (hero == null && !chasing && somethingNearbyHasStarted()) {
+            // Roused by a neighbour rather than by its own eyes, and then it looks
+            // as far as it would once already in a fight. This is what makes a
+            // room a room: the one at the door engages, the ones at the back hear
+            // it, and the fight is with all of them instead of with a queue.
+            hero = findNearestEnemy(kind.chaseRadius());
+        }
         if (hero == null) {
             if (chasing) {
                 giveUp();
@@ -118,11 +133,54 @@ public final class MonsterBrain extends UnitScript {
     }
 
     private void advanceOn(MoveUpdate move, GameObject hero) {
+        if (!Chasing.worthReplanning(sentAfter, hero.getPosition())) {
+            return; // already on its way to where he is; see Chasing
+        }
+        if (!move.isMoving()) {
+            sendAfter(hero);
+            return;
+        }
         int repath = kind.repathFrames();
         int stagger = Math.floorMod(unit().getId().value(), repath);
-        if (!move.isMoving() || frame() % repath == stagger) {
-            moveTo(hero.getPosition().x(), hero.getPosition().y());
+        if (frame() % repath == stagger) {
+            sendAfter(hero);
         }
+    }
+
+    private void sendAfter(GameObject hero) {
+        sentAfter = hero.getPosition();
+        moveTo(sentAfter.x(), sentAfter.y());
+    }
+
+    /**
+     * Whether one of its own is already fighting, near enough and in plain sight.
+     *
+     * <p>"Fighting" is read off the weapon rather than out of another brain: a
+     * creature that has named a target is a creature in a fight, and that is
+     * public where a brain's own state is not. It also means the shout needs no
+     * mechanism — no event, no flag passed around, nothing to keep in step. Every
+     * monster simply looks.
+     *
+     * <p><b>In plain sight</b> is what makes it a room rather than a radius. Stone
+     * between them and the shout does not carry, so a fight in one room does not
+     * empty the next one through the wall — which is the same rule the archer's
+     * eyes follow, for the same reason.
+     */
+    private boolean somethingNearbyHasStarted() {
+        if (kind.alertRadius() <= 0f || world() == null) {
+            return false;
+        }
+        return world().findClosest(unit().getPosition(), kind.alertRadius(), other ->
+                other != unit()
+                        && other.getPlayerIndex() == unit().getPlayerIndex()
+                        && !other.isEffectivelyDead()
+                        && isFighting(other)
+                        && SightLine.clear(unit(), other)) != null;
+    }
+
+    private static boolean isFighting(GameObject creature) {
+        var weapon = creature.findModule(WeaponUpdate.class);
+        return weapon != null && weapon.isAttacking();
     }
 
     /** Compare what health it has with what it had, and remember being hit. */
@@ -140,6 +198,7 @@ public final class MonsterBrain extends UnitScript {
 
     private void giveUp() {
         chasing = false;
+        sentAfter = null; // the next fight is a new chase, not the tail of this one
         var move = unit().findModule(MoveUpdate.class);
         if (move != null) {
             move.stop();

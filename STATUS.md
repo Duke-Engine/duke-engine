@@ -1,8 +1,6 @@
-| `client3d/…/client3d/ProjectileEffects.java` | uchayotgan narsa qanday yonadi: iz, yoritilgan tana, tegishdagi portlash — pool, yorug'lik byudjeti, kodda yasalgan uchqun teksturasi |
-| `client3d/src/main/resources/MatDefs/duke/` | relyef materiali: tumanni dunyo x/z bo'yicha o'qiydigan shader + to'rtta ko'chma point light |
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-10 · **Testlar:** 672 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-11 · **Testlar:** 844 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -1365,8 +1363,9 @@ ikkala peer aynan bir kadrda qo'llaydi.
   buyrug'i**. Klavish bosilishi klientda faqat `postCommand` qiladi; nishon
   tanlash, kuluar, daraja tekshiruvi — hammasi simulyatsiyada, kadr chegarasida.
   Buning uchun engine chokining o'zi ochildi (quyida).
-- **Skeletlar qahramonni quvadi** — `SkeletonBrain` ikki radius bilan: sezish
-  (~bitta xona, aggro xonama-xona tarqaladi) va quvish (kengroq, lekin cheklangan).
+- **Skeletlar qahramonni quvadi** — `MonsterBrain` uch radius bilan: sezish
+  (~bitta xona), chaqirish (`AlertRadius` — qo'shnisi jang boshlasa, ko'rinish
+  chizig'i ochiq bo'lsa, bu ham boshlaydi) va quvish (kengroq, lekin cheklangan).
   Skelet qahramondan sekinroq, shuning uchun jangdan chiqib ketish haqiqiy taktika.
   Test radiusda skeletning yaqinlashishini va radiusdan tashqarida **qimirlamasligini**
   qulflaydi; qiymatlar testga yozilmaydi — sozlamalardan o'qiladi.
@@ -2051,6 +2050,49 @@ ikkala peer aynan bir kadrda qo'llaydi.
   yozilgan edi (radius o'sha shablonning `VisionRange`i), kod esa hammaga
   ochardi. `null` = hammasi ko'radi (RTS uchun eski xatti-harakat saqlangan).
 
+### 8.aa Xona birga jang qiladi, tiqilgan narsa to'xtaydi
+
+Bir kadrda ko'ringan to'rt nuqson; hammasi `dungeon` va `client3d` da hal bo'ldi.
+
+- **Uchinchi qavat bossi ham otadi.** `Necromancer` — `Revenant`ning kattasi, va
+  endi uning otishi ham kattasi: `Bow { Projectile = GreaterFireball }`,
+  `EyesOnly`, `AttackRange = 56`. Shar model kattaligiga yarasha kattaroq, lekin
+  kodda emas — `DungeonProjectile GreaterFireball` + `DungeonEffect
+  MageFireGreater` (OrbSize 2.6, Particles 54, LightRadius 70). Test
+  `everyThrowerActuallyThrowsSomething` shablonlardan o'qiydi: `Bow` ko'targan
+  har bir tur haqiqatan ham o'z snaryadini uchiradi va u qahramonga yetadi.
+
+- **Xonadagi maxluqlar bir-birini chaqiradi.** `MonsterKind.alertRadius`
+  (`AlertRadius`, standarti 70). Ko'zi hech kimni ko'rmagan maxluq atrofiga
+  qaraydi: o'ziniki, tirik, **quroli nishon olgan** va **oradan tosh o'tmagan**
+  bittasi jang boshlagan bo'lsa, u ham boshlaydi. "Jang qilyapti" degani
+  brainning ichki holati emas, `WeaponUpdate.isAttacking()` — ya'ni hech qanday
+  hodisa, bayroq yoki ro'yxat kerak emas, har kim shunchaki qaraydi.
+  `SightLine.clear` shuning uchun bor: aks holda bitta xonadagi jang devor
+  orqali qo'shni xonani bo'shatib yuborardi, va bu almashtirgan navbatdan
+  yomonroq bo'lardi.
+
+- **Tiqilib qolgan narsa joyida to'xtaydi.** Sabab `core` da emas edi: miyalar
+  buyruqni ham soat bo'yicha, ham yuruvchi to'xtagan zahoti qayta berardi, har
+  bir buyruq esa `MoveUpdate` ning "yaqinlashmayapti" hisoblagichini nolga
+  qaytaradi — ya'ni ikki soniyalik voz kechish tekshiruvi hech qachon oxiriga
+  yetmasdi. Yangi `Chasing.worthReplanning` qoidasi: quvilayotgan narsa **yarim
+  katakdan ko'p siljisagina** qayta yo'l quriladi. O'lchandi: koridorda tanaga
+  tiqilgan qahramon avval 150 kadrning **150 tasida** "yuryapti" holatida edi
+  (oyoqlari yuradi, o'zi qimirlamaydi), endi **0 tasida**. Narxi hujjatlashtirdi:
+  yo'lini to'sgan tana ketib qolsa, u quvlayotgani siljigunicha kutadi —
+  jangda bu bir lahza.
+
+- **Bora olmaydigan joyga buyruq endi ishlaydi.** Toshga, zinasiz balkonga yoki
+  berk xonaga bosilgan klik jimgina hech narsa qilmasdi: qidiruv yo'l topmaydi va
+  qahramon turaveradi. Endi klient `Destination.asCloseAsHeCanGet` bilan
+  qahramon turgan katakdan **toshqin (BFS)** yuborib, klikka eng yaqin bora
+  oladigan katakni tanlaydi — bora olsa klik **aynan o'zi** qoladi (katak
+  markaziga tortilmaydi), aks holda buyruq ham, metka ham shu yaqin joyga
+  tushadi. **Faqat tosh** to'siq hisoblanadi, eshikda turgan maxluq emas: tanalar
+  ketadi, va klik payti yo'lda kim turganiga qarab buyruqni qisqartirish
+  tuzatilayotgan nuqsondan battar bo'lardi.
+
 ---
 
 ## 9. Nima yo'q / ochiq ishlar
@@ -2434,6 +2476,8 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/MinimapProjection.java` | dunyo ↔ minimap matematikasi + viewport konturi |
 | `client3d/…/client3d/CameraFocus.java` | kamera nishoni/zoom — boshda o'z birligiga, keyin erkin |
 | `client3d/…/client3d/{SelectionBox,Formation,OrderMarkers}.java` | drag-select, guruh joylashuvi, buyruq metkalari |
+| `client3d/…/client3d/Destination.java` | bora olmaydigan joyga bosilgan klikni eng yaqin bora oladigan katakka tortadi (toshqin; faqat tosh to'siq) |
+| `client3d/…/client3d/ProjectileEffects.java` | uchayotgan narsa qanday yonadi: iz, yoritilgan tana, tegishdagi portlash — pool, yorug'lik byudjeti, kodda yasalgan uchqun teksturasi |
 | `client3d/…/client3d/Discovery.java` | kashfiyot tumani — uzluksiz yorug'lik, fazoviy+vaqt silliqlash (faqat klient) |
 | `dungeon/…/dungeon/combat/Swing.java` | zarba qachon tushganini aytadi — hech narsa uchirmaydi |
 | `client3d/…/client3d/TileLayout.java` | qaysi plitka qayerda — sof arifmetika, jME'siz |
@@ -2451,7 +2495,8 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/Dungeon.java` | o'yinni yig'ish (fixture xona va haqiqiy o'yin) |
 | `dungeon/…/dungeon/content/DungeonSettings.java` | `dungeon.ini` — generatsiya va xulq sozlamalari |
 | `dungeon/…/dungeon/gen/DungeonGenerator.java` | seed'dan xonalar + koridorlar (ulanish kafolati) |
-| `dungeon/…/dungeon/ai/{HeroBrain,SkeletonBrain}.java` | klik-ataka va skelet AI'si |
+| `dungeon/…/dungeon/ai/{HeroBrain,MonsterBrain}.java` | klik-ataka va maxluq AI'si (xonani chaqirish shu yerda) |
+| `dungeon/…/dungeon/ai/Chasing.java` | quvishni qachon qayta rejalash kerak — tiqilgan narsa to'xtab qolishining yagona sababi |
 | `dungeon/…/dungeon/run/DungeonRun.java` | run loop: o'lim → yangi seed → yangi dungeon |
 | `dungeon/…/dungeon/skill/{Skill,SkillEffect}.java` | skill ma'lumoti + daraja arifmetikasi (sof) |
 | `dungeon/…/dungeon/skill/SkillBook.java` | qahramon moduli: kuluar, effektlar, `DamageModifier` |
@@ -2478,6 +2523,6 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/LevelUpOverlay.java` | daraja tanlash ekrani — mexanizm klientniki, so'zlar o'yinniki |
 | `client3d/…/client3d/Fog.java` | tuman sozlamasi (LOS, uch qatlam yorqinligi, yumshoqlik, tekstura o'lchami, rang) |
 | `client3d/…/client3d/FogMap.java` | tumanning o'zi — xaritaning qorong'ilik surati (alfa-tekstura) |
-| `client3d/src/main/resources/MatDefs/duke/` | relyef materiali: tumanni dunyo x/z bo'yicha o'qiydigan shader |
+| `client3d/src/main/resources/MatDefs/duke/` | relyef materiali: tumanni dunyo x/z bo'yicha o'qiydigan shader + to'rtta ko'chma point light |
 | `client3d/…/client3d/EdgeScroll.java` | kursor bilan kamerani surish sozlamasi |
 | `dungeon/src/main/resources/ini/*.ini` | o'yin ma'lumoti — kompilyatsiyasiz sozlanadi |

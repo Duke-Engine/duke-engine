@@ -874,6 +874,7 @@ public final class DungeonSettings {
         float senseRadius = 90f;
         float chaseRadius = 150f;
         float closeDistance = 4f;
+        float alertRadius = 70f;
         int repathFrames = 10;
         int swingFrames = 12;
         int minDepth = 1;
@@ -902,7 +903,7 @@ public final class DungeonSettings {
         }
 
         MonsterKind build() {
-            return new MonsterKind(name, senseRadius, chaseRadius, closeDistance,
+            return new MonsterKind(name, senseRadius, chaseRadius, closeDistance, alertRadius,
                     repathFrames, swingFrames, minDepth, weight, colour, scale, look());
         }
 
@@ -919,6 +920,7 @@ public final class DungeonSettings {
                     .add("SenseRadius", Ini.real((m, v) -> m.senseRadius = v))
                     .add("ChaseRadius", Ini.real((m, v) -> m.chaseRadius = v))
                     .add("CloseDistance", Ini.real((m, v) -> m.closeDistance = v))
+                    .add("AlertRadius", Ini.real((m, v) -> m.alertRadius = v))
                     .add("RepathFrames", Ini.integer((m, v) -> m.repathFrames = v))
                     .add("SwingFrames", Ini.integer((m, v) -> m.swingFrames = v))
                     .add("MinDepth", Ini.integer((m, v) -> m.minDepth = v))

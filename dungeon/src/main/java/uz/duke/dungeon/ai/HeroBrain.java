@@ -1,5 +1,6 @@
 package uz.duke.dungeon.ai;
 
+import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
@@ -64,6 +65,13 @@ public final class HeroBrain extends UnitScript {
     /** Cached: his weapon's range, read from his own template. See {@link #reachOfHisWeapon}. */
     private float weaponRange = -1f;
 
+    /**
+     * Where his last walking order sent him, so the next one is only given if what
+     * he is chasing has actually gone somewhere. See {@link Chasing} for why
+     * re-ordering him to the place he is already walking to is not free.
+     */
+    private Coord3D sentAfter;
+
     public HeroBrain(DungeonSettings settings) {
         this.settings = settings;
     }
@@ -91,12 +99,20 @@ public final class HeroBrain extends UnitScript {
                 && canSee(ordered)) {
             move.stop(); // close enough and in sight; standing still is how he fires
             Facing.turnToward(unit(), ordered);
-        } else if (!move.isMoving() || frame() % settings.heroRepathFrames() == 0) {
-            // Set off at once when he is standing, and correct the aim on the way
-            // at intervals — a target that walks is the usual case. A wall between
-            // them puts him here too, which is what walking round one looks like.
-            moveTo(ordered.getPosition().x(), ordered.getPosition().y());
+        } else if (Chasing.worthReplanning(sentAfter, ordered.getPosition())
+                && (!move.isMoving() || frame() % settings.heroRepathFrames() == 0)) {
+            // Off at once when he is standing, and corrected on the way — but
+            // only when there is something to correct. See Chasing: ordering him
+            // to the place he is already going restarts him, and it was the
+            // restarting that kept him shoving at a body he could not pass.
+            sendAfter(ordered);
         }
+    }
+
+    /** Send him walking at something, remembering where it was when he set off. */
+    private void sendAfter(GameObject quarry) {
+        sentAfter = quarry.getPosition();
+        moveTo(sentAfter.x(), sentAfter.y());
     }
 
     /**
@@ -143,6 +159,7 @@ public final class HeroBrain extends UnitScript {
         }
         sentAt = id;
         orderedAtFrame = frame();
+        sentAfter = null; // a new order is a new chase, however near the old one stood
         move.stop();
         return current;
     }

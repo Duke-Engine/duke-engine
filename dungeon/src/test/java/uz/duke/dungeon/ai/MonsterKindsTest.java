@@ -97,14 +97,10 @@ class MonsterKindsTest {
     /**
      * A monster told to stop short does, and fights from there.
      *
-     * <p>Nothing in the dungeon does this today: the creature kit has no model
-     * that could plausibly shoot, so every shipped monster closes and swings. The
-     * mechanism is still real and still worth holding still — a monster is a
-     * skirmisher or a brawler by two numbers in a file, and the day a bowman is
-     * drawn, this is what has to already work.
-     *
-     * <p>So it is proved on a monster the test declares rather than on a shipped
-     * one, which is also what keeps the test honest when the roster is retuned.
+     * <p>What separates a skirmisher from a brawler is one number, and this is
+     * the number. Proved on a monster the test declares rather than on a shipped
+     * one, so that re-tuning the roster cannot quietly turn it into a test of
+     * nothing.
      */
     @Test
     void aMonsterToldToKeepItsDistanceFightsFromOutThere() {
@@ -150,6 +146,60 @@ class MonsterKindsTest {
                     kind.name() + " stops at " + kind.closeDistance()
                             + " but only reaches " + reach);
         }
+    }
+
+    /**
+     * Everything that carries a launcher actually looses something.
+     *
+     * <p>A monster shoots when four separate things agree: it stops short of the
+     * hero, its weapon reaches him from there, it carries a {@code Bow} naming
+     * what it throws, and that projectile exists as a template. Any one of them
+     * missing and the creature stands in front of him doing nothing at all — the
+     * failure looks like broken AI and is in fact two lines in a file that do not
+     * match. Three creatures depend on it now, one of them a boss, so it is
+     * proved for every one of them by asking the templates rather than by naming
+     * them here.
+     */
+    @Test
+    void everyThrowerActuallyThrowsSomething() {
+        int throwers = 0;
+        for (var kind : SETTINGS.monsters()) {
+            var launcher = launcherOf(kind.name());
+            if (launcher == null) {
+                continue; // a brawler; it has nothing to loose
+            }
+            throwers++;
+            // Near enough to be seen and to be within reach, far enough that it
+            // is standing and shooting rather than walking.
+            float gap = Math.min(kind.closeDistance(), kind.senseRadius()) * 0.9f;
+            var fight = fight(kind.name(), gap);
+            float heroHealth = fight.hero().getBody().getHealth();
+
+            boolean flew = false;
+            for (int frame = 0; frame < 120 && !flew; frame++) {
+                fight.game().runHeadless(1);
+                flew = creature(fight.game(), launcher.projectile()) != null;
+            }
+
+            assertTrue(flew, kind.name() + " should have loosed a " + launcher.projectile()
+                    + " but nothing left it");
+            fight.game().runHeadless(60);
+            assertTrue(fight.hero().getBody().getHealth() < heroHealth,
+                    kind.name() + "'s " + launcher.projectile() + " never reached the hero");
+        }
+        assertTrue(throwers >= 3, "the roster should still hold the throwers, but found "
+                + throwers);
+    }
+
+    /** The {@code Bow} a kind's template carries, or {@code null} if it has none. */
+    private static uz.duke.dungeon.combat.Bow.Data launcherOf(String kind) {
+        var fight = fight(kind, 900f);
+        for (var module : fight.monster().getTemplate().getModules()) {
+            if (module.data() instanceof uz.duke.dungeon.combat.Bow.Data bow) {
+                return bow;
+            }
+        }
+        return null;
     }
 
     /** {@code AttackRange} out of a creature block, read as the loader would. */
