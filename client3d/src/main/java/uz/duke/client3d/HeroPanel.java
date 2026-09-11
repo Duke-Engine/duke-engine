@@ -118,6 +118,9 @@ final class HeroPanel {
     private static final float POWER_GAP = 5f;
     private static final float POWERS_TOP_GAP = 7f;
     private static final float DEPTH_WIDTH = 96f;
+    /** The depth numeral, alone and with the bottom of the descent beside it. */
+    private static final float DEPTH_LARGE = 34f;
+    private static final float DEPTH_SMALL = 19f;
     private static final float DROP_DEPTH = 3f;
     /** The line above the bar, for something that has just happened. */
     private static final float NOTE_SIZE = 15f;
@@ -222,6 +225,14 @@ final class HeroPanel {
         fillTo(healthFill, fraction(reading.health, reading.maxHealth));
         fillTo(experienceFill, fraction(reading.experience, reading.needed));
         depthNumber.setText(reading.depth);
+        // A floor out of four is three times the lettering of a floor, and the
+        // stone it is carved into did not get any wider. Sized to what it has to
+        // say — and only when that changes, because setting a size marks the text
+        // for re-layout whether or not it moved.
+        float wanted = reading.depth.length() > 4 ? DEPTH_SMALL : DEPTH_LARGE;
+        if (depthNumber.getSize() != wanted) {
+            depthNumber.setSize(wanted);
+        }
         depthWord.setText(reading.depthWord);
         powersWord.setText(reading.powersWord);
         note.setText(reading.note);
@@ -598,7 +609,8 @@ final class HeroPanel {
         depth = new Node("depth");
         contents.attachChild(depth);
         depthWord = text(11f, LABEL, 0f, BAND / 2f - 20f, DEPTH_WIDTH, BitmapFont.Align.Center);
-        depthNumber = text(34f, TORCH, 0f, BAND / 2f - 12f, DEPTH_WIDTH, BitmapFont.Align.Center);
+        depthNumber = text(DEPTH_LARGE, TORCH, 0f, BAND / 2f - 12f, DEPTH_WIDTH,
+                BitmapFont.Align.Center);
         depth.attachChild(depthWord);
         depth.attachChild(depthNumber);
     }

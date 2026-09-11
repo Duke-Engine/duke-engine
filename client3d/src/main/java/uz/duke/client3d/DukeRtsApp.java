@@ -117,6 +117,8 @@ final class DukeRtsApp extends SimpleApplication {
      * changes with the world is its size, and a new floor is a different size.
      */
     private final List<Material> fogged = new ArrayList<>();
+    /** What the things in flight look like. Built once; see {@link ProjectileEffects}. */
+    private ProjectileEffects effects;
     /** The grid the terrain was built from — a different instance means a new world. */
     private uz.duke.core.pathfind.PathGrid builtFrom;
 
@@ -286,6 +288,12 @@ final class DukeRtsApp extends SimpleApplication {
 
         rootNode.addLight(new DirectionalLight(SUN_DIRECTION, SUN_COLOUR));
         rootNode.addLight(new AmbientLight(AMBIENT_COLOUR));
+
+        // Before the terrain, because rebuilding a world clears what is burning in
+        // it and there has to be something there to clear.
+        var budget = visuals.getEffectBudget();
+        effects = new ProjectileEffects(assetManager, rootNode, visuals,
+                budget.lights(), budget.perEffect(), budget.bursts(), budget.distance());
 
         rootNode.attachChild(terrainNode);
         buildTerrain();
@@ -1669,9 +1677,70 @@ final class DukeRtsApp extends SimpleApplication {
         return themed != null ? themed : visuals.of(templateName);
     }
 
+    /**
+     * Hand the burning things to the terrain shader.
+     *
+     * <p>The terrain is the one surface in the scene that does not read jME's
+     * light list — it carries its own sun and its own ambient, because for most of
+     * its life those were the only lights there were and a shader that spoke the
+     * whole lighting protocol would have been a copy of it for a scene with one
+     * light in it. That was a good trade until something burning flew down a
+     * corridor: creatures lit up, drawn as they are with the engine's lighting,
+     * and the floor under them did not.
+     *
+     * <p>So the lights go across as four pairs of vectors, every frame, to every
+     * material built from that shader. An unused slot goes across black, which
+     * costs the arithmetic and contributes nothing — cheaper than a branch, and
+     * the same cost every frame, which is the property worth having.
+     */
+    private void carryTheLightsToTheStone() {
+        if (fogged.isEmpty()) {
+            return;
+        }
+        var lights = effects.allLights();
+        for (int i = 0; i < TERRAIN_LIGHTS; i++) {
+            var light = i < lights.size() ? lights.get(i) : null;
+            var colour = light == null ? ColorRGBA.BlackNoAlpha : light.getColor();
+            var at = light == null ? Vector3f.ZERO : light.getPosition();
+            float radius = light == null ? 0f : light.getRadius();
+            // Written into the slots the materials already hold rather than
+            // replaced, so a material made before this frame is looking at the
+            // same two arrays as one made after it.
+            terrainLightColours[i].set(colour.r, colour.g, colour.b, 1f);
+            terrainLightPlaces[i].set(at.x, at.y, at.z, radius <= 0f ? 0f : 1f / radius);
+        }
+        for (var material : fogged) {
+            material.setParam("PointLightColours",
+                    com.jme3.shader.VarType.Vector4Array, terrainLightColours);
+            material.setParam("PointLightPositions",
+                    com.jme3.shader.VarType.Vector4Array, terrainLightPlaces);
+        }
+    }
+
+    /** As many as the terrain shader declares; see {@code FoggedTerrain.frag}. */
+    private static final int TERRAIN_LIGHTS = 4;
+    /**
+     * The two arrays handed to every terrain material, filled with darkness to
+     * begin with.
+     *
+     * <p>Filled rather than empty, and set on a material the moment it is made:
+     * an array uniform the shader reads and nothing ever wrote is a different
+     * thing on every driver, and the one frame it would go wrong on is the first.
+     */
+    private final com.jme3.math.Vector4f[] terrainLightColours = darkness();
+    private final com.jme3.math.Vector4f[] terrainLightPlaces = darkness();
+
+    private static com.jme3.math.Vector4f[] darkness() {
+        var slots = new com.jme3.math.Vector4f[TERRAIN_LIGHTS];
+        java.util.Arrays.setAll(slots, i -> new com.jme3.math.Vector4f());
+        return slots;
+    }
+
     /** Build (or rebuild) the ground and rocks for the world as it stands now. */
     private void buildTerrain() {
         builtFrom = game.getTerrain();
+        // A new world is a world with nothing burning in it yet.
+        effects.clear();
         terrain.rebuild(builtFrom, currentKit);
         if (visuals.getDiscoveryTemplate() == null) {
             return;
@@ -2397,6 +2466,11 @@ final class DukeRtsApp extends SimpleApplication {
         noises.frame(snapshot, game.getLocalPlayerIndex(),
                 (float) timer.getTimeInSeconds());
         syncUnits();
+        // After the units, because a burst lit this frame has to reach the stone
+        // this frame — the terrain reads its lights off a material parameter, not
+        // out of the scene, so nothing tells it but this.
+        effects.update(tpf);
+        carryTheLightsToTheStone();
         reapTheDead();
         syncMinimap();
         syncViewportOutline();
@@ -2577,8 +2651,16 @@ final class DukeRtsApp extends SimpleApplication {
                 continue; // behind a wall: not drawn, and taken away if it was
             }
             seen.add(view.id());
+            boolean isNew = !unitNodes.containsKey(view.id());
             var node = unitNodes.computeIfAbsent(view.id(), id -> createUnitNode(view));
             updateUnitNode(node, view);
+            var effect = visualFor(view.templateName()).effect;
+            if (isNew) {
+                effects.appeared(view.id(), effect, node.root,
+                        node.root.getWorldTranslation().clone(), cam.getLocation());
+            } else if (effect != null) {
+                effects.moved(view.id(), node.root.getWorldTranslation().clone());
+            }
         }
         var gone = unitNodes.entrySet().iterator();
         while (gone.hasNext()) {
@@ -2586,6 +2668,10 @@ final class DukeRtsApp extends SimpleApplication {
             if (seen.contains(entry.getKey())) {
                 continue;
             }
+            // Its light and its sparks go back in the box whether it arrived or
+            // merely walked out of the light: the pool must not have to know which,
+            // and what it landed on — if anything — is handleEvents' business.
+            effects.gone(entry.getKey());
             entry.getValue().root.removeFromParent();
             selected.remove(entry.getKey());
             gone.remove();
@@ -2638,8 +2724,15 @@ final class DukeRtsApp extends SimpleApplication {
         lastEventedSnapshot = snapshot;
         for (var event : snapshot.events()) {
             if (event instanceof ObjectDied died) {
-                playSound(visualFor(died.templateName()).dieSound,
-                        new Vector3f(died.position().x(), 0f, died.position().y()));
+                var where = new Vector3f(died.position().x(), 0f, died.position().y());
+                playSound(visualFor(died.templateName()).dieSound, where);
+                // "Destroyed" is what this event means, so it is the arrow landing
+                // as much as the monster falling — and the arrow is the one that
+                // wants a burst where it struck.
+                var look = visualFor(died.templateName());
+                effects.landed(look.effect,
+                        where.setY(floorHeightAt(where.x, where.z) + look.yOffset),
+                        cam.getLocation());
                 layOut(died.object().value());
             } else if (event instanceof WeaponFired fired) {
                 var node = unitNodes.get(fired.shooter().value());
@@ -2776,6 +2869,11 @@ final class DukeRtsApp extends SimpleApplication {
                 warnOnce(visual.modelPath, "model");
                 body = null;
             }
+        }
+        if (body == null) {
+            // A fireball has no model and should not be given the capsule-with-a-
+            // gun-barrel every other modelless thing gets. Its effect is its body.
+            body = effects.bodyFor(visual.effect);
         }
         if (body == null) {
             body = buildPrimitive(view);
@@ -3558,6 +3656,10 @@ final class DukeRtsApp extends SimpleApplication {
         if (atlas != null) {
             material.setTexture("ColorMap", atlas);
         }
+        material.setParam("PointLightColours",
+                com.jme3.shader.VarType.Vector4Array, terrainLightColours);
+        material.setParam("PointLightPositions",
+                com.jme3.shader.VarType.Vector4Array, terrainLightPlaces);
         fogged.add(material);
         return material;
     }

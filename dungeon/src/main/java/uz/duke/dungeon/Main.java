@@ -46,6 +46,28 @@ public final class Main {
         }
     }
 
+    /**
+     * One recipe for what a thing in flight looks like, handed to the client.
+     *
+     * <p>Nothing here is a decision either. Which effects a recipe uses is a list
+     * of names in the settings file, and a name this client does not know is
+     * ignored with a warning rather than refused — a burning arrow whose trail is
+     * missing is still an arrow that arrives.
+     */
+    private static void effect(Visuals visuals, DungeonSettings.EffectLook look) {
+        visuals.effect(look.name(), recipe -> {
+            for (var kind : look.kinds()) {
+                recipe.kind(kind);
+            }
+            recipe.colours(look.awtColour(), look.awtFade())
+                    .light(look.awtLight(), look.lightPower(), look.lightRadius())
+                    .particles(look.particles(), look.particleSize(), look.particleLife(),
+                            look.spread())
+                    .orb(look.orbSize())
+                    .burst(look.burstParticles(), look.burstSize(), look.burstSeconds());
+        });
+    }
+
     /** What this creature has in its hand, if the file gave it anything. */
     private static void carry(Visuals.UnitVisual unit, uz.duke.dungeon.content.Held held) {
         if (held.isCarried()) {
@@ -61,8 +83,12 @@ public final class Main {
     private static void arrow(Visuals visuals, String template, DungeonSettings.ArrowLook look) {
         visuals.unit(template, unit -> {
             unit.colour(look.awtTint()); // the minimap dot, and the fallback shape
+            unit.effect(look.effect());
             if (!look.hasModel()) {
-                unit.scale(0.28f);
+                // A fireball has no file anywhere: its effect is its body, and the
+                // height is still wanted, because a shot travels at bow height
+                // whether or not there is a mesh on it.
+                unit.scale(0.28f).yOffset(look.height());
                 return;
             }
             unit.modelPart(look.model(), look.part())
@@ -316,14 +342,18 @@ public final class Main {
         // has to be, whatever it is eventually modelled as.
         visuals.unit("Chest", unit -> unit.colour(new java.awt.Color(0xE8A33D)).scale(0.5f));
 
-        // Arrows are units like any other — they are in the world, so the client
-        // draws them without being told anything special, and the simulation
-        // turns them so they point the way they are flying.
-        arrow(visuals, settings.arrowTemplate(), settings.arrowLook());
-        // The one Q looses: the same shaft, drawn bigger and in torch colour, so
-        // the shot the player chose to spend is not mistaken for the ones he gets
-        // for free.
-        arrow(visuals, settings.heavyArrowTemplate(), settings.heavyArrowLook());
+        // Things in flight are units like any other — they are in the world, so
+        // the client draws them without being told anything special, and the
+        // simulation turns them so they point the way they are flying. What each
+        // one burns like is named beside it and declared just below.
+        for (var look : settings.effects()) {
+            effect(visuals, look);
+        }
+        for (var look : settings.projectiles()) {
+            arrow(visuals, look.name(), look);
+        }
+        visuals.effectBudget(settings.effectLights(), settings.effectsPerKind(),
+                settings.effectBursts(), settings.effectDistance());
 
         // The floor is black until he walks it. Named rather than given a
         // distance: the radius is the hero's own VisionRange from creatures.ini,

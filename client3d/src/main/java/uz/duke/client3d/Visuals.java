@@ -39,6 +39,8 @@ public final class Visuals {
         String texturePath;
         String heldPath;
         String heldBone;
+        /** The name of the flight effect this unit wears, or null for a plain one. */
+        String effect;
         float heldScale = 1f;
         float heldPitch;
         float heldYaw;
@@ -124,6 +126,18 @@ public final class Visuals {
             this.heldPitch = pitchDegrees;
             this.heldYaw = yawDegrees;
             this.heldRoll = rollDegrees;
+            return this;
+        }
+
+        /**
+         * What this thing looks like in flight, by the name of a recipe declared
+         * with {@link Visuals#effect}.
+         *
+         * <p>For projectiles. A creature may name one too and nothing stops it,
+         * but a burning skeleton is a longer conversation than a burning arrow.
+         */
+        public UnitVisual effect(String recipeName) {
+            this.effect = recipeName;
             return this;
         }
 
@@ -276,6 +290,7 @@ public final class Visuals {
     // Linked, so the order a game declares its units in is the order anything
     // walking them sees -- which is what a loading bar advances through.
     private final Map<String, UnitVisual> units = new java.util.LinkedHashMap<>();
+    private final Map<String, EffectVisual> effects = new java.util.LinkedHashMap<>();
     private final UnitVisual defaults = new UnitVisual();
     private String assetRoot;
     private String discoveryTemplate;
@@ -307,6 +322,173 @@ public final class Visuals {
         var visual = units.computeIfAbsent(templateName, n -> new UnitVisual());
         config.accept(visual);
         return this;
+    }
+
+    /**
+     * One named recipe for what a thing in flight looks like.
+     *
+     * <p>Named rather than written on the unit, because a recipe is shared: an
+     * arrow and the drawn shot the hero looses are the same fire at two sizes, and
+     * a game with six kinds of burning thing has two or three kinds of burning.
+     * Units point at one by name with {@link UnitVisual#effect}.
+     *
+     * <p>The client owns the <em>kinds</em> of effect — a trail, a glowing body, a
+     * burst on landing — and the game owns every number in them. That division is
+     * the same one the rest of this class keeps, and it is what lets a new burning
+     * thing be a block of settings rather than a class.
+     */
+    public Visuals effect(String name, Consumer<EffectVisual> config) {
+        config.accept(effects.computeIfAbsent(name, n -> new EffectVisual()));
+        return this;
+    }
+
+    /** The recipe under that name, or {@code null} when the game named none. */
+    public EffectVisual effectNamed(String name) {
+        return name == null ? null : effects.get(name);
+    }
+
+    /**
+     * What the client may spend on things in flight.
+     *
+     * <p>Every one of these is a ceiling rather than a target, and the reason they
+     * exist at all is that a fight is not one arrow. Fifty in the air, each with a
+     * hundred sparks and a light of its own, is five thousand particles and fifty
+     * dynamic lights — and dynamic lights are the expensive kind. Past the ceiling
+     * a shot simply flies plainer: no light, or no trail, but the same shot going
+     * to the same place.
+     *
+     * @param lights    how many may burn at once. The terrain shader reads four;
+     *     more than that still light the creatures, which is where jME's own
+     *     lighting is doing the work
+     * @param perEffect how many trails one recipe may have alight
+     * @param bursts    how many impacts may be burning at once
+     * @param distance  how far from the camera a thing is still worth the trouble;
+     *     zero for no limit
+     */
+    public record EffectBudget(int lights, int perEffect, int bursts, float distance) {
+    }
+
+    private EffectBudget budget = new EffectBudget(4, 8, 8, 0f);
+
+    public Visuals effectBudget(int lights, int perEffect, int bursts, float distance) {
+        this.budget = new EffectBudget(lights, perEffect, bursts, distance);
+        return this;
+    }
+
+    public EffectBudget getEffectBudget() {
+        return budget;
+    }
+
+    /** Every recipe, in the order the game declared them. */
+    public java.util.Collection<EffectVisual> allEffects() {
+        return java.util.List.copyOf(effects.values());
+    }
+
+    /**
+     * What a thing in flight looks like: what it trails, what it is made of, and
+     * what it leaves where it lands.
+     *
+     * <p>Every field has a harmless default, so a recipe that names only a colour
+     * is a recipe — and a game that names no recipe at all draws exactly what it
+     * drew before any of this existed.
+     */
+    public static final class EffectVisual {
+
+        /**
+         * The effects this client knows how to draw.
+         *
+         * <p>Public because they are half of a contract: the client owns the kinds
+         * and the game owns which of them a thing uses, and a game with no way to
+         * ask what the kinds are would be guessing at strings.
+         */
+        public static final String FLAME_TRAIL = "FLAME_TRAIL";
+        public static final String GLOW_ORB = "GLOW_ORB";
+        public static final String IMPACT_BURST = "IMPACT_BURST";
+
+        /** All of them, for a game that wants to check a settings file against it. */
+        public static java.util.Set<String> allKinds() {
+            return java.util.Set.of(FLAME_TRAIL, GLOW_ORB, IMPACT_BURST);
+        }
+
+        /**
+         * Which of the client's effects this recipe uses, by name.
+         *
+         * <p>Strings rather than an enum because the enum is the client's and the
+         * settings file is the game's: a name the client does not know is a line
+         * in a file rather than a compile error, and it is ignored with a warning
+         * instead of stopping the game.
+         */
+        final java.util.Set<String> kinds = new java.util.LinkedHashSet<>();
+        java.awt.Color colour = java.awt.Color.WHITE;
+        java.awt.Color fade;
+        java.awt.Color lightColour;
+        float lightPower;
+        float lightRadius;
+        int particles;
+        float particleSize = 1f;
+        float particleLife = 0.4f;
+        float spread;
+        float orbSize;
+        int burstParticles;
+        float burstSize = 1f;
+        float burstSeconds = 0.3f;
+
+        private EffectVisual() {
+        }
+
+        public EffectVisual kind(String name) {
+            kinds.add(name);
+            return this;
+        }
+
+        /** What it burns, and what that colour dies down to. */
+        public EffectVisual colours(java.awt.Color colour, java.awt.Color fade) {
+            this.colour = colour;
+            this.fade = fade;
+            return this;
+        }
+
+        /**
+         * The light it carries: its colour, how hard it burns, and how far it
+         * reaches. A power of zero means it carries none, which is what everything
+         * further off than the client is willing to light ends up with anyway.
+         */
+        public EffectVisual light(java.awt.Color colour, float power, float radius) {
+            this.lightColour = colour;
+            this.lightPower = power;
+            this.lightRadius = radius;
+            return this;
+        }
+
+        /**
+         * The trail: how many sparks are alive at once, how big, how long they
+         * last, and how far they wander from the line of flight.
+         */
+        public EffectVisual particles(int count, float size, float life, float spread) {
+            this.particles = count;
+            this.particleSize = size;
+            this.particleLife = life;
+            this.spread = spread;
+            return this;
+        }
+
+        /** How wide the glowing body is, for a projectile that has no model. */
+        public EffectVisual orb(float size) {
+            this.orbSize = size;
+            return this;
+        }
+
+        /** What it leaves where it lands. */
+        public EffectVisual burst(int count, float size, float seconds) {
+            this.burstParticles = count;
+            this.burstSize = size;
+            this.burstSeconds = seconds;
+            return this;
+        }
+
+        boolean has(String kind) {
+            return kinds.contains(kind);
+        }
     }
 
     /** The configuration for a template (empty defaults if none was set). */

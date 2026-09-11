@@ -158,7 +158,8 @@ public final class Dungeon {
                     // weapon still aims and reloads; these two decide what
                     // happens between letting go and landing.
                     factory.register("Bow",
-                            (owner, data) -> new Bow(owner, settings), Bow::parseData);
+                            (owner, data) -> new Bow(owner, (Bow.Data) data, settings),
+                            Bow::parseData);
                     // Stone stops his shots as well as his eyes.
                     factory.register("EyesOnly",
                             (owner, data) -> new EyesOnly(owner, settings), EyesOnly::parseData);

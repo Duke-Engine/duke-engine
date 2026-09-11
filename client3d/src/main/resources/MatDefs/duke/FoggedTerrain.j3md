@@ -18,6 +18,12 @@ MaterialDef Fogged Terrain {
         Texture2D FogMap
         // How wide and deep the map is, so a vertex can say where on it it stands.
         Vector2 FogSize
+
+        // What is burning nearby -- four slots, always all four, an unused one
+        // carrying a black colour. See the note in the fragment shader for why
+        // this shader carries its own lights instead of asking the engine.
+        Vector4Array PointLightColours
+        Vector4Array PointLightPositions
     }
 
     Technique {

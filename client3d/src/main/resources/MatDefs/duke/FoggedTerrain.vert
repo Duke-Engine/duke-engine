@@ -9,6 +9,10 @@ attribute vec3 inNormal;
 
 varying vec2 fogCoord;
 varying vec3 worldNormal;
+// Where this fragment stands, in full. The fog only needs x and z; a torch
+// carried past a wall needs all three, because how far it is from the stone is
+// the whole of how brightly the stone answers.
+varying vec3 worldPos;
 
 #ifdef HAS_COLORMAP
 attribute vec2 inTexCoord;
@@ -26,6 +30,7 @@ void main() {
     fogCoord = vec2(world.x / m_FogSize.x, 1.0 - world.z / m_FogSize.y);
 
     worldNormal = normalize(mat3_sub(g_WorldMatrix) * inNormal);
+    worldPos = world.xyz;
 
     #ifdef HAS_COLORMAP
     texCoord = inTexCoord;

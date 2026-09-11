@@ -1,3 +1,5 @@
+| `client3d/…/client3d/ProjectileEffects.java` | uchayotgan narsa qanday yonadi: iz, yoritilgan tana, tegishdagi portlash — pool, yorug'lik byudjeti, kodda yasalgan uchqun teksturasi |
+| `client3d/src/main/resources/MatDefs/duke/` | relyef materiali: tumanni dunyo x/z bo'yicha o'qiydigan shader + to'rtta ko'chma point light |
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
 **Holat sanasi:** 2026-09-10 · **Testlar:** 672 ta, hammasi yashil (0 failure / 0 error)
@@ -1444,6 +1446,31 @@ ikkala peer aynan bir kadrda qo'llaydi.
   koridori bor uzoq xona aslida qo'shni). Boss o'ldirilsa keyingi qavat: yangi seed,
   kuchliroq aholi, **lekin o'sha qahramon** — daraja, XP va tanasi bilan. O'lim esa
   hammasini 1-qavatga qaytaradi.
+- **Uzoqdan otadiganlar** — ilgari hammasi qo'l bilan urardi, va Stalker blokida
+  aynan shunday deb yozilgandi: "kitda otadigan jonzot yo'q". Endi bor.
+  - **Stalker — arbalet**, **Revenant — kichik olov shari** (uning ODDIY atakasi;
+    fireball-skill keyinroq). Ikkalasi ham qahramonning `Bow` moduli bilan otadi.
+  - `Bow` endi **global o'qni emas, o'zinikini** o'qiydi (`Projectile`, `Speed`,
+    `MuzzleOffset`). Bo'sh blok avvalgidek qahramonning o'qini oladi.
+  - **Ikkalasi ham `EyesOnly` oladi** — aks holda birinchi uzoq otuvchi jonzot
+    qahramonni **devor orqali** otardi. Engine quroli devorni bilmaydi.
+- **Uchayotgan narsa yonadi** — `ProjectileEffects` (faqat klient).
+  - Klient **turlarni** biladi (`FLAME_TRAIL`, `GLOW_ORB`, `IMPACT_BURST`), INI
+    esa qaysi snaryad qaysi retseptga ega ekanini va **har bir sonni** aytadi.
+    Yangi yonadigan narsa = INI bloki, klass emas.
+  - **Simulyatsiyaga tegmaydi.** Uchta lahza klientda allaqachon bor edi: paydo
+    bo'lishi (`syncUnits`), uchishi (`updateUnitNode`), tegishi — `ObjectDied`
+    hodisasi, uni engine **har qanday** yo'q qilingan obyekt uchun yuboradi, ya'ni
+    o'q qo'ngan zahoti, pozitsiyasi bilan. Test: effektlarni INI'dan kesib tashlab
+    bir xil seed o'ynaganda checksum bir xil qoladi.
+  - **⚠️ Relyef shaderi jME yorug'liklarini o'qimaydi** — u quyoshni va ambientni
+    o'zi olib yuradi. Ya'ni `PointLight` jonzotlarni yoritardi, polni esa yo'q.
+    `FoggedTerrain` ga **to'rtta ko'chma point light** qo'shildi; bo'sh uya qora
+    rang bilan o'tadi (shox emas, bir xil narx).
+  - **Pool va byudjet.** Emitterlar, yorug'liklar va portlashlar bir marta
+    yasaladi va qaytariladi. Chegaradan oshgani **yorug'liksiz uchadi** — izi
+    qoladi, ya'ni yo'qoladigan narsa poldagi yaltirash, otish emas. Uchqun
+    teksturasi **kodda generatsiya qilinadi**, fayl emas.
 - **Tushishning tubi bor** — va bu o'yinning shaklini o'zgartiradi. Ilgari qavatlar
   cheksiz pastga ketardi: har biri bir oz qiyinroq, va qavat beradigan yagona savol
   "yana qancha?" edi. Endi **har qavatga o'z bossi**, va oxirgisini yenggach —
@@ -2431,7 +2458,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/loot/{Loot,LootKind,LootTable}.java` | tushadigan narsa: ma'lumot, turlar, deterministik qur'a |
 | `dungeon/…/dungeon/loot/{LootBag,LootDrop,LootUpdate}.java` | topilganlar + `DieModule` cho'ntagi + poldagi sandiq |
 | `dungeon/…/dungeon/ai/SightLine.java` | ko'ra oladimi: yetarlicha yaqinmi, orada tosh bormi, balandda turibdimi — sof arifmetika, grid ustida |
-| `dungeon/…/dungeon/combat/EyesOnly.java` | ko'rmaganiga otmaydi; engine'ning avto-tanlashini o'chiradi |
+| `dungeon/…/dungeon/combat/EyesOnly.java` | ko'rmaganiga otmaydi — qahramon, arbaletchi va mage |
 | `client3d/…/client3d/LevelUpOverlay.java` | daraja tanlash ekrani — mexanizm klientniki, so'zlar o'yinniki |
 | `client3d/…/client3d/Fog.java` | tuman sozlamasi (LOS, uch qatlam yorqinligi, yumshoqlik, tekstura o'lchami, rang) |
 | `client3d/…/client3d/FogMap.java` | tumanning o'zi — xaritaning qorong'ilik surati (alfa-tekstura) |

@@ -61,7 +61,7 @@ final class HeroStatus {
                 .append('/').append(Math.round(hero.getBody().getMaxHealth()))
                 .append("|xp=").append(progress.getExperienceIntoLevel())
                 .append('/').append(progress.getExperienceForNextLevel())
-                .append("|depth=").append(roman(depth))
+                .append("|depth=").append(howFarDown(depth, settings))
                 .append("|depthWord=").append(settings.hudDepthWord());
         appendStats(line, hero, progress, powers, settings);
         var book = hero.findModule(SkillBook.class);
@@ -188,6 +188,25 @@ final class HeroStatus {
     private static final String[] NUMERALS = {
         "M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I",
     };
+
+    /**
+     * How far down he is, and — when the descent has a bottom — how far down it
+     * goes.
+     *
+     * <p>Worth the second numeral. A floor with nothing under it is a floor the
+     * player should be able to recognise <em>before</em> he beats it, and the
+     * panel has no other way to say so: III on its own is a number that only ever
+     * goes up, which is exactly the thing that is no longer true.
+     *
+     * <p>Composed here rather than sent as two fields, for the same reason every
+     * other word on the panel is: the client draws four games and has no idea how
+     * any of them counts its floors.
+     */
+    private static String howFarDown(int depth, DungeonSettings settings) {
+        return settings.finalDepth() > 0
+                ? roman(depth) + " / " + roman(settings.finalDepth())
+                : roman(depth);
+    }
 
     /**
      * Depth in Roman numerals, because it is the one number in the game that only

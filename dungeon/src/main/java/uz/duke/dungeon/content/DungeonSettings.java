@@ -237,6 +237,23 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, ARROW_LOOK);
                 }),
+                // How each thing in flight is drawn, and what it burns like. Named
+                // and repeatable, like the monsters and the themes, and for the
+                // same reason: a fourth projectile is a block here and no Java.
+                Map.entry("DungeonProjectile", (Ini.BlockParser) reader -> {
+                    var projectile = new ProjectileBuilder(reader.getNextToken());
+                    reader.initFromIni(projectile, PROJECTILE);
+                    settings.projectiles.add(projectile);
+                }),
+                Map.entry("DungeonEffect", (Ini.BlockParser) reader -> {
+                    var effect = new EffectBuilder(reader.getNextToken());
+                    reader.initFromIni(effect, EFFECT);
+                    settings.effects.add(effect);
+                }),
+                Map.entry("DungeonEffects", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, EFFECT_BUDGET);
+                }),
                 Map.entry("DungeonHud", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, HUD);
@@ -1218,13 +1235,14 @@ public final class DungeonSettings {
      * @param part the name <em>inside</em> the file, which need not be a sensible
      *             one — see the block's comment in {@code dungeon.ini}
      */
-    public record ArrowLook(String model, String part, float scale, float facing,
-            float height, int tint) {
+    public record ArrowLook(String name, String model, String part, float scale, float facing,
+            float height, int tint, String effect) {
         /**
-         * A model is enough. {@code part} is for an arrow that is one mesh inside
-         * a larger file — which is how it had to be found while the only arrow the
-         * game owned was the one on the hero's string, and is not how a kit that
-         * ships an arrow hands it over.
+         * A model is enough, and none at all is allowed: a fireball is drawn by its
+         * effect and has no file anywhere. {@code part} is for a projectile that is
+         * one mesh inside a larger file — which is how it had to be found while the
+         * only arrow the game owned was the one on the hero's string, and is not
+         * how a kit that ships an arrow hands it over.
          */
         public boolean hasModel() {
             return model != null;
@@ -1235,15 +1253,52 @@ public final class DungeonSettings {
         }
     }
 
-    public ArrowLook arrowLook() {
-        return new ArrowLook(arrowModel, arrowPart, arrowScale, arrowFacing,
-                arrowHeight, arrowTint);
+    /**
+     * How each projectile is drawn, by the name of the template it is.
+     *
+     * <p>Named and repeatable, which it was not: there were two shots in the game
+     * and one block described both, the second under a {@code Heavy} prefix. A
+     * dungeon with a crossbow in it and a mage throwing fire has four, and a
+     * prefix each is not a scheme.
+     */
+    private final java.util.List<ProjectileBuilder> projectiles = new java.util.ArrayList<>();
+
+    private static final class ProjectileBuilder {
+        private final String name;
+        String model;
+        String part;
+        float scale = 1f;
+        float facing = 90f;
+        float height;
+        int tint = 0xFFFFFF;
+        String effect;
+
+        ProjectileBuilder(String name) {
+            this.name = name;
+        }
+
+        ArrowLook look() {
+            return new ArrowLook(name, model, part, scale, facing, height, tint, effect);
+        }
+    }
+
+    /** Every projectile the file describes, in the order it describes them. */
+    public java.util.List<ArrowLook> projectiles() {
+        return projectiles.stream().map(ProjectileBuilder::look).toList();
+    }
+
+    /** How one is drawn, or a plain shape when the file describes no such thing. */
+    public ArrowLook projectile(String template) {
+        for (var projectile : projectiles) {
+            if (projectile.name.equals(template)) {
+                return projectile.look();
+            }
+        }
+        return new ArrowLook(template, null, null, 1f, 90f, 0f, 0xFFFFFF, null);
     }
 
     private String heavyArrowTemplate = "HeavyArrow";
-    private float heavyArrowScale = 16f;
     private float heavyArrowSpeed = 120f;
-    private int heavyArrowTint = 0xE8A33D;
 
     /** The creature a drawn shot becomes — the same shaft, drawn bigger. */
     public String heavyArrowTemplate() {
@@ -1258,25 +1313,142 @@ public final class DungeonSettings {
         return heavyArrowSpeed;
     }
 
-    /** The same model and part as an ordinary arrow, bigger and lit differently. */
-    public ArrowLook heavyArrowLook() {
-        return new ArrowLook(arrowModel, arrowPart, heavyArrowScale, arrowFacing,
-                arrowHeight, heavyArrowTint);
-    }
-
     private static final FieldParseTable<DungeonSettings> ARROW_LOOK =
             new FieldParseTable<DungeonSettings>()
-                    .add("Model", Ini.string((s, v) -> s.arrowModel = v))
-                    .add("Part", Ini.string((s, v) -> s.arrowPart = v))
-                    .add("Scale", Ini.real((s, v) -> s.arrowScale = v))
-                    .add("Facing", Ini.real((s, v) -> s.arrowFacing = v))
-                    .add("Height", Ini.real((s, v) -> s.arrowHeight = v))
-                    .add("Tint", (ini, s) -> s.arrowTint = Integer.decode(ini.getNextToken()))
                     .add("HeavyTemplate", Ini.string((s, v) -> s.heavyArrowTemplate = v))
-                    .add("HeavyScale", Ini.real((s, v) -> s.heavyArrowScale = v))
-                    .add("HeavySpeed", Ini.real((s, v) -> s.heavyArrowSpeed = v))
-                    .add("HeavyTint",
-                            (ini, s) -> s.heavyArrowTint = Integer.decode(ini.getNextToken()));
+                    .add("HeavySpeed", Ini.real((s, v) -> s.heavyArrowSpeed = v));
+
+    /**
+     * What a thing in flight looks like, by name.
+     *
+     * <p>Shared rather than written on each projectile: an arrow and the drawn
+     * shot the hero looses are the same fire at two sizes. The client owns the
+     * <em>kinds</em> — a trail, a glowing body, a burst where it lands — and every
+     * number in them is here, so a new burning thing is a block of settings and
+     * not a class.
+     */
+    public record EffectLook(String name, java.util.List<String> kinds, int colour, int fade,
+            int lightColour, float lightPower, float lightRadius,
+            int particles, float particleSize, float particleLife, float spread,
+            float orbSize, int burstParticles, float burstSize, float burstSeconds) {
+
+        public EffectLook {
+            kinds = java.util.List.copyOf(kinds);
+        }
+
+        public java.awt.Color awtColour() {
+            return new java.awt.Color(colour);
+        }
+
+        public java.awt.Color awtFade() {
+            return new java.awt.Color(fade);
+        }
+
+        public java.awt.Color awtLight() {
+            return new java.awt.Color(lightColour);
+        }
+    }
+
+    private final java.util.List<EffectBuilder> effects = new java.util.ArrayList<>();
+
+    private static final class EffectBuilder {
+        private final String name;
+        final java.util.List<String> kinds = new java.util.ArrayList<>();
+        int colour = 0xFFFFFF;
+        int fade = 0x000000;
+        int lightColour = 0xFFFFFF;
+        float lightPower;
+        float lightRadius;
+        int particles;
+        float particleSize = 1f;
+        float particleLife = 0.4f;
+        float spread;
+        float orbSize;
+        int burstParticles;
+        float burstSize = 1f;
+        float burstSeconds = 0.3f;
+
+        EffectBuilder(String name) {
+            this.name = name;
+        }
+
+        EffectLook look() {
+            return new EffectLook(name, kinds, colour, fade, lightColour, lightPower,
+                    lightRadius, particles, particleSize, particleLife, spread, orbSize,
+                    burstParticles, burstSize, burstSeconds);
+        }
+    }
+
+    /** Every effect the file describes, in the order it describes them. */
+    public java.util.List<EffectLook> effects() {
+        return effects.stream().map(EffectBuilder::look).toList();
+    }
+
+    private static final FieldParseTable<EffectBuilder> EFFECT =
+            new FieldParseTable<EffectBuilder>()
+                    // Repeatable: one thing can trail, glow and burst at once.
+                    .add("Kind", Ini.string((e, v) -> e.kinds.add(v)))
+                    .add("Colour", (ini, e) -> e.colour = Integer.decode(ini.getNextToken()))
+                    .add("FadeColour", (ini, e) -> e.fade = Integer.decode(ini.getNextToken()))
+                    .add("LightColour",
+                            (ini, e) -> e.lightColour = Integer.decode(ini.getNextToken()))
+                    .add("LightPower", Ini.real((e, v) -> e.lightPower = v))
+                    .add("LightRadius", Ini.real((e, v) -> e.lightRadius = v))
+                    .add("Particles", Ini.integer((e, v) -> e.particles = v))
+                    .add("ParticleSize", Ini.real((e, v) -> e.particleSize = v))
+                    .add("ParticleLife", Ini.real((e, v) -> e.particleLife = v))
+                    .add("Spread", Ini.real((e, v) -> e.spread = v))
+                    .add("OrbSize", Ini.real((e, v) -> e.orbSize = v))
+                    .add("BurstParticles", Ini.integer((e, v) -> e.burstParticles = v))
+                    .add("BurstSize", Ini.real((e, v) -> e.burstSize = v))
+                    .add("BurstSeconds", Ini.real((e, v) -> e.burstSeconds = v));
+
+    // ---- what the client may spend on all of it ----
+
+    private int effectLights = 4;
+    private int effectsPerKind = 8;
+    private int effectBursts = 8;
+    private float effectDistance;
+
+    /**
+     * The ceilings, not the targets. A fight is not one arrow: fifty in the air,
+     * each with a hundred sparks and a light of its own, is five thousand
+     * particles and fifty dynamic lights — and dynamic lights are the expensive
+     * kind. Past a ceiling a shot flies plainer, never differently.
+     */
+    public int effectLights() {
+        return effectLights;
+    }
+
+    public int effectsPerKind() {
+        return effectsPerKind;
+    }
+
+    public int effectBursts() {
+        return effectBursts;
+    }
+
+    /** How far from the camera a thing is still worth the trouble; 0 for no limit. */
+    public float effectDistance() {
+        return effectDistance;
+    }
+
+    private static final FieldParseTable<DungeonSettings> EFFECT_BUDGET =
+            new FieldParseTable<DungeonSettings>()
+                    .add("MaxLights", Ini.integer((s, v) -> s.effectLights = v))
+                    .add("MaxPerEffect", Ini.integer((s, v) -> s.effectsPerKind = v))
+                    .add("MaxBursts", Ini.integer((s, v) -> s.effectBursts = v))
+                    .add("MaxDistance", Ini.real((s, v) -> s.effectDistance = v));
+
+    private static final FieldParseTable<ProjectileBuilder> PROJECTILE =
+            new FieldParseTable<ProjectileBuilder>()
+                    .add("Model", Ini.string((p, v) -> p.model = v))
+                    .add("Part", Ini.string((p, v) -> p.part = v))
+                    .add("Scale", Ini.real((p, v) -> p.scale = v))
+                    .add("Facing", Ini.real((p, v) -> p.facing = v))
+                    .add("Height", Ini.real((p, v) -> p.height = v))
+                    .add("Tint", (ini, p) -> p.tint = Integer.decode(ini.getNextToken()))
+                    .add("Effect", Ini.string((p, v) -> p.effect = v));
 
     // ---- the camera ----
 

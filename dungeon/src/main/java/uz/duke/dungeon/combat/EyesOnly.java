@@ -38,8 +38,11 @@ import uz.duke.rts.module.WeaponUpdate;
  * fires at it on the frame after. That is invisible next to a reload, and it buys
  * a rule that cannot be got round.
  *
- * <p>Only the hero carries this. The monsters fight at arm's length, where there
- * is nothing between them and what they are hitting.
+ * <p>It was the hero's alone while everything else down here fought at arm's
+ * length, where there is nothing between a creature and what it is hitting. The
+ * crossbow skeleton and the mage carry it too, and for the plainer reason: the
+ * first thing with a reach worth the name would otherwise shoot him through the
+ * stone between them, which is the one thing a dungeon must not allow.
  */
 public final class EyesOnly extends Module implements WeaponHold {
 

@@ -274,11 +274,51 @@ class DungeonMonsterArtTest {
      * others back would undo it without showing up as anything but a diff.
      */
     @Test
-    void everythingStrikesTheSameWay() {
+    void everythingThatSwingsSwingsTheSameWay() {
         for (var kind : SETTINGS.monsters()) {
-            assertEquals(SETTINGS.defaultAttack(), SETTINGS.lookOf(kind).attack(),
+            var attack = SETTINGS.lookOf(kind).attack();
+            if (attack.startsWith(RANGED)) {
+                continue; // it shoots, and a shot is not a swing
+            }
+            assertEquals(SETTINGS.defaultAttack(), attack,
                     kind.name() + " swings differently from the rest of the dungeon");
         }
+    }
+
+    /** The clips this kit gives to things that shoot rather than reach. */
+    private static final String RANGED = "Ranged_";
+
+    /**
+     * Anything drawn shooting really shoots.
+     *
+     * <p>The other half of the rule above, and the half that fails quietly. A
+     * creature given a ranged clip and no projectile mimes: the crossbow comes up,
+     * the bolt never leaves, and the damage lands out of nowhere on whatever it
+     * was aimed at. Nothing raises, nothing logs, and it reads as the projectile
+     * failing to load.
+     */
+    @Test
+    void anythingDrawnShootingHasSomethingToShoot() {
+        var file = uz.duke.dungeon.content.Content.read(uz.duke.dungeon.content.Content.MONSTERS)
+                + uz.duke.dungeon.content.Content.read(uz.duke.dungeon.content.Content.CREATURES);
+        for (var kind : SETTINGS.monsters()) {
+            if (!SETTINGS.lookOf(kind).attack().startsWith(RANGED)) {
+                continue;
+            }
+            assertTrue(launches(file, kind.name()),
+                    kind.name() + " is drawn shooting but carries no Bow, so nothing leaves it");
+        }
+    }
+
+    /** Whether the template of this name carries a launcher. */
+    private static boolean launches(String creatureFiles, String template) {
+        int at = creatureFiles.indexOf("Object " + template + "\n");
+        if (at < 0) {
+            return false;
+        }
+        int next = creatureFiles.indexOf("\nObject ", at + 1);
+        var block = creatureFiles.substring(at, next < 0 ? creatureFiles.length() : next);
+        return block.contains("Update = Bow ");
     }
 
     /**
@@ -578,7 +618,7 @@ class DungeonMonsterArtTest {
      */
     @Test
     void theArrowIsLongThinAndCheap() {
-        var arrow = SETTINGS.arrowLook();
+        var arrow = SETTINGS.projectile(SETTINGS.arrowTemplate());
         assertTrue(arrow.hasModel(), "the settings should name a model for the arrow");
 
         var model = assets().loadModel(arrow.model());
