@@ -250,6 +250,14 @@ public final class DungeonSettings {
                     reader.initFromIni(effect, EFFECT);
                     settings.effects.add(effect);
                 }),
+                // What the hero panel's edges are painted with. Named after the
+                // part of the panel it paints, and every one of them optional:
+                // a part nobody names keeps the carved look it always had.
+                Map.entry("DungeonSkin", (Ini.BlockParser) reader -> {
+                    var piece = new SkinBuilder(reader.getNextToken());
+                    reader.initFromIni(piece, SKIN);
+                    settings.skin.add(piece);
+                }),
                 Map.entry("DungeonEffects", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, EFFECT_BUDGET);
@@ -1400,6 +1408,61 @@ public final class DungeonSettings {
         return effects.stream().map(EffectBuilder::look).toList();
     }
 
+    /**
+     * One painted edge of the hero panel: which part, which picture, and how.
+     *
+     * <p>The client's own {@code PanelSkin} is what this becomes — see
+     * {@code Main} — so the name is one of the names it answers to and nothing
+     * here decides where a frame goes, only what it is made of.
+     *
+     * @param name  the part of the panel: Minimap, Portrait, Slot, Gauge, Chip,
+     *              Divider
+     * @param inset how many pixels of the picture are corner, measured off the
+     *              file. Wrong and the corner is stretched or the edge is not
+     * @param scale how many panel pixels one picture pixel becomes — the same
+     *              file laid on lightly for a socket and heavily for a bar
+     */
+    public record SkinLook(String name, String texture, float inset, float scale, int tint) {
+
+        public java.awt.Color awtTint() {
+            return new java.awt.Color(tint);
+        }
+    }
+
+    private final java.util.List<SkinBuilder> skin = new java.util.ArrayList<>();
+
+    private static final class SkinBuilder {
+        private final String name;
+        String texture = "";
+        float inset;
+        float scale = 1f;
+        int tint = 0xFFFFFF;
+
+        SkinBuilder(String name) {
+            this.name = name;
+        }
+
+        SkinLook look(String folder) {
+            return new SkinLook(name, folder + texture, inset, scale, tint);
+        }
+    }
+
+    /**
+     * Every painted edge the file describes, with {@code SkinFolder} already on
+     * the front of each path — the same joining {@link #hudIcon} does, and for the
+     * same reason: a folder written once rather than on every line.
+     */
+    public java.util.List<SkinLook> skin() {
+        return skin.stream().map(piece -> piece.look(hudSkinFolder)).toList();
+    }
+
+    private static final FieldParseTable<SkinBuilder> SKIN =
+            new FieldParseTable<SkinBuilder>()
+                    .add("Texture", Ini.string((s, v) -> s.texture = v))
+                    .add("Inset", Ini.real((s, v) -> s.inset = v))
+                    .add("Scale", Ini.real((s, v) -> s.scale = v))
+                    .add("Tint", (ini, s) -> s.tint = Integer.decode(ini.getNextToken()));
+
     private static final FieldParseTable<EffectBuilder> EFFECT =
             new FieldParseTable<EffectBuilder>()
                     // Repeatable: one thing can trail, glow and burst at once.
@@ -1605,6 +1668,7 @@ public final class DungeonSettings {
     }
 
     private String hudIconFolder = "";
+    private String hudSkinFolder = "";
 
     /**
      * Where a skill's {@code Icon} is to be found, joined onto the front of it —
@@ -1624,7 +1688,8 @@ public final class DungeonSettings {
                     .add("AttackWord", Ini.restOfLine((s, v) -> s.hudAttackWord = v))
                     .add("ArmourWord", Ini.restOfLine((s, v) -> s.hudArmourWord = v))
                     .add("SpeedWord", Ini.restOfLine((s, v) -> s.hudSpeedWord = v))
-                    .add("IconFolder", Ini.string((s, v) -> s.hudIconFolder = v));
+                    .add("IconFolder", Ini.string((s, v) -> s.hudIconFolder = v))
+                    .add("SkinFolder", Ini.string((s, v) -> s.hudSkinFolder = v));
 
     // ---- the lettering the menus are set in ----
 

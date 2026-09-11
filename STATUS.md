@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-11 · **Testlar:** 844 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-11 · **Testlar:** 862 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -2093,6 +2093,61 @@ Bir kadrda ko'ringan to'rt nuqson; hammasi `dungeon` va `client3d` da hal bo'ldi
   ketadi, va klik payti yo'lda kim turganiga qarab buyruqni qisqartirish
   tuzatilayotgan nuqsondan battar bo'lardi.
 
+### 8.ab Panel chizilgan emas, bo'yalgan — 9-slice
+
+Panel butunlay tekis rangdan chizilardi: tepada yorug' chiziq, ostida to'qroq
+chiziq, va ko'zdan toshni "o'qib olish" so'ralardi. Natija ozoda, ozoda esa
+zindon mebeli bo'lishi kerak bo'lgan narsa emas. Endi qirralari Kenney Fantasy
+UI Borders (CC0) o'yma ramkalari bilan bo'yaladi.
+
+- **Qoida: rasm RAMKA, hech qachon maydon emas.** Uyaning ichi avvalgi gradient
+  bo'lib qoladi, rasm — shaffof fondagi oq chiziq — ustiga qo'yiladi va
+  bo'yaladi. O'yilgan panel aslida shu: soyalangan yuza + bo'yalgan qirra. Xuddi
+  shu to'plamda har bir ramkaning to'ldirilgan varianti ham bor; uni ishlatish
+  uyani bitta tekis rangga aylantirardi, ya'ni avvalgisidan yomonroq.
+
+- **9-slice `NineSlice` da, jME'da bunday narsa yo'q.** Tekshirildi:
+  `com.jme3.ui.Picture` oddiy kvadrat, `Common/MatDefs/Gui` oddiy teksturali
+  shader, Nifty/Lemur bog'liqlik emas. Shuning uchun mesh o'zimizniki: 4×4 = 16
+  vertex, 9 kvadrat, 18 uchburchak, bitta draw call. `Inset` — rasmning necha
+  pikseli burchak; o'sha piksellar hech qachon cho'zilmaydi, faqat qirraning
+  o'rtasi takrorlanadi. Shu sababli bitta 48-pikselli fayl 22-pikselli chipni
+  ham, 190-pikselli barni ham ramkalaydi.
+
+- **Ikki burchak o'z joyiga sig'masa, kvadratligicha qisiladi.** 22-pikselli chip
+  48-pikselli rasmdan 32 piksel burchak so'raydi. Har o'q o'z chegarasiga
+  qisqartirilsa burchak 16×5 bo'lib chiqadi — ya'ni cho'zilgan burchak, aynan
+  qochilayotgan nuqson. Ikkala o'q bitta koeffitsiyent bilan qisqaradi.
+
+- **Ajratuvchi — istisno.** U qat'iy uzunlikdagi naqsh (gorizontal inseti
+  kengligining yarmi), demak to'qqizga bo'linmaydi: butun holicha chiziladi,
+  tik qo'yiladi va band o'rtasidan aks ettiriladi. Burilish **geometriyada emas,
+  UV'da**: to'g'ri burchak float'da yuz millionchi ulushgacha to'g'ri, va ikki
+  pikselli chiziq shuncha siljish bilan namunalansa xiralashadi — ko'rinmaydigan
+  xato ko'rinadigan blur beradi. Qaysi burchak rasmning qaysi burchagini
+  so'rashini almashtirish aniq va bepul.
+
+- **Hammasi INI'da:** `DungeonSkin <qism>` bloklari (Minimap, Portrait, Slot,
+  Gauge, Chip, Divider) — `Texture`, `Inset`, `Scale`, `Tint`; yo'l esa
+  `DungeonHud Panel` dagi `SkinFolder` bilan qo'shiladi, `IconFolder` kabi.
+  Klientga `Visuals.panelSkin(PanelSkin)` orqali boradi — `MenuStyle`, `Fog`,
+  `Tileset`, `SoundBank` yurgan o'sha chok.
+
+- **Zaxira: bo'yoq qatlam, bog'liqlik emas.** Blokni o'chirsangiz o'sha qism
+  avvalgidek chiziladi; hammasini o'chirsangiz panel avvalgi panel. Fayl
+  topilmasa `iconTexture` naqshi ishlaydi — bir marta logga yoziladi va
+  o'yilgan variant chiziladi. Panelni tanimaydigan nom ham logga yoziladi va
+  o'tkazib yuboriladi (`Main.panelSkin`).
+
+- **Holat saqlandi:** bo'yalgan uya qulflanganda rimi ham o'chadi. Aks holda
+  geroy ura olmaydigan yagona uya butun panelning eng yorqin narsasi bo'lardi.
+
+- **Masshtab bilan ta'siri o'lchandi.** Panel 1180 pikselda chizilib, oyna
+  kengligiga qarab 0.55…1.30 masshtablanadi, ya'ni burchaklar ham masshtablanadi
+  (WC3 ham shunday). Eng kichikda ekran piksellarida: minimap 10.1, portret 6.6,
+  uya 6.05, chip 3.0, bar bezeli 1.65. Hammasi tanib olinarli — `double/` oilasiga
+  o'tish kerak bo'lmadi. Ikkala chekkada skrinshot bilan ko'z bilan tasdiqlandi.
+
 ---
 
 ## 9. Nima yo'q / ochiq ishlar
@@ -2477,6 +2532,9 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/CameraFocus.java` | kamera nishoni/zoom — boshda o'z birligiga, keyin erkin |
 | `client3d/…/client3d/{SelectionBox,Formation,OrderMarkers}.java` | drag-select, guruh joylashuvi, buyruq metkalari |
 | `client3d/…/client3d/Destination.java` | bora olmaydigan joyga bosilgan klikni eng yaqin bora oladigan katakka tortadi (toshqin; faqat tosh to'siq) |
+| `client3d/…/client3d/NineSlice.java` | bitta kichik ramka rasmi istalgan o'lchamda — burchaklar cho'zilmaydi; jME'da bunday narsa yo'q |
+| `client3d/…/client3d/PanelSkin.java` | panel qirralari nima bilan bo'yalgani — o'yin aytadi, klient chizadi; har qism ixtiyoriy |
+| `dungeon/src/main/resources/ui/borders/` | Kenney Fantasy UI Borders (CC0) — ikki oila, olti to'plam; nomerlash Kenney'niki (CREDITS.md da izohlangan) |
 | `client3d/…/client3d/ProjectileEffects.java` | uchayotgan narsa qanday yonadi: iz, yoritilgan tana, tegishdagi portlash — pool, yorug'lik byudjeti, kodda yasalgan uchqun teksturasi |
 | `client3d/…/client3d/Discovery.java` | kashfiyot tumani — uzluksiz yorug'lik, fazoviy+vaqt silliqlash (faqat klient) |
 | `dungeon/…/dungeon/combat/Swing.java` | zarba qachon tushganini aytadi — hech narsa uchirmaydi |

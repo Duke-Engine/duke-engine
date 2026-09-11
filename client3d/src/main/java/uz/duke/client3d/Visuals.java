@@ -727,6 +727,25 @@ public final class Visuals {
         return menuStyle;
     }
 
+    private PanelSkin panelSkin = PanelSkin.NONE;
+
+    /**
+     * What the hero panel's edges are painted with — see {@link PanelSkin}.
+     *
+     * <p>The same bargain again, and the same one {@link #menuStyle} strikes about
+     * lettering: the client knows where a skill socket goes and how big it is, and
+     * the game says what its rim is painted with. Naming nothing leaves the panel
+     * carved out of flat colour, which is what it was.
+     */
+    public Visuals panelSkin(PanelSkin skin) {
+        this.panelSkin = skin == null ? PanelSkin.NONE : skin;
+        return this;
+    }
+
+    public PanelSkin getPanelSkin() {
+        return panelSkin;
+    }
+
     // ---- noise ----
 
     private SoundBank sounds = SoundBank.silent();

@@ -36,6 +36,9 @@ import uz.duke.dungeon.skill.CastSkill;
  */
 public final class Main {
 
+    private static final java.util.logging.Logger LOG =
+            java.util.logging.Logger.getLogger(Main.class.getName());
+
     private Main() {
     }
 
@@ -105,6 +108,36 @@ public final class Main {
                     // the arrow is a black splinter.
                     .tint(look.awtTint());
         });
+    }
+
+    /**
+     * The panel's painted edges, turned from the file's words into the client's.
+     *
+     * <p>Every name in the file has to be one the panel answers to, and the panel
+     * is the only thing that knows the list — so this is where the two meet, in
+     * the same place and for the same reason the sound channels do below.
+     *
+     * <p>An unknown name costs that one piece and nothing else. The whole point of
+     * a skin is that it is a coat of paint: a misspelt part is drawn the way it
+     * was drawn before there was any paint, which is a working panel, and refusing
+     * to start the game over a decoration would be the wrong trade.
+     */
+    private static uz.duke.client3d.PanelSkin panelSkin(DungeonSettings settings) {
+        var pieces = new java.util.LinkedHashMap<String, uz.duke.client3d.PanelSkin.Piece>();
+        var known = java.util.Set.of(uz.duke.client3d.PanelSkin.MINIMAP,
+                uz.duke.client3d.PanelSkin.PORTRAIT, uz.duke.client3d.PanelSkin.SLOT,
+                uz.duke.client3d.PanelSkin.GAUGE, uz.duke.client3d.PanelSkin.CHIP,
+                uz.duke.client3d.PanelSkin.DIVIDER);
+        for (var piece : settings.skin()) {
+            if (!known.contains(piece.name())) {
+                LOG.warning(() -> "DungeonSkin names no part of the panel: " + piece.name()
+                        + " — that part is drawn as it was; known parts are " + known);
+                continue;
+            }
+            pieces.put(piece.name(), new uz.duke.client3d.PanelSkin.Piece(
+                    piece.texture(), piece.inset(), piece.scale(), piece.awtTint()));
+        }
+        return new uz.duke.client3d.PanelSkin(pieces);
     }
 
     /**
@@ -378,6 +411,11 @@ public final class Main {
         // rebuild to move. See DungeonMenu in dungeon.ini.
         visuals.menuStyle(new uz.duke.client3d.MenuStyle(
                 settings.menuTitleFont(), settings.menuRowFont()));
+
+        // What the panel's edges are painted with -- see DungeonSkin in
+        // dungeon.ini. The client knows where a socket goes; this says what its
+        // rim is made of.
+        visuals.panelSkin(panelSkin(settings));
 
         // What the dark is worth: whether stone stops sight, how dim a room he
         // has left should be, and what colour nothing is. All of it drawing, and

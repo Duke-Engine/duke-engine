@@ -138,8 +138,11 @@ final class HeroPanel {
 
     private static final Logger LOG = Logger.getLogger(HeroPanel.class.getName());
 
-    /** Icons the game named and the client could not find — warned about once each. */
+    /** Pictures the game named and the client could not find — warned about once each. */
     private final Set<String> missingIcons = new HashSet<>();
+
+    /** What the panel's edges are painted with, if the game asked for anything. */
+    private final PanelSkin skin;
 
     private final AssetManager assets;
     private final BitmapFont font;
@@ -184,10 +187,12 @@ final class HeroPanel {
     /** Wall clock, for the armed slot's breathing — presentation only. */
     private float clock;
 
-    HeroPanel(AssetManager assets, BitmapFont font, Node guiNode, float screenWidth) {
+    HeroPanel(AssetManager assets, BitmapFont font, Node guiNode, float screenWidth,
+            PanelSkin skin) {
         this.assets = assets;
         this.font = font;
         this.screenWidth = screenWidth;
+        this.skin = skin == null ? PanelSkin.NONE : skin;
         guiNode.attachChild(root);
         root.attachChild(slab);
         root.attachChild(contents);
@@ -403,8 +408,10 @@ final class HeroPanel {
     private Node divider() {
         var node = new Node("divider");
         attach(node, flat("groove", DIVIDER, BAND, DROP), 0f, 0f, 1f);
-        attach(node, flat("catch", 1f, BAND, new ColorRGBA(1f, 1f, 1f, 0.05f)),
-                DIVIDER, 0f, 2f);
+        if (!paintDivider(node)) {
+            attach(node, flat("catch", 1f, BAND, new ColorRGBA(1f, 1f, 1f, 0.05f)),
+                    DIVIDER, 0f, 2f);
+        }
         return node;
     }
 
@@ -426,6 +433,10 @@ final class HeroPanel {
         attach(minimapSocket, flat("recess", MINIMAP + 4f, MINIMAP + 4f, DROP), -2f, -2f, 0f);
         attach(minimapSocket, flat("lip", MINIMAP + 2f, MINIMAP + 2f, SOCKET_RIM), -1f, -1f, 1f);
         attach(minimapSocket, flat("hole", MINIMAP, MINIMAP, rgb(0x0C0A08)), 0f, 0f, 2f);
+        // Over the hole rather than under it: the map is drawn into the socket by
+        // the client's own minimap, at a depth this panel does not own, and a rim
+        // painted underneath would be a rim nobody ever sees.
+        framed(minimapSocket, PanelSkin.MINIMAP, -3f, -3f, MINIMAP + 6f, MINIMAP + 6f, 3f);
     }
 
     /**
@@ -482,6 +493,9 @@ final class HeroPanel {
         bow.setMaterial(lines(TORCH));
         attach(portrait, bow, 0f, 0f, 4f);
 
+        if (framed(portrait, PanelSkin.PORTRAIT, -3f, -3f, PORTRAIT + 6f, PORTRAIT + 6f, 5f)) {
+            return; // a painted frame has corners of its own; two sets would fight
+        }
         // Torch-coloured corner brackets, the mark of a framed thing.
         float[][] corners = {{3, 3}, {PORTRAIT - 12, 3}, {3, PORTRAIT - 12},
             {PORTRAIT - 12, PORTRAIT - 12}};
@@ -530,6 +544,14 @@ final class HeroPanel {
         experienceFill = fill(VITALS_WIDTH - 2f, XP_HEIGHT - 2f, ARCANE);
         experienceFill.setLocalTranslation(1f, experienceY + 1f, 1f);
         vitals.attachChild(experienceFill);
+
+        // The bezels last and highest: a bar fills from under its own rim, and
+        // the reading rides over both. A gauge is the one place the picture is
+        // asked for a plain square -- the rim IS the ornament at this size.
+        framed(vitals, PanelSkin.GAUGE, -1f, healthY - 1f,
+                VITALS_WIDTH + 2f, BAR_HEIGHT + 2f, 1.5f);
+        framed(vitals, PanelSkin.GAUGE, -1f, experienceY - 1f,
+                VITALS_WIDTH + 2f, XP_HEIGHT + 2f, 1.5f);
     }
 
     /**
@@ -641,6 +663,8 @@ final class HeroPanel {
         private Geometry sweep;
         private Geometry ring;
         private Geometry warm;
+        /** The painted rim, when the game named one, so it can go dead with the rest. */
+        private Geometry rim;
         private BitmapText seconds;
         private BitmapText locked;
         private float sweptTo = -1f;
@@ -714,6 +738,10 @@ final class HeroPanel {
                 0f, size - 2f, 5f);
         attach(slot.node, flat("pool", size, 6f, new ColorRGBA(0f, 0f, 0f, 0.45f)),
                 0f, 0f, 5f);
+        // And the painted rim over the top of the shading -- the whole difference
+        // between a socket that is shaded and one that is framed. Above the
+        // stone and below the glyph, so it never covers what the slot is for.
+        slot.rim = paint(slot.node, PanelSkin.SLOT, -2f, -2f, size + 4f, size + 4f, 5.7f);
 
         // The wash under the cursor. Over the stone but under everything that
         // means something, so hovering brightens the slot without hiding its state.
@@ -793,11 +821,101 @@ final class HeroPanel {
             return assets.loadTexture(icon);
         } catch (RuntimeException e) {
             if (missing.add(icon)) {
-                LOG.warning(() -> "skill icon not found: " + icon + " (" + e.getMessage()
-                        + ") — drawing the key instead");
+                LOG.warning(() -> "panel picture not found: " + icon + " (" + e.getMessage()
+                        + ") — drawing that part as it was drawn before there were any");
             }
             return null;
         }
+    }
+
+    // ---- the painted edges ----
+
+    /**
+     * Lay a painted frame over something, and say whether it took.
+     *
+     * <p>The caller keeps its own carved rim and draws it only when this says no,
+     * so a game that named no skin — or named a file that is not there — gets the
+     * panel exactly as it was. That is the same bargain {@link #picture} strikes
+     * for a skill's icon, and it is struck the same way for the same reason: the
+     * game names its own art and the client cannot check the spelling, so being
+     * wrong has to cost a line in the log rather than the panel.
+     *
+     * <p>The picture is white and the colour comes from the piece, which is what
+     * lets one file be a gold rim here and a bone one there.
+     */
+    private boolean framed(Node node, String piece, float x, float y,
+            float width, float height, float z) {
+        return paint(node, piece, x, y, width, height, z) != null;
+    }
+
+    /** The same, handing back the frame for anything that has to re-colour it later. */
+    private Geometry paint(Node node, String piece, float x, float y,
+            float width, float height, float z) {
+        var painted = skin.piece(piece);
+        if (painted == null) {
+            return null;
+        }
+        var texture = iconTexture(assets, painted.texture(), missingIcons);
+        if (texture == null) {
+            return null;
+        }
+        // Clamped so the stretched middle cannot reach round and sample the far
+        // edge, which shows up as a ghost of the opposite corner.
+        texture.setWrap(Texture.WrapMode.EdgeClamp);
+        var image = texture.getImage();
+        var mesh = piece.equals(PanelSkin.DIVIDER)
+                ? NineSlice.quarterTurn(width, height, NineSlice.Rect.WHOLE)
+                : NineSlice.frame(width, height, image.getWidth(), image.getHeight(),
+                        painted.inset(), painted.scale(), NineSlice.Rect.WHOLE);
+        var geometry = new Geometry("frame-" + piece, mesh);
+        var material = unshaded(rgb(painted.tint().getRGB()));
+        material.setTexture("ColorMap", texture);
+        geometry.setMaterial(material);
+        attach(node, geometry, x, y, z);
+        return geometry;
+    }
+
+    /**
+     * How big a divider's picture is when drawn, in the design's own pixels.
+     *
+     * <p>Asked of the piece rather than measured from the file, because the file
+     * is not there to measure in a game that named no skin — and because the
+     * length is a decision: the ornament is a fixed shape, so making it fit the
+     * band is choosing how heavily to lay it on rather than stretching it.
+     */
+    private static final float DIVIDER_TEXELS_LONG = 96f;
+    private static final float DIVIDER_TEXELS_WIDE = 22f;
+
+    /**
+     * Two ornaments standing on end, meeting in the middle of the band.
+     *
+     * <p>The picture is a rule that fades at one end and finishes in a device at
+     * the other, drawn lying down. Stood up and mirrored about the middle it
+     * becomes a carved line with a device at each end and nothing to see where the
+     * two faded ends meet — which is why a gap there costs nothing and stretching
+     * the ornament to close it would cost the ornament.
+     */
+    private boolean paintDivider(Node node) {
+        var painted = skin.piece(PanelSkin.DIVIDER);
+        if (painted == null) {
+            return false;
+        }
+        float length = DIVIDER_TEXELS_LONG * painted.scale();
+        float thickness = DIVIDER_TEXELS_WIDE * painted.scale();
+        // Wider than the groove it stands in, and centred on it: the margin
+        // either side of a divider is there so the carving has somewhere to go.
+        float across = (DIVIDER - thickness) * 0.5f;
+        if (!framed(node, PanelSkin.DIVIDER, across, 0f, thickness, length, 3f)) {
+            return false;
+        }
+        // The same piece turned over about the top of the band, so the two devices
+        // point away from each other and the two faded ends are the ones that meet.
+        var mirrored = new Node("divider-mirrored");
+        framed(mirrored, PanelSkin.DIVIDER, across, 0f, thickness, length, 3f);
+        mirrored.setLocalScale(1f, -1f, 1f);
+        mirrored.setLocalTranslation(0f, BAND, 0f);
+        node.attachChild(mirrored);
+        return true;
     }
 
     private void dress(Slot slot, Reading.SkillReading skill) {
@@ -808,6 +926,15 @@ final class HeroPanel {
         slot.glyph.getMaterial().setColor("Color", linear(
                 locked ? DEAD.mult(new ColorRGBA(1f, 1f, 1f, 0.5f))
                         : cooling ? GLYPH_COLD : TORCH));
+        // A painted rim goes dead with the rest of the socket. Left at full
+        // strength it was the one bright thing on a slot he cannot cast, which
+        // says the opposite of what the slot means — the whole reason the stone
+        // behind it darkens.
+        if (slot.rim != null) {
+            var gold = rgb(skin.piece(PanelSkin.SLOT).tint().getRGB());
+            slot.rim.getMaterial().setColor("Color",
+                    linear(locked ? darker(gold, 0.6f) : cooling ? darker(gold, 0.3f) : gold));
+        }
         slot.locked.setText(locked ? skill.label : "");
         slot.seconds.setText(cooling ? skill.label : "");
         sweepTo(slot, cooling ? skill.left : 0f);
@@ -883,6 +1010,9 @@ final class HeroPanel {
             var glyph = new Geometry("chip-glyph", Glyphs.of(power.icon(), POWER_CHIP * 0.55f));
             glyph.setMaterial(lines(TORCH));
             attach(chip.node, glyph, POWER_CHIP / 2f, POWER_CHIP / 2f, 2f);
+            // Over the glyph, because at this size the rim is the outermost pixel
+            // and the glyph is a sixth of the way in: nothing is covered.
+            framed(chip.node, PanelSkin.CHIP, 0f, 0f, POWER_CHIP, POWER_CHIP, 2.5f);
             if (power.count() > 1) {
                 // The number rides the corner rather than replacing the icon:
                 // which power it is matters more than how many of it he has.

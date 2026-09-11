@@ -28,6 +28,7 @@ written from there.
 | RPG Audio — cloth, coins, a door, a knife drawn | Kenney | CC0 | `audio/sfx/` |
 | Impact Sounds — what an arrow and a fist land like, and footsteps | Kenney | CC0 | `audio/sfx/` |
 | Interface Sounds — clicks, a level, a gong | Kenney | CC0 | `audio/ui/` |
+| Fantasy UI Borders — the carved frames the hero panel's edges are painted with | Kenney | CC0 | `ui/borders/` |
 | Voiceover Pack — what Erika says | Kenney | CC0 | `audio/voice/` |
 | Three pieces of music | freesound.org | **unconfirmed, see below** | `audio/music/` |
 | Cinzel — the lettering the menus are set in | Natanael Gama / the Cinzel Project Authors | [SIL OFL 1.1](https://openfontlicense.org) | `fonts/` |
@@ -113,3 +114,24 @@ were baked here rather than downloaded — `client3d`'s `BitmapFontBaker` turns 
 `.ttf` into the pair — so the OFL's terms are met by the original, and anyone can
 re-bake them from it.
 
+
+### The frames, and why they keep Kenney's numbering
+
+The hero panel's edges are painted from **Fantasy UI Borders** (Kenney, CC0),
+which ships at `ui/borders/` with its own `License.txt` beside it. Two families —
+`default/` at 48×48 and `double/` at 96×96 — each in six sets: `border/` (frame
+only, transparent middle), `panel/` (frame plus an opaque middle),
+`transparent_border/`, `transparent_center/`, `divider/` and `divider_fade/`.
+
+`CLAUDE.md` says a pack's own file names are changed on the way in, and these
+were not. The rule exists so that `character_medieval_2.glb` becomes a name that
+says what the thing is; here the number **is** what the thing is. There are
+thirty-two interchangeable frames with nothing to tell them apart but their
+carving, `dungeon.ini` picks between them by name, and inventing
+`frame_studded.png` for `panel-border-013.png` would replace a number anyone can
+look up in the pack with an adjective only this repository knows. The folders
+were renamed — lower case, underscores for the spaces — and the files were not.
+
+All 280 were copied rather than the eight in use, at 388 KB the lot, so that
+choosing a different frame is an edit to `dungeon.ini` rather than a trip back to
+the pack.

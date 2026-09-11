@@ -142,6 +142,51 @@ class DungeonSettingsTest {
                 "the fixture exercises the engine's mechanics with nothing layered on");
     }
 
+    /**
+     * The painted edges of the hero panel come out of the file, folder and all.
+     *
+     * <p>The client end of this is held still by {@code PanelSkinTest}; this is
+     * the writing end, and the two together are the whole chain. What the file
+     * can get wrong and nothing else would catch is the folder: a path that is
+     * right except for the directory in front of it fails as a missing file at
+     * the far end of the game, which is a long way from the line that caused it.
+     */
+    @Test
+    void thePanelsPaintedEdgesAreReadWithTheirFolderOnTheFront() {
+        var skin = DungeonSettings.parse("""
+                DungeonHud Panel
+                  SkinFolder = ui/borders/
+                End
+                DungeonSkin Slot
+                  Texture = default/border/panel-border-013.png
+                  Inset = 10
+                  Scale = 1.1
+                  Tint = 0xC9A24B
+                End
+                """).skin();
+
+        assertEquals(1, skin.size());
+        var slot = skin.getFirst();
+        assertEquals("Slot", slot.name());
+        assertEquals("ui/borders/default/border/panel-border-013.png", slot.texture());
+        assertEquals(10f, slot.inset(), 0.001f);
+        assertEquals(1.1f, slot.scale(), 0.001f);
+        assertEquals(0xC9A24B, slot.tint());
+    }
+
+    /** And the shipped file really names some, or the whole thing is decoration. */
+    @Test
+    void theShippedFilePaintsThePanel() {
+        var skin = DungeonSettings.load().skin();
+
+        assertTrue(skin.size() >= 5, "the panel has six parts and most should be painted");
+        for (var piece : skin) {
+            assertTrue(piece.texture().startsWith("ui/borders/"),
+                    piece.name() + " should be found under the skin folder: " + piece.texture());
+            assertTrue(piece.scale() > 0f, piece.name() + " drawn at no size at all");
+        }
+    }
+
     @Test
     void aMissingFileSaysWhichOne() {
         var missing = assertThrows(IllegalStateException.class, () -> Content.read("nope.ini"));

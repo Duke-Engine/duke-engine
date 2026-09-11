@@ -78,6 +78,12 @@ final class Preload {
         }
         add(jobs, seen, Kind.SOUND, looks.stream().map(look -> look.fireSound).toList());
         add(jobs, seen, Kind.SOUND, looks.stream().map(look -> look.dieSound).toList());
+        // The hero panel's painted edges. Tiny files, and read at the worst
+        // possible moment without this: the panel is built as the first floor
+        // appears, which is the frame the player has been waiting through a
+        // loading screen for.
+        add(jobs, seen, Kind.TEXTURE, visuals.getPanelSkin().pieces().values().stream()
+                .map(PanelSkin.Piece::texture).toList());
         return List.copyOf(jobs);
     }
 

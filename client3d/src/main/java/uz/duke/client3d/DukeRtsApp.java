@@ -327,7 +327,8 @@ final class DukeRtsApp extends SimpleApplication {
         hint.setAlpha(0.6f);
         guiNode.attachChild(hint);
 
-        heroPanel = new HeroPanel(assetManager, guiFont, guiNode, cam.getWidth());
+        heroPanel = new HeroPanel(assetManager, guiFont, guiNode, cam.getWidth(),
+                visuals.getPanelSkin());
         levelUp = new LevelUpOverlay(assetManager, guiFont, guiNode,
                 cam.getWidth(), cam.getHeight());
 
@@ -1537,7 +1538,7 @@ final class DukeRtsApp extends SimpleApplication {
         // is the reason it was the one thing that came back looking right.
         var armed = heroPanel.armedKey();
         heroPanel.destroy();
-        heroPanel = new HeroPanel(assetManager, guiFont, guiNode, width);
+        heroPanel = new HeroPanel(assetManager, guiFont, guiNode, width, visuals.getPanelSkin());
         heroPanel.arm(armed);
         levelUp.destroy();
         levelUp = new LevelUpOverlay(assetManager, guiFont, guiNode, width, height);
