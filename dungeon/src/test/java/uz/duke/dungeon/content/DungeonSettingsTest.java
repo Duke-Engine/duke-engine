@@ -311,9 +311,11 @@ class DungeonSettingsTest {
     void theShippedFileSetsTheSkillRingItself() {
         var settings = DungeonSettings.load();
 
-        assertTrue(settings.ringDashes() > 1, "a ring with one dash is a ring");
-        assertTrue(settings.ringDashShare() < 1f, "and one with no gaps is not dashed at all");
+        assertTrue(settings.ringSegments() >= 24, "a circle of twelve straight bits is a clock");
         assertTrue(settings.ringSelfRadius() > 0f, "a self-only skill still needs a ring");
+        assertTrue(settings.ringSelfRadius() < 10f,
+                "and it says 'only me' by being his size, not an area: "
+                        + settings.ringSelfRadius());
         assertTrue(settings.ringFillAlpha() < settings.ringEdgeAlpha(),
                 "the wash inside should be fainter than the ring itself");
         assertNotEquals(settings.ringAllowColour(), settings.ringDenyColour(),

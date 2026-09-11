@@ -1690,13 +1690,9 @@ public final class DungeonSettings {
     // ---- the ring a skill draws while it is being aimed ----
 
     private float ringBandWidth = 1.6f;
-    private int ringDashes = 48;
-    private float ringDashShare = 0.55f;
     private float ringFillAlpha = 0.10f;
     private float ringEdgeAlpha = 0.85f;
     private float ringHeight = 0.3f;
-    private float ringOpenSeconds = 0.18f;
-    private float ringSpinPerSecond = 9f;
     private float ringPulseDepth = 0.25f;
     private float ringPulsePerSecond = 1.4f;
     private int ringSegments = 96;
@@ -1712,21 +1708,11 @@ public final class DungeonSettings {
      * has to be some size, and the size that says "only me" is his own width and
      * a little more.
      */
-    private float ringSelfRadius = 9f;
+    private float ringSelfRadius = 5f;
 
-    /** How thick the dashed ring is drawn. */
+    /** How thick the ring is drawn. */
     public float ringBandWidth() {
         return ringBandWidth;
-    }
-
-    /** How many dashes go round it — the dash is what stops it reading as a wall. */
-    public int ringDashes() {
-        return ringDashes;
-    }
-
-    /** How much of each dash's slot is drawn rather than skipped. */
-    public float ringDashShare() {
-        return ringDashShare;
     }
 
     /** How strongly the inside of a ring is washed in. */
@@ -1742,16 +1728,6 @@ public final class DungeonSettings {
     /** How far above the floor it lies. */
     public float ringHeight() {
         return ringHeight;
-    }
-
-    /** How long it takes to open out when it appears. */
-    public float ringOpenSeconds() {
-        return ringOpenSeconds;
-    }
-
-    /** How fast the dashes travel round, in degrees a second. */
-    public float ringSpinPerSecond() {
-        return ringSpinPerSecond;
     }
 
     /** How much the ring breathes. */
@@ -1797,13 +1773,9 @@ public final class DungeonSettings {
     private static final FieldParseTable<DungeonSettings> SKILL_RING =
             new FieldParseTable<DungeonSettings>()
                     .add("BandWidth", Ini.real((s, v) -> s.ringBandWidth = v))
-                    .add("Dashes", Ini.integer((s, v) -> s.ringDashes = v))
-                    .add("DashShare", Ini.real((s, v) -> s.ringDashShare = v))
                     .add("FillAlpha", Ini.real((s, v) -> s.ringFillAlpha = v))
                     .add("EdgeAlpha", Ini.real((s, v) -> s.ringEdgeAlpha = v))
                     .add("Height", Ini.real((s, v) -> s.ringHeight = v))
-                    .add("OpenSeconds", Ini.real((s, v) -> s.ringOpenSeconds = v))
-                    .add("SpinPerSecond", Ini.real((s, v) -> s.ringSpinPerSecond = v))
                     .add("PulseDepth", Ini.real((s, v) -> s.ringPulseDepth = v))
                     .add("PulsePerSecond", Ini.real((s, v) -> s.ringPulsePerSecond = v))
                     .add("Segments", Ini.integer((s, v) -> s.ringSegments = v))

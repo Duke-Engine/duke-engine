@@ -324,11 +324,11 @@ public final class Main {
             case AREA_DAMAGE -> skill.radius();
             case EMPOWER -> selfRadius;
         };
-        // What it leaves where it lands: a blast's radius, a lane's width. A dash
-        // lands a hero rather than a blast, so the spot it marks is his own size.
+        // What it LEAVES where it lands: a blast's radius, a lane's width. A dash
+        // leaves a man, and a circle round a man-sized spot is a second ring saying
+        // what the pointer already said -- so it draws none.
         float area = switch (skill.effect()) {
             case AREA_AT_SPOT, SKILLSHOT -> skill.radius();
-            case DASH -> selfRadius;
             default -> 0f;
         };
         return new uz.duke.client3d.SkillRange(skill.key(), shape, reach, area);
@@ -542,10 +542,8 @@ public final class Main {
         // How far each skill reaches, so the client can draw it before it is spent
         // — see DungeonSkillRing, and SkillRange for what each shape means.
         visuals.rangeLook(new uz.duke.client3d.RangeLook(
-                settings.ringBandWidth(), settings.ringDashes(), settings.ringDashShare(),
-                settings.ringFillAlpha(), settings.ringEdgeAlpha(), settings.ringHeight(),
-                settings.ringOpenSeconds(), settings.ringSpinPerSecond(),
-                settings.ringPulseDepth(), settings.ringPulsePerSecond(),
+                settings.ringBandWidth(), settings.ringFillAlpha(), settings.ringEdgeAlpha(),
+                settings.ringHeight(), settings.ringPulseDepth(), settings.ringPulsePerSecond(),
                 settings.ringSegments(), settings.ringAllowColour(), settings.ringDenyColour(),
                 settings.ringAreaColour(), settings.ringBrightness()));
         for (var skill : settings.skills()) {

@@ -629,7 +629,7 @@ final class DukeRtsApp extends SimpleApplication {
             // cannot aim at: stone, or somewhere he has never been.
             allowed = isOpenAndSeen(ground);
         }
-        rangeRings.show(range, hero, pointer, allowed, now - armedAt, now, this::floorHeightAt);
+        rangeRings.show(range, hero, pointer, allowed, now, this::floorHeightAt);
     }
 
     /** Where the player's own unit is standing, or null before there is one. */
@@ -1857,6 +1857,10 @@ final class DukeRtsApp extends SimpleApplication {
         orderMarkers.clear(); // orders given in the old world mean nothing here
         chevrons.clear();
         camera.requestOwnUnit(); // his units are somewhere else entirely now
+        // And the hero he had selected is not this floor's hero. See
+        // keepHisOwnSelected: his skills need him picked out.
+        selected.clear();
+        findHimInTheNewWorld = true;
     }
 
     /**
@@ -2207,9 +2211,6 @@ final class DukeRtsApp extends SimpleApplication {
     /** The game key that has been pressed and is waiting to be pointed at something. */
     private Character arming;
 
-    /** When it was armed, so its ring can open out rather than appear. */
-    private float armedAt;
-
     /**
      * Whether it was armed by clicking its slot rather than by pressing its key.
      *
@@ -2237,6 +2238,16 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var range = visuals.getSkillRange(key);
+        if (range != null && selectedIds().isEmpty()) {
+            // A skill is something one of his creatures does, so it needs that
+            // creature picked out — pressing Q with nothing selected, or with a
+            // skeleton selected to look at it, used to cast anyway. The orders
+            // beside them are deliberately not like this: A and D are the player
+            // talking to whoever he owns, and are meant to work with an empty
+            // selection. What tells the two apart is that the game gave this key
+            // a reach to draw, which only a skill has.
+            return;
+        }
         if (binding.aim() == Hotkeys.Aim.NOW) {
             if (range != null && range.castOnRelease()) {
                 // Held rather than spent. A skill with nothing to point at used to
@@ -2265,11 +2276,10 @@ final class DukeRtsApp extends SimpleApplication {
         arm(key, byMouse);
     }
 
-    /** Arm a key: the panel lights its slot, and its reach opens out on the floor. */
+    /** Arm a key: the panel lights its slot, and its reach is drawn on the floor. */
     private void arm(char key, boolean byMouse) {
         arming = key;
         armedByMouse = byMouse;
-        armedAt = timer.getTimeInSeconds();
         heroPanel.arm(key);
     }
 
@@ -2427,6 +2437,39 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /** The unit the game was last told about, so it is only told when it changes. */
+    /** Whether a new world is still waiting for its hero to be picked out. */
+    private boolean findHimInTheNewWorld;
+
+    /**
+     * Select his own unit once, when a world he has just arrived in produces one.
+     *
+     * <p>The other half of "a skill needs its caster selected" — see
+     * {@link #pressHotkey}. On its own that rule is a trap rather than a rule: a
+     * run begins with nothing selected and every new floor hands him a <em>new</em>
+     * hero whose id the old selection does not name, so his keys would quietly
+     * stop working until he remembered to click himself, on every floor, with no
+     * hint that clicking was what was wanted.
+     *
+     * <p><b>Once per world, and only then.</b> Anything more would be a client
+     * that refuses to be told: pressing escape to clear the selection is
+     * deliberate, and so is clicking a skeleton to read its card — the panel's
+     * empty state and its creature card both exist because the player asked for
+     * them, and a frame later this would have taken both away.
+     */
+    private void keepHisOwnSelected() {
+        if (!findHimInTheNewWorld || screen != Screen.PLAYING) {
+            return;
+        }
+        for (var view : snapshot.units()) {
+            if (view.playerIndex() == game.getLocalPlayerIndex() && view.selectable()) {
+                selected.clear();
+                selected.add(view.id());
+                findHimInTheNewWorld = false;
+                return;
+            }
+        }
+    }
+
     private int watching = -1;
 
     /**
@@ -2724,6 +2767,7 @@ final class DukeRtsApp extends SimpleApplication {
         // else does and writes nothing back -- see GameSounds.
         noises.frame(snapshot, game.getLocalPlayerIndex(),
                 (float) timer.getTimeInSeconds());
+        keepHisOwnSelected();
         tellTheGameWhatHeIsLookingAt();
         syncUnits();
         // After the units, because a burst lit this frame has to reach the stone

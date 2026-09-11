@@ -69,25 +69,21 @@ final class RangeRings {
      * @param pointer where the player is pointing on the floor, or null when he is
      *                not pointing at anything — a skill that needs no aiming
      * @param allowed whether the click as it stands would be obeyed
-     * @param armedFor how long the key has been armed, which is what opens it out
-     * @param seconds the wall clock, which the dashes travel by and the ring
-     *                breathes by
+     * @param seconds the wall clock, which the ring breathes by and nothing else
+     *                uses: it appears at its size and stands still
      */
     void show(SkillRange range, Coord3D hero, Coord3D pointer, boolean allowed,
-            float armedFor, float seconds, BiFunction<Float, Float, Float> floorAt) {
+            float seconds, BiFunction<Float, Float, Float> floorAt) {
         if (range == null || hero == null) {
             hide();
             return;
         }
-        float open = look.openness(armedFor);
         float bright = look.breath(seconds);
-        float spin = look.spinAt(seconds);
         int edge = allowed ? look.allowColour() : look.denyColour();
 
         switch (range.shape()) {
             case AT_A_CREATURE -> {
-                reach.show(hero, range.reach() * open, edge, bright, spin, look.fillAlpha(),
-                        floorAt);
+                reach.show(hero, range.reach(), edge, bright, look.fillAlpha(), floorAt);
                 area.hide();
                 lane.hide();
             }
@@ -95,30 +91,33 @@ final class RangeRings {
                 // His reach stays his reach whatever the cursor is doing; it is the
                 // blast that turns red, because that is the half of the picture the
                 // refusal is about.
-                reach.show(hero, range.reach() * open, look.allowColour(), bright, spin,
+                reach.show(hero, range.reach(), look.allowColour(), bright,
                         look.fillAlpha() * 0.6f, floorAt);
+                // A skill that leaves nothing where it lands draws nothing there:
+                // a dash puts a man on a spot, and a circle round a man-sized spot
+                // is a second ring saying what the pointer already said.
                 var at = range.within(hero, pointer == null ? hero : pointer);
-                area.show(at, range.area() * open, allowed ? look.areaColour() : look.denyColour(),
-                        bright, -spin, look.fillAlpha() * 2f, floorAt);
+                area.show(at, range.area(), allowed ? look.areaColour() : look.denyColour(),
+                        bright, look.fillAlpha() * 2f, floorAt);
                 lane.hide();
             }
             case DOWN_A_LANE -> {
                 reach.hide();
                 area.hide();
-                lane.show(hero, pointer, range.reach() * open, range.area(),
+                lane.show(hero, pointer, range.reach(), range.area(),
                         Glow.colour(edge, look.brightness(), look.edgeAlpha() * bright), floorAt,
                         look.height());
             }
             case AROUND_HIM -> {
                 // The ring IS the blast here, so it is drawn as one: the area's
                 // colour and a stronger wash inside it.
-                reach.show(hero, range.reach() * open, look.areaColour(), bright, spin,
+                reach.show(hero, range.reach(), look.areaColour(), bright,
                         look.fillAlpha() * 2f, floorAt);
                 area.hide();
                 lane.hide();
             }
             case ON_HIMSELF -> {
-                reach.show(hero, range.reach() * open, look.areaColour(), bright, spin,
+                reach.show(hero, range.reach(), look.areaColour(), bright,
                         look.fillAlpha() * 2.5f, floorAt);
                 area.hide();
                 lane.hide();
@@ -136,21 +135,21 @@ final class RangeRings {
         return root;
     }
 
-    // ---- a dashed ring with a wash inside it ----
+    // ---- an unbroken ring with a wash inside it ----
 
     /**
-     * One ring: a circle of dashes, and a faint disc filling it.
+     * One ring: an unbroken circle, and a faint disc filling it.
      *
-     * <p>Dashed rather than solid on purpose. A solid ring round a hero reads as a
-     * wall he is standing inside; a dashed one reads as a measurement, which is
-     * what it is. It is also what lets the ring turn — a solid circle turning
-     * looks like a solid circle.
+     * <p>This was dashed to begin with, on the reasoning that a solid ring round a
+     * hero reads as a wall he is standing inside. Looked at in the game it does
+     * not: it reads as a ruler, which is what it is, and the gaps cost legibility
+     * at the far end of a room for nothing.
      */
     private static final class Ring {
 
         private final RangeLook look;
         private final Node node = new Node("ring");
-        private final Geometry dashes;
+        private final Geometry band;
         private final Geometry fill;
         private final FloatBuffer corners;
 
@@ -159,14 +158,14 @@ final class RangeRings {
             var material = Glow.material(assets);
             var wash = Glow.material(assets);
 
-            corners = BufferUtils.createFloatBuffer(look.dashes() * 4 * 3);
-            dashes = Glow.inTheGlow(new Geometry("dashes", dashedRing(look, corners)), material);
+            corners = BufferUtils.createFloatBuffer(look.segments() * 2 * 3);
+            band = Glow.inTheGlow(new Geometry("band", ring(look, corners)), material);
             // The wash is a plain disc of radius 1, so it can simply be scaled: a
             // disc has no thickness for scaling to distort.
             fill = Glow.inTheGlow(new Geometry("wash", disc(look.segments())), wash);
 
             node.attachChild(fill);
-            node.attachChild(dashes);
+            node.attachChild(band);
             parent.attachChild(node);
         }
 
@@ -178,7 +177,7 @@ final class RangeRings {
             return node.getLocalCullHint() != Spatial.CullHint.Always;
         }
 
-        void show(Coord3D at, float radius, int colour, float bright, float spin, float wash,
+        void show(Coord3D at, float radius, int colour, float bright, float wash,
                 BiFunction<Float, Float, Float> floorAt) {
             if (radius <= 0.01f) {
                 hide();
@@ -186,32 +185,35 @@ final class RangeRings {
             }
             node.setCullHint(Spatial.CullHint.Inherit);
             node.setLocalTranslation(at.x(), floorAt.apply(at.x(), at.y()) + look.height(), at.y());
-            writeDashes(radius, spin);
+            writeBand(radius);
             fill.setLocalScale(radius, 1f, radius);
-            dashes.getMaterial().setColor("Color",
+            band.getMaterial().setColor("Color",
                     Glow.colour(colour, look.brightness(), look.edgeAlpha() * bright));
             fill.getMaterial().setColor("Color",
                     Glow.colour(colour, look.brightness(), Math.min(1f, wash) * bright));
         }
 
-        /** Move every corner of every dash onto the circle this ring now is. */
-        private void writeDashes(float radius, float spin) {
+        /**
+         * Move the band's corners onto the circle this ring now is.
+         *
+         * <p>Rewritten rather than scaled, and that is the whole reason the buffer
+         * is kept: scaling a band scales its thickness with it, so one ring at
+         * sixty and another at nine would be drawn in two different weights of
+         * line. A line is supposed to stay a line.
+         */
+        private void writeBand(float radius) {
             float inner = Math.max(0f, radius - look.bandWidth() * 0.5f);
             float outer = radius + look.bandWidth() * 0.5f;
-            float step = FastMath.TWO_PI / look.dashes();
-            float drawn = step * look.dashShare();
+            float step = FastMath.TWO_PI / look.segments();
             corners.clear();
-            for (int dash = 0; dash < look.dashes(); dash++) {
-                float from = spin + dash * step;
-                float to = from + drawn;
-                put(corners, inner, from);
-                put(corners, outer, from);
-                put(corners, outer, to);
-                put(corners, inner, to);
+            for (int segment = 0; segment < look.segments(); segment++) {
+                float angle = segment * step;
+                put(corners, inner, angle);
+                put(corners, outer, angle);
             }
             corners.flip();
-            dashes.getMesh().getBuffer(VertexBuffer.Type.Position).updateData(corners);
-            dashes.getMesh().updateBound();
+            band.getMesh().getBuffer(VertexBuffer.Type.Position).updateData(corners);
+            band.getMesh().updateBound();
         }
 
         private static void put(FloatBuffer out, float radius, float angle) {
@@ -296,13 +298,19 @@ final class RangeRings {
 
     // ---- the meshes, built once ----
 
-    private static Mesh dashedRing(RangeLook look, FloatBuffer corners) {
+    /**
+     * An unbroken band: two points per segment, inner and outer, stitched into a
+     * closed strip.
+     */
+    private static Mesh ring(RangeLook look, FloatBuffer corners) {
+        int segments = look.segments();
         var mesh = new Mesh();
-        var order = BufferUtils.createShortBuffer(look.dashes() * 6);
-        for (int dash = 0; dash < look.dashes(); dash++) {
-            short base = (short) (dash * 4);
-            order.put(base).put((short) (base + 1)).put((short) (base + 2));
-            order.put(base).put((short) (base + 2)).put((short) (base + 3));
+        var order = BufferUtils.createShortBuffer(segments * 6);
+        for (int segment = 0; segment < segments; segment++) {
+            short here = (short) (segment * 2);
+            short next = (short) (((segment + 1) % segments) * 2);
+            order.put(here).put((short) (here + 1)).put((short) (next + 1));
+            order.put(here).put((short) (next + 1)).put(next);
         }
         order.flip();
         corners.limit(corners.capacity());

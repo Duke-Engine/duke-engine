@@ -30,9 +30,6 @@ class RangeRingsTest {
 
     private static final RangeLook LOOK = RangeLook.DEFAULT;
 
-    /** Long enough that the opening animation has finished and the ring is full size. */
-    private static final float SETTLED = 5f;
-
     private record Scene(RangeRings rings, Node root) {
     }
 
@@ -47,7 +44,7 @@ class RangeRingsTest {
 
     private static void draw(Scene scene, SkillRange range, Coord3D hero, Coord3D pointer,
             boolean allowed) {
-        scene.rings().show(range, hero, pointer, allowed, SETTLED, 0f, (x, y) -> 0f);
+        scene.rings().show(range, hero, pointer, allowed, 0f, (x, y) -> 0f);
         scene.root().updateGeometricState();
     }
 
@@ -113,19 +110,41 @@ class RangeRingsTest {
         assertEquals(160f + LOOK.bandWidth(), widthOf(large.root()), 1f);
     }
 
-    /** It opens out rather than appearing, so the first frame is not full size. */
+    /**
+     * It is its full size on the first frame, and stays there.
+     *
+     * <p>It used to open out, which is what the genre does and which was wrong: an
+     * indicator is a ruler, and a ruler you have to wait to settle is a ruler that
+     * costs you the fraction of a second the skill was for. Written as a test
+     * rather than left to be noticed, because an easing is the sort of thing that
+     * creeps back in.
+     */
     @Test
-    void itOpensOutWhenItAppears() {
+    void itIsItsFullSizeAtOnceAndDoesNotMove() {
         var scene = scene();
         var range = new SkillRange('Q', SkillRange.Shape.AT_A_CREATURE, 60f, 0f);
 
-        scene.rings().show(range, at(0f, 0f), null, true, 0.001f, 0f, (x, y) -> 0f);
+        scene.rings().show(range, at(0f, 0f), null, true, 0f, (x, y) -> 0f);
         float atOnce = widthOf(scene.root());
-        scene.rings().show(range, at(0f, 0f), null, true, SETTLED, 0f, (x, y) -> 0f);
-        float settled = widthOf(scene.root());
+        scene.rings().show(range, at(0f, 0f), null, true, 3f, (x, y) -> 0f);
+        float later = widthOf(scene.root());
 
-        assertTrue(atOnce < settled * 0.5f,
-                "it should start small and open out, but began at " + atOnce + " of " + settled);
+        assertEquals(120f + LOOK.bandWidth(), atOnce, 1f, "full size on the frame it appears");
+        assertEquals(atOnce, later, 0.01f, "and exactly the same size a moment later");
+    }
+
+    /** The ring is unbroken, not a circle of dashes. */
+    @Test
+    void theRingIsOneUnbrokenLine() {
+        var scene = scene();
+        draw(scene, new SkillRange('Q', SkillRange.Shape.AT_A_CREATURE, 60f, 0f),
+                at(0f, 0f), null, true);
+
+        var band = (Geometry) find(scene.root(), "band");
+        assertEquals(LOOK.segments() * 2, band.getMesh().getVertexCount(),
+                "two corners per segment and no gaps between them");
+        assertEquals(LOOK.segments() * 2, band.getMesh().getTriangleCount(),
+                "a closed strip, so every segment joins the next");
     }
 
     /**
@@ -180,8 +199,8 @@ class RangeRingsTest {
         draw(refused, new SkillRange('Q', SkillRange.Shape.AT_A_CREATURE, 60f, 0f),
                 at(0f, 0f), at(10f, 0f), false);
 
-        var yes = dashColour(allowed.root());
-        var no = dashColour(refused.root());
+        var yes = ringColour(allowed.root());
+        var no = ringColour(refused.root());
         assertNotEquals(yes, no, "the two answers should not look the same");
         assertTrue(no.r > no.g, "and refusal is red");
     }
@@ -231,14 +250,14 @@ class RangeRingsTest {
     void aRingSitsOnTheFloorTheCasterIsStandingOn() {
         var scene = scene();
         scene.rings().show(new SkillRange('Q', SkillRange.Shape.AROUND_HIM, 40f, 0f),
-                at(0f, 0f), null, true, SETTLED, 0f, (x, y) -> 40f);
+                at(0f, 0f), null, true, 0f, (x, y) -> 40f);
 
         var ring = shown(scene.root(), "ring");
         assertEquals(40f + LOOK.height(), ring.getLocalTranslation().y, 0.001f);
     }
 
-    private static ColorRGBA dashColour(Node root) {
-        var dashes = (Geometry) find(root, "dashes");
-        return (ColorRGBA) dashes.getMaterial().getParam("Color").getValue();
+    private static ColorRGBA ringColour(Node root) {
+        var band = (Geometry) find(root, "band");
+        return (ColorRGBA) band.getMaterial().getParam("Color").getValue();
     }
 }
