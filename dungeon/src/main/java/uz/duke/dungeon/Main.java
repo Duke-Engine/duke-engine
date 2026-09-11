@@ -139,7 +139,8 @@ public final class Main {
                 uz.duke.client3d.PanelSkin.PORTRAIT, uz.duke.client3d.PanelSkin.SLOT,
                 uz.duke.client3d.PanelSkin.GAUGE, uz.duke.client3d.PanelSkin.CHIP,
                 uz.duke.client3d.PanelSkin.BUTTON, uz.duke.client3d.PanelSkin.ITEM,
-                uz.duke.client3d.PanelSkin.DIVIDER);
+                uz.duke.client3d.PanelSkin.DIVIDER, uz.duke.client3d.PanelSkin.BANNER,
+                uz.duke.client3d.PanelSkin.BANNER_WON, uz.duke.client3d.PanelSkin.BANNER_LOST);
         for (var piece : settings.skin()) {
             if (!known.contains(piece.name())) {
                 LOG.warning(() -> "DungeonSkin names no part of the panel: " + piece.name()

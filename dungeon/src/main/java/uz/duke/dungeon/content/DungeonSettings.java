@@ -94,6 +94,16 @@ public final class DungeonSettings {
     private String diedWord = "You died";
     private String wonWord = "You won";
 
+    /**
+     * What the banner says between floors, with the floor's number put in for
+     * {@code %d}.
+     *
+     * <p>A word rather than a string built in Java, which is what it was: the only
+     * thing the player reads that was written in English in a source file while
+     * every other word he sees came out of this file.
+     */
+    private String nextDepthWord = "Depth %d";
+
     // ---- leveling ----
 
     private int maxLevel = 10;
@@ -2221,7 +2231,8 @@ public final class DungeonSettings {
                     .add("DescendDelayFrames", Ini.integer((s, v) -> s.descendDelayFrames = v))
                     .add("VictoryFrames", Ini.integer((s, v) -> s.victoryFrames = v))
                     .add("DiedWord", Ini.restOfLine((s, v) -> s.diedWord = v))
-                    .add("WonWord", Ini.restOfLine((s, v) -> s.wonWord = v));
+                    .add("WonWord", Ini.restOfLine((s, v) -> s.wonWord = v))
+                    .add("NextDepthWord", Ini.restOfLine((s, v) -> s.nextDepthWord = v));
 
     private static final FieldParseTable<DungeonSettings> LEVELLING =
             new FieldParseTable<DungeonSettings>()
@@ -2365,6 +2376,11 @@ public final class DungeonSettings {
     }
 
     /** What the banner says when the run is lost, and when it is finished. */
+    /** What the banner says as he goes down to {@code depth}. */
+    public String nextDepthWord(int depth) {
+        return nextDepthWord.replace("%d", Integer.toString(depth));
+    }
+
     public String diedWord() {
         return diedWord;
     }

@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-11 · **Testlar:** 1032 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-11 · **Testlar:** 1040 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -2980,6 +2980,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/{SkillRange,RangeLook,RangeRings}.java` | skill qayergacha yetadi — beshta shakl, bitta til; ushlab turiladigan skillar shu yerda hal bo'ladi |
 | `client3d/…/client3d/Glow.java` | polda yotadigan yorqin belgilar uchun umumiy material (additive, depth-write yo'q) |
 | `client3d/…/client3d/{OrderMark,Chevrons}.java` | yurish klikiga javob: uchta o'q uchi, harakati (ease-out, kech so'nish, burilish) va chizilishi (pool, additive) |
+| `client3d/…/client3d/BannerPanel.java` | "o'ldingiz"/"yutdingiz"/keyingi qavat — yalang'och harf emas, ramkali plita; uch lahza uch xil ko'rinadi |
 | `client3d/…/client3d/AttackFlash.java` | hujum klikiga javob: jon atrofida qizil halqa, ikki marta qattiq yonib-o'chadi — bo'shliqni ko'z ilg'aydi |
 | `client3d/…/client3d/GroundRing.java` | polda yotgan aylana (uzluksiz chiziq + xira to'ldirish); skill halqasi ham, hujum halqasi ham shu — bitta chizma |
 | `client3d/…/client3d/Destination.java` | bora olmaydigan joyga bosilgan klikni eng yaqin bora oladigan katakka tortadi (toshqin; tosh + polga mahkamlangan mebel — bochka, ustun; tirik jon EMAS) |

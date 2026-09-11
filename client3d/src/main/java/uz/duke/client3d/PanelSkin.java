@@ -54,6 +54,23 @@ public record PanelSkin(Map<String, Piece> pieces) {
      */
     public static final String DIVIDER = "Divider";
 
+    /**
+     * The plaque a banner is written on — "you died", "you won", the next floor.
+     *
+     * <p>Three of it rather than one, because the three moments are not the same
+     * news and the frame is the only thing on screen that can say which: a death
+     * is an interruption, a floor is a door, and a win is an ending. A game that
+     * names only {@code Banner} gets that one for all three, which is still better
+     * than the bare lettering this replaced.
+     */
+    public static final String BANNER = "Banner";
+
+    /** The plaque for an ending that went his way. */
+    public static final String BANNER_WON = "BannerWon";
+
+    /** And for one that did not. */
+    public static final String BANNER_LOST = "BannerLost";
+
     /** For a game that has asked for nothing, which is every game but the dungeon. */
     public static final PanelSkin NONE = new PanelSkin(Map.of());
 

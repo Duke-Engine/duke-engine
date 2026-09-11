@@ -158,7 +158,7 @@ public final class DungeonRun {
         if (dead) {
             state = State.DEAD;
             endedFrame = logic.getFrame();
-            game.setBanner(settings.diedWord());
+            game.setBanner("lost|" + settings.diedWord());
             return;
         }
         if (bossId != null && logic.findObject(bossId) == null && descendAtFrame == 0) {
@@ -169,12 +169,12 @@ public final class DungeonRun {
             if (settings.finalDepth() > 0 && depth >= settings.finalDepth()) {
                 state = State.WON;
                 endedFrame = logic.getFrame();
-                game.setBanner(settings.wonWord());
+                game.setBanner("won|" + settings.wonWord());
                 return;
             }
             // The floor is finished, but not left yet — see below.
             descendAtFrame = logic.getFrame() + settings.descendDelayFrames();
-            game.setBanner("Depth " + (depth + 1));
+            game.setBanner("depth|" + settings.nextDepthWord(depth + 1));
         }
         if (descendAtFrame > 0 && logic.getFrame() >= descendAtFrame) {
             depth++;

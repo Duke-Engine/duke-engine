@@ -161,7 +161,7 @@ final class DukeRtsApp extends SimpleApplication {
     private final boolean[] pan = new boolean[4]; // W A S D
     private BitmapText hud;
     private BitmapText buildMenu;
-    private BitmapText banner;
+    private BannerPanel banner;
     private HeroPanel heroPanel;
     /**
      * The live creature in the panel's frame.
@@ -338,10 +338,7 @@ final class DukeRtsApp extends SimpleApplication {
         buildMenu.setColor(new ColorRGBA(0.8f, 1f, 0.8f, 1f));
         guiNode.attachChild(buildMenu);
 
-        banner = new BitmapText(guiFont);
-        banner.setSize(guiFont.getCharSet().getRenderedSize() * 4f);
-        banner.setColor(new ColorRGBA(1f, 0.9f, 0.3f, 1f));
-        guiNode.attachChild(banner);
+        banner = new BannerPanel(assetManager, guiFont, guiNode, visuals.getPanelSkin());
 
         controlsHint = new BitmapText(guiFont);
         var hint = controlsHint;
@@ -3876,14 +3873,8 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void updateBanner() {
-        if (!snapshot.hasBanner()) {
-            banner.setText("");
-            return;
-        }
-        banner.setText(snapshot.banner());
-        banner.setLocalTranslation(
-                (cam.getWidth() - banner.getLineWidth()) / 2f,
-                cam.getHeight() / 2f + banner.getLineHeight() / 2f, 0);
+        banner.show(snapshot.hasBanner() ? snapshot.banner() : null,
+                cam.getWidth(), cam.getHeight());
     }
 
     // ---- assets & helpers ----
