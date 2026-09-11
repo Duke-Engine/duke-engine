@@ -25,32 +25,30 @@ import uz.duke.core.math.Coord3D;
  *
  * <p>What is drawn follows from what he is being asked to point at rather than
  * from what the skill does — see {@link SkillRange.Shape}. Five shapes, one
- * visual language: a <b>dashed ring</b> is a reach, a <b>filled disc</b> is what
+ * visual language: a <b>ring</b> is a reach, a <b>filled disc</b> is what
  * something will cover, a <b>lane</b> is where something will fly, and
  * <b>red</b> anywhere means the click will be refused.
  *
  * <p><b>Nothing is built while the game runs.</b> Only one skill can be armed at
  * a time, so there is exactly one set of geometry here; it is made once and shown
- * or hidden. The rings change size every frame — they open out when they appear
- * and their dashes travel — and a ring cannot be a scaled copy of another ring,
- * because scaling a band scales its thickness with it and a line is supposed to
- * stay a line. So the ring's corners are written into the buffer it already owns,
- * a few hundred floats a frame, and nothing is allocated.
+ * or hidden. The circles themselves are {@link GroundRing}, which is also what
+ * marks the creature an attack was ordered on -- one drawing, so the two cannot
+ * drift into looking like different games.
  */
 final class RangeRings {
 
     private final RangeLook look;
     private final Node root;
-    private final Ring reach;
-    private final Ring area;
+    private final GroundRing reach;
+    private final GroundRing area;
     private final Lane lane;
 
     RangeRings(AssetManager assets, Node parent, RangeLook look) {
         this.look = look == null ? RangeLook.DEFAULT : look;
         this.root = new Node("skill-range");
         parent.attachChild(root);
-        this.reach = new Ring(assets, root, this.look);
-        this.area = new Ring(assets, root, this.look);
+        this.reach = ring(assets, root, this.look);
+        this.area = ring(assets, root, this.look);
         this.lane = new Lane(assets, root);
         hide();
     }
@@ -83,7 +81,8 @@ final class RangeRings {
 
         switch (range.shape()) {
             case AT_A_CREATURE -> {
-                reach.show(hero, range.reach(), edge, bright, look.fillAlpha(), floorAt);
+                reach.show(hero, range.reach(), look.height(), edge,
+                        look.edgeAlpha() * bright, look.fillAlpha() * bright, floorAt);
                 area.hide();
                 lane.hide();
             }
@@ -91,14 +90,15 @@ final class RangeRings {
                 // His reach stays his reach whatever the cursor is doing; it is the
                 // blast that turns red, because that is the half of the picture the
                 // refusal is about.
-                reach.show(hero, range.reach(), look.allowColour(), bright,
-                        look.fillAlpha() * 0.6f, floorAt);
+                reach.show(hero, range.reach(), look.height(), look.allowColour(),
+                        look.edgeAlpha() * bright, look.fillAlpha() * 0.6f * bright, floorAt);
                 // A skill that leaves nothing where it lands draws nothing there:
                 // a dash puts a man on a spot, and a circle round a man-sized spot
                 // is a second ring saying what the pointer already said.
                 var at = range.within(hero, pointer == null ? hero : pointer);
-                area.show(at, range.area(), allowed ? look.areaColour() : look.denyColour(),
-                        bright, look.fillAlpha() * 2f, floorAt);
+                area.show(at, range.area(), look.height(),
+                        allowed ? look.areaColour() : look.denyColour(),
+                        look.edgeAlpha() * bright, look.fillAlpha() * 2f * bright, floorAt);
                 lane.hide();
             }
             case DOWN_A_LANE -> {
@@ -111,14 +111,14 @@ final class RangeRings {
             case AROUND_HIM -> {
                 // The ring IS the blast here, so it is drawn as one: the area's
                 // colour and a stronger wash inside it.
-                reach.show(hero, range.reach(), look.areaColour(), bright,
-                        look.fillAlpha() * 2f, floorAt);
+                reach.show(hero, range.reach(), look.height(), look.areaColour(),
+                        look.edgeAlpha() * bright, look.fillAlpha() * 2f * bright, floorAt);
                 area.hide();
                 lane.hide();
             }
             case ON_HIMSELF -> {
-                reach.show(hero, range.reach(), look.areaColour(), bright,
-                        look.fillAlpha() * 2.5f, floorAt);
+                reach.show(hero, range.reach(), look.height(), look.areaColour(),
+                        look.edgeAlpha() * bright, look.fillAlpha() * 2.5f * bright, floorAt);
                 area.hide();
                 lane.hide();
             }
@@ -135,90 +135,8 @@ final class RangeRings {
         return root;
     }
 
-    // ---- an unbroken ring with a wash inside it ----
-
-    /**
-     * One ring: an unbroken circle, and a faint disc filling it.
-     *
-     * <p>This was dashed to begin with, on the reasoning that a solid ring round a
-     * hero reads as a wall he is standing inside. Looked at in the game it does
-     * not: it reads as a ruler, which is what it is, and the gaps cost legibility
-     * at the far end of a room for nothing.
-     */
-    private static final class Ring {
-
-        private final RangeLook look;
-        private final Node node = new Node("ring");
-        private final Geometry band;
-        private final Geometry fill;
-        private final FloatBuffer corners;
-
-        Ring(AssetManager assets, Node parent, RangeLook look) {
-            this.look = look;
-            var material = Glow.material(assets);
-            var wash = Glow.material(assets);
-
-            corners = BufferUtils.createFloatBuffer(look.segments() * 2 * 3);
-            band = Glow.inTheGlow(new Geometry("band", ring(look, corners)), material);
-            // The wash is a plain disc of radius 1, so it can simply be scaled: a
-            // disc has no thickness for scaling to distort.
-            fill = Glow.inTheGlow(new Geometry("wash", disc(look.segments())), wash);
-
-            node.attachChild(fill);
-            node.attachChild(band);
-            parent.attachChild(node);
-        }
-
-        void hide() {
-            node.setCullHint(Spatial.CullHint.Always);
-        }
-
-        boolean showing() {
-            return node.getLocalCullHint() != Spatial.CullHint.Always;
-        }
-
-        void show(Coord3D at, float radius, int colour, float bright, float wash,
-                BiFunction<Float, Float, Float> floorAt) {
-            if (radius <= 0.01f) {
-                hide();
-                return;
-            }
-            node.setCullHint(Spatial.CullHint.Inherit);
-            node.setLocalTranslation(at.x(), floorAt.apply(at.x(), at.y()) + look.height(), at.y());
-            writeBand(radius);
-            fill.setLocalScale(radius, 1f, radius);
-            band.getMaterial().setColor("Color",
-                    Glow.colour(colour, look.brightness(), look.edgeAlpha() * bright));
-            fill.getMaterial().setColor("Color",
-                    Glow.colour(colour, look.brightness(), Math.min(1f, wash) * bright));
-        }
-
-        /**
-         * Move the band's corners onto the circle this ring now is.
-         *
-         * <p>Rewritten rather than scaled, and that is the whole reason the buffer
-         * is kept: scaling a band scales its thickness with it, so one ring at
-         * sixty and another at nine would be drawn in two different weights of
-         * line. A line is supposed to stay a line.
-         */
-        private void writeBand(float radius) {
-            float inner = Math.max(0f, radius - look.bandWidth() * 0.5f);
-            float outer = radius + look.bandWidth() * 0.5f;
-            float step = FastMath.TWO_PI / look.segments();
-            corners.clear();
-            for (int segment = 0; segment < look.segments(); segment++) {
-                float angle = segment * step;
-                put(corners, inner, angle);
-                put(corners, outer, angle);
-            }
-            corners.flip();
-            band.getMesh().getBuffer(VertexBuffer.Type.Position).updateData(corners);
-            band.getMesh().updateBound();
-        }
-
-        private static void put(FloatBuffer out, float radius, float angle) {
-            out.put(FastMath.cos(angle) * radius).put(0f).put(FastMath.sin(angle) * radius);
-        }
+    private static GroundRing ring(AssetManager assets, Node root, RangeLook look) {
+        return new GroundRing(assets, root, look.bandWidth(), look.segments(), look.brightness());
     }
 
     // ---- the lane a shot flies down ----
@@ -297,49 +215,6 @@ final class RangeRings {
     }
 
     // ---- the meshes, built once ----
-
-    /**
-     * An unbroken band: two points per segment, inner and outer, stitched into a
-     * closed strip.
-     */
-    private static Mesh ring(RangeLook look, FloatBuffer corners) {
-        int segments = look.segments();
-        var mesh = new Mesh();
-        var order = BufferUtils.createShortBuffer(segments * 6);
-        for (int segment = 0; segment < segments; segment++) {
-            short here = (short) (segment * 2);
-            short next = (short) (((segment + 1) % segments) * 2);
-            order.put(here).put((short) (here + 1)).put((short) (next + 1));
-            order.put(here).put((short) (next + 1)).put(next);
-        }
-        order.flip();
-        corners.limit(corners.capacity());
-        mesh.setBuffer(VertexBuffer.Type.Position, 3, corners);
-        mesh.setBuffer(VertexBuffer.Type.Index, 3, order);
-        mesh.updateBound();
-        return mesh;
-    }
-
-    /** A flat disc of radius 1, as a fan of triangles round its middle. */
-    private static Mesh disc(int segments) {
-        var mesh = new Mesh();
-        var points = BufferUtils.createFloatBuffer((segments + 1) * 3);
-        points.put(0f).put(0f).put(0f);
-        for (int step = 0; step < segments; step++) {
-            float angle = FastMath.TWO_PI * step / segments;
-            points.put(FastMath.cos(angle)).put(0f).put(FastMath.sin(angle));
-        }
-        points.flip();
-        var order = BufferUtils.createShortBuffer(segments * 3);
-        for (int step = 0; step < segments; step++) {
-            order.put((short) 0).put((short) (1 + step)).put((short) (1 + (step + 1) % segments));
-        }
-        order.flip();
-        mesh.setBuffer(VertexBuffer.Type.Position, 3, points);
-        mesh.setBuffer(VertexBuffer.Type.Index, 3, order);
-        mesh.updateBound();
-        return mesh;
-    }
 
     private static Mesh laneMesh(FloatBuffer corners) {
         var mesh = new Mesh();

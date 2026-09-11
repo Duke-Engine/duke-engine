@@ -49,7 +49,7 @@ class OrderMarkTest {
     /** And a power of 1 really is the straight line, so the knob means what it says. */
     @Test
     void anEaseOfOneIsAConstantSpeed() {
-        var straight = new OrderMark(10f, 0f, 1f, 1f, 1f, 0f, 1f, 1f, 0f, 1f, 0, 0);
+        var straight = new OrderMark(10f, 0f, 1f, 1f, 1f, 0f, 1f, 1f, 0f, 1f, 5f, 2, 0, 0);
 
         assertEquals(5f, straight.at(0.5f).radius(), 0.001f,
                 "with no easing, half the time is half the distance");
@@ -82,6 +82,33 @@ class OrderMarkTest {
                 "ending exactly where the file said");
     }
 
+    /**
+     * The attack ring goes hard on and hard off, twice, and ends dark.
+     *
+     * <p>A blink rather than a fade, and the thing worth pinning is that it is
+     * really OFF in the middle: a "blink" that only dims is a thing nobody sees
+     * across a room, and it is the gap that the eye catches rather than the light.
+     */
+    @Test
+    void theAttackRingBlinksTwiceAndGoesOut() {
+        float life = LOOK.seconds();
+        assertEquals(1f, LOOK.blinkAt(0f), 0.001f, "lit the moment it is ordered");
+        assertEquals(0f, LOOK.blinkAt(life * 0.30f), 0.001f, "out");
+        assertEquals(1f, LOOK.blinkAt(life * 0.55f), 0.001f, "and back");
+        assertEquals(0f, LOOK.blinkAt(life * 0.80f), 0.001f, "and out again");
+        assertEquals(0f, LOOK.blinkAt(life), 0.001f, "and finished dark");
+        assertEquals(0f, LOOK.blinkAt(-1f), 0.001f, "and dark before it exists");
+    }
+
+    /** However many blinks the file asks for, it is a whole number of them. */
+    @Test
+    void theFileDecidesHowManyTimesItBlinks() {
+        var once = new OrderMark(7f, 1f, 1f, 1f, 1f, 0f, 1f, 1f, 0f, 1f, 5f, 1, 0, 0);
+
+        assertEquals(1f, once.blinkAt(0.2f), 0.001f);
+        assertEquals(0f, once.blinkAt(0.7f), 0.001f, "one blink is one on and one off");
+    }
+
     /** Asked about a moment before or after its life, it answers sensibly. */
     @Test
     void itIsWellBehavedOutsideItsOwnLife() {
@@ -101,7 +128,7 @@ class OrderMarkTest {
      */
     @Test
     void nonsenseInTheFileIsPulledBackToSomethingDrawable() {
-        var silly = new OrderMark(-4f, -1f, 0f, 0f, -2f, 0f, 0.1f, 5f, 0f, -1f, 0, 0);
+        var silly = new OrderMark(-4f, -1f, 0f, 0f, -2f, 0f, 0.1f, 5f, 0f, -1f, -3f, 0, 0, 0);
 
         assertTrue(silly.seconds() > 0f, "a mark with no life would divide by zero");
         assertTrue(silly.size() > 0f && silly.width() > 0f, "and one with no area draws nothing");

@@ -1735,6 +1735,8 @@ public final class DungeonSettings {
     private float markFadeFrom = 0.6f;
     private float markSpinDegrees = 22f;
     private float markBrightness = 1.6f;
+    private float markRingRadius = 7f;
+    private int markBlinks = 2;
     private int markMoveColour = 0x3CFF6E;
     private int markAttackColour = 0xFF4436;
 
@@ -1786,6 +1788,16 @@ public final class DungeonSettings {
     /** What its colour is multiplied by — over 1, because it is drawn additively. */
     public float markBrightness() {
         return markBrightness;
+    }
+
+    /** How wide the ring round an attacked creature is drawn. */
+    public float markRingRadius() {
+        return markRingRadius;
+    }
+
+    /** How many times it goes out and comes back. */
+    public int markBlinks() {
+        return markBlinks;
     }
 
     /** "Go there". */
@@ -1911,6 +1923,8 @@ public final class DungeonSettings {
                     .add("FadeFrom", Ini.real((s, v) -> s.markFadeFrom = v))
                     .add("SpinDegrees", Ini.real((s, v) -> s.markSpinDegrees = v))
                     .add("Brightness", Ini.real((s, v) -> s.markBrightness = v))
+                    .add("RingRadius", Ini.real((s, v) -> s.markRingRadius = v))
+                    .add("Blinks", Ini.integer((s, v) -> s.markBlinks = v))
                     .add("MoveColour",
                             (ini, s) -> s.markMoveColour = Integer.decode(ini.getNextToken()))
                     .add("AttackColour",

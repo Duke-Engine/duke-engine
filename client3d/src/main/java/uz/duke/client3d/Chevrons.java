@@ -2,12 +2,10 @@ package uz.duke.client3d;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.material.Material;
-import com.jme3.material.RenderState;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
-import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Mesh;
 import com.jme3.scene.Node;
@@ -24,6 +22,10 @@ import java.util.function.BiFunction;
  * <p>Three of them, set a third of a turn apart, points inward — see
  * {@link OrderMark} for why they move the way they do. This class is the other
  * half of that: the part that knows about jME, and nothing about what looks good.
+ *
+ * <p><b>Walking orders only.</b> An attack is given to a creature rather than to a
+ * piece of floor, and gets a different picture for that reason — see
+ * {@link AttackFlash}.
  *
  * <p><b>Nothing here is built while the game is running.</b> The old marker
  * emptied its node and made a fresh cylinder and a fresh material every frame for
@@ -71,6 +73,12 @@ final class Chevrons {
     void show(List<OrderMarkers.Marker> marks, float now, BiFunction<Float, Float, Float> floorAt) {
         int used = 0;
         for (var marker : marks) {
+            // An attack is answered by a ring round the creature rather than by
+            // arrowheads on the floor -- see AttackFlash for why they are not the
+            // same picture.
+            if (marker.kind() != OrderMarkers.Kind.MOVE) {
+                continue;
+            }
             float age = now - marker.bornAt();
             if (age < 0f || look.spent(age)) {
                 continue;
@@ -99,7 +107,8 @@ final class Chevrons {
         mark.node().setCullHint(Spatial.CullHint.Inherit);
         mark.node().setLocalTranslation(marker.x(),
                 floorAt.apply(marker.x(), marker.y()) + look.height(), marker.y());
-        mark.material().setColor("Color", colourOf(marker.kind(), step.alpha()));
+        mark.material().setColor("Color",
+                Glow.colour(look.moveColour(), look.brightness(), step.alpha()));
         for (int point = 0; point < POINTS; point++) {
             float around = step.spinRadians() + point * FastMath.TWO_PI / POINTS;
             var head = mark.heads().get(point);
@@ -112,16 +121,6 @@ final class Chevrons {
         }
     }
 
-    private ColorRGBA colourOf(OrderMarkers.Kind kind, float alpha) {
-        int packed = kind == OrderMarkers.Kind.ATTACK ? look.attackColour() : look.moveColour();
-        float scale = look.brightness() / 255f;
-        return new ColorRGBA(
-                ((packed >> 16) & 0xFF) * scale,
-                ((packed >> 8) & 0xFF) * scale,
-                (packed & 0xFF) * scale,
-                alpha);
-    }
-
     private Mark borrow(int index) {
         while (pool.size() <= index) {
             pool.add(build());
@@ -130,21 +129,12 @@ final class Chevrons {
     }
 
     private Mark build() {
-        var material = new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
-        material.setColor("Color", ColorRGBA.White);
-        var state = material.getAdditionalRenderState();
-        state.setBlendMode(RenderState.BlendMode.AlphaAdditive);
-        state.setDepthWrite(false);
-        // Which way the triangle was wound is not worth caring about for a flat
-        // shape seen from one side of the map.
-        state.setFaceCullMode(RenderState.FaceCullMode.Off);
+        var material = Glow.material(assets);
 
         var node = new Node("order-mark");
         var heads = new ArrayList<Geometry>(POINTS);
         for (int point = 0; point < POINTS; point++) {
-            var head = new Geometry("order-head", arrowhead);
-            head.setMaterial(material);
-            head.setQueueBucket(RenderQueue.Bucket.Transparent);
+            var head = Glow.inTheGlow(new Geometry("order-head", arrowhead), material);
             node.attachChild(head);
             heads.add(head);
         }

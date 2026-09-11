@@ -565,8 +565,8 @@ public final class Main {
                 settings.markStartRadius(), settings.markEndRadius(), settings.markSeconds(),
                 settings.markSize(), settings.markWidth(), settings.markHeight(),
                 settings.markEasePower(), settings.markFadeFrom(), settings.markSpinDegrees(),
-                settings.markBrightness(), settings.markMoveColour(),
-                settings.markAttackColour()));
+                settings.markBrightness(), settings.markRingRadius(), settings.markBlinks(),
+                settings.markMoveColour(), settings.markAttackColour()));
 
         // How far each skill reaches, so the client can draw it before it is spent
         // — see DungeonSkillRing, and SkillRange for what each shape means.

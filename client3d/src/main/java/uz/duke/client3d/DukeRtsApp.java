@@ -215,6 +215,9 @@ final class DukeRtsApp extends SimpleApplication {
     /** Draws the marks in that node, reusing what it has made. See Chevrons. */
     private Chevrons chevrons;
 
+    /** And the red ring that flashes round whatever was ordered attacked. */
+    private AttackFlash attackFlash;
+
     /** Everything the scene keeps per live unit. */
     private static final class UnitNode {
         Node root;
@@ -318,6 +321,7 @@ final class DukeRtsApp extends SimpleApplication {
         rootNode.attachChild(unitsNode);
         rootNode.attachChild(markerNode);
         chevrons = new Chevrons(assetManager, markerNode, visuals.getOrderMark());
+        attackFlash = new AttackFlash(assetManager, markerNode, visuals.getOrderMark());
         rangeRings = new RangeRings(assetManager, markerNode, visuals.getRangeLook());
         warmNode.setCullHint(Spatial.CullHint.Always);
         rootNode.attachChild(warmNode);
@@ -611,6 +615,7 @@ final class DukeRtsApp extends SimpleApplication {
         float now = timer.getTimeInSeconds();
         orderMarkers.prune(now, visuals.getOrderMark().seconds());
         chevrons.show(orderMarkers.markers(), now, this::floorHeightAt);
+        attackFlash.show(orderMarkers.markers(), now, this::floorHeightAt);
         syncSkillRange(now);
     }
 
@@ -1872,6 +1877,7 @@ final class DukeRtsApp extends SimpleApplication {
         noises.forget(); // a new floor; nothing about the last one is news
         orderMarkers.clear(); // orders given in the old world mean nothing here
         chevrons.clear();
+        attackFlash.clear();
         camera.requestOwnUnit(); // his units are somewhere else entirely now
         // And the hero he had selected is not this floor's hero. See
         // keepHisOwnSelected: his skills need him picked out.

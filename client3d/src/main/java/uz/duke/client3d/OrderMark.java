@@ -49,16 +49,23 @@ package uz.duke.client3d;
  * @param brightness   what the colour is multiplied by. Over 1 on purpose: the
  *                     mark is drawn additively, so this is what lets it read
  *                     through torchlight and fog
+ * @param ringRadius   how wide the circle round a creature an attack was ordered
+ *                     on is drawn. An order given <em>to</em> something is not the
+ *                     same kind of answer as an order given to a piece of floor:
+ *                     the arrowheads say "there", and a creature needs "that one"
+ * @param blinks       how many times that circle goes out and comes back over its
+ *                     life. Two is the whole of it — one reads as a glitch and
+ *                     three is a warning light
  * @param moveColour   packed RGB for "go there"
  * @param attackColour packed RGB for "kill that"
  */
 public record OrderMark(float startRadius, float endRadius, float seconds, float size,
         float width, float height, float easePower, float fadeFrom, float spinDegrees,
-        float brightness, int moveColour, int attackColour) {
+        float brightness, float ringRadius, int blinks, int moveColour, int attackColour) {
 
     /** What a game that asks for nothing gets. Tuned by eye at a dungeon's scale. */
     public static final OrderMark DEFAULT = new OrderMark(
-            7f, 1f, 0.40f, 3.5f, 3f, 0.25f, 3f, 0.6f, 22f, 1.6f, 0x3CFF6E, 0xFF4436);
+            7f, 1f, 0.40f, 3.5f, 3f, 0.25f, 3f, 0.6f, 22f, 1.6f, 7f, 2, 0x3CFF6E, 0xFF4436);
 
     public OrderMark {
         startRadius = Math.max(0f, startRadius);
@@ -69,6 +76,8 @@ public record OrderMark(float startRadius, float endRadius, float seconds, float
         easePower = Math.max(1f, easePower);
         fadeFrom = Math.clamp(fadeFrom, 0f, 0.99f);
         brightness = Math.max(0f, brightness);
+        ringRadius = Math.max(0.01f, ringRadius);
+        blinks = Math.max(1, blinks);
     }
 
     /**
@@ -100,5 +109,25 @@ public record OrderMark(float startRadius, float endRadius, float seconds, float
     /** Whether a mark that old has finished and should not be drawn. */
     public boolean spent(float age) {
         return age >= seconds;
+    }
+
+    /**
+     * How brightly the ring round an attacked creature is drawn, {@code age}
+     * seconds in: on, off, on, off.
+     *
+     * <p>A flat blink rather than the arrowheads' ease, and rather than a fade.
+     * The two orders are not the same kind of answer and should not look alike: a
+     * walk is somewhere, and the arrowheads close on it; an attack is
+     * <em>somebody</em>, and what the player needs is that creature picked out of
+     * a crowd of them. Something that goes hard on and hard off twice is the
+     * oldest way of doing that and still the one the eye finds fastest — a gentle
+     * fade in the middle of a fight is a thing nobody sees.
+     */
+    public float blinkAt(float age) {
+        if (spent(age) || age < 0f) {
+            return 0f;
+        }
+        float through = Math.clamp(age / seconds, 0f, 1f) * Math.max(1, blinks);
+        return through - (float) Math.floor(through) < 0.5f ? 1f : 0f;
     }
 }

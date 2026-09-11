@@ -269,8 +269,8 @@ class DungeonSettingsTest {
                 settings.markStartRadius(), settings.markEndRadius(), settings.markSeconds(),
                 settings.markSize(), settings.markWidth(), settings.markHeight(),
                 settings.markEasePower(), settings.markFadeFrom(), settings.markSpinDegrees(),
-                settings.markBrightness(), settings.markMoveColour(),
-                settings.markAttackColour());
+                settings.markBrightness(), settings.markRingRadius(), settings.markBlinks(),
+                settings.markMoveColour(), settings.markAttackColour());
 
         assertTrue(shipped.startRadius() > shipped.endRadius(),
                 "the arrowheads have to close on the click, not open away from it");
@@ -281,6 +281,9 @@ class DungeonSettingsTest {
                 "it should travel at full strength and go out at the end");
         assertNotEquals(shipped.moveColour(), shipped.attackColour(),
                 "walking and killing are not the same order");
+        assertTrue(shipped.blinks() >= 1,
+                "the ring on an attacked creature has to flash at least once");
+        assertTrue(shipped.ringRadius() > 0f, "and be some size");
     }
 
     /**

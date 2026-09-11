@@ -67,7 +67,7 @@ class ChevronsTest {
     void theSceneStopsGrowingOnceItHasSeenTheBusiestMoment() {
         var scene = scene();
         scene.orders().add(10f, 10f, OrderMarkers.Kind.MOVE, NOW);
-        scene.orders().add(20f, 20f, OrderMarkers.Kind.ATTACK, NOW);
+        scene.orders().add(20f, 20f, OrderMarkers.Kind.MOVE, NOW);
         draw(scene, NOW);
         assertEquals(2, scene.chevrons().madeSoFar(), "two at once needs two");
 
@@ -99,7 +99,7 @@ class ChevronsTest {
         assertEquals(Spatial.CullHint.Always, first.getLocalCullHint(),
                 "a spent mark should be out of sight");
 
-        scene.orders().add(80f, 80f, OrderMarkers.Kind.ATTACK, NOW + 10f);
+        scene.orders().add(80f, 80f, OrderMarkers.Kind.MOVE, NOW + 10f);
         draw(scene, NOW + 10f);
 
         assertSame(first, scene.root().getChild(0), "the next order should reuse that mark");
@@ -125,19 +125,29 @@ class ChevronsTest {
         assertEquals(1, meshes.size(), "six arrowheads should be one mesh drawn six times");
     }
 
-    /** An order to attack is not drawn in the colour of an order to walk. */
+    /**
+     * An order to attack leaves no arrowheads at all.
+     *
+     * <p>They are answers to different questions. A walk is answered where the
+     * player pointed; an attack is given to somebody, and arrowheads closing on a
+     * creature that is about to walk out from under them say "which one" badly. So
+     * that one is drawn as a ring round the creature instead -- see AttackFlash --
+     * and this is where the two are kept apart.
+     */
     @Test
-    void theTwoKindsOfOrderAreTwoColours() {
+    void onlyWalkingOrdersLeaveArrowheads() {
         var move = scene();
         move.orders().add(10f, 10f, OrderMarkers.Kind.MOVE, NOW);
         draw(move, NOW);
+        assertEquals(1, move.root().getChildren().size(), "a walk is three arrowheads");
+        assertTrue(colourOf(move.root()).g > colourOf(move.root()).r, "go there is green");
 
         var attack = scene();
         attack.orders().add(10f, 10f, OrderMarkers.Kind.ATTACK, NOW);
         draw(attack, NOW);
 
-        assertTrue(colourOf(move.root()).g > colourOf(move.root()).r, "go there is green");
-        assertTrue(colourOf(attack.root()).r > colourOf(attack.root()).g, "kill that is red");
+        assertEquals(0, attack.chevrons().madeSoFar(),
+                "an attack should not have asked this for anything");
     }
 
     /** And it really does go out: the colour it is drawn in loses its alpha. */
