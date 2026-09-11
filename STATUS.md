@@ -807,7 +807,7 @@ Determinizm shartnomasi skriptga ham tegishli: devor-soati yo'q, `Math.random()`
 
 ---
 
-## 5. `client3d` — 3D klient (47 fayl, ~16 800 qator)
+## 5. `client3d` — 3D klient (49 fayl, ~17 100 qator)
 
 jMonkeyEngine 3.7.0-stable ustida. `Duke3D.launch(game, visuals[, shell])` oynani ochadi va
 yopilguncha bloklaydi.
@@ -2158,14 +2158,37 @@ Endi farq yo'q: chapda minimap va yonida to'rtta buyruq tugmasi, portret oltin
 romda va ostida daraja nishoni, o'rtada ismi/unvoni/barlari va 2×2 ko'rsatkich
 to'ri, keyin narsalar to'ri, mahorat ustuni, chekkada chuqurlik.
 
-- **Buyruq tugmalari (A/S/D/F).** Uchtasi engine'niki (`MoveTo`, `AttackObject`,
-  `StopMoving`) va sichqoncha allaqachon beradi; tugma shuning uchun borki,
-  o'ng-klik o'zini ko'rsata olmaydi — o'yinchi bu to'rt buyruq alohida ekanini
-  boshqa yo'l bilan bilib ololmasdi. To'rtinchisi o'yinniki:
-  `HoldGround` — "joyingda tur, hech kim bilan urishma". Engine buni ayta
-  olmaydi: `StopMoving` yurishni bekor qiladi va kamon haqida hech narsa
-  demaydi. **Diqqat:** o'yin A/S/D ni egallagani uchun kamera endi strelkalar
-  bilan suriladi; pastdagi yordam qatori buni o'zi bilib yozadi.
+- **Buyruq tugmalari (A/S/D/F) — bosiladigan ham, chiroq ham.** Bosiladigani
+  ma'lum edi; chiroq bo'lgani muhimroq chiqdi. Tugmalarni bosib o'ynaydigan odam
+  yo'q — sichqoncha va klavish har doim tezroq — shuning uchun ularni panelda
+  ushlab turadigan narsa **ayta oladigani**: buyruq yetib bordimi, qahramon hali
+  yuryaptimi, narigi burchakdagi skelet kelyaptimi.
+
+  Shuning uchun har biri bir **holat**ning chirog'i ham, va to'rttadan aynan
+  bittasi yonib turadi: `Yur` / `Hujum` / `To'xta` / `Himoya` — qarang `Doing`.
+  Holat miyadan emas, **modullardan** o'qiladi, shuning uchun bir xil to'rt so'z
+  qahramonni ham, skeletni ham, keyin qo'shiladigan har qanday narsani ham
+  tasvirlaydi. Jang yurishdan ustun: nishonga qarab yurganda ham `Hujum` yonadi,
+  chunki buyruq hujum edi — yurish esa uni bajarish usuli.
+
+  **To'rtinchi tugma shu sababdan teskari bo'ldi, va shundan yaxshi chiqdi.**
+  U `HoldGround` — "joyingda tur, hech kim bilan urishma" — edi, va bu aslida
+  **To'xta**ning ma'nosi: yurishni tashla, nishonni tashla, hech narsa boshlama.
+  To'rtinchisi endi **Himoya** — nomi yo'q bo'lgan oddiy bo'sh holat: turadi,
+  lekin yaqinlashgan har kimga o'zi tashlanadi. Ikkita tugma holatni **qo'yadi**,
+  bittasi uni almashtirmaydi: har biri o'zi qo'yadigan holatning chirog'i, va
+  "narigisi" chiroq ko'rsata oladigan holat emas. To'xta o'yinchi boshqa narsa
+  xohlashi bilanoq o'chadi — aks holda u kirib chiqib bo'lmaydigan holat bo'lardi.
+
+  **Qator tanlangan unitga tegishli, qahramonga emas.** O'ziniki bo'lmagan jon
+  nima qilayotganini ko'rsatadi va buyruq qabul qilmaydi: tugmalar xiralashadi,
+  klavish ham, klik ham rad etiladi — ishlamaydigan yonib turgan tugma umuman
+  yo'q tugmadan yomon. Lekin xira ≠ bo'sh: skeletning niyatini paneldan o'qish
+  o'zinikini o'qish bilan barobar qimmatli, va o'yinchi klik qilishdan oldin
+  bilmoqchi bo'ladigan narsa aynan shu.
+
+  **Diqqat:** o'yin A/S/D ni egallagani uchun kamera endi strelkalar bilan
+  suriladi; pastdagi yordam qatori buni o'zi bilib yozadi.
 - **`Orders`** — buyruq bilan uni bajaradigan miya o'rtasidagi yagona ko'prik.
   Buyruq handler'ida o'yinchi raqami bor, miya esa obyektdagi modul; engine
   skript modulini qaytarib bermaydi, bergan taqdirda ham o'yin engine
@@ -2458,6 +2481,122 @@ beradimi yoki paydo bo'lishga o'xshaydimi. Hammasi INI'dagi bitta so'z yoki raqa
 
 ---
 
+### 8.ah Yo'l ochiq bo'lsa yuradi, bo'lmasa turadi
+
+Pirpirash ikki xil yo'ldan kelardi va ikkalasi ham `dungeon` da hal bo'ldi.
+
+- **Sabab.** Lokomotor bir oyoqdan ikki soniyadan keyin voz kechadi, lekin **har
+  bir yangi buyruq shu hisobni nolga qaytaradi**. Jangda qahramon doim harakatda,
+  ya'ni miya har necha qadamda qayta rejalaydi — demak hisob hech qachon
+  to'lmaydi va pirpirash chaqirilgan qadar davom etadi.
+- **`WayAhead`** o'yinchi ko'rgan savolni beradi: **yonidan o'tadigan joy bormi?**
+  Yo'q bo'lsa — turadi. Birinchi variant "oldimda tanami?" deb so'radi va ikkita
+  to'g'ri testni buzdi: ochiq xonada lokomotor aylanib o'tadi, va o'tishi ham
+  kerak. Farq tanada emas, **yonidagi devorlarda** — shuning uchun savol "chap
+  yoki o'ngda bitta tana eni bo'sh joy bormi", o'lchami esa unitning o'z
+  shablonidan.
+- **Ikki holat.** Maxluq qahramonni quvganda (miya boshqaradi) va qahramon oddiy
+  yurish buyrug'ini bajarayotganda. Ikkinchisida qayerga ketayotgani **eslab
+  qolinadi**: yo'l ochilsa qayta so'ramasdan davom etadi.
+- **O'lchov.** Tuzatishni olib tashlab qayta ishga tushirilganda: 150/150 kadr
+  yurish holatida edi → **0/150**. Oddiy yurish buyrug'ida 50/50 → **0/50**.
+- **Qotib qolmaydi.** Kutish ikki sababdan tugaydi: tana ketsa, yoki kutilayotgan
+  nuqta endi **u bilan maqsad orasida bo'lmasa** — aks holda dushman orqasidan
+  aylanib o'tsa, jon eski yo'nalishga qarab abadiy turib qolardi. Taymer emas,
+  taqqoslash: taymer har necha vaqtda bir pirpiratadi, ya'ni tuzatilayotgan
+  nuqsonning kichik nusxasi bo'lardi.
+
+### 8.ai To'siq ustiga ham yurish buyrug'i beriladi
+
+`Destination` faqat **toshni** o'qirdi. Bochka/ustun grid'ning *obstacle*
+qatlamida turadi — klik katagi ochiq ko'rinardi, buyruq o'zgarishsiz ketardi,
+keyin unitning o'z qidiruvi (u bochkani biladi) yo'l topolmasdi va qahramon
+umuman qimirlamasdi. Endi mebel ham hisobga olinadi va u bochkagacha borib
+to'xtaydi.
+
+Bu qatlam **faqat qimirlay olmaydigan** narsalardan yig'iladi
+(`GameLogic.refreshStaticObstacles` `isMobile()` ni tashlab ketadi), shuning
+uchun eshikdagi skelet baribir buyruqni qisqartirmaydi. Buni tasdiqlaydigan eski
+test aslida **engine yarata olmaydigan** holatni tekshirayotgan ekan — u ikkita
+to'g'ri testga almashtirildi, biri jonzot hech qachon xaritaga singdirilmasligini
+tirik o'yinda o'lchaydi.
+
+Kursor ham shunga moslandi: **ochilmagan yer taqiq emas** — yurish buyrug'i
+aimlanmaydi, xohlagan joyga beriladi va qanchalik yaqin borishini simulyatsiya
+hal qiladi; ko'rilmagan tosh ustida taqiq ko'rsatish esa xaritani kursor orqali
+o'qib berish bo'lardi.
+
+### 8.aj Klikka javob: yurishga o'q uchlari, hujumga halqa
+
+Buyruq belgisi — o'yinda o'yinchiga uning kliki bilan biror narsa sodir bo'lishi
+o'rtasidagi lahzada javob qaytaradigan yagona narsa, ya'ni o'lchamidan ko'ra
+ko'proq e'tibor talab qiladi.
+
+- **Eski belgining so'nishi hech qachon ishlamagan.** Material'da `BlendMode` yo'q
+  edi va u Opaque bucket'da turardi — har kadrda hisoblanayotgan alfa hech qayerga
+  bormasdi. Doira 1.2 soniya o'sardi va **birdan o'chardi**.
+- **Yurish** — Warcraft III ning uchta o'q uchi: 120° oraliqda, uchlari ichkariga,
+  markazga yopiladi. Uchta raqam butun ishni qiladi va uchalasi ham noto'g'ri
+  bo'lganda yomon ko'rinadi: **ease-out** (tekis tezlik mexanizmdek o'qiladi),
+  **kech so'nish** (birinchi kadrdan so'nsa, o'qilmasidan yarmi ketadi) va
+  **kichik burilish** (hech kim ko'rmaydi, yo'qligini hamma sezadi).
+- **Hujum** — boshqa savol, boshqa rasm: u **kimgadir** beriladi, shuning uchun
+  jon atrofida qizil halqa **ikki marta qattiq yonib-o'chadi**. So'nish emas,
+  chunki ko'z **bo'shliqni** ilg'aydi; jang o'rtasida yumshoq so'nishni hech kim
+  ko'rmaydi. Ikki marta: bittasi glitch'dek, uchtasi ogohlantirish chirog'idek.
+- **Hech narsa o'yin ketayotganda qurilmaydi.** Bitta uchburchak mesh butun
+  o'yinga; har belgining node/material'i bir marta yasalib qayta ishlatiladi;
+  tugagani uzilmaydi, berkitiladi — sahna eng gavjum lahzada to'xtaydi.
+
+### 8.ak Skill qayergacha yetadi — beshta shakl, bitta til
+
+Cooldown taxminni qimmat qiladi, shuning uchun olib tashlanadigan narsa —
+taxmin. Indikator uch savolga javob beradi: **qayergacha yetadi**, **shu yerdan
+tegadimi**, va uchadigan narsa uchun **qaysi tomonga ketadi**.
+
+Qaysi rasm chizilishi skill *nima qilishidan* emas, o'yinchidan **nimani
+ko'rsatish so'ralishidan** kelib chiqadi — `SkillRange.Shape`:
+
+| Shakl | Rasm |
+|---|---|
+| `AT_A_CREATURE` | halqa (`Range`); ichidagi jonni bosasan |
+| `AT_A_SPOT` | halqa + kursor ostida portlash diski, masofa chetiga qisiladi |
+| `DOWN_A_LANE` | yo'lak — o'qning haqiqiy uzunligi va eni, uchida o'q uchi |
+| `AROUND_HIM` | bitta disk (`Radius`), o'zining atrofida |
+| `ON_HIMSELF` | unga tegib turgan tor halqa: bu faqat unga |
+
+**Raqamlar skillning o'ziniki** (`Range`/`Radius`/`Distance`) — INI'da ikkinchi
+nusxa yo'q, va yangi qahramon indikator uchun bir qator Java ham talab qilmaydi.
+
+**Indikator — o'lchagich, effekt emas.** Birinchi variant ochilib chiqardi va
+sekin aylanardi (janr shunday qiladi) — ikkalasi ham noto'g'ri edi: o'rnashishini
+kutish kerak bo'lgan o'lchagich skill uchun kerak bo'lgan soniya ulushini yeydi,
+aylanadigani esa ko'zni masofaga emas o'ziga tortadi. Punktir chiziq ham xonaning
+narigi chetida o'qilishni bekorga yo'qotardi. Hozir: **birinchi kadrda to'liq
+o'lchamda, qimirlamaydigan, uzluksiz chiziq** — qolgan yagona harakat sekin nafas
+olish, uni ham INI'dan o'chirish mumkin.
+
+**Nishonsiz skillar qo'yib yuborilganda ishlaydi** (`W`, `R`): bosib turilganda
+radius ko'rinadi. Aks holda ularning masofasini sarflamasdan ko'rishning iloji
+yo'q edi. Tez bossangiz baribir ishlaydi, va faqat armed qilgan narsa otadi —
+klaviatura bilan armed qilib sichqonchani qo'yib yuborsangiz hech narsa bo'lmaydi.
+
+**Ikkita yangi skill turi** shu paytda qo'shildi, chunki beshta rasmning
+ikkitasi ortida skill yo'q edi: `AREA_AT_SPOT` (o'yinchi qo'ygan nuqtaga
+portlash — masofadan uzoqroqqa bossa rad etilmaydi, chetiga tortiladi) va
+`SKILLSHOT` (yo'nalishga otiladi, yo'ldagiga tegadi, **tegmasligi ham mumkin** —
+`STRIKE` ning teskarisi, uning o'qi quvib yetadi va hech qachon xato ketmaydi).
+Erkin uchuvchi o'q — o'sha `ArrowUpdate`, faqat nishonsiz; devorga urilib
+tugaydi, chunki klient chizgan yo'lak ham devorda tugaydi. Qahramon o'z
+to'rttasini saqlab qoldi; bu ikkitasi keyingi qahramonlar uchun.
+
+**Skill tanlangan unitga tegishli.** QWER selection'ni umuman so'ramasdi; endi
+so'raydi. Va uning ikkinchi yarmi shart: yangi dunyoda qahramon **bir marta**
+avtomatik tanlanadi — har qavat yangi obyekt beradi, ya'ni eski tanlov yaroqsiz
+bo'lib, skillar jimgina ishlamay qolardi.
+
+---
+
 ## 9. Nima yo'q / ochiq ishlar
 
 ### Katta teshiklar
@@ -2572,7 +2711,6 @@ o'sha o'yinga aylantiradi.
 O'yin hozir "o'ynash mumkinmi?" savolini tekshiryapti, shuning uchun uni yashira
 oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchilik emas:
 
-- **Ovoz yo'q** — musiqa ham, effekt ham.
 - **Inventar yo'q** — loot to'g'ridan-to'g'ri doimiy bonus beradi, almashtiriladigan
   narsa emas. Ataylab: qaror "borib olamanmi", va oxirida ikkinchi qaror
   rasmiyatchilik bo'lardi.
@@ -2841,7 +2979,9 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/{SelectionBox,Formation,OrderMarkers}.java` | drag-select, guruh joylashuvi, buyruq metkalari |
 | `client3d/…/client3d/{SkillRange,RangeLook,RangeRings}.java` | skill qayergacha yetadi — beshta shakl, bitta til; ushlab turiladigan skillar shu yerda hal bo'ladi |
 | `client3d/…/client3d/Glow.java` | polda yotadigan yorqin belgilar uchun umumiy material (additive, depth-write yo'q) |
-| `client3d/…/client3d/{OrderMark,Chevrons}.java` | klikka javob beruvchi uchta o'q uchi: harakati (ease-out, kech so'nish, burilish) va chizilishi (pool, additive) |
+| `client3d/…/client3d/{OrderMark,Chevrons}.java` | yurish klikiga javob: uchta o'q uchi, harakati (ease-out, kech so'nish, burilish) va chizilishi (pool, additive) |
+| `client3d/…/client3d/AttackFlash.java` | hujum klikiga javob: jon atrofida qizil halqa, ikki marta qattiq yonib-o'chadi — bo'shliqni ko'z ilg'aydi |
+| `client3d/…/client3d/GroundRing.java` | polda yotgan aylana (uzluksiz chiziq + xira to'ldirish); skill halqasi ham, hujum halqasi ham shu — bitta chizma |
 | `client3d/…/client3d/Destination.java` | bora olmaydigan joyga bosilgan klikni eng yaqin bora oladigan katakka tortadi (toshqin; tosh + polga mahkamlangan mebel — bochka, ustun; tirik jon EMAS) |
 | `client3d/…/client3d/NineSlice.java` | bitta kichik ramka rasmi istalgan o'lchamda — burchaklar cho'zilmaydi; jME'da bunday narsa yo'q |
 | `client3d/…/client3d/PanelSkin.java` | panel qirralari nima bilan bo'yalgani — o'yin aytadi, klient chizadi; har qism ixtiyoriy |
@@ -2867,7 +3007,8 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/ai/{HeroBrain,MonsterBrain}.java` | klik-ataka va maxluq AI'si (xonani chaqirish shu yerda) |
 | `dungeon/…/dungeon/ai/Chasing.java` | quvishni qachon qayta rejalash kerak — tiqilgan narsa to'xtab qolishining yagona sababi |
 | `dungeon/…/dungeon/ai/WayAhead.java` | yonida o'tadigan joy bormi — yo'q bo'lsa turadi, ochilsa yuradi; pirpirashning oxiri |
-| `dungeon/…/dungeon/ai/{HoldGround,Orders}.java` | "joyingda tur" — o'yinning to'rtinchi buyrug'i + uni buyruqdan miyagacha olib boradigan yagona ko'prik |
+| `dungeon/…/dungeon/ai/{HoldGround,Orders}.java` | "to'xta" / "qo'riqla" — o'yinning to'rtinchi buyrug'i + uni buyruqdan miyagacha olib boradigan yagona ko'prik |
+| `dungeon/…/dungeon/ai/Doing.java` | jon hozir nima qilyapti — to'rt so'z, to'rtta tugmaning chirog'i; modullardan o'qiladi, miyadan emas |
 | `dungeon/…/dungeon/run/Watching.java` | "o'shani tanladim" — hech narsa qilishni so'ramaydigan yagona buyruq; panel kimni yozishini hal qiladi |
 | `client3d/…/client3d/Cursors.java` | kursor nima ustida turganini aytadi; jME'ning pastdan-yuqoriga rasmi, pastdan hot-spoti va rangga bo'yash shu yerda |
 | `dungeon/src/main/resources/ui/cursors/` | Kenney Cursor Pack 1.1 (CC0) — Outline oilasi, 32px va 64px |
