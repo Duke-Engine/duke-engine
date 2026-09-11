@@ -120,20 +120,29 @@ public final class DungeonRun {
     }
 
     /**
-     * Play from the beginning with this hero.
+     * Play with this hero from here on.
      *
-     * <p>A whole fresh run, not a swap — levels, cards, loot and floor all go,
-     * because none of them was his. That is why this is the same road a death
-     * takes: the one thing a new hero and a dead one have in common is that
-     * everything the last one earned belongs to the last one.
+     * <p><b>Two moments, and they are not the same.</b> Answered off the menu
+     * before anything has started, there is no world yet — the first floor is
+     * placed when the engine starts, so recording the choice is the whole of the
+     * work and laying a floor here would be laying one into a game with no
+     * simulation in it. That is not a theoretical ordering: it threw a null
+     * pointer the first time anybody pressed a row.
      *
-     * <p>Called before the world has run a frame, from the menu that asked. There
-     * is no simulation thread yet, so nothing here has to cross one.
+     * <p>Answered when a world already exists — he abandoned a run, went back to
+     * the menu and chose again — the standing floor is his predecessor's and has
+     * to go. So it takes the road a death takes, and everything the last hero
+     * earned goes with him, because none of it was this one's.
+     *
+     * <p>Either way it is called from the menu with no simulation thread running,
+     * so nothing here has to cross one.
      */
     public void startWith(DukeGame game, String template) {
         heroTemplate = template;
         progress.playing(template, settings.heroNamed(template).armourPercent());
-        begin(game);
+        if (game.getLogic() != null) {
+            begin(game);
+        }
     }
 
     /** Whoever is being played — the file's answer until somebody chooses. */

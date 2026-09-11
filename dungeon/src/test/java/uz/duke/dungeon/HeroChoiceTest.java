@@ -78,6 +78,62 @@ class HeroChoiceTest {
     // ---- and what taking a row does ----
 
     /**
+     * Chosen before anything has started, which is where the menu actually asks.
+     *
+     * <p>The case every other test here quietly skipped, and it crashed on the
+     * first press of a row: the tests below all run a frame first, so they had a
+     * world to replace, and the real menu has none. The first floor is placed when
+     * the <em>engine</em> starts, and the engine starts after the question is
+     * answered — so at the moment a row is taken there is no simulation to clear,
+     * no terrain to apply and nothing to spawn into.
+     *
+     * <p>The choice is therefore only recorded here, and the floor that is laid a
+     * moment later is laid with him. What this asserts is the outcome rather than
+     * the mechanism: press the row, start the game, and the knight is the one
+     * standing in it.
+     */
+    @Test
+    void chosenBeforeTheWorldExistsHeIsTheOneWhoArrives() {
+        var session = Dungeon.newSession(21L, SETTINGS);
+
+        // Not a frame has run: getLogic() is null, exactly as it is on the menu.
+        runOf(session).startWith(session.game(), KNIGHT);
+        session.game().runHeadless(1);
+
+        assertNotNull(find(session.game(), KNIGHT),
+                "the hero chosen before the world existed never arrived in it");
+        assertNull(find(session.game(), ARCHER), "the file's own hero was laid down anyway");
+        assertEquals(KNIGHT, runOf(session).getHeroTemplate());
+    }
+
+    /** And the run that follows is a real one, not a world with a man in it. */
+    @Test
+    void aRunChosenFromTheMenuGoesOn() {
+        var session = Dungeon.newSession(21L, SETTINGS);
+
+        runOf(session).startWith(session.game(), KNIGHT);
+        session.game().runHeadless(120);
+
+        var knight = find(session.game(), KNIGHT);
+        assertNotNull(knight, "he did not survive four seconds of the floor he was chosen for");
+        assertTrue(knight.getBody().getHealth() > 0f);
+        assertNotNull(knight.findModule(SkillBook.class));
+    }
+
+    /** Changing your mind on the menu, still before anything has started. */
+    @Test
+    void choosingTwiceBeforeTheWorldExistsLeavesTheSecond() {
+        var session = Dungeon.newSession(21L, SETTINGS);
+
+        runOf(session).startWith(session.game(), KNIGHT);
+        runOf(session).startWith(session.game(), ARCHER);
+        session.game().runHeadless(1);
+
+        assertNotNull(find(session.game(), ARCHER));
+        assertNull(find(session.game(), KNIGHT));
+    }
+
+    /**
      * Taking the knight puts the knight in the dungeon.
      *
      * <p>Whoever the file named is gone, not standing somewhere off screen: a
