@@ -40,8 +40,17 @@ final class AttackFlash {
         this.look = look == null ? OrderMark.DEFAULT : look;
     }
 
-    /** Flash every attack mark that is still alive, and hide the rest. */
-    void show(List<OrderMarkers.Marker> marks, float now, BiFunction<Float, Float, Float> floorAt) {
+    /**
+     * Flash every attack mark that is still alive, and hide the rest.
+     *
+     * @param whereItIsNow where a creature is standing this frame, or null once it
+     *                    has left the world — the ring follows what it was given
+     *                    to, because a ring left on the flagstone a skeleton was
+     *                    standing on marks a place nothing is any more
+     */
+    void show(List<OrderMarkers.Marker> marks, float now,
+            java.util.function.IntFunction<Coord3D> whereItIsNow,
+            BiFunction<Float, Float, Float> floorAt) {
         int used = 0;
         for (var marker : marks) {
             if (marker.kind() != OrderMarkers.Kind.ATTACK) {
@@ -59,8 +68,14 @@ final class AttackFlash {
                 ring.hide();
                 continue;
             }
-            ring.show(new Coord3D(marker.x(), marker.y(), 0f), look.ringRadius(), look.height(),
-                    look.attackColour(), lit, lit * 0.22f, floorAt);
+            // Where it is now if it is still there; where it was when the order
+            // was given if it has died since -- which is the honest answer to
+            // "that one", and the mark is gone in a fraction of a second anyway.
+            var moved = marker.unitId() == OrderMarkers.NOBODY || whereItIsNow == null
+                    ? null : whereItIsNow.apply(marker.unitId());
+            ring.show(moved != null ? moved : new Coord3D(marker.x(), marker.y(), 0f),
+                    look.ringRadius(), look.height(), look.attackColour(), lit, lit * 0.22f,
+                    floorAt);
         }
         for (int spare = used; spare < pool.size(); spare++) {
             pool.get(spare).hide();

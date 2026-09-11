@@ -27,14 +27,34 @@ final class OrderMarkers {
         ATTACK
     }
 
-    /** {@code bornAt} is a render-time reading, not a simulation frame. */
-    record Marker(float x, float y, Kind kind, float bornAt) {
+    /**
+     * One order, where it was given and — when it was given to somebody — who to.
+     *
+     * <p>{@code unitId} is {@code NOBODY} for an order pointed at a piece of floor.
+     * For one pointed at a creature it is that creature, because the answer has to
+     * <em>follow</em> it: a ring left standing on the flagstone a skeleton was
+     * on when the click landed marks a place nothing is any more, and the player
+     * reads that as the order having gone somewhere else.
+     *
+     * <p>The id rather than the creature, because this side has a snapshot rather
+     * than a world, and what is on the snapshot this frame is the only thing worth
+     * drawing. {@code bornAt} is a render-time reading, not a simulation frame.
+     */
+    record Marker(float x, float y, int unitId, Kind kind, float bornAt) {
     }
+
+    /** No creature: this order was given to a piece of floor. */
+    static final int NOBODY = -1;
 
     private final List<Marker> markers = new ArrayList<>();
 
     void add(float worldX, float worldY, Kind kind, float now) {
-        markers.add(new Marker(worldX, worldY, kind, now));
+        add(worldX, worldY, NOBODY, kind, now);
+    }
+
+    /** The same, for an order given to a creature the mark should follow. */
+    void add(float worldX, float worldY, int unitId, Kind kind, float now) {
+        markers.add(new Marker(worldX, worldY, unitId, kind, now));
     }
 
     /**

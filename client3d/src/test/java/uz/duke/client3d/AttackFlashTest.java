@@ -35,7 +35,7 @@ class AttackFlashTest {
     }
 
     private static void draw(Scene scene, float now) {
-        scene.flash().show(scene.orders().markers(), now, (x, y) -> 0f);
+        scene.flash().show(scene.orders().markers(), now, id -> null, (x, y) -> 0f);
         scene.root().updateGeometricState();
     }
 
@@ -138,6 +138,44 @@ class AttackFlashTest {
         assertEquals(2, scene.flash().madeSoFar(),
                 "the pool built something new for an order it had a ring for");
         assertEquals(2, scene.root().getChildren().size(), "and the scene grew with it");
+    }
+
+    /**
+     * The ring goes with the creature rather than staying on the flagstone.
+     *
+     * <p>A skeleton is walking at him when he clicks it, so by the time the second
+     * flash comes it is somewhere else. A ring left where it was marks a place
+     * nothing is any more, which the player reads as the order having gone
+     * somewhere else.
+     */
+    @Test
+    void theRingFollowsTheCreatureItWasGivenTo() {
+        var scene = scene();
+        scene.orders().add(100f, 100f, 7, OrderMarkers.Kind.ATTACK, NOW);
+
+        // It has walked twenty units north since the click.
+        scene.flash().show(scene.orders().markers(), NOW,
+                id -> id == 7 ? new uz.duke.core.math.Coord3D(100f, 120f, 0f) : null,
+                (x, y) -> 0f);
+        scene.root().updateGeometricState();
+
+        var ring = shown(scene.root());
+        assertEquals(120f, ring.getLocalTranslation().z, 0.001f,
+                "the ring should have gone with it");
+    }
+
+    /** And when it dies it stays where the order was given, rather than vanishing. */
+    @Test
+    void aCreatureThatDiesLeavesTheMarkWhereItWasOrdered() {
+        var scene = scene();
+        scene.orders().add(100f, 100f, 7, OrderMarkers.Kind.ATTACK, NOW);
+
+        scene.flash().show(scene.orders().markers(), NOW, id -> null, (x, y) -> 0f);
+        scene.root().updateGeometricState();
+
+        var ring = shown(scene.root());
+        assertEquals(100f, ring.getLocalTranslation().x, 0.001f,
+                "it is gone, so the answer is where he pointed");
     }
 
     /** A new world has no orders outstanding in it. */

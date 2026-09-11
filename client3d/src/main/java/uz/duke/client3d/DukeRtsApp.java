@@ -615,7 +615,8 @@ final class DukeRtsApp extends SimpleApplication {
         float now = timer.getTimeInSeconds();
         orderMarkers.prune(now, visuals.getOrderMark().seconds());
         chevrons.show(orderMarkers.markers(), now, this::floorHeightAt);
-        attackFlash.show(orderMarkers.markers(), now, this::floorHeightAt);
+        attackFlash.show(orderMarkers.markers(), now, this::whereThatUnitIsNow,
+                this::floorHeightAt);
         syncSkillRange(now);
     }
 
@@ -651,6 +652,22 @@ final class DukeRtsApp extends SimpleApplication {
             allowed = isOpenAndSeen(ground);
         }
         rangeRings.show(range, hero, pointer, allowed, now, this::floorHeightAt);
+    }
+
+    /**
+     * Where a unit is standing this frame, or null once it has left the world.
+     *
+     * <p>Read off the snapshot, which is the only place this side has an answer:
+     * a mark that follows a creature has to be told where it went, every frame,
+     * and the creature itself lives on the other thread.
+     */
+    private Coord3D whereThatUnitIsNow(int unitId) {
+        for (var view : snapshot.units()) {
+            if (view.id() == unitId) {
+                return new Coord3D(view.x(), view.y(), 0f);
+            }
+        }
+        return null;
     }
 
     /** Where the player's own unit is standing, or null before there is one. */
@@ -2363,7 +2380,7 @@ final class DukeRtsApp extends SimpleApplication {
                 return;
             }
             binding.run().accept(game, new Hotkeys.Aimed(unit.view.id(), null));
-            markOrder(unit.view.x(), unit.view.y(), OrderMarkers.Kind.ATTACK);
+            markOrder(unit.view.x(), unit.view.y(), unit.view.id(), OrderMarkers.Kind.ATTACK);
             noises.moment("vo.attack", (float) timer.getTimeInSeconds());
             return;
         }
@@ -2607,7 +2624,7 @@ final class DukeRtsApp extends SimpleApplication {
         var enemy = pickUnit();
         if (enemy != null && enemy.view.playerIndex() != local && enemy.view.playerIndex() != 0) {
             game.postCommand(new GameMessage.AttackObject(local, units, new ObjectId(enemy.view.id())));
-            markOrder(enemy.view.x(), enemy.view.y(), OrderMarkers.Kind.ATTACK);
+            markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(), OrderMarkers.Kind.ATTACK);
             // His own orders only. In a game with more than one player at it,
             // each hears his own hero answer and nobody hears anyone else's.
             noises.moment("vo.attack", (float) timer.getTimeInSeconds());
@@ -2674,8 +2691,12 @@ final class DukeRtsApp extends SimpleApplication {
      * gets the silent half.
      */
     private void markOrder(float worldX, float worldY, OrderMarkers.Kind kind) {
+        markOrder(worldX, worldY, OrderMarkers.NOBODY, kind);
+    }
+
+    private void markOrder(float worldX, float worldY, int unitId, OrderMarkers.Kind kind) {
         float now = timer.getTimeInSeconds();
-        orderMarkers.add(worldX, worldY, kind, now);
+        orderMarkers.add(worldX, worldY, unitId, kind, now);
         noises.moment("order_mark", now);
     }
 
