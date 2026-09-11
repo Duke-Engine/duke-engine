@@ -278,26 +278,29 @@ public final class Main {
             });
         }
 
-        // The hero comes from a different kit on a different skeleton, and his
-        // animations arrive one movement per file — so he is described his own
-        // way rather than squeezed into the monsters'.
+        // The hero comes from a different kit on a different skeleton, and he
+        // carries something — so he is described his own way rather than squeezed
+        // into the monsters'.
         var hero = settings.hero();
         if (hero.hasModel()) {
             visuals.unit("Hero", unit -> {
                 unit.model(hero.model())
                         .scale(hero.modelScale())
                         .facing(hero.facing())
-                        .idle(HeroLook.IDLE)
-                        .walk(HeroLook.WALK)
-                        .attack(HeroLook.ATTACK)
-                        .die(HeroLook.DEATH);
+                        .idle(hero.idle())
+                        .walk(hero.walk())
+                        .attack(hero.attack())
+                        .hurt(hero.hurt())
+                        .die(hero.death());
                 if (hero.texture() != null) {
                     unit.texture(hero.texture());
                 }
-                animation(unit, hero.idleFrom(), HeroLook.IDLE);
-                animation(unit, hero.walkFrom(), HeroLook.WALK);
-                animation(unit, hero.attackFrom(), HeroLook.ATTACK);
-                animation(unit, hero.deathFrom(), HeroLook.DEATH);
+                if (hero.holds() != null && hero.heldIn() != null) {
+                    unit.holds(hero.holds(), hero.heldIn(), hero.heldScale());
+                }
+                for (var library : hero.animations()) {
+                    unit.animationsFrom(library);
+                }
             });
         }
         // What a dead monster leaves lying about. No chest in the kit, so it is

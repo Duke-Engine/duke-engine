@@ -24,7 +24,8 @@ written from there.
 | …and its rocks and bare trees | KayKit | CC0 | `models/props/forest/` |
 | Universal Animation Library — what moves the bestiary | Quaternius | CC0 | `animations/monsters/` |
 | Bestiary — the Imp and the Puglin, and their skins | Quaternius | **QAL 1.0** — free in any product, no credit needed, **but the files themselves may not be redistributed as assets** | `models/monsters/` |
-| The hero, and the clips that move her | Mixamo (Adobe) | **Adobe/Mixamo terms — unconfirmed, see below** | `models/heroes/`, `animations/hero/` |
+| Adventurers — the hero, his bow and his arrows | KayKit | CC0 | `models/heroes/` |
+| Character Animations — everything he does | KayKit | CC0 | `animations/hero/` |
 | RPG Audio — cloth, coins, a door, a knife drawn | Kenney | CC0 | `audio/sfx/` |
 | Impact Sounds — what an arrow and a fist land like, and footsteps | Kenney | CC0 | `audio/sfx/` |
 | Interface Sounds — clicks, a level, a gong | Kenney | CC0 | `audio/ui/` |
@@ -32,21 +33,15 @@ written from there.
 | Three pieces of music | freesound.org | **unconfirmed, see below** | `audio/music/` |
 | Cinzel — the lettering the menus are set in | Natanael Gama / the Cinzel Project Authors | [SIL OFL 1.1](https://openfontlicense.org) | `fonts/` |
 
-### The two that need a decision
+### The one that needs a decision
 
-Everything above is settled except these, and both say the same kind of thing:
-*use them in your game freely, do not hand out the files themselves*. A game
-repository is an awkward fit for that, because the files can be downloaded from
-it one by one — which is a different act from shipping a built game.
-
-**Mixamo (the hero).** `erika.glb` and her four clips came from Mixamo, which is
-Adobe's, and is neither CC0 nor any of the Creative Commons licences. Their terms
-are a licence to use the characters and animations in projects rather than a
-grant of the files, and no licence text shipped with the download to keep beside
-them. **What to check:** whether the current Adobe/Mixamo terms allow the source
-files to sit in a public repository. If the answer is awkward, the fix is a
-straight swap — a CC0 rigged character of the same shape, of which KayKit's
-Ranger is one — and nothing in the game changes but a path in `dungeon.ini`.
+There were two. The other was the hero: she came from Mixamo, which is Adobe's
+and is neither CC0 nor any of the Creative Commons licences, and no licence text
+shipped with the download to keep beside her. The fix was the straight swap this
+page predicted — *"a CC0 rigged character of the same shape, of which KayKit's
+Ranger is one"* — and it turned out to be exactly that, plus a bow, an arrow and
+three libraries of movement, all CC0 and all from the pack the world is already
+built from. She is gone from the tree and so is the question.
 
 **Quaternius Bestiary (the monsters).** The QAL is explicit and shipped with the
 files: *"You may not extract, repackage, sublicense, sell, or otherwise
@@ -116,6 +111,6 @@ re-bake them from it.
 
 ### Nothing uses these
 
-`_unused/` holds three files nothing references — a spare monster skin and two
-Mixamo clips for moves the hero does not have. They are kept out of the way
-rather than deleted; the folder's own README says what each one is.
+`_unused/` holds one file nothing references — a spare monster skin. It held two
+Mixamo clips as well, and they went out with the hero they belonged to. It is
+kept out of the way rather than deleted; the folder's own README says what it is.

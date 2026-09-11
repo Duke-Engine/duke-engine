@@ -37,6 +37,9 @@ public final class Visuals {
         String modelPath;
         String modelPart;
         String texturePath;
+        String heldPath;
+        String heldBone;
+        float heldScale = 1f;
         /** Where this unit's animations come from, in the order they were named. */
         final java.util.List<AnimationSource> animations = new java.util.ArrayList<>();
         float scale = 1f;
@@ -73,6 +76,31 @@ public final class Visuals {
         public UnitVisual modelPart(String assetPath, String partName) {
             this.modelPath = assetPath;
             this.modelPart = partName;
+            return this;
+        }
+
+        /**
+         * A second model carried on one of this one's bones — a bow, a sword, a
+         * lantern.
+         *
+         * <p>Character kits ship weapons as separate files rather than as part of
+         * the body, and they do it on purpose: one ranger and a rack of weapons is
+         * every armed ranger there is, where a ranger-with-a-bow is one of them.
+         * The rig has a bone for it — KayKit's is {@code handslot.l} — authored so
+         * that a weapon hung there with no transform of its own lands in the hand
+         * and stays in it through every clip, because the hand is what the clip
+         * moves.
+         *
+         * <p>Which is why there is no rotation to set here. If a kit needed one,
+         * the bone would not be doing its job.
+         *
+         * @param scale what to multiply the held model by, when it and the body
+         *     were not authored at the same size; 1 for a kit that ships both
+         */
+        public UnitVisual holds(String assetPath, String boneName, float scale) {
+            this.heldPath = assetPath;
+            this.heldBone = boneName;
+            this.heldScale = scale;
             return this;
         }
 

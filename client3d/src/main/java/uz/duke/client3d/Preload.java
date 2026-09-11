@@ -61,6 +61,10 @@ final class Preload {
         Set<String> seen = new LinkedHashSet<>();
         var looks = visuals.allLooks();
         add(jobs, seen, Kind.MODEL, looks.stream().map(look -> look.modelPath).toList());
+        // What a unit carries is a model like any other, and read at the same
+        // moment as the unit: a bow fetched when the hero first appears is a stall
+        // at the one moment the player is watching him.
+        add(jobs, seen, Kind.MODEL, looks.stream().map(look -> look.heldPath).toList());
         for (var look : looks) {
             add(jobs, seen, Kind.ANIMATIONS,
                     look.animations.stream().map(Visuals.AnimationSource::assetPath).toList());

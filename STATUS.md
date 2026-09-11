@@ -1186,22 +1186,36 @@ ikkala peer aynan bir kadrda qo'llaydi.
     chizig'i orqada qolardi. Bu animatsiya sozlamasidek **umuman ko'rinmaydi**.
     Simulyatsiya pozitsiyani o'zi boshqaradi, shuning uchun ildiz suyakning
     gorizontal siljishi olib tashlanadi, vertikali (qadam ko'tarilishi) qoladi.
-    Test manba klipda siljish **borligini** ham tekshiradi — aks holda u hech
-    nimani isbotlamasdi.
+    Hozirgi to'plam klipni joyida chizadi, ya'ni olib tashlaydigan narsa yo'q —
+    lekin qoida to'plamdan qat'i nazar bir xil, shuning uchun test qoladi.
   - **Jon chizig'i model ichida qolardi** — balandligi qat'iy 4.5 edi, kapsulaga
     mos, qahramon esa ~12, boss ~22. Endi tananing haqiqiy chegarasidan
     o'lchanadi va `depthTest` o'chirilgan holda **doim ustidan** chiziladi: jon
     chizig'i dunyodagi narsa emas, ko'rsatkich.
-  - **Boshqa skeletda, va bu muammo emas.** Qahramon `mixamorig:` riginda,
-    monstrlar UE mannequin'da — bitta ham umumiy suyak nomi yo'q. Har jonzot
-    **o'z rigiga** qurilgan kutubxonadan animatsiya oladi, ya'ni ikki to'plam
-    yonma-yon yashaydi. Test buni ataylab qulflaydi: monstrlar kutubxonasi
-    qahramonga **0 ta** klip beradi, va bu kutilgan natija.
-  - **Animatsiya har harakat uchun alohida fayl.** Saytlar ishni shunday beradi,
-    va har faylning ichidagi klip **bir xil** nom bilan keladi (`mixamo.com`) —
-    ya'ni qaysi biri yugurish ekanini **fayl** aytadi, nom emas. Shuning uchun
-    `DungeonHero` blokida `IdleFrom`/`WalkFrom`/`AttackFrom` — yo'l, nom emas
-    (`DungeonAnimations` da esa aksincha: bitta kutubxona, nomlar ajratadi).
+  - **Boshqa skeletda, va bu muammo emas.** Qahramon KayKit `Rig_Medium` da,
+    monstrlar UE mannequin'da. Har jonzot **o'z rigiga** qurilgan kutubxonadan
+    animatsiya oladi, ya'ni ikki to'plam yonma-yon yashaydi. Test buni qulflaydi:
+    monstrlar kutubxonasi qahramonning oyog'ini **qimirlatmaydi**. (Ilgari u
+    umuman 0 ta klip berardi — eski rigda bitta ham umumiy suyak nomi yo'q edi;
+    KayKit rigida bir nechtasi mos keladi, klip ko'chadi, lekin hech nimani
+    harakatga keltirmaydi. Aynan shu — "klip bor, personaj qimirlamaydi" — eng
+    yashirin nosozlik, shuning uchun test endi harakatni o'lchaydi.)
+  - **Animatsiya — kutubxona, fayl-per-harakat emas.** Ilgari aksincha edi:
+    animatsiya saytlari ishni har harakat uchun alohida fayl qilib beradi va har
+    faylning ichidagi klip bir xil nom bilan keladi (`mixamo.com`), ya'ni qaysi
+    biri yugurish ekanini **fayl** aytardi. Personaj **to'plami** teskari: bir
+    nechta kutubxona, har birida o'nlab klip, nomlari ma'noli. Shuning uchun
+    `DungeonHero` blokida endi `AnimationsFrom` (takrorlanadi) + `Idle`/`Walk`/
+    `Attack`/`Hurt`/`Death` klip nomlari — monstrlar bilan bir xil shakl.
+  - **Qahramon qurol ushlaydi.** Personaj to'plamlari qurolni tanadan **ayri**
+    beradi va rigda uni osish uchun suyak qoldiradi (`handslot.l`/`handslot.r`).
+    Bitta ranger + qurol javoni = hamma qurollangan ranger; ranger-kamon-bilan
+    esa ulardan bittasi. `Visuals.holds(fayl, suyak, masshtab)` → jME'ning
+    `SkinningControl.getAttachmentsNode` i: kamonni **klip harakatlantiradigan
+    qo'lning o'zi** olib yuradi, ya'ni har kadr sinxronlab turadigan narsa yo'q.
+    Burilish sozlamasi yo'q va bo'lmasligi kerak — suyak aynan shuning uchun bor.
+    Materialini qayta qurish esa SHART: qurol ham PBR bilan keladi, ya'ni
+    kiyintirilmagan kamon — qora kamon.
   - **Tuzoq — animatsiya faylida `skins` yo'q.** "Without skin" fayl mesh
     olib yurmaydi, ya'ni skin yo'q, ya'ni **skelet ham yo'q** — va o'sha suyaklar
     oddiy `Node` bo'lib keladi. Faqat `Joint` ga qaraydigan qayta ulash bunday
@@ -2370,8 +2384,8 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/src/main/resources/models/tiles/<tema>/` | pol, devor, zinapoya — tema bo'yicha (KayKit `.gltf` + `.bin` + atlas PNG). Bitta papkada ikkita atlas bo'lishi mumkin: o'rmonda pol zindonnikidan, daraxt o'rmonnikidan |
 | `dungeon/src/main/resources/models/props/<tema>/` | ustun, haykal, bochka — tema bo'yicha |
 | `dungeon/src/main/resources/models/monsters/` | Quaternius Bestiary + `textures/` |
-| `dungeon/src/main/resources/models/heroes/` | Mixamo qahramoni |
-| `dungeon/src/main/resources/animations/{hero,monsters}/` | modeldan tashqaridagi klip fayllar |
+| `dungeon/src/main/resources/models/heroes/` | KayKit Ranger, uning kamoni va o'qi (CC0) |
+| `dungeon/src/main/resources/animations/{hero,monsters}/` | modeldan tashqaridagi klip kutubxonalari — qahramonniki uchta, turi bo'yicha |
 | `dungeon/src/main/resources/_unused/` | hech kim murojaat qilmaydigan 3 fayl — README bilan |
 | `dungeon/…/dungeon/content/{ThemeArt,Themes}.java` | to'plam ta'rifi + chuqurlik→to'plam tanlovi (sof) |
 | `dungeon/…/dungeon/content/HeroLook.java` | qahramon ko'rinishi — animatsiyasi fayl bo'yicha, nom bo'yicha emas |

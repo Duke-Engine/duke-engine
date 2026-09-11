@@ -1118,10 +1118,15 @@ public final class DungeonSettings {
     private String heroTexture;
     private float heroModelScale = 1f;
     private float heroFacing = 90f;
-    private String heroIdleFrom;
-    private String heroWalkFrom;
-    private String heroAttackFrom;
-    private String heroDeathFrom;
+    private final java.util.List<String> heroAnimations = new java.util.ArrayList<>();
+    private String heroIdle;
+    private String heroWalk;
+    private String heroAttack;
+    private String heroHurt;
+    private String heroDeath;
+    private String heroHolds;
+    private String heroHeldIn;
+    private float heroHeldScale = 1f;
 
     /**
      * What the hero is drawn as. {@link HeroLook#NONE} when the file names no
@@ -1130,7 +1135,8 @@ public final class DungeonSettings {
     public HeroLook hero() {
         return heroModel == null ? HeroLook.NONE
                 : new HeroLook(heroModel, heroTexture, heroModelScale, heroFacing,
-                        heroIdleFrom, heroWalkFrom, heroAttackFrom, heroDeathFrom);
+                        heroAnimations, heroIdle, heroWalk, heroAttack, heroHurt, heroDeath,
+                        heroHolds, heroHeldIn, heroHeldScale);
     }
 
     private String arrowModel;
@@ -1149,8 +1155,14 @@ public final class DungeonSettings {
      */
     public record ArrowLook(String model, String part, float scale, float facing,
             float height, int tint) {
+        /**
+         * A model is enough. {@code part} is for an arrow that is one mesh inside
+         * a larger file — which is how it had to be found while the only arrow the
+         * game owned was the one on the hero's string, and is not how a kit that
+         * ships an arrow hands it over.
+         */
         public boolean hasModel() {
-            return model != null && part != null;
+            return model != null;
         }
 
         public java.awt.Color awtTint() {
@@ -1387,13 +1399,18 @@ public final class DungeonSettings {
                     .add("Texture", Ini.string((s, v) -> s.heroTexture = v))
                     .add("ModelScale", Ini.real((s, v) -> s.heroModelScale = v))
                     .add("Facing", Ini.real((s, v) -> s.heroFacing = v))
-                    // Files rather than clip names: one movement per file is how
-                    // animation sites hand their work out, and every such file
-                    // carries the same exporter-generated name inside it.
-                    .add("IdleFrom", Ini.string((s, v) -> s.heroIdleFrom = v))
-                    .add("WalkFrom", Ini.string((s, v) -> s.heroWalkFrom = v))
-                    .add("AttackFrom", Ini.string((s, v) -> s.heroAttackFrom = v))
-                    .add("DeathFrom", Ini.string((s, v) -> s.heroDeathFrom = v));
+                    // Repeatable: a kit sorts its clips by what the movement is
+                    // for, so standing and dying come out of one file and a bow
+                    // out of another, and he needs all of them.
+                    .add("AnimationsFrom", Ini.string((s, v) -> s.heroAnimations.add(v)))
+                    .add("Idle", Ini.string((s, v) -> s.heroIdle = v))
+                    .add("Walk", Ini.string((s, v) -> s.heroWalk = v))
+                    .add("Attack", Ini.string((s, v) -> s.heroAttack = v))
+                    .add("Hurt", Ini.string((s, v) -> s.heroHurt = v))
+                    .add("Death", Ini.string((s, v) -> s.heroDeath = v))
+                    .add("Holds", Ini.string((s, v) -> s.heroHolds = v))
+                    .add("HeldIn", Ini.string((s, v) -> s.heroHeldIn = v))
+                    .add("HeldScale", Ini.real((s, v) -> s.heroHeldScale = v));
 
     private static final FieldParseTable<DungeonSettings> ANIMATIONS =
             new FieldParseTable<DungeonSettings>()

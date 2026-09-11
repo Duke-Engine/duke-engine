@@ -264,10 +264,20 @@ class DungeonMonsterArtTest {
                 SETTINGS.deathClip() + " is named in dungeon.ini but not in the library");
 
         var hero = SETTINGS.hero();
-        assertNotNull(hero.deathFrom(), "and so was the hero");
-        var his = control(assets().loadModel(hero.deathFrom()), AnimComposer.class);
-        assertNotNull(his, hero.deathFrom() + " holds no animation");
-        assertEquals(1, his.getAnimClipsNames().size(), "one movement per file, as with the rest");
+        assertNotNull(hero.death(), "and so was the hero");
+        assertTrue(inOneOfHisLibraries(hero.death()),
+                hero.death() + " is named for the hero but is in none of his libraries");
+    }
+
+    /** Whether any library the hero names carries a clip under this name. */
+    private static boolean inOneOfHisLibraries(String clip) {
+        for (var path : SETTINGS.hero().animations()) {
+            var composer = control(assets().loadModel(path), AnimComposer.class);
+            if (composer != null && composer.getAnimClip(clip) != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -322,61 +332,71 @@ class DungeonMonsterArtTest {
     // ---- the hero ----
 
     /**
-     * The hero's model and his three movements are all shipped and all load.
+     * The hero's model, everything he carries, and every library he draws his
+     * movement from are all shipped and all load.
      *
-     * <p>He comes from a different kit on a different skeleton, delivered one
-     * movement per file, so none of what holds for the monsters holds for him and
-     * all of it is worth asking again.
+     * <p>He comes from a different kit on a different skeleton, so none of what
+     * holds for the monsters holds for him and all of it is worth asking again.
      */
     @Test
-    void theHeroAndEachOfHisMovementsAreShipped() {
+    void theHeroAndEverythingHeCarriesAreShipped() {
         var hero = SETTINGS.hero();
         assertTrue(hero.hasModel(), "the settings file should give the hero a model");
 
         assertNotNull(assets().loadModel(hero.model()));
-        for (var path : new String[] {hero.idleFrom(), hero.walkFrom(), hero.attackFrom()}) {
-            assertNotNull(path, "he was left without one of his three movements");
+        assertNotNull(hero.holds(), "an archer with no bow is an archer miming");
+        assertNotNull(assets().loadModel(hero.holds()), hero.holds() + " is named but missing");
+        assertFalse(hero.animations().isEmpty(), "he was left with nowhere to take clips from");
+        for (var path : hero.animations()) {
             assertNotNull(assets().loadModel(path), path + " is named but missing");
         }
     }
 
     /**
-     * Each of his animation files holds exactly one animation.
+     * The bone his bow hangs on is one his own rig actually has.
      *
-     * <p>Which is the whole reason he is described by file rather than by clip
-     * name: they all arrive called the same thing, so a file holding two would
-     * leave no way to say which was wanted — and the copy would silently take
-     * neither.
+     * <p>A character kit ships weapons apart from characters and rigs a bone to
+     * hang them on — and a misspelt bone name is a hero who quietly carries
+     * nothing, which looks exactly like a hero whose bow failed to load.
      */
     @Test
-    void eachOfTheHerosFilesHoldsExactlyOneAnimation() {
+    void theBoneHisBowHangsOnIsOneHeHas() {
         var hero = SETTINGS.hero();
-        for (var path : new String[] {hero.idleFrom(), hero.walkFrom(), hero.attackFrom()}) {
-            var composer = control(assets().loadModel(path), AnimComposer.class);
-            assertNotNull(composer, path + " holds no animation at all");
-            assertEquals(1, composer.getAnimClipsNames().size(),
-                    path + " holds " + composer.getAnimClipsNames());
+        var armature = control(assets().loadModel(hero.model()), SkinningControl.class)
+                .getArmature();
+
+        assertNotNull(hero.heldIn(), "the settings should say which bone holds the bow");
+        assertNotNull(armature.getJoint(hero.heldIn()),
+                hero.heldIn() + " is not a joint on his rig; it has "
+                        + armature.getJointList().stream().map(com.jme3.anim.Joint::getName)
+                                .toList());
+    }
+
+    /** Every clip he asks for is in one of the libraries he names. */
+    @Test
+    void everyClipTheHeroAsksForIsInOneOfHisLibraries() {
+        var hero = SETTINGS.hero();
+        assertEquals(5, hero.clips().size(),
+                "idle, walk, attack, hurt and death — he was left short of " + hero.clips());
+        for (var clip : hero.clips()) {
+            assertTrue(inOneOfHisLibraries(clip),
+                    clip + " is asked for but is in none of " + hero.animations());
         }
     }
 
-    /** And each really goes onto him, under the name the game asks for. */
+    /** And every one of them really goes onto him. */
     @Test
-    void theHeroWearsAllThreeOfHisMovements() {
+    void theHeroWearsEveryClipHeAsksFor() {
         var hero = SETTINGS.hero();
         var him = assets().loadModel(hero.model());
 
-        assertTrue(AnimationLibrary.copySingle(
-                assets().loadModel(hero.idleFrom()), him, uz.duke.dungeon.content.HeroLook.IDLE));
-        assertTrue(AnimationLibrary.copySingle(
-                assets().loadModel(hero.walkFrom()), him, uz.duke.dungeon.content.HeroLook.WALK));
-        assertTrue(AnimationLibrary.copySingle(
-                assets().loadModel(hero.attackFrom()), him, uz.duke.dungeon.content.HeroLook.ATTACK));
+        for (var path : hero.animations()) {
+            AnimationLibrary.copy(assets().loadModel(path), him, hero.clips());
+        }
 
         var composer = control(him, AnimComposer.class);
-        assertTrue(composer.getAnimClipsNames().containsAll(List.of(
-                        uz.duke.dungeon.content.HeroLook.IDLE,
-                        uz.duke.dungeon.content.HeroLook.WALK,
-                        uz.duke.dungeon.content.HeroLook.ATTACK)),
+        assertNotNull(composer, "he carries no composer to put clips on");
+        assertTrue(composer.getAnimClipsNames().containsAll(hero.clips()),
                 "he ended up with " + composer.getAnimClipsNames());
     }
 
@@ -385,16 +405,17 @@ class DungeonMonsterArtTest {
     void theHeroReallyRuns() {
         var hero = SETTINGS.hero();
         var him = assets().loadModel(hero.model());
-        AnimationLibrary.copySingle(assets().loadModel(hero.walkFrom()), him,
-                uz.duke.dungeon.content.HeroLook.WALK);
+        for (var path : hero.animations()) {
+            AnimationLibrary.copy(assets().loadModel(path), him, hero.clips());
+        }
 
         var armature = control(him, SkinningControl.class).getArmature();
-        var knee = armature.getJoint("mixamorig:LeftLeg");
+        var knee = armature.getJoint("lowerleg.l");
         assertNotNull(knee, "his skeleton is not the one the animations were built on");
         var before = knee.getLocalRotation().clone();
 
         var composer = control(him, AnimComposer.class);
-        composer.setCurrentAction(uz.duke.dungeon.content.HeroLook.WALK);
+        composer.setCurrentAction(hero.walk());
         for (int frame = 0; frame < 12; frame++) {
             composer.update(0.05f);
             him.updateLogicalState(0.05f);
@@ -406,12 +427,17 @@ class DungeonMonsterArtTest {
     /**
      * A clip that walks the character forward is held in place.
      *
-     * <p>The hero's run was authored travelling — three units of it, twenty once
-     * scaled — because in engines where animation drives movement that is how a
-     * run is made. Here the simulation owns the position, so the mesh simply drew
-     * itself further and further from its own unit: he walked out of his selection
-     * ring, and his health bar stayed where he had been. Nothing about that looks
-     * like an animation setting.
+     * <p>The hero's run used to be authored travelling — three units of it,
+     * twenty once scaled — because in engines where animation drives movement
+     * that is how a run is made. Here the simulation owns the position, so the
+     * mesh simply drew itself further and further from its own unit: he walked
+     * out of his selection ring, and his health bar stayed where he had been.
+     * Nothing about that looks like an animation setting.
+     *
+     * <p>The kit he comes from now authors its clips on the spot, so there is
+     * nothing left for the stripping to take off — which is not a reason to stop
+     * asking. The invariant is the same whichever kit is shipped, and the next one
+     * may well travel.
      *
      * <p>The stride's rise and fall is kept, since that happens on the spot.
      */
@@ -419,11 +445,11 @@ class DungeonMonsterArtTest {
     void theHerosRunDoesNotCarryHimOutOfHisOwnUnit() {
         var hero = SETTINGS.hero();
         var him = assets().loadModel(hero.model());
-        AnimationLibrary.copySingle(assets().loadModel(hero.walkFrom()), him,
-                uz.duke.dungeon.content.HeroLook.WALK);
+        for (var path : hero.animations()) {
+            AnimationLibrary.copy(assets().loadModel(path), him, hero.clips());
+        }
 
-        var clip = control(him, AnimComposer.class)
-                .getAnimClip(uz.duke.dungeon.content.HeroLook.WALK);
+        var clip = control(him, AnimComposer.class).getAnimClip(hero.walk());
         var armature = control(him, SkinningControl.class).getArmature();
         boolean sawTheRoot = false;
         for (com.jme3.anim.AnimTrack<?> track : clip.getTracks()) {
@@ -441,78 +467,77 @@ class DungeonMonsterArtTest {
             assertTrue(travel < 0.001f, joint.getName() + " still travels " + travel);
         }
         assertTrue(sawTheRoot, "the root joint has no translation to check — did the rig change?");
-
-        // And the original really did travel, or this proves nothing.
-        var raw = control(assets().loadModel(hero.walkFrom()), AnimComposer.class);
-        var source = raw.getAnimClip(raw.getAnimClipsNames().iterator().next());
-        float authored = 0f;
-        for (com.jme3.anim.AnimTrack<?> track : source.getTracks()) {
-            if (track instanceof com.jme3.anim.TransformTrack transform
-                    && transform.getTranslations() != null) {
-                for (var step : transform.getTranslations()) {
-                    authored = Math.max(authored, Math.abs(step.z));
-                }
-            }
-        }
-        assertTrue(authored > 0.5f, "the source clip does not travel, so nothing was held back");
     }
 
     /**
-     * The arrow really is the mesh named in the file, and really is arrow-shaped.
+     * The arrow really is arrow-shaped.
      *
-     * <p>The kit's exporter shuffled its mesh names: the one called {@code Eyes}
-     * is a metre of shaft four centimetres thick, the one called {@code Arrow} is
-     * the clothes, and the one called {@code Eyelashes} is the entire body. The
-     * settings file therefore names something that reads as a mistake, and the
-     * obvious correction is wrong.
+     * <p>It was once a mesh cut out of the hero — a 24MB file fetched for one
+     * shaft, under a name the exporter had shuffled, so that the mesh called
+     * {@code Eyes} was the arrow and the one called {@code Arrow} was his clothes.
+     * The kit ships an arrow now, and it is its own file.
      *
-     * <p>So this measures rather than trusts: whatever the file names has to be
-     * long, thin, and cheap. Change the name to the sensible one and this says
-     * what it found instead.
+     * <p>Still measured rather than trusted: whatever the settings name has to be
+     * long, thin and cheap, because it is drawn by the dozen and flies point
+     * first.
      */
     @Test
-    void theArrowIsTheLongThinMeshWhateverItIsCalled() {
+    void theArrowIsLongThinAndCheap() {
         var arrow = SETTINGS.arrowLook();
-        assertTrue(arrow.hasModel(), "the settings should name a mesh for the arrow");
+        assertTrue(arrow.hasModel(), "the settings should name a model for the arrow");
 
         var model = assets().loadModel(arrow.model());
-        var found = new com.jme3.scene.Geometry[1];
+        var found = new ArrayList<com.jme3.scene.Geometry>();
         model.depthFirstTraversal(spatial -> {
-            if (spatial instanceof com.jme3.scene.Geometry geometry
-                    && arrow.part().equals(geometry.getName())) {
-                found[0] = geometry;
+            if (spatial instanceof com.jme3.scene.Geometry geometry) {
+                found.add(geometry);
             }
         });
-        assertNotNull(found[0], arrow.part() + " is not in " + arrow.model());
+        assertEquals(1, found.size(), arrow.model() + " holds " + found.size() + " meshes");
 
-        found[0].updateModelBound();
-        var box = (BoundingBox) found[0].getModelBound();
+        found.get(0).updateModelBound();
+        var box = (BoundingBox) found.get(0).getModelBound();
         float length = box.getZExtent() * 2f;
         float thickness = Math.max(box.getXExtent(), box.getYExtent()) * 2f;
 
         assertTrue(length > 0.4f, "an arrow should be long, but this is " + length);
         assertTrue(thickness < length / 5f,
                 "and thin, but this is " + thickness + " across against " + length + " long");
-        assertTrue(found[0].getMesh().getTriangleCount() < 500,
+        assertTrue(found.get(0).getMesh().getTriangleCount() < 500,
                 "a projectile drawn by the dozen should be cheap, not "
-                        + found[0].getMesh().getTriangleCount() + " triangles");
+                        + found.get(0).getMesh().getTriangleCount() + " triangles");
     }
 
     /**
-     * The hero and the monsters are on skeletons that share nothing.
+     * The hero's own libraries are the ones that move him.
      *
-     * <p>Not a problem — a creature is animated from a library built on its own
-     * rig — but worth stating, because it is the reason he has his own files at
-     * all. If someone ever points him at the monsters' library, this says why
-     * nothing happened.
+     * <p>This used to say the opposite way round — that the monsters' library
+     * could not touch him at all, because his rig and theirs shared no joint
+     * names. The kit he comes from now happens to share a few, so a clip copies
+     * across; what it does not do is move him. That is the fact worth holding,
+     * and it is the one that matters: a clip can be added and drive nothing, which
+     * is a hero standing perfectly still with a full list of animations.
      */
     @Test
-    void theHeroAndTheMonstersAreOnDifferentSkeletons() {
-        var library = assets().loadModel(SETTINGS.animationLibrary());
+    void theMonstersLibraryDoesNotMoveTheHero() {
         var him = assets().loadModel(SETTINGS.hero().model());
+        AnimationLibrary.copy(assets().loadModel(SETTINGS.animationLibrary()), him,
+                List.of("Walk_Loop"));
+        var composer = control(him, AnimComposer.class);
+        if (composer == null || composer.getAnimClip("Walk_Loop") == null) {
+            return; // nothing crossed at all, which is the older and simpler answer
+        }
 
-        assertEquals(0, AnimationLibrary.copy(library, him, List.of("Walk_Loop", "Idle_Loop")),
-                "the monsters' library moved the hero, so he could share it");
+        var knee = control(him, SkinningControl.class).getArmature().getJoint("lowerleg.l");
+        var before = knee.getLocalRotation().clone();
+        composer.setCurrentAction("Walk_Loop");
+        for (int frame = 0; frame < 12; frame++) {
+            composer.update(0.05f);
+            him.updateLogicalState(0.05f);
+        }
+
+        assertEquals(before, knee.getLocalRotation(),
+                "the monsters' library moved his legs, so he could share it");
     }
 
     /**

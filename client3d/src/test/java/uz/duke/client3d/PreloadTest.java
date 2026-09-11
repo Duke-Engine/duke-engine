@@ -33,6 +33,23 @@ class PreloadTest {
         assertEquals(List.of(), Preload.plan(visuals));
     }
 
+    /**
+     * What a creature carries is read with the creature.
+     *
+     * <p>A bow fetched when the hero first appears is a stall at the one moment
+     * the player is looking straight at him — and it would be a stall nobody could
+     * place, because the hero himself was read minutes ago.
+     */
+    @Test
+    void whatACreatureCarriesIsReadWithIt() {
+        var visuals = Visuals.create().unit("Hero", u -> u
+                .model("Models/ranger.glb")
+                .holds("Models/bow.gltf", "handslot.l", 1f));
+
+        assertEquals(List.of("Models/ranger.glb", "Models/bow.gltf"),
+                pathsOf(visuals, Preload.Kind.MODEL));
+    }
+
     /** Everything one creature is made of, in the order it is made. */
     @Test
     void oneCreatureBringsItsModelClipsSkinAndSounds() {

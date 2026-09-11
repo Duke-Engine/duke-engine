@@ -2763,6 +2763,7 @@ final class DukeRtsApp extends SimpleApplication {
                 body.setLocalRotation(new Quaternion().fromAngles(0,
                         FastMath.DEG_TO_RAD * visual.facingDegrees, 0));
                 dressModel(body, visual);
+                putInHisHand(body, visual);
                 node.composer = findControl(body, AnimComposer.class);
                 var legacy = findControl(body, AnimControl.class);
                 if (node.composer == null && legacy != null) {
@@ -2835,6 +2836,45 @@ final class DukeRtsApp extends SimpleApplication {
                         named != null ? named : skinOf(geometry.getMaterial()), tint));
             }
         });
+    }
+
+    /**
+     * Hang the thing this unit carries on the bone that is there to carry it.
+     *
+     * <p>jME builds the attachment node itself and parents it under the joint, so
+     * the weapon is moved by the same clip that moves the hand and there is
+     * nothing to keep in step each frame. What it does <em>not</em> do is dress
+     * it: a weapon loads with the same PBR material the body does, and this client
+     * cannot light one, so an undressed bow is a black bow.
+     *
+     * <p>A bone the rig does not have is a warning rather than a failure. The unit
+     * is drawn empty-handed, which is a thing you can see and think about; a
+     * missing model is not worth a black screen.
+     */
+    private void putInHisHand(Spatial body, Visuals.UnitVisual visual) {
+        if (visual.heldPath == null || visual.heldBone == null) {
+            return;
+        }
+        var skin = findControl(body, com.jme3.anim.SkinningControl.class);
+        if (skin == null || skin.getArmature().getJoint(visual.heldBone) == null) {
+            warnOnce(visual.heldPath + "@" + visual.heldBone, "bone");
+            return;
+        }
+        Spatial held;
+        try {
+            held = assetManager.loadModel(visual.heldPath);
+        } catch (RuntimeException e) {
+            warnOnce(visual.heldPath, "model");
+            return;
+        }
+        held.depthFirstTraversal(spatial -> {
+            if (spatial instanceof Geometry geometry) {
+                geometry.setMaterial(creatureMaterial(skinOf(geometry.getMaterial()),
+                        visual.tint == null ? ColorRGBA.White : toColor(visual.tint)));
+            }
+        });
+        held.setLocalScale(visual.heldScale);
+        skin.getAttachmentsNode(visual.heldBone).attachChild(held);
     }
 
     /**
