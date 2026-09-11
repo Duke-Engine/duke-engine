@@ -21,8 +21,8 @@ import java.util.List;
  * the genre does and is right for the same reason a health bar is: a number is
  * read, and a read thing should not get smaller because the thing it is about
  * walked away, nor lie down when the camera tips. So it is projected — the
- * creature's place in the world becomes a place on the screen, and from there the
- * number simply drifts up.
+ * creature's place in the world becomes a place on the screen, and the number is
+ * punched out from there.
  *
  * <p>Pooled, like everything else on this layer: a busy fight throws a dozen of
  * these a second and a fresh {@code BitmapText} for each would be a fresh mesh
@@ -36,9 +36,6 @@ final class FloatingNumbers {
     private final HitNumbers look;
     private final List<Mark> pool = new ArrayList<>();
 
-    /** How many have been thrown, which is only ever used to alternate the lean. */
-    private int thrown;
-
     /** One number in flight: where in the world it belongs, and when it began. */
     private static final class Mark {
         private final BitmapText text;
@@ -47,7 +44,8 @@ final class FloatingNumbers {
         private float worldY;
         private float height;
         private int colour;
-        private int side;
+        private int unitId;
+        private float direction;
 
         private Mark(BitmapText text) {
             this.text = text;
@@ -78,9 +76,11 @@ final class FloatingNumbers {
         mark.worldY = change.y();
         mark.height = height;
         mark.colour = look.colourOf(change.healed(), change.his());
-        // Alternating, so two landing in the same instant lean apart instead of
-        // being drawn one exactly on top of the other and reading as one number.
-        mark.side = (thrown++ % 2 == 0) ? 1 : -1;
+        mark.unitId = change.unitId();
+        // Counted per creature and only among the ones still up, so the fan opens
+        // out while several are landing on the same thing and closes again by
+        // itself once they have gone. Nothing has to be reset.
+        mark.direction = look.directionOf(alreadyUpOn(change.unitId(), mark));
         int whole = Math.max(1, Math.round(change.amount()));
         mark.text.setText(change.healed() ? "+" + whole : Integer.toString(whole));
         mark.text.setCullHint(Spatial.CullHint.Inherit);
@@ -99,7 +99,6 @@ final class FloatingNumbers {
                 put(mark);
                 continue;
             }
-            var step = look.at(now - mark.bornAt, mark.side);
             float floor = floorAt == null ? 0f : floorAt.apply(mark.worldX, mark.worldY);
             var onScreen = camera.getScreenCoordinates(
                     new Vector3f(mark.worldX, floor + mark.height, mark.worldY));
@@ -107,11 +106,22 @@ final class FloatingNumbers {
                 mark.text.setCullHint(Spatial.CullHint.Always); // behind the camera
                 continue;
             }
+            float age = now - mark.bornAt;
+            float scale = look.scaleAt(age);
+            float out = look.outAt(age);
             mark.text.setCullHint(Spatial.CullHint.Inherit);
-            mark.text.setColor(Glow.colour(mark.colour, look.brightness(), step.alpha()));
+            mark.text.setLocalScale(scale);
+            // Solid throughout. A number read off whatever is behind it costs the
+            // player the moment it was drawn for.
+            mark.text.setColor(Glow.colour(mark.colour, look.brightness(), 1f));
+            // Kept centred on the creature as it grows and shrinks: scaling a
+            // BitmapText grows it away from its own corner, so the corner has to
+            // move by half of what the box gained or the number crawls sideways.
             mark.text.setLocalTranslation(
-                    onScreen.x - mark.text.getLineWidth() / 2f + step.aside(),
-                    onScreen.y + step.up(), 0f);
+                    onScreen.x - mark.text.getLineWidth() * scale / 2f
+                            + (float) Math.sin(mark.direction) * out,
+                    onScreen.y + mark.text.getLineHeight() * scale / 2f
+                            + (float) Math.cos(mark.direction) * out, 0f);
         }
     }
 
@@ -140,6 +150,17 @@ final class FloatingNumbers {
 
     Node node() {
         return root;
+    }
+
+    /** How many numbers are already up on that creature, not counting this one. */
+    private int alreadyUpOn(int unitId, Mark mine) {
+        int up = 0;
+        for (var mark : pool) {
+            if (mark != mine && !Float.isNaN(mark.bornAt) && mark.unitId == unitId) {
+                up++;
+            }
+        }
+        return up;
     }
 
     private void put(Mark mark) {

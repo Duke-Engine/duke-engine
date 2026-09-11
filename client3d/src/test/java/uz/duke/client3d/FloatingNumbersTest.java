@@ -109,41 +109,74 @@ class FloatingNumbersTest {
         assertTrue(healed.g > healed.r, "and healing is green");
     }
 
-    /** It drifts up and goes out, and then it is gone. */
+    /**
+     * It punches out large, settles to its own size, and then it is gone.
+     *
+     * <p>Not a drift and not a fade, which is what it was. Something moving across
+     * the screen has to be followed to be read and something translucent has to be
+     * read off whatever is behind it -- both cost the player the fraction of a
+     * second the number was drawn for.
+     */
     @Test
-    void itRisesFadesAndStops() {
+    void itPunchesOutLargeAndSettles() {
         var screen = screen();
         screen.numbers().add(hit(34f, false, false), NOW, 14f);
 
         screen.numbers().update(NOW, screen.camera(), (x, y) -> 0f);
-        float low = firstUp(screen.gui()).getLocalTranslation().y;
-        float bright = firstUp(screen.gui()).getColor().a;
+        float big = firstUp(screen.gui()).getLocalScale().x;
+        float solid = firstUp(screen.gui()).getColor().a;
 
         screen.numbers().update(NOW + LOOK.seconds() * 0.9f, screen.camera(), (x, y) -> 0f);
-        float high = firstUp(screen.gui()).getLocalTranslation().y;
-        float faint = firstUp(screen.gui()).getColor().a;
+        float settled = firstUp(screen.gui()).getLocalScale().x;
 
-        assertTrue(high > low + 20f, "it should have risen, but went from " + low + " to " + high);
-        assertEquals(1f, bright, 0.001f, "full strength while it is being read");
-        assertTrue(faint < 0.4f, "and nearly gone by the end, but was at " + faint);
+        assertEquals(LOOK.popScale(), big, 0.001f, "it should appear at its full size");
+        assertTrue(settled < big * 0.6f, "and shrink hard, but went " + big + " to " + settled);
+        assertEquals(1f, solid, 0.001f, "and never be see-through");
+        assertEquals(1f, firstUp(screen.gui()).getColor().a, 0.001f);
 
         screen.numbers().update(NOW + LOOK.seconds() * 1.1f, screen.camera(), (x, y) -> 0f);
-        assertEquals(null, firstUp(screen.gui()), "and then it is off the screen");
+        assertEquals(null, firstUp(screen.gui()), "and then it is simply gone");
     }
 
-    /** Two in the same instant lean apart rather than being drawn on top of each other. */
+    /**
+     * Several on one creature burst out of it in different directions.
+     *
+     * <p>Two blows in one instant are two numbers a player can read; two numbers
+     * in the same place are one number he cannot. The first goes straight up,
+     * where his eye already is, and the rest open out either side of it.
+     */
     @Test
-    void twoAtOnceDoNotSitOnTopOfEachOther() {
+    void severalOnOneCreatureFanOutFromIt() {
         var screen = screen();
-        screen.numbers().add(hit(10f, false, false), NOW, 14f);
-        screen.numbers().add(hit(10f, false, false), NOW, 14f);
+        for (int blow = 0; blow < 3; blow++) {
+            screen.numbers().add(hit(10f + blow, false, false), NOW, 14f);
+        }
 
-        screen.numbers().update(NOW + LOOK.seconds() * 0.5f, screen.camera(), (x, y) -> 0f);
+        screen.numbers().update(NOW + LOOK.seconds() * 0.9f, screen.camera(), (x, y) -> 0f);
+
+        var all = ((Node) screen.gui().getChild(0)).getChildren();
+        assertEquals(3, all.size(), "three blows are three numbers");
+        var places = all.stream().map(Spatial::getLocalTranslation).toList();
+        for (int one = 0; one < places.size(); one++) {
+            for (int other = one + 1; other < places.size(); other++) {
+                assertTrue(places.get(one).distance(places.get(other)) > 8f,
+                        "two of them are on top of each other and read as one");
+            }
+        }
+    }
+
+    /** And numbers on different creatures do not fan: each starts straight up. */
+    @Test
+    void aNumberOnItsOwnCreatureGoesStraightUp() {
+        var screen = screen();
+        screen.numbers().add(new HealthWatch.Change(1, 0f, 0f, 12f, false, false), NOW, 14f);
+        screen.numbers().add(new HealthWatch.Change(2, 0f, 0f, 12f, false, false), NOW, 14f);
+
+        screen.numbers().update(NOW + LOOK.seconds() * 0.9f, screen.camera(), (x, y) -> 0f);
 
         var both = ((Node) screen.gui().getChild(0)).getChildren();
-        assertEquals(2, both.size());
-        assertNotEquals(both.get(0).getLocalTranslation().x, both.get(1).getLocalTranslation().x,
-                "the same number twice in one frame has to be readable as two");
+        assertEquals(both.get(0).getLocalTranslation().x, both.get(1).getLocalTranslation().x,
+                0.5f, "they are on different creatures; neither has to get out of the way");
     }
 
     /** A creature that walks takes its number with it. */
@@ -198,7 +231,7 @@ class FloatingNumbersTest {
         assertEquals(null, firstUp(screen.gui()));
     }
 
-    /** Colour and alpha really do come from the look rather than from anywhere else. */
+    /** The colour really does come from the look rather than from anywhere else. */
     @Test
     void theColourIsTheOneTheFileNamed() {
         var screen = screen();
