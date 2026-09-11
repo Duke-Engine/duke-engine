@@ -82,6 +82,12 @@ public final class HeroBrain extends UnitScript {
      */
     private Coord3D waitingOn;
 
+    /**
+     * Where a plain walking order was taking him when a body stopped it, so he can
+     * carry on rather than simply lose the order. Null unless he is waiting.
+     */
+    private Coord3D errand;
+
     /** The standing orders his player has given; see {@link Orders}. */
     private final Orders orders;
 
@@ -109,6 +115,7 @@ public final class HeroBrain extends UnitScript {
 
         var ordered = current != null && current.getId().equals(sentAt) ? current : null;
         if (ordered == null) {
+            mindTheWayOnHisErrand(move);
             standAndShoot(weapon, move, current);
             return;
         }
@@ -135,7 +142,8 @@ public final class HeroBrain extends UnitScript {
      */
     private void advanceOn(MoveUpdate move, GameObject quarry) {
         if (waitingOn != null) {
-            if (WayAhead.stillShut(unit(), waitingOn, quarry)) {
+            if (WayAhead.stillShut(unit(), waitingOn, quarry.getPosition(),
+                    settings.wayAheadProbe(), quarry)) {
                 return; // the way is shut. Stand, and look again next frame.
             }
             // It opened — or the wait stopped being about anything. Off he goes,
@@ -145,8 +153,8 @@ public final class HeroBrain extends UnitScript {
             sendAfter(quarry);
             return;
         }
-        var ahead = WayAhead.justAhead(unit(), settings.wayAheadProbe());
-        if (WayAhead.occupied(unit(), ahead, quarry)) {
+        var ahead = WayAhead.noWayPast(unit(), settings.wayAheadProbe(), quarry);
+        if (ahead != null) {
             waitingOn = ahead;
             if (move.isMoving()) {
                 move.stop();
@@ -161,6 +169,52 @@ public final class HeroBrain extends UnitScript {
             // restarting that kept him shoving at a body he could not pass.
             sendAfter(quarry);
         }
+    }
+
+    /**
+     * The same courtesy on a plain walking order: stop rather than shove, and
+     * carry on when the way clears.
+     *
+     * <p>A walk the player asked for has no quarry to chase, so nothing here
+     * re-plans and the locomotor's own patience does end the shuffle — after two
+     * seconds. Two seconds of a hero treading the floor is still the fault the
+     * player reported, and worse in one way than the monster's: it is <em>his</em>
+     * hero, doing it where he is looking.
+     *
+     * <p>Where he was going is kept because stopping throws it away, and the
+     * whole point is that this is a pause and not a cancellation. It is given up
+     * the moment anything else is asked of him — a new walk, an attack, a skill —
+     * or he would set off again for somewhere the player had long since thought
+     * better of.
+     */
+    private void mindTheWayOnHisErrand(MoveUpdate move) {
+        if (errand != null) {
+            if (move.isMoving()) {
+                forgetTheErrand(); // he has been given something else to do
+                return;
+            }
+            if (WayAhead.stillShut(unit(), waitingOn, errand, settings.wayAheadProbe(), null)) {
+                return;
+            }
+            var goal = errand;
+            forgetTheErrand();
+            moveTo(goal.x(), goal.y());
+            return;
+        }
+        if (!move.isMoving()) {
+            return;
+        }
+        var ahead = WayAhead.noWayPast(unit(), settings.wayAheadProbe(), null);
+        if (ahead != null) {
+            errand = move.getGoal();
+            waitingOn = ahead;
+            move.stop();
+        }
+    }
+
+    private void forgetTheErrand() {
+        errand = null;
+        waitingOn = null;
     }
 
     /** Send him walking at something, remembering where it was when he set off. */
@@ -214,7 +268,7 @@ public final class HeroBrain extends UnitScript {
         sentAt = id;
         orderedAtFrame = frame();
         sentAfter = null; // a new order is a new chase, however near the old one stood
-        waitingOn = null;
+        forgetTheErrand();
         move.stop();
         return current;
     }
@@ -316,7 +370,7 @@ public final class HeroBrain extends UnitScript {
             weapon.holdFire();
         }
         sentAt = null;
-        waitingOn = null;
+        forgetTheErrand();
     }
 
     /** The target a skill pointed his weapon at, which is the skill's and not an order. */

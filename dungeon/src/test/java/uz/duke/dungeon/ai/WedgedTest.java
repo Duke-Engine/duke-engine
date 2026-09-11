@@ -143,6 +143,62 @@ class WedgedTest {
                 "he got through, so nothing was ever in his way");
     }
 
+    // ---- and on a plain walking order, which has no chase in it at all ----
+
+    /**
+     * Sent walking down a corridor with a body in it, he stops at the body.
+     *
+     * <p>No chase here and so no re-planning: the locomotor's own patience does
+     * end this one — after two seconds. Two seconds of a hero treading the floor
+     * is still what the player reported, and worse than the monster's in one way,
+     * because it is his own hero doing it where he is looking.
+     *
+     * <p>The window closes well before the skeleton does: standing there he
+     * shoots it, and it is dead by the hundredth frame. What is being measured is
+     * his feet while there is still something in front of them.
+     */
+    private static Queue sentDownACorridorWithABodyInIt() {
+        var arena = Dungeon.world(corridor(), DEAF);
+        var game = arena.game();
+        game.spawn("Hero", arena.hero(), 25f, 15f);
+        game.spawn("Skeleton", arena.dungeon(), 70f, 15f);
+        game.runHeadless(1);
+        var hero = creature(game, "Hero", 0);
+        game.postCommand(new GameMessage.MoveTo(game.getLocalPlayerIndex(),
+                List.of(hero.getId()), new Coord3D(250f, 15f, 0f)));
+        return new Queue(game, hero, creature(game, "Skeleton", 0), hero);
+    }
+
+    @Test
+    void sentWalkingIntoABodyHeStopsAtItRatherThanTreadingTheFloor() {
+        var queue = sentDownACorridorWithABodyInIt();
+        queue.game().runHeadless(28); // long enough to walk up to it
+
+        var watch = watch(queue, 50);
+
+        assertTrue(queue.hero().getPosition().x() < 60f, "he never reached the body at all");
+        assertFalse(queue.blocker().isEffectivelyDead(),
+                "it died during the window, so there was nothing in his way to measure");
+        assertEquals(0, watch.framesWalking(),
+                "he should have settled against it, but was walking on "
+                        + watch.framesWalking() + " of the next 50 frames");
+    }
+
+    /** And the errand is a pause, not a cancellation: the way opens and he goes on. */
+    @Test
+    void andHeCarriesOnWithTheErrandWhenTheWayOpens() {
+        var queue = sentDownACorridorWithABodyInIt();
+        queue.game().runHeadless(40);
+        assertTrue(queue.hero().getPosition().x() < 60f, "he should be stopped short of it");
+
+        queue.blocker().getBody().damage(100_000f);
+        queue.game().runHeadless(240);
+
+        assertTrue(queue.hero().getPosition().distance(new Coord3D(250f, 15f, 0f)) < 20f,
+                "nobody asked him again, so he should have gone on by himself, but he is at "
+                        + queue.hero().getPosition());
+    }
+
     // ---- the same fault from the monsters' side, which is where it survived ----
 
     /**

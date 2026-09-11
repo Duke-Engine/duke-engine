@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-11 · **Testlar:** 911 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-11 · **Testlar:** 913 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -2735,7 +2735,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/gen/DungeonGenerator.java` | seed'dan xonalar + koridorlar (ulanish kafolati) |
 | `dungeon/…/dungeon/ai/{HeroBrain,MonsterBrain}.java` | klik-ataka va maxluq AI'si (xonani chaqirish shu yerda) |
 | `dungeon/…/dungeon/ai/Chasing.java` | quvishni qachon qayta rejalash kerak — tiqilgan narsa to'xtab qolishining yagona sababi |
-| `dungeon/…/dungeon/ai/WayAhead.java` | oldinda joy bormi — yo'q bo'lsa turadi, ochilsa yuradi; pirpirashning oxiri |
+| `dungeon/…/dungeon/ai/WayAhead.java` | yonida o'tadigan joy bormi — yo'q bo'lsa turadi, ochilsa yuradi; pirpirashning oxiri |
 | `dungeon/…/dungeon/ai/{HoldGround,Orders}.java` | "joyingda tur" — o'yinning to'rtinchi buyrug'i + uni buyruqdan miyagacha olib boradigan yagona ko'prik |
 | `dungeon/…/dungeon/run/Watching.java` | "o'shani tanladim" — hech narsa qilishni so'ramaydigan yagona buyruq; panel kimni yozishini hal qiladi |
 | `client3d/…/client3d/Cursors.java` | kursor nima ustida turganini aytadi; jME'ning pastdan-yuqoriga rasmi, pastdan hot-spoti va rangga bo'yash shu yerda |
