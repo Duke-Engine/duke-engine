@@ -1454,6 +1454,12 @@ ikkala peer aynan bir kadrda qo'llaydi.
     `MuzzleOffset`). Bo'sh blok avvalgidek qahramonning o'qini oladi.
   - **Ikkalasi ham `EyesOnly` oladi** — aks holda birinchi uzoq otuvchi jonzot
     qahramonni **devor orqali** otardi. Engine quroli devorni bilmaydi.
+  - **Qurol ham to'plamning donasiga qarshi yotishi mumkin.** Paketlar deyarli hamma
+    qurolni o'z `+Y` i bo'ylab yotqizadi (qilich 1.50, bolta 1.25, tayoq 2.10) va
+    suyak aynan shunga mo'ljallangan. **Ikkitasi istisno** -- qahramonning kamoni
+    va skeletlarning arbaleti, ikkalasi ham `+Z` bo'ylab. Kamon teskari kelgan,
+    arbalet esa ko'ndalang yotib qolgan. Test buni **o'lchaydi**: uzun tomoni +Y
+    bo'lmagan qurolda burilish bo'lishi shart, bo'lganida esa bo'lmasligi.
   - **Poza ham muhim ekan.** Klip to'g'ri o'ynardi va hech kim ko'rmasdi: qo'llari
     tushgan skelet, yonida osilgan arbalet, va ular orasida bir soniyalik klip —
     bu otish emas, ko'kragidan o'q chiqqandek ko'rinadi. `Idle` — narsa vaqtining

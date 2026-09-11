@@ -551,6 +551,51 @@ class DungeonMonsterArtTest {
     }
 
     /**
+     * A weapon laid out across the kit's grain is turned to suit.
+     *
+     * <p>These packs lay almost every weapon along its own {@code +Y} — blades,
+     * axes, staves — and the bone that holds one is authored for exactly that. Two
+     * are not: the hero's bow and the skeletons' crossbow both run along
+     * {@code +Z}, and both arrived pointing somewhere absurd. The bow came out
+     * back to front; the crossbow lay flat across the ribs like a tray.
+     *
+     * <p>Neither said so. A weapon in the wrong orientation loads, is dressed,
+     * follows the hand through every clip and looks like a bug in the animation —
+     * so the rule is measured rather than remembered: anything whose longest side
+     * is not its {@code +Y} has to carry a turn, and anything laid out like the
+     * rest of the pack must not.
+     */
+    @Test
+    void aWeaponLaidOutAcrossTheKitsGrainIsTurned() {
+        var carried = new ArrayList<uz.duke.dungeon.content.Held>();
+        for (var kind : SETTINGS.monsters()) {
+            carried.add(SETTINGS.lookOf(kind).held());
+        }
+        carried.add(SETTINGS.hero().held());
+
+        for (var held : carried) {
+            if (!held.isCarried()) {
+                continue;
+            }
+            var model = assets().loadModel(held.model());
+            model.updateModelBound();
+            model.updateGeometricState();
+            var box = (BoundingBox) model.getWorldBound();
+            boolean alongTheGrain = box.getYExtent() >= box.getXExtent()
+                    && box.getYExtent() >= box.getZExtent();
+            boolean turned = held.pitch() != 0f || held.yaw() != 0f || held.roll() != 0f;
+
+            assertEquals(!alongTheGrain, turned,
+                    held.model() + " is " + (alongTheGrain ? "laid out along +Y like the rest"
+                            + " of the pack and is turned anyway"
+                            : "longest across "
+                                    + (box.getXExtent() > box.getZExtent() ? "+X" : "+Z")
+                                    + " rather than +Y, and carries no turn — it will hang"
+                                    + " sideways out of the hand"));
+        }
+    }
+
+    /**
      * Anything that shoots stands with its weapon up.
      *
      * <p>The half of a ranged creature that nobody thinks of, and the half that
