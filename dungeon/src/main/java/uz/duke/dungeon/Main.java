@@ -470,6 +470,13 @@ public final class Main {
         // rim is made of.
         visuals.panelSkin(panelSkin(settings));
 
+        // And what the mouse pointer looks like over each thing -- see
+        // DungeonCursor in dungeon.ini. The client knows what is under the
+        // pointer; this says what to draw there.
+        for (var pointer : settings.cursors()) {
+            visuals.pointer(pointer.name(), pointer.image(), pointer.hotX(), pointer.hotY());
+        }
+
         // What the dark is worth: whether stone stops sight, how dim a room he
         // has left should be, and what colour nothing is. All of it drawing, and
         // all of it in the file — see DungeonFog in dungeon.ini.

@@ -257,6 +257,9 @@ final class DukeRtsApp extends SimpleApplication {
     public void simpleInitApp() {
         flyCam.setEnabled(false);
         inputManager.setCursorVisible(true);
+        // What the pointer looks like, and when -- see Cursors. A game that names
+        // none keeps the system arrow.
+        cursors = new Cursors(assetManager, inputManager, visuals.getPointers());
         // jME binds Escape to quit, in SimpleApplication, before a game gets a
         // say. Both bindings then fire and the quit wins -- which is why the
         // pause menu below has never once been seen. Taken off here rather than
@@ -2571,6 +2574,7 @@ final class DukeRtsApp extends SimpleApplication {
         updateBanner();
         updateLevelUp();
         updateHover();
+        showTheRightPointer();
         placeMinimap();
     }
 
@@ -2642,6 +2646,60 @@ final class DukeRtsApp extends SimpleApplication {
         if (heroPanel != null && screen != Screen.PLAYING) {
             heroPanel.hide();
         }
+    }
+
+    private Cursors cursors;
+
+    /**
+     * Say what the pointer is over, by changing what it looks like.
+     *
+     * <p>Half of an RTS's controls are "the right-click means something different
+     * here", and the pointer is the only place that can be said <em>before</em>
+     * the click. A white arrow says the same thing over a skeleton as over a wall.
+     *
+     * <p>The order matters and is the order of what overrides what. A menu is on
+     * top of everything. An armed skill is the next loudest thing on screen — it
+     * is the reason the next click will not do what a click usually does — and
+     * while one is waiting the pointer says only whether this is somewhere it can
+     * go. Then the bar, which takes clicks and gives no orders. Then the world:
+     * something to attack, one of his own, or ground.
+     */
+    private void showTheRightPointer() {
+        if (cursors == null || !cursors.any()) {
+            return;
+        }
+        if (screen != Screen.PLAYING || menu.isVisible() || levelUp.isShowing()) {
+            cursors.show(Cursors.POINT);
+            return;
+        }
+        var at = inputManager.getCursorPosition();
+        if (arming != null) {
+            var binding = hotkeys.all().get(arming);
+            var ground = groundUnder(at.x, at.y);
+            boolean canGoThere = binding == null || binding.aim() != Hotkeys.Aim.OPEN_GROUND
+                    || isOpenAndSeen(ground);
+            cursors.show(canGoThere ? Cursors.AIM : Cursors.DENY);
+            return;
+        }
+        if (heroPanel.contains(at.x, at.y) || overTheMinimap(at)) {
+            cursors.show(Cursors.POINT);
+            return;
+        }
+        var over = pickUnit();
+        if (over == null || !over.view.selectable()) {
+            cursors.show(Cursors.POINT);
+            return;
+        }
+        cursors.show(over.view.playerIndex() == game.getLocalPlayerIndex()
+                ? Cursors.FRIEND : Cursors.ATTACK);
+    }
+
+    /** Whether a screen point is inside the minimap, which takes its own clicks. */
+    private boolean overTheMinimap(Vector2f at) {
+        float wide = minimap.widthPixels() * minimapScale;
+        float tall = minimap.heightPixels() * minimapScale;
+        return at.x >= minimapX && at.x <= minimapX + wide
+                && at.y >= minimapY && at.y <= minimapY + tall;
     }
 
     /** Light whatever the cursor is resting on: a skill slot, or a card. */

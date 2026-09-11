@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-11 · **Testlar:** 887 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-11 · **Testlar:** 895 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -2231,6 +2231,40 @@ Panel har doim geroyni yozardi. Endi nimani tanlagan bo'lsang, o'shani.
   uniki emas deb o'qiladi. Skrinshotda ko'rinmaydigan, o'yinda quloqni
   qoqadigan xato — shuning uchun alohida testi bor.
 
+### 8.ae Kursor endi nima ustida turganini aytadi
+
+Kursor operatsion tizimning oq strelkasi edi — u skelet ustida ham, devor
+ustida ham bir xil narsani aytadi: hech narsani. Sichqoncha bilan o'ynaladigan
+o'yin boshqaruvining yarmi "bu yerda o'ng-klik boshqa ma'noni beradi", va buni
+**klikdan oldin** aytadigan yagona joy — kursorning o'zi.
+
+- **Besh holat, klientniki:** `Point` (bo'sh yer, panel, menyu), `Friend`
+  (o'ziniki), `Attack` (o'ng-klik urishadigan narsa), `Aim` (skill qurollangan
+  va bu yerga tushadi), `Deny` (qurollangan, lekin bu yerga tushmaydi). Kursor
+  ostida nima turgani — ekran haqidagi fakt, shuning uchun holatlar klientniki;
+  rasmlar esa o'yinniki va `DungeonCursor` bloklaridan keladi.
+- **Ustunlik tartibi ham qoida:** menyu hammasidan ustun; keyin qurollangan
+  skill (ekrandagi eng baland gap — keyingi klik odatdagidek ishlamasligining
+  sababi); keyin panel; keyin dunyo.
+- **Ikki konvertatsiya jimgina xato beradi va ikkalasi ham testda qulflangan.**
+  jME kursor rasmini **pastdan yuqoriga** saqlaydi — buferning oxirgi qatori
+  rasmning birinchi qatori; teskari qilinsa kursor ag'darilgan bo'ladi va bu
+  xato emas, "g'alati rasm tanlabdi" bo'lib o'qiladi. Va uning hot-spoti
+  **pastdan** o'lchanadi (`height - yHotSpot` uzatiladi); teskari qilinsa har
+  klik mo'ljaldan bir kursor bo'yi narida tushadi — bu ham xato emas, "o'yin
+  aniq emas" bo'lib o'qiladi. INI'da esa uchi **yuqori-chapdan** yoziladi,
+  ya'ni faylga qaragan odam qanday sanasa shunday.
+- **Zaxira:** rasm topilmasa, turgan kursor qoladi (oq strelkaga qaytmaydi —
+  jonzot ustidan o'tganda oqqa sakrash bittasi ikki holatga xizmat qilishidan
+  yomonroq), logga bir marta yoziladi. Hech narsa nomlamagan o'yin tizim
+  strelkasida qoladi.
+
+**LITSENZIYA OCHIQ:** Wenrexa Magic Cursors Pack ichida litsenziya matni YO'Q —
+faqat ikkita havola va rahmat kartasi. Shartlar itch.io sahifasida, va uni hech
+kim o'qimagan. `CREDITS.md` da uchta javob va uchta oqibat yozilgan. Shuning
+uchun yetti o'lchamdan faqat bittasi (488 KB) ko'chirildi: kerak bo'lsa bitta
+papka o'chadi.
+
 ---
 
 ## 9. Nima yo'q / ochiq ishlar
@@ -2640,6 +2674,8 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/ai/Chasing.java` | quvishni qachon qayta rejalash kerak — tiqilgan narsa to'xtab qolishining yagona sababi |
 | `dungeon/…/dungeon/ai/{HoldGround,Orders}.java` | "joyingda tur" — o'yinning to'rtinchi buyrug'i + uni buyruqdan miyagacha olib boradigan yagona ko'prik |
 | `dungeon/…/dungeon/run/Watching.java` | "o'shani tanladim" — hech narsa qilishni so'ramaydigan yagona buyruq; panel kimni yozishini hal qiladi |
+| `client3d/…/client3d/Cursors.java` | kursor nima ustida turganini aytadi; jME'ning pastdan-yuqoriga rasmi va pastdan hot-spoti shu yerda ag'dariladi |
+| `dungeon/src/main/resources/ui/cursors/` | Wenrexa Magic Cursors (48px, 77 dona) — **litsenziyasi tasdiqlanmagan, CREDITS.md ga qara** |
 | `dungeon/…/dungeon/run/DungeonRun.java` | run loop: o'lim → yangi seed → yangi dungeon |
 | `dungeon/…/dungeon/skill/{Skill,SkillEffect}.java` | skill ma'lumoti + daraja arifmetikasi (sof) |
 | `dungeon/…/dungeon/skill/SkillBook.java` | qahramon moduli: kuluar, effektlar, `DamageModifier` |

@@ -2,6 +2,7 @@ package uz.duke.dungeon.content;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -184,6 +185,49 @@ class DungeonSettingsTest {
             assertTrue(piece.texture().startsWith("ui/borders/"),
                     piece.name() + " should be found under the skin folder: " + piece.texture());
             assertTrue(piece.scale() > 0f, piece.name() + " drawn at no size at all");
+        }
+    }
+
+    /**
+     * Every pointer the file names is a picture that is really there.
+     *
+     * <p>The one mistake here that costs nothing at compile time and everything at
+     * run time. A pointer whose file is misspelt is not an error — the client is
+     * built to keep the one it has rather than lose the mouse — so a typo shows up
+     * as "the cursor sometimes does not change", which is a bug nobody reports
+     * precisely and nobody finds quickly.
+     *
+     * <p>The tip is checked too. Named outside the picture it is pulled back to
+     * the edge, so it cannot crash; it can only be quietly wrong, and a click
+     * landing half an inch from the arrow is the most irritating kind of wrong.
+     */
+    @Test
+    void everyPointerNamesAPictureThatExists() {
+        var pointers = DungeonSettings.load().cursors();
+
+        assertTrue(pointers.size() >= 5, "the client knows five situations: " + pointers.size());
+        for (var pointer : pointers) {
+            try (var file = Content.class.getResourceAsStream("/" + pointer.image())) {
+                assertNotNull(file, pointer.name() + " names a picture that is not there: "
+                        + pointer.image());
+            } catch (java.io.IOException e) {
+                throw new AssertionError(pointer.image(), e);
+            }
+            assertTrue(pointer.hotX() >= 0 && pointer.hotY() >= 0,
+                    pointer.name() + "'s tip is off the top or the left of its own picture");
+        }
+    }
+
+    /** And the five the client asks for are all painted. */
+    @Test
+    void everySituationTheClientKnowsIsPainted() {
+        var named = DungeonSettings.load().cursors().stream()
+                .map(DungeonSettings.CursorLook::name).toList();
+
+        for (var situation : java.util.List.of("Point", "Friend", "Attack", "Aim", "Deny")) {
+            assertTrue(named.contains(situation),
+                    situation + " is a situation the client draws and the file does not paint: "
+                            + named);
         }
     }
 

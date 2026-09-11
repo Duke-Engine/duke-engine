@@ -746,6 +746,35 @@ public final class Visuals {
         return panelSkin;
     }
 
+    private final java.util.Map<String, Cursors.Look> pointers = new java.util.LinkedHashMap<>();
+
+    /**
+     * What the mouse pointer looks like in one situation — see {@link Cursors}.
+     *
+     * <p>The situations are the client's, because what is under the pointer is a
+     * fact about the screen; the pictures are the game's, like every other piece
+     * of its art. Naming none leaves the system arrow, which is what every game
+     * had.
+     *
+     * @param hotX how far from the left of the picture the tip is
+     * @param hotY how far from the top of it — read the way anyone reads a file
+     */
+    public Visuals pointer(String situation, String assetPath, int hotX, int hotY) {
+        if (situation != null && assetPath != null && !assetPath.isBlank()) {
+            pointers.put(situation, new Cursors.Look(assetPath, hotX, hotY));
+        }
+        return this;
+    }
+
+    java.util.Map<String, Cursors.Look> getPointers() {
+        return java.util.Map.copyOf(pointers);
+    }
+
+    /** The pointer pictures, for {@link Preload}: read before the window needs them. */
+    public java.util.List<String> pointerImages() {
+        return pointers.values().stream().map(Cursors.Look::image).toList();
+    }
+
     // ---- noise ----
 
     private SoundBank sounds = SoundBank.silent();

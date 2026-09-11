@@ -84,6 +84,9 @@ final class Preload {
         // loading screen for.
         add(jobs, seen, Kind.TEXTURE, visuals.getPanelSkin().pieces().values().stream()
                 .map(PanelSkin.Piece::texture).toList());
+        // And the mouse pointers. Read now because the first one is wanted on the
+        // frame the world appears, which is the frame that can least afford it.
+        add(jobs, seen, Kind.TEXTURE, visuals.pointerImages());
         return List.copyOf(jobs);
     }
 

@@ -253,6 +253,14 @@ public final class DungeonSettings {
                 // What the hero panel's edges are painted with. Named after the
                 // part of the panel it paints, and every one of them optional:
                 // a part nobody names keeps the carved look it always had.
+                // What the mouse pointer looks like in one situation. Named by
+                // the situation, because the client owns those and the game owns
+                // the pictures -- see Cursors.
+                Map.entry("DungeonCursor", (Ini.BlockParser) reader -> {
+                    var pointer = new CursorBuilder(reader.getNextToken());
+                    reader.initFromIni(pointer, CURSOR);
+                    settings.cursors.add(pointer);
+                }),
                 Map.entry("DungeonSkin", (Ini.BlockParser) reader -> {
                     var piece = new SkinBuilder(reader.getNextToken());
                     reader.initFromIni(piece, SKIN);
@@ -1458,6 +1466,43 @@ public final class DungeonSettings {
         return skin.stream().map(piece -> piece.look(hudSkinFolder)).toList();
     }
 
+    /**
+     * One mouse pointer: which situation, which picture, and where its tip is.
+     *
+     * @param hotX how far from the left of the picture the tip is, in pixels
+     * @param hotY how far from the TOP of it -- read the way anyone reads a file
+     */
+    public record CursorLook(String name, String image, int hotX, int hotY) {
+    }
+
+    private final java.util.List<CursorBuilder> cursors = new java.util.ArrayList<>();
+
+    private static final class CursorBuilder {
+        private final String name;
+        String image = "";
+        int hotX;
+        int hotY;
+
+        CursorBuilder(String name) {
+            this.name = name;
+        }
+
+        CursorLook look(String folder) {
+            return new CursorLook(name, folder + image, hotX, hotY);
+        }
+    }
+
+    /** Every pointer the file describes, with {@code CursorFolder} on the front. */
+    public java.util.List<CursorLook> cursors() {
+        return cursors.stream().map(pointer -> pointer.look(hudCursorFolder)).toList();
+    }
+
+    private static final FieldParseTable<CursorBuilder> CURSOR =
+            new FieldParseTable<CursorBuilder>()
+                    .add("Image", Ini.string((c, v) -> c.image = v))
+                    .add("HotX", Ini.integer((c, v) -> c.hotX = v))
+                    .add("HotY", Ini.integer((c, v) -> c.hotY = v));
+
     private static final FieldParseTable<SkinBuilder> SKIN =
             new FieldParseTable<SkinBuilder>()
                     .add("Texture", Ini.string((s, v) -> s.texture = v))
@@ -1679,6 +1724,7 @@ public final class DungeonSettings {
     private String hudGuardWord = "";
     private String hudIconFolder = "";
     private String hudSkinFolder = "";
+    private String hudCursorFolder = "";
 
     /** The drawing that stands in the portrait for something that is not his. */
     public String hudMonsterFace() {
@@ -1732,7 +1778,8 @@ public final class DungeonSettings {
                     .add("CmdStopWord", Ini.restOfLine((s, v) -> s.hudStopWord = v))
                     .add("CmdGuardWord", Ini.restOfLine((s, v) -> s.hudGuardWord = v))
                     .add("IconFolder", Ini.string((s, v) -> s.hudIconFolder = v))
-                    .add("SkinFolder", Ini.string((s, v) -> s.hudSkinFolder = v));
+                    .add("SkinFolder", Ini.string((s, v) -> s.hudSkinFolder = v))
+                    .add("CursorFolder", Ini.string((s, v) -> s.hudCursorFolder = v));
 
     // ---- the lettering the menus are set in ----
 
