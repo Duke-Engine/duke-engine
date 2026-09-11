@@ -355,7 +355,9 @@ public final class Main {
                     .corner(art.corner())
                     .stairs(art.stairs())
                     .tileSize(art.tileSize())
-                    .wallHeight(art.wallHeight()));
+                    .wallHeight(art.wallHeight())
+                    .wallLift(art.wallLift())
+                    .wallShift(art.wallShift()));
         }
         return visuals;
     }

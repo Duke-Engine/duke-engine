@@ -1035,7 +1035,7 @@ public final class DungeonSettings {
      * @param floor  {@code null} when no kit is named, meaning plain blocks
      */
     public record TileArt(String floor, String wall, String corner, String stairs,
-            float tileSize, float wallHeight) {
+            float tileSize, float wallHeight, float wallLift, float wallShift) {
     }
 
     private String tileFolder = "";
@@ -1045,11 +1045,13 @@ public final class DungeonSettings {
     private String tileStairs;
     private float tileSize = 4f;
     private float tileWallHeight = 4f;
+    private float tileWallLift;
+    private float tileWallShift;
 
     /** The kit to draw the floor with; {@code floor()} is null if the file named none. */
     public TileArt tiles() {
         return new TileArt(path(tileFloor), path(tileWall), path(tileCorner),
-                path(tileStairs), tileSize, tileWallHeight);
+                path(tileStairs), tileSize, tileWallHeight, tileWallLift, tileWallShift);
     }
 
     private String path(String piece) {
@@ -1064,7 +1066,9 @@ public final class DungeonSettings {
                     .add("Corner", Ini.string((s, v) -> s.tileCorner = v))
                     .add("Stairs", Ini.string((s, v) -> s.tileStairs = v))
                     .add("TileSize", Ini.real((s, v) -> s.tileSize = v))
-                    .add("WallHeight", Ini.real((s, v) -> s.tileWallHeight = v));
+                    .add("WallHeight", Ini.real((s, v) -> s.tileWallHeight = v))
+                    .add("WallLift", Ini.real((s, v) -> s.tileWallLift = v))
+                    .add("WallShift", Ini.real((s, v) -> s.tileWallShift = v));
 
     private String animationLibrary;
     private String defaultIdle;

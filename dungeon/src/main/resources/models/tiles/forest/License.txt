@@ -1,9 +1,9 @@
 	
 
-	KayKit : Dungeon Asset Pack (1.1)
+	KayKit : Forest Nature Pack (1.0)
 
 	Created/distributed by Kay Lousberg (www.kaylousberg.com)
-	Creation date: 16/07/2026 09:00
+	Creation date: 29/04/2025 17:00
 
 			------------------------------
 
@@ -12,7 +12,7 @@
 
 	This content is free to use in personal, educational and commercial projects.
 
-	Support me by crediting Kay Lousberg, www.kaylousberg.com (this is not mandatory)
+	Support me by crediting Kay Lousberg, www.kaylousberg.com (this is not mandatory, but would be appreciated)
 
 			------------------------------
 
@@ -22,36 +22,39 @@
 
 	- Brian McBarron
 	- Silva
-	- Eric Allamby
 	- Joseph Preston
-	- Alexander Würfl
-	- Danielle Smith
-	- 7dg2s
 	- Leon Burkhardt
-	- PSYLESS
 	- NickyBHobbying
 	- Emilia
-	- Rudolf Bouzek
+	- Roger Boesch
+	- Darren Laing
 	- Magic Pig Games
+	- Lennart Steinke
+	- OWSC
+	- tenthtonman
+	- DM
+	- Riley Peters
 	- Ducain23
+	- Leon Atkinson
+	- gil
+	- Sylvain MOTTER
+	- Matheus Costa
 	- flo-bit
+	- Johnyy B
 	- Jezzy Sukaemi
+	- Guillaume B. Galindo
 	- Martyn Rushton
+	- Benjamin Russell
+	- Lukas Goppold
 	- estee
-	- Dover's Code
-	- Alex Cea
-	- Matthew A
-	- Kevin
-	- Arnaud Schlupp
-	- Neil Castle
-	- Pawel Jarosz
-	- Alan Lawrance
-	- space devin
-	- Christian Palombo
-	- Mike
-	- Marcell Benevento
-	- Antonio Montenegro
-
+	- Arrow
+	- Kinj
+	- Alex
+	- Rascaleuh
+	- fooktu
+	- Blip
+	- Francisco Sevilano Asensi
+	- Engo Baôco
 
 			------------------------------
 
@@ -61,3 +64,4 @@
 	Follow here for updates:
 	http://twitter.com/KayLousberg
 	https://mastodon.gamedev.place/@Kay
+	http://twitter.com/KayLousberg

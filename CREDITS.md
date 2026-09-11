@@ -17,13 +17,11 @@ written from there.
 | What | Who | Licence | Where |
 |---|---|---|---|
 | Skill icons — arrowhead, arrow cluster, sprint, hood | **Lorc** ([game-icons.net](https://game-icons.net)) | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) — **attribution required** | `icons/skills/` |
-| Modular Dungeon Kit — floor, wall, corner post | Kenney ([kenney.nl](https://kenney.nl)) | CC0 | `models/tiles/kenney/` |
-| Updated Modular Dungeon — floor, wall, stairs | Quaternius ([quaternius.com](https://quaternius.com)) | CC0 | `models/tiles/dungeon/` |
-| …and its column, statue and barrel | Quaternius | CC0 | `models/props/dungeon/` |
-| Ultimate Modular Ruins — floors, walls, stairs | Quaternius | CC0 | `models/tiles/ruins/` |
-| …and its column, dead tree and barrel | Quaternius | CC0 | `models/props/ruins/` |
-| Ultimate Modular Sci-Fi — floors, walls, staircase | Quaternius | CC0 | `models/tiles/scifi/` |
-| …and its column and plinth | Quaternius | CC0 | `models/props/scifi/` |
+| Dungeon Pack — floors, walls, stairs | **KayKit** / Kay Lousberg ([kaylousberg.com](https://kaylousberg.com)) | CC0 | `models/tiles/dungeon/` |
+| …and its pillars, barrel and chest | KayKit | CC0 | `models/props/dungeon/` |
+| …and the dirt floors the forest is laid on | KayKit | CC0 | `models/tiles/forest/` |
+| Forest Nature Pack — the trees that stand where a wall would | KayKit | CC0 | `models/tiles/forest/` |
+| …and its rocks and bare trees | KayKit | CC0 | `models/props/forest/` |
 | Universal Animation Library — what moves the bestiary | Quaternius | CC0 | `animations/monsters/` |
 | Bestiary — the Imp and the Puglin, and their skins | Quaternius | **QAL 1.0** — free in any product, no credit needed, **but the files themselves may not be redistributed as assets** | `models/monsters/` |
 | The hero, and the clips that move her | Mixamo (Adobe) | **Adobe/Mixamo terms — unconfirmed, see below** | `models/heroes/`, `animations/hero/` |
@@ -57,8 +55,8 @@ asset pack, stock file, template, or similar product… It does not restrict
 distributing a completed Product that merely incorporates the Assets."* Building
 and releasing the game is plainly allowed. Whether a public git tree counts as
 "distributing them as a standalone asset" is the question, and it is a judgement
-call rather than a rule. Their other packs here (the three modular kits and the
-animation library) are CC0 and have no such clause.
+call rather than a rule. Their animation library, also here, is CC0 and has no such clause. The world
+itself is KayKit now, and CC0 throughout.
 
 ### The icons, in full
 
@@ -118,7 +116,6 @@ re-bake them from it.
 
 ### Nothing uses these
 
-`_unused/` holds five files nothing references — a spare monster skin, two
-Mixamo clips for moves the hero does not have, and two patterned floor tiles no
-theme names. They are kept out of the way rather than deleted; the folder's own
-README says what each one is.
+`_unused/` holds three files nothing references — a spare monster skin and two
+Mixamo clips for moves the hero does not have. They are kept out of the way
+rather than deleted; the folder's own README says what each one is.

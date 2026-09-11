@@ -29,12 +29,12 @@ import org.junit.jupiter.api.Test;
 class DungeonTilesTest {
 
     /** Where the models live on the classpath, and the size one tile is authored at. */
-    private static final String TILES = "models/tiles/kenney/";
+    private static final String TILES = "models/tiles/dungeon/";
     private static final float TILE = 4f;
 
     private static AssetManager assets() {
         // Loads the default config: the classpath locator, the PNG loader, and
-        // the .glb loader this kit needs, all of which jME registers itself.
+        // the glTF loader this kit needs, all of which jME registers itself.
         return new DesktopAssetManager(true);
     }
 
@@ -47,7 +47,7 @@ class DungeonTilesTest {
     /** The floor tile loads, and is one tile across. */
     @Test
     void theFloorTileLoadsAtTheSizeWeAssume() {
-        var floor = assets().loadModel(TILES + "floor.glb");
+        var floor = assets().loadModel(TILES + "floor.gltf");
 
         assertNotNull(floor);
         var bounds = boundsOf(floor);
@@ -79,25 +79,34 @@ class DungeonTilesTest {
      */
     @Test
     void theWallStandsOnAnEdgeAndIsTallerThanItIsDeep() {
-        var bounds = boundsOf(assets().loadModel(TILES + "wall.glb"));
+        var bounds = boundsOf(assets().loadModel(TILES + "wall.gltf"));
 
         assertEquals(TILE / 2f, bounds.getXExtent(), 0.01f, "as wide as the tile");
         assertTrue(bounds.getZExtent() < TILE / 2f + 0.01f,
                 "but only half as deep: it is an edge piece, " + bounds.getZExtent());
-        assertTrue(bounds.getYExtent() * 2f > TILE,
-                "and stands taller than a tile is wide");
+        // Exactly one module, which is the fact a storey rests on: ten world units
+        // to a cell means ten to a storey, and one wall piece holds up a raised
+        // floor with nothing left over.
+        assertTrue(bounds.getYExtent() * 2f >= TILE - 0.01f,
+                "a wall should stand at least as tall as a tile is wide, and this one is "
+                        + bounds.getYExtent() * 2f);
     }
 
-    /** The corner post is a quarter of a tile, to fill where two walls meet. */
+    /**
+     * A kit need not ship a corner post, and this one does not.
+     *
+     * <p>Its corner piece is a length of wall bent round a right angle rather than
+     * the quarter-tile plug the notch wants, and a bent wall dropped into the
+     * notch stands across both of the walls that meet there. Naming no corner
+     * leaves the notches open instead -- a small gap at the outside of a bend,
+     * which is nothing anyone walks through.
+     */
     @Test
-    void theCornerPostIsSmallerThanAWall() {
-        var corner = boundsOf(assets().loadModel(TILES + "wall_corner.glb"));
-        var wall = boundsOf(assets().loadModel(TILES + "wall.glb"));
+    void aKitMayShipNoCornerPost() {
+        var art = uz.duke.dungeon.content.DungeonSettings.load().tiles();
 
-        assertTrue(corner.getXExtent() < wall.getXExtent(),
-                "a post, not a wall: " + corner.getXExtent());
-        assertEquals(wall.getYExtent(), corner.getYExtent(), 0.2f,
-                "but the same height, or the wall line would have a notch in it");
+        assertNotNull(art.floor(), "the shipped file should still name a kit");
+        assertNotNull(art.wall(), "and walls to go round it");
     }
 
     /**
@@ -110,8 +119,8 @@ class DungeonTilesTest {
      */
     @Test
     void everyTileIsTexturedRatherThanLoadingBlank() {
-        for (var tile : new String[] {"floor", "wall", "wall_corner"}) {
-            var model = assets().loadModel(TILES + tile + ".glb");
+        for (var tile : new String[] {"floor", "wall", "stairs"}) {
+            var model = assets().loadModel(TILES + tile + ".gltf");
 
             assertTrue(hasTexture(model), tile + " loaded without its texture");
         }
@@ -129,7 +138,10 @@ class DungeonTilesTest {
         var art = uz.duke.dungeon.content.DungeonSettings.load().tiles();
 
         assertNotNull(art.floor(), "the shipped file should name a kit");
-        for (var path : new String[] {art.floor(), art.wall(), art.corner()}) {
+        for (var path : new String[] {art.floor(), art.wall(), art.corner(), art.stairs()}) {
+            if (path == null) {
+                continue; // a kit is allowed to name no corner post and no stair
+            }
             assertNotNull(assets().loadModel(path), path + " is named but not shipped");
         }
     }
@@ -266,6 +278,13 @@ class DungeonTilesTest {
             // What this catches is the mistake that matters: a number off by a
             // factor, which puts the roof through the floor or into the sky.
             float stands = wall.getYExtent() * 2f;
+            if (theme.wallHeight() <= 0f) {
+                // Zero is not a claim about the model. WallHeight is where the lid
+                // over the rock is laid, and a theme whose boundary is a line of
+                // trees lays it on the ground — so the stone between the rooms
+                // comes out as more forest floor rather than as a roof in the air.
+                continue;
+            }
             assertTrue(Math.abs(stands - theme.wallHeight()) < stands * 0.15f,
                     theme.name() + " says its walls stand " + theme.wallHeight()
                             + " but they stand " + stands);
@@ -291,7 +310,10 @@ class DungeonTilesTest {
             }
             var wall = boundsOf(assets.loadModel(tone.wall()));
             float bottom = wall.getCenter().y - wall.getYExtent() + theme.wallLift();
-            assertEquals(0f, bottom, 0.05f,
+            // Within a tenth of the module it was modelled at. Not exactly zero,
+            // because a wall need not be masonry: a theme whose boundary is a line
+            // of trees has roots, and a root dips below the ground it grows out of.
+            assertEquals(0f, bottom, theme.wallTileSize() * 0.1f,
                     theme.name() + " stands its walls " + bottom + " off the floor");
         }
     }
