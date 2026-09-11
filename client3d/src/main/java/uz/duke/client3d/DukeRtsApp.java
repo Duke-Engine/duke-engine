@@ -218,6 +218,10 @@ final class DukeRtsApp extends SimpleApplication {
     /** And the red ring that flashes round whatever was ordered attacked. */
     private AttackFlash attackFlash;
 
+    /** The numbers that come off a creature as it is hurt or healed. */
+    private FloatingNumbers hitNumbers;
+    private final HealthWatch healthWatch = new HealthWatch();
+
     /** Everything the scene keeps per live unit. */
     private static final class UnitNode {
         Node root;
@@ -322,6 +326,7 @@ final class DukeRtsApp extends SimpleApplication {
         rootNode.attachChild(markerNode);
         chevrons = new Chevrons(assetManager, markerNode, visuals.getOrderMark());
         attackFlash = new AttackFlash(assetManager, markerNode, visuals.getOrderMark());
+        hitNumbers = new FloatingNumbers(guiFont, guiNode, visuals.getHitNumbers());
         rangeRings = new RangeRings(assetManager, markerNode, visuals.getRangeLook());
         warmNode.setCullHint(Spatial.CullHint.Always);
         rootNode.attachChild(warmNode);
@@ -615,6 +620,25 @@ final class DukeRtsApp extends SimpleApplication {
         attackFlash.show(orderMarkers.markers(), now, this::whereThatUnitIsNow,
                 this::floorHeightAt);
         syncSkillRange(now);
+        syncHitNumbers(now);
+    }
+
+    /**
+     * Throw a number off anything whose health has moved, and keep the ones
+     * already in the air moving.
+     *
+     * <p>Off the snapshot rather than off an event -- see {@link HealthWatch} for
+     * why that is the complete answer rather than the lazy one.
+     */
+    private void syncHitNumbers(float now) {
+        var look = visuals.getHitNumbers();
+        if (screen == Screen.PLAYING) {
+            for (var change : healthWatch.since(snapshot.units(), game.getLocalPlayerIndex(),
+                    look.leastWorth())) {
+                hitNumbers.add(change, now, look.height());
+            }
+        }
+        hitNumbers.update(now, cam, this::floorHeightAt);
     }
 
     /**
@@ -1892,6 +1916,8 @@ final class DukeRtsApp extends SimpleApplication {
         orderMarkers.clear(); // orders given in the old world mean nothing here
         chevrons.clear();
         attackFlash.clear();
+        hitNumbers.clear();
+        healthWatch.forget(); // new creatures, new ids; nobody here was just hit
         camera.requestOwnUnit(); // his units are somewhere else entirely now
         // And the hero he had selected is not this floor's hero. See
         // keepHisOwnSelected: his skills need him picked out.

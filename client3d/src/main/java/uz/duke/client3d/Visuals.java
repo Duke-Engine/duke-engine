@@ -658,6 +658,25 @@ public final class Visuals {
         return rangeLook;
     }
 
+    private HitNumbers hitNumbers = HitNumbers.DEFAULT;
+
+    /**
+     * How the numbers that come off a creature as it is hurt or healed should look
+     * — see {@link HitNumbers}.
+     *
+     * <p>The client knows how to read a health bar's movement and throw a number
+     * off it; how long it should stay, how far it should drift and what colour a
+     * blow is are the game's, like the fog and the pointer.
+     */
+    public Visuals hitNumbers(HitNumbers hitNumbers) {
+        this.hitNumbers = hitNumbers == null ? HitNumbers.DEFAULT : hitNumbers;
+        return this;
+    }
+
+    public HitNumbers getHitNumbers() {
+        return hitNumbers;
+    }
+
     // ---- the portrait ----
 
     private final Map<String, PortraitLook> portraits = new LinkedHashMap<>();
