@@ -5,8 +5,8 @@ package uz.duke.dungeon.ai;
  *
  * <p>Two things, and a command is a moment while both of these are states, so
  * something has to remember them between the two and this is the smallest thing
- * that can: whether his hero has been told to hold his ground, and which single
- * creature he has picked out to look at.
+ * that can: whether his creatures have been told to stand still and start
+ * nothing, and which single creature he has picked out to look at.
  *
  * <p>The second is not an order at all -- nothing in the world changes because of
  * it -- and it lives here anyway, because it has exactly the shape of one: it
@@ -30,13 +30,22 @@ public final class Orders {
     /** By player, so a second hero in the same game keeps his own answer. */
     private final java.util.Set<Integer> holding = new java.util.HashSet<>();
 
-    /** Turn holding on or off for one player, and say what it became. */
-    public boolean toggleHold(int playerIndex) {
-        if (!holding.add(playerIndex)) {
+    /**
+     * Tell one player's creatures to stand still and start nothing, or let them
+     * go again.
+     *
+     * <p>Set rather than toggled, because the two buttons that change it are two
+     * buttons: Stop means stop and Guard means guard, and a player who presses
+     * Stop twice meant it twice. A toggle also cannot be shown -- a button that
+     * lights when the state is on has to be told which state, and "the other one"
+     * is not a state.
+     */
+    public void hold(int playerIndex, boolean stand) {
+        if (stand) {
+            holding.add(playerIndex);
+        } else {
             holding.remove(playerIndex);
-            return false;
         }
-        return true;
     }
 
     public boolean isHolding(int playerIndex) {

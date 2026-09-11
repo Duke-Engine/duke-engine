@@ -259,7 +259,7 @@ public final class Dungeon {
                 // "Stand and pick no fights", which none of the engine's three
                 // orders can say. See HoldGround.
                 case uz.duke.dungeon.ai.HoldGround hold ->
-                        arena.orders().toggleHold(hold.playerIndex());
+                        arena.orders().hold(hold.playerIndex(), hold.stand());
                 // Nothing in the world changes; the panel starts describing
                 // something else. See Watching.
                 case uz.duke.dungeon.run.Watching looking ->
@@ -281,4 +281,5 @@ public final class Dungeon {
 
         return new Session(game, run, progress, powers, arena.orders());
     }
+
 }

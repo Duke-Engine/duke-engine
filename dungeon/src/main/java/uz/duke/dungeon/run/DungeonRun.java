@@ -202,14 +202,18 @@ public final class DungeonRun {
     private void showStatus(DukeGame game) {
         var picked = orders.watchedBy(heroPlayer.getIndex());
         var creature = picked == null ? null : game.getLogic().findObject(picked);
-        if (creature != null && creature.getPlayerIndex() == heroPlayer.getIndex()) {
+        boolean his = creature != null && creature.getPlayerIndex() == heroPlayer.getIndex();
+        if (his && Skills.heroOf(game.getLogic(), heroPlayer.getIndex()) == creature) {
             game.setStatus(HeroStatus.of(Skills.heroOf(game.getLogic(), heroPlayer.getIndex()),
                     progress, depth, settings, powers, game.getLogic().getFrame(), look,
                     orders.isHolding(heroPlayer.getIndex())));
             return;
         }
         if (creature != null && !creature.isEffectivelyDead()) {
-            game.setStatus(HeroStatus.creature(creature, depth, settings, look));
+            // Somebody else's creature, or one of his that is not the hero: the
+            // card describes it, and the buttons are live only if he could give it
+            // an order.
+            game.setStatus(HeroStatus.creature(creature, depth, settings, look, his));
             return;
         }
         // Nothing selected, or what was selected has died: the bar keeps the floor

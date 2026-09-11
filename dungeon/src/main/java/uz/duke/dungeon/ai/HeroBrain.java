@@ -107,6 +107,9 @@ public final class HeroBrain extends UnitScript {
         if (weapon == null || move == null) {
             return;
         }
+        if (standingStill(weapon, move)) {
+            return;
+        }
         forgetOrdersOverriddenByASkill(weapon);
         var current = weapon.isAttacking() ? world().findObject(weapon.getTarget()) : null;
         forgetAPickThatIsNoLongerHis(weapon);
@@ -170,6 +173,55 @@ public final class HeroBrain extends UnitScript {
             sendAfter(quarry);
         }
     }
+
+    /**
+     * Told to stop: stand, start nothing, and wait to be told otherwise.
+     *
+     * <p>Asked before anything else, because it outranks everything else. The
+     * dropping of what he was already doing happened when the order arrived (see
+     * {@code Dungeon}); what is left is refusing to begin anything, which is the
+     * part that has to be said every frame — the weapon finds its own targets, and
+     * acquires and fires in the same call.
+     *
+     * <p><b>And it ends the moment the player wants something.</b> A walk under
+     * way or a target on his weapon can only have got there since, because both
+     * were taken away when he was told to stop, and nothing here puts them back.
+     * So either is the player changing his mind, and the standing order goes —
+     * otherwise Stop would be a state he could enter and never leave.
+     *
+     * @return whether he is standing, and everything below should be skipped
+     */
+    private boolean standingStill(WeaponUpdate weapon, MoveUpdate move) {
+        if (!orders.isHolding(unit().getPlayerIndex())) {
+            wasStanding = false;
+            return false;
+        }
+        if (!wasStanding) {
+            // The frame the order lands: drop the walk and the target. It has to
+            // be here rather than only where the command is handled, or setting
+            // the order any other way leaves him finishing what he was doing --
+            // and the rule below would then read that as the player changing his
+            // mind and take the order straight off again.
+            wasStanding = true;
+            sentAt = null;
+            picked = null;
+            sentAfter = null;
+            forgetTheErrand();
+            weapon.holdFire();
+            move.stop();
+            return true;
+        }
+        if (move.isMoving() || weapon.isAttacking()) {
+            orders.hold(unit().getPlayerIndex(), false);
+            wasStanding = false;
+            return false;
+        }
+        weapon.holdFire();
+        return true;
+    }
+
+    /** Whether he was already standing last frame, so a new order can be told apart. */
+    private boolean wasStanding;
 
     /**
      * The same courtesy on a plain walking order: stop rather than shove, and
@@ -315,16 +367,6 @@ public final class HeroBrain extends UnitScript {
      * same creature are indistinguishable, and the second silently does nothing.
      */
     private void standAndShoot(WeaponUpdate weapon, MoveUpdate move, GameObject current) {
-        if (orders.isHolding(unit().getPlayerIndex())) {
-            // Told to start nothing -- see HoldGround. Said again every frame
-            // rather than set once, because the weapon finds its own targets: it
-            // acquires and fires in the same call, so anything outside it can only
-            // take a target away after the weapon has already chosen one.
-            if (current != null) {
-                weapon.holdFire();
-            }
-            return;
-        }
         if (current != null) {
             if (!move.isMoving()) {
                 Facing.turnToward(unit(), current);

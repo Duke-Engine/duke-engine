@@ -17,10 +17,15 @@ import uz.duke.core.message.Command;
  * Stop cancels a walk and says nothing about his bow, so before this there was no
  * way to tell him to leave something alone.
  *
- * <p>A toggle rather than a state to be set, because the panel's button is a
- * toggle and a command that carried "on" or "off" would need the client to read
- * the simulation to know which to send — from the render thread, a frame late,
- * and wrong the moment two of them arrived together.
+ * <p><b>Set rather than toggled</b>, which it was to begin with. A toggle needs
+ * the sender to know the current state, and it cannot be shown: a button that
+ * lights while the state is on has to know <em>which</em> state, and "the other
+ * one" is not a state. Two buttons say it plainly instead — Stop means stop and
+ * Guard means guard — and each one is also the lamp for the state it sets. See
+ * {@link Doing}.
+ *
+ * @param stand whether to stand still and start nothing, or to go back to
+ *              guarding the ground he is on
  */
-public record HoldGround(int playerIndex) implements Command {
+public record HoldGround(int playerIndex, boolean stand) implements Command {
 }

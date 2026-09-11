@@ -3,6 +3,7 @@ package uz.duke.dungeon.run;
 import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ThingTemplate;
+import uz.duke.dungeon.ai.Doing;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.level.HeroProgress;
 import uz.duke.dungeon.power.PowerChoice;
@@ -77,6 +78,10 @@ final class HeroStatus {
                 // grid with no heading over it is a hole rather than a bag.
                 .append("|itWord=").append(settings.hudItemsWord())
                 .append("|skWord=").append(settings.hudSkillsWord());
+        // The buttons are furniture too, and stay for the same reason the sockets
+        // do. Nothing is selected, so nothing is doing anything and none of them
+        // may be pressed -- but four dim buttons are a bar, and a gap is a hole.
+        appendOrders(line, settings, null, false);
         if (note != null && !note.isEmpty()) {
             // Finding a sword is worth saying whether or not he is selected.
             line.append("|note=").append(note);
@@ -92,9 +97,11 @@ final class HeroStatus {
      * it hits for.
      *
      * <p>Deliberately shorter than the hero's, and not because it was easier. A
-     * skeleton has no experience the player is earning, no skills he can cast, no
-     * bag and no orders — writing those fields with a monster's numbers in them
-     * would be inventing a second hero. What is left is what is actually worth
+     * skeleton has no experience the player is earning, no skills he can cast and
+     * no bag — writing those fields with a monster's numbers in them would be
+     * inventing a second hero. It does have ORDERS, which is not the same thing:
+     * it is walking or fighting or standing whatever side it is on, and {@code his}
+     * is only whether the player may change that. What is left is what is actually worth
      * knowing about a thing across the room: how much of it there is and how hard
      * it hits.
      *
@@ -107,7 +114,8 @@ final class HeroStatus {
      * hero's three are worked out — and because what a floor multiplies a monster
      * by is this game's arithmetic. See {@code Spawner.scale}.
      */
-    static String creature(GameObject creature, int depth, DungeonSettings settings, String look) {
+    static String creature(GameObject creature, int depth, DungeonSettings settings, String look,
+            boolean his) {
         if (creature == null || creature.getBody() == null) {
             return "";
         }
@@ -121,6 +129,10 @@ final class HeroStatus {
                 // empty sockets under these words say so better than a gap would.
                 .append("|itWord=").append(settings.hudItemsWord())
                 .append("|skWord=").append(settings.hudSkillsWord());
+        // It is not his, so he cannot order it -- and it is still DOING something,
+        // and that is worth as much across the room as it is under his own feet.
+        // Reading a skeleton off the bar is how a player learns to read the bar.
+        appendOrders(line, settings, Doing.of(creature, false), his);
         if (!settings.hudMonsterFace().isBlank()) {
             line.append("|face=").append(settings.hudMonsterFace());
         }
@@ -165,7 +177,7 @@ final class HeroStatus {
                 .append("|depth=").append(howFarDown(depth, settings))
                 .append("|depthWord=").append(settings.hudDepthWord());
         appendStats(line, hero, progress, powers, settings);
-        appendOrders(line, settings, holding);
+        appendOrders(line, settings, Doing.of(hero, holding), true);
         appendItems(line, progress, settings);
         var book = hero.findModule(SkillBook.class);
         if (book != null) {
@@ -226,16 +238,25 @@ final class HeroStatus {
      * match what {@code Main.controls} claims, and the words come out of the file
      * with every other word on the panel.
      *
-     * <p>Only the last of them has a state worth sending: holding ground is a
-     * standing order and the button has to show whether it is on. The other three
-     * happen and are over.
+     * <p><b>Every one of them has a state worth sending</b>, which is the thing
+     * this used to miss. They were four things to press and nothing else, and that
+     * is half a control: each is also a state the creature can be in, and exactly
+     * one of the four is true at any moment -- see {@link Doing}. Nobody plays by
+     * clicking them, so what earns them their space on the bar is what they can
+     * tell him.
+     *
+     * <p>{@code his} is whether the player may press them at all. A creature that
+     * is not his still SHOWS what it is doing -- reading a skeleton's intent off
+     * the bar is worth as much as reading his own -- and the buttons go dim,
+     * because a lit button that does nothing is worse than no button.
      */
     private static void appendOrders(StringBuilder line, DungeonSettings settings,
-            boolean holding) {
+            Doing doing, boolean his) {
         var words = settings.hudOrderWords();
         String[][] buttons = {
             {"A", "march"}, {"S", "blade"}, {"D", "halt"}, {"F", "shield"},
         };
+        line.append("|cmds=").append(his ? "mine" : "theirs");
         for (int i = 0; i < buttons.length; i++) {
             String word = i < words.size() ? words.get(i) : "";
             if (word.isBlank()) {
@@ -243,7 +264,8 @@ final class HeroStatus {
             }
             line.append("|cmd=").append(buttons[i][0]).append(',').append(buttons[i][1])
                     .append(',').append(word)
-                    .append(',').append(i == buttons.length - 1 && holding ? "on" : "off");
+                    .append(',')
+                    .append(doing != null && doing.button() == i ? "on" : "off");
         }
     }
 

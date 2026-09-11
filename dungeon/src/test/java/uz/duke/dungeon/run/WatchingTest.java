@@ -121,7 +121,11 @@ class WatchingTest {
         assertFalse(line.contains("|xp="), "a skeleton is not earning anything: " + line);
         assertFalse(line.contains("|skill="), "nor casting anything: " + line);
         assertFalse(line.contains("|it="), "nor carrying anything: " + line);
-        assertFalse(line.contains("|cmd="), "nor taking orders: " + line);
+        // It DOES have orders -- it is walking or fighting or standing like
+        // anything else, and that is worth reading across the room. What it does
+        // not have is any of them the player may press.
+        assertTrue(line.contains("|cmds=theirs"), "it is not his to command: " + line);
+        assertTrue(line.contains("|cmd=F,shield,"), "but it is still doing something: " + line);
         assertFalse(line.contains("|rank="), "nor holding a level: " + line);
     }
 

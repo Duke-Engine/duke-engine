@@ -80,7 +80,7 @@ class HoldGroundTest {
     @Test
     void holdingHisGroundHeLeavesItAlone() {
         var fight = standoff();
-        fight.orders().toggleHold(fight.hero().getPlayerIndex());
+        fight.orders().hold(fight.hero().getPlayerIndex(), true);
 
         fight.game().runHeadless(60);
 
@@ -97,7 +97,7 @@ class HoldGroundTest {
     @Test
     void anOrderStillReachesHimWhileHeHolds() {
         var fight = standoff();
-        fight.orders().toggleHold(fight.hero().getPlayerIndex());
+        fight.orders().hold(fight.hero().getPlayerIndex(), true);
         fight.game().runHeadless(30);
         assertFalse(fight.shooting(), "nothing should have started on its own");
 
@@ -109,17 +109,70 @@ class HoldGroundTest {
         assertTrue(fight.shooting(), "he was pointed at it and refused");
     }
 
-    /** And the order comes off again. */
+    /**
+     * And Guard lets him loose again.
+     *
+     * <p>Two buttons rather than one that toggles, because each of them is also
+     * the lamp for the state it sets -- see {@link Doing} -- and "the other one"
+     * is not a state a lamp can show.
+     */
     @Test
-    void tellingHimTwiceLetsHimLooseAgain() {
+    void guardingAgainLetsHimLoose() {
         var fight = standoff();
-        fight.orders().toggleHold(fight.hero().getPlayerIndex());
+        fight.orders().hold(fight.hero().getPlayerIndex(), true);
         fight.game().runHeadless(30);
-        fight.orders().toggleHold(fight.hero().getPlayerIndex());
+        assertFalse(fight.shooting(), "he should be standing");
 
+        fight.orders().hold(fight.hero().getPlayerIndex(), false);
         fight.game().runHeadless(20);
 
-        assertTrue(fight.shooting(), "the order should be a toggle, not a one-way switch");
+        assertTrue(fight.shooting(), "told to guard, he should pick fights again");
+    }
+
+    /**
+     * Stop drops what he was already doing, rather than only refusing to start
+     * anything new.
+     *
+     * <p>The difference the player feels. A hero who finished the walk he was on
+     * and only then stood still would make Stop a suggestion -- and it is the one
+     * order that has to be instant, because it is what he presses when something
+     * has gone wrong.
+     */
+    @Test
+    void stopDropsWhatHeWasAlreadyDoing() {
+        var fight = standoff();
+        fight.game().runHeadless(20);
+        assertTrue(fight.shooting(), "he should have started on his own first");
+
+        fight.orders().hold(fight.hero().getPlayerIndex(), true);
+        fight.game().runHeadless(2);
+
+        assertFalse(fight.shooting(),
+                "Stop should have taken the fight off him, not waited for it to end");
+    }
+
+    /**
+     * And it comes off the moment the player wants something else.
+     *
+     * <p>Otherwise Stop is a state he can enter and not leave: he presses it, then
+     * clicks the floor, and the hero stands there refusing -- which reads as the
+     * game having stopped listening rather than as an order still in force.
+     */
+    @Test
+    void anOrderTakesTheStandingOrderOffAgain() {
+        var fight = standoff();
+        fight.orders().hold(fight.hero().getPlayerIndex(), true);
+        fight.game().runHeadless(10);
+        assertTrue(fight.orders().isHolding(fight.hero().getPlayerIndex()));
+
+        fight.game().postCommand(new uz.duke.rts.message.GameMessage.MoveTo(
+                fight.game().getLocalPlayerIndex(),
+                java.util.List.of(fight.hero().getId()),
+                new uz.duke.core.math.Coord3D(300f, 150f, 0f)));
+        fight.game().runHeadless(4);
+
+        assertFalse(fight.orders().isHolding(fight.hero().getPlayerIndex()),
+                "he was told to walk, so he is not standing still any more");
     }
 
     /** It arrives as a command, on a frame boundary, like every other order. */
@@ -131,10 +184,14 @@ class HoldGroundTest {
         var orders = session.orders();
         assertFalse(orders.isHolding(game.getLocalPlayerIndex()));
 
-        game.postCommand(new HoldGround(game.getLocalPlayerIndex()));
+        game.postCommand(new HoldGround(game.getLocalPlayerIndex(), true));
         game.runHeadless(2);
-
         assertTrue(orders.isHolding(game.getLocalPlayerIndex()),
                 "the command should have been applied on the next frame");
+
+        game.postCommand(new HoldGround(game.getLocalPlayerIndex(), false));
+        game.runHeadless(2);
+        assertFalse(orders.isHolding(game.getLocalPlayerIndex()),
+                "and the other button should have taken it off again");
     }
 }

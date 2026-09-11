@@ -315,7 +315,7 @@ final class HeroPanel {
         note.setText(reading.note);
         showFace(reading.face, !reading.name.isBlank());
         showStats(reading.stats);
-        showOrders(reading.orders);
+        showOrders(reading.orders, reading.ordersAreHis);
         showItems(reading.items, reading.itemsWord);
         showSkills(reading.skills);
         showPowers(reading.powers);
@@ -459,6 +459,9 @@ final class HeroPanel {
      * grow a rule the other does not have.
      */
     Character orderAt(float screenX, float screenY) {
+        if (!ordersAreHis) {
+            return null; // not his to command; the button is furniture, like an empty socket
+        }
         if (!showing) {
             return null;
         }
@@ -830,7 +833,8 @@ final class HeroPanel {
      * arrive down the status line with their keys, their drawings and their words.
      * A game that names none gets no column and the space back.
      */
-    private void showOrders(List<Reading.OrderReading> reading) {
+    private void showOrders(List<Reading.OrderReading> reading, boolean his) {
+        ordersAreHis = his;
         var signature = new StringBuilder();
         for (var order : reading) {
             signature.append(order.key()).append(order.icon()).append(',');
@@ -852,12 +856,48 @@ final class HeroPanel {
         }
         for (int i = 0; i < orderButtons.size() && i < reading.size(); i++) {
             var button = orderButtons.get(i);
-            boolean on = reading.get(i).on() || Character.valueOf(button.key).equals(armed)
-                    || Character.valueOf(button.key).equals(hovered);
+            // What the creature is doing, and — only when it is one of his —
+            // whatever the player's hand is on. Hovering something he cannot
+            // command must not light it: the light is how a button says "press
+            // me", and one that cannot be pressed must not say it.
+            boolean doing = reading.get(i).on();
+            boolean reaching = his && (Character.valueOf(button.key).equals(armed)
+                    || Character.valueOf(button.key).equals(hovered));
+            boolean on = doing || reaching;
             button.lit.setCullHint(on ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-            button.glyph.getMaterial().setColor("Color", linear(on ? GOLD_HI : GOLD));
+            // Dim when it is not his, and dim whether or not it is lit: a skeleton
+            // walking still shows its walk, because reading what something across
+            // the room is doing is worth as much as reading his own — it is only
+            // the offer to change it that goes away.
+            button.glyph.getMaterial().setColor("Color",
+                    linear(his ? (on ? GOLD_HI : GOLD) : (doing ? GOLD : DEAD)));
         }
     }
+
+    /** Whether that key is one of the order buttons rather than a skill. */
+    boolean isAnOrder(char key) {
+        for (var button : orderButtons) {
+            if (button.key == key) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Whether the buttons may be pressed — that is, whether what is selected is
+     * the player's to command.
+     *
+     * <p>Read back out by the client so that a key press is refused for the same
+     * reason the button is drawn dim. One answer, from the game, rather than the
+     * client working it out a second time and the two disagreeing on the frame the
+     * selection changes.
+     */
+    boolean ordersAreHis() {
+        return ordersAreHis;
+    }
+
+    private boolean ordersAreHis;
 
     /** One button cut out of the stone, the same way a skill socket is. */
     private void cut(OrderButton button, Reading.OrderReading order) {
@@ -2163,7 +2203,8 @@ final class HeroPanel {
             float experience, float needed, String depth, String depthWord,
             String powersWord, String skillsWord, String itemsWord, String note,
             List<Stat> stats, List<SkillReading> skills, List<PowerReading> powers,
-            List<ItemReading> items, List<OrderReading> orders, Offer offer) {
+            List<ItemReading> items, List<OrderReading> orders, boolean ordersAreHis,
+            Offer offer) {
 
         enum State { READY, COOLING, LOCKED }
 
@@ -2242,6 +2283,7 @@ final class HeroPanel {
             var powers = new ArrayList<PowerReading>();
             var items = new ArrayList<ItemReading>();
             var orders = new ArrayList<OrderReading>();
+            var ordersAreHis = new boolean[] {false};
             var cards = new ArrayList<Card>();
             var offerHead = new String[] {null, null, null};
             for (var field : status.split("\\|")) {
@@ -2262,6 +2304,10 @@ final class HeroPanel {
                     case "itWord" -> itemsWord = value;
                     case "it" -> items.add(item(value));
                     case "cmd" -> orders.add(order(value));
+                    // Whether the player may press them at all. One field for the
+                    // four of them, because it is a fact about whose creature is
+                    // selected rather than about any one button.
+                    case "cmds" -> ordersAreHis[0] = "mine".equals(value);
                     case "note" -> note = value;
                     case "hp" -> health = pair(value);
                     case "xp" -> experience = pair(value);
@@ -2290,7 +2336,7 @@ final class HeroPanel {
                     experience[0], experience[1], depth, depthWord, powersWord, skillsWord,
                     itemsWord, note, List.copyOf(stats), List.copyOf(skills),
                     List.copyOf(powers), List.copyOf(items), List.copyOf(orders),
-                    offer(offerHead[0], cards));
+                    ordersAreHis[0], offer(offerHead[0], cards));
         }
 
         private static float[] pair(String value) {

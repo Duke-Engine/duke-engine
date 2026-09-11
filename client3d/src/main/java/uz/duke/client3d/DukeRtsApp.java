@@ -2260,6 +2260,13 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var range = visuals.getSkillRange(key);
+        if (heroPanel.isAnOrder(key) && !heroPanel.ordersAreHis()) {
+            // The four orders belong to whatever is selected, and what is selected
+            // is not his -- so there is nothing to give the order to. The panel
+            // draws them dim for the same reason; this is the half that stops the
+            // key going round the outside of the dim button.
+            return;
+        }
         if (range != null && selectedIds().isEmpty()) {
             // A skill is something one of his creatures does, so it needs that
             // creature picked out — pressing Q with nothing selected, or with a

@@ -71,7 +71,12 @@ class HeroStatusTest {
                 "nobody is selected, so nobody is named: " + line);
         assertFalse(line.contains("|hp="), "nothing has health: " + line);
         assertFalse(line.contains("|skill="), "nothing has skills: " + line);
-        assertFalse(line.contains("|cmd="), "and there is nothing to give orders to: " + line);
+        // The buttons stay -- they are furniture, like the empty sockets beside
+        // them -- but nothing is selected, so nothing may be pressed and nothing
+        // is doing anything for them to show.
+        assertTrue(line.contains("|cmds=theirs"),
+                "there is nothing to give orders to: " + line);
+        assertFalse(line.contains(",on"), "and nothing is doing anything: " + line);
         assertTrue(line.contains("|depth="), "the floor is still the floor: " + line);
         assertTrue(line.contains("|look="),
                 "and the client learns the floor's stone from this line: " + line);

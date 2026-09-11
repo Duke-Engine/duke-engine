@@ -42,7 +42,7 @@ class PanelLayoutTest {
             "name=Erika|title=O'q ustasi|rank=7-daraja|hp=128/200|xp=38/100"
                     + "|depth=III / IV|depthWord=CHUQURLIK"
                     + "|stat=Zarba,34,+6|stat=Zirh,12,+2|stat=Tezlik,52"
-                    + "|cmd=A,march,Yur,off|cmd=S,blade,Hujum,off"
+                    + "|cmds=mine|cmd=A,march,Yur,off|cmd=S,blade,Hujum,off"
                     + "|cmd=D,halt,To'xta,off|cmd=F,shield,Himoya,on"
                     + "|itWord=NARSALAR|it=blade,3|it=flask,1|it=shield,2"
                     + "|skWord=MAHORAT"
@@ -193,11 +193,15 @@ class PanelLayoutTest {
     private static final String CREATURE =
             "name=Skeleton|hp=34/40|depth=III / IV|depthWord=CHUQURLIK|face=skull"
                     + "|itWord=NARSALAR|skWord=MAHORAT"
+                    + "|cmds=theirs|cmd=A,march,Yur,off|cmd=S,blade,Hujum,off"
+                    + "|cmd=D,halt,To'xta,off|cmd=F,shield,Himoya,on"
                     + "|stat=Zarba,7|stat=Tezlik,16";
 
     /** And the card it sends when nothing at all is selected. */
     private static final String NOBODY =
-            "name=|depth=III / IV|depthWord=CHUQURLIK|itWord=NARSALAR|skWord=MAHORAT";
+            "name=|depth=III / IV|depthWord=CHUQURLIK|itWord=NARSALAR|skWord=MAHORAT"
+                    + "|cmds=theirs|cmd=A,march,Yur,off|cmd=S,blade,Hujum,off"
+                    + "|cmd=D,halt,To'xta,off|cmd=F,shield,Himoya,off";
 
     private static Node showing(String card) {
         var assets = new DesktopAssetManager(true);
@@ -284,6 +288,36 @@ class PanelLayoutTest {
         }
         assertTrue(block instanceof Node empty && empty.getChildren().isEmpty(),
                 name + " is the card's and the card does not carry it, but it is drawn");
+    }
+
+    /**
+     * The order buttons go dim for a creature that is not his, and still say what
+     * it is doing.
+     *
+     * <p>Two halves of one idea. A button he cannot press must not look pressable
+     * -- a lit control that does nothing is worse than no control -- and the row is
+     * still worth reading, because what the skeleton across the room is doing is
+     * exactly what the player wants to know before he clicks anything.
+     */
+    @Test
+    void aCreatureThatIsNotHisHasDimButtonsThatStillShowWhatItIsDoing() {
+        var his = (Node) find(panel(1600f), "orders");
+        var theirs = (Node) find(showing(CREATURE), "orders");
+
+        assertEquals(his.getChildren().size(), theirs.getChildren().size(),
+                "the same four buttons either way: they are furniture");
+        var mine = glyphColours(his);
+        var other = glyphColours(theirs);
+        assertNotEquals(mine, other, "a creature he cannot command should not look the same");
+    }
+
+    private static java.util.List<com.jme3.math.ColorRGBA> glyphColours(Node orders) {
+        var colours = new java.util.ArrayList<com.jme3.math.ColorRGBA>();
+        for (var button : orders.getChildren()) {
+            var glyph = (com.jme3.scene.Geometry) find(button, "order-glyph");
+            colours.add((com.jme3.math.ColorRGBA) glyph.getMaterial().getParam("Color").getValue());
+        }
+        return colours;
     }
 
     /** Six sockets in the bag whatever he is carrying, and three of them full. */

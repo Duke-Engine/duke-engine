@@ -367,11 +367,20 @@ public final class Main {
         keys.onUnit('S', (game, id) -> game.postCommand(
                 new uz.duke.rts.message.GameMessage.AttackObject(
                         game.getLocalPlayerIndex(), selected(game), new ObjectId(id))));
-        keys.on('D', game -> game.postCommand(
-                new uz.duke.rts.message.GameMessage.StopMoving(
-                        game.getLocalPlayerIndex(), selected(game))));
+        // Stop is the loudest of the four: drop the walk, drop the target, and
+        // start nothing until told otherwise. Two commands because two things are
+        // being said -- the engine's own stop, and this game's "and stay stopped".
+        keys.on('D', game -> {
+            game.postCommand(new uz.duke.rts.message.GameMessage.StopMoving(
+                    game.getLocalPlayerIndex(), selected(game)));
+            game.postCommand(new uz.duke.dungeon.ai.HoldGround(
+                    game.getLocalPlayerIndex(), true));
+        });
+        // And Guard is how he is let go again: stand where you are, but pick a
+        // fight with anything that comes near. It is also the state he is in for
+        // most of a run, which is why it has a button of its own to light.
         keys.on('F', game -> game.postCommand(
-                new uz.duke.dungeon.ai.HoldGround(game.getLocalPlayerIndex())));
+                new uz.duke.dungeon.ai.HoldGround(game.getLocalPlayerIndex(), false)));
     }
 
     /**
