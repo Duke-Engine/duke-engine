@@ -27,7 +27,13 @@ class HealthWatchTest {
     }
 
     private static List<HealthWatch.Change> after(HealthWatch watch, UnitView... units) {
-        return watch.since(List.of(units), MINE, 1f);
+        return watch.since(List.of(units), MINE, 1f, List.of());
+    }
+
+    /** The same, with somebody announced dead on this frame. */
+    private static List<HealthWatch.Change> afterKilling(HealthWatch watch,
+            HealthWatch.Death death, UnitView... units) {
+        return watch.since(List.of(units), MINE, 1f, List.of(death));
     }
 
     /** A creature arriving is not a creature being healed. */
@@ -92,10 +98,10 @@ class HealthWatchTest {
     @Test
     void somethingTooSmallToBeWorthANumberIsNotDrawn() {
         var watch = new HealthWatch();
-        watch.since(List.of(unit(1, MINE, 100f, 200f)), MINE, 5f);
+        watch.since(List.of(unit(1, MINE, 100f, 200f)), MINE, 5f, List.of());
 
-        var small = watch.since(List.of(unit(1, MINE, 102f, 200f)), MINE, 5f);
-        var enough = watch.since(List.of(unit(1, MINE, 110f, 200f)), MINE, 5f);
+        var small = watch.since(List.of(unit(1, MINE, 102f, 200f)), MINE, 5f, List.of());
+        var enough = watch.since(List.of(unit(1, MINE, 110f, 200f)), MINE, 5f, List.of());
 
         assertTrue(small.isEmpty(), "two points of regeneration is not worth a number");
         assertEquals(8f, enough.get(0).amount(), 0.001f, "eight is");
@@ -141,15 +147,68 @@ class HealthWatchTest {
         assertTrue(changes.isEmpty());
     }
 
-    /** The killing blow gets its number — it is the one the player most wants. */
+    /**
+     * The finishing blow gets its number, and it is the one the player most wants.
+     *
+     * <p>The case subtraction alone cannot see, and it was missing entirely. A
+     * creature that dies is taken out of the world on the frame the blow lands, so
+     * there is never a snapshot showing it with less health -- it is simply not
+     * there, which from here looks exactly like one that walked into the dark. So
+     * the world says outright who was killed, and what it had left is what the
+     * blow took.
+     */
     @Test
-    void theBlowThatKillsStillCounts() {
+    void theBlowThatKillsCountsForWhatItTook() {
         var watch = new HealthWatch();
         after(watch, unit(7, THEIRS, 12f, 60f));
 
-        var changes = after(watch, unit(7, THEIRS, 0f, 60f));
+        // Dead, and gone from the world on the same frame.
+        var changes = afterKilling(watch, new HealthWatch.Death(7, 40f, 50f, THEIRS));
 
-        assertEquals(12f, changes.get(0).amount(), 0.001f,
-                "the last one is the one he was waiting for");
+        assertEquals(1, changes.size(), "the last blow is a blow");
+        assertEquals(12f, changes.get(0).amount(), 0.001f, "worth what it had left");
+        assertEquals(false, changes.get(0).healed());
+        assertEquals(40f, changes.get(0).x(), 0.001f, "where it fell, which the world said");
+        assertEquals(50f, changes.get(0).y(), 0.001f);
+    }
+
+    /**
+     * And walking into the dark is not being killed.
+     *
+     * <p>The two look identical from here -- a creature that was in the list and
+     * is not -- which is exactly why the death has to be announced rather than
+     * inferred. Fog would otherwise hand out a number equal to a full health bar
+     * every time something stepped out of sight.
+     */
+    @Test
+    void somebodyWhoMerelyLeftIsNotKilled() {
+        var watch = new HealthWatch();
+        after(watch, unit(7, THEIRS, 60f, 60f));
+
+        var changes = after(watch); // out of sight, and nothing said about it
+
+        assertTrue(changes.isEmpty(), "it walked off; nobody hit it");
+    }
+
+    /** A death announced twice is one number, not two. */
+    @Test
+    void aDeathIsCountedOnce() {
+        var watch = new HealthWatch();
+        after(watch, unit(7, THEIRS, 12f, 60f));
+
+        afterKilling(watch, new HealthWatch.Death(7, 0f, 0f, THEIRS));
+        var again = afterKilling(watch, new HealthWatch.Death(7, 0f, 0f, THEIRS));
+
+        assertTrue(again.isEmpty(), "it is already dead and already counted");
+    }
+
+    /** Somebody killed before anybody ever saw it leaves no number. */
+    @Test
+    void somebodyNeverSeenAliveLeavesNoNumber() {
+        var watch = new HealthWatch();
+
+        var changes = afterKilling(watch, new HealthWatch.Death(7, 0f, 0f, THEIRS));
+
+        assertTrue(changes.isEmpty(), "there is no reading to say what the blow took");
     }
 }

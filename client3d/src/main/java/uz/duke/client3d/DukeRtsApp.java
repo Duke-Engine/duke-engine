@@ -222,6 +222,16 @@ final class DukeRtsApp extends SimpleApplication {
     private FloatingNumbers hitNumbers;
     private final HealthWatch healthWatch = new HealthWatch();
 
+    /**
+     * Who was killed this frame, gathered as the events are read.
+     *
+     * <p>The one thing the snapshot cannot say. A creature that dies is taken out
+     * of the world on the frame the blow lands, so the finishing blow never shows
+     * up as health going down -- the creature is simply not there any more, which
+     * from the outside looks exactly like one that walked into the dark.
+     */
+    private final List<HealthWatch.Death> killedThisFrame = new ArrayList<>();
+
     /** Everything the scene keeps per live unit. */
     private static final class UnitNode {
         Node root;
@@ -634,10 +644,13 @@ final class DukeRtsApp extends SimpleApplication {
         var look = visuals.getHitNumbers();
         if (screen == Screen.PLAYING) {
             for (var change : healthWatch.since(snapshot.units(), game.getLocalPlayerIndex(),
-                    look.leastWorth())) {
+                    look.leastWorth(), killedThisFrame)) {
                 hitNumbers.add(change, now, look.height());
             }
         }
+        // Read once. handleEvents runs earlier in the frame and fills this; a
+        // second reading would throw the finishing blow twice.
+        killedThisFrame.clear();
         hitNumbers.update(now, cam, this::floorHeightAt);
     }
 
@@ -3202,8 +3215,11 @@ final class DukeRtsApp extends SimpleApplication {
             return; // the sim has not produced a new frame; do not replay this one
         }
         lastEventedSnapshot = snapshot;
+        killedThisFrame.clear();
         for (var event : snapshot.events()) {
             if (event instanceof ObjectDied died) {
+                killedThisFrame.add(new HealthWatch.Death(died.object().value(),
+                        died.position().x(), died.position().y(), died.playerIndex()));
                 // Told outright, and it has to be: a dead creature is gone from
                 // the next snapshot, so by the time the frame could notice there
                 // would be nothing left to play a death on.

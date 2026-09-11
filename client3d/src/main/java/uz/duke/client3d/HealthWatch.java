@@ -43,6 +43,16 @@ final class HealthWatch {
     record Change(int unitId, float x, float y, float amount, boolean healed, boolean his) {
     }
 
+    /**
+     * Somebody who has just been killed, as the world announced it.
+     *
+     * <p>Handed in rather than noticed, because a creature that dies is gone from
+     * the very snapshot the blow would have shown in — see {@link #since} — and a
+     * creature that merely walked out of sight looks exactly the same from here.
+     */
+    record Death(int unitId, float x, float y, int playerIndex) {
+    }
+
     /** What each creature had when last seen, and what its ceiling was. */
     private final Map<Integer, float[]> lastSeen = new HashMap<>();
 
@@ -65,8 +75,22 @@ final class HealthWatch {
      * <p>A creature that has left the world is forgotten, so its id coming back on
      * a later floor is a first sighting rather than a resurrection.
      */
-    List<Change> since(List<UnitView> units, int localPlayer, float leastWorth) {
+    List<Change> since(List<UnitView> units, int localPlayer, float leastWorth,
+            List<Death> deaths) {
         var changes = new ArrayList<Change>();
+        // The dead first, and before the readings are rebuilt: a creature that
+        // dies is taken out of the world on the frame the blow lands, so the
+        // snapshot this is looking at no longer holds it and the last thing
+        // anybody saw of it is what it had left. That is the finishing blow, and
+        // it is the number a player most wants -- it was missing entirely.
+        for (var death : deaths) {
+            var before = lastSeen.remove(death.unitId());
+            if (before == null || before[0] < leastWorth) {
+                continue;
+            }
+            changes.add(new Change(death.unitId(), death.x(), death.y(), before[0], false,
+                    death.playerIndex() == localPlayer));
+        }
         var stillHere = new HashMap<Integer, float[]>(units.size());
         for (var unit : units) {
             var reading = new float[] {unit.health(), unit.maxHealth()};
