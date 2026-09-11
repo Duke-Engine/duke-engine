@@ -125,6 +125,8 @@ final class DukeRtsApp extends SimpleApplication {
     private Discovery discovery;
     /** The discovering template's {@code VisionRange}, resolved once the game is up. */
     private float discoveryRadius = -1f;
+    /** Whose sight the radius above was read from — see syncDiscovery. */
+    private String discoveryEyes;
     /** Minimap cells, one per grid cell, recoloured by what the player knows. */
     private Geometry[] minimapCells = new Geometry[0];
     /** Minimap colours per state, made once: black, remembered, and in sight. */
@@ -1927,13 +1929,19 @@ final class DukeRtsApp extends SimpleApplication {
         if (discovery == null) {
             return;
         }
-        if (discoveryRadius < 0f) {
-            var template = game.getLogic() == null
-                    ? null : game.getLogic().findTemplate(visuals.getDiscoveryTemplate());
+        // Re-read when the eyes change, not only the first time. A game may say
+        // late — or differently — whose sight opens the map: the dungeon lets the
+        // player choose who he is, and a knight sees a shorter way than an archer.
+        // Cached once, the second hero would walk about inside the first one's
+        // circle, which looks like the fog being wrong rather than stale.
+        var eyes = visuals.getDiscoveryTemplate();
+        if (discoveryRadius < 0f || !eyes.equals(discoveryEyes)) {
+            var template = game.getLogic() == null ? null : game.getLogic().findTemplate(eyes);
             if (template == null) {
                 return; // the game has not finished booting; the map stays black
             }
             discoveryRadius = template.getVisionRange();
+            discoveryEyes = eyes;
         }
         discovery.reveal(snapshot.units(), game.getLocalPlayerIndex(), discoveryRadius,
                 visuals.getDiscoveryTemplate());

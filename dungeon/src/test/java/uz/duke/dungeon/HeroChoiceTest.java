@@ -282,6 +282,72 @@ class HeroChoiceTest {
         assertEquals(ARCHER, runOf(session).getHeroTemplate());
     }
 
+    // ---- and everything else that was keyed to the file's one answer ----
+
+    /**
+     * The dark opens around whoever was chosen.
+     *
+     * <p>The fault that got all the way to a screenshot, and it looked like
+     * nothing at all: the knight stood alone in a black room, fighting skeletons
+     * that were really there and drawing none of them. Fog is opened around a
+     * <em>named template</em>, and the name was still the file's — so the client
+     * looked for an archer, found none, and never opened a cell. His own things
+     * are always drawn, which is why he was the one thing on screen.
+     *
+     * <p>So this asks the question the crash could not: after choosing, is the map
+     * opened by the hero who is actually in it?
+     */
+    @Test
+    void theDarkOpensAroundWhoeverWasChosen() {
+        var visuals = uz.duke.client3d.Visuals.create();
+        visuals.discoveredBy(SETTINGS.playedHero());
+        var session = Dungeon.newSession(21L, SETTINGS);
+
+        Main.whoToPlay(session, SETTINGS, visuals).taken().accept(indexOf(KNIGHT));
+        session.game().runHeadless(1);
+
+        assertEquals(KNIGHT, visuals.getDiscoveryTemplate(),
+                "the map would be opened by a hero who is not in the dungeon");
+        assertEquals(KNIGHT, runOf(session).getHeroTemplate());
+        assertNotNull(find(session.game(), KNIGHT));
+    }
+
+    /** And his own sight is what it opens by, which is not the archer's. */
+    @Test
+    void eachHeroOpensTheMapByHisOwnSight() {
+        var session = Dungeon.newSession(21L, SETTINGS);
+        session.game().runHeadless(1);
+        var templates = session.game().getLogic().getThingFactory();
+
+        float archers = templates.findTemplate(ARCHER).getVisionRange();
+        float knights = templates.findTemplate(KNIGHT).getVisionRange();
+
+        assertTrue(knights < archers, "the knight sees " + knights + " and the archer " + archers
+                + " — if they ever match, the radius being re-read stops being checked here");
+    }
+
+    /** Choosing the file's own hero still points the fog at him rather than at nobody. */
+    @Test
+    void choosingTheFilesOwnHeroStillSetsTheEyes() {
+        var visuals = uz.duke.client3d.Visuals.create();
+        var session = Dungeon.newSession(21L, SETTINGS);
+
+        Main.whoToPlay(session, SETTINGS, visuals).taken().accept(indexOf(ARCHER));
+
+        assertEquals(ARCHER, visuals.getDiscoveryTemplate());
+    }
+
+    /** Where that hero sits on the roster the menu is built from. */
+    private static int indexOf(String template) {
+        var heroes = SETTINGS.heroes();
+        for (int at = 0; at < heroes.size(); at++) {
+            if (heroes.get(at).name().equals(template)) {
+                return at;
+            }
+        }
+        throw new AssertionError(template + " is not on the roster");
+    }
+
     // ---- the file's own answer, for everything that is never asked ----
 
     /**

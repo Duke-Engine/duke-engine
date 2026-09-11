@@ -260,13 +260,16 @@ public final class Main {
     public static void main(String[] args) {
         var settings = DungeonSettings.load();
         var session = chosenGame(args, settings);
-        Duke3D.launch(session.game(), looks(settings), Shell.create()
+        // Held rather than passed straight in: the question below reaches back
+        // into it, because whose eyes open the map is part of who you chose.
+        var visuals = looks(settings);
+        Duke3D.launch(session.game(), visuals, Shell.create()
                 .entry(Shell.Entry.PLAY, "Enter the dungeon")
                 .entry(Shell.Entry.SETTINGS)
                 .entry(Shell.Entry.QUIT)
                 // Which turns Play into a question rather than a start — see
                 // whoToPlay. Nothing opens until it is answered.
-                .asking(whoToPlay(session, settings)), controls(settings));
+                .asking(whoToPlay(session, settings, visuals)), controls(settings));
     }
 
     /**
@@ -305,8 +308,8 @@ public final class Main {
      * <p>So a stage does not say which hero plays it, and cannot. The menu is the
      * only thing that decides, which is the whole of the rule.
      */
-    private static uz.duke.client3d.Shell.Question whoToPlay(
-            Dungeon.Session session, DungeonSettings settings) {
+    static uz.duke.client3d.Shell.Question whoToPlay(
+            Dungeon.Session session, DungeonSettings settings, Visuals visuals) {
         var options = new java.util.ArrayList<uz.duke.client3d.Shell.Option>();
         var names = new java.util.ArrayList<String>();
         for (var hero : settings.heroes()) {
@@ -316,7 +319,16 @@ public final class Main {
         }
         return new uz.duke.client3d.Shell.Question(settings.hudChooseHeroWord(),
                 settings.hudChooseHeroHint(), options,
-                taken -> session.run().startWith(session.game(), names.get(taken)));
+                taken -> {
+                    var him = names.get(taken);
+                    // The dark opens around HIS eyes. Named rather than measured,
+                    // so the radius is his own VisionRange -- and a knight sees a
+                    // shorter way than an archer, which is part of playing him.
+                    // Left pointing at the file's hero, the map would never open
+                    // at all: nothing of that template is in the dungeon.
+                    visuals.discoveredBy(him);
+                    session.run().startWith(session.game(), him);
+                });
     }
 
     /**
