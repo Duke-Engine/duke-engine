@@ -168,7 +168,8 @@ final class ProjectileEffects {
      * two rooms away is a pixel, and the budget it takes is one the arrow in front
      * of the player wanted.
      */
-    void appeared(int id, String recipeName, Node node, Vector3f at, Vector3f camera) {
+    void appeared(int id, Visuals.UnitVisual visual, Node node, Vector3f at, Vector3f camera) {
+        var recipeName = visual == null ? null : visual.effect;
         var recipe = visuals.effectNamed(recipeName);
         if (recipe == null || tooFarOff(at, camera)) {
             return;
@@ -176,7 +177,11 @@ final class ProjectileEffects {
         if (recipe.has(FLAME_TRAIL) && recipe.particles > 0) {
             var emitter = borrow(recipeName, recipe);
             if (emitter != null) {
-                emitter.setLocalTranslation(0f, 0f, 0f);
+                // On the thing, not under it. The node it hangs from is where the
+                // unit stands; the thing itself is lifted off that and, for an
+                // arrow, is a dozen units long — so a trail left at the origin
+                // comes out of the ground behind the middle of the shaft.
+                emitter.setLocalTranslation(visual.effectForward, visual.yOffset, 0f);
                 node.attachChild(emitter);
                 // No opening puff: a trail is what is left behind, and emitting a
                 // full set on the first frame drops the whole of it at the muzzle.
@@ -187,18 +192,29 @@ final class ProjectileEffects {
             var light = takeLight();
             if (light != null) {
                 dress(light, recipe.lightColour, recipe.lightPower, recipe.lightRadius);
-                light.setPosition(at.clone());
+                light.setPosition(burningAt(visual, node));
                 lit.put(id, light);
             }
         }
     }
 
     /** It moved: the light follows. The trail rides the node and needs nothing. */
-    void moved(int id, Vector3f to) {
+    void moved(int id, Visuals.UnitVisual visual, Node node) {
         var light = lit.get(id);
         if (light != null) {
-            light.setPosition(to.clone());
+            light.setPosition(burningAt(visual, node));
         }
+    }
+
+    /**
+     * Where the fire actually is, in the world.
+     *
+     * <p>The same point the trail is emitted from, and it has to be: a light at
+     * the unit's feet while the flame is at the head of the arrow lights the floor
+     * behind what is burning.
+     */
+    private static Vector3f burningAt(Visuals.UnitVisual visual, Node node) {
+        return node.localToWorld(new Vector3f(visual.effectForward, visual.yOffset, 0f), null);
     }
 
     /**

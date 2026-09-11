@@ -1236,7 +1236,7 @@ public final class DungeonSettings {
      *             one — see the block's comment in {@code dungeon.ini}
      */
     public record ArrowLook(String name, String model, String part, float scale, float facing,
-            float height, int tint, String effect) {
+            float height, int tint, String effect, float effectOffset) {
         /**
          * A model is enough, and none at all is allowed: a fireball is drawn by its
          * effect and has no file anywhere. {@code part} is for a projectile that is
@@ -1272,13 +1272,15 @@ public final class DungeonSettings {
         float height;
         int tint = 0xFFFFFF;
         String effect;
+        float effectOffset;
 
         ProjectileBuilder(String name) {
             this.name = name;
         }
 
         ArrowLook look() {
-            return new ArrowLook(name, model, part, scale, facing, height, tint, effect);
+            return new ArrowLook(name, model, part, scale, facing, height, tint, effect,
+                    effectOffset);
         }
     }
 
@@ -1294,7 +1296,7 @@ public final class DungeonSettings {
                 return projectile.look();
             }
         }
-        return new ArrowLook(template, null, null, 1f, 90f, 0f, 0xFFFFFF, null);
+        return new ArrowLook(template, null, null, 1f, 90f, 0f, 0xFFFFFF, null, 0f);
     }
 
     private String heavyArrowTemplate = "HeavyArrow";
@@ -1448,7 +1450,8 @@ public final class DungeonSettings {
                     .add("Facing", Ini.real((p, v) -> p.facing = v))
                     .add("Height", Ini.real((p, v) -> p.height = v))
                     .add("Tint", (ini, p) -> p.tint = Integer.decode(ini.getNextToken()))
-                    .add("Effect", Ini.string((p, v) -> p.effect = v));
+                    .add("Effect", Ini.string((p, v) -> p.effect = v))
+                    .add("EffectOffset", Ini.real((p, v) -> p.effectOffset = v));
 
     // ---- the camera ----
 

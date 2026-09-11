@@ -27,37 +27,81 @@ class ProjectileEffectsTest {
 
     private static final int LIGHTS = 4;
 
+    /** Somewhere for a shot to be drawn: up off the ground and out at its head. */
+    private static final float BOW_HEIGHT = 7f;
+    private static final float TO_THE_HEAD = 6f;
+
+    /** One burning thing and the projectile that wears it. */
     private static Visuals burning() {
-        return Visuals.create().effect("Fire", recipe -> recipe
-                .kind(ProjectileEffects.FLAME_TRAIL)
-                .kind(ProjectileEffects.IMPACT_BURST)
-                .colours(java.awt.Color.ORANGE, java.awt.Color.RED)
-                .light(java.awt.Color.ORANGE, 2f, 50f)
-                .particles(12, 1.5f, 0.4f, 5f)
-                .burst(10, 2f, 0.3f));
+        return Visuals.create()
+                .effect("Fire", recipe -> recipe
+                        .kind(Visuals.EffectVisual.FLAME_TRAIL)
+                        .kind(Visuals.EffectVisual.IMPACT_BURST)
+                        .colours(java.awt.Color.ORANGE, java.awt.Color.RED)
+                        .light(java.awt.Color.ORANGE, 2f, 50f)
+                        .particles(12, 1.5f, 0.4f, 5f)
+                        .burst(10, 2f, 0.3f))
+                .unit("Shot", unit -> unit.effect("Fire")
+                        .yOffset(BOW_HEIGHT).effectAt(TO_THE_HEAD));
     }
 
-    private record Scene(ProjectileEffects effects, Node root) {
+    private record Scene(ProjectileEffects effects, Node root, Visuals visuals) {
+
+        Visuals.UnitVisual shot() {
+            return visuals.of("Shot");
+        }
+
+        /** A fresh node for one shot, hung where the client hangs them. */
+        Node fly(String named) {
+            var node = new Node(named);
+            root.attachChild(node);
+            return node;
+        }
     }
 
     private static Scene scene(Visuals visuals) {
+        return scene(visuals, 0f);
+    }
+
+    private static Scene scene(Visuals visuals, float distance) {
         var root = new Node("root");
         return new Scene(new ProjectileEffects(new DesktopAssetManager(true), root, visuals,
-                LIGHTS, 8, 8, 0f), root);
+                LIGHTS, 8, 8, distance), root, visuals);
     }
 
     /** A shot in the air carries a light; the same shot landed gives it back. */
     @Test
     void aShotTakesALightAndGivesItBack() {
         var scene = scene(burning());
-        var node = new Node("shot");
-        scene.root().attachChild(node);
 
-        scene.effects().appeared(1, "Fire", node, Vector3f.ZERO, null);
+        scene.effects().appeared(1, scene.shot(), scene.fly("shot"), Vector3f.ZERO, null);
         assertEquals(1, scene.effects().litCount(), "it should be burning");
 
         scene.effects().gone(1);
         assertEquals(0, scene.effects().litCount(), "and it should not still be");
+    }
+
+    /**
+     * The fire is where the thing is, not under it.
+     *
+     * <p>Which was wrong in both directions at once. A trail hung on a unit's root
+     * comes out of the ground the unit stands on, because the model is lifted off
+     * that root; and one at the root's middle comes out of the middle of a shaft
+     * twelve units long. A burning arrow burns at the head, in the air.
+     */
+    @Test
+    void theFireIsAtTheHeadAndInTheAir() {
+        var scene = scene(burning());
+        var node = scene.fly("shot");
+        node.setLocalTranslation(100f, 0f, 50f);
+        scene.root().updateGeometricState();
+
+        scene.effects().appeared(1, scene.shot(), node, node.getWorldTranslation(), null);
+
+        var fire = node.getChildren().get(0).getWorldTranslation();
+        assertEquals(BOW_HEIGHT, fire.y, 0.01f, "the fire is dragging along the floor");
+        assertEquals(100f + TO_THE_HEAD, fire.x, 0.01f,
+                "the fire is coming out of the middle of the shaft");
     }
 
     /**
@@ -72,9 +116,8 @@ class ProjectileEffectsTest {
     void theLightBudgetIsACeilingAndNotASuggestion() {
         var scene = scene(burning());
         for (int shot = 0; shot < LIGHTS * 3; shot++) {
-            var node = new Node("shot" + shot);
-            scene.root().attachChild(node);
-            scene.effects().appeared(shot, "Fire", node, Vector3f.ZERO, null);
+            scene.effects().appeared(shot, scene.shot(), scene.fly("shot" + shot),
+                    Vector3f.ZERO, null);
             assertTrue(scene.effects().litCount() <= LIGHTS,
                     "after " + (shot + 1) + " shots, " + scene.effects().litCount()
                             + " lights are burning and only " + LIGHTS + " were allowed");
@@ -95,10 +138,9 @@ class ProjectileEffectsTest {
         int before = scene.root().getQuantity();
 
         for (int shot = 0; shot < 50; shot++) {
-            var node = new Node("shot" + shot);
-            scene.root().attachChild(node);
-            scene.effects().appeared(shot, "Fire", node, Vector3f.ZERO, null);
-            scene.effects().moved(shot, new Vector3f(shot, 0f, 0f));
+            var node = scene.fly("shot" + shot);
+            scene.effects().appeared(shot, scene.shot(), node, Vector3f.ZERO, null);
+            scene.effects().moved(shot, scene.shot(), node);
             scene.effects().gone(shot);
             node.removeFromParent();
         }
@@ -111,9 +153,7 @@ class ProjectileEffectsTest {
         // A pool that loses one a shot runs dry on the fifth and then everything
         // flies dark for the rest of the session — which reads as the effect
         // having been switched off, not as a leak.
-        var late = new Node("one more");
-        scene.root().attachChild(late);
-        scene.effects().appeared(999, "Fire", late, Vector3f.ZERO, null);
+        scene.effects().appeared(999, scene.shot(), scene.fly("one more"), Vector3f.ZERO, null);
         assertEquals(1, scene.effects().litCount(),
                 "the fifty-first shot flew dark: the lights went out and stayed out");
     }
@@ -145,12 +185,12 @@ class ProjectileEffectsTest {
      */
     @Test
     void aShotWithNoRecipeIsGivenNothing() {
-        var scene = scene(Visuals.create());
-        var node = new Node("shot");
-        scene.root().attachChild(node);
+        var visuals = Visuals.create().unit("Shot", unit -> unit.effect("NoSuchEffect"));
+        var scene = scene(visuals);
+        var node = scene.fly("shot");
         int before = scene.root().getQuantity();
 
-        scene.effects().appeared(1, "NoSuchEffect", node, Vector3f.ZERO, null);
+        scene.effects().appeared(1, scene.shot(), node, Vector3f.ZERO, null);
         scene.effects().appeared(2, null, node, Vector3f.ZERO, null);
         scene.effects().landed("NoSuchEffect", Vector3f.ZERO, null);
 
@@ -169,9 +209,9 @@ class ProjectileEffectsTest {
     @Test
     void whatTheSettingsSayIsWhatIsBuilt() {
         var plain = Visuals.create().effect("Orb", recipe -> recipe
-                .kind(ProjectileEffects.GLOW_ORB).orb(2f));
+                .kind(Visuals.EffectVisual.GLOW_ORB).orb(2f));
         var noOrb = Visuals.create().effect("Orb", recipe -> recipe
-                .kind(ProjectileEffects.FLAME_TRAIL).orb(2f));
+                .kind(Visuals.EffectVisual.FLAME_TRAIL).orb(2f));
 
         assertNotNull(scene(plain).effects().bodyFor("Orb"),
                 "a recipe that says it is a glowing orb should draw one");
@@ -182,14 +222,11 @@ class ProjectileEffectsTest {
     /** Far-off things are not worth the budget, and are given none of it. */
     @Test
     void whatIsTooFarOffToSeeIsNotLit() {
-        var root = new Node("root");
-        var effects = new ProjectileEffects(new DesktopAssetManager(true), root, burning(),
-                LIGHTS, 8, 8, 100f);
-        var node = new Node("shot");
-        root.attachChild(node);
+        var scene = scene(burning(), 100f);
 
-        effects.appeared(1, "Fire", node, new Vector3f(500f, 0f, 0f), Vector3f.ZERO);
+        scene.effects().appeared(1, scene.shot(), scene.fly("shot"),
+                new Vector3f(500f, 0f, 0f), Vector3f.ZERO);
 
-        assertEquals(0, effects.litCount(), "a spark two rooms away is a pixel");
+        assertEquals(0, scene.effects().litCount(), "a spark two rooms away is a pixel");
     }
 }

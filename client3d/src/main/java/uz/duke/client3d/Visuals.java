@@ -41,6 +41,8 @@ public final class Visuals {
         String heldBone;
         /** The name of the flight effect this unit wears, or null for a plain one. */
         String effect;
+        /** How far forward of its middle the effect sits; see effectAt. */
+        float effectForward;
         float heldScale = 1f;
         float heldPitch;
         float heldYaw;
@@ -138,6 +140,23 @@ public final class Visuals {
          */
         public UnitVisual effect(String recipeName) {
             this.effect = recipeName;
+            return this;
+        }
+
+        /**
+         * Where on this thing the effect sits: how far forward of its middle, and
+         * the height is {@link #yOffset} because that is where the thing itself is
+         * drawn.
+         *
+         * <p>Both halves were wrong before either was set. A trail hung on a unit's
+         * root comes out of the <em>ground under it</em>, because the root is where
+         * the unit stands and the model is lifted off it — so a burning arrow flew
+         * at chest height with its fire dragging along the floor. And a trail at
+         * the middle of a twelve-unit shaft is fire coming out of the middle of an
+         * arrow, where it belongs at the head.
+         */
+        public UnitVisual effectAt(float forward) {
+            this.effectForward = forward;
             return this;
         }
 

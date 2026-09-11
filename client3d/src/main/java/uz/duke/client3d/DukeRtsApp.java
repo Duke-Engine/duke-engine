@@ -2654,12 +2654,12 @@ final class DukeRtsApp extends SimpleApplication {
             boolean isNew = !unitNodes.containsKey(view.id());
             var node = unitNodes.computeIfAbsent(view.id(), id -> createUnitNode(view));
             updateUnitNode(node, view);
-            var effect = visualFor(view.templateName()).effect;
+            var look = visualFor(view.templateName());
             if (isNew) {
-                effects.appeared(view.id(), effect, node.root,
+                effects.appeared(view.id(), look, node.root,
                         node.root.getWorldTranslation().clone(), cam.getLocation());
-            } else if (effect != null) {
-                effects.moved(view.id(), node.root.getWorldTranslation().clone());
+            } else if (look.effect != null) {
+                effects.moved(view.id(), look, node.root);
             }
         }
         var gone = unitNodes.entrySet().iterator();

@@ -83,7 +83,7 @@ public final class Main {
     private static void arrow(Visuals visuals, String template, DungeonSettings.ArrowLook look) {
         visuals.unit(template, unit -> {
             unit.colour(look.awtTint()); // the minimap dot, and the fallback shape
-            unit.effect(look.effect());
+            unit.effect(look.effect()).effectAt(look.effectOffset());
             if (!look.hasModel()) {
                 // A fireball has no file anywhere: its effect is its body, and the
                 // height is still wanted, because a shot travels at bow height
