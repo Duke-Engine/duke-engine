@@ -55,11 +55,26 @@ public final class Spawner {
      */
     public static Placed place(DukeGame game, GamePlayer heroPlayer, GamePlayer dungeonPlayer,
             GeneratedDungeon dungeon, DungeonSettings settings, int depth, LootTable drops) {
+        return place(game, heroPlayer, dungeonPlayer, dungeon, settings, depth, drops,
+                settings.playedHero());
+    }
+
+    /**
+     * The same, told which hero to put in it.
+     *
+     * <p>Told rather than looked up, because once a player may choose there is no
+     * single answer in the file to look up: {@code DefaultHero} is who plays when
+     * nobody was asked, and a menu is somebody being asked. The overloads above
+     * keep the file's answer, which is what a headless run and a test want.
+     */
+    public static Placed place(DukeGame game, GamePlayer heroPlayer, GamePlayer dungeonPlayer,
+            GeneratedDungeon dungeon, DungeonSettings settings, int depth, LootTable drops,
+            String heroTemplate) {
         var logic = game.getLogic();
-        // Whichever hero the file says is being played -- see DefaultHero. The
-        // word used to be here, so a second hero could be described in full and
-        // still never walk into a dungeon.
-        var hero = logic.spawn(logic.getThingFactory().findTemplate(settings.playedHero()),
+        // Whoever was chosen, or whoever the file names when nobody was asked --
+        // see DefaultHero. The word used to be here, so a second hero could be
+        // described in full and still never walk into a dungeon.
+        var hero = logic.spawn(logic.getThingFactory().findTemplate(heroTemplate),
                 at(logic, dungeon.hero()), heroPlayer.getIndex());
 
         var monsters = new ArrayList<GameObject>();

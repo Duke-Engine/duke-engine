@@ -61,11 +61,76 @@ public final class Shell {
         }
     }
 
+    /**
+     * One thing the player may pick when the game asks him something.
+     *
+     * @param label what it is called — the word he clicks
+     * @param blurb a line under it saying what picking it means, or empty. A
+     *     roster of two is a decision rather than a formality, and a name on its
+     *     own does not tell anybody which of them he would enjoy
+     */
+    public record Option(String label, String blurb) {
+
+        public Option {
+            label = label == null ? "" : label;
+            blurb = blurb == null ? "" : blurb;
+        }
+    }
+
+    /**
+     * A question the game will not start without an answer to.
+     *
+     * <p>The client owns the screen — a heading and a column of clickable words,
+     * the same stone the rest of the menus are cut from — and the game owns the
+     * question, the options and what taking one means. Which is the bargain
+     * everything else on this page keeps.
+     *
+     * <p><b>It has no default.</b> A question with one is not a question: the
+     * player would press Play, get whatever the file happened to say, and never
+     * learn there was a choice. So Play opens this instead of starting, and
+     * nothing starts until one of these is taken.
+     *
+     * @param title  the heading over the column
+     * @param hint   the line along the bottom, in the game's own words
+     * @param options what he may pick, in the order he should see them
+     * @param taken  called with the index he took, before the world runs a frame —
+     *     so it may set up the game it is about to start
+     */
+    public record Question(String title, String hint, List<Option> options,
+            java.util.function.IntConsumer taken) {
+
+        public Question {
+            options = List.copyOf(options);
+        }
+
+        /** Whether there is anything here worth stopping to ask. */
+        public boolean worthAsking() {
+            return !options.isEmpty() && taken != null;
+        }
+    }
+
     private final Map<Entry, String> items = new LinkedHashMap<>();
     private final boolean startsImmediately;
+    private Question question;
 
     private Shell(boolean startsImmediately) {
         this.startsImmediately = startsImmediately;
+    }
+
+    /**
+     * Ask this before the game starts, instead of starting.
+     *
+     * <p>A game that asks nothing starts on Play exactly as it always did, which
+     * is every game on this client but one.
+     */
+    public Shell asking(Question question) {
+        this.question = question;
+        return this;
+    }
+
+    /** What the game wants answered first, or {@code null} if it wants nothing. */
+    public Question question() {
+        return question != null && question.worthAsking() ? question : null;
     }
 
     /** An empty shell, to be filled in. Entries appear in the order they are added. */

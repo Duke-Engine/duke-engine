@@ -2074,6 +2074,8 @@ public final class DungeonSettings {
     private String hudRankSuffix = "-lv";
     private String hudPowersWord = "";
     private String hudChooseWord = "";
+    private String hudChooseHeroWord = "";
+    private String hudChooseHeroHint = "";
     private String hudAttackWord = "";
     private String hudArmourWord = "";
     private String hudSpeedWord = "";
@@ -2099,6 +2101,16 @@ public final class DungeonSettings {
     /** What the level-up screen says under the new level. */
     public String hudChooseWord() {
         return hudChooseWord;
+    }
+
+    /** The heading over the roster the player is asked to choose from. */
+    public String hudChooseHeroWord() {
+        return hudChooseHeroWord;
+    }
+
+    /** And the line along the foot of it, saying how to answer. */
+    public String hudChooseHeroHint() {
+        return hudChooseHeroHint;
     }
 
     /** The three figures under the bars, in the order the panel writes them. */
@@ -2166,6 +2178,11 @@ public final class DungeonSettings {
                     .add("RankSuffix", Ini.restOfLine((s, v) -> s.hudRankSuffix = v))
                     .add("PowersWord", Ini.restOfLine((s, v) -> s.hudPowersWord = v))
                     .add("ChooseWord", Ini.restOfLine((s, v) -> s.hudChooseWord = v))
+                    // The screen that asks who is being played. Words rather than
+                    // pictures, like every other word on the bar: the client draws
+                    // four games and speaks none of their languages.
+                    .add("ChooseHeroWord", Ini.restOfLine((s, v) -> s.hudChooseHeroWord = v))
+                    .add("ChooseHeroHint", Ini.restOfLine((s, v) -> s.hudChooseHeroHint = v))
                     .add("AttackWord", Ini.restOfLine((s, v) -> s.hudAttackWord = v))
                     .add("ArmourWord", Ini.restOfLine((s, v) -> s.hudArmourWord = v))
                     .add("SpeedWord", Ini.restOfLine((s, v) -> s.hudSpeedWord = v))

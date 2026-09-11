@@ -93,6 +93,16 @@ public final class DungeonRun {
     /** The standing orders his player has given; only the panel reads them. */
     private final uz.duke.dungeon.ai.Orders orders;
 
+    /**
+     * Which hero this run is being played with.
+     *
+     * <p>Read from the file to begin with and replaced by whoever the player
+     * chooses. It is the run's rather than the settings' because a choice is not a
+     * setting: {@code DefaultHero} answers "who plays when nobody was asked",
+     * which is a headless run and a test, and a menu is somebody being asked.
+     */
+    private String heroTemplate;
+
     public DungeonRun(GamePlayer heroPlayer, GamePlayer dungeonPlayer, Floors floors,
             DungeonSettings settings, HeroProgress progress, PowerChoice powers,
             LootTable drops, uz.duke.dungeon.ai.Orders orders) {
@@ -106,6 +116,29 @@ public final class DungeonRun {
         this.drops = drops;
         this.themes = settings.themes();
         this.look = lookOfThisFloor();
+        this.heroTemplate = settings.playedHero();
+    }
+
+    /**
+     * Play from the beginning with this hero.
+     *
+     * <p>A whole fresh run, not a swap — levels, cards, loot and floor all go,
+     * because none of them was his. That is why this is the same road a death
+     * takes: the one thing a new hero and a dead one have in common is that
+     * everything the last one earned belongs to the last one.
+     *
+     * <p>Called before the world has run a frame, from the menu that asked. There
+     * is no simulation thread yet, so nothing here has to cross one.
+     */
+    public void startWith(DukeGame game, String template) {
+        heroTemplate = template;
+        progress.playing(template, settings.heroNamed(template).armourPercent());
+        begin(game);
+    }
+
+    /** Whoever is being played — the file's answer until somebody chooses. */
+    public String getHeroTemplate() {
+        return heroTemplate;
     }
 
     /**
@@ -129,7 +162,8 @@ public final class DungeonRun {
      */
     public void openOn(DukeGame game, GeneratedDungeon floor) {
         look = lookOfThisFloor();
-        var placed = Spawner.place(game, heroPlayer, dungeonPlayer, floor, settings, depth, drops);
+        var placed = Spawner.place(game, heroPlayer, dungeonPlayer, floor, settings, depth,
+                drops, heroTemplate);
         heroId = placed.hero().getId();
         bossId = placed.boss() == null ? null : placed.boss().getId();
     }
@@ -306,7 +340,8 @@ public final class DungeonRun {
         logic.clearWorld();
         game.applyMapTerrain(terrainOf(floor, settings));
 
-        var placed = Spawner.place(game, heroPlayer, dungeonPlayer, floor, settings, depth, drops);
+        var placed = Spawner.place(game, heroPlayer, dungeonPlayer, floor, settings, depth,
+                drops, heroTemplate);
         heroId = placed.hero().getId();
         bossId = placed.boss() == null ? null : placed.boss().getId();
         look = lookOfThisFloor();
@@ -324,7 +359,7 @@ public final class DungeonRun {
     private GameObject findHero(DukeGame game) {
         for (var object : game.getLogic().getObjects()) {
             if (object.getPlayerIndex() == heroPlayer.getIndex()
-                    && object.getTemplate().getName().equals(settings.playedHero())) {
+                    && object.getTemplate().getName().equals(heroTemplate)) {
                 return object;
             }
         }

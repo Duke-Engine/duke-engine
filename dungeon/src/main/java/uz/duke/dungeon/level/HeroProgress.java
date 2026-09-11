@@ -39,10 +39,10 @@ public final class HeroProgress {
     private final int bannerFrames;
 
     /** Which creature is him. His player owns his arrows too. */
-    private final String heroTemplate;
+    private String heroTemplate;
 
     /** What he shrugs off before a single level — see the constructor. */
-    private final int armourPercent;
+    private int armourPercent;
 
     /**
      * What he has found on the floor, which moves the same three figures a level
@@ -100,6 +100,24 @@ public final class HeroProgress {
         this.rules = rules;
         this.bannerFrames = bannerFrames;
         this.loot = loot;
+        this.heroTemplate = heroTemplate;
+        this.armourPercent = armourPercent;
+    }
+
+    /**
+     * A different hero is being played from here on.
+     *
+     * <p>Both halves have to move together, and that is the reason this is one
+     * call rather than two setters: the template is how he is found in the world
+     * and the armour is what his body is given, and a run with one of them
+     * belonging to the archer and the other to the knight is a hero who cannot be
+     * found or one who is wearing somebody else's plate.
+     *
+     * <p>Whoever calls this owes a fresh run — see {@code DungeonRun.startWith}.
+     * Nothing here touches the hero standing in the world, because the hero
+     * standing in the world is about to be replaced.
+     */
+    public void playing(String heroTemplate, int armourPercent) {
         this.heroTemplate = heroTemplate;
         this.armourPercent = armourPercent;
     }

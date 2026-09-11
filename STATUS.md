@@ -2759,6 +2759,53 @@ allaqachon to'g'ri o'qilishi shart bo'lgan narsa, ya'ni ikkinchi tasvir yo'q.
 `theShippedStageCanBePlayed` (shipping fayl classpath'dan, o'yinchidagi yo'l
 bilan). Muharrirning 9 tasi `StageDraft` ustida — Swing'siz, chunki bu build'da
 hech qayerda ekran yo'q.
+
+### 8.an Kim bo'lib o'ynash — "Play" endi savol beradi
+
+Ikkita qahramon bor, lekin qaysi biri o'ynalishini `DefaultHero` — INI'dagi bitta
+qator — hal qilardi. Endi **o'yinchi tanlaydi, va tanlamaguncha hech narsa
+ochilmaydi**.
+
+**★ Qoida: savoldan o'tib ketish yo'li YO'Q.** Bu bezak emas, xususiyatning
+o'zi — yo'li bor tanlov bu **sozlama**: o'yinchi Play bosadi, faylda nima
+yozilgan bo'lsa shuni oladi va tanlovi borligini umuman bilmaydi. Shuning uchun
+`Play` o'yinni emas, **savolni** ochadi; `Back` esa o'yinga emas, bosh menyuga
+qaytaradi.
+
+**Mexanizm klientniki, savol o'yinniki** — `Shell` ning qolgan qismidagi bitta
+bitim. `Shell.Question` = sarlavha + variantlar + callback. Klient hech qachon
+"qahramon" so'zini eshitmagan: u to'rt o'yinga xizmat qiladi va birortasining
+tilida gapirmaydi. Ro'yxat `DungeonHero` bloklaridan quriladi, ya'ni **uchinchi
+qahramon shu ekranda paydo bo'lish uchun faqat mavjud bo'lishi kifoya**.
+
+**★ Eng nozik joyi: dunyo oyna ochilishidan OLDIN quriladi.** Klient menyuni
+mavjud bo'lmagan o'yin ustida ko'rsata olmaydi — `Duke3D.launch` tayyor
+`DukeGame` oladi va `DukeRtsApp` da `game` 59 joyda ishlatiladi, `simpleInitApp`
+esa undan relyef quradi. Ya'ni savol berilayotgan paytda dungeon'da allaqachon
+kimdir turadi (`DefaultHero`). **Uni hech kim ko'rmaydi:** tanlov birinchi
+qavatni qaytadan yotqizadi — `DungeonRun.startWith(...)`, ya'ni **o'lim
+yuradigan aynan o'sha yo'l**. Sababi ham bir xil: tanlanmagan qahramon
+topgan narsaning hech biri tanlanganiniki emas, shuning uchun darajalar,
+kartalar va o'ljalar ketadi.
+
+**`DefaultHero` o'chmadi, ma'nosi torayadi:** *"hech kim so'ralmaganda kim
+o'ynaydi"* — headless run va testlar. Shu sababdan 1120 test bir qatorsiz
+o'tdi.
+
+**Stage qaysi qahramon uchun ekanini ayta olmaydi.** Bu ataylab: menyu yagona
+hal qiluvchi. `Stage` record'iga maydon qo'shilmadi.
+
+**Xavfsizlik chekkasi:** variantlar ma'lumot faylidan keladi, ya'ni fayl birorta
+qahramon nomlamasa o'yinchi bo'sh ustun oldida qolib ketardi. `worthAsking()`
+buni ushlaydi — variantlar bo'sh bo'lsa savol berilmaydi va `Play` avvalgidek
+ishlaydi.
+
+**17 ta yangi test.** `HeroChoiceTest` (12): tanlangan qahramon haqiqatan
+dungeon'da turishi va eskisi **yo'qolishi**, o'z skillari va o'z zirhi bilan
+kelishi, tanlov run'ni noldan boshlashi (o'lja va daraja ketishi), ikki marta
+tanlash ikkitasini qoldirmasligi, va hech kim so'ralmaganda faylning javobi
+ishlashi. `ShellTest` (5): bo'sh ro'yxat o'yinchini qamab qo'ymasligi.
+
 ---
 
 ## 9. Nima yo'q / ochiq ishlar

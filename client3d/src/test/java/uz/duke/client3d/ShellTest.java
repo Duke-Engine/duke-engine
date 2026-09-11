@@ -2,6 +2,8 @@ package uz.duke.client3d;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -64,5 +66,73 @@ class ShellTest {
         var shell = Shell.create().entry(Shell.Entry.SETTINGS, "  ");
 
         assertEquals(List.of("Settings"), labels(shell));
+    }
+
+    // ---- something the game wants settled before it starts ----
+
+    /** A game that asks nothing starts on Play, which is every game but one. */
+    @Test
+    void aGameThatAsksNothingIsAskedNothing() {
+        var shell = Shell.create().entry(Shell.Entry.PLAY);
+
+        assertNull(shell.question(), "a shell invented a question nobody asked for");
+    }
+
+    @Test
+    void aGameCanAskSomethingFirst() {
+        var taken = new int[] {-1};
+        var shell = Shell.create()
+                .entry(Shell.Entry.PLAY)
+                .asking(new Shell.Question("Who", "pick one",
+                        List.of(new Shell.Option("Archer", "shoots"),
+                                new Shell.Option("Knight", "swings")),
+                        answer -> taken[0] = answer));
+
+        var question = shell.question();
+        assertNotNull(question);
+        assertEquals(2, question.options().size());
+        assertEquals("Knight", question.options().get(1).label());
+        assertEquals("swings", question.options().get(1).blurb());
+
+        question.taken().accept(1);
+        assertEquals(1, taken[0], "taking a row did not reach the game");
+    }
+
+    /**
+     * A question with nothing to pick is not a question.
+     *
+     * <p>The safety catch, and the one that matters: the options come out of a
+     * data file, so a file that named no heroes would otherwise put the player in
+     * front of an empty column with no way forward and no way to know why. An
+     * empty roster falls back to starting, which is what the game did before it
+     * could ask anything.
+     */
+    @Test
+    void aQuestionWithNothingToPickIsNotAsked() {
+        var shell = Shell.create()
+                .entry(Shell.Entry.PLAY)
+                .asking(new Shell.Question("Who", "pick one", List.of(), answer -> { }));
+
+        assertNull(shell.question(), "an empty roster would have locked the player out");
+    }
+
+    /** And nor is one with nobody listening for the answer. */
+    @Test
+    void aQuestionNobodyIsListeningToIsNotAsked() {
+        var shell = Shell.create()
+                .entry(Shell.Entry.PLAY)
+                .asking(new Shell.Question("Who", "pick one",
+                        List.of(new Shell.Option("Archer", "")), null));
+
+        assertNull(shell.question());
+    }
+
+    /** An option is a label and a line, and neither is ever null. */
+    @Test
+    void anOptionIsNeverHalfThere() {
+        var bare = new Shell.Option(null, null);
+
+        assertEquals("", bare.label());
+        assertEquals("", bare.blurb());
     }
 }

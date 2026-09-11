@@ -259,10 +259,14 @@ public final class Main {
 
     public static void main(String[] args) {
         var settings = DungeonSettings.load();
-        Duke3D.launch(chosenGame(args, settings), looks(settings), Shell.create()
+        var session = chosenGame(args, settings);
+        Duke3D.launch(session.game(), looks(settings), Shell.create()
                 .entry(Shell.Entry.PLAY, "Enter the dungeon")
                 .entry(Shell.Entry.SETTINGS)
-                .entry(Shell.Entry.QUIT), controls(settings));
+                .entry(Shell.Entry.QUIT)
+                // Which turns Play into a question rather than a start — see
+                // whoToPlay. Nothing opens until it is answered.
+                .asking(whoToPlay(session, settings)), controls(settings));
     }
 
     /**
@@ -274,14 +278,62 @@ public final class Main {
      * anything had gone wrong, and an author editing one would think his last
      * change had worked.
      */
-    private static uz.duke.game.DukeGame chosenGame(String[] args, DungeonSettings settings) {
+    private static Dungeon.Session chosenGame(String[] args, DungeonSettings settings) {
         var path = Stages.chosen(args, settings);
         if (path == null) {
             // The seed is the one thing the clock touches, and it is outside the
             // simulation: it chooses WHICH deterministic dungeon to play.
-            return Dungeon.create(System.nanoTime(), settings);
+            return Dungeon.newSession(System.nanoTime(), settings);
         }
-        return Dungeon.createStage(Stages.load(path, settings), settings);
+        return Dungeon.newStageSession(Stages.load(path, settings), settings);
+    }
+
+    /**
+     * Who the player is asked to be, before anything opens.
+     *
+     * <p>The roster is the file's — one entry per {@code DungeonHero} block — so a
+     * third hero appears on this screen by existing, and nothing here is edited.
+     * The words under each name are his own {@code Title}.
+     *
+     * <p><b>Taking one starts the run, and nothing else does.</b> The world was
+     * built before the window opened, with whoever {@code DefaultHero} names,
+     * because a client cannot show a menu over a game that does not exist yet.
+     * That hero is never seen: the choice lays the first floor again with whoever
+     * was picked, which is the same road a death takes and for the same reason —
+     * nothing the unchosen hero had was the chosen one's.
+     *
+     * <p>So a stage does not say which hero plays it, and cannot. The menu is the
+     * only thing that decides, which is the whole of the rule.
+     */
+    private static uz.duke.client3d.Shell.Question whoToPlay(
+            Dungeon.Session session, DungeonSettings settings) {
+        var options = new java.util.ArrayList<uz.duke.client3d.Shell.Option>();
+        var names = new java.util.ArrayList<String>();
+        for (var hero : settings.heroes()) {
+            options.add(new uz.duke.client3d.Shell.Option(
+                    displayNameOf(session, hero.name()), hero.title()));
+            names.add(hero.name());
+        }
+        return new uz.duke.client3d.Shell.Question(settings.hudChooseHeroWord(),
+                settings.hudChooseHeroHint(), options,
+                taken -> session.run().startWith(session.game(), names.get(taken)));
+    }
+
+    /**
+     * What the player calls him, out of his creature block rather than his art.
+     *
+     * <p>{@code DisplayName} is what the panel writes over his portrait, so it is
+     * what the menu should offer — being asked to choose "Knight" and then playing
+     * somebody called Garen is two names for one man. Falls back to the template's
+     * own name, which is what the panel falls back to.
+     */
+    private static String displayNameOf(Dungeon.Session session, String template) {
+        var found = session.game().getLogic() == null ? null
+                : session.game().getLogic().getThingFactory().findTemplate(template);
+        if (found == null || found.getDisplayName() == null || found.getDisplayName().isBlank()) {
+            return template;
+        }
+        return found.getDisplayName();
     }
 
     /**

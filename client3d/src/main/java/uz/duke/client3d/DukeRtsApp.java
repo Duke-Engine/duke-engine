@@ -866,7 +866,9 @@ final class DukeRtsApp extends SimpleApplication {
     /** What an entry does, or {@code null} when it would do nothing worth offering. */
     private Runnable actionFor(Shell.Entry entry) {
         return switch (entry) {
-            case PLAY -> this::startGame;
+            // Play does not necessarily play. A game with something to ask first
+            // asks it here — see showQuestion — and starts when it is answered.
+            case PLAY -> shell.question() == null ? this::startGame : this::showQuestion;
             case SKIRMISH -> !game.getMapChoices().isEmpty() && !game.isMultiplayer()
                     ? this::showSkirmishMenu : null;
             case HOST_LAN -> game.supportsMultiplayer() && !game.isMultiplayer()
@@ -876,6 +878,50 @@ final class DukeRtsApp extends SimpleApplication {
             case SETTINGS -> () -> showSettingsMenu(Screen.MENU);
             case QUIT -> this::stop;
         };
+    }
+
+    /**
+     * The one thing the game wants settled before it will start.
+     *
+     * <p>Built from the same stone as every other menu, and answered the same way:
+     * a column of words, one of which is taken. What it is <em>about</em> is the
+     * game's — this client has never heard of a hero, a difficulty or a side.
+     *
+     * <p>There is no entry that skips it. That is the whole point of asking: a
+     * question with a way past it is a setting, and the player would press Play,
+     * get whatever a file happened to say, and never find out he had a choice.
+     * Back returns to the front menu, which is a way out of the game rather than
+     * a way into it without answering.
+     *
+     * <p>The answer is taken <em>before</em> the world runs a frame — the
+     * simulation thread does not exist until {@link #startGame} — so what it does
+     * needs no hopping between threads and cannot race the first frame.
+     */
+    private void showQuestion() {
+        var question = shell.question();
+        if (question == null) {
+            startGame();
+            return;
+        }
+        screen = Screen.MENU;
+        var items = new java.util.ArrayList<StoneMenu.Row>();
+        var options = question.options();
+        for (int i = 0; i < options.size(); i++) {
+            final int taken = i;
+            var option = options.get(i);
+            items.add(new StoneMenu.Action(option.label(), () -> {
+                question.taken().accept(taken);
+                startGame();
+            }));
+            if (!option.blurb().isBlank()) {
+                // Under the name rather than beside it: what he is choosing is the
+                // word above, and the line below says what taking it means.
+                items.add(new StoneMenu.Words("", option.blurb()));
+            }
+        }
+        items.add(new StoneMenu.Action("Back", this::showMainMenu));
+        menu.show(game.getTitle(), question.title(), items,
+                question.hint(), version(), false);
     }
 
     /** Choose the map and cycle each player's faction before playing. */
