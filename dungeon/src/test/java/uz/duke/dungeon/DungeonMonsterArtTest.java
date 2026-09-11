@@ -619,7 +619,13 @@ class DungeonMonsterArtTest {
         for (var kind : SETTINGS.monsters()) {
             carried.add(SETTINGS.lookOf(kind).held());
         }
-        carried.add(hero().held());
+        // Every hero's, not just the archer's. A weapon hung the wrong way round
+        // is invisible until somebody looks at it, which is the whole reason this
+        // test exists — and a second hero carrying a second kind of weapon is
+        // exactly the case it would have missed.
+        for (var him : SETTINGS.heroes()) {
+            carried.add(him.held());
+        }
 
         for (var held : carried) {
             if (!held.isCarried()) {
