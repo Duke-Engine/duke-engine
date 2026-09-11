@@ -604,6 +604,25 @@ public final class Visuals {
         return edgeScroll;
     }
 
+    private OrderMark orderMark = OrderMark.DEFAULT;
+
+    /**
+     * How the flash that answers a click should look and move — see
+     * {@link OrderMark}.
+     *
+     * <p>A game that never asks gets the client's own, rather than nothing: an
+     * order that leaves no mark reads as a click that missed, so there is no
+     * sensible "off" to default to.
+     */
+    public Visuals orderMark(OrderMark orderMark) {
+        this.orderMark = orderMark == null ? OrderMark.DEFAULT : orderMark;
+        return this;
+    }
+
+    public OrderMark getOrderMark() {
+        return orderMark;
+    }
+
     /**
      * Build the ground from a modular kit rather than from coloured blocks.
      *

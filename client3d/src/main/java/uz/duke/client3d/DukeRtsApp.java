@@ -203,6 +203,9 @@ final class DukeRtsApp extends SimpleApplication {
     private final OrderMarkers orderMarkers = new OrderMarkers();
     private final Node markerNode = new Node("order-markers");
 
+    /** Draws the marks in that node, reusing what it has made. See Chevrons. */
+    private Chevrons chevrons;
+
     /** Everything the scene keeps per live unit. */
     private static final class UnitNode {
         Node root;
@@ -302,6 +305,7 @@ final class DukeRtsApp extends SimpleApplication {
         buildTerrain();
         rootNode.attachChild(unitsNode);
         rootNode.attachChild(markerNode);
+        chevrons = new Chevrons(assetManager, markerNode, visuals.getOrderMark());
         warmNode.setCullHint(Spatial.CullHint.Always);
         rootNode.attachChild(warmNode);
 
@@ -582,32 +586,14 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * Draw the order markers, fading each one out over its short life.
-     *
-     * <p>Rebuilt from scratch each frame rather than kept and mutated: there are
-     * only ever a handful, and emptying the node first is what stops a session's
-     * worth of markers accumulating in the scene.
+     * Draw the order markers — three arrowheads closing on the spot that was
+     * clicked. See {@link Chevrons} for the drawing and {@link OrderMark} for the
+     * movement.
      */
     private void syncOrderMarkers() {
         float now = timer.getTimeInSeconds();
-        orderMarkers.prune(now);
-        markerNode.detachAllChildren();
-        for (var marker : orderMarkers.markers()) {
-            float fade = OrderMarkers.remaining(marker, now);
-            var colour = marker.kind() == OrderMarkers.Kind.ATTACK
-                    ? new ColorRGBA(1f, 0.35f, 0.3f, fade)
-                    : new ColorRGBA(0.6f, 1f, 0.6f, fade);
-            // Grows a little as it fades, so the eye catches it even mid-fight.
-            float radius = 3f + (1f - fade) * 2.5f;
-            var ring = new Geometry("order-mark", new Cylinder(2, 24, radius, 0.05f, true));
-            ring.setMaterial(unshaded(colour));
-            ring.rotate(FastMath.HALF_PI, 0, 0);
-            // A hand's breadth over the floor it was ordered on -- which is not
-            // always the ground floor.
-            ring.setLocalTranslation(marker.x(),
-                    floorHeightAt(marker.x(), marker.y()) + 0.2f, marker.y());
-            markerNode.attachChild(ring);
-        }
+        orderMarkers.prune(now, visuals.getOrderMark().seconds());
+        chevrons.show(orderMarkers.markers(), now, this::floorHeightAt);
     }
 
     /**
@@ -1822,6 +1808,7 @@ final class DukeRtsApp extends SimpleApplication {
         rebuildMinimapTerrain();
         noises.forget(); // a new floor; nothing about the last one is news
         orderMarkers.clear(); // orders given in the old world mean nothing here
+        chevrons.clear();
         camera.requestOwnUnit(); // his units are somewhere else entirely now
     }
 
@@ -2478,9 +2465,18 @@ final class DukeRtsApp extends SimpleApplication {
         return wanted;
     }
 
-    /** Acknowledge an order where the player clicked. Presentation only. */
+    /**
+     * Acknowledge an order where the player clicked. Presentation only.
+     *
+     * <p>The tick goes here rather than beside each of the four places an order
+     * can be given, so a mark and its sound cannot come apart — they are one
+     * acknowledgement, and a game that names no {@code order_mark} sound simply
+     * gets the silent half.
+     */
     private void markOrder(float worldX, float worldY, OrderMarkers.Kind kind) {
-        orderMarkers.add(worldX, worldY, kind, timer.getTimeInSeconds());
+        float now = timer.getTimeInSeconds();
+        orderMarkers.add(worldX, worldY, kind, now);
+        noises.moment("order_mark", now);
     }
 
     /**

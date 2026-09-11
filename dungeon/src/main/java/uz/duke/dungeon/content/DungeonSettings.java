@@ -333,6 +333,10 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, CAMERA);
                 }),
+                Map.entry("DungeonOrderMark", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, ORDER_MARK);
+                }),
                 Map.entry("DungeonLoot", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, LOOT_RULES);
@@ -1603,6 +1607,98 @@ public final class DungeonSettings {
                     .add("EdgeMargin", Ini.real((s, v) -> s.edgeScrollMargin = v))
                     .add("EdgeSpeedPercent",
                             Ini.integer((s, v) -> s.edgeScrollSpeedPercent = v));
+
+    // ---- the flash that answers a click ----
+
+    private float markStartRadius = 7f;
+    private float markEndRadius = 1f;
+    private float markSeconds = 0.4f;
+    private float markSize = 3.5f;
+    private float markWidth = 3f;
+    private float markHeight = 0.25f;
+    private float markEasePower = 3f;
+    private float markFadeFrom = 0.6f;
+    private float markSpinDegrees = 22f;
+    private float markBrightness = 1.6f;
+    private int markMoveColour = 0x3CFF6E;
+    private int markAttackColour = 0xFF4436;
+
+    /** How far out the arrowheads start, in world units. */
+    public float markStartRadius() {
+        return markStartRadius;
+    }
+
+    /** How near the middle they have closed to when they go out. */
+    public float markEndRadius() {
+        return markEndRadius;
+    }
+
+    /** The whole flight, in seconds — an acknowledgement, not an animation. */
+    public float markSeconds() {
+        return markSeconds;
+    }
+
+    /** Each arrowhead from its point to its back edge. */
+    public float markSize() {
+        return markSize;
+    }
+
+    /** How wide across the back edge. */
+    public float markWidth() {
+        return markWidth;
+    }
+
+    /** How far above the floor it lies. */
+    public float markHeight() {
+        return markHeight;
+    }
+
+    /** How strongly it slows as it arrives; 1 is a constant speed. */
+    public float markEasePower() {
+        return markEasePower;
+    }
+
+    /** The share of its life it travels at full strength before going out. */
+    public float markFadeFrom() {
+        return markFadeFrom;
+    }
+
+    /** How far the set turns over the flight. */
+    public float markSpinDegrees() {
+        return markSpinDegrees;
+    }
+
+    /** What its colour is multiplied by — over 1, because it is drawn additively. */
+    public float markBrightness() {
+        return markBrightness;
+    }
+
+    /** "Go there". */
+    public int markMoveColour() {
+        return markMoveColour;
+    }
+
+    /** "Kill that". */
+    public int markAttackColour() {
+        return markAttackColour;
+    }
+
+    private static final FieldParseTable<DungeonSettings> ORDER_MARK =
+            new FieldParseTable<DungeonSettings>()
+                    .add("StartRadius", Ini.real((s, v) -> s.markStartRadius = v))
+                    .add("EndRadius", Ini.real((s, v) -> s.markEndRadius = v))
+                    .add("Seconds", Ini.real((s, v) -> s.markSeconds = v))
+                    .add("Size", Ini.real((s, v) -> s.markSize = v))
+                    .add("Width", Ini.real((s, v) -> s.markWidth = v))
+                    .add("Height", Ini.real((s, v) -> s.markHeight = v))
+                    .add("EasePower", Ini.real((s, v) -> s.markEasePower = v))
+                    .add("FadeFrom", Ini.real((s, v) -> s.markFadeFrom = v))
+                    .add("SpinDegrees", Ini.real((s, v) -> s.markSpinDegrees = v))
+                    .add("Brightness", Ini.real((s, v) -> s.markBrightness = v))
+                    .add("MoveColour",
+                            (ini, s) -> s.markMoveColour = Integer.decode(ini.getNextToken()))
+                    .add("AttackColour",
+                            (ini, s) -> s.markAttackColour = Integer.decode(ini.getNextToken()));
 
     // ---- the dark ----
 

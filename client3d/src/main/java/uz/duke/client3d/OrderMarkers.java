@@ -21,9 +21,6 @@ import java.util.List;
  */
 final class OrderMarkers {
 
-    /** How long a marker stays before it has finished fading out. */
-    static final float LIFETIME_SECONDS = 1.2f;
-
     /** What the order was, which is all the difference between the two colours. */
     enum Kind {
         MOVE,
@@ -40,9 +37,15 @@ final class OrderMarkers {
         markers.add(new Marker(worldX, worldY, kind, now));
     }
 
-    /** Forget markers that have finished fading. */
-    void prune(float now) {
-        markers.removeIf(marker -> remaining(marker, now) <= 0f);
+    /**
+     * Forget markers that have finished.
+     *
+     * <p>How long one lasts is handed in rather than kept here, because it is
+     * part of how the mark <em>looks</em> and that belongs to the game — see
+     * {@link OrderMark}. This class is the list of what was ordered and where.
+     */
+    void prune(float now, float lifetimeSeconds) {
+        markers.removeIf(marker -> now - marker.bornAt() >= lifetimeSeconds);
     }
 
     /** The markers still worth drawing. */
@@ -53,14 +56,5 @@ final class OrderMarkers {
     /** Drop everything — a new world has no orders outstanding in it. */
     void clear() {
         markers.clear();
-    }
-
-    /** How visible a marker should be: 1 when it appears, 0 once it is spent. */
-    static float remaining(Marker marker, float now) {
-        float age = now - marker.bornAt();
-        if (age <= 0f) {
-            return 1f;
-        }
-        return Math.max(0f, 1f - age / LIFETIME_SECONDS);
     }
 }

@@ -251,4 +251,35 @@ class DungeonSettingsTest {
         var missing = assertThrows(IllegalStateException.class, () -> Content.read("nope.ini"));
         assertTrue(missing.getMessage().contains("nope.ini"), missing.getMessage());
     }
+
+    /**
+     * The shipped file really does set the order mark, rather than leaving the
+     * client's own numbers in place.
+     *
+     * <p>A block whose name is misspelt is not an error anywhere: the file parses,
+     * the client draws its default, and the whole point of putting the numbers in
+     * the file — that they can be re-tuned by eye — is quietly gone. So the test
+     * is that the file disagrees with the default, which is the one thing a
+     * misspelt block cannot do.
+     */
+    @Test
+    void theShippedFileSetsTheOrderMarkItself() {
+        var settings = DungeonSettings.load();
+        var shipped = new uz.duke.client3d.OrderMark(
+                settings.markStartRadius(), settings.markEndRadius(), settings.markSeconds(),
+                settings.markSize(), settings.markWidth(), settings.markHeight(),
+                settings.markEasePower(), settings.markFadeFrom(), settings.markSpinDegrees(),
+                settings.markBrightness(), settings.markMoveColour(),
+                settings.markAttackColour());
+
+        assertTrue(shipped.startRadius() > shipped.endRadius(),
+                "the arrowheads have to close on the click, not open away from it");
+        assertTrue(shipped.seconds() > 0.2f && shipped.seconds() < 0.7f,
+                "an acknowledgement, not an animation: " + shipped.seconds() + "s");
+        assertTrue(shipped.easePower() > 1f, "a straight line reads as machinery");
+        assertTrue(shipped.fadeFrom() > 0.3f,
+                "it should travel at full strength and go out at the end");
+        assertNotEquals(shipped.moveColour(), shipped.attackColour(),
+                "walking and killing are not the same order");
+    }
 }

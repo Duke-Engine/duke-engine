@@ -491,6 +491,14 @@ public final class Main {
                 settings.fogVisiblePercent() / 100f, settings.fogSoftenCells(),
                 settings.fogOpenPerSecond(), settings.fogTextureSize(), settings.fogTint()));
 
+        // The three arrowheads that answer a click — see DungeonOrderMark.
+        visuals.orderMark(new uz.duke.client3d.OrderMark(
+                settings.markStartRadius(), settings.markEndRadius(), settings.markSeconds(),
+                settings.markSize(), settings.markWidth(), settings.markHeight(),
+                settings.markEasePower(), settings.markFadeFrom(), settings.markSpinDegrees(),
+                settings.markBrightness(), settings.markMoveColour(),
+                settings.markAttackColour()));
+
         themes(visuals, settings);
 
         // The floor is a modular kit, laid out by the client from the same grid
