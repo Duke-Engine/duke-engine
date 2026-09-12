@@ -72,15 +72,22 @@ final class HeroStatus {
      * stays -- but not for the ones that draw a state rather than an event: a
      * guard is round the man for as long as it lasts, and one pinned to the
      * flagstone he cast it from stays behind the moment he walks away.
+     *
+     * <p>And then WHO cast it, which is not the same question. The field above
+     * says where the mark belongs and is nobody for a meteor, since a meteor
+     * belongs to the patch of floor it is going to land on -- so it cannot also
+     * say which creature to draw making the gesture. They are two facts and they
+     * are different for every skill that is aimed away from the caster.
      */
-    private static void appendCast(StringBuilder line, SkillBook book) {
+    private static void appendCast(StringBuilder line, SkillBook book, GameObject caster) {
         for (var mark : book.getCastMarks()) {
             line.append("|cast=").append(mark.look())
                     .append(',').append(book.getCastMarkFrame())
                     .append(',').append(mark.x())
                     .append(',').append(mark.y())
                     .append(',').append(mark.radius())
-                    .append(',').append(mark.on().value());
+                    .append(',').append(mark.on().value())
+                    .append(',').append(caster == null ? 0 : caster.getId().value());
         }
     }
 
@@ -230,7 +237,7 @@ final class HeroStatus {
             // them: it is what the four are competing for.
             line.append("|pts=").append(learnt.unspent(level))
                     .append(',').append(settings.hudPointsWord());
-            appendCast(line, book);
+            appendCast(line, book, hero);
         }
         appendPowers(line, powers, settings);
         appendOffer(line, powers, settings);

@@ -1068,6 +1068,8 @@ public final class DungeonSettings {
         String look = "";
         String name = "";
         String blurb = "";
+        String castAnim = "";
+        float castSeconds;
 
         SkillBuilder(String heroTemplate, String key) {
             this.heroTemplate = heroTemplate;
@@ -1079,7 +1081,7 @@ public final class DungeonSettings {
                     distance, hitWidth, boostPercent, boostPerLevel, durationFrames, tickFrames,
                     slowFrames, cooldownFrames, cooldownPerLevel, maxRank, levelPerRank,
                     windUpFrames,
-                    projectile, icon, look, name, blurb);
+                    projectile, icon, look, castAnim, castSeconds, name, blurb);
         }
     }
 
@@ -1121,6 +1123,17 @@ public final class DungeonSettings {
                     // other look in this file is -- two skills may want the same
                     // ring, and a fifth skill should be a fifth block.
                     .add("Look", Ini.string((s, v) -> s.look = v))
+                    // What the caster DOES, as against what the spell does. A
+                    // clip out of one of his libraries, played once where he
+                    // stands -- and the hero is given it automatically, because
+                    // naming it here and again in his own block would be one
+                    // name in two places and eventually two names.
+                    .add("CastAnim", Ini.string((s, v) -> s.castAnim = v))
+                    // How long it should take. The clip's own length by default
+                    // (0), or stretched to this -- a gesture that ends when the
+                    // spell lands reads as having caused it, and one that runs
+                    // on past reads as somebody waving after the fact.
+                    .add("CastSeconds", Ini.real((s, v) -> s.castSeconds = v))
                     // What the player is told it is called, and what it does. The
                     // NUMBERS are never here -- they are worked out from the rank,
                     // and a sentence with a figure in it goes stale the moment

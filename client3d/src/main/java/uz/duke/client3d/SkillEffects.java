@@ -198,7 +198,7 @@ final class SkillEffects {
      * One place a cast asked to be drawn: what to draw, when it was cast, where,
      * how wide, and whose it is.
      */
-    record Cast(String look, int frame, Coord3D at, float radius, int on) {
+    record Cast(String look, int frame, Coord3D at, float radius, int on, int by) {
     }
 
     /**
@@ -206,10 +206,12 @@ final class SkillEffects {
      *
      * <p>The game's own channel to its own client, read here rather than in the
      * app so that it can be tested without a window. The format is
-     * {@code cast=<recipe>,<frame>,<x>,<y>,<radius>,<whose>}, repeatable, mixed in
-     * among whatever else the line carries. The last field is the creature the
-     * mark belongs to, or {@link #NOBODY} for one that belongs to the floor, and a
-     * line that does not carry it at all reads as the floor's.
+     * {@code cast=<recipe>,<frame>,<x>,<y>,<radius>,<whose>,<by>}, repeatable,
+     * mixed in among whatever else the line carries. {@code whose} is the creature
+     * the mark belongs to, or {@link #NOBODY} for one that belongs to the floor;
+     * {@code by} is the creature that cast it, which is a different question and
+     * has a different answer for every skill aimed away from its caster. Either
+     * may be missing from an older line, and then it reads as nobody.
      *
      * <p><b>One cast is not always one place.</b> A blink sends the spot he left
      * and the spot he arrived at, both stamped with the same frame — so the
@@ -243,7 +245,8 @@ final class SkillEffects {
                         new Coord3D(Float.parseFloat(parts[2].trim()),
                                 Float.parseFloat(parts[3].trim()), 0f),
                         Float.parseFloat(parts[4].trim()),
-                        parts.length > 5 ? Integer.parseInt(parts[5].trim()) : NOBODY));
+                        parts.length > 5 ? Integer.parseInt(parts[5].trim()) : NOBODY,
+                        parts.length > 6 ? Integer.parseInt(parts[6].trim()) : NOBODY));
             } catch (NumberFormatException malformed) {
                 // Somebody else's line, or a version that disagrees. No ring.
             }

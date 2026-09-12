@@ -160,6 +160,34 @@ class SkillEffectsTest {
     }
 
     /**
+     * Who the mark belongs to and who cast it are two different answers.
+     *
+     * <p>They are the same for a guard, which is drawn round the man who cast it,
+     * and different for everything aimed away from him: a meteor's mark belongs
+     * to the patch of floor it is going to land on, and nobody stands there. So a
+     * line carrying only the first cannot say which creature to draw making the
+     * gesture — which is the whole reason for the second.
+     */
+    @Test
+    void whoItIsOnAndWhoCastItAreAskedSeparately() {
+        var meteor = SkillEffects.castsIn(
+                "name=Lira|cast=MeteorCall,900,150.0,160.0,44.0,0,7", 0).get(0);
+
+        assertEquals(SkillEffects.NOBODY, meteor.on(), "a meteor's mark is the floor's");
+        assertEquals(7, meteor.by(), "and the mage is still the one who called it");
+    }
+
+    /** A line from before either field existed is read as belonging to nobody. */
+    @Test
+    void anOlderLineIsStillRead() {
+        var casts = SkillEffects.castsIn("name=Erika|cast=FrostNova,412,150.0,150.0,40.0", 0);
+
+        assertEquals(1, casts.size(), "the ring is the part that must not be lost");
+        assertEquals(SkillEffects.NOBODY, casts.get(0).on());
+        assertEquals(SkillEffects.NOBODY, casts.get(0).by());
+    }
+
+    /**
      * A blink is two places at one frame, and BOTH come back.
      *
      * <p>The bug this is here for: the mark of what had been drawn was moved on

@@ -24,6 +24,68 @@ application {
 // themselves are kept beside the tool, outside resources, so they travel with
 // the repository without travelling inside the game.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Turns the .fbx animations in dungeon/art/anim into .glb libraries the game can
+// read:
+//
+//   ./gradlew :dungeon:convertAnimations
+//   ./gradlew :dungeon:convertAnimations -PblenderPath="D:/apps/blender.exe"
+//
+// jME reads glTF and nothing else, and nothing else in this repository reads
+// FBX — so the conversion is Blender's, run headless. Kept as a task for the
+// reason the icon cut is: a step nobody can repeat is a step nobody dares
+// change. See dungeon/art/anim/fbx_to_glb.py for what it does on the way.
+//
+// Blender is not a build dependency. This task is run by hand when an animation
+// arrives, and the build does not depend on it: what ships is the .glb it wrote,
+// which is committed.
+// ---------------------------------------------------------------------------
+private val animations = listOf(
+    // source (under art/anim), output (under resources), clip name
+    Triple("magic_area_attack.fbx", "magic.glb", "Magic_Area_Attack"),
+)
+
+tasks.register("convertAnimations") {
+    group = "application"
+    description = "Convert the .fbx animations into .glb libraries, using Blender"
+    doLast {
+        // Where it actually is, checked rather than hoped for: a name on the PATH
+        // that is not there fails inside the process launcher, which reports
+        // "a problem occurred starting process" and not one word about Blender.
+        val onThePath = System.getenv("PATH").orEmpty()
+            .split(File.pathSeparator)
+            .flatMap { listOf(File(it, "blender"), File(it, "blender.exe")) }
+            .firstOrNull { it.canExecute() }?.absolutePath
+        val blender = (findProperty("blenderPath") as String?)
+            ?: onThePath
+            ?: listOf(
+                "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe",
+                "C:/Program Files/Blender Foundation/Blender 4.2/blender.exe",
+                "/Applications/Blender.app/Contents/MacOS/Blender",
+                "/usr/bin/blender",
+            ).firstOrNull { File(it).exists() }
+            ?: throw GradleException(
+                "Blender was not found on the PATH or where it is usually installed. " +
+                    "Install it, or point at it: " +
+                    "./gradlew :dungeon:convertAnimations -PblenderPath=\"...\""
+            )
+        animations.forEach { (from, into, clip) ->
+            providers.exec {
+                workingDir = rootProject.projectDir
+                commandLine(
+                    blender, "-b", "--factory-startup",
+                    "-P", "dungeon/art/anim/fbx_to_glb.py", "--",
+                    "dungeon/art/anim/$from",
+                    "dungeon/src/main/resources/animations/characters/$into",
+                    clip,
+                )
+            }.standardOutput.asText.get()
+                .lines().filter { it.startsWith("CONVERTED") }
+                .forEach { logger.lifecycle(it) }
+        }
+    }
+}
+
 tasks.register<JavaExec>("cutIcons") {
     group = "application"
     description = "Cut the icon sheets into the game's own icon folders"

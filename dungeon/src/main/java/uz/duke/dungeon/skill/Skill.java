@@ -103,6 +103,8 @@ public record Skill(
         String projectile,
         String icon,
         String look,
+        String castAnim,
+        float castSeconds,
         String name,
         String blurb) {
 

@@ -26,6 +26,7 @@ written from there.
 | Skeletons — everything that walks the floors, and its blades, axes and staves | KayKit | CC0 | `models/monsters/` |
 | Adventurers — all three heroes, and everything they carry | KayKit | CC0 | `models/heroes/` |
 | Character Animations — everything anything down here does | KayKit | CC0 | `animations/characters/` |
+| Standing 2H Magic Area Attack — the mage's meteor | **Mixamo** / Adobe | **not CC0, see below** | `animations/characters/magic.glb` |
 | RPG Audio — cloth, coins, a door, a knife drawn | Kenney | CC0 | `audio/sfx/` |
 | Impact Sounds — what an arrow and a fist land like, and footsteps | Kenney | CC0 | `audio/sfx/` |
 | Interface Sounds — clicks, a level, a gong | Kenney | CC0 | `audio/ui/` |
@@ -54,11 +55,16 @@ Building and releasing the game was plainly allowed; whether a public git tree
 counts as handing the files out was a judgement call rather than a rule, and the
 kind of question that does not get easier by being left. They are gone too.
 
-Every model and every clip in the tree is now CC0, out of one maker's packs.
-Nothing left in the art turns on how a repository is read. What is still open is
-smaller and of a different kind: three pieces of music have licences nobody has
-looked up, and the icons are a generator's output whose terms are not the same
-kind of thing as a licence — see the end of this page for both.
+Every model in the tree is CC0, out of one maker's packs, and every clip but one.
+**That one is a Mixamo animation and it went in with its eyes open** — the mage's
+two-handed cast, added later and knowingly, which puts the question this section
+settled back on the page. It is set out in full below rather than folded away
+here, because a decision reversed deserves as plain a statement as the decision
+did.
+
+Two other things are open and are of a different kind: three pieces of music have
+licences nobody has looked up, and the icons are a generator's output whose terms
+are not the same sort of thing as a licence. Both are at the end of this page.
 
 ### The icons that came before
 
@@ -112,6 +118,35 @@ The voiceover pack is a game-show and military set rather than a fantasy one.
 The lines that carry over are used — *go*, *target engaged*, *fire in the hole*,
 *medic*, *level up*, *game over* — and the numbers, the quiz answers and the
 weapon calls with no weapon behind them were left where they were.
+
+### The one animation that is not KayKit's
+
+`magic.glb` is **Mixamo's**, which is Adobe's, and it is the only file in the
+tree that is not CC0. It is the mage's ultimate: the kit has no two-handed cast
+in it, and a man calling a meteor down by waving a staff one-handed is not the
+gesture.
+
+**This is the same question the hero and the monsters were removed over**, and it
+is worth saying plainly rather than leaving for somebody to find. Mixamo's terms
+are royalty-free and generous about *using* the animation in a game; what they do
+not clearly cover is redistributing the animation **as a file**, which is what a
+public git tree does. That is the reasoning that retired the Mixamo hero and the
+Quaternius bestiary from this repository, and it applies here unchanged.
+
+It is here anyway, knowingly, because this is a hobby project and the owner said
+so. Two things make it cheap to undo if that ever changes:
+
+- The source `.fbx` is at `dungeon/art/anim/`, outside the resources, so removing
+  the animation is deleting two files rather than unpicking a folder.
+- Nothing else depends on it. `DungeonSkill Mage R` names the clip; delete the
+  two lines and the mage casts his meteor standing still, exactly as he did
+  before this arrived.
+
+The bones are KayKit's own, which is luck rather than planning: it was animated
+on the mage himself, so the 23 joints are named as the kit names them and the
+client's retargeting matches them one for one. A clip straight off Mixamo's own
+rig arrives as `mixamorig:Hips` and friends and would animate nothing at all —
+`dungeon/art/anim/fbx_to_glb.py` fails loudly rather than exporting one.
 
 ### The music — licences to confirm
 

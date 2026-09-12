@@ -3191,6 +3191,93 @@ sabab yozilgan README bilan. Ular zaxira: generatsiya qilingan to'plam — bitta
 generatorning chiqishi, va CREDITS'da yozilganidek uning shartlari litsenziya
 bilan bir xil narsa emas.
 
+
+### 8.as Meteor uchun ikki qo'llik animatsiya, va skill animatsiyasi degan mexanizm
+
+Mage'ning ultimatesi (Meteor) uchun Mixamo'dan ikki qo'llik sehr o'qish
+animatsiyasi qo'shildi. Uch topilma taxminlarni o'zgartirdi.
+
+#### 1. ✅ Rig muammosi umuman yo'q edi
+
+Brifda "Mixamo rig, KayKit rig — mos kelmasligi mumkin" deb taxmin qilingandi.
+FBX ichida esa **KayKit'ning o'z rigi** (`Rig_Medium`) va suyak nomlari
+`mage.glb` bilan **aynan bir xil** (23 ta: `root, hips, spine, chest,
+upperarm.l, handslot.r…`). Bitta ham `mixamorig:` yo'q — chunki animatsiya
+Mage'ning o'ziga qilingan. O'lchandi: retargetdan keyin **23 ta trekning
+hammasi** tushadi.
+
+Bu omad, reja emas. Shuning uchun `fbx_to_glb.py` rigni **tekshiradi** va mos
+kelmasa baland ovozda yiqiladi — aks holda chiqish fayli hech narsani
+animatsiya qilmaydi va bu ekranda "sehrgar qimirlamayapti" bo'lib ko'rinadi.
+
+#### 2. ⚠️ Skill ishlatilganda animatsiya umuman o'ynatilmasdi
+
+Bu ishning asosiy qismi shu bo'lib chiqdi. Qurol otilganda `WeaponFired` →
+`attackAnim` ishlardi; skill cast esa **faqat effekt** chizardi.
+
+Yangi mexanizm: `DungeonSkill` blokida `CastAnim` + `CastSeconds`. Klip
+qahramonga **avtomatik yuklanadi** — qahramonning klip ro'yxati o'ziniki **+
+skilllari nomlagan har bir `CastAnim`**. Ya'ni nom bitta joyda yoziladi; ikkita
+faylga yozilsa, ular ertami-kechmi bir-biriga mos kelmay qoladi.
+
+**★ Sim formatiga 7-maydon qo'shildi.** `cast=` da `whose` bor edi — bu *belgi
+kimga tegishli*, Meteor uchun `0` (yer), chunki meteor tushadigan yer bo'lagiga
+tegishli. Ya'ni u **kim chaqirganini ayta olmaydi**. Bular ikki boshqa savol va
+javobi kastеrdan uzoqqa qaratilgan har bir skill uchun boshqacha.
+
+#### 3. ⚠️ Davomiylik teskari tomonga og'gan
+
+Brifda "qisqa bo'lsa sekinlashtir" deyilgandi. Aslida klip **3.0 s**, Meteor'ning
+`WindUpFrames = 45` esa **1.5 s** — ya'ni animatsiya **ikki barobar uzun**.
+`CastSeconds = 1.5` qo'yildi, tezlik 2×. Shunda imo-ishora meteor tushgan
+paytda tugaydi va uni **chaqirganday** o'qiladi; o'z tezligida qoldirilsa,
+tushgandan keyin yana 1.5 s davom etib, chuqurga qarab qo'l silkitganday
+ko'rinardi.
+
+#### Tayoq — ikkalasi ham yashirinadi
+
+Mage o'ng qo'lida tayoq, **chap qo'lida kitob** ushlaydi. Faqat tayoqni
+yashirsam, ikki qo'llab sehr o'qiyotgan odamning bir qo'lida kitob qolardi.
+Ikkalasi `setCullHint` bilan yashirinadi (yangi geometriya yo'q — ular
+`getAttachmentsNode(bone)` da osilgan) va klip tugagach qaytadi.
+`carryingAgainAt` `actionUntil` dan alohida: imo-ishora modelni egallashi
+mumkin, lekin qo'lni bo'shatishi shart emas — o'yindagi boshqa har bir bir
+martalik klip aynan shunday.
+
+#### Konvertatsiya
+
+`./gradlew :dungeon:convertAnimations` — Blender fon rejimida. Skript uch ish
+qiladi: **meshni tashlaydi** (FBX ichida Mage'ning butun tanasi bor edi;
+693 KB → 47 KB), **action nomini o'zgartiradi** (`Rig_Medium|mixamo.com|Layer0`
+→ `Magic_Area_Attack`) va **rigni tekshiradi**.
+
+Nomni to'g'rilash muhim: shu bilan yangi fayl **oddiy kutubxona** bo'lib qoladi
+va mavjud `AnimationsFrom` + nom bo'yicha nusxalash yo'li o'zgarishsiz ishlaydi.
+Aks holda bitta klipli fayllar uchun alohida mexanizm kerak bo'lardi.
+
+Blender build bog'liqligi **emas** — task qo'lda ishga tushiriladi, jo'natiladigan
+narsa esa commit qilingan `.glb`.
+
+#### ★ Litsenziya — ataylab qabul qilingan chekinish
+
+Mixamo — Adobe'niki, CC0 emas. **Bu aynan qahramon va maxluqlar olib
+tashlangan savolning o'zi**: foydalanishga ruxsat bor, lekin animatsiyani
+**alohida fayl sifatida tarqatish** aniq qamralmagan, ochiq git daraxti esa
+shundir. Egasi bilib turib rozi bo'ldi va `CREDITS.md` da to'liq yozilgan.
+
+Orqaga qaytarish arzon: manba FBX resources dan tashqarida, va `DungeonSkill
+Mage R` dagi ikkita qatorni o'chirsangiz Mage meteorini avvalgidek qimirlamay
+chaqiradi.
+
+#### Testlar
+
+`everyGestureASkillIsCastWithIsOnTheHeroWhoCastsIt` — eng muhimi. Klip skill
+blokida, kutubxonalar esa qahramon blokida nomlanadi va **hech narsa ikkisi mos
+kelishini tekshirmaydi**. Test retarget qilingan klipdan so'raydi, kutubxonadagi
+klipdan emas: klip mavjud bo'lib turib **hech narsaga tushmasligi** mumkin, va
+ekranda bu ikkisi bir xil ko'rinadi. Sabotaj bilan tasdiqlandi (nomdagi bitta
+harf).
+
 ## 9. Nima yo'q / ochiq ishlar
 
 ### Katta teshiklar

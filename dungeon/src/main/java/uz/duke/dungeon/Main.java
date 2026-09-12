@@ -806,6 +806,13 @@ public final class Main {
                     unit.texture(hero.texture());
                 }
                 carry(unit, hero.held());
+                // Whatever his own skills say he casts with. Gathered from the
+                // skill blocks rather than listed again in his, so the clip is
+                // named once -- a name in two files is two names waiting to
+                // disagree.
+                for (var skill : settings.skillsFor(hero.name())) {
+                    unit.alsoAnimation(skill.castAnim());
+                }
                 for (var library : hero.animations()) {
                     unit.animationsFrom(library);
                 }
@@ -891,6 +898,15 @@ public final class Main {
                 settings.fogUnseenPercent() / 100f, settings.fogRememberedPercent() / 100f,
                 settings.fogVisiblePercent() / 100f, settings.fogSoftenCells(),
                 settings.fogOpenPerSecond(), settings.fogTextureSize(), settings.fogTint()));
+
+        // What a caster is seen doing, keyed by the recipe the cast is announced
+        // under -- see Visuals.castAnim. A skill that names no gesture is cast
+        // exactly as it always was, which is with an effect and a still caster.
+        for (var hero : settings.heroes()) {
+            for (var skill : settings.skillsFor(hero.name())) {
+                visuals.castAnim(skill.look(), skill.castAnim(), skill.castSeconds());
+            }
+        }
 
         // Whether the panel may colour the skill pictures. It always did, which is
         // how one white drawing served three states; a painted set cannot take it

@@ -78,6 +78,8 @@ public final class Visuals {
         String attackAnim;
         String hurtAnim;
         String dieAnim;
+        /** Clips it needs for something other than standing, walking and dying. */
+        final java.util.List<String> otherAnims = new java.util.ArrayList<>();
         String fireSound;
         String dieSound;
         java.awt.Color colour; // null = the owning player's colour
@@ -342,6 +344,23 @@ public final class Visuals {
         /** What it plays as it dies, before the body is taken away. */
         public UnitVisual die(String animName) {
             this.dieAnim = animName;
+            return this;
+        }
+
+        /**
+         * One more clip this creature wants loaded, beyond the five it is drawn
+         * standing, walking, striking, flinching and falling with.
+         *
+         * <p>A clip has to be copied onto the model before anything can play it,
+         * and what gets copied is what was asked for by name -- so a gesture
+         * nobody has listed is simply not there when the moment comes. This is
+         * where a game lists the ones its own rules will call for: a spell it
+         * casts two-handed, a bow it shoulders, a door it opens.
+         */
+        public UnitVisual alsoAnimation(String animName) {
+            if (animName != null && !animName.isBlank() && !otherAnims.contains(animName)) {
+                otherAnims.add(animName);
+            }
             return this;
         }
 
@@ -797,6 +816,39 @@ public final class Visuals {
 
     public IconLook getIconLook() {
         return iconLook;
+    }
+
+    /**
+     * What the caster is seen doing, and for how long.
+     *
+     * <p>{@code seconds} is 0 for the clip's own length, or what it should be
+     * stretched or hurried to take. A gesture that ends as the spell lands reads
+     * as having caused it; the same gesture running a second and a half past
+     * reads as somebody waving after the fact.
+     */
+    public record CastAnim(String clip, float seconds) {
+    }
+
+    private final Map<String, CastAnim> castAnims = new HashMap<>();
+
+    /**
+     * The gesture that goes with an effect recipe.
+     *
+     * <p>Keyed by the recipe rather than by the skill, because the recipe is what
+     * the client is told about when something is cast -- and because two skills
+     * that look the same should move the same. A recipe nobody registers is cast
+     * exactly as it always was, which is with an effect and a caster who does not
+     * move.
+     */
+    public Visuals castAnim(String look, String clipName, float seconds) {
+        if (look != null && clipName != null && !clipName.isBlank()) {
+            castAnims.put(look, new CastAnim(clipName, seconds));
+        }
+        return this;
+    }
+
+    public CastAnim getCastAnim(String look) {
+        return look == null ? null : castAnims.get(look);
     }
 
     private EdgeScroll edgeScroll = EdgeScroll.NONE;

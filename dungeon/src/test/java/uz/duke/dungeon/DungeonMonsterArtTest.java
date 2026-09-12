@@ -507,6 +507,92 @@ class DungeonMonsterArtTest {
 
     private static uz.duke.core.thing.ThingFactory TEMPLATES;
 
+    // ---- the gestures a spell is cast with ----
+
+    /**
+     * Every clip a skill says it is cast with is on the hero who casts it.
+     *
+     * <p>Two things have to line up and neither says so out loud. The clip is
+     * named in a {@code DungeonSkill} block; the libraries it could come from are
+     * named in the hero's own. Nothing checks that the second contains the first,
+     * and the failure is the quietest in the game — the spell goes off, the
+     * effect opens, and the caster stands there like a man who dropped something.
+     *
+     * <p>Asked of the retargeted clip rather than of the library's, because a
+     * clip can be present and still arrive on nothing: the tracks are rebuilt
+     * against the joints of the model, and a library on a different skeleton
+     * matches none of them. That is the difference between a gesture nobody
+     * shipped and a gesture nobody can play, and they look identical on screen.
+     */
+    @Test
+    void everyGestureASkillIsCastWithIsOnTheHeroWhoCastsIt() {
+        int checked = 0;
+        for (var hero : SETTINGS.heroes()) {
+            if (!hero.hasModel()) {
+                continue;
+            }
+            for (var skill : SETTINGS.skillsFor(hero.name())) {
+                if (skill.castAnim() == null || skill.castAnim().isBlank()) {
+                    continue; // a skill cast without a gesture, which is most of them
+                }
+                var model = assets().loadModel(hero.model());
+                int arrived = 0;
+                for (var path : hero.animations()) {
+                    arrived += uz.duke.client3d.AnimationLibrary.copy(
+                            assets().loadModel(path), model,
+                            java.util.List.of(skill.castAnim()));
+                }
+                assertEquals(1, arrived, hero.name() + "'s " + skill.key() + " is cast with "
+                        + skill.castAnim() + ", which none of " + hero.animations()
+                        + " could put on him");
+                checked++;
+            }
+        }
+        assertTrue(checked > 0, "some skill should name a gesture, or this proves nothing");
+    }
+
+    /**
+     * And it is long enough to be stretched to what the skill asks of it.
+     *
+     * <p>A gesture is played at whatever speed makes it last {@code CastSeconds},
+     * so the two numbers can disagree in either direction and the result is a
+     * mage in fast-forward or a mage in treacle. Neither is wrong enough to
+     * notice as a bug, which is exactly why it is worth a figure: three times
+     * either way is somebody having changed one number and not the other.
+     */
+    @Test
+    void andItIsNotStretchedOutOfAllRecognition() {
+        for (var hero : SETTINGS.heroes()) {
+            if (!hero.hasModel()) {
+                continue;
+            }
+            for (var skill : SETTINGS.skillsFor(hero.name())) {
+                if (skill.castAnim() == null || skill.castAnim().isBlank()
+                        || skill.castSeconds() <= 0f) {
+                    continue; // played at its own length, which cannot disagree
+                }
+                float own = lengthOfCast(hero, skill.castAnim());
+                float asked = skill.castSeconds();
+                assertTrue(own / asked < 3f && asked / own < 3f,
+                        hero.name() + "'s " + skill.key() + " runs " + own + "s and is asked to"
+                                + " take " + asked + "s — that is a gesture at "
+                                + Math.round(own / asked * 100) + "% speed");
+            }
+        }
+    }
+
+    /** How long a hero's cast clip runs, out of whichever library holds it. */
+    private static float lengthOfCast(uz.duke.dungeon.content.HeroLook hero, String clip) {
+        for (var path : hero.animations()) {
+            var composer = control(assets().loadModel(path), AnimComposer.class);
+            var found = composer == null ? null : composer.getAnimClip(clip);
+            if (found != null) {
+                return (float) found.getLength();
+            }
+        }
+        return fail(clip + " is not in any of " + hero.name() + "'s libraries");
+    }
+
     /** Whether any library the hero names carries a clip under this name. */
     private static boolean inOneOfHisLibraries(String clip) {
         for (var path : hero().animations()) {

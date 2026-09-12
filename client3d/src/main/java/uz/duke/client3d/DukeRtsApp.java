@@ -271,6 +271,15 @@ final class DukeRtsApp extends SimpleApplication {
          * machine keeps its hands off.
          */
         float actionUntil;
+        /**
+         * Until when what it carries is out of its hands, or 0 for never.
+         *
+         * <p>Separate from {@link #actionUntil} although they are usually the same
+         * number: a gesture can own the model without the hands having to be
+         * empty, and every one-shot clip in the game except a two-handed spell
+         * does exactly that.
+         */
+        float carryingAgainAt;
         /** The health it had in the last snapshot: a drop is a blow that landed. */
         float lastHealth = Float.NaN;
         UnitView view;
@@ -3513,6 +3522,9 @@ final class DukeRtsApp extends SimpleApplication {
             lastCastFrameDrawn = Math.max(lastCastFrameDrawn, cast.frame());
             skillEffects.cast(cast.look(), cast.at(), cam.getLocation(), cast.radius(),
                     cast.on(), this::floorHeightAt);
+            // And the caster is seen doing it, if the game named a gesture for
+            // this recipe. Nothing did until a mage needed both hands.
+            castGesture(unitNodes.get(cast.by()), visuals.getCastAnim(cast.look()));
         }
         return casts.size();
     }
@@ -3899,6 +3911,14 @@ final class DukeRtsApp extends SimpleApplication {
                 wanted.add(name);
             }
         }
+        // And whatever else the game said this one needs -- a gesture it casts
+        // with, say. A clip nobody asked for by name is not copied, and then
+        // nothing can play it: see Visuals.UnitVisual.alsoAnimation.
+        for (var name : visual.otherAnims) {
+            if (!wanted.contains(name)) {
+                wanted.add(name);
+            }
+        }
         for (var source : visual.animations) {
             var library = animationLibraries.get(source.assetPath());
             if (library == null) {
@@ -4105,6 +4125,10 @@ final class DukeRtsApp extends SimpleApplication {
      * standing, which is what it looks like.
      */
     private void animate(UnitNode node, UnitView view) {
+        if (node.carryingAgainAt > 0f && timer.getTimeInSeconds() >= node.carryingAgainAt) {
+            carrying(node, true);
+            node.carryingAgainAt = 0f;
+        }
         if (timer.getTimeInSeconds() < node.actionUntil) {
             return; // a blow or a flinch has the model; it will hand it back
         }
@@ -4136,6 +4160,65 @@ final class DukeRtsApp extends SimpleApplication {
         }
         play(node, node.view.templateName(), clipName, false);
         node.actionUntil = (float) (timer.getTimeInSeconds() + clip.getLength());
+    }
+
+    /**
+     * The gesture a spell is cast with, on the creature that cast it.
+     *
+     * <p>Timed rather than simply played. A spell with a wind-up on it -- a
+     * meteor takes a second and a half to arrive -- wants a gesture that ENDS as
+     * it lands: the same clip at its own speed either finishes early and leaves
+     * him standing there waiting, or runs on past the impact and reads as
+     * somebody waving at a hole in the ground. How long it should take is the
+     * game's to say, since the game is the one that knows about the wind-up.
+     *
+     * <p>And his hands come empty. This one is two-handed, and a mage casting it
+     * with a staff in one fist and a book in the other is a mage doing two things
+     * at once -- see {@link #carrying}.
+     */
+    private void castGesture(UnitNode node, Visuals.CastAnim gesture) {
+        if (node == null || node.composer == null || gesture == null) {
+            return;
+        }
+        var clip = node.composer.getAnimClip(gesture.clip());
+        if (clip == null) {
+            warnOnce(node.view.templateName() + "/" + gesture.clip(), "cast animation");
+            return;
+        }
+        float length = (float) clip.getLength();
+        float seconds = gesture.seconds() > 0f ? gesture.seconds() : length;
+        play(node, node.view.templateName(), gesture.clip(), false);
+        var action = node.composer.getCurrentAction();
+        if (action != null && seconds > 0f) {
+            action.setSpeed(length / seconds);
+        }
+        node.actionUntil = (float) (timer.getTimeInSeconds() + seconds);
+        carrying(node, false);
+        node.carryingAgainAt = node.actionUntil;
+    }
+
+    /**
+     * Put what a creature carries into its hands, or take it out of them.
+     *
+     * <p>Culled rather than detached and rebuilt: a weapon hangs on the bone's own
+     * attachments node, so hiding it is one flag and getting it back is the same
+     * flag -- where taking it off and hanging it again would reload the model and
+     * lose the tint and the turn that were measured onto it.
+     */
+    private void carrying(UnitNode node, boolean shown) {
+        var skin = node.body == null ? null
+                : AnimationLibrary.findControl(node.body, com.jme3.anim.SkinningControl.class);
+        if (skin == null) {
+            return;
+        }
+        var visual = visualFor(node.view.templateName());
+        for (var one : visual.carried) {
+            if (one.bone == null || skin.getArmature().getJoint(one.bone) == null) {
+                continue;
+            }
+            skin.getAttachmentsNode(one.bone).setCullHint(
+                    shown ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        }
     }
 
     private void play(UnitNode node, String templateName, String clipName, boolean loop) {
