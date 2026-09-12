@@ -269,13 +269,70 @@ public final class Main {
         // Held rather than passed straight in: the question below reaches back
         // into it, because whose eyes open the map is part of who you chose.
         var visuals = looks(settings);
+        // Both held rather than passed straight in, because the question below
+        // reaches back into both: whose eyes open the map, what his four keys ask
+        // the player to point at, and how far each of them reaches are all part of
+        // who you chose, and none of them is known until he is chosen.
+        var keys = controls(settings);
         Duke3D.launch(session.game(), visuals, Shell.create()
                 .entry(Shell.Entry.PLAY, "Enter the dungeon")
                 .entry(Shell.Entry.SETTINGS)
                 .entry(Shell.Entry.QUIT)
                 // Which turns Play into a path rather than a start -- how, then
                 // where, then who. Nothing opens until it is walked. See howToPlay.
-                .asking(howToPlay(session, settings, visuals)), controls(settings));
+                .asking(howToPlay(session, settings, visuals, keys)), keys);
+    }
+
+    /**
+     * Point the four keys at what THIS hero's skills ask the player for.
+     *
+     * <p>One hero's four, never the file's twelve. A key belongs to a SLOT rather
+     * than to a skill — all three of them cast on Q, W, E and R — so binding every
+     * skill in the file would leave whichever hero was read last deciding what Q
+     * asks for. That is not a small wrongness: the rogue's Q wants a creature, the
+     * knight's wants a patch of floor and the mage's wants a direction.
+     *
+     * <p><b>Called again every time a hero is chosen</b>, and that is the whole
+     * point of it being a method. Settled once at startup it was settled from
+     * {@code DefaultHero}, so picking anybody else got you his skills with the
+     * default hero's aims — and a skill handed the wrong sort of target does not
+     * misfire, it refuses: {@code SkillBook} declines a fireball with no direction
+     * and leaves the cooldown unspent, which from a chair is a key that does
+     * nothing whatever.
+     *
+     * <p>Rebinding a letter replaces what it asks for and not whether the game has
+     * claimed it, so the client's own controls are untouched by this — the letters
+     * were claimed at startup and every hero in the file uses the same four. A
+     * hero who wanted a fifth letter would need that letter claimed up front;
+     * {@code HeroChoiceTest} holds the four still so the day that changes is a
+     * failing test rather than a dead key.
+     */
+    static void aimsFor(Hotkeys keys, DungeonSettings settings, String hero) {
+        for (var skill : settings.skillsFor(hero)) {
+            char key = skill.key();
+            switch (skill.effect().aim()) {
+                case UNIT -> keys.onUnit(key, (game, id) -> game.postCommand(new CastSkill(
+                        game.getLocalPlayerIndex(), key, new ObjectId(id), null)));
+                case OPEN_GROUND -> keys.onOpenGround(key, (game, spot) -> game.postCommand(
+                        new CastSkill(game.getLocalPlayerIndex(), key, null, spot)));
+                case SELF -> keys.on(key, game -> game.postCommand(
+                        new CastSkill(game.getLocalPlayerIndex(), key)));
+            }
+        }
+    }
+
+    /**
+     * And draw HIS four rings, for the same reason and with the same lifetime.
+     *
+     * <p>A ring is keyed by the letter too, so the rogue's Q and the mage's Q are
+     * two quite different circles — one round a creature, one down a lane. Left at
+     * the file's hero the mage would have been shown where his fireball could
+     * reach in the shape of somebody else's skill.
+     */
+    static void ringsFor(Visuals visuals, DungeonSettings settings, String hero) {
+        for (var skill : settings.skillsFor(hero)) {
+            visuals.skillRange(rangeOf(skill, settings.ringSelfRadius()));
+        }
     }
 
     /**
@@ -314,8 +371,8 @@ public final class Main {
      * <p>So a stage does not say which hero plays it, and cannot. The menu is the
      * only thing that decides, which is the whole of the rule.
      */
-    static uz.duke.client3d.Shell.Question whoToPlay(
-            Dungeon.Session session, DungeonSettings settings, Visuals visuals) {
+    static uz.duke.client3d.Shell.Question whoToPlay(Dungeon.Session session,
+            DungeonSettings settings, Visuals visuals, Hotkeys keys) {
         var options = new java.util.ArrayList<uz.duke.client3d.Shell.Option>();
         for (var hero : settings.heroes()) {
             var him = hero.name();
@@ -329,6 +386,17 @@ public final class Main {
                         // map would never open at all: nothing of that template is
                         // in the dungeon.
                         visuals.discoveredBy(him);
+                        // ★ And HIS four keys, and HIS four rings. Everything the
+                        // client knows about a skill is keyed by the letter, and
+                        // until this line it was all settled at startup from
+                        // DefaultHero -- so whoever you picked, Q asked you to
+                        // point at whatever the FILE'S hero's Q needed. Choosing
+                        // the mage got you the rogue's aims: his Q wants a
+                        // creature, and a fireball handed a creature instead of a
+                        // direction has nowhere to fly and refuses, which from a
+                        // chair is a skill that does nothing at all.
+                        aimsFor(keys, settings, him);
+                        ringsFor(visuals, settings, him);
                         session.run().startWith(session.game(), him);
                     }));
         }
@@ -351,9 +419,9 @@ public final class Main {
      * cannot read and says so in the log. With no stages the whole question
      * collapses to the hero, which is what the game asked yesterday.
      */
-    static uz.duke.client3d.Shell.Question howToPlay(
-            Dungeon.Session session, DungeonSettings settings, Visuals visuals) {
-        var hero = whoToPlay(session, settings, visuals);
+    static uz.duke.client3d.Shell.Question howToPlay(Dungeon.Session session,
+            DungeonSettings settings, Visuals visuals, Hotkeys keys) {
+        var hero = whoToPlay(session, settings, visuals, keys);
         var stages = uz.duke.dungeon.stage.Stages.all(settings);
         if (stages.isEmpty()) {
             return hero; // nothing to choose between; the only question left is who
@@ -438,22 +506,9 @@ public final class Main {
         // when the command comes round — the same road a keypress travels.
         keys.onChoose((game, index) -> game.postCommand(new ChoosePower(
                 game.getLocalPlayerIndex(), index, offeredId(game))));
-        // The played hero's four, not the file's eight. Both heroes cast on Q, W,
-        // E and R — a key belongs to a slot rather than to a skill — so binding
-        // every skill in the file would have whichever hero was read last deciding
-        // what Q asks the player to point at. Which is not a small wrongness: the
-        // archer's Q wants a creature and the knight's wants a patch of floor.
-        for (var skill : settings.skillsFor(settings.playedHero())) {
-            char key = skill.key();
-            switch (skill.effect().aim()) {
-                case UNIT -> keys.onUnit(key, (game, id) -> game.postCommand(new CastSkill(
-                        game.getLocalPlayerIndex(), key, new ObjectId(id), null)));
-                case OPEN_GROUND -> keys.onOpenGround(key, (game, spot) -> game.postCommand(
-                        new CastSkill(game.getLocalPlayerIndex(), key, null, spot)));
-                case SELF -> keys.on(key, game -> game.postCommand(
-                        new CastSkill(game.getLocalPlayerIndex(), key)));
-            }
-        }
+        // The file's default hero to begin with, and whoever is actually chosen
+        // the moment he is -- see aimsFor, and whoToPlay, which calls it again.
+        aimsFor(keys, settings, settings.playedHero());
         orders(keys);
         // Which single creature he has picked out. The panel describes it, and
         // only the simulation can say what it is worth -- see Watching.
@@ -476,7 +531,7 @@ public final class Main {
      * touches the caster: there is no reach to draw, so the look says how wide to
      * draw "just him".
      */
-    private static uz.duke.client3d.SkillRange rangeOf(
+    static uz.duke.client3d.SkillRange rangeOf(
             uz.duke.dungeon.skill.Skill skill, float selfRadius) {
         var shape = switch (skill.effect()) {
             case STRIKE -> uz.duke.client3d.SkillRange.Shape.AT_A_CREATURE;
@@ -751,12 +806,9 @@ public final class Main {
                 settings.ringHeight(), settings.ringPulseDepth(), settings.ringPulsePerSecond(),
                 settings.ringSegments(), settings.ringAllowColour(), settings.ringDenyColour(),
                 settings.ringAreaColour(), settings.ringBrightness()));
-        // The played hero's, for the same reason his keys are — see controls. A
-        // ring is keyed by the letter, and the archer's Q and the knight's Q are
-        // two very different circles.
-        for (var skill : settings.skillsFor(settings.playedHero())) {
-            visuals.skillRange(rangeOf(skill, settings.ringSelfRadius()));
-        }
+        // The file's default hero to begin with, and whoever is actually chosen
+        // the moment he is -- see ringsFor.
+        ringsFor(visuals, settings, settings.playedHero());
 
         themes(visuals, settings);
 

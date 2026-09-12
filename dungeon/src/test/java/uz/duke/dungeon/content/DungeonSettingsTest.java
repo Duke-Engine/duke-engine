@@ -130,13 +130,13 @@ class DungeonSettingsTest {
     @Test
     void theCreatureFilesArePresentAndDescribeBothSides() {
         var creatures = Content.read(Content.CREATURES);
-        assertTrue(creatures.contains("Object Hero"));
+        assertTrue(creatures.contains("Object Rogue"));
         assertTrue(creatures.contains("Object Skeleton"));
         assertTrue(creatures.contains("Script:SkeletonBrain"),
                 "the game's skeletons should carry their behaviour");
 
         var fixture = Content.read(Content.FIXTURE_CREATURES);
-        assertTrue(fixture.contains("Object Hero"));
+        assertTrue(fixture.contains("Object Rogue"));
         assertTrue(fixture.contains("Speed = 0"),
                 "the fixture's skeletons stand still, whatever the game's do");
         assertTrue(!fixture.contains("Script:"),

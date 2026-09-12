@@ -33,7 +33,8 @@ class StageChoiceTest {
     private static final DungeonSettings SETTINGS = DungeonSettings.load();
 
     private static Shell.Question path() {
-        return Main.howToPlay(Dungeon.newSession(7L, SETTINGS), SETTINGS, Visuals.create());
+        return Main.howToPlay(Dungeon.newSession(7L, SETTINGS), SETTINGS, Visuals.create(),
+                Main.controls(SETTINGS));
     }
 
     // ---- what is on disk and in the game ----
@@ -154,7 +155,8 @@ class StageChoiceTest {
     @Test
     void takingAStageLaysThatStagesOwnFloor() {
         var session = Dungeon.newSession(7L, SETTINGS);
-        var how = Main.howToPlay(session, SETTINGS, Visuals.create());
+        var how = Main.howToPlay(session, SETTINGS, Visuals.create(),
+                Main.controls(SETTINGS));
         var stageRow = how.options().get(1).next().options().getFirst();
         var stage = Stages.all(SETTINGS).getFirst().stage();
 
@@ -198,7 +200,8 @@ class StageChoiceTest {
     @Test
     void takingTheEndlessDescentLeavesItADescent() {
         var session = Dungeon.newSession(7L, SETTINGS);
-        var how = Main.howToPlay(session, SETTINGS, Visuals.create());
+        var how = Main.howToPlay(session, SETTINGS, Visuals.create(),
+                Main.controls(SETTINGS));
         var endless = how.options().get(0);
 
         endless.taken().run();
@@ -215,7 +218,8 @@ class StageChoiceTest {
         var chosen = Stages.all(SETTINGS).getFirst().stage();
         for (var hero : SETTINGS.heroes()) {
             var session = Dungeon.newSession(7L, SETTINGS);
-            var how = Main.howToPlay(session, SETTINGS, Visuals.create());
+            var how = Main.howToPlay(session, SETTINGS, Visuals.create(),
+                Main.controls(SETTINGS));
             var stageRow = how.options().get(1).next().options().getFirst();
             stageRow.taken().run();
 

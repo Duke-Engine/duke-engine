@@ -54,7 +54,7 @@ class DungeonFogTest {
         var edited = new StringBuilder();
         for (var line : lines) {
             if (line.startsWith("Object ")) {
-                inHero = line.trim().equals("Object Hero");
+                inHero = line.trim().equals("Object Rogue");
             }
             edited.append(inHero && line.trim().startsWith("VisionRange")
                     ? "  VisionRange = " + range : line).append('\n');
@@ -70,7 +70,7 @@ class DungeonFogTest {
     private static DukeGame fight(float skeletonX, float skeletonY, int visionRange) {
         var world = Dungeon.world(arena(), SETTINGS, creaturesSeeing(visionRange));
         var game = world.game();
-        game.spawn("Hero", world.hero(), 60f, 150f);
+        game.spawn("Rogue", world.hero(), 60f, 150f);
         game.spawn("Skeleton", world.dungeon(), skeletonX, skeletonY);
         game.runHeadless(1);
         return game;
@@ -120,7 +120,7 @@ class DungeonFogTest {
     void groundHeHasLeftGivesNothingAway() {
         var game = fight(300f, 80);
         var hero = game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Hero"))
+                .filter(object -> object.getTemplate().getName().equals("Rogue"))
                 .findFirst().orElseThrow();
         assertFalse(seesASkeleton(game), "240 away to begin with, and out of sight");
 
@@ -162,7 +162,7 @@ class DungeonFogTest {
     private static String playedOut(int visionRange) {
         var world = Dungeon.world(arena(), SETTINGS, creaturesSeeing(visionRange));
         var game = world.game();
-        game.spawn("Hero", world.hero(), 60f, 150f);
+        game.spawn("Rogue", world.hero(), 60f, 150f);
         for (int i = 0; i < 6; i++) {
             game.spawn("Skeleton", world.dungeon(), 120f + i * 40f, 130f + (i % 3) * 30f);
         }

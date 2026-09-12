@@ -22,7 +22,7 @@ import uz.duke.rts.message.GameMessage;
 class DungeonTest {
 
     private static GameObject heroOf(DukeGame game) {
-        return creature(game, "Hero");
+        return creature(game, "Rogue");
     }
 
     private static GameObject creature(DukeGame game, String template) {

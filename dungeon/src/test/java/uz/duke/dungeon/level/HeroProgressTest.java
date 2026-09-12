@@ -77,7 +77,7 @@ class HeroProgressTest {
     private static Fight start(DungeonSettings settings) {
         var arena = Dungeon.world(ARENA, settings, STOUT_HERO);
         var game = arena.game();
-        game.spawn("Hero", arena.hero(), 200f, 150f);
+        game.spawn("Rogue", arena.hero(), 200f, 150f);
         var progress = new HeroProgress(arena.hero(), settings.levelling(),
                 settings.levelUpBannerFrames());
         game.onTick(progress::tick);
@@ -92,7 +92,7 @@ class HeroProgressTest {
     }
 
     private static GameObject hero(DukeGame game) {
-        return creature(game, "Hero");
+        return creature(game, "Rogue");
     }
 
     /**

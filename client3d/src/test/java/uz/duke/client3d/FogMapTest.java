@@ -66,7 +66,7 @@ class FogMapTest {
     }
 
     private static UnitView unit(float x, float y) {
-        return new UnitView(1, "Hero", 0, x, y, 0f, 10f, 10f, false, true, false, false, -1);
+        return new UnitView(1, "Rogue", 0, x, y, 0f, 10f, 10f, false, true, false, false, -1);
     }
 
     // ---- the picture itself ----

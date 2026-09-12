@@ -194,7 +194,7 @@ class LootTest {
 
         // Walk the hero onto it. Placed rather than ordered: this is about the
         // pickup, not about the pathfinder.
-        var hero = find(game, "Hero");
+        var hero = find(game, "Rogue");
         hero.setPosition(where);
         game.runHeadless(2);
 
@@ -217,7 +217,7 @@ class LootTest {
         assertTrue(player.getWeaponDamageBonus() > plain,
                 "a sword he found should reach the arrow he looses");
 
-        game.getLogic().destroyObject(find(game, "Hero"));
+        game.getLogic().destroyObject(find(game, "Rogue"));
         game.runHeadless(DungeonSettings.load().respawnDelayFrames() + 4);
         assertTrue(session.progress().getLoot().getFound().isEmpty(),
                 "a new run starts with nothing, what he found included");

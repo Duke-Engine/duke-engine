@@ -17,7 +17,7 @@ import uz.duke.dungeon.content.DungeonSettings;
 class SkillTest {
 
     private static Skill skill(float damage, float perLevel, int cooldown, int cooldownPerLevel) {
-        return new Skill("Hero", 'Q', SkillEffect.STRIKE, damage, perLevel, 0f, 40f, 0f,
+        return new Skill("Rogue", 'Q', SkillEffect.STRIKE, damage, perLevel, 0f, 40f, 0f,
                 0, 0, 0, 0, 0, cooldown, cooldownPerLevel, 1, 0, "", "", "");
     }
 
@@ -83,7 +83,7 @@ class SkillTest {
     /** An ultimate is a skill with a level on it, and nothing else. */
     @Test
     void anUltimateIsLockedUntilItsLevel() {
-        var r = new Skill("Hero", 'R', SkillEffect.EMPOWER, 0f, 0f, 0f, 0f, 0f,
+        var r = new Skill("Rogue", 'R', SkillEffect.EMPOWER, 0f, 0f, 0f, 0f, 0f,
                 80, 12, 180, 0, 0, 900, -30, 5, 0, "", "", "");
 
         assertFalse(r.unlockedAt(4));
@@ -96,7 +96,7 @@ class SkillTest {
     /** The hero really has four skills, on the four keys, from the file. */
     @Test
     void theShippedHeroHasFourSkills() {
-        var his = DungeonSettings.load().skillsFor("Hero");
+        var his = DungeonSettings.load().skillsFor("Rogue");
 
         assertEquals(4, his.size());
         assertEquals("QWER", his.stream()
@@ -107,7 +107,7 @@ class SkillTest {
     /** And they are four different things, not one thing four times. */
     @Test
     void theyDoFourDifferentThings() {
-        var effects = DungeonSettings.load().skillsFor("Hero").stream()
+        var effects = DungeonSettings.load().skillsFor("Rogue").stream()
                 .map(Skill::effect)
                 .distinct()
                 .count();
@@ -118,7 +118,7 @@ class SkillTest {
     /** Exactly one of them is an ultimate — the one that waits for a level. */
     @Test
     void oneOfThemIsAnUltimate() {
-        var locked = DungeonSettings.load().skillsFor("Hero").stream()
+        var locked = DungeonSettings.load().skillsFor("Rogue").stream()
                 .filter(skill -> skill.unlockLevel() > 1)
                 .toList();
 

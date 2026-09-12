@@ -65,6 +65,80 @@ class ControlsTest {
     }
 
     /**
+     * ★ And it follows whoever is CHOSEN, not whoever the file starts with.
+     *
+     * <p>The bug this is here for, reported from a chair as "the mage's Q does
+     * nothing — no damage and no effect". Everything the client knows about a
+     * skill is keyed by its letter, and all of it used to be settled once at
+     * startup out of {@code DefaultHero}. So picking any hero but that one got
+     * you his skills wearing the default hero's aims: the rogue's Q wants a
+     * creature, the mage's wants a direction, and a fireball handed a creature
+     * has nowhere to fly. It does not misfire — {@code SkillBook} REFUSES it and
+     * leaves the cooldown unspent, so the key is simply dead.
+     *
+     * <p>Asked of every hero in the file rather than of the mage, because the
+     * mage is only the one somebody noticed: the knight's Q wants a patch of
+     * floor and was equally dead, and the fourth hero would have been too.
+     */
+    @Test
+    void whatAKeyAsksForFollowsWhoeverWasChosen() {
+        for (int row = 0; row < SHIPPED.heroes().size(); row++) {
+            var him = SHIPPED.heroes().get(row).name();
+            var visuals = uz.duke.client3d.Visuals.create();
+            var controls = Main.controls(SHIPPED);
+
+            // Through the menu row, not through the helper behind it. Asking the
+            // helper would pass whether or not anything ever calls it, which is
+            // exactly the state this was found in.
+            Main.whoToPlay(Dungeon.newSession(21L, SHIPPED), SHIPPED, visuals, controls)
+                    .options().get(row).taken().run();
+
+            for (var skill : SHIPPED.skillsFor(him)) {
+                assertEquals(switch (skill.effect().aim()) {
+                    case UNIT -> Hotkeys.Aim.UNIT;
+                    case OPEN_GROUND -> Hotkeys.Aim.OPEN_GROUND;
+                    case SELF -> Hotkeys.Aim.NOW;
+                }, controls.aimOf(skill.key()),
+                        him + "'s " + skill.key() + " asks for the wrong thing, so pressing"
+                                + " it hands the skill a target it cannot use and it refuses");
+                var ring = visuals.getSkillRange(skill.key());
+                assertNotNull(ring, him + "'s " + skill.key() + " has no ring to draw");
+                assertEquals(Main.rangeOf(skill, SHIPPED.ringSelfRadius()), ring,
+                        him + "'s " + skill.key() + " is drawn as somebody else's skill");
+            }
+        }
+    }
+
+    /**
+     * Every hero casts on the same four letters, and that is load-bearing.
+     *
+     * <p>The letters a game claims are settled once, at startup, before anybody
+     * has chosen anything — the client needs them to know which of its own
+     * controls to give up. Re-pointing a key at a different hero's skill changes
+     * what it ASKS for and not whether it was claimed, so a hero wanting a fifth
+     * letter would get a key the client had already taken for itself and a skill
+     * that could never be cast.
+     *
+     * <p>So this is a failing test rather than a dead key on the day somebody
+     * gives a hero a T. The fix then is to claim the union of every hero's keys
+     * up front; there is no reason to write that until there is a hero who needs
+     * it.
+     */
+    @Test
+    void everyHeroCastsOnTheSameFourLetters() {
+        var first = keysOf(SHIPPED.heroes().get(0).name());
+        for (var hero : SHIPPED.heroes()) {
+            assertEquals(first, keysOf(hero.name()), hero.name()
+                    + " casts on different letters from " + SHIPPED.heroes().get(0).name()
+                    + ", and only the ones claimed at startup can ever be pressed");
+        }
+    }
+
+    private static java.util.List<Character> keysOf(String hero) {
+        return SHIPPED.skillsFor(hero).stream().map(skill -> skill.key()).sorted().toList();
+    }
+
+    /**
      * A hero the file invented gets his keys the same way, with no Java at all.
      *
      * <p>Two lines of file: who is being played, and what he can do. The first was
@@ -128,7 +202,7 @@ class ControlsTest {
     /** The shipped file's two heroes really do share their four letters. */
     @Test
     void bothShippedHeroesCastOnTheSameFourKeys() {
-        var archer = SHIPPED.skillsFor("Hero").stream().map(s -> s.key()).sorted().toList();
+        var archer = SHIPPED.skillsFor("Rogue").stream().map(s -> s.key()).sorted().toList();
         var knight = SHIPPED.skillsFor("Knight").stream().map(s -> s.key()).sorted().toList();
 
         assertEquals(archer, knight,

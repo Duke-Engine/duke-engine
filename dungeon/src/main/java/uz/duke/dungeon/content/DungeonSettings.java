@@ -1306,7 +1306,7 @@ public final class DungeonSettings {
         return heroes.stream().map(HeroBuilder::build).toList();
     }
 
-    private String playedHero = "Hero";
+    private String playedHero = "Rogue";
 
     /**
      * Which of them is being played.

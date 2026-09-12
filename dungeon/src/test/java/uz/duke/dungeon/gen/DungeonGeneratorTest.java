@@ -153,7 +153,7 @@ class DungeonGeneratorTest {
         var logic = game.getLogic();
 
         var hero = logic.getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Hero"))
+                .filter(o -> o.getTemplate().getName().equals("Rogue"))
                 .findFirst().orElseThrow();
 
         var skeletons = logic.getObjects().stream()

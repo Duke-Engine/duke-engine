@@ -172,7 +172,7 @@ class DungeonTilesTest {
         var settings = uz.duke.dungeon.content.DungeonSettings.load();
         int checked = 0;
 
-        for (var skill : settings.skillsFor("Hero")) {
+        for (var skill : settings.skillsFor("Rogue")) {
             var path = settings.hudIcon(skill.icon());
             if (path.isBlank()) {
                 continue; // a skill drawn with a word rather than a picture

@@ -47,10 +47,10 @@ class DoingTest {
     private static Fight fight(float apart) {
         var arena = Dungeon.world(arena(), SETTINGS);
         var game = arena.game();
-        game.spawn("Hero", arena.hero(), 150f, 150f);
+        game.spawn("Rogue", arena.hero(), 150f, 150f);
         game.spawn("Skeleton", arena.dungeon(), 150f + apart, 150f);
         game.runHeadless(1);
-        return new Fight(game, creature(game, "Hero"), creature(game, "Skeleton"),
+        return new Fight(game, creature(game, "Rogue"), creature(game, "Skeleton"),
                 arena.orders());
     }
 

@@ -73,12 +73,12 @@ class WedgedTest {
     private static Watch wedge(int frames, int watched) {
         var arena = Dungeon.world(corridor(), DEAF);
         var game = arena.game();
-        game.spawn("Hero", arena.hero(), 25f, 15f);
+        game.spawn("Rogue", arena.hero(), 25f, 15f);
         game.spawn("Skeleton", arena.dungeon(), 70f, 15f);  // in the way
         game.spawn("Skeleton", arena.dungeon(), 200f, 15f); // what he was sent at
         game.runHeadless(1);
 
-        var hero = creature(game, "Hero", 0);
+        var hero = creature(game, "Rogue", 0);
         var quarry = creature(game, "Skeleton", 1);
         game.postCommand(new GameMessage.AttackObject(
                 game.getLocalPlayerIndex(), List.of(hero.getId()), quarry.getId()));
@@ -128,11 +128,11 @@ class WedgedTest {
     void theWayPastIsGenuinelyShut() {
         var arena = Dungeon.world(corridor(), DEAF);
         var game = arena.game();
-        game.spawn("Hero", arena.hero(), 25f, 15f);
+        game.spawn("Rogue", arena.hero(), 25f, 15f);
         game.spawn("Skeleton", arena.dungeon(), 70f, 15f);
         game.spawn("Skeleton", arena.dungeon(), 200f, 15f);
         game.runHeadless(1);
-        var hero = creature(game, "Hero", 0);
+        var hero = creature(game, "Rogue", 0);
         var quarry = creature(game, "Skeleton", 1);
         game.postCommand(new GameMessage.AttackObject(
                 game.getLocalPlayerIndex(), List.of(hero.getId()), quarry.getId()));
@@ -160,10 +160,10 @@ class WedgedTest {
     private static Queue sentDownACorridorWithABodyInIt() {
         var arena = Dungeon.world(corridor(), DEAF);
         var game = arena.game();
-        game.spawn("Hero", arena.hero(), 25f, 15f);
+        game.spawn("Rogue", arena.hero(), 25f, 15f);
         game.spawn("Skeleton", arena.dungeon(), 70f, 15f);
         game.runHeadless(1);
-        var hero = creature(game, "Hero", 0);
+        var hero = creature(game, "Rogue", 0);
         game.postCommand(new GameMessage.MoveTo(game.getLocalPlayerIndex(),
                 List.of(hero.getId()), new Coord3D(250f, 15f, 0f)));
         return new Queue(game, hero, creature(game, "Skeleton", 0), hero);
@@ -240,12 +240,12 @@ class WedgedTest {
     private static Queue aQueueInACorridor() {
         var arena = Dungeon.world(corridor(120), A_QUEUE);
         var game = arena.game();
-        game.spawn("Hero", arena.hero(), 500f, 15f);
+        game.spawn("Rogue", arena.hero(), 500f, 15f);
         game.spawn("Skeleton", arena.dungeon(), 400f, 15f); // deaf; simply in the way
         game.spawn("Brute", arena.dungeon(), 350f, 15f);    // and this one wants past
         game.runHeadless(1);
 
-        var hero = creature(game, "Hero", 0);
+        var hero = creature(game, "Rogue", 0);
         game.postCommand(new GameMessage.MoveTo(game.getLocalPlayerIndex(),
                 List.of(hero.getId()), new Coord3D(1150f, 15f, 0f)));
         return new Queue(game, hero, creature(game, "Skeleton", 0), creature(game, "Brute", 0));

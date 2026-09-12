@@ -91,7 +91,7 @@ public record HeroLook(
     }
 
     /** No art: he is drawn as a shape, as he was before there was a model. */
-    public static final HeroLook NONE = new HeroLook("Hero", "", 0f, 0, null, null, 1f, 0f,
+    public static final HeroLook NONE = new HeroLook("Rogue", "", 0f, 0, null, null, 1f, 0f,
             List.of(), null, null, null, null, null, Held.NOTHING);
 
     public boolean hasModel() {

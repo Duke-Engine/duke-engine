@@ -66,7 +66,7 @@ class DungeonPortraitTest {
         var portraits = SETTINGS.portraits();
 
         assertFalse(portraits.isEmpty(), "dungeon.ini describes no portrait at all");
-        assertNotNull(portraits.stream().filter(art -> art.name().equals("Hero"))
+        assertNotNull(portraits.stream().filter(art -> art.name().equals("Rogue"))
                 .findFirst().orElse(null), "the hero was left without one");
     }
 
@@ -242,10 +242,10 @@ class DungeonPortraitTest {
     @Test
     void reboundInTheFileIsReboundInTheGame() {
         var rebound = DungeonSettings.parse("""
-                DungeonHero Hero
+                DungeonHero Rogue
                   Model = models/heroes/ranger.glb
                 End
-                DungeonPortrait Hero
+                DungeonPortrait Rogue
                   Calm = Idle_A
                   Fight = Melee_Unarmed_Idle
                   Dead = Death_B
@@ -283,14 +283,14 @@ class DungeonPortraitTest {
     @Test
     void aSecondHeroIsASecondBlock() {
         var two = DungeonSettings.parse("""
-                DungeonHero Hero
+                DungeonHero Rogue
                   Model = models/heroes/ranger.glb
                 End
                 DungeonHero Mage
                   Model = models/heroes/mage.glb
                   Idle = Idle_A
                 End
-                DungeonPortrait Hero
+                DungeonPortrait Rogue
                   Calm = Ranged_Bow_Idle
                 End
                 DungeonPortrait Mage

@@ -54,10 +54,10 @@ class HoldGroundTest {
     private static Standoff standoff() {
         var arena = Dungeon.world(ARENA, SETTINGS);
         var game = arena.game();
-        game.spawn("Hero", arena.hero(), 150f, 150f);
+        game.spawn("Rogue", arena.hero(), 150f, 150f);
         game.spawn("Skeleton", arena.dungeon(), 190f, 150f);
         game.runHeadless(1);
-        return new Standoff(game, creature(game, "Hero"), creature(game, "Skeleton"),
+        return new Standoff(game, creature(game, "Rogue"), creature(game, "Skeleton"),
                 arena.orders());
     }
 

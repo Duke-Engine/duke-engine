@@ -46,10 +46,10 @@ class MonsterKindsTest {
     private static Fight fight(String kind, float gap) {
         var arena = Dungeon.world(ARENA, SETTINGS);
         var game = arena.game();
-        game.spawn("Hero", arena.hero(), 150f, 200f);
+        game.spawn("Rogue", arena.hero(), 150f, 200f);
         game.spawn(kind, arena.dungeon(), 150f + gap, 200f);
         game.runHeadless(1);
-        return new Fight(game, creature(game, "Hero"), creature(game, kind));
+        return new Fight(game, creature(game, "Rogue"), creature(game, kind));
     }
 
     private static GameObject creature(DukeGame game, String template) {
@@ -113,10 +113,10 @@ class MonsterKindsTest {
                 """);
         var arena = Dungeon.world(ARENA, skirmisher);
         var game = arena.game();
-        game.spawn("Hero", arena.hero(), 150f, 200f);
+        game.spawn("Rogue", arena.hero(), 150f, 200f);
         game.spawn("Stalker", arena.dungeon(), 270f, 200f);
         game.runHeadless(1);
-        var fight = new Fight(game, creature(game, "Hero"), creature(game, "Stalker"));
+        var fight = new Fight(game, creature(game, "Rogue"), creature(game, "Stalker"));
 
         game.runHeadless(400);
 
@@ -329,7 +329,7 @@ class MonsterKindsTest {
                 """);
         var arena = Dungeon.world(ARENA, blind);
         var game = arena.game();
-        game.spawn("Hero", arena.hero(), 150f, 200f);
+        game.spawn("Rogue", arena.hero(), 150f, 200f);
         // Beyond the hero's bow as well as its own sight. Being shot at rouses a
         // monster whatever its sense radius, which is right — but it is a second
         // way to wake one, and this test is about the first.
@@ -367,11 +367,11 @@ class MonsterKindsTest {
                 """);
         var arena = Dungeon.world(ARENA, blind);
         var game = arena.game();
-        game.spawn("Hero", arena.hero(), 150f, 200f);
+        game.spawn("Rogue", arena.hero(), 150f, 200f);
         game.spawn("Skeleton", arena.dungeon(), 200f, 200f); // inside his bow, outside its ears
         game.runHeadless(1);
         var monster = creature(game, "Skeleton");
-        var hero = creature(game, "Hero");
+        var hero = creature(game, "Rogue");
         float gapBefore = monster.getPosition().distance(hero.getPosition());
 
         game.runHeadless(200);
@@ -392,7 +392,7 @@ class MonsterKindsTest {
                 """);
         var arena = Dungeon.world(ARENA, blind);
         var game = arena.game();
-        game.spawn("Hero", arena.hero(), 150f, 200f);
+        game.spawn("Rogue", arena.hero(), 150f, 200f);
         game.spawn("Revenant", arena.dungeon(), 320f, 200f); // beyond bow and ears alike
         game.runHeadless(1);
         var monster = creature(game, "Revenant");

@@ -74,7 +74,7 @@ public final class HeroProgress {
     }
 
     public HeroProgress(GamePlayer heroPlayer, Levelling rules, int bannerFrames, LootBag loot) {
-        this(heroPlayer, rules, bannerFrames, loot, "Hero", 0);
+        this(heroPlayer, rules, bannerFrames, loot, "Rogue", 0);
     }
 
     /**

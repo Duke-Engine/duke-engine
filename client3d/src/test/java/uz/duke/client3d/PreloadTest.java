@@ -42,7 +42,7 @@ class PreloadTest {
      */
     @Test
     void whatACreatureCarriesIsReadWithIt() {
-        var visuals = Visuals.create().unit("Hero", u -> u
+        var visuals = Visuals.create().unit("Rogue", u -> u
                 .model("Models/ranger.glb")
                 .holds("Models/bow.gltf", "handslot.l", 1f));
 

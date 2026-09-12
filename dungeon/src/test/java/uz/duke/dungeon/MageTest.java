@@ -33,7 +33,7 @@ class MageTest {
 
     private static final DungeonSettings SETTINGS = DungeonSettings.load();
 
-    private static final String ARCHER = "Hero";
+    private static final String ARCHER = "Rogue";
     private static final String KNIGHT = "Knight";
     private static final String MAGE = "Mage";
 

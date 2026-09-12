@@ -37,7 +37,7 @@ class HeroStatusTest {
         var game = session.game();
         game.runHeadless(1);
         var hero = game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Hero"))
+                .filter(o -> o.getTemplate().getName().equals("Rogue"))
                 .findFirst().orElseThrow();
         session.orders().watch(hero.getPlayerIndex(), hero.getId());
         game.runHeadless(1);
@@ -47,7 +47,7 @@ class HeroStatusTest {
     /** Pick the hero out, the way a player does before reading anything about him. */
     private static void pickOutTheHero(Dungeon.Session session) {
         var hero = session.game().getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Hero"))
+                .filter(o -> o.getTemplate().getName().equals("Rogue"))
                 .findFirst().orElseThrow();
         session.orders().watch(hero.getPlayerIndex(), hero.getId());
     }
@@ -188,7 +188,7 @@ class HeroStatusTest {
     void theArcherStillHasAllFourOfHisPictures() {
         var settings = DungeonSettings.load();
 
-        for (var skill : settings.skillsFor("Hero")) {
+        for (var skill : settings.skillsFor("Rogue")) {
             assertFalse(settings.hudIcon(skill.icon()).isBlank(),
                     "the archer's " + skill.key() + " lost the Icon it had");
         }
@@ -320,7 +320,7 @@ class HeroStatusTest {
         game.runHeadless(1);
         pickOutTheHero(session);
         var hero = game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Hero"))
+                .filter(object -> object.getTemplate().getName().equals("Rogue"))
                 .findFirst().orElseThrow();
         hero.findModule(uz.duke.rts.module.ExperienceModule.class)
                 .addExperience(DungeonSettings.load().levelling().totalXpFor(2));

@@ -49,10 +49,10 @@ class ArrowTest {
     private static Duel shootAt(float gap) {
         var world = Dungeon.world(arena(), SETTINGS);
         var game = world.game();
-        game.spawn("Hero", world.hero(), 150f, 150f);
+        game.spawn("Rogue", world.hero(), 150f, 150f);
         game.spawn("Skeleton", world.dungeon(), 150f + gap, 150f);
         game.runHeadless(1);
-        var hero = creature(game, "Hero");
+        var hero = creature(game, "Rogue");
         var victim = creature(game, "Skeleton");
         game.postCommand(new GameMessage.AttackObject(game.getLocalPlayerIndex(),
                 List.of(hero.getId()), victim.getId()));
@@ -275,12 +275,12 @@ class ArrowTest {
     void heDoesNotShootWhileWalking() {
         var world = Dungeon.world(arena(), SETTINGS);
         var game = world.game();
-        game.spawn("Hero", world.hero(), 150f, 150f);
+        game.spawn("Rogue", world.hero(), 150f, 150f);
         // Beyond his bow to begin with, and beyond it again when he arrives, so
         // the only stretch in which he could hit it is the walk past it.
         game.spawn("Skeleton", world.dungeon(), 300f, 150f);
         game.runHeadless(1);
-        var hero = creature(game, "Hero");
+        var hero = creature(game, "Rogue");
         var victim = creature(game, "Skeleton");
         var destination = new Coord3D(450f, 150f, 0f);
 
@@ -300,10 +300,10 @@ class ArrowTest {
     void heShootsAgainOnceHeIsStanding() {
         var world = Dungeon.world(arena(), SETTINGS);
         var game = world.game();
-        game.spawn("Hero", world.hero(), 150f, 150f);
+        game.spawn("Rogue", world.hero(), 150f, 150f);
         game.spawn("Skeleton", world.dungeon(), 300f, 150f);
         game.runHeadless(1);
-        var hero = creature(game, "Hero");
+        var hero = creature(game, "Rogue");
         var victim = creature(game, "Skeleton");
 
         // Sent to a spot the skeleton is standing within bow-shot of, and then
@@ -328,10 +328,10 @@ class ArrowTest {
     void aMoveOrderStillCancelsAnAttackOrder() {
         var world = Dungeon.world(arena(), SETTINGS);
         var game = world.game();
-        game.spawn("Hero", world.hero(), 150f, 150f);
+        game.spawn("Rogue", world.hero(), 150f, 150f);
         game.spawn("Skeleton", world.dungeon(), 320f, 150f); // beyond his bow: an order
         game.runHeadless(1);
-        var hero = creature(game, "Hero");
+        var hero = creature(game, "Rogue");
         var victim = creature(game, "Skeleton");
 
         game.postCommand(new GameMessage.AttackObject(game.getLocalPlayerIndex(),

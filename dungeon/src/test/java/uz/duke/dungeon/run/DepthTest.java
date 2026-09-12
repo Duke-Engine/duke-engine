@@ -47,7 +47,7 @@ class DepthTest {
     }
 
     private static GameObject hero(DukeGame game) {
-        return find(game, "Hero");
+        return find(game, "Rogue");
     }
 
     /**

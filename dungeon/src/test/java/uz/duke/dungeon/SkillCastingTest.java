@@ -56,12 +56,12 @@ class SkillCastingTest {
     private static Arena arena(DungeonSettings settings, String creaturesIni, float... skeletonXy) {
         var world = Dungeon.world(arena(), settings, creaturesIni);
         var game = world.game();
-        game.spawn("Hero", world.hero(), 150f, 150f);
+        game.spawn("Rogue", world.hero(), 150f, 150f);
         for (int i = 0; i + 1 < skeletonXy.length; i += 2) {
             game.spawn("Skeleton", world.dungeon(), skeletonXy[i], skeletonXy[i + 1]);
         }
         game.runHeadless(1);
-        var hero = creature(game, "Hero");
+        var hero = creature(game, "Rogue");
         return new Arena(game, hero, hero.findModule(SkillBook.class));
     }
 
@@ -89,7 +89,7 @@ class SkillCastingTest {
         var edited = new StringBuilder();
         for (var line : lines) {
             if (line.startsWith("Object ")) {
-                inHero = line.trim().equals("Object Hero");
+                inHero = line.trim().equals("Object Rogue");
             }
             edited.append(inHero && line.trim().startsWith("AttackRange")
                     ? "    AttackRange = 0" : line).append('\n');
@@ -110,11 +110,11 @@ class SkillCastingTest {
     private static Arena bossArena(String creaturesIni, float distance) {
         var world = Dungeon.world(arena(), SETTINGS, creaturesIni);
         var game = world.game();
-        game.spawn("Hero", world.hero(), 150f, 150f);
+        game.spawn("Rogue", world.hero(), 150f, 150f);
         game.spawn(SETTINGS.bossKindAt(SETTINGS.finalDepth()), world.dungeon(),
                 150f + distance, 150f);
         game.runHeadless(1);
-        var hero = creature(game, "Hero");
+        var hero = creature(game, "Rogue");
         return new Arena(game, hero, hero.findModule(SkillBook.class));
     }
 
@@ -132,7 +132,7 @@ class SkillCastingTest {
 
     /** The skill's own wind-up, plus flight enough to cross its whole range. */
     private static int untilItLands(char key) {
-        var skill = SETTINGS.skillsFor("Hero").stream()
+        var skill = SETTINGS.skillsFor("Rogue").stream()
                 .filter(s -> s.key() == key).findFirst().orElseThrow();
         return skill.windUpFrames() + 60;
     }
@@ -156,7 +156,7 @@ class SkillCastingTest {
         var arena = arena(SETTINGS);
 
         assertNotNull(arena.book(), "his creature block asks for a SkillBook");
-        assertEquals(SETTINGS.skillsFor("Hero"), arena.book().getSkills());
+        assertEquals(SETTINGS.skillsFor("Rogue"), arena.book().getSkills());
     }
 
     // ---- what each key does ----
@@ -194,7 +194,7 @@ class SkillCastingTest {
 
     /** The skill the file describes, by key. */
     private static uz.duke.dungeon.skill.Skill skillNamed(char key) {
-        return SETTINGS.skillsFor("Hero").stream()
+        return SETTINGS.skillsFor("Rogue").stream()
                 .filter(skill -> skill.key() == key).findFirst().orElseThrow();
     }
 
@@ -325,7 +325,7 @@ class SkillCastingTest {
         for (var line : Content.read(Content.CREATURES).split("\n")) {
             var trimmed = line.trim();
             if (trimmed.startsWith("Object ")) {
-                inHero = trimmed.equals("Object Hero");
+                inHero = trimmed.equals("Object Rogue");
             } else if (inHero && trimmed.startsWith("ReloadFrames")) {
                 return Integer.parseInt(trimmed.substring(trimmed.indexOf('=') + 1).trim());
             }
@@ -423,7 +423,7 @@ class SkillCastingTest {
      */
     @Test
     void aStrikeAimedOutOfRangeIsRefusedAndCostsNothing() {
-        var q = SETTINGS.skillsFor("Hero").stream()
+        var q = SETTINGS.skillsFor("Rogue").stream()
                 .filter(skill -> skill.key() == 'Q').findFirst().orElseThrow();
         var arena = arena(SETTINGS, 150f + q.range() + 60f, 150f);
         var far = skeletonBeyond(arena.game(), 0f);
@@ -544,9 +544,9 @@ class SkillCastingTest {
         var world = Dungeon.world(arena(), SETTINGS);
         var game = world.game();
         // Facing the eastern wall from two cells away, with a 90-unit dash.
-        game.spawn("Hero", world.hero(), 370f, 150f);
+        game.spawn("Rogue", world.hero(), 370f, 150f);
         game.runHeadless(1);
-        var hero = creature(game, "Hero");
+        var hero = creature(game, "Rogue");
 
         var from = hero.getPosition();
         hero.findModule(SkillBook.class).cast('E', 1);
@@ -586,9 +586,9 @@ class SkillCastingTest {
     void theDashCarriesHimOverAWall() {
         var world = Dungeon.world(walledArena(), SETTINGS);
         var game = world.game();
-        game.spawn("Hero", world.hero(), 155f, 155f);
+        game.spawn("Rogue", world.hero(), 155f, 155f);
         game.runHeadless(1);
-        var hero = creature(game, "Hero");
+        var hero = creature(game, "Rogue");
 
         // The wall stands at cell 20, which is 200 to 210. He is west of it and
         // pointed at open floor four cells east of it.
@@ -635,7 +635,7 @@ class SkillCastingTest {
     @Test
     void theUltimateWearsOff() {
         var arena = arena(SETTINGS);
-        var r = SETTINGS.skillsFor("Hero").stream()
+        var r = SETTINGS.skillsFor("Rogue").stream()
                 .filter(skill -> skill.key() == 'R').findFirst().orElseThrow();
         arena.book().cast('R', 5);
 
@@ -651,7 +651,7 @@ class SkillCastingTest {
     @Test
     void aSkillRefusesUntilItsCooldownHasRun() {
         var arena = arena(SETTINGS, 170f, 150f);
-        var q = SETTINGS.skillsFor("Hero").stream()
+        var q = SETTINGS.skillsFor("Rogue").stream()
                 .filter(skill -> skill.key() == 'Q').findFirst().orElseThrow();
 
         assertTrue(arena.book().cast('Q', 1), "the first cast");
@@ -668,7 +668,7 @@ class SkillCastingTest {
     @Test
     void theCooldownIsCountedInFrames() {
         var arena = arena(SETTINGS);
-        var q = SETTINGS.skillsFor("Hero").stream()
+        var q = SETTINGS.skillsFor("Rogue").stream()
                 .filter(skill -> skill.key() == 'Q').findFirst().orElseThrow();
 
         arena.book().cast('Q', 1);
@@ -684,7 +684,7 @@ class SkillCastingTest {
     @Test
     void theUltimateWaitsForItsLevel() {
         var arena = arena(SETTINGS);
-        var r = SETTINGS.skillsFor("Hero").stream()
+        var r = SETTINGS.skillsFor("Rogue").stream()
                 .filter(skill -> skill.key() == 'R').findFirst().orElseThrow();
 
         assertFalse(arena.book().cast('R', r.unlockLevel() - 1), "one level short");
@@ -717,7 +717,7 @@ class SkillCastingTest {
     @Test
     void changingTheFileChangesTheSkill() {
         var fierce = DungeonSettings.parse("""
-                DungeonSkill Hero Q
+                DungeonSkill Rogue Q
                   Effect = AREA_DAMAGE
                   Damage = 500
                   Radius = 200
@@ -742,13 +742,18 @@ class SkillCastingTest {
      */
     @Test
     void aSecondHeroDescribedOnlyInDataWorks() {
+        // ★ A hero this game has never heard of, and the name has to stay that
+        // way. He used to be called Rogue, which was fine while the archer was
+        // called Hero and stopped being fine the moment the archer BECAME the
+        // rogue: the test then handed its two invented skills to a hero who
+        // already had four, and asked why he had six.
         var withTwo = DungeonSettings.parse("""
-                DungeonSkill Rogue A
+                DungeonSkill Sellsword A
                   Effect = DASH
                   Distance = 120
                   CooldownFrames = 60
                 End
-                DungeonSkill Rogue S
+                DungeonSkill Sellsword S
                   Effect = STRIKE
                   Damage = 500
                   Range = 60
@@ -756,20 +761,19 @@ class SkillCastingTest {
                 End
                 """);
         var creatures = Content.read(Content.CREATURES)
-                .replace("Object Hero", "Object Rogue")
-                .replace("DisplayName = Hero", "DisplayName = Rogue");
+                .replace("Object Rogue", "Object Sellsword");
 
         var world = Dungeon.world(arena(), withTwo, creatures);
         var game = world.game();
-        game.spawn("Rogue", world.hero(), 150f, 150f);
+        game.spawn("Sellsword", world.hero(), 150f, 150f);
         game.spawn("Skeleton", world.dungeon(), 180f, 150f);
         game.runHeadless(1);
-        var rogue = creature(game, "Rogue");
-        var book = rogue.findModule(SkillBook.class);
+        var sellsword = creature(game, "Sellsword");
+        var book = sellsword.findModule(SkillBook.class);
 
         assertNotNull(book, "he asked for a SkillBook in the same way");
         assertEquals(2, book.getSkills().size(), "and got the two the file gave him");
-        assertTrue(book.cast('S', 1), "on his own key, which the hero does not have");
+        assertTrue(book.cast('S', 1), "on his own key, which no shipped hero has");
         assertEquals(0, livingSkeletons(game));
         assertFalse(book.cast('Q', 1), "and not on a key that is not his");
     }
@@ -789,7 +793,7 @@ class SkillCastingTest {
         var session = Dungeon.newSession(11L, SETTINGS);
         var game = session.game();
         game.runHeadless(2);
-        var hero = creature(game, "Hero");
+        var hero = creature(game, "Rogue");
         var from = hero.getPosition();
 
         game.postCommand(new CastSkill(game.getLocalPlayerIndex(), 'E'));
@@ -815,7 +819,7 @@ class SkillCastingTest {
         var session = Dungeon.newSession(11L, SETTINGS);
         var game = session.game();
         game.runHeadless(2);
-        var hero = creature(game, "Hero");
+        var hero = creature(game, "Rogue");
         var skeletons = game.getLogic().getObjects().stream()
                 .filter(object -> object.getTemplate().getName().equals("Skeleton"))
                 .filter(object -> !object.isEffectivelyDead())
@@ -849,15 +853,15 @@ class SkillCastingTest {
         var session = Dungeon.newSession(11L, SETTINGS);
         var game = session.game();
         game.runHeadless(2);
-        var book = creature(game, "Hero").findModule(SkillBook.class);
+        var book = creature(game, "Rogue").findModule(SkillBook.class);
         book.cast('Q', 1);
         assertTrue(book.cooldownOf('Q') > 0);
 
         // Kill him, and wait out the pause before the next dungeon.
-        creature(game, "Hero").getBody().damage(100000f);
+        creature(game, "Rogue").getBody().damage(100000f);
         game.runHeadless(SETTINGS.respawnDelayFrames() + 10);
 
-        var next = creature(game, "Hero").findModule(SkillBook.class);
+        var next = creature(game, "Rogue").findModule(SkillBook.class);
         assertNotEquals(book, next, "a new run means a new hero");
         assertEquals(0, next.cooldownOf('Q'), "and nothing left over from the last one");
     }
@@ -882,7 +886,7 @@ class SkillCastingTest {
      * making is false.
      */
     private static DungeonSettings heroWhose(String q) {
-        return DungeonSettings.parse("DungeonSkill Hero Q\n" + q + "\nEnd\n");
+        return DungeonSettings.parse("DungeonSkill Rogue Q\n" + q + "\nEnd\n");
     }
 
     /**

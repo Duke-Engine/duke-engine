@@ -242,7 +242,7 @@ class TerrainSceneTest {
 
     private static uz.duke.game.view.UnitView unit(float x, float y) {
         return new uz.duke.game.view.UnitView(
-                1, "Hero", 0, x, y, 0f, 10f, 10f, false, true, false, false, -1);
+                1, "Rogue", 0, x, y, 0f, 10f, 10f, false, true, false, false, -1);
     }
 
     // ---- built from a modular kit ----

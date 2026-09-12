@@ -25,7 +25,7 @@ class DungeonRunTest {
 
     private static GameObject heroOf(DukeGame game) {
         return game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Hero"))
+                .filter(o -> o.getTemplate().getName().equals("Rogue"))
                 .findFirst()
                 .orElse(null);
     }

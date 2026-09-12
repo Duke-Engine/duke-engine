@@ -70,7 +70,7 @@ public final class Dungeon {
         var dungeon = game.addPlayer("Dungeon", SKELETON_COLOUR);
         game.enemies(hero, dungeon).localPlayer(hero);
 
-        game.spawn("Hero", hero, 200f, 180f);
+        game.spawn("Rogue", hero, 200f, 180f);
 
         // Placed by hand and far enough apart that they are fought one at a time.
         // A crowd would be a balance problem, and balance is not what this room

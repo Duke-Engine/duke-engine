@@ -59,9 +59,9 @@ class HeroPortraitTest {
 
     private static Visuals twoHeroes() {
         return Visuals.create()
-                .unit("Hero", unit -> unit.model("heroes/ranger.glb"))
+                .unit("Rogue", unit -> unit.model("heroes/ranger.glb"))
                 .unit("Mage", unit -> unit.model("heroes/mage.glb"))
-                .portrait("Hero", LOOK)
+                .portrait("Rogue", LOOK)
                 .portrait("Mage", LOOK);
     }
 
@@ -76,7 +76,7 @@ class HeroPortraitTest {
     void withNothingToDrawWithNothingIsDrawnAndNothingThrows() {
         var portrait = HeroPortrait.none();
 
-        portrait.show(creature(1, "Hero", 1f), "7-daraja");
+        portrait.show(creature(1, "Rogue", 1f), "7-daraja");
         portrait.update(1f / 60f, true);
         portrait.died(1);
         assertNull(portrait.texture(), "there is nothing to draw with");
@@ -183,9 +183,9 @@ class HeroPortraitTest {
     void theCreatureTheCardIsAboutStandsInTheFrame() {
         var portrait = HeroPortrait.open(null, twoHeroes(), always("Idle_A"));
 
-        portrait.show(creature(1, "Hero", 1f), "7-daraja");
+        portrait.show(creature(1, "Rogue", 1f), "7-daraja");
 
-        assertEquals("Hero", portrait.standing());
+        assertEquals("Rogue", portrait.standing());
         assertEquals(1, portrait.scene().getQuantity());
         assertNull(portrait.texture(), "nothing has been drawn into it yet");
     }
@@ -201,7 +201,7 @@ class HeroPortraitTest {
     void swappingTheCreatureDoesNotLeaveTheLastOneStanding() {
         var portrait = HeroPortrait.open(null, twoHeroes(), always("Idle_A"));
 
-        portrait.show(creature(1, "Hero", 1f), "7-daraja");
+        portrait.show(creature(1, "Rogue", 1f), "7-daraja");
         var first = portrait.scene().getChild(0);
         portrait.show(creature(2, "Mage", 1f), "3-daraja");
 
@@ -215,9 +215,9 @@ class HeroPortraitTest {
     void theSameCreatureIsNotBuiltTwice() {
         var portrait = HeroPortrait.open(null, twoHeroes(), always("Idle_A"));
 
-        portrait.show(creature(1, "Hero", 1f), "7-daraja");
+        portrait.show(creature(1, "Rogue", 1f), "7-daraja");
         var built = portrait.scene().getChild(0);
-        portrait.show(creature(1, "Hero", 0.5f), "7-daraja");
+        portrait.show(creature(1, "Rogue", 0.5f), "7-daraja");
 
         assertSame(built, portrait.scene().getChild(0));
     }
@@ -226,7 +226,7 @@ class HeroPortraitTest {
     @Test
     void selectingNothingEmptiesTheFrame() {
         var portrait = HeroPortrait.open(null, twoHeroes(), always("Idle_A"));
-        portrait.show(creature(1, "Hero", 1f), "7-daraja");
+        portrait.show(creature(1, "Rogue", 1f), "7-daraja");
 
         portrait.show(null, "");
 
@@ -238,12 +238,12 @@ class HeroPortraitTest {
     @Test
     void aDeathKeepsTheFrameAlthoughTheCardHasEmptied() {
         var portrait = HeroPortrait.open(null, twoHeroes(), always("Idle_A", "Death_A"));
-        portrait.show(creature(1, "Hero", 0.1f), "7-daraja");
+        portrait.show(creature(1, "Rogue", 0.1f), "7-daraja");
 
         portrait.died(1);
         portrait.show(null, "");
 
-        assertEquals("Hero", portrait.standing(), "he was taken out of his own death");
+        assertEquals("Rogue", portrait.standing(), "he was taken out of his own death");
         assertEquals(1, portrait.scene().getQuantity());
     }
 
@@ -258,7 +258,7 @@ class HeroPortraitTest {
     @Test
     void aFallenHeroDoesNotKeepTheFrameAgainstTheNextCreature() {
         var portrait = HeroPortrait.open(null, twoHeroes(), always("Idle_A", "Death_A"));
-        portrait.show(creature(1, "Hero", 0.1f), "7-daraja");
+        portrait.show(creature(1, "Rogue", 0.1f), "7-daraja");
         portrait.died(1);
         portrait.show(null, "");
 
@@ -272,12 +272,12 @@ class HeroPortraitTest {
     @Test
     void aNewRunsHeroTakesTheFrameBack() {
         var portrait = HeroPortrait.open(null, twoHeroes(), always("Idle_A", "Death_A"));
-        portrait.show(creature(1, "Hero", 0.1f), "7-daraja");
+        portrait.show(creature(1, "Rogue", 0.1f), "7-daraja");
         portrait.died(1);
         portrait.show(null, "");
 
         // Same template, new object: what starting a run again looks like.
-        portrait.show(creature(52, "Hero", 1f), "1-daraja");
+        portrait.show(creature(52, "Rogue", 1f), "1-daraja");
         portrait.show(null, "");
 
         assertNull(portrait.standing(), "the new hero was never let go of");
@@ -287,7 +287,7 @@ class HeroPortraitTest {
     @Test
     void anotherCreatureDyingIsNotHisDeath() {
         var portrait = HeroPortrait.open(null, twoHeroes(), always("Idle_A", "Death_A"));
-        portrait.show(creature(1, "Hero", 1f), "7-daraja");
+        portrait.show(creature(1, "Rogue", 1f), "7-daraja");
 
         portrait.died(99);
         portrait.show(null, "");
@@ -307,7 +307,7 @@ class HeroPortraitTest {
     void anUndrawnCreatureHandsOutNoPicture() {
         var portrait = HeroPortrait.open(null, twoHeroes(), always("Idle_A"));
 
-        portrait.show(creature(1, "Hero", 1f), "7-daraja");
+        portrait.show(creature(1, "Rogue", 1f), "7-daraja");
         portrait.update(1f / 60f, false); // held still: nothing is drawn
         portrait.show(creature(2, "Mage", 1f), "1-daraja");
 
@@ -317,7 +317,7 @@ class HeroPortraitTest {
     @Test
     void closingEmptiesTheFrame() {
         var portrait = HeroPortrait.open(null, twoHeroes(), always("Idle_A"));
-        portrait.show(creature(1, "Hero", 1f), "7-daraja");
+        portrait.show(creature(1, "Rogue", 1f), "7-daraja");
 
         portrait.close();
 
@@ -364,7 +364,7 @@ class HeroPortraitTest {
         };
         var portrait = HeroPortrait.open(null, twoHeroes(), none);
 
-        portrait.show(creature(1, "Hero", 1f), "7-daraja");
+        portrait.show(creature(1, "Rogue", 1f), "7-daraja");
 
         assertNull(portrait.standing());
         assertEquals(0, portrait.scene().getQuantity());
@@ -380,7 +380,7 @@ class HeroPortraitTest {
             return bodyCarrying("Idle_A");
         });
 
-        portrait.show(creature(1, "Hero", 1f), "7-daraja");
+        portrait.show(creature(1, "Rogue", 1f), "7-daraja");
 
         assertNotNull(portrait.standing());
         // Cheer is in no unit's five, so nothing else would ever fetch it.

@@ -236,7 +236,7 @@ class PowerTest {
 
     private static GameObject heroOf(DukeGame game) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Hero"))
+                .filter(object -> object.getTemplate().getName().equals("Rogue"))
                 .findFirst().orElse(null);
     }
 

@@ -25,7 +25,7 @@ class DiscoveryTest {
 
     /** One unit of {@code player} standing at a point, which is all discovery reads. */
     private static UnitView at(int player, float x, float y) {
-        return new UnitView(1, "Hero", player, x, y, 0f, 10f, 10f, false, true, false, false, -1);
+        return new UnitView(1, "Rogue", player, x, y, 0f, 10f, 10f, false, true, false, false, -1);
     }
 
     private static Discovery discovery() {
@@ -47,7 +47,7 @@ class DiscoveryTest {
     void heOpensTheGroundWithinHisSight() {
         var seen = discovery();
 
-        seen.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 30f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 30f, "Rogue");
 
         assertEquals(Discovery.State.VISIBLE, seen.stateAt(20, 15), "the cell he stands in");
         assertEquals(Discovery.State.UNSEEN, seen.stateAt(30, 15), "a hundred units away");
@@ -59,10 +59,10 @@ class DiscoveryTest {
     @Test
     void groundHeHasLeftStaysOnTheMap() {
         var seen = discovery();
-        seen.reveal(List.of(at(LOCAL, 55f, 155f)), LOCAL, 30f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 55f, 155f)), LOCAL, 30f, "Rogue");
         int openedBehind = seen.exploredCells();
 
-        seen.reveal(List.of(at(LOCAL, 355f, 155f)), LOCAL, 30f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 355f, 155f)), LOCAL, 30f, "Rogue");
 
         assertEquals(Discovery.State.REMEMBERED, seen.stateAt(5, 15),
                 "where he came from should still be drawn");
@@ -80,8 +80,8 @@ class DiscoveryTest {
     @Test
     void rememberedIsNeitherBlackNorLit() {
         var seen = discovery();
-        seen.reveal(List.of(at(LOCAL, 55f, 155f)), LOCAL, 30f, "Hero");
-        seen.reveal(List.of(at(LOCAL, 355f, 155f)), LOCAL, 30f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 55f, 155f)), LOCAL, 30f, "Rogue");
+        seen.reveal(List.of(at(LOCAL, 355f, 155f)), LOCAL, 30f, "Rogue");
 
         assertEquals(0, seen.visibleCells() - countVisible(seen),
                 "visible is recomputed from scratch each time, never accumulated");
@@ -119,7 +119,7 @@ class DiscoveryTest {
     void anArrowOfHisOwnCarriesNoLight() {
         var seen = discovery();
 
-        seen.reveal(List.of(own("Arrow", 205f, 155f)), LOCAL, 30f, "Hero");
+        seen.reveal(List.of(own("Arrow", 205f, 155f)), LOCAL, 30f, "Rogue");
 
         assertEquals(0, seen.exploredCells(), "the shot lit the floor it crossed");
         assertEquals(Discovery.State.UNSEEN, seen.stateAt(20, 15));
@@ -130,7 +130,7 @@ class DiscoveryTest {
     void butTheHeroInTheSameSpotOpensIt() {
         var seen = discovery();
 
-        seen.reveal(List.of(own("Hero", 205f, 155f)), LOCAL, 30f, "Hero");
+        seen.reveal(List.of(own("Rogue", 205f, 155f)), LOCAL, 30f, "Rogue");
 
         assertEquals(Discovery.State.VISIBLE, seen.stateAt(20, 15));
     }
@@ -155,7 +155,7 @@ class DiscoveryTest {
     void aMonsterWanderingAboutOpensNothing() {
         var seen = discovery();
 
-        seen.reveal(List.of(at(ENEMY, 205f, 155f)), LOCAL, 30f, "Hero");
+        seen.reveal(List.of(at(ENEMY, 205f, 155f)), LOCAL, 30f, "Rogue");
 
         assertEquals(0, seen.exploredCells(), "an enemy's eyes are not the player's");
         assertEquals(Discovery.State.UNSEEN, seen.stateAt(20, 15));
@@ -171,8 +171,8 @@ class DiscoveryTest {
         var near = discovery();
         var far = discovery();
 
-        near.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 30f, "Hero");
-        far.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 90f, "Hero");
+        near.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 30f, "Rogue");
+        far.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 90f, "Rogue");
 
         assertTrue(far.exploredCells() > near.exploredCells(),
                 near.exploredCells() + " cells at 30, " + far.exploredCells() + " at 90");
@@ -183,7 +183,7 @@ class DiscoveryTest {
     void withoutARadiusNothingIsClaimedToBeSeen() {
         var seen = discovery();
 
-        seen.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 0f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 0f, "Rogue");
 
         assertEquals(0, seen.exploredCells());
     }
@@ -196,7 +196,7 @@ class DiscoveryTest {
     @Test
     void aNewFloorIsBlackAgain() {
         var seen = discovery();
-        seen.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 60f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 60f, "Rogue");
         assertTrue(seen.exploredCells() > 0);
 
         seen.reset(new PathGrid(40, 30));
@@ -211,7 +211,7 @@ class DiscoveryTest {
         var seen = discovery();
 
         seen.reset(new PathGrid(12, 8));
-        seen.reveal(List.of(at(LOCAL, 55f, 35f)), LOCAL, 1000f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 55f, 35f)), LOCAL, 1000f, "Rogue");
 
         assertEquals(12 * 8, seen.exploredCells(), "a sight that wide opens the whole small floor");
         assertEquals(Discovery.State.UNSEEN, seen.stateAt(20, 15), "off the map is off the map");
@@ -237,7 +237,7 @@ class DiscoveryTest {
     @Test
     void softeningOpensNothing() {
         var seen = discovery();
-        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f, "Rogue");
         int opened = seen.exploredCells();
         int inSight = seen.visibleCells();
 
@@ -251,7 +251,7 @@ class DiscoveryTest {
     @Test
     void sightIsFullAndTheUnwalkedStaysBlack() {
         var seen = discovery();
-        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f, "Rogue");
 
         settle(seen);
 
@@ -269,7 +269,7 @@ class DiscoveryTest {
     @Test
     void theEdgeOfSightIsASlope() {
         var seen = discovery();
-        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f, "Rogue");
 
         settle(seen);
 
@@ -293,7 +293,7 @@ class DiscoveryTest {
     @Test
     void theFogTakesAMomentToOpen() {
         var seen = discovery();
-        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f, "Rogue");
 
         seen.soften(1f / 30f);
         float afterOneFrame = seen.lightAt(20, 15);
@@ -308,7 +308,7 @@ class DiscoveryTest {
     @Test
     void aNewFloorIsDarkFromTheFirstFrame() {
         var seen = discovery();
-        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f, "Rogue");
         settle(seen);
 
         seen.reset(GRID);
@@ -346,7 +346,7 @@ class DiscoveryTest {
         var seen = seeing(walled(), true);
 
         // At cell (17, 10), well within reach of cells on both sides of the wall.
-        seen.reveal(List.of(at(LOCAL, 175f, 105f)), LOCAL, 80f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 175f, 105f)), LOCAL, 80f, "Rogue");
 
         assertEquals(Discovery.State.VISIBLE, seen.stateAt(19, 10), "his own side of the wall");
         assertEquals(Discovery.State.VISIBLE, seen.stateAt(20, 10),
@@ -362,7 +362,7 @@ class DiscoveryTest {
         var seen = seeing(walled(), true);
 
         // Standing in line with the gap at (20, 15).
-        seen.reveal(List.of(at(LOCAL, 175f, 155f)), LOCAL, 80f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 175f, 155f)), LOCAL, 80f, "Rogue");
 
         assertEquals(Discovery.State.VISIBLE, seen.stateAt(21, 15),
                 "straight through the gap");
@@ -375,7 +375,7 @@ class DiscoveryTest {
     void withoutLineOfSightTheWallIsIgnored() {
         var seen = seeing(walled(), false);
 
-        seen.reveal(List.of(at(LOCAL, 175f, 105f)), LOCAL, 80f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 175f, 105f)), LOCAL, 80f, "Rogue");
 
         assertEquals(Discovery.State.VISIBLE, seen.stateAt(24, 10),
                 "the old behaviour, which every other game still gets");
@@ -386,7 +386,7 @@ class DiscoveryTest {
     void theWallStopsSightFromEitherSide() {
         var seen = seeing(walled(), true);
 
-        seen.reveal(List.of(at(LOCAL, 235f, 105f)), LOCAL, 80f, "Hero"); // cell (23, 10)
+        seen.reveal(List.of(at(LOCAL, 235f, 105f)), LOCAL, 80f, "Rogue"); // cell (23, 10)
 
         assertEquals(Discovery.State.VISIBLE, seen.stateAt(21, 10));
         assertEquals(Discovery.State.UNSEEN, seen.stateAt(19, 10),
@@ -403,8 +403,8 @@ class DiscoveryTest {
         var soft = new Discovery(GRID, new Fog(false, 0f, 0.3f, 1f, 3, 7f, 256, 0x000000));
         var standing = List.of(at(LOCAL, 205f, 155f));
 
-        sharp.reveal(standing, LOCAL, 40f, "Hero");
-        soft.reveal(standing, LOCAL, 40f, "Hero");
+        sharp.reveal(standing, LOCAL, 40f, "Rogue");
+        soft.reveal(standing, LOCAL, 40f, "Rogue");
         // One long step, so both have arrived at their targets.
         sharp.soften(10f);
         soft.soften(10f);
@@ -419,7 +419,7 @@ class DiscoveryTest {
     @Test
     void sighteningOpensNothingByItself() {
         var seen = seeing(walled(), true);
-        seen.reveal(List.of(at(LOCAL, 175f, 105f)), LOCAL, 80f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 175f, 105f)), LOCAL, 80f, "Rogue");
         int opened = seen.exploredCells();
 
         for (int i = 0; i < 20; i++) {
@@ -469,7 +469,7 @@ class DiscoveryTest {
     void aRoomAStoreyUpIsOutOfSightUntilItIsClimbedTo() {
         var seen = seeingTerraced();
 
-        seen.reveal(List.of(at(LOCAL, 155f, 155f)), LOCAL, 120f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 155f, 155f)), LOCAL, 120f, "Rogue");
 
         assertEquals(Discovery.State.VISIBLE, seen.stateAt(18, 15), "his own floor is open");
         assertEquals(Discovery.State.REMEMBERED, seen.stateAt(21, 15),
@@ -484,7 +484,7 @@ class DiscoveryTest {
     void climbingToItOpensIt() {
         var seen = seeingTerraced();
 
-        seen.reveal(List.of(at(LOCAL, 245f, 155f)), LOCAL, 120f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 245f, 155f)), LOCAL, 120f, "Rogue");
 
         assertEquals(Discovery.State.VISIBLE, seen.stateAt(24, 15), "he is standing on it");
         assertEquals(Discovery.State.VISIBLE, seen.stateAt(21, 15));
@@ -501,7 +501,7 @@ class DiscoveryTest {
     void fromUpstairsHeLooksDownOnWhatIsBelow() {
         var seen = seeingTerraced();
 
-        seen.reveal(List.of(at(LOCAL, 215f, 155f)), LOCAL, 120f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 215f, 155f)), LOCAL, 120f, "Rogue");
 
         assertEquals(Discovery.State.VISIBLE, seen.stateAt(18, 15),
                 "the lower floor is in plain view from above it");
@@ -520,7 +520,7 @@ class DiscoveryTest {
         }
         var seen = new Discovery(grid, new Fog(true, 0f, 0.3f, 1f, 0, 7f, 256, 0x000000));
 
-        seen.reveal(List.of(at(LOCAL, 155f, 155f)), LOCAL, 150f, "Hero");
+        seen.reveal(List.of(at(LOCAL, 155f, 155f)), LOCAL, 150f, "Rogue");
 
         assertFalse(seen.canSee(205f, 155f), "the ridge itself is above him");
         assertEquals(Discovery.State.UNSEEN, seen.stateAt(25, 15),
@@ -533,8 +533,8 @@ class DiscoveryTest {
         var flat = seeing(new PathGrid(40, 30), true);
         var same = seeing(new PathGrid(40, 30), true);
 
-        flat.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 60f, "Hero");
-        same.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 60f, "Hero");
+        flat.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 60f, "Rogue");
+        same.reveal(List.of(at(LOCAL, 205f, 155f)), LOCAL, 60f, "Rogue");
 
         assertEquals(same.exploredCells(), flat.exploredCells());
         assertEquals(Discovery.State.VISIBLE, flat.stateAt(24, 15),

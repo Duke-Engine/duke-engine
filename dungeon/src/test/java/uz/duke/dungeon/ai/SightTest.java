@@ -80,10 +80,10 @@ class SightTest {
 
     private static Arena arena(Dungeon.Arena world, int heroCell, int skeletonCell) {
         var game = world.game();
-        game.spawn("Hero", world.hero(), at(heroCell), at(15));
+        game.spawn("Rogue", world.hero(), at(heroCell), at(15));
         game.spawn("Skeleton", world.dungeon(), at(skeletonCell), at(15));
         game.runHeadless(1);
-        return new Arena(game, creature(game, "Hero"), creature(game, "Skeleton"));
+        return new Arena(game, creature(game, "Rogue"), creature(game, "Skeleton"));
     }
 
     /** The shipped hero, re-tuned: his bow drawn further than his eyes reach. */

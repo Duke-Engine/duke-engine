@@ -59,10 +59,10 @@ class DungeonCombatTest {
     private static Fight fight(float heroX, float heroY, float foeX, float foeY, String kind) {
         var world = Dungeon.world(ARENA, SETTINGS);
         var game = world.game();
-        game.spawn("Hero", world.hero(), heroX, heroY);
+        game.spawn("Rogue", world.hero(), heroX, heroY);
         game.spawn(kind, world.dungeon(), foeX, foeY);
         game.runHeadless(1);
-        return new Fight(game, creature(game, "Hero"), creature(game, kind));
+        return new Fight(game, creature(game, "Rogue"), creature(game, kind));
     }
 
     private static GameObject creature(DukeGame game, String template) {
@@ -197,9 +197,9 @@ class DungeonCombatTest {
     void reversingDirectionTurnsOnTheSpotInsteadOfDrivingACircle() {
         var world = Dungeon.world(ARENA, SETTINGS);
         var game = world.game();
-        game.spawn("Hero", world.hero(), 120f, 150f);
+        game.spawn("Rogue", world.hero(), 120f, 150f);
         game.runHeadless(1);
-        var hero = creature(game, "Hero");
+        var hero = creature(game, "Rogue");
         int player = game.getLocalPlayerIndex();
 
         // Get him walking east, so he has a heading to reverse.

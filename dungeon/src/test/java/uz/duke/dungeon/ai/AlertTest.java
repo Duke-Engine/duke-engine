@@ -88,12 +88,12 @@ class AlertTest {
     private static Answer farSkeleton(String map, DungeonSettings settings) {
         var arena = Dungeon.world(map, settings);
         var game = arena.game();
-        game.spawn("Hero", arena.hero(), 150f, 200f);
+        game.spawn("Rogue", arena.hero(), 150f, 200f);
         game.spawn("Skeleton", arena.dungeon(), 200f, 200f); // 50 away: it sees him
         game.spawn("Skeleton", arena.dungeon(), 290f, 200f); // 140 away: it cannot
         game.runHeadless(1);
 
-        var hero = creature(game, "Hero", 0);
+        var hero = creature(game, "Rogue", 0);
         var far = creature(game, "Skeleton", 1);
         var startedAt = far.getPosition();
         float gapBefore = startedAt.distance(hero.getPosition());

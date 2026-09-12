@@ -35,7 +35,7 @@ class StuckDiagnosisTest {
      */
     private static void hunt(DukeGame game) {
         var hero = game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Hero"))
+                .filter(o -> o.getTemplate().getName().equals("Rogue"))
                 .findFirst().orElse(null);
         if (hero == null) {
             return;

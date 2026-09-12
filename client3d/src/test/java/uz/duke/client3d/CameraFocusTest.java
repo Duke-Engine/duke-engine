@@ -21,7 +21,7 @@ class CameraFocusTest {
     private static final int DUNGEON_PLAYER = 2;
 
     private static UnitView unit(int id, int player, float x, float y) {
-        return new UnitView(id, "Hero", player, x, y, 0f, 100f, 100f,
+        return new UnitView(id, "Rogue", player, x, y, 0f, 100f, 100f,
                 false, true, false, false, -1);
     }
 
