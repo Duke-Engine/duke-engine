@@ -2045,30 +2045,42 @@ final class DukeRtsApp extends SimpleApplication {
 
     // ---- input ----
 
+    /**
+     * Every control this client has bound, so that one thing can be listened to.
+     *
+     * <p>★ Kept because forgetting is invisible. A mapping added and left out of
+     * the listener's list is a key that is bound, reaches nothing and says
+     * nothing about it: Ctrl shipped that way and simply did not exist, and there
+     * is no error, no warning and nothing on screen to notice. The list is now
+     * built by the binding rather than typed out beside it, so the two cannot
+     * come apart.
+     */
+    private final List<String> bound = new ArrayList<>();
+
     private void installInput() {
-        inputManager.addMapping("Select", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
-        inputManager.addMapping("Order", new MouseButtonTrigger(MouseInput.BUTTON_RIGHT));
+        bound.clear();
+        map("Select", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
+        map("Order", new MouseButtonTrigger(MouseInput.BUTTON_RIGHT));
         bindKeys("PanUp", KeyInput.KEY_W, KeyInput.KEY_UP);
         bindKeys("PanLeft", KeyInput.KEY_A, KeyInput.KEY_LEFT);
         bindKeys("PanDown", KeyInput.KEY_S, KeyInput.KEY_DOWN);
         bindKeys("PanRight", KeyInput.KEY_D, KeyInput.KEY_RIGHT);
-        inputManager.addMapping("Shift", new KeyTrigger(KeyInput.KEY_LSHIFT), new KeyTrigger(KeyInput.KEY_RSHIFT));
+        map("Shift", new KeyTrigger(KeyInput.KEY_LSHIFT), new KeyTrigger(KeyInput.KEY_RSHIFT));
         // Held rather than pressed, like Shift above: it changes what the NEXT
         // key means rather than meaning anything itself.
-        inputManager.addMapping("Ctrl", new KeyTrigger(KeyInput.KEY_LCONTROL),
-                new KeyTrigger(KeyInput.KEY_RCONTROL));
+        map("Ctrl", new KeyTrigger(KeyInput.KEY_LCONTROL), new KeyTrigger(KeyInput.KEY_RCONTROL));
         bindKeys("Halt", KeyInput.KEY_H);
         bindKeys("Pause", KeyInput.KEY_P);
-        inputManager.addMapping("Fullscreen", new KeyTrigger(KeyInput.KEY_F11));
-        inputManager.addMapping("Deselect", new KeyTrigger(KeyInput.KEY_ESCAPE));
-        inputManager.addMapping("Take", new KeyTrigger(KeyInput.KEY_RETURN),
+        map("Fullscreen", new KeyTrigger(KeyInput.KEY_F11));
+        map("Deselect", new KeyTrigger(KeyInput.KEY_ESCAPE));
+        map("Take", new KeyTrigger(KeyInput.KEY_RETURN),
                 new KeyTrigger(KeyInput.KEY_NUMPADENTER), new KeyTrigger(KeyInput.KEY_SPACE));
-        inputManager.addMapping("ZoomIn", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, false));
-        inputManager.addMapping("ZoomOut", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, true));
+        map("ZoomIn", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, false));
+        map("ZoomOut", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, true));
         int[] buildKeys = {KeyInput.KEY_1, KeyInput.KEY_2, KeyInput.KEY_3, KeyInput.KEY_4,
                 KeyInput.KEY_5, KeyInput.KEY_6, KeyInput.KEY_7, KeyInput.KEY_8, KeyInput.KEY_9};
         for (int i = 0; i < buildKeys.length; i++) {
-            inputManager.addMapping("Build" + (i + 1), new KeyTrigger(buildKeys[i]));
+            map("Build" + (i + 1), new KeyTrigger(buildKeys[i]));
         }
 
         var shiftHeld = new boolean[1];
@@ -2260,10 +2272,6 @@ final class DukeRtsApp extends SimpleApplication {
                 }
             }
         };
-        inputManager.addListener(actions, "Select", "Order", "PanUp", "PanLeft", "PanDown", "PanRight", "Take",
-                "Shift", "Halt", "Pause", "Deselect", "Fullscreen",
-                "Build1", "Build2", "Build3", "Build4", "Build5", "Build6", "Build7", "Build8", "Build9");
-
         for (var key : hotkeys.all().keySet()) {
             int code = Hotkeys.codeOf(key);
             if (code < 0) {
@@ -2271,9 +2279,11 @@ final class DukeRtsApp extends SimpleApplication {
             }
             String mapping = HOTKEY + key;
             inputManager.deleteMapping(mapping);
-            inputManager.addMapping(mapping, new KeyTrigger(code));
-            inputManager.addListener(actions, mapping);
+            map(mapping, new KeyTrigger(code));
         }
+        // Everything that was bound, in one call. Not a list typed out here: see
+        // the note on `bound`.
+        inputManager.addListener(actions, bound.toArray(new String[0]));
 
         AnalogListener zoom = (name, value, tpf) ->
                 camera.zoomBy(name.equals("ZoomIn") ? 0.92f : 1.09f);
@@ -2296,7 +2306,13 @@ final class DukeRtsApp extends SimpleApplication {
         for (int i = 0; i < free.length; i++) {
             triggers[i] = new KeyTrigger(free[i]);
         }
+        map(mapping, triggers);
+    }
+
+    /** Bind a control, and remember that it is one the listener has to hear. */
+    private void map(String mapping, com.jme3.input.controls.Trigger... triggers) {
         inputManager.addMapping(mapping, triggers);
+        bound.add(mapping);
     }
 
     /** The unit under the mouse cursor, or {@code null}. */

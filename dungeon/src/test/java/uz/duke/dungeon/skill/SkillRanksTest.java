@@ -84,6 +84,38 @@ class SkillRanksTest {
         assertFalse(ranks.canRaise('R', 1), "the ultimate waits for level 4");
     }
 
+    /**
+     * ★ OPENING A SKILL AND RAISING ONE ARE THE SAME THING.
+     *
+     * <p>Said out loud because it is a design decision and not an accident of the
+     * code: 0 → 1 is a raise, and so is 2 → 3. There is no "unlock" anywhere —
+     * no second command, no second rule, no branch on whether the rank happens to
+     * be nothing. A skill is opened by putting the first point in it, which is
+     * what a player is doing either way.
+     *
+     * <p>The way this would rot is somebody adding a special case for the first
+     * point — a different gate, a different cost, a different button — and then
+     * the two drifting. This walks a slot from nothing to full and asks the same
+     * question at every step.
+     */
+    @Test
+    void openingASkillIsTheSameThingAsRaisingOne() {
+        var ranks = four();
+
+        // The first point: the skill did not exist to the player a moment ago.
+        assertTrue(ranks.canRaise('Q', 1), "opening it is a raise like any other");
+        assertTrue(ranks.raise('Q', 1));
+        assertEquals(1, ranks.rankOf('Q'));
+
+        // And every point after it answers to exactly the same call.
+        for (int rank = 1; rank < 4; rank++) {
+            raiseTo(ranks, 'Q', rank + 1);
+            assertEquals(rank + 1, ranks.rankOf('Q'),
+                    "raising from " + rank + " should be the same operation as opening was");
+        }
+        assertFalse(ranks.canRaise('Q', 15), "and the ceiling is the only thing that stops it");
+    }
+
     // ---- the ceilings ----
 
     /** An ordinary skill takes four points and no more. */
