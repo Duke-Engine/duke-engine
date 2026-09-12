@@ -879,6 +879,9 @@ final class HeroPanel {
         private final Node node = new Node("order");
         private Geometry lit;
         private Geometry glyph;
+        /** The cold stone and the corner marks, while it is waiting to be pointed. */
+        private Geometry selStone;
+        private Node brackets;
         private float atX;
         private float atY;
 
@@ -946,16 +949,31 @@ final class HeroPanel {
             // command must not light it: the light is how a button says "press
             // me", and one that cannot be pressed must not say it.
             boolean doing = reading.get(i).on();
-            boolean reaching = his && (Character.valueOf(button.key).equals(armed)
-                    || Character.valueOf(button.key).equals(hovered));
+            // ★ Waiting for a click is not the same as being hovered, and it used
+            // to be drawn as though it were. One is "this is what the next click
+            // means" and the other is "your hand is here" -- so the first goes
+            // cold, with the reticle, exactly as an armed skill does, and the
+            // second stays the warm light it always was.
+            boolean waiting = his && Character.valueOf(button.key).equals(armed);
+            boolean reaching = waiting || (his && Character.valueOf(button.key).equals(hovered));
             boolean on = doing || reaching;
             button.lit.setCullHint(on ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+            var show = waiting ? Spatial.CullHint.Inherit : Spatial.CullHint.Always;
+            button.selStone.setCullHint(show);
+            button.brackets.setCullHint(show);
+            if (waiting) {
+                float breath = 0.72f + 0.28f * FastMath.sin(clock * FastMath.TWO_PI * 1.1f);
+                button.lit.getMaterial().setColor("Color",
+                        linear(new ColorRGBA(sel.r, sel.g, sel.b, breath)));
+            } else {
+                button.lit.getMaterial().setColor("Color", linear(TORCH));
+            }
             // Dim when it is not his, and dim whether or not it is lit: a skeleton
             // walking still shows its walk, because reading what something across
             // the room is doing is worth as much as reading his own — it is only
             // the offer to change it that goes away.
             button.glyph.getMaterial().setColor("Color",
-                    linear(his ? (on ? GOLD_HI : GOLD) : (doing ? GOLD : DEAD)));
+                    linear(waiting ? selHi : his ? (on ? GOLD_HI : GOLD) : (doing ? GOLD : DEAD)));
         }
     }
 
@@ -997,6 +1015,19 @@ final class HeroPanel {
         var stone = new Geometry("stone", gradient(size, size, STONE_LIT, STONE));
         stone.setMaterial(vertexColoured());
         attach(button.node, stone, 0f, 0f, 3f);
+
+        // The same cold treatment the skill sockets get. An order that waits for
+        // a click -- attack something, guard somewhere -- is in exactly the state
+        // an aimed skill is in, and the player should not have to learn two
+        // pictures for one idea.
+        button.selStone = new Geometry("stone-armed",
+                gradient(size, size, SEL_STONE_LIT, SEL_STONE));
+        button.selStone.setMaterial(vertexColoured());
+        attach(button.node, button.selStone, 0f, 0f, 3.2f);
+        button.selStone.setCullHint(Spatial.CullHint.Always);
+        button.brackets = reticle(size);
+        attach(button.node, button.brackets, 0f, 0f, 39f);
+        button.brackets.setCullHint(Spatial.CullHint.Always);
         boolean blank = button.key == BLANK && order.icon().isBlank();
         button.glyph = new Geometry("order-glyph",
                 blank ? new Mesh() : Glyphs.of(order.icon(), size * 0.52f));
@@ -1450,8 +1481,14 @@ final class HeroPanel {
      * badge, so they frame the skill rather than sitting on it.
      */
     private void bracketsFor(Slot slot) {
-        slot.brackets = new Node("reticle");
-        float size = slot.size;
+        slot.brackets = reticle(slot.size);
+        attach(slot.node, slot.brackets, 0f, 0f, 39f);
+        slot.brackets.setCullHint(Spatial.CullHint.Always);
+    }
+
+    /** The four marks themselves, at whatever size they are framing. */
+    private Node reticle(float size) {
+        var brackets = new Node("reticle");
         float out = BRACKET_OUT;
         float far = size + out - BRACKET;
         // x, y of each corner, then which way its arms run from there.
@@ -1467,14 +1504,13 @@ final class HeroPanel {
             boolean leftward = corner[2] < 0f;
             boolean downward = corner[3] < 0f;
             // The arm that runs along the top or bottom edge...
-            attach(slot.brackets, flat("brk", BRACKET, BRACKET_THICK, selHi),
+            attach(brackets, flat("brk", BRACKET, BRACKET_THICK, selHi),
                     x, downward ? y : y + BRACKET - BRACKET_THICK, 0f);
             // ...and the one that runs down the side.
-            attach(slot.brackets, flat("brk", BRACKET_THICK, BRACKET, selHi),
+            attach(brackets, flat("brk", BRACKET_THICK, BRACKET, selHi),
                     leftward ? x + BRACKET - BRACKET_THICK : x, y, 0f);
         }
-        attach(slot.node, slot.brackets, 0f, 0f, 39f);
-        slot.brackets.setCullHint(Spatial.CullHint.Always);
+        return brackets;
     }
 
     /**
