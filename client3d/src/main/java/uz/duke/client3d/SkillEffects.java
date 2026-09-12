@@ -5,6 +5,7 @@ import com.jme3.scene.Node;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
+import java.util.function.IntFunction;
 import uz.duke.core.math.Coord3D;
 
 /**
@@ -99,38 +100,33 @@ final class SkillEffects {
         this.tooFar = tooFar;
     }
 
-    /** One ring in progress: where it is, what it is drawn from, how far through. */
+    /** One ring in progress: what it is drawn from, where it is, how far through. */
     private static final class Ring {
         private final GroundRing drawn;
-        private final Coord3D at;
-        private final float from;
-        private final float to;
-        private final float seconds;
-        private final float ease;
-        private final float edge;
-        private final float wash;
-        private final int colour;
-        /** Zero for a ring that opens; a standing mark holds its size instead. */
-        private final boolean standing;
+        private final RingWanted wanted;
+
+        /**
+         * Where it is being drawn, which is not always where it was started.
+         *
+         * <p>★ Not final, and that is the whole of it. A ring that opens is an
+         * EVENT and belongs to the spot it happened at: the dust stays where the
+         * boot struck it, and a puff dragged along behind a sprinting archer is a
+         * hoop he is running inside. A mark that STAYS is a different animal — it
+         * draws a state rather than an event — so a guard put down on a flagstone
+         * and left there is a disc saying the flagstone is protected.
+         */
+        private Coord3D at;
         private float gone;
 
-        Ring(GroundRing drawn, Coord3D at, float from, float to, float seconds, float ease,
-                float edge, float wash, int colour, boolean standing) {
+        Ring(GroundRing drawn, RingWanted wanted) {
             this.drawn = drawn;
-            this.at = at;
-            this.from = from;
-            this.to = to;
-            this.seconds = Math.max(0.01f, seconds);
-            this.ease = Math.max(0.05f, ease);
-            this.edge = edge;
-            this.wash = wash;
-            this.colour = colour;
-            this.standing = standing;
+            this.wanted = wanted;
+            this.at = wanted.at();
         }
 
         /** How far through it is, 0 to 1. */
         float through() {
-            return Math.min(1f, gone / seconds);
+            return Math.min(1f, gone / wanted.seconds());
         }
 
         /**
@@ -141,10 +137,10 @@ final class SkillEffects {
          * instead is breathe, which the alpha below takes care of.
          */
         float radius() {
-            if (standing) {
-                return to;
+            if (wanted.standing()) {
+                return wanted.to();
             }
-            return widthAt(from, to, through(), ease);
+            return widthAt(wanted.from(), wanted.to(), through(), wanted.ease());
         }
 
         /**
@@ -161,7 +157,7 @@ final class SkillEffects {
          */
         float alphaNow() {
             float through = through();
-            if (standing) {
+            if (wanted.standing()) {
                 float breath = 0.65f + 0.35f
                         * (float) StrictMath.sin(gone * 9f);
                 // And harder the nearer it is to landing, which is the warning
@@ -172,7 +168,7 @@ final class SkillEffects {
         }
 
         boolean done() {
-            return gone >= seconds;
+            return gone >= wanted.seconds();
         }
     }
 
@@ -195,11 +191,14 @@ final class SkillEffects {
         return from + (to - from) * eased;
     }
 
+    /** The owner on a cast that belongs to the floor rather than to a creature. */
+    static final int NOBODY = 0;
+
     /**
      * One place a cast asked to be drawn: what to draw, when it was cast, where,
-     * and how wide.
+     * how wide, and whose it is.
      */
-    record Cast(String look, int frame, Coord3D at, float radius) {
+    record Cast(String look, int frame, Coord3D at, float radius, int on) {
     }
 
     /**
@@ -207,8 +206,10 @@ final class SkillEffects {
      *
      * <p>The game's own channel to its own client, read here rather than in the
      * app so that it can be tested without a window. The format is
-     * {@code cast=<recipe>,<frame>,<x>,<y>,<radius>}, repeatable, mixed in among
-     * whatever else the line carries.
+     * {@code cast=<recipe>,<frame>,<x>,<y>,<radius>,<whose>}, repeatable, mixed in
+     * among whatever else the line carries. The last field is the creature the
+     * mark belongs to, or {@link #NOBODY} for one that belongs to the floor, and a
+     * line that does not carry it at all reads as the floor's.
      *
      * <p><b>One cast is not always one place.</b> A blink sends the spot he left
      * and the spot he arrived at, both stamped with the same frame — so the
@@ -241,7 +242,8 @@ final class SkillEffects {
                 found.add(new Cast(parts[0].trim(), frame,
                         new Coord3D(Float.parseFloat(parts[2].trim()),
                                 Float.parseFloat(parts[3].trim()), 0f),
-                        Float.parseFloat(parts[4].trim())));
+                        Float.parseFloat(parts[4].trim()),
+                        parts.length > 5 ? Integer.parseInt(parts[5].trim()) : NOBODY));
             } catch (NumberFormatException malformed) {
                 // Somebody else's line, or a version that disagrees. No ring.
             }
@@ -264,6 +266,17 @@ final class SkillEffects {
      */
     void cast(String recipeName, Coord3D at, com.jme3.math.Vector3f camera, float scale,
             BiFunction<Float, Float, Float> floorAt) {
+        cast(recipeName, at, camera, scale, NOBODY, floorAt);
+    }
+
+    /**
+     * The same, for a cast that belongs to a creature rather than to a spot.
+     *
+     * @param on whose it is, or {@link #NOBODY}. Only a mark that STAYS makes
+     *     anything of it, by keeping itself under him while it lasts.
+     */
+    void cast(String recipeName, Coord3D at, com.jme3.math.Vector3f camera, float scale,
+            int on, BiFunction<Float, Float, Float> floorAt) {
         var recipe = visuals.effectNamed(recipeName);
         if (recipe == null || at == null || tooFarOff(at, camera)) {
             return;
@@ -280,28 +293,41 @@ final class SkillEffects {
             float to = scale > 0f ? scale : recipe.waveTo;
             float from = scale > 0f && recipe.waveTo > 0f
                     ? scale * (recipe.waveFrom / recipe.waveTo) : recipe.waveFrom;
+            // NOBODY, even when somebody cast it: a wave is a third of a second of
+            // something having happened HERE, and that stays true after he moves.
             start(new RingWanted(at, from, to, recipe.waveSeconds, recipe.waveEase,
-                    recipe.waveEdge, recipe.waveWash, rgb(recipe.colour), false));
+                    recipe.waveEdge, recipe.waveWash, rgb(recipe.colour), false, NOBODY));
         }
         if (recipe.has(Visuals.EffectVisual.GROUND_MARK) && recipe.markSeconds > 0f) {
             float radius = recipe.markRadius > 0f ? recipe.markRadius
                     : scale > 0f ? scale : recipe.waveTo;
             start(new RingWanted(at, radius, radius, recipe.markSeconds, 1f,
-                    recipe.waveEdge, recipe.waveWash, rgb(recipe.colour), true));
+                    recipe.waveEdge, recipe.waveWash, rgb(recipe.colour), true, on));
         }
         knock(recipe.shakeSeconds, recipe.shakePower);
     }
 
+    /**
+     * A ring about to be opened: where, how big, how long, how it moves — and, if
+     * it is a mark laid on a creature rather than on the floor, whose it is.
+     */
     private record RingWanted(Coord3D at, float from, float to, float seconds, float ease,
-            float edge, float wash, int colour, boolean standing) {
+            float edge, float wash, int colour, boolean standing, int follows) {
+
+        RingWanted {
+            // Clamped where it is built rather than where it is read: a ring of no
+            // duration divides by zero and one of no ease raises to an infinite
+            // power, and either is a typo in a file rather than a caller's doing.
+            seconds = Math.max(0.01f, seconds);
+            ease = Math.max(0.05f, ease);
+        }
     }
 
     private void start(RingWanted wanted) {
         if (wanted.to() <= 0.01f || open.size() >= cap) {
             return; // over the ceiling: the skill keeps its fire and loses its ring
         }
-        open.add(new Ring(borrow(), wanted.at(), wanted.from(), wanted.to(), wanted.seconds(),
-                wanted.ease(), wanted.edge(), wanted.wash(), wanted.colour(), wanted.standing()));
+        open.add(new Ring(borrow(), wanted));
     }
 
     /**
@@ -357,20 +383,43 @@ final class SkillEffects {
 
     /** Move every ring on, and let the shake die down. */
     void update(float tpf, BiFunction<Float, Float, Float> floorAt) {
+        update(tpf, floorAt, null);
+    }
+
+    /**
+     * The same, with a way of asking where a creature is standing this instant.
+     *
+     * @param whereIs a unit's position now, or {@code null} for one that has left
+     *     the field — a mark laid on a creature goes when he does, which is the
+     *     difference between a guard and a stain. The whole function may be
+     *     {@code null} where there is nobody to ask, and then a mark that would
+     *     have followed simply stays where it was put.
+     */
+    void update(float tpf, BiFunction<Float, Float, Float> floorAt,
+            IntFunction<Coord3D> whereIs) {
         shakeLeft = Math.max(0f, shakeLeft - tpf);
         var going = open.iterator();
         while (going.hasNext()) {
             var ring = going.next();
             ring.gone += tpf;
-            if (ring.done()) {
+            boolean lost = false;
+            if (ring.wanted.follows() != NOBODY && whereIs != null) {
+                var now = whereIs.apply(ring.wanted.follows());
+                if (now == null) {
+                    lost = true;
+                } else {
+                    ring.at = now;
+                }
+            }
+            if (lost || ring.done()) {
                 ring.drawn.hide();
                 spare.add(ring.drawn);
                 going.remove();
                 continue;
             }
             float alpha = Math.max(0f, ring.alphaNow());
-            ring.drawn.show(ring.at, ring.radius(), look.height(), ring.colour,
-                    ring.edge * alpha, ring.wash * alpha, floorAt);
+            ring.drawn.show(ring.at, ring.radius(), look.height(), ring.wanted.colour(),
+                    ring.wanted.edge() * alpha, ring.wanted.wash() * alpha, floorAt);
         }
     }
 

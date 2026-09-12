@@ -66,6 +66,12 @@ final class HeroStatus {
      *
      * <p>Only the hero's. A skeleton mage's fire is drawn by the fire, which is a
      * thing in the world and needs nobody to say so.
+     *
+     * <p>The last field is WHOSE it is, or 0 for a mark that belongs to the floor.
+     * A spot is enough for most of them -- a nova went off there and there it
+     * stays -- but not for the ones that draw a state rather than an event: a
+     * guard is round the man for as long as it lasts, and one pinned to the
+     * flagstone he cast it from stays behind the moment he walks away.
      */
     private static void appendCast(StringBuilder line, SkillBook book) {
         for (var mark : book.getCastMarks()) {
@@ -73,7 +79,8 @@ final class HeroStatus {
                     .append(',').append(book.getCastMarkFrame())
                     .append(',').append(mark.x())
                     .append(',').append(mark.y())
-                    .append(',').append(mark.radius());
+                    .append(',').append(mark.radius())
+                    .append(',').append(mark.on().value());
         }
     }
 

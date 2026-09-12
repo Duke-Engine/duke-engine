@@ -6,8 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import uz.duke.client3d.Visuals;
+import uz.duke.core.thing.GameObject;
+import uz.duke.core.thing.ObjectId;
 import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.skill.SkillBook;
 
 /**
  * What every skill looks like going off, checked against what the client can
@@ -169,10 +172,7 @@ class SkillLookTest {
     @Test
     void aLastingSkillIsDrawnEachTimeItLands() {
         var arena = knightInARoom();
-        var book = arena.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Knight"))
-                .findFirst().orElseThrow()
-                .findModule(uz.duke.dungeon.skill.SkillBook.class);
+        var book = knightIn(arena).findModule(SkillBook.class);
 
         assertTrue(book.cast('R', 5), "the premise: his ultimate went off");
         int first = book.getCastMarkFrame();
@@ -196,10 +196,7 @@ class SkillLookTest {
     @Test
     void beingDrawnAgainIsNotThePlayerSpeakingAgain() {
         var arena = knightInARoom();
-        var book = arena.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Knight"))
-                .findFirst().orElseThrow()
-                .findModule(uz.duke.dungeon.skill.SkillBook.class);
+        var book = knightIn(arena).findModule(SkillBook.class);
 
         book.cast('R', 5);
         int spokeAt = book.getLastCastFrame();
@@ -207,6 +204,63 @@ class SkillLookTest {
 
         assertEquals(spokeAt, book.getLastCastFrame(),
                 "the whirlwind spoke for him, so his walk order was cancelled mid-ultimate");
+    }
+
+    // ---- what a mark is drawn ON ----
+
+    /**
+     * ★ The guard's disc belongs to the knight, not to the flagstone.
+     *
+     * <p>A place is right for nearly everything a cast draws: a nova went off HERE
+     * and the floor goes on being the floor after the man walks away. The guard is
+     * the one exception in the game — it is a condition he is IN for four seconds
+     * — so a disc pinned to the stone he cast it from is left behind by his first
+     * step and tells the player the stone is protected.
+     *
+     * <p>All that is claimed here is that the client is TOLD. What is made of it
+     * is entirely the client's affair, and nothing about the fight changes either
+     * way.
+     */
+    @Test
+    void aGuardBelongsToTheKnightRatherThanToTheFloor() {
+        var arena = knightInARoom();
+        var knight = knightIn(arena);
+        var book = knight.findModule(SkillBook.class);
+
+        assertTrue(book.cast('E', 1), "the premise: his guard went off");
+
+        assertEquals(knight.getId(), book.getCastMarks().getFirst().on(),
+                "his guard was marked as the floor's, so nothing can keep it under him");
+    }
+
+    /**
+     * And a charge leaves one of each: dust where he pushed off, and himself.
+     *
+     * <p>Both halves of the distinction in a single cast, which is why it is worth
+     * a test of its own. The near end is where his boot struck and has nothing to
+     * do with him afterwards; the far end is him. Getting it backwards drags a
+     * puff of dust along behind a running man and leaves him arriving in silence.
+     */
+    @Test
+    void aChargeLeavesItsDustBehindAndBringsHimselfAlong() {
+        var arena = knightInARoom();
+        var knight = knightIn(arena);
+        var book = knight.findModule(SkillBook.class);
+
+        assertTrue(book.cast('W', 1), "the premise: he charged");
+
+        var marks = book.getCastMarks();
+        assertEquals(2, marks.size(), "a dash is drawn at both ends of the run");
+        assertEquals(ObjectId.INVALID, marks.get(0).on(),
+                "the dust he kicked up is set to follow him about");
+        assertEquals(knight.getId(), marks.get(1).on(),
+                "the end he arrived at is not marked as his");
+    }
+
+    private static GameObject knightIn(uz.duke.game.DukeGame arena) {
+        return arena.getLogic().getObjects().stream()
+                .filter(object -> object.getTemplate().getName().equals("Knight"))
+                .findFirst().orElseThrow();
     }
 
     private static uz.duke.game.DukeGame knightInARoom() {

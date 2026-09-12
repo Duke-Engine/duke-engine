@@ -158,10 +158,22 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     private int castMarkFrame = Integer.MIN_VALUE;
 
     /**
-     * One place a cast should be drawn: the art block's name, the spot, and how
-     * wide. A radius of zero means "as wide as the block itself says".
+     * One place a cast should be drawn: the art block's name, the spot, how wide,
+     * and -- if it belongs to a creature rather than to a patch of floor -- whose
+     * it is. A radius of zero means "as wide as the block itself says".
+     *
+     * <p><b>{@code on} is the difference between a place and a state.</b> Most of
+     * what a cast draws happened AT somewhere: a nova went off here, a meteor is
+     * coming down there, and the floor goes on being the floor whatever the man
+     * who caused it does next. A guard is not that. It is a condition he is IN for
+     * four seconds, and a disc left standing on the flagstone he cast it from is
+     * drawing something that is not true -- it says the flagstone is protected.
+     *
+     * <p>{@link ObjectId#INVALID} for a mark that is a place. What is made of the
+     * difference is entirely the client's affair: it is the one that knows a ring
+     * from a disc, and only a disc that STAYS has anything to keep up with.
      */
-    public record CastMark(String look, float x, float y, float radius) {
+    public record CastMark(String look, float x, float y, float radius, ObjectId on) {
     }
 
     // ---- a shot begun and not yet loosed ----
@@ -361,10 +373,11 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         var here = owner.getPosition();
         switch (skill.effect()) {
             // Round him, as wide as it actually reached.
-            case AREA_DAMAGE -> mark(skill, here, skill.radius());
+            case AREA_DAMAGE -> markOn(skill, owner, skill.radius());
             // On him and no wider than the block says: these are about HIM, and a
-            // ring the size of a room would claim they were about the room.
-            case EMPOWER, GUARD, STRIKE, SKILLSHOT -> mark(skill, here, 0f);
+            // ring the size of a room would claim they were about the room. His
+            // rather than the floor's, for the same reason.
+            case EMPOWER, GUARD, STRIKE, SKILLSHOT -> markOn(skill, owner, 0f);
             // Where he put it. Where a skillshot LANDS is its own burst and is
             // drawn by whatever it ran into, which is the point of a lane.
             case AREA_AT_SPOT -> mark(skill, towards == null ? here
@@ -375,14 +388,27 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
             // Both ends. For a dash it is the two feet of the run; for a blink it
             // is the whole of what the skill looks like.
             case DASH, BLINK -> {
+                // The spot he left is a place and stays one -- it is the dust he
+                // kicked up, and dust does not follow the man.
                 mark(skill, stood, 0f);
-                mark(skill, here, 0f);
+                markOn(skill, owner, 0f);
             }
         }
     }
 
+    /** A mark on a patch of floor, which stays there whatever happens next. */
     private void mark(Skill skill, Coord3D at, float radius) {
-        castMarks.add(new CastMark(skill.look(), at.x(), at.y(), radius));
+        remember(new CastMark(skill.look(), at.x(), at.y(), radius, ObjectId.INVALID));
+    }
+
+    /** A mark on a creature, which is his and goes where he goes. */
+    private void markOn(Skill skill, GameObject owner, float radius) {
+        var at = owner.getPosition();
+        remember(new CastMark(skill.look(), at.x(), at.y(), radius, owner.getId()));
+    }
+
+    private void remember(CastMark mark) {
+        castMarks.add(mark);
         var world = getOwner().getWorld();
         castMarkFrame = world == null ? castMarkFrame : world.getFrame();
     }
@@ -972,9 +998,8 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         // against to know it has not drawn this one already.
         if (lastingLook != null && !lastingLook.isBlank()) {
             castMarks.clear();
-            castMarks.add(new CastMark(lastingLook, owner.getPosition().x(),
-                    owner.getPosition().y(), lastingRadius));
-            castMarkFrame = owner.getWorld().getFrame();
+            remember(new CastMark(lastingLook, owner.getPosition().x(),
+                    owner.getPosition().y(), lastingRadius, owner.getId()));
         }
     }
 }

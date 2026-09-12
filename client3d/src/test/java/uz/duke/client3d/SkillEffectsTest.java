@@ -309,4 +309,115 @@ class SkillEffectsTest {
 
         assertEquals(0, effects.openCount(), "a ring two rooms away is a pixel");
     }
+
+    // ---- a mark on a man rather than on the floor ----
+
+    /** Any number at all; what matters is that a mark carries one and a wave does not. */
+    private static final int HIM = 7;
+
+    private static Scene guarded() {
+        return scene(visuals -> visuals.effect("Guard", recipe -> recipe
+                .kind(Visuals.EffectVisual.GROUND_MARK)
+                .colours(java.awt.Color.WHITE, java.awt.Color.BLACK)
+                .mark(9f, 4f)
+                // Edge and wash are on the wave line even for a block that has no
+                // wave, exactly as they are in the file. Without them the disc is
+                // drawn at no strength at all, which is to say not drawn.
+                .wave(0f, 0f, 0f, 1f, 1f, 0.2f)));
+    }
+
+    private static java.util.function.IntFunction<Coord3D> standingAt(float[] him) {
+        return id -> id == HIM ? new Coord3D(him[0], him[1], 0f) : null;
+    }
+
+    /** Where the one ring on the scene is actually being drawn. */
+    private static Vector3f ringAt(Scene scene) {
+        assertEquals(1, scene.effects().openCount(), "not exactly one ring to look at");
+        return scene.root().getChild(0).getLocalTranslation();
+    }
+
+    /**
+     * ★ A disc laid on a man keeps itself under him.
+     *
+     * <p>The fault this is here for, and it was reported from a chair: the knight
+     * puts up his guard, walks three paces, and the disc is still on the flagstone
+     * he cast it from. What the player is then shown is a patch of floor being
+     * protected while the man standing outside it takes half damage — and every
+     * part of it was right, the ring simply had no way of being told he had moved.
+     */
+    @Test
+    void aMarkLaidOnAManKeepsUpWithHim() {
+        var scene = guarded();
+        var he = new float[] {100f, 100f};
+        scene.effects().cast("Guard", new Coord3D(he[0], he[1], 0f), EYE, 0f, HIM, (x, y) -> 0f);
+        scene.effects().update(1f / 60f, (x, y) -> 0f, standingAt(he));
+        assertEquals(100f, ringAt(scene).x, 0.01f, "the premise: it started under him");
+
+        he[0] = 160f;
+        scene.effects().update(1f / 60f, (x, y) -> 0f, standingAt(he));
+
+        assertEquals(160f, ringAt(scene).x, 0.01f,
+                "he walked off and his guard stayed on the stone he cast it from");
+    }
+
+    /**
+     * A wave does not, even when whose it is happens to be known.
+     *
+     * <p>The other half of the distinction, and the reason this is not simply
+     * "rings follow their caster": a wave is a third of a second of something
+     * having HAPPENED somewhere, and one dragged along behind a charging knight
+     * is a hoop he is running inside.
+     */
+    @Test
+    void aWaveStaysWhereItWentOff() {
+        var scene = scene();
+
+        scene.effects().cast("Boom", SOMEWHERE, EYE, 0f, HIM, (x, y) -> 0f);
+        scene.effects().update(1f / 60f, (x, y) -> 0f, id -> new Coord3D(900f, 900f, 0f));
+
+        assertEquals(SOMEWHERE.x(), ringAt(scene).x, 0.01f,
+                "it followed him instead of staying where it went off");
+    }
+
+    /**
+     * And a mark goes when the man it is on does, rather than outliving him.
+     *
+     * <p>A guard belongs to him, so a guard still glowing over his corpse is the
+     * game saying something that is not true. The second half of this is the part
+     * that would rot in silence: a mark cut short is still a ring that was
+     * borrowed, and a path that forgets to hand it back is a leak nothing
+     * announces.
+     */
+    @Test
+    void aMarkGoesWhenTheManItIsOnDoes() {
+        var scene = guarded();
+        var he = new float[] {100f, 100f};
+        scene.effects().cast("Guard", SOMEWHERE, EYE, 0f, HIM, (x, y) -> 0f);
+        scene.effects().update(1f / 60f, (x, y) -> 0f, standingAt(he));
+        assertEquals(1, scene.effects().openCount(), "the premise: it was open");
+
+        scene.effects().update(1f / 60f, (x, y) -> 0f, id -> null);
+
+        assertEquals(0, scene.effects().openCount(), "he is gone and his guard is still lit");
+        scene.effects().cast("Guard", SOMEWHERE, EYE, 0f, HIM, (x, y) -> 0f);
+        assertEquals(1, scene.effects().madeSoFar(), "the ring cut short was never given back");
+    }
+
+    /** The line says whose a cast is. */
+    @Test
+    void aCastSaysWhoseItIs() {
+        var casts = SkillEffects.castsIn("cast=KnightGuard,412,150.0,150.0,0.0,7", 0);
+
+        assertEquals(1, casts.size());
+        assertEquals(7, casts.get(0).on());
+    }
+
+    /** And one that names nobody is the floor's, rather than being refused. */
+    @Test
+    void aCastThatNamesNobodyBelongsToTheFloor() {
+        var casts = SkillEffects.castsIn("cast=FrostNova,412,150.0,150.0,40.0", 0);
+
+        assertEquals(1, casts.size(), "a line with no owner on the end was dropped entirely");
+        assertEquals(SkillEffects.NOBODY, casts.get(0).on());
+    }
 }

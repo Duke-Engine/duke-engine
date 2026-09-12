@@ -3040,7 +3040,7 @@ final class DukeRtsApp extends SimpleApplication {
         // this frame — the terrain reads its lights off a material parameter, not
         // out of the scene, so nothing tells it but this.
         effects.update(tpf);
-        skillEffects.update(tpf, this::floorHeightAt);
+        skillEffects.update(tpf, this::floorHeightAt, this::whereUnitIs);
         carryTheLightsToTheStone();
         reapTheDead();
         syncMinimap();
@@ -3471,8 +3471,8 @@ final class DukeRtsApp extends SimpleApplication {
      * one cast drawn once, since the same line is sent again until something
      * changes.
      *
-     * <p>Format is {@code cast=<recipe>,<frame>,<x>,<y>,<radius>}. A line that
-     * does not parse is dropped in silence: a missing ring is the cheapest
+     * <p>Format is {@code cast=<recipe>,<frame>,<x>,<y>,<radius>,<whose>}. A line
+     * that does not parse is dropped in silence: a missing ring is the cheapest
      * possible failure, and an effect that threw would take the frame with it.
      */
     int skillsCastThisFrame(WorldSnapshot snapshot) {
@@ -3483,9 +3483,28 @@ final class DukeRtsApp extends SimpleApplication {
         for (var cast : casts) {
             lastCastFrameDrawn = Math.max(lastCastFrameDrawn, cast.frame());
             skillEffects.cast(cast.look(), cast.at(), cam.getLocation(), cast.radius(),
-                    this::floorHeightAt);
+                    cast.on(), this::floorHeightAt);
         }
         return casts.size();
+    }
+
+    /**
+     * Where a creature is standing this frame, or {@code null} if it is no longer
+     * on the field.
+     *
+     * <p>What a mark laid on somebody asks every frame so that it can keep itself
+     * under him. Taken off the node the player is looking at rather than out of
+     * the snapshot, so the disc and the model can never disagree about where he
+     * is — whatever ends up between the two later, a walk smoothed across frames
+     * among it. Only where on the floor: the ring reads the height itself.
+     */
+    private Coord3D whereUnitIs(int id) {
+        var node = unitNodes.get(id);
+        if (node == null) {
+            return null;
+        }
+        var where = node.root.getLocalTranslation();
+        return new Coord3D(where.x, where.z, 0f);
     }
 
     /**
