@@ -252,12 +252,24 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private final List<HealthWatch.Death> killedThisFrame = new ArrayList<>();
 
+    /** The bars over everybody's heads. Screen-space and pooled — see UnitBars. */
+    private UnitBars unitBars;
+
     /** Everything the scene keeps per live unit. */
     private static final class UnitNode {
         Node root;
         Geometry ring;
-        Node healthBar;
-        Geometry healthFill;
+        /**
+         * How high its bar floats, measured off the body once.
+         *
+         * <p>Measured rather than assumed, because a creature kit's hero stands
+         * three times taller than its rat — the old constant suited a capsule and
+         * put the bar inside a hero's chest. Measured ONCE, because the answer
+         * cannot change while the model does not, and re-measuring a bounding box
+         * every frame for forty creatures is the sort of cost nobody goes looking
+         * for afterwards.
+         */
+        float barTop;
         Spatial body;      // the shape a click has to hit
         AnimComposer composer;
         AnimChannel legacyChannel;
@@ -378,6 +390,13 @@ final class DukeRtsApp extends SimpleApplication {
         chevrons = new Chevrons(assetManager, markerNode, visuals.getOrderMark());
         attackFlash = new AttackFlash(assetManager, markerNode, visuals.getOrderMark());
         hitNumbers = new FloatingNumbers(guiFont, guiNode, visuals.getHitNumbers());
+        // The display face a boss's name is set in is the one the game already
+        // named for its menus. A second field naming the same file would be a
+        // second thing to keep in step with it, for no second decision.
+        unitBars = new UnitBars(assetManager, guiFont,
+                fontOrDefault(visuals.getMenuStyle().rowFont()));
+        unitBars.look(visuals.getUnitBars());
+        guiNode.attachChild(unitBars.node());
         rangeRings = new RangeRings(assetManager, markerNode, visuals.getRangeLook());
         warmNode.setCullHint(Spatial.CullHint.Always);
         rootNode.attachChild(warmNode);
@@ -2044,6 +2063,7 @@ final class DukeRtsApp extends SimpleApplication {
         chevrons.clear();
         attackFlash.clear();
         hitNumbers.clear();
+        unitBars.clear();
         healthWatch.forget(); // new creatures, new ids; nobody here was just hit
         camera.requestOwnUnit(); // his units are somewhere else entirely now
         // And the hero he had selected is not this floor's hero. See
@@ -3094,6 +3114,7 @@ final class DukeRtsApp extends SimpleApplication {
         keepHisOwnSelected();
         tellTheGameWhatHeIsLookingAt();
         syncUnits();
+        showUnitBars();
         // After the units, because a burst lit this frame has to reach the stone
         // this frame — the terrain reads its lights off a material parameter, not
         // out of the scene, so nothing tells it but this.
@@ -3390,6 +3411,28 @@ final class DukeRtsApp extends SimpleApplication {
                         - (cursor.y >= height - margin ? speed : 0f));
     }
 
+    /**
+     * The bar over each creature that is being drawn.
+     *
+     * <p>Off the nodes rather than off the snapshot, so that whatever is not on
+     * screen has already been left out once: {@code syncUnits} drops anything
+     * behind a wall, and the snapshot itself was built from what the player can
+     * see. What is left is filtered again by the edge of the screen inside
+     * {@link UnitBars}, which is the one of the three that the camera decides.
+     */
+    private void showUnitBars() {
+        var standing = new ArrayList<UnitBars.Standing>(unitNodes.size());
+        int mine = game.getLocalPlayerIndex();
+        for (var node : unitNodes.values()) {
+            if (node.view == null || node.view.maxHealth() <= 0f) {
+                continue; // a prop or an arrow: nothing with a life to show
+            }
+            standing.add(new UnitBars.Standing(node.view, node.barTop,
+                    node.view.playerIndex() == mine));
+        }
+        unitBars.update(cam, standing, UnitBarReading.read(snapshot.status()));
+    }
+
     private void syncUnits() {
         var seen = new HashSet<Integer>();
         for (var view : snapshot.units()) {
@@ -3635,9 +3678,8 @@ final class DukeRtsApp extends SimpleApplication {
             node.root.removeFromParent(); // nothing to play; it simply goes
             return;
         }
-        // The trappings of something alive: a health bar on a corpse, and a
-        // selection ring under one, both read as a thing still in the fight.
-        node.healthBar.removeFromParent();
+        // The trappings of something alive. The bar over its head goes without
+        // being told: it is drawn from the snapshot, and a corpse is not in one.
         node.ring.removeFromParent();
 
         // Once through, not looping: a corpse that gets up and dies again forever
@@ -3699,7 +3741,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         node.ring = buildSelectionRing(view);
         node.root.attachChild(node.ring);
-        buildHealthBar(node, view, body);
+        node.barTop = heightOf(body, view) + visuals.getUnitBars().lift();
 
         unitsNode.attachChild(node.root);
         return node;
@@ -4025,44 +4067,6 @@ final class DukeRtsApp extends SimpleApplication {
         return ring;
     }
 
-    /**
-     * The health bar, floating clear of whatever it belongs to and drawn over it.
-     *
-     * <p>Both of those had to be said out loud once there were models. The height
-     * used to be a constant that suited a capsule, and a creature kit's hero
-     * stands three times taller than one — the bar ended up inside his chest.
-     * It is measured off the body instead, so it clears a rat and a boss alike.
-     *
-     * <p>And it ignores the depth buffer. A bar at the right height is still lost
-     * the moment the thing turns and an arm crosses in front of it, or another
-     * monster walks between; a health bar is a readout rather than a thing in the
-     * world, and it is worth nothing if it can be hidden by the creature it
-     * describes.
-     */
-    private void buildHealthBar(UnitNode node, UnitView view, Spatial body) {
-        node.healthBar = new Node("hp");
-        var back = new Geometry("hp-back", new Quad(3.6f, 0.45f));
-        back.setMaterial(overlay(new ColorRGBA(0.1f, 0.1f, 0.1f, 1f)));
-        back.setLocalTranslation(-1.8f, 0, -0.01f);
-        node.healthFill = new Geometry("hp-fill", new Quad(3.5f, 0.35f));
-        node.healthFill.setMaterial(overlay(ColorRGBA.Green));
-        node.healthFill.setLocalTranslation(-1.75f, 0.05f, 0f);
-        node.healthBar.attachChild(back);
-        node.healthBar.attachChild(node.healthFill);
-        node.healthBar.addControl(new BillboardControl());
-        node.healthBar.setLocalTranslation(0, heightOf(body, view) + 1.2f, 0);
-        // Two buckets, one apiece, purely for the order they are drawn in.
-        // Ignoring the depth buffer is what puts the bar over the world, but it
-        // also stops the hair of clearance between the backdrop and the fill from
-        // meaning anything — and then the sort inside a bucket is by distance, so
-        // the dark backdrop won and the bar read as a black stripe. Buckets are
-        // drawn in a fixed order, which is the one thing here that cannot tie.
-        back.setQueueBucket(RenderQueue.Bucket.Transparent);
-        node.healthFill.setQueueBucket(RenderQueue.Bucket.Translucent);
-        node.healthBar.setCullHint(Spatial.CullHint.Always);
-        node.root.attachChild(node.healthBar);
-    }
-
     /** A colour that is drawn over the scene rather than into it. */
     private Material overlay(ColorRGBA colour) {
         var material = unshaded(colour);
@@ -4095,15 +4099,6 @@ final class DukeRtsApp extends SimpleApplication {
 
         node.ring.setCullHint(selected.contains(view.id())
                 ? Spatial.CullHint.Never : Spatial.CullHint.Always);
-
-        boolean damaged = view.isDamaged();
-        node.healthBar.setCullHint(damaged ? Spatial.CullHint.Never : Spatial.CullHint.Always);
-        if (damaged) {
-            float fraction = view.healthFraction();
-            node.healthFill.setLocalScale(Math.max(0.02f, fraction), 1, 1);
-            node.healthFill.getMaterial().setColor("Color",
-                    fraction > 0.5f ? ColorRGBA.Green : fraction > 0.25f ? ColorRGBA.Orange : ColorRGBA.Red);
-        }
 
         flinch(node, view);
         animate(node, view);
