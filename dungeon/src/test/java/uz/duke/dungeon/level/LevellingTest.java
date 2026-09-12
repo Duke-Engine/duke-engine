@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 class LevellingTest {
 
     /** Ten levels; 30 xp for the second, 15 more for each after that. */
-    private static final Levelling RULES = new Levelling(10, 30, 15, 20, 12, 5, 40);
+    private static final Levelling RULES = new Levelling(10, 30, 15, 20, 12, 5, 40, 8, 1);
 
     @Test
     void aHeroWhoHasKilledNothingIsLevelOneAndUnchanged() {
@@ -65,7 +65,7 @@ class LevellingTest {
      */
     @Test
     void armourNeverReachesImmortality() {
-        var relentless = new Levelling(100, 10, 0, 0, 0, 20, 40);
+        var relentless = new Levelling(100, 10, 0, 0, 0, 20, 40, 0, 0);
 
         assertEquals(0.4f, relentless.damageTakenMultiplier(50), 0.0001f,
                 "however many levels, the floor holds");

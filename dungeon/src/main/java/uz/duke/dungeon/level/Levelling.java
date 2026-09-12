@@ -34,7 +34,9 @@ public record Levelling(
         int healthPerLevel,
         int damagePercentPerLevel,
         int armourPercentPerLevel,
-        int minDamageTakenPercent) {
+        int minDamageTakenPercent,
+        int manaPerLevel,
+        int manaRegenPerLevel) {
 
     public static final int FIRST_LEVEL = 1;
 
@@ -70,6 +72,30 @@ public record Levelling(
     /** Maximum health added by everything earned so far. */
     public int bonusHealth(int level) {
         return (level - FIRST_LEVEL) * healthPerLevel;
+    }
+
+    /**
+     * Maximum mana added by everything earned so far.
+     *
+     * <p>Counted exactly as health is, and for the same reason: a level is worth
+     * the same thing every time, so the sum is a multiplication rather than a
+     * running total somebody has to keep.
+     */
+    public int bonusMana(int level) {
+        return (level - FIRST_LEVEL) * manaPerLevel;
+    }
+
+    /**
+     * Mana a second added by everything earned so far.
+     *
+     * <p>A whole number of points a second, never a fraction. What makes a
+     * fraction unwelcome is not the arithmetic but where it ends up: regeneration
+     * is a sum over frames in the simulation, and a sum of floats is a sum that
+     * two machines can disagree about. See {@code SkillBook.update}, which counts
+     * this out in whole points against a frame carry.
+     */
+    public int bonusManaRegen(int level) {
+        return (level - FIRST_LEVEL) * manaRegenPerLevel;
     }
 
     /** What the hero's weapon is multiplied by at this level. */

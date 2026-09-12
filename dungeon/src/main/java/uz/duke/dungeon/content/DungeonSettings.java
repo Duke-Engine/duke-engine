@@ -126,6 +126,8 @@ public final class DungeonSettings {
     private int damagePercentPerLevel = 12;
     private int armourPercentPerLevel = 5;
     private int minDamageTakenPercent = 40;
+    private int manaPerLevel;
+    private int manaRegenPerLevel;
     private int levelUpBannerFrames = 60;
 
     // ---- monsters and depth ----
@@ -1070,6 +1072,8 @@ public final class DungeonSettings {
         String blurb = "";
         String castAnim = "";
         float castSeconds;
+        int manaCost;
+        int manaCostPerLevel;
 
         SkillBuilder(String heroTemplate, String key) {
             this.heroTemplate = heroTemplate;
@@ -1080,7 +1084,7 @@ public final class DungeonSettings {
             return new Skill(heroTemplate, key, effect, damage, damagePerLevel, radius, range,
                     distance, hitWidth, boostPercent, boostPerLevel, durationFrames, tickFrames,
                     slowFrames, cooldownFrames, cooldownPerLevel, maxRank, levelPerRank,
-                    windUpFrames,
+                    windUpFrames, manaCost, manaCostPerLevel,
                     projectile, icon, look, castAnim, castSeconds, name, blurb);
         }
     }
@@ -1128,6 +1132,12 @@ public final class DungeonSettings {
                     // stands -- and the hero is given it automatically, because
                     // naming it here and again in his own block would be one
                     // name in two places and eventually two names.
+                    // What it costs to cast, and what a rank does to that. The
+                    // second is the DamagePerLevel pattern and may be negative:
+                    // a skill can be made cheaper by learning it as easily as
+                    // dearer by strengthening it.
+                    .add("ManaCost", Ini.integer((s, v) -> s.manaCost = v))
+                    .add("ManaCostPerLevel", Ini.integer((s, v) -> s.manaCostPerLevel = v))
                     .add("CastAnim", Ini.string((s, v) -> s.castAnim = v))
                     // How long it should take. The clip's own length by default
                     // (0), or stretched to this -- a gesture that ends when the
@@ -1452,6 +1462,8 @@ public final class DungeonSettings {
         private final String name;
         String title = "";
         float closeDistance;
+        int maxMana;
+        int manaRegen;
         int armourPercent;
         String model;
         String texture;
@@ -1499,7 +1511,8 @@ public final class DungeonSettings {
         }
 
         HeroLook build() {
-            return new HeroLook(name, title, closeDistance, armourPercent, model, texture,
+            return new HeroLook(name, title, closeDistance, armourPercent, maxMana, manaRegen,
+                    model, texture,
                     modelScale, facing,
                     animations, idle, walk, attack, hurt, death,
                     java.util.List.copyOf(carried));
@@ -2679,6 +2692,11 @@ public final class DungeonSettings {
                     // it has to be inside HIS reach: one figure for everybody was
                     // the archer's, and a swordsman stopped four bodies short.
                     .add("CloseDistance", Ini.real((s, v) -> s.closeDistance = v))
+                    // What he casts out of, before any level is earned. Two
+                    // numbers rather than one because a pool and a trickle are
+                    // different things to play against: see HeroLook.
+                    .add("MaxMana", Ini.integer((s, v) -> s.maxMana = v))
+                    .add("ManaRegen", Ini.integer((s, v) -> s.manaRegen = v))
                     .add("ArmourPercent", Ini.integer((s, v) -> s.armourPercent = v))
                     .add("Model", Ini.string((s, v) -> s.model = v))
                     .add("Texture", Ini.string((s, v) -> s.texture = v))
@@ -2800,6 +2818,12 @@ public final class DungeonSettings {
                     .add("DamagePercentPerLevel", Ini.integer((s, v) -> s.damagePercentPerLevel = v))
                     .add("ArmourPercentPerLevel", Ini.integer((s, v) -> s.armourPercentPerLevel = v))
                     .add("MinDamageTakenPercent", Ini.integer((s, v) -> s.minDamageTakenPercent = v))
+                    // What a level is worth to a caster. Zero for a game whose
+                    // heroes have no mana at all, which is what this was until
+                    // one of them did.
+                    .add("ManaPerLevel", Ini.integer((s, v) -> s.manaPerLevel = v))
+                    .add("ManaRegenPerLevel",
+                            Ini.integer((s, v) -> s.manaRegenPerLevel = v))
                     .add("LevelUpBannerFrames", Ini.integer((s, v) -> s.levelUpBannerFrames = v));
 
     // ---- layout ----
@@ -2961,7 +2985,8 @@ public final class DungeonSettings {
     /** The progression rules, as one value the leveling code can be handed. */
     public Levelling levelling() {
         return new Levelling(maxLevel, xpBase, xpStep, healthPerLevel,
-                damagePercentPerLevel, armourPercentPerLevel, minDamageTakenPercent);
+                damagePercentPerLevel, armourPercentPerLevel, minDamageTakenPercent,
+                manaPerLevel, manaRegenPerLevel);
     }
 
     /** How long "Level 2!" stays on screen, in logic frames. */

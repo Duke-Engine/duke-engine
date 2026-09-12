@@ -44,6 +44,15 @@ import java.util.List;
  *                   60, which is a bow; a swordsman who stopped at 48 would stand
  *                   four body-lengths from a skeleton swinging at nothing, which
  *                   is exactly what he did
+ * @param maxMana    how much mana he holds before a single level is earned, and
+ *                   0 for a hero who casts free. Here rather than in his creature
+ *                   block for the reason the armour is: the game recomputes it
+ *                   from his level, so anything the template said would be
+ *                   overwritten the first time he went up
+ * @param manaRegen  whole points a second he gets back, and the other half of
+ *                   what makes one hero's rhythm different from another's. A
+ *                   caster with a deep pool and a slow trickle plays nothing like
+ *                   one with a shallow pool that refills
  * @param armourPercent how much incoming damage he shrugs off before he has
  *                   earned a single level, as a percentage. Here rather than in
  *                   his creature block because the game sets a hero's armour from
@@ -76,6 +85,8 @@ public record HeroLook(
         String title,
         float closeDistance,
         int armourPercent,
+        int maxMana,
+        int manaRegen,
         String model,
         String texture,
         float modelScale,
@@ -94,7 +105,7 @@ public record HeroLook(
     }
 
     /** No art: he is drawn as a shape, as he was before there was a model. */
-    public static final HeroLook NONE = new HeroLook("Rogue", "", 0f, 0, null, null, 1f, 0f,
+    public static final HeroLook NONE = new HeroLook("Rogue", "", 0f, 0, 0, 0, null, null, 1f, 0f,
             List.of(), null, null, null, null, null, List.of());
 
     public boolean hasModel() {

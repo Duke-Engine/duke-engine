@@ -100,6 +100,8 @@ public record Skill(
         int maxRank,
         int levelPerRank,
         int windUpFrames,
+        int manaCost,
+        int manaCostPerLevel,
         String projectile,
         String icon,
         String look,
@@ -125,6 +127,22 @@ public record Skill(
 
     public int boostAt(int level) {
         return boostPercent + grown(level) * boostPerLevel;
+    }
+
+    /**
+     * What it costs to cast at this rank.
+     *
+     * <p>Counted the way the damage is — see {@link #damageAt} — so a rank can be
+     * made to cost more as it hits harder, or less as the caster learns it. Which
+     * of the two a skill does is the file's to say, and the two read very
+     * differently: a cost that climbs makes an upgraded ultimate something to
+     * save for, and one that falls makes it something to lean on.
+     *
+     * <p>Never below nothing. A negative cost would give mana back for casting,
+     * which is a different game.
+     */
+    public int manaAt(int level) {
+        return Math.max(0, manaCost + grown(level) * manaCostPerLevel);
     }
 
     public int cooldownAt(int level) {

@@ -40,6 +40,9 @@ public final class HeroProgress {
 
     /** Which creature is him. His player owns his arrows too. */
     private String heroTemplate;
+    /** What he holds and what he gets back before a level is earned; see playing. */
+    private int baseMaxMana;
+    private int baseManaRegen;
 
     /** What he shrugs off before a single level — see the constructor. */
     private int armourPercent;
@@ -118,8 +121,23 @@ public final class HeroProgress {
      * standing in the world is about to be replaced.
      */
     public void playing(String heroTemplate, int armourPercent) {
+        playing(heroTemplate, armourPercent, 0, 0);
+    }
+
+    /**
+     * Which hero is being played, and the two figures that are his rather than
+     * his creature template's.
+     *
+     * <p>Both are here for the same reason his armour is: the game recomputes
+     * them from his level every time it changes, so anything the template said
+     * would be overwritten the first time he went up. See {@code DungeonHero} in
+     * the settings file, where they are written.
+     */
+    public void playing(String heroTemplate, int armourPercent, int maxMana, int manaRegen) {
         this.heroTemplate = heroTemplate;
         this.armourPercent = armourPercent;
+        this.baseMaxMana = maxMana;
+        this.baseManaRegen = manaRegen;
     }
 
     /** What he has picked up this run. */
@@ -180,6 +198,7 @@ public final class HeroProgress {
         }
         applyDamageBonus(game, level);
         applyArmour(hero, level);
+        applyMana(hero, level);
     }
 
     /**
@@ -198,6 +217,7 @@ public final class HeroProgress {
         lastKnownExperience = 0;
         applyDamageBonus(game, level);
         applyArmour(hero, level);
+        applyMana(hero, level);
         // A new body has none of what the old one was given, the loot included.
         lootHealthOnThisBody = 0f;
         if (hero.getBody() instanceof GrowableBody body) {
@@ -215,6 +235,7 @@ public final class HeroProgress {
         level = earned;
         applyDamageBonus(game, earned);
         applyArmour(hero, earned);
+        applyMana(hero, earned);
 
         game.setBanner("Level " + earned + "!");
         clearBannerAtFrame = game.getLogic().getFrame() + bannerFrames;
@@ -240,6 +261,32 @@ public final class HeroProgress {
             // is what makes an early one worth going out of the way for.
             player.setWeaponDamageBonus(
                     rules.damageMultiplier(atLevel) + loot.attackPercent() / 100f);
+        }
+    }
+
+    /**
+     * What he casts out of at this level, handed to the book that spends it.
+     *
+     * <p>Here rather than in {@code SkillBook} because this is the one place that
+     * knows what a level is worth — the same division that keeps the armour and
+     * the weapon bonus here. A hero whose file names no pool is left with none,
+     * and then nothing he casts costs anything, which is how the game worked
+     * before any of this.
+     */
+    private void applyMana(GameObject hero, int atLevel) {
+        var book = hero.findModule(uz.duke.dungeon.skill.SkillBook.class);
+        if (book == null) {
+            return;
+        }
+        boolean isNew = book.getMaxMana() <= 0;
+        book.poolOf(baseMaxMana + rules.bonusMana(atLevel),
+                baseManaRegen + rules.bonusManaRegen(atLevel));
+        if (isNew) {
+            // A body he has only just been given: a new run, or the first frame
+            // on a new floor. He arrives full, exactly as his health does -- a
+            // hero who walked down a staircase and found himself unable to cast
+            // would be being punished for the staircase.
+            book.fillMana();
         }
     }
 

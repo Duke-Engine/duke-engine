@@ -191,6 +191,59 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     private ObjectId drawnFor;
     private int loosesIn;
 
+    /**
+     * What he has to cast out of, and what he can hold.
+     *
+     * <p>Whole points, never a fraction. That is not tidiness: mana is spent and
+     * regained inside the simulation, and a simulation that adds floats together
+     * thirty times a second is one where two machines drift apart — slowly, and
+     * then all at once, in the frame where one of them can afford a meteor and
+     * the other cannot.
+     *
+     * <p>Which is also why the trickle is counted the way it is. The rate is held
+     * in <b>tenths of a point a second</b> and {@link #manaCarry} holds what has
+     * been earned towards the next whole point: each frame adds the rate to the
+     * carry, and every time the carry reaches a second's worth of tenths one point
+     * falls out. A hero on 70 tenths gets exactly 7 a second, on every machine,
+     * forever -- where {@code mana += 7f / 30f} does not.
+     *
+     * <p>Tenths rather than whole points because of what a level is worth. Whole
+     * points a second is too coarse a step to grow with: the smallest raise there
+     * is would take a knight from three a second to four, which is a third again,
+     * and by the tenth level he would be regenerating faster than the mage.
+     */
+    private int mana;
+    private int maxMana;
+    private int manaTenthsPerSecond;
+    private int manaCarry;
+
+    /** A point is this many tenths; the rate is held in them. See {@link #manaCarry}. */
+    private static final int TENTHS = 10;
+
+    /**
+     * Whether this creature pays for what it casts.
+     *
+     * <p>Off unless something turns it on, which is the answer for every monster
+     * in the game. A skeleton mage held to a mana pool is a skeleton mage the
+     * player cannot see the pool of, so what it buys is a balance problem nobody
+     * can read -- see {@code UsesMana} in the file.
+     */
+    private boolean usesMana;
+
+    /**
+     * The frame a cast was last refused for want of mana, or 0 for never.
+     *
+     * <p>A moment rather than a state, and stamped with its frame for the same
+     * reason a cast is: the status line is rebuilt and sent every frame whether
+     * anything happened or not, so without the stamp the client would sound the
+     * refusal thirty times a second for as long as nothing else went on.
+     *
+     * <p>It is worth telling him at all because the alternative is silence. A
+     * skill that is merely reloading says so — the socket is swept and counting —
+     * but one he cannot pay for looks exactly like a key that did not register.
+     */
+    private int refusedForManaFrame;
+
     public SkillBook(GameObject owner, List<Skill> skills, DungeonSettings settings,
             PowerBook powers) {
         super(owner);
@@ -204,6 +257,68 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
             chargeCap[slot] = chargesOf(slot);
             chargesLeft[slot] = chargeCap[slot];
         }
+    }
+
+    /**
+     * What he casts out of, and how fast it comes back.
+     *
+     * <p>Pushed in from outside rather than read here, exactly as his armour and
+     * his weapon bonus are: what a level is worth is {@link uz.duke.dungeon.level.Levelling}'s
+     * arithmetic, and this module has no idea what level its owner is. See
+     * {@code HeroProgress}, which is the one place that knows.
+     *
+     * <p>A pool that GROWS keeps whatever was in it and gains the difference, so
+     * levelling up is a gift rather than a refill -- the same rule the body
+     * follows when its maximum health grows.
+     *
+     * <p>A pool created from nothing gains nothing, and that is the difference
+     * between capacity and contents. Whoever made the creature decides whether he
+     * starts full: a hero does, on a new run and on every floor after it, and
+     * {@code HeroProgress} is where that is said. Filling here instead would mean
+     * a creature could never be given a pool it was not also handed the contents
+     * of, which is a decision this module is in no position to make.
+     */
+    public void poolOf(int max, int tenthsPerSecond) {
+        int was = maxMana;
+        this.maxMana = Math.max(0, max);
+        this.manaTenthsPerSecond = Math.max(0, tenthsPerSecond);
+        this.usesMana = this.maxMana > 0;
+        if (was > 0 && maxMana > was) {
+            mana = Math.min(maxMana, mana + (maxMana - was));
+        }
+        mana = Math.min(mana, maxMana);
+    }
+
+    /** Fill him up: a new run, or a floor he has just walked onto. */
+    public void fillMana() {
+        mana = maxMana;
+        manaCarry = 0;
+    }
+
+    /** Give some back, up to the brim -- a potion, or something he killed. */
+    public void restoreMana(int points) {
+        if (points > 0) {
+            mana = Math.min(maxMana, mana + points);
+        }
+    }
+
+    public int getMana() {
+        return mana;
+    }
+
+    /** The frame a cast was last refused for want of mana; 0 if none ever was. */
+    public int getRefusedForManaFrame() {
+        return refusedForManaFrame;
+    }
+
+    public int getMaxMana() {
+        return maxMana;
+    }
+
+    /** Whether he could pay for the skill on {@code key} at this rank right now. */
+    public boolean canAfford(char key, int level) {
+        int slot = slotOf(key);
+        return slot < 0 || !usesMana || mana >= skills.get(slot).manaAt(level);
     }
 
     /** How many times the skill in {@code slot} may be cast before it recharges. */
@@ -308,6 +423,16 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
             return false;
         }
         var skill = skills.get(slot);
+        if (usesMana && mana < skill.manaAt(level)) {
+            // Refused before anything at all happens, which is the whole of what
+            // "cannot afford" has to mean: no cooldown started, no charge taken,
+            // no effect drawn and no gesture made. A skill that goes through the
+            // motions and then does nothing is a skill the player believes he
+            // cast.
+            var world = getOwner().getWorld();
+            refusedForManaFrame = world == null ? 0 : world.getFrame();
+            return false;
+        }
         if (level < 1) {
             // Unlearnt. The level handed in is what the player has PUT INTO this
             // skill rather than what he has reached himself -- see SkillRanks --
@@ -348,6 +473,9 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
      * kept anywhere, so a card taken between two casts is felt on the second.
      */
     private void spend(int slot, Skill skill, int level) {
+        if (usesMana) {
+            mana = Math.max(0, mana - skill.manaAt(level));
+        }
         if (--chargesLeft[slot] > 0) {
             return;
         }
@@ -948,8 +1076,29 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         chargeCap[slot] = cap;
     }
 
+    /**
+     * The trickle, counted in whole points against a frame carry.
+     *
+     * <p>See the note on {@link #manaCarry} for why it is not a float. In short:
+     * a second's worth of frames of the rate is exactly the rate, and no rounding
+     * is carried from one second into the next.
+     */
+    private void regenerate() {
+        if (!usesMana || manaTenthsPerSecond <= 0 || mana >= maxMana) {
+            manaCarry = 0;
+            return;
+        }
+        int aSecond = TENTHS * uz.duke.core.GameConstants.LOGICFRAMES_PER_SECOND;
+        manaCarry += manaTenthsPerSecond;
+        while (manaCarry >= aSecond && mana < maxMana) {
+            manaCarry -= aSecond;
+            mana++;
+        }
+    }
+
     @Override
     public void update() {
+        regenerate();
         for (int slot = 0; slot < cooldowns.length; slot++) {
             handOverAnyNewCharge(slot);
             if (cooldowns[slot] > 0 && --cooldowns[slot] <= 0) {
