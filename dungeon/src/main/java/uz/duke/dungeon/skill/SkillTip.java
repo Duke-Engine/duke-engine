@@ -46,7 +46,7 @@ public final class SkillTip {
      */
     public record Words(String damage, String cooldown, String radius, String range,
             String boost, String raise, String raiseKey, String maxed, String noPoints,
-            String rankWord, String seconds) {
+            String rankWord, String seconds, String mana) {
     }
 
     /**
@@ -114,6 +114,17 @@ public final class SkillTip {
         float reach = skill.range() > 0f ? skill.range() : skill.distance();
         if (reach > 0f) {
             row(out, skill.key(), words.range(), round(reach), "");
+        }
+        // What it costs, and what the next point would do to that -- which may be
+        // either way round. A cost that climbs makes an upgraded ultimate
+        // something to save for; one that falls makes it something to lean on,
+        // and the arrow is how a player finds out which this is BEFORE spending
+        // the point rather than after.
+        if (skill.manaAt(Math.max(1, rank)) > 0) {
+            row(out, skill.key(), words.mana(),
+                    unlearnt ? "" : String.valueOf(skill.manaAt(rank)),
+                    shows && skill.manaCostPerLevel() != 0
+                            ? String.valueOf(skill.manaAt(next)) : "");
         }
         // Seconds, not frames. Frames are what the simulation counts; turning
         // them into something a player can feel is a presentation decision and

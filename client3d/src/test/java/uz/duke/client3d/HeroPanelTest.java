@@ -445,6 +445,55 @@ class HeroPanelTest {
         assertEquals("", stats.get(0).icon());
     }
 
+    // ---- what a skill costs ----
+
+    /** The pool and the prices are read off the line. */
+    @Test
+    void theManaBarAndItsPricesAreRead() {
+        var reading = HeroPanel.Reading.parse(LINE
+                + "|mana=48/120|cost=Q,22,yes|cost=R,70,no");
+
+        assertNotNull(reading);
+        assertEquals(48f, reading.mana(), 0.001f);
+        assertEquals(120f, reading.maxMana(), 0.001f);
+        assertEquals(2, reading.costs().size());
+        assertEquals('Q', reading.costs().get(0).key());
+        assertEquals(22, reading.costs().get(0).cost());
+        assertTrue(reading.costs().get(0).affordable(), "he has forty-eight and it costs twenty-two");
+        assertFalse(reading.costs().get(1).affordable(), "and the ultimate is out of reach");
+    }
+
+    /**
+     * A game that charges nothing sends none of it and is read as before.
+     *
+     * <p>The client serves three other games and none of them has a mana bar. A
+     * missing pool has to mean "draw no bar" rather than "draw an empty one",
+     * which is a claim that the hero is out.
+     */
+    @Test
+    void aGameWithNoManaIsReadAsItAlwaysWas() {
+        var reading = HeroPanel.Reading.parse(LINE);
+
+        assertNotNull(reading);
+        assertEquals(0f, reading.maxMana(), 0.001f, "no pool at all");
+        assertTrue(reading.costs().isEmpty());
+    }
+
+    /** The refusal arrives stamped, so it can be sounded once rather than every frame. */
+    @Test
+    void aRefusalIsStampedWithItsFrame() {
+        assertEquals(0, HeroPanel.Reading.parse(LINE).refusedForManaAt(),
+                "nothing was refused");
+        assertEquals(412, HeroPanel.Reading.parse(LINE + "|noMana=412").refusedForManaAt());
+    }
+
+    /** And a price that will not parse refuses the line, like every other field. */
+    @Test
+    void aBrokenPriceRefusesTheLine() {
+        assertNull(HeroPanel.Reading.parse(LINE + "|cost=Q,lots,yes"));
+        assertNull(HeroPanel.Reading.parse(LINE + "|cost=Q"));
+    }
+
     /** The glyph vocabulary is by name, and an unknown name is a shape, not a gap. */
     @Test
     void everyIconNameDrawsSomething() {

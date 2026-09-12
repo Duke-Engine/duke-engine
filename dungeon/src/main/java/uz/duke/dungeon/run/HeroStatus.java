@@ -219,6 +219,20 @@ final class HeroStatus {
         appendOrders(line, settings, Doing.of(hero, holding), true);
         appendItems(line, progress, settings);
         var book = hero.findModule(SkillBook.class);
+        if (book != null && book.getMaxMana() > 0) {
+            // Beside the health, and read the same way. A hero whose file gives
+            // him no pool sends no field, and the panel draws no bar -- which is
+            // every hero in the game until one of them was given one.
+            line.append("|mana=").append(book.getMana())
+                    .append('/').append(book.getMaxMana());
+            // And the moment he asked for something he could not pay for. A
+            // stamp rather than a flag, because the line is rebuilt and sent
+            // every frame: without it the refusal would sound thirty times a
+            // second for as long as nothing else happened.
+            if (book.getRefusedForManaFrame() > 0) {
+                line.append("|noMana=").append(book.getRefusedForManaFrame());
+            }
+        }
         if (book != null) {
             line.append("|skWord=").append(settings.hudSkillsWord());
             line.append(Skills.slots(book, learnt, level,
@@ -230,7 +244,8 @@ final class HeroStatus {
                                     settings.hudBoostWord(), settings.hudRaiseWord(),
                                     settings.hudRaiseKeyWord(),
                                     settings.hudMaxedWord(), settings.hudNoPointsWord(),
-                                    settings.hudRankSuffix(), settings.hudSecondsWord())),
+                                    settings.hudRankSuffix(), settings.hudSecondsWord(),
+                                    settings.hudManaWord())),
                     settings::hudIcon));
             // How many levels he has not spent yet, and the word for them. Beside
             // the heading rather than on a slot, because it belongs to none of

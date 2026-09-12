@@ -76,6 +76,29 @@ final class HeroPanel {
     private static final ColorRGBA BONE = rgb(0xD9CFBA);
     private static final ColorRGBA BLOOD = rgb(0xA8322B);
     private static final ColorRGBA ARCANE = rgb(0x5F8C7B);
+
+    /**
+     * The mana bar's blue.
+     *
+     * <p>Blue because the other two are taken and because it is what a player
+     * arrives already knowing: red is what is left of him, green is what he has
+     * earned, blue is what he can spend. A bar the player has to learn the colour
+     * of is a bar he reads by its position, and position is the one thing that
+     * changes when a panel is laid out again.
+     */
+    private static final ColorRGBA MANA = rgb(0x3E6FA8);
+
+    /** The same, lit — what the bar flashes when he asks for what he cannot pay. */
+    private static final ColorRGBA MANA_DENIED = rgb(0xE06A5A);
+
+    /**
+     * What a picture is washed with in a slot he cannot pay for.
+     *
+     * <p>Blue rather than grey, so the reason is on the socket rather than only
+     * in the corner: a grey slot is a slot that is off, and a blue one is a slot
+     * that is waiting on the blue bar.
+     */
+    private static final ColorRGBA MANA_WASH = new ColorRGBA(0.62f, 0.78f, 1f, 1f);
     private static final ColorRGBA DEAD = rgb(0x4A443B);
     private static final ColorRGBA EDGE = rgb(0x100D0A);
     private static final ColorRGBA DROP = rgb(0x0A0806);
@@ -181,6 +204,15 @@ final class HeroPanel {
     private static final float STAT_ICON = 22f;
     private static final float BAR_HEIGHT = 17f;
     private static final float XP_HEIGHT = 10f;
+
+    /**
+     * Between the two, and nearer the health.
+     *
+     * <p>It is a thing he spends rather than a thing he accumulates, so it reads
+     * with what is left of him rather than with what he has earned — and it wants
+     * a figure on it, which the experience bar does not, so it cannot be as thin.
+     */
+    private static final float MANA_HEIGHT = 13f;
     private static final float NAME_HEIGHT = 20f;
     private static final float TITLE_HEIGHT = 15f;
     /** Space between one figure and the word after it. */
@@ -277,6 +309,9 @@ final class HeroPanel {
     private BitmapText name;
     private BitmapText health;
     private Geometry healthFill;
+    private final Node manaBar = new Node("mana");
+    private Geometry manaFill;
+    private BitmapText manaCount;
     private Geometry experienceFill;
     private BitmapText depthNumber;
     private BitmapText depthWord;
@@ -380,6 +415,17 @@ final class HeroPanel {
         health.setText(reading.maxHealth <= 0f ? ""
                 : Math.round(reading.health) + " / " + Math.round(reading.maxHealth));
         fillTo(healthFill, fraction(reading.health, reading.maxHealth));
+        // A game that charges nothing for its skills sends no pool and gets no
+        // bar. It leaves the space it would have taken: the column is laid out
+        // once, in buildVitals, and nothing below it moves. Which is a gap rather
+        // than a hole -- the troughs are what carry the eye down the band, and one
+        // of them missing reads as a panel with room to spare.
+        boolean casts = reading.maxMana > 0f;
+        manaBar.setCullHint(casts ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        if (casts) {
+            manaCount.setText(Math.round(reading.mana) + " / " + Math.round(reading.maxMana));
+            fillTo(manaFill, fraction(reading.mana, reading.maxMana));
+        }
         fillTo(experienceFill, fraction(reading.experience, reading.needed));
         depthNumber.setText(reading.depth);
         // A floor out of four is three times the lettering of a floor, and the
@@ -1297,7 +1343,10 @@ final class HeroPanel {
         float nameY = BAND - NAME_HEIGHT;
         float titleY = nameY - TITLE_HEIGHT - 2f;
         float healthY = titleY - 12f - BAR_HEIGHT;
-        float experienceY = healthY - 9f - XP_HEIGHT;
+        // Under the health and over the experience, which is the order they are
+        // read in: what is left of him, what he can spend, what he has earned.
+        float manaY = healthY - 6f - MANA_HEIGHT;
+        float experienceY = manaY - 7f - XP_HEIGHT;
         this.statsTop = experienceY - 14f;
 
         name = text(17f, BONE, 0f, nameY, VITALS_WIDTH, BitmapFont.Align.Center);
@@ -1323,6 +1372,16 @@ final class HeroPanel {
         health.setLocalTranslation(0f, health.getLocalTranslation().y, 2f);
         vitals.attachChild(health);
 
+        attach(manaBar, trough(0f, manaY, VITALS_WIDTH, MANA_HEIGHT), 0f, 0f, 0f);
+        manaFill = fill(VITALS_WIDTH - 2f, MANA_HEIGHT - 2f, MANA);
+        manaFill.setLocalTranslation(1f, manaY + 1f, 1f);
+        manaBar.attachChild(manaFill);
+        manaCount = text(10f, BONE, 0f, manaY + MANA_HEIGHT - 3f, VITALS_WIDTH,
+                BitmapFont.Align.Center);
+        manaCount.setLocalTranslation(0f, manaCount.getLocalTranslation().y, 2f);
+        manaBar.attachChild(manaCount);
+        vitals.attachChild(manaBar);
+
         attach(experienceBar, trough(0f, experienceY, VITALS_WIDTH, XP_HEIGHT), 0f, 0f, 0f);
         experienceFill = fill(VITALS_WIDTH - 2f, XP_HEIGHT - 2f, ARCANE);
         experienceFill.setLocalTranslation(1f, experienceY + 1f, 1f);
@@ -1334,6 +1393,8 @@ final class HeroPanel {
         // asked for a plain square -- the rim IS the ornament at this size.
         framed(vitals, PanelSkin.GAUGE, -1f, healthY - 1f,
                 VITALS_WIDTH + 2f, BAR_HEIGHT + 2f, 1.5f);
+        framed(manaBar, PanelSkin.GAUGE, -1f, manaY - 1f,
+                VITALS_WIDTH + 2f, MANA_HEIGHT + 2f, 1.5f);
         framed(experienceBar, PanelSkin.GAUGE, -1f, experienceY - 1f,
                 VITALS_WIDTH + 2f, XP_HEIGHT + 2f, 1.5f);
     }
@@ -1517,6 +1578,10 @@ final class HeroPanel {
         private Geometry rim;
         private BitmapText seconds;
         private BitmapText locked;
+        /** What it costs to cast, or empty for a game that charges nothing. */
+        private BitmapText cost;
+        /** Whether the pool has that much in it — a different dimming from a cooldown. */
+        private boolean affordable = true;
         /** One per rank the skill can hold; the lit ones are what is in it. */
         private final List<Geometry> pips = new ArrayList<>();
         private Geometry pipRow;
@@ -1563,6 +1628,7 @@ final class HeroPanel {
             builtFor = carving.toString();
         }
         for (int i = 0; i < slots.size() && i < reading.size(); i++) {
+            priceUp(slots.get(i), card);
             dress(slots.get(i), reading.get(i));
             var rank = rankFor(card, reading.get(i).key());
             if (rank != null) {
@@ -1798,6 +1864,15 @@ final class HeroPanel {
         key.setText(slot.key == BLANK ? "" : String.valueOf(slot.key));
         key.setLocalTranslation(0f, key.getLocalTranslation().y, 8f);
         slot.node.attachChild(key);
+
+        // What it costs, in the corner opposite the key. Small, because it is a
+        // number he checks rather than reads -- and in the mana bar's own blue,
+        // so the two are obviously about the same thing without a word between
+        // them. It turns when he cannot pay, which is the whole point of it.
+        slot.cost = text(11f, MANA, 3f, 1f, size - 3f, BitmapFont.Align.Left);
+        slot.cost.setLocalTranslation(slot.cost.getLocalTranslation().x,
+                slot.cost.getLocalTranslation().y, 8f);
+        slot.node.attachChild(slot.cost);
     }
 
     /**
@@ -1980,12 +2055,52 @@ final class HeroPanel {
                 : cooling ? GLYPH_COLD : TORCH;
     }
 
+    /**
+     * What this one costs, and whether he can pay it.
+     *
+     * <p>Set before the slot is dressed, because being unable to pay changes how
+     * the whole socket is drawn and {@link #dress} is what draws it.
+     */
+    private void priceUp(Slot slot, Reading card) {
+        if (slot.cost == null) {
+            return;
+        }
+        slot.affordable = true;
+        if (card == null) {
+            slot.cost.setText("");
+            return;
+        }
+        for (var price : card.costs()) {
+            if (price.key() == slot.key) {
+                slot.cost.setText(String.valueOf(price.cost()));
+                slot.affordable = price.affordable();
+                return;
+            }
+        }
+        slot.cost.setText("");
+    }
+
     private void dress(Slot slot, Reading.SkillReading skill) {
         slot.state = skill.state;
         boolean locked = skill.state == Reading.State.LOCKED;
         boolean cooling = skill.state == Reading.State.COOLING;
-        slot.deadStone.setCullHint(locked ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-        slot.glyph.getMaterial().setColor("Color", linear(skillColour(icons, locked, cooling)));
+        // Three ways a slot can be unusable and they must not look alike. Locked
+        // is a skill he has not bought; cooling is one that is coming back and
+        // says when; BROKE is one that is ready and waiting on the bar above.
+        // Dressed as cooling would say "wait" about something no amount of
+        // waiting for THIS slot will fix.
+        boolean broke = !locked && !cooling && !slot.affordable;
+        slot.deadStone.setCullHint(locked || broke
+                ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        slot.glyph.getMaterial().setColor("Color",
+                linear(broke ? IconLook.PAINTED_COLD.mult(MANA_WASH)
+                        : skillColour(icons, locked, cooling)));
+        if (slot.cost != null) {
+            // The price is the one thing on a slot he cannot pay for that goes
+            // BRIGHTER. Everything else about the socket dims, so the number is
+            // what the eye lands on, and the number is the answer.
+            slot.cost.setColor(linear(broke ? MANA_DENIED : MANA));
+        }
         // A painted rim goes dead with the rest of the socket. Left at full
         // strength it was the one bright thing on a slot he cannot cast, which
         // says the opposite of what the slot means — the whole reason the stone
@@ -2703,7 +2818,20 @@ final class HeroPanel {
             List<Stat> stats, List<SkillReading> skills, List<PowerReading> powers,
             List<ItemReading> items, List<OrderReading> orders, boolean ordersAreHis,
             Offer offer, List<RankReading> ranks, int points, String pointsWord,
-            Map<Character, SkillTip.Reading> tips) {
+            Map<Character, SkillTip.Reading> tips,
+            float mana, float maxMana, int refusedForManaAt, List<CostReading> costs) {
+
+        /**
+         * What a slot costs to cast, and whether he can pay it.
+         *
+         * <p>Its own field for the reason the rank beside it is: the slot's own
+         * fields are positional and already end in two optional ones, so a fourth
+         * thing inside them would be a fourth shape to get wrong. A game that
+         * charges nothing sends none of these and the slots are drawn as they
+         * always were.
+         */
+        record CostReading(char key, int cost, boolean affordable) {
+        }
 
         /**
          * What is in a slot, what fits in it, and whether the next point may go
@@ -2801,7 +2929,10 @@ final class HeroPanel {
             var ordersAreHis = new boolean[] {false};
             var cards = new ArrayList<Card>();
             var ranks = new ArrayList<RankReading>();
+            var costs = new ArrayList<CostReading>();
             var tips = new java.util.LinkedHashMap<Character, SkillTip.Reading>();
+            float[] mana = null;
+            var refusedAt = new int[] {0};
             int points = 0;
             String pointsWord = "";
             var offerHead = new String[] {null, null, null};
@@ -2831,6 +2962,9 @@ final class HeroPanel {
                     case "hp" -> health = pair(value);
                     case "xp" -> experience = pair(value);
                     case "skill" -> skills.add(skill(value));
+                    case "mana" -> mana = pair(value);
+                    case "noMana" -> refusedAt[0] = whole(value);
+                    case "cost" -> costs.add(cost(value));
                     case "stat" -> stats.add(stat(value));
                     case "pw" -> powers.add(power(value));
                     case "offer" -> offerHead[0] = value;
@@ -2883,6 +3017,7 @@ final class HeroPanel {
                     }
                 }
                 if (health == null || experience == null || skills.contains(null)
+                        || costs.contains(null)
                         || stats.contains(null) || powers.contains(null)
                         || items.contains(null) || orders.contains(null)
                         || cards.contains(null)) {
@@ -2894,7 +3029,35 @@ final class HeroPanel {
                     itemsWord, note, List.copyOf(stats), List.copyOf(skills),
                     List.copyOf(powers), List.copyOf(items), List.copyOf(orders),
                     ordersAreHis[0], offer(offerHead[0], cards), List.copyOf(ranks),
-                    points, pointsWord, withRaising(tips, ranks));
+                    points, pointsWord, withRaising(tips, ranks),
+                    mana == null ? 0f : mana[0], mana == null ? 0f : mana[1],
+                    refusedAt[0], List.copyOf(costs));
+        }
+
+        /**
+         * {@code Q,22,yes} — the key, what it costs at its present rank, and
+         * whether the pool has that much in it right now.
+         */
+        private static CostReading cost(String value) {
+            var parts = value.split(",");
+            if (parts.length < 3 || parts[0].isEmpty()) {
+                return null;
+            }
+            try {
+                return new CostReading(parts[0].charAt(0), Integer.parseInt(parts[1].trim()),
+                        "yes".equals(parts[2].trim()));
+            } catch (NumberFormatException notANumber) {
+                return null;
+            }
+        }
+
+        /** A single whole number, or 0 for one that will not parse. */
+        private static int whole(String value) {
+            try {
+                return Integer.parseInt(value.trim());
+            } catch (NumberFormatException notANumber) {
+                return 0;
+            }
         }
 
         private static float[] pair(String value) {

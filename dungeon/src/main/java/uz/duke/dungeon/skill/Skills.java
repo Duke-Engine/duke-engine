@@ -105,6 +105,13 @@ public final class Skills {
         var fields = new StringBuilder();
         for (var skill : book.getSkills()) {
             int rank = ranks.rankOf(skill.key());
+            // What it costs and whether he can pay it, as a field of its own
+            // rather than a fourth thing inside the slot. The slot's own fields
+            // are positional and already end in two optional ones; a separate
+            // field is how the rank beside it is sent, and for the same reason.
+            fields.append("|cost=").append(skill.key()).append(',')
+                    .append(skill.manaAt(Math.max(1, rank))).append(',')
+                    .append(book.canAfford(skill.key(), Math.max(1, rank)) ? "yes" : "no");
             fields.append("|skill=").append(skill.key()).append(',')
                     .append(iconPath.apply(skill.icon())).append(',');
             if (rank <= SkillRanks.UNLEARNT) {

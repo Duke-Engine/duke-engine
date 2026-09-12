@@ -21,7 +21,7 @@ class SkillTipTest {
 
     private static final SkillTip.Words WORDS = new SkillTip.Words(
             "Zarar", "Kuluar", "Radius", "Masofa", "Kuch",
-            "1 nuqta", "Ctrl+", "eng yuqori", "nuqta yo'q", "-daraja", "s");
+            "1 nuqta", "Ctrl+", "eng yuqori", "nuqta yo'q", "-daraja", "s", "Mana");
 
     private static Skill fireball() {
         return SETTINGS.skillsFor("Mage").stream().filter(skill -> skill.key() == 'Q')

@@ -2522,6 +2522,13 @@ public final class DungeonSettings {
         return icon == null || icon.isBlank() ? "" : hudIconFolder + icon;
     }
 
+    private String hudManaWord = "";
+
+    /** What a skill's price is called on its card, and the bar it comes out of. */
+    public String hudManaWord() {
+        return hudManaWord;
+    }
+
     private String hudLifestealWord = "";
 
     /**
@@ -2634,6 +2641,7 @@ public final class DungeonSettings {
                     .add("CmdStopWord", Ini.restOfLine((s, v) -> s.hudStopWord = v))
                     .add("CmdGuardWord", Ini.restOfLine((s, v) -> s.hudGuardWord = v))
                     .add("LifestealWord", Ini.restOfLine((s, v) -> s.hudLifestealWord = v))
+                    .add("ManaWord", Ini.restOfLine((s, v) -> s.hudManaWord = v))
                     .add("IconFolder", Ini.string((s, v) -> s.hudIconFolder = v))
                     .add("CommandIconFolder",
                             Ini.string((s, v) -> s.hudCommandIconFolder = v))
