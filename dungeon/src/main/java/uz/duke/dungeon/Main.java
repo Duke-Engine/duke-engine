@@ -192,7 +192,7 @@ public final class Main {
                 settings.unitBarEnemy(), settings.unitBarFriend(), settings.unitBarMana(),
                 settings.unitBarTrough(), settings.unitBarTick(), settings.unitBarRingFace(),
                 settings.unitBarRingRim(), settings.unitBarBossRim(),
-                settings.unitBarArcColour(), settings.unitBarLettering(),
+                settings.unitBarLettering(),
                 settings.unitBarNameSize(), settings.unitBarBossNameSize(),
                 settings.unitBarCountSize(), settings.unitBarLevelSize());
     }
