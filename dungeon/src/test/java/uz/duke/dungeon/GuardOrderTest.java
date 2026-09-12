@@ -55,7 +55,8 @@ class GuardOrderTest {
         return text.toString();
     }
 
-    private record Field(DukeGame game, GameObject hero, Orders orders) {
+    private record Field(DukeGame game, GameObject hero, Orders orders,
+            uz.duke.game.GamePlayer dungeon) {
 
         boolean walking() {
             var legs = hero.findModule(MoveUpdate.class);
@@ -89,7 +90,7 @@ class GuardOrderTest {
             game.spawn("Skeleton", arena.dungeon(), foeAt, 150f);
         }
         game.runHeadless(1);
-        return new Field(game, creature(game, "Rogue"), arena.orders());
+        return new Field(game, creature(game, "Rogue"), arena.orders(), arena.dungeon());
     }
 
     private static GameObject creature(DukeGame game, String template) {
@@ -111,7 +112,7 @@ class GuardOrderTest {
         assertTrue(field.walking(), "the premise: he set off");
         float reached = field.x();
 
-        assertTrue(KEYS.pressNow(field.game(), 'F'), "F is not a key that acts at once");
+        assertTrue(KEYS.pressNow(field.game(), 'D'), "D is not a key that acts at once");
         field.game().runHeadless(10);
 
         assertFalse(field.walking(), "told to defend, he walked on");
@@ -137,7 +138,7 @@ class GuardOrderTest {
         field.game().runHeadless(10);
         assertTrue(field.walking(), "the premise: he set off after it");
 
-        KEYS.pressNow(field.game(), 'F');
+        KEYS.pressNow(field.game(), 'D');
         field.game().runHeadless(30);
 
         assertFalse(field.walking(), "told to defend, he went on chasing");
@@ -161,11 +162,41 @@ class GuardOrderTest {
     @Test
     void defendingHeFightsBack() {
         var field = field(180f);
-        KEYS.pressNow(field.game(), 'F');
+        KEYS.pressNow(field.game(), 'D');
 
         field.game().runHeadless(40);
 
         assertTrue(field.shooting(), "it came at him and he stood there taking it");
+    }
+
+    /**
+     * ★ And an attack order ends in defend, like every other order.
+     *
+     * <p>He is pointed at something, he goes to it, he kills it — and then he is
+     * standing in a room watching the ground he is on, which is where all four of
+     * these end. What this is really guarding is the note the brain keeps about
+     * what he was sent at: if that outlived the creature it was about, the next
+     * thing he noticed by himself would be read as the old order and chased.
+     */
+    @Test
+    void killingWhatHeWasSentAtLeavesHimDefending() {
+        var field = field(260f);
+        var quarry = creature(field.game(), "Skeleton");
+        field.order(new uz.duke.rts.message.GameMessage.AttackObject(
+                field.game().getLocalPlayerIndex(), field.him(), quarry.getId()));
+
+        field.game().runHeadless(600);
+
+        assertTrue(quarry.isEffectivelyDead(), "he never finished it off");
+        assertFalse(field.walking(), "the fight is over and he is still walking somewhere");
+        // And the proof that he is guarding rather than merely idle: something
+        // arrives and he answers it without being told.
+        field.game().spawn("Skeleton", field.dungeon(),
+                field.x() + 30f, field.hero().getPosition().y());
+        field.game().runHeadless(30);
+
+        assertTrue(field.shooting(),
+                "another one walked up to him after the order was done and he ignored it");
     }
 
     /**

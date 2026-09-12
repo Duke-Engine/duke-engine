@@ -125,7 +125,7 @@ class WatchingTest {
         // anything else, and that is worth reading across the room. What it does
         // not have is any of them the player may press.
         assertTrue(line.contains("|cmds=theirs"), "it is not his to command: " + line);
-        assertTrue(line.contains("|cmd=F,shield,"), "but it is still doing something: " + line);
+        assertTrue(line.contains("|cmd=D,shield,"), "but it is still doing something: " + line);
         assertFalse(line.contains("|rank="), "nor holding a level: " + line);
     }
 

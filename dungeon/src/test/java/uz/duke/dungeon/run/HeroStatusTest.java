@@ -308,7 +308,7 @@ class HeroStatusTest {
         // Four orders, each with a key, a drawing, a word and a state.
         int orders = line.split(java.util.regex.Pattern.quote("|cmd="), -1).length - 1;
         assertEquals(4, orders, "the four buttons beside the map: " + line);
-        assertTrue(line.contains("|cmd=F,shield,"), "the one order the engine has no word for");
+        assertTrue(line.contains("|cmd=D,shield,"), "the one order the engine has no word for");
         assertTrue(line.contains(",off"), "and an order that is not on says so");
     }
 

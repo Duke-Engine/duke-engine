@@ -110,6 +110,9 @@ public final class HeroBrain extends UnitScript {
         if (standingStill(weapon, move)) {
             return;
         }
+        if (fightingHisWayThere(weapon, move)) {
+            return;
+        }
         forgetOrdersOverriddenByASkill(weapon);
         var current = weapon.isAttacking() ? world().findObject(weapon.getTarget()) : null;
         forgetAPickThatIsNoLongerHis(weapon);
@@ -207,6 +210,10 @@ public final class HeroBrain extends UnitScript {
             picked = null;
             sentAfter = null;
             forgetTheErrand();
+            // And any errand he was fighting his way through. Stop outranks
+            // everything, and an order that came back the moment he was let loose
+            // again would be one the player thought he had cancelled.
+            forgetTheMarch();
             weapon.holdFire();
             move.stop();
             return true;
@@ -222,6 +229,146 @@ public final class HeroBrain extends UnitScript {
 
     /** Whether he was already standing last frame, so a new order can be told apart. */
     private boolean wasStanding;
+
+    /**
+     * Sent to a spot with orders to kill what he meets on the way.
+     *
+     * <p><b>A walk whose business is what it passes.</b> An ordinary walk goes by
+     * whatever it goes by — {@link #standAndShoot} says as much, "walking
+     * somewhere; what he passes is not his business" — and that is right for a
+     * walk: a player who wanted the fight would have pointed at it. This is the
+     * order for the other case, and the room he is walking into is exactly the one
+     * he cannot point into yet.
+     *
+     * <p>Asked before anything else but Stop, because while it is in force it
+     * answers every question below it: what he is doing is the errand, and what he
+     * is shooting is something the errand stopped for.
+     *
+     * <p><b>He stops to fight and the errand waits.</b> Which is the whole of the
+     * bookkeeping here: being stopped is how he fights, so "he is not moving"
+     * cannot mean "he has arrived" — {@link #marchingTo} is forgotten whenever
+     * something stops him, so the next clear frame sets him off again rather than
+     * calling it a day where the fight happened.
+     *
+     * @return whether the errand has the frame, and everything below should wait
+     */
+    private boolean fightingHisWayThere(WeaponUpdate weapon, MoveUpdate move) {
+        var spot = orders.attackMovingTo(unit().getPlayerIndex());
+        if (spot == null) {
+            marchingTo = null;
+            return false;
+        }
+        if (thePlayerHasSpokenSince(weapon, move)) {
+            forgetTheMarch();
+            return false;
+        }
+        var foe = whatHeHasRunInto(weapon);
+        if (foe != null) {
+            marchingTo = null;
+            if (move.isMoving()) {
+                move.stop();
+            }
+            Facing.turnToward(unit(), foe);
+            return true;
+        }
+        if (move.isMoving()) {
+            return true; // on his way, and nothing within reach of him
+        }
+        if (marchingTo != null) {
+            // He went, and he has stopped. Either he is there or he can get no
+            // nearer, and there is nothing worth telling apart between the two —
+            // the locomotor gives up on a goal it cannot reach and this is that
+            // giving up arriving here. Either way the errand is spent and he is
+            // guarding the ground he ended on.
+            //
+            // Being told to Stop lands here too, since that takes his walk away:
+            // the order is over, which is what Stop means.
+            forgetTheMarch();
+            return false;
+        }
+        marchingTo = new Coord3D(spot.x(), spot.y(), 0f);
+        moveTo(spot.x(), spot.y());
+        return true;
+    }
+
+    /**
+     * Whether the player has given a plain order since this errand set off.
+     *
+     * <p><b>Noticed rather than told.</b> The engine applies its own three orders
+     * itself and the game's command handler is the door for commands it does
+     * <em>not</em> recognise — so a {@code MoveTo} is never passed on, and there is
+     * no message this class could have subscribed to. What there is instead is the
+     * evidence: the walk on his legs is one this class put there, and a different
+     * one can only be the player's; a target on his weapon that this class did not
+     * name can only be the player's. The same reasoning {@link #standingStill}
+     * makes, for the same reason.
+     *
+     * <p>Asked only while he is actually marching. Stopped to fight he has no walk
+     * of this errand's on him, and every target he has is one he was given.
+     */
+    private boolean thePlayerHasSpokenSince(WeaponUpdate weapon, MoveUpdate move) {
+        if (marchingTo == null) {
+            return false;
+        }
+        var going = move.getGoal();
+        if (going != null && !marchingTo.equals(going)) {
+            return true; // sent somewhere else
+        }
+        var aimed = weapon.getTarget();
+        return aimed != null && !aimed.equals(picked) && !aimed.equals(aimedAtBySkill());
+    }
+
+    /** The errand is over, however it ended. */
+    private void forgetTheMarch() {
+        orders.attackMove(unit().getPlayerIndex(), null);
+        marchingTo = null;
+    }
+
+    /** Where this errand last sent him, or null while he is stopped for something. */
+    private Coord3D marchingTo;
+
+    /**
+     * What he has run into: whatever he is already shooting, or the nearest thing
+     * he can see and reach. Null when the way is clear.
+     *
+     * <p>Letting go of one that has walked out of his reach is half the work here.
+     * Without it a skeleton that backed off would keep him standing where it left
+     * him, which is a hero stopped by something that is no longer there.
+     */
+    private GameObject whatHeHasRunInto(WeaponUpdate weapon) {
+        var already = weapon.isAttacking() ? world().findObject(weapon.getTarget()) : null;
+        if (already != null && !already.isEffectivelyDead() && canSee(already)
+                && World.reachBetween(unit(), already) <= reachOfHisWeapon()) {
+            return already;
+        }
+        var seen = closestHeCanShoot();
+        if (seen != null) {
+            picked = seen.getId();
+            weapon.attack(seen.getId());
+            return seen;
+        }
+        weapon.holdFire();
+        return null;
+    }
+
+    /**
+     * The nearest enemy within reach of his weapon that he can actually see.
+     *
+     * <p>The engine's own rule with the one thing it does not know added to it,
+     * and the only rule in this class for picking a fight nobody ordered — shared
+     * so that a hero standing his ground and a hero fighting his way somewhere
+     * cannot come to different answers about what is in front of him.
+     */
+    private GameObject closestHeCanShoot() {
+        return world().findClosestInReach(unit(), reachOfHisWeapon(), candidate ->
+                candidate != unit()
+                        && !candidate.isContained()
+                        && candidate.getBody() != null
+                        && !candidate.isEffectivelyDead()
+                        && world().getRelationship(unit().getPlayerIndex(),
+                                candidate.getPlayerIndex()) == Relationship.ENEMIES
+                        && canSee(candidate));
+    }
 
     /**
      * The same courtesy on a plain walking order: stop rather than shove, and
@@ -374,16 +521,12 @@ public final class HeroBrain extends UnitScript {
             return;
         }
         if (move.isMoving()) {
-            return; // walking somewhere; what he passes is not his business
+            // Walking somewhere; what he passes is not his business. The order
+            // for which it IS his business is a different one — see
+            // fightingHisWayThere, which never reaches this method.
+            return;
         }
-        var seen = world().findClosestInReach(unit(), reachOfHisWeapon(), candidate ->
-                candidate != unit()
-                        && !candidate.isContained()
-                        && candidate.getBody() != null
-                        && !candidate.isEffectivelyDead()
-                        && world().getRelationship(unit().getPlayerIndex(),
-                                candidate.getPlayerIndex()) == Relationship.ENEMIES
-                        && canSee(candidate));
+        var seen = closestHeCanShoot();
         if (seen != null) {
             picked = seen.getId();
             weapon.attack(seen.getId());

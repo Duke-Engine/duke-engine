@@ -383,4 +383,58 @@ class HeroChoiceTest {
 
         assertEquals(KNIGHT, runOf(session).getHeroTemplate());
     }
+
+    // ---- and his reach is drawn, which is his too ----
+
+    /** Choose that hero, and say how far the attack order says he reaches. */
+    private static float attackReachAfterChoosing(String hero) {
+        var visuals = uz.duke.client3d.Visuals.create();
+        var session = Dungeon.newSession(21L, SETTINGS);
+        // A frame first: templates exist once the game is running, and the menu in
+        // the real thing is drawn over a world that is already turning.
+        session.game().runHeadless(1);
+
+        Main.whoToPlay(session, SETTINGS, visuals, Main.controls(SETTINGS))
+                .options().get(indexOf(hero)).taken().run();
+
+        var ring = visuals.getSkillRange(Main.ATTACK_KEY);
+        assertNotNull(ring, hero + " has no reach to draw when the attack order is armed");
+        return ring.reach();
+    }
+
+    /**
+     * ★ The ring on the attack order is his own weapon's reach.
+     *
+     * <p>Taken off his template rather than written anywhere, for the reason
+     * {@code HeroBrain.reachOfHisWeapon} gives: a second copy of the number drifts
+     * the first time anybody re-tunes him, and a ring that lies about his reach is
+     * worse than no ring at all.
+     */
+    @Test
+    void theAttackOrderIsDrawnAtHisOwnReach() {
+        var session = Dungeon.newSession(21L, SETTINGS);
+        session.game().runHeadless(1);
+
+        assertEquals(Main.reachOf(session.game(), KNIGHT),
+                attackReachAfterChoosing(KNIGHT), 0.01f);
+    }
+
+    /**
+     * And a swordsman's reach is not an archer's, which is the whole point of
+     * drawing it.
+     *
+     * <p>It is most of what playing one rather than the other IS — the knight has
+     * to be on top of a thing and the archer must not be — and until this it was
+     * the one number on the bar a player was never shown.
+     */
+    @Test
+    void aSwordsmansReachIsNotAnArchers() {
+        float sword = attackReachAfterChoosing(KNIGHT);
+        float bow = attackReachAfterChoosing(ARCHER);
+
+        assertTrue(sword > 0f && bow > 0f, "one of them came out as no reach at all");
+        assertTrue(bow > sword * 2f, "a bow reaching " + bow + " against a sword's " + sword
+                + " should not be close; if these ever converge the ring stops being"
+                + " worth drawing");
+    }
 }

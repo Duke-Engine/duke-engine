@@ -300,8 +300,14 @@ final class HeroStatus {
     private static void appendOrders(StringBuilder line, DungeonSettings settings,
             Doing doing, boolean his) {
         var words = settings.hudOrderWords();
+        // Drawn in this order and read in this order — walk, attack, stop, guard —
+        // which is the order the words come in the file and the order Doing counts
+        // its four states in. The LETTERS are not in that order and are not meant
+        // to be: A S D are attack, stop and defend, under a hand that never leaves
+        // them, and walking takes the letter left over because it is the one order
+        // nobody uses the keyboard for.
         String[][] buttons = {
-            {"A", "march"}, {"S", "blade"}, {"D", "halt"}, {"F", "shield"},
+            {"F", "march"}, {"A", "blade"}, {"S", "halt"}, {"D", "shield"},
         };
         line.append("|cmds=").append(his ? "mine" : "theirs");
         for (int i = 0; i < buttons.length; i++) {

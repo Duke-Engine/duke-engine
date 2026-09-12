@@ -346,6 +346,54 @@ public final class Main {
         }
     }
 
+    /** The letter the attack order is on; see {@link #orders}. */
+    static final char ATTACK_KEY = 'A';
+
+    /**
+     * And the fifth ring: how far his ordinary attack reaches.
+     *
+     * <p>The question a player is actually asking when he reaches for the attack
+     * key — "from where?" — and the one number on the bar he has never been shown.
+     * A knight reaches eleven and a rogue sixty, which is most of what playing one
+     * rather than the other IS, and neither of them was ever drawn.
+     *
+     * <p><b>Not a fence.</b> Every other ring in the game is the edge of what a
+     * skill can do and a click past it is pulled back to the edge; this one is a
+     * statement, and the same key sends him to fight his way across the whole
+     * floor. The client is told as much — see {@code DukeRtsApp.aimArmedKey}.
+     *
+     * <p>Read off his own template rather than named here, for the reason
+     * {@code HeroBrain.reachOfHisWeapon} gives: two copies of one number drift the
+     * first time anybody re-tunes him, and a ring that lies about his reach is
+     * worse than no ring.
+     */
+    static void attackRingFor(Visuals visuals, uz.duke.game.DukeGame game, String hero) {
+        float reach = reachOf(game, hero);
+        if (reach > 0f) {
+            visuals.skillRange(new uz.duke.client3d.SkillRange(ATTACK_KEY,
+                    uz.duke.client3d.SkillRange.Shape.AT_A_CREATURE, reach, 0f));
+        }
+    }
+
+    /** How far that template's weapon reaches, or 0 if it carries none. */
+    static float reachOf(uz.duke.game.DukeGame game, String hero) {
+        // Null until the game is started, which the hero menu may well be drawn
+        // over. No reach is no ring, which is the right answer for a run that has
+        // not begun.
+        var logic = game.getLogic();
+        var template = logic == null ? null : logic.findTemplate(hero);
+        if (template == null) {
+            return 0f;
+        }
+        float reach = 0f;
+        for (var module : template.getModules()) {
+            if (module.data() instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
+                reach = Math.max(reach, weapon.attackRange());
+            }
+        }
+        return reach;
+    }
+
     /**
      * The endless dungeon, or the stage somebody asked for.
      *
@@ -408,6 +456,7 @@ public final class Main {
                         // chair is a skill that does nothing at all.
                         aimsFor(keys, settings, him);
                         ringsFor(visuals, settings, him);
+                        attackRingFor(visuals, session.game(), him);
                         session.run().startWith(session.game(), him);
                     }));
         }
@@ -605,16 +654,27 @@ public final class Main {
      * one key doing one thing covers all eight of them together.
      */
     private static void orders(Hotkeys keys) {
-        keys.onOpenGround('A', (game, spot) -> game.postCommand(
+        // ★ A, S, D — attack, stop, defend, which is where a hand rests and the
+        // order every RTS since Warcraft has put them in. Walking keeps the fourth
+        // letter and needs it least: pointing at a piece of floor is what the mouse
+        // has always done, and the button is there so a player can SEE that the
+        // four orders exist rather than because anybody reaches for it.
+        keys.onOpenGround('F', (game, spot) -> game.postCommand(
                 new uz.duke.rts.message.GameMessage.MoveTo(
                         game.getLocalPlayerIndex(), selected(game), spot)));
-        keys.onUnit('S', (game, id) -> game.postCommand(
-                new uz.duke.rts.message.GameMessage.AttackObject(
-                        game.getLocalPlayerIndex(), selected(game), new ObjectId(id))));
+        // Attack takes either, because it means two related things and a player
+        // mid-fight should not have to decide which before he knows what his click
+        // will land on: that creature, or fight your way to that spot.
+        keys.onUnitOrGround('A',
+                (game, id) -> game.postCommand(
+                        new uz.duke.rts.message.GameMessage.AttackObject(
+                                game.getLocalPlayerIndex(), selected(game), new ObjectId(id))),
+                (game, spot) -> game.postCommand(new uz.duke.dungeon.ai.AttackMove(
+                        game.getLocalPlayerIndex(), spot)));
         // Stop is the loudest of the four: drop the walk, drop the target, and
         // start nothing until told otherwise. Two commands because two things are
         // being said -- the engine's own stop, and this game's "and stay stopped".
-        keys.on('D', game -> {
+        keys.on('S', game -> {
             game.postCommand(new uz.duke.rts.message.GameMessage.StopMoving(
                     game.getLocalPlayerIndex(), selected(game)));
             game.postCommand(new uz.duke.dungeon.ai.HoldGround(
@@ -632,7 +692,7 @@ public final class Main {
         // walking or chasing did nothing whatever, so it was the one button on the
         // bar a player could press all game without once seeing it do anything —
         // while its own word said Himoya.
-        keys.on('F', game -> {
+        keys.on('D', game -> {
             game.postCommand(new uz.duke.rts.message.GameMessage.StopMoving(
                     game.getLocalPlayerIndex(), selected(game)));
             game.postCommand(new uz.duke.dungeon.ai.HoldGround(

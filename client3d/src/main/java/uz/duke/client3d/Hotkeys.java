@@ -60,7 +60,18 @@ public final class Hotkeys {
          * decision. Ground he lit once and has since forgotten stays fair game --
          * he knows what is there, even if he cannot see it now.
          */
-        OPEN_GROUND
+        OPEN_GROUND,
+
+        /**
+         * A creature if the click found one, and the floor if it did not.
+         *
+         * <p>For an order that means two related things depending on what is under
+         * the cursor — attack THAT, or go and fight your way THERE. One key rather
+         * than two because it is one intention, and because a player mid-fight
+         * should not have to decide which of two buttons he wants before he knows
+         * whether his click will land on anything.
+         */
+        UNIT_OR_GROUND
     }
 
     /** What the player pointed at — one of the two is filled in, per the aim. */
@@ -111,6 +122,28 @@ public final class Hotkeys {
     /** The same, for a letter that first asks the player to click the floor. */
     public Hotkeys onGround(char key, BiConsumer<DukeGame, Coord3D> action) {
         return bind(key, Aim.GROUND, (game, aimed) -> action.accept(game, aimed.point()));
+    }
+
+    /**
+     * The same again, for a letter that takes either — a creature if the click
+     * found one, the floor if it did not, and a different order for each.
+     *
+     * <p>Two pieces of work rather than one taking both, because what arrives is
+     * one or the other and never both, and a single callback would have to be
+     * handed the client's own {@code Aimed} to find out which. That type is the
+     * client's business: a game says what it wants done with a creature and what
+     * it wants done with a spot, and is told neither how the player chose nor how
+     * the choosing is drawn.
+     */
+    public Hotkeys onUnitOrGround(char key, java.util.function.ObjIntConsumer<DukeGame> atUnit,
+            BiConsumer<DukeGame, Coord3D> atGround) {
+        return bind(key, Aim.UNIT_OR_GROUND, (game, aimed) -> {
+            if (aimed.point() == null) {
+                atUnit.accept(game, aimed.unitId());
+            } else {
+                atGround.accept(game, aimed.point());
+            }
+        });
     }
 
     /**

@@ -2448,14 +2448,19 @@ final class DukeRtsApp extends SimpleApplication {
             // key going round the outside of the dim button.
             return;
         }
-        if (range != null && selectedIds().isEmpty()) {
+        if (range != null && !heroPanel.isAnOrder(key) && selectedIds().isEmpty()) {
             // A skill is something one of his creatures does, so it needs that
             // creature picked out — pressing Q with nothing selected, or with a
             // skeleton selected to look at it, used to cast anyway. The orders
-            // beside them are deliberately not like this: A and D are the player
+            // beside them are deliberately not like this: they are the player
             // talking to whoever he owns, and are meant to work with an empty
-            // selection. What tells the two apart is that the game gave this key
-            // a reach to draw, which only a skill has.
+            // selection.
+            //
+            // ★ Which is why the order has to be asked about by name. It used to
+            // be enough that only a skill had a reach to draw — until the attack
+            // order was given one too, and it is worth having: the ring says how
+            // far he hits from, which is the question a player is asking when he
+            // reaches for that key.
             return;
         }
         if (binding.aim() == Hotkeys.Aim.NOW) {
@@ -2533,20 +2538,30 @@ final class DukeRtsApp extends SimpleApplication {
      * rather than leaving the player armed and wondering why nothing happened.
      */
     private void aimArmedKey() {
+        // ★ Read BEFORE disarming, which nulls it. The clamp below asks what the
+        // armed key reaches, and asking after the disarm got null every time --
+        // so the mark it was written to put in the right place was left at the
+        // cursor, which is the one place it was written not to be.
+        char aimed = arming == null ? 0 : arming;
         var binding = hotkeys.all().get(arming);
         disarm();
         if (binding == null) {
             return;
         }
-        if (binding.aim() == Hotkeys.Aim.UNIT) {
+        boolean mayBeACreature = binding.aim() == Hotkeys.Aim.UNIT
+                || binding.aim() == Hotkeys.Aim.UNIT_OR_GROUND;
+        if (mayBeACreature) {
             var unit = pickUnit();
-            if (unit == null) {
+            if (unit != null) {
+                binding.run().accept(game, new Hotkeys.Aimed(unit.view.id(), null));
+                markOrder(unit.view.x(), unit.view.y(), unit.view.id(),
+                        OrderMarkers.Kind.ATTACK);
+                noises.moment("vo.attack", (float) timer.getTimeInSeconds());
                 return;
             }
-            binding.run().accept(game, new Hotkeys.Aimed(unit.view.id(), null));
-            markOrder(unit.view.x(), unit.view.y(), unit.view.id(), OrderMarkers.Kind.ATTACK);
-            noises.moment("vo.attack", (float) timer.getTimeInSeconds());
-            return;
+            if (binding.aim() == Hotkeys.Aim.UNIT) {
+                return; // it had to be a creature, and the click found none
+            }
         }
         var ground = pickGround();
         if (ground == null) {
@@ -2555,15 +2570,21 @@ final class DukeRtsApp extends SimpleApplication {
         if (binding.aim() == Hotkeys.Aim.OPEN_GROUND && !isOpenAndSeen(ground)) {
             return; // stone, or somewhere he has never been — nothing is sent
         }
-        binding.run().accept(game,
-                new Hotkeys.Aimed(0, new Coord3D(ground.x, ground.z, 0f)));
+        var spot = new Coord3D(ground.x, ground.z, 0f);
+        binding.run().accept(game, new Hotkeys.Aimed(0, spot));
         // ★ The mark goes where the SKILL goes, not where the mouse was. A click
         // past the ring is read by the simulation as "as far that way as I can"
         // -- it clamps to the edge -- so a mark left at the cursor would stand a
         // long way from where the thing actually landed and the picture would be
         // a lie in exactly the case the player most needs it to be true.
-        var landing = clampedToReach(new Coord3D(ground.x, ground.z, 0f));
-        markOrder(landing.x(), landing.y(), OrderMarkers.Kind.MOVE);
+        //
+        // An ORDER is not clamped, and the difference is real rather than an
+        // exception: the ring on an order says how far he HITS from, which is
+        // worth knowing and is not a fence. He may be sent to fight his way
+        // across the whole floor.
+        var landing = heroPanel.isAnOrder(aimed) ? spot : clampedToReach(aimed, spot);
+        markOrder(landing.x(), landing.y(), binding.aim() == Hotkeys.Aim.UNIT_OR_GROUND
+                ? OrderMarkers.Kind.ATTACK_MOVE : OrderMarkers.Kind.MOVE);
     }
 
     /**
@@ -2575,8 +2596,8 @@ final class DukeRtsApp extends SimpleApplication {
      * way as I can" is. A skill with no ring, or a click already inside it, is
      * left exactly where it was.
      */
-    private Coord3D clampedToReach(Coord3D wanted) {
-        var range = arming == null ? null : visuals.getSkillRange(arming);
+    private Coord3D clampedToReach(char key, Coord3D wanted) {
+        var range = key == 0 ? null : visuals.getSkillRange(key);
         var hero = whereHisHeroIs();
         if (range == null || hero == null) {
             return wanted;

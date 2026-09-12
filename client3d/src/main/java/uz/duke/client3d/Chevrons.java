@@ -73,10 +73,11 @@ final class Chevrons {
     void show(List<OrderMarkers.Marker> marks, float now, BiFunction<Float, Float, Float> floorAt) {
         int used = 0;
         for (var marker : marks) {
-            // An attack is answered by a ring round the creature rather than by
-            // arrowheads on the floor -- see AttackFlash for why they are not the
-            // same picture.
-            if (marker.kind() != OrderMarkers.Kind.MOVE) {
+            // An attack on a CREATURE is answered by a ring round it rather than
+            // by arrowheads on the floor -- see AttackFlash for why they are not
+            // the same picture. One pointed at the floor is answered here like any
+            // other order given to a place, and told apart by its colour.
+            if (marker.kind() == OrderMarkers.Kind.ATTACK) {
                 continue;
             }
             float age = now - marker.bornAt();
@@ -107,8 +108,10 @@ final class Chevrons {
         mark.node().setCullHint(Spatial.CullHint.Inherit);
         mark.node().setLocalTranslation(marker.x(),
                 floorAt.apply(marker.x(), marker.y()) + look.height(), marker.y());
-        mark.material().setColor("Color",
-                Glow.colour(look.moveColour(), look.brightness(), step.alpha()));
+        mark.material().setColor("Color", Glow.colour(
+                marker.kind() == OrderMarkers.Kind.ATTACK_MOVE
+                        ? look.attackColour() : look.moveColour(),
+                look.brightness(), step.alpha()));
         for (int point = 0; point < POINTS; point++) {
             float around = step.spinRadians() + point * FastMath.TWO_PI / POINTS;
             var head = mark.heads().get(point);

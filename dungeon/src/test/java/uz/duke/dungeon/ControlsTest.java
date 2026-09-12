@@ -2,6 +2,7 @@ package uz.duke.dungeon;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -28,6 +29,45 @@ import uz.duke.dungeon.content.DungeonSettings;
 class ControlsTest {
 
     private static final DungeonSettings SHIPPED = DungeonSettings.load();
+
+    /**
+     * ★ The four orders, and what each of them asks to be pointed at.
+     *
+     * <p>A, S, D under a resting hand — attack, stop, defend — with walking on the
+     * letter left over because it is the one order nobody reaches for the keyboard
+     * to give.
+     *
+     * <p>The claim worth making is the first one: <b>attack takes either</b>. A
+     * key that asked only for a creature could not be pointed into a room the
+     * player has not walked into, which is exactly when he wants to say it — and
+     * the failure would not look like a missing feature, it would look like a
+     * click that did nothing.
+     */
+    @Test
+    void theFourOrdersAskForWhatTheyNeed() {
+        var keys = Main.controls(SHIPPED);
+
+        assertEquals(Hotkeys.Aim.UNIT_OR_GROUND, keys.aimOf('A'),
+                "attack must take a creature OR a piece of floor");
+        assertEquals(Hotkeys.Aim.NOW, keys.aimOf('S'), "stop acts the moment it is pressed");
+        assertEquals(Hotkeys.Aim.NOW, keys.aimOf('D'), "defend acts the moment it is pressed");
+        assertEquals(Hotkeys.Aim.OPEN_GROUND, keys.aimOf('F'),
+                "walking is pointed at floor he could stand on and has seen");
+    }
+
+    /** And none of the four collides with a skill. */
+    @Test
+    void theOrdersAndTheSkillsDoNotShareALetter() {
+        var keys = Main.controls(SHIPPED);
+
+        for (var skill : SHIPPED.skills()) {
+            for (char order : new char[] {'A', 'S', 'D', 'F'}) {
+                assertNotEquals(order, skill.key(), skill.heroTemplate() + "'s "
+                        + skill.key() + " is on an order's letter, so one of the two is"
+                        + " silently unreachable");
+            }
+        }
+    }
 
     @Test
     void everySkillInTheFileGetsAKey() {

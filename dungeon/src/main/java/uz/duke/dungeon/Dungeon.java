@@ -328,6 +328,16 @@ public final class Dungeon {
                 // orders can say. See HoldGround.
                 case uz.duke.dungeon.ai.HoldGround hold ->
                         arena.orders().hold(hold.playerIndex(), hold.stand());
+                // "Go there and kill what you meet." See AttackMove.
+                case uz.duke.dungeon.ai.AttackMove march ->
+                        arena.orders().attackMove(march.playerIndex(), march.spot());
+                // ★ The three plain orders call it off, and they CANNOT be heard
+                // here: this handler is `onOtherCommand`, the engine's door for
+                // commands it does not recognise, so a MoveTo is applied by rts
+                // and never reaches it. Which is right -- they are the engine's
+                // orders and it owns them. Where the errand hears about them is
+                // HeroBrain, by noticing that its own walk has been taken off it;
+                // see thePlayerHasSpokenSince.
                 // Nothing in the world changes; the panel starts describing
                 // something else. See Watching.
                 case uz.duke.dungeon.run.Watching looking ->

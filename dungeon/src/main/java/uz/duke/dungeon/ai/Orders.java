@@ -70,9 +70,37 @@ public final class Orders {
         return watching.get(playerIndex);
     }
 
+    /**
+     * Where each player's creatures were sent to fight their way to, if anywhere.
+     *
+     * <p>The third of the three, and the only one that is a PLACE. It belongs here
+     * rather than on the brain for the same reason the other two do — it arrives
+     * at the session's command handler, which has a player number and no way to
+     * address a module on an object — and it is a standing order in the fullest
+     * sense: it outlives a fight in the middle of it, which is the whole of what
+     * makes it different from a walk.
+     */
+    private final java.util.Map<Integer, uz.duke.core.math.Coord3D> marching =
+            new java.util.HashMap<>();
+
+    /** Send that player's creatures fighting their way to a spot, or call it off. */
+    public void attackMove(int playerIndex, uz.duke.core.math.Coord3D spot) {
+        if (spot == null) {
+            marching.remove(playerIndex);
+        } else {
+            marching.put(playerIndex, spot);
+        }
+    }
+
+    /** Where he was sent to fight his way to, or {@code null}. */
+    public uz.duke.core.math.Coord3D attackMovingTo(int playerIndex) {
+        return marching.get(playerIndex);
+    }
+
     /** Forget everything — a new run is a new set of orders. */
     public void clear() {
         holding.clear();
         watching.clear();
+        marching.clear();
     }
 }

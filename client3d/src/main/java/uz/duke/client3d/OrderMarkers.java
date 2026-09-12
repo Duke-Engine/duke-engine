@@ -21,10 +21,19 @@ import java.util.List;
  */
 final class OrderMarkers {
 
-    /** What the order was, which is all the difference between the two colours. */
+    /** What the order was, which is all the difference between the colours. */
     enum Kind {
+        /** Go there. Arrowheads on the floor, in the colour of going somewhere. */
         MOVE,
-        ATTACK
+        /** Kill that one. A ring round the creature — see {@link AttackFlash}. */
+        ATTACK,
+        /**
+         * Go there, and kill what you meet. The arrowheads of a walk in the colour
+         * of an attack, because that is exactly what the order is: the player is
+         * pointing at a piece of floor, so he is answered where he pointed, and
+         * what he has asked for on the way there is a fight.
+         */
+        ATTACK_MOVE
     }
 
     /**

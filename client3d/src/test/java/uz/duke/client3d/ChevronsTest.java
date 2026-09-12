@@ -150,6 +150,29 @@ class ChevronsTest {
                 "an attack should not have asked this for anything");
     }
 
+    /**
+     * ★ An attack pointed at the FLOOR leaves arrowheads too — in red.
+     *
+     * <p>The third order and the one that made the split above stop being a
+     * two-way choice. It is given to a place, so it is answered where the player
+     * pointed exactly as a walk is; what he has asked for on the way there is a
+     * fight, so it is answered in the other colour. Nothing else tells him apart
+     * the two things his one attack key can mean.
+     */
+    @Test
+    void anAttackOnTheFloorLeavesRedArrowheads() {
+        var scene = scene();
+        scene.orders().add(10f, 10f, OrderMarkers.Kind.ATTACK_MOVE, NOW);
+
+        draw(scene, NOW);
+
+        assertEquals(1, scene.root().getChildren().size(),
+                "an attack pointed at the floor left nothing where the player pointed");
+        var red = colourOf(scene.root());
+        assertTrue(red.r > red.g, "kill your way there should not be drawn in the colour of"
+                + " a walk: " + red);
+    }
+
     /** And it really does go out: the colour it is drawn in loses its alpha. */
     @Test
     void theColourFadesAsTheMarkArrives() {
