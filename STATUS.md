@@ -1332,9 +1332,41 @@ ikkala peer aynan bir kadrda qo'llaydi.
   - Tumanni **so'ramagan o'yin hech narsa to'lamaydi**: tekstura qurilmaydi,
     relyef odatdagi `Lighting.j3md` bilan chiziladi, sikl ishlamaydi. `studio` va
     oddiy RTS xulqi o'zgarmagan.
-- **Qahramonda 4 ta skill (Q W E R)** — `STRIKE` (eng yaqin dushmanga zarba),
-  `AREA_DAMAGE` (atrofdagilarga), `DASH` (yuzi tomon otilish), `EMPOWER`
-  (ultimate: vaqtincha zarar oshishi, 5-darajadan ochiladi).
+- **Uchta qahramon, har birida 4 ta skill (Q W E R).** Kamonchi (`Hero`),
+  ritsar (`Knight`) va sehrgar (`Mage`) — uchalasi ham **faqat INI**, `Mage`
+  qo'shilganda `dungeon` ga bitta ham yangi hero klassi yozilmadi.
+  - **Effekt turlari (kodda, `SkillEffect`):** `STRIKE` (bitta dushmanga),
+    `AREA_DAMAGE` (o'zi atrofida), `AREA_AT_SPOT` (tanlangan nuqtaga),
+    `SKILLSHOT` (yo'nalish bo'ylab uchadi), `DASH` (yurib o'tadi), `EMPOWER`,
+    `GUARD`, `BLINK` (teleport), `METEOR` (kechikkan maydon zarari).
+  - **Yangi shakl = bitta konstanta + `SkillBook` da bitta tarmoq. Yangi
+    SKILL = na u, na bu** — faqat INI bloki. Mana shuning uchun sehrgar
+    "Fireball / Frost Nova / Blink / Meteor" ni oldi va ikkitasi (Q, W)
+    umuman yangi kod talab qilmadi:
+    - **Fireball** = `SKILLSHOT` + `Radius`. Ilgari skillshot uchun `Radius`
+      hech nimani anglatmasdi; endi u **qo'ngan joydagi portlash**, ya'ni
+      oddiy o'q — bu effekt, raqami yozilmagani.
+    - **Frost Nova** = `AREA_DAMAGE` + `SlowFrames`. Sekinlashtirish
+      engine'ning **o'z `ObjectStatus.SLOWED`** i: `MoveUpdate` allaqachon uni
+      kiygan narsaning qadamini ikkiga bo'ladi, `StatusUpdate` esa taymerini
+      o'zi sanaydi va o'zi yechadi. Ya'ni monstr **o'zi eriydi** — sehrgar
+      o'lgan bo'lsa ham. Ritsarning whirlwind'i `SlowFrames` haqida hech narsa
+      demagani uchun **zarracha ham o'zgarmadi**.
+    - **Blink** = yangi `BLINK`. `DASH` dan farqi: hech qachon zarar bermaydi,
+      **bosilgan nuqtaga aniq chiziq bo'ylab** boradi (dash o'z yuzi bo'ylab),
+      va tushadigan joy topilmasa **rad etadi** (kuluar sarflanmaydi).
+    - **Meteor** = yangi `METEOR`. **Kechikish — bu skillning o'zi.** Yerdagi
+      ogohlantirish belgisi — ekranda chizilgan ishora emas, **dunyodagi haqiqiy
+      obyekt** (`MeteorMark` + `FallingUpdate`), xuddi o'q kabi. Shuning uchun
+      klientга bitta ham qator kod kerak bo'lmadi, tuman uni boshqa hamma narsa
+      kabi yashiradi, va **doiradan chiqib ketgan monstr ultimate'ni yenggan
+      bo'ladi** — bu qila oladigan narsa bo'lishi kerak edi.
+  - **Sehrgar eng mo'rt narsa:** 380 jon va 4% armor (ritsarda 980 va 18%), va
+    o'z quroli sahifadagi eng kuchsizi — uning butun qiymati kuluarda.
+  - ★ **Model — vaqtinchalik:** KayKit Adventurers Mage repozitoriyada yo'q,
+    shuning uchun u kamonchining meshini kiyib, skeletlarning tayog'ini ushlab
+    turadi. `DungeonHero Mage` blokidagi **bitta `Model` qatori** — rig, kliplar
+    va masshtab allaqachon to'g'ri.
   - **Skilllar hero'ga bog'langan, ma'lumot bilan.** `dungeon.ini` da
     `DungeonSkill <Hero> <Key>` bloklari; kod faqat **effekt turlarini** beradi.
     Ikkinchi hero = to'rt blok INI + creature blokida bitta `SkillBook` qatori,
@@ -1364,6 +1396,43 @@ ikkala peer aynan bir kadrda qo'llaydi.
   - **Reset tekin keladi:** har run va har chuqurlikda yangi Hero obyekti
     quriladi, ya'ni yangi `SkillBook`, nol kuluar; ultimate esa darajadan
     kelib chiqadi, daraja o'limda nolga qaytadi.
+- **Har bir skillning o'z ko'rinishi bor** (`DungeonSkill ... Look = <blok>`).
+  12 ta skill ilgari bir xil sukunatda ishlardi: ular otgan narsa chizilardi,
+  **cast'ning o'zi esa yo'q**. Ikkita yangi effekt turi:
+  - **`SHOCKWAVE`** — yerda ochilib boradigan halqa. Skill **shundan tanaladi**:
+    uchqunlar "bu yerda nimadir bo'ldi" deydi va buni hamma skill bir xil aytadi;
+    halqada esa **o'lcham** bor (o'yindagi yagona chizma, skill qay masofaga
+    yetganini ko'rsatadigan), **tezlik** bor va qorong'ida ham o'qiladigan rang
+    bor. Relyef balandligini kuzatib boradi.
+  - **`GROUND_MARK`** — **turadigan** disk. Meteorning ogohlantirish doirasi va
+    ritsarning `GUARD` i davomida yerdagi belgi.
+  - ★ **`WaveEase` — butun "his" bitta raqamda.** U o'tgan ulushning darajasi:
+    `1` da halqa **bir tekis** ochiladi (progress-bar shunday qiladi, dunyoda esa
+    hech narsa), `2.4` da esa **otilib chiqib keyin sekinlashadi** — zarba
+    shunday qiladi. `SkillEffectsTest` buni to'g'ri chiziq emasligini qulflaydi.
+  - **Qatlamli, alternativa emas:** cast avval o'zining `IMPACT_BURST` ini va
+    yorug'lik chaqnashini chizadi, keyin halqa **ularning ichidan** ochiladi.
+    Uchtasidan istalgani o'z shiftidan tushib qolsa qolgan ikkitasi qoladi.
+    **Yorug'lik eng muhimi** — o'yin qorong'i, relyef sheyderi 4 ta o'qiydi.
+  - **Kamera silkinishi** faqat **ko'zni** suradi, qaragan nuqtani emas — ekran
+    markazidagi narsa joyida qoladi, dunyo esa uning atrofida titraydi. Ikkita
+    zarba **yig'indi emas, balandrog'ini** oladi (aks holda nova yonidagi meteor
+    o'ynab bo'lmaydigan zilzila bo'lardi).
+  - **Pool + shift:** halqalar bir marta quriladi va yashiriladi (`MaxRings`),
+    trail'lar bilan bir xil masofadan narisi chizilmaydi. Shiftdan oshsa skill
+    o'z olovini, yorug'ligini va zararini **saqlaydi**, faqat bezakni yo'qotadi.
+  - **Klient qaysi skill ishlaganini qayerdan biladi:** `status` kanalidan
+    (`cast=<blok>,<kadr>,<x>,<y>,<radius>`) — bu o'yinning **o'z klientiga** o'z
+    kanali. `WeaponFired` faqat "kim otdi va qayerda" deydi, va u `rts` da —
+    skill nima ekanini bilmaydigan o'yinlar bilan baham ko'riladi.
+  - **Hammasi INI'da, o'chirish ham:** hamma `ShakeSeconds = 0` — silkinish yo'q;
+    hamma `Look` qatori olib tashlansa — skilllar hech nima chizmaydi.
+    `SkillLookTest` `Look` qatori **simulyatsiyaga yeta olmasligini** isbotlaydi
+    (bir xil seed, checksum-ma-checksum).
+  - ★ **Tuzoq:** whirlwind bitta bosishda 8 marta qo'nadi, ya'ni 8 marta
+    chizilishi kerak — lekin klient chizadigan kadr va `HeroBrain` eshitadigan
+    kadr **ikki xil raqam**. Ularni bitta qilganda ritsar ultimate o'rtasida
+    yurish buyrug'ini 8 marta bekor qilib to'xtab qolardi.
 - **Skilllar buyruq quvuridan o'tadi** — `CastSkill` bu **o'yinning o'z
   buyrug'i**. Klavish bosilishi klientda faqat `postCommand` qiladi; nishon
   tanlash, kuluar, daraja tekshiruvi — hammasi simulyatsiyada, kadr chegarasida.
