@@ -198,11 +198,26 @@ public final class Stages {
         throw new IllegalStateException(said.toString());
     }
 
+    /**
+     * A stage's text, with its lines ending in {@code \n} whatever they ended
+     * with on disk.
+     *
+     * <p>★ The same normalising {@code Content.read} does, and here it matters
+     * more: a stage's map is READ AS CHARACTERS, one per cell, so a line ending in
+     * CRLF hands the row an extra cell of {@code \r} on the end. The floor is then
+     * one wider than it says it is, or refuses to load for a width that does not
+     * match — on Windows only, out of a file that is byte-for-byte the same one
+     * everybody else has.
+     *
+     * <p>A stage may also come off disk rather than out of the jar, which is the
+     * world-builder handing one over, and that is if anything MORE likely to have
+     * been saved by a Windows editor.
+     */
     private static String textOf(String path) {
         var file = Path.of(path);
         if (Files.isRegularFile(file)) {
             try {
-                return Files.readString(file, StandardCharsets.UTF_8);
+                return unixLines(Files.readString(file, StandardCharsets.UTF_8));
             } catch (IOException e) {
                 throw new UncheckedIOException("could not read the stage at " + path, e);
             }
@@ -213,9 +228,14 @@ public final class Stages {
                 throw new IllegalStateException("no stage at " + path
                         + " — neither on disk nor inside the game");
             }
-            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            return unixLines(new String(stream.readAllBytes(), StandardCharsets.UTF_8));
         } catch (IOException e) {
             throw new UncheckedIOException("could not read the stage at " + path, e);
         }
+    }
+
+    /** Whatever a machine ends its lines with, read as {@code \n}. */
+    static String unixLines(String text) {
+        return text.replace("\r\n", "\n").replace("\r", "\n");
     }
 }

@@ -38,13 +38,30 @@ public final class Content {
     private Content() {
     }
 
-    /** The text of a data file beside this class, or an error naming what is missing. */
+    /**
+     * The text of a data file beside this class, or an error naming what is
+     * missing. Lines end with {@code \n}, whatever they ended with on disk.
+     *
+     * <p>★ The normalising is not tidiness. These files are checked out, and what
+     * a checkout does to their line endings is a property of the MACHINE rather
+     * than of the game: git is commonly set to hand Windows a working copy with
+     * CRLF, so the same commit is LF here and CRLF there. Every reader that looks
+     * for a line — {@code indexOf("Object Skeleton\n")}, a {@code split} that is
+     * then compared against a word — then works on one machine and not the other,
+     * and the way it shows up is a test that is green for everybody except
+     * whoever is on Windows.
+     *
+     * <p>The INI parser itself never cared, because it tokenises. It is the
+     * things that read the file AS TEXT that did, so the fix belongs here, at the
+     * one door all of them come through, rather than in each of them.
+     */
     public static String read(String name) {
         try (var stream = Content.class.getResourceAsStream(ROOT + name)) {
             if (stream == null) {
                 throw new IllegalStateException("missing dungeon data file: " + ROOT + name);
             }
-            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8)
+                    .replace("\r\n", "\n").replace("\r", "\n");
         } catch (IOException e) {
             throw new UncheckedIOException("could not read dungeon data file: " + name, e);
         }

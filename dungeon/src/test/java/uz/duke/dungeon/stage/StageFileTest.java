@@ -100,4 +100,23 @@ class StageFileTest {
         var thrown = assertThrows(IllegalArgumentException.class, () -> StageFile.write(stage));
         assertTrue(thrown.getMessage().contains(";"), thrown.getMessage());
     }
+
+    /**
+     * A stage's lines are read as {@code \n}, whatever a machine wrote them as.
+     *
+     * <p>Sharper here than anywhere else in the game, because a stage's map is
+     * read AS CHARACTERS, one per cell: a row ending in CRLF hands the floor an
+     * extra cell of {@code \r} on the end, so it is one wider than it says it is
+     * — on Windows only, out of a file byte-for-byte the same as everybody
+     * else's. A stage off disk is if anything likelier to have been saved by a
+     * Windows editor than one out of the jar.
+     */
+    @Test
+    void aStagesLinesAreNormalised() {
+        var windowsDrawn = "##\r\n#.\r\n";
+
+        assertEquals("##\n#.\n", Stages.unixLines(windowsDrawn),
+                "a map row keeping its carriage return is a row one cell wider than it says");
+        assertEquals("##\n#.\n", Stages.unixLines("##\n#.\n"), "and LF is left alone");
+    }
 }
