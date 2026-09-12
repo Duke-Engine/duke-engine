@@ -1,6 +1,7 @@
 package uz.duke.dungeon;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -461,5 +462,97 @@ class DungeonTilesTest {
             return node.getChildren().stream().anyMatch(DungeonTilesTest::hasTexture);
         }
         return false;
+    }
+
+    // ---- what a raised block of rock is made of ----
+
+    /**
+     * A theme whose wall is a <em>thing</em> says what the rock under it is made
+     * of, and a theme whose wall is a surface does not.
+     *
+     * <p>Not a spelling check but a pairing. Masonry fills a two-storey block with
+     * two courses of its own wall and the mass between them is closed in; a tree is
+     * drawn once, on top, and what holds it up has to be named or there is nothing
+     * underneath it at all. So the two settings go together, and a theme that turns
+     * one on without the other is the bug this was written after — trees standing
+     * in the air over the upper floors.
+     */
+    @Test
+    void everyThemeWhoseWallIsAThingSaysWhatHoldsItUp() {
+        for (var theme : uz.duke.dungeon.content.DungeonSettings.load().themes().all()) {
+            assertEquals(theme.standing().fillsRock(), theme.wallBasePath() != null,
+                    theme.name() + " fills rock with a body but names no WallBase to stand it"
+                            + " on (or names one it does not need)");
+        }
+    }
+
+    /** And the model it names is shipped, and is not a sliver. */
+    @Test
+    void andWhatHoldsItUpIsShippedAndHasABodyToIt() {
+        var assets = assets();
+        int checked = 0;
+        for (var theme : uz.duke.dungeon.content.DungeonSettings.load().themes().all()) {
+            if (theme.wallBasePath() == null) {
+                continue;
+            }
+            var model = assets.loadModel(theme.wallBasePath());
+            assertNotNull(model, theme.wallBasePath() + " is named but not shipped");
+            model.updateModelBound();
+            model.updateGeometricState();
+            var box = (com.jme3.bounding.BoundingBox) model.getWorldBound();
+            // The client scales it so its HEIGHT fills one storey, uniformly, so
+            // how wide that leaves it is its own proportions. A model much taller
+            // than it is wide comes out a needle with daylight either side of it;
+            // one much wider comes out a pancake reaching across its neighbours.
+            float tallness = box.getYExtent() / Math.max(0.001f, box.getXExtent());
+            assertTrue(tallness > 0.5f && tallness < 2f,
+                    theme.wallBasePath() + " is " + tallness + " times as tall as it is wide,"
+                            + " so filling a storey with it leaves gaps or floods the map");
+            checked++;
+        }
+        assertTrue(checked > 0, "some theme should be naming one, or this test proves nothing");
+    }
+
+    /**
+     * The lid over the rock is drawn in a different colour from the floor.
+     *
+     * <p>Both are the same tile — the client lays a floor piece at the top of the
+     * walls to roof the stone — facing the same way, so one sun shades them
+     * identically and a player looking down a slope cannot tell which of the two he
+     * is allowed to walk on. It was reported as "no depth", and no angle of light
+     * can fix it: the two normals are the same normal.
+     */
+    @Test
+    void everyThemeTellsTheLidOnTheRockApartFromTheFloor() {
+        for (var theme : uz.duke.dungeon.content.DungeonSettings.load().themes().all()) {
+            assertNotEquals(0xFFFFFF, theme.capTint(),
+                    theme.name() + " draws the top of its walls in exactly the floor's colours");
+        }
+    }
+
+    /**
+     * And the dungeon's own sun is far enough off vertical to shade a wall.
+     *
+     * <p>Read off the file rather than off the client's fallback, which is
+     * deliberately still the flat old light so that turning three constants into a
+     * setting changed nobody's picture. The number that matters is the pitch, and
+     * two things go wrong at once as it approaches 90: every upright face gets the
+     * same share of the light, so nothing has any form, and everything flat gets
+     * all of it and clips to white.
+     */
+    @Test
+    void theSunIsFarEnoughOffVerticalToShadeAWall() {
+        var settings = uz.duke.dungeon.content.DungeonSettings.load();
+        double pitch = Math.toRadians(settings.sunPitch());
+
+        assertTrue(Math.cos(pitch) > 0.6,
+                "at " + settings.sunPitch() + " degrees the best-lit wall and the worst are "
+                        + Math.cos(pitch) + " apart, which is not enough to read as a wall");
+        // What a floor comes to: the sun's share of an upward face, plus the
+        // ambient the kit's materials return. Over one and it clips to white.
+        double kitAmbient = settings.sunAmbientPercent() / 100.0 * 0.55;
+        assertTrue(Math.sin(pitch) + kitAmbient <= 1.0,
+                "the ground comes out at " + (Math.sin(pitch) + kitAmbient) + " of full"
+                        + " brightness, so it clips and stops being a surface");
     }
 }

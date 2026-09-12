@@ -281,6 +281,10 @@ final class DukeRtsApp extends SimpleApplication {
         this.visuals = visuals;
         this.shell = shell;
         this.hotkeys = hotkeys == null ? Hotkeys.none() : hotkeys;
+        var sun = visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
+        this.sunDirection = sun.direction();
+        this.sunColour = sun.sunColour();
+        this.ambientColour = sun.ambientColour();
     }
 
     /** The simulation thread, if the player ever pressed Play. */
@@ -339,8 +343,8 @@ final class DukeRtsApp extends SimpleApplication {
                 fogMap == null ? this::lit : this::foggedTerrain,
                 visuals.getDiscoveryTemplate() != null, visuals.getTiles(), new KitTiles());
 
-        rootNode.addLight(new DirectionalLight(SUN_DIRECTION, SUN_COLOUR));
-        rootNode.addLight(new AmbientLight(AMBIENT_COLOUR));
+        rootNode.addLight(new DirectionalLight(sunDirection, sunColour));
+        rootNode.addLight(new AmbientLight(ambientColour));
 
         // Before the terrain, because rebuilding a world clears what is burning in
         // it and there has to be something there to clear.
@@ -4318,9 +4322,23 @@ final class DukeRtsApp extends SimpleApplication {
          */
         @Override
         public Spatial piece(String assetPath) {
+            return piece(assetPath, 0xFFFFFF);
+        }
+
+        /**
+         * The same, under a colour of this piece's own on top of the kit's.
+         *
+         * <p>Everything the plain call does, and it costs nothing more: the masters
+         * and the skins were already kept per tint, so a second tint is a second
+         * entry in maps that exist. The lid over the rock and the floors of two
+         * different storeys are then three materials rather than one, over a floor
+         * that is several hundred pieces.
+         */
+        @Override
+        public Spatial piece(String assetPath, int packedRgb) {
             var kit = activeKit();
             boolean own = kit != null && kit.keepsOwnMaterials();
-            int tint = kit == null ? 0xFFFFFF : kit.getTint();
+            int tint = blend(kit == null ? 0xFFFFFF : kit.getTint(), packedRgb);
             String key = assetPath + "#" + Integer.toHexString(tint);
             var master = masters.get(key);
             if (master == null) {
@@ -4358,7 +4376,7 @@ final class DukeRtsApp extends SimpleApplication {
                 var colour = colourOf(was).mult(tint);
                 geometry.setMaterial(fogMap == null
                         ? litKitMaterial(colour, textureOf(geometry))
-                        : fogged(colour, AMBIENT_COLOUR.mult(KIT_AMBIENT), textureOf(geometry)));
+                        : fogged(colour, ambientColour.mult(KIT_AMBIENT), textureOf(geometry)));
                 return;
             }
             if (model instanceof Node node) {
@@ -4398,7 +4416,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         private Material tileMaterial(com.jme3.texture.Texture atlas, ColorRGBA tint) {
             if (fogMap != null) {
-                return fogged(tint, AMBIENT_COLOUR.mult(KIT_AMBIENT).mult(tint), atlas);
+                return fogged(tint, ambientColour.mult(KIT_AMBIENT).mult(tint), atlas);
             }
             var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
             material.setBoolean("UseMaterialColors", true);
@@ -4408,6 +4426,17 @@ final class DukeRtsApp extends SimpleApplication {
                 material.setTexture("DiffuseMap", atlas);
             }
             return material;
+        }
+
+        /** Two packed colours multiplied, channel by channel — white leaves the other alone. */
+        private static int blend(int over, int under) {
+            if (under == 0xFFFFFF) {
+                return over;
+            }
+            int red = (over >> 16 & 0xFF) * (under >> 16 & 0xFF) / 255;
+            int green = (over >> 8 & 0xFF) * (under >> 8 & 0xFF) / 255;
+            int blue = (over & 0xFF) * (under & 0xFF) / 255;
+            return red << 16 | green << 8 | blue;
         }
 
         /** What a texture is called, for keying a skin by it; untextured pieces share one name. */
@@ -4446,17 +4475,29 @@ final class DukeRtsApp extends SimpleApplication {
         return material;
     }
 
-    /** The one sun and the one flat ambient the whole scene is lit by. */
-    private static final Vector3f SUN_DIRECTION =
-            new Vector3f(-0.4f, -1f, -0.5f).normalizeLocal();
-    private static final ColorRGBA SUN_COLOUR = new ColorRGBA(1f, 0.97f, 0.9f, 1f);
-    private static final ColorRGBA AMBIENT_COLOUR = new ColorRGBA(0.45f, 0.45f, 0.5f, 1f);
+    /**
+     * The one sun and the one flat ambient the whole scene is lit by, as the game
+     * asked for them — see {@link Sunlight}.
+     *
+     * <p>Read once and kept, rather than asked of the visuals at each of the four
+     * places that want them: they are read while materials are built, which is
+     * often, and the answer cannot change while a scene stands.
+     *
+     * <p>They were three constants here until a player said the map looked flat.
+     * It did, and this is where: a sun far enough from vertical is the only thing
+     * that tells a floor from the top of a wall, since the two are the same tile
+     * with the same normal, and how far is a decision about how a game should look
+     * rather than a fact about drawing one.
+     */
+    private final Vector3f sunDirection;
+    private final ColorRGBA sunColour;
+    private final ColorRGBA ambientColour;
 
     /** How much of the ambient plain terrain returns — what {@link #lit} asks for. */
     private static final float PLAIN_AMBIENT = 0.7f;
 
     private Material foggedTerrain(ColorRGBA color) {
-        return fogged(color, AMBIENT_COLOUR.mult(PLAIN_AMBIENT), null);
+        return fogged(color, ambientColour.mult(PLAIN_AMBIENT), null);
     }
 
     /**
@@ -4477,8 +4518,8 @@ final class DukeRtsApp extends SimpleApplication {
         var material = new Material(assetManager, "MatDefs/duke/FoggedTerrain.j3md");
         material.setColor("Color", color);
         material.setColor("Ambient", ambient);
-        material.setColor("Sun", SUN_COLOUR);
-        material.setVector3("SunDirection", SUN_DIRECTION);
+        material.setColor("Sun", sunColour);
+        material.setVector3("SunDirection", sunDirection);
         material.setTexture("FogMap", fogMap.texture());
         material.setVector2("FogSize", fogMap.worldSize());
         if (atlas != null) {

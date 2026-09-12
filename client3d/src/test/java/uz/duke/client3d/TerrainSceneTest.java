@@ -544,12 +544,42 @@ class TerrainSceneTest {
         assertEquals(3, faces.size(),
                 "masonry walls the rock from both sides and again on its roof");
         assertEquals(1, body.size(), "a tree has one body, however many sides it is seen from");
-        assertEquals(0f, body.get(0).getLocalTranslation().y, 0.001f,
-                "growing from the lowest floor beside the rock, not from its roof");
-        assertEquals(2f * faces.get(0).getLocalScale().x, body.get(0).getLocalScale().x, 0.001f,
-                "and as big as the rock it stands for, which here is two storeys");
         assertEquals((3 + 0.5f) * cell, body.get(0).getLocalTranslation().x, 0.001f,
                 "in the middle of the rock rather than on one of its faces");
+    }
+
+    /**
+     * And it stands on top of the rock, at its own size, whatever the rock is.
+     *
+     * <p>This used to say the opposite — the body grew from the lowest floor
+     * beside the rock and was scaled by however many storeys that spanned, so two
+     * storeys of rock was one tree twice the size all round. It was wrong twice.
+     *
+     * <p>A thing cannot be made taller without being made wider, so a tree
+     * standing for a two-storey rock came out twice as broad as the room next to
+     * it, which is not what a tall wood looks like. And <em>where no floor beside
+     * the rock was on the ground</em> — the rock ringing a room two storeys up,
+     * which is most of the rock on an upper floor — the lowest face was up there
+     * too. So the tree was drawn at the room's own height with nothing whatever
+     * underneath it: a wood hanging in the air, which is what the first player to
+     * see this reported.
+     *
+     * <p>What holds it up is {@link TileLayout.Piece#BASE}, asked for below.
+     */
+    @Test
+    void andItStandsOnTopOfTheRockAtItsOwnSize() {
+        var grid = MapLoader.fromText(WALL_BETWEEN);
+        MapLoader.levels(grid, WALL_BETWEEN);
+        grid.setLevelHeight(10f);
+        float cell = grid.getCellSize();
+
+        var faces = onCell(wallsOf(kit(), grid), 3, 1, cell);
+        var body = onCell(wallsOf(kit().wallFillsRock(true), grid), 3, 1, cell).get(0);
+
+        assertEquals(10f, body.getLocalTranslation().y, 0.001f,
+                "on the rock's own roof — the rock beside it rises a storey, so the roof does");
+        assertEquals(faces.get(0).getLocalScale().x, body.getLocalScale().x, 0.001f,
+                "and the same size it would be anywhere: a tree is a tree, not a storey count");
     }
 
     /**
@@ -674,5 +704,245 @@ class TerrainSceneTest {
                 "half a cell out is a flight hanging over the drop it should join");
         assertEquals((1 + 0.5f) * cell, footprint.getCenter().z, 0.01f,
                 "and the same across the corridor");
+    }
+
+    // ---- telling one surface from another ----
+
+    /** A stub that writes down what colour each piece was asked for. */
+    private static final class ColourWatchingTiles implements TileSource {
+        private final java.util.Map<String, java.util.Set<Integer>> asked =
+                new java.util.HashMap<>();
+
+        @Override
+        public com.jme3.scene.Spatial piece(String assetPath) {
+            return piece(assetPath, 0xFFFFFF);
+        }
+
+        @Override
+        public com.jme3.scene.Spatial piece(String assetPath, int packedRgb) {
+            asked.computeIfAbsent(assetPath, ignored -> new java.util.HashSet<>()).add(packedRgb);
+            return new Node(assetPath);
+        }
+    }
+
+    /**
+     * The lid over the rock is asked for in a different colour from the floor.
+     *
+     * <p>They are the same asset — the client roofs stone with a floor tile — and
+     * that is exactly the trouble: the same model, the same texture, and a normal
+     * pointing the same way, so one sun shades them the same and a player cannot
+     * see which of the two he is allowed to walk on. Nothing about the light can
+     * fix it, so a colour does.
+     *
+     * <p>Asked of what the scene <em>requests</em> rather than of what comes back,
+     * because the colour is not a property of the piece: it goes into which skin
+     * the source hands out, and a source free to ignore it is the one thing that
+     * would make this setting quietly do nothing.
+     */
+    @Test
+    void theLidOverTheRockIsAskedForInADifferentColourFromTheFloor() {
+        var watching = new ColourWatchingTiles();
+        new TerrainScene(new Node("terrain"), color -> null, true,
+                kit().capTint(0x808080), watching).rebuild(MapLoader.fromText(ROOM));
+
+        assertEquals(java.util.Set.of(0xFFFFFF, 0x808080), watching.asked.get("floor"),
+                "the floor plain, and the same tile tinted where it roofs the rock");
+    }
+
+    /** And each storey up is asked for in a colour of its own. */
+    @Test
+    void andEachStoreyIsAskedForInAColourOfItsOwn() {
+        var grid = twoStoreys();
+        var watching = new ColourWatchingTiles();
+        new TerrainScene(new Node("terrain"), color -> null, true,
+                kit().storeyShade(1.2f), watching).rebuild(grid);
+
+        assertTrue(watching.asked.get("floor").size() > 1,
+                "a raised room is the same tiles higher up, and looking down a slope that is"
+                        + " nothing to go on — every storey came back " + watching.asked);
+    }
+
+    /** A kit that asks for neither gets exactly the one colour it always got. */
+    @Test
+    void andAKitThatAsksForNeitherIsDrawnInOneColourAsBefore() {
+        var watching = new ColourWatchingTiles();
+        new TerrainScene(new Node("terrain"), color -> null, true, kit(), watching)
+                .rebuild(twoStoreys());
+
+        for (var entry : watching.asked.entrySet()) {
+            assertEquals(java.util.Set.of(0xFFFFFF), entry.getValue(),
+                    entry.getKey() + " gained a colour nobody asked for");
+        }
+    }
+
+    // ---- nothing hangs in the air ----
+
+    /**
+     * A corridor on the ground and rooms one and two storeys above it — the tallest
+     * the generator builds, and the shape the fault was reported in.
+     *
+     * <p>What matters about it is that some of the rock is touched by nothing on
+     * the ground: the block between the two upper rooms is surrounded by raised
+     * floor on every side. That is the case a body could not see, because it was
+     * grown from the lowest floor <em>beside</em> it — and up there, every floor
+     * beside it was up there too.
+     */
+    private static final String TOWER = """
+            ##########
+            #000#1111#
+            #000#1111#
+            #000#11#2#
+            #000#11#2#
+            ##########
+            """;
+
+    /**
+     * A stub whose base piece has a body, since a base is scaled by what it
+     * measures. One unit tall, so a storey of ten is filled by a scale of ten —
+     * the other pieces stay bodiless, because the tests above measure floors
+     * against an origin at zero.
+     */
+    private static final class StubTilesWithBase implements TileSource {
+        @Override
+        public com.jme3.scene.Spatial piece(String assetPath) {
+            if (!assetPath.equals("base")) {
+                return new Node(assetPath);
+            }
+            var node = new Node(assetPath);
+            var box = new com.jme3.scene.Geometry("body", new com.jme3.scene.shape.Box(
+                    0.5f, 0.5f, 0.5f));
+            node.attachChild(box);
+            node.updateModelBound();
+            node.updateGeometricState();
+            return node;
+        }
+    }
+
+    /**
+     * Nothing a kit of things stands up has empty space beneath it.
+     *
+     * <p>The fault the first player to see this reported, in the terms he saw it
+     * in: trees hanging in the air over the upper floors. Everything else in this
+     * class asks whether a piece landed where the arithmetic said; this asks the
+     * question he actually asked, which is whether the thing is standing on
+     * anything.
+     *
+     * <p>Asked of the <b>scene</b> rather than of the layout on purpose. The
+     * layout was never wrong — it named a face per storey, all the way down, as it
+     * always had. What dropped them was the rearrangement that turns faces into
+     * bodies for a kit whose wall is a tree, and that lives here. A test one level
+     * up would have gone on passing through the whole of this.
+     */
+    @Test
+    void nothingAKitOfThingsStandsUpIsLeftHangingInTheAir() {
+        assertEquals(java.util.List.of(),
+                hangingIn(forestLike().base("base")),
+                "a body standing on nothing is a tree in mid-air");
+    }
+
+    /**
+     * And a kit that names no base is left exactly as it was.
+     *
+     * <p>Not an oversight and not a second bug: this is the fault as it stood, and
+     * asserting it holds the change honest — the pieces do not move, they gain
+     * something underneath them. A kit that says nothing gets nothing, so the
+     * dungeon is drawn today as it was drawn yesterday.
+     */
+    @Test
+    void andAKitThatNamesNoBaseIsLeftExactlyAsItWas() {
+        assertTrue(!hangingIn(forestLike()).isEmpty(),
+                "without a base there is nothing under a body at all, and there should not be");
+    }
+
+    /**
+     * Every place a body stands above the ground with a storey under it that
+     * nothing fills.
+     *
+     * <p>By <b>where a piece stands</b>, never by the cell it was filed under.
+     * Those are different: a wall is filed under the cell it was built for and
+     * stands on that cell's boundary, and the mass under a rock is filed under the
+     * rock. Grouping the wrong way pairs a room's own wall with the rock across
+     * the map and answers nothing.
+     *
+     * <p>Asked only of a kit that fills rock. Masonry is a different picture and
+     * wants a different question: its wall is a <em>face</em>, so a course at two
+     * storeys is the visible surface of a mass closed in from whichever side can
+     * be walked up to, and there is deliberately nothing directly below it. What
+     * has to be true there is that you cannot see through the map, which is what
+     * {@link NoGapsTest} asks.
+     */
+    private static java.util.List<String> hangingIn(Tileset of) {
+        var grid = MapLoader.fromText(TOWER);
+        MapLoader.levels(grid, TOWER);
+        grid.setLevelHeight(10f);
+        float storey = grid.getLevelHeight();
+        var root = new Node("terrain");
+        new TerrainScene(root, color -> null, true, of, new StubTilesWithBase()).rebuild(grid);
+        root.updateGeometricState();
+
+        var filled = new java.util.HashSet<String>();
+        var standing = new java.util.ArrayList<com.jme3.math.Vector3f>();
+        for (var cellNode : root.getChildren()) {
+            for (var piece : ((Node) cellNode).getChildren()) {
+                var at = piece.getLocalTranslation();
+                if (piece.getName().equals("wall")) {
+                    filled.add(where(at.x, at.z, Math.round(at.y / storey)));
+                    if (at.y > 0.001f && inRock(at.x, at.z, grid.getCellSize())) {
+                        standing.add(at);
+                    }
+                } else if (piece.getName().equals("base")) {
+                    // Off its own bottom edge rather than its origin: where a kit
+                    // put the origin inside a boulder is the kit's business, and
+                    // this one's is in the middle of it.
+                    var box = (com.jme3.bounding.BoundingBox) piece.getWorldBound();
+                    float foot = box.getCenter().y - box.getYExtent();
+                    filled.add(where(at.x, at.z, Math.round(foot / storey)));
+                }
+            }
+        }
+
+        var hanging = new java.util.ArrayList<String>();
+        for (var at : standing) {
+            for (int below = 0; below < Math.round(at.y / storey); below++) {
+                if (!filled.contains(where(at.x, at.z, below))) {
+                    hanging.add(String.format("%.0f,%.0f stands at %.0f with storey %d under"
+                            + " it empty", at.x, at.z, at.y, below));
+                }
+            }
+        }
+        return hanging;
+    }
+
+    /**
+     * A kit shaped like the one this is about: a wall that fills rock rather than
+     * facing it, and no wall height, which is what lays the roof over the rock at
+     * the floor's own level. Both are the forest theme's own settings, and the
+     * second matters to the arithmetic here -- a kit with a wall height draws its
+     * lids and ledges that much above the storey they belong to, and then a drawn
+     * y is not a storey.
+     */
+    private static Tileset forestLike() {
+        return kit().wallFillsRock(true).wallHeight(0f);
+    }
+
+    /**
+     * Whether a piece stands in the middle of a cell, which is where a body stands
+     * and a face never does.
+     *
+     * <p>The two want asking different things and this is what separates them. A
+     * body fills a block of rock and is put at its centre, and what holds it up is
+     * the rock below it. A retaining wall is put on the <b>boundary</b> between two
+     * cells — it is the edge of a raised floor with no rock in it at all, so it
+     * stands on the floor beside it and there is nothing under it to draw. Asking
+     * the second one this question reports a wall holding up a terrace as hanging
+     * in the air, which it is not.
+     */
+    private static boolean inRock(float x, float z, float cell) {
+        return Math.abs(x / cell - Math.floor(x / cell) - 0.5) < 0.001
+                && Math.abs(z / cell - Math.floor(z / cell) - 0.5) < 0.001;
+    }
+
+    private static String where(float x, float z, int storey) {
+        return Math.round(x) + "," + Math.round(z) + "@" + storey;
     }
 }

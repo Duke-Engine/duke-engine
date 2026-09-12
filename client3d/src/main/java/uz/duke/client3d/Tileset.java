@@ -22,6 +22,7 @@ public final class Tileset {
     private String wall;
     private String corner;
     private String stairs;
+    private String base;
     private float tileSize = 4f;
     private float wallTileSize = 0f;
     private float wallHeight = 4f;
@@ -33,6 +34,8 @@ public final class Tileset {
     private float wallSpread;
     private float wallVariety;
     private int tint = 0xFFFFFF;
+    private int capTint = 0xFFFFFF;
+    private float storeyShade = 1f;
 
     private Tileset() {
     }
@@ -211,6 +214,61 @@ public final class Tileset {
         return tint;
     }
 
+    /**
+     * A second colour, over the lid on the rock only, packed {@code 0xRRGGBB}.
+     *
+     * <p>The lid is a floor tile — the same model, the same picture — laid on top
+     * of the stone instead of under the room. That is right, and it is also the
+     * reason a player cannot tell one from the other: two surfaces facing the same
+     * way, drawn from the same texture, lit by one sun that meets both at the same
+     * angle. The picture has a top and a bottom and nothing says which is which,
+     * and the answer the player needs from it is which of the two he can walk on.
+     *
+     * <p>Darker here is worth more than it looks. It costs one extra material for
+     * the whole floor — the skins are already kept per tint — and no extra piece,
+     * no second pass and no light.
+     *
+     * <p>White leaves the lid looking exactly like the floor, which is what every
+     * kit did before this existed.
+     */
+    public Tileset capTint(int packedRgb) {
+        this.capTint = packedRgb;
+        return this;
+    }
+
+    public int getCapTint() {
+        return capTint;
+    }
+
+    /**
+     * How much lighter each storey up is drawn, as a multiplier.
+     *
+     * <p>One is flat, which is what a one-storey map wants and what every kit had.
+     * Compounded per storey, so two floors up is the square of it.
+     *
+     * <p>The same problem as {@link #capTint} one level out. A raised room is a
+     * floor of the same tiles at a different height, and from a camera looking
+     * down a slope there is very little to say it is not simply further away. It
+     * costs one material per storey — three at most, since that is as many as the
+     * generator builds.
+     *
+     * <p>Worked <b>down from the tallest storey the map has</b> rather than up from
+     * the ground, because a tint multiplies and multiplying can only darken: asked
+     * for a floor half again as bright, a white tile hands back the white it
+     * already was and the setting quietly does nothing. Counting down says the same
+     * thing the other way round — the top floor is left alone and the ones under it
+     * step down — so a value above one lightens as you climb, which is what it
+     * reads as.
+     */
+    public Tileset storeyShade(float multiplier) {
+        this.storeyShade = multiplier > 0f ? multiplier : 1f;
+        return this;
+    }
+
+    public float getStoreyShade() {
+        return storeyShade;
+    }
+
     public static Tileset create() {
         return new Tileset();
     }
@@ -250,6 +308,31 @@ public final class Tileset {
     public Tileset stairs(String assetPath) {
         this.stairs = assetPath;
         return this;
+    }
+
+    /**
+     * What a piece of raised rock is made of underneath — a boulder, a block of
+     * earth, a slab of the same stone.
+     *
+     * <p>Only a kit whose wall is a thing rather than a surface needs one. Masonry
+     * walls a two-storey block of rock in two courses and the volume between them
+     * is enclosed; a tree is drawn once, on top, and leaves the rock below it drawn
+     * by nothing — so a tree standing at a raised room's floor stands in the air.
+     * See {@link TileLayout.Piece#BASE}.
+     *
+     * <p>Scaled to the cell it fills and <b>never stretched</b>: two storeys is two
+     * of them stacked. A rock is any size and still a rock; a rock twice as tall as
+     * it is wide is a pillar.
+     *
+     * <p>A kit that names none is drawn exactly as it was before this existed.
+     */
+    public Tileset base(String assetPath) {
+        this.base = assetPath;
+        return this;
+    }
+
+    public String getBase() {
+        return base;
     }
 
     /**

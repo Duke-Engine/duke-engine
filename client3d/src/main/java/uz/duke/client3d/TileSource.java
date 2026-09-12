@@ -21,4 +21,20 @@ interface TileSource {
      * would be drawing the dark twice, in squares the size of a tile.
      */
     Spatial piece(String assetPath);
+
+    /**
+     * The same piece under a colour of its own, multiplied over the kit's.
+     *
+     * <p>Not brightness, which is the fog's, but <em>identity</em>: the lid over
+     * the rock and the floor of a room are the same model and the same picture, so
+     * the only thing that can tell them apart is a colour one of them is given.
+     * Storeys are the same question one level out.
+     *
+     * <p>Packed {@code 0xRRGGBB}. White is the plain piece, and an implementation
+     * is free to answer with exactly that — which is what the default does, so a
+     * source that has never heard of tints goes on working.
+     */
+    default Spatial piece(String assetPath, int packedRgb) {
+        return piece(assetPath);
+    }
 }

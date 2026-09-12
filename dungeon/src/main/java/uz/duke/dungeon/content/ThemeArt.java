@@ -37,6 +37,19 @@ import java.util.List;
  *     the tile folder, which is what a kit with everything in one place wants
  * @param stairs        the flight of steps between two storeys, or null for a kit
  *     that ships none — then the client builds them out of blocks
+ * @param wallBase      what a piece of <em>raised</em> rock is made of underneath,
+ *     or null for a kit that needs none. Only a theme whose wall is a thing rather
+ *     than a surface does: masonry walls a two-storey block in two courses and the
+ *     volume between them is closed, while a tree is drawn once on top and leaves
+ *     the rock below it drawn by nothing at all
+ * @param capTint       a colour over the lid on the rock and nothing else, packed
+ *     {@code 0xRRGGBB}. The lid is a floor tile laid at the top of the walls — the
+ *     same model and the same picture as the floor of a room, facing the same way
+ *     — so without this there is nothing whatever to tell the player which of the
+ *     two he can walk on
+ * @param storeyShadePercent how much lighter each storey up is drawn, as a
+ *     percentage; 100 is flat and is what every theme had. The same question as
+ *     {@code capTint} one level out: a raised room is the same tiles higher up
  * @param fogTint       what the dark is coloured here, packed {@code 0xRRGGBB} —
  *     bluish under ice, red under lava, black in plain stone
  * @param standing      whether the wall piece is a thing that stands rather than
@@ -53,6 +66,9 @@ public record ThemeArt(
         boolean ownMaterials,
         String propFolder,
         String stairs,
+        String wallBase,
+        int capTint,
+        int storeyShadePercent,
         int fogTint,
         Standing standing,
         List<Tone> tones,
@@ -135,6 +151,18 @@ public record ThemeArt(
     /** The steps between storeys, with the folder in front of them. */
     public String stairsPath() {
         return path(stairs);
+    }
+
+    /**
+     * What raised rock is made of, with its folder in front of it.
+     *
+     * <p>Under the props rather than the tiles, because that is what it is: the
+     * boulder a forest already ships for scattering about its floors is the same
+     * boulder a cliff is made of, and naming it in two folders would be two copies
+     * of one rock.
+     */
+    public String wallBasePath() {
+        return inProps(wallBase);
     }
 
     /** The theme with every asset path made whole. */

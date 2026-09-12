@@ -2988,6 +2988,106 @@ ko'rsatmasi endi build'da tekshiriladi.
 uchun uning 1.333 s lik otishi 0.8 s lik qayta o'qlashiga sig'masligi muammo emas
 va hech qachon bo'lmagan ham.
 
+### 8.aq Grafika — havoda osilgan daraxtlar va chuqurligi yo'q pol
+
+Birinchi o'yinchidan feedback keldi va grafika eng katta shikoyat bo'ldi, ikki
+marta aytilgan. Ikki aniq nuqson topildi va **ikkalasi ham bitta narsaning ikki
+ko'rinishi**: relyef ma'lumoti bor, lekin uni ko'rsatadigan hech narsa yo'q edi.
+
+**★ Avval: `ruins` va `scifi` temalari yo'q.** `dungeon.ini` da ikkita tema bor —
+`Dungeon` va `Forest`. Brifda aytilgan boshqalari hali yozilmagan.
+
+#### 1. Yuqori qavatda daraxtlar havoda osilib turardi
+
+O'lchandi: uch qavatli test xaritasida **9 ta daraxt** `y=10` va `y=20` da, tagida
+hech narsasiz.
+
+Sabab masonry'da emas edi. `TileLayout` har doim to'g'ri ishlagan: qoyaga qarab
+**har qavat uchun bitta kurs** devor qo'yadi, ya'ni ikki qavatli qoya ikki qatlam
+bilan o'raladi va orasidagi massa yopiq. Nuqson `TerrainScene.plan()` da — `WallFillsRock`
+bo'lganda u qoyaning hamma yuzini **bitta tanaga** yig'adi va uni `min(yuzlar balandligi)`
+dan o'stirardi. Yuqori qavatdagi xonani o'rab turgan qoyaga esa **faqat yuqoridan**
+tegiladi, ya'ni o'sha min ham yuqorida — daraxt xona balandligida, tagi bo'sh.
+
+Ikkinchi yarmi: ikki qavatli qoya uchun daraxt **2× kattalashtirilardi**. Narsani
+balandroq qilishning yagona yo'li uni kengroq qilish, ya'ni yonidagi xonadan ikki
+barobar keng daraxt chiqardi — bu ham proporsiya buzilishi edi.
+
+**Yechim — variant (a), umumlashtirilgan.** Java'da tema nomiga `if` yo'q:
+
+- `TileLayout.Piece.BASE` — ko'tarilgan har qoya katagi uchun, **yerdan lidgacha,
+  har qavatga bittadan**. Toza va jME'siz, ya'ni test ushlab turadi.
+- Kit nima bilan to'ldirishni o'zi aytadi: `WallBase = rock.gltf`. Bu model
+  **allaqachon bor edi** (`models/props/forest/rock.gltf`) — yangi asset kerak
+  bo'lmadi.
+- Daraxt endi qoyaning **ustida**, doim bitta qavat bo'yi.
+- **Cho'zish yo'q:** qoya o'z o'lchoviga qarab bir tekis masshtablanadi (balandligi
+  aynan bitta qavatni to'ldiradi), ikki qavat — ikkita qoya. U katakdan biroz keng
+  chiqadi va bu ataylab: qo'shnilari bir-birining ustiga kirib, plato bitta tosh
+  massasi bo'lib ko'rinadi, kubiklar laganidek emas.
+- **Dungeon temasi `WallBase` yozmaydi → bitta ham bo'lak qo'shilmaydi.** Uning
+  ko'rinishi aynan avvalgidek.
+
+**Narxi o'lchandi:** haqiqiy qavatlarda **36–114 ta yangi bo'lak**, ya'ni mavjud
+pol+qoya soniga nisbatan **+2.0% dan +6.3%** gacha. Ko'tarilgan qoyaning deyarli
+hammasi (36/36, 60/76, 114/114) baribir chekkada turadi, shuning uchun "faqat
+ko'rinadigan chekkani to'ldirish" optimizatsiyasi hech narsa tejamaydi — va teshik
+qoldirmaydigan qoida teshik qoldirishi mumkin bo'lganidan arzon.
+
+#### 2. Pol va devor usti bir xil tekstura
+
+Ildiz sabab bitta qatorda edi: `TerrainScene.assetFor` da `case CAP -> tileset.getFloor()`
+— **devor usti tom ma'noda pol plitkasining o'zi**. Shader esa Lambert: ikkala yuzaning
+normali `+Y`, demak bitta quyosh ikkovini bir xil soyalaydi. Forest'da bundan ham
+yomoni — `WallHeight = 0`, ya'ni qopqoq pol bilan **bir xil balandlikda**.
+
+- **`CapTint`** — qopqoqqa alohida rang. `KitTiles` materiallarni allaqachon tint
+  bo'yicha kesh qiladi, shuning uchun bu **qo'shimcha draw call bermaydi**, faqat
+  bitta qo'shimcha material. Dungeon `0xA8A8B4` (sovuqroq, ~2/3 yorug'lik),
+  Forest `0x8FA37A` (qorong'iroq va yashilroq — o'tib bo'lmaydigan o'simlik).
+- **`StoreyShadePercent = 108`** — har qavat yuqorisi yorug'roq. ★ **Eng tepadan
+  pastga sanaladi**, chunki tint ko'paytiradi va ko'paytirish faqat qoraytira
+  oladi: oq plitkani "yorug'roq" qilishni so'rasang o'sha oqni qaytaradi va sozlama
+  jimgina ishlamaydi. Birinchi urinishimda aynan shunday bo'ldi — test tutdi.
+- **`DungeonSun` bloki** — quyosh burchagi/kuchi endi INI'da. `Sunlight` record
+  (`Fog` naqshi bo'yicha); `DukeRtsApp` dagi uchta qotirilgan konstanta o'rniga
+  bitta manba, chunki **ikki joy bir xil qiymatni bilishi kerak**: sahna chirog'i
+  (maxluqlarni yoritadi) va relyef shaderi (yerni yoritadi).
+
+**★ Pitch nimani ajratadi.** Tik quyoshda pol bilan devor farqi eng katta bo'ladi —
+pol 1.0, har qanday tik yuza 0.0. Yo'qoladigani **devorlarning bir-biridan** farqi:
+yuzaga tushadigan ulush quyoshning gorizontal qismidan keladi, 90° da esa u nol,
+ya'ni shimolga qaragan devor bilan sharqqa qaragani bir xil qorong'i va hech
+narsaning shakli yo'q. Shu sababli 57 → **40** ga tushirildi: yoyilish `cos(pitch)`
+ga teng, ya'ni 0.54 → 0.77. Yana bir foyda — 57 da pol `0.25 + 0.84 = 1.09` chiqib
+**oqqa kesilardi**, 40 da esa 0.92.
+
+**Pitch pol bilan devor ustini ajrata olmaydi** — ikkovining normali bir xil, hech
+qanday yorug'lik burchagi buni tuzatmaydi. Uni `CapTint` qiladi.
+
+**(c) — ataylab qilinmadi.** Haqiqiy ambient occlusion yoki soya xaritasi bu
+flat-shaded palette renderiga mos emas va Mac qizishi haqidagi shikoyatga
+to'g'ridan-to'g'ri zid. "Qorong'i chekka" ning bu yerdagi halol arzon varianti —
+`CapTint` ning o'zi. Agar yetarli bo'lmasa, keyingi qadam: forest'ga kichik
+`CapLift` — bu **endi mumkin**, chunki BASE o'sha vertikal yuzni to'ldiradi.
+
+#### Testlar, va ular nega shunday yozilgan
+
+`nothingAKitOfThingsStandsUpIsLeftHangingInTheAir` — **sahna** darajasida so'raydi,
+layout darajasida emas. Layout hech qachon xato bo'lmagan; tushirib qoldirgani
+yuzlarni tanaga aylantiradigan qayta joylashtirish, u esa `TerrainScene` da.
+Bir qavat yuqorida yozilgan test butun bu nuqson davomida yashil turaverardi.
+
+Yonida `andAKitThatNamesNoBaseIsLeftExactlyAsItWas` — `WallBase` siz osilganlar
+**bor** ekanini tasdiqlaydi. Ya'ni sabotaj testning ichiga yozib qo'yilgan, bir
+martalik tekshiruv emas.
+
+Yozish davomida metrikam **uch marta** noto'g'ri chiqdi va har safar tuzatildi:
+bo'laklar turgan katagi bo'yicha emas, *qurilgan* katagi bo'yicha guruhlangan edi;
+baza bo'lagining `y` i uning oyog'i emas markazi; va tayanch devor (qoya emas,
+pastdagi pol ustida turadi) yolg'on ijobiy berardi. Uchalasi ham "test yashil
+bo'lsin" deb emas, *savol* to'g'ri bo'lsin deb tuzatildi.
+
 ## 9. Nima yo'q / ochiq ishlar
 
 ### Katta teshiklar
@@ -3450,6 +3550,8 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/combat/EyesOnly.java` | ko'rmaganiga otmaydi — qahramon, arbaletchi va mage |
 | `client3d/…/client3d/LevelUpOverlay.java` | daraja tanlash ekrani — mexanizm klientniki, so'zlar o'yinniki |
 | `client3d/…/client3d/Fog.java` | tuman sozlamasi (LOS, uch qatlam yorqinligi, yumshoqlik, tekstura o'lchami, rang) |
+| `client3d/…/client3d/Sunlight.java` | quyosh burchagi/kuchi + ambient; ★ pitch = relyef borligi, 90° da hamma tik yuza bir xil qorong'i |
+| `client3d/…/client3d/TileLayout.java` | qaysi bo'lak qayerda — `BASE` ko'tarilgan qoyani yerdan to'ldiradi |
 | `client3d/…/client3d/FogMap.java` | tumanning o'zi — xaritaning qorong'ilik surati (alfa-tekstura) |
 | `client3d/src/main/resources/MatDefs/duke/` | relyef materiali: tumanni dunyo x/z bo'yicha o'qiydigan shader + to'rtta ko'chma point light |
 | `client3d/…/client3d/EdgeScroll.java` | kursor bilan kamerani surish sozlamasi |

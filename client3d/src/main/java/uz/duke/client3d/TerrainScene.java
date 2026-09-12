@@ -214,7 +214,17 @@ final class TerrainScene {
         // then they have their own scale — see Tileset.wallTileSize.
         float wallScale = cell / tileset.getWallTileSize();
 
-        for (var standing : plan(TileLayout.of(grid), grid)) {
+        float storey = grid.getLevelHeight();
+        var plan = plan(TileLayout.of(grid), grid);
+        // How many storeys this map actually has, so the shading can hang off the
+        // top of it — see storeyShade.
+        int tallest = 0;
+        if (storey > 0f) {
+            for (var standing : plan) {
+                tallest = Math.max(tallest, Math.round(standing.ground() / storey));
+            }
+        }
+        for (var standing : plan) {
             if (standing.piece() == TileLayout.Piece.STAIR) {
                 addStair(grid, standing, cell);
                 continue;
@@ -223,12 +233,94 @@ final class TerrainScene {
             if (asset == null) {
                 continue; // a kit without corner posts is a kit with square notches
             }
+            if (standing.piece() == TileLayout.Piece.BASE) {
+                addRockBase(asset, standing, cell, storey);
+                continue;
+            }
             int clump = standing.upright() ? tileset.getWallClump() : 1;
             for (int copy = 0; copy < clump; copy++) {
                 addKitPiece(asset, standing, copy, clump,
-                        standing.upright() ? wallScale : floorScale, wallScale, cell);
+                        standing.upright() ? wallScale : floorScale, wallScale, cell,
+                        tintFor(standing.piece(), standing.ground(), storey, tallest));
             }
         }
+    }
+
+    /**
+     * What colour a piece is given beyond the kit's own, so that two surfaces the
+     * player has to tell apart are not the same picture at two heights.
+     *
+     * <p>Only the ones that lie flat. A wall, a ledge and a tree are already told
+     * apart by standing up — they meet the sun at a different angle and the shader
+     * shades them for it. A floor and the lid over the rock are the same model, the
+     * same texture and the same normal, so nothing whatever separates them, and the
+     * one thing the player most needs off the picture is which of the two he can
+     * walk on. Storeys are the same question one level out: a raised room is the
+     * same floor higher up, and from a camera looking down a slope that is very
+     * little to go on.
+     *
+     * <p><b>Counted down from the tallest storey on the map, not up from the
+     * ground.</b> A tint multiplies, so it can only ever darken — asking for a
+     * floor half again as bright hands back the white it started from, and the
+     * setting silently does nothing at all. Hanging it off the top says the same
+     * thing in the one direction the arithmetic allows: the highest floor is left
+     * alone and everything under it is stepped down, which is the picture "each
+     * storey up is lighter" was asking for.
+     */
+    private int tintFor(TileLayout.Piece piece, float ground, float storey, int tallest) {
+        float shade = storey <= 0f ? 1f
+                : (float) Math.pow(tileset.getStoreyShade(),
+                        Math.round(ground / storey) - tallest);
+        return switch (piece) {
+            case CAP -> shaded(tileset.getCapTint(), shade);
+            case FLOOR -> shaded(0xFFFFFF, shade);
+            default -> shaded(0xFFFFFF, 1f);
+        };
+    }
+
+    /** A packed colour with every channel multiplied, clamped where it would overflow. */
+    private static int shaded(int packedRgb, float by) {
+        if (by == 1f) {
+            return packedRgb;
+        }
+        int red = Math.clamp(Math.round((packedRgb >> 16 & 0xFF) * by), 0, 255);
+        int green = Math.clamp(Math.round((packedRgb >> 8 & 0xFF) * by), 0, 255);
+        int blue = Math.clamp(Math.round((packedRgb & 0xFF) * by), 0, 255);
+        return red << 16 | green << 8 | blue;
+    }
+
+    /**
+     * One storey of the mass under a piece of raised rock.
+     *
+     * <p>Scaled by what it measures rather than by a number in the file, like the
+     * stair and for the same reason: how tall a boulder is against how wide it is
+     * belongs to the model, and a kit is then right by being shipped. Its height
+     * is made to fill exactly one storey, and because the scale is <b>uniform</b>
+     * it comes out however wide that makes it — which for a rock is a rock, where
+     * the same piece stretched to fit would be a balloon.
+     *
+     * <p>Wider than its cell is not a fault but the point: neighbouring pieces then
+     * overlap, and a plateau reads as one mass of stone rather than as a tray of
+     * identical cubes. Turned by a settled angle apiece for the same reason the
+     * trees are — the grid the map is built on must not show through the art.
+     */
+    private void addRockBase(String asset, Standing placement, float cell, float storey) {
+        var piece = tiles.piece(asset);
+        if (piece == null || storey <= 0f) {
+            return;
+        }
+        var box = boundsOf(asset, piece);
+        float tall = Math.max(0.001f, box.getYExtent() * 2f);
+        float scale = storey / tall;
+        piece.setLocalScale(scale);
+        piece.setLocalRotation(new com.jme3.math.Quaternion().fromAngleAxis(
+                FastMath.TWO_PI * steady(placement.x(), placement.z(), 0, 4), Vector3f.UNIT_Y));
+        // Its foot on the storey it fills: where a kit put the origin inside the
+        // model is its own business, so it is lifted by however far it hangs below.
+        piece.setLocalTranslation(placement.x(),
+                placement.ground() + (box.getYExtent() - box.getCenter().y) * scale,
+                placement.z());
+        cellNode(placement.cellY() * cellsWide + placement.cellX()).attachChild(piece);
     }
 
     /**
@@ -265,20 +357,34 @@ final class TerrainScene {
      * What to draw, which is the layout for a kit of masonry and a rearrangement
      * of it for a kit of things.
      *
-     * <p>Two rearrangements, and both are the same idea. A stack becomes one piece
-     * grown to the height of the stack — a tree with the floor above cutting
-     * through it and a second tree growing out of that is not what two storeys of
-     * wood looks like. And the <b>two faces of one piece of rock become one
-     * body</b>: a wall a single cell thick is walled from both sides, which for
-     * stone is right, because stone has two faces and you can stand on either
-     * side of it. A tree seen from both sides is one tree, and drawing it twice
-     * put a tree at the foot of the rock and a second one on the roof with the lid
-     * between them — which is exactly the picture this is here to stop.
+     * <p>The <b>faces of one piece of rock become one body</b>: a wall a single
+     * cell thick is walled from both sides, which for stone is right, because
+     * stone has two faces and you can stand on either side of it. A tree seen from
+     * both sides is one tree, and drawing it twice put a tree at the foot of the
+     * rock and a second one on the roof with the lid between them — which is
+     * exactly the picture this is here to stop.
      *
-     * <p>So a thing is drawn once per piece of rock, in the middle of it, from the
-     * lowest floor beside it to the highest. What is left facing rather than
-     * filling is the retaining wall: the edge of a raised floor with no rock in it
-     * at all, where there is nothing to stand in and the piece belongs on the line.
+     * <p>So a thing is drawn once per piece of rock, in the middle of it, and
+     * <b>on top of it</b> — standing on the rock's own lid, one storey tall,
+     * whatever the rock is. It used to be grown from the lowest floor beside the
+     * rock to the highest, which was wrong twice over. A tree standing for two
+     * storeys of rock came out twice the size all round, because a thing cannot be
+     * made taller without being made wider, and a tree twice as wide as the room
+     * beside it is not what a tall wood looks like. And where <em>no</em> floor
+     * beside the rock was on the ground — the rock ringing a room two storeys up,
+     * which is most of the rock on an upper floor — the lowest face was up there
+     * too, so the tree was drawn at the room's own height with nothing whatever
+     * underneath it. From a chair: trees hanging in the air.
+     *
+     * <p>What is under it is the rock, and the rock says what it is made of —
+     * {@link TileLayout.Piece#BASE}, one piece per storey from the ground up. The
+     * thing crowns the mass instead of standing in for it.
+     *
+     * <p>What is left facing rather than filling is the retaining wall: the edge
+     * of a raised floor with no rock in it at all. There is nothing to stand in
+     * and nothing to fill, so the piece belongs on the line and its stack is still
+     * collapsed into one — the only place a thing is still stretched, and the only
+     * place there is nothing else to cover the drop with.
      */
     private java.util.List<Standing> plan(java.util.List<TileLayout.Placement> layout,
             PathGrid grid) {
@@ -290,10 +396,9 @@ final class TerrainScene {
             return plan;
         }
         float cell = grid.getCellSize();
-        float storey = Math.max(grid.getLevelHeight(), 0f);
-        // Per piece of rock: the lowest floor beside it, the highest, and the turn
-        // and cell of whichever face was met first — a body has no facing of its
-        // own, but the cell it is filed under decides when the fog hides it.
+        // Per piece of rock: the turn and cell of whichever face was met first — a
+        // body has no facing of its own, but the cell it is filed under decides
+        // when the fog hides it. Where it stands is the rock's, not the faces'.
         var bodies = new java.util.LinkedHashMap<Integer, float[]>();
         var stacks = new java.util.LinkedHashMap<String, Standing>();
         for (var placement : layout) {
@@ -312,21 +417,21 @@ final class TerrainScene {
                         Math.min(was.ground(), one.ground()), was.storeys() + 1, false));
                 continue;
             }
-            bodies.merge(rock,
-                    new float[] {placement.ground(), placement.ground(), placement.yaw(),
-                        placement.cellX(), placement.cellY()},
-                    (was, one) -> new float[] {Math.min(was[0], one[0]), Math.max(was[1], one[1]),
-                        was[2], was[3], was[4]});
+            // First face wins: the rest say nothing a body needs. putIfAbsent
+            // rather than merge, and the order the layout comes in is settled, so
+            // the same map grows the same wood.
+            bodies.putIfAbsent(rock,
+                    new float[] {placement.yaw(), placement.cellX(), placement.cellY()});
         }
         plan.addAll(stacks.values());
         for (var body : bodies.entrySet()) {
             int rock = body.getKey();
-            var span = body.getValue();
-            int storeys = storey <= 0f ? 1 : Math.round((span[1] - span[0]) / storey) + 1;
-            plan.add(new Standing(TileLayout.Piece.WALL, (int) span[3], (int) span[4],
-                    (rock % grid.getWidth() + 0.5f) * cell,
-                    (rock / grid.getWidth() + 0.5f) * cell,
-                    span[2], span[0], storeys, true));
+            var found = body.getValue();
+            int rockX = rock % grid.getWidth();
+            int rockY = rock / grid.getWidth();
+            plan.add(new Standing(TileLayout.Piece.WALL, (int) found[1], (int) found[2],
+                    (rockX + 0.5f) * cell, (rockY + 0.5f) * cell,
+                    found[0], highestFloorAround(grid, rockX, rockY), 1, true));
         }
         return plan;
     }
@@ -358,8 +463,8 @@ final class TerrainScene {
      * the same wood grows the same way every time it is built.
      */
     private void addKitPiece(String asset, Standing placement, int copy, int clump,
-            float pieceScale, float wallScale, float cell) {
-        var piece = tiles.piece(asset);
+            float pieceScale, float wallScale, float cell, int tint) {
+        var piece = tiles.piece(asset, tint);
         if (piece == null) {
             return;
         }
@@ -671,6 +776,9 @@ final class TerrainScene {
             case CAP -> tileset.getWall() == null ? null : tileset.getFloor();
             case LEDGE -> tileset.getWall();
             case STAIR -> tileset.getStairs();
+            // Only a kit whose wall is a thing rather than a surface names one.
+            // Masonry fills a raised block of rock with its own courses.
+            case BASE -> tileset.getBase();
         };
     }
 

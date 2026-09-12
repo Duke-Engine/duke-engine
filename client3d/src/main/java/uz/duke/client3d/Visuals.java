@@ -759,6 +759,27 @@ public final class Visuals {
         return fog;
     }
 
+    private Sunlight sunlight = Sunlight.DEFAULT;
+
+    /**
+     * Where the light comes from and how much of it there is — see
+     * {@link Sunlight}.
+     *
+     * <p>Not a detail of the art: how far off vertical the sun stands is what
+     * decides whether the scene has any relief in it, because a sun straight
+     * overhead meets a floor and the top of a wall at the same angle and shades
+     * them the same. A game that never asks is lit exactly as the client always
+     * lit it.
+     */
+    public Visuals sunlight(Sunlight sunlight) {
+        this.sunlight = sunlight == null ? Sunlight.DEFAULT : sunlight;
+        return this;
+    }
+
+    public Sunlight getSunlight() {
+        return sunlight;
+    }
+
     private EdgeScroll edgeScroll = EdgeScroll.NONE;
 
     /**

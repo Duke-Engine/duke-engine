@@ -229,6 +229,9 @@ public final class Main {
                             .wallClump(theme.standing().clump())
                             .wallSpread(theme.standing().spread())
                             .wallVariety(theme.standing().variety())
+                            .base(theme.wallBasePath())
+                            .capTint(theme.capTint())
+                            .storeyShade(theme.storeyShadePercent() / 100f)
                             .tint(tone.tint()));
                     look.fogTint(theme.fogTint());
                     for (var themed : theme.monsters()) {
@@ -888,6 +891,12 @@ public final class Main {
                 settings.fogUnseenPercent() / 100f, settings.fogRememberedPercent() / 100f,
                 settings.fogVisiblePercent() / 100f, settings.fogSoftenCells(),
                 settings.fogOpenPerSecond(), settings.fogTextureSize(), settings.fogTint()));
+
+        // Where the light comes from — see DungeonSun. The pitch is what decides
+        // whether the floor plan reads as a place with heights in it.
+        visuals.sunlight(new uz.duke.client3d.Sunlight(settings.sunPitch(), settings.sunYaw(),
+                settings.sunStrengthPercent() / 100f, settings.sunAmbientPercent() / 100f,
+                settings.sunColour(), settings.sunAmbientTint()));
 
         // The three arrowheads that answer a click — see DungeonOrderMark.
         visuals.orderMark(new uz.duke.client3d.OrderMark(

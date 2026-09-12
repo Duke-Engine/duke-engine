@@ -383,6 +383,10 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, FOG);
                 }),
+                Map.entry("DungeonSun", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, SUN);
+                }),
                 Map.entry("DungeonCamera", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, CAMERA);
@@ -823,6 +827,9 @@ public final class DungeonSettings {
         float wallVariety;
         String propFolder = "";
         String stairs;
+        String wallBase;
+        int capTint = 0xFFFFFF;
+        int storeyShadePercent = 100;
         int fogTint;
 
         ThemeBuilder(String name) {
@@ -872,6 +879,10 @@ public final class DungeonSettings {
                     .add("WallVariety", Ini.real((t, v) -> t.wallVariety = v))
                     .add("PropFolder", Ini.string((t, v) -> t.propFolder = v))
                     .add("Stairs", Ini.string((t, v) -> t.stairs = v))
+                    .add("WallBase", Ini.string((t, v) -> t.wallBase = v))
+                    .add("CapTint", (ini, t) -> t.capTint = Integer.decode(ini.getNextToken()))
+                    .add("StoreyShadePercent",
+                            Ini.integer((t, v) -> t.storeyShadePercent = v))
                     .add("FogTint", (ini, t) -> t.fogTint = Integer.decode(ini.getNextToken()));
 
     private static final FieldParseTable<ToneBuilder> TONE =
@@ -941,7 +952,8 @@ public final class DungeonSettings {
             }
             built.add(new ThemeArt(theme.name, theme.folder, theme.tileSize,
                     theme.wallTileSize, theme.wallHeight, theme.wallLift, theme.wallShift,
-                    theme.ownMaterials, theme.propFolder, theme.stairs, theme.fogTint,
+                    theme.ownMaterials, theme.propFolder, theme.stairs, theme.wallBase,
+                    theme.capTint, theme.storeyShadePercent, theme.fogTint,
                     new ThemeArt.Standing(theme.wallFillsRock, theme.wallClump,
                             theme.wallSpread, theme.wallVariety),
                     itsTones, itsMonsters));
@@ -2191,6 +2203,72 @@ public final class DungeonSettings {
                     .add("OpenPerSecond", Ini.integer((s, v) -> s.fogOpenPerSecond = v))
                     .add("TextureSize", Ini.integer((s, v) -> s.fogTextureSize = v))
                     .add("Tint", (ini, s) -> s.fogTint = Integer.decode(ini.getNextToken()));
+
+    // ---- the light ----
+
+    private int sunPitch = 57;
+    private int sunYaw = 219;
+    private int sunStrengthPercent = 100;
+    private int sunAmbientPercent = 50;
+    private int sunColour = 0xFFF7E6;
+    private int sunAmbientTint = 0xE6E6FF;
+
+    /**
+     * How far above the horizon the sun stands, in degrees.
+     *
+     * <p>The number that decides whether the map has any depth in it. A floor and
+     * the lid over a wall are the same tile facing the same way, so the only thing
+     * that can shade one differently from the other is light arriving at an angle
+     * — and at 90 there is no angle, so there is no difference, and a player cannot
+     * see where he is allowed to walk.
+     *
+     * <p>Look and nothing else, like the fog: the simulation never reads it.
+     */
+    public int sunPitch() {
+        return sunPitch;
+    }
+
+    /** Which way round the compass it comes from, deciding which face is the lit one. */
+    public int sunYaw() {
+        return sunYaw;
+    }
+
+    /** How bright the sun is, as a percentage of its own colour. */
+    public int sunStrengthPercent() {
+        return sunStrengthPercent;
+    }
+
+    /**
+     * How much light a face the sun never reaches still gets, as a percentage.
+     *
+     * <p>The sun's opposite, and it wants reading with it. Raising this is what
+     * stops an unlit wall being a black shape, and raising it too far is what
+     * flattens the picture again — at 100 every face is lit the same whatever it
+     * faces, which is the very thing the pitch is there to prevent.
+     */
+    public int sunAmbientPercent() {
+        return sunAmbientPercent;
+    }
+
+    /** What colour the sunlight is, packed {@code 0xRRGGBB}. */
+    public int sunColour() {
+        return sunColour;
+    }
+
+    /** What colour the shadowed side is, packed {@code 0xRRGGBB}. */
+    public int sunAmbientTint() {
+        return sunAmbientTint;
+    }
+
+    private static final FieldParseTable<DungeonSettings> SUN =
+            new FieldParseTable<DungeonSettings>()
+                    .add("Pitch", Ini.integer((s, v) -> s.sunPitch = v))
+                    .add("Yaw", Ini.integer((s, v) -> s.sunYaw = v))
+                    .add("StrengthPercent", Ini.integer((s, v) -> s.sunStrengthPercent = v))
+                    .add("AmbientPercent", Ini.integer((s, v) -> s.sunAmbientPercent = v))
+                    .add("Colour", (ini, s) -> s.sunColour = Integer.decode(ini.getNextToken()))
+                    .add("AmbientTint",
+                            (ini, s) -> s.sunAmbientTint = Integer.decode(ini.getNextToken()));
 
     private String hudDepthWord = "DEPTH";
     private String hudRankSuffix = "-lv";
