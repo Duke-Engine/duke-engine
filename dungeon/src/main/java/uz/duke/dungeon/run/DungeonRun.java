@@ -389,6 +389,12 @@ public final class DungeonRun {
         // the same reason progression is: descending replaces the hero too, and
         // there he keeps them.
         powers.reset();
+        // ★ AND WHAT HE HAD LEARNT. The same argument again and it was missed the
+        // first time: a hero who died came back at the first level with all four
+        // skills still open, so his second run began with twelve points he had
+        // not earned and no decisions left to make. A build is the most valuable
+        // thing a run has and a roguelike keeps nothing.
+        learnt.startWith(settings.skillsFor(heroTemplate));
         descend(game);
         runCount++;
         state = State.RUNNING;

@@ -1025,6 +1025,11 @@ final class HeroPanel {
     /** How far the card floats over the slot it belongs to. */
     private static final float TIP_LIFT = 12f;
 
+    /** Whether a card is on screen. For the tests. */
+    boolean tipShowing() {
+        return tip != null && tip.showing();
+    }
+
     /** Whether that key is one of the order buttons rather than a skill. */
     boolean isAnOrder(char key) {
         for (var button : orderButtons) {
