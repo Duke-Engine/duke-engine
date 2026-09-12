@@ -77,6 +77,32 @@ final class UnitBars {
     /** How many steps the experience ring is cut into. */
     private static final int ARC_STEPS = 32;
 
+    /**
+     * How wide a mark across a bar is, in pixels.
+     *
+     * <p>Two, and the same two on every bar in the game. A mark is a ruler line:
+     * it has to be seen and it must not be looked at, and the difference between
+     * those two is about a pixel.
+     */
+    private static final float MARK_THICK = 2f;
+
+    /** How far the dark keyline stands outside a bar, in pixels. */
+    private static final float EDGE = 2f;
+
+    /**
+     * How strongly the unfilled part of the experience ring is drawn.
+     *
+     * <p>The same colour as the filled part, at a fifth of it. One colour and two
+     * strengths rather than two colours: the ring says <em>two</em> things at
+     * once — whose ring this is, which is the whole of how a boss is told apart,
+     * and how far round it has gone — and a second colour for the second thing
+     * would have the two arguing over which of them the eye answers first.
+     */
+    private static final float RING_TRACK = 0.22f;
+
+    /** How far the shadow under a line of lettering is offset, in pixels. */
+    private static final float SHADOW = 1f;
+
     /** Every rectangle on screen is this, scaled. */
     private static final Mesh SQUARE = square();
 
@@ -86,7 +112,17 @@ final class UnitBars {
     private final BitmapFont display;
     private final Node root = new Node("unit-bars");
     private final List<Bar> pool = new ArrayList<>();
-    private final Map<Integer, Mesh> marks = new HashMap<>();
+    /**
+     * The marks, by the count AND the width they were cut for.
+     *
+     * <p>Keyed by both because they are cut in pixels rather than in a unit
+     * square: a unit mesh stretched to a bar's width stretches its marks with it,
+     * so a mark that is a hairline on a rat is three pixels on a boss and the bar
+     * reads as separate blocks rather than as a divided one. There are as many
+     * entries as there are distinct creature sizes -- a dozen or so -- and two
+     * creatures of a size still share one.
+     */
+    private final Map<Long, Mesh> marks = new HashMap<>();
     private final Map<Integer, Mesh> arcs = new HashMap<>();
     private UnitBarLook look = UnitBarLook.NONE;
 
@@ -175,28 +211,81 @@ final class UnitBars {
 
     private static final class Bar {
         private final Node node = new Node("bar");
+        private Geometry edge;
         private Geometry trough;
         private Geometry fill;
         private Geometry ticks;
+        private Geometry manaEdge;
         private Geometry manaTrough;
         private Geometry manaFill;
         private Geometry back;
         private Geometry rim;
         private Geometry arc;
-        private BitmapText count;
-        private BitmapText level;
-        private BitmapText name;
-        private BitmapText bossName;
+        private Lettering count;
+        private Lettering level;
+        private Lettering name;
+        private Lettering bossName;
         private boolean up;
-        /** What was last handed to each piece, so nothing is handed it twice. */
-        private String saidCount = "";
-        private String saidLevel = "";
-        private String saidName = "";
         /** Which of the two name pieces is the one showing. */
-        private BitmapText lettered;
+        private Lettering lettered;
         private int cutInto = -1;
         private int arcStep = -1;
         private float wide = -1f;
+    }
+
+    /**
+     * One line of lettering and the shadow under it.
+     *
+     * <p>Both, always, because a bar is drawn over the game world and the world
+     * is whatever colour it happens to be. Bone lettering on a pale floor is not
+     * dim, it is gone — and the floor changes with the theme, so no single
+     * colour is safe. A dark copy one pixel down and across costs a second small
+     * mesh and makes the reading hold on anything.
+     *
+     * <p>The two are driven together and there is no way to move one without the
+     * other, which is the point of their being a pair rather than two fields.
+     */
+    private static final class Lettering {
+        private final BitmapText shadow;
+        private final BitmapText face;
+        private String said = "";
+
+        private Lettering(BitmapText shadow, BitmapText face) {
+            this.shadow = shadow;
+            this.face = face;
+        }
+
+        private void say(String words) {
+            if (said.equals(words)) {
+                return; // a BitmapText rebuilds its mesh on every setText
+            }
+            said = words;
+            shadow.setText(words);
+            face.setText(words);
+        }
+
+        private void colour(ColorRGBA colour) {
+            face.setColor(colour);
+        }
+
+        private void size(float size) {
+            if (face.getSize() != size) {
+                shadow.setSize(size);
+                face.setSize(size);
+            }
+        }
+
+        private void centre(float middle, float bottom) {
+            float left = middle - face.getLineWidth() / 2f;
+            shadow.setLocalTranslation(left + SHADOW, bottom - SHADOW,
+                    shadow.getLocalTranslation().z);
+            face.setLocalTranslation(left, bottom, face.getLocalTranslation().z);
+        }
+
+        private void show(boolean shown) {
+            UnitBars.show(shadow, shown);
+            UnitBars.show(face, shown);
+        }
     }
 
     /**
@@ -216,22 +305,26 @@ final class UnitBars {
         float width = look.widthFor(view.maxHealth());
 
         if (bar.wide != width) {
-            bar.wide = width;
+            size(bar.edge, width + EDGE * 2f, look.height() + EDGE * 2f);
             size(bar.trough, width, look.height());
+            size(bar.manaEdge, width + EDGE * 2f, look.manaHeight() + EDGE * 2f);
             size(bar.manaTrough, width, look.manaHeight());
         }
         int cuts = look.segmentsFor(view.maxHealth());
-        if (bar.cutInto != cuts) {
+        if (bar.cutInto != cuts || bar.wide != width) {
             bar.cutInto = cuts;
-            bar.ticks.setMesh(marks.computeIfAbsent(cuts, UnitBars::markMesh));
+            bar.ticks.setMesh(marks.computeIfAbsent(
+                    cuts * 100_000L + Math.round(width), key -> markMesh(cuts, width)));
         }
-        size(bar.ticks, width, look.height());
+        bar.ticks.setLocalScale(1f, look.height(), 1f);
 
         float left = Math.clamp(view.healthFraction(), 0f, 1f);
         size(bar.fill, Math.max(1f, width * left), look.height());
+        bar.wide = width;
         bar.fill.getMaterial().setColor("Color", look.fill(one.his()));
 
         boolean pool = hero && reading.maxMana() > 0 && look.hasMana();
+        show(bar.manaEdge, pool);
         show(bar.manaTrough, pool);
         show(bar.manaFill, pool);
         if (pool) {
@@ -239,7 +332,10 @@ final class UnitBars {
             size(bar.manaFill, Math.max(1f, width * held), look.manaHeight());
         }
 
-        bar.rim.getMaterial().setColor("Color", look.rim(boss));
+        var ring = look.rim(boss);
+        bar.rim.getMaterial().setColor("Color",
+                new ColorRGBA(ring.r, ring.g, ring.b, RING_TRACK));
+        bar.arc.getMaterial().setColor("Color", ring);
         int step = Math.round(reading.experienceOn(view.id()) * ARC_STEPS);
         show(bar.arc, hero && step > 0);
         if (hero && step > 0 && bar.arcStep != step) {
@@ -247,28 +343,17 @@ final class UnitBars {
             bar.arc.setMesh(arcs.computeIfAbsent(step, this::arcMesh));
         }
 
-        var reads = Math.round(view.health()) + "/" + Math.round(view.maxHealth());
-        if (!bar.saidCount.equals(reads)) {
-            bar.saidCount = reads;
-            bar.count.setText(reads);
-        }
-        var rank = Integer.toString(reading.levelOn(view.id()));
-        if (!bar.saidLevel.equals(rank)) {
-            bar.saidLevel = rank;
-            bar.level.setText(rank);
-        }
+        bar.count.say(Math.round(view.health()) + "/" + Math.round(view.maxHealth()));
+        bar.level.say(Integer.toString(reading.levelOn(view.id())));
+        bar.level.colour(boss ? look.rim(true) : look.letteringColour());
         // A boss is torch-lit and set in the display face, which is the whole of
         // how one is told from an ordinary monster at a glance.
         var lettered = boss && bar.bossName != null ? bar.bossName : bar.name;
-        var called = reading.nameOf(view.templateName());
-        if (!bar.saidName.equals(called) || bar.lettered != lettered) {
-            bar.saidName = called;
-            bar.lettered = lettered;
-            lettered.setText(called);
-        }
-        show(bar.name, lettered == bar.name);
+        lettered.say(reading.nameOf(view.templateName()));
+        bar.lettered = lettered;
+        bar.name.show(lettered == bar.name);
         if (bar.bossName != null) {
-            show(bar.bossName, lettered == bar.bossName);
+            bar.bossName.show(lettered == bar.bossName);
         }
     }
 
@@ -281,12 +366,15 @@ final class UnitBars {
         // than out to one side of it.
         float barLeft = x - whole / 2f + medallion + look.ringGap();
 
+        at(bar.edge, barLeft - EDGE, y - EDGE);
         at(bar.trough, barLeft, y);
         at(bar.fill, barLeft, y);
         at(bar.ticks, barLeft, y);
-        centre(bar.count, barLeft + width / 2f, y + (look.height() + look.countSize()) / 2f - 1f);
+        bar.count.centre(barLeft + width / 2f,
+                y + (look.height() - look.countSize()) / 2f + 1f);
 
         float manaY = y - look.gap() - look.manaHeight();
+        at(bar.manaEdge, barLeft - EDGE, manaY - EDGE);
         at(bar.manaTrough, barLeft, manaY);
         at(bar.manaFill, barLeft, manaY);
 
@@ -297,14 +385,14 @@ final class UnitBars {
         at(bar.back, discX, discY);
         at(bar.rim, discX, discY);
         at(bar.arc, discX, discY);
-        centre(bar.level, discX, discY + look.levelSize() / 2f - 1f);
+        bar.level.centre(discX, discY - look.levelSize() / 2f + 1f);
 
         // Under the CREATURE, not under the bar. The bar floats over its head and
         // a name hung off the bottom of that sits in the middle of the thing it
         // names; at its feet there is nothing else, and the eye reads downward
         // from the bar, past the creature, to what it is called.
         if (bar.lettered != null) {
-            centre(bar.lettered, x, footY - 4f);
+            bar.lettered.centre(x, footY - 4f - look.nameSize(bar.lettered == bar.bossName));
         }
     }
 
@@ -327,16 +415,21 @@ final class UnitBars {
 
     private Bar make() {
         var bar = new Bar();
-        bar.trough = piece(bar, look.troughColour(), 0f);
-        bar.fill = piece(bar, look.fill(false), 1f);
-        bar.ticks = piece(bar, look.tickColour(), 2f);
-        bar.manaTrough = piece(bar, look.troughColour(), 0f);
-        bar.manaFill = piece(bar, look.manaColour(), 1f);
-        bar.back = piece(bar, look.faceColour(), 3f);
+        // The keyline first and furthest back. The same near-black as the marks,
+        // and on purpose: both are the bar's own linework, and a second colour
+        // would be a second thing to keep in step for no second decision.
+        bar.edge = piece(bar, "edge", look.tickColour(), -1f);
+        bar.trough = piece(bar, "trough", look.troughColour(), 0f);
+        bar.fill = piece(bar, "fill", look.fill(false), 1f);
+        bar.ticks = piece(bar, "ticks", look.tickColour(), 2f);
+        bar.manaEdge = piece(bar, "manaEdge", look.tickColour(), -1f);
+        bar.manaTrough = piece(bar, "manaTrough", look.troughColour(), 0f);
+        bar.manaFill = piece(bar, "manaFill", look.manaColour(), 1f);
+        bar.back = piece(bar, "back", look.faceColour(), 3f);
         bar.back.setMesh(disc(look.ring() / 2f));
-        bar.rim = piece(bar, look.rim(false), 4f);
+        bar.rim = piece(bar, "rim", look.rim(false), 4f);
         bar.rim.setMesh(ring(look.ring() / 2f - look.ringEdge(), look.arc()));
-        bar.arc = piece(bar, look.arcRgb(), 5f);
+        bar.arc = piece(bar, "arc", look.rim(false), 5f);
         bar.arc.setMesh(arcs.computeIfAbsent(ARC_STEPS, this::arcMesh));
         bar.count = lettering(bar, plain, look.countSize(), look.letteringColour());
         bar.level = lettering(bar, plain, look.levelSize(), look.letteringColour());
@@ -348,6 +441,8 @@ final class UnitBars {
         // gets one name and the plain one, which is what it asked for.
         bar.bossName = display == null ? null
                 : lettering(bar, display, look.nameSize(true), look.rim(true));
+        bar.count.show(true);
+        bar.level.show(true);
         root.attachChild(bar.node);
         pool.add(bar);
         put(bar);
@@ -359,11 +454,30 @@ final class UnitBars {
         bar.node.setCullHint(Spatial.CullHint.Always);
     }
 
-    private Geometry piece(Bar bar, ColorRGBA colour, float depth) {
-        var geometry = new Geometry("bar-piece", SQUARE);
+    private Geometry piece(Bar bar, String name, ColorRGBA colour, float depth) {
+        var geometry = new Geometry(name, SQUARE);
         var material = new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
         material.setColor("Color", colour);
         material.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Alpha);
+        // ★ WITHOUT THIS, HALF THE BAR IS INVISIBLE. The pieces are stacked by
+        // giving each a z of its own, which is how the interface layer sorts
+        // them -- and z is also what the depth buffer tests. The first piece
+        // drawn writes its depth, every piece behind it in the stack fails the
+        // test, and what reaches the screen is the trough, the fill and the
+        // marks with the whole medallion missing. Nothing is logged; the
+        // geometry is built, placed and measurably the right size.
+        material.getAdditionalRenderState().setDepthTest(false);
+        material.getAdditionalRenderState().setDepthWrite(false);
+        // ★ AND WITHOUT THIS, THE MEDALLION IS STILL MISSING. A flat shape has a
+        // side it is seen from, decided by the order its corners are given in,
+        // and a back-facing one is thrown away before it is drawn. The square
+        // every bar is made of happens to be wound the right way round; the fan
+        // of wedges the disc and its ring are made of is wound the other, so all
+        // three of them were culled. On a layer where nothing has a back, having
+        // one at all is the mistake -- so there is no side, and a wedge cut the
+        // wrong way round is simply not a class of fault here any more.
+        material.getAdditionalRenderState().setFaceCullMode(
+                RenderState.FaceCullMode.Off);
         geometry.setMaterial(material);
         geometry.setQueueBucket(RenderQueue.Bucket.Gui);
         geometry.setLocalTranslation(0f, 0f, depth);
@@ -371,14 +485,19 @@ final class UnitBars {
         return geometry;
     }
 
-    private BitmapText lettering(Bar bar, BitmapFont font, float size, ColorRGBA colour) {
+    private Lettering lettering(Bar bar, BitmapFont font, float size, ColorRGBA colour) {
+        return new Lettering(line(bar, font, size, look.tickColour(), 6f),
+                line(bar, font, size, colour, 7f));
+    }
+
+    private BitmapText line(Bar bar, BitmapFont font, float size, ColorRGBA colour, float depth) {
         var text = new BitmapText(font);
         text.setSize(size);
         text.setColor(colour);
         text.setQueueBucket(RenderQueue.Bucket.Gui);
         // In front of the stone of the bar, which is the only thing it could be
         // hidden behind -- they are all in the one bucket and sort by this.
-        text.setLocalTranslation(0f, 0f, 6f);
+        text.setLocalTranslation(0f, 0f, depth);
         bar.node.attachChild(text);
         return text;
     }
@@ -396,11 +515,6 @@ final class UnitBars {
 
     private static void show(Spatial spatial, boolean shown) {
         spatial.setCullHint(shown ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-    }
-
-    private static void centre(BitmapText text, float middle, float top) {
-        text.setLocalTranslation(middle - text.getLineWidth() / 2f, top,
-                text.getLocalTranslation().z);
     }
 
     // ---- meshes, all of them shared ----
@@ -422,13 +536,13 @@ final class UnitBars {
      * <p>The outer two are not drawn — the bar's own ends are already edges, and
      * a mark on top of one reads as a thicker edge rather than as a division.
      */
-    private static Mesh markMesh(int cuts) {
+    private static Mesh markMesh(int cuts, float width) {
         int lines = Math.max(0, cuts - 1);
         var points = new float[lines * 12];
         var order = new int[lines * 6];
-        float thick = 1f / Math.max(1f, cuts * 9f);
+        float thick = MARK_THICK;
         for (int line = 0; line < lines; line++) {
-            float at = (line + 1f) / cuts - thick / 2f;
+            float at = (line + 1f) * width / cuts - thick / 2f;
             int p = line * 12;
             points[p] = at;
             points[p + 1] = 0f;

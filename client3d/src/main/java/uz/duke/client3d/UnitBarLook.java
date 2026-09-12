@@ -70,8 +70,12 @@ import java.util.List;
  * @param ringFace     what fills the medallion behind its number
  * @param ringRim      the rim of an ordinary creature's medallion
  * @param bossRim      and of a boss's, which is the one thing on the bar that is
- *                     meant to be noticed rather than read
- * @param arcColour    the experience ring, drawn only where there is experience
+ *                     meant to be noticed rather than read. The experience ring
+ *                     is drawn in whichever of the two this creature wears, at
+ *                     full strength where it has filled and at a fraction where
+ *                     it has not — one colour and two strengths, because the
+ *                     ring says two things at once and a second colour would
+ *                     have them arguing over which the eye answers first
  * @param lettering    the numbers inside the bars and the level in the medallion
  * @param nameSize     how big a creature's name is under its bar
  * @param bossNameSize and a boss's, which is larger for the same reason its rim
@@ -101,7 +105,6 @@ public record UnitBarLook(
         int ringFace,
         int ringRim,
         int bossRim,
-        int arcColour,
         int lettering,
         float nameSize,
         float bossNameSize,
@@ -134,7 +137,7 @@ public record UnitBarLook(
      * a bar with invented marks on it would be the client claiming to know.
      */
     public static final UnitBarLook NONE = new UnitBarLook(List.of(), 1, 2, 0f, 0f,
-            0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0f, 0f, 0f, 0f);
 
     /** Whether there is anything here to draw at all. */
@@ -233,10 +236,6 @@ public record UnitBarLook(
 
     public ColorRGBA faceColour() {
         return colour(ringFace);
-    }
-
-    public ColorRGBA arcRgb() {
-        return colour(arcColour);
     }
 
     public ColorRGBA letteringColour() {

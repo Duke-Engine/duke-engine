@@ -40,7 +40,7 @@ class UnitBarsTest {
             13f, 6f, 2f, 1.4f,
             26f, 2f, 4f, 3f,
             0xA8322B, 0x8FC4AE, 0x3E6FA8, 0x16130F, 0x0A0806,
-            0x16130F, 0x8FC4AE, 0xE8A33D, 0xC9A24B, 0xD9CFBA,
+            0x16130F, 0x8FC4AE, 0xE8A33D, 0xD9CFBA,
             11f, 15f, 10f, 12f);
 
     /** A floor with a hero on it at level seven, half an experience ring in. */
@@ -103,14 +103,21 @@ class UnitBarsTest {
         return said;
     }
 
-    private static Geometry named(Node bar, int which) {
-        int seen = 0;
+    /**
+     * One named piece of a bar.
+     *
+     * <p>By name rather than by the order it was made in. Counting was how this
+     * was written first, and it broke silently the moment a keyline was added in
+     * front of the trough: every index shifted by one, and the test that meant to
+     * ask about the experience ring was asking about the mana bar.
+     */
+    private static Geometry named(Node bar, String name) {
         for (var child : bar.getChildren()) {
-            if (child instanceof Geometry piece && seen++ == which) {
+            if (child instanceof Geometry piece && name.equals(piece.getName())) {
                 return piece;
             }
         }
-        return null;
+        return org.junit.jupiter.api.Assertions.fail("a bar has no piece called " + name);
     }
 
     // ---- who gets one ----
@@ -283,9 +290,8 @@ class UnitBarsTest {
         assertFalse(showsManaBar(showing.get(1)), "and a skeleton does not");
     }
 
-    /** The mana pieces are the fourth and fifth made, in the order make() builds them. */
     private static boolean showsManaBar(Node bar) {
-        return named(bar, 4).getLocalCullHint() != Spatial.CullHint.Always;
+        return named(bar, "manaFill").getLocalCullHint() != Spatial.CullHint.Always;
     }
 
     // ---- what the design promised it would cost ----
@@ -308,9 +314,9 @@ class UnitBarsTest {
                 unit(3, "Warden", -10f, 0f, 400f, 400f)), UnitBarReading.read(LINE));
 
         var showing = up(screen.bars());
-        assertSame(named(showing.get(0), 2).getMesh(), named(showing.get(1), 2).getMesh(),
+        assertSame(named(showing.get(0), "ticks").getMesh(), named(showing.get(1), "ticks").getMesh(),
                 "two of a size should be drawn from one mesh");
-        assertNotSame(named(showing.get(0), 2).getMesh(), named(showing.get(2), 2).getMesh());
+        assertNotSame(named(showing.get(0), "ticks").getMesh(), named(showing.get(2), "ticks").getMesh());
     }
 
     private static void assertNotSame(Object one, Object other) {
@@ -332,10 +338,10 @@ class UnitBarsTest {
                 unit(2, "Skeleton", 10f, 0f, 30f, 30f)), UnitBarReading.read(LINE));
 
         var showing = up(screen.bars());
-        var one = named(showing.get(0), 0).getMesh();
-        assertSame(one, named(showing.get(0), 1).getMesh());
-        assertSame(one, named(showing.get(1), 0).getMesh());
-        assertSame(one, named(showing.get(1), 3).getMesh());
+        var one = named(showing.get(0), "trough").getMesh();
+        assertSame(one, named(showing.get(0), "fill").getMesh());
+        assertSame(one, named(showing.get(1), "edge").getMesh());
+        assertSame(one, named(showing.get(1), "manaTrough").getMesh());
     }
 
     /** The experience ring is built once per step and then only pointed at. */
@@ -345,10 +351,10 @@ class UnitBarsTest {
         var standing = all(unit(1, "Rogue", 0f, 0f, 128f, 200f));
 
         screen.bars().update(screen.camera(), standing, UnitBarReading.read(LINE));
-        var first = named(up(screen.bars()).get(0), 7).getMesh();
+        var first = named(up(screen.bars()).get(0), "arc").getMesh();
         screen.bars().update(screen.camera(), standing, UnitBarReading.read(LINE));
 
-        assertSame(first, named(up(screen.bars()).get(0), 7).getMesh(),
+        assertSame(first, named(up(screen.bars()).get(0), "arc").getMesh(),
                 "a ring that has not moved should not have been rebuilt");
         assertNotNull(first);
     }
@@ -363,14 +369,47 @@ class UnitBarsTest {
                 unit(9, "Warden", 10f, 0f, 400f, 600f)), UnitBarReading.read(LINE));
 
         var showing = up(screen.bars());
-        assertTrue(named(showing.get(0), 7).getLocalCullHint() != Spatial.CullHint.Always);
-        assertEquals(Spatial.CullHint.Always, named(showing.get(1), 7).getLocalCullHint(),
+        assertTrue(named(showing.get(0), "arc").getLocalCullHint() != Spatial.CullHint.Always);
+        assertEquals(Spatial.CullHint.Always, named(showing.get(1), "arc").getLocalCullHint(),
                 "the boss earns nothing, so its disc has no arc on it");
     }
 
-    /** A creature with no body at all is never handed to the pool. */
+    /**
+     * Every piece a bar is made of is drawn where the depth buffer cannot reach
+     * it.
+     *
+     * <p>★ THE FAULT THIS EXISTS FOR WAS INVISIBLE TO EVERY OTHER TEST. The
+     * pieces are stacked by giving each its own z, which is how the interface
+     * layer sorts them — and z is also what the depth buffer tests. With the test
+     * left on, the first piece drawn wrote its depth and everything behind it in
+     * the stack failed: the medallion, its rim and its ring never reached the
+     * screen. The geometry was built, placed, and measurably the right size, so
+     * nothing here or anywhere else had anything to say about it. It was found by
+     * running the game and looking.
+     *
+     * <p>And when the depth test was taken off, the medallion was STILL missing.
+     * A flat shape has a side it is seen from, decided by the order its corners
+     * are given in: the square every bar is made of is wound one way and the fan
+     * of wedges the disc is made of the other, so the disc, its rim and its ring
+     * were being thrown away as back-facing. Two faults with one symptom, and
+     * the first fix looked like it had failed.
+     */
     @Test
-    void nothingIsDrawnForSomethingWithNoLife() {
-        assertNull(named(new Node("empty"), 0), "the helper itself, so a miss reads as a miss");
+    void nothingIsHiddenByTheDepthBufferOrByItsOwnWinding() {
+        var screen = screen();
+
+        screen.bars().update(screen.camera(), all(unit(1, "Rogue", 0f, 0f, 128f, 200f)),
+                UnitBarReading.read(LINE));
+
+        var bar = up(screen.bars()).get(0);
+        for (var name : new String[] {"edge", "trough", "fill", "ticks", "manaEdge",
+            "manaTrough", "manaFill", "back", "rim", "arc"}) {
+            var state = named(bar, name).getMaterial().getAdditionalRenderState();
+            assertFalse(state.isDepthTest(), name + " would be hidden by whatever it is over");
+            assertFalse(state.isDepthWrite(), name + " would hide the piece in front of it");
+            assertEquals(com.jme3.material.RenderState.FaceCullMode.Off, state.getFaceCullMode(),
+                    name + " has a back, and a flat shape wound the wrong way round has"
+                            + " nothing else to show");
+        }
     }
 }

@@ -10,6 +10,7 @@ import com.jme3.asset.DesktopAssetManager;
 import com.jme3.bounding.BoundingBox;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -310,7 +311,7 @@ class PanelLayoutTest {
         assertEquals("", rankShown(nobody), "nobody is any level");
         assertEquals(Spatial.CullHint.Always, find(nobody, "title-line").getLocalCullHint(),
                 "and nobody is anything");
-        assertEquals(Spatial.CullHint.Always, find(nobody, "fill").getLocalCullHint(),
+        assertEquals(Spatial.CullHint.Always, find(nobody, "xp-fill").getLocalCullHint(),
                 "nor earning anything");
 
         // A creature has a face of its own and still none of the rest.
@@ -426,5 +427,81 @@ class PanelLayoutTest {
 
         assertFalse(bar.orderIsMarked('F'),
                 "the skeleton's own state is wearing the player's mark");
+    }
+
+    /**
+     * A figure's word and its number do not grow into each other.
+     *
+     * <p>They did: on screen "Tezlik 29" came out as "Tezli29". The word is
+     * drawn from the left of its box and the number to the right of a shorter
+     * one, so the two approach from opposite ends of the same cell and meet in
+     * the middle with nothing to say about it. Both were exactly where they had
+     * been put, so nothing failed.
+     *
+     * <p>★ IT IS CHECKED AS ARITHMETIC RATHER THAN AS POSITIONS, and not for
+     * want of trying: jME gives a {@code BitmapText} its place through a box it
+     * does not hand back, and no bounds at all until something has drawn it. A
+     * test that read {@code getWorldTranslation} got the origin of every line on
+     * the panel and cheerfully reported the hero's name running into his first
+     * figure. What CAN be measured headlessly is how wide a string is, so the
+     * check is that the widest word the game ships, plus the widest number
+     * beside it, fits the room the panel divides a cell into — which is the
+     * constraint the overlap was a symptom of.
+     */
+    @Test
+    void aFiguresWordAndItsNumberDoNotMeet() {
+        var assets = new DesktopAssetManager(true);
+        var font = assets.loadFont("Interface/Fonts/Default.fnt");
+        float room = HeroPanel.roomInAFigure();
+
+        for (var word : List.of("Zarba", "Zirh", "Tezlik", "Qon")) {
+            for (var figure : List.of("0", "34", "129", "10%")) {
+                float wide = width(font, word) + width(font, figure);
+                // A clear gap, not merely a fit: two strings that end and begin
+                // in the same pixel are two strings nobody can tell apart.
+                assertTrue(wide + GAP <= room - HeroPanel.STAT_LENT,
+                        "\"" + word + " " + figure + "\" wants " + Math.round(wide + GAP)
+                                + " of the " + Math.round(room - HeroPanel.STAT_LENT)
+                                + " a figure has before what is lent begins");
+            }
+        }
+        // And the green figure has room of its own at the end of the same line.
+        assertTrue(width(font, "+12") <= HeroPanel.STAT_LENT,
+                "what is lent does not fit the room kept for it");
+    }
+
+    /** How much clear air a word and the figure beside it want between them. */
+    private static final float GAP = 6f;
+
+    /** How wide a string is in the lettering a figure is set in. */
+    private static float width(com.jme3.font.BitmapFont font, String words) {
+        var line = new com.jme3.font.BitmapText(font);
+        line.setSize(11f);
+        line.setText(words);
+        return line.getLineWidth();
+    }
+
+    /**
+     * A hero with nothing earned yet has an empty experience bar.
+     *
+     * <p>★ HE HAD A FULL ONE. Two lines owned the fill's cull hint: one hid a bar
+     * with nothing in it, the other showed it again whenever the card had a level
+     * at all, and what came back was the last width it had — which for a fresh
+     * hero is the whole bar. The panel was telling a player at nought experience
+     * that he was one kill from levelling.
+     */
+    @Test
+    void aHeroWhoHasEarnedNothingHasAnEmptyBar() {
+        var fresh = showing("name=Erika|rank=1-daraja|hp=550/550|xp=0/30"
+                + "|depth=I / IV|depthWord=CHUQURLIK");
+
+        // ★ BY ITS OWN NAME. All three bars called their fill "fill", so the
+        // first version of this found the HEALTH bar -- which is full, and was
+        // meant to be -- and passed while the fault it was written for was on
+        // screen.
+        assertEquals(Spatial.CullHint.Always, find(fresh, "xp-fill").getLocalCullHint(),
+                "nothing earned, nothing drawn");
+        assertEquals(Spatial.CullHint.Inherit, find(fresh, "hp-fill").getLocalCullHint(),
+                "and he is perfectly healthy");
     }
 }

@@ -212,7 +212,7 @@ final class HeroPanel {
      * is not; the width is the honest way to pay for that, since shrinking the
      * lettering instead would make the one line nobody can enlarge unreadable.
      */
-    private static final float VITALS_WIDTH = 345f;
+    static final float VITALS_WIDTH = 424f;
 
     /** The column of order buttons that stands beside the map. */
     private static final float ORDER_BUTTON = 38f;
@@ -230,7 +230,7 @@ final class HeroPanel {
     private static final float HEADING_GAP = 6f;
 
     /** The little square a stat's drawing sits in, beside its word. */
-    private static final float STAT_ICON = 20f;
+    static final float STAT_ICON = 20f;
     private static final float BAR_HEIGHT = 17f;
 
     /**
@@ -259,12 +259,41 @@ final class HeroPanel {
     private static final float MANA_HEIGHT = 14f;
     private static final float NAME_HEIGHT = 20f;
     private static final float TITLE_HEIGHT = 15f;
-    /** Space between one figure and the word after it. */
-    private static final float STAT_GAP = 10f;
+    /**
+     * The gutter between one figure's cell and the next.
+     *
+     * <p>Six rather than ten, which is four pixels a cell won back for the
+     * lettering — and it costs nothing, because the next cell opens with a
+     * drawing in a socket of its own and that socket is its own left edge.
+     */
+    static final float STAT_GAP = 6f;
     /** How many figures stand side by side under the bars. */
-    private static final int STAT_COLUMNS = 4;
-    private static final float SLOT = 62f;
-    private static final float ULT_SLOT = 72f;
+    static final int STAT_COLUMNS = 4;
+
+    /**
+     * How much of a figure's cell is kept for what is lent, in pixels.
+     *
+     * <p>Kept whether anything is lent or not, so the figure beside it does not
+     * shuffle sideways the moment he picks up a sword. A column of numbers that
+     * moves is a column nobody can compare down.
+     */
+    static final float STAT_LENT = 20f;
+
+    /** Between a figure's drawing and the word beside it. */
+    static final float STAT_ICON_GAP = 5f;
+
+    /**
+     * How much of a figure's cell the word and the number share.
+     *
+     * <p>Worked out here rather than written down, so that the test which checks
+     * the shipped words fit in it is checking the same arithmetic the panel lays
+     * out by rather than a copy of it.
+     */
+    static float roomInAFigure() {
+        return VITALS_WIDTH / STAT_COLUMNS - STAT_ICON - STAT_ICON_GAP - STAT_GAP;
+    }
+    private static final float SLOT = 58f;
+    private static final float ULT_SLOT = 64f;
 
     /**
      * The little bars under a slot: one per rank a skill can hold, lit up to what
@@ -304,12 +333,28 @@ final class HeroPanel {
     private static final char ULTIMATE_KEY = 'R';
 
     /**
-     * How much of a slot the icon fills, leaving stone showing round it.
+     * How much stone shows round a skill's picture, in pixels a side.
      *
-     * <p>A picture pressed to the edges of a socket stops reading as something set
-     * into stone; the margin is what makes it a carving rather than a sticker.
+     * <p>★ A MARGIN, NOT A SHARE, and that is the whole change. It was
+     * six-tenths of the socket, on the reasoning that a picture pressed to the
+     * edges stops reading as something set into stone — which is true of a socket
+     * with no edge of its own, and this one has three: a drop shadow, a dark rim
+     * and a lit lip. They do the framing. What the share did instead was leave
+     * eleven pixels of bare stone on every side of a thirty-eight pixel drawing,
+     * so the art the game shipped was read at a third of the area it was drawn
+     * for.
+     *
+     * <p>One pixel a side, so the picture all but fills the socket and the lip
+     * still closes round it. In pixels rather than as a fraction because the two
+     * sockets are different sizes and a fraction would give them different
+     * margins for no reason anybody could name.
      */
-    private static final float ICON_SHARE = 0.62f;
+    private static final float ICON_MARGIN = 1f;
+
+    /** That margin as the fraction {@link #picture} wants, for a socket this big. */
+    private static float iconShare(float size) {
+        return size <= ICON_MARGIN * 2f ? 1f : (size - ICON_MARGIN * 2f) / size;
+    }
 
     /**
      * The same, for an order button and for a figure under the bars.
@@ -615,16 +660,24 @@ final class HeroPanel {
      * other games this client draws: none of them sends skills or a bag either.
      */
     private void showOnlyWhatTheCardHas(Reading reading) {
-        boolean levels = reading.needed > 0f;
         boolean named = !reading.title.isBlank();
-        // Two, and both are ornaments hung off the furniture rather than part of
-        // it: a line of italics under a name, and a bar for experience nothing is
-        // earning. Neither moves anything else when it goes.
+        // One now, and it is an ornament hung off the furniture rather than part
+        // of it: a line of italics under a name. It moves nothing else when it
+        // goes.
         //
-        // The level used to be a third -- a plate under the portrait -- and is
-        // now lettering inside the experience bar, so it needs nothing here: a
-        // card with no level sends no level and the line is set to nothing.
-        experienceFill.setCullHint(levels ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        // ★ THE EXPERIENCE BAR USED TO BE HANDLED HERE TOO, AND IT WAS A BUG.
+        // Two lines owned that one cull hint: fillTo hides a bar with nothing in
+        // it, and this showed it again whenever the card had a level at all. The
+        // hidden fill was never scaled -- fillTo does not bother scaling what it
+        // is hiding -- so what came back was the LAST width it had, which for a
+        // fresh hero is the full one. A hero at nought experience was drawn with
+        // a full bar. It survived a thin bar of trim for a long time and became
+        // obvious the moment the bar was thirty pixels tall and the only thing in
+        // the middle of the panel.
+        //
+        // fillTo owns it alone now, and it is right for the other case too: a
+        // skeleton sends no total, so the fraction is nought and the fill is
+        // hidden without anybody here saying so.
         titleLine.setCullHint(named ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
     }
 
@@ -1520,7 +1573,7 @@ final class HeroPanel {
         vitals.attachChild(titleLine);
 
         attach(experienceBar, trough(0f, experienceY, VITALS_WIDTH, XP_HEIGHT), 0f, 0f, 0f);
-        experienceFill = fill(VITALS_WIDTH - 2f, XP_HEIGHT - 2f, ARCANE);
+        experienceFill = fill("xp-fill", VITALS_WIDTH - 2f, XP_HEIGHT - 2f, ARCANE);
         experienceFill.setLocalTranslation(1f, experienceY + 1f, 1f);
         experienceBar.attachChild(experienceFill);
         // Over the fill and under the lettering. Faint on purpose: it is there to
@@ -1562,7 +1615,7 @@ final class HeroPanel {
         float manaY = healthY - 3f - MANA_HEIGHT;
 
         portraitBars.attachChild(trough(0f, healthY, PORTRAIT_COLUMN, BAR_HEIGHT));
-        healthFill = fill(PORTRAIT_COLUMN - 2f, BAR_HEIGHT - 2f, BLOOD);
+        healthFill = fill("hp-fill", PORTRAIT_COLUMN - 2f, BAR_HEIGHT - 2f, BLOOD);
         healthFill.setLocalTranslation(1f, healthY + 1f, 1f);
         portraitBars.attachChild(healthFill);
         health = text(12f, BONE, 0f, healthY + 3f, PORTRAIT_COLUMN,
@@ -1571,7 +1624,7 @@ final class HeroPanel {
         portraitBars.attachChild(health);
 
         attach(manaBar, trough(0f, manaY, PORTRAIT_COLUMN, MANA_HEIGHT), 0f, 0f, 0f);
-        manaFill = fill(PORTRAIT_COLUMN - 2f, MANA_HEIGHT - 2f, MANA);
+        manaFill = fill("mana-fill", PORTRAIT_COLUMN - 2f, MANA_HEIGHT - 2f, MANA);
         manaFill.setLocalTranslation(1f, manaY + 1f, 1f);
         manaBar.attachChild(manaFill);
         manaCount = text(10f, BONE, 0f, manaY + 2f, PORTRAIT_COLUMN,
@@ -1640,10 +1693,18 @@ final class HeroPanel {
                 float x = (i % STAT_COLUMNS) * cell;
                 float y = statsTop - (i / STAT_COLUMNS) * (STAT_ICON + 8f) - STAT_ICON;
                 statBoxes.add(statBox(x, y, stats.get(i).icon()));
-                float from = x + STAT_ICON + 5f;
-                float room = cell - STAT_ICON - 5f - STAT_GAP;
+                // Three boxes on one line, and the two on the right are given
+                // room of their own rather than sharing the word's. They used to
+                // share it, and "Tezlik" and its figure came out as "Tezli29":
+                // the word is drawn from the left of its box and the figure to
+                // the right of a shorter one, so the two grow towards each other
+                // and nothing complains when they meet. The widths below are
+                // measured -- see PanelLayoutTest.
+                float from = x + STAT_ICON + STAT_ICON_GAP;
+                float room = roomInAFigure();
                 var label = text(11f, LABEL, from, y + 4f, room, BitmapFont.Align.Left);
-                var value = text(11f, BONE, from, y + 4f, room - 15f, BitmapFont.Align.Right);
+                var value = text(11f, BONE, from, y + 4f, room - STAT_LENT,
+                        BitmapFont.Align.Right);
                 var bonus = text(11f, GAIN, from, y + 4f, room, BitmapFont.Align.Right);
                 statLabels.add(label);
                 statValues.add(value);
@@ -1700,8 +1761,8 @@ final class HeroPanel {
      * The lit part of a bar, drawn at full width and scaled down horizontally.
      * The gradient runs top to bottom, so scaling across it costs nothing.
      */
-    private Geometry fill(float width, float height, ColorRGBA colour) {
-        var geometry = new Geometry("fill",
+    private Geometry fill(String name, float width, float height, ColorRGBA colour) {
+        var geometry = new Geometry(name,
                 gradient(width, height, lighter(colour, 0.22f), colour, darker(colour, 0.30f)));
         geometry.setMaterial(vertexColoured());
         return geometry;
@@ -2035,8 +2096,7 @@ final class HeroPanel {
             attach(slot.node, slot.glyph, size / 2f, size / 2f, 6f);
         } else {
             // A quad grows from its own corner, so it is placed rather than centred.
-            float inset = size * (1f - ICON_SHARE) / 2f;
-            attach(slot.node, slot.glyph, inset, inset, 6f);
+            attach(slot.node, slot.glyph, ICON_MARGIN, ICON_MARGIN, 6f);
         }
 
         slot.sweep = new Geometry("sweep", new Mesh());
@@ -2081,7 +2141,7 @@ final class HeroPanel {
      * before there were any pictures.
      */
     private Geometry picture(String icon, float size) {
-        return picture(icon, size, ICON_SHARE,
+        return picture(icon, size, iconShare(size),
                 icons.paintedSkills() ? IconLook.AS_PAINTED : TORCH);
     }
 
@@ -2630,11 +2690,15 @@ final class HeroPanel {
         skillHeading.setLocalTranslation(x, rowY + ULT_SLOT + HEADING_GAP, 0f);
         float slotX = 0f;
         for (var slot : slots) {
-            // Tops aligned, so an ultimate is bigger by hanging lower — which is
-            // how the design draws it and how the eye finds it.
-            slot.node.setLocalTranslation(slotX, ULT_SLOT - slot.size, 0f);
+            // ★ CENTRED, not top-aligned. It hung from a common top, so an
+            // ultimate was bigger only by reaching further DOWN -- which reads as
+            // a socket that has slipped rather than as a larger one. The design
+            // stands it proud at both ends, and that is what makes it the one the
+            // eye finds without looking for it.
+            float lift = (ULT_SLOT - slot.size) / 2f;
+            slot.node.setLocalTranslation(slotX, lift, 0f);
             slot.atX = left + x + slotX;
-            slot.atY = PAD + rowY + ULT_SLOT - slot.size;
+            slot.atY = PAD + rowY + lift;
             // Its own corner, in the same design pixels the slot is measured in,
             // so a click on the badge can be told from one on the slot under it.
             slot.badgeX = slot.atX + slot.size - BADGE + BADGE_OUT;

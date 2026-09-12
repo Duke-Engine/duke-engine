@@ -2343,7 +2343,6 @@ public final class DungeonSettings {
     private int unitBarRingFace = 0x16130F;
     private int unitBarRingRim = 0x8FC4AE;
     private int unitBarBossRim = 0xE8A33D;
-    private int unitBarArcColour = 0xC9A24B;
     private int unitBarLettering = 0xD9CFBA;
     private float unitBarNameSize = 11f;
     private float unitBarBossNameSize = 15f;
@@ -2441,9 +2440,6 @@ public final class DungeonSettings {
         return unitBarBossRim;
     }
 
-    public int unitBarArcColour() {
-        return unitBarArcColour;
-    }
 
     public int unitBarLettering() {
         return unitBarLettering;
@@ -2512,8 +2508,6 @@ public final class DungeonSettings {
                             (ini, s) -> s.unitBarRingRim = Integer.decode(ini.getNextToken()))
                     .add("BossRim",
                             (ini, s) -> s.unitBarBossRim = Integer.decode(ini.getNextToken()))
-                    .add("ArcColour",
-                            (ini, s) -> s.unitBarArcColour = Integer.decode(ini.getNextToken()))
                     .add("Lettering",
                             (ini, s) -> s.unitBarLettering = Integer.decode(ini.getNextToken()))
                     .add("NameSize", Ini.real((s, v) -> s.unitBarNameSize = v))

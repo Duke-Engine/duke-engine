@@ -31,7 +31,7 @@ class UnitBarLookTest {
             13f, 5f, 2f, 1.4f,
             26f, 2f, 4f, 3f,
             0xA8322B, 0x8FC4AE, 0x3E6FA8, 0x16130F, 0x0A0806,
-            0x16130F, 0x8FC4AE, 0xE8A33D, 0xC9A24B, 0xD9CFBA,
+            0x16130F, 0x8FC4AE, 0xE8A33D, 0xD9CFBA,
             11f, 15f, 10f, 12f);
 
     // ---- what one mark is worth ----
@@ -177,7 +177,7 @@ class UnitBarLookTest {
                 LOOK.shortest(), LOOK.longest(), LOOK.height(), 0f, LOOK.gap(),
                 LOOK.lift(), LOOK.ring(), LOOK.ringEdge(), LOOK.ringGap(), LOOK.arc(),
                 LOOK.enemy(), LOOK.friend(), LOOK.mana(), LOOK.trough(), LOOK.tick(),
-                LOOK.ringFace(), LOOK.ringRim(), LOOK.bossRim(), LOOK.arcColour(),
+                LOOK.ringFace(), LOOK.ringRim(), LOOK.bossRim(),
                 LOOK.lettering(), LOOK.nameSize(), LOOK.bossNameSize(), LOOK.countSize(),
                 LOOK.levelSize());
 
