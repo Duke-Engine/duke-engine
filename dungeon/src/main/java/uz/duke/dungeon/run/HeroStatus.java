@@ -70,7 +70,7 @@ final class HeroStatus {
     private static void appendCast(StringBuilder line, SkillBook book) {
         for (var mark : book.getCastMarks()) {
             line.append("|cast=").append(mark.look())
-                    .append(',').append(book.getLastCastFrame())
+                    .append(',').append(book.getCastMarkFrame())
                     .append(',').append(mark.x())
                     .append(',').append(mark.y())
                     .append(',').append(mark.radius());

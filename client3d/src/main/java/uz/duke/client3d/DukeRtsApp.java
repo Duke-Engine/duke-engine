@@ -3329,6 +3329,17 @@ final class DukeRtsApp extends SimpleApplication {
                 effects.landed(look.effect,
                         where.setY(floorHeightAt(where.x, where.z) + look.yOffset),
                         cam.getLocation());
+                // And a ring, if the thing that just stopped existing asked for
+                // one. Nothing does but a meteor arriving -- a skeleton's look is
+                // its eye sockets and has no SHOCKWAVE in it -- so this costs
+                // every other death in the game precisely nothing, and it means
+                // the biggest blast in the game is drawn by the thing that
+                // ARRIVED rather than by the man who called for it a second and a
+                // half ago and may well be dead.
+                skillEffects.cast(look.effect,
+                        new uz.duke.core.math.Coord3D(died.position().x(),
+                                died.position().y(), 0f),
+                        cam.getLocation(), 0f, this::floorHeightAt);
                 layOut(died.object().value());
             } else if (event instanceof WeaponFired fired) {
                 var node = unitNodes.get(fired.shooter().value());

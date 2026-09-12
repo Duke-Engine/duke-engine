@@ -157,6 +157,78 @@ class SkillLookTest {
         }
     }
 
+    // ---- a skill that goes on happening goes on being drawn ----
+
+    /**
+     * The whirlwind is drawn each time it lands, not only when it is pressed.
+     *
+     * <p>It turns for four seconds and lands eight times off one press. Drawn
+     * once, the player has four seconds of a man spinning with no way to tell
+     * whether the skill is still going except by counting.
+     */
+    @Test
+    void aLastingSkillIsDrawnEachTimeItLands() {
+        var arena = knightInARoom();
+        var book = arena.getLogic().getObjects().stream()
+                .filter(object -> object.getTemplate().getName().equals("Knight"))
+                .findFirst().orElseThrow()
+                .findModule(uz.duke.dungeon.skill.SkillBook.class);
+
+        assertTrue(book.cast('R', 5), "the premise: his ultimate went off");
+        int first = book.getCastMarkFrame();
+        arena.runHeadless(skillOf("Knight", 'R').tickFrames() + 2);
+
+        assertTrue(book.getCastMarkFrame() > first,
+                "it landed again and asked for nothing to be drawn, so the turn is silent");
+        assertEquals(1, book.getCastMarks().size(), "and it is still one ring, round him");
+    }
+
+    /**
+     * And it does not thereby cancel the order the player gave.
+     *
+     * <p>The trap this is here for, and it was a real one. {@code HeroBrain}
+     * reads {@code getLastCastFrame} to decide whether a cast has superseded a
+     * move order; the first version of the above moved THAT number on at every
+     * landing, so a knight told to walk somewhere and then given his ultimate
+     * stopped dead, eight times, without anybody touching the mouse. The frame
+     * the client draws by and the frame the brain listens to are two numbers.
+     */
+    @Test
+    void beingDrawnAgainIsNotThePlayerSpeakingAgain() {
+        var arena = knightInARoom();
+        var book = arena.getLogic().getObjects().stream()
+                .filter(object -> object.getTemplate().getName().equals("Knight"))
+                .findFirst().orElseThrow()
+                .findModule(uz.duke.dungeon.skill.SkillBook.class);
+
+        book.cast('R', 5);
+        int spokeAt = book.getLastCastFrame();
+        arena.runHeadless(skillOf("Knight", 'R').tickFrames() * 3);
+
+        assertEquals(spokeAt, book.getLastCastFrame(),
+                "the whirlwind spoke for him, so his walk order was cancelled mid-ultimate");
+    }
+
+    private static uz.duke.game.DukeGame knightInARoom() {
+        var text = new StringBuilder();
+        for (int y = 0; y < 30; y++) {
+            for (int x = 0; x < 40; x++) {
+                boolean edge = x == 0 || y == 0 || x == 39 || y == 29;
+                text.append(edge ? '#' : '.');
+            }
+            text.append('\n');
+        }
+        var world = Dungeon.world(text.toString(), SETTINGS, Content.read(Content.CREATURES));
+        world.game().spawn("Knight", world.hero(), 150f, 150f);
+        world.game().runHeadless(1);
+        return world.game();
+    }
+
+    private static uz.duke.dungeon.skill.Skill skillOf(String hero, char key) {
+        return SETTINGS.skillsFor(hero).stream().filter(skill -> skill.key() == key)
+                .findFirst().orElseThrow();
+    }
+
     // ---- and none of it reaches the fight ----
 
     /**

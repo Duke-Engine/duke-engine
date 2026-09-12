@@ -108,6 +108,9 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     private float lastingDamage;
     private float lastingRadius;
 
+    /** What it is drawn as, so each landing is drawn and not only the first. */
+    private String lastingLook = "";
+
     /**
      * The frame of his last cast, and what it pointed his weapon at.
      *
@@ -137,6 +140,22 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
      * frame the client happened to miss simply never being seen.
      */
     private final List<CastMark> castMarks = new java.util.ArrayList<>();
+
+    /**
+     * The frame the marks below were put there, which is NOT {@link #lastCastFrame}.
+     *
+     * <p>Two numbers that look like one and are not, and they were one until a
+     * whirlwind proved it. {@code lastCastFrame} is when the PLAYER last spoke,
+     * and {@link uz.duke.dungeon.ai.HeroBrain} reads it to decide whether a cast
+     * has superseded a move order. A whirlwind lands eight times off a single
+     * press, and moving that number on at each landing would have cancelled the
+     * order he gave -- so he would have stopped walking, mid-ultimate, without
+     * anybody touching the mouse.
+     *
+     * <p>This one is only ever read by the client, which compares it against the
+     * last one it drew so that one landing is drawn once.
+     */
+    private int castMarkFrame = Integer.MIN_VALUE;
 
     /**
      * One place a cast should be drawn: the art block's name, the spot, and how
@@ -233,6 +252,11 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     /** Where his last cast wants drawing, and as what. Empty for most of a run. */
     public List<CastMark> getCastMarks() {
         return List.copyOf(castMarks);
+    }
+
+    /** When they were put there. Drawing only -- see the field's note. */
+    public int getCastMarkFrame() {
+        return castMarkFrame;
     }
 
     private int slotOf(char key) {
@@ -355,6 +379,8 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
 
     private void mark(Skill skill, Coord3D at, float radius) {
         castMarks.add(new CastMark(skill.look(), at.x(), at.y(), radius));
+        var world = getOwner().getWorld();
+        castMarkFrame = world == null ? castMarkFrame : world.getFrame();
     }
 
     /** @return whether it went off, which an aimed skill may decline */
@@ -393,6 +419,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
                     lastingNext = skill.tickFrames();
                     lastingDamage = each;
                     lastingRadius = skill.radius();
+                    lastingLook = skill.look();
                 }
             }
             case AREA_AT_SPOT -> {
@@ -929,8 +956,21 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         }
         lastingNext = lastingEvery;
         var owner = getOwner();
-        if (owner != null && owner.getWorld() != null) {
-            strikeAround(owner, owner.getWorld(), lastingDamage, lastingRadius);
+        if (owner == null || owner.getWorld() == null) {
+            return;
+        }
+        strikeAround(owner, owner.getWorld(), lastingDamage, lastingRadius);
+        // And drawn each time it lands, not only the first. A whirlwind that
+        // opened one ring and then turned in silence for four seconds is a skill
+        // the player has to count frames to know is still going.
+        //
+        // The frame is moved on with it, since that is what the client compares
+        // against to know it has not drawn this one already.
+        if (lastingLook != null && !lastingLook.isBlank()) {
+            castMarks.clear();
+            castMarks.add(new CastMark(lastingLook, owner.getPosition().x(),
+                    owner.getPosition().y(), lastingRadius));
+            castMarkFrame = owner.getWorld().getFrame();
         }
     }
 }
