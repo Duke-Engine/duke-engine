@@ -53,7 +53,7 @@ class PanelLayoutTest {
         var assets = new DesktopAssetManager(true);
         var font = assets.loadFont("Interface/Fonts/Default.fnt");
         var gui = new Node("gui");
-        var hero = new HeroPanel(assets, font, gui, width, PanelSkin.NONE);
+        var hero = new HeroPanel(assets, font, gui, width, PanelSkin.NONE, RangeLook.DEFAULT);
         assertTrue(hero.show(LINE, 0f), "the panel should have taken the line");
         gui.updateGeometricState();
         return gui;
@@ -207,7 +207,7 @@ class PanelLayoutTest {
         var assets = new DesktopAssetManager(true);
         var font = assets.loadFont("Interface/Fonts/Default.fnt");
         var gui = new Node("gui");
-        var hero = new HeroPanel(assets, font, gui, 1600f, PanelSkin.NONE);
+        var hero = new HeroPanel(assets, font, gui, 1600f, PanelSkin.NONE, RangeLook.DEFAULT);
         assertTrue(hero.show(card, 0f), "the panel should have taken the card");
         gui.updateGeometricState();
         return gui;

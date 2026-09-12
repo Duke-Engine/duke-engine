@@ -336,6 +336,47 @@ class DungeonSettingsTest {
         }
     }
 
+    /**
+     * The colour of aiming is COLD, and it is one number.
+     *
+     * <p>The armed slot on the bar and the rings on the floor are drawn in the
+     * same colour, off the same line of the file — the panel is handed the same
+     * {@code RangeLook} the rings use, so there is nothing here for two places to
+     * disagree about. What this pins is the choice itself: that it is cold.
+     *
+     * <p>Gold was the obvious pick and the wrong one. Gold is the bar's own
+     * colour — headings, rims, pips — so an armed slot drawn in it says "slightly
+     * more gold than usual", which in a fight nobody notices. Everything in this
+     * dungeon is stone, torch and gold, all of them warm; a cold colour has
+     * nothing to blend into. The way this goes wrong is somebody tidying it back
+     * towards the palette.
+     */
+    @Test
+    void theColourOfAimingIsCold() {
+        var settings = DungeonSettings.load();
+
+        for (int colour : new int[] {settings.ringAllowColour(), settings.ringAreaColour()}) {
+            int red = (colour >> 16) & 0xFF;
+            int blue = colour & 0xFF;
+            int green = (colour >> 8) & 0xFF;
+            assertTrue(blue > red && green > red,
+                    "0x" + Integer.toHexString(colour) + " is a warm colour, and warm is what"
+                            + " the whole dungeon already is -- an armed slot drawn in it"
+                            + " reads as more of the same");
+        }
+    }
+
+    /** And the one that means "you cannot" is not, so it cannot be mistaken for it. */
+    @Test
+    void theColourOfRefusalIsNot() {
+        var settings = DungeonSettings.load();
+        int deny = settings.ringDenyColour();
+
+        assertTrue(((deny >> 16) & 0xFF) > (deny & 0xFF),
+                "refusal is drawn in the same family as permission, which is the one"
+                        + " confusion a targeting colour must never allow");
+    }
+
     /** And the file sets the ring's look itself rather than leaving the client's. */
     @Test
     void theShippedFileSetsTheSkillRingItself() {

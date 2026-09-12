@@ -81,6 +81,31 @@ final class HeroPanel {
     private static final ColorRGBA GLYPH_COLD = rgb(0x6A6154);
     /** An empty pip; the lit ones take the gold the rest of the bar uses. */
     private static final ColorRGBA PIP_DARK = rgb(0x2A241D);
+
+    /**
+     * The colour of "this one is waiting for a target", and it is deliberately
+     * the one colour on the bar that is COLD.
+     *
+     * <p>Gold was the obvious pick and the wrong one: gold is the bar's own
+     * colour — the headings, the rims, the pips are all gold — so an armed slot
+     * drawn in it says "slightly more gold than usual", which in a fight nobody
+     * notices. Everything down here is stone, torch and gold, all of them warm.
+     * A cold colour has nothing to blend into.
+     *
+     * <p>It is also the colour the rings on the FLOOR use while he is aiming, so
+     * the panel and the ground say the same thing in the same word: cyan means
+     * "you are choosing where this goes".
+     */
+    private final ColorRGBA sel;
+    private final ColorRGBA selHi;
+    /** The cold stone an armed socket is cut from. */
+    private static final ColorRGBA SEL_STONE_LIT = rgb(0x2E4A46);
+    private static final ColorRGBA SEL_STONE = rgb(0x16302E);
+    /** How long an arm of a corner bracket is, and how thick. */
+    private static final float BRACKET = 11f;
+    private static final float BRACKET_THICK = 2f;
+    /** How far the brackets sit outside the socket. */
+    private static final float BRACKET_OUT = 5f;
     private static final ColorRGBA LABEL = rgb(0x8B8171);
     private static final ColorRGBA LOCK_LABEL = rgb(0x6E6555);
     private static final ColorRGBA SLAB_TOP = rgb(0x332C24);
@@ -279,11 +304,19 @@ final class HeroPanel {
     private float clock;
 
     HeroPanel(AssetManager assets, BitmapFont font, Node guiNode, float screenWidth,
-            PanelSkin skin) {
+            PanelSkin skin, RangeLook aiming) {
         this.assets = assets;
         this.font = font;
         this.screenWidth = screenWidth;
         this.skin = skin == null ? PanelSkin.NONE : skin;
+        // ★ ONE NUMBER, not two. The colour an armed slot is drawn in is the
+        // colour the rings on the floor are drawn in, and they have to be the
+        // same or the panel and the ground are speaking two languages about one
+        // moment. Taken off the same RangeLook the rings use rather than kept
+        // here, so the file moves both of them at once.
+        var look = aiming == null ? RangeLook.DEFAULT : aiming;
+        this.sel = rgb(look.allowColour());
+        this.selHi = rgb(look.areaColour());
         guiNode.attachChild(root);
         root.attachChild(slab);
         root.attachChild(contents);
@@ -1319,6 +1352,9 @@ final class HeroPanel {
         private float atX;
         private float atY;
         private Geometry deadStone;
+        /** The cold stone and the four corner marks, shown only while it is armed. */
+        private Geometry selStone;
+        private Node brackets;
         private Geometry glyph;
         private Geometry sweep;
         private Geometry ring;
@@ -1406,6 +1442,42 @@ final class HeroPanel {
     }
 
     /**
+     * Four corner marks outside an armed socket: a reticle, which is the shape
+     * every game uses for "point at something".
+     *
+     * <p>Two arms apiece rather than a drawn L, because a quad is what this panel
+     * is made of and eight of them cost nothing. Outside the socket, like the
+     * badge, so they frame the skill rather than sitting on it.
+     */
+    private void bracketsFor(Slot slot) {
+        slot.brackets = new Node("reticle");
+        float size = slot.size;
+        float out = BRACKET_OUT;
+        float far = size + out - BRACKET;
+        // x, y of each corner, then which way its arms run from there.
+        float[][] corners = {
+            {-out, far, 1f, 1f},        // top left
+            {far, far, -1f, 1f},        // top right
+            {-out, -out, 1f, -1f},      // bottom left
+            {far, -out, -1f, -1f},      // bottom right
+        };
+        for (var corner : corners) {
+            float x = corner[0];
+            float y = corner[1];
+            boolean leftward = corner[2] < 0f;
+            boolean downward = corner[3] < 0f;
+            // The arm that runs along the top or bottom edge...
+            attach(slot.brackets, flat("brk", BRACKET, BRACKET_THICK, selHi),
+                    x, downward ? y : y + BRACKET - BRACKET_THICK, 0f);
+            // ...and the one that runs down the side.
+            attach(slot.brackets, flat("brk", BRACKET_THICK, BRACKET, selHi),
+                    leftward ? x + BRACKET - BRACKET_THICK : x, y, 0f);
+        }
+        attach(slot.node, slot.brackets, 0f, 0f, 39f);
+        slot.brackets.setCullHint(Spatial.CullHint.Always);
+    }
+
+    /**
      * The corner badge: a small square with a plus in it, over the slot's top
      * right, shown only while a point may go into this one.
      *
@@ -1476,6 +1548,7 @@ final class HeroPanel {
                 BitmapFont.Align.Center);
         attach(slot.node, slot.rankWord, 0f, 0f, 6f);
         badgeFor(slot);
+        bracketsFor(slot);
         attach(slot.node, flat("drop", size + 4f, size + 4f, DROP), -2f, -2f - DROP_DEPTH, 0f);
         // A torch-coloured lip around the socket, shown only while this is the
         // skill the next click belongs to. Under the edge, so it reads as the
@@ -1493,6 +1566,15 @@ final class HeroPanel {
                 gradient(size, size, STONE_DEAD_LIT, STONE_DEAD));
         slot.deadStone.setMaterial(vertexColoured());
         attach(slot.node, slot.deadStone, 0f, 0f, 4f);
+
+        // The cold stone of an armed socket, over the warm one and under
+        // everything that means anything -- the rim, the glyph and the shading
+        // all sit above it, so arming changes the stone without hiding the skill.
+        slot.selStone = new Geometry("stone-armed",
+                gradient(size, size, SEL_STONE_LIT, SEL_STONE));
+        slot.selStone.setMaterial(vertexColoured());
+        attach(slot.node, slot.selStone, 0f, 0f, 4.2f);
+        slot.selStone.setCullHint(Spatial.CullHint.Always);
 
         // The carved illusion: light catches the top lip, shadow pools at the foot.
         attach(slot.node, flat("lip", size, 2f, new ColorRGBA(1f, 1f, 1f, 0.07f)),
@@ -1731,8 +1813,12 @@ final class HeroPanel {
                     linear(lit ? full ? GOLD_HI : GOLD : PIP_DARK));
         }
         // The words are the game's and arrive finished; the colour is the
-        // client's, because it is a fact about a state it can already see.
-        slot.rankWord.setColor(linear(rank.canRaise() ? GAIN : full ? TORCH : LABEL));
+        // client's, because it is a fact about a state it can already see. Armed
+        // wins over all of them: while he is choosing a target, the whole column
+        // is the one cold thing on the bar.
+        boolean picked = armed != null && armed == slot.key;
+        slot.rankWord.setColor(linear(
+                picked ? selHi : rank.canRaise() ? GAIN : full ? TORCH : LABEL));
         slot.rankWord.setText(rank.word());
         slot.badge.setCullHint(rank.canRaise()
                 ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
@@ -1756,16 +1842,26 @@ final class HeroPanel {
      */
     private void light(Slot slot) {
         boolean waiting = armed != null && armed == slot.key;
-        slot.ring.setCullHint(waiting ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        var show = waiting ? Spatial.CullHint.Inherit : Spatial.CullHint.Always;
+        slot.ring.setCullHint(show);
+        slot.selStone.setCullHint(show);
+        slot.brackets.setCullHint(show);
         slot.warm.setCullHint(hovered != null && hovered == slot.key
                 && slot.state == Reading.State.READY
                 ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
         if (!waiting) {
             return;
         }
-        float breath = 0.83f + 0.17f * FastMath.sin(clock * FastMath.TWO_PI * 0.9f);
+        // The picture goes cold with the stone under it. Set here rather than in
+        // dress, which runs first and knows nothing about what is armed -- and
+        // which would otherwise have the one slot that matters drawn in the same
+        // torch colour as the three that do not.
+        slot.glyph.getMaterial().setColor("Color", linear(selHi));
+        // Quicker than the old gold lip breathed, because this one is asking for
+        // something: a click has to come before anything else can happen.
+        float breath = 0.72f + 0.28f * FastMath.sin(clock * FastMath.TWO_PI * 1.1f);
         slot.ring.getMaterial().setColor("Color",
-                linear(new ColorRGBA(TORCH.r, TORCH.g, TORCH.b, breath)));
+                linear(new ColorRGBA(sel.r, sel.g, sel.b, breath)));
     }
 
     /** Rebuild the cooldown shadow, but only when it has actually moved. */
