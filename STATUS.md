@@ -3269,6 +3269,32 @@ Orqaga qaytarish arzon: manba FBX resources dan tashqarida, va `DungeonSkill
 Mage R` dagi ikkita qatorni o'chirsangiz Mage meteorini avvalgidek qimirlamay
 chaqiradi.
 
+#### ★ Birinchi urinish ekranda ishlamadi: imo-ishora ustidan yozilardi
+
+O'yinchi aytdi: "ult bosganda shunchaki qo'lini uzatib qo'yyapti". Sabab
+`handleEvents` ning tartibida edi:
+
+1. `skillsCastThisFrame` → mening `Magic_Area_Attack` im o'ynaydi.
+2. **O'sha kadrning o'zida** hodisalar aylanmasi `WeaponFired` ni ko'radi —
+   uni Meteor'ning o'zi jo'natgan (`SkillBook:851`), chunki wind-up'li skill
+   ham qurol otadi — va `playOnce(attackAnim)` chaqiriladi.
+3. `attackAnim` = `Ranged_Magic_Shoot`, ya'ni bir qo'lni uzatish. U yutadi.
+
+O'lchov buni tasdiqladi: `Magic_Area_Attack` da o'ng qo'l **783°**, chap qo'l
+**603°** buriladi (3.0 s, 91 kadr); `Ranged_Magic_Shoot` da esa 132° va 38°
+(0.93 s) — aynan "bir qo'lini uzatish". Ya'ni klip to'g'ri qo'yilgan edi,
+ustidan yozilgan.
+
+Qoida: **o'yin nom bilan so'ragan imo-ishora umumiy zamahdan ustun**
+(`gestureUntil`). Narxi — imo-ishora davomida flinch yutiladi. Bu to'g'ri
+tomoni: imo-ishorani o'yin nom bilan so'ragan, flinch'ni esa klient o'zi
+qo'shadi, va birinchisini butunlay yo'qotish yomonroq savdo.
+
+**Bu buning testi yo'q, va sababini yozib qo'yaman:** bu klientdagi kadr ichidagi
+tartib nuqsoni — uni ushlash uchun ishlayotgan ilova, timer va composer kerak.
+`playOnce` dagi bitta qatorli qo'riqchini test qilish tartibni emas, o'sha
+qatorni tekshirardi. Klip to'g'riligini esa yuqoridagi o'lchov tasdiqlaydi.
+
 #### Testlar
 
 `everyGestureASkillIsCastWithIsOnTheHeroWhoCastsIt` — eng muhimi. Klip skill

@@ -280,6 +280,13 @@ final class DukeRtsApp extends SimpleApplication {
          * does exactly that.
          */
         float carryingAgainAt;
+        /**
+         * Until when a gesture the GAME asked for owns the model, or 0 for never.
+         *
+         * <p>Not the same as {@link #actionUntil}, which any one-shot sets. This
+         * one outranks them: see {@link #playOnce}.
+         */
+        float gestureUntil;
         /** The health it had in the last snapshot: a drop is a blow that landed. */
         float lastHealth = Float.NaN;
         UnitView view;
@@ -4149,10 +4156,25 @@ final class DukeRtsApp extends SimpleApplication {
      * are moments, and a moment played on a loop is not the same thing slower: it
      * is a different thing entirely, and it is what made a monster in a fight look
      * like a monster shadow-boxing.
+     *
+     * <p><b>A gesture the game named outranks this.</b> A skill with a wind-up
+     * fires the weapon too — a meteor is a shot that lands late — so the same
+     * frame that starts the two-handed cast also carries a {@code WeaponFired},
+     * and the ordinary swing was landing on top of the cast and winning. What the
+     * player saw was a mage reaching out one hand, which is the shooting clip, and
+     * no sign of the animation that had just been asked for.
+     *
+     * <p>The cost is that a flinch is swallowed for as long as a gesture runs. It
+     * is the right way round: the gesture is a thing the game asked for by name
+     * and the flinch is one the client supplies, and losing the whole of the first
+     * to half a second of the second is the worse trade.
      */
     private void playOnce(UnitNode node, String clipName) {
         if (clipName == null || node.composer == null) {
             return;
+        }
+        if (timer.getTimeInSeconds() < node.gestureUntil) {
+            return; // a cast the game named is already being made
         }
         var clip = node.composer.getAnimClip(clipName);
         if (clip == null) {
@@ -4193,6 +4215,7 @@ final class DukeRtsApp extends SimpleApplication {
             action.setSpeed(length / seconds);
         }
         node.actionUntil = (float) (timer.getTimeInSeconds() + seconds);
+        node.gestureUntil = node.actionUntil;
         carrying(node, false);
         node.carryingAgainAt = node.actionUntil;
     }
