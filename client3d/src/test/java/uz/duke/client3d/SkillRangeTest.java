@@ -101,4 +101,38 @@ class SkillRangeTest {
         assertTrue(new SkillRange('Q', SkillRange.Shape.AROUND_HIM, 1f, 0f).castOnRelease());
         assertTrue(new SkillRange('Q', SkillRange.Shape.ON_HIMSELF, 1f, 0f).castOnRelease());
     }
+
+    /**
+     * The spot a click is pulled back to is the one the mark is drawn at.
+     *
+     * <p>Three things have to agree about where "as far that way as I can" is:
+     * the ring on the floor, the arrowheads left where the click landed, and the
+     * cast itself. They agree by all three asking this — the simulation applies
+     * the same rule on its own side, because a command may arrive from a client
+     * running a different version of the game or none at all.
+     *
+     * <p>What this guards is the case the player most needs to be honest: a click
+     * well past the ring. Left where the cursor was, the mark would stand a long
+     * way from where the skill actually went.
+     */
+    @Test
+    void aClickPastTheRingIsMarkedAtTheRing() {
+        var lane = new SkillRange('Q', SkillRange.Shape.DOWN_A_LANE, 60f, 0f, 8f);
+        var from = new uz.duke.core.math.Coord3D(100f, 100f, 0f);
+
+        var landing = lane.within(from, new uz.duke.core.math.Coord3D(400f, 100f, 0f));
+
+        assertEquals(160f, landing.x(), 0.01f, "it should stop at his reach, not at the mouse");
+        assertEquals(100f, landing.y(), 0.01f, "and stay on the line he pointed along");
+    }
+
+    /** A click already inside it is left exactly where it was. */
+    @Test
+    void aClickInsideTheRingIsNotMoved() {
+        var lane = new SkillRange('Q', SkillRange.Shape.DOWN_A_LANE, 60f, 0f, 8f);
+        var from = new uz.duke.core.math.Coord3D(100f, 100f, 0f);
+        var wanted = new uz.duke.core.math.Coord3D(130f, 100f, 0f);
+
+        assertEquals(wanted, lane.within(from, wanted));
+    }
 }

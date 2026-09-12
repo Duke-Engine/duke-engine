@@ -70,6 +70,15 @@ final class DukeRtsApp extends SimpleApplication {
     /** Prefix of the input mapping for a key the game claimed. */
     private static final String HOTKEY = "Hotkey";
 
+    /**
+     * Whether a modifier is down, so the letter under it can mean something else.
+     *
+     * <p>An array because the listener is a lambda and a lambda may not write to a
+     * local -- the same trick {@code shiftHeld} beside it uses, for the same
+     * reason.
+     */
+    private final boolean[] ctrlHeld = {false};
+
     private enum Screen { MENU, LOADING, PLAYING, PAUSED, SETTINGS }
 
     /** Persisted display/audio settings, shared by every duke-engine game. */
@@ -2044,6 +2053,10 @@ final class DukeRtsApp extends SimpleApplication {
         bindKeys("PanDown", KeyInput.KEY_S, KeyInput.KEY_DOWN);
         bindKeys("PanRight", KeyInput.KEY_D, KeyInput.KEY_RIGHT);
         inputManager.addMapping("Shift", new KeyTrigger(KeyInput.KEY_LSHIFT), new KeyTrigger(KeyInput.KEY_RSHIFT));
+        // Held rather than pressed, like Shift above: it changes what the NEXT
+        // key means rather than meaning anything itself.
+        inputManager.addMapping("Ctrl", new KeyTrigger(KeyInput.KEY_LCONTROL),
+                new KeyTrigger(KeyInput.KEY_RCONTROL));
         bindKeys("Halt", KeyInput.KEY_H);
         bindKeys("Pause", KeyInput.KEY_P);
         inputManager.addMapping("Fullscreen", new KeyTrigger(KeyInput.KEY_F11));
@@ -2059,9 +2072,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
 
         var shiftHeld = new boolean[1];
+        boolean[] ctrlHeld = this.ctrlHeld;
         ActionListener actions = (name, pressed, tpf) -> {
             switch (name) {
                 case "Shift" -> shiftHeld[0] = pressed;
+                case "Ctrl" -> ctrlHeld[0] = pressed;
                 // The same four keys steer the camera in the world and the
                 // choice on a menu. They cannot do both at once, and which one
                 // they are doing is never ambiguous: a menu is up or it is not.
@@ -2228,7 +2243,19 @@ final class DukeRtsApp extends SimpleApplication {
                             queueBuild(index);
                         }
                     } else if (name.startsWith(HOTKEY)) {
-                        pressHotkey(name.charAt(HOTKEY.length()), false);
+                        char letter = name.charAt(HOTKEY.length());
+                        if (ctrlHeld[0]) {
+                            // ★ Ctrl and the letter spends a level on that skill,
+                            // which is Warcraft's arrangement and is worth copying
+                            // for the reason it was chosen there: the hand is
+                            // already on the letter. A modifier rather than a key
+                            // of its own means nothing new to learn and nothing to
+                            // press by accident -- Q alone still casts, and always
+                            // will.
+                            raiseSkill(letter);
+                        } else {
+                            pressHotkey(letter, false);
+                        }
                     }
                 }
             }
@@ -2514,7 +2541,31 @@ final class DukeRtsApp extends SimpleApplication {
         }
         binding.run().accept(game,
                 new Hotkeys.Aimed(0, new Coord3D(ground.x, ground.z, 0f)));
-        markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
+        // ★ The mark goes where the SKILL goes, not where the mouse was. A click
+        // past the ring is read by the simulation as "as far that way as I can"
+        // -- it clamps to the edge -- so a mark left at the cursor would stand a
+        // long way from where the thing actually landed and the picture would be
+        // a lie in exactly the case the player most needs it to be true.
+        var landing = clampedToReach(new Coord3D(ground.x, ground.z, 0f));
+        markOrder(landing.x(), landing.y(), OrderMarkers.Kind.MOVE);
+    }
+
+    /**
+     * A spot pulled back to the edge of what the armed skill can reach.
+     *
+     * <p>The same rule {@code SkillBook.withinReach} applies on the far side,
+     * drawn from the same {@link SkillRange} the ring on the floor is drawn from
+     * -- so the mark, the ring and the cast all agree about where "as far that
+     * way as I can" is. A skill with no ring, or a click already inside it, is
+     * left exactly where it was.
+     */
+    private Coord3D clampedToReach(Coord3D wanted) {
+        var range = arming == null ? null : visuals.getSkillRange(arming);
+        var hero = whereHisHeroIs();
+        if (range == null || hero == null) {
+            return wanted;
+        }
+        return range.within(hero, wanted);
     }
 
     /**
@@ -2591,6 +2642,24 @@ final class DukeRtsApp extends SimpleApplication {
      *
      * @return whether the bar took the click
      */
+    /**
+     * Spend a level on a slot, from the keyboard.
+     *
+     * <p>Refused in silence when there is nothing to spend or nowhere to spend
+     * it, and that is a requirement rather than an omission: Ctrl is held for
+     * other reasons, and a key that made a noise every time the player happened
+     * to be holding it would be a key he learns to dread. The panel is asked
+     * rather than the simulation because the panel is what is showing him a
+     * badge -- if there is no badge, the press means nothing and says nothing.
+     */
+    private void raiseSkill(char key) {
+        if (!heroPanel.canRaise(key)) {
+            return;
+        }
+        hotkeys.raiseSkill(game, key);
+        noises.moment("power_taken", (float) timer.getTimeInSeconds());
+    }
+
     private boolean clickedASkillSlot() {
         var cursor = inputManager.getCursorPosition();
         // The badge before the slot, because it hangs over the slot's own corner

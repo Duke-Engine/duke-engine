@@ -513,6 +513,16 @@ final class HeroPanel {
      * the cursor passing over the corner of a slot with no point to spend must
      * arm the skill exactly as it always did.
      */
+    /** Whether the panel is offering to put a point into that slot right now. */
+    boolean canRaise(char key) {
+        for (var slot : slots) {
+            if (slot.key == key) {
+                return slot.canRaise;
+            }
+        }
+        return false;
+    }
+
     Character badgeAt(float screenX, float screenY) {
         if (!showing) {
             return null;
