@@ -303,7 +303,7 @@ class HeroChoiceTest {
         visuals.discoveredBy(SETTINGS.playedHero());
         var session = Dungeon.newSession(21L, SETTINGS);
 
-        Main.whoToPlay(session, SETTINGS, visuals).taken().accept(indexOf(KNIGHT));
+        Main.whoToPlay(session, SETTINGS, visuals).options().get(indexOf(KNIGHT)).taken().run();
         session.game().runHeadless(1);
 
         assertEquals(KNIGHT, visuals.getDiscoveryTemplate(),
@@ -332,7 +332,7 @@ class HeroChoiceTest {
         var visuals = uz.duke.client3d.Visuals.create();
         var session = Dungeon.newSession(21L, SETTINGS);
 
-        Main.whoToPlay(session, SETTINGS, visuals).taken().accept(indexOf(ARCHER));
+        Main.whoToPlay(session, SETTINGS, visuals).options().get(indexOf(ARCHER)).taken().run();
 
         assertEquals(ARCHER, visuals.getDiscoveryTemplate());
     }

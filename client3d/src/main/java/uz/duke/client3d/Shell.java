@@ -64,16 +64,32 @@ public final class Shell {
     /**
      * One thing the player may pick when the game asks him something.
      *
+     * <p>Taking it does whatever the game said, and then either opens the next
+     * question or starts. Which is what makes a handful of these a <em>path</em>
+     * rather than a screen: how you are playing, then which stage, then who you
+     * are, each one narrowing the last — and the client walks it without knowing
+     * what any of the words mean.
+     *
      * @param label what it is called — the word he clicks
      * @param blurb a line under it saying what picking it means, or empty. A
      *     roster of two is a decision rather than a formality, and a name on its
      *     own does not tell anybody which of them he would enjoy
+     * @param taken what the game does about it, or {@code null} for a row that
+     *     only leads somewhere
+     * @param next  the question this opens, or {@code null} to start the game.
+     *     A branch may be as long as it likes and the branches need not match:
+     *     one of them can ask something the other never does
      */
-    public record Option(String label, String blurb) {
+    public record Option(String label, String blurb, Runnable taken, Question next) {
 
         public Option {
             label = label == null ? "" : label;
             blurb = blurb == null ? "" : blurb;
+        }
+
+        /** A row that settles something and starts the game. */
+        public Option(String label, String blurb, Runnable taken) {
+            this(label, blurb, taken, null);
         }
     }
 
@@ -93,11 +109,8 @@ public final class Shell {
      * @param title  the heading over the column
      * @param hint   the line along the bottom, in the game's own words
      * @param options what he may pick, in the order he should see them
-     * @param taken  called with the index he took, before the world runs a frame —
-     *     so it may set up the game it is about to start
      */
-    public record Question(String title, String hint, List<Option> options,
-            java.util.function.IntConsumer taken) {
+    public record Question(String title, String hint, List<Option> options) {
 
         public Question {
             options = List.copyOf(options);
@@ -105,7 +118,7 @@ public final class Shell {
 
         /** Whether there is anything here worth stopping to ask. */
         public boolean worthAsking() {
-            return !options.isEmpty() && taken != null;
+            return !options.isEmpty();
         }
     }
 

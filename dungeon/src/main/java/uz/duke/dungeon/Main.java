@@ -1,5 +1,7 @@
 package uz.duke.dungeon;
 
+import java.util.List;
+
 import uz.duke.client3d.Duke3D;
 import uz.duke.client3d.EdgeScroll;
 import uz.duke.client3d.Fog;
@@ -267,9 +269,9 @@ public final class Main {
                 .entry(Shell.Entry.PLAY, "Enter the dungeon")
                 .entry(Shell.Entry.SETTINGS)
                 .entry(Shell.Entry.QUIT)
-                // Which turns Play into a question rather than a start — see
-                // whoToPlay. Nothing opens until it is answered.
-                .asking(whoToPlay(session, settings, visuals)), controls(settings));
+                // Which turns Play into a path rather than a start -- how, then
+                // where, then who. Nothing opens until it is walked. See howToPlay.
+                .asking(howToPlay(session, settings, visuals)), controls(settings));
     }
 
     /**
@@ -311,24 +313,85 @@ public final class Main {
     static uz.duke.client3d.Shell.Question whoToPlay(
             Dungeon.Session session, DungeonSettings settings, Visuals visuals) {
         var options = new java.util.ArrayList<uz.duke.client3d.Shell.Option>();
-        var names = new java.util.ArrayList<String>();
         for (var hero : settings.heroes()) {
+            var him = hero.name();
             options.add(new uz.duke.client3d.Shell.Option(
-                    displayNameOf(session, hero.name()), hero.title()));
-            names.add(hero.name());
+                    displayNameOf(session, him), hero.title(),
+                    () -> {
+                        // The dark opens around HIS eyes. Named rather than
+                        // measured, so the radius is his own VisionRange -- and a
+                        // knight sees a shorter way than an archer, which is part
+                        // of playing him. Left pointing at the file's hero, the
+                        // map would never open at all: nothing of that template is
+                        // in the dungeon.
+                        visuals.discoveredBy(him);
+                        session.run().startWith(session.game(), him);
+                    }));
         }
         return new uz.duke.client3d.Shell.Question(settings.hudChooseHeroWord(),
-                settings.hudChooseHeroHint(), options,
-                taken -> {
-                    var him = names.get(taken);
-                    // The dark opens around HIS eyes. Named rather than measured,
-                    // so the radius is his own VisionRange -- and a knight sees a
-                    // shorter way than an archer, which is part of playing him.
-                    // Left pointing at the file's hero, the map would never open
-                    // at all: nothing of that template is in the dungeon.
-                    visuals.discoveredBy(him);
-                    session.run().startWith(session.game(), him);
-                });
+                settings.hudChooseHeroHint(), options);
+    }
+
+    /**
+     * The path the player walks before a run begins: how, then where, then who.
+     *
+     * <p>Two games share this loop. The endless descent draws a floor nobody has
+     * seen and asks how far down you get; a stage hands back the same rooms every
+     * time and asks you to learn them. Which of the two is the first thing to
+     * settle, because everything after it differs — one has a list of stages to
+     * pick from and the other has nowhere to go but down.
+     *
+     * <p><b>Nothing is offered that cannot be played.</b> A build shipping no
+     * stages, or only broken ones, has no stage row at all rather than a row
+     * leading to an empty column — see {@code Stages.all}, which drops what it
+     * cannot read and says so in the log. With no stages the whole question
+     * collapses to the hero, which is what the game asked yesterday.
+     */
+    static uz.duke.client3d.Shell.Question howToPlay(
+            Dungeon.Session session, DungeonSettings settings, Visuals visuals) {
+        var hero = whoToPlay(session, settings, visuals);
+        var stages = uz.duke.dungeon.stage.Stages.all(settings);
+        if (stages.isEmpty()) {
+            return hero; // nothing to choose between; the only question left is who
+        }
+        var modes = List.of(
+                new uz.duke.client3d.Shell.Option(settings.hudEndlessWord(),
+                        settings.hudEndlessBlurb(),
+                        () -> session.run().playing(uz.duke.dungeon.run.Floors.generated(
+                                System.nanoTime(), settings)),
+                        hero),
+                new uz.duke.client3d.Shell.Option(settings.hudStagesWord(),
+                        settings.hudStagesBlurb(), null,
+                        whichStage(session, settings, stages, hero)));
+        return new uz.duke.client3d.Shell.Question(settings.hudChooseModeWord(),
+                settings.hudChooseModeHint(), modes);
+    }
+
+    /**
+     * Which frozen dungeon, out of the ones this build can actually play.
+     *
+     * <p>The rows are the stages' own words — an author names his stage and says
+     * one line about it in the file, and that is what a player reads. Nothing here
+     * is a list somebody keeps in step: drop a {@code .stage} file in the folder
+     * and it is on this screen.
+     *
+     * <p>Taking one only says which floors to lay. Who lays them is the next
+     * question, which is the same one the endless descent asks — a stage does not
+     * decide who plays it, and cannot.
+     */
+    private static uz.duke.client3d.Shell.Question whichStage(Dungeon.Session session,
+            DungeonSettings settings, List<uz.duke.dungeon.stage.Stages.Listed> stages,
+            uz.duke.client3d.Shell.Question hero) {
+        var rows = new java.util.ArrayList<uz.duke.client3d.Shell.Option>();
+        for (var listed : stages) {
+            var stage = listed.stage();
+            rows.add(new uz.duke.client3d.Shell.Option(stage.name(), stage.description(),
+                    () -> session.run().playing(
+                            uz.duke.dungeon.run.Floors.ofStage(stage)),
+                    hero));
+        }
+        return new uz.duke.client3d.Shell.Question(settings.hudChooseStageWord(),
+                settings.hudChooseStageHint(), rows);
     }
 
     /**

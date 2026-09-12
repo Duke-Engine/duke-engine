@@ -905,15 +905,32 @@ final class DukeRtsApp extends SimpleApplication {
             startGame();
             return;
         }
+        showQuestion(question, this::showMainMenu);
+    }
+
+    /**
+     * One question of the path, and the way back out of it.
+     *
+     * <p>{@code back} is the screen before this one rather than the front menu,
+     * so a path three deep is walked backwards a step at a time. Handed in rather
+     * than remembered because that is exactly what it is: each screen already
+     * knows what opened it, and a stack would be a second copy of the path that
+     * could disagree with the first.
+     */
+    private void showQuestion(Shell.Question question, Runnable back) {
         screen = Screen.MENU;
         var items = new java.util.ArrayList<StoneMenu.Row>();
-        var options = question.options();
-        for (int i = 0; i < options.size(); i++) {
-            final int taken = i;
-            var option = options.get(i);
+        for (var option : question.options()) {
             items.add(new StoneMenu.Action(option.label(), () -> {
-                question.taken().accept(taken);
-                startGame();
+                if (option.taken() != null) {
+                    option.taken().run();
+                }
+                // Either it narrows the choice further or it was the last of them.
+                if (option.next() != null) {
+                    showQuestion(option.next(), () -> showQuestion(question, back));
+                } else {
+                    startGame();
+                }
             }));
             if (!option.blurb().isBlank()) {
                 // Under the name rather than beside it: what he is choosing is the
@@ -921,7 +938,7 @@ final class DukeRtsApp extends SimpleApplication {
                 items.add(new StoneMenu.Words("", option.blurb()));
             }
         }
-        items.add(new StoneMenu.Action("Back", this::showMainMenu));
+        items.add(new StoneMenu.Action("Back", back));
         menu.show(game.getTitle(), question.title(), items,
                 question.hint(), version(), false);
     }

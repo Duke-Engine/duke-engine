@@ -2076,6 +2076,14 @@ public final class DungeonSettings {
     private String hudChooseWord = "";
     private String hudChooseHeroWord = "";
     private String hudChooseHeroHint = "";
+    private String hudChooseModeWord = "";
+    private String hudChooseModeHint = "";
+    private String hudChooseStageWord = "";
+    private String hudChooseStageHint = "";
+    private String hudEndlessWord = "";
+    private String hudEndlessBlurb = "";
+    private String hudStagesWord = "";
+    private String hudStagesBlurb = "";
     private String hudAttackWord = "";
     private String hudArmourWord = "";
     private String hudSpeedWord = "";
@@ -2111,6 +2119,41 @@ public final class DungeonSettings {
     /** And the line along the foot of it, saying how to answer. */
     public String hudChooseHeroHint() {
         return hudChooseHeroHint;
+    }
+
+    /** The screen before that one: which of the two games is being played. */
+    public String hudChooseModeWord() {
+        return hudChooseModeWord;
+    }
+
+    public String hudChooseModeHint() {
+        return hudChooseModeHint;
+    }
+
+    /** And the one after it, when he chose the frozen kind. */
+    public String hudChooseStageWord() {
+        return hudChooseStageWord;
+    }
+
+    public String hudChooseStageHint() {
+        return hudChooseStageHint;
+    }
+
+    /** What the two games are called, and one line each about them. */
+    public String hudEndlessWord() {
+        return hudEndlessWord;
+    }
+
+    public String hudEndlessBlurb() {
+        return hudEndlessBlurb;
+    }
+
+    public String hudStagesWord() {
+        return hudStagesWord;
+    }
+
+    public String hudStagesBlurb() {
+        return hudStagesBlurb;
     }
 
     /** The three figures under the bars, in the order the panel writes them. */
@@ -2183,6 +2226,16 @@ public final class DungeonSettings {
                     // four games and speaks none of their languages.
                     .add("ChooseHeroWord", Ini.restOfLine((s, v) -> s.hudChooseHeroWord = v))
                     .add("ChooseHeroHint", Ini.restOfLine((s, v) -> s.hudChooseHeroHint = v))
+                    // The screen before it: which of the two games. And the one
+                    // after, when he chose the frozen kind.
+                    .add("ChooseModeWord", Ini.restOfLine((s, v) -> s.hudChooseModeWord = v))
+                    .add("ChooseModeHint", Ini.restOfLine((s, v) -> s.hudChooseModeHint = v))
+                    .add("ChooseStageWord", Ini.restOfLine((s, v) -> s.hudChooseStageWord = v))
+                    .add("ChooseStageHint", Ini.restOfLine((s, v) -> s.hudChooseStageHint = v))
+                    .add("EndlessWord", Ini.restOfLine((s, v) -> s.hudEndlessWord = v))
+                    .add("EndlessBlurb", Ini.restOfLine((s, v) -> s.hudEndlessBlurb = v))
+                    .add("StagesWord", Ini.restOfLine((s, v) -> s.hudStagesWord = v))
+                    .add("StagesBlurb", Ini.restOfLine((s, v) -> s.hudStagesBlurb = v))
                     .add("AttackWord", Ini.restOfLine((s, v) -> s.hudAttackWord = v))
                     .add("ArmourWord", Ini.restOfLine((s, v) -> s.hudArmourWord = v))
                     .add("SpeedWord", Ini.restOfLine((s, v) -> s.hudSpeedWord = v))

@@ -75,7 +75,7 @@ public final class DungeonRun {
     private final LootTable drops;
 
     /** Where each floor comes from: the seed chain, or the file one was frozen into. */
-    private final Floors floors;
+    private Floors floors;
     private State state = State.RUNNING;
     private ObjectId heroId;
     private ObjectId bossId;
@@ -145,9 +145,47 @@ public final class DungeonRun {
         }
     }
 
+    /**
+     * Play these floors from here on — the endless descent, or one frozen stage.
+     *
+     * <p>The whole of what choosing a game <em>type</em> comes to. Everything that
+     * differs between the two reads {@link Floors} and nothing else: where the
+     * next floor comes from, what seed the look is drawn from, and which depth
+     * wins. So swapping this swaps the game, and the run loop above does not learn
+     * a second shape.
+     *
+     * <p>Recorded rather than acted on, for the same reason the hero is: this is
+     * answered on the menu, where the first floor has not been laid yet. It is
+     * {@link #startWith} that lays one, and it comes after.
+     */
+    public void playing(Floors floors) {
+        this.floors = floors;
+        this.look = lookOfThisFloor();
+        // The world was built around a floor from the floors we no longer have.
+        // Nobody has seen it — this is answered on the menu — but it is still
+        // standing, and opening on it would put the player in the game he did not
+        // choose while everything else said he had.
+        this.openingIsStale = true;
+    }
+
+    /** Whether the floor the world was built around belongs to a game nobody chose. */
+    private boolean openingIsStale;
+
     /** Whoever is being played — the file's answer until somebody chooses. */
     public String getHeroTemplate() {
         return heroTemplate;
+    }
+
+    /**
+     * The floor this game is won on, or 0 for a descent with no bottom.
+     *
+     * <p>Which of the two games is being played, said as a number: a stage is one
+     * floor deep whatever the file's list of bosses says, and the descent is as
+     * deep as that list. The panel already shows it; this is the same figure
+     * asked of the run rather than of the settings.
+     */
+    public int getLastDepth() {
+        return floors.lastDepth();
     }
 
     /**
@@ -170,6 +208,16 @@ public final class DungeonRun {
      * player always sees and the ones he rarely reaches cannot drift apart.
      */
     public void openOn(DukeGame game, GeneratedDungeon floor) {
+        if (openingIsStale) {
+            // He chose a different game on the menu. The floor handed in here was
+            // built with the world, before he was asked, and belongs to whichever
+            // game the file happened to name — so it is torn out and one from the
+            // floors he actually chose is laid instead. Which is the road a new
+            // run already takes, and the reason it costs nothing to say so.
+            openingIsStale = false;
+            descend(game);
+            return;
+        }
         look = lookOfThisFloor();
         var placed = Spawner.place(game, heroPlayer, dungeonPlayer, floor, settings, depth,
                 drops, heroTemplate);

@@ -80,13 +80,12 @@ class ShellTest {
 
     @Test
     void aGameCanAskSomethingFirst() {
-        var taken = new int[] {-1};
+        var taken = new String[] {null};
         var shell = Shell.create()
                 .entry(Shell.Entry.PLAY)
                 .asking(new Shell.Question("Who", "pick one",
-                        List.of(new Shell.Option("Archer", "shoots"),
-                                new Shell.Option("Knight", "swings")),
-                        answer -> taken[0] = answer));
+                        List.of(new Shell.Option("Archer", "shoots", () -> taken[0] = "Archer"),
+                                new Shell.Option("Knight", "swings", () -> taken[0] = "Knight"))));
 
         var question = shell.question();
         assertNotNull(question);
@@ -94,8 +93,58 @@ class ShellTest {
         assertEquals("Knight", question.options().get(1).label());
         assertEquals("swings", question.options().get(1).blurb());
 
-        question.taken().accept(1);
-        assertEquals(1, taken[0], "taking a row did not reach the game");
+        question.options().get(1).taken().run();
+        assertEquals("Knight", taken[0], "taking a row did not reach the game");
+        assertNull(question.options().get(1).next(), "that row should have started the game");
+    }
+
+    /**
+     * A row may narrow the choice instead of starting, and as often as it likes.
+     *
+     * <p>Which is what makes a handful of these a path rather than a screen: how
+     * you are playing, then which stage, then who you are. The client walks it
+     * without knowing what a stage or a hero is — it only knows that a row either
+     * leads somewhere or is the last one.
+     */
+    @Test
+    void aRowCanLeadToAnotherQuestion() {
+        var walked = new java.util.ArrayList<String>();
+        var hero = new Shell.Question("Who", "", List.of(
+                new Shell.Option("Archer", "", () -> walked.add("archer"))));
+        var stage = new Shell.Question("Which", "", List.of(
+                new Shell.Option("First", "", () -> walked.add("first"), hero)));
+        var shell = Shell.create().entry(Shell.Entry.PLAY)
+                .asking(new Shell.Question("How", "", List.of(
+                        new Shell.Option("Endless", "", () -> walked.add("endless")),
+                        new Shell.Option("Stage", "", null, stage))));
+
+        var how = shell.question();
+        var toStages = how.options().get(1);
+        assertEquals(stage, toStages.next(), "the stage row should open the stage list");
+        assertNull(toStages.taken(), "a row that only leads somewhere need do nothing");
+
+        // Walk it: stage, then the first stage, then the archer.
+        toStages.next().options().getFirst().taken().run();
+        var thenHero = toStages.next().options().getFirst().next();
+        thenHero.options().getFirst().taken().run();
+
+        assertEquals(List.of("first", "archer"), walked);
+        assertNull(thenHero.options().getFirst().next(), "the last row starts the game");
+    }
+
+    /** And the two branches need not be the same shape. */
+    @Test
+    void oneBranchMayAskSomethingTheOtherDoesNot() {
+        var hero = new Shell.Question("Who", "", List.of(new Shell.Option("Archer", "", null)));
+        var how = new Shell.Question("How", "", List.of(
+                new Shell.Option("Endless", "", null, hero),
+                new Shell.Option("Stage", "", null,
+                        new Shell.Question("Which", "", List.of(
+                                new Shell.Option("First", "", null, hero))))));
+
+        assertEquals(hero, how.options().get(0).next(), "the endless branch goes straight to who");
+        assertEquals("Which", how.options().get(1).next().title(),
+                "the stage branch asks one more thing first");
     }
 
     /**
@@ -111,26 +160,15 @@ class ShellTest {
     void aQuestionWithNothingToPickIsNotAsked() {
         var shell = Shell.create()
                 .entry(Shell.Entry.PLAY)
-                .asking(new Shell.Question("Who", "pick one", List.of(), answer -> { }));
+                .asking(new Shell.Question("Who", "pick one", List.of()));
 
         assertNull(shell.question(), "an empty roster would have locked the player out");
-    }
-
-    /** And nor is one with nobody listening for the answer. */
-    @Test
-    void aQuestionNobodyIsListeningToIsNotAsked() {
-        var shell = Shell.create()
-                .entry(Shell.Entry.PLAY)
-                .asking(new Shell.Question("Who", "pick one",
-                        List.of(new Shell.Option("Archer", "")), null));
-
-        assertNull(shell.question());
     }
 
     /** An option is a label and a line, and neither is ever null. */
     @Test
     void anOptionIsNeverHalfThere() {
-        var bare = new Shell.Option(null, null);
+        var bare = new Shell.Option(null, null, null);
 
         assertEquals("", bare.label());
         assertEquals("", bare.blurb());
