@@ -81,6 +81,117 @@ public final class Main {
         });
     }
 
+    /**
+     * One layer, in the client's words: whatever the file said, laid over the
+     * client's own defaults.
+     *
+     * <p>Only what was said, because the defaults are the client's and are written
+     * down once, in {@code EffectLayer.Builder}. Package-private so the game's own
+     * test can ask what a block in the file turns into on screen.
+     */
+    static uz.duke.client3d.EffectLayer layerOf(DungeonSettings.EffectLayerArt art,
+            String folder) {
+        var layer = uz.duke.client3d.EffectLayer.builder();
+        art.fields().forEach((field, value) -> {
+            switch (field) {
+                case "type" -> layer.type(value);
+                case "texture" -> layer.texture(value.isBlank() ? "" : folder + value);
+                case "additive" -> layer.additive(Boolean.parseBoolean(value));
+                case "count" -> layer.count(Integer.parseInt(value));
+                case "colourStart" -> layer.colourStart(Integer.parseInt(value));
+                case "colourEnd" -> layer.colourEnd(Integer.parseInt(value));
+                case "lightColour" -> layer.lightColour(Integer.parseInt(value));
+                case "direction" -> layer.direction(value);
+                case "at" -> layer.at(value);
+                case "measure" -> layer.measure(value);
+                default -> number(layer, field, Float.parseFloat(value));
+            }
+        });
+        return layer.build();
+    }
+
+    private static void number(uz.duke.client3d.EffectLayer.Builder layer, String field,
+            float value) {
+        switch (field) {
+            case "rate" -> layer.rate(value);
+            case "delay" -> layer.delay(value);
+            case "seconds" -> layer.seconds(value);
+            case "lifeMin" -> layer.lifeMin(value);
+            case "lifeMax" -> layer.lifeMax(value);
+            case "sizeStart" -> layer.sizeStart(value);
+            case "sizeEnd" -> layer.sizeEnd(value);
+            case "sizeEase" -> layer.sizeEase(value);
+            case "sizeJitter" -> layer.sizeJitter(value);
+            case "alphaStart" -> layer.alphaStart(value);
+            case "alphaEnd" -> layer.alphaEnd(value);
+            case "colourEase" -> layer.colourEase(value);
+            case "fadeIn" -> layer.fadeIn(value);
+            case "fadeOut" -> layer.fadeOut(value);
+            case "speedMin" -> layer.speedMin(value);
+            case "speedMax" -> layer.speedMax(value);
+            case "spread" -> layer.spread(value);
+            case "radius" -> layer.radius(value);
+            case "height" -> layer.height(value);
+            case "gravity" -> layer.gravity(value);
+            case "drag" -> layer.drag(value);
+            case "stretch" -> layer.stretch(value);
+            case "spin" -> layer.spin(value);
+            case "turn" -> layer.turn(value);
+            case "turnJitter" -> layer.turnJitter(value);
+            case "pulseRate" -> layer.pulseRate(value);
+            case "pulseDepth" -> layer.pulseDepth(value);
+            case "lightPower" -> layer.lightPower(value);
+            case "lightRadius" -> layer.lightRadius(value);
+            case "fall" -> layer.fall(value);
+            case "cover" -> layer.cover(value);
+            default -> LOG.warning(() -> "an effect layer says " + field
+                    + ", which the client does not draw -- ignored");
+        }
+    }
+
+    /**
+     * How long and how far each look's skill goes, handed to the client so a layer
+     * that says neither is drawn exactly that long and exactly that wide.
+     *
+     * <p>From the SKILL, and nowhere else. The knight's guard used to say 4.0 in its
+     * effect block and 120 frames in its skill block, and the meteor's warning said
+     * 1.5 seconds beside a comment asking whoever changed WindUpFrames to remember
+     * to change it too. Now there is one number and the picture follows it.
+     *
+     * <p>How long: a skill that lasts gives its duration; one that is aimed and then
+     * lands gives its wind-up, which is how long the ground is marked; one that
+     * slows what it caught gives the slow, which is how long they wear the frost.
+     * How far: its radius. And a projectile's effect is given its skill's numbers
+     * too -- a meteor's falling mark takes the same wind-up to come down, and a
+     * fireball's blast is as wide as the skill that threw it.
+     */
+    static void measureLooks(uz.duke.client3d.Visuals visuals, DungeonSettings settings) {
+        float perSecond = uz.duke.core.GameConstants.LOGICFRAMES_PER_SECOND;
+        var carriedBy = new java.util.HashMap<String, String>();
+        for (var arrow : settings.projectiles()) {
+            carriedBy.put(arrow.name(), arrow.effect());
+        }
+        for (var skill : settings.skills()) {
+            var carried = skill.hasProjectile() ? carriedBy.get(skill.projectile()) : null;
+            if (skill.hasLook()) {
+                int frames = skill.durationFrames() > 0 ? skill.durationFrames()
+                        : skill.windUpFrames() > 0 ? skill.windUpFrames()
+                        : skill.slowFrames();
+                if (frames > 0) {
+                    visuals.effectSeconds(skill.look(), frames / perSecond);
+                }
+                visuals.effectReach(skill.look(), skill.radius());
+            }
+            if (carried != null) {
+                visuals.effectReach(carried, skill.radius());
+                if (skill.effect() == uz.duke.dungeon.skill.SkillEffect.METEOR
+                        && skill.windUpFrames() > 0) {
+                    visuals.effectSeconds(carried, skill.windUpFrames() / perSecond);
+                }
+            }
+        }
+    }
+
     /** One portrait block, in the words the client keeps them in. */
     private static uz.duke.client3d.PortraitLook portraitLook(
             uz.duke.dungeon.content.PortraitArt art) {
@@ -873,12 +984,23 @@ public final class Main {
         for (var look : settings.effects()) {
             effect(visuals, look);
         }
+        // Then the layers each is drawn from, in the file's order -- which is the
+        // order they are laid one over another.
+        for (var layer : settings.effectLayers()) {
+            visuals.effect(layer.effect(),
+                    recipe -> recipe.layer(layerOf(layer, settings.particleFolder())));
+        }
         for (var look : settings.projectiles()) {
             arrow(visuals, look.name(), look);
         }
         visuals.effectBudget(settings.effectLights(), settings.effectsPerKind(),
                 settings.effectBursts(), settings.effectDistance());
         visuals.skillRings(settings.effectRings());
+        visuals.particleBudget(settings.effectParticles());
+        visuals.shakeScale(settings.shakeScale());
+        visuals.hitFlash(new Visuals.HitFlashLook(settings.hitFlashColour(),
+                settings.hitFlashSeconds(), settings.hitFlashStrength()));
+        measureLooks(visuals, settings);
 
         // The floor is black until he walks it. Named rather than given a
         // distance: the radius is the hero's own VisionRange from creatures.ini,

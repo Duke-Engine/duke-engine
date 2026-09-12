@@ -1,0 +1,350 @@
+package uz.duke.dungeon;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+
+import java.util.ArrayList;
+import java.util.stream.Collectors;
+import org.junit.jupiter.api.Test;
+import uz.duke.client3d.EffectLayer;
+import uz.duke.client3d.Visuals;
+import uz.duke.core.GameConstants;
+import uz.duke.dungeon.content.DungeonSettings;
+
+/**
+ * The layers in the settings file are layers the client can draw, from textures
+ * that are there, lasting as long as the skills they belong to.
+ *
+ * <p>Every fault this guards against looks the same from a chair: an effect that
+ * is not there. A misspelt type is ignored, a texture that is not on the classpath
+ * is a plain glow, a layer headed with an effect nobody casts is never played —
+ * and none of those raises anything, because an effect that threw would take the
+ * frame with it. So the file is checked here instead, where a mistake is a red test
+ * rather than a fight that looks slightly flatter than it should.
+ */
+class DungeonEffectLayerTest {
+
+    private static final DungeonSettings SETTINGS = DungeonSettings.load();
+
+    /** What the file's layers turn into, exactly as Main hands them over. */
+    private static EffectLayer drawn(DungeonSettings.EffectLayerArt art) {
+        return Main.layerOf(art, SETTINGS.particleFolder());
+    }
+
+    @Test
+    void theFileDescribesLayersForEveryMageSkill() {
+        assertFalse(SETTINGS.effectLayers().isEmpty(), "the shipped file should describe layers");
+        var layered = SETTINGS.effectLayers().stream()
+                .map(DungeonSettings.EffectLayerArt::effect).collect(Collectors.toSet());
+        for (var look : new String[] {"MageCast", "MageFireball", "FrostNova", "MageBlink",
+            "MeteorCall", "MeteorWarning"}) {
+            assertTrue(layered.contains(look), look + " is a mage effect with no layers");
+        }
+    }
+
+    /**
+     * A layer headed with an effect that does not exist is never played.
+     *
+     * <p>The heading is the only thing connecting a layer to anything, and a
+     * misspelling in it is a block that parses perfectly and draws nothing forever.
+     */
+    @Test
+    void everyLayerBelongsToAnEffectThatExists() {
+        var effects = SETTINGS.effects().stream()
+                .map(DungeonSettings.EffectLook::name).collect(Collectors.toSet());
+        for (var layer : SETTINGS.effectLayers()) {
+            assertTrue(effects.contains(layer.effect()), "DungeonEffectLayer " + layer.effect()
+                    + " " + layer.name() + " belongs to no DungeonEffect");
+        }
+    }
+
+    /** Two layers of one effect with one name are one layer too many to talk about. */
+    @Test
+    void noEffectNamesTwoLayersTheSame() {
+        var seen = new java.util.HashSet<String>();
+        for (var layer : SETTINGS.effectLayers()) {
+            assertTrue(seen.add(layer.effect() + " " + layer.name()),
+                    "DungeonEffectLayer " + layer.effect() + " " + layer.name() + " is there twice");
+        }
+    }
+
+    @Test
+    void everyLayerIsOfAKindTheClientDraws() {
+        var wrong = new ArrayList<String>();
+        for (var art : SETTINGS.effectLayers()) {
+            var layer = drawn(art);
+            var where = art.effect() + " " + art.name();
+            if (!EffectLayer.TYPES.contains(layer.type())) {
+                wrong.add(where + ": no such type " + layer.type());
+            }
+            if (!EffectLayer.DIRECTIONS.contains(layer.direction())) {
+                wrong.add(where + ": no such direction " + layer.direction());
+            }
+            if (!EffectLayer.PLACES.contains(layer.at())) {
+                wrong.add(where + ": no such place " + layer.at());
+            }
+            if (!EffectLayer.MEASURES.contains(layer.measure())) {
+                wrong.add(where + ": no such measure " + layer.measure());
+            }
+        }
+        if (!wrong.isEmpty()) {
+            fail(String.join("\n", wrong));
+        }
+    }
+
+    /**
+     * Every texture named is on the classpath.
+     *
+     * <p>The client draws a soft glow in place of one it cannot find, which is the
+     * right thing to do in a fight and exactly why it has to be caught here: a
+     * fireball whose fire texture is misspelt still looks like SOMETHING.
+     */
+    @Test
+    void everyTextureNamedIsThere() {
+        var loader = DungeonEffectLayerTest.class.getClassLoader();
+        var missing = new ArrayList<String>();
+        for (var art : SETTINGS.effectLayers()) {
+            var layer = drawn(art);
+            if (layer.draws() && loader.getResource(layer.texture()) == null) {
+                missing.add(art.effect() + " " + art.name() + ": " + layer.texture());
+            }
+        }
+        if (!missing.isEmpty()) {
+            fail("not on the classpath:\n" + String.join("\n", missing));
+        }
+    }
+
+    /**
+     * A block becomes exactly the layer it describes.
+     *
+     * <p>Read against the file's own text rather than against numbers written here,
+     * so tuning the block never breaks this -- and a field lost anywhere on the way
+     * from the text to what the client is handed always does. What the block leaves
+     * out is the client's default, so this is also the test that the defaults are
+     * not quietly replaced on the way across.
+     */
+    @Test
+    void aBlockBecomesTheLayerItDescribes() throws java.io.IOException {
+        var said = saidIn("MageFireball", "Fire");
+        var layer = drawn(SETTINGS.effectLayers().stream()
+                .filter(art -> art.effect().equals("MageFireball") && art.name().equals("Fire"))
+                .findFirst().orElseThrow());
+
+        assertEquals(said.get("Type"), layer.type());
+        assertEquals(SETTINGS.particleFolder() + said.get("Texture"), layer.texture());
+        assertEquals(!"Alpha".equalsIgnoreCase(said.get("Blend")), layer.additive());
+        assertEquals(Integer.parseInt(said.get("Count")), layer.count());
+        var life = said.get("Life").split("\\s+");
+        assertEquals(Float.parseFloat(life[0]), layer.lifeMin(), 0.001f);
+        assertEquals(Float.parseFloat(life[1]), layer.lifeMax(), 0.001f);
+        var colour = said.get("Colour").split("\\s+");
+        assertEquals((int) Integer.decode(colour[0]), layer.colourStart());
+        assertEquals((int) Integer.decode(colour[1]), layer.colourEnd());
+        assertEquals(Float.parseFloat(said.get("Drag")), layer.drag(), 0.001f);
+        assertEquals(Float.parseFloat(said.get("Cover")), layer.cover(), 0.001f);
+
+        assertFalse(said.containsKey("Stretch"), "the block this reads says nothing of stretch");
+        assertEquals(EffectLayer.builder().build().stretch(), layer.stretch(), 0.001f,
+                "so it has the client's own default");
+    }
+
+    /** One layer block as the file writes it: each field's name, and the rest of its line. */
+    private static java.util.Map<String, String> saidIn(String effect, String name)
+            throws java.io.IOException {
+        java.util.List<String> lines;
+        try (var in = DungeonEffectLayerTest.class.getClassLoader()
+                .getResourceAsStream("ini/dungeon.ini")) {
+            assertNotNull(in, "the settings file is not on the classpath");
+            lines = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+                    .lines().toList();
+        }
+        var said = new java.util.LinkedHashMap<String, String>();
+        int at = lines.indexOf("DungeonEffectLayer " + effect + " " + name);
+        assertTrue(at >= 0, "no block DungeonEffectLayer " + effect + " " + name);
+        for (int i = at + 1; !lines.get(i).trim().equals("End"); i++) {
+            var line = lines.get(i).trim();
+            int equals = line.indexOf('=');
+            if (!line.startsWith(";") && equals > 0) {
+                said.put(line.substring(0, equals).trim(), line.substring(equals + 1).trim());
+            }
+        }
+        return said;
+    }
+
+    /** Smoke and dust cover; they are never drawn as light. */
+    @Test
+    void smokeAndDustAreNeverDrawnAsLight() {
+        for (var art : SETTINGS.effectLayers()) {
+            var layer = drawn(art);
+            var texture = layer.texture();
+            if (texture.contains("smoke_") || texture.contains("dirt_") || texture.contains("scorch_")) {
+                assertFalse(layer.additive(), art.effect() + " " + art.name()
+                        + " draws " + texture + " as light, which brightens what it should hide");
+            }
+        }
+    }
+
+    /**
+     * Anything that is light and happens at once is over quickly.
+     *
+     * <p>A flash, a burst of fire, a ring opening: past most of a second each of
+     * them is no longer an impact but a thing hanging in the air, and it is in
+     * the way of the next one. What is allowed longer is stuff -- smoke rising,
+     * dust settling, a scorch -- because that is what is LEFT, and it is drawn as
+     * cover rather than as light.
+     */
+    @Test
+    void anythingThatIsLightAndHappensAtOnceIsOverQuickly() {
+        var slow = new ArrayList<String>();
+        for (var art : SETTINGS.effectLayers()) {
+            var layer = drawn(art);
+            boolean atOnce = EffectLayer.BURST.equals(layer.type())
+                    || EffectLayer.IMPACT.equals(layer.type())
+                    || EffectLayer.RING.equals(layer.type());
+            if (atOnce && layer.additive() && layer.delay() + layer.lifeMax() > 0.8f) {
+                slow.add(art.effect() + " " + art.name() + ": "
+                        + (layer.delay() + layer.lifeMax()) + " s");
+            }
+        }
+        if (!slow.isEmpty()) {
+            fail("light that outlasts its moment:\n" + String.join("\n", slow));
+        }
+    }
+
+    // ---- how long ----
+
+    /**
+     * The meteor's warning lasts exactly as long as the meteor takes to fall.
+     *
+     * <p>They used to be two numbers — WindUpFrames on the skill and MarkSeconds on
+     * the effect — with a comment asking whoever changed one to change the other.
+     * Now the warning says nothing about how long it lasts and takes the skill's.
+     */
+    @Test
+    void theWarningLastsExactlyAsLongAsTheFall() {
+        var visuals = Visuals.create();
+        Main.measureLooks(visuals, SETTINGS);
+        var meteor = SETTINGS.skills().stream()
+                .filter(skill -> skill.look().equals("MeteorCall")).findFirst().orElseThrow();
+        float falls = meteor.windUpFrames() / (float) GameConstants.LOGICFRAMES_PER_SECOND;
+
+        assertEquals(falls, visuals.getEffectSeconds("MeteorCall"), 0.001f,
+                "the ground is marked for the wind-up");
+        assertEquals(falls, visuals.getEffectSeconds("MeteorWarning"), 0.001f,
+                "and the rock takes the same wind-up to come down");
+        for (var art : SETTINGS.effectLayers()) {
+            if (art.effect().equals("MeteorCall") && EffectLayer.MARK.equals(drawn(art).type())) {
+                assertEquals(0f, drawn(art).seconds(), 0.001f, art.name()
+                        + " says how long it lasts, and the skill already does");
+            }
+        }
+    }
+
+    /** A skill that lasts gives its duration to its look, in seconds. */
+    @Test
+    void aLastingSkillsLookLastsAsLongAsTheSkill() {
+        var visuals = Visuals.create();
+        Main.measureLooks(visuals, SETTINGS);
+        int checked = 0;
+        for (var skill : SETTINGS.skills()) {
+            if (skill.hasLook() && skill.durationFrames() > 0) {
+                assertEquals(skill.durationFrames() / (float) GameConstants.LOGICFRAMES_PER_SECOND,
+                        visuals.getEffectSeconds(skill.look()), 0.001f, skill.look());
+                checked++;
+            }
+        }
+        assertTrue(checked > 0, "no lasting skill was checked at all");
+    }
+
+    /**
+     * The frost on whoever the nova caught lasts exactly as long as they are slowed.
+     *
+     * <p>The client cannot see the slow -- nothing it is sent says who is dragging
+     * his feet -- so the frost is laid for the skill's SlowFrames on everyone the
+     * nova reached, which is who the simulation slowed.
+     */
+    @Test
+    void theFrostOnTheCaughtLastsAsLongAsTheSlow() {
+        var visuals = Visuals.create();
+        Main.measureLooks(visuals, SETTINGS);
+        var nova = SETTINGS.skills().stream()
+                .filter(skill -> skill.look().equals("FrostNova")).findFirst().orElseThrow();
+        assertTrue(nova.slowFrames() > 0, "the nova slows what it catches");
+
+        assertEquals(nova.slowFrames() / (float) GameConstants.LOGICFRAMES_PER_SECOND,
+                visuals.getEffectSeconds("FrostNova"), 0.001f);
+        var caught = SETTINGS.effectLayers().stream()
+                .filter(art -> art.effect().equals("FrostNova"))
+                .map(DungeonEffectLayerTest::drawn)
+                .filter(layer -> EffectLayer.CAUGHT.equals(layer.at()))
+                .toList();
+        assertFalse(caught.isEmpty(), "something is drawn on whoever the nova caught");
+        for (var layer : caught) {
+            assertEquals(0f, layer.seconds(), 0.001f,
+                    "a layer on the caught that says how long it lasts no longer follows the slow");
+        }
+    }
+
+    /**
+     * The meteor's warning is exactly as wide as the blast it warns of.
+     *
+     * <p>The one shape in the game a player bets his life on: step out of the
+     * orange and live. So it is measured in the skill's reach rather than in units,
+     * and the reach it is given is the skill's Radius.
+     */
+    @Test
+    void theWarningIsAsWideAsTheBlast() {
+        var visuals = Visuals.create();
+        Main.measureLooks(visuals, SETTINGS);
+        var meteor = SETTINGS.skills().stream()
+                .filter(skill -> skill.look().equals("MeteorCall")).findFirst().orElseThrow();
+
+        assertEquals(meteor.radius(), visuals.getEffectReach("MeteorCall"), 0.001f);
+        var warning = SETTINGS.effectLayers().stream()
+                .filter(art -> art.effect().equals("MeteorCall") && art.name().equals("Warning"))
+                .map(DungeonEffectLayerTest::drawn).findFirst().orElseThrow();
+        assertEquals(EffectLayer.REACH, warning.measure());
+    }
+
+    /** A layer measured in reach belongs to something the game gives a reach. */
+    @Test
+    void everyLayerMeasuredInReachHasAReach() {
+        var visuals = Visuals.create();
+        Main.measureLooks(visuals, SETTINGS);
+        var unmeasured = new ArrayList<String>();
+        for (var art : SETTINGS.effectLayers()) {
+            if (EffectLayer.REACH.equals(drawn(art).measure())
+                    && visuals.getEffectReach(art.effect()) <= 0f) {
+                unmeasured.add(art.effect() + " " + art.name());
+            }
+        }
+        if (!unmeasured.isEmpty()) {
+            fail("measured in the reach of a skill that has none:\n"
+                    + String.join("\n", unmeasured));
+        }
+    }
+
+    /**
+     * A hit flash is a flash: there, and gone before the next blow of an ordinary
+     * fight lands. Much past a fifth of a second a creature is not flashing, it
+     * is lit.
+     */
+    @Test
+    void theHitFlashIsBrief() {
+        assertTrue(SETTINGS.hitFlashStrength() > 0f, "the shipped file should flash");
+        assertTrue(SETTINGS.hitFlashSeconds() > 0.05f && SETTINGS.hitFlashSeconds() <= 0.2f,
+                "a flash of " + SETTINGS.hitFlashSeconds() + " s");
+        assertTrue(SETTINGS.shakeScale() >= 0f);
+    }
+
+    /** And the budget the file sets reaches the client. */
+    @Test
+    void theParticleCeilingIsTheFiles() {
+        assertTrue(SETTINGS.effectParticles() > 0, "a ceiling of nothing draws no layers");
+        assertNotNull(SETTINGS.particleFolder());
+        assertTrue(SETTINGS.particleFolder().endsWith("/"), "the folder is joined onto a name");
+    }
+}

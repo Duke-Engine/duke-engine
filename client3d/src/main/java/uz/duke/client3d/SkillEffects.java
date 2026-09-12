@@ -284,6 +284,13 @@ final class SkillEffects {
         if (recipe == null || at == null || tooFarOff(at, camera)) {
             return;
         }
+        if (recipe.hasLayers()) {
+            // Drawn by its layers -- see LayeredEffects. What stays here is the
+            // knock, because there is one camera and so there has to be one shake:
+            // two things landing together take the louder, never the sum.
+            knock(recipe.shakeSeconds, recipe.shakePower);
+            return;
+        }
         // The sparks and the flash first, so the ring opens THROUGH them rather
         // than beside them. Its own pool and its own ceiling, so a cast over the
         // budget quietly loses its fire and keeps its ring, or the other way
@@ -341,6 +348,7 @@ final class SkillEffects {
      * the player cannot look at.
      */
     void knock(float seconds, float power) {
+        power *= visuals == null ? 1f : visuals.getShakeScale();
         if (seconds <= 0f || power <= 0f) {
             return;
         }

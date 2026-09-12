@@ -81,8 +81,7 @@ final class ProjectileEffects {
      * jME reads a radius of zero as <em>infinite</em>, and a black light is still
      * a light the renderer has to consider.
      */
-    private final List<PointLight> lights = new ArrayList<>();
-    private final java.util.Deque<PointLight> free = new java.util.ArrayDeque<>();
+    private final LightPool pool;
     private final Map<Integer, PointLight> lit = new HashMap<>();
 
     /** Idle emitters, by recipe name, and the ones in the air. */
@@ -120,12 +119,17 @@ final class ProjectileEffects {
         this.perRecipe = Math.max(0, perRecipe);
         this.bursts = Math.max(0, bursts);
         this.lightDistance = lightDistance;
-        for (int i = 0; i < Math.max(0, maxLights); i++) {
-            var light = new PointLight(new Vector3f(0f, -10_000f, 0f), ColorRGBA.BlackNoAlpha, 1f);
-            lights.add(light);
-            free.add(light);
-            root.addLight(light);
-        }
+        this.pool = new LightPool(root, maxLights);
+    }
+
+    /**
+     * The lights, for anything else that burns to borrow from.
+     *
+     * <p>One pool for the whole client: two pools of four are eight lights to the
+     * renderer and four to each pool, which is how a budget is quietly doubled.
+     */
+    LightPool lights() {
+        return pool;
     }
 
     /** How many lights are burning right now, which is what the budget is about. */
@@ -135,7 +139,7 @@ final class ProjectileEffects {
 
     /** Every light the pool owns, lit or not, for the terrain shader to read. */
     List<PointLight> allLights() {
-        return List.copyOf(lights);
+        return pool.all();
     }
 
     /**
@@ -222,7 +226,10 @@ final class ProjectileEffects {
     void appeared(int id, Visuals.UnitVisual visual, Node node, Vector3f at, Vector3f camera) {
         var recipeName = visual == null ? null : visual.effect;
         var recipe = visuals.effectNamed(recipeName);
-        if (recipe == null || tooFarOff(at, camera)) {
+        if (recipe == null || recipe.hasLayers() || tooFarOff(at, camera)) {
+            // A recipe with layers carries its own trail and its own light -- see
+            // LayeredEffects -- and drawing this one too would be the same shot in
+            // two styles at once.
             return;
         }
         if (recipe.has(FLAME_TRAIL) && recipe.particles > 0) {
@@ -291,7 +298,8 @@ final class ProjectileEffects {
     /** It arrived: a burst of sparks and a flash where it struck. */
     void landed(String recipeName, Vector3f at, Vector3f camera) {
         var recipe = visuals.effectNamed(recipeName);
-        if (recipe == null || !recipe.has(IMPACT_BURST) || recipe.burstParticles <= 0
+        if (recipe == null || recipe.hasLayers() || !recipe.has(IMPACT_BURST)
+                || recipe.burstParticles <= 0
                 || tooFarOff(at, camera) || burning.size() >= bursts) {
             return;
         }
@@ -349,9 +357,7 @@ final class ProjectileEffects {
         }
         burning.clear();
         lit.clear();
-        for (var light : lights) {
-            douse(light);
-        }
+        pool.clear();
     }
 
     private boolean tooFarOff(Vector3f at, Vector3f camera) {
@@ -360,7 +366,7 @@ final class ProjectileEffects {
     }
 
     private PointLight takeLight() {
-        return free.poll();
+        return pool.take();
     }
 
     private void dress(PointLight light, java.awt.Color colour, float power, float radius) {
@@ -369,12 +375,7 @@ final class ProjectileEffects {
     }
 
     private void douse(PointLight light) {
-        light.setColor(ColorRGBA.BlackNoAlpha);
-        light.setRadius(1f);
-        light.setPosition(new Vector3f(0f, -10_000f, 0f));
-        if (!free.contains(light)) {
-            free.add(light);
-        }
+        pool.give(light);
     }
 
     private ParticleEmitter borrow(String recipeName, Visuals.EffectVisual recipe) {

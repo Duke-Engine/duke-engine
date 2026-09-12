@@ -329,6 +329,13 @@ public final class DungeonSettings {
                     reader.initFromIni(piece, SKIN);
                     settings.skin.add(piece);
                 }),
+                // A layer of an effect, named by the effect and then by itself, as a
+                // tone is named by its theme. In file order, which is draw order.
+                Map.entry("DungeonEffectLayer", (Ini.BlockParser) reader -> {
+                    var layer = new LayerBuilder(reader.getNextToken(), reader.getNextToken());
+                    reader.initFromIni(layer, LAYER);
+                    settings.effectLayers.add(layer);
+                }),
                 Map.entry("DungeonEffects", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, EFFECT_BUDGET);
@@ -1880,6 +1887,158 @@ public final class DungeonSettings {
                     .add("ShakeSeconds", Ini.real((e, v) -> e.shakeSeconds = v))
                     .add("ShakePower", Ini.real((e, v) -> e.shakePower = v));
 
+    // ---- the layers an effect is drawn from ----
+
+    /**
+     * One layer of an effect, as the file wrote it — only the fields it said.
+     *
+     * <p>The fields and nothing else, because the defaults belong to the client: a
+     * layer that does not mention its drag gets whatever the client gives a layer
+     * that does not mention its drag, and there is one place that says what that
+     * is instead of two that can disagree. Keyed by the client's own names, and
+     * already checked to be the kind of value each one is, so a typo is caught
+     * when the file is read rather than when the effect is drawn.
+     *
+     * @param effect the effect this is a layer of — a {@code DungeonEffect} name
+     * @param name   what this layer is called, for whoever reads the file
+     * @param fields what it said, by the client's name for each
+     */
+    public record EffectLayerArt(String effect, String name, java.util.Map<String, String> fields) {
+
+        public EffectLayerArt {
+            fields = java.util.Map.copyOf(fields);
+        }
+    }
+
+    private static final class LayerBuilder {
+        private final String effect;
+        private final String name;
+        private final java.util.Map<String, String> fields = new java.util.LinkedHashMap<>();
+
+        LayerBuilder(String effect, String name) {
+            this.effect = effect;
+            this.name = name;
+        }
+
+        void put(String key, String value) {
+            fields.put(key, value);
+        }
+
+        void two(String first, String second, String low, String high) {
+            put(first, String.valueOf(Float.parseFloat(low)));
+            put(second, String.valueOf(Float.parseFloat(high)));
+        }
+
+        void twoColours(String first, String second, String start, String end) {
+            put(first, String.valueOf(Integer.decode(start)));
+            put(second, String.valueOf(Integer.decode(end)));
+        }
+    }
+
+    private final java.util.List<LayerBuilder> effectLayers = new java.util.ArrayList<>();
+
+    /**
+     * Every layer the file describes, in the order it describes them — which is
+     * also the order they are drawn in, one over another.
+     */
+    public java.util.List<EffectLayerArt> effectLayers() {
+        return effectLayers.stream()
+                .map(layer -> new EffectLayerArt(layer.effect, layer.name, layer.fields))
+                .toList();
+    }
+
+    private String particleFolder = "";
+
+    /** Where a layer's texture is found, joined onto the front of its name. */
+    public String particleFolder() {
+        return particleFolder;
+    }
+
+    private int effectParticles;
+
+    /**
+     * How many particles may burn at once across every effect. A ceiling: past it
+     * a layer is drawn thinner, and past that it is not drawn.
+     */
+    public int effectParticles() {
+        return effectParticles;
+    }
+
+    private float shakeScale = 1f;
+
+    /** Every knock of the camera against what its effect asked for; 0 is none. */
+    public float shakeScale() {
+        return shakeScale;
+    }
+
+    private int hitFlashColour = 0xFFFFFF;
+    private float hitFlashSeconds;
+    private float hitFlashStrength;
+
+    /** What a creature that is hit flashes towards. */
+    public int hitFlashColour() {
+        return hitFlashColour;
+    }
+
+    /** How long the whole flash is; 0 is none. */
+    public float hitFlashSeconds() {
+        return hitFlashSeconds;
+    }
+
+    /** How far towards its colour, 0 to 1; 0 is none. */
+    public float hitFlashStrength() {
+        return hitFlashStrength;
+    }
+
+    private static final FieldParseTable<LayerBuilder> LAYER =
+            new FieldParseTable<LayerBuilder>()
+                    .add("Type", Ini.string((l, v) -> l.put("type", v.toUpperCase(java.util.Locale.ROOT))))
+                    // A file name inside ParticleFolder, as SkinFolder and CursorFolder do.
+                    .add("Texture", Ini.string((l, v) -> l.put("texture", v)))
+                    // Additive for light -- fire, magic, sparks -- and Alpha for stuff: smoke
+                    // and dust drawn additively brighten the floor they are meant to hide.
+                    .add("Blend", Ini.string((l, v) -> l.put("additive",
+                            String.valueOf(!"Alpha".equalsIgnoreCase(v)))))
+                    // And how much of the floor it hides, for fire that has to read on
+                    // pale ground: 0 is Additive's, 1 is Alpha's.
+                    .add("Cover", Ini.real((l, v) -> l.put("cover", String.valueOf(v))))
+                    .add("Count", Ini.integer((l, v) -> l.put("count", String.valueOf(v))))
+                    .add("Rate", Ini.real((l, v) -> l.put("rate", String.valueOf(v))))
+                    .add("Delay", Ini.real((l, v) -> l.put("delay", String.valueOf(v))))
+                    .add("Seconds", Ini.real((l, v) -> l.put("seconds", String.valueOf(v))))
+                    .add("SizeEase", Ini.real((l, v) -> l.put("sizeEase", String.valueOf(v))))
+                    .add("SizeJitter", Ini.real((l, v) -> l.put("sizeJitter", String.valueOf(v))))
+                    .add("ColourEase", Ini.real((l, v) -> l.put("colourEase", String.valueOf(v))))
+                    .add("FadeIn", Ini.real((l, v) -> l.put("fadeIn", String.valueOf(v))))
+                    .add("FadeOut", Ini.real((l, v) -> l.put("fadeOut", String.valueOf(v))))
+                    .add("Spread", Ini.real((l, v) -> l.put("spread", String.valueOf(v))))
+                    .add("Radius", Ini.real((l, v) -> l.put("radius", String.valueOf(v))))
+                    .add("Height", Ini.real((l, v) -> l.put("height", String.valueOf(v))))
+                    .add("Gravity", Ini.real((l, v) -> l.put("gravity", String.valueOf(v))))
+                    .add("Drag", Ini.real((l, v) -> l.put("drag", String.valueOf(v))))
+                    .add("Stretch", Ini.real((l, v) -> l.put("stretch", String.valueOf(v))))
+                    .add("Spin", Ini.real((l, v) -> l.put("spin", String.valueOf(v))))
+                    .add("Turn", Ini.real((l, v) -> l.put("turn", String.valueOf(v))))
+                    .add("TurnJitter", Ini.real((l, v) -> l.put("turnJitter", String.valueOf(v))))
+                    .add("PulseRate", Ini.real((l, v) -> l.put("pulseRate", String.valueOf(v))))
+                    .add("PulseDepth", Ini.real((l, v) -> l.put("pulseDepth", String.valueOf(v))))
+                    .add("LightPower", Ini.real((l, v) -> l.put("lightPower", String.valueOf(v))))
+                    .add("LightRadius", Ini.real((l, v) -> l.put("lightRadius", String.valueOf(v))))
+                    .add("Fall", Ini.real((l, v) -> l.put("fall", String.valueOf(v))))
+                    // Two numbers, where a thing has a start and an end or a least and a most.
+                    .add("Life", (ini, l) -> l.two("lifeMin", "lifeMax", ini.getNextToken(), ini.getNextToken()))
+                    .add("Size", (ini, l) -> l.two("sizeStart", "sizeEnd", ini.getNextToken(), ini.getNextToken()))
+                    .add("Alpha", (ini, l) -> l.two("alphaStart", "alphaEnd", ini.getNextToken(), ini.getNextToken()))
+                    .add("Speed", (ini, l) -> l.two("speedMin", "speedMax", ini.getNextToken(), ini.getNextToken()))
+                    .add("Colour", (ini, l) -> l.twoColours("colourStart", "colourEnd",
+                            ini.getNextToken(), ini.getNextToken()))
+                    .add("LightColour", (ini, l) -> l.put("lightColour",
+                            String.valueOf(Integer.decode(ini.getNextToken()))))
+                    .add("Direction", Ini.string((l, v) -> l.put("direction", v.toUpperCase(java.util.Locale.ROOT))))
+                    .add("At", Ini.string((l, v) -> l.put("at", v.toUpperCase(java.util.Locale.ROOT))))
+                    // UNITS, or REACH for a shape as wide as the skill's own radius.
+                    .add("Measure", Ini.string((l, v) -> l.put("measure", v.toUpperCase(java.util.Locale.ROOT))));
+
     // ---- what the client may spend on all of it ----
 
     private int effectLights = 4;
@@ -1929,7 +2088,17 @@ public final class DungeonSettings {
                     .add("MaxRings", Ini.integer((s, v) -> s.effectRings = v))
                     .add("MaxPerEffect", Ini.integer((s, v) -> s.effectsPerKind = v))
                     .add("MaxBursts", Ini.integer((s, v) -> s.effectBursts = v))
-                    .add("MaxDistance", Ini.real((s, v) -> s.effectDistance = v));
+                    .add("MaxDistance", Ini.real((s, v) -> s.effectDistance = v))
+                    // Every particle burning at once, across every effect: a ceiling
+                    // rather than a target, and what keeps a fight from warming a laptop.
+                    .add("MaxParticles", Ini.integer((s, v) -> s.effectParticles = v))
+                    .add("ParticleFolder", Ini.string((s, v) -> s.particleFolder = v))
+                    // How it feels rather than what it costs: every knock of the camera
+                    // at once, and the flash a creature gives when it is hit.
+                    .add("ShakeScale", Ini.real((s, v) -> s.shakeScale = v))
+                    .add("HitFlashColour", (ini, s) -> s.hitFlashColour = Integer.decode(ini.getNextToken()))
+                    .add("HitFlashSeconds", Ini.real((s, v) -> s.hitFlashSeconds = v))
+                    .add("HitFlashStrength", Ini.real((s, v) -> s.hitFlashStrength = v));
 
     private static final FieldParseTable<ProjectileBuilder> PROJECTILE =
             new FieldParseTable<ProjectileBuilder>()

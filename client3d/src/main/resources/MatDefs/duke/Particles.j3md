@@ -1,0 +1,81 @@
+MaterialDef Duke Particles {
+
+    // Every particle's whole life is worked out on the graphics card from where
+    // it was born, when, and how fast -- so a burning thing costs the processor
+    // nothing between the frame it was lit and the frame it went out. See
+    // uz.duke.client3d.ParticleLayer for the other half.
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+
+        // The shape. White on transparency: the colour is these parameters',
+        // so one smoke texture is every smoke in the game.
+        Texture2D Texture
+
+        // Seconds since the layer was lit. The only thing written every frame.
+        Float Time
+
+        // What colour it is born and what it dies, and how the one turns into
+        // the other: 1 is a straight line, above 1 changes early and settles,
+        // below -1 holds and then changes late.
+        Color StartColour
+        Color EndColour
+        Float ColourEase : 1.0
+
+        // How big, from birth to death, on the same kind of curve.
+        Float SizeStart : 1.0
+        Float SizeEnd : 1.0
+        Float SizeEase : 1.0
+
+        // How much of its life it spends appearing and disappearing. Smoothed at
+        // both ends, because a thing that pops in reads as a mistake.
+        Float FadeIn : 0.0
+        Float FadeOut : 0.35
+
+        // Pulled on for its whole life, and slowed by the air.
+        Vector3 Gravity
+        Float Drag : 0.0
+
+        // A STREAK is drawn this much longer per unit of speed.
+        Float Stretch : 0.0
+        // Turns per second, in radians. Each particle picks its own direction.
+        Float Spin : 0.0
+
+        // Breathing, for a mark that has to go on saying "still here".
+        Float PulseRate : 0.0
+        Float PulseDepth : 0.0
+
+        // All of it, at once: how an aura that is running out is faded down.
+        Float Opacity : 1.0
+
+        // How much of what is behind it this hides, 0 to 1. At 0 it only adds its
+        // colour, as light does; at 1 it replaces what it covers, as smoke does.
+        // Fire is in between -- pure light vanishes into a pale floor, and a flame
+        // that also darkens a little of what is behind it reads on stone and on
+        // grass alike.
+        Float Cover : 0.0
+
+        // How it faces. None of these: towards the camera, turning.
+        Boolean Ground
+        Boolean Streak
+        Boolean Axis
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/Particles.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/Particles.frag
+
+        WorldParameters {
+            WorldMatrix
+            ViewMatrix
+            ViewProjectionMatrix
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER: BoundDrawBuffer
+            GROUND : Ground
+            STREAK : Streak
+            AXIS : Axis
+        }
+    }
+}

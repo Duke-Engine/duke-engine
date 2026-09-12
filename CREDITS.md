@@ -31,6 +31,7 @@ written from there.
 | Impact Sounds — what an arrow and a fist land like, and footsteps | Kenney | CC0 | `audio/sfx/` |
 | Interface Sounds — clicks, a level, a gong | Kenney | CC0 | `audio/ui/` |
 | Fantasy UI Borders — the carved frames the hero panel's edges are painted with | Kenney | CC0 | `ui/borders/` |
+| Particle Pack — every flame, smoke, spark, slash and ring the skills are drawn with | Kenney | CC0 | `effects/particles/` |
 | Cursor Pack — the mouse pointers | Kenney | CC0 | `ui/cursors/` |
 | Voiceover Pack — what Erika says | Kenney | CC0 | `audio/voice/` |
 | Three pieces of music | freesound.org | **unconfirmed, see below** | `audio/music/` |
@@ -199,6 +200,30 @@ were renamed — lower case, underscores for the spaces — and the files were n
 All 280 were copied rather than the eight in use, at 388 KB the lot, so that
 choosing a different frame is an edit to `dungeon.ini` rather than a trip back to
 the pack.
+
+### The particles, and why they are half the size they shipped at
+
+**Particle Pack** (Kenney, CC0, version 1.1) ships at `effects/particles/` with its
+own `License.txt` beside it — all 96 of the transparent textures, `rotated/`
+included, so choosing a different smoke for a skill is an edit to `dungeon.ini`
+rather than a trip back to the pack.
+
+They shipped at 512×512 and are kept at **256×256**. A particle is a soft shape
+seen for a fraction of a second, usually smaller on screen than the texture is
+wide, and a 512 texture with its mipmaps is about 1.3 MB of video memory — thirty
+of them is forty megabytes on the kind of laptop GPU that was already running hot.
+The quarter-size set is 2.7 MB on disk and indistinguishable in motion.
+
+They were shrunk in **premultiplied alpha**, by `art/effects/shrink_particles.py`.
+Every one of them is a white shape on transparency, and resampling colour and
+alpha separately averages the white of the shape with the black of the empty
+pixels beside it — the edge comes out darker than the middle, which under ordinary
+blending is a grey fringe round every puff of smoke. The script says how to run it
+again against a newer pack.
+
+The names are Kenney's, for the reason the frames' are: `smoke_07` cannot be
+improved on when there are ten interchangeable smokes and the number is the only
+thing that tells them apart. The folders were lower-cased on the way in.
 
 ### The pointers
 

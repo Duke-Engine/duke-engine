@@ -23,7 +23,7 @@ varying vec3 worldPos;
 // colour, so it costs the arithmetic and contributes nothing. That is cheaper
 // than a branch and it is the same cost every frame, which is the property worth
 // having.
-#define POINT_LIGHTS 4
+#define POINT_LIGHTS 8
 uniform vec4 m_PointLightColours[POINT_LIGHTS];
 // xyz is where it is; w is 1/radius, so the attenuation needs no division.
 uniform vec4 m_PointLightPositions[POINT_LIGHTS];

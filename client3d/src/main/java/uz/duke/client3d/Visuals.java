@@ -430,6 +430,67 @@ public final class Visuals {
         return this;
     }
 
+    private final Map<String, Float> effectSeconds = new HashMap<>();
+    private final Map<String, Float> effectReach = new HashMap<>();
+
+    /**
+     * How long the thing a recipe draws actually lasts, for a layer that says 0.
+     *
+     * <p>Set by the game from the skill rather than written into the effect, so
+     * that a shield that lasts four seconds is drawn for four seconds and the two
+     * cannot be tuned apart. Before this, the knight's guard said 4.0 in its effect
+     * block and 120 frames in its skill block, and nothing connected them.
+     */
+    public Visuals effectSeconds(String recipeName, float seconds) {
+        if (recipeName != null && seconds > 0f) {
+            effectSeconds.put(recipeName, seconds);
+        }
+        return this;
+    }
+
+    /** How long the named recipe's skill lasts, or 0 if nothing said. */
+    public float getEffectSeconds(String recipeName) {
+        var seconds = recipeName == null ? null : effectSeconds.get(recipeName);
+        return seconds == null ? 0f : seconds;
+    }
+
+    /**
+     * How far the thing a recipe draws reaches, for a layer measured in reach.
+     *
+     * <p>Set by the game from the skill, for the same reason as the seconds: the
+     * meteor's warning has to be exactly as wide as the blast, and a number written
+     * twice is two numbers the moment somebody tunes one of them.
+     */
+    public Visuals effectReach(String recipeName, float radius) {
+        if (recipeName != null && radius > 0f) {
+            effectReach.put(recipeName, radius);
+        }
+        return this;
+    }
+
+    /** How far the named recipe's skill reaches, or 0 if nothing said. */
+    public float getEffectReach(String recipeName) {
+        var radius = recipeName == null ? null : effectReach.get(recipeName);
+        return radius == null ? 0f : radius;
+    }
+
+    private int particleBudget;
+
+    /**
+     * How many particles may be burning at once, across every effect.
+     *
+     * <p>A ceiling rather than a target, like the lights: past it a new layer is
+     * drawn thinner, and past that it is not drawn. 0 draws no layers at all.
+     */
+    public Visuals particleBudget(int particles) {
+        this.particleBudget = Math.max(0, particles);
+        return this;
+    }
+
+    public int getParticleBudget() {
+        return particleBudget;
+    }
+
     /** The recipe under that name, or {@code null} when the game named none. */
     public EffectVisual effectNamed(String name) {
         return name == null ? null : effects.get(name);
@@ -590,8 +651,33 @@ public final class Visuals {
         float markRadius;
         float shakeSeconds;
         float shakePower;
+        /** The layers it is drawn from, in the order the file named them — see {@link EffectLayer}. */
+        final java.util.List<EffectLayer> layers = new java.util.ArrayList<>();
 
         private EffectVisual() {
+        }
+
+        /**
+         * One more layer, drawn over the ones before it.
+         *
+         * <p>A recipe with layers is drawn by {@link LayeredEffects} and nothing
+         * else: the older kinds above it are kept for what they still do on their
+         * own -- a projectile's glowing body, a skeleton's eyes -- and ignored for
+         * anything the layers draw, so an effect is never drawn twice in two styles.
+         */
+        public EffectVisual layer(EffectLayer layer) {
+            if (layer != null) {
+                layers.add(layer);
+            }
+            return this;
+        }
+
+        public java.util.List<EffectLayer> getLayers() {
+            return java.util.List.copyOf(layers);
+        }
+
+        boolean hasLayers() {
+            return !layers.isEmpty();
         }
 
         public EffectVisual kind(String name) {
@@ -958,6 +1044,46 @@ public final class Visuals {
 
     public HitNumbers getHitNumbers() {
         return hitNumbers;
+    }
+
+    /**
+     * How a creature that is hit flashes -- see {@link HitFlash}.
+     *
+     * @param colour   what it flashes towards, 0xRRGGBB
+     * @param seconds  the whole of it: there at once, and fading as a square
+     * @param strength how far towards the colour, 0 to 1; 0 is no flash at all
+     */
+    public record HitFlashLook(int colour, float seconds, float strength) {
+        public static final HitFlashLook NONE = new HitFlashLook(0xFFFFFF, 0f, 0f);
+    }
+
+    private HitFlashLook hitFlash = HitFlashLook.NONE;
+
+    public Visuals hitFlash(HitFlashLook look) {
+        this.hitFlash = look == null ? HitFlashLook.NONE : look;
+        return this;
+    }
+
+    public HitFlashLook getHitFlash() {
+        return hitFlash;
+    }
+
+    private float shakeScale = 1f;
+
+    /**
+     * How hard every knock of the camera is against what its effect asked for: 1 as
+     * written, 0 for a camera that never moves.
+     *
+     * <p>One number rather than a ShakePower zeroed on every effect, because whether
+     * the screen moves is a question about the player, not about any one skill.
+     */
+    public Visuals shakeScale(float scale) {
+        this.shakeScale = Math.max(0f, scale);
+        return this;
+    }
+
+    public float getShakeScale() {
+        return shakeScale;
     }
 
     // ---- the portrait ----

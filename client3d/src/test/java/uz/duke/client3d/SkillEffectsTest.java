@@ -252,6 +252,18 @@ class SkillEffectsTest {
         assertEquals(4f, loud, 0.0001f, "and the loud one is the one that was asked for");
     }
 
+    /** A file that turns the shake down turns down every knock, and at 0 turns them off. */
+    @Test
+    void theFilesShakeScaleIsOnEveryKnock() {
+        var halved = scene(visuals -> visuals.shakeScale(0.5f));
+        halved.effects().knock(0.2f, 4f);
+        assertEquals(2f, halved.effects().shakeStrength(), 0.0001f);
+
+        var still = scene(visuals -> visuals.shakeScale(0f));
+        still.effects().knock(0.3f, 5f);
+        assertEquals(0f, still.effects().shakeStrength(), 0.0001f, "a camera told not to move moved");
+    }
+
     /** A louder one, though, takes over — it is the newest and biggest thing. */
     @Test
     void aLouderKnockTakesOver() {

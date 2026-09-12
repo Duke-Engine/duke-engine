@@ -134,6 +134,14 @@ final class DukeRtsApp extends SimpleApplication {
      * somewhere else entirely -- see {@link #skillsCastThisFrame}.
      */
     private SkillEffects skillEffects;
+    /**
+     * The effects drawn from layers -- see {@link LayeredEffects}. Built beside the
+     * other two and borrowing their lights rather than bringing its own, so the
+     * light budget is one budget.
+     */
+    private LayeredEffects layered;
+    /** Whoever of theirs was just hit, going white -- see {@link HitFlash}. */
+    private HitFlash hitFlash;
 
     /** The frame of the last cast this client drew, so one cast is drawn once. */
     private int lastCastFrameDrawn = Integer.MIN_VALUE;
@@ -382,6 +390,9 @@ final class DukeRtsApp extends SimpleApplication {
         skillEffects = new SkillEffects(assetManager, rootNode, visuals, effects,
                 visuals.getRangeLook(),
                 visuals.getSkillRings(), budget.distance());
+        layered = new LayeredEffects(assetManager, rootNode, visuals, effects.lights(),
+                surroundings(), visuals.getParticleBudget(), budget.distance());
+        hitFlash = new HitFlash(visuals.getHitFlash());
 
         rootNode.attachChild(terrainNode);
         buildTerrain();
@@ -707,12 +718,30 @@ final class DukeRtsApp extends SimpleApplication {
             for (var change : healthWatch.since(snapshot.units(), game.getLocalPlayerIndex(),
                     look.leastWorth(), killedThisFrame)) {
                 hitNumbers.add(change, now, look.height());
+                if (!change.healed() && !change.his()) {
+                    flash(change.unitId());
+                }
             }
         }
         // Read once. handleEvents runs earlier in the frame and fills this; a
         // second reading would throw the finishing blow twice.
         killedThisFrame.clear();
         hitNumbers.update(now, cam, this::floorHeightAt);
+    }
+
+    /**
+     * One of theirs was hit: it goes white for an instant, from its own colour and
+     * back to it. A blow that killed it finds nothing here -- the body was laid out
+     * when the death was read, and a corpse has nothing left to flinch with.
+     */
+    private void flash(int unitId) {
+        var node = unitNodes.get(unitId);
+        if (hitFlash == null || node == null || node.view == null) {
+            return;
+        }
+        var tint = visualFor(node.view.templateName()).tint;
+        var own = (tint == null ? ColorRGBA.White : toColor(tint)).mult(CREATURE_AMBIENT);
+        hitFlash.struck(unitId, node.root, own);
     }
 
     /**
@@ -1960,7 +1989,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /** As many as the terrain shader declares; see {@code FoggedTerrain.frag}. */
-    private static final int TERRAIN_LIGHTS = 4;
+    private static final int TERRAIN_LIGHTS = 8;
     /**
      * The two arrays handed to every terrain material, filled with darkness to
      * begin with.
@@ -1982,6 +2011,12 @@ final class DukeRtsApp extends SimpleApplication {
     private void buildTerrain() {
         builtFrom = game.getTerrain();
         // A new world is a world with nothing burning in it yet.
+        if (layered != null) {
+            layered.clear();
+        }
+        if (hitFlash != null) {
+            hitFlash.clear();
+        }
         effects.clear();
         if (skillEffects != null) {
             skillEffects.clear();
@@ -3122,6 +3157,8 @@ final class DukeRtsApp extends SimpleApplication {
         // out of the scene, so nothing tells it but this.
         effects.update(tpf);
         skillEffects.update(tpf, this::floorHeightAt, this::whereUnitIs);
+        hitFlash.update(tpf);
+        layered.update(tpf, cam);
         carryTheLightsToTheStone();
         reapTheDead();
         syncMinimap();
@@ -3450,6 +3487,8 @@ final class DukeRtsApp extends SimpleApplication {
             if (isNew) {
                 effects.appeared(view.id(), look, node.root,
                         node.root.getWorldTranslation().clone(), cam.getLocation());
+                layered.flying(view.id(), look.effect, node.root,
+                        new Vector3f(look.effectForward, look.yOffset, 0f), cam);
             } else if (look.effect != null) {
                 effects.moved(view.id(), look, node.root);
             }
@@ -3464,6 +3503,7 @@ final class DukeRtsApp extends SimpleApplication {
             // merely walked out of the light: the pool must not have to know which,
             // and what it landed on — if anything — is handleEvents' business.
             effects.gone(entry.getKey());
+            layered.grounded(entry.getKey());
             entry.getValue().root.removeFromParent();
             selected.remove(entry.getKey());
             gone.remove();
@@ -3533,6 +3573,7 @@ final class DukeRtsApp extends SimpleApplication {
                 effects.landed(look.effect,
                         where.setY(floorHeightAt(where.x, where.z) + look.yOffset),
                         cam.getLocation());
+                layered.landed(died.object().value(), look.effect, where.clone(), cam);
                 // And a ring, if the thing that just stopped existing asked for
                 // one. Nothing does but a meteor arriving -- a skeleton's look is
                 // its eye sockets and has no SHOCKWAVE in it -- so this costs
@@ -3596,7 +3637,99 @@ final class DukeRtsApp extends SimpleApplication {
             // this recipe. Nothing did until a mage needed both hands.
             castGesture(unitNodes.get(cast.by()), visuals.getCastAnim(cast.look()));
         }
+        drawLayers(casts);
         return casts.size();
+    }
+
+    /**
+     * The layered half of this frame's casts.
+     *
+     * <p>A run and a blink arrive as two marks of one look in one frame -- the spot
+     * he left, which belongs to the floor, and the spot he arrived at, which is his
+     * -- and a layer laid along the run or flashed at both ends needs them as ONE
+     * moment with two ends. Everything else is one mark and one moment, facing the
+     * way from whoever cast it to where it went off.
+     */
+    private void drawLayers(List<SkillEffects.Cast> casts) {
+        if (layered == null) {
+            return;
+        }
+        for (int i = 0; i < casts.size(); i++) {
+            var cast = casts.get(i);
+            var next = i + 1 < casts.size() ? casts.get(i + 1) : null;
+            var spot = new Vector3f(cast.at().x(), 0f, cast.at().y());
+            boolean run = next != null && next.look().equals(cast.look())
+                    && next.frame() == cast.frame() && cast.on() == SkillEffects.NOBODY
+                    && next.on() != SkillEffects.NOBODY;
+            if (run) {
+                var to = new Vector3f(next.at().x(), 0f, next.at().y());
+                layered.cast(cast.look(), new LayeredEffects.Moment(to, spot, to,
+                        to.x - spot.x, to.z - spot.z, next.radius(), next.on(), next.by()), cam);
+                i++;
+                continue;
+            }
+            float facingX = 0f;
+            float facingZ = 0f;
+            var caster = unitNodes.get(cast.by());
+            if (caster != null) {
+                var from = caster.root.getLocalTranslation();
+                facingX = spot.x - from.x;
+                facingZ = spot.z - from.z;
+            }
+            layered.cast(cast.look(), new LayeredEffects.Moment(spot, null, null, facingX,
+                    facingZ, cast.radius(), cast.on(), cast.by()), cam);
+        }
+    }
+
+    /**
+     * What the layered effects may know about the world: the floor, where a
+     * creature stands, who is whose enemy, and what the player can see.
+     *
+     * <p>Read off the nodes and the snapshot the player is already looking at,
+     * never out of the simulation -- so an effect can learn nothing the screen does
+     * not already show.
+     */
+    private LayeredEffects.Surroundings surroundings() {
+        return new LayeredEffects.Surroundings() {
+            @Override
+            public float floorAt(float x, float z) {
+                return floorHeightAt(x, z);
+            }
+
+            @Override
+            public Vector3f whereIs(int unitId) {
+                var node = unitNodes.get(unitId);
+                if (node == null) {
+                    return null;
+                }
+                var at = node.root.getLocalTranslation();
+                return new Vector3f(at.x, floorHeightAt(at.x, at.z), at.z);
+            }
+
+            @Override
+            public int[] enemiesNear(float x, float z, float radius, int caster) {
+                int side = game.getLocalPlayerIndex();
+                for (var view : snapshot.units()) {
+                    if (view.id() == caster) {
+                        side = view.playerIndex();
+                        break;
+                    }
+                }
+                final int his = side;
+                return snapshot.units().stream()
+                        .filter(view -> view.playerIndex() != his && view.maxHealth() > 0f
+                                && !view.structure()
+                                && (view.x() - x) * (view.x() - x)
+                                        + (view.y() - z) * (view.y() - z) <= radius * radius)
+                        .mapToInt(UnitView::id)
+                        .toArray();
+            }
+
+            @Override
+            public boolean canSee(float x, float z) {
+                return discovery == null || discovery.canSee(x, z);
+            }
+        };
     }
 
     /**
@@ -3918,12 +4051,18 @@ final class DukeRtsApp extends SimpleApplication {
         return null;
     }
 
+    /**
+     * How much of its own colour a creature keeps where no light reaches it --
+     * which is also where a hit flash starts from and fades back to.
+     */
+    private static final float CREATURE_AMBIENT = 0.55f;
+
     /** Flat lighting over a kit's own colour map, tinted. */
     private Material creatureMaterial(com.jme3.texture.Texture skin, ColorRGBA tint) {
         var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
         material.setBoolean("UseMaterialColors", true);
         material.setColor("Diffuse", tint);
-        material.setColor("Ambient", tint.mult(0.55f));
+        material.setColor("Ambient", tint.mult(CREATURE_AMBIENT));
         material.setColor("Specular", ColorRGBA.Black); // kit art has no highlights
         material.setFloat("Shininess", 1f);
         if (skin != null) {
