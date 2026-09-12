@@ -4279,6 +4279,13 @@ final class DukeRtsApp extends SimpleApplication {
         // still written out along the top, which is what every game got before.
         boolean drawn = heroPanel.show(snapshot.hasStatus() ? snapshot.status() : null,
                 (float) timer.getTimeInSeconds());
+        // A key he pressed that could not be paid for. The panel knows WHEN, since
+        // it is the thing that reads the line; this knows WHAT, since it owns the
+        // game's noises. A game that names no such sound makes none, and the bar
+        // flashing is still the answer.
+        if (heroPanel.takeRefusal()) {
+            noises.moment("no_mana", (float) timer.getTimeInSeconds());
+        }
         // Money, power and a selection count are an RTS's figures, and a game
         // that draws its own panel has already said what it wants said. Writing
         // them along the top of a dungeon anyway is the client talking over the

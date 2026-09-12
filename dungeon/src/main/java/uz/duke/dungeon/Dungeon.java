@@ -296,6 +296,10 @@ public final class Dungeon {
         var progress = new HeroProgress(arena.hero(), settings.levelling(),
                 settings.levelUpBannerFrames(), bag, settings.playedHero(),
                 settings.playedHeroLook().armourPercent());
+        var him = settings.playedHeroLook();
+        progress.playing(settings.playedHero(), him.armourPercent(),
+                him.maxMana(), him.manaRegen());
+        progress.manaPerKill(settings.manaPerKill());
         // Drawn from the run's seed as well, so a seed is the whole run: the same
         // one drops the same things off the same monsters.
         var drops = new LootTable(settings.loot(), seed, settings.lootDropPercent(),

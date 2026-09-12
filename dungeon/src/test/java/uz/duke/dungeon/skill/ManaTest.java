@@ -266,6 +266,38 @@ class ManaTest {
         }
     }
 
+    /**
+     * And nobody can sustain everything at once.
+     *
+     * <p>The figure that actually says what mana is worth, and the one the
+     * obvious measurement gets wrong. Counting the frames on which he cannot
+     * afford his cheapest reads as 80% for the rogue and 0% for the mage, which
+     * says the rogue is starved and the mage is not -- when what it is really
+     * measuring is that the rogue's cheapest is ready far more often.
+     *
+     * <p>What is comparable is the demand: every skill cast the instant it comes
+     * back, in mana a second, against what he regains in a second. Every hero
+     * sits near half, which is the sentence this whole thing is for -- mana
+     * halves what he can do, and he chooses which half.
+     */
+    @Test
+    void nobodyCanSustainEverythingAtOnce() {
+        for (var hero : SETTINGS.heroes()) {
+            float demand = 0f;
+            for (var skill : SETTINGS.skillsFor(hero.name())) {
+                demand += skill.manaAt(1)
+                        / (skill.cooldownAt(1) / (float) GameConstants.LOGICFRAMES_PER_SECOND);
+            }
+            float regain = hero.manaRegen() / 10f;
+            float share = regain / demand;
+            assertTrue(share > 0.3f && share < 0.75f, hero.name() + " regains " + regain
+                    + " a second against a demand of " + demand + " -- that is "
+                    + Math.round(share * 100) + "% of everything at once, and the game wants"
+                    + " something near half: much less is a hero who watches a bar, much more"
+                    + " is a second cooldown");
+        }
+    }
+
     // ---- determinism ----
 
     /**

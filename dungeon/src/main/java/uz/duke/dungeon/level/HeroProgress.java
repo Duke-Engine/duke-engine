@@ -43,6 +43,15 @@ public final class HeroProgress {
     /** What he holds and what he gets back before a level is earned; see playing. */
     private int baseMaxMana;
     private int baseManaRegen;
+    /**
+     * Mana returned for a kill, and 0 for a game that does not pay for them.
+     *
+     * <p>Off by default, and that is the interesting setting rather than the
+     * timid one. Paying for kills makes mana a reward for fighting, which pulls
+     * against what it is here for: a resource that makes him choose. With it off
+     * the only way to get mana back is to wait, and waiting is the decision.
+     */
+    private int manaPerKill;
 
     /** What he shrugs off before a single level — see the constructor. */
     private int armourPercent;
@@ -140,6 +149,11 @@ public final class HeroProgress {
         this.baseManaRegen = manaRegen;
     }
 
+    /** How much mana a kill gives back; 0 turns it off. See {@link #manaPerKill}. */
+    public void manaPerKill(int points) {
+        this.manaPerKill = Math.max(0, points);
+    }
+
     /** What he has picked up this run. */
     public LootBag getLoot() {
         return loot;
@@ -154,7 +168,19 @@ public final class HeroProgress {
         if (heroId == null) {
             carryOver(game, hero); // the first hero of a run
         }
-        lastKnownExperience = experienceOf(hero);
+        // Something died worth experience, so something died. There is no kill
+        // event on this side of the engine -- the experience module is rts's and
+        // this game may not touch it -- so the rise IS the notice. Nothing else
+        // in the dungeon grants experience, which is what makes the reading
+        // sound rather than merely convenient.
+        int now = experienceOf(hero);
+        if (manaPerKill > 0 && now > lastKnownExperience && heroId != null) {
+            var book = hero.findModule(uz.duke.dungeon.skill.SkillBook.class);
+            if (book != null) {
+                book.restoreMana(manaPerKill);
+            }
+        }
+        lastKnownExperience = now;
         int earned = rules.levelFor(getExperience());
         if (earned > level) {
             promote(game, hero, earned);
@@ -279,7 +305,7 @@ public final class HeroProgress {
             return;
         }
         boolean isNew = book.getMaxMana() <= 0;
-        book.poolOf(baseMaxMana + rules.bonusMana(atLevel),
+        book.poolOf(baseMaxMana + rules.bonusMana(atLevel) + loot.mana(),
                 baseManaRegen + rules.bonusManaRegen(atLevel));
         if (isNew) {
             // A body he has only just been given: a new run, or the first frame

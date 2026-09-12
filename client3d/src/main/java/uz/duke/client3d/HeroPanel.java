@@ -312,6 +312,35 @@ final class HeroPanel {
     private final Node manaBar = new Node("mana");
     private Geometry manaFill;
     private BitmapText manaCount;
+    /** The last refusal the bar has been shown, so one refusal flashes once. */
+    private int refusalShown;
+    /** Until when the bar is drawn in the refusal colour. */
+    private float deniedUntil;
+    /**
+     * Whether a refusal is waiting to be sounded.
+     *
+     * <p>The panel sees it — it is the thing that reads the line — and the app
+     * owns the noises, so the flag is picked up rather than acted on here. Set
+     * once per refusal and cleared by whoever takes it.
+     */
+    private boolean refusalToSound;
+
+    /** How long the bar stays in the refusal colour. Long enough to catch, short
+     * enough not to be mistaken for a state. */
+    private static final float DENIAL_SECONDS = 0.4f;
+
+    /**
+     * Take the refusal, if there is one waiting.
+     *
+     * <p>Asked by the app each frame so that it can make the noise: the panel
+     * knows WHEN because it reads the line, and the app knows WHAT because it
+     * owns the game's sounds.
+     */
+    boolean takeRefusal() {
+        boolean waiting = refusalToSound;
+        refusalToSound = false;
+        return waiting;
+    }
     private Geometry experienceFill;
     private BitmapText depthNumber;
     private BitmapText depthWord;
@@ -420,11 +449,25 @@ final class HeroPanel {
         // once, in buildVitals, and nothing below it moves. Which is a gap rather
         // than a hole -- the troughs are what carry the eye down the band, and one
         // of them missing reads as a panel with room to spare.
+        // A refusal he has not been shown yet. Compared against the last one
+        // rather than acted on every frame, because the line is rebuilt and sent
+        // whether or not anything happened -- without this the bar would be
+        // shaking continuously for as long as nothing else went on.
+        if (reading.refusedForManaAt() > refusalShown) {
+            refusalShown = reading.refusedForManaAt();
+            deniedUntil = seconds + DENIAL_SECONDS;
+            refusalToSound = true;
+        }
         boolean casts = reading.maxMana > 0f;
         manaBar.setCullHint(casts ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
         if (casts) {
             manaCount.setText(Math.round(reading.mana) + " / " + Math.round(reading.maxMana));
             fillTo(manaFill, fraction(reading.mana, reading.maxMana));
+            // And it flashes when he asked for what he has not got. A flash
+            // rather than a shake: the bar is two pixels from the one above it
+            // and a bar that moves would read as the panel breaking.
+            boolean denied = seconds < deniedUntil;
+            manaFill.getMaterial().setColor("Color", linear(denied ? MANA_DENIED : MANA));
         }
         fillTo(experienceFill, fraction(reading.experience, reading.needed));
         depthNumber.setText(reading.depth);

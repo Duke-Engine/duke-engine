@@ -128,6 +128,12 @@ public final class DungeonSettings {
     private int minDamageTakenPercent = 40;
     private int manaPerLevel;
     private int manaRegenPerLevel;
+    private int manaPerKill;
+
+    /** Mana given back for a kill; 0 is off, which is the shipped setting. */
+    public int manaPerKill() {
+        return manaPerKill;
+    }
     private int levelUpBannerFrames = 60;
 
     // ---- monsters and depth ----
@@ -2832,6 +2838,7 @@ public final class DungeonSettings {
                     .add("ManaPerLevel", Ini.integer((s, v) -> s.manaPerLevel = v))
                     .add("ManaRegenPerLevel",
                             Ini.integer((s, v) -> s.manaRegenPerLevel = v))
+                    .add("ManaPerKill", Ini.integer((s, v) -> s.manaPerKill = v))
                     .add("LevelUpBannerFrames", Ini.integer((s, v) -> s.levelUpBannerFrames = v));
 
     // ---- layout ----

@@ -62,6 +62,11 @@ public final class LootBag {
         return totalOf(LootKind.HEALTH);
     }
 
+    /** Flat maximum mana added by everything he has found. */
+    public int mana() {
+        return totalOf(LootKind.MANA);
+    }
+
     /** Percent of incoming damage removed by everything he has found. */
     public int armourPercent() {
         return totalOf(LootKind.ARMOUR);
