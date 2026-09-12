@@ -66,7 +66,7 @@ public final class Skills {
      * The words a slot needs, gathered so the signature does not grow one string
      * at a time. All of them are the game's, out of its own file.
      */
-    public record Words(String rankSuffix, String master, String locked) {
+    public record Words(String rankSuffix, String master, String locked, SkillTip.Words tip) {
     }
 
     /** The player's living unit that has skills, in creation order. */
@@ -139,6 +139,12 @@ public final class Skills {
                     // client picks the COLOUR, which is a fact about the state it
                     // can already see.
                     .append(',').append(rankWord(skill, rank, canRaise, words));
+            // And everything the tooltip over it says. Written for all four every
+            // frame rather than for whichever the cursor is on: the panel knows
+            // what is hovered and the simulation does not, and asking it would be
+            // a command, a frame of delay and a piece of state, to save a few
+            // hundred characters on a line that is rebuilt anyway.
+            fields.append(SkillTip.of(skill, rank, canRaise, words.tip()));
         }
         return fields.toString();
     }

@@ -64,6 +64,12 @@ package uz.duke.dungeon.skill;
  * @param projectile    the creature a {@code STRIKE} becomes on its way, or empty
  *     to land where it stands. An arrow that crosses the room is the difference
  *     between a shot and an accusation.
+ * @param name          what the player is told it is called, in his own language.
+ *     Empty for a skill nobody has named, which the panel then describes by its
+ *     key alone rather than by inventing one
+ * @param blurb         one or two sentences on what it does — what the tooltip
+ *     says above the numbers. The numbers themselves are never in here: they are
+ *     computed from the rank and would go stale the moment anything was retuned
  * @param look          the name of the {@code DungeonEffect} block that says what
  *     this one looks like going off -- the ring across the floor, the knock to
  *     the camera -- or empty for a skill that is drawn by nothing but whatever it
@@ -96,7 +102,9 @@ public record Skill(
         int windUpFrames,
         String projectile,
         String icon,
-        String look) {
+        String look,
+        String name,
+        String blurb) {
 
     /**
      * A cooldown can shorten with level but never vanish: a skill castable every

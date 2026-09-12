@@ -20,6 +20,7 @@ import com.jme3.util.BufferUtils;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 import uz.duke.core.GameConstants;
@@ -318,6 +319,10 @@ final class HeroPanel {
         this.sel = rgb(look.allowColour());
         this.selHi = rgb(look.areaColour());
         guiNode.attachChild(root);
+        // Beside the bar rather than inside it, and attached after, so it is drawn
+        // over everything the bar is drawn under -- a card parented into the row
+        // it describes would be clipped by the row.
+        tip = new SkillTip(assets, font, guiNode);
         root.attachChild(slab);
         root.attachChild(contents);
         buildSlab();
@@ -379,6 +384,7 @@ final class HeroPanel {
         showStats(reading.stats);
         showOrders(reading.orders, reading.ordersAreHis);
         showItems(reading.items, reading.itemsWord);
+        tips = reading.tips;
         showSkills(reading.skills, reading);
         showPowers(reading.powers);
         showOnlyWhatTheCardHas(reading);
@@ -574,6 +580,7 @@ final class HeroPanel {
     /** Light the slot the mouse is resting on, or none. */
     void hover(Character key) {
         this.hovered = key;
+        placeTip();
     }
 
     /**
@@ -976,6 +983,37 @@ final class HeroPanel {
                     linear(waiting ? selHi : his ? (on ? GOLD_HI : GOLD) : (doing ? GOLD : DEAD)));
         }
     }
+
+    /**
+     * Put the card over the slot the cursor is on, or take it away.
+     *
+     * <p>Only over a SKILL: the order buttons beside them are four words a player
+     * learns once, and a card explaining "attack" every time his hand passed the
+     * column would be the panel talking for the sake of it.
+     */
+    private void placeTip() {
+        if (tip == null) {
+            return;
+        }
+        if (hovered == null || !tips.containsKey(hovered)) {
+            tip.hide();
+            return;
+        }
+        for (var slot : slots) {
+            if (slot.key == hovered) {
+                // Above the socket, not over it: a card that covered the thing it
+                // describes would hide the pips the moment they became the reason
+                // to read it.
+                tip.show(tips.get(hovered), slot.atX, slot.atY + slot.size + TIP_LIFT,
+                        scale, screenWidth);
+                return;
+            }
+        }
+        tip.hide();
+    }
+
+    /** How far the card floats over the slot it belongs to. */
+    private static final float TIP_LIFT = 12f;
 
     /** Whether that key is one of the order buttons rather than a skill. */
     boolean isAnOrder(char key) {
@@ -1415,6 +1453,17 @@ final class HeroPanel {
     }
 
     private final Node skillRow = new Node("skills");
+
+    /**
+     * The card over whichever slot the cursor is on.
+     *
+     * <p>Outside the bar's own node and drawn after it, because it hangs ABOVE
+     * the bar: parented into the row it describes, it would be clipped by
+     * everything the row is drawn under.
+     */
+    private SkillTip tip;
+    /** The cards the last line described, by key. */
+    private Map<Character, SkillTip.Reading> tips = Map.of();
 
     private void showSkills(List<Reading.SkillReading> reading, Reading card) {
         // The picture is part of what a slot IS, not part of what it is doing, so
@@ -2494,7 +2543,7 @@ final class HeroPanel {
                 : (float) Math.pow((channel + 0.055) / 1.055, 2.4);
     }
 
-    private static ColorRGBA rgb(int hex) {
+    static ColorRGBA rgb(int hex) {
         return new ColorRGBA(((hex >> 16) & 0xFF) / 255f, ((hex >> 8) & 0xFF) / 255f,
                 (hex & 0xFF) / 255f, 1f);
     }
@@ -2524,7 +2573,8 @@ final class HeroPanel {
             String powersWord, String skillsWord, String itemsWord, String note,
             List<Stat> stats, List<SkillReading> skills, List<PowerReading> powers,
             List<ItemReading> items, List<OrderReading> orders, boolean ordersAreHis,
-            Offer offer, List<RankReading> ranks, int points, String pointsWord) {
+            Offer offer, List<RankReading> ranks, int points, String pointsWord,
+            Map<Character, SkillTip.Reading> tips) {
 
         /**
          * What is in a slot, what fits in it, and whether the next point may go
@@ -2617,6 +2667,7 @@ final class HeroPanel {
             var ordersAreHis = new boolean[] {false};
             var cards = new ArrayList<Card>();
             var ranks = new ArrayList<RankReading>();
+            var tips = new java.util.LinkedHashMap<Character, SkillTip.Reading>();
             int points = 0;
             String pointsWord = "";
             var offerHead = new String[] {null, null, null};
@@ -2654,6 +2705,32 @@ final class HeroPanel {
                     // which is a different thing on a different row, so it gets a
                     // name of its own rather than a cleverness.
                     case "srank" -> ranks.add(skillRank(value));
+                    // The card over a slot, in five kinds of field. Five rather
+                    // than one long one because they are five different shapes,
+                    // and packing them into a single string would want an escape
+                    // scheme for a saving nobody asked for.
+                    case "tipName" -> tip(tips, value, (was, rest) ->
+                            new SkillTip.Reading(rest, was.at(), was.blurb(), was.rows(),
+                                    was.foot(), was.canRaise()));
+                    case "tipAt" -> tip(tips, value, (was, rest) ->
+                            new SkillTip.Reading(was.name(), rest, was.blurb(), was.rows(),
+                                    was.foot(), was.canRaise()));
+                    case "tipText" -> tip(tips, value, (was, rest) ->
+                            new SkillTip.Reading(was.name(), was.at(), rest, was.rows(),
+                                    was.foot(), was.canRaise()));
+                    case "tipFoot" -> tip(tips, value, (was, rest) ->
+                            new SkillTip.Reading(was.name(), was.at(), was.blurb(), was.rows(),
+                                    rest, was.canRaise()));
+                    case "tipRow" -> tip(tips, value, (was, rest) -> {
+                        var parts = rest.split(",", 3);
+                        if (parts.length < 3) {
+                            return was;
+                        }
+                        var rows = new ArrayList<>(was.rows());
+                        rows.add(new SkillTip.Reading.Row(parts[0], parts[1], parts[2]));
+                        return new SkillTip.Reading(was.name(), was.at(), was.blurb(),
+                                List.copyOf(rows), was.foot(), was.canRaise());
+                    });
                     case "pts" -> {
                         var halves = value.split(",", 2);
                         points = Integer.parseInt(halves[0]);
@@ -2683,7 +2760,7 @@ final class HeroPanel {
                     itemsWord, note, List.copyOf(stats), List.copyOf(skills),
                     List.copyOf(powers), List.copyOf(items), List.copyOf(orders),
                     ordersAreHis[0], offer(offerHead[0], cards), List.copyOf(ranks),
-                    points, pointsWord);
+                    points, pointsWord, withRaising(tips, ranks));
         }
 
         private static float[] pair(String value) {
@@ -2802,6 +2879,44 @@ final class HeroPanel {
          * and must, but a player reading a number off a slot thinks in seconds —
          * and the conversion is the engine's own constant, not a second copy of it.
          */
+        /**
+         * Change the card for one key, whatever the field was carrying.
+         *
+         * <p>Every tip field is {@code <key>,<the rest>}, so the key comes off
+         * the front and what is left belongs to whichever part of the card the
+         * field was. A key with no card yet gets an empty one to build on, since
+         * the fields arrive in whatever order the game wrote them.
+         */
+        private static void tip(Map<Character, SkillTip.Reading> tips, String value,
+                java.util.function.BiFunction<SkillTip.Reading, String, SkillTip.Reading> change) {
+            var halves = value.split(",", 2);
+            if (halves.length < 2 || halves[0].isEmpty()) {
+                return;
+            }
+            char key = halves[0].charAt(0);
+            tips.put(key, change.apply(tips.getOrDefault(key, SkillTip.Reading.NONE), halves[1]));
+        }
+
+        /**
+         * Whether each card's footer is an offer or a refusal.
+         *
+         * <p>Known from the slot's own rank field rather than said twice: the
+         * card and the badge are answering one question, and two fields that
+         * could disagree about it would eventually disagree about it.
+         */
+        private static Map<Character, SkillTip.Reading> withRaising(
+                Map<Character, SkillTip.Reading> tips, List<RankReading> ranks) {
+            var out = new java.util.LinkedHashMap<Character, SkillTip.Reading>();
+            for (var entry : tips.entrySet()) {
+                boolean raising = ranks.stream().anyMatch(rank -> rank != null
+                        && rank.key() == entry.getKey() && rank.canRaise());
+                var was = entry.getValue();
+                out.put(entry.getKey(), new SkillTip.Reading(was.name(), was.at(), was.blurb(),
+                        was.rows(), was.foot(), raising));
+            }
+            return Map.copyOf(out);
+        }
+
         /** {@code <key>,<rank>,<max>,up|no} — what the pips and the badge need. */
         private static RankReading skillRank(String value) {
             var parts = value.split(",");

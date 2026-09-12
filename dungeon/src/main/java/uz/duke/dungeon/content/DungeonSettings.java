@@ -1054,6 +1054,8 @@ public final class DungeonSettings {
         String projectile = "";
         String icon = "";
         String look = "";
+        String name = "";
+        String blurb = "";
 
         SkillBuilder(String heroTemplate, String key) {
             this.heroTemplate = heroTemplate;
@@ -1065,7 +1067,7 @@ public final class DungeonSettings {
                     distance, hitWidth, boostPercent, boostPerLevel, durationFrames, tickFrames,
                     slowFrames, cooldownFrames, cooldownPerLevel, maxRank, levelPerRank,
                     windUpFrames,
-                    projectile, icon, look);
+                    projectile, icon, look, name, blurb);
         }
     }
 
@@ -1106,7 +1108,13 @@ public final class DungeonSettings {
                     // block. Named rather than described here for the reason every
                     // other look in this file is -- two skills may want the same
                     // ring, and a fifth skill should be a fifth block.
-                    .add("Look", Ini.string((s, v) -> s.look = v));
+                    .add("Look", Ini.string((s, v) -> s.look = v))
+                    // What the player is told it is called, and what it does. The
+                    // NUMBERS are never here -- they are worked out from the rank,
+                    // and a sentence with a figure in it goes stale the moment
+                    // anything above is retuned.
+                    .add("Name", Ini.restOfLine((s, v) -> s.name = v))
+                    .add("Blurb", Ini.restOfLine((s, v) -> s.blurb = v));
 
     /** Accumulates one {@code DungeonLootItem <id>} block. */
     private static final class LootBuilder {
@@ -2294,6 +2302,22 @@ public final class DungeonSettings {
      * business knowing which language this one speaks.
      */
     private String hudPointsWord = "";
+    /**
+     * The tooltip's words: what each row of figures is called, and what the
+     * footer says in each of its three states. All of them here for the same
+     * reason every other word on the panel is -- the client has three other
+     * games to serve and no business knowing which language this one speaks.
+     */
+    private String hudDamageWord = "";
+    private String hudCooldownWord = "";
+    private String hudRadiusWord = "";
+    private String hudRangeWord = "";
+    private String hudBoostWord = "";
+    private String hudRaiseWord = "";
+    private String hudMaxedWord = "";
+    private String hudNoPointsWord = "";
+    private String hudSecondsWord = "";
+
     /** What a skill with nothing left to buy is called, and one nobody has bought. */
     private String hudMasterWord = "";
     private String hudLockedWord = "";
@@ -2319,6 +2343,42 @@ public final class DungeonSettings {
 
     public String hudPointsWord() {
         return hudPointsWord;
+    }
+
+    public String hudDamageWord() {
+        return hudDamageWord;
+    }
+
+    public String hudCooldownWord() {
+        return hudCooldownWord;
+    }
+
+    public String hudRadiusWord() {
+        return hudRadiusWord;
+    }
+
+    public String hudRangeWord() {
+        return hudRangeWord;
+    }
+
+    public String hudBoostWord() {
+        return hudBoostWord;
+    }
+
+    public String hudRaiseWord() {
+        return hudRaiseWord;
+    }
+
+    public String hudMaxedWord() {
+        return hudMaxedWord;
+    }
+
+    public String hudNoPointsWord() {
+        return hudNoPointsWord;
+    }
+
+    public String hudSecondsWord() {
+        return hudSecondsWord;
     }
 
     public String hudMasterWord() {
@@ -2380,6 +2440,15 @@ public final class DungeonSettings {
                     .add("MonsterFace", Ini.string((s, v) -> s.hudMonsterFace = v))
                     .add("SkillsWord", Ini.restOfLine((s, v) -> s.hudSkillsWord = v))
                     .add("PointsWord", Ini.restOfLine((s, v) -> s.hudPointsWord = v))
+                    .add("DamageWord", Ini.restOfLine((s, v) -> s.hudDamageWord = v))
+                    .add("CooldownWord", Ini.restOfLine((s, v) -> s.hudCooldownWord = v))
+                    .add("RadiusWord", Ini.restOfLine((s, v) -> s.hudRadiusWord = v))
+                    .add("RangeWord", Ini.restOfLine((s, v) -> s.hudRangeWord = v))
+                    .add("BoostWord", Ini.restOfLine((s, v) -> s.hudBoostWord = v))
+                    .add("RaiseWord", Ini.restOfLine((s, v) -> s.hudRaiseWord = v))
+                    .add("MaxedWord", Ini.restOfLine((s, v) -> s.hudMaxedWord = v))
+                    .add("NoPointsWord", Ini.restOfLine((s, v) -> s.hudNoPointsWord = v))
+                    .add("SecondsWord", Ini.restOfLine((s, v) -> s.hudSecondsWord = v))
                     .add("MasterWord", Ini.restOfLine((s, v) -> s.hudMasterWord = v))
                     .add("LockedWord", Ini.restOfLine((s, v) -> s.hudLockedWord = v))
                     .add("ItemsWord", Ini.restOfLine((s, v) -> s.hudItemsWord = v))

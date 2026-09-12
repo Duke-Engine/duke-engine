@@ -208,7 +208,13 @@ final class HeroStatus {
             line.append("|skWord=").append(settings.hudSkillsWord());
             line.append(Skills.slots(book, learnt, level,
                     new Skills.Words(settings.hudRankSuffix(), settings.hudMasterWord(),
-                            settings.hudLockedWord()),
+                            settings.hudLockedWord(),
+                            new uz.duke.dungeon.skill.SkillTip.Words(
+                                    settings.hudDamageWord(), settings.hudCooldownWord(),
+                                    settings.hudRadiusWord(), settings.hudRangeWord(),
+                                    settings.hudBoostWord(), settings.hudRaiseWord(),
+                                    settings.hudMaxedWord(), settings.hudNoPointsWord(),
+                                    settings.hudRankSuffix(), settings.hudSecondsWord())),
                     settings::hudIcon));
             // How many levels he has not spent yet, and the word for them. Beside
             // the heading rather than on a slot, because it belongs to none of

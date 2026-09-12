@@ -18,7 +18,7 @@ class SkillTest {
 
     private static Skill skill(float damage, float perLevel, int cooldown, int cooldownPerLevel) {
         return new Skill("Rogue", 'Q', SkillEffect.STRIKE, damage, perLevel, 0f, 40f, 0f, 0f,
-                0, 0, 0, 0, 0, cooldown, cooldownPerLevel, 4, 0, 0, "", "", "");
+                0, 0, 0, 0, 0, cooldown, cooldownPerLevel, 4, 0, 0, "", "", "", "", "");
     }
 
     /** Level one is the file as written: a skill is not the file minus a level. */
@@ -92,7 +92,7 @@ class SkillTest {
     @Test
     void anUltimateGrowsIntoItsRanks() {
         var r = new Skill("Rogue", 'R', SkillEffect.EMPOWER, 0f, 0f, 0f, 0f, 0f, 0f,
-                80, 12, 180, 0, 0, 900, -30, 3, 4, 0, "", "", "");
+                80, 12, 180, 0, 0, 900, -30, 3, 4, 0, "", "", "", "", "");
 
         assertTrue(r.isUltimate());
         assertEquals(4, r.levelForRank(1));
