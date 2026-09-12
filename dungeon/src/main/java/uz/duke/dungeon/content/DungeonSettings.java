@@ -977,7 +977,8 @@ public final class DungeonSettings {
         /** Just the art of it, which is all a theme overriding a creature needs. */
         MonsterLook look() {
             return new MonsterLook(model, texture, modelScale, tint, facing, idle, walk, attack,
-                    hurt, new Held(holds, heldIn, heldScale, heldPitch, heldYaw, heldRoll),
+                    hurt, new Held(holds, heldIn, heldScale, heldPitch, heldYaw, heldRoll,
+                            0f, 0f, 0f),
                     effect);
         }
     }
@@ -1404,12 +1405,36 @@ public final class DungeonSettings {
         String attack;
         String hurt;
         String death;
-        String holds;
-        String heldIn;
-        float heldScale = 1f;
-        float heldPitch;
-        float heldYaw;
-        float heldRoll;
+        /**
+         * Everything he carries, in the order the file names it.
+         *
+         * <p>{@code Holds} starts a new one and every {@code Held*} line after it
+         * describes that one, the way a paragraph describes the heading above it.
+         * It reads the way the old single-item block read, which is the point: a
+         * hero who carries one thing is written exactly as he always was.
+         */
+        final java.util.List<Held> carried = new java.util.ArrayList<>();
+
+        /** Start a new thing carried; the Held* lines below it fill it in. */
+        void holds(String model) {
+            carried.add(new Held(model, null, 1f, 0f, 0f, 0f, 0f, 0f, 0f));
+        }
+
+        /**
+         * Rewrite the one being described.
+         *
+         * <p>A {@code Held*} line with no {@code Holds} above it would otherwise
+         * be a silent no-op; it gets an empty one to fill in instead, which
+         * {@link Held#isCarried} then drops for having no model. The file is
+         * wrong either way and this is the way that cannot corrupt the item
+         * before it.
+         */
+        void describe(java.util.function.UnaryOperator<Held> change) {
+            if (carried.isEmpty()) {
+                holds(null);
+            }
+            carried.set(carried.size() - 1, change.apply(carried.get(carried.size() - 1)));
+        }
 
         HeroBuilder(String name) {
             this.name = name;
@@ -1419,7 +1444,7 @@ public final class DungeonSettings {
             return new HeroLook(name, title, closeDistance, armourPercent, model, texture,
                     modelScale, facing,
                     animations, idle, walk, attack, hurt, death,
-                    new Held(holds, heldIn, heldScale, heldPitch, heldYaw, heldRoll));
+                    java.util.List.copyOf(carried));
         }
     }
 
@@ -2370,12 +2395,29 @@ public final class DungeonSettings {
                     .add("Attack", Ini.string((s, v) -> s.attack = v))
                     .add("Hurt", Ini.string((s, v) -> s.hurt = v))
                     .add("Death", Ini.string((s, v) -> s.death = v))
-                    .add("Holds", Ini.string((s, v) -> s.holds = v))
-                    .add("HeldIn", Ini.string((s, v) -> s.heldIn = v))
-                    .add("HeldScale", Ini.real((s, v) -> s.heldScale = v))
-                    .add("HeldPitch", Ini.real((s, v) -> s.heldPitch = v))
-                    .add("HeldYaw", Ini.real((s, v) -> s.heldYaw = v))
-                    .add("HeldRoll", Ini.real((s, v) -> s.heldRoll = v));
+                    // ★ Repeatable, like AnimationsFrom above and for the same
+                    // reason: a hero is rarely one thing in one hand. Holds names
+                    // a thing and every Held* line under it describes THAT thing,
+                    // so a knight is a sword paragraph and a shield paragraph.
+                    .add("Holds", Ini.string((s, v) -> s.holds(v)))
+                    .add("HeldIn", Ini.string((s, v) -> s.describe(h -> new Held(h.model(), v,
+                            h.scale(), h.pitch(), h.yaw(), h.roll(), h.x(), h.y(), h.z()))))
+                    .add("HeldScale", Ini.real((s, v) -> s.describe(h -> new Held(h.model(),
+                            h.bone(), v, h.pitch(), h.yaw(), h.roll(), h.x(), h.y(), h.z()))))
+                    .add("HeldPitch", Ini.real((s, v) -> s.describe(h -> new Held(h.model(),
+                            h.bone(), h.scale(), v, h.yaw(), h.roll(), h.x(), h.y(), h.z()))))
+                    .add("HeldYaw", Ini.real((s, v) -> s.describe(h -> new Held(h.model(),
+                            h.bone(), h.scale(), h.pitch(), v, h.roll(), h.x(), h.y(), h.z()))))
+                    .add("HeldRoll", Ini.real((s, v) -> s.describe(h -> new Held(h.model(),
+                            h.bone(), h.scale(), h.pitch(), h.yaw(), v, h.x(), h.y(), h.z()))))
+                    // Three numbers on one line, because a place is one fact.
+                    .add("HeldAt", (ini, s) -> {
+                        float x = ini.scanReal(ini.getNextToken());
+                        float y = ini.scanReal(ini.getNextToken());
+                        float z = ini.scanReal(ini.getNextToken());
+                        s.describe(h -> new Held(h.model(), h.bone(), h.scale(), h.pitch(),
+                                h.yaw(), h.roll(), x, y, z));
+                    });
 
     /**
      * The live portrait's block.

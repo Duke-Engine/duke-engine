@@ -23,7 +23,7 @@ written from there.
 | Forest Nature Pack — the trees that stand where a wall would | KayKit | CC0 | `models/tiles/forest/` |
 | …and its rocks and bare trees | KayKit | CC0 | `models/props/forest/` |
 | Skeletons — everything that walks the floors, and its blades, axes and staves | KayKit | CC0 | `models/monsters/` |
-| Adventurers — the archer and the knight, the bow and arrows, the greatsword | KayKit | CC0 | `models/heroes/` |
+| Adventurers — all three heroes, and everything they carry | KayKit | CC0 | `models/heroes/` |
 | Character Animations — everything anything down here does | KayKit | CC0 | `animations/characters/` |
 | RPG Audio — cloth, coins, a door, a knife drawn | Kenney | CC0 | `audio/sfx/` |
 | Impact Sounds — what an arrow and a fist land like, and footsteps | Kenney | CC0 | `audio/sfx/` |
@@ -73,26 +73,30 @@ Changed from the originals: the opaque black backing square was removed and the
 shape was written out at 128×128 on transparency, so the panel can tint it. The
 drawings themselves are untouched. See the folder's `License.txt`.
 
-### The mage has nobody's art yet
+### The three heroes, in full
 
-The third hero ships **wearing the archer's model and carrying the skeletons'
-staff**, and neither of those is his. KayKit Adventurers has a Mage (and a
-spellbook for his off hand); that file is not in this repository and nothing in
-the build fetches one, so the placeholder is the honest version of shipping him
-playable.
+All three come out of KayKit Adventurers 2.0 (CC0), which ships five characters
+— Barbarian, Knight, Mage, Ranger and Rogue — on one shared rig. Three of them
+are in this repository, along with the weapons each of them carries:
 
-Nothing is credited to anybody it does not belong to: the mesh in his
-`DungeonHero Mage` block is `models/heroes/ranger.glb` and the staff is
-`models/monsters/staff.gltf`, both already on the two rows above. When a mage
-mesh is dropped into `models/heroes/`, the row above is where it goes, and the
-block's `Model` line is the only thing that changes.
+- **Rogue** (`rogue.glb`) — the archer. He wore the ranger's mesh while he was
+  the only hero and there was nobody to be told apart from. Carries `bow.gltf`
+  and `quiver.gltf`.
+- **Knight** (`knight.glb`) — `sword_1handed.gltf` and `shield_round.gltf`.
+- **Mage** (`mage.glb`) — `staff.gltf` and `spellbook_closed.gltf`. He briefly
+  wore the ranger's mesh and the *skeletons'* staff, which was a placeholder and
+  is not one any more.
 
-**His four skills have no icons either**, for the same reason: nothing here can
-reach [game-icons.net](https://game-icons.net). A slot with no picture draws the
-letter of its key, which is what every slot in the game did until there were four
-pictures. When they arrive they belong on the icons row above and in the list
-under *The icons, in full* — Lorc's CC BY 3.0 asks for the line, so adding a file
-without adding the line is the one mistake that costs something.
+`ranger.glb` is still here and nothing uses it. It is the obvious fourth hero,
+along with `sword_2handed.gltf`, which the knight put down when he picked up a
+shield.
+
+**The skills have no icons.** Nothing in this build can reach
+[game-icons.net](https://game-icons.net), so eight of the twelve slots draw the
+letter of their key — which is what every slot in the game did until there were
+four pictures. When more arrive they belong on the icons row above *and* in the
+list under *The icons, in full*: Lorc's CC BY 3.0 asks for the line, so adding a
+file without adding the line is the one mistake here that costs something.
 
 ### The audio, in full
 

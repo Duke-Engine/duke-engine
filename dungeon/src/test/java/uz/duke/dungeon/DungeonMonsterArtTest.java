@@ -583,8 +583,12 @@ class DungeonMonsterArtTest {
         assertTrue(hero.hasModel(), "the settings file should give the hero a model");
 
         assertNotNull(assets().loadModel(hero.model()));
-        assertNotNull(hero.held().model(), "an archer with no bow is an archer miming");
-        assertNotNull(assets().loadModel(hero.held().model()), hero.held().model() + " is named but missing");
+        assertFalse(hero.held().isEmpty(), "an archer with no bow is an archer miming");
+        for (var held : hero.held()) {
+            assertNotNull(held.model(), "he is told to carry something with no model");
+            assertNotNull(assets().loadModel(held.model()),
+                    held.model() + " is named but missing");
+        }
         assertFalse(hero.animations().isEmpty(), "he was left with nowhere to take clips from");
         for (var path : hero.animations()) {
             assertNotNull(assets().loadModel(path), path + " is named but missing");
@@ -592,23 +596,35 @@ class DungeonMonsterArtTest {
     }
 
     /**
-     * The bone his bow hangs on is one his own rig actually has.
+     * Every bone anything hangs on is one that hero's own rig actually has.
      *
      * <p>A character kit ships weapons apart from characters and rigs a bone to
      * hang them on — and a misspelt bone name is a hero who quietly carries
-     * nothing, which looks exactly like a hero whose bow failed to load.
+     * nothing, which looks exactly like a weapon that failed to load.
+     *
+     * <p>Asked of all three and of everything each of them holds, which is what
+     * it had to become: this rig has exactly two attachment points and both are
+     * hands, so the moment a quiver went on the chest the question "is that a
+     * real bone" stopped being about hands.
      */
     @Test
-    void theBoneHisBowHangsOnIsOneHeHas() {
-        var hero = hero();
-        var armature = control(assets().loadModel(hero.model()), SkinningControl.class)
-                .getArmature();
-
-        assertNotNull(hero.held().bone(), "the settings should say which bone holds the bow");
-        assertNotNull(armature.getJoint(hero.held().bone()),
-                hero.held().bone() + " is not a joint on his rig; it has "
-                        + armature.getJointList().stream().map(com.jme3.anim.Joint::getName)
-                                .toList());
+    void everyBoneAnythingHangsOnIsOneThatHeroHas() {
+        for (var him : SETTINGS.heroes()) {
+            if (!him.hasModel()) {
+                continue;
+            }
+            var armature = control(assets().loadModel(him.model()), SkinningControl.class)
+                    .getArmature();
+            for (var held : him.held()) {
+                assertNotNull(held.bone(),
+                        him.name() + " carries " + held.model() + " on no bone at all");
+                assertNotNull(armature.getJoint(held.bone()),
+                        him.name() + "'s " + held.model() + " hangs on " + held.bone()
+                                + ", which is not a joint on his rig; it has "
+                                + armature.getJointList().stream()
+                                        .map(com.jme3.anim.Joint::getName).toList());
+            }
+        }
     }
 
     /**
@@ -628,10 +644,12 @@ class DungeonMonsterArtTest {
      */
     @Test
     void theBowIsTurnedToSuitWhichSideItsStringIsOn() {
-        var hero = hero();
+        var bow = hero().held().stream()
+                .filter(held -> held.model() != null && held.model().contains("bow"))
+                .findFirst().orElseThrow(() -> new AssertionError("the archer carries no bow"));
         float[] middle = {Float.MAX_VALUE, -Float.MAX_VALUE};
         float[] tips = {Float.MAX_VALUE, -Float.MAX_VALUE};
-        assets().loadModel(hero.held().model()).depthFirstTraversal(spatial -> {
+        assets().loadModel(bow.model()).depthFirstTraversal(spatial -> {
             if (!(spatial instanceof com.jme3.scene.Geometry geometry)) {
                 return;
             }
@@ -651,7 +669,7 @@ class DungeonMonsterArtTest {
                 "neither side of this bow bulges in the middle, so it has no grip to find: "
                         + "middle x " + middle[0] + ".." + middle[1]
                         + ", tips x " + tips[0] + ".." + tips[1]);
-        assertEquals(gripTowardPositiveX ? 180f : 0f, hero.held().roll(), 0.001f,
+        assertEquals(gripTowardPositiveX ? 180f : 0f, bow.roll(), 0.001f,
                 "the grip is toward " + (gripTowardPositiveX ? "+x" : "-x")
                         + " and the bone points +x at the archer, so HeldRoll is wrong");
     }
@@ -713,6 +731,19 @@ class DungeonMonsterArtTest {
      * so the rule is measured rather than remembered: anything whose longest side
      * is not its {@code +Y} has to carry a turn, and anything laid out like the
      * rest of the pack must not.
+     *
+     * <p><b>Asked only of what is in a HAND</b>, and that limit is the rule's
+     * own. What it is really about is a weapon being pointed out of a fist: the
+     * bone is authored to send a blade's length out of the knuckles, so a model
+     * laid out along anything but its {@code +Y} comes out sideways and a model
+     * laid out along {@code +Y} is already right and must be left alone.
+     *
+     * <p>Nothing about that applies to something hung on a body. This rig has
+     * exactly two attachment points and both of them are hands, so a quiver has
+     * to go on the chest and be PLACED — pushed back over the shoulder and tilted
+     * to lie against him. That tilt is a placement rather than a correction, and
+     * a rule about fists has nothing to say about it. Judging it needs eyes; see
+     * the note on the quiver in dungeon.ini.
      */
     @Test
     void aWeaponLaidOutAcrossTheKitsGrainIsTurned() {
@@ -725,11 +756,11 @@ class DungeonMonsterArtTest {
         // test exists — and a second hero carrying a second kind of weapon is
         // exactly the case it would have missed.
         for (var him : SETTINGS.heroes()) {
-            carried.add(him.held());
+            carried.addAll(him.held());
         }
 
         for (var held : carried) {
-            if (!held.isCarried()) {
+            if (!held.isCarried() || !held.bone().startsWith("handslot")) {
                 continue;
             }
             var model = assets().loadModel(held.model());

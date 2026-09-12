@@ -96,7 +96,16 @@ public final class Main {
     private static void carry(Visuals.UnitVisual unit, uz.duke.dungeon.content.Held held) {
         if (held.isCarried()) {
             unit.holds(held.model(), held.bone(), held.scale())
-                    .heldTurn(held.pitch(), held.yaw(), held.roll());
+                    .heldTurn(held.pitch(), held.yaw(), held.roll())
+                    .heldAt(held.x(), held.y(), held.z());
+        }
+    }
+
+    /** Everything he carries, in the order the file named it. */
+    private static void carry(Visuals.UnitVisual unit,
+            java.util.List<uz.duke.dungeon.content.Held> held) {
+        for (var one : held) {
+            carry(unit, one);
         }
     }
 

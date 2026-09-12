@@ -64,7 +64,8 @@ final class Preload {
         // What a unit carries is a model like any other, and read at the same
         // moment as the unit: a bow fetched when the hero first appears is a stall
         // at the one moment the player is watching him.
-        add(jobs, seen, Kind.MODEL, looks.stream().map(look -> look.heldPath).toList());
+        add(jobs, seen, Kind.MODEL, looks.stream()
+                .flatMap(look -> look.carried.stream()).map(one -> one.path).toList());
         for (var look : looks) {
             add(jobs, seen, Kind.ANIMATIONS,
                     look.animations.stream().map(Visuals.AnimationSource::assetPath).toList());

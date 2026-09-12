@@ -38,16 +38,36 @@ public final class Visuals {
         String modelPath;
         String modelPart;
         String texturePath;
-        String heldPath;
-        String heldBone;
+        /**
+         * One thing hung on one of the unit's own bones.
+         *
+         * <p>A list rather than a field apiece, because a hand is not the only
+         * place a character carries something and a character is not limited to
+         * one hand. A knight is a sword AND a shield; an archer is a bow and the
+         * arrows to go in it. Written as one field each, the second of every pair
+         * was simply impossible.
+         *
+         * <p>Mutable and package-private on purpose: it is filled in by the
+         * fluent calls below, where {@code holds} starts a new one and everything
+         * after it describes the one just started.
+         */
+        static final class Carried {
+            String path;
+            String bone;
+            float scale = 1f;
+            float pitch;
+            float yaw;
+            float roll;
+            float x;
+            float y;
+            float z;
+        }
+
+        final java.util.List<Carried> carried = new java.util.ArrayList<>();
         /** The name of the flight effect this unit wears, or null for a plain one. */
         String effect;
         /** How far forward of its middle the effect sits; see effectAt. */
         float effectForward;
-        float heldScale = 1f;
-        float heldPitch;
-        float heldYaw;
-        float heldRoll;
         /** Where this unit's animations come from, in the order they were named. */
         final java.util.List<AnimationSource> animations = new java.util.ArrayList<>();
         float scale = 1f;
@@ -103,10 +123,20 @@ public final class Visuals {
          * @see #heldTurn
          */
         public UnitVisual holds(String assetPath, String boneName, float scale) {
-            this.heldPath = assetPath;
-            this.heldBone = boneName;
-            this.heldScale = scale;
+            var one = new Carried();
+            one.path = assetPath;
+            one.bone = boneName;
+            one.scale = scale;
+            carried.add(one);
             return this;
+        }
+
+        /** The one being described, so heldTurn and heldAt settle the last holds. */
+        private Carried last() {
+            if (carried.isEmpty()) {
+                carried.add(new Carried()); // turned before it was given anything
+            }
+            return carried.get(carried.size() - 1);
         }
 
         /**
@@ -126,9 +156,28 @@ public final class Visuals {
          * can be seen.
          */
         public UnitVisual heldTurn(float pitchDegrees, float yawDegrees, float rollDegrees) {
-            this.heldPitch = pitchDegrees;
-            this.heldYaw = yawDegrees;
-            this.heldRoll = rollDegrees;
+            var one = last();
+            one.pitch = pitchDegrees;
+            one.yaw = yawDegrees;
+            one.roll = rollDegrees;
+            return this;
+        }
+
+        /**
+         * How far to shift what he carries off the bone it hangs on.
+         *
+         * <p>The same kind of number as {@link #heldTurn}: a fact about the art,
+         * measured once and written down. The bone puts a weapon in the hand and
+         * a hand is where a weapon goes, so most things want none of this — but
+         * this rig has exactly two attachment points, both of them hands, and a
+         * quiver goes on the BACK. Hung on the chest bone with no shift it sits
+         * inside the man; shifted back and up it sits over his shoulder.
+         */
+        public UnitVisual heldAt(float x, float y, float z) {
+            var one = last();
+            one.x = x;
+            one.y = y;
+            one.z = z;
             return this;
         }
 

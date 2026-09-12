@@ -67,7 +67,9 @@ import java.util.List;
  * @param hurt       the clip he flinches in, or {@code null} for a hero who does
  *                   not flinch
  * @param death      the clip he falls in
- * @param held       the bow in his hand — see {@link Held}
+ * @param held       what he carries, in the order the file names it — see
+ *     {@link Held}. A list because a hero is rarely one thing in one hand: a
+ *     knight is a sword AND a shield, an archer a bow and the arrows for it
  */
 public record HeroLook(
         String name,
@@ -84,15 +86,16 @@ public record HeroLook(
         String attack,
         String hurt,
         String death,
-        Held held) {
+        java.util.List<Held> held) {
 
     public HeroLook {
         animations = List.copyOf(animations);
+        held = held == null ? List.of() : List.copyOf(held);
     }
 
     /** No art: he is drawn as a shape, as he was before there was a model. */
     public static final HeroLook NONE = new HeroLook("Rogue", "", 0f, 0, null, null, 1f, 0f,
-            List.of(), null, null, null, null, null, Held.NOTHING);
+            List.of(), null, null, null, null, null, List.of());
 
     public boolean hasModel() {
         return model != null;

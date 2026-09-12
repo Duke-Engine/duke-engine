@@ -2,6 +2,7 @@ package uz.duke.dungeon;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -425,6 +426,82 @@ class KnightTest {
         game.runHeadless(ultimate.tickFrames() * 3);
         assertEquals(atRest, victim.getBody().getHealth(), 0.001f,
                 "the whirlwind is still turning long after it should have stopped");
+    }
+
+    // ---- what each of them carries ----
+
+    /**
+     * {@code Holds} is repeatable, and each one keeps its own lines.
+     *
+     * <p>The trap in a repeatable block with fields under it: the fields have to
+     * attach to the {@code Holds} ABOVE them and not to the last one parsed or to
+     * all of them at once. Written the obvious way, a knight's shield would have
+     * ended up in the hand his sword is in — both lines say {@code HeldIn}, and
+     * whichever was read last would have won for both.
+     */
+    @Test
+    void eachThingCarriedKeepsItsOwnLines() {
+        var carried = SETTINGS.heroNamed(KNIGHT).held();
+
+        assertEquals(2, carried.size(), "a sword and a shield");
+        assertTrue(carried.get(0).model().contains("sword"), "the sword is named first");
+        assertTrue(carried.get(1).model().contains("shield"));
+        assertNotEquals(carried.get(0).bone(), carried.get(1).bone(),
+                "both are in the same hand, so the second line overwrote the first");
+    }
+
+    /** And every hero really does carry two things now, not one. */
+    @Test
+    void everyHeroCarriesMoreThanOneThing() {
+        for (var him : SETTINGS.heroes()) {
+            assertTrue(him.held().size() >= 2, him.name() + " carries "
+                    + him.held().size() + " thing(s): a hero is rarely one hand");
+            for (var held : him.held()) {
+                assertTrue(held.isCarried(),
+                        him.name() + " has a Holds with no bone under it, which hangs nothing");
+            }
+        }
+    }
+
+    /**
+     * A hero who carries one thing is still written the way he always was.
+     *
+     * <p>The promise the repeatable form has to keep. Every monster in the game
+     * names one {@code Holds} and one {@code HeldIn}, and none of them was
+     * touched; this checks the hero side of the same shape by reading a block
+     * that names exactly one.
+     */
+    @Test
+    void oneThingCarriedIsStillOneBlock() {
+        var one = DungeonSettings.parse("""
+                DungeonHero Solo
+                  Model = models/heroes/rogue.glb
+                  Holds = models/heroes/bow.gltf
+                  HeldIn = handslot.l
+                  HeldScale = 2
+                  HeldRoll = 180
+                End
+                """).heroNamed("Solo").held();
+
+        assertEquals(1, one.size());
+        assertEquals("models/heroes/bow.gltf", one.get(0).model());
+        assertEquals("handslot.l", one.get(0).bone());
+        assertEquals(2f, one.get(0).scale(), 0.001f);
+        assertEquals(180f, one.get(0).roll(), 0.001f);
+    }
+
+    /** And a spot on a bone is three numbers on one line, because a place is one fact. */
+    @Test
+    void aCarriedThingMayBeShiftedOffItsBone() {
+        var quiver = SETTINGS.heroNamed("Rogue").held().stream()
+                .filter(held -> held.model().contains("quiver"))
+                .findFirst().orElseThrow(() -> new AssertionError("the archer carries no arrows"));
+
+        assertEquals("chest", quiver.bone(),
+                "this rig has two attachment points and both are hands, so a quiver"
+                        + " has nowhere to go but a body bone");
+        assertTrue(quiver.x() != 0f || quiver.y() != 0f || quiver.z() != 0f,
+                "left on the bone with no shift it sits inside him");
     }
 
     // ---- helpers ----

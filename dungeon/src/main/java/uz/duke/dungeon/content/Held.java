@@ -1,8 +1,8 @@
 package uz.duke.dungeon.content;
 
 /**
- * A second model a creature carries on one of its own bones — a bow, a blade, a
- * staff.
+ * One more model a creature carries on one of its own bones — a bow, a blade, a
+ * staff, a shield, the arrows for the bow.
  *
  * <p>Character kits ship weapons apart from characters and rig a bone to hang
  * them on, and they are right to: one skeleton and a rack of weapons is every
@@ -22,11 +22,21 @@ package uz.duke.dungeon.content;
  *              {@code +Z}, so the bow is the one that needs turning
  * @param yaw   the same, about the second axis
  * @param roll  the same, about the third
+ * @param x     how far to shift it off the bone, and the same kind of number as
+ *              the three above: a fact about the art rather than a setting. Most
+ *              things want none of it -- a bone puts a weapon in a hand and a
+ *              hand is where a weapon goes. A quiver is the exception this pack
+ *              forces: the rig has exactly two attachment points and both of
+ *              them are hands, so a quiver hangs off the chest and has to be
+ *              pushed back and up until it is over the shoulder
+ * @param y     the same, on the second axis
+ * @param z     the same, on the third
  */
-public record Held(String model, String bone, float scale, float pitch, float yaw, float roll) {
+public record Held(String model, String bone, float scale, float pitch, float yaw, float roll,
+        float x, float y, float z) {
 
     /** Empty-handed, which is what everything was before there was a bone to use. */
-    public static final Held NOTHING = new Held(null, null, 1f, 0f, 0f, 0f);
+    public static final Held NOTHING = new Held(null, null, 1f, 0f, 0f, 0f, 0f, 0f, 0f);
 
     /** Whether there is anything to hang, and anywhere to hang it. */
     public boolean isCarried() {
@@ -36,6 +46,6 @@ public record Held(String model, String bone, float scale, float pitch, float ya
     /** The same, with the folder in front of the model. */
     public Held under(java.util.function.UnaryOperator<String> path) {
         return model == null ? this
-                : new Held(path.apply(model), bone, scale, pitch, yaw, roll);
+                : new Held(path.apply(model), bone, scale, pitch, yaw, roll, x, y, z);
     }
 }

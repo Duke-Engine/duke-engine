@@ -3627,19 +3627,33 @@ final class DukeRtsApp extends SimpleApplication {
      * missing model is not worth a black screen.
      */
     private void putInHisHand(Spatial body, Visuals.UnitVisual visual) {
-        if (visual.heldPath == null || visual.heldBone == null) {
+        if (visual.carried.isEmpty()) {
             return;
         }
         var skin = findControl(body, com.jme3.anim.SkinningControl.class);
-        if (skin == null || skin.getArmature().getJoint(visual.heldBone) == null) {
-            warnOnce(visual.heldPath + "@" + visual.heldBone, "bone");
+        if (skin == null) {
+            return; // nothing rigged to hang anything on
+        }
+        for (var one : visual.carried) {
+            hang(skin, one, visual);
+        }
+    }
+
+    /** One carried thing, on one bone. Each failure is its own and loses only itself. */
+    private void hang(com.jme3.anim.SkinningControl skin, Visuals.UnitVisual.Carried one,
+            Visuals.UnitVisual visual) {
+        if (one.path == null || one.bone == null) {
+            return;
+        }
+        if (skin.getArmature().getJoint(one.bone) == null) {
+            warnOnce(one.path + "@" + one.bone, "bone");
             return;
         }
         Spatial held;
         try {
-            held = assetManager.loadModel(visual.heldPath);
+            held = assetManager.loadModel(one.path);
         } catch (RuntimeException e) {
-            warnOnce(visual.heldPath, "model");
+            warnOnce(one.path, "model");
             return;
         }
         held.depthFirstTraversal(spatial -> {
@@ -3648,12 +3662,13 @@ final class DukeRtsApp extends SimpleApplication {
                         visual.tint == null ? ColorRGBA.White : toColor(visual.tint)));
             }
         });
-        held.setLocalScale(visual.heldScale);
+        held.setLocalScale(one.scale);
         held.setLocalRotation(new Quaternion().fromAngles(
-                FastMath.DEG_TO_RAD * visual.heldPitch,
-                FastMath.DEG_TO_RAD * visual.heldYaw,
-                FastMath.DEG_TO_RAD * visual.heldRoll));
-        skin.getAttachmentsNode(visual.heldBone).attachChild(held);
+                FastMath.DEG_TO_RAD * one.pitch,
+                FastMath.DEG_TO_RAD * one.yaw,
+                FastMath.DEG_TO_RAD * one.roll));
+        held.setLocalTranslation(one.x, one.y, one.z);
+        skin.getAttachmentsNode(one.bone).attachChild(held);
     }
 
     /**
