@@ -213,6 +213,7 @@ final class HeroStatus {
                                     settings.hudDamageWord(), settings.hudCooldownWord(),
                                     settings.hudRadiusWord(), settings.hudRangeWord(),
                                     settings.hudBoostWord(), settings.hudRaiseWord(),
+                                    settings.hudRaiseKeyWord(),
                                     settings.hudMaxedWord(), settings.hudNoPointsWord(),
                                     settings.hudRankSuffix(), settings.hudSecondsWord())),
                     settings::hudIcon));

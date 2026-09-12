@@ -21,7 +21,7 @@ class SkillTipTest {
 
     private static final SkillTip.Words WORDS = new SkillTip.Words(
             "Zarar", "Kuluar", "Radius", "Masofa", "Kuch",
-            "bos", "eng yuqori", "nuqta yo'q", "-daraja", "s");
+            "1 nuqta", "Ctrl+", "eng yuqori", "nuqta yo'q", "-daraja", "s");
 
     private static Skill fireball() {
         return SETTINGS.skillsFor("Mage").stream().filter(skill -> skill.key() == 'Q')
@@ -36,9 +36,11 @@ class SkillTipTest {
         var tip = SkillTip.of(fireball(), 2, true, WORDS);
 
         assertTrue(tip.contains("|tipName=Q,"), "it has no name: " + tip);
-        assertTrue(tip.contains("|tipAt=Q,2-daraja"), "it does not say which rank it is at");
+        assertTrue(tip.contains("|tipAt=Q,2-daraja · Q"),
+                "it should say which rank it is at and which key it is on");
         assertTrue(tip.contains("|tipRow=Q,Zarar,"), "no damage row");
-        assertTrue(tip.contains("|tipFoot=Q,bos"), "the foot should be an offer");
+        assertTrue(tip.contains("|tipFoot=Q,Ctrl+Q · 1 nuqta"),
+                "the foot should name the keys that buy it: " + tip);
         // 55 at the first rank and +9 a rank, so 64 at the second and 73 at the
         // third -- growth is counted from the FIRST rank, not from nothing.
         assertTrue(tip.contains("|tipRow=Q,Zarar,64,73"),
@@ -70,8 +72,8 @@ class SkillTipTest {
 
         assertTrue(tip.contains("|tipRow=Q,Zarar,,55"),
                 "an unbought skill should show nothing now and its first rank next: " + tip);
-        assertTrue(tip.contains("|tipAt=Q,"), "and name no rank at all");
-        assertFalse(tip.contains("|tipAt=Q,0"), "least of all 'rank nought': " + tip);
+        assertTrue(tip.contains("|tipAt=Q,Q"),
+                "an unbought skill still has to say which key it is on: " + tip);
     }
 
     /** Full, and the foot says so instead of offering. */

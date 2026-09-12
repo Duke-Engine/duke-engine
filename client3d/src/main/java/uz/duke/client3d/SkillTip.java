@@ -37,18 +37,18 @@ import java.util.List;
 final class SkillTip {
 
     /** Wide enough for a sentence at this size without becoming a paragraph. */
-    private static final float WIDTH = 280f;
-    private static final float PAD = 13f;
+    private static final float WIDTH = 250f;
+    private static final float PAD = 10f;
     /** How far above the slot it floats, so it never covers what it describes. */
     private static final float LIFT = 12f;
 
-    private static final float NAME_SIZE = 15f;
-    private static final float AT_SIZE = 12f;
-    private static final float BLURB_SIZE = 13.5f;
-    private static final float ROW_SIZE = 13f;
-    private static final float FOOT_SIZE = 12.5f;
-    private static final float ROW_STEP = 17f;
-    private static final float GAP = 8f;
+    private static final float NAME_SIZE = 14f;
+    private static final float AT_SIZE = 11f;
+    private static final float BLURB_SIZE = 12f;
+    private static final float ROW_SIZE = 12f;
+    private static final float FOOT_SIZE = 11.5f;
+    private static final float ROW_STEP = 15f;
+    private static final float GAP = 6f;
 
     private static final ColorRGBA EDGE = HeroPanel.rgb(0x0A0806);
     private static final ColorRGBA FACE_TOP = HeroPanel.rgb(0x2E2820);
@@ -117,6 +117,19 @@ final class SkillTip {
         return node.getParent() != null;
     }
 
+    /**
+     * How tall the card came out, in design pixels. For the tests.
+     *
+     * <p>Worth being able to ask, because the way this went wrong was a card five
+     * hundred pixels tall with its writing off the top of it — and a slab that
+     * size is not a tooltip that looks wrong, it is a tooltip that looks EMPTY.
+     */
+    float heightDrawn() {
+        return drawnHeight;
+    }
+
+    private float drawnHeight;
+
     /** For the tests: how many rows of figures are on screen. */
     int rowsShown() {
         int shown = 0;
@@ -145,17 +158,27 @@ final class SkillTip {
         if (node.getParent() == null) {
             parent.attachChild(node);
         }
-        // Measured before it is placed: the sentence wraps to however many lines
-        // it wraps to, and the card is whatever that comes to.
-        blurb.setBox(new Rectangle(0f, 0f, WIDTH - PAD * 2f, Float.MAX_VALUE));
+        // ★ MEASURED BY ITS LINES, not by getHeight().
+        //
+        // A BitmapText given a box reports the BOX'S height, not the height of
+        // what it wrote in it -- so measuring with a box of Float.MAX_VALUE, which
+        // is the obvious way to ask "how tall would this be unbounded", returns
+        // something astronomical. The card was then built to that: a dark slab up
+        // the whole side of the screen with its writing somewhere off the top of
+        // it, which is what an empty tooltip looks like.
+        //
+        // Lines times line height is the real answer and is what jME lays out.
+        blurb.setBox(new Rectangle(0f, 0f, WIDTH - PAD * 2f, 0f));
         blurb.setText(tip.blurb());
-        float blurbHeight = tip.blurb().isEmpty() ? 0f : blurb.getHeight() + GAP;
+        float wrapped = blurb.getLineCount() * blurb.getLineHeight();
+        float blurbHeight = tip.blurb().isEmpty() ? 0f : wrapped + GAP;
 
         int rows = Math.min(tip.rows().size(), MOST_ROWS);
         float footHeight = tip.foot().isEmpty() ? 0f : FOOT_SIZE + GAP + 1f;
         float height = PAD + NAME_SIZE + AT_SIZE + 2f + blurbHeight
                 + rows * ROW_STEP + footHeight + PAD;
 
+        drawnHeight = height;
         // Kept on screen: a card over the rightmost slot would otherwise hang
         // half of itself off the edge of the window, which is where the slot the
         // player is most likely to be reaching for happens to live.
@@ -178,7 +201,7 @@ final class SkillTip {
         top -= AT_SIZE + GAP;
 
         if (blurbHeight > 0f) {
-            blurb.setBox(new Rectangle(PAD, top, WIDTH - PAD * 2f, blurb.getHeight()));
+            blurb.setBox(new Rectangle(PAD, top, WIDTH - PAD * 2f, wrapped));
             blurb.setLocalTranslation(0f, 0f, 2f);
             blurb.setCullHint(Spatial.CullHint.Inherit);
             top -= blurbHeight;

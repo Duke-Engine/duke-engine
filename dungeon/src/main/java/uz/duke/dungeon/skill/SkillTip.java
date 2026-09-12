@@ -37,14 +37,16 @@ public final class SkillTip {
      * @param range     how far it can be put
      * @param boost     what a buff is worth, in percent
      * @param raise     the footer when he may spend a point on it
+     * @param raiseKey  what goes in front of the letter to say "and hold this" —
+     *     the modifier that turns casting into buying, as a finished word
      * @param maxed     the footer when there is nothing left to spend
      * @param noPoints  the footer when he has nothing to spend
      * @param rankWord  "N-daraja", as the suffix the rest of the panel uses
      * @param seconds   the letter after a number of seconds
      */
     public record Words(String damage, String cooldown, String radius, String range,
-            String boost, String raise, String maxed, String noPoints, String rankWord,
-            String seconds) {
+            String boost, String raise, String raiseKey, String maxed, String noPoints,
+            String rankWord, String seconds) {
     }
 
     /**
@@ -60,15 +62,22 @@ public final class SkillTip {
         var out = new StringBuilder();
         char key = skill.key();
         out.append("|tipName=").append(key).append(',').append(skill.name());
+        // ★ The letter is ALWAYS on the line, whether or not he owns it yet: the
+        // card is where a player finds out which key a skill is on, and a skill he
+        // has not bought is exactly the one he does not know.
         out.append("|tipAt=").append(key).append(',')
-                .append(rank > 0 ? rank + words.rankWord() : "");
+                .append(rank > 0 ? rank + words.rankWord() + " · " + key : String.valueOf(key));
         if (!skill.blurb().isEmpty()) {
             out.append("|tipText=").append(key).append(',').append(skill.blurb());
         }
         rows(out, skill, rank, canRaise, words);
+        // And the foot names the keys that BUY it, which is the one thing the
+        // panel cannot show by drawing: a badge says a point may go here and says
+        // nothing about the hand already resting on the letter.
         out.append("|tipFoot=").append(key).append(',').append(
                 rank >= skill.maxRank() ? words.maxed()
-                        : canRaise ? words.raise() : words.noPoints());
+                        : canRaise ? words.raiseKey() + key + " · " + words.raise()
+                                : words.noPoints());
         return out.toString();
     }
 

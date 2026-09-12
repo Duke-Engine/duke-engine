@@ -28,13 +28,13 @@ class SkillTipTest {
             "name=Erika|rank=1-daraja|hp=550/550|xp=0/30|depth=I|depthWord=CHUQURLIK"
                     + "|skWord=MAHORAT"
                     + "|skill=Q,,lock|srank=Q,0,4,up,0 → 1"
-                    + "|tipName=Q,Og'ir o'q|tipAt=Q,"
+                    + "|tipName=Q,Og'ir o'q|tipAt=Q,Q"
                     + "|tipText=Q,Kamonni to'liq tortib otadi. O'q xonani kesib o'tadi,"
                     + " shuning uchun nishon qochib ulgurishi mumkin."
                     + "|tipRow=Q,Zarar,,45|tipRow=Q,Masofa,68,|tipRow=Q,Kuluar,,3.0s"
-                    + "|tipFoot=Q,Oshirish uchun bos · 1 nuqta"
+                    + "|tipFoot=Q,Ctrl+Q · 1 nuqta sarflanadi"
                     + "|skill=W,,lock|srank=W,1,4,no,1-daraja"
-                    + "|tipName=W,O'q yomg'iri|tipAt=W,1-daraja"
+                    + "|tipName=W,O'q yomg'iri|tipAt=W,1-daraja · W"
                     + "|tipRow=W,Zarar,28,|tipFoot=W,Nuqta yo'q"
                     + "|pts=1,NUQTA";
 
@@ -120,5 +120,58 @@ class SkillTipTest {
         panel.hover('A');
 
         assertFalse(panel.tipShowing(), "an order button should not grow a tooltip");
+    }
+
+    /**
+     * ★ The card is the size of what is written in it.
+     *
+     * <p>The fault this is here for, and it did not look like a sizing bug from a
+     * chair: a {@code BitmapText} given a box reports the BOX'S height rather than
+     * the height of what it wrote, so measuring with a box of
+     * {@code Float.MAX_VALUE} -- the obvious way to ask "how tall unbounded?" --
+     * came back astronomical. The card was built to that: a dark slab up the whole
+     * side of the screen with its writing somewhere off the top. What a player
+     * sees then is not a tooltip that looks wrong; it is a tooltip that looks
+     * EMPTY.
+     *
+     * <p>A ceiling rather than a figure, because the exact height depends on how
+     * many lines a sentence wraps to and that should be free to change. What must
+     * not change is that it stays a card.
+     */
+    @Test
+    void theCardIsTheSizeOfWhatIsInIt() {
+        var panel = panel();
+
+        panel.hover('Q');
+
+        float tall = panel.tipHeight();
+        assertTrue(tall > 40f, "a card with a name, a sentence and three rows is not " + tall);
+        assertTrue(tall < 220f, "the card is " + tall + " tall, which is a slab up the side"
+                + " of the screen rather than a tooltip");
+    }
+
+    /** A card with less in it is shorter, which is the point of measuring at all. */
+    @Test
+    void lessToSayIsASmallerCard() {
+        var panel = panel();
+
+        panel.hover('Q');
+        float withEverything = panel.tipHeight();
+        panel.hover('W');
+        float withLess = panel.tipHeight();
+
+        assertTrue(withLess < withEverything, "W has no sentence and one row against Q's"
+                + " three, and came out " + withLess + " against " + withEverything);
+    }
+
+    /** And the key is on the card, whether or not he owns the skill yet. */
+    @Test
+    void theCardNamesItsKeys() {
+        var reading = HeroPanel.Reading.parse(LINE);
+
+        assertEquals("Q", reading.tips().get('Q').at(),
+                "an unbought skill still has to say which key casts it");
+        assertTrue(reading.tips().get('Q').foot().contains("Ctrl+Q"),
+                "and which keys buy it: " + reading.tips().get('Q').foot());
     }
 }

@@ -2314,6 +2314,7 @@ public final class DungeonSettings {
     private String hudRangeWord = "";
     private String hudBoostWord = "";
     private String hudRaiseWord = "";
+    private String hudRaiseKeyWord = "";
     private String hudMaxedWord = "";
     private String hudNoPointsWord = "";
     private String hudSecondsWord = "";
@@ -2367,6 +2368,10 @@ public final class DungeonSettings {
 
     public String hudRaiseWord() {
         return hudRaiseWord;
+    }
+
+    public String hudRaiseKeyWord() {
+        return hudRaiseKeyWord;
     }
 
     public String hudMaxedWord() {
@@ -2446,6 +2451,7 @@ public final class DungeonSettings {
                     .add("RangeWord", Ini.restOfLine((s, v) -> s.hudRangeWord = v))
                     .add("BoostWord", Ini.restOfLine((s, v) -> s.hudBoostWord = v))
                     .add("RaiseWord", Ini.restOfLine((s, v) -> s.hudRaiseWord = v))
+                    .add("RaiseKeyWord", Ini.restOfLine((s, v) -> s.hudRaiseKeyWord = v))
                     .add("MaxedWord", Ini.restOfLine((s, v) -> s.hudMaxedWord = v))
                     .add("NoPointsWord", Ini.restOfLine((s, v) -> s.hudNoPointsWord = v))
                     .add("SecondsWord", Ini.restOfLine((s, v) -> s.hudSecondsWord = v))

@@ -1030,6 +1030,11 @@ final class HeroPanel {
         return tip != null && tip.showing();
     }
 
+    /** How tall the card came out. For the tests. */
+    float tipHeight() {
+        return tip == null ? 0f : tip.heightDrawn();
+    }
+
     /** Whether that key is one of the order buttons rather than a skill. */
     boolean isAnOrder(char key) {
         for (var button : orderButtons) {
