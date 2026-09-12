@@ -37,11 +37,11 @@ import java.util.List;
  *     the tile folder, which is what a kit with everything in one place wants
  * @param stairs        the flight of steps between two storeys, or null for a kit
  *     that ships none — then the client builds them out of blocks
- * @param wallBase      what a piece of <em>raised</em> rock is made of underneath,
- *     or null for a kit that needs none. Only a theme whose wall is a thing rather
- *     than a surface does: masonry walls a two-storey block in two courses and the
- *     volume between them is closed, while a tree is drawn once on top and leaves
- *     the rock below it drawn by nothing at all
+ * @param rockFace      what the exposed side of a raised block of rock is drawn
+ *     with, or null for a theme that needs none. Only a theme whose wall is a
+ *     thing rather than a surface does: masonry walls a two-storey block in two
+ *     courses and those courses ARE its sides, while a tree is drawn once on top
+ *     and leaves the sides drawn by nothing at all
  * @param capTint       a colour over the lid on the rock and nothing else, packed
  *     {@code 0xRRGGBB}. The lid is a floor tile laid at the top of the walls — the
  *     same model and the same picture as the floor of a room, facing the same way
@@ -66,7 +66,7 @@ public record ThemeArt(
         boolean ownMaterials,
         String propFolder,
         String stairs,
-        String wallBase,
+        String rockFace,
         int capTint,
         int storeyShadePercent,
         int fogTint,
@@ -154,15 +154,15 @@ public record ThemeArt(
     }
 
     /**
-     * What raised rock is made of, with its folder in front of it.
+     * What the side of raised rock is drawn with, with its folder in front of it.
      *
-     * <p>Under the props rather than the tiles, because that is what it is: the
-     * boulder a forest already ships for scattering about its floors is the same
-     * boulder a cliff is made of, and naming it in two folders would be two copies
-     * of one rock.
+     * <p>Under the props rather than the tiles, because it is not one of this
+     * theme's own tiles -- a wood faced with masonry is borrowing the cellar's
+     * wall, and a borrowed piece belongs beside the other things a theme scatters
+     * about rather than among the pieces it is built from.
      */
-    public String wallBasePath() {
-        return inProps(wallBase);
+    public String rockFacePath() {
+        return inProps(rockFace);
     }
 
     /** The theme with every asset path made whole. */

@@ -20,6 +20,7 @@ written from there.
 | Dungeon Pack — floors, walls, stairs | **KayKit** / Kay Lousberg ([kaylousberg.com](https://kaylousberg.com)) | CC0 | `models/tiles/dungeon/` |
 | …and its pillars, barrel and chest | KayKit | CC0 | `models/props/dungeon/` |
 | …and the dirt floors the forest is laid on | KayKit | CC0 | `models/tiles/forest/` |
+| …and the wall that retains its terraces | KayKit | CC0 | `models/props/forest/wall.gltf` |
 | Forest Nature Pack — the trees that stand where a wall would | KayKit | CC0 | `models/tiles/forest/` |
 | …and its rocks and bare trees | KayKit | CC0 | `models/props/forest/` |
 | Skeletons — everything that walks the floors, and its blades, axes and staves | KayKit | CC0 | `models/monsters/` |

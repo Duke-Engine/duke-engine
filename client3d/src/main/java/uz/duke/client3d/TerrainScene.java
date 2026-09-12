@@ -233,8 +233,8 @@ final class TerrainScene {
             if (asset == null) {
                 continue; // a kit without corner posts is a kit with square notches
             }
-            if (standing.piece() == TileLayout.Piece.BASE) {
-                addRockBase(asset, standing, cell, storey);
+            if (standing.piece() == TileLayout.Piece.ROCK_FACE) {
+                addRockFace(asset, standing, storey);
                 continue;
             }
             int clump = standing.upright() ? tileset.getWallClump() : 1;
@@ -290,21 +290,21 @@ final class TerrainScene {
     }
 
     /**
-     * One storey of the mass under a piece of raised rock.
+     * One storey of the side of a block of rock — a retaining wall.
      *
      * <p>Scaled by what it measures rather than by a number in the file, like the
-     * stair and for the same reason: how tall a boulder is against how wide it is
-     * belongs to the model, and a kit is then right by being shipped. Its height
-     * is made to fill exactly one storey, and because the scale is <b>uniform</b>
-     * it comes out however wide that makes it — which for a rock is a rock, where
-     * the same piece stretched to fit would be a balloon.
+     * stair and for the same reason: how tall a slab is against how wide it is
+     * belongs to the model, and a kit is then right by being shipped. Its height is
+     * made to fill exactly one storey, and the scale is <b>uniform</b>, so a piece
+     * modelled square comes out a cell wide as well — which is what a modular wall
+     * is, and what stretching it to fit would have thrown away.
      *
-     * <p>Wider than its cell is not a fault but the point: neighbouring pieces then
-     * overlap, and a plateau reads as one mass of stone rather than as a tray of
-     * identical cubes. Turned by a settled angle apiece for the same reason the
-     * trees are — the grid the map is built on must not show through the art.
+     * <p>The face on the boundary and the body behind it, like any wall. How far
+     * back that is is measured too, rather than read from {@code wallShift}: this
+     * is not the kit's own wall and there is no reason its origin should sit where
+     * that one's does.
      */
-    private void addRockBase(String asset, Standing placement, float cell, float storey) {
+    private void addRockFace(String asset, Standing placement, float storey) {
         var piece = tiles.piece(asset);
         if (piece == null || storey <= 0f) {
             return;
@@ -312,14 +312,15 @@ final class TerrainScene {
         var box = boundsOf(asset, piece);
         float tall = Math.max(0.001f, box.getYExtent() * 2f);
         float scale = storey / tall;
+        float yaw = FastMath.DEG_TO_RAD * placement.yaw();
         piece.setLocalScale(scale);
-        piece.setLocalRotation(new com.jme3.math.Quaternion().fromAngleAxis(
-                FastMath.TWO_PI * steady(placement.x(), placement.z(), 0, 4), Vector3f.UNIT_Y));
-        // Its foot on the storey it fills: where a kit put the origin inside the
-        // model is its own business, so it is lifted by however far it hangs below.
-        piece.setLocalTranslation(placement.x(),
+        piece.setLocalRotation(new com.jme3.math.Quaternion()
+                .fromAngleAxis(yaw, Vector3f.UNIT_Y));
+        float back = -(box.getCenter().z + box.getZExtent()) * scale;
+        piece.setLocalTranslation(
+                placement.x() + back * FastMath.sin(yaw),
                 placement.ground() + (box.getYExtent() - box.getCenter().y) * scale,
-                placement.z());
+                placement.z() + back * FastMath.cos(yaw));
         cellNode(placement.cellY() * cellsWide + placement.cellX()).attachChild(piece);
     }
 
@@ -376,15 +377,18 @@ final class TerrainScene {
      * too, so the tree was drawn at the room's own height with nothing whatever
      * underneath it. From a chair: trees hanging in the air.
      *
-     * <p>What is under it is the rock, and the rock says what it is made of —
-     * {@link TileLayout.Piece#BASE}, one piece per storey from the ground up. The
-     * thing crowns the mass instead of standing in for it.
+     * <p><b>And the faces are kept, not thrown away.</b> They were, and that is
+     * what left the wood standing on nothing: the sides of a block of rock are
+     * exactly the faces the layout had already worked out, and discarding them
+     * discarded the only thing that ever drew the rock. They are drawn instead
+     * with whatever the kit says its rock is faced with — a retaining wall; see
+     * {@link Tileset#rockFace}. The tree is what grows on top of it.
      *
-     * <p>What is left facing rather than filling is the retaining wall: the edge
-     * of a raised floor with no rock in it at all. There is nothing to stand in
-     * and nothing to fill, so the piece belongs on the line and its stack is still
-     * collapsed into one — the only place a thing is still stretched, and the only
-     * place there is nothing else to cover the drop with.
+     * <p>Only where the rock actually stands <em>above</em> the face's foot. A kit
+     * of this sort lays its lids on the ground — what you cannot walk into is a
+     * tree line, not a wall — so most of its rock is at the floor's own height and
+     * has no side to show. Facing those too would put a stone kerb round every
+     * tree in the forest.
      */
     private java.util.List<Standing> plan(java.util.List<TileLayout.Placement> layout,
             PathGrid grid) {
@@ -396,34 +400,34 @@ final class TerrainScene {
             return plan;
         }
         float cell = grid.getCellSize();
+        float proud = tileset.getWallHeight() * (cell / tileset.getWallTileSize());
         // Per piece of rock: the turn and cell of whichever face was met first — a
         // body has no facing of its own, but the cell it is filed under decides
         // when the fog hides it. Where it stands is the rock's, not the faces'.
         var bodies = new java.util.LinkedHashMap<Integer, float[]>();
-        var stacks = new java.util.LinkedHashMap<String, Standing>();
         for (var placement : layout) {
-            if (!Standing.facing(placement, 1).upright()) {
-                plan.add(Standing.facing(placement, 1));
+            var standing = Standing.facing(placement, 1);
+            if (!standing.upright() || placement.piece() == TileLayout.Piece.CORNER) {
+                // A corner post plugs the notch between two walls. There is no
+                // notch in a wood, and a wall slab dropped into one would lie
+                // across both of the faces that meet there.
+                plan.add(standing);
                 continue;
+            }
+            if (topOfTheRockAt(placement, grid, cell) + proud > placement.ground() + 0.001f) {
+                plan.add(new Standing(TileLayout.Piece.ROCK_FACE, placement.cellX(),
+                        placement.cellY(), placement.x(), placement.z(), placement.yaw(),
+                        placement.ground(), 1, false));
             }
             int rock = rockFacedBy(placement, grid, cell);
-            if (rock < 0) {
-                // Nothing to stand in: a retaining wall, or the edge of the map.
-                // It keeps the line, and only its stack is collapsed.
-                var where = placement.piece() + "@" + placement.x() + "," + placement.z()
-                        + "," + placement.yaw();
-                stacks.merge(where, Standing.facing(placement, 1), (was, one) -> new Standing(
-                        was.piece(), was.cellX(), was.cellY(), was.x(), was.z(), was.yaw(),
-                        Math.min(was.ground(), one.ground()), was.storeys() + 1, false));
-                continue;
+            if (rock >= 0) {
+                // First face wins: the rest say nothing a body needs. putIfAbsent
+                // rather than merge, and the order the layout comes in is settled,
+                // so the same map grows the same wood.
+                bodies.putIfAbsent(rock,
+                        new float[] {placement.yaw(), placement.cellX(), placement.cellY()});
             }
-            // First face wins: the rest say nothing a body needs. putIfAbsent
-            // rather than merge, and the order the layout comes in is settled, so
-            // the same map grows the same wood.
-            bodies.putIfAbsent(rock,
-                    new float[] {placement.yaw(), placement.cellX(), placement.cellY()});
         }
-        plan.addAll(stacks.values());
         for (var body : bodies.entrySet()) {
             int rock = body.getKey();
             var found = body.getValue();
@@ -434,6 +438,22 @@ final class TerrainScene {
                     found[0], highestFloorAround(grid, rockX, rockY), 1, true));
         }
         return plan;
+    }
+
+    /**
+     * How high the thing this face is the side of reaches.
+     *
+     * <p>The rock it faces, where there is rock; the floor it holds up, where
+     * there is not. Both are steps the face has to cover, and the second is the
+     * edge of a raised terrace with no stone in it at all.
+     */
+    private static float topOfTheRockAt(TileLayout.Placement placement, PathGrid grid,
+            float cell) {
+        int rock = rockFacedBy(placement, grid, cell);
+        if (rock >= 0) {
+            return highestFloorAround(grid, rock % grid.getWidth(), rock / grid.getWidth());
+        }
+        return grid.groundHeight(placement.cellX(), placement.cellY());
     }
 
     /**
@@ -778,7 +798,7 @@ final class TerrainScene {
             case STAIR -> tileset.getStairs();
             // Only a kit whose wall is a thing rather than a surface names one.
             // Masonry fills a raised block of rock with its own courses.
-            case BASE -> tileset.getBase();
+            case ROCK_FACE -> tileset.getRockFace();
         };
     }
 

@@ -827,7 +827,7 @@ public final class DungeonSettings {
         float wallVariety;
         String propFolder = "";
         String stairs;
-        String wallBase;
+        String rockFace;
         int capTint = 0xFFFFFF;
         int storeyShadePercent = 100;
         int fogTint;
@@ -879,7 +879,7 @@ public final class DungeonSettings {
                     .add("WallVariety", Ini.real((t, v) -> t.wallVariety = v))
                     .add("PropFolder", Ini.string((t, v) -> t.propFolder = v))
                     .add("Stairs", Ini.string((t, v) -> t.stairs = v))
-                    .add("WallBase", Ini.string((t, v) -> t.wallBase = v))
+                    .add("RockFace", Ini.string((t, v) -> t.rockFace = v))
                     .add("CapTint", (ini, t) -> t.capTint = Integer.decode(ini.getNextToken()))
                     .add("StoreyShadePercent",
                             Ini.integer((t, v) -> t.storeyShadePercent = v))
@@ -952,7 +952,7 @@ public final class DungeonSettings {
             }
             built.add(new ThemeArt(theme.name, theme.folder, theme.tileSize,
                     theme.wallTileSize, theme.wallHeight, theme.wallLift, theme.wallShift,
-                    theme.ownMaterials, theme.propFolder, theme.stairs, theme.wallBase,
+                    theme.ownMaterials, theme.propFolder, theme.stairs, theme.rockFace,
                     theme.capTint, theme.storeyShadePercent, theme.fogTint,
                     new ThemeArt.Standing(theme.wallFillsRock, theme.wallClump,
                             theme.wallSpread, theme.wallVariety),

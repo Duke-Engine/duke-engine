@@ -464,70 +464,91 @@ class DungeonTilesTest {
         return false;
     }
 
-    // ---- what a raised block of rock is made of ----
+    // ---- what the side of a raised block of rock is drawn with ----
 
     /**
-     * A theme whose wall is a <em>thing</em> says what the rock under it is made
-     * of, and a theme whose wall is a surface does not.
+     * A theme whose wall is a <em>thing</em> says what its rock is faced with, and
+     * a theme whose wall is a surface does not.
      *
-     * <p>Not a spelling check but a pairing. Masonry fills a two-storey block with
-     * two courses of its own wall and the mass between them is closed in; a tree is
-     * drawn once, on top, and what holds it up has to be named or there is nothing
-     * underneath it at all. So the two settings go together, and a theme that turns
-     * one on without the other is the bug this was written after — trees standing
-     * in the air over the upper floors.
+     * <p>Not a spelling check but a pairing. Masonry walls a two-storey block in
+     * two courses and those courses <em>are</em> its sides; a tree is drawn once on
+     * top, so what faces the rock has to be named or nothing draws it at all. The
+     * two settings go together, and a theme that turns one on without the other is
+     * the bug this was written after — trees standing in the air over the upper
+     * floors.
      */
     @Test
-    void everyThemeWhoseWallIsAThingSaysWhatHoldsItUp() {
+    void everyThemeWhoseWallIsAThingSaysWhatFacesItsRock() {
         for (var theme : uz.duke.dungeon.content.DungeonSettings.load().themes().all()) {
-            assertEquals(theme.standing().fillsRock(), theme.wallBasePath() != null,
-                    theme.name() + " fills rock with a body but names no WallBase to stand it"
-                            + " on (or names one it does not need)");
+            assertEquals(theme.standing().fillsRock(), theme.rockFacePath() != null,
+                    theme.name() + " fills rock with a body but names no RockFace to close"
+                            + " its sides (or names one it does not need)");
         }
     }
 
-    /** And the model it names is shipped, and is not a sliver. */
+    /** And the model it names is shipped, and is shaped like a course of wall. */
     @Test
-    void andWhatHoldsItUpIsShippedAndHasABodyToIt() {
+    void andWhatFacesItIsShippedAndIsShapedLikeAWall() {
         var assets = assets();
         int checked = 0;
         for (var theme : uz.duke.dungeon.content.DungeonSettings.load().themes().all()) {
-            if (theme.wallBasePath() == null) {
+            if (theme.rockFacePath() == null) {
                 continue;
             }
-            var model = assets.loadModel(theme.wallBasePath());
-            assertNotNull(model, theme.wallBasePath() + " is named but not shipped");
+            var model = assets.loadModel(theme.rockFacePath());
+            assertNotNull(model, theme.rockFacePath() + " is named but not shipped");
             model.updateModelBound();
             model.updateGeometricState();
             var box = (com.jme3.bounding.BoundingBox) model.getWorldBound();
-            // The client scales it so its HEIGHT fills one storey, uniformly, so
-            // how wide that leaves it is its own proportions. A model much taller
-            // than it is wide comes out a needle with daylight either side of it;
-            // one much wider comes out a pancake reaching across its neighbours.
+            // The client scales it so its HEIGHT fills one storey, uniformly, and
+            // then how wide it comes out is the model's own business. Square is
+            // what a modular wall is, and square is what lands it exactly one cell
+            // wide: taller than it is wide leaves daylight between the courses,
+            // wider than it is tall runs them across their neighbours.
             float tallness = box.getYExtent() / Math.max(0.001f, box.getXExtent());
-            assertTrue(tallness > 0.5f && tallness < 2f,
-                    theme.wallBasePath() + " is " + tallness + " times as tall as it is wide,"
-                            + " so filling a storey with it leaves gaps or floods the map");
+            assertEquals(1f, tallness, 0.2f, theme.rockFacePath() + " is " + tallness
+                    + " times as tall as it is wide, so a storey of it is not a cell wide");
+            // And a slab rather than a block, or its own depth eats the cell behind.
+            assertTrue(box.getZExtent() < box.getXExtent(),
+                    theme.rockFacePath() + " is as deep as it is wide — that is a plinth,"
+                            + " not a face");
             checked++;
         }
         assertTrue(checked > 0, "some theme should be naming one, or this test proves nothing");
     }
 
     /**
-     * The lid over the rock is drawn in a different colour from the floor.
+     * A theme whose walls stand up draws their tops in a different colour from the
+     * floor.
      *
      * <p>Both are the same tile — the client lays a floor piece at the top of the
      * walls to roof the stone — facing the same way, so one sun shades them
      * identically and a player looking down a slope cannot tell which of the two he
      * is allowed to walk on. It was reported as "no depth", and no angle of light
      * can fix it: the two normals are the same normal.
+     *
+     * <p><b>Asked only of the themes with wall height</b>, and that is a correction
+     * rather than an exemption. It was asked of all of them, the wood was given a
+     * tint too, and the first player to see it asked why there was a shadow under
+     * every tree. There was not — there was a tinted <em>square</em>, one per cell,
+     * which is the grid that {@code WallClump}, {@code WallSpread} and
+     * {@code WallVariety} exist to hide, handed straight back. In a cellar the tint
+     * costs nothing because masonry is laid on cell boundaries and the grid is
+     * already on show; where the lid lies at the floor's own height and a tree
+     * stands on it, the tint is all you see of it.
      */
     @Test
-    void everyThemeTellsTheLidOnTheRockApartFromTheFloor() {
+    void everyThemeWhoseWallsStandUpTellsTheirTopsFromTheFloor() {
+        int checked = 0;
         for (var theme : uz.duke.dungeon.content.DungeonSettings.load().themes().all()) {
+            if (theme.wallHeight() <= 0f) {
+                continue; // its lids lie on the ground; what marks them is what stands on them
+            }
             assertNotEquals(0xFFFFFF, theme.capTint(),
                     theme.name() + " draws the top of its walls in exactly the floor's colours");
+            checked++;
         }
+        assertTrue(checked > 0, "some theme should have walls with height, or this proves nothing");
     }
 
     /**

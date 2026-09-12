@@ -65,27 +65,23 @@ final class TileLayout {
          */
         STAIR,
         /**
-         * What a piece of raised rock is made of underneath, one storey at a time.
+         * The exposed side of a block of rock, where the kit's own wall cannot
+         * draw it.
          *
-         * <p>The mass rather than a face of it. Masonry never needs this: a wall is
-         * a surface, so a block of rock two storeys tall is walled in courses from
-         * whatever open ground can see it, and the volume between the courses is
-         * enclosed by them. A kit whose wall is a <em>thing</em> — a tree — has no
-         * courses to stack, and the thing is drawn once on top of the rock. Then
-         * the rock below it is drawn by nothing at all, and a tree standing where
-         * a room's floor is stands in mid-air with daylight under it.
+         * <p><b>Named by the renderer, not by this class.</b> Every piece here is
+         * a face the layout already worked out — a {@link #WALL} against stone or
+         * a {@link #LEDGE} between two lids — and for a kit of masonry that is the
+         * end of it: a wall is a surface, so the courses stacked up the outside of
+         * a block of rock are what the player sees of it.
          *
-         * <p>So the rock says what it is made of. A kit that names no such piece
-         * gets none, which is every kit that came before this and every kit whose
-         * walls already tile.
-         *
-         * <p>Filled from the ground up rather than only at the edges. The interior
-         * of a plateau is hidden by its own rim and could be left out, but on a
-         * real floor almost every raised cell <em>is</em> rim — measured at 36 of
-         * 36, 60 of 76, 114 of 114 — so the rule that cannot leave a hole costs
-         * nothing over the rule that has to be right about which cells show.
+         * <p>A kit whose wall is a <em>thing</em> has no courses. It draws one
+         * tree per block of rock and used to throw the faces away, which left the
+         * side of a raised block drawn by nothing at all — so a tree crowning the
+         * rock beside a room two storeys up stood at the room's own height with
+         * daylight under it. Keeping the faces and drawing them with a piece the
+         * kit names is what holds the wood up: see {@link Tileset#rockFace}.
          */
-        BASE
+        ROCK_FACE
     }
 
     /**
@@ -160,7 +156,6 @@ final class TileLayout {
                     placements.add(new Placement(Piece.CAP, cx, cy,
                             (cx + 0.5f) * cell, (cy + 0.5f) * cell, 0f, lid));
                     addLedges(placements, grid, cx, cy, cell, lid);
-                    addBase(placements, grid, cx, cy, cell, lid);
                     continue; // the stone itself is not drawn; it is what the walls face
                 }
                 float ground = grid.groundHeight(cx, cy);
@@ -267,32 +262,6 @@ final class TileLayout {
             for (float foot = theirs; foot < lid - storey * 0.5f; foot += storey) {
                 into.add(new Placement(Piece.LEDGE, cx, cy, x, z, outward, foot));
             }
-        }
-    }
-
-    /**
-     * What a piece of raised rock stands on, from the ground up to its own lid.
-     *
-     * <p>The counterpart to {@link #addLedges}, and the two together are the same
-     * rule read twice. A ledge draws the <em>face</em> of a step in the roof, which
-     * is all a surface kit needs because its walls tile the rest. This draws the
-     * <em>mass</em>, which is what a kit whose wall is a thing has no other way to
-     * say — see {@link Piece#BASE}.
-     *
-     * <p>One piece per storey, feet at 0, one storey, two, up to the lid. So a kit
-     * fills a two-storey plinth with two of whatever it is made of rather than one
-     * of them stretched to twice its height, which for a boulder is the difference
-     * between a pile of rock and a balloon.
-     */
-    private static void addBase(List<Placement> into, PathGrid grid, int cx, int cy, float cell,
-            float lid) {
-        float storey = grid.getLevelHeight();
-        if (storey <= 0f || lid <= 0f) {
-            return; // rock standing on the ground is already sitting on it
-        }
-        for (float foot = 0f; foot < lid - storey * 0.5f; foot += storey) {
-            into.add(new Placement(Piece.BASE, cx, cy,
-                    (cx + 0.5f) * cell, (cy + 0.5f) * cell, 0f, foot));
         }
     }
 

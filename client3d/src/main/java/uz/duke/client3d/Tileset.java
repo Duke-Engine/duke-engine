@@ -22,7 +22,7 @@ public final class Tileset {
     private String wall;
     private String corner;
     private String stairs;
-    private String base;
+    private String rockFace;
     private float tileSize = 4f;
     private float wallTileSize = 0f;
     private float wallHeight = 4f;
@@ -52,13 +52,14 @@ public final class Tileset {
      * <p>A tree is not a surface, and every one of those is wrong for it. It has
      * one body, so drawing both faces of a thin wall drew the same tree twice —
      * once at the foot of the rock and once on the roof, with the lid between them,
-     * which is what two storeys of forest looked like. And two storeys of tree is
-     * not two trees: it is a bigger tree, bigger all round rather than taller and
-     * no wider.
+     * which is what two storeys of forest looked like.
      *
      * <p>So a kit that says yes here is drawn once per piece of rock, in the middle
-     * of it, grown from the lowest floor beside it to the highest. The rock is the
-     * thing; the tree is how this kit draws it.
+     * of it and <b>on top of it</b>, at its own size whatever the rock is. The rock
+     * is the thing; the tree is what grows on it.
+     *
+     * <p>Which leaves the sides of the rock, and they are not this piece's to draw:
+     * see {@link #rockFace}.
      */
     public Tileset wallFillsRock(boolean fills) {
         this.wallFillsRock = fills;
@@ -311,28 +312,38 @@ public final class Tileset {
     }
 
     /**
-     * What a piece of raised rock is made of underneath — a boulder, a block of
-     * earth, a slab of the same stone.
+     * What the exposed side of a block of rock is drawn with, for a kit whose own
+     * wall cannot draw it.
      *
-     * <p>Only a kit whose wall is a thing rather than a surface needs one. Masonry
-     * walls a two-storey block of rock in two courses and the volume between them
-     * is enclosed; a tree is drawn once, on top, and leaves the rock below it drawn
-     * by nothing — so a tree standing at a raised room's floor stands in the air.
-     * See {@link TileLayout.Piece#BASE}.
+     * <p>Only a kit whose wall is a <em>thing</em> needs one. Masonry walls a
+     * two-storey block of rock in two courses, and those courses <b>are</b> the
+     * sides of it; a tree is drawn once on top and the sides are left to nothing,
+     * so a tree crowning the rock beside a room two storeys up stands in the air.
      *
-     * <p>Scaled to the cell it fills and <b>never stretched</b>: two storeys is two
-     * of them stacked. A rock is any size and still a rock; a rock twice as tall as
-     * it is wide is a pillar.
+     * <p>A retaining wall, then, and it is drawn from the faces the layout worked
+     * out anyway — see {@link TileLayout.Piece#ROCK_FACE}. Not a body filling the
+     * block: the inside of a mass of rock is not visible and drawing it would be
+     * paying for what nobody sees.
+     *
+     * <p>Scaled by what it measures rather than by a number written down, like the
+     * stair: its height is made to fill one storey exactly, uniformly, so a kit is
+     * right by being shipped and a slab is never stretched into a different shape.
+     *
+     * <p>Drawn only where the rock <b>stands above</b> the foot of the face. A kit
+     * that lays its lids on the ground — a wood, where what you cannot walk into is
+     * a tree line rather than a wall — has rock at the floor's own height almost
+     * everywhere, and a retaining wall under every tree would be a stone kerb round
+     * the whole forest.
      *
      * <p>A kit that names none is drawn exactly as it was before this existed.
      */
-    public Tileset base(String assetPath) {
-        this.base = assetPath;
+    public Tileset rockFace(String assetPath) {
+        this.rockFace = assetPath;
         return this;
     }
 
-    public String getBase() {
-        return base;
+    public String getRockFace() {
+        return rockFace;
     }
 
     /**

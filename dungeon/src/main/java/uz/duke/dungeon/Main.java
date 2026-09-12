@@ -229,7 +229,7 @@ public final class Main {
                             .wallClump(theme.standing().clump())
                             .wallSpread(theme.standing().spread())
                             .wallVariety(theme.standing().variety())
-                            .base(theme.wallBasePath())
+                            .rockFace(theme.rockFacePath())
                             .capTint(theme.capTint())
                             .storeyShade(theme.storeyShadePercent() / 100f)
                             .tint(tone.tint()));
