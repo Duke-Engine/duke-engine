@@ -3295,6 +3295,39 @@ tartib nuqsoni — uni ushlash uchun ishlayotgan ilova, timer va composer kerak.
 `playOnce` dagi bitta qatorli qo'riqchini test qilish tartibni emas, o'sha
 qatorni tekshirardi. Klip to'g'riligini esa yuqoridagi o'lchov tasdiqlaydi.
 
+#### ★ Ikkinchi nuqson: sehrgar yotib animatsiya qilardi
+
+O'yinchi ikkinchi marta aytdi. Sabab — o'q (axis) mos kelmasligi, va u
+`root` suyagida edi:
+
+| Klip | `root` burilishi | kalitlar |
+|---|---|---|
+| KayKit'ning barcha kliplari | **0°** | 2, doimiy |
+| Import qilingan klip | **x = −90°** | 3, doimiy |
+
+FBX Z-up, glTF esa Y-up. Blender eksporteri bu o'girishni `root` ga yozadi —
+o'z faylida to'g'ri, lekin `root` i birlik bo'lgan modelga retarget qilingandan
+keyin u **o'girish emas, buyruq** bo'lib qoladi, va buyruq: *yot*.
+
+**Blender tomonidan tuzatib bo'lmadi.** Armature obyektining transformini
+tozalash ham, teskari +90° berish ham natijani o'zgartirmadi — eksporter
+o'girishni obyekt nima deyishidan qat'i nazar yozadi.
+
+Yechim `AnimationLibrary` da, va u **allaqachon mavjud qoidaning ikkinchi
+yarmi**: `heldInPlace` root ning gorizontal siljishini tashlaydi, chunki
+*qayerda turishini simulyatsiya hal qiladi*. Endi `facingIsTheGames` root ning
+burilishini ham tashlaydi, chunki *qayerga qarab turishini ham simulyatsiya hal
+qiladi*. Root bu joylashuv suyagi — tanani burmoqchi bo'lgan har bir klip
+hips ni buradi.
+
+Mavjud kutubxonalarga ta'siri **nol**: ularning root i allaqachon birlik.
+O'lchov bilan tasdiqlandi — tuzatishdan keyin root 0°, qo'l esa hamon 783°
+buriladi, ya'ni boshqa hech narsa tekislanmagan.
+
+**Buning testi bor** (o'tgan nuqsondan farqli): `nothingAHeroBorrowsTurnsHimOver`
+har qahramon oladigan har bir klipni retargetdan **keyin** tekshiradi va root da
+burilish bo'lsa yiqiladi. Sabotaj bilan tasdiqlandi.
+
 #### Testlar
 
 `everyGestureASkillIsCastWithIsOnTheHeroWhoCastsIt` — eng muhimi. Klip skill

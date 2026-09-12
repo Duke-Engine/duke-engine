@@ -130,7 +130,8 @@ public final class AnimationLibrary {
             }
             tracks.add(new TransformTrack(mine, transform.getTimes(),
                     heldInPlace(mine, transform.getTranslations()),
-                    transform.getRotations(), transform.getScales()));
+                    facingIsTheGames(mine, transform.getRotations()),
+                    transform.getScales()));
         }
         if (tracks.isEmpty()) {
             return null; // nothing in common: a different skeleton altogether
@@ -167,6 +168,37 @@ public final class AnimationLibrary {
             held[at] = new Vector3f(0f, translations[at].y, 0f);
         }
         return held;
+    }
+
+    /**
+     * The same movement with the turning taken off the root.
+     *
+     * <p>The other half of {@link #heldInPlace}, and the same rule: the simulation
+     * owns where a creature is <em>and which way it faces</em>, so a clip may move
+     * the body and may not move the unit. Only the root is touched, and the root
+     * in these rigs is a placement bone — every clip that means to turn a
+     * character turns its hips, which is why taking this off changes nothing in
+     * any of the libraries the game already ships. Theirs is the identity.
+     *
+     * <p><b>What it is actually for is imported animation.</b> FBX is authored
+     * Z-up and glTF is Y-up, and the conversion has to land somewhere: Blender's
+     * exporter writes it onto the root as a quarter turn about X, constant across
+     * every key, whatever the armature itself says. Retargeted onto a model whose
+     * own root is the identity, that quarter turn is not a conversion any more —
+     * it is an instruction, and the instruction is <em>lie down</em>.
+     *
+     * <p>Measured rather than guessed at: the imported clip's root carried three
+     * keys of −90° about X and never varied, while every KayKit clip carries two
+     * keys of nothing. A constant is a placement, and placements are the game's.
+     */
+    private static com.jme3.math.Quaternion[] facingIsTheGames(Joint joint,
+            com.jme3.math.Quaternion[] rotations) {
+        if (rotations == null || joint.getParent() != null) {
+            return rotations;
+        }
+        var still = new com.jme3.math.Quaternion[rotations.length];
+        java.util.Arrays.fill(still, new com.jme3.math.Quaternion());
+        return still;
     }
 
     /**

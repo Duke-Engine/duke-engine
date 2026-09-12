@@ -30,6 +30,7 @@ fails loudly rather than exporting something that will animate nothing.
 """
 
 import sys
+
 import bpy
 
 # The joints a KayKit character is built on. Checked rather than assumed: a clip
@@ -66,6 +67,21 @@ def convert(source, target, clip_name):
 
     for mesh in [o for o in bpy.data.objects if o.type == "MESH"]:
         bpy.data.objects.remove(mesh, do_unlink=True)
+
+    # THE ARMATURE STANDS WHERE IT WAS PUT. The download's object carries a
+    # rotation of its own -- (91.6, -3.9, -58.3) degrees here -- which is where
+    # the character happened to be standing when it was uploaded rather than
+    # anything about the movement. Cleared, so nothing but the pose is exported.
+    #
+    # It is NOT what lays him down in the game: that is the exporter's own Z-up
+    # to Y-up conversion, which it writes onto the root as a quarter turn about
+    # X whatever this object says, and which is dealt with on the other side --
+    # see AnimationLibrary.facingIsTheGames.
+    armature = armatures[0]
+    armature.location = (0.0, 0.0, 0.0)
+    armature.rotation_mode = "XYZ"
+    armature.rotation_euler = (0.0, 0.0, 0.0)
+    armature.scale = (1.0, 1.0, 1.0)
 
     # The exporter writes whatever the scene's frame range is, not the action's.
     scene = bpy.context.scene

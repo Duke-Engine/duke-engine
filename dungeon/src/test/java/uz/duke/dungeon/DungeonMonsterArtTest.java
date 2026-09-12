@@ -581,6 +581,73 @@ class DungeonMonsterArtTest {
         }
     }
 
+    /**
+     * Nothing a hero borrows turns him over.
+     *
+     * <p>A clip drives the joints by name, and the top one -- {@code root} -- is
+     * not a joint of the body at all: it is where the body is put and which way it
+     * points, and the simulation owns both. So a clip that writes a rotation there
+     * is not animating, it is overruling, and what the player sees is a hero lying
+     * on his back doing something perfectly normal with his arms.
+     *
+     * <p>Which is exactly what happened. FBX is authored Z-up and glTF is Y-up,
+     * and Blender's exporter puts the conversion on the root as a constant quarter
+     * turn about X -- correct in the file it came from, an instruction to lie down
+     * once retargeted onto a model whose own root is the identity. Every KayKit
+     * clip carries nothing there; the imported one carried -90, and the difference
+     * is the whole of the bug.
+     *
+     * <p>Asked of the clip AFTER retargeting, because that is where it is settled
+     * -- see {@code AnimationLibrary.facingIsTheGames} -- and asked of every clip
+     * every hero borrows rather than of the one that went wrong, since the next
+     * import will come in through the same door.
+     */
+    @Test
+    void nothingAHeroBorrowsTurnsHimOver() {
+        int checked = 0;
+        for (var hero : SETTINGS.heroes()) {
+            if (!hero.hasModel()) {
+                continue;
+            }
+            var wanted = new ArrayList<>(hero.clips());
+            for (var skill : SETTINGS.skillsFor(hero.name())) {
+                if (skill.castAnim() != null && !skill.castAnim().isBlank()) {
+                    wanted.add(skill.castAnim());
+                }
+            }
+            var model = assets().loadModel(hero.model());
+            for (var path : hero.animations()) {
+                AnimationLibrary.copy(assets().loadModel(path), model, wanted);
+            }
+            var composer = control(model, AnimComposer.class);
+            for (var name : wanted) {
+                var clip = composer.getAnimClip(name);
+                if (clip == null) {
+                    continue; // named for another hero's library; covered elsewhere
+                }
+                for (var track : clip.getTracks()) {
+                    if (!(track instanceof com.jme3.anim.TransformTrack moved)
+                            || !(moved.getTarget() instanceof com.jme3.anim.Joint joint)
+                            || joint.getParent() != null || moved.getRotations() == null) {
+                        continue;
+                    }
+                    for (var turn : moved.getRotations()) {
+                        var angles = new float[3];
+                        turn.toAngles(angles);
+                        for (var angle : angles) {
+                            assertEquals(0f, Math.toDegrees(angle), 1.0,
+                                    hero.name() + "'s " + name + " turns his root joint, which"
+                                            + " is the one the game aims — he will play it"
+                                            + " lying down");
+                        }
+                    }
+                    checked++;
+                }
+            }
+        }
+        assertTrue(checked > 0, "some hero should borrow a clip with a root track");
+    }
+
     /** How long a hero's cast clip runs, out of whichever library holds it. */
     private static float lengthOfCast(uz.duke.dungeon.content.HeroLook hero, String clip) {
         for (var path : hero.animations()) {
