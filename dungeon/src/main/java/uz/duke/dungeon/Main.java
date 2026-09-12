@@ -170,6 +170,34 @@ public final class Main {
     }
 
     /**
+     * How a creature's bar is drawn, handed over whole.
+     *
+     * <p>Package-private rather than private so the game's own test can ask for
+     * exactly what the client will be given. The table is the thing worth
+     * checking -- see {@code DungeonUnitBarTest} -- and a test that rebuilt it
+     * from the same accessors would be checking its own copy.
+     */
+    static uz.duke.client3d.UnitBarLook unitBars(DungeonSettings settings) {
+        var steps = new java.util.ArrayList<uz.duke.client3d.UnitBarLook.Step>();
+        for (var rung : settings.unitBarSegments()) {
+            steps.add(new uz.duke.client3d.UnitBarLook.Step(rung.upTo(), rung.value()));
+        }
+        return new uz.duke.client3d.UnitBarLook(steps,
+                settings.unitBarShortestAt(), settings.unitBarLongestAt(),
+                settings.unitBarShortest(), settings.unitBarLongest(),
+                settings.unitBarHeight(), settings.unitBarManaHeight(),
+                settings.unitBarGap(), settings.unitBarLift(),
+                settings.unitBarRing(), settings.unitBarRingEdge(),
+                settings.unitBarRingGap(), settings.unitBarArc(),
+                settings.unitBarEnemy(), settings.unitBarFriend(), settings.unitBarMana(),
+                settings.unitBarTrough(), settings.unitBarTick(), settings.unitBarRingFace(),
+                settings.unitBarRingRim(), settings.unitBarBossRim(),
+                settings.unitBarArcColour(), settings.unitBarLettering(),
+                settings.unitBarNameSize(), settings.unitBarBossNameSize(),
+                settings.unitBarCountSize(), settings.unitBarLevelSize());
+    }
+
+    /**
      * Every moment the game has a sound for, handed to the client at launch.
      *
      * <p>Nothing here is a decision. Which channel, how loud, how far apart and
@@ -877,6 +905,7 @@ public final class Main {
         // dungeon.ini. The client knows where a socket goes; this says what its
         // rim is made of.
         visuals.panelSkin(panelSkin(settings));
+        visuals.unitBars(unitBars(settings));
 
         // And what the mouse pointer looks like over each thing -- see
         // DungeonCursor in dungeon.ini. The client knows what is under the

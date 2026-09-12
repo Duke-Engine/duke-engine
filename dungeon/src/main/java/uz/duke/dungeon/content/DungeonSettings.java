@@ -337,6 +337,10 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, HUD);
                 }),
+                Map.entry("DungeonUnitBar", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, UNIT_BAR);
+                }),
                 Map.entry("DungeonMenu", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, MENU);
@@ -2301,6 +2305,221 @@ public final class DungeonSettings {
                     .add("Colour", (ini, s) -> s.sunColour = Integer.decode(ini.getNextToken()))
                     .add("AmbientTint",
                             (ini, s) -> s.sunAmbientTint = Integer.decode(ini.getNextToken()));
+
+    // ---- the bar over a creature's head ----
+
+    /**
+     * One rung of the bar's segment table, exactly as the file writes it.
+     *
+     * <p>Its own little record rather than a pair of parallel lists, because two
+     * lists that have to be the same length are two lists that one day are not,
+     * and the file gives no hint which of them the missing entry belonged to.
+     *
+     * @param upTo  the greatest health this rung covers, or 0 for the open end
+     * @param value how much health one mark is worth here
+     */
+    public record BarStep(int upTo, int value) {
+    }
+
+    private final java.util.List<BarStep> unitBarSegments = new java.util.ArrayList<>();
+
+    private int unitBarShortestAt = 30;
+    private int unitBarLongestAt = 1400;
+    private float unitBarShortest = 80f;
+    private float unitBarLongest = 220f;
+    private float unitBarHeight = 13f;
+    private float unitBarManaHeight = 6f;
+    private float unitBarGap = 2f;
+    private float unitBarLift = 1.4f;
+    private float unitBarRing = 26f;
+    private float unitBarRingEdge = 2f;
+    private float unitBarRingGap = 4f;
+    private float unitBarArc = 3f;
+    private int unitBarEnemy = 0xA8322B;
+    private int unitBarFriend = 0x8FC4AE;
+    private int unitBarMana = 0x3E6FA8;
+    private int unitBarTrough = 0x16130F;
+    private int unitBarTick = 0x0A0806;
+    private int unitBarRingFace = 0x16130F;
+    private int unitBarRingRim = 0x8FC4AE;
+    private int unitBarBossRim = 0xE8A33D;
+    private int unitBarArcColour = 0xC9A24B;
+    private int unitBarLettering = 0xD9CFBA;
+    private float unitBarNameSize = 11f;
+    private float unitBarBossNameSize = 15f;
+    private float unitBarCountSize = 10f;
+    private float unitBarLevelSize = 12f;
+
+    /**
+     * The segment table, coarsest last, or empty for a game that draws no bars.
+     *
+     * <p>Empty is the meaningful default and the scalars above are not: without a
+     * table there is nothing to divide a bar into, so the client draws none at
+     * all rather than inventing lots of its own. See {@code UnitBarLook.NONE}.
+     */
+    public java.util.List<BarStep> unitBarSegments() {
+        return java.util.List.copyOf(unitBarSegments);
+    }
+
+    public int unitBarShortestAt() {
+        return unitBarShortestAt;
+    }
+
+    public int unitBarLongestAt() {
+        return unitBarLongestAt;
+    }
+
+    public float unitBarShortest() {
+        return unitBarShortest;
+    }
+
+    public float unitBarLongest() {
+        return unitBarLongest;
+    }
+
+    public float unitBarHeight() {
+        return unitBarHeight;
+    }
+
+    public float unitBarManaHeight() {
+        return unitBarManaHeight;
+    }
+
+    public float unitBarGap() {
+        return unitBarGap;
+    }
+
+    public float unitBarLift() {
+        return unitBarLift;
+    }
+
+    public float unitBarRing() {
+        return unitBarRing;
+    }
+
+    public float unitBarRingEdge() {
+        return unitBarRingEdge;
+    }
+
+    public float unitBarRingGap() {
+        return unitBarRingGap;
+    }
+
+    public float unitBarArc() {
+        return unitBarArc;
+    }
+
+    public int unitBarEnemy() {
+        return unitBarEnemy;
+    }
+
+    public int unitBarFriend() {
+        return unitBarFriend;
+    }
+
+    public int unitBarMana() {
+        return unitBarMana;
+    }
+
+    public int unitBarTrough() {
+        return unitBarTrough;
+    }
+
+    public int unitBarTick() {
+        return unitBarTick;
+    }
+
+    public int unitBarRingFace() {
+        return unitBarRingFace;
+    }
+
+    public int unitBarRingRim() {
+        return unitBarRingRim;
+    }
+
+    public int unitBarBossRim() {
+        return unitBarBossRim;
+    }
+
+    public int unitBarArcColour() {
+        return unitBarArcColour;
+    }
+
+    public int unitBarLettering() {
+        return unitBarLettering;
+    }
+
+    public float unitBarNameSize() {
+        return unitBarNameSize;
+    }
+
+    public float unitBarBossNameSize() {
+        return unitBarBossNameSize;
+    }
+
+    public float unitBarCountSize() {
+        return unitBarCountSize;
+    }
+
+    public float unitBarLevelSize() {
+        return unitBarLevelSize;
+    }
+
+    /**
+     * How a creature's bar is drawn. Everything here is found by eye, which is
+     * why none of it is in the client -- see {@code uz.duke.client3d.UnitBarLook}.
+     */
+    private static final FieldParseTable<DungeonSettings> UNIT_BAR =
+            new FieldParseTable<DungeonSettings>()
+                    // "<up to>:<worth>", and "*" for the rung with no ceiling.
+                    // One field rather than two, so a rung cannot be half-written.
+                    .add("Segments", (ini, s) -> {
+                        for (var rung : ini.getRestOfLine().trim().split("\s+")) {
+                            var halves = rung.split(":", 2);
+                            if (halves.length < 2 || halves[1].isBlank()) {
+                                continue;
+                            }
+                            int upTo = "*".equals(halves[0]) ? 0 : Integer.parseInt(halves[0]);
+                            s.unitBarSegments.add(
+                                    new BarStep(upTo, Integer.parseInt(halves[1])));
+                        }
+                    })
+                    .add("ShortestAt", Ini.integer((s, v) -> s.unitBarShortestAt = v))
+                    .add("LongestAt", Ini.integer((s, v) -> s.unitBarLongestAt = v))
+                    .add("Shortest", Ini.real((s, v) -> s.unitBarShortest = v))
+                    .add("Longest", Ini.real((s, v) -> s.unitBarLongest = v))
+                    .add("Height", Ini.real((s, v) -> s.unitBarHeight = v))
+                    .add("ManaHeight", Ini.real((s, v) -> s.unitBarManaHeight = v))
+                    .add("Gap", Ini.real((s, v) -> s.unitBarGap = v))
+                    .add("Lift", Ini.real((s, v) -> s.unitBarLift = v))
+                    .add("Ring", Ini.real((s, v) -> s.unitBarRing = v))
+                    .add("RingEdge", Ini.real((s, v) -> s.unitBarRingEdge = v))
+                    .add("RingGap", Ini.real((s, v) -> s.unitBarRingGap = v))
+                    .add("Arc", Ini.real((s, v) -> s.unitBarArc = v))
+                    .add("Enemy",
+                            (ini, s) -> s.unitBarEnemy = Integer.decode(ini.getNextToken()))
+                    .add("Friend",
+                            (ini, s) -> s.unitBarFriend = Integer.decode(ini.getNextToken()))
+                    .add("Mana",
+                            (ini, s) -> s.unitBarMana = Integer.decode(ini.getNextToken()))
+                    .add("Trough",
+                            (ini, s) -> s.unitBarTrough = Integer.decode(ini.getNextToken()))
+                    .add("Tick",
+                            (ini, s) -> s.unitBarTick = Integer.decode(ini.getNextToken()))
+                    .add("RingFace",
+                            (ini, s) -> s.unitBarRingFace = Integer.decode(ini.getNextToken()))
+                    .add("RingRim",
+                            (ini, s) -> s.unitBarRingRim = Integer.decode(ini.getNextToken()))
+                    .add("BossRim",
+                            (ini, s) -> s.unitBarBossRim = Integer.decode(ini.getNextToken()))
+                    .add("ArcColour",
+                            (ini, s) -> s.unitBarArcColour = Integer.decode(ini.getNextToken()))
+                    .add("Lettering",
+                            (ini, s) -> s.unitBarLettering = Integer.decode(ini.getNextToken()))
+                    .add("NameSize", Ini.real((s, v) -> s.unitBarNameSize = v))
+                    .add("BossNameSize", Ini.real((s, v) -> s.unitBarBossNameSize = v))
+                    .add("CountSize", Ini.real((s, v) -> s.unitBarCountSize = v))
+                    .add("LevelSize", Ini.real((s, v) -> s.unitBarLevelSize = v));
 
     private String hudDepthWord = "DEPTH";
     private String hudRankSuffix = "-lv";

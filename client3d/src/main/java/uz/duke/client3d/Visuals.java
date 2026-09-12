@@ -889,6 +889,24 @@ public final class Visuals {
         return orderMark;
     }
 
+    private UnitBarLook unitBars = UnitBarLook.NONE;
+
+    /**
+     * What the bar over a creature's head is made of — see {@link UnitBarLook}.
+     *
+     * <p>Naming none means none is drawn, which is the right answer for the three
+     * games that are not this one: a bar divided into lots the client invented
+     * would be marks that mean nothing.
+     */
+    public Visuals unitBars(UnitBarLook look) {
+        this.unitBars = look == null ? UnitBarLook.NONE : look;
+        return this;
+    }
+
+    public UnitBarLook getUnitBars() {
+        return unitBars;
+    }
+
     private RangeLook rangeLook = RangeLook.DEFAULT;
     private final Map<Character, SkillRange> skillRanges = new LinkedHashMap<>();
 
