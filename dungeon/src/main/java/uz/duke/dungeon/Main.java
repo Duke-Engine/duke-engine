@@ -892,6 +892,11 @@ public final class Main {
                 settings.fogVisiblePercent() / 100f, settings.fogSoftenCells(),
                 settings.fogOpenPerSecond(), settings.fogTextureSize(), settings.fogTint()));
 
+        // Whether the panel may colour the skill pictures. It always did, which is
+        // how one white drawing served three states; a painted set cannot take it
+        // — see IconLook.
+        visuals.iconLook(new uz.duke.client3d.IconLook(settings.hudPaintedSkillIcons()));
+
         // Where the light comes from — see DungeonSun. The pitch is what decides
         // whether the floor plan reads as a place with heights in it.
         visuals.sunlight(new uz.duke.client3d.Sunlight(settings.sunPitch(), settings.sunYaw(),

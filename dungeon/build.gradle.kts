@@ -15,6 +15,26 @@ application {
 }
 
 // ---------------------------------------------------------------------------
+// Cuts the icon sheets in dungeon/art/icons into one file per icon:
+//
+//   ./gradlew :dungeon:cutIcons
+//
+// Here rather than done by hand for the reason the example stage is: twenty-two
+// crops nobody can repeat are twenty-two crops nobody dares change. The sheets
+// themselves are kept beside the tool, outside resources, so they travel with
+// the repository without travelling inside the game.
+// ---------------------------------------------------------------------------
+tasks.register<JavaExec>("cutIcons") {
+    group = "application"
+    description = "Cut the icon sheets into the game's own icon folders"
+    mainClass.set("uz.duke.dungeon.tools.IconSheets")
+    classpath = sourceSets["main"].runtimeClasspath
+    // From the repository root, so the paths in the Java are the paths you would
+    // type -- the same reason :worldbuilder:writeExampleStage sets this.
+    workingDir = rootProject.projectDir
+}
+
+// ---------------------------------------------------------------------------
 // The installer, for the machine you are sitting at.
 //
 //   ./gradlew :dungeon:packageInstaller

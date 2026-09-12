@@ -233,6 +233,15 @@ final class HeroPanel {
      */
     private static final float ICON_SHARE = 0.62f;
 
+    /**
+     * The same, for an order button and for a figure under the bars.
+     *
+     * <p>A shade more than a skill's, because both of those are small squares and
+     * a picture that leaves a third of a twenty-two pixel socket empty is a
+     * picture nobody can make out.
+     */
+    private static final float ORDER_ICON_SHARE = 0.68f;
+
     private static final Logger LOG = Logger.getLogger(HeroPanel.class.getName());
 
     /**
@@ -251,6 +260,9 @@ final class HeroPanel {
 
     /** Pictures the game named and the client could not find — warned about once each. */
     private final Set<String> missingIcons = new HashSet<>();
+
+    /** Whether the game's pictures are white drawings or painted — see {@link IconLook}. */
+    private final IconLook icons;
 
     /** What the panel's edges are painted with, if the game asked for anything. */
     private final PanelSkin skin;
@@ -306,6 +318,12 @@ final class HeroPanel {
 
     HeroPanel(AssetManager assets, BitmapFont font, Node guiNode, float screenWidth,
             PanelSkin skin, RangeLook aiming) {
+        this(assets, font, guiNode, screenWidth, skin, aiming, IconLook.DEFAULT);
+    }
+
+    HeroPanel(AssetManager assets, BitmapFont font, Node guiNode, float screenWidth,
+            PanelSkin skin, RangeLook aiming, IconLook icons) {
+        this.icons = icons == null ? IconLook.DEFAULT : icons;
         this.assets = assets;
         this.font = font;
         this.screenWidth = screenWidth;
@@ -1114,10 +1132,19 @@ final class HeroPanel {
         attach(button.node, button.brackets, 0f, 0f, 39f);
         button.brackets.setCullHint(Spatial.CullHint.Always);
         boolean blank = button.key == BLANK && order.icon().isBlank();
-        button.glyph = new Geometry("order-glyph",
-                blank ? new Mesh() : Glyphs.of(order.icon(), size * 0.52f));
-        button.glyph.setMaterial(lines(blank ? DEAD : GOLD));
-        attach(button.node, button.glyph, size / 2f, size / 2f, 4f);
+        // A picture from the game's own file, like the skills beside it. A
+        // missing one falls back to nothing rather than losing the button: the
+        // key in the corner is what the button is for teaching anyway.
+        var drawn = blank ? null : picture(order.icon(), size, ORDER_ICON_SHARE, GOLD);
+        if (drawn == null) {
+            button.glyph = new Geometry("order-glyph", new Mesh());
+            button.glyph.setMaterial(lines(DEAD));
+            attach(button.node, button.glyph, size / 2f, size / 2f, 4f);
+        } else {
+            button.glyph = drawn;
+            float inset = size * (1f - ORDER_ICON_SHARE) / 2f;
+            attach(button.node, button.glyph, inset, inset, 4f);
+        }
         // The key in the corner, because the button's whole job is to teach it.
         var key = text(10f, LABEL, 0f, -1f, size - 2f, BitmapFont.Align.Right);
         key.setText(button.key == BLANK ? "" : String.valueOf(button.key));
@@ -1315,7 +1342,6 @@ final class HeroPanel {
     private float statsTop;
 
     /** What each figure is drawn with, in the order the game sends them. */
-    private static final String[] STAT_GLYPHS = {"blade", "shield", "bolt", "heart"};
 
     private final List<BitmapText> statBonuses = new ArrayList<>();
     private final List<Node> statBoxes = new ArrayList<>();
@@ -1358,7 +1384,7 @@ final class HeroPanel {
             for (int i = 0; i < stats.size(); i++) {
                 float x = (i % 2) * cell;
                 float y = statsTop - (i / 2) * (STAT_ICON + 6f) - STAT_ICON;
-                statBoxes.add(statBox(x, y, i));
+                statBoxes.add(statBox(x, y, stats.get(i).icon()));
                 // Word, then figure, then what is lent -- in reading order, each
                 // given the room the one before it did not use.
                 var label = text(12f, LABEL, x + STAT_ICON + 6f, y + 4f, cell - STAT_ICON - 6f,
@@ -1382,18 +1408,30 @@ final class HeroPanel {
         }
     }
 
-    /** One figure's drawing, in a socket of its own beside the word. */
-    private Node statBox(float x, float y, int index) {
+    /**
+     * One figure's drawing, in a socket of its own beside the word.
+     *
+     * <p>The picture is the game's, named beside the figure it belongs to. It
+     * used to be picked out of an array here by which figure this was, which
+     * meant the client held an opinion about what a game's third statistic is —
+     * and a game with a fourth got whatever the last one happened to be.
+     */
+    private Node statBox(float x, float y, String icon) {
         var box = new Node("stat-box");
         attach(box, flat("stat-edge", STAT_ICON, STAT_ICON, EDGE), 0f, 0f, 0f);
         var stone = new Geometry("stat-stone",
                 gradient(STAT_ICON - 2f, STAT_ICON - 2f, STONE_LIT, STONE));
         stone.setMaterial(vertexColoured());
         attach(box, stone, 1f, 1f, 1f);
-        var glyph = new Geometry("stat-glyph",
-                Glyphs.of(STAT_GLYPHS[Math.min(index, STAT_GLYPHS.length - 1)], STAT_ICON * 0.6f));
-        glyph.setMaterial(lines(GOLD));
-        attach(box, glyph, STAT_ICON / 2f, STAT_ICON / 2f, 2f);
+        var drawn = picture(icon, STAT_ICON, ORDER_ICON_SHARE, GOLD);
+        var glyph = drawn != null ? drawn : new Geometry("stat-glyph", new Mesh());
+        if (drawn == null) {
+            glyph.setMaterial(lines(GOLD));
+            attach(box, glyph, STAT_ICON / 2f, STAT_ICON / 2f, 2f);
+        } else {
+            float inset = STAT_ICON * (1f - ORDER_ICON_SHARE) / 2f;
+            attach(box, glyph, inset, inset, 2f);
+        }
         framed(box, PanelSkin.CHIP, 0f, 0f, STAT_ICON, STAT_ICON, 2.5f);
         attach(vitals, box, x, y, 0f);
         return box;
@@ -1777,13 +1815,29 @@ final class HeroPanel {
      * before there were any pictures.
      */
     private Geometry picture(String icon, float size) {
+        return picture(icon, size, ICON_SHARE,
+                icons.paintedSkills() ? IconLook.AS_PAINTED : TORCH);
+    }
+
+    /**
+     * A picture to lay in a socket, at {@code share} of its width and starting in
+     * {@code colour}.
+     *
+     * <p>Shared by the skills, the four order buttons and the figures under the
+     * bars, which all used to draw their own way: the skills from a file, the
+     * other two from line drawings held in this class under names their own side
+     * of the wire had spelt out in Java. One path, so that a game which wants to
+     * change what an order looks like changes a line in its own file rather than
+     * a mesh in the client.
+     */
+    private Geometry picture(String icon, float size, float share, ColorRGBA colour) {
         var texture = iconTexture(assets, icon, missingIcons);
         if (texture == null) {
             return null;
         }
-        float side = size * ICON_SHARE;
+        float side = size * share;
         var quad = new Geometry("icon", new Quad(side, side));
-        var material = unshaded(TORCH);
+        var material = unshaded(colour);
         material.setTexture("ColorMap", texture);
         quad.setMaterial(material);
         return quad;
@@ -1902,14 +1956,36 @@ final class HeroPanel {
         return true;
     }
 
+    /**
+     * What colour a skill's picture is drawn in, for the three states it can be
+     * in when nothing is armed.
+     *
+     * <p>Two answers, and which one depends on what kind of picture the game
+     * ships — see {@link IconLook}. A white drawing becomes whatever it is
+     * multiplied by, so the state is a hue: torch, cold, dead. A painted one is
+     * already a colour and multiplying by a second is how a blue frost burst
+     * comes out gold, so the state is a brightness instead and the picture stays
+     * the picture.
+     *
+     * <p>Static and handed its look rather than reading the field, for the same
+     * reason {@link #iconTexture} is: this is arithmetic about colour with no
+     * window in it, and a test can hold it still without one.
+     */
+    static ColorRGBA skillColour(IconLook icons, boolean locked, boolean cooling) {
+        if (icons.paintedSkills()) {
+            return locked ? IconLook.PAINTED_DEAD
+                    : cooling ? IconLook.PAINTED_COLD : IconLook.AS_PAINTED;
+        }
+        return locked ? DEAD.mult(new ColorRGBA(1f, 1f, 1f, 0.5f))
+                : cooling ? GLYPH_COLD : TORCH;
+    }
+
     private void dress(Slot slot, Reading.SkillReading skill) {
         slot.state = skill.state;
         boolean locked = skill.state == Reading.State.LOCKED;
         boolean cooling = skill.state == Reading.State.COOLING;
         slot.deadStone.setCullHint(locked ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-        slot.glyph.getMaterial().setColor("Color", linear(
-                locked ? DEAD.mult(new ColorRGBA(1f, 1f, 1f, 0.5f))
-                        : cooling ? GLYPH_COLD : TORCH));
+        slot.glyph.getMaterial().setColor("Color", linear(skillColour(icons, locked, cooling)));
         // A painted rim goes dead with the rest of the socket. Left at full
         // strength it was the one bright thing on a slot he cannot cast, which
         // says the opposite of what the slot means — the whole reason the stone
@@ -1988,7 +2064,13 @@ final class HeroPanel {
         // dress, which runs first and knows nothing about what is armed -- and
         // which would otherwise have the one slot that matters drawn in the same
         // torch colour as the three that do not.
-        slot.glyph.getMaterial().setColor("Color", linear(selHi));
+        //
+        // A painted picture is left alone: the rim, the stone and the brackets
+        // round it have all gone cold already, and washing a fire arrow in cyan
+        // would make the one socket that matters the one you cannot read.
+        if (!icons.paintedSkills()) {
+            slot.glyph.getMaterial().setColor("Color", linear(selHi));
+        }
         // Quicker than the old gold lip breathed, because this one is asking for
         // something: a click has to come before anything else can happen.
         float breath = 0.72f + 0.28f * FastMath.sin(clock * FastMath.TWO_PI * 1.1f);
@@ -2656,8 +2738,13 @@ final class HeroPanel {
          * <p>{@code bonus} is empty when nothing is lent. It is a finished word
          * rather than a number because the sign is part of it and the panel is not
          * in the business of deciding whether a thing that went down is good news.
+         *
+         * <p>{@code icon} is a path to a picture, and empty for a game that names
+         * none. It comes down the wire with the figure rather than being chosen
+         * here by which figure this is, which is what the panel used to do — and
+         * which quietly decided that a game's third statistic is a lightning bolt.
          */
-        record Stat(String word, String value, String bonus) {
+        record Stat(String word, String value, String bonus, String icon) {
         }
 
         /** One socket in his bag: which drawing, and how many of it he carries. */
@@ -2859,7 +2946,8 @@ final class HeroPanel {
         private static Stat stat(String value) {
             var parts = value.split(",", -1);
             return parts.length < 2 ? null
-                    : new Stat(parts[0], parts[1], parts.length > 2 ? parts[2] : "");
+                    : new Stat(parts[0], parts[1], parts.length > 2 ? parts[2] : "",
+                            parts.length > 3 ? parts[3] : "");
         }
 
         /** {@code flask,3} — which drawing is in the socket, and how many of it. */

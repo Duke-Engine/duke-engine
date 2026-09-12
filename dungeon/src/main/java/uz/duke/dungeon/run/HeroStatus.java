@@ -167,15 +167,16 @@ final class HeroStatus {
         if (!settings.hudMonsterFace().isBlank()) {
             line.append("|face=").append(settings.hudMonsterFace());
         }
+        var pictures = settings.hudStatIcons();
         float damage = weaponDamage(creature.getTemplate()) * settings.monsterDamageAt(depth);
         if (damage > 0f) {
-            line.append("|stat=").append(settings.hudAttackWord()).append(',')
-                    .append(Math.round(damage));
+            stat(line, settings.hudAttackWord(), Math.round(damage), Math.round(damage),
+                    pictures.get(0));
         }
         float speed = walkingSpeed(creature.getTemplate());
         if (speed > 0f) {
-            line.append("|stat=").append(settings.hudSpeedWord()).append(',')
-                    .append(Math.round(speed));
+            stat(line, settings.hudSpeedWord(), Math.round(speed), Math.round(speed),
+                    pictures.get(2));
         }
         if (look != null && !look.isBlank()) {
             line.append("|look=").append(look);
@@ -300,22 +301,28 @@ final class HeroStatus {
     private static void appendOrders(StringBuilder line, DungeonSettings settings,
             Doing doing, boolean his) {
         var words = settings.hudOrderWords();
+        var pictures = settings.hudOrderIcons();
         // Drawn in this order and read in this order — walk, attack, stop, guard —
         // which is the order the words come in the file and the order Doing counts
         // its four states in. The LETTERS are not in that order and are not meant
         // to be: A S D are attack, stop and defend, under a hand that never leaves
         // them, and walking takes the letter left over because it is the one order
         // nobody uses the keyboard for.
-        String[][] buttons = {
-            {"F", "march"}, {"A", "blade"}, {"S", "halt"}, {"D", "shield"},
-        };
+        //
+        // The letters are here because they are the game's claim about its own
+        // controls — see Main.controls, which has to match. What each button LOOKS
+        // like is not: that used to be a drawing named here by a word the client
+        // held a mesh for, so changing how an order looked meant editing two
+        // modules. It comes out of the file now, beside the word.
+        String[] keys = {"F", "A", "S", "D"};
         line.append("|cmds=").append(his ? "mine" : "theirs");
-        for (int i = 0; i < buttons.length; i++) {
+        for (int i = 0; i < keys.length; i++) {
             String word = i < words.size() ? words.get(i) : "";
             if (word.isBlank()) {
                 continue; // a game that does not name an order does not offer it
             }
-            line.append("|cmd=").append(buttons[i][0]).append(',').append(buttons[i][1])
+            line.append("|cmd=").append(keys[i])
+                    .append(',').append(i < pictures.size() ? pictures.get(i) : "")
                     .append(',').append(word)
                     .append(',')
                     .append(doing != null && doing.button() == i ? "on" : "off");
@@ -403,17 +410,37 @@ final class HeroStatus {
         // the green figure is what he picked up, not what he was made with.
         int bareArmour = Math.round((1f - rules.damageTakenWith(level, worn)) * 100f);
         float bareSpeed = walkingSpeed(hero.getTemplate());
-        stat(line, settings.hudAttackWord(), Math.round(attack), Math.round(bareAttack));
-        stat(line, settings.hudArmourWord(), armour, bareArmour);
-        stat(line, settings.hudSpeedWord(), Math.round(speed), Math.round(bareSpeed));
+        var pictures = settings.hudStatIcons();
+        stat(line, settings.hudAttackWord(), Math.round(attack), Math.round(bareAttack),
+                pictures.get(0));
+        stat(line, settings.hudArmourWord(), armour, bareArmour, pictures.get(1));
+        stat(line, settings.hudSpeedWord(), Math.round(speed), Math.round(bareSpeed),
+                pictures.get(2));
+        // What he drinks back out of a blow. The game has counted this since
+        // powers existed and never showed it, so a player who took the power had
+        // no way to see it working. All of it is borrowed -- nobody is born with
+        // it -- so the whole figure is the green one.
+        if (!settings.hudLifestealWord().isBlank()) {
+            int drinks = powers == null ? 0
+                    : Math.round(powers.getBook().lifestealFraction() * 100f);
+            stat(line, settings.hudLifestealWord(), drinks, 0, pictures.get(3));
+        }
     }
 
-    /** One figure: its word, what it is now, and how much of that is borrowed. */
-    private static void stat(StringBuilder line, String word, int now, int bare) {
-        line.append("|stat=").append(word).append(',').append(now);
+    /**
+     * One figure: its word, what it is now, how much of that is borrowed, and the
+     * picture beside it.
+     *
+     * <p>Four fields always, even where a field is empty. The picture is last and
+     * the panel reads it by position, so a figure that lends nothing still has to
+     * leave the gap where the lending would have gone.
+     */
+    private static void stat(StringBuilder line, String word, int now, int bare, String icon) {
+        line.append("|stat=").append(word).append(',').append(now).append(',');
         if (now != bare) {
-            line.append(',').append(now > bare ? "+" : "").append(now - bare);
+            line.append(now > bare ? "+" : "").append(now - bare);
         }
+        line.append(',').append(icon);
     }
 
     private static float weaponDamage(ThingTemplate template) {

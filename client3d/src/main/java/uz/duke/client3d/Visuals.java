@@ -780,6 +780,25 @@ public final class Visuals {
         return sunlight;
     }
 
+    private IconLook iconLook = IconLook.DEFAULT;
+
+    /**
+     * Whether the game's icons are white drawings to be tinted, or pictures
+     * already painted — see {@link IconLook}.
+     *
+     * <p>A game that never says gets what the panel always did, which is to
+     * colour them: the drawings it was built for were white, and tinting them is
+     * how one file serves a slot that is ready, one reloading and one locked.
+     */
+    public Visuals iconLook(IconLook look) {
+        this.iconLook = look == null ? IconLook.DEFAULT : look;
+        return this;
+    }
+
+    public IconLook getIconLook() {
+        return iconLook;
+    }
+
     private EdgeScroll edgeScroll = EdgeScroll.NONE;
 
     /**

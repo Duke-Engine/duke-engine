@@ -308,7 +308,12 @@ class HeroStatusTest {
         // Four orders, each with a key, a drawing, a word and a state.
         int orders = line.split(java.util.regex.Pattern.quote("|cmd="), -1).length - 1;
         assertEquals(4, orders, "the four buttons beside the map: " + line);
-        assertTrue(line.contains("|cmd=D,shield,"), "the one order the engine has no word for");
+        // The picture is a path out of the settings file, not a word the client
+        // holds a drawing for. That was the arrangement until the painted icons
+        // arrived, and it meant the client had an opinion about what "guard"
+        // looks like; the key and the word are still the game's own.
+        assertTrue(line.contains("|cmd=D,icons/commands/"),
+                "the one order the engine has no word for, drawn from the file: " + line);
         assertTrue(line.contains(",off"), "and an order that is not on says so");
     }
 

@@ -173,16 +173,93 @@ class DungeonTilesTest {
         var settings = uz.duke.dungeon.content.DungeonSettings.load();
         int checked = 0;
 
-        for (var skill : settings.skillsFor("Rogue")) {
-            var path = settings.hudIcon(skill.icon());
+        // Every hero the file describes, not only the one it starts with. Three
+        // of them have four skills each, and a picture named for a hero nobody
+        // has played yet is exactly the one that would go missing unnoticed.
+        for (var hero : settings.heroes()) {
+            for (var skill : settings.skillsFor(hero.name())) {
+                var path = settings.hudIcon(skill.icon());
+                if (path.isBlank()) {
+                    continue; // a skill drawn with a word rather than a picture
+                }
+                assertNotNull(DungeonTilesTest.class.getClassLoader().getResource(path),
+                        hero.name() + "'s " + skill.key() + " asks for " + path
+                                + ", which is not shipped");
+                checked++;
+            }
+        }
+        assertTrue(checked >= 12, "three heroes with four skills each, found " + checked);
+    }
+
+    /**
+     * The pictures on the order buttons and beside the figures are shipped too.
+     *
+     * <p>These used to be line drawings the client held under names the game spelt
+     * out in Java, so there was nothing to ship and nothing to get wrong. Now they
+     * are files like everything else, and a file is a thing that can be missing.
+     */
+    @Test
+    void everyCommandAndFigurePictureIsThere() {
+        var settings = uz.duke.dungeon.content.DungeonSettings.load();
+        int checked = 0;
+
+        var named = new java.util.ArrayList<String>();
+        named.addAll(settings.hudOrderIcons());
+        named.addAll(settings.hudStatIcons());
+        for (var path : named) {
             if (path.isBlank()) {
-                continue; // a skill drawn with a word rather than a picture
+                continue; // a game that names none draws the letter instead
             }
             assertNotNull(DungeonTilesTest.class.getClassLoader().getResource(path),
-                    skill.key() + " asks for " + path + ", which is not shipped");
+                    path + " is named but not shipped");
             checked++;
         }
-        assertTrue(checked >= 4, "the hero has four skills with pictures, found " + checked);
+        assertTrue(checked >= 8, "four orders and four figures, found " + checked);
+    }
+
+    /**
+     * Every picture the panel draws is square, and the size its sheet was cut at.
+     *
+     * <p>A slot is square and a picture is stretched to fill it, so one that is
+     * not comes out squashed — and there is nothing on screen to say whether the
+     * drawing was made that way or the cut went wrong. The sizes are the cutter's
+     * own, so this is the other end of {@code IconSheets}: it says what came out,
+     * and this says what the game ships.
+     */
+    @Test
+    void everyPictureIsSquareAndTheSizeItsSheetWasCutAt() throws java.io.IOException {
+        int checked = 0;
+        for (var folder : new String[][] {{"icons/skills/", "256"}, {"icons/commands/", "128"},
+            {"icons/stats/", "64"}}) {
+            for (var name : shipped(folder[0])) {
+                var image = javax.imageio.ImageIO.read(
+                        DungeonTilesTest.class.getClassLoader().getResource(folder[0] + name));
+                assertNotNull(image, folder[0] + name + " is not readable as a picture");
+                assertEquals(image.getWidth(), image.getHeight(),
+                        folder[0] + name + " is " + image.getWidth() + "x" + image.getHeight()
+                                + ", and a slot is square");
+                assertEquals(Integer.parseInt(folder[1]), image.getWidth(),
+                        folder[0] + name + " was cut at a different size from its sheet");
+                assertTrue(image.getColorModel().hasAlpha(),
+                        folder[0] + name + " carries no transparency, so it is a square"
+                                + " of background sitting in the socket");
+                checked++;
+            }
+        }
+        assertTrue(checked >= 22, "ten skills, four orders and eight figures, found " + checked);
+    }
+
+    /** What is actually in one of the game's icon folders. */
+    private static java.util.List<String> shipped(String folder) throws java.io.IOException {
+        var at = DungeonTilesTest.class.getClassLoader().getResource(folder);
+        assertNotNull(at, folder + " is not on the classpath at all");
+        try (var found = java.nio.file.Files.list(
+                java.nio.file.Path.of(java.net.URI.create(at.toString())))) {
+            return found.map(path -> path.getFileName().toString())
+                    .filter(name -> name.endsWith(".png"))
+                    .sorted()
+                    .toList();
+        }
     }
 
     // ---- the themed kits ----

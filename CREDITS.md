@@ -16,7 +16,7 @@ written from there.
 
 | What | Who | Licence | Where |
 |---|---|---|---|
-| Skill icons — arrowhead, arrow cluster, sprint, hood | **Lorc** ([game-icons.net](https://game-icons.net)) | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) — **attribution required** | `icons/skills/` |
+| Skill, command and figure icons — all 22 | **Generated with Microsoft Copilot** (AI), cut and resized by `:dungeon:cutIcons` | see the note below | `icons/{skills,commands,stats}/` |
 | Dungeon Pack — floors, walls, stairs | **KayKit** / Kay Lousberg ([kaylousberg.com](https://kaylousberg.com)) | CC0 | `models/tiles/dungeon/` |
 | …and its pillars, barrel and chest | KayKit | CC0 | `models/props/dungeon/` |
 | …and the dirt floors the forest is laid on | KayKit | CC0 | `models/tiles/forest/` |
@@ -56,14 +56,15 @@ kind of question that does not get easier by being left. They are gone too.
 
 Every model and every clip in the tree is now CC0, out of one maker's packs.
 Nothing left in the art turns on how a repository is read. What is still open is
-smaller and of a different kind: the four icons ask for a line of credit, which
-they have below, and three pieces of music have licences nobody has looked up —
-see the end of this page.
+smaller and of a different kind: three pieces of music have licences nobody has
+looked up, and the icons are a generator's output whose terms are not the same
+kind of thing as a licence — see the end of this page for both.
 
-### The icons, in full
+### The icons that came before
 
 Four icons by **Lorc**, from [game-icons.net](https://game-icons.net), under
-[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/):
+[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) — the archer's whole
+set, and the only skill art the game had until the generated sheets arrived:
 
 - [Arrowhead](https://game-icons.net/1x1/lorc/arrowhead.html) — Q, the aimed shot
 - [Arrow cluster](https://game-icons.net/1x1/lorc/arrow-cluster.html) — W, the volley around him
@@ -71,8 +72,13 @@ Four icons by **Lorc**, from [game-icons.net](https://game-icons.net), under
 - [Hood](https://game-icons.net/1x1/lorc/hood.html) — R, the ultimate
 
 Changed from the originals: the opaque black backing square was removed and the
-shape was written out at 128×128 on transparency, so the panel can tint it. The
-drawings themselves are untouched. See the folder's `License.txt`.
+shape was written out at 128×128 on transparency, so the panel could tint it. The
+drawings themselves are untouched.
+
+They are at `_unused/icons/` now and **nothing draws them**, which is why they
+are no longer in the table above — CC BY asks for a line of credit for art that
+is *used*. They are kept with their `License.txt` because they are the fallback:
+see the note at the end of this page for why a generated set wants one.
 
 ### The three heroes, in full
 
@@ -92,12 +98,8 @@ are in this repository, along with the weapons each of them carries:
 along with `sword_2handed.gltf`, which the knight put down when he picked up a
 shield.
 
-**The skills have no icons.** Nothing in this build can reach
-[game-icons.net](https://game-icons.net), so eight of the twelve slots draw the
-letter of their key — which is what every slot in the game did until there were
-four pictures. When more arrive they belong on the icons row above *and* in the
-list under *The icons, in full*: Lorc's CC BY 3.0 asks for the line, so adding a
-file without adding the line is the one mistake here that costs something.
+**All twelve skills have icons now**, out of the generated sheets — which is what
+the eight empty slots on this page were waiting for.
 
 ### The audio, in full
 
@@ -186,3 +188,27 @@ the terms on the pack's page rather than in the zip. Either reason would have
 been enough on its own. The note is kept because the rule it followed is worth
 keeping: **an asset's licence goes in the table above before it is committed,
 not after.**
+### The icons, and what is not known about them
+
+All twenty-two pictures the panel draws — ten skills, four order buttons and
+eight figures — were **generated with Microsoft Copilot** and cut out of three
+sheets by `./gradlew :dungeon:cutIcons`. The sheets themselves are kept at
+`dungeon/art/icons/`, outside the resources, so the cut can be run again.
+
+The terms are recorded here as what they are, which is **not fully settled**.
+Microsoft's service terms give the user broad rights to what it produces, and
+under current US and UK practice an image with no human author has no copyright
+of its own to license — which is closer to "nobody owns it" than to CC0, and is
+not the same thing as a licence somebody granted. Two things follow, and both
+are worth knowing before this ships anywhere that matters:
+
+- **No attribution is owed** and none is claimed. The line in the table is a
+  record of where the pictures came from, not a condition on using them.
+- **No warranty of originality.** A generator can reproduce what it was trained
+  on. Nothing here was checked against anything, and nobody looked.
+
+The line-drawn skill icons these replaced are at
+`dungeon/src/main/resources/_unused/icons/` with their own `License.txt`. They
+are game-icons.net's, CC BY 3.0, and **do** require attribution — which is why
+they were moved rather than deleted: if the generated set ever has to go, the
+art that replaces it is already there and its terms are already known.

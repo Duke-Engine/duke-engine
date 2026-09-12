@@ -2,6 +2,7 @@ package uz.duke.client3d;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -357,6 +358,91 @@ class HeroPanelTest {
     void anOfferWithoutCardsIsNotAnOffer() {
         assertNull(HeroPanel.Reading.parse(LINE + "|offer=3,8-daraja,tanlang").offer(),
                 "a heading with nothing under it would be an empty screen with no way out");
+    }
+
+    // ---- white drawings and painted pictures ----
+
+    /**
+     * A white drawing is coloured by its state; a painted one is only dimmed.
+     *
+     * <p>The panel has always multiplied the picture in a slot by a colour, which
+     * is what lets one white file serve a skill that is ready, one reloading and
+     * one locked. A painted picture cannot take that — multiply a blue frost
+     * burst by the torch colour and it is a gold frost burst — so the state has
+     * to be told in brightness instead, and this is the fork where that is
+     * decided.
+     *
+     * <p>Asked as arithmetic rather than by drawing anything: what makes it wrong
+     * is a hue applied to a picture that already has one, and a hue is three
+     * numbers.
+     */
+    @Test
+    void aPaintedIconIsDimmedRatherThanColoured() {
+        var painted = new IconLook(true);
+
+        for (var state : new boolean[][] {{false, false}, {false, true}, {true, false}}) {
+            var colour = HeroPanel.skillColour(painted, state[0], state[1]);
+            assertEquals(colour.r, colour.g, 0.001f,
+                    "a painted picture may be darkened but never tinted");
+            assertEquals(colour.g, colour.b, 0.001f,
+                    "a painted picture may be darkened but never tinted");
+        }
+    }
+
+    /** And the three states are still told apart, which is what the colour is for. */
+    @Test
+    void andItsThreeStatesAreStillToldApart() {
+        var painted = new IconLook(true);
+        float ready = HeroPanel.skillColour(painted, false, false).r;
+        float cooling = HeroPanel.skillColour(painted, false, true).r;
+        float locked = HeroPanel.skillColour(painted, true, false).r;
+
+        assertTrue(ready > cooling, "a skill he can cast is brighter than one reloading");
+        assertTrue(cooling > locked, "and one reloading is brighter than one he has not earned");
+        assertEquals(1f, ready, 0.001f, "ready is the picture exactly as it was painted");
+    }
+
+    /** A white drawing is left as it was: the states are hues, and they differ. */
+    @Test
+    void aWhiteDrawingIsStillColouredByItsState() {
+        var white = IconLook.DEFAULT;
+        var ready = HeroPanel.skillColour(white, false, false);
+        var cooling = HeroPanel.skillColour(white, false, true);
+        var locked = HeroPanel.skillColour(white, true, false);
+
+        assertNotEquals(ready.r, ready.b, "the torch colour is warm, not grey");
+        assertFalse(ready.equals(cooling) || cooling.equals(locked),
+                "three states, three colours");
+    }
+
+    /**
+     * A figure under the bars carries its own picture.
+     *
+     * <p>It used to be chosen inside the panel, by which figure it was, out of a
+     * list of four names the client held — so a game's third figure was a
+     * lightning bolt whatever the game meant by it, and a fifth figure got
+     * whatever the fourth had.
+     */
+    @Test
+    void aFigureUnderTheBarsCarriesItsOwnPicture() {
+        var stats = HeroPanel.Reading.parse(LINE
+                + "|stat=Zarba,31,+6,icons/stats/stat_attack.png"
+                + "|stat=Zirh,12,,icons/stats/stat_armor.png").stats();
+
+        assertEquals(2, stats.size());
+        assertEquals("icons/stats/stat_attack.png", stats.get(0).icon());
+        assertEquals("+6", stats.get(0).bonus());
+        assertEquals("icons/stats/stat_armor.png", stats.get(1).icon());
+        assertEquals("", stats.get(1).bonus(), "a figure that lends nothing still leaves the gap");
+    }
+
+    /** And a game that names none is read as before rather than refused. */
+    @Test
+    void andAGameThatNamesNoPictureIsStillRead() {
+        var stats = HeroPanel.Reading.parse(LINE + "|stat=Wave,4").stats();
+
+        assertEquals(1, stats.size());
+        assertEquals("", stats.get(0).icon());
     }
 
     /** The glyph vocabulary is by name, and an unknown name is a shape, not a gap. */

@@ -2496,6 +2496,72 @@ public final class DungeonSettings {
         return icon == null || icon.isBlank() ? "" : hudIconFolder + icon;
     }
 
+    private String hudLifestealWord = "";
+
+    /**
+     * What the fourth figure under the bars is called, or empty for a game that
+     * does not show it.
+     *
+     * <p>Empty by default and by the same rule the orders follow: a game that does
+     * not name a thing is not offering it. The number behind it has been counted
+     * since powers existed — see {@code PowerBook.lifestealFraction} — and was
+     * simply never drawn.
+     */
+    public String hudLifestealWord() {
+        return hudLifestealWord;
+    }
+
+    private String hudCommandIconFolder = "";
+    private String hudStatIconFolder = "";
+    private boolean hudPaintedSkillIcons;
+    private String hudMoveIcon = "";
+    private String hudAttackOrderIcon = "";
+    private String hudStopIcon = "";
+    private String hudGuardIcon = "";
+    private String hudAttackStatIcon = "";
+    private String hudArmourStatIcon = "";
+    private String hudSpeedStatIcon = "";
+    private String hudLifestealStatIcon = "";
+
+    /**
+     * Whether the skill pictures carry their own colours.
+     *
+     * <p>The panel tints what it draws, which is how one white drawing serves a
+     * skill that is ready, one reloading and one locked. Painted pictures cannot
+     * take that — a blue frost burst multiplied by the torch colour is a gold one
+     * — so a game that ships them says so here and the panel tells the states in
+     * brightness instead.
+     */
+    public boolean hudPaintedSkillIcons() {
+        return hudPaintedSkillIcons;
+    }
+
+    /** The four order buttons' pictures, in the order the buttons are drawn. */
+    public java.util.List<String> hudOrderIcons() {
+        return java.util.List.of(inCommands(hudMoveIcon), inCommands(hudAttackOrderIcon),
+                inCommands(hudStopIcon), inCommands(hudGuardIcon));
+    }
+
+    /**
+     * The pictures beside the four figures under the bars, in their own order.
+     *
+     * <p>Beside the figures rather than counted off against them: the panel used
+     * to choose by position out of a list it held itself, which made the client
+     * the one deciding that a game's third figure is a lightning bolt.
+     */
+    public java.util.List<String> hudStatIcons() {
+        return java.util.List.of(inStats(hudAttackStatIcon), inStats(hudArmourStatIcon),
+                inStats(hudSpeedStatIcon), inStats(hudLifestealStatIcon));
+    }
+
+    private String inCommands(String icon) {
+        return icon == null || icon.isBlank() ? "" : hudCommandIconFolder + icon;
+    }
+
+    private String inStats(String icon) {
+        return icon == null || icon.isBlank() ? "" : hudStatIconFolder + icon;
+    }
+
     private static final FieldParseTable<DungeonSettings> HUD =
             new FieldParseTable<DungeonSettings>()
                     .add("DepthWord", Ini.restOfLine((s, v) -> s.hudDepthWord = v))
@@ -2541,7 +2607,21 @@ public final class DungeonSettings {
                     .add("CmdAttackWord", Ini.restOfLine((s, v) -> s.hudAttackOrderWord = v))
                     .add("CmdStopWord", Ini.restOfLine((s, v) -> s.hudStopWord = v))
                     .add("CmdGuardWord", Ini.restOfLine((s, v) -> s.hudGuardWord = v))
+                    .add("LifestealWord", Ini.restOfLine((s, v) -> s.hudLifestealWord = v))
                     .add("IconFolder", Ini.string((s, v) -> s.hudIconFolder = v))
+                    .add("CommandIconFolder",
+                            Ini.string((s, v) -> s.hudCommandIconFolder = v))
+                    .add("StatIconFolder", Ini.string((s, v) -> s.hudStatIconFolder = v))
+                    .add("PaintedSkillIcons",
+                            Ini.bool((s, v) -> s.hudPaintedSkillIcons = v))
+                    .add("CmdMoveIcon", Ini.string((s, v) -> s.hudMoveIcon = v))
+                    .add("CmdAttackIcon", Ini.string((s, v) -> s.hudAttackOrderIcon = v))
+                    .add("CmdStopIcon", Ini.string((s, v) -> s.hudStopIcon = v))
+                    .add("CmdGuardIcon", Ini.string((s, v) -> s.hudGuardIcon = v))
+                    .add("AttackIcon", Ini.string((s, v) -> s.hudAttackStatIcon = v))
+                    .add("ArmourIcon", Ini.string((s, v) -> s.hudArmourStatIcon = v))
+                    .add("SpeedIcon", Ini.string((s, v) -> s.hudSpeedStatIcon = v))
+                    .add("LifestealIcon", Ini.string((s, v) -> s.hudLifestealStatIcon = v))
                     .add("SkinFolder", Ini.string((s, v) -> s.hudSkinFolder = v))
                     .add("CursorFolder", Ini.string((s, v) -> s.hudCursorFolder = v))
                     // Panel-wide rather than per-hero: what a portrait costs is a

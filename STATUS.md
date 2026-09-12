@@ -3104,6 +3104,93 @@ faqat qoraytira oladi; va bu bo'limdagi "8 ta yuza" degan taxminim aslida 4 ta
 chiqdi. Hammasi "test yashil bo'lsin" deb emas, *savol* to'g'ri bo'lsin deb
 tuzatildi.
 
+
+### 8.ar Ikonkalar — uch varaqdan 22 ta fayl, va ikkita qotirilgan ro'yxatning oxiri
+
+AI (Microsoft Copilot) bilan uch varaq ikonka tayyorlandi: 10 ta skill (bo'yalgan,
+rangli), 4 ta buyruq va 8 ta statistika (tekis oltin). Ish uch qismdan iborat
+bo'ldi va faqat birinchisi kutilgandek edi.
+
+#### 1. Kesish — to'r emas, o'lchov
+
+`:dungeon:cutIcons` (`tools/IconSheets.java`). Varaqlarning o'zi
+`dungeon/art/icons/` da, resources dan tashqarida — ya'ni o'yin ichida
+sayohat qilmaydi, lekin kesishni qayta ishga tushirish mumkin. Bu shart edi:
+**qayta ishga tushirilganda bayt-bayt bir xil natija** beradi, tekshirildi.
+
+Uchta to'siq chiqdi va har biri koddagi bitta qoidaga aylandi:
+
+- **★ Birinchi varaqlar `RGB` edi** — alfa kanalisiz, shaffof ko'ringan shaxmat
+  naqsh piksellarga chizilgan. Foydalanuvchi RGBA versiyasini berdi va bu muammo
+  butunlay yo'qoldi. (Agar yana takrorlansa: chekkadan flood-fill kerak, oddiy
+  threshold oq muz yadrosini ham yeb qo'yadi.)
+- **AI chiqindisi.** Skill varag'ining yuqori o'ng burchagida 5 ta o'chgan kulrang
+  dog' bor. O'lcham bo'yicha ajratib bo'lmaydi — ikkitasi haqiqiy muz parchasidan
+  kattaroq. Ajratgich: **qattiq yadro** (`alpha >= 200`). Chiqindining eng yuqori
+  alfasi 208, lekin 200 dan yuqori bitta ham piksel yo'q; haqiqiy bo'lak esa
+  maydonining yarmida 255 ga chiqadi. Flood butun ko'rinadigan soha bo'ylab
+  yuradi (nur kesilmasin uchun), lekin ichida yadro bo'lmagan blob tashlanadi.
+- **★ Ikonkalarning yarmi uzuq.** `cmd_move` = strelka + halqa, `cmd_attack` =
+  qilich + bolta, `stat_speed` = oyoq + 3 chiziq, `stat_cooldown` = halqa +
+  strelka, `stat_range` = nishon + nuqta. Har qatorda **nechta** ikonka borligi
+  ma'lum, shuning uchun qator eng katta **N−1 oraliq** bo'yicha bo'linadi. Bu
+  skill varag'ining 3-qatori markazda turgani (1-2 ustunda emas) muammosini ham
+  o'zi hal qiladi — u haqda hech narsa yozish kerak bo'lmadi.
+
+#### 2. Bo'yalgan ikonka — panel rang bermaydi, yorqinlik beradi
+
+Panel **har doim** ikonkani rangga ko'paytirgan: bitta oq chizma shu bilan tayyor
+/ kuluar / yopiq uchta holatga xizmat qilgan. Bo'yalgan rasm buni ko'tarmaydi —
+ko'k muz portlashini mash'al rangiga ko'paytirsang oltin muz chiqadi.
+
+`IconLook` qo'shildi, `PaintedSkillIcons = Yes` INI'da. Bo'yalgan ikonkada holat
+**yorqinlik** bilan aytiladi (tayyor = aynan chizilganidek, kuluar = ×0.45,
+yopiq = ×0.30 va yarim so'ngan). Tanlangan holatda ikonka **umuman
+tegilmaydi** — halqa, tosh va bracketlar allaqachon siyanga o'tgan, va olovli
+o'qni siyanga yuvish eng muhim uyani eng o'qib bo'lmaydiganiga aylantirardi.
+
+#### 3. Ikkita qotirilgan ro'yxat o'chdi
+
+Bu so'ralgan ish emas edi, lekin "ikonka nomlari INI'da" qoidasi aynan shularga
+tegardi:
+
+- `HeroPanel.STAT_GLYPHS = {"blade","shield","bolt","heart"}` — klient o'yinning
+  **uchinchi statistikasi chaqmoq** ekaniga qaror qilardi, va to'rtinchisi
+  oxirgisining nusxasini olardi.
+- `HeroStatus` dagi `{{"F","march"},{"A","blade"},…}` — buyruq qanday
+  ko'rinishini o'zgartirish ikki modulni tahrirlashni talab qilardi.
+
+Ikkalasi ham INI'ga chiqdi. Sim formatiga ikonka maydoni qo'shildi
+(`stat=so'z,qiymat,bonus,ikonka`) — `Reading.parse` notanish maydonda butun
+qatorni rad etadi, shuning uchun klient va o'yin bitta commit'da o'zgardi.
+
+**Yo'l-yo'lakay: `Qon` statistikasi paydo bo'ldi.** `PowerBook.lifestealFraction()`
+powerlar paydo bo'lgandan beri hisoblanardi va **hech qachon chizilmagan** —
+ya'ni o'sha kuchni olgan o'yinchi uning ishlayotganini ko'ra olmasdi. Endi
+to'rtinchi figura sifatida ko'rinadi. `LifestealWord` ni bo'shatsang yana yo'qoladi.
+
+#### Qilinmagani, sababi bilan
+
+**Har hero uchun boshqa tusdagi `dash`** (Ranger oltin, Knight po'lat, Mage ko'k)
+— brifda "mumkin bo'lmasa bir xil qolsin" deyilgandi, va mumkin emas: yuqoridagi
+qoida bo'yalgan ikonkaga rang bermaydi. Uchalasi bir xil.
+
+#### Testlar
+
+`aPaintedIconIsDimmedRatherThanColoured` — bo'yalgan ikonka rangi **kulrang**
+bo'lishini talab qiladi (r == g == b). Rang berilsa darrov yiqiladi.
+`everyPictureIsSquareAndTheSizeItsSheetWasCutAt` — 22 ta faylning hammasi
+kvadrat, kutilgan o'lchamda va alfasi bor. `everySkillIconTheSettingsFileNamesIsThere`
+endi **uchala hero**dan so'raydi — hali o'ynalmagan heroning ikonkasi aynan
+sezilmay yo'qoladigani edi.
+
+#### Eskilari o'chirilmadi
+
+Lorc'ning 4 ta chiziqli ikonkasi `_unused/icons/` ga ko'chdi, `License.txt` va
+sabab yozilgan README bilan. Ular zaxira: generatsiya qilingan to'plam — bitta
+generatorning chiqishi, va CREDITS'da yozilganidek uning shartlari litsenziya
+bilan bir xil narsa emas.
+
 ## 9. Nima yo'q / ochiq ishlar
 
 ### Katta teshiklar
