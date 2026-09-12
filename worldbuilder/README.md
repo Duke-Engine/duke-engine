@@ -30,11 +30,49 @@ o'yinchi qayerdan kiradi.
 Shuning uchun bu yerda **pol/devor chizish asbobi yo'q**, xona qo'shish yo'q,
 xarita o'lchamini o'zgartirish yo'q. Yoqmasa — yangi seed.
 
+## Avval so'raydi, keyin chizadi
+
+Ishga tushganda (va `New stage…` bosilganda) **oldin savol**:
+
+```
+┌─ New stage ──────────────────────────────────┐
+│  Width       [ 100]  cells across            │
+│  Height      [  76]  cells down              │
+│  Rooms       [  28]                          │
+│              about 38 fit a map 100 x 76     │
+│  Difficulty  [   8]                          │
+│              monsters at 275% health and     │
+│              240% of their number, led by a  │
+│              Champion — deeper than the      │
+│              descent itself goes (4)         │
+└──────────────────────────────────────────────┘
+```
+
+**Nega oldin?** Ikkalasini ham keyin qo'llab bo'lmaydi:
+
+- **O'lcham** — kattaroq xarita "o'sha xonalar uzoqroqda" emas, **boshqa qavat**.
+- **Qiyinchilik** — u qavat **qaysi chuqurlikda generatsiya qilinishi**, ya'ni qaysi
+  turdagi maxluqlar umuman paydo bo'lgan (`MinDepth`) va oxirida qaysi boss turgani.
+
+Keyin so'ralsa — qayta chizish kerak bo'lardi, muallif esa o'zgarishi kutilayotgan
+qavatga allaqachon narsalarni terib qo'ygan bo'lardi.
+
+**Qiyinchilik = chuqurlik.** Yangi shkala emas: `Stage.difficulty` — tushishning
+nechanchi qavatiga teng ekani. "Qiyinchilik 7" degani "tushishning 7-qavati
+qanday bo'lsa, shunday" — va buni borib tekshirsa bo'ladi. Tushish o'zi 4-qavatda
+tugaydi, ya'ni **undan chuqurroq bosqich yasash** — bosqich yasashning asosiy
+sabablaridan biri. Pastdagi izoh o'yinning o'z raqamlaridan o'qiladi, shuning
+uchun u arifmetikadan ajralib qolmaydi.
+
+**Xona soni — taxmin, qoida emas.** Xonalar tashlab-rad qilib joylashtiriladi,
+ya'ni sig'maganini sig'dirib bo'lmaydi. 40 so'rab 22 tushsa, muharrir buni
+**aytadi** — aytmasa muallif o'zi yozgan raqamga ishonaverardi.
+
 ## Ekran
 
 ```
-Seed: [20260911] [Generate] [New seed] | [Open…] [Save] [Save as…] | [Undo] [Redo]
-Name: [...]  About: [...]  Difficulty: [1]  Players: [1] | Place: [Monster ▾][Skeleton ▾]
+[New stage…] Seed: [20260911] [Generate] [New seed] | [Open…] [Save] [Save as…] | [Undo] [Redo]
+Name: [...]  About: [...]  Difficulty: [8]  Players: [1] | Place: [Monster ▾][Skeleton ▾]
 ─────────────────────────────────────────────────────────────────────────────
         tepadan 2D ko'rinish — tosh, pol (qavat bo'yicha soya), zinapoya,
         xona konturlari, kirish · boss (halqa bilan) · maxluqlar · prop'lar
@@ -90,3 +128,11 @@ mijozi, egasi emas.
 - **Boss asbobi ikkita ishni bitta bosishda qiladi:** bossni ko'chiradi va
   "boss xonasi" ni o'sha katak turgan xonaga qo'yadi. Ular bitta qaror.
 - **Yangi seed hamma narsani o'chiradi** — shuning uchun so'raydi.
+- **Yuqoridagi Difficulty spinner'i faqat raqamlarni qayta o'lchaydi.** Qavat
+  qayta chizilmaydi: qaysi **turdagi** maxluqlar bu yerda va qaysi boss kutayotgani
+  qavat chizilganda hal bo'lgan. Ularni o'zgartirish uchun — `New stage…`.
+- **Chizish cheklovi (menikida emas, klientda):** `TerrainScene` har tosh katak
+  uchun **bitta `Geometry`** yasaydi va batch qilmaydi. Shipping qavatda ~995 ta,
+  100×76 da ~4700, 200×150 da ~22 000. Generatsiya, tekshiruv va simulyatsiya
+  200×150/70 xonada ham bemalol ishlaydi (56 ms), lekin **3D'da chizish sinalmagan**
+  — juda katta bosqich yasasangiz avval o'yinda ochib ko'ring.

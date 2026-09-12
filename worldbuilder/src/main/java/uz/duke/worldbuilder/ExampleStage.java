@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.gen.Layout;
 import uz.duke.dungeon.stage.StageCheck;
 import uz.duke.dungeon.stage.StageFile;
 
@@ -25,42 +26,80 @@ import uz.duke.dungeon.stage.StageFile;
  */
 public final class ExampleStage {
 
-    /**
-     * A seed with a floor worth walking on it — chosen by looking, which is what
-     * the builder is for. Any seed makes a valid stage; this one makes a good one.
-     */
-    private static final long SEED = 20260911L;
+    private static final Path FOLDER =
+            Path.of("dungeon", "src", "main", "resources", "stages");
 
-    private static final Path WHERE =
-            Path.of("dungeon", "src", "main", "resources", "stages", "first.stage");
+    /**
+     * One stage to write out.
+     *
+     * @param seed       chosen by looking, which is what the builder is for — any
+     *                   seed makes a valid stage and these two make good ones
+     * @param difficulty the depth it is fought at
+     */
+    private record Example(String id, String name, String about, long seed, int difficulty,
+            int width, int height, int rooms) {
+    }
+
+    /**
+     * The two the game ships with, and they are shipped as a pair on purpose: one
+     * of them is the size and danger of an ordinary floor, and the other is what a
+     * stage can be that a generated floor never is.
+     *
+     * <p>The large one is kept to about four times the shipped floor's area rather
+     * than as large as the builder will go. The generator, the checks and the
+     * simulation are happy far beyond this — a 200 by 150 floor with seventy rooms
+     * draws in well under a tenth of a second and passes every check — but the 3D
+     * client builds <em>one Geometry per stone cell</em> and batches none of them,
+     * which is a thousand of them on the shipped floor and twenty-two thousand on
+     * that one. Shipping a stage that is a slideshow would be a poor advertisement
+     * for being able to build large ones.
+     */
+    private static final Example[] EXAMPLES = {
+        new Example("first", "The First Descent",
+                "One floor, drawn once and never again — learn it, then win it.",
+                20260911L, 1, 50, 36, 9),
+        new Example("deep", "The Long Dark",
+                "Four times the floor and eight times down. Bring everything.",
+                20260912L, 8, 100, 76, 28),
+    };
 
     private ExampleStage() {
     }
 
     public static void main(String[] args) {
         var settings = DungeonSettings.load();
-        var draft = StageDraft.generate(SEED, settings);
-        draft.setId("first");
-        draft.setName("The First Descent");
-        draft.setDescription("One floor, drawn once and never again — learn it, then win it.");
-        draft.setDifficulty(1);
+        var folder = args.length > 0 ? Path.of(args[0]) : FOLDER;
+        for (var example : EXAMPLES) {
+            write(settings, example, folder.resolve(example.id() + ".stage"));
+        }
+    }
+
+    private static void write(DungeonSettings settings, Example example, Path path) {
+        var draft = StageDraft.generate(example.seed(), settings,
+                Layout.sized(settings, example.width(), example.height(), example.rooms()),
+                example.difficulty());
+        draft.setId(example.id());
+        draft.setName(example.name());
+        draft.setDescription(example.about());
         draft.setPlayers(1);
 
         var stage = draft.toStage();
         var problems = StageCheck.problems(stage, settings);
         if (!problems.isEmpty()) {
             // Never ship a stage the game would refuse. If the settings drift far
-            // enough to make this seed unplayable, that is worth stopping for.
-            throw new IllegalStateException("the example stage is broken: " + problems);
+            // enough to make one of these seeds unplayable, that is worth stopping
+            // for rather than writing the file anyway.
+            throw new IllegalStateException(example.id() + " is broken: " + problems);
         }
 
-        var path = args.length > 0 ? Path.of(args[0]) : WHERE;
         try {
             Files.createDirectories(path.toAbsolutePath().getParent());
             Files.writeString(path, StageFile.write(stage), StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new UncheckedIOException("could not write " + path, e);
         }
-        System.out.println("wrote " + path.toAbsolutePath());
+        System.out.println("wrote " + path.toAbsolutePath() + " — " + stage.floor().rooms().size()
+                + " rooms, " + stage.floor().monsters().size() + " monsters, at depth "
+                + stage.difficulty());
     }
 }

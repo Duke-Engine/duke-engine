@@ -36,6 +36,24 @@ public interface Floors {
     long seed();
 
     /**
+     * The depth a run opens on.
+     *
+     * <p>One for the descent, which is what "start at the top" means. For a stage
+     * it is the difficulty its author chose, because <b>a stage's difficulty is a
+     * depth</b> — not a number beside one. Everything that makes a floor dangerous
+     * is already written against depth and already tuned: how much health and
+     * damage its monsters carry, how many of them there are, which kinds have
+     * appeared by then, and which boss is waiting. Asking an author for a depth
+     * rather than inventing a second dial means "difficulty 7" has a meaning
+     * anybody can check by playing the seventh floor of the descent.
+     *
+     * <p>It may be past the bottom of the descent, and that is the point of
+     * letting a stage be built at all: the fourth floor is as hard as this game
+     * gets on its own, and a stage is somewhere to put a fight that is harder.
+     */
+    int firstDepth();
+
+    /**
      * The depth the game is won on, or {@code 0} if the descent has no bottom.
      *
      * <p>Here rather than read off the settings because it is a property of what

@@ -44,9 +44,13 @@ public final class WorldBuilderMain {
         var settings = DungeonSettings.load();
         SwingUtilities.invokeLater(() -> {
             var draft = args.length > 0 ? opened(args[0], settings) : null;
-            new BuilderWindow(settings,
-                    draft != null ? draft : StageDraft.generate(System.nanoTime(), settings))
-                    .setVisible(true);
+            if (draft != null) {
+                new BuilderWindow(settings, draft).setVisible(true);
+                return;
+            }
+            // Nothing to open, so there is a floor to draw — and a floor cannot be
+            // drawn until somebody has said how big and how hard.
+            BuilderWindow.asking(settings).setVisible(true);
         });
     }
 

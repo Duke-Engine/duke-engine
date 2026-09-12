@@ -68,14 +68,28 @@ public final class DungeonGenerator {
      * gets harder is the fighting rather than the walking.
      */
     public static GeneratedDungeon generate(long seed, DungeonSettings settings, int depth) {
+        return generate(seed, settings, depth, Layout.of(settings));
+    }
+
+    /**
+     * The same, on a dungeon of somebody else's size.
+     *
+     * <p>Only the world builder passes one. The descent's floors are the size the
+     * settings file says, and handing it {@code Layout.of(settings)} is exactly
+     * the call above — so a stage cut at 200 by 150 and a floor of the endless
+     * dungeon come out of the same generator, drawn the same way, carrying the
+     * same connectivity guarantee.
+     */
+    public static GeneratedDungeon generate(long seed, DungeonSettings settings, int depth,
+            Layout layout) {
         var rng = new DeterministicRng(seed);
 
-        var cells = new char[settings.mapHeight()][settings.mapWidth()];
+        var cells = new char[layout.height()][layout.width()];
         for (var row : cells) {
             java.util.Arrays.fill(row, STONE);
         }
 
-        var rooms = placeRooms(rng, settings);
+        var rooms = placeRooms(rng, settings, layout);
         for (var room : rooms) {
             carveRoom(cells, room);
         }
@@ -179,17 +193,18 @@ public final class DungeonGenerator {
                 + Math.abs(a.centerCellY() - b.centerCellY());
     }
 
-    private static List<Room> placeRooms(DeterministicRng rng, DungeonSettings settings) {
-        int target = rng.nextInt(settings.minRooms(), settings.maxRooms());
+    private static List<Room> placeRooms(DeterministicRng rng, DungeonSettings settings,
+            Layout layout) {
+        int target = rng.nextInt(layout.minRooms(), layout.maxRooms());
         var rooms = new ArrayList<Room>();
         for (int attempt = 0;
-                attempt < settings.placementAttempts() && rooms.size() < target;
+                attempt < layout.attempts() && rooms.size() < target;
                 attempt++) {
             int w = rng.nextInt(settings.minRoomSize(), settings.maxRoomSize());
             int h = rng.nextInt(settings.minRoomSize(), settings.maxRoomSize());
             // Keep a one-cell stone border so a room never touches the map edge.
-            int x = rng.nextInt(1, settings.mapWidth() - w - 2);
-            int y = rng.nextInt(1, settings.mapHeight() - h - 2);
+            int x = rng.nextInt(1, layout.width() - w - 2);
+            int y = rng.nextInt(1, layout.height() - h - 2);
             var room = new Room(x, y, w, h);
             if (!overlapsAny(room, rooms, settings.roomGap())
                     && withinReach(room, rooms, settings.maxRoomSpacing())) {

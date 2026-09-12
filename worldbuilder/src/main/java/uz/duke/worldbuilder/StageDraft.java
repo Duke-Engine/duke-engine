@@ -10,6 +10,7 @@ import uz.duke.dungeon.gen.GeneratedDungeon.Monster;
 import uz.duke.dungeon.gen.GeneratedDungeon.Placement;
 import uz.duke.dungeon.gen.GeneratedDungeon.Prop;
 import uz.duke.dungeon.gen.GeneratedDungeon.Room;
+import uz.duke.dungeon.gen.Layout;
 import uz.duke.dungeon.stage.Stage;
 import uz.duke.dungeon.stage.StageCheck;
 
@@ -82,7 +83,7 @@ public final class StageDraft {
     }
 
     /**
-     * A fresh dungeon from a seed, with everything the generator put in it.
+     * A fresh dungeon from a seed, at the size the settings file describes.
      *
      * <p>Starting from the generator's own population rather than from an empty
      * floor, because an empty floor is an afternoon of clicking before anything
@@ -90,8 +91,25 @@ public final class StageDraft {
      * move what does not.
      */
     public static StageDraft generate(long seed, DungeonSettings settings) {
-        var floor = DungeonGenerator.generate(seed, settings, 1);
-        return new StageDraft(new Stage(idFor(seed), "Stage " + seed, "", 1, 1, seed, floor),
+        return generate(seed, settings, Layout.of(settings), 1);
+    }
+
+    /**
+     * The same, at a size and a difficulty the author asked for.
+     *
+     * <p>Both are asked <em>before</em> a floor is drawn rather than applied to one
+     * afterwards, because neither can be applied afterwards. A bigger map is a
+     * different set of rooms, not the same rooms further apart; and the difficulty
+     * is the depth the floor is generated at, which decides which kinds of monster
+     * have appeared by then and which boss is waiting at the end of it. Asking
+     * afterwards would mean redrawing — which is what the author would have to do
+     * anyway, having already placed things on a floor that was about to change.
+     */
+    public static StageDraft generate(long seed, DungeonSettings settings, Layout layout,
+            int difficulty) {
+        int depth = Math.max(1, difficulty);
+        var floor = DungeonGenerator.generate(seed, settings, depth, layout);
+        return new StageDraft(new Stage(idFor(seed), "Stage " + seed, "", depth, 1, seed, floor),
                 settings);
     }
 
@@ -254,6 +272,19 @@ public final class StageDraft {
 
     public int cellsDown() {
         return height;
+    }
+
+    /**
+     * The size this floor turned out to be, ready to draw another one like it.
+     *
+     * <p>Read back off the map rather than remembered, so a stage opened from a
+     * file can be re-rolled at its own size by somebody who was not there when it
+     * was asked for. What it cannot recover is how many rooms were <em>asked</em>
+     * for — only how many landed — which is why the builder keeps the question it
+     * put to the author and uses this only when it has no question to remember.
+     */
+    public Layout layout(DungeonSettings settings) {
+        return Layout.sized(settings, width, height, Math.max(2, rooms.size()));
     }
 
     public String terrain() {

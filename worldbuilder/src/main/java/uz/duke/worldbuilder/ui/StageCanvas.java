@@ -66,6 +66,27 @@ final class StageCanvas extends JPanel {
         repaint();
     }
 
+    /**
+     * Put the whole map on screen.
+     *
+     * <p>Called whenever a new floor is drawn, because a floor can now be any size
+     * at all: a two-hundred-cell stage opened at the last one's zoom is a corner of
+     * itself, and an author who has just asked for something large should see that
+     * he got it.
+     */
+    void fitToMap() {
+        int across = Math.max(1, draft.cellsAcross());
+        int down = Math.max(1, draft.cellsDown());
+        // Before the window is laid out there is no size to fit to, so the
+        // preferred one stands in — the first fit happens at construction.
+        int usableX = getWidth() > 0 ? getWidth() : getPreferredSize().width;
+        int usableY = getHeight() > 0 ? getHeight() : getPreferredSize().height;
+        zoom = Math.clamp(Math.min((usableX - 40f) / across, (usableY - 40f) / down), 3f, 44f);
+        panX = Math.round((usableX - across * zoom) / 2f);
+        panY = Math.round((usableY - down * zoom) / 2f);
+        repaint();
+    }
+
     /** The cell under a point on screen, or null for a point off the map. */
     private int[] cellAt(Point at) {
         int cx = (int) Math.floor((at.x - panX) / zoom);

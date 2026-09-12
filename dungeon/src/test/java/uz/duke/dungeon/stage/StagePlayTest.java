@@ -158,6 +158,26 @@ class StagePlayTest {
                 "and so should everything the file puts around him");
     }
 
+    /**
+     * And so can every other one the game offers.
+     *
+     * <p>Asked through the same listing the menu is built from, so a stage that
+     * ships but cannot be played fails here rather than being quietly dropped off
+     * the menu in front of a player. There is more than one now, and the second
+     * exists to be unlike the first — much larger, and much deeper.
+     */
+    @Test
+    void everyShippedStageCanBePlayed() {
+        var offered = Stages.all(SETTINGS);
+        assertTrue(offered.size() >= 2,
+                "the game should ship more than one stage, and offers " + offered.size());
+        for (var listed : offered) {
+            var game = Dungeon.createStage(listed.stage(), SETTINGS);
+            game.runHeadless(30);
+            assertNotNull(heroOf(game), listed.path() + " put no hero in the world");
+        }
+    }
+
     /** Nothing named is the endless dungeon, which is what this game is by default. */
     @Test
     void namingNoStageIsTheEndlessDungeon() {

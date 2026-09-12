@@ -113,3 +113,36 @@ o'yin **hammasini ro'yxat qilib to'xtaydi** — jimgina roguelike'ga qaytmaydi.
 Yurish engine'ning `PathGrid.canStep` i bilan tekshiriladi, nusxasi bilan emas.
 
 Stage yasash — `worldbuilder` moduli (`./gradlew :worldbuilder:run`).
+
+### Qiyinchilik = chuqurlik
+
+`Stage.difficulty` — **o'sha bosqich qaysi chuqurlikda o'ynalishi**, yorliq emas.
+Yangi mexanizm yasalmadi: qavatni xavfli qiladigan hamma narsa allaqachon
+`depth` bo'yicha yozilgan va sozlangan — `monsterHealthAt`, `monsterDamageAt`,
+`monsterCountAt`, qaysi turlar umuman paydo bo'lgani (`MinDepth`), va
+`bossKindAt`. Shuning uchun "qiyinchilik 7" ning ma'nosi bor: tushishning
+7-qavati qanday bo'lsa, shunday — borib tekshirsa bo'ladi.
+
+Tushish `Bosses` ro'yxati tugaganda tugaydi (hozir 4 qavat). Bosqich esa
+**undan chuqurroq** qurilishi mumkin — bu bosqich yasashning asosiy
+sabablaridan biri.
+
+O'lmoq → **o'sha chuqurlikda** qayta boshlanadi (1 ga tushmaydi, aks holda
+qiyin bosqichning ikkinchi urinishi oson bo'lib qolardi). Bossni o'ldirmoq →
+g'alaba, qaysi chuqurlikda qurilgan bo'lsa ham.
+
+Chuqurlik qayerdan boshlanishini `Floors.firstDepth()` aytadi: `GeneratedFloors`
+1 qaytaradi (roguelike o'zgarmadi), `StageFloors` — bosqichning qiyinchiligini.
+
+### O'lcham
+
+Generatsiya o'lchami endi `Layout` record'i orqali override qilinadi
+(`gen/Layout.java`). `Layout.of(settings)` — bugungi dungeon, **bit-baravar**;
+`Layout.sized(settings, w, h, rooms)` — muallif so'ragani.
+
+Shipping bosqichlar: `first.stage` (50×36, 9 xona, chuqurlik 1) va
+`deep.stage` (100×76, 28 xona, **chuqurlik 8** — tushishdan chuqurroq).
+Ikkalasini `./gradlew :worldbuilder:writeExampleStage` qayta yozadi.
+
+**Ulanish kafolati kattalikda ham tekshirilgan:** `LayoutTest` 180×140 / 60 xona
+o'lchamda 12 ta seed'ni `StageCheck` bilan yurib chiqadi.

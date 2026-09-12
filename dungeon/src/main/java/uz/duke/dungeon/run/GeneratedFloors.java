@@ -32,6 +32,12 @@ final class GeneratedFloors implements Floors {
         return seed;
     }
 
+    /** A descent starts at the top, which is what makes it a descent. */
+    @Override
+    public int firstDepth() {
+        return 1;
+    }
+
     /** The bosses are the floors: the last one stands on the bottom. */
     @Override
     public int lastDepth() {

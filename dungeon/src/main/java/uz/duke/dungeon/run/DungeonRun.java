@@ -117,6 +117,7 @@ public final class DungeonRun {
         this.themes = settings.themes();
         this.look = lookOfThisFloor();
         this.heroTemplate = settings.playedHero();
+        this.depth = floors.firstDepth();
     }
 
     /**
@@ -160,6 +161,13 @@ public final class DungeonRun {
      */
     public void playing(Floors floors) {
         this.floors = floors;
+        // How deep the game he chose starts. A stage's difficulty IS a depth, so
+        // this is where being handed a hard stage becomes being in one — and it
+        // has to be here rather than only in the constructor, because the menu
+        // chooses after the game is built. Without it a stage picked off the menu
+        // would be fought at depth one however hard its author made it, and
+        // nothing anywhere would say so.
+        this.depth = floors.firstDepth();
         this.look = lookOfThisFloor();
         // The world was built around a floor from the floors we no longer have.
         // Nobody has seen it — this is answered on the menu — but it is still
@@ -351,7 +359,11 @@ public final class DungeonRun {
     /** A fresh run: the first floor, a hero with nothing, and the banner cleared. */
     private void begin(DukeGame game) {
         // An ending is the end of everything, not just of this floor.
-        depth = 1;
+        // Back to the top of whatever is being played: the first floor of a
+        // descent, and for a stage the one depth it is fought at. Resetting to 1
+        // would make the second attempt at a hard stage an easy one, which is the
+        // worst way for a level meant to be re-attempted to fail.
+        depth = floors.firstDepth();
         descendAtFrame = 0;
         progress.reset();
         // It takes everything, the cards included. Told rather than inferred, for

@@ -70,6 +70,13 @@ public final class StageCheck {
         // author looking, "on top of the Pillar" sends him to the right line.
         var taken = new HashMap<Long, String>();
 
+        // The difficulty is the depth it is fought at, so zero is not "easy" — it
+        // is a floor above the first one, which the scaling has no meaning for.
+        if (stage.difficulty() < 1) {
+            problems.add("a difficulty of " + stage.difficulty() + " is not a depth;"
+                    + " the shallowest floor in this game is 1");
+        }
+
         var entrance = floor.hero();
         if (entrance == null) {
             problems.add("no entrance: nowhere for the hero to come in");

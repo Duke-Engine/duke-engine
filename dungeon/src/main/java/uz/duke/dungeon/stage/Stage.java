@@ -23,8 +23,17 @@ import uz.duke.dungeon.gen.GeneratedDungeon;
  *                    headed with, and what a command line asks for
  * @param name        what the player is told it is called
  * @param description one line about it, for whoever is choosing
- * @param difficulty  how hard the author thinks it is, on the author's own scale;
- *                    the game reads it and shows it but never acts on it
+ * @param difficulty  <b>the depth it is fought at</b>, and so the whole of how
+ *                    hard it is. Not a label: the game plays a stage at this
+ *                    depth, and everything that makes a floor dangerous is
+ *                    already written against depth — how much health and damage
+ *                    its monsters carry, how many of them there are, which kinds
+ *                    have appeared by then, which boss waits. It was a number the
+ *                    game showed and never acted on, which made it a guess; now
+ *                    "difficulty 7" means what the seventh floor of the descent
+ *                    means, and an author can go and check. It may be deeper than
+ *                    the descent itself ever gets, which is one of the reasons to
+ *                    build a stage at all
  * @param players     how many it was built for. One, today — there is no second
  *                    player in this game yet — but a stage outlives that and an
  *                    author who leaves it out is an author who guessed

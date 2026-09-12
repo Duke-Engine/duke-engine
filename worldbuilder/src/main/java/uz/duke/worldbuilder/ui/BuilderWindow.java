@@ -56,6 +56,17 @@ public final class BuilderWindow extends JFrame {
     private StageDraft draft;
     private Path file;
 
+    /**
+     * The last answer to "how big, and how hard" — what another seed is drawn at.
+     *
+     * <p>Kept as the question rather than read back off the floor, because the two
+     * differ in the case that matters: a map with space for twenty rooms, asked for
+     * forty, has twenty. Re-rolling should ask for forty again and not quietly
+     * settle at twenty, which is how a floor shrinks a little every time somebody
+     * presses the button.
+     */
+    private NewStage.Wanted wanted;
+
     private final JTextField seedField = new JTextField(12);
     private final JTextField nameField = new JTextField(16);
     private final JTextField aboutField = new JTextField(28);
@@ -74,9 +85,14 @@ public final class BuilderWindow extends JFrame {
     private String lastChecked;
 
     public BuilderWindow(DungeonSettings settings, StageDraft draft) {
+        this(settings, draft, askedFor(settings, draft));
+    }
+
+    public BuilderWindow(DungeonSettings settings, StageDraft draft, NewStage.Wanted wanted) {
         super("Duke World Builder");
         this.settings = settings;
         this.draft = draft;
+        this.wanted = wanted;
         this.palette = new Palette(settings);
         this.canvas = new StageCanvas(draft, palette, this::edited);
 
@@ -88,8 +104,41 @@ public final class BuilderWindow extends JFrame {
         keys();
 
         showDraft(draft);
+        canvas.fitToMap();
         pack();
         setLocationRelativeTo(null);
+    }
+
+    /**
+     * Put the question first, then open on the answer.
+     *
+     * <p>How this is started when there is no file to open. A floor cannot be drawn
+     * before somebody has said how big and how hard it should be — those two decide
+     * what is drawn rather than describing it afterwards — so the dialog comes
+     * before the window.
+     *
+     * <p>Closing it is not a refusal to build anything: it opens at the size the
+     * settings file describes, which is a floor of the endless descent. Somebody
+     * who closed that dialog most likely means to open a stage he already has.
+     */
+    public static BuilderWindow asking(DungeonSettings settings) {
+        var suggested = NewStage.fromSettings(settings, System.nanoTime());
+        var answered = NewStage.ask(null, settings, suggested);
+        var wanted = answered == null ? suggested : answered;
+        return new BuilderWindow(settings, StageDraft.generate(wanted.seed(), settings,
+                wanted.layout(), wanted.difficulty()), wanted);
+    }
+
+    /**
+     * The question a floor already in hand is the answer to.
+     *
+     * <p>Read back off the map for a stage that arrived from a file, which is the
+     * best that can be done: how many rooms landed is on the map, how many were
+     * asked for is not.
+     */
+    private static NewStage.Wanted askedFor(DungeonSettings settings, StageDraft draft) {
+        return NewStage.Wanted.of(draft.seed(), settings, draft.cellsAcross(),
+                draft.cellsDown(), Math.max(2, draft.rooms().size()), draft.difficulty());
     }
 
     // ---- the furniture ----
@@ -97,7 +146,8 @@ public final class BuilderWindow extends JFrame {
     private JPanel bar() {
         var top = new JToolBar();
         top.setFloatable(false);
-        top.add(new JLabel("Seed: "));
+        top.add(button("New stage…", this::askAndGenerate));
+        top.add(new JLabel(" Seed: "));
         top.add(seedField);
         top.add(button("Generate", this::generateTyped));
         top.add(button("New seed", this::generateFresh));
@@ -116,6 +166,15 @@ public final class BuilderWindow extends JFrame {
         about.add(new JLabel("  About: "));
         about.add(aboutField);
         about.add(new JLabel("  Difficulty: "));
+        // The depth it is fought at. Editable here so hardness can be tuned without
+        // losing an hour of placement — but only the numbers move: which kinds of
+        // monster are down here, and which boss, were settled when the floor was
+        // drawn. Redraw from "New stage…" to change those.
+        difficulty.setToolTipText("<html>The depth this stage is fought at.<br>"
+                + "Changing it here rescales what is already placed — health, damage,"
+                + " experience.<br>Which <i>kinds</i> are here and which boss waits were"
+                + " chosen when the floor was drawn;<br>use New stage… to change those."
+                + "</html>");
         about.add(difficulty);
         about.add(new JLabel("  Players: "));
         about.add(players);
@@ -236,16 +295,30 @@ public final class BuilderWindow extends JFrame {
 
     // ---- the buttons ----
 
+    /**
+     * Ask how big and how hard, then draw one.
+     *
+     * <p>Both questions come before the floor exists, because neither can be
+     * answered afterwards without drawing it again — see {@link NewStage}.
+     */
+    private void askAndGenerate() {
+        var answered = NewStage.ask(this, settings, wanted.reseeded(System.nanoTime()));
+        if (answered == null) {
+            return;
+        }
+        regenerate(answered);
+    }
+
     private void generateTyped() {
         try {
-            regenerate(Long.parseLong(seedField.getText().strip()));
+            regenerate(wanted.reseeded(Long.parseLong(seedField.getText().strip())));
         } catch (NumberFormatException e) {
             say("That is not a seed: " + seedField.getText());
         }
     }
 
     private void generateFresh() {
-        regenerate(System.nanoTime());
+        regenerate(wanted.reseeded(System.nanoTime()));
     }
 
     /**
@@ -255,13 +328,38 @@ public final class BuilderWindow extends JFrame {
      * draft and looking at three of them before settling is the way this is meant
      * to be used — but so is spending an hour on the fourth.
      */
-    private void regenerate(long seed) {
+    private void regenerate(NewStage.Wanted asked) {
         if (!undo.isEmpty() && !confirm("Draw a new dungeon? Everything placed on this one"
                 + " will be lost.")) {
             return;
         }
         remember();
-        showDraft(StageDraft.generate(seed, settings));
+        wanted = asked;
+        showDraft(StageDraft.generate(asked.seed(), settings, asked.layout(),
+                asked.difficulty()));
+        canvas.fitToMap();
+        reportRooms(asked);
+    }
+
+    /**
+     * Say how many rooms actually landed when it is fewer than were asked for.
+     *
+     * <p>Rooms are placed by throwing them at the map and rejecting the ones that
+     * overlap, so a floor can quietly come out smaller than the number in the
+     * dialog — ask forty onto a map with space for twenty and twenty is what there
+     * is. Said out loud, because an author who is not told will believe the number
+     * he typed, and the one thing worse than a floor that is too small is not
+     * knowing that it is.
+     */
+    private void reportRooms(NewStage.Wanted asked) {
+        int landed = draft.rooms().size();
+        if (landed < asked.rooms()) {
+            say(landed + " rooms fitted, not the " + asked.rooms() + " asked for."
+                    + "\n\nRooms are placed by trying and rejecting, so a map only holds so"
+                    + " many. Try a larger map, or fewer rooms — about "
+                    + uz.duke.dungeon.gen.Layout.roomsThatFit(asked.width(), asked.height())
+                    + " fit one this size.");
+        }
     }
 
     private void undo() {
@@ -294,7 +392,9 @@ public final class BuilderWindow extends JFrame {
             undo.clear();
             redo.clear();
             lastChecked = null;
+            wanted = askedFor(settings, opened);
             showDraft(opened);
+            canvas.fitToMap();
         } catch (IOException | RuntimeException e) {
             say("Could not open " + chosen + ":\n" + e.getMessage());
         }

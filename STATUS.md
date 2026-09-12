@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-11 · **Testlar:** 1120 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-12 · **Testlar:** 1176 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -2808,6 +2808,77 @@ ishlashi. `ShellTest` (5): bo'sh ro'yxat o'yinchini qamab qo'ymasligi.
 
 ---
 
+### 8.ao Bosqich qanchalik katta va qanchalik qiyin — generatsiyadan oldin so'raladi
+
+Bosqich formati bor edi, lekin har bosqich tushishning **birinchi qavati** edi:
+shipping `dungeon.ini` dagi o'lchamda va 1-chuqurlikda. Ya'ni "o'rganib, qayta
+urinib, oxiri yengiladigan daraja" va'da qilingan narsa amalda birinchi qavatning
+muzlatilgan nusxasi bo'lardi. Ikkalasi ham tuzatildi, va **ikkalasi ham
+generatsiyadan oldin so'raladi** — chunki keyin qo'llab bo'lmaydi.
+
+**Qiyinchilik — chuqurlik, yangi shkala emas.** `Stage.difficulty` ilgari muallif
+yozadigan va panel ko'rsatadigan raqam edi, ya'ni istalgan narsani ayta olardi va
+noto'g'ri bo'lishi mumkin edi. Endi u **o'sha bosqich qaysi chuqurlikda
+o'ynalishi**. Yangi mexanizm yozilmadi: qavatni xavfli qiladigan hamma narsa
+allaqachon `depth` bo'yicha yozilgan va sozlangan — jon, zarar, soni, qaysi turlar
+umuman paydo bo'lgani (`MinDepth`) va qaysi boss kutayotgani. Shuning uchun
+"qiyinchilik 7" ning ma'nosi bor: tushishning 7-qavati qanday bo'lsa shunday, va
+buni borib tekshirsa bo'ladi. Tushish `Bosses` tugaganda tugaydi (4 qavat);
+bosqich esa **undan chuqurroq** qurilishi mumkin — bu bosqich yasashning asosiy
+sabablaridan biri.
+
+`DungeonRun` da o'zgargani faqat **chuqurlik qayerdan boshlanishi**: `Floors` ga
+`firstDepth()` qo'shildi, `GeneratedFloors` 1 qaytaradi (roguelike umuman
+o'zgarmadi), `StageFloors` — bosqichning qiyinchiligini. Uchta joyda o'qiladi:
+konstruktor, `playing(...)` va `begin()`. Oxirgi ikkitasi muhim va ikkalasi ham
+bir xil sabab bilan: **`playing(...)`** — menyu bosqichni o'yin qurilgandan keyin
+tanlaydi, ya'ni konstruktordagisi yolg'iz yetmaydi va qiyinchilik faqat
+`--stage=` bilan ishlardi; **`begin()`** — o'limdan keyin 1 ga qaytish qiyin
+bosqichning ikkinchi urinishini oson qilib qo'yardi, ya'ni qayta urinish uchun
+qurilgan daraja uchun mumkin bo'lgan eng yomon nosozlik.
+
+**O'lcham — `Layout` record'i.** Generatsiya raqamlari `DungeonSettings` dan
+chiqib, chaqiruvchi almashtira oladigan qiymatga aylandi. `Layout.of(settings)`
+— tushishning o'z qavatlari, **bit-baravar** (`LayoutTest` shuni qulflaydi);
+`Layout.sized(...)` — muallif so'ragani. Faqat muharrir haqiqatan so'raydigan
+uchtasi ochiq: eni, bo'yi, xona soni. Xona o'lchami va koridor eni faylda
+qoladi — ular bu o'yinda dungeon **nima ekani**, va o'n to'rt katakli xona
+kattaroq dungeon emas, boshqa o'yin.
+
+Urinishlar soni so'ralmaydi va fayldan ham olinmaydi: xonalar tashlab-rad qilib
+joylashtiriladi, ya'ni xarita to'lgani sari keyingisini tushirish ko'proq tashlash
+talab qiladi. Oltita xonaga sozlangan son qirqtaning uchdan birida taslim bo'lardi
+va qavat **jimgina** so'ralganidan kichik chiqardi. Shuning uchun u so'ralgandan
+keltirib chiqariladi. Sig'magani baribir bo'ladi — muharrir buni **aytadi**,
+chunki aytmasa muallif o'zi yozgan raqamga ishonaverardi.
+
+**Nega oldin so'raladi.** Ikkalasi ham qavat chizilgandan keyin qo'llanmaydi:
+kattaroq xarita "o'sha xonalar uzoqroqda" emas, boshqa qavat; qiyinchilik esa
+qaysi turlar va qaysi boss chizilishini hal qiladi. Keyin so'ralsa qayta chizish
+kerak bo'lardi — muallif esa o'zgarishi kutilayotgan qavatga narsalarni allaqachon
+terib qo'ygan bo'lardi. Shuning uchun dialog oynadan **oldin** ochiladi.
+
+**Ikkinchi shipping bosqich:** `deep.stage` — "The Long Dark", 100×76, 28 xona,
+221 maxluq, **chuqurlik 8**. `first.stage` (50×36, chuqurlik 1) yonida ataylab:
+biri oddiy qavatning o'lchami va xavfi, ikkinchisi esa generatsiya qilingan qavat
+hech qachon bo'lmaydigan narsa.
+
+**Ataylab 100×76 da to'xtatildi, 200×150 da emas.** Generator, tekshiruvlar va
+simulyatsiya ancha uzoqroqqa boradi — 200×150 / 70 xona / 759 maxluq **56 ms** da
+chiziladi va hamma tekshiruvdan o'tadi. Chegara `client3d` da: `TerrainScene` har
+tosh katak uchun **bitta `Geometry`** yasaydi va batch qilmaydi — shipping qavatda
+~995 ta, 100×76 da ~4700, 200×150 da ~22 000. Slideshow bo'lib chiqadigan bosqich
+katta bosqich yasay olishning yomon reklamasi bo'lardi. **Relyefni batch qilish —
+ochiq engine ishi**, va katta bosqichlar uni birinchi bo'lib talab qiladi.
+
+**16 ta yangi test.** `LayoutTest` — `Layout.of` bugungi dungeonni aynan
+qaytarishi, 180×140 / 60 xonada 12 seed'ning hammasi to'liq yurib bo'ladigan
+bo'lishi (ulanish kafolati kattalikda), 12-chuqurlikda ham shunday, va
+sig'maydigan xona soni yiqilmasdan kam qaytarishi. `StageDifficultyTest` —
+chuqur bosqich haqiqatan qiyinroq, o'limdan keyin **o'sha** qiyinlikda qaytishi,
+chuqur bossni o'ldirish g'alaba bo'lishi, panel "VI / VI" deb sanashi, va
+**tushish hali ham 1-qavatdan boshlanishi**.
+
 ## 9. Nima yo'q / ochiq ishlar
 
 ### Katta teshiklar
@@ -3226,7 +3297,10 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/src/main/resources/ui/cursors/` | Kenney Cursor Pack 1.1 (CC0) — Outline oilasi, 32px va 64px |
 | `dungeon/…/dungeon/run/DungeonRun.java` | run loop: o'lim → yangi qavat; qaysi qavat ekanini `Floors` aytadi |
 | `dungeon/…/dungeon/run/{Floors,GeneratedFloors,StageFloors}.java` | qavat qayerdan keladi — seed zanjiri yoki muzlatilgan fayl; holatli, ataylab |
-| `dungeon/…/dungeon/stage/{Stage,StageFile}.java` | qotirilgan dungeon + metama'lumot, va uning matn formati (engine INI'si, koordinatalar katakda) |
+| `dungeon/…/dungeon/stage/{Stage,StageFile}.java` | qotirilgan dungeon + metama'lumot, va uning matn formati (engine INI'si, koordinatalar katakda). `difficulty` = o'ynaladigan chuqurlik |
+| `dungeon/…/dungeon/gen/Layout.java` | qavat qanchalik katta — `of(settings)` tushishniki (bit-baravar), `sized(...)` muallif so'ragani; urinishlar soni so'ralgandan keltirib chiqariladi |
+| `dungeon/src/main/resources/stages/deep.stage` | ikkinchi shipping bosqich: 100×76, 28 xona, chuqurlik 8 — tushishdan chuqurroq |
+| `worldbuilder/…/worldbuilder/ui/NewStage.java` | chizishdan oldingi savol: eni, bo'yi, xona soni, qiyinchilik — izohlari o'yinning o'z raqamlaridan o'qiladi |
 | `dungeon/…/dungeon/stage/StageCheck.java` | qo'lda tahrirlangan fayl bilan nima noto'g'ri — yurish `PathGrid.canStep` bilan, javob ro'yxat |
 | `dungeon/…/dungeon/stage/Stages.java` | qaysi stage o'ynaladi (`--stage=` > INI) va fayl qayerdan topiladi (disk > classpath) |
 | `dungeon/src/main/resources/stages/first.stage` | shipping stage — `:worldbuilder:writeExampleStage` qayta yozadi |

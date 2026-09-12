@@ -162,8 +162,11 @@ class StageChoiceTest {
         stageRow.next().options().getFirst().taken().run();
         session.game().runHeadless(1);
 
-        assertEquals(1, session.run().getLastDepth(),
-                "a stage is one floor deep; this run thinks it is a descent");
+        // One floor, and the depth of that one floor is the difficulty its author
+        // chose — so "is this a stage?" is asked as "does it end where it begins?"
+        // rather than as "is it depth one?", which it was while every stage was.
+        assertEquals(stage.difficulty(), session.run().getLastDepth(),
+                "a stage is fought at its own difficulty; this run thinks it is a descent");
         // Its monsters and the boss standing at the bottom of it, who is placed
         // separately and is still one of the things in the room.
         assertEquals(stage.floor().monsters().size() + (stage.floor().boss() == null ? 0 : 1),
@@ -209,6 +212,7 @@ class StageChoiceTest {
     /** A stage can be played by either hero: the stage does not decide. */
     @Test
     void aStageCanBePlayedByEitherHero() {
+        var chosen = Stages.all(SETTINGS).getFirst().stage();
         for (var hero : SETTINGS.heroes()) {
             var session = Dungeon.newSession(7L, SETTINGS);
             var how = Main.howToPlay(session, SETTINGS, Visuals.create());
@@ -222,7 +226,8 @@ class StageChoiceTest {
             session.game().runHeadless(1);
 
             assertEquals(hero.name(), session.run().getHeroTemplate());
-            assertEquals(1, session.run().getLastDepth(), "he is not on the stage");
+            assertEquals(chosen.difficulty(), session.run().getLastDepth(),
+                    "he is not on the stage");
         }
     }
 

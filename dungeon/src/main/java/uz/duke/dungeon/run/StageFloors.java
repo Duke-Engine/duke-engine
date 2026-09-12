@@ -28,8 +28,25 @@ final class StageFloors implements Floors {
         return stage.seed();
     }
 
+    /**
+     * The difficulty its author chose, which is the depth it is played at.
+     *
+     * <p>So a stage is not merely the same rooms every time — it is the same
+     * rooms at the danger somebody picked for them. A stage built at seven is
+     * fought against seventh-floor monsters and a seventh-floor boss, on a floor
+     * the descent would never have reached that way.
+     */
+    @Override
+    public int firstDepth() {
+        return Math.max(1, stage.difficulty());
+    }
+
+    /**
+     * The same depth it starts on: there is one floor, and the boss on it ends
+     * the game rather than opening a door.
+     */
     @Override
     public int lastDepth() {
-        return 1;
+        return firstDepth();
     }
 }

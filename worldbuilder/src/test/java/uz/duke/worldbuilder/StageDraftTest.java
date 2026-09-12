@@ -9,6 +9,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.gen.GeneratedDungeon.Placement;
+import uz.duke.dungeon.gen.Layout;
 import uz.duke.dungeon.stage.StageFile;
 
 /**
@@ -158,6 +159,49 @@ class StageDraftTest {
         var reopened = StageDraft.of(StageFile.read(StageFile.write(stage), "test"), SETTINGS);
 
         assertEquals(stage, reopened.toStage());
+    }
+
+    /**
+     * A draft drawn at the size the author asked for — and playable at it.
+     *
+     * <p>The size cannot be applied to a floor afterwards: a bigger map is a
+     * different set of rooms, not the same rooms further apart. So it is asked
+     * before anything is drawn, and what comes back has to be both the size that
+     * was asked for and a stage the game would accept.
+     */
+    @Test
+    void aDraftIsDrawnAtTheSizeAskedFor() {
+        var draft = StageDraft.generate(8L, SETTINGS, Layout.sized(SETTINGS, 140, 100, 30), 1);
+
+        assertEquals(140, draft.cellsAcross());
+        assertEquals(100, draft.cellsDown());
+        assertTrue(draft.rooms().size() > SETTINGS.maxRooms(),
+                "a map this size should hold more rooms than the shipped floor does");
+        assertEquals(List.of(), draft.problems());
+    }
+
+    /** And at the difficulty asked for, which the stage then carries as its depth. */
+    @Test
+    void aDraftRemembersTheDifficultyItWasDrawnAt() {
+        var draft = StageDraft.generate(8L, SETTINGS, Layout.of(SETTINGS), 9);
+
+        assertEquals(9, draft.difficulty());
+        assertEquals(9, draft.toStage().difficulty());
+        assertEquals(List.of(), draft.problems());
+    }
+
+    /**
+     * The size is recoverable from a floor already drawn, so another seed can be
+     * rolled at the same size by somebody who was not there when it was asked for.
+     */
+    @Test
+    void theSizeCanBeReadBackOffTheFloor() {
+        var draft = StageDraft.generate(8L, SETTINGS, Layout.sized(SETTINGS, 120, 90, 20), 1);
+        var again = draft.layout(SETTINGS);
+
+        assertEquals(120, again.width());
+        assertEquals(90, again.height());
+        assertEquals(draft.rooms().size(), again.minRooms());
     }
 
     private static int[] stoneCell(StageDraft draft) {
