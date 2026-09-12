@@ -467,7 +467,8 @@ final class LayeredEffects {
      */
     static float reachOf(EffectLayer layer, float unit) {
         float life = layer.lifeMax();
-        float thrown = Math.max(layer.speedMin(), layer.speedMax()) * life;
+        // Either way: a speed drawn inwards reaches as far as one thrown out.
+        float thrown = Math.max(Math.abs(layer.speedMin()), Math.abs(layer.speedMax())) * life;
         float fell = Math.abs(layer.gravity()) * life * life * 0.5f;
         float size = Math.max(layer.sizeStart(), layer.sizeEnd()) * (1f + layer.sizeJitter())
                 * unit;

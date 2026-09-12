@@ -34,15 +34,32 @@ class DungeonEffectLayerTest {
         return Main.layerOf(art, SETTINGS.particleFolder());
     }
 
+    /**
+     * Every skill a hero has is drawn in layers, and so is everything a skill throws.
+     *
+     * <p>A look left without layers is not an error anywhere else: it falls back to
+     * the old recipe kinds, draws something plain, and nobody notices that one skill
+     * out of twelve was never given its effect.
+     */
     @Test
-    void theFileDescribesLayersForEveryMageSkill() {
-        assertFalse(SETTINGS.effectLayers().isEmpty(), "the shipped file should describe layers");
+    void everySkillAndEverythingItThrowsIsDrawnInLayers() {
         var layered = SETTINGS.effectLayers().stream()
                 .map(DungeonSettings.EffectLayerArt::effect).collect(Collectors.toSet());
-        for (var look : new String[] {"MageCast", "MageFireball", "FrostNova", "MageBlink",
-            "MeteorCall", "MeteorWarning"}) {
-            assertTrue(layered.contains(look), look + " is a mage effect with no layers");
+        var carries = new java.util.HashMap<String, String>();
+        for (var projectile : SETTINGS.projectiles()) {
+            carries.put(projectile.name(), projectile.effect());
         }
+        var bare = new ArrayList<String>();
+        for (var skill : SETTINGS.skills()) {
+            if (skill.hasLook() && !layered.contains(skill.look())) {
+                bare.add(skill.look());
+            }
+            var thrown = skill.hasProjectile() ? carries.get(skill.projectile()) : null;
+            if (thrown != null && !thrown.isBlank() && !layered.contains(thrown)) {
+                bare.add(thrown + " (thrown)");
+            }
+        }
+        assertTrue(bare.isEmpty(), "drawn without layers: " + bare);
     }
 
     /**

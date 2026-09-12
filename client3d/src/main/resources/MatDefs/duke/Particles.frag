@@ -20,6 +20,10 @@ varying vec4 colour;
 
 void main() {
     vec4 shape = texture2D(m_Texture, texCoord);
-    float amount = shape.a * colour.a;
+    // The faintest few hundredths of the texture's alpha are dropped. Some of the
+    // pack's flares and flames carry a haze across the whole card at two or three
+    // percent: nothing when drawn small, and a hard-edged square once a flash is a
+    // hundred units wide over a floor its own light has just brightened.
+    float amount = max(shape.a - 0.04, 0.0) / 0.96 * colour.a;
     gl_FragColor = vec4(shape.rgb * colour.rgb * amount, amount * m_Cover);
 }
