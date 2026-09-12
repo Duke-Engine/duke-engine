@@ -49,6 +49,35 @@ final class HeroStatus {
     }
 
     /**
+     * Where his last cast wants drawing, and as what.
+     *
+     * <p>The one thing on this line that is not about the panel. It is here
+     * because this IS the game's channel to its own client -- a string the engine
+     * carries and never reads -- and because the alternative was widening the
+     * engine's own {@code WeaponFired} event, which is shared with games that have
+     * never heard of a skill. That event says who fired and where, which is all a
+     * muzzle flash needs; it cannot tell a nova from a blink, and the whole point
+     * of the effects is that a player can.
+     *
+     * <p>The frame travels with it so that one cast is drawn once. The line is
+     * rebuilt and sent every frame whether or not anything happened, so without
+     * it a nova would open its ring thirty times a second for as long as nothing
+     * else was cast.
+     *
+     * <p>Only the hero's. A skeleton mage's fire is drawn by the fire, which is a
+     * thing in the world and needs nobody to say so.
+     */
+    private static void appendCast(StringBuilder line, SkillBook book) {
+        for (var mark : book.getCastMarks()) {
+            line.append("|cast=").append(mark.look())
+                    .append(',').append(book.getLastCastFrame())
+                    .append(',').append(mark.x())
+                    .append(',').append(mark.y())
+                    .append(',').append(mark.radius());
+        }
+    }
+
+    /**
      * The card for nobody: the floor, and nothing else.
      *
      * <p>What the bar says when the player has selected nothing. It is not a
@@ -178,6 +207,7 @@ final class HeroStatus {
         if (book != null) {
             line.append("|skWord=").append(settings.hudSkillsWord());
             line.append(Skills.slots(book, level, settings.hudRankSuffix(), settings::hudIcon));
+            appendCast(line, book);
         }
         appendPowers(line, powers, settings);
         appendOffer(line, powers, settings);

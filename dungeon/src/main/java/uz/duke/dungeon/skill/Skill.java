@@ -50,6 +50,11 @@ package uz.duke.dungeon.skill;
  * @param projectile    the creature a {@code STRIKE} becomes on its way, or empty
  *     to land where it stands. An arrow that crosses the room is the difference
  *     between a shot and an accusation.
+ * @param look          the name of the {@code DungeonEffect} block that says what
+ *     this one looks like going off -- the ring across the floor, the knock to
+ *     the camera -- or empty for a skill that is drawn by nothing but whatever it
+ *     throws. Named rather than described, so two skills may share a look and a
+ *     fifth skill is a fifth block of INI
  * @param icon          the picture the panel draws in this skill's slot, as a file
  *     beside the other art, or empty for the letter the key is called. Which
  *     drawing goes with which skill is a matter for the file: a fifth skill should
@@ -74,7 +79,8 @@ public record Skill(
         int unlockLevel,
         int windUpFrames,
         String projectile,
-        String icon) {
+        String icon,
+        String look) {
 
     /**
      * A cooldown can shorten with level but never vanish: a skill castable every
@@ -123,5 +129,10 @@ public record Skill(
     /** Whether being caught by this also drags the victim's feet. */
     public boolean chills() {
         return slowFrames > 0;
+    }
+
+    /** Whether the file said what this one looks like going off. */
+    public boolean hasLook() {
+        return look != null && !look.isBlank();
     }
 }

@@ -1037,6 +1037,7 @@ public final class DungeonSettings {
         int windUpFrames;
         String projectile = "";
         String icon = "";
+        String look = "";
 
         SkillBuilder(String heroTemplate, String key) {
             this.heroTemplate = heroTemplate;
@@ -1047,7 +1048,7 @@ public final class DungeonSettings {
             return new Skill(heroTemplate, key, effect, damage, damagePerLevel, radius, range,
                     distance, boostPercent, boostPerLevel, durationFrames, tickFrames,
                     slowFrames, cooldownFrames, cooldownPerLevel, unlockLevel, windUpFrames,
-                    projectile, icon);
+                    projectile, icon, look);
         }
     }
 
@@ -1074,7 +1075,12 @@ public final class DungeonSettings {
                     .add("UnlockLevel", Ini.integer((s, v) -> s.unlockLevel = v))
                     .add("WindUpFrames", Ini.integer((s, v) -> s.windUpFrames = v))
                     .add("Projectile", Ini.string((s, v) -> s.projectile = v))
-                    .add("Icon", Ini.string((s, v) -> s.icon = v));
+                    .add("Icon", Ini.string((s, v) -> s.icon = v))
+                    // What it LOOKS like going off: the name of a DungeonEffect
+                    // block. Named rather than described here for the reason every
+                    // other look in this file is -- two skills may want the same
+                    // ring, and a fifth skill should be a fifth block.
+                    .add("Look", Ini.string((s, v) -> s.look = v));
 
     /** Accumulates one {@code DungeonLootItem <id>} block. */
     private static final class LootBuilder {
@@ -1560,7 +1566,10 @@ public final class DungeonSettings {
             java.util.List<String> parts, int colour, int fade,
             int lightColour, float lightPower, float lightRadius,
             int particles, float particleSize, float particleLife, float spread,
-            float orbSize, int burstParticles, float burstSize, float burstSeconds) {
+            float orbSize, int burstParticles, float burstSize, float burstSeconds,
+            float waveFrom, float waveTo, float waveSeconds, float waveEase,
+            float waveEdge, float waveWash, float markRadius, float markSeconds,
+            float shakeSeconds, float shakePower) {
 
         public EffectLook {
             kinds = java.util.List.copyOf(kinds);
@@ -1599,6 +1608,16 @@ public final class DungeonSettings {
         int burstParticles;
         float burstSize = 1f;
         float burstSeconds = 0.3f;
+        float waveFrom;
+        float waveTo;
+        float waveSeconds = 0.45f;
+        float waveEase = 2.4f;
+        float waveEdge = 1f;
+        float waveWash = 0.25f;
+        float markRadius;
+        float markSeconds;
+        float shakeSeconds;
+        float shakePower;
 
         EffectBuilder(String name) {
             this.name = name;
@@ -1607,7 +1626,9 @@ public final class DungeonSettings {
         EffectLook look() {
             return new EffectLook(name, kinds, parts, colour, fade, lightColour, lightPower,
                     lightRadius, particles, particleSize, particleLife, spread, orbSize,
-                    burstParticles, burstSize, burstSeconds);
+                    burstParticles, burstSize, burstSeconds, waveFrom, waveTo, waveSeconds,
+                    waveEase, waveEdge, waveWash, markRadius, markSeconds, shakeSeconds,
+                    shakePower);
         }
     }
 
@@ -1729,13 +1750,36 @@ public final class DungeonSettings {
                     .add("Part", Ini.string((e, v) -> e.parts.add(v)))
                     .add("BurstParticles", Ini.integer((e, v) -> e.burstParticles = v))
                     .add("BurstSize", Ini.real((e, v) -> e.burstSize = v))
-                    .add("BurstSeconds", Ini.real((e, v) -> e.burstSeconds = v));
+                    .add("BurstSeconds", Ini.real((e, v) -> e.burstSeconds = v))
+                    // SHOCKWAVE: the ring that opens across the floor. From and To
+                    // are where it starts and stops; To of zero and it never runs.
+                    // A skill that says nothing about its own width gets these, and
+                    // one that has a Radius of its own overrides them at the cast.
+                    .add("WaveFrom", Ini.real((e, v) -> e.waveFrom = v))
+                    .add("WaveTo", Ini.real((e, v) -> e.waveTo = v))
+                    .add("WaveSeconds", Ini.real((e, v) -> e.waveSeconds = v))
+                    // The whole of the feel, in one number. 1 opens at a constant
+                    // speed and reads as a circle being resized; above 1 it leaps
+                    // and then slows, which is what an impact does. 2 to 3 is the
+                    // useful range and 2.4 is what a block that says nothing gets.
+                    .add("WaveEase", Ini.real((e, v) -> e.waveEase = v))
+                    .add("WaveEdge", Ini.real((e, v) -> e.waveEdge = v))
+                    .add("WaveWash", Ini.real((e, v) -> e.waveWash = v))
+                    // GROUND_MARK: the disc that STAYS. MarkSeconds of zero and
+                    // there is none; MarkRadius of zero takes the skill's own.
+                    .add("MarkRadius", Ini.real((e, v) -> e.markRadius = v))
+                    .add("MarkSeconds", Ini.real((e, v) -> e.markSeconds = v))
+                    // And the knock. Small numbers: a shake is felt rather than
+                    // seen, and one that can be SEEN is one a player turns off.
+                    .add("ShakeSeconds", Ini.real((e, v) -> e.shakeSeconds = v))
+                    .add("ShakePower", Ini.real((e, v) -> e.shakePower = v));
 
     // ---- what the client may spend on all of it ----
 
     private int effectLights = 4;
     private int effectsPerKind = 8;
     private int effectBursts = 8;
+    private int effectRings = 6;
     private float effectDistance;
 
     /**
@@ -1752,6 +1796,18 @@ public final class DungeonSettings {
         return effectsPerKind;
     }
 
+    /**
+     * How many skill rings may be open across the floor at once.
+     *
+     * <p>Its own ceiling rather than a share of the bursts', because it is a
+     * different resource: a burst is particles and a light, a ring is a vertex
+     * buffer and two materials. Past it a skill keeps its fire, its light and its
+     * damage and loses a decoration, which is the cheapest thing in the room.
+     */
+    public int effectRings() {
+        return effectRings;
+    }
+
     public int effectBursts() {
         return effectBursts;
     }
@@ -1764,6 +1820,7 @@ public final class DungeonSettings {
     private static final FieldParseTable<DungeonSettings> EFFECT_BUDGET =
             new FieldParseTable<DungeonSettings>()
                     .add("MaxLights", Ini.integer((s, v) -> s.effectLights = v))
+                    .add("MaxRings", Ini.integer((s, v) -> s.effectRings = v))
                     .add("MaxPerEffect", Ini.integer((s, v) -> s.effectsPerKind = v))
                     .add("MaxBursts", Ini.integer((s, v) -> s.effectBursts = v))
                     .add("MaxDistance", Ini.real((s, v) -> s.effectDistance = v));

@@ -115,6 +115,19 @@ final class DukeRtsApp extends SimpleApplication {
     private final List<Material> fogged = new ArrayList<>();
     /** What the things in flight look like. Built once; see {@link ProjectileEffects}. */
     private ProjectileEffects effects;
+
+    /**
+     * What a skill looks like going off: rings across the floor, and the knock.
+     *
+     * <p>Beside the projectiles' effects rather than inside them, because they
+     * answer different questions. That one is asked "this thing is flying / this
+     * thing landed"; this one is asked "the player pressed W", which arrives from
+     * somewhere else entirely -- see {@link #skillsCastThisFrame}.
+     */
+    private SkillEffects skillEffects;
+
+    /** The frame of the last cast this client drew, so one cast is drawn once. */
+    private int lastCastFrameDrawn = Integer.MIN_VALUE;
     /** The grid the terrain was built from — a different instance means a new world. */
     private uz.duke.core.pathfind.PathGrid builtFrom;
 
@@ -325,6 +338,9 @@ final class DukeRtsApp extends SimpleApplication {
         var budget = visuals.getEffectBudget();
         effects = new ProjectileEffects(assetManager, rootNode, visuals,
                 budget.lights(), budget.perEffect(), budget.bursts(), budget.distance());
+        skillEffects = new SkillEffects(assetManager, rootNode, visuals, effects,
+                visuals.getRangeLook(),
+                visuals.getSkillRings(), budget.distance());
 
         rootNode.attachChild(terrainNode);
         buildTerrain();
@@ -1916,6 +1932,9 @@ final class DukeRtsApp extends SimpleApplication {
         builtFrom = game.getTerrain();
         // A new world is a world with nothing burning in it yet.
         effects.clear();
+        if (skillEffects != null) {
+            skillEffects.clear();
+        }
         terrain.rebuild(builtFrom, currentKit);
         if (visuals.getDiscoveryTemplate() == null) {
             return;
@@ -2925,6 +2944,7 @@ final class DukeRtsApp extends SimpleApplication {
         // this frame — the terrain reads its lights off a material parameter, not
         // out of the scene, so nothing tells it but this.
         effects.update(tpf);
+        skillEffects.update(tpf, this::floorHeightAt);
         carryTheLightsToTheStone();
         reapTheDead();
         syncMinimap();
@@ -3160,7 +3180,17 @@ final class DukeRtsApp extends SimpleApplication {
 
         float distance = camera.distance();
         var target = new Vector3f(camera.targetX(), cameraHeight, camera.targetZ());
-        cam.setLocation(target.add(new Vector3f(0, distance * 0.82f, distance * 0.57f)));
+        // The knock from whatever just landed, added to where the camera was
+        // going to be rather than replacing it -- so the shake never argues with
+        // the pan, the zoom or the storey it is riding up.
+        //
+        // Only the EYE is moved and not what it is looking at. Shaking both is a
+        // camera being carried about; shaking one is the ground being hit, which
+        // is what is actually happening. It also keeps the thing the player is
+        // watching in the middle of the screen while the world rattles round it.
+        var knock = skillEffects == null ? Vector3f.ZERO : skillEffects.shakeNow();
+        cam.setLocation(target.add(new Vector3f(0, distance * 0.82f, distance * 0.57f))
+                .addLocal(knock));
         cam.lookAt(target, Vector3f.UNIT_Y);
     }
 
@@ -3281,6 +3311,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         lastEventedSnapshot = snapshot;
         killedThisFrame.clear();
+        skillsCastThisFrame(snapshot);
         for (var event : snapshot.events()) {
             if (event instanceof ObjectDied died) {
                 killedThisFrame.add(new HealthWatch.Death(died.object().value(),
@@ -3308,6 +3339,59 @@ final class DukeRtsApp extends SimpleApplication {
                     // the snapshot says when that was.
                     playOnce(node, visualFor(node.view.templateName()).attackAnim);
                 }
+            }
+        }
+    }
+
+    /**
+     * What was cast this frame, out of the status line.
+     *
+     * <p><b>Why the status line and not an event.</b> The engine's event channel
+     * carries {@code WeaponFired}, and every cast already posts one -- but it says
+     * only WHO fired and where, which is all a muzzle flash needs and not nearly
+     * enough to tell a nova from a blink. The event lives in {@code rts}, which is
+     * shared with games that have never heard of a skill, so widening it there to
+     * carry a key would be the dungeon's idea put somewhere it does not belong.
+     *
+     * <p>The status line is the game talking to its own client and is exactly the
+     * seam for this: a string the engine carries and never reads. It already
+     * carries the things a dungeon has that an RTS does not -- the level-up offer,
+     * the note, which stone the floor is built from -- and this is one more.
+     *
+     * <p>Read from the snapshot rather than from the panel, because the panel is
+     * about what is SELECTED: the moment the player clicks a skeleton his own
+     * card is gone and so would his effects be. The frame number is what keeps
+     * one cast drawn once, since the same line is sent again until something
+     * changes.
+     *
+     * <p>Format is {@code cast=<recipe>,<frame>,<x>,<y>,<radius>}. A line that
+     * does not parse is dropped in silence: a missing ring is the cheapest
+     * possible failure, and an effect that threw would take the frame with it.
+     */
+    private void skillsCastThisFrame(WorldSnapshot snapshot) {
+        if (skillEffects == null || !snapshot.hasStatus()) {
+            return;
+        }
+        for (var field : snapshot.status().split("\\|")) {
+            if (!field.startsWith("cast=")) {
+                continue;
+            }
+            var parts = field.substring(5).split(",");
+            if (parts.length < 5) {
+                continue;
+            }
+            try {
+                int frame = Integer.parseInt(parts[1].trim());
+                if (frame <= lastCastFrameDrawn) {
+                    continue; // already drawn; the line is sent again every frame
+                }
+                lastCastFrameDrawn = frame;
+                skillEffects.cast(parts[0].trim(),
+                        new uz.duke.core.math.Coord3D(Float.parseFloat(parts[2].trim()),
+                                Float.parseFloat(parts[3].trim()), 0f),
+                        cam.getLocation(), Float.parseFloat(parts[4].trim()), this::floorHeightAt);
+            } catch (NumberFormatException malformed) {
+                // Somebody else's line, or a version that disagrees. No ring.
             }
         }
     }

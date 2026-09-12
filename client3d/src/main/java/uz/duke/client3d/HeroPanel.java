@@ -2320,6 +2320,9 @@ final class HeroPanel {
                     // is one line: a field this panel has no picture for still has
                     // to be a field it recognises, or it would refuse the whole
                     // thing as somebody else's.
+                    // What a skill looked like going off. Nothing on the panel, but
+                    // the line is one line: see "look" above.
+                    case "cast" -> { }
                     case "look" -> { }
                     default -> {
                         return null; // a field this client does not know: not ours

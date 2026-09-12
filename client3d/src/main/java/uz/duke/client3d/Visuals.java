@@ -395,6 +395,27 @@ public final class Visuals {
         return this;
     }
 
+    /**
+     * How many skill rings may be open across the floor at once.
+     *
+     * <p>Its own number rather than a fifth field on {@link EffectBudget}, which
+     * is about what is allowed to BURN -- lights, trails and bursts, all of them
+     * costing the renderer the same sort of thing. A ring costs a vertex buffer
+     * and two materials and nothing else; it is a different resource with a
+     * different sensible ceiling, and putting the two in one record would invite
+     * tuning one by moving the other.
+     */
+    private int skillRings = 6;
+
+    public Visuals skillRings(int rings) {
+        this.skillRings = Math.max(0, rings);
+        return this;
+    }
+
+    public int getSkillRings() {
+        return skillRings;
+    }
+
     public EffectBudget getEffectBudget() {
         return budget;
     }
@@ -435,9 +456,36 @@ public final class Visuals {
          */
         public static final String GLOW_PARTS = "GLOW_PARTS";
 
+        /**
+         * A ring that opens outward across the floor and fades as it goes.
+         *
+         * <p>The shape a skill is recognised by. A burst of sparks says "something
+         * happened here" and every skill in the game would say it the same way; a
+         * ring that opens to a particular size, at a particular speed, in a
+         * particular colour is the difference between a nova and a whirlwind at a
+         * glance -- and it is the one drawing that shows how far the skill
+         * actually reached, which no amount of fire does.
+         *
+         * <p>It lies on the FLOOR and follows it, storey by storey, so a skill cast
+         * at the top of a stair does not draw its ring through the steps.
+         */
+        public static final String SHOCKWAVE = "SHOCKWAVE";
+
+        /**
+         * A disc that stays where it is put, for as long as it is told to.
+         *
+         * <p>{@link #SHOCKWAVE}'s opposite: that one is over in half a second and
+         * says what just happened, this one sits still and says what is ABOUT to.
+         * A meteor's warning circle is the whole reason it exists -- a mark the
+         * player and the monsters are both given, so that walking out of it is a
+         * thing that can be done.
+         */
+        public static final String GROUND_MARK = "GROUND_MARK";
+
         /** All of them, for a game that wants to check a settings file against it. */
         public static java.util.Set<String> allKinds() {
-            return java.util.Set.of(FLAME_TRAIL, GLOW_ORB, IMPACT_BURST, GLOW_PARTS);
+            return java.util.Set.of(FLAME_TRAIL, GLOW_ORB, IMPACT_BURST, GLOW_PARTS,
+                    SHOCKWAVE, GROUND_MARK);
         }
 
         /**
@@ -464,6 +512,16 @@ public final class Visuals {
         int burstParticles;
         float burstSize = 1f;
         float burstSeconds = 0.3f;
+        float waveFrom;
+        float waveTo;
+        float waveSeconds = 0.45f;
+        float waveEdge = 1f;
+        float waveWash = 0.25f;
+        float waveEase = 2.4f;
+        float markSeconds;
+        float markRadius;
+        float shakeSeconds;
+        float shakePower;
 
         private EffectVisual() {
         }
@@ -531,8 +589,74 @@ public final class Visuals {
             return this;
         }
 
+        /**
+         * The ring: where it starts, where it ends, how long it takes, how hard
+         * the line and the wash inside it are drawn.
+         *
+         * <p>{@code ease} is the whole of why it reads as an impact rather than as
+         * a circle being resized. It is the power the elapsed fraction is raised
+         * to before the radius is taken from it: 1 is a ring opening at a constant
+         * speed, which is what a machine does, and anything above it is a ring that
+         * leaps and then slows, which is what an explosion does. Below 1 it gathers
+         * speed, which is what nothing does and is left possible anyway because the
+         * file is allowed to be wrong in an interesting way.
+         */
+        public EffectVisual wave(float from, float to, float seconds, float ease,
+                float edge, float wash) {
+            this.waveFrom = from;
+            this.waveTo = to;
+            this.waveSeconds = seconds;
+            this.waveEase = ease;
+            this.waveEdge = edge;
+            this.waveWash = wash;
+            return this;
+        }
+
+        /** The standing mark: how wide, and how long it stays. */
+        public EffectVisual mark(float radius, float seconds) {
+            this.markRadius = radius;
+            this.markSeconds = seconds;
+            return this;
+        }
+
+        /**
+         * How hard the camera is knocked, and for how long.
+         *
+         * <p>Small numbers. A shake is felt rather than seen, and one that can be
+         * SEEN is one the player will ask you to turn off -- so this is a couple of
+         * units for a couple of tenths, and zero for every skill that is not
+         * supposed to land like a weight.
+         */
+        public EffectVisual shake(float seconds, float power) {
+            this.shakeSeconds = seconds;
+            this.shakePower = power;
+            return this;
+        }
+
         boolean has(String kind) {
             return kinds.contains(kind);
+        }
+
+        // ---- what the client reads back out ----
+
+        public java.util.Set<String> getKinds() {
+            return java.util.Set.copyOf(kinds);
+        }
+
+        public float getWaveTo() {
+            return waveTo;
+        }
+
+        public float getWaveSeconds() {
+            return waveSeconds;
+        }
+
+        public float getShakePower() {
+            return shakePower;
+        }
+
+        public float getMarkSeconds() {
+            return markSeconds;
         }
     }
 

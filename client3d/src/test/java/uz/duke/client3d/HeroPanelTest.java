@@ -88,6 +88,27 @@ class HeroPanelTest {
                 "a field this panel cannot draw means the line was never meant for it");
     }
 
+    /**
+     * A line carrying a cast is still the panel's line.
+     *
+     * <p>The field is nothing to do with the panel -- it is where a skill wants
+     * its ring drawn, which {@code DukeRtsApp} reads straight off the snapshot --
+     * but the line is ONE line, and a field this parser does not recognise means
+     * the whole thing was meant for somebody else and the bar goes dark. So the
+     * panel has to know the names of fields it draws nothing for, and the way
+     * that breaks is somebody adding one to the game and not to this switch: the
+     * hero's bar simply vanishes the first time a skill is cast.
+     */
+    @Test
+    void aLineCarryingACastIsStillRead() {
+        var reading = HeroPanel.Reading.parse(
+                LINE + "|cast=FrostNova,412,150.0,150.0,40.0");
+
+        assertNotNull(reading, "the bar went dark the moment a skill was cast");
+        assertEquals("Erika", reading.name());
+        assertEquals(4, reading.skills().size(), "and the rest of the line survived it");
+    }
+
     /** A malformed line of the right shape is refused rather than half-drawn. */
     @Test
     void aBrokenLineIsRefused() {

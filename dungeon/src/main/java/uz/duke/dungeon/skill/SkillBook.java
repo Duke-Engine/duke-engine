@@ -119,6 +119,32 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     private int lastCastFrame = Integer.MIN_VALUE;
     private ObjectId lastAimedAt;
 
+    /**
+     * Where the last cast should be DRAWN, and what it should be drawn as.
+     *
+     * <p>The simulation deciding what a thing looks like would be the wrong way
+     * round, and this does not: it decides only WHERE, which nothing but the
+     * simulation knows, and hands over the name of a block in the art file for
+     * the rest. The client is free to draw nothing at all.
+     *
+     * <p>A list, because one cast is not always one place. A blink is two -- the
+     * spot he left and the spot he arrived at -- and half a blink is a teleport
+     * with a bug.
+     *
+     * <p>It is left standing rather than cleared each frame. What keeps a ring
+     * from being drawn twice is the FRAME beside it, which the client compares
+     * against the last one it drew; clearing this would mean a cast landing in a
+     * frame the client happened to miss simply never being seen.
+     */
+    private final List<CastMark> castMarks = new java.util.ArrayList<>();
+
+    /**
+     * One place a cast should be drawn: the art block's name, the spot, and how
+     * wide. A radius of zero means "as wide as the block itself says".
+     */
+    public record CastMark(String look, float x, float y, float radius) {
+    }
+
     // ---- a shot begun and not yet loosed ----
 
     /**
@@ -204,6 +230,11 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         return lastAimedAt;
     }
 
+    /** Where his last cast wants drawing, and as what. Empty for most of a run. */
+    public List<CastMark> getCastMarks() {
+        return List.copyOf(castMarks);
+    }
+
     private int slotOf(char key) {
         for (int slot = 0; slot < skills.size(); slot++) {
             if (skills.get(slot).key() == key) {
@@ -249,9 +280,13 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         if (world == null || owner.isEffectivelyDead()) {
             return false;
         }
+        // Read before it goes off, because two of the effects move him and the
+        // spot he LEFT is half of what a blink looks like.
+        var stood = owner.getPosition();
         if (!apply(skill, level, owner, world, at, towards)) {
             return false; // aimed at nothing it could reach; the cooldown is not spent
         }
+        rememberTheCast(skill, owner, stood, towards);
         spend(slot, skill, level);
         lastCastFrame = world.getFrame();
         // He does one thing at a time. Casting is the player's latest word, so
@@ -278,6 +313,48 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         }
         cooldowns[slot] = Math.max(Skill.MIN_COOLDOWN_FRAMES,
                 Math.round(skill.cooldownAt(level) * powers.cooldownMultiplier(skill.key())));
+    }
+
+    /**
+     * Where this cast wants drawing.
+     *
+     * <p>Worked out from the effect rather than written in the file, because the
+     * effect is what knows: a blast round him is drawn round him whatever its
+     * numbers say, and there is no useful sense in which one hero's nova is
+     * centred somewhere else. The same argument {@code Main.rangeOf} makes for
+     * the rings the player aims with -- and it means a hero added next month gets
+     * his effects by naming a block, with nothing here to keep in step.
+     */
+    private void rememberTheCast(Skill skill, GameObject owner, Coord3D stood, Coord3D towards) {
+        castMarks.clear();
+        if (!skill.hasLook()) {
+            return;
+        }
+        var here = owner.getPosition();
+        switch (skill.effect()) {
+            // Round him, as wide as it actually reached.
+            case AREA_DAMAGE -> mark(skill, here, skill.radius());
+            // On him and no wider than the block says: these are about HIM, and a
+            // ring the size of a room would claim they were about the room.
+            case EMPOWER, GUARD, STRIKE, SKILLSHOT -> mark(skill, here, 0f);
+            // Where he put it. Where a skillshot LANDS is its own burst and is
+            // drawn by whatever it ran into, which is the point of a lane.
+            case AREA_AT_SPOT -> mark(skill, towards == null ? here
+                    : withinReach(owner, towards, skill.range()), skill.radius());
+            // The warning circle, as wide as the blast that is coming.
+            case METEOR -> mark(skill, towards == null ? here
+                    : withinReach(owner, towards, skill.range()), skill.radius());
+            // Both ends. For a dash it is the two feet of the run; for a blink it
+            // is the whole of what the skill looks like.
+            case DASH, BLINK -> {
+                mark(skill, stood, 0f);
+                mark(skill, here, 0f);
+            }
+        }
+    }
+
+    private void mark(Skill skill, Coord3D at, float radius) {
+        castMarks.add(new CastMark(skill.look(), at.x(), at.y(), radius));
     }
 
     /** @return whether it went off, which an aimed skill may decline */

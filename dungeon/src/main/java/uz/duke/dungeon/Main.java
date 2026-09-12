@@ -73,7 +73,11 @@ public final class Main {
                     .particles(look.particles(), look.particleSize(), look.particleLife(),
                             look.spread())
                     .orb(look.orbSize())
-                    .burst(look.burstParticles(), look.burstSize(), look.burstSeconds());
+                    .burst(look.burstParticles(), look.burstSize(), look.burstSeconds())
+                    .wave(look.waveFrom(), look.waveTo(), look.waveSeconds(), look.waveEase(),
+                            look.waveEdge(), look.waveWash())
+                    .mark(look.markRadius(), look.markSeconds())
+                    .shake(look.shakeSeconds(), look.shakePower());
         });
     }
 
@@ -683,6 +687,7 @@ public final class Main {
         }
         visuals.effectBudget(settings.effectLights(), settings.effectsPerKind(),
                 settings.effectBursts(), settings.effectDistance());
+        visuals.skillRings(settings.effectRings());
 
         // The floor is black until he walks it. Named rather than given a
         // distance: the radius is the hero's own VisionRange from creatures.ini,

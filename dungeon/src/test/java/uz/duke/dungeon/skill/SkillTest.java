@@ -18,7 +18,7 @@ class SkillTest {
 
     private static Skill skill(float damage, float perLevel, int cooldown, int cooldownPerLevel) {
         return new Skill("Hero", 'Q', SkillEffect.STRIKE, damage, perLevel, 0f, 40f, 0f,
-                0, 0, 0, 0, 0, cooldown, cooldownPerLevel, 1, 0, "", "");
+                0, 0, 0, 0, 0, cooldown, cooldownPerLevel, 1, 0, "", "", "");
     }
 
     /** Level one is the file as written: a skill is not the file minus a level. */
@@ -84,7 +84,7 @@ class SkillTest {
     @Test
     void anUltimateIsLockedUntilItsLevel() {
         var r = new Skill("Hero", 'R', SkillEffect.EMPOWER, 0f, 0f, 0f, 0f, 0f,
-                80, 12, 180, 0, 0, 900, -30, 5, 0, "", "");
+                80, 12, 180, 0, 0, 900, -30, 5, 0, "", "", "");
 
         assertFalse(r.unlockedAt(4));
         assertTrue(r.unlockedAt(5));

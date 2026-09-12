@@ -277,6 +277,65 @@ class MageTest {
                 "the mark outlived its meteor, so the scene grows by one a cast");
     }
 
+    // ---- and what the client is told about all of it ----
+
+    /**
+     * A cast says where it wants drawing, and the client is told nothing else.
+     *
+     * <p>The simulation deciding what a skill LOOKS like would be the wrong way
+     * round, and this is the line it does not cross: it says where, which nothing
+     * but the simulation knows, and names a block in the art file for the rest.
+     */
+    @Test
+    void aCastSaysWhereItWantsDrawing() {
+        var arena = arena(180f, 150f);
+
+        arena.book().cast('W', 1);
+
+        var marks = arena.book().getCastMarks();
+        assertEquals(1, marks.size(), "a nova is one place");
+        assertEquals(skillOf(MAGE, 'W').look(), marks.get(0).look());
+        assertEquals(arena.hero().getPosition().x(), marks.get(0).x(), 0.01f,
+                "a nova is drawn round him, wherever he is standing");
+        assertEquals(skillOf(MAGE, 'W').radius(), marks.get(0).radius(), 0.01f,
+                "and as wide as it actually reached, rather than as wide as the block guessed");
+    }
+
+    /**
+     * A blink is two places, and that is the whole of what it looks like.
+     *
+     * <p>A flash where he was and a flash where he is, with nothing drawn between
+     * them. Half a blink is a teleport with a bug — the man appears somewhere
+     * else and the spot he left says nothing about it.
+     */
+    @Test
+    void aBlinkIsDrawnAtBothEnds() {
+        var arena = arena();
+        var from = arena.hero().getPosition();
+
+        arena.book().cast('E', 1, null, new Coord3D(from.x() + 50f, from.y(), 0f));
+
+        var marks = arena.book().getCastMarks();
+        assertEquals(2, marks.size(), "a blink drawn at one end is a man teleporting by accident");
+        assertEquals(from.x(), marks.get(0).x(), 0.01f, "the first is where he left");
+        assertTrue(marks.get(1).x() > marks.get(0).x() + 30f, "and the second is where he arrived");
+    }
+
+    /** The meteor marks the ground it is going to land on, not the man who called it. */
+    @Test
+    void theMeteorIsDrawnWhereItWillLand() {
+        var arena = arena();
+        var spot = new Coord3D(220f, 150f, 0f);
+
+        arena.book().cast('R', 5, null, spot);
+
+        var marks = arena.book().getCastMarks();
+        assertEquals(1, marks.size());
+        assertEquals(spot.x(), marks.get(0).x(), 0.01f);
+        assertEquals(skillOf(MAGE, 'R').radius(), marks.get(0).radius(), 0.01f,
+                "the warning has to be as wide as the blast, or it is not a warning");
+    }
+
     // ---- and the two who were here first ----
 
     /**
