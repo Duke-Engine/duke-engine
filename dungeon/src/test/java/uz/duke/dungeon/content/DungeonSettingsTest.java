@@ -310,6 +310,32 @@ class DungeonSettingsTest {
         }
     }
 
+    /**
+     * A shot down a lane says how WIDE it is, separately from how wide it bursts.
+     *
+     * <p>Two different numbers that were one, and being one made the picture lie.
+     * The lane is drawn at the width of the thing in flight — what a player has
+     * to step out of — and a fireball's burst is five times that, so drawing the
+     * lane at the burst claimed the shot would sweep a band the width of a room.
+     *
+     * <p>The way this goes wrong now is silence: a skillshot with no
+     * {@code HitWidth} is drawn as a lane of no width at all, which is a skill
+     * whose indicator is invisible and looks exactly like one that is broken.
+     */
+    @Test
+    void everyShotDownALaneSaysHowWideItIs() {
+        for (var skill : DungeonSettings.load().skills()) {
+            if (skill.effect() != uz.duke.dungeon.skill.SkillEffect.SKILLSHOT) {
+                continue;
+            }
+            assertTrue(skill.hitWidth() > 0f, skill.heroTemplate() + "'s " + skill.key()
+                    + " is a shot with no width, so its lane is drawn as nothing");
+            assertTrue(skill.hitWidth() < skill.radius(), skill.heroTemplate() + "'s "
+                    + skill.key() + " is as wide as it bursts, which is the picture that"
+                    + " was wrong before there were two numbers");
+        }
+    }
+
     /** And the file sets the ring's look itself rather than leaving the client's. */
     @Test
     void theShippedFileSetsTheSkillRingItself() {

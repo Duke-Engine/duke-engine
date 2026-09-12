@@ -572,7 +572,7 @@ public final class Main {
             case AREA_AT_SPOT, SKILLSHOT, METEOR -> skill.radius();
             default -> 0f;
         };
-        return new uz.duke.client3d.SkillRange(skill.key(), shape, reach, area);
+        return new uz.duke.client3d.SkillRange(skill.key(), shape, reach, area, skill.hitWidth());
     }
 
     /**

@@ -17,7 +17,7 @@ import uz.duke.dungeon.content.DungeonSettings;
 class SkillTest {
 
     private static Skill skill(float damage, float perLevel, int cooldown, int cooldownPerLevel) {
-        return new Skill("Rogue", 'Q', SkillEffect.STRIKE, damage, perLevel, 0f, 40f, 0f,
+        return new Skill("Rogue", 'Q', SkillEffect.STRIKE, damage, perLevel, 0f, 40f, 0f, 0f,
                 0, 0, 0, 0, 0, cooldown, cooldownPerLevel, 1, 0, "", "", "");
     }
 
@@ -83,7 +83,7 @@ class SkillTest {
     /** An ultimate is a skill with a level on it, and nothing else. */
     @Test
     void anUltimateIsLockedUntilItsLevel() {
-        var r = new Skill("Rogue", 'R', SkillEffect.EMPOWER, 0f, 0f, 0f, 0f, 0f,
+        var r = new Skill("Rogue", 'R', SkillEffect.EMPOWER, 0f, 0f, 0f, 0f, 0f, 0f,
                 80, 12, 180, 0, 0, 900, -30, 5, 0, "", "", "");
 
         assertFalse(r.unlockedAt(4));

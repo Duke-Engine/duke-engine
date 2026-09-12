@@ -25,6 +25,13 @@ package uz.duke.dungeon.skill;
  * @param radius        how far {@code AREA_DAMAGE} reaches around the caster
  * @param range         how far {@code STRIKE} can find a victim
  * @param distance      how far {@code DASH} carries the caster
+ * @param hitWidth      how wide the thing a {@code SKILLSHOT} sends is, across
+ *     the line of flight. Nothing in the simulation reads it -- an arrow hits
+ *     whatever it comes within a step of, which is a property of its speed -- but
+ *     the client draws the lane at it, and a lane drawn at anything else is the
+ *     picture lying about what the shot will run into. Written down rather than
+ *     worked out from the speed because the two are free to disagree and the
+ *     PICTURE is the one the player trusts
  * @param boostPercent  what this skill is worth in percent — damage added by
  *     {@code EMPOWER}, damage avoided by {@code GUARD}. One field because it is
  *     one question ("how much is it worth?") asked of two mirrored effects
@@ -69,6 +76,7 @@ public record Skill(
         float radius,
         float range,
         float distance,
+        float hitWidth,
         int boostPercent,
         int boostPerLevel,
         int durationFrames,

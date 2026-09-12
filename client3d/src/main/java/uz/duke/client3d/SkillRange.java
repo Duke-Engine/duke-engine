@@ -24,7 +24,17 @@ import uz.duke.core.math.Coord3D;
  * @param area  how wide the thing it leaves is — the blast at the spot, or the
  *              width of the lane. Unused by the shapes that have no area
  */
-public record SkillRange(char key, Shape shape, float reach, float area) {
+public record SkillRange(char key, Shape shape, float reach, float area, float width) {
+
+    /**
+     * A range with no width of its own, for every shape that is not a lane.
+     *
+     * <p>Kept so that adding the fourth number did not make every caller write a
+     * zero: only a lane is drawn at a thickness, because only a lane has one.
+     */
+    public SkillRange(char key, Shape shape, float reach, float area) {
+        this(key, shape, reach, area, 0f);
+    }
 
     /**
      * The five things a player can be asked to aim at, and the five drawings.

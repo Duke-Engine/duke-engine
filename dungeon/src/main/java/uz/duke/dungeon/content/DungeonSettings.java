@@ -1027,6 +1027,7 @@ public final class DungeonSettings {
         float radius;
         float range;
         float distance;
+        float hitWidth;
         int boostPercent;
         int boostPerLevel;
         int durationFrames;
@@ -1047,7 +1048,7 @@ public final class DungeonSettings {
 
         Skill build() {
             return new Skill(heroTemplate, key, effect, damage, damagePerLevel, radius, range,
-                    distance, boostPercent, boostPerLevel, durationFrames, tickFrames,
+                    distance, hitWidth, boostPercent, boostPerLevel, durationFrames, tickFrames,
                     slowFrames, cooldownFrames, cooldownPerLevel, unlockLevel, windUpFrames,
                     projectile, icon, look);
         }
@@ -1061,6 +1062,9 @@ public final class DungeonSettings {
                     .add("Radius", Ini.real((s, v) -> s.radius = v))
                     .add("Range", Ini.real((s, v) -> s.range = v))
                     .add("Distance", Ini.real((s, v) -> s.distance = v))
+                    // How wide the thing a SKILLSHOT throws is. Drawing only --
+                    // see the note on Skill.hitWidth.
+                    .add("HitWidth", Ini.real((s, v) -> s.hitWidth = v))
                     .add("BoostPercent", Ini.integer((s, v) -> s.boostPercent = v))
                     .add("BoostPerLevel", Ini.integer((s, v) -> s.boostPerLevel = v))
                     .add("DurationFrames", Ini.integer((s, v) -> s.durationFrames = v))

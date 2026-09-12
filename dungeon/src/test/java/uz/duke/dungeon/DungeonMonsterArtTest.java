@@ -742,8 +742,17 @@ class DungeonMonsterArtTest {
      * exactly two attachment points and both of them are hands, so a quiver has
      * to go on the chest and be PLACED — pushed back over the shoulder and tilted
      * to lie against him. That tilt is a placement rather than a correction, and
-     * a rule about fists has nothing to say about it. Judging it needs eyes; see
-     * the note on the quiver in dungeon.ini.
+     * a rule about fists has nothing to say about it.
+     *
+     * <p><b>And only of things that have a LENGTH.</b> The measurement the rule
+     * makes — which axis is longest — only means something when one of them
+     * clearly is. A sword is 1.78 against 0.50 and 0.13; a staff 2.15 against
+     * 0.58 and 0.29. A shield is 0.88 by 0.88 by 0.33 and a closed book 0.29 by
+     * 0.57 by 0.43: neither is a length pointed out of a fist, they are flat
+     * things laid in a palm, and "longest axis" picks a winner out of a near-tie
+     * and then makes a confident claim about it. Which way a book FACES is a
+     * question only eyes can settle, so the rule says nothing rather than
+     * something wrong.
      */
     @Test
     void aWeaponLaidOutAcrossTheKitsGrainIsTurned() {
@@ -767,6 +776,14 @@ class DungeonMonsterArtTest {
             model.updateModelBound();
             model.updateGeometricState();
             var box = (BoundingBox) model.getWorldBound();
+            float longest = Math.max(box.getYExtent(),
+                    Math.max(box.getXExtent(), box.getZExtent()));
+            float next = box.getXExtent() + box.getYExtent() + box.getZExtent()
+                    - longest - Math.min(box.getYExtent(),
+                            Math.min(box.getXExtent(), box.getZExtent()));
+            if (longest < next * 1.5f) {
+                continue; // a plate, not a length; see the note above
+            }
             boolean alongTheGrain = box.getYExtent() >= box.getXExtent()
                     && box.getYExtent() >= box.getZExtent();
             boolean turned = held.pitch() != 0f || held.yaw() != 0f || held.roll() != 0f;

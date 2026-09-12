@@ -212,4 +212,21 @@ class ControlsTest {
                         + " a precaution against nothing -- worth knowing either way");
         assertFalse(archer.isEmpty(), "the archer lost his skills");
     }
+
+    /** And the drawn lane takes the shot's width rather than the blast's. */
+    @Test
+    void theLaneIsDrawnAtTheShotsWidth() {
+        var settings = DungeonSettings.load();
+        var fireball = settings.skills().stream()
+                .filter(skill -> skill.effect() == uz.duke.dungeon.skill.SkillEffect.SKILLSHOT)
+                .findFirst().orElseThrow(() -> new AssertionError("nothing is a skillshot"));
+
+        var drawn = uz.duke.dungeon.Main.rangeOf(fireball, settings.ringSelfRadius());
+
+        assertEquals(uz.duke.client3d.SkillRange.Shape.DOWN_A_LANE, drawn.shape());
+        assertEquals(fireball.hitWidth(), drawn.width(), 0.001f, "the lane is the shot");
+        assertEquals(fireball.radius(), drawn.area(), 0.001f, "and the circle is the blast");
+        assertEquals(fireball.range(), drawn.reach(), 0.001f, "and the ring is his reach");
+    }
+
 }
