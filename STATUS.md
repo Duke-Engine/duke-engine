@@ -3467,6 +3467,136 @@ exist yet"). Xulq allaqachon `UsesMana = No`: mana faqat `HeroProgress` orqali
 beriladi. Chok esa `poolOf` — maxluqqa skill bergan odam unga hovuz berish-bermaslikni
 o'zi hal qiladi.
 
+### 8.au HUD v3 — panel qayta tuzildi, unit barlari dunyodan ekranga ko'chdi
+
+Maketga (`duke-dungeon-hud-v3.html`) keltirildi. Ikki qism: pastki panel va
+har jonzot boshidagi bar.
+
+#### Panel — nima qayerga ko'chdi
+
+HP va mana **portret ostiga** tushdi, portret ustunining kengligida. Uchovi
+bitta blok: kim, qanchalik tirik, qancha manasi bor. Ilgari ular o'rta ustunda
+edi — faqat shu sababdanki, barlar keng edi.
+
+Ularning o'rnida **bitta qalin XP bar** (10 → 30 px). U paneldagi yagona
+**butun run** haqidagi bar — jon ham, mana ham qaytadi, bu esa hech qachon
+orqaga ketmaydi — va ikkala uchida ham harf sig'adigan yagona bar. Aynan shu
+portret ostidagi daraja nishonini olib tashlashga imkon berdi: daraja ikki
+joyda yozilayotgan edi, endi ko'z allaqachon turgan joyda, chapda; o'ngda esa
+darajaga qancha qolgani.
+
+To'ldiruvchida **qiya shtrix**, va u har safar qaytadan kesiladi, cho'zilmaydi:
+qiyalikni cho'zsang u burchagini o'zgartiradi, bar to'lgan sari tikroq bo'ladigan
+shtrix esa "to'lyapti" emas, "noto'g'ri chizilgan" bo'lib o'qiladi. Faqat
+to'lgan eni butun pikselga siljiganda qayta kesiladi.
+
+Ism **Cinzel**da — o'yin menyusi uchun nomlagan shriftning o'zi. Paneldagi
+boshqa hamma narsa oddiy shriftda qoladi: qolganlari **o'qiladigan** son va
+so'z, bu esa **tanib olinadigan** sarlavha. Unvon katta harfda va harflari
+oralatib yoziladi — jME'da tracking yo'q, shuning uchun havo qo'lda qo'yiladi.
+
+Ko'rsatkichlar 2 ustundan **4 ustunga**, har biri bitta qatorda.
+
+> ★ **Ustun kengaydi (292 → 424) va bu o'lchovdan chiqdi.** Maket to'rttasini
+> ensizroq joyga sig'diradi, chunki u **Barlow Condensed**da terilgan, bizniki
+> esa yo'q. Klientdagi haqiqiy shriftda "Zarba 129" — 45 px, orasida bo'shliq
+> ham kerak. Harfni kichraytirish o'rniga kenglik bilan to'landi: panel hech
+> kim kattalashtira olmaydigan yagona joy.
+
+#### Unit barlari — billboard emas, ekran fazosi
+
+Eski bar jonzotga ulangan ikkita billboard kvadrat edi va faqat shikastlanganda
+ko'rinardi. Endi: medalyon + segmentli bar + mana bar + nom, hammasi **interfeys
+tekisligida**. Sabab zarar raqamlaridagi bilan bir xil — uzoqlashgani uchun
+kichrayadigan ko'rsatkich ko'rsatkich bo'lishdan to'xtaydi — va billboard bar
+ichida harf ushlab turolmaydi: qirq qadamdan nom to'rt piksel bo'lardi.
+
+**Narxi kadr bo'yicha o'ylangan** (qavatda 40 jonzot, har bar o'nlab bo'lak):
+
+- har to'rtburchak **bitta ulashilgan kvadrat**, faqat masshtablanadi
+- chiziqchalar **son + en juftligi bo'yicha** mesh — jonzot bo'yicha emas.
+  Ikki skelet bitta meshni baham ko'radi, skelet bilan boss esa yo'q
+- XP halqasi — aylanishning o'ttiz ikkidan bir qismiga bitta mesh, va halqa
+  **faqat qahramonda** bor
+- harf faqat **o'zgargandagina** qaytadan beriladi: `BitmapText` har
+  `setText` da meshini qayta quradi, "30/30" esa sekundiga o'ttiz marta
+  o'zgarmagan meshni qayta qurardi
+- pool eng band kadrda to'xtaydi va keyin qayta qurilmaydi
+- ekrandan tashqaridagiga bar chizilmaydi; tuman ostidagisi esa umuman
+  kelmaydi — snapshot allaqachon ko'rinadigandan quriladi
+
+#### Segment jadvali, va maketning o'zi bilan ziddiyati
+
+Chiziqchaning qiymati **umumiy jadvaldan** olinadi, jonzotdan emas — butun gap
+shunda: bir maxluqning barini sanagan o'yinchi keyingisini sanamasdan o'qiydi.
+
+> ★ **Maketning prozasi 8–20 chiziqcha so'raydi, yonidagi jadvali esa 1–10
+> beradi** — buni maketning o'z "Segment soni" ustuni yozib turibdi. Brif
+> prozani takrorlagani uchun proza bajarildi. 8–20 ni ushlash arifmetikani
+> to'liq belgilaydi: LO dan HI gacha V lik bo'laklar uchun HI/V ≤ 20 va
+> LO/V ≥ 8 kerak, bu esa faqat HI ≤ 2.5×LO bo'lganda mumkin. Shuning uchun
+> pog'onalar ikki yoki ikki yarim baravar ko'tariladi va ularning soni
+> yettita emas, **to'qqizta**.
+
+**Uzunlik chiziqchadan hisoblanmaydi**, garchi shunday qilish bitta qoida
+bo'lardi. Pog'onali jadval monoton emas: 90 jon o'ntalab — 9 chiziqcha, 170
+jon yigirma beshtalab — 6. Kuchsizroq maxluq uzunroq bar kiyib olardi.
+Uzunlik ikki langar orasida **logarifmik**: diapazon 30 dan 1320 gacha, ya'ni
+qirq olti barobar, va proporsional bar uning to'qqiz ushdan birini birinchi
+choragiga tiqadi.
+
+Jadval o'yin **haqiqatan yasaydigan** narsaga qarshi tekshiriladi: har maxluq
+uchraydigan har chuqurlikda, har qavatning bossi o'z tikroq egri chizig'ida,
+va qahramon o'sishining ikki uchi. 42 o'lcham, 30–1320 jon, 8–19 chiziqcha.
+
+#### O'yin ishga tushirildi, va test ko'rmagan uchta xato chiqdi
+
+Foydalanuvchi so'ragani uchun o'yin ishga tushirildi. Uchala xatoning ham
+yonida "hammasi joyida" deb turgan testlar bor edi.
+
+1. **Medalyon umuman chizilmagan.** Bitta alomat, ikkita sabab, shuning uchun
+   birinchi tuzatish ishlamagandek ko'rindi. Bar bo'laklari har biriga o'z z'i
+   berilib ustma-ust qo'yiladi — lekin z aynan **chuqurlik buferi**
+   tekshiradigan narsa, shuning uchun birinchi chizilgan bo'lak o'z chuqurligini
+   yozib, ortidagilarni o'chirib tashlardi. Depth-test o'chirilgandan keyin ham
+   disk yo'q edi: yassi shaklning **ko'rinadigan tomoni** burchaklar tartibi
+   bilan belgilanadi, disk yasaladigan sektorlar to'plami esa qolgan hamma narsa
+   yasaladigan kvadratga teskari o'ralgan.
+2. **0 tajribali qahramonning bari to'la edi.** Bitta cull-hint'ning ikkita
+   egasi bor edi: `fillTo` bo'sh barni yashiradi, `showOnlyWhatTheCardHas` esa
+   kartada daraja bo'lsa uni qaytib ko'rsatardi. Yashirilgan to'ldiruvchi
+   hech qachon masshtablanmagan, shuning uchun qaytgani **oxirgi eni** — yangi
+   qahramonda esa bu to'liq bar. 10 pikselli bezakda yillar davomida
+   sezilmagan, 30 pikselda esa panelning o'rtasidagi yagona narsa bo'ldi.
+3. **"Tezlik 29" → "Tezli29".** So'z qutisining chapidan, son esa kaltaroq
+   qutining o'ngidan chiziladi — ikkovi bitta katakning qarama-qarshi uchidan
+   bir-biriga qarab o'sadi. Ikkalasi ham aynan qo'yilgan joyida edi.
+
+Va yana ikkita test **noto'g'ri narsani** o'lchayotgan edi:
+
+- uchinchisi uchun yozilgan test **boshqa barni** tekshirardi: uchala
+  to'ldiruvchi ham "fill" deb nomlangan, shuning uchun u jon barini topgan — u
+  esa to'la, va to'la bo'lishi kerak. (Bu ikkinchi marta: birinchisi "badge"
+  edi.) Endi har bo'lak nomlangan va testlar nom bilan so'raydi
+- ustma-ust tushishni **joylashuv** sifatida tekshirib bo'lmaydi: jME
+  `BitmapText` ga joyni qaytarib bermaydigan quti orqali beradi va chizilmaguncha
+  chegara ham bermaydi. `getWorldTranslation` ni o'qigan test paneldagi har
+  qatorning boshlanish nuqtasini olib, qahramon ismi birinchi ko'rsatkichga
+  kirib ketyapti deb xabar qildi. O'lchash mumkin bo'lgani — satr **eni**,
+  shuning uchun tekshiruv arifmetikaga ko'chirildi
+
+#### Skill uyalari
+
+Uya 58, ultimate 64; rasm uyani chetidan bir pikselgacha to'ldiradi. Ilgari u
+uyaning olti ushdan biri edi — 256 da chizilgan san'at o'zi uchun mo'ljallangan
+maydonning uchdan birida o'qilardi. Ulush emas, **piksel**: ikki uya har xil
+o'lchamda, ulush esa ularga hech kim ayta olmaydigan sabab bilan har xil hoshiya
+berardi.
+
+Ultimate **ikki uchidan ham baland**. Ilgari uyalar umumiy tepadan osilardi,
+ya'ni ultimate faqat **pastga** cho'zilib kattaroq bo'lardi — bu esa kattaroq
+uya emas, **sirg'alib ketgan** uya bo'lib o'qiladi.
+
 ## 9. Nima yo'q / ochiq ishlar
 
 ### Katta teshiklar
