@@ -620,11 +620,24 @@ public final class Main {
             game.postCommand(new uz.duke.dungeon.ai.HoldGround(
                     game.getLocalPlayerIndex(), true));
         });
-        // And Guard is how he is let go again: stand where you are, but pick a
-        // fight with anything that comes near. It is also the state he is in for
-        // most of a run, which is why it has a button of its own to light.
-        keys.on('F', game -> game.postCommand(
-                new uz.duke.dungeon.ai.HoldGround(game.getLocalPlayerIndex(), false)));
+        // And Guard is the other half of that pair: stand where you are, and fight
+        // whatever comes to you. The same two commands Stop sends with the second
+        // one inverted, which is the whole difference between the two buttons —
+        // Stop says "stand, and start nothing", this says "stand, and start what
+        // walks into you". It is also the state he is in for most of a run, which
+        // is why it has a button of its own to light.
+        //
+        // ★ The first of the two is what it was missing, and without it this was
+        // not an order at all. It only took a hold OFF: pressing it while he was
+        // walking or chasing did nothing whatever, so it was the one button on the
+        // bar a player could press all game without once seeing it do anything —
+        // while its own word said Himoya.
+        keys.on('F', game -> {
+            game.postCommand(new uz.duke.rts.message.GameMessage.StopMoving(
+                    game.getLocalPlayerIndex(), selected(game)));
+            game.postCommand(new uz.duke.dungeon.ai.HoldGround(
+                    game.getLocalPlayerIndex(), false));
+        });
     }
 
     /**

@@ -148,6 +148,30 @@ public final class Hotkeys {
 
     private BiConsumer<DukeGame, Character> raiseSkill;
 
+    /**
+     * Do what a letter does, for a letter that needs nothing pointed at.
+     *
+     * <p>The road every such key travels, the client's own press included, so
+     * there is one of them rather than two that have to be kept in step.
+     *
+     * <p><b>Public because otherwise nobody can ask what a key really sends.</b>
+     * Three separate faults in this game have had the same shape — a key that was
+     * bound, drawn, listed and lit, and sent nothing — and every one of them was
+     * invisible to a test that could see the binding but not press it. A game can
+     * check its own controls with {@link #claimedKeys()} and {@link #aimOf}; this
+     * is how it checks what they DO.
+     *
+     * @return whether there was such a key to press
+     */
+    public boolean pressNow(DukeGame game, char key) {
+        var binding = bindings.get(Character.toUpperCase(key));
+        if (binding == null || binding.aim() != Aim.NOW) {
+            return false;
+        }
+        binding.run().accept(game, null);
+        return true;
+    }
+
     private Hotkeys bind(char key, Aim aim, BiConsumer<DukeGame, Aimed> run) {
         bindings.put(Character.toUpperCase(key), new Binding(aim, run));
         return this;

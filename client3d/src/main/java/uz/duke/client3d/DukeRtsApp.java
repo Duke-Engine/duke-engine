@@ -2471,7 +2471,7 @@ final class DukeRtsApp extends SimpleApplication {
                 return;
             }
             disarm();
-            binding.run().accept(game, null);
+            hotkeys.pressNow(game, key);
             return;
         }
         if (arming != null && arming == key) {

@@ -328,4 +328,52 @@ class PanelLayoutTest {
         assertEquals(6, items.getChildren().size(),
                 "an empty socket says there is room; a grid that grew would move the bar");
     }
+
+    // ---- which of the four he is in ----
+
+    /** The panel itself rather than the node it drew into. */
+    private static HeroPanel bar(String card) {
+        var assets = new DesktopAssetManager(true);
+        var font = assets.loadFont("Interface/Fonts/Default.fnt");
+        var gui = new Node("gui");
+        var hero = new HeroPanel(assets, font, gui, 1600f, PanelSkin.NONE, RangeLook.DEFAULT);
+        assertTrue(hero.show(card, 0f), "the panel should have taken the card");
+        gui.updateGeometricState();
+        return hero;
+    }
+
+    /**
+     * ★ The order he is in wears the mark an armed skill wears.
+     *
+     * <p>It had only a warm light — and a warm light is also what a button under
+     * the cursor gets, so the one fact these four buttons exist to tell him was
+     * being said in the same voice as "your hand is here". Four buttons that can
+     * only be pressed and never read are half a control.
+     */
+    @Test
+    void theOrderHeIsInIsMarked() {
+        var bar = bar(LINE);
+
+        assertTrue(bar.orderIsMarked('F'),
+                "his card says Himoya is the one he is in and nothing on the button says so");
+        for (char other : new char[] {'A', 'S', 'D'}) {
+            assertFalse(bar.orderIsMarked(other),
+                    other + " is marked as well, so the mark says nothing");
+        }
+    }
+
+    /**
+     * And another creature's state is read rather than marked.
+     *
+     * <p>A skeleton walking still shows its walk — that is worth as much as
+     * reading his own — but the mark is the PLAYER'S, and putting it on something
+     * he cannot command would offer him an order he is not being given.
+     */
+    @Test
+    void anotherCreaturesStateIsNotMarked() {
+        var bar = bar(CREATURE);
+
+        assertFalse(bar.orderIsMarked('F'),
+                "the skeleton's own state is wearing the player's mark");
+    }
 }

@@ -975,13 +975,26 @@ final class HeroPanel {
             boolean reaching = waiting || (his && Character.valueOf(button.key).equals(hovered));
             boolean on = doing || reaching;
             button.lit.setCullHint(on ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-            var show = waiting ? Spatial.CullHint.Inherit : Spatial.CullHint.Always;
+            // ★ THE ONE HE IS IN WEARS WHAT AN ARMED SKILL WEARS: the cold stone
+            // and the corner marks. A warm light was all it had, and a warm light
+            // is also what a button under the cursor gets -- so the state he was
+            // actually in was being said in the same voice as "your hand is here",
+            // which is to say it was not being said at all.
+            //
+            // Armed keeps the two apart by BREATHING. The look is deliberately the
+            // same, because the two are the same kind of fact -- this is what he is
+            // doing, this is what the next click will do -- and the pulse is the
+            // difference between is and about to.
+            boolean marked = waiting || (his && doing);
+            var show = marked ? Spatial.CullHint.Inherit : Spatial.CullHint.Always;
             button.selStone.setCullHint(show);
             button.brackets.setCullHint(show);
             if (waiting) {
                 float breath = 0.72f + 0.28f * FastMath.sin(clock * FastMath.TWO_PI * 1.1f);
                 button.lit.getMaterial().setColor("Color",
                         linear(new ColorRGBA(sel.r, sel.g, sel.b, breath)));
+            } else if (marked) {
+                button.lit.getMaterial().setColor("Color", linear(sel));
             } else {
                 button.lit.getMaterial().setColor("Color", linear(TORCH));
             }
@@ -990,7 +1003,7 @@ final class HeroPanel {
             // the room is doing is worth as much as reading his own — it is only
             // the offer to change it that goes away.
             button.glyph.getMaterial().setColor("Color",
-                    linear(waiting ? selHi : his ? (on ? GOLD_HI : GOLD) : (doing ? GOLD : DEAD)));
+                    linear(marked ? selHi : his ? (on ? GOLD_HI : GOLD) : (doing ? GOLD : DEAD)));
         }
     }
 
@@ -1033,6 +1046,20 @@ final class HeroPanel {
     /** How tall the card came out. For the tests. */
     float tipHeight() {
         return tip == null ? 0f : tip.heightDrawn();
+    }
+
+    /**
+     * Whether that order button is wearing the mark of the one he is in — the cold
+     * stone and the corner brackets an armed skill wears. For the tests.
+     */
+    boolean orderIsMarked(char key) {
+        for (var button : orderButtons) {
+            if (button.key == key) {
+                return button.selStone.getCullHint() != Spatial.CullHint.Always
+                        && button.brackets.getCullHint() != Spatial.CullHint.Always;
+            }
+        }
+        return false;
     }
 
     /** Whether that key is one of the order buttons rather than a skill. */
