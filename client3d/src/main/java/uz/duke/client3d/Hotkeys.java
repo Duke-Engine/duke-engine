@@ -71,7 +71,20 @@ public final class Hotkeys {
          * should not have to decide which of two buttons he wants before he knows
          * whether his click will land on anything.
          */
-        UNIT_OR_GROUND
+        UNIT_OR_GROUND;
+
+        /**
+         * Whether this leaves the player something to point at.
+         *
+         * <p>Which is not the same question as "is a key armed". A skill that goes
+         * off around the man who casts it is held only so that its reach can be
+         * looked at before it is spent — there is nowhere to put it, and the click
+         * that ends the holding means the same thing wherever it lands. Everything
+         * that asks the player WHERE is one of the others.
+         */
+        public boolean needsPointing() {
+            return this != NOW;
+        }
     }
 
     /** What the player pointed at — one of the two is filled in, per the aim. */

@@ -194,7 +194,7 @@ class CursorsTest {
 
     /** Nothing under it but floor he could walk on. */
     private static Cursors.Over overOpenGround() {
-        return new Cursors.Over(true, false, true, false, false, false);
+        return new Cursors.Over(true, null, true, false, false, false);
     }
 
     @Test
@@ -212,15 +212,15 @@ class CursorsTest {
     @Test
     void overStoneItRefuses() {
         assertEquals(Cursors.DENY, Cursors.situationFor(
-                new Cursors.Over(true, false, false, false, false, false)));
+                new Cursors.Over(true, null, false, false, false, false)));
     }
 
     @Test
     void overACreatureItSaysWhoseItIs() {
         assertEquals(Cursors.ATTACK, Cursors.situationFor(
-                new Cursors.Over(true, false, false, false, true, false)));
+                new Cursors.Over(true, null, false, false, true, false)));
         assertEquals(Cursors.FRIEND, Cursors.situationFor(
-                new Cursors.Over(true, false, false, false, true, true)));
+                new Cursors.Over(true, null, false, false, true, true)));
     }
 
     /**
@@ -234,23 +234,54 @@ class CursorsTest {
     @Test
     void anArmedSkillOutranksWhatIsUnderThePointer() {
         assertEquals(Cursors.AIM, Cursors.situationFor(
-                new Cursors.Over(true, true, true, false, true, false)));
+                new Cursors.Over(true, Hotkeys.Aim.GROUND, true, false, true, false)));
         assertEquals(Cursors.DENY, Cursors.situationFor(
-                new Cursors.Over(true, true, false, false, true, false)));
+                new Cursors.Over(true, Hotkeys.Aim.GROUND, false, false, true, false)));
+    }
+
+    /**
+     * ★ But a skill with nothing to point at does not touch the pointer.
+     *
+     * <p>Armed is not aiming, and treating the two as one word is what this is
+     * here for. A skill that goes off round the man who casts it is held only so
+     * its reach can be looked at before it is spent — there is nowhere to put it,
+     * and the click that ends the holding casts it wherever it lands. So the
+     * pointer went to "here, or not here" about a question the player was never
+     * asked, and took itself off the creature he was actually looking at.
+     *
+     * <p>Every other aim is a question about WHERE, and every one of them still
+     * takes the pointer.
+     */
+    @Test
+    void aSkillWithNothingToPointAtLeavesThePointerAlone() {
+        assertEquals(Cursors.ATTACK, Cursors.situationFor(
+                new Cursors.Over(true, Hotkeys.Aim.NOW, true, false, true, false)),
+                "holding a skill that goes off round him hid the monster under the cursor");
+        assertEquals(Cursors.POINT, Cursors.situationFor(
+                new Cursors.Over(true, Hotkeys.Aim.NOW, true, false, false, false)));
+
+        for (var aim : Hotkeys.Aim.values()) {
+            if (aim == Hotkeys.Aim.NOW) {
+                continue;
+            }
+            assertEquals(Cursors.AIM, Cursors.situationFor(
+                    new Cursors.Over(true, aim, true, false, true, false)),
+                    aim + " asks the player where, so it has to take the pointer");
+        }
     }
 
     /** The bar takes clicks and gives no orders, so it is plain. */
     @Test
     void overTheBarItIsPlainEvenWithACreatureBehindIt() {
         assertEquals(Cursors.POINT, Cursors.situationFor(
-                new Cursors.Over(true, false, false, true, true, false)));
+                new Cursors.Over(true, null, false, true, true, false)));
     }
 
     /** And a menu is on top of everything, including an armed skill. */
     @Test
     void aMenuIsOnTopOfEverything() {
         assertEquals(Cursors.POINT, Cursors.situationFor(
-                new Cursors.Over(false, true, true, false, true, false)));
+                new Cursors.Over(false, Hotkeys.Aim.GROUND, true, false, true, false)));
     }
 
     @Test

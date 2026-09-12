@@ -3223,20 +3223,24 @@ final class DukeRtsApp extends SimpleApplication {
     private Cursors.Over whatThePointerIsOver() {
         boolean playing = screen == Screen.PLAYING && !menu.isVisible() && !levelUp.isShowing();
         if (!playing) {
-            return new Cursors.Over(false, false, false, false, false, false);
+            return new Cursors.Over(false, null, false, false, false, false);
         }
         var at = inputManager.getCursorPosition();
-        boolean aiming = arming != null;
-        boolean canReach = true;
+        var binding = arming == null ? null : hotkeys.all().get(arming);
+        var armed = binding == null ? null : binding.aim();
+        // Armed is not aiming -- see Hotkeys.Aim.needsPointing. A skill that goes
+        // off round him is held to be looked at, and while it is the pointer goes
+        // on answering the ordinary questions.
+        boolean aiming = armed != null && armed.needsPointing();
+        boolean canReach;
         if (aiming) {
-            var binding = hotkeys.all().get(arming);
-            canReach = binding == null || binding.aim() != Hotkeys.Aim.OPEN_GROUND
+            canReach = armed != Hotkeys.Aim.OPEN_GROUND
                     || isOpenAndSeen(groundUnder(at.x, at.y));
         } else {
             canReach = couldStandThere(groundUnder(at.x, at.y));
         }
         var over = aiming ? null : pickUnit();
-        return new Cursors.Over(true, aiming, canReach,
+        return new Cursors.Over(true, armed, canReach,
                 heroPanel.contains(at.x, at.y) || overTheMinimap(at),
                 over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex());
     }

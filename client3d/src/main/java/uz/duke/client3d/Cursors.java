@@ -86,7 +86,11 @@ final class Cursors {
      *
      * @param playing    whether the world is up at all; a menu or a loading
      *                   screen is neither
-     * @param aiming     a skill is armed and waiting to be pointed at something
+     * @param armed      what the armed key asks the player to point at, or
+     *                   {@code null} when nothing is armed. The AIM rather than a
+     *                   flag, because being armed and having somewhere to put it
+     *                   are two different facts and only the second one is the
+     *                   pointer's business
      * @param canReach   whether the spot under the pointer will take what the next
      *                   click would do -- somewhere a skill may go when one is
      *                   armed, and somewhere he may walk when none is
@@ -95,7 +99,7 @@ final class Cursors {
      * @param overUnit   a selectable creature is under the pointer
      * @param ownUnit    and it is his
      */
-    record Over(boolean playing, boolean aiming, boolean canReach, boolean overPanel,
+    record Over(boolean playing, Hotkeys.Aim armed, boolean canReach, boolean overPanel,
             boolean overUnit, boolean ownUnit) {
     }
 
@@ -117,7 +121,12 @@ final class Cursors {
         if (!over.playing()) {
             return POINT;
         }
-        if (over.aiming()) {
+        // ★ ARMED IS NOT AIMING. A skill with nothing to point at is held only so
+        // its reach can be looked at before it is spent, and the click that ends
+        // the holding casts it wherever it lands -- so a pointer saying "here, or
+        // not here" about it is answering a question the player was never asked,
+        // and it took the pointer off the thing he actually wanted to look at.
+        if (over.armed() != null && over.armed().needsPointing()) {
             return over.canReach() ? AIM : DENY;
         }
         if (over.overPanel()) {
