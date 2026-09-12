@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-12 · **Testlar:** 1176 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-13 · **Testlar:** 1457 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -3597,6 +3597,153 @@ Ultimate **ikki uchidan ham baland**. Ilgari uyalar umumiy tepadan osilardi,
 ya'ni ultimate faqat **pastga** cho'zilib kattaroq bo'lardi — bu esa kattaroq
 uya emas, **sirg'alib ketgan** uya bo'lib o'qiladi.
 
+### 8.av Skill effektlari — qatlamlangan zarrachalar
+
+Uchala qahramonning to'rttala skilli va ular otadigan narsalar — o't shari,
+meteor, olovli o'q — endi **qatlamlardan** chiziladi. Teksturalar Kenney Particle
+Pack (CC0), `effects/particles/`, 256² ga kichraytirilgan; nega — `CREDITS.md` da.
+
+#### Effekt — bir nechta qatlam, har biri o'z ishini qiladi
+
+Bitta turdagi zarracha portlash emas, portlashning **diagrammasi** bo'lib
+ko'rinadi. Portlash bo'lib o'qiladigani — bir lahzada tushgan beshta narsa:
+ko'rilmasdan so'nadigan chaqnash, gurillab o'chadigan olov, sekinroq ko'tarilib
+undan uzoq yashaydigan tutun, hammasidan uzoqqa otilgan uchqun va qanchalik
+yetganini aytadigan halqa. Shuning uchun effekt `dungeon.ini` da
+`DungeonEffectLayer <effekt> <nom>` bloklari to'plami. Yangi effekt — fayldagi
+bloklar; yangi **tur** — kod.
+
+| Tur | Nima |
+|---|---|
+| `BURST` | hammasi bir nuqtadan birdan, va tugaydi |
+| `TRAIL` | harakatlanayotgan narsa ortidan chiqadi va chiqqan joyida osilib qoladi |
+| `RING` | polda yotadi va tashqariga ochiladi |
+| `AURA` | jonzot atrofida, u bilan yuradi, skill qancha davom etsa shuncha |
+| `IMPACT` | chaqnash: bir-ikki katta shakl ochilib so'nadi |
+| `ARC` | kesik: polda, zarba ketgan tomonga qarab yotadi |
+| `BEAM` | yugurishning boshidan oxirigacha chiziq |
+| `MARK` | polda yotadi va turadi — ogohlantirish, kuygan dog' |
+| `LIGHT` | yorug'lik: chaqnab so'nadi yoki yonayotgan narsa bilan uchadi |
+
+Joy (`At`): `SPOT FROM TO BOTH PATH CASTER CAUGHT`; `CAUGHT` — skill yetgan har
+dushmanning ustida. **Qachon** o'ynashini fayl aytmaydi, u turdan kelib chiqadi:
+skill ko'rinishining hamma qatlami cast'da; otilgan narsaning `TRAIL`, `AURA` va
+`Seconds`siz `LIGHT` qatlamlari u uchayotganda u bilan birga; qolgani tushgan
+joyida (`ObjectDied`).
+
+#### Zarracha bir marta yoziladi, qolganini shader hisoblaydi
+
+jME'ning `ParticleEmitter`i har zarrachani har kadr protsessorda siljitadi va
+rang-o'lchamni ikki qiymat orasida to'g'ri chiziq bo'ylab o'zgartiradi.
+Birinchisi noutbukni isitadi (Mac'ning qizishi brifning alohida talabi edi),
+ikkinchisi effektni mexanik ko'rsatadi. `ParticleLayer` da zarracha tug'ilgan
+kadrda to'rt burchagiga **bir marta** yoziladi — qayerda, qanday tezlikda, qachon,
+qancha yashaydi — `Particles.vert` esa har kadr "u hozir necha yoshda" deb so'rab
+qolganini hisoblaydi: havo tormozi (yopiq formula), og'irlik, egri chiziq bo'ylab
+o'lcham va rang, paydo bo'lish va so'nish, aylanish, nafas. Tug'ilmagan yoki o'lgan
+zarrachaning uchburchagi ekran tashqarisidagi bitta nuqtaga yig'iladi — birorta
+piksel ham tekshirilmaydi.
+
+#### Qancha davom etishi va qanchalik keng — skillning o'zidan
+
+`Seconds` yozilmagan davomli qatlam vaqtini skilldan oladi (`Main.measureLooks`):
+`DurationFrames`, bo'lmasa `WindUpFrames`, bo'lmasa `SlowFrames`. `Measure = Reach`
+qatlamning o'lchami va radiusini skillning `Radius`ida sanaydi — `Size = 2` aynan
+skill yetgan kenglik. Otilgan narsaning effektiga uni otgan skillning sonlari
+beriladi. Natijada meteor ogohlantirishi portlash bilan **aynan** bir xil keng va
+tushish bilan aynan bir xil uzoq, muz esa tekkanlarda sekinlashuv qancha tursa
+shuncha turadi. Ilgari bular ikkitadan son edi, yonida esa "birini o'zgartirsang,
+ikkinchisini ham" degan izoh turardi.
+
+> ★ **Mage W da sekinlashuv bor** (`SlowFrames = 90`, `SkillBook.chill`) — oldingi
+> inventarizatsiya "yo'q" degan edi. Klientga kim sekinlashgani aytilmaydi, lekin
+> to'lqin ichida kim turgani aytiladi, simulyatsiya esa aynan o'shalarni sekinlashtirgan.
+
+#### Byudjet — maqsad emas, shift
+
+- qatlam pool'dan beriladi va qaytariladi (o'lchami 2 ning darajasi); sahna
+  jangda o'smaydi — 50 marta uch qatlamli cast'dan keyin 3 ta qatlam qurilgan
+- yorug'lik **bitta** pool'da (`MaxLights = 8`), eski effektlar bilan umumiy. Pol
+  shaderi 4 dan 8 ga kengaydi: polni ko'rmaydigan yorug'lik skeletni yoritib,
+  uning oyog'i ostidagi toshni qorong'i qoldirardi
+- `MaxParticles = 1500` dan oshsa yangi qatlam siyrakroq, keyin umuman chizilmaydi
+- tuman ostida, `MaxDistance` dan uzoqda va ekrandan tashqarida boshlanmaydi.
+  Tuman tekshiruvi markazni ham, atrofini ham so'raydi: ustun ortida portlagan o't
+  shari olovini ustundan o'tkazib otadi
+- dunyo qayta qurilganda hammasi birdan qaytariladi
+
+#### Cover — yorug'lik bilan modda o'rtasi
+
+Hamma qatlam bitta **premultiplied** blend bilan chiziladi; `Cover` orqadagining
+qanchasini yashirishini aytadi: 0 — yorug'lik (qo'shiladi), 1 — modda (tutun
+yopadi). O'yinda ko'rilgandan keyin qo'shildi: sof additiv olov och toshda **och
+dog'** bo'lib qolardi — to'q sariqni kulrang polga qo'shsang to'q sariq emas, oqish
+chiqadi. Polning bir qismini yashiradigan olov har qanday yerda rangini saqlaydi.
+
+Katta billboard ko'zga tomon o'lchamining yarmicha **tortiladi**: yerga
+o'lchamidan yaqin turgan karta polni kesib o'tadi, pol esa uni tekis chiziq bo'ylab
+kesib qo'yadi — bu esa tutun bo'lagida bo'lishi mumkin bo'lmagan yagona narsa.
+
+#### Tegish chaqnashi va kamera silkinishi
+
+Narigi tomonning jonzotiga zarba tekkanda u bir lahzaga oqaradi (`HitFlash`):
+jonzot tuguniga `Ambient` ustidan `MatParamOverride` qo'yiladi va o'z rangiga
+qaytadi — yangi material ham, shader qayta kompilyatsiyasi ham yo'q. Raqam "qancha"
+deydi, chaqnash "qaysi biri" deydi. `DungeonEffects Feel`: `HitFlashSeconds`,
+`HitFlashStrength`, `HitFlashColour`, va `ShakeScale` (0 — kamera umuman silkinmaydi).
+
+#### Ekranni egallamasdan ko'z bilan tekshirildi
+
+GLSL faqat ishga tushganda kompilyatsiya bo'ladi, chiroyli-xunukni esa test
+ko'rmaydi. O'yin **yashirin oynada** (`JmeContext.Type.OffscreenSurface`) ishga
+tushirildi va kadrlar o'z framebuffer'imizdan PNG ga yozildi — ish stolida hech
+narsa ochilmadi (texnikasi vaqtinchalik, commit qilinmagan). Topilganlarning birini
+ham test ko'rmagan edi:
+
+1. o't shari daraxt ortiga tushdi va `LineOfSight` tufayli portlashi umuman
+   boshlanmadi → atrofini ham so'raydigan tekshiruv
+2. olov och polda oqarib ketdi → `Cover`
+3. katta tutun va olov kartalarini pol tekis chiziq bo'ylab kesdi → ko'zga tortish
+4. baland `Cover` va to'q oxirgi rang olovni qo'ng'ir changga aylantirdi → yorqinroq uchlar
+5. qatlam testi raqamlarni mahkamlagan edi va birinchi sozlashdayoq sindi → endi
+   fayldagi blok matnining o'zini o'qiydi
+6. meteor tushganda olov bulutining chetlari to'g'ri chiziq bo'lib kesilgandek
+   ko'rindi. Taxmin qilinmadi, o'lchandi: pol atrofda tekis, polda yotgan
+   qatlamlar alohida chizilganda toza — aybdor billboard'lar. `star_09` va
+   `muzzle_*` teksturalarida butun karta bo'ylab 2–3 foizli alfa tumani bor; u
+   kichik chizilganda ko'rinmaydi, yuz birlikli chaqnashda esa o'z nuri yoritgan
+   pol ustida qirrali kvadrat bo'ladi → shader alfaning eng xira bir necha foizini
+   tashlaydi, meteorning katta olov tillari (`muzzle_03`) esa olib tashlandi. Qolgan zinapoya esa olov emas, **pol** edi: to'liq kuchdagi portlash
+   nuri toshni oppoq qilib yuborardi, pol shaderi esa tumanni shu yoritilgan rang
+   ustiga katak-katak qo'yadi (`mix(lit, dark.rgb, dark.a)`) — oppoq tosh eslab
+   qolingan tosh bilan zinapoya bo'lib uchrashardi → nurlar pasaytirildi, tuman
+   tegilmadi
+
+#### Brif bilan ziddiyatlar
+
+- **Ranger R** — brifda "teshib o'tuvchi o'qlar, energiya chizig'i"; skill esa
+  `EMPOWER`, yo'nalishi yo'q. Nima bo'lsa shunday chizildi: atrofida oltin nur,
+  boshi ustida aylanayotgan nishon, oxirgi beshdan birida miltillaydi
+- **Ranger W** — brifda "tushayotgan o'qlar"; skill `AREA_DAMAGE`, kamonchining
+  **o'z atrofida**. O'q yomg'iri skill yetgan doira ichiga tushadi
+- **Mage W** — yuqorida: sekinlashuv haqiqiy
+
+#### Ochiq qolganlar
+
+- qatlamli effektning `DungeonEffect` blokidagi eski `Kind`/`Wave*`/`Mark*`
+  qatorlarini hech narsa o'qimaydi (faqat `ShakeSeconds`/`ShakePower`) — fayldan
+  olib tashlanmadi
+- monstrlarning otishlari (`MageFire`, `MageFireGreater`) va mage'ning oddiy o'qi
+  (`ArcaneBolt`) hali eski retseptlarda
+- effektlar sahnalashtirilgan demoda ko'rildi, haqiqiy jangda emas: tegish
+  chaqnashi, muz tekkanlardagi `CAUGHT` qatlami va girdobning har zarbadagi
+  halqasi dushmanlar bilan hali ko'z bilan ko'rilmagan (testlari bor)
+- demo jabduqlari (yashirin oyna, kadr yozish) commit qilinmadi
+- kuchli nuqtaviy yorug'lik tuman chegarasida hali ham katak-katak ko'rinishi
+  mumkin: pol shaderi yorug'likni tuman xaritasidan oldin qo'shadi. Tuzatish joyi —
+  `FoggedTerrain.frag` (yorug'likni tuman bilan birga so'ndirish), lekin bu tumanning
+  mavjud ko'rinishini o'zgartiradi, shuning uchun qilinmadi
+
 ## 9. Nima yo'q / ochiq ishlar
 
 ### Katta teshiklar
@@ -3946,6 +4093,22 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 
 ---
 
+- **Additiv yorug'lik och polda yo'qoladi:** to'q sariqni kulrang toshga qo'shish
+  oqish dog' beradi, to'q sariq emas. Olov qatlamiga `Cover` bering — u polning bir
+  qismini yashiradi va rangini saqlaydi.
+- **`MatParamOverride` jimgina o'tkazib yuboriladi:** material'da o'sha nomli
+  parametr yo'q bo'lsa yoki turi boshqa bo'lsa — xato yo'q, log yo'q, effekt yo'q.
+  `HitFlashTest` Lighting.j3md dagi `Ambient` ni nomi va turi bilan tekshiradi.
+- **Katta billboard'ni pol kesadi:** yerdan o'lchamining yarmidan past turgan
+  kamera tomon qaragan karta polni kesib o'tadi. `Particles.vert` kartani ko'zga
+  tomon tortadi — tekis qirra ko'rinsa, avval shu yerga qarang.
+- **Tekstura tumani:** Kenney'ning ba'zi flare va muzzle teksturalarida butun
+  karta bo'ylab 2–3% alfa bor. Kichik chizilganda ko'rinmaydi, katta chaqnashda esa
+  to'g'ri qirrali kvadrat. Shader eng xira alfani tashlaydi — yangi tekstura
+  qo'shganda chetlarini tekshiring.
+- **Offscreen + `Shell.none()` da kamera qahramonni topmaydi:** xarita markaziga
+  qaraydi, kadr butunlay tuman rangida chiqadi.
+
 ## 11. Fayl xaritasi (asosiylari)
 
 | Yo'l | Nima |
@@ -3998,6 +4161,9 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/NineSlice.java` | bitta kichik ramka rasmi istalgan o'lchamda — burchaklar cho'zilmaydi; jME'da bunday narsa yo'q |
 | `client3d/…/client3d/PanelSkin.java` | panel qirralari nima bilan bo'yalgani — o'yin aytadi, klient chizadi; har qism ixtiyoriy |
 | `dungeon/src/main/resources/ui/borders/` | Kenney Fantasy UI Borders (CC0) — ikki oila, olti to'plam; nomerlash Kenney'niki (CREDITS.md da izohlangan) |
+| `client3d/…/client3d/{EffectLayer,LayeredEffects}.java` | effekt qatlami (9 tur, 7 joy) va uni cast / uchish / tushish lahzasida o'ynatuvchi — pool, byudjet, tuman-masofa-ekran |
+| `client3d/…/client3d/ParticleLayer.java`, `MatDefs/duke/Particles.*` | GPU zarracha qatlami: tug'ilishda bir marta yoziladi, hayotini shader hisoblaydi |
+| `client3d/…/client3d/{LightPool,HitFlash}.java` | effektlarning umumiy yorug'lik pool'i; tegish chaqnashi |
 | `client3d/…/client3d/ProjectileEffects.java` | uchayotgan narsa qanday yonadi: iz, yoritilgan tana, tegishdagi portlash — pool, yorug'lik byudjeti, kodda yasalgan uchqun teksturasi |
 | `client3d/…/client3d/Discovery.java` | kashfiyot tumani — uzluksiz yorug'lik, fazoviy+vaqt silliqlash (faqat klient) |
 | `dungeon/…/dungeon/combat/Swing.java` | zarba qachon tushganini aytadi — hech narsa uchirmaydi |
