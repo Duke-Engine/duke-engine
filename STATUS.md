@@ -3337,6 +3337,116 @@ klipdan emas: klip mavjud bo'lib turib **hech narsaga tushmasligi** mumkin, va
 ekranda bu ikkisi bir xil ko'rinadi. Sabotaj bilan tasdiqlandi (nomdagi bitta
 harf).
 
+
+### 8.at Mana — skilllar endi resurs sarflaydi
+
+Skilllar faqat kuluar bilan cheklangan edi: kuluar tugasa cheksiz. Endi har
+qahramonning mana hovuzi bor, har skill narxga ega, va hovuz vaqt bilan tiklanadi.
+
+#### ★ Engine'ning puli ishlatilmadi, va nega
+
+`RtsPlayer` da `money` bor — `deposit`/`withdraw` bilan. **Ikki jihatdan mos
+kelmadi:**
+
+1. U **o'yinchiga** tegishli, mana esa **jonzotga**. Bugun har o'yinchida bitta
+   qahramon bor, ya'ni ikkisi ustma-ust tushadi — lekin mana sog'liq kabi
+   jonzotning xossasi, va maxluqqa skill berilsa u o'yinchi emas.
+2. Unda **shift ham, tiklanish ham yo'q** — aynan shu ikkisi manani byudjetdan
+   *ritm*ga aylantiradi. Ularni qo'shish `rts` ni o'zgartirishni talab qilardi,
+   bunga esa ruxsat yo'q.
+
+Shuning uchun `HeroProgress`/`GrowableBody` naqshi: holat jonzotda
+(`SkillBook`), daraja arifmetikasi esa uni biladigan yagona joyda
+(`HeroProgress`), xuddi zirh va qurol bonusi kabi.
+
+#### Determinizm — butun son, float emas
+
+Tiklash tezligi **soniyasiga o'ndan bir** da saqlanadi, `manaCarry` esa o'sha
+birlikda: har kadr tezlik carry ga qo'shiladi, carry bir soniyalik o'ndan birga
+yetganda bitta butun ball tushadi. 70 tenths — aniq 7.0/s, har mashinada,
+abadiy. `mana += 7f / 30f` esa yo'q.
+
+**Nega o'ndan bir, butun ball emas:** darajaning eng kichik qadami butun ball
+bo'lsa, ritsar 3 dan 4 ga sakraydi — bu uchdan bir, va 15-darajaga borib u
+sehrgardan tez tiklanadigan bo'lib qolardi.
+
+`theSameRunCastsTheSameWayTwice` — bir seed, bir xil tugmalar, checksum
+solishtiriladi. Birinchi float da yiqilardi.
+
+#### Sig'im va tarkib ajratildi
+
+Bu testdan chiqdi. Daraja bilan **o'sgan** hovuz farqni sovg'a qiladi (daraja —
+sovg'a, to'ldirish emas); **yo'qdan yaratilgan** hovuz esa hech narsa sovg'a
+qilmaydi, chunki jonzot to'la boshlaydimi degan qaror bu modulniki emas. Yangi
+tanani `HeroProgress` to'ldiradi — yangi run va har yangi qavat, ya'ni sog'liq
+qanday ishlasa shunday.
+
+#### Balans, va noto'g'ri o'lchov
+
+Boshda **xato metrika** ishlatdim: "eng arzon skillni to'lay olmaydigan kadrlar
+ulushi". U Rogue uchun 80%, Mage uchun 0% berardi — go'yo Rogue och qolgan. Aslida
+u faqat *Rogue ning arzon skilli tez-tez tayyor bo'lishini* o'lchayotgan edi.
+
+Solishtirsa bo'ladigan raqam — **talab**: har skill qaytishi bilanoq quyilsa,
+soniyasiga qancha mana ketadi, soniyasiga qancha qaytadi.
+
+| Qahramon | Hovuz | Tiklash | Talab | Ulush |
+|---|---|---|---|---|
+| Rogue | 80 | 6.5/s | 13.2/s | 49% |
+| Knight | 50 | 4.0/s | 7.7/s | 52% |
+| Mage | 120 | 7.0/s | 12.2/s | 57% |
+
+Uchalasi ham ~yarmi. Jumla shu: **mana qila oladiganingni ikkiga bo'ladi, qaysi
+yarmini tanlash senda.** Rogue va Knight shu darajaga yetish uchun ko'tarildi
+(5.0→6.5 va 3.0→4.0). Bu endi taxmin emas, `nobodyCanSustainEverythingAtOnce`
+testi.
+
+Ikki chegara ham test: har qahramonning **eng arzoni o'z kuluarida barqaror**
+(tayanadigan narsasi bor), va **to'rttasi birga hovuzga sig'maydi** (tanlov bor).
+
+#### HUD
+
+Ko'k bar (`#3E6FA8`) HP bilan XP orasida — sarflanadigan narsa, shuning uchun
+jamg'ariladigani bilan emas, qolgani bilan o'qiladi. Har uyaning burchagida narx.
+
+**Uch xil "ishlamaydi" uch xil ko'rinadi:** *yopiq* — sotib olinmagan; *kuluar* —
+qaytyapti va qachonligini aytadi; **och** — tayyor, lekin tepadagi barni kutyapti.
+Ochni kuluar kabi chizish "kut" degan bo'lardi, holbuki bu uyani kutish hech narsa
+bermaydi — shuning uchun u ko'kimtir yuviladi va **narxi qizarib yorqinlashadi**,
+qolgan hamma narsa so'nayotganda.
+
+Tooltip'da mana qatori bitta chaqiruvga tushdi — `row(...)` allaqachon
+`hozir → keyingi` naqshini beradi, ya'ni `48 → 62` tekin keldi.
+
+#### Fikr-mulohaza
+
+Rad etilganda bar chaqnaydi va interfeys kanalida past ovoz. Kadr bilan
+belgilanadi (cast kabi), aks holda sekundiga o'ttiz marta yangrardi. Panel
+*qachon* ekanini biladi (qatorni o'qiydigan o'zi), ilova *nima* ekanini (ovozlar
+uniki).
+
+#### Tiklash manbalari
+
+- **Loot** — `MANA` turi, ya'ni **kattaroq hamyon**, flakon emas. Sumkadagi hamma
+  narsa doimiy, bu esa sumkaning o'zi. To'ldirish tekin keladi: o'sgan hovuz
+  qo'shganini sovg'a qiladi.
+- **O'ldirish uchun mana** — bor, lekin **0** da jo'natiladi. Bu qo'rqoq emas,
+  qiziqroq sozlama: o'ldirish uchun to'lash manani jang mukofotiga aylantiradi,
+  holbuki u tanlov qildirish uchun. Bu tomonda o'ldirish hodisasi yo'q
+  (`ExperienceModule` — `rts` niki), shuning uchun **tajriba o'sishi** kuzatiladi;
+  bu o'yinda uni boshqa hech narsa oshirmaydi.
+- **Qavatga tushganda va yangi run'da** — to'liq, sog'liq kabi, o'zidan kelib
+  chiqadi.
+
+#### ★ Dushmanlar uchun knob qo'shilmadi
+
+Brif `UsesMana = no` ni so'ragandi. Tekshirdim: `SkillBook` **faqat uch
+qahramonda** bor, ya'ni birorta maxluq skill ishlatmaydi. Mavjud bo'lmagan holat
+uchun bayroq — CLAUDE.md aniq taqiqlaydigan narsa ("no flags for cases that don't
+exist yet"). Xulq allaqachon `UsesMana = No`: mana faqat `HeroProgress` orqali
+beriladi. Chok esa `poolOf` — maxluqqa skill bergan odam unga hovuz berish-bermaslikni
+o'zi hal qiladi.
+
 ## 9. Nima yo'q / ochiq ishlar
 
 ### Katta teshiklar

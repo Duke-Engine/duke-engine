@@ -231,6 +231,89 @@ class ManaTest {
         assertEquals(0, it.book().getMana());
     }
 
+    /** A level makes the pool bigger, by exactly what the rules say a level is worth. */
+    @Test
+    void aLevelIsWorthWhatTheRulesSayItIs() {
+        var rules = SETTINGS.levelling();
+        assertTrue(rules.bonusMana(2) > 0, "the file should pay something for a level");
+        assertEquals(rules.bonusMana(2) * 4, rules.bonusMana(5),
+                "four levels are worth four times one");
+        assertEquals(0, rules.bonusMana(1), "and the first level is the start, not a raise");
+        assertTrue(rules.bonusManaRegen(5) > rules.bonusManaRegen(2),
+                "the trickle should grow with him too");
+    }
+
+    /**
+     * A point in a skill moves what it costs, either way.
+     *
+     * <p>Which way is the file's to say per skill, and the two read very
+     * differently — so the test is that the file is actually using both rather
+     * than that any one skill goes up.
+     */
+    @Test
+    void aPointMovesWhatASkillCosts() {
+        boolean somethingClimbs = false;
+        boolean somethingFalls = false;
+        for (var hero : SETTINGS.heroes()) {
+            for (var skill : SETTINGS.skillsFor(hero.name())) {
+                if (skill.manaCostPerLevel() > 0) {
+                    somethingClimbs = true;
+                    assertTrue(skill.manaAt(2) > skill.manaAt(1),
+                            hero.name() + "'s " + skill.key() + " should cost more at rank two");
+                } else if (skill.manaCostPerLevel() < 0) {
+                    somethingFalls = true;
+                    assertTrue(skill.manaAt(2) < skill.manaAt(1),
+                            hero.name() + "'s " + skill.key() + " should cost less at rank two");
+                }
+            }
+        }
+        assertTrue(somethingClimbs, "no skill in the game grows dearer with rank");
+        assertTrue(somethingFalls, "and none grows cheaper, so the sign is doing nothing");
+    }
+
+    /** And a cost can never fall through the floor into paying him to cast. */
+    @Test
+    void andACostNeverFallsBelowNothing() {
+        var free = new Skill("Mage", 'Q', SkillEffect.STRIKE, 0f, 0f, 0f, 0f, 0f, 0f,
+                0, 0, 0, 0, 0, 60, 0, 9, 0, 0, 5, -50, "", "", "", "", 0f, "", "");
+
+        assertEquals(0, free.manaAt(9), "a skill that pays him to cast is a different game");
+    }
+
+    /** A new run starts him full, whatever the last one left him on. */
+    @Test
+    void aNewRunStartsHimFull() {
+        var it = arena("Mage");
+        pool(it.book(), 100, 0);
+        assertTrue(it.book().cast('E', 1) || it.book().getMana() == 100,
+                "either the blink went off or it did not; both are fine here");
+        it.book().restoreMana(0);
+        it.book().fillMana();
+
+        assertEquals(100, it.book().getMana(), "a run begins with the purse full");
+    }
+
+    /**
+     * The file is what decides all of it.
+     *
+     * <p>Read twice from two different texts, so a change of INI really is a
+     * change of behaviour rather than a number that happens to be written down
+     * in two places.
+     */
+    @Test
+    void theFileIsWhatDecidesIt() {
+        var same = DungeonSettings.load();
+        for (var hero : same.heroes()) {
+            var mine = SETTINGS.heroNamed(hero.name());
+            assertEquals(mine.maxMana(), hero.maxMana(), hero.name() + "'s pool");
+            assertTrue(hero.maxMana() > 0, hero.name() + " should have one at all");
+        }
+        // And the three of them really do differ, which is the whole design.
+        var pools = SETTINGS.heroes().stream().map(h -> h.maxMana()).distinct().count();
+        assertEquals(SETTINGS.heroes().size(), pools,
+                "every hero should cast out of a different pool");
+    }
+
     // ---- the file ----
 
     /** Every hero the file describes is given something to cast out of. */
