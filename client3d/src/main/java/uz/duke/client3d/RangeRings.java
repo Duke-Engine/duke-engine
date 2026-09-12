@@ -102,32 +102,24 @@ final class RangeRings {
                 lane.hide();
             }
             case DOWN_A_LANE -> {
-                // Three drawings, each answering a different question. How far
-                // can I throw it (the ring), what will the shot itself run into
-                // (the lane, at the shot's own width), and how much does it take
-                // with it when it stops (the circle where it would land).
+                // Two drawings, each answering a question the player is actually
+                // asking: how far can I throw it (the ring), and what will the
+                // shot run into on the way (the lane, at the shot's own width).
                 //
-                // It used to be the lane alone, drawn at the width of the BURST --
-                // so the one number the player most needed, his reach, was not on
-                // screen at all, and the one that was there was a lie about how
-                // wide the shot is.
+                // ★ AND NOT A THIRD. A circle where it would land was tried and
+                // taken out again: it is a prediction the shot does not have to
+                // keep. A skillshot bursts wherever it STOPS -- at the first body
+                // or the first wall -- so the circle is only right in the one case
+                // where the shot flies its whole length and hits nothing, which is
+                // the case the player cares least about. Drawn every time, it was
+                // three moving rings for a skill whose whole question is "which
+                // way", and the answer to that is the lane.
                 reach.show(hero, range.reach(), look.height(), look.areaColour(),
                         look.edgeAlpha() * bright, look.fillAlpha() * bright, floorAt);
                 lane.show(hero, pointer, range.reach(), range.width(),
                         Glow.colour(edge, look.brightness(), look.edgeAlpha() * bright), floorAt,
                         look.height());
-                if (range.area() > 0f) {
-                    // Where it would land if nothing stopped it first. The shot
-                    // bursts wherever it actually stops, which may be sooner -- a
-                    // body, or a wall -- so this is the far end of the promise
-                    // rather than a prediction.
-                    area.show(range.within(hero, pointer == null ? hero : pointer),
-                            range.area(), look.height(),
-                            allowed ? look.areaColour() : look.denyColour(),
-                            look.edgeAlpha() * bright, look.fillAlpha() * 2f * bright, floorAt);
-                } else {
-                    area.hide();
-                }
+                area.hide();
             }
             case AROUND_HIM -> {
                 // The ring IS the blast here, so it is drawn as one: the area's

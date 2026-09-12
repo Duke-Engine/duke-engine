@@ -213,9 +213,21 @@ class ControlsTest {
         assertFalse(archer.isEmpty(), "the archer lost his skills");
     }
 
-    /** And the drawn lane takes the shot's width rather than the blast's. */
+    /**
+     * A lane is drawn as a reach and a direction, and nothing else.
+     *
+     * <p>The lane takes the shot's own width rather than the blast's — a fireball
+     * bursts five times wider than the ball is, and drawing the lane at the burst
+     * claimed the shot would sweep a band the width of a room.
+     *
+     * <p>And it carries no area at all, which is the half worth pinning. A circle
+     * where the blast lands cannot be drawn honestly before the cast: the shot
+     * bursts wherever it STOPS, at the first body or the first wall, so a circle
+     * at the far end of its reach is right only when the shot hits nothing the
+     * whole way — the one case nobody is aiming for.
+     */
     @Test
-    void theLaneIsDrawnAtTheShotsWidth() {
+    void aLaneIsAReachAndADirectionAndNothingElse() {
         var settings = DungeonSettings.load();
         var fireball = settings.skills().stream()
                 .filter(skill -> skill.effect() == uz.duke.dungeon.skill.SkillEffect.SKILLSHOT)
@@ -225,8 +237,11 @@ class ControlsTest {
 
         assertEquals(uz.duke.client3d.SkillRange.Shape.DOWN_A_LANE, drawn.shape());
         assertEquals(fireball.hitWidth(), drawn.width(), 0.001f, "the lane is the shot");
-        assertEquals(fireball.radius(), drawn.area(), 0.001f, "and the circle is the blast");
         assertEquals(fireball.range(), drawn.reach(), 0.001f, "and the ring is his reach");
+        assertEquals(0f, drawn.area(), 0.001f,
+                "a blast circle is back, and it is a promise the shot cannot keep");
+        assertTrue(fireball.radius() > 0f,
+                "the blast itself is still real, and still hurts -- it is only not drawn");
     }
 
 }

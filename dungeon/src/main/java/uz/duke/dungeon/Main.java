@@ -568,8 +568,17 @@ public final class Main {
         // What it LEAVES where it lands: a blast's radius, a lane's width. A dash
         // leaves a man, and a circle round a man-sized spot is a second ring saying
         // what the pointer already said -- so it draws none.
+        // What it LEAVES where it lands: a blast's radius. A dash leaves a man,
+        // and a circle round a man-sized spot is a second ring saying what the
+        // pointer already said -- so it draws none.
+        //
+        // ★ Nor does a SKILLSHOT, though it bursts. Where it bursts depends on
+        // where it STOPS, which is the first body or the first wall, so a circle
+        // drawn at the far end of its reach is a promise the shot does not have
+        // to keep. Its Radius is still real and still hurts -- see SkillBook --
+        // it simply is not a thing that can be honestly drawn before the cast.
         float area = switch (skill.effect()) {
-            case AREA_AT_SPOT, SKILLSHOT, METEOR -> skill.radius();
+            case AREA_AT_SPOT, METEOR -> skill.radius();
             default -> 0f;
         };
         return new uz.duke.client3d.SkillRange(skill.key(), shape, reach, area, skill.hitWidth());
