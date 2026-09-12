@@ -70,7 +70,7 @@ class UnitBarsTest {
     }
 
     private static UnitBars.Standing standing(UnitView view) {
-        return new UnitBars.Standing(view, 4f, view.playerIndex() == 0);
+        return new UnitBars.Standing(view, 4f, 0f, view.playerIndex() == 0);
     }
 
     private static List<UnitBars.Standing> all(UnitView... views) {

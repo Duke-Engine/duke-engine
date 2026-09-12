@@ -60,8 +60,18 @@ import uz.duke.game.view.UnitView;
  */
 final class UnitBars {
 
-    /** One creature to draw a bar over: which, how high it stands, and whose. */
-    record Standing(UnitView view, float top, boolean his) {
+    /**
+     * One creature to draw a bar over.
+     *
+     * @param view the creature, as the snapshot has it
+     * @param top  the world height its bar floats at, over its head
+     * @param foot the world height it stands on. A second projection rather than
+     *             an offset from the first, because the name goes UNDER the
+     *             creature and the distance between its feet and its head is a
+     *             different number of pixels at every distance from the camera
+     * @param his  whether it fights for the watching player
+     */
+    record Standing(UnitView view, float top, float foot, boolean his) {
     }
 
     /** How many steps the experience ring is cut into. */
@@ -133,9 +143,11 @@ final class UnitBars {
                 if (offScreen(camera, onScreen)) {
                     continue;
                 }
+                var underneath = camera.getScreenCoordinates(
+                        new Vector3f(one.view().x(), one.foot(), one.view().y()));
                 var bar = take(at++);
                 dress(bar, one, reading);
-                place(bar, onScreen.x, onScreen.y);
+                place(bar, onScreen.x, onScreen.y, underneath.y);
             }
         }
         for (int spare = at; spare < pool.size(); spare++) {
@@ -261,7 +273,7 @@ final class UnitBars {
     }
 
     /** Where on the screen the whole assembly sits, measured from the creature. */
-    private void place(Bar bar, float x, float y) {
+    private void place(Bar bar, float x, float y, float footY) {
         float width = bar.wide;
         float medallion = look.ring();
         float whole = medallion + look.ringGap() + width;
@@ -287,9 +299,12 @@ final class UnitBars {
         at(bar.arc, discX, discY);
         centre(bar.level, discX, discY + look.levelSize() / 2f - 1f);
 
-        float under = bar.manaFill.getCullHint() == Spatial.CullHint.Always ? y : manaY;
+        // Under the CREATURE, not under the bar. The bar floats over its head and
+        // a name hung off the bottom of that sits in the middle of the thing it
+        // names; at its feet there is nothing else, and the eye reads downward
+        // from the bar, past the creature, to what it is called.
         if (bar.lettered != null) {
-            centre(bar.lettered, x, under - 2f);
+            centre(bar.lettered, x, footY - 4f);
         }
     }
 

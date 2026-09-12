@@ -124,7 +124,7 @@ class PanelLayoutTest {
      * What is left of him hangs under his own face, and inside the bar.
      *
      * <p>The health and mana gauges moved out of the middle column and under the
-     * portrait, which is a block that now has to stack rather than sit: the frame
+     * portrait, which is a block that now has to STACK rather than sit: the frame
      * is a fixed height, the two bars go beneath it, and between them they have a
      * band of a hundred and seventy-two pixels and no more. Getting that wrong
      * puts a mana bar through the floor of the panel, and every left-to-right
@@ -139,12 +139,14 @@ class PanelLayoutTest {
         assertTrue(bars.getCenter().y + bars.getYExtent()
                         <= frame.getCenter().y - frame.getYExtent() + 1f,
                 "the gauges should be under the frame, not across it");
-        assertTrue(bars.getCenter().x - bars.getXExtent()
-                        >= frame.getCenter().x - frame.getXExtent() - 2f,
-                "and no wider than it on the left");
-        assertTrue(bars.getCenter().x + bars.getXExtent()
-                        <= frame.getCenter().x + frame.getXExtent() + 2f,
-                "nor on the right");
+        // Wider than the frame, and the frame centred on them: the gauges fill
+        // the column the portrait stands in rather than the portrait itself,
+        // which is what makes them read as the block's own rather than as part
+        // of the picture.
+        assertTrue(bars.getXExtent() > frame.getXExtent(),
+                "the gauges should fill the column, not the frame");
+        assertEquals(frame.getCenter().x, bars.getCenter().x, 1.5f,
+                "and the frame should stand in the middle of them");
         assertFalse(new Span(bars.getCenter().x - bars.getXExtent(),
                 bars.getCenter().x + bars.getXExtent())
                 .overlaps(spanOf(gui, "vitals")), "nor into the column beside it");

@@ -569,4 +569,22 @@ class HeroPanelTest {
         assertTrue(panel.takeRefusal());
         assertFalse(panel.takeRefusal(), "and it is not sounded again every frame");
     }
+
+    // ---- the one line that is a label rather than a reading ----
+
+    /**
+     * The title is set with air between its letters, and more between its words.
+     *
+     * <p>jME has no tracking — a bitmap font advances by whatever was baked into
+     * it — so the air is put in by hand. The word gap is the half worth testing:
+     * the space the words already had is still there with an inserted one either
+     * side, which is what stops a spaced-out title reading as one long string.
+     */
+    @Test
+    void theTitleIsLetteredWithAirInIt() {
+        assertEquals("O ' q   u s t a s i", HeroPanel.spacedOut("O'q ustasi"));
+        assertEquals("", HeroPanel.spacedOut(""), "a game that gives him no title");
+        assertEquals("", HeroPanel.spacedOut(null));
+        assertEquals("M", HeroPanel.spacedOut("M"), "one letter has nothing to space from");
+    }
 }

@@ -3430,6 +3430,7 @@ final class DukeRtsApp extends SimpleApplication {
                 continue; // a prop or an arrow: nothing with a life to show
             }
             standing.add(new UnitBars.Standing(node.view, node.barTop,
+                    node.root.getWorldTranslation().y,
                     node.view.playerIndex() == mine));
         }
         unitBars.update(cam, standing, UnitBarReading.read(snapshot.status()));
