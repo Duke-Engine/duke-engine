@@ -123,7 +123,7 @@ public final class HeroBrain extends UnitScript {
             return;
         }
 
-        if (World.reachBetween(unit(), ordered) <= settings.closeDistance()
+        if (World.reachBetween(unit(), ordered) <= howCloseHeGets()
                 && canSee(ordered)) {
             move.stop(); // close enough and in sight; standing still is how he fires
             Facing.turnToward(unit(), ordered);
@@ -420,6 +420,37 @@ public final class HeroBrain extends UnitScript {
         var book = unit().findModule(SkillBook.class);
         return book == null ? null : book.getLastAimedAt();
     }
+
+    /**
+     * How close he walks before he stops and lets his weapon work.
+     *
+     * <p><b>His, not the game's.</b> It was one figure for every hero, and it was
+     * the archer's: 48, comfortably inside the 60 his bow reaches. A swordsman
+     * reaches 11, so the same number stopped him four body-lengths short of a
+     * skeleton and left him standing there swinging at nothing — until it walked
+     * the rest of the way and hit him, which looked like a hero who would not
+     * fight until he was provoked.
+     *
+     * <p>Clamped to his own reach as well as read from his block, and the clamp is
+     * not belt-and-braces: this is the number a new hero is most likely to be
+     * given carelessly, and being wrong about it is invisible — he walks, he
+     * stops, and nothing happens. Stopping a little inside the reach rather than
+     * on it is the older lesson, written down where the figure lives: park on the
+     * edge and one step by either of them puts the target outside again.
+     */
+    private float howCloseHeGets() {
+        var his = settings.heroNamed(unit().getTemplate().getName()).closeDistance();
+        float wanted = his > 0f ? his : settings.closeDistance();
+        return Math.min(wanted, reachOfHisWeapon() * INSIDE_HIS_REACH);
+    }
+
+    /**
+     * How much of his reach he closes to, when his own figure is too generous.
+     *
+     * <p>The archer's own numbers, as a ratio: he stops at 48 of a 60 reach, and
+     * what that buys is a margin nothing can step out of by accident.
+     */
+    private static final float INSIDE_HIS_REACH = 0.8f;
 
     /**
      * How far his weapon reaches, taken from his own template rather than named

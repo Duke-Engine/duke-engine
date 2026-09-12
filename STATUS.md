@@ -2879,6 +2879,46 @@ chuqur bosqich haqiqatan qiyinroq, o'limdan keyin **o'sha** qiyinlikda qaytishi,
 chuqur bossni o'ldirish g'alaba bo'lishi, panel "VI / VI" deb sanashi, va
 **tushish hali ham 1-qavatdan boshlanishi**.
 
+### 8.ap Ritsar nega urmasdi — ikkita raqam, ikkita boshqa fayl
+
+Ikkinchi qahramon o'ynaladigan bo'lgach, ikkita nuqson chiqdi va **ikkalasi ham
+bir xil shaklda**: qiymat kamonchiga qarab tanlangan, keyin hamma qahramon uchun
+ishlatilgan. Ikkalasi ham Java'da emas, ma'lumotda; ikkalasi ham xato deb
+ko'rinmaydi.
+
+**Joyida qotib qolishi.** Maxluqqa hujum buyrug'i berilsa ritsar qimirlamasdi,
+maxluq o'zi kelib urgandan keyingina urardi. `CloseDistance` — "nishonga qancha
+yaqin borib to'xtaydi" — butun o'yinda bitta edi: **48**, ya'ni kamonchining
+raqami (u 60 ga otadi, demak 48 bemalol ichida). Ritsar esa **11** ga yetadi.
+Shuning uchun u 48 da to'xtab, to'rt tana uzunlikda turib havoni kesardi. Bu
+o'yinchiga "provokatsiya qilinmaguncha urushmaydigan qahramon" bo'lib ko'rinadi.
+
+Tuzatish — raqam **o'ziniki** bo'ldi: `HeroLook.closeDistance`, `DungeonHero`
+blokida (`Hero = 48`, `Knight = 8`). Ustiga `HeroBrain` uni **o'z quroli
+yetadigan masofaning 4/5 iga qisadi**, faylda nima yozilgan bo'lsa ham — chunki
+bu yangi qahramonga beparvo yoziladigan eng ehtimolli raqam, va noto'g'ri bo'lsa
+hech narsa ko'rinmaydi: yuradi, to'xtaydi, va hech narsa bo'lmaydi.
+
+**Urish animatsiyasi.** `Melee_2H_Attack_Chop` nomi bo'yicha tanlangan edi, lekin
+u **1.633 s** yuradi, zarba esa har `ReloadFrames = 34` = **1.133 s** da tushadi.
+Ya'ni har zarba klipni 69% da uzib, boshidan qayta boshlatardi — ritsar bironta
+zamahni oxirigacha yetkazmagan. O'rniga `Melee_2H_Attack_Slice` (**1.100 s**)
+qo'yildi, ya'ni endi zamah **tugaydi** va keyingisiga 33 ms zaxira qoladi.
+
+**Testlar.** `pointedAtSomethingJustOutOfReachHeStillWalksToIt` — aynan
+o'yinchi ko'rgan holat, va u **qahramon qimirladimi** deb so'raydi, "maxluq
+shikastlandimi" deb emas: nuqson turganda ham maxluq kelib urishardi va urishga
+javob qaytarish "urushyapti" ga o'xshab testni aldardi.
+`everyHeroStopsInsideHisOwnReach` ikki raqamni fayl darajasida taqqoslaydi, ya'ni
+uchinchi qahramon qo'shilganda jang qurilishidan oldin yiqiladi.
+`aSwordsmanFinishesHisSwingBeforeTheNextOneStarts` klip uzunligini
+`ReloadFrames` bilan solishtiradi — INI izohidagi "o'zgartirsang tekshir"
+ko'rsatmasi endi build'da tekshiriladi.
+
+**Kamonchi ataylab chetda:** o'q klipning *boshida* uchadi, qolgani davomi, shuning
+uchun uning 1.333 s lik otishi 0.8 s lik qayta o'qlashiga sig'masligi muammo emas
+va hech qachon bo'lmagan ham.
+
 ## 9. Nima yo'q / ochiq ishlar
 
 ### Katta teshiklar
@@ -2998,6 +3038,17 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
   rasmiyatchilik bo'lardi.
 - **Sandiqning modeli yo'q** — Kenney to'plamida sandiq yo'q, shuning uchun u
   mash'al rangli quti. Model topilsa — `Main.looks()` da bitta qator.
+- **Runner'ning zamahi ham sig'maydi, lekin tegilmadi.** Maxluqlarning hammasi
+  bitta bir qo'llik chopni (`Melee_1H_Attack_Chop`, 1.067 s) baham ko'radi, Runner
+  esa uni har 0.733 s da tashlaydi — **69%** da uzilib qayta boshlanadi, ya'ni
+  ritsarnikini yomon ko'rsatgan aynan o'sha ulush. Farqi: ritsarniki **ikki
+  qo'llik** chop edi (1.633 s), zarbasi klipda ancha kech tushadi. Runner shu
+  holda ancha vaqtdan beri turibdi va hech kim e'tibor bermagan, demak "necha
+  foiz ko'rsatildi" degan qoida yolg'on — to'g'ri savol "zarba lahzasi
+  ko'rsatildimi", bu esa faylda yo'q. Shuning uchun
+  `aSwordsmanFinishesHisSwingBeforeTheNextOneStarts` faqat qahramonlardan
+  so'raydi, va Runner'ning `ReloadFrames` i **ataylab tegilmagan**: testni
+  qanoatlantirish uchun balansni o'zgartirish — teskari tartib.
 - **Qavatlar** — xonalar har xil balandlikda turadi, koridorlar esa **tekis**:
   hammasi kirish qavatida yotadi va ko'tarilish **xona og'zida** bo'ladi
   (ko'tarilgan xonadan chiqayotib bir zina tushasan). Bu ko'rinish uchun emas —

@@ -37,6 +37,13 @@ import java.util.List;
  * @param title      what the panel calls him under his name — what he <em>does</em>,
  *                   where the name says which hero. Empty to fall back to the one
  *                   word {@code DungeonHud} names for everybody
+ * @param closeDistance how close he walks to what he was sent at before he stops
+ *                   and lets his weapon work, or 0 to use the one figure the
+ *                   settings file names for anybody who does not say. <b>It has to
+ *                   be inside his own reach.</b> The archer stops at 48 and shoots
+ *                   60, which is a bow; a swordsman who stopped at 48 would stand
+ *                   four body-lengths from a skeleton swinging at nothing, which
+ *                   is exactly what he did
  * @param armourPercent how much incoming damage he shrugs off before he has
  *                   earned a single level, as a percentage. Here rather than in
  *                   his creature block because the game sets a hero's armour from
@@ -65,6 +72,7 @@ import java.util.List;
 public record HeroLook(
         String name,
         String title,
+        float closeDistance,
         int armourPercent,
         String model,
         String texture,
@@ -83,7 +91,7 @@ public record HeroLook(
     }
 
     /** No art: he is drawn as a shape, as he was before there was a model. */
-    public static final HeroLook NONE = new HeroLook("Hero", "", 0, null, null, 1f, 0f,
+    public static final HeroLook NONE = new HeroLook("Hero", "", 0f, 0, null, null, 1f, 0f,
             List.of(), null, null, null, null, null, Held.NOTHING);
 
     public boolean hasModel() {

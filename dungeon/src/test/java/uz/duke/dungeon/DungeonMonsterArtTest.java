@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.jme3.anim.AnimComposer;
 import com.jme3.anim.SkinningControl;
@@ -405,6 +406,106 @@ class DungeonMonsterArtTest {
             }
         }
     }
+
+    /**
+     * A swordsman finishes his swing before the next one starts.
+     *
+     * <p>Two numbers in two different files that have to agree, and disagreeing
+     * costs nothing anybody can name. The client starts the attack clip once per
+     * blow and a blow lands every {@code ReloadFrames}; if the clip is the longer
+     * of the two it is cut off partway and restarted from the top forever. The
+     * knight's first chop ran 1.633s against blows 1.133s apart, so he was
+     * interrupted at two thirds and never once completed a swing — which from a
+     * chair is "the attack animation looks bad", not "these two numbers are
+     * inconsistent", and so gets reported as an art problem and looked for in the
+     * wrong place.
+     *
+     * <p><b>Asked only of the ones who swing.</b> A bow is genuinely the other
+     * way: the arrow leaves at the start of the release and the rest is
+     * follow-through, so cutting it short loses nothing and the archer has sat at
+     * 1.333s against a 0.8s reload for as long as he has existed, looking fine.
+     * What a sword does is at the far end of its clip, so the same overrun cuts
+     * the blow itself.
+     *
+     * <p><b>And only of the heroes</b>, which is a limit rather than an oversight.
+     * The monsters share a one-handed chop, and the Runner throws it every 0.733s
+     * against its 1.067s — cut at 69%, the same fraction that made the knight look
+     * broken, and nobody has ever remarked on it. That is evidence <em>against</em>
+     * turning this into a rule about fractions: what the knight was cut out of was
+     * the two-handed chop, half again longer and with its blow much later in the
+     * clip. Telling those apart needs to know where in each clip the blow lands,
+     * which is not in the file, so the honest scope is the case that is settled.
+     */
+    @Test
+    void aSwordsmanFinishesHisSwingBeforeTheNextOneStarts() {
+        for (var him : SETTINGS.heroes()) {
+            if (!him.hasModel() || him.attack() == null || shoots(him.name())) {
+                continue;
+            }
+            swingFits(him.name(), him.attack(), lengthOf(him.animations(), him.attack(), him.name()));
+        }
+    }
+
+    private static void swingFits(String who, String clip, float swing) {
+        float between = reloadFramesOf(who)
+                / (float) uz.duke.core.GameConstants.LOGICFRAMES_PER_SECOND;
+
+        assertTrue(swing <= between, who + " swings " + clip + ", which runs " + swing
+                + "s, and lands a blow every " + between + "s — every swing is cut off at "
+                + Math.round(between / swing * 100) + "% and restarted from the top, so he"
+                + " never finishes one. Pick a shorter clip or slow his ReloadFrames down");
+    }
+
+    /** How long a clip runs, in seconds, from whichever of the named libraries holds it. */
+    private static float lengthOf(List<String> libraries, String clip, String who) {
+        for (var path : libraries) {
+            var composer = control(assets().loadModel(path), AnimComposer.class);
+            var found = composer == null ? null : composer.getAnimClip(clip);
+            if (found != null) {
+                return (float) found.getLength();
+            }
+        }
+        return fail(clip + " is asked for by " + who + " and is in none of " + libraries);
+    }
+
+    /** Whether a creature's weapon puts something in the air rather than swinging. */
+    private static boolean shoots(String template) {
+        var found = templates().findTemplate(template);
+        for (var module : found.getModules()) {
+            if (module.data() instanceof uz.duke.dungeon.combat.Bow.Data) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static int reloadFramesOf(String template) {
+        var found = templates().findTemplate(template);
+        for (var module : found.getModules()) {
+            if (module.data() instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
+                return weapon.reloadFrames();
+            }
+        }
+        return fail(template + " carries no weapon at all");
+    }
+
+    /**
+     * The creature templates, built once.
+     *
+     * <p>Through a world because that is the only way to have them: the file is
+     * read into a factory a running game owns. Cheap enough shared, and there is
+     * no simulation involved — nothing is spawned.
+     */
+    private static uz.duke.core.thing.ThingFactory templates() {
+        if (TEMPLATES == null) {
+            var game = Dungeon.world(".....\n.....\n.....\n", SETTINGS).game();
+            game.runHeadless(1);
+            TEMPLATES = game.getLogic().getThingFactory();
+        }
+        return TEMPLATES;
+    }
+
+    private static uz.duke.core.thing.ThingFactory TEMPLATES;
 
     /** Whether any library the hero names carries a clip under this name. */
     private static boolean inOneOfHisLibraries(String clip) {

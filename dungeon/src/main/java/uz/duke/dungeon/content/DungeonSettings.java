@@ -1381,6 +1381,7 @@ public final class DungeonSettings {
     private static final class HeroBuilder {
         private final String name;
         String title = "";
+        float closeDistance;
         int armourPercent;
         String model;
         String texture;
@@ -1404,7 +1405,8 @@ public final class DungeonSettings {
         }
 
         HeroLook build() {
-            return new HeroLook(name, title, armourPercent, model, texture, modelScale, facing,
+            return new HeroLook(name, title, closeDistance, armourPercent, model, texture,
+                    modelScale, facing,
                     animations, idle, walk, attack, hurt, death,
                     new Held(holds, heldIn, heldScale, heldPitch, heldYaw, heldRoll));
         }
@@ -2288,6 +2290,10 @@ public final class DungeonSettings {
                     // in his creature block because a hero's armour is rewritten
                     // from his level whenever it changes, so a template's own
                     // figure would not survive the first one.
+                    // How close he walks before letting his weapon work. His, because
+                    // it has to be inside HIS reach: one figure for everybody was
+                    // the archer's, and a swordsman stopped four bodies short.
+                    .add("CloseDistance", Ini.real((s, v) -> s.closeDistance = v))
                     .add("ArmourPercent", Ini.integer((s, v) -> s.armourPercent = v))
                     .add("Model", Ini.string((s, v) -> s.model = v))
                     .add("Texture", Ini.string((s, v) -> s.texture = v))
