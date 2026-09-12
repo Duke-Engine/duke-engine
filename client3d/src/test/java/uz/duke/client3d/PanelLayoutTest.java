@@ -112,13 +112,18 @@ class PanelLayoutTest {
     private static String rankShown(Node gui) {
         var bar = (Node) find(gui, "experience");
         for (var child : bar.getChildren()) {
+            // By SIZE, which is the one thing about the level that neither the
+            // count at the other end of the bar nor either of their shadows
+            // shares. It was looking for 13 -- the count's size, not the
+            // level's -- and passed anyway, because the card it was asked about
+            // has neither and "" equals "".
             if (child instanceof com.jme3.font.BitmapText line
-                    && line.getSize() == 13f) {
+                    && line.getSize() == 15f) {
                 return line.getText();
             }
         }
         return org.junit.jupiter.api.Assertions.fail(
-                "no 13-point lettering in the experience bar: has the level moved again?");
+                "no 15-point lettering in the experience bar: has the level moved again?");
     }
 
     /**
@@ -308,6 +313,8 @@ class PanelLayoutTest {
         assertNothingDrawn(nobody, "figure");
         assertEquals(null, find(nobody, "face-glyph"),
                 "an empty frame has no face in it, not even a borrowed one");
+        assertEquals("7-daraja", rankShown(showing(LINE)),
+                "the finder has to work in the other direction too, or \"\" proves nothing");
         assertEquals("", rankShown(nobody), "nobody is any level");
         assertEquals(Spatial.CullHint.Always, find(nobody, "title-line").getLocalCullHint(),
                 "and nobody is anything");

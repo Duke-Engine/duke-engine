@@ -227,7 +227,7 @@ final class SkillTip {
             // whole string against the edge and the green half has to be the
             // rightmost part of it. One colour per line is the price; the arrow
             // carries the meaning, and the row is read as "now, then".
-            value.setColor(HeroPanel.linear(row.next().isEmpty() ? VALUE : GAIN));
+            value.setColor(Shade.linear(row.next().isEmpty() ? VALUE : GAIN));
             value.setText(row.next().isEmpty() ? row.now()
                     : row.now().isEmpty() ? row.next() : row.now() + "  →  " + row.next());
             top -= ROW_STEP;
@@ -239,7 +239,7 @@ final class SkillTip {
             rule.setLocalTranslation(PAD, top - GAP / 2f, 2f);
             place(foot, PAD, top - GAP - FOOT_SIZE, WIDTH - PAD * 2f);
             foot.setText(tip.foot());
-            foot.setColor(HeroPanel.linear(tip.canRaise() ? FOOT : FOOT_DEAD));
+            foot.setColor(Shade.linear(tip.canRaise() ? FOOT : FOOT_DEAD));
             foot.setCullHint(Spatial.CullHint.Inherit);
         } else {
             rule.setCullHint(Spatial.CullHint.Always);
@@ -256,7 +256,7 @@ final class SkillTip {
             BitmapFont.Align align) {
         var text = new BitmapText(font);
         text.setSize(size);
-        text.setColor(HeroPanel.linear(colour));
+        text.setColor(Shade.linear(colour));
         // A box before the alignment, and both before it is attached. An empty
         // BitmapText with no box has no bound at all, and attaching one to a node
         // is enough to make jME throw the next time anything measures the node.
@@ -270,7 +270,7 @@ final class SkillTip {
     private Geometry plate(ColorRGBA colour) {
         var geometry = new Geometry("tip-plate", new Quad(1f, 1f));
         var material = new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
-        material.setColor("Color", HeroPanel.linear(colour));
+        material.setColor("Color", Shade.linear(colour));
         material.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Alpha);
         geometry.setMaterial(material);
         return geometry;

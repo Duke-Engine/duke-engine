@@ -65,8 +65,17 @@ final class HeroPanel {
     // ---- the palette, and the only place colour is decided ----
 
     private static final ColorRGBA STONE_DEEP = rgb(0x16130F);
-    private static final ColorRGBA STONE = rgb(0x2B2620);
-    private static final ColorRGBA STONE_LIT = rgb(0x3D362C);
+    /**
+     * ★ LIGHTER THAN IT WAS, and it is what the whole bar was missing.
+     *
+     * <p>The design's stone is a warm grey that catches light; this was a third
+     * darker, and against it every gold edge, every gauge and every letter lost
+     * the contrast it was chosen for — the bar read as one dark mass with things
+     * faintly on it rather than as a slab with things set into it. Nothing was
+     * wrong with any single colour. They were all slightly too far down.
+     */
+    private static final ColorRGBA STONE = rgb(0x332B22);
+    private static final ColorRGBA STONE_LIT = rgb(0x4A4033);
     private static final ColorRGBA STONE_DEAD_LIT = rgb(0x231F1A);
     private static final ColorRGBA STONE_DEAD = rgb(0x191510);
     private static final ColorRGBA TORCH = rgb(0xE8A33D);
@@ -132,10 +141,11 @@ final class HeroPanel {
     private static final float BRACKET_OUT = 5f;
     private static final ColorRGBA LABEL = rgb(0x8B8171);
     private static final ColorRGBA LOCK_LABEL = rgb(0x6E6555);
-    private static final ColorRGBA SLAB_TOP = rgb(0x332C24);
-    private static final ColorRGBA SLAB_MID = rgb(0x241F19);
-    private static final ColorRGBA SLAB_LOW = rgb(0x1B1712);
-    private static final ColorRGBA SLAB_RIM = rgb(0x4E4638);
+    private static final ColorRGBA SLAB_TOP = rgb(0x4A4033);
+    private static final ColorRGBA SLAB_HIGH = rgb(0x3A3127);
+    private static final ColorRGBA SLAB_MID = rgb(0x2B241C);
+    private static final ColorRGBA SLAB_LOW = rgb(0x221C16);
+    private static final ColorRGBA SLAB_RIM = rgb(0x6B5C46);
     private static final ColorRGBA SOCKET_RIM = rgb(0x453D30);
     private static final ColorRGBA FLESH = rgb(0x6B5B45);
 
@@ -578,12 +588,12 @@ final class HeroPanel {
         }
         showing = true;
         root.setCullHint(Spatial.CullHint.Inherit);
-        name.setText(reading.name);
+        say(name, reading.name);
         title.setText(spacedOut(reading.title.toUpperCase(java.util.Locale.ROOT)));
-        rank.setText(reading.rank);
+        say(rank, reading.rank);
         // No reading over an empty trough: "0 / 0" is a number, and a number is a
         // claim about somebody.
-        health.setText(reading.maxHealth <= 0f ? ""
+        say(health, reading.maxHealth <= 0f ? ""
                 : Math.round(reading.health) + " / " + Math.round(reading.maxHealth));
         fillTo(healthFill, fraction(reading.health, reading.maxHealth));
         // A game that charges nothing for its skills sends no pool and gets no
@@ -603,7 +613,7 @@ final class HeroPanel {
         boolean casts = reading.maxMana > 0f;
         manaBar.setCullHint(casts ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
         if (casts) {
-            manaCount.setText(Math.round(reading.mana) + " / " + Math.round(reading.maxMana));
+            say(manaCount, Math.round(reading.mana) + " / " + Math.round(reading.maxMana));
             fillTo(manaFill, fraction(reading.mana, reading.maxMana));
             // And it flashes when he asked for what he has not got. A flash
             // rather than a shake: the bar is two pixels from the one above it
@@ -615,7 +625,7 @@ final class HeroPanel {
         // The figures at the far end of the bar, and the hatching across what is
         // filled. A game that gives him nothing to earn sends no total and gets a
         // bare bar rather than "0 / 0", which is a claim about somebody.
-        experienceCount.setText(reading.needed <= 0f ? ""
+        say(experienceCount, reading.needed <= 0f ? ""
                 : Math.round(reading.experience) + " / " + Math.round(reading.needed));
         slantTo(fraction(reading.experience, reading.needed));
         depthNumber.setText(reading.depth);
@@ -891,7 +901,7 @@ final class HeroPanel {
         slab.detachAllChildren();
         var stone = new Geometry("slab",
                 gradient(Math.max(1f, screenWidth / Math.max(scale, 0.0001f)), SLAB_HEIGHT,
-                        SLAB_TOP, SLAB_MID, SLAB_LOW));
+                        SLAB_TOP, SLAB_HIGH, SLAB_MID, SLAB_LOW));
         stone.setMaterial(vertexColoured());
         attach(slab, stone, 0f, 0f, 0f);
         // The lit rim along the top: a slab of stone catching the room's light,
@@ -1553,13 +1563,21 @@ final class HeroPanel {
         // goes forward. What is LEFT of him is not here any more -- health and
         // mana moved under his own portrait, where they read as facts about the
         // man rather than as two more rows of the column.
-        float nameY = BAND - 27f;
+        // ★ CENTRED IN THE BAND, not hung from the top of it. The three rows come
+        // to less than the band is tall, and hanging them from the top left the
+        // slack in one strip along the bottom -- which reads as a column that has
+        // run out rather than as one that is arranged. The design centres it, and
+        // the portrait beside it is centred too, so the two blocks agree.
+        float stack = 27f + 18f + 12f + XP_HEIGHT + 16f + STAT_ICON;
+        float top = BAND - (BAND - stack) / 2f;
+        float nameY = top - 27f;
         float titleY = nameY - 18f;
         float experienceY = titleY - 12f - XP_HEIGHT;
         this.statsTop = experienceY - 16f;
 
         name = carved(22f, BONE, 0f, nameY, VITALS_WIDTH, BitmapFont.Align.Center);
-        vitals.attachChild(name);
+        shadowed(vitals, name,
+                carved(22f, DROP, 1f, nameY - 1f, VITALS_WIDTH, BitmapFont.Align.Center), 1f);
         // A wash behind the title, which is what stops a second centred line from
         // reading as a second name.
         var wash = new Geometry("title-wash",
@@ -1588,12 +1606,12 @@ final class HeroPanel {
         // the far one -- the two halves of the same sentence, read left to right.
         float lettering = experienceY + (XP_HEIGHT - 15f) / 2f;
         rank = carved(15f, GOLD_HI, 11f, lettering, VITALS_WIDTH, BitmapFont.Align.Left);
-        rank.setLocalTranslation(rank.getLocalTranslation().x, rank.getLocalTranslation().y, 3f);
-        experienceBar.attachChild(rank);
+        shadowed(experienceBar, rank,
+                carved(15f, DROP, 12f, lettering - 1f, VITALS_WIDTH, BitmapFont.Align.Left), 3f);
         experienceCount = text(13f, BONE, 0f, lettering + 1f, VITALS_WIDTH - 11f,
                 BitmapFont.Align.Right);
-        experienceCount.setLocalTranslation(0f, experienceCount.getLocalTranslation().y, 3f);
-        experienceBar.attachChild(experienceCount);
+        shadowed(experienceBar, experienceCount,
+                text(13f, DROP, 1f, lettering, VITALS_WIDTH - 11f, BitmapFont.Align.Right), 3f);
         vitals.attachChild(experienceBar);
 
         // The bezel last and highest: a bar fills from under its own rim, and the
@@ -1620,8 +1638,8 @@ final class HeroPanel {
         portraitBars.attachChild(healthFill);
         health = text(12f, BONE, 0f, healthY + 3f, PORTRAIT_COLUMN,
                 BitmapFont.Align.Center);
-        health.setLocalTranslation(0f, health.getLocalTranslation().y, 2f);
-        portraitBars.attachChild(health);
+        shadowed(portraitBars, health, text(12f, DROP, 1f, healthY + 2f, PORTRAIT_COLUMN,
+                BitmapFont.Align.Center), 2f);
 
         attach(manaBar, trough(0f, manaY, PORTRAIT_COLUMN, MANA_HEIGHT), 0f, 0f, 0f);
         manaFill = fill("mana-fill", PORTRAIT_COLUMN - 2f, MANA_HEIGHT - 2f, MANA);
@@ -1629,8 +1647,8 @@ final class HeroPanel {
         manaBar.attachChild(manaFill);
         manaCount = text(10f, BONE, 0f, manaY + 2f, PORTRAIT_COLUMN,
                 BitmapFont.Align.Center);
-        manaCount.setLocalTranslation(0f, manaCount.getLocalTranslation().y, 2f);
-        manaBar.attachChild(manaCount);
+        shadowed(manaBar, manaCount, text(10f, DROP, 1f, manaY + 1f, PORTRAIT_COLUMN,
+                BitmapFont.Align.Center), 2f);
         portraitBars.attachChild(manaBar);
 
         framed(portraitBars, PanelSkin.GAUGE, -1f, healthY - 1f,
@@ -1762,8 +1780,7 @@ final class HeroPanel {
      * The gradient runs top to bottom, so scaling across it costs nothing.
      */
     private Geometry fill(String name, float width, float height, ColorRGBA colour) {
-        var geometry = new Geometry(name,
-                gradient(width, height, lighter(colour, 0.22f), colour, darker(colour, 0.30f)));
+        var geometry = new Geometry(name, gradient(width, height, Shade.gauge(colour)));
         geometry.setMaterial(vertexColoured());
         return geometry;
     }
@@ -3041,6 +3058,45 @@ final class HeroPanel {
         return spaced.toString();
     }
 
+    /**
+     * The dark copy under a line of lettering, by the line itself.
+     *
+     * <p>Only the readings that sit ON something — inside a gauge, over a fill —
+     * rather than on bare stone. Bone letters on a red bar are not dim, they are
+     * hard to be SURE of, and the eye spends a fraction of a second on a number
+     * meant to be taken in without one. Every reading in the design has this and
+     * the panel had none.
+     */
+    private final java.util.Map<BitmapText, BitmapText> shadows =
+            new java.util.IdentityHashMap<>();
+
+    /**
+     * Attach a line with its shadow, and remember the pair.
+     *
+     * <p>The shadow is a second {@code BitmapText} because jME has no other kind:
+     * a bitmap font is drawn as it was baked, and what is not in the glyph cannot
+     * be added to it. Remembered here rather than returned so that nothing which
+     * writes to the panel has to know there are two of anything — see {@link #say}.
+     */
+    private void shadowed(Node parent, BitmapText line, BitmapText under, float depth) {
+        under.setLocalTranslation(under.getLocalTranslation().x,
+                under.getLocalTranslation().y, depth - 0.1f);
+        parent.attachChild(under);
+        line.setLocalTranslation(line.getLocalTranslation().x,
+                line.getLocalTranslation().y, depth);
+        parent.attachChild(line);
+        shadows.put(line, under);
+    }
+
+    /** Write to a line and to whatever is underneath it. */
+    private void say(BitmapText line, String words) {
+        line.setText(words);
+        var under = shadows.get(line);
+        if (under != null) {
+            under.setText(words);
+        }
+    }
+
     /** The same, in the face a game named for its own lettering. */
     private BitmapText carved(float size, ColorRGBA colour, float x, float y, float width,
             BitmapFont.Align align) {
@@ -3142,24 +3198,8 @@ final class HeroPanel {
         return whole <= 0f ? 0f : Math.max(0f, Math.min(1f, part / whole));
     }
 
-    /**
-     * The same colour, ready to go into a vertex buffer.
-     *
-     * <p>The client renders into an sRGB frame buffer, and a material's colour is
-     * converted on its way to the shader — but a colour written straight into a
-     * mesh is not, so the same hex came out two shades lighter as a gradient than
-     * as a flat quad. Blood red arrived as pink. This is the conversion the
-     * material path performs, done by hand for the path that skips it.
-     */
-    static ColorRGBA linear(ColorRGBA colour) {
-        return new ColorRGBA(toLinear(colour.r), toLinear(colour.g), toLinear(colour.b),
-                colour.a);
-    }
-
-    private static float toLinear(float channel) {
-        return channel <= 0.04045f
-                ? channel / 12.92f
-                : (float) Math.pow((channel + 0.055) / 1.055, 2.4);
+    private static ColorRGBA linear(ColorRGBA colour) {
+        return Shade.linear(colour);
     }
 
     static ColorRGBA rgb(int hex) {
@@ -3168,15 +3208,11 @@ final class HeroPanel {
     }
 
     private static ColorRGBA lighter(ColorRGBA colour, float towardsWhite) {
-        return new ColorRGBA(
-                colour.r + (1f - colour.r) * towardsWhite,
-                colour.g + (1f - colour.g) * towardsWhite,
-                colour.b + (1f - colour.b) * towardsWhite, colour.a);
+        return Shade.lighter(colour, towardsWhite);
     }
 
     private static ColorRGBA darker(ColorRGBA colour, float towardsBlack) {
-        float keep = 1f - towardsBlack;
-        return new ColorRGBA(colour.r * keep, colour.g * keep, colour.b * keep, colour.a);
+        return Shade.darker(colour, towardsBlack);
     }
 
     // ---- what the status line says ----

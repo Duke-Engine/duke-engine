@@ -3,6 +3,7 @@ package uz.duke.client3d;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -65,7 +66,13 @@ class UnitBarsTest {
 
     private static UnitView unit(int id, String template, float x, float y, float health,
             float maxHealth) {
-        return new UnitView(id, template, 0, x, y, 0f, health, maxHealth,
+        return unit(id, template, x, y, health, maxHealth, 0);
+    }
+
+    /** The same, for somebody else's creature — whose bar is filled differently. */
+    private static UnitView unit(int id, String template, float x, float y, float health,
+            float maxHealth, int player) {
+        return new UnitView(id, template, player, x, y, 0f, health, maxHealth,
                 false, true, false, false, -1);
     }
 
@@ -319,29 +326,78 @@ class UnitBarsTest {
         assertNotSame(named(showing.get(0), "ticks").getMesh(), named(showing.get(2), "ticks").getMesh());
     }
 
-    private static void assertNotSame(Object one, Object other) {
-        assertFalse(one == other, "these two should not have been the same object");
-    }
-
     /**
-     * And every rectangle on every bar is the same mesh.
+     * Every flat rectangle on every bar is the same mesh, and every gauge is
+     * one of three.
      *
-     * <p>Troughs, fills and marks all being quads, there is one quad. Twelve
-     * creatures is not twelve hundred vertices.
+     * <p>Two claims, because there are two kinds of rectangle now. The troughs,
+     * the keylines and the marks are flat and share ONE square between every
+     * creature on the floor. A gauge is not flat — it runs bright along its top
+     * edge and falls away dark at the foot, which is what makes it read as a
+     * thing rather than as a region of screen that happens to be red — and the
+     * shading lives in the corners, so there is one square per fill COLOUR:
+     * his, theirs, and mana. Forty creatures share three.
      */
     @Test
-    void everyRectangleIsTheOneRectangle() {
+    void everyFlatRectangleIsOneMeshAndEveryGaugeIsOneOfThree() {
         var screen = screen();
 
         screen.bars().update(screen.camera(), all(
                 unit(1, "Rogue", 0f, 0f, 128f, 200f),
-                unit(2, "Skeleton", 10f, 0f, 30f, 30f)), UnitBarReading.read(LINE));
+                unit(2, "Skeleton", 10f, 0f, 30f, 30f, 1),
+                unit(9, "Warden", -10f, 0f, 400f, 600f, 1)), UnitBarReading.read(LINE));
 
         var showing = up(screen.bars());
-        var one = named(showing.get(0), "trough").getMesh();
-        assertSame(one, named(showing.get(0), "fill").getMesh());
-        assertSame(one, named(showing.get(1), "edge").getMesh());
-        assertSame(one, named(showing.get(1), "manaTrough").getMesh());
+        var flat = named(showing.get(0), "trough").getMesh();
+        for (var bar : showing) {
+            for (var name : new String[] {"edge", "trough", "manaEdge", "manaTrough"}) {
+                assertSame(flat, named(bar, name).getMesh(),
+                        name + " should be drawn from the one flat square");
+            }
+        }
+
+        var hisGauge = named(showing.get(0), "fill").getMesh();
+        assertNotSame(flat, hisGauge, "a gauge is shaded, so it is not the flat square");
+        assertNotSame(hisGauge, named(showing.get(0), "manaFill").getMesh(),
+                "mana is its own colour, so its gauge is its own square");
+        assertSame(named(showing.get(1), "fill").getMesh(),
+                named(showing.get(2), "fill").getMesh(),
+                "two of somebody else's creatures share one gauge");
+        assertNotSame(hisGauge, named(showing.get(1), "fill").getMesh(),
+                "and his is not theirs");
+    }
+
+    /**
+     * A gauge is lit from above: bright at its top edge, dark at its foot.
+     *
+     * <p>The whole difference between the design and what the game looked like.
+     * A flat bar is not a duller version of this — it is a different kind of
+     * picture, a region of screen that happens to be red rather than a thing
+     * with a light on it. Checked in the mesh because that is where the light
+     * lives: three rows of vertices, and the top row brighter than the bottom in
+     * every channel.
+     */
+    @Test
+    void aGaugeIsLitFromAbove() {
+        var screen = screen();
+
+        screen.bars().update(screen.camera(), all(unit(1, "Rogue", 0f, 0f, 128f, 200f)),
+                UnitBarReading.read(LINE));
+
+        var mesh = named(up(screen.bars()).get(0), "fill").getMesh();
+        var colours = mesh.getFloatBuffer(com.jme3.scene.VertexBuffer.Type.Color);
+        assertNotNull(colours, "a gauge carries its light in its vertex colours");
+        assertEquals(3 * 2 * 4, colours.limit(), "three stops, two corners apiece");
+        for (int channel = 0; channel < 3; channel++) {
+            float top = colours.get(channel);
+            float foot = colours.get(2 * 2 * 4 + channel);
+            assertTrue(top > foot,
+                    "channel " + channel + ": the top of a gauge (" + top
+                            + ") should be brighter than its foot (" + foot + ")");
+        }
+        // And the flat pieces carry none, or they would be shaded too.
+        assertNull(named(up(screen.bars()).get(0), "trough").getMesh()
+                .getFloatBuffer(com.jme3.scene.VertexBuffer.Type.Color));
     }
 
     /** The experience ring is built once per step and then only pointed at. */

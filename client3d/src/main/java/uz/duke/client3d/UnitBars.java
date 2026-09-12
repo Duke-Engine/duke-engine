@@ -103,7 +103,7 @@ final class UnitBars {
     /** How far the shadow under a line of lettering is offset, in pixels. */
     private static final float SHADOW = 1f;
 
-    /** Every rectangle on screen is this, scaled. */
+    /** Every flat rectangle on screen is this, scaled. */
     private static final Mesh SQUARE = square();
 
     private final AssetManager assets;
@@ -124,6 +124,22 @@ final class UnitBars {
      */
     private final Map<Long, Mesh> marks = new HashMap<>();
     private final Map<Integer, Mesh> arcs = new HashMap<>();
+
+    /**
+     * One unit square per fill colour, shaded top to bottom.
+     *
+     * <p>★ THE BARS WERE FLAT, and that was the whole distance between the design
+     * and the game. A gauge runs bright along its top edge, sits at its colour
+     * through the middle and falls away dark at the foot — a cylinder catching a
+     * light from above — and that is what makes it read as a THING rather than as
+     * a region of screen that happens to be red. Flat is not a duller version of
+     * it; it is a different kind of picture.
+     *
+     * <p>Still one mesh apiece rather than one per creature: the shading lives in
+     * the vertex colours, so there are as many of these as there are fill colours
+     * — his, theirs and mana — and forty creatures share three.
+     */
+    private final Map<Integer, Mesh> gauges = new HashMap<>();
     private UnitBarLook look = UnitBarLook.NONE;
 
     UnitBars(AssetManager assets, BitmapFont plain, BitmapFont display) {
@@ -231,6 +247,8 @@ final class UnitBars {
         private int cutInto = -1;
         private int arcStep = -1;
         private float wide = -1f;
+        /** Which side's gauge its fill is currently cut from. */
+        private int shadedAs;
     }
 
     /**
@@ -321,7 +339,11 @@ final class UnitBars {
         float left = Math.clamp(view.healthFraction(), 0f, 1f);
         size(bar.fill, Math.max(1f, width * left), look.height());
         bar.wide = width;
-        bar.fill.getMaterial().setColor("Color", look.fill(one.his()));
+        int side = one.his() ? look.friend() : look.enemy();
+        if (bar.shadedAs != side) {
+            bar.shadedAs = side;
+            bar.fill.setMesh(gauge(side));
+        }
 
         boolean pool = hero && reading.maxMana() > 0 && look.hasMana();
         show(bar.manaEdge, pool);
@@ -420,11 +442,12 @@ final class UnitBars {
         // would be a second thing to keep in step for no second decision.
         bar.edge = piece(bar, "edge", look.tickColour(), -1f);
         bar.trough = piece(bar, "trough", look.troughColour(), 0f);
-        bar.fill = piece(bar, "fill", look.fill(false), 1f);
+        bar.fill = shadedPiece(bar, "fill", 1f);
         bar.ticks = piece(bar, "ticks", look.tickColour(), 2f);
         bar.manaEdge = piece(bar, "manaEdge", look.tickColour(), -1f);
         bar.manaTrough = piece(bar, "manaTrough", look.troughColour(), 0f);
-        bar.manaFill = piece(bar, "manaFill", look.manaColour(), 1f);
+        bar.manaFill = shadedPiece(bar, "manaFill", 1f);
+        bar.manaFill.setMesh(gauge(look.mana()));
         bar.back = piece(bar, "back", look.faceColour(), 3f);
         bar.back.setMesh(disc(look.ring() / 2f));
         bar.rim = piece(bar, "rim", look.rim(false), 4f);
@@ -452,6 +475,24 @@ final class UnitBars {
     private void put(Bar bar) {
         bar.up = false;
         bar.node.setCullHint(Spatial.CullHint.Always);
+    }
+
+    /**
+     * A piece whose colour is in its mesh rather than on its material.
+     *
+     * <p>Which is what a shaded gauge needs: the three stops are vertex colours,
+     * so the material carries nothing but white and the shape carries the light.
+     */
+    private Geometry shadedPiece(Bar bar, String name, float depth) {
+        var geometry = piece(bar, name, ColorRGBA.White, depth);
+        geometry.getMaterial().setBoolean("VertexColor", true);
+        return geometry;
+    }
+
+    /** The unit square a gauge of this colour is drawn from, made once. */
+    private Mesh gauge(int packed) {
+        return gauges.computeIfAbsent(packed,
+                colour -> shadedSquare(Shade.gauge(UnitBarLook.colour(colour))));
     }
 
     private Geometry piece(Bar bar, String name, ColorRGBA colour, float depth) {
@@ -519,10 +560,52 @@ final class UnitBars {
 
     // ---- meshes, all of them shared ----
 
-    /** The one rectangle. Everything square on screen is this, scaled. */
+    /** The one rectangle. Everything flat on screen is this, scaled. */
     private static Mesh square() {
         return meshOf(new float[] {0f, 0f, 0f, 1f, 0f, 0f, 1f, 1f, 0f, 0f, 1f, 0f},
                 new int[] {0, 1, 2, 0, 2, 3});
+    }
+
+    /**
+     * The same square with a light down it: a row of vertices per stop, brightest
+     * at the top.
+     *
+     * <p>A unit square like the flat one, so it is scaled to each bar rather than
+     * cut for it — the shading is in the corners and stretches with them, which is
+     * what a light falling on a longer bar does anyway.
+     */
+    private static Mesh shadedSquare(ColorRGBA[] stops) {
+        int rows = stops.length;
+        var points = new float[rows * 2 * 3];
+        var colours = new float[rows * 2 * 4];
+        var order = new int[(rows - 1) * 6];
+        for (int row = 0; row < rows; row++) {
+            float y = 1f - row / (float) (rows - 1);
+            var lit = Shade.linear(stops[row]);
+            for (int side = 0; side < 2; side++) {
+                int vertex = row * 2 + side;
+                points[vertex * 3] = side == 0 ? 0f : 1f;
+                points[vertex * 3 + 1] = y;
+                colours[vertex * 4] = lit.r;
+                colours[vertex * 4 + 1] = lit.g;
+                colours[vertex * 4 + 2] = lit.b;
+                colours[vertex * 4 + 3] = lit.a;
+            }
+            if (row < rows - 1) {
+                int corner = row * 2;
+                int at = row * 6;
+                order[at] = corner;
+                order[at + 1] = corner + 1;
+                order[at + 2] = corner + 3;
+                order[at + 3] = corner;
+                order[at + 4] = corner + 3;
+                order[at + 5] = corner + 2;
+            }
+        }
+        var mesh = meshOf(points, order);
+        mesh.setBuffer(VertexBuffer.Type.Color, 4, BufferUtils.createFloatBuffer(colours));
+        mesh.updateBound();
+        return mesh;
     }
 
     /**

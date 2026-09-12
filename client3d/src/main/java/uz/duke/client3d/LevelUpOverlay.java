@@ -281,7 +281,7 @@ final class LevelUpOverlay {
         var material = new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
         // The same conversion the bar does, and for the same reason -- see
         // HeroPanel#linear.
-        material.setColor("Color", HeroPanel.linear(colour));
+        material.setColor("Color", Shade.linear(colour));
         material.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
         material.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
         material.getAdditionalRenderState().setDepthTest(false);
@@ -298,7 +298,7 @@ final class LevelUpOverlay {
             BitmapFont.Align align) {
         var line = new BitmapText(font);
         line.setSize(size);
-        line.setColor(HeroPanel.linear(colour));
+        line.setColor(Shade.linear(colour));
         line.setBox(new Rectangle(x, y + size, width, size * 2.6f));
         line.setAlignment(align);
         return line;
