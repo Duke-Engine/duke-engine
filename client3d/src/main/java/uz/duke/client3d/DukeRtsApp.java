@@ -3379,32 +3379,17 @@ final class DukeRtsApp extends SimpleApplication {
      * does not parse is dropped in silence: a missing ring is the cheapest
      * possible failure, and an effect that threw would take the frame with it.
      */
-    private void skillsCastThisFrame(WorldSnapshot snapshot) {
+    int skillsCastThisFrame(WorldSnapshot snapshot) {
         if (skillEffects == null || !snapshot.hasStatus()) {
-            return;
+            return 0;
         }
-        for (var field : snapshot.status().split("\\|")) {
-            if (!field.startsWith("cast=")) {
-                continue;
-            }
-            var parts = field.substring(5).split(",");
-            if (parts.length < 5) {
-                continue;
-            }
-            try {
-                int frame = Integer.parseInt(parts[1].trim());
-                if (frame <= lastCastFrameDrawn) {
-                    continue; // already drawn; the line is sent again every frame
-                }
-                lastCastFrameDrawn = frame;
-                skillEffects.cast(parts[0].trim(),
-                        new uz.duke.core.math.Coord3D(Float.parseFloat(parts[2].trim()),
-                                Float.parseFloat(parts[3].trim()), 0f),
-                        cam.getLocation(), Float.parseFloat(parts[4].trim()), this::floorHeightAt);
-            } catch (NumberFormatException malformed) {
-                // Somebody else's line, or a version that disagrees. No ring.
-            }
+        var casts = SkillEffects.castsIn(snapshot.status(), lastCastFrameDrawn);
+        for (var cast : casts) {
+            lastCastFrameDrawn = Math.max(lastCastFrameDrawn, cast.frame());
+            skillEffects.cast(cast.look(), cast.at(), cam.getLocation(), cast.radius(),
+                    this::floorHeightAt);
         }
+        return casts.size();
     }
 
     /**

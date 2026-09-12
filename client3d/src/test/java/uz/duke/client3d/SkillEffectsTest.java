@@ -143,6 +143,65 @@ class SkillEffectsTest {
         assertEquals(40f, SkillEffects.widthAt(4f, 40f, 9f, 2.4f), 0.01f, "and is clamped past it");
     }
 
+    // ---- reading the line the game sends ----
+
+    /** A cast is read out of the middle of whatever else the line carries. */
+    @Test
+    void aCastIsReadOutOfTheLine() {
+        var casts = SkillEffects.castsIn(
+                "name=Erika|hp=1/2|cast=FrostNova,412,150.5,160.25,40.0|note=found a sword", 0);
+
+        assertEquals(1, casts.size());
+        assertEquals("FrostNova", casts.get(0).look());
+        assertEquals(412, casts.get(0).frame());
+        assertEquals(150.5f, casts.get(0).at().x(), 0.001f);
+        assertEquals(160.25f, casts.get(0).at().y(), 0.001f);
+        assertEquals(40f, casts.get(0).radius(), 0.001f);
+    }
+
+    /**
+     * A blink is two places at one frame, and BOTH come back.
+     *
+     * <p>The bug this is here for: the mark of what had been drawn was moved on
+     * as each field was read, so the second half of a blink was refused for
+     * having the same frame as the first. What the player saw was a flash where
+     * he left and a man standing somewhere else with no explanation — which
+     * reads as the effect being broken rather than as an off-by-one in a filter.
+     */
+    @Test
+    void bothHalvesOfABlinkComeBack() {
+        var casts = SkillEffects.castsIn(
+                "name=Lira|cast=MageBlink,900,100.0,100.0,0.0"
+                        + "|cast=MageBlink,900,160.0,100.0,0.0", 0);
+
+        assertEquals(2, casts.size(), "half a blink is a teleport with a bug");
+        assertEquals(100f, casts.get(0).at().x(), 0.001f);
+        assertEquals(160f, casts.get(1).at().x(), 0.001f);
+    }
+
+    /** The same line arriving again draws nothing, since nothing new happened. */
+    @Test
+    void theSameLineAgainIsNotASecondCast() {
+        var line = "name=Erika|cast=FrostNova,412,150.0,150.0,40.0";
+
+        assertEquals(1, SkillEffects.castsIn(line, 0).size());
+        assertEquals(0, SkillEffects.castsIn(line, 412).size(),
+                "a nova would open its ring thirty times a second");
+        assertEquals(1, SkillEffects.castsIn(line, 411).size(), "and one frame earlier it is new");
+    }
+
+    /** Another game's line, and a broken one, are both simply no ring. */
+    @Test
+    void aLineThatIsNotOursIsNoRing() {
+        assertEquals(0, SkillEffects.castsIn(null, 0).size());
+        assertEquals(0, SkillEffects.castsIn("", 0).size());
+        assertEquals(0, SkillEffects.castsIn("Wave 4    2 bases left", 0).size());
+        assertEquals(0, SkillEffects.castsIn("cast=FrostNova,soon,150.0,150.0,40.0", 0).size(),
+                "a frame that is not a number");
+        assertEquals(0, SkillEffects.castsIn("cast=FrostNova,412,150.0", 0).size(),
+                "and a cast with half its fields");
+    }
+
     // ---- the knock ----
 
     /**

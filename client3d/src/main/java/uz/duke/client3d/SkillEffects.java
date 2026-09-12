@@ -196,6 +196,60 @@ final class SkillEffects {
     }
 
     /**
+     * One place a cast asked to be drawn: what to draw, when it was cast, where,
+     * and how wide.
+     */
+    record Cast(String look, int frame, Coord3D at, float radius) {
+    }
+
+    /**
+     * Every cast in a status line that has not been drawn yet.
+     *
+     * <p>The game's own channel to its own client, read here rather than in the
+     * app so that it can be tested without a window. The format is
+     * {@code cast=<recipe>,<frame>,<x>,<y>,<radius>}, repeatable, mixed in among
+     * whatever else the line carries.
+     *
+     * <p><b>One cast is not always one place.</b> A blink sends the spot he left
+     * and the spot he arrived at, both stamped with the same frame — so the
+     * filter is against what was drawn BEFORE this line, and every field of the
+     * newest frame comes back. Filtering against a mark moved field by field
+     * returned the first and swallowed the rest, which is half a blink.
+     *
+     * <p>A field that does not parse is dropped in silence. A missing ring is
+     * the cheapest possible failure, and it may simply be another game's line:
+     * this client serves three that have never heard of a skill.
+     */
+    static List<Cast> castsIn(String status, int alreadyDrawn) {
+        if (status == null || status.isEmpty()) {
+            return List.of();
+        }
+        var found = new ArrayList<Cast>();
+        for (var field : status.split("[|]")) {
+            if (!field.startsWith("cast=")) {
+                continue;
+            }
+            var parts = field.substring("cast=".length()).split(",");
+            if (parts.length < 5) {
+                continue;
+            }
+            try {
+                int frame = Integer.parseInt(parts[1].trim());
+                if (frame <= alreadyDrawn) {
+                    continue; // the same line is sent again until something changes
+                }
+                found.add(new Cast(parts[0].trim(), frame,
+                        new Coord3D(Float.parseFloat(parts[2].trim()),
+                                Float.parseFloat(parts[3].trim()), 0f),
+                        Float.parseFloat(parts[4].trim())));
+            } catch (NumberFormatException malformed) {
+                // Somebody else's line, or a version that disagrees. No ring.
+            }
+        }
+        return List.copyOf(found);
+    }
+
+    /**
      * A skill went off at a place: open its ring and knock the camera.
      *
      * <p>Given the recipe by name rather than by value, so a hero added next month
