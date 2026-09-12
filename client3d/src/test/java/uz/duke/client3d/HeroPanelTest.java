@@ -504,4 +504,69 @@ class HeroPanelTest {
             assertTrue(mesh.getVertexCount() > 0, icon + " drew nothing at all");
         }
     }
+
+    // ---- what an empty pool does to the key ----
+
+    /** A panel with a hero on it, the way the layout tests raise one. */
+    private static HeroPanel shown(String line) {
+        var assets = new com.jme3.asset.DesktopAssetManager(true);
+        var font = assets.loadFont("Interface/Fonts/Default.fnt");
+        var panel = new HeroPanel(assets, font, new com.jme3.scene.Node("gui"), 1600f,
+                PanelSkin.NONE, RangeLook.DEFAULT);
+        assertTrue(panel.show(line, 0f), "the panel should have taken the line");
+        return panel;
+    }
+
+    /**
+     * A skill he cannot pay for does not arm.
+     *
+     * <p>It was refused where the cast is made, which reads as the same thing and
+     * is not: arming is a step earlier, and arming is what changes the cursor and
+     * throws the skill's reach onto the floor. So an ultimate he was forty short
+     * of still <em>aimed</em> — and then ate the click and did nothing, which
+     * looks like the button is broken rather than like he is out.
+     */
+    @Test
+    void aSkillHeCannotPayForDoesNotArm() {
+        var panel = shown(LINE + "|mana=10/120|cost=Q,22,no|cost=E,16,yes");
+
+        assertFalse(panel.readyToCast('Q'), "twenty-two out of ten: it must not aim");
+        assertTrue(panel.readyToCast('E'), "and one he can afford still does");
+    }
+
+    /**
+     * Only the empty pool is answered where he pressed.
+     *
+     * <p>The other two refusals are already written across the socket he is
+     * looking at — a cooldown sweeps and counts down, a locked skill says which
+     * level buys it. Being broke is written on a bar at the far end of the panel,
+     * so it is the one that has to be said at the key.
+     */
+    @Test
+    void onlyTheEmptyPoolIsWorthAnsweringAtTheKey() {
+        var panel = shown(LINE + "|mana=10/120|cost=Q,22,no|cost=W,24,no|cost=E,16,yes"
+                + "|cost=R,70,no");
+
+        assertTrue(panel.refusedForMana('Q'), "ready, and he is short");
+        assertFalse(panel.refusedForMana('E'), "ready and paid for");
+        assertFalse(panel.refusedForMana('W'), "cooling: its own face says so");
+        assertFalse(panel.refusedForMana('R'), "locked: its own face says so");
+    }
+
+    /**
+     * The refusal raised here is taken once, like the simulation's own.
+     *
+     * <p>Nothing is sent any more when arming is refused, so nothing comes back;
+     * the noise has to be raised from this side. Taken once because it is a sound
+     * and a flash, and a held key asks many times a second.
+     */
+    @Test
+    void aRefusalRaisedHereIsTakenOnce() {
+        var panel = shown(LINE + "|mana=10/120|cost=Q,22,no");
+
+        assertFalse(panel.takeRefusal(), "nothing has been refused yet");
+        panel.denyForMana(1f);
+        assertTrue(panel.takeRefusal());
+        assertFalse(panel.takeRefusal(), "and it is not sounded again every frame");
+    }
 }

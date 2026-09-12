@@ -3425,6 +3425,26 @@ belgilanadi (cast kabi), aks holda sekundiga o'ttiz marta yangrardi. Panel
 *qachon* ekanini biladi (qatorni o'qiydigan o'zi), ilova *nima* ekanini (ovozlar
 uniki).
 
+#### Rad etish qurollantirishdan *oldin*
+
+Boshda tekshiruv faqat cast qilinadigan joyda edi — mantiqan to'g'ri, amalda bir
+qadam kech. Chunki qurollantirish (arm) alohida qadam: kursor o'zgaradi, skillning
+radiusi polga chiziladi, panel uyasi yonadi. Ya'ni 40 mana yetmayotgan ult ham
+**nishonga olardi**, keyin bosilgan sichqonchani yutib, hech nima qilmasdi. Bu
+"hovuz bo'sh" emas, "tugma buzuq" bo'lib ko'rinadi.
+
+Endi `readyToCast` narxni ham so'raydi — bu panelda, chunki panel nima ko'rsatayotgan
+bo'lsa shuni bilishi kerak: uya so'ngan bo'lsa, u nishonga ham olmasin.
+
+**Lekin shunda jimlik paydo bo'ldi:** cast simulyatsiyaga yetib bormaydi, demak
+uning rad etishi ham qaytib kelmaydi. Shuning uchun `denyForMana` — o'sha chaqnash
+va o'sha ovoz, faqat klient tomonidan ko'tariladi.
+
+Uch xil rad etishdan **faqat bittasi** shunday javob oladi: kuluar o'zi supurilib
+sanab turadi, yopiq uya esa qaysi daraja ochishini yozib turadi — ikkalasi ham
+u qarab turgan joyda. Bo'sh hovuz esa panelning narigi chekkasidagi barda yozilgan,
+shuning uchun uni **bosgan joyida** aytish kerak.
+
 #### Tiklash manbalari
 
 - **Loot** — `MANA` turi, ya'ni **kattaroq hamyon**, flakon emas. Sumkadagi hamma

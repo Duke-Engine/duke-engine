@@ -330,6 +330,36 @@ final class HeroPanel {
     private static final float DENIAL_SECONDS = 0.4f;
 
     /**
+     * Whether this key is a skill the panel is showing as unaffordable.
+     *
+     * <p>Asked so that a refusal to ARM can be told apart from a refusal to arm
+     * for any other reason -- a slot still reloading, or one he has not bought.
+     * Those two say why on the socket already; being broke says it on a bar at
+     * the other end of the panel, which is not where he is looking.
+     */
+    boolean refusedForMana(char key) {
+        for (var slot : slots) {
+            if (slot.key == key) {
+                return slot.state == Reading.State.READY && !slot.affordable;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Say so: flash the bar and leave a noise to be taken.
+     *
+     * <p>The same answer the simulation's own refusal gets, raised from this side
+     * because the cast never reaches the simulation any more. Arming is refused
+     * here, so nothing is ever sent, so nothing can come back -- and a key that
+     * does nothing and says nothing is a key the player thinks is broken.
+     */
+    void denyForMana(float seconds) {
+        deniedUntil = seconds + DENIAL_SECONDS;
+        refusalToSound = true;
+    }
+
+    /**
      * Take the refusal, if there is one waiting.
      *
      * <p>Asked by the app each frame so that it can make the noise: the panel
@@ -572,16 +602,24 @@ final class HeroPanel {
     }
 
     /**
-     * Whether a skill looks castable — ready, and not waiting for a level.
+     * Whether a skill looks castable — ready, not waiting for a level, and paid
+     * for.
      *
      * <p>Used to refuse to arm something that would only be refused a moment later
      * by the simulation, which is the real judge. With no panel on screen there is
      * no opinion to give, and the answer is yes.
+     *
+     * <p><b>Affordability belongs here too.</b> It was checked only where the cast
+     * is actually made, which is one step too late to matter: arming is what
+     * changes the cursor and throws the reach out onto the floor, so a skill he
+     * could not pay for still <em>aimed</em> — and then swallowed the click. The
+     * whole of what "cannot afford" means is that nothing happens, and a cursor
+     * that changes is something happening.
      */
     boolean readyToCast(char key) {
         for (var slot : slots) {
             if (slot.key == key) {
-                return slot.state == Reading.State.READY;
+                return slot.state == Reading.State.READY && slot.affordable;
             }
         }
         return true;

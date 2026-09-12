@@ -2492,6 +2492,8 @@ final class DukeRtsApp extends SimpleApplication {
                 // that has changed is that looking is now free.
                 if (heroPanel.readyToCast(key)) {
                     arm(key, byMouse);
+                } else {
+                    sayWhyNot(key);
                 }
                 return;
             }
@@ -2506,9 +2508,24 @@ final class DukeRtsApp extends SimpleApplication {
         // Refusing here rather than arming and going quiet: a slot the panel is
         // already showing as spent would take a click and do nothing with it.
         if (!heroPanel.readyToCast(key)) {
+            sayWhyNot(key);
             return;
         }
         arm(key, byMouse);
+    }
+
+    /**
+     * Answer a key that was refused, when the answer is not already on its slot.
+     *
+     * <p>Only for want of mana. A slot that is reloading is swept and counting,
+     * and one he has not bought says so across its face -- both are answers he is
+     * already looking at. Being broke is written on a bar at the other end of the
+     * panel, so it is the one refusal that needs saying where he pressed.
+     */
+    private void sayWhyNot(char key) {
+        if (heroPanel.refusedForMana(key)) {
+            heroPanel.denyForMana((float) timer.getTimeInSeconds());
+        }
     }
 
     /** Arm a key: the panel lights its slot, and its reach is drawn on the floor. */
