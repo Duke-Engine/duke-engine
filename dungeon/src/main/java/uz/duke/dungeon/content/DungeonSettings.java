@@ -1030,6 +1030,7 @@ public final class DungeonSettings {
         int boostPerLevel;
         int durationFrames;
         int tickFrames;
+        int slowFrames;
         int cooldownFrames = 90;
         int cooldownPerLevel;
         int unlockLevel = 1;
@@ -1045,8 +1046,8 @@ public final class DungeonSettings {
         Skill build() {
             return new Skill(heroTemplate, key, effect, damage, damagePerLevel, radius, range,
                     distance, boostPercent, boostPerLevel, durationFrames, tickFrames,
-                    cooldownFrames, cooldownPerLevel, unlockLevel, windUpFrames, projectile,
-                    icon);
+                    slowFrames, cooldownFrames, cooldownPerLevel, unlockLevel, windUpFrames,
+                    projectile, icon);
         }
     }
 
@@ -1064,6 +1065,10 @@ public final class DungeonSettings {
                     // How often a lasting AREA_DAMAGE lands. Zero lands it once,
                     // which is every skill written before there was a whirlwind.
                     .add("TickFrames", Ini.integer((s, v) -> s.tickFrames = v))
+                    // How long an AREA_DAMAGE leaves whoever it caught dragging his
+                    // feet. Zero is a blast that only hurts, which is what every
+                    // area skill written before there was a frost nova says.
+                    .add("SlowFrames", Ini.integer((s, v) -> s.slowFrames = v))
                     .add("CooldownFrames", Ini.integer((s, v) -> s.cooldownFrames = v))
                     .add("CooldownPerLevel", Ini.integer((s, v) -> s.cooldownPerLevel = v))
                     .add("UnlockLevel", Ini.integer((s, v) -> s.unlockLevel = v))

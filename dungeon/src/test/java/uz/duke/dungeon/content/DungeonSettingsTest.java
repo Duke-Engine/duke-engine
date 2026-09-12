@@ -300,7 +300,8 @@ class DungeonSettingsTest {
         for (var skill : DungeonSettings.load().skills()) {
             float reach = switch (skill.effect()) {
                 case STRIKE, AREA_AT_SPOT, SKILLSHOT -> skill.range();
-                case DASH -> skill.distance();
+                case DASH, BLINK -> skill.distance();
+                case METEOR -> skill.range();
                 case AREA_DAMAGE -> skill.radius();
                 case EMPOWER, GUARD -> 1f; // his own width; the look says how wide
             };

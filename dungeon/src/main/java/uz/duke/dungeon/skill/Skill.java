@@ -36,6 +36,11 @@ package uz.duke.dungeon.skill;
  *     Zero lands it once, which is what every skill written before there was a
  *     whirlwind does — so the damage figure means "per landing" either way and no
  *     existing skill changed by a hair
+ * @param slowFrames    how long whoever is caught by an {@code AREA_DAMAGE} drags
+ *     his feet afterwards, or zero for a blast that only hurts. One number rather
+ *     than a third effect, because a frost nova IS the area blast with one more
+ *     thing true of it -- and a knight's whirlwind, having said nothing about it,
+ *     is untouched by its existing
  * @param cooldownFrames how long before it can be cast again, at the first level
  * @param cooldownPerLevel  frames added per level — negative to sharpen with level
  * @param unlockLevel   the level it becomes usable at; an ultimate waits
@@ -63,6 +68,7 @@ public record Skill(
         int boostPerLevel,
         int durationFrames,
         int tickFrames,
+        int slowFrames,
         int cooldownFrames,
         int cooldownPerLevel,
         int unlockLevel,
@@ -112,5 +118,10 @@ public record Skill(
      */
     public boolean lasts() {
         return durationFrames > 0 && tickFrames > 0;
+    }
+
+    /** Whether being caught by this also drags the victim's feet. */
+    public boolean chills() {
+        return slowFrames > 0;
     }
 }

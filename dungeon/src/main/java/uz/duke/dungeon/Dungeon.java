@@ -5,6 +5,7 @@ import uz.duke.dungeon.ai.HeroBrain;
 import uz.duke.dungeon.ai.Orders;
 import uz.duke.dungeon.ai.MonsterBrain;
 import uz.duke.dungeon.combat.ArrowUpdate;
+import uz.duke.dungeon.combat.FallingUpdate;
 import uz.duke.dungeon.combat.Bow;
 import uz.duke.dungeon.combat.EyesOnly;
 import uz.duke.dungeon.combat.Swing;
@@ -178,6 +179,12 @@ public final class Dungeon {
                     factory.register("ArrowUpdate",
                             (owner, data) -> new ArrowUpdate(owner, data, powers),
                             ArrowUpdate::parseData);
+                    // A blast with a pause in the middle. The mark it leaves is a
+                    // thing in the world like the arrow above, so the client draws
+                    // the warning without being told anything special.
+                    factory.register("FallingUpdate",
+                            (owner, data) -> new FallingUpdate(owner, data, powers),
+                            FallingUpdate::parseData);
                     // A monster's blow lands where it stands, as it always did.
                     // This is only how the brain finds out that it struck.
                     factory.register("Swing", Swing::new, Swing::parseData);

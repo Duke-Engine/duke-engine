@@ -74,7 +74,54 @@ public enum SkillEffect {
      * not. An archer's answer to being surrounded is to not be there; a knight's
      * is to be harder to kill while he is.
      */
-    GUARD(Aim.SELF);
+    GUARD(Aim.SELF),
+
+    /**
+     * Be somewhere else, at once, without crossing what is between.
+     *
+     * <p>It cannot land inside stone — somewhere he could not stand is not
+     * somewhere he may appear — so the arrival is pulled back along the line
+     * until it is floor, and if there is none the cast is refused with its
+     * cooldown untouched rather than spent on standing still.
+     *
+     * <p><b>Where this actually differs from {@link #DASH}, since both of them
+     * arrive in one frame.</b> The dash was already written to clear what is
+     * between it and its landing, so "goes over the wall" is not the difference
+     * and it would be pleasant nonsense to say that it is. Three things are:
+     *
+     * <ul>
+     *   <li>It never hurts anything. A dash with a {@code Damage} tramples what
+     *       it crossed; this has no such reading, so a blink cannot be tuned into
+     *       a charge by a file.
+     *   <li>It goes exactly where it was pointed, along the line from him to the
+     *       click. A dash goes along his FACING, which is turned toward the click
+     *       first and is near enough — but near enough is not the same thing, and
+     *       an escape is a skill you want to land on the tile you picked.
+     *   <li>It refuses rather than shrugging. A dash with nowhere to come down
+     *       leaves him standing where he was and spends the cooldown anyway.
+     * </ul>
+     *
+     * <p>The fourth difference is the client's and is the one a player will
+     * actually name: a dash is drawn travelling and a blink is drawn as two
+     * flashes with nothing in between.
+     */
+    BLINK(Aim.OPEN_GROUND),
+
+    /**
+     * Something falls on a chosen spot, a moment after it is called for.
+     *
+     * <p>The delay is the skill. {@link #AREA_AT_SPOT} lands the instant it is
+     * cast, so the only question is where the monsters are NOW; this one asks
+     * where they are going to be, and gives them the same warning it gives him —
+     * the mark on the floor is a thing in the world, not a hint on his screen, and
+     * a monster walking out of it is the skill being played against him.
+     *
+     * <p>{@code WindUpFrames} is how long the ground is marked. Nothing else about
+     * it is new: the mark is an object like an arrow is an object, it counts down
+     * like an arrow counts down, and the blast when it arrives is the blast every
+     * other area skill uses.
+     */
+    METEOR(Aim.OPEN_GROUND);
 
     /** What a player has to click before the cast can go through. */
     public enum Aim {

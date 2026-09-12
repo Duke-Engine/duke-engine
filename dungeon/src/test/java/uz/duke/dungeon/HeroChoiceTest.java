@@ -34,6 +34,7 @@ class HeroChoiceTest {
 
     private static final String ARCHER = "Hero";
     private static final String KNIGHT = "Knight";
+    private static final String MAGE = "Mage";
 
     private static uz.duke.dungeon.run.DungeonRun runOf(Dungeon.Session session) {
         return session.run();
@@ -57,9 +58,10 @@ class HeroChoiceTest {
     void everyHeroInTheFileIsOfferedAndNoOneElseIs() {
         var offered = SETTINGS.heroes().stream().map(hero -> hero.name()).toList();
 
-        assertEquals(2, offered.size(), "the roster is " + offered);
+        assertEquals(3, offered.size(), "the roster is " + offered);
         assertTrue(offered.contains(ARCHER));
         assertTrue(offered.contains(KNIGHT));
+        assertTrue(offered.contains(MAGE));
     }
 
     /** And each row says what taking it means, in the game's own words. */

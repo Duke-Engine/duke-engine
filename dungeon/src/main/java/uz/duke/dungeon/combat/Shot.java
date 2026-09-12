@@ -59,10 +59,13 @@ public final class Shot {
      * @param towards  where the player pointed — a direction, not a destination:
      *                 what matters is which way, and {@code distance} says how far
      * @param distance how far it travels before it is spent
+     * @param blast    how far the burst reaches where it lands; zero for a shot
+     *                 that only hurts what it hit
      * @return whether one actually left
      */
     public static boolean looseAlong(GameObject shooter, Coord3D towards, float damage,
-            DamageType type, String template, float speed, float muzzleOffset, float distance) {
+            DamageType type, String template, float speed, float muzzleOffset, float distance,
+            float blast) {
         var world = shooter.getWorld();
         if (world == null || template == null || template.isBlank() || towards == null) {
             return false;
@@ -78,7 +81,7 @@ public final class Shot {
             arrow.markDestroyed();
             return false;
         }
-        flight.looseAlong(shooter, towards, damage, type, speed, distance);
+        flight.looseAlong(shooter, towards, damage, type, speed, distance, blast);
         return true;
     }
 

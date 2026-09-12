@@ -478,7 +478,11 @@ public final class Main {
             case STRIKE -> uz.duke.client3d.SkillRange.Shape.AT_A_CREATURE;
             case AREA_AT_SPOT -> uz.duke.client3d.SkillRange.Shape.AT_A_SPOT;
             case SKILLSHOT -> uz.duke.client3d.SkillRange.Shape.DOWN_A_LANE;
-            case DASH -> uz.duke.client3d.SkillRange.Shape.AT_A_SPOT;
+            // A blink is pointed at a spot exactly as a dash is. That it does not
+            // cross what is between is the simulation's business; what the player
+            // has to do with the mouse is the same thing, so the ring is the same.
+            case DASH, BLINK -> uz.duke.client3d.SkillRange.Shape.AT_A_SPOT;
+            case METEOR -> uz.duke.client3d.SkillRange.Shape.AT_A_SPOT;
             case AREA_DAMAGE -> uz.duke.client3d.SkillRange.Shape.AROUND_HIM;
             // Neither of these reaches past him: one sharpens his sword, the
             // other thickens his skin.
@@ -486,7 +490,8 @@ public final class Main {
         };
         float reach = switch (skill.effect()) {
             case STRIKE, AREA_AT_SPOT, SKILLSHOT -> skill.range();
-            case DASH -> skill.distance();
+            case DASH, BLINK -> skill.distance();
+            case METEOR -> skill.range();
             case AREA_DAMAGE -> skill.radius();
             case EMPOWER, GUARD -> selfRadius;
         };
@@ -494,7 +499,7 @@ public final class Main {
         // leaves a man, and a circle round a man-sized spot is a second ring saying
         // what the pointer already said -- so it draws none.
         float area = switch (skill.effect()) {
-            case AREA_AT_SPOT, SKILLSHOT -> skill.radius();
+            case AREA_AT_SPOT, SKILLSHOT, METEOR -> skill.radius();
             default -> 0f;
         };
         return new uz.duke.client3d.SkillRange(skill.key(), shape, reach, area);

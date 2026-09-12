@@ -8,13 +8,16 @@ import uz.duke.core.module.UpdateModule;
 import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectId;
+import uz.duke.core.thing.ObjectStatus;
 import uz.duke.core.thing.World;
 import uz.duke.dungeon.ai.Facing;
+import uz.duke.dungeon.combat.FallingUpdate;
 import uz.duke.dungeon.combat.Shot;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.power.PowerBook;
 import uz.duke.rts.event.WeaponFired;
 import uz.duke.rts.module.DamageModifier;
+import uz.duke.rts.module.StatusUpdate;
 import uz.duke.rts.module.WeaponHold;
 import uz.duke.rts.module.WeaponUpdate;
 
@@ -43,6 +46,9 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
 
     /** How far apart a dash checks the ground it is crossing. */
     private static final float DASH_STEP = 5f;
+
+    /** How far apart a blink checks for floor while it walks its landing back. */
+    private static final float BLINK_STEP = 5f;
 
     private final List<Skill> skills;
     private final int[] cooldowns;
@@ -297,6 +303,11 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
             case AREA_DAMAGE -> {
                 float each = damageOf(skill, level);
                 strikeAround(owner, world, each, skill.radius());
+                // A blast that also chills, if the file asks for one. A third
+                // effect would have been the obvious move and the wrong one: this
+                // IS the area skill, with one more thing true of it, and the
+                // knight's whirlwind is untouched by having said nothing about it.
+                chill(owner, world, skill.radius(), skill.slowFrames());
                 if (skill.lasts()) {
                     // It has landed once already; the rest is the file's business.
                     // Re-casting refreshes rather than stacking, as EMPOWER does.
@@ -329,13 +340,43 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
                     return false;
                 }
                 Facing.turnToward(owner, towards);
+                // Radius is the burst where it lands, and zero leaves it an arrow:
+                // both fly the same way and stop at the first body, and one of them
+                // takes the rest of the room with it.
                 if (!Shot.looseAlong(owner, towards, damageOf(skill, level), DamageType.NORMAL,
                         skill.projectile(), settings.heavyArrowSpeed(),
-                        settings.arrowMuzzleOffset(), skill.range())) {
+                        settings.arrowMuzzleOffset(), skill.range(), skill.radius())) {
                     return false; // no arrow to throw; the cooldown is not spent
                 }
                 world.post(new WeaponFired(world.getFrame(), owner.getId(), null,
                         owner.getPosition(), towards));
+            }
+            case BLINK -> {
+                if (towards == null) {
+                    return false;
+                }
+                var landing = somewhereHeCanStand(owner, world,
+                        withinReach(owner, towards, skill.distance()));
+                if (landing == null) {
+                    return false; // nowhere along that line is floor; the cast is not spent
+                }
+                var leaving = owner.getPosition();
+                Facing.turnToward(owner, landing);
+                owner.setPosition(landing);
+                // Both ends, and the first of them read before he moves -- the
+                // client flashes the place he left as well as the place he
+                // arrived, and half a blink is a teleport with a bug.
+                world.post(new WeaponFired(world.getFrame(), owner.getId(), null,
+                        leaving, landing));
+            }
+            case METEOR -> {
+                if (towards == null) {
+                    return false;
+                }
+                var spot = withinReach(owner, towards, skill.range());
+                if (!callDown(owner, world, skill, level, spot)) {
+                    return false; // no such thing to drop; the cooldown is not spent
+                }
             }
             case DASH -> {
                 if (towards != null) {
@@ -580,6 +621,102 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
             }
         }
         return from; // nowhere to come down: he stays where he is
+    }
+
+    /**
+     * Leave whoever the blast caught dragging his feet.
+     *
+     * <p>Through the engine's own timed-status module rather than a list kept
+     * here, and that is why it is four lines: {@code StatusUpdate} already counts
+     * a status down and clears it, {@code MoveUpdate} already halves the step of
+     * anything wearing {@code SLOWED}, and a monster that carries its own timer
+     * thaws by itself -- including after the hero who chilled it is dead, which a
+     * list kept in his skill book would have got wrong.
+     *
+     * <p>A creature whose file never asked for a {@code StatusUpdate} simply does
+     * not slow. Better that than the game deciding what a creature is made of
+     * behind its own file's back.
+     */
+    private static void chill(GameObject owner, World world, float radius, int frames) {
+        if (frames <= 0) {
+            return;
+        }
+        for (var victim : enemiesWithin(owner, world, radius)) {
+            var timers = victim.findModule(StatusUpdate.class);
+            if (timers != null) {
+                timers.apply(ObjectStatus.SLOWED, frames);
+            }
+        }
+    }
+
+    /**
+     * Where a blink actually puts him: the spot he chose, or the nearest place
+     * short of it he could have stood.
+     *
+     * <p>Walked back from the far end the way a dash's landing is, and for the
+     * same reason -- somewhere he could not stand is not somewhere he may appear.
+     * What it does not do is stop at the first thing in between: a dash is
+     * stopped by the wall, and this is bought precisely to ignore it.
+     *
+     * @return the landing, or null if nowhere along that line is floor -- in which
+     *     case the cast is refused rather than quietly cancelled, so the cooldown
+     *     survives a blink into a pillar
+     */
+    private static Coord3D somewhereHeCanStand(GameObject owner, World world, Coord3D wanted) {
+        var from = owner.getPosition();
+        float dx = wanted.x() - from.x();
+        float dy = wanted.y() - from.y();
+        float away = (float) StrictMath.sqrt(dx * dx + dy * dy);
+        if (away <= 0.0001f) {
+            return null; // he pointed at his own feet; that is not somewhere else
+        }
+        for (float gone = away; gone >= BLINK_STEP; gone -= BLINK_STEP) {
+            float share = gone / away;
+            var overThere = new Coord3D(from.x() + dx * share, from.y() + dy * share, from.z());
+            // The floor he arrives on, not the one he left -- he crossed a storey
+            // as easily as a wall, and coming down on the old height would bury him.
+            var step = new Coord3D(overThere.x(), overThere.y(), world.groundHeight(overThere));
+            if (!world.isGroundBlocked(step) && world.findBlocker(owner, step) == null) {
+                return step;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Mark the floor, and start whatever is coming counting down.
+     *
+     * <p>The mark is a thing in the world and not a line on the caster's screen,
+     * so it is spawned exactly as an arrow is: the client draws whatever the world
+     * holds, the fog hides it like anything else, and everyone who can see that
+     * patch of floor gets the same warning he does. A hint drawn for the caster
+     * alone would have been half the skill.
+     *
+     * @return whether one was really called down; false leaves the cooldown unspent
+     */
+    private boolean callDown(GameObject owner, World world, Skill skill, int level,
+            Coord3D spot) {
+        if (!skill.hasProjectile()) {
+            return false; // the file named nothing to drop
+        }
+        var thing = world.findTemplate(skill.projectile());
+        if (thing == null) {
+            return false;
+        }
+        var mark = world.spawn(thing,
+                new Coord3D(spot.x(), spot.y(), world.groundHeight(spot)),
+                owner.getPlayerIndex());
+        var falling = mark.findModule(FallingUpdate.class);
+        if (falling == null) {
+            mark.markDestroyed();
+            return false; // the template exists but is not something that falls
+        }
+        // Worth what it was worth when he called for it, like every other shot
+        // here -- he may level, or die, in the second it spends on its way.
+        falling.callDown(owner, damageOf(skill, level), skill.radius(), skill.windUpFrames());
+        world.post(new WeaponFired(world.getFrame(), owner.getId(), null,
+                owner.getPosition(), spot));
+        return true;
     }
 
     /** Hurt everything of the other side within {@code radius} of him. */

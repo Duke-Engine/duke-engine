@@ -51,6 +51,18 @@ public final class ArrowUpdate extends UpdateModule {
     private float travelLeft;
 
     /**
+     * How far the burst reaches when this lands, or zero for a shot that only hurts
+     * what it hit.
+     *
+     * <p>The difference between an arrow and a fireball, and it is one number: both
+     * fly, both stop at the first body, and one of them takes the rest of the room
+     * with it. Carried by the shot rather than looked up on landing for the reason
+     * everything else it carries is -- by then the caster may have levelled, or
+     * died.
+     */
+    private float blastRadius;
+
+    /**
      * The run's powers, so that an arrow can pay its archer back.
      *
      * <p>Held by the arrow rather than looked up on landing because the arrow is
@@ -93,7 +105,8 @@ public final class ArrowUpdate extends UpdateModule {
      * hit.
      */
     void looseAlong(GameObject from, Coord3D towards, float carrying, DamageType type,
-            float speed, float distance) {
+            float speed, float distance, float blast) {
+        this.blastRadius = blast;
         this.shooter = from.getId();
         this.target = null;
         this.damage = carrying;
@@ -196,6 +209,7 @@ public final class ArrowUpdate extends UpdateModule {
     private void strike(World world, GameObject victim) {
         victim.getBody().damage(damage, damageType);
         drinkFor(world.findObject(shooter));
+        splash(world, victim);
         if (victim.isEffectivelyDead()) {
             var archer = world.findObject(shooter);
             var earned = victim.findModule(ExperienceModule.class);
@@ -205,6 +219,32 @@ public final class ArrowUpdate extends UpdateModule {
             }
         }
         getOwner().markDestroyed();
+    }
+
+    /**
+     * What a bursting shot does to everyone standing near what it hit.
+     *
+     * <p>The one it struck has already taken the full blow and is left alone here:
+     * a fireball that hit you is not also a fireball that went off beside you.
+     * Everyone else within the burst takes the same figure, which is the simplest
+     * rule a player can hold in his head -- a falloff would be a second number to
+     * explain and nothing on screen could show it.
+     */
+    private void splash(World world, GameObject struck) {
+        if (blastRadius <= 0f) {
+            return;
+        }
+        var owner = getOwner();
+        int side = owner.getPlayerIndex();
+        for (var caught : world.objectsInRange(struck.getPosition(), blastRadius, candidate ->
+                candidate != struck
+                        && candidate.getBody() != null
+                        && !candidate.isEffectivelyDead()
+                        && world.getRelationship(side, candidate.getPlayerIndex())
+                                == Relationship.ENEMIES)) {
+            caught.getBody().damage(damage, damageType);
+            drinkFor(world.findObject(shooter));
+        }
     }
 
     /**
