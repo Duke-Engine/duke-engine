@@ -1,6 +1,7 @@
 package uz.duke.client3d;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -107,6 +108,52 @@ class HeroPanelTest {
         assertNotNull(reading, "the bar went dark the moment a skill was cast");
         assertEquals("Erika", reading.name());
         assertEquals(4, reading.skills().size(), "and the rest of the line survived it");
+    }
+
+    /**
+     * What the pips and the badge are drawn from.
+     *
+     * <p>The line says what is in a slot, what fits in it, whether the next point
+     * may go there, and the finished word to write under it. The word is the
+     * game's — this client serves three other games and writes none of its own —
+     * and the COLOUR is the panel's, because that is a fact about a state it can
+     * already see.
+     */
+    @Test
+    void aSlotSaysWhatIsInItAndWhetherItMayGrow() {
+        var reading = HeroPanel.Reading.parse(LINE
+                + "|srank=Q,2,4,up,2 → 3|srank=R,0,3,no,4-daraja|pts=2,NUQTA");
+
+        assertNotNull(reading);
+        assertEquals(2, reading.ranks().size());
+        var q = reading.ranks().get(0);
+        assertEquals('Q', q.key());
+        assertEquals(2, q.rank());
+        assertEquals(4, q.max());
+        assertTrue(q.canRaise());
+        assertEquals("2 → 3", q.word());
+        assertFalse(reading.ranks().get(1).canRaise(), "the ultimate is waiting for a level");
+        assertEquals(2, reading.points());
+        assertEquals("NUQTA", reading.pointsWord());
+    }
+
+    /**
+     * An ordinary slot nobody has bought says "lock" and stops there.
+     *
+     * <p>It waits for a POINT rather than for a level, so there is no level to
+     * name — and the parser used to refuse the whole line for the missing field,
+     * which would have taken the hero's bar down with it the first time anybody
+     * started a run.
+     */
+    @Test
+    void aLockedSlotNeedNotNameALevel() {
+        var reading = HeroPanel.Reading.parse(
+                "name=Erika|hp=1/2|xp=0/1|skill=Q,,lock|skill=R,,lock,4-daraja");
+
+        assertNotNull(reading, "the bar went dark on an unbought skill");
+        assertEquals(2, reading.skills().size());
+        assertEquals("", reading.skills().get(0).label());
+        assertEquals("4-daraja", reading.skills().get(1).label());
     }
 
     /** A malformed line of the right shape is refused rather than half-drawn. */

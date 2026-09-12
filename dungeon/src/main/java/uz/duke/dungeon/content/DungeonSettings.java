@@ -2294,6 +2294,9 @@ public final class DungeonSettings {
      * business knowing which language this one speaks.
      */
     private String hudPointsWord = "";
+    /** What a skill with nothing left to buy is called, and one nobody has bought. */
+    private String hudMasterWord = "";
+    private String hudLockedWord = "";
     private String hudItemsWord = "";
     private String hudHeroTitle = "";
     private String hudMoveWord = "";
@@ -2316,6 +2319,14 @@ public final class DungeonSettings {
 
     public String hudPointsWord() {
         return hudPointsWord;
+    }
+
+    public String hudMasterWord() {
+        return hudMasterWord;
+    }
+
+    public String hudLockedWord() {
+        return hudLockedWord;
     }
 
     /** The heading over his bag. */
@@ -2369,6 +2380,8 @@ public final class DungeonSettings {
                     .add("MonsterFace", Ini.string((s, v) -> s.hudMonsterFace = v))
                     .add("SkillsWord", Ini.restOfLine((s, v) -> s.hudSkillsWord = v))
                     .add("PointsWord", Ini.restOfLine((s, v) -> s.hudPointsWord = v))
+                    .add("MasterWord", Ini.restOfLine((s, v) -> s.hudMasterWord = v))
+                    .add("LockedWord", Ini.restOfLine((s, v) -> s.hudLockedWord = v))
                     .add("ItemsWord", Ini.restOfLine((s, v) -> s.hudItemsWord = v))
                     .add("HeroTitle", Ini.restOfLine((s, v) -> s.hudHeroTitle = v))
                     .add("CmdMoveWord", Ini.restOfLine((s, v) -> s.hudMoveWord = v))

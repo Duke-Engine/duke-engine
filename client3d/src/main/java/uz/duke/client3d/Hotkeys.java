@@ -125,6 +125,29 @@ public final class Hotkeys {
         return bind(key, Aim.OPEN_GROUND, (game, aimed) -> action.accept(game, aimed.point()));
     }
 
+    /**
+     * What to do when the player spends a level on a slot.
+     *
+     * <p>Its own door rather than a letter, because it is not one: it is a click
+     * on the little badge over a socket, and the letter beside it already means
+     * "cast this". A game that never registers one simply has no such button --
+     * the panel draws a badge only when the game says a point may go there, and
+     * a game that says nothing says it about every slot.
+     */
+    public Hotkeys onRaiseSkill(BiConsumer<DukeGame, Character> action) {
+        this.raiseSkill = action;
+        return this;
+    }
+
+    /** Spend a level on a slot, if this game has anything to spend it on. */
+    public void raiseSkill(DukeGame game, char key) {
+        if (raiseSkill != null) {
+            raiseSkill.accept(game, key);
+        }
+    }
+
+    private BiConsumer<DukeGame, Character> raiseSkill;
+
     private Hotkeys bind(char key, Aim aim, BiConsumer<DukeGame, Aimed> run) {
         bindings.put(Character.toUpperCase(key), new Binding(aim, run));
         return this;

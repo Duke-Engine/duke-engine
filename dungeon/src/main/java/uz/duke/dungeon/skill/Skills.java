@@ -44,6 +44,31 @@ public final class Skills {
         return ranks.raise(order.key(), heroLevel);
     }
 
+    /**
+     * What the line under a slot's pips says.
+     *
+     * <p>Four states and four sentences. A rank he can raise says what it would
+     * BECOME, because that is the decision in front of him; one he cannot afford
+     * says only what it is; a full one is named; and one he has never bought says
+     * so, because the badge beside it is the rest of the story.
+     */
+    private static String rankWord(Skill skill, int rank, boolean canRaise, Words words) {
+        if (canRaise) {
+            return rank + " → " + (rank + 1);
+        }
+        if (rank >= skill.maxRank()) {
+            return words.master();
+        }
+        return rank > 0 ? rank + words.rankSuffix() : words.locked();
+    }
+
+    /**
+     * The words a slot needs, gathered so the signature does not grow one string
+     * at a time. All of them are the game's, out of its own file.
+     */
+    public record Words(String rankSuffix, String master, String locked) {
+    }
+
     /** The player's living unit that has skills, in creation order. */
     public static GameObject heroOf(GameLogic logic, int playerIndex) {
         for (var object : logic.getObjects()) {
@@ -76,7 +101,7 @@ public final class Skills {
      * can say what it is waiting for in the same language as the rest of the panel.
      */
     public static String slots(SkillBook book, SkillRanks ranks, int heroLevel,
-            String rankSuffix, java.util.function.UnaryOperator<String> iconPath) {
+            Words words, java.util.function.UnaryOperator<String> iconPath) {
         var fields = new StringBuilder();
         for (var skill : book.getSkills()) {
             int rank = ranks.rankOf(skill.key());
@@ -88,7 +113,8 @@ public final class Skills {
                 // says nothing and the button beside it is the whole story.
                 fields.append("lock");
                 if (skill.isUltimate()) {
-                    fields.append(',').append(skill.levelForRank(1)).append(rankSuffix);
+                    fields.append(',').append(skill.levelForRank(1))
+                            .append(words.rankSuffix());
                 }
             } else {
                 int left = book.cooldownOf(skill.key());
@@ -103,9 +129,16 @@ public final class Skills {
             // already has three shapes. What the panel needs to draw a button:
             // what is in it, what fits in it, and whether the next point may go
             // there right now.
-            fields.append("|rank=").append(skill.key()).append(',').append(rank)
+            boolean canRaise = ranks.canRaise(skill.key(), heroLevel);
+            fields.append("|srank=").append(skill.key()).append(',').append(rank)
                     .append(',').append(skill.maxRank())
-                    .append(',').append(ranks.canRaise(skill.key(), heroLevel) ? "up" : "no");
+                    .append(',').append(canRaise ? "up" : "no")
+                    // The line under the pips, finished here like every other word
+                    // on this bar -- the client has three other games to serve and
+                    // no business knowing which language this one speaks. The
+                    // client picks the COLOUR, which is a fact about the state it
+                    // can already see.
+                    .append(',').append(rankWord(skill, rank, canRaise, words));
         }
         return fields.toString();
     }

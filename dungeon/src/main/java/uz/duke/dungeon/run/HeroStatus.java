@@ -206,7 +206,9 @@ final class HeroStatus {
         var book = hero.findModule(SkillBook.class);
         if (book != null) {
             line.append("|skWord=").append(settings.hudSkillsWord());
-            line.append(Skills.slots(book, learnt, level, settings.hudRankSuffix(),
+            line.append(Skills.slots(book, learnt, level,
+                    new Skills.Words(settings.hudRankSuffix(), settings.hudMasterWord(),
+                            settings.hudLockedWord()),
                     settings::hudIcon));
             // How many levels he has not spent yet, and the word for them. Beside
             // the heading rather than on a slot, because it belongs to none of

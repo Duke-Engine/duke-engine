@@ -174,7 +174,7 @@ class HeroStatusTest {
         var line = lineFrom(5L);
 
         for (var skill : settings.skillsFor(settings.playedHero())) {
-            assertTrue(line.contains("|rank=" + skill.key() + ",0," + skill.maxRank() + ","),
+            assertTrue(line.contains("|srank=" + skill.key() + ",0," + skill.maxRank() + ","),
                     "no rank field for " + skill.key() + " in: " + line);
         }
         assertTrue(line.contains("|pts=1," + settings.hudPointsWord()),

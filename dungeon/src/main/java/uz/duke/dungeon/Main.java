@@ -520,6 +520,11 @@ public final class Main {
         // The file's default hero to begin with, and whoever is actually chosen
         // the moment he is -- see aimsFor, and whoToPlay, which calls it again.
         aimsFor(keys, settings, settings.playedHero());
+        // Spending a level on a slot. A click on the badge rather than a letter,
+        // so it comes through a door of its own -- and it is a COMMAND like every
+        // other decision, settled on a frame boundary where the rules live.
+        keys.onRaiseSkill((game, key) -> game.postCommand(new uz.duke.dungeon.skill.UpgradeSkill(
+                game.getLocalPlayerIndex(), key)));
         orders(keys);
         // Which single creature he has picked out. The panel describes it, and
         // only the simulation can say what it is worth -- see Watching.

@@ -79,6 +79,8 @@ final class HeroPanel {
     private static final ColorRGBA EDGE = rgb(0x100D0A);
     private static final ColorRGBA DROP = rgb(0x0A0806);
     private static final ColorRGBA GLYPH_COLD = rgb(0x6A6154);
+    /** An empty pip; the lit ones take the gold the rest of the bar uses. */
+    private static final ColorRGBA PIP_DARK = rgb(0x2A241D);
     private static final ColorRGBA LABEL = rgb(0x8B8171);
     private static final ColorRGBA LOCK_LABEL = rgb(0x6E6555);
     private static final ColorRGBA SLAB_TOP = rgb(0x332C24);
@@ -159,6 +161,29 @@ final class HeroPanel {
     private static final float STAT_GAP = 10f;
     private static final float SLOT = 62f;
     private static final float ULT_SLOT = 72f;
+
+    /**
+     * The little bars under a slot: one per rank a skill can hold, lit up to what
+     * is in it.
+     *
+     * <p>Bars rather than a number, because the question a player asks is "how
+     * much of this is left to buy" and a row of four with two lit answers it
+     * without being read. They hang under each slot rather than sitting in a row
+     * of their own, so the ultimate's -- which is bigger and hangs lower -- keeps
+     * its own pips beneath it.
+     */
+    private static final float PIP_WIDTH = 11f;
+    private static final float PIP_HEIGHT = 5f;
+    private static final float PIP_GAP = 3f;
+    /** Between the foot of a slot and its pips, and between the pips and the word. */
+    private static final float PIP_MARGIN = 4f;
+    /** The line under the pips: "2 → 3", "3-daraja", "USTA", "yopiq". */
+    private static final float RANK_TEXT = 11f;
+
+    /** The badge that says a point may go here: a small square over the corner. */
+    private static final float BADGE = 22f;
+    /** How far it hangs outside the slot, on both axes. */
+    private static final float BADGE_OUT = 7f;
     private static final float SLOT_GAP = 9f;
     private static final float POWER_CHIP = 22f;
     private static final float POWER_GAP = 5f;
@@ -312,12 +337,16 @@ final class HeroPanel {
         depthWord.setText(reading.depthWord);
         powersWord.setText(reading.powersWord);
         skillsWord.setText(reading.skillsWord);
+        // Only while he has one. A counter reading nought is a thing to read and
+        // dismiss every time the eye passes it; nothing there is nothing to read.
+        pointsCount.setText(reading.points > 0
+                ? reading.pointsWord + "  " + reading.points : "");
         note.setText(reading.note);
         showFace(reading.face, !reading.name.isBlank());
         showStats(reading.stats);
         showOrders(reading.orders, reading.ordersAreHis);
         showItems(reading.items, reading.itemsWord);
-        showSkills(reading.skills);
+        showSkills(reading.skills, reading);
         showPowers(reading.powers);
         showOnlyWhatTheCardHas(reading);
         return true;
@@ -436,6 +465,29 @@ final class HeroPanel {
      * has to come the other way — out of the window and into the design — before
      * it can be compared with anything.
      */
+    /**
+     * The upgrade badge under a screen point, or {@code null} for none.
+     *
+     * <p>Asked BEFORE {@link #slotAt}, because the badge hangs over the slot's own
+     * corner and a click there means the badge rather than the skill. Only a slot
+     * actually showing one answers — a badge that is hidden is not a target, and
+     * the cursor passing over the corner of a slot with no point to spend must
+     * arm the skill exactly as it always did.
+     */
+    Character badgeAt(float screenX, float screenY) {
+        if (!showing) {
+            return null;
+        }
+        for (var slot : slots) {
+            if (slot.key != BLANK && slot.canRaise
+                    && hits(screenX / scale, screenY / scale,
+                            slot.badgeX, slot.badgeY, BADGE)) {
+                return slot.key;
+            }
+        }
+        return null;
+    }
+
     Character slotAt(float screenX, float screenY) {
         if (!showing) {
             return null;
@@ -1275,6 +1327,17 @@ final class HeroPanel {
         private Geometry rim;
         private BitmapText seconds;
         private BitmapText locked;
+        /** One per rank the skill can hold; the lit ones are what is in it. */
+        private final List<Geometry> pips = new ArrayList<>();
+        private Geometry pipRow;
+        /** The corner badge, and the glow behind it that breathes. */
+        private Node badge;
+        private Geometry badgeGlow;
+        private BitmapText rankWord;
+        /** Where the badge sits, so a click on it can be told from one on the slot. */
+        private float badgeX;
+        private float badgeY;
+        private boolean canRaise;
         private float sweptTo = -1f;
         private Reading.State state = Reading.State.READY;
 
@@ -1286,7 +1349,7 @@ final class HeroPanel {
 
     private final Node skillRow = new Node("skills");
 
-    private void showSkills(List<Reading.SkillReading> reading) {
+    private void showSkills(List<Reading.SkillReading> reading, Reading card) {
         // The picture is part of what a slot IS, not part of what it is doing, so
         // a changed icon rebuilds the row exactly as a changed key does. Which is
         // also what lets an icon be swapped in the file and seen without a build.
@@ -1300,7 +1363,21 @@ final class HeroPanel {
         }
         for (int i = 0; i < slots.size() && i < reading.size(); i++) {
             dress(slots.get(i), reading.get(i));
+            var rank = rankFor(card, reading.get(i).key());
+            if (rank != null) {
+                dressRank(slots.get(i), rank);
+            }
         }
+    }
+
+    /** What the card says about one slot's ranks, or null if it says nothing. */
+    private static Reading.RankReading rankFor(Reading card, char key) {
+        for (var rank : card.ranks()) {
+            if (rank != null && rank.key() == key) {
+                return rank;
+            }
+        }
+        return null;
     }
 
     private void buildSlots(List<Reading.SkillReading> reading) {
@@ -1328,6 +1405,58 @@ final class HeroPanel {
         layOut();
     }
 
+    /**
+     * The corner badge: a small square with a plus in it, over the slot's top
+     * right, shown only while a point may go into this one.
+     *
+     * <p>Outside the slot rather than on it, and deliberately overhanging both
+     * edges: a mark drawn inside the socket competes with the picture of the
+     * skill, and this has to be findable in the corner of an eye while the
+     * player is looking at the dungeon.
+     */
+    private void badgeFor(Slot slot) {
+        slot.badge = new Node("badge");
+        float at = slot.size - BADGE + BADGE_OUT;
+        slot.badgeGlow = flat("badge-glow", BADGE + 6f, BADGE + 6f, TORCH);
+        attach(slot.badge, slot.badgeGlow, -3f, -3f, 0f);
+        attach(slot.badge, flat("badge-edge", BADGE, BADGE, rgb(0x0C0A08)), 0f, 0f, 1f);
+        attach(slot.badge, flat("badge-face", BADGE - 4f, BADGE - 4f, rgb(0x4A3A18)), 2f, 2f, 2f);
+        var plus = text(14f, GOLD_HI, 0f, 4f, BADGE, BitmapFont.Align.Center);
+        plus.setText("+");
+        attach(slot.badge, plus, 0f, 0f, 3f);
+        attach(slot.node, slot.badge, at, at, 40f);
+        slot.badge.setCullHint(Spatial.CullHint.Always);
+    }
+
+    /**
+     * The pips, the word under them and the corner badge.
+     *
+     * <p>Built once with the slot and then only dressed, like everything else on
+     * this bar: a row that rebuilt its own furniture every frame is how a panel
+     * becomes the expensive thing on screen.
+     *
+     * <p>How many pips is the skill's own ceiling and is not known until the game
+     * says so, so this is called from {@link #dress} the first time a slot learns
+     * what it holds rather than from {@link #carve}.
+     */
+    private void pipsFor(Slot slot, int max) {
+        if (slot.pips.size() == max) {
+            return;
+        }
+        for (var pip : slot.pips) {
+            pip.removeFromParent();
+        }
+        slot.pips.clear();
+        float width = max * PIP_WIDTH + (max - 1) * PIP_GAP;
+        float x = (slot.size - width) / 2f;
+        float y = -PIP_MARGIN - PIP_HEIGHT;
+        for (int i = 0; i < max; i++) {
+            var pip = flat("pip", PIP_WIDTH, PIP_HEIGHT, PIP_DARK);
+            attach(slot.node, pip, x + i * (PIP_WIDTH + PIP_GAP), y, 6f);
+            slot.pips.add(pip);
+        }
+    }
+
     /** Take a painted rim down to its dead shade, when there is one to take down. */
     private void dimTheRim(Slot slot) {
         var painted = skin.piece(PanelSkin.SLOT);
@@ -1340,6 +1469,13 @@ final class HeroPanel {
     /** Cut one slot out of the stone: drop, edge, face, lit lip, inner shadow. */
     private void carve(Slot slot, String icon) {
         float size = slot.size;
+        // Under the pips, which are under the slot. Built here and filled in by
+        // dressRank, which is the only thing that knows what is in the slot.
+        slot.rankWord = text(RANK_TEXT, LABEL, 0f,
+                -PIP_MARGIN - PIP_HEIGHT - PIP_MARGIN - RANK_TEXT, size,
+                BitmapFont.Align.Center);
+        attach(slot.node, slot.rankWord, 0f, 0f, 6f);
+        badgeFor(slot);
         attach(slot.node, flat("drop", size + 4f, size + 4f, DROP), -2f, -2f - DROP_DEPTH, 0f);
         // A torch-coloured lip around the socket, shown only while this is the
         // skill the next click belongs to. Under the edge, so it reads as the
@@ -1576,6 +1712,41 @@ final class HeroPanel {
     }
 
     /**
+     * What the player has put into this one, and whether the next point may go
+     * here: the pips, the word under them, and the badge over the corner.
+     *
+     * <p>The four states the design names, and each says a different thing:
+     * a rank he can raise says what it would BECOME ("2 → 3") in the colour of a
+     * gain; one he cannot afford says only what it is; a full one says so in the
+     * torch colour with its pips brightened; and one he has never bought says
+     * nothing, because the badge beside it is the whole story.
+     */
+    private void dressRank(Slot slot, Reading.RankReading rank) {
+        pipsFor(slot, rank.max());
+        slot.canRaise = rank.canRaise();
+        boolean full = rank.rank() >= rank.max();
+        for (int i = 0; i < slot.pips.size(); i++) {
+            boolean lit = i < rank.rank();
+            slot.pips.get(i).getMaterial().setColor("Color",
+                    linear(lit ? full ? GOLD_HI : GOLD : PIP_DARK));
+        }
+        // The words are the game's and arrive finished; the colour is the
+        // client's, because it is a fact about a state it can already see.
+        slot.rankWord.setColor(linear(rank.canRaise() ? GAIN : full ? TORCH : LABEL));
+        slot.rankWord.setText(rank.word());
+        slot.badge.setCullHint(rank.canRaise()
+                ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        if (rank.canRaise()) {
+            // Breathing, so a player with a point does not forget he has one. The
+            // armed lip breathes at 0.9; this is a little quicker, because it is
+            // asking for something rather than waiting.
+            float breath = 0.55f + 0.45f * FastMath.sin(clock * FastMath.TWO_PI * 0.7f);
+            slot.badgeGlow.getMaterial().setColor("Color",
+                    linear(new ColorRGBA(TORCH.r, TORCH.g, TORCH.b, breath * 0.5f)));
+        }
+    }
+
+    /**
      * The armed slot's lip, breathing so it cannot be mistaken for the ordinary
      * ready glow. Slow — twice a second, between two thirds and full — because the
      * point is "this one is waiting", not "look at me".
@@ -1635,6 +1806,8 @@ final class HeroPanel {
     }
 
     private BitmapText skillsWord;
+    /** "NUQTA 2" beside it: what the four slots are competing for. */
+    private BitmapText pointsCount;
     private final Node skillHeading = new Node("skill-heading");
     private final Node itemHeading = new Node("item-heading");
 
@@ -1645,7 +1818,13 @@ final class HeroPanel {
         contents.attachChild(itemHeading);
         contents.attachChild(skillHeading);
         itemsWord = heading(itemHeading, ITEM_COLUMNS * ITEM_SLOT + (ITEM_COLUMNS - 1) * ITEM_GAP);
-        skillsWord = heading(skillHeading, SLOT * 3f + ULT_SLOT + SLOT_GAP * 3f);
+        float skillWidth = SLOT * 3f + ULT_SLOT + SLOT_GAP * 3f;
+        skillsWord = heading(skillHeading, skillWidth);
+        // At the far end of the same line, which is where the design puts it: the
+        // heading names the block and this says what the block is waiting for.
+        pointsCount = text(HEADING_SIZE, GOLD_HI, 0f, 0f, skillWidth,
+                BitmapFont.Align.Right);
+        skillHeading.attachChild(pointsCount);
     }
 
     private void showPowers(List<Reading.PowerReading> reading) {
@@ -1819,10 +1998,15 @@ final class HeroPanel {
 
     /** Skills: a heading, the row of sockets, and the powers strip under it. */
     private void placeSkills(float x, float left) {
-        float columnHeight = HEADING_SIZE + HEADING_GAP + ULT_SLOT + POWERS_TOP_GAP + POWER_CHIP;
+        // The pips and their word hang under each slot, so the column is that much
+        // taller than the slots are. Measured off the deepest, which is the
+        // ultimate's -- it is the one whose foot sits lowest.
+        float below = PIP_MARGIN + PIP_HEIGHT + PIP_MARGIN + RANK_TEXT;
+        float columnHeight = HEADING_SIZE + HEADING_GAP + ULT_SLOT + below
+                + POWERS_TOP_GAP + POWER_CHIP;
         float bottom = (BAND - columnHeight) / 2f;
         powerRow.setLocalTranslation(x, bottom, 0f);
-        float rowY = bottom + POWER_CHIP + POWERS_TOP_GAP;
+        float rowY = bottom + POWER_CHIP + POWERS_TOP_GAP + below;
         skillRow.setLocalTranslation(x, rowY, 0f);
         skillHeading.setLocalTranslation(x, rowY + ULT_SLOT + HEADING_GAP, 0f);
         float slotX = 0f;
@@ -1832,6 +2016,10 @@ final class HeroPanel {
             slot.node.setLocalTranslation(slotX, ULT_SLOT - slot.size, 0f);
             slot.atX = left + x + slotX;
             slot.atY = PAD + rowY + ULT_SLOT - slot.size;
+            // Its own corner, in the same design pixels the slot is measured in,
+            // so a click on the badge can be told from one on the slot under it.
+            slot.badgeX = slot.atX + slot.size - BADGE + BADGE_OUT;
+            slot.badgeY = slot.atY + slot.size - BADGE + BADGE_OUT;
             slotX += slot.size + SLOT_GAP;
         }
     }
@@ -2204,7 +2392,18 @@ final class HeroPanel {
             String powersWord, String skillsWord, String itemsWord, String note,
             List<Stat> stats, List<SkillReading> skills, List<PowerReading> powers,
             List<ItemReading> items, List<OrderReading> orders, boolean ordersAreHis,
-            Offer offer) {
+            Offer offer, List<RankReading> ranks, int points, String pointsWord) {
+
+        /**
+         * What is in a slot, what fits in it, and whether the next point may go
+         * there.
+         *
+         * <p>Its own field on the line rather than three more on the slot's,
+         * which already has three shapes. Nothing here knows what a rank DOES —
+         * only what the pips under the socket have to look like.
+         */
+        record RankReading(char key, int rank, int max, boolean canRaise, String word) {
+        }
 
         enum State { READY, COOLING, LOCKED }
 
@@ -2285,6 +2484,9 @@ final class HeroPanel {
             var orders = new ArrayList<OrderReading>();
             var ordersAreHis = new boolean[] {false};
             var cards = new ArrayList<Card>();
+            var ranks = new ArrayList<RankReading>();
+            int points = 0;
+            String pointsWord = "";
             var offerHead = new String[] {null, null, null};
             for (var field : status.split("\\|")) {
                 int split = field.indexOf('=');
@@ -2316,6 +2518,15 @@ final class HeroPanel {
                     case "pw" -> powers.add(power(value));
                     case "offer" -> offerHead[0] = value;
                     case "opt" -> cards.add(card(value));
+                    // "rank" above is the HERO's -- "7-daraja". This is a slot's,
+                    // which is a different thing on a different row, so it gets a
+                    // name of its own rather than a cleverness.
+                    case "srank" -> ranks.add(skillRank(value));
+                    case "pts" -> {
+                        var halves = value.split(",", 2);
+                        points = Integer.parseInt(halves[0]);
+                        pointsWord = halves.length > 1 ? halves[1] : "";
+                    }
                     // How the floor is drawn. Nothing on the panel, but the line
                     // is one line: a field this panel has no picture for still has
                     // to be a field it recognises, or it would refuse the whole
@@ -2339,7 +2550,8 @@ final class HeroPanel {
                     experience[0], experience[1], depth, depthWord, powersWord, skillsWord,
                     itemsWord, note, List.copyOf(stats), List.copyOf(skills),
                     List.copyOf(powers), List.copyOf(items), List.copyOf(orders),
-                    ordersAreHis[0], offer(offerHead[0], cards));
+                    ordersAreHis[0], offer(offerHead[0], cards), List.copyOf(ranks),
+                    points, pointsWord);
         }
 
         private static float[] pair(String value) {
@@ -2372,7 +2584,11 @@ final class HeroPanel {
             try {
                 return switch (parts[2]) {
                     case "ready" -> new SkillReading(key, icon, State.READY, "", 0f);
-                    case "lock" -> parts.length < 4 ? null
+                    // An ordinary skill nobody has bought says "lock" and stops
+                    // there: it waits for a POINT rather than for a level, so
+                    // there is no level to name. Only an ultimate has one.
+                    case "lock" -> parts.length < 4
+                            ? new SkillReading(key, icon, State.LOCKED, "", 0f)
                             : new SkillReading(key, icon, State.LOCKED, parts[3], 1f);
                     case "cool" -> parts.length < 5 ? null : cooling(key, icon,
                             Integer.parseInt(parts[3]), Integer.parseInt(parts[4]));
@@ -2454,6 +2670,16 @@ final class HeroPanel {
          * and must, but a player reading a number off a slot thinks in seconds —
          * and the conversion is the engine's own constant, not a second copy of it.
          */
+        /** {@code <key>,<rank>,<max>,up|no} — what the pips and the badge need. */
+        private static RankReading skillRank(String value) {
+            var parts = value.split(",");
+            if (parts.length < 5 || parts[0].isEmpty()) {
+                return null;
+            }
+            return new RankReading(parts[0].charAt(0), Integer.parseInt(parts[1]),
+                    Integer.parseInt(parts[2]), "up".equals(parts[3]), parts[4]);
+        }
+
         private static SkillReading cooling(char key, String icon, int left, int total) {
             float seconds = left / (float) GameConstants.LOGICFRAMES_PER_SECOND;
             var label = seconds >= 10f

@@ -2592,6 +2592,16 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private boolean clickedASkillSlot() {
         var cursor = inputManager.getCursorPosition();
+        // The badge before the slot, because it hangs over the slot's own corner
+        // and a click there means the badge. It is only ever there when a point
+        // may go into that slot, so the corner of a socket with nothing to buy
+        // arms the skill exactly as it always did.
+        var raising = heroPanel.badgeAt(cursor.x, cursor.y);
+        if (raising != null) {
+            hotkeys.raiseSkill(game, raising);
+            noises.moment("power_taken", (float) timer.getTimeInSeconds());
+            return true;
+        }
         var key = heroPanel.slotAt(cursor.x, cursor.y);
         if (key != null) {
             pressHotkey(key, true);
