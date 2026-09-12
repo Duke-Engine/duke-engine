@@ -58,6 +58,7 @@ class ControlsTest {
             assertNotNull(aim, "no binding for " + skill.key());
             assertEquals(switch (skill.effect().aim()) {
                 case UNIT -> Hotkeys.Aim.UNIT;
+                case GROUND -> Hotkeys.Aim.GROUND;
                 case OPEN_GROUND -> Hotkeys.Aim.OPEN_GROUND;
                 case SELF -> Hotkeys.Aim.NOW;
             }, aim, skill.key() + " asks for the wrong thing");
@@ -96,6 +97,7 @@ class ControlsTest {
             for (var skill : SHIPPED.skillsFor(him)) {
                 assertEquals(switch (skill.effect().aim()) {
                     case UNIT -> Hotkeys.Aim.UNIT;
+                    case GROUND -> Hotkeys.Aim.GROUND;
                     case OPEN_GROUND -> Hotkeys.Aim.OPEN_GROUND;
                     case SELF -> Hotkeys.Aim.NOW;
                 }, controls.aimOf(skill.key()),

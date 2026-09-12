@@ -322,6 +322,8 @@ public final class Main {
             switch (skill.effect().aim()) {
                 case UNIT -> keys.onUnit(key, (game, id) -> game.postCommand(new CastSkill(
                         game.getLocalPlayerIndex(), key, new ObjectId(id), null)));
+                case GROUND -> keys.onGround(key, (game, spot) -> game.postCommand(
+                        new CastSkill(game.getLocalPlayerIndex(), key, null, spot)));
                 case OPEN_GROUND -> keys.onOpenGround(key, (game, spot) -> game.postCommand(
                         new CastSkill(game.getLocalPlayerIndex(), key, null, spot)));
                 case SELF -> keys.on(key, game -> game.postCommand(

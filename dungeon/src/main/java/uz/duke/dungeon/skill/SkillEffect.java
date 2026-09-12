@@ -53,8 +53,15 @@ public enum SkillEffect {
      * and forgets it at once: what it hits is whoever is standing in the way. It
      * can miss, which is the point — it is the skill that rewards the player for
      * reading where a monster is going rather than for clicking on it.
+     *
+     * <p>Aimed at plain {@link Aim#GROUND} and not at {@link Aim#OPEN_GROUND},
+     * which is the difference between pointing and going. A leap has to end
+     * somewhere a man could stand, so a dash is refused a wall; a shot is aimed
+     * ALONG a line and stops at whatever it meets, so a wall is a perfectly good
+     * thing to point at -- it is where the shot will stop. Refusing it made the
+     * most natural cast in the game, "fire down that corridor", a dead key.
      */
-    SKILLSHOT(Aim.OPEN_GROUND),
+    SKILLSHOT(Aim.GROUND),
 
     /** Move the caster toward a chosen spot — closing or escaping. */
     DASH(Aim.OPEN_GROUND),
@@ -129,6 +136,17 @@ public enum SkillEffect {
         SELF,
         /** A creature. */
         UNIT,
+        /**
+         * Any spot at all, stone and unlit dark included.
+         *
+         * <p>For a skill that is POINTED rather than placed. What the player is
+         * choosing is a direction, and every direction is a fair one: a shot
+         * aimed into rock is a shot that stops at the rock, which is a thing he
+         * may perfectly well want. The stricter {@link #OPEN_GROUND} below is for
+         * the skills that put him somewhere, where the same click would be a
+         * request to stand inside a wall.
+         */
+        GROUND,
         /**
          * A spot on the floor he could stand on and has already seen.
          *
