@@ -430,7 +430,8 @@ final class DukeRtsApp extends SimpleApplication {
         hint.setAlpha(0.6f);
         guiNode.attachChild(hint);
 
-        heroPanel = new HeroPanel(assetManager, guiFont, guiNode, cam.getWidth(),
+        heroPanel = new HeroPanel(assetManager, guiFont,
+                fontOrDefault(visuals.getMenuStyle().titleFont()), guiNode, cam.getWidth(),
                 visuals.getPanelSkin(), visuals.getRangeLook(), visuals.getIconLook());
         // Built the same way units are -- see buildBody -- so the face in the
         // frame is the creature that is on the floor and not a second version
@@ -1776,8 +1777,9 @@ final class DukeRtsApp extends SimpleApplication {
         // is the reason it was the one thing that came back looking right.
         var armed = heroPanel.armedKey();
         heroPanel.destroy();
-        heroPanel = new HeroPanel(assetManager, guiFont, guiNode, width, visuals.getPanelSkin(),
-                visuals.getRangeLook(), visuals.getIconLook());
+        heroPanel = new HeroPanel(assetManager, guiFont,
+                fontOrDefault(visuals.getMenuStyle().titleFont()), guiNode, width,
+                visuals.getPanelSkin(), visuals.getRangeLook(), visuals.getIconLook());
         heroPanel.arm(armed);
         levelUp.destroy();
         levelUp = new LevelUpOverlay(assetManager, guiFont, guiNode, width, height);

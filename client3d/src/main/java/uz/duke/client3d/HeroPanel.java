@@ -163,7 +163,15 @@ final class HeroPanel {
      * standing shape, and the badge that hangs under it wants the height.
      */
     private static final float PORTRAIT = 126f;
-    private static final float PORTRAIT_HEIGHT = 150f;
+    /**
+     * ★ SHORTER THAN IT WAS, because two bars moved in under it.
+     *
+     * <p>What is left of him now hangs off his own face rather than off the far
+     * side of his name: portrait, health, mana, one block the width of the
+     * portrait. They are the three things about the man himself, and they used to
+     * be split between two columns for no reason but that the bars were wide.
+     */
+    private static final float PORTRAIT_HEIGHT = 130f;
 
     /**
      * The square the drawn figure was drawn in, which is not the frame any more.
@@ -203,7 +211,20 @@ final class HeroPanel {
     /** The little square a stat's drawing sits in, beside its word. */
     private static final float STAT_ICON = 22f;
     private static final float BAR_HEIGHT = 17f;
-    private static final float XP_HEIGHT = 10f;
+
+    /**
+     * The experience bar, which is now the widest thing on the band.
+     *
+     * <p>It was ten pixels of trim under two bars that mattered more. It is
+     * thirty, alone across the column, because it is the only bar on the panel
+     * that is about the WHOLE RUN: health and mana come back, and this never goes
+     * backwards. It is also the only one with room for lettering at both ends,
+     * which is what let the level badge under the portrait go — the level was
+     * being said twice, and this is the place the eye already is.
+     */
+    private static final float XP_HEIGHT = 30f;
+    /** How far apart the slants across a filling bar are drawn. */
+    private static final float XP_SLANT_PITCH = 9f;
 
     /**
      * Between the two, and nearer the health.
@@ -217,6 +238,8 @@ final class HeroPanel {
     private static final float TITLE_HEIGHT = 15f;
     /** Space between one figure and the word after it. */
     private static final float STAT_GAP = 10f;
+    /** How many figures stand side by side under the bars. */
+    private static final int STAT_COLUMNS = 4;
     private static final float SLOT = 62f;
     private static final float ULT_SLOT = 72f;
 
@@ -403,6 +426,9 @@ final class HeroPanel {
      */
     private Reading reading;
 
+    /** The face his name is set in, which is the plain one unless a game said. */
+    private final BitmapFont display;
+
     /** The skill waiting for the player to click something, if any. */
     private Character armed;
     /** The slot the mouse is over, if any — it lights to say it can be clicked. */
@@ -417,9 +443,26 @@ final class HeroPanel {
 
     HeroPanel(AssetManager assets, BitmapFont font, Node guiNode, float screenWidth,
             PanelSkin skin, RangeLook aiming, IconLook icons) {
+        this(assets, font, null, guiNode, screenWidth, skin, aiming, icons);
+    }
+
+    /**
+     * The same, told what face to set his NAME in.
+     *
+     * <p>One line of a panel, and it is the line that says which game this is: a
+     * dungeon wants carved capitals over its hero and a skirmish game does not.
+     * Everything else on the bar stays plain, because everything else is a number
+     * or a word being read rather than a title being recognised.
+     *
+     * <p>Null falls back to the plain face, which is what the panel always did
+     * and what the three other games this client serves will go on getting.
+     */
+    HeroPanel(AssetManager assets, BitmapFont font, BitmapFont display, Node guiNode,
+            float screenWidth, PanelSkin skin, RangeLook aiming, IconLook icons) {
         this.icons = icons == null ? IconLook.DEFAULT : icons;
         this.assets = assets;
         this.font = font;
+        this.display = display == null ? font : display;
         this.screenWidth = screenWidth;
         this.skin = skin == null ? PanelSkin.NONE : skin;
         // ★ ONE NUMBER, not two. The colour an armed slot is drawn in is the
@@ -440,6 +483,7 @@ final class HeroPanel {
         buildSlab();
         buildMinimapSocket();
         buildPortrait();
+        buildPortraitVitals();
         buildVitals();
         buildPowersLabel();
         buildHeadings();
@@ -468,7 +512,7 @@ final class HeroPanel {
         root.setCullHint(Spatial.CullHint.Inherit);
         name.setText(reading.name);
         title.setText(reading.title);
-        badge.setText(reading.rank);
+        rank.setText(reading.rank);
         // No reading over an empty trough: "0 / 0" is a number, and a number is a
         // claim about somebody.
         health.setText(reading.maxHealth <= 0f ? ""
@@ -500,6 +544,12 @@ final class HeroPanel {
             manaFill.getMaterial().setColor("Color", linear(denied ? MANA_DENIED : MANA));
         }
         fillTo(experienceFill, fraction(reading.experience, reading.needed));
+        // The figures at the far end of the bar, and the hatching across what is
+        // filled. A game that gives him nothing to earn sends no total and gets a
+        // bare bar rather than "0 / 0", which is a claim about somebody.
+        experienceCount.setText(reading.needed <= 0f ? ""
+                : Math.round(reading.experience) + " / " + Math.round(reading.needed));
+        slantTo(fraction(reading.experience, reading.needed));
         depthNumber.setText(reading.depth);
         // A floor out of four is three times the lettering of a floor, and the
         // stone it is carved into did not get any wider. Sized to what it has to
@@ -544,14 +594,15 @@ final class HeroPanel {
     private void showOnlyWhatTheCardHas(Reading reading) {
         boolean levels = reading.needed > 0f;
         boolean named = !reading.title.isBlank();
-        boolean ranked = !reading.rank.isBlank();
-        // Only these three, and all three are ornaments hung off the furniture
-        // rather than part of it: a plate with a level on it, a line of italics
-        // under a name, a bar for experience nothing is earning. None of them
-        // moves anything else when it goes.
+        // Two, and both are ornaments hung off the furniture rather than part of
+        // it: a line of italics under a name, and a bar for experience nothing is
+        // earning. Neither moves anything else when it goes.
+        //
+        // The level used to be a third -- a plate under the portrait -- and is
+        // now lettering inside the experience bar, so it needs nothing here: a
+        // card with no level sends no level and the line is set to nothing.
         experienceFill.setCullHint(levels ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
         titleLine.setCullHint(named ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
-        badgePlate.setCullHint(ranked ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
     }
 
     /** Take the bar out of the scene, so a fresh one can be built at a new size. */
@@ -891,7 +942,6 @@ final class HeroPanel {
         attach(figure, bow, 0f, PORTRAIT_HEIGHT - FIGURE, 4f);
         attach(portrait, figure, (PORTRAIT - FIGURE) / 2f, 0f, 0f);
 
-        buildBadge();
         if (framed(portrait, PanelSkin.PORTRAIT, -3f, -3f,
                 PORTRAIT + 6f, PORTRAIT_HEIGHT + 6f, 5f)) {
             return; // a painted frame has corners of its own; two sets would fight
@@ -960,7 +1010,6 @@ final class HeroPanel {
     private Geometry faceGlyph;
 
     /** The level, on a plate slung across the bottom edge of the portrait. */
-    private BitmapText badge;
 
     /** Draw the figure the card names, or his own silhouette when it names none. */
     private void showFace(String named, boolean anybody) {
@@ -1020,18 +1069,6 @@ final class HeroPanel {
      * already is. Straddling the frame's edge rather than sitting under it is what
      * makes it read as fixed to the picture instead of as a caption.
      */
-    private final Node badgePlate = new Node("badge");
-
-    private void buildBadge() {
-        var plate = badgePlate;
-        attach(plate, flat("badge-edge", BADGE_WIDTH, BADGE_HEIGHT, TORCH), 0f, 0f, 6f);
-        attach(plate, flat("badge-face", BADGE_WIDTH - 4f, BADGE_HEIGHT - 4f, rgb(0x3A2D12)),
-                2f, 2f, 7f);
-        badge = text(13f, GOLD_HI, 0f, 4f, BADGE_WIDTH, BitmapFont.Align.Center);
-        badge.setLocalTranslation(0f, badge.getLocalTranslation().y, 8f);
-        plate.attachChild(badge);
-        attach(portrait, plate, (PORTRAIT - BADGE_WIDTH) / 2f, -BADGE_DROP, 6f);
-    }
 
     // ---- the orders beside the map ----
 
@@ -1414,23 +1451,38 @@ final class HeroPanel {
     private final Node titleLine = new Node("title-line");
     /** The experience bar, kept together so it can go when nothing is levelling. */
     private final Node experienceBar = new Node("experience");
+    /** The two gauges under the portrait, which travel with it. */
+    private final Node portraitBars = new Node("portrait-bars");
+
+    /**
+     * The slanted hatching across the filled part of the experience bar, and
+     * how wide it was last cut for.
+     *
+     * <p>Rebuilt rather than scaled: scaling a slant shears it, and a bar whose
+     * hatching gets steeper as it fills reads as a rendering fault. Cut again
+     * only when the filled width has moved by a whole pixel, which for
+     * experience is a few times a floor.
+     */
+    private Geometry experienceSlant;
+    private int slantedTo = -1;
+    /** The two readings inside the experience bar: his level, and how far in. */
+    private BitmapText rank;
+    private BitmapText experienceCount;
 
     private void buildVitals() {
         vitals = new Node("vitals");
         contents.attachChild(vitals);
 
-        // Down the band the way the design does it: who he is at the top, what is
-        // left of him under that, and what he is worth at the foot.
-        float nameY = BAND - NAME_HEIGHT;
-        float titleY = nameY - TITLE_HEIGHT - 2f;
-        float healthY = titleY - 12f - BAR_HEIGHT;
-        // Under the health and over the experience, which is the order they are
-        // read in: what is left of him, what he can spend, what he has earned.
-        float manaY = healthY - 6f - MANA_HEIGHT;
-        float experienceY = manaY - 7f - XP_HEIGHT;
-        this.statsTop = experienceY - 14f;
+        // Down the band: who he is, what he is, and the one bar that only ever
+        // goes forward. What is LEFT of him is not here any more -- health and
+        // mana moved under his own portrait, where they read as facts about the
+        // man rather than as two more rows of the column.
+        float nameY = BAND - 24f;
+        float titleY = nameY - 17f;
+        float experienceY = titleY - 12f - XP_HEIGHT;
+        this.statsTop = experienceY - 16f;
 
-        name = text(17f, BONE, 0f, nameY, VITALS_WIDTH, BitmapFont.Align.Center);
+        name = carved(19f, BONE, 0f, nameY, VITALS_WIDTH, BitmapFont.Align.Center);
         vitals.attachChild(name);
         // A wash behind the title, which is what stops a second centred line from
         // reading as a second name.
@@ -1439,45 +1491,75 @@ final class HeroPanel {
                         GOLD.b, 0.14f)));
         wash.setMaterial(vertexColoured());
         attach(titleLine, wash, 0f, titleY - 2f, 0f);
-        title = text(13f, GOLD, 0f, titleY, VITALS_WIDTH, BitmapFont.Align.Center);
+        title = text(12f, GOLD, 0f, titleY, VITALS_WIDTH, BitmapFont.Align.Center);
         title.setLocalTranslation(0f, title.getLocalTranslation().y, 1f);
         titleLine.attachChild(title);
         vitals.attachChild(titleLine);
-
-        vitals.attachChild(trough(0f, healthY, VITALS_WIDTH, BAR_HEIGHT));
-        healthFill = fill(VITALS_WIDTH - 2f, BAR_HEIGHT - 2f, BLOOD);
-        healthFill.setLocalTranslation(1f, healthY + 1f, 1f);
-        vitals.attachChild(healthFill);
-        health = text(12f, BONE, 0f, healthY + BAR_HEIGHT - 3f, VITALS_WIDTH,
-                BitmapFont.Align.Center);
-        health.setLocalTranslation(0f, health.getLocalTranslation().y, 2f);
-        vitals.attachChild(health);
-
-        attach(manaBar, trough(0f, manaY, VITALS_WIDTH, MANA_HEIGHT), 0f, 0f, 0f);
-        manaFill = fill(VITALS_WIDTH - 2f, MANA_HEIGHT - 2f, MANA);
-        manaFill.setLocalTranslation(1f, manaY + 1f, 1f);
-        manaBar.attachChild(manaFill);
-        manaCount = text(10f, BONE, 0f, manaY + MANA_HEIGHT - 3f, VITALS_WIDTH,
-                BitmapFont.Align.Center);
-        manaCount.setLocalTranslation(0f, manaCount.getLocalTranslation().y, 2f);
-        manaBar.attachChild(manaCount);
-        vitals.attachChild(manaBar);
 
         attach(experienceBar, trough(0f, experienceY, VITALS_WIDTH, XP_HEIGHT), 0f, 0f, 0f);
         experienceFill = fill(VITALS_WIDTH - 2f, XP_HEIGHT - 2f, ARCANE);
         experienceFill.setLocalTranslation(1f, experienceY + 1f, 1f);
         experienceBar.attachChild(experienceFill);
+        // Over the fill and under the lettering. Faint on purpose: it is there to
+        // say "this is filling up" rather than to be looked at, and a bar that
+        // reads as a barber's pole is a bar nobody reads the number off.
+        experienceSlant = new Geometry("xp-slant", new Mesh());
+        experienceSlant.setMaterial(unshaded(new ColorRGBA(1f, 1f, 1f, 0.10f)));
+        experienceSlant.setLocalTranslation(1f, experienceY + 1f, 2f);
+        experienceBar.attachChild(experienceSlant);
+        // Both readings INSIDE the bar, which is the whole reason it is thirty
+        // pixels tall. His level at the near end and how far through it he is at
+        // the far one -- the two halves of the same sentence, read left to right.
+        float lettering = experienceY + (XP_HEIGHT - 13f) / 2f;
+        rank = text(13f, GOLD_HI, 10f, lettering, VITALS_WIDTH, BitmapFont.Align.Left);
+        rank.setLocalTranslation(rank.getLocalTranslation().x, rank.getLocalTranslation().y, 3f);
+        experienceBar.attachChild(rank);
+        experienceCount = text(12f, BONE, 0f, lettering, VITALS_WIDTH - 10f,
+                BitmapFont.Align.Right);
+        experienceCount.setLocalTranslation(0f, experienceCount.getLocalTranslation().y, 3f);
+        experienceBar.attachChild(experienceCount);
         vitals.attachChild(experienceBar);
 
-        // The bezels last and highest: a bar fills from under its own rim, and
-        // the reading rides over both. A gauge is the one place the picture is
-        // asked for a plain square -- the rim IS the ornament at this size.
-        framed(vitals, PanelSkin.GAUGE, -1f, healthY - 1f,
-                VITALS_WIDTH + 2f, BAR_HEIGHT + 2f, 1.5f);
-        framed(manaBar, PanelSkin.GAUGE, -1f, manaY - 1f,
-                VITALS_WIDTH + 2f, MANA_HEIGHT + 2f, 1.5f);
+        // The bezel last and highest: a bar fills from under its own rim, and the
+        // reading rides over both. A gauge is the one place the picture is asked
+        // for a plain square -- the rim IS the ornament at this size.
         framed(experienceBar, PanelSkin.GAUGE, -1f, experienceY - 1f,
                 VITALS_WIDTH + 2f, XP_HEIGHT + 2f, 1.5f);
+    }
+
+    /**
+     * Health and mana, under his own face and as wide as it.
+     *
+     * <p>Its own node rather than part of the portrait's, because the portrait is
+     * a frame with a live creature turning inside it and these are two gauges: one
+     * is rebuilt when the face changes and the other never is.
+     */
+    private void buildPortraitVitals() {
+        float healthY = BAND - PORTRAIT_HEIGHT - 6f - BAR_HEIGHT;
+        float manaY = healthY - 3f - MANA_HEIGHT;
+
+        portraitBars.attachChild(trough(0f, healthY, PORTRAIT, BAR_HEIGHT));
+        healthFill = fill(PORTRAIT - 2f, BAR_HEIGHT - 2f, BLOOD);
+        healthFill.setLocalTranslation(1f, healthY + 1f, 1f);
+        portraitBars.attachChild(healthFill);
+        health = text(11f, BONE, 0f, healthY + 3f, PORTRAIT, BitmapFont.Align.Center);
+        health.setLocalTranslation(0f, health.getLocalTranslation().y, 2f);
+        portraitBars.attachChild(health);
+
+        attach(manaBar, trough(0f, manaY, PORTRAIT, MANA_HEIGHT), 0f, 0f, 0f);
+        manaFill = fill(PORTRAIT - 2f, MANA_HEIGHT - 2f, MANA);
+        manaFill.setLocalTranslation(1f, manaY + 1f, 1f);
+        manaBar.attachChild(manaFill);
+        manaCount = text(9f, BONE, 0f, manaY + 2f, PORTRAIT, BitmapFont.Align.Center);
+        manaCount.setLocalTranslation(0f, manaCount.getLocalTranslation().y, 2f);
+        manaBar.attachChild(manaCount);
+        portraitBars.attachChild(manaBar);
+
+        framed(portraitBars, PanelSkin.GAUGE, -1f, healthY - 1f,
+                PORTRAIT + 2f, BAR_HEIGHT + 2f, 1.5f);
+        framed(manaBar, PanelSkin.GAUGE, -1f, manaY - 1f,
+                PORTRAIT + 2f, MANA_HEIGHT + 2f, 1.5f);
+        contents.attachChild(portraitBars);
     }
 
     /** Where the grid of figures begins, worked out with the rest of the column. */
@@ -1522,19 +1604,25 @@ final class HeroPanel {
             statLabels.clear();
             statValues.clear();
             statBonuses.clear();
-            float cell = VITALS_WIDTH / 2f;
+            // ★ FOUR ACROSS, and stacked inside each column. Two columns gave a
+            // figure half the band to itself and the row of them ran out of
+            // height; four is the shape the design asks for and leaves each
+            // figure seventy pixels, which will not hold a drawing, a word, a
+            // number and a green gain on ONE line. So the cell is two lines: the
+            // drawing and the figure on top, the word and what is lent beneath.
+            // Reading order is still left to right and then down, inside a cell
+            // instead of across the grid.
+            float cell = VITALS_WIDTH / STAT_COLUMNS;
             for (int i = 0; i < stats.size(); i++) {
-                float x = (i % 2) * cell;
-                float y = statsTop - (i / 2) * (STAT_ICON + 6f) - STAT_ICON;
+                float x = (i % STAT_COLUMNS) * cell;
+                float y = statsTop - (i / STAT_COLUMNS) * (STAT_ICON + 20f) - STAT_ICON;
                 statBoxes.add(statBox(x, y, stats.get(i).icon()));
-                // Word, then figure, then what is lent -- in reading order, each
-                // given the room the one before it did not use.
-                var label = text(12f, LABEL, x + STAT_ICON + 6f, y + 4f, cell - STAT_ICON - 6f,
+                var label = text(11f, LABEL, x, y - 14f, cell - STAT_GAP,
                         BitmapFont.Align.Left);
-                var value = text(13f, BONE, x + STAT_ICON + 6f, y + 4f,
-                        cell - STAT_ICON - 6f - 34f, BitmapFont.Align.Right);
-                var bonus = text(12f, GAIN, x + STAT_ICON + 6f, y + 4f,
-                        cell - STAT_ICON - 6f - STAT_GAP, BitmapFont.Align.Right);
+                var value = text(14f, BONE, x + STAT_ICON, y + 4f, cell - STAT_ICON - STAT_GAP,
+                        BitmapFont.Align.Right);
+                var bonus = text(11f, GAIN, x, y - 14f, cell - STAT_GAP,
+                        BitmapFont.Align.Right);
                 statLabels.add(label);
                 statValues.add(value);
                 statBonuses.add(bonus);
@@ -2409,6 +2497,7 @@ final class HeroPanel {
             // The portrait hangs from the top of the band with its badge below
             // it; the vitals fill the whole height beside it.
             portrait.setLocalTranslation(x, BAND - PORTRAIT_HEIGHT, 0f);
+            portraitBars.setLocalTranslation(x, 0f, 0f);
             vitals.setLocalTranslation(x + PORTRAIT + PORTRAIT_GAP, 0f, 0f);
         }));
         blocks.add(new Block(ITEM_COLUMNS * ITEM_SLOT + (ITEM_COLUMNS - 1) * ITEM_GAP,
@@ -2823,6 +2912,84 @@ final class HeroPanel {
         var material = unshaded(colour);
         material.getAdditionalRenderState().setLineWidth(2f);
         return material;
+    }
+
+    /** The same, in the face a game named for its own lettering. */
+    private BitmapText carved(float size, ColorRGBA colour, float x, float y, float width,
+            BitmapFont.Align align) {
+        var line = new BitmapText(display);
+        line.setSize(size);
+        line.setColor(linear(colour));
+        line.setBox(new Rectangle(x, y + size, width, size * 1.4f));
+        line.setAlignment(align);
+        return line;
+    }
+
+    /**
+     * Cut the hatching again for a bar this full.
+     *
+     * <p>Only when it has moved a whole pixel. Rebuilding a mesh is what scaling
+     * one would have avoided — but scaling a slant shears it, and hatching that
+     * gets steeper as the bar fills reads as something being drawn wrong rather
+     * than as the bar filling.
+     */
+    private void slantTo(float fraction) {
+        int wide = Math.round(Math.clamp(fraction, 0f, 1f) * (VITALS_WIDTH - 2f));
+        if (wide == slantedTo) {
+            return;
+        }
+        slantedTo = wide;
+        experienceSlant.setMesh(slants(wide, XP_HEIGHT - 2f, XP_SLANT_PITCH));
+        experienceSlant.setCullHint(wide <= 0
+                ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
+    }
+
+    /**
+     * Parallel slants across a box, each leaning by its own height.
+     *
+     * <p>Clipped to the box by hand — there is no scissor in this layer — so each
+     * slant is a quadrilateral rather than a parallelogram wherever it runs off
+     * an end.
+     */
+    private static Mesh slants(float width, float height, float pitch) {
+        if (width <= 0f) {
+            return new Mesh();
+        }
+        var points = new java.util.ArrayList<Float>();
+        var order = new java.util.ArrayList<Integer>();
+        float thick = pitch / 2f;
+        for (float foot = -height; foot < width; foot += pitch) {
+            float bottomFrom = Math.clamp(foot, 0f, width);
+            float bottomTo = Math.clamp(foot + thick, 0f, width);
+            float topFrom = Math.clamp(foot + height, 0f, width);
+            float topTo = Math.clamp(foot + height + thick, 0f, width);
+            if (bottomTo <= bottomFrom && topTo <= topFrom) {
+                continue;
+            }
+            int corner = points.size() / 3;
+            for (float[] at : new float[][] {{bottomFrom, 0f}, {bottomTo, 0f},
+                {topTo, height}, {topFrom, height}}) {
+                points.add(at[0]);
+                points.add(at[1]);
+                points.add(0f);
+            }
+            for (int step : new int[] {0, 1, 2, 0, 2, 3}) {
+                order.add(corner + step);
+            }
+        }
+        var mesh = new Mesh();
+        var positions = new float[points.size()];
+        for (int at = 0; at < positions.length; at++) {
+            positions[at] = points.get(at);
+        }
+        var indices = new int[order.size()];
+        for (int at = 0; at < indices.length; at++) {
+            indices[at] = order.get(at);
+        }
+        mesh.setBuffer(VertexBuffer.Type.Position, 3, BufferUtils.createFloatBuffer(positions));
+        mesh.setBuffer(VertexBuffer.Type.Index, 3, BufferUtils.createIntBuffer(indices));
+        mesh.updateBound();
+        return mesh;
     }
 
     /**

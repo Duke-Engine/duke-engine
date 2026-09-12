@@ -100,12 +100,62 @@ class PanelLayoutTest {
         return spans;
     }
 
+    /**
+     * What the experience bar says his level is, or "" for a card with none.
+     *
+     * <p>Found by its size, which is the one thing about it that is not shared
+     * with the reading at the other end of the same bar. A miss fails rather than
+     * returning nothing, since nothing is also the right answer for a skeleton
+     * and the two must not be confused.
+     */
+    private static String rankShown(Node gui) {
+        var bar = (Node) find(gui, "experience");
+        for (var child : bar.getChildren()) {
+            if (child instanceof com.jme3.font.BitmapText line
+                    && line.getSize() == 13f) {
+                return line.getText();
+            }
+        }
+        return org.junit.jupiter.api.Assertions.fail(
+                "no 13-point lettering in the experience bar: has the level moved again?");
+    }
+
+    /**
+     * What is left of him hangs under his own face, and inside the bar.
+     *
+     * <p>The health and mana gauges moved out of the middle column and under the
+     * portrait, which is a block that now has to stack rather than sit: the frame
+     * is a fixed height, the two bars go beneath it, and between them they have a
+     * band of a hundred and seventy-two pixels and no more. Getting that wrong
+     * puts a mana bar through the floor of the panel, and every left-to-right
+     * check in this class would still pass.
+     */
+    @Test
+    void whatIsLeftOfHimHangsUnderHisOwnFace() {
+        var gui = panel(1600f);
+        var frame = (BoundingBox) find(gui, "portrait").getWorldBound();
+        var bars = (BoundingBox) find(gui, "portrait-bars").getWorldBound();
+
+        assertTrue(bars.getCenter().y + bars.getYExtent()
+                        <= frame.getCenter().y - frame.getYExtent() + 1f,
+                "the gauges should be under the frame, not across it");
+        assertTrue(bars.getCenter().x - bars.getXExtent()
+                        >= frame.getCenter().x - frame.getXExtent() - 2f,
+                "and no wider than it on the left");
+        assertTrue(bars.getCenter().x + bars.getXExtent()
+                        <= frame.getCenter().x + frame.getXExtent() + 2f,
+                "nor on the right");
+        assertFalse(new Span(bars.getCenter().x - bars.getXExtent(),
+                bars.getCenter().x + bars.getXExtent())
+                .overlaps(spanOf(gui, "vitals")), "nor into the column beside it");
+    }
+
     @Test
     void everyBlockOfTheDesignIsDrawn() {
         var gui = panel(1600f);
 
         for (var name : List.of("minimap-socket", "orders", "portrait", "vitals",
-                "items", "skills", "powers", "depth", "badge")) {
+                "items", "skills", "powers", "depth", "portrait-bars")) {
             assertNotNull(find(gui, name), name + " is in the design and not on the bar");
         }
     }
@@ -177,7 +227,7 @@ class PanelLayoutTest {
         var gui = panel(1600f);
         float slabTop = 0f;
         for (var name : List.of("minimap-socket", "orders", "portrait", "vitals",
-                "items", "skills", "powers", "badge")) {
+                "items", "skills", "powers", "portrait-bars")) {
             var bound = (BoundingBox) find(gui, name).getWorldBound();
             float bottom = bound.getCenter().y - bound.getYExtent();
             float top = bound.getCenter().y + bound.getYExtent();
@@ -244,8 +294,9 @@ class PanelLayoutTest {
      * And what the card does not say is simply not drawn in it.
      *
      * <p>The other half of the same rule. The furniture stays; the figure in the
-     * portrait, the level on its badge and the experience being earned are the
-     * card's, and a card that carries none of them shows none of them.
+     * portrait, the level inside the experience bar and the experience being
+     * earned are the card's, and a card that carries none of them shows none of
+     * them.
      */
     @Test
     void whatTheCardDoesNotSayIsNotDrawnInIt() {
@@ -254,8 +305,7 @@ class PanelLayoutTest {
         assertNothingDrawn(nobody, "figure");
         assertEquals(null, find(nobody, "face-glyph"),
                 "an empty frame has no face in it, not even a borrowed one");
-        assertEquals(Spatial.CullHint.Always, find(nobody, "badge").getLocalCullHint(),
-                "nobody is any level");
+        assertEquals("", rankShown(nobody), "nobody is any level");
         assertEquals(Spatial.CullHint.Always, find(nobody, "title-line").getLocalCullHint(),
                 "and nobody is anything");
         assertEquals(Spatial.CullHint.Always, find(nobody, "fill").getLocalCullHint(),
@@ -264,8 +314,7 @@ class PanelLayoutTest {
         // A creature has a face of its own and still none of the rest.
         var skeleton = showing(CREATURE);
         assertNotNull(find(skeleton, "face-glyph"), "a skeleton is not an archer");
-        assertEquals(Spatial.CullHint.Always, find(skeleton, "badge").getLocalCullHint(),
-                "a skeleton holds no level");
+        assertEquals("", rankShown(skeleton), "a skeleton holds no level");
     }
 
     /**
