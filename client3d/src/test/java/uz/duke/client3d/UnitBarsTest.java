@@ -400,6 +400,58 @@ class UnitBarsTest {
                 .getFloatBuffer(com.jme3.scene.VertexBuffer.Type.Color));
     }
 
+    /**
+     * The level sits in the middle of its disc, and the disc in the middle of
+     * the bars.
+     *
+     * <p>★ NEITHER DID. A BitmapText hangs downward from where it is put, so
+     * asking for a middle and handing over a top drops it by half its height —
+     * and the level number slid out through the bottom of the circle. The disc
+     * itself was centred on the health bar rather than on the BLOCK of bars, so
+     * on anything with mana it sat visibly high of the thing it belongs to.
+     *
+     * <p>Both are arithmetic that reads exactly like centring, which is why
+     * this is measured rather than looked at.
+     */
+    @Test
+    void theLevelSitsInItsDiscAndTheDiscInTheMiddleOfTheBars() {
+        var screen = screen();
+
+        screen.bars().update(screen.camera(), all(
+                unit(1, "Rogue", 0f, 0f, 128f, 200f),
+                unit(2, "Skeleton", 10f, 0f, 30f, 30f, 1)), UnitBarReading.read(LINE));
+
+        for (var bar : up(screen.bars())) {
+            float disc = named(bar, "back").getLocalTranslation().y;
+            var level = lettering(bar, "3", "7");
+            float middle = level.getLocalTranslation().y - level.getLineHeight() / 2f;
+            assertEquals(disc, middle, 1f, "the level should sit in the middle of its disc");
+
+            // And the disc in the middle of whatever bars this creature wears.
+            var health = named(bar, "edge");
+            var mana = named(bar, "manaEdge");
+            float top = health.getLocalTranslation().y + health.getLocalScale().y;
+            float foot = mana.getLocalCullHint() == Spatial.CullHint.Always
+                    ? health.getLocalTranslation().y
+                    : mana.getLocalTranslation().y;
+            assertEquals((top + foot) / 2f, disc, 1f,
+                    "the disc should sit in the middle of the bars beside it");
+        }
+    }
+
+    /** The showing line of lettering that says one of these words. */
+    private static BitmapText lettering(Node bar, String... words) {
+        for (var child : bar.getChildren()) {
+            if (child instanceof BitmapText line
+                    && child.getLocalCullHint() != Spatial.CullHint.Always
+                    && List.of(words).contains(line.getText())) {
+                return line;
+            }
+        }
+        return org.junit.jupiter.api.Assertions.fail(
+                "no lettering on this bar says any of " + List.of(words));
+    }
+
     /** The experience ring is built once per step and then only pointed at. */
     @Test
     void theRingIsAMeshPerStepAndNotPerFrame() {

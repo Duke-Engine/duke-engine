@@ -293,11 +293,27 @@ final class UnitBars {
             }
         }
 
-        private void centre(float middle, float bottom) {
+        /**
+         * Put the middle of this line at a point.
+         *
+         * <p>★ BOTH WAYS, and the vertical one was wrong. A {@code BitmapText}
+         * hangs DOWNWARD from where it is put — the translation is its top, not
+         * its middle and not its baseline — so asking for a middle and handing
+         * over a top drops the line by half its height, every time. In the disc
+         * over a creature's head that was the whole of the level number sliding
+         * out through the bottom of the circle, and it was arithmetic nobody
+         * would look at twice: {@code y - size / 2} reads exactly like centring.
+         *
+         * <p>The height is asked of the line rather than taken from the size it
+         * was set at, because a font's line box is taller than its letters and by
+         * an amount only the font knows.
+         */
+        private void centre(float middle, float middleY) {
             float left = middle - face.getLineWidth() / 2f;
-            shadow.setLocalTranslation(left + SHADOW, bottom - SHADOW,
+            float top = middleY + face.getLineHeight() / 2f;
+            shadow.setLocalTranslation(left + SHADOW, top - SHADOW,
                     shadow.getLocalTranslation().z);
-            face.setLocalTranslation(left, bottom, face.getLocalTranslation().z);
+            face.setLocalTranslation(left, top, face.getLocalTranslation().z);
         }
 
         private void show(boolean shown) {
@@ -392,29 +408,36 @@ final class UnitBars {
         at(bar.trough, barLeft, y);
         at(bar.fill, barLeft, y);
         at(bar.ticks, barLeft, y);
-        bar.count.centre(barLeft + width / 2f,
-                y + (look.height() - look.countSize()) / 2f + 1f);
+        bar.count.centre(barLeft + width / 2f, y + look.height() / 2f);
 
         float manaY = y - look.gap() - look.manaHeight();
         at(bar.manaEdge, barLeft - EDGE, manaY - EDGE);
         at(bar.manaTrough, barLeft, manaY);
         at(bar.manaFill, barLeft, manaY);
 
-        // Level in the middle of the disc, and the disc centred on the bar's own
-        // height rather than on the whole assembly: the mana bar comes and goes.
+        // ★ THE DISC IS CENTRED ON THE WHOLE BLOCK OF BARS, not on the health bar
+        // alone. It was on the health bar, which is right for a skeleton and
+        // wrong for anything with mana: the second bar hangs below the first, so
+        // the block's middle is lower than the first bar's, and the disc sat
+        // visibly high of the thing it belongs to. The two are read as one object
+        // and one of them being half a bar out is exactly the kind of wrongness
+        // that is felt before it is seen.
+        boolean pooled = bar.manaFill.getCullHint() != Spatial.CullHint.Always;
+        float foot = pooled ? manaY - EDGE : y - EDGE;
         float discX = x - whole / 2f + medallion / 2f;
-        float discY = y + look.height() / 2f;
+        float discY = (foot + y + look.height() + EDGE) / 2f;
         at(bar.back, discX, discY);
         at(bar.rim, discX, discY);
         at(bar.arc, discX, discY);
-        bar.level.centre(discX, discY - look.levelSize() / 2f + 1f);
+        bar.level.centre(discX, discY);
 
         // Under the CREATURE, not under the bar. The bar floats over its head and
         // a name hung off the bottom of that sits in the middle of the thing it
         // names; at its feet there is nothing else, and the eye reads downward
         // from the bar, past the creature, to what it is called.
         if (bar.lettered != null) {
-            bar.lettered.centre(x, footY - 4f - look.nameSize(bar.lettered == bar.bossName));
+            bar.lettered.centre(x, footY - 4f
+                    - look.nameSize(bar.lettered == bar.bossName) / 2f);
         }
     }
 
