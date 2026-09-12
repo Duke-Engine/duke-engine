@@ -103,9 +103,20 @@ public final class DungeonRun {
      */
     private String heroTemplate;
 
+    /**
+     * What he has put his levels into.
+     *
+     * <p>Held here so that it can be wiped when a run ends, which is the whole of
+     * why the run owns it rather than the hero: a roguelike keeps nothing, and a
+     * build is the most valuable thing there is to keep.
+     */
+    private final uz.duke.dungeon.skill.SkillRanks learnt;
+
     public DungeonRun(GamePlayer heroPlayer, GamePlayer dungeonPlayer, Floors floors,
             DungeonSettings settings, HeroProgress progress, PowerChoice powers,
-            LootTable drops, uz.duke.dungeon.ai.Orders orders) {
+            LootTable drops, uz.duke.dungeon.ai.Orders orders,
+            uz.duke.dungeon.skill.SkillRanks learnt) {
+        this.learnt = learnt;
         this.orders = orders;
         this.heroPlayer = heroPlayer;
         this.dungeonPlayer = dungeonPlayer;
@@ -141,9 +152,17 @@ public final class DungeonRun {
     public void startWith(DukeGame game, String template) {
         heroTemplate = template;
         progress.playing(template, settings.heroNamed(template).armourPercent());
+        // His four, none of them learnt. A knight cannot inherit a mage's points,
+        // and a second run cannot inherit the first one's.
+        learnt.startWith(settings.skillsFor(template));
         if (game.getLogic() != null) {
             begin(game);
         }
+    }
+
+    /** What he has learnt, for the panel and for whatever spends a level. */
+    public uz.duke.dungeon.skill.SkillRanks getLearnt() {
+        return learnt;
     }
 
     /**
@@ -305,7 +324,7 @@ public final class DungeonRun {
             game.setStatus(HeroStatus.of(Skills.heroOf(game.getLogic(), heroPlayer.getIndex()),
                     progress, depth, floors.lastDepth(), settings, powers,
                     game.getLogic().getFrame(), look,
-                    orders.isHolding(heroPlayer.getIndex())));
+                    orders.isHolding(heroPlayer.getIndex()), learnt));
             return;
         }
         if (creature != null && !creature.isEffectivelyDead()) {

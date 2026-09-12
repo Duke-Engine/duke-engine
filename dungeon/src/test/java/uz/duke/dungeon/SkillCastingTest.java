@@ -365,7 +365,8 @@ class SkillCastingTest {
      */
     @Test
     void theUltimateMakesHisSkillsHitHarderToo() {
-        int level = skillNamed('R').unlockLevel();
+        // The rank he has put into his ultimate, which for this test is its first.
+        int level = 1;
 
         assertTrue(damageFrom('Q', level, true) > damageFrom('Q', level, false),
                 "the strike should have been worth more inside the window");
@@ -681,16 +682,23 @@ class SkillCastingTest {
     // ---- levels ----
 
     /** An ultimate is refused below its level and granted at it. */
+    /**
+     * A skill nobody has put a point into cannot be cast.
+     *
+     * <p>What the ultimate's old level gate became. A skill's "level" is now the
+     * rank the player spent on it rather than the level the hero happens to be,
+     * so nothing at all is the honest answer for three of his four slots at the
+     * start of every run — and a refused cast must leave the cooldown alone, or
+     * pressing a key he has not learnt would cost him the one he has.
+     */
     @Test
-    void theUltimateWaitsForItsLevel() {
+    void anUnlearntSkillCannotBeCast() {
         var arena = arena(SETTINGS);
-        var r = SETTINGS.skillsFor("Rogue").stream()
-                .filter(skill -> skill.key() == 'R').findFirst().orElseThrow();
 
-        assertFalse(arena.book().cast('R', r.unlockLevel() - 1), "one level short");
+        assertFalse(arena.book().cast('R', 0), "nothing has been put into it");
         assertEquals(0, arena.book().cooldownOf('R'),
                 "and a refused cast must not start the cooldown");
-        assertTrue(arena.book().cast('R', r.unlockLevel()));
+        assertTrue(arena.book().cast('R', 1), "one point in it, and it goes off");
     }
 
     /** A levelled hero's skills hit harder, by the file's own step. */
@@ -796,6 +804,9 @@ class SkillCastingTest {
         var hero = creature(game, "Rogue");
         var from = hero.getPosition();
 
+        // Bought before it can be cast. A level is a point now, and a hero at
+        // his first level has exactly one -- see SkillRanks.
+        learn(game, 'E');
         game.postCommand(new CastSkill(game.getLocalPlayerIndex(), 'E'));
         game.runHeadless(3);
 
@@ -826,6 +837,7 @@ class SkillCastingTest {
                 .limit(2).toList();
         assertEquals(2, skeletons.size(), "this floor should have two to choose between");
 
+        learn(game, 'Q'); // a skill is spent on before it can be cast
         var nearer = skeletons.get(0);
         var chosen = skeletons.get(1);
         nearer.setPosition(new Coord3D(hero.getPosition().x() + 25f, hero.getPosition().y(), 0f));
@@ -1032,12 +1044,34 @@ class SkillCastingTest {
         var session = Dungeon.newSession(11L, SETTINGS);
         var game = session.game();
         game.runHeadless(2);
-        for (var key : new char[] {'Q', 'W', 'E', 'Q', 'W'}) {
+        // Bought before cast, and bought in BOTH runs: what is being compared is
+        // the casting, so spending the points has to happen either way or the
+        // difference would be the shopping rather than the skills.
+        // ★ ONE skill, and his dash. He has exactly one point at his first level,
+        // so a run that cast all four would be casting three he does not own --
+        // and "nothing happened" is the same world twice, which is this test
+        // passing for the wrong reason. The dash is the one whose effect cannot
+        // be mistaken for luck: it moves him, every time, with nothing else in
+        // the room required.
+        learn(game, 'E');
+        for (int press = 0; press < 5; press++) {
             if (cast) {
-                game.postCommand(new CastSkill(game.getLocalPlayerIndex(), key));
+                game.postCommand(new CastSkill(game.getLocalPlayerIndex(), 'E'));
             }
             game.runHeadless(40);
         }
         return game.getLogic().checksum();
+    }
+
+    /**
+     * Spend a point on a slot, through the queue, the way a click does.
+     *
+     * <p>Only one is ever available at the first level, so this is "the one skill
+     * he starts with" rather than a way to hand him a finished build.
+     */
+    private static void learn(uz.duke.game.DukeGame game, char key) {
+        game.postCommand(new uz.duke.dungeon.skill.UpgradeSkill(
+                game.getLocalPlayerIndex(), key));
+        game.runHeadless(1);
     }
 }

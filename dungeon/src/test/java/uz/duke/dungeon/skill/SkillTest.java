@@ -18,7 +18,7 @@ class SkillTest {
 
     private static Skill skill(float damage, float perLevel, int cooldown, int cooldownPerLevel) {
         return new Skill("Rogue", 'Q', SkillEffect.STRIKE, damage, perLevel, 0f, 40f, 0f, 0f,
-                0, 0, 0, 0, 0, cooldown, cooldownPerLevel, 1, 0, "", "", "");
+                0, 0, 0, 0, 0, cooldown, cooldownPerLevel, 4, 0, 0, "", "", "");
     }
 
     /** Level one is the file as written: a skill is not the file minus a level. */
@@ -81,14 +81,34 @@ class SkillTest {
     }
 
     /** An ultimate is a skill with a level on it, and nothing else. */
+    /**
+     * An ultimate's ranks wait for the hero, one gate apiece.
+     *
+     * <p>A multiple rather than a list of levels: "4" says the first at 4, the
+     * second at 8 and the third at 12, and a fourth would be at 16 if it had one.
+     * It is also the ONLY thing that makes a skill an ultimate — there is no flag
+     * beside it that could disagree with it.
+     */
     @Test
-    void anUltimateIsLockedUntilItsLevel() {
+    void anUltimateGrowsIntoItsRanks() {
         var r = new Skill("Rogue", 'R', SkillEffect.EMPOWER, 0f, 0f, 0f, 0f, 0f, 0f,
-                80, 12, 180, 0, 0, 900, -30, 5, 0, "", "", "");
+                80, 12, 180, 0, 0, 900, -30, 3, 4, 0, "", "", "");
 
-        assertFalse(r.unlockedAt(4));
-        assertTrue(r.unlockedAt(5));
-        assertTrue(r.unlockedAt(9), "and stays unlocked");
+        assertTrue(r.isUltimate());
+        assertEquals(4, r.levelForRank(1));
+        assertEquals(8, r.levelForRank(2));
+        assertEquals(12, r.levelForRank(3));
+        assertEquals(3, r.maxRank());
+    }
+
+    /** And an ordinary skill waits for nothing but a point. */
+    @Test
+    void anOrdinarySkillWaitsForNothing() {
+        var q = skill(10f, 2f, 60, 0);
+
+        assertFalse(q.isUltimate());
+        assertEquals(1, q.levelForRank(1), "the first level is no wait at all");
+        assertEquals(1, q.levelForRank(4), "and neither is the fourth");
     }
 
     // ---- what the shipped file actually says ----
@@ -119,7 +139,7 @@ class SkillTest {
     @Test
     void oneOfThemIsAnUltimate() {
         var locked = DungeonSettings.load().skillsFor("Rogue").stream()
-                .filter(skill -> skill.unlockLevel() > 1)
+                .filter(skill -> skill.isUltimate())
                 .toList();
 
         assertEquals(1, locked.size());

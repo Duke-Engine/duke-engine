@@ -23,14 +23,25 @@ public final class Skills {
      * that has skills" is unambiguous in a dungeon; where it would not be, the
      * first in creation order wins, which is an order every peer agrees on.
      */
-    public static boolean cast(GameLogic logic, CastSkill order, int level) {
+    public static boolean cast(GameLogic logic, CastSkill order, int rank) {
         var hero = heroOf(logic, order.playerIndex());
         if (hero == null) {
             return false;
         }
         var book = hero.findModule(SkillBook.class);
         return book != null
-                && book.cast(order.key(), level, order.target(), order.point());
+                && book.cast(order.key(), rank, order.target(), order.point());
+    }
+
+    /**
+     * Spend a level on a slot, if the rules allow it this instant.
+     *
+     * <p>Asked again here rather than trusted from the click: the panel drew its
+     * button off a snapshot that was already a frame old, and a point spent
+     * twice is a point that came from nowhere.
+     */
+    public static boolean raise(SkillRanks ranks, UpgradeSkill order, int heroLevel) {
+        return ranks.raise(order.key(), heroLevel);
     }
 
     /** The player's living unit that has skills, in creation order. */
@@ -64,22 +75,37 @@ public final class Skills {
      * <p>{@code rankSuffix} is the game's word for a level, so that a locked slot
      * can say what it is waiting for in the same language as the rest of the panel.
      */
-    public static String slots(SkillBook book, int level, String rankSuffix,
-            java.util.function.UnaryOperator<String> iconPath) {
+    public static String slots(SkillBook book, SkillRanks ranks, int heroLevel,
+            String rankSuffix, java.util.function.UnaryOperator<String> iconPath) {
         var fields = new StringBuilder();
         for (var skill : book.getSkills()) {
+            int rank = ranks.rankOf(skill.key());
             fields.append("|skill=").append(skill.key()).append(',')
                     .append(iconPath.apply(skill.icon())).append(',');
-            if (!skill.unlockedAt(level)) {
-                fields.append("lock,").append(skill.unlockLevel()).append(rankSuffix);
-                continue;
-            }
-            int left = book.cooldownOf(skill.key());
-            if (left <= 0) {
-                fields.append("ready");
+            if (rank <= SkillRanks.UNLEARNT) {
+                // Nothing spent on it. An ultimate says what it is waiting for;
+                // an ordinary skill is waiting for nothing but a point, so it
+                // says nothing and the button beside it is the whole story.
+                fields.append("lock");
+                if (skill.isUltimate()) {
+                    fields.append(',').append(skill.levelForRank(1)).append(rankSuffix);
+                }
             } else {
-                fields.append("cool,").append(left).append(',').append(skill.cooldownAt(level));
+                int left = book.cooldownOf(skill.key());
+                if (left <= 0) {
+                    fields.append("ready");
+                } else {
+                    fields.append("cool,").append(left).append(',')
+                            .append(skill.cooldownAt(rank));
+                }
             }
+            // A field of its own rather than three more on the one above, which
+            // already has three shapes. What the panel needs to draw a button:
+            // what is in it, what fits in it, and whether the next point may go
+            // there right now.
+            fields.append("|rank=").append(skill.key()).append(',').append(rank)
+                    .append(',').append(skill.maxRank())
+                    .append(',').append(ranks.canRaise(skill.key(), heroLevel) ? "up" : "no");
         }
         return fields.toString();
     }

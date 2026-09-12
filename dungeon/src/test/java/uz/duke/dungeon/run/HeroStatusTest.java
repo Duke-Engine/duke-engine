@@ -137,14 +137,48 @@ class HeroStatusTest {
     void alockedSlotSaysWhatItWaitsFor() {
         var settings = DungeonSettings.load();
         var waiting = settings.skills().stream()
-                .filter(skill -> !skill.unlockedAt(1))
+                .filter(skill -> skill.isUltimate())
                 .findFirst().orElseThrow(() ->
-                        new AssertionError("nothing is locked at level one any more"));
+                        new AssertionError("nothing waits for a level any more"));
 
         assertTrue(lineFrom(5L).contains(
                         "|skill=" + waiting.key() + "," + settings.hudIcon(waiting.icon())
-                                + ",lock," + waiting.unlockLevel() + settings.hudRankSuffix()),
+                                + ",lock," + waiting.levelForRank(1) + settings.hudRankSuffix()),
                 "the locked slot should name its level the way the panel names them");
+    }
+
+    /**
+     * An ordinary slot nobody has bought says nothing about levels.
+     *
+     * <p>Because there is nothing to say: it waits for a POINT, not for a level,
+     * and the button beside it is the whole story. An ultimate is the other way
+     * and is the test above.
+     */
+    @Test
+    void anUnboughtOrdinarySlotNamesNoLevel() {
+        var settings = DungeonSettings.load();
+        var ordinary = settings.skillsFor(settings.playedHero()).stream()
+                .filter(skill -> !skill.isUltimate())
+                .findFirst().orElseThrow();
+
+        assertTrue(lineFrom(5L).contains(
+                        "|skill=" + ordinary.key() + "," + settings.hudIcon(ordinary.icon())
+                                + ",lock|"),
+                "an unbought ordinary slot should say 'lock' and stop there");
+    }
+
+    /** And every slot says what is in it, what fits, and whether a point may go there. */
+    @Test
+    void everySlotSaysWhatIsInIt() {
+        var settings = DungeonSettings.load();
+        var line = lineFrom(5L);
+
+        for (var skill : settings.skillsFor(settings.playedHero())) {
+            assertTrue(line.contains("|rank=" + skill.key() + ",0," + skill.maxRank() + ","),
+                    "no rank field for " + skill.key() + " in: " + line);
+        }
+        assertTrue(line.contains("|pts=1," + settings.hudPointsWord()),
+                "a hero at his first level has one point to spend: " + line);
     }
 
     /**

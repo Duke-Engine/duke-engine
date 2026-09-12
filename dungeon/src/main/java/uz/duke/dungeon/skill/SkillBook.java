@@ -296,7 +296,11 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
             return false;
         }
         var skill = skills.get(slot);
-        if (!skill.unlockedAt(level)) {
+        if (level < 1) {
+            // Unlearnt. The level handed in is what the player has PUT INTO this
+            // skill rather than what he has reached himself -- see SkillRanks --
+            // so nothing at all is the answer for three of his four slots at the
+            // start of every run.
             return false;
         }
         var owner = getOwner();

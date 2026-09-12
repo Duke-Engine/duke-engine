@@ -50,7 +50,14 @@ package uz.duke.dungeon.skill;
  *     is untouched by its existing
  * @param cooldownFrames how long before it can be cast again, at the first level
  * @param cooldownPerLevel  frames added per level — negative to sharpen with level
- * @param unlockLevel   the level it becomes usable at; an ultimate waits
+ * @param maxRank       how many points may go into it. Four for an ordinary
+ *     skill and three for an ultimate, which is what makes fifteen levels come
+ *     out exactly even across a hero's four
+ * @param levelPerRank  the hero level its Nth rank waits for, as a multiple:
+ *     4 means the first rank at level 4, the second at 8, the third at 12, and
+ *     0 means it waits for nothing but a point. It is also what MAKES a skill an
+ *     ultimate — there is no flag saying so, because "the one you have to grow
+ *     into" is the whole of what the word means here
  * @param windUpFrames  how long the caster spends preparing before it goes off —
  *     zero for a skill that is instant. A drawn shot has to be seen being drawn,
  *     or the monster simply loses health for no reason anyone can point at.
@@ -84,7 +91,8 @@ public record Skill(
         int slowFrames,
         int cooldownFrames,
         int cooldownPerLevel,
-        int unlockLevel,
+        int maxRank,
+        int levelPerRank,
         int windUpFrames,
         String projectile,
         String icon,
@@ -113,9 +121,25 @@ public record Skill(
         return Math.max(MIN_COOLDOWN_FRAMES, cooldownFrames + grown(level) * cooldownPerLevel);
     }
 
-    /** Whether a hero of this level may cast it at all. */
-    public boolean unlockedAt(int level) {
-        return level >= unlockLevel;
+    /**
+     * The hero level the {@code rank}-th point in this one waits for.
+     *
+     * <p>One for anything ungated, which is to say "as soon as you have a point
+     * to spend" — and level 1 is the first level, so that is no wait at all.
+     */
+    public int levelForRank(int rank) {
+        return levelPerRank <= 0 ? 1 : rank * levelPerRank;
+    }
+
+    /**
+     * Whether this is the one he has to grow into.
+     *
+     * <p>Asked of the numbers rather than of a flag beside them. A skill that
+     * waits for the hero to reach a level IS an ultimate, and a second flag
+     * saying so would be a second thing to keep in step with the first.
+     */
+    public boolean isUltimate() {
+        return levelPerRank > 0;
     }
 
     /** Whether it becomes something that has to cross the room to arrive. */

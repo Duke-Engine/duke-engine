@@ -188,7 +188,9 @@ class KnightTest {
         assertTrue(ultimate.lasts(), "his whirlwind lands once and is over");
         assertTrue(ultimate.durationFrames() > ultimate.tickFrames(),
                 "it lands once and calls itself lasting");
-        assertTrue(ultimate.unlockLevel() > 1, "an ultimate has to be earned");
+        assertTrue(ultimate.isUltimate(), "an ultimate has to be earned");
+        assertTrue(ultimate.maxRank() < skillOf(KNIGHT, 'Q').maxRank(),
+                "and it grows fewer times than an ordinary skill");
     }
 
     /** And his charge goes through what is in the way, where the archer's sprint does not. */
@@ -411,7 +413,8 @@ class KnightTest {
         var victim = find(game, "Skeleton");
 
         float full = victim.getBody().getHealth();
-        book.cast('R', ultimate.unlockLevel(), null, null);
+        // The rank he has put into it, which for a test is simply "he has it".
+        book.cast('R', 1, null, null);
         game.runHeadless(1);
         float afterFirst = victim.getBody().getHealth();
         game.runHeadless(ultimate.tickFrames() * 3);

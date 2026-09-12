@@ -107,6 +107,19 @@ public final class DungeonSettings {
     // ---- leveling ----
 
     private int maxLevel = 10;
+
+    /**
+     * How far the ordinary skills may drift apart, in ranks.
+     *
+     * <p>What stops one of them being taken four times running while the other
+     * two sit at nothing. See {@code SkillRanks}.
+     */
+    private int skillSpread = 2;
+
+    /** How far the ordinary skills may drift apart. See {@code SkillRanks}. */
+    public int skillSpread() {
+        return skillSpread;
+    }
     private int xpBase = 30;
     private int xpStep = 15;
     private int healthPerLevel = 20;
@@ -1035,7 +1048,8 @@ public final class DungeonSettings {
         int slowFrames;
         int cooldownFrames = 90;
         int cooldownPerLevel;
-        int unlockLevel = 1;
+        int maxRank = 4;
+        int levelPerRank;
         int windUpFrames;
         String projectile = "";
         String icon = "";
@@ -1049,7 +1063,8 @@ public final class DungeonSettings {
         Skill build() {
             return new Skill(heroTemplate, key, effect, damage, damagePerLevel, radius, range,
                     distance, hitWidth, boostPercent, boostPerLevel, durationFrames, tickFrames,
-                    slowFrames, cooldownFrames, cooldownPerLevel, unlockLevel, windUpFrames,
+                    slowFrames, cooldownFrames, cooldownPerLevel, maxRank, levelPerRank,
+                    windUpFrames,
                     projectile, icon, look);
         }
     }
@@ -1077,7 +1092,13 @@ public final class DungeonSettings {
                     .add("SlowFrames", Ini.integer((s, v) -> s.slowFrames = v))
                     .add("CooldownFrames", Ini.integer((s, v) -> s.cooldownFrames = v))
                     .add("CooldownPerLevel", Ini.integer((s, v) -> s.cooldownPerLevel = v))
-                    .add("UnlockLevel", Ini.integer((s, v) -> s.unlockLevel = v))
+                    // How many points may go into it -- four for an ordinary
+                    // skill, three for an ultimate.
+                    .add("MaxRank", Ini.integer((s, v) -> s.maxRank = v))
+                    // And the hero level its Nth rank waits for, as a multiple:
+                    // 4 is "first at 4, second at 8, third at 12". Naming it at
+                    // all is what makes a skill an ultimate.
+                    .add("LevelPerRank", Ini.integer((s, v) -> s.levelPerRank = v))
                     .add("WindUpFrames", Ini.integer((s, v) -> s.windUpFrames = v))
                     .add("Projectile", Ini.string((s, v) -> s.projectile = v))
                     .add("Icon", Ini.string((s, v) -> s.icon = v))
@@ -2264,6 +2285,15 @@ public final class DungeonSettings {
 
     private String hudMonsterFace = "";
     private String hudSkillsWord = "";
+
+    /**
+     * What an unspent level is called, beside the skill heading.
+     *
+     * <p>A word rather than a number's label, for the same reason every other word
+     * on the panel is here: the client serves three other games and has no
+     * business knowing which language this one speaks.
+     */
+    private String hudPointsWord = "";
     private String hudItemsWord = "";
     private String hudHeroTitle = "";
     private String hudMoveWord = "";
@@ -2282,6 +2312,10 @@ public final class DungeonSettings {
     /** The heading over the skill row. */
     public String hudSkillsWord() {
         return hudSkillsWord;
+    }
+
+    public String hudPointsWord() {
+        return hudPointsWord;
     }
 
     /** The heading over his bag. */
@@ -2334,6 +2368,7 @@ public final class DungeonSettings {
                     .add("SpeedWord", Ini.restOfLine((s, v) -> s.hudSpeedWord = v))
                     .add("MonsterFace", Ini.string((s, v) -> s.hudMonsterFace = v))
                     .add("SkillsWord", Ini.restOfLine((s, v) -> s.hudSkillsWord = v))
+                    .add("PointsWord", Ini.restOfLine((s, v) -> s.hudPointsWord = v))
                     .add("ItemsWord", Ini.restOfLine((s, v) -> s.hudItemsWord = v))
                     .add("HeroTitle", Ini.restOfLine((s, v) -> s.hudHeroTitle = v))
                     .add("CmdMoveWord", Ini.restOfLine((s, v) -> s.hudMoveWord = v))
@@ -2499,6 +2534,7 @@ public final class DungeonSettings {
     private static final FieldParseTable<DungeonSettings> LEVELLING =
             new FieldParseTable<DungeonSettings>()
                     .add("MaxLevel", Ini.integer((s, v) -> s.maxLevel = v))
+                    .add("SkillSpread", Ini.integer((s, v) -> s.skillSpread = v))
                     .add("XpBase", Ini.integer((s, v) -> s.xpBase = v))
                     .add("XpStep", Ini.integer((s, v) -> s.xpStep = v))
                     .add("HealthPerLevel", Ini.integer((s, v) -> s.healthPerLevel = v))

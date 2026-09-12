@@ -185,7 +185,7 @@ final class HeroStatus {
      */
     static String of(GameObject hero, HeroProgress progress, int depth, int lastDepth,
             DungeonSettings settings, PowerChoice powers, int frame, String look,
-            boolean holding) {
+            boolean holding, uz.duke.dungeon.skill.SkillRanks learnt) {
         if (hero == null || hero.getBody() == null) {
             return "";
         }
@@ -206,7 +206,13 @@ final class HeroStatus {
         var book = hero.findModule(SkillBook.class);
         if (book != null) {
             line.append("|skWord=").append(settings.hudSkillsWord());
-            line.append(Skills.slots(book, level, settings.hudRankSuffix(), settings::hudIcon));
+            line.append(Skills.slots(book, learnt, level, settings.hudRankSuffix(),
+                    settings::hudIcon));
+            // How many levels he has not spent yet, and the word for them. Beside
+            // the heading rather than on a slot, because it belongs to none of
+            // them: it is what the four are competing for.
+            line.append("|pts=").append(learnt.unspent(level))
+                    .append(',').append(settings.hudPointsWord());
             appendCast(line, book);
         }
         appendPowers(line, powers, settings);

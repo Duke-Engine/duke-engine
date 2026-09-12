@@ -281,6 +281,11 @@ public final class Dungeon {
         // The book is built before the world because the hero's modules read it:
         // his skills ask it what they hit for, and his arrows what they give back.
         var book = new PowerBook(settings.powerMinCooldownPercent());
+        // What he has put his levels into. Beside the power book and for the same
+        // reason: a floor gives him a fresh body and a fresh SkillBook, so what he
+        // has learnt has to live somewhere that outlives both.
+        var learnt = new uz.duke.dungeon.skill.SkillRanks(settings.skillSpread());
+        learnt.startWith(settings.skillsFor(settings.playedHero()));
         var bag = new LootBag();
         var arena = world(floor.asciiMap(), floor.levelMap(), settings,
                 Content.read(Content.CREATURES), book, bag);
@@ -299,14 +304,22 @@ public final class Dungeon {
         // the same one offers the same three at the same levels.
         var powers = new PowerChoice(book, settings.powers(), seed, settings.powerOfferCount());
         var run = new DungeonRun(arena.hero(), arena.dungeon(), floors, settings, progress, powers,
-                drops, arena.orders());
+                drops, arena.orders(), learnt);
 
         // Q, W, E and R arrive as this game's own command, through the same queue
         // the standard orders use — so a keypress lands on a frame boundary and is
         // recorded, rather than reaching into the simulation from the input thread.
         game.onCommand(command -> {
             switch (command) {
-                case CastSkill cast -> Skills.cast(game.getLogic(), cast, progress.getLevel());
+                // The rank he has PUT INTO it, not the level he has reached. Four
+                // slots that were all as strong as the hero are now four that
+                // compete for his levels -- see SkillRanks.
+                case CastSkill cast -> Skills.cast(game.getLogic(), cast,
+                        learnt.rankOf(cast.key()));
+                // And spending one of those levels, which is a click on the little
+                // button beside a slot.
+                case uz.duke.dungeon.skill.UpgradeSkill raise ->
+                        Skills.raise(learnt, raise, progress.getLevel());
                 // Picking a card is an order like any other: it lands on a frame
                 // boundary rather than reaching in from whatever drew the screen.
                 case ChoosePower choice -> powers.choose(choice.index(), choice.offerId(),
