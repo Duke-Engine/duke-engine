@@ -198,6 +198,83 @@ final class HeroStatus {
      * word in the file: a standing order lives beside the brain that obeys it —
      * see {@code uz.duke.dungeon.ai.Orders} — and has to be carried in from there.
      */
+    /**
+     * What the bars over everybody's heads need, which is not much.
+     *
+     * <p>Appended to whichever card is being sent, because it is about the FLOOR
+     * rather than about whatever is selected: the bars are drawn over every
+     * creature in sight whether or not the player has clicked on one.
+     *
+     * <p><b>Why it is here and not in {@code UnitView}.</b> The snapshot already
+     * carries what a bar mostly needs — where a creature is, whose it is, and
+     * what is left of it. What it does not carry is a level, a pool of mana, a
+     * name worth printing, or which of them is the boss, and adding four fields
+     * to the engine's own view would put one game's vocabulary in a record three
+     * other games are handed. The status channel is the seam that exists for
+     * exactly this: a string the engine carries and never reads.
+     *
+     * <p><b>And it collapses.</b> Written per creature this would be a line of
+     * fifty entries rebuilt thirty times a second. It is not, because none of the
+     * four facts is really per creature:
+     *
+     * <ul>
+     * <li>the level is the DEPTH — one number for the whole floor. A monster is
+     *     scaled by it (see {@code Spawner.scale}) and a stage's difficulty is
+     *     defined as it (see {@code Stage}), so it is not a stand-in for a level,
+     *     it <em>is</em> the level
+     * <li>the boss is one id
+     * <li>the name belongs to the TEMPLATE, so it is a dictionary of about a
+     *     dozen rather than one entry a creature
+     * <li>and mana belongs to a {@code SkillBook}, which in this game only a hero
+     *     has — so it is one entry, and it would still be one entry if a monster
+     *     were given skills tomorrow
+     * </ul>
+     *
+     * <p>The ring around the hero's medallion is his experience, and only his:
+     * he is the only thing in the game that earns any. An empty ring on a
+     * skeleton would be a promise that it could fill.
+     */
+    static String world(uz.duke.core.GameLogic logic, GameObject hero, HeroProgress progress,
+            int depth, uz.duke.core.thing.ObjectId bossId, DungeonSettings settings) {
+        var line = new StringBuilder("|deep=").append(depth);
+        if (bossId != null) {
+            line.append("|boss=").append(bossId.value());
+        }
+        if (hero != null && progress != null) {
+            var book = hero.findModule(SkillBook.class);
+            line.append("|hero=").append(hero.getId().value())
+                    .append(',').append(progress.getLevel())
+                    .append(',').append(book == null ? 0 : book.getMana())
+                    .append(',').append(book == null ? 0 : book.getMaxMana())
+                    .append(',').append(progress.getExperienceIntoLevel())
+                    .append(',').append(progress.getExperienceForNextLevel());
+        }
+        // The dictionary. Every kind the file names rather than every creature in
+        // sight: the same dozen entries whatever is on the floor, and no work at
+        // all that depends on how busy the fight is.
+        for (var kind : settings.monsters()) {
+            named(line, logic, kind.name());
+        }
+        for (var look : settings.heroes()) {
+            named(line, logic, look.name());
+        }
+        return line.toString();
+    }
+
+    /** One template's printed name, skipped when it has none worth printing. */
+    private static void named(StringBuilder line, uz.duke.core.GameLogic logic,
+            String template) {
+        var found = logic.getThingFactory().findTemplate(template);
+        if (found == null) {
+            return;
+        }
+        var display = found.getDisplayName();
+        if (display == null || display.isBlank() || display.equals(template)) {
+            return; // nothing the client could not have worked out from the name
+        }
+        line.append("|who=").append(template).append(',').append(display);
+    }
+
     static String of(GameObject hero, HeroProgress progress, int depth, int lastDepth,
             DungeonSettings settings, PowerChoice powers, int frame, String look,
             boolean holding, uz.duke.dungeon.skill.SkillRanks learnt) {

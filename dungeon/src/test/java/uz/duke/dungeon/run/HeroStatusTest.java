@@ -376,4 +376,114 @@ class HeroStatusTest {
                     + power.description()), power.id() + " missing from " + line);
         }
     }
+
+    // ---- the floor's own half, which is not about whatever is selected ----
+
+    /**
+     * The bars over everybody's heads are fed whatever is under the thumb.
+     *
+     * <p>Three cards can be sent — the hero's, somebody else's creature, and the
+     * empty one — and the floor's fields have to ride all three, because the bars
+     * are drawn over every creature in sight whether the player has clicked on
+     * anything or not. The first version appended them inside one branch and the
+     * bars went out whenever a skeleton was selected.
+     */
+    @Test
+    void theFloorsOwnFieldsRideEveryCardThereIs() {
+        var session = Dungeon.newSession(4321L);
+        var game = session.game();
+        game.runHeadless(2);
+
+        var nothingSelected = game.getSnapshot().status();
+        pickOutTheHero(session);
+        game.runHeadless(2);
+        var heroSelected = game.getSnapshot().status();
+        pickOutSomethingElse(session);
+        game.runHeadless(2);
+        var monsterSelected = game.getSnapshot().status();
+
+        for (var line : new String[] {nothingSelected, heroSelected, monsterSelected}) {
+            assertTrue(line.contains("|deep="), "no floor on: " + line);
+            assertTrue(line.contains("|hero="), "no hero on: " + line);
+            assertTrue(line.contains("|boss="), "no boss on: " + line);
+        }
+    }
+
+    /**
+     * The depth on the line is the number, not the numeral.
+     *
+     * <p>{@code depth=} is already there and is {@code III / IV} — finished words
+     * for the corner of the panel, which is the rule for everything the client
+     * draws as lettering. The medallion over a monster needs it as a figure it can
+     * count with, since a monster's level IS the depth it is fought at.
+     */
+    @Test
+    void theFloorIsSentAsAFigureAsWellAsAsWords() {
+        var session = Dungeon.newSession(4321L);
+        session.game().runHeadless(2);
+
+        var line = session.game().getSnapshot().status();
+        assertTrue(line.contains("|deep=1"), line);
+        assertTrue(line.contains("|depth=I / IV"), "and the words are still there: " + line);
+    }
+
+    /**
+     * His pool rides the floor's half, so the bar under him is drawn while
+     * somebody else is selected.
+     *
+     * <p>Separate from the {@code mana=} on his own card, which is the panel's and
+     * goes when he is not the one selected. The two carry the same figures and
+     * answer different questions: one is the bar at the bottom of the screen, the
+     * other is the thin bar over his head in the middle of a fight.
+     */
+    @Test
+    void hisPoolIsOnTheLineWhileSomethingElseIsSelected() {
+        var session = Dungeon.newSession(4321L);
+        var game = session.game();
+        game.runHeadless(2);
+        pickOutSomethingElse(session);
+        game.runHeadless(2);
+
+        var line = game.getSnapshot().status();
+        assertFalse(line.contains("|mana="), "the card is the skeleton's: " + line);
+        var hero = line.substring(line.indexOf("|hero=") + 6);
+        hero = hero.contains("|") ? hero.substring(0, hero.indexOf('|')) : hero;
+        assertEquals(6, hero.split(",").length, "id, level, mana, pool, xp, needed: " + hero);
+        assertTrue(Integer.parseInt(hero.split(",")[3]) > 0, "he holds a pool: " + hero);
+    }
+
+    /**
+     * A printed name is sent once per KIND, and only when it says something the
+     * template name does not.
+     *
+     * <p>Both halves matter and both are about the size of the line. Per kind
+     * rather than per creature, so a floor of forty skeletons costs one entry;
+     * and skipped when the two agree, which is every monster in the file today —
+     * the client falls back to the template name and gets the same word.
+     */
+    @Test
+    void aPrintedNameIsSentPerKindAndOnlyWhenItAddsSomething() {
+        var session = Dungeon.newSession(4321L);
+        session.game().runHeadless(2);
+
+        var line = session.game().getSnapshot().status();
+        assertTrue(line.contains("|who=Rogue,Erika"), line);
+        assertFalse(line.contains("|who=Runner"),
+                "Runner is printed Runner; sending that is sending nothing: " + line);
+        assertEquals(DungeonSettings.load().heroes().size(),
+                line.split("\\|who=", -1).length - 1,
+                "one entry per kind that renames itself, and today that is the heroes");
+    }
+
+    /** Somebody else's creature, picked out the way a click does. */
+    private static void pickOutSomethingElse(Dungeon.Session session) {
+        var hero = session.game().getLogic().getObjects().stream()
+                .filter(o -> o.getTemplate().getName().equals("Rogue"))
+                .findFirst().orElseThrow();
+        var other = session.game().getLogic().getObjects().stream()
+                .filter(o -> o.getPlayerIndex() != hero.getPlayerIndex())
+                .filter(o -> o.getBody() != null)
+                .findFirst().orElseThrow();
+        session.orders().watch(hero.getPlayerIndex(), other.getId());
+    }
 }

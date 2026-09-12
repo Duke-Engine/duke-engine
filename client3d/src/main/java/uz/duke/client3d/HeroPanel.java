@@ -3093,6 +3093,15 @@ final class HeroPanel {
                     // the line is one line: see "look" above.
                     case "cast" -> { }
                     case "look" -> { }
+                    // The floor, and what is over everybody else's head. Nothing
+                    // on the panel either, and read by UnitBars off the same
+                    // line: see "look" above. The panel has to KNOW them all the
+                    // same, since one field it does not recognise is the whole
+                    // line refused as somebody else's game.
+                    case "deep" -> { }
+                    case "boss" -> { }
+                    case "hero" -> { }
+                    case "who" -> { }
                     default -> {
                         return null; // a field this client does not know: not ours
                     }

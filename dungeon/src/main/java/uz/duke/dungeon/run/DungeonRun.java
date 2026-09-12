@@ -318,29 +318,40 @@ public final class DungeonRun {
      * the run has a screen of its own for what happens next.
      */
     private void showStatus(DukeGame game) {
+        game.setStatus(card(game) + HeroStatus.world(game.getLogic(),
+                Skills.heroOf(game.getLogic(), heroPlayer.getIndex()), progress, depth,
+                bossId, settings));
+    }
+
+    /**
+     * The card itself — the panel's half of the line, about whatever is selected.
+     *
+     * <p>Split from the floor's half above because the two answer different
+     * questions. This one changes with every click; the bars over everybody's
+     * heads are drawn whether anything is selected or not.
+     */
+    private String card(DukeGame game) {
         var picked = orders.watchedBy(heroPlayer.getIndex());
         var creature = picked == null ? null : game.getLogic().findObject(picked);
         boolean his = creature != null && creature.getPlayerIndex() == heroPlayer.getIndex();
         if (his && Skills.heroOf(game.getLogic(), heroPlayer.getIndex()) == creature) {
-            game.setStatus(HeroStatus.of(Skills.heroOf(game.getLogic(), heroPlayer.getIndex()),
+            return HeroStatus.of(Skills.heroOf(game.getLogic(), heroPlayer.getIndex()),
                     progress, depth, floors.lastDepth(), settings, powers,
                     game.getLogic().getFrame(), look,
-                    orders.isHolding(heroPlayer.getIndex()), learnt));
-            return;
+                    orders.isHolding(heroPlayer.getIndex()), learnt);
         }
         if (creature != null && !creature.isEffectivelyDead()) {
             // Somebody else's creature, or one of his that is not the hero: the
             // card describes it, and the buttons are live only if he could give it
             // an order.
-            game.setStatus(HeroStatus.creature(creature, depth, floors.lastDepth(), settings,
-                    look, his));
-            return;
+            return HeroStatus.creature(creature, depth, floors.lastDepth(), settings,
+                    look, his);
         }
         // Nothing selected, or what was selected has died: the bar keeps the floor
         // and loses the creature. A panel describing a corpse until the player
         // thinks to click somewhere is a panel that looks broken.
-        game.setStatus(HeroStatus.nothing(depth, floors.lastDepth(), settings,
-                progress.getLoot().noteAt(game.getLogic().getFrame()), look));
+        return HeroStatus.nothing(depth, floors.lastDepth(), settings,
+                progress.getLoot().noteAt(game.getLogic().getFrame()), look);
     }
 
     /**
