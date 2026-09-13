@@ -414,6 +414,13 @@ final class TerrainScene {
                 plan.add(standing);
                 continue;
             }
+            if (placement.piece() == TileLayout.Piece.LEDGE
+                    && rockFacedBy(placement, grid, cell) < 0) {
+                // A ledge facing off the edge of the map is the outside of the
+                // world. Nobody stands there to see it, and a wood's whole border
+                // would be faced, storey by storey, for nothing.
+                continue;
+            }
             if (topOfTheRockAt(placement, grid, cell) + proud > placement.ground() + 0.001f) {
                 plan.add(new Standing(TileLayout.Piece.ROCK_FACE, placement.cellX(),
                         placement.cellY(), placement.x(), placement.z(), placement.yaw(),
@@ -446,9 +453,19 @@ final class TerrainScene {
      * <p>The rock it faces, where there is rock; the floor it holds up, where
      * there is not. Both are steps the face has to cover, and the second is the
      * edge of a raised terrace with no stone in it at all.
+     *
+     * <p>And a ledge is the side of its <em>own</em> rock. It stands where one lid of
+     * rock is roofed higher than the rock beside it, and faces the lower one -- so
+     * read against the rock it faces, its top was that lower lid, which is its own
+     * foot, and it was never above anything. Every step between two lids went
+     * undrawn: a row of trees at the foot of a raised block, and above them the
+     * block's side open onto the dark.
      */
     private static float topOfTheRockAt(TileLayout.Placement placement, PathGrid grid,
             float cell) {
+        if (placement.piece() == TileLayout.Piece.LEDGE) {
+            return highestFloorAround(grid, placement.cellX(), placement.cellY());
+        }
         int rock = rockFacedBy(placement, grid, cell);
         if (rock >= 0) {
             return highestFloorAround(grid, rock % grid.getWidth(), rock / grid.getWidth());

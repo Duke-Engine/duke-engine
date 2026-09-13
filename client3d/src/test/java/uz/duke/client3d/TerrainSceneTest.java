@@ -865,12 +865,17 @@ class TerrainSceneTest {
      * what you cannot walk into is a tree line, not a wall — so facing those too
      * would run a stone kerb round the whole forest.
      *
-     * <p>Four, and which four is the point: the corridor on this map is three
-     * cells wide by four deep and only its <em>east</em> side has anything raised
-     * behind it — the column of rock holding up the room a storey above. The other
+     * <p>Six, and which six is the point: the corridor on this map is three cells
+     * wide by four deep and only its <em>east</em> side has anything raised behind
+     * it — the column of rock holding up the room a storey above. That column runs
+     * on through the border rock at both ends of the corridor, where it stands a
+     * storey above the tree line beside it, and that step is a face as well: four
+     * along the corridor and one at each end of it. (It was four while the step
+     * between two lids of rock was never drawn, which was the fault.) The other
      * three sides are rock lying at the corridor's own height, which is a wood, and
-     * they get nothing. The count is a stand-in for that sentence, so it is worth
-     * checking against the map rather than against the last run.
+     * they get nothing; nor does the outside of the map. The count is a stand-in for
+     * that sentence, so it is worth checking against the map rather than against the
+     * last run.
      */
     @Test
     void andNotWhereTheRockIsLevelWithTheFloorBesideIt() {
@@ -878,14 +883,63 @@ class TerrainSceneTest {
                 .filter(piece -> piece.getLocalTranslation().y < 0.001f)
                 .toList();
 
-        assertEquals(4, onTheGround.size(), "the four cells of the corridor's east side,"
-                + " and no kerb round the rest of it — got " + onTheGround.size());
+        assertEquals(6, onTheGround.size(), "the corridor's east side and one step at each"
+                + " end of it, and no kerb round the rest of it — got " + onTheGround.size());
         for (var face : onTheGround) {
             assertEquals(4f * 10f + 1.25f, face.getLocalTranslation().x, 0.01f,
-                    "all four on the boundary with the rock that holds the upper room up,"
+                    "all six on the boundary with the rock that holds the upper room up,"
                             + " and set INTO the rock by half the slab, so the face itself"
                             + " lands on the line the player is stopped at");
         }
+    }
+
+    /**
+     * A corridor on the ground, a room two storeys up, and two columns of rock
+     * between them: the one beside the corridor lies at the corridor's height — a
+     * tree line — and the one beside the room is roofed with the room.
+     */
+    private static final String ROCK_STEP = """
+            #########
+            #00##222#
+            #00##222#
+            #00##222#
+            #########
+            """;
+
+    /**
+     * The step between two lids of rock is drawn, as well as the step between a
+     * floor and the rock beside it.
+     *
+     * <p>The fault as it was seen: a row of trees at the foot of a raised block,
+     * and above them the block's side open onto the dark — while the same block
+     * beside an empty floor was faced as it should be. The layout names that step a
+     * ledge and always did. The renderer asked how high a ledge reaches of the rock
+     * it faces, which is the lower lid and its own foot, so it was never above
+     * anything and nothing was drawn.
+     */
+    @Test
+    void theStepBetweenTwoLidsOfRockIsDrawnToo() {
+        var grid = MapLoader.fromText(ROCK_STEP);
+        MapLoader.levels(grid, ROCK_STEP);
+        grid.setLevelHeight(10f);
+        var root = new Node("terrain");
+        new TerrainScene(root, color -> null, true, forestLike().rockFace("face"),
+                new StubTilesWithFace()).rebuild(grid);
+        float cell = grid.getCellSize();
+
+        var step = pieces(root, "face").stream()
+                .filter(piece -> Math.abs(piece.getLocalTranslation().x - (4f * cell + 1.25f)) < 0.01f)
+                .filter(piece -> piece.getLocalTranslation().z > cell
+                        && piece.getLocalTranslation().z < 4f * cell)
+                .toList();
+        var feet = step.stream()
+                .map(piece -> Math.round(piece.getLocalTranslation().y / 10f))
+                .distinct().sorted().toList();
+
+        assertEquals(java.util.List.of(0, 1), feet,
+                "the taller rock's side, from the tree line's lid up to its own, a storey at a time");
+        assertEquals(6, step.size(), "three rows of the step, faced at both storeys it stands"
+                + " -- got " + step.size());
     }
 
     /** A kit that names no rock face is drawn exactly as it was. */
