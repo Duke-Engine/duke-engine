@@ -1990,6 +1990,13 @@ public final class DungeonSettings {
         return hitFlashStrength;
     }
 
+    private float strikeWithin = 30f;
+
+    /** How near a shot's end a blow must land, that frame, for the shot to have struck. */
+    public float strikeWithin() {
+        return strikeWithin;
+    }
+
     private static final FieldParseTable<LayerBuilder> LAYER =
             new FieldParseTable<LayerBuilder>()
                     .add("Type", Ini.string((l, v) -> l.put("type", v.toUpperCase(java.util.Locale.ROOT))))
@@ -2098,7 +2105,8 @@ public final class DungeonSettings {
                     .add("ShakeScale", Ini.real((s, v) -> s.shakeScale = v))
                     .add("HitFlashColour", (ini, s) -> s.hitFlashColour = Integer.decode(ini.getNextToken()))
                     .add("HitFlashSeconds", Ini.real((s, v) -> s.hitFlashSeconds = v))
-                    .add("HitFlashStrength", Ini.real((s, v) -> s.hitFlashStrength = v));
+                    .add("HitFlashStrength", Ini.real((s, v) -> s.hitFlashStrength = v))
+                    .add("StrikeWithin", Ini.real((s, v) -> s.strikeWithin = v));
 
     private static final FieldParseTable<ProjectileBuilder> PROJECTILE =
             new FieldParseTable<ProjectileBuilder>()

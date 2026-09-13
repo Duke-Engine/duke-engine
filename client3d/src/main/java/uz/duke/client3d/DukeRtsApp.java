@@ -142,6 +142,8 @@ final class DukeRtsApp extends SimpleApplication {
     private LayeredEffects layered;
     /** Whoever of theirs was just hit, going white -- see {@link HitFlash}. */
     private HitFlash hitFlash;
+    /** Shots that ended this frame, waiting for its blows to say whether they struck. */
+    private final List<Landing.Gone> endedShots = new ArrayList<>();
 
     /** The frame of the last cast this client drew, so one cast is drawn once. */
     private int lastCastFrameDrawn = Integer.MIN_VALUE;
@@ -278,6 +280,13 @@ final class DukeRtsApp extends SimpleApplication {
          * for afterwards.
          */
         float barTop;
+        /**
+         * Where and when it was first drawn. A thing that lay where it was put for a
+         * while is a mark; a thing that moved is a shot -- see Landing.
+         */
+        float bornX;
+        float bornZ;
+        float bornAt;
         Spatial body;      // the shape a click has to hit
         AnimComposer composer;
         AnimChannel legacyChannel;
@@ -714,19 +723,53 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void syncHitNumbers(float now) {
         var look = visuals.getHitNumbers();
+        List<HealthWatch.Change> changes = List.of();
         if (screen == Screen.PLAYING) {
-            for (var change : healthWatch.since(snapshot.units(), game.getLocalPlayerIndex(),
-                    look.leastWorth(), killedThisFrame)) {
+            changes = healthWatch.since(snapshot.units(), game.getLocalPlayerIndex(),
+                    look.leastWorth(), killedThisFrame);
+            for (var change : changes) {
                 hitNumbers.add(change, now, look.height());
                 if (!change.healed() && !change.his()) {
                     flash(change.unitId());
                 }
             }
         }
+        burstWhatStruck(changes);
         // Read once. handleEvents runs earlier in the frame and fills this; a
         // second reading would throw the finishing blow twice.
         killedThisFrame.clear();
         hitNumbers.update(now, cam, this::floorHeightAt);
+    }
+
+    /**
+     * The bursts of the shots that ended this frame, for the ones that struck.
+     *
+     * <p>The simulation's blast hurts only when a shot reaches a body, and round that
+     * body; a shot that meets a wall or runs out of flight hurts nobody, and bursts
+     * nowhere. The blows are this frame's, deaths included -- a finishing blow on
+     * something with less left than a number is worth is still a blow.
+     */
+    private void burstWhatStruck(List<HealthWatch.Change> changes) {
+        if (endedShots.isEmpty()) {
+            return;
+        }
+        var blows = new ArrayList<Landing.Blow>();
+        for (var change : changes) {
+            if (!change.healed()) {
+                blows.add(new Landing.Blow(change.x(), change.y(), change.his()));
+            }
+        }
+        for (var death : killedThisFrame) {
+            blows.add(new Landing.Blow(death.x(), death.y(),
+                    death.playerIndex() == game.getLocalPlayerIndex()));
+        }
+        for (var shot : endedShots) {
+            var at = Landing.burstAt(shot, blows, visuals.getStrikeWithin());
+            if (at != null && layered != null) {
+                layered.landed(shot.id(), shot.effect(), at, cam);
+            }
+        }
+        endedShots.clear();
     }
 
     /**
@@ -3499,12 +3542,27 @@ final class DukeRtsApp extends SimpleApplication {
             if (seen.contains(entry.getKey())) {
                 continue;
             }
-            // Its light and its sparks go back in the box whether it arrived or
-            // merely walked out of the light: the pool must not have to know which,
-            // and what it landed on — if anything — is handleEvents' business.
+            // Its old recipe's light and sparks go back in the box whether it arrived
+            // or merely walked out of the light: that pool must not have to know
+            // which. Its layers do -- see Landing.
             effects.gone(entry.getKey());
             layered.grounded(entry.getKey());
-            entry.getValue().root.removeFromParent();
+            var node = entry.getValue();
+            var at = node.root.getLocalTranslation();
+            if (Landing.arrived(node.view, game.getLocalPlayerIndex(),
+                    discovery == null || discovery.canSee(at.x, at.z))) {
+                // ★ Here, and not on ObjectDied. An arrow, a fireball and the mark a
+                // meteor falls on have no body, and the core removes a thing with no
+                // body without ever posting that it died. Gone is the moment it
+                // ended; whether it ended in a strike is only known once this
+                // frame's blows are read -- see burstWhatStruck.
+                endedShots.add(new Landing.Gone(entry.getKey(),
+                        visualFor(node.view.templateName()).effect,
+                        node.view.playerIndex() == game.getLocalPlayerIndex(),
+                        node.bornX, node.bornZ, node.bornAt, at.x, at.z,
+                        timer.getTimeInSeconds()));
+            }
+            node.root.removeFromParent();
             selected.remove(entry.getKey());
             gone.remove();
         }
@@ -3573,7 +3631,6 @@ final class DukeRtsApp extends SimpleApplication {
                 effects.landed(look.effect,
                         where.setY(floorHeightAt(where.x, where.z) + look.yOffset),
                         cam.getLocation());
-                layered.landed(died.object().value(), look.effect, where.clone(), cam);
                 // And a ring, if the thing that just stopped existing asked for
                 // one. Nothing does but a meteor arriving -- a skeleton's look is
                 // its eye sockets and has no SHOCKWAVE in it -- so this costs
@@ -3843,6 +3900,9 @@ final class DukeRtsApp extends SimpleApplication {
         var visual = visualFor(view.templateName());
         var node = new UnitNode();
         node.root = new Node("unit-" + view.id());
+        node.bornX = view.x();
+        node.bornZ = view.y();
+        node.bornAt = timer.getTimeInSeconds();
         node.root.setUserData("unitId", view.id());
 
         Spatial body = buildBody(visual, java.util.List.of());

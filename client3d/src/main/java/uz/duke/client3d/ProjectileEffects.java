@@ -152,6 +152,13 @@ final class ProjectileEffects {
      */
     Spatial bodyFor(Visuals.UnitVisual visual) {
         var recipe = visuals.effectNamed(visual == null ? null : visual.effect);
+        if (recipe != null && recipe.hasLayers()) {
+            // Drawn by its layers alone, like everything else about a layered look.
+            // An orb as well was a second body -- and on a meteor's mark, a pale
+            // disc sitting on the floor in the middle of its own warning. Empty
+            // rather than null, or the client would give it a capsule instead.
+            return new Node("drawn by its layers");
+        }
         if (recipe == null || !recipe.has(GLOW_ORB) || recipe.orbSize <= 0f) {
             return null;
         }

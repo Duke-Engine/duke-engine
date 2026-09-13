@@ -357,6 +357,137 @@ class DungeonEffectLayerTest {
         assertTrue(SETTINGS.shakeScale() >= 0f);
     }
 
+    // ---- a blast is exactly as wide as it hurts ----
+
+    /** Every effect a skill throws that bursts, with the Radius its blast hurts within. */
+    private static java.util.Map<String, Float> blastsAndTheirRadius() {
+        var carries = new java.util.HashMap<String, String>();
+        for (var projectile : SETTINGS.projectiles()) {
+            carries.put(projectile.name(), projectile.effect());
+        }
+        var blasts = new java.util.HashMap<String, Float>();
+        for (var skill : SETTINGS.skills()) {
+            var thrown = skill.hasProjectile() ? carries.get(skill.projectile()) : null;
+            if (thrown != null && skill.radius() > 0f) {
+                blasts.put(thrown, skill.radius());
+            }
+        }
+        return blasts;
+    }
+
+    /**
+     * Each blast's edge is drawn where its damage stops.
+     *
+     * <p>A burst smaller than the ground it hurts lies about where it is safe to
+     * stand, and one bigger lies the other way. So the rings of a blast are
+     * measured in the skill's reach, the reach the effect is given is the very
+     * Radius the simulation hurts within, and each ring's brightest line -- found
+     * in its own texture here, not assumed -- lies on that radius.
+     */
+    @Test
+    void theEdgeOfEachBlastIsWhereItsDamageStops() throws java.io.IOException {
+        var visuals = Visuals.create();
+        Main.measureLooks(visuals, SETTINGS);
+        var blasts = blastsAndTheirRadius();
+        assertTrue(blasts.containsKey("MageFireball") && blasts.containsKey("MeteorWarning"),
+                "the fireball and the meteor both burst: " + blasts);
+
+        for (var blast : blasts.entrySet()) {
+            assertEquals(blast.getValue(), visuals.getEffectReach(blast.getKey()), 0.001f,
+                    blast.getKey() + " is not given the Radius its blast hurts within");
+            int rings = 0;
+            for (var art : SETTINGS.effectLayers()) {
+                var layer = drawn(art);
+                if (!art.effect().equals(blast.getKey()) || !EffectLayer.RING.equals(layer.type())) {
+                    continue;
+                }
+                assertEquals(EffectLayer.REACH, layer.measure(), art.name() + " is not measured in reach");
+                float edge = layer.sizeEnd() * brightestRadius(layer.texture()) / 2f;
+                assertEquals(1f, edge, 0.05f, blast.getKey() + " " + art.name()
+                        + " ends at " + edge + " of the blast's radius");
+                rings++;
+            }
+            assertTrue(rings > 0, blast.getKey() + " draws no ring at its edge");
+        }
+    }
+
+    /**
+     * Nothing a blast throws flies past where its damage stops.
+     *
+     * <p>Fire, smoke and sparks thrown past the edge would draw the blast wider than
+     * it hurts. Worked out from the layer the way the shader moves a particle: born
+     * anywhere in its radius, half its largest size either side, and carried as far
+     * as its speed and the air let it in its longest life.
+     */
+    @Test
+    void nothingABlastThrowsFliesPastWhereItsDamageStops() {
+        for (var blast : blastsAndTheirRadius().entrySet()) {
+            float reach = blast.getValue();
+            for (var art : SETTINGS.effectLayers()) {
+                var layer = drawn(art);
+                if (!art.effect().equals(blast.getKey()) || !EffectLayer.BURST.equals(layer.type())) {
+                    continue;
+                }
+                float unit = EffectLayer.REACH.equals(layer.measure()) ? reach : 1f;
+                float extent = layer.radius() * unit
+                        + Math.max(layer.sizeStart(), layer.sizeEnd()) * (1f + layer.sizeJitter())
+                                * unit / 2f
+                        + thrownAtMost(layer);
+                assertTrue(extent <= reach * 1.05f, blast.getKey() + " " + art.name()
+                        + " reaches " + extent + " past a blast of " + reach);
+            }
+        }
+    }
+
+    /** How far across the floor a particle of this layer can be carried. */
+    private static float thrownAtMost(EffectLayer layer) {
+        float speed = Math.max(Math.abs(layer.speedMin()), Math.abs(layer.speedMax()));
+        float across = switch (layer.direction()) {
+            case EffectLayer.UP, EffectLayer.DOWN ->
+                    (float) Math.sin(Math.toRadians(Math.min(90f, layer.spread())));
+            case EffectLayer.NONE -> 0f;
+            default -> 1f;
+        };
+        float life = layer.lifeMax();
+        float carried = layer.drag() > 0.0001f
+                ? (float) ((1.0 - Math.exp(-layer.drag() * life)) / layer.drag()) : life;
+        return speed * across * carried;
+    }
+
+    /** Where a ring texture is brightest, as a share of its half-width. */
+    private static float brightestRadius(String texture) throws java.io.IOException {
+        var url = DungeonEffectLayerTest.class.getClassLoader().getResource(texture);
+        assertNotNull(url, texture);
+        var image = javax.imageio.ImageIO.read(url);
+        int bins = 200;
+        double[] light = new double[bins];
+        int[] counted = new int[bins];
+        double middleX = (image.getWidth() - 1) / 2.0;
+        double middleY = (image.getHeight() - 1) / 2.0;
+        double half = image.getWidth() / 2.0;
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                int bin = (int) (Math.hypot(x - middleX, y - middleY) / half * bins);
+                if (bin >= bins) {
+                    continue;
+                }
+                int argb = image.getRGB(x, y);
+                double alpha = ((argb >>> 24) & 0xFF) / 255.0;
+                double grey = (((argb >> 16) & 0xFF) + ((argb >> 8) & 0xFF) + (argb & 0xFF)) / 765.0;
+                light[bin] += grey * alpha;
+                counted[bin]++;
+            }
+        }
+        int brightest = 0;
+        for (int bin = 1; bin < bins; bin++) {
+            if (counted[bin] > 0 && light[bin] / counted[bin]
+                    > light[brightest] / Math.max(1, counted[brightest])) {
+                brightest = bin;
+            }
+        }
+        return (brightest + 0.5f) / bins;
+    }
+
     /** And the budget the file sets reaches the client. */
     @Test
     void theParticleCeilingIsTheFiles() {

@@ -1000,6 +1000,7 @@ public final class Main {
         visuals.shakeScale(settings.shakeScale());
         visuals.hitFlash(new Visuals.HitFlashLook(settings.hitFlashColour(),
                 settings.hitFlashSeconds(), settings.hitFlashStrength()));
+        visuals.strikeWithin(settings.strikeWithin());
         measureLooks(visuals, settings);
 
         // The floor is black until he walks it. Named rather than given a

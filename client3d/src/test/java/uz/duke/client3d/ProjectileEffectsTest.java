@@ -217,6 +217,27 @@ class ProjectileEffectsTest {
                 "and one that does not, should not — however big it says the orb is");
     }
 
+    /**
+     * A look drawn in layers is given an empty body: its layers are all of it.
+     *
+     * <p>Not null -- null sends the client off to build a capsule -- and not the old
+     * orb either, though the recipe still names one: on a meteor's mark that orb was
+     * a pale disc lying on the floor in the middle of its own warning.
+     */
+    @Test
+    void aLookDrawnInLayersIsGivenNoOrb() {
+        var visuals = Visuals.create()
+                .effect("Orb", recipe -> recipe.kind(Visuals.EffectVisual.GLOW_ORB).orb(2f)
+                        .layer(EffectLayer.builder().build()))
+                .unit("Ball", unit -> unit.effect("Orb").yOffset(BOW_HEIGHT));
+
+        var body = scene(visuals).effects().bodyFor(visuals.of("Ball"));
+
+        assertNotNull(body, "null would be a capsule");
+        assertEquals(0, body instanceof Node node ? node.getQuantity() : -1,
+                "and nothing is drawn in it, not even the orb the recipe still names");
+    }
+
     private static Visuals orbing(String kind) {
         return Visuals.create()
                 .effect("Orb", recipe -> recipe.kind(kind).orb(2f))

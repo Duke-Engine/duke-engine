@@ -1086,6 +1086,21 @@ public final class Visuals {
         return shakeScale;
     }
 
+    private float strikeWithin = 30f;
+
+    /**
+     * How near to where a shot was last drawn a blow must land, that same frame, for
+     * the shot to have struck -- see {@link Landing#burstAt}.
+     */
+    public Visuals strikeWithin(float distance) {
+        this.strikeWithin = Math.max(0f, distance);
+        return this;
+    }
+
+    public float getStrikeWithin() {
+        return strikeWithin;
+    }
+
     // ---- the portrait ----
 
     private final Map<String, PortraitLook> portraits = new LinkedHashMap<>();
