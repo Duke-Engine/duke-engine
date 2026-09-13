@@ -33,6 +33,7 @@ import com.jme3.scene.control.BillboardControl;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Cylinder;
 import com.jme3.scene.shape.Quad;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,6 +42,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Logger;
+
 import uz.duke.core.event.ObjectDied;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.thing.ObjectId;
@@ -67,7 +69,9 @@ final class DukeRtsApp extends SimpleApplication {
 
     private static final Logger LOG = Logger.getLogger(DukeRtsApp.class.getName());
 
-    /** Prefix of the input mapping for a key the game claimed. */
+    /**
+     * Prefix of the input mapping for a key the game claimed.
+     */
     private static final String HOTKEY = "Hotkey";
 
     /**
@@ -79,9 +83,11 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private final boolean[] ctrlHeld = {false};
 
-    private enum Screen { MENU, LOADING, PLAYING, PAUSED, SETTINGS }
+    private enum Screen {MENU, LOADING, PLAYING, PAUSED, SETTINGS}
 
-    /** Persisted display/audio settings, shared by every duke-engine game. */
+    /**
+     * Persisted display/audio settings, shared by every duke-engine game.
+     */
     static final java.util.prefs.Preferences PREFS =
             java.util.prefs.Preferences.userRoot().node("duke-engine/game");
     private static final int[][] RESOLUTIONS = {{1280, 720}, {1600, 900}, {1920, 1080}};
@@ -90,14 +96,18 @@ final class DukeRtsApp extends SimpleApplication {
     private final DukeGame game;
     private final Visuals visuals;
     private final Shell shell;
-    /** Keys this game claimed for itself, over and above the standard controls. */
+    /**
+     * Keys this game claimed for itself, over and above the standard controls.
+     */
     private final Hotkeys hotkeys;
     private final CountDownLatch stopped = new CountDownLatch(1);
 
     private Screen screen = Screen.MENU;
     private Screen settingsReturn = Screen.MENU;
     private StoneMenu menu;
-    /** The lettering the game asked its menus to be set in. */
+    /**
+     * The lettering the game asked its menus to be set in.
+     */
     private StoneCraft craft;
     private Thread simThread; // started when the player presses Play
 
@@ -109,7 +119,9 @@ final class DukeRtsApp extends SimpleApplication {
      * run) kept the old one on screen while everything else moved on.
      */
     private final Node terrainNode = new Node("terrain");
-    /** Built at init rather than construction: a modular kit needs the asset manager. */
+    /**
+     * Built at init rather than construction: a modular kit needs the asset manager.
+     */
     private TerrainScene terrain;
     /**
      * The dark, as a picture of the map that the terrain's material reads by world
@@ -122,7 +134,9 @@ final class DukeRtsApp extends SimpleApplication {
      * changes with the world is its size, and a new floor is a different size.
      */
     private final List<Material> fogged = new ArrayList<>();
-    /** What the things in flight look like. Built once; see {@link ProjectileEffects}. */
+    /**
+     * What the things in flight look like. Built once; see {@link ProjectileEffects}.
+     */
     private ProjectileEffects effects;
 
     /**
@@ -140,14 +154,22 @@ final class DukeRtsApp extends SimpleApplication {
      * light budget is one budget.
      */
     private LayeredEffects layered;
-    /** Whoever of theirs was just hit, going white -- see {@link HitFlash}. */
+    /**
+     * Whoever of theirs was just hit, going white -- see {@link HitFlash}.
+     */
     private HitFlash hitFlash;
-    /** Shots that ended this frame, waiting for its blows to say whether they struck. */
+    /**
+     * Shots that ended this frame, waiting for its blows to say whether they struck.
+     */
     private final List<Landing.Gone> endedShots = new ArrayList<>();
 
-    /** The frame of the last cast this client drew, so one cast is drawn once. */
+    /**
+     * The frame of the last cast this client drew, so one cast is drawn once.
+     */
     private int lastCastFrameDrawn = Integer.MIN_VALUE;
-    /** The grid the terrain was built from — a different instance means a new world. */
+    /**
+     * The grid the terrain was built from — a different instance means a new world.
+     */
     private uz.duke.core.pathfind.PathGrid builtFrom;
 
     /**
@@ -155,38 +177,62 @@ final class DukeRtsApp extends SimpleApplication {
      * shown. {@code null} for every other game, and then nothing below runs.
      */
     private Discovery discovery;
-    /** The discovering template's {@code VisionRange}, resolved once the game is up. */
+    /**
+     * The discovering template's {@code VisionRange}, resolved once the game is up.
+     */
     private float discoveryRadius = -1f;
-    /** Whose sight the radius above was read from — see syncDiscovery. */
+    /**
+     * Whose sight the radius above was read from — see syncDiscovery.
+     */
     private String discoveryEyes;
-    /** Minimap cells, one per grid cell, recoloured by what the player knows. */
+    /**
+     * Minimap cells, one per grid cell, recoloured by what the player knows.
+     */
     private Geometry[] minimapCells = new Geometry[0];
-    /** Minimap colours per state, made once: black, remembered, and in sight. */
+    /**
+     * Minimap colours per state, made once: black, remembered, and in sight.
+     */
     private Material[] minimapPalette;
-    /** Floor tones by state and storey: [remembered|in sight][storey]. */
+    /**
+     * Floor tones by state and storey: [remembered|in sight][storey].
+     */
     private Material[][] minimapFloors;
-    /** The highest storey anywhere on this map — how many planes a click has to try. */
+    /**
+     * The highest storey anywhere on this map — how many planes a click has to try.
+     */
     private int mapStoreys;
     private final Map<Integer, UnitNode> unitNodes = new HashMap<>();
     private final Set<Integer> selected = new HashSet<>();
     private final Map<String, AudioNode> audioCache = new HashMap<>();
     private final Set<String> missingAssets = new HashSet<>();
-    /** Every noise the game makes, and what it makes them for. */
+    /**
+     * Every noise the game makes, and what it makes them for.
+     */
     private GameSounds noises;
-    /** What the player set, kept in a file beside him — see { GameSettings}. */
+    /**
+     * What the player set, kept in a file beside him — see { GameSettings}.
+     */
     private final GameSettings preferences = new GameSettings();
-    /** The line of controls along the bottom, which belongs to play and not to a menu. */
+    /**
+     * The line of controls along the bottom, which belongs to play and not to a menu.
+     */
     private BitmapText controlsHint;
-    /** Up while the game's art is being read; see {@link ArtLoad}. */
+    /**
+     * Up while the game's art is being read; see {@link ArtLoad}.
+     */
     private LoadingOverlay loading;
     private ArtLoad artLoad;
-    /** Set once every file the game named has been read and handed to the card. */
+    /**
+     * Set once every file the game named has been read and handed to the card.
+     */
     private boolean artIsReady;
 
     private WorldSnapshot snapshot = WorldSnapshot.EMPTY;
     private WorldSnapshot lastEventedSnapshot = WorldSnapshot.EMPTY;
     private final CameraFocus camera = new CameraFocus();
-    /** How high the camera is looking, eased toward the ground under its target. */
+    /**
+     * How high the camera is looking, eased toward the ground under its target.
+     */
     private float cameraHeight;
     private final boolean[] pan = new boolean[4]; // W A S D
     private BitmapText hud;
@@ -217,7 +263,9 @@ final class DukeRtsApp extends SimpleApplication {
     // minimap: fixed-size overlay in the bottom-right corner
     private static final float MINIMAP_SIZE = 190f;
     private final Node minimapNode = new Node("minimap");
-    /** Backdrop and rock cells — replaced as a unit when the world changes. */
+    /**
+     * Backdrop and rock cells — replaced as a unit when the world changes.
+     */
     private final Node minimapTerrainNode = new Node("minimap-terrain");
     private final Map<Integer, Geometry> minimapDots = new HashMap<>();
     private MinimapProjection minimap = new MinimapProjection(700f, 450f, MINIMAP_SIZE);
@@ -232,23 +280,35 @@ final class DukeRtsApp extends SimpleApplication {
      * rebuilding a few thousand quads.
      */
     private float minimapScale = 1f;
-    /** The camera's footprint, drawn as an outline over the minimap. */
+    /**
+     * The camera's footprint, drawn as an outline over the minimap.
+     */
     private Geometry viewportOutline;
 
-    /** The box the player is dragging, drawn over the world while the button is down. */
+    /**
+     * The box the player is dragging, drawn over the world while the button is down.
+     */
     private Geometry dragRectangle;
 
-    /** Brief flashes acknowledging orders, and the node they are drawn in. */
+    /**
+     * Brief flashes acknowledging orders, and the node they are drawn in.
+     */
     private final OrderMarkers orderMarkers = new OrderMarkers();
     private final Node markerNode = new Node("order-markers");
 
-    /** Draws the marks in that node, reusing what it has made. See Chevrons. */
+    /**
+     * Draws the marks in that node, reusing what it has made. See Chevrons.
+     */
     private Chevrons chevrons;
 
-    /** And the red ring that flashes round whatever was ordered attacked. */
+    /**
+     * And the red ring that flashes round whatever was ordered attacked.
+     */
     private AttackFlash attackFlash;
 
-    /** The numbers that come off a creature as it is hurt or healed. */
+    /**
+     * The numbers that come off a creature as it is hurt or healed.
+     */
     private FloatingNumbers hitNumbers;
     private final HealthWatch healthWatch = new HealthWatch();
 
@@ -262,10 +322,14 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private final List<HealthWatch.Death> killedThisFrame = new ArrayList<>();
 
-    /** The bars over everybody's heads. Screen-space and pooled — see UnitBars. */
+    /**
+     * The bars over everybody's heads. Screen-space and pooled — see UnitBars.
+     */
     private UnitBars unitBars;
 
-    /** Everything the scene keeps per live unit. */
+    /**
+     * Everything the scene keeps per live unit.
+     */
     private static final class UnitNode {
         Node root;
         Geometry ring;
@@ -316,7 +380,9 @@ final class DukeRtsApp extends SimpleApplication {
          * one outranks them: see {@link #playOnce}.
          */
         float gestureUntil;
-        /** The health it had in the last snapshot: a drop is a blow that landed. */
+        /**
+         * The health it had in the last snapshot: a drop is a blow that landed.
+         */
         float lastHealth = Float.NaN;
         UnitView view;
     }
@@ -332,7 +398,9 @@ final class DukeRtsApp extends SimpleApplication {
         this.ambientColour = sun.ambientColour();
     }
 
-    /** The simulation thread, if the player ever pressed Play. */
+    /**
+     * The simulation thread, if the player ever pressed Play.
+     */
     Thread getSimThread() {
         return simThread;
     }
@@ -441,8 +509,8 @@ final class DukeRtsApp extends SimpleApplication {
         // that claims WASD for its own orders leaves the camera on the arrows —
         // see bindKeys — and a line still promising WASD would be a lie the player
         // discovers by pressing one.
-        boolean panKeysTaken = hotkeys.unclaimed(new int[] {
-            KeyInput.KEY_A, KeyInput.KEY_S, KeyInput.KEY_D}).length < 3;
+        boolean panKeysTaken = hotkeys.unclaimed(new int[]{
+                KeyInput.KEY_A, KeyInput.KEY_S, KeyInput.KEY_D}).length < 3;
         hint.setText("LMB select   Shift+LMB add   RMB move/attack   "
                 + (panKeysTaken ? "arrows pan" : "WASD pan") + "   Space centre"
                 + "   wheel zoom   H halt   P pause   Esc menu");
@@ -492,7 +560,9 @@ final class DukeRtsApp extends SimpleApplication {
         applyVolume();
     }
 
-    /** Assemble the minimap once: its terrain layer, then the viewport outline over it. */
+    /**
+     * Assemble the minimap once: its terrain layer, then the viewport outline over it.
+     */
     private void buildMinimap() {
         minimapY = 34f; // above the hint line, until a hero bar claims it
         minimapNode.attachChild(minimapTerrainNode);
@@ -615,12 +685,12 @@ final class DukeRtsApp extends SimpleApplication {
                 remembered[storey] = unshaded(rememberedFloor.mult(lift));
                 lit[storey] = unshaded(litFloor.mult(lift));
             }
-            minimapFloors = new Material[][] {remembered, lit};
-            minimapPalette = new Material[] {
-                unshaded(dark.mult(0.45f)),                          // never been there
-                unshaded(dark.mult(0.9f).add(                        // remembered stone
-                        new ColorRGBA(0.09f, 0.08f, 0.07f, 0f))),
-                unshaded(new ColorRGBA(0.35f, 0.32f, 0.26f, 1f)),   // stone in sight
+            minimapFloors = new Material[][]{remembered, lit};
+            minimapPalette = new Material[]{
+                    unshaded(dark.mult(0.45f)),                          // never been there
+                    unshaded(dark.mult(0.9f).add(                        // remembered stone
+                            new ColorRGBA(0.09f, 0.08f, 0.07f, 0f))),
+                    unshaded(new ColorRGBA(0.35f, 0.32f, 0.26f, 1f)),   // stone in sight
             };
         }
         for (int index = 0; index < minimapCells.length; index++) {
@@ -640,7 +710,9 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    /** The highest storey anywhere on this map, so the minimap has a tone for each. */
+    /**
+     * The highest storey anywhere on this map, so the minimap has a tone for each.
+     */
     private static int highestStorey(uz.duke.core.pathfind.PathGrid grid) {
         int highest = 0;
         for (int cy = 0; cy < grid.getHeight(); cy++) {
@@ -651,7 +723,9 @@ final class DukeRtsApp extends SimpleApplication {
         return highest;
     }
 
-    /** If the cursor is over the minimap, move the camera there. Returns true if handled. */
+    /**
+     * If the cursor is over the minimap, move the camera there. Returns true if handled.
+     */
     private boolean minimapClick() {
         var cursor = inputManager.getCursorPosition();
         float localX = (cursor.x - minimapX) / minimapScale;
@@ -685,7 +759,9 @@ final class DukeRtsApp extends SimpleApplication {
 
     private static final int VIEWPORT_CORNERS = 4;
 
-    /** The selection box: an outline, so it never hides what is being selected. */
+    /**
+     * The selection box: an outline, so it never hides what is being selected.
+     */
     private void buildDragRectangle() {
         var mesh = new com.jme3.scene.Mesh();
         mesh.setMode(com.jme3.scene.Mesh.Mode.LineLoop);
@@ -837,7 +913,9 @@ final class DukeRtsApp extends SimpleApplication {
         return null;
     }
 
-    /** Where the player's own unit is standing, or null before there is one. */
+    /**
+     * Where the player's own unit is standing, or null before there is one.
+     */
     private Coord3D whereHisHeroIs() {
         int local = game.getLocalPlayerIndex();
         for (var view : snapshot.units()) {
@@ -914,11 +992,11 @@ final class DukeRtsApp extends SimpleApplication {
      * settled and is wrong by however far the ray travelled underneath.
      *
      * @param floorAt how high the floor is at a point on the map, which for a
-     *     stair is somewhere between two storeys — so the plane is met once more
-     *     at that exact height rather than at the storey's
+     *                stair is somewhere between two storeys — so the plane is met once more
+     *                at that exact height rather than at the storey's
      */
     static Vector3f groundHit(Vector3f near, Vector3f dir, float storeyHeight, int storeys,
-            java.util.function.BiFunction<Float, Float, Float> floorAt) {
+                              java.util.function.BiFunction<Float, Float, Float> floorAt) {
         for (int storey = Math.max(storeys, 0); storey >= 0; storey--) {
             float height = storey * storeyHeight;
             var hit = meetsAt(near, dir, height);
@@ -942,7 +1020,9 @@ final class DukeRtsApp extends SimpleApplication {
         return near.add(dir.mult(t < 0 ? 10_000f : t));
     }
 
-    /** Live unit dots, coloured by player, sized up for structures. */
+    /**
+     * Live unit dots, coloured by player, sized up for structures.
+     */
     private void syncMinimap() {
         var seen = new HashSet<Integer>();
         for (var view : snapshot.units()) {
@@ -1002,7 +1082,9 @@ final class DukeRtsApp extends SimpleApplication {
                 "UP DOWN choose    ENTER take", version(), false);
     }
 
-    /** What an entry does, or {@code null} when it would do nothing worth offering. */
+    /**
+     * What an entry does, or {@code null} when it would do nothing worth offering.
+     */
     private Runnable actionFor(Shell.Entry entry) {
         return switch (entry) {
             // Play does not necessarily play. A game with something to ask first
@@ -1080,7 +1162,9 @@ final class DukeRtsApp extends SimpleApplication {
                 question.hint(), version(), false);
     }
 
-    /** Choose the map and cycle each player's faction before playing. */
+    /**
+     * Choose the map and cycle each player's faction before playing.
+     */
     private void showSkirmishMenu() {
         var maps = game.getMapChoices();
         var factions = game.getFactionChoices();
@@ -1245,7 +1329,9 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private final class ArtLoad {
 
-        /** How many pieces are handed to the card per frame, so the bar still moves. */
+        /**
+         * How many pieces are handed to the card per frame, so the bar still moves.
+         */
         private static final int WARM_PER_FRAME = 1;
 
         private final List<Preload.Job> files = Preload.plan(visuals);
@@ -1268,11 +1354,11 @@ final class DukeRtsApp extends SimpleApplication {
          * megabyte to throw it away.
          */
         private final List<String> sounds = java.util.stream.Stream.concat(
-                files.stream().filter(job -> job.kind() == Preload.Kind.SOUND)
-                        .map(Preload.Job::assetPath),
-                visuals.getSounds().all().stream()
-                        .filter(cue -> cue.channel() != SoundBank.Channel.MUSIC)
-                        .flatMap(cue -> cue.files().stream()))
+                        files.stream().filter(job -> job.kind() == Preload.Kind.SOUND)
+                                .map(Preload.Job::assetPath),
+                        visuals.getSounds().all().stream()
+                                .filter(cue -> cue.channel() != SoundBank.Channel.MUSIC)
+                                .flatMap(cue -> cue.files().stream()))
                 .distinct().toList();
         private final java.util.concurrent.atomic.AtomicInteger read =
                 new java.util.concurrent.atomic.AtomicInteger();
@@ -1296,7 +1382,8 @@ final class DukeRtsApp extends SimpleApplication {
                         case TEXTURE -> keep(assetManager.loadTexture(job.assetPath()));
                         // Sound is the render thread's: an audio node goes into the
                         // scene, and the scene is not this thread's to touch.
-                        case SOUND -> { }
+                        case SOUND -> {
+                        }
                     }
                 } catch (RuntimeException | LinkageError e) {
                     warnOnce(job.assetPath(), job.kind().name().toLowerCase(
@@ -1311,7 +1398,9 @@ final class DukeRtsApp extends SimpleApplication {
             reading = "";
         }
 
-        /** How far along, counting both halves as one. */
+        /**
+         * How far along, counting both halves as one.
+         */
         float done() {
             return (read.get() + warmed) / (float) Math.max(1, total());
         }
@@ -1324,7 +1413,9 @@ final class DukeRtsApp extends SimpleApplication {
             return files.size() + looks.size() + sounds.size() + 1;
         }
 
-        /** Do this frame's share of the work; {@code true} once there is none left. */
+        /**
+         * Do this frame's share of the work; {@code true} once there is none left.
+         */
         boolean step() {
             if (read.get() < files.size()) {
                 return false; // still reading; the bar is the only thing to do
@@ -1387,7 +1478,9 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private final Node warmNode = new Node("warm");
 
-    /** Textures and pieces with nothing else holding them. See {@link ArtLoad}. */
+    /**
+     * Textures and pieces with nothing else holding them. See {@link ArtLoad}.
+     */
     private final List<Object> artKeptAlive =
             java.util.Collections.synchronizedList(new ArrayList<>());
 
@@ -1432,12 +1525,14 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void confirmAbandon() {
         menu.show("ABANDON?", "everything on this floor is lost", java.util.List.of(
-                new StoneMenu.Action("Keep playing", this::showPauseMenu),
-                new StoneMenu.Action("Abandon", this::stop, true)),
+                        new StoneMenu.Action("Keep playing", this::showPauseMenu),
+                        new StoneMenu.Action("Abandon", this::stop, true)),
                 "ESC keep playing", "", true);
     }
 
-    /** What the client calls itself, for the corner of the front menu. */
+    /**
+     * What the client calls itself, for the corner of the front menu.
+     */
     private String version() {
         var version = getClass().getPackage().getImplementationVersion();
         return version == null ? "" : "v" + version;
@@ -1571,7 +1666,9 @@ final class DukeRtsApp extends SimpleApplication {
         leaveSettings();
     }
 
-    /** One size a monitor will actually show. */
+    /**
+     * One size a monitor will actually show.
+     */
     private record Size(int width, int height, boolean native_) {
         String shown() {
             return width + " × " + height + (native_ ? "   MONITOR" : "");
@@ -1613,7 +1710,9 @@ final class DukeRtsApp extends SimpleApplication {
         return java.util.List.copyOf(found);
     }
 
-    /** Which of them is set, or the one nearest the monitor's own. */
+    /**
+     * Which of them is set, or the one nearest the monitor's own.
+     */
     private int indexOfSize(java.util.List<Size> sizes, int width, int height) {
         for (int i = 0; i < sizes.size(); i++) {
             if (sizes.get(i).width() == width && sizes.get(i).height() == height) {
@@ -1653,7 +1752,9 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    /** Where the window was before it filled the screen: x, y, width, height. */
+    /**
+     * Where the window was before it filled the screen: x, y, width, height.
+     */
     private int[] windowedBounds;
 
     /**
@@ -1719,13 +1820,15 @@ final class DukeRtsApp extends SimpleApplication {
         var height = new int[1];
         org.lwjgl.glfw.GLFW.glfwGetWindowPos(window, x, y);
         org.lwjgl.glfw.GLFW.glfwGetWindowSize(window, width, height);
-        return new int[] {x[0], y[0], width[0], height[0]};
+        return new int[]{x[0], y[0], width[0], height[0]};
     }
 
-    /** Where a window that has never been anywhere else should go back to. */
+    /**
+     * Where a window that has never been anywhere else should go back to.
+     */
     private int[] startingBounds() {
-        return new int[] {60, 60, preferences.number("width", 1280),
-            preferences.number("height", 720)};
+        return new int[]{60, 60, preferences.number("width", 1280),
+                preferences.number("height", 720)};
     }
 
     /**
@@ -1821,7 +1924,9 @@ final class DukeRtsApp extends SimpleApplication {
         layOutForTheWindow(width, height);
     }
 
-    /** The size everything on the HUD was last laid out for. */
+    /**
+     * The size everything on the HUD was last laid out for.
+     */
     private int laidOutFor;
 
     /**
@@ -1899,7 +2004,9 @@ final class DukeRtsApp extends SimpleApplication {
 
     // ---- themes ----
 
-    /** The look the game last named, as it wrote it: a theme and a variation. */
+    /**
+     * The look the game last named, as it wrote it: a theme and a variation.
+     */
     private String currentLook;
     private Visuals.Theme currentTheme;
     private Tileset currentKit;
@@ -1962,7 +2069,9 @@ final class DukeRtsApp extends SimpleApplication {
         unitNodes.clear();
     }
 
-    /** The {@code look=} field of the status line, or {@code null}. */
+    /**
+     * The {@code look=} field of the status line, or {@code null}.
+     */
     private String lookNamedInStatus() {
         if (snapshot == null || !snapshot.hasStatus()) {
             return null;
@@ -1980,8 +2089,8 @@ final class DukeRtsApp extends SimpleApplication {
     /**
      * How a creature is drawn: what the current theme says, or what the game said
      * about it outside any theme.
+     * The kit in force: the theme's, or the one the game started with.
      */
-    /** The kit in force: the theme's, or the one the game started with. */
     private Tileset activeKit() {
         return currentKit != null ? currentKit : visuals.getTiles();
     }
@@ -2031,7 +2140,9 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    /** As many as the terrain shader declares; see {@code FoggedTerrain.frag}. */
+    /**
+     * As many as the terrain shader declares; see {@code FoggedTerrain.frag}.
+     */
     private static final int TERRAIN_LIGHTS = 8;
     /**
      * The two arrays handed to every terrain material, filled with darkness to
@@ -2050,7 +2161,9 @@ final class DukeRtsApp extends SimpleApplication {
         return slots;
     }
 
-    /** Build (or rebuild) the ground and rocks for the world as it stands now. */
+    /**
+     * Build (or rebuild) the ground and rocks for the world as it stands now.
+     */
     private void buildTerrain() {
         builtFrom = game.getTerrain();
         // A new world is a world with nothing burning in it yet.
@@ -2238,7 +2351,7 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                     if (menu.isVisible()) {
                         if (menu.enter()) {
-                            noises.moment("menu_click", (float) timer.getTimeInSeconds());
+                            noises.moment("menu_click", timer.getTimeInSeconds());
                         }
                     } else if (screen == Screen.PLAYING && !levelUp.isShowing()) {
                         // Back to the hero, wherever the pan keys have got to. The
@@ -2252,7 +2365,7 @@ final class DukeRtsApp extends SimpleApplication {
                         if (!pressed) {
                             menu.release(); // letting go lets go of the slider
                         } else if (menu.click(inputManager.getCursorPosition())) {
-                            noises.moment("menu_click", (float) timer.getTimeInSeconds());
+                            noises.moment("menu_click", timer.getTimeInSeconds());
                         }
                     } else if (pressed && levelUp.isShowing()) {
                         // The level-up screen is over everything and takes the
@@ -2429,14 +2542,16 @@ final class DukeRtsApp extends SimpleApplication {
         map(mapping, triggers);
     }
 
-    /** Bind a control, and remember that it is one the listener has to hear. */
+    /**
+     * Bind a control, and remember that it is one the listener has to hear.
+     */
     private void map(String mapping, com.jme3.input.controls.Trigger... triggers) {
         inputManager.addMapping(mapping, triggers);
         bound.add(mapping);
     }
 
-    /** The unit under the mouse cursor, or {@code null}. */
     /**
+     * The unit under the mouse cursor, or {@code null}.
      * The unit under the cursor, found by the space it occupies rather than by its
      * triangles.
      *
@@ -2521,17 +2636,21 @@ final class DukeRtsApp extends SimpleApplication {
         if (hit != null && hit.view.selectable()) {
             boolean isNew = selected.add(hit.view.id());
             if (isNew && mine) {
-                noises.moment("vo.select", (float) timer.getTimeInSeconds());
+                noises.moment("vo.select", timer.getTimeInSeconds());
             }
         }
     }
 
     // ---- drag selection ----
 
-    /** Where the left button went down, or {@code null} when it is not down. */
+    /**
+     * Where the left button went down, or {@code null} when it is not down.
+     */
     private Vector2f dragFrom;
 
-    /** The game key that has been pressed and is waiting to be pointed at something. */
+    /**
+     * The game key that has been pressed and is waiting to be pointed at something.
+     */
     private Character arming;
 
     /**
@@ -2544,7 +2663,9 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private boolean armedByMouse;
 
-    /** Draws how far an armed skill reaches. See RangeRings. */
+    /**
+     * Draws how far an armed skill reaches. See RangeRings.
+     */
     private RangeRings rangeRings;
 
     /**
@@ -2624,11 +2745,13 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void sayWhyNot(char key) {
         if (heroPanel.refusedForMana(key)) {
-            heroPanel.denyForMana((float) timer.getTimeInSeconds());
+            heroPanel.denyForMana(timer.getTimeInSeconds());
         }
     }
 
-    /** Arm a key: the panel lights its slot, and its reach is drawn on the floor. */
+    /**
+     * Arm a key: the panel lights its slot, and its reach is drawn on the floor.
+     */
     private void arm(char key, boolean byMouse) {
         arming = key;
         armedByMouse = byMouse;
@@ -2654,7 +2777,9 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    /** Whether what is armed is drawn while held and cast when let go. */
+    /**
+     * Whether what is armed is drawn while held and cast when let go.
+     */
     private boolean holdingASkill() {
         if (arming == null) {
             return false;
@@ -2693,7 +2818,7 @@ final class DukeRtsApp extends SimpleApplication {
                 binding.run().accept(game, new Hotkeys.Aimed(unit.view.id(), null));
                 markOrder(unit.view.x(), unit.view.y(), unit.view.id(),
                         OrderMarkers.Kind.ATTACK);
-                noises.moment("vo.attack", (float) timer.getTimeInSeconds());
+                noises.moment("vo.attack", timer.getTimeInSeconds());
                 return;
             }
             if (binding.aim() == Hotkeys.Aim.UNIT) {
@@ -2813,10 +2938,6 @@ final class DukeRtsApp extends SimpleApplication {
      *
      * <p>A slot that is cooling or locked eats the click and does nothing, which
      * is what a stone slot with a shadow over it looks like it should do.
-     *
-     * @return whether the bar took the click
-     */
-    /**
      * Spend a level on a slot, from the keyboard.
      *
      * <p>Refused in silence when there is nothing to spend or nowhere to spend
@@ -2825,6 +2946,8 @@ final class DukeRtsApp extends SimpleApplication {
      * to be holding it would be a key he learns to dread. The panel is asked
      * rather than the simulation because the panel is what is showing him a
      * badge -- if there is no badge, the press means nothing and says nothing.
+     *
+     * @return whether the bar took the click
      */
     private void raiseSkill(char key) {
         if (!heroPanel.canRaise(key)) {
@@ -2843,7 +2966,7 @@ final class DukeRtsApp extends SimpleApplication {
         var raising = heroPanel.badgeAt(cursor.x, cursor.y);
         if (raising != null) {
             hotkeys.raiseSkill(game, raising);
-            noises.moment("power_taken", (float) timer.getTimeInSeconds());
+            noises.moment("power_taken", timer.getTimeInSeconds());
             return true;
         }
         var key = heroPanel.slotAt(cursor.x, cursor.y);
@@ -2856,8 +2979,10 @@ final class DukeRtsApp extends SimpleApplication {
         return heroPanel.contains(cursor.x, cursor.y);
     }
 
-    /** The unit the game was last told about, so it is only told when it changes. */
-    /** Whether a new world is still waiting for its hero to be picked out. */
+    /**
+     * The unit the game was last told about, so it is only told when it changes.
+     * Whether a new world is still waiting for its hero to be picked out.
+     */
     private boolean findHimInTheNewWorld;
 
     /**
@@ -2955,7 +3080,9 @@ final class DukeRtsApp extends SimpleApplication {
         selected.addAll(SelectionBox.inside(from.x, from.y, cursor.x, cursor.y, onScreenUnits()));
     }
 
-    /** Every unit in the snapshot, projected to where it is drawn on screen. */
+    /**
+     * Every unit in the snapshot, projected to where it is drawn on screen.
+     */
     private List<SelectionBox.Candidate> onScreenUnits() {
         int local = game.getLocalPlayerIndex();
         var candidates = new java.util.ArrayList<SelectionBox.Candidate>();
@@ -2967,7 +3094,9 @@ final class DukeRtsApp extends SimpleApplication {
         return candidates;
     }
 
-    /** Redraw the box while the button is held, as an outline over the world. */
+    /**
+     * Redraw the box while the button is held, as an outline over the world.
+     */
     private void syncDragRectangle() {
         if (dragFrom == null) {
             return;
@@ -2978,10 +3107,10 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         float[] corners = {
-            dragFrom.x, dragFrom.y, 0f,
-            cursor.x, dragFrom.y, 0f,
-            cursor.x, cursor.y, 0f,
-            dragFrom.x, cursor.y, 0f,
+                dragFrom.x, dragFrom.y, 0f,
+                cursor.x, dragFrom.y, 0f,
+                cursor.x, cursor.y, 0f,
+                dragFrom.x, cursor.y, 0f,
         };
         var mesh = dragRectangle.getMesh();
         mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Position, 3, corners);
@@ -3094,7 +3223,9 @@ final class DukeRtsApp extends SimpleApplication {
         return "";
     }
 
-    /** The single selected own production structure, or {@code null}. */
+    /**
+     * The single selected own production structure, or {@code null}.
+     */
     private UnitView selectedProducer() {
         if (selected.size() != 1) {
             return null;
@@ -3107,7 +3238,9 @@ final class DukeRtsApp extends SimpleApplication {
         return null;
     }
 
-    /** Queue the {@code index}-th entry of the selected factory's build menu. */
+    /**
+     * Queue the {@code index}-th entry of the selected factory's build menu.
+     */
     private void queueBuild(int index) {
         var producer = selectedProducer();
         if (producer == null) {
@@ -3284,7 +3417,9 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    /** Freeze or resume the simulation. See {@link #updateLevelUp()} for why directly. */
+    /**
+     * Freeze or resume the simulation. See {@link #updateLevelUp()} for why directly.
+     */
     private void setSimulationPaused(boolean paused) {
         var logic = game.getLogic();
         if (logic != null && logic.isGamePaused() != paused) {
@@ -3305,8 +3440,8 @@ final class DukeRtsApp extends SimpleApplication {
      * Send a direction to the menu, or let it through to the camera.
      *
      * @return whether the world should have it — false once a menu has taken it,
-     *     which also stops the camera being left drifting when a menu opens
-     *     mid-press and the release never reaches it
+     * which also stops the camera being left drifting when a menu opens
+     * mid-press and the release never reaches it
      */
     private boolean steer(boolean pressed, Runnable move) {
         if (!menu.isVisible()) {
@@ -3359,7 +3494,9 @@ final class DukeRtsApp extends SimpleApplication {
         cursors.show(Cursors.situationFor(whatThePointerIsOver()));
     }
 
-    /** The six facts about the screen the choice is made from. */
+    /**
+     * The six facts about the screen the choice is made from.
+     */
     private Cursors.Over whatThePointerIsOver() {
         boolean playing = screen == Screen.PLAYING && !menu.isVisible() && !levelUp.isShowing();
         if (!playing) {
@@ -3385,7 +3522,9 @@ final class DukeRtsApp extends SimpleApplication {
                 over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex());
     }
 
-    /** Whether a screen point is inside the minimap, which takes its own clicks. */
+    /**
+     * Whether a screen point is inside the minimap, which takes its own clicks.
+     */
     private boolean overTheMinimap(Vector2f at) {
         float wide = minimap.widthPixels() * minimapScale;
         float tall = minimap.heightPixels() * minimapScale;
@@ -3393,7 +3532,9 @@ final class DukeRtsApp extends SimpleApplication {
                 && at.y >= minimapY && at.y <= minimapY + tall;
     }
 
-    /** Light whatever the cursor is resting on: a skill slot, or a card. */
+    /**
+     * Light whatever the cursor is resting on: a skill slot, or a card.
+     */
     private void updateHover() {
         var cursor = inputManager.getCursorPosition();
         if (levelUp.isShowing()) {
@@ -3575,8 +3716,6 @@ final class DukeRtsApp extends SimpleApplication {
      * guessed: gone while badly hurt meant dead, gone while healthy meant fog.
      * That was wrong at both ends. The simulation now says outright what died and
      * what fired, already filtered through fog of war.
-     */
-    /**
      * Whether something is standing where the player cannot see it.
      *
      * <p>The engine's fog is a circle and does not know about walls, so a monster
@@ -3586,8 +3725,6 @@ final class DukeRtsApp extends SimpleApplication {
      *
      * <p>His own things are always drawn — they are his, and an arrow of his own
      * that vanished mid-flight would be a bug rather than a fog.
-     */
-    /**
      * How high the floor stands at a place on the map.
      *
      * <p>Read off the same grid the simulation walks on rather than sent in the
@@ -3777,7 +3914,7 @@ final class DukeRtsApp extends SimpleApplication {
                         .filter(view -> view.playerIndex() != his && view.maxHealth() > 0f
                                 && !view.structure()
                                 && (view.x() - x) * (view.x() - x)
-                                        + (view.y() - z) * (view.y() - z) <= radius * radius)
+                                + (view.y() - z) * (view.y() - z) <= radius * radius)
                         .mapToInt(UnitView::id)
                         .toArray();
             }
@@ -3840,7 +3977,9 @@ final class DukeRtsApp extends SimpleApplication {
         return holder;
     }
 
-    /** A body playing out its death, and when to take it away. */
+    /**
+     * A body playing out its death, and when to take it away.
+     */
     private record Dying(Node root, float until) {
     }
 
@@ -3882,7 +4021,9 @@ final class DukeRtsApp extends SimpleApplication {
                 (float) (timer.getTimeInSeconds() + clip.getLength() + CORPSE_LINGER)));
     }
 
-    /** How long a body stays after its death animation has played out. */
+    /**
+     * How long a body stays after its death animation has played out.
+     */
     private static final float CORPSE_LINGER = 1.5f;
 
     private void reapTheDead() {
@@ -3961,8 +4102,8 @@ final class DukeRtsApp extends SimpleApplication {
      * portrait needs a body of its own rather than the one in the world.
      *
      * @param alsoWanted clips beyond the creature's own five. A unit asks for
-     *     none; the portrait asks for the ones only it plays, and nothing else
-     *     would ever fetch them off the library
+     *                   none; the portrait asks for the ones only it plays, and nothing else
+     *                   would ever fetch them off the library
      */
     private Spatial buildBody(Visuals.UnitVisual visual, java.util.Collection<String> alsoWanted) {
         if (visual.modelPath == null) {
@@ -4057,9 +4198,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    /** One carried thing, on one bone. Each failure is its own and loses only itself. */
+    /**
+     * One carried thing, on one bone. Each failure is its own and loses only itself.
+     */
     private void hang(com.jme3.anim.SkinningControl skin, Visuals.UnitVisual.Carried one,
-            Visuals.UnitVisual visual) {
+                      Visuals.UnitVisual visual) {
         if (one.path == null || one.bone == null) {
             return;
         }
@@ -4117,7 +4260,9 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private static final float CREATURE_AMBIENT = 0.55f;
 
-    /** Flat lighting over a kit's own colour map, tinted. */
+    /**
+     * Flat lighting over a kit's own colour map, tinted.
+     */
     private Material creatureMaterial(com.jme3.texture.Texture skin, ColorRGBA tint) {
         var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
         material.setBoolean("UseMaterialColors", true);
@@ -4131,7 +4276,9 @@ final class DukeRtsApp extends SimpleApplication {
         return material;
     }
 
-    /** How long the old clip is faded out under a new one, on the legacy path. */
+    /**
+     * How long the old clip is faded out under a new one, on the legacy path.
+     */
     private static final float BLEND_SECONDS = 0.2f;
 
     /**
@@ -4145,7 +4292,9 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private static final float SNAP_SECONDS = 0.08f;
 
-    /** Let this clip start at once rather than easing in over the default fade. */
+    /**
+     * Let this clip start at once rather than easing in over the default fade.
+     */
     private static void snap(AnimComposer composer, String clipName) {
         if (composer == null || clipName == null || composer.getAnimClip(clipName) == null) {
             return;
@@ -4166,9 +4315,9 @@ final class DukeRtsApp extends SimpleApplication {
      * and leave the other standing.
      */
     private void borrowAnimations(Spatial body, Visuals.UnitVisual visual,
-            java.util.Collection<String> alsoWanted) {
+                                  java.util.Collection<String> alsoWanted) {
         var wanted = new java.util.ArrayList<String>();
-        for (var name : new String[] {visual.idleAnim, visual.walkAnim,
+        for (var name : new String[]{visual.idleAnim, visual.walkAnim,
                 visual.attackAnim, visual.hurtAnim, visual.dieAnim}) {
             if (name != null) {
                 wanted.add(name);
@@ -4210,7 +4359,9 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    /** Animation libraries, loaded once each and shared by everything that borrows. */
+    /**
+     * Animation libraries, loaded once each and shared by everything that borrows.
+     */
     private final Map<String, Spatial> animationLibraries =
             new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -4227,7 +4378,9 @@ final class DukeRtsApp extends SimpleApplication {
         return toColor(own != null ? own : game.getColor(view.playerIndex()));
     }
 
-    /** A clean placeholder in the player's colour when no model is assigned. */
+    /**
+     * A clean placeholder in the player's colour when no model is assigned.
+     */
     private Spatial buildPrimitive(UnitView view) {
         var color = colourOf(view);
         var group = new Node("primitive");
@@ -4269,7 +4422,9 @@ final class DukeRtsApp extends SimpleApplication {
         return ring;
     }
 
-    /** A colour that is drawn over the scene rather than into it. */
+    /**
+     * A colour that is drawn over the scene rather than into it.
+     */
     private Material overlay(ColorRGBA colour) {
         var material = unshaded(colour);
         material.getAdditionalRenderState().setDepthTest(false);
@@ -4713,12 +4868,14 @@ final class DukeRtsApp extends SimpleApplication {
             }
         }
 
-        /** What colour a loaded material says its surface is; white if it says nothing. */
+        /**
+         * What colour a loaded material says its surface is; white if it says nothing.
+         */
         private ColorRGBA colourOf(Material material) {
             if (material == null) {
                 return ColorRGBA.White;
             }
-            for (var name : new String[] {"Diffuse", "Color", "BaseColor"}) {
+            for (var name : new String[]{"Diffuse", "Color", "BaseColor"}) {
                 var param = material.getParam(name);
                 if (param != null && param.getValue() instanceof ColorRGBA colour) {
                     return colour.clone();
@@ -4738,7 +4895,9 @@ final class DukeRtsApp extends SimpleApplication {
             return material;
         }
 
-        /** How much of the ambient the kit's palette art returns. */
+        /**
+         * How much of the ambient the kit's palette art returns.
+         */
         private static final ColorRGBA KIT_AMBIENT = new ColorRGBA(0.55f, 0.55f, 0.62f, 1f);
 
         private Material tileMaterial(com.jme3.texture.Texture atlas, ColorRGBA tint) {
@@ -4755,7 +4914,9 @@ final class DukeRtsApp extends SimpleApplication {
             return material;
         }
 
-        /** Two packed colours multiplied, channel by channel — white leaves the other alone. */
+        /**
+         * Two packed colours multiplied, channel by channel — white leaves the other alone.
+         */
         private static int blend(int over, int under) {
             if (under == 0xFFFFFF) {
                 return over;
@@ -4766,13 +4927,17 @@ final class DukeRtsApp extends SimpleApplication {
             return red << 16 | green << 8 | blue;
         }
 
-        /** What a texture is called, for keying a skin by it; untextured pieces share one name. */
+        /**
+         * What a texture is called, for keying a skin by it; untextured pieces share one name.
+         */
         private String nameOf(com.jme3.texture.Texture atlas) {
             var key = atlas == null ? null : atlas.getKey();
             return key == null ? "" : key.getName();
         }
 
-        /** The kit's colour atlas, taken off whatever material the loader made. */
+        /**
+         * The kit's colour atlas, taken off whatever material the loader made.
+         */
         private com.jme3.texture.Texture textureOf(Spatial model) {
             if (model instanceof Geometry geometry && geometry.getMaterial() != null) {
                 for (var param : geometry.getMaterial().getParams()) {
@@ -4820,7 +4985,9 @@ final class DukeRtsApp extends SimpleApplication {
     private final ColorRGBA sunColour;
     private final ColorRGBA ambientColour;
 
-    /** How much of the ambient plain terrain returns — what {@link #lit} asks for. */
+    /**
+     * How much of the ambient plain terrain returns — what {@link #lit} asks for.
+     */
     private static final float PLAIN_AMBIENT = 0.7f;
 
     private Material foggedTerrain(ColorRGBA color) {
@@ -4841,7 +5008,7 @@ final class DukeRtsApp extends SimpleApplication {
      *                multiplied by the ambient light itself
      */
     private Material fogged(ColorRGBA color, ColorRGBA ambient,
-            com.jme3.texture.Texture atlas) {
+                            com.jme3.texture.Texture atlas) {
         var material = new Material(assetManager, "MatDefs/duke/FoggedTerrain.j3md");
         material.setColor("Color", color);
         material.setColor("Ambient", ambient);
