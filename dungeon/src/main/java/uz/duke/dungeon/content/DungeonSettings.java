@@ -178,6 +178,12 @@ public final class DungeonSettings {
      */
     private final java.util.List<String> bosses = new java.util.ArrayList<>();
 
+    /** Who stands in the boss's room with it, in file order: see {@link #bossGuardsAt}. */
+    private final java.util.List<BossGuard> bossGuards = new java.util.ArrayList<>();
+
+    /** How many cells out from the boss its guard stands. */
+    private int bossGuardRing = 2;
+
     /**
      * Which kind waits in the furthest room at this depth.
      *
@@ -192,6 +198,30 @@ public final class DungeonSettings {
     /** The boss of this depth, whole. */
     public MonsterKind bossAt(int depth) {
         return monster(bossKindAt(depth));
+    }
+
+    /** One kind the boss is guarded by, and how many of it. */
+    public record BossGuard(String kind, int count) {
+    }
+
+    /**
+     * Who stands with the boss at this depth: each guard the file names whose kind is
+     * deep enough to have appeared at all -- so a shallow boss still waits alone.
+     */
+    public java.util.List<BossGuard> bossGuardsAt(int depth) {
+        var here = new java.util.ArrayList<BossGuard>();
+        for (var guard : bossGuards) {
+            var kind = monster(guard.kind());
+            if (kind != null && kind.minDepth() <= depth) {
+                here.add(guard);
+            }
+        }
+        return here;
+    }
+
+    /** How many cells out from the boss its guard stands; see {@code DungeonGenerator}. */
+    public int bossGuardRing() {
+        return bossGuardRing;
     }
 
     /**
@@ -595,6 +625,12 @@ public final class DungeonSettings {
                     name + "'s KeepDistance has to be a band, nearest then furthest");
             require(kind.maxPerRoom() >= 0, name + "'s MaxPerRoom cannot be negative");
         }
+        for (var guard : bossGuards) {
+            require(monster(guard.kind()) != null,
+                    "BossGuards names " + guard.kind() + ", and no DungeonMonster describes it");
+            require(guard.count() >= 1, "BossGuards has to put at least one " + guard.kind() + " there");
+        }
+        require(bossGuardRing >= 1, "BossGuardRing has to stand the guard off the boss's own cell");
         require(corridorWidth >= 1, "a corridor narrower than one cell is a wall");
         require(maxRoomSpacing > maxRoomSize, "rooms could never reach one another");
         require(minPropsPerRoom >= 0, "a room cannot hold fewer than no things");
@@ -3207,6 +3243,22 @@ public final class DungeonSettings {
                             }
                         }
                     })
+                    // Who stands with the boss: a kind and how many, and again. Said once
+                    // more it replaces the list rather than adding to it, so a file can
+                    // send the guard away by saying nothing.
+                    .add("BossGuards", (ini, s) -> {
+                        s.bossGuards.clear();
+                        var line = ini.getRestOfLine();
+                        if (line == null || line.isBlank()) {
+                            return;
+                        }
+                        var words = line.trim().split("\s+");
+                        require(words.length % 2 == 0, "BossGuards is pairs: a kind, then how many of it");
+                        for (int at = 0; at < words.length; at += 2) {
+                            s.bossGuards.add(new BossGuard(words[at], Integer.parseInt(words[at + 1])));
+                        }
+                    })
+                    .add("BossGuardRing", Ini.integer((s, v) -> s.bossGuardRing = v))
                     .add("ExperiencePercentPerDepth",
                             Ini.integer((s, v) -> s.experiencePercentPerDepth = v));
 

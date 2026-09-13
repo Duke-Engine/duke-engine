@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-13 · **Testlar:** 1498 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-13 · **Testlar:** 1501 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -4180,6 +4180,41 @@ Mavjud testlarga tegishli o'zgarishlar:
   tekshiruvidan yiqilgandi.
 - `Skill` konstruktorini chaqiradigan uchta testga to'rtta yangi maydon qo'shildi;
   `DungeonSettingsTest` va `Main.rangeOf` dagi switch'larga `SUMMON` qo'shildi.
+
+### 8.bc Boss xonasi: qo'riqchilar INI'dan
+
+Avval generator boss xonasini to'ldirishda o'tkazib yuborardi, ya'ni "xonada faqat boss"
+qoidasi Java'da yozilgan edi. Uni INI'ga chiqarish arzon bo'lgani uchun qilindi.
+
+#### `DungeonDepth Descent`
+
+- `BossGuards = SkeletonHealer 2 SkeletonSummoner 2` — juftliklar: avval tur, keyin
+  nechta. Bo'sh qoldirilsa, hamma boss yolg'iz turadi.
+- `BossGuardRing = 2` — qo'riqchilar bossdan necha katak narida turadi.
+
+#### Qoida
+
+- **Chuqurlik:** `MinDepth` i yetmagan tur kelmaydi. Shuning uchun Warden (1) va
+  Reaper (2) avvalgidek yolg'iz. Necromancer (3) va Champion (4) yonida esa 2 ta yashil
+  va 2 ta binafsha mage turadi.
+- **Joy:** bossning katagi atrofidagi kvadrat halqa. Tartib: avval burchaklar, keyin
+  tomonlarning o'rtasi, keyin qolgan kataklar. Devor chizig'idagi yoki xonadan
+  tashqaridagi katak o'tkazib yuboriladi; halqada joy qolmasa, keyingi halqaga o'tiladi.
+- **Seed o'zgarmaydi:** tasodif ishlatilmaydi, shuning uchun xonalar, oddiy monsterlar va
+  jihozlar har bir seed'da avvalgidek chiziladi. Farq bitta: jihoz qo'riqchi turgan
+  katakka tushmaydi — boshqa monsterlarning katagiga ham tushmagani kabi.
+- **`MaxPerRoom`:** faqat qur'a bilan to'ldiriladigan xonalarga tegishli, boss xonasiga
+  emas.
+- **Stage fayllari:** saqlangan `.stage` lar o'zgarmaydi, chunki ularda monsterlar
+  ro'yxati tayyor yozilgan. Worldbuilder'da yangi kesilgan stage'larda qo'riqchilar
+  bo'ladi.
+
+#### Testlar — `MonsterPlacementTest` ga 3 ta qo'shildi
+
+- oxirgi chuqurlikda boss xonasida aynan fayl aytgan tarkib turadi: har biri alohida
+  katakda, hech biri bossning ustida emas (61 seed);
+- INI'da `Runner 3` yozilsa, 3 ta Runner turadi; bo'sh qoldirilsa, boss yolg'iz;
+- qo'riqchilar xaritani ham, boshqa xonalardagi monsterlarni ham o'zgartirmaydi.
 
 ## 9. Nima yo'q / ochiq ishlar
 

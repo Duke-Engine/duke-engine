@@ -85,9 +85,10 @@ class MonsterPlacementTest {
     }
 
     /**
-     * The boss stands at the end of the longest chain of corridors, and stands
-     * alone: its room is the fight that gates the next floor, not somewhere the
-     * player wanders into mid-brawl.
+     * The boss stands at the end of the longest chain of corridors, and on the second
+     * floor it stands alone: its room is the fight that gates the next floor, not
+     * somewhere the player wanders into mid-brawl. Only the guard the file names ever
+     * joins it, and not this shallow -- see below.
      */
     @Test
     void theBossWaitsAloneInTheFurthestRoom() {
@@ -105,6 +106,84 @@ class MonsterPlacementTest {
                         "seed " + seed + ": something else is loitering in the boss room");
             }
         }
+    }
+
+    /**
+     * Deeper down the boss has company, and exactly the company the file names: each
+     * kind as many as it says, in its room, one to a cell and none on the boss.
+     */
+    @Test
+    void deeperDownTheBossRoomHoldsTheGuardTheFileNames() {
+        int depth = SETTINGS.finalDepth();
+        var named = new java.util.HashMap<String, Integer>();
+        for (var guard : SETTINGS.bossGuardsAt(depth)) {
+            named.merge(guard.kind(), guard.count(), Integer::sum);
+        }
+        assertFalse(named.isEmpty(), "the shipped file puts nobody with the last boss");
+
+        for (long seed = 0; seed <= 60; seed++) {
+            var floor = DungeonGenerator.generate(seed, SETTINGS, depth);
+            var room = floor.rooms().get(floor.bossRoom());
+            var found = new java.util.HashMap<String, Integer>();
+            var cells = new HashSet<Long>();
+            for (var monster : floor.monsters()) {
+                if (inRoom(monster.at(), room)) {
+                    found.merge(monster.kind(), 1, Integer::sum);
+                    assertTrue(cells.add(cellOf(monster.at())), "seed " + seed + ": two on one cell");
+                    assertTrue(cellOf(monster.at()) != cellOf(floor.boss().at()),
+                            "seed " + seed + ": one stands on the boss");
+                }
+            }
+            assertEquals(named, found, "seed " + seed);
+        }
+    }
+
+    /** Who guards the boss is the file's to say, and saying nobody sends them away. */
+    @Test
+    void theGuardIsTheFilesToName() {
+        var runners = guardedBy("Runner 3");
+        var nobody = guardedBy("");
+        for (long seed = 0; seed <= 20; seed++) {
+            var guarded = DungeonGenerator.generate(seed, runners, 1);
+            var room = guarded.rooms().get(guarded.bossRoom());
+            assertEquals(java.util.List.of("Runner", "Runner", "Runner"), guarded.monsters().stream()
+                    .filter(monster -> inRoom(monster.at(), room))
+                    .map(GeneratedDungeon.Monster::kind).toList(), "seed " + seed);
+
+            var alone = DungeonGenerator.generate(seed, nobody, SETTINGS.finalDepth());
+            var bossRoom = alone.rooms().get(alone.bossRoom());
+            assertTrue(alone.monsters().stream().noneMatch(monster -> inRoom(monster.at(), bossRoom)),
+                    "seed " + seed + ": somebody stayed with a boss the file left alone");
+        }
+    }
+
+    /** And a guard changes nothing else about the floor: the same rooms, the same fillers. */
+    @Test
+    void aGuardLeavesTheRestOfTheFloorAsItWas() {
+        var nobody = guardedBy("");
+        for (long seed = 0; seed <= 20; seed++) {
+            var with = DungeonGenerator.generate(seed, SETTINGS, SETTINGS.finalDepth());
+            var without = DungeonGenerator.generate(seed, nobody, SETTINGS.finalDepth());
+            var room = with.rooms().get(with.bossRoom());
+
+            assertEquals(without.asciiMap(), with.asciiMap(), "seed " + seed);
+            assertEquals(without.monsters(), with.monsters().stream()
+                    .filter(monster -> !inRoom(monster.at(), room)).toList(), "seed " + seed);
+        }
+    }
+
+    private static DungeonSettings guardedBy(String guard) {
+        return DungeonSettings.parse(uz.duke.dungeon.content.Content.read(
+                uz.duke.dungeon.content.Content.SETTINGS) + """
+
+                DungeonDepth Descent
+                  BossGuards = %s
+                End
+                """.formatted(guard));
+    }
+
+    private static long cellOf(GeneratedDungeon.Placement at) {
+        return ((long) at.cellY() << 32) | at.cellX();
     }
 
     private static boolean inRoom(GeneratedDungeon.Placement at, GeneratedDungeon.Room room) {

@@ -105,6 +105,7 @@ public final class DungeonGenerator {
         var monsters = populate(rng, rooms, settings, depth, bossRoom);
         var boss = new Monster(settings.bossKindAt(depth),
                 worldCenter(rooms.get(bossRoom).centerCellX(), rooms.get(bossRoom).centerCellY()));
+        monsters.addAll(guard(rooms.get(bossRoom), settings, depth));
         var props = scatter(rng, rooms, settings, storeys.map(), monsters, hero, boss.at());
 
         return new GeneratedDungeon(render(cells), render(storeys.map()), hero, monsters, boss,
@@ -352,9 +353,10 @@ public final class DungeonGenerator {
      * Fill the rooms the hero does not start in, drawing a kind for each monster
      * from what the data file makes available at this depth.
      *
-     * <p>The boss's room is left to the boss. It is meant to be the end of the
-     * floor, and a crowd standing around it would turn the fight that gates the
-     * next depth into a brawl the player stumbles into sideways.
+     * <p>The boss's room is left to the boss and the guard the file names for it --
+     * see {@link #guard}. It is meant to be the end of the floor, and a crowd drawn at
+     * random around it would turn the fight that gates the next depth into a brawl
+     * the player stumbles into sideways.
      */
     private static List<Monster> populate(DeterministicRng rng, List<Room> rooms,
             DungeonSettings settings, int depth, int bossRoom) {
@@ -398,6 +400,68 @@ public final class DungeonGenerator {
             }
         }
         return monsters;
+    }
+
+    /**
+     * Stand the boss's guard round it: the kinds the file names for this depth, each on
+     * the next cell of a square ring round the boss's own.
+     *
+     * <p>No dice, so a floor's rooms, fillers and furniture are drawn exactly as they
+     * were before its boss had a guard. The ring is {@code BossGuardRing} cells out --
+     * a boss is wide -- with its corners taken first and then the middles of its sides,
+     * so four stand square round the boss. A cell on the wall line or outside the room
+     * is passed over, and when one ring has no floor left the next ring out is tried.
+     */
+    private static List<Monster> guard(Room room, DungeonSettings settings, int depth) {
+        var wanted = new ArrayList<String>();
+        for (var guard : settings.bossGuardsAt(depth)) {
+            for (int n = 0; n < guard.count(); n++) {
+                wanted.add(guard.kind());
+            }
+        }
+        var guards = new ArrayList<Monster>();
+        int bx = room.centerCellX();
+        int by = room.centerCellY();
+        int widest = Math.max(room.w(), room.h());
+        for (int ring = settings.bossGuardRing();
+                ring <= widest && guards.size() < wanted.size(); ring++) {
+            for (var cell : ringAround(ring)) {
+                int cx = bx + cell[0];
+                int cy = by + cell[1];
+                if (guards.size() < wanted.size() && inside(room, cx, cy)) {
+                    guards.add(new Monster(wanted.get(guards.size()), worldCenter(cx, cy)));
+                }
+            }
+        }
+        return guards;
+    }
+
+    /** The cells of the square {@code ring} out: corners, then the middles, then the rest. */
+    private static List<int[]> ringAround(int ring) {
+        var cells = new ArrayList<int[]>();
+        cells.add(new int[] {-ring, -ring});
+        cells.add(new int[] {ring, ring});
+        cells.add(new int[] {ring, -ring});
+        cells.add(new int[] {-ring, ring});
+        cells.add(new int[] {0, -ring});
+        cells.add(new int[] {0, ring});
+        cells.add(new int[] {-ring, 0});
+        cells.add(new int[] {ring, 0});
+        for (int along = 1; along < ring; along++) {
+            for (int side : new int[] {-1, 1}) {
+                cells.add(new int[] {side * along, -ring});
+                cells.add(new int[] {side * along, ring});
+                cells.add(new int[] {-ring, side * along});
+                cells.add(new int[] {ring, side * along});
+            }
+        }
+        return cells;
+    }
+
+    /** Inside the room and off its wall line, where a filler may stand. */
+    private static boolean inside(Room room, int cx, int cy) {
+        return cx >= room.x() + 1 && cx <= room.x() + room.w() - 2
+                && cy >= room.y() + 1 && cy <= room.y() + room.h() - 2;
     }
 
     /**
