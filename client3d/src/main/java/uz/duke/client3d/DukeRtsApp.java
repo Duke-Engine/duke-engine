@@ -162,6 +162,10 @@ final class DukeRtsApp extends SimpleApplication {
      * Shots that ended this frame, waiting for its blows to say whether they struck.
      */
     private final List<Landing.Gone> endedShots = new ArrayList<>();
+    /** A level, the boss down, a new floor -- see RunMoments. */
+    private final RunMoments runMoments = new RunMoments();
+    /** The floor's half of this frame's status line, read once for the bars and the moments. */
+    private UnitBarReading barReading = UnitBarReading.NOTHING;
 
     /**
      * The frame of the last cast this client drew, so one cast is drawn once.
@@ -809,12 +813,50 @@ final class DukeRtsApp extends SimpleApplication {
                     flash(change.unitId());
                 }
             }
+            playTheRunsMoments(now);
         }
         burstWhatStruck(changes);
         // Read once. handleEvents runs earlier in the frame and fills this; a
         // second reading would throw the finishing blow twice.
         killedThisFrame.clear();
         hitNumbers.update(now, cam, this::floorHeightAt);
+    }
+
+    /**
+     * A level gained, the boss down, a new floor: each played on him in the look the
+     * game gave it, and a level heard as well.
+     *
+     * <p>Off the line's own field for the hero rather than off the panel's card,
+     * which is whoever happens to be selected -- see {@link RunMoments}. One look on
+     * him at a time, the biggest: the blow that fells a boss is usually the one that
+     * gives him his level too.
+     */
+    private void playTheRunsMoments(float now) {
+        var died = new ArrayList<Integer>(killedThisFrame.size());
+        for (var death : killedThisFrame) {
+            died.add(death.unitId());
+        }
+        var moments = runMoments.since(barReading, died);
+        for (var moment : moments) {
+            if (Visuals.LEVEL_UP.equals(moment.name())) {
+                noises.levelledUp(now);
+            }
+        }
+        var drawn = RunMoments.biggestOnEach(moments, name -> {
+            var look = visuals.getMoment(name);
+            return look == null ? 0.0 : look.scale();
+        });
+        for (var moment : drawn) {
+            var look = visuals.getMoment(moment.name());
+            var node = unitNodes.get(moment.unitId());
+            if (look == null || node == null || layered == null) {
+                continue;
+            }
+            var at = node.root.getLocalTranslation();
+            var foot = new Vector3f(at.x, floorHeightAt(at.x, at.z), at.z);
+            layered.cast(look.effect(), new LayeredEffects.Moment(foot, null, null, 0f, 1f, 0f,
+                    moment.unitId(), moment.unitId()), cam, look.scale());
+        }
     }
 
     /**
@@ -2248,6 +2290,11 @@ final class DukeRtsApp extends SimpleApplication {
         if (game.getTerrain() == builtFrom && !lookChanged) {
             return;
         }
+        // A rebuilt world has nothing burning in it, and whoever is in it has just
+        // arrived: even a hero whose id and floor match the last run's, and even when
+        // the floor's look catches up with the floor a moment late -- which rebuilds
+        // it again, and puts out the light he arrived in.
+        runMoments.forget();
         lookChanged = false;
         buildTerrain();
         rebuildMinimapTerrain();
@@ -3654,7 +3701,8 @@ final class DukeRtsApp extends SimpleApplication {
                     node.root.getWorldTranslation().y,
                     node.view.playerIndex() == mine));
         }
-        unitBars.update(cam, standing, UnitBarReading.read(snapshot.status()));
+        barReading = UnitBarReading.read(snapshot.status());
+        unitBars.update(cam, standing, barReading);
     }
 
     private void syncUnits() {

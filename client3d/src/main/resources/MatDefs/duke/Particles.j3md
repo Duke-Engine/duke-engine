@@ -55,10 +55,16 @@ MaterialDef Duke Particles {
         // grass alike.
         Float Cover : 0.0
 
+        // A PILLAR's moving end crosses its whole height over this much of its
+        // life, along RiseEase: up out of the floor, or down onto it.
+        Float Rise : 0.0
+        Float RiseEase : 1.0
+
         // How it faces. None of these: towards the camera, turning.
         Boolean Ground
         Boolean Streak
         Boolean Axis
+        Boolean Pillar
     }
 
     Technique {
@@ -76,6 +82,7 @@ MaterialDef Duke Particles {
             GROUND : Ground
             STREAK : Streak
             AXIS : Axis
+            PILLAR : Pillar
         }
     }
 }

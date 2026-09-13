@@ -1101,6 +1101,49 @@ public final class Visuals {
         return strikeWithin;
     }
 
+    // ---- the run's own moments ----
+
+    /** A level gained. */
+    public static final String LEVEL_UP = "LevelUp";
+    /** The floor's boss, down. */
+    public static final String BOSS_DOWN = "BossDown";
+    /** The hero arriving on a floor: a run starting, or a stair taken down. */
+    public static final String ARRIVED = "Arrived";
+
+    /** Every moment a game may give a look to -- see {@link #moment}. */
+    public static final java.util.Set<String> MOMENTS = java.util.Set.of(LEVEL_UP, BOSS_DOWN,
+            ARRIVED);
+
+    /**
+     * What one of the run's moments looks like.
+     *
+     * @param effect the recipe it plays on the hero, by name
+     * @param scale  how much bigger than the recipe is written; 1 as written
+     */
+    public record MomentLook(String effect, float scale) {
+    }
+
+    private final Map<String, MomentLook> moments = new java.util.HashMap<>();
+
+    /**
+     * Give one of the run's moments a look.
+     *
+     * <p>The client notices the moment -- a level, the boss down, a new floor -- and
+     * the game says what it looks like, which is the division everything else here
+     * keeps too. A moment given no look is not drawn.
+     */
+    public Visuals moment(String name, String effect, float scale) {
+        if (name != null && effect != null && !effect.isBlank() && scale > 0f) {
+            moments.put(name, new MomentLook(effect, scale));
+        }
+        return this;
+    }
+
+    /** The look given to a moment, or {@code null} for one given none. */
+    public MomentLook getMoment(String name) {
+        return name == null ? null : moments.get(name);
+    }
+
     // ---- the portrait ----
 
     private final Map<String, PortraitLook> portraits = new LinkedHashMap<>();

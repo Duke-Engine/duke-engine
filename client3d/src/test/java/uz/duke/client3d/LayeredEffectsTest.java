@@ -487,4 +487,180 @@ class LayeredEffectsTest {
         assertEquals(0, rig.lights().lit());
         assertEquals(0, particleGeometries(rig.root()));
     }
+
+    // ---- columns of light ----
+
+    private static EffectLayer.Builder pillar(String way) {
+        return EffectLayer.builder().type(EffectLayer.PILLAR).count(1).direction(way)
+                .height(60f).sizeStart(10f).sizeEnd(10f).lifeMin(0.6f).lifeMax(0.6f)
+                .rise(0.25f).riseEase(3f);
+    }
+
+    private static Geometry theOnlyLayer(Node root) {
+        for (var child : root.getChildren()) {
+            if (child instanceof Geometry geometry && "particles".equals(geometry.getName())) {
+                return geometry;
+            }
+        }
+        throw new AssertionError("nothing is drawn");
+    }
+
+    /** What one slot's first corner was written with, out of one of the mesh's buffers. */
+    private static float written(Geometry drawn, com.jme3.scene.VertexBuffer.Type buffer,
+            int slot, int component, int components) {
+        var data = (java.nio.FloatBuffer) drawn.getMesh().getBuffer(buffer).getData();
+        return data.get(slot * 4 * components + component);
+    }
+
+    @Test
+    void aPillarStandsAsTallAsItSaysAndGoesTheWayItSays() {
+        var rig = rig(1000, 2);
+        rig.visuals().effect("Rising", recipe -> recipe.layer(pillar(EffectLayer.UP).build()));
+        rig.visuals().effect("Falling", recipe -> recipe.layer(pillar(EffectLayer.DOWN).build()));
+
+        rig.effects().cast("Rising", at(5f, 0f), rig.camera());
+        var rising = theOnlyLayer(rig.root());
+        assertEquals(1f, written(rising, com.jme3.scene.VertexBuffer.Type.TexCoord3, 0, 1, 4),
+                "UP is written as up");
+        assertEquals(60f, written(rising, com.jme3.scene.VertexBuffer.Type.TexCoord3, 0, 3, 4),
+                0.001f, "and as tall as the layer says");
+        assertEquals(5f, written(rising, com.jme3.scene.VertexBuffer.Type.Position, 0, 0, 3),
+                0.001f, "standing where it happened");
+        rig.effects().clear();
+
+        rig.effects().cast("Falling", at(5f, 0f), rig.camera());
+        assertEquals(-1f, written(theOnlyLayer(rig.root()),
+                com.jme3.scene.VertexBuffer.Type.TexCoord3, 0, 1, 4), "DOWN is written as down");
+    }
+
+    @Test
+    void aPillarIsDressedToStandUpright() {
+        var rig = rig(1000, 2);
+        rig.visuals().effect("Column", recipe -> recipe.layer(pillar(EffectLayer.DOWN).build()));
+
+        rig.effects().cast("Column", at(0f, 0f), rig.camera());
+        var material = theOnlyLayer(rig.root()).getMaterial();
+
+        assertEquals(Boolean.TRUE, material.getParamValue("Pillar"));
+        org.junit.jupiter.api.Assertions.assertNull(material.getParam("Axis"), "it is not a beam");
+        org.junit.jupiter.api.Assertions.assertNull(material.getParam("Streak"),
+                "nor drawn out along a speed it does not have");
+        assertEquals(0.25f, (Float) material.getParamValue("Rise"), 0.001f);
+        assertEquals(3f, (Float) material.getParamValue("RiseEase"), 0.001f);
+    }
+
+    /**
+     * A pillar draws the columns it asks for and no more. The pool lends four slots
+     * for one, and a column is light: four drawn over one another would be four
+     * times as bright as the file said.
+     */
+    @Test
+    void aPillarDrawsTheColumnsItAsksForAndNoMore() {
+        var rig = rig(1000, 2);
+        rig.visuals().effect("Column", recipe -> recipe.layer(pillar(EffectLayer.UP).build()));
+
+        rig.effects().cast("Column", at(0f, 0f), rig.camera());
+        var drawn = theOnlyLayer(rig.root());
+
+        assertEquals(0f, written(drawn, com.jme3.scene.VertexBuffer.Type.TexCoord2, 0, 0, 4),
+                "the one it asked for is born at once");
+        for (int slot = 1; slot < 4; slot++) {
+            assertTrue(written(drawn, com.jme3.scene.VertexBuffer.Type.TexCoord2, slot, 0, 4) > 1000f,
+                    "slot " + slot + " stays dark");
+        }
+    }
+
+    @Test
+    void aPillarAndItsLightArePutAwayWhenTheyAreOver() {
+        var rig = rig(1000, 2);
+        rig.visuals().effect("Column", recipe -> recipe
+                .layer(pillar(EffectLayer.UP).build())
+                .layer(EffectLayer.builder().type(EffectLayer.LIGHT).seconds(0.6f)
+                        .lightPower(3f).lightRadius(60f).build()));
+
+        rig.effects().cast("Column", at(0f, 0f), rig.camera());
+        assertEquals(1, particleGeometries(rig.root()));
+        assertEquals(1, rig.lights().lit());
+
+        run(rig, 1f);
+        assertEquals(0, rig.effects().playingCount());
+        assertEquals(0, rig.effects().particlesInUse());
+        assertEquals(0, particleGeometries(rig.root()), "nothing of it is left in the scene");
+        assertEquals(0, rig.lights().lit(), "and its light is out");
+    }
+
+    /**
+     * A layer that says it follows goes where the man it happened to goes -- a hero
+     * who levels mid-stride does not walk out of his own light -- and one that does
+     * not say so stays where it was started.
+     */
+    @Test
+    void aLayerThatFollowsGoesWhereHeGoesAndOneThatDoesNotStays() {
+        var rig = rig(1000, 2);
+        var onHim = new LayeredEffects.Moment(new Vector3f(10f, 0f, 0f), null, null, 0f, 1f, 0f,
+                9, 9);
+        rig.visuals().effect("Worn", recipe -> recipe.layer(pillar(EffectLayer.UP)
+                .at(EffectLayer.CASTER).follows(true).lifeMin(2f).lifeMax(2f).build()));
+        rig.visuals().effect("Left", recipe -> recipe.layer(pillar(EffectLayer.UP)
+                .at(EffectLayer.CASTER).lifeMin(2f).lifeMax(2f).build()));
+
+        rig.place().creatures.put(9, new Vector3f(10f, 0f, 0f));
+        rig.effects().cast("Worn", onHim, rig.camera());
+        rig.place().creatures.put(9, new Vector3f(40f, 0f, 25f));
+        run(rig, 0.2f);
+        assertEquals(new Vector3f(40f, 0f, 25f), theOnlyLayer(rig.root()).getLocalTranslation(),
+                "it went with him");
+        rig.effects().clear();
+
+        rig.place().creatures.put(9, new Vector3f(10f, 0f, 0f));
+        rig.effects().cast("Left", onHim, rig.camera());
+        rig.place().creatures.put(9, new Vector3f(40f, 0f, 25f));
+        run(rig, 0.2f);
+        var left = theOnlyLayer(rig.root());
+        assertEquals(Vector3f.ZERO, left.getLocalTranslation(), "it is drawn where it was born");
+        assertEquals(10f, written(left, com.jme3.scene.VertexBuffer.Type.Position, 0, 0, 3), 0.001f,
+                "which is where he was");
+    }
+
+    /** A moment drawn bigger is the same recipe with every size and the height times the scale. */
+    @Test
+    void aBiggerMomentIsTheSameLookAtAnotherSize() {
+        var rig = rig(1000, 2);
+        rig.visuals().effect("Column", recipe -> recipe.layer(pillar(EffectLayer.UP).build()));
+
+        rig.effects().cast("Column", at(0f, 0f), rig.camera(), 1.5f);
+        var drawn = theOnlyLayer(rig.root());
+
+        assertEquals(90f, written(drawn, com.jme3.scene.VertexBuffer.Type.TexCoord3, 0, 3, 4),
+                0.001f, "sixty tall, half as tall again");
+        assertEquals(1.5f, written(drawn, com.jme3.scene.VertexBuffer.Type.TexCoord2, 0, 3, 4),
+                0.001f, "and half as wide again");
+    }
+
+    /**
+     * Fifty moments at once -- a crowd of heroes levelling in one breath -- stay under
+     * both ceilings, and leave nothing behind.
+     */
+    @Test
+    void manyColumnsAtOnceStayUnderTheCeilingsAndLeaveNothing() {
+        var rig = rig(300, 4);
+        rig.visuals().effect("LevelUp", recipe -> recipe
+                .layer(pillar(EffectLayer.UP).build())
+                .layer(pillar(EffectLayer.UP).sizeStart(30f).sizeEnd(34f).build())
+                .layer(burst(16).build())
+                .layer(EffectLayer.builder().type(EffectLayer.LIGHT).seconds(0.6f)
+                        .lightPower(3f).lightRadius(60f).build()));
+
+        for (int hero = 0; hero < 50; hero++) {
+            rig.effects().cast("LevelUp", at(hero % 10, hero / 10f), rig.camera());
+            assertTrue(rig.effects().particlesInUse() <= 300, "over the particle ceiling");
+            assertTrue(rig.lights().lit() <= 4, "more lights burning than there are");
+        }
+        run(rig, 1.5f);
+
+        assertEquals(0, rig.effects().playingCount());
+        assertEquals(0, rig.effects().particlesInUse());
+        assertEquals(0, particleGeometries(rig.root()));
+        assertEquals(0, rig.lights().lit());
+    }
 }

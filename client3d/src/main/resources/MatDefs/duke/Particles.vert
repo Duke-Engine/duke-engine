@@ -30,6 +30,8 @@ uniform float m_Spin;
 uniform float m_PulseRate;
 uniform float m_PulseDepth;
 uniform float m_Opacity;
+uniform float m_Rise;
+uniform float m_RiseEase;
 
 // Where it was born, in the geometry's own space.
 attribute vec3 inPosition;
@@ -40,8 +42,8 @@ attribute vec3 inNormal;
 // When it was born, how long it lives, a number of its own, and how big it is
 // against the layer.
 attribute vec4 inTexCoord2;
-// An AXIS particle's direction and, in w, its length; anything else's angle at
-// birth, in w.
+// An AXIS particle's direction and, in w, its length; a PILLAR's way in y, up or
+// down, and its height in w; anything else's angle at birth, in w.
 attribute vec4 inTexCoord3;
 
 varying vec2 texCoord;
@@ -112,6 +114,26 @@ void main() {
     // Lying on the floor: a ring, a scorch, a warning.
     vec2 laid = turn(corner, spin) * size * 0.5;
     world = here + vec3(laid.x, 0.0, laid.y);
+#elif defined(PILLAR)
+    // Standing on the floor and turned round its own upright towards the camera:
+    // light coming down onto something, or rising out of the ground under it. The
+    // end that moves crosses the whole height over the first Rise of its life, and
+    // the shape is drawn over however much of the column there is so far, so its
+    // soft ends are always the column's ends. Laid over the whole height and
+    // uncovered instead, the moving end cut through the bright middle of it along a
+    // hard straight line.
+    float tall = max(inTexCoord3.w, 0.0);
+    float crossed = m_Rise > 0.0001 ? ease(clamp(t / m_Rise, 0.0, 1.0), m_RiseEase) : 1.0;
+    float bottom = inTexCoord3.y < 0.0 ? tall * (1.0 - crossed) : 0.0;
+    float top = inTexCoord3.y < 0.0 ? tall : tall * crossed;
+    float upright = mix(bottom, top, inTexCoord.y);
+    vec3 across = cross(vec3(0.0, 1.0, 0.0), facing);
+    float wide = length(across);
+    across = wide > 0.0001 ? across / wide : right;
+    // Brought towards the eye by half its width, as a card is: whoever it stands
+    // on is inside the light, rather than cutting it in two.
+    world = here + across * corner.x * size * 0.5 + vec3(0.0, upright, 0.0)
+            + facing * size * 0.5;
 #elif defined(AXIS)
     // Along a line it was given and towards the camera across it: a beam, or a
     // streak that is not moving but still has a direction.

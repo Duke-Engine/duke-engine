@@ -336,6 +336,13 @@ public final class DungeonSettings {
                     reader.initFromIni(layer, LAYER);
                     settings.effectLayers.add(layer);
                 }),
+                // What one of the run's own moments plays on the hero: a level, the
+                // boss down, a floor reached.
+                Map.entry("DungeonMoment", (Ini.BlockParser) reader -> {
+                    var moment = new MomentBuilder(reader.getNextToken());
+                    reader.initFromIni(moment, MOMENT);
+                    settings.moments.add(moment);
+                }),
                 Map.entry("DungeonEffects", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, EFFECT_BUDGET);
@@ -668,6 +675,10 @@ public final class DungeonSettings {
             // read as the end of the card, and the card after it as nonsense.
             require(sayable(power.name()) && sayable(power.description()),
                     "a power's Name and Desc may not contain ',' or '|': " + power.id());
+        }
+        for (var moment : moments) {
+            require(!moment.effect.isBlank(), "DungeonMoment " + moment.name + " plays no Effect");
+            require(moment.scale > 0f, "DungeonMoment " + moment.name + " has to be drawn at some size");
         }
         require(sayable(hudIconFolder), "IconFolder may not contain ',' or '|'");
         for (var skill : skills) {
@@ -1947,6 +1958,42 @@ public final class DungeonSettings {
                 .toList();
     }
 
+    /**
+     * What one of the run's own moments looks like: a level gained, the boss down,
+     * the hero arriving on a floor. The client notices the moment; this says which
+     * recipe it plays on him.
+     *
+     * @param name   which moment, in the client's word for it
+     * @param effect the recipe it plays, a {@code DungeonEffect} drawn in layers
+     * @param scale  how much bigger than the recipe is written it is drawn; 1 as written
+     */
+    public record MomentArt(String name, String effect, float scale) {
+    }
+
+    private static final class MomentBuilder {
+        private final String name;
+        String effect = "";
+        float scale = 1f;
+
+        MomentBuilder(String name) {
+            this.name = name;
+        }
+    }
+
+    private final java.util.List<MomentBuilder> moments = new java.util.ArrayList<>();
+
+    /** Every moment the file gives a look, in the order it gives them. */
+    public java.util.List<MomentArt> moments() {
+        return moments.stream()
+                .map(moment -> new MomentArt(moment.name, moment.effect, moment.scale))
+                .toList();
+    }
+
+    private static final FieldParseTable<MomentBuilder> MOMENT =
+            new FieldParseTable<MomentBuilder>()
+                    .add("Effect", Ini.string((m, v) -> m.effect = v))
+                    .add("Scale", Ini.real((m, v) -> m.scale = v));
+
     private String particleFolder = "";
 
     /** Where a layer's texture is found, joined onto the front of its name. */
@@ -2032,6 +2079,12 @@ public final class DungeonSettings {
                     .add("LightPower", Ini.real((l, v) -> l.put("lightPower", String.valueOf(v))))
                     .add("LightRadius", Ini.real((l, v) -> l.put("lightRadius", String.valueOf(v))))
                     .add("Fall", Ini.real((l, v) -> l.put("fall", String.valueOf(v))))
+                    // A PILLAR's end that moves: how much of its life it takes to cross
+                    // the whole height, and along what curve.
+                    .add("Rise", Ini.real((l, v) -> l.put("rise", String.valueOf(v))))
+                    .add("RiseEase", Ini.real((l, v) -> l.put("riseEase", String.valueOf(v))))
+                    // Whether a layer on somebody goes where he goes. An AURA always does.
+                    .add("Follows", Ini.bool((l, v) -> l.put("follows", String.valueOf(v))))
                     // Two numbers, where a thing has a start and an end or a least and a most.
                     .add("Life", (ini, l) -> l.two("lifeMin", "lifeMax", ini.getNextToken(), ini.getNextToken()))
                     .add("Size", (ini, l) -> l.two("sizeStart", "sizeEnd", ini.getNextToken(), ini.getNextToken()))

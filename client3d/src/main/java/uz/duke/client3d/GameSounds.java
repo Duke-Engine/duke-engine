@@ -34,7 +34,6 @@ final class GameSounds {
     private final float touching;
 
     private Map<Integer, UnitView> before = Map.of();
-    private String lastRank = "";
     private String lastDepth = "";
     private String lastNote = "";
     private boolean offerWasUp;
@@ -121,7 +120,7 @@ final class GameSounds {
      * What the game's own line says has changed since it last said anything.
      *
      * <p>The status line is how this game speaks about itself, and it is where the
-     * moments live that the engine has no name for: a level, a floor, something
+     * moments live that the engine has no name for: a floor, something
      * picked up, a skill that has just gone on its cooldown. Read rather than
      * announced, for the same reason as the rest — it is already being sent.
      */
@@ -138,18 +137,10 @@ final class GameSounds {
         }
         // A card with no level on it is not his — the player has picked out
         // something else and the bar is describing that. The floor above is still
-        // the floor; nothing below this line is, and reading a creature's card as
-        // his own turns every click on a skeleton into a level-up fanfare and a
-        // second one on the way back.
+        // the floor; nothing below this line is. His level is not read here at all:
+        // see levelledUp.
         if (reading.rank().isEmpty()) {
             return;
-        }
-        if (!reading.rank().equals(lastRank)) {
-            if (!lastRank.isEmpty()) {
-                sounds.play("level_up", now);
-                sounds.play("vo.level_up", now);
-            }
-            lastRank = reading.rank();
         }
         // A note stays up for a while, so it is its arrival that is the moment.
         var note = reading.note() == null ? "" : reading.note();
@@ -178,6 +169,18 @@ final class GameSounds {
     /** A moment the player caused directly: an order, a click, a card taken. */
     void moment(String cue, float now) {
         sounds.play(cue, now);
+    }
+
+    /**
+     * He gained a level: the fanfare, and his voice saying so.
+     *
+     * <p>Told, rather than read off the panel. The panel's rank is whoever is picked
+     * out, so a level gained with a skeleton selected went unheard -- and was heard
+     * late, the moment he was picked again.
+     */
+    void levelledUp(float now) {
+        sounds.play("level_up", now);
+        sounds.play("vo.level_up", now);
     }
 
     /** A new world; nothing carried over from the one before it. */

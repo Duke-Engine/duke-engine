@@ -495,4 +495,116 @@ class DungeonEffectLayerTest {
         assertNotNull(SETTINGS.particleFolder());
         assertTrue(SETTINGS.particleFolder().endsWith("/"), "the folder is joined onto a name");
     }
+
+    // ---- columns of light, and the moments they are played on ----
+
+    /** Every moment the file gives a look is one the client notices, and its look is drawn. */
+    @Test
+    void everyMomentIsOneTheClientPlaysAndItsLookIsLayered() {
+        var layered = SETTINGS.effectLayers().stream()
+                .map(DungeonSettings.EffectLayerArt::effect).collect(Collectors.toSet());
+        assertFalse(SETTINGS.moments().isEmpty(), "the file gives no moment a look");
+        for (var moment : SETTINGS.moments()) {
+            assertTrue(Visuals.MOMENTS.contains(moment.name()),
+                    "DungeonMoment " + moment.name() + " is no moment the client notices");
+            assertTrue(layered.contains(moment.effect()), "DungeonMoment " + moment.name()
+                    + " plays " + moment.effect() + ", which is drawn in no layers");
+        }
+    }
+
+    /** A column goes up or down, stands some height, and arrives rather than appearing. */
+    @Test
+    void aColumnGoesUpOrDownAndArrives() {
+        var wrong = new ArrayList<String>();
+        for (var art : SETTINGS.effectLayers()) {
+            var layer = drawn(art);
+            if (!EffectLayer.PILLAR.equals(layer.type())) {
+                continue;
+            }
+            var where = art.effect() + " " + art.name();
+            if (!EffectLayer.UP.equals(layer.direction()) && !EffectLayer.DOWN.equals(layer.direction())) {
+                wrong.add(where + " goes " + layer.direction());
+            }
+            if (layer.height() <= 0f) {
+                wrong.add(where + " stands no height");
+            }
+            if (layer.rise() <= 0f) {
+                wrong.add(where + " is there at once instead of arriving");
+            }
+        }
+        if (!wrong.isEmpty()) {
+            fail(String.join("\n", wrong));
+        }
+    }
+
+    /**
+     * A look with a column in it is over in half a second to eight tenths: long enough
+     * to be seen arriving and going out, and too short to hang over the fight.
+     */
+    @Test
+    void aColumnOfLightIsOverInHalfASecondToEightTenths() {
+        var longest = new java.util.HashMap<String, Float>();
+        var columns = new java.util.TreeSet<String>();
+        for (var art : SETTINGS.effectLayers()) {
+            var layer = drawn(art);
+            if (EffectLayer.PILLAR.equals(layer.type())) {
+                columns.add(art.effect());
+            }
+            float over = layer.delay()
+                    + (EffectLayer.LIGHT.equals(layer.type()) ? layer.seconds() : layer.lifeMax());
+            longest.merge(art.effect(), over, Math::max);
+        }
+        assertFalse(columns.isEmpty(), "no column of light in the file");
+        for (var effect : columns) {
+            float over = longest.get(effect);
+            assertTrue(over >= 0.5f && over <= 0.8f, effect + " lasts " + over + " s");
+        }
+    }
+
+    /** A level rises out of the floor, and so does the boss falling; arriving comes down. */
+    @Test
+    void aLevelRisesAndArrivingComesDown() {
+        assertEquals(EffectLayer.UP, columnOf(Visuals.LEVEL_UP));
+        assertEquals(EffectLayer.UP, columnOf(Visuals.BOSS_DOWN));
+        assertEquals(EffectLayer.DOWN, columnOf(Visuals.ARRIVED));
+    }
+
+    /** Which way the column in a moment's look goes. */
+    private static String columnOf(String momentName) {
+        var moment = SETTINGS.moments().stream().filter(m -> m.name().equals(momentName))
+                .findFirst().orElseThrow(() -> new AssertionError("no DungeonMoment " + momentName));
+        return SETTINGS.effectLayers().stream()
+                .filter(art -> art.effect().equals(moment.effect()))
+                .map(DungeonEffectLayerTest::drawn)
+                .filter(layer -> EffectLayer.PILLAR.equals(layer.type()))
+                .map(EffectLayer::direction)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(moment.effect() + " has no column in it"));
+    }
+
+    /** The boss falling is drawn bigger than a level, which is what makes it the floor's. */
+    @Test
+    void theBossFallingIsBiggerThanALevel() {
+        float level = SETTINGS.moments().stream().filter(m -> m.name().equals(Visuals.LEVEL_UP))
+                .findFirst().orElseThrow().scale();
+        float boss = SETTINGS.moments().stream().filter(m -> m.name().equals(Visuals.BOSS_DOWN))
+                .findFirst().orElseThrow().scale();
+        assertTrue(boss > level, "a boss at " + boss + " against a level at " + level);
+    }
+
+    /** A column's block becomes the column it describes -- the fields a column has and nothing else does. */
+    @Test
+    void aColumnBlockBecomesTheColumnItDescribes() throws java.io.IOException {
+        var said = saidIn("GoldenPillar", "Core");
+        var layer = drawn(SETTINGS.effectLayers().stream()
+                .filter(art -> art.effect().equals("GoldenPillar") && art.name().equals("Core"))
+                .findFirst().orElseThrow());
+
+        assertEquals(said.get("Type"), layer.type());
+        assertEquals(said.get("Direction"), layer.direction());
+        assertEquals(Float.parseFloat(said.get("Height")), layer.height(), 0.001f);
+        assertEquals(Float.parseFloat(said.get("Rise")), layer.rise(), 0.001f);
+        assertEquals(Float.parseFloat(said.get("RiseEase")), layer.riseEase(), 0.001f);
+        assertEquals("Yes".equalsIgnoreCase(said.get("Follows")), layer.follows());
+    }
 }

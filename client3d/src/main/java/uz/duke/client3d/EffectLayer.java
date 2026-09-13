@@ -85,6 +85,13 @@ import java.util.Set;
  *                    1 for stuff, and between for fire, which has to read on a pale
  *                    floor as well as a dark one. Unsaid, it follows
  *                    {@code additive}
+ * @param rise        a {@link #PILLAR}'s: how much of its life the end that moves
+ *                    takes to cross the whole height, 0 to 1 -- up out of the floor,
+ *                    or down onto it
+ * @param riseEase    and the curve it crosses along. 2–4 is fast and settling,
+ *                    which is how light arrives
+ * @param follows     whether, happening on somebody, it goes where he goes for as
+ *                    long as it lasts. An {@link #AURA} always does
  */
 public record EffectLayer(
         String type,
@@ -127,7 +134,10 @@ public record EffectLayer(
         float lightRadius,
         float fall,
         String measure,
-        float cover) {
+        float cover,
+        float rise,
+        float riseEase,
+        boolean follows) {
 
     // ---- the types: a new one is code, the rest is the settings file ----
 
@@ -151,13 +161,20 @@ public record EffectLayer(
     public static final String ARC = "ARC";
     /** A line from one place to another, facing the camera across it. */
     public static final String BEAM = "BEAM";
+    /**
+     * A column of light standing on the floor, turned round its own upright to face
+     * the camera: coming down onto whoever it is on, or rising up out of the ground
+     * under him. Height is how tall it stands; Direction, UP or DOWN, which way it
+     * goes; Rise, how quickly.
+     */
+    public static final String PILLAR = "PILLAR";
     /** Lying on the floor and staying — a warning, a scorch — breathing if told to. */
     public static final String MARK = "MARK";
     /** A light, flaring and fading, or carried by what is burning. */
     public static final String LIGHT = "LIGHT";
 
     public static final Set<String> TYPES =
-            Set.of(BURST, TRAIL, RING, AURA, IMPACT, ARC, BEAM, MARK, LIGHT);
+            Set.of(BURST, TRAIL, RING, AURA, IMPACT, ARC, BEAM, PILLAR, MARK, LIGHT);
 
     // ---- which way a particle leaves ----
 
@@ -224,6 +241,7 @@ public record EffectLayer(
         delay = Math.max(0f, delay);
         seconds = Math.max(0f, seconds);
         fall = Math.max(0f, fall);
+        rise = Math.clamp(rise, 0f, 1f);
     }
 
     /** Whether it lets particles out over time rather than all at once. */
@@ -255,7 +273,7 @@ public record EffectLayer(
     /**
      * A layer, one field at a time.
      *
-     * <p>Forty-one values in a row is forty-one chances to put a size where
+     * <p>Forty-four values in a row is forty-one chances to put a size where
      * a speed goes, and nothing would notice until an effect looked wrong. The
      * defaults here are what a block that names nothing gets, and they live in
      * exactly one place: the settings file only ever says what it changes.
@@ -303,6 +321,9 @@ public record EffectLayer(
         private String measure = UNITS;
         /** Not said: follows additive. */
         private float cover = Float.NaN;
+        private float rise = 0.2f;
+        private float riseEase = 3f;
+        private boolean follows = false;
 
         private Builder() {
         }
@@ -512,8 +533,23 @@ public record EffectLayer(
             return this;
         }
 
+        public Builder rise(float value) {
+            this.rise = value;
+            return this;
+        }
+
+        public Builder riseEase(float value) {
+            this.riseEase = value;
+            return this;
+        }
+
+        public Builder follows(boolean value) {
+            this.follows = value;
+            return this;
+        }
+
         public EffectLayer build() {
-            return new EffectLayer(type, texture, additive, count, rate, delay, seconds, lifeMin, lifeMax, sizeStart, sizeEnd, sizeEase, sizeJitter, colourStart, colourEnd, alphaStart, alphaEnd, colourEase, fadeIn, fadeOut, speedMin, speedMax, direction, spread, radius, height, gravity, drag, stretch, spin, turn, turnJitter, pulseRate, pulseDepth, at, lightColour, lightPower, lightRadius, fall, measure, cover);
+            return new EffectLayer(type, texture, additive, count, rate, delay, seconds, lifeMin, lifeMax, sizeStart, sizeEnd, sizeEase, sizeJitter, colourStart, colourEnd, alphaStart, alphaEnd, colourEase, fadeIn, fadeOut, speedMin, speedMax, direction, spread, radius, height, gravity, drag, stretch, spin, turn, turnJitter, pulseRate, pulseDepth, at, lightColour, lightPower, lightRadius, fall, measure, cover, rise, riseEase, follows);
         }
     }
 }

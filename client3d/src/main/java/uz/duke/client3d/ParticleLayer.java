@@ -125,6 +125,8 @@ final class ParticleLayer {
         material.setFloat("Drag", layer.drag());
         material.setFloat("Stretch", layer.stretch());
         material.setFloat("Spin", (float) Math.toRadians(layer.spin()));
+        material.setFloat("Rise", layer.rise());
+        material.setFloat("RiseEase", layer.riseEase());
         pulse(layer.pulseRate(), layer.pulseDepth());
         opacity(1f);
         // One blend for all of it, premultiplied: the colour is added, and Cover's
@@ -133,9 +135,11 @@ final class ParticleLayer {
         // stuff, so smoke hides the floor instead of lighting it up.
         material.setFloat("Cover", layer.cover());
         material.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.PremultAlpha);
+        boolean pillar = EffectLayer.PILLAR.equals(layer.type());
         face("Ground", layer.lying());
         face("Axis", EffectLayer.BEAM.equals(layer.type()));
-        face("Streak", !layer.lying() && !EffectLayer.BEAM.equals(layer.type())
+        face("Pillar", pillar);
+        face("Streak", !layer.lying() && !EffectLayer.BEAM.equals(layer.type()) && !pillar
                 && layer.stretch() > 0f);
         empty();
     }
@@ -143,7 +147,8 @@ final class ParticleLayer {
     /**
      * One particle, into all four of its corners.
      *
-     * @param extraW its angle at birth in radians — or, for a beam, its length
+     * @param extraW its angle at birth in radians — or, for a beam, its length, and
+     *               for a pillar, its height
      */
     void put(int index, float x, float y, float z, float vx, float vy, float vz,
             float birth, float life, float seed, float scale,

@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-13 · **Testlar:** 1467 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-13 · **Testlar:** 1490 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -3775,6 +3775,93 @@ ham test ko'rmagan edi:
   `FoggedTerrain.frag` (yorug'likni tuman bilan birga so'ndirish), lekin bu tumanning
   mavjud ko'rinishini o'zgartiradi, shuning uchun qilinmadi
 
+### 8.aw Nur ustuni (`PILLAR`) — daraja, boss, yangi qavat
+
+Warcraft III / Dota uslubidagi tik nur ustuni. Qatlamli effekt tizimiga **yangi
+tur** sifatida qo'shildi — mavjud turlar va skilllarning ko'rinishi o'zgarmadi.
+
+#### Qanday chiziladi
+
+- `PILLAR` qatlami poldan `Height` gacha turadi va o'z tik o'qi atrofida kameraga
+  buriladi (`Particles.vert` dagi `PILLAR` tarmog'i). Ikki yo'nalish — bitta
+  mexanizm: `Direction = UP` da yuqori uchi poldan ko'tariladi, `DOWN` da pastki
+  uchi tepadan polga tushadi. Harakatlanuvchi uch butun balandlikni umrining `Rise`
+  ulushida `RiseEase` egri chizig'i bo'ylab bosib o'tadi (3 — tez boshlanib, sekinlab
+  to'xtaydi).
+- So'nish ham ease-out: `ColourEase > 1` yorug'likning ko'p qismini erta oladi,
+  qolganini cho'zadi. To'g'ri chiziqli so'nish chiroq o'chirilgandek ko'rinadi.
+- Bitta ustun — nur tayoqchasi, xolos. Har bir ko'rinish beshta qatlam: yerda
+  kengayuvchi halqa (`RING`), keng va xira halo (`PILLAR`), ingichka oq-issiq yadro
+  (`PILLAR`), yo'nalishga mos zarralar (`BURST`, `UP`/`DOWN`) va xonani yorituvchi
+  chaqnash (`LIGHT`). Poldagisi birinchi yoziladi, har biri oldingisi ustiga chiziladi.
+- `Follows = Yes` — qatlam kimning ustida bo'lsa, o'shanga ergashadi: yurib
+  ketayotgan qahramon o'z nuridan chiqib qolmaydi. Standart qiymat avvalgidek —
+  faqat `AURA` ergashadi.
+- Ustun `Count` nechta desa, shuncha chiziladi. Pool to'rtta slot bersa ham,
+  qolganlari qorong'i turadi: nur additiv, to'rttasi ustma-ust bo'lsa to'rt barobar
+  yorqin chiqadi.
+- `cast(..., scale)` — o'lchamlar, reach va ustun balandligi `Scale` ga
+  ko'paytiriladi. Boss yengilgandagi ustun — daraja ustunining o'zi, faqat kattaroq.
+- Tekstura: Kenney Particle Pack'da ustunga o'xshash narsa yo'q (80 tasi
+  o'lchandi — chaqmoq, kalta chiziqlar, halqalar). Ikkita gradient
+  `dungeon/art/effects/pillar_textures.py` bilan yasaldi: `pillar_core.png` va
+  `pillar_halo.png`, oq rangda, ikkala uchi yumshoq.
+
+#### Qaysi lahzalarga bog'langan
+
+Simulyatsiyada daraja, boss yoki qavat hodisasi yo'q: `WorldSnapshot.events` da
+faqat `ObjectDied` va `WeaponFired` bor. Lekin kerakli hamma narsa status qatorida
+turibdi. `RunMoments` (klient) har kadr qatorni oldingisi bilan solishtiradi —
+simulyatsiyaga tegilmadi.
+
+| Lahza | Nimadan seziladi | Retsept |
+|---|---|---|
+| `LevelUp` | `\|hero=` dagi daraja oshdi (tanlangan karta emas) | `GoldenPillar` — UP, oltin |
+| `BossDown` | `ObjectDied` id si oxirgi `\|boss=` ga teng | `GoldenPillar`, `Scale = 1.5` |
+| `Arrived` | run boshlandi, qavat o'zgardi yoki dunyo qayta qurildi | `Descent` — DOWN, mash'al rangi |
+
+- Bog'lash — `DungeonMoment <Nom>` bloki (`Effect`, `Scale`). Yangi joyda ishlatish
+  kod emas, INI bloki. Bir kadrda bitta odamga faqat eng katta lahza chiziladi:
+  bossni yiqitgan zarba odatda darajani ham oshiradi.
+- Ultimate ochilishi alohida lahza emas — u daraja oshganda ochiladi
+  (`LevelPerRank = 4`, brifdagi 5 emas), shuning uchun daraja ustuni buni ham bildiradi.
+- `HolyLight` (DOWN, oq-oltin) qo'shildi, lekin hech narsaga bog'lanmagan. O'yinda
+  hozir davolash yo'q; foydalanuvchi qarori — hozircha ishlatilmaydi. Birinchi
+  davolash skilli uni o'z `Look` i sifatida nomlaydi.
+
+#### Ovoz
+
+- `level_up` endi `RunMoments` dan chalinadi. Avval u tanlangan kartadagi `|rank=`
+  ga qarardi: skelet tanlangan paytda daraja oshsa, ovoz chiqmasdi, qahramon qayta
+  tanlanganda esa kechikib chalinardi.
+- Fayl — foydalanuvchining "Game assets" papkasidagi `SFX_1up07`: 0.9 soniyalik
+  ko'tariluvchi notalar ketma-ketligi, `Gain = 0.3`. Litsenziyasi noma'lum —
+  `CREDITS.md` da ochiq savol sifatida yozilgan.
+
+#### Ko'z bilan tekshirildi (yashirin oynada)
+
+1. Birinchi urinishda tekstura butun balandlikka yotqizilgan va uch ko'tarilgan
+   sari ochilib borardi. Harakatlanuvchi uch esa teksturaning yorug' qismini
+   kesardi — ekranda to'g'ri gorizontal chiziq paydo bo'lardi (kattalashtirilgan
+   boss haloda eng yaqqol). Endi tekstura ustunning hozir bor qismiga cho'ziladi
+   va ikkala uchi yumshoq.
+2. Run boshidagi `Arrived` umuman ko'rinmadi. Qavat ko'rinishi (`look=`) qatorga
+   bir necha kadr kech keladi, dunyo qayta quriladi va yonayotgan hamma narsa
+   o'chadi (`buildTerrain` → `layered.clear()`). Endi har qayta qurishda
+   `RunMoments.forget()` chaqiriladi va kelish qaytadan chiziladi.
+3. Haqiqiy yo'l ham sinaldi (`XpBase = 1` faqat demoda): Mage monsterni o'ldirdi,
+   daraja status qatoridan sezildi (`LEVEL 1 -> 9`) va ustun chizildi. Lekin kadr
+   o'rtasini daraja oshganda chiqadigan kuch tanlash oynasi yopib turardi.
+
+#### Testlar
+
+`LayeredEffectsTest` (+7: yo'nalish va balandlik, material, so'ralgancha ustun,
+tozalanish, ergashish, masshtab, bir vaqtda 50 ta ustun), `RunMomentsTest` (8),
+`DungeonEffectLayerTest` (+6: har bir lahza chiziladi, ustun yo'nalishi, 0.5–0.8
+soniya, daraja ko'tariladi va kelish tushadi, boss darajadan katta, blok maydonlari).
+`SelectedCardSoundTest` yangi yo'lga moslandi. `ProjectileEffectTest` — qatlamli
+effekt endi `Kind`siz bo'lishi mumkin.
+
 ## 9. Nima yo'q / ochiq ishlar
 
 ### Katta teshiklar
@@ -4145,6 +4232,14 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
   karta bo'ylab 2–3% alfa bor. Kichik chizilganda ko'rinmaydi, katta chaqnashda esa
   to'g'ri qirrali kvadrat. Shader eng xira alfani tashlaydi — yangi tekstura
   qo'shganda chetlarini tekshiring.
+- **Ustunning harakatlanuvchi uchi to'g'ri chiziq bo'lib qoladi,** agar tekstura
+  butun balandlikka yotqizilgan bo'lsa: uch teksturaning yorug' joyini kesib
+  o'tadi. `PILLAR` teksturasining ikkala uchi yumshoq bo'lishi shart — ustun
+  cho'zilganda istalgan uchi harakatlanuvchi uch bo'lishi mumkin.
+- **Dunyoni qayta qurish yonayotgan hamma narsani o'chiradi:** `buildTerrain` →
+  `layered.clear()`. Qavat ko'rinishi dunyodan bir kadr kech kelsa, o'sha oraliqda
+  boshlangan effekt yo'qoladi — shuning uchun `RunMoments` har qayta qurishda
+  unutadi.
 - **Offscreen + `Shell.none()` da kamera qahramonni topmaydi:** xarita markaziga
   qaraydi, kadr butunlay tuman rangida chiqadi.
 
@@ -4200,8 +4295,10 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `client3d/…/client3d/NineSlice.java` | bitta kichik ramka rasmi istalgan o'lchamda — burchaklar cho'zilmaydi; jME'da bunday narsa yo'q |
 | `client3d/…/client3d/PanelSkin.java` | panel qirralari nima bilan bo'yalgani — o'yin aytadi, klient chizadi; har qism ixtiyoriy |
 | `dungeon/src/main/resources/ui/borders/` | Kenney Fantasy UI Borders (CC0) — ikki oila, olti to'plam; nomerlash Kenney'niki (CREDITS.md da izohlangan) |
-| `client3d/…/client3d/{EffectLayer,LayeredEffects}.java` | effekt qatlami (9 tur, 7 joy) va uni cast / uchish / tushish lahzasida o'ynatuvchi — pool, byudjet, tuman-masofa-ekran |
+| `client3d/…/client3d/{EffectLayer,LayeredEffects}.java` | effekt qatlami (10 tur, 7 joy) va uni cast / uchish / tushish lahzasida o'ynatuvchi — pool, byudjet, tuman-masofa-ekran |
 | `client3d/…/client3d/ParticleLayer.java`, `MatDefs/duke/Particles.*` | GPU zarracha qatlami: tug'ilishda bir marta yoziladi, hayotini shader hisoblaydi |
+| `client3d/…/client3d/RunMoments.java` | daraja, boss va yangi qavat lahzalari — status qatorini oldingisi bilan solishtiradi; ko'rinishini `DungeonMoment` beradi |
+| `dungeon/art/effects/pillar_textures.py` | nur ustunining ikki gradient teksturasi (yadro va halo) |
 | `client3d/…/client3d/{LightPool,HitFlash,Landing}.java` | effektlarning umumiy yorug'lik pool'i; tegish chaqnashi; snaryad tushdimi yoki ko'rinmay qoldimi |
 | `client3d/…/client3d/ProjectileEffects.java` | uchayotgan narsa qanday yonadi: iz, yoritilgan tana, tegishdagi portlash — pool, yorug'lik byudjeti, kodda yasalgan uchqun teksturasi |
 | `client3d/…/client3d/Discovery.java` | kashfiyot tumani — uzluksiz yorug'lik, fazoviy+vaqt silliqlash (faqat klient) |

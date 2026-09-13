@@ -29,9 +29,11 @@ written from there.
 | Standing 2H Magic Area Attack — the mage's meteor | **Mixamo** / Adobe | **not CC0, see below** | `animations/characters/magic.glb` |
 | RPG Audio — cloth, coins, a door, a knife drawn | Kenney | CC0 | `audio/sfx/` |
 | Impact Sounds — what an arrow and a fist land like, and footsteps | Kenney | CC0 | `audio/sfx/` |
-| Interface Sounds — clicks, a level, a gong | Kenney | CC0 | `audio/ui/` |
+| Interface Sounds — clicks and a gong | Kenney | CC0 | `audio/ui/` |
+| A climb of notes — the level-up | from the owner's own asset folder, maker not named | **unconfirmed, see below** | `audio/ui/level_up.ogg` |
 | Fantasy UI Borders — the carved frames the hero panel's edges are painted with | Kenney | CC0 | `ui/borders/` |
 | Particle Pack — every flame, smoke, spark, slash and ring the skills are drawn with | Kenney | CC0 | `effects/particles/` |
+| Two columns of light — the gradients a level and an arrival are drawn with | made for this game, by `dungeon/art/effects/pillar_textures.py` | CC0 | `effects/particles/pillar_{core,halo}.png` |
 | Cursor Pack — the mouse pointers | Kenney | CC0 | `ui/cursors/` |
 | Voiceover Pack — what Erika says | Kenney | CC0 | `audio/voice/` |
 | Three pieces of music | freesound.org | **unconfirmed, see below** | `audio/music/` |
@@ -166,6 +168,17 @@ three pages above needs looking at: CC0 needs nothing, CC BY needs a line here
 naming the author, and CC BY-NC would mean the track cannot ship in anything
 sold. They are named here so that the question is on the page rather than
 forgotten.
+
+### The level-up sound — licence to confirm
+
+`audio/ui/level_up.ogg` is `SFX_1up07.ogg` out of a folder of 110 short effects
+(`Sound FX_(ogg)`: 1up, Blip, Boom, Coin, Error, Hit, Hurt, Jump, Lose, Shoot and
+Slash, ten of each) that the owner keeps with his other game assets. It was chosen
+for being a climb of notes as long as the light it plays with. No licence file and
+no maker's name came with the folder, so where it came from and on what terms is
+the open question: it is named here rather than decided quietly. Kenney's own
+`level_up` from the Interface Sounds pack is what it replaced, and is the CC0 way
+back if the answer is the wrong one.
 
 ### The lettering
 

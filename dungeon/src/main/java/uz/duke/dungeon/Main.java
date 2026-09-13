@@ -104,6 +104,7 @@ public final class Main {
                 case "direction" -> layer.direction(value);
                 case "at" -> layer.at(value);
                 case "measure" -> layer.measure(value);
+                case "follows" -> layer.follows(Boolean.parseBoolean(value));
                 default -> number(layer, field, Float.parseFloat(value));
             }
         });
@@ -144,6 +145,8 @@ public final class Main {
             case "lightRadius" -> layer.lightRadius(value);
             case "fall" -> layer.fall(value);
             case "cover" -> layer.cover(value);
+            case "rise" -> layer.rise(value);
+            case "riseEase" -> layer.riseEase(value);
             default -> LOG.warning(() -> "an effect layer says " + field
                     + ", which the client does not draw -- ignored");
         }
@@ -1001,6 +1004,11 @@ public final class Main {
         visuals.hitFlash(new Visuals.HitFlashLook(settings.hitFlashColour(),
                 settings.hitFlashSeconds(), settings.hitFlashStrength()));
         visuals.strikeWithin(settings.strikeWithin());
+        // The run's own moments -- a level, the boss down, a floor reached -- and the
+        // look each one plays on the hero.
+        for (var moment : settings.moments()) {
+            visuals.moment(moment.name(), moment.effect(), moment.scale());
+        }
         measureLooks(visuals, settings);
 
         // The floor is black until he walks it. Named rather than given a

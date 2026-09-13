@@ -173,15 +173,24 @@ final class LayeredEffects {
 
     /** A skill went off: every layer of its look plays now. */
     void cast(String recipeName, Moment moment, Camera camera) {
+        cast(recipeName, moment, camera, 1f);
+    }
+
+    /**
+     * The same, drawn bigger or smaller than it is written: its sizes, its reach and
+     * a pillar's height, all times {@code scale}. What lets a level and a boss falling
+     * be one look at two sizes, rather than the same blocks written out twice.
+     */
+    void cast(String recipeName, Moment moment, Camera camera, float scale) {
         var recipe = visuals.effectNamed(recipeName);
-        if (recipe == null || moment == null || moment.spot() == null) {
+        if (recipe == null || moment == null || moment.spot() == null || scale <= 0f) {
             return;
         }
         var layers = recipe.getLayers();
         for (int index = 0; index < layers.size(); index++) {
             var layer = layers.get(index);
             for (var place : placesFor(layer, moment)) {
-                start(recipeName, index, layer, place, moment, camera, NOBODY, null);
+                start(recipeName, index, layer, place, moment, camera, NOBODY, null, scale);
             }
         }
     }
@@ -206,7 +215,7 @@ final class LayeredEffects {
             }
             var place = new Place(at, NOBODY);
             start(recipeName, index, layer, place, moment, camera, projectileId,
-                    new Riding(node, offset == null ? Vector3f.ZERO : offset.clone()));
+                    new Riding(node, offset == null ? Vector3f.ZERO : offset.clone()), 1f);
         }
     }
 
@@ -228,7 +237,7 @@ final class LayeredEffects {
                 continue;
             }
             for (var place : placesFor(layer, moment)) {
-                start(recipeName, index, layer, place, moment, camera, NOBODY, null);
+                start(recipeName, index, layer, place, moment, camera, NOBODY, null, 1f);
             }
         }
     }
@@ -302,15 +311,17 @@ final class LayeredEffects {
     }
 
     private void start(String recipeName, int index, EffectLayer layer, Place place,
-            Moment moment, Camera camera, int projectile, Riding riding) {
-        float unit = unitFor(recipeName, layer, moment);
+            Moment moment, Camera camera, int projectile, Riding riding, float scale) {
+        float unit = unitFor(recipeName, layer, moment) * scale;
         if (!worthStarting(layer, unit, place.at(), camera)) {
             return;
         }
         boolean lasting = layer.lasting();
-        boolean follows = EffectLayer.AURA.equals(layer.type()) && place.follows() != NOBODY
-                || riding != null;
-        String key = EffectLayer.AURA.equals(layer.type()) && place.follows() != NOBODY
+        boolean aura = EffectLayer.AURA.equals(layer.type());
+        // An aura goes where its man goes, always; anything else only if it says so.
+        boolean wears = aura || layer.follows();
+        boolean follows = wears && place.follows() != NOBODY || riding != null;
+        String key = aura && place.follows() != NOBODY
                 ? recipeName + '#' + index + '@' + place.follows() : null;
         if (key != null && alreadyBurning(key)) {
             // The whirlwind is drawn again on every blow it lands, and every one of
@@ -355,8 +366,7 @@ final class LayeredEffects {
         } else if (follows) {
             going.follows = place.follows();
         }
-        going.local = EffectLayer.AURA.equals(layer.type()) && (going.follows != NOBODY
-                || going.rides != null);
+        going.local = wears && (going.follows != NOBODY || going.rides != null);
         going.emitting = layer.continuous();
         going.fall = layerFall(layer);
         going.until = untilFor(going, lasting);
@@ -472,8 +482,10 @@ final class LayeredEffects {
         float fell = Math.abs(layer.gravity()) * life * life * 0.5f;
         float size = Math.max(layer.sizeStart(), layer.sizeEnd()) * (1f + layer.sizeJitter())
                 * unit;
-        return thrown + fell + size + layer.radius() * unit + Math.abs(layer.height())
-                + layer.fall() + 1f;
+        // A pillar's height is one of its sizes, and is counted as they are.
+        float high = Math.abs(layer.height())
+                * (EffectLayer.PILLAR.equals(layer.type()) ? unit : 1f);
+        return thrown + fell + size + layer.radius() * unit + high + layer.fall() + 1f;
     }
 
     // ---- laying particles ----
@@ -482,6 +494,12 @@ final class LayeredEffects {
     private void lay(Playing going, Moment moment) {
         var layer = going.layer;
         var drawn = going.drawn;
+        if (EffectLayer.PILLAR.equals(layer.type())) {
+            layPillar(going);
+            drawn.reach(going.local ? Vector3f.ZERO : going.anchor, reachOf(layer, going.unit));
+            drawn.upload();
+            return;
+        }
         if (layer.continuous() && !(EffectLayer.TRAIL.equals(layer.type())
                 && EffectLayer.PATH.equals(layer.at()))) {
             drawn.reach(going.local ? Vector3f.ZERO : going.anchor, reachOf(layer, going.unit));
@@ -521,6 +539,24 @@ final class LayeredEffects {
     private boolean lasting(Playing going) {
         var type = going.layer.type();
         return EffectLayer.AURA.equals(type) || EffectLayer.MARK.equals(type);
+    }
+
+    /**
+     * A pillar stands on the floor under where it happened -- as many columns as the
+     * layer asks for and no more, because a column is light, and two drawn over one
+     * another are twice as bright as the file said.
+     */
+    private void layPillar(Playing going) {
+        var layer = going.layer;
+        float way = EffectLayer.DOWN.equals(layer.direction()) ? -1f : 1f;
+        var foot = going.local ? new Vector3f() : going.anchor;
+        int columns = Math.min(layer.count(), going.drawn.capacity);
+        for (int i = 0; i < columns; i++) {
+            float life = between(layer.lifeMin(), layer.lifeMax());
+            going.drawn.put(i, foot.x, foot.y, foot.z, 0f, 0f, 0f, 0f, life, dice.nextFloat(),
+                    jitter(layer.sizeJitter()) * going.unit, 0f, way, 0f,
+                    layer.height() * going.unit);
+        }
     }
 
     /** A beam is laid once along the whole of what it joins. */

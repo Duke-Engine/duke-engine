@@ -53,8 +53,13 @@ class ProjectileEffectTest {
     @Test
     void everyKindNamedIsOneTheClientCanDraw() {
         var known = Visuals.EffectVisual.allKinds();
+        // An effect with layers is drawn by its layers alone, so it may name no kind.
+        var layered = new HashSet<String>();
+        for (var layer : SETTINGS.effectLayers()) {
+            layered.add(layer.effect());
+        }
         for (var effect : SETTINGS.effects()) {
-            assertFalse(effect.kinds().isEmpty(),
+            assertFalse(effect.kinds().isEmpty() && !layered.contains(effect.name()),
                     effect.name() + " is an effect that does nothing");
             for (var kind : effect.kinds()) {
                 assertTrue(known.contains(kind),
