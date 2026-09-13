@@ -18,6 +18,7 @@ import uz.duke.dungeon.loot.LootBag;
 import uz.duke.dungeon.loot.LootTable;
 import uz.duke.dungeon.loot.LootUpdate;
 import uz.duke.dungeon.skill.CastSkill;
+import uz.duke.dungeon.skill.MendingUpdate;
 import uz.duke.dungeon.skill.SkillBook;
 import uz.duke.dungeon.skill.Skills;
 import uz.duke.dungeon.run.DungeonRun;
@@ -174,6 +175,11 @@ public final class Dungeon {
                     factory.register("FallingUpdate",
                             (owner, data) -> new FallingUpdate(owner, data),
                             FallingUpdate::parseData);
+                    // The meteor's mark turned round: holy light lying where it will
+                    // land, and mending whoever it came down for when it does.
+                    factory.register("MendingUpdate",
+                            (owner, data) -> new MendingUpdate(owner, data),
+                            MendingUpdate::parseData);
                     // A monster's blow lands where it stands, as it always did.
                     // This is only how the brain finds out that it struck.
                     factory.register("Swing", Swing::new, Swing::parseData);

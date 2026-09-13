@@ -10,7 +10,8 @@ package uz.duke.dungeon.skill;
  *
  * <p>These are the shapes a dungeon hero needs: hit one thing hard, hit
  * everything near you, drop something on a spot, fire something down a line, be
- * somewhere else, be briefly stronger, be briefly harder to kill. A new shape is
+ * somewhere else, be briefly stronger, be briefly harder to kill -- and one that
+ * no hero has and a monster does: mend one of your own. A new shape is
  * a constant here and one branch in {@link SkillBook}; a new <em>skill</em> is
  * neither, and that is the point of the split — a second hero is blocks of INI
  * and no Java at all.
@@ -128,7 +129,23 @@ public enum SkillEffect {
      * like an arrow counts down, and the blast when it arrives is the blast every
      * other area skill uses.
      */
-    METEOR(Aim.OPEN_GROUND);
+    METEOR(Aim.OPEN_GROUND),
+
+    /**
+     * Mend one of your own, a moment after it is called for.
+     *
+     * <p>A {@link #METEOR} turned round. Holy light is called down on whoever needs
+     * it -- the caster's own side, below {@code HealBelowPercent} of his health, in
+     * reach and in plain sight; see {@link Mending} -- and it lies on the floor under
+     * him for {@code WindUpFrames} before it lands and gives back {@code Heal}. The
+     * light is a thing in the world, as the meteor's mark is, so the client draws the
+     * column coming down when it lands without being told anything, and the fog hides
+     * it like anything else.
+     *
+     * <p>Aimed at a creature, and refused with its cooldown unspent if that creature
+     * is nobody it may mend: a mending spent on a whole skeleton is a mending wasted.
+     */
+    HEAL(Aim.UNIT);
 
     /** What a player has to click before the cast can go through. */
     public enum Aim {

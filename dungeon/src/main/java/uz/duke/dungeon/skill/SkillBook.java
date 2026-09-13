@@ -312,6 +312,12 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         return slot >= 0 && cooldowns[slot] <= 0;
     }
 
+    /** The skill on {@code key}, or {@code null} if there is none. */
+    public Skill skillOn(char key) {
+        int slot = slotOf(key);
+        return slot < 0 ? null : skills.get(slot);
+    }
+
     /** Frames of extra damage left, for anything that wants to draw it. */
     public int getBoostFrames() {
         return boostFrames;
@@ -577,6 +583,11 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
                 var spot = withinReach(owner, towards, skill.range());
                 if (!callDown(owner, world, skill, level, spot)) {
                     return false; // no such thing to drop; the cooldown is not spent
+                }
+            }
+            case HEAL -> {
+                if (!mend(owner, world, skill, at)) {
+                    return false; // nobody it may mend; the cooldown is not spent
                 }
             }
             case DASH -> {
@@ -914,6 +925,43 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         // Worth what it was worth when he called for it, like every other shot
         // here -- he may level, or die, in the second it spends on its way.
         falling.callDown(owner, damageOf(skill, level), skill.radius(), skill.windUpFrames());
+        world.post(new WeaponFired(world.getFrame(), owner.getId(), null,
+                owner.getPosition(), spot));
+        return true;
+    }
+
+    /**
+     * Call holy light down on one of its own, if he is still someone it may mend.
+     *
+     * <p>Asked again here rather than taken on the brain's word: the book is what spends
+     * the cooldown, and a mending that landed on a whole skeleton or through a wall would
+     * be the two of them disagreeing about the rule. See {@link Mending}.
+     *
+     * <p>Worth what it was worth when it was called for, as every shot here is, and
+     * grown by the depth as the healer's blows are.
+     *
+     * @return whether it was called down; false leaves the cooldown unspent
+     */
+    private boolean mend(GameObject owner, World world, Skill skill, ObjectId at) {
+        var patient = at == null ? null : world.findObject(at);
+        if (!skill.hasProjectile()
+                || !Mending.canMend(owner, patient, skill.range(), skill.healBelowPercent())) {
+            return false;
+        }
+        var thing = world.findTemplate(skill.projectile());
+        if (thing == null) {
+            return false;
+        }
+        var spot = patient.getPosition();
+        var light = world.spawn(thing, new Coord3D(spot.x(), spot.y(), world.groundHeight(spot)),
+                owner.getPlayerIndex());
+        var mending = light.findModule(MendingUpdate.class);
+        if (mending == null) {
+            light.markDestroyed();
+            return false; // the template exists but is not a light that mends
+        }
+        mending.callDown(patient, skill.heal() * depthOf(owner), skill.windUpFrames());
+        Facing.turnToward(owner, patient);
         world.post(new WeaponFired(world.getFrame(), owner.getId(), null,
                 owner.getPosition(), spot));
         return true;

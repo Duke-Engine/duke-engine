@@ -738,7 +738,8 @@ public final class Main {
     static uz.duke.client3d.SkillRange rangeOf(
             uz.duke.dungeon.skill.Skill skill, float selfRadius) {
         var shape = switch (skill.effect()) {
-            case STRIKE -> uz.duke.client3d.SkillRange.Shape.AT_A_CREATURE;
+            // A mending is pointed at a creature as a strike is -- one of its own.
+            case STRIKE, HEAL -> uz.duke.client3d.SkillRange.Shape.AT_A_CREATURE;
             case AREA_AT_SPOT -> uz.duke.client3d.SkillRange.Shape.AT_A_SPOT;
             case SKILLSHOT -> uz.duke.client3d.SkillRange.Shape.DOWN_A_LANE;
             // A blink is pointed at a spot exactly as a dash is. That it does not
@@ -752,7 +753,7 @@ public final class Main {
             case EMPOWER, GUARD -> uz.duke.client3d.SkillRange.Shape.ON_HIMSELF;
         };
         float reach = switch (skill.effect()) {
-            case STRIKE, AREA_AT_SPOT, SKILLSHOT -> skill.range();
+            case STRIKE, AREA_AT_SPOT, SKILLSHOT, HEAL -> skill.range();
             case DASH, BLINK -> skill.distance();
             case METEOR -> skill.range();
             case AREA_DAMAGE -> skill.radius();

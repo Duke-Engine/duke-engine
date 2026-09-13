@@ -82,6 +82,9 @@ package uz.duke.dungeon.skill;
  * @param projectileSpeed how fast what it throws travels, in units a second, or 0
  *     for the drawn arrow's own speed, which every hero's shot flies at. A
  *     monster's fireball is slower on purpose: slow enough to be stepped out of
+ * @param heal          how much health a {@code HEAL} gives back when it lands
+ * @param healBelowPercent a {@code HEAL} is only for someone below this share of his
+ *     own health, so a whole skeleton is never mended and a cooldown never wasted
  */
 public record Skill(
         String heroTemplate,
@@ -112,7 +115,9 @@ public record Skill(
         float castSeconds,
         String name,
         String blurb,
-        float projectileSpeed) {
+        float projectileSpeed,
+        float heal,
+        int healBelowPercent) {
 
     /**
      * A cooldown can shorten with level but never vanish: a skill castable every

@@ -7,7 +7,10 @@ import uz.duke.core.thing.World;
 import uz.duke.dungeon.combat.Swing;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.content.MonsterKind;
+import uz.duke.dungeon.skill.Mending;
+import uz.duke.dungeon.skill.Skill;
 import uz.duke.dungeon.skill.SkillBook;
+import uz.duke.dungeon.skill.SkillEffect;
 import uz.duke.game.script.UnitScript;
 import uz.duke.rts.module.WeaponUpdate;
 
@@ -30,7 +33,8 @@ import uz.duke.rts.module.WeaponUpdate;
  * <p>A kind the file gives a skill decides for itself when to cast it, and a kind
  * given a band of distance holds that band instead of closing: it backs away from
  * him when he comes too near and follows when he gets too far. Both are numbers
- * on its block, so a caster is still this one mind.
+ * on its block, so a caster is still this one mind. A mending is the one skill not
+ * cast at him: it goes to whichever of its own needs it most -- see {@link Mending}.
  *
  * <p>Deterministic: no randomness at all, and the frame a monster re-plans on is
  * staggered by its own object id, so a roomful does not all path on the same
@@ -188,12 +192,34 @@ public final class MonsterBrain extends UnitScript {
         if (book == null || !book.isReady(kind.skillKey())) {
             return;
         }
+        var skill = book.skillOn(kind.skillKey());
+        if (skill.effect() == SkillEffect.HEAL) {
+            mend(book, skill);
+            return;
+        }
         float gap = World.reachBetween(unit(), hero);
         if (gap < kind.skillNearest() || gap > kind.skillFurthest()
                 || !SightLine.clear(unit(), hero)) {
             return;
         }
         if (book.cast(kind.skillKey(), ITS_ONLY_RANK, null, hero.getPosition())) {
+            holdTheWeapon();
+        }
+    }
+
+    /**
+     * Mend whichever of its own is worst hurt, if anyone is hurt enough.
+     *
+     * <p>Looked for on one frame in every few, staggered by its id as a route is: the
+     * search is everything round it, and nobody bleeds out in the wait.
+     */
+    private void mend(SkillBook book, Skill skill) {
+        int every = kind.repathFrames();
+        if (frame() % every != Math.floorMod(unit().getId().value(), every)) {
+            return;
+        }
+        var patient = Mending.worstHurt(world(), unit(), skill.range(), skill.healBelowPercent());
+        if (patient != null && book.cast(kind.skillKey(), ITS_ONLY_RANK, patient.getId(), null)) {
             holdTheWeapon();
         }
     }

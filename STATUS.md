@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-13 · **Testlar:** 1477 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-13 · **Testlar:** 1488 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -3992,6 +3992,93 @@ qahramonni 35–55 oraliqda ushlaydi — qurol hech qachon yetmasdi.
   tur uchun qahramon endi uning oralig'iga qo'yiladi. Avval `CloseDistance` (6)
   masofasiga qo'yilardi, mage esa u yerdan otish o'rniga chekinardi.
 
+### 8.ba Yashil Skelet-Mage — o'zinikilarni davolaydi
+
+Dushman skill mexanizmining ikkinchi turi. Qizil mage qahramonga otadi, yashil mage
+esa o'z tomonidagi yaralanganni davolaydi.
+
+#### Mexanizm: yangi `HEAL` effekti
+
+Davolash mexanizmi yo'q edi. Eng yaqin mavjud chok meteor belgisi bo'ldi
+(`FallingUpdate`), davolash uning teskarisi qilib yozildi:
+- brain o'z tomonidan eng og'ir yaralanganni tanlaydi (`Mending.worstHurt`);
+- uning oyog'i ostida `MendingLight` obyekti paydo bo'ladi — meteor belgisi kabi
+  dunyodagi narsa;
+- `WindUpFrames` (20 kadr) o'tgach nur tushadi va `Heal` qadar jon qaytaradi
+  (`MendingUpdate`);
+- nurni kutayotgan skelet shu orada o'lsa, hech kim davolanmaydi.
+
+#### Kim davolanadi (`Mending`)
+
+Nomzod quyidagi shartlarning hammasiga to'g'ri kelishi kerak:
+- o'z tomonidan, tanasi bor va tirik;
+- mage'ning o'zi emas;
+- joni o'z maksimumining `HealBelowPercent` (60%) idan kam — to'liq yoki sal
+  yaralangan skeletga sarflanmaydi;
+- `Range` (60, markazdan markazgacha) ichida;
+- ko'rish chizig'i ochiq.
+
+Nomzodlar ichidan eng kam jon ulushi qolgani tanlanadi. Ulush o'z maksimumiga nisbatan
+hisoblanadi, ball bilan emas: 45% dagi Warden 50% dagi skeletdan oldin davolanadi. Teng
+bo'lsa, kichik `ObjectId` tanlanadi.
+
+Brain ham, `SkillBook` ham bir xil `canMend` qoidasini so'raydi. Rad etilgan cast
+kuluarni sarflamaydi.
+
+#### Qaror va vaqt
+
+- `MonsterBrain.mend`: HEAL qahramonga otilmaydi, shuning uchun unga `SkillDistance`
+  kerak emas. Validatsiya shunga moslandi.
+- Qidiruv har `RepathFrames` kadrda bir marta bo'ladi, id bo'yicha surilgan.
+- **Nega darhol emas:** klient o'yindan yo'qolgan narsaning "tushish" qatlamlarini
+  faqat u joyida kamida 0.5 s yotgan bo'lsa chizadi (`Landing.lay`). Nur 20 kadr
+  yotadi, keyin ustun tushadi — aynan jon qaytgan kadrda. Klient kodi o'zgarmadi.
+- **O'yin tomoni:** nur tushguncha o'yinchi o'sha skeletni o'ldirib ulgurishi mumkin.
+- **Chuqurlik:** davolash miqdori mage'ning `DepthBonus` iga ko'paytiriladi, uning
+  zarbalari kabi.
+
+#### Tur: `SkeletonHealer`
+
+- **Ko'rinish:** `skeleton_mage.glb` va yangi `skeleton_texture_green.png`, `Tint`
+  yo'q — yashil rang to'nning o'ziniki.
+- **Statistika:** jon 36 (uchala mage ichida eng zaifi), tezlik 13, XP 22.
+- **Oddiy ataka:** `HolySpark` — zarar 4, masofa 58, qayta o'qlash 60 kadr.
+- **Masofa:** `KeepDistance 35 55`.
+- **Chiqishi:** 3-chuqurlikdan, `Weight 8`, `MaxPerRoom 1` — ikkitasi bir-birini
+  to'xtovsiz davolardi.
+
+**Muqaddas nur:**
+- Heal 30 — skeletning yarmi, Warden'ning o'ndan biri;
+- HealBelowPercent 60, Range 60;
+- WindUp 20 kadr, kuluar 8 soniya.
+
+**Effekt `MendingLight`:** HolyLight shakli, yashil-oltin rangda, biroz kichikroq.
+- Yotganda: `AURA` va `LIGHT`.
+- Tushganda: `PILLAR DOWN` (halo va core), `RING`, tushayotgan zarrachalar va chaqnash.
+
+**Ovoz:** `spawned.MendingLight` — `skill_empower.ogg`, past balandlikda.
+
+**CREDITS:** yashil tekstura uchun qator qo'shildi.
+
+#### Testlar — `MonsterHealingTest` (11 ta)
+
+- og'ir yaralangan o'zinikini davolaydi (aniq `Heal` qadar);
+- to'liq va chegaradan sal yuqoridagini davolamaydi, kuluari sarflanmaydi;
+- ikki yaralangandan og'irrog'ini davolaydi;
+- ulush maksimumga nisbatan hisoblanadi: ko'proq ball yo'qotgan Warden emas, kam ulush
+  qolgani davolanadi;
+- teng ulushda birinchi yaratilgani, qayerda turishidan qat'i nazar;
+- o'zini davolamaydi;
+- devor ortidagini davolamaydi, devorsiz esa davolaydi;
+- jon nur tushgan kadrda qaytadi, nur yotganida emas (`WindUpFrames` ± 1);
+- ikki davolash orasida kuluarni kutadi;
+- INI'dagi `HealBelowPercent 90` 80% dagi skeletni ham davolatadi;
+- bir xil jang ikki marta o'ynalganda checksum bir xil.
+
+Mavjud testlarga tegishli o'zgarishlar:
+- `Skill` konstruktorini chaqiradigan uchta testga ikkita yangi maydon qo'shildi;
+- `DungeonSettingsTest` va `Main.rangeOf` dagi switch'larga `HEAL` qo'shildi.
+
 ## 9. Nima yo'q / ochiq ishlar
 
 ### Katta teshiklar
@@ -4485,6 +4572,8 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/loot/{LootBag,LootDrop,LootUpdate}.java` | topilganlar + `DieModule` cho'ntagi + poldagi sandiq |
 | `dungeon/…/dungeon/ai/KeepingDistance.java` | masofa saqlaydigan monster qayerga chekinadi — qat'iy tartibdagi burchaklar, tosh va ko'rish chizig'i |
 | `dungeon/…/dungeon/combat/DepthBonus.java` | chuqurlik bo'yicha zarar bonusi — qurol ham, skill ham o'qiydi |
+| `dungeon/…/dungeon/skill/Mending.java` | davolovchi kimni davolaydi: o'z tomonidan eng kam ulush qolgan, yaqin va ko'rinib turgani; teng bo'lsa kichik id |
+| `dungeon/…/dungeon/skill/MendingUpdate.java` | yerda yotib, tushganda davolaydigan nur — meteor belgisining teskarisi |
 | `dungeon/…/dungeon/ai/SightLine.java` | ko'ra oladimi: yetarlicha yaqinmi, orada tosh bormi, balandda turibdimi — sof arifmetika, grid ustida |
 | `dungeon/…/dungeon/combat/EyesOnly.java` | ko'rmaganiga otmaydi — qahramon, arbaletchi va mage |
 | `client3d/…/client3d/Fog.java` | tuman sozlamasi (LOS, uch qatlam yorqinligi, yumshoqlik, tekstura o'lchami, rang) |

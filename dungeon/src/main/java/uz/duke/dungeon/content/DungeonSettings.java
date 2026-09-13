@@ -576,10 +576,13 @@ public final class DungeonSettings {
         for (var kind : monsters) {
             var name = "DungeonMonster " + kind.name();
             if (kind.hasSkill()) {
-                require(skillsFor(kind.name()).stream().anyMatch(skill -> skill.key() == kind.skillKey()),
-                        name + " casts " + kind.skillKey() + ", and no DungeonSkill "
-                                + kind.name() + " " + kind.skillKey() + " says what that is");
-                require(kind.skillNearest() >= 0f && kind.skillFurthest() > kind.skillNearest(),
+                var skill = skillsFor(kind.name()).stream()
+                        .filter(one -> one.key() == kind.skillKey()).findFirst().orElse(null);
+                require(skill != null, name + " casts " + kind.skillKey() + ", and no DungeonSkill "
+                        + kind.name() + " " + kind.skillKey() + " says what that is");
+                // A mending is cast on its own side, so how far off HE is means nothing to it.
+                require(skill.effect() == SkillEffect.HEAL
+                                || kind.skillNearest() >= 0f && kind.skillFurthest() > kind.skillNearest(),
                         name + " has to cast across some distance: SkillDistance nearest furthest");
             }
             require(kind.keepFurthest() == 0f
@@ -651,6 +654,13 @@ public final class DungeonSettings {
             // the line is split on those two characters.
             require(sayable(skill.icon()),
                     "a skill's Icon may not contain ',' or '|': " + skill.key());
+            if (skill.effect() == SkillEffect.HEAL) {
+                var name = "DungeonSkill " + skill.heroTemplate() + " " + skill.key();
+                require(skill.heal() > 0f && skill.range() > 0f, name + " mends nobody: it needs a Heal and a Range");
+                require(skill.healBelowPercent() > 0 && skill.healBelowPercent() <= 100,
+                        name + "'s HealBelowPercent is a share of health, from 1 to 100");
+                require(skill.hasProjectile(), name + " has no light to call down: name it in Projectile");
+            }
         }
     }
 
@@ -1094,6 +1104,8 @@ public final class DungeonSettings {
         int manaCost;
         int manaCostPerLevel;
         float projectileSpeed;
+        float heal;
+        int healBelowPercent;
 
         SkillBuilder(String heroTemplate, String key) {
             this.heroTemplate = heroTemplate;
@@ -1105,7 +1117,8 @@ public final class DungeonSettings {
                     distance, hitWidth, boostPercent, boostPerLevel, durationFrames, tickFrames,
                     slowFrames, cooldownFrames, cooldownPerLevel, maxRank, levelPerRank,
                     windUpFrames, manaCost, manaCostPerLevel,
-                    projectile, icon, look, castAnim, castSeconds, name, blurb, projectileSpeed);
+                    projectile, icon, look, castAnim, castSeconds, name, blurb, projectileSpeed,
+                    heal, healBelowPercent);
         }
     }
 
@@ -1172,7 +1185,11 @@ public final class DungeonSettings {
                     .add("Blurb", Ini.restOfLine((s, v) -> s.blurb = v))
                     // How fast what it throws travels, in units a second. Unsaid, it is
                     // the drawn arrow's HeavySpeed, which every hero's shot flies at.
-                    .add("ProjectileSpeed", Ini.real((s, v) -> s.projectileSpeed = v));
+                    .add("ProjectileSpeed", Ini.real((s, v) -> s.projectileSpeed = v))
+                    // What a HEAL gives back, and how hurt somebody has to be, as a share
+                    // of his own health, before it is spent on him at all.
+                    .add("Heal", Ini.real((s, v) -> s.heal = v))
+                    .add("HealBelowPercent", Ini.integer((s, v) -> s.healBelowPercent = v));
 
     /** Accumulates one {@code DungeonLootItem <id>} block. */
     private static final class LootBuilder {

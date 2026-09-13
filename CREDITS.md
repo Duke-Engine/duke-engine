@@ -24,6 +24,7 @@ written from there.
 | Forest Nature Pack — the trees that stand where a wall would | KayKit | CC0 | `models/tiles/forest/` |
 | …and its rocks and bare trees | KayKit | CC0 | `models/props/forest/` |
 | Skeletons — everything that walks the floors, and its blades, axes and staves | KayKit | CC0 | `models/monsters/` |
+| …and its atlas repainted with a green robe, for the Skeleton Healer | repainted from the original KayKit atlas, supplied by the owner | CC0 (a repaint of a CC0 atlas) | `models/monsters/skeleton_texture_green.png` |
 | Adventurers — all three heroes, and everything they carry | KayKit | CC0 | `models/heroes/` |
 | Character Animations — everything anything down here does | KayKit | CC0 | `animations/characters/` |
 | Standing 2H Magic Area Attack — the mage's meteor | **Mixamo** / Adobe | **not CC0, see below** | `animations/characters/magic.glb` |
