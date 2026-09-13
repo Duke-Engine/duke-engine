@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-13 · **Testlar:** 1475 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-13 · **Testlar:** 1477 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -3953,7 +3953,7 @@ Moslangan testlar:
 
 #### Ko'z bilan tekshiruv (yashirin oynada)
 
-- Bu bosqichda o'yinning o'zida ko'rilmadi. Yashil va binafsha Skelet-Mage qo'shilgach, uchala tur bitta yashirin-oyna tekshiruvida birga ko'riladi — natija 8.az da.
+- Bu bosqichda o'yinning o'zida ko'rilmadi. Yashil va binafsha Skelet-Mage qo'shilgach, uchala tur bitta yashirin-oyna tekshiruvida birga ko'riladi — natija o'sha bo'limda.
 
 #### Ochiq qolganlar
 
@@ -3963,6 +3963,34 @@ Moslangan testlar:
 - Chekinish nuqtasi faqat tosh va ko'rish chizig'ini tekshiradi, qavatni emas: boshqa
   qavatdagi nuqta yo'lni uzaytirishi mumkin.
 - Revenant va Necromancer o'zgarmadi — ular hali ham oddiy qurol bilan otadi.
+
+### 8.az Skelet-Mage skill orasida oddiy ataka qiladi, olov shari kuchliroq
+
+Foydalanuvchi o'yinda ko'rdi: Skelet-Mage olov sharini otadi-yu, keyingisigacha hech
+narsa qilmay turadi. Sababi shuki, oddiy qurol tayoq edi (masofasi 10), mage esa
+qahramonni 35–55 oraliqda ushlaydi — qurol hech qachon yetmasdi.
+
+- **Oddiy ataka:**
+  - Revenant'ning kichik olovi (`Bow`, `Projectile = Fireball`, tezlik 95);
+  - zarar 6, masofa 58 — oraliqning uzoq chetiga yetadi;
+  - qayta o'qlash 54 kadr;
+  - `EyesOnly` bor, shuning uchun devor ortidan otmaydi.
+- **Bir vaqtda bitta otish** (`MonsterBrain`):
+  - oddiy o'q hali chiqayotgan bo'lsa (`midBlow`), skill kutadi;
+  - skill otilgach, `SwingFrames` davomida qurol ushlab turiladi (`holdFire`).
+- **Modul tartibi:** `Swing` endi `Bow` dan oldin turadi. O'q uni birinchi qabul
+  qilgan launcherga beriladi; `Swing` faqat kadrni yozadi va o'qni keyingisiga
+  uzatadi. Revenant va Stalker'da `Bow` oldin turadi — ular o'zgarmadi.
+- **Olov shari:** zarar 24 → 45, kuluar 4 → 6 soniya. 8.ay dagi raqamlar shu bilan
+  eskirdi.
+
+**Testlar:**
+- `MonsterSkillTest` ga 2 ta test qo'shildi:
+  - skill orasida oddiy olov otadi;
+  - skill va oddiy olov hech qachon bir-biridan `SwingFrames` dan yaqin chiqmaydi.
+- `MonsterKindsTest.everyThrowerActuallyThrowsSomething` o'zgardi: masofa saqlaydigan
+  tur uchun qahramon endi uning oralig'iga qo'yiladi. Avval `CloseDistance` (6)
+  masofasiga qo'yilardi, mage esa u yerdan otish o'rniga chekinardi.
 
 ## 9. Nima yo'q / ochiq ishlar
 

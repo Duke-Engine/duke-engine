@@ -118,7 +118,11 @@ public final class MonsterBrain extends UnitScript {
         }
 
         chasing = true;
-        attack(hero); // the weapon fires on its own once the hero is in reach
+        if (midCast()) {
+            holdTheWeapon(); // a cast is seen through before its ordinary shot follows
+        } else {
+            attack(hero); // the weapon fires on its own once the hero is in reach
+        }
         castAt(hero);
 
         var move = unit().findModule(MoveUpdate.class);
@@ -172,9 +176,12 @@ public final class MonsterBrain extends UnitScript {
      * the distance it casts across, nothing but air is between them, and the skill is
      * ready. Thrown at where he stands now, so a player who keeps moving can walk out
      * of its way -- which is the whole of what makes it fair.
+     *
+     * <p>Not while its ordinary shot is still leaving it, and nothing more leaves its
+     * weapon until the cast is done: one throw at a time, so each is seen.
      */
     private void castAt(GameObject hero) {
-        if (!kind.hasSkill()) {
+        if (!kind.hasSkill() || midBlow()) {
             return;
         }
         var book = unit().findModule(SkillBook.class);
@@ -186,7 +193,9 @@ public final class MonsterBrain extends UnitScript {
                 || !SightLine.clear(unit(), hero)) {
             return;
         }
-        book.cast(kind.skillKey(), ITS_ONLY_RANK, null, hero.getPosition());
+        if (book.cast(kind.skillKey(), ITS_ONLY_RANK, null, hero.getPosition())) {
+            holdTheWeapon();
+        }
     }
 
     /**
@@ -353,9 +362,13 @@ public final class MonsterBrain extends UnitScript {
         if (move != null) {
             move.stop();
         }
+        holdTheWeapon(); // drop a target that has walked out of the fight
+    }
+
+    private void holdTheWeapon() {
         var weapon = unit().findModule(WeaponUpdate.class);
         if (weapon != null) {
-            weapon.holdFire(); // drop a target that has walked out of the fight
+            weapon.holdFire();
         }
     }
 }

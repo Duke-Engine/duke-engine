@@ -170,8 +170,11 @@ class MonsterKindsTest {
             }
             throwers++;
             // Near enough to be seen and to be within reach, far enough that it
-            // is standing and shooting rather than walking.
-            float gap = Math.min(kind.closeDistance(), kind.senseRadius()) * 0.9f;
+            // is standing and shooting rather than walking. One that keeps its
+            // distance stands and shoots inside its band, so he is put at its far
+            // edge counted between the two middles -- a little inside it.
+            float gap = kind.keepsItsDistance() ? kind.keepFurthest()
+                    : Math.min(kind.closeDistance(), kind.senseRadius()) * 0.9f;
             var fight = fight(kind.name(), gap);
             float heroHealth = fight.hero().getBody().getHealth();
 

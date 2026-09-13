@@ -31,6 +31,9 @@ class MonsterSkillTest {
     private static final float ROW = 205f;
     private static final int NO_WALL = -1;
 
+    /** What leaves it between fireballs: its weapon's shot, named in its creature block. */
+    private static final String ORDINARY_FIRE = "Fireball";
+
     /** An open room 60 cells by 40; with a wall down one column, and a doorway at its far end. */
     private static String room(int wallColumn) {
         var text = new StringBuilder();
@@ -135,6 +138,26 @@ class MonsterSkillTest {
         return seen.size();
     }
 
+    /** The frame each new one of these templates appeared on, over the next frames. */
+    private static java.util.Map<String, java.util.List<Integer>> leaving(DukeGame game,
+            int frames, String... templates) {
+        var when = new java.util.HashMap<String, java.util.List<Integer>>();
+        for (var template : templates) {
+            when.put(template, new java.util.ArrayList<>());
+        }
+        var seen = new HashSet<Integer>();
+        for (int frame = 0; frame < frames; frame++) {
+            game.runHeadless(1);
+            for (var object : game.getLogic().getObjects()) {
+                var list = when.get(object.getTemplate().getName());
+                if (list != null && seen.add(object.getId().value())) {
+                    list.add(game.getLogic().getFrame());
+                }
+            }
+        }
+        return when;
+    }
+
     // ---- when it may ----
 
     @Test
@@ -184,6 +207,38 @@ class MonsterSkillTest {
 
         assertTrue(count >= 2 && count <= 3, count + " fireballs in " + frames
                 + " frames, from a skill that comes back every " + cooldown);
+    }
+
+    /** While the fireball comes back it throws its ordinary fire, rather than standing about. */
+    @Test
+    void betweenItsFireballsItThrowsItsOrdinaryFire() {
+        var fight = fight(standingStill(), room(NO_WALL), 240f, 200f);
+        int cooldown = SETTINGS.skillsFor(MAGE).get(0).cooldownFrames();
+
+        var thrown = leaving(fight.game(), cooldown * 2, fireball(), ORDINARY_FIRE);
+
+        assertTrue(thrown.get(fireball()).size() >= 2, "two cooldowns went by: " + thrown);
+        assertTrue(thrown.get(ORDINARY_FIRE).size() >= 3,
+                "and its ordinary fire should fill them: " + thrown);
+    }
+
+    /** One throw at a time: neither leaves while the other is still leaving its hands. */
+    @Test
+    void itsFireballAndItsOrdinaryFireNeverLeaveTogether() {
+        var settings = standingStill();
+        var fight = fight(settings, room(NO_WALL), 240f, 200f);
+        int swing = settings.monster(MAGE).swingFrames();
+
+        var thrown = leaving(fight.game(), 600, fireball(), ORDINARY_FIRE);
+
+        assertTrue(thrown.get(fireball()).size() >= 3 && thrown.get(ORDINARY_FIRE).size() >= 5,
+                "too few of either to say anything about: " + thrown);
+        for (int cast : thrown.get(fireball())) {
+            for (int shot : thrown.get(ORDINARY_FIRE)) {
+                assertTrue(Math.abs(shot - cast) >= swing,
+                        "a fireball on frame " + cast + " and its ordinary fire on " + shot);
+            }
+        }
     }
 
     // ---- at whom ----
