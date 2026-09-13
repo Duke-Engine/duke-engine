@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-13 · **Testlar:** 1457 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-13 · **Testlar:** 1467 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -3628,8 +3628,19 @@ bloklar; yangi **tur** — kod.
 Joy (`At`): `SPOT FROM TO BOTH PATH CASTER CAUGHT`; `CAUGHT` — skill yetgan har
 dushmanning ustida. **Qachon** o'ynashini fayl aytmaydi, u turdan kelib chiqadi:
 skill ko'rinishining hamma qatlami cast'da; otilgan narsaning `TRAIL`, `AURA` va
-`Seconds`siz `LIGHT` qatlamlari u uchayotganda u bilan birga; qolgani tushgan
-joyida (`ObjectDied`).
+`Seconds`siz `LIGHT` qatlamlari u uchayotganda u bilan birga; qolgani u tugagan
+lahzada. ★ `ObjectDied` da emas: o'q, o't shari va meteor belgisining tanasi yo'q,
+dvijok esa tanasiz narsani "o'ldi" demasdan olib tashlaydi — portlash shu hodisaga
+osilgan paytda o'yinda bir marta ham chizilmagan.
+
+**Va tugash hali tegish emas.** Simulyatsiya o't sharining zararini faqat u
+jonzotga yetganda, o'sha jonzot atrofida beradi; devorga urilgan yoki masofasi
+tugagan o't shari hech kimga zarar bermaydi. Shuning uchun uchgan snaryad faqat
+o'sha kadrda narigi tomonga zarba tushgan va zarba u oxirgi chizilgan joydan
+`StrikeWithin` ichida bo'lsa portlaydi — va portlash zarba tekkan jonzotning
+ustida chiqadi, chunki zarar markazi o'sha. Qo'yilgan joyida yotgan belgi
+(meteorniki) esa ostida kim bo'lishidan qat'i nazar tushgan joyida portlaydi
+(`Landing`).
 
 #### Zarracha bir marta yoziladi, qolganini shader hisoblaydi
 
@@ -3649,8 +3660,12 @@ piksel ham tekshirilmaydi.
 `Seconds` yozilmagan davomli qatlam vaqtini skilldan oladi (`Main.measureLooks`):
 `DurationFrames`, bo'lmasa `WindUpFrames`, bo'lmasa `SlowFrames`. `Measure = Reach`
 qatlamning o'lchami va radiusini skillning `Radius`ida sanaydi — `Size = 2` aynan
-skill yetgan kenglik. Otilgan narsaning effektiga uni otgan skillning sonlari
-beriladi. Natijada meteor ogohlantirishi portlash bilan **aynan** bir xil keng va
+skill yetgan kenglik. O't shari va meteor portlashi zarar tegadigan maydonga
+**aynan teng**: chetini chizadigan har halqaning eng yorug' chizig'i skill
+`Radius`ida yotadi (test o'sha chiziqni halqaning o'z teksturasidan topadi), olov,
+tutun va uchqunlar esa undan tashqariga uchmaydi (test ularni shader
+harakatlantirgandek hisoblaydi). Otilgan narsaning effektiga uni otgan skillning
+sonlari beriladi. Natijada meteor ogohlantirishi portlash bilan **aynan** bir xil keng va
 tushish bilan aynan bir xil uzoq, muz esa tekkanlarda sekinlashuv qancha tursa
 shuncha turadi. Ilgari bular ikkitadan son edi, yonida esa "birini o'zgartirsang,
 ikkinchisini ham" degan izoh turardi.
@@ -3719,6 +3734,20 @@ ham test ko'rmagan edi:
    qolingan tosh bilan zinapoya bo'lib uchrashardi → nurlar pasaytirildi, tuman
    tegilmadi
 
+> ★ **Lekin demo haqiqiy yo'lni chetlab o'tgan edi.** U tushishni o'zi chaqirardi,
+> shuning uchun o't shari va meteor demoda portlardi, o'yinda esa yo'q — buni
+> foydalanuvchi o'yinda topdi. Endi portlash snaryad dunyodan yo'qolgan lahzada
+> chiziladi, va bu o'yinning o'zi orqali tekshirildi: Mage qahramon, ochko sarflandi,
+> Q va R o'z tugmalarining bog'lanishi orqali otildi — simulyatsiyaning o'z o'qi
+> uchdi va tushdi. Bo'sh yerga otilgan o't shari portlamadi, skeletga yurib borib
+> otilgani esa o'sha skeletning ustida portladi; meteor ostida hech kim yo'q
+> bo'lsa ham tushgan joyida portladi. Haqiqiy yo'lda yana ikkita narsa ko'rindi: bir vaqtda boshlangan
+> qatlamlar yozilgan tartibda chiziladi, meteorning kuygan dog'i va tutuni esa
+> olovdan keyin yozilgan edi — portlash olov ustiga yotqizilgan qora disk bo'lib
+> ko'rinardi (endi pol, keyin tutun, oxirida olov va yorug'lik); va modelsiz
+> snaryadga beriladigan eski shar meteor ogohlantirishining o'rtasida polda oqish
+> disk bo'lib yotardi — qatlamli ko'rinishga endi bo'sh tana beriladi.
+
 #### Brif bilan ziddiyatlar
 
 - **Ranger R** — brifda "teshib o'tuvchi o'qlar, energiya chizig'i"; skill esa
@@ -3734,7 +3763,9 @@ ham test ko'rmagan edi:
   qatorlarini hech narsa o'qimaydi (faqat `ShakeSeconds`/`ShakePower`) — fayldan
   olib tashlanmadi
 - monstrlarning otishlari (`MageFire`, `MageFireGreater`) va mage'ning oddiy o'qi
-  (`ArcaneBolt`) hali eski retseptlarda
+  (`ArcaneBolt`) hali eski retseptlarda — va ularning `IMPACT_BURST` i shu
+  `ObjectDied` xatosi tufayli hech qachon chizilmagan: eski yo'l hali ham o'sha
+  hodisaga osilgan
 - effektlar sahnalashtirilgan demoda ko'rildi, haqiqiy jangda emas: tegish
   chaqnashi, muz tekkanlardagi `CAUGHT` qatlami va girdobning har zarbadagi
   halqasi dushmanlar bilan hali ko'z bilan ko'rilmagan (testlari bor)
@@ -4102,6 +4133,14 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 - **Katta billboard'ni pol kesadi:** yerdan o'lchamining yarmidan past turgan
   kamera tomon qaragan karta polni kesib o'tadi. `Particles.vert` kartani ko'zga
   tomon tortadi — tekis qirra ko'rinsa, avval shu yerga qarang.
+- **Tanasiz narsa `ObjectDied` bermaydi:** `GameLogic.reapDestroyed` hodisani faqat
+  `isEffectivelyDead()` — tanasi bor va o'lgan narsa — uchun chiqaradi. O'q, o't
+  shari va meteor belgisi `markDestroyed()` bilan ketadi, ularning tushishini shu
+  hodisadan kutish hech qachon kelmaydi. Klient ularni dunyodan yo'qolgan lahzada
+  ushlaydi (`Landing`): o'yinchining o'zinikini doim, boshqaniki faqat oxirgi
+  ko'rilgan joyi ko'z oldida bo'lsa. ★ Lekin yo'qolish tegish emas: devorga
+  urilgan o't shari ham yo'qoladi, zarari esa yo'q — tegishning dalili o'sha
+  kadrdagi zarba.
 - **Tekstura tumani:** Kenney'ning ba'zi flare va muzzle teksturalarida butun
   karta bo'ylab 2–3% alfa bor. Kichik chizilganda ko'rinmaydi, katta chaqnashda esa
   to'g'ri qirrali kvadrat. Shader eng xira alfani tashlaydi — yangi tekstura
@@ -4163,7 +4202,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/src/main/resources/ui/borders/` | Kenney Fantasy UI Borders (CC0) — ikki oila, olti to'plam; nomerlash Kenney'niki (CREDITS.md da izohlangan) |
 | `client3d/…/client3d/{EffectLayer,LayeredEffects}.java` | effekt qatlami (9 tur, 7 joy) va uni cast / uchish / tushish lahzasida o'ynatuvchi — pool, byudjet, tuman-masofa-ekran |
 | `client3d/…/client3d/ParticleLayer.java`, `MatDefs/duke/Particles.*` | GPU zarracha qatlami: tug'ilishda bir marta yoziladi, hayotini shader hisoblaydi |
-| `client3d/…/client3d/{LightPool,HitFlash}.java` | effektlarning umumiy yorug'lik pool'i; tegish chaqnashi |
+| `client3d/…/client3d/{LightPool,HitFlash,Landing}.java` | effektlarning umumiy yorug'lik pool'i; tegish chaqnashi; snaryad tushdimi yoki ko'rinmay qoldimi |
 | `client3d/…/client3d/ProjectileEffects.java` | uchayotgan narsa qanday yonadi: iz, yoritilgan tana, tegishdagi portlash — pool, yorug'lik byudjeti, kodda yasalgan uchqun teksturasi |
 | `client3d/…/client3d/Discovery.java` | kashfiyot tumani — uzluksiz yorug'lik, fazoviy+vaqt silliqlash (faqat klient) |
 | `dungeon/…/dungeon/combat/Swing.java` | zarba qachon tushganini aytadi — hech narsa uchirmaydi |
