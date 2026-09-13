@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-13 · **Testlar:** 1504 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-13 · **Testlar:** 1506 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -4280,6 +4280,28 @@ qolsin.
 - **Eng kalta bar** (30 jon, 15 ta belgi): belgilar orasidagi bo'shliq 2.4 px, belgining
   o'zidan (2 px) hali kengroq.
 - **Kod va testlar** o'zgarmadi.
+
+### 8.bf Mage'ning Frost Nova'si tanlangan joyga tushadi
+
+Foydalanuvchi: W bosilganda qahramon atrofiga emas, ultimate kabi tanlangan maydonga
+tushib, o'sha joyni muzlatsin.
+
+- **INI** (`DungeonSkill Mage W`):
+  - `Effect` `AREA_DAMAGE` dan `AREA_AT_SPOT` ga o'zgardi;
+  - yangi `Range = 80` — Fireball (64) dan uzoqroq, Meteor (110) dan yaqinroq;
+  - `Radius 40`, `SlowFrames 90` va zarar 40 o'zgarmadi;
+  - Blurb yangilandi.
+- **Kod** (`SkillBook`): `AREA_AT_SPOT` da `SlowFrames` berilgan bo'lsa, tanlangan joy
+  atrofidagilar ham sekinlashadi. `chill` endi joy uchun ham ishlaydi. Boshqa
+  `AREA_AT_SPOT` skill (Knight Q) `SlowFrames` bermaydi, shuning uchun u o'zgarmadi.
+- **Klient** o'zgarmadi. `AREA_AT_SPOT` ning o'zi joy tanlashni (`OPEN_GROUND`), yetish
+  halqasini va maydon doirasini beradi. `FrostNova` effekti tanlangan joyda chiziladi.
+- **"Muzlatish"** — avvalgi sekinlashtirish: 3 soniya yarim tezlik (`SLOWED`), to'liq
+  qotirish emas.
+- **Testlar** (`MageTest`):
+  - 2 ta yangi test: nova tanlangan joyga tushadi va mage yonidagini urmaydi; yetish
+    masofasidan uzoqqa bosilsa, masofa chetiga tushadi;
+  - W ni ishlatadigan 3 ta eski test endi uni joyga qaratib cast qiladi.
 
 ## 9. Nima yo'q / ochiq ishlar
 

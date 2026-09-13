@@ -43,7 +43,7 @@ package uz.duke.dungeon.skill;
  *     Zero lands it once, which is what every skill written before there was a
  *     whirlwind does — so the damage figure means "per landing" either way and no
  *     existing skill changed by a hair
- * @param slowFrames    how long whoever is caught by an {@code AREA_DAMAGE} drags
+ * @param slowFrames    how long whoever is caught by an area blast drags
  *     his feet afterwards, or zero for a blast that only hurts. One number rather
  *     than a third effect, because a frost nova IS the area blast with one more
  *     thing true of it -- and a knight's whirlwind, having said nothing about it,

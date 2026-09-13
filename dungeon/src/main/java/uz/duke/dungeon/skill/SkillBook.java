@@ -566,6 +566,9 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
                 for (var victim : enemiesWithin(owner, world, spot, skill.radius())) {
                     victim.getBody().damage(each);
                 }
+                // And leaves whoever it caught dragging his feet, if the file asks: the
+                // mage's frost nova, dropped where he points rather than round himself.
+                chill(owner, world, spot, skill.radius(), skill.slowFrames());
                 world.post(new WeaponFired(world.getFrame(), owner.getId(), null,
                         owner.getPosition(), spot));
             }
@@ -881,10 +884,16 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
      * behind its own file's back.
      */
     private static void chill(GameObject owner, World world, float radius, int frames) {
+        chill(owner, world, owner.getPosition(), radius, frames);
+    }
+
+    /** The same, round a spot he chose rather than round himself. */
+    private static void chill(GameObject owner, World world, Coord3D centre, float radius,
+            int frames) {
         if (frames <= 0) {
             return;
         }
-        for (var victim : enemiesWithin(owner, world, radius)) {
+        for (var victim : enemiesWithin(owner, world, centre, radius)) {
             var timers = victim.findModule(StatusUpdate.class);
             if (timers != null) {
                 timers.apply(ObjectStatus.SLOWED, frames);

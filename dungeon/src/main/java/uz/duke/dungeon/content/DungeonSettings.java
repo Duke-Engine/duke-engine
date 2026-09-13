@@ -1197,7 +1197,7 @@ public final class DungeonSettings {
                     // How often a lasting AREA_DAMAGE lands. Zero lands it once,
                     // which is every skill written before there was a whirlwind.
                     .add("TickFrames", Ini.integer((s, v) -> s.tickFrames = v))
-                    // How long an AREA_DAMAGE leaves whoever it caught dragging his
+                    // How long an area blast leaves whoever it caught dragging his
                     // feet. Zero is a blast that only hurts, which is what every
                     // area skill written before there was a frost nova says.
                     .add("SlowFrames", Ini.integer((s, v) -> s.slowFrames = v))

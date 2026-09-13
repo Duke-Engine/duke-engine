@@ -55,7 +55,8 @@ class MageTest {
     @Test
     void hisFourAreTheFourHeIsSoldAs() {
         assertEquals(SkillEffect.SKILLSHOT, skillOf(MAGE, 'Q').effect(), "Q is a fireball");
-        assertEquals(SkillEffect.AREA_DAMAGE, skillOf(MAGE, 'W').effect(), "W is a nova");
+        assertEquals(SkillEffect.AREA_AT_SPOT, skillOf(MAGE, 'W').effect(),
+                "W is a nova, dropped where he points");
         assertEquals(SkillEffect.BLINK, skillOf(MAGE, 'E').effect(), "E is a blink");
         assertEquals(SkillEffect.METEOR, skillOf(MAGE, 'R').effect(), "R is a meteor");
     }
@@ -147,7 +148,7 @@ class MageTest {
         var arena = arena(180f, 150f);
         var caught = arena.skeletons().get(0);
 
-        assertTrue(arena.book().cast('W', 1));
+        assertTrue(arena.book().cast('W', 1, null, new Coord3D(180f, 150f, 0f)));
 
         assertTrue(caught.hasStatus(ObjectStatus.SLOWED),
                 "it walked out of a frost nova at full speed");
@@ -172,7 +173,7 @@ class MageTest {
         var caught = arena.skeletons().get(0);
         int frames = skillOf(MAGE, 'W').slowFrames();
 
-        arena.book().cast('W', 1);
+        arena.book().cast('W', 1, null, new Coord3D(180f, 150f, 0f));
         assertTrue(caught.hasStatus(ObjectStatus.SLOWED), "the premise: it was chilled");
         arena.hero().markDestroyed();
         arena.game().runHeadless(frames + 2);
@@ -180,6 +181,44 @@ class MageTest {
         assertFalse(caught.isEffectivelyDead(), "the premise: it outlived the nova");
         assertFalse(caught.hasStatus(ObjectStatus.SLOWED),
                 "it is still slowed " + frames + " frames later, which is for ever");
+    }
+
+    /**
+     * And it lands where he points, not round his own feet.
+     *
+     * <p>One skeleton at his elbow and one across the room: dropped on the far one, the
+     * one beside him is neither hurt nor slowed, which is the whole difference between
+     * a nova he aims and the one that used to go off round him.
+     */
+    @Test
+    void hisFrostNovaLandsWhereHeAimsItAndNotRoundHim() {
+        var arena = arena(165f, 150f, 215f, 150f);
+        var beside = arena.skeletons().get(0);
+        var aimedAt = arena.skeletons().get(1);
+        float besideBefore = beside.getBody().getHealth();
+        float aimedBefore = aimedAt.getBody().getHealth();
+
+        assertTrue(arena.book().cast('W', 1, null, new Coord3D(215f, 150f, 0f)));
+
+        assertTrue(aimedAt.hasStatus(ObjectStatus.SLOWED), "what it was dropped on was not slowed");
+        assertTrue(aimedAt.getBody().getHealth() < aimedBefore, "nor hurt");
+        assertFalse(beside.hasStatus(ObjectStatus.SLOWED),
+                "the one at his elbow was slowed, so it still went off round him");
+        assertEquals(besideBefore, beside.getBody().getHealth(), 0.01f, "and it was hurt as well");
+    }
+
+    /** Aimed past his reach, it comes down at the edge of it, as the ring he aims with says. */
+    @Test
+    void aimedPastHisReachHisFrostNovaComesDownAtTheEdgeOfIt() {
+        float reach = skillOf(MAGE, 'W').range();
+        var arena = arena(150f + reach, 150f, 150f + reach + 70f, 150f);
+
+        assertTrue(arena.book().cast('W', 1, null, new Coord3D(150f + reach + 70f, 150f, 0f)));
+
+        assertTrue(arena.skeletons().get(0).hasStatus(ObjectStatus.SLOWED),
+                "it did not come down at the edge of his reach");
+        assertFalse(arena.skeletons().get(1).hasStatus(ObjectStatus.SLOWED),
+                "it came down where he clicked, past what it can reach");
     }
 
     // ---- E: the escape ----
@@ -290,13 +329,13 @@ class MageTest {
     void aCastSaysWhereItWantsDrawing() {
         var arena = arena(180f, 150f);
 
-        arena.book().cast('W', 1);
+        arena.book().cast('W', 1, null, new Coord3D(190f, 150f, 0f));
 
         var marks = arena.book().getCastMarks();
         assertEquals(1, marks.size(), "a nova is one place");
         assertEquals(skillOf(MAGE, 'W').look(), marks.get(0).look());
-        assertEquals(arena.hero().getPosition().x(), marks.get(0).x(), 0.01f,
-                "a nova is drawn round him, wherever he is standing");
+        assertEquals(190f, marks.get(0).x(), 0.01f,
+                "a nova is drawn where he dropped it, not where he is standing");
         assertEquals(skillOf(MAGE, 'W').radius(), marks.get(0).radius(), 0.01f,
                 "and as wide as it actually reached, rather than as wide as the block guessed");
     }

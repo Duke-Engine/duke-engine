@@ -44,6 +44,10 @@ public enum SkillEffect {
      * have to place. It is the shape every game has and this one did not — a
      * blast the player aims, with a reach he has to respect and a radius he has to
      * judge.
+     *
+     * <p>Name a {@code SlowFrames} and whoever it caught drags his feet as well, as
+     * {@link #AREA_DAMAGE}'s do: the mage's frost nova is this, dropped where he
+     * points.
      */
     AREA_AT_SPOT(Aim.OPEN_GROUND),
 
