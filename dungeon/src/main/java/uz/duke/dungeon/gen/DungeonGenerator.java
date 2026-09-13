@@ -376,6 +376,7 @@ public final class DungeonGenerator {
             int count = Math.round(rng.nextInt(settings.minSkeletonsPerRoom(),
                     settings.maxSkeletonsPerRoom()) * settings.monsterCountAt(depth));
             var used = new ArrayList<int[]>();
+            var inThisRoom = new java.util.HashMap<String, Integer>();
             for (int n = 0; n < count; n++) {
                 // Interior cells only — always floor, never on the room's wall line.
                 int cx = rng.nextInt(room.x() + 1, room.x() + room.w() - 2);
@@ -383,9 +384,17 @@ public final class DungeonGenerator {
                 if (occupied(used, cx, cy)) {
                     continue; // one per cell, so they never spawn overlapping
                 }
+                // A kind with as many here as the file allows is drawn no more in this
+                // room. Until one has, the draw is exactly the draw it always was.
+                var open = roomLeftFor(available, inThisRoom);
+                if (open.isEmpty()) {
+                    break;
+                }
                 used.add(new int[] {cx, cy});
-                monsters.add(new Monster(draw(rng, available, totalWeight).name(),
-                        worldCenter(cx, cy)));
+                var kind = open.size() == available.size() ? draw(rng, available, totalWeight)
+                        : draw(rng, open, weightOf(open));
+                inThisRoom.merge(kind.name(), 1, Integer::sum);
+                monsters.add(new Monster(kind.name(), worldCenter(cx, cy)));
             }
         }
         return monsters;
@@ -483,6 +492,26 @@ public final class DungeonGenerator {
             }
         }
         return available.get(available.size() - 1);
+    }
+
+    /** The kinds this room still has space for. */
+    private static List<MonsterKind> roomLeftFor(List<MonsterKind> kinds,
+            java.util.Map<String, Integer> placed) {
+        var open = new ArrayList<MonsterKind>(kinds.size());
+        for (var kind : kinds) {
+            if (kind.maxPerRoom() <= 0 || placed.getOrDefault(kind.name(), 0) < kind.maxPerRoom()) {
+                open.add(kind);
+            }
+        }
+        return open;
+    }
+
+    private static int weightOf(List<MonsterKind> kinds) {
+        int total = 0;
+        for (var kind : kinds) {
+            total += kind.weight();
+        }
+        return total;
     }
 
     private static boolean occupied(List<int[]> used, int cx, int cy) {

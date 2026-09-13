@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-13 · **Testlar:** 1463 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-13 · **Testlar:** 1475 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -3866,6 +3866,104 @@ kuchlar kitobi qolardi.
   `SightTest` yangi holatga moslandi.
 - Daraja oshganini endi nur ustuni va ovoz bildiradi (8.aw) — o'yin to'xtamaydi.
 
+### 8.ay Skelet-Mage — skill ishlatadigan birinchi monster
+
+Shu paytgacha dushmanlar faqat yaqinlashib urardi yoki qurolidagi o'qni otardi. Endi
+monster o'z skillini o'zi qaror qilib ishlatadi. Mexanizm umumiy: yangi skill yoki
+yangi kaster — INI ishi.
+
+#### Mexanizm
+
+- **Skill bog'lash — yangi tizim yo'q.** `SkillBook` qahramonga emas, shablon nomiga
+  bog'langan edi (`DungeonSkill <Shablon> <Tugma>`), shuning uchun monsterga ham shu
+  yo'l bilan beriladi: `monsters.ini` da `Update = SkillBook Tag`, `dungeon.ini` da
+  `DungeonSkill SkeletonMage Q`. Mana standart holatda o'chiq, monster faqat kuluar
+  kutadi.
+- **Qaror `MonsterBrain` da**, `DungeonMonster` dagi yangi kalitlar bo'yicha:
+  - `Skill` — qaysi tugma;
+  - `SkillDistance` — eng yaqin va eng uzoq otish masofasi;
+  - `KeepDistance` — saqlanadigan masofa oralig'i;
+  - `MaxPerRoom` — bitta xonada nechtasi bo'lishi mumkin.
+
+  Har kadrda nishon tanlanadi, keyin shartlar tekshiriladi: masofa ichida,
+  `SightLine.clear` (devor ortidan otmaydi), kuluar tayyor. Shunda `SkillBook.cast`
+  qahramon turgan joyga otadi. Otgandan keyin `SwingFrames` davomida joyida turadi,
+  shunda otish harakati ko'rinadi.
+- **Nishon:** eng yaqin dushman. `findClosest` teng masofada kichik `ObjectId`ni
+  allaqachon tanlar ekan (`PartitionManager`) — test bilan mustahkamlandi.
+- **Masofa saqlash (`KeepingDistance`):**
+  - qahramon juda yaqin kelsa, monster undan teskari tomonga, oraliqning uzoq
+    chetiga chekinadi;
+  - to'g'ri orqada tosh bo'lsa, `RetreatTurnDegrees` (30°) qadam bilan chapga,
+    keyin o'ngga `RetreatTurns` (3) martagacha sinaydi;
+  - hammasi yopiq bo'lsa, joyida jang qiladi;
+  - qahramon uzoqlashsa, ortidan boradi; oraliq ichida turib otadi.
+
+  Burchaklar qat'iy tartibda sinaladi va `StrictMath` bilan hisoblanadi.
+- **Chuqurlik:** `DepthBonus` `combat` paketiga ko'chdi va skill zarari ham unga
+  ko'paytiriladi. Avval skill zarari chuqurlikni hisobga olmasdi. Bu bonus faqat
+  monsterlarda bor, qahramon zarari o'zgarmadi.
+- **Snaryad tezligi skill blokida:** `ProjectileSpeed`; 0 bo'lsa qahramonning
+  `HeavySpeed`i olinadi.
+- **Xona chegarasi:** chegaraga yetgan tur o'sha xonada qur'adan chiqariladi. Hech bir
+  tur chegaraga yetmaguncha qur'a avvalgidek, ya'ni eski seed'lar o'zgarmaydi. Stage
+  fayllariga ta'sir qilmaydi.
+
+#### Skelet-Mage
+
+- **Ko'rinish:** `skeleton_mage.glb` va tayoq, iliq qizil-to'q sariq `Tint`
+  (Revenant oqish-ko'k).
+- **Statistika:** jon 40, tezlik 13 (eng sekin qahramon — 21), tayoq bilan zaif urish
+  (3). 2-chuqurlikdan chiqadi, bitta xonada 2 tadan ko'p emas.
+- **Masofalar:** `SkillDistance = 20 60`, `KeepDistance = 35 55`. Oraliqni
+  foydalanuvchi tasdiqlagan; brifdagi 200–400 bu o'yin o'lchamida ko'rish
+  masofasidan ancha uzoq edi.
+- **Olov shari:** `SKILLSHOT`, zarar 24, portlash radiusi 16, tezlik 60 (Mage'niki
+  120, shuning uchun ko'rib qochish mumkin), kuluar 4 soniya.
+- **Effekt:** `SkullFireball` — Mage Fireball qatlamlarining nusxasi, ranglari
+  binafshaga burilgan. Portlashdagi birliklarda o'lchangan qatlamlar 16/26 ga
+  kichraytirildi, shuning uchun portlash zarar maydonidan chiqmaydi. Kamerani yarim
+  kuch bilan silkitadi.
+- **Ovoz:** otishda `skill_dash`, tekkanda `skill_burst` (mavjud to'plamdan).
+
+#### Testlar
+
+`MonsterSkillTest` (11 ta):
+- masofa ichidagi qahramonga otadi;
+- juda uzoq yoki juda yaqin bo'lsa otmaydi, oraliqqa kirishi bilan otadi;
+- devor ortidan otmaydi;
+- kuluarni kutadi;
+- teng masofadagi ikki qahramondan birinchi yaratilganiga otadi;
+- qahramon juda yaqinlashsa chekinadi;
+- uzoqlashsa ortidan borib, oraliq ichida to'xtaydi;
+- tor tupikda chekinadigan joy topmaydi;
+- INI'dagi kengroq oraliq polda ham kengroq bo'ladi;
+- chuqurroqdan chiqqan mage kuchliroq uradi;
+- bir xil jang ikki marta o'ynalganda checksum bir xil.
+
+`RoomCapTest`: chegara 1 bo'lsa, hech bir xonada bittadan ko'p mage yo'q; chegarasiz
+o'sha xonalar ular bilan to'lib ketadi.
+
+Moslangan testlar:
+- `SkillLookTest`, `SkillTipTest` — endi faqat o'yinchi skilllarini tekshiradi;
+- `DungeonMonsterArtTest` — otish animatsiyasi uchun `Bow` yoki uchadigan skill
+  yetarli;
+- `HeroStatusTest` — nomini o'zgartiradigan turlar ma'lumotdan sanaladi;
+- `Skill` konstruktorini chaqiradigan uchta test.
+
+#### Ko'z bilan tekshiruv (yashirin oynada)
+
+- Bu bosqichda o'yinning o'zida ko'rilmadi. Yashil va binafsha Skelet-Mage qo'shilgach, uchala tur bitta yashirin-oyna tekshiruvida birga ko'riladi — natija 8.az da.
+
+#### Ochiq qolganlar
+
+- Monster skillining cast belgisi (`cast=`) klientga bormaydi — faqat qahramonniki
+  boradi. Shar va portlash o'z effektlari bilan chiziladi, otish animatsiyasi
+  `WeaponFired`dan o'ynaydi.
+- Chekinish nuqtasi faqat tosh va ko'rish chizig'ini tekshiradi, qavatni emas: boshqa
+  qavatdagi nuqta yo'lni uzaytirishi mumkin.
+- Revenant va Necromancer o'zgarmadi — ular hali ham oddiy qurol bilan otadi.
+
 ## 9. Nima yo'q / ochiq ishlar
 
 ### Katta teshiklar
@@ -4357,6 +4455,8 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/level/HeroProgress.java` | XP → daraja → atributlar, run'da nolga qaytish |
 | `dungeon/…/dungeon/loot/{Loot,LootKind,LootTable}.java` | tushadigan narsa: ma'lumot, turlar, deterministik qur'a |
 | `dungeon/…/dungeon/loot/{LootBag,LootDrop,LootUpdate}.java` | topilganlar + `DieModule` cho'ntagi + poldagi sandiq |
+| `dungeon/…/dungeon/ai/KeepingDistance.java` | masofa saqlaydigan monster qayerga chekinadi — qat'iy tartibdagi burchaklar, tosh va ko'rish chizig'i |
+| `dungeon/…/dungeon/combat/DepthBonus.java` | chuqurlik bo'yicha zarar bonusi — qurol ham, skill ham o'qiydi |
 | `dungeon/…/dungeon/ai/SightLine.java` | ko'ra oladimi: yetarlicha yaqinmi, orada tosh bormi, balandda turibdimi — sof arifmetika, grid ustida |
 | `dungeon/…/dungeon/combat/EyesOnly.java` | ko'rmaganiga otmaydi — qahramon, arbaletchi va mage |
 | `client3d/…/client3d/Fog.java` | tuman sozlamasi (LOS, uch qatlam yorqinligi, yumshoqlik, tekstura o'lchami, rang) |

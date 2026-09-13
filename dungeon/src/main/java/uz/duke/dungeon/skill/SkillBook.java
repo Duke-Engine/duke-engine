@@ -11,6 +11,7 @@ import uz.duke.core.thing.ObjectId;
 import uz.duke.core.thing.ObjectStatus;
 import uz.duke.core.thing.World;
 import uz.duke.dungeon.ai.Facing;
+import uz.duke.dungeon.combat.DepthBonus;
 import uz.duke.dungeon.combat.FallingUpdate;
 import uz.duke.dungeon.combat.Shot;
 import uz.duke.dungeon.content.DungeonSettings;
@@ -544,7 +545,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
                 // both fly the same way and stop at the first body, and one of them
                 // takes the rest of the room with it.
                 if (!Shot.looseAlong(owner, towards, damageOf(skill, level), DamageType.NORMAL,
-                        skill.projectile(), settings.heavyArrowSpeed(),
+                        skill.projectile(), speedOf(skill),
                         settings.arrowMuzzleOffset(), skill.range(), skill.radius())) {
                     return false; // no arrow to throw; the cooldown is not spent
                 }
@@ -672,7 +673,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     private void land(Skill skill, int level, GameObject owner, GameObject victim) {
         float damage = damageOf(skill, level);
         if (skill.hasProjectile() && Shot.loose(owner, victim, damage, DamageType.NORMAL,
-                skill.projectile(), settings.heavyArrowSpeed(), settings.arrowMuzzleOffset())) {
+                skill.projectile(), speedOf(skill), settings.arrowMuzzleOffset())) {
             // The client draws a muzzle flash and plays the shooting sound off this
             // — the same moment the bow announces, for the same reason.
             var world = owner.getWorld();
@@ -684,11 +685,27 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     }
 
     /**
-     * What a skill hits for: its own figure at this level, and the ultimate's
-     * window if one is open.
+     * What a skill hits for: its own figure at this level, the ultimate's window if
+     * one is open, and how much harder it hits for how deep it was found. Only a
+     * monster is ever found anywhere, so a hero's figure is untouched by that last.
      */
     private float damageOf(Skill skill, int level) {
-        return skill.damageAt(level) * damageMultiplier();
+        return skill.damageAt(level) * damageMultiplier() * depthOf(getOwner());
+    }
+
+    /**
+     * The depth's bonus, read here as well as by the weapon. A skill deals its own
+     * damage rather than going through a weapon, so without asking it would hit as
+     * hard on the fourth floor as on the first.
+     */
+    private static float depthOf(GameObject owner) {
+        var bonus = owner.findModule(DepthBonus.class);
+        return bonus == null ? 1f : bonus.damageMultiplier();
+    }
+
+    /** How fast what a skill throws travels: its own figure, or the drawn arrow's. */
+    private float speedOf(Skill skill) {
+        return skill.projectileSpeed() > 0f ? skill.projectileSpeed() : settings.heavyArrowSpeed();
     }
 
     /**

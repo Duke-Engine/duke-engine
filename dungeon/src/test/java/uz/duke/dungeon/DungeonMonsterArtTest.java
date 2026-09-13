@@ -296,7 +296,7 @@ class DungeonMonsterArtTest {
      * creature given a ranged clip and no projectile mimes: the crossbow comes up,
      * the bolt never leaves, and the damage lands out of nowhere on whatever it
      * was aimed at. Nothing raises, nothing logs, and it reads as the projectile
-     * failing to load.
+     * failing to load. What leaves it may be a Bow's shot or its own skill's.
      */
     @Test
     void anythingDrawnShootingHasSomethingToShoot() {
@@ -306,9 +306,16 @@ class DungeonMonsterArtTest {
             if (!SETTINGS.lookOf(kind).attack().startsWith(RANGED)) {
                 continue;
             }
-            assertTrue(launches(file, kind.name()),
-                    kind.name() + " is drawn shooting but carries no Bow, so nothing leaves it");
+            assertTrue(launches(file, kind.name()) || castsSomethingThatFlies(kind),
+                    kind.name() + " is drawn shooting but carries no Bow and casts nothing"
+                            + " that flies, so nothing leaves it");
         }
+    }
+
+    /** Whether its own skill throws something across the room. */
+    private static boolean castsSomethingThatFlies(uz.duke.dungeon.content.MonsterKind kind) {
+        return kind.hasSkill() && SETTINGS.skillsFor(kind.name()).stream()
+                .anyMatch(skill -> skill.key() == kind.skillKey() && skill.hasProjectile());
     }
 
     /** Whether the template of this name carries a launcher. */

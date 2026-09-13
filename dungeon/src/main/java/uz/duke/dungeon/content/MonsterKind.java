@@ -33,6 +33,15 @@ package uz.duke.dungeon.content;
  * @param scale        drawn size relative to its geometry, when drawn as a shape
  * @param look         the model, skin and animations to draw it with — empty when
  *                     this kind has no art, and then it falls back to a shape
+ * @param skillKey     which of its own skills it decides to cast, by key: a
+ *                     {@code DungeonSkill} block headed by its name, as a hero's are.
+ *                     Zero for a thing with no skill
+ * @param skillNearest the nearest it casts from, surface to surface
+ * @param skillFurthest and the furthest
+ * @param keepNearest  the nearest it lets him come before it backs away
+ * @param keepFurthest and the furthest it lets him get before it comes after him.
+ *                     Zero for a thing that closes to {@code closeDistance} instead
+ * @param maxPerRoom   how many of it one room may hold, or zero for no limit
  */
 public record MonsterKind(
         String name,
@@ -46,7 +55,13 @@ public record MonsterKind(
         int weight,
         int colour,
         float scale,
-        MonsterLook look) {
+        MonsterLook look,
+        char skillKey,
+        float skillNearest,
+        float skillFurthest,
+        float keepNearest,
+        float keepFurthest,
+        int maxPerRoom) {
 
     /** The behaviour tag a creature definition references: {@code Script:<name>Brain}. */
     public String brainTag() {
@@ -55,5 +70,15 @@ public record MonsterKind(
 
     public java.awt.Color awtColour() {
         return new java.awt.Color(colour);
+    }
+
+    /** Whether it has a skill of its own to decide about. */
+    public boolean hasSkill() {
+        return skillKey != 0;
+    }
+
+    /** Whether it holds a band of distance from him rather than closing to fight. */
+    public boolean keepsItsDistance() {
+        return keepFurthest > 0f;
     }
 }

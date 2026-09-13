@@ -79,6 +79,9 @@ package uz.duke.dungeon.skill;
  *     beside the other art, or empty for the letter the key is called. Which
  *     drawing goes with which skill is a matter for the file: a fifth skill should
  *     be a fifth block of INI, and nothing in Java should have to learn its name.
+ * @param projectileSpeed how fast what it throws travels, in units a second, or 0
+ *     for the drawn arrow's own speed, which every hero's shot flies at. A
+ *     monster's fireball is slower on purpose: slow enough to be stepped out of
  */
 public record Skill(
         String heroTemplate,
@@ -108,7 +111,8 @@ public record Skill(
         String castAnim,
         float castSeconds,
         String name,
-        String blurb) {
+        String blurb,
+        float projectileSpeed) {
 
     /**
      * A cooldown can shorten with level but never vanish: a skill castable every

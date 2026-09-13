@@ -65,6 +65,8 @@ public final class DungeonSettings {
     private float closeDistance = 4f;
     private int heroRepathFrames = 10;
     private float wayAheadProbe = 5f;
+    private float retreatTurnDegrees = 30f;
+    private int retreatTurns = 3;
     private String arrowTemplate = "Arrow";
     private float arrowSpeed = 260f;
     private float arrowMuzzleOffset = 5f;
@@ -568,6 +570,23 @@ public final class DungeonSettings {
         require(skeletonRepathFrames >= 1 && heroRepathFrames >= 1,
                 "re-planning every zero frames is not a plan");
         require(closeDistance >= 0, "CloseDistance cannot be negative");
+        require(retreatTurns >= 0, "RetreatTurns cannot be negative");
+        require(retreatTurnDegrees > 0f && retreatTurnDegrees * retreatTurns <= 180f,
+                "RetreatTurnDegrees times RetreatTurns has to stay within a half turn");
+        for (var kind : monsters) {
+            var name = "DungeonMonster " + kind.name();
+            if (kind.hasSkill()) {
+                require(skillsFor(kind.name()).stream().anyMatch(skill -> skill.key() == kind.skillKey()),
+                        name + " casts " + kind.skillKey() + ", and no DungeonSkill "
+                                + kind.name() + " " + kind.skillKey() + " says what that is");
+                require(kind.skillNearest() >= 0f && kind.skillFurthest() > kind.skillNearest(),
+                        name + " has to cast across some distance: SkillDistance nearest furthest");
+            }
+            require(kind.keepFurthest() == 0f
+                            || kind.keepNearest() >= 0f && kind.keepFurthest() > kind.keepNearest(),
+                    name + "'s KeepDistance has to be a band, nearest then furthest");
+            require(kind.maxPerRoom() >= 0, name + "'s MaxPerRoom cannot be negative");
+        }
         require(corridorWidth >= 1, "a corridor narrower than one cell is a wall");
         require(maxRoomSpacing > maxRoomSize, "rooms could never reach one another");
         require(minPropsPerRoom >= 0, "a room cannot hold fewer than no things");
@@ -732,6 +751,8 @@ public final class DungeonSettings {
                     .add("CloseDistance", Ini.real((s, v) -> s.closeDistance = v))
                     .add("HeroRepathFrames", Ini.integer((s, v) -> s.heroRepathFrames = v))
                     .add("WayAheadProbe", Ini.real((s, v) -> s.wayAheadProbe = v))
+                    .add("RetreatTurnDegrees", Ini.real((s, v) -> s.retreatTurnDegrees = v))
+                    .add("RetreatTurns", Ini.integer((s, v) -> s.retreatTurns = v))
                     .add("ArrowTemplate", Ini.string((s, v) -> s.arrowTemplate = v))
                     .add("ArrowSpeed", Ini.real((s, v) -> s.arrowSpeed = v))
                     .add("ArrowMuzzleOffset", Ini.real((s, v) -> s.arrowMuzzleOffset = v));
@@ -965,6 +986,12 @@ public final class DungeonSettings {
         float heldPitch;
         float heldYaw;
         float heldRoll;
+        char skillKey;
+        float skillNearest;
+        float skillFurthest;
+        float keepNearest;
+        float keepFurthest;
+        int maxPerRoom;
 
         MonsterBuilder(String name) {
             this.name = name;
@@ -972,7 +999,8 @@ public final class DungeonSettings {
 
         MonsterKind build() {
             return new MonsterKind(name, senseRadius, chaseRadius, closeDistance, alertRadius,
-                    repathFrames, swingFrames, minDepth, weight, colour, scale, look());
+                    repathFrames, swingFrames, minDepth, weight, colour, scale, look(), skillKey,
+                    skillNearest, skillFurthest, keepNearest, keepFurthest, maxPerRoom);
         }
 
         /** Just the art of it, which is all a theme overriding a creature needs. */
@@ -1016,7 +1044,24 @@ public final class DungeonSettings {
                     .add("HeldScale", Ini.real((m, v) -> m.heldScale = v))
                     .add("HeldPitch", Ini.real((m, v) -> m.heldPitch = v))
                     .add("HeldYaw", Ini.real((m, v) -> m.heldYaw = v))
-                    .add("HeldRoll", Ini.real((m, v) -> m.heldRoll = v));
+                    .add("HeldRoll", Ini.real((m, v) -> m.heldRoll = v))
+                    // Which of its own skills it decides to cast, by key. The skill is a
+                    // DungeonSkill block headed by this creature's name, as a hero's are.
+                    .add("Skill", Ini.string((m, v) -> m.skillKey = v.isEmpty() ? 0
+                            : Character.toUpperCase(v.charAt(0))))
+                    // The nearest and the furthest it casts from, surface to surface.
+                    .add("SkillDistance", (ini, m) -> {
+                        m.skillNearest = Ini.scanReal(ini.getNextToken());
+                        m.skillFurthest = Ini.scanReal(ini.getNextToken());
+                    })
+                    // The band it holds: nearer and it backs away, further and it comes.
+                    // Unsaid, it closes to CloseDistance like everything else.
+                    .add("KeepDistance", (ini, m) -> {
+                        m.keepNearest = Ini.scanReal(ini.getNextToken());
+                        m.keepFurthest = Ini.scanReal(ini.getNextToken());
+                    })
+                    // How many of it one room may hold; zero for no limit.
+                    .add("MaxPerRoom", Ini.integer((m, v) -> m.maxPerRoom = v));
 
     /** Accumulates one {@code DungeonSkill <hero> <key>} block. */
     private static final class SkillBuilder {
@@ -1048,6 +1093,7 @@ public final class DungeonSettings {
         float castSeconds;
         int manaCost;
         int manaCostPerLevel;
+        float projectileSpeed;
 
         SkillBuilder(String heroTemplate, String key) {
             this.heroTemplate = heroTemplate;
@@ -1059,7 +1105,7 @@ public final class DungeonSettings {
                     distance, hitWidth, boostPercent, boostPerLevel, durationFrames, tickFrames,
                     slowFrames, cooldownFrames, cooldownPerLevel, maxRank, levelPerRank,
                     windUpFrames, manaCost, manaCostPerLevel,
-                    projectile, icon, look, castAnim, castSeconds, name, blurb);
+                    projectile, icon, look, castAnim, castSeconds, name, blurb, projectileSpeed);
         }
     }
 
@@ -1123,7 +1169,10 @@ public final class DungeonSettings {
                     // and a sentence with a figure in it goes stale the moment
                     // anything above is retuned.
                     .add("Name", Ini.restOfLine((s, v) -> s.name = v))
-                    .add("Blurb", Ini.restOfLine((s, v) -> s.blurb = v));
+                    .add("Blurb", Ini.restOfLine((s, v) -> s.blurb = v))
+                    // How fast what it throws travels, in units a second. Unsaid, it is
+                    // the drawn arrow's HeavySpeed, which every hero's shot flies at.
+                    .add("ProjectileSpeed", Ini.real((s, v) -> s.projectileSpeed = v));
 
     /** Accumulates one {@code DungeonLootItem <id>} block. */
     private static final class LootBuilder {
@@ -3259,6 +3308,19 @@ public final class DungeonSettings {
     /** How far ahead a walking thing looks for a body; see {@code WayAhead}. */
     public float wayAheadProbe() {
         return wayAheadProbe;
+    }
+
+    /**
+     * How much further aside each try turns when a monster that keeps its distance
+     * backs away and straight back is stone.
+     */
+    public float retreatTurnDegrees() {
+        return retreatTurnDegrees;
+    }
+
+    /** And how many tries it makes each side of straight back before it is cornered. */
+    public int retreatTurns() {
+        return retreatTurns;
     }
 
     public int heroRepathFrames() {

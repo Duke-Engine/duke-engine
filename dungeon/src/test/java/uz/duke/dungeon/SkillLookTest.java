@@ -31,6 +31,14 @@ class SkillLookTest {
 
     private static final DungeonSettings SETTINGS = DungeonSettings.load();
 
+    /** The skills a player casts: a hero's. A monster's has no key, no card and no look. */
+    private static java.util.List<uz.duke.dungeon.skill.Skill> playersSkills() {
+        var heroes = SETTINGS.heroes().stream().map(uz.duke.dungeon.content.HeroLook::name)
+                .collect(java.util.stream.Collectors.toSet());
+        return SETTINGS.skills().stream().filter(skill -> heroes.contains(skill.heroTemplate()))
+                .toList();
+    }
+
     /**
      * How long an effect may run.
      *
@@ -53,7 +61,7 @@ class SkillLookTest {
     @Test
     void everySkillSaysWhatItLooksLike() {
         assertFalse(SETTINGS.skills().isEmpty(), "the shipped file describes no skills at all");
-        for (var skill : SETTINGS.skills()) {
+        for (var skill : playersSkills()) {
             assertTrue(skill.hasLook(), skill.heroTemplate() + "'s " + skill.key()
                     + " goes off in silence: no Look line, so nothing is drawn for it");
         }
@@ -63,7 +71,7 @@ class SkillLookTest {
     @Test
     void everyLookNamedIsABlockThatExists() {
         var described = SETTINGS.effects().stream().map(look -> look.name()).toList();
-        for (var skill : SETTINGS.skills()) {
+        for (var skill : playersSkills()) {
             assertTrue(described.contains(skill.look()), skill.heroTemplate() + "'s "
                     + skill.key() + " looks like " + skill.look() + ", which nothing describes");
         }
@@ -72,7 +80,7 @@ class SkillLookTest {
     /** And that block draws something, rather than being a name with nothing behind it. */
     @Test
     void everyLookNamedDrawsSomething() {
-        for (var skill : SETTINGS.skills()) {
+        for (var skill : playersSkills()) {
             var look = lookOf(skill.look());
             boolean draws = look.kinds().contains(Visuals.EffectVisual.SHOCKWAVE)
                     || look.kinds().contains(Visuals.EffectVisual.GROUND_MARK)
@@ -153,7 +161,7 @@ class SkillLookTest {
     /** Nothing that opens a ring forgets to say what colour it is. */
     @Test
     void everyRingIsSomeColour() {
-        for (var skill : SETTINGS.skills()) {
+        for (var skill : playersSkills()) {
             var look = lookOf(skill.look());
             assertFalse(look.colour() == 0x000000, look.name()
                     + " is drawn in black, which in a dark room is drawn not at all");
@@ -299,7 +307,7 @@ class SkillLookTest {
         var with = DungeonSettings.load();
         var without = DungeonSettings.parse(withoutTheLooks(Content.read(Content.SETTINGS)));
 
-        assertTrue(with.skills().stream().allMatch(skill -> skill.hasLook()));
+        assertTrue(playersSkills().stream().allMatch(skill -> skill.hasLook()));
         assertTrue(without.skills().stream().noneMatch(skill -> skill.hasLook()),
                 "the stripped file still names looks");
         assertEquals(signature(with), signature(without),

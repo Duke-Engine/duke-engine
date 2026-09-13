@@ -29,12 +29,12 @@ class SkillRanksTest {
 
     private static Skill ordinary(char key) {
         return new Skill("Hero", key, SkillEffect.AREA_DAMAGE, 10f, 1f, 10f, 10f, 0f, 0f,
-                0, 0, 0, 0, 0, 60, 0, 4, 0, 0, 0, 0, "", "", "", "", 0f, "", "");
+                0, 0, 0, 0, 0, 60, 0, 4, 0, 0, 0, 0, "", "", "", "", 0f, "", "", 0f);
     }
 
     private static Skill ultimate(char key) {
         return new Skill("Hero", key, SkillEffect.EMPOWER, 0f, 0f, 0f, 0f, 0f, 0f,
-                50, 5, 120, 0, 0, 600, 0, 3, 4, 0, 0, 0, "", "", "", "", 0f, "", "");
+                50, 5, 120, 0, 0, 600, 0, 3, 4, 0, 0, 0, "", "", "", "", 0f, "", "", 0f);
     }
 
     // ---- a point a level ----

@@ -214,9 +214,8 @@ final class HeroStatus {
      * <li>the boss is one id
      * <li>the name belongs to the TEMPLATE, so it is a dictionary of about a
      *     dozen rather than one entry a creature
-     * <li>and mana belongs to a {@code SkillBook}, which in this game only a hero
-     *     has — so it is one entry, and it would still be one entry if a monster
-     *     were given skills tomorrow
+     * <li>and mana belongs to a {@code SkillBook}'s pool, which in this game only a
+     *     hero draws from — a monster's skills cost it nothing — so it is one entry
      * </ul>
      *
      * <p>The ring around the hero's medallion is his experience, and only his:

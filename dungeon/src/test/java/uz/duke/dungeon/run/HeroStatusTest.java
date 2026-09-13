@@ -419,7 +419,7 @@ class HeroStatusTest {
      *
      * <p>Both halves matter and both are about the size of the line. Per kind
      * rather than per creature, so a floor of forty skeletons costs one entry;
-     * and skipped when the two agree, which is every monster in the file today —
+     * and skipped when the two agree, which is nearly every monster in the file —
      * the client falls back to the template name and gets the same word.
      */
     @Test
@@ -431,9 +431,20 @@ class HeroStatusTest {
         assertTrue(line.contains("|who=Rogue,Erika"), line);
         assertFalse(line.contains("|who=Runner"),
                 "Runner is printed Runner; sending that is sending nothing: " + line);
-        assertEquals(DungeonSettings.load().heroes().size(),
-                line.split("\\|who=", -1).length - 1,
-                "one entry per kind that renames itself, and today that is the heroes");
+        assertTrue(line.contains("|who=SkeletonMage,Skeleton Mage"),
+                "a monster whose name is two words says so: " + line);
+        var settings = DungeonSettings.load();
+        var templates = session.game().getLogic().getThingFactory();
+        long renaming = java.util.stream.Stream.concat(
+                        settings.heroes().stream().map(uz.duke.dungeon.content.HeroLook::name),
+                        settings.monsters().stream().map(uz.duke.dungeon.content.MonsterKind::name))
+                .map(templates::findTemplate)
+                .filter(template -> template != null && template.getDisplayName() != null
+                        && !template.getDisplayName().isBlank()
+                        && !template.getDisplayName().equals(template.getName()))
+                .count();
+        assertEquals(renaming, line.split("\\|who=", -1).length - 1,
+                "one entry per kind that renames itself, and none for one that does not");
     }
 
     /** Somebody else's creature, picked out the way a click does. */

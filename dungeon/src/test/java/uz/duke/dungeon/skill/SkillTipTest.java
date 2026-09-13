@@ -19,6 +19,14 @@ class SkillTipTest {
 
     private static final DungeonSettings SETTINGS = DungeonSettings.load();
 
+    /** The skills a player casts: a hero's. A monster's has no key, no card and no look. */
+    private static java.util.List<uz.duke.dungeon.skill.Skill> playersSkills() {
+        var heroes = SETTINGS.heroes().stream().map(uz.duke.dungeon.content.HeroLook::name)
+                .collect(java.util.stream.Collectors.toSet());
+        return SETTINGS.skills().stream().filter(skill -> heroes.contains(skill.heroTemplate()))
+                .toList();
+    }
+
     private static final SkillTip.Words WORDS = new SkillTip.Words(
             "Zarar", "Kuluar", "Radius", "Masofa", "Kuch",
             "1 nuqta", "Ctrl+", "eng yuqori", "nuqta yo'q", "-daraja", "s", "Mana");
@@ -100,7 +108,7 @@ class SkillTipTest {
     /** Every skill in the file is named and described. */
     @Test
     void everySkillIsNamedAndDescribed() {
-        for (var skill : SETTINGS.skills()) {
+        for (var skill : playersSkills()) {
             assertFalse(skill.name().isBlank(), skill.heroTemplate() + "'s " + skill.key()
                     + " has no name, so its card is headed by nothing");
             assertFalse(skill.blurb().isBlank(), skill.heroTemplate() + "'s " + skill.key()
@@ -112,7 +120,7 @@ class SkillTipTest {
     /** And no description smuggles a number into itself. */
     @Test
     void noDescriptionCarriesItsOwnFigures() {
-        for (var skill : SETTINGS.skills()) {
+        for (var skill : playersSkills()) {
             assertFalse(skill.blurb().matches(".*\\d+.*"), skill.heroTemplate() + "'s "
                     + skill.key() + " writes a figure into its description: \""
                     + skill.blurb() + "\". Figures come out of the rank and go stale the"
@@ -123,7 +131,7 @@ class SkillTipTest {
     /** And every one of them has something to show that grows. */
     @Test
     void everySkillHasSomethingWorthBuying() {
-        for (var skill : SETTINGS.skills()) {
+        for (var skill : playersSkills()) {
             boolean grows = skill.damagePerLevel() > 0f || skill.boostPerLevel() != 0
                     || skill.cooldownPerLevel() != 0;
             assertTrue(grows, skill.heroTemplate() + "'s " + skill.key()

@@ -1,4 +1,4 @@
-package uz.duke.dungeon.run;
+package uz.duke.dungeon.combat;
 
 import uz.duke.core.module.Module;
 import uz.duke.core.thing.GameObject;
@@ -14,12 +14,15 @@ import uz.duke.rts.module.DamageModifier;
  * <p>Rides the engine's {@link DamageModifier} seam, which is exactly the case
  * that seam was opened for: a bonus belonging to one unit rather than to its
  * whole side, from a module the engine has never heard of.
+ *
+ * <p>Read by its skills too, which deal their own damage rather than going through
+ * the weapon: see {@code SkillBook}.
  */
-final class DepthBonus extends Module implements DamageModifier {
+public final class DepthBonus extends Module implements DamageModifier {
 
     private final float multiplier;
 
-    DepthBonus(GameObject owner, float multiplier) {
+    public DepthBonus(GameObject owner, float multiplier) {
         super(owner);
         this.multiplier = multiplier;
     }

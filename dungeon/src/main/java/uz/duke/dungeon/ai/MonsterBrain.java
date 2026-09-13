@@ -7,6 +7,7 @@ import uz.duke.core.thing.World;
 import uz.duke.dungeon.combat.Swing;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.content.MonsterKind;
+import uz.duke.dungeon.skill.SkillBook;
 import uz.duke.game.script.UnitScript;
 import uz.duke.rts.module.WeaponUpdate;
 
@@ -26,6 +27,11 @@ import uz.duke.rts.module.WeaponUpdate;
  * fight does not break off the moment the hero steps back — but is finite, so
  * outrunning something slower than you is a real move.
  *
+ * <p>A kind the file gives a skill decides for itself when to cast it, and a kind
+ * given a band of distance holds that band instead of closing: it backs away from
+ * him when he comes too near and follows when he gets too far. Both are numbers
+ * on its block, so a caster is still this one mind.
+ *
  * <p>Deterministic: no randomness at all, and the frame a monster re-plans on is
  * staggered by its own object id, so a roomful does not all path on the same
  * frame while still doing the same thing on every machine.
@@ -37,6 +43,12 @@ public final class MonsterBrain extends UnitScript {
      * hurt: whoever did it is coming to answer for it wherever they are standing.
      */
     private static final float THE_WHOLE_FLOOR = 100_000f;
+
+    /**
+     * A monster's skill has no ranks to buy: it is cast at the first, and what makes
+     * it hit harder further down is the depth's bonus, as for its weapon.
+     */
+    private static final int ITS_ONLY_RANK = 1;
 
     private final MonsterKind kind;
     private final DungeonSettings settings;
@@ -72,6 +84,12 @@ public final class MonsterBrain extends UnitScript {
      */
     private Coord3D waitingOn;
 
+    /**
+     * Where it last set off to while backing away, so a new order is only given once
+     * that spot has really moved -- the economy {@link #sentAfter} keeps for a chase.
+     */
+    private Coord3D backingTo;
+
     public MonsterBrain(MonsterKind kind, DungeonSettings settings) {
         this.kind = kind;
         this.settings = settings;
@@ -101,9 +119,14 @@ public final class MonsterBrain extends UnitScript {
 
         chasing = true;
         attack(hero); // the weapon fires on its own once the hero is in reach
+        castAt(hero);
 
         var move = unit().findModule(MoveUpdate.class);
         if (move == null) {
+            return;
+        }
+        if (kind.keepsItsDistance()) {
+            keepTheBand(move, hero);
             return;
         }
         // Measured surface to surface, the way the weapon measures range. This
@@ -142,6 +165,97 @@ public final class MonsterBrain extends UnitScript {
     private boolean midBlow() {
         var swing = unit().findModule(Swing.class);
         return swing != null && swing.stillSwinging(frame(), kind.swingFrames());
+    }
+
+    /**
+     * Its skill, when everything a player checks before casting holds: he is within
+     * the distance it casts across, nothing but air is between them, and the skill is
+     * ready. Thrown at where he stands now, so a player who keeps moving can walk out
+     * of its way -- which is the whole of what makes it fair.
+     */
+    private void castAt(GameObject hero) {
+        if (!kind.hasSkill()) {
+            return;
+        }
+        var book = unit().findModule(SkillBook.class);
+        if (book == null || !book.isReady(kind.skillKey())) {
+            return;
+        }
+        float gap = World.reachBetween(unit(), hero);
+        if (gap < kind.skillNearest() || gap > kind.skillFurthest()
+                || !SightLine.clear(unit(), hero)) {
+            return;
+        }
+        book.cast(kind.skillKey(), ITS_ONLY_RANK, null, hero.getPosition());
+    }
+
+    /**
+     * Whether it is still in the gesture of its last cast: the swing's twin, held for
+     * as long, so a throw is seen as a throw and not as fire leaving something that is
+     * already walking away.
+     */
+    private boolean midCast() {
+        var book = unit().findModule(SkillBook.class);
+        return book != null && (long) frame() - book.getLastCastFrame() < kind.swingFrames();
+    }
+
+    /**
+     * Hold the band the file gives it. Too near and it backs away from him; too far
+     * and it comes after him; in between it stands, faces him and leaves the rest to
+     * its skill.
+     */
+    private void keepTheBand(MoveUpdate move, GameObject hero) {
+        if (midBlow() || midCast()) {
+            standAndFace(move, hero);
+            return;
+        }
+        float gap = World.reachBetween(unit(), hero);
+        if (gap > kind.keepFurthest()) {
+            backingTo = null;
+            advanceOn(move, hero);
+            return;
+        }
+        if (gap >= kind.keepNearest()) {
+            backingTo = null;
+            standAndFace(move, hero);
+            return;
+        }
+        // Too near. Back away to where he would be at the far edge of the band --
+        // counted between the two middles, so the bodies' own widths go back in.
+        var here = unit().getPosition();
+        var there = hero.getPosition();
+        float dx = here.x() - there.x();
+        float dy = here.y() - there.y();
+        float widths = Math.max(0f, (float) Math.sqrt(dx * dx + dy * dy) - gap);
+        var away = KeepingDistance.stepBack(world(), here, there, kind.keepFurthest() + widths,
+                settings.retreatTurnDegrees(), settings.retreatTurns());
+        if (away == null) {
+            standAndFace(move, hero); // cornered: it fights where it stands
+            return;
+        }
+        if (!move.isMoving()) {
+            backTo(away);
+            return;
+        }
+        if (!Chasing.worthReplanning(backingTo, away)) {
+            return; // already on its way back; see Chasing
+        }
+        int repath = kind.repathFrames();
+        if (frame() % repath == Math.floorMod(unit().getId().value(), repath)) {
+            backTo(away);
+        }
+    }
+
+    private void backTo(Coord3D away) {
+        backingTo = away;
+        moveTo(away.x(), away.y());
+    }
+
+    private void standAndFace(MoveUpdate move, GameObject hero) {
+        if (move.isMoving()) {
+            move.stop();
+        }
+        Facing.turnToward(unit(), hero);
     }
 
     private void advanceOn(MoveUpdate move, GameObject hero) {
@@ -234,6 +348,7 @@ public final class MonsterBrain extends UnitScript {
         chasing = false;
         sentAfter = null; // the next fight is a new chase, not the tail of this one
         waitingOn = null;
+        backingTo = null;
         var move = unit().findModule(MoveUpdate.class);
         if (move != null) {
             move.stop();

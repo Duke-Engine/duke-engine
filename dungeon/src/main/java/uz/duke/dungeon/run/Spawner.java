@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.thing.GameObject;
+import uz.duke.dungeon.combat.DepthBonus;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.gen.GeneratedDungeon;
 import uz.duke.dungeon.level.GrowableBody;
