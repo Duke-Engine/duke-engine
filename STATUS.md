@@ -4259,6 +4259,28 @@ Kadrlarda ko'ringani:
   mage bor edi, qahramon 45 lik olov sharlarini ketma-ket oldi. Oddiy o'yinda bunday
   xona kam chiqadi (Weight 10/8/8), lekin 550 jonli Rogue uchun baribir og'ir bo'ladi.
 
+### 8.be Jon barlari 30% qisqartirildi
+
+Foydalanuvchi: bosh ustidagi barlar juda uzun bo'lib ketgan, hozirgi uzunlikning 70%
+qolsin.
+
+- **O'zgargan qiymatlar** (`DungeonUnitBar Look`, interfeys pikselida):
+  - `Shortest`: 95 → 66.5;
+  - `Longest`: 215 → 150.5.
+- **Nega hamma bar bir xil qisqaradi.** Bar uzunligi `ShortestAt` (30 jon) va
+  `LongestAt` (2000 jon) orasida logarifmik o'sadi. Formula ikkala uzunlikka chiziqli
+  bog'liq, shuning uchun har bir bar aynan 70% gacha qisqardi. Kuchliroq jonzotning bari
+  avvalgidek uzunroq.
+- **Misollar:**
+  - 30 jon: 95 → 66.5;
+  - skelet (60 jon): ~115 → ~80;
+  - Rogue (550 jon): ~178 → ~125;
+  - 2000 jon va undan ko'p: 215 → 150.5.
+- **O'zgarmaganlar:** balandlik, medalyon (34 px), belgilar jadvali va yozuv o'lchami.
+- **Eng kalta bar** (30 jon, 15 ta belgi): belgilar orasidagi bo'shliq 2.4 px, belgining
+  o'zidan (2 px) hali kengroq.
+- **Kod va testlar** o'zgarmadi.
+
 ## 9. Nima yo'q / ochiq ishlar
 
 ### Katta teshiklar
