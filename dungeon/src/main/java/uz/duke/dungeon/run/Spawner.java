@@ -123,8 +123,9 @@ public final class Spawner {
         if (monster.getBody() instanceof GrowableBody body && health > 1f) {
             body.growMaxHealth(body.getMaxHealth() * (health - 1f));
         }
-        if (damage != 1f) {
-            monster.addModule(new DepthBonus(monster, damage));
+        if (damage != 1f || health != 1f) {
+            // The health figure rides along for whatever it calls up.
+            monster.addModule(new DepthBonus(monster, damage, health));
         }
         // What killing it is worth is fixed by its template, and the template is
         // the same on every floor — so the module is swapped for one that says a

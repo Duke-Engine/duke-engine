@@ -67,6 +67,8 @@ public final class DungeonSettings {
     private float wayAheadProbe = 5f;
     private float retreatTurnDegrees = 30f;
     private int retreatTurns = 3;
+    private float summonTurnDegrees = 45f;
+    private int summonTurns = 4;
     private String arrowTemplate = "Arrow";
     private float arrowSpeed = 260f;
     private float arrowMuzzleOffset = 5f;
@@ -573,6 +575,9 @@ public final class DungeonSettings {
         require(retreatTurns >= 0, "RetreatTurns cannot be negative");
         require(retreatTurnDegrees > 0f && retreatTurnDegrees * retreatTurns <= 180f,
                 "RetreatTurnDegrees times RetreatTurns has to stay within a half turn");
+        require(summonTurns >= 0, "SummonTurns cannot be negative");
+        require(summonTurnDegrees > 0f && summonTurnDegrees * summonTurns <= 180f,
+                "SummonTurnDegrees times SummonTurns has to stay within a half turn");
         for (var kind : monsters) {
             var name = "DungeonMonster " + kind.name();
             if (kind.hasSkill()) {
@@ -660,6 +665,16 @@ public final class DungeonSettings {
                 require(skill.healBelowPercent() > 0 && skill.healBelowPercent() <= 100,
                         name + "'s HealBelowPercent is a share of health, from 1 to 100");
                 require(skill.hasProjectile(), name + " has no light to call down: name it in Projectile");
+            }
+            if (skill.effect() == SkillEffect.SUMMON) {
+                var name = "DungeonSkill " + skill.heroTemplate() + " " + skill.key();
+                require(!skill.summons().isBlank() && skill.summonCount() >= 1 && skill.maxSummoned() >= 1,
+                        name + " calls up nothing: it needs Summons, a SummonCount and a MaxSummoned");
+                require(skill.radius() > 0f && skill.durationFrames() > 0,
+                        name + " needs a Radius to call them up at and DurationFrames for them to last");
+                require(skill.summonExperiencePercent() >= 0 && skill.summonExperiencePercent() <= 100,
+                        name + "'s SummonExperiencePercent is a share, from 0 to 100");
+                require(skill.hasProjectile(), name + " has no rift to open: name it in Projectile");
             }
         }
     }
@@ -763,6 +778,8 @@ public final class DungeonSettings {
                     .add("WayAheadProbe", Ini.real((s, v) -> s.wayAheadProbe = v))
                     .add("RetreatTurnDegrees", Ini.real((s, v) -> s.retreatTurnDegrees = v))
                     .add("RetreatTurns", Ini.integer((s, v) -> s.retreatTurns = v))
+                    .add("SummonTurnDegrees", Ini.real((s, v) -> s.summonTurnDegrees = v))
+                    .add("SummonTurns", Ini.integer((s, v) -> s.summonTurns = v))
                     .add("ArrowTemplate", Ini.string((s, v) -> s.arrowTemplate = v))
                     .add("ArrowSpeed", Ini.real((s, v) -> s.arrowSpeed = v))
                     .add("ArrowMuzzleOffset", Ini.real((s, v) -> s.arrowMuzzleOffset = v));
@@ -1106,6 +1123,10 @@ public final class DungeonSettings {
         float projectileSpeed;
         float heal;
         int healBelowPercent;
+        String summons = "";
+        int summonCount;
+        int maxSummoned;
+        int summonExperiencePercent;
 
         SkillBuilder(String heroTemplate, String key) {
             this.heroTemplate = heroTemplate;
@@ -1118,7 +1139,8 @@ public final class DungeonSettings {
                     slowFrames, cooldownFrames, cooldownPerLevel, maxRank, levelPerRank,
                     windUpFrames, manaCost, manaCostPerLevel,
                     projectile, icon, look, castAnim, castSeconds, name, blurb, projectileSpeed,
-                    heal, healBelowPercent);
+                    heal, healBelowPercent, summons, summonCount, maxSummoned,
+                    summonExperiencePercent);
         }
     }
 
@@ -1189,7 +1211,14 @@ public final class DungeonSettings {
                     // What a HEAL gives back, and how hurt somebody has to be, as a share
                     // of his own health, before it is spent on him at all.
                     .add("Heal", Ini.real((s, v) -> s.heal = v))
-                    .add("HealBelowPercent", Ini.integer((s, v) -> s.healBelowPercent = v));
+                    .add("HealBelowPercent", Ini.integer((s, v) -> s.healBelowPercent = v))
+                    // What a SUMMON calls up, how many a cast and at most, and what killing
+                    // one is worth as a share of its own kind.
+                    .add("Summons", Ini.string((s, v) -> s.summons = v))
+                    .add("SummonCount", Ini.integer((s, v) -> s.summonCount = v))
+                    .add("MaxSummoned", Ini.integer((s, v) -> s.maxSummoned = v))
+                    .add("SummonExperiencePercent",
+                            Ini.integer((s, v) -> s.summonExperiencePercent = v));
 
     /** Accumulates one {@code DungeonLootItem <id>} block. */
     private static final class LootBuilder {
@@ -3338,6 +3367,16 @@ public final class DungeonSettings {
     /** And how many tries it makes each side of straight back before it is cornered. */
     public int retreatTurns() {
         return retreatTurns;
+    }
+
+    /** How much further aside each try at a spot for what a monster calls up; see {@code Summoning}. */
+    public float summonTurnDegrees() {
+        return summonTurnDegrees;
+    }
+
+    /** And how many tries each way before it has run out of spots. */
+    public int summonTurns() {
+        return summonTurns;
     }
 
     public int heroRepathFrames() {

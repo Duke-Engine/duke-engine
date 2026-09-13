@@ -359,7 +359,12 @@ class DungeonEffectLayerTest {
 
     // ---- a blast is exactly as wide as it hurts ----
 
-    /** Every effect a skill throws that bursts, with the Radius its blast hurts within. */
+    /**
+     * Every effect a skill throws that bursts, with the Radius its blast hurts within.
+     *
+     * <p>A skill that hurts nothing has no blast, whatever its Radius says: a summoning's
+     * Radius is how far out what it calls up rises, and its rift is no burst.
+     */
     private static java.util.Map<String, Float> blastsAndTheirRadius() {
         var carries = new java.util.HashMap<String, String>();
         for (var projectile : SETTINGS.projectiles()) {
@@ -368,7 +373,7 @@ class DungeonEffectLayerTest {
         var blasts = new java.util.HashMap<String, Float>();
         for (var skill : SETTINGS.skills()) {
             var thrown = skill.hasProjectile() ? carries.get(skill.projectile()) : null;
-            if (thrown != null && skill.radius() > 0f) {
+            if (thrown != null && skill.radius() > 0f && skill.damage() > 0f) {
                 blasts.put(thrown, skill.radius());
             }
         }

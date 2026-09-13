@@ -302,7 +302,7 @@ class DungeonSettingsTest {
                 case STRIKE, AREA_AT_SPOT, SKILLSHOT, HEAL -> skill.range();
                 case DASH, BLINK -> skill.distance();
                 case METEOR -> skill.range();
-                case AREA_DAMAGE -> skill.radius();
+                case AREA_DAMAGE, SUMMON -> skill.radius();
                 case EMPOWER, GUARD -> 1f; // his own width; the look says how wide
             };
             assertTrue(reach > 0f, skill.heroTemplate() + "'s " + skill.key() + " is a "

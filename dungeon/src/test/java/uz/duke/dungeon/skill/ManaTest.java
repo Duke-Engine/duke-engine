@@ -275,7 +275,7 @@ class ManaTest {
     @Test
     void andACostNeverFallsBelowNothing() {
         var free = new Skill("Mage", 'Q', SkillEffect.STRIKE, 0f, 0f, 0f, 0f, 0f, 0f,
-                0, 0, 0, 0, 0, 60, 0, 9, 0, 0, 5, -50, "", "", "", "", 0f, "", "", 0f, 0f, 0);
+                0, 0, 0, 0, 0, 60, 0, 9, 0, 0, 5, -50, "", "", "", "", 0f, "", "", 0f, 0f, 0, "", 0, 0, 0);
 
         assertEquals(0, free.manaAt(9), "a skill that pays him to cast is a different game");
     }

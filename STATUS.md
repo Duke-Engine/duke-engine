@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-13 · **Testlar:** 1488 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-13 · **Testlar:** 1498 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -4079,6 +4079,108 @@ Mavjud testlarga tegishli o'zgarishlar:
 - `Skill` konstruktorini chaqiradigan uchta testga ikkita yangi maydon qo'shildi;
 - `DungeonSettingsTest` va `Main.rangeOf` dagi switch'larga `HEAL` qo'shildi.
 
+### 8.bb Binafsha Skelet-Mage — chaqiruvchi
+
+Dushman skill mexanizmining uchinchi turi: qahramonni ko'rsa, atrofida oddiy skeletlarni
+chaqiradi.
+
+#### Mexanizm: yangi `SUMMON` effekti
+
+`GameLogic.spawn` bor edi, lekin kim, qayerga, qancha muddatga va nechta chaqirilishini
+hal qiladigan narsa yo'q edi. Davolovchi nuri bilan bir xil chok ishlatildi:
+- brain qahramon `SkillDistance` ichida va ko'rinib turganida cast qiladi — qizil
+  mage'niki bilan bir yo'l;
+- `Summoning.spots` joylarni tanlaydi, har bir joyda `SummoningRift` obyekti ochiladi;
+- `WindUpFrames` (20 kadr) o'tgach rift "tushadi" va undan `Summons` (oddiy `Skeleton`)
+  chiqadi (`SummoningUpdate`). Klient ustunni aynan shu kadrda chizadi (`Landing.lay`);
+- chiqqan skeletga `Summoned` moduli qo'shiladi. `DurationFrames` (600 kadr, 20 s)
+  o'tgach uning joni 0 ga tushadi. Uni hech kim o'ldirmagan, shuning uchun XP
+  berilmaydi, klient esa yiqilish animatsiyasini ko'rsatadi.
+
+#### Joy tanlash (`Summoning`) — deterministik, `Math.random` yo'q
+
+- Joy chaqiruvchidan `Radius` (16) masofada qidiriladi: avval qahramon tomonda, keyin
+  `SummonTurnDegrees` (45°) qadam bilan navbatma-navbat ikki tomonga, har tomonga
+  `SummonTurns` (4) martagacha. Burchaklar `StrictMath` bilan hisoblanadi.
+- Joy quyidagi shartlarning hammasiga to'g'ri kelishi kerak:
+  - `isGroundBlocked` emas — tosh ham, polga qo'shilgan props ham (PropsTest qoidasi);
+  - yer balandligi chaqiruvchinikiga teng, ya'ni zinapoya yoki boshqa qavat emas;
+  - hech kimning tanasi ustida emas (`findBlocker`);
+  - ko'rish chizig'i ochiq.
+- Ikki joy orasi chaqiriladigan jonzot tanasining ikki radiusidan kam bo'lmaydi.
+
+#### Chegara va kuluar
+
+- `MaxSummoned` (4) — bitta chaqiruvchining tirik chaqirganlari soni. Ochiq riftlar
+  ham sanaladi, shuning uchun rift ochiq turganda qilingan cast ham chegaradan oshmaydi.
+- `SummonCount` (2) — bitta castda nechta chiqishi; joy yetmasa kamroq chiqadi.
+- Hech narsa ochilmasa (chegara to'la yoki joy yo'q), cast rad etiladi va kuluar
+  sarflanmaydi.
+
+#### XP va chuqurlik
+
+- **XP:** `SummonExperiencePercent` (0). Chaqirilgan skeletning `ExperienceModule` i shu
+  ulushdagi qiymatga almashtiriladi — `Spawner` dagi usul. Qiymat 0 bo'lgani uchun
+  u o'ldirilganda mana ham qaytmaydi.
+- **Chuqurlik:** `DepthBonus` endi jon multiplikatorini ham saqlaydi. Rift ochilgan
+  paytda chaqiruvchining bonusi o'qiladi va chiqqan skeletga beriladi; tanasi
+  `GrowableBody` bo'lsa, joni ham o'stiriladi. Oddiy Skeleton `ActiveBody` ga ega,
+  shuning uchun xuddi xonaga qo'yilgan skelet kabi faqat zarari o'sadi.
+
+#### Tur: `SkeletonSummoner`
+
+- **Ko'rinish:** `skeleton_mage.glb` va `skeleton_texture_purple.png`, `Tint` yo'q.
+- **Statistika:** jon 40, tezlik 13, XP 26.
+- **Oddiy ataka:** `ShadowSpark` — zarar 5, masofa 58, qayta o'qlash 60 kadr.
+- **Masofalar:** `SkillDistance 20 70`, `KeepDistance 35 55`.
+- **Chiqishi:** 3-chuqurlikdan, `Weight 8`, `MaxPerRoom 1`.
+
+**Chaqiruv skilli:**
+- 2 ta skelet, bir vaqtda eng ko'pi 4 ta;
+- radius 16, umri 20 s, XP 0%;
+- wind-up 20 kadr, kuluar 12 soniya.
+
+**Effekt `SummoningRift`:**
+- rift yotganda: binafsha girdob (`AURA`) va `LIGHT`;
+- tushganda: `PILLAR UP` (halo va core), `RING`, yuqoriga ko'tariladigan zarrachalar va
+  chaqnash.
+
+**Ovoz:** `spawned.SummoningRift` — `descend.ogg`, past balandlikda.
+
+**CREDITS:** binafsha tekstura mavjud qatorga qo'shildi.
+
+#### Unumdorlik
+
+Chaqirilganlar birliklar sonini oshiradi, `PartitionManager` esa har so'rovda barcha
+obyektlarni ko'rib chiqadi. Shuning uchun son cheklangan:
+- xonada bittadan ortiq chaqiruvchi bo'lmaydi, har biriga 4 tadan ortiq skelet bo'lmaydi;
+- chaqirilganlar 20 soniyadan keyin yo'qoladi;
+- chegara to'la bo'lsa, cast joy qidirishga o'tmasdan rad etiladi — faqat bir nechta
+  `findObject` chaqiriladi.
+
+#### Testlar — `MonsterSummoningTest` (10 ta)
+
+- bir castda `SummonCount` ta, `Radius` masofada chiqadi, birinchisi qahramon tomonda;
+- INI'da `SummonCount 3` bo'lsa, 3 ta chiqadi;
+- tez cast va uzoq umr bilan ham hech bir kadrda 4 tadan oshmaydi, chegarada kuluar
+  sarflanmaydi;
+- bir hujayrali yo'lakda faqat oldinda va orqada chiqadi — toshda ham, ko'rinmaydigan
+  joyda ham chiqmaydi;
+- toshga qamalgan joyda bitta ham joy topilmaydi;
+- skelet rift tushgan kadrda chiqadi (`WindUpFrames` ± 1);
+- `DurationFrames` tugagach yiqiladi;
+- XP ulushi: 0% da 0, 50% da yarmi;
+- chuqurlik bonusi bonusdan keyin chaqirilganlarga o'tadi, oldingilarga o'tmaydi;
+- bir xil o'yin ikki marta o'ynalganda joylar ham, checksum ham bir xil.
+
+Mavjud testlarga tegishli o'zgarishlar:
+- `DungeonEffectLayerTest` "portlash" deb faqat zarar beradigan skillni hisoblaydi.
+  Chaqiruvning `Radius` i — skeletlar qanchalik uzoqda chiqishi, rifti esa portlash
+  emas. Avval u portlash deb sanalib, ring o'lchovi va zarrachalar masofasi
+  tekshiruvidan yiqilgandi.
+- `Skill` konstruktorini chaqiradigan uchta testga to'rtta yangi maydon qo'shildi;
+  `DungeonSettingsTest` va `Main.rangeOf` dagi switch'larga `SUMMON` qo'shildi.
+
 ## 9. Nima yo'q / ochiq ishlar
 
 ### Katta teshiklar
@@ -4574,6 +4676,9 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/combat/DepthBonus.java` | chuqurlik bo'yicha zarar bonusi — qurol ham, skill ham o'qiydi |
 | `dungeon/…/dungeon/skill/Mending.java` | davolovchi kimni davolaydi: o'z tomonidan eng kam ulush qolgan, yaqin va ko'rinib turgani; teng bo'lsa kichik id |
 | `dungeon/…/dungeon/skill/MendingUpdate.java` | yerda yotib, tushganda davolaydigan nur — meteor belgisining teskarisi |
+| `dungeon/…/dungeon/skill/Summoning.java` | chaqirilganlar qayerda chiqadi: qahramon tomondan boshlab qat'iy tartibdagi burchaklar, faqat ochiq, bir qavatdagi, ko'rinadigan joy |
+| `dungeon/…/dungeon/skill/SummoningUpdate.java` | yerdagi rift: tushganda jonzot chiqaradi, uning muddatini, XP ulushini va chuqurligini beradi |
+| `dungeon/…/dungeon/skill/Summoned.java` | chaqirilgan jonzotning muddati — tugaganda hech kim o'ldirmagandek yiqiladi |
 | `dungeon/…/dungeon/ai/SightLine.java` | ko'ra oladimi: yetarlicha yaqinmi, orada tosh bormi, balandda turibdimi — sof arifmetika, grid ustida |
 | `dungeon/…/dungeon/combat/EyesOnly.java` | ko'rmaganiga otmaydi — qahramon, arbaletchi va mage |
 | `client3d/…/client3d/Fog.java` | tuman sozlamasi (LOS, uch qatlam yorqinligi, yumshoqlik, tekstura o'lchami, rang) |

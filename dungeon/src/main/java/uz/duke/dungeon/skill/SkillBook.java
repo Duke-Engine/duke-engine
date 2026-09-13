@@ -214,6 +214,13 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
      */
     private int refusedForManaFrame;
 
+    /**
+     * What this caster has called up and is still standing, or still climbing out -- in
+     * the order it was called. A rift counts as well as what comes out of it, so a cast
+     * made while one is still open cannot overshoot {@code MaxSummoned}.
+     */
+    private final List<ObjectId> summoned = new java.util.ArrayList<>();
+
     public SkillBook(GameObject owner, List<Skill> skills, DungeonSettings settings) {
         super(owner);
         this.skills = List.copyOf(skills);
@@ -316,6 +323,26 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     public Skill skillOn(char key) {
         int slot = slotOf(key);
         return slot < 0 ? null : skills.get(slot);
+    }
+
+    /** How many of what it called up are standing, or still climbing out. */
+    public int summonedStanding() {
+        var world = getOwner().getWorld();
+        if (world != null) {
+            summoned.removeIf(id -> {
+                var one = world.findObject(id);
+                return one == null || one.isDestroyed() || one.isEffectivelyDead();
+            });
+        }
+        return summoned.size();
+    }
+
+    /** A rift of its own has landed: what climbed out counts in its place. */
+    public void risenInPlaceOf(ObjectId rift, ObjectId risen) {
+        int at = summoned.indexOf(rift);
+        if (at >= 0) {
+            summoned.set(at, risen);
+        }
     }
 
     /** Frames of extra damage left, for anything that wants to draw it. */
@@ -588,6 +615,11 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
             case HEAL -> {
                 if (!mend(owner, world, skill, at)) {
                     return false; // nobody it may mend; the cooldown is not spent
+                }
+            }
+            case SUMMON -> {
+                if (!summon(owner, world, skill, towards)) {
+                    return false; // no room left, or no floor to open a rift on
                 }
             }
             case DASH -> {
@@ -964,6 +996,47 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         Facing.turnToward(owner, patient);
         world.post(new WeaponFired(world.getFrame(), owner.getId(), null,
                 owner.getPosition(), spot));
+        return true;
+    }
+
+    /**
+     * Open rifts for what it calls up: as many as there is room for under its ceiling,
+     * and floor round it to open them on. See {@link Summoning} for where.
+     *
+     * @return whether one opened at all; false leaves the cooldown unspent
+     */
+    private boolean summon(GameObject owner, World world, Skill skill, Coord3D towards) {
+        int room = Math.min(skill.summonCount(), skill.maxSummoned() - summonedStanding());
+        var creature = world.findTemplate(skill.summons());
+        var rift = skill.hasProjectile() ? world.findTemplate(skill.projectile()) : null;
+        if (room <= 0 || creature == null || rift == null) {
+            return false;
+        }
+        // Two that rise together stand a body apart, the body being what rises.
+        float apart = 2f * creature.getGeometry().footprintRadius();
+        var spots = Summoning.spots(world, owner, towards, skill.radius(), room, apart,
+                settings.summonTurnDegrees(), settings.summonTurns());
+        int opened = 0;
+        for (var spot : spots) {
+            var opening = world.spawn(rift, spot, owner.getPlayerIndex());
+            var summoning = opening.findModule(SummoningUpdate.class);
+            if (summoning == null) {
+                opening.markDestroyed(); // the template exists but is not a rift
+                continue;
+            }
+            summoning.open(owner, skill.summons(), skill.durationFrames(),
+                    skill.summonExperiencePercent(), skill.windUpFrames());
+            summoned.add(opening.getId());
+            opened++;
+        }
+        if (opened == 0) {
+            return false;
+        }
+        if (towards != null) {
+            Facing.turnToward(owner, towards);
+        }
+        world.post(new WeaponFired(world.getFrame(), owner.getId(), null,
+                owner.getPosition(), spots.get(0)));
         return true;
     }
 

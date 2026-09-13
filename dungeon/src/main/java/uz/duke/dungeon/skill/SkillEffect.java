@@ -10,8 +10,9 @@ package uz.duke.dungeon.skill;
  *
  * <p>These are the shapes a dungeon hero needs: hit one thing hard, hit
  * everything near you, drop something on a spot, fire something down a line, be
- * somewhere else, be briefly stronger, be briefly harder to kill -- and one that
- * no hero has and a monster does: mend one of your own. A new shape is
+ * somewhere else, be briefly stronger, be briefly harder to kill -- and two that
+ * no hero has and a monster does: mend one of your own, and call up more of them.
+ * A new shape is
  * a constant here and one branch in {@link SkillBook}; a new <em>skill</em> is
  * neither, and that is the point of the split — a second hero is blocks of INI
  * and no Java at all.
@@ -145,7 +146,23 @@ public enum SkillEffect {
      * <p>Aimed at a creature, and refused with its cooldown unspent if that creature
      * is nobody it may mend: a mending spent on a whole skeleton is a mending wasted.
      */
-    HEAL(Aim.UNIT);
+    HEAL(Aim.UNIT),
+
+    /**
+     * Call up creatures of your own round you, for a while.
+     *
+     * <p>{@code SummonCount} rifts open {@code Radius} away, toward where it was aimed
+     * first and then turned aside in a fixed order, on open floor the caster can see --
+     * never in stone, on another storey or on somebody; see {@link Summoning}. Each is a
+     * thing in the world, as a meteor's mark is, and a {@code Summons} climbs out of it
+     * {@code WindUpFrames} later. What climbs out lasts {@code DurationFrames} and then
+     * falls down, is worth {@code SummonExperiencePercent} of its own kind, and hits as
+     * hard as the depth made its caller hit.
+     *
+     * <p>No more than {@code MaxSummoned} of one caster's stand at once, rifts counted.
+     * A cast that would open none is refused with its cooldown unspent.
+     */
+    SUMMON(Aim.SELF);
 
     /** What a player has to click before the cast can go through. */
     public enum Aim {

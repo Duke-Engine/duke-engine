@@ -85,6 +85,12 @@ package uz.duke.dungeon.skill;
  * @param heal          how much health a {@code HEAL} gives back when it lands
  * @param healBelowPercent a {@code HEAL} is only for someone below this share of his
  *     own health, so a whole skeleton is never mended and a cooldown never wasted
+ * @param summons       the creature a {@code SUMMON} calls up
+ * @param summonCount   how many of it one cast calls up
+ * @param maxSummoned   how many of one caster's may stand at once; a cast calls up no
+ *     more than there is room for
+ * @param summonExperiencePercent what killing one is worth, as a share of its own kind:
+ *     a thing that was never placed on the floor should not be a well to draw from
  */
 public record Skill(
         String heroTemplate,
@@ -117,7 +123,11 @@ public record Skill(
         String blurb,
         float projectileSpeed,
         float heal,
-        int healBelowPercent) {
+        int healBelowPercent,
+        String summons,
+        int summonCount,
+        int maxSummoned,
+        int summonExperiencePercent) {
 
     /**
      * A cooldown can shorten with level but never vanish: a skill castable every

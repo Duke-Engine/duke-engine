@@ -747,7 +747,8 @@ public final class Main {
             // has to do with the mouse is the same thing, so the ring is the same.
             case DASH, BLINK -> uz.duke.client3d.SkillRange.Shape.AT_A_SPOT;
             case METEOR -> uz.duke.client3d.SkillRange.Shape.AT_A_SPOT;
-            case AREA_DAMAGE -> uz.duke.client3d.SkillRange.Shape.AROUND_HIM;
+            // A summoning calls them up round him, as far out as its Radius.
+            case AREA_DAMAGE, SUMMON -> uz.duke.client3d.SkillRange.Shape.AROUND_HIM;
             // Neither of these reaches past him: one sharpens his sword, the
             // other thickens his skin.
             case EMPOWER, GUARD -> uz.duke.client3d.SkillRange.Shape.ON_HIMSELF;
@@ -756,7 +757,7 @@ public final class Main {
             case STRIKE, AREA_AT_SPOT, SKILLSHOT, HEAL -> skill.range();
             case DASH, BLINK -> skill.distance();
             case METEOR -> skill.range();
-            case AREA_DAMAGE -> skill.radius();
+            case AREA_DAMAGE, SUMMON -> skill.radius();
             case EMPOWER, GUARD -> selfRadius;
         };
         // What it LEAVES where it lands: a blast's radius, a lane's width. A dash
