@@ -4130,7 +4130,7 @@ final class DukeRtsApp extends SimpleApplication {
         com.jme3.texture.Texture skin = null;
         if (visual.texturePath != null) {
             try {
-                skin = assetManager.loadTexture(visual.texturePath);
+                skin = assetManager.loadTexture(skinKey(visual.texturePath, visual.modelPath));
             } catch (RuntimeException e) {
                 warnOnce(visual.texturePath, "texture");
             }
@@ -4143,6 +4143,24 @@ final class DukeRtsApp extends SimpleApplication {
                         named != null ? named : skinOf(geometry.getMaterial()), tint));
             }
         });
+    }
+
+    /**
+     * How a skin named for a model has to be read to land where the model's own skin did.
+     *
+     * <p>A glTF model's UVs count down from the top of its picture and its loader reads
+     * its own skin that way, where a texture loaded by name alone is turned the other way
+     * up. On a kit whose colours are swatches laid out in rows that is no small error:
+     * every face samples the row below the one it was painted for, and the Skeleton
+     * Healer's green robe came out cream. Anything that is not glTF is read as it always
+     * was.
+     */
+    static com.jme3.asset.TextureKey skinKey(String texturePath, String modelPath) {
+        boolean gltf = modelPath != null
+                && (modelPath.endsWith(".glb") || modelPath.endsWith(".gltf"));
+        var key = new com.jme3.asset.TextureKey(texturePath, !gltf);
+        key.setGenerateMips(true);
+        return key;
     }
 
     /**

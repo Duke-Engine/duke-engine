@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-13 · **Testlar:** 1501 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-13 · **Testlar:** 1504 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -3953,7 +3953,7 @@ Moslangan testlar:
 
 #### Ko'z bilan tekshiruv (yashirin oynada)
 
-- Bu bosqichda o'yinning o'zida ko'rilmadi. Yashil va binafsha Skelet-Mage qo'shilgach, uchala tur bitta yashirin-oyna tekshiruvida birga ko'riladi — natija o'sha bo'limda.
+- Bu bosqichda o'yinning o'zida ko'rilmadi. Yashil va binafsha Skelet-Mage qo'shilgach, uchala tur bitta yashirin-oyna tekshiruvida birga ko'rildi — natija 8.bd da.
 
 #### Ochiq qolganlar
 
@@ -4215,6 +4215,49 @@ qoidasi Java'da yozilgan edi. Uni INI'ga chiqarish arzon bo'lgani uchun qilindi.
   katakda, hech biri bossning ustida emas (61 seed);
 - INI'da `Runner 3` yozilsa, 3 ta Runner turadi; bo'sh qoldirilsa, boss yolg'iz;
 - qo'riqchilar xaritani ham, boshqa xonalardagi monsterlarni ham o'zgartirmaydi.
+
+### 8.bd Uchala mage o'yinning o'zida: glTF'dagi tekstura teskari o'qilardi
+
+Tekshiruv yashirin oynada o'tkazildi. Faqat demo uchun:
+- birinchi floor uchala mage bilan to'ldirildi (MinDepth 1, katta Weight);
+- mage'larga ko'proq jon, qahramonga 5000 jon berildi, shunda sahna tugab qolmaydi.
+
+Qahramon eng yaqin mage'ga borib, yaqinlashgach turib otdi. Kadrlar soniyada bir marta,
+shuningdek nur yoki rift yerda yotganida alohida olindi.
+
+#### Topilgan xato: yashil va binafsha to'n krem rangda chiqdi
+
+- **Sabab.** `DukeRtsApp.dressModel` nomi berilgan teksturani
+  `assetManager.loadTexture(path)` bilan yuklardi. jME bu yo'l bilan yuklangan
+  teksturani `flipY = true` bilan o'qiydi, glTF yuklovchisi esa modelning o'z teksturasini
+  `flipY = false` bilan o'qiydi (jME manbasida tekshirildi). KayKit atlasi qator-qator
+  joylashgan rang namunalaridan iborat. Shuning uchun modelning har bir yuzi bir qator
+  pastdagi rangni oldi va shlyapaning qizil namunasi o'rniga och namuna tushdi.
+- **Nega oldin ko'rinmagan.** Shu paytgacha hech bir monster `Texture` kalitini
+  ishlatmagan — hammasi modelning ichidagi teksturadan foydalanardi.
+- **Tuzatish.** `DukeRtsApp.skinKey`: `.glb` yoki `.gltf` model uchun nomli tekstura
+  `flipY = false` bilan o'qiladi. Boshqa formatlar avvalgidek `flipY = true` va mipmap
+  bilan o'qiladi, ya'ni `loadTexture(String)` bilan bir xil.
+- **Test:** `UnitSkinTest` (3 ta).
+
+#### Ko'z bilan tekshiruv
+
+Kadrlarda ko'ringani:
+- **To'nlar:** tuzatishdan keyin yashil mage'ning shlyapasi va to'ni yashil,
+  binafshaniki binafsha. Qizil mage avvalgidek to'q qizil (iliq `Tint`). Tuzatishdan
+  oldin yashil va binafsha mage ikkalasi ham krem rangda edi.
+- **Qizil mage:** olov sharlari va ular orasida kichik olov navbatma-navbat uchadi.
+  Ikkalasi bir vaqtda chiqmaydi.
+- **Davolash:** 40 soniyada 3 marta ishladi. Yaralangan skelet ustiga yashil-oltin
+  ustun tushadi, polda halqa ochiladi, skelet ustida yashil "+30" yozuvi chiqadi.
+  Ustunning o'zagi deyarli oq, atrofidagi nur yashil-oltin.
+- **Chaqiruv:** har 12 soniyada ishladi. Avval yerda binafsha girdob paydo bo'ladi,
+  keyin binafsha ustun ko'tariladi, halqa va uchqunlar chiqadi va har bir riftdan
+  bittadan skelet chiqadi. Chaqirilgan skeletlar soni vaqt o'tishi bilan kamaydi —
+  muddati tugab yiqilganlari ham, o'ldirilganlari ham bor.
+- **Muvozanat haqida eslatma:** demo xonasida 2 ta qizil, 1 ta yashil va 1 ta binafsha
+  mage bor edi, qahramon 45 lik olov sharlarini ketma-ket oldi. Oddiy o'yinda bunday
+  xona kam chiqadi (Weight 10/8/8), lekin 550 jonli Rogue uchun baribir og'ir bo'ladi.
 
 ## 9. Nima yo'q / ochiq ishlar
 
