@@ -6,8 +6,8 @@ import java.util.List;
 /**
  * What the hero has picked up off the floor this run, and what it comes to.
  *
- * <p>Session state, beside {@link uz.duke.dungeon.level.HeroProgress} and
- * {@link uz.duke.dungeon.power.PowerChoice} and for the same reasons: a floor
+ * <p>Session state, beside {@link uz.duke.dungeon.level.HeroProgress} and for the
+ * same reasons: a floor
  * gives him a new body, and a sword he found has to survive that; a death is
  * meant to take everything, and is told rather than left to infer.
  *

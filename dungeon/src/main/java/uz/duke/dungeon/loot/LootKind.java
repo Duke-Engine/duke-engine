@@ -9,8 +9,7 @@ package uz.duke.dungeon.loot;
  * player to hold in his head for no more decision than he already has.
  *
  * <p>Which items exist, what they are called and what each is worth is written in
- * {@code dungeon.ini}. This is the part that needs Java, in the same way
- * {@link uz.duke.dungeon.power.PowerEffect} is.
+ * {@code dungeon.ini}. This is the part that needs Java.
  */
 public enum LootKind {
 

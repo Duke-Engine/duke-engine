@@ -277,14 +277,6 @@ class HeroStatusTest {
         }
     }
 
-    /** With nothing picked up yet, the strip is labelled and empty. */
-    @Test
-    void theStripOfPowersStartsEmpty() {
-        var line = lineFrom(4321L);
-        assertTrue(line.contains("|pwWord="), line);
-        assertFalse(line.contains("|pw="), "he has taken nothing yet: " + line);
-    }
-
     /**
      * Everything the design asks for is on the line the game really sends.
      *
@@ -344,37 +336,6 @@ class HeroStatusTest {
         assertTrue(line.contains("|it=" + blade.icon() + ",1"),
                 blade.id() + " should be in his bag: " + line);
         assertTrue(line.contains(",+"), "and what it is worth should be in green: " + line);
-    }
-
-    /**
-     * A level puts the cards on the line, headed by the level they belong to.
-     *
-     * <p>The heading's number is what the client answers with, so it has to be
-     * there and it has to be the offer's own level.
-     */
-    @Test
-    void aLevelPutsItsCardsOnTheLine() {
-        var session = Dungeon.newSession(4321L);
-        var game = session.game();
-        game.runHeadless(1);
-        pickOutTheHero(session);
-        var hero = game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Rogue"))
-                .findFirst().orElseThrow();
-        hero.findModule(uz.duke.rts.module.ExperienceModule.class)
-                .addExperience(DungeonSettings.load().levelling().totalXpFor(2));
-        game.runHeadless(3);
-
-        var line = game.getSnapshot().status();
-        assertTrue(line.contains("|offer=" + session.powers().getOfferId() + ","), line);
-        int cards = line.split("\\|opt=", -1).length - 1;
-        assertEquals(session.powers().getOffer().size(), cards, line);
-        // Every card's own field is icon, name and description, and neither the
-        // name nor the description may carry the separators.
-        for (var power : session.powers().getOffer()) {
-            assertTrue(line.contains("|opt=" + power.icon() + "," + power.name() + ","
-                    + power.description()), power.id() + " missing from " + line);
-        }
     }
 
     // ---- the floor's own half, which is not about whatever is selected ----

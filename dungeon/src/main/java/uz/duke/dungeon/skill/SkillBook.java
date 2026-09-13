@@ -14,7 +14,6 @@ import uz.duke.dungeon.ai.Facing;
 import uz.duke.dungeon.combat.FallingUpdate;
 import uz.duke.dungeon.combat.Shot;
 import uz.duke.dungeon.content.DungeonSettings;
-import uz.duke.dungeon.power.PowerBook;
 import uz.duke.rts.event.WeaponFired;
 import uz.duke.rts.module.DamageModifier;
 import uz.duke.rts.module.StatusUpdate;
@@ -52,36 +51,6 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
 
     private final List<Skill> skills;
     private final int[] cooldowns;
-
-    /**
-     * Casts still in hand before a skill starts recharging.
-     *
-     * <p>Ordinarily one: cast it and it is spent. A power that grants a charge
-     * lets the second press go through and only then starts the clock, which is
-     * what "twice over" means to a player and what a second copy of the cooldown
-     * would not have been.
-     */
-    private final int[] chargesLeft;
-
-    /**
-     * How many casts each slot holds when full.
-     *
-     * <p>Remembered rather than asked for every frame, and that is the whole
-     * trick: a charge has to be handed over when a <em>power</em> raises the
-     * ceiling, and not when the skill simply has one in hand. Without the
-     * difference, a second charge refilled itself the frame after it was spent
-     * and the skill never came off cooldown at all.
-     */
-    private final int[] chargeCap;
-
-    /**
-     * What the run has picked up along the way.
-     *
-     * <p>Held rather than copied, and held by reference on purpose: the book
-     * outlives this module — a floor gives the hero a fresh body and a fresh
-     * {@code SkillBook} — so the powers have to be somewhere that survives him.
-     */
-    private final PowerBook powers;
 
     /** Where an arrow comes out and how fast it travels — the archer's, not the skill's. */
     private final DungeonSettings settings;
@@ -244,19 +213,11 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
      */
     private int refusedForManaFrame;
 
-    public SkillBook(GameObject owner, List<Skill> skills, DungeonSettings settings,
-            PowerBook powers) {
+    public SkillBook(GameObject owner, List<Skill> skills, DungeonSettings settings) {
         super(owner);
         this.skills = List.copyOf(skills);
         this.cooldowns = new int[skills.size()];
-        this.chargesLeft = new int[skills.size()];
-        this.chargeCap = new int[skills.size()];
         this.settings = settings;
-        this.powers = powers;
-        for (int slot = 0; slot < skills.size(); slot++) {
-            chargeCap[slot] = chargesOf(slot);
-            chargesLeft[slot] = chargeCap[slot];
-        }
     }
 
     /**
@@ -321,11 +282,6 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         return slot < 0 || !usesMana || mana >= skills.get(slot).manaAt(level);
     }
 
-    /** How many times the skill in {@code slot} may be cast before it recharges. */
-    private int chargesOf(int slot) {
-        return 1 + powers.extraCharges(skills.get(slot).key());
-    }
-
     private static final uz.duke.core.ini.FieldParseTable<Object> NO_FIELDS =
             new uz.duke.core.ini.FieldParseTable<>();
 
@@ -353,12 +309,6 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     public boolean isReady(char key) {
         int slot = slotOf(key);
         return slot >= 0 && cooldowns[slot] <= 0;
-    }
-
-    /** Casts left in hand on {@code key}, which is more than one only with a power. */
-    public int chargesOf(char key) {
-        int slot = slotOf(key);
-        return slot < 0 ? 0 : chargesLeft[slot];
     }
 
     /** Frames of extra damage left, for anything that wants to draw it. */
@@ -419,13 +369,13 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
      */
     public boolean cast(char key, int level, ObjectId at, Coord3D towards) {
         int slot = slotOf(key);
-        if (slot < 0 || cooldowns[slot] > 0 || chargesLeft[slot] <= 0) {
+        if (slot < 0 || cooldowns[slot] > 0) {
             return false;
         }
         var skill = skills.get(slot);
         if (usesMana && mana < skill.manaAt(level)) {
             // Refused before anything at all happens, which is the whole of what
-            // "cannot afford" has to mean: no cooldown started, no charge taken,
+            // "cannot afford" has to mean: no cooldown started, no mana taken,
             // no effect drawn and no gesture made. A skill that goes through the
             // motions and then does nothing is a skill the player believes he
             // cast.
@@ -464,23 +414,12 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         return true;
     }
 
-    /**
-     * Take one cast out of the slot, and start the cooldown only when the last of
-     * them has gone.
-     *
-     * <p>A skill with charges to spare is left ready — that is the whole point of
-     * a charge — and the powers that shorten a cooldown are read here rather than
-     * kept anywhere, so a card taken between two casts is felt on the second.
-     */
+    /** Pay for the cast, and start the slot's cooldown. */
     private void spend(int slot, Skill skill, int level) {
         if (usesMana) {
             mana = Math.max(0, mana - skill.manaAt(level));
         }
-        if (--chargesLeft[slot] > 0) {
-            return;
-        }
-        cooldowns[slot] = Math.max(Skill.MIN_COOLDOWN_FRAMES,
-                Math.round(skill.cooldownAt(level) * powers.cooldownMultiplier(skill.key())));
+        cooldowns[slot] = Math.max(Skill.MIN_COOLDOWN_FRAMES, skill.cooldownAt(level));
     }
 
     /**
@@ -592,7 +531,6 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
                 float each = damageOf(skill, level);
                 for (var victim : enemiesWithin(owner, world, spot, skill.radius())) {
                     victim.getBody().damage(each);
-                    stealLife(owner, each);
                 }
                 world.post(new WeaponFired(world.getFrame(), owner.getId(), null,
                         owner.getPosition(), spot));
@@ -743,31 +681,14 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
             return;
         }
         victim.getBody().damage(damage);
-        stealLife(owner, damage);
     }
 
     /**
-     * What a skill hits for: its own figure at this level, the ultimate's window
-     * if one is open, and whatever the run's cards have added to it.
+     * What a skill hits for: its own figure at this level, and the ultimate's
+     * window if one is open.
      */
     private float damageOf(Skill skill, int level) {
-        return skill.damageAt(level) * damageMultiplier()
-                * powers.skillDamageMultiplier(skill.key());
-    }
-
-    /**
-     * Give the caster back his share of what he just dealt.
-     *
-     * <p>Off the damage the skill was worth rather than off the health actually
-     * removed, which is the same figure except against something already nearly
-     * dead. Taking the smaller of the two would make the last blow of a fight the
-     * one that healed least, which is exactly the blow a player is counting on.
-     */
-    private void stealLife(GameObject owner, float dealt) {
-        float share = powers.lifestealFraction();
-        if (share > 0f && owner.getBody() != null) {
-            owner.getBody().heal(dealt * share);
-        }
+        return skill.damageAt(level) * damageMultiplier();
     }
 
     /**
@@ -986,7 +907,6 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
             float each, float radius) {
         for (var victim : enemiesWithin(owner, world, radius)) {
             victim.getBody().damage(each);
-            stealLife(owner, each);
         }
     }
 
@@ -1019,7 +939,6 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         }
         for (var victim : struck) {
             victim.getBody().damage(each);
-            stealLife(owner, each);
         }
     }
 
@@ -1062,21 +981,6 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     }
 
     /**
-     * A card that grants a charge is felt at once, not at the next recharge.
-     *
-     * <p>Only the difference is handed over. Setting the slot to full instead
-     * would also refill whatever he had already spent, which is a different and
-     * much better card than the one on the table.
-     */
-    private void handOverAnyNewCharge(int slot) {
-        int cap = chargesOf(slot);
-        if (cap > chargeCap[slot]) {
-            chargesLeft[slot] += cap - chargeCap[slot];
-        }
-        chargeCap[slot] = cap;
-    }
-
-    /**
      * The trickle, counted in whole points against a frame carry.
      *
      * <p>See the note on {@link #manaCarry} for why it is not a float. In short:
@@ -1100,9 +1004,8 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     public void update() {
         regenerate();
         for (int slot = 0; slot < cooldowns.length; slot++) {
-            handOverAnyNewCharge(slot);
-            if (cooldowns[slot] > 0 && --cooldowns[slot] <= 0) {
-                chargesLeft[slot] = chargeCap[slot]; // recharged: all of them back
+            if (cooldowns[slot] > 0) {
+                cooldowns[slot]--;
             }
         }
         if (boostFrames > 0) {

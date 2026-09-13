@@ -97,9 +97,6 @@ public final class Hotkeys {
     /** In declaration order, so a game's own listing order is what gets bound. */
     private final Map<Character, Binding> bindings = new LinkedHashMap<>();
 
-    /** What to do when the player picks one of the choices the game put on screen. */
-    private java.util.function.ObjIntConsumer<DukeGame> chosen;
-
     private Hotkeys() {
     }
 
@@ -244,29 +241,6 @@ public final class Hotkeys {
     public Aim aimOf(char key) {
         var binding = bindings.get(Character.toUpperCase(key));
         return binding == null ? null : binding.aim();
-    }
-
-    /**
-     * What to do when the player takes one of the offered choices.
-     *
-     * <p>A game may put a set of choices on screen through the status channel —
-     * what a level-up is worth, which of three doors — and the client draws them
-     * and reports which was clicked, by its position in the list. What that means
-     * is the game's, and like every other binding here the work is "post a
-     * command": the render thread has no business in the simulation.
-     *
-     * <p>A game that never offers anything never binds this and nothing changes.
-     */
-    public Hotkeys onChoose(java.util.function.ObjIntConsumer<DukeGame> action) {
-        this.chosen = action;
-        return this;
-    }
-
-    /** Tell the game a choice was taken. Silently ignored if it offers none. */
-    void choose(DukeGame game, int index) {
-        if (chosen != null) {
-            chosen.accept(game, index);
-        }
     }
 
     private java.util.function.ObjIntConsumer<DukeGame> watched;

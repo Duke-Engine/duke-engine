@@ -3,8 +3,8 @@ package uz.duke.dungeon.loot;
 /**
  * One thing that can be found on a dungeon floor, as the data file describes it.
  *
- * <p>Data and nothing else, like {@link uz.duke.dungeon.power.Power} beside it: a
- * new item is a block in {@code dungeon.ini} and no Java at all.
+ * <p>Data and nothing else: a new item is a block in {@code dungeon.ini} and no
+ * Java at all.
  *
  * <p>{@code name} is finished words — the client writes none of its own, here as
  * everywhere else — and for the same reason it may not carry the two characters
@@ -13,7 +13,7 @@ package uz.duke.dungeon.loot;
  * @param id       what the block is headed by; never seen by the player
  * @param name     what the message says he picked up, in the game's own language
  * @param icon     the drawing the panel puts in his bag, by the name the client
- *                 knows it under -- the same vocabulary a power's Icon uses
+ *                 knows it under
  * @param kind     which of the three figures it moves
  * @param value    percent for {@code ATTACK} and {@code ARMOUR}, flat health for
  *                 {@code HEALTH} — the same convention {@code DungeonLeveling}

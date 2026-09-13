@@ -105,7 +105,7 @@ final class FogMap {
      * picture has a gradient in it before the card has done anything at all.
      *
      * <p>The upload is skipped when nothing moved. Standing still is the common
-     * case in a crawler — reading a panel, choosing a power — and the fog settles
+     * case in a crawler — reading a panel, choosing a skill — and the fog settles
      * within a second of the hero stopping.
      */
     void update(Discovery seen) {

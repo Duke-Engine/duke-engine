@@ -214,7 +214,7 @@ class DungeonTilesTest {
                     path + " is named but not shipped");
             checked++;
         }
-        assertTrue(checked >= 8, "four orders and four figures, found " + checked);
+        assertTrue(checked >= 7, "four orders and three figures, found " + checked);
     }
 
     /**

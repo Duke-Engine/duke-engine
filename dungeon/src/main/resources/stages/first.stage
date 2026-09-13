@@ -13,8 +13,8 @@ Stage first
   Description = One floor, drawn once and never again — learn it, then win it.
   Difficulty = 1
   Players = 1
-  ; The seed this floor was cut from. The loot, the level-up cards and the
-  ; look of the place are still drawn from it, so a stage plays the same
+  ; The seed this floor was cut from. The loot and the look of the place
+  ; are still drawn from it, so a stage plays the same
   ; way every time rather than merely having the same shape.
   Seed = 20260911
   ; Where the hero comes in.

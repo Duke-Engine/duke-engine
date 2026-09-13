@@ -34,11 +34,11 @@ import org.junit.jupiter.api.Test;
  */
 class PanelSkinTest {
 
-    /** A line with all four skills and two powers in it, so every part is built. */
+    /** A line with all four skills and the figures under the bars, so every part is built. */
     private static final String LINE =
             "name=Erika|rank=7-daraja|hp=128/200|xp=38/100|depth=III|depthWord=CHUQURLIK"
-                    + "|skill=Q,,ready|skill=W,,cool,72,165|skill=E,,ready|skill=R,,lock,5"
-                    + "|pwWord=Kuchlar|pw=shot,2|pw=boot,1";
+                    + "|stat=Zarba,34,+6|stat=Zirh,12,+2|stat=Tezlik,52"
+                    + "|skill=Q,,ready|skill=W,,cool,72,165|skill=E,,ready|skill=R,,lock,5";
 
     /** Something really there, standing in for a frame the dungeon would name. */
     private static final String REAL = "Common/Textures/dot.png";

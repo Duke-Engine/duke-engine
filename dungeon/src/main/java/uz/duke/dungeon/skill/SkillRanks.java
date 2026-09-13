@@ -36,7 +36,7 @@ import java.util.List;
  *
  * <p><b>It outlives the hero's body.</b> A floor hands him a fresh
  * {@link SkillBook} — a new object, new cooldowns — so what he has learnt has to
- * be somewhere that survives that, exactly as his {@code PowerBook} is. A death
+ * be somewhere that survives that, exactly as what he has found is. A death
  * is the other way: {@link #startWith} wipes it, because a run is where a build
  * lives and a roguelike keeps nothing.
  */

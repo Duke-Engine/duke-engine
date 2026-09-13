@@ -53,12 +53,8 @@ public final class FallingUpdate extends UpdateModule {
     private int fallsIn;
     private boolean called;
 
-    private final uz.duke.dungeon.power.PowerBook powers;
-
-    public FallingUpdate(GameObject owner, ModuleData ignored,
-            uz.duke.dungeon.power.PowerBook powers) {
+    public FallingUpdate(GameObject owner, ModuleData ignored) {
         super(owner);
-        this.powers = powers;
     }
 
     /**
@@ -106,7 +102,6 @@ public final class FallingUpdate extends UpdateModule {
                         && world.getRelationship(side, candidate.getPlayerIndex())
                                 == Relationship.ENEMIES)) {
             victim.getBody().damage(damage, DamageType.EXPLOSION);
-            drinkFor(caster);
             if (victim.isEffectivelyDead()) {
                 award(caster, victim);
             }
@@ -115,16 +110,6 @@ public final class FallingUpdate extends UpdateModule {
         // impact from the recipe its own file names rather than from anything here.
         world.post(new WeaponFired(world.getFrame(), owner.getId(), null,
                 owner.getPosition(), owner.getPosition()));
-    }
-
-    /** A share of what it dealt, back to whoever called it down. */
-    private void drinkFor(GameObject caster) {
-        float share = powers == null ? 0f : powers.lifestealFraction();
-        if (share <= 0f || caster == null || caster.getBody() == null
-                || caster.findModule(uz.duke.dungeon.skill.SkillBook.class) == null) {
-            return;
-        }
-        caster.getBody().heal(damage * share);
     }
 
     /**

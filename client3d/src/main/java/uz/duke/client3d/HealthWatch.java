@@ -16,10 +16,11 @@ import uz.duke.game.view.UnitView;
  * <p><b>Why not an event.</b> The rule in this codebase is that a client should
  * not have to work out what happened, and it is a good rule; this is the case it
  * does not cover. Health moves from half a dozen places, and the game owns only
- * some of them: a monster's swing lands inside the engine's own weapon, and
- * lifesteal lands inside an arrow. A game that posted an event per source would
- * be silent for exactly the blows the player is being hit by, and would have to
- * be added to again every time anything new could hurt anybody. Subtraction is
+ * some of them: a monster's swing lands inside the engine's own weapon, and a
+ * skeleton that mends itself does so inside a module of its own. A game that
+ * posted an event per source would be silent for exactly the blows the player is
+ * being hit by, and would have to be added to again every time anything new could
+ * hurt anybody. Subtraction is
  * complete by construction.
  *
  * <p>What it costs is attribution — this knows how much and to whom, never by

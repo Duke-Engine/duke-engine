@@ -151,31 +151,6 @@ class HotkeysTest {
         assertEquals(KeyInput.KEY_R, Hotkeys.codeOf('R'));
     }
 
-    // ---- choices the game puts on screen ----
-
-    /**
-     * A choice the client drew reaches the game, by position and nothing else.
-     *
-     * <p>The client knows there were three cards and which one was clicked; what
-     * that means is the game's, so what crosses is an index. Keeping it to that is
-     * what lets the seam serve a level-up screen without knowing what a level is.
-     */
-    @Test
-    void aChoiceIsReportedByItsPosition() {
-        var taken = new int[] {-1};
-        var keys = Hotkeys.create().onChoose((game, index) -> taken[0] = index);
-
-        keys.choose(null, 2);
-
-        assertEquals(2, taken[0]);
-    }
-
-    /** A game that offers nothing binds nothing, and a stray click does nothing. */
-    @Test
-    void aGameThatOffersNothingIgnoresAChoice() {
-        Hotkeys.none().choose(null, 1); // must not throw
-    }
-
     /**
      * The letters a game claimed, readable by the game itself.
      *

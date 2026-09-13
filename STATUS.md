@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-13 · **Testlar:** 1490 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-13 · **Testlar:** 1463 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -1731,37 +1731,11 @@ ikkala peer aynan bir kadrda qo'llaydi.
   qurolnikiligicha qoladi — skillar o'z `DamagePerLevel` i bilan o'sadi, ikkalasi
   qo'shilsa daraja ikki marta hisoblanardi.
 
-- **Daraja oshganda kuch tanlanadi** — har darajada uchta karta, bittasi olinadi va
-  run oxirigacha qoladi. Ikki run bir xil oltinchi darajaga yetsa ham ikki xil
-  qahramon bo'ladi, chunki tanlov o'yinchiniki.
-  - **Kod effekt turini beradi, INI qolganini.** `PowerEffect` beshta shakl:
-    `SKILL_DAMAGE`, `COOLDOWN`, `MOVE_SPEED`, `LIFESTEAL`, `EXTRA_CHARGE`. Yangi
-    kuch = `dungeon.ini` da bitta `DungeonPower` bloki, **noldan Java**; yangi
-    *tur* — enum'da bitta konstanta va o'qiladigan joyda bitta shox.
-  - **Uchtasi seed'dan chiqadi** — `PowerDraft` sof: seed + daraja kirsa, ro'yxat
-    chiqadi. `Math.random` yo'q, ya'ni bitta seed butun run'ni belgilaydi,
-    kartalar ham. Chegarasiga yetgan (`MaxStacks`) kuch taklif qilinmaydi;
-    `MinLevel` esa kartani run boshida ushlab turadi.
-  - **Stack qo'shiladi, ko'paymaydi.** Ikkita "+25%" = +50%, 1.25² emas: ikkinchi
-    kartani o'qigan o'yinchi uni birinchisicha qadrli deb kutadi, va ko'paytirish
-    olingan tartibga qarab sirg'anadi.
-  - **Buyruq quvuridan o'tadi** — `ChoosePower` bu o'yinning **ikkinchi** buyrug'i
-    (`CastSkill` yonida). Klik faqat `postCommand` qiladi; qaysi karta ekani va u
-    nima berishi kadr chegarasida, simulyatsiyada hal bo'ladi.
-  - **Taklif *raqami* daraja emas, ketma-ket nomer.** O'lim darajani birga
-    qaytaradi, ya'ni har run'ning "2-daraja" taklifi bo'ladi — darajani nom qilib
-    olsak, klient birinchisini javoblaganini eslab ikkinchisini **umuman
-    ko'rsatmasdi**. Test shuni qulflaydi.
-  - **Ekran o'yinni to'xtatib turadi** — pauzani **klient** qo'yadi va oladi,
-    to'g'ridan-to'g'ri (pastdagi tuzoqqa qarang). Tanlangach buyruq jo'natiladi va
-    dunyo yana yuradi; javob berilgan taklif qaytib chiqmaydi.
-  - **Zaryadlar tuzog'i (tuzatilgan):** "E ikki marta" kartasi cheksiz bo'lib
-    qolgan edi — ikkinchi zaryad sarflangach uya kuluarsiz qolar, keyingi kadr esa
-    uni to'ldirar edi. Endi **shift** (`chargeCap`) eslab qolinadi: to'ldirish
-    faqat kuluar tugaganda, va karta olinganda faqat **farq** beriladi.
+- ~~**Daraja oshganda kuch tanlanadi**~~ — **olib tashlandi** (8.ax): kartalar,
+  kuchlar kitobi, tanlash oynasi, kuchlar qatori va `Qon` statistikasi bilan birga.
 - **Warcraft uslubidagi pastki panel** — `HeroPanel` bitta tosh plitaga aylandi:
   chapda minimap uyasi, o'rtada portret va tirik ko'rsatkichlar, o'ngda skill
-  uyalari va ular ostida olingan kuchlar qatori, chekkada chuqurlik. Bo'limlar
+  uyalari, chekkada chuqurlik. Bo'limlar
   o'yma chiziq bilan ajratiladi — alohida quticha emas.
   - **Maket piksellarida chiziladi, keyin oynaga masshtablanadi** (`DESIGN_WIDTH`
     1180). Shuning uchun nisbatlar har ekranda saqlanadi va `reshape` bitta
@@ -1776,8 +1750,8 @@ ikkala peer aynan bir kadrda qo'llaydi.
     klik orasida qaraydigan yagona joy, va nafas oladigan, jangga tayyorlanadigan,
     o'lganda yiqiladigan odam siluet ayta olmaydigan savolga javob beradi.
     Siluet qoldi — portreti yo'q maxluq va zaxira yo'l uchun.
-  - Panelga bitta ham inglizcha so'z qo'shilmadi: `Kuchlar`, `Zarba`, `Zirh`,
-    `Tezlik` va tanlov ekranining sarlavhasi `DungeonHud` blokidan keladi.
+  - Panelga bitta ham inglizcha so'z qo'shilmadi: `Zarba`, `Zirh` va `Tezlik`
+    `DungeonHud` blokidan keladi.
   - **Uyada endi ikonka bor, va u INI'da tanlanadi.** Uya ilgari klavishning
     harfini chizardi. Endi har `DungeonSkill` bloki `Icon = arrowhead.png` deydi,
     `DungeonHud` esa `IconFolder = icons/skills/` — tayyor yo'l status qatorida
@@ -2267,7 +2241,7 @@ to'ri, keyin narsalar to'ri, mahorat ustuni, chekkada chuqurlik.
   Buyruq handler'ida o'yinchi raqami bor, miya esa obyektdagi modul; engine
   skript modulini qaytarib bermaydi, bergan taqdirda ham o'yin engine
   modullarini titkilashi noto'g'ri bo'lardi. Sessiyada bir marta yasaladi va
-  `PowerBook`/`LootBag` kabi ikkala uchiga beriladi.
+  `LootBag` kabi ikkala uchiga beriladi.
 - **Ushlab turish qanday ishlaydi.** Nishonni "tanlamaslik" yetarli emas edi:
   `WeaponUpdate` nishonni o'zi topadi va **o'sha chaqiruvda otadi**, ya'ni
   tashqaridan faqat kech bo'ladi. Shuning uchun miya har kadrda `holdFire()`
@@ -2782,7 +2756,7 @@ hech kim ocholmaydigan daraja; g'alati ishlaydigan stage kimdir ochib, o'qib,
 xatoni **ko'ra oladigan** fayl bo'lishi kerak. Koordinatalar dunyo birligida
 emas, **katakda**: dungeon hamma narsani katak markaziga qo'yadi, ya'ni ikkalasi
 bir xil fakt, lekin faqat bittasini tepadagi xarita bo'yicha ko'z bilan sanash
-mumkin. Fayl seed'ni ham saqlaydi — loot, daraja kartalari va temani o'sha
+mumkin. Fayl seed'ni ham saqlaydi — loot va temani o'sha
 beradi, saqlanmasa "o'sha xonalar, boshqa hamma narsa" chiqardi.
 
 **Yuklashda ulanish qayta tekshiriladi** (`StageCheck`). Generatorga bu kerak
@@ -2854,8 +2828,8 @@ esa undan relyef quradi. Ya'ni savol berilayotgan paytda dungeon'da allaqachon
 kimdir turadi (`DefaultHero`). **Uni hech kim ko'rmaydi:** tanlov birinchi
 qavatni qaytadan yotqizadi — `DungeonRun.startWith(...)`, ya'ni **o'lim
 yuradigan aynan o'sha yo'l**. Sababi ham bir xil: tanlanmagan qahramon
-topgan narsaning hech biri tanlanganiniki emas, shuning uchun darajalar,
-kartalar va o'ljalar ketadi.
+topgan narsaning hech biri tanlanganiniki emas, shuning uchun darajalar va
+o'ljalar ketadi.
 
 **`DefaultHero` o'chmadi, ma'nosi torayadi:** *"hech kim so'ralmaganda kim
 o'ynaydi"* — headless run va testlar. Shu sababdan 1120 test bir qatorsiz
@@ -3164,10 +3138,9 @@ Ikkalasi ham INI'ga chiqdi. Sim formatiga ikonka maydoni qo'shildi
 (`stat=so'z,qiymat,bonus,ikonka`) — `Reading.parse` notanish maydonda butun
 qatorni rad etadi, shuning uchun klient va o'yin bitta commit'da o'zgardi.
 
-**Yo'l-yo'lakay: `Qon` statistikasi paydo bo'ldi.** `PowerBook.lifestealFraction()`
-powerlar paydo bo'lgandan beri hisoblanardi va **hech qachon chizilmagan** —
-ya'ni o'sha kuchni olgan o'yinchi uning ishlayotganini ko'ra olmasdi. Endi
-to'rtinchi figura sifatida ko'rinadi. `LifestealWord` ni bo'shatsang yana yo'qoladi.
+**Yo'l-yo'lakay: `Qon` statistikasi paydo bo'lgan edi** — `PowerBook.lifestealFraction()`
+hisoblanardi, lekin chizilmasdi. Kuch tanlash olib tashlanganda u ham ketdi: jon
+so'rishning boshqa manbai yo'q edi (8.ax).
 
 #### Qilinmagani, sababi bilan
 
@@ -3852,6 +3825,10 @@ simulyatsiyaga tegilmadi.
 3. Haqiqiy yo'l ham sinaldi (`XpBase = 1` faqat demoda): Mage monsterni o'ldirdi,
    daraja status qatoridan sezildi (`LEVEL 1 -> 9`) va ustun chizildi. Lekin kadr
    o'rtasini daraja oshganda chiqadigan kuch tanlash oynasi yopib turardi.
+   Oyna olib tashlangach (8.ax) xuddi shu yo'l qayta sinaldi: daraja avval 9 ga,
+   keyin 15 ga chiqdi, har safar oltin ustun qahramondan ko'tarildi va polda halqa
+   ochildi. O'yin endi to'xtamaydi — o't sharining portlashi ham, monsterlar ham
+   harakatda davom etdi.
 
 #### Testlar
 
@@ -3861,6 +3838,33 @@ tozalanish, ergashish, masshtab, bir vaqtda 50 ta ustun), `RunMomentsTest` (8),
 soniya, daraja ko'tariladi va kelish tushadi, boss darajadan katta, blok maydonlari).
 `SelectedCardSoundTest` yangi yo'lga moslandi. `ProjectileEffectTest` — qatlamli
 effekt endi `Kind`siz bo'lishi mumkin.
+
+### 8.ax Daraja oshganda kuch tanlash olib tashlandi
+
+Foydalanuvchi: "har level upda kuch tanlashni o'chirib tashla, u kerak emas".
+Kuchlarning boshqa manbai yo'q edi — karta faqat daraja oshganda chiqardi — shuning
+uchun oyna bilan birga butun tizim olib tashlandi. Aks holda hech kim yozolmaydigan
+kuchlar kitobi qolardi.
+
+- **Simulyatsiya:** `dungeon/power/` paketi butunlay ketdi (`Power`, `PowerEffect`,
+  `PowerDraft`, `PowerBook`, `PowerChoice`, `ChoosePower`). `SkillBook`,
+  `ArrowUpdate` va `FallingUpdate` endi `PowerBook` olmaydi. Kartasiz qahramonda
+  skill zarari va kuluari 1 ga, zaryad 1 ga ko'paytirilardi, jon so'rish esa 0 edi.
+  Ko'paytirishni olib tashlash run'dagi hech bir sonni o'zgartirmaydi. Zaryad
+  mexanizmi (`chargesLeft`/`chargeCap`) ham ketdi — ikkinchi zaryadni faqat karta
+  berardi. `Session` va `DungeonRun` endi `powers` saqlamaydi.
+- **Status qatori:** `|pwWord=`, `|pw=`, `|offer=`, `|opt=` maydonlari va `Qon`
+  statistikasi olib tashlandi.
+- **Klient:** `LevelUpOverlay` (tanlash oynasi), u o'rnatgan pauza va kiritishni
+  ushlab turish, `Hotkeys.onChoose` va panel ostidagi kuchlar qatori olib
+  tashlandi. Skill ustuni endi plita ichida o'rtaga keladi.
+- **INI:** `DungeonPowers` va 10 ta `DungeonPower` bloki, `PowersWord`,
+  `ChooseWord`, `LifestealWord`, `LifestealIcon`, `power_offer` ovozi va uning fayli
+  olib tashlandi. `power_taken` qoldi — u skill ochkosi sarflanganda chalinadi.
+- **Testlar:** `PowerTest` o'chirildi. `HeroPanelTest`, `HeroStatusTest`,
+  `HotkeysTest`, `PanelLayoutTest`, `PanelSkinTest`, `DungeonTilesTest` va
+  `SightTest` yangi holatga moslandi.
+- Daraja oshganini endi nur ustuni va ovoz bildiradi (8.aw) — o'yin to'xtamaydi.
 
 ## 9. Nima yo'q / ochiq ishlar
 
@@ -4186,7 +4190,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
   bo'ladi degani.
 - **Qisman `dungeon.ini` ro'yxatlarni saqlaydi, skalyarlarni saqlamaydi.**
   `DungeonSettings.parse(...)` da nomlanmagan `DungeonMonster` / `DungeonSkill` /
-  `DungeonPower` / `DungeonLootItem` bloklari shipping fayldan qo'shiladi, lekin
+  `DungeonLootItem` bloklari shipping fayldan qo'shiladi, lekin
   `MapWidth` yoki `DepthWord` kabi **alohida maydonlar** Java'dagi standart
   qiymatiga tushadi. Test uchun shuni kutish kerak: qisman fayl bilan qurilgan
   o'yinda panel so'zlari inglizcha chiqadi.
@@ -4351,15 +4355,10 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/…/dungeon/level/Levelling.java` | daraja qoidalari — sof, INI qiymatlaridan |
 | `dungeon/…/dungeon/level/HeroBody.java` | o'sadigan tana (engine'niki final) + `Armor` |
 | `dungeon/…/dungeon/level/HeroProgress.java` | XP → daraja → atributlar, run'da nolga qaytish |
-| `dungeon/…/dungeon/power/{Power,PowerEffect}.java` | daraja kuchi: ma'lumot + effekt turlari (kod faqat shu yerda) |
-| `dungeon/…/dungeon/power/PowerDraft.java` | uchta kartani seed'dan tanlash — sof, dunyosiz |
-| `dungeon/…/dungeon/power/{PowerBook,PowerChoice}.java` | olingan kuchlar va ular nimaga teng + taklif holati |
-| `dungeon/…/dungeon/power/ChoosePower.java` | o'yinning ikkinchi buyrug'i — "o'shani olaman" |
 | `dungeon/…/dungeon/loot/{Loot,LootKind,LootTable}.java` | tushadigan narsa: ma'lumot, turlar, deterministik qur'a |
 | `dungeon/…/dungeon/loot/{LootBag,LootDrop,LootUpdate}.java` | topilganlar + `DieModule` cho'ntagi + poldagi sandiq |
 | `dungeon/…/dungeon/ai/SightLine.java` | ko'ra oladimi: yetarlicha yaqinmi, orada tosh bormi, balandda turibdimi — sof arifmetika, grid ustida |
 | `dungeon/…/dungeon/combat/EyesOnly.java` | ko'rmaganiga otmaydi — qahramon, arbaletchi va mage |
-| `client3d/…/client3d/LevelUpOverlay.java` | daraja tanlash ekrani — mexanizm klientniki, so'zlar o'yinniki |
 | `client3d/…/client3d/Fog.java` | tuman sozlamasi (LOS, uch qatlam yorqinligi, yumshoqlik, tekstura o'lchami, rang) |
 | `client3d/…/client3d/Sunlight.java` | quyosh burchagi/kuchi + ambient; ★ pitch = relyef borligi, 90° da hamma tik yuza bir xil qorong'i |
 | `client3d/…/client3d/FogMap.java` | tumanning o'zi — xaritaning qorong'ilik surati (alfa-tekstura) |

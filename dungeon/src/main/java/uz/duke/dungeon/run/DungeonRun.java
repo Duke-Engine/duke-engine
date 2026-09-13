@@ -9,7 +9,6 @@ import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.gen.GeneratedDungeon;
 import uz.duke.dungeon.level.HeroProgress;
 import uz.duke.dungeon.loot.LootTable;
-import uz.duke.dungeon.power.PowerChoice;
 import uz.duke.dungeon.skill.SkillBook;
 import uz.duke.dungeon.skill.Skills;
 import uz.duke.game.DukeGame;
@@ -71,7 +70,6 @@ public final class DungeonRun {
     private final DungeonSettings settings;
 
     private final HeroProgress progress;
-    private final PowerChoice powers;
     private final LootTable drops;
 
     /** Where each floor comes from: the seed chain, or the file one was frozen into. */
@@ -113,7 +111,7 @@ public final class DungeonRun {
     private final uz.duke.dungeon.skill.SkillRanks learnt;
 
     public DungeonRun(GamePlayer heroPlayer, GamePlayer dungeonPlayer, Floors floors,
-            DungeonSettings settings, HeroProgress progress, PowerChoice powers,
+            DungeonSettings settings, HeroProgress progress,
             LootTable drops, uz.duke.dungeon.ai.Orders orders,
             uz.duke.dungeon.skill.SkillRanks learnt) {
         this.learnt = learnt;
@@ -123,7 +121,6 @@ public final class DungeonRun {
         this.floors = floors;
         this.settings = settings;
         this.progress = progress;
-        this.powers = powers;
         this.drops = drops;
         this.themes = settings.themes();
         this.look = lookOfThisFloor();
@@ -336,7 +333,7 @@ public final class DungeonRun {
         boolean his = creature != null && creature.getPlayerIndex() == heroPlayer.getIndex();
         if (his && Skills.heroOf(game.getLogic(), heroPlayer.getIndex()) == creature) {
             return HeroStatus.of(Skills.heroOf(game.getLogic(), heroPlayer.getIndex()),
-                    progress, depth, floors.lastDepth(), settings, powers,
+                    progress, depth, floors.lastDepth(), settings,
                     game.getLogic().getFrame(), look,
                     orders.isHolding(heroPlayer.getIndex()), learnt);
         }
@@ -397,10 +394,6 @@ public final class DungeonRun {
         depth = floors.firstDepth();
         descendAtFrame = 0;
         progress.reset();
-        // It takes everything, the cards included. Told rather than inferred, for
-        // the same reason progression is: descending replaces the hero too, and
-        // there he keeps them.
-        powers.reset();
         // ★ AND WHAT HE HAD LEARNT. The same argument again and it was missed the
         // first time: a hero who died came back at the first level with all four
         // skills still open, so his second run began with twelve points he had
@@ -452,7 +445,6 @@ public final class DungeonRun {
         bossId = placed.boss() == null ? null : placed.boss().getId();
         look = lookOfThisFloor();
         progress.carryOver(game, placed.hero());
-        powers.carryOver(placed.hero());
     }
 
     /**

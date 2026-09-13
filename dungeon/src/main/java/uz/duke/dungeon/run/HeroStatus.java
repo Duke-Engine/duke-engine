@@ -6,7 +6,6 @@ import uz.duke.core.thing.ThingTemplate;
 import uz.duke.dungeon.ai.Doing;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.level.HeroProgress;
-import uz.duke.dungeon.power.PowerChoice;
 import uz.duke.dungeon.skill.SkillBook;
 import uz.duke.dungeon.skill.Skills;
 
@@ -21,17 +20,7 @@ import uz.duke.dungeon.skill.Skills;
  * name=Erika|rank=7-daraja|hp=128/200|xp=38/100|depth=III|depthWord=CHUQURLIK
  *   |skill=Q,icons/skills/arrowhead.png,ready|skill=W,icons/skills/arrow_cluster.png,cool,72,165
  *   |skill=E,icons/skills/sprint.png,ready|skill=R,icons/skills/hood.png,lock,5-daraja
- *   |pwWord=Kuchlar|pw=shot,2|pw=boot,1
- *   |offer=3,8-daraja,Bittasini tanlang
- *   |opt=shot,O'tkir uch,Q zarari +25%
  * </pre>
- *
- * <p>{@code offer} is the level-up screen: which offer it is, then the two lines
- * of its heading, then one {@code opt} per card. The number is there so a click
- * arriving late cannot spend the next offer's card on the last one's picture —
- * the world is held still behind that screen and the client goes on drawing the
- * snapshot it already has. It counts up through the session rather than naming
- * the level, because a new run starts the levels again.
  *
  * <p>The split between the two halves is: whatever is <em>words</em> is finished
  * here, and whatever is <em>drawn</em> is sent as numbers. So the client never
@@ -276,7 +265,7 @@ final class HeroStatus {
     }
 
     static String of(GameObject hero, HeroProgress progress, int depth, int lastDepth,
-            DungeonSettings settings, PowerChoice powers, int frame, String look,
+            DungeonSettings settings, int frame, String look,
             boolean holding, uz.duke.dungeon.skill.SkillRanks learnt) {
         if (hero == null || hero.getBody() == null) {
             return "";
@@ -292,7 +281,7 @@ final class HeroStatus {
                 .append('/').append(progress.getExperienceForNextLevel())
                 .append("|depth=").append(howFarDown(depth, lastDepth))
                 .append("|depthWord=").append(settings.hudDepthWord());
-        appendStats(line, hero, progress, powers, settings);
+        appendStats(line, hero, progress, settings);
         appendOrders(line, settings, Doing.of(hero, holding), true);
         appendItems(line, progress, settings);
         var book = hero.findModule(SkillBook.class);
@@ -331,8 +320,6 @@ final class HeroStatus {
                     .append(',').append(settings.hudPointsWord());
             appendCast(line, book, hero);
         }
-        appendPowers(line, powers, settings);
-        appendOffer(line, powers, settings);
         // What he just picked up, for as long as it is worth saying. A line rather
         // than a banner: the banner interrupts, and finding a sword is news, not
         // an interruption.
@@ -347,33 +334,6 @@ final class HeroStatus {
             line.append("|look=").append(look);
         }
         return line.toString();
-    }
-
-    /**
-     * The strip of what he has picked up: one field per power, in the order they
-     * were taken, each an icon and how many of it he holds.
-     *
-     * <p>Sent as a count rather than as repeated entries so that three of the same
-     * card is one mark reading three, which is what the strip has room for.
-     */
-    private static void appendPowers(StringBuilder line, PowerChoice powers,
-            DungeonSettings settings) {
-        if (powers == null) {
-            return;
-        }
-        line.append("|pwWord=").append(settings.hudPowersWord());
-        // Insertion-ordered, so the strip lists them in the order he took them
-        // and not in whatever order a hash happens to produce.
-        var held = new java.util.LinkedHashMap<String, int[]>();
-        var icons = new java.util.LinkedHashMap<String, String>();
-        for (var power : powers.getBook().getTaken()) {
-            held.computeIfAbsent(power.id(), id -> new int[1])[0]++;
-            icons.putIfAbsent(power.id(), power.icon());
-        }
-        for (var entry : held.entrySet()) {
-            line.append("|pw=").append(icons.get(entry.getKey()))
-                    .append(',').append(entry.getValue()[0]);
-        }
     }
 
     /**
@@ -437,9 +397,8 @@ final class HeroStatus {
      * cannot use or drop any of it yet; what the grid says today is "these are the
      * things that made you stronger", which is what finding them means.
      *
-     * <p>Grouped and counted like the powers strip beside it, and for the same
-     * reason: three of the same sword is one drawing reading three, which is what
-     * six sockets have room for.
+     * <p>Grouped and counted: three of the same sword is one drawing reading three,
+     * which is what six sockets have room for.
      */
     private static void appendItems(StringBuilder line, HeroProgress progress,
             DungeonSettings settings) {
@@ -456,22 +415,6 @@ final class HeroStatus {
         }
     }
 
-    /** The cards on the table, or nothing at all when none are. */
-    private static void appendOffer(StringBuilder line, PowerChoice powers,
-            DungeonSettings settings) {
-        if (powers == null || !powers.hasOffer()) {
-            return;
-        }
-        line.append("|offer=").append(powers.getOfferId())
-                .append(',').append(powers.getOfferLevel()).append(settings.hudRankSuffix())
-                .append(',').append(settings.hudChooseWord());
-        for (var power : powers.getOffer()) {
-            line.append("|opt=").append(power.icon())
-                    .append(',').append(power.name())
-                    .append(',').append(power.description());
-        }
-    }
-
     /**
      * The three figures under the bars: what he hits for, what he shrugs off, and
      * how fast he moves.
@@ -481,12 +424,12 @@ final class HeroStatus {
      * is this game's arithmetic anyway. The base of each comes from his template,
      * so {@code creatures.ini} stays the one place the starting hero is written.
      *
-     * <p>Everything that moves them is counted: the level, the powers he chose and
-     * what he found on the floor. A panel that showed only two of the three would
-     * be a panel a player learns not to believe.
+     * <p>Everything that moves them is counted: the level and what he found on the
+     * floor. A panel that showed only one of the two would be a panel a player
+     * learns not to believe.
      */
     private static void appendStats(StringBuilder line, GameObject hero, HeroProgress progress,
-            PowerChoice powers, DungeonSettings settings) {
+            DungeonSettings settings) {
         var rules = settings.levelling();
         var found = progress.getLoot();
         int level = progress.getLevel();
@@ -498,9 +441,8 @@ final class HeroStatus {
         int worn = settings.heroNamed(hero.getTemplate().getName()).armourPercent();
         int armour = Math.round(
                 (1f - rules.damageTakenWith(level, worn + found.armourPercent())) * 100f);
-        float speed = walkingSpeed(hero.getTemplate())
-                * (powers == null ? 1f : powers.getBook().moveSpeedMultiplier());
-        // What he would have without anything he found or chose. The difference is
+        float speed = walkingSpeed(hero.getTemplate());
+        // What he would have without anything he found. The difference is
         // the number in green, and it is worth showing on its own: a figure that
         // only goes up says nothing about whether the last thing he picked up was
         // worth picking up.
@@ -508,22 +450,12 @@ final class HeroStatus {
         // His own plate is not borrowed, so it belongs on both sides of the sum:
         // the green figure is what he picked up, not what he was made with.
         int bareArmour = Math.round((1f - rules.damageTakenWith(level, worn)) * 100f);
-        float bareSpeed = walkingSpeed(hero.getTemplate());
         var pictures = settings.hudStatIcons();
         stat(line, settings.hudAttackWord(), Math.round(attack), Math.round(bareAttack),
                 pictures.get(0));
         stat(line, settings.hudArmourWord(), armour, bareArmour, pictures.get(1));
-        stat(line, settings.hudSpeedWord(), Math.round(speed), Math.round(bareSpeed),
+        stat(line, settings.hudSpeedWord(), Math.round(speed), Math.round(speed),
                 pictures.get(2));
-        // What he drinks back out of a blow. The game has counted this since
-        // powers existed and never showed it, so a player who took the power had
-        // no way to see it working. All of it is borrowed -- nobody is born with
-        // it -- so the whole figure is the green one.
-        if (!settings.hudLifestealWord().isBlank()) {
-            int drinks = powers == null ? 0
-                    : Math.round(powers.getBook().lifestealFraction() * 100f);
-            stat(line, settings.hudLifestealWord(), drinks, 0, pictures.get(3));
-        }
     }
 
     /**

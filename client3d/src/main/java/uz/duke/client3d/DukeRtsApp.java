@@ -252,17 +252,6 @@ final class DukeRtsApp extends SimpleApplication {
      * was dragged. This outlives the panel and is simply hung on the next one.
      */
     private HeroPortrait portrait = HeroPortrait.none();
-    private LevelUpOverlay levelUp;
-    /**
-     * The offer already answered, so the screen does not come back while the
-     * simulation catches up.
-     *
-     * <p>The world is held still behind the level-up screen, which means the
-     * client goes on drawing the snapshot it already has — the one that still
-     * carries the offer. Without remembering which one was answered, letting the
-     * world run again would put the same screen straight back up.
-     */
-    private int answeredOffer = Integer.MIN_VALUE;
 
     // minimap: fixed-size overlay in the bottom-right corner
     private static final float MINIMAP_SIZE = 190f;
@@ -529,8 +518,6 @@ final class DukeRtsApp extends SimpleApplication {
         // frame is the creature that is on the floor and not a second version
         // of it.
         portrait = HeroPortrait.open(renderManager, visuals, this::buildBody);
-        levelUp = new LevelUpOverlay(assetManager, guiFont, guiNode,
-                cam.getWidth(), cam.getHeight());
 
         buildMinimap();
         buildDragRectangle();
@@ -916,7 +903,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void syncSkillRange(float now) {
         var range = arming == null ? null : visuals.getSkillRange(arming);
-        if (range == null || screen != Screen.PLAYING || levelUp.isShowing()) {
+        if (range == null || screen != Screen.PLAYING) {
             rangeRings.hide();
             return;
         }
@@ -1782,8 +1769,8 @@ final class DukeRtsApp extends SimpleApplication {
      *
      * <p>The same switch the settings menu throws, so the two cannot disagree and
      * the choice is remembered for the next launch either way. Everything that is
-     * sized to the window — the hero's bar, the minimap in it, the level-up screen,
-     * the menus — is laid out again when the new size arrives.
+     * sized to the window — the hero's bar, the minimap in it, the menus — is laid
+     * out again when the new size arrives.
      */
     private void toggleFullscreen() {
         boolean wanted = !preferences.flag("fullscreen", false);
@@ -2000,8 +1987,6 @@ final class DukeRtsApp extends SimpleApplication {
                 fontOrDefault(visuals.getMenuStyle().titleFont()), guiNode, width,
                 visuals.getPanelSkin(), visuals.getRangeLook(), visuals.getIconLook());
         heroPanel.arm(armed);
-        levelUp.destroy();
-        levelUp = new LevelUpOverlay(assetManager, guiFont, guiNode, width, height);
         placeMinimap();
         menu.destroy();
         menu = buildMenu(width, height);
@@ -2400,7 +2385,7 @@ final class DukeRtsApp extends SimpleApplication {
                         if (menu.enter()) {
                             noises.moment("menu_click", timer.getTimeInSeconds());
                         }
-                    } else if (screen == Screen.PLAYING && !levelUp.isShowing()) {
+                    } else if (screen == Screen.PLAYING) {
                         // Back to the hero, wherever the pan keys have got to. The
                         // same one-shot request a new run makes, so the camera is
                         // his again the moment it lands.
@@ -2414,11 +2399,6 @@ final class DukeRtsApp extends SimpleApplication {
                         } else if (menu.click(inputManager.getCursorPosition())) {
                             noises.moment("menu_click", timer.getTimeInSeconds());
                         }
-                    } else if (pressed && levelUp.isShowing()) {
-                        // The level-up screen is over everything and takes the
-                        // click whether or not it landed on a card.
-                        takeOffer(levelUp.cardAt(inputManager.getCursorPosition().x,
-                                inputManager.getCursorPosition().y));
                     } else if (screen == Screen.PLAYING) {
                         if (!pressed && holdingASkill()) {
                             letGoOfHeldSkill(true); // he pressed its slot; this is the cast
@@ -2444,7 +2424,7 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                 }
                 case "Order" -> {
-                    if (!pressed || screen != Screen.PLAYING || levelUp.isShowing()) {
+                    if (!pressed || screen != Screen.PLAYING) {
                         break;
                     }
                     var over = inputManager.getCursorPosition();
@@ -2471,7 +2451,7 @@ final class DukeRtsApp extends SimpleApplication {
                     // Set here rather than queued for the simulation: a paused
                     // engine does not step, so a task asking it to resume would
                     // never be reached and the pause could not be lifted.
-                    if (pressed && screen == Screen.PLAYING && !levelUp.isShowing()) {
+                    if (pressed && screen == Screen.PLAYING) {
                         setSimulationPaused(!game.getLogic().isGamePaused());
                     }
                 }
@@ -2481,9 +2461,6 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                     switch (screen) {
                         case PLAYING -> {
-                            if (levelUp.isShowing()) {
-                                break; // a level has to be spent before anything else
-                            }
                             // Escape opens the menu. It used to clear the selection
                             // first, so a player who had a hero selected -- which
                             // is a player who is playing -- had to press it twice
@@ -2529,11 +2506,7 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                     if (name.startsWith("Build")) {
                         int index = Integer.parseInt(name.substring(5)) - 1;
-                        if (levelUp.isShowing()) {
-                            takeOffer(index); // the numbers pick a card while one is up
-                        } else {
-                            queueBuild(index);
-                        }
+                        queueBuild(index);
                     } else if (name.startsWith(HOTKEY)) {
                         char letter = name.charAt(HOTKEY.length());
                         if (ctrlHeld[0]) {
@@ -3394,7 +3367,6 @@ final class DukeRtsApp extends SimpleApplication {
         drawThePortrait(tpf);
         updateHud();
         updateBanner();
-        updateLevelUp();
         updateHover();
         placeMinimap();
     }
@@ -3408,15 +3380,13 @@ final class DukeRtsApp extends SimpleApplication {
      * late is still noticed exactly once.
      *
      * <p>A menu is a different room and the portrait stops with everything else in
-     * it. The level-up screen is not: it holds the world still, and it is the one
-     * moment the frame has a flourish to play — so it is the single paused screen
-     * the portrait goes on drawing through.
+     * it.
      */
     private void drawThePortrait(float tpf) {
         var reading = heroPanel.reading();
         portrait.show(portraitSubject(), reading == null ? "" : reading.rank());
         portrait.update(tpf, screen == Screen.PLAYING && !menu.isVisible()
-                && (!snapshot.paused() || levelUp.isShowing()));
+                && !snapshot.paused());
         heroPanel.live(portrait.texture());
     }
 
@@ -3442,30 +3412,13 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * Put the level-up screen up when the game offers one, and hold the world
-     * still while it is up.
+     * Freeze or resume the simulation.
      *
-     * <p>The pause is set directly rather than queued for the simulation thread,
-     * and it has to be: a paused engine does not step, so a task queued for the
-     * next frame would never run and the game could not be started again. The flag
-     * is a plain boolean, it takes no part in the checksum, and pausing changes
-     * when frames happen rather than what is in them.
-     */
-    private void updateLevelUp() {
-        var offer = screen == Screen.PLAYING ? heroPanel.offer() : null;
-        if (offer != null && offer.id() != answeredOffer) {
-            levelUp.show(offer);
-            setSimulationPaused(true);
-            return;
-        }
-        if (levelUp.isShowing()) {
-            levelUp.hide();
-            setSimulationPaused(false);
-        }
-    }
-
-    /**
-     * Freeze or resume the simulation. See {@link #updateLevelUp()} for why directly.
+     * <p>Set directly rather than queued for the simulation thread, and it has to
+     * be: a paused engine does not step, so a task queued for the next frame would
+     * never run and the game could not be started again. The flag is a plain
+     * boolean, it takes no part in the checksum, and pausing changes when frames
+     * happen rather than what is in them.
      */
     private void setSimulationPaused(boolean paused) {
         var logic = game.getLogic();
@@ -3545,7 +3498,7 @@ final class DukeRtsApp extends SimpleApplication {
      * The six facts about the screen the choice is made from.
      */
     private Cursors.Over whatThePointerIsOver() {
-        boolean playing = screen == Screen.PLAYING && !menu.isVisible() && !levelUp.isShowing();
+        boolean playing = screen == Screen.PLAYING && !menu.isVisible();
         if (!playing) {
             return new Cursors.Over(false, null, false, false, false, false);
         }
@@ -3580,37 +3533,11 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * Light whatever the cursor is resting on: a skill slot, or a card.
+     * Light whatever skill slot the cursor is resting on.
      */
     private void updateHover() {
         var cursor = inputManager.getCursorPosition();
-        if (levelUp.isShowing()) {
-            levelUp.hover(levelUp.cardAt(cursor.x, cursor.y));
-            heroPanel.hover(null);
-            return;
-        }
         heroPanel.hover(screen == Screen.PLAYING ? heroPanel.slotAt(cursor.x, cursor.y) : null);
-    }
-
-    /**
-     * A card was taken, by click or by number.
-     *
-     * <p>The client says which one and the game says what that means — the
-     * callback posts a command, and the simulation applies it on a frame boundary
-     * once the world starts again. The screen comes down here rather than waiting
-     * for the next snapshot to stop mentioning it, because the world is not
-     * running yet and that snapshot cannot arrive until it is.
-     */
-    private void takeOffer(int index) {
-        var offer = heroPanel.offer();
-        if (offer == null || index < 0 || index >= offer.cards().size()) {
-            return;
-        }
-        answeredOffer = offer.id();
-        noises.moment("power_taken", (float) timer.getTimeInSeconds());
-        hotkeys.choose(game, index);
-        levelUp.hide();
-        setSimulationPaused(false);
     }
 
     private void updateCamera(float tpf) {
@@ -3651,8 +3578,8 @@ final class DukeRtsApp extends SimpleApplication {
      * is itself a function of how far out the camera is — so shoving at full zoom
      * moves the same amount of <em>screen</em> as shoving up close.
      *
-     * <p>Nothing happens while a menu or the level-up screen is up: those are
-     * moments when the cursor is being used for something else, and a view that
+     * <p>Nothing happens while a menu is up: that is a moment when the cursor is
+     * being used for something else, and a view that
      * drifted out from under a choice would be its own kind of bug.
      *
      * <p>All four edges are the screen's own, the bottom one included. The bar
@@ -3664,8 +3591,7 @@ final class DukeRtsApp extends SimpleApplication {
     private Vector2f edgeShove(float keySpeed) {
         var wanted = visuals.getEdgeScroll();
         var still = new Vector2f(0f, 0f);
-        if (!wanted.wanted() || screen != Screen.PLAYING || menu.isVisible()
-                || levelUp.isShowing()) {
+        if (!wanted.wanted() || screen != Screen.PLAYING || menu.isVisible()) {
             return still;
         }
         var cursor = inputManager.getCursorPosition();
@@ -3853,8 +3779,8 @@ final class DukeRtsApp extends SimpleApplication {
      *
      * <p>The status line is the game talking to its own client and is exactly the
      * seam for this: a string the engine carries and never reads. It already
-     * carries the things a dungeon has that an RTS does not -- the level-up offer,
-     * the note, which stone the floor is built from -- and this is one more.
+     * carries the things a dungeon has that an RTS does not -- the note, which
+     * stone the floor is built from -- and this is one more.
      *
      * <p>Read from the snapshot rather than from the panel, because the panel is
      * about what is SELECTED: the moment the player clicks a skeleton his own

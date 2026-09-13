@@ -36,7 +36,6 @@ final class GameSounds {
     private Map<Integer, UnitView> before = Map.of();
     private String lastDepth = "";
     private String lastNote = "";
-    private boolean offerWasUp;
     private final Map<Character, Boolean> wasCooling = new HashMap<>();
 
     GameSounds(Sounds sounds, float touching) {
@@ -150,11 +149,6 @@ final class GameSounds {
             }
             lastNote = note;
         }
-        boolean offerUp = reading.offer() != null;
-        if (offerUp && !offerWasUp) {
-            sounds.play("power_offer", now);
-        }
-        offerWasUp = offerUp;
         for (var slot : reading.skills()) {
             boolean cooling = slot.state() == HeroPanel.Reading.State.COOLING;
             // Going onto a cooldown is the only outward sign that a skill went
@@ -166,7 +160,7 @@ final class GameSounds {
         }
     }
 
-    /** A moment the player caused directly: an order, a click, a card taken. */
+    /** A moment the player caused directly: an order, a click, a point spent. */
     void moment(String cue, float now) {
         sounds.play(cue, now);
     }

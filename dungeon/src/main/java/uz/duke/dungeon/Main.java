@@ -13,7 +13,6 @@ import uz.duke.core.thing.ObjectId;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.content.HeroLook;
 import uz.duke.dungeon.content.ThemeArt;
-import uz.duke.dungeon.power.ChoosePower;
 import uz.duke.dungeon.skill.CastSkill;
 import uz.duke.dungeon.stage.Stages;
 
@@ -706,11 +705,6 @@ public final class Main {
      */
     static Hotkeys controls(DungeonSettings settings) {
         var keys = Hotkeys.create();
-        // The level-up cards. The client draws them and reports which was taken;
-        // which power that is, and what it is worth, is settled in the simulation
-        // when the command comes round — the same road a keypress travels.
-        keys.onChoose((game, index) -> game.postCommand(new ChoosePower(
-                game.getLocalPlayerIndex(), index, offeredId(game))));
         // The file's default hero to begin with, and whoever is actually chosen
         // the moment he is -- see aimsFor, and whoToPlay, which calls it again.
         aimsFor(keys, settings, settings.playedHero());
@@ -861,30 +855,6 @@ public final class Main {
             }
         }
         return mine;
-    }
-
-    /**
-     * Which offer the player is answering, read back out of the line the game
-     * itself wrote.
-     *
-     * <p>The client knows the number — it is drawing the screen — but handing it
-     * back through the callback would have made a general seam carry one game's
-     * field. Reading it here keeps the client's side of the bargain to "the
-     * player took the second card", which is all it can honestly claim to know.
-     */
-    private static int offeredId(uz.duke.game.DukeGame game) {
-        var status = game.getSnapshot().status();
-        int at = status.indexOf("|offer=");
-        if (at < 0) {
-            return -1;
-        }
-        var field = status.substring(at + "|offer=".length());
-        int comma = field.indexOf(',');
-        try {
-            return Integer.parseInt(comma < 0 ? field : field.substring(0, comma));
-        } catch (NumberFormatException broken) {
-            return -1;
-        }
     }
 
     /**

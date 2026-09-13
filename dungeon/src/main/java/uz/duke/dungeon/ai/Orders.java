@@ -20,8 +20,8 @@ package uz.duke.dungeon.ai;
  * back out, and reaching through it if it did would be worse — a game has no
  * business rummaging in the engine's modules for its own state.
  *
- * <p>Built once per session and handed to both ends the way the power book and
- * the loot bag already are. Deterministic for the same reason they are: it is
+ * <p>Built once per session and handed to both ends the way the loot bag
+ * already is. Deterministic for the same reason it is: it is
  * only ever written while a command is being applied, on the simulation thread,
  * on a frame boundary.
  */

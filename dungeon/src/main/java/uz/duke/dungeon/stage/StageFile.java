@@ -64,8 +64,8 @@ public final class StageFile {
         field(out, "Difficulty", String.valueOf(stage.difficulty()));
         field(out, "Players", String.valueOf(stage.players()));
         out.append("""
-                  ; The seed this floor was cut from. The loot, the level-up cards and the
-                  ; look of the place are still drawn from it, so a stage plays the same
+                  ; The seed this floor was cut from. The loot and the look of the place
+                  ; are still drawn from it, so a stage plays the same
                   ; way every time rather than merely having the same shape.
                 """);
         field(out, "Seed", String.valueOf(stage.seed()));

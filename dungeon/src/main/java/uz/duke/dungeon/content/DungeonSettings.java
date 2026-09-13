@@ -6,8 +6,6 @@ import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
 import uz.duke.dungeon.loot.Loot;
 import uz.duke.dungeon.loot.LootKind;
-import uz.duke.dungeon.power.Power;
-import uz.duke.dungeon.power.PowerEffect;
 import uz.duke.dungeon.skill.Skill;
 import uz.duke.dungeon.skill.SkillEffect;
 import uz.duke.dungeon.level.Levelling;
@@ -143,12 +141,6 @@ public final class DungeonSettings {
 
     /** Every hero's skills, in file order — the order a HUD lists them in. */
     private final java.util.List<Skill> skills = new java.util.ArrayList<>();
-
-    /** Every level-up power, in file order — the order a draw walks through. */
-    private final java.util.List<Power> powers = new java.util.ArrayList<>();
-
-    private int powerOfferCount = 3;
-    private int powerMinCooldownPercent = 25;
 
     /** Everything that can be found on a floor, in file order. */
     private final java.util.List<Loot> loot = new java.util.ArrayList<>();
@@ -443,23 +435,11 @@ public final class DungeonSettings {
                     var skill = new SkillBuilder(reader.getNextToken(), reader.getNextToken());
                     reader.initFromIni(skill, SKILL);
                     settings.skills.add(skill.build());
-                }),
-                Map.entry("DungeonPowers", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, POWER_RULES);
-                }),
-                // Repeatable, headed by the power's id: a new thing to be offered
-                // at level-up is a block here and no Java at all.
-                Map.entry("DungeonPower", (Ini.BlockParser) reader -> {
-                    var power = new PowerBuilder(reader.getNextToken());
-                    reader.initFromIni(power, POWER);
-                    settings.powers.add(power.build());
                 })));
         ini.load();
         if (!readingShippedFile) {
             settings.fillInMissingMonsters();
             settings.fillInMissingSkills();
-            settings.fillInMissingPowers();
             settings.fillInMissingLoot();
         }
         settings.validate();
@@ -512,20 +492,6 @@ public final class DungeonSettings {
         skills.addAll(declared); // skills — and heroes — this file invented
     }
 
-    /** The same rule once more, keyed by the power's id. */
-    private void fillInMissingPowers() {
-        var declared = new java.util.ArrayList<>(powers);
-        powers.clear();
-        for (var shipped : shippedPowers()) {
-            var override = declared.stream()
-                    .filter(power -> power.id().equals(shipped.id()))
-                    .findFirst();
-            powers.add(override.orElse(shipped));
-            override.ifPresent(declared::remove);
-        }
-        powers.addAll(declared); // powers this file invented
-    }
-
     /** The same rule again, keyed by the item's id. */
     private void fillInMissingLoot() {
         var declared = new java.util.ArrayList<>(loot);
@@ -542,7 +508,6 @@ public final class DungeonSettings {
 
     private static final List<MonsterKind> SHIPPED_MONSTERS = new java.util.ArrayList<>();
     private static final List<Skill> SHIPPED_SKILLS = new java.util.ArrayList<>();
-    private static final List<Power> SHIPPED_POWERS = new java.util.ArrayList<>();
     private static final List<Loot> SHIPPED_LOOT = new java.util.ArrayList<>();
     private static boolean readingShippedFile;
 
@@ -563,11 +528,6 @@ public final class DungeonSettings {
         return SHIPPED_SKILLS;
     }
 
-    private static List<Power> shippedPowers() {
-        readShippedFile();
-        return SHIPPED_POWERS;
-    }
-
     private static List<Loot> shippedLoot() {
         readShippedFile();
         return SHIPPED_LOOT;
@@ -582,7 +542,6 @@ public final class DungeonSettings {
             var shipped = parse(Content.read(Content.SETTINGS));
             SHIPPED_MONSTERS.addAll(shipped.monsters);
             SHIPPED_SKILLS.addAll(shipped.skills);
-            SHIPPED_POWERS.addAll(shipped.powers);
             SHIPPED_LOOT.addAll(shipped.loot);
         } finally {
             readingShippedFile = false;
@@ -662,19 +621,6 @@ public final class DungeonSettings {
         for (var item : loot) {
             require(sayable(item.name()),
                     "an item's Name may not contain ',' or '|': " + item.id());
-        }
-        require(powerOfferCount >= 1, "a level-up that offers nothing is not a choice");
-        require(powerMinCooldownPercent > 0 && powerMinCooldownPercent <= 100,
-                "PowerMinCooldownPercent must leave a cooldown to sharpen");
-        for (var power : powers) {
-            require(power.maxStacks() >= 1, "a power that may be taken no times is not a power");
-            require(power.minLevel() >= Levelling.FIRST_LEVEL,
-                    "a power cannot be offered before the first level");
-            // The panel's words cross to the client on one line, with these two
-            // characters separating its fields. A name carrying either would be
-            // read as the end of the card, and the card after it as nonsense.
-            require(sayable(power.name()) && sayable(power.description()),
-                    "a power's Name and Desc may not contain ',' or '|': " + power.id());
         }
         for (var moment : moments) {
             require(!moment.effect.isBlank(), "DungeonMoment " + moment.name + " plays no Effect");
@@ -1250,52 +1196,6 @@ public final class DungeonSettings {
         return lootNoteFrames;
     }
 
-    /** Accumulates one {@code DungeonPower <id>} block. */
-    private static final class PowerBuilder {
-        private final String id;
-        String name;
-        String description = "";
-        String icon = "";
-        PowerEffect effect = PowerEffect.SKILL_DAMAGE;
-        char skillKey = PowerEffect.EVERY_SKILL;
-        int value;
-        int weight = 10;
-        int maxStacks = 1;
-        int minLevel = Levelling.FIRST_LEVEL;
-
-        PowerBuilder(String id) {
-            this.id = id;
-            this.name = id; // a card with no Name at least says which power it is
-        }
-
-        Power build() {
-            return new Power(id, name, description, icon, effect, skillKey, value, weight,
-                    maxStacks, minLevel);
-        }
-    }
-
-    private static final FieldParseTable<PowerBuilder> POWER =
-            new FieldParseTable<PowerBuilder>()
-                    // Words, so the rest of the line: a card's title is a phrase.
-                    .add("Name", Ini.restOfLine((p, v) -> p.name = v))
-                    .add("Desc", Ini.restOfLine((p, v) -> p.description = v))
-                    .add("Icon", Ini.string((p, v) -> p.icon = v))
-                    .add("Effect", Ini.enumeration(PowerEffect.class, (p, v) -> p.effect = v))
-                    // Which skill it is about; a lone star means every one he has.
-                    .add("Skill", Ini.string((p, v) ->
-                            p.skillKey = v.isEmpty() ? PowerEffect.EVERY_SKILL
-                                    : Character.toUpperCase(v.charAt(0))))
-                    .add("Value", Ini.integer((p, v) -> p.value = v))
-                    .add("Weight", Ini.integer((p, v) -> p.weight = v))
-                    .add("MaxStacks", Ini.integer((p, v) -> p.maxStacks = v))
-                    .add("MinLevel", Ini.integer((p, v) -> p.minLevel = v));
-
-    private static final FieldParseTable<DungeonSettings> POWER_RULES =
-            new FieldParseTable<DungeonSettings>()
-                    .add("OfferCount", Ini.integer((s, v) -> s.powerOfferCount = v))
-                    .add("MinCooldownPercent",
-                            Ini.integer((s, v) -> s.powerMinCooldownPercent = v));
-
     /**
      * The modular kit the floor is drawn from, with each piece's full asset path.
      *
@@ -1394,7 +1294,7 @@ public final class DungeonSettings {
      * <p>A list because the roster is the file's. He used to be a set of fields on
      * this class — one hero, and a second block would have silently overwritten
      * the first — which was the one place the data layer could not keep the
-     * promise it keeps about monsters, skills, powers and loot.
+     * promise it keeps about monsters, skills and loot.
      *
      * <p>Empty when the file names none, and then whoever is playing is a coloured
      * shape, as he was before there was a model.
@@ -2747,8 +2647,6 @@ public final class DungeonSettings {
 
     private String hudDepthWord = "DEPTH";
     private String hudRankSuffix = "-lv";
-    private String hudPowersWord = "";
-    private String hudChooseWord = "";
     private String hudChooseHeroWord = "";
     private String hudChooseHeroHint = "";
     private String hudChooseModeWord = "";
@@ -2774,16 +2672,6 @@ public final class DungeonSettings {
      */
     public String hudRankSuffix() {
         return hudRankSuffix;
-    }
-
-    /** The label over the strip of powers he has picked up. */
-    public String hudPowersWord() {
-        return hudPowersWord;
-    }
-
-    /** What the level-up screen says under the new level. */
-    public String hudChooseWord() {
-        return hudChooseWord;
     }
 
     /** The heading over the roster the player is asked to choose from. */
@@ -2978,21 +2866,6 @@ public final class DungeonSettings {
         return hudManaWord;
     }
 
-    private String hudLifestealWord = "";
-
-    /**
-     * What the fourth figure under the bars is called, or empty for a game that
-     * does not show it.
-     *
-     * <p>Empty by default and by the same rule the orders follow: a game that does
-     * not name a thing is not offering it. The number behind it has been counted
-     * since powers existed — see {@code PowerBook.lifestealFraction} — and was
-     * simply never drawn.
-     */
-    public String hudLifestealWord() {
-        return hudLifestealWord;
-    }
-
     private String hudCommandIconFolder = "";
     private String hudStatIconFolder = "";
     private boolean hudPaintedSkillIcons;
@@ -3003,7 +2876,6 @@ public final class DungeonSettings {
     private String hudAttackStatIcon = "";
     private String hudArmourStatIcon = "";
     private String hudSpeedStatIcon = "";
-    private String hudLifestealStatIcon = "";
 
     /**
      * Whether the skill pictures carry their own colours.
@@ -3033,7 +2905,7 @@ public final class DungeonSettings {
      */
     public java.util.List<String> hudStatIcons() {
         return java.util.List.of(inStats(hudAttackStatIcon), inStats(hudArmourStatIcon),
-                inStats(hudSpeedStatIcon), inStats(hudLifestealStatIcon));
+                inStats(hudSpeedStatIcon));
     }
 
     private String inCommands(String icon) {
@@ -3048,8 +2920,6 @@ public final class DungeonSettings {
             new FieldParseTable<DungeonSettings>()
                     .add("DepthWord", Ini.restOfLine((s, v) -> s.hudDepthWord = v))
                     .add("RankSuffix", Ini.restOfLine((s, v) -> s.hudRankSuffix = v))
-                    .add("PowersWord", Ini.restOfLine((s, v) -> s.hudPowersWord = v))
-                    .add("ChooseWord", Ini.restOfLine((s, v) -> s.hudChooseWord = v))
                     // The screen that asks who is being played. Words rather than
                     // pictures, like every other word on the bar: the client draws
                     // four games and speaks none of their languages.
@@ -3089,7 +2959,6 @@ public final class DungeonSettings {
                     .add("CmdAttackWord", Ini.restOfLine((s, v) -> s.hudAttackOrderWord = v))
                     .add("CmdStopWord", Ini.restOfLine((s, v) -> s.hudStopWord = v))
                     .add("CmdGuardWord", Ini.restOfLine((s, v) -> s.hudGuardWord = v))
-                    .add("LifestealWord", Ini.restOfLine((s, v) -> s.hudLifestealWord = v))
                     .add("ManaWord", Ini.restOfLine((s, v) -> s.hudManaWord = v))
                     .add("IconFolder", Ini.string((s, v) -> s.hudIconFolder = v))
                     .add("CommandIconFolder",
@@ -3104,7 +2973,6 @@ public final class DungeonSettings {
                     .add("AttackIcon", Ini.string((s, v) -> s.hudAttackStatIcon = v))
                     .add("ArmourIcon", Ini.string((s, v) -> s.hudArmourStatIcon = v))
                     .add("SpeedIcon", Ini.string((s, v) -> s.hudSpeedStatIcon = v))
-                    .add("LifestealIcon", Ini.string((s, v) -> s.hudLifestealStatIcon = v))
                     .add("SkinFolder", Ini.string((s, v) -> s.hudSkinFolder = v))
                     .add("CursorFolder", Ini.string((s, v) -> s.hudCursorFolder = v))
                     // Panel-wide rather than per-hero: what a portrait costs is a
@@ -3462,21 +3330,6 @@ public final class DungeonSettings {
     /** Every skill in the file, whoever it belongs to. */
     public java.util.List<Skill> skills() {
         return java.util.List.copyOf(skills);
-    }
-
-    /** Every level-up power the file describes, in file order. */
-    public java.util.List<Power> powers() {
-        return java.util.List.copyOf(powers);
-    }
-
-    /** How many cards a level puts on the table. */
-    public int powerOfferCount() {
-        return powerOfferCount;
-    }
-
-    /** How far powers may sharpen a cooldown, as a percentage of what it was. */
-    public int powerMinCooldownPercent() {
-        return powerMinCooldownPercent;
     }
 
     /**

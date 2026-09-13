@@ -36,8 +36,8 @@ import uz.duke.core.GameConstants;
  * cannot parse "Q ready  W 2s".
  *
  * <p>One slab, not a scattering of boxes. The minimap sits in a socket at the
- * left, the portrait and the vitals in the middle, the skills and the powers he
- * has taken at the right, the depth at the far end; the sections are separated by
+ * left, the portrait and the vitals in the middle, the skills at the right, the
+ * depth at the far end; the sections are separated by
  * a carved line rather than by empty screen. That is the Warcraft III arrangement,
  * and it is an arrangement rather than a decoration: everything a player looks at
  * between one click and the next is in one place, so his eyes travel a hand's
@@ -328,9 +328,6 @@ final class HeroPanel {
     /** How far it hangs outside the slot, on both axes. */
     private static final float BADGE_OUT = 7f;
     private static final float SLOT_GAP = 9f;
-    private static final float POWER_CHIP = 22f;
-    private static final float POWER_GAP = 5f;
-    private static final float POWERS_TOP_GAP = 7f;
     private static final float DEPTH_WIDTH = 96f;
     /** The depth numeral, alone and with the bottom of the descent beside it. */
     private static final float DEPTH_LARGE = 34f;
@@ -475,14 +472,12 @@ final class HeroPanel {
     private Geometry experienceFill;
     private BitmapText depthNumber;
     private BitmapText depthWord;
-    private BitmapText powersWord;
     /** A line above the bar for something that just happened and will stop mattering. */
     private BitmapText note;
     private final List<BitmapText> statLabels = new ArrayList<>();
     private final List<BitmapText> statValues = new ArrayList<>();
 
     private final List<Slot> slots = new ArrayList<>();
-    private final List<PowerChip> powerChips = new ArrayList<>();
     /**
      * The keys the slots were built for; a different set means rebuilding them.
      *
@@ -492,15 +487,13 @@ final class HeroPanel {
      * never be built — no sockets, and the block missing from the bar.
      */
     private String builtFor;
-    /** The icons the power strip was built for, same idea. */
-    private String powersBuiltFor = "";
     private float screenWidth;
     private float scale = 1f;
     private boolean showing;
 
     /**
-     * What the last status line said, so a second reader — the level-up screen —
-     * does not have to parse it again.
+     * What the last status line said, so a second reader — the sounds — does not
+     * have to parse it again.
      */
     private Reading reading;
 
@@ -563,7 +556,6 @@ final class HeroPanel {
         buildPortrait();
         buildPortraitVitals();
         buildVitals();
-        buildPowersLabel();
         buildHeadings();
         buildNote();
         buildDepth();
@@ -638,7 +630,6 @@ final class HeroPanel {
             depthNumber.setSize(wanted);
         }
         depthWord.setText(reading.depthWord);
-        powersWord.setText(reading.powersWord);
         skillsWord.setText(reading.skillsWord);
         // Only while he has one. A counter reading nought is a thing to read and
         // dismiss every time the eye passes it; nothing there is nothing to read.
@@ -651,7 +642,6 @@ final class HeroPanel {
         showItems(reading.items, reading.itemsWord);
         tips = reading.tips;
         showSkills(reading.skills, reading);
-        showPowers(reading.powers);
         showOnlyWhatTheCardHas(reading);
         return true;
     }
@@ -702,7 +692,6 @@ final class HeroPanel {
         root.setCullHint(Spatial.CullHint.Always);
     }
 
-    /** The level-up offer the last status line carried, or {@code null} for none. */
     /**
      * The status line as the panel read it.
      *
@@ -713,10 +702,6 @@ final class HeroPanel {
      */
     Reading reading() {
         return reading;
-    }
-
-    Reading.Offer offer() {
-        return reading == null ? null : reading.offer();
     }
 
     /** Whether the bar is on screen at all — nothing may be clicked while it is not. */
@@ -2470,22 +2455,6 @@ final class HeroPanel {
         slot.sweep.setMesh(sweep(slot.size, remaining));
     }
 
-    // ---- the powers he has picked up ----
-
-    /** One mark in the strip under the skills: an icon, and how many he holds. */
-    private static final class PowerChip {
-        private final Node node = new Node("power");
-        private BitmapText count;
-    }
-
-    private final Node powerRow = new Node("powers");
-
-    private void buildPowersLabel() {
-        contents.attachChild(powerRow);
-        powersWord = text(12f, LABEL, 0f, 4f, 70f, BitmapFont.Align.Left);
-        powerRow.attachChild(powersWord);
-    }
-
     /** The gold heading over a block, on a wash that fades out at both ends. */
     private BitmapText heading(Node block, float width) {
         var wash = new Geometry("heading-wash",
@@ -2518,46 +2487,6 @@ final class HeroPanel {
         pointsCount = text(HEADING_SIZE, GOLD_HI, 0f, 0f, skillWidth,
                 BitmapFont.Align.Right);
         skillHeading.attachChild(pointsCount);
-    }
-
-    private void showPowers(List<Reading.PowerReading> reading) {
-        var signature = new StringBuilder();
-        for (var power : reading) {
-            signature.append(power.icon()).append(':').append(power.count()).append(',');
-        }
-        if (signature.toString().equals(powersBuiltFor)) {
-            return;
-        }
-        powersBuiltFor = signature.toString();
-        for (var chip : powerChips) {
-            chip.node.removeFromParent();
-        }
-        powerChips.clear();
-        float x = powersWord.getLocalTranslation().x + 62f;
-        for (var power : reading) {
-            var chip = new PowerChip();
-            attach(chip.node, flat("chip-edge", POWER_CHIP, POWER_CHIP, SOCKET_RIM), 0f, 0f, 0f);
-            attach(chip.node, flat("chip", POWER_CHIP - 2f, POWER_CHIP - 2f, rgb(0x241F19)),
-                    1f, 1f, 1f);
-            var glyph = new Geometry("chip-glyph", Glyphs.of(power.icon(), POWER_CHIP * 0.55f));
-            glyph.setMaterial(lines(TORCH));
-            attach(chip.node, glyph, POWER_CHIP / 2f, POWER_CHIP / 2f, 2f);
-            // Over the glyph, because at this size the rim is the outermost pixel
-            // and the glyph is a sixth of the way in: nothing is covered.
-            framed(chip.node, PanelSkin.CHIP, 0f, 0f, POWER_CHIP, POWER_CHIP, 2.5f);
-            if (power.count() > 1) {
-                // The number rides the corner rather than replacing the icon:
-                // which power it is matters more than how many of it he has.
-                chip.count = text(11f, TORCH, 0f, -3f, POWER_CHIP + 6f, BitmapFont.Align.Right);
-                chip.count.setText("x" + power.count());
-                chip.count.setLocalTranslation(0f, chip.count.getLocalTranslation().y, 3f);
-                chip.node.attachChild(chip.count);
-            }
-            chip.node.setLocalTranslation(x, 0f, 0f);
-            powerRow.attachChild(chip.node);
-            powerChips.add(chip);
-            x += POWER_CHIP + POWER_GAP;
-        }
     }
 
     // ---- placing the whole thing ----
@@ -2692,17 +2621,15 @@ final class HeroPanel {
         }
     }
 
-    /** Skills: a heading, the row of sockets, and the powers strip under it. */
+    /** Skills: a heading, and the row of sockets under it. */
     private void placeSkills(float x, float left) {
         // The pips and their word hang under each slot, so the column is that much
         // taller than the slots are. Measured off the deepest, which is the
         // ultimate's -- it is the one whose foot sits lowest.
         float below = PIP_MARGIN + PIP_HEIGHT + PIP_MARGIN + RANK_TEXT;
-        float columnHeight = HEADING_SIZE + HEADING_GAP + ULT_SLOT + below
-                + POWERS_TOP_GAP + POWER_CHIP;
+        float columnHeight = HEADING_SIZE + HEADING_GAP + ULT_SLOT + below;
         float bottom = (BAND - columnHeight) / 2f;
-        powerRow.setLocalTranslation(x, bottom, 0f);
-        float rowY = bottom + POWER_CHIP + POWERS_TOP_GAP + below;
+        float rowY = bottom + below;
         skillRow.setLocalTranslation(x, rowY, 0f);
         skillHeading.setLocalTranslation(x, rowY + ULT_SLOT + HEADING_GAP, 0f);
         float slotX = 0f;
@@ -3225,10 +3152,10 @@ final class HeroPanel {
     record Reading(String name, String title, String face, String rank,
             float health, float maxHealth,
             float experience, float needed, String depth, String depthWord,
-            String powersWord, String skillsWord, String itemsWord, String note,
-            List<Stat> stats, List<SkillReading> skills, List<PowerReading> powers,
+            String skillsWord, String itemsWord, String note,
+            List<Stat> stats, List<SkillReading> skills,
             List<ItemReading> items, List<OrderReading> orders, boolean ordersAreHis,
-            Offer offer, List<RankReading> ranks, int points, String pointsWord,
+            List<RankReading> ranks, int points, String pointsWord,
             Map<Character, SkillTip.Reading> tips,
             float mana, float maxMana, int refusedForManaAt, List<CostReading> costs) {
 
@@ -3297,25 +3224,6 @@ final class HeroPanel {
         record OrderReading(char key, String icon, String word, boolean on) {
         }
 
-        /** One mark in the powers strip: which drawing, and how many he holds. */
-        record PowerReading(String icon, int count) {
-        }
-
-        /**
-         * The level-up screen, when one is up: which offer it is, its words, its
-         * cards.
-         *
-         * <p>{@code id} is the game's own name for this offer and means nothing
-         * here beyond "not the same one as before" — which is all the client needs
-         * to know it has already been answered.
-         */
-        record Offer(int id, String title, String hint, List<Card> cards) {
-        }
-
-        /** One card on the level-up screen. */
-        record Card(String icon, String name, String description) {
-        }
-
         static Reading parse(String status) {
             if (status == null || !status.startsWith("name=")) {
                 return null;
@@ -3326,7 +3234,6 @@ final class HeroPanel {
             String rank = "";
             String depth = "";
             String depthWord = "";
-            String powersWord = "";
             String skillsWord = "";
             String itemsWord = "";
             String note = "";
@@ -3334,11 +3241,9 @@ final class HeroPanel {
             var experience = new float[] {0f, 0f};
             var skills = new ArrayList<SkillReading>();
             var stats = new ArrayList<Stat>();
-            var powers = new ArrayList<PowerReading>();
             var items = new ArrayList<ItemReading>();
             var orders = new ArrayList<OrderReading>();
             var ordersAreHis = new boolean[] {false};
-            var cards = new ArrayList<Card>();
             var ranks = new ArrayList<RankReading>();
             var costs = new ArrayList<CostReading>();
             var tips = new java.util.LinkedHashMap<Character, SkillTip.Reading>();
@@ -3346,7 +3251,6 @@ final class HeroPanel {
             var refusedAt = new int[] {0};
             int points = 0;
             String pointsWord = "";
-            var offerHead = new String[] {null, null, null};
             for (var field : status.split("\\|")) {
                 int split = field.indexOf('=');
                 if (split < 0) {
@@ -3360,7 +3264,6 @@ final class HeroPanel {
                     case "rank" -> rank = value;
                     case "depth" -> depth = value;
                     case "depthWord" -> depthWord = value;
-                    case "pwWord" -> powersWord = value;
                     case "skWord" -> skillsWord = value;
                     case "itWord" -> itemsWord = value;
                     case "it" -> items.add(item(value));
@@ -3377,9 +3280,6 @@ final class HeroPanel {
                     case "noMana" -> refusedAt[0] = whole(value);
                     case "cost" -> costs.add(cost(value));
                     case "stat" -> stats.add(stat(value));
-                    case "pw" -> powers.add(power(value));
-                    case "offer" -> offerHead[0] = value;
-                    case "opt" -> cards.add(card(value));
                     // "rank" above is the HERO's -- "7-daraja". This is a slot's,
                     // which is a different thing on a different row, so it gets a
                     // name of its own rather than a cleverness.
@@ -3438,17 +3338,16 @@ final class HeroPanel {
                 }
                 if (health == null || experience == null || skills.contains(null)
                         || costs.contains(null)
-                        || stats.contains(null) || powers.contains(null)
-                        || items.contains(null) || orders.contains(null)
-                        || cards.contains(null)) {
+                        || stats.contains(null)
+                        || items.contains(null) || orders.contains(null)) {
                     return null;
                 }
             }
             return new Reading(name, title, face, rank, health[0], health[1],
-                    experience[0], experience[1], depth, depthWord, powersWord, skillsWord,
+                    experience[0], experience[1], depth, depthWord, skillsWord,
                     itemsWord, note, List.copyOf(stats), List.copyOf(skills),
-                    List.copyOf(powers), List.copyOf(items), List.copyOf(orders),
-                    ordersAreHis[0], offer(offerHead[0], cards), List.copyOf(ranks),
+                    List.copyOf(items), List.copyOf(orders),
+                    ordersAreHis[0], List.copyOf(ranks),
                     points, pointsWord, withRaising(tips, ranks),
                     mana == null ? 0f : mana[0], mana == null ? 0f : mana[1],
                     refusedAt[0], List.copyOf(costs));
@@ -3554,42 +3453,6 @@ final class HeroPanel {
             }
             return new OrderReading(parts[0].charAt(0), parts[1], parts[2],
                     "on".equals(parts[3]));
-        }
-
-        /** {@code shot,2} — which drawing, and how many of it. */
-        private static PowerReading power(String value) {
-            var parts = value.split(",");
-            if (parts.length < 2) {
-                return null;
-            }
-            try {
-                return new PowerReading(parts[0], Integer.parseInt(parts[1]));
-            } catch (NumberFormatException e) {
-                return null;
-            }
-        }
-
-        /** {@code shot,O'tkir uch,Q zarari +25%} — a drawing and two lines of words. */
-        private static Card card(String value) {
-            var parts = value.split(",", 3);
-            return parts.length < 3 ? null : new Card(parts[0], parts[1], parts[2]);
-        }
-
-        /** {@code 3,8-daraja,Bittasini tanlang}, and the cards that followed it. */
-        private static Offer offer(String head, List<Card> cards) {
-            if (head == null || cards.isEmpty()) {
-                return null;
-            }
-            var parts = head.split(",", 3);
-            if (parts.length < 3) {
-                return null;
-            }
-            try {
-                return new Offer(Integer.parseInt(parts[0]), parts[1], parts[2],
-                        List.copyOf(cards));
-            } catch (NumberFormatException e) {
-                return null;
-            }
         }
 
         /**

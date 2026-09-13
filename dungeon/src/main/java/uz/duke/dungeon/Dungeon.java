@@ -17,9 +17,6 @@ import uz.duke.dungeon.level.HeroProgress;
 import uz.duke.dungeon.loot.LootBag;
 import uz.duke.dungeon.loot.LootTable;
 import uz.duke.dungeon.loot.LootUpdate;
-import uz.duke.dungeon.power.ChoosePower;
-import uz.duke.dungeon.power.PowerBook;
-import uz.duke.dungeon.power.PowerChoice;
 import uz.duke.dungeon.skill.CastSkill;
 import uz.duke.dungeon.skill.SkillBook;
 import uz.duke.dungeon.skill.Skills;
@@ -91,12 +88,9 @@ public final class Dungeon {
     public record Arena(DukeGame game, GamePlayer hero, GamePlayer dungeon, Orders orders) {
     }
 
-    /**
-     * A game, the run loop that keeps it going, the hero's progression, and the
-     * powers he is offered as he levels.
-     */
+    /** A game, the run loop that keeps it going, and the hero's progression. */
     public record Session(DukeGame game, DungeonRun run, HeroProgress progress,
-            PowerChoice powers, Orders orders) {
+            Orders orders) {
     }
 
     /**
@@ -110,13 +104,9 @@ public final class Dungeon {
         return world(asciiMap, settings, Content.read(Content.CREATURES));
     }
 
-    /**
-     * The same, for a caller with no interest in level-up powers — a fresh book,
-     * empty and staying empty because nothing offers from it.
-     */
+    /** The same, for a caller with no interest in loot: an empty bag. */
     public static Arena world(String asciiMap, DungeonSettings settings, String creaturesIni) {
-        return world(asciiMap, settings, creaturesIni,
-                new PowerBook(settings.powerMinCooldownPercent()), new LootBag());
+        return world(asciiMap, settings, creaturesIni, new LootBag());
     }
 
     /**
@@ -125,8 +115,8 @@ public final class Dungeon {
      * for re-tuned generation.
      */
     public static Arena world(String asciiMap, DungeonSettings settings, String creaturesIni,
-            PowerBook powers, LootBag bag) {
-        return world(asciiMap, null, settings, creaturesIni, powers, bag);
+            LootBag bag) {
+        return world(asciiMap, null, settings, creaturesIni, bag);
     }
 
     /**
@@ -137,7 +127,7 @@ public final class Dungeon {
      * {@code null} and gets the flat world it drew.
      */
     public static Arena world(String asciiMap, String levelMap, DungeonSettings settings,
-            String creaturesIni, PowerBook powers, LootBag bag) {
+            String creaturesIni, LootBag bag) {
         var orders = new Orders();
         // No subtitle here: what this world is called depends on why it was built,
         // and only the caller knows — an endless descent, or one named stage. See
@@ -164,8 +154,7 @@ public final class Dungeon {
                     // and his own DungeonSkill blocks, and no code at all.
                     factory.register("SkillBook",
                             (owner, data) -> new SkillBook(owner,
-                                    settings.skillsFor(owner.getTemplate().getName()), settings,
-                                    powers),
+                                    settings.skillsFor(owner.getTemplate().getName()), settings),
                             SkillBook::parseData);
                     // An archer's shots become things in the world. The engine's
                     // weapon still aims and reloads; these two decide what
@@ -177,13 +166,13 @@ public final class Dungeon {
                     factory.register("EyesOnly",
                             (owner, data) -> new EyesOnly(owner, settings), EyesOnly::parseData);
                     factory.register("ArrowUpdate",
-                            (owner, data) -> new ArrowUpdate(owner, data, powers),
+                            (owner, data) -> new ArrowUpdate(owner, data),
                             ArrowUpdate::parseData);
                     // A blast with a pause in the middle. The mark it leaves is a
                     // thing in the world like the arrow above, so the client draws
                     // the warning without being told anything special.
                     factory.register("FallingUpdate",
-                            (owner, data) -> new FallingUpdate(owner, data, powers),
+                            (owner, data) -> new FallingUpdate(owner, data),
                             FallingUpdate::parseData);
                     // A monster's blow lands where it stands, as it always did.
                     // This is only how the brain finds out that it struck.
@@ -271,24 +260,21 @@ public final class Dungeon {
      * and what it drifted into would be a stage that no longer played like the
      * dungeon it was frozen from.
      *
-     * @param seed what the run's own dice are wound to — the loot, the level-up
-     *             cards and the floor's look. A stage carries the seed it was cut
+     * @param seed what the run's own dice are wound to — the loot and the floor's
+     *             look. A stage carries the seed it was cut
      *             from so that it is the same run every time, not merely the same
      *             rooms
      */
     private static Session open(uz.duke.dungeon.gen.GeneratedDungeon floor, long seed,
             Floors floors, DungeonSettings settings, String subtitle) {
-        // The book is built before the world because the hero's modules read it:
-        // his skills ask it what they hit for, and his arrows what they give back.
-        var book = new PowerBook(settings.powerMinCooldownPercent());
-        // What he has put his levels into. Beside the power book and for the same
-        // reason: a floor gives him a fresh body and a fresh SkillBook, so what he
-        // has learnt has to live somewhere that outlives both.
+        // What he has put his levels into: a floor gives him a fresh body and a
+        // fresh SkillBook, so what he has learnt has to live somewhere that
+        // outlives both.
         var learnt = new uz.duke.dungeon.skill.SkillRanks(settings.skillSpread());
         learnt.startWith(settings.skillsFor(settings.playedHero()));
         var bag = new LootBag();
         var arena = world(floor.asciiMap(), floor.levelMap(), settings,
-                Content.read(Content.CREATURES), book, bag);
+                Content.read(Content.CREATURES), bag);
         var game = arena.game().subtitle(subtitle);
 
         // Told which creature is the hero and what he already wears: both are
@@ -304,10 +290,7 @@ public final class Dungeon {
         // one drops the same things off the same monsters.
         var drops = new LootTable(settings.loot(), seed, settings.lootDropPercent(),
                 settings.lootBossDropPercent(), settings.lootValuePercentPerDepth());
-        // Cards drawn from the run's own seed, so a seed is still a whole run:
-        // the same one offers the same three at the same levels.
-        var powers = new PowerChoice(book, settings.powers(), seed, settings.powerOfferCount());
-        var run = new DungeonRun(arena.hero(), arena.dungeon(), floors, settings, progress, powers,
+        var run = new DungeonRun(arena.hero(), arena.dungeon(), floors, settings, progress,
                 drops, arena.orders(), learnt);
 
         // Q, W, E and R arrive as this game's own command, through the same queue
@@ -324,10 +307,6 @@ public final class Dungeon {
                 // button beside a slot.
                 case uz.duke.dungeon.skill.UpgradeSkill raise ->
                         Skills.raise(learnt, raise, progress.getLevel());
-                // Picking a card is an order like any other: it lands on a frame
-                // boundary rather than reaching in from whatever drew the screen.
-                case ChoosePower choice -> powers.choose(choice.index(), choice.offerId(),
-                        Skills.heroOf(game.getLogic(), choice.playerIndex()));
                 // "Stand and pick no fights", which none of the engine's three
                 // orders can say. See HoldGround.
                 case uz.duke.dungeon.ai.HoldGround hold ->
@@ -357,11 +336,8 @@ public final class Dungeon {
         game.onStart(started -> run.openOn(started, floor));
         game.onTick(run::tick);
         game.onTick(progress::tick);
-        // After progression, which is what it watches: a level appearing is what
-        // puts cards on the table.
-        game.onTick(ignored -> powers.tick(progress.getLevel()));
 
-        return new Session(game, run, progress, powers, arena.orders());
+        return new Session(game, run, progress, arena.orders());
     }
 
 }

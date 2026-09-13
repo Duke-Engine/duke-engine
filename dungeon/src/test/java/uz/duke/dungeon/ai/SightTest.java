@@ -96,7 +96,6 @@ class SightTest {
 
     private static Dungeon.Arena flatWorld(String creaturesIni) {
         return Dungeon.world(arena(NO_WALL), null, SETTINGS, creaturesIni,
-                new uz.duke.dungeon.power.PowerBook(SETTINGS.powerMinCooldownPercent()),
                 new uz.duke.dungeon.loot.LootBag());
     }
 
@@ -122,7 +121,6 @@ class SightTest {
             int skeletonCell) {
         return arena(Dungeon.world(arena(NO_WALL), storeys(raisedFrom, withStair), SETTINGS,
                 uz.duke.dungeon.content.Content.read(uz.duke.dungeon.content.Content.CREATURES),
-                new uz.duke.dungeon.power.PowerBook(SETTINGS.powerMinCooldownPercent()),
                 new uz.duke.dungeon.loot.LootBag()), heroCell, skeletonCell);
     }
 

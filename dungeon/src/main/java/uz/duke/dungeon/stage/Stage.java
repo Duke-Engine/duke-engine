@@ -38,8 +38,8 @@ import uz.duke.dungeon.gen.GeneratedDungeon;
  *                    player in this game yet — but a stage outlives that and an
  *                    author who leaves it out is an author who guessed
  * @param seed        the seed the floor was cut from. Not decoration: the loot
- *                    table, the level-up cards and the floor's own theme are all
- *                    drawn from a run's seed, so a stage that did not carry one
+ *                    table and the floor's own theme are both drawn from a
+ *                    run's seed, so a stage that did not carry one
  *                    would be the same rooms with different everything else
  * @param floor       the dungeon itself, exactly as the generator handed it over
  */

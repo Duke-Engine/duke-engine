@@ -278,20 +278,12 @@ class HeroPanelTest {
         assertTrue(reading.skills().isEmpty());
     }
 
-    // ---- the parts a level-up run adds ----
+    // ---- the parts a run adds ----
 
-    /**
-     * The fuller line: the same hero, plus the figures under his bars, the powers
-     * he has picked up, and three cards waiting to be chosen from.
-     */
+    /** The fuller line: the same hero, plus the figures under his bars and a note. */
     private static final String FULL = LINE
             + "|stat=Zarba,34|stat=Zirh,12|stat=Tezlik,52"
-            + "|pwWord=Kuchlar|pw=shot,2|pw=boot,1"
-            + "|note=O'tkir tig'"
-            + "|offer=3,8-daraja,Bittasini tanlang"
-            + "|opt=shot,O'tkir uch,Q zarari +25%"
-            + "|opt=clock,Tez qo'l,W kuluari -20%"
-            + "|opt=heart,Qon ichuvchi,Zarbadan 10% jon qaytadi";
+            + "|note=O'tkir tig'";
 
     @Test
     void theFiguresUnderTheBarsAreRead() {
@@ -301,36 +293,6 @@ class HeroPanelTest {
         assertEquals("Zarba", stats.get(0).word());
         assertEquals("34", stats.get(0).value());
         assertEquals("Tezlik", stats.get(2).word());
-    }
-
-    @Test
-    void theStripOfPowersIsRead() {
-        var reading = HeroPanel.Reading.parse(FULL);
-
-        assertEquals("Kuchlar", reading.powersWord());
-        assertEquals(2, reading.powers().size());
-        assertEquals("shot", reading.powers().get(0).icon());
-        assertEquals(2, reading.powers().get(0).count(),
-                "three of one card is one mark reading three");
-        assertEquals(1, reading.powers().get(1).count());
-    }
-
-    @Test
-    void theLevelUpCardsAreRead() {
-        var offer = HeroPanel.Reading.parse(FULL).offer();
-
-        assertNotNull(offer);
-        assertEquals(3, offer.id(),
-                "which offer this is, so a late click cannot spend it twice");
-        assertEquals("8-daraja", offer.title());
-        assertEquals("Bittasini tanlang", offer.hint());
-        assertEquals(3, offer.cards().size());
-        assertEquals("shot", offer.cards().get(0).icon());
-        assertEquals("O'tkir uch", offer.cards().get(0).name());
-        // The description is the rest of the field, so a percentage sign or a
-        // dash in it is words rather than punctuation the parser has to survive.
-        assertEquals("Q zarari +25%", offer.cards().get(0).description());
-        assertEquals("Zarbadan 10% jon qaytadi", offer.cards().get(2).description());
     }
 
     /**
@@ -345,19 +307,6 @@ class HeroPanelTest {
         assertEquals("O'tkir tig'", HeroPanel.Reading.parse(FULL).note());
         assertEquals("", HeroPanel.Reading.parse(LINE).note(),
                 "an ordinary frame has nothing to announce");
-    }
-
-    @Test
-    void aLineWithNoOfferHasNoCards() {
-        assertNull(HeroPanel.Reading.parse(LINE).offer(),
-                "an ordinary frame must not put a level-up screen on the player");
-        assertTrue(HeroPanel.Reading.parse(LINE).powers().isEmpty());
-    }
-
-    @Test
-    void anOfferWithoutCardsIsNotAnOffer() {
-        assertNull(HeroPanel.Reading.parse(LINE + "|offer=3,8-daraja,tanlang").offer(),
-                "a heading with nothing under it would be an empty screen with no way out");
     }
 
     // ---- white drawings and painted pictures ----

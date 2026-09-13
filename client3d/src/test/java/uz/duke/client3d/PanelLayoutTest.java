@@ -47,8 +47,7 @@ class PanelLayoutTest {
                     + "|cmd=D,halt,To'xta,off|cmd=F,shield,Himoya,on"
                     + "|itWord=NARSALAR|it=blade,3|it=flask,1|it=shield,2"
                     + "|skWord=MAHORAT"
-                    + "|skill=Q,,ready|skill=W,,cool,72,165|skill=E,,ready|skill=R,,lock,5-daraja"
-                    + "|pwWord=Kuchlar|pw=shot,2|pw=boot,1";
+                    + "|skill=Q,,ready|skill=W,,cool,72,165|skill=E,,ready|skill=R,,lock,5-daraja";
 
     private static Node panel(float width) {
         var assets = new DesktopAssetManager(true);
@@ -163,7 +162,7 @@ class PanelLayoutTest {
         var gui = panel(1600f);
 
         for (var name : List.of("minimap-socket", "orders", "portrait", "vitals",
-                "items", "skills", "powers", "depth", "portrait-bars")) {
+                "items", "skills", "depth", "portrait-bars")) {
             assertNotNull(find(gui, name), name + " is in the design and not on the bar");
         }
     }
@@ -235,7 +234,7 @@ class PanelLayoutTest {
         var gui = panel(1600f);
         float slabTop = 0f;
         for (var name : List.of("minimap-socket", "orders", "portrait", "vitals",
-                "items", "skills", "powers", "portrait-bars")) {
+                "items", "skills", "portrait-bars")) {
             var bound = (BoundingBox) find(gui, name).getWorldBound();
             float bottom = bound.getCenter().y - bound.getYExtent();
             float top = bound.getCenter().y + bound.getYExtent();
