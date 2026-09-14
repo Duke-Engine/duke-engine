@@ -17,6 +17,7 @@ written from there.
 | What | Who | Licence | Where |
 |---|---|---|---|
 | Skill, command and figure icons — all 22 | **Generated with Microsoft Copilot** (AI), cut and resized by `:dungeon:cutIcons` | see the note below | `icons/{skills,commands,stats}/` |
+| Attribute icons — strength, agility, intelligence | **AI-generated**, supplied by the owner as one sheet; cut and resized by `:dungeon:cutIcons` | see the note below | `icons/stats/stat_{strength,agility,intelligence}.png` |
 | Dungeon Pack — floors, walls, stairs | **KayKit** / Kay Lousberg ([kaylousberg.com](https://kaylousberg.com)) | CC0 | `models/tiles/dungeon/` |
 | …and its pillars, barrel and chest | KayKit | CC0 | `models/props/dungeon/` |
 | …and the dirt floors the forest is laid on | KayKit | CC0 | `models/tiles/forest/` |
@@ -268,6 +269,13 @@ All twenty-two pictures the panel draws — ten skills, four order buttons and
 eight figures — were **generated with Microsoft Copilot** and cut out of three
 sheets by `./gradlew :dungeon:cutIcons`. The sheets themselves are kept at
 `dungeon/art/icons/`, outside the resources, so the cut can be run again.
+
+The three attribute pictures — an arm for strength, a runner for agility, a head
+with a brain for intelligence — are **AI-generated** as well, in the same flat
+gold, and came as one sheet from the owner's asset folder. It is kept beside the
+others as `dungeon/art/icons/attributes_sheet.png` and cut the same way:
+`./gradlew :dungeon:cutIcons --args=attributes`. Which generator drew it is not
+recorded, so everything below applies to them exactly as it does to the rest.
 
 The terms are recorded here as what they are, which is **not fully settled**.
 Microsoft's service terms give the user broad rights to what it produces, and

@@ -238,11 +238,12 @@ class ManaTest {
     @Test
     void aLevelGrowsThePoolByWhatHisIntelligenceIsWorth() {
         var rules = SETTINGS.attributeRules();
+        int intelligence = rules.indexOf("INT");
         for (var hero : SETTINGS.heroes()) {
             var his = hero.attributes();
-            int one = his.atLevel(2).intelligence() - his.atLevel(1).intelligence();
+            int one = his.atLevel(2).at(intelligence) - his.atLevel(1).at(intelligence);
             assertTrue(one > 0, hero.name() + "'s intelligence should grow with him");
-            assertEquals(one * 4, his.atLevel(5).intelligence() - his.atLevel(1).intelligence(),
+            assertEquals(one * 4, his.atLevel(5).at(intelligence) - his.atLevel(1).at(intelligence),
                     "four levels are worth exactly four times one");
             assertTrue(rules.mana(his.atLevel(15)) > rules.mana(his.atLevel(1)),
                     hero.name() + "'s pool should deepen with his intelligence");

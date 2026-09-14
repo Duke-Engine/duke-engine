@@ -206,6 +206,8 @@ class DungeonTilesTest {
         var named = new java.util.ArrayList<String>();
         named.addAll(settings.hudOrderIcons());
         named.addAll(settings.hudStatIcons());
+        // And every attribute's, which is named in its own block rather than the panel's.
+        settings.attributeArt().forEach(attribute -> named.add(attribute.icon()));
         for (var path : named) {
             if (path.isBlank()) {
                 continue; // a game that names none draws the letter instead
@@ -214,7 +216,8 @@ class DungeonTilesTest {
                     path + " is named but not shipped");
             checked++;
         }
-        assertTrue(checked >= 7, "four orders and three figures, found " + checked);
+        assertTrue(checked >= 10, "four orders, three figures and three attributes, found "
+                + checked);
     }
 
     /**
@@ -246,7 +249,8 @@ class DungeonTilesTest {
                 checked++;
             }
         }
-        assertTrue(checked >= 22, "ten skills, four orders and eight figures, found " + checked);
+        assertTrue(checked >= 25,
+                "ten skills, four orders, eight figures and three attributes, found " + checked);
     }
 
     /** What is actually in one of the game's icon folders. */

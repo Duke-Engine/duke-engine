@@ -394,37 +394,71 @@ class HeroPanelTest {
         assertEquals("", stats.get(0).icon());
     }
 
-    /** His primary is read off the line, and only his primary. */
+    /** His attributes are read apart from the figures, and his primary is marked. */
     @Test
-    void hisPrimaryIsReadOffTheLine() {
-        var stats = HeroPanel.Reading.parse(LINE
-                + "|stat=Kuch,22,,icons/stats/stat_health.png,primary"
-                + "|stat=Aql,8,,icons/stats/stat_crit.png").stats();
+    void hisAttributesAreReadApartFromTheFiguresWithHisPrimaryMarked() {
+        var reading = HeroPanel.Reading.parse(LINE
+                + "|attr=Kuch,22,,icons/stats/stat_strength.png,primary"
+                + "|attr=Aql,8,+2,icons/stats/stat_intelligence.png"
+                + "|stat=Zarba,30,,icons/stats/stat_attack.png");
 
-        assertTrue(stats.get(0).primary(), "the mark was lost");
-        assertFalse(stats.get(1).primary(), "a figure with no mark is not his primary");
-        assertEquals("icons/stats/stat_health.png", stats.get(0).icon(),
+        assertNotNull(reading, "a line with attributes on it was refused as somebody else's");
+        var attributes = reading.attributes();
+        assertEquals(2, attributes.size());
+        assertTrue(attributes.get(0).primary(), "the mark was lost");
+        assertFalse(attributes.get(1).primary(), "an attribute with no mark is not his primary");
+        assertEquals("icons/stats/stat_strength.png", attributes.get(0).icon(),
                 "and the picture is still where it was");
+        assertEquals("+2", attributes.get(1).bonus(), "what he found, beside it");
+        assertEquals(1, reading.stats().size(), "and a figure is not taken for an attribute");
+        assertEquals("Zarba", reading.stats().get(0).word());
     }
 
-    /** An attribute's card is read by its place on the line. */
+    /** An attribute's card is read by its place in the list, footer and all. */
     @Test
-    void anAttributesCardIsReadByItsPlaceOnTheLine() {
+    void anAttributesCardIsReadByItsPlaceInTheList() {
         var reading = HeroPanel.Reading.parse(LINE
-                + "|stat=Kuch,22,,,primary|stat=Epchillik,10,,"
-                + "|stTipName=0,Kuch|stTipAt=0,Asosiy atribut|stTipText=0,Har bir birlik beradi:"
-                + "|stTipRow=0,Jon,+12,|stTipRow=0,Zarba,+1,"
-                + "|stTipName=1,Epchillik|stTipRow=1,Tezlik,+0.15,");
+                + "|attr=Kuch,22,,,primary|attr=Epchillik,10,,"
+                + "|atTipName=0,Kuch|atTipAt=0,Asosiy atribut|atTipText=0,Har bir birlik beradi:"
+                + "|atTipRow=0,Jon,+12,|atTipRow=0,Zarba,+1,"
+                + "|atTipName=1,Epchillik|atTipRow=1,Tezlik,+0.15,"
+                + "|atTipFoot=1,Hozirgi tezlik: 29");
 
-        assertNotNull(reading, "a line with cards on its figures was refused as somebody else's");
-        var strength = reading.statTips().get(0);
+        assertNotNull(reading, "a line with cards on its attributes was refused as somebody else's");
+        var strength = reading.attributeTips().get(0);
         assertEquals("Kuch", strength.name());
         assertEquals("Asosiy atribut", strength.at());
         assertEquals(2, strength.rows().size());
         assertEquals("+12", strength.rows().get(0).now());
-        assertEquals("+0.15", reading.statTips().get(1).rows().get(0).now(),
-                "a decimal survives the line");
+        assertEquals("", strength.foot(), "a card with nothing under it has no footer");
+        var agility = reading.attributeTips().get(1);
+        assertEquals("+0.15", agility.rows().get(0).now(), "a decimal survives the line");
+        assertEquals("Hozirgi tezlik: 29", agility.foot(), "and how fast he is now, under it");
+        assertTrue(agility.canRaise(), "a footer that tells him something is drawn lit, not refused");
         assertTrue(reading.tips().isEmpty(), "and none of it was taken for a skill's card");
+    }
+
+    /**
+     * An attribute the game adds is read like the others, and nothing here changes.
+     *
+     * <p>The reading half of the promise {@code HeroStatusTest} holds from the writing
+     * end: a fourth attribute in the game's file is a fourth field on the line, and the
+     * panel has nothing of its own to learn about it.
+     */
+    @Test
+    void anAttributeTheGameAddsIsReadLikeTheOthers() {
+        var reading = HeroPanel.Reading.parse(LINE
+                + "|attr=Kuch,10,,icons/stats/stat_strength.png"
+                + "|attr=Epchillik,12,,icons/stats/stat_agility.png,primary"
+                + "|attr=Aql,8,,icons/stats/stat_intelligence.png"
+                + "|attr=Quvvat,7,,icons/stats/stat_vigour.png"
+                + "|atTipName=3,Quvvat|atTipRow=3,Jon,+3,");
+
+        assertNotNull(reading, "a fourth attribute got the line refused");
+        assertEquals(4, reading.attributes().size());
+        assertEquals("Quvvat", reading.attributes().get(3).word());
+        assertEquals("icons/stats/stat_vigour.png", reading.attributes().get(3).icon());
+        assertEquals("Quvvat", reading.attributeTips().get(3).name());
     }
 
     // ---- what a skill costs ----

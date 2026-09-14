@@ -458,70 +458,228 @@ class PanelLayoutTest {
     void aFiguresWordAndItsNumberDoNotMeet() {
         var assets = new DesktopAssetManager(true);
         var font = assets.loadFont("Interface/Fonts/Default.fnt");
-        float room = HeroPanel.roomInAFigure();
+        var look = StatLook.DEFAULT;
 
-        for (var word : List.of("Zarba", "Zirh", "Tezlik", "Qon", "Kuch", "Epchillik", "Aql")) {
-            for (var figure : List.of("0", "34", "129", "10%")) {
-                float wide = width(font, word) + width(font, figure);
-                // A clear gap, not merely a fit: two strings that end and begin
-                // in the same pixel are two strings nobody can tell apart.
-                assertTrue(wide + GAP <= room - HeroPanel.STAT_LENT,
-                        "\"" + word + " " + figure + "\" wants " + Math.round(wide + GAP)
-                                + " of the " + Math.round(room - HeroPanel.STAT_LENT)
-                                + " a figure has before what is lent begins");
-            }
+        // Each list in its own room and its own lettering: the figures down the
+        // left, the attributes down the right.
+        float figureRoom = look.figureColumn() - HeroPanel.COLUMN_GAP - look.figureIcon()
+                - HeroPanel.ICON_GAP;
+        float attributeRoom = HeroPanel.VITALS_WIDTH - HeroPanel.attributeColumnAt(look)
+                - look.attributeIcon() - HeroPanel.ICON_GAP;
+        fits(font, List.of("Zarba", "Zirh", "Tezlik", "Qon"), look.figureText(), figureRoom);
+        fits(font, List.of("Kuch", "Epchillik", "Aql"), look.attributeText(), attributeRoom);
+    }
+
+    /**
+     * The widest word in a list, the widest value lined up after it, and what is lent
+     * after that, all in one row's room — with air between.
+     */
+    private static void fits(com.jme3.font.BitmapFont font, List<String> words, float size,
+            float room) {
+        float lent = HeroPanel.lentRoom(size);
+        float widest = 0f;
+        for (var word : words) {
+            widest = Math.max(widest, width(font, word, size));
+        }
+        for (var figure : List.of("0", "34", "129", "10%")) {
+            // A clear gap, not merely a fit: two strings that end and begin in the
+            // same pixel are two strings nobody can tell apart.
+            float wide = widest + HeroPanel.WORD_GAP + width(font, figure, size);
+            assertTrue(wide + GAP <= room - lent,
+                    "\"" + figure + "\" after the widest of " + words + " wants "
+                            + Math.round(wide + GAP) + " of the " + Math.round(room - lent)
+                            + " a row has before what is lent begins");
         }
         // And the green figure has room of its own at the end of the same line.
-        assertTrue(width(font, "+12") <= HeroPanel.STAT_LENT,
+        assertTrue(width(font, "+12", size) <= lent,
                 "what is lent does not fit the room kept for it");
     }
 
     /** How much clear air a word and the figure beside it want between them. */
     private static final float GAP = 6f;
 
+    /** A hero's line the way the dungeon sends it: three attributes with cards, two figures. */
+    private static final String ATTRIBUTES = LINE.replace(
+            "|stat=Zarba,34,+6|stat=Zirh,12,+2|stat=Tezlik,52",
+            "|attr=Kuch,22,,,primary|attr=Epchillik,10,+4,|attr=Aql,8,,"
+                    + "|atTipName=0,Kuch|atTipRow=0,Jon,+12,"
+                    + "|atTipName=1,Epchillik|atTipRow=1,Tezlik,+0.15,"
+                    + "|atTipFoot=1,Hozirgi tezlik: 29"
+                    + "|atTipName=2,Aql|atTipRow=2,Mana,+5,"
+                    + "|stat=Zarba,34,+6|stat=Zirh,12,+2");
+
     /**
-     * His attributes stand in a row of their own over the figures, and resting the
-     * cursor on one opens its card — where a figure worked out of them has none.
+     * His attributes stand in a list down the right in the game's order, his primary is
+     * drawn large in the middle, and resting the cursor on either opens its card — where
+     * a figure down the left has none.
      */
     @Test
     void anAttributesCardOpensOverItAndAFigureHasNone() {
-        var bar = bar(LINE.replace("|stat=Zarba,34,+6|stat=Zirh,12,+2|stat=Tezlik,52",
-                "|stat=Kuch,22,,,primary|stat=Epchillik,10,|stat=Aql,8,"
-                        + "|stTipName=0,Kuch|stTipRow=0,Jon,+12,"
-                        + "|stat=Zarba,34,+6|stat=Zirh,12,+2|stat=Tezlik,52"));
-        float[] strength = null;
-        float[] attack = null;
+        var bar = bar(ATTRIBUTES);
+        var lowest = new float[3][];
+        var highest = new float[3][];
+        var leftmost = new float[3];
+        java.util.Arrays.fill(leftmost, Float.MAX_VALUE);
+        var found = new java.util.TreeSet<Integer>();
         for (float y = 0f; y < 400f; y += 1f) {
-            for (float x = 0f; x < 1600f; x += 2f) {
-                var at = bar.statAt(x, y);
+            for (float x = 0f; x < 1600f; x += 1f) {
+                var at = bar.attributeAt(x, y);
                 if (at == null) {
                     continue;
                 }
-                if (at == 0 && strength == null) {
-                    strength = new float[] {x, y};
-                }
-                if (at == 3 && attack == null) {
-                    attack = new float[] {x, y};
+                found.add(at);
+                if (at < 3) {
+                    if (lowest[at] == null) {
+                        lowest[at] = new float[] {x, y};
+                    }
+                    highest[at] = new float[] {x, y};
+                    leftmost[at] = Math.min(leftmost[at], x);
                 }
             }
         }
-        assertNotNull(strength, "the cursor found strength nowhere on the bar");
-        assertNotNull(attack, "nor the figures under it");
-        assertTrue(strength[1] > attack[1], "the attributes should stand above the figures");
-        assertEquals(strength[0], attack[0], 2f, "in the same columns");
+        assertEquals(java.util.Set.of(0, 1, 2), found,
+                "the cursor should find the three attributes and nothing else -- no figure");
+        assertTrue(highest[0][1] > highest[1][1] && highest[1][1] > highest[2][1],
+                "strength over agility over intelligence, in the game's order");
+        assertEquals(leftmost[1], leftmost[2], 1f, "the list stands in one column");
+        assertTrue(leftmost[0] < leftmost[1] - 20f,
+                "and his primary is found in the middle as well, left of the list");
 
-        bar.hoverStat(0);
-        assertTrue(bar.tipShowing(), "resting on strength opens its card");
-        bar.hoverStat(3);
-        assertFalse(bar.tipShowing(), "a figure worked out of the attributes has no card");
-        bar.hoverStat(null);
+        bar.hoverAttribute(1);
+        assertTrue(bar.tipShowing(), "resting on agility opens its card");
+        bar.hoverAttribute(7);
+        assertFalse(bar.tipShowing(), "a place with no card opens none");
+        bar.hoverAttribute(null);
         assertFalse(bar.tipShowing());
+    }
+
+    /**
+     * However wide the window and however many attributes the game sends, the block stays
+     * inside its band, its three columns stand in order, and no socket is drawn over
+     * another.
+     *
+     * <p>Measured off the sockets' stone plates, which are geometry and have bounds
+     * headless — the lettering has none until something draws it. A fourth attribute is
+     * the case that matters: the block was sized for three, and a fourth row that ran on
+     * would stand under the stone of the bar.
+     */
+    @Test
+    void theBlockStaysInItsBandWithItsColumnsApartAtEverySize() {
+        var four = ATTRIBUTES.replace("|attr=Aql,8,,", "|attr=Aql,8,,|attr=Quvvat,7,,");
+        for (float width : new float[] {1024f, 1280f, 1600f, 2560f}) {
+            var assets = new DesktopAssetManager(true);
+            var font = assets.loadFont("Interface/Fonts/Default.fnt");
+            var gui = new Node("gui");
+            var hero = new HeroPanel(assets, font, gui, width, PanelSkin.NONE, RangeLook.DEFAULT);
+            assertTrue(hero.show(four, 0f), "the panel should have taken the line at " + width);
+            gui.updateGeometricState();
+
+            var sockets = new java.util.ArrayList<BoundingBox>();
+            for (var child : ((Node) find(gui, "stat-block")).getChildren()) {
+                if ("stat-box".equals(child.getName())) {
+                    sockets.add((BoundingBox) ((Node) child).getChild("stat-edge").getWorldBound());
+                }
+            }
+            assertEquals(2 + 1 + 4, sockets.size(),
+                    "two figures, his primary and four attributes at " + width);
+
+            // Off the bar's trough, not the bar's node: its lettering has no bounds yet
+            // and sits at the node's origin, which is the bottom of the band. And the
+            // scale is the bar's own, which is fitted to the blocks rather than to the
+            // window -- so it is read back from how tall the trough came out.
+            var trough = (BoundingBox) ((Node) find(gui, "experience")).getChild("trough")
+                    .getWorldBound();
+            float scale = (top(trough) - bottom(trough)) / HeroPanel.XP_HEIGHT;
+            float underTheBar = bottom(trough);
+            var column = spanOf(gui, "vitals");
+            for (var socket : sockets) {
+                assertTrue(bottom(socket) >= 10f * scale - 1f,
+                        "a socket hangs below the band at " + width + ": " + bottom(socket)
+                                + " under " + 10f * scale);
+                assertTrue(top(socket) <= underTheBar + 1f,
+                        "a socket climbs into the experience bar at " + width + ": its top "
+                                + top(socket) + ", the bar's bottom " + underTheBar);
+                assertTrue(left(socket) >= column.from() - 1f && right(socket) <= column.to() + 1f,
+                        "a socket leaves the column at " + width);
+            }
+            for (int i = 0; i < sockets.size(); i++) {
+                for (int j = i + 1; j < sockets.size(); j++) {
+                    assertFalse(overlap(sockets.get(i), sockets.get(j)),
+                            "two sockets are drawn over each other at " + width);
+                }
+            }
+            // Built left to right: the two figures, his primary, then the list.
+            float figuresEnd = Math.max(right(sockets.get(0)), right(sockets.get(1)));
+            float listStart = Float.MAX_VALUE;
+            for (int i = 3; i < sockets.size(); i++) {
+                listStart = Math.min(listStart, left(sockets.get(i)));
+            }
+            assertTrue(figuresEnd < left(sockets.get(2)) && right(sockets.get(2)) < listStart,
+                    "figures, then his primary, then the list, at " + width);
+        }
+    }
+
+    private static float bottom(BoundingBox box) {
+        return box.getCenter().y - box.getYExtent();
+    }
+
+    private static float top(BoundingBox box) {
+        return box.getCenter().y + box.getYExtent();
+    }
+
+    private static float left(BoundingBox box) {
+        return box.getCenter().x - box.getXExtent();
+    }
+
+    private static float right(BoundingBox box) {
+        return box.getCenter().x + box.getXExtent();
+    }
+
+    /** Whether two boxes share more than an edge. */
+    private static boolean overlap(BoundingBox a, BoundingBox b) {
+        return Math.abs(a.getCenter().x - b.getCenter().x) < a.getXExtent() + b.getXExtent() - 0.5f
+                && Math.abs(a.getCenter().y - b.getCenter().y)
+                        < a.getYExtent() + b.getYExtent() - 0.5f;
+    }
+
+    /**
+     * A picture the game names and the client cannot find is the first letter of its word,
+     * in the socket where the picture would have been — never an empty socket, and never a
+     * panel that fails to draw.
+     */
+    @Test
+    void aPictureThatIsNotThereIsTheFirstLetterOfItsWord() {
+        var gui = showing(ATTRIBUTES.replace("|attr=Kuch,22,,,primary",
+                "|attr=Kuch,22,,icons/stats/no_such_picture.png,primary"));
+
+        var letters = new java.util.ArrayList<String>();
+        lettersIn(find(gui, "stat-block"), letters);
+        assertEquals(2, java.util.Collections.frequency(letters, "K"),
+                "strength's two sockets -- in the middle and in the list -- should say K: "
+                        + letters);
+        assertTrue(letters.contains("Z"), "and a figure with no picture says its letter: " + letters);
+        assertEquals("E", HeroPanel.initial("epchillik"));
+        assertEquals("?", HeroPanel.initial(" "));
+    }
+
+    private static void lettersIn(Spatial spatial, List<String> letters) {
+        if (spatial instanceof com.jme3.font.BitmapText text && "stat-letter".equals(text.getName())) {
+            letters.add(text.getText());
+        } else if (spatial instanceof Node node) {
+            for (var child : node.getChildren()) {
+                lettersIn(child, letters);
+            }
+        }
     }
 
     /** How wide a string is in the lettering a figure is set in. */
     private static float width(com.jme3.font.BitmapFont font, String words) {
+        return width(font, words, 11f);
+    }
+
+    private static float width(com.jme3.font.BitmapFont font, String words, float size) {
         var line = new com.jme3.font.BitmapText(font);
-        line.setSize(11f);
+        line.setSize(size);
         line.setText(words);
         return line.getLineWidth();
     }

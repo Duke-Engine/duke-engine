@@ -6,6 +6,7 @@ import uz.duke.core.thing.ThingTemplate;
 import uz.duke.dungeon.ai.Doing;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.level.Attribute;
+import uz.duke.dungeon.level.AttributeRules;
 import uz.duke.dungeon.level.HeroFigures;
 import uz.duke.dungeon.level.HeroProgress;
 import uz.duke.dungeon.skill.SkillBook;
@@ -417,8 +418,8 @@ final class HeroStatus {
     }
 
     /**
-     * His three attributes, and the three figures under them: what he hits for, what he
-     * shrugs off, and how fast he moves.
+     * His attributes, and the two figures beside them: what he hits for and what he
+     * shrugs off.
      *
      * <p>The figures come from {@code HeroProgress} rather than being worked out here
      * again: it is the one place the attribute arithmetic is done and the one place it
@@ -430,26 +431,29 @@ final class HeroStatus {
      * own: a figure that only goes up says nothing about whether the last thing he
      * picked up was worth picking up.
      *
-     * <p>The attributes go first, so a panel that lays figures out three to a row puts
-     * them in a row of their own above what they are worked out into. His primary is
-     * marked, and each carries the card that says what one point of it is worth.
+     * <p>Attributes are a field of their own rather than more figures, because the panel
+     * lays them out apart and there are as many of them as the file lists, in its order.
+     * His primary is marked, and each carries the card that says what a point of it is
+     * worth. His speed is not a figure any more: it is what an attribute became, and it
+     * is read on that one's card.
      */
     private static void appendStats(StringBuilder line, GameObject hero, HeroProgress progress,
             DungeonSettings settings) {
         var now = progress.figuresOf(hero, progress.found());
         var bare = progress.figuresOf(hero, HeroFigures.Found.NOTHING);
         var his = progress.getHero();
-        var primary = his.attributes().primary();
-        if (primary != null) {
+        if (his.attributes().hasPrimary()) {
             var rules = settings.attributeRules();
-            int index = 0;
-            for (var attribute : Attribute.values()) {
-                stat(line, settings.hudAttributeWord(attribute), now.attributes().whole(attribute),
-                        bare.attributes().whole(attribute), settings.hudAttributeIcon(attribute));
-                if (attribute == primary) {
+            var art = settings.attributeArt();
+            for (int i = 0; i < art.size(); i++) {
+                boolean primary = i == his.attributes().primary();
+                figure(line, "attr", art.get(i).word(), now.attributes().whole(i),
+                        bare.attributes().whole(i), art.get(i).icon());
+                if (primary) {
                     line.append(",primary");
                 }
-                attributeCard(line, index++, attribute, attribute == primary, rules, settings);
+                attributeCard(line, i, art.get(i).word(), rules.attributes().get(i), primary,
+                        rules, Math.round(now.speed()), settings);
             }
         }
         var levelling = settings.levelling();
@@ -466,43 +470,49 @@ final class HeroStatus {
         stat(line, settings.hudAttackWord(), Math.round(now.attack()), Math.round(bare.attack()),
                 pictures.get(0));
         stat(line, settings.hudArmourWord(), armour, bareArmour, pictures.get(1));
-        stat(line, settings.hudSpeedWord(), Math.round(now.speed()), Math.round(bare.speed()),
-                pictures.get(2));
     }
 
     /**
-     * The card over one attribute: its name, whether it is his primary, and what a
-     * single point of it gives.
+     * The card over one attribute: its name, whether it is his primary, what a single
+     * point of it gives, and — for one that gives speed — how fast he is now.
      *
-     * <p>Sent in the same five kinds of field a skill's card is, keyed by the figure's
-     * place on the line rather than by a key he presses. The numbers are the file's own,
-     * written the way the file wrote them.
+     * <p>Sent in the same kinds of field a skill's card is, keyed by the attribute's place
+     * in the file's list rather than by a key he presses. The numbers are the file's own,
+     * written the way the file wrote them, and only a figure a point actually moves gets
+     * a row, so an attribute the file adds next describes itself.
      */
-    private static void attributeCard(StringBuilder line, int index, Attribute attribute,
-            boolean primary, uz.duke.dungeon.level.AttributeRules rules,
+    private static void attributeCard(StringBuilder line, int index, String word,
+            Attribute attribute, boolean primary, AttributeRules rules, int speedNow,
             DungeonSettings settings) {
-        line.append("|stTipName=").append(index).append(',')
-                .append(settings.hudAttributeWord(attribute));
-        line.append("|stTipAt=").append(index).append(',')
+        line.append("|atTipName=").append(index).append(',').append(word);
+        line.append("|atTipAt=").append(index).append(',')
                 .append(primary ? settings.hudPrimaryWord() : "");
-        if (!settings.hudEachPointWord().isEmpty()) {
-            line.append("|stTipText=").append(index).append(',')
+        var rows = new StringBuilder();
+        cardRow(rows, index, settings.hudHealthWord(), attribute.healthPerPoint());
+        cardRow(rows, index, settings.hudSpeedWord(), attribute.speedPerPoint());
+        cardRow(rows, index, settings.hudManaWord(), attribute.manaPerPoint());
+        if (primary) {
+            cardRow(rows, index, settings.hudAttackWord(), rules.damagePerPrimary());
+        }
+        if (!rows.isEmpty() && !settings.hudEachPointWord().isEmpty()) {
+            line.append("|atTipText=").append(index).append(',')
                     .append(settings.hudEachPointWord());
         }
-        switch (attribute) {
-            case STRENGTH -> cardRow(line, index, settings.hudHealthWord(),
-                    rules.healthPerStrength());
-            case AGILITY -> cardRow(line, index, settings.hudSpeedWord(), rules.speedPerAgility());
-            case INTELLIGENCE -> cardRow(line, index, settings.hudManaWord(),
-                    rules.manaPerIntelligence());
-        }
-        if (primary) {
-            cardRow(line, index, settings.hudAttackWord(), rules.damagePerPrimary());
+        line.append(rows);
+        // His speed was a figure beside the others. It is what this attribute became,
+        // so it is said here, under what a point of it is worth.
+        if (attribute.speedPerPoint() > 0 && !settings.hudSpeedNowWord().isEmpty()) {
+            line.append("|atTipFoot=").append(index).append(',')
+                    .append(settings.hudSpeedNowWord()).append(' ').append(speedNow);
         }
     }
 
+    /** One figure a point gives; nothing for a figure it does not move. */
     private static void cardRow(StringBuilder line, int index, String label, int hundredths) {
-        line.append("|stTipRow=").append(index).append(',').append(label)
+        if (hundredths == 0) {
+            return;
+        }
+        line.append("|atTipRow=").append(index).append(',').append(label)
                 .append(",+").append(hundredths(hundredths)).append(',');
     }
 
@@ -520,7 +530,13 @@ final class HeroStatus {
      * leave the gap where the lending would have gone.
      */
     private static void stat(StringBuilder line, String word, int now, int bare, String icon) {
-        line.append("|stat=").append(word).append(',').append(now).append(',');
+        figure(line, "stat", word, now, bare, icon);
+    }
+
+    /** The same four fields under either name: a figure's, or an attribute's. */
+    private static void figure(StringBuilder line, String field, String word, int now, int bare,
+            String icon) {
+        line.append('|').append(field).append('=').append(word).append(',').append(now).append(',');
         if (now != bare) {
             line.append(now > bare ? "+" : "").append(now - bare);
         }

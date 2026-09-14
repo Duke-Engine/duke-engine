@@ -262,53 +262,62 @@ class HeroStatusTest {
     // ---- what a levelling run adds to the line ----
 
     /**
-     * The figures under the bars come from the creature file and his level, and
-     * are named by {@code dungeon.ini}.
+     * The figures beside his attributes come from the creature file and his level, and
+     * are named by {@code dungeon.ini}. His speed is not one of them any more: it is what
+     * one of his attributes became, and it is read on that attribute's card.
      */
     @Test
-    void theFiguresUnderTheBarsAreThere() {
+    void theFiguresBesideHisAttributesAreThere() {
         var settings = DungeonSettings.load();
         var line = lineFrom(4321L);
 
-        for (var word : new String[] {settings.hudAttackWord(), settings.hudArmourWord(),
-            settings.hudSpeedWord()}) {
+        for (var word : new String[] {settings.hudAttackWord(), settings.hudArmourWord()}) {
             assertFalse(word.isBlank(), "the shipped file should name its own figures");
             assertTrue(line.contains("|stat=" + word + ","), word + " missing from " + line);
         }
+        assertFalse(line.contains("|stat=" + settings.hudSpeedWord() + ","),
+                "his speed is what his agility became, not a figure beside it: " + line);
+        assertFalse(settings.hudSpeedNowWord().isBlank(), "the shipped file should name it");
+        assertTrue(line.contains("|atTipFoot=" + settings.attributeRules().indexOf("AGI") + ","
+                        + settings.hudSpeedNowWord() + " "),
+                "it is said on agility's card instead: " + line);
     }
 
     /**
-     * His three attributes ride the line ahead of the figures, his primary marked,
-     * and each with the card that says what a point of it is worth.
+     * His attributes ride the line as a field of their own, in the file's order, his
+     * primary marked, and each with the card that says what a point of it is worth.
      */
     @Test
     void hisAttributesAreOnTheLineWithHisPrimaryMarked() {
         var settings = DungeonSettings.load();
         var line = lineFrom(4321L);
-        var strength = settings.hudAttributeWord(uz.duke.dungeon.level.Attribute.STRENGTH);
-        var agility = settings.hudAttributeWord(uz.duke.dungeon.level.Attribute.AGILITY);
-        var intelligence = settings.hudAttributeWord(uz.duke.dungeon.level.Attribute.INTELLIGENCE);
+        var art = settings.attributeArt();
+        var rules = settings.attributeRules();
+        int strength = rules.indexOf("STR");
+        int agility = rules.indexOf("AGI");
 
-        for (var word : new String[] {strength, agility, intelligence}) {
-            assertFalse(word.isBlank(), "the shipped file should name its attributes");
-            assertTrue(line.contains("|stat=" + word + ","), word + " missing from " + line);
+        int after = -1;
+        for (var shown : art) {
+            assertFalse(shown.word().isBlank(), "the shipped file should name its attributes");
+            int here = line.indexOf("|attr=" + shown.word() + ",");
+            assertTrue(here > after, shown.word() + " missing, or out of the file's order: " + line);
+            after = here;
         }
-        assertTrue(line.indexOf("|stat=" + intelligence + ",")
-                        < line.indexOf("|stat=" + settings.hudAttackWord() + ","),
-                "the attributes come before the figures worked out of them: " + line);
         assertEquals(1, line.split(java.util.regex.Pattern.quote(",primary"), -1).length - 1,
-                "exactly one of the three is his primary: " + line);
-        assertTrue(line.contains("|stat=" + agility + ",12,,"
-                        + settings.hudAttributeIcon(uz.duke.dungeon.level.Attribute.AGILITY)
-                        + ",primary"),
+                "exactly one of them is his primary: " + line);
+        assertTrue(line.contains("|attr=" + art.get(agility).word() + ",12,,"
+                        + art.get(agility).icon() + ",primary"),
                 "the archer's is agility, twelve of it at the first level: " + line);
-        assertTrue(line.contains("|stTipName=0," + strength), "a card over strength: " + line);
-        assertTrue(line.contains("|stTipRow=0," + settings.hudHealthWord() + ",+12,"),
+        assertTrue(line.contains("|atTipName=" + strength + "," + art.get(strength).word()),
+                "a card over strength: " + line);
+        assertTrue(line.contains("|atTipRow=" + strength + "," + settings.hudHealthWord() + ",+12,"),
                 "which says a point of it is twelve health: " + line);
-        assertTrue(line.contains("|stTipRow=1," + settings.hudAttackWord() + ",+1,"),
+        assertTrue(line.contains("|atTipRow=" + agility + "," + settings.hudAttackWord() + ",+1,"),
                 "and agility's says it is his arrow as well: " + line);
-        assertFalse(line.contains("|stTipRow=0," + settings.hudAttackWord() + ","),
+        assertFalse(line.contains("|atTipRow=" + strength + "," + settings.hudAttackWord() + ","),
                 "strength is not the archer's arrow: " + line);
+        assertFalse(line.contains("|atTipRow=" + strength + "," + settings.hudSpeedWord() + ","),
+                "and a figure a point of it does not move gets no row: " + line);
     }
 
     /** What he picks up of an attribute is green beside the attribute. */
@@ -319,14 +328,52 @@ class HeroStatusTest {
         game.runHeadless(2);
         pickOutTheHero(session);
         session.progress().getLoot().take(new uz.duke.dungeon.loot.Loot("Tome", "Tome", "flask",
-                uz.duke.dungeon.loot.LootKind.STRENGTH, 5, 1, 1), game.getLogic().getFrame(), 60);
+                uz.duke.dungeon.loot.LootKind.ATTRIBUTE, 5, 1, 1, "STR"),
+                game.getLogic().getFrame(), 60);
         game.runHeadless(2);
 
-        var strength = DungeonSettings.load()
-                .hudAttributeWord(uz.duke.dungeon.level.Attribute.STRENGTH);
+        var settings = DungeonSettings.load();
+        var strength = settings.attributeArt().get(settings.attributeRules().indexOf("STR")).word();
         var line = game.getSnapshot().status();
-        assertTrue(line.contains("|stat=" + strength + ",15,+5,"),
+        assertTrue(line.contains("|attr=" + strength + ",15,+5,"),
                 "ten of his own and five he found: " + line);
+    }
+
+    /**
+     * An attribute the file adds rides the line with its card, and no Java was touched.
+     *
+     * <p>The writing half of that promise: vigour is invented in text, the archer is given
+     * some, and the line carries it after the shipped three with its own word, its own
+     * picture and a row for the one figure a point of it moves. {@code HeroPanelTest}
+     * holds the reading half.
+     */
+    @Test
+    void anAttributeTheFileAddsRidesTheLineWithItsCard() {
+        var text = Content.read(Content.SETTINGS)
+                .replace("  Primary = AGI\n", "  Primary = AGI\n  Attribute = VIG 7 0.5\n")
+                + """
+
+                DungeonAttribute Vigour
+                  Short = VIG
+                  Word = Quvvat
+                  Icon = stat_vigour.png
+                  HealthPerPoint = 3
+                End
+                """;
+        var settings = DungeonSettings.parse(text);
+        var session = Dungeon.newSession(4321L, settings);
+        var game = session.game();
+        game.runHeadless(1);
+        pickOutTheHero(session);
+        game.runHeadless(1);
+        var line = game.getSnapshot().status();
+
+        int vigour = line.indexOf("|attr=Quvvat,7,,icons/stats/stat_vigour.png");
+        assertTrue(vigour > line.indexOf("|attr=" + settings.attributeArt().get(2).word() + ","),
+                "vigour, after the shipped three: " + line);
+        assertTrue(line.contains("|atTipName=3,Quvvat"), "with a card of its own: " + line);
+        assertTrue(line.contains("|atTipRow=3," + settings.hudHealthWord() + ",+3,"),
+                "saying what a point of it is worth: " + line);
     }
 
     /**

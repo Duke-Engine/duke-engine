@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.duke.core.module.MoveUpdate;
 import uz.duke.dungeon.content.Content;
@@ -21,12 +22,19 @@ import uz.duke.rts.module.WeaponUpdate;
  */
 class AttributesTest {
 
-    private static final AttributeRules RULES = new AttributeRules(1200, 15, 500, 100);
+    private static final int STR = 0;
+    private static final int AGI = 1;
+    private static final int INT = 2;
 
-    private static final HeroAttributes KNIGHT = new HeroAttributes(Attribute.STRENGTH,
-            Attributes.ofWhole(22, 10, 8), new Attributes(30, 12, 10));
-    private static final HeroAttributes ARCHER = new HeroAttributes(Attribute.AGILITY,
-            Attributes.ofWhole(10, 12, 8), new Attributes(16, 22, 10));
+    private static final AttributeRules RULES = new AttributeRules(List.of(
+            new Attribute("Strength", "STR", 1200, 0, 0),
+            new Attribute("Agility", "AGI", 0, 15, 0),
+            new Attribute("Intelligence", "INT", 0, 0, 500)), 100);
+
+    private static final HeroAttributes KNIGHT = new HeroAttributes(STR,
+            Attributes.ofWhole(22, 10, 8), Attributes.of(30, 12, 10));
+    private static final HeroAttributes ARCHER = new HeroAttributes(AGI,
+            Attributes.ofWhole(10, 12, 8), Attributes.of(16, 22, 10));
 
     private static final HeroBase KNIGHTS_BLOCK = new HeroBase(716f, 19.5f, 0f, 8f);
     private static final HeroBase ARCHERS_BLOCK = new HeroBase(430f, 27.2f, 0f, 2f);
@@ -47,16 +55,32 @@ class AttributesTest {
         assertEquals(0, RULES.mana(Attributes.ofWhole(9, 9, 0)), "only intelligence is mana");
     }
 
+    /**
+     * An attribute is whatever its block says a point is worth, and that can be more than
+     * one figure: each is a sum over every attribute, not a figure owned by one.
+     */
+    @Test
+    void anAttributeCanGiveSeveralFiguresAndTheyAddUp() {
+        var rules = new AttributeRules(List.of(
+                new Attribute("Strength", "STR", 1200, 0, 0),
+                new Attribute("Vigour", "VIG", 500, 10, 200)), 100);
+        var his = Attributes.ofWhole(10, 4);
+
+        assertEquals(120 + 20, rules.health(his), "strength's and vigour's health together");
+        assertEquals(0.4f, rules.speed(his), 0f);
+        assertEquals(8, rules.mana(his));
+    }
+
     // ---- the primary ----
 
     @Test
     void hisPrimaryIsHisAttackAsWell() {
         var his = Attributes.ofWhole(22, 10, 8);
 
-        assertEquals(22f, RULES.attack(his, Attribute.STRENGTH), 0f);
-        assertEquals(10f, RULES.attack(his, Attribute.AGILITY), 0f);
-        assertEquals(8f, RULES.attack(his, Attribute.INTELLIGENCE), 0f);
-        assertEquals(0f, RULES.attack(his, null), 0f, "no primary, no blow out of his attributes");
+        assertEquals(22f, RULES.attack(his, STR), 0f);
+        assertEquals(10f, RULES.attack(his, AGI), 0f);
+        assertEquals(8f, RULES.attack(his, INT), 0f);
+        assertEquals(0f, RULES.attack(his, -1), 0f, "no primary, no blow out of his attributes");
     }
 
     /** A strength hero who finds strength gets both halves of it. */
@@ -129,9 +153,9 @@ class AttributesTest {
         for (var hero : new HeroAttributes[] {KNIGHT, ARCHER}) {
             var one = hero.atLevel(1);
             var two = hero.atLevel(2);
-            int primaryGrew = two.of(hero.primary()) - one.of(hero.primary());
-            for (var attribute : Attribute.values()) {
-                int grew = two.of(attribute) - one.of(attribute);
+            int primaryGrew = two.at(hero.primary()) - one.at(hero.primary());
+            for (int attribute = 0; attribute < RULES.attributes().size(); attribute++) {
+                int grew = two.at(attribute) - one.at(attribute);
                 assertTrue(grew > 0, attribute + " did not grow");
                 if (attribute != hero.primary()) {
                     assertTrue(primaryGrew > grew, hero.primary() + " grew no faster than " + attribute);
@@ -154,17 +178,26 @@ class AttributesTest {
      */
     @Test
     void aFractionOfAPointALevelIsExactAtEveryLevel() {
-        var hero = new HeroAttributes(Attribute.STRENGTH, Attributes.NONE, new Attributes(18, 15, 30));
+        var hero = new HeroAttributes(STR, Attributes.NONE, Attributes.of(18, 15, 30));
 
-        assertEquals(new Attributes(252, 210, 420), hero.atLevel(15),
+        assertEquals(Attributes.of(252, 210, 420), hero.atLevel(15),
                 "fourteen levels of 1.8, 1.5 and 3.0");
         var climbed = hero.atLevel(1);
         for (int level = 2; level <= 15; level++) {
             climbed = climbed.plus(hero.perLevel());
         }
         assertEquals(climbed, hero.atLevel(15), "one jump and fourteen steps are the same hero");
-        assertEquals(25, hero.atLevel(15).whole(Attribute.STRENGTH),
-                "and the panel rounds 25.2 down");
+        assertEquals(25, hero.atLevel(15).whole(STR), "and the panel rounds 25.2 down");
+    }
+
+    /** A place nobody wrote is nothing, however long the list it is compared with. */
+    @Test
+    void aMissingPlaceIsNothingOfThatAttribute() {
+        assertEquals(Attributes.NONE, Attributes.of(0, 0, 0));
+        assertEquals(Attributes.of(5), Attributes.of(5, 0));
+        assertEquals(Attributes.of(5).hashCode(), Attributes.of(5, 0).hashCode());
+        assertEquals(0, Attributes.of(5).at(3));
+        assertEquals(Attributes.of(5, 7), Attributes.of(5).plus(Attributes.of(0, 7)));
     }
 
     // ---- building him ----
@@ -195,17 +228,30 @@ class AttributesTest {
     // ---- the file ----
 
     @Test
+    void theShippedAttributesAreStrengthAgilityAndIntelligenceInThatOrder() {
+        var rules = DungeonSettings.load().attributeRules();
+
+        assertEquals(List.of("STR", "AGI", "INT"),
+                rules.attributes().stream().map(Attribute::shortName).toList());
+        assertEquals(1200, rules.attributes().get(STR).healthPerPoint());
+        assertEquals(15, rules.attributes().get(AGI).speedPerPoint());
+        assertEquals(500, rules.attributes().get(INT).manaPerPoint());
+        assertEquals(100, rules.damagePerPrimary());
+    }
+
+    @Test
     void theShippedHeroesHaveThePrimariesTheirPlayGivesThem() {
         var settings = DungeonSettings.load();
+        var rules = settings.attributeRules();
 
-        assertEquals(Attribute.STRENGTH, settings.heroNamed("Knight").attributes().primary());
-        assertEquals(Attribute.AGILITY, settings.heroNamed("Rogue").attributes().primary());
-        assertEquals(Attribute.INTELLIGENCE, settings.heroNamed("Mage").attributes().primary());
+        assertEquals(rules.indexOf("STR"), settings.heroNamed("Knight").attributes().primary());
+        assertEquals(rules.indexOf("AGI"), settings.heroNamed("Rogue").attributes().primary());
+        assertEquals(rules.indexOf("INT"), settings.heroNamed("Mage").attributes().primary());
         for (var hero : settings.heroes()) {
             var his = hero.attributes();
-            for (var attribute : Attribute.values()) {
+            for (int attribute = 0; attribute < rules.attributes().size(); attribute++) {
                 if (attribute != his.primary()) {
-                    assertTrue(his.perLevel().of(his.primary()) > his.perLevel().of(attribute),
+                    assertTrue(his.perLevel().at(his.primary()) > his.perLevel().at(attribute),
                             hero.name() + "'s primary does not grow fastest");
                 }
             }
@@ -219,19 +265,60 @@ class AttributesTest {
         var text = Content.read(Content.SETTINGS);
         var knight = shipped.heroNamed("Knight").attributes().atLevel(1);
 
-        var richer = DungeonSettings.parse(text.replace("HealthPerStrength = 12",
-                "HealthPerStrength = 20"));
+        var richer = DungeonSettings.parse(text.replace("  HealthPerPoint = 12",
+                "  HealthPerPoint = 20"));
         assertEquals(shipped.attributeRules().health(knight) * 20 / 12,
                 richer.attributeRules().health(knight), "a point of strength is worth what the file says");
 
-        var stronger = DungeonSettings.parse(text.replace("  Strength = 22", "  Strength = 30"));
-        assertEquals(300, stronger.heroNamed("Knight").attributes().base().strength());
+        var stronger = DungeonSettings.parse(text.replace("  Attribute = STR 22 3.0",
+                "  Attribute = STR 30 3.0"));
+        assertEquals(300, stronger.heroNamed("Knight").attributes().base().at(STR));
 
-        var quicker = DungeonSettings.parse(text.replace("  AgiPerLevel = 2.2", "  AgiPerLevel = 3.4"));
-        assertEquals(34, quicker.heroNamed("Rogue").attributes().perLevel().agility());
+        var quicker = DungeonSettings.parse(text.replace("  Attribute = AGI 12 2.2",
+                "  Attribute = AGI 12 3.4"));
+        assertEquals(34, quicker.heroNamed("Rogue").attributes().perLevel().at(AGI));
 
         var swapped = DungeonSettings.parse(text.replace("  Primary = AGI", "  Primary = STR"));
-        assertEquals(Attribute.STRENGTH, swapped.heroNamed("Rogue").attributes().primary());
+        assertEquals(STR, swapped.heroNamed("Rogue").attributes().primary());
+    }
+
+    /**
+     * Another attribute is a block in the file and a line in a hero, and nothing else.
+     *
+     * <p>The whole promise of the list being data: vigour is invented here, in text, and
+     * the knight who names it is the shipped knight with its health and mana on top — the
+     * three shipped attributes keep their places, and the new one takes the next.
+     */
+    @Test
+    void anAttributeTheFileAddsIsAHerosAttributeWithNoJava() {
+        var text = Content.read(Content.SETTINGS)
+                .replace("  Primary = STR\n", "  Primary = STR\n  Attribute = VIG 10 1.0\n")
+                + """
+
+                DungeonAttribute Vigour
+                  Short = VIG
+                  Word = Quvvat
+                  Icon = stat_vigour.png
+                  HealthPerPoint = 3
+                  ManaPerPoint = 2
+                End
+                """;
+        var settings = DungeonSettings.parse(text);
+        var rules = settings.attributeRules();
+
+        assertEquals(List.of("STR", "AGI", "INT", "VIG"),
+                rules.attributes().stream().map(Attribute::shortName).toList());
+        var knight = settings.heroNamed("Knight").attributes();
+        assertEquals(100, knight.base().at(3), "ten vigour, in tenths");
+        var figures = HeroFigures.of(KNIGHTS_BLOCK, 10, knight, rules, 1, HeroFigures.Found.NOTHING);
+        assertEquals(980f + 30f, figures.maxHealth(), 0f, "the shipped knight and ten vigour at three");
+        assertEquals(50 + 20, figures.maxMana(), "and at two mana a point");
+        assertEquals(0, settings.heroNamed("Rogue").attributes().base().at(3),
+                "a hero who names none of it has none");
+
+        var art = settings.attributeArt().get(3);
+        assertEquals("Quvvat", art.word());
+        assertTrue(art.icon().endsWith("stat_vigour.png"), art.icon());
     }
 
     /**
@@ -245,30 +332,35 @@ class AttributesTest {
     void aDecimalIsReadExactlyOrNotAtAll() {
         var exact = DungeonSettings.parse("""
                 DungeonAttributes Conversion
-                  SpeedPerAgility = 0.15
                   DamagePerPrimary = 1.25
+                End
+                DungeonAttribute Agility
+                  Short = AGI
+                  SpeedPerPoint = 0.15
                 End
                 DungeonHero Solo
                   Primary = INT
-                  Strength = 22.5
-                  IntPerLevel = 1.8
+                  Attribute = STR 22.5 0
+                  Attribute = INT 0 1.8
                 End
                 """);
+        var rules = exact.attributeRules();
 
-        assertEquals(15, exact.attributeRules().speedPerAgility());
-        assertEquals(125, exact.attributeRules().damagePerPrimary());
-        assertEquals(225, exact.heroNamed("Solo").attributes().base().strength());
-        assertEquals(18, exact.heroNamed("Solo").attributes().perLevel().intelligence());
+        assertEquals(15, rules.attributes().get(rules.indexOf("AGI")).speedPerPoint());
+        assertEquals(125, rules.damagePerPrimary());
+        assertEquals(225, exact.heroNamed("Solo").attributes().base().at(STR));
+        assertEquals(18, exact.heroNamed("Solo").attributes().perLevel().at(INT));
 
         assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
-                DungeonAttributes Conversion
-                  SpeedPerAgility = 0.155
+                DungeonAttribute Agility
+                  Short = AGI
+                  SpeedPerPoint = 0.155
                 End
                 """), "a third place is refused, not rounded");
         assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
                 DungeonHero Solo
                   Primary = STR
-                  Strength = 22.55
+                  Attribute = STR 22.55 0
                 End
                 """), "and a second place on an attribute");
     }
@@ -277,9 +369,66 @@ class AttributesTest {
     void attributesWithNoPrimaryAreRefused() {
         assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
                 DungeonHero Solo
-                  Strength = 12
+                  Attribute = STR 12 0
                 End
                 """), "a hero with attributes has to say which one he hits with");
+    }
+
+    /** A hero's line is which, what he starts with and what a level adds — all three. */
+    @Test
+    void aHerosAttributeLineHasToBeWhole() {
+        for (var line : new String[] {
+            "  Attribute = LUCK 5 1\n", // no attribute is called that
+            "  Attribute = STR 12\n", // what a level adds is missing
+            "  Attribute = STR 12 1 5\n", // and something is left over
+            "  Attribute = STR 12 1\n  Attribute = Strength 3 0\n", // the same one twice
+        }) {
+            assertThrows(RuntimeException.class, () -> DungeonSettings.parse(
+                    "DungeonHero Solo\n  Primary = STR\n" + line + "End\n"), line);
+        }
+        assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
+                DungeonHero Solo
+                  Primary = LUCK
+                End
+                """), "a primary has to be one of the file's attributes");
+    }
+
+    /** Two attributes answering to one name would leave a hero's line meaning either. */
+    @Test
+    void noTwoAttributesMayAnswerToOneName() {
+        assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
+                DungeonAttribute Might
+                  Short = STR
+                End
+                """));
+    }
+
+    /** An item that gives an attribute names one the file has, and only such an item does. */
+    @Test
+    void anAttributeItemNamesAnAttributeTheFileHas() {
+        var tome = DungeonSettings.parse("""
+                DungeonLootItem Tome
+                  Kind = ATTRIBUTE
+                  Attribute = STR
+                  Value = 3
+                End
+                """);
+        assertTrue(tome.loot().stream().anyMatch(item -> item.attribute().equals("STR")));
+
+        assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
+                DungeonLootItem Tome
+                  Kind = ATTRIBUTE
+                  Attribute = LUCK
+                  Value = 3
+                End
+                """), "no attribute is called that");
+        assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
+                DungeonLootItem Tome
+                  Kind = HEALTH
+                  Attribute = STR
+                  Value = 3
+                End
+                """), "a heart gives health, and naming an attribute on it means nothing");
     }
 
     private static HeroFigures.Found found(int strength, int agility, int intelligence) {

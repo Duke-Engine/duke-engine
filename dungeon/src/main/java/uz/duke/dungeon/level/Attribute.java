@@ -1,32 +1,26 @@
 package uz.duke.dungeon.level;
 
 /**
- * The three things a hero is made of: strength is how much of him there is, agility
- * how fast he moves, and intelligence how much he casts out of.
+ * One attribute the file describes: how a hero's block names it, and what a point of it
+ * is worth.
  *
- * <p>One of the three is his primary, and that one is also what he hits for — see
- * {@link AttributeRules#attack}.
+ * <p>Data rather than a list in Java. A new attribute is a {@code DungeonAttribute} block,
+ * a line in each hero's block and a picture, and nothing here changes — see
+ * {@code dungeon.ini}. What a point can be worth is any of the three figures an attribute
+ * moves at all; whichever attribute is a hero's primary is also his blow, and that is
+ * {@link AttributeRules#damagePerPrimary}'s, not the attribute's.
+ *
+ * @param name           the block's name — Strength
+ * @param shortName      how a hero's block names it — STR
+ * @param healthPerPoint maximum health a point adds, in hundredths
+ * @param speedPerPoint  movement speed a point adds, in hundredths
+ * @param manaPerPoint   maximum mana a point adds, in hundredths
  */
-public enum Attribute {
+public record Attribute(String name, String shortName, int healthPerPoint, int speedPerPoint,
+        int manaPerPoint) {
 
-    STRENGTH("STR"),
-    AGILITY("AGI"),
-    INTELLIGENCE("INT");
-
-    private final String shortName;
-
-    Attribute(String shortName) {
-        this.shortName = shortName;
-    }
-
-    /** The way the file writes it: STR, AGI or INT, or the whole word. */
-    public static Attribute named(String word) {
-        for (var attribute : values()) {
-            if (attribute.shortName.equalsIgnoreCase(word)
-                    || attribute.name().equalsIgnoreCase(word)) {
-                return attribute;
-            }
-        }
-        throw new IllegalArgumentException("'" + word + "' is not an attribute: STR, AGI or INT");
+    /** Whether the file means this one by {@code word}: its short name or its whole one. */
+    public boolean isNamed(String word) {
+        return word != null && (shortName.equalsIgnoreCase(word) || name.equalsIgnoreCase(word));
     }
 }

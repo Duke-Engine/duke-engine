@@ -132,11 +132,10 @@ public final class DungeonSettings {
     private int minDamageTakenPercent = 40;
     private int manaPerKill;
 
-    // ---- what a point of each attribute is worth, in hundredths ----
+    // ---- the attributes, in the file's order ----
 
-    private int healthPerStrength;
-    private int speedPerAgility;
-    private int manaPerIntelligence;
+    private final java.util.List<AttributeBlock> attributes = new java.util.ArrayList<>();
+    /** What a point of a hero's primary adds to his blow, in hundredths. */
     private int damagePerPrimary;
 
     /** Mana given back for a kill; 0 is off, which is the shipped setting. */
@@ -282,12 +281,26 @@ public final class DungeonSettings {
                     reader.getNextToken();
                     reader.initFromIni(settings, LEVELLING);
                 }),
-                // What a point of strength, agility and intelligence is worth to
-                // every hero. Which of them each hero has, and how fast they grow,
-                // is in his own DungeonHero block.
+                // What a point of a hero's primary adds to his blow. What a point of
+                // each attribute is worth otherwise is that attribute's own block,
+                // and which of them each hero has is his DungeonHero block.
                 Map.entry("DungeonAttributes", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, ATTRIBUTES);
+                }),
+                // Repeatable, headed by the attribute's name: the list of attributes
+                // is the file's, in its order, so another one is a block here, a line
+                // in each hero and a picture -- and no Java.
+                Map.entry("DungeonAttribute", (Ini.BlockParser) reader -> {
+                    var attribute = new AttributeBuilder(reader.getNextToken());
+                    reader.initFromIni(attribute, ATTRIBUTE);
+                    settings.attributes.add(attribute.build());
+                }),
+                // How the block of figures and attributes under the hero's experience
+                // bar is drawn. Sizes and colours only: what is in it is the line's.
+                Map.entry("DungeonStatBlock", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings.statBlock, STAT_BLOCK);
                 }),
                 // Repeatable: the block's name is the monster's, so the list of
                 // kinds is the file's, not a constant somewhere in Java.
@@ -489,6 +502,7 @@ public final class DungeonSettings {
             settings.fillInMissingMonsters();
             settings.fillInMissingSkills();
             settings.fillInMissingLoot();
+            settings.fillInMissingAttributes();
         }
         settings.validate();
         return settings;
@@ -554,9 +568,30 @@ public final class DungeonSettings {
         loot.addAll(declared); // items this file invented
     }
 
+    /**
+     * The same rule again, keyed by the attribute's name.
+     *
+     * <p>Order matters more here than anywhere: it is the order a hero's attributes are
+     * held in and the order the panel draws them, so an attribute a file re-tunes keeps
+     * its shipped place.
+     */
+    private void fillInMissingAttributes() {
+        var declared = new java.util.ArrayList<>(attributes);
+        attributes.clear();
+        for (var shipped : shippedAttributes()) {
+            var override = declared.stream()
+                    .filter(attribute -> attribute.rule().name().equals(shipped.rule().name()))
+                    .findFirst();
+            attributes.add(override.orElse(shipped));
+            override.ifPresent(declared::remove);
+        }
+        attributes.addAll(declared); // attributes this file invented
+    }
+
     private static final List<MonsterKind> SHIPPED_MONSTERS = new java.util.ArrayList<>();
     private static final List<Skill> SHIPPED_SKILLS = new java.util.ArrayList<>();
     private static final List<Loot> SHIPPED_LOOT = new java.util.ArrayList<>();
+    private static final List<AttributeBlock> SHIPPED_ATTRIBUTES = new java.util.ArrayList<>();
     private static boolean readingShippedFile;
 
     /**
@@ -581,6 +616,11 @@ public final class DungeonSettings {
         return SHIPPED_LOOT;
     }
 
+    private static List<AttributeBlock> shippedAttributes() {
+        readShippedFile();
+        return SHIPPED_ATTRIBUTES;
+    }
+
     private static void readShippedFile() {
         if (!SHIPPED_MONSTERS.isEmpty() || readingShippedFile) {
             return;
@@ -591,6 +631,7 @@ public final class DungeonSettings {
             SHIPPED_MONSTERS.addAll(shipped.monsters);
             SHIPPED_SKILLS.addAll(shipped.skills);
             SHIPPED_LOOT.addAll(shipped.loot);
+            SHIPPED_ATTRIBUTES.addAll(shipped.attributes);
         } finally {
             readingShippedFile = false;
         }
@@ -670,29 +711,7 @@ public final class DungeonSettings {
         require(xpBase > 0, "XpBase must be positive or no level is ever reached");
         require(xpStep >= 0, "XpStep cannot make later levels cheaper");
         require(armourPercentPerLevel >= 0, "a level cannot take armour away");
-        require(healthPerStrength >= 0 && speedPerAgility >= 0 && manaPerIntelligence >= 0
-                        && damagePerPrimary >= 0,
-                "DungeonAttributes: a point of an attribute cannot take something away");
-        for (var hero : heroes) {
-            var name = "DungeonHero " + hero.name;
-            require(hero.strength >= 0 && hero.agility >= 0 && hero.intelligence >= 0
-                            && hero.strengthPerLevel >= 0 && hero.agilityPerLevel >= 0
-                            && hero.intelligencePerLevel >= 0,
-                    name + ": an attribute cannot be negative, and a level cannot take one away");
-            boolean namesAny = hero.strength != 0 || hero.agility != 0 || hero.intelligence != 0
-                    || hero.strengthPerLevel != 0 || hero.agilityPerLevel != 0
-                    || hero.intelligencePerLevel != 0;
-            require(hero.primary != null || !namesAny,
-                    name + " has attributes and no Primary: say which of STR, AGI and INT he hits with");
-            require(hero.manaRegen >= 0 && hero.healthRegen >= 0,
-                    name + ": what comes back on its own cannot be negative");
-        }
-        // Each is a field on the status line, which splits on these two.
-        require(sayable(hudStrengthWord) && sayable(hudAgilityWord)
-                        && sayable(hudIntelligenceWord) && sayable(hudHealthWord),
-                "the attribute words and HealthWord may not contain ',' or '|'");
-        require(hudPrimaryWord.indexOf('|') < 0 && hudEachPointWord.indexOf('|') < 0,
-                "PrimaryWord and EachPointWord may not contain '|'");
+        validateAttributes();
         require(minDamageTakenPercent > 0 && minDamageTakenPercent <= 100,
                 "the damage floor must leave some way to lose");
         require(levelUpBannerFrames >= 0, "the level-up message cannot last negative frames");
@@ -749,6 +768,80 @@ public final class DungeonSettings {
                 require(skill.hasProjectile(), name + " has no rift to open: name it in Projectile");
             }
         }
+    }
+
+    /**
+     * The attributes, and everything that names one: a hero's lines and his primary, and
+     * an item that gives one.
+     *
+     * <p>Names are checked here rather than where they are read, because a hero's block
+     * may come before the attribute it names, and a partial file's attributes are only
+     * all there once the shipped ones have been filled in.
+     */
+    private void validateAttributes() {
+        require(damagePerPrimary >= 0,
+                "DungeonAttributes: a point of a primary cannot take something away");
+        var rules = attributeRules();
+        for (int i = 0; i < attributes.size(); i++) {
+            var block = attributes.get(i);
+            var name = "DungeonAttribute " + block.rule().name();
+            require(block.rule().healthPerPoint() >= 0 && block.rule().speedPerPoint() >= 0
+                            && block.rule().manaPerPoint() >= 0,
+                    name + ": a point of it cannot take something away");
+            // Both are fields on the status line, which splits on these two.
+            require(sayable(block.word()) && sayable(block.icon()),
+                    name + ": its Word and Icon may not contain ',' or '|'");
+            for (int j = 0; j < i; j++) {
+                var earlier = attributes.get(j).rule();
+                require(!earlier.isNamed(block.rule().name())
+                                && !earlier.isNamed(block.rule().shortName()),
+                        name + " is called what DungeonAttribute " + earlier.name()
+                                + " already is, and a hero could not say which he means");
+            }
+        }
+        for (var hero : heroes) {
+            var name = "DungeonHero " + hero.name;
+            var named = new java.util.HashSet<Integer>();
+            for (var line : hero.attributeLines) {
+                int at = rules.indexOf(line.attribute());
+                require(at >= 0, name + " has " + line.attribute()
+                        + ", and no DungeonAttribute is called that");
+                require(named.add(at), name + " names " + line.attribute() + " twice");
+                require(line.base() >= 0 && line.perLevel() >= 0,
+                        name + ": an attribute cannot be negative, and a level cannot take one away");
+            }
+            require(hero.primary == null || rules.indexOf(hero.primary) >= 0,
+                    name + "'s Primary is " + hero.primary
+                            + ", and no DungeonAttribute is called that");
+            require(hero.primary != null || hero.attributeLines.isEmpty(),
+                    name + " has attributes and no Primary: say which of them he hits with");
+            require(hero.manaRegen >= 0 && hero.healthRegen >= 0,
+                    name + ": what comes back on its own cannot be negative");
+        }
+        for (var item : loot) {
+            var name = "DungeonLootItem " + item.id();
+            if (item.kind() == LootKind.ATTRIBUTE) {
+                require(rules.indexOf(item.attribute()) >= 0, name + " gives "
+                        + item.attribute() + ", and no DungeonAttribute is called that");
+            } else {
+                require(item.attribute().isEmpty(),
+                        name + ": Attribute only means something on an item of Kind = ATTRIBUTE");
+            }
+        }
+        var block = statBlock;
+        require(block.figureIcon > 0f && block.primaryIcon > 0f && block.attributeIcon > 0f,
+                "DungeonStatBlock: a socket has to have a size");
+        require(block.iconShare > 0f && block.iconShare <= 1f,
+                "DungeonStatBlock: IconShare is a share of a socket");
+        require(block.figureRows >= 1 && block.attributeRows >= 1,
+                "DungeonStatBlock: the block keeps room for at least one row of each");
+        require(block.rowGap >= 0f && block.gapUnderBar >= 0f,
+                "DungeonStatBlock: a gap cannot be negative");
+        // Each is a field on the status line, which splits on these two.
+        require(sayable(hudHealthWord) && sayable(hudSpeedNowWord),
+                "HealthWord and SpeedNowWord may not contain ',' or '|'");
+        require(hudPrimaryWord.indexOf('|') < 0 && hudEachPointWord.indexOf('|') < 0,
+                "PrimaryWord and EachPointWord may not contain '|'");
     }
 
     private static boolean sayable(String words) {
@@ -1301,6 +1394,7 @@ public final class DungeonSettings {
         int value;
         int weight = 10;
         int minDepth = 1;
+        String attribute = "";
 
         LootBuilder(String id) {
             this.id = id;
@@ -1308,7 +1402,7 @@ public final class DungeonSettings {
         }
 
         Loot build() {
-            return new Loot(id, name, icon, kind, value, weight, minDepth);
+            return new Loot(id, name, icon, kind, value, weight, minDepth, attribute);
         }
     }
 
@@ -1319,7 +1413,10 @@ public final class DungeonSettings {
                     .add("Kind", Ini.enumeration(LootKind.class, (l, v) -> l.kind = v))
                     .add("Value", Ini.integer((l, v) -> l.value = v))
                     .add("Weight", Ini.integer((l, v) -> l.weight = v))
-                    .add("MinDepth", Ini.integer((l, v) -> l.minDepth = v));
+                    .add("MinDepth", Ini.integer((l, v) -> l.minDepth = v))
+                    // Which attribute a Kind = ATTRIBUTE item gives, by the name a
+                    // hero's block uses for it.
+                    .add("Attribute", Ini.string((l, v) -> l.attribute = v));
 
     private static final FieldParseTable<DungeonSettings> LOOT_RULES =
             new FieldParseTable<DungeonSettings>()
@@ -1467,7 +1564,8 @@ public final class DungeonSettings {
      * shape, as he was before there was a model.
      */
     public java.util.List<HeroLook> heroes() {
-        return heroes.stream().map(HeroBuilder::build).toList();
+        var rules = attributeRules();
+        return heroes.stream().map(hero -> hero.build(rules)).toList();
     }
 
     private String playedHero = "Rogue";
@@ -1505,7 +1603,7 @@ public final class DungeonSettings {
     public HeroLook heroNamed(String templateName) {
         for (var hero : heroes) {
             if (hero.name.equals(templateName)) {
-                return hero.build();
+                return hero.build(attributeRules());
             }
         }
         return HeroLook.NONE;
@@ -1561,14 +1659,10 @@ public final class DungeonSettings {
         int manaRegen;
         int healthRegen;
         int armourPercent;
-        /** His primary, and his three with what a level adds to each — all in tenths. */
-        Attribute primary;
-        int strength;
-        int agility;
-        int intelligence;
-        int strengthPerLevel;
-        int agilityPerLevel;
-        int intelligencePerLevel;
+        /** Which attribute he hits with, as his block names it; null for none. */
+        String primary;
+        /** One per Attribute line, in the order he names them. */
+        final java.util.List<AttributeLine> attributeLines = new java.util.ArrayList<>();
         String model;
         String texture;
         float modelScale = 1f;
@@ -1614,18 +1708,40 @@ public final class DungeonSettings {
             this.name = name;
         }
 
-        HeroLook build() {
-            var attributes = primary == null ? HeroAttributes.NONE
-                    : new HeroAttributes(primary,
-                            new Attributes(strength, agility, intelligence),
-                            new Attributes(strengthPerLevel, agilityPerLevel, intelligencePerLevel));
+        HeroLook build(AttributeRules rules) {
             return new HeroLook(name, title, closeDistance, armourPercent, maxMana, manaRegen,
-                    healthRegen, attributes,
+                    healthRegen, attributes(rules),
                     model, texture,
                     modelScale, facing,
                     animations, idle, walk, attack, hurt, death,
                     java.util.List.copyOf(carried));
         }
+
+        /**
+         * His attributes laid out in the file's order, whatever order his lines name
+         * them in. One he has no line for is none of it, and never grows.
+         */
+        private HeroAttributes attributes(AttributeRules rules) {
+            if (primary == null) {
+                return HeroAttributes.NONE;
+            }
+            int size = rules.attributes().size();
+            var base = new int[size];
+            var perLevel = new int[size];
+            for (var line : attributeLines) {
+                int at = rules.indexOf(line.attribute());
+                if (at >= 0) {
+                    base[at] = line.base();
+                    perLevel[at] = line.perLevel();
+                }
+            }
+            return new HeroAttributes(rules.indexOf(primary), Attributes.of(base),
+                    Attributes.of(perLevel));
+        }
+    }
+
+    /** One {@code Attribute = STR 22 3.0} line: which, what he starts with, what a level adds. */
+    private record AttributeLine(String attribute, int base, int perLevel) {
     }
 
     /**
@@ -2841,15 +2957,10 @@ public final class DungeonSettings {
     private String hudAttackWord = "";
     private String hudArmourWord = "";
     private String hudSpeedWord = "";
-    private String hudStrengthWord = "";
-    private String hudAgilityWord = "";
-    private String hudIntelligenceWord = "";
     private String hudHealthWord = "";
     private String hudPrimaryWord = "";
     private String hudEachPointWord = "";
-    private String hudStrengthStatIcon = "";
-    private String hudAgilityStatIcon = "";
-    private String hudIntelligenceStatIcon = "";
+    private String hudSpeedNowWord = "";
 
     /** The word under the depth numeral on the hero's panel. */
     public String hudDepthWord() {
@@ -2909,7 +3020,10 @@ public final class DungeonSettings {
         return hudStagesBlurb;
     }
 
-    /** The three figures under the bars, in the order the panel writes them. */
+    /**
+     * What the figures beside the attributes are called: attack and armour on a hero's
+     * card, attack and speed on a creature's. Speed is also the row on an attribute's card.
+     */
     public String hudAttackWord() {
         return hudAttackWord;
     }
@@ -2922,22 +3036,16 @@ public final class DungeonSettings {
         return hudSpeedWord;
     }
 
-    /** What an attribute is called on the panel. */
-    public String hudAttributeWord(Attribute attribute) {
-        return switch (attribute) {
-            case STRENGTH -> hudStrengthWord;
-            case AGILITY -> hudAgilityWord;
-            case INTELLIGENCE -> hudIntelligenceWord;
-        };
-    }
-
-    /** The picture beside an attribute, with its folder in front of it. */
-    public String hudAttributeIcon(Attribute attribute) {
-        return inStats(switch (attribute) {
-            case STRENGTH -> hudStrengthStatIcon;
-            case AGILITY -> hudAgilityStatIcon;
-            case INTELLIGENCE -> hudIntelligenceStatIcon;
-        });
+    /**
+     * How each attribute is shown — its word, and its picture with the stat folder in
+     * front of it — in the order the file lists them, which is the order a hero's
+     * attributes are held in.
+     */
+    public java.util.List<AttributeArt> attributeArt() {
+        return attributes.stream()
+                .map(block -> new AttributeArt(block.rule().name(), block.rule().shortName(),
+                        block.word(), inStats(block.icon())))
+                .toList();
     }
 
     /** What maximum health is called on an attribute's card. */
@@ -2953,6 +3061,16 @@ public final class DungeonSettings {
     /** The line over what one point of an attribute gives. */
     public String hudEachPointWord() {
         return hudEachPointWord;
+    }
+
+    /**
+     * What his speed is called on the card of an attribute that gives speed.
+     *
+     * <p>A hero's speed is not a figure beside his attributes: it is what one of them
+     * became, so it is read where that one is explained.
+     */
+    public String hudSpeedNowWord() {
+        return hudSpeedNowWord;
     }
 
     private String hudMonsterFace = "";
@@ -3161,13 +3279,10 @@ public final class DungeonSettings {
                     .add("AttackWord", Ini.restOfLine((s, v) -> s.hudAttackWord = v))
                     .add("ArmourWord", Ini.restOfLine((s, v) -> s.hudArmourWord = v))
                     .add("SpeedWord", Ini.restOfLine((s, v) -> s.hudSpeedWord = v))
-                    .add("StrengthWord", Ini.restOfLine((s, v) -> s.hudStrengthWord = v))
-                    .add("AgilityWord", Ini.restOfLine((s, v) -> s.hudAgilityWord = v))
-                    .add("IntelligenceWord",
-                            Ini.restOfLine((s, v) -> s.hudIntelligenceWord = v))
                     .add("HealthWord", Ini.restOfLine((s, v) -> s.hudHealthWord = v))
                     .add("PrimaryWord", Ini.restOfLine((s, v) -> s.hudPrimaryWord = v))
                     .add("EachPointWord", Ini.restOfLine((s, v) -> s.hudEachPointWord = v))
+                    .add("SpeedNowWord", Ini.restOfLine((s, v) -> s.hudSpeedNowWord = v))
                     .add("MonsterFace", Ini.string((s, v) -> s.hudMonsterFace = v))
                     .add("SkillsWord", Ini.restOfLine((s, v) -> s.hudSkillsWord = v))
                     .add("PointsWord", Ini.restOfLine((s, v) -> s.hudPointsWord = v))
@@ -3203,10 +3318,6 @@ public final class DungeonSettings {
                     .add("AttackIcon", Ini.string((s, v) -> s.hudAttackStatIcon = v))
                     .add("ArmourIcon", Ini.string((s, v) -> s.hudArmourStatIcon = v))
                     .add("SpeedIcon", Ini.string((s, v) -> s.hudSpeedStatIcon = v))
-                    .add("StrengthIcon", Ini.string((s, v) -> s.hudStrengthStatIcon = v))
-                    .add("AgilityIcon", Ini.string((s, v) -> s.hudAgilityStatIcon = v))
-                    .add("IntelligenceIcon",
-                            Ini.string((s, v) -> s.hudIntelligenceStatIcon = v))
                     .add("SkinFolder", Ini.string((s, v) -> s.hudSkinFolder = v))
                     .add("CursorFolder", Ini.string((s, v) -> s.hudCursorFolder = v))
                     // Panel-wide rather than per-hero: what a portrait costs is a
@@ -3258,20 +3369,12 @@ public final class DungeonSettings {
                     .add("ManaRegen", Ini.integer((s, v) -> s.manaRegen = v))
                     .add("HealthRegen", Ini.integer((s, v) -> s.healthRegen = v))
                     .add("ArmourPercent", Ini.integer((s, v) -> s.armourPercent = v))
-                    // His three and which one he hits with. Written as decimals and
+                    // Which attribute he hits with, and a line for each he has: which,
+                    // what he starts with, what a level adds. The numbers are decimals
                     // read into exact tenths, never through a float: a level of 1.8
-                    // strength fifteen times over has to be 27 on every machine.
-                    .add("Primary", Ini.string((s, v) -> s.primary = Attribute.named(v)))
-                    .add("Strength", (ini, s) -> s.strength = exactly(ini, "Strength", 1))
-                    .add("Agility", (ini, s) -> s.agility = exactly(ini, "Agility", 1))
-                    .add("Intelligence",
-                            (ini, s) -> s.intelligence = exactly(ini, "Intelligence", 1))
-                    .add("StrPerLevel",
-                            (ini, s) -> s.strengthPerLevel = exactly(ini, "StrPerLevel", 1))
-                    .add("AgiPerLevel",
-                            (ini, s) -> s.agilityPerLevel = exactly(ini, "AgiPerLevel", 1))
-                    .add("IntPerLevel",
-                            (ini, s) -> s.intelligencePerLevel = exactly(ini, "IntPerLevel", 1))
+                    // fifteen times over has to be 27 on every machine.
+                    .add("Primary", Ini.string((s, v) -> s.primary = v))
+                    .add("Attribute", (ini, s) -> s.attributeLines.add(attributeLine(ini)))
                     .add("Model", Ini.string((s, v) -> s.model = v))
                     .add("Texture", Ini.string((s, v) -> s.texture = v))
                     .add("ModelScale", Ini.real((s, v) -> s.modelScale = v))
@@ -3411,14 +3514,139 @@ public final class DungeonSettings {
 
     private static final FieldParseTable<DungeonSettings> ATTRIBUTES =
             new FieldParseTable<DungeonSettings>()
-                    .add("HealthPerStrength",
-                            (ini, s) -> s.healthPerStrength = exactly(ini, "HealthPerStrength", 2))
-                    .add("SpeedPerAgility",
-                            (ini, s) -> s.speedPerAgility = exactly(ini, "SpeedPerAgility", 2))
-                    .add("ManaPerIntelligence",
-                            (ini, s) -> s.manaPerIntelligence = exactly(ini, "ManaPerIntelligence", 2))
                     .add("DamagePerPrimary",
                             (ini, s) -> s.damagePerPrimary = exactly(ini, "DamagePerPrimary", 2));
+
+    /** Accumulates one {@code DungeonAttribute <name>} block. */
+    private static final class AttributeBuilder {
+        private final String name;
+        String shortName;
+        String word = "";
+        String icon = "";
+        int healthPerPoint;
+        int speedPerPoint;
+        int manaPerPoint;
+
+        AttributeBuilder(String name) {
+            this.name = name;
+            this.shortName = name;
+        }
+
+        AttributeBlock build() {
+            return new AttributeBlock(
+                    new Attribute(name, shortName, healthPerPoint, speedPerPoint, manaPerPoint),
+                    word.isBlank() ? name : word, icon);
+        }
+    }
+
+    /** One attribute as the file describes it: what a point is worth, and how it is shown. */
+    private record AttributeBlock(Attribute rule, String word, String icon) {
+    }
+
+    private static final FieldParseTable<AttributeBuilder> ATTRIBUTE =
+            new FieldParseTable<AttributeBuilder>()
+                    // How a hero's block names it. The block's own name does as well.
+                    .add("Short", Ini.string((a, v) -> a.shortName = v))
+                    // What the panel calls it, and the picture beside it.
+                    .add("Word", Ini.restOfLine((a, v) -> a.word = v))
+                    .add("Icon", Ini.string((a, v) -> a.icon = v))
+                    // What a point of it adds, in exact hundredths. A figure the block
+                    // leaves out, it adds none of.
+                    .add("HealthPerPoint",
+                            (ini, a) -> a.healthPerPoint = exactly(ini, "HealthPerPoint", 2))
+                    .add("SpeedPerPoint",
+                            (ini, a) -> a.speedPerPoint = exactly(ini, "SpeedPerPoint", 2))
+                    .add("ManaPerPoint",
+                            (ini, a) -> a.manaPerPoint = exactly(ini, "ManaPerPoint", 2));
+
+    /** {@code Attribute = STR 22 3.0}: which, what he starts with, and what a level adds. */
+    private static AttributeLine attributeLine(Ini ini) {
+        var attribute = ini.getNextToken();
+        var field = "Attribute " + attribute;
+        int base = exactly(ini, field, 1);
+        int perLevel = exactly(ini, field, 1);
+        var more = ini.getNextTokenOrNull();
+        if (more != null) {
+            throw new IllegalArgumentException("dungeon.ini: " + field + " has " + more
+                    + " after its two numbers: an attribute line is which, what he starts"
+                    + " with, and what a level adds");
+        }
+        return new AttributeLine(attribute, base, perLevel);
+    }
+
+    // ---- the block under the experience bar ----
+
+    private final StatBlockBuilder statBlock = new StatBlockBuilder();
+
+    /** How the block of figures and attributes under the hero's experience bar is drawn. */
+    public StatBlockArt statBlockArt() {
+        return statBlock.build();
+    }
+
+    /** Accumulates the {@code DungeonStatBlock} block; a file that leaves a line out gets these. */
+    private static final class StatBlockBuilder {
+        float figureIcon = 30f;
+        float primaryIcon = 44f;
+        float attributeIcon = 24f;
+        float iconShare = 0.8f;
+        float rowGap = 2f;
+        float gapUnderBar = 6f;
+        float figureColumn = 150f;
+        float primaryColumn = 74f;
+        int figureRows = 2;
+        int attributeRows = 3;
+        float figureText = 12f;
+        float attributeText = 11f;
+        float primaryText = 14f;
+        int labelColour = 0x8B8171;
+        int valueColour = 0xD9CFBA;
+        int primaryColour = 0xF0D48A;
+        int attributeColour = 0xC9A24B;
+        int gainColour = 0x7FBF6A;
+        int frameColour = 0xF0D48A;
+        int figureTint = 0xC9A24B;
+        int primaryTint = 0xFFFFFF;
+        int attributeTint = 0xC9A24B;
+
+        StatBlockArt build() {
+            return new StatBlockArt(figureIcon, primaryIcon, attributeIcon, iconShare, rowGap,
+                    gapUnderBar, figureColumn, primaryColumn, figureRows, attributeRows,
+                    figureText, attributeText, primaryText, labelColour, valueColour,
+                    primaryColour, attributeColour, gainColour, frameColour, figureTint,
+                    primaryTint, attributeTint);
+        }
+    }
+
+    /** A colour written the way every other colour in the file is: {@code 0xF0D48A}. */
+    private static <T> uz.duke.core.ini.FieldParser<T> colour(
+            java.util.function.ObjIntConsumer<T> setter) {
+        return (ini, instance) -> setter.accept(instance, Integer.decode(ini.getNextToken()));
+    }
+
+    private static final FieldParseTable<StatBlockBuilder> STAT_BLOCK =
+            new FieldParseTable<StatBlockBuilder>()
+                    .add("FigureIcon", Ini.real((b, v) -> b.figureIcon = v))
+                    .add("PrimaryIcon", Ini.real((b, v) -> b.primaryIcon = v))
+                    .add("AttributeIcon", Ini.real((b, v) -> b.attributeIcon = v))
+                    .add("IconShare", Ini.real((b, v) -> b.iconShare = v))
+                    .add("RowGap", Ini.real((b, v) -> b.rowGap = v))
+                    .add("GapUnderBar", Ini.real((b, v) -> b.gapUnderBar = v))
+                    .add("FigureColumn", Ini.real((b, v) -> b.figureColumn = v))
+                    .add("PrimaryColumn", Ini.real((b, v) -> b.primaryColumn = v))
+                    .add("FigureRows", Ini.integer((b, v) -> b.figureRows = v))
+                    .add("AttributeRows", Ini.integer((b, v) -> b.attributeRows = v))
+                    .add("FigureText", Ini.real((b, v) -> b.figureText = v))
+                    .add("AttributeText", Ini.real((b, v) -> b.attributeText = v))
+                    .add("PrimaryText", Ini.real((b, v) -> b.primaryText = v))
+                    .add("LabelColour", colour((b, v) -> b.labelColour = v))
+                    .add("ValueColour", colour((b, v) -> b.valueColour = v))
+                    .add("PrimaryColour", colour((b, v) -> b.primaryColour = v))
+                    .add("AttributeColour", colour((b, v) -> b.attributeColour = v))
+                    .add("GainColour", colour((b, v) -> b.gainColour = v))
+                    .add("FrameColour", colour((b, v) -> b.frameColour = v))
+                    .add("FigureTint", colour((b, v) -> b.figureTint = v))
+                    .add("PrimaryTint", colour((b, v) -> b.primaryTint = v))
+                    .add("AttributeTint", colour((b, v) -> b.attributeTint = v));
 
     /**
      * The next number in the file as a whole count of tenths or hundredths — exactly, or
@@ -3624,9 +3852,12 @@ public final class DungeonSettings {
                 minDamageTakenPercent);
     }
 
-    /** What a point of each attribute is worth, to every hero alike. */
+    /**
+     * Every attribute the file describes, in its order, and what a point of each is
+     * worth — to every hero alike.
+     */
     public AttributeRules attributeRules() {
-        return new AttributeRules(healthPerStrength, speedPerAgility, manaPerIntelligence,
+        return new AttributeRules(attributes.stream().map(AttributeBlock::rule).toList(),
                 damagePerPrimary);
     }
 

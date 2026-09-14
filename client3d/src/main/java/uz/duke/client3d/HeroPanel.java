@@ -239,8 +239,6 @@ final class HeroPanel {
     private static final float HEADING_SIZE = 12f;
     private static final float HEADING_GAP = 6f;
 
-    /** The little square a stat's drawing sits in, beside its word. */
-    static final float STAT_ICON = 20f;
     private static final float BAR_HEIGHT = 17f;
 
     /**
@@ -253,7 +251,7 @@ final class HeroPanel {
      * which is what let the level badge under the portrait go — the level was
      * being said twice, and this is the place the eye already is.
      */
-    private static final float XP_HEIGHT = 30f;
+    static final float XP_HEIGHT = 30f;
     /** How far apart the slants across a filling bar are drawn. */
     private static final float XP_SLANT_PITCH = 14f;
     /** And how wide each of them is: the design's six in fourteen. */
@@ -270,44 +268,84 @@ final class HeroPanel {
     private static final float NAME_HEIGHT = 20f;
     private static final float TITLE_HEIGHT = 15f;
     /**
-     * The gutter between one figure's cell and the next.
-     *
-     * <p>Six rather than ten, which is four pixels a cell won back for the
-     * lettering — and it costs nothing, because the next cell opens with a
-     * drawing in a socket of its own and that socket is its own left edge.
+     * Everything in the column above the block of figures: his name, what he is, the gap
+     * under that, and the experience bar. The block has what is left of the band.
      */
-    static final float STAT_GAP = 6f;
-    /**
-     * How many figures stand side by side under the bars: three, so a hero's three
-     * attributes make a row of their own over the three figures worked out of them.
-     */
-    static final int STAT_COLUMNS = 3;
-    /** How many rows of figures the column keeps room for. */
-    static final int STAT_ROWS = 2;
-    /** From one row of figures down to the next. */
-    static final float STAT_ROW_STEP = STAT_ICON + 8f;
+    static final float ABOVE_THE_BLOCK = 27f + 18f + 12f + XP_HEIGHT;
+
+    /** The ring of bright gold round his primary's socket. */
+    static final float PRIMARY_FRAME = 2f;
+
+    /** Between a socket and the word beside it. */
+    static final float ICON_GAP = 6f;
+
+    /** Between one column of the block and the next. */
+    static final float COLUMN_GAP = 8f;
+
+    /** Between the longest word in a column and the values lined up after it. */
+    static final float WORD_GAP = 6f;
 
     /**
-     * How much of a figure's cell is kept for what is lent, in pixels.
+     * How tall the block is kept, whatever arrives in it: room for the rows the game sized
+     * it for, and never more than the band has left under the experience bar.
      *
-     * <p>Kept whether anything is lent or not, so the figure beside it does not
-     * shuffle sideways the moment he picks up a sword. A column of numbers that
-     * moves is a column nobody can compare down.
+     * <p>Fixed rather than fitted to each card, because the name, the title and the bar
+     * are centred in the band together with it — a block that grew for a card with a
+     * fourth attribute would move the hero's name.
      */
-    static final float STAT_LENT = 20f;
+    static float blockHeight(StatLook look) {
+        float figures = rowsTall(look.figureRows(), look.figureIcon(), look.rowGap());
+        float primary = look.primaryIcon() + PRIMARY_FRAME * 2f + 2f + look.primaryText();
+        float attributes = rowsTall(look.attributeRows(), look.attributeIcon(), look.rowGap());
+        return Math.min(Math.max(figures, Math.max(primary, attributes)),
+                BAND - ABOVE_THE_BLOCK - look.gapUnderBar());
+    }
 
-    /** Between a figure's drawing and the word beside it. */
-    static final float STAT_ICON_GAP = 5f;
+    private static float rowsTall(int rows, float icon, float gap) {
+        return rows <= 0 ? 0f : rows * icon + (rows - 1) * gap;
+    }
 
     /**
-     * How much of a figure's cell the word and the number share.
+     * How {@code count} rows go into a column this tall: the size each socket is drawn at,
+     * and the step from one row down to the next.
      *
-     * <p>Worked out here rather than written down, so that the test which checks
-     * the shipped words fit in it is checking the same arithmetic the panel lays
-     * out by rather than a copy of it.
+     * <p>The size the game asked for while they fit. Past that they close up — the gaps
+     * first, then the sockets themselves — rather than run off the bottom of the bar: a
+     * game that adds a fourth attribute gets four smaller rows, not a fourth one under
+     * the stone.
      */
-    static float roomInAFigure() {
-        return VITALS_WIDTH / STAT_COLUMNS - STAT_ICON - STAT_ICON_GAP - STAT_GAP;
+    static float[] rowsIn(int count, float icon, float gap, float height) {
+        if (count <= 1 || rowsTall(count, icon, gap) <= height) {
+            float size = Math.min(icon, height);
+            return new float[] {size, size + gap};
+        }
+        if (count * icon <= height) {
+            return new float[] {icon, icon + (height - count * icon) / (count - 1)};
+        }
+        float size = height / count;
+        return new float[] {size, size};
+    }
+
+    /** The size a row's lettering is set in: what the game asked for, never taller than the row. */
+    static float letteringFor(float wanted, float row) {
+        return Math.min(wanted, Math.max(6f, row - 4f));
+    }
+
+    /**
+     * How much of a row is kept for what is lent: room for "+12" at that size.
+     *
+     * <p>Kept whether anything is lent or not, so the value beside it does not shuffle
+     * sideways the moment he picks up a sword. A column of numbers that moves is a column
+     * nobody can compare down.
+     */
+    static float lentRoom(float lettering) {
+        return lettering * 2f;
+    }
+
+    /** Where the list of attributes starts across the column. */
+    static float attributeColumnAt(StatLook look) {
+        return Math.min(look.figureColumn() + look.primaryColumn() + COLUMN_GAP,
+                VITALS_WIDTH - 80f);
     }
     private static final float SLOT = 58f;
     private static final float ULT_SLOT = 64f;
@@ -481,8 +519,6 @@ final class HeroPanel {
     private BitmapText depthWord;
     /** A line above the bar for something that just happened and will stop mattering. */
     private BitmapText note;
-    private final List<BitmapText> statLabels = new ArrayList<>();
-    private final List<BitmapText> statValues = new ArrayList<>();
 
     private final List<Slot> slots = new ArrayList<>();
     /**
@@ -521,7 +557,7 @@ final class HeroPanel {
 
     HeroPanel(AssetManager assets, BitmapFont font, Node guiNode, float screenWidth,
             PanelSkin skin, RangeLook aiming, IconLook icons) {
-        this(assets, font, null, guiNode, screenWidth, skin, aiming, icons);
+        this(assets, font, null, guiNode, screenWidth, skin, aiming, icons, StatLook.DEFAULT);
     }
 
     /**
@@ -536,8 +572,10 @@ final class HeroPanel {
      * and what the three other games this client serves will go on getting.
      */
     HeroPanel(AssetManager assets, BitmapFont font, BitmapFont display, Node guiNode,
-            float screenWidth, PanelSkin skin, RangeLook aiming, IconLook icons) {
+            float screenWidth, PanelSkin skin, RangeLook aiming, IconLook icons,
+            StatLook stats) {
         this.icons = icons == null ? IconLook.DEFAULT : icons;
+        this.statLook = stats == null ? StatLook.DEFAULT : stats;
         this.assets = assets;
         this.font = font;
         this.display = display == null ? font : display;
@@ -644,11 +682,11 @@ final class HeroPanel {
                 ? reading.pointsWord + "  " + reading.points : "");
         note.setText(reading.note);
         showFace(reading.face, !reading.name.isBlank());
-        showStats(reading.stats);
+        showStatBlock(reading.stats, reading.attributes);
         showOrders(reading.orders, reading.ordersAreHis);
         showItems(reading.items, reading.itemsWord);
         tips = reading.tips;
-        statTips = reading.statTips;
+        attributeTips = reading.attributeTips;
         showSkills(reading.skills, reading);
         showOnlyWhatTheCardHas(reading);
         return true;
@@ -869,32 +907,38 @@ final class HeroPanel {
     }
 
     /**
-     * The figure under a point, by its place on the line, or null.
+     * The attribute under a point, by its place in the game's list, or null.
      *
-     * <p>The whole cell rather than only its drawing: the word and the number are what
-     * the eye is on, and the hand follows the eye.
+     * <p>The whole row rather than only its drawing — the word and the number are what
+     * the eye is on, and the hand follows the eye — and his primary's framed socket as
+     * well, which is the same attribute drawn large. A figure has no card, so it is never
+     * the answer.
      */
-    Integer statAt(float screenX, float screenY) {
+    Integer attributeAt(float screenX, float screenY) {
         if (!showing) {
             return null;
         }
-        float x = screenX / scale;
-        float y = screenY / scale;
-        float cell = VITALS_WIDTH / STAT_COLUMNS;
-        for (int i = 0; i < statSpots.size(); i++) {
-            float left = vitalsAtX + statSpots.get(i)[0];
-            float bottom = PAD + statSpots.get(i)[1];
-            if (x >= left && x <= left + cell - STAT_GAP && y >= bottom
-                    && y <= bottom + STAT_ICON) {
+        float x = screenX / scale - vitalsAtX;
+        float y = screenY / scale - PAD;
+        for (int i = 0; i < attributeSpots.size(); i++) {
+            if (inside(x, y, attributeSpots.get(i))) {
                 return i;
             }
+        }
+        if (primarySpot != null && inside(x, y, primarySpot)) {
+            return primaryIndex;
         }
         return null;
     }
 
-    /** Rest the cursor on a figure, or take it off one. */
-    void hoverStat(Integer index) {
-        this.hoveredStat = index;
+    /** Whether a point is in a box written as x, y, width, height. */
+    private static boolean inside(float x, float y, float[] box) {
+        return x >= box[0] && x <= box[0] + box[2] && y >= box[1] && y <= box[1] + box[3];
+    }
+
+    /** Rest the cursor on an attribute, or take it off one. */
+    void hoverAttribute(Integer index) {
+        this.hoveredAttribute = index;
         placeTip();
     }
 
@@ -1323,14 +1367,13 @@ final class HeroPanel {
                 }
             }
         }
-        if (hoveredStat != null && statTips.containsKey(hoveredStat)
-                && hoveredStat < statSpots.size()) {
-            // Over the whole bar, not over the figure: an attribute sits low in a
-            // column with a name, a title and a lettered bar above it, and a card
-            // opened just over the figure lay across all three and under their words.
-            var spot = statSpots.get(hoveredStat);
-            tip.show(statTips.get(hoveredStat), vitalsAtX + spot[0], SLAB_HEIGHT + TIP_LIFT,
-                    scale, screenWidth);
+        if (hoveredAttribute != null && attributeTips.containsKey(hoveredAttribute)) {
+            // Over the whole bar, not over the row: the block sits low in a column
+            // with a name, a title and a lettered bar above it, and a card opened just
+            // over a row lay across all three and under their words. From the middle
+            // column, so it stands over his primary and the list together.
+            tip.show(attributeTips.get(hoveredAttribute), vitalsAtX + statLook.figureColumn(),
+                    SLAB_HEIGHT + TIP_LIFT, scale, screenWidth);
             return;
         }
         tip.hide();
@@ -1601,13 +1644,13 @@ final class HeroPanel {
         // slack in one strip along the bottom -- which reads as a column that has
         // run out rather than as one that is arranged. The design centres it, and
         // the portrait beside it is centred too, so the two blocks agree.
-        float stack = 27f + 18f + 12f + XP_HEIGHT + 16f + STAT_ICON
-                + (STAT_ROWS - 1) * STAT_ROW_STEP;
+        float stack = ABOVE_THE_BLOCK + statLook.gapUnderBar() + blockHeight(statLook);
         float top = BAND - (BAND - stack) / 2f;
         float nameY = top - 27f;
         float titleY = nameY - 18f;
         float experienceY = titleY - 12f - XP_HEIGHT;
-        this.statsTop = experienceY - 16f;
+        this.statsTop = experienceY - statLook.gapUnderBar();
+        vitals.attachChild(statBlock);
 
         name = carved(22f, BONE, 0f, nameY, VITALS_WIDTH, BitmapFont.Align.Center);
         shadowed(vitals, name,
@@ -1624,7 +1667,10 @@ final class HeroPanel {
         titleLine.attachChild(title);
         vitals.attachChild(titleLine);
 
-        attach(experienceBar, trough(0f, experienceY, VITALS_WIDTH, XP_HEIGHT), 0f, 0f, 0f);
+        // attachChild rather than attach: the trough is placed where it is built, and
+        // attach would put it back at nought -- which drew it along the bottom of the
+        // column, a dark band behind whatever stood there, instead of under its fill.
+        experienceBar.attachChild(trough(0f, experienceY, VITALS_WIDTH, XP_HEIGHT));
         experienceFill = fill("xp-fill", VITALS_WIDTH - 2f, XP_HEIGHT - 2f, ARCANE);
         experienceFill.setLocalTranslation(1f, experienceY + 1f, 1f);
         experienceBar.attachChild(experienceFill);
@@ -1675,7 +1721,7 @@ final class HeroPanel {
         shadowed(portraitBars, health, text(12f, DROP, 1f, healthY + 2f, PORTRAIT_COLUMN,
                 BitmapFont.Align.Center), 2f);
 
-        attach(manaBar, trough(0f, manaY, PORTRAIT_COLUMN, MANA_HEIGHT), 0f, 0f, 0f);
+        manaBar.attachChild(trough(0f, manaY, PORTRAIT_COLUMN, MANA_HEIGHT));
         manaFill = fill("mana-fill", PORTRAIT_COLUMN - 2f, MANA_HEIGHT - 2f, MANA);
         manaFill.setLocalTranslation(1f, manaY + 1f, 1f);
         manaBar.attachChild(manaFill);
@@ -1692,142 +1738,242 @@ final class HeroPanel {
         contents.attachChild(portraitBars);
     }
 
-    /** Where the grid of figures begins, worked out with the rest of the column. */
+    // ---- the block under the experience bar ----
+
+    /** How the block is drawn — see {@link StatLook}. */
+    private final StatLook statLook;
+
+    /** Where the block's top edge is, worked out with the rest of the column. */
     private float statsTop;
 
-    /** What each figure is drawn with, in the order the game sends them. */
-
-    private final List<BitmapText> statBonuses = new ArrayList<>();
-    private final List<Node> statBoxes = new ArrayList<>();
-    /** Where each figure's socket sits inside the column, for the cursor. */
-    private final List<float[]> statSpots = new ArrayList<>();
-    /** The pictures and marks the figures were built for; a different set means rebuilding. */
+    /** Everything in the block, taken down and built again when what it holds changes shape. */
+    private final Node statBlock = new Node("stat-block");
+    /** The lettering on each figure's row down the left, in the order the game sends them. */
+    private final List<StatLine> figureLines = new ArrayList<>();
+    /** And on each attribute's row down the right. */
+    private final List<StatLine> attributeLines = new ArrayList<>();
+    /** The value under his primary, or null while no primary is drawn. */
+    private BitmapText primaryValue;
+    /** The pictures and words the block was built for; a different set means rebuilding. */
     private String statsBuiltFor;
-    /** The card over each figure that has one, by its place on the line. */
-    private Map<Integer, SkillTip.Reading> statTips = Map.of();
-    /** The figure the cursor is resting on, if any. */
-    private Integer hoveredStat;
+    /** Each attribute's row inside the column, as x, y, width, height — for the cursor. */
+    private final List<float[]> attributeSpots = new ArrayList<>();
+    /** His primary's framed socket, the same way; null while there is none. */
+    private float[] primarySpot;
+    /** Which attribute is drawn large in the middle, or -1. */
+    private int primaryIndex = -1;
+    /** The card over each attribute that has one, by its place in the game's list. */
+    private Map<Integer, SkillTip.Reading> attributeTips = Map.of();
+    /** The attribute the cursor is resting on, if any. */
+    private Integer hoveredAttribute;
     /** Where the column starts across the bar, in design pixels. */
     private float vitalsAtX;
 
-    /**
-     * The figures under the bars, three across and as many rows as it takes.
-     *
-     * <p>A grid rather than a row, because a row of three in a column this wide
-     * spreads each word half a screen from its own number. Each is a small drawing
-     * in a socket, the word, the figure, and — when he has borrowed any of it — how
-     * much, in green.
-     *
-     * <p><b>The green is the point of the whole grid.</b> A figure that only ever
-     * goes up says nothing about whether the sword he just picked up was worth
-     * picking up; the difference does, and it is the only number on the panel that
-     * answers "was that any good".
-     *
-     * <p>Built to fit whatever arrives rather than to a fixed three, for the same
-     * reason the skill row is: what a game counts is the game's business.
-     */
-    private void showStats(List<Reading.Stat> stats) {
-        var signature = new StringBuilder();
-        for (var stat : stats) {
-            signature.append(stat.icon()).append(stat.primary() ? '*' : ',');
-        }
-        if (!signature.toString().equals(statsBuiltFor)) {
-            statsBuiltFor = signature.toString();
-            for (var box : statBoxes) {
-                box.removeFromParent();
-            }
-            for (var line : statLabels) {
-                line.removeFromParent();
-            }
-            for (var line : statValues) {
-                line.removeFromParent();
-            }
-            for (var line : statBonuses) {
-                line.removeFromParent();
-            }
-            statBoxes.clear();
-            statLabels.clear();
-            statValues.clear();
-            statBonuses.clear();
-            statSpots.clear();
-            // ★ THREE ACROSS AND ONE LINE APIECE. A hero sends his three
-            // attributes and then the three figures worked out of them, so three
-            // to a row puts the reasons in a row over the results. The column is
-            // the width four figures once settled, and three in it leave each word
-            // more room than it needs. Reading order is left to right, the way a
-            // sentence goes -- what it is, how much, and how much was borrowed.
-            float cell = VITALS_WIDTH / STAT_COLUMNS;
-            for (int i = 0; i < stats.size(); i++) {
-                float x = (i % STAT_COLUMNS) * cell;
-                float y = statsTop - (i / STAT_COLUMNS) * STAT_ROW_STEP - STAT_ICON;
-                boolean primary = stats.get(i).primary();
-                statBoxes.add(statBox(x, y, stats.get(i).icon(), primary));
-                statSpots.add(new float[] {x, y});
-                // Three boxes on one line, and the two on the right are given
-                // room of their own rather than sharing the word's. They used to
-                // share it, and "Tezlik" and its figure came out as "Tezli29":
-                // the word is drawn from the left of its box and the figure to
-                // the right of a shorter one, so the two grow towards each other
-                // and nothing complains when they meet. The widths below are
-                // measured -- see PanelLayoutTest.
-                float from = x + STAT_ICON + STAT_ICON_GAP;
-                float room = roomInAFigure();
-                // His primary in gold, word and figure both -- the one attribute
-                // that is also his blow, told apart the way a Dota bar tells it.
-                var label = text(11f, primary ? GOLD : LABEL, from, y + 4f, room,
-                        BitmapFont.Align.Left);
-                var value = text(11f, primary ? GOLD_HI : BONE, from, y + 4f, room - STAT_LENT,
-                        BitmapFont.Align.Right);
-                var bonus = text(11f, GAIN, from, y + 4f, room, BitmapFont.Align.Right);
-                statLabels.add(label);
-                statValues.add(value);
-                statBonuses.add(bonus);
-                vitals.attachChild(label);
-                vitals.attachChild(value);
-                vitals.attachChild(bonus);
-            }
-        }
-        for (int i = 0; i < stats.size(); i++) {
-            statLabels.get(i).setText(stats.get(i).word());
-            statValues.get(i).setText(stats.get(i).value());
-            statBonuses.get(i).setText(stats.get(i).bonus());
-        }
+    /** The lettering on one row: its word, its value, and what was lent to it. */
+    private record StatLine(BitmapText word, BitmapText value, BitmapText lent) {
     }
 
     /**
-     * One figure's drawing, in a socket of its own beside the word.
+     * The block under the experience bar, laid out the way Warcraft III lays out a hero.
      *
-     * <p>The picture is the game's, named beside the figure it belongs to. It
-     * used to be picked out of an array here by which figure this was, which
-     * meant the client held an opinion about what a game's third statistic is —
-     * and a game with a fourth got whatever the last one happened to be.
+     * <p>Three columns. Down the left, the figures a fight is read by — what he hits for
+     * and what he shrugs off — in the biggest sockets of the two lists. In the middle, his
+     * primary attribute, large and framed, with its value under it: the one attribute
+     * that is also his blow. Down the right, every attribute the game sends, in the game's
+     * order, his primary in the brighter gold and the rest dimmer.
+     *
+     * <p><b>The green is the point of both lists.</b> A figure that only ever goes up says
+     * nothing about whether the thing he just picked up was worth picking up; the
+     * difference does, and it is the only number on the panel that answers "was that any
+     * good".
+     *
+     * <p>Built to fit whatever arrives rather than a fixed three, for the same reason the
+     * skill row is: what a game counts is the game's business. A fourth attribute is a
+     * fourth row, and the rows close up to keep the block inside the band.
      */
-    private Node statBox(float x, float y, String icon, boolean primary) {
-        var box = new Node("stat-box");
-        if (primary) {
-            // A ring of bright gold round the socket, behind the chip's own rim. The
-            // drawings are all gold already, so a gold drawing cannot say it -- the
-            // socket has to.
-            attach(box, flat("stat-primary", STAT_ICON + 4f, STAT_ICON + 4f, GOLD_HI),
-                    -2f, -2f, -0.5f);
+    private void showStatBlock(List<Reading.Stat> figures, List<Reading.Stat> attributes) {
+        var signature = new StringBuilder();
+        for (var figure : figures) {
+            signature.append(figure.icon()).append(',').append(figure.word()).append(';');
         }
-        attach(box, flat("stat-edge", STAT_ICON, STAT_ICON, EDGE), 0f, 0f, 0f);
-        var stone = new Geometry("stat-stone",
-                gradient(STAT_ICON - 2f, STAT_ICON - 2f, STONE_LIT, STONE));
+        signature.append('|');
+        for (var attribute : attributes) {
+            signature.append(attribute.icon()).append(attribute.primary() ? '*' : ',')
+                    .append(attribute.word()).append(';');
+        }
+        if (!signature.toString().equals(statsBuiltFor)) {
+            statsBuiltFor = signature.toString();
+            buildStatBlock(figures, attributes);
+        }
+        for (int i = 0; i < figures.size(); i++) {
+            write(figureLines.get(i), figures.get(i));
+        }
+        for (int i = 0; i < attributes.size(); i++) {
+            write(attributeLines.get(i), attributes.get(i));
+        }
+        if (primaryValue != null && primaryIndex >= 0 && primaryIndex < attributes.size()) {
+            primaryValue.setText(attributes.get(primaryIndex).value());
+        }
+    }
+
+    private static void write(StatLine line, Reading.Stat stat) {
+        line.word().setText(stat.word());
+        line.value().setText(stat.value());
+        line.lent().setText(stat.bonus());
+    }
+
+    private void buildStatBlock(List<Reading.Stat> figures, List<Reading.Stat> attributes) {
+        statBlock.detachAllChildren();
+        figureLines.clear();
+        attributeLines.clear();
+        attributeSpots.clear();
+        primarySpot = null;
+        primaryIndex = -1;
+        primaryValue = null;
+        var look = statLook;
+        float height = blockHeight(look);
+
+        // ★ LEFT: the figures, in the sockets a fight is read by.
+        column(figures, 0f, look.figureColumn() - COLUMN_GAP, look.figureIcon(),
+                look.figureText(), height, figureLines, null,
+                stat -> rgb(look.labelColour()), stat -> rgb(look.valueColour()),
+                stat -> rgb(look.figureTint()));
+
+        // ★ MIDDLE: his primary, large, in a ring of bright gold, with its value under it.
+        for (int i = 0; i < attributes.size(); i++) {
+            if (attributes.get(i).primary()) {
+                primaryIndex = i;
+                break;
+            }
+        }
+        if (primaryIndex >= 0) {
+            var primary = attributes.get(primaryIndex);
+            float size = look.primaryIcon();
+            float framedSize = size + PRIMARY_FRAME * 2f;
+            float drawn = framedSize + 2f + look.primaryText();
+            float x = look.figureColumn() + (look.primaryColumn() - size) / 2f;
+            float y = statsTop - (height - drawn) / 2f - PRIMARY_FRAME - size;
+            attach(statBlock, flat("primary-frame", framedSize, framedSize,
+                    rgb(look.frameColour())), x - PRIMARY_FRAME, y - PRIMARY_FRAME, -0.5f);
+            socket(x, y, size, primary.icon(), primary.word(), rgb(look.primaryTint()));
+            primaryValue = text(look.primaryText(), rgb(look.primaryColour()),
+                    look.figureColumn(), y - PRIMARY_FRAME - 2f - look.primaryText(),
+                    look.primaryColumn(), BitmapFont.Align.Center);
+            statBlock.attachChild(primaryValue);
+            primarySpot = new float[] {x - PRIMARY_FRAME, y - PRIMARY_FRAME, framedSize,
+                framedSize};
+        }
+
+        // ★ RIGHT: every attribute, his primary in the brighter gold and the rest dimmer.
+        float from = attributeColumnAt(look);
+        column(attributes, from, VITALS_WIDTH - from, look.attributeIcon(),
+                look.attributeText(), height, attributeLines, attributeSpots,
+                stat -> rgb(stat.primary() ? look.primaryColour() : look.attributeColour()),
+                stat -> rgb(stat.primary() ? look.primaryColour() : look.attributeColour()),
+                stat -> rgb(stat.primary() ? look.primaryTint() : look.attributeTint()));
+    }
+
+    /**
+     * One column of rows — a socket, a word, a value and what was lent — centred down the
+     * block, and closed up when there are more rows than the block was sized for.
+     *
+     * <p>The values stand in a line of their own just after the longest word, rather than
+     * against the column's far edge: a value a hundred pixels from its own word is a value
+     * nobody reads as belonging to it. And the word and the value are given separate room
+     * rather than one box each end of — they used to share one, and "Tezlik" and its
+     * figure came out as "Tezli29", both exactly where they had been put.
+     */
+    private void column(List<Reading.Stat> stats, float x, float width, float icon,
+            float lettering, float height, List<StatLine> lines, List<float[]> spots,
+            java.util.function.Function<Reading.Stat, ColorRGBA> wordColour,
+            java.util.function.Function<Reading.Stat, ColorRGBA> valueColour,
+            java.util.function.Function<Reading.Stat, ColorRGBA> tint) {
+        if (stats.isEmpty()) {
+            return;
+        }
+        var rows = rowsIn(stats.size(), icon, statLook.rowGap(), height);
+        float size = rows[0];
+        float step = rows[1];
+        float tall = (stats.size() - 1) * step + size;
+        float top = statsTop - (height - tall) / 2f;
+        float letters = letteringFor(lettering, size);
+        float widest = 0f;
+        for (var stat : stats) {
+            widest = Math.max(widest, widthOf(stat.word(), letters));
+        }
+        float room = width - size - ICON_GAP;
+        float valueEnd = Math.min(room - lentRoom(letters),
+                widest + WORD_GAP + widthOf("000", letters));
+        for (int i = 0; i < stats.size(); i++) {
+            var stat = stats.get(i);
+            float y = top - size - i * step;
+            socket(x, y, size, stat.icon(), stat.word(), tint.apply(stat));
+            float from = x + size + ICON_GAP;
+            float baseline = y + (size - letters) / 2f;
+            var word = text(letters, wordColour.apply(stat), from, baseline, room,
+                    BitmapFont.Align.Left);
+            var value = text(letters, valueColour.apply(stat), from, baseline, valueEnd,
+                    BitmapFont.Align.Right);
+            var lent = text(letters, rgb(statLook.gainColour()), from + valueEnd + 3f, baseline,
+                    Math.max(1f, room - valueEnd - 3f), BitmapFont.Align.Left);
+            statBlock.attachChild(word);
+            statBlock.attachChild(value);
+            statBlock.attachChild(lent);
+            lines.add(new StatLine(word, value, lent));
+            if (spots != null) {
+                spots.add(new float[] {x, y, width, size});
+            }
+        }
+    }
+
+    /** How wide a string comes out in the panel's lettering at this size. */
+    private float widthOf(String words, float size) {
+        var line = new BitmapText(font);
+        line.setSize(size);
+        line.setText(words == null ? "" : words);
+        return line.getLineWidth();
+    }
+
+    /**
+     * A picture in a socket of its own: the stone, the rim, and the drawing.
+     *
+     * <p>The picture is the game's, named beside the row it belongs to. When it names one
+     * the client cannot find — or none — the socket carries the first letter of the row's
+     * word instead, so it still says which one it is: a missing file costs a line in the
+     * log, never the row.
+     */
+    private void socket(float x, float y, float size, String icon, String word,
+            ColorRGBA tint) {
+        var box = new Node("stat-box");
+        attach(box, flat("stat-edge", size, size, EDGE), 0f, 0f, 0f);
+        var stone = new Geometry("stat-stone", gradient(size - 2f, size - 2f, STONE_LIT, STONE));
         stone.setMaterial(vertexColoured());
         attach(box, stone, 1f, 1f, 1f);
-        var drawn = picture(icon, STAT_ICON, ORDER_ICON_SHARE, GOLD);
-        var glyph = drawn != null ? drawn : new Geometry("stat-glyph", new Mesh());
-        if (drawn == null) {
-            glyph.setMaterial(lines(GOLD));
-            attach(box, glyph, STAT_ICON / 2f, STAT_ICON / 2f, 2f);
+        float share = statLook.iconShare();
+        var drawn = picture(icon, size, share, tint);
+        if (drawn != null) {
+            float inset = size * (1f - share) / 2f;
+            attach(box, drawn, inset, inset, 2f);
         } else {
-            float inset = STAT_ICON * (1f - ORDER_ICON_SHARE) / 2f;
-            attach(box, glyph, inset, inset, 2f);
+            float lettering = size * 0.6f;
+            var letter = text(lettering, GOLD, 0f, (size - lettering) / 2f, size,
+                    BitmapFont.Align.Center);
+            letter.setName("stat-letter");
+            letter.setText(initial(word));
+            letter.setLocalTranslation(0f, 0f, 2f);
+            box.attachChild(letter);
         }
-        framed(box, PanelSkin.CHIP, 0f, 0f, STAT_ICON, STAT_ICON, 2.5f);
-        attach(vitals, box, x, y, 0f);
-        return box;
+        framed(box, PanelSkin.CHIP, 0f, 0f, size, size, 2.5f);
+        attach(statBlock, box, x, y, 0f);
+    }
+
+    /** The first letter of a word, for a socket whose picture is not there. */
+    static String initial(String word) {
+        if (word == null || word.isBlank()) {
+            return "?";
+        }
+        int first = word.strip().codePointAt(0);
+        return new String(Character.toChars(Character.toUpperCase(first)));
     }
 
     /** A sunken trough for a bar to sit in. */
@@ -3236,7 +3382,7 @@ final class HeroPanel {
             List<RankReading> ranks, int points, String pointsWord,
             Map<Character, SkillTip.Reading> tips,
             float mana, float maxMana, int refusedForManaAt, List<CostReading> costs,
-            Map<Integer, SkillTip.Reading> statTips) {
+            List<Stat> attributes, Map<Integer, SkillTip.Reading> attributeTips) {
 
         /**
          * What a slot costs to cast, and whether he can pay it.
@@ -3333,7 +3479,8 @@ final class HeroPanel {
             var ranks = new ArrayList<RankReading>();
             var costs = new ArrayList<CostReading>();
             var tips = new java.util.LinkedHashMap<Character, SkillTip.Reading>();
-            var statTips = new java.util.LinkedHashMap<Integer, SkillTip.Reading>();
+            var attributes = new ArrayList<Stat>();
+            var attributeTips = new java.util.LinkedHashMap<Integer, SkillTip.Reading>();
             float[] mana = null;
             var refusedAt = new int[] {0};
             int points = 0;
@@ -3367,6 +3514,10 @@ final class HeroPanel {
                     case "noMana" -> refusedAt[0] = whole(value);
                     case "cost" -> costs.add(cost(value));
                     case "stat" -> stats.add(stat(value));
+                    // An attribute: the four fields a figure has, and a mark on his
+                    // primary. A field of its own because the block draws the two apart
+                    // -- figures down the left, attributes down the right.
+                    case "attr" -> attributes.add(stat(value));
                     // "rank" above is the HERO's -- "7-daraja". This is a slot's,
                     // which is a different thing on a different row, so it gets a
                     // name of its own rather than a cleverness.
@@ -3380,13 +3531,14 @@ final class HeroPanel {
                     case "tipText" -> tip(tips, value, Reading::tipBlurb);
                     case "tipFoot" -> tip(tips, value, Reading::tipFoot);
                     case "tipRow" -> tip(tips, value, Reading::tipRow);
-                    // The same card over a figure, in four of the same five kinds of
-                    // field, keyed by the figure's place on the line: a figure has no
-                    // key he presses.
-                    case "stTipName" -> statTip(statTips, value, Reading::tipNamed);
-                    case "stTipAt" -> statTip(statTips, value, Reading::tipAt);
-                    case "stTipText" -> statTip(statTips, value, Reading::tipBlurb);
-                    case "stTipRow" -> statTip(statTips, value, Reading::tipRow);
+                    // The same card over an attribute, in the same five kinds of field,
+                    // keyed by the attribute's place in the game's list: an attribute
+                    // has no key he presses.
+                    case "atTipName" -> attributeTip(attributeTips, value, Reading::tipNamed);
+                    case "atTipAt" -> attributeTip(attributeTips, value, Reading::tipAt);
+                    case "atTipText" -> attributeTip(attributeTips, value, Reading::tipBlurb);
+                    case "atTipRow" -> attributeTip(attributeTips, value, Reading::tipRow);
+                    case "atTipFoot" -> attributeTip(attributeTips, value, Reading::tipFoot);
                     case "pts" -> {
                         var halves = value.split(",", 2);
                         points = Integer.parseInt(halves[0]);
@@ -3415,7 +3567,7 @@ final class HeroPanel {
                 }
                 if (health == null || experience == null || skills.contains(null)
                         || costs.contains(null)
-                        || stats.contains(null)
+                        || stats.contains(null) || attributes.contains(null)
                         || items.contains(null) || orders.contains(null)) {
                     return null;
                 }
@@ -3427,7 +3579,23 @@ final class HeroPanel {
                     ordersAreHis[0], List.copyOf(ranks),
                     points, pointsWord, withRaising(tips, ranks),
                     mana == null ? 0f : mana[0], mana == null ? 0f : mana[1],
-                    refusedAt[0], List.copyOf(costs), Map.copyOf(statTips));
+                    refusedAt[0], List.copyOf(costs), List.copyOf(attributes),
+                    withFootLit(attributeTips));
+        }
+
+        /**
+         * An attribute's footer is neither an offer nor a refusal — it says how fast he
+         * is now — so it is drawn in the card's gold whenever there is one.
+         */
+        private static Map<Integer, SkillTip.Reading> withFootLit(
+                Map<Integer, SkillTip.Reading> tips) {
+            var out = new java.util.LinkedHashMap<Integer, SkillTip.Reading>();
+            for (var entry : tips.entrySet()) {
+                var was = entry.getValue();
+                out.put(entry.getKey(), new SkillTip.Reading(was.name(), was.at(), was.blurb(),
+                        was.rows(), was.foot(), !was.foot().isEmpty()));
+            }
+            return Map.copyOf(out);
         }
 
         private static SkillTip.Reading tipNamed(SkillTip.Reading was, String rest) {
@@ -3461,8 +3629,8 @@ final class HeroPanel {
                     was.foot(), was.canRaise());
         }
 
-        /** A figure's card field: {@code <place>,<the rest>}. */
-        private static void statTip(Map<Integer, SkillTip.Reading> tips, String value,
+        /** An attribute's card field: {@code <place>,<the rest>}. */
+        private static void attributeTip(Map<Integer, SkillTip.Reading> tips, String value,
                 java.util.function.BiFunction<SkillTip.Reading, String, SkillTip.Reading> change) {
             var halves = value.split(",", 2);
             if (halves.length < 2) {

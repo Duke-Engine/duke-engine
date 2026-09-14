@@ -101,9 +101,9 @@ class HeroAttributesTest {
         var after = it.progress().figuresOf(body, HeroFigures.Found.NOTHING);
         assertEquals(SETTINGS.heroNamed("Knight").attributes().atLevel(4), after.attributes(),
                 "three levels, in one step");
-        for (var attribute : Attribute.values()) {
-            assertTrue(after.attributes().of(attribute) > before.attributes().of(attribute),
-                    attribute + " did not grow");
+        for (int attribute = 0; attribute < SETTINGS.attributeRules().attributes().size(); attribute++) {
+            assertTrue(after.attributes().at(attribute) > before.attributes().at(attribute),
+                    SETTINGS.attributeRules().attributes().get(attribute).name() + " did not grow");
         }
         assertEquals(after.maxHealth(), body.getBody().getMaxHealth(), 0f, "strength reached his body");
         assertTrue(after.maxHealth() > before.maxHealth());
@@ -151,7 +151,7 @@ class HeroAttributesTest {
         var it = play("Knight");
         float health = it.body().getBody().getMaxHealth();
 
-        take(it, LootKind.STRENGTH, 5);
+        take(it, "STR", 5);
 
         assertEquals(health + 60f, it.body().getBody().getMaxHealth(), 0f, "five strength is sixty health");
         assertEquals(35f / 30f, bonusOf(it), 0f, "and five more on a swing of thirty");
@@ -163,12 +163,12 @@ class HeroAttributesTest {
         var it = play("Rogue");
         float health = it.body().getBody().getMaxHealth();
 
-        take(it, LootKind.STRENGTH, 5);
+        take(it, "STR", 5);
         assertEquals(health + 60f, it.body().getBody().getMaxHealth(), 0f);
         assertEquals(1f, bonusOf(it), 0f, "strength is not his arrow");
 
         float walked = walkedInASecond(it);
-        take(it, LootKind.AGILITY, 5);
+        take(it, "AGI", 5);
         assertEquals(19f / 14f, bonusOf(it), 0f, "five more on an arrow of fourteen");
         assertEquals(walked + 0.75f, walkedInASecond(it), 0.01f, "and 0.75 on his legs");
         assertEquals(health + 60f, it.body().getBody().getMaxHealth(), 0f, "and no more health");
@@ -197,8 +197,8 @@ class HeroAttributesTest {
         assertTrue(book.cast('E', 1), "the guard should have gone up, and cost him");
         assertEquals(mana, regainedOverTwoSeconds(it), "his mana, before");
 
-        take(it, LootKind.STRENGTH, 20);
-        take(it, LootKind.INTELLIGENCE, 20);
+        take(it, "STR", 20);
+        take(it, "INT", 20);
         assertTrue(book.getMana() < book.getMaxMana(), "the pool must still have room to fill");
 
         assertEquals(health, mendedOverTwoSeconds(it), "strength gave him a body, not a faster mend");
@@ -219,7 +219,7 @@ class HeroAttributesTest {
         var legs = body.findModule(MoveUpdate.class);
         assertTrue(legs.isMoving(), "he should be on his way");
 
-        take(it, LootKind.AGILITY, 10);
+        take(it, "AGI", 10);
 
         var fresh = body.findModule(MoveUpdate.class);
         assertNotSame(legs, fresh, "faster legs are new legs");
@@ -237,12 +237,13 @@ class HeroAttributesTest {
         var text = Content.read(Content.SETTINGS);
         float shipped = play("Knight").body().getBody().getMaxHealth();
 
-        var stronger = DungeonSettings.parse(text.replace("  Strength = 22", "  Strength = 30"));
+        var stronger = DungeonSettings.parse(text.replace("  Attribute = STR 22 3.0",
+                "  Attribute = STR 30 3.0"));
         assertEquals(shipped + 8 * 12, play("Knight", stronger).body().getBody().getMaxHealth(), 0f,
                 "eight more strength is ninety-six more health");
 
-        var richer = DungeonSettings.parse(text.replace("HealthPerStrength = 12",
-                "HealthPerStrength = 20"));
+        var richer = DungeonSettings.parse(text.replace("  HealthPerPoint = 12",
+                "  HealthPerPoint = 20"));
         assertEquals(shipped + 22 * 8, play("Knight", richer).body().getBody().getMaxHealth(), 0f,
                 "eight more a point, twenty-two times");
     }
@@ -278,9 +279,9 @@ class HeroAttributesTest {
             switch (step) {
                 case 5 -> hero.findModule(ExperienceModule.class)
                         .addExperience(SETTINGS.levelling().totalXpFor(5));
-                case 12 -> session.progress().getLoot().take(item(LootKind.STRENGTH, 4), frame, 30);
-                case 20 -> session.progress().getLoot().take(item(LootKind.AGILITY, 6), frame, 30);
-                case 28 -> session.progress().getLoot().take(item(LootKind.INTELLIGENCE, 5), frame, 30);
+                case 12 -> session.progress().getLoot().take(item("STR", 4), frame, 30);
+                case 20 -> session.progress().getLoot().take(item("AGI", 6), frame, 30);
+                case 28 -> session.progress().getLoot().take(item("INT", 5), frame, 30);
                 default -> {
                 }
             }
@@ -341,13 +342,14 @@ class HeroAttributesTest {
                 .getWeaponDamageBonus();
     }
 
-    private static void take(Played it, LootKind kind, int value) {
-        it.bag().take(item(kind, value), it.game().getLogic().getFrame(), 30);
+    private static void take(Played it, String attribute, int value) {
+        it.bag().take(item(attribute, value), it.game().getLogic().getFrame(), 30);
         it.game().runHeadless(1);
     }
 
-    private static Loot item(LootKind kind, int value) {
-        return new Loot(kind.name(), kind.name(), "", kind, value, 1, 1);
+    /** Whole points of the attribute the file calls {@code attribute}. */
+    private static Loot item(String attribute, int value) {
+        return new Loot(attribute, attribute, "", LootKind.ATTRIBUTE, value, 1, 1, attribute);
     }
 
     private static GameObject nearestMonster(DukeGame game, GameObject hero) {

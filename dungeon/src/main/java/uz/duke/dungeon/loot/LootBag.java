@@ -72,19 +72,24 @@ public final class LootBag {
         return totalOf(LootKind.ARMOUR);
     }
 
-    /** Whole points of strength added by everything he has found. */
-    public int strength() {
-        return totalOf(LootKind.STRENGTH);
-    }
-
-    /** Whole points of agility added by everything he has found. */
-    public int agility() {
-        return totalOf(LootKind.AGILITY);
-    }
-
-    /** Whole points of intelligence added by everything he has found. */
-    public int intelligence() {
-        return totalOf(LootKind.INTELLIGENCE);
+    /**
+     * The attributes everything he has found adds, in the order {@code rules} lists them.
+     *
+     * <p>An item naming an attribute the rules do not know adds nothing; the settings
+     * file refuses such an item when it is read, so this is only ever a test's.
+     */
+    public uz.duke.dungeon.level.Attributes attributes(uz.duke.dungeon.level.AttributeRules rules) {
+        var points = new int[rules.attributes().size()];
+        for (var item : found) {
+            if (item.kind() != LootKind.ATTRIBUTE) {
+                continue;
+            }
+            int at = rules.indexOf(item.attribute());
+            if (at >= 0) {
+                points[at] = Math.addExact(points[at], item.value());
+            }
+        }
+        return uz.duke.dungeon.level.Attributes.ofWhole(points);
     }
 
     private int totalOf(LootKind kind) {

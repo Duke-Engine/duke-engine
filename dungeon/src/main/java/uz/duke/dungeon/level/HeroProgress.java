@@ -283,9 +283,8 @@ public final class HeroProgress {
      * <p>Items give whole points of an attribute; the figures count in tenths.
      */
     public HeroFigures.Found found() {
-        return new HeroFigures.Found(
-                Attributes.ofWhole(loot.strength(), loot.agility(), loot.intelligence()),
-                loot.health(), loot.mana(), loot.attackPercent());
+        return new HeroFigures.Found(loot.attributes(attributeRules), loot.health(), loot.mana(),
+                loot.attackPercent());
     }
 
     /**

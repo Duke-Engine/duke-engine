@@ -31,19 +31,17 @@ class HeroProgressTest {
     /** Levels that arrive fast and hit hard, so a mechanism shows plainly. */
     private static final DungeonSettings BRISK = DungeonSettings.parse("""
             DungeonAttributes Conversion
-              HealthPerStrength = 10
-              SpeedPerAgility = 0.15
-              ManaPerIntelligence = 5
               DamagePerPrimary = 1.0
+            End
+            DungeonAttribute Strength
+              Short = STR
+              HealthPerPoint = 10
             End
             DungeonHero Rogue
               Primary = AGI
-              Strength = 12
-              Agility = 12
-              Intelligence = 8
-              StrPerLevel = 4
-              AgiPerLevel = 12
-              IntPerLevel = 1
+              Attribute = STR 12 4
+              Attribute = AGI 12 12
+              Attribute = INT 8 1
             End
             DungeonLeveling Progression
               MaxLevel = 10

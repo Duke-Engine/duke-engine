@@ -513,7 +513,8 @@ final class DukeRtsApp extends SimpleApplication {
 
         heroPanel = new HeroPanel(assetManager, guiFont,
                 fontOrDefault(visuals.getMenuStyle().titleFont()), guiNode, cam.getWidth(),
-                visuals.getPanelSkin(), visuals.getRangeLook(), visuals.getIconLook());
+                visuals.getPanelSkin(), visuals.getRangeLook(), visuals.getIconLook(),
+                visuals.getStatLook());
         // Built the same way units are -- see buildBody -- so the face in the
         // frame is the creature that is on the floor and not a second version
         // of it.
@@ -1985,7 +1986,8 @@ final class DukeRtsApp extends SimpleApplication {
         heroPanel.destroy();
         heroPanel = new HeroPanel(assetManager, guiFont,
                 fontOrDefault(visuals.getMenuStyle().titleFont()), guiNode, width,
-                visuals.getPanelSkin(), visuals.getRangeLook(), visuals.getIconLook());
+                visuals.getPanelSkin(), visuals.getRangeLook(), visuals.getIconLook(),
+                visuals.getStatLook());
         heroPanel.arm(armed);
         placeMinimap();
         menu.destroy();
@@ -3540,7 +3542,7 @@ final class DukeRtsApp extends SimpleApplication {
         var cursor = inputManager.getCursorPosition();
         boolean playing = screen == Screen.PLAYING;
         heroPanel.hover(playing ? heroPanel.slotAt(cursor.x, cursor.y) : null);
-        heroPanel.hoverStat(playing ? heroPanel.statAt(cursor.x, cursor.y) : null);
+        heroPanel.hoverAttribute(playing ? heroPanel.attributeAt(cursor.x, cursor.y) : null);
     }
 
     private void updateCamera(float tpf) {

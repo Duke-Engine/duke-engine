@@ -20,7 +20,7 @@ public final class HeroBuild {
 
     public static GrowableBody.Data body(GrowableBody.Data data, HeroAttributes hero,
             AttributeRules rules) {
-        if (data == null || hero.primary() == null) {
+        if (data == null || !hero.hasPrimary()) {
             return data;
         }
         return new GrowableBody.Data(
@@ -29,7 +29,7 @@ public final class HeroBuild {
 
     public static MoveUpdate.Data legs(MoveUpdate.Data data, HeroAttributes hero,
             AttributeRules rules) {
-        if (data == null || hero.primary() == null) {
+        if (data == null || !hero.hasPrimary()) {
             return data;
         }
         var built = firstLevel(new HeroBase(0f, data.speedPerSecond(),
@@ -39,7 +39,7 @@ public final class HeroBuild {
 
     public static WeaponUpdate.Data weapon(WeaponUpdate.Data data, HeroAttributes hero,
             AttributeRules rules) {
-        if (data == null || hero.primary() == null) {
+        if (data == null || !hero.hasPrimary()) {
             return data;
         }
         var built = firstLevel(new HeroBase(0f, 0f, 0f, data.damage()), hero, rules);

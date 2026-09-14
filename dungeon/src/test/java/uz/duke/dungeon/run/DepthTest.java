@@ -37,19 +37,17 @@ class DepthTest {
               MinDamageTakenPercent = 40
             End
             DungeonAttributes Conversion
-              HealthPerStrength = 10
-              SpeedPerAgility = 0.15
-              ManaPerIntelligence = 5
               DamagePerPrimary = 1.0
+            End
+            DungeonAttribute Strength
+              Short = STR
+              HealthPerPoint = 10
             End
             DungeonHero Rogue
               Primary = AGI
-              Strength = 12
-              Agility = 12
-              Intelligence = 8
-              StrPerLevel = 3
-              AgiPerLevel = 4
-              IntPerLevel = 1
+              Attribute = STR 12 3
+              Attribute = AGI 12 4
+              Attribute = INT 8 1
             End
             """);
 

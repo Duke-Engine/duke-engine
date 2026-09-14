@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-14 · **Testlar:** 1542 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-14 · **Testlar:** 1554 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -4389,6 +4389,96 @@ HUD'da ko'rinsin. Determinizm qattiq ushlansin.
   - `DungeonSettings.parse` ga berilgan qisman matnda `DungeonHero` bloki bo'lmasa, qahramon
     faqat baza qiymatlari bilan quriladi (test sozlamalari uchun muhim);
   - etik ikonkasi Epchillik va Tezlikda takrorlanadi.
+
+### 8.bh Statistika bloki Warcraft III uslubida, atributlar ro'yxati INI'da
+
+Foydalanuvchi: HUD'dagi statistika bloki WC3 uslubida bo'lsin:
+- chapda Zarba va Zirh, katta ikonka bilan;
+- markazda asosiy atribut — ramkadagi katta ikonka, qiymati ostida;
+- o'ngda Kuch / Epchillik / Aql ustma-ust, asosiysi yorqinroq.
+
+Yangi atribut = INI qatori va ikonka, kod yo'q. Uch atribut ikonkasi berildi. Hisob va
+qiymatlar o'zgarmasin, determinizm buzilmasin.
+
+- **Atributlar ro'yxati simulyatsiyada ham INI'dan** (tasdiqlangan rejaning 1-qarori):
+  - `DungeonAttribute <Nomi>` bloklari: `Short`, `Word`, `Icon`, `HealthPerPoint`,
+    `SpeedPerPoint`, `ManaPerPoint`. `DungeonAttributes` da faqat `DamagePerPrimary` qoldi;
+  - qahramon qatori: `Attribute = STR 22 3.0` — qaysi atribut, boshlang'ich qiymat, har
+    darajadagi o'sish. `Primary = STR` qoldi;
+  - `Attribute` endi `record`. `Attributes` — INI tartibidagi int massiv, o'ndan birlarda.
+    `HeroAttributes.primary` — indeks (−1 = yo'q);
+  - `AttributeRules(List<Attribute>, damagePerPrimary)` har figurani barcha atributlar
+    bo'yicha butun sonli yig'indi qilib, bir marta bo'ladi;
+  - narsalar: `LootKind.ATTRIBUTE` va `Attribute = STR` qatori. Hozircha hech bir narsa
+    atribut bermaydi;
+  - yuklashda rad etiladi: noma'lum atribut, bir atributni ikki marta yozish, `Primary`siz
+    atributlar, qatordagi ortiqcha son, bir nomga javob beradigan ikki atribut;
+  - ⚠ qisman sozlama matnidagi `DungeonAttribute` bloki jo'natilganini **butunlay**
+    almashtiradi (monster va skill kabi). `Short` qayta yozilmasa, qahramonlarning `STR`
+    qatorlari topilmay qoladi.
+- **Raqamlar o'zgarmagani isbotlandi:**
+  - refaktordan oldin 3 qahramon × 15 daraja × 6 xil topilma = 270 qator yozib olindi,
+    float'lar bitlari bilan (`golden/hero_figures.txt`). Refaktordan keyin jo'natilgan INI
+    aynan shu faylni berdi (md5 bir xil);
+  - to'liq run signaturasi ham md5 bo'yicha bir xil chiqdi: seed 20260914, har qadamda
+    checksum, max HP bitlari, mana, daraja va qurol bonusi. Balans vaqtlari
+    (3 qahramon × 4 daraja) ham shunday;
+  - doimiy `HeroFiguresGoldenTest` o'sha 270 qatorni INI'ga bog'lanmagan holda qotiradi.
+    Balansni INI'da o'zgartirish uni buzmaydi, hisob tartibini o'zgartirish buzadi.
+- **Status qatori:**
+  - atribut: `|attr=so'z,qiymat,bonus,ikonka[,primary]`, INI tartibida;
+  - kartochka: `|atTipName/At/Text/Row/Foot=indeks,...`. Faqat bir birlik haqiqatan
+    o'zgartiradigan figura qator oladi;
+  - qahramonda `|stat=` endi faqat Zarba va Zirh (tasdiqlangan 2-qaror);
+  - tezlik beradigan atribut kartochkasining pastida "Hozirgi tezlik: 29" chiqadi
+    (`SpeedNowWord`);
+  - monster kartochkasi o'zgarmadi: Zarba va Tezlik.
+- **Panel (`client3d`):**
+  - `StatLook` — uya o'lchamlari, qatorlar soni, shrift o'lchamlari, ranglar va tintlar.
+    Qiymatlar `DungeonStatBlock Panel` blokidan keladi (`Main` → `Visuals.statLook`);
+  - chap ustun: figuralar 30px uyada;
+  - markaz: asosiy atribut 44px uyada, oltin ramka ichida, qiymati ostida
+    (tasdiqlangan 3-qaror);
+  - o'ng ustun: har atribut 24px uya, so'z, qiymat va yashil bonus. Asosiysi `#F0D48A`,
+    boshqalari `#C9A24B`, ikonkasi ham xiraroq;
+  - qiymatlar eng uzun so'zdan keyin bitta ustunga tekislanadi;
+  - blok balandligi qotirilgan (3 atribut qatoriga). Ko'proq atribut kelsa, qatorlar
+    qisiladi va band ostiga tushmaydi. Ism, unvon va XP bar joyidan qimirlamaydi;
+  - ikonka topilmasa, uyada so'zning birinchi harfi chiqadi va log'ga bir marta yoziladi;
+  - kartochka o'ng ustundagi qator yoki markazdagi ikonka ustida ochiladi
+    (`attributeAt` / `hoverAttribute`). Figurada kartochka yo'q.
+- **Ikonkalar:**
+  - `dungeon/art/icons/attributes_sheet.png` dan
+    `./gradlew :dungeon:cutIcons --args=attributes` bilan kesiladi →
+    `icons/stats/stat_{strength,agility,intelligence}.png` (64px);
+  - `IconSheets` endi argument berilsa faqat nomi mos varaqni kesadi;
+  - `CREDITS.md` ga qator qo'shildi (AI-generated);
+  - 8.bg'dagi "etik ikonkasi takrorlanadi" masalasi hal bo'ldi.
+- **Topilgan eski xato:** XP barining novi (`trough`) 2026-09-12 dan beri ustunning pastki
+  qismida chizilardi. Sabab: `attach(...)` qurilgan joyni nolga qaytarardi. Eski blokda bu
+  pastki qator ortidagi qora tasma edi. Yangi layout testi tutdi, `attachChild` bilan
+  tuzatildi. Mana barining novida ham xuddi shu edi (4px siljish) — u ham tuzatildi.
+- **Testlar:** 1542 → 1554.
+  - yangi: `HeroFiguresGoldenTest` (1);
+  - `AttributesTest` +7: INI'dan qo'shilgan atribut, atributlarning yig'indisi, qatorlar va
+    nomlar tekshiruvi, narsa atributi;
+  - `HeroStatusTest` +1: INI'dan qo'shilgan atribut kartochkasi bilan qatorda;
+  - `HeroPanelTest` +1: qo'shilgan atribut o'qiladi;
+  - `PanelLayoutTest` +2: 4 xil ekran enida 4 atribut bilan blok band ichida va ustunlar
+    ajralgan; ikonka yo'qligida harf chiqadi;
+  - o'zgardi: `HeroAttributesTest`, `ManaTest`, `HeroProgressTest`, `DepthTest`,
+    `DungeonTilesTest`.
+- **Ko'z bilan tekshirildi** (yashirin oynada, 1600×900 va 1024×640). Demo +4 Epchillik va
+  +20% zarba sovg'asini `HeroProgress.found()` orqali berdi, faqat yashil bonus ko'rinsin deb:
+  - Rogue: `Zarba 22 +8`, `Zirh 0`, markazda yuguruvchi `16`,
+    `Kuch 10 · Epchillik 16 +4 · Aql 8`;
+  - Rogue'ning Epchillik kartochkasi: Tezlik +0.15, Zarba +1, "Hozirgi tezlik: 30";
+  - Knight: markazda bilak `22`. Mage: markazda bosh `10`;
+  - monster (Skeleton, Runner): chapda faqat Zarba va Tezlik;
+  - 1024×640 da blok proporsional kichrayadi, kartochka ekranda qoladi;
+  - ikonkalar 24px (1600 da ~30px) va 44px (~54px) da aniq o'qiladi.
+- **Eslatma:** topshiriqda chap ustun "Zarar" deb yozilgan, maket va INI'da esa "Zarba".
+  So'z o'zgartirilmadi — kerak bo'lsa `AttackWord` bitta qator.
 
 ## 9. Nima yo'q / ochiq ishlar
 

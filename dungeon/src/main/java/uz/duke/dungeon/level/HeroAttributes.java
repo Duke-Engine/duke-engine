@@ -2,17 +2,22 @@ package uz.duke.dungeon.level;
 
 /**
  * One hero's attributes as his {@code DungeonHero} block writes them: what he starts
- * with, what every level adds, and which of the three is his primary.
+ * with, what every level adds, and which of them is his primary.
  *
- * @param primary  the attribute that is also his attack, or {@code null} for a hero the
- *                 file gives no attributes at all — he is then exactly his creature block
+ * @param primary  where his primary stands in the file's list of attributes, or -1 for a
+ *                 hero the file gives no attributes at all — he is then exactly his
+ *                 creature block
  * @param base     at the first level, in tenths
  * @param perLevel added by each level after the first, in tenths
  */
-public record HeroAttributes(Attribute primary, Attributes base, Attributes perLevel) {
+public record HeroAttributes(int primary, Attributes base, Attributes perLevel) {
 
     public static final HeroAttributes NONE =
-            new HeroAttributes(null, Attributes.NONE, Attributes.NONE);
+            new HeroAttributes(-1, Attributes.NONE, Attributes.NONE);
+
+    public boolean hasPrimary() {
+        return primary >= 0;
+    }
 
     /**
      * What he has at this level.

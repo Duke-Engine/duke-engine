@@ -1045,6 +1045,20 @@ public final class Main {
         // — see IconLook.
         visuals.iconLook(new uz.duke.client3d.IconLook(settings.hudPaintedSkillIcons()));
 
+        // How the block under the experience bar is drawn -- see DungeonStatBlock. The
+        // client knows where its three columns go; the file says how big and what colour.
+        var statBlockArt = settings.statBlockArt();
+        visuals.statLook(new uz.duke.client3d.StatLook(statBlockArt.figureIcon(),
+                statBlockArt.primaryIcon(), statBlockArt.attributeIcon(), statBlockArt.iconShare(),
+                statBlockArt.rowGap(), statBlockArt.gapUnderBar(), statBlockArt.figureColumn(),
+                statBlockArt.primaryColumn(), statBlockArt.figureRows(),
+                statBlockArt.attributeRows(), statBlockArt.figureText(),
+                statBlockArt.attributeText(), statBlockArt.primaryText(),
+                statBlockArt.labelColour(), statBlockArt.valueColour(),
+                statBlockArt.primaryColour(), statBlockArt.attributeColour(),
+                statBlockArt.gainColour(), statBlockArt.frameColour(), statBlockArt.figureTint(),
+                statBlockArt.primaryTint(), statBlockArt.attributeTint()));
+
         // Where the light comes from — see DungeonSun. The pitch is what decides
         // whether the floor plan reads as a place with heights in it.
         visuals.sunlight(new uz.duke.client3d.Sunlight(settings.sunPitch(), settings.sunYaw(),

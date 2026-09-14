@@ -10,19 +10,26 @@ package uz.duke.dungeon.loot;
  * everywhere else — and for the same reason it may not carry the two characters
  * the status line separates its fields with.
  *
- * @param id       what the block is headed by; never seen by the player
- * @param name     what the message says he picked up, in the game's own language
- * @param icon     the drawing the panel puts in his bag, by the name the client
- *                 knows it under
- * @param kind     which of the three figures it moves
- * @param value    percent for {@code ATTACK} and {@code ARMOUR}, flat health for
- *                 {@code HEALTH} — the same convention {@code DungeonLeveling}
- *                 uses, because the engine's hooks are multipliers for two of
- *                 them and an amount for the third
- * @param weight   how often it is the one that drops; zero is never
- * @param minDepth the floor below which it is not found at all, which is what
- *                 makes going deeper worth the monsters
+ * @param id        what the block is headed by; never seen by the player
+ * @param name      what the message says he picked up, in the game's own language
+ * @param icon      the drawing the panel puts in his bag, by the name the client
+ *                  knows it under
+ * @param kind      which figure it moves
+ * @param value     percent for {@code ATTACK} and {@code ARMOUR}, flat health or mana
+ *                  for {@code HEALTH} and {@code MANA}, whole points for
+ *                  {@code ATTRIBUTE}
+ * @param weight    how often it is the one that drops; zero is never
+ * @param minDepth  the floor below which it is not found at all, which is what
+ *                  makes going deeper worth the monsters
+ * @param attribute which attribute an {@code ATTRIBUTE} item gives, as a hero's block
+ *                  names it; empty for every other kind
  */
 public record Loot(String id, String name, String icon, LootKind kind, int value, int weight,
-        int minDepth) {
+        int minDepth, String attribute) {
+
+    /** An item that gives no attribute, which is every kind but {@code ATTRIBUTE}. */
+    public Loot(String id, String name, String icon, LootKind kind, int value, int weight,
+            int minDepth) {
+        this(id, name, icon, kind, value, weight, minDepth, "");
+    }
 }

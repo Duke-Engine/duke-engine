@@ -81,11 +81,25 @@ public final class IconSheets {
                 "dungeon/src/main/resources/icons/stats", 64, new int[] {4, 4},
                 "stat_attack", "stat_armor", "stat_speed", "stat_lifesteal",
                 "stat_health", "stat_crit", "stat_cooldown", "stat_range"),
+        // Into the stats folder, and at its size: an attribute's picture stands in the
+        // same kind of socket a figure's does, and the largest of them -- the primary's
+        // -- is under sixty-four pixels at the panel's largest scale.
+        new Sheet("dungeon/art/icons/attributes_sheet.png",
+                "dungeon/src/main/resources/icons/stats", 64, new int[] {3},
+                "stat_strength", "stat_agility", "stat_intelligence"),
     };
 
+    /**
+     * Cut every sheet, or only the sheets whose file names contain one of {@code args}.
+     *
+     * <p>{@code ./gradlew :dungeon:cutIcons --args=attributes} cuts the one sheet that
+     * changed and leaves the files every other sheet made exactly as they are.
+     */
     public static void main(String[] args) throws IOException {
         for (var sheet : SHEETS) {
-            cut(sheet);
+            if (args.length == 0 || java.util.Arrays.stream(args).anyMatch(sheet.from()::contains)) {
+                cut(sheet);
+            }
         }
     }
 

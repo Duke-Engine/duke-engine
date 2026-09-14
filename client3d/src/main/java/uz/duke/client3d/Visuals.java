@@ -904,6 +904,21 @@ public final class Visuals {
         return iconLook;
     }
 
+    private StatLook statLook = StatLook.DEFAULT;
+
+    /**
+     * How the block of figures and attributes under the experience bar is drawn — see
+     * {@link StatLook}. A game that never says gets its default sizes and colours.
+     */
+    public Visuals statLook(StatLook look) {
+        this.statLook = look == null ? StatLook.DEFAULT : look;
+        return this;
+    }
+
+    public StatLook getStatLook() {
+        return statLook;
+    }
+
     /**
      * What the caster is seen doing, and for how long.
      *
