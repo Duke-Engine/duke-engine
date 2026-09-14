@@ -1,7 +1,9 @@
 package uz.duke.dungeon.level;
 
+import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectId;
+import uz.duke.dungeon.content.HeroLook;
 import uz.duke.dungeon.loot.LootBag;
 import uz.duke.game.DukeGame;
 import uz.duke.game.GamePlayer;
@@ -16,62 +18,47 @@ import uz.duke.rts.module.ExperienceModule;
  * deaths for itself, which would mean watching the world and getting it wrong
  * whenever something died to anything else.
  *
- * <p>What experience <em>buys</em> is the game's, and not the engine's rank
- * system: {@code VeterancyLevel} is four fixed ranks with multipliers compiled
- * into an enum, which cannot express "ten levels, each worth this much health".
- * So the engine counts and {@link Levelling} decides.
+ * <p>What a level buys is his attributes growing, and what those come to is worked
+ * out in {@link HeroFigures} — the same arithmetic the panel prints. This is the one
+ * place it is applied: to his body, his weapon, his legs and his pool. His first level
+ * is already in the body when it is built (see {@link HeroBuild}); everything here is
+ * what levels and finds add on top.
  *
- * <p>Nothing here survives a death. A new hero is a new object, which this
- * notices by his id, and everything resets — including the one piece of progress
- * that would otherwise outlive him: the weapon bonus lives on the <em>player</em>,
- * and players are not cleared between runs, so it has to be put back by hand or
- * a new hero would start swinging like the last one finished.
+ * <p>Nothing here survives a death. A new hero is a new object, which this notices by
+ * his id, and everything resets — including the one piece of progress that would
+ * otherwise outlive him: the weapon bonus lives on the <em>player</em>, and players are
+ * not cleared between runs, so it has to be put back by hand or a new hero would start
+ * swinging like the last one finished.
  *
- * <p>Deterministic: integer arithmetic from the data file, the simulation's own
- * frame counter for timing the message, and each multiplier computed from the
- * level in one step rather than accumulated — so a hero at level 7 is the same
- * hero however he got there.
+ * <p>Deterministic: every figure is computed from the level and the bag in one step, out
+ * of integers from the data file, and applied from a tick — after every object has
+ * updated, on the same frame on every machine.
  */
 public final class HeroProgress {
 
     private final GamePlayer heroPlayer;
     private final Levelling rules;
+    private final AttributeRules attributeRules;
     private final int bannerFrames;
 
-    /** Which creature is him. His player owns his arrows too. */
-    private String heroTemplate;
-    /** What he holds and what he gets back before a level is earned; see playing. */
-    private int baseMaxMana;
-    private int baseManaRegen;
+    /** What he has found on the floor, which moves his figures the way a level does. */
+    private final LootBag loot;
+
+    /** Which hero is being played, and everything his block says about him. */
+    private HeroLook hero = HeroLook.NONE;
+
     /**
      * Mana returned for a kill, and 0 for a game that does not pay for them.
      *
-     * <p>Off by default, and that is the interesting setting rather than the
-     * timid one. Paying for kills makes mana a reward for fighting, which pulls
-     * against what it is here for: a resource that makes him choose. With it off
-     * the only way to get mana back is to wait, and waiting is the decision.
+     * <p>Off by default, and that is the interesting setting rather than the timid one.
+     * Paying for kills makes mana a reward for fighting, which pulls against what it is
+     * here for: a resource that makes him choose. With it off the only way to get mana
+     * back is to wait, and waiting is the decision.
      */
     private int manaPerKill;
 
-    /** What he shrugs off before a single level — see the constructor. */
-    private int armourPercent;
-
-    /**
-     * What he has found on the floor, which moves the same three figures a level
-     * does.
-     *
-     * <p>Folded in here rather than applied where it is picked up, because two of
-     * the three are <em>assigned</em> rather than added: the weapon bonus and the
-     * armour are functions of the level, so a chest that set them itself would be
-     * overwritten by the next level, and a level would undo the chest. One place
-     * computes each figure from everything that goes into it.
-     */
-    private final LootBag loot;
-
     /** How many items had been found when they were last applied. */
     private int lootStamp = -1;
-    /** The health those items had already added to this body. */
-    private float lootHealthOnThisBody;
 
     private ObjectId heroId;
     private int level = Levelling.FIRST_LEVEL;
@@ -81,72 +68,38 @@ public final class HeroProgress {
     /** This body's own total, remembered so it can be banked when he descends. */
     private int lastKnownExperience;
 
-    public HeroProgress(GamePlayer heroPlayer, Levelling rules, int bannerFrames) {
-        this(heroPlayer, rules, bannerFrames, new LootBag());
-    }
-
-    public HeroProgress(GamePlayer heroPlayer, Levelling rules, int bannerFrames, LootBag loot) {
-        this(heroPlayer, rules, bannerFrames, loot, "Rogue", 0);
-    }
-
     /**
-     * The same, told which creature is the hero and what he wears before he has
-     * earned anything.
+     * The speed this body's legs were built for.
      *
-     * <p>Both are per-hero facts and neither could be read off the world. The
-     * template because his player owns his arrows as well as him; the armour
-     * because a hero's is <em>rewritten</em> from his level and his loot every
-     * time either changes, so a figure in his creature block would not survive his
-     * first level.
-     *
-     * <p>The shorter constructors above keep the archer's answers, which is what
-     * every caller that has not heard of a second hero should get.
-     *
-     * @param heroTemplate  the creature template being played
-     * @param armourPercent what he shrugs off at level one, counted exactly like a
-     *     breastplate he found — so the file's floor on damage taken still holds
+     * <p>Remembered rather than read back, because the engine's locomotor does not hand
+     * its speed back. Compared exactly: it is recomputed from the same integers every
+     * time, so it comes out as the same bits for as long as it has not moved.
      */
-    public HeroProgress(GamePlayer heroPlayer, Levelling rules, int bannerFrames, LootBag loot,
-            String heroTemplate, int armourPercent) {
+    private float speedOnThisBody = Float.NaN;
+
+    public HeroProgress(GamePlayer heroPlayer, Levelling rules, AttributeRules attributeRules,
+            int bannerFrames, LootBag loot) {
         this.heroPlayer = heroPlayer;
         this.rules = rules;
+        this.attributeRules = attributeRules;
         this.bannerFrames = bannerFrames;
         this.loot = loot;
-        this.heroTemplate = heroTemplate;
-        this.armourPercent = armourPercent;
     }
 
     /**
      * A different hero is being played from here on.
      *
-     * <p>Both halves have to move together, and that is the reason this is one
-     * call rather than two setters: the template is how he is found in the world
-     * and the armour is what his body is given, and a run with one of them
-     * belonging to the archer and the other to the knight is a hero who cannot be
-     * found or one who is wearing somebody else's plate.
-     *
-     * <p>Whoever calls this owes a fresh run — see {@code DungeonRun.startWith}.
-     * Nothing here touches the hero standing in the world, because the hero
-     * standing in the world is about to be replaced.
+     * <p>Whoever calls this owes a fresh run — see {@code DungeonRun.startWith}. Nothing
+     * here touches the hero standing in the world, because the hero standing in the
+     * world is about to be replaced.
      */
-    public void playing(String heroTemplate, int armourPercent) {
-        playing(heroTemplate, armourPercent, 0, 0);
+    public void playing(HeroLook hero) {
+        this.hero = hero == null ? HeroLook.NONE : hero;
     }
 
-    /**
-     * Which hero is being played, and the two figures that are his rather than
-     * his creature template's.
-     *
-     * <p>Both are here for the same reason his armour is: the game recomputes
-     * them from his level every time it changes, so anything the template said
-     * would be overwritten the first time he went up. See {@code DungeonHero} in
-     * the settings file, where they are written.
-     */
-    public void playing(String heroTemplate, int armourPercent, int maxMana, int manaRegen) {
-        this.heroTemplate = heroTemplate;
-        this.armourPercent = armourPercent;
-        this.baseMaxMana = maxMana;
-        this.baseManaRegen = manaRegen;
+    /** The block of the hero being played. */
+    public HeroLook getHero() {
+        return hero;
     }
 
     /** How much mana a kill gives back; 0 turns it off. See {@link #manaPerKill}. */
@@ -161,21 +114,21 @@ public final class HeroProgress {
 
     /** Called every logic frame on the simulation thread. */
     public void tick(DukeGame game) {
-        var hero = findHero(game);
-        if (hero == null) {
+        var body = findHero(game);
+        if (body == null) {
             return; // no hero to advance; the run loop owns the screen now
         }
         if (heroId == null) {
-            carryOver(game, hero); // the first hero of a run
+            carryOver(game, body); // the first hero of a run
         }
         // Something died worth experience, so something died. There is no kill
         // event on this side of the engine -- the experience module is rts's and
         // this game may not touch it -- so the rise IS the notice. Nothing else
         // in the dungeon grants experience, which is what makes the reading
         // sound rather than merely convenient.
-        int now = experienceOf(hero);
+        int now = experienceOf(body);
         if (manaPerKill > 0 && now > lastKnownExperience && heroId != null) {
-            var book = hero.findModule(uz.duke.dungeon.skill.SkillBook.class);
+            var book = body.findModule(uz.duke.dungeon.skill.SkillBook.class);
             if (book != null) {
                 book.restoreMana(manaPerKill);
             }
@@ -183,10 +136,11 @@ public final class HeroProgress {
         lastKnownExperience = now;
         int earned = rules.levelFor(getExperience());
         if (earned > level) {
-            promote(game, hero, earned);
+            promote(game, body, earned);
         }
         if (loot.getFound().size() != lootStamp) {
-            applyLoot(game, hero);
+            lootStamp = loot.getFound().size();
+            apply(game, body);
         }
         expireBanner(game);
     }
@@ -194,9 +148,9 @@ public final class HeroProgress {
     /**
      * Everything back to nothing: a run has ended.
      *
-     * <p>Told rather than inferred. Both dying and descending replace the hero
-     * object, so noticing a new hero and resetting would wipe his levels every
-     * time he went down a floor — which is the opposite of what a floor is for.
+     * <p>Told rather than inferred. Both dying and descending replace the hero object,
+     * so noticing a new hero and resetting would wipe his levels every time he went down
+     * a floor — which is the opposite of what a floor is for.
      */
     public void reset() {
         heroId = null;
@@ -205,125 +159,146 @@ public final class HeroProgress {
         clearBannerAtFrame = 0;
         loot.clear();
         lootStamp = -1;
-        lootHealthOnThisBody = 0f;
+        speedOnThisBody = Float.NaN;
     }
 
     /**
-     * Something new in the bag: give him what it is worth.
+     * A new hero on a deeper floor, who is the same hero: bring his fresh body up to
+     * everything the last one had earned.
      *
-     * <p>Health is grown by the difference, so picking up a second breastplate is
-     * worth a second breastplate rather than both of them again. The other two are
-     * recomputed from scratch, which is what they are: functions of everything he
-     * has.
+     * <p>His experience total is on the module the old body carried, and the new one
+     * starts at zero — so it is carried here and added to whatever the new body goes on
+     * to earn.
      */
-    private void applyLoot(DukeGame game, GameObject hero) {
-        lootStamp = loot.getFound().size();
-        if (hero.getBody() instanceof GrowableBody body) {
-            body.growMaxHealth(loot.health() - lootHealthOnThisBody);
-            lootHealthOnThisBody = loot.health();
-        }
-        applyDamageBonus(game, level);
-        applyArmour(hero, level);
-        applyMana(hero, level);
-    }
-
-    /**
-     * A new hero on a deeper floor, who is the same hero: re-apply to his fresh
-     * body and weapon everything the last one had earned.
-     *
-     * <p>His experience total is on the module the old body carried, and the new
-     * one starts at zero — so it is carried here and added to whatever the new
-     * body goes on to earn.
-     */
-    public void carryOver(DukeGame game, GameObject hero) {
+    public void carryOver(DukeGame game, GameObject body) {
         if (heroId != null) {
             carriedExperience += lastKnownExperience;
         }
-        heroId = hero.getId();
+        heroId = body.getId();
         lastKnownExperience = 0;
-        applyDamageBonus(game, level);
-        applyArmour(hero, level);
-        applyMana(hero, level);
-        // A new body has none of what the old one was given, the loot included.
-        lootHealthOnThisBody = 0f;
-        if (hero.getBody() instanceof GrowableBody body) {
-            body.growMaxHealth(rules.bonusHealth(level) + loot.health());
-            lootHealthOnThisBody = loot.health();
-        }
+        // What the body was built as: his block at the first level, nothing found.
+        speedOnThisBody = figuresAt(body, Levelling.FIRST_LEVEL, HeroFigures.Found.NOTHING).speed();
+        lootStamp = loot.getFound().size();
+        apply(game, body);
     }
 
-    private void promote(DukeGame game, GameObject hero, int earned) {
-        // Grow by the difference, so skipping two levels at once is worth two.
-        float extraHealth = rules.bonusHealth(earned) - rules.bonusHealth(level);
-        if (hero.getBody() instanceof GrowableBody body) {
-            body.growMaxHealth(extraHealth);
-        }
+    private void promote(DukeGame game, GameObject body, int earned) {
         level = earned;
-        applyDamageBonus(game, earned);
-        applyArmour(hero, earned);
-        applyMana(hero, earned);
-
+        apply(game, body);
         game.setBanner("Level " + earned + "!");
         clearBannerAtFrame = game.getLogic().getFrame() + bannerFrames;
     }
 
     /**
-     * Set the weapon bonus to exactly what this level is worth.
+     * Give this body exactly what his level and his bag are worth.
      *
-     * <p>Assigned rather than compounded: the bonus is a function of the level, so
-     * it is computed from the level in one step. Accumulating it would drift as
-     * levels stacked, and a hero at level seven must be the same hero however he
-     * got there.
-     *
-     * <p>The bonus belongs to the player rather than the unit, which is exact
-     * while the player commands one hero and would need revisiting the day he has
-     * companions to share it with.
+     * <p>Every figure is assigned from one computation rather than nudged by what
+     * changed, so skipping two levels at once, or a level and a find on the same frame,
+     * comes out as the same hero as taking them one at a time.
      */
-    private void applyDamageBonus(DukeGame game, int atLevel) {
+    private void apply(DukeGame game, GameObject body) {
+        var now = figuresOf(body, found());
+        var built = figuresAt(body, Levelling.FIRST_LEVEL, HeroFigures.Found.NOTHING);
+        if (body.getBody() instanceof GrowableBody growable) {
+            // Up to the figure and never down: a level or a find only ever adds, and
+            // current health rises with the ceiling -- it is not a full heal, or
+            // levelling mid-fight would be a free escape from losing one.
+            float more = now.maxHealth() - growable.getMaxHealth();
+            if (more > 0f) {
+                growable.growMaxHealth(more);
+            }
+            // His own plate counts exactly like a breastplate he found, so the file's
+            // floor on damage taken holds for a knight as it does for an archer who
+            // has picked up four of them.
+            growable.setDamageTaken(
+                    rules.damageTakenWith(level, hero.armourPercent() + loot.armourPercent()));
+        }
         var player = game.getLogic().getRtsPlayer(heroPlayer.getIndex());
         if (player != null) {
-            // Added to the level's multiplier rather than multiplied by it: a
-            // sword is worth the same swing whatever level he found it at, which
-            // is what makes an early one worth going out of the way for.
-            player.setWeaponDamageBonus(
-                    rules.damageMultiplier(atLevel) + loot.attackPercent() / 100f);
+            // The weapon was built with his first-level blow; this is what the blow is
+            // worth now, as a share of that. It belongs to the player rather than the
+            // unit, which is exact while the player commands one hero.
+            player.setWeaponDamageBonus(built.attack() > 0f ? now.attack() / built.attack() : 1f);
+        }
+        applySpeed(body, now.speed());
+        applyMana(body, now.maxMana());
+        var recovery = body.findModule(Recovery.class);
+        if (recovery != null) {
+            recovery.rate(hero.healthRegen());
         }
     }
 
     /**
-     * What he casts out of at this level, handed to the book that spends it.
+     * New legs when his speed has moved.
      *
-     * <p>Here rather than in {@code SkillBook} because this is the one place that
-     * knows what a level is worth — the same division that keeps the armour and
-     * the weapon bonus here. A hero whose file names no pool is left with none,
-     * and then nothing he casts costs anything, which is how the game worked
-     * before any of this.
+     * <p>The engine's locomotor fixes its speed when it is built and offers no way to
+     * change it, so faster legs are a new locomotor put in the old one's place in the
+     * update order. Only ever from a tick or between frames, never under a module's own
+     * update — the object refuses a list changed under it. Wherever he was walking to he
+     * is still walking to, planned again from where he stands.
      */
-    private void applyMana(GameObject hero, int atLevel) {
-        var book = hero.findModule(uz.duke.dungeon.skill.SkillBook.class);
+    private void applySpeed(GameObject body, float speed) {
+        if (Float.compare(speed, speedOnThisBody) == 0) {
+            return;
+        }
+        var legs = body.findModule(MoveUpdate.class);
+        if (legs == null) {
+            return;
+        }
+        var fresh = new MoveUpdate(body,
+                new MoveUpdate.Data(speed, HeroBase.of(body.getTemplate()).turnRate()));
+        var goal = legs.isMoving() ? legs.getGoal() : null;
+        body.replaceModule(legs, fresh);
+        if (goal != null) {
+            fresh.moveTo(goal);
+        }
+        speedOnThisBody = speed;
+    }
+
+    /**
+     * What he casts out of, handed to the book that spends it.
+     *
+     * <p>A hero whose file names no pool is left with none, and then nothing he casts
+     * costs anything, which is how the game worked before any of this.
+     */
+    private void applyMana(GameObject body, int maxMana) {
+        var book = body.findModule(uz.duke.dungeon.skill.SkillBook.class);
         if (book == null) {
             return;
         }
         boolean isNew = book.getMaxMana() <= 0;
-        book.poolOf(baseMaxMana + rules.bonusMana(atLevel) + loot.mana(),
-                baseManaRegen + rules.bonusManaRegen(atLevel));
+        book.poolOf(maxMana, hero.manaRegen());
         if (isNew) {
-            // A body he has only just been given: a new run, or the first frame
-            // on a new floor. He arrives full, exactly as his health does -- a
-            // hero who walked down a staircase and found himself unable to cast
-            // would be being punished for the staircase.
+            // A body he has only just been given: a new run, or the first frame on a
+            // new floor. He arrives full, exactly as his health does -- a hero who
+            // walked down a staircase and found himself unable to cast would be being
+            // punished for the staircase.
             book.fillMana();
         }
     }
 
-    private void applyArmour(GameObject hero, int atLevel) {
-        if (hero.getBody() instanceof GrowableBody body) {
-            // His own plate counts exactly like a breastplate he found, so the
-            // file's floor on damage taken holds for a knight as it does for an
-            // archer who has picked up four of them.
-            body.setDamageTaken(
-                    rules.damageTakenWith(atLevel, armourPercent + loot.armourPercent()));
-        }
+    /**
+     * What he has picked up, as far as his figures are concerned.
+     *
+     * <p>Items give whole points of an attribute; the figures count in tenths.
+     */
+    public HeroFigures.Found found() {
+        return new HeroFigures.Found(
+                Attributes.ofWhole(loot.strength(), loot.agility(), loot.intelligence()),
+                loot.health(), loot.mana(), loot.attackPercent());
+    }
+
+    /**
+     * What this body comes to at his level, with {@code found} — the bag, or
+     * {@link HeroFigures.Found#NOTHING} for the figure without it.
+     */
+    public HeroFigures figuresOf(GameObject body, HeroFigures.Found found) {
+        return figuresAt(body, level, found);
+    }
+
+    private HeroFigures figuresAt(GameObject body, int atLevel, HeroFigures.Found found) {
+        return HeroFigures.of(HeroBase.of(body.getTemplate()), hero.maxMana(), hero.attributes(),
+                attributeRules, atLevel, found);
     }
 
     private void expireBanner(DukeGame game) {
@@ -336,7 +311,7 @@ public final class HeroProgress {
     private GameObject findHero(DukeGame game) {
         for (var object : game.getLogic().getObjects()) {
             if (object.getPlayerIndex() == heroPlayer.getIndex()
-                    && object.getTemplate().getName().equals(heroTemplate)) {
+                    && object.getTemplate().getName().equals(hero.name())) {
                 return object;
             }
         }

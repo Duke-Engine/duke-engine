@@ -72,6 +72,21 @@ public final class LootBag {
         return totalOf(LootKind.ARMOUR);
     }
 
+    /** Whole points of strength added by everything he has found. */
+    public int strength() {
+        return totalOf(LootKind.STRENGTH);
+    }
+
+    /** Whole points of agility added by everything he has found. */
+    public int agility() {
+        return totalOf(LootKind.AGILITY);
+    }
+
+    /** Whole points of intelligence added by everything he has found. */
+    public int intelligence() {
+        return totalOf(LootKind.INTELLIGENCE);
+    }
+
     private int totalOf(LootKind kind) {
         int total = 0;
         for (var item : found) {

@@ -460,7 +460,7 @@ class PanelLayoutTest {
         var font = assets.loadFont("Interface/Fonts/Default.fnt");
         float room = HeroPanel.roomInAFigure();
 
-        for (var word : List.of("Zarba", "Zirh", "Tezlik", "Qon")) {
+        for (var word : List.of("Zarba", "Zirh", "Tezlik", "Qon", "Kuch", "Epchillik", "Aql")) {
             for (var figure : List.of("0", "34", "129", "10%")) {
                 float wide = width(font, word) + width(font, figure);
                 // A clear gap, not merely a fit: two strings that end and begin
@@ -478,6 +478,45 @@ class PanelLayoutTest {
 
     /** How much clear air a word and the figure beside it want between them. */
     private static final float GAP = 6f;
+
+    /**
+     * His attributes stand in a row of their own over the figures, and resting the
+     * cursor on one opens its card — where a figure worked out of them has none.
+     */
+    @Test
+    void anAttributesCardOpensOverItAndAFigureHasNone() {
+        var bar = bar(LINE.replace("|stat=Zarba,34,+6|stat=Zirh,12,+2|stat=Tezlik,52",
+                "|stat=Kuch,22,,,primary|stat=Epchillik,10,|stat=Aql,8,"
+                        + "|stTipName=0,Kuch|stTipRow=0,Jon,+12,"
+                        + "|stat=Zarba,34,+6|stat=Zirh,12,+2|stat=Tezlik,52"));
+        float[] strength = null;
+        float[] attack = null;
+        for (float y = 0f; y < 400f; y += 1f) {
+            for (float x = 0f; x < 1600f; x += 2f) {
+                var at = bar.statAt(x, y);
+                if (at == null) {
+                    continue;
+                }
+                if (at == 0 && strength == null) {
+                    strength = new float[] {x, y};
+                }
+                if (at == 3 && attack == null) {
+                    attack = new float[] {x, y};
+                }
+            }
+        }
+        assertNotNull(strength, "the cursor found strength nowhere on the bar");
+        assertNotNull(attack, "nor the figures under it");
+        assertTrue(strength[1] > attack[1], "the attributes should stand above the figures");
+        assertEquals(strength[0], attack[0], 2f, "in the same columns");
+
+        bar.hoverStat(0);
+        assertTrue(bar.tipShowing(), "resting on strength opens its card");
+        bar.hoverStat(3);
+        assertFalse(bar.tipShowing(), "a figure worked out of the attributes has no card");
+        bar.hoverStat(null);
+        assertFalse(bar.tipShowing());
+    }
 
     /** How wide a string is in the lettering a figure is set in. */
     private static float width(com.jme3.font.BitmapFont font, String words) {

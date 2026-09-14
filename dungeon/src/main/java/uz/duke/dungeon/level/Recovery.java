@@ -1,0 +1,67 @@
+package uz.duke.dungeon.level;
+
+import uz.duke.core.GameConstants;
+import uz.duke.core.ini.FieldParseTable;
+import uz.duke.core.ini.Ini;
+import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.UpdateModule;
+import uz.duke.core.thing.GameObject;
+
+/**
+ * Health coming back on its own, counted exactly the way mana is.
+ *
+ * <p>The rate is <b>tenths of a point a second</b> and {@link #carry} holds what has been
+ * earned towards the next whole point: each frame adds the rate, and every time the carry
+ * reaches a second's worth one point is healed. 15 tenths is exactly 1.5 a second, on
+ * every machine, for ever — where {@code heal(1.5f / 30f)} thirty times a second is a
+ * float sum two peers drift apart on.
+ *
+ * <p>Nothing until {@code HeroProgress} names a rate: the figure is his block's, not his
+ * creature's, and a creature spawned without a hero's progress behind it heals nothing.
+ */
+public final class Recovery extends UpdateModule {
+
+    private static final int A_SECOND = 10 * GameConstants.LOGICFRAMES_PER_SECOND;
+
+    private int tenthsPerSecond;
+    private int carry;
+
+    public Recovery(GameObject owner) {
+        super(owner);
+    }
+
+    /** The empty block that puts this on a creature; the rate is set in code. */
+    public static ModuleData parseData(Ini ini) {
+        ini.initFromIni(new Object(), NO_FIELDS);
+        return null;
+    }
+
+    private static final FieldParseTable<Object> NO_FIELDS = new FieldParseTable<>();
+
+    /** How fast, in tenths of a point a second. */
+    public void rate(int tenthsPerSecond) {
+        this.tenthsPerSecond = Math.max(0, tenthsPerSecond);
+    }
+
+    public int getRate() {
+        return tenthsPerSecond;
+    }
+
+    @Override
+    public void update() {
+        var owner = getOwner();
+        var body = owner.getBody();
+        if (tenthsPerSecond <= 0 || body == null || owner.isEffectivelyDead()
+                || body.getHealth() >= body.getMaxHealth()) {
+            // Nothing is banked while he is full, so a wound taken later does not
+            // start half healed.
+            carry = 0;
+            return;
+        }
+        carry += tenthsPerSecond;
+        while (carry >= A_SECOND && body.getHealth() < body.getMaxHealth()) {
+            carry -= A_SECOND;
+            body.heal(1f);
+        }
+    }
+}

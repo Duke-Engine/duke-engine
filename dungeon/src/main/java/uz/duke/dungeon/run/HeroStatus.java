@@ -5,6 +5,8 @@ import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ThingTemplate;
 import uz.duke.dungeon.ai.Doing;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.level.Attribute;
+import uz.duke.dungeon.level.HeroFigures;
 import uz.duke.dungeon.level.HeroProgress;
 import uz.duke.dungeon.skill.SkillBook;
 import uz.duke.dungeon.skill.Skills;
@@ -415,46 +417,98 @@ final class HeroStatus {
     }
 
     /**
-     * The three figures under the bars: what he hits for, what he shrugs off, and
-     * how fast he moves.
+     * His three attributes, and the three figures under them: what he hits for, what he
+     * shrugs off, and how fast he moves.
      *
-     * <p>Worked out rather than read off the hero, because the engine's weapon and
-     * locomotor do not hand their numbers back — and because what a level is worth
-     * is this game's arithmetic anyway. The base of each comes from his template,
-     * so {@code creatures.ini} stays the one place the starting hero is written.
+     * <p>The figures come from {@code HeroProgress} rather than being worked out here
+     * again: it is the one place the attribute arithmetic is done and the one place it
+     * is applied, so the number on the panel is the number taking the blows.
      *
      * <p>Everything that moves them is counted: the level and what he found on the
-     * floor. A panel that showed only one of the two would be a panel a player
-     * learns not to believe.
+     * floor. What he would have without anything he found is the other half of each
+     * figure — the difference is the number in green, and it is worth showing on its
+     * own: a figure that only goes up says nothing about whether the last thing he
+     * picked up was worth picking up.
+     *
+     * <p>The attributes go first, so a panel that lays figures out three to a row puts
+     * them in a row of their own above what they are worked out into. His primary is
+     * marked, and each carries the card that says what one point of it is worth.
      */
     private static void appendStats(StringBuilder line, GameObject hero, HeroProgress progress,
             DungeonSettings settings) {
-        var rules = settings.levelling();
-        var found = progress.getLoot();
+        var now = progress.figuresOf(hero, progress.found());
+        var bare = progress.figuresOf(hero, HeroFigures.Found.NOTHING);
+        var his = progress.getHero();
+        var primary = his.attributes().primary();
+        if (primary != null) {
+            var rules = settings.attributeRules();
+            int index = 0;
+            for (var attribute : Attribute.values()) {
+                stat(line, settings.hudAttributeWord(attribute), now.attributes().whole(attribute),
+                        bare.attributes().whole(attribute), settings.hudAttributeIcon(attribute));
+                if (attribute == primary) {
+                    line.append(",primary");
+                }
+                attributeCard(line, index++, attribute, attribute == primary, rules, settings);
+            }
+        }
+        var levelling = settings.levelling();
         int level = progress.getLevel();
-        float attack = weaponDamage(hero.getTemplate())
-                * (rules.damageMultiplier(level) + found.attackPercent() / 100f);
         // What he was born in counts with what he has found, exactly as the body
-        // counts it — otherwise the figure on the panel is not the one taking the
-        // blows, and a knight reads as an archer in a shirt.
-        int worn = settings.heroNamed(hero.getTemplate().getName()).armourPercent();
-        int armour = Math.round(
-                (1f - rules.damageTakenWith(level, worn + found.armourPercent())) * 100f);
-        float speed = walkingSpeed(hero.getTemplate());
-        // What he would have without anything he found. The difference is
-        // the number in green, and it is worth showing on its own: a figure that
-        // only goes up says nothing about whether the last thing he picked up was
-        // worth picking up.
-        float bareAttack = weaponDamage(hero.getTemplate()) * rules.damageMultiplier(level);
-        // His own plate is not borrowed, so it belongs on both sides of the sum:
-        // the green figure is what he picked up, not what he was made with.
-        int bareArmour = Math.round((1f - rules.damageTakenWith(level, worn)) * 100f);
+        // counts it -- otherwise the figure on the panel is not the one taking the
+        // blows, and a knight reads as an archer in a shirt. His own plate is not
+        // borrowed, so it belongs on both sides of the sum.
+        int worn = his.armourPercent();
+        int armour = Math.round((1f - levelling.damageTakenWith(level,
+                worn + progress.getLoot().armourPercent())) * 100f);
+        int bareArmour = Math.round((1f - levelling.damageTakenWith(level, worn)) * 100f);
         var pictures = settings.hudStatIcons();
-        stat(line, settings.hudAttackWord(), Math.round(attack), Math.round(bareAttack),
+        stat(line, settings.hudAttackWord(), Math.round(now.attack()), Math.round(bare.attack()),
                 pictures.get(0));
         stat(line, settings.hudArmourWord(), armour, bareArmour, pictures.get(1));
-        stat(line, settings.hudSpeedWord(), Math.round(speed), Math.round(speed),
+        stat(line, settings.hudSpeedWord(), Math.round(now.speed()), Math.round(bare.speed()),
                 pictures.get(2));
+    }
+
+    /**
+     * The card over one attribute: its name, whether it is his primary, and what a
+     * single point of it gives.
+     *
+     * <p>Sent in the same five kinds of field a skill's card is, keyed by the figure's
+     * place on the line rather than by a key he presses. The numbers are the file's own,
+     * written the way the file wrote them.
+     */
+    private static void attributeCard(StringBuilder line, int index, Attribute attribute,
+            boolean primary, uz.duke.dungeon.level.AttributeRules rules,
+            DungeonSettings settings) {
+        line.append("|stTipName=").append(index).append(',')
+                .append(settings.hudAttributeWord(attribute));
+        line.append("|stTipAt=").append(index).append(',')
+                .append(primary ? settings.hudPrimaryWord() : "");
+        if (!settings.hudEachPointWord().isEmpty()) {
+            line.append("|stTipText=").append(index).append(',')
+                    .append(settings.hudEachPointWord());
+        }
+        switch (attribute) {
+            case STRENGTH -> cardRow(line, index, settings.hudHealthWord(),
+                    rules.healthPerStrength());
+            case AGILITY -> cardRow(line, index, settings.hudSpeedWord(), rules.speedPerAgility());
+            case INTELLIGENCE -> cardRow(line, index, settings.hudManaWord(),
+                    rules.manaPerIntelligence());
+        }
+        if (primary) {
+            cardRow(line, index, settings.hudAttackWord(), rules.damagePerPrimary());
+        }
+    }
+
+    private static void cardRow(StringBuilder line, int index, String label, int hundredths) {
+        line.append("|stTipRow=").append(index).append(',').append(label)
+                .append(",+").append(hundredths(hundredths)).append(',');
+    }
+
+    /** A coefficient as the file wrote it: 15 is "0.15", 1200 is "12", 150 is "1.5". */
+    static String hundredths(int value) {
+        return java.math.BigDecimal.valueOf(value, 2).stripTrailingZeros().toPlainString();
     }
 
     /**

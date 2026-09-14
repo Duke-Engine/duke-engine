@@ -149,7 +149,7 @@ public final class DungeonRun {
     public void startWith(DukeGame game, String template) {
         heroTemplate = template;
         var his = settings.heroNamed(template);
-        progress.playing(template, his.armourPercent(), his.maxMana(), his.manaRegen());
+        progress.playing(his);
         // His four, none of them learnt. A knight cannot inherit a mage's points,
         // and a second run cannot inherit the first one's.
         learnt.startWith(settings.skillsFor(template));

@@ -5,18 +5,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-/** What a level costs and what it is worth. */
+/**
+ * What a level costs, and the armour that is the one thing it still gives directly.
+ *
+ * <p>What else a level is worth is his attributes growing — see {@code AttributesTest}.
+ */
 class LevellingTest {
 
     /** Ten levels; 30 xp for the second, 15 more for each after that. */
-    private static final Levelling RULES = new Levelling(10, 30, 15, 20, 12, 5, 40, 8, 1);
+    private static final Levelling RULES = new Levelling(10, 30, 15, 5, 40);
 
     @Test
     void aHeroWhoHasKilledNothingIsLevelOneAndUnchanged() {
         assertEquals(1, RULES.levelFor(0));
-        assertEquals(0, RULES.bonusHealth(1));
-        assertEquals(1f, RULES.damageMultiplier(1), 0.0001f, "level one is the creature file");
-        assertEquals(1f, RULES.damageTakenMultiplier(1), 0.0001f);
+        assertEquals(1f, RULES.damageTakenMultiplier(1), 0.0001f,
+                "level one wears nothing a level gave him");
     }
 
     @Test
@@ -49,14 +52,15 @@ class LevellingTest {
         assertEquals(0, RULES.xpToNextLevel(far), "and there is nothing left to buy");
     }
 
+    /** Armour belongs to no attribute, so it is still a level's to give. */
     @Test
-    void everyLevelIsWorthSomething() {
+    void everyLevelStillGivesArmour() {
         for (int level = 2; level <= RULES.maxLevel(); level++) {
-            assertTrue(RULES.bonusHealth(level) > RULES.bonusHealth(level - 1), "more health");
-            assertTrue(RULES.damageMultiplier(level) > RULES.damageMultiplier(level - 1), "more damage");
             assertTrue(RULES.damageTakenMultiplier(level) <= RULES.damageTakenMultiplier(level - 1),
-                    "and no more damage taken");
+                    "no more damage taken at level " + level);
         }
+        assertTrue(RULES.damageTakenMultiplier(2) < RULES.damageTakenMultiplier(1),
+                "and the first level up is worth some");
     }
 
     /**
@@ -65,23 +69,17 @@ class LevellingTest {
      */
     @Test
     void armourNeverReachesImmortality() {
-        var relentless = new Levelling(100, 10, 0, 0, 0, 20, 40, 0, 0);
+        var relentless = new Levelling(100, 10, 0, 20, 40);
 
         assertEquals(0.4f, relentless.damageTakenMultiplier(50), 0.0001f,
                 "however many levels, the floor holds");
         assertTrue(relentless.damageTakenMultiplier(50) > 0f);
     }
 
-    /**
-     * A level is worth the same however it was reached. Each multiplier is computed
-     * from the level in one step rather than accumulated, so a hero who jumped two
-     * levels at once is identical to one who climbed them singly.
-     */
+    /** A level is worth the same however it was reached. */
     @Test
     void aLevelIsTheSameHoweverItWasReached() {
-        assertEquals(RULES.damageMultiplier(5), RULES.damageMultiplier(5), 0f);
-        assertEquals(RULES.bonusHealth(5), RULES.bonusHealth(5));
-
+        assertEquals(RULES.damageTakenMultiplier(5), RULES.damageTakenMultiplier(5), 0f);
         // Reached in one jump (enough xp for 5 at once) or step by step: same level.
         assertEquals(5, RULES.levelFor(RULES.totalXpFor(5)));
     }

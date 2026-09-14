@@ -3533,11 +3533,14 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * Light whatever skill slot the cursor is resting on.
+     * Light whatever skill slot the cursor is resting on, and open the card over an
+     * attribute it is resting on.
      */
     private void updateHover() {
         var cursor = inputManager.getCursorPosition();
-        heroPanel.hover(screen == Screen.PLAYING ? heroPanel.slotAt(cursor.x, cursor.y) : null);
+        boolean playing = screen == Screen.PLAYING;
+        heroPanel.hover(playing ? heroPanel.slotAt(cursor.x, cursor.y) : null);
+        heroPanel.hoverStat(playing ? heroPanel.statAt(cursor.x, cursor.y) : null);
     }
 
     private void updateCamera(float tpf) {

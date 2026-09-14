@@ -278,6 +278,58 @@ class HeroStatusTest {
     }
 
     /**
+     * His three attributes ride the line ahead of the figures, his primary marked,
+     * and each with the card that says what a point of it is worth.
+     */
+    @Test
+    void hisAttributesAreOnTheLineWithHisPrimaryMarked() {
+        var settings = DungeonSettings.load();
+        var line = lineFrom(4321L);
+        var strength = settings.hudAttributeWord(uz.duke.dungeon.level.Attribute.STRENGTH);
+        var agility = settings.hudAttributeWord(uz.duke.dungeon.level.Attribute.AGILITY);
+        var intelligence = settings.hudAttributeWord(uz.duke.dungeon.level.Attribute.INTELLIGENCE);
+
+        for (var word : new String[] {strength, agility, intelligence}) {
+            assertFalse(word.isBlank(), "the shipped file should name its attributes");
+            assertTrue(line.contains("|stat=" + word + ","), word + " missing from " + line);
+        }
+        assertTrue(line.indexOf("|stat=" + intelligence + ",")
+                        < line.indexOf("|stat=" + settings.hudAttackWord() + ","),
+                "the attributes come before the figures worked out of them: " + line);
+        assertEquals(1, line.split(java.util.regex.Pattern.quote(",primary"), -1).length - 1,
+                "exactly one of the three is his primary: " + line);
+        assertTrue(line.contains("|stat=" + agility + ",12,,"
+                        + settings.hudAttributeIcon(uz.duke.dungeon.level.Attribute.AGILITY)
+                        + ",primary"),
+                "the archer's is agility, twelve of it at the first level: " + line);
+        assertTrue(line.contains("|stTipName=0," + strength), "a card over strength: " + line);
+        assertTrue(line.contains("|stTipRow=0," + settings.hudHealthWord() + ",+12,"),
+                "which says a point of it is twelve health: " + line);
+        assertTrue(line.contains("|stTipRow=1," + settings.hudAttackWord() + ",+1,"),
+                "and agility's says it is his arrow as well: " + line);
+        assertFalse(line.contains("|stTipRow=0," + settings.hudAttackWord() + ","),
+                "strength is not the archer's arrow: " + line);
+    }
+
+    /** What he picks up of an attribute is green beside the attribute. */
+    @Test
+    void anAttributeHeFindsIsGreenBesideTheAttribute() {
+        var session = Dungeon.newSession(11L);
+        var game = session.game();
+        game.runHeadless(2);
+        pickOutTheHero(session);
+        session.progress().getLoot().take(new uz.duke.dungeon.loot.Loot("Tome", "Tome", "flask",
+                uz.duke.dungeon.loot.LootKind.STRENGTH, 5, 1, 1), game.getLogic().getFrame(), 60);
+        game.runHeadless(2);
+
+        var strength = DungeonSettings.load()
+                .hudAttributeWord(uz.duke.dungeon.level.Attribute.STRENGTH);
+        var line = game.getSnapshot().status();
+        assertTrue(line.contains("|stat=" + strength + ",15,+5,"),
+                "ten of his own and five he found: " + line);
+    }
+
+    /**
      * Everything the design asks for is on the line the game really sends.
      *
      * <p>The panel and this class are two halves of one format that no compiler

@@ -30,12 +30,25 @@ class HeroProgressTest {
 
     /** Levels that arrive fast and hit hard, so a mechanism shows plainly. */
     private static final DungeonSettings BRISK = DungeonSettings.parse("""
+            DungeonAttributes Conversion
+              HealthPerStrength = 10
+              SpeedPerAgility = 0.15
+              ManaPerIntelligence = 5
+              DamagePerPrimary = 1.0
+            End
+            DungeonHero Rogue
+              Primary = AGI
+              Strength = 12
+              Agility = 12
+              Intelligence = 8
+              StrPerLevel = 4
+              AgiPerLevel = 12
+              IntPerLevel = 1
+            End
             DungeonLeveling Progression
               MaxLevel = 10
               XpBase = 10
               XpStep = 0
-              HealthPerLevel = 40
-              DamagePercentPerLevel = 60
               ArmourPercentPerLevel = 10
               MinDamageTakenPercent = 40
             End
@@ -72,14 +85,16 @@ class HeroProgressTest {
      * question for balance and not for this.
      */
     private static final String STOUT_HERO =
-            Content.read(Content.CREATURES).replace("MaxHealth = 550", "MaxHealth = 20000");
+            Content.read(Content.CREATURES).replace("MaxHealth = 430", "MaxHealth = 20000");
 
     private static Fight start(DungeonSettings settings) {
         var arena = Dungeon.world(ARENA, settings, STOUT_HERO);
         var game = arena.game();
         game.spawn("Rogue", arena.hero(), 200f, 150f);
         var progress = new HeroProgress(arena.hero(), settings.levelling(),
-                settings.levelUpBannerFrames());
+                settings.attributeRules(), settings.levelUpBannerFrames(),
+                new uz.duke.dungeon.loot.LootBag());
+        progress.playing(settings.heroNamed("Rogue"));
         game.onTick(progress::tick);
         game.runHeadless(1);
         return new Fight(arena, progress);
@@ -159,9 +174,12 @@ class HeroProgressTest {
 
         int level = fight.progress().getLevel();
         assertTrue(level > 1, "one kill should level him under these rules");
-        int gained = BRISK.levelling().bonusHealth(level);
+        var his = BRISK.heroNamed("Rogue").attributes();
+        var rules = BRISK.attributeRules();
+        int gained = rules.health(his.atLevel(level)) - rules.health(his.atLevel(1));
+        assertTrue(gained > 0, "his strength should have grown with the level");
         assertEquals(ceilingBefore + gained, body.getMaxHealth(), 0.01f,
-                "the ceiling should rise by what the file says");
+                "the ceiling should rise by exactly what his new strength is worth");
         assertTrue(body.getHealth() > healthBefore - gained,
                 "and current health should have been lifted with it, not left behind");
     }

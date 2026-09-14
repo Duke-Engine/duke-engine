@@ -394,6 +394,39 @@ class HeroPanelTest {
         assertEquals("", stats.get(0).icon());
     }
 
+    /** His primary is read off the line, and only his primary. */
+    @Test
+    void hisPrimaryIsReadOffTheLine() {
+        var stats = HeroPanel.Reading.parse(LINE
+                + "|stat=Kuch,22,,icons/stats/stat_health.png,primary"
+                + "|stat=Aql,8,,icons/stats/stat_crit.png").stats();
+
+        assertTrue(stats.get(0).primary(), "the mark was lost");
+        assertFalse(stats.get(1).primary(), "a figure with no mark is not his primary");
+        assertEquals("icons/stats/stat_health.png", stats.get(0).icon(),
+                "and the picture is still where it was");
+    }
+
+    /** An attribute's card is read by its place on the line. */
+    @Test
+    void anAttributesCardIsReadByItsPlaceOnTheLine() {
+        var reading = HeroPanel.Reading.parse(LINE
+                + "|stat=Kuch,22,,,primary|stat=Epchillik,10,,"
+                + "|stTipName=0,Kuch|stTipAt=0,Asosiy atribut|stTipText=0,Har bir birlik beradi:"
+                + "|stTipRow=0,Jon,+12,|stTipRow=0,Zarba,+1,"
+                + "|stTipName=1,Epchillik|stTipRow=1,Tezlik,+0.15,");
+
+        assertNotNull(reading, "a line with cards on its figures was refused as somebody else's");
+        var strength = reading.statTips().get(0);
+        assertEquals("Kuch", strength.name());
+        assertEquals("Asosiy atribut", strength.at());
+        assertEquals(2, strength.rows().size());
+        assertEquals("+12", strength.rows().get(0).now());
+        assertEquals("+0.15", reading.statTips().get(1).rows().get(0).now(),
+                "a decimal survives the line");
+        assertTrue(reading.tips().isEmpty(), "and none of it was taken for a skill's card");
+    }
+
     // ---- what a skill costs ----
 
     /** The pool and the prices are read off the line. */

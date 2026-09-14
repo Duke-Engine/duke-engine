@@ -1,42 +1,36 @@
 package uz.duke.dungeon.level;
 
 /**
- * What a level is worth, and how much killing it takes to get one.
+ * How much killing a level takes, and the one thing a level still gives directly.
  *
- * <p>The rules and nothing else: no game object, no simulation, no engine. That
- * is deliberate — progression is the part of a roguelike players argue about and
- * designers retune constantly, so it should be possible to ask it a question
- * ("what does level 6 give?") without starting a dungeon.
+ * <p>The rules and nothing else: no game object, no simulation, no engine. That is
+ * deliberate — progression is the part of a roguelike players argue about and
+ * designers retune constantly, so it should be possible to ask it a question ("what
+ * does level 6 cost?") without starting a dungeon.
  *
- * <p>Everything is integers from the data file. Levels are counted from 1, and
- * level 1 grants nothing: a hero who has killed nothing is exactly the hero the
- * creature file describes. That keeps {@code creatures.ini} readable as the
- * starting hero rather than as a hero minus his first level.
+ * <p>What a level is <em>worth</em> — health, speed, mana, the weight of his blow — is
+ * no longer here. It is his attributes growing; see {@link HeroAttributes} and
+ * {@link AttributeRules}. Two sources for one figure would be two dials a balance pass
+ * has to keep in step, so the old per-level health, damage and mana are gone rather
+ * than left beside the attributes. Armour is the exception and stays: it belongs to no
+ * attribute, and grows with the level as it always did.
  *
- * <p>The two multipliers come out as floats because that is what the engine's
- * hooks take, but each is computed from integers in one step rather than
- * accumulated level by level — repeated multiplication would drift, and a hero
- * who reached level 7 by two different routes must be the same hero.
+ * <p>Everything is integers from the data file. Levels are counted from 1, and level 1
+ * grants nothing on top of his attributes at level 1.
  *
- * @param maxLevel            the level past which nothing more is earned
- * @param xpBase              experience to get from level 1 to level 2
- * @param xpStep              how much more each following level costs
- * @param healthPerLevel      flat maximum health added per level
- * @param damagePercentPerLevel   damage added per level, in percent of the base
- * @param armourPercentPerLevel   damage taken removed per level, in percent
- * @param minDamageTakenPercent   the floor on damage taken, so armour never
- *                                reaches immortality
+ * @param maxLevel              the level past which nothing more is earned
+ * @param xpBase                experience to get from level 1 to level 2
+ * @param xpStep                how much more each following level costs
+ * @param armourPercentPerLevel damage taken removed per level, in percent
+ * @param minDamageTakenPercent the floor on damage taken, so armour never reaches
+ *                              immortality
  */
 public record Levelling(
         int maxLevel,
         int xpBase,
         int xpStep,
-        int healthPerLevel,
-        int damagePercentPerLevel,
         int armourPercentPerLevel,
-        int minDamageTakenPercent,
-        int manaPerLevel,
-        int manaRegenPerLevel) {
+        int minDamageTakenPercent) {
 
     public static final int FIRST_LEVEL = 1;
 
@@ -67,40 +61,6 @@ public record Levelling(
     public int xpToNextLevel(int experience) {
         int level = levelFor(experience);
         return level >= maxLevel ? 0 : totalXpFor(level + 1) - totalXpFor(level);
-    }
-
-    /** Maximum health added by everything earned so far. */
-    public int bonusHealth(int level) {
-        return (level - FIRST_LEVEL) * healthPerLevel;
-    }
-
-    /**
-     * Maximum mana added by everything earned so far.
-     *
-     * <p>Counted exactly as health is, and for the same reason: a level is worth
-     * the same thing every time, so the sum is a multiplication rather than a
-     * running total somebody has to keep.
-     */
-    public int bonusMana(int level) {
-        return (level - FIRST_LEVEL) * manaPerLevel;
-    }
-
-    /**
-     * Mana a second added by everything earned so far.
-     *
-     * <p>A whole number of points a second, never a fraction. What makes a
-     * fraction unwelcome is not the arithmetic but where it ends up: regeneration
-     * is a sum over frames in the simulation, and a sum of floats is a sum that
-     * two machines can disagree about. See {@code SkillBook.update}, which counts
-     * this out in whole points against a frame carry.
-     */
-    public int bonusManaRegen(int level) {
-        return (level - FIRST_LEVEL) * manaRegenPerLevel;
-    }
-
-    /** What the hero's weapon is multiplied by at this level. */
-    public float damageMultiplier(int level) {
-        return 1f + (level - FIRST_LEVEL) * damagePercentPerLevel / 100f;
     }
 
     /**

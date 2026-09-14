@@ -13,7 +13,10 @@ import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.gen.DungeonGenerator;
 import uz.duke.dungeon.level.GrowableBody;
+import uz.duke.dungeon.level.HeroAttributes;
+import uz.duke.dungeon.level.HeroBuild;
 import uz.duke.dungeon.level.HeroProgress;
+import uz.duke.dungeon.level.Recovery;
 import uz.duke.dungeon.loot.LootBag;
 import uz.duke.dungeon.loot.LootTable;
 import uz.duke.dungeon.loot.LootUpdate;
@@ -147,9 +150,31 @@ public final class Dungeon {
                     // Hero and monsters alike need a body that can grow: levels
                     // raise his, depth raises theirs, and the engine's fixes its
                     // maximum when the unit is built.
+                    //
+                    // A hero's is built with his first level's strength already in it,
+                    // and so are his legs and his weapon below: the creature file holds
+                    // what his attributes are added to, and a hero is the same hero
+                    // wherever he is spawned. Anything that is not a hero is built
+                    // exactly as its block says. See HeroBuild.
+                    var rules = settings.attributeRules();
                     factory.register("GrowableBody",
-                            (owner, data) -> new GrowableBody(owner, (GrowableBody.Data) data),
+                            (owner, data) -> new GrowableBody(owner, HeroBuild.body(
+                                    (GrowableBody.Data) data, attributesOf(settings, owner), rules)),
                             GrowableBody::parseData);
+                    factory.register("MoveUpdate",
+                            (owner, data) -> new uz.duke.core.module.MoveUpdate(owner,
+                                    HeroBuild.legs((uz.duke.core.module.MoveUpdate.Data) data,
+                                            attributesOf(settings, owner), rules)),
+                            uz.duke.core.module.MoveUpdate::parseData);
+                    factory.register("WeaponUpdate",
+                            (owner, data) -> new uz.duke.rts.module.WeaponUpdate(owner,
+                                    HeroBuild.weapon((uz.duke.rts.module.WeaponUpdate.Data) data,
+                                            attributesOf(settings, owner), rules)),
+                            uz.duke.rts.module.WeaponUpdate::parseData);
+                    // Health coming back on its own, at the rate his block names --
+                    // set by HeroProgress, as his mana is.
+                    factory.register("Recovery", (owner, data) -> new Recovery(owner),
+                            Recovery::parseData);
                     // Which skills a hero has is not in his creature block — it is
                     // in dungeon.ini, under his template's name. So the block says
                     // only that he has some, and a second hero needs the same line
@@ -288,14 +313,11 @@ public final class Dungeon {
                 Content.read(Content.CREATURES), bag);
         var game = arena.game().subtitle(subtitle);
 
-        // Told which creature is the hero and what he already wears: both are
-        // per-hero and the file says them -- see DefaultHero and DungeonHero.
+        // Told which creature is the hero and everything his block says about him --
+        // see DefaultHero and DungeonHero.
         var progress = new HeroProgress(arena.hero(), settings.levelling(),
-                settings.levelUpBannerFrames(), bag, settings.playedHero(),
-                settings.playedHeroLook().armourPercent());
-        var him = settings.playedHeroLook();
-        progress.playing(settings.playedHero(), him.armourPercent(),
-                him.maxMana(), him.manaRegen());
+                settings.attributeRules(), settings.levelUpBannerFrames(), bag);
+        progress.playing(settings.playedHeroLook());
         progress.manaPerKill(settings.manaPerKill());
         // Drawn from the run's seed as well, so a seed is the whole run: the same
         // one drops the same things off the same monsters.
@@ -351,4 +373,9 @@ public final class Dungeon {
         return new Session(game, run, progress, arena.orders());
     }
 
+    /** The attributes of the hero this creature is, or none for anything that is not one. */
+    private static HeroAttributes attributesOf(DungeonSettings settings,
+            uz.duke.core.thing.GameObject owner) {
+        return settings.heroNamed(owner.getTemplate().getName()).attributes();
+    }
 }

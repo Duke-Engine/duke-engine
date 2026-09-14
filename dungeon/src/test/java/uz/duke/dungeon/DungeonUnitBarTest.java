@@ -99,12 +99,18 @@ class DungeonUnitBarTest {
         }
         // And the hero, who is the bar the player looks at most: at the bottom
         // and at the top of what levelling can add to him.
-        var levelling = SETTINGS.levelling();
+        int top = SETTINGS.levelling().maxLevel();
         for (var hero : SETTINGS.heroes()) {
-            float base = baseHealth(factory.findTemplate(hero.name()));
-            assertTrue(base > 0f, hero.name() + " has no body");
-            sizes.add(new float[] {base, 1});
-            sizes.add(new float[] {base + levelling.bonusHealth(levelling.maxLevel()), 1});
+            var template = factory.findTemplate(hero.name());
+            assertTrue(baseHealth(template) > 0f, hero.name() + " has no body");
+            // His block is what his strength is added to, so the bar is sized by the
+            // two together -- at his first level and at the last.
+            for (int level : new int[] {1, top}) {
+                sizes.add(new float[] {uz.duke.dungeon.level.HeroFigures.of(
+                        uz.duke.dungeon.level.HeroBase.of(template), hero.maxMana(),
+                        hero.attributes(), SETTINGS.attributeRules(), level,
+                        uz.duke.dungeon.level.HeroFigures.Found.NOTHING).maxHealth(), 1});
+            }
         }
         return sizes;
     }

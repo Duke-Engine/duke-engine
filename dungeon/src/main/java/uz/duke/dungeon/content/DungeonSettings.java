@@ -8,6 +8,10 @@ import uz.duke.dungeon.loot.Loot;
 import uz.duke.dungeon.loot.LootKind;
 import uz.duke.dungeon.skill.Skill;
 import uz.duke.dungeon.skill.SkillEffect;
+import uz.duke.dungeon.level.Attribute;
+import uz.duke.dungeon.level.AttributeRules;
+import uz.duke.dungeon.level.Attributes;
+import uz.duke.dungeon.level.HeroAttributes;
 import uz.duke.dungeon.level.Levelling;
 
 /**
@@ -124,13 +128,16 @@ public final class DungeonSettings {
     }
     private int xpBase = 30;
     private int xpStep = 15;
-    private int healthPerLevel = 20;
-    private int damagePercentPerLevel = 12;
     private int armourPercentPerLevel = 5;
     private int minDamageTakenPercent = 40;
-    private int manaPerLevel;
-    private int manaRegenPerLevel;
     private int manaPerKill;
+
+    // ---- what a point of each attribute is worth, in hundredths ----
+
+    private int healthPerStrength;
+    private int speedPerAgility;
+    private int manaPerIntelligence;
+    private int damagePerPrimary;
 
     /** Mana given back for a kill; 0 is off, which is the shipped setting. */
     public int manaPerKill() {
@@ -274,6 +281,13 @@ public final class DungeonSettings {
                 Map.entry("DungeonLeveling", reader -> {
                     reader.getNextToken();
                     reader.initFromIni(settings, LEVELLING);
+                }),
+                // What a point of strength, agility and intelligence is worth to
+                // every hero. Which of them each hero has, and how fast they grow,
+                // is in his own DungeonHero block.
+                Map.entry("DungeonAttributes", reader -> {
+                    reader.getNextToken();
+                    reader.initFromIni(settings, ATTRIBUTES);
                 }),
                 // Repeatable: the block's name is the monster's, so the list of
                 // kinds is the file's, not a constant somewhere in Java.
@@ -655,8 +669,30 @@ public final class DungeonSettings {
         require(maxLevel >= Levelling.FIRST_LEVEL, "MaxLevel cannot be below the first level");
         require(xpBase > 0, "XpBase must be positive or no level is ever reached");
         require(xpStep >= 0, "XpStep cannot make later levels cheaper");
-        require(healthPerLevel >= 0 && damagePercentPerLevel >= 0 && armourPercentPerLevel >= 0,
-                "a level cannot take something away");
+        require(armourPercentPerLevel >= 0, "a level cannot take armour away");
+        require(healthPerStrength >= 0 && speedPerAgility >= 0 && manaPerIntelligence >= 0
+                        && damagePerPrimary >= 0,
+                "DungeonAttributes: a point of an attribute cannot take something away");
+        for (var hero : heroes) {
+            var name = "DungeonHero " + hero.name;
+            require(hero.strength >= 0 && hero.agility >= 0 && hero.intelligence >= 0
+                            && hero.strengthPerLevel >= 0 && hero.agilityPerLevel >= 0
+                            && hero.intelligencePerLevel >= 0,
+                    name + ": an attribute cannot be negative, and a level cannot take one away");
+            boolean namesAny = hero.strength != 0 || hero.agility != 0 || hero.intelligence != 0
+                    || hero.strengthPerLevel != 0 || hero.agilityPerLevel != 0
+                    || hero.intelligencePerLevel != 0;
+            require(hero.primary != null || !namesAny,
+                    name + " has attributes and no Primary: say which of STR, AGI and INT he hits with");
+            require(hero.manaRegen >= 0 && hero.healthRegen >= 0,
+                    name + ": what comes back on its own cannot be negative");
+        }
+        // Each is a field on the status line, which splits on these two.
+        require(sayable(hudStrengthWord) && sayable(hudAgilityWord)
+                        && sayable(hudIntelligenceWord) && sayable(hudHealthWord),
+                "the attribute words and HealthWord may not contain ',' or '|'");
+        require(hudPrimaryWord.indexOf('|') < 0 && hudEachPointWord.indexOf('|') < 0,
+                "PrimaryWord and EachPointWord may not contain '|'");
         require(minDamageTakenPercent > 0 && minDamageTakenPercent <= 100,
                 "the damage floor must leave some way to lose");
         require(levelUpBannerFrames >= 0, "the level-up message cannot last negative frames");
@@ -1523,7 +1559,16 @@ public final class DungeonSettings {
         float closeDistance;
         int maxMana;
         int manaRegen;
+        int healthRegen;
         int armourPercent;
+        /** His primary, and his three with what a level adds to each — all in tenths. */
+        Attribute primary;
+        int strength;
+        int agility;
+        int intelligence;
+        int strengthPerLevel;
+        int agilityPerLevel;
+        int intelligencePerLevel;
         String model;
         String texture;
         float modelScale = 1f;
@@ -1570,7 +1615,12 @@ public final class DungeonSettings {
         }
 
         HeroLook build() {
+            var attributes = primary == null ? HeroAttributes.NONE
+                    : new HeroAttributes(primary,
+                            new Attributes(strength, agility, intelligence),
+                            new Attributes(strengthPerLevel, agilityPerLevel, intelligencePerLevel));
             return new HeroLook(name, title, closeDistance, armourPercent, maxMana, manaRegen,
+                    healthRegen, attributes,
                     model, texture,
                     modelScale, facing,
                     animations, idle, walk, attack, hurt, death,
@@ -2791,6 +2841,15 @@ public final class DungeonSettings {
     private String hudAttackWord = "";
     private String hudArmourWord = "";
     private String hudSpeedWord = "";
+    private String hudStrengthWord = "";
+    private String hudAgilityWord = "";
+    private String hudIntelligenceWord = "";
+    private String hudHealthWord = "";
+    private String hudPrimaryWord = "";
+    private String hudEachPointWord = "";
+    private String hudStrengthStatIcon = "";
+    private String hudAgilityStatIcon = "";
+    private String hudIntelligenceStatIcon = "";
 
     /** The word under the depth numeral on the hero's panel. */
     public String hudDepthWord() {
@@ -2861,6 +2920,39 @@ public final class DungeonSettings {
 
     public String hudSpeedWord() {
         return hudSpeedWord;
+    }
+
+    /** What an attribute is called on the panel. */
+    public String hudAttributeWord(Attribute attribute) {
+        return switch (attribute) {
+            case STRENGTH -> hudStrengthWord;
+            case AGILITY -> hudAgilityWord;
+            case INTELLIGENCE -> hudIntelligenceWord;
+        };
+    }
+
+    /** The picture beside an attribute, with its folder in front of it. */
+    public String hudAttributeIcon(Attribute attribute) {
+        return inStats(switch (attribute) {
+            case STRENGTH -> hudStrengthStatIcon;
+            case AGILITY -> hudAgilityStatIcon;
+            case INTELLIGENCE -> hudIntelligenceStatIcon;
+        });
+    }
+
+    /** What maximum health is called on an attribute's card. */
+    public String hudHealthWord() {
+        return hudHealthWord;
+    }
+
+    /** What an attribute's card says under its name when it is his primary. */
+    public String hudPrimaryWord() {
+        return hudPrimaryWord;
+    }
+
+    /** The line over what one point of an attribute gives. */
+    public String hudEachPointWord() {
+        return hudEachPointWord;
     }
 
     private String hudMonsterFace = "";
@@ -3069,6 +3161,13 @@ public final class DungeonSettings {
                     .add("AttackWord", Ini.restOfLine((s, v) -> s.hudAttackWord = v))
                     .add("ArmourWord", Ini.restOfLine((s, v) -> s.hudArmourWord = v))
                     .add("SpeedWord", Ini.restOfLine((s, v) -> s.hudSpeedWord = v))
+                    .add("StrengthWord", Ini.restOfLine((s, v) -> s.hudStrengthWord = v))
+                    .add("AgilityWord", Ini.restOfLine((s, v) -> s.hudAgilityWord = v))
+                    .add("IntelligenceWord",
+                            Ini.restOfLine((s, v) -> s.hudIntelligenceWord = v))
+                    .add("HealthWord", Ini.restOfLine((s, v) -> s.hudHealthWord = v))
+                    .add("PrimaryWord", Ini.restOfLine((s, v) -> s.hudPrimaryWord = v))
+                    .add("EachPointWord", Ini.restOfLine((s, v) -> s.hudEachPointWord = v))
                     .add("MonsterFace", Ini.string((s, v) -> s.hudMonsterFace = v))
                     .add("SkillsWord", Ini.restOfLine((s, v) -> s.hudSkillsWord = v))
                     .add("PointsWord", Ini.restOfLine((s, v) -> s.hudPointsWord = v))
@@ -3104,6 +3203,10 @@ public final class DungeonSettings {
                     .add("AttackIcon", Ini.string((s, v) -> s.hudAttackStatIcon = v))
                     .add("ArmourIcon", Ini.string((s, v) -> s.hudArmourStatIcon = v))
                     .add("SpeedIcon", Ini.string((s, v) -> s.hudSpeedStatIcon = v))
+                    .add("StrengthIcon", Ini.string((s, v) -> s.hudStrengthStatIcon = v))
+                    .add("AgilityIcon", Ini.string((s, v) -> s.hudAgilityStatIcon = v))
+                    .add("IntelligenceIcon",
+                            Ini.string((s, v) -> s.hudIntelligenceStatIcon = v))
                     .add("SkinFolder", Ini.string((s, v) -> s.hudSkinFolder = v))
                     .add("CursorFolder", Ini.string((s, v) -> s.hudCursorFolder = v))
                     // Panel-wide rather than per-hero: what a portrait costs is a
@@ -3153,7 +3256,22 @@ public final class DungeonSettings {
                     // different things to play against: see HeroLook.
                     .add("MaxMana", Ini.integer((s, v) -> s.maxMana = v))
                     .add("ManaRegen", Ini.integer((s, v) -> s.manaRegen = v))
+                    .add("HealthRegen", Ini.integer((s, v) -> s.healthRegen = v))
                     .add("ArmourPercent", Ini.integer((s, v) -> s.armourPercent = v))
+                    // His three and which one he hits with. Written as decimals and
+                    // read into exact tenths, never through a float: a level of 1.8
+                    // strength fifteen times over has to be 27 on every machine.
+                    .add("Primary", Ini.string((s, v) -> s.primary = Attribute.named(v)))
+                    .add("Strength", (ini, s) -> s.strength = exactly(ini, "Strength", 1))
+                    .add("Agility", (ini, s) -> s.agility = exactly(ini, "Agility", 1))
+                    .add("Intelligence",
+                            (ini, s) -> s.intelligence = exactly(ini, "Intelligence", 1))
+                    .add("StrPerLevel",
+                            (ini, s) -> s.strengthPerLevel = exactly(ini, "StrPerLevel", 1))
+                    .add("AgiPerLevel",
+                            (ini, s) -> s.agilityPerLevel = exactly(ini, "AgiPerLevel", 1))
+                    .add("IntPerLevel",
+                            (ini, s) -> s.intelligencePerLevel = exactly(ini, "IntPerLevel", 1))
                     .add("Model", Ini.string((s, v) -> s.model = v))
                     .add("Texture", Ini.string((s, v) -> s.texture = v))
                     .add("ModelScale", Ini.real((s, v) -> s.modelScale = v))
@@ -3286,18 +3404,40 @@ public final class DungeonSettings {
                     .add("SkillSpread", Ini.integer((s, v) -> s.skillSpread = v))
                     .add("XpBase", Ini.integer((s, v) -> s.xpBase = v))
                     .add("XpStep", Ini.integer((s, v) -> s.xpStep = v))
-                    .add("HealthPerLevel", Ini.integer((s, v) -> s.healthPerLevel = v))
-                    .add("DamagePercentPerLevel", Ini.integer((s, v) -> s.damagePercentPerLevel = v))
                     .add("ArmourPercentPerLevel", Ini.integer((s, v) -> s.armourPercentPerLevel = v))
                     .add("MinDamageTakenPercent", Ini.integer((s, v) -> s.minDamageTakenPercent = v))
-                    // What a level is worth to a caster. Zero for a game whose
-                    // heroes have no mana at all, which is what this was until
-                    // one of them did.
-                    .add("ManaPerLevel", Ini.integer((s, v) -> s.manaPerLevel = v))
-                    .add("ManaRegenPerLevel",
-                            Ini.integer((s, v) -> s.manaRegenPerLevel = v))
                     .add("ManaPerKill", Ini.integer((s, v) -> s.manaPerKill = v))
                     .add("LevelUpBannerFrames", Ini.integer((s, v) -> s.levelUpBannerFrames = v));
+
+    private static final FieldParseTable<DungeonSettings> ATTRIBUTES =
+            new FieldParseTable<DungeonSettings>()
+                    .add("HealthPerStrength",
+                            (ini, s) -> s.healthPerStrength = exactly(ini, "HealthPerStrength", 2))
+                    .add("SpeedPerAgility",
+                            (ini, s) -> s.speedPerAgility = exactly(ini, "SpeedPerAgility", 2))
+                    .add("ManaPerIntelligence",
+                            (ini, s) -> s.manaPerIntelligence = exactly(ini, "ManaPerIntelligence", 2))
+                    .add("DamagePerPrimary",
+                            (ini, s) -> s.damagePerPrimary = exactly(ini, "DamagePerPrimary", 2));
+
+    /**
+     * The next number in the file as a whole count of tenths or hundredths — exactly, or
+     * not at all.
+     *
+     * <p>Read as a decimal rather than through a float: 0.15 has no float, and the
+     * nearest one times a thousand is 149.99999. A figure with more places than its field
+     * keeps is refused rather than rounded, so what the file says is what the game does.
+     */
+    private static int exactly(Ini ini, String field, int places) {
+        var token = ini.getNextToken();
+        try {
+            return new java.math.BigDecimal(token.trim()).movePointRight(places).intValueExact();
+        } catch (NumberFormatException | ArithmeticException wrong) {
+            throw new IllegalArgumentException("dungeon.ini: " + field + " = " + token
+                    + " is not a number with at most " + places + " decimal place"
+                    + (places == 1 ? "" : "s"));
+        }
+    }
 
     // ---- layout ----
 
@@ -3480,9 +3620,14 @@ public final class DungeonSettings {
 
     /** The progression rules, as one value the leveling code can be handed. */
     public Levelling levelling() {
-        return new Levelling(maxLevel, xpBase, xpStep, healthPerLevel,
-                damagePercentPerLevel, armourPercentPerLevel, minDamageTakenPercent,
-                manaPerLevel, manaRegenPerLevel);
+        return new Levelling(maxLevel, xpBase, xpStep, armourPercentPerLevel,
+                minDamageTakenPercent);
+    }
+
+    /** What a point of each attribute is worth, to every hero alike. */
+    public AttributeRules attributeRules() {
+        return new AttributeRules(healthPerStrength, speedPerAgility, manaPerIntelligence,
+                damagePerPrimary);
     }
 
     /** How long "Level 2!" stays on screen, in logic frames. */

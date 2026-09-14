@@ -33,10 +33,23 @@ class DepthTest {
               MaxLevel = 20
               XpBase = 5
               XpStep = 0
-              HealthPerLevel = 30
-              DamagePercentPerLevel = 20
               ArmourPercentPerLevel = 3
               MinDamageTakenPercent = 40
+            End
+            DungeonAttributes Conversion
+              HealthPerStrength = 10
+              SpeedPerAgility = 0.15
+              ManaPerIntelligence = 5
+              DamagePerPrimary = 1.0
+            End
+            DungeonHero Rogue
+              Primary = AGI
+              Strength = 12
+              Agility = 12
+              Intelligence = 8
+              StrPerLevel = 3
+              AgiPerLevel = 4
+              IntPerLevel = 1
             End
             """);
 
@@ -249,7 +262,10 @@ class DepthTest {
 
         defeatTheBoss(session);
 
-        assertEquals(baseCeiling + BRISK.levelling().bonusHealth(session.progress().getLevel())
+        var his = BRISK.heroNamed("Rogue").attributes();
+        var rules = BRISK.attributeRules();
+        int level = session.progress().getLevel();
+        assertEquals(baseCeiling + rules.health(his.atLevel(level)) - rules.health(his.atLevel(1))
                         + session.progress().getLoot().health(),
                 hero(game).getBody().getMaxHealth(), 0.01f,
                 "the new body should be as tough as everything he arrived with");

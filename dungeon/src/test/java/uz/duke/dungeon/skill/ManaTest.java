@@ -231,16 +231,22 @@ class ManaTest {
         assertEquals(0, it.book().getMana());
     }
 
-    /** A level makes the pool bigger, by exactly what the rules say a level is worth. */
+    /**
+     * A level makes the pool bigger by what his intelligence has grown into, and
+     * nothing else does — the trickle is his own and stays where it was.
+     */
     @Test
-    void aLevelIsWorthWhatTheRulesSayItIs() {
-        var rules = SETTINGS.levelling();
-        assertTrue(rules.bonusMana(2) > 0, "the file should pay something for a level");
-        assertEquals(rules.bonusMana(2) * 4, rules.bonusMana(5),
-                "four levels are worth four times one");
-        assertEquals(0, rules.bonusMana(1), "and the first level is the start, not a raise");
-        assertTrue(rules.bonusManaRegen(5) > rules.bonusManaRegen(2),
-                "the trickle should grow with him too");
+    void aLevelGrowsThePoolByWhatHisIntelligenceIsWorth() {
+        var rules = SETTINGS.attributeRules();
+        for (var hero : SETTINGS.heroes()) {
+            var his = hero.attributes();
+            int one = his.atLevel(2).intelligence() - his.atLevel(1).intelligence();
+            assertTrue(one > 0, hero.name() + "'s intelligence should grow with him");
+            assertEquals(one * 4, his.atLevel(5).intelligence() - his.atLevel(1).intelligence(),
+                    "four levels are worth exactly four times one");
+            assertTrue(rules.mana(his.atLevel(15)) > rules.mana(his.atLevel(1)),
+                    hero.name() + "'s pool should deepen with his intelligence");
+        }
     }
 
     /**
@@ -344,41 +350,34 @@ class ManaTest {
             for (var skill : SETTINGS.skillsFor(hero.name())) {
                 all += skill.manaAt(1);
             }
-            assertTrue(all > hero.maxMana(), hero.name() + " can cast all four for " + all
-                    + " out of a pool of " + hero.maxMana() + ", so mana costs him no decision");
+            int pool = poolAtTheFirstLevel(hero);
+            assertTrue(all > pool, hero.name() + " can cast all four for " + all
+                    + " out of a pool of " + pool + ", so mana costs him no decision");
         }
     }
 
     /**
-     * And nobody can sustain everything at once.
+     * What comes back on its own is slow, and it is his own.
      *
-     * <p>The figure that actually says what mana is worth, and the one the
-     * obvious measurement gets wrong. Counting the frames on which he cannot
-     * afford his cheapest reads as 80% for the rogue and 0% for the mage, which
-     * says the rogue is starved and the mage is not -- when what it is really
-     * measuring is that the rogue's cheapest is ready far more often.
-     *
-     * <p>What is comparable is the demand: every skill cast the instant it comes
-     * back, in mana a second, against what he regains in a second. Every hero
-     * sits near half, which is the sentence this whole thing is for -- mana
-     * halves what he can do, and he chooses which half.
+     * <p>Between one and two a second, mana and health alike. It used to be the
+     * other way round -- a trickle near half of everything he could spend -- and
+     * that made the pool a second cooldown: nothing he did with it mattered,
+     * because it was back before the next fight. Slow, a pool is a thing he spends
+     * with care, and no attribute and no level buys the care off.
      */
     @Test
-    void nobodyCanSustainEverythingAtOnce() {
+    void whatComesBackOnItsOwnIsSlow() {
         for (var hero : SETTINGS.heroes()) {
-            float demand = 0f;
-            for (var skill : SETTINGS.skillsFor(hero.name())) {
-                demand += skill.manaAt(1)
-                        / (skill.cooldownAt(1) / (float) GameConstants.LOGICFRAMES_PER_SECOND);
-            }
-            float regain = hero.manaRegen() / 10f;
-            float share = regain / demand;
-            assertTrue(share > 0.3f && share < 0.75f, hero.name() + " regains " + regain
-                    + " a second against a demand of " + demand + " -- that is "
-                    + Math.round(share * 100) + "% of everything at once, and the game wants"
-                    + " something near half: much less is a hero who watches a bar, much more"
-                    + " is a second cooldown");
+            assertTrue(hero.manaRegen() >= 10 && hero.manaRegen() <= 20, hero.name()
+                    + " gets back " + hero.manaRegen() / 10f + " mana a second, outside 1 to 2");
+            assertTrue(hero.healthRegen() >= 10 && hero.healthRegen() <= 20, hero.name()
+                    + " mends " + hero.healthRegen() / 10f + " a second, outside 1 to 2");
         }
+    }
+
+    /** The pool he casts out of at the first level: his block's and his intelligence's. */
+    private static int poolAtTheFirstLevel(uz.duke.dungeon.content.HeroLook hero) {
+        return hero.maxMana() + SETTINGS.attributeRules().mana(hero.attributes().atLevel(1));
     }
 
     // ---- determinism ----
@@ -431,14 +430,15 @@ class ManaTest {
     }
 
     /**
-     * And his cheapest is sustainable on its own cooldown.
+     * And slow is not starved.
      *
-     * <p>The other end of the same question. A hero whose cheapest skill outruns
-     * his trickle has nothing he can lean on, and what that feels like is
-     * standing about waiting for a bar — which is the failure the brief named.
+     * <p>The other end of the same question. A full pool at his first level pays for
+     * his cheapest skill several times over, and the trickle brings one back inside a
+     * pause between two rooms: he has something to lean on, and he knows what leaning
+     * on it costs.
      */
     @Test
-    void andHisCheapestIsSustainableOnItsOwnCooldown() {
+    void butSlowIsNotStarved() {
         for (var hero : SETTINGS.heroes()) {
             Skill cheapest = null;
             for (var skill : SETTINGS.skillsFor(hero.name())) {
@@ -446,11 +446,16 @@ class ManaTest {
                     cheapest = skill;
                 }
             }
-            float seconds = cheapest.cooldownAt(1) / (float) GameConstants.LOGICFRAMES_PER_SECOND;
-            float regained = seconds * hero.manaRegen() / 10f;
-            assertTrue(regained >= cheapest.manaAt(1), hero.name() + "'s cheapest costs "
-                    + cheapest.manaAt(1) + " and he regains " + regained + " over its "
-                    + seconds + "s cooldown — he has nothing to lean on");
+            int pool = poolAtTheFirstLevel(hero);
+            assertTrue(pool >= cheapest.manaAt(1) * 3, hero.name() + "'s pool of " + pool
+                    + " pays for his cheapest, at " + cheapest.manaAt(1) + ", fewer than three times");
+            float secondsForOne = cheapest.manaAt(1) / (hero.manaRegen() / 10f);
+            assertTrue(secondsForOne <= 20f, hero.name() + " waits " + secondsForOne
+                    + "s for his cheapest to come back -- that is watching a bar");
+            assertTrue(secondsForOne >= cheapest.cooldownAt(1)
+                            / (float) GameConstants.LOGICFRAMES_PER_SECOND,
+                    hero.name() + "'s cheapest comes back faster than its own cooldown, so the"
+                            + " trickle is a second cooldown again");
         }
     }
 }

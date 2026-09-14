@@ -476,13 +476,17 @@ class MageTest {
         return templates.findTemplate(name);
     }
 
+    /** What he is at his first level: his creature block with his attributes on it. */
+    private static uz.duke.dungeon.level.HeroFigures firstLevel(String hero) {
+        var look = SETTINGS.heroNamed(hero);
+        return uz.duke.dungeon.level.HeroFigures.of(
+                uz.duke.dungeon.level.HeroBase.of(templateOf(hero)), look.maxMana(),
+                look.attributes(), SETTINGS.attributeRules(), 1,
+                uz.duke.dungeon.level.HeroFigures.Found.NOTHING);
+    }
+
     private static float health(String hero) {
-        for (var entry : templateOf(hero).getModules()) {
-            if (entry.data() instanceof uz.duke.dungeon.level.GrowableBody.Data body) {
-                return body.maxHealth();
-            }
-        }
-        return 0f;
+        return firstLevel(hero).maxHealth();
     }
 
     private static uz.duke.rts.module.WeaponUpdate.Data weaponOf(String hero) {
@@ -499,7 +503,6 @@ class MageTest {
     }
 
     private static float damagePerFrame(String hero) {
-        var weapon = weaponOf(hero);
-        return weapon.damage() / (float) weapon.reloadFrames();
+        return firstLevel(hero).attack() / (float) weaponOf(hero).reloadFrames();
     }
 }

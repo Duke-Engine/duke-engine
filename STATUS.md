@@ -1,6 +1,6 @@
 # Duke Engine — hozirgi holat va ishlash tamoyili
 
-**Holat sanasi:** 2026-09-13 · **Testlar:** 1506 ta, hammasi yashil (0 failure / 0 error)
+**Holat sanasi:** 2026-09-14 · **Testlar:** 1542 ta, hammasi yashil (0 failure / 0 error)
 
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
@@ -4302,6 +4302,93 @@ tushib, o'sha joyni muzlatsin.
   - 2 ta yangi test: nova tanlangan joyga tushadi va mage yonidagini urmaydi; yetish
     masofasidan uzoqqa bosilsa, masofa chetiga tushadi;
   - W ni ishlatadigan 3 ta eski test endi uni joyga qaratib cast qiladi.
+
+### 8.bg Atributlar — Kuch, Epchillik, Aql
+
+Foydalanuvchi: to'g'ridan-to'g'ri daraja o'sishi o'rniga Dota uslubidagi uch atribut.
+Asosiy atribut zarbani ham oshirsin, tiklanish esa atributdan mustaqil va sekin bo'lsin.
+HUD'da ko'rinsin. Determinizm qattiq ushlansin.
+
+- **Formula** — bir qadamda hisoblanadi, yig'indi emas:
+  - HP = `MaxHealth` (creatures.ini) + Kuch × `HealthPerStrength`;
+  - tezlik = `Speed` + Epchillik × `SpeedPerAgility`;
+  - mana = `MaxMana` (DungeonHero) + Aql × `ManaPerIntelligence`;
+  - zarba = `Damage` + asosiy atribut × `DamagePerPrimary`;
+  - atribut(L) = baza + o'sish × (L − 1) + narsadan.
+- **Determinizm:**
+  - atributlar o'ndan birlarda (`Attributes`), koeffitsientlar yuzdan birlarda
+    (`AttributeRules`) saqlanadi. Har bir natija ikki butun sonning ko'paytmasi, bir marta
+    bo'linadi;
+  - INI'dagi o'nli son `BigDecimal` bilan aniq o'qiladi, ortiqcha xona rad etiladi (`0.155`);
+  - HP tiklanishi (`Recovery`) mana kabi hisoblanadi: o'ndan birlar va butun ball qoldig'i;
+  - `HeroAttributesTest` bir seed'ni ikki marta o'ynaydi va har qadamda checksum, max HP
+    bitlari, mana, daraja va qurol bonusini solishtiradi.
+- **1-daraja qayerda:** `creatures.ini` dagi qahramon statlari endi atributdan oldingi
+  baza (Knight: 716 HP / 19.5 tezlik / 8 zarba). `Dungeon` modul fabrikasi `GrowableBody`,
+  `MoveUpdate` va `WeaponUpdate` ni qahramon uchun 1-daraja atributlari bilan quradi
+  (`HeroBuild`). Shuning uchun qahramon run'da, stage'da yoki testda bir xil chiqadi.
+  1-daraja raqamlari o'zgarmadi.
+- **O'sish** (`HeroProgress.apply`) — hammasi `HeroFigures.of` dan, panel ham shundan o'qiydi:
+  - HP farq bilan oshadi, to'liq davolash emas;
+  - zarba: o'yinchining qurol bonusi = zarba(hozir) / zarba(1-daraja);
+  - tezlik: engine'ning `MoveUpdate` i tezlikni qurilganda qotiradi. Yangi `MoveUpdate`
+    `GameObject.replaceModule` bilan eski o'rniga qo'yiladi, tick'da (obyektlar
+    yangilangandan keyin). Ketayotgan manzil saqlanadi. `core` ga tegilmadi;
+  - mana `poolOf` orqali; tiklanishlar `DungeonHero` dagi bazadan olinadi va o'zgarmaydi.
+- **Olib tashlandi:** `HealthPerLevel`, `DamagePercentPerLevel`, `ManaPerLevel`,
+  `ManaRegenPerLevel`. `ArmourPercentPerLevel` qoldi, chunki zirh atributga bog'lanmaydi.
+- **Narsalar:** `LootKind` ga `STRENGTH`, `AGILITY`, `INTELLIGENCE` qo'shildi, lekin INI'da
+  hech bir narsa ularni bermaydi. Loot `ATTACK%` endi butun zarbaning foizi.
+- **HUD:**
+  - status qatoriga uch atribut qo'shildi, asosiysiga `,primary`. Kartochka
+    `stTipName/At/Text/Row` maydonlarida, figura joyi indeksi bilan;
+  - panel 3 ustun × 2 qator: yuqorida Kuch · Epchillik · Aql, pastda Zarba · Zirh · Tezlik;
+  - asosiy atribut: so'z va raqam oltin, uyasi atrofida oltin halqa;
+  - sichqoncha atribut ustida turganda panel ustida kartochka ochiladi, masalan
+    "Kuch · Har bir birlik beradi: Jon +12". Asosiy atributning kartochkasida "Zarba +1" ham bor;
+  - ikonkalar mavjud to'plamdan: Kuch — `stat_health`, Epchillik — `stat_speed`,
+    Aql — `stat_crit`.
+- **Qiymatlar** (`HealthPerStrength 12`, `SpeedPerAgility 0.15`, `ManaPerIntelligence 5`,
+  `DamagePerPrimary 1.0`):
+
+| | Asosiy | Kuch / Epch. / Aql | + har darajada | HP tikl. | Mana tikl. |
+|---|---|---|---|---|---|
+| Knight | Kuch | 22 / 10 / 8 | 3.0 / 1.2 / 1.0 | 2.0/s | 1.0/s |
+| Rogue | Epchillik | 10 / 12 / 8 | 1.6 / 2.2 / 1.0 | 1.5/s | 1.5/s |
+| Mage | Aql | 8 / 9 / 10 | 1.2 / 1.0 / 2.0 | 1.0/s | 2.0/s |
+
+- **15-daraja (eski → yangi):**
+  - HP: Knight 1260 → 1484, Rogue 830 → 819, Mage 660 → 582;
+  - zarba: 80 → 72, 38 → 45, 32 → 40;
+  - tezlik: 21 → 23.5, 29 → 33.6, 25 → 27.1;
+  - mana: 134 → 120, 164 → 150, 204 → 260.
+- **Balans o'lchovi** — bir xil jang eski va yangi kodda (`HeroBalanceTest`, eskisi HEAD
+  nusxasida). O'lmaydigan 3 skelet orasida yashash:
+  - 1-darajada: Knight 56 → 64 s, Rogue 26 → 28 s, Mage 18 → 19 s. Farq faqat HP
+    tiklanishidan;
+  - 15-darajada: Knight 149 → 231 s, Rogue 98 → 118 s, Mage 78 → 78 s;
+  - bitta skeletni o'ldirish 1-darajada bir xil (3.3 / 3.9 / 5.5 s). 15-darajada
+    1.9 / 1.6 / 2.2 s (eski 2.1 / 1.6 / 2.3).
+- **Testlar:** 1506 → 1542.
+  - yangi: `AttributesTest` (17), `HeroAttributesTest` (9), `HeroBalanceTest` (5),
+    `HeroStatusTest` +2, `HeroPanelTest` +2, `PanelLayoutTest` +1;
+  - ⚠ `ManaTest` dagi tez tiklanishni qotirgan 2 ta balans testi almashtirildi. Yangi
+    qoida: tiklanish 1–2/s; hovuz eng arzon skillga kamida 3 marta yetadi va u 20 s ichida
+    qaytadi, lekin o'z kuluaridan tezroq emas;
+  - o'zgardi: `LevellingTest`, `HeroProgressTest`, `DepthTest`, `KnightTest`, `MageTest`,
+    `DungeonUnitBarTest`. Ular 1-daraja qiymatlarini endi `HeroFigures` orqali o'qiydi.
+- **Ko'z bilan tekshirildi** (yashirin oynada, Rogue):
+  - 1-darajada `10 / 12 / 8` va `14 / 0 / 29`;
+  - tajriba berilgach 8-darajada `21 / 27 / 15` va `29 / 35 / 31`, HP 684, mana 115;
+  - ikkala kartochka ham ko'rindi.
+  - Topilgan nuqson: kartochka figuraning ustida ochilib, ism va XP bar yozuvi uni to'sardi.
+    Endi butun panelning ustida ochiladi.
+- **Ochiq qolganlar:**
+  - mana tiklanishi 4–7 marta sekinlashdi, eng ko'p Mage sezadi. Richaglar: `ManaPerKill`
+    (hozir 0), `MaxMana`, `ManaPerIntelligence`;
+  - `DungeonSettings.parse` ga berilgan qisman matnda `DungeonHero` bloki bo'lmasa, qahramon
+    faqat baza qiymatlari bilan quriladi (test sozlamalari uchun muhim);
+  - etik ikonkasi Epchillik va Tezlikda takrorlanadi.
 
 ## 9. Nima yo'q / ochiq ishlar
 

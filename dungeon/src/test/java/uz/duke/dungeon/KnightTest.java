@@ -369,8 +369,9 @@ class KnightTest {
         game.runHeadless(1);
         var him = find(game, template);
         var progress = new HeroProgress(world.hero(), SETTINGS.levelling(),
-                SETTINGS.levelUpBannerFrames(), new uz.duke.dungeon.loot.LootBag(),
-                template, SETTINGS.heroNamed(template).armourPercent());
+                SETTINGS.attributeRules(), SETTINGS.levelUpBannerFrames(),
+                new uz.duke.dungeon.loot.LootBag());
+        progress.playing(SETTINGS.heroNamed(template));
         progress.carryOver(game, him);
 
         float before = him.getBody().getHealth();
@@ -552,22 +553,25 @@ class KnightTest {
         return templates.findTemplate(name);
     }
 
+    /**
+     * What he is at his first level: his creature block and his attributes together,
+     * the way the game builds him. The block alone is only what the attributes are
+     * added to.
+     */
+    private static uz.duke.dungeon.level.HeroFigures firstLevel(String template) {
+        var look = SETTINGS.heroNamed(template);
+        return uz.duke.dungeon.level.HeroFigures.of(
+                uz.duke.dungeon.level.HeroBase.of(templateOf(template)), look.maxMana(),
+                look.attributes(), SETTINGS.attributeRules(), 1,
+                uz.duke.dungeon.level.HeroFigures.Found.NOTHING);
+    }
+
     private static float health(String template) {
-        for (var entry : templateOf(template).getModules()) {
-            if (entry.data() instanceof GrowableBody.Data body) {
-                return body.maxHealth();
-            }
-        }
-        return 0f;
+        return firstLevel(template).maxHealth();
     }
 
     private static float damage(String template) {
-        for (var entry : templateOf(template).getModules()) {
-            if (entry.data() instanceof WeaponUpdate.Data weapon) {
-                return weapon.damage();
-            }
-        }
-        return 0f;
+        return firstLevel(template).attack();
     }
 
     private static float reach(String template) {
@@ -580,12 +584,7 @@ class KnightTest {
     }
 
     private static float speed(String template) {
-        for (var entry : templateOf(template).getModules()) {
-            if (entry.data() instanceof MoveUpdate.Data move) {
-                return move.speedPerSecond();
-            }
-        }
-        return 0f;
+        return firstLevel(template).speed();
     }
 
     private static float vision(String template) {
