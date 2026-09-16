@@ -180,3 +180,11 @@ Known gaps: exported games bake in one map and faction set instead of offering
 the skirmish menu; multiplayer is two players only and does not yet compare
 checksums live; save/load is not wired into any UI; per-module in-flight state
 (move goals, reload counters, build queues) is not yet serialized.
+
+## License
+
+The code is released under the [MIT License](LICENSE).
+
+The models, animations, sounds, fonts and pictures the games ship are not
+covered by it: each keeps its own terms, listed in [CREDITS.md](CREDITS.md) and
+kept in a `License.txt` beside the files.

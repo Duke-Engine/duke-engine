@@ -7,6 +7,9 @@ only invites it, it is given anyway.
 The licence text as it shipped is kept beside the files themselves, in a
 `License.txt` in each folder — this page is the index, not the terms.
 
+The code itself is under the MIT License — see `LICENSE`. None of the assets below
+are: each keeps the terms given here.
+
 **Adding an asset means adding a row here.** See the rule in `CLAUDE.md`.
 
 ## Duke Dungeon
