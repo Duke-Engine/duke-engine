@@ -201,11 +201,6 @@ public final class DungeonSettings {
                 : bosses.get(Math.clamp(depth, 1, bosses.size()) - 1);
     }
 
-    /** The boss of this depth, whole. */
-    public MonsterKind bossAt(int depth) {
-        return monster(bossKindAt(depth));
-    }
-
     /** One kind the boss is guarded by, and how many of it. */
     public record BossGuard(String kind, int count) {
     }
@@ -291,11 +286,11 @@ public final class DungeonSettings {
                 // Repeatable, headed by the attribute's name: the list of attributes
                 // is the file's, in its order, so another one is a block here, a line
                 // in each hero and a picture -- and no Java.
-                Map.entry("DungeonAttribute", (Ini.BlockParser) reader -> {
-                    var attribute = new AttributeBuilder(reader.getNextToken());
-                    reader.initFromIni(attribute, ATTRIBUTE);
-                    settings.attributes.add(attribute.build());
-                }),
+                Map.entry("DungeonAttribute", reader -> {
+            var attribute = new AttributeBuilder(reader.getNextToken());
+            reader.initFromIni(attribute, ATTRIBUTE);
+            settings.attributes.add(attribute.build());
+        }),
                 // How the block of figures and attributes under the hero's experience
                 // bar is drawn. Sizes and colours only: what is in it is the line's.
                 Map.entry("DungeonStatBlock", reader -> {
@@ -325,7 +320,7 @@ public final class DungeonSettings {
                 // as DungeonSkill already is: his four skill blocks are headed
                 // with the same word. A second hero is a block here, four there,
                 // and no Java.
-                Map.entry("DungeonHero", (Ini.BlockParser) reader -> {
+                Map.entry("DungeonHero", reader -> {
                     var hero = new HeroBuilder(reader.getNextToken());
                     reader.initFromIni(hero, HERO_LOOK);
                     settings.heroes.add(hero);
@@ -335,7 +330,7 @@ public final class DungeonSettings {
                 // is asking a different question: that one is what he is made of,
                 // this one is where the little camera stands and what he does in
                 // front of it.
-                Map.entry("DungeonPortrait", (Ini.BlockParser) reader -> {
+                Map.entry("DungeonPortrait", reader -> {
                     var portrait = new PortraitBuilder(reader.getNextToken());
                     reader.initFromIni(portrait, PORTRAIT);
                     settings.portraits.add(portrait);
@@ -356,12 +351,12 @@ public final class DungeonSettings {
                 // How each thing in flight is drawn, and what it burns like. Named
                 // and repeatable, like the monsters and the themes, and for the
                 // same reason: a fourth projectile is a block here and no Java.
-                Map.entry("DungeonProjectile", (Ini.BlockParser) reader -> {
+                Map.entry("DungeonProjectile", reader -> {
                     var projectile = new ProjectileBuilder(reader.getNextToken());
                     reader.initFromIni(projectile, PROJECTILE);
                     settings.projectiles.add(projectile);
                 }),
-                Map.entry("DungeonEffect", (Ini.BlockParser) reader -> {
+                Map.entry("DungeonEffect", reader -> {
                     var effect = new EffectBuilder(reader.getNextToken());
                     reader.initFromIni(effect, EFFECT);
                     settings.effects.add(effect);
@@ -372,26 +367,26 @@ public final class DungeonSettings {
                 // What the mouse pointer looks like in one situation. Named by
                 // the situation, because the client owns those and the game owns
                 // the pictures -- see Cursors.
-                Map.entry("DungeonCursor", (Ini.BlockParser) reader -> {
+                Map.entry("DungeonCursor", reader -> {
                     var pointer = new CursorBuilder(reader.getNextToken());
                     reader.initFromIni(pointer, CURSOR);
                     settings.cursors.add(pointer);
                 }),
-                Map.entry("DungeonSkin", (Ini.BlockParser) reader -> {
+                Map.entry("DungeonSkin", reader -> {
                     var piece = new SkinBuilder(reader.getNextToken());
                     reader.initFromIni(piece, SKIN);
                     settings.skin.add(piece);
                 }),
                 // A layer of an effect, named by the effect and then by itself, as a
                 // tone is named by its theme. In file order, which is draw order.
-                Map.entry("DungeonEffectLayer", (Ini.BlockParser) reader -> {
+                Map.entry("DungeonEffectLayer", reader -> {
                     var layer = new LayerBuilder(reader.getNextToken(), reader.getNextToken());
                     reader.initFromIni(layer, LAYER);
                     settings.effectLayers.add(layer);
                 }),
                 // What one of the run's own moments plays on the hero: a level, the
                 // boss down, a floor reached.
-                Map.entry("DungeonMoment", (Ini.BlockParser) reader -> {
+                Map.entry("DungeonMoment", reader -> {
                     var moment = new MomentBuilder(reader.getNextToken());
                     reader.initFromIni(moment, MOMENT);
                     settings.moments.add(moment);
@@ -415,17 +410,17 @@ public final class DungeonSettings {
                 // How a floor looks, and which floor looks like what. Repeatable
                 // and named, the same way monsters and skills are: a fourth theme
                 // is three more blocks here and a folder of models.
-                Map.entry("DungeonTheme", (Ini.BlockParser) reader -> {
+                Map.entry("DungeonTheme", reader -> {
                     var theme = new ThemeBuilder(reader.getNextToken());
                     reader.initFromIni(theme, THEME);
                     settings.themes.add(theme);
                 }),
-                Map.entry("DungeonTone", (Ini.BlockParser) reader -> {
+                Map.entry("DungeonTone", reader -> {
                     var tone = new ToneBuilder(reader.getNextToken(), reader.getNextToken());
                     reader.initFromIni(tone, TONE);
                     settings.tones.add(tone);
                 }),
-                Map.entry("DungeonThemeMonster", (Ini.BlockParser) reader -> {
+                Map.entry("DungeonThemeMonster", reader -> {
                     var themed = new ThemeMonsterBuilder(
                             reader.getNextToken(), reader.getNextToken());
                     reader.initFromIni(themed, THEME_MONSTER);
@@ -438,7 +433,7 @@ public final class DungeonSettings {
                 // What stands about in the rooms. Named and repeatable like the
                 // monsters, and for the same reason: a fourth kind of thing to
                 // walk round is a block here and a template in props.ini.
-                Map.entry("DungeonProp", (Ini.BlockParser) reader -> {
+                Map.entry("DungeonProp", reader -> {
                     var prop = new PropBuilder(reader.getNextToken());
                     reader.initFromIni(prop, PROP);
                     settings.props.add(prop);
@@ -449,7 +444,7 @@ public final class DungeonSettings {
                 }),
                 // What the game sounds like. One block per moment, and the client
                 // asks for moments by name -- it has never heard of a bow.
-                Map.entry("DungeonSound", (Ini.BlockParser) reader -> {
+                Map.entry("DungeonSound", reader -> {
                     var cue = new SoundBuilder(reader.getNextToken());
                     reader.initFromIni(cue, SOUND);
                     settings.sounds.add(cue);
@@ -484,7 +479,7 @@ public final class DungeonSettings {
                 }),
                 // Repeatable, headed by the item's id: a new thing to find is a
                 // block here and no Java.
-                Map.entry("DungeonLootItem", (Ini.BlockParser) reader -> {
+                Map.entry("DungeonLootItem", reader -> {
                     var item = new LootBuilder(reader.getNextToken());
                     reader.initFromIni(item, LOOT);
                     settings.loot.add(item.build());
@@ -492,7 +487,7 @@ public final class DungeonSettings {
                 // Repeatable, and named by whose skill it is: the block header is
                 // the hero's template and the key that casts it. A second hero is
                 // four more of these and no Java — the roster lives in the file.
-                Map.entry("DungeonSkill", (Ini.BlockParser) reader -> {
+                Map.entry("DungeonSkill", reader -> {
                     var skill = new SkillBuilder(reader.getNextToken(), reader.getNextToken());
                     reader.initFromIni(skill, SKILL);
                     settings.skills.add(skill.build());
@@ -750,22 +745,24 @@ public final class DungeonSettings {
             // the line is split on those two characters.
             require(sayable(skill.icon()),
                     "a skill's Icon may not contain ',' or '|': " + skill.key());
-            if (skill.effect() == SkillEffect.HEAL) {
-                var name = "DungeonSkill " + skill.heroTemplate() + " " + skill.key();
-                require(skill.heal() > 0f && skill.range() > 0f, name + " mends nobody: it needs a Heal and a Range");
-                require(skill.healBelowPercent() > 0 && skill.healBelowPercent() <= 100,
-                        name + "'s HealBelowPercent is a share of health, from 1 to 100");
-                require(skill.hasProjectile(), name + " has no light to call down: name it in Projectile");
-            }
-            if (skill.effect() == SkillEffect.SUMMON) {
-                var name = "DungeonSkill " + skill.heroTemplate() + " " + skill.key();
-                require(!skill.summons().isBlank() && skill.summonCount() >= 1 && skill.maxSummoned() >= 1,
-                        name + " calls up nothing: it needs Summons, a SummonCount and a MaxSummoned");
-                require(skill.radius() > 0f && skill.durationFrames() > 0,
-                        name + " needs a Radius to call them up at and DurationFrames for them to last");
-                require(skill.summonExperiencePercent() >= 0 && skill.summonExperiencePercent() <= 100,
-                        name + "'s SummonExperiencePercent is a share, from 0 to 100");
-                require(skill.hasProjectile(), name + " has no rift to open: name it in Projectile");
+            switch (skill.effect()){
+                case HEAL -> {
+                    var name = "DungeonSkill " + skill.heroTemplate() + " " + skill.key();
+                    require(skill.heal() > 0f && skill.range() > 0f, name + " mends nobody: it needs a Heal and a Range");
+                    require(skill.healBelowPercent() > 0 && skill.healBelowPercent() <= 100,
+                            name + "'s HealBelowPercent is a share of health, from 1 to 100");
+                    require(skill.hasProjectile(), name + " has no light to call down: name it in Projectile");
+                }
+                case SUMMON -> {
+                    var name = "DungeonSkill " + skill.heroTemplate() + " " + skill.key();
+                    require(!skill.summons().isBlank() && skill.summonCount() >= 1 && skill.maxSummoned() >= 1,
+                            name + " calls up nothing: it needs Summons, a SummonCount and a MaxSummoned");
+                    require(skill.radius() > 0f && skill.durationFrames() > 0,
+                            name + " needs a Radius to call them up at and DurationFrames for them to last");
+                    require(skill.summonExperiencePercent() >= 0 && skill.summonExperiencePercent() <= 100,
+                            name + "'s SummonExperiencePercent is a share, from 0 to 100");
+                    require(skill.hasProjectile(), name + " has no rift to open: name it in Projectile");
+                }
             }
         }
     }
@@ -1701,7 +1698,7 @@ public final class DungeonSettings {
             if (carried.isEmpty()) {
                 holds(null);
             }
-            carried.set(carried.size() - 1, change.apply(carried.get(carried.size() - 1)));
+            carried.set(carried.size() - 1, change.apply(carried.getLast()));
         }
 
         HeroBuilder(String name) {
@@ -3405,9 +3402,9 @@ public final class DungeonSettings {
                             h.bone(), h.scale(), h.pitch(), h.yaw(), v, h.x(), h.y(), h.z()))))
                     // Three numbers on one line, because a place is one fact.
                     .add("HeldAt", (ini, s) -> {
-                        float x = ini.scanReal(ini.getNextToken());
-                        float y = ini.scanReal(ini.getNextToken());
-                        float z = ini.scanReal(ini.getNextToken());
+                        float x = Ini.scanReal(ini.getNextToken());
+                        float y = Ini.scanReal(ini.getNextToken());
+                        float z = Ini.scanReal(ini.getNextToken());
                         s.describe(h -> new Held(h.model(), h.bone(), h.scale(), h.pitch(),
                                 h.yaw(), h.roll(), x, y, z));
                     });
