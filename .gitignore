@@ -13,3 +13,4 @@ out/
 # OS
 .DS_Store
 Thumbs.db
+graphify-out/cost.json        # lokal — har mashinada boshqacha
