@@ -1356,10 +1356,10 @@
     "semantic_hash": "b6d92ce7904e58cdca7a390b743f37a1"
   },
   "duke-plugin/build.gradle.kts": {
-    "mtime": 1789648652.1492336,
-    "seen": 1789657551.5582666,
-    "ast_hash": "1a2311cc008de5a7accc0816af0d682d",
-    "semantic_hash": ""
+    "mtime": 1789627283.3341231,
+    "seen": 1789646845.8879964,
+    "ast_hash": "da803c2f8ccf81ac02242d35575a71f4",
+    "semantic_hash": "da803c2f8ccf81ac02242d35575a71f4"
   },
   "duke-plugin/gradlew": {
     "mtime": 1789627283.344391,
@@ -1372,6 +1372,18 @@
     "seen": 1789646845.8879979,
     "ast_hash": "7cd7ed563c35a6cafd93552784af651f",
     "semantic_hash": "7cd7ed563c35a6cafd93552784af651f"
+  },
+  "duke-plugin/src/main/kotlin/MyMessageBundle.kt": {
+    "mtime": 1789627283.3392627,
+    "seen": 1789646845.887999,
+    "ast_hash": "854fcf613face3a46522bffc9eddd9eb",
+    "semantic_hash": "854fcf613face3a46522bffc9eddd9eb"
+  },
+  "duke-plugin/src/main/kotlin/MyToolWindowFactory.kt": {
+    "mtime": 1789627283.3392627,
+    "seen": 1789646845.8879995,
+    "ast_hash": "c32dcdbe4576be723e78b6357dcb961e",
+    "semantic_hash": "c32dcdbe4576be723e78b6357dcb961e"
   },
   "dungeon/art/anim/fbx_to_glb.py": {
     "mtime": 1789222426.8577394,
@@ -3348,15 +3360,15 @@
     "semantic_hash": ""
   },
   "duke-plugin/CHANGELOG.md": {
-    "mtime": 1789657441.7905903,
-    "seen": 1789657551.558613,
-    "ast_hash": "fda13de1168623274d464819338e294b",
+    "mtime": 1789627283.34126,
+    "seen": 1789647677.5675595,
+    "ast_hash": "a02d9864d0246a8c869b0d0de4961e50",
     "semantic_hash": ""
   },
   "duke-plugin/README.md": {
-    "mtime": 1789657440.8181114,
-    "seen": 1789657551.5586145,
-    "ast_hash": "a9ad4f0898a18cfb47bf955a7b0c0449",
+    "mtime": 1789627284.486,
+    "seen": 1789647677.567563,
+    "ast_hash": "241d08d4b244f1f967b99e13ecd6b8ed",
     "semantic_hash": ""
   },
   "dungeon/README.md": {
@@ -8241,54 +8253,6 @@
     "mtime": 1789127336.270276,
     "seen": 1789647677.574503,
     "ast_hash": "c94dfa220257e947bbfd5fc9652bdf43",
-    "semantic_hash": ""
-  },
-  "duke-plugin/src/main/kotlin/uz/duke/plugin/DukeBundle.kt": {
-    "mtime": 1789648375.2149427,
-    "seen": 1789657551.558272,
-    "ast_hash": "18ceb5a4219fd1f4fd3762baaa264406",
-    "semantic_hash": ""
-  },
-  "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniHighlighting.kt": {
-    "mtime": 1789657432.0532763,
-    "seen": 1789657551.5582738,
-    "ast_hash": "7b93db2f375883fadda408de84110ebf",
-    "semantic_hash": ""
-  },
-  "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniLanguage.kt": {
-    "mtime": 1789648384.2302227,
-    "seen": 1789657551.558275,
-    "ast_hash": "d61c175945f8d76be675402b9ba8444f",
-    "semantic_hash": ""
-  },
-  "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniLexer.kt": {
-    "mtime": 1789657430.9847002,
-    "seen": 1789657551.5582764,
-    "ast_hash": "484a7311c89428a6c171442124c72cc0",
-    "semantic_hash": ""
-  },
-  "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniParser.kt": {
-    "mtime": 1789648435.3741808,
-    "seen": 1789657551.5582774,
-    "ast_hash": "d511ad839fbdd6e72ed609ceb7ad4adf",
-    "semantic_hash": ""
-  },
-  "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniPsi.kt": {
-    "mtime": 1789648574.7925918,
-    "seen": 1789657551.5582786,
-    "ast_hash": "5668bd33d636446d96ae43cc5d0e4565",
-    "semantic_hash": ""
-  },
-  "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniStructure.kt": {
-    "mtime": 1789657499.238621,
-    "seen": 1789657551.5582798,
-    "ast_hash": "b9d7b602e50525294de1e6517735924b",
-    "semantic_hash": ""
-  },
-  "duke-plugin/src/test/kotlin/uz/duke/plugin/ini/DukeIniTest.kt": {
-    "mtime": 1789648744.3583615,
-    "seen": 1789657551.5582814,
-    "ast_hash": "e5c08a411e762e81574d22da7b13fbd7",
     "semantic_hash": ""
   }
 }
