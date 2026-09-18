@@ -1,7 +1,7 @@
 package uz.duke.dungeon.level;
 
 /**
- * One hero's attributes as his {@code DungeonHero} block writes them: what he starts
+ * One hero's attributes as his {@code Hero} block writes them: what he starts
  * with, what every level adds, and which of them is his primary.
  *
  * @param primary  where his primary stands in the file's list of attributes, or -1 for a

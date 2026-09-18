@@ -191,8 +191,10 @@ class ControlsTest {
     @Test
     void aSecondHerosKeysComeFromTheFileToo() {
         var settings = DungeonSettings.parse("""
-                DungeonRun Loop
-                  DefaultHero = Rogue
+                World Dungeon
+                  Run = Loop
+                    DefaultHero = Rogue
+                  End
                 End
                 DungeonSkill Rogue Z
                   Effect = DASH
@@ -219,8 +221,10 @@ class ControlsTest {
     @Test
     void theHeroWhoIsNotPlayedGetsNoKeys() {
         var settings = DungeonSettings.parse("""
-                DungeonRun Loop
-                  DefaultHero = Rogue
+                World Dungeon
+                  Run = Loop
+                    DefaultHero = Rogue
+                  End
                 End
                 DungeonSkill Rogue Z
                   Effect = DASH

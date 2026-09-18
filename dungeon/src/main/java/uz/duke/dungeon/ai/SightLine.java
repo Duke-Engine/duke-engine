@@ -70,7 +70,7 @@ public final class SightLine {
     public static boolean sees(GameObject looker, GameObject at, float storeyHeight) {
         var world = looker.getWorld();
         return world != null && sees(world, looker.getPosition(), at.getPosition(),
-                looker.getTemplate().getVisionRange(), storeyHeight);
+                looker.getVisionRange(), storeyHeight);
     }
 
     /** The same, between two points, for eyes that reach {@code radius}. */

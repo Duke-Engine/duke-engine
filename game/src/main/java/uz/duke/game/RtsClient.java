@@ -77,15 +77,15 @@ final class RtsClient extends GameClient {
             var production = object.findModule(uz.duke.rts.module.ProductionUpdate.class);
             units.add(new UnitView(
                     object.getId().value(),
-                    template.getName(),
+                    template.name(),
                     object.getPlayerIndex(),
                     position.x(),
                     position.y(),
                     object.getOrientation(),
                     body == null ? 0f : body.getHealth(),
                     body == null ? 0f : body.getMaxHealth(),
-                    template.isKindOf(RtsKinds.STRUCTURE),
-                    template.isKindOf(RtsKinds.SELECTABLE),
+                    object.isKindOf(RtsKinds.STRUCTURE),
+                    object.isKindOf(RtsKinds.SELECTABLE),
                     ai != null && ai.isMoving(),
                     weapon != null && weapon.isAttacking(),
                     production == null ? -1 : production.getQueueSize()));

@@ -148,7 +148,7 @@ class LootTest {
 
     private static GameObject find(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals(template))
+                .filter(object -> object.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 
@@ -164,13 +164,15 @@ class LootTest {
     @Test
     void aChestIsLeftAndPickedUp() {
         var settings = DungeonSettings.parse("""
-                DungeonLoot Drops
-                  Template = Chest
-                  DropPercent = 100
-                  BossDropPercent = 100
-                  PickupRange = 14
-                  ValuePercentPerDepth = 0
-                  NoteFrames = 90
+                World Dungeon
+                  Loot = Drops
+                    Template = Chest
+                    DropPercent = 100
+                    BossDropPercent = 100
+                    PickupRange = 14
+                    ValuePercentPerDepth = 0
+                    NoteFrames = 90
+                  End
                 End
                 """);
         var session = Dungeon.newSession(21L, settings);

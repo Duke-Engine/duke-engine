@@ -28,7 +28,7 @@ class DungeonThemeTest {
 
     /** The shipped file with its theme order rewritten. */
     private static DungeonSettings withOrder(String order) {
-        var text = Content.read(Content.SETTINGS);
+        var text = Content.settings();
         var edited = new StringBuilder();
         for (var line : text.split("\n", -1)) {
             edited.append(line.trim().startsWith("Order =") ? "  Order = " + order : line)

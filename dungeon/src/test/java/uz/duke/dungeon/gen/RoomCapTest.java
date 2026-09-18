@@ -20,12 +20,12 @@ class RoomCapTest {
 
     /** The shipped file, with the mage at every depth, a thousand times as likely, and this cap. */
     private static DungeonSettings mageEverywhere(int maxPerRoom) {
-        var shipped = Content.read(Content.SETTINGS);
-        int start = shipped.indexOf("DungeonMonster " + MAGE + "\n");
+        var shipped = Content.settings();
+        int start = shipped.indexOf("Monster " + MAGE + "\n");
         assertTrue(start >= 0, "the shipped file has no " + MAGE);
         int end = shipped.indexOf("\nEnd\n", start) + "\nEnd\n".length();
         return DungeonSettings.parse(shipped.substring(0, start) + """
-                DungeonMonster SkeletonMage
+                Monster SkeletonMage
                   Skill = Q
                   SkillDistance = 20 60
                   KeepDistance = 35 55

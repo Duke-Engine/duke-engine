@@ -29,22 +29,43 @@ class DungeonSettingsTest {
         assertTrue(settings.respawnDelayFrames() >= 0);
     }
 
+    /** The world is one block: the engine reads its LevelHeight, and every section inside is the dungeon's. */
+    @Test
+    void theWorldIsOneBlockAndItsMapsStandAtItsHeight() {
+        var settings = DungeonSettings.parse("""
+                World Tower
+                  LevelHeight = 12
+                  Generation = Layout
+                    MapWidth = 70
+                  End
+                End
+                """);
+        assertEquals(new DungeonWorld("Tower", 12f), settings.world());
+        assertEquals(70, settings.mapWidth(), "a section is read as its own block was");
+
+        var game = uz.duke.dungeon.Dungeon.world(".....\n.....\n", settings).game();
+        game.runHeadless(1);
+        assertEquals(12f, game.getTerrain().getLevelHeight(), "the engine lays the map at the world's height");
+    }
+
     /** The point of the whole exercise: a different file is a different game. */
     @Test
     void changingTheFileChangesTheGameWithoutRecompiling() {
         var shipped = DungeonSettings.load();
         var retuned = DungeonSettings.parse("""
-                DungeonGeneration Layout
-                  MapWidth = 80
-                  MapHeight = 60
-                  MinRooms = 9
-                  MaxRooms = 12
-                  MinSkeletonsPerRoom = 1
-                  MaxSkeletonsPerRoom = 2
-                End
-                DungeonCombat Behaviour
-                  SkeletonSenseRadius = 250
-                  SkeletonChaseRadius = 400
+                World Dungeon
+                  Generation = Layout
+                    MapWidth = 80
+                    MapHeight = 60
+                    MinRooms = 9
+                    MaxRooms = 12
+                    MinSkeletonsPerRoom = 1
+                    MaxSkeletonsPerRoom = 2
+                  End
+                  Combat = Behaviour
+                    SkeletonSenseRadius = 250
+                    SkeletonChaseRadius = 400
+                  End
                 End
                 """);
 
@@ -60,8 +81,10 @@ class DungeonSettingsTest {
     void unmentionedSettingsKeepTheirDefaults() {
         var shipped = DungeonSettings.load();
         var sparse = DungeonSettings.parse("""
-                DungeonCombat Behaviour
-                  SkeletonSenseRadius = 120
+                World Dungeon
+                  Combat = Behaviour
+                    SkeletonSenseRadius = 120
+                  End
                 End
                 """);
 
@@ -75,25 +98,31 @@ class DungeonSettingsTest {
     void nonsenseIsRejectedAtLoadTime() {
         var tooFewRooms = assertThrows(IllegalArgumentException.class,
                 () -> DungeonSettings.parse("""
-                        DungeonGeneration Layout
-                          MinRooms = 6
-                          MaxRooms = 2
+                        World Dungeon
+                          Generation = Layout
+                            MinRooms = 6
+                            MaxRooms = 2
+                          End
                         End
                         """));
         assertTrue(tooFewRooms.getMessage().contains("MaxRooms"), tooFewRooms.getMessage());
 
         assertThrows(IllegalArgumentException.class, () -> DungeonSettings.parse("""
-                DungeonGeneration Layout
-                  MapWidth = 8
-                  MapHeight = 8
-                  MaxRoomSize = 9
+                World Dungeon
+                  Generation = Layout
+                    MapWidth = 8
+                    MapHeight = 8
+                    MaxRoomSize = 9
+                  End
                 End
                 """), "rooms that cannot fit on the map should be caught");
 
         assertThrows(IllegalArgumentException.class, () -> DungeonSettings.parse("""
-                DungeonCombat Behaviour
-                  SkeletonSenseRadius = 200
-                  SkeletonChaseRadius = 50
+                World Dungeon
+                  Combat = Behaviour
+                    SkeletonSenseRadius = 200
+                    SkeletonChaseRadius = 50
+                  End
                 End
                 """), "giving up closer than you notice makes no sense");
     }
@@ -114,7 +143,7 @@ class DungeonSettingsTest {
     @Test
     void theHeroStopsInsideHisOwnReach() {
         var settings = DungeonSettings.load();
-        var hero = Content.read(Content.CREATURES).split("Object Skeleton")[0];
+        var hero = Content.units().split("Monster Skeleton")[0];
 
         var reach = java.util.regex.Pattern.compile("AttackRange\\s*=\\s*(\\d+)")
                 .matcher(hero).results()
@@ -129,9 +158,9 @@ class DungeonSettingsTest {
     /** The creature data really is loadable content, not a file nobody reads. */
     @Test
     void theCreatureFilesArePresentAndDescribeBothSides() {
-        var creatures = Content.read(Content.CREATURES);
-        assertTrue(creatures.contains("Object Rogue"));
-        assertTrue(creatures.contains("Object Skeleton"));
+        var creatures = Content.units();
+        assertTrue(creatures.contains("Hero Rogue"));
+        assertTrue(creatures.contains("Monster Skeleton"));
         assertTrue(creatures.contains("Script:SkeletonBrain"),
                 "the game's skeletons should carry their behaviour");
 
@@ -152,11 +181,13 @@ class DungeonSettingsTest {
     @Test
     void thePanelsPaintedEdgesAreReadAsWritten() {
         var skin = DungeonSettings.parse("""
-                DungeonSkin Slot
-                  Texture = ui/borders/default/border/panel-border-013.png
-                  Inset = 10
-                  Scale = 1.1
-                  Tint = 0xC9A24B
+                World Dungeon
+                  Skin = Slot
+                    Texture = ui/borders/default/border/panel-border-013.png
+                    Inset = 10
+                    Scale = 1.1
+                    Tint = 0xC9A24B
+                  End
                 End
                 """).skin();
 

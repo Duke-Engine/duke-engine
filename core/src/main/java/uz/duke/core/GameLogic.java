@@ -21,10 +21,14 @@ import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.Footprint;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.Geometry;
+import uz.duke.core.thing.Layered;
+import uz.duke.core.thing.Sighted;
+import uz.duke.core.thing.Solid;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.core.thing.ThingFactory;
 import uz.duke.core.thing.ThingTemplate;
 import uz.duke.core.thing.World;
+import uz.duke.core.thing.WorldTemplate;
 
 /**
  * The deterministic simulation, ported from SAGE's {@code GameLogic}.
@@ -50,6 +54,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     private final uz.duke.core.script.ScriptEngine scriptEngine = new uz.duke.core.script.ScriptEngine();
     private final List<GameObject> objects = new ArrayList<>();
     private PathGrid pathGrid; // null = open terrain (direct paths)
+    private WorldTemplate world; // null = a game with no World block
     private boolean staticObstaclesDirty = true;
     private FrameLog frameLog;
 
@@ -147,13 +152,13 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      */
     public final boolean canSee(int viewerPlayer, Coord3D position) {
         for (var watcher : objects) {
-            if (watcher.isEffectivelyDead() || watcher.getTemplate().getVisionRange() <= 0f) {
+            if (watcher.isEffectivelyDead() || Sighted.of(watcher.getTemplate()) <= 0f) {
                 continue;
             }
             boolean friendlyEye = watcher.getPlayerIndex() == viewerPlayer
                     || getRelationship(viewerPlayer, watcher.getPlayerIndex()) == Relationship.ALLIES;
             if (friendlyEye
-                    && watcher.getPosition().distance(position) <= watcher.getTemplate().getVisionRange()) {
+                    && watcher.getPosition().distance(position) <= Sighted.of(watcher.getTemplate())) {
                 return true;
             }
         }
@@ -273,7 +278,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      */
     @Override
     public GameObject findBlocker(GameObject mover, Coord3D position) {
-        if (mover.getTemplate().getGeometry().isPoint()) {
+        if (Solid.of(mover.getTemplate()).isPoint()) {
             return null; // no body, nothing to bump into
         }
         int level = levelAt(position);
@@ -288,7 +293,24 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     /** Install a navigation grid so movement routes around terrain obstacles. */
     public final void setPathGrid(PathGrid pathGrid) {
         this.pathGrid = pathGrid;
+        // A world built in storeys says how tall one is, and every map laid in it is laid at
+        // that height: a floor swapped in mid-game included.
+        if (pathGrid != null && world instanceof Layered layered) {
+            pathGrid.setLevelHeight(layered.levelHeight());
+        }
         this.staticObstaclesDirty = true;
+    }
+
+    /** What the game's World block says of its world, as far as the engine reads it. */
+    public final void setWorld(WorldTemplate world) {
+        this.world = world;
+        if (pathGrid != null) {
+            setPathGrid(pathGrid);
+        }
+    }
+
+    public final WorldTemplate getWorld() {
+        return world;
     }
 
     /**
@@ -314,7 +336,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         float cellSize = pathGrid.getCellSize();
         float halfCell = cellSize * 0.5f;
         for (var object : objects) {
-            var shape = object.getTemplate().getGeometry();
+            var shape = Solid.of(object.getTemplate());
             if (object.isMobile() || shape.isPoint()) {
                 continue;
             }
@@ -388,7 +410,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
         refreshStaticObstacles();
         return Pathfinder.findPath(pathGrid, mover.getPosition(), to,
-                mover.getTemplate().getGeometry().footprintRadius());
+                Solid.of(mover.getTemplate()).footprintRadius());
     }
 
     private void clearState() {
@@ -505,7 +527,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         // spawns wreckage builds it in a world that no longer holds the body.
         for (var object : leaving) {
             if (object.isEffectivelyDead()) {
-                post(new ObjectDied(frame, object.getId(), object.getTemplate().getName(),
+                post(new ObjectDied(frame, object.getId(), object.getTemplate().name(),
                         object.getPlayerIndex(), object.getPosition()));
             }
             for (var module : object.getModules()) {

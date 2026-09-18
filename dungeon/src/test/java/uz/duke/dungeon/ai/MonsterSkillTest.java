@@ -20,7 +20,7 @@ import uz.duke.game.DukeGame;
  *
  * <p>Fought in an open room, so every distance is the test's own, and through the seam
  * the dungeon is built on. Where a test needs the caster to stand still it says so in a
- * {@code DungeonMonster} block of its own rather than leaning on the shipped numbers, so
+ * {@code Monster} block of its own rather than leaning on the shipped numbers, so
  * retuning the Skeleton Mage cannot quietly turn one of these into a test of nothing.
  */
 class MonsterSkillTest {
@@ -87,14 +87,14 @@ class MonsterSkillTest {
 
     private static GameObject creature(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals(template))
+                .filter(object -> object.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 
     /** A caster that never walks: it casts from where it was put, or it does not cast. */
     private static DungeonSettings standingStill() {
         return DungeonSettings.parse("""
-                DungeonMonster SkeletonMage
+                Monster SkeletonMage
                   SenseRadius = 400
                   ChaseRadius = 400
                   CloseDistance = 500
@@ -108,7 +108,7 @@ class MonsterSkillTest {
     /** A caster that holds the band it is given, and notices him from anywhere in the room. */
     private static DungeonSettings keeping(String band, String distance) {
         return DungeonSettings.parse("""
-                DungeonMonster SkeletonMage
+                Monster SkeletonMage
                   SenseRadius = 300
                   ChaseRadius = 300
                   CloseDistance = 6
@@ -130,7 +130,7 @@ class MonsterSkillTest {
         for (int frame = 0; frame < frames; frame++) {
             game.runHeadless(1);
             for (var object : game.getLogic().getObjects()) {
-                if (object.getTemplate().getName().equals(fireball())) {
+                if (object.getTemplate().name().equals(fireball())) {
                     seen.add(object.getId().value());
                 }
             }
@@ -149,7 +149,7 @@ class MonsterSkillTest {
         for (int frame = 0; frame < frames; frame++) {
             game.runHeadless(1);
             for (var object : game.getLogic().getObjects()) {
-                var list = when.get(object.getTemplate().getName());
+                var list = when.get(object.getTemplate().name());
                 if (list != null && seen.add(object.getId().value())) {
                     list.add(game.getLogic().getFrame());
                 }

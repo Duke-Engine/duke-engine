@@ -88,8 +88,7 @@ class SightTest {
 
     /** The shipped hero, re-tuned: his bow drawn further than his eyes reach. */
     private static String longBow() {
-        var creatures = uz.duke.dungeon.content.Content.read(
-                uz.duke.dungeon.content.Content.CREATURES);
+        var creatures = uz.duke.dungeon.content.Content.units();
         assertTrue(creatures.contains("AttackRange = 60"), "the hero's bow should still be 60");
         return creatures.replace("AttackRange = 60", "AttackRange = 200");
     }
@@ -120,7 +119,7 @@ class SightTest {
     private static Arena raisedArena(int raisedFrom, boolean withStair, int heroCell,
             int skeletonCell) {
         return arena(Dungeon.world(arena(NO_WALL), storeys(raisedFrom, withStair), SETTINGS,
-                uz.duke.dungeon.content.Content.read(uz.duke.dungeon.content.Content.CREATURES),
+                uz.duke.dungeon.content.Content.units(),
                 new uz.duke.dungeon.loot.LootBag()), heroCell, skeletonCell);
     }
 
@@ -130,7 +129,7 @@ class SightTest {
 
     private static GameObject creature(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals(template))
+                .filter(object -> object.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 

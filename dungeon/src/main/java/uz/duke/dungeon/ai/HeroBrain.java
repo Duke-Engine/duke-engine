@@ -582,7 +582,7 @@ public final class HeroBrain extends UnitScript {
      * edge and one step by either of them puts the target outside again.
      */
     private float howCloseHeGets() {
-        var his = settings.heroNamed(unit().getTemplate().getName()).closeDistance();
+        var his = settings.heroNamed(unit().getTemplate().name()).closeDistance();
         float wanted = his > 0f ? his : settings.closeDistance();
         return Math.min(wanted, reachOfHisWeapon() * INSIDE_HIS_REACH);
     }
@@ -603,7 +603,7 @@ public final class HeroBrain extends UnitScript {
     private float reachOfHisWeapon() {
         if (weaponRange < 0f) {
             weaponRange = 0f;
-            for (var module : unit().getTemplate().getModules()) {
+            for (var module : unit().getTemplate().modules()) {
                 if (module.data() instanceof WeaponUpdate.Data weapon) {
                     weaponRange = Math.max(weaponRange, weapon.attackRange());
                 }

@@ -19,7 +19,7 @@ public record HeroBase(float maxHealth, float speed, float turnRate, float damag
         MoveUpdate.Data legs = null;
         WeaponUpdate.Data weapon = null;
         // The first of each, as every other reader of a template takes it.
-        for (var entry : template.getModules()) {
+        for (var entry : template.modules()) {
             switch (entry.data()) {
                 case GrowableBody.Data found -> body = body == null ? found : body;
                 case MoveUpdate.Data found -> legs = legs == null ? found : legs;

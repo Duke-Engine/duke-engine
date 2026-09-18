@@ -36,7 +36,7 @@ public final class Bow extends Module implements ProjectileLauncher {
 
     /**
      * What this one looses, or {@code null} in any field to take the game's own
-     * answer from {@code DungeonCombat}.
+     * answer from {@code Combat}.
      *
      * @param projectile   the template that leaves the weapon
      * @param speed        how fast it crosses the distance, in units a second

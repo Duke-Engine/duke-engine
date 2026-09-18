@@ -57,7 +57,7 @@ class KnightOrderTest {
 
     private static GameObject creature(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals(template))
+                .filter(o -> o.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 
@@ -93,7 +93,7 @@ class KnightOrderTest {
     }
 
     private static float reachOf(uz.duke.core.thing.ThingFactory templates, String template) {
-        for (var entry : templates.findTemplate(template).getModules()) {
+        for (var entry : templates.findTemplate(template).modules()) {
             if (entry.data() instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
                 return weapon.attackRange();
             }

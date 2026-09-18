@@ -13,9 +13,9 @@ import java.util.List;
  * what lets a test prove the checksum is untouched.
  *
  * <p>Adding one is a block in {@code dungeon.ini} and a folder of models. There is
- * no Java to write, which is the point: {@code DungeonTheme} says what the kit is,
- * {@code DungeonTone} says how it varies, {@code DungeonThemeMonster} says what
- * lives there, and {@code DungeonThemes} says which depth wears which.
+ * no Java to write, which is the point: {@code Theme} says what the kit is,
+ * {@code Tone} says how it varies, {@code ThemeMonster} says what
+ * lives there, and {@code Themes} says which depth wears which.
  *
  * <p>Every asset it names is a whole path from the resource root, so a kit's files
  * may sit wherever its author keeps them.

@@ -1,5 +1,6 @@
 package uz.duke.rts.module;
 
+import uz.duke.rts.RtsTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -44,12 +45,12 @@ class ProductionGateTest {
     @BeforeEach
     void setUp() {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());
-        soldier = ThingTemplate.named("Soldier")
+        soldier = RtsTemplate.named("Soldier")
                 .module("ActiveBody", new ActiveBody.Data(50f))
                 .buildCost(10)
                 .buildTimeFrames(2)
                 .build();
-        plainFactory = ThingTemplate.named("Factory")
+        plainFactory = RtsTemplate.named("Factory")
                 .module("ActiveBody", new ActiveBody.Data(400f))
                 .module("ProductionUpdate", new ProductionUpdate.Data())
                 .build();
@@ -71,7 +72,7 @@ class ProductionGateTest {
 
     private int soldiers() {
         return (int) logic.getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Soldier"))
+                .filter(o -> o.getTemplate().name().equals("Soldier"))
                 .count();
     }
 

@@ -63,7 +63,7 @@ class HoldGroundTest {
 
     private static GameObject creature(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals(template))
+                .filter(o -> o.getTemplate().name().equals(template))
                 .findFirst().orElseThrow();
     }
 

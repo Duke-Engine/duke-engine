@@ -6,7 +6,7 @@ import java.util.List;
  * One moment the game has a sound for.
  *
  * <p>The client raises moments by name and knows nothing about files; this is the
- * other half of that bargain, written in {@code dungeon.ini}. Adding a sound is a
+ * other half of that bargain, written in {@code ini/sounds/}. Adding a sound is a
  * block; adding a variation is a line inside one. There is no Java to write for
  * either, which is the point — a dungeon's noises are not an engine's business.
  *

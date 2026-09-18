@@ -300,8 +300,7 @@ class DungeonMonsterArtTest {
      */
     @Test
     void anythingDrawnShootingHasSomethingToShoot() {
-        var file = uz.duke.dungeon.content.Content.read(uz.duke.dungeon.content.Content.MONSTERS)
-                + uz.duke.dungeon.content.Content.read(uz.duke.dungeon.content.Content.CREATURES);
+        var file = uz.duke.dungeon.content.Content.units();
         for (var kind : SETTINGS.monsters()) {
             if (!SETTINGS.lookOf(kind).attack().startsWith(RANGED)) {
                 continue;
@@ -320,12 +319,12 @@ class DungeonMonsterArtTest {
 
     /** Whether the template of this name carries a launcher. */
     private static boolean launches(String creatureFiles, String template) {
-        int at = creatureFiles.indexOf("Object " + template + "\n");
+        int at = creatureFiles.indexOf("Monster " + template + "\n");
         if (at < 0) {
             return false;
         }
-        int next = creatureFiles.indexOf("\nObject ", at + 1);
-        var block = creatureFiles.substring(at, next < 0 ? creatureFiles.length() : next);
+        int end = creatureFiles.indexOf("\nEnd\n", at);
+        var block = creatureFiles.substring(at, end < 0 ? creatureFiles.length() : end);
         return block.contains("Update = Bow ");
     }
 
@@ -478,7 +477,7 @@ class DungeonMonsterArtTest {
     /** Whether a creature's weapon puts something in the air rather than swinging. */
     private static boolean shoots(String template) {
         var found = templates().findTemplate(template);
-        for (var module : found.getModules()) {
+        for (var module : found.modules()) {
             if (module.data() instanceof uz.duke.dungeon.combat.Bow.Data) {
                 return true;
             }
@@ -488,7 +487,7 @@ class DungeonMonsterArtTest {
 
     private static int reloadFramesOf(String template) {
         var found = templates().findTemplate(template);
-        for (var module : found.getModules()) {
+        for (var module : found.modules()) {
             if (module.data() instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
                 return weapon.reloadFrames();
             }

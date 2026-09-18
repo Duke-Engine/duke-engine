@@ -173,11 +173,12 @@ class MonsterPlacementTest {
     }
 
     private static DungeonSettings guardedBy(String guard) {
-        return DungeonSettings.parse(uz.duke.dungeon.content.Content.read(
-                uz.duke.dungeon.content.Content.SETTINGS) + """
+        return DungeonSettings.parse(uz.duke.dungeon.content.Content.settings() + """
 
-                DungeonDepth Descent
-                  BossGuards = %s
+                World Dungeon
+                  Depth = Descent
+                    BossGuards = %s
+                  End
                 End
                 """.formatted(guard));
     }
@@ -205,7 +206,7 @@ class MonsterPlacementTest {
     @Test
     void changingTheFileChangesWhoAppears() {
         var noRunners = DungeonSettings.parse("""
-                DungeonMonster Runner
+                Monster Runner
                   MinDepth = 99
                 End
                 """);
@@ -227,7 +228,7 @@ class MonsterPlacementTest {
     @Test
     void namingOneKindLeavesTheOthersStanding() {
         var tweaked = DungeonSettings.parse("""
-                DungeonMonster Brute
+                Monster Brute
                   SenseRadius = 500
                 End
                 """);

@@ -407,6 +407,20 @@ public final class DungeonRun {
     }
 
     /**
+     * The next floor's ground: what is stone, and how high each cell stands. How far
+     * apart two storeys are is the world's, and the engine lays the grid at it.
+     *
+     * <p>Both arrive together because they are one map. A grid built from the walls
+     * alone would lay the new floor out flat and leave the hero walking through the
+     * storeys of the last one.
+     */
+    private static uz.duke.core.pathfind.PathGrid terrainOf(uz.duke.dungeon.gen.GeneratedDungeon floor) {
+        var grid = MapLoader.fromText(floor.asciiMap());
+        MapLoader.levels(grid, floor.levelMap());
+        return grid;
+    }
+
+    /**
      * Down a floor: a new seed, a new layout, and tougher inhabitants — but the
      * same hero, still carrying what he has earned.
      *
@@ -415,29 +429,13 @@ public final class DungeonRun {
      * watching for a new hero to decide whether to reset would wipe his levels on
      * every floor: {@link HeroProgress} is told which of the two this is.
      */
-    /**
-     * The next floor's ground: what is stone, how high each cell stands, and how
-     * far apart two storeys are.
-     *
-     * <p>All three arrive together because they are one map. A grid built from
-     * the walls alone would lay the new floor out flat and leave the hero walking
-     * through the storeys of the last one.
-     */
-    private static uz.duke.core.pathfind.PathGrid terrainOf(
-            uz.duke.dungeon.gen.GeneratedDungeon floor, DungeonSettings settings) {
-        var grid = MapLoader.fromText(floor.asciiMap());
-        MapLoader.levels(grid, floor.levelMap());
-        grid.setLevelHeight(settings.storeyHeight());
-        return grid;
-    }
-
     private void descend(DukeGame game) {
         descendAtFrame = 0;
         var floor = floors.next(depth);
 
         var logic = game.getLogic();
         logic.clearWorld();
-        game.applyMapTerrain(terrainOf(floor, settings));
+        game.applyMapTerrain(terrainOf(floor));
 
         var placed = Spawner.place(game, heroPlayer, dungeonPlayer, floor, settings, depth,
                 drops, heroTemplate);
@@ -457,7 +455,7 @@ public final class DungeonRun {
     private GameObject findHero(DukeGame game) {
         for (var object : game.getLogic().getObjects()) {
             if (object.getPlayerIndex() == heroPlayer.getIndex()
-                    && object.getTemplate().getName().equals(heroTemplate)) {
+                    && object.getTemplate().name().equals(heroTemplate)) {
                 return object;
             }
         }

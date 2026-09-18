@@ -58,7 +58,7 @@ class AlertTest {
      */
     private static DungeonSettings skeletons(float senseRadius, float alertRadius) {
         return DungeonSettings.parse("""
-                DungeonMonster Skeleton
+                Monster Skeleton
                   SenseRadius = %s
                   ChaseRadius = 400
                   CloseDistance = 4
@@ -69,7 +69,7 @@ class AlertTest {
 
     private static GameObject creature(DukeGame game, String template, int which) {
         return game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals(template))
+                .filter(o -> o.getTemplate().name().equals(template))
                 .skip(which)
                 .findFirst()
                 .orElseThrow();

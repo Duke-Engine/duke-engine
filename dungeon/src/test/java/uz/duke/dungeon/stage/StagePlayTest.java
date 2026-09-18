@@ -41,7 +41,7 @@ class StagePlayTest {
 
     private static GameObject heroOf(DukeGame game) {
         return game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals(SETTINGS.playedHero()))
+                .filter(o -> o.getTemplate().name().equals(SETTINGS.playedHero()))
                 .findFirst()
                 .orElse(null);
     }
@@ -49,7 +49,7 @@ class StagePlayTest {
     private static List<String> creatures(DukeGame game) {
         var standing = new ArrayList<String>();
         for (var object : game.getLogic().getObjects()) {
-            standing.add(object.getTemplate().getName() + " at "
+            standing.add(object.getTemplate().name() + " at "
                     + Math.round(object.getPosition().x()) + ","
                     + Math.round(object.getPosition().y()));
         }
@@ -126,7 +126,7 @@ class StagePlayTest {
 
         game.runHeadless(1);
         var boss = game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals(stage.floor().boss().kind()))
+                .filter(o -> o.getTemplate().name().equals(stage.floor().boss().kind()))
                 .findFirst().orElse(null);
         assertNotNull(boss, "the stage's boss should be standing in it");
 

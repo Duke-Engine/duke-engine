@@ -27,29 +27,31 @@ import org.junit.jupiter.api.Test;
 class ThemesTest {
 
     private static final String THREE = """
-            DungeonTheme Stone
-              TileSize = 2
-            End
-            DungeonTone Stone Damp
-              Floor = Models/stone/damp.obj
-            End
-            DungeonTone Stone Dry
-              Floor = Models/stone/dry.obj
-            End
-            DungeonTheme Ice
-              FogTint = 0x0A1830
-            End
-            DungeonTone Ice Blue
-              Floor = Models/ice/blue.obj
-            End
-            DungeonTheme Lava
-            End
-            DungeonTone Lava Hot
-              Floor = Models/lava/hot.obj
-            End
-            DungeonThemes Order
-              Order = Stone Stone Ice Lava
-              WhenExhausted = Repeat
+            World Dungeon
+              Theme = Stone
+                TileSize = 2
+              End
+              Tone = Stone Damp
+                Floor = Models/stone/damp.obj
+              End
+              Tone = Stone Dry
+                Floor = Models/stone/dry.obj
+              End
+              Theme = Ice
+                FogTint = 0x0A1830
+              End
+              Tone = Ice Blue
+                Floor = Models/ice/blue.obj
+              End
+              Theme = Lava
+              End
+              Tone = Lava Hot
+                Floor = Models/lava/hot.obj
+              End
+              Themes = Order
+                Order = Stone Stone Ice Lava
+                WhenExhausted = Repeat
+              End
             End
             """;
 
@@ -182,7 +184,7 @@ class ThemesTest {
     /** A game that describes no themes gets none, and is drawn as it always was. */
     @Test
     void aFileWithNoThemesAsksForNothing() {
-        var themes = themes("DungeonRun Loop\n  RespawnDelayFrames = 60\nEnd\n");
+        var themes = themes("World Dungeon\n  Run = Loop\n    RespawnDelayFrames = 60\n  End\nEnd\n");
 
         assertTrue(themes.isEmpty());
         assertNull(themes.pick(1L, 1), "nothing to pick from");

@@ -162,10 +162,12 @@ class StoreysTest {
     /** Turn height off and the generator draws the dungeon it drew before it. */
     @Test
     void aDungeonWithNoStoreysIsTheOldFlatOne() {
-        var flat = DungeonSettings.parse(Content.read(Content.SETTINGS) + """
+        var flat = DungeonSettings.parse(Content.settings() + """
 
-                DungeonGeneration Layout
-                  MaxStorey = 0
+                World Dungeon
+                  Generation = Layout
+                    MaxStorey = 0
+                  End
                 End
                 """);
 
@@ -226,10 +228,12 @@ class StoreysTest {
     @Test
     void takingTheHeightAwayChangesTheRun() {
         var raised = playedOut(SETTINGS);
-        var flattened = playedOut(DungeonSettings.parse(Content.read(Content.SETTINGS) + """
+        var flattened = playedOut(DungeonSettings.parse(Content.settings() + """
 
-                DungeonGeneration Layout
-                  MaxStorey = 0
+                World Dungeon
+                  Generation = Layout
+                    MaxStorey = 0
+                  End
                 End
                 """));
 

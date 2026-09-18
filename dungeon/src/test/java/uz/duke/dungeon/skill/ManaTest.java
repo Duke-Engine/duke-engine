@@ -55,7 +55,7 @@ class ManaTest {
         game.spawn("Skeleton", world.dungeon(), 190f, 150f);
         game.runHeadless(1);
         var hero = game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals(heroTemplate))
+                .filter(o -> o.getTemplate().name().equals(heroTemplate))
                 .findFirst().orElseThrow();
         return new Cast(game, hero, hero.findModule(SkillBook.class));
     }
@@ -411,7 +411,7 @@ class ManaTest {
         }
         game.runHeadless(1);
         var hero = game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Knight"))
+                .filter(o -> o.getTemplate().name().equals("Knight"))
                 .findFirst().orElseThrow();
         var book = hero.findModule(SkillBook.class);
         book.poolOf(60, 30);

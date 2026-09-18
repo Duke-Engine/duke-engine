@@ -166,7 +166,7 @@ public final class MonsterBrain extends UnitScript {
      * hitting anything.
      *
      * <p>How long a swing is belongs to the kind -- a brute's is slow and a
-     * runner's is not -- so it is in dungeon.ini. The animation follows without
+     * runner's is not -- so it is in its Monster block. The animation follows without
      * being told: a monster standing still with a target is exactly the state the
      * client draws as attacking.
      */

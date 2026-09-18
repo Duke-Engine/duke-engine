@@ -54,7 +54,7 @@ public final class ScriptModule extends UpdateModule {
         } catch (RuntimeException e) {
             broken = true;
             LOG.warning(() -> "script " + script.getClass().getSimpleName() + " on unit "
-                    + getOwner().getTemplate().getName() + " failed and was disabled: " + e);
+                    + getOwner().getTemplate().name() + " failed and was disabled: " + e);
         }
     }
 

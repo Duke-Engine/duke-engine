@@ -136,6 +136,23 @@ public final class Ini {
         }
     }
 
+    /**
+     * Pass over the rest of the current block, up to its {@code End}, reading nothing: for a
+     * reader to whom the block belongs to someone else, as a unit's modules do to the game.
+     */
+    public void skipBlock() {
+        while (true) {
+            if (!readLine()) {
+                throw new IniException(location() + " missing '" + blockEndToken
+                        + "' token for block '" + currentBlock + "'");
+            }
+            var token = getNextTokenOrNull();
+            if (token != null && token.equalsIgnoreCase(blockEndToken)) {
+                return;
+            }
+        }
+    }
+
     /** Advance to the next source line, stripping comments; false at EOF. */
     public boolean readLine() {
         if (lineIndex + 1 >= lines.size()) {
@@ -313,6 +330,17 @@ public final class Ini {
     public static <T, E extends Enum<E>> FieldParser<T> enumeration(
             Class<E> type, java.util.function.BiConsumer<T, E> setter) {
         return (ini, instance) -> setter.accept(instance, scanEnum(type, ini.getNextToken()));
+    }
+
+    /**
+     * A field that opens a section of its own inside the block — {@code Generation = Layout},
+     * its fields, its {@code End} — read into the same instance. Its name only labels it.
+     */
+    public static <T> FieldParser<T> section(FieldParseTable<T> fields) {
+        return (ini, instance) -> {
+            ini.getNextToken();
+            ini.initFromIni(instance, fields);
+        };
     }
 
     /** Convenience for building a small block registry inline. */

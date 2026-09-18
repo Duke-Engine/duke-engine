@@ -267,7 +267,7 @@ class SkillLookTest {
 
     private static GameObject knightIn(uz.duke.game.DukeGame arena) {
         return arena.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Knight"))
+                .filter(object -> object.getTemplate().name().equals("Knight"))
                 .findFirst().orElseThrow();
     }
 
@@ -280,7 +280,7 @@ class SkillLookTest {
             }
             text.append('\n');
         }
-        var world = Dungeon.world(text.toString(), SETTINGS, Content.read(Content.CREATURES));
+        var world = Dungeon.world(text.toString(), SETTINGS, Content.units());
         world.game().spawn("Knight", world.hero(), 150f, 150f);
         world.game().runHeadless(1);
         return world.game();
@@ -305,7 +305,7 @@ class SkillLookTest {
     @Test
     void theLookCannotReachTheSimulation() {
         var with = DungeonSettings.load();
-        var without = DungeonSettings.parse(withoutTheLooks(Content.read(Content.SETTINGS)));
+        var without = DungeonSettings.parse(withoutTheLooks(Content.settings()));
 
         assertTrue(playersSkills().stream().allMatch(skill -> skill.hasLook()));
         assertTrue(without.skills().stream().noneMatch(skill -> skill.hasLook()),

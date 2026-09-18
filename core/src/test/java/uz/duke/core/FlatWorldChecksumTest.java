@@ -156,7 +156,7 @@ class FlatWorldChecksumTest {
             logic.update();
             for (var object : logic.getObjects()) {
                 assertEquals(0f, object.getPosition().z(), 0f,
-                        object.getTemplate().getName() + " left the ground at frame " + frame);
+                        object.getTemplate().name() + " left the ground at frame " + frame);
             }
         }
         assertTrue(logic.getObjects().size() >= 5, "the scenario should still be populated");

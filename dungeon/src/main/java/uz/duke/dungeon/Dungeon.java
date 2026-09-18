@@ -42,7 +42,7 @@ import uz.duke.game.script.ScriptModule;
  * learn that is to strip away everything that could hide the answer.
  *
  * <p>This class is only assembly. What the creatures are is data
- * ({@code creatures.ini}), how a dungeon is laid out is data ({@code dungeon.ini}),
+ * ({@code ini/units/}), how a dungeon is laid out is data ({@code dungeon.ini}),
  * how they behave is {@link uz.duke.dungeon.ai}, and when a run ends is
  * {@link DungeonRun}. Nothing here is added to the engine — the game is definitions
  * and orders the engine already understands, which is the real test: if a game
@@ -106,7 +106,7 @@ public final class Dungeon {
      * testing a world nobody plays.
      */
     public static Arena world(String asciiMap, DungeonSettings settings) {
-        return world(asciiMap, settings, Content.read(Content.CREATURES));
+        return world(asciiMap, settings, Content.units());
     }
 
     /** The same, for a caller with no interest in loot: an empty bag. */
@@ -176,12 +176,12 @@ public final class Dungeon {
                     factory.register("Recovery", (owner, data) -> new Recovery(owner),
                             Recovery::parseData);
                     // Which skills a hero has is not in his creature block — it is
-                    // in dungeon.ini, under his template's name. So the block says
+                    // in his DungeonSkill blocks, under his template's name. So the block says
                     // only that he has some, and a second hero needs the same line
                     // and his own DungeonSkill blocks, and no code at all.
                     factory.register("SkillBook",
                             (owner, data) -> new SkillBook(owner,
-                                    settings.skillsFor(owner.getTemplate().getName()), settings),
+                                    settings.skillsFor(owner.getTemplate().name()), settings),
                             SkillBook::parseData);
                     // An archer's shots become things in the world. The engine's
                     // weapon still aims and reloads; these two decide what
@@ -221,9 +221,13 @@ public final class Dungeon {
                                     settings.lootPickupRange(), settings.lootNoteFrames()),
                             LootUpdate::parseData);
                 })
+                // Monster, Hero, Projectile and Prop blocks: the engine's part read here, the
+                // dungeon's taken from the settings, which read it from the same blocks.
+                .templates(loader -> uz.duke.dungeon.content.DungeonTemplates.register(loader, settings))
                 .loadUnits(creaturesIni)
-                .loadUnits(Content.read(Content.MONSTERS))
-                .loadUnits(Content.read(Content.PROPS))
+                // How tall a storey stands is the World block's, and the engine lays
+                // every map at it: this one and each floor after it.
+                .world(settings.world())
                 .mapFromText(asciiMap);
 
         if (levelMap != null) {
@@ -231,7 +235,6 @@ public final class Dungeon {
             // what a storey means and what may be walked between two of them;
             // this only hands it the picture the generator drew.
             uz.duke.core.pathfind.MapLoader.levels(game.getTerrain(), levelMap);
-            game.getTerrain().setLevelHeight(settings.storeyHeight());
         }
 
         var heroPlayer = game.addPlayer("Hero", HERO_COLOUR);
@@ -310,11 +313,11 @@ public final class Dungeon {
         learnt.startWith(settings.skillsFor(settings.playedHero()));
         var bag = new LootBag();
         var arena = world(floor.asciiMap(), floor.levelMap(), settings,
-                Content.read(Content.CREATURES), bag);
+                Content.units(), bag);
         var game = arena.game().subtitle(subtitle);
 
         // Told which creature is the hero and everything his block says about him --
-        // see DefaultHero and DungeonHero.
+        // see DefaultHero and Hero.
         var progress = new HeroProgress(arena.hero(), settings.levelling(),
                 settings.attributeRules(), settings.levelUpBannerFrames(), bag);
         progress.playing(settings.playedHeroLook());
@@ -376,6 +379,6 @@ public final class Dungeon {
     /** The attributes of the hero this creature is, or none for anything that is not one. */
     private static HeroAttributes attributesOf(DungeonSettings settings,
             uz.duke.core.thing.GameObject owner) {
-        return settings.heroNamed(owner.getTemplate().getName()).attributes();
+        return settings.heroNamed(owner.getTemplate().name()).attributes();
     }
 }

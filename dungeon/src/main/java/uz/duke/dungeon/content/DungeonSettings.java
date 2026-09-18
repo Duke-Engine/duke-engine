@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
+import uz.duke.core.thing.ThingTemplateLoader;
 import uz.duke.dungeon.loot.Loot;
 import uz.duke.dungeon.loot.LootKind;
 import uz.duke.dungeon.skill.Skill;
@@ -15,9 +16,11 @@ import uz.duke.dungeon.level.HeroAttributes;
 import uz.duke.dungeon.level.Levelling;
 
 /**
- * Every tuning number that is not a unit stat, read from {@code dungeon.ini}.
+ * Every tuning number that is not a unit stat: the {@code World} block of {@code dungeon.ini}, one
+ * section per concern, and the dungeon's part of the unit, skill, effect and sound blocks in the
+ * files it lists.
  *
- * <p>Unit stats belong in {@code creatures.ini}, where the engine's template
+ * <p>Unit stats belong in the unit blocks, where the engine's template
  * loader reads them. What is left is the shape of a dungeon and the decisions its
  * creatures make — neither of which is a property of any one unit, so the engine
  * has nowhere to put them and no opinion about them. They were constants in Java;
@@ -33,6 +36,8 @@ import uz.duke.dungeon.level.Levelling;
  * a deterministic world needs.
  */
 public final class DungeonSettings {
+
+    private String worldName = "Dungeon";
 
     // ---- layout ----
 
@@ -56,6 +61,7 @@ public final class DungeonSettings {
 
     private int maxStorey = 2;
     private int storeyChangePercent = 45;
+    // The World block's LevelHeight, which the engine lays every map at.
     private float storeyHeight = 6f;
     private int stairLength = 1;
     private int entranceStorey = 0;
@@ -176,7 +182,7 @@ public final class DungeonSettings {
     public static final String BOSS = "Boss";
 
     /**
-     * One boss per depth, in order, from {@code DungeonDepth Descent}.
+     * One boss per depth, in order, from {@code Depth = Descent}.
      *
      * <p>Empty means the descent has no bottom: one boss, the same one every
      * floor, going down for ever — which is what this game did before it had an
@@ -241,7 +247,7 @@ public final class DungeonSettings {
 
     /** The settings shipped with the game. */
     public static DungeonSettings load() {
-        return parse(Content.read(Content.SETTINGS));
+        return parse(Content.settings());
     }
 
     /**
@@ -250,99 +256,36 @@ public final class DungeonSettings {
      */
     public static DungeonSettings parse(String iniText) {
         var settings = new DungeonSettings();
-        // Entries rather than Map.of: that stops at ten pairs, and the file has
-        // more blocks than that now. Nothing else about this changed.
+        // Entries rather than Map.of: that stops at ten pairs.
         var ini = Ini.of(iniText, Map.ofEntries(
-                Map.entry("DungeonGeneration", reader -> {
-                    reader.getNextToken(); // the block's name, which we do not need
-                    reader.initFromIni(settings, LAYOUT);
-                }),
-                Map.entry("DungeonCombat", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, BEHAVIOUR);
-                }),
-                Map.entry("DungeonRun", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, RUN);
-                }),
-                // Which stage this build opens on, if it opens on one at all. A
-                // blank file is the endless dungeon, which is what the game is
-                // when nobody has said otherwise.
-                Map.entry("DungeonStage", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, STAGE);
-                }),
-                Map.entry("DungeonLeveling", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, LEVELLING);
-                }),
-                // What a point of a hero's primary adds to his blow. What a point of
-                // each attribute is worth otherwise is that attribute's own block,
-                // and which of them each hero has is his DungeonHero block.
-                Map.entry("DungeonAttributes", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, ATTRIBUTES);
-                }),
-                // Repeatable, headed by the attribute's name: the list of attributes
-                // is the file's, in its order, so another one is a block here, a line
-                // in each hero and a picture -- and no Java.
-                Map.entry("DungeonAttribute", reader -> {
-            var attribute = new AttributeBuilder(reader.getNextToken());
-            reader.initFromIni(attribute, ATTRIBUTE);
-            settings.attributes.add(attribute.build());
-        }),
-                // How the block of figures and attributes under the hero's experience
-                // bar is drawn. Sizes and colours only: what is in it is the line's.
-                Map.entry("DungeonStatBlock", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings.statBlock, STAT_BLOCK);
+                // The world: one block, and every setting of it a section inside, headed
+                // `Generation = Layout` and closed by an End of its own. See WORLD.
+                Map.entry("World", reader -> {
+                    settings.worldName = reader.getNextToken();
+                    reader.initFromIni(settings, WORLD);
                 }),
                 // Repeatable: the block's name is the monster's, so the list of
-                // kinds is the file's, not a constant somewhere in Java.
-                Map.entry("DungeonMonster", reader -> {
-                    var kind = new MonsterBuilder(reader.getNextToken());
-                    reader.initFromIni(kind, MONSTER);
-                    settings.monsters.add(kind.build());
+                // kinds is the file's, not a constant somewhere in Java. The block is
+                // his template as well; the engine's fields in it are a world's to read.
+                // A monster may frame a face of its own too, under Portrait... names, as a
+                // hero does; one that writes none wears the one every creature gets.
+                Map.entry("Monster", reader -> {
+                    var monster = new Framed<>(reader.getNextToken(), MonsterBuilder::new);
+                    reader.initFromIni(monster, MONSTER_BLOCK);
+                    settings.monsters.add(monster.unit.build());
+                    monster.portrait().ifPresent(settings.portraits::add);
                 }),
-                Map.entry("DungeonDepth", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, DEPTH);
-                }),
-                Map.entry("DungeonTiles", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, TILES);
-                }),
-                Map.entry("DungeonAnimations", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, ANIMATIONS);
-                }),
-                // Repeatable and named after the creature template he is, exactly
-                // as DungeonSkill already is: his four skill blocks are headed
-                // with the same word. A second hero is a block here, four there,
-                // and no Java.
-                Map.entry("DungeonHero", reader -> {
-                    var hero = new HeroBuilder(reader.getNextToken());
-                    reader.initFromIni(hero, HERO_LOOK);
-                    settings.heroes.add(hero);
-                }),
-                // And what he looks like in the panel's frame, alive. Named after
-                // the same template, and separate from the block above because it
-                // is asking a different question: that one is what he is made of,
-                // this one is where the little camera stands and what he does in
-                // front of it.
-                Map.entry("DungeonPortrait", reader -> {
-                    var portrait = new PortraitBuilder(reader.getNextToken());
-                    reader.initFromIni(portrait, PORTRAIT);
-                    settings.portraits.add(portrait);
-                }),
-                // And the one every selectable creature gets, which is what makes
-                // the whole bestiary a block rather than a block each: the camera
-                // is written in fractions of whatever it is looking at, and a
-                // creature's own idle and death are already bound on it.
-                Map.entry("DungeonPortraits", reader -> {
-                    reader.getNextToken();
-                    settings.portraitsDeclared = true;
-                    reader.initFromIni(settings.everyPortrait, PORTRAIT);
+                // Repeatable and named after the template he is, exactly as
+                // DungeonSkill already is: his four skill blocks are headed with the
+                // same word. A second hero is a block here, four there, and no Java.
+                // What he looks like in the panel's frame is in the same block, under
+                // Portrait... names: where the little camera stands and what he does
+                // in front of it.
+                Map.entry("Hero", reader -> {
+                    var hero = new Framed<>(reader.getNextToken(), HeroBuilder::new);
+                    reader.initFromIni(hero, HERO_BLOCK);
+                    settings.heroes.add(hero.unit);
+                    hero.portrait().ifPresent(settings.portraits::add);
                 }),
                 Map.entry("DungeonArrow", reader -> {
                     reader.getNextToken();
@@ -351,31 +294,15 @@ public final class DungeonSettings {
                 // How each thing in flight is drawn, and what it burns like. Named
                 // and repeatable, like the monsters and the themes, and for the
                 // same reason: a fourth projectile is a block here and no Java.
-                Map.entry("DungeonProjectile", reader -> {
+                Map.entry("Projectile", reader -> {
                     var projectile = new ProjectileBuilder(reader.getNextToken());
-                    reader.initFromIni(projectile, PROJECTILE);
+                    reader.initFromIni(projectile, PROJECTILE_BLOCK);
                     settings.projectiles.add(projectile);
                 }),
                 Map.entry("DungeonEffect", reader -> {
                     var effect = new EffectBuilder(reader.getNextToken());
                     reader.initFromIni(effect, EFFECT);
                     settings.effects.add(effect);
-                }),
-                // What the hero panel's edges are painted with. Named after the
-                // part of the panel it paints, and every one of them optional:
-                // a part nobody names keeps the carved look it always had.
-                // What the mouse pointer looks like in one situation. Named by
-                // the situation, because the client owns those and the game owns
-                // the pictures -- see Cursors.
-                Map.entry("DungeonCursor", reader -> {
-                    var pointer = new CursorBuilder(reader.getNextToken());
-                    reader.initFromIni(pointer, CURSOR);
-                    settings.cursors.add(pointer);
-                }),
-                Map.entry("DungeonSkin", reader -> {
-                    var piece = new SkinBuilder(reader.getNextToken());
-                    reader.initFromIni(piece, SKIN);
-                    settings.skin.add(piece);
                 }),
                 // A layer of an effect, named by the effect and then by itself, as a
                 // tone is named by its theme. In file order, which is draw order.
@@ -384,63 +311,13 @@ public final class DungeonSettings {
                     reader.initFromIni(layer, LAYER);
                     settings.effectLayers.add(layer);
                 }),
-                // What one of the run's own moments plays on the hero: a level, the
-                // boss down, a floor reached.
-                Map.entry("DungeonMoment", reader -> {
-                    var moment = new MomentBuilder(reader.getNextToken());
-                    reader.initFromIni(moment, MOMENT);
-                    settings.moments.add(moment);
-                }),
-                Map.entry("DungeonEffects", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, EFFECT_BUDGET);
-                }),
-                Map.entry("DungeonHud", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, HUD);
-                }),
-                Map.entry("DungeonUnitBar", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, UNIT_BAR);
-                }),
-                Map.entry("DungeonMenu", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, MENU);
-                }),
-                // How a floor looks, and which floor looks like what. Repeatable
-                // and named, the same way monsters and skills are: a fourth theme
-                // is three more blocks here and a folder of models.
-                Map.entry("DungeonTheme", reader -> {
-                    var theme = new ThemeBuilder(reader.getNextToken());
-                    reader.initFromIni(theme, THEME);
-                    settings.themes.add(theme);
-                }),
-                Map.entry("DungeonTone", reader -> {
-                    var tone = new ToneBuilder(reader.getNextToken(), reader.getNextToken());
-                    reader.initFromIni(tone, TONE);
-                    settings.tones.add(tone);
-                }),
-                Map.entry("DungeonThemeMonster", reader -> {
-                    var themed = new ThemeMonsterBuilder(
-                            reader.getNextToken(), reader.getNextToken());
-                    reader.initFromIni(themed, THEME_MONSTER);
-                    settings.themeMonsters.add(themed);
-                }),
-                Map.entry("DungeonThemes", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, THEME_ORDER);
-                }),
                 // What stands about in the rooms. Named and repeatable like the
                 // monsters, and for the same reason: a fourth kind of thing to
-                // walk round is a block here and a template in props.ini.
-                Map.entry("DungeonProp", reader -> {
+                // walk round is a file in ini/props/: this block and its template.
+                Map.entry("Prop", reader -> {
                     var prop = new PropBuilder(reader.getNextToken());
-                    reader.initFromIni(prop, PROP);
+                    reader.initFromIni(prop, PROP_BLOCK);
                     settings.props.add(prop);
-                }),
-                Map.entry("DungeonProps", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, PROPS);
                 }),
                 // What the game sounds like. One block per moment, and the client
                 // asks for moments by name -- it has never heard of a bow.
@@ -448,41 +325,6 @@ public final class DungeonSettings {
                     var cue = new SoundBuilder(reader.getNextToken());
                     reader.initFromIni(cue, SOUND);
                     settings.sounds.add(cue);
-                }),
-                Map.entry("DungeonSounds", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, SOUNDS);
-                }),
-                Map.entry("DungeonFog", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, FOG);
-                }),
-                Map.entry("DungeonSun", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, SUN);
-                }),
-                Map.entry("DungeonCamera", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, CAMERA);
-                }),
-                Map.entry("DungeonOrderMark", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, ORDER_MARK);
-                }),
-                Map.entry("DungeonSkillRing", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, SKILL_RING);
-                }),
-                Map.entry("DungeonLoot", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, LOOT_RULES);
-                }),
-                // Repeatable, headed by the item's id: a new thing to find is a
-                // block here and no Java.
-                Map.entry("DungeonLootItem", reader -> {
-                    var item = new LootBuilder(reader.getNextToken());
-                    reader.initFromIni(item, LOOT);
-                    settings.loot.add(item.build());
                 }),
                 // Repeatable, and named by whose skill it is: the block header is
                 // the hero's template and the key that casts it. A second hero is
@@ -622,7 +464,7 @@ public final class DungeonSettings {
         }
         readingShippedFile = true;
         try {
-            var shipped = parse(Content.read(Content.SETTINGS));
+            var shipped = parse(Content.settings());
             SHIPPED_MONSTERS.addAll(shipped.monsters);
             SHIPPED_SKILLS.addAll(shipped.skills);
             SHIPPED_LOOT.addAll(shipped.loot);
@@ -659,7 +501,7 @@ public final class DungeonSettings {
         require(summonTurnDegrees > 0f && summonTurnDegrees * summonTurns <= 180f,
                 "SummonTurnDegrees times SummonTurns has to stay within a half turn");
         for (var kind : monsters) {
-            var name = "DungeonMonster " + kind.name();
+            var name = "Monster " + kind.name();
             if (kind.hasSkill()) {
                 var skill = skillsFor(kind.name()).stream()
                         .filter(one -> one.key() == kind.skillKey()).findFirst().orElse(null);
@@ -677,7 +519,7 @@ public final class DungeonSettings {
         }
         for (var guard : bossGuards) {
             require(monster(guard.kind()) != null,
-                    "BossGuards names " + guard.kind() + ", and no DungeonMonster describes it");
+                    "BossGuards names " + guard.kind() + ", and no Monster block describes it");
             require(guard.count() >= 1, "BossGuards has to put at least one " + guard.kind() + " there");
         }
         require(bossGuardRing >= 1, "BossGuardRing has to stand the guard off the boss's own cell");
@@ -690,7 +532,7 @@ public final class DungeonSettings {
         require(maxStorey <= 9, "a storey is one character in the level map, so 9 is the ceiling");
         require(storeyChangePercent >= 0 && storeyChangePercent <= 100,
                 "StoreyChangePercent is a percentage");
-        require(storeyHeight >= 0f, "StoreyHeight cannot be negative");
+        require(storeyHeight >= 0f, "LevelHeight cannot be negative");
         // A stair narrower than the corridor it sits in is a bottleneck, and a
         // bottleneck is where the biggest creature wedges — see the corridor
         // width above, which is a correctness setting for the same reason.
@@ -736,8 +578,8 @@ public final class DungeonSettings {
                     "an item's Name may not contain ',' or '|': " + item.id());
         }
         for (var moment : moments) {
-            require(!moment.effect.isBlank(), "DungeonMoment " + moment.name + " plays no Effect");
-            require(moment.scale > 0f, "DungeonMoment " + moment.name + " has to be drawn at some size");
+            require(!moment.effect.isBlank(), "Moment " + moment.name + " plays no Effect");
+            require(moment.scale > 0f, "Moment " + moment.name + " has to be drawn at some size");
         }
         for (var skill : skills) {
             // The panel is told which picture to draw down the status line, and
@@ -776,11 +618,11 @@ public final class DungeonSettings {
      */
     private void validateAttributes() {
         require(damagePerPrimary >= 0,
-                "DungeonAttributes: a point of a primary cannot take something away");
+                "Attributes: a point of a primary cannot take something away");
         var rules = attributeRules();
         for (int i = 0; i < attributes.size(); i++) {
             var block = attributes.get(i);
-            var name = "DungeonAttribute " + block.rule().name();
+            var name = "Attribute " + block.rule().name();
             require(block.rule().healthPerPoint() >= 0 && block.rule().speedPerPoint() >= 0
                             && block.rule().manaPerPoint() >= 0,
                     name + ": a point of it cannot take something away");
@@ -791,34 +633,34 @@ public final class DungeonSettings {
                 var earlier = attributes.get(j).rule();
                 require(!earlier.isNamed(block.rule().name())
                                 && !earlier.isNamed(block.rule().shortName()),
-                        name + " is called what DungeonAttribute " + earlier.name()
+                        name + " is called what Attribute " + earlier.name()
                                 + " already is, and a hero could not say which he means");
             }
         }
         for (var hero : heroes) {
-            var name = "DungeonHero " + hero.name;
+            var name = "Hero " + hero.name;
             var named = new java.util.HashSet<Integer>();
             for (var line : hero.attributeLines) {
                 int at = rules.indexOf(line.attribute());
                 require(at >= 0, name + " has " + line.attribute()
-                        + ", and no DungeonAttribute is called that");
+                        + ", and no Attribute is called that");
                 require(named.add(at), name + " names " + line.attribute() + " twice");
                 require(line.base() >= 0 && line.perLevel() >= 0,
                         name + ": an attribute cannot be negative, and a level cannot take one away");
             }
             require(hero.primary == null || rules.indexOf(hero.primary) >= 0,
                     name + "'s Primary is " + hero.primary
-                            + ", and no DungeonAttribute is called that");
+                            + ", and no Attribute is called that");
             require(hero.primary != null || hero.attributeLines.isEmpty(),
                     name + " has attributes and no Primary: say which of them he hits with");
             require(hero.manaRegen >= 0 && hero.healthRegen >= 0,
                     name + ": what comes back on its own cannot be negative");
         }
         for (var item : loot) {
-            var name = "DungeonLootItem " + item.id();
+            var name = "LootItem " + item.id();
             if (item.kind() == LootKind.ATTRIBUTE) {
                 require(rules.indexOf(item.attribute()) >= 0, name + " gives "
-                        + item.attribute() + ", and no DungeonAttribute is called that");
+                        + item.attribute() + ", and no Attribute is called that");
             } else {
                 require(item.attribute().isEmpty(),
                         name + ": Attribute only means something on an item of Kind = ATTRIBUTE");
@@ -826,13 +668,13 @@ public final class DungeonSettings {
         }
         var block = statBlock;
         require(block.figureIcon > 0f && block.primaryIcon > 0f && block.attributeIcon > 0f,
-                "DungeonStatBlock: a socket has to have a size");
+                "StatBlock: a socket has to have a size");
         require(block.iconShare > 0f && block.iconShare <= 1f,
-                "DungeonStatBlock: IconShare is a share of a socket");
+                "StatBlock: IconShare is a share of a socket");
         require(block.figureRows >= 1 && block.attributeRows >= 1,
-                "DungeonStatBlock: the block keeps room for at least one row of each");
+                "StatBlock: the block keeps room for at least one row of each");
         require(block.rowGap >= 0f && block.gapUnderBar >= 0f,
-                "DungeonStatBlock: a gap cannot be negative");
+                "StatBlock: a gap cannot be negative");
         // Each is a field on the status line, which splits on these two.
         require(sayable(hudHealthWord) && sayable(hudSpeedNowWord),
                 "HealthWord and SpeedNowWord may not contain ',' or '|'");
@@ -866,7 +708,6 @@ public final class DungeonSettings {
                     .add("MaxSkeletonsPerRoom", Ini.integer((s, v) -> s.maxSkeletonsPerRoom = v))
                     .add("MaxStorey", Ini.integer((s, v) -> s.maxStorey = v))
                     .add("StoreyChangePercent", Ini.integer((s, v) -> s.storeyChangePercent = v))
-                    .add("StoreyHeight", Ini.real((s, v) -> s.storeyHeight = v))
                     .add("StairLength", Ini.integer((s, v) -> s.stairLength = v))
                     .add("EntranceStorey", Ini.integer((s, v) -> s.entranceStorey = v))
                     .add("BossStorey", Ini.integer((s, v) -> s.bossStorey = v));
@@ -943,7 +784,7 @@ public final class DungeonSettings {
                     .add("ArrowSpeed", Ini.real((s, v) -> s.arrowSpeed = v))
                     .add("ArrowMuzzleOffset", Ini.real((s, v) -> s.arrowMuzzleOffset = v));
 
-    /** Accumulates one {@code DungeonMonster} block. */
+    /** Accumulates one {@code Monster} block. */
     // ---- themes ----
 
     private final java.util.List<ThemeBuilder> themes = new java.util.ArrayList<>();
@@ -977,6 +818,19 @@ public final class DungeonSettings {
             new FieldParseTable<DungeonSettings>()
                     .add("MinPerRoom", Ini.integer((s, v) -> s.minPropsPerRoom = v))
                     .add("MaxPerRoom", Ini.integer((s, v) -> s.maxPropsPerRoom = v));
+
+    /**
+     * One prop by its template's name. One these settings do not describe is one they
+     * never scatter, which is what a weight of nothing says.
+     */
+    public PropKind prop(String template) {
+        for (var prop : props) {
+            if (prop.template.equals(template)) {
+                return new PropKind(prop.template, prop.weight);
+            }
+        }
+        return new PropKind(template, 0);
+    }
 
     /** What may be scattered through the rooms, in file order. */
     public java.util.List<PropKind> propKinds() {
@@ -1375,7 +1229,7 @@ public final class DungeonSettings {
                     .add("SummonExperiencePercent",
                             Ini.integer((s, v) -> s.summonExperiencePercent = v));
 
-    /** Accumulates one {@code DungeonLootItem <id>} block. */
+    /** Accumulates one {@code LootItem = <id>} section of the World block. */
     private static final class LootBuilder {
         private final String id;
         String name;
@@ -1771,7 +1625,7 @@ public final class DungeonSettings {
      * in which case it falls back to a coloured shape.
      *
      * @param part the name <em>inside</em> the file, which need not be a sensible
-     *             one — see the block's comment in {@code dungeon.ini}
+     *             one — see the Projectile blocks in {@code ini/projectiles/}
      */
     public record ArrowLook(String name, String model, String part, float scale, float facing,
             float height, int tint, String effect, float effectOffset) {
@@ -3262,7 +3116,7 @@ public final class DungeonSettings {
                     .add("SpeedIcon", Ini.string((s, v) -> s.hudSpeedStatIcon = v))
                     // Panel-wide rather than per-hero: what a portrait costs is a
                     // fact about the machine drawing it, not about whose face is in
-                    // it. See DungeonPortrait for the faces themselves.
+                    // it. See Portraits, and the Portrait... lines of a unit block, for the faces.
                     .add("PortraitFps", Ini.integer((s, v) -> s.portraitFps = v));
 
     // ---- the lettering the menus are set in ----
@@ -3291,7 +3145,7 @@ public final class DungeonSettings {
     private static final FieldParseTable<HeroBuilder> HERO_LOOK =
             new FieldParseTable<HeroBuilder>()
                     // What the panel calls him under his name. His, not the
-                    // panel's: one line in DungeonHud was the archer's title on
+                    // panel's: one line in Hud was the archer's title on
                     // every hero who came after him.
                     .add("Title", Ini.restOfLine((s, v) -> s.title = v))
                     // What he shrugs off before earning a level. Here rather than
@@ -3457,7 +3311,7 @@ public final class DungeonSettings {
                     .add("DamagePerPrimary",
                             (ini, s) -> s.damagePerPrimary = exactly(ini, "DamagePerPrimary", 2));
 
-    /** Accumulates one {@code DungeonAttribute <name>} block. */
+    /** Accumulates one {@code Attribute = <name>} section of the World block. */
     private static final class AttributeBuilder {
         private final String name;
         String shortName;
@@ -3523,7 +3377,7 @@ public final class DungeonSettings {
         return statBlock.build();
     }
 
-    /** Accumulates the {@code DungeonStatBlock} block; a file that leaves a line out gets these. */
+    /** Accumulates the {@code StatBlock} section; a file that leaves a line out gets these. */
     private static final class StatBlockBuilder {
         float figureIcon = 30f;
         float primaryIcon = 44f;
@@ -3664,6 +3518,11 @@ public final class DungeonSettings {
     /** How far apart two storeys stand, in world units. */
     public float storeyHeight() {
         return storeyHeight;
+    }
+
+    /** The World block as the engine reads it: its name, and how tall a storey stands. */
+    public DungeonWorld world() {
+        return new DungeonWorld(worldName, storeyHeight);
     }
 
     /** How many cells of a corridor a stair takes up. */
@@ -3892,4 +3751,158 @@ public final class DungeonSettings {
     private static float scaled(int percentPerDepth, int depth) {
         return 1f + Math.max(0, depth - 1) * percentPerDepth / 100f;
     }
+
+    /** A unit block as the settings read it: the unit's own part, and its portrait's camera if the block frames one. */
+    private static final class Framed<U> {
+        private final String name;
+        private final U unit;
+        private PortraitBuilder portrait;
+
+        Framed(String name, java.util.function.Function<String, U> newUnit) {
+            this.name = name;
+            this.unit = newUnit.apply(name);
+        }
+
+        /** The portrait, made the first time the block writes a Portrait... line. */
+        PortraitBuilder framing() {
+            if (portrait == null) {
+                portrait = new PortraitBuilder(name);
+            }
+            return portrait;
+        }
+
+        java.util.Optional<PortraitBuilder> portrait() {
+            return java.util.Optional.ofNullable(portrait);
+        }
+
+        /** {@code fields} for the unit, and the portrait's under Portrait... names. */
+        static <U> FieldParseTable<Framed<U>> table(FieldParseTable<U> fields) {
+            return fields.<Framed<U>>on(framed -> framed.unit)
+                    .addAll(PORTRAIT.prefixed("Portrait").<Framed<U>>on(Framed::framing));
+        }
+    }
+
+    // The unit blocks as the settings read them: the dungeon's fields, and the engine's
+    // passed over, a world being the one to read those. Declared last, after every table
+    // they are made of.
+    private static final FieldParseTable<Framed<MonsterBuilder>> MONSTER_FRAMED = Framed.table(MONSTER);
+    private static final FieldParseTable<Framed<HeroBuilder>> HERO_FRAMED = Framed.table(HERO_LOOK);
+    private static final FieldParseTable<Framed<MonsterBuilder>> MONSTER_BLOCK =
+            ThingTemplateLoader.passingOverEngineFields(MONSTER_FRAMED, Monster.class);
+    private static final FieldParseTable<Framed<HeroBuilder>> HERO_BLOCK =
+            ThingTemplateLoader.passingOverEngineFields(HERO_FRAMED, Hero.class);
+    private static final FieldParseTable<ProjectileBuilder> PROJECTILE_BLOCK =
+            ThingTemplateLoader.passingOverEngineFields(PROJECTILE, Projectile.class);
+    private static final FieldParseTable<PropBuilder> PROP_BLOCK =
+            ThingTemplateLoader.passingOverEngineFields(PROP, Prop.class);
+
+    // What a world's template loader passes over in the same blocks: the dungeon's own fields.
+    static final java.util.Set<String> MONSTER_FIELDS = MONSTER_FRAMED.names();
+    static final java.util.Set<String> HERO_FIELDS = HERO_FRAMED.names();
+    static final java.util.Set<String> PROJECTILE_FIELDS = PROJECTILE.names();
+    static final java.util.Set<String> PROP_FIELDS = PROP.names();
+
+    // The World block: how tall a storey stands, which the engine reads, and every section
+    // of the dungeon's own. A section the world has one of reads into the settings and its
+    // name only labels it; a repeatable one is named by what it describes. Declared after
+    // every table a section is read with.
+    private static final FieldParseTable<DungeonSettings> WORLD =
+            new FieldParseTable<DungeonSettings>()
+                    .add("LevelHeight", Ini.real((s, v) -> s.storeyHeight = v))
+                    .add("Generation", Ini.section(LAYOUT))
+                    .add("Combat", Ini.section(BEHAVIOUR))
+                    .add("Run", Ini.section(RUN))
+                    // Which stage this build opens on, if it opens on one at all. A
+                    // blank section is the endless dungeon, which is what the game is
+                    // when nobody has said otherwise.
+                    .add("Stage", Ini.section(STAGE))
+                    .add("Leveling", Ini.section(LEVELLING))
+                    // What a point of a hero's primary adds to his blow. What a point of
+                    // each attribute is worth otherwise is that attribute's own section,
+                    // and which of them each hero has is his Hero block.
+                    .add("Attributes", Ini.section(ATTRIBUTES))
+                    // Repeatable, headed by the attribute's name: the list of attributes
+                    // is the file's, in its order, so another one is a section here, a
+                    // line in each hero and a picture -- and no Java.
+                    .add("Attribute", (reader, s) -> {
+                        var attribute = new AttributeBuilder(reader.getNextToken());
+                        reader.initFromIni(attribute, ATTRIBUTE);
+                        s.attributes.add(attribute.build());
+                    })
+                    // How the block of figures and attributes under the hero's experience
+                    // bar is drawn. Sizes and colours only: what is in it is the line's.
+                    .add("StatBlock", Ini.section(STAT_BLOCK.<DungeonSettings>on(s -> s.statBlock)))
+                    .add("Depth", Ini.section(DEPTH))
+                    .add("Tiles", Ini.section(TILES))
+                    .add("Animations", Ini.section(ANIMATIONS))
+                    // And the face every selectable creature gets, which is what makes
+                    // the whole bestiary a section rather than a block each: the camera
+                    // is written in fractions of whatever it is looking at, and a
+                    // creature's own idle and death are already bound on it.
+                    .add("Portraits", (reader, s) -> {
+                        reader.getNextToken();
+                        s.portraitsDeclared = true;
+                        reader.initFromIni(s.everyPortrait, PORTRAIT);
+                    })
+                    // What the mouse pointer looks like in one situation. Named by
+                    // the situation, because the client owns those and the game owns
+                    // the pictures -- see Cursors.
+                    .add("Cursor", (reader, s) -> {
+                        var pointer = new CursorBuilder(reader.getNextToken());
+                        reader.initFromIni(pointer, CURSOR);
+                        s.cursors.add(pointer);
+                    })
+                    // What the hero panel's edges are painted with. Named after the
+                    // part of the panel it paints, and every one of them optional:
+                    // a part nobody names keeps the carved look it always had.
+                    .add("Skin", (reader, s) -> {
+                        var piece = new SkinBuilder(reader.getNextToken());
+                        reader.initFromIni(piece, SKIN);
+                        s.skin.add(piece);
+                    })
+                    // What one of the run's own moments plays on the hero: a level, the
+                    // boss down, a floor reached.
+                    .add("Moment", (reader, s) -> {
+                        var moment = new MomentBuilder(reader.getNextToken());
+                        reader.initFromIni(moment, MOMENT);
+                        s.moments.add(moment);
+                    })
+                    .add("Effects", Ini.section(EFFECT_BUDGET))
+                    .add("Hud", Ini.section(HUD))
+                    .add("UnitBar", Ini.section(UNIT_BAR))
+                    .add("Menu", Ini.section(MENU))
+                    // How a floor looks, and which floor looks like what. Repeatable
+                    // and named, the same way monsters and skills are: a fourth theme
+                    // is three more sections here and a folder of models.
+                    .add("Theme", (reader, s) -> {
+                        var theme = new ThemeBuilder(reader.getNextToken());
+                        reader.initFromIni(theme, THEME);
+                        s.themes.add(theme);
+                    })
+                    .add("Tone", (reader, s) -> {
+                        var tone = new ToneBuilder(reader.getNextToken(), reader.getNextToken());
+                        reader.initFromIni(tone, TONE);
+                        s.tones.add(tone);
+                    })
+                    .add("ThemeMonster", (reader, s) -> {
+                        var themed = new ThemeMonsterBuilder(reader.getNextToken(), reader.getNextToken());
+                        reader.initFromIni(themed, THEME_MONSTER);
+                        s.themeMonsters.add(themed);
+                    })
+                    .add("Themes", Ini.section(THEME_ORDER))
+                    .add("Props", Ini.section(PROPS))
+                    .add("Sounds", Ini.section(SOUNDS))
+                    .add("Fog", Ini.section(FOG))
+                    .add("Sun", Ini.section(SUN))
+                    .add("Camera", Ini.section(CAMERA))
+                    .add("OrderMark", Ini.section(ORDER_MARK))
+                    .add("SkillRing", Ini.section(SKILL_RING))
+                    .add("Loot", Ini.section(LOOT_RULES))
+                    // Repeatable, headed by the item's id: a new thing to find is a
+                    // section here and no Java.
+                    .add("LootItem", (reader, s) -> {
+                        var item = new LootBuilder(reader.getNextToken());
+                        reader.initFromIni(item, LOOT);
+                        s.loot.add(item.build());
+                    });
 }

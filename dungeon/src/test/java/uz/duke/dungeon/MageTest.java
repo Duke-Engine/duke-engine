@@ -43,7 +43,7 @@ class MageTest {
     @Test
     void heIsAWholeHero() {
         assertNotNull(templateOf(MAGE), "he has no creature block");
-        assertEquals(MAGE, SETTINGS.heroNamed(MAGE).name(), "he has no DungeonHero block");
+        assertEquals(MAGE, SETTINGS.heroNamed(MAGE).name(), "he has no Hero block");
         assertEquals(4, SETTINGS.skillsFor(MAGE).size(), "he does not have four skills");
         assertTrue(SETTINGS.portraits().stream().anyMatch(art -> art.name().equals(MAGE)),
                 "he has no portrait, so the panel would frame him by the general rule");
@@ -312,7 +312,7 @@ class MageTest {
 
         arena.game().runHeadless(skillOf(MAGE, 'R').windUpFrames() + 4);
         assertFalse(arena.game().getLogic().getObjects().stream().anyMatch(
-                object -> object.getTemplate().getName().equals("MeteorMark")),
+                object -> object.getTemplate().name().equals("MeteorMark")),
                 "the mark outlived its meteor, so the scene grows by one a cast");
     }
 
@@ -409,7 +409,7 @@ class MageTest {
     }
 
     private static Arena arena(String map, float... skeletonXy) {
-        var world = Dungeon.world(map, SETTINGS, Content.read(Content.CREATURES));
+        var world = Dungeon.world(map, SETTINGS, Content.units());
         var game = world.game();
         game.spawn(MAGE, world.hero(), 150f, 150f);
         for (int i = 0; i + 1 < skeletonXy.length; i += 2) {
@@ -418,7 +418,7 @@ class MageTest {
         game.runHeadless(1);
         var hero = creature(game, MAGE);
         var skeletons = game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Skeleton"))
+                .filter(object -> object.getTemplate().name().equals("Skeleton"))
                 .sorted(java.util.Comparator.comparingInt(object -> object.getId().value()))
                 .toList();
         return new Arena(game, hero, hero.findModule(SkillBook.class), skeletons);
@@ -448,7 +448,7 @@ class MageTest {
 
     private static GameObject creature(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals(template))
+                .filter(object -> object.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 
@@ -468,7 +468,7 @@ class MageTest {
 
     private static uz.duke.core.thing.ThingTemplate templateOf(String name) {
         if (templates == null) {
-            var game = Dungeon.world(openArena(), SETTINGS, Content.read(Content.CREATURES))
+            var game = Dungeon.world(openArena(), SETTINGS, Content.units())
                     .game();
             game.runHeadless(1);
             templates = game.getLogic().getThingFactory();
@@ -490,7 +490,7 @@ class MageTest {
     }
 
     private static uz.duke.rts.module.WeaponUpdate.Data weaponOf(String hero) {
-        for (var entry : templateOf(hero).getModules()) {
+        for (var entry : templateOf(hero).modules()) {
             if (entry.data() instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
                 return weapon;
             }

@@ -1,5 +1,6 @@
 package uz.duke.rts.module;
 
+import uz.duke.rts.RtsTemplate;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -33,7 +34,7 @@ class SolidWorldTest {
         }
     }
 
-    private static final ThingTemplate SOLDIER = ThingTemplate.named("Soldier")
+    private static final ThingTemplate SOLDIER = RtsTemplate.named("Soldier")
             .geometry(new Geometry.Cylinder(3f, 9f))
             .buildCost(100)
             .buildTimeFrames(2)
@@ -41,7 +42,7 @@ class SolidWorldTest {
             .module("WeaponUpdate", new WeaponUpdate.Data(10f, 5f, 10)) // very short reach
             .build();
 
-    private static final ThingTemplate BARRACKS = ThingTemplate.named("Barracks")
+    private static final ThingTemplate BARRACKS = RtsTemplate.named("Barracks")
             .geometry(new Geometry.Box(20f, 16f, 14f))
             .module("ActiveBody", new ActiveBody.Data(600f))
             .module("ProductionUpdate", new ProductionUpdate.Data())

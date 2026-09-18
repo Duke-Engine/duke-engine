@@ -44,6 +44,23 @@ class GameLogicTest {
         assertFalse(logic.isInGame());
     }
 
+    private record Storeyed(String name, float levelHeight) implements uz.duke.core.thing.Layered {
+    }
+
+    /** Every map laid in a layered world stands at its height: one laid before it was said, and one after. */
+    @Test
+    void aLayeredWorldLaysEveryMapAtItsHeight() {
+        var logic = new CountingLogic();
+        var first = new uz.duke.core.pathfind.PathGrid(4, 4);
+        logic.setPathGrid(first);
+        logic.setWorld(new Storeyed("Tower", 10f));
+        assertEquals(10f, first.getLevelHeight(), "a world said after the map still lays it");
+
+        var next = new uz.duke.core.pathfind.PathGrid(4, 4);
+        logic.setPathGrid(next);
+        assertEquals(10f, next.getLevelHeight(), "and every map after it");
+    }
+
     @Test
     void pauseFlagIsHonouredByCaller() {
         var logic = new CountingLogic();

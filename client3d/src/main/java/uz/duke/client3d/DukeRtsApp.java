@@ -2247,7 +2247,7 @@ final class DukeRtsApp extends SimpleApplication {
             if (template == null) {
                 return; // the game has not finished booting; the map stays black
             }
-            discoveryRadius = template.getVisionRange();
+            discoveryRadius = uz.duke.core.thing.Sighted.of(template);
             discoveryEyes = eyes;
         }
         discovery.reveal(snapshot.units(), game.getLocalPlayerIndex(), discoveryRadius,

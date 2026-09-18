@@ -37,7 +37,7 @@ class HeroStatusTest {
         var game = session.game();
         game.runHeadless(1);
         var hero = game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Rogue"))
+                .filter(o -> o.getTemplate().name().equals("Rogue"))
                 .findFirst().orElseThrow();
         session.orders().watch(hero.getPlayerIndex(), hero.getId());
         game.runHeadless(1);
@@ -47,7 +47,7 @@ class HeroStatusTest {
     /** Pick the hero out, the way a player does before reading anything about him. */
     private static void pickOutTheHero(Dungeon.Session session) {
         var hero = session.game().getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Rogue"))
+                .filter(o -> o.getTemplate().name().equals("Rogue"))
                 .findFirst().orElseThrow();
         session.orders().watch(hero.getPlayerIndex(), hero.getId());
     }
@@ -102,7 +102,7 @@ class HeroStatusTest {
      */
     @Test
     void heIsCalledWhateverTheCreatureFileCallsHim() {
-        assertTrue(Content.read(Content.CREATURES).contains("DisplayName = Erika"),
+        assertTrue(Content.units().contains("DisplayName = Erika"),
                 "the shipped hero should have a name of his own");
         assertTrue(lineFrom(11L).startsWith("name=Erika"), lineFrom(11L));
         assertFalse(lineFrom(11L).startsWith("name=Hero"),
@@ -232,9 +232,11 @@ class HeroStatusTest {
     @Test
     void changingTheFileChangesTheWords() {
         var settings = DungeonSettings.parse("""
-                DungeonHud Panel
-                  DepthWord = FLOOR
-                  RankSuffix = th level
+                World Dungeon
+                  Hud = Panel
+                    DepthWord = FLOOR
+                    RankSuffix = th level
+                  End
                 End
                 """);
 
@@ -349,15 +351,17 @@ class HeroStatusTest {
      */
     @Test
     void anAttributeTheFileAddsRidesTheLineWithItsCard() {
-        var text = Content.read(Content.SETTINGS)
+        var text = Content.settings()
                 .replace("  Primary = AGI\n", "  Primary = AGI\n  Attribute = VIG 7 0.5\n")
                 + """
 
-                DungeonAttribute Vigour
-                  Short = VIG
-                  Word = Quvvat
-                  Icon = icons/stats/stat_vigour.png
-                  HealthPerPoint = 3
+                World Dungeon
+                  Attribute = Vigour
+                    Short = VIG
+                    Word = Quvvat
+                    Icon = icons/stats/stat_vigour.png
+                    HealthPerPoint = 3
+                  End
                 End
                 """;
         var settings = DungeonSettings.parse(text);
@@ -538,9 +542,8 @@ class HeroStatusTest {
                         settings.heroes().stream().map(uz.duke.dungeon.content.HeroLook::name),
                         settings.monsters().stream().map(uz.duke.dungeon.content.MonsterKind::name))
                 .map(templates::findTemplate)
-                .filter(template -> template != null && template.getDisplayName() != null
-                        && !template.getDisplayName().isBlank()
-                        && !template.getDisplayName().equals(template.getName()))
+                .filter(template -> template != null
+                        && !uz.duke.core.thing.Titled.of(template).equals(template.name()))
                 .count();
         assertEquals(renaming, line.split("\\|who=", -1).length - 1,
                 "one entry per kind that renames itself, and none for one that does not");
@@ -549,7 +552,7 @@ class HeroStatusTest {
     /** Somebody else's creature, picked out the way a click does. */
     private static void pickOutSomethingElse(Dungeon.Session session) {
         var hero = session.game().getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Rogue"))
+                .filter(o -> o.getTemplate().name().equals("Rogue"))
                 .findFirst().orElseThrow();
         var other = session.game().getLogic().getObjects().stream()
                 .filter(o -> o.getPlayerIndex() != hero.getPlayerIndex())

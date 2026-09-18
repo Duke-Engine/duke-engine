@@ -259,7 +259,7 @@ final class HeroStatus {
         if (found == null) {
             return;
         }
-        var display = found.getDisplayName();
+        var display = uz.duke.core.thing.Titled.of(found);
         if (display == null || display.isBlank() || display.equals(template)) {
             return; // nothing the client could not have worked out from the name
         }
@@ -543,7 +543,7 @@ final class HeroStatus {
     }
 
     private static float weaponDamage(ThingTemplate template) {
-        for (var entry : template.getModules()) {
+        for (var entry : template.modules()) {
             if (entry.data() instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
                 return weapon.damage();
             }
@@ -552,7 +552,7 @@ final class HeroStatus {
     }
 
     private static float walkingSpeed(ThingTemplate template) {
-        for (var entry : template.getModules()) {
+        for (var entry : template.modules()) {
             if (entry.data() instanceof MoveUpdate.Data move) {
                 return move.speedPerSecond();
             }
@@ -564,19 +564,18 @@ final class HeroStatus {
      * What he is, under his name.
      *
      * <p>His own block's word, and the panel's only if he has none. It used to be
-     * the panel's outright — one line in {@code DungeonHud} — which was right
+     * the panel's outright — one line in {@code Hud} — which was right
      * while there was one hero and became the archer's title on a knight the
      * moment there were two.
      */
     private static String titleOf(GameObject hero, DungeonSettings settings) {
-        var his = settings.heroNamed(hero.getTemplate().getName()).title();
+        var his = settings.heroNamed(hero.getTemplate().name()).title();
         return his == null || his.isBlank() ? settings.hudHeroTitle() : his;
     }
 
     /** What the player calls him, falling back to what the code calls him. */
     private static String nameOf(GameObject hero) {
-        var display = hero.getTemplate().getDisplayName();
-        return display == null || display.isBlank() ? hero.getTemplate().getName() : display;
+        return uz.duke.core.thing.Titled.of(hero.getTemplate());
     }
 
     private static final int[] VALUES = {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1};

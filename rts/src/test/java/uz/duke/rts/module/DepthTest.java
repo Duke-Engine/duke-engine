@@ -1,5 +1,6 @@
 package uz.duke.rts.module;
 
+import uz.duke.rts.RtsTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -57,11 +58,11 @@ class DepthTest {
 
     @Test
     void splashDamageHitsBystandingEnemies() {
-        var artillery = ThingTemplate.named("Artillery")
+        var artillery = RtsTemplate.named("Artillery")
                 .module("ActiveBody", new ActiveBody.Data(100f))
                 .module("WeaponUpdate", new WeaponUpdate.Data(20f, 30f, 2, DamageType.EXPLOSION, 8f))
                 .build();
-        var grunt = ThingTemplate.named("Grunt")
+        var grunt = RtsTemplate.named("Grunt")
                 .module("ActiveBody", new ActiveBody.Data(100f))
                 .build();
         var logic = logicWith(artillery, grunt);
@@ -87,7 +88,7 @@ class DepthTest {
 
     @Test
     void promotionHealsTheUnitToFull() {
-        var trooper = ThingTemplate.named("Trooper")
+        var trooper = RtsTemplate.named("Trooper")
                 .module("ActiveBody", new ActiveBody.Data(100f))
                 .module("WeaponUpdate", new WeaponUpdate.Data(40f, 10f, 1))
                 // Healing on promotion is asked for here, since that is what this tests.
@@ -96,7 +97,7 @@ class DepthTest {
                                 new ExperienceModule.Rank(50, 1f),
                                 new ExperienceModule.Rank(100, 1f)), true))
                 .build();
-        var dummy = ThingTemplate.named("Dummy")
+        var dummy = RtsTemplate.named("Dummy")
                 .module("ActiveBody", new ActiveBody.Data(30f))
                 .module("ExperienceModule", ExperienceModule.Data.ofThresholds(20, 10, 50, 100)) // worth 20 -> first rank
                 .build();
@@ -122,13 +123,13 @@ class DepthTest {
 
     @Test
     void producedUnitsMoveToRallyPoint() {
-        var soldier = ThingTemplate.named("Soldier")
+        var soldier = RtsTemplate.named("Soldier")
                 .module("ActiveBody", new ActiveBody.Data(50f))
                 .module("MoveUpdate", new MoveUpdate.Data(20f))
                 .buildCost(0)
                 .buildTimeFrames(2)
                 .build();
-        var factory = ThingTemplate.named("Factory")
+        var factory = RtsTemplate.named("Factory")
                 .module("ActiveBody", new ActiveBody.Data(400f))
                 .module("ProductionUpdate", new ProductionUpdate.Data())
                 .build();
@@ -158,7 +159,7 @@ class DepthTest {
 
     @Test
     void turnRateMakesUnitCurveInsteadOfSnapping() {
-        var tank = ThingTemplate.named("Tank")
+        var tank = RtsTemplate.named("Tank")
                 .module("ActiveBody", new ActiveBody.Data(100f))
                 .module("MoveUpdate", new MoveUpdate.Data(30f, 90f)) // 90 deg/sec turn rate
                 .build();

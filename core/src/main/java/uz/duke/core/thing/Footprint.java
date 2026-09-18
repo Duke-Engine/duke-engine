@@ -23,13 +23,13 @@ public record Footprint(Geometry shape, Coord3D center, float orientation) {
 
     /** The footprint of {@code object} where it currently stands. */
     public static Footprint of(GameObject object) {
-        return new Footprint(object.getTemplate().getGeometry(),
+        return new Footprint(Solid.of(object.getTemplate()),
                 object.getPosition(), object.getOrientation());
     }
 
     /** The footprint {@code object} would have if it stood at {@code position}. */
     public static Footprint of(GameObject object, Coord3D position) {
-        return new Footprint(object.getTemplate().getGeometry(), position, object.getOrientation());
+        return new Footprint(Solid.of(object.getTemplate()), position, object.getOrientation());
     }
 
     /** True when the two shapes share ground. Points never overlap anything. */

@@ -298,7 +298,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
 
     /**
      * The creature block carries no skill data — only the fact that this creature
-     * has skills, which ones being {@code dungeon.ini}'s business. The block still
+     * has skills, which ones being its DungeonSkill blocks' business. The block still
      * has to be read to its {@code End}, or the rest of the creature is parsed as
      * though it were inside one.
      */
@@ -1025,7 +1025,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
             return false;
         }
         // Two that rise together stand a body apart, the body being what rises.
-        float apart = 2f * creature.getGeometry().footprintRadius();
+        float apart = 2f * uz.duke.core.thing.Solid.of(creature).footprintRadius();
         var spots = Summoning.spots(world, owner, towards, skill.radius(), room, apart,
                 settings.summonTurnDegrees(), settings.summonTurns());
         int opened = 0;

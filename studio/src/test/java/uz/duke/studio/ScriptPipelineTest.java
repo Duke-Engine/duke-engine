@@ -33,7 +33,7 @@ class ScriptPipelineTest {
         // point: it depends on the shape of the route, and a straight route
         // spends less of itself on x than a staircase of cell centres did.
         boolean orcMoved = game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Orc"))
+                .filter(o -> o.getTemplate().name().equals("Orc"))
                 .anyMatch(o -> o.getPosition().x() < 520f);
         boolean casualties = game.getLogic().getObjectCount() < 4;
         assertTrue(orcMoved || casualties, "scripted orcs should hunt the enemy");

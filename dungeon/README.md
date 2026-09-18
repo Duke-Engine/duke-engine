@@ -80,8 +80,10 @@ aylanadi — Warcraft custom map uslubi.
 yoki `dungeon.ini` da:
 
 ```ini
-DungeonStage Play
-  File = stages/first.stage
+World Dungeon
+  Stage = Play
+    File = stages/first.stage
+  End
 End
 ```
 

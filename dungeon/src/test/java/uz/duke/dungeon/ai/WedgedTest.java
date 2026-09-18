@@ -32,7 +32,7 @@ class WedgedTest {
 
     /** Deaf, so the skeletons are furniture and the hero is the only one trying. */
     private static final DungeonSettings DEAF = DungeonSettings.parse("""
-            DungeonMonster Skeleton
+            Monster Skeleton
               SenseRadius = 1
               ChaseRadius = 1
               CloseDistance = 4
@@ -57,7 +57,7 @@ class WedgedTest {
 
     private static GameObject creature(DukeGame game, String template, int which) {
         return game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals(template))
+                .filter(o -> o.getTemplate().name().equals(template))
                 .skip(which)
                 .findFirst()
                 .orElseThrow();
@@ -208,12 +208,12 @@ class WedgedTest {
      * past one of them.
      */
     private static final DungeonSettings A_QUEUE = DungeonSettings.parse("""
-            DungeonMonster Skeleton
+            Monster Skeleton
               SenseRadius = 1
               ChaseRadius = 1
               CloseDistance = 4
             End
-            DungeonMonster Brute
+            Monster Brute
               SenseRadius = 100000
               ChaseRadius = 100000
               CloseDistance = 4

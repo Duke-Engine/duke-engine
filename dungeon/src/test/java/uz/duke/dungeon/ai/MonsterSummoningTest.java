@@ -90,7 +90,7 @@ class MonsterSummoningTest {
 
     private static GameObject first(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals(template))
+                .filter(object -> object.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 
@@ -166,7 +166,7 @@ class MonsterSummoningTest {
         for (var one : risen) {
             assertEquals(summoning().summons(),
                     circle.game().getLogic().findObject(new uz.duke.core.thing.ObjectId(one.id()))
-                            .getTemplate().getName());
+                            .getTemplate().name());
             float away = (float) Math.hypot(one.at().x() - from.x(), one.at().y() - from.y());
             assertEquals(summoning().radius(), away, 0.5f, "each rises its Radius from it");
         }
@@ -242,7 +242,7 @@ class MonsterSummoningTest {
         int rose = -1;
         for (int frame = 0; frame < oneSummoning() + 10 && rose < 0; frame++) {
             boolean lying = circle.game().getLogic().getObjects().stream().anyMatch(object ->
-                    object.getTemplate().getName().equals(rift) && !object.isDestroyed());
+                    object.getTemplate().name().equals(rift) && !object.isDestroyed());
             if (lying && opened < 0) {
                 opened = circle.game().getLogic().getFrame();
             }

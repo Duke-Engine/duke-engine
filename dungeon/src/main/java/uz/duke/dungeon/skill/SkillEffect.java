@@ -5,7 +5,7 @@ package uz.duke.dungeon.skill;
  *
  * <p>The one place skills need Java. Everything else about them — which hero has
  * them, which key casts them, how hard they hit, how long they take to come back,
- * how they grow with a level — is written in {@code dungeon.ini}, so a second hero
+ * how they grow with a level — is written in his own file, so a second hero
  * with a different four is a file change and nothing more.
  *
  * <p>These are the shapes a dungeon hero needs: hit one thing hard, hit

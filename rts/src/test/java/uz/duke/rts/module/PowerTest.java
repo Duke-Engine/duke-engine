@@ -1,5 +1,6 @@
 package uz.duke.rts.module;
 
+import uz.duke.rts.RtsTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -41,19 +42,19 @@ class PowerTest {
     @BeforeEach
     void setUp() {
         thingFactory = new ThingFactory(RtsModules.withDefaults());
-        soldier = ThingTemplate.named("Soldier")
+        soldier = RtsTemplate.named("Soldier")
                 .module("ActiveBody", new ActiveBody.Data(50f))
                 .buildCost(100)
                 .buildTimeFrames(3)
                 .build();
-        factoryTemplate = ThingTemplate.named("Factory")
+        factoryTemplate = RtsTemplate.named("Factory")
                 .module("ActiveBody", new ActiveBody.Data(400f))
                 .module("ProductionUpdate", new ProductionUpdate.Data())
                 .module("PowerModule", new PowerModule.Data(0, 8)) // consumes 8
                 // The stall rule is opt-in now: a factory that wants it says so.
                 .module("CapacityGate", new CapacityGate.Data())
                 .build();
-        powerPlant = ThingTemplate.named("PowerPlant")
+        powerPlant = RtsTemplate.named("PowerPlant")
                 .module("ActiveBody", new ActiveBody.Data(300f))
                 .module("PowerModule", new PowerModule.Data(10, 0)) // produces 10
                 .build();

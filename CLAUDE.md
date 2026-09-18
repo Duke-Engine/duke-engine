@@ -57,6 +57,7 @@ these rather than special-casing:
 | Bodies | `BodyModule` (abstract) | a body that grows, or armours differently |
 | Player bonuses | named bonuses on `RtsPlayer`, multi-effect `Upgrade` | what the names mean |
 | HUD | `WorldSnapshot.status`, which the engine never reads | whatever this game counts |
+| Build cost | `Buildable`, and `RtsTemplate`: an `Object` block with `BuildCost`/`BuildTime` | its own records that implement `Buildable` |
 
 The seams that keep `core` genre-free — extend these rather than
 special-casing:
@@ -70,6 +71,8 @@ special-casing:
 | Classification | `Kind`, interned by name | its vocabulary, e.g. `RtsKinds` |
 | Module groups | `@ModuleGroup` + `ModuleGroups` (Movement, Body, Combat, Effect, Script) | its own families, e.g. `RtsModuleGroups` (Economy, Progression) |
 | Events | `WorldEvent` + the post/drain channel | its own events, e.g. `WeaponFired` |
+| Templates | `ThingTemplate` (name + modules) and one interface per thing a template may have — `Solid`, `Sighted`, `Classified`, `Titled`; `ThingTemplateLoader.type` gives a record its own block | its records, each implementing what it has: `Monster Brute` is a `record Monster implements Solid, Sighted, …` |
+| World | `WorldTemplate` (a name) and one interface per thing a world may have — `Layered`: every map is laid at its storey height; `DukeGame.world(...)` hands it over; `Ini.section` reads a section inside a block | its record, implementing what its world has — `World Dungeon` is a `record DungeonWorld implements Layered` — and the block's other sections, `Generation = Layout … End` |
 
 Before adding anything to `core`, ask: *would a game that is not an RTS want
 this?* If the answer is no, it goes in `rts`.

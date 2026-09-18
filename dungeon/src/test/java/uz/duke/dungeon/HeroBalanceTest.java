@@ -39,7 +39,7 @@ class HeroBalanceTest {
     private static final List<String> HEROES = List.of("Knight", "Rogue", "Mage");
 
     /** Skeletons that will not fall, so the clock measures him and not them. */
-    private static final String STUBBORN = Content.read(Content.CREATURES)
+    private static final String STUBBORN = Content.units()
             .replace("    MaxHealth = 60\n", "    MaxHealth = 1000000\n");
 
     // ---- the shape ----
@@ -132,7 +132,7 @@ class HeroBalanceTest {
 
     /** Seconds he takes to put one ordinary skeleton down, sent at it from across the room. */
     private static float killsOneIn(String template, int level) {
-        var fight = fight(template, level, Content.read(Content.CREATURES));
+        var fight = fight(template, level, Content.units());
         var game = fight.game();
         game.spawn("Skeleton", fight.dungeon(), 270f, 150f);
         game.runHeadless(1);
@@ -149,7 +149,7 @@ class HeroBalanceTest {
     }
 
     private static float speed(String template, int level) {
-        var fight = fight(template, level, Content.read(Content.CREATURES));
+        var fight = fight(template, level, Content.units());
         return fight.progress().figuresOf(fight.hero(), HeroFigures.Found.NOTHING).speed();
     }
 
@@ -182,7 +182,7 @@ class HeroBalanceTest {
 
     private static GameObject find(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals(template))
+                .filter(object -> object.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 

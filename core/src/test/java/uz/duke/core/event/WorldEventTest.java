@@ -95,7 +95,7 @@ class WorldEventTest {
         assertEquals(0, wreckMaker.corpsesVisibleWhenItRan,
                 "wreckage must not be built around a corpse still standing in the world");
         assertEquals(1, logic.getObjects().size());
-        assertEquals("Wreck", logic.getObjects().get(0).getTemplate().getName());
+        assertEquals("Wreck", logic.getObjects().get(0).getTemplate().name());
     }
 
     @Test

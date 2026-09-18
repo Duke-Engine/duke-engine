@@ -11,7 +11,7 @@ import java.util.List;
  * else. So the whole of the design is about being readable without being read —
  * how long it is, how it is divided, and what colour — and none of those is a
  * number that can be reasoned out. They are found by eye, which is why they are
- * all in the game's data file. See {@code DungeonUnitBar}.
+ * all in the game's data file. See {@code UnitBar}.
  *
  * <h2>The two rules, and why they are two</h2>
  *

@@ -51,7 +51,7 @@ class WatchingTest {
         var game = session.game();
         game.runHeadless(2);
         var hero = game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Rogue"))
+                .filter(o -> o.getTemplate().name().equals("Rogue"))
                 .findFirst().orElseThrow();
         var skeleton = game.getLogic().getObjects().stream()
                 .filter(o -> o.getPlayerIndex() != hero.getPlayerIndex())

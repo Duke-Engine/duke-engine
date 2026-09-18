@@ -106,7 +106,7 @@ final class WayAhead {
         // -- which is exactly the mistake the locomotor itself makes, and the one
         // this is here to catch. The width is the mover's own, off its template,
         // so a thing twice the size needs twice the gap without being told.
-        float aside = 2f * mover.getTemplate().getGeometry().footprintRadius();
+        float aside = 2f * mover.getGeometry().footprintRadius();
         for (float turn : ASIDE) {
             var side = spotAt(mover, heading + turn, aside);
             // Anything counts to the side, the quarry included: what it is walking

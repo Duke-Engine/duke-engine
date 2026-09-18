@@ -71,7 +71,7 @@ public final class GameObject {
         if (module instanceof BodyModule b) {
             if (body != null) {
                 throw new IllegalStateException(
-                        "object '" + template.getName() + "' has more than one body module");
+                        "object '" + template.name() + "' has more than one body module");
             }
             body = b;
         }
@@ -146,7 +146,7 @@ public final class GameObject {
         if (newModule instanceof BodyModule b) {
             if (body != null) {
                 throw new IllegalStateException(
-                        "object '" + template.getName() + "' has more than one body module");
+                        "object '" + template.name() + "' has more than one body module");
             }
             body = b;
         }
@@ -168,7 +168,7 @@ public final class GameObject {
             updateModules.get(i).update();
             if (moduleRevision != revision) {
                 throw new java.util.ConcurrentModificationException(
-                        "object '" + template.getName() + "' changed its modules while updating");
+                        "object '" + template.name() + "' changed its modules while updating");
             }
         }
     }
@@ -182,7 +182,17 @@ public final class GameObject {
     }
 
     public boolean isKindOf(Kind kind) {
-        return template.isKindOf(kind);
+        return Classified.of(template).contains(kind);
+    }
+
+    /** Its shape: its template's if that is solid, a point that collides with nothing if not. */
+    public Geometry getGeometry() {
+        return Solid.of(template);
+    }
+
+    /** How far it sees: its template's range if that has eyes, nothing if not. */
+    public float getVisionRange() {
+        return Sighted.of(template);
     }
 
     /** True while this object is inside a transport/structure (hidden, idle). */

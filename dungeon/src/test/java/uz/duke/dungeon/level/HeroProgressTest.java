@@ -30,25 +30,29 @@ class HeroProgressTest {
 
     /** Levels that arrive fast and hit hard, so a mechanism shows plainly. */
     private static final DungeonSettings BRISK = DungeonSettings.parse("""
-            DungeonAttributes Conversion
-              DamagePerPrimary = 1.0
+            World Dungeon
+              Attributes = Conversion
+                DamagePerPrimary = 1.0
+              End
+              Attribute = Strength
+                Short = STR
+                HealthPerPoint = 10
+              End
             End
-            DungeonAttribute Strength
-              Short = STR
-              HealthPerPoint = 10
-            End
-            DungeonHero Rogue
+            Hero Rogue
               Primary = AGI
               Attribute = STR 12 4
               Attribute = AGI 12 12
               Attribute = INT 8 1
             End
-            DungeonLeveling Progression
-              MaxLevel = 10
-              XpBase = 10
-              XpStep = 0
-              ArmourPercentPerLevel = 10
-              MinDamageTakenPercent = 40
+            World Dungeon
+              Leveling = Progression
+                MaxLevel = 10
+                XpBase = 10
+                XpStep = 0
+                ArmourPercentPerLevel = 10
+                MinDamageTakenPercent = 40
+              End
             End
             """);
 
@@ -83,7 +87,7 @@ class HeroProgressTest {
      * question for balance and not for this.
      */
     private static final String STOUT_HERO =
-            Content.read(Content.CREATURES).replace("MaxHealth = 430", "MaxHealth = 20000");
+            Content.units().replace("MaxHealth = 430", "MaxHealth = 20000");
 
     private static Fight start(DungeonSettings settings) {
         var arena = Dungeon.world(ARENA, settings, STOUT_HERO);
@@ -100,7 +104,7 @@ class HeroProgressTest {
 
     private static GameObject creature(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals(template))
+                .filter(o -> o.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 

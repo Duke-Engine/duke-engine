@@ -4,7 +4,7 @@ package uz.duke.dungeon.content;
  * One kind of monster, as the dungeon's data file describes it.
  *
  * <p>Everything that makes a runner different from a brute is here or in
- * {@code creatures.ini} — nothing is in Java. Health, speed and damage are unit
+ * its template — nothing is in Java. Health, speed and damage are unit
  * stats and belong in the creature file where the engine's template loader reads
  * them; what is left is how the thing <em>behaves</em>, which no template field
  * can express, and how the dungeon decides to use it.

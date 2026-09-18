@@ -20,7 +20,7 @@ import uz.duke.rts.message.GameMessage;
  * the client's own layer ({@code Discovery}, tested where it lives). Hiding the
  * <em>creatures</em> standing on it is the engine's fog, which the game only has
  * to configure — and this is where that configuration is held still, because it is
- * a number in {@code creatures.ini} and nothing stops someone raising it back to
+ * a number in his template and nothing stops someone raising it back to
  * where it was, when the dungeon stops being dark.
  *
  * <p>The last test is the important one. Fog decides what a player is shown; it
@@ -49,12 +49,12 @@ class DungeonFogTest {
 
     /** The shipped creature file with the hero's sight changed to {@code range}. */
     private static String creaturesSeeing(int range) {
-        var lines = Content.read(Content.CREATURES).split("\n", -1);
+        var lines = Content.units().split("\n", -1);
         boolean inHero = false;
         var edited = new StringBuilder();
         for (var line : lines) {
-            if (line.startsWith("Object ")) {
-                inHero = line.trim().equals("Object Rogue");
+            if (!line.isEmpty() && Character.isLetter(line.charAt(0)) && !line.trim().equals("End")) {
+                inHero = line.trim().equals("Hero Rogue");
             }
             edited.append(inHero && line.trim().startsWith("VisionRange")
                     ? "  VisionRange = " + range : line).append('\n');
@@ -120,7 +120,7 @@ class DungeonFogTest {
     void groundHeHasLeftGivesNothingAway() {
         var game = fight(300f, 80);
         var hero = game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Rogue"))
+                .filter(object -> object.getTemplate().name().equals("Rogue"))
                 .findFirst().orElseThrow();
         assertFalse(seesASkeleton(game), "240 away to begin with, and out of sight");
 
@@ -136,7 +136,7 @@ class DungeonFogTest {
         game.runHeadless(1);
 
         assertTrue(game.getLogic().getObjects().stream()
-                        .anyMatch(object -> object.getTemplate().getName().equals("Skeleton")
+                        .anyMatch(object -> object.getTemplate().name().equals("Skeleton")
                                 && !object.isEffectivelyDead()),
                 "it is still down there — otherwise this proves nothing about fog");
         assertFalse(seesASkeleton(game),

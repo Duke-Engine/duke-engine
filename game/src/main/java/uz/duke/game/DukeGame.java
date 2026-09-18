@@ -21,6 +21,8 @@ import uz.duke.core.pathfind.PathGrid;
 import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ThingTemplateLoader;
+import uz.duke.core.thing.Titled;
+import uz.duke.core.thing.WorldTemplate;
 import uz.duke.game.swing.GameWindow;
 import uz.duke.game.view.WorldSnapshot;
 
@@ -73,7 +75,9 @@ public final class DukeGame {
     private final List<BiConsumer<DukeGame, GamePlayer>> leftCallbacks = new ArrayList<>();
 
     private final List<Consumer<uz.duke.core.module.ModuleFactory>> moduleCustomizers = new ArrayList<>();
+    private final List<Consumer<ThingTemplateLoader>> templateCustomizers = new ArrayList<>();
     private PathGrid terrain;
+    private WorldTemplate world;
     private GamePlayer localPlayer;
     private int windowWidth = 1120;
     private int windowHeight = 720;
@@ -219,6 +223,27 @@ public final class DukeGame {
     public DukeGame customModules(Consumer<uz.duke.core.module.ModuleFactory> customizer) {
         requireNotStarted();
         moduleCustomizers.add(customizer);
+        return this;
+    }
+
+    /**
+     * Register the game's own template block types before unit INI is parsed:
+     * {@code game.templates(loader -> loader.type("Monster", Monster.class, ...))}. An
+     * {@code Object} block is already an RTS template, with a build cost and time.
+     */
+    public DukeGame templates(Consumer<ThingTemplateLoader> customizer) {
+        requireNotStarted();
+        templateCustomizers.add(customizer);
+        return this;
+    }
+
+    /**
+     * What the game's {@code World} block says of its world. The engine reads what it has a
+     * use for: a {@link uz.duke.core.thing.Layered} world lays every map at its storey height.
+     */
+    public DukeGame world(WorldTemplate world) {
+        requireNotStarted();
+        this.world = world;
         return this;
     }
 
@@ -601,9 +626,14 @@ public final class DukeGame {
         for (var customizer : moduleCustomizers) {
             customizer.accept(logic.getThingFactory().getModuleFactory());
         }
-        for (var iniText : unitIniTexts) {
-            new ThingTemplateLoader(logic.getThingFactory()).load(iniText);
+        var loader = uz.duke.rts.RtsTemplate.register(new ThingTemplateLoader(logic.getThingFactory()));
+        for (var customizer : templateCustomizers) {
+            customizer.accept(loader);
         }
+        for (var iniText : unitIniTexts) {
+            loader.load(iniText);
+        }
+        logic.setWorld(world);
         if (terrain != null) {
             logic.setPathGrid(terrain);
         }
@@ -752,15 +782,15 @@ public final class DukeGame {
         if (factoryTemplate == null) {
             return List.of();
         }
-        for (var entry : factoryTemplate.getModules()) {
+        for (var entry : factoryTemplate.modules()) {
             if (entry.data() instanceof uz.duke.rts.module.ProductionUpdate.Data data) {
                 var options = new ArrayList<BuildOption>();
                 for (var name : data.builds()) {
                     var unit = logic.getThingFactory().findTemplate(name);
                     if (unit != null) {
                         options.add(new BuildOption(name,
-                                unit.getDisplayName().isBlank() ? name : unit.getDisplayName(),
-                                unit.getBuildCost()));
+                                Titled.of(unit),
+                                uz.duke.rts.Buildable.costOf(unit)));
                     }
                 }
                 return options;

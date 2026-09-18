@@ -8,10 +8,10 @@ import java.util.List;
  *
  * <p>Mostly art, and it was all art until there were two of them. A second hero
  * brought two facts with him that have nowhere else to live: what the panel calls
- * him under his name, which used to be a single line in {@code DungeonHud} and so
+ * him under his name, which used to be a single line in {@code Hud} and so
  * was the archer's title on everybody; and how much of a blow he shrugs off before
  * a single level is earned, which is the difference between an archer and a man
- * in plate and cannot be said in {@code creatures.ini} because the game rewrites
+ * in plate and cannot be said in his template because the game rewrites
  * armour from his level every time it changes.
  *
  * <p>Separate from {@link MonsterLook} because he takes his clips from several
@@ -25,9 +25,9 @@ import java.util.List;
  * under names that mean something — and so the names moved into this file and the
  * four fields became two.
  *
- * <p>Named, and so repeatable: the name is the creature template in
- * {@code creatures.ini} this describes, and it is the same name his skills are
- * already headed with. So a second hero is a block in each of the two files and
+ * <p>Named, and so repeatable: the name is the creature template it describes,
+ * and it is the same name his skills are headed with, all three in his own
+ * file. So a second hero is a file and a line in the list of files, and
  * no Java at all — which is the promise the rest of the game's data layer makes
  * about monsters, themes and skills, and it was the one thing here that could not
  * keep it.
@@ -36,7 +36,7 @@ import java.util.List;
  *                   whatever the next one is called
  * @param title      what the panel calls him under his name — what he <em>does</em>,
  *                   where the name says which hero. Empty to fall back to the one
- *                   word {@code DungeonHud} names for everybody
+ *                   word {@code Hud} names for everybody
  * @param closeDistance how close he walks to what he was sent at before he stops
  *                   and lets his weapon work, or 0 to use the one figure the
  *                   settings file names for anybody who does not say. <b>It has to

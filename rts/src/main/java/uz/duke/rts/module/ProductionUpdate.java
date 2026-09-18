@@ -9,8 +9,10 @@ import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
+import uz.duke.core.thing.Solid;
 import uz.duke.core.thing.ThingTemplate;
 import uz.duke.core.thing.World;
+import uz.duke.rts.Buildable;
 import uz.duke.rts.player.RtsPlayer;
 
 /**
@@ -117,10 +119,10 @@ public final class ProductionUpdate extends UpdateModule {
             return false;
         }
         var player = RtsPlayer.of(world, getOwner().getPlayerIndex());
-        if (player == null || !player.withdraw(unit.getBuildCost())) {
+        if (player == null || !player.withdraw(Buildable.costOf(unit))) {
             return false;
         }
-        queue.addLast(new Job(unit, Math.max(1, unit.getBuildTimeFrames())));
+        queue.addLast(new Job(unit, Math.max(1, Buildable.framesOf(unit))));
         return true;
     }
 
@@ -186,8 +188,8 @@ public final class ProductionUpdate extends UpdateModule {
      * plus a margin, then nudged to genuinely free ground.
      */
     private static Coord3D exitPosition(World world, GameObject producer, ThingTemplate unit) {
-        var unitShape = unit.getGeometry();
-        float distance = producer.getTemplate().getGeometry().footprintRadius()
+        var unitShape = Solid.of(unit);
+        float distance = producer.getGeometry().footprintRadius()
                 + unitShape.footprintRadius() + EXIT_CLEARANCE;
         var doorway = producer.getPosition().add(EXIT_DIRECTION.scale(distance));
         return world.findClearPosition(unitShape, doorway, EXIT_SEARCH_RADIUS);

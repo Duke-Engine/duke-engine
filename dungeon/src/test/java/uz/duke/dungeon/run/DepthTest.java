@@ -26,24 +26,26 @@ class DepthTest {
 
     /** Levels that arrive on the first kill, and the shipped four floors under them. */
     private static final DungeonSettings BRISK = DungeonSettings.parse("""
-            DungeonDepth Descent
-              Bosses = Warden Reaper Necromancer Champion
+            World Dungeon
+              Depth = Descent
+                Bosses = Warden Reaper Necromancer Champion
+              End
+              Leveling = Progression
+                MaxLevel = 20
+                XpBase = 5
+                XpStep = 0
+                ArmourPercentPerLevel = 3
+                MinDamageTakenPercent = 40
+              End
+              Attributes = Conversion
+                DamagePerPrimary = 1.0
+              End
+              Attribute = Strength
+                Short = STR
+                HealthPerPoint = 10
+              End
             End
-            DungeonLeveling Progression
-              MaxLevel = 20
-              XpBase = 5
-              XpStep = 0
-              ArmourPercentPerLevel = 3
-              MinDamageTakenPercent = 40
-            End
-            DungeonAttributes Conversion
-              DamagePerPrimary = 1.0
-            End
-            DungeonAttribute Strength
-              Short = STR
-              HealthPerPoint = 10
-            End
-            DungeonHero Rogue
+            Hero Rogue
               Primary = AGI
               Attribute = STR 12 3
               Attribute = AGI 12 4
@@ -53,7 +55,7 @@ class DepthTest {
 
     private static GameObject find(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals(template))
+                .filter(o -> o.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 

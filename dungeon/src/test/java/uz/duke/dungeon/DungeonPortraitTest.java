@@ -88,7 +88,7 @@ class DungeonPortraitTest {
     void everyPortraitNamesACreatureTheFileDescribes() {
         for (var art : SETTINGS.portraits()) {
             var him = heroNamed(art.name());
-            assertNotNull(him, art.name() + " has a portrait but no DungeonHero block");
+            assertNotNull(him, art.name() + " has a portrait but no Hero block");
             assertEquals(art.name(), him.name(),
                     art.name() + "'s portrait found somebody else's block");
         }
@@ -106,7 +106,7 @@ class DungeonPortraitTest {
     void everyClipAPortraitAsksForIsInOneOfHisLibraries() {
         for (var art : SETTINGS.portraits()) {
             var him = heroNamed(art.name());
-            assertNotNull(him, art.name() + " has a portrait but no DungeonHero block");
+            assertNotNull(him, art.name() + " has a portrait but no Hero block");
             assertFalse(art.clips().isEmpty(), art.name() + "'s portrait names no clip at all");
             for (var clip : art.clips()) {
                 assertTrue(inOneOfHisLibraries(him, clip),
@@ -135,7 +135,7 @@ class DungeonPortraitTest {
     @Test
     void everySelectableCreatureGetsAFace() {
         assertNotNull(SETTINGS.everyPortrait(),
-                "dungeon.ini names no DungeonPortraits block, so only the hero has a face");
+                "dungeon.ini names no Portraits section, so only the hero has a face");
     }
 
     /** Which is where these are asked of: every block, the one for everybody too. */
@@ -200,7 +200,7 @@ class DungeonPortraitTest {
     @Test
     void theRateIsTheFilesToSay() {
         assertEquals(24, SETTINGS.portraitFps(),
-                "PortraitFps in DungeonHud is what the panel is drawn at");
+                "PortraitFps in Hud is what the panel is drawn at");
     }
 
     /**
@@ -242,13 +242,11 @@ class DungeonPortraitTest {
     @Test
     void reboundInTheFileIsReboundInTheGame() {
         var rebound = DungeonSettings.parse("""
-                DungeonHero Rogue
+                Hero Rogue
                   Model = models/heroes/ranger.glb
-                End
-                DungeonPortrait Rogue
-                  Calm = Idle_A
-                  Fight = Melee_Unarmed_Idle
-                  Dead = Death_B
+                  PortraitCalm = Idle_A
+                  PortraitFight = Melee_Unarmed_Idle
+                  PortraitDead = Death_B
                 End
                 """);
 
@@ -263,9 +261,11 @@ class DungeonPortraitTest {
     @Test
     void aBlockThatNamesNoClipStillDescribesAPortrait() {
         var bare = DungeonSettings.parse("""
-                DungeonPortraits Everyone
-                  Head = 0.7
-                  Show = 0.6
+                World Dungeon
+                  Portraits = Everyone
+                    Head = 0.7
+                    Show = 0.6
+                  End
                 End
                 """);
 
@@ -283,19 +283,15 @@ class DungeonPortraitTest {
     @Test
     void aSecondHeroIsASecondBlock() {
         var two = DungeonSettings.parse("""
-                DungeonHero Rogue
+                Hero Rogue
                   Model = models/heroes/ranger.glb
+                  PortraitCalm = Ranged_Bow_Idle
                 End
-                DungeonHero Mage
+                Hero Mage
                   Model = models/heroes/mage.glb
                   Idle = Idle_A
-                End
-                DungeonPortrait Rogue
-                  Calm = Ranged_Bow_Idle
-                End
-                DungeonPortrait Mage
-                  Calm = Idle_A
-                  Yaw = -30
+                  PortraitCalm = Idle_A
+                  PortraitYaw = -30
                 End
                 """);
 

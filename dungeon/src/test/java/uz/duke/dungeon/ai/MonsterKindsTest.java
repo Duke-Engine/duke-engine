@@ -54,7 +54,7 @@ class MonsterKindsTest {
 
     private static GameObject creature(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals(template))
+                .filter(o -> o.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 
@@ -105,7 +105,7 @@ class MonsterKindsTest {
     @Test
     void aMonsterToldToKeepItsDistanceFightsFromOutThere() {
         var skirmisher = DungeonSettings.parse("""
-                DungeonMonster Stalker
+                Monster Stalker
                   SenseRadius = 150
                   ChaseRadius = 260
                   CloseDistance = 55
@@ -136,10 +136,7 @@ class MonsterKindsTest {
      */
     @Test
     void everyMonsterStopsInsideItsOwnReach() {
-        var creatures = uz.duke.dungeon.content.Content.read(
-                uz.duke.dungeon.content.Content.MONSTERS)
-                + uz.duke.dungeon.content.Content.read(
-                        uz.duke.dungeon.content.Content.CREATURES);
+        var creatures = uz.duke.dungeon.content.Content.units();
         for (var kind : SETTINGS.monsters()) {
             float reach = attackRangeOf(creatures, kind.name());
             assertTrue(kind.closeDistance() < reach,
@@ -197,7 +194,7 @@ class MonsterKindsTest {
     /** The {@code Bow} a kind's template carries, or {@code null} if it has none. */
     private static uz.duke.dungeon.combat.Bow.Data launcherOf(String kind) {
         var fight = fight(kind, 900f);
-        for (var module : fight.monster().getTemplate().getModules()) {
+        for (var module : fight.monster().getTemplate().modules()) {
             if (module.data() instanceof uz.duke.dungeon.combat.Bow.Data bow) {
                 return bow;
             }
@@ -210,8 +207,8 @@ class MonsterKindsTest {
         boolean inside = false;
         for (var line : iniText.split("\n")) {
             var trimmed = line.trim();
-            if (trimmed.startsWith("Object ")) {
-                inside = trimmed.equals("Object " + template);
+            if (!line.isEmpty() && Character.isLetter(line.charAt(0)) && !trimmed.equals("End")) {
+                inside = trimmed.equals("Monster " + template);
             } else if (inside && trimmed.startsWith("AttackRange")) {
                 return Float.parseFloat(trimmed.substring(trimmed.indexOf('=') + 1).trim());
             }
@@ -321,7 +318,7 @@ class MonsterKindsTest {
     @Test
     void changingTheFileChangesHowAKindBehaves() {
         var blind = DungeonSettings.parse("""
-                DungeonMonster Skeleton
+                Monster Skeleton
                   SenseRadius = 1
                   ChaseRadius = 1
                   CloseDistance = 4
@@ -362,7 +359,7 @@ class MonsterKindsTest {
     @Test
     void somethingShotComesForTheShooterHoweverDeafItIs() {
         var blind = DungeonSettings.parse("""
-                DungeonMonster Skeleton
+                Monster Skeleton
                   SenseRadius = 1
                   ChaseRadius = 1
                   CloseDistance = 4
@@ -387,7 +384,7 @@ class MonsterKindsTest {
     @Test
     void mendingItselfDoesNotCountAsBeingAttacked() {
         var blind = DungeonSettings.parse("""
-                DungeonMonster Revenant
+                Monster Revenant
                   SenseRadius = 1
                   ChaseRadius = 1
                   CloseDistance = 4

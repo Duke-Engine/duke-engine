@@ -255,7 +255,7 @@ pack's other family, *Basic*, is pure white with no keyline: measured, one colou
 and one colour only. A white pointer is invisible over a lit floor, and a
 dungeon has both a lit floor and a dark one. The outlined drawings are white
 **inside a black line**, which is what lets the client tint them — see
-`DungeonCursor` — and what keeps them readable whatever they are over.
+the `Cursor` sections of `dungeon.ini` — and what keeps them readable whatever they are over.
 
 ### The pointers that came before
 

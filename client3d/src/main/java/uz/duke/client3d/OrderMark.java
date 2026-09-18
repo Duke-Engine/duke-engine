@@ -28,7 +28,7 @@ package uz.duke.client3d;
  * </ul>
  *
  * <p>Numbers rather than art, so this costs no asset and can be re-tuned by eye
- * without a rebuild — see {@code DungeonOrderMark} in the game's own data file.
+ * without a rebuild — see {@code OrderMark} in the game's own data file.
  * The client draws it; what it should look like is the game's, like the fog and
  * the pointer.
  *

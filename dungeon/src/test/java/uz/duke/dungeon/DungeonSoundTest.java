@@ -136,8 +136,10 @@ class DungeonSoundTest {
     @Test
     void aFileWithNoSoundsAtAllIsSilentRatherThanBroken() {
         var settings = DungeonSettings.parse("""
-                DungeonGeneration Test
-                  MinRooms = 3
+                World Dungeon
+                  Generation = Test
+                    MinRooms = 3
+                  End
                 End
                 """);
 
@@ -148,8 +150,10 @@ class DungeonSoundTest {
     @Test
     void aBlockIsReadTheWayItIsWritten() {
         var settings = DungeonSettings.parse("""
-                DungeonSounds Settings
-                  VoiceGapSeconds = 2.5
+                World Dungeon
+                  Sounds = Settings
+                    VoiceGapSeconds = 2.5
+                  End
                 End
 
                 DungeonSound vo.move

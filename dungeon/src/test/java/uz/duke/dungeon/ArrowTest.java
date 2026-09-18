@@ -68,13 +68,13 @@ class ArrowTest {
 
     private static GameObject creature(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals(template))
+                .filter(object -> object.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 
     private static long arrowsInTheAir(DukeGame game) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Arrow"))
+                .filter(object -> object.getTemplate().name().equals("Arrow"))
                 .count();
     }
 
@@ -260,7 +260,7 @@ class ArrowTest {
         assertNotNull(arrow, "one should be in the air");
         assertTrue(arrow.getBody() == null,
                 "with a body, monsters would acquire it as a target");
-        assertTrue(arrow.getTemplate().getGeometry().isPoint(),
+        assertTrue(arrow.getGeometry().isPoint(),
                 "with a shape, it would shoulder monsters aside on its way past");
     }
 

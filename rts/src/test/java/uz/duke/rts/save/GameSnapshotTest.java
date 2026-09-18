@@ -14,6 +14,7 @@ import uz.duke.rts.player.Upgrade;
 import uz.duke.core.thing.ObjectStatus;
 import uz.duke.core.thing.ThingFactory;
 import uz.duke.core.thing.ThingTemplateLoader;
+import uz.duke.rts.RtsTemplate;
 
 class GameSnapshotTest {
 
@@ -45,7 +46,7 @@ class GameSnapshotTest {
 
     private static TestLogic newLogic() {
         var thingFactory = new ThingFactory(ModuleFactory.withDefaults());
-        new ThingTemplateLoader(thingFactory).load(INI);
+        RtsTemplate.register(new ThingTemplateLoader(thingFactory)).load(INI);
         var logic = new TestLogic(thingFactory);
         logic.init();
         return logic;

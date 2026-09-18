@@ -184,7 +184,7 @@ class StageChoiceTest {
 
     private static uz.duke.core.thing.GameObject heroIn(Dungeon.Session session) {
         return session.game().getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals(session.run().getHeroTemplate()))
+                .filter(o -> o.getTemplate().name().equals(session.run().getHeroTemplate()))
                 .findFirst().orElseThrow();
     }
 
@@ -192,7 +192,7 @@ class StageChoiceTest {
     private static long monstersIn(Dungeon.Session session) {
         return session.game().getLogic().getObjects().stream()
                 .filter(o -> o.getBody() != null)
-                .filter(o -> !o.getTemplate().getName().equals(session.run().getHeroTemplate()))
+                .filter(o -> !o.getTemplate().name().equals(session.run().getHeroTemplate()))
                 .count();
     }
 
@@ -238,8 +238,7 @@ class StageChoiceTest {
     private static String displayName(Dungeon.Session session, String template) {
         var found = session.game().getLogic() == null ? null
                 : session.game().getLogic().getThingFactory().findTemplate(template);
-        return found == null || found.getDisplayName() == null || found.getDisplayName().isBlank()
-                ? template : found.getDisplayName();
+        return found == null ? template : uz.duke.core.thing.Titled.of(found);
     }
 
     // ---- and the case where there is nothing to choose between ----

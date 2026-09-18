@@ -153,11 +153,11 @@ class DungeonGeneratorTest {
         var logic = game.getLogic();
 
         var hero = logic.getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Rogue"))
+                .filter(o -> o.getTemplate().name().equals("Rogue"))
                 .findFirst().orElseThrow();
 
         var skeletons = logic.getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Skeleton"))
+                .filter(o -> o.getTemplate().name().equals("Skeleton"))
                 .toList();
         assertFalse(skeletons.isEmpty(), "there should be skeletons to reach");
 

@@ -90,8 +90,8 @@ public final class StageCheck {
         } else {
             if (!kinds.contains(boss.kind())) {
                 problems.add("the boss is a " + boss.kind()
-                        + ", which is not a kind this game has — see the DungeonMonster"
-                        + " blocks in dungeon.ini");
+                        + ", which is not a kind this game has — see the Monster"
+                        + " blocks in ini/units/");
             }
             if (boss.at() == null) {
                 problems.add("the boss " + boss.kind() + " has no cell to stand in");
@@ -103,7 +103,7 @@ public final class StageCheck {
         for (var monster : floor.monsters()) {
             if (!kinds.contains(monster.kind())) {
                 problems.add("there is no such monster as a " + monster.kind()
-                        + " — see the DungeonMonster blocks in dungeon.ini");
+                        + " — see the Monster blocks in ini/units/");
             }
             standsOn(problems, grid, taken, "the " + monster.kind(), monster.at());
         }
@@ -111,7 +111,7 @@ public final class StageCheck {
         for (var prop : floor.props()) {
             if (!propKinds.contains(prop.kind())) {
                 problems.add("there is no such thing as a " + prop.kind()
-                        + " — see the DungeonProp blocks in dungeon.ini");
+                        + " — see the Prop blocks in ini/props/");
             }
             standsOn(problems, grid, taken, "the " + prop.kind(), prop.at());
             // A prop is solid, and a solid thing on a stair is a stair the widest

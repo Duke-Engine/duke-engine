@@ -50,7 +50,7 @@ class SkillCastingTest {
 
     /** The hero alone in a room, plus however many skeletons the test wants. */
     private static Arena arena(DungeonSettings settings, float... skeletonXy) {
-        return arena(settings, Content.read(Content.CREATURES), skeletonXy);
+        return arena(settings, Content.units(), skeletonXy);
     }
 
     private static Arena arena(DungeonSettings settings, String creaturesIni, float... skeletonXy) {
@@ -67,7 +67,7 @@ class SkillCastingTest {
 
     private static GameObject creature(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals(template))
+                .filter(object -> object.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 
@@ -81,15 +81,15 @@ class SkillCastingTest {
      *
      * <p>A weapon that reaches nothing acquires nothing, so with this file anything
      * that gets hurt was hurt by a skill. His skills are untouched: their range is
-     * their own, in {@code dungeon.ini}.
+     * their own, in his DungeonSkill blocks.
      */
     private static String creaturesWithNoBow() {
-        var lines = Content.read(Content.CREATURES).split("\n", -1);
+        var lines = Content.units().split("\n", -1);
         boolean inHero = false;
         var edited = new StringBuilder();
         for (var line : lines) {
-            if (line.startsWith("Object ")) {
-                inHero = line.trim().equals("Object Rogue");
+            if (!line.isEmpty() && Character.isLetter(line.charAt(0)) && !line.trim().equals("End")) {
+                inHero = line.trim().equals("Hero Rogue");
             }
             edited.append(inHero && line.trim().startsWith("AttackRange")
                     ? "    AttackRange = 0" : line).append('\n');
@@ -139,13 +139,13 @@ class SkillCastingTest {
 
     private static long arrowsInTheAir(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals(template))
+                .filter(object -> object.getTemplate().name().equals(template))
                 .count();
     }
 
     private static long livingSkeletons(DukeGame game) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Skeleton"))
+                .filter(object -> object.getTemplate().name().equals("Skeleton"))
                 .filter(object -> !object.isEffectivelyDead())
                 .count();
     }
@@ -179,7 +179,7 @@ class SkillCastingTest {
     void theStrikeChoosesTheNearest() {
         var arena = skillsOnly(180f, 150f, 160f, 150f);
         var far = arena.game().getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Skeleton"))
+                .filter(object -> object.getTemplate().name().equals("Skeleton"))
                 .filter(object -> object.getPosition().x() > 170f)
                 .findFirst().orElseThrow();
         float farBefore = far.getBody().getHealth();
@@ -268,7 +268,7 @@ class SkillCastingTest {
         var q = skillNamed('Q');
         // Inside his ordinary range as well as the skill's, which is the case that
         // was broken — out of the bow's reach it could not have fired anyway.
-        var arena = bossArena(Content.read(Content.CREATURES), 50f);
+        var arena = bossArena(Content.units(), 50f);
         // He is standing in front of a skeleton, so of course he was already
         // shooting. What is being watched is whether a *new* arrow leaves, not
         // whether the air is empty.
@@ -294,7 +294,7 @@ class SkillCastingTest {
     @Test
     void hisBowStartsAgainOnceTheShotHasGone() {
         var q = skillNamed('Q');
-        var arena = bossArena(Content.read(Content.CREATURES), 50f);
+        var arena = bossArena(Content.units(), 50f);
         var already = ordinaryArrows(arena.game());
 
         arena.book().cast('Q', 1);
@@ -314,7 +314,7 @@ class SkillCastingTest {
     /** Every ordinary arrow in the air right now, by id. */
     private static java.util.Set<Integer> ordinaryArrows(DukeGame game) {
         return game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals(SETTINGS.arrowTemplate()))
+                .filter(o -> o.getTemplate().name().equals(SETTINGS.arrowTemplate()))
                 .map(o -> o.getId().value())
                 .collect(java.util.stream.Collectors.toSet());
     }
@@ -322,10 +322,10 @@ class SkillCastingTest {
     /** {@code ReloadFrames} from the hero's own block, rather than a copy of it. */
     private static int heroReloadFrames() {
         boolean inHero = false;
-        for (var line : Content.read(Content.CREATURES).split("\n")) {
+        for (var line : Content.units().split("\n")) {
             var trimmed = line.trim();
-            if (trimmed.startsWith("Object ")) {
-                inHero = trimmed.equals("Object Rogue");
+            if (!line.isEmpty() && Character.isLetter(line.charAt(0)) && !trimmed.equals("End")) {
+                inHero = trimmed.equals("Hero Rogue");
             } else if (inHero && trimmed.startsWith("ReloadFrames")) {
                 return Integer.parseInt(trimmed.substring(trimmed.indexOf('=') + 1).trim());
             }
@@ -498,7 +498,7 @@ class SkillCastingTest {
     /** The first living skeleton past {@code x}, in creation order. */
     private static GameObject skeletonBeyond(DukeGame game, float x) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Skeleton"))
+                .filter(object -> object.getTemplate().name().equals("Skeleton"))
                 .filter(object -> object.getPosition().x() > x)
                 .findFirst().orElseThrow();
     }
@@ -508,14 +508,14 @@ class SkillCastingTest {
     void theAreaSkillWoundsEveryoneAround() {
         var arena = arena(SETTINGS, 170f, 150f, 150f, 170f, 130f, 150f);
         var healths = arena.game().getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Skeleton"))
+                .filter(object -> object.getTemplate().name().equals("Skeleton"))
                 .map(object -> object.getBody().getHealth())
                 .toList();
 
         assertTrue(arena.book().cast('W', 1));
 
         var after = arena.game().getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Skeleton"))
+                .filter(object -> object.getTemplate().name().equals("Skeleton"))
                 .map(object -> object.getBody().getHealth())
                 .toList();
         for (int i = 0; i < healths.size(); i++) {
@@ -768,8 +768,8 @@ class SkillCastingTest {
                   CooldownFrames = 30
                 End
                 """);
-        var creatures = Content.read(Content.CREATURES)
-                .replace("Object Rogue", "Object Sellsword");
+        var creatures = Content.units()
+                .replace("Hero Rogue\n", "Hero Sellsword\n");
 
         var world = Dungeon.world(arena(), withTwo, creatures);
         var game = world.game();
@@ -832,7 +832,7 @@ class SkillCastingTest {
         game.runHeadless(2);
         var hero = creature(game, "Rogue");
         var skeletons = game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals("Skeleton"))
+                .filter(object -> object.getTemplate().name().equals("Skeleton"))
                 .filter(object -> !object.isEffectivelyDead())
                 .limit(2).toList();
         assertEquals(2, skeletons.size(), "this floor should have two to choose between");
@@ -922,7 +922,7 @@ class SkillCastingTest {
         var arena = arena(settings, creaturesWithNoBow(), 250f, 150f, 170f, 150f);
         var far = creature(arena.game(), "Skeleton");
         var near = arena.game().getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Skeleton"))
+                .filter(o -> o.getTemplate().name().equals("Skeleton"))
                 .skip(1).findFirst().orElseThrow();
         float wasFar = far.getBody().getHealth();
         float wasNear = near.getBody().getHealth();

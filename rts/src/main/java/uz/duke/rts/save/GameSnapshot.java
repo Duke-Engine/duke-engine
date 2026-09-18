@@ -52,7 +52,7 @@ public final class GameSnapshot {
             var health = o.getBody() == null ? "" : Float.toString(o.getBody().getHealth());
             var pos = o.getPosition();
             sb.append("OBJECT ").append(o.getId().value()).append('|')
-                    .append(o.getTemplate().getName()).append('|')
+                    .append(o.getTemplate().name()).append('|')
                     .append(o.getPlayerIndex()).append('|')
                     .append(Float.toString(pos.x())).append('|')
                     .append(Float.toString(pos.y())).append('|')

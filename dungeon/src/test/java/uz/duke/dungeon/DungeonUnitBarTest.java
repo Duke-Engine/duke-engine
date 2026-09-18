@@ -61,7 +61,7 @@ class DungeonUnitBarTest {
         if (template == null) {
             return 0f;
         }
-        for (var module : template.getModules()) {
+        for (var module : template.modules()) {
             switch (module.data()) {
                 case GrowableBody.Data body -> {
                     return body.maxHealth();

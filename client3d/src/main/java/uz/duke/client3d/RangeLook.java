@@ -19,7 +19,7 @@ package uz.duke.client3d;
  *
  * <p>Everything here is a number in the game's data file and nothing is in Java,
  * because these are the values that have to be found by eye. See
- * {@code DungeonSkillRing}.
+ * {@code SkillRing}.
  *
  * @param bandWidth   how thick the ring is, in world units. Thin enough to be a
  *                    line and thick enough to survive being far away

@@ -61,12 +61,12 @@ class MonsterHealingTest {
     /** The shipped file, with the ones it mends told to notice nothing and answer no shout. */
     private static DungeonSettings settings(String more) {
         return DungeonSettings.parse("""
-                DungeonMonster Skeleton
+                Monster Skeleton
                   SenseRadius = 1
                   ChaseRadius = 1
                   AlertRadius = 0
                 End
-                DungeonMonster Warden
+                Monster Warden
                   SenseRadius = 1
                   ChaseRadius = 1
                   AlertRadius = 0
@@ -89,7 +89,7 @@ class MonsterHealingTest {
         var patients = new ArrayList<GameObject>();
         for (var object : game.getLogic().getObjects()) {
             if (object.getBody() != null && object.getPlayerIndex() == arena.dungeon().getIndex()
-                    && !object.getTemplate().getName().equals(HEALER)) {
+                    && !object.getTemplate().name().equals(HEALER)) {
                 patients.add(object);
             }
         }
@@ -102,7 +102,7 @@ class MonsterHealingTest {
 
     private static GameObject first(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals(template))
+                .filter(object -> object.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 
@@ -141,7 +141,7 @@ class MonsterHealingTest {
         for (int frame = 0; frame < frames; frame++) {
             game.runHeadless(1);
             for (var object : game.getLogic().getObjects()) {
-                if (object.getTemplate().getName().equals(mending().projectile())
+                if (object.getTemplate().name().equals(mending().projectile())
                         && seen.add(object.getId().value())) {
                     when.add(game.getLogic().getFrame());
                 }
@@ -270,7 +270,7 @@ class MonsterHealingTest {
         for (int frame = 0; frame < oneMending() + 30 && landed < 0; frame++) {
             ward.game().runHeadless(1);
             boolean lying = ward.game().getLogic().getObjects().stream().anyMatch(object ->
-                    object.getTemplate().getName().equals(mending().projectile())
+                    object.getTemplate().name().equals(mending().projectile())
                             && !object.isDestroyed());
             if (lying) {
                 called = called < 0 ? frame : called;

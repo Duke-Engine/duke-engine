@@ -110,7 +110,7 @@ public final class StageFile {
         }
         out.append("End\n\n");
 
-        out.append("StageProps\n  ; solid, and not alive — see props.ini\n");
+        out.append("StageProps\n  ; solid, and not alive — see ini/props/\n");
         for (var prop : floor.props()) {
             field(out, "Prop", prop.kind() + " " + cells(prop.at()));
         }

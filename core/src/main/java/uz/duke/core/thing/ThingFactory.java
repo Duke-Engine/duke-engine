@@ -50,7 +50,7 @@ public final class ThingFactory extends SubsystemInterface {
     }
 
     public void addTemplate(ThingTemplate template) {
-        templates.put(template.getName(), template);
+        templates.put(template.name(), template);
     }
 
     /** The template with this name, or {@code null} if none is registered. */
@@ -61,7 +61,7 @@ public final class ThingFactory extends SubsystemInterface {
     /** Build a new object from a template, attaching all its modules. */
     public GameObject newObject(ThingTemplate template, ObjectId id) {
         var object = new GameObject(id, template);
-        for (var entry : template.getModules()) {
+        for (var entry : template.modules()) {
             object.addModule(moduleFactory.newModule(entry.tag(), object, entry.data()));
         }
         return object;

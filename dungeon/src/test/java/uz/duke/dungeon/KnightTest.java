@@ -33,7 +33,7 @@ import uz.duke.rts.module.WeaponUpdate;
  *
  * <p>What is deliberately <em>not</em> asserted is his art. His model has not
  * arrived yet, and a hero without one is a coloured shape by design — see the
- * note over {@code DungeonHero Knight}. Naming a file that is not there would
+ * note over {@code Hero Knight}. Naming a file that is not there would
  * make this class fail for the one reason that is not a fault.
  */
 class KnightTest {
@@ -58,7 +58,7 @@ class KnightTest {
     void eachHeroIsComplete() {
         for (var name : java.util.List.of(ARCHER, KNIGHT)) {
             assertNotNull(templateOf(name), name + " has no creature block");
-            assertEquals(name, SETTINGS.heroNamed(name).name(), name + " has no DungeonHero block");
+            assertEquals(name, SETTINGS.heroNamed(name).name(), name + " has no Hero block");
             assertEquals(4, SETTINGS.skillsFor(name).size(), name + " does not have four skills");
             assertTrue(SETTINGS.portraits().stream().anyMatch(art -> art.name().equals(name)),
                     name + " has no portrait");
@@ -134,7 +134,7 @@ class KnightTest {
     @Test
     void hisNumbersComeOutOfTheFile() {
         var rewritten = DungeonSettings.parse("""
-                DungeonHero Knight
+                Hero Knight
                   Title = Boshqacha
                   ArmourPercent = 44
                 End
@@ -251,7 +251,7 @@ class KnightTest {
         var played = SETTINGS.playedHero();
 
         assertEquals(played, SETTINGS.playedHeroLook().name(),
-                "DefaultHero names " + played + ", which has no DungeonHero block");
+                "DefaultHero names " + played + ", which has no Hero block");
         assertEquals(4, SETTINGS.skillsFor(played).size(), played + " has no four skills");
         assertNotNull(templateOf(played), played + " has no creature block");
     }
@@ -260,8 +260,10 @@ class KnightTest {
     @Test
     void namingTheOtherOneSwapsHimIn() {
         var swapped = DungeonSettings.parse("""
-                DungeonRun Loop
-                  DefaultHero = Knight
+                World Dungeon
+                  Run = Loop
+                    DefaultHero = Knight
+                  End
                 End
                 """);
 
@@ -281,7 +283,7 @@ class KnightTest {
         game.runHeadless(1);
 
         var spawned = game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals(SETTINGS.playedHero()))
+                .filter(object -> object.getTemplate().name().equals(SETTINGS.playedHero()))
                 .findFirst().orElse(null);
 
         assertNotNull(spawned, "nobody of the played hero's template is in the dungeon");
@@ -331,7 +333,7 @@ class KnightTest {
      * map size — and this has to be a real run.
      */
     private static String withDefaultHero(String template) {
-        var file = Content.read(Content.SETTINGS);
+        var file = Content.settings();
         // Whatever it currently says, not "the archer's line": the point of the
         // line is that somebody changes it, so a test that only knew how to change
         // it away from one value would fail for the person using it.
@@ -363,7 +365,7 @@ class KnightTest {
 
     /** What one 100-point blow actually takes off that hero, armour and all. */
     private static float blowSuffered(String template) {
-        var world = Dungeon.world(room(), SETTINGS, Content.read(Content.CREATURES));
+        var world = Dungeon.world(room(), SETTINGS, Content.units());
         var game = world.game();
         game.spawn(template, world.hero(), 150f, 150f);
         game.runHeadless(1);
@@ -385,7 +387,7 @@ class KnightTest {
     @Test
     void guardTurnsBlowsAsideAndThenStops() {
         var guard = skillOf(KNIGHT, 'E');
-        var world = Dungeon.world(room(), SETTINGS, Content.read(Content.CREATURES));
+        var world = Dungeon.world(room(), SETTINGS, Content.units());
         var game = world.game();
         game.spawn(KNIGHT, world.hero(), 150f, 150f);
         game.runHeadless(1);
@@ -403,7 +405,7 @@ class KnightTest {
     @Test
     void theWhirlwindGoesOnLandingAndThenStops() {
         var ultimate = skillOf(KNIGHT, 'R');
-        var world = Dungeon.world(room(), SETTINGS, Content.read(Content.CREATURES));
+        var world = Dungeon.world(room(), SETTINGS, Content.units());
         var game = world.game();
         game.spawn(KNIGHT, world.hero(), 150f, 150f);
         // Close enough to be inside it and standing still: a skeleton that walked
@@ -478,7 +480,7 @@ class KnightTest {
     @Test
     void oneThingCarriedIsStillOneBlock() {
         var one = DungeonSettings.parse("""
-                DungeonHero Solo
+                Hero Solo
                   Model = models/heroes/rogue.glb
                   Holds = models/heroes/bow.gltf
                   HeldIn = handslot.l
@@ -524,7 +526,7 @@ class KnightTest {
 
     private static GameObject find(uz.duke.game.DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals(template))
+                .filter(object -> object.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 
@@ -546,7 +548,7 @@ class KnightTest {
 
     private static ThingTemplate templateOf(String name) {
         if (templates == null) {
-            var game = Dungeon.world(room(), SETTINGS, Content.read(Content.CREATURES)).game();
+            var game = Dungeon.world(room(), SETTINGS, Content.units()).game();
             game.runHeadless(1);
             templates = game.getLogic().getThingFactory();
         }
@@ -575,7 +577,7 @@ class KnightTest {
     }
 
     private static float reach(String template) {
-        for (var entry : templateOf(template).getModules()) {
+        for (var entry : templateOf(template).modules()) {
             if (entry.data() instanceof WeaponUpdate.Data weapon) {
                 return weapon.attackRange();
             }
@@ -588,6 +590,6 @@ class KnightTest {
     }
 
     private static float vision(String template) {
-        return templateOf(template).getVisionRange();
+        return uz.duke.core.thing.Sighted.of(templateOf(template));
     }
 }

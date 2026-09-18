@@ -89,7 +89,7 @@ class StageDifficultyTest {
         float before = strongest(game);
 
         var hero = game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals(session.run().getHeroTemplate()))
+                .filter(o -> o.getTemplate().name().equals(session.run().getHeroTemplate()))
                 .findFirst().orElse(null);
         assertNotNull(hero);
         game.getLogic().destroyObject(hero);
@@ -109,7 +109,7 @@ class StageDifficultyTest {
         game.runHeadless(1);
 
         var boss = game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals(stage.floor().boss().kind()))
+                .filter(o -> o.getTemplate().name().equals(stage.floor().boss().kind()))
                 .findFirst().orElse(null);
         assertNotNull(boss, "the stage's boss should be standing in it");
         game.getLogic().destroyObject(boss);

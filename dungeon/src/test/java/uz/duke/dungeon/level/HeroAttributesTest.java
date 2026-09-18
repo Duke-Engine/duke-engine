@@ -50,7 +50,7 @@ class HeroAttributesTest {
     /** One hero alone in a room, with his progress ticking as a run's does. */
     private static Played play(String template, DungeonSettings settings) {
         var bag = new LootBag();
-        var arena = Dungeon.world(room(60, 40), settings, Content.read(Content.CREATURES), bag);
+        var arena = Dungeon.world(room(60, 40), settings, Content.units(), bag);
         var game = arena.game();
         var progress = new HeroProgress(arena.hero(), settings.levelling(),
                 settings.attributeRules(), settings.levelUpBannerFrames(), bag);
@@ -234,7 +234,7 @@ class HeroAttributesTest {
     /** A number changed in the file is a different hero standing in the world. */
     @Test
     void theFileIsWhatDecidesTheHeroInTheWorld() {
-        var text = Content.read(Content.SETTINGS);
+        var text = Content.settings();
         float shipped = play("Knight").body().getBody().getMaxHealth();
 
         var stronger = DungeonSettings.parse(text.replace("  Attribute = STR 22 3.0",
@@ -370,7 +370,7 @@ class HeroAttributesTest {
 
     private static GameObject find(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals(template))
+                .filter(object -> object.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 

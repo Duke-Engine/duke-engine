@@ -113,7 +113,7 @@ class ProjectileEffectTest {
     @Test
     void theEffectsCannotReachTheSimulation() {
         var with = DungeonSettings.load();
-        var without = DungeonSettings.parse(withoutTheBurning(Content.read(Content.SETTINGS)));
+        var without = DungeonSettings.parse(withoutTheBurning(Content.settings()));
 
         assertFalse(with.effects().isEmpty(), "the shipped file should describe effects");
         assertTrue(without.effects().isEmpty(), "and the stripped one should describe none");

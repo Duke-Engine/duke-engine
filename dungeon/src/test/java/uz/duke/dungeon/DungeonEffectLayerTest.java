@@ -169,15 +169,8 @@ class DungeonEffectLayerTest {
     }
 
     /** One layer block as the file writes it: each field's name, and the rest of its line. */
-    private static java.util.Map<String, String> saidIn(String effect, String name)
-            throws java.io.IOException {
-        java.util.List<String> lines;
-        try (var in = DungeonEffectLayerTest.class.getClassLoader()
-                .getResourceAsStream("ini/dungeon.ini")) {
-            assertNotNull(in, "the settings file is not on the classpath");
-            lines = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
-                    .lines().toList();
-        }
+    private static java.util.Map<String, String> saidIn(String effect, String name) {
+        var lines = uz.duke.dungeon.content.Content.settings().lines().toList();
         var said = new java.util.LinkedHashMap<String, String>();
         int at = lines.indexOf("DungeonEffectLayer " + effect + " " + name);
         assertTrue(at >= 0, "no block DungeonEffectLayer " + effect + " " + name);
@@ -509,8 +502,8 @@ class DungeonEffectLayerTest {
         assertFalse(SETTINGS.moments().isEmpty(), "the file gives no moment a look");
         for (var moment : SETTINGS.moments()) {
             assertTrue(Visuals.MOMENTS.contains(moment.name()),
-                    "DungeonMoment " + moment.name() + " is no moment the client notices");
-            assertTrue(layered.contains(moment.effect()), "DungeonMoment " + moment.name()
+                    "Moment " + moment.name() + " is no moment the client notices");
+            assertTrue(layered.contains(moment.effect()), "Moment " + moment.name()
                     + " plays " + moment.effect() + ", which is drawn in no layers");
         }
     }
@@ -575,7 +568,7 @@ class DungeonEffectLayerTest {
     /** Which way the column in a moment's look goes. */
     private static String columnOf(String momentName) {
         var moment = SETTINGS.moments().stream().filter(m -> m.name().equals(momentName))
-                .findFirst().orElseThrow(() -> new AssertionError("no DungeonMoment " + momentName));
+                .findFirst().orElseThrow(() -> new AssertionError("no Moment " + momentName));
         return SETTINGS.effectLayers().stream()
                 .filter(art -> art.effect().equals(moment.effect()))
                 .map(DungeonEffectLayerTest::drawn)

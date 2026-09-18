@@ -4,7 +4,7 @@ package uz.duke.dungeon.level;
  * One attribute the file describes: how a hero's block names it, and what a point of it
  * is worth.
  *
- * <p>Data rather than a list in Java. A new attribute is a {@code DungeonAttribute} block,
+ * <p>Data rather than a list in Java. A new attribute is an {@code Attribute} section,
  * a line in each hero's block and a picture, and nothing here changes — see
  * {@code dungeon.ini}. What a point can be worth is any of the three figures an attribute
  * moves at all; whichever attribute is a hero's primary is also his blow, and that is

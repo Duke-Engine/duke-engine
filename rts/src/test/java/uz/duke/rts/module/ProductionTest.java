@@ -1,5 +1,6 @@
 package uz.duke.rts.module;
 
+import uz.duke.rts.RtsTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -40,14 +41,14 @@ class ProductionTest {
     @BeforeEach
     void setUp() {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());
-        soldier = ThingTemplate.named("Soldier")
+        soldier = RtsTemplate.named("Soldier")
                 .module("ActiveBody", new ActiveBody.Data(50f))
                 .buildCost(100)
                 .buildTimeFrames(3)
                 .build();
         thingFactory.addTemplate(soldier);
 
-        var barracksTemplate = ThingTemplate.named("Barracks")
+        var barracksTemplate = RtsTemplate.named("Barracks")
                 .module("ActiveBody", new ActiveBody.Data(500f))
                 .module("ProductionUpdate", new ProductionUpdate.Data())
                 .build();
@@ -119,7 +120,7 @@ class ProductionTest {
     @Test
     void buildCostAndTimeLoadFromIni() {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());
-        new ThingTemplateLoader(thingFactory).load("""
+        RtsTemplate.register(new ThingTemplateLoader(thingFactory)).load("""
                 Object Tank
                   BuildCost = 200
                   BuildTime = 2.0
@@ -128,8 +129,8 @@ class ProductionTest {
                   End
                 End
                 """);
-        var tank = thingFactory.findTemplate("Tank");
-        assertEquals(200, tank.getBuildCost());
-        assertEquals(60, tank.getBuildTimeFrames()); // 2.0s * 30 fps
+        var tank = (RtsTemplate) thingFactory.findTemplate("Tank");
+        assertEquals(200, tank.buildCost());
+        assertEquals(60, tank.buildTimeFrames()); // 2.0s * 30 fps
     }
 }

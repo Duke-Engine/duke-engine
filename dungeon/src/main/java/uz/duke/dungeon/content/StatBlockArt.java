@@ -1,7 +1,7 @@
 package uz.duke.dungeon.content;
 
 /**
- * How the block under the hero's experience bar is drawn, as {@code DungeonStatBlock}
+ * How the block under the hero's experience bar is drawn, as {@code StatBlock}
  * spells it: how big each kind of socket is, how many rows the block keeps room for, and
  * the colours its words and pictures are set in.
  *

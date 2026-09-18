@@ -8,7 +8,7 @@ import java.util.List;
  * <p>Named after the creature template it is the face of, and repeatable for the
  * same reason {@link HeroLook} is: the frame follows whatever is selected, so a
  * second hero — or, one day, a boss worth a portrait of his own — is a block in
- * {@code dungeon.ini} and nothing in Java.
+ * his own file and nothing in Java.
  *
  * <p><b>It names no art.</b> The model, its scale and the libraries its clips come
  * out of are already in the hero's own block, under this same name. What is here

@@ -14,6 +14,7 @@ import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ThingFactory;
 import uz.duke.core.thing.ThingTemplateLoader;
+import uz.duke.rts.RtsTemplate;
 import uz.duke.rts.message.GameMessage;
 import uz.duke.rts.module.RtsModules;
 import uz.duke.rts.module.WeaponUpdate;
@@ -95,7 +96,7 @@ class DeterminismIntegrationTest {
 
     private static BattleLogic newScenario() {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());
-        new ThingTemplateLoader(thingFactory).load(UNITS_INI);
+        RtsTemplate.register(new ThingTemplateLoader(thingFactory)).load(UNITS_INI);
         var logic = new BattleLogic(thingFactory);
         logic.init();
 

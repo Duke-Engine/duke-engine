@@ -33,12 +33,10 @@ class DungeonShapeTest {
     @Test
     void corridorsAreWiderThanTheLargestCreature() {
         float widest = 0f;
-        for (var file : new String[] {Content.CREATURES, Content.MONSTERS}) {
-            for (var line : Content.read(file).split("\n")) {
-                if (line.trim().startsWith("GeometryMajorRadius")) {
-                    widest = Math.max(widest,
-                            Float.parseFloat(line.substring(line.indexOf('=') + 1).trim()));
-                }
+        for (var line : Content.units().split("\n")) {
+            if (line.trim().startsWith("GeometryMajorRadius")) {
+                widest = Math.max(widest,
+                        Float.parseFloat(line.substring(line.indexOf('=') + 1).trim()));
             }
         }
         float corridor = SETTINGS.corridorWidth() * PathGrid.DEFAULT_CELL_SIZE;
@@ -189,8 +187,10 @@ class DungeonShapeTest {
     @Test
     void aTighterFloorIsStillOnePlace() {
         var tight = DungeonSettings.parse("""
-                DungeonGeneration Layout
-                  MaxRoomSpacing = 14
+                World Dungeon
+                  Generation = Layout
+                    MaxRoomSpacing = 14
+                  End
                 End
                 """);
 
@@ -205,8 +205,10 @@ class DungeonShapeTest {
     @Test
     void changingTheFileChangesTheShape() {
         var wide = DungeonSettings.parse("""
-                DungeonGeneration Layout
-                  CorridorWidth = 4
+                World Dungeon
+                  Generation = Layout
+                    CorridorWidth = 4
+                  End
                 End
                 """);
 

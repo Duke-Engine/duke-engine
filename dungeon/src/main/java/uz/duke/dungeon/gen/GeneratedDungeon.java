@@ -87,7 +87,7 @@ public record GeneratedDungeon(
      * Something standing in a room: a pillar, a statue, a barrel.
      *
      * <p>A kind and a place, like a monster — and for the same reason. What a
-     * Pillar is lives in props.ini and how it is drawn lives in the theme; the
+     * Pillar is lives in ini/props/ and how it is drawn lives in the theme; the
      * generator only decides that one goes here.
      */
     public record Prop(String kind, Placement at) {

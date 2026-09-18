@@ -34,7 +34,7 @@ class ProductionCommandTest {
         assertEquals(3, game.getLogic().getObjectCount(), "the rifleman was produced");
 
         var produced = game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Rifleman"))
+                .filter(o -> o.getTemplate().name().equals("Rifleman"))
                 .findFirst().orElseThrow();
         boolean movingToRally = produced.findModule(MoveUpdate.class).isMoving()
                 || produced.getPosition().distance(new Coord3D(200f, 100f, 0f)) < 15f;

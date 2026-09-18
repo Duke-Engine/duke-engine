@@ -262,7 +262,7 @@ class AttributesTest {
     @Test
     void theFileIsWhatDecidesIt() {
         var shipped = DungeonSettings.load();
-        var text = Content.read(Content.SETTINGS);
+        var text = Content.settings();
         var knight = shipped.heroNamed("Knight").attributes().atLevel(1);
 
         var richer = DungeonSettings.parse(text.replace("  HealthPerPoint = 12",
@@ -291,16 +291,18 @@ class AttributesTest {
      */
     @Test
     void anAttributeTheFileAddsIsAHerosAttributeWithNoJava() {
-        var text = Content.read(Content.SETTINGS)
+        var text = Content.settings()
                 .replace("  Primary = STR\n", "  Primary = STR\n  Attribute = VIG 10 1.0\n")
                 + """
 
-                DungeonAttribute Vigour
-                  Short = VIG
-                  Word = Quvvat
-                  Icon = icons/stats/stat_vigour.png
-                  HealthPerPoint = 3
-                  ManaPerPoint = 2
+                World Dungeon
+                  Attribute = Vigour
+                    Short = VIG
+                    Word = Quvvat
+                    Icon = icons/stats/stat_vigour.png
+                    HealthPerPoint = 3
+                    ManaPerPoint = 2
+                  End
                 End
                 """;
         var settings = DungeonSettings.parse(text);
@@ -331,14 +333,16 @@ class AttributesTest {
     @Test
     void aDecimalIsReadExactlyOrNotAtAll() {
         var exact = DungeonSettings.parse("""
-                DungeonAttributes Conversion
-                  DamagePerPrimary = 1.25
+                World Dungeon
+                  Attributes = Conversion
+                    DamagePerPrimary = 1.25
+                  End
+                  Attribute = Agility
+                    Short = AGI
+                    SpeedPerPoint = 0.15
+                  End
                 End
-                DungeonAttribute Agility
-                  Short = AGI
-                  SpeedPerPoint = 0.15
-                End
-                DungeonHero Solo
+                Hero Solo
                   Primary = INT
                   Attribute = STR 22.5 0
                   Attribute = INT 0 1.8
@@ -352,13 +356,15 @@ class AttributesTest {
         assertEquals(18, exact.heroNamed("Solo").attributes().perLevel().at(INT));
 
         assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
-                DungeonAttribute Agility
-                  Short = AGI
-                  SpeedPerPoint = 0.155
+                World Dungeon
+                  Attribute = Agility
+                    Short = AGI
+                    SpeedPerPoint = 0.155
+                  End
                 End
                 """), "a third place is refused, not rounded");
         assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
-                DungeonHero Solo
+                Hero Solo
                   Primary = STR
                   Attribute = STR 22.55 0
                 End
@@ -368,7 +374,7 @@ class AttributesTest {
     @Test
     void attributesWithNoPrimaryAreRefused() {
         assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
-                DungeonHero Solo
+                Hero Solo
                   Attribute = STR 12 0
                 End
                 """), "a hero with attributes has to say which one he hits with");
@@ -384,10 +390,10 @@ class AttributesTest {
             "  Attribute = STR 12 1\n  Attribute = Strength 3 0\n", // the same one twice
         }) {
             assertThrows(RuntimeException.class, () -> DungeonSettings.parse(
-                    "DungeonHero Solo\n  Primary = STR\n" + line + "End\n"), line);
+                    "Hero Solo\n  Primary = STR\n" + line + "End\n"), line);
         }
         assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
-                DungeonHero Solo
+                Hero Solo
                   Primary = LUCK
                 End
                 """), "a primary has to be one of the file's attributes");
@@ -397,8 +403,10 @@ class AttributesTest {
     @Test
     void noTwoAttributesMayAnswerToOneName() {
         assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
-                DungeonAttribute Might
-                  Short = STR
+                World Dungeon
+                  Attribute = Might
+                    Short = STR
+                  End
                 End
                 """));
     }
@@ -407,26 +415,32 @@ class AttributesTest {
     @Test
     void anAttributeItemNamesAnAttributeTheFileHas() {
         var tome = DungeonSettings.parse("""
-                DungeonLootItem Tome
-                  Kind = ATTRIBUTE
-                  Attribute = STR
-                  Value = 3
+                World Dungeon
+                  LootItem = Tome
+                    Kind = ATTRIBUTE
+                    Attribute = STR
+                    Value = 3
+                  End
                 End
                 """);
         assertTrue(tome.loot().stream().anyMatch(item -> item.attribute().equals("STR")));
 
         assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
-                DungeonLootItem Tome
-                  Kind = ATTRIBUTE
-                  Attribute = LUCK
-                  Value = 3
+                World Dungeon
+                  LootItem = Tome
+                    Kind = ATTRIBUTE
+                    Attribute = LUCK
+                    Value = 3
+                  End
                 End
                 """), "no attribute is called that");
         assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
-                DungeonLootItem Tome
-                  Kind = HEALTH
-                  Attribute = STR
-                  Value = 3
+                World Dungeon
+                  LootItem = Tome
+                    Kind = HEALTH
+                    Attribute = STR
+                    Value = 3
+                  End
                 End
                 """), "a heart gives health, and naming an attribute on it means nothing");
     }

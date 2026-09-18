@@ -151,11 +151,13 @@ class PropsTest {
     /** Ask for none and there are none — and the floor is otherwise the same one. */
     @Test
     void aFloorCanBeAskedForNoFurnitureAtAll() {
-        var bare = DungeonSettings.parse(Content.read(Content.SETTINGS) + """
+        var bare = DungeonSettings.parse(Content.settings() + """
 
-                DungeonProps Scatter
-                  MinPerRoom = 0
-                  MaxPerRoom = 0
+                World Dungeon
+                  Props = Scatter
+                    MinPerRoom = 0
+                    MaxPerRoom = 0
+                  End
                 End
                 """);
 

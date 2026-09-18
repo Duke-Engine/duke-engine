@@ -14,7 +14,7 @@ import uz.duke.rts.module.ExperienceModule;
  *
  * <p>Experience is the engine's to count. {@code WeaponUpdate} already credits a
  * killer with its victim's worth, and how much a skeleton is worth is a line in
- * {@code creatures.ini} — so this reads that total rather than trying to notice
+ * its template — so this reads that total rather than trying to notice
  * deaths for itself, which would mean watching the world and getting it wrong
  * whenever something died to anything else.
  *
@@ -310,7 +310,7 @@ public final class HeroProgress {
     private GameObject findHero(DukeGame game) {
         for (var object : game.getLogic().getObjects()) {
             if (object.getPlayerIndex() == heroPlayer.getIndex()
-                    && object.getTemplate().getName().equals(hero.name())) {
+                    && object.getTemplate().name().equals(hero.name())) {
                 return object;
             }
         }

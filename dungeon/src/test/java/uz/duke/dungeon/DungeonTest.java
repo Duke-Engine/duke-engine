@@ -27,7 +27,7 @@ class DungeonTest {
 
     private static GameObject creature(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals(template))
+                .filter(object -> object.getTemplate().name().equals(template))
                 .findFirst()
                 .orElse(null);
     }
@@ -44,7 +44,7 @@ class DungeonTest {
 
         assertNotNull(heroOf(game), "there should be a hero");
         assertEquals(3, game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().getName().equals("Skeleton")).count());
+                .filter(o -> o.getTemplate().name().equals("Skeleton")).count());
     }
 
     @Test

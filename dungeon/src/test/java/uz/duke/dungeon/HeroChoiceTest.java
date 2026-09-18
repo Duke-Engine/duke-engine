@@ -42,7 +42,7 @@ class HeroChoiceTest {
 
     private static uz.duke.core.thing.GameObject find(DukeGame game, String template) {
         return game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().getName().equals(template))
+                .filter(object -> object.getTemplate().name().equals(template))
                 .findFirst().orElse(null);
     }
 
@@ -322,8 +322,8 @@ class HeroChoiceTest {
         session.game().runHeadless(1);
         var templates = session.game().getLogic().getThingFactory();
 
-        float archers = templates.findTemplate(ARCHER).getVisionRange();
-        float knights = templates.findTemplate(KNIGHT).getVisionRange();
+        float archers = uz.duke.core.thing.Sighted.of(templates.findTemplate(ARCHER));
+        float knights = uz.duke.core.thing.Sighted.of(templates.findTemplate(KNIGHT));
 
         assertTrue(knights < archers, "the knight sees " + knights + " and the archer " + archers
                 + " — if they ever match, the radius being re-read stops being checked here");

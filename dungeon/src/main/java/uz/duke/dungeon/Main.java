@@ -271,7 +271,7 @@ public final class Main {
                 uz.duke.client3d.PanelSkin.BANNER_WON, uz.duke.client3d.PanelSkin.BANNER_LOST);
         for (var piece : settings.skin()) {
             if (!known.contains(piece.name())) {
-                LOG.warning(() -> "DungeonSkin names no part of the panel: " + piece.name()
+                LOG.warning(() -> "Skin names no part of the panel: " + piece.name()
                         + " — that part is drawn as it was; known parts are " + known);
                 continue;
             }
@@ -313,8 +313,8 @@ public final class Main {
      * Every moment the game has a sound for, handed to the client at launch.
      *
      * <p>Nothing here is a decision. Which channel, how loud, how far apart and
-     * which files all come out of {@code dungeon.ini}, so a new sound is a block
-     * in that file and this method does not change. An unknown channel name is
+     * which files all come out of {@code ini/sounds/}, so a new sound is a block
+     * there and this method does not change. An unknown channel name is
      * read as an effect rather than refused: a typo should cost the right knob,
      * not the sound.
      */
@@ -528,7 +528,7 @@ public final class Main {
             return 0f;
         }
         float reach = 0f;
-        for (var module : template.getModules()) {
+        for (var module : template.modules()) {
             if (module.data() instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
                 reach = Math.max(reach, weapon.attackRange());
             }
@@ -558,7 +558,7 @@ public final class Main {
     /**
      * Who the player is asked to be, before anything opens.
      *
-     * <p>The roster is the file's — one entry per {@code DungeonHero} block — so a
+     * <p>The roster is the file's — one entry per {@code Hero} block — so a
      * third hero appears on this screen by existing, and nothing here is edited.
      * The words under each name are his own {@code Title}.
      *
@@ -679,10 +679,7 @@ public final class Main {
     private static String displayNameOf(Dungeon.Session session, String template) {
         var found = session.game().getLogic() == null ? null
                 : session.game().getLogic().getThingFactory().findTemplate(template);
-        if (found == null || found.getDisplayName() == null || found.getDisplayName().isBlank()) {
-            return template;
-        }
-        return found.getDisplayName();
+        return found == null ? template : uz.duke.core.thing.Titled.of(found);
     }
 
     /**
@@ -982,7 +979,7 @@ public final class Main {
         measureLooks(visuals, settings);
 
         // The floor is black until he walks it. Named rather than given a
-        // distance: the radius is the hero's own VisionRange from creatures.ini,
+        // distance: the radius is the hero's own VisionRange from his template,
         // which is also what the engine's fog uses to decide whether a monster is
         // on screen — so the ground he uncovers and the things he can see are the
         // same number, and re-tuning one cannot leave the other behind.
@@ -990,7 +987,7 @@ public final class Main {
         // the floor has to open up around the eyes that are actually there.
         visuals.discoveredBy(settings.playedHero());
 
-        // What it all sounds like — see DungeonSound in dungeon.ini. Handed over
+        // What it all sounds like — see DungeonSound in ini/sounds/. Handed over
         // whole, like the tiles and the themes: the client raises moments by name
         // and this is the only place that knows what a moment sounds like.
         visuals.sounds(soundsOf(settings));
@@ -998,18 +995,18 @@ public final class Main {
         // The lettering the menus are set in -- carved Roman capitals, baked from
         // the TTF by BitmapFontBaker. Named in the file rather than here for the
         // same reason every other asset is: a path in Java is a path that needs a
-        // rebuild to move. See DungeonMenu in dungeon.ini.
+        // rebuild to move. See Menu in dungeon.ini.
         visuals.menuStyle(new uz.duke.client3d.MenuStyle(
                 settings.menuTitleFont(), settings.menuRowFont()));
 
-        // What the panel's edges are painted with -- see DungeonSkin in
+        // What the panel's edges are painted with -- see Skin in
         // dungeon.ini. The client knows where a socket goes; this says what its
         // rim is made of.
         visuals.panelSkin(panelSkin(settings));
         visuals.unitBars(unitBars(settings));
 
         // And what the mouse pointer looks like over each thing -- see
-        // DungeonCursor in dungeon.ini. The client knows what is under the
+        // Cursor in dungeon.ini. The client knows what is under the
         // pointer; this says what to draw there.
         for (var pointer : settings.cursors()) {
             visuals.pointer(pointer.name(), pointer.image(), pointer.hotX(), pointer.hotY(),
@@ -1018,9 +1015,9 @@ public final class Main {
 
         // What the dark is worth: whether stone stops sight, how dim a room he
         // has left should be, and what colour nothing is. All of it drawing, and
-        // all of it in the file — see DungeonFog in dungeon.ini.
+        // all of it in the file — see Fog in dungeon.ini.
         // Shoving the camera with the cursor, on top of the keys — see
-        // DungeonCamera in dungeon.ini.
+        // Camera in dungeon.ini.
         visuals.edgeScroll(new EdgeScroll(settings.edgeScrollMargin(),
                 settings.edgeScrollSpeedPercent()));
 
@@ -1043,7 +1040,7 @@ public final class Main {
         // — see IconLook.
         visuals.iconLook(new uz.duke.client3d.IconLook(settings.hudPaintedSkillIcons()));
 
-        // How the block under the experience bar is drawn -- see DungeonStatBlock. The
+        // How the block under the experience bar is drawn -- see StatBlock. The
         // client knows where its three columns go; the file says how big and what colour.
         var statBlockArt = settings.statBlockArt();
         visuals.statLook(new uz.duke.client3d.StatLook(statBlockArt.figureIcon(),
@@ -1057,13 +1054,13 @@ public final class Main {
                 statBlockArt.gainColour(), statBlockArt.frameColour(), statBlockArt.figureTint(),
                 statBlockArt.primaryTint(), statBlockArt.attributeTint()));
 
-        // Where the light comes from — see DungeonSun. The pitch is what decides
+        // Where the light comes from — see Sun. The pitch is what decides
         // whether the floor plan reads as a place with heights in it.
         visuals.sunlight(new uz.duke.client3d.Sunlight(settings.sunPitch(), settings.sunYaw(),
                 settings.sunStrengthPercent() / 100f, settings.sunAmbientPercent() / 100f,
                 settings.sunColour(), settings.sunAmbientTint()));
 
-        // The three arrowheads that answer a click — see DungeonOrderMark.
+        // The three arrowheads that answer a click — see OrderMark.
         visuals.orderMark(new uz.duke.client3d.OrderMark(
                 settings.markStartRadius(), settings.markEndRadius(), settings.markSeconds(),
                 settings.markSize(), settings.markWidth(), settings.markHeight(),
@@ -1072,7 +1069,7 @@ public final class Main {
                 settings.markMoveColour(), settings.markAttackColour()));
 
         // How far each skill reaches, so the client can draw it before it is spent
-        // — see DungeonSkillRing, and SkillRange for what each shape means.
+        // — see SkillRing, and SkillRange for what each shape means.
         visuals.rangeLook(new uz.duke.client3d.RangeLook(
                 settings.ringBandWidth(), settings.ringFillAlpha(), settings.ringEdgeAlpha(),
                 settings.ringHeight(), settings.ringPulseDepth(), settings.ringPulsePerSecond(),
