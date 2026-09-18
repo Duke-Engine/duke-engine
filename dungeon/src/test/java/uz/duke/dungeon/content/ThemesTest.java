@@ -28,27 +28,24 @@ class ThemesTest {
 
     private static final String THREE = """
             DungeonTheme Stone
-              Folder = Models/stone/
               TileSize = 2
             End
             DungeonTone Stone Damp
-              Floor = damp.obj
+              Floor = Models/stone/damp.obj
             End
             DungeonTone Stone Dry
-              Floor = dry.obj
+              Floor = Models/stone/dry.obj
             End
             DungeonTheme Ice
-              Folder = Models/ice/
               FogTint = 0x0A1830
             End
             DungeonTone Ice Blue
-              Floor = blue.obj
+              Floor = Models/ice/blue.obj
             End
             DungeonTheme Lava
-              Folder = Models/lava/
             End
             DungeonTone Lava Hot
-              Floor = hot.obj
+              Floor = Models/lava/hot.obj
             End
             DungeonThemes Order
               Order = Stone Stone Ice Lava
@@ -166,21 +163,20 @@ class ThemesTest {
         var stone = themes(THREE).themeNamed("Stone");
 
         assertNotNull(stone);
-        assertEquals("Models/stone/", stone.folder());
         assertEquals(2f, stone.tileSize(), 0.001f);
         assertEquals(2, stone.tones().size(), "both of its tones, and neither of anyone else's");
         assertEquals(1, themes(THREE).themeNamed("Ice").tones().size());
         assertEquals(0x0A1830, themes(THREE).themeNamed("Ice").fogTint());
     }
 
-    /** Asset paths are made whole against the theme's own folder. */
+    /** A tone's pieces are the whole paths its block writes, with no folder put in front. */
     @Test
-    void aTonesPiecesAreFoundUnderItsThemesFolder() {
+    void aTonesPiecesAreThePathsItsBlockWrites() {
         var stone = themes(THREE).themeNamed("Stone");
 
-        var whole = stone.toneWithPaths(stone.tones().get(0));
-        assertEquals("Models/stone/damp.obj", whole.floor());
-        assertNull(whole.wall(), "a tone that names no wall still names no wall");
+        var tone = stone.tones().get(0);
+        assertEquals("Models/stone/damp.obj", tone.floor());
+        assertNull(tone.wall(), "a tone that names no wall still names no wall");
     }
 
     /** A game that describes no themes gets none, and is drawn as it always was. */

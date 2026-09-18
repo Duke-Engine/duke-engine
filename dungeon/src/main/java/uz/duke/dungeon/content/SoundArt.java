@@ -28,11 +28,4 @@ public record SoundArt(String name, String channel, boolean positional, float ga
     public SoundArt {
         files = List.copyOf(files);
     }
-
-    /** The same, with the sound folder joined onto every file it names. */
-    public SoundArt withFolder(String folder) {
-        var prefix = folder == null ? "" : folder;
-        return new SoundArt(name, channel, positional, gain, gapSeconds,
-                files.stream().map(file -> prefix + file).toList(), label);
-    }
 }

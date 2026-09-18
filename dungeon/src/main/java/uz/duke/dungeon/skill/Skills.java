@@ -101,7 +101,7 @@ public final class Skills {
      * can say what it is waiting for in the same language as the rest of the panel.
      */
     public static String slots(SkillBook book, SkillRanks ranks, int heroLevel,
-            Words words, java.util.function.UnaryOperator<String> iconPath) {
+            Words words) {
         var fields = new StringBuilder();
         for (var skill : book.getSkills()) {
             int rank = ranks.rankOf(skill.key());
@@ -113,7 +113,7 @@ public final class Skills {
                     .append(skill.manaAt(Math.max(1, rank))).append(',')
                     .append(book.canAfford(skill.key(), Math.max(1, rank)) ? "yes" : "no");
             fields.append("|skill=").append(skill.key()).append(',')
-                    .append(iconPath.apply(skill.icon())).append(',');
+                    .append(java.util.Objects.requireNonNullElse(skill.icon(), "")).append(',');
             if (rank <= SkillRanks.UNLEARNT) {
                 // Nothing spent on it. An ultimate says what it is waiting for;
                 // an ordinary skill is waiting for nothing but a point, so it

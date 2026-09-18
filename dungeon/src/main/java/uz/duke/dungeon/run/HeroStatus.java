@@ -313,8 +313,7 @@ final class HeroStatus {
                                     settings.hudRaiseKeyWord(),
                                     settings.hudMaxedWord(), settings.hudNoPointsWord(),
                                     settings.hudRankSuffix(), settings.hudSecondsWord(),
-                                    settings.hudManaWord())),
-                    settings::hudIcon));
+                                    settings.hudManaWord()))));
             // How many levels he has not spent yet, and the word for them. Beside
             // the heading rather than on a slot, because it belongs to none of
             // them: it is what the four are competing for.

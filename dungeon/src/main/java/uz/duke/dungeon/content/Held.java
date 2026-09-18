@@ -42,10 +42,4 @@ public record Held(String model, String bone, float scale, float pitch, float ya
     public boolean isCarried() {
         return model != null && bone != null;
     }
-
-    /** The same, with the folder in front of the model. */
-    public Held under(java.util.function.UnaryOperator<String> path) {
-        return model == null ? this
-                : new Held(path.apply(model), bone, scale, pitch, yaw, roll, x, y, z);
-    }
 }

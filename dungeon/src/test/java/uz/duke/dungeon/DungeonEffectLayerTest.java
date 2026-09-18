@@ -31,7 +31,7 @@ class DungeonEffectLayerTest {
 
     /** What the file's layers turn into, exactly as Main hands them over. */
     private static EffectLayer drawn(DungeonSettings.EffectLayerArt art) {
-        return Main.layerOf(art, SETTINGS.particleFolder());
+        return Main.layerOf(art);
     }
 
     /**
@@ -151,7 +151,7 @@ class DungeonEffectLayerTest {
                 .findFirst().orElseThrow());
 
         assertEquals(said.get("Type"), layer.type());
-        assertEquals(SETTINGS.particleFolder() + said.get("Texture"), layer.texture());
+        assertEquals(said.get("Texture"), layer.texture());
         assertEquals(!"Alpha".equalsIgnoreCase(said.get("Blend")), layer.additive());
         assertEquals(Integer.parseInt(said.get("Count")), layer.count());
         var life = said.get("Life").split("\\s+");
@@ -497,8 +497,6 @@ class DungeonEffectLayerTest {
     @Test
     void theParticleCeilingIsTheFiles() {
         assertTrue(SETTINGS.effectParticles() > 0, "a ceiling of nothing draws no layers");
-        assertNotNull(SETTINGS.particleFolder());
-        assertTrue(SETTINGS.particleFolder().endsWith("/"), "the folder is joined onto a name");
     }
 
     // ---- columns of light, and the moments they are played on ----

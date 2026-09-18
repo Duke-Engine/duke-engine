@@ -151,6 +151,12 @@ Variants of one thing are numbered: `footstep_01.ogg`, `imp_1.png`.
 that needs a rebuild to move. The game hands the client a `Visuals` built from
 its own data file; the client has never heard of a file name.
 
+**And every path is whole**, from the resource root, exactly as it is loaded:
+`Icon = icons/skills/skill_arrow_shot.png`, never a bare name that code or a
+`...Folder` key puts a folder in front of. A game may keep its files in whatever
+structure it likes, and the line in the file is the file that is loaded — which is
+also what lets the IDE plugin complete and check it.
+
 **Adding an asset means adding a row to `CREDITS.md`** — what it is, who made
 it, its licence, and where it sits — and keeping the pack's own `License.txt`
 beside the files. Where the terms are not plain, say so on that page rather than

@@ -144,22 +144,16 @@ class DungeonSettingsTest {
     }
 
     /**
-     * The painted edges of the hero panel come out of the file, folder and all.
+     * The painted edges of the hero panel come out of the file as the paths it writes.
      *
      * <p>The client end of this is held still by {@code PanelSkinTest}; this is
-     * the writing end, and the two together are the whole chain. What the file
-     * can get wrong and nothing else would catch is the folder: a path that is
-     * right except for the directory in front of it fails as a missing file at
-     * the far end of the game, which is a long way from the line that caused it.
+     * the writing end, and the two together are the whole chain.
      */
     @Test
-    void thePanelsPaintedEdgesAreReadWithTheirFolderOnTheFront() {
+    void thePanelsPaintedEdgesAreReadAsWritten() {
         var skin = DungeonSettings.parse("""
-                DungeonHud Panel
-                  SkinFolder = ui/borders/
-                End
                 DungeonSkin Slot
-                  Texture = default/border/panel-border-013.png
+                  Texture = ui/borders/default/border/panel-border-013.png
                   Inset = 10
                   Scale = 1.1
                   Tint = 0xC9A24B
@@ -175,15 +169,19 @@ class DungeonSettingsTest {
         assertEquals(0xC9A24B, slot.tint());
     }
 
-    /** And the shipped file really names some, or the whole thing is decoration. */
+    /**
+     * And the shipped file really names some, each a picture that is shipped. A wrong
+     * path fails as a missing file at the far end of the game, a long way from the
+     * line that caused it, so it is caught here instead.
+     */
     @Test
     void theShippedFilePaintsThePanel() {
         var skin = DungeonSettings.load().skin();
 
         assertTrue(skin.size() >= 5, "the panel has six parts and most should be painted");
         for (var piece : skin) {
-            assertTrue(piece.texture().startsWith("ui/borders/"),
-                    piece.name() + " should be found under the skin folder: " + piece.texture());
+            assertNotNull(DungeonSettingsTest.class.getClassLoader().getResource(piece.texture()),
+                    piece.name() + " names a picture that is not shipped: " + piece.texture());
             assertTrue(piece.scale() > 0f, piece.name() + " drawn at no size at all");
         }
     }

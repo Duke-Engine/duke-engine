@@ -17,7 +17,9 @@ import java.util.List;
  * {@code DungeonTone} says how it varies, {@code DungeonThemeMonster} says what
  * lives there, and {@code DungeonThemes} says which depth wears which.
  *
- * @param folder        prefixed to every asset the theme names
+ * <p>Every asset it names is a whole path from the resource root, so a kit's files
+ * may sit wherever its author keeps them.
+ *
  * @param tileSize      what one floor tile was modelled at, in the model's units
  * @param wallTileSize  what one wall was modelled at, when that is not the same —
  *     kits are not all authored on one module, and one of these lays two-unit
@@ -31,10 +33,6 @@ import java.util.List;
  * @param ownMaterials  whether the models carry their own colours. A kit drawn on
  *     one atlas wants one shared skin; a kit that ships no texture and says what
  *     colour each of its parts is wants what it came with
- * @param propFolder    where this theme's own props and re-skinned creatures
- *     live. Apart from the tiles because the two are different kinds of thing
- *     and a folder each is what makes a tree worth having; empty falls back to
- *     the tile folder, which is what a kit with everything in one place wants
  * @param stairs        the flight of steps between two storeys, or null for a kit
  *     that ships none — then the client builds them out of blocks
  * @param rockFace      what the exposed side of a raised block of rock is drawn
@@ -57,14 +55,12 @@ import java.util.List;
  */
 public record ThemeArt(
         String name,
-        String folder,
         float tileSize,
         float wallTileSize,
         float wallHeight,
         float wallLift,
         float wallShift,
         boolean ownMaterials,
-        String propFolder,
         String stairs,
         String rockFace,
         int capTint,
@@ -146,58 +142,6 @@ public record ThemeArt(
      */
     public record ThemeMonster(String template, MonsterLook look, String animationsFrom,
             String death) {
-    }
-
-    /** The steps between storeys, with the folder in front of them. */
-    public String stairsPath() {
-        return path(stairs);
-    }
-
-    /**
-     * What the side of raised rock is drawn with, with its folder in front of it.
-     *
-     * <p>Under the props rather than the tiles, because it is not one of this
-     * theme's own tiles -- a wood faced with masonry is borrowing the cellar's
-     * wall, and a borrowed piece belongs beside the other things a theme scatters
-     * about rather than among the pieces it is built from.
-     */
-    public String rockFacePath() {
-        return inProps(rockFace);
-    }
-
-    /** The theme with every asset path made whole. */
-    public Tone toneWithPaths(Tone tone) {
-        return new Tone(tone.name(), path(tone.floor()), path(tone.wall()),
-                path(tone.corner()), tone.tint());
-    }
-
-    private String path(String piece) {
-        return piece == null ? null : folder + piece;
-    }
-
-    /** The look of a themed creature, with its model path made whole. */
-    public ThemeMonster monsterWithPaths(ThemeMonster themed) {
-        var look = themed.look();
-        return new ThemeMonster(themed.template(),
-                new MonsterLook(inProps(look.model()), inProps(look.texture()), look.modelScale(),
-                        look.tint(), look.facing(), look.idle(), look.walk(), look.attack(),
-                        look.hurt(), look.held().under(this::inProps), look.effect()),
-                inProps(themed.animationsFrom()), themed.death());
-    }
-
-    /**
-     * A path under the theme's props, which is where everything that is not a
-     * tile lives — the pillars and statues, and any creature this theme draws
-     * differently.
-     *
-     * <p>Falls back to the tile folder when a theme names no second one, so a kit
-     * that keeps everything in one place says nothing and gets what it had.
-     */
-    private String inProps(String piece) {
-        if (piece == null) {
-            return null;
-        }
-        return (propFolder == null || propFolder.isBlank() ? folder : propFolder) + piece;
     }
 
     public java.awt.Color awtFogTint() {

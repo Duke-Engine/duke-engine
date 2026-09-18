@@ -298,7 +298,7 @@ class AttributesTest {
                 DungeonAttribute Vigour
                   Short = VIG
                   Word = Quvvat
-                  Icon = stat_vigour.png
+                  Icon = icons/stats/stat_vigour.png
                   HealthPerPoint = 3
                   ManaPerPoint = 2
                 End
@@ -318,7 +318,7 @@ class AttributesTest {
 
         var art = settings.attributeArt().get(3);
         assertEquals("Quvvat", art.word());
-        assertTrue(art.icon().endsWith("stat_vigour.png"), art.icon());
+        assertEquals("icons/stats/stat_vigour.png", art.icon(), "the path as the file writes it");
     }
 
     /**

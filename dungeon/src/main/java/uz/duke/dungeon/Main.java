@@ -88,13 +88,12 @@ public final class Main {
      * down once, in {@code EffectLayer.Builder}. Package-private so the game's own
      * test can ask what a block in the file turns into on screen.
      */
-    static uz.duke.client3d.EffectLayer layerOf(DungeonSettings.EffectLayerArt art,
-            String folder) {
+    static uz.duke.client3d.EffectLayer layerOf(DungeonSettings.EffectLayerArt art) {
         var layer = uz.duke.client3d.EffectLayer.builder();
         art.fields().forEach((field, value) -> {
             switch (field) {
                 case "type" -> layer.type(value);
-                case "texture" -> layer.texture(value.isBlank() ? "" : folder + value);
+                case "texture" -> layer.texture(value);
                 case "additive" -> layer.additive(Boolean.parseBoolean(value));
                 case "count" -> layer.count(Integer.parseInt(value));
                 case "colourStart" -> layer.colourStart(Integer.parseInt(value));
@@ -352,14 +351,13 @@ public final class Main {
      */
     private static void themes(Visuals visuals, DungeonSettings settings) {
         for (var theme : settings.themes().all()) {
-            for (var variation : theme.tones()) {
-                var tone = theme.toneWithPaths(variation);
-                visuals.theme(theme.name() + "," + variation.name(), look -> {
+            for (var tone : theme.tones()) {
+                visuals.theme(theme.name() + "," + tone.name(), look -> {
                     look.tiles(Tileset.create()
                             .floor(tone.floor())
                             .wall(tone.wall())
                             .corner(tone.corner())
-                            .stairs(theme.stairsPath())
+                            .stairs(theme.stairs())
                             .tileSize(theme.tileSize())
                             .wallTileSize(theme.wallTileSize())
                             .wallHeight(theme.wallHeight())
@@ -370,13 +368,13 @@ public final class Main {
                             .wallClump(theme.standing().clump())
                             .wallSpread(theme.standing().spread())
                             .wallVariety(theme.standing().variety())
-                            .rockFace(theme.rockFacePath())
+                            .rockFace(theme.rockFace())
                             .capTint(theme.capTint())
                             .storeyShade(theme.storeyShadePercent() / 100f)
                             .tint(tone.tint()));
                     look.fogTint(theme.fogTint());
                     for (var themed : theme.monsters()) {
-                        themedCreature(look, theme.monsterWithPaths(themed), settings);
+                        themedCreature(look, themed, settings);
                     }
                 });
             }
@@ -963,7 +961,7 @@ public final class Main {
         // order they are laid one over another.
         for (var layer : settings.effectLayers()) {
             visuals.effect(layer.effect(),
-                    recipe -> recipe.layer(layerOf(layer, settings.particleFolder())));
+                    recipe -> recipe.layer(layerOf(layer)));
         }
         for (var look : settings.projectiles()) {
             arrow(visuals, look.name(), look);

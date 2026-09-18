@@ -1753,8 +1753,8 @@ ikkala peer aynan bir kadrda qo'llaydi.
   - Panelga bitta ham inglizcha so'z qo'shilmadi: `Zarba`, `Zirh` va `Tezlik`
     `DungeonHud` blokidan keladi.
   - **Uyada endi ikonka bor, va u INI'da tanlanadi.** Uya ilgari klavishning
-    harfini chizardi. Endi har `DungeonSkill` bloki `Icon = arrowhead.png` deydi,
-    `DungeonHud` esa `IconFolder = icons/skills/` — tayyor yo'l status qatorida
+    harfini chizardi. Endi har `DungeonSkill` bloki `Icon = icons/skills/arrowhead.png`
+    deydi — resurslar ildizidan to'liq yo'l, u status qatorida o'zgarishsiz
     ketadi (`skill=Q,icons/skills/arrowhead.png,ready`), klient esa berilgan
     yo'ldagi rasmni chizadi. **Kodda birorta ikonka nomi yo'q**: beshinchi skill —
     faylning beshinchi bloki, Java'ga tegilmaydi. Klient uchta boshqa o'yinga
@@ -2179,8 +2179,8 @@ UI Borders (CC0) o'yma ramkalari bilan bo'yaladi.
   so'rashini almashtirish aniq va bepul.
 
 - **Hammasi INI'da:** `DungeonSkin <qism>` bloklari (Minimap, Portrait, Slot,
-  Gauge, Chip, Divider) — `Texture`, `Inset`, `Scale`, `Tint`; yo'l esa
-  `DungeonHud Panel` dagi `SkinFolder` bilan qo'shiladi, `IconFolder` kabi.
+  Gauge, Chip, Divider) — `Texture`, `Inset`, `Scale`, `Tint`; `Texture` esa
+  boshqa hamma asset kabi resurslar ildizidan to'liq yo'l.
   Klientga `Visuals.panelSkin(PanelSkin)` orqali boradi — `MenuStyle`, `Fog`,
   `Tileset`, `SoundBank` yurgan o'sha chok.
 

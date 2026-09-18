@@ -739,7 +739,6 @@ public final class DungeonSettings {
             require(!moment.effect.isBlank(), "DungeonMoment " + moment.name + " plays no Effect");
             require(moment.scale > 0f, "DungeonMoment " + moment.name + " has to be drawn at some size");
         }
-        require(sayable(hudIconFolder), "IconFolder may not contain ',' or '|'");
         for (var skill : skills) {
             // The panel is told which picture to draw down the status line, and
             // the line is split on those two characters.
@@ -875,7 +874,6 @@ public final class DungeonSettings {
     // ---- what the game sounds like ----
 
     private final java.util.List<SoundBuilder> sounds = new java.util.ArrayList<>();
-    private String soundFolder = "";
     private float voiceGapSeconds = 1.5f;
 
     private static final class SoundBuilder {
@@ -909,14 +907,13 @@ public final class DungeonSettings {
 
     private static final FieldParseTable<DungeonSettings> SOUNDS =
             new FieldParseTable<DungeonSettings>()
-                    .add("Folder", Ini.string((s, v) -> s.soundFolder = v))
                     .add("VoiceGapSeconds", Ini.real((s, v) -> s.voiceGapSeconds = v));
 
-    /** Every moment the game has a sound for, each file path made whole. */
+    /** Every moment the game has a sound for. */
     public java.util.List<SoundArt> sounds() {
         return sounds.stream()
                 .map(cue -> new SoundArt(cue.name, cue.channel, cue.positional, cue.gain,
-                        cue.gap, cue.files, cue.label).withFolder(soundFolder))
+                        cue.gap, cue.files, cue.label))
                 .toList();
     }
 
@@ -1000,7 +997,6 @@ public final class DungeonSettings {
 
     private static final class ThemeBuilder {
         private final String name;
-        String folder = "";
         float tileSize = 4f;
         float wallTileSize;
         float wallHeight = 4f;
@@ -1011,7 +1007,6 @@ public final class DungeonSettings {
         int wallClump = 1;
         float wallSpread;
         float wallVariety;
-        String propFolder = "";
         String stairs;
         String rockFace;
         int capTint = 0xFFFFFF;
@@ -1052,7 +1047,6 @@ public final class DungeonSettings {
 
     private static final FieldParseTable<ThemeBuilder> THEME =
             new FieldParseTable<ThemeBuilder>()
-                    .add("Folder", Ini.string((t, v) -> t.folder = v))
                     .add("TileSize", Ini.real((t, v) -> t.tileSize = v))
                     .add("WallTileSize", Ini.real((t, v) -> t.wallTileSize = v))
                     .add("WallHeight", Ini.real((t, v) -> t.wallHeight = v))
@@ -1063,7 +1057,6 @@ public final class DungeonSettings {
                     .add("WallClump", Ini.integer((t, v) -> t.wallClump = v))
                     .add("WallSpread", Ini.real((t, v) -> t.wallSpread = v))
                     .add("WallVariety", Ini.real((t, v) -> t.wallVariety = v))
-                    .add("PropFolder", Ini.string((t, v) -> t.propFolder = v))
                     .add("Stairs", Ini.string((t, v) -> t.stairs = v))
                     .add("RockFace", Ini.string((t, v) -> t.rockFace = v))
                     .add("CapTint", (ini, t) -> t.capTint = Integer.decode(ini.getNextToken()))
@@ -1136,9 +1129,9 @@ public final class DungeonSettings {
                             themed.art.look(), themed.animationsFrom, themed.death));
                 }
             }
-            built.add(new ThemeArt(theme.name, theme.folder, theme.tileSize,
+            built.add(new ThemeArt(theme.name, theme.tileSize,
                     theme.wallTileSize, theme.wallHeight, theme.wallLift, theme.wallShift,
-                    theme.ownMaterials, theme.propFolder, theme.stairs, theme.rockFace,
+                    theme.ownMaterials, theme.stairs, theme.rockFace,
                     theme.capTint, theme.storeyShadePercent, theme.fogTint,
                     new ThemeArt.Standing(theme.wallFillsRock, theme.wallClump,
                             theme.wallSpread, theme.wallVariety),
@@ -1471,7 +1464,6 @@ public final class DungeonSettings {
             float tileSize, float wallHeight, float wallLift, float wallShift) {
     }
 
-    private String tileFolder = "";
     private String tileFloor;
     private String tileWall;
     private String tileCorner;
@@ -1483,17 +1475,12 @@ public final class DungeonSettings {
 
     /** The kit to draw the floor with; {@code floor()} is null if the file named none. */
     public TileArt tiles() {
-        return new TileArt(path(tileFloor), path(tileWall), path(tileCorner),
-                path(tileStairs), tileSize, tileWallHeight, tileWallLift, tileWallShift);
-    }
-
-    private String path(String piece) {
-        return piece == null ? null : tileFolder + piece;
+        return new TileArt(tileFloor, tileWall, tileCorner,
+                tileStairs, tileSize, tileWallHeight, tileWallLift, tileWallShift);
     }
 
     private static final FieldParseTable<DungeonSettings> TILES =
             new FieldParseTable<DungeonSettings>()
-                    .add("Folder", Ini.string((s, v) -> s.tileFolder = v))
                     .add("Floor", Ini.string((s, v) -> s.tileFloor = v))
                     .add("Wall", Ini.string((s, v) -> s.tileWall = v))
                     .add("Corner", Ini.string((s, v) -> s.tileCorner = v))
@@ -1989,18 +1976,14 @@ public final class DungeonSettings {
             this.name = name;
         }
 
-        SkinLook look(String folder) {
-            return new SkinLook(name, folder + texture, inset, scale, tint);
+        SkinLook look() {
+            return new SkinLook(name, texture, inset, scale, tint);
         }
     }
 
-    /**
-     * Every painted edge the file describes, with {@code SkinFolder} already on
-     * the front of each path — the same joining {@link #hudIcon} does, and for the
-     * same reason: a folder written once rather than on every line.
-     */
+    /** Every painted edge the file describes. */
     public java.util.List<SkinLook> skin() {
-        return skin.stream().map(piece -> piece.look(hudSkinFolder)).toList();
+        return skin.stream().map(SkinBuilder::look).toList();
     }
 
     /**
@@ -2025,14 +2008,14 @@ public final class DungeonSettings {
             this.name = name;
         }
 
-        CursorLook look(String folder) {
-            return new CursorLook(name, folder + image, hotX, hotY, tint);
+        CursorLook look() {
+            return new CursorLook(name, image, hotX, hotY, tint);
         }
     }
 
-    /** Every pointer the file describes, with {@code CursorFolder} on the front. */
+    /** Every pointer the file describes. */
     public java.util.List<CursorLook> cursors() {
-        return cursors.stream().map(pointer -> pointer.look(hudCursorFolder)).toList();
+        return cursors.stream().map(CursorBuilder::look).toList();
     }
 
     private static final FieldParseTable<CursorBuilder> CURSOR =
@@ -2188,13 +2171,6 @@ public final class DungeonSettings {
                     .add("Effect", Ini.string((m, v) -> m.effect = v))
                     .add("Scale", Ini.real((m, v) -> m.scale = v));
 
-    private String particleFolder = "";
-
-    /** Where a layer's texture is found, joined onto the front of its name. */
-    public String particleFolder() {
-        return particleFolder;
-    }
-
     private int effectParticles;
 
     /**
@@ -2241,7 +2217,6 @@ public final class DungeonSettings {
     private static final FieldParseTable<LayerBuilder> LAYER =
             new FieldParseTable<LayerBuilder>()
                     .add("Type", Ini.string((l, v) -> l.put("type", v.toUpperCase(java.util.Locale.ROOT))))
-                    // A file name inside ParticleFolder, as SkinFolder and CursorFolder do.
                     .add("Texture", Ini.string((l, v) -> l.put("texture", v)))
                     // Additive for light -- fire, magic, sparks -- and Alpha for stuff: smoke
                     // and dust drawn additively brighten the floor they are meant to hide.
@@ -2346,7 +2321,6 @@ public final class DungeonSettings {
                     // Every particle burning at once, across every effect: a ceiling
                     // rather than a target, and what keeps a fight from warming a laptop.
                     .add("MaxParticles", Ini.integer((s, v) -> s.effectParticles = v))
-                    .add("ParticleFolder", Ini.string((s, v) -> s.particleFolder = v))
                     // How it feels rather than what it costs: every knock of the camera
                     // at once, and the flash a creature gives when it is hit.
                     .add("ShakeScale", Ini.real((s, v) -> s.shakeScale = v))
@@ -3034,14 +3008,13 @@ public final class DungeonSettings {
     }
 
     /**
-     * How each attribute is shown — its word, and its picture with the stat folder in
-     * front of it — in the order the file lists them, which is the order a hero's
-     * attributes are held in.
+     * How each attribute is shown — its word and its picture — in the order the
+     * file lists them, which is the order a hero's attributes are held in.
      */
     public java.util.List<AttributeArt> attributeArt() {
         return attributes.stream()
                 .map(block -> new AttributeArt(block.rule().name(), block.rule().shortName(),
-                        block.word(), inStats(block.icon())))
+                        block.word(), block.icon()))
                 .toList();
     }
 
@@ -3107,9 +3080,6 @@ public final class DungeonSettings {
     private String hudAttackOrderWord = "";
     private String hudStopWord = "";
     private String hudGuardWord = "";
-    private String hudIconFolder = "";
-    private String hudSkinFolder = "";
-    private String hudCursorFolder = "";
 
     /** The drawing that stands in the portrait for something that is not his. */
     public String hudMonsterFace() {
@@ -3188,15 +3158,6 @@ public final class DungeonSettings {
         return java.util.List.of(hudMoveWord, hudAttackOrderWord, hudStopWord, hudGuardWord);
     }
 
-    /**
-     * Where a skill's {@code Icon} is to be found, joined onto the front of it —
-     * the same arrangement the tile kit uses, and for the same reason: a folder
-     * written once beats a folder written on every line that names a file.
-     */
-    public String hudIcon(String icon) {
-        return icon == null || icon.isBlank() ? "" : hudIconFolder + icon;
-    }
-
     private String hudManaWord = "";
 
     /** What a skill's price is called on its card, and the bar it comes out of. */
@@ -3204,8 +3165,6 @@ public final class DungeonSettings {
         return hudManaWord;
     }
 
-    private String hudCommandIconFolder = "";
-    private String hudStatIconFolder = "";
     private boolean hudPaintedSkillIcons;
     private String hudMoveIcon = "";
     private String hudAttackOrderIcon = "";
@@ -3230,8 +3189,7 @@ public final class DungeonSettings {
 
     /** The four order buttons' pictures, in the order the buttons are drawn. */
     public java.util.List<String> hudOrderIcons() {
-        return java.util.List.of(inCommands(hudMoveIcon), inCommands(hudAttackOrderIcon),
-                inCommands(hudStopIcon), inCommands(hudGuardIcon));
+        return java.util.List.of(hudMoveIcon, hudAttackOrderIcon, hudStopIcon, hudGuardIcon);
     }
 
     /**
@@ -3242,16 +3200,7 @@ public final class DungeonSettings {
      * the one deciding that a game's third figure is a lightning bolt.
      */
     public java.util.List<String> hudStatIcons() {
-        return java.util.List.of(inStats(hudAttackStatIcon), inStats(hudArmourStatIcon),
-                inStats(hudSpeedStatIcon));
-    }
-
-    private String inCommands(String icon) {
-        return icon == null || icon.isBlank() ? "" : hudCommandIconFolder + icon;
-    }
-
-    private String inStats(String icon) {
-        return icon == null || icon.isBlank() ? "" : hudStatIconFolder + icon;
+        return java.util.List.of(hudAttackStatIcon, hudArmourStatIcon, hudSpeedStatIcon);
     }
 
     private static final FieldParseTable<DungeonSettings> HUD =
@@ -3302,10 +3251,6 @@ public final class DungeonSettings {
                     .add("CmdStopWord", Ini.restOfLine((s, v) -> s.hudStopWord = v))
                     .add("CmdGuardWord", Ini.restOfLine((s, v) -> s.hudGuardWord = v))
                     .add("ManaWord", Ini.restOfLine((s, v) -> s.hudManaWord = v))
-                    .add("IconFolder", Ini.string((s, v) -> s.hudIconFolder = v))
-                    .add("CommandIconFolder",
-                            Ini.string((s, v) -> s.hudCommandIconFolder = v))
-                    .add("StatIconFolder", Ini.string((s, v) -> s.hudStatIconFolder = v))
                     .add("PaintedSkillIcons",
                             Ini.bool((s, v) -> s.hudPaintedSkillIcons = v))
                     .add("CmdMoveIcon", Ini.string((s, v) -> s.hudMoveIcon = v))
@@ -3315,8 +3260,6 @@ public final class DungeonSettings {
                     .add("AttackIcon", Ini.string((s, v) -> s.hudAttackStatIcon = v))
                     .add("ArmourIcon", Ini.string((s, v) -> s.hudArmourStatIcon = v))
                     .add("SpeedIcon", Ini.string((s, v) -> s.hudSpeedStatIcon = v))
-                    .add("SkinFolder", Ini.string((s, v) -> s.hudSkinFolder = v))
-                    .add("CursorFolder", Ini.string((s, v) -> s.hudCursorFolder = v))
                     // Panel-wide rather than per-hero: what a portrait costs is a
                     // fact about the machine drawing it, not about whose face is in
                     // it. See DungeonPortrait for the faces themselves.

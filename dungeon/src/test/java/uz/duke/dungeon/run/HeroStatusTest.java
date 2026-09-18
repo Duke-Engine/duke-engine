@@ -142,7 +142,7 @@ class HeroStatusTest {
                         new AssertionError("nothing waits for a level any more"));
 
         assertTrue(lineFrom(5L).contains(
-                        "|skill=" + waiting.key() + "," + settings.hudIcon(waiting.icon())
+                        "|skill=" + waiting.key() + "," + waiting.icon()
                                 + ",lock," + waiting.levelForRank(1) + settings.hudRankSuffix()),
                 "the locked slot should name its level the way the panel names them");
     }
@@ -162,7 +162,7 @@ class HeroStatusTest {
                 .findFirst().orElseThrow();
 
         assertTrue(lineFrom(5L).contains(
-                        "|skill=" + ordinary.key() + "," + settings.hudIcon(ordinary.icon())
+                        "|skill=" + ordinary.key() + "," + ordinary.icon()
                                 + ",lock|"),
                 "an unbought ordinary slot should say 'lock' and stop there");
     }
@@ -202,7 +202,7 @@ class HeroStatusTest {
         var settings = DungeonSettings.load();
 
         for (var skill : settings.skillsFor(settings.playedHero())) {
-            var icon = settings.hudIcon(skill.icon());
+            var icon = skill.icon();
             if (icon.isBlank()) {
                 continue; // no picture named: the slot draws the letter, as it always did
             }
@@ -223,7 +223,7 @@ class HeroStatusTest {
         var settings = DungeonSettings.load();
 
         for (var skill : settings.skillsFor("Rogue")) {
-            assertFalse(settings.hudIcon(skill.icon()).isBlank(),
+            assertFalse(skill.icon().isBlank(),
                     "the archer's " + skill.key() + " lost the Icon it had");
         }
     }
@@ -356,7 +356,7 @@ class HeroStatusTest {
                 DungeonAttribute Vigour
                   Short = VIG
                   Word = Quvvat
-                  Icon = stat_vigour.png
+                  Icon = icons/stats/stat_vigour.png
                   HealthPerPoint = 3
                 End
                 """;

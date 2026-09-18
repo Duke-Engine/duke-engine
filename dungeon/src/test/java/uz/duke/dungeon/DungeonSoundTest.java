@@ -144,12 +144,11 @@ class DungeonSoundTest {
         assertEquals(java.util.List.of(), settings.sounds());
     }
 
-    /** What a block says is what comes out of it, folder and all. */
+    /** What a block says is what comes out of it. */
     @Test
     void aBlockIsReadTheWayItIsWritten() {
         var settings = DungeonSettings.parse("""
                 DungeonSounds Settings
-                  Folder = audio/
                   VoiceGapSeconds = 2.5
                 End
 
@@ -158,8 +157,8 @@ class DungeonSoundTest {
                   Positional = No
                   Gain = 0.8
                   GapSeconds = 0.4
-                  File = voice/move_1.ogg
-                  File = voice/move_2.ogg
+                  File = audio/voice/move_1.ogg
+                  File = audio/voice/move_2.ogg
                 End
                 """);
 
@@ -171,7 +170,7 @@ class DungeonSoundTest {
         assertEquals(0.8f, cue.gain(), 0.001f);
         assertEquals(0.4f, cue.gapSeconds(), 0.001f);
         assertEquals(java.util.List.of("audio/voice/move_1.ogg", "audio/voice/move_2.ogg"),
-                cue.files(), "the folder is joined on, so it is written once");
+                cue.files(), "each file is the whole path its line writes");
     }
 
     /**

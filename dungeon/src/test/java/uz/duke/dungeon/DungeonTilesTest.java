@@ -164,9 +164,8 @@ class DungeonTilesTest {
      * <p>The one asset group with nothing else watching it. An icon goes from the
      * file, through the status line, to a panel that falls back to nothing when
      * the file will not load — so a moved or misspelt icon is an empty square in
-     * the corner of the bar and not one word anywhere. The folder and the file
-     * name are joined in the settings, so this asks the settings rather than
-     * guessing at a path.
+     * the corner of the bar and not one word anywhere. The path is the file's
+     * own, so this asks the settings rather than guessing at one.
      */
     @Test
     void everySkillIconTheSettingsFileNamesIsThere() {
@@ -178,7 +177,7 @@ class DungeonTilesTest {
         // has played yet is exactly the one that would go missing unnoticed.
         for (var hero : settings.heroes()) {
             for (var skill : settings.skillsFor(hero.name())) {
-                var path = settings.hudIcon(skill.icon());
+                var path = skill.icon();
                 if (path.isBlank()) {
                     continue; // a skill drawn with a word rather than a picture
                 }
@@ -283,14 +282,13 @@ class DungeonTilesTest {
         var assets = assets();
 
         for (var theme : themes.all()) {
-            for (var variation : theme.tones()) {
-                var tone = theme.toneWithPaths(variation);
+            for (var tone : theme.tones()) {
                 for (var path : new String[] {tone.floor(), tone.wall(), tone.corner()}) {
                     if (path == null) {
                         continue; // a kit is allowed to have no corner post
                     }
                     assertNotNull(assets.loadModel(path),
-                            theme.name() + "/" + variation.name() + " names " + path
+                            theme.name() + "/" + tone.name() + " names " + path
                                     + ", which is not shipped");
                 }
             }
@@ -313,7 +311,7 @@ class DungeonTilesTest {
         int found = 0;
 
         for (var theme : themes.all()) {
-            var path = theme.stairsPath();
+            var path = theme.stairs();
             if (path == null) {
                 continue; // a kit with no stair of its own gets steps built from blocks
             }
@@ -342,7 +340,7 @@ class DungeonTilesTest {
         var assets = assets();
 
         for (var theme : themes.all()) {
-            var tone = theme.toneWithPaths(theme.tones().get(0));
+            var tone = theme.tones().get(0);
             var floor = boundsOf(assets.loadModel(tone.floor()));
             assertEquals(theme.tileSize() / 2f, floor.getXExtent(), 0.05f,
                     theme.name() + " says its tiles are " + theme.tileSize()
@@ -386,7 +384,7 @@ class DungeonTilesTest {
         var assets = assets();
 
         for (var theme : themes.all()) {
-            var tone = theme.toneWithPaths(theme.tones().get(0));
+            var tone = theme.tones().get(0);
             if (tone.wall() == null) {
                 continue;
             }
@@ -414,8 +412,7 @@ class DungeonTilesTest {
         var assets = assets();
 
         for (var theme : themes.all()) {
-            for (var themed : theme.monsters()) {
-                var art = theme.monsterWithPaths(themed);
+            for (var art : theme.monsters()) {
                 var model = assets.loadModel(art.look().model());
                 assertNotNull(model, art.look().model() + " is named but not shipped");
                 var clips = clipsOf(model);
@@ -465,8 +462,7 @@ class DungeonTilesTest {
         var assets = assets();
 
         for (var theme : themes.all()) {
-            for (var themed : theme.monsters()) {
-                var art = theme.monsterWithPaths(themed);
+            for (var art : theme.monsters()) {
                 if (art.look().texture() != null) {
                     continue; // dressed from a skin of its own, like a creature
                 }
@@ -498,9 +494,8 @@ class DungeonTilesTest {
         var pictures = new java.util.HashSet<String>();
 
         for (var theme : themes.all()) {
-            for (var variation : theme.tones()) {
-                var tone = theme.toneWithPaths(variation);
-                for (var path : new String[] {tone.floor(), tone.wall(), theme.stairsPath()}) {
+            for (var tone : theme.tones()) {
+                for (var path : new String[] {tone.floor(), tone.wall(), theme.stairs()}) {
                     if (path != null) {
                         pictures.add(theme.name() + " " + textureNameOf(assets.loadModel(path)));
                     }
@@ -561,7 +556,7 @@ class DungeonTilesTest {
     @Test
     void everyThemeWhoseWallIsAThingSaysWhatFacesItsRock() {
         for (var theme : uz.duke.dungeon.content.DungeonSettings.load().themes().all()) {
-            assertEquals(theme.standing().fillsRock(), theme.rockFacePath() != null,
+            assertEquals(theme.standing().fillsRock(), theme.rockFace() != null,
                     theme.name() + " fills rock with a body but names no RockFace to close"
                             + " its sides (or names one it does not need)");
         }
@@ -573,11 +568,11 @@ class DungeonTilesTest {
         var assets = assets();
         int checked = 0;
         for (var theme : uz.duke.dungeon.content.DungeonSettings.load().themes().all()) {
-            if (theme.rockFacePath() == null) {
+            if (theme.rockFace() == null) {
                 continue;
             }
-            var model = assets.loadModel(theme.rockFacePath());
-            assertNotNull(model, theme.rockFacePath() + " is named but not shipped");
+            var model = assets.loadModel(theme.rockFace());
+            assertNotNull(model, theme.rockFace() + " is named but not shipped");
             model.updateModelBound();
             model.updateGeometricState();
             var box = (com.jme3.bounding.BoundingBox) model.getWorldBound();
@@ -587,11 +582,11 @@ class DungeonTilesTest {
             // wide: taller than it is wide leaves daylight between the courses,
             // wider than it is tall runs them across their neighbours.
             float tallness = box.getYExtent() / Math.max(0.001f, box.getXExtent());
-            assertEquals(1f, tallness, 0.2f, theme.rockFacePath() + " is " + tallness
+            assertEquals(1f, tallness, 0.2f, theme.rockFace() + " is " + tallness
                     + " times as tall as it is wide, so a storey of it is not a cell wide");
             // And a slab rather than a block, or its own depth eats the cell behind.
             assertTrue(box.getZExtent() < box.getXExtent(),
-                    theme.rockFacePath() + " is as deep as it is wide — that is a plinth,"
+                    theme.rockFace() + " is as deep as it is wide — that is a plinth,"
                             + " not a face");
             checked++;
         }

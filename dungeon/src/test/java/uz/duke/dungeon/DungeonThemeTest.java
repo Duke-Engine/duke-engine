@@ -103,7 +103,7 @@ class DungeonThemeTest {
         for (int depth = 1; depth <= 20; depth++) {
             var chosen = themes.pick(7L, depth);
             assertNotNull(chosen, "depth " + depth + " has no look at all");
-            var tone = chosen.theme().toneWithPaths(chosen.tone());
+            var tone = chosen.tone();
             assertNotNull(tone.floor(), "depth " + depth + " has no ground to stand on");
             assertNotNull(tone.wall(), "depth " + depth + " has no walls");
         }
