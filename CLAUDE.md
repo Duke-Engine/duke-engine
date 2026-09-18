@@ -68,6 +68,7 @@ special-casing:
 | Modules | `ModuleFactory.withDefaults()` (body + locomotor) | its own module set, e.g. `RtsModules` |
 | Players | `Player` (identity + diplomacy), `PlayerList(PlayerFactory)` | its `Player` subtype, e.g. `RtsPlayer` |
 | Classification | `Kind`, interned by name | its vocabulary, e.g. `RtsKinds` |
+| Module groups | `@ModuleGroup` + `ModuleGroups` (Movement, Body, Combat, Effect, Script) | its own families, e.g. `RtsModuleGroups` (Economy, Progression) |
 | Events | `WorldEvent` + the post/drain channel | its own events, e.g. `WeaponFired` |
 
 Before adding anything to `core`, ask: *would a game that is not an RTS want

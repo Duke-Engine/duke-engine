@@ -5,6 +5,8 @@ import java.util.logging.Logger;
 import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.ModuleFactory;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
 
@@ -16,6 +18,7 @@ import uz.duke.core.thing.GameObject;
  * disabled for that unit, but the simulation (and everyone else's scripts)
  * keeps running — a broken mod must never crash the game.
  */
+@ModuleGroup(ModuleGroups.SCRIPT)
 public final class ScriptModule extends UpdateModule {
 
     private static final Logger LOG = Logger.getLogger(ScriptModule.class.getName());

@@ -6,6 +6,8 @@ import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
 import uz.duke.core.module.Module;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
 
@@ -32,6 +34,7 @@ import uz.duke.core.thing.GameObject;
  * reaches the weapon: one modifier among whatever else the unit carries, rather
  * than a case inside the weapon itself.
  */
+@ModuleGroup({RtsModuleGroups.PROGRESSION, ModuleGroups.COMBAT})
 public class ExperienceModule extends Module implements DamageModifier {
 
     /** One rung: what it costs to reach, and what reaching it is worth. */

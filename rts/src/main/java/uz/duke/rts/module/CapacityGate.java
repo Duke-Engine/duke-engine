@@ -3,6 +3,7 @@ package uz.duke.rts.module;
 import uz.duke.core.module.Module;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.ini.Ini;
+import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.thing.GameObject;
 
 /**
@@ -27,6 +28,7 @@ import uz.duke.core.thing.GameObject;
  * End
  * }</pre>
  */
+@ModuleGroup(RtsModuleGroups.ECONOMY)
 public final class CapacityGate extends Module implements ProductionGate {
 
     /** No configuration: the rule is the same wherever it is attached. */

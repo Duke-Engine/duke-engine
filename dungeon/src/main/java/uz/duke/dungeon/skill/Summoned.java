@@ -1,5 +1,7 @@
 package uz.duke.dungeon.skill;
 
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
 
@@ -10,6 +12,7 @@ import uz.duke.core.thing.GameObject;
  * so it is drawn collapsing rather than blinking out -- but by nobody, so its going is
  * worth nothing to anyone.
  */
+@ModuleGroup({ModuleGroups.EFFECT, ModuleGroups.BODY})
 public final class Summoned extends UpdateModule {
 
     private int framesLeft;

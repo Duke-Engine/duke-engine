@@ -1,9 +1,11 @@
 package uz.duke.dungeon.loot;
 
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
 import uz.duke.dungeon.skill.SkillBook;
+import uz.duke.rts.module.RtsModuleGroups;
 
 /**
  * A thing lying on the floor, waiting to be walked over.
@@ -21,6 +23,7 @@ import uz.duke.dungeon.skill.SkillBook;
  * <p>Deterministic: a distance in the simulation's own units, checked on a frame
  * boundary like everything else. What it holds was settled when it dropped.
  */
+@ModuleGroup(RtsModuleGroups.ECONOMY)
 public final class LootUpdate extends UpdateModule {
 
     private final LootBag bag;

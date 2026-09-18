@@ -2,6 +2,8 @@ package uz.duke.dungeon.combat;
 
 import uz.duke.core.module.DamageType;
 import uz.duke.core.module.Module;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.thing.GameObject;
 import uz.duke.rts.module.ProjectileLauncher;
 
@@ -26,6 +28,7 @@ import uz.duke.rts.module.ProjectileLauncher;
  * is what this replaced — made a monster pay for a blow every time it merely came
  * close, so anything faster than it could walk away for free.
  */
+@ModuleGroup(ModuleGroups.COMBAT)
 public final class Swing extends Module implements ProjectileLauncher {
 
     /** Long before any run begins, so nothing counts as recently struck at first. */

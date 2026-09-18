@@ -34,6 +34,7 @@ import uz.duke.core.thing.World;
  * disagree in the last bit — which is a desync. {@code StrictMath} is defined to
  * produce the same bits everywhere.
  */
+@ModuleGroup(ModuleGroups.MOVEMENT)
 public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     /**

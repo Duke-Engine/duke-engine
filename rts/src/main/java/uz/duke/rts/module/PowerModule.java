@@ -4,6 +4,7 @@ import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
 import uz.duke.core.module.Module;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.thing.GameObject;
 
 /**
@@ -15,6 +16,7 @@ import uz.duke.core.thing.GameObject;
  * power-dependent structures function — when a base is under-powered, production
  * stalls and defenses go offline, exactly as in Generals.
  */
+@ModuleGroup(RtsModuleGroups.ECONOMY)
 public final class PowerModule extends Module {
 
     /** INI config: {@code Produces} / {@code Consumes} (power units). */

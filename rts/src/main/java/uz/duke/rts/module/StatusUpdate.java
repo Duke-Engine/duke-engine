@@ -6,6 +6,8 @@ import java.util.Map;
 import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
@@ -21,6 +23,7 @@ import uz.duke.core.thing.ObjectStatus;
  * behaviour. Timers live in an {@link EnumMap} so iteration order is the enum's
  * declaration order — deterministic.
  */
+@ModuleGroup(ModuleGroups.EFFECT)
 public final class StatusUpdate extends UpdateModule {
 
     /** No configuration. */

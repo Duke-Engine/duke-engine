@@ -6,7 +6,10 @@ import uz.duke.core.module.Armor;
 import uz.duke.core.module.BodyModule;
 import uz.duke.core.module.DamageType;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.thing.GameObject;
+import uz.duke.rts.module.RtsModuleGroups;
 
 /**
  * A body whose maximum health and armour can change after it is built.
@@ -26,6 +29,7 @@ import uz.duke.core.thing.GameObject;
  * which turns "keep killing" into a way of avoiding the fight rather than a
  * reward for winning it.
  */
+@ModuleGroup({ModuleGroups.BODY, RtsModuleGroups.PROGRESSION})
 public final class GrowableBody extends BodyModule {
 
     /** INI configuration: the same {@code MaxHealth} field every body reads. */

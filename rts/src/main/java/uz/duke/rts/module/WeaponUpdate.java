@@ -4,6 +4,8 @@ import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
 import uz.duke.core.module.DamageType;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.player.Relationship;
@@ -36,6 +38,7 @@ import uz.duke.rts.player.RtsPlayer;
  * <p>{@link WeaponHold} is the same idea for a moment rather than a movement: any
  * module on the unit may say it is busy, and the weapon keeps quiet while it is.
  */
+@ModuleGroup(ModuleGroups.COMBAT)
 public final class WeaponUpdate extends UpdateModule {
 
     /**

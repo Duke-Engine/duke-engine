@@ -3,6 +3,8 @@ package uz.duke.dungeon.skill;
 import java.util.List;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.DamageType;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.player.Relationship;
@@ -42,6 +44,7 @@ import uz.duke.rts.module.WeaponUpdate;
  * a {@code STRIKE} is the nearest enemy with ties broken by object id; a
  * {@code DASH} walks with {@link StrictMath}. Nothing here asks the clock.
  */
+@ModuleGroup({ModuleGroups.COMBAT, ModuleGroups.MOVEMENT, ModuleGroups.EFFECT, ModuleGroups.BODY})
 public final class SkillBook extends UpdateModule implements DamageModifier, WeaponHold {
 
     /** How far apart a dash checks the ground it is crossing. */

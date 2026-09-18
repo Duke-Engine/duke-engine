@@ -4,6 +4,7 @@ import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
 import uz.duke.core.module.Module;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.thing.GameObject;
 
 /**
@@ -14,6 +15,7 @@ import uz.duke.core.thing.GameObject;
  * to a requested quantity and returns how much was actually available. When it
  * hits zero the pile is exhausted.
  */
+@ModuleGroup(RtsModuleGroups.ECONOMY)
 public final class SupplyModule extends Module {
 
     /** INI config: {@code Amount} (starting resources). */

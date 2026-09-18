@@ -4,6 +4,8 @@ import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
 import uz.duke.core.module.DamageType;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
@@ -32,6 +34,7 @@ import uz.duke.rts.module.ExperienceModule;
  *
  * <p>No body and no geometry: nothing shoots at it and nothing walks into it.
  */
+@ModuleGroup({ModuleGroups.EFFECT, ModuleGroups.COMBAT})
 public final class FallingUpdate extends UpdateModule {
 
     /**

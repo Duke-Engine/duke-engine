@@ -5,6 +5,8 @@ import uz.duke.core.ini.Ini;
 import uz.duke.core.module.DamageType;
 import uz.duke.core.module.Module;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.thing.GameObject;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.rts.module.ProjectileLauncher;
@@ -29,6 +31,7 @@ import uz.duke.rts.module.ProjectileLauncher;
  * leaves it — and a block that says nothing still gets the hero's arrow, which is
  * what keeps his own creature file a single empty pair of lines.
  */
+@ModuleGroup(ModuleGroups.COMBAT)
 public final class Bow extends Module implements ProjectileLauncher {
 
     /**

@@ -4,6 +4,8 @@ import uz.duke.core.GameConstants;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.DamageType;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
@@ -28,6 +30,7 @@ import uz.duke.rts.module.ExperienceModule;
  * weapons only acquire things with a body; and it passes through the world rather
  * than shouldering monsters aside on its way past.
  */
+@ModuleGroup({ModuleGroups.MOVEMENT, ModuleGroups.COMBAT})
 public final class ArrowUpdate extends UpdateModule {
 
     /**

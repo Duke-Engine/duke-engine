@@ -2,7 +2,9 @@ package uz.duke.dungeon.loot;
 
 import uz.duke.core.module.DieModule;
 import uz.duke.core.module.Module;
+import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.thing.GameObject;
+import uz.duke.rts.module.RtsModuleGroups;
 
 /**
  * What a monster leaves on the floor when it finally goes.
@@ -17,6 +19,7 @@ import uz.duke.core.thing.GameObject;
  * depends on the floor it was found on, and a template says what a thing is, not
  * where it was met.
  */
+@ModuleGroup(RtsModuleGroups.ECONOMY)
 public final class LootDrop extends Module implements DieModule {
 
     private final LootTable table;

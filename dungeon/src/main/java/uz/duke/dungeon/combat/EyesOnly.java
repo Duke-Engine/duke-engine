@@ -1,6 +1,8 @@
 package uz.duke.dungeon.combat;
 
 import uz.duke.core.module.Module;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.thing.GameObject;
 import uz.duke.dungeon.ai.SightLine;
 import uz.duke.rts.module.WeaponHold;
@@ -44,6 +46,7 @@ import uz.duke.rts.module.WeaponUpdate;
  * first thing with a reach worth the name would otherwise shoot him through the
  * stone between them, which is the one thing a dungeon must not allow.
  */
+@ModuleGroup(ModuleGroups.COMBAT)
 public final class EyesOnly extends Module implements WeaponHold {
 
     /**

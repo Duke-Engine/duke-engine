@@ -4,6 +4,8 @@ import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
@@ -17,6 +19,7 @@ import uz.duke.core.thing.GameObject;
  * target point, then begins recharging. The cooldown ticks down each frame.
  * Friendly units are never hit.
  */
+@ModuleGroup(ModuleGroups.COMBAT)
 public final class SpecialPowerModule extends UpdateModule {
 
     /** INI config: {@code RechargeFrames}, {@code Radius}, {@code Damage}. */

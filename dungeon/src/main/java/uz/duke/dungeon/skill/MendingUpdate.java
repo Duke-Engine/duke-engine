@@ -3,6 +3,8 @@ package uz.duke.dungeon.skill;
 import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectId;
@@ -22,6 +24,7 @@ import uz.duke.core.thing.ObjectId;
  *
  * <p>No body and no geometry: nothing shoots at it and nothing walks into it.
  */
+@ModuleGroup({ModuleGroups.EFFECT, ModuleGroups.BODY})
 public final class MendingUpdate extends UpdateModule {
 
     /** Empty in the creature file: who, how much and how soon are the skill's. */

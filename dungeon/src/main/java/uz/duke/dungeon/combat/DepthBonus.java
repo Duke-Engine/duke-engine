@@ -1,8 +1,11 @@
 package uz.duke.dungeon.combat;
 
 import uz.duke.core.module.Module;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.thing.GameObject;
 import uz.duke.rts.module.DamageModifier;
+import uz.duke.rts.module.RtsModuleGroups;
 
 /**
  * How much harder a monster hits for being this far down.
@@ -19,6 +22,7 @@ import uz.duke.rts.module.DamageModifier;
  * the weapon: see {@code SkillBook}. And it remembers what its health was grown by,
  * so whatever it calls up was found as deep as it was: see {@code SummoningUpdate}.
  */
+@ModuleGroup({ModuleGroups.COMBAT, RtsModuleGroups.PROGRESSION})
 public final class DepthBonus extends Module implements DamageModifier {
 
     private final float multiplier;

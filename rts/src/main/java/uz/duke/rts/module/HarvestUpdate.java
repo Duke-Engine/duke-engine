@@ -3,6 +3,7 @@ package uz.duke.rts.module;
 import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
@@ -19,6 +20,7 @@ import uz.duke.rts.player.RtsPlayer;
  * reach it idles. This models the gather→deposit loop without the full
  * drive-there-and-back movement (a natural later refinement using {@link MoveUpdate}).
  */
+@ModuleGroup(RtsModuleGroups.ECONOMY)
 public final class HarvestUpdate extends UpdateModule {
 
     /** INI config: {@code LoadPerTrip}, {@code FramesPerTrip}. */

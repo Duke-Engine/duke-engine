@@ -5,6 +5,8 @@ import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
 import uz.duke.core.module.BodyModule;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
 
@@ -17,6 +19,7 @@ import uz.duke.core.thing.GameObject;
  * {@link BodyModule#heal} clamps to the maximum, so a unit recovers toward full
  * health and stops there. A dead unit is never revived.
  */
+@ModuleGroup(ModuleGroups.BODY)
 public final class AutoHealUpdate extends UpdateModule {
 
     /** INI config: {@code HealPerSecond}. */

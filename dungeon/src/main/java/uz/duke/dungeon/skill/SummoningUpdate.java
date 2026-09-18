@@ -4,6 +4,8 @@ import java.util.List;
 import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectId;
@@ -25,6 +27,7 @@ import uz.duke.rts.module.ExperienceModule;
  * deep as its caller, and it counts against its caller's {@code MaxSummoned} for as long
  * as it stands.
  */
+@ModuleGroup({ModuleGroups.COMBAT, ModuleGroups.EFFECT})
 public final class SummoningUpdate extends UpdateModule {
 
     /** Empty in the creature file: what, how soon and for how long are the skill's. */

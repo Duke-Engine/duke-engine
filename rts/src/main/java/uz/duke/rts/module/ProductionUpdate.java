@@ -5,6 +5,7 @@ import java.util.Deque;
 import uz.duke.core.ini.Ini;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.module.MoveUpdate;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
@@ -23,6 +24,7 @@ import uz.duke.rts.player.RtsPlayer;
  *
  * <p>One unit builds at a time, in queue order — deterministic by construction.
  */
+@ModuleGroup(RtsModuleGroups.ECONOMY)
 public final class ProductionUpdate extends UpdateModule {
 
     /**

@@ -4,6 +4,8 @@ import uz.duke.core.GameConstants;
 import uz.duke.core.ini.FieldParseTable;
 import uz.duke.core.ini.Ini;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.module.UpdateModule;
 import uz.duke.core.thing.GameObject;
 
@@ -19,6 +21,7 @@ import uz.duke.core.thing.GameObject;
  * <p>Nothing until {@code HeroProgress} names a rate: the figure is his block's, not his
  * creature's, and a creature spawned without a hero's progress behind it heals nothing.
  */
+@ModuleGroup(ModuleGroups.BODY)
 public final class Recovery extends UpdateModule {
 
     private static final int A_SECOND = 10 * GameConstants.LOGICFRAMES_PER_SECOND;

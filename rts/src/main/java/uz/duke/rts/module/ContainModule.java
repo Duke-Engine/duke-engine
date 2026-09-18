@@ -7,6 +7,8 @@ import uz.duke.core.ini.Ini;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.Module;
 import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleGroup;
+import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectId;
 
@@ -19,6 +21,7 @@ import uz.duke.core.thing.ObjectId;
  * targeted — until unloaded back into the world beside the transport. Capacity is
  * fixed; loading past it fails.
  */
+@ModuleGroup(ModuleGroups.MOVEMENT)
 public final class ContainModule extends Module {
 
     /** INI config: {@code Slots} (passenger capacity). */

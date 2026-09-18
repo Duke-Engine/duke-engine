@@ -10,6 +10,7 @@ import uz.duke.core.thing.GameObject;
  * <p>Starts at full health and tracks current/max health, clamping both damage
  * and healing to the valid range.
  */
+@ModuleGroup(ModuleGroups.BODY)
 public final class ActiveBody extends BodyModule {
 
     /**
