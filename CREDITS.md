@@ -12,6 +12,16 @@ are: each keeps the terms given here.
 
 **Adding an asset means adding a row here.** See the rule in `CLAUDE.md`.
 
+## The kit
+
+The starter set every game may draw from — the effects, and the art they are drawn with. Everything
+lives under `kit/src/main/resources/`, so the paths below are written from there.
+
+| What | Who | Licence | Where |
+|---|---|---|---|
+| Particle Pack — every flame, smoke, spark, slash and ring the skills are drawn with | Kenney | CC0 | `kit/effects/particles/` |
+| Two columns of light — the gradients a level and an arrival are drawn with | made for this game, by `dungeon/art/effects/pillar_textures.py` | CC0 | `kit/effects/particles/pillar_{core,halo}.png` |
+
 ## Duke Dungeon
 
 Everything lives under `dungeon/src/main/resources/`, so the paths below are
@@ -37,8 +47,6 @@ written from there.
 | Interface Sounds — clicks and a gong | Kenney | CC0 | `audio/ui/` |
 | A climb of notes — the level-up | from the owner's own asset folder, maker not named | **unconfirmed, see below** | `audio/ui/level_up.ogg` |
 | Fantasy UI Borders — the carved frames the hero panel's edges are painted with | Kenney | CC0 | `ui/borders/` |
-| Particle Pack — every flame, smoke, spark, slash and ring the skills are drawn with | Kenney | CC0 | `effects/particles/` |
-| Two columns of light — the gradients a level and an arrival are drawn with | made for this game, by `dungeon/art/effects/pillar_textures.py` | CC0 | `effects/particles/pillar_{core,halo}.png` |
 | Cursor Pack — the mouse pointers | Kenney | CC0 | `ui/cursors/` |
 | Voiceover Pack — what Erika says | Kenney | CC0 | `audio/voice/` |
 | Three pieces of music | freesound.org | **unconfirmed, see below** | `audio/music/` |
@@ -221,9 +229,9 @@ the pack.
 
 ### The particles, and why they are half the size they shipped at
 
-**Particle Pack** (Kenney, CC0, version 1.1) ships at `effects/particles/` with its
+**Particle Pack** (Kenney, CC0, version 1.1) ships in the kit, at `kit/effects/particles/`, with its
 own `License.txt` beside it — all 96 of the transparent textures, `rotated/`
-included, so choosing a different smoke for a skill is an edit to its effect in `data/effects/`
+included, so choosing a different smoke for a skill is an edit to its effect in `kit/data/effects/`
 rather than a trip back to the pack.
 
 They shipped at 512×512 and are kept at **256×256**. A particle is a soft shape

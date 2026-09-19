@@ -144,7 +144,7 @@ class StagePlayTest {
      * <p>Loaded the way a player's copy loads it — off the classpath, through the
      * same check — so a stage that stopped being valid because the creature file
      * was re-tuned fails here rather than in front of somebody who installed it.
-     * Rebuild it with {@code ./gradlew :worldbuilder:writeExampleStage}.
+     * Rebuild it with {@code ./gradlew :dungeon:writeExampleMaps}.
      */
     @Test
     void theShippedStageCanBePlayed() {

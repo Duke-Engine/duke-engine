@@ -115,7 +115,7 @@ yetib bo'lmaydigan xona, toshdagi maxluq yoki belgilanmagan boss bilan kelsa,
 o'yin **hammasini ro'yxat qilib to'xtaydi** — jimgina roguelike'ga qaytmaydi.
 Yurish engine'ning `PathGrid.canStep` i bilan tekshiriladi, nusxasi bilan emas.
 
-Stage yasash — `worldbuilder` moduli (`./gradlew :worldbuilder:run`).
+Stage yasash — `./gradlew :dungeon:newMap --args="nom seed [chuqurlik [eni bo'yi xonalar]]"` qavatni seed'dan chizadi; nima qayerda turishini IDE'dagi **Map** tabida qo'lda qo'yasiz.
 
 ### Qiyinchilik = chuqurlik
 
@@ -145,7 +145,7 @@ Generatsiya o'lchami endi `Layout` record'i orqali override qilinadi
 
 Shipping bosqichlar: `first.stage` (50×36, 9 xona, chuqurlik 1) va
 `deep.stage` (100×76, 28 xona, **chuqurlik 8** — tushishdan chuqurroq).
-Ikkalasini `./gradlew :worldbuilder:writeExampleStage` qayta yozadi.
+Ikkalasini `./gradlew :dungeon:writeExampleMaps` qayta yozadi.
 
 **Ulanish kafolati kattalikda ham tekshirilgan:** `LayoutTest` 180×140 / 60 xona
 o'lchamda 12 ta seed'ni `StageCheck` bilan yurib chiqadi.

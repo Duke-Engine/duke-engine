@@ -151,16 +151,7 @@ EffectBudget
   ; over everything it reaches. Past it an effect burns without lighting the room
   ; and keeps everything else.
   MaxLights = 8
-  MaxPerEffect = 8
-  MaxBursts = 8
-  ; How many skill rings may be open across the floor at once. Its own ceiling
-  ; rather than a share of the bursts', because it is a different resource: a
-  ; burst is particles and a light, a ring is a vertex buffer and two materials.
-  ; Six is a whirlwind, a nova and a charge overlapping with room to spare. Past
-  ; it the next skill keeps its fire, its light and its damage and loses a
-  ; decoration, which is the cheapest thing in the room to lose.
-  MaxRings = 6
-  ; Nothing beyond this from the camera gets a light or a trail. The hero's own
+  ; Nothing beyond this from the camera gets a light or its layers. The hero's own
   ; sight is 70 and the camera sits back from him, so this reaches comfortably
   ; past anything he can see.
   MaxDistance = 320

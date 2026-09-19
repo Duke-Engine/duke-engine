@@ -1,5 +1,6 @@
 package uz.duke.dungeon.combat;
 
+import uz.duke.core.data.Link;
 import uz.duke.core.module.DamageType;
 import uz.duke.core.module.Module;
 import uz.duke.core.module.ModuleData;
@@ -7,6 +8,7 @@ import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.module.ModuleGroups;
 import uz.duke.core.thing.GameObject;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.content.Projectile;
 import uz.duke.rts.module.ProjectileLauncher;
 
 /**
@@ -41,7 +43,7 @@ public final class Bow extends Module implements ProjectileLauncher {
      * @param muzzleOffset how far out in front of the shooter it appears, so it
      *     does not squeeze out of its own chest
      */
-    public record Data(String projectile, float speed, float muzzleOffset) implements ModuleData {
+    public record Data(@Link(Projectile.class) String projectile, float speed, float muzzleOffset) implements ModuleData {
 
         /** A block that leaves the offset out means the game's own, and zero is an offset. */
         static final Data DEFAULTS = new Data(null, 0f, -1f);

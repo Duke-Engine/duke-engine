@@ -29,11 +29,11 @@ public final class StageFile {
     private static final String HEADER = """
             ; Duke Dungeon — a map drawn once: a dungeon that has stopped changing.
             ;
-            ; Written by the world builder (./gradlew :worldbuilder:run) and read by the
-            ; game (--map=<its Name, or this file>). Hand-editing is expected — every
-            ; position is a cell, counted from the top-left of Cells — and every edit is
-            ; checked on load: a monster inside a wall or a room nothing can walk to
-            ; stops the game with a list of what is wrong rather than starting anyway.
+            ; Drawn from a seed (./gradlew :dungeon:newMap), filled on the Map tab of the
+            ; IDE, and read by the game (--map=<its Name, or this file>). Hand-editing is
+            ; expected — every position is a cell, counted from the top-left of Cells — and
+            ; every edit is checked on load: a monster inside a wall or a room nothing can
+            ; walk to stops the game with a list of what is wrong rather than starting.
 
             """;
 
@@ -128,7 +128,7 @@ public final class StageFile {
      * The stage a map is: its floor, exactly as the generator handed it over.
      *
      * <p>A missing entrance or a missing boss is not caught here: they are things an author has not
-     * finished deciding, and the world builder has to be able to hold one of those while he
+     * finished deciding, and a map being filled has to be able to hold one of those while he
      * decides. A missing floor is — there is no stage at all without one. See {@link StageCheck}
      * for the rest.
      */

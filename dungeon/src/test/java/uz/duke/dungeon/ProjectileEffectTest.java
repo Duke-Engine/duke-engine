@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashSet;
 import org.junit.jupiter.api.Test;
-import uz.duke.client3d.Visuals;
 import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
 
@@ -44,44 +43,22 @@ class ProjectileEffectTest {
     }
 
     /**
-     * And every effect uses kinds the client knows how to draw.
+     * And every effect draws something: layers, or a glow on whoever wears it.
      *
-     * <p>A name the client does not recognise is ignored rather than refused,
-     * which is the right behaviour at run time and the wrong one to find out
-     * about: the arrow flies, nothing burns, and the file looks correct.
+     * <p>An effect of neither is one the file looks right about and the screen never shows —
+     * the arrow flies, nothing burns, and nobody is told.
      */
     @Test
-    void everyKindNamedIsOneTheClientCanDraw() {
-        var known = Visuals.EffectVisual.allKinds();
-        // An effect with layers is drawn by its layers alone, so it may name no kind.
-        var layered = new HashSet<String>();
-        for (var layer : SETTINGS.effectLayers()) {
-            layered.add(layer.effect());
-        }
+    void everyEffectDrawsSomething() {
+        var layered = layered();
         for (var effect : SETTINGS.effects()) {
-            assertFalse(effect.kinds().isEmpty() && !layered.contains(effect.name()),
-                    effect.name() + " is an effect that does nothing");
-            for (var kind : effect.kinds()) {
-                assertTrue(known.contains(kind),
-                        effect.name() + " asks for " + kind + ", and the client draws " + known);
-            }
-        }
-    }
-
-    /** A thing drawn as a glowing orb needs a size to be drawn at. */
-    @Test
-    void anythingDrawnAsAnOrbIsGivenOne() {
-        for (var effect : SETTINGS.effects()) {
-            if (!effect.kinds().contains(Visuals.EffectVisual.GLOW_ORB)) {
-                continue;
-            }
-            assertTrue(effect.orbSize() > 0f,
-                    effect.name() + " is a glowing orb of no size, which is nothing at all");
+            assertTrue(layered.contains(effect.name()) || effect.glow() != null && !effect.glow().parts().isEmpty(),
+                    effect.name() + " is an effect that draws nothing");
         }
     }
 
     /**
-     * The projectile with no model of its own has an effect that draws one.
+     * The projectile with no model of its own has an effect whose layers draw it.
      *
      * <p>Otherwise it falls back to the client's plain shape, which is a capsule
      * with a gun barrel on it — right for a nameless unit in a test game and
@@ -89,17 +66,24 @@ class ProjectileEffectTest {
      */
     @Test
     void aProjectileWithNoModelIsDrawnBySomething() {
+        var layered = layered();
         for (var projectile : SETTINGS.projectiles()) {
             if (projectile.hasModel()) {
                 continue;
             }
             assertNotNull(projectile.effect(),
                     projectile.name() + " has neither a model nor an effect to stand in for one");
-            var effect = SETTINGS.effects().stream()
-                    .filter(e -> e.name().equals(projectile.effect())).findFirst().orElseThrow();
-            assertTrue(effect.kinds().contains(Visuals.EffectVisual.GLOW_ORB),
+            assertTrue(layered.contains(projectile.effect()),
                     projectile.name() + " has no model and its effect draws no body either");
         }
+    }
+
+    private static java.util.Set<String> layered() {
+        var layered = new HashSet<String>();
+        for (var layer : SETTINGS.effectLayers()) {
+            layered.add(layer.effect());
+        }
+        return layered;
     }
 
     /**

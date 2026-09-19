@@ -2,6 +2,7 @@ package uz.duke.dungeon.content;
 
 import java.util.List;
 import java.util.Map;
+import uz.duke.client3d.Effect;
 import uz.duke.client3d.OrderMark;
 import uz.duke.core.thing.ThingTemplateLoader;
 import uz.duke.dungeon.loot.Loot;
@@ -293,7 +294,11 @@ public final class DungeonSettings {
                 }
                 case Projectile projectile -> projectiles.add(projectile);
                 case Prop prop -> props.add(prop);
-                case Effect effect -> effects.add(effect);
+                case Effect effect -> {
+                    // The game's own with the Name of one of the kit's, read after it, is drawn instead of it.
+                    effects.removeIf(earlier -> earlier.name().equals(effect.name()));
+                    effects.add(effect);
+                }
                 case Sound sound -> sounds.add(sound);
                 case Attribute attribute -> attributes.add(attribute);
                 case LootItem item -> loot.add(item.loot());

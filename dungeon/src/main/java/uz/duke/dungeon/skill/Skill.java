@@ -1,6 +1,10 @@
 package uz.duke.dungeon.skill;
 
 import uz.duke.core.data.Clip;
+import uz.duke.core.data.Link;
+import uz.duke.client3d.Effect;
+import uz.duke.dungeon.content.Monster;
+import uz.duke.dungeon.content.Projectile;
 
 /**
  * One skill as the data file describes it, and what it comes to at a given level.
@@ -116,9 +120,9 @@ public record Skill(
         int windUpFrames,
         int manaCost,
         int manaCostPerLevel,
-        String projectile,
+        @Link(Projectile.class) String projectile,
         String icon,
-        String look,
+        @Link(Effect.class) String look,
         @Clip String castAnim,
         float castSeconds,
         String name,
@@ -126,7 +130,7 @@ public record Skill(
         float projectileSpeed,
         float heal,
         int healBelowPercent,
-        String summons,
+        @Link(Monster.class) String summons,
         int summonCount,
         int maxSummoned,
         int summonExperiencePercent) {

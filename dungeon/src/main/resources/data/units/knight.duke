@@ -311,8 +311,8 @@ Hero
       CooldownPerLevel = -2
       ; Four points may go into it, and it waits for nothing but one of them.
       MaxRank = 4
-      ; What it looks like going off -- see Effect KnightCleave.
-      Look = KnightCleave
+      ; What it looks like going off -- see Effect Cleave.
+      Look = Cleave
       Name = Kesish
       Icon = icons/skills/skill_cleave.png
       Blurb = Oldidagi bir joyga zarba beradi va o'sha yerdagi hamma dushmanga tegadi. Bittasiga emas — to'daga. Uning eng tez-tez ishlatadigan mahorati.
@@ -341,8 +341,8 @@ Hero
       CooldownPerLevel = -5
       ; Four points may go into it, and it waits for nothing but one of them.
       MaxRank = 4
-      ; What it looks like going off -- see Effect KnightCharge.
-      Look = KnightCharge
+      ; What it looks like going off -- see Effect Charge.
+      Look = Charge
       Name = Hujum
       Icon = icons/skills/skill_dash.png
       Blurb = Oldinga otiladi va yo'lida uchraganlarni ham urib o'tadi. Qo'li kalta odamning nishoniga yetadigan yagona yo'li.
@@ -367,8 +367,8 @@ Hero
       CooldownPerLevel = -6
       ; Four points may go into it, and it waits for nothing but one of them.
       MaxRank = 4
-      ; What it looks like going off -- see Effect KnightGuard.
-      Look = KnightGuard
+      ; What it looks like going off -- see Effect Guard.
+      Look = Guard
       Name = Qalqon
       Icon = icons/skills/skill_guard.png
       Blurb = Bir necha soniya har zarbadan kamroq zarar oladi. Kamonchida bunaqasi yo'q va bo'lmasligi ham kerak: uning javobi — o'sha yerda bo'lmaslik.
@@ -404,8 +404,8 @@ Hero
       ; 8 and it is still there at 9.
       MaxRank = 3
       LevelPerRank = 4
-      ; What it looks like going off -- see Effect KnightWhirlwind.
-      Look = KnightWhirlwind
+      ; What it looks like going off -- see Effect Whirlwind.
+      Look = Whirlwind
       Name = Girdob
       Icon = icons/skills/skill_whirlwind.png
       Blurb = To'rt soniya aylanadi va atrofidagi hamma sekin-asta qonaydi. Zarar har tushishiga hisoblanadi, shuning uchun ichida turgan ko'p oladi, chiqib ketgan kam.

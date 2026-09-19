@@ -1,0 +1,78 @@
+Effect
+  Name = FireBolt
+  ; The mage's ORDINARY attack, so it is small. What a fireball proper looks like
+  ; is Fireball's; this one is a Core about a fist across at the scale
+  ; everything down here is drawn at, and enough fire behind it to hide its edge --
+  ; a glowing ball on its own reads as a coloured ball rather than something
+  ; burning. Still an ordinary attack, still cheap.
+  Layers = [
+    Layer
+      Name = Core
+      Type = AURA
+      Texture = kit/effects/particles/circle_05.png
+      Blend = Additive
+      Cover = 0.3
+      Count = 6
+      Rate = 40
+      Life = [0.1, 0.16]
+      Size = [4.95, 3.3]
+      Colour = [0xFFBC94, 0xFF7A2A]
+      Alpha = [1, 0.5]
+    End
+    Layer
+      Name = Sparks
+      Type = TRAIL
+      Texture = kit/effects/particles/fire_01.png
+      Blend = Additive
+      Cover = 0.3
+      Count = 32
+      Rate = 71
+      Life = [0.27, 0.45]
+      Size = [4.8, 0.75]
+      SizeEase = 2
+      Colour = [0xFF7A2A, 0x5A0E00]
+      Alpha = [1, 0]
+      Speed = [2.5, 7.5]
+      Direction = ALL
+      Drag = 2
+      Spin = 90
+    End
+    Layer
+      Name = Glow
+      Type = LIGHT
+      LightColour = 0xFF6A18
+      LightPower = 1.8
+      LightRadius = 44
+    End
+    Layer
+      Name = Flash
+      Type = IMPACT
+      Texture = kit/effects/particles/star_08.png
+      Blend = Additive
+      Count = 1
+      Life = [0.14, 0.14]
+      Size = [5.2, 20.8]
+      SizeEase = 3
+      Colour = [0xFFFFFF, 0xFF7A2A]
+      Alpha = [1, 0]
+      FadeOut = 0.6
+      Height = 5
+      TurnJitter = 45
+    End
+    Layer
+      Name = Burst
+      Type = BURST
+      Texture = kit/effects/particles/circle_05.png
+      Blend = Additive
+      Cover = 0.3
+      Count = 26
+      Life = [0.19, 0.32]
+      Size = [3.12, 0.52]
+      Colour = [0xFF7A2A, 0x5A0E00]
+      Alpha = [1, 0]
+      Speed = [8, 20]
+      Direction = ALL
+      Drag = 3
+    End
+  ]
+End

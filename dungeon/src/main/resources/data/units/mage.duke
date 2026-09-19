@@ -336,8 +336,8 @@ Hero
       CooldownPerLevel = -4
       ; Four points may go into it, and it waits for nothing but one of them.
       MaxRank = 4
-      ; What it looks like going off -- see Effect MageCast.
-      Look = MageCast
+      ; What it looks like going off -- see Effect CastFlash.
+      Look = CastFlash
       Name = Olov o'qi
       Icon = icons/skills/skill_fire_arrow.png
       Blurb = Yo'nalish bo'ylab olov o'qi otadi. Birinchi uchragan tanaga yoki devorga urilib to'xtaydi va o'sha joyda portlaydi.
@@ -407,8 +407,8 @@ Hero
       CooldownPerLevel = -10
       ; Four points may go into it, and it waits for nothing but one of them.
       MaxRank = 4
-      ; What it looks like going off -- see Effect MageBlink.
-      Look = MageBlink
+      ; What it looks like going off -- see Effect Blink.
+      Look = Blink
       Name = Siljish
       Icon = icons/skills/skill_dash.png
       Blurb = Bir zumda boshqa joyda paydo bo'ladi. Oradagi narsa — devormi, dushmanmi — umuman ahamiyatsiz.

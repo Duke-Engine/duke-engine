@@ -831,7 +831,7 @@ class DungeonMonsterArtTest {
     /**
      * A creature told to glow has something on it that can.
      *
-     * <p>The whole of {@code GLOW_PARTS} is a word matched against the names of a
+     * <p>The whole of a {@code Glow} is a word matched against the names of a
      * model's meshes, and a word that matches nothing is the quietest kind of
      * mistake: the creature loads, is dressed, and simply does not glow. Nothing
      * raises and nothing logs, and from a chair it is indistinguishable from the
@@ -847,11 +847,11 @@ class DungeonMonsterArtTest {
             }
             var recipe = settings.effects().stream()
                     .filter(e -> e.name().equals(look.effect())).findFirst().orElseThrow();
-            if (!recipe.kinds().contains(uz.duke.client3d.Visuals.EffectVisual.GLOW_PARTS)) {
+            if (recipe.glow() == null) {
                 continue;
             }
             var model = assets().loadModel(look.model());
-            for (var part : recipe.parts()) {
+            for (var part : recipe.glow().parts()) {
                 assertTrue(hasPartNamed(model, part),
                         kind.name() + " is told to light its " + part + ", and "
                                 + look.model() + " has no mesh with that in its name");

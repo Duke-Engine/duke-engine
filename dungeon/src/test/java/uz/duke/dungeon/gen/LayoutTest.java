@@ -14,8 +14,7 @@ import uz.duke.dungeon.stage.StageCheck;
  *
  * <p>The descent's floors are small on purpose — space beyond what the rooms need
  * becomes corridor, and corridor is walked rather than played. A stage is drawn
- * once to be learnt, so it can afford to be large, and the world builder asks the
- * author how large.
+ * once to be learnt, so it can afford to be large, and its author says how large.
  *
  * <p>What has to survive that is <b>the connectivity guarantee</b>. It comes from
  * the construction — the corridors are a spanning tree — so in principle it holds

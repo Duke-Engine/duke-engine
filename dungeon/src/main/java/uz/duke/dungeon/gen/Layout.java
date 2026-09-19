@@ -15,9 +15,9 @@ import uz.duke.dungeon.content.DungeonSettings;
  * evening on can afford to be far larger than one he will see once. So the
  * numbers come out of the settings and into a value the caller may replace —
  * {@link #of(DungeonSettings)} is the descent's own, unchanged, and
- * {@link #sized} is what the world builder asks the author for.
+ * {@link #sized} is what a map drawn once is asked for.
  *
- * <p>Only the three the builder actually asks about are open: how wide, how tall,
+ * <p>Only the three a map drawn once is asked about are open: how wide, how tall,
  * how many rooms. Room size, corridor width, the gap between rooms and how far
  * apart they may drift stay in the file — they are what a dungeon in this game
  * <em>is</em>, and a room fourteen cells across is not a bigger dungeon, it is a

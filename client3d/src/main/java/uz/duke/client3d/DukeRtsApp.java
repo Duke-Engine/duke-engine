@@ -455,11 +455,8 @@ final class DukeRtsApp extends SimpleApplication {
         // Before the terrain, because rebuilding a world clears what is burning in
         // it and there has to be something there to clear.
         var budget = visuals.getEffectBudget();
-        effects = new ProjectileEffects(assetManager, rootNode, visuals,
-                budget.lights(), budget.perEffect(), budget.bursts(), budget.distance());
-        skillEffects = new SkillEffects(assetManager, rootNode, visuals, effects,
-                visuals.getRangeLook(),
-                visuals.getSkillRings(), budget.distance());
+        effects = new ProjectileEffects(assetManager, rootNode, visuals, budget.lights());
+        skillEffects = new SkillEffects(visuals, budget.distance());
         layered = new LayeredEffects(assetManager, rootNode, visuals, effects.lights(),
                 surroundings(), visuals.getParticleBudget(), budget.distance());
         hitFlash = new HitFlash(visuals.getHitFlash());
@@ -3353,8 +3350,7 @@ final class DukeRtsApp extends SimpleApplication {
         // After the units, because a burst lit this frame has to reach the stone
         // this frame — the terrain reads its lights off a material parameter, not
         // out of the scene, so nothing tells it but this.
-        effects.update(tpf);
-        skillEffects.update(tpf, this::floorHeightAt, this::whereUnitIs);
+        skillEffects.update(tpf);
         hitFlash.update(tpf);
         layered.update(tpf, cam);
         carryTheLightsToTheStone();
@@ -3648,12 +3644,8 @@ final class DukeRtsApp extends SimpleApplication {
             updateUnitNode(node, view);
             var look = visualFor(view.templateName());
             if (isNew) {
-                effects.appeared(view.id(), look, node.root,
-                        node.root.getWorldTranslation().clone(), cam.getLocation());
                 layered.flying(view.id(), look.effect, node.root,
                         new Vector3f(look.effectForward, look.yOffset, 0f), cam);
-            } else if (look.effect != null) {
-                effects.moved(view.id(), look, node.root);
             }
         }
         var gone = unitNodes.entrySet().iterator();
@@ -3662,10 +3654,8 @@ final class DukeRtsApp extends SimpleApplication {
             if (seen.contains(entry.getKey())) {
                 continue;
             }
-            // Its old recipe's light and sparks go back in the box whether it arrived
-            // or merely walked out of the light: that pool must not have to know
-            // which. Its layers do -- see Landing.
-            effects.gone(entry.getKey());
+            // Its layers are grounded whether it arrived or merely walked out of the
+            // light -- what it did on the way down is Landing's to say.
             layered.grounded(entry.getKey());
             var node = entry.getValue();
             var at = node.root.getLocalTranslation();
@@ -3741,23 +3731,17 @@ final class DukeRtsApp extends SimpleApplication {
                 var where = new Vector3f(died.position().x(), 0f, died.position().y());
                 playSound(visualFor(died.templateName()).dieSound, where);
                 // "Destroyed" is what this event means, so it is the arrow landing
-                // as much as the monster falling — and the arrow is the one that
-                // wants a burst where it struck.
+                // as much as the monster falling. What it draws where it struck is
+                // its layers' -- see Landing; what is left here is the knock, if the
+                // thing that just stopped existing asked for one. Nothing does but a
+                // meteor arriving, so the biggest thump in the game belongs to the
+                // thing that ARRIVED rather than to the man who called for it a
+                // second and a half ago and may well be dead.
                 var look = visualFor(died.templateName());
-                effects.landed(look.effect,
-                        where.setY(floorHeightAt(where.x, where.z) + look.yOffset),
-                        cam.getLocation());
-                // And a ring, if the thing that just stopped existing asked for
-                // one. Nothing does but a meteor arriving -- a skeleton's look is
-                // its eye sockets and has no SHOCKWAVE in it -- so this costs
-                // every other death in the game precisely nothing, and it means
-                // the biggest blast in the game is drawn by the thing that
-                // ARRIVED rather than by the man who called for it a second and a
-                // half ago and may well be dead.
                 skillEffects.cast(look.effect,
                         new uz.duke.core.math.Coord3D(died.position().x(),
                                 died.position().y(), 0f),
-                        cam.getLocation(), 0f, this::floorHeightAt);
+                        cam.getLocation());
                 layOut(died.object().value());
             } else if (event instanceof WeaponFired fired) {
                 var node = unitNodes.get(fired.shooter().value());
@@ -3804,8 +3788,7 @@ final class DukeRtsApp extends SimpleApplication {
         var casts = SkillEffects.castsIn(snapshot.status(), lastCastFrameDrawn);
         for (var cast : casts) {
             lastCastFrameDrawn = Math.max(lastCastFrameDrawn, cast.frame());
-            skillEffects.cast(cast.look(), cast.at(), cam.getLocation(), cast.radius(),
-                    cast.on(), this::floorHeightAt);
+            skillEffects.cast(cast.look(), cast.at(), cam.getLocation());
             // And the caster is seen doing it, if the game named a gesture for
             // this recipe. Nothing did until a mage needed both hands.
             castGesture(unitNodes.get(cast.by()), visuals.getCastAnim(cast.look()));
@@ -3903,25 +3886,6 @@ final class DukeRtsApp extends SimpleApplication {
                 return discovery == null || discovery.canSee(x, z);
             }
         };
-    }
-
-    /**
-     * Where a creature is standing this frame, or {@code null} if it is no longer
-     * on the field.
-     *
-     * <p>What a mark laid on somebody asks every frame so that it can keep itself
-     * under him. Taken off the node the player is looking at rather than out of
-     * the snapshot, so the disc and the model can never disagree about where he
-     * is — whatever ends up between the two later, a walk smoothed across frames
-     * among it. Only where on the floor: the ring reads the height itself.
-     */
-    private Coord3D whereUnitIs(int id) {
-        var node = unitNodes.get(id);
-        if (node == null) {
-            return null;
-        }
-        var where = node.root.getLocalTranslation();
-        return new Coord3D(where.x, where.z, 0f);
     }
 
     /**

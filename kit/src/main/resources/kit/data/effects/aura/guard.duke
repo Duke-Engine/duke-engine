@@ -1,0 +1,100 @@
+Effect
+  Name = Guard
+  ; E. The one that does not go off so much as come ON, so it is the only skill
+  ; in the game with a MARK on the caster: a disc round his feet that
+  ; stays as long as the guard does and breathes while it is there.
+  ;
+  ; It WALKS WITH HIM. The guard is a condition he is in rather than something
+  ; that happened to a flagstone, so a disc left on the stone he cast it from
+  ; would tell the player the stone was protected while the man standing outside
+  ; it takes half damage. Nothing in this block says so -- the cast says whose it
+  ; is, and the client keeps a mark under whoever owns it.
+  ;
+  ; ★ Drawn by its layers now, which last exactly as long as DurationFrames in
+  ; his skill block says. MarkSeconds here is read by nothing any more.
+
+  Layers = [
+    ; The guard, round him for exactly as long as it holds -- no Seconds, so the
+    ; skill's own DurationFrames. A bubble of light that goes where he goes and
+    ; blinks through the last quarter of its run, so the player knows to step back
+    ; before it drops rather than after; motes rising inside it; and a flash and a
+    ; ring when he raises it.
+    Layer
+      Name = Bubble
+      Type = AURA
+      Texture = kit/effects/particles/light_03.png
+      Blend = Additive
+      Cover = 0
+      Count = 1
+      Size = [26, 26]
+      Colour = [0xBFE6FF, 0x8FD8FF]
+      Alpha = [0.45, 0.45]
+      FadeIn = 0.04
+      FadeOut = 0.25
+      PulseRate = 6
+      PulseDepth = 0.7
+      Spin = 25
+      Height = 7
+    End
+
+    Layer
+      Name = Motes
+      Type = AURA
+      Texture = kit/effects/particles/star_04.png
+      Blend = Additive
+      Count = 10
+      Rate = 6
+      Radius = 7
+      Life = [0.8, 1.2]
+      Size = [1.6, 0.3]
+      Colour = [0xE6F6FF, 0x8FD8FF]
+      Speed = [2, 5]
+      Direction = UP
+      Spread = 20
+      Height = 1
+    End
+
+    Layer
+      Name = Raise
+      Type = IMPACT
+      Texture = kit/effects/particles/magic_04.png
+      Blend = Additive
+      Count = 1
+      Life = [0.3, 0.3]
+      Size = [10, 34]
+      SizeEase = 3
+      Colour = [0xFFFFFF, 0x8FD8FF]
+      Alpha = [1, 0]
+      FadeOut = 0.6
+      Height = 7
+      TurnJitter = 0
+    End
+
+    Layer
+      Name = Ring
+      Type = RING
+      Texture = kit/effects/particles/circle_02.png
+      Blend = Additive
+      Cover = 0.2
+      Count = 1
+      Life = [0.4, 0.4]
+      Size = [6, 34]
+      SizeEase = 3
+      Colour = [0xDFF4FF, 0x5AB8FF]
+      Alpha = [1, 0]
+      FadeOut = 0.5
+      Height = 0.4
+      TurnJitter = 0
+    End
+
+    Layer
+      Name = Light
+      Type = LIGHT
+      Seconds = 0.3
+      LightColour = 0x8FD8FF
+      LightPower = 2
+      LightRadius = 45
+      FadeOut = 0.8
+    End
+  ]
+End

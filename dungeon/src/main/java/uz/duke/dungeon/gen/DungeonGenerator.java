@@ -74,7 +74,7 @@ public final class DungeonGenerator {
     /**
      * The same, on a dungeon of somebody else's size.
      *
-     * <p>Only the world builder passes one. The descent's floors are the size the
+     * <p>Only a map drawn once passes one — see {@code MapWriter}. The descent's floors are the size the
      * settings file says, and handing it {@code Layout.of(settings)} is exactly
      * the call above — so a stage cut at 200 by 150 and a floor of the endless
      * dungeon come out of the same generator, drawn the same way, carrying the

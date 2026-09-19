@@ -420,8 +420,8 @@ public final class Visuals {
      * a game with six kinds of burning thing has two or three kinds of burning.
      * Units point at one by name with {@link UnitVisual#effect}.
      *
-     * <p>The client owns the <em>kinds</em> of effect — a trail, a glowing body, a
-     * burst on landing — and the game owns every number in them. That division is
+     * <p>The client owns the <em>types</em> of layer — a trail, an aura, a burst on
+     * landing — and the game owns every number in them. That division is
      * the same one the rest of this class keeps, and it is what lets a new burning
      * thing be a block of settings rather than a class.
      */
@@ -499,50 +499,25 @@ public final class Visuals {
     /**
      * What the client may spend on things in flight.
      *
-     * <p>Every one of these is a ceiling rather than a target, and the reason they
-     * exist at all is that a fight is not one arrow. Fifty in the air, each with a
-     * hundred sparks and a light of its own, is five thousand particles and fifty
-     * dynamic lights — and dynamic lights are the expensive kind. Past the ceiling
-     * a shot simply flies plainer: no light, or no trail, but the same shot going
-     * to the same place.
+     * <p>Ceilings rather than targets, and the reason they exist at all is that a
+     * fight is not one arrow. Fifty in the air, each with a light of its own, is
+     * fifty dynamic lights — and dynamic lights are the expensive kind. Past the
+     * ceiling a shot simply flies darker, but the same shot going to the same place.
      *
      * @param lights    how many may burn at once. The terrain shader reads four;
      *     more than that still light the creatures, which is where jME's own
      *     lighting is doing the work
-     * @param perEffect how many trails one recipe may have alight
-     * @param bursts    how many impacts may be burning at once
      * @param distance  how far from the camera a thing is still worth the trouble;
      *     zero for no limit
      */
-    public record EffectBudget(int lights, int perEffect, int bursts, float distance) {
+    public record EffectBudget(int lights, float distance) {
     }
 
-    private EffectBudget budget = new EffectBudget(4, 8, 8, 0f);
+    private EffectBudget budget = new EffectBudget(4, 0f);
 
-    public Visuals effectBudget(int lights, int perEffect, int bursts, float distance) {
-        this.budget = new EffectBudget(lights, perEffect, bursts, distance);
+    public Visuals effectBudget(int lights, float distance) {
+        this.budget = new EffectBudget(lights, distance);
         return this;
-    }
-
-    /**
-     * How many skill rings may be open across the floor at once.
-     *
-     * <p>Its own number rather than a fifth field on {@link EffectBudget}, which
-     * is about what is allowed to BURN -- lights, trails and bursts, all of them
-     * costing the renderer the same sort of thing. A ring costs a vertex buffer
-     * and two materials and nothing else; it is a different resource with a
-     * different sensible ceiling, and putting the two in one record would invite
-     * tuning one by moving the other.
-     */
-    private int skillRings = 6;
-
-    public Visuals skillRings(int rings) {
-        this.skillRings = Math.max(0, rings);
-        return this;
-    }
-
-    public int getSkillRings() {
-        return skillRings;
     }
 
     public EffectBudget getEffectBudget() {
@@ -555,100 +530,18 @@ public final class Visuals {
     }
 
     /**
-     * What a thing in flight looks like: what it trails, what it is made of, and
-     * what it leaves where it lands.
+     * What a thing looks like: the layers it is drawn from, the pieces of its wearer it
+     * lights, and how hard it knocks the camera.
      *
-     * <p>Every field has a harmless default, so a recipe that names only a colour
-     * is a recipe — and a game that names no recipe at all draws exactly what it
-     * drew before any of this existed.
+     * <p>Every part may be left out, so a recipe that names only a knock is a recipe —
+     * and a game that names no recipe at all draws exactly what it drew before any of
+     * this existed.
      */
     public static final class EffectVisual {
 
-        /**
-         * The effects this client knows how to draw.
-         *
-         * <p>Public because they are half of a contract: the client owns the kinds
-         * and the game owns which of them a thing uses, and a game with no way to
-         * ask what the kinds are would be guessing at strings.
-         */
-        public static final String FLAME_TRAIL = "FLAME_TRAIL";
-        public static final String GLOW_ORB = "GLOW_ORB";
-        public static final String IMPACT_BURST = "IMPACT_BURST";
-        /**
-         * Named pieces of a model, lit from inside.
-         *
-         * <p>The one of these that is not about something in flight, and the reason
-         * the whole arrangement was worth generalising: a skeleton's eye sockets, a
-         * rune on a door, the coals in a brazier. It costs one material and no
-         * light at all, which is what makes it affordable on every creature in a
-         * room — a torch each would be over the budget before the second one.
-         */
-        public static final String GLOW_PARTS = "GLOW_PARTS";
-
-        /**
-         * A ring that opens outward across the floor and fades as it goes.
-         *
-         * <p>The shape a skill is recognised by. A burst of sparks says "something
-         * happened here" and every skill in the game would say it the same way; a
-         * ring that opens to a particular size, at a particular speed, in a
-         * particular colour is the difference between a nova and a whirlwind at a
-         * glance -- and it is the one drawing that shows how far the skill
-         * actually reached, which no amount of fire does.
-         *
-         * <p>It lies on the FLOOR and follows it, storey by storey, so a skill cast
-         * at the top of a stair does not draw its ring through the steps.
-         */
-        public static final String SHOCKWAVE = "SHOCKWAVE";
-
-        /**
-         * A disc that stays where it is put, for as long as it is told to.
-         *
-         * <p>{@link #SHOCKWAVE}'s opposite: that one is over in half a second and
-         * says what just happened, this one sits still and says what is ABOUT to.
-         * A meteor's warning circle is the whole reason it exists -- a mark the
-         * player and the monsters are both given, so that walking out of it is a
-         * thing that can be done.
-         */
-        public static final String GROUND_MARK = "GROUND_MARK";
-
-        /** All of them, for a game that wants to check a settings file against it. */
-        public static java.util.Set<String> allKinds() {
-            return java.util.Set.of(FLAME_TRAIL, GLOW_ORB, IMPACT_BURST, GLOW_PARTS,
-                    SHOCKWAVE, GROUND_MARK);
-        }
-
-        /**
-         * Which of the client's effects this recipe uses, by name.
-         *
-         * <p>Strings rather than an enum because the enum is the client's and the
-         * settings file is the game's: a name the client does not know is a line
-         * in a file rather than a compile error, and it is ignored with a warning
-         * instead of stopping the game.
-         */
-        final java.util.Set<String> kinds = new java.util.LinkedHashSet<>();
-        /** Words that name the pieces GLOW_PARTS lights; see {@link #part}. */
-        final java.util.List<String> parts = new java.util.ArrayList<>();
-        java.awt.Color colour = java.awt.Color.WHITE;
-        java.awt.Color fade;
-        java.awt.Color lightColour;
-        float lightPower;
-        float lightRadius;
-        int particles;
-        float particleSize = 1f;
-        float particleLife = 0.4f;
-        float spread;
-        float orbSize;
-        int burstParticles;
-        float burstSize = 1f;
-        float burstSeconds = 0.3f;
-        float waveFrom;
-        float waveTo;
-        float waveSeconds = 0.45f;
-        float waveEdge = 1f;
-        float waveWash = 0.25f;
-        float waveEase = 2.4f;
-        float markSeconds;
-        float markRadius;
+        /** Words that name the pieces {@link #glow} lights; see there. */
+        final java.util.List<String> glowParts = new java.util.ArrayList<>();
+        java.awt.Color glowColour = java.awt.Color.WHITE;
         float shakeSeconds;
         float shakePower;
         /** The layers it is drawn from, in the order the file named them — see {@link EffectLayer}. */
@@ -657,14 +550,7 @@ public final class Visuals {
         private EffectVisual() {
         }
 
-        /**
-         * One more layer, drawn over the ones before it.
-         *
-         * <p>A recipe with layers is drawn by {@link LayeredEffects} and nothing
-         * else: the older kinds above it are kept for what they still do on their
-         * own -- a projectile's glowing body, a skeleton's eyes -- and ignored for
-         * anything the layers draw, so an effect is never drawn twice in two styles.
-         */
+        /** One more layer, drawn over the ones before it — by {@link LayeredEffects}. */
         public EffectVisual layer(EffectLayer layer) {
             if (layer != null) {
                 layers.add(layer);
@@ -680,97 +566,26 @@ public final class Visuals {
             return !layers.isEmpty();
         }
 
-        public EffectVisual kind(String name) {
-            kinds.add(name);
-            return this;
-        }
-
-        /** What it burns, and what that colour dies down to. */
-        public EffectVisual colours(java.awt.Color colour, java.awt.Color fade) {
-            this.colour = colour;
-            this.fade = fade;
-            return this;
-        }
-
         /**
-         * The light it carries: its colour, how hard it burns, and how far it
-         * reaches. A power of zero means it carries none, which is what everything
-         * further off than the client is willing to light ends up with anyway.
-         */
-        public EffectVisual light(java.awt.Color colour, float power, float radius) {
-            this.lightColour = colour;
-            this.lightPower = power;
-            this.lightRadius = radius;
-            return this;
-        }
-
-        /**
-         * The trail: how many sparks are alive at once, how big, how long they
-         * last, and how far they wander from the line of flight.
-         */
-        public EffectVisual particles(int count, float size, float life, float spread) {
-            this.particles = count;
-            this.particleSize = size;
-            this.particleLife = life;
-            this.spread = spread;
-            return this;
-        }
-
-        /** How wide the glowing body is, for a projectile that has no model. */
-        public EffectVisual orb(float size) {
-            this.orbSize = size;
-            return this;
-        }
-
-        /**
-         * A piece of the model to light from inside, by a word in its name.
+         * Pieces of the wearer's model to light from inside — a skeleton's eye sockets, a
+         * rune on a door, the coals in a brazier — by a word in their names.
          *
-         * <p>A word rather than the whole name, because a kit names the same piece
+         * <p>The one thing an effect draws that is not a layer, because it is a material on a
+         * model rather than something let out into the air — and the cheapest by a distance:
+         * one material and no light, which is what makes it affordable on every creature in a
+         * room. A word rather than the whole name, because a kit names the same piece
          * differently on every creature it ships — {@code Skeleton_Warrior_Eyes},
-         * {@code Skeleton_Mage_Eyes} — and a game should be able to say "the eyes"
-         * once for all of them.
+         * {@code Skeleton_Mage_Eyes} — and a game should be able to say "the eyes" once.
          */
-        public EffectVisual part(String nameContains) {
-            parts.add(nameContains);
+        public EffectVisual glow(java.util.List<String> parts, java.awt.Color colour) {
+            glowParts.clear();
+            glowParts.addAll(parts);
+            glowColour = colour == null ? java.awt.Color.WHITE : colour;
             return this;
         }
 
-        /** What it leaves where it lands. */
-        public EffectVisual burst(int count, float size, float seconds) {
-            this.burstParticles = count;
-            this.burstSize = size;
-            this.burstSeconds = seconds;
-            return this;
-        }
-
-        /**
-         * The ring: where it starts, where it ends, how long it takes, how hard
-         * the line and the wash inside it are drawn.
-         *
-         * <p>{@code ease} is the whole of why it reads as an impact rather than as
-         * a circle being resized. It is the power the elapsed fraction is raised
-         * to before the radius is taken from it: 1 is a ring opening at a constant
-         * speed, which is what a machine does, and anything above it is a ring that
-         * leaps and then slows, which is what an explosion does. Below 1 it gathers
-         * speed, which is what nothing does and is left possible anyway because the
-         * file is allowed to be wrong in an interesting way.
-         */
-        public EffectVisual wave(float from, float to, float seconds, float ease,
-                float edge, float wash) {
-            this.waveFrom = from;
-            this.waveTo = to;
-            this.waveSeconds = seconds;
-            this.waveEase = ease;
-            this.waveEdge = edge;
-            this.waveWash = wash;
-            return this;
-        }
-
-        /** The standing mark: how wide, and how long it stays. */
-        public EffectVisual mark(float radius, float seconds) {
-            this.markRadius = radius;
-            this.markSeconds = seconds;
-            return this;
+        public java.util.List<String> getGlowParts() {
+            return java.util.List.copyOf(glowParts);
         }
 
         /**
@@ -787,30 +602,8 @@ public final class Visuals {
             return this;
         }
 
-        boolean has(String kind) {
-            return kinds.contains(kind);
-        }
-
-        // ---- what the client reads back out ----
-
-        public java.util.Set<String> getKinds() {
-            return java.util.Set.copyOf(kinds);
-        }
-
-        public float getWaveTo() {
-            return waveTo;
-        }
-
-        public float getWaveSeconds() {
-            return waveSeconds;
-        }
-
         public float getShakePower() {
             return shakePower;
-        }
-
-        public float getMarkSeconds() {
-            return markSeconds;
         }
     }
 

@@ -23,7 +23,7 @@ Game
   ;
   ; A map's Name, or the path of a map file: looked for on disk first and inside
   ; the game second, so an author edits a file and a player installs one. Maps
-  ; are drawn with ./gradlew :worldbuilder:run
+  ; are drawn with ./gradlew :dungeon:newMap and filled on the IDE's Map tab.
   StartMap =
 
   Files = [
@@ -73,33 +73,36 @@ Game
     data/projectiles/summoning_rift.duke,
     data/projectiles/meteor_mark.duke,
 
-    data/effects/flame_arrow.duke,
-    data/effects/ember_eyes.duke,
-    data/effects/mage_fire.duke,
-    data/effects/mage_fire_greater.duke,
-    data/effects/arcane_bolt.duke,
-    data/effects/holy_spark.duke,
-    data/effects/shadow_spark.duke,
-    data/effects/mage_fireball.duke,
-    data/effects/skull_fireball.duke,
-    data/effects/meteor_warning.duke,
-    data/effects/archer_shot.duke,
-    data/effects/archer_volley.duke,
-    data/effects/archer_sprint.duke,
-    data/effects/archer_focus.duke,
-    data/effects/knight_cleave.duke,
-    data/effects/knight_charge.duke,
-    data/effects/knight_guard.duke,
-    data/effects/knight_whirlwind.duke,
-    data/effects/mage_cast.duke,
-    data/effects/frost_nova.duke,
-    data/effects/mage_blink.duke,
-    data/effects/meteor_call.duke,
-    data/effects/golden_pillar.duke,
-    data/effects/descent.duke,
-    data/effects/holy_light.duke,
-    data/effects/mending_light.duke,
-    data/effects/summoning_rift.duke,
+    ; The effects, from the kit: its starter set, by what each one is. A block of this
+    ; game's own with the Name of one of them, in a file listed after these, is
+    ; drawn instead of the kit's.
+    kit/data/effects/fire/flame_arrow.duke,
+    kit/data/effects/fire/fire_bolt.duke,
+    kit/data/effects/fire/greater_fire_bolt.duke,
+    kit/data/effects/fire/fireball.duke,
+    kit/data/effects/fire/meteor_call.duke,
+    kit/data/effects/fire/meteor.duke,
+    kit/data/effects/ice/frost_nova.duke,
+    kit/data/effects/holy/holy_light.duke,
+    kit/data/effects/holy/holy_spark.duke,
+    kit/data/effects/holy/mending_light.duke,
+    kit/data/effects/shadow/shadow_spark.duke,
+    kit/data/effects/shadow/dark_fireball.duke,
+    kit/data/effects/shadow/summoning_rift.duke,
+    kit/data/effects/arcane/arcane_bolt.duke,
+    kit/data/effects/arcane/blink.duke,
+    kit/data/effects/arcane/cast_flash.duke,
+    kit/data/effects/strike/shot.duke,
+    kit/data/effects/strike/sprint.duke,
+    kit/data/effects/strike/volley.duke,
+    kit/data/effects/strike/charge.duke,
+    kit/data/effects/strike/cleave.duke,
+    kit/data/effects/strike/whirlwind.duke,
+    kit/data/effects/aura/focus.duke,
+    kit/data/effects/aura/ember_eyes.duke,
+    kit/data/effects/aura/guard.duke,
+    kit/data/effects/moments/arrival.duke,
+    kit/data/effects/moments/golden_pillar.duke,
 
     data/props/pillar.duke,
     data/props/statue.duke,

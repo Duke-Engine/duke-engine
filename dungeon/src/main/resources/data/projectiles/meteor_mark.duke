@@ -21,13 +21,12 @@ Projectile
 ; The mark the meteor leaves while it is falling, and then the meteor.
 ;
 ; It is an object in the world, so it is drawn here like anything else in
-; flight -- which is the whole reason the warning cost no client code. ★ It is a
-; GLOW_ORB sitting on the floor today, which reads as "something is about to
-; happen here" but not yet as a circle of a particular SIZE; a proper ground ring
-; that follows the floor is the next thing this block wants.
+; flight -- which is the whole reason the warning cost no client code. Its
+; effect, Meteor, lays a MARK as wide as the blast on the floor while it
+; falls, and bursts where it lands.
   ; On the floor rather than at shot height: it is a place, not a thing passing.
   Height = 1
   Tint = 0xFF5A2A
-  Effect = MeteorWarning
+  Effect = Meteor
   EffectOffset = 0
 End

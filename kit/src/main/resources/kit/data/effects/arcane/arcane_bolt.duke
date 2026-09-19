@@ -1,0 +1,76 @@
+Effect
+  Name = ArcaneBolt
+  ; The mage hero's ordinary shot, and it is the monsters' fire in the other
+  ; half of the spectrum. Everything about it is deliberately SMALL -- it is what
+  ; he does forty times a floor, and the ceilings below are what keep it cheap.
+  Layers = [
+    Layer
+      Name = Core
+      Type = AURA
+      Texture = kit/effects/particles/circle_05.png
+      Blend = Additive
+      Cover = 0.3
+      Count = 6
+      Rate = 40
+      Life = [0.1, 0.16]
+      Size = [4.05, 2.7]
+      Colour = [0xC7F1FF, 0x8FE4FF]
+      Alpha = [1, 0.5]
+    End
+    Layer
+      Name = Sparks
+      Type = TRAIL
+      Texture = kit/effects/particles/star_04.png
+      Blend = Additive
+      Cover = 0.3
+      Count = 26
+      Rate = 65
+      Life = [0.24, 0.4]
+      Size = [4.16, 0.65]
+      SizeEase = 2
+      Colour = [0x8FE4FF, 0x102A5A]
+      Alpha = [1, 0]
+      Speed = [2, 6]
+      Direction = ALL
+      Drag = 2
+      Spin = 90
+    End
+    Layer
+      Name = Glow
+      Type = LIGHT
+      LightColour = 0x4FA8FF
+      LightPower = 1.6
+      LightRadius = 40
+    End
+    Layer
+      Name = Flash
+      Type = IMPACT
+      Texture = kit/effects/particles/star_08.png
+      Blend = Additive
+      Count = 1
+      Life = [0.14, 0.14]
+      Size = [4.8, 19.2]
+      SizeEase = 3
+      Colour = [0xFFFFFF, 0x8FE4FF]
+      Alpha = [1, 0]
+      FadeOut = 0.6
+      Height = 5
+      TurnJitter = 45
+    End
+    Layer
+      Name = Burst
+      Type = BURST
+      Texture = kit/effects/particles/circle_05.png
+      Blend = Additive
+      Cover = 0.3
+      Count = 22
+      Life = [0.18, 0.3]
+      Size = [2.88, 0.48]
+      Colour = [0x8FE4FF, 0x102A5A]
+      Alpha = [1, 0]
+      Speed = [8, 20]
+      Direction = ALL
+      Drag = 3
+    End
+  ]
+End

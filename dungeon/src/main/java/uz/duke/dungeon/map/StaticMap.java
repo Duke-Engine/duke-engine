@@ -1,11 +1,14 @@
 package uz.duke.dungeon.map;
 
 import java.util.List;
+import uz.duke.core.data.Grid;
+import uz.duke.dungeon.content.Monster;
+import uz.duke.dungeon.content.Prop;
 
 /**
  * A map drawn once and never again: the same rooms, the same monsters in the same corners, every
- * time — so that losing teaches something. What the world builder saves, and what a stage is
- * played from.
+ * time — so that losing teaches something. Drawn from a seed by {@code :dungeon:newMap}, filled on
+ * the IDE's Map tab, and what a stage is played from.
  *
  * <p>Every position is a cell, counted from the top-left of {@link #cells}, which a dungeon
  * stands everything it places in the middle of.
@@ -24,8 +27,9 @@ import java.util.List;
  * @param boss        who waits in the last room; killing it wins the map
  */
 public record StaticMap(String name, String displayName, String description, int difficulty, int players, long seed,
-        Cell entrance, List<String> cells, List<Room> rooms, List<Link> links, Placed boss, List<Placed> monsters,
-        List<Placed> props) {
+        Cell entrance, @Grid List<String> cells, List<Room> rooms, List<Link> links,
+        @uz.duke.core.data.Link(Monster.class) Placed boss, @uz.duke.core.data.Link(Monster.class) List<Placed> monsters,
+        @uz.duke.core.data.Link(Prop.class) List<Placed> props) {
 
     /** What a block leaves out. */
     public static final StaticMap DEFAULTS = new StaticMap("", "", "", 1, 1, 0L, null, List.of(), List.of(), List.of(),

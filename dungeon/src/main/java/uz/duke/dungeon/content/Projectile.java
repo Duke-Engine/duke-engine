@@ -1,6 +1,8 @@
 package uz.duke.dungeon.content;
 
 import java.util.List;
+import uz.duke.client3d.Effect;
+import uz.duke.core.data.Link;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.thing.Sighted;
 import uz.duke.core.thing.Titled;
@@ -17,7 +19,7 @@ import uz.duke.core.thing.Titled;
  * @param effectOffset how far back along it the effect sits
  */
 public record Projectile(String name, String displayName, float visionRange, List<ModuleData> modules,
-        String model, String part, float scale, float facing, float height, int tint, String effect,
+        String model, String part, float scale, float facing, float height, int tint, @Link(Effect.class) String effect,
         float effectOffset) implements Sighted, Titled {
 
     /** What a block leaves out. */

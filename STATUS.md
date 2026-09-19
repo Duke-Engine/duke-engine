@@ -30,8 +30,8 @@ Hamma modulda `-Xlint:all`, testlar JUnit 5.11.3.
 | `studio` | `client3d` + Gson 2.11.0 | Duke Studio — Swing IDE (`uz.duke.studio.StudioMain`) |
 | `sandbox` | `game` | 2D skirmish demo (~70 qator) |
 | `sandbox3d` | `client3d` + jme3-testdata | 3D skirmish demo (~74 qator) |
-| `dungeon` | `client3d` | **Duke Dungeon** — engine ustidagi ilk o'yin (3D roguelike: seed'li generatsiya + run loop + AI, ma'lumoti INI fayllarda, primitiv shakllar) |
-| `worldbuilder` | `dungeon` | **Duke World Builder** — Duke Dungeon uchun qotirilgan xarita (`.stage`) muharriri, Swing (`uz.duke.worldbuilder.WorldBuilderMain`) |
+| `kit` | — | Boshlang'ich to'plam: 27 ta effekt (8 guruh, `kit/data/effects/`) va ularning zarracha rasmlari (`kit/effects/particles/`). O'yin effektni `@Link` bilan oladi, shu nomli o'z blokini yozsa — o'shanisi chiziladi |
+| `dungeon` | `client3d` + `kit` | **Duke Dungeon** — engine ustidagi ilk o'yin (3D roguelike: seed'li generatsiya + run loop + AI, ma'lumoti INI fayllarda, primitiv shakllar) |
 
 **Asosiy qoida:** `core` hech qachon `rts` ni import qilmaydi. RTS bo'lmagan o'yin
 yozmoqchi bo'lsangiz faqat `core` ga bog'lanasiz va o'z buyruqlaringiz, modullaringiz
@@ -47,9 +47,8 @@ Ishga tushirish:
 ./gradlew :sandbox3d:run         # 3D demo
 ./gradlew :dungeon:run           # Duke Dungeon — engine ustidagi ilk o'yin
 ./gradlew :dungeon:run --args="--map=first"   # qotirilgan xarita
-./gradlew :worldbuilder:run      # Duke World Builder — stage muharriri
-./gradlew :worldbuilder:run --args="dungeon/src/main/resources/data/maps/first.duke"
-./gradlew :worldbuilder:writeExampleStage  # shipping stage'ni qayta yozadi
+./gradlew :dungeon:newMap --args="crypt 42"  # seed'dan yangi xarita; ichini IDE'dagi Map tabida to'ldirasiz
+./gradlew :dungeon:writeExampleMaps         # shipping xaritalarni seed'idan qayta yozadi
 ./gradlew :studio:writeExamples  # examples/RohanVsMordor.duke ni qayta yozadi
 ./gradlew :studio:exportExample  # dist/RohanVsMordor/ mustaqil loyihasini chiqaradi
 ```

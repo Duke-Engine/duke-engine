@@ -1,6 +1,8 @@
 package uz.duke.dungeon.content;
 
+import uz.duke.client3d.Effect;
 import uz.duke.core.data.Clip;
+import uz.duke.core.data.Group;
 import uz.duke.core.data.Link;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -29,15 +31,16 @@ import uz.duke.dungeon.skill.Skill;
  * @param maxPerRoom    how many of it one room may hold, or zero for no limit
  * @param skills        what it casts, each a {@code Skill} block in its {@code Skills = [ … ]}
  */
-public record Monster(String name, String displayName, Set<Kind> kindOf, float visionRange, Geometry geometry,
-        List<ModuleData> modules,
-        float senseRadius, float chaseRadius, float closeDistance, float alertRadius, int repathFrames,
-        int swingFrames, int minDepth, int weight, int colour, float scale,
-        Band skillDistance, Band keepDistance, int maxPerRoom,
-        String model, String texture, float modelScale, int tint, float facing,
-        @Link(AnimationSet.class) String animations, @Clip String idle, @Clip String walk, @Clip String attack,
-        @Clip String hurt, @Clip String death, String effect, Held held,
-        PortraitArt portrait, List<Skill> skills) implements Solid, Sighted, Classified, Titled {
+public record Monster(@Group("Identity") String name, String displayName, Set<Kind> kindOf,
+        @Group("Body") float visionRange, Geometry geometry,
+        @Group("Modules") List<ModuleData> modules,
+        @Group("Behaviour") float senseRadius, float chaseRadius, float closeDistance, float alertRadius, int repathFrames,
+        int swingFrames, @Group("Spawning") int minDepth, int weight, @Group("Look") int colour, float scale,
+        @Group("Behaviour") Band skillDistance, Band keepDistance, @Group("Spawning") int maxPerRoom,
+        @Group("Look") String model, String texture, float modelScale, int tint, float facing,
+        @Group("Animation") @Link(AnimationSet.class) String animations, @Clip String idle, @Clip String walk,
+        @Clip String attack, @Clip String hurt, @Clip String death, @Group("Look") @Link(Effect.class) String effect,
+        Held held, @Group("Skills") PortraitArt portrait, List<Skill> skills) implements Solid, Sighted, Classified, Titled {
 
     /** Two distances, the nearer first: {@code [20, 60]}. */
     public record Band(float nearest, float furthest) {

@@ -17,6 +17,6 @@ Projectile
   ; off the ground rather than thirteen.
   Height = 12
   Tint = 0xFF8A3C
-  Effect = MageFireGreater
+  Effect = GreaterFireBolt
   EffectOffset = 0
 End

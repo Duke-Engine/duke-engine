@@ -1,0 +1,86 @@
+Effect
+  Name = MeteorCall
+  ; R, and it is a MARK rather than a RING, because the ultimate's whole
+  ; point is the second and a half BEFORE anything happens. The disc is drawn as
+  ; wide as the blast will be, breathes while it waits, and brightens as the
+  ; landing comes -- so the warning is a warning rather than a decoration.
+  ;
+  ; ★ Drawn by its layers, which take how long from the skill's WindUpFrames
+  ; and how wide from its Radius. MarkSeconds here is read by nothing any more.
+  ;
+  ; What lands is not here. The MeteorMark object carries its own fire (see
+  ; Effect Meteor), so the impact is drawn by the thing arriving
+  ; rather than by the man who called for it -- which is why it happens whether
+  ; or not he is still alive to see it.
+
+  Layers = [
+    ; The ground marked where it will land, for exactly as long as it takes to fall --
+    ; no Seconds, so the skill's own WindUpFrames. A ring breathing faster than a heart,
+    ; a rune turning inside it, embers already rising off the stone, and a light that
+    ; grows as it comes: in a dark room the floor going orange is read long before any
+    ; outline is.
+    Layer
+      Name = Warning
+      Type = MARK
+      Measure = Reach
+      Texture = kit/effects/particles/circle_01.png
+      Blend = Additive
+      Cover = 0.4
+      Count = 1
+      Size = [2.5, 2.5]
+      Colour = [0xFF6A20, 0xFF3A10]
+      Alpha = [0.8, 0.95]
+      FadeIn = 0.12
+      FadeOut = 0.06
+      PulseRate = 3
+      PulseDepth = 0.45
+      Height = 0.35
+      TurnJitter = 0
+    End
+
+    Layer
+      Name = Rune
+      Type = MARK
+      Measure = Reach
+      Texture = kit/effects/particles/magic_02.png
+      Blend = Additive
+      Cover = 0.2
+      Count = 1
+      Size = [2.3, 2.3]
+      Colour = [0xFFA050, 0xFF7020]
+      Alpha = [0.6, 0.9]
+      FadeIn = 0.2
+      FadeOut = 0.08
+      Spin = 40
+      Height = 0.45
+    End
+
+    Layer
+      Name = Heat
+      Type = AURA
+      Texture = kit/effects/particles/star_04.png
+      Blend = Additive
+      Count = 20
+      Rate = 18
+      Radius = 30
+      Life = [0.6, 1.0]
+      Size = [1.8, 0.3]
+      Colour = [0xFFB060, 0xFF3000]
+      Speed = [4, 10]
+      Direction = UP
+      Spread = 20
+      Gravity = -6
+      Height = 0.5
+    End
+
+    Layer
+      Name = Glow
+      Type = LIGHT
+      LightColour = 0xFF4A10
+      LightPower = 2.2
+      LightRadius = 90
+      FadeIn = 0.8
+      FadeOut = 0.05
+    End
+  ]
+End

@@ -1,0 +1,108 @@
+Effect
+  Name = Volley
+  ; W, the burst round him. The ring IS the skill's radius -- the client is told
+  ; to draw it as wide as the skill actually reached, so what the player sees is
+  ; exactly what was hit.
+  ShakeSeconds = 0.14
+  ShakePower = 0.8
+
+  Layers = [
+    ; A rain of arrows round her: streaks of light falling fast across the whole of
+    ; the skill's reach for a quarter of a second, and as they land dust kicked up and
+    ; sparks off the stone; with the ring that says how far it reached, and a light.
+    Layer
+      Name = Arrows
+      Type = TRAIL
+      Texture = kit/effects/particles/circle_05.png
+      Blend = Additive
+      Cover = 0.2
+      Seconds = 0.25
+      Count = 40
+      Rate = 120
+      Radius = 36
+      Life = [0.32, 0.34]
+      Size = [3.2, 2.6]
+      Stretch = 0.035
+      Colour = [0xFFF4D0, 0xFFC060]
+      Alpha = [1, 0.8]
+      FadeIn = 0.1
+      FadeOut = 0.1
+      Speed = [170, 185]
+      Direction = DOWN
+      Spread = 8
+      Height = 60
+    End
+
+    Layer
+      Name = Dust
+      Type = BURST
+      Texture = kit/effects/particles/smoke_03.png
+      Blend = Alpha
+      Delay = 0.3
+      Count = 18
+      Radius = 34
+      Life = [0.5, 0.8]
+      Size = [5, 12]
+      SizeEase = 2
+      SizeJitter = 0.3
+      Colour = [0x7A6E62, 0x5A5048]
+      Alpha = [0.65, 0]
+      Speed = [4, 10]
+      Direction = UP
+      Spread = 50
+      Drag = 3
+      Gravity = -4
+      Spin = 40
+      Height = 1
+    End
+
+    Layer
+      Name = Sparks
+      Type = BURST
+      Texture = kit/effects/particles/star_04.png
+      Blend = Additive
+      Delay = 0.3
+      Count = 30
+      Radius = 34
+      Life = [0.25, 0.45]
+      Size = [2, 0.4]
+      Stretch = 0.05
+      Colour = [0xFFF0C0, 0xFF8A30]
+      Speed = [10, 30]
+      Direction = UP
+      Spread = 60
+      Drag = 2
+      Gravity = 60
+      Height = 1
+    End
+
+    Layer
+      Name = Ring
+      Type = RING
+      Measure = Reach
+      Texture = kit/effects/particles/circle_02.png
+      Blend = Additive
+      Cover = 0.25
+      Count = 1
+      Life = [0.4, 0.4]
+      Size = [0.3, 3.4]
+      SizeEase = 3
+      Colour = [0xFFE6B0, 0xFFA040]
+      Alpha = [1, 0]
+      FadeOut = 0.5
+      Height = 0.4
+      TurnJitter = 0
+    End
+
+    Layer
+      Name = Light
+      Type = LIGHT
+      Delay = 0.25
+      Seconds = 0.35
+      LightColour = 0xFFC060
+      LightPower = 2.4
+      LightRadius = 70
+      FadeOut = 0.85
+    End
+  ]
+End

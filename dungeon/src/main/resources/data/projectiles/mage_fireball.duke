@@ -17,6 +17,6 @@ Projectile
 ; bargain HeavyArrow strikes against Arrow.
   Height = 7
   Tint = 0xFF9A3C
-  Effect = MageFireball
+  Effect = Fireball
   EffectOffset = 0
 End

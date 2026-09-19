@@ -2,7 +2,10 @@ package uz.duke.dungeon.map;
 
 import java.util.List;
 import java.util.Map;
+import uz.duke.core.data.Link;
+import uz.duke.dungeon.content.Monster;
 import uz.duke.dungeon.content.Themes;
+import uz.duke.dungeon.world.Theme;
 
 /**
  * A map drawn from a seed every time it is played: how big a floor is and what goes in it, which
@@ -17,7 +20,8 @@ import uz.duke.dungeon.content.Themes;
  *     starts in included. Kept low: things to walk round are furniture, and a room full of
  *     furniture is a room nobody can fight in
  */
-public record ProceduralMap(String name, Layout generation, List<String> themes, Themes.WhenExhausted whenExhausted,
+public record ProceduralMap(String name, Layout generation, @Link(Theme.class) List<String> themes,
+        Themes.WhenExhausted whenExhausted,
         PerRoom propsPerRoom, Descent descent) {
 
     /** What a block leaves out. */
@@ -60,7 +64,8 @@ public record ProceduralMap(String name, Layout generation, List<String> themes,
      * @param bossGuards    who stands with the boss, and how many of each — in the order written
      * @param bossGuardRing how many cells out from the boss its guard stands
      */
-    public record Descent(List<String> bosses, Map<String, Integer> bossGuards, int bossGuardRing,
+    public record Descent(@Link(Monster.class) List<String> bosses,
+            @Link(Monster.class) Map<String, Integer> bossGuards, int bossGuardRing,
             int monsterHealthPercentPerDepth, int monsterDamagePercentPerDepth, int monsterCountPercentPerDepth,
             int bossHealthPercentPerDepth, int bossDamagePercentPerDepth, int experiencePercentPerDepth) {
 

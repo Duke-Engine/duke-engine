@@ -88,7 +88,7 @@ End
 
 Moment
   Name = Arrived
-  Effect = Descent
+  Effect = Arrival
   Scale = 1
 End
 

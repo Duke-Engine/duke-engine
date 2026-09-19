@@ -4,6 +4,7 @@ import java.util.List;
 
 import uz.duke.client3d.Duke3D;
 import uz.duke.client3d.EdgeScroll;
+import uz.duke.client3d.Effect;
 import uz.duke.client3d.Fog;
 import uz.duke.client3d.Hotkeys;
 import uz.duke.client3d.Shell;
@@ -52,31 +53,16 @@ public final class Main {
     }
 
     /**
-     * One recipe for what a thing in flight looks like, handed to the client.
-     *
-     * <p>Nothing here is a decision either. Which effects a recipe uses is a list
-     * of names in the settings file, and a name this client does not know is
-     * ignored with a warning rather than refused — a burning arrow whose trail is
-     * missing is still an arrow that arrives.
+     * One recipe for what a thing looks like, handed to the client: its knock and its glow
+     * here, its layers one by one after — see {@link #layerOf}.
      */
-    private static void effect(Visuals visuals, uz.duke.dungeon.content.Effect look) {
+    private static void effect(Visuals visuals, Effect look) {
         visuals.effect(look.name(), recipe -> {
-            for (var kind : look.kinds()) {
-                recipe.kind(kind);
+            var glow = look.glow();
+            if (glow != null) {
+                recipe.glow(glow.parts(), new java.awt.Color(glow.colour()));
             }
-            for (var part : look.parts()) {
-                recipe.part(part);
-            }
-            recipe.colours(look.awtColour(), look.awtFade())
-                    .light(look.awtLight(), look.lightPower(), look.lightRadius())
-                    .particles(look.particles(), look.particleSize(), look.particleLife(),
-                            look.spread())
-                    .orb(look.orbSize())
-                    .burst(look.burstParticles(), look.burstSize(), look.burstSeconds())
-                    .wave(look.waveFrom(), look.waveTo(), look.waveSeconds(), look.waveEase(),
-                            look.waveEdge(), look.waveWash())
-                    .mark(look.markRadius(), look.markSeconds())
-                    .shake(look.shakeSeconds(), look.shakePower());
+            recipe.shake(look.shakeSeconds(), look.shakePower());
         });
     }
 
@@ -963,9 +949,7 @@ public final class Main {
         for (var look : settings.projectiles()) {
             arrow(visuals, look.name(), look);
         }
-        visuals.effectBudget(settings.effectBudget().maxLights(), settings.effectBudget().maxPerEffect(),
-                settings.effectBudget().maxBursts(), settings.effectBudget().maxDistance());
-        visuals.skillRings(settings.effectBudget().maxRings());
+        visuals.effectBudget(settings.effectBudget().maxLights(), settings.effectBudget().maxDistance());
         visuals.particleBudget(settings.effectBudget().maxParticles());
         visuals.shakeScale(settings.hitFeel().shakeScale());
         visuals.hitFlash(new Visuals.HitFlashLook(settings.hitFeel().hitFlashColour(),

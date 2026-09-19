@@ -1,0 +1,134 @@
+; ---------------------------------------------------------------------------
+; Columns of light, and the moments of a run they are played on.
+;
+; A PILLAR is a column standing on the floor, turned round its own upright to face
+; the camera. It comes DOWN onto whoever it is on -- light arriving -- or rises UP
+; out of the ground under him, which is strength coming up through him. The end
+; that moves crosses the whole Height over the first Rise of its life, fast and
+; settling along RiseEase; then the light goes out slowly, because a ColourEase
+; above 1 takes most of it away early and lets the last of it linger. A straight
+; fade is a lamp being switched off.
+;
+; A column alone is a stick of light, so each look below is five things: a ring
+; opening on the floor, a halo wide and dim, a core narrow and white-hot, motes
+; going the way the light goes, and a flash that lights the room -- written floor
+; first, so each is drawn over the last. Follows keeps all of it on him, and a hero
+; who levels mid-stride does not walk out of his own light.
+;
+; The two column textures are gradients made for this game rather than found in
+; the pack, which has streaks and sparks and nothing that is a column. See
+; dungeon/art/effects/pillar_textures.py.
+;
+; A Moment section of the World block says what one of the run's moments plays on the hero:
+;
+;   LevelUp   a level gained -- which is also how an ultimate opens
+;   BossDown  the floor's boss killed
+;   Arrived   the run starting, or a floor reached down the stairs
+;
+; Scale is how much bigger than its recipe is written it is drawn: every size, the
+; height and the ring. A moment with no block is not drawn. One look on a man at a
+; time: the blow that fells a boss usually gives him his level as well, and the
+; bigger of the two is the one drawn.
+; ---------------------------------------------------------------------------
+
+; A level: gold, rising out of the floor he stands on.
+Effect
+  Name = GoldenPillar
+
+  Layers = [
+    Layer
+      Name = Ring
+      Type = RING
+      Texture = kit/effects/particles/circle_02.png
+      Blend = Additive
+      Count = 1
+      Life = [0.55, 0.55]
+      Size = [8, 46]
+      SizeEase = 3
+      Colour = [0xFFE7A0, 0xFFB038]
+      ColourEase = 2
+      Alpha = [0.9, 0]
+      FadeOut = 0
+      At = CASTER
+      Follows = Yes
+    End
+
+    Layer
+      Name = Halo
+      Type = PILLAR
+      Texture = kit/effects/particles/pillar_halo.png
+      Blend = Additive
+      Count = 1
+      Life = [0.7, 0.7]
+      Size = [30, 38]
+      SizeEase = 2
+      Height = 48
+      Direction = UP
+      Rise = 0.3
+      RiseEase = 3
+      Colour = [0xFFC24A, 0xFF8C1E]
+      ColourEase = 2.5
+      Alpha = [0.6, 0]
+      FadeIn = 0.04
+      FadeOut = 0
+      At = CASTER
+      Follows = Yes
+    End
+
+    Layer
+      Name = Core
+      Type = PILLAR
+      Texture = kit/effects/particles/pillar_core.png
+      Blend = Additive
+      Count = 1
+      Life = [0.6, 0.6]
+      Size = [12, 7]
+      SizeEase = 2
+      Height = 58
+      Direction = UP
+      Rise = 0.22
+      RiseEase = 3
+      Colour = [0xFFF8E4, 0xFFD27A]
+      ColourEase = 2.5
+      Alpha = [1, 0]
+      FadeIn = 0.03
+      FadeOut = 0
+      At = CASTER
+      Follows = Yes
+    End
+
+    Layer
+      Name = Motes
+      Type = BURST
+      Texture = kit/effects/particles/star_04.png
+      Blend = Additive
+      Count = 26
+      Life = [0.45, 0.75]
+      Size = [3.6, 0.6]
+      SizeJitter = 0.4
+      Colour = [0xFFF0B8, 0xFFA02A]
+      Alpha = [1, 0]
+      Speed = [60, 130]
+      Direction = UP
+      Spread = 10
+      Radius = 12
+      Height = 2
+      Drag = 1.5
+      At = CASTER
+      Follows = Yes
+    End
+
+    Layer
+      Name = Flash
+      Type = LIGHT
+      LightColour = 0xFFC45A
+      LightPower = 3
+      LightRadius = 90
+      Seconds = 0.65
+      FadeIn = 0.06
+      FadeOut = 0.85
+      At = CASTER
+      Follows = Yes
+    End
+  ]
+End

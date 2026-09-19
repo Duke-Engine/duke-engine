@@ -19,7 +19,7 @@ thing that tells them apart, which is the same reasoning CREDITS.md gives for
 the frames.
 
     py art/effects/shrink_particles.py "<pack>/PNG (Transparent)" \
-        dungeon/src/main/resources/effects/particles
+        kit/src/main/resources/kit/effects/particles
 """
 
 import argparse

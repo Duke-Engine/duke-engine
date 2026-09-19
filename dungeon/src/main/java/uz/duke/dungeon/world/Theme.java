@@ -4,6 +4,7 @@ import uz.duke.core.data.Clip;
 import uz.duke.core.data.Link;
 import java.util.List;
 import uz.duke.dungeon.content.AnimationSet;
+import uz.duke.client3d.Effect;
 import uz.duke.dungeon.content.Held;
 import uz.duke.dungeon.content.MonsterLook;
 
@@ -150,7 +151,7 @@ public record Theme(
      */
     public record ThemeMonster(String name, String model, String texture, float modelScale, int tint, float facing,
             @Link(AnimationSet.class) String animations, @Clip String idle, @Clip String walk, @Clip String attack,
-            @Clip String hurt, @Clip String death, String effect, Held held) {
+            @Clip String hurt, @Clip String death, @Link(Effect.class) String effect, Held held) {
 
         /** What a block leaves out. */
         public static final ThemeMonster DEFAULTS = new ThemeMonster("", null, null, 1f, 0xFFFFFF, 90f, null,

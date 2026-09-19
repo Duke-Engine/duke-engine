@@ -373,8 +373,8 @@ Hero
       ; The picture in his slot. A path here and nothing in Java: a fifth skill is
       ; a fifth block of this file.
       Icon = icons/skills/skill_arrow_shot.png
-      ; What it looks like going off -- see Effect ArcherShot.
-      Look = ArcherShot
+      ; What it looks like going off -- see Effect Shot.
+      Look = Shot
       Name = Og'ir o'q
       Blurb = Kamonni to'liq tortib bitta dushmanga og'ir o'q otadi. O'q xonani kesib o'tadi, shuning uchun nishon qochib ulgurishi mumkin.
       ManaCost = 14
@@ -394,8 +394,8 @@ Hero
       ; Four points may go into it, and it waits for nothing but one of them.
       MaxRank = 4
       Icon = icons/skills/skill_arrow_volley.png
-      ; What it looks like going off -- see Effect ArcherVolley.
-      Look = ArcherVolley
+      ; What it looks like going off -- see Effect Volley.
+      Look = Volley
       Name = O'q yomg'iri
       Blurb = Atrofdagi hamma dushmanga bir vaqtda zarar yetkazadi. Qurshab olinganda bosiladi.
       ManaCost = 24
@@ -414,8 +414,8 @@ Hero
       ; Four points may go into it, and it waits for nothing but one of them.
       MaxRank = 4
       Icon = icons/skills/skill_dash.png
-      ; What it looks like going off -- see Effect ArcherSprint.
-      Look = ArcherSprint
+      ; What it looks like going off -- see Effect Sprint.
+      Look = Sprint
       Name = Chopish
       Blurb = Ko'rsatilgan tomonga tez siljiydi. Hech kimga zarar bermaydi — bu jangdan chiqish yo'li, jangga kirish emas.
       ManaCost = 16
@@ -447,8 +447,8 @@ Hero
       LevelPerRank = 4
       ; Lorc, game-icons.net (CC BY 3.0) — see CREDITS.md.
       Icon = icons/skills/skill_piercing_volley.png
-      ; What it looks like going off -- see Effect ArcherFocus.
-      Look = ArcherFocus
+      ; What it looks like going off -- see Effect Focus.
+      Look = Focus
       Name = Nishonga ol
       Blurb = Bir muddat uning hamma zarbalari kuchliroq bo'ladi. O'zi hech kimga tegmaydi — bu boshqa hamma narsani qimmatroq qiladigan oyna.
       ManaCost = 40

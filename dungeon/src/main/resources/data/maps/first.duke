@@ -1,10 +1,10 @@
 ; Duke Dungeon — a map drawn once: a dungeon that has stopped changing.
 ;
-; Written by the world builder (./gradlew :worldbuilder:run) and read by the
-; game (--map=<its Name, or this file>). Hand-editing is expected — every
-; position is a cell, counted from the top-left of Cells — and every edit is
-; checked on load: a monster inside a wall or a room nothing can walk to
-; stops the game with a list of what is wrong rather than starting anyway.
+; Drawn from a seed (./gradlew :dungeon:newMap), filled on the Map tab of the
+; IDE, and read by the game (--map=<its Name, or this file>). Hand-editing is
+; expected — every position is a cell, counted from the top-left of Cells — and
+; every edit is checked on load: a monster inside a wall or a room nothing can
+; walk to stops the game with a list of what is wrong rather than starting.
 
 StaticMap
   Name = first

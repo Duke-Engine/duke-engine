@@ -12,8 +12,9 @@ import os
 import numpy as np
 from PIL import Image
 
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'src', 'main',
-                   'resources', 'effects', 'particles')
+# Into the kit, where the effects that are drawn with them live.
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', 'kit', 'src', 'main',
+                   'resources', 'kit', 'effects', 'particles')
 WIDE, TALL = 128, 512
 
 

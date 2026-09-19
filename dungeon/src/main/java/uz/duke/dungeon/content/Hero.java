@@ -1,6 +1,7 @@
 package uz.duke.dungeon.content;
 
 import uz.duke.core.data.Clip;
+import uz.duke.core.data.Group;
 import uz.duke.core.data.Link;
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -32,14 +33,16 @@ import uz.duke.dungeon.skill.Skill;
  * @param animations the {@link AnimationSet} he moves by; his own clips are the ones he plays differently
  * @param held       what he carries, each a {@code Held} block in {@code Held = [ … ]}, in the order written
  */
-public record Hero(String name, String displayName, Set<Kind> kindOf, float visionRange, Geometry geometry,
-        List<ModuleData> modules,
-        String title, float closeDistance, int armourPercent, int maxMana, int manaRegen, int healthRegen,
-        String primary, Map<String, Growth> attributes,
-        String model, String texture, float modelScale, float facing, @Link(AnimationSet.class) String animations,
+public record Hero(@Group("Identity") String name, String displayName, Set<Kind> kindOf,
+        @Group("Body") float visionRange, Geometry geometry,
+        @Group("Modules") List<ModuleData> modules,
+        @Group("Identity") String title, @Group("Stats") float closeDistance, int armourPercent, int maxMana,
+        int manaRegen, int healthRegen, String primary, Map<String, Growth> attributes,
+        @Group("Look") String model, String texture, float modelScale, float facing,
+        @Group("Animation") @Link(AnimationSet.class) String animations,
         @Clip String idle, @Clip String walk, @Clip String attack, @Clip String hurt, @Clip String death,
-        List<Held> held,
-        PortraitArt portrait, List<Skill> skills) implements Solid, Sighted, Classified, Titled {
+        @Group("Look") List<Held> held,
+        @Group("Skills") PortraitArt portrait, List<Skill> skills) implements Solid, Sighted, Classified, Titled {
 
     /**
      * A number read to exact tenths, never through a float: a level of 1.8 fifteen times over

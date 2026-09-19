@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
-import uz.duke.client3d.Visuals;
 import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.dungeon.content.Content;
@@ -47,8 +46,8 @@ class SkillLookTest {
      * one he learns to stop looking at, and the way this goes wrong is somebody
      * being pleased with a ring and slowing it down until it is furniture.
      *
-     * <p>A standing GROUND_MARK is exempt and says so below — it is not an effect
-     * so much as a promise, and its whole point is the wait.
+     * <p>A standing MARK is exempt — it is not an effect so much as a promise, and
+     * its whole point is the wait.
      */
     private static final float LONGEST_SECONDS = 0.8f;
 
@@ -80,61 +79,20 @@ class SkillLookTest {
     /** And that block draws something, rather than being a name with nothing behind it. */
     @Test
     void everyLookNamedDrawsSomething() {
+        var layered = SETTINGS.effectLayers().stream().map(DungeonSettings.EffectLayerArt::effect)
+                .collect(java.util.stream.Collectors.toSet());
         for (var skill : playersSkills()) {
-            var look = lookOf(skill.look());
-            boolean draws = look.kinds().contains(Visuals.EffectVisual.SHOCKWAVE)
-                    || look.kinds().contains(Visuals.EffectVisual.GROUND_MARK)
-                    || look.kinds().contains(Visuals.EffectVisual.IMPACT_BURST);
-            assertTrue(draws, skill.heroTemplate() + "'s " + skill.key() + " names "
-                    + look.name() + ", which draws none of the three things a cast can draw");
-        }
-    }
-
-    /** A ring of no size is not a ring. */
-    @Test
-    void aRingHasSomewhereToOpenTo() {
-        for (var look : SETTINGS.effects()) {
-            if (!look.kinds().contains(Visuals.EffectVisual.SHOCKWAVE)) {
-                continue;
-            }
-            assertTrue(look.waveTo() > 0f || namedByASkillWithARadius(look.name()),
-                    look.name() + " is a ring that opens to nothing, and no skill that uses"
-                            + " it hands it a width of its own either");
-            assertTrue(look.waveSeconds() > 0f, look.name() + " opens in no time at all");
-        }
-    }
-
-    /** And a mark that stays for no time does not stay. */
-    @Test
-    void aStandingMarkStaysForSomeTime() {
-        for (var look : SETTINGS.effects()) {
-            if (!look.kinds().contains(Visuals.EffectVisual.GROUND_MARK)) {
-                continue;
-            }
-            assertTrue(look.markSeconds() > 0f,
-                    look.name() + " is a standing mark that stands for no time");
+            assertTrue(layered.contains(skill.look()), skill.heroTemplate() + "'s " + skill.key() + " names "
+                    + skill.look() + ", which has no layers and so draws nothing");
         }
     }
 
     // ---- and the two shapes worth holding still ----
 
-    /**
-     * Nothing a skill draws outlives the moment it was drawn for.
-     *
-     * <p>The GROUND_MARK is the exception and is asked about separately: it is
-     * the one thing here whose whole point is that it lasts, because a meteor
-     * nobody can walk out of is a meteor with no skill in it.
-     */
+    /** The knock is over before the next thing the player does. */
     @Test
-    void everyEffectIsOverQuickly() {
+    void everyKnockIsOverQuickly() {
         for (var look : SETTINGS.effects()) {
-            if (look.kinds().contains(Visuals.EffectVisual.SHOCKWAVE)) {
-                assertTrue(look.waveSeconds() <= LONGEST_SECONDS, look.name() + "'s ring runs "
-                        + look.waveSeconds() + "s, and anything past " + LONGEST_SECONDS
-                        + "s stops being an effect and becomes furniture");
-            }
-            assertTrue(look.burstSeconds() <= LONGEST_SECONDS,
-                    look.name() + "'s burst runs " + look.burstSeconds() + "s");
             assertTrue(look.shakeSeconds() <= LONGEST_SECONDS,
                     look.name() + " shakes the camera for " + look.shakeSeconds() + "s");
         }
@@ -158,12 +116,15 @@ class SkillLookTest {
         }
     }
 
-    /** Nothing that opens a ring forgets to say what colour it is. */
+    /** Nothing that opens a ring draws it in black. */
     @Test
     void everyRingIsSomeColour() {
-        for (var skill : playersSkills()) {
-            var look = lookOf(skill.look());
-            assertFalse(look.colour() == 0x000000, look.name()
+        var looks = playersSkills().stream().map(uz.duke.dungeon.skill.Skill::look).collect(java.util.stream.Collectors.toSet());
+        for (var layer : SETTINGS.effectLayers()) {
+            if (!looks.contains(layer.effect()) || !"RING".equals(layer.fields().get("type"))) {
+                continue;
+            }
+            assertFalse("0".equals(layer.fields().get("colourStart")), layer.effect() + "'s " + layer.name()
                     + " is drawn in black, which in a dark room is drawn not at all");
         }
     }
@@ -336,16 +297,5 @@ class SkillLookTest {
             line.append(game.getLogic().checksum()).append('|');
         }
         return line.toString();
-    }
-
-    private static uz.duke.dungeon.content.Effect lookOf(String name) {
-        return SETTINGS.effects().stream().filter(look -> look.name().equals(name))
-                .findFirst().orElseThrow(() -> new AssertionError("no block called " + name));
-    }
-
-    /** Whether some skill hands this ring a width of its own at the cast. */
-    private static boolean namedByASkillWithARadius(String name) {
-        return SETTINGS.skills().stream()
-                .anyMatch(skill -> name.equals(skill.look()) && skill.radius() > 0f);
     }
 }

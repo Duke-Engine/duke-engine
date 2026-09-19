@@ -18,6 +18,11 @@ games'.
 - **`generals`** — Generals' own rules, as one game among the games that could be
   built here. It exists to prove that point, and to keep the Generals-specific
   work rather than throw it away.
+- **`kit`** — the starter set a game made in the editor begins from: today the
+  effects library (27 effects in `kit/data/effects/<group>/`, and the particle art
+  they are drawn with), all of it under `kit/` on the classpath. A game links a
+  kit effect by `@Link`; a block of its own with the same `Name`, in a file listed
+  after the kit's, is drawn instead.
 
 Toolchain: **Java 25** (Gradle toolchain), **Gradle 9**. No runtime deps yet —
 core is pure Java; a render/audio backend comes later.
@@ -31,7 +36,7 @@ core is pure Java; a render/audio backend comes later.
   command set, combat, production, economy, vocabulary and save format — but only
   the parts every RTS shares. A rule one game happens to have is the game's.
 - `game` → `rts` → `core`, and `generals` → `rts`. Never the other way; `core`
-  never imports `rts`.
+  never imports `rts`. A game depends on `kit`, and `kit` on nothing but data.
 
 **The question to ask before adding to `rts`:** *would BFME need this, and
 Warcraft III, and Generals?*
@@ -66,7 +71,7 @@ special-casing:
 |---|---|---|
 | Commands | `Command`, `MessageStream` | its own **sealed** command hierarchy (sealed types cannot cross modules) |
 | Wire format | `PacketCodec` plug on `SocketTransport` | a codec for its commands |
-| Data | `DukeText` reads `.duke` text; `Binder` makes each block the record its word names, every line in it one of its components by name — `Speed = 10`, `Geometry = Cylinder … End`, `Modules = [ … ]` — so the record is the field table. `@Link(X.class)` marks a component that names another block (`Animations = Humanoid`), `@Clip` one that names an animation clip; the editor reads both | its records, and `Binder.vocabulary` for an open type, as its modules are words by class name. A thing many units share is one block the units link, not a copy in each |
+| Data | `DukeText` reads `.duke` text; `Binder` makes each block the record its word names, every line in it one of its components by name — `Speed = 10`, `Geometry = Cylinder … End`, `Modules = [ … ]` — so the record is the field table. `@Link(X.class)` marks a component that names another block (`Animations = Humanoid`), `@Clip` one that names an animation clip, `@Group("Look")` starts the group the Inspector shows it and the components after it in, `@Grid` marks a map's rows of cells — every other component holding an `x` and a `y` is a thing on it, placed on the Map tab; the editor reads them all | its records, and `Binder.vocabulary` for an open type, as its modules are words by class name. A thing many units share is one block the units link, not a copy in each |
 | Modules | `ModuleFactory.withDefaults()` (body + locomotor), registered by `Data` record; a block is named by its module's class | its own module set, e.g. `RtsModules` |
 | Players | `Player` (identity + diplomacy), `PlayerList(PlayerFactory)` | its `Player` subtype, e.g. `RtsPlayer` |
 | Classification | `Kind`, interned by name | its vocabulary, e.g. `RtsKinds` |
@@ -74,6 +79,7 @@ special-casing:
 | Events | `WorldEvent` + the post/drain channel | its own events, e.g. `WeaponFired` |
 | Templates | `ThingTemplate` (name + modules) and one interface per thing a template may have — `Solid`, `Sighted`, `Classified`, `Titled`; `ThingTemplateLoader.type` gives a record its own block | its records, each implementing what it has: a `Monster` block is a `record Monster implements Solid, Sighted, …` |
 | World | `WorldTemplate` (a name) and one interface per thing a world may have — `Layered`: every map is laid at its storey height; `DukeGame.world(...)` hands it over | its record, implementing what its world has — a `World` block is a `record World implements Layered` — the rest of the world as blocks of their own records (`data/world/`: `Hud`, `Combat`, a `Theme` per file…), and its maps as blocks of theirs (`data/maps/`: a `ProceduralMap`, each `StaticMap`) |
+| Effects | `Effect` and its `Layer`s (`client3d`), which the client draws; `kit`'s starter set of them | its own blocks, each linked by `@Link(Effect.class)` — one named as a kit effect is drawn instead of it |
 
 Before adding anything to `core`, ask: *would a game that is not an RTS want
 this?* If the answer is no, it goes in `rts`.
@@ -134,7 +140,9 @@ event: `DieModule` leaves the wreck, `ObjectDied` tells the renderer to explode 
 
 Models, animations, textures, audio, icons and fonts belong to the **game**, not
 to the engine: `core`, `rts` and `game` ship none, and `client3d` ships only the
-shader it draws terrain with. A game's assets live under its own
+shader it draws terrain with. `kit` ships the starter set every game may draw
+from — the effects and their particles — under `kit/`, credited in its own
+section of `CREDITS.md`. A game's assets live under its own
 `src/main/resources`, sorted by what a thing **is** rather than by which pack it
 arrived in:
 

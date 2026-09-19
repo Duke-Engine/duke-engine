@@ -71,7 +71,7 @@ class DungeonEffectLayerTest {
     @Test
     void everyLayerBelongsToAnEffectThatExists() {
         var effects = SETTINGS.effects().stream()
-                .map(uz.duke.dungeon.content.Effect::name).collect(Collectors.toSet());
+                .map(uz.duke.client3d.Effect::name).collect(Collectors.toSet());
         for (var layer : SETTINGS.effectLayers()) {
             assertTrue(effects.contains(layer.effect()), "Layer " + layer.effect()
                     + " " + layer.name() + " belongs to no Effect");
@@ -143,11 +143,27 @@ class DungeonEffectLayerTest {
      * out is the client's default, so this is also the test that the defaults are
      * not quietly replaced on the way across.
      */
+    /** A block of the game's own with the Name of one of the kit's, read after it, is the one drawn. */
+    @Test
+    void anEffectOfTheGamesOwnReplacesTheKitsOfItsName() {
+        var settings = DungeonSettings.parse(uz.duke.dungeon.content.Content.data() + """
+
+                Effect
+                  Name = Fireball
+                  ShakeSeconds = 0.2
+                  ShakePower = 1
+                End
+                """);
+        var fireballs = settings.effects().stream().filter(effect -> effect.name().equals("Fireball")).toList();
+        assertEquals(1, fireballs.size());
+        assertTrue(fireballs.getFirst().layers().isEmpty(), "the game's own, not the kit's thirty layers");
+    }
+
     @Test
     void aBlockBecomesTheLayerItDescribes() throws java.io.IOException {
-        var said = saidIn("MageFireball", "Fire");
+        var said = saidIn("Fireball", "Fire");
         var layer = drawn(SETTINGS.effectLayers().stream()
-                .filter(art -> art.effect().equals("MageFireball") && art.name().equals("Fire"))
+                .filter(art -> art.effect().equals("Fireball") && art.name().equals("Fire"))
                 .findFirst().orElseThrow());
 
         assertEquals(said.get("Type"), layer.type());
@@ -258,7 +274,7 @@ class DungeonEffectLayerTest {
 
         assertEquals(falls, visuals.getEffectSeconds("MeteorCall"), 0.001f,
                 "the ground is marked for the wind-up");
-        assertEquals(falls, visuals.getEffectSeconds("MeteorWarning"), 0.001f,
+        assertEquals(falls, visuals.getEffectSeconds("Meteor"), 0.001f,
                 "and the rock takes the same wind-up to come down");
         for (var art : SETTINGS.effectLayers()) {
             if (art.effect().equals("MeteorCall") && EffectLayer.MARK.equals(drawn(art).type())) {
@@ -402,7 +418,7 @@ class DungeonEffectLayerTest {
         var visuals = Visuals.create();
         Main.measureLooks(visuals, SETTINGS);
         var blasts = blastsAndTheirRadius();
-        assertTrue(blasts.containsKey("MageFireball") && blasts.containsKey("MeteorWarning"),
+        assertTrue(blasts.containsKey("Fireball") && blasts.containsKey("Meteor"),
                 "the fireball and the meteor both burst: " + blasts);
 
         for (var blast : blasts.entrySet()) {

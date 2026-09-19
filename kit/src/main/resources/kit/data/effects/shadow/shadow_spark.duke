@@ -1,0 +1,75 @@
+Effect
+  Name = ShadowSpark
+  ; The Skeleton Summoner's ordinary shot: as small as the healer's, and the colour of
+  ; its rifts.
+  Layers = [
+    Layer
+      Name = Core
+      Type = AURA
+      Texture = kit/effects/particles/circle_05.png
+      Blend = Additive
+      Cover = 0.3
+      Count = 6
+      Rate = 40
+      Life = [0.1, 0.16]
+      Size = [4.05, 2.7]
+      Colour = [0xEBCCFF, 0xD89AFF]
+      Alpha = [1, 0.5]
+    End
+    Layer
+      Name = Sparks
+      Type = TRAIL
+      Texture = kit/effects/particles/star_04.png
+      Blend = Additive
+      Cover = 0.3
+      Count = 24
+      Rate = 60
+      Life = [0.24, 0.4]
+      Size = [3.84, 0.6]
+      SizeEase = 2
+      Colour = [0xD89AFF, 0x2A0A4A]
+      Alpha = [1, 0]
+      Speed = [2, 6]
+      Direction = ALL
+      Drag = 2
+      Spin = 90
+    End
+    Layer
+      Name = Glow
+      Type = LIGHT
+      LightColour = 0xA850F0
+      LightPower = 1.4
+      LightRadius = 36
+    End
+    Layer
+      Name = Flash
+      Type = IMPACT
+      Texture = kit/effects/particles/star_08.png
+      Blend = Additive
+      Count = 1
+      Life = [0.14, 0.14]
+      Size = [4.4, 17.6]
+      SizeEase = 3
+      Colour = [0xFFFFFF, 0xD89AFF]
+      Alpha = [1, 0]
+      FadeOut = 0.6
+      Height = 5
+      TurnJitter = 45
+    End
+    Layer
+      Name = Burst
+      Type = BURST
+      Texture = kit/effects/particles/circle_05.png
+      Blend = Additive
+      Cover = 0.3
+      Count = 20
+      Life = [0.18, 0.3]
+      Size = [2.64, 0.44]
+      Colour = [0xD89AFF, 0x2A0A4A]
+      Alpha = [1, 0]
+      Speed = [8, 20]
+      Direction = ALL
+      Drag = 3
+    End
+  ]
+End

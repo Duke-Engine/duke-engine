@@ -8,6 +8,8 @@ dependencies {
     // are bound, so every creature renders as a coloured primitive — which is the
     // point at this stage: the shapes are the game, not a stand-in for art.
     implementation(project(":client3d"))
+    // The starter set: the effects every game may use, and the art they are drawn with.
+    implementation(project(":kit"))
 }
 
 application {
@@ -86,13 +88,37 @@ tasks.register("convertAnimations") {
     }
 }
 
+// A map drawn once, from a seed, then filled by hand on the Map tab of the IDE:
+//
+//   ./gradlew :dungeon:newMap --args="crypt 42"             # a floor's size, at depth 1
+//   ./gradlew :dungeon:newMap --args="crypt 42 3 60 40 12"  # depth 3, 60 by 40 cells, 12 rooms
+//
+// From the repository root, so the file lands in this module's data/maps/ rather
+// than under the module's own directory, where nothing would ever read it.
+tasks.register<JavaExec>("newMap") {
+    group = "application"
+    description = "Draw a new map from a seed, into data/maps/"
+    mainClass.set("uz.duke.dungeon.stage.MapWriter")
+    classpath = sourceSets["main"].runtimeClasspath
+    workingDir = rootProject.projectDir
+}
+
+// The two maps the game ships, written again from their seeds.
+tasks.register<JavaExec>("writeExampleMaps") {
+    group = "application"
+    description = "Write the maps the game ships again, from their seeds"
+    mainClass.set("uz.duke.dungeon.stage.MapWriter")
+    classpath = sourceSets["main"].runtimeClasspath
+    workingDir = rootProject.projectDir
+}
+
 tasks.register<JavaExec>("cutIcons") {
     group = "application"
     description = "Cut the icon sheets into the game's own icon folders"
     mainClass.set("uz.duke.dungeon.tools.IconSheets")
     classpath = sourceSets["main"].runtimeClasspath
     // From the repository root, so the paths in the Java are the paths you would
-    // type -- the same reason :worldbuilder:writeExampleStage sets this.
+    // type -- the same reason newMap sets this.
     workingDir = rootProject.projectDir
 }
 
