@@ -2,58 +2,60 @@ Monster
   Name = Revenant
   DisplayName = Revenant
   KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
-  Cylinder
+  Geometry = Cylinder
     Radius = 4
     Height = 13
   End
   VisionRange = 58
-  GrowableBody
-    MaxHealth = 90
-  End
-  MoveUpdate
-    Speed = 16
-    TurnRate = 0
-  End
-  WeaponUpdate
-    Damage = 8
-    ; It throws fire rather than walking up. Shorter than the crossbow: this one
-    ; is dangerous because it will not die, not because it reaches.
-    AttackRange = 46
-    ReloadFrames = 58
-    AttackOnTheMove = No
-  End
-  ; A small one, and small on purpose -- this is its ordinary attack.
-  Bow
-    Projectile = Fireball
-    ; Slower than a bolt, so it can be seen coming and walked out from under.
-    Speed = 95
-    ; Out at the end of the staff, not out of its chest.
-    MuzzleOffset = 8
-  End
-  ; It throws at what it can see, for the same reason the crossbow shoots at it.
-  EyesOnly
-  End
-  ; The whole character of it: leave it alive and the fight resets.
-  AutoHealUpdate
-    HealPerSecond = 7
-  End
-  ; Tells the brain the frame a blow landed, so it stands and finishes the swing
-  ; instead of walking off mid-blow. It launches nothing -- see Swing.
-  Swing
-  End
-  ; Timers for the statuses it is wearing -- the engine's own, and today that
-  ; means SLOWED. MoveUpdate already halves the step of anything wearing it, and
-  ; StatusUpdate already counts it down and takes it off, so a monster that
-  ; carries this thaws by itself whether or not whoever chilled it is still alive.
-  StatusUpdate
-  End
-  ScriptModule
-    Name = RevenantBrain
-  End
-  ExperienceModule
-    ExperienceValue = 24
-    ExperienceRequired = [0, 0, 0]
-  End
+  Modules = [
+    GrowableBody
+      MaxHealth = 90
+    End
+    MoveUpdate
+      Speed = 16
+      TurnRate = 0
+    End
+    WeaponUpdate
+      Damage = 8
+      ; It throws fire rather than walking up. Shorter than the crossbow: this one
+      ; is dangerous because it will not die, not because it reaches.
+      AttackRange = 46
+      ReloadFrames = 58
+      AttackOnTheMove = No
+    End
+    ; A small one, and small on purpose -- this is its ordinary attack.
+    Bow
+      Projectile = Fireball
+      ; Slower than a bolt, so it can be seen coming and walked out from under.
+      Speed = 95
+      ; Out at the end of the staff, not out of its chest.
+      MuzzleOffset = 8
+    End
+    ; It throws at what it can see, for the same reason the crossbow shoots at it.
+    EyesOnly
+    End
+    ; The whole character of it: leave it alive and the fight resets.
+    AutoHealUpdate
+      HealPerSecond = 7
+    End
+    ; Tells the brain the frame a blow landed, so it stands and finishes the swing
+    ; instead of walking off mid-blow. It launches nothing -- see Swing.
+    Swing
+    End
+    ; Timers for the statuses it is wearing -- the engine's own, and today that
+    ; means SLOWED. MoveUpdate already halves the step of anything wearing it, and
+    ; StatusUpdate already counts it down and takes it off, so a monster that
+    ; carries this thaws by itself whether or not whoever chilled it is still alive.
+    StatusUpdate
+    End
+    ScriptModule
+      Name = RevenantBrain
+    End
+    ExperienceModule
+      ExperienceValue = 24
+      ExperienceRequired = [0, 0, 0]
+    End
+  ]
 
 
   ; Heals itself (AutoHealUpdate in its template above). Kill it quickly or it undoes
@@ -86,7 +88,7 @@ Monster
   ; What is looking at you out of the dark.
   Effect = EmberEyes
   ModelScale = 6.0
-  Held
+  Held = Held
     Model = models/monsters/staff.gltf
     Bone = handslot.r
   End

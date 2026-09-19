@@ -22,18 +22,20 @@ import uz.duke.core.module.ModuleData;
  *   Name = Crusader
  *   DisplayName = Crusader Tank
  *   KindOf = [SELECTABLE, VEHICLE, CAN_ATTACK]
- *   Box
+ *   Geometry = Box
  *     MajorRadius = 8
  *     MinorRadius = 5
  *     Height = 6
  *   End
- *   ActiveBody
- *     MaxHealth = 480
- *   End
+ *   Modules = [
+ *     ActiveBody
+ *       MaxHealth = 480
+ *     End
+ *   ]
  * End
  * }</pre>
- * A block is the record its type names, read by {@link Binder}: each field is a component of
- * that record, and each module it holds is one the factory builds, named by its class. A game
+ * A block is the record its type names, read by {@link Binder}: each line is a component of
+ * that record, and each module in its list is one the factory builds, named by its class. A game
  * adds block types of its own with {@link #type} — a {@code Monster} block is its
  * {@code Monster} record — and which fields a block takes is simply what that record has.
  */

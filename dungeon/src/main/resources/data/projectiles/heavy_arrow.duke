@@ -6,8 +6,10 @@ Projectile
   Name = HeavyArrow
   DisplayName = Heavy Arrow
   VisionRange = 0
-  ArrowUpdate
-  End
+  Modules = [
+    ArrowUpdate
+    End
+  ]
 
 
   ; The same shaft, nearly twice the size and in torch colour, so the shot the

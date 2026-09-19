@@ -318,7 +318,7 @@ class DungeonMonsterArtTest {
 
     /** Whether the template of this name carries a launcher. */
     private static boolean launches(String template) {
-        return uz.duke.dungeon.content.ShippedBlock.of(template).text().contains("\n  Bow\n");
+        return uz.duke.dungeon.content.ShippedBlock.of(template).text().contains("\n    Bow\n");
     }
 
     /**

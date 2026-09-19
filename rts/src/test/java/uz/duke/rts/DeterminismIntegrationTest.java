@@ -33,17 +33,19 @@ class DeterminismIntegrationTest {
             Object
               Name = Tank
               KindOf = [SELECTABLE, VEHICLE, CAN_ATTACK]
-              ActiveBody
-                MaxHealth = 100
-              End
-              MoveUpdate
-                Speed = 30
-              End
-              WeaponUpdate
-                Damage = 10
-                AttackRange = 8
-                ReloadFrames = 3
-              End
+              Modules = [
+                ActiveBody
+                  MaxHealth = 100
+                End
+                MoveUpdate
+                  Speed = 30
+                End
+                WeaponUpdate
+                  Damage = 10
+                  AttackRange = 8
+                  ReloadFrames = 3
+                End
+              ]
             End
             """;
 

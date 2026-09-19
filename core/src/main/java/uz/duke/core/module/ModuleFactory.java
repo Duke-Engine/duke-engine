@@ -10,8 +10,9 @@ import uz.duke.core.thing.GameObject;
 /**
  * Builds {@link Module}s from their data, ported from SAGE's {@code ModuleFactory}.
  *
- * <p>Each module is registered by its data record, which is also how a file names it: the
- * record's class, {@code MoveUpdate.Data} for a {@code MoveUpdate} block. {@link
+ * <p>Each module is registered by its data record, which is also how a file names it: by the
+ * class the record is written in, {@code MoveUpdate.Data} for a {@code MoveUpdate} block in a
+ * {@code Modules = [ … ]} list. {@link
  * uz.duke.core.thing.ThingFactory} consults this factory to build a new object's modules from its
  * template. Registrations are code, not game data, so they survive {@link #reset()}; a second
  * registration of the same data replaces the first, which is how a game builds an engine module

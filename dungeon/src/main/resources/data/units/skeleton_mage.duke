@@ -1,58 +1,60 @@
 ; The one that casts. Frail, slow, and dangerous only at a distance: between its
 ; fireballs it throws the Revenant's small fire, and the fireball is a skill its
-; brain decides to throw -- see Monster SkeletonMage and DungeonSkill
+; brain decides to throw -- see Monster SkeletonMage and Skill
 ; SkeletonMage Q below.
 Monster
   Name = SkeletonMage
   DisplayName = Skeleton Mage
   KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
-  Cylinder
+  Geometry = Cylinder
     Radius = 4
     Height = 13
   End
   VisionRange = 64
-  GrowableBody
-    MaxHealth = 40
-  End
-  MoveUpdate
-    ; Slower than any hero, so the one it is backing away from can catch it.
-    Speed = 13
-    TurnRate = 0
-  End
-  ; Its ordinary fire, for while the fireball comes back: weak, and reaching the far
-  ; edge of the band it keeps (KeepDistance 35 55), so it is never standing about.
-  WeaponUpdate
-    Damage = 6
-    AttackRange = 58
-    ReloadFrames = 54
-    AttackOnTheMove = No
-  End
-  ; That it has skills. Which ones is its DungeonSkill blocks' business, below.
-  SkillBook
-  End
-  ; Before the Bow, because a shot goes to the first launcher that takes it. Swing
-  ; only notes the frame and passes it on, which is how the brain knows a throw is
-  ; still leaving and holds its fireball until it has.
-  Swing
-  End
-  ; The Revenant's small fire, which has to get there.
-  Bow
-    Projectile = Fireball
-    Speed = 95
-    MuzzleOffset = 8
-  End
-  ; And only at what it can see.
-  EyesOnly
-  End
-  StatusUpdate
-  End
-  ScriptModule
-    Name = SkeletonMageBrain
-  End
-  ExperienceModule
-    ExperienceValue = 20
-    ExperienceRequired = [0, 0, 0]
-  End
+  Modules = [
+    GrowableBody
+      MaxHealth = 40
+    End
+    MoveUpdate
+      ; Slower than any hero, so the one it is backing away from can catch it.
+      Speed = 13
+      TurnRate = 0
+    End
+    ; Its ordinary fire, for while the fireball comes back: weak, and reaching the far
+    ; edge of the band it keeps (KeepDistance 35 55), so it is never standing about.
+    WeaponUpdate
+      Damage = 6
+      AttackRange = 58
+      ReloadFrames = 54
+      AttackOnTheMove = No
+    End
+    ; That it has skills. Which ones is its Skill blocks' business, below.
+    SkillBook
+    End
+    ; Before the Bow, because a shot goes to the first launcher that takes it. Swing
+    ; only notes the frame and passes it on, which is how the brain knows a throw is
+    ; still leaving and holds its fireball until it has.
+    Swing
+    End
+    ; The Revenant's small fire, which has to get there.
+    Bow
+      Projectile = Fireball
+      Speed = 95
+      MuzzleOffset = 8
+    End
+    ; And only at what it can see.
+    EyesOnly
+    End
+    StatusUpdate
+    End
+    ScriptModule
+      Name = SkeletonMageBrain
+    End
+    ExperienceModule
+      ExperienceValue = 20
+      ExperienceRequired = [0, 0, 0]
+    End
+  ]
 
 
   ; The first thing down here that decides for itself. It keeps him at a distance
@@ -85,7 +87,7 @@ Monster
   Model = models/monsters/skeleton_mage.glb
   Effect = EmberEyes
   ModelScale = 6.0
-  Held
+  Held = Held
     Model = models/monsters/staff.gltf
     Bone = handslot.r
   End
@@ -103,22 +105,24 @@ Monster
   ; throws travels; unsaid, it would be the hero's HeavySpeed.
   ; ---------------------------------------------------------------------------
 
-  Skill
-    Key = Q
-    ; Its fireball: the Mage's own Q, from something that does not want to be near
-    ; him. Half as fast as his, so a player who sees it leave the staff can step out
-    ; of its line -- and it bursts where it stops, as his does.
-    Effect = SKILLSHOT
-    ; The one worth stepping out of the way of: its ordinary fire is 6.
-    Damage = 45
-    Range = 70
-    Radius = 16
-    HitWidth = 6
-    ProjectileSpeed = 60
-    Projectile = SkullFireball
-    ; Six seconds between fireballs, with its ordinary fire in between.
-    CooldownFrames = 180
-    MaxRank = 1
-    Name = Olov shari
-  End
+  Skills = [
+    Skill
+      Key = Q
+      ; Its fireball: the Mage's own Q, from something that does not want to be near
+      ; him. Half as fast as his, so a player who sees it leave the staff can step out
+      ; of its line -- and it bursts where it stops, as his does.
+      Effect = SKILLSHOT
+      ; The one worth stepping out of the way of: its ordinary fire is 6.
+      Damage = 45
+      Range = 70
+      Radius = 16
+      HitWidth = 6
+      ProjectileSpeed = 60
+      Projectile = SkullFireball
+      ; Six seconds between fireballs, with its ordinary fire in between.
+      CooldownFrames = 180
+      MaxRank = 1
+      Name = Olov shari
+    End
+  ]
 End

@@ -125,9 +125,11 @@ class ProductionTest {
                   Name = Tank
                   BuildCost = 200
                   BuildTime = 2.0
-                  ActiveBody
-                    MaxHealth = 100
-                  End
+                  Modules = [
+                    ActiveBody
+                      MaxHealth = 100
+                    End
+                  ]
                 End
                 """, "units.duke");
         var tank = (RtsTemplate) thingFactory.findTemplate("Tank");

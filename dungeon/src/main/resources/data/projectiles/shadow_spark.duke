@@ -3,8 +3,10 @@ Projectile
   Name = ShadowSpark
   DisplayName = Shadow Spark
   VisionRange = 0
-  ArrowUpdate
-  End
+  Modules = [
+    ArrowUpdate
+    End
+  ]
 
 
 ; The Skeleton Summoner's ordinary shot: a mote of the dark its rifts open onto.

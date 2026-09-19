@@ -22,12 +22,14 @@ class GameSnapshotTest {
             Object
               Name = Tank
               KindOf = [VEHICLE]
-              ActiveBody
-                MaxHealth = 100
-              End
-              MoveUpdate
-                Speed = 30
-              End
+              Modules = [
+                ActiveBody
+                  MaxHealth = 100
+                End
+                MoveUpdate
+                  Speed = 30
+                End
+              ]
             End
             """;
 

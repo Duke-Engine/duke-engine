@@ -240,19 +240,30 @@ SAGE'ning `ThingTemplate` / `Object` / `Module` tuzilishi saqlangan:
 
 `core.data.DukeText` — `.duke` matnini bloklarga o'qiydi, faqat sintaksis: yolg'iz so'z blok ochadi,
 `End` eng ichkisini yopadi, `Key = value`, ro'yxat `[a, b]` (bir necha qatorga cho'zilishi mumkin),
-`;` — izoh. `core.data.Binder` blokni u nomlagan **record**ga bog'laydi: kalit — record komponenti
-(harf kattaligi farqsiz), ichki blok — shu nomdagi komponent yoki turi: record, sealed `Geometry` ning
-`Cylinder` i, yoki o'yin bergan lug'at (modullar). Yozilmagan komponent recordning `DEFAULTS`
-qiymatidan, u bo'lmasa nol/bo'sh olinadi. `ThingTemplateLoader` `Object` (va o'yin qo'shgan
-`Monster` kabi) bloklarni shu yo'l bilan template'ga aylantiradi; modul bloki — modul klassining
-nomi, ma'lumoti uning ichidagi `Data` recordi.
+`;` — izoh. `core.data.Binder` blokni u nomlagan **record**ga bog'laydi, va blok ichidagi har bir
+qator shu recordning **maydoni nomi** bilan boshlanadi (harf kattaligi farqsiz):
+
+| Maydon turi | Yozilishi |
+|---|---|
+| qiymat | `Speed = 10` |
+| qiymatlar ro'yxati | `KindOf = [A, B]` |
+| bitta record | `Geometry = Cylinder` + maydonlari + `End` (tanlanadigan class `=` dan keyin) |
+| recordlar ro'yxati | `Modules = [` + har biri `Class … End`, vergulsiz + `]` |
+| map | `Armor` + `FLAME = 0.5` qatorlari + `End` |
+
+`Maydon = Class` qatoridan keyin chuqurroq surilgan qator kelsagina blok ochiladi; maydonsiz tanlov
+bitta qatorda: `Geometry = Sphere`. Class — maydonning o'z recordi, sealed tur ruxsat bergan record
+yoki o'yin bergan lug'at so'zi (modul — o'z klassi nomi bilan, ma'lumoti uning ichidagi `Data`
+recordi). Yozilmagan komponent recordning `DEFAULTS` qiymatidan, u bo'lmasa nol/bo'sh olinadi.
+`ThingTemplateLoader` `Object` (va o'yin qo'shgan `Monster` kabi) bloklarni shu yo'l bilan
+template'ga aylantiradi.
 
 ```
 Object
   Name = Tank
   DisplayName = Battle Tank
   KindOf = [VEHICLE, SELECTABLE, CAN_ATTACK]
-  Box
+  Geometry = Box
     MajorRadius = 8
     MinorRadius = 5
     Height = 6
@@ -260,20 +271,22 @@ Object
   BuildCost = 700
   BuildTime = 6.0
   VisionRange = 45
-  ActiveBody
-    MaxHealth = 300
-  End
-  MoveUpdate
-    Speed = 20
-    TurnRate = 120
-  End
-  WeaponUpdate
-    Damage = 40
-    AttackRange = 30
-    ReloadFrames = 45
-    SplashRadius = 6
-    DamageType = EXPLOSION
-  End
+  Modules = [
+    ActiveBody
+      MaxHealth = 300
+    End
+    MoveUpdate
+      Speed = 20
+      TurnRate = 120
+    End
+    WeaponUpdate
+      Damage = 40
+      AttackRange = 30
+      ReloadFrames = 45
+      SplashRadius = 6
+      DamageType = EXPLOSION
+    End
+  ]
 End
 ```
 
@@ -942,7 +955,7 @@ armiya markazlari start pozitsiyalariga, armiyalarning o'zi esa faction'ning bos
 
 ### 6.2 Capability → engine modul jadvali
 
-Studio'da birlikka "qobiliyat" qo'shish = `.duke` modul bloki generatsiyasi (`GameFactory.unitsText`):
+Studio'da birlikka "qobiliyat" qo'shish = `Modules = [ … ]` ichidagi `.duke` modul bloki generatsiyasi (`GameFactory.unitsText`):
 
 | Studio capability | Generatsiya qilinadigan blok | Parametrlar |
 |---|---|---|

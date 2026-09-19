@@ -4,38 +4,40 @@ Monster
   ; thing down here that closes it faster than he can back away.
   DisplayName = Reaper
   KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
-  Cylinder
+  Geometry = Cylinder
     Radius = 6
     Height = 19
   End
   VisionRange = 130
-  GrowableBody
-    MaxHealth = 380
-  End
-  MoveUpdate
-    Speed = 26
-    TurnRate = 0
-  End
-  WeaponUpdate
-    Damage = 18
-    AttackRange = 13
-    ReloadFrames = 24
-  End
-  Swing
-  End
-  ; Timers for the statuses it is wearing -- the engine's own, and today that
-  ; means SLOWED. MoveUpdate already halves the step of anything wearing it, and
-  ; StatusUpdate already counts it down and takes it off, so a monster that
-  ; carries this thaws by itself whether or not whoever chilled it is still alive.
-  StatusUpdate
-  End
-  ScriptModule
-    Name = ReaperBrain
-  End
-  ExperienceModule
-    ExperienceValue = 110
-    ExperienceRequired = [0, 0, 0]
-  End
+  Modules = [
+    GrowableBody
+      MaxHealth = 380
+    End
+    MoveUpdate
+      Speed = 26
+      TurnRate = 0
+    End
+    WeaponUpdate
+      Damage = 18
+      AttackRange = 13
+      ReloadFrames = 24
+    End
+    Swing
+    End
+    ; Timers for the statuses it is wearing -- the engine's own, and today that
+    ; means SLOWED. MoveUpdate already halves the step of anything wearing it, and
+    ; StatusUpdate already counts it down and takes it off, so a monster that
+    ; carries this thaws by itself whether or not whoever chilled it is still alive.
+    StatusUpdate
+    End
+    ScriptModule
+      Name = ReaperBrain
+    End
+    ExperienceModule
+      ExperienceValue = 110
+      ExperienceRequired = [0, 0, 0]
+    End
+  ]
 
 
   SenseRadius = 55
@@ -54,7 +56,7 @@ Monster
   ; What is looking at you out of the dark.
   Effect = EmberEyes
   ModelScale = 6.2
-  Held
+  Held = Held
     Model = models/monsters/blade.gltf
     Bone = handslot.r
     Scale = 1.3

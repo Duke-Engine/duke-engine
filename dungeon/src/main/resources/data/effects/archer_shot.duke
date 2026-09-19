@@ -65,58 +65,60 @@ Effect
   WaveEdge = 0.9
   WaveWash = 0.10
 
-  ; The draw, for as long as her wind-up lasts: light gathering in to the arrow as
-  ; she pulls -- sparks drawn inward rather than thrown out, the one inward thing on
-  ; the page -- and a glint that blooms on the last of it.
-  Layer
-    Name = Gather
-    Type = BURST
-    Texture = effects/particles/star_04.png
-    Blend = Additive
-    Count = 24
-    Radius = 12
-    Life = [0.45, 0.5]
-    Size = [4, 1.5]
-    SizeEase = 1
-    Colour = [0xFFE0A0, 0xFFFFFF]
-    Alpha = [0.6, 1]
-    FadeOut = 0.15
-    Speed = [-24, -20]
-    Direction = OUT
-    Height = 7
-  End
+  Layers = [
+    ; The draw, for as long as her wind-up lasts: light gathering in to the arrow as
+    ; she pulls -- sparks drawn inward rather than thrown out, the one inward thing on
+    ; the page -- and a glint that blooms on the last of it.
+    Layer
+      Name = Gather
+      Type = BURST
+      Texture = effects/particles/star_04.png
+      Blend = Additive
+      Count = 24
+      Radius = 12
+      Life = [0.45, 0.5]
+      Size = [4, 1.5]
+      SizeEase = 1
+      Colour = [0xFFE0A0, 0xFFFFFF]
+      Alpha = [0.6, 1]
+      FadeOut = 0.15
+      Speed = [-24, -20]
+      Direction = OUT
+      Height = 7
+    End
 
-  Layer
-    Name = Charge
-    Type = IMPACT
-    Texture = effects/particles/circle_05.png
-    Blend = Additive
-    Cover = 0.2
-    Count = 1
-    Life = [0.42, 0.42]
-    Size = [2, 12]
-    SizeEase = -2.5
-    Colour = [0xFFD080, 0xFFFFFF]
-    Alpha = [0.3, 1]
-    FadeOut = 0.12
-    Height = 7
-    TurnJitter = 0
-  End
+    Layer
+      Name = Charge
+      Type = IMPACT
+      Texture = effects/particles/circle_05.png
+      Blend = Additive
+      Cover = 0.2
+      Count = 1
+      Life = [0.42, 0.42]
+      Size = [2, 12]
+      SizeEase = -2.5
+      Colour = [0xFFD080, 0xFFFFFF]
+      Alpha = [0.3, 1]
+      FadeOut = 0.12
+      Height = 7
+      TurnJitter = 0
+    End
 
-  Layer
-    Name = Glint
-    Type = IMPACT
-    Texture = effects/particles/star_07.png
-    Blend = Additive
-    Delay = 0.35
-    Count = 1
-    Life = [0.2, 0.2]
-    Size = [4, 16]
-    SizeEase = 3
-    Colour = [0xFFFFFF, 0xFFC060]
-    Alpha = [1, 0]
-    FadeOut = 0.6
-    Height = 7
-    TurnJitter = 0
-  End
+    Layer
+      Name = Glint
+      Type = IMPACT
+      Texture = effects/particles/star_07.png
+      Blend = Additive
+      Delay = 0.35
+      Count = 1
+      Life = [0.2, 0.2]
+      Size = [4, 16]
+      SizeEase = 3
+      Colour = [0xFFFFFF, 0xFFC060]
+      Alpha = [1, 0]
+      FadeOut = 0.6
+      Height = 7
+      TurnJitter = 0
+    End
+  ]
 End

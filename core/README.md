@@ -82,10 +82,12 @@ beshta chok orqali o'zingiznikini qo'yasiz:
 ### `uz.duke.core.data` — `.duke` ma'lumot qatlami
 
 `DukeText` — `.duke` sintaksisi: yolg'iz so'z blok ochadi, `End` yopadi,
-`Key = value`, `[a, b]` ro'yxat, `;` izoh · `Binder` — blokni u nomlagan
-recordga bog'laydi: kalit = record komponenti, ichki blok = komponent yoki
-turi (record, sealed tur, o'yin bergan lug'at — modullar) · `Block` / `Field`
-/ `Value` / `DataException`. Template'lar, modullar va o'yin sozlamalari shu
+`Key = value`, `[a, b]` ro'yxat, `Key = Class` + maydonlari + `End` (bitta
+record), `Key = [` + bloklar + `]` (recordlar ro'yxati), `;` izoh · `Binder` —
+blokni u nomlagan recordga bog'laydi: har bir qator record maydoni nomi bilan
+boshlanadi, `=` dan keyingi class — maydonning recordi, sealed tur ruxsat
+bergani yoki o'yin bergan lug'at so'zi (modullar) · `Block` / `Field` /
+`Value` / `DataException`. Template'lar, modullar va o'yin sozlamalari shu
 orqali o'qiladi — alohida maydon jadvali yo'q, record o'zi jadval.
 
 ### `uz.duke.core.ini` — INI qatlami

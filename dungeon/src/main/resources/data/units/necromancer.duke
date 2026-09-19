@@ -5,57 +5,59 @@ Monster
   ; out whether he has built enough of one.
   DisplayName = Necromancer
   KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
-  Cylinder
+  Geometry = Cylinder
     Radius = 7
     Height = 20
   End
   VisionRange = 130
-  GrowableBody
-    MaxHealth = 460
-  End
-  MoveUpdate
-    Speed = 13
-    TurnRate = 0
-  End
-  WeaponUpdate
-    Damage = 20
-    ; It throws fire, like the Revenant it is a bigger cousin of. Further than
-    ; the Revenant reaches, because a boss's room should be a fight from the
-    ; doorway rather than something to be walked up to.
-    AttackRange = 56
-    ReloadFrames = 50
-    AttackOnTheMove = No
-  End
-  ; The same fire as the Revenant's, thrown by something three times the size --
-  ; so it is a bigger ball, which is a projectile of its own rather than a number
-  ; on this one. See Projectile GreaterFireball.
-  Bow
-    Projectile = GreaterFireball
-    Speed = 105
-    ; Out at the end of a staff held by something twenty units tall.
-    MuzzleOffset = 12
-  End
-  ; It throws at what it can see, like everything else down here that throws.
-  EyesOnly
-  End
-  AutoHealUpdate
-    HealPerSecond = 9
-  End
-  Swing
-  End
-  ; Timers for the statuses it is wearing -- the engine's own, and today that
-  ; means SLOWED. MoveUpdate already halves the step of anything wearing it, and
-  ; StatusUpdate already counts it down and takes it off, so a monster that
-  ; carries this thaws by itself whether or not whoever chilled it is still alive.
-  StatusUpdate
-  End
-  ScriptModule
-    Name = NecromancerBrain
-  End
-  ExperienceModule
-    ExperienceValue = 130
-    ExperienceRequired = [0, 0, 0]
-  End
+  Modules = [
+    GrowableBody
+      MaxHealth = 460
+    End
+    MoveUpdate
+      Speed = 13
+      TurnRate = 0
+    End
+    WeaponUpdate
+      Damage = 20
+      ; It throws fire, like the Revenant it is a bigger cousin of. Further than
+      ; the Revenant reaches, because a boss's room should be a fight from the
+      ; doorway rather than something to be walked up to.
+      AttackRange = 56
+      ReloadFrames = 50
+      AttackOnTheMove = No
+    End
+    ; The same fire as the Revenant's, thrown by something three times the size --
+    ; so it is a bigger ball, which is a projectile of its own rather than a number
+    ; on this one. See Projectile GreaterFireball.
+    Bow
+      Projectile = GreaterFireball
+      Speed = 105
+      ; Out at the end of a staff held by something twenty units tall.
+      MuzzleOffset = 12
+    End
+    ; It throws at what it can see, like everything else down here that throws.
+    EyesOnly
+    End
+    AutoHealUpdate
+      HealPerSecond = 9
+    End
+    Swing
+    End
+    ; Timers for the statuses it is wearing -- the engine's own, and today that
+    ; means SLOWED. MoveUpdate already halves the step of anything wearing it, and
+    ; StatusUpdate already counts it down and takes it off, so a monster that
+    ; carries this thaws by itself whether or not whoever chilled it is still alive.
+    StatusUpdate
+    End
+    ScriptModule
+      Name = NecromancerBrain
+    End
+    ExperienceModule
+      ExperienceValue = 130
+      ExperienceRequired = [0, 0, 0]
+    End
+  ]
 
 
   SenseRadius = 55
@@ -79,7 +81,7 @@ Monster
   ; What is looking at you out of the dark.
   Effect = EmberEyes
   ModelScale = 9.2
-  Held
+  Held = Held
     Model = models/monsters/staff.gltf
     Bone = handslot.r
     Scale = 1.2

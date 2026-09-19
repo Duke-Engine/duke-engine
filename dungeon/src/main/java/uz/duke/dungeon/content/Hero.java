@@ -21,13 +21,13 @@ import uz.duke.dungeon.skill.Skill;
 /**
  * A hero, as one {@code Hero} block writes him — the whole of him: what the engine builds
  * him from, what he is made of, what he looks like and carries, his face in the panel, and
- * his skills, each a {@code Skill} block inside this one.
+ * his skills, each a {@code Skill} block in its {@code Skills = [ … ]}.
  *
  * @param primary    which attribute he hits with, by its short name; none for a hero who
  *                   has no attributes
  * @param attributes each attribute he has, by its short name: what he starts with and what a
  *                   level adds, {@code STR = [10, 1.6]}
- * @param held       what he carries, each a {@code Held} block, in the order written
+ * @param held       what he carries, each a {@code Held} block in {@code Held = [ … ]}, in the order written
  */
 public record Hero(String name, String displayName, Set<Kind> kindOf, float visionRange, Geometry geometry,
         List<ModuleData> modules,

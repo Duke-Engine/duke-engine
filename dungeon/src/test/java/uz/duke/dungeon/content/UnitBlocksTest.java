@@ -45,7 +45,7 @@ class UnitBlocksTest {
         var settings = DungeonSettings.parse("", """
                 Monster
                   Name = Warden
-                  Portrait
+                  Portrait = PortraitArt
                     Yaw = -12
                   End
                 End

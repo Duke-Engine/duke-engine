@@ -16,43 +16,47 @@ Object
   Name = Rogue
   DisplayName = Hero
   KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
-  Cylinder
+  Geometry = Cylinder
     Radius = 4
     Height = 12
   End
   VisionRange = 600
-  ActiveBody
-    MaxHealth = 200
-  End
-  MoveUpdate
-    Speed = 45
-    TurnRate = 720
-  End
-  WeaponUpdate
-    Damage = 14
-    AttackRange = 8
-    ReloadFrames = 15
-  End
+  Modules = [
+    ActiveBody
+      MaxHealth = 200
+    End
+    MoveUpdate
+      Speed = 45
+      TurnRate = 720
+    End
+    WeaponUpdate
+      Damage = 14
+      AttackRange = 8
+      ReloadFrames = 15
+    End
+  ]
 End
 
 Object
   Name = Skeleton
   DisplayName = Skeleton
   KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
-  Cylinder
+  Geometry = Cylinder
     Radius = 4
     Height = 12
   End
   VisionRange = 90
-  ActiveBody
-    MaxHealth = 60
-  End
-  MoveUpdate
-    Speed = 0
-  End
-  WeaponUpdate
-    Damage = 4
-    AttackRange = 10
-    ReloadFrames = 30
-  End
+  Modules = [
+    ActiveBody
+      MaxHealth = 60
+    End
+    MoveUpdate
+      Speed = 0
+    End
+    WeaponUpdate
+      Damage = 4
+      AttackRange = 10
+      ReloadFrames = 30
+    End
+  ]
 End

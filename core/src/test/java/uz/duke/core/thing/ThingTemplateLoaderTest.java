@@ -31,9 +31,11 @@ class ThingTemplateLoaderTest {
                   Name = Crusader
                   DisplayName = Crusader Tank
                   KindOf = [SELECTABLE, VEHICLE, CAN_ATTACK]
-                  ActiveBody
-                    MaxHealth = 480.0
-                  End
+                  Modules = [
+                    ActiveBody
+                      MaxHealth = 480.0
+                    End
+                  ]
                 End
                 """, "units.duke");
 
@@ -56,16 +58,20 @@ class ThingTemplateLoaderTest {
                 Object
                   Name = Alpha
                   KindOf = [STRUCTURE]
-                  ActiveBody
-                    MaxHealth = 100
-                  End
+                  Modules = [
+                    ActiveBody
+                      MaxHealth = 100
+                    End
+                  ]
                 End
                 Object
                   Name = Beta
                   KindOf = [INFANTRY]
-                  ActiveBody
-                    MaxHealth = 50
-                  End
+                  Modules = [
+                    ActiveBody
+                      MaxHealth = 50
+                    End
+                  ]
                 End
                 """, "units.duke");
 
@@ -87,12 +93,14 @@ class ThingTemplateLoaderTest {
                 Crate
                   Name = Box
                   Weight = 7
-                  Cylinder
+                  Geometry = Cylinder
                     Radius = 3
                   End
-                  ActiveBody
-                    MaxHealth = 20
-                  End
+                  Modules = [
+                    ActiveBody
+                      MaxHealth = 20
+                    End
+                  ]
                 End
                 """, "crates.duke");
 

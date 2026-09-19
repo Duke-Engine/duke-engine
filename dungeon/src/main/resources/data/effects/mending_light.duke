@@ -9,114 +9,116 @@ Effect
   Colour = 0xD8FF9A
   OrbSize = 1
 
-  Layer
-    Name = Gather
-    Type = AURA
-    Texture = effects/particles/circle_05.png
-    Blend = Additive
-    Count = 6
-    Rate = 18
-    Life = [0.3, 0.4]
-    Size = [4, 12]
-    SizeEase = 2
-    Colour = [0xF0FFC8, 0x9CE05A]
-    Alpha = [0.55, 0]
-    Radius = 3
-    Height = 1
-  End
+  Layers = [
+    Layer
+      Name = Gather
+      Type = AURA
+      Texture = effects/particles/circle_05.png
+      Blend = Additive
+      Count = 6
+      Rate = 18
+      Life = [0.3, 0.4]
+      Size = [4, 12]
+      SizeEase = 2
+      Colour = [0xF0FFC8, 0x9CE05A]
+      Alpha = [0.55, 0]
+      Radius = 3
+      Height = 1
+    End
 
-  Layer
-    Name = Glow
-    Type = LIGHT
-    LightColour = 0xB8F070
-    LightPower = 1.2
-    LightRadius = 36
-  End
+    Layer
+      Name = Glow
+      Type = LIGHT
+      LightColour = 0xB8F070
+      LightPower = 1.2
+      LightRadius = 36
+    End
 
-  Layer
-    Name = Ring
-    Type = RING
-    Texture = effects/particles/circle_02.png
-    Blend = Additive
-    Count = 1
-    Delay = 0.12
-    Life = [0.5, 0.5]
-    Size = [8, 30]
-    SizeEase = 3
-    Colour = [0xF4FFD8, 0xB6E86A]
-    ColourEase = 2
-    Alpha = [0.8, 0]
-    FadeOut = 0
-  End
+    Layer
+      Name = Ring
+      Type = RING
+      Texture = effects/particles/circle_02.png
+      Blend = Additive
+      Count = 1
+      Delay = 0.12
+      Life = [0.5, 0.5]
+      Size = [8, 30]
+      SizeEase = 3
+      Colour = [0xF4FFD8, 0xB6E86A]
+      ColourEase = 2
+      Alpha = [0.8, 0]
+      FadeOut = 0
+    End
 
-  Layer
-    Name = Halo
-    Type = PILLAR
-    Texture = effects/particles/pillar_halo.png
-    Blend = Additive
-    Count = 1
-    Life = [0.7, 0.7]
-    Size = [24, 20]
-    SizeEase = 2
-    Height = 64
-    Direction = DOWN
-    Rise = 0.3
-    RiseEase = 3
-    Colour = [0xEAFFB8, 0xA8DC52]
-    ColourEase = 2.5
-    Alpha = [0.55, 0]
-    FadeIn = 0.04
-    FadeOut = 0
-  End
+    Layer
+      Name = Halo
+      Type = PILLAR
+      Texture = effects/particles/pillar_halo.png
+      Blend = Additive
+      Count = 1
+      Life = [0.7, 0.7]
+      Size = [24, 20]
+      SizeEase = 2
+      Height = 64
+      Direction = DOWN
+      Rise = 0.3
+      RiseEase = 3
+      Colour = [0xEAFFB8, 0xA8DC52]
+      ColourEase = 2.5
+      Alpha = [0.55, 0]
+      FadeIn = 0.04
+      FadeOut = 0
+    End
 
-  Layer
-    Name = Core
-    Type = PILLAR
-    Texture = effects/particles/pillar_core.png
-    Blend = Additive
-    Count = 1
-    Life = [0.6, 0.6]
-    Size = [8, 5]
-    SizeEase = 2
-    Height = 72
-    Direction = DOWN
-    Rise = 0.2
-    RiseEase = 3
-    Colour = [0xFFFFF0, 0xE4FFB0]
-    ColourEase = 2.5
-    Alpha = [1, 0]
-    FadeIn = 0.03
-    FadeOut = 0
-  End
+    Layer
+      Name = Core
+      Type = PILLAR
+      Texture = effects/particles/pillar_core.png
+      Blend = Additive
+      Count = 1
+      Life = [0.6, 0.6]
+      Size = [8, 5]
+      SizeEase = 2
+      Height = 72
+      Direction = DOWN
+      Rise = 0.2
+      RiseEase = 3
+      Colour = [0xFFFFF0, 0xE4FFB0]
+      ColourEase = 2.5
+      Alpha = [1, 0]
+      FadeIn = 0.03
+      FadeOut = 0
+    End
 
-  Layer
-    Name = Motes
-    Type = BURST
-    Texture = effects/particles/star_04.png
-    Blend = Additive
-    Count = 14
-    Life = [0.55, 0.8]
-    Size = [2.8, 0.5]
-    SizeJitter = 0.4
-    Colour = [0xF8FFE0, 0xB8E860]
-    Alpha = [1, 0]
-    Speed = [20, 45]
-    Direction = DOWN
-    Spread = 12
-    Radius = 14
-    Height = 40
-    Gravity = 30
-    Drag = 1
-  End
+    Layer
+      Name = Motes
+      Type = BURST
+      Texture = effects/particles/star_04.png
+      Blend = Additive
+      Count = 14
+      Life = [0.55, 0.8]
+      Size = [2.8, 0.5]
+      SizeJitter = 0.4
+      Colour = [0xF8FFE0, 0xB8E860]
+      Alpha = [1, 0]
+      Speed = [20, 45]
+      Direction = DOWN
+      Spread = 12
+      Radius = 14
+      Height = 40
+      Gravity = 30
+      Drag = 1
+    End
 
-  Layer
-    Name = Flash
-    Type = LIGHT
-    LightColour = 0xC8F080
-    LightPower = 2.0
-    LightRadius = 60
-    Seconds = 0.7
-    FadeIn = 0.12
-    FadeOut = 0.8
-  End
+    Layer
+      Name = Flash
+      Type = LIGHT
+      LightColour = 0xC8F080
+      LightPower = 2.0
+      LightRadius = 60
+      Seconds = 0.7
+      FadeIn = 0.12
+      FadeOut = 0.8
+    End
+  ]
 End

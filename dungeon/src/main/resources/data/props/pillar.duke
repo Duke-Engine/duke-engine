@@ -3,7 +3,7 @@ Prop
   DisplayName = Pillar
   KindOf = [STRUCTURE]
   VisionRange = 0
-  Cylinder
+  Geometry = Cylinder
     Radius = 3
     Height = 12
   End

@@ -6,8 +6,10 @@ Projectile
   Name = MageFireball
   DisplayName = Fireball
   VisionRange = 0
-  ArrowUpdate
-  End
+  Modules = [
+    ArrowUpdate
+    End
+  ]
 
 
 ; And what Q throws. The same shape as the monsters' fire and half again the

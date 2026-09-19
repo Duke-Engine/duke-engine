@@ -5,8 +5,10 @@ Projectile
   Name = GreaterFireball
   DisplayName = Fireball
   VisionRange = 0
-  ArrowUpdate
-  End
+  Modules = [
+    ArrowUpdate
+    End
+  ]
 
 
   ; The Necromancer's. The same fire as the Revenant's and nothing else about it

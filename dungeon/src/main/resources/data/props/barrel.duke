@@ -3,7 +3,7 @@ Prop
   DisplayName = Barrel
   KindOf = [STRUCTURE]
   VisionRange = 0
-  Cylinder
+  Geometry = Cylinder
     Radius = 2.5
     Height = 6
   End

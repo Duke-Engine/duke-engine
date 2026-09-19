@@ -1,13 +1,15 @@
 ; The holy light a Skeleton Healer calls down, lying on the floor under whoever it is
 ; for until it lands -- the meteor's mark turned round, and a thing in the world for
 ; the same reasons. How long it lies and how much it gives back are the skill's: see
-; DungeonSkill SkeletonHealer Q.
+; the Q skill of the SkeletonHealer.
 Projectile
   Name = MendingLight
   DisplayName = Holy Light
   VisionRange = 0
-  MendingUpdate
-  End
+  Modules = [
+    MendingUpdate
+    End
+  ]
 
 
 ; The light it calls down, lying on the floor until it lands. It lies still and long

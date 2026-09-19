@@ -2,8 +2,10 @@ Projectile
   Name = Fireball
   DisplayName = Fireball
   VisionRange = 0
-  ArrowUpdate
-  End
+  Modules = [
+    ArrowUpdate
+    End
+  ]
 
 
   ; No model at all. It is a glowing body and a trail, both of which the effect

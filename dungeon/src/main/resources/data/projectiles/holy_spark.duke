@@ -3,8 +3,10 @@ Projectile
   Name = HolySpark
   DisplayName = Holy Spark
   VisionRange = 0
-  ArrowUpdate
-  End
+  Modules = [
+    ArrowUpdate
+    End
+  ]
 
 
 ; The Skeleton Healer's ordinary shot: a spark of its own light.

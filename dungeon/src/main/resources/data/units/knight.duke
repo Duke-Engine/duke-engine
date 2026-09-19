@@ -19,7 +19,7 @@ Hero
   Name = Knight
   DisplayName = Garen
   KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
-  Cylinder
+  Geometry = Cylinder
     Radius = 5
     Height = 12
   End
@@ -31,63 +31,65 @@ Hero
   ; of. He does not need the reach — nothing he owns can hit that far — and an
   ; archer's eyes on a swordsman would be map knowledge he has not earned.
   VisionRange = 52
-  GrowableBody
-    ; Nearly twice the archer's 550 once his twenty-two strength is on it -- 980 --
-    ; and the first half of why he can stand in a room. The second half is
-    ; ArmourPercent below, which is a separate axis: health is how long he
-    ; lasts, armour is how much each blow is worth.
-    MaxHealth = 716
-  End
-  MoveUpdate
-    ; Slower than 29, and this is the price of the rest of the page. He cannot
-    ; leave a fight he has walked into, so walking in has to be a decision.
-    ; Before his agility: 19.5 and ten points at 0.15 are 21.
-    Speed = 19.5
-    ; 0 = turn on the spot, as the archer does. See the note in his block: a
-    ; positive rate is SAGE's vehicle behaviour and makes a man drive in arcs.
-    TurnRate = 0
-  End
-  WeaponUpdate
-    ; Twice the archer's 14 a swing, and slower with it: 34 frames against 24.
-    ; Worked out, that is 0.88 a frame against his 0.58 -- about half again as
-    ; much damage over time, not the same amount in heavier pieces. The extra is
-    ; deliberate and it is what he is paid for standing in range: everything he
-    ; hits is hitting him back for the whole of it, which is not true of a single
-    ; arrow the archer looses from across the room.
+  Modules = [
+    GrowableBody
+      ; Nearly twice the archer's 550 once his twenty-two strength is on it -- 980 --
+      ; and the first half of why he can stand in a room. The second half is
+      ; ArmourPercent below, which is a separate axis: health is how long he
+      ; lasts, armour is how much each blow is worth.
+      MaxHealth = 716
+    End
+    MoveUpdate
+      ; Slower than 29, and this is the price of the rest of the page. He cannot
+      ; leave a fight he has walked into, so walking in has to be a decision.
+      ; Before his agility: 19.5 and ten points at 0.15 are 21.
+      Speed = 19.5
+      ; 0 = turn on the spot, as the archer does. See the note in his block: a
+      ; positive rate is SAGE's vehicle behaviour and makes a man drive in arcs.
+      TurnRate = 0
+    End
+    WeaponUpdate
+      ; Twice the archer's 14 a swing, and slower with it: 34 frames against 24.
+      ; Worked out, that is 0.88 a frame against his 0.58 -- about half again as
+      ; much damage over time, not the same amount in heavier pieces. The extra is
+      ; deliberate and it is what he is paid for standing in range: everything he
+      ; hits is hitting him back for the whole of it, which is not true of a single
+      ; arrow the archer looses from across the room.
+      ;
+      ; If he turns out to be simply better, this is the second number to cut --
+      ; after Speed, and before AttackRange, which is the one that makes him him.
+      ;
+      ; ★ Before strength, his primary, which adds its twenty-two: 30 a swing.
+      Damage = 8
+      ; A sword. The whole of the difference: 11 against the archer's 60, which is
+      ; inside every monster's own reach rather than far outside it, so he is being
+      ; hit for the whole of the time he is hitting.
+      AttackRange = 11
+      ReloadFrames = 34
+      ; He swings as he closes, unlike a drawn bow — a swordsman who had to stop
+      ; before every blow would never land one on anything that was backing away.
+      AttackOnTheMove = Yes
+    End
+    ; No Bow and no EyesOnly: both are the archer's, and both are about a shot that
+    ; has to cross a room. EyesOnly would also switch off the engine's own target
+    ; acquisition, which is exactly what a creature fighting at arm's length wants
+    ; left on -- there is nothing between him and what he is hitting.
     ;
-    ; If he turns out to be simply better, this is the second number to cut --
-    ; after Speed, and before AttackRange, which is the one that makes him him.
-    ;
-    ; ★ Before strength, his primary, which adds its twenty-two: 30 a swing.
-    Damage = 8
-    ; A sword. The whole of the difference: 11 against the archer's 60, which is
-    ; inside every monster's own reach rather than far outside it, so he is being
-    ; hit for the whole of the time he is hitting.
-    AttackRange = 11
-    ReloadFrames = 34
-    ; He swings as he closes, unlike a drawn bow — a swordsman who had to stop
-    ; before every blow would never land one on anything that was backing away.
-    AttackOnTheMove = Yes
-  End
-  ; No Bow and no EyesOnly: both are the archer's, and both are about a shot that
-  ; has to cross a room. EyesOnly would also switch off the engine's own target
-  ; acquisition, which is exactly what a creature fighting at arm's length wants
-  ; left on -- there is nothing between him and what he is hitting.
-  ;
-  ; Walks to whatever he is told to attack — see HeroBrain, which both heroes use.
-  ScriptModule
-    Name = HeroBrain
-  End
-  ; Q, W, E and R. Which four is in the DungeonSkill blocks at the end of this file,
-  ; exactly as the archer's are in his: this line only says that he has skills.
-  SkillBook
-  End
-  Recovery
-  End
-  ExperienceModule
-    ExperienceValue = 0
-    ExperienceRequired = [0, 0, 0]
-  End
+    ; Walks to whatever he is told to attack — see HeroBrain, which both heroes use.
+    ScriptModule
+      Name = HeroBrain
+    End
+    ; Q, W, E and R. Which four is in the Skill blocks at the end of this file,
+    ; exactly as the archer's are in his: this line only says that he has skills.
+    SkillBook
+    End
+    Recovery
+    End
+    ExperienceModule
+      ExperienceValue = 0
+      ExperienceRequired = [0, 0, 0]
+    End
+  ]
 
 
 ; ---------------------------------------------------------------------------
@@ -182,39 +184,41 @@ Hero
   ; stays open after he dies.
   Death = Death_A
 
-  ; ★ A ONE-HANDED sword, because the other hand now has a shield in it. The
-  ; greatsword is still in the folder if he ever goes back to two hands, and
-  ; going back is this line plus Idle and Attack above.
-  Held
-    Model = models/heroes/sword_1handed.gltf
-    Bone = handslot.r
-    ; Body and blade came out of the same pack at the same size.
-    Scale = 1
-  End
-  ; The RIGHT hand, unlike the rogue: he draws no string, he swings. If he ends
-  ; up fighting left-handed, this is the line -- handslot.l.
-  ;
-  ; No HeldRoll. The bow needed half a turn because it is the one weapon in the
-  ; pack laid out along its own +Z; every blade runs along +Y, which is what the
-  ; hand bone is authored for.
+  Held = [
+    ; ★ A ONE-HANDED sword, because the other hand now has a shield in it. The
+    ; greatsword is still in the folder if he ever goes back to two hands, and
+    ; going back is this line plus Idle and Attack above.
+    Held
+      Model = models/heroes/sword_1handed.gltf
+      Bone = handslot.r
+      ; Body and blade came out of the same pack at the same size.
+      Scale = 1
+    End
+    ; The RIGHT hand, unlike the rogue: he draws no string, he swings. If he ends
+    ; up fighting left-handed, this is the line -- handslot.l.
+    ;
+    ; No HeldRoll. The bow needed half a turn because it is the one weapon in the
+    ; pack laid out along its own +Z; every blade runs along +Y, which is what the
+    ; hand bone is authored for.
 
-  ; ★ AND THE SHIELD, in the hand the sword is not in. It is the second half of
-  ; what makes him readable across a dark room as the one who walks in: a
-  ; silhouette with a slab on one arm is not mistaken for an archer.
-  ;
-  ; No turn, like the sword and unlike the bow. The pack authors its own props
-  ; for its own hand slots, so a shield out of this kit in this kit's hand is
-  ; already the right way round -- the bow is the one documented exception in the
-  ; whole set, because it is the one model laid out along +Z.
-  ;
-  ; ★ Worth a look all the same: it is a disc rather than a length, so the rule
-  ; the build checks (longest side along +Y) has nothing to say about which way a
-  ; shield FACES. If it lies flat like a tray, HeldPitch = 90 is the line.
-  Held
-    Model = models/heroes/shield_round.gltf
-    Bone = handslot.l
-    Scale = 1
-  End
+    ; ★ AND THE SHIELD, in the hand the sword is not in. It is the second half of
+    ; what makes him readable across a dark room as the one who walks in: a
+    ; silhouette with a slab on one arm is not mistaken for an archer.
+    ;
+    ; No turn, like the sword and unlike the bow. The pack authors its own props
+    ; for its own hand slots, so a shield out of this kit in this kit's hand is
+    ; already the right way round -- the bow is the one documented exception in the
+    ; whole set, because it is the one model laid out along +Z.
+    ;
+    ; ★ Worth a look all the same: it is a disc rather than a length, so the rule
+    ; the build checks (longest side along +Y) has nothing to say about which way a
+    ; shield FACES. If it lies flat like a tray, HeldPitch = 90 is the line.
+    Held
+      Model = models/heroes/shield_round.gltf
+      Bone = handslot.l
+      Scale = 1
+    End
+  ]
   ; ★ WHAT HE IS MADE OF -- see Attributes in the World block. STRENGTH is his primary: every
   ; point of it is health and swing both, and it grows fastest. At the first level
   ; these make the knight he always was: 716 + 22 x 12 = 980 health,
@@ -226,12 +230,12 @@ Hero
     INT = [8, 1.0]
   End
   ; ★ WHAT HE CASTS OUT OF, before his intelligence: 10 + 8 x 5 = 50. The shallowest
-  ; pool in the game, and his skills are priced to match -- see DungeonSkill Knight.
+  ; pool in the game, and his skills are priced to match -- see his Skills.
   ; He is the hero who lives off his ordinary swing, and mana is what stops him
   ; opening with all four and then doing it again.
   MaxMana = 10
   ; Tenths of a point a second: the slowest mana of the three and the quickest
-  ; mending. See the note in Hero Rogue.
+  ; mending. See the note in the Rogue's block.
   ManaRegen = 10
   HealthRegen = 20
 
@@ -245,7 +249,7 @@ Hero
 ; once his model is in, Head and Show are the two lines, and neither needs a
 ; rebuild.
   ; Standing with the blade, as he stands in the world.
-  Portrait
+  Portrait = PortraitArt
     Calm = Melee_2H_Idle
     ; Guarding rather than swinging: he "has a target" for a whole engagement, so a
     ; chop here would have him hacking at the air between blows.
@@ -287,124 +291,126 @@ Hero
   ; Knight below for which four and where they go.
   ; ---------------------------------------------------------------------------
 
-  Skill
-    Key = Q
-    ; Cleave. His bread and butter: one swing that lands on the group rather than
-    ; on one of them, and the reason wading in is worth doing at all.
-    ;
-    ; AREA_AT_SPOT rather than a cone, because a cone is a shape the game does not
-    ; have and this plays as one: he aims a short way in front of himself and
-    ; everything around that spot is hit. Range is how far in front he can put it —
-    ; barely past his own sword — and Radius is how much of the room it covers.
-    Effect = AREA_AT_SPOT
-    Damage = 34
-    DamagePerLevel = 6
-    Range = 22
-    Radius = 26
-    ; Short, because it is what he does rather than something he saves.
-    CooldownFrames = 75
-    CooldownPerLevel = -2
-    ; Four points may go into it, and it waits for nothing but one of them.
-    MaxRank = 4
-    ; What it looks like going off -- see DungeonEffect KnightCleave.
-    Look = KnightCleave
-    Name = Kesish
-    Icon = icons/skills/skill_cleave.png
-    Blurb = Oldidagi bir joyga zarba beradi va o'sha yerdagi hamma dushmanga tegadi. Bittasiga emas — to'daga. Uning eng tez-tez ishlatadigan mahorati.
-    ManaCost = 7
-    ManaCostPerLevel = 1
-  End
+  Skills = [
+    Skill
+      Key = Q
+      ; Cleave. His bread and butter: one swing that lands on the group rather than
+      ; on one of them, and the reason wading in is worth doing at all.
+      ;
+      ; AREA_AT_SPOT rather than a cone, because a cone is a shape the game does not
+      ; have and this plays as one: he aims a short way in front of himself and
+      ; everything around that spot is hit. Range is how far in front he can put it —
+      ; barely past his own sword — and Radius is how much of the room it covers.
+      Effect = AREA_AT_SPOT
+      Damage = 34
+      DamagePerLevel = 6
+      Range = 22
+      Radius = 26
+      ; Short, because it is what he does rather than something he saves.
+      CooldownFrames = 75
+      CooldownPerLevel = -2
+      ; Four points may go into it, and it waits for nothing but one of them.
+      MaxRank = 4
+      ; What it looks like going off -- see Effect KnightCleave.
+      Look = KnightCleave
+      Name = Kesish
+      Icon = icons/skills/skill_cleave.png
+      Blurb = Oldidagi bir joyga zarba beradi va o'sha yerdagi hamma dushmanga tegadi. Bittasiga emas — to'daga. Uning eng tez-tez ishlatadigan mahorati.
+      ManaCost = 7
+      ManaCostPerLevel = 1
+    End
 
-  Skill
-    Key = W
-    ; Charge. How a man with eleven of reach gets to the thing he wants to hit, and
-    ; the only fast thing he owns.
-    ;
-    ; The archer's E is the same effect saying nothing about damage, and that is
-    ; the whole difference between a sprint and a charge: name a Damage and he goes
-    ; THROUGH what is in the way instead of past it. Radius is how wide that path
-    ; is -- a body's width, so it is the things he actually ran into.
-    ;
-    ; It does not shove anything aside. Pushing a body is a question about the
-    ; navigation grid rather than about a skill.
-    Effect = DASH
-    Distance = 52
-    Damage = 22
-    DamagePerLevel = 4
-    Radius = 14
-    CooldownFrames = 165
-    CooldownPerLevel = -5
-    ; Four points may go into it, and it waits for nothing but one of them.
-    MaxRank = 4
-    ; What it looks like going off -- see DungeonEffect KnightCharge.
-    Look = KnightCharge
-    Name = Hujum
-    Icon = icons/skills/skill_dash.png
-    Blurb = Oldinga otiladi va yo'lida uchraganlarni ham urib o'tadi. Qo'li kalta odamning nishoniga yetadigan yagona yo'li.
-    ManaCost = 12
-    ManaCostPerLevel = 1
-  End
+    Skill
+      Key = W
+      ; Charge. How a man with eleven of reach gets to the thing he wants to hit, and
+      ; the only fast thing he owns.
+      ;
+      ; The archer's E is the same effect saying nothing about damage, and that is
+      ; the whole difference between a sprint and a charge: name a Damage and he goes
+      ; THROUGH what is in the way instead of past it. Radius is how wide that path
+      ; is -- a body's width, so it is the things he actually ran into.
+      ;
+      ; It does not shove anything aside. Pushing a body is a question about the
+      ; navigation grid rather than about a skill.
+      Effect = DASH
+      Distance = 52
+      Damage = 22
+      DamagePerLevel = 4
+      Radius = 14
+      CooldownFrames = 165
+      CooldownPerLevel = -5
+      ; Four points may go into it, and it waits for nothing but one of them.
+      MaxRank = 4
+      ; What it looks like going off -- see Effect KnightCharge.
+      Look = KnightCharge
+      Name = Hujum
+      Icon = icons/skills/skill_dash.png
+      Blurb = Oldinga otiladi va yo'lida uchraganlarni ham urib o'tadi. Qo'li kalta odamning nishoniga yetadigan yagona yo'li.
+      ManaCost = 12
+      ManaCostPerLevel = 1
+    End
 
-  Skill
-    Key = E
-    ; Guard. The archer has nothing like it and should not: his answer to being
-    ; surrounded is to not be there. This one cannot leave, so his answer is to be
-    ; worth less to hit for a few seconds.
-    ;
-    ; BoostPercent is what the skill is worth, as it is for EMPOWER — there it is
-    ; damage added and here it is damage avoided. Half of every blow, which sounds
-    ; enormous and is four seconds long against a cooldown of eight.
-    Effect = GUARD
-    BoostPercent = 50
-    BoostPerLevel = 2
-    DurationFrames = 120
-    CooldownFrames = 240
-    CooldownPerLevel = -6
-    ; Four points may go into it, and it waits for nothing but one of them.
-    MaxRank = 4
-    ; What it looks like going off -- see DungeonEffect KnightGuard.
-    Look = KnightGuard
-    Name = Qalqon
-    Icon = icons/skills/skill_guard.png
-    Blurb = Bir necha soniya har zarbadan kamroq zarar oladi. Kamonchida bunaqasi yo'q va bo'lmasligi ham kerak: uning javobi — o'sha yerda bo'lmaslik.
-    ManaCost = 14
-    ManaCostPerLevel = 0
-  End
+    Skill
+      Key = E
+      ; Guard. The archer has nothing like it and should not: his answer to being
+      ; surrounded is to not be there. This one cannot leave, so his answer is to be
+      ; worth less to hit for a few seconds.
+      ;
+      ; BoostPercent is what the skill is worth, as it is for EMPOWER — there it is
+      ; damage added and here it is damage avoided. Half of every blow, which sounds
+      ; enormous and is four seconds long against a cooldown of eight.
+      Effect = GUARD
+      BoostPercent = 50
+      BoostPerLevel = 2
+      DurationFrames = 120
+      CooldownFrames = 240
+      CooldownPerLevel = -6
+      ; Four points may go into it, and it waits for nothing but one of them.
+      MaxRank = 4
+      ; What it looks like going off -- see Effect KnightGuard.
+      Look = KnightGuard
+      Name = Qalqon
+      Icon = icons/skills/skill_guard.png
+      Blurb = Bir necha soniya har zarbadan kamroq zarar oladi. Kamonchida bunaqasi yo'q va bo'lmasligi ham kerak: uning javobi — o'sha yerda bo'lmaslik.
+      ManaCost = 14
+      ManaCostPerLevel = 0
+    End
 
-  Skill
-    Key = R
-    ; Whirlwind. The ultimate, and the archer's opposite again: his is a window in
-    ; which everything else he does is worth more, and this one IS the thing being
-    ; done — he turns for four seconds and everything near him bleeds.
-    ;
-    ; Damage is per landing, not per cast: TickFrames says how often it lands, so
-    ; this is 14 twice a second for four seconds — 112 to anything that stays in it
-    ; for the whole turn, and much less to anything that walks out. Which is the
-    ; point: an ultimate that could be stepped out of is one the monsters get a say
-    ; in.
-    ;
-    ; It follows him. Measured from wherever he is standing each time it lands, so
-    ; he can carry it into the next group.
-    Effect = AREA_DAMAGE
-    Damage = 14
-    DamagePerLevel = 2
-    Radius = 34
-    DurationFrames = 120
-    TickFrames = 15
-    CooldownFrames = 900
-    CooldownPerLevel = -30
-    ; Half way up the ladder, as the archer's is: the run has to be earned.
-    ; Three points, and each waits for the hero: the first at level 4, the second
-    ; at 8, the third at 12. A MINIMUM rather than an appointment -- pass on it at
-    ; 8 and it is still there at 9.
-    MaxRank = 3
-    LevelPerRank = 4
-    ; What it looks like going off -- see DungeonEffect KnightWhirlwind.
-    Look = KnightWhirlwind
-    Name = Girdob
-    Icon = icons/skills/skill_whirlwind.png
-    Blurb = To'rt soniya aylanadi va atrofidagi hamma sekin-asta qonaydi. Zarar har tushishiga hisoblanadi, shuning uchun ichida turgan ko'p oladi, chiqib ketgan kam.
-    ManaCost = 30
-    ManaCostPerLevel = 2
-  End
+    Skill
+      Key = R
+      ; Whirlwind. The ultimate, and the archer's opposite again: his is a window in
+      ; which everything else he does is worth more, and this one IS the thing being
+      ; done — he turns for four seconds and everything near him bleeds.
+      ;
+      ; Damage is per landing, not per cast: TickFrames says how often it lands, so
+      ; this is 14 twice a second for four seconds — 112 to anything that stays in it
+      ; for the whole turn, and much less to anything that walks out. Which is the
+      ; point: an ultimate that could be stepped out of is one the monsters get a say
+      ; in.
+      ;
+      ; It follows him. Measured from wherever he is standing each time it lands, so
+      ; he can carry it into the next group.
+      Effect = AREA_DAMAGE
+      Damage = 14
+      DamagePerLevel = 2
+      Radius = 34
+      DurationFrames = 120
+      TickFrames = 15
+      CooldownFrames = 900
+      CooldownPerLevel = -30
+      ; Half way up the ladder, as the archer's is: the run has to be earned.
+      ; Three points, and each waits for the hero: the first at level 4, the second
+      ; at 8, the third at 12. A MINIMUM rather than an appointment -- pass on it at
+      ; 8 and it is still there at 9.
+      MaxRank = 3
+      LevelPerRank = 4
+      ; What it looks like going off -- see Effect KnightWhirlwind.
+      Look = KnightWhirlwind
+      Name = Girdob
+      Icon = icons/skills/skill_whirlwind.png
+      Blurb = To'rt soniya aylanadi va atrofidagi hamma sekin-asta qonaydi. Zarar har tushishiga hisoblanadi, shuning uchun ichida turgan ko'p oladi, chiqib ketgan kam.
+      ManaCost = 30
+      ManaCostPerLevel = 2
+    End
+  ]
 End

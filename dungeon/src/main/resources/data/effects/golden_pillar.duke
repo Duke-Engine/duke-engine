@@ -35,98 +35,100 @@
 Effect
   Name = GoldenPillar
 
-  Layer
-    Name = Ring
-    Type = RING
-    Texture = effects/particles/circle_02.png
-    Blend = Additive
-    Count = 1
-    Life = [0.55, 0.55]
-    Size = [8, 46]
-    SizeEase = 3
-    Colour = [0xFFE7A0, 0xFFB038]
-    ColourEase = 2
-    Alpha = [0.9, 0]
-    FadeOut = 0
-    At = CASTER
-    Follows = Yes
-  End
+  Layers = [
+    Layer
+      Name = Ring
+      Type = RING
+      Texture = effects/particles/circle_02.png
+      Blend = Additive
+      Count = 1
+      Life = [0.55, 0.55]
+      Size = [8, 46]
+      SizeEase = 3
+      Colour = [0xFFE7A0, 0xFFB038]
+      ColourEase = 2
+      Alpha = [0.9, 0]
+      FadeOut = 0
+      At = CASTER
+      Follows = Yes
+    End
 
-  Layer
-    Name = Halo
-    Type = PILLAR
-    Texture = effects/particles/pillar_halo.png
-    Blend = Additive
-    Count = 1
-    Life = [0.7, 0.7]
-    Size = [30, 38]
-    SizeEase = 2
-    Height = 48
-    Direction = UP
-    Rise = 0.3
-    RiseEase = 3
-    Colour = [0xFFC24A, 0xFF8C1E]
-    ColourEase = 2.5
-    Alpha = [0.6, 0]
-    FadeIn = 0.04
-    FadeOut = 0
-    At = CASTER
-    Follows = Yes
-  End
+    Layer
+      Name = Halo
+      Type = PILLAR
+      Texture = effects/particles/pillar_halo.png
+      Blend = Additive
+      Count = 1
+      Life = [0.7, 0.7]
+      Size = [30, 38]
+      SizeEase = 2
+      Height = 48
+      Direction = UP
+      Rise = 0.3
+      RiseEase = 3
+      Colour = [0xFFC24A, 0xFF8C1E]
+      ColourEase = 2.5
+      Alpha = [0.6, 0]
+      FadeIn = 0.04
+      FadeOut = 0
+      At = CASTER
+      Follows = Yes
+    End
 
-  Layer
-    Name = Core
-    Type = PILLAR
-    Texture = effects/particles/pillar_core.png
-    Blend = Additive
-    Count = 1
-    Life = [0.6, 0.6]
-    Size = [12, 7]
-    SizeEase = 2
-    Height = 58
-    Direction = UP
-    Rise = 0.22
-    RiseEase = 3
-    Colour = [0xFFF8E4, 0xFFD27A]
-    ColourEase = 2.5
-    Alpha = [1, 0]
-    FadeIn = 0.03
-    FadeOut = 0
-    At = CASTER
-    Follows = Yes
-  End
+    Layer
+      Name = Core
+      Type = PILLAR
+      Texture = effects/particles/pillar_core.png
+      Blend = Additive
+      Count = 1
+      Life = [0.6, 0.6]
+      Size = [12, 7]
+      SizeEase = 2
+      Height = 58
+      Direction = UP
+      Rise = 0.22
+      RiseEase = 3
+      Colour = [0xFFF8E4, 0xFFD27A]
+      ColourEase = 2.5
+      Alpha = [1, 0]
+      FadeIn = 0.03
+      FadeOut = 0
+      At = CASTER
+      Follows = Yes
+    End
 
-  Layer
-    Name = Motes
-    Type = BURST
-    Texture = effects/particles/star_04.png
-    Blend = Additive
-    Count = 26
-    Life = [0.45, 0.75]
-    Size = [3.6, 0.6]
-    SizeJitter = 0.4
-    Colour = [0xFFF0B8, 0xFFA02A]
-    Alpha = [1, 0]
-    Speed = [60, 130]
-    Direction = UP
-    Spread = 10
-    Radius = 12
-    Height = 2
-    Drag = 1.5
-    At = CASTER
-    Follows = Yes
-  End
+    Layer
+      Name = Motes
+      Type = BURST
+      Texture = effects/particles/star_04.png
+      Blend = Additive
+      Count = 26
+      Life = [0.45, 0.75]
+      Size = [3.6, 0.6]
+      SizeJitter = 0.4
+      Colour = [0xFFF0B8, 0xFFA02A]
+      Alpha = [1, 0]
+      Speed = [60, 130]
+      Direction = UP
+      Spread = 10
+      Radius = 12
+      Height = 2
+      Drag = 1.5
+      At = CASTER
+      Follows = Yes
+    End
 
-  Layer
-    Name = Flash
-    Type = LIGHT
-    LightColour = 0xFFC45A
-    LightPower = 3
-    LightRadius = 90
-    Seconds = 0.65
-    FadeIn = 0.06
-    FadeOut = 0.85
-    At = CASTER
-    Follows = Yes
-  End
+    Layer
+      Name = Flash
+      Type = LIGHT
+      LightColour = 0xFFC45A
+      LightPower = 3
+      LightRadius = 90
+      Seconds = 0.65
+      FadeIn = 0.06
+      FadeOut = 0.85
+      At = CASTER
+      Follows = Yes
+    End
+  ]
 End

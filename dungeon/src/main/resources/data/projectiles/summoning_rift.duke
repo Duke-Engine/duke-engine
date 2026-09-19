@@ -1,13 +1,15 @@
 ; A rift a Skeleton Summoner opens in the floor, that one of the dungeon's own climbs
 ; out of when it lands -- the meteor's mark again, and a thing in the world for the
 ; same reasons. What climbs out, how soon and for how long are the skill's: see
-; DungeonSkill SkeletonSummoner Q.
+; the Q skill of the SkeletonSummoner.
 Projectile
   Name = SummoningRift
   DisplayName = Rift
   VisionRange = 0
-  SummoningUpdate
-  End
+  Modules = [
+    SummoningUpdate
+    End
+  ]
 
 
 ; The rift it opens, lying on the floor until something climbs out. Like the healer's

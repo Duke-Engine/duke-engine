@@ -25,7 +25,7 @@ import uz.duke.dungeon.skill.Skill;
  * @param keepDistance  the band it holds around him: nearer and it backs away, further and it
  *                      comes. None, and it closes to {@code closeDistance} like everything else
  * @param maxPerRoom    how many of it one room may hold, or zero for no limit
- * @param skills        what it casts, each a {@code Skill} block inside this one
+ * @param skills        what it casts, each a {@code Skill} block in its {@code Skills = [ … ]}
  */
 public record Monster(String name, String displayName, Set<Kind> kindOf, float visionRange, Geometry geometry,
         List<ModuleData> modules,

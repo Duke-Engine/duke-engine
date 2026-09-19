@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * What something burning or glowing looks like, by name: its {@code Effect} block, and the
- * {@code Layer} blocks it is drawn from, inside it in draw order.
+ * {@code Layer} blocks it is drawn from, in its {@code Layers = [ … ]} in draw order.
  *
  * <p>Shared rather than written on each projectile or skill: an arrow and the drawn shot the
  * hero looses are the same fire at two sizes. The client owns the <em>kinds</em> — a trail, a

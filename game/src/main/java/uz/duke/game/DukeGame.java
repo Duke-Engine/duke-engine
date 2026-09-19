@@ -891,7 +891,7 @@ public final class DukeGame {
               Name = PowerPlant
               DisplayName = Power Plant
               KindOf = [STRUCTURE, SELECTABLE, POWERED]
-              Box
+              Geometry = Box
                 MajorRadius = 18
                 MinorRadius = 14
                 Height = 16
@@ -899,18 +899,20 @@ public final class DukeGame {
               BuildCost = 600
               BuildTime = 4.0
               VisionRange = 30
-              ActiveBody
-                MaxHealth = 400
-              End
-              PowerModule
-                Produces = 10
-              End
+              Modules = [
+                ActiveBody
+                  MaxHealth = 400
+                End
+                PowerModule
+                  Produces = 10
+                End
+              ]
             End
             Object
               Name = Barracks
               DisplayName = Barracks
               KindOf = [STRUCTURE, SELECTABLE]
-              Box
+              Geometry = Box
                 MajorRadius = 20
                 MinorRadius = 16
                 Height = 14
@@ -918,55 +920,59 @@ public final class DukeGame {
               BuildCost = 500
               BuildTime = 5.0
               VisionRange = 35
-              ActiveBody
-                MaxHealth = 600
-              End
-              ProductionUpdate
-                Builds = [Rifleman, Tank]
-              End
-              PowerModule
-                Consumes = 3
-              End
-              ; Stall the line when the base outgrows its plants. Asked for here
-              ; rather than assumed by the engine — a game with no notion of
-              ; capacity simply leaves this off.
-              CapacityGate
-              End
+              Modules = [
+                ActiveBody
+                  MaxHealth = 600
+                End
+                ProductionUpdate
+                  Builds = [Rifleman, Tank]
+                End
+                PowerModule
+                  Consumes = 3
+                End
+                ; Stall the line when the base outgrows its plants. Asked for here
+                ; rather than assumed by the engine — a game with no notion of
+                ; capacity simply leaves this off.
+                CapacityGate
+                End
+              ]
             End
             Object
               Name = Rifleman
               DisplayName = Rifleman
               KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
-              Cylinder
+              Geometry = Cylinder
                 Radius = 3
                 Height = 9
               End
               BuildCost = 120
               BuildTime = 1.5
               VisionRange = 40
-              ActiveBody
-                MaxHealth = 80
-              End
-              MoveUpdate
-                Speed = 14
-              End
-              WeaponUpdate
-                Damage = 9
-                AttackRange = 22
-                ReloadFrames = 12
-              End
-              ExperienceModule
-                ExperienceValue = 30
-                ExperienceRequired = [60, 180, 360]
-                LevelDamageBonus = [1.1, 1.2, 1.3]
-                HealOnPromotion = Yes
-              End
+              Modules = [
+                ActiveBody
+                  MaxHealth = 80
+                End
+                MoveUpdate
+                  Speed = 14
+                End
+                WeaponUpdate
+                  Damage = 9
+                  AttackRange = 22
+                  ReloadFrames = 12
+                End
+                ExperienceModule
+                  ExperienceValue = 30
+                  ExperienceRequired = [60, 180, 360]
+                  LevelDamageBonus = [1.1, 1.2, 1.3]
+                  HealOnPromotion = Yes
+                End
+              ]
             End
             Object
               Name = Tank
               DisplayName = Battle Tank
               KindOf = [VEHICLE, SELECTABLE, CAN_ATTACK]
-              Box
+              Geometry = Box
                 MajorRadius = 8
                 MinorRadius = 5
                 Height = 6
@@ -974,26 +980,28 @@ public final class DukeGame {
               BuildCost = 700
               BuildTime = 6.0
               VisionRange = 45
-              ActiveBody
-                MaxHealth = 300
-              End
-              MoveUpdate
-                Speed = 20
-                TurnRate = 120
-              End
-              WeaponUpdate
-                Damage = 40
-                AttackRange = 30
-                ReloadFrames = 45
-                SplashRadius = 6
-                DamageType = EXPLOSION
-              End
-              ExperienceModule
-                ExperienceValue = 100
-                ExperienceRequired = [200, 500, 1000]
-                LevelDamageBonus = [1.1, 1.2, 1.3]
-                HealOnPromotion = Yes
-              End
+              Modules = [
+                ActiveBody
+                  MaxHealth = 300
+                End
+                MoveUpdate
+                  Speed = 20
+                  TurnRate = 120
+                End
+                WeaponUpdate
+                  Damage = 40
+                  AttackRange = 30
+                  ReloadFrames = 45
+                  SplashRadius = 6
+                  DamageType = EXPLOSION
+                End
+                ExperienceModule
+                  ExperienceValue = 100
+                  ExperienceRequired = [200, 500, 1000]
+                  LevelDamageBonus = [1.1, 1.2, 1.3]
+                  HealOnPromotion = Yes
+                End
+              ]
             End
             """;
 }

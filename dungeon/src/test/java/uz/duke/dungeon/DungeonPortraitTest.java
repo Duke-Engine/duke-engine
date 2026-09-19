@@ -245,7 +245,7 @@ class DungeonPortraitTest {
                 Hero
                   Name = Rogue
                   Model = models/heroes/ranger.glb
-                  Portrait
+                  Portrait = PortraitArt
                     Calm = Idle_A
                     Fight = Melee_Unarmed_Idle
                     Dead = Death_B
@@ -289,7 +289,7 @@ class DungeonPortraitTest {
                 Hero
                   Name = Rogue
                   Model = models/heroes/ranger.glb
-                  Portrait
+                  Portrait = PortraitArt
                     Calm = Ranged_Bow_Idle
                   End
                 End
@@ -297,7 +297,7 @@ class DungeonPortraitTest {
                   Name = Mage
                   Model = models/heroes/mage.glb
                   Idle = Idle_A
-                  Portrait
+                  Portrait = PortraitArt
                     Calm = Idle_A
                     Yaw = -30
                   End

@@ -39,7 +39,7 @@ class BinderTest {
     }
 
     record Crate(String name, float weight, Set<Kind> kindOf, Geometry geometry, List<Held> held,
-            Generation generation, List<Part> parts, int colour) {
+            Generation generation, List<Part> parts, int colour, Map<Channel, Float> volume) {
     }
 
     private static <R> R bind(String text, Class<R> type) {
@@ -48,30 +48,37 @@ class BinderTest {
     }
 
     @Test
-    void eachKeyFillsTheComponentOfItsNameAndEachInnerBlockTheOneItsWordNames() {
+    void everyLineFillsTheComponentOfItsName() {
         var crate = bind("""
                 Crate
                   Name = Box
                   weight = 2.5
                   KindOf = [PROP, SELECTABLE]
                   Colour = 0x8E5BD0
-                  Cylinder
+                  Geometry = Cylinder
                     Radius = 6
                     Height = 16
                   End
-                  Held
-                    Model = models/bow.gltf
-                    In = handslot.l
-                    At = [0.12, 0.1, -0.22]
-                  End
-                  Held
-                    Model = models/quiver.gltf
-                  End
-                  Generation
+                  Held = [
+                    Held
+                      Model = models/bow.gltf
+                      In = handslot.l
+                      At = [0.12, 0.1, -0.22]
+                    End
+                    Held
+                      Model = models/quiver.gltf
+                    End
+                  ]
+                  Generation = Generation
                     MapWidth = 80
                   End
-                  Wheel
-                    Size = 3
+                  Parts = [
+                    Wheel
+                      Size = 3
+                    End
+                  ]
+                  Volume
+                    MUSIC = 0.5
                   End
                 End
                 """, Crate.class);
@@ -85,6 +92,15 @@ class BinderTest {
                 new Held("models/quiver.gltf", null, null)), crate.held());
         assertEquals(new Generation(80, 36, true), crate.generation(), "what it leaves out is the default");
         assertEquals(List.of(new Wheel(3)), crate.parts());
+        assertEquals(Map.of(Channel.MUSIC, 0.5f), crate.volume());
+    }
+
+    @Test
+    void aRecordWithNothingWrittenInItIsItsWordAlone() {
+        var crate = bind("Crate\n  Geometry = Sphere\n  Generation = Generation\nEnd\n", Crate.class);
+
+        assertEquals(new Geometry.Sphere(0), crate.geometry());
+        assertEquals(Generation.DEFAULTS, crate.generation());
     }
 
     @Test
@@ -95,9 +111,30 @@ class BinderTest {
                 "Sound\n  Channel = Loud\nEnd\n", Sound.class);
         assertError("crate.duke:2: 'Files' is a list: write it [a, b]", "Sound\n  Files = a.ogg\nEnd\n", Sound.class);
         assertError("crate.duke:2: 'Weight' is a number, not 'heavy'", "Crate\n  Weight = heavy\nEnd\n", Crate.class);
+        assertError("crate.duke:3: 'Radius' is a number, not 'wide'",
+                "Crate\n  Geometry = Cylinder\n    Radius = wide\n  End\nEnd\n", Crate.class);
+        assertError("crate.duke:2: 'Geometry' is one of [Sphere, Cylinder, Box], not 'Cone'",
+                "Crate\n  Geometry = Cone\nEnd\n", Crate.class);
+        assertError("crate.duke:3: 'Parts' is one of [Wheel], not 'Tyre'",
+                "Crate\n  Parts = [\n    Tyre\n    End\n  ]\nEnd\n", Crate.class);
+        assertError("crate.duke:2: 'Parts' is a list of blocks: 'Parts = [', a block for each, then ']'",
+                "Crate\n  Parts = Wheel\nEnd\n", Crate.class);
         assertError("crate.duke:2: 'Crate' holds no block 'Lid'", "Crate\n  Lid\n  End\nEnd\n", Crate.class);
-        assertError("crate.duke:4: 'Generation' is written twice in 'Crate'",
-                "Crate\n  Generation\n  End\n  Generation\n  End\nEnd\n", Crate.class);
+        assertError("crate.duke:4: 'Volume' is written twice in 'Crate'",
+                "Crate\n  Volume\n  End\n  Volume\n  End\nEnd\n", Crate.class);
+    }
+
+    /** The files were written the other way first, so a block in the old place says where it goes now. */
+    @Test
+    void aBlockWhereAFieldShouldBeSaysHowItIsWritten() {
+        assertError("crate.duke:2: 'Cylinder' is the value of its field: Geometry = Cylinder",
+                "Crate\n  Cylinder\n  End\nEnd\n", Crate.class);
+        assertError("crate.duke:2: 'Wheel' goes in its list: 'Parts = [', then Wheel … End, then ']'",
+                "Crate\n  Wheel\n  End\nEnd\n", Crate.class);
+        assertError("crate.duke:2: 'Generation' is written 'Generation = Generation', its fields under it",
+                "Crate\n  Generation\n  End\nEnd\n", Crate.class);
+        assertError("crate.duke:2: 'Held' is a list of blocks: 'Held = [', a block for each, then ']'",
+                "Crate\n  Held\n  End\nEnd\n", Crate.class);
     }
 
     private static void assertError(String message, String text, Class<?> type) {

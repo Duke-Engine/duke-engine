@@ -482,12 +482,14 @@ class KnightTest {
                 Hero
                   Name = Solo
                   Model = models/heroes/rogue.glb
-                  Held
-                    Model = models/heroes/bow.gltf
-                    Bone = handslot.l
-                    Scale = 2
-                    Roll = 180
-                  End
+                  Held = [
+                    Held
+                      Model = models/heroes/bow.gltf
+                      Bone = handslot.l
+                      Scale = 2
+                      Roll = 180
+                    End
+                  ]
                 End
                 """).heroNamed("Solo").held();
 

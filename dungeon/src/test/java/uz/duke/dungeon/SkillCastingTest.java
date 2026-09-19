@@ -710,13 +710,15 @@ class SkillCastingTest {
         var fierce = DungeonSettings.parse("", """
                 Hero
                   Name = Rogue
-                  Skill
-                    Key = Q
-                    Effect = AREA_DAMAGE
-                    Damage = 500
-                    Radius = 200
-                    CooldownFrames = 5
-                  End
+                  Skills = [
+                    Skill
+                      Key = Q
+                      Effect = AREA_DAMAGE
+                      Damage = 500
+                      Radius = 200
+                      CooldownFrames = 5
+                    End
+                  ]
                 End
                 """);
         var arena = arena(fierce, 170f, 150f, 150f, 190f);
@@ -745,19 +747,21 @@ class SkillCastingTest {
         var withTwo = DungeonSettings.parse("", """
                 Hero
                   Name = Sellsword
-                  Skill
-                    Key = A
-                    Effect = DASH
-                    Distance = 120
-                    CooldownFrames = 60
-                  End
-                  Skill
-                    Key = S
-                    Effect = STRIKE
-                    Damage = 500
-                    Range = 60
-                    CooldownFrames = 30
-                  End
+                  Skills = [
+                    Skill
+                      Key = A
+                      Effect = DASH
+                      Distance = 120
+                      CooldownFrames = 60
+                    End
+                    Skill
+                      Key = S
+                      Effect = STRIKE
+                      Damage = 500
+                      Range = 60
+                      CooldownFrames = 30
+                    End
+                  ]
                 End
                 """);
         var creatures = Content.units()
@@ -890,7 +894,7 @@ class SkillCastingTest {
      * making is false.
      */
     private static DungeonSettings heroWhose(String q) {
-        return DungeonSettings.parse("", "Hero\n  Name = Rogue\n  Skill\n    Key = Q\n" + q + "  End\nEnd\n");
+        return DungeonSettings.parse("", "Hero\n  Name = Rogue\n  Skills = [\n    Skill\n      Key = Q\n" + q + "    End\n  ]\nEnd\n");
     }
 
     /**

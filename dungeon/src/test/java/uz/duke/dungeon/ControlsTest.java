@@ -199,12 +199,14 @@ class ControlsTest {
                 """, """
                 Hero
                   Name = Rogue
-                  Skill
-                    Key = Z
-                    Effect = DASH
-                    Distance = 40
-                    CooldownFrames = 60
-                  End
+                  Skills = [
+                    Skill
+                      Key = Z
+                      Effect = DASH
+                      Distance = 40
+                      CooldownFrames = 60
+                    End
+                  ]
                 End
                 """);
 
@@ -234,21 +236,25 @@ class ControlsTest {
                 """, """
                 Hero
                   Name = Rogue
-                  Skill
-                    Key = Z
-                    Effect = DASH
-                    Distance = 40
-                    CooldownFrames = 60
-                  End
+                  Skills = [
+                    Skill
+                      Key = Z
+                      Effect = DASH
+                      Distance = 40
+                      CooldownFrames = 60
+                    End
+                  ]
                 End
                 Hero
                   Name = Bard
-                  Skill
-                    Key = Y
-                    Effect = AREA_DAMAGE
-                    Radius = 20
-                    CooldownFrames = 60
-                  End
+                  Skills = [
+                    Skill
+                      Key = Y
+                      Effect = AREA_DAMAGE
+                      Radius = 20
+                      CooldownFrames = 60
+                    End
+                  ]
                 End
                 """);
 

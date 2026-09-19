@@ -3,7 +3,7 @@ Prop
   DisplayName = Statue
   KindOf = [STRUCTURE]
   VisionRange = 0
-  Cylinder
+  Geometry = Cylinder
     Radius = 3.5
     Height = 14
   End

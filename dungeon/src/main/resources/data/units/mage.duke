@@ -7,7 +7,7 @@
 ; lowest number on this page by a distance, and it is the whole of him: every
 ; skill he owns covers ground, and the price is that one mistake is the run.
 ;
-; Read the numbers as a pair with the DungeonSkill Mage blocks further down, which
+; Read the numbers as a pair with the Mage's Skill blocks further down, which
 ; is where his real damage is. His WEAPON is deliberately feeble -- 12 a shot
 ; against the archer's 14, at three quarters of the reach and a third slower --
 ; because a mage whose auto-attack carried him would be an archer with a better
@@ -18,7 +18,7 @@ Hero
   Name = Mage
   DisplayName = Lira
   KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
-  Cylinder
+  Geometry = Cylinder
     Radius = 4
     Height = 12
   End
@@ -29,58 +29,60 @@ Hero
   ; black is a skill aimed at nothing -- but he is not the one who opens fights
   ; across a floor.
   VisionRange = 64
-  GrowableBody
-    ; The lowest in the game and meant to be read that way: 380 once his eight
-    ; strength is on it, two thirds of the archer's 550 and well under half the
-    ; knight's 980. Three blows from anything at depth and he is finished, which is
-    ; why Blink is on a key of its own.
-    MaxHealth = 284
-  End
-  MoveUpdate
-    ; Between the two of them -- 29 and 21. He is not running away from anything
-    ; on foot; that is what E is for. Before his agility: 23.65 and nine points at
-    ; 0.15 are 25.
-    Speed = 23.65
-    ; 0 = turn on the spot, as both the others do.
-    TurnRate = 0
-  End
-  WeaponUpdate
-    ; Feebler than the archer's 14 and slower with it: 32 frames against 24. That
-    ; works out at 0.36 a frame against his 0.58 -- not far off half. Everything
-    ; the mage is worth is on a cooldown.
-    ;
-    ; ★ Before intelligence, his primary, which adds its ten: 12 a bolt.
-    Damage = 2
-    ; Three quarters of the archer's 60, and still four times anything down here
-    ; reaches. Far enough to open with, near enough that he has to stand in the
-    ; room rather than at the door.
-    AttackRange = 46
-    ReloadFrames = 32
-    ; He stops to cast, exactly as the archer stops to draw.
-    AttackOnTheMove = No
-  End
-  ; His shots cross the room like everybody else's. Projectile names his own
-  ; rather than taking the hero's arrow: a wizard firing a wooden shaft is the
-  ; sort of thing nobody mentions and everybody sees.
-  Bow
-    Projectile = MageBolt
-  End
-  ; Stone stops what he throws as well as what he sees.
-  EyesOnly
-  End
-  ScriptModule
-    Name = HeroBrain
-  End
-  ; Q, W, E and R -- Fireball, Frost Nova, Blink and Meteor. Which four is in
-  ; the DungeonSkill blocks further down, as it is for the other two.
-  SkillBook
-  End
-  Recovery
-  End
-  ExperienceModule
-    ExperienceValue = 0
-    ExperienceRequired = [0, 0, 0]
-  End
+  Modules = [
+    GrowableBody
+      ; The lowest in the game and meant to be read that way: 380 once his eight
+      ; strength is on it, two thirds of the archer's 550 and well under half the
+      ; knight's 980. Three blows from anything at depth and he is finished, which is
+      ; why Blink is on a key of its own.
+      MaxHealth = 284
+    End
+    MoveUpdate
+      ; Between the two of them -- 29 and 21. He is not running away from anything
+      ; on foot; that is what E is for. Before his agility: 23.65 and nine points at
+      ; 0.15 are 25.
+      Speed = 23.65
+      ; 0 = turn on the spot, as both the others do.
+      TurnRate = 0
+    End
+    WeaponUpdate
+      ; Feebler than the archer's 14 and slower with it: 32 frames against 24. That
+      ; works out at 0.36 a frame against his 0.58 -- not far off half. Everything
+      ; the mage is worth is on a cooldown.
+      ;
+      ; ★ Before intelligence, his primary, which adds its ten: 12 a bolt.
+      Damage = 2
+      ; Three quarters of the archer's 60, and still four times anything down here
+      ; reaches. Far enough to open with, near enough that he has to stand in the
+      ; room rather than at the door.
+      AttackRange = 46
+      ReloadFrames = 32
+      ; He stops to cast, exactly as the archer stops to draw.
+      AttackOnTheMove = No
+    End
+    ; His shots cross the room like everybody else's. Projectile names his own
+    ; rather than taking the hero's arrow: a wizard firing a wooden shaft is the
+    ; sort of thing nobody mentions and everybody sees.
+    Bow
+      Projectile = MageBolt
+    End
+    ; Stone stops what he throws as well as what he sees.
+    EyesOnly
+    End
+    ScriptModule
+      Name = HeroBrain
+    End
+    ; Q, W, E and R -- Fireball, Frost Nova, Blink and Meteor. Which four is in
+    ; the Skill blocks further down, as it is for the other two.
+    SkillBook
+    End
+    Recovery
+    End
+    ExperienceModule
+      ExperienceValue = 0
+      ExperienceRequired = [0, 0, 0]
+    End
+  ]
 
 
 ; ---------------------------------------------------------------------------
@@ -98,7 +100,7 @@ Hero
 ; none of which anything asked for until there was a mage.
 ;
 ; ★ He carries the staff and NOT the spellbook the kit also ships for him. Not a
-; judgement -- a hero has one Holds line, so a second hand is a small feature
+; judgement -- a hero has one Held, so a second hand is a small feature
 ; rather than a setting. models/heroes/ is where spellbook_closed.gltf would go.
 ; ---------------------------------------------------------------------------
 
@@ -128,7 +130,7 @@ Hero
     ; The one library in the game with a single clip in it, and the only one that
     ; is not KayKit's -- see CREDITS. His ultimate is cast two-handed and the kit
     ; ships nothing of the kind. Which clip is taken from it is named by
-    ; DungeonSkill Mage R, which is also where its timing lives.
+    ; the R skill of the Mage, which is also where its timing lives.
     animations/characters/magic.glb,
   ]
 
@@ -151,43 +153,45 @@ Hero
   Hurt = Hit_A
   Death = Death_A
 
-  ; The ADVENTURERS' staff, which is his own kit's and not the one the skeleton
-  ; mage carries -- the two are different files and the skeletons' would be the
-  ; wrong wood in the right hand. Body and staff came out of the same pack at the
-  ; same size, so HeldScale is 1; it runs along its own +Y like every blade in
-  ; the kit, so it needs no HeldRoll. The bow is the only thing that ever did.
-  Held
-    Model = models/heroes/staff.gltf
-    Bone = handslot.r
-    Scale = 1
-  End
+  Held = [
+    ; The ADVENTURERS' staff, which is his own kit's and not the one the skeleton
+    ; mage carries -- the two are different files and the skeletons' would be the
+    ; wrong wood in the right hand. Body and staff came out of the same pack at the
+    ; same size, so HeldScale is 1; it runs along its own +Y like every blade in
+    ; the kit, so it needs no HeldRoll. The bow is the only thing that ever did.
+    Held
+      Model = models/heroes/staff.gltf
+      Bone = handslot.r
+      Scale = 1
+    End
 
-  ; ★ AND THE BOOK, which the kit ships for him and which used to be a note in
-  ; this block saying it was not possible. It is now: Holds is repeatable.
-  ;
-  ; Closed rather than open. A wizard walking a dungeon with a book held open in
-  ; his off hand is reading while he fights; shut, it is a thing he is carrying,
-  ; and the open one is there in the folder for the day a cast animation wants it.
-  ;
-  ; 0.57 tall against the staff's 2.15, so it is small in the hand and needs no
-  ; scaling down.
-  ;
-  ; ★ TURNED, unlike the sword and the staff, and for a reason the two of them
-  ; show by contrast: the hand bone is authored to send a weapon's LENGTH out of
-  ; the knuckles, so a sword laid out along its own +Y comes out of the fist
-  ; pointing the right way. A book has no length to point. Left untouched its
-  ; 0.57 axis went out of the knuckles too, which stood it on end and jutted it
-  ; away from him like a signboard.
-  ;
-  ; A quarter turn lays it flat in the palm, which is how a book is carried.
-  ; ★ If it is flat but facing the wrong way, HeldRoll = 90 is the other quarter;
-  ; if it lies UNDER his hand rather than on it, this is -90.
-  Held
-    Model = models/heroes/spellbook_closed.gltf
-    Bone = handslot.l
-    Scale = 1
-    Pitch = 90
-  End
+    ; ★ AND THE BOOK, which the kit ships for him and which used to be a note in
+    ; this block saying it was not possible. It is now: Held is a list.
+    ;
+    ; Closed rather than open. A wizard walking a dungeon with a book held open in
+    ; his off hand is reading while he fights; shut, it is a thing he is carrying,
+    ; and the open one is there in the folder for the day a cast animation wants it.
+    ;
+    ; 0.57 tall against the staff's 2.15, so it is small in the hand and needs no
+    ; scaling down.
+    ;
+    ; ★ TURNED, unlike the sword and the staff, and for a reason the two of them
+    ; show by contrast: the hand bone is authored to send a weapon's LENGTH out of
+    ; the knuckles, so a sword laid out along its own +Y comes out of the fist
+    ; pointing the right way. A book has no length to point. Left untouched its
+    ; 0.57 axis went out of the knuckles too, which stood it on end and jutted it
+    ; away from him like a signboard.
+    ;
+    ; A quarter turn lays it flat in the palm, which is how a book is carried.
+    ; ★ If it is flat but facing the wrong way, HeldRoll = 90 is the other quarter;
+    ; if it lies UNDER his hand rather than on it, this is -90.
+    Held
+      Model = models/heroes/spellbook_closed.gltf
+      Bone = handslot.l
+      Scale = 1
+      Pitch = 90
+    End
+  ]
   ; ★ WHAT HE IS MADE OF -- see Attributes in the World block. INTELLIGENCE is his primary: his
   ; pool and his bolt both, and it grows fastest. At the first level these make the
   ; mage he always was: 284 + 8 x 12 = 380 health, 23.65 + 9 x 0.15 = 25 speed,
@@ -204,7 +208,7 @@ Hero
   ; so he chooses.
   MaxMana = 70
   ; Tenths of a point a second: the quickest mana of the three and the slowest
-  ; mending. See the note in Hero Rogue.
+  ; mending. See the note in the Rogue's block.
   ManaRegen = 20
   HealthRegen = 10
 
@@ -215,7 +219,7 @@ Hero
 ; absolute 1.241 on all five of the kit's characters, because they share one rig.
 ; So he is framed LOWER than either of the others and shown a little wider.
   ; Standing with the staff, as he stands in the world.
-  Portrait
+  Portrait = PortraitArt
     Calm = Idle_A
     ; Hands up and holding it, which is what "has a target" looks like for a
     ; caster. The long spellcasting loop rather than the shoot, for the same reason
@@ -302,185 +306,187 @@ Hero
   ; the four lines are added when the files are.
   ; ---------------------------------------------------------------------------
 
-  Skill
-    Key = Q
-    ; Fireball. His bread and butter and the only one of the four he casts every
-    ; fight: a ball thrown down a line that stops at the first body or the first
-    ; wall, and takes whoever is standing near that with it.
-    ;
-    ; SKILLSHOT rather than STRIKE, and that is the difference between him and the
-    ; archer in one word. A strike is clicked on a monster and cannot miss; this is
-    ; aimed at a PLACE and forgets it at once, so reading where a skeleton is going
-    ; is the skill. Hitting three of them with it is a better cast than hitting one,
-    ; and nothing about the cast says which it will be.
-    ;
-    ; Range is how far it flies before it is spent; Radius is the burst where it
-    ; stops. The one it actually hit takes the full figure and is NOT hit twice.
-    Effect = SKILLSHOT
-    Damage = 55
-    DamagePerLevel = 9
-    ; ★ SHORTENED from 90. At ninety he threw it further than the rogue's bow
-    ; reaches (60) and nearly as far as his aimed shot (68), which made the
-    ; squishiest hero in the game also the one who never had to be in the room.
-    ; 64 is a long throw that still asks him to come inside his own vision of 64.
-    Range = 64
-    ; What it takes with it where it stops. NOT the width of the shot -- that is
-    ; HitWidth below, and drawing the lane at THIS was what made the indicator a
-    ; band five men across.
-    Radius = 26
-    ; ★ How wide the ball itself is, for the lane the client draws. The shot hits
-    ; whatever it comes within one frame's travel of, which at HeavySpeed = 120 is
-    ; four units either side -- so eight across, and the lane now says so instead
-    ; of claiming the whole blast sweeps the corridor.
-    HitWidth = 8
-    Projectile = MageFireball
-    ; Five seconds. Short for him and long for anybody else -- the archer's Q comes
-    ; back in three and the knight's in two and a half.
-    CooldownFrames = 150
-    CooldownPerLevel = -4
-    ; Four points may go into it, and it waits for nothing but one of them.
-    MaxRank = 4
-    ; What it looks like going off -- see DungeonEffect MageCast.
-    Look = MageCast
-    Name = Olov o'qi
-    Icon = icons/skills/skill_fire_arrow.png
-    Blurb = Yo'nalish bo'ylab olov o'qi otadi. Birinchi uchragan tanaga yoki devorga urilib to'xtaydi va o'sha joyda portlaydi.
-    ManaCost = 22
-    ManaCostPerLevel = 2
-  End
+  Skills = [
+    Skill
+      Key = Q
+      ; Fireball. His bread and butter and the only one of the four he casts every
+      ; fight: a ball thrown down a line that stops at the first body or the first
+      ; wall, and takes whoever is standing near that with it.
+      ;
+      ; SKILLSHOT rather than STRIKE, and that is the difference between him and the
+      ; archer in one word. A strike is clicked on a monster and cannot miss; this is
+      ; aimed at a PLACE and forgets it at once, so reading where a skeleton is going
+      ; is the skill. Hitting three of them with it is a better cast than hitting one,
+      ; and nothing about the cast says which it will be.
+      ;
+      ; Range is how far it flies before it is spent; Radius is the burst where it
+      ; stops. The one it actually hit takes the full figure and is NOT hit twice.
+      Effect = SKILLSHOT
+      Damage = 55
+      DamagePerLevel = 9
+      ; ★ SHORTENED from 90. At ninety he threw it further than the rogue's bow
+      ; reaches (60) and nearly as far as his aimed shot (68), which made the
+      ; squishiest hero in the game also the one who never had to be in the room.
+      ; 64 is a long throw that still asks him to come inside his own vision of 64.
+      Range = 64
+      ; What it takes with it where it stops. NOT the width of the shot -- that is
+      ; HitWidth below, and drawing the lane at THIS was what made the indicator a
+      ; band five men across.
+      Radius = 26
+      ; ★ How wide the ball itself is, for the lane the client draws. The shot hits
+      ; whatever it comes within one frame's travel of, which at HeavySpeed = 120 is
+      ; four units either side -- so eight across, and the lane now says so instead
+      ; of claiming the whole blast sweeps the corridor.
+      HitWidth = 8
+      Projectile = MageFireball
+      ; Five seconds. Short for him and long for anybody else -- the archer's Q comes
+      ; back in three and the knight's in two and a half.
+      CooldownFrames = 150
+      CooldownPerLevel = -4
+      ; Four points may go into it, and it waits for nothing but one of them.
+      MaxRank = 4
+      ; What it looks like going off -- see Effect MageCast.
+      Look = MageCast
+      Name = Olov o'qi
+      Icon = icons/skills/skill_fire_arrow.png
+      Blurb = Yo'nalish bo'ylab olov o'qi otadi. Birinchi uchragan tanaga yoki devorga urilib to'xtaydi va o'sha joyda portlaydi.
+      ManaCost = 22
+      ManaCostPerLevel = 2
+    End
 
-  Skill
-    Key = W
-    ; Frost Nova, dropped where he points -- on a pack before it reaches him, or on
-    ; the ones already at his elbow -- rather than always round his own feet.
-    ;
-    ; The damage is not the point and the numbers say so -- 40 against Fireball's
-    ; 55. SlowFrames is the point: ninety frames is three seconds of everything it
-    ; caught moving at half pace, which is three seconds of walking out of a room he
-    ; could not otherwise have left. It is Blink's cheaper cousin and they combine,
-    ; which is deliberate.
-    ;
-    ; The slow is the engine's own SLOWED status, worn by the monster on a timer of
-    ; its own -- so it thaws whether or not the mage is still alive, and MoveUpdate
-    ; halves its step without having been told anything about a mage.
-    Effect = AREA_AT_SPOT
-    Damage = 40
-    DamagePerLevel = 7
-    ; How far off he may drop it: past his Fireball's 64 and well short of the
-    ; meteor's 110. Aimed further, it comes down at the edge of that.
-    Range = 80
-    ; As wide as it was round him, so it still catches a pack rather than one.
-    Radius = 40
-    SlowFrames = 90
-    ; Ten seconds. The escape has to be spent rather than leaned on.
-    CooldownFrames = 300
-    CooldownPerLevel = -8
-    ; Four points may go into it, and it waits for nothing but one of them.
-    MaxRank = 4
-    ; What it looks like going off -- see DungeonEffect FrostNova.
-    Look = FrostNova
-    Name = Muz to'lqini
-    Icon = icons/skills/skill_frost_nova.png
-    Blurb = Tanlangan joyda muz portlatadi: u yerdagilarga zarar beradi va ularni bir muddat sekinlashtiradi. Zarari emas — sekinlashuvi muhim.
-    ManaCost = 38
-    ManaCostPerLevel = 3
-  End
+    Skill
+      Key = W
+      ; Frost Nova, dropped where he points -- on a pack before it reaches him, or on
+      ; the ones already at his elbow -- rather than always round his own feet.
+      ;
+      ; The damage is not the point and the numbers say so -- 40 against Fireball's
+      ; 55. SlowFrames is the point: ninety frames is three seconds of everything it
+      ; caught moving at half pace, which is three seconds of walking out of a room he
+      ; could not otherwise have left. It is Blink's cheaper cousin and they combine,
+      ; which is deliberate.
+      ;
+      ; The slow is the engine's own SLOWED status, worn by the monster on a timer of
+      ; its own -- so it thaws whether or not the mage is still alive, and MoveUpdate
+      ; halves its step without having been told anything about a mage.
+      Effect = AREA_AT_SPOT
+      Damage = 40
+      DamagePerLevel = 7
+      ; How far off he may drop it: past his Fireball's 64 and well short of the
+      ; meteor's 110. Aimed further, it comes down at the edge of that.
+      Range = 80
+      ; As wide as it was round him, so it still catches a pack rather than one.
+      Radius = 40
+      SlowFrames = 90
+      ; Ten seconds. The escape has to be spent rather than leaned on.
+      CooldownFrames = 300
+      CooldownPerLevel = -8
+      ; Four points may go into it, and it waits for nothing but one of them.
+      MaxRank = 4
+      ; What it looks like going off -- see Effect FrostNova.
+      Look = FrostNova
+      Name = Muz to'lqini
+      Icon = icons/skills/skill_frost_nova.png
+      Blurb = Tanlangan joyda muz portlatadi: u yerdagilarga zarar beradi va ularni bir muddat sekinlashtiradi. Zarari emas — sekinlashuvi muhim.
+      ManaCost = 38
+      ManaCostPerLevel = 3
+    End
 
-  Skill
-    Key = E
-    ; Blink. Sixty units, instantly, THROUGH whatever is in the way.
-    ;
-    ; The knight's W is a charge and the archer's E a sprint, and both of them
-    ; travel: they walk the line a step at a time and the first wall stops them.
-    ; This does not travel. A wall between here and there is simply not part of the
-    ; question, which is the one thing a hero with 380 health can be sold that is
-    ; worth a key of its own.
-    ;
-    ; It will not put him inside stone. Aimed into a wall the arrival is pulled
-    ; back along the line to the last floor, and if there is none the cast is
-    ; refused with the cooldown untouched rather than spent on nothing.
-    ;
-    ; No damage, on purpose. A blink that also hurt would be the knight's charge
-    ; with the drawbacks removed.
-    Effect = BLINK
-    Distance = 60
-    ; Twelve seconds, the longest of his three ordinary skills. It is the one that
-    ; undoes a mistake, so it has to be rationed harder than the ones that make
-    ; them.
-    CooldownFrames = 360
-    CooldownPerLevel = -10
-    ; Four points may go into it, and it waits for nothing but one of them.
-    MaxRank = 4
-    ; What it looks like going off -- see DungeonEffect MageBlink.
-    Look = MageBlink
-    Name = Siljish
-    Icon = icons/skills/skill_dash.png
-    Blurb = Bir zumda boshqa joyda paydo bo'ladi. Oradagi narsa — devormi, dushmanmi — umuman ahamiyatsiz.
-    ManaCost = 25
-    ManaCostPerLevel = -2
-  End
+    Skill
+      Key = E
+      ; Blink. Sixty units, instantly, THROUGH whatever is in the way.
+      ;
+      ; The knight's W is a charge and the archer's E a sprint, and both of them
+      ; travel: they walk the line a step at a time and the first wall stops them.
+      ; This does not travel. A wall between here and there is simply not part of the
+      ; question, which is the one thing a hero with 380 health can be sold that is
+      ; worth a key of its own.
+      ;
+      ; It will not put him inside stone. Aimed into a wall the arrival is pulled
+      ; back along the line to the last floor, and if there is none the cast is
+      ; refused with the cooldown untouched rather than spent on nothing.
+      ;
+      ; No damage, on purpose. A blink that also hurt would be the knight's charge
+      ; with the drawbacks removed.
+      Effect = BLINK
+      Distance = 60
+      ; Twelve seconds, the longest of his three ordinary skills. It is the one that
+      ; undoes a mistake, so it has to be rationed harder than the ones that make
+      ; them.
+      CooldownFrames = 360
+      CooldownPerLevel = -10
+      ; Four points may go into it, and it waits for nothing but one of them.
+      MaxRank = 4
+      ; What it looks like going off -- see Effect MageBlink.
+      Look = MageBlink
+      Name = Siljish
+      Icon = icons/skills/skill_dash.png
+      Blurb = Bir zumda boshqa joyda paydo bo'ladi. Oradagi narsa — devormi, dushmanmi — umuman ahamiyatsiz.
+      ManaCost = 25
+      ManaCostPerLevel = -2
+    End
 
-  Skill
-    Key = R
-    ; Meteor. The biggest number in the game, a second and a half after he asks
-    ; for it.
-    ;
-    ; THE DELAY IS THE SKILL. An AREA_AT_SPOT lands the instant it is cast, so the
-    ; only question it asks is where the monsters are now. This one asks where they
-    ; are going to be -- and gives them the same warning it gives him, because the
-    ; mark on the floor is a thing in the world rather than a hint on his screen.
-    ; A skeleton that walks out of the circle has beaten the ultimate, and being
-    ; able to beat it is what makes throwing it a decision.
-    ;
-    ; WindUpFrames is how long the ground is marked: 45 frames, a second and a
-    ; half. Long enough to be read from a chair, short enough that the thing it was
-    ; aimed at has not crossed the room. Shorten it and the skill stops being a
-    ; prediction; lengthen it and nothing is ever standing there.
-    ;
-    ; Projectile names what is dropped -- MeteorMark (ini/projectiles/), which is the
-    ; mark AND the meteor, since the two are the same object at two moments.
-    Effect = METEOR
-    Damage = 160
-    DamagePerLevel = 28
-    Range = 110
-    Radius = 44
-    WindUpFrames = 45
-    Projectile = MeteorMark
-    ; Thirty-six seconds. The knight's whirlwind is thirty and the archer's window
-    ; the same; this lands more than three times a Fireball in one go, on ground
-    ; the player chose, so it is rationed harder than either.
-    CooldownFrames = 1080
-    CooldownPerLevel = -30
-    ; Half way up the ladder, as both other ultimates are.
-    ; Three points, and each waits for the hero: the first at level 4, the second
-    ; at 8, the third at 12. A MINIMUM rather than an appointment -- pass on it at
-    ; 8 and it is still there at 9.
-    MaxRank = 3
-    LevelPerRank = 4
-    ; What it looks like going off -- see DungeonEffect MeteorCall.
-    Look = MeteorCall
-    ; ★ WHAT HE IS SEEN DOING, as against what the spell does. A two-handed cast
-    ; out of animations/characters/magic.glb -- the one animation in the game that
-    ; belongs to a skill rather than to a creature.
-    ;
-    ; He is given the clip automatically because it is named here: a hero's clips
-    ; are his own plus every CastAnim among his skills, so this name is written
-    ; once. Writing it in his block as well would be one name in two places, which
-    ; is two names as soon as somebody edits one of them.
-    CastAnim = Magic_Area_Attack
-    ; ★ AND HOW LONG IT TAKES, which is not the clip's own length. The clip runs
-    ; 3.0s; WindUpFrames above is 45, which is 1.5s, and that is the gap between
-    ; the call and the meteor arriving. Stretched to the wind-up the gesture ENDS
-    ; as the rock lands and reads as having called it down. Left at its own length
-    ; it runs a second and a half past the impact, which reads as a man waving at
-    ; a hole in the ground.
-    ;
-    ; So: change WindUpFrames and change this. 0 means the clip's own length.
-    CastSeconds = 1.5
-    Name = Meteor
-    Icon = icons/skills/skill_meteor.png
-    Blurb = Tanlangan joyga meteor chaqiradi. U bir zumda tushmaydi: yerda ogohlantiruvchi doira paydo bo'ladi, va undan chiqib ketishga ulgurgan omon qoladi.
-    ManaCost = 70
-    ManaCostPerLevel = 5
-  End
+    Skill
+      Key = R
+      ; Meteor. The biggest number in the game, a second and a half after he asks
+      ; for it.
+      ;
+      ; THE DELAY IS THE SKILL. An AREA_AT_SPOT lands the instant it is cast, so the
+      ; only question it asks is where the monsters are now. This one asks where they
+      ; are going to be -- and gives them the same warning it gives him, because the
+      ; mark on the floor is a thing in the world rather than a hint on his screen.
+      ; A skeleton that walks out of the circle has beaten the ultimate, and being
+      ; able to beat it is what makes throwing it a decision.
+      ;
+      ; WindUpFrames is how long the ground is marked: 45 frames, a second and a
+      ; half. Long enough to be read from a chair, short enough that the thing it was
+      ; aimed at has not crossed the room. Shorten it and the skill stops being a
+      ; prediction; lengthen it and nothing is ever standing there.
+      ;
+      ; Projectile names what is dropped -- MeteorMark (data/projectiles/), which is the
+      ; mark AND the meteor, since the two are the same object at two moments.
+      Effect = METEOR
+      Damage = 160
+      DamagePerLevel = 28
+      Range = 110
+      Radius = 44
+      WindUpFrames = 45
+      Projectile = MeteorMark
+      ; Thirty-six seconds. The knight's whirlwind is thirty and the archer's window
+      ; the same; this lands more than three times a Fireball in one go, on ground
+      ; the player chose, so it is rationed harder than either.
+      CooldownFrames = 1080
+      CooldownPerLevel = -30
+      ; Half way up the ladder, as both other ultimates are.
+      ; Three points, and each waits for the hero: the first at level 4, the second
+      ; at 8, the third at 12. A MINIMUM rather than an appointment -- pass on it at
+      ; 8 and it is still there at 9.
+      MaxRank = 3
+      LevelPerRank = 4
+      ; What it looks like going off -- see Effect MeteorCall.
+      Look = MeteorCall
+      ; ★ WHAT HE IS SEEN DOING, as against what the spell does. A two-handed cast
+      ; out of animations/characters/magic.glb -- the one animation in the game that
+      ; belongs to a skill rather than to a creature.
+      ;
+      ; He is given the clip automatically because it is named here: a hero's clips
+      ; are his own plus every CastAnim among his skills, so this name is written
+      ; once. Writing it in his block as well would be one name in two places, which
+      ; is two names as soon as somebody edits one of them.
+      CastAnim = Magic_Area_Attack
+      ; ★ AND HOW LONG IT TAKES, which is not the clip's own length. The clip runs
+      ; 3.0s; WindUpFrames above is 45, which is 1.5s, and that is the gap between
+      ; the call and the meteor arriving. Stretched to the wind-up the gesture ENDS
+      ; as the rock lands and reads as having called it down. Left at its own length
+      ; it runs a second and a half past the impact, which reads as a man waving at
+      ; a hole in the ground.
+      ;
+      ; So: change WindUpFrames and change this. 0 means the clip's own length.
+      CastSeconds = 1.5
+      Name = Meteor
+      Icon = icons/skills/skill_meteor.png
+      Blurb = Tanlangan joyga meteor chaqiradi. U bir zumda tushmaydi: yerda ogohlantiruvchi doira paydo bo'ladi, va undan chiqib ketishga ulgurgan omon qoladi.
+      ManaCost = 70
+      ManaCostPerLevel = 5
+    End
+  ]
 End

@@ -5,8 +5,10 @@ Projectile
   Name = MageBolt
   DisplayName = Arcane Bolt
   VisionRange = 0
-  ArrowUpdate
-  End
+  Modules = [
+    ArrowUpdate
+    End
+  ]
 
 
 ; The mage hero's ordinary shot. Cold rather than hot, and that is the whole

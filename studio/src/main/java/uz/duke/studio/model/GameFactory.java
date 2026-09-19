@@ -53,9 +53,10 @@ public final class GameFactory {
             ini.append("  BuildTime = ").append(unit.buildTimeSeconds).append('\n');
         }
         ini.append("  VisionRange = ").append(unit.visionRange).append('\n');
-        ini.append("  ").append(ModuleFactory.nameOf(ActiveBody.Data.class)).append('\n');
-        ini.append("    MaxHealth = ").append(unit.maxHealth).append('\n');
-        ini.append("  End\n");
+        ini.append("  Modules = [\n");
+        ini.append("    ").append(ModuleFactory.nameOf(ActiveBody.Data.class)).append('\n');
+        ini.append("      MaxHealth = ").append(unit.maxHealth).append('\n');
+        ini.append("    End\n");
 
         appendCapability(ini, unit, CapabilityType.MOVE, MoveUpdate.Data.class);
         appendCapability(ini, unit, CapabilityType.ATTACK, WeaponUpdate.Data.class);
@@ -67,10 +68,11 @@ public final class GameFactory {
         appendCapability(ini, unit, CapabilityType.SUPPLY, SupplyModule.Data.class);
         appendCapability(ini, unit, CapabilityType.HARVEST, HarvestUpdate.Data.class);
         for (var script : unit.scripts) {
-            ini.append("  ").append(ModuleFactory.nameOf(ScriptModule.Data.class)).append('\n');
-            ini.append("    Name = ").append(script).append('\n');
-            ini.append("  End\n");
+            ini.append("    ").append(ModuleFactory.nameOf(ScriptModule.Data.class)).append('\n');
+            ini.append("      Name = ").append(script).append('\n');
+            ini.append("    End\n");
         }
+        ini.append("  ]\n");
         ini.append("End\n");
     }
 
@@ -80,17 +82,17 @@ public final class GameFactory {
         if (params == null) {
             return;
         }
-        ini.append("  ").append(ModuleFactory.nameOf(module)).append('\n');
+        ini.append("    ").append(ModuleFactory.nameOf(module)).append('\n');
         for (var entry : params.entrySet()) {
             var value = entry.getValue() == null ? "" : entry.getValue().trim();
             if (value.isEmpty() || isDefaultZero(entry.getKey(), value)) {
                 continue;
             }
-            ini.append("    ").append(entry.getKey()).append(" = ")
+            ini.append("      ").append(entry.getKey()).append(" = ")
                     .append(isList(module, entry.getKey()) ? "[" + String.join(", ", value.split("[\\s,]+")) + "]" : value)
                     .append('\n');
         }
-        ini.append("  End\n");
+        ini.append("    End\n");
     }
 
     /** A field the module's data holds as a list, written {@code [a, b]}. */

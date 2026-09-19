@@ -41,18 +41,20 @@ class ScriptModuleTest {
             Object
               Name = Runner
               KindOf = [INFANTRY, SELECTABLE]
-              ActiveBody
-                MaxHealth = 50
-              End
-              MoveUpdate
-                Speed = 30
-              End
-              ScriptModule
-                Name = Walker
-              End
-              ScriptModule
-                Name = Broken
-              End
+              Modules = [
+                ActiveBody
+                  MaxHealth = 50
+                End
+                MoveUpdate
+                  Speed = 30
+                End
+                ScriptModule
+                  Name = Walker
+                End
+                ScriptModule
+                  Name = Broken
+                End
+              ]
             End
             """;
 

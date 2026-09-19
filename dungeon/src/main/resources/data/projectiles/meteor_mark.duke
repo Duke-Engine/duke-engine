@@ -7,13 +7,15 @@
 ; it and nothing walks into it; it is a place, not an obstacle.
 ;
 ; How long it marks the ground and how hard it lands are the skill's, not its
-; own: see DungeonSkill Mage R.
+; own: see the R skill of the Mage.
 Projectile
   Name = MeteorMark
   DisplayName = Meteor
   VisionRange = 0
-  FallingUpdate
-  End
+  Modules = [
+    FallingUpdate
+    End
+  ]
 
 
 ; The mark the meteor leaves while it is falling, and then the meteor.

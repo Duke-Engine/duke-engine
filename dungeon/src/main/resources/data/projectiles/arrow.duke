@@ -11,8 +11,10 @@ Projectile
   Name = Arrow
   DisplayName = Arrow
   VisionRange = 0
-  ArrowUpdate
-  End
+  Modules = [
+    ArrowUpdate
+    End
+  ]
 
 
 ; ---------------------------------------------------------------------------

@@ -155,7 +155,7 @@ class DungeonSettingsTest {
         var creatures = Content.units();
         assertTrue(creatures.contains("Hero\n  Name = Rogue\n"));
         assertTrue(creatures.contains("Monster\n  Name = Skeleton\n"));
-        assertTrue(ShippedBlock.of("Skeleton").text().contains("  ScriptModule\n    Name = SkeletonBrain\n"),
+        assertTrue(ShippedBlock.of("Skeleton").text().contains("    ScriptModule\n      Name = SkeletonBrain\n"),
                 "the game's skeletons should carry their behaviour");
 
         var fixture = Content.read(Content.FIXTURE_CREATURES);

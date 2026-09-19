@@ -25,86 +25,88 @@ Effect
   WaveEdge = 0.85
   WaveWash = 0.22
 
-  ; The guard, round him for exactly as long as it holds -- no Seconds, so the
-  ; skill's own DurationFrames. A bubble of light that goes where he goes and
-  ; blinks through the last quarter of its run, so the player knows to step back
-  ; before it drops rather than after; motes rising inside it; and a flash and a
-  ; ring when he raises it.
-  Layer
-    Name = Bubble
-    Type = AURA
-    Texture = effects/particles/light_03.png
-    Blend = Additive
-    Cover = 0
-    Count = 1
-    Size = [26, 26]
-    Colour = [0xBFE6FF, 0x8FD8FF]
-    Alpha = [0.45, 0.45]
-    FadeIn = 0.04
-    FadeOut = 0.25
-    PulseRate = 6
-    PulseDepth = 0.7
-    Spin = 25
-    Height = 7
-  End
+  Layers = [
+    ; The guard, round him for exactly as long as it holds -- no Seconds, so the
+    ; skill's own DurationFrames. A bubble of light that goes where he goes and
+    ; blinks through the last quarter of its run, so the player knows to step back
+    ; before it drops rather than after; motes rising inside it; and a flash and a
+    ; ring when he raises it.
+    Layer
+      Name = Bubble
+      Type = AURA
+      Texture = effects/particles/light_03.png
+      Blend = Additive
+      Cover = 0
+      Count = 1
+      Size = [26, 26]
+      Colour = [0xBFE6FF, 0x8FD8FF]
+      Alpha = [0.45, 0.45]
+      FadeIn = 0.04
+      FadeOut = 0.25
+      PulseRate = 6
+      PulseDepth = 0.7
+      Spin = 25
+      Height = 7
+    End
 
-  Layer
-    Name = Motes
-    Type = AURA
-    Texture = effects/particles/star_04.png
-    Blend = Additive
-    Count = 10
-    Rate = 6
-    Radius = 7
-    Life = [0.8, 1.2]
-    Size = [1.6, 0.3]
-    Colour = [0xE6F6FF, 0x8FD8FF]
-    Speed = [2, 5]
-    Direction = UP
-    Spread = 20
-    Height = 1
-  End
+    Layer
+      Name = Motes
+      Type = AURA
+      Texture = effects/particles/star_04.png
+      Blend = Additive
+      Count = 10
+      Rate = 6
+      Radius = 7
+      Life = [0.8, 1.2]
+      Size = [1.6, 0.3]
+      Colour = [0xE6F6FF, 0x8FD8FF]
+      Speed = [2, 5]
+      Direction = UP
+      Spread = 20
+      Height = 1
+    End
 
-  Layer
-    Name = Raise
-    Type = IMPACT
-    Texture = effects/particles/magic_04.png
-    Blend = Additive
-    Count = 1
-    Life = [0.3, 0.3]
-    Size = [10, 34]
-    SizeEase = 3
-    Colour = [0xFFFFFF, 0x8FD8FF]
-    Alpha = [1, 0]
-    FadeOut = 0.6
-    Height = 7
-    TurnJitter = 0
-  End
+    Layer
+      Name = Raise
+      Type = IMPACT
+      Texture = effects/particles/magic_04.png
+      Blend = Additive
+      Count = 1
+      Life = [0.3, 0.3]
+      Size = [10, 34]
+      SizeEase = 3
+      Colour = [0xFFFFFF, 0x8FD8FF]
+      Alpha = [1, 0]
+      FadeOut = 0.6
+      Height = 7
+      TurnJitter = 0
+    End
 
-  Layer
-    Name = Ring
-    Type = RING
-    Texture = effects/particles/circle_02.png
-    Blend = Additive
-    Cover = 0.2
-    Count = 1
-    Life = [0.4, 0.4]
-    Size = [6, 34]
-    SizeEase = 3
-    Colour = [0xDFF4FF, 0x5AB8FF]
-    Alpha = [1, 0]
-    FadeOut = 0.5
-    Height = 0.4
-    TurnJitter = 0
-  End
+    Layer
+      Name = Ring
+      Type = RING
+      Texture = effects/particles/circle_02.png
+      Blend = Additive
+      Cover = 0.2
+      Count = 1
+      Life = [0.4, 0.4]
+      Size = [6, 34]
+      SizeEase = 3
+      Colour = [0xDFF4FF, 0x5AB8FF]
+      Alpha = [1, 0]
+      FadeOut = 0.5
+      Height = 0.4
+      TurnJitter = 0
+    End
 
-  Layer
-    Name = Light
-    Type = LIGHT
-    Seconds = 0.3
-    LightColour = 0x8FD8FF
-    LightPower = 2
-    LightRadius = 45
-    FadeOut = 0.8
-  End
+    Layer
+      Name = Light
+      Type = LIGHT
+      Seconds = 0.3
+      LightColour = 0x8FD8FF
+      LightPower = 2
+      LightRadius = 45
+      FadeOut = 0.8
+    End
+  ]
 End

@@ -66,7 +66,7 @@ special-casing:
 |---|---|---|
 | Commands | `Command`, `MessageStream` | its own **sealed** command hierarchy (sealed types cannot cross modules) |
 | Wire format | `PacketCodec` plug on `SocketTransport` | a codec for its commands |
-| Data | `DukeText` reads `.duke` text; `Binder` makes each block the record its word names, each key a component of it — the record is the field table | its records, and `Binder.vocabulary` for an open type, as its modules are words by class name |
+| Data | `DukeText` reads `.duke` text; `Binder` makes each block the record its word names, every line in it one of its components by name — `Speed = 10`, `Geometry = Cylinder … End`, `Modules = [ … ]` — so the record is the field table | its records, and `Binder.vocabulary` for an open type, as its modules are words by class name |
 | Modules | `ModuleFactory.withDefaults()` (body + locomotor), registered by `Data` record; a block is named by its module's class | its own module set, e.g. `RtsModules` |
 | Players | `Player` (identity + diplomacy), `PlayerList(PlayerFactory)` | its `Player` subtype, e.g. `RtsPlayer` |
 | Classification | `Kind`, interned by name | its vocabulary, e.g. `RtsKinds` |

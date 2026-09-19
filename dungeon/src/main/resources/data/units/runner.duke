@@ -2,41 +2,43 @@ Monster
   Name = Runner
   DisplayName = Runner
   KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
-  Cylinder
+  Geometry = Cylinder
     Radius = 3
     Height = 9
   End
   VisionRange = 85
-  GrowableBody
-    MaxHealth = 30
-  End
-  MoveUpdate
-    ; Faster than the hero, which is the whole point of it: you cannot walk away.
-    Speed = 34
-    TurnRate = 0
-  End
-  WeaponUpdate
-    Damage = 4
-    AttackRange = 8
-    ReloadFrames = 22
-  End
-  ; Tells the brain the frame a blow landed, so it stands and finishes the swing
-  ; instead of walking off mid-blow. It launches nothing -- see Swing.
-  Swing
-  End
-  ; Timers for the statuses it is wearing -- the engine's own, and today that
-  ; means SLOWED. MoveUpdate already halves the step of anything wearing it, and
-  ; StatusUpdate already counts it down and takes it off, so a monster that
-  ; carries this thaws by itself whether or not whoever chilled it is still alive.
-  StatusUpdate
-  End
-  ScriptModule
-    Name = RunnerBrain
-  End
-  ExperienceModule
-    ExperienceValue = 8
-    ExperienceRequired = [0, 0, 0]
-  End
+  Modules = [
+    GrowableBody
+      MaxHealth = 30
+    End
+    MoveUpdate
+      ; Faster than the hero, which is the whole point of it: you cannot walk away.
+      Speed = 34
+      TurnRate = 0
+    End
+    WeaponUpdate
+      Damage = 4
+      AttackRange = 8
+      ReloadFrames = 22
+    End
+    ; Tells the brain the frame a blow landed, so it stands and finishes the swing
+    ; instead of walking off mid-blow. It launches nothing -- see Swing.
+    Swing
+    End
+    ; Timers for the statuses it is wearing -- the engine's own, and today that
+    ; means SLOWED. MoveUpdate already halves the step of anything wearing it, and
+    ; StatusUpdate already counts it down and takes it off, so a monster that
+    ; carries this thaws by itself whether or not whoever chilled it is still alive.
+    StatusUpdate
+    End
+    ScriptModule
+      Name = RunnerBrain
+    End
+    ExperienceModule
+      ExperienceValue = 8
+      ExperienceRequired = [0, 0, 0]
+    End
+  ]
 
 
   ; Fast, frail, and comes in numbers. Notices further and gives up later, so a
@@ -60,7 +62,7 @@ Monster
   Effect = EmberEyes
   ModelScale = 4.2
   Tint = 0xFFD08A
-  Held
+  Held = Held
     Model = models/monsters/blade.gltf
     Bone = handslot.r
   End

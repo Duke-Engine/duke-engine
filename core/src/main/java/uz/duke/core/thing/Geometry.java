@@ -6,13 +6,15 @@ package uz.duke.core.thing;
  *
  * <p>Without this an object is a dimensionless point: units walk through each
  * other and through buildings, and "is this spot free?" cannot be asked. The
- * shape is authored in INI alongside the rest of a template:
+ * shape is written in a template's block, as SAGE's {@code Geometry = BOX} was,
+ * with the numbers of the shape it chose under it:
  *
  * <pre>{@code
- * Geometry = BOX
- * GeometryMajorRadius = 20   ; half-length along the object's facing
- * GeometryMinorRadius = 12   ; half-width across it
- * GeometryHeight = 15
+ * Geometry = Box
+ *   MajorRadius = 20   ; half-length along the object's facing
+ *   MinorRadius = 12   ; half-width across it
+ *   Height = 15
+ * End
  * }</pre>
  *
  * <p>Shapes are immutable and shared by every instance of a template; where an

@@ -175,12 +175,16 @@ class DungeonEffectLayerTest {
             if (!block.word().equals("Effect") || !named(block, effect)) {
                 continue;
             }
-            for (var layer : block.blocks()) {
-                if (layer.word().equals("Layer") && named(layer, name)) {
+            var layers = block.fields().stream().filter(field -> field.key().equals("Layers"))
+                    .map(field -> ((uz.duke.core.data.Value.NestedList) field.value()).blocks())
+                    .findFirst().orElse(java.util.List.of());
+            for (var layer : layers) {
+                if (named(layer, name)) {
                     for (var field : layer.fields()) {
                         said.put(field.key(), switch (field.value()) {
                             case uz.duke.core.data.Value.Text text -> text.text();
                             case uz.duke.core.data.Value.Items items -> String.join(" ", items.items());
+                            default -> fail("a layer's " + field.key() + " holds blocks");
                         });
                     }
                     return said;

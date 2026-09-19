@@ -21,41 +21,43 @@ Monster
   ; else. Everything it does, an ordinary skeleton does smaller.
   DisplayName = Warden
   KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
-  Cylinder
+  Geometry = Cylinder
     Radius = 7
     Height = 18
   End
   VisionRange = 130
-  GrowableBody
-    MaxHealth = 300
-  End
-  MoveUpdate
-    Speed = 12
-    TurnRate = 0
-  End
-  WeaponUpdate
-    Damage = 16
-    AttackRange = 13
-    ReloadFrames = 36
-  End
-  ; Tells the brain the frame a blow landed, so it stands and finishes the swing
-  ; instead of walking off mid-blow. It launches nothing -- see Swing.
-  Swing
-  End
-  ; Timers for the statuses it is wearing -- the engine's own, and today that
-  ; means SLOWED. MoveUpdate already halves the step of anything wearing it, and
-  ; StatusUpdate already counts it down and takes it off, so a monster that
-  ; carries this thaws by itself whether or not whoever chilled it is still alive.
-  StatusUpdate
-  End
-  ScriptModule
-    Name = WardenBrain
-  End
-  ExperienceModule
-    ; Worth a level or two on its own — it is the gate to the next depth.
-    ExperienceValue = 90
-    ExperienceRequired = [0, 0, 0]
-  End
+  Modules = [
+    GrowableBody
+      MaxHealth = 300
+    End
+    MoveUpdate
+      Speed = 12
+      TurnRate = 0
+    End
+    WeaponUpdate
+      Damage = 16
+      AttackRange = 13
+      ReloadFrames = 36
+    End
+    ; Tells the brain the frame a blow landed, so it stands and finishes the swing
+    ; instead of walking off mid-blow. It launches nothing -- see Swing.
+    Swing
+    End
+    ; Timers for the statuses it is wearing -- the engine's own, and today that
+    ; means SLOWED. MoveUpdate already halves the step of anything wearing it, and
+    ; StatusUpdate already counts it down and takes it off, so a monster that
+    ; carries this thaws by itself whether or not whoever chilled it is still alive.
+    StatusUpdate
+    End
+    ScriptModule
+      Name = WardenBrain
+    End
+    ExperienceModule
+      ; Worth a level or two on its own — it is the gate to the next depth.
+      ExperienceValue = 90
+      ExperienceRequired = [0, 0, 0]
+    End
+  ]
 
 
 ; ---------------------------------------------------------------------------
@@ -94,7 +96,7 @@ Monster
   ; What is looking at you out of the dark.
   Effect = EmberEyes
   ModelScale = 8.3
-  Held
+  Held = Held
     Model = models/monsters/axe.gltf
     Bone = handslot.r
     Scale = 1.2

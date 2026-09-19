@@ -14,6 +14,8 @@ Object
   DisplayName = Chest
   KindOf = [STRUCTURE]
   VisionRange = 0
-  LootUpdate
-  End
+  Modules = [
+    LootUpdate
+    End
+  ]
 End

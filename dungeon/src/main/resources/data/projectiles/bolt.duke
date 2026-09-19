@@ -5,8 +5,10 @@ Projectile
   Name = Bolt
   DisplayName = Bolt
   VisionRange = 0
-  ArrowUpdate
-  End
+  Modules = [
+    ArrowUpdate
+    End
+  ]
 
 
   ; The crossbow skeleton's. The same shaft as the hero's, shorter and duller:

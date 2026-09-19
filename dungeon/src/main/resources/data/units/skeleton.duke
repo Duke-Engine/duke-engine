@@ -2,51 +2,53 @@ Monster
   Name = Skeleton
   DisplayName = Skeleton
   KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
-  Cylinder
+  Geometry = Cylinder
     Radius = 4
     Height = 12
   End
   VisionRange = 58
-  ActiveBody
-    MaxHealth = 60
-  End
-  MoveUpdate
-    ; Slower than the hero on purpose: breaking off a fight has to be possible.
-    Speed = 17
-    ; Turns on the spot, for the same reason the hero does — a skeleton that
-    ; banked like a vehicle would circle the hero instead of closing on him.
-    TurnRate = 0
-  End
-  WeaponUpdate
-    Damage = 7
-    AttackRange = 10
-    ReloadFrames = 30
-  End
-  ; Comes for the hero when it notices him — see SkeletonBrain.
-  ; Tells the brain the frame a blow landed, so it stands and finishes the swing
-  ; instead of walking off mid-blow. It launches nothing -- see Swing.
-  Swing
-  End
-  ; Timers for the statuses it is wearing -- the engine's own, and today that
-  ; means SLOWED. MoveUpdate already halves the step of anything wearing it, and
-  ; StatusUpdate already counts it down and takes it off, so a monster that
-  ; carries this thaws by itself whether or not whoever chilled it is still alive.
-  StatusUpdate
-  End
-  ScriptModule
-    Name = SkeletonBrain
-  End
-  ; What killing one is worth to the hero. Its own ranks are switched off too.
-  ExperienceModule
-    ExperienceValue = 10
-    ExperienceRequired = [0, 0, 0]
-  End
+  Modules = [
+    ActiveBody
+      MaxHealth = 60
+    End
+    MoveUpdate
+      ; Slower than the hero on purpose: breaking off a fight has to be possible.
+      Speed = 17
+      ; Turns on the spot, for the same reason the hero does — a skeleton that
+      ; banked like a vehicle would circle the hero instead of closing on him.
+      TurnRate = 0
+    End
+    WeaponUpdate
+      Damage = 7
+      AttackRange = 10
+      ReloadFrames = 30
+    End
+    ; Comes for the hero when it notices him — see SkeletonBrain.
+    ; Tells the brain the frame a blow landed, so it stands and finishes the swing
+    ; instead of walking off mid-blow. It launches nothing -- see Swing.
+    Swing
+    End
+    ; Timers for the statuses it is wearing -- the engine's own, and today that
+    ; means SLOWED. MoveUpdate already halves the step of anything wearing it, and
+    ; StatusUpdate already counts it down and takes it off, so a monster that
+    ; carries this thaws by itself whether or not whoever chilled it is still alive.
+    StatusUpdate
+    End
+    ScriptModule
+      Name = SkeletonBrain
+    End
+    ; What killing one is worth to the hero. Its own ranks are switched off too.
+    ExperienceModule
+      ExperienceValue = 10
+      ExperienceRequired = [0, 0, 0]
+    End
+  ]
 
 
 ; ---------------------------------------------------------------------------
 ; What lives down here. One block per kind; the game reads this list and wires
-; a brain for each, so a new monster is a file like this one -- its template and
-; a block like the one below -- and a line in DungeonContent. No Java.
+; a brain for each, so a new monster is a file like this one and a line in the
+; Manifest (data/content.duke). No Java.
 ;
 ; Health, speed and damage are unit stats and live in the template. What is
 ; here is behaviour (which no template field can express) and how the dungeon
@@ -62,9 +64,9 @@ Monster
 ; rather than as a queue of duels. Stone stops the shout, so it does not empty
 ; the next room through the wall. Zero for anything that should fight alone.
 ;
-; A monster may also cast a skill of its own. Skill names the key, and the skill
-; itself is a DungeonSkill block headed by the creature's name, as a hero's are;
-; its creature block needs a SkillBook. SkillDistance is the nearest and furthest
+; A monster may also cast a skill of its own: the first of its Skills = [ … ], a
+; Skill block each, as a hero's are, and its Modules need a SkillBook.
+; SkillDistance is the nearest and furthest
 ; it casts from, and it only ever casts at something it can see, with the skill
 ; ready -- except a HEAL, which is cast on its own side and needs no SkillDistance.
 ; KeepDistance is the band it holds instead of closing: nearer and it backs away,
@@ -93,7 +95,7 @@ Monster
   ; What is looking at you out of the dark.
   Effect = EmberEyes
   ModelScale = 5.5
-  Held
+  Held = Held
     Model = models/monsters/blade.gltf
     Bone = handslot.r
   End
