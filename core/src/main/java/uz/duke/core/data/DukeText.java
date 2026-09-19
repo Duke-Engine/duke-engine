@@ -31,9 +31,10 @@ import java.util.regex.Pattern;
  * {@code Armor} holding {@code FLAME = 0.5}.
  *
  * <p>{@code Key = Word} opens a block only when the next line is indented deeper; otherwise the word
- * is a value, as {@code Geometry = Sphere} is a sphere with nothing written in it. A {@code [} alone
- * on its line holds blocks when its first item is a word with its fields under it, or its End.
- * Those two questions are the only places indentation means anything.
+ * is a value, as {@code Geometry = Sphere} is a sphere with nothing written in it, and a block so
+ * opened keeps to that depth to its End. A {@code [} alone on its line holds blocks when its first
+ * item is a word with its fields under it, or its End. Those are the only places indentation means
+ * anything.
  *
  * <p>SAGE's INI reader is the ancestor: blocks closed by {@code End}, fields looked up by name. What
  * changed is that every line says by its shape what it is.
@@ -158,7 +159,7 @@ public final class DukeText {
                 return new Value.Text(unquote(text.substring(0, end)));
             }
             if (WORD.matcher(text).matches() && deeper(line)) {
-                return new Value.Nested(block(text, line));
+                return new Value.Nested(block(text, line, key));
             }
             return new Value.Text(text);
         }

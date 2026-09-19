@@ -112,11 +112,33 @@ class DukeTextTest {
         assertError("units.duke:2: '[' is never closed by ']'", "Content\n  Files = [a,\nEnd\n");
         assertError("units.duke:2: a comma is missing between the items of a list", "Content\n  Files = [a\n b]\nEnd\n");
         assertError("units.duke:2: a quote is never closed", "Content\n  Name = \"open\nEnd\n");
-        assertError("units.duke:2: 'Cylinder' has no End", "Monster\n  Geometry = Cylinder\n    Radius = 3\n");
+        assertError("units.duke:2: 'Cylinder' has no End; if Cylinder is a value, the line under 'Geometry = Cylinder'"
+                + " is indented too deep", "Monster\n  Geometry = Cylinder\n    Radius = 3\n");
         assertError("units.duke:2: 'Modules = [' is never closed by ']'", "Monster\n  Modules = [\n    Bow\n    End\n");
         assertError("units.duke:5: 'Modules' is a list of blocks, each closed by End, and ends with ']' on a line of its own,"
                 + " not 'Speed = 1'", "Monster\n  Modules = [\n    Bow\n    End\n    Speed = 1\n  ]\nEnd\n");
         assertError("units.duke:3: ']' with no list of blocks open", "Monster\n  Name = Brute\n  ]\nEnd\n");
+    }
+
+    /**
+     * A value whose next line is indented by mistake opens a block, which would take the End of the
+     * block around it; the error is said at the line that did it, not where that End runs out.
+     */
+    @Test
+    void aLineIndentedTooDeepIsFoundWhereItIs() {
+        var misindented = String.join("\n",
+                "Monster",
+                "  Name = Brute",
+                "  Effect = EmberEyes",
+                "    ModelScale = 4.2",
+                "  Walk = Running_A",
+                "End",
+                "");
+        assertError("units.duke:3: 'EmberEyes' has no End; if EmberEyes is a value, the line under"
+                + " 'Effect = EmberEyes' is indented too deep", misindented);
+        assertError("units.duke:2: 'Cylinder' has no End; if Cylinder is a value, the line under"
+                + " 'Geometry = Cylinder' is indented too deep",
+                "Monster\n  Geometry = Cylinder\n    Radius = 3\nEnd\n");
     }
 
     private static void assertError(String message, String text) {
