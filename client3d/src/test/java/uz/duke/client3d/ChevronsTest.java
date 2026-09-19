@@ -36,7 +36,7 @@ class ChevronsTest {
 
     private static Scene scene() {
         var root = new Node("markers");
-        return new Scene(new Chevrons(new DesktopAssetManager(true), root, OrderMark.DEFAULT),
+        return new Scene(new Chevrons(new DesktopAssetManager(true), root, OrderMark.DEFAULTS),
                 root, new OrderMarkers());
     }
 
@@ -181,7 +181,7 @@ class ChevronsTest {
 
         draw(scene, NOW);
         float atBirth = colourOf(scene.root()).a;
-        draw(scene, NOW + OrderMark.DEFAULT.seconds() * 0.95f);
+        draw(scene, NOW + OrderMark.DEFAULTS.seconds() * 0.95f);
         float nearlyDone = colourOf(scene.root()).a;
 
         assertEquals(1f, atBirth, 0.001f);
@@ -196,15 +196,15 @@ class ChevronsTest {
 
         draw(scene, NOW);
         float wide = spread(scene.root());
-        draw(scene, NOW + OrderMark.DEFAULT.seconds() * 0.95f);
+        draw(scene, NOW + OrderMark.DEFAULTS.seconds() * 0.95f);
         float gathered = spread(scene.root());
 
         var mark = scene.root().getChild(0);
         assertEquals(160f, mark.getLocalTranslation().x, 0.001f, "over the spot he clicked");
         assertEquals(240f, mark.getLocalTranslation().z, 0.001f, "in both directions");
-        assertEquals(OrderMark.DEFAULT.height(), mark.getLocalTranslation().y, 0.001f,
+        assertEquals(OrderMark.DEFAULTS.height(), mark.getLocalTranslation().y, 0.001f,
                 "and just clear of the floor under it");
-        assertEquals(OrderMark.DEFAULT.startRadius(), wide, 0.01f, "set wide to begin with");
+        assertEquals(OrderMark.DEFAULTS.startRadius(), wide, 0.01f, "set wide to begin with");
         assertTrue(gathered < wide * 0.5f,
                 "and gathered by the end, but they were still " + gathered + " out");
     }
@@ -229,7 +229,7 @@ class ChevronsTest {
             var tip = head.getLocalTranslation();
             // The mesh's back edge, put where the arrowhead actually is.
             var back = head.getLocalRotation()
-                    .mult(new Vector3f(OrderMark.DEFAULT.size(), 0f, 0f))
+                    .mult(new Vector3f(OrderMark.DEFAULTS.size(), 0f, 0f))
                     .add(tip);
             assertTrue(Math.hypot(back.x, back.z) > Math.hypot(tip.x, tip.z) + 0.5f,
                     "this one has its back to the click: tip " + Math.hypot(tip.x, tip.z)
@@ -263,7 +263,7 @@ class ChevronsTest {
 
         scene.chevrons().show(scene.orders().markers(), NOW, (x, y) -> 40f);
 
-        assertEquals(40f + OrderMark.DEFAULT.height(),
+        assertEquals(40f + OrderMark.DEFAULTS.height(),
                 scene.root().getChild(0).getLocalTranslation().y, 0.001f);
     }
 

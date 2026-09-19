@@ -46,9 +46,9 @@ Ishga tushirish:
 ./gradlew :sandbox:run           # 2D demo
 ./gradlew :sandbox3d:run         # 3D demo
 ./gradlew :dungeon:run           # Duke Dungeon — engine ustidagi ilk o'yin
-./gradlew :dungeon:run --args="--stage=stages/first.stage"   # qotirilgan xarita
+./gradlew :dungeon:run --args="--map=first"   # qotirilgan xarita
 ./gradlew :worldbuilder:run      # Duke World Builder — stage muharriri
-./gradlew :worldbuilder:run --args="dungeon/src/main/resources/stages/first.stage"
+./gradlew :worldbuilder:run --args="dungeon/src/main/resources/data/maps/first.duke"
 ./gradlew :worldbuilder:writeExampleStage  # shipping stage'ni qayta yozadi
 ./gradlew :studio:writeExamples  # examples/RohanVsMordor.duke ni qayta yozadi
 ./gradlew :studio:exportExample  # dist/RohanVsMordor/ mustaqil loyihasini chiqaradi
@@ -4893,7 +4893,6 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `core/…/core/thing/{Geometry,Footprint}.java` | fizik shakl va to'qnashuv matematikasi |
 | `core/…/core/module/{ActiveBody,Armor,DamageType,MoveUpdate}.java` | janrsiz modullar |
 | `core/…/core/message/{Command,MessageStream}.java` | buyruq navbati (buyruqlarning o'zi emas) |
-| `core/…/core/ini/Ini.java` | SAGE tokenizatori |
 | `core/…/core/pathfind/{PathGrid,Pathfinder,MapLoader}.java` | deterministik A* |
 | `core/…/core/network/{LockstepGate,LockstepScheduler}.java` | lock-step darvozasi + a'zolik |
 | `core/…/core/network/{HostTransport,SocketTransport,NetMessage,NetFraming}.java` | relay topologiyasi + sim protokoli |
@@ -4968,13 +4967,13 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `dungeon/src/main/resources/ui/cursors/` | Kenney Cursor Pack 1.1 (CC0) — Outline oilasi, 32px va 64px |
 | `dungeon/…/dungeon/run/DungeonRun.java` | run loop: o'lim → yangi qavat; qaysi qavat ekanini `Floors` aytadi |
 | `dungeon/…/dungeon/run/{Floors,GeneratedFloors,StageFloors}.java` | qavat qayerdan keladi — seed zanjiri yoki muzlatilgan fayl; holatli, ataylab |
-| `dungeon/…/dungeon/stage/{Stage,StageFile}.java` | qotirilgan dungeon + metama'lumot, va uning matn formati (engine INI'si, koordinatalar katakda). `difficulty` = o'ynaladigan chuqurlik |
+| `dungeon/…/dungeon/stage/{Stage,StageFile}.java` | qotirilgan dungeon + metama'lumot, va uning matn formati (`StaticMap` bloki, koordinatalar katakda). `difficulty` = o'ynaladigan chuqurlik |
 | `dungeon/…/dungeon/gen/Layout.java` | qavat qanchalik katta — `of(settings)` tushishniki (bit-baravar), `sized(...)` muallif so'ragani; urinishlar soni so'ralgandan keltirib chiqariladi |
-| `dungeon/src/main/resources/stages/deep.stage` | ikkinchi shipping bosqich: 100×76, 28 xona, chuqurlik 8 — tushishdan chuqurroq |
+| `dungeon/src/main/resources/data/maps/deep.duke` | ikkinchi shipping bosqich: 100×76, 28 xona, chuqurlik 8 — tushishdan chuqurroq |
 | `worldbuilder/…/worldbuilder/ui/NewStage.java` | chizishdan oldingi savol: eni, bo'yi, xona soni, qiyinchilik — izohlari o'yinning o'z raqamlaridan o'qiladi |
 | `dungeon/…/dungeon/stage/StageCheck.java` | qo'lda tahrirlangan fayl bilan nima noto'g'ri — yurish `PathGrid.canStep` bilan, javob ro'yxat |
-| `dungeon/…/dungeon/stage/Stages.java` | qaysi stage o'ynaladi (`--stage=` > INI) va fayl qayerdan topiladi (disk > classpath) |
-| `dungeon/src/main/resources/stages/first.stage` | shipping stage — `:worldbuilder:writeExampleStage` qayta yozadi |
+| `dungeon/…/dungeon/stage/Stages.java` | qaysi stage o'ynaladi (`--map=` > `StartMap`) va fayl qayerdan topiladi (nom > disk > classpath) |
+| `dungeon/src/main/resources/data/maps/first.duke` | shipping stage — `:worldbuilder:writeExampleStage` qayta yozadi |
 | `worldbuilder/…/worldbuilder/StageDraft.java` | tahrirlash qoidalari, Swing'siz — muharrirning testlanadigan yarmi |
 | `worldbuilder/…/worldbuilder/ui/{BuilderWindow,StageCanvas,Palette}.java` | oyna, tepadan ko'rinish, nima qo'yiladi |
 | `dungeon/…/dungeon/skill/{Skill,SkillEffect}.java` | skill ma'lumoti + daraja arifmetikasi (sof) |

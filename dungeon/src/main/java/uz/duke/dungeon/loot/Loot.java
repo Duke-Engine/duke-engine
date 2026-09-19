@@ -3,7 +3,7 @@ package uz.duke.dungeon.loot;
 /**
  * One thing that can be found on a dungeon floor, as the data file describes it.
  *
- * <p>Data and nothing else: a new item is a block in {@code dungeon.ini} and no
+ * <p>Data and nothing else: a new item is a LootItem block in {@code data/world/world.duke} and no
  * Java at all.
  *
  * <p>{@code name} is finished words — the client writes none of its own, here as

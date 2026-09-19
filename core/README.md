@@ -53,8 +53,8 @@ beshta chok orqali o'zingiznikini qo'yasiz:
 | Fayl | Qator | Vazifa |
 |---|---|---|
 | `GameObject` | 168 | jonli nusxa: id, pozitsiya, orientatsiya, egasi, modullar, status bayroqlari |
-| `ThingTemplate` | 137 | INI'dan o'qilgan o'zgarmas "chizma": nom, `Kind` bayroqlari, modul ro'yxati, `VisionRange` + **`BuildCost`/`BuildTime`** |
-| `ThingTemplateLoader` | 87 | `Object … End` INI bloklarini template'ga aylantiradi |
+| `ThingTemplate` | 137 | `.duke`dan o'qilgan o'zgarmas "chizma": nom, `Kind` bayroqlari, modul ro'yxati, `VisionRange` + **`BuildCost`/`BuildTime`** |
+| `ThingTemplateLoader` | 87 | `Object … End` bloklarini template'ga aylantiradi |
 | `ThingFactory` | 69 | template registri + `newObject` (modullarni `ModuleFactory` orqali quradi) |
 | `World` | 63 | modullar simulyatsiyani so'roq qiladigan interfeys (SAGE global `TheGameLogic` o'rniga) |
 | `Kind` | 52 | tasniflash bayrog'i, **nom bo'yicha interned**, identity bo'yicha solishtiriladi |
@@ -66,7 +66,7 @@ beshta chok orqali o'zingiznikini qo'yasiz:
 > **Ochiq qaror:** `ThingTemplate` dagi `BuildCost` / `BuildTime` — sof
 > strategiya tushunchasi, `core` da turishi noto'g'ri. Chiqarish uchun
 > template'ga kengaytma-ma'lumot mexanizmi va `ThingTemplateLoader` ga
-> maydon-registratsiyasi kerak (o'yin o'z INI maydonlarini qo'sha olsin).
+> maydon-registratsiyasi kerak (o'yin o'z `.duke` maydonlarini qo'sha olsin).
 
 ### `uz.duke.core.module` — janrsiz xulq modullari
 
@@ -89,12 +89,6 @@ boshlanadi, `=` dan keyingi class — maydonning recordi, sealed tur ruxsat
 bergani yoki o'yin bergan lug'at so'zi (modullar) · `Block` / `Field` /
 `Value` / `DataException`. Template'lar, modullar va o'yin sozlamalari shu
 orqali o'qiladi — alohida maydon jadvali yo'q, record o'zi jadval.
-
-### `uz.duke.core.ini` — INI qatlami
-
-`Ini` (322) SAGE tokenizatorining sodiq porti · `FieldParseTable` /
-`FieldParser` — C++ dagi offset+userData hiylasi o'rniga lambda-setter ·
-`IniException`. Hozir faqat dungeon'ning `World` bloki shu orqali o'qiladi.
 
 ### `uz.duke.core.message` — buyruq quvuri
 
@@ -266,7 +260,7 @@ ham, `client3d` ham `WorldSnapshot` ni o'qiydi, `Renderer` ni emas.
 | `network/LoopbackTransport` | faqat testda; hotseat/replay senariysi hali yo'q | replay kerak bo'lganda qayta yozish kerak |
 
 **O'chirib bo'lmaydi (yadro):** `GameEngine`, `GameLogic`, `SubsystemInterface`,
-`SubsystemList`, `GameConstants`, butun `thing` / `module` / `ini` / `message`
+`SubsystemList`, `GameConstants`, butun `thing` / `module` / `data` / `message`
 paketlari, `pathfind`, `player`, `network` (Loopback'dan tashqari).
 
 **Chegaradagilar:**

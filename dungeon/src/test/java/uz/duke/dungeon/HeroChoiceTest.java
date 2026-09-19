@@ -71,9 +71,9 @@ class HeroChoiceTest {
             assertFalse(hero.title().isBlank(),
                     hero.name() + " would be offered as a name and nothing else");
         }
-        assertFalse(SETTINGS.hudChooseHeroWord().isBlank(),
+        assertFalse(SETTINGS.hud().chooseHeroWord().isBlank(),
                 "the screen has no heading, so the client would have to write one");
-        assertFalse(SETTINGS.hudChooseHeroHint().isBlank(),
+        assertFalse(SETTINGS.hud().chooseHeroHint().isBlank(),
                 "the screen has no footer, so the client would have to write one");
     }
 
@@ -302,7 +302,7 @@ class HeroChoiceTest {
     @Test
     void theDarkOpensAroundWhoeverWasChosen() {
         var visuals = uz.duke.client3d.Visuals.create();
-        visuals.discoveredBy(SETTINGS.playedHero());
+        visuals.discoveredBy(SETTINGS.run().defaultHero());
         var session = Dungeon.newSession(21L, SETTINGS);
 
         Main.whoToPlay(session, SETTINGS, visuals, Main.controls(SETTINGS))
@@ -366,8 +366,8 @@ class HeroChoiceTest {
         var session = Dungeon.newSession(21L, SETTINGS);
         session.game().runHeadless(1);
 
-        assertEquals(SETTINGS.playedHero(), runOf(session).getHeroTemplate());
-        assertNotNull(find(session.game(), SETTINGS.playedHero()));
+        assertEquals(SETTINGS.run().defaultHero(), runOf(session).getHeroTemplate());
+        assertNotNull(find(session.game(), SETTINGS.run().defaultHero()));
     }
 
     /** A stage does not name a hero either, and cannot: the menu decides. */

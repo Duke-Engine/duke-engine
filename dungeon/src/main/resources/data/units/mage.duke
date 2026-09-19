@@ -94,8 +94,8 @@ Hero
 ; is the hat: all three still stand twelve units tall in the world, because all
 ; three are twelve units of creature and only their ModelScale differs.
 ;
-; His clips are the rogue's three libraries, and the third is the one that
-; matters: ranged.glb holds Ranged_Magic_Raise, _Shoot, _Spellcasting,
+; His clips come out of the Humanoid set, and ranged.glb is the file that
+; matters: it holds Ranged_Magic_Raise, _Shoot, _Spellcasting,
 ; _Spellcasting_Long and _Summon, all of which shipped with the bow clips and
 ; none of which anything asked for until there was a mage.
 ;
@@ -123,16 +123,7 @@ Hero
   ModelScale = 4.52
   Facing = 90
 
-  AnimationsFrom = [
-    animations/characters/general.glb,
-    animations/characters/movement.glb,
-    animations/characters/ranged.glb,
-    ; The one library in the game with a single clip in it, and the only one that
-    ; is not KayKit's -- see CREDITS. His ultimate is cast two-handed and the kit
-    ; ships nothing of the kind. Which clip is taken from it is named by
-    ; the R skill of the Mage, which is also where its timing lives.
-    animations/characters/magic.glb,
-  ]
+  Animations = Humanoid
 
   ; ★ THE PLAIN IDLE, not a casting pose, and it is the staff that makes it work:
   ; the hand sits down at his side, and a staff 2.16 long at this scale is about

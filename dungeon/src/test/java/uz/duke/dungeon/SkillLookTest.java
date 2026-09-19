@@ -305,7 +305,7 @@ class SkillLookTest {
     @Test
     void theLookCannotReachTheSimulation() {
         var with = DungeonSettings.load();
-        var without = DungeonSettings.parse(Content.world(), withoutTheLooks(Content.data()));
+        var without = DungeonSettings.parse(withoutTheLooks(Content.data()));
 
         assertTrue(playersSkills().stream().allMatch(skill -> skill.hasLook()));
         assertTrue(without.skills().stream().noneMatch(skill -> skill.hasLook()),

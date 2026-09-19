@@ -30,25 +30,19 @@ class HeroProgressTest {
 
     /** Levels that arrive fast and hit hard, so a mechanism shows plainly. */
     private static final DungeonSettings BRISK = DungeonSettings.parse("""
-            World Dungeon
-              Attributes = Conversion
-                DamagePerPrimary = 1.0
-              End
-              Attribute = Strength
-                Short = STR
-                HealthPerPoint = 10
-              End
+            Progression
+              MaxLevel = 10
+              XpBase = 10
+              XpStep = 0
+              ArmourPercentPerLevel = 10
+              MinDamageTakenPercent = 40
+              DamagePerPrimary = 1.0
             End
-            World Dungeon
-              Leveling = Progression
-                MaxLevel = 10
-                XpBase = 10
-                XpStep = 0
-                ArmourPercentPerLevel = 10
-                MinDamageTakenPercent = 40
-              End
+            Attribute
+              Name = Strength
+              ShortName = STR
+              HealthPerPoint = 10
             End
-            """, """
             Hero
               Name = Rogue
               Primary = AGI
@@ -98,7 +92,7 @@ class HeroProgressTest {
         var game = arena.game();
         game.spawn("Rogue", arena.hero(), 200f, 150f);
         var progress = new HeroProgress(arena.hero(), settings.levelling(),
-                settings.attributeRules(), settings.levelUpBannerFrames(),
+                settings.attributeRules(), settings.progression().levelUpBannerFrames(),
                 new uz.duke.dungeon.loot.LootBag());
         progress.playing(settings.heroNamed("Rogue"));
         game.onTick(progress::tick);
@@ -294,7 +288,7 @@ class HeroProgressTest {
         if (beforeDeath != null) {
             game.getLogic().destroyObject(beforeDeath);
         }
-        game.runHeadless(BRISK.respawnDelayFrames() + 5);
+        game.runHeadless(BRISK.run().respawnDelayFrames() + 5);
 
         assertNotNull(hero(game), "a new run should have begun");
         assertEquals(1, session.progress().getLevel(), "and it starts from nothing");

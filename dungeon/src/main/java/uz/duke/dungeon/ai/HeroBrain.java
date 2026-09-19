@@ -149,7 +149,7 @@ public final class HeroBrain extends UnitScript {
     private void advanceOn(MoveUpdate move, GameObject quarry) {
         if (waitingOn != null) {
             if (WayAhead.stillShut(unit(), waitingOn, quarry.getPosition(),
-                    settings.wayAheadProbe(), quarry)) {
+                    settings.combat().wayAheadProbe(), quarry)) {
                 return; // the way is shut. Stand, and look again next frame.
             }
             // It opened — or the wait stopped being about anything. Off he goes,
@@ -159,7 +159,7 @@ public final class HeroBrain extends UnitScript {
             sendAfter(quarry);
             return;
         }
-        var ahead = WayAhead.noWayPast(unit(), settings.wayAheadProbe(), quarry);
+        var ahead = WayAhead.noWayPast(unit(), settings.combat().wayAheadProbe(), quarry);
         if (ahead != null) {
             waitingOn = ahead;
             if (move.isMoving()) {
@@ -168,7 +168,7 @@ public final class HeroBrain extends UnitScript {
             return;
         }
         if (Chasing.worthReplanning(sentAfter, quarry.getPosition())
-                && (!move.isMoving() || frame() % settings.heroRepathFrames() == 0)) {
+                && (!move.isMoving() || frame() % settings.combat().heroRepathFrames() == 0)) {
             // Off at once when he is standing, and corrected on the way — but
             // only when there is something to correct. See Chasing: ordering him
             // to the place he is already going restarts him, and it was the
@@ -392,7 +392,7 @@ public final class HeroBrain extends UnitScript {
                 forgetTheErrand(); // he has been given something else to do
                 return;
             }
-            if (WayAhead.stillShut(unit(), waitingOn, errand, settings.wayAheadProbe(), null)) {
+            if (WayAhead.stillShut(unit(), waitingOn, errand, settings.combat().wayAheadProbe(), null)) {
                 return;
             }
             var goal = errand;
@@ -403,7 +403,7 @@ public final class HeroBrain extends UnitScript {
         if (!move.isMoving()) {
             return;
         }
-        var ahead = WayAhead.noWayPast(unit(), settings.wayAheadProbe(), null);
+        var ahead = WayAhead.noWayPast(unit(), settings.combat().wayAheadProbe(), null);
         if (ahead != null) {
             errand = move.getGoal();
             waitingOn = ahead;
@@ -583,7 +583,7 @@ public final class HeroBrain extends UnitScript {
      */
     private float howCloseHeGets() {
         var his = settings.heroNamed(unit().getTemplate().name()).closeDistance();
-        float wanted = his > 0f ? his : settings.closeDistance();
+        float wanted = his > 0f ? his : settings.combat().closeDistance();
         return Math.min(wanted, reachOfHisWeapon() * INSIDE_HIS_REACH);
     }
 

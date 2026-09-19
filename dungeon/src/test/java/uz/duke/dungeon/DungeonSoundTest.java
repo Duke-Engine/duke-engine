@@ -25,7 +25,7 @@ class DungeonSoundTest {
     @Test
     void theShippedFileDescribesSounds() {
         assertFalse(SETTINGS.sounds().isEmpty(), "the dungeon should have a voice");
-        assertTrue(SETTINGS.voiceGapSeconds() > 0f, "and she should pause between lines");
+        assertTrue(SETTINGS.audio().voiceGapSeconds() > 0f, "and she should pause between lines");
     }
 
     /**
@@ -136,8 +136,8 @@ class DungeonSoundTest {
     @Test
     void aFileWithNoSoundsAtAllIsSilentRatherThanBroken() {
         var settings = DungeonSettings.parse("""
-                World Dungeon
-                  Generation = Test
+                ProceduralMap
+                  Generation = Layout
                     MinRooms = 3
                   End
                 End
@@ -150,12 +150,9 @@ class DungeonSoundTest {
     @Test
     void aBlockIsReadTheWayItIsWritten() {
         var settings = DungeonSettings.parse("""
-                World Dungeon
-                  Sounds = Settings
-                    VoiceGapSeconds = 2.5
-                  End
+                Audio
+                  VoiceGapSeconds = 2.5
                 End
-                """, """
                 Sound
                   Name = vo.move
                   Channel = Voice
@@ -166,7 +163,7 @@ class DungeonSoundTest {
                 End
                 """);
 
-        assertEquals(2.5f, settings.voiceGapSeconds(), 0.001f);
+        assertEquals(2.5f, settings.audio().voiceGapSeconds(), 0.001f);
         var cue = settings.sounds().get(0);
         assertEquals("vo.move", cue.name());
         assertEquals("Voice", cue.channel());

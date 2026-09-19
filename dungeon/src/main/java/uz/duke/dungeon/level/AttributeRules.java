@@ -42,7 +42,7 @@ public record AttributeRules(List<Attribute> attributes, int damagePerPrimary) {
         long sum = 0;
         for (int i = 0; i < attributes.size(); i++) {
             sum = Math.addExact(sum, Math.multiplyExact((long) points.at(i),
-                    attributes.get(i).healthPerPoint()));
+                    attributes.get(i).healthPerPoint().value()));
         }
         return Math.toIntExact(Math.floorDiv(sum, SCALE));
     }
@@ -52,7 +52,7 @@ public record AttributeRules(List<Attribute> attributes, int damagePerPrimary) {
         long sum = 0;
         for (int i = 0; i < attributes.size(); i++) {
             sum = Math.addExact(sum, Math.multiplyExact((long) points.at(i),
-                    attributes.get(i).manaPerPoint()));
+                    attributes.get(i).manaPerPoint().value()));
         }
         return Math.toIntExact(Math.floorDiv(sum, SCALE));
     }
@@ -62,7 +62,7 @@ public record AttributeRules(List<Attribute> attributes, int damagePerPrimary) {
         long sum = 0;
         for (int i = 0; i < attributes.size(); i++) {
             sum = Math.addExact(sum, Math.multiplyExact((long) points.at(i),
-                    attributes.get(i).speedPerPoint()));
+                    attributes.get(i).speedPerPoint().value()));
         }
         return sum / (float) SCALE;
     }

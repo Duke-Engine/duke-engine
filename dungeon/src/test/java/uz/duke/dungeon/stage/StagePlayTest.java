@@ -41,7 +41,7 @@ class StagePlayTest {
 
     private static GameObject heroOf(DukeGame game) {
         return game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().name().equals(SETTINGS.playedHero()))
+                .filter(o -> o.getTemplate().name().equals(SETTINGS.run().defaultHero()))
                 .findFirst()
                 .orElse(null);
     }
@@ -104,7 +104,7 @@ class StagePlayTest {
         game.runHeadless(1);
         assertEquals(DungeonRun.State.DEAD, session.run().getState());
 
-        game.runHeadless(SETTINGS.respawnDelayFrames() + 3);
+        game.runHeadless(SETTINGS.run().respawnDelayFrames() + 3);
         assertEquals(DungeonRun.State.RUNNING, session.run().getState(), "a fresh attempt");
         assertEquals(1, session.run().getDepth(), "and it is the same one floor");
         assertEquals(before, creatures(game),
@@ -148,7 +148,7 @@ class StagePlayTest {
      */
     @Test
     void theShippedStageCanBePlayed() {
-        var stage = Stages.load("stages/first.stage", SETTINGS);
+        var stage = Stages.load("first", SETTINGS);
         var game = Dungeon.createStage(stage, SETTINGS);
 
         game.runHeadless(60);
@@ -174,22 +174,21 @@ class StagePlayTest {
         for (var listed : offered) {
             var game = Dungeon.createStage(listed.stage(), SETTINGS);
             game.runHeadless(30);
-            assertNotNull(heroOf(game), listed.path() + " put no hero in the world");
+            assertNotNull(heroOf(game), listed.name() + " put no hero in the world");
         }
     }
 
     /** Nothing named is the endless dungeon, which is what this game is by default. */
     @Test
     void namingNoStageIsTheEndlessDungeon() {
-        assertEquals(null, Stages.chosen(new String[0], SETTINGS),
-                "the shipped settings must not quietly turn the descent into one stage");
+        assertEquals(null, Stages.chosen(new String[0]),
+                "the shipped game must not quietly turn the descent into one stage");
     }
 
     /** And the command line wins, which is what an author uses while building one. */
     @Test
-    void theCommandLineBeatsTheSettingsFile() {
-        assertEquals("stages/first.stage",
-                Stages.chosen(new String[] {"--stage=stages/first.stage"}, SETTINGS));
+    void theCommandLineBeatsTheGameFile() {
+        assertEquals("first", Stages.chosen(new String[] {"--map=first"}));
     }
 
     /** The panel says one floor of one, rather than promising nine that do not exist. */

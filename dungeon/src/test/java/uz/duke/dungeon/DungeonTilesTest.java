@@ -203,8 +203,8 @@ class DungeonTilesTest {
         int checked = 0;
 
         var named = new java.util.ArrayList<String>();
-        named.addAll(settings.hudOrderIcons());
-        named.addAll(settings.hudStatIcons());
+        named.addAll(settings.hud().orderIcons());
+        named.addAll(settings.hud().statIcons());
         // And every attribute's, which is named in its own block rather than the panel's.
         settings.attributeArt().forEach(attribute -> named.add(attribute.icon()));
         for (var path : named) {
@@ -422,7 +422,7 @@ class DungeonTilesTest {
                         continue;
                     }
                     assertTrue(clips.contains(wanted),
-                            theme.name() + "/" + art.template() + " asks for " + wanted
+                            theme.name() + "/" + art.name() + " asks for " + wanted
                                     + ", and the model carries " + clips);
                 }
             }
@@ -467,7 +467,7 @@ class DungeonTilesTest {
                     continue; // dressed from a skin of its own, like a creature
                 }
                 assertTrue(hasTexture(assets.loadModel(art.look().model())),
-                        theme.name() + "/" + art.template() + " is drawn from "
+                        theme.name() + "/" + art.name() + " is drawn from "
                                 + art.look().model() + ", which names no texture and is "
                                 + "given none — it would render blank white");
             }
@@ -640,14 +640,14 @@ class DungeonTilesTest {
     @Test
     void theSunIsFarEnoughOffVerticalToShadeAWall() {
         var settings = uz.duke.dungeon.content.DungeonSettings.load();
-        double pitch = Math.toRadians(settings.sunPitch());
+        double pitch = Math.toRadians(settings.sun().pitch());
 
         assertTrue(Math.cos(pitch) > 0.6,
-                "at " + settings.sunPitch() + " degrees the best-lit wall and the worst are "
+                "at " + settings.sun().pitch() + " degrees the best-lit wall and the worst are "
                         + Math.cos(pitch) + " apart, which is not enough to read as a wall");
         // What a floor comes to: the sun's share of an upward face, plus the
         // ambient the kit's materials return. Over one and it clips to white.
-        double kitAmbient = settings.sunAmbientPercent() / 100.0 * 0.55;
+        double kitAmbient = settings.sun().ambientPercent() / 100.0 * 0.55;
         assertTrue(Math.sin(pitch) + kitAmbient <= 1.0,
                 "the ground comes out at " + (Math.sin(pitch) + kitAmbient) + " of full"
                         + " brightness, so it clips and stops being a surface");

@@ -42,7 +42,7 @@ class UnitBlocksTest {
     /** A monster may frame a face of its own, as a hero does. */
     @Test
     void aMonsterBlockMayFrameItsOwnPortrait() {
-        var settings = DungeonSettings.parse("", """
+        var settings = DungeonSettings.parse("""
                 Monster
                   Name = Warden
                   Portrait = PortraitArt

@@ -54,6 +54,7 @@ Monster
   ; Twice anything else, and darkened until it reads as its own creature.
   ; GeometryHeight is 24.
   Model = models/monsters/skeleton_warrior.glb
+  Animations = Humanoid
   ; What is looking at you out of the dark.
   Effect = EmberEyes
   ModelScale = 11.1

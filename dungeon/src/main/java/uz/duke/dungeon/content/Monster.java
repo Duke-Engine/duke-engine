@@ -1,5 +1,7 @@
 package uz.duke.dungeon.content;
 
+import uz.duke.core.data.Clip;
+import uz.duke.core.data.Link;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -33,7 +35,8 @@ public record Monster(String name, String displayName, Set<Kind> kindOf, float v
         int swingFrames, int minDepth, int weight, int colour, float scale,
         Band skillDistance, Band keepDistance, int maxPerRoom,
         String model, String texture, float modelScale, int tint, float facing,
-        String idle, String walk, String attack, String hurt, String effect, Held held,
+        @Link(AnimationSet.class) String animations, @Clip String idle, @Clip String walk, @Clip String attack,
+        @Clip String hurt, @Clip String death, String effect, Held held,
         PortraitArt portrait, List<Skill> skills) implements Solid, Sighted, Classified, Titled {
 
     /** Two distances, the nearer first: {@code [20, 60]}. */
@@ -45,8 +48,8 @@ public record Monster(String name, String displayName, Set<Kind> kindOf, float v
     static final Monster DEFAULTS = new Monster("", "", Set.of(), 0f, Geometry.POINT, List.of(),
             90f, 150f, 4f, 70f, 10, 12, 1, 0, 0xFFFFFF, 1f,
             Band.NONE, Band.NONE, 0,
-            null, null, 1f, 0xFFFFFF, 90f,
-            null, null, null, null, null, Held.NOTHING,
+            null, null, 1f, 0xFFFFFF, 90f, null,
+            null, null, null, null, null, null, Held.NOTHING,
             null, List.of());
 
     public Monster {
@@ -69,7 +72,8 @@ public record Monster(String name, String displayName, Set<Kind> kindOf, float v
 
     /** What it is drawn as, which nothing in the simulation may read. */
     public MonsterLook look() {
-        return new MonsterLook(model, texture, modelScale, tint, facing, idle, walk, attack, hurt, held, effect);
+        return new MonsterLook(model, texture, modelScale, tint, facing, animations, List.of(), idle, walk, attack,
+                hurt, death, held, effect);
     }
 
     /** The key of the skill it casts: its own, written inside it, or none. */

@@ -1,50 +1,39 @@
 package uz.duke.dungeon.stage;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
-import uz.duke.core.ini.IniException;
+import java.util.stream.IntStream;
+import uz.duke.core.data.DataException;
+import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.gen.GeneratedDungeon;
 import uz.duke.dungeon.gen.GeneratedDungeon.Link;
 import uz.duke.dungeon.gen.GeneratedDungeon.Monster;
 import uz.duke.dungeon.gen.GeneratedDungeon.Placement;
 import uz.duke.dungeon.gen.GeneratedDungeon.Prop;
 import uz.duke.dungeon.gen.GeneratedDungeon.Room;
+import uz.duke.dungeon.map.StaticMap;
 
 /**
- * A stage, as text and back again.
+ * A stage, as the text of a map file and back again: one {@code StaticMap} block.
  *
- * <p>Text on purpose, and the engine's own INI at that — the same reader that
- * already reads every creature, every theme and every tuning number this game
- * has. A binary level format is a level nobody can look at: a stage that behaves
- * oddly is a file somebody has to be able to open, read down, and see the
- * mistake in. So a map is a picture of a map, a monster is a line saying what it
- * is and where it stands, and every number in the file is the number that was
- * meant.
+ * <p>Text on purpose. A binary level format is a level nobody can look at: a stage that behaves
+ * oddly is a file somebody has to be able to open, read down, and see the mistake in. So the floor
+ * is a picture of the floor, a monster is a line saying what it is and where it stands, and every
+ * number in the file is the number that was meant.
  *
- * <p>Positions are written in <b>cells</b> rather than in world units, which
- * loses nothing: a dungeon stands everything it places at the centre of a cell,
- * so the two are the same fact and only one of them can be counted along a row
- * of the map above it by eye.
- *
- * <p>The one thing the format cannot carry is a semicolon: it starts a comment,
- * everywhere, and that is the reader's rule rather than this file's. Writing one
- * fails loudly instead of quietly truncating a description halfway.
+ * <p>Positions are written in <b>cells</b> rather than in world units, which loses nothing: a
+ * dungeon stands everything it places at the centre of a cell, so the two are the same fact and
+ * only one of them can be counted along a row of the picture by eye.
  */
 public final class StageFile {
 
     private static final String HEADER = """
-            ; Duke Dungeon — a stage: a dungeon that has stopped changing.
+            ; Duke Dungeon — a map drawn once: a dungeon that has stopped changing.
             ;
             ; Written by the world builder (./gradlew :worldbuilder:run) and read by the
-            ; game (--stage=<this file>). Hand-editing is expected — every position is a
-            ; cell, counted from the top-left of the maps below — and every edit is
+            ; game (--map=<its Name, or this file>). Hand-editing is expected — every
+            ; position is a cell, counted from the top-left of Cells — and every edit is
             ; checked on load: a monster inside a wall or a room nothing can walk to
             ; stops the game with a list of what is wrong rather than starting anyway.
-            ;
-            ; A ';' begins a comment on any line, so no name or description may contain one.
 
             """;
 
@@ -53,233 +42,128 @@ public final class StageFile {
 
     // ---- writing ----
 
-    /** The stage as the text of a {@code .stage} file. */
+    /** The stage as the text of a map file. */
     public static String write(Stage stage) {
         var floor = stage.floor();
-        var out = new StringBuilder(HEADER);
-
-        out.append("Stage ").append(stage.id()).append('\n');
-        field(out, "Name", stage.name());
-        field(out, "Description", stage.description());
+        var out = new StringBuilder(HEADER).append("StaticMap\n");
+        field(out, "Name", stage.id());
+        field(out, "DisplayName", text(stage.name()));
+        field(out, "Description", text(stage.description()));
         field(out, "Difficulty", String.valueOf(stage.difficulty()));
         field(out, "Players", String.valueOf(stage.players()));
         out.append("""
                   ; The seed this floor was cut from. The loot and the look of the place
-                  ; are still drawn from it, so a stage plays the same
-                  ; way every time rather than merely having the same shape.
+                  ; are still drawn from it, so a map plays the same way every time
+                  ; rather than merely having the same shape.
                 """);
         field(out, "Seed", String.valueOf(stage.seed()));
         if (floor.hero() != null) {
             out.append("  ; Where the hero comes in.\n");
-            field(out, "Entrance", cells(floor.hero()));
+            field(out, "Entrance", "[" + floor.hero().cellX() + ", " + floor.hero().cellY() + "]");
         }
-        out.append("End\n\n");
-
-        mapBlock(out, "StageTerrain", "'#' is stone and '.' is floor", floor.asciiMap());
-        mapBlock(out, "StageStoreys",
-                "a digit is the storey a cell stands on, '/' is a stair", floor.levelMap());
-
-        out.append("StageRooms\n  ; x y width height storey\n");
-        for (int i = 0; i < floor.rooms().size(); i++) {
+        out.append("  ; '#' is stone, a digit the storey a cell stands on, '/' a stair.\n");
+        list(out, "Cells", floor.levelMap().strip().lines().map(row -> "\"" + row + "\"").toList());
+        out.append("  ; x y width height storey, in the order they were placed: the first is where he starts.\n");
+        list(out, "Rooms", IntStream.range(0, floor.rooms().size()).mapToObj(i -> {
             var room = floor.rooms().get(i);
             int storey = i < floor.roomStoreys().size() ? floor.roomStoreys().get(i) : 0;
-            field(out, "Room", room.x() + " " + room.y() + " " + room.w() + " " + room.h()
-                    + " " + storey);
+            return room.x() + " " + room.y() + " " + room.w() + " " + room.h() + " " + storey;
+        }).toList());
+        out.append("  ; The two rooms a corridor joins, by their place in Rooms.\n");
+        list(out, "Links", floor.links().stream().map(link -> link.from() + " " + link.to()).toList());
+        if (floor.boss() != null && floor.boss().at() != null) {
+            out.append("  ; Killing it wins the map.\n");
+            field(out, "Boss", placed(floor.boss().kind(), floor.boss().at()));
         }
-        out.append("End\n\n");
-
-        out.append("StageLinks\n  ; the two rooms a corridor joins, by their order above\n");
-        for (var link : floor.links()) {
-            field(out, "Link", link.from() + " " + link.to());
-        }
-        out.append("End\n\n");
-
-        if (floor.boss() != null) {
-            out.append("StageBoss ").append(floor.boss().kind()).append('\n')
-                    .append("  ; Killing it wins the stage.\n");
-            if (floor.boss().at() != null) {
-                field(out, "Cell", cells(floor.boss().at()));
-            }
-            field(out, "Room", String.valueOf(floor.bossRoom()));
-            out.append("End\n\n");
-        }
-
-        out.append("StageMonsters\n  ; kind, then the cell it stands in\n");
-        for (var monster : floor.monsters()) {
-            field(out, "Monster", monster.kind() + " " + cells(monster.at()));
-        }
-        out.append("End\n\n");
-
-        out.append("StageProps\n  ; solid, and not alive — see data/props/\n");
-        for (var prop : floor.props()) {
-            field(out, "Prop", prop.kind() + " " + cells(prop.at()));
-        }
-        out.append("End\n");
-
-        return out.toString();
+        out.append("  ; Each a kind, then the cell it stands in.\n");
+        list(out, "Monsters", floor.monsters().stream().map(monster -> placed(monster.kind(), monster.at())).toList());
+        out.append("  ; Solid, and not alive — see data/props/.\n");
+        list(out, "Props", floor.props().stream().map(prop -> placed(prop.kind(), prop.at())).toList());
+        return out.append("End\n").toString();
     }
 
     private static void field(StringBuilder out, String name, String value) {
-        var text = value == null ? "" : value;
-        if (text.indexOf(';') >= 0) {
-            throw new IllegalArgumentException(
-                    "a stage's " + name + " cannot contain ';' — it begins a comment: " + text);
-        }
-        out.append("  ").append(name).append(" = ").append(text).append('\n');
+        out.append("  ").append(name).append(" = ").append(value).append('\n');
     }
 
-    private static void mapBlock(StringBuilder out, String block, String what, String rows) {
-        out.append(block).append("\n  ; ").append(what).append('\n');
-        for (var row : rows.strip().split("\n")) {
-            out.append("  ").append(row).append('\n');
+    /** A list of values, one to a line, so a map a builder saves again changes only what changed. */
+    private static void list(StringBuilder out, String name, List<String> items) {
+        if (items.isEmpty()) {
+            field(out, name, "[]");
+            return;
         }
-        out.append("End\n\n");
+        out.append("  ").append(name).append(" = [\n");
+        for (var item : items) {
+            out.append("    ").append(item).append(",\n");
+        }
+        out.append("  ]\n");
     }
 
-    private static String cells(Placement at) {
-        return at.cellX() + " " + at.cellY();
+    /** Words as a file keeps them: quoted where a {@code ;} or a quote would otherwise be read as something else. */
+    private static String text(String words) {
+        var text = words == null ? "" : words;
+        if (text.indexOf(';') < 0 && text.indexOf('"') < 0 && !text.startsWith("[")) {
+            return text;
+        }
+        return "\"" + text.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+    }
+
+    private static String placed(String kind, Placement at) {
+        return kind + " " + at.cellX() + " " + at.cellY();
     }
 
     // ---- reading ----
 
-    /** The stage in this text, or an error saying where the file stops making sense. */
-    public static Stage read(String text, String sourceName) {
-        var draft = new Draft();
-        Ini.of(text, Map.ofEntries(
-                Map.entry("Stage", (Ini.BlockParser) reader -> {
-                    draft.id = reader.getNextToken();
-                    reader.initFromIni(draft, HEAD);
-                }),
-                Map.entry("StageTerrain", (Ini.BlockParser) reader ->
-                        draft.terrain = rowsOf(reader, "StageTerrain")),
-                Map.entry("StageStoreys", (Ini.BlockParser) reader ->
-                        draft.storeys = rowsOf(reader, "StageStoreys")),
-                Map.entry("StageRooms", (Ini.BlockParser) reader ->
-                        reader.initFromIni(draft, ROOMS)),
-                Map.entry("StageLinks", (Ini.BlockParser) reader ->
-                        reader.initFromIni(draft, LINKS)),
-                Map.entry("StageBoss", (Ini.BlockParser) reader -> {
-                    draft.bossKind = reader.getNextToken();
-                    reader.initFromIni(draft, BOSS);
-                }),
-                Map.entry("StageMonsters", (Ini.BlockParser) reader ->
-                        reader.initFromIni(draft, MONSTERS)),
-                Map.entry("StageProps", (Ini.BlockParser) reader ->
-                        reader.initFromIni(draft, PROPS))),
-                sourceName).load();
-        return draft.build(sourceName);
+    /** The stage in this text, which holds one {@code StaticMap}, or an error saying where it stops making sense. */
+    public static Stage read(String text, String source) {
+        var maps = Content.records(text, source).stream()
+                .filter(StaticMap.class::isInstance).map(StaticMap.class::cast).toList();
+        if (maps.size() != 1) {
+            throw new DataException(source, "holds one StaticMap block, not " + maps.size());
+        }
+        return stage(maps.getFirst(), source);
     }
 
     /**
-     * A block whose lines are a picture rather than fields.
+     * The stage a map is: its floor, exactly as the generator handed it over.
      *
-     * <p>Read by hand because that is what it is: {@code initFromIni} would take
-     * the first run of stone on a row for a field name and say it had never heard
-     * of it. Nothing else about these lines is special — the reader has already
-     * taken any comment off the end of each of them.
+     * <p>A missing entrance or a missing boss is not caught here: they are things an author has not
+     * finished deciding, and the world builder has to be able to hold one of those while he
+     * decides. A missing floor is — there is no stage at all without one. See {@link StageCheck}
+     * for the rest.
      */
-    private static String rowsOf(Ini reader, String block) {
-        var rows = new StringBuilder();
-        while (reader.readLine()) {
-            var row = reader.getRestOfLine();
-            if (row.isEmpty()) {
-                continue;
-            }
-            if (row.equalsIgnoreCase("End")) {
-                return rows.toString();
-            }
-            rows.append(row).append('\n');
+    public static Stage stage(StaticMap map, String source) {
+        if (map.cells().isEmpty()) {
+            throw new DataException(source, "a map needs its Cells, and " + map.name() + " has none");
         }
-        throw new IniException(reader.getSourceName() + ": '" + block + "' has no 'End'");
+        var levels = String.join("\n", map.cells()) + "\n";
+        // The picture of what stands and what is floor is the storeys with every storey a floor.
+        var walls = levels.replaceAll("[0-9/]", ".");
+        var rooms = map.rooms().stream().map(room -> new Room(room.x(), room.y(), room.width(), room.height())).toList();
+        var storeys = map.rooms().stream().map(StaticMap.Room::storey).toList();
+        var links = map.links().stream().map(link -> new Link(link.from(), link.to())).toList();
+        var entrance = map.entrance() == null ? null : Placement.atCell(map.entrance().x(), map.entrance().y());
+        var boss = map.boss() == null ? null : new Monster(map.boss().kind(), at(map.boss()));
+        var monsters = map.monsters().stream().map(placed -> new Monster(placed.kind(), at(placed))).toList();
+        var props = map.props().stream().map(placed -> new Prop(placed.kind(), at(placed))).toList();
+        var floor = new GeneratedDungeon(walls, levels, entrance, monsters, boss, bossRoom(map), rooms, links, storeys,
+                props);
+        return new Stage(map.name(), map.displayName(), map.description(), map.difficulty(), map.players(), map.seed(),
+                floor);
     }
 
-    /** Everything read so far, before it is known whether the file was whole. */
-    private static final class Draft {
-        private String id = "stage";
-        private String name = "";
-        private String description = "";
-        private int difficulty = 1;
-        private int players = 1;
-        private long seed;
-        private Placement entrance;
-        private String terrain;
-        private String storeys;
-        private String bossKind;
-        private Placement bossAt;
-        private int bossRoom;
-        private final List<Room> rooms = new ArrayList<>();
-        private final List<Integer> roomStoreys = new ArrayList<>();
-        private final List<Link> links = new ArrayList<>();
-        private final List<Monster> monsters = new ArrayList<>();
-        private final List<Prop> props = new ArrayList<>();
-
-        /**
-         * The stage, if the file had a map in it.
-         *
-         * <p>A missing entrance or a missing boss is not caught here: they are
-         * things an author has not finished deciding, and the world builder has to
-         * be able to hold one of those while he decides. A missing map is not —
-         * there is no stage at all without one. See {@link StageCheck} for the
-         * rest.
-         */
-        Stage build(String sourceName) {
-            if (terrain == null || storeys == null) {
-                throw new IniException(sourceName + ": a stage needs both a StageTerrain and a"
-                        + " StageStoreys block, and this one has "
-                        + (terrain == null ? "neither" : "only the terrain"));
-            }
-            var boss = bossKind == null ? null : new Monster(bossKind, bossAt);
-            var floor = new GeneratedDungeon(terrain, storeys, entrance, List.copyOf(monsters),
-                    boss, bossRoom, List.copyOf(rooms), List.copyOf(links),
-                    List.copyOf(roomStoreys), List.copyOf(props));
-            return new Stage(id, name, description, difficulty, players, seed, floor);
+    /** Which room the boss stands in: the one its cell is inside, so it is written once, as the cell. */
+    private static int bossRoom(StaticMap map) {
+        if (map.boss() == null) {
+            return 0;
         }
+        var rooms = map.rooms();
+        return IntStream.range(0, rooms.size())
+                .filter(i -> rooms.get(i).contains(map.boss().x(), map.boss().y()))
+                .findFirst().orElse(0);
     }
 
-    private static final FieldParseTable<Draft> HEAD = new FieldParseTable<Draft>()
-            .add("Name", Ini.restOfLine((d, v) -> d.name = v))
-            .add("Description", Ini.restOfLine((d, v) -> d.description = v))
-            .add("Difficulty", Ini.integer((d, v) -> d.difficulty = v))
-            .add("Players", Ini.integer((d, v) -> d.players = v))
-            // Not Ini.integer: a seed is the whole of a long and the game picks one
-            // off the clock, so half of them do not fit in an int.
-            .add("Seed", (ini, d) -> d.seed = Long.parseLong(ini.getNextToken()))
-            .add("Entrance", (ini, d) -> d.entrance = cell(ini));
-
-    private static final FieldParseTable<Draft> ROOMS = new FieldParseTable<Draft>()
-            .add("Room", (ini, d) -> {
-                int x = Ini.scanInt(ini.getNextToken());
-                int y = Ini.scanInt(ini.getNextToken());
-                int w = Ini.scanInt(ini.getNextToken());
-                int h = Ini.scanInt(ini.getNextToken());
-                d.rooms.add(new Room(x, y, w, h));
-                d.roomStoreys.add(Ini.scanInt(ini.getNextToken()));
-            });
-
-    private static final FieldParseTable<Draft> LINKS = new FieldParseTable<Draft>()
-            .add("Link", (ini, d) -> {
-                int from = Ini.scanInt(ini.getNextToken());
-                d.links.add(new Link(from, Ini.scanInt(ini.getNextToken())));
-            });
-
-    private static final FieldParseTable<Draft> BOSS = new FieldParseTable<Draft>()
-            .add("Cell", (ini, d) -> d.bossAt = cell(ini))
-            .add("Room", Ini.integer((d, v) -> d.bossRoom = v));
-
-    private static final FieldParseTable<Draft> MONSTERS = new FieldParseTable<Draft>()
-            .add("Monster", (ini, d) -> {
-                var kind = ini.getNextToken();
-                d.monsters.add(new Monster(kind, cell(ini)));
-            });
-
-    private static final FieldParseTable<Draft> PROPS = new FieldParseTable<Draft>()
-            .add("Prop", (ini, d) -> {
-                var kind = ini.getNextToken();
-                d.props.add(new Prop(kind, cell(ini)));
-            });
-
-    private static Placement cell(Ini ini) {
-        int cx = Ini.scanInt(ini.getNextToken());
-        return Placement.atCell(cx, Ini.scanInt(ini.getNextToken()));
+    private static Placement at(StaticMap.Placed placed) {
+        return Placement.atCell(placed.x(), placed.y());
     }
 }

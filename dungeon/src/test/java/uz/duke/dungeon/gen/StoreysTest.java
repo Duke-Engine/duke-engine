@@ -9,8 +9,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.duke.core.pathfind.MapLoader;
 import uz.duke.core.pathfind.PathGrid;
-import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.content.ShippedBlock;
 
 /**
  * A dungeon with storeys in it is still one dungeon.
@@ -162,14 +162,7 @@ class StoreysTest {
     /** Turn height off and the generator draws the dungeon it drew before it. */
     @Test
     void aDungeonWithNoStoreysIsTheOldFlatOne() {
-        var flat = DungeonSettings.parse(Content.world() + """
-
-                World Dungeon
-                  Generation = Layout
-                    MaxStorey = 0
-                  End
-                End
-                """, Content.data());
+        var flat = DungeonSettings.parse(ShippedBlock.dataWith("Endless", "MaxStorey", 0));
 
         for (long seed = 0; seed < 20; seed++) {
             var dungeon = DungeonGenerator.generate(seed, flat, 1);
@@ -228,14 +221,7 @@ class StoreysTest {
     @Test
     void takingTheHeightAwayChangesTheRun() {
         var raised = playedOut(SETTINGS);
-        var flattened = playedOut(DungeonSettings.parse(Content.world() + """
-
-                World Dungeon
-                  Generation = Layout
-                    MaxStorey = 0
-                  End
-                End
-                """, Content.data()));
+        var flattened = playedOut(DungeonSettings.parse(ShippedBlock.dataWith("Endless", "MaxStorey", 0)));
 
         assertTrue(!raised.equals(flattened),
                 "a dungeon with storeys played out exactly like a flat one, so the "

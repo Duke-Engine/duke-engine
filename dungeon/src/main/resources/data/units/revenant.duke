@@ -85,6 +85,7 @@ Monster
   ; The one that carries a staff, because the one that mends itself should not
   ; look like the ones that only swing. GeometryHeight is 13.
   Model = models/monsters/skeleton_mage.glb
+  Animations = Humanoid
   ; What is looking at you out of the dark.
   Effect = EmberEyes
   ModelScale = 6.0

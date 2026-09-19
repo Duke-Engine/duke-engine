@@ -46,7 +46,7 @@ import uz.duke.worldbuilder.StageDraft;
  */
 public final class BuilderWindow extends JFrame {
 
-    private static final String EXTENSION = "stage";
+    private static final String EXTENSION = "duke";
     private static final int HISTORY = 60;
 
     private final DungeonSettings settings;
@@ -440,8 +440,8 @@ public final class BuilderWindow extends JFrame {
 
     private JFileChooser chooser() {
         var chooser = new JFileChooser(file == null
-                ? Path.of("stages").toFile() : file.getParent().toFile());
-        chooser.setFileFilter(new FileNameExtensionFilter("Duke stage", EXTENSION));
+                ? Path.of("maps").toFile() : file.getParent().toFile());
+        chooser.setFileFilter(new FileNameExtensionFilter("Duke map", EXTENSION));
         return chooser;
     }
 

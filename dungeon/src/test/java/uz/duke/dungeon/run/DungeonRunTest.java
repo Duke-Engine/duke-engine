@@ -21,7 +21,7 @@ class DungeonRunTest {
 
     /** Long enough for the death pause to elapse, whatever the file says it is. */
     private static int pastTheDeathPause() {
-        return SETTINGS.respawnDelayFrames() + 3;
+        return SETTINGS.run().respawnDelayFrames() + 3;
     }
 
     private static GameObject heroOf(DukeGame game) {

@@ -187,7 +187,7 @@ class DungeonShapeTest {
     @Test
     void aTighterFloorIsStillOnePlace() {
         var tight = DungeonSettings.parse("""
-                World Dungeon
+                ProceduralMap
                   Generation = Layout
                     MaxRoomSpacing = 14
                   End
@@ -205,7 +205,7 @@ class DungeonShapeTest {
     @Test
     void changingTheFileChangesTheShape() {
         var wide = DungeonSettings.parse("""
-                World Dungeon
+                ProceduralMap
                   Generation = Layout
                     CorridorWidth = 4
                   End

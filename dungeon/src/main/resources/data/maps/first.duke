@@ -1,0 +1,124 @@
+; Duke Dungeon — a map drawn once: a dungeon that has stopped changing.
+;
+; Written by the world builder (./gradlew :worldbuilder:run) and read by the
+; game (--map=<its Name, or this file>). Hand-editing is expected — every
+; position is a cell, counted from the top-left of Cells — and every edit is
+; checked on load: a monster inside a wall or a room nothing can walk to
+; stops the game with a list of what is wrong rather than starting anyway.
+
+StaticMap
+  Name = first
+  DisplayName = The First Descent
+  Description = One floor, drawn once and never again — learn it, then win it.
+  Difficulty = 1
+  Players = 1
+  ; The seed this floor was cut from. The loot and the look of the place
+  ; are still drawn from it, so a map plays the same way every time
+  ; rather than merely having the same shape.
+  Seed = 20260911
+  ; Where the hero comes in.
+  Entrance = [9, 28]
+  ; '#' is stone, a digit the storey a cell stands on, '/' a stair.
+  Cells = [
+    "##################################################",
+    "##################################################",
+    "#####0000000##########################11111111####",
+    "#####0000000##########################11111111####",
+    "#####0000000##########################11111111####",
+    "#####000000000000000##################11111111####",
+    "#####000000000000000000###############11111111####",
+    "#####0000000#0000000000#0000000000000#11111111####",
+    "#####0000000#0000000000#0000000000000#11111111####",
+    "#############0000000000#0000000000000#11111111####",
+    "#############0000000000#0000000000000#11111111####",
+    "#############0000000000#0000000000000#11111111####",
+    "#0000000#####0000000000#0000000000000#11111111####",
+    "#0000000#####000000000000000000000000#11111111####",
+    "#0000000#####000000000000000000000000#####//######",
+    "#0000000#####0000000000#0000000000000##00000000###",
+    "#0000000#####0000000000#0000000000000##00000000###",
+    "#0000000#####0000000000#0000000000000##00000000###",
+    "#0000000#####0000000000#0000000000000##00000000###",
+    "#0000000################0000000000000##00000000###",
+    "#0000000#######################00######00000000###",
+    "#0000000#################000000000000##00000000###",
+    "#0000000#################000000000000##00000000###",
+    "#0000000#################000000000000##00000000###",
+    "####00###################000000000000##00000000###",
+    "###000000000000#00000000000000000000000000000#####",
+    "###000000000000#0000000000000000000000000000######",
+    "###000000000000#00000000#000000000000#############",
+    "###000000000000000000000#000000000000#############",
+    "###000000000000000000000##########################",
+    "###000000000000#00000000##########################",
+    "###000000000000#00000000##########################",
+    "################00000000##########################",
+    "################00000000##########################",
+    "##################################################",
+    "##################################################",
+  ]
+  ; x y width height storey, in the order they were placed: the first is where he starts.
+  Rooms = [
+    3 25 12 7 0,
+    13 6 10 13 0,
+    1 12 7 12 0,
+    25 21 12 8 0,
+    39 15 8 10 0,
+    24 7 13 13 0,
+    38 2 8 12 1,
+    16 25 8 9 0,
+    5 2 7 7 0,
+  ]
+  ; The two rooms a corridor joins, by their place in Rooms.
+  Links = [
+    0 7,
+    0 2,
+    7 3,
+    3 5,
+    5 1,
+    1 8,
+    3 4,
+    4 6,
+  ]
+  ; Killing it wins the map.
+  Boss = Warden 8 5
+  ; Each a kind, then the cell it stands in.
+  Monsters = [
+    Runner 15 10,
+    Runner 14 14,
+    Skeleton 17 16,
+    Skeleton 16 9,
+    Skeleton 21 7,
+    Runner 4 17,
+    Skeleton 4 21,
+    Skeleton 31 26,
+    Skeleton 33 26,
+    Skeleton 27 26,
+    Skeleton 40 17,
+    Runner 41 16,
+    Skeleton 41 21,
+    Runner 40 22,
+    Skeleton 26 13,
+    Runner 34 17,
+    Runner 27 10,
+    Skeleton 31 15,
+    Skeleton 44 12,
+    Skeleton 40 6,
+    Skeleton 39 11,
+    Runner 39 4,
+    Runner 43 4,
+    Skeleton 18 28,
+    Runner 22 27,
+  ]
+  ; Solid, and not alive — see data/props/.
+  Props = [
+    Pillar 8 29,
+    Pillar 15 9,
+    Pillar 5 19,
+    Statue 30 9,
+    Barrel 27 17,
+    Pillar 33 9,
+    Barrel 40 5,
+    Barrel 7 5,
+  ]
+End

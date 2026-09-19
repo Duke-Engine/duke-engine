@@ -2,11 +2,12 @@ package uz.duke.dungeon.content;
 
 import java.util.List;
 import uz.duke.dungeon.gen.DeterministicRng;
+import uz.duke.dungeon.world.Theme;
 
 /**
  * Which floor looks like what, and how it varies.
  *
- * <p>Two decisions, both written in {@code dungeon.ini} and neither in Java. The
+ * <p>Two decisions, both written in the data and neither in Java. The
  * first is the order: depth one wears the first theme named, depth two the second,
  * and so on. The second is what happens when the list runs out, which is a real
  * question in a game with no bottom — either it comes round again or the deepest
@@ -19,7 +20,7 @@ import uz.duke.dungeon.gen.DeterministicRng;
  * asking what a floor looks like cannot move the world's own dice by a single
  * step — see the checksum test.
  */
-public record Themes(List<String> order, WhenExhausted whenExhausted, List<ThemeArt> all) {
+public record Themes(List<String> order, WhenExhausted whenExhausted, List<Theme> all) {
 
     /** What to do below the last depth the order names. */
     public enum WhenExhausted {
@@ -39,7 +40,7 @@ public record Themes(List<String> order, WhenExhausted whenExhausted, List<Theme
     }
 
     /** A floor's whole look: which theme, and which of its variations. */
-    public record Chosen(ThemeArt theme, ThemeArt.Tone tone) {
+    public record Chosen(Theme theme, Theme.Tone tone) {
 
         /** What the client is told, and all it is told: two names. */
         public String asStatus() {
@@ -105,7 +106,7 @@ public record Themes(List<String> order, WhenExhausted whenExhausted, List<Theme
                 : order.get(step % order.size());
     }
 
-    public ThemeArt themeNamed(String name) {
+    public Theme themeNamed(String name) {
         for (var theme : all) {
             if (theme.name().equals(name)) {
                 return theme;

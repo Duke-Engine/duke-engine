@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import uz.duke.dungeon.world.World;
 
 /**
  * The game is tuned by editing files, not by editing Java.
@@ -25,22 +26,25 @@ class DungeonSettingsTest {
         assertTrue(settings.mapWidth() > 0 && settings.mapHeight() > 0);
         assertTrue(settings.minRooms() >= 1);
         assertTrue(settings.maxRooms() >= settings.minRooms());
-        assertTrue(settings.skeletonSenseRadius() > 0);
-        assertTrue(settings.respawnDelayFrames() >= 0);
+        assertTrue(settings.combat().skeletonSenseRadius() > 0);
+        assertTrue(settings.run().respawnDelayFrames() >= 0);
     }
 
-    /** The world is one block: the engine reads its LevelHeight, and every section inside is the dungeon's. */
+    /** The engine reads the world's LevelHeight, and every map it lays stands its storeys that far apart. */
     @Test
-    void theWorldIsOneBlockAndItsMapsStandAtItsHeight() {
+    void theWorldsMapsStandAtItsHeight() {
         var settings = DungeonSettings.parse("""
-                World Tower
+                World
+                  Name = Tower
                   LevelHeight = 12
+                End
+                ProceduralMap
                   Generation = Layout
                     MapWidth = 70
                   End
                 End
                 """);
-        assertEquals(new DungeonWorld("Tower", 12f), settings.world());
+        assertEquals(new World("Tower", 12f), settings.world());
         assertEquals(70, settings.mapWidth(), "a section is read as its own block was");
 
         var game = uz.duke.dungeon.Dungeon.world(".....\n.....\n", settings).game();
@@ -53,7 +57,7 @@ class DungeonSettingsTest {
     void changingTheFileChangesTheGameWithoutRecompiling() {
         var shipped = DungeonSettings.load();
         var retuned = DungeonSettings.parse("""
-                World Dungeon
+                ProceduralMap
                   Generation = Layout
                     MapWidth = 80
                     MapHeight = 60
@@ -62,16 +66,16 @@ class DungeonSettingsTest {
                     MinSkeletonsPerRoom = 1
                     MaxSkeletonsPerRoom = 2
                   End
-                  Combat = Behaviour
-                    SkeletonSenseRadius = 250
-                    SkeletonChaseRadius = 400
-                  End
+                End
+                Combat
+                  SkeletonSenseRadius = 250
+                  SkeletonChaseRadius = 400
                 End
                 """);
 
         assertEquals(80, retuned.mapWidth());
         assertEquals(9, retuned.minRooms());
-        assertEquals(250f, retuned.skeletonSenseRadius(), 0.001f);
+        assertEquals(250f, retuned.combat().skeletonSenseRadius(), 0.001f);
         assertNotEquals(shipped.minRooms(), retuned.minRooms(),
                 "the test would prove nothing if it happened to match the shipped file");
     }
@@ -81,14 +85,12 @@ class DungeonSettingsTest {
     void unmentionedSettingsKeepTheirDefaults() {
         var shipped = DungeonSettings.load();
         var sparse = DungeonSettings.parse("""
-                World Dungeon
-                  Combat = Behaviour
-                    SkeletonSenseRadius = 120
-                  End
+                Combat
+                  SkeletonSenseRadius = 120
                 End
                 """);
 
-        assertEquals(120f, sparse.skeletonSenseRadius(), 0.001f);
+        assertEquals(120f, sparse.combat().skeletonSenseRadius(), 0.001f);
         assertEquals(shipped.mapWidth(), sparse.mapWidth(),
                 "a file that says nothing about the map should not change it");
     }
@@ -98,7 +100,7 @@ class DungeonSettingsTest {
     void nonsenseIsRejectedAtLoadTime() {
         var tooFewRooms = assertThrows(IllegalArgumentException.class,
                 () -> DungeonSettings.parse("""
-                        World Dungeon
+                        ProceduralMap
                           Generation = Layout
                             MinRooms = 6
                             MaxRooms = 2
@@ -108,7 +110,7 @@ class DungeonSettingsTest {
         assertTrue(tooFewRooms.getMessage().contains("MaxRooms"), tooFewRooms.getMessage());
 
         assertThrows(IllegalArgumentException.class, () -> DungeonSettings.parse("""
-                World Dungeon
+                ProceduralMap
                   Generation = Layout
                     MapWidth = 8
                     MapHeight = 8
@@ -118,11 +120,9 @@ class DungeonSettingsTest {
                 """), "rooms that cannot fit on the map should be caught");
 
         assertThrows(IllegalArgumentException.class, () -> DungeonSettings.parse("""
-                World Dungeon
-                  Combat = Behaviour
-                    SkeletonSenseRadius = 200
-                    SkeletonChaseRadius = 50
-                  End
+                Combat
+                  SkeletonSenseRadius = 200
+                  SkeletonChaseRadius = 50
                 End
                 """), "giving up closer than you notice makes no sense");
     }
@@ -143,10 +143,10 @@ class DungeonSettingsTest {
     @Test
     void theHeroStopsInsideHisOwnReach() {
         var settings = DungeonSettings.load();
-        var reach = Float.parseFloat(ShippedBlock.of(settings.playedHero()).value("AttackRange"));
+        var reach = Float.parseFloat(ShippedBlock.of(settings.run().defaultHero()).value("AttackRange"));
 
-        assertTrue(settings.closeDistance() < reach,
-                "he stops at " + settings.closeDistance() + " but reaches only " + reach);
+        assertTrue(settings.combat().closeDistance() < reach,
+                "he stops at " + settings.combat().closeDistance() + " but reaches only " + reach);
     }
 
     /** The creature data really is loadable content, not a file nobody reads. */
@@ -175,15 +175,14 @@ class DungeonSettingsTest {
     @Test
     void thePanelsPaintedEdgesAreReadAsWritten() {
         var skin = DungeonSettings.parse("""
-                World Dungeon
-                  Skin = Slot
-                    Texture = ui/borders/default/border/panel-border-013.png
-                    Inset = 10
-                    Scale = 1.1
-                    Tint = 0xC9A24B
-                  End
+                Skin
+                  Name = Slot
+                  Texture = ui/borders/default/border/panel-border-013.png
+                  Inset = 10
+                  Scale = 1.1
+                  Tint = 0xC9A24B
                 End
-                """).skin();
+                """).skins();
 
         assertEquals(1, skin.size());
         var slot = skin.getFirst();
@@ -201,7 +200,7 @@ class DungeonSettingsTest {
      */
     @Test
     void theShippedFilePaintsThePanel() {
-        var skin = DungeonSettings.load().skin();
+        var skin = DungeonSettings.load().skins();
 
         assertTrue(skin.size() >= 5, "the panel has six parts and most should be painted");
         for (var piece : skin) {
@@ -260,7 +259,7 @@ class DungeonSettingsTest {
     @Test
     void everySituationTheClientKnowsIsPainted() {
         var named = DungeonSettings.load().cursors().stream()
-                .map(DungeonSettings.CursorLook::name).toList();
+                .map(uz.duke.dungeon.world.Cursor::name).toList();
 
         for (var situation : java.util.List.of("Point", "Friend", "Attack", "Aim", "Deny")) {
             assertTrue(named.contains(situation),
@@ -289,11 +288,11 @@ class DungeonSettingsTest {
     void theShippedFileSetsTheOrderMarkItself() {
         var settings = DungeonSettings.load();
         var shipped = new uz.duke.client3d.OrderMark(
-                settings.markStartRadius(), settings.markEndRadius(), settings.markSeconds(),
-                settings.markSize(), settings.markWidth(), settings.markHeight(),
-                settings.markEasePower(), settings.markFadeFrom(), settings.markSpinDegrees(),
-                settings.markBrightness(), settings.markRingRadius(), settings.markBlinks(),
-                settings.markMoveColour(), settings.markAttackColour());
+                settings.orderMark().startRadius(), settings.orderMark().endRadius(), settings.orderMark().seconds(),
+                settings.orderMark().size(), settings.orderMark().width(), settings.orderMark().height(),
+                settings.orderMark().easePower(), settings.orderMark().fadeFrom(), settings.orderMark().spinDegrees(),
+                settings.orderMark().brightness(), settings.orderMark().ringRadius(), settings.orderMark().blinks(),
+                settings.orderMark().moveColour(), settings.orderMark().attackColour());
 
         assertTrue(shipped.startRadius() > shipped.endRadius(),
                 "the arrowheads have to close on the click, not open away from it");
@@ -378,7 +377,7 @@ class DungeonSettingsTest {
     void theColourOfAimingIsCold() {
         var settings = DungeonSettings.load();
 
-        for (int colour : new int[] {settings.ringAllowColour(), settings.ringAreaColour()}) {
+        for (int colour : new int[] {settings.skillRing().allowColour(), settings.skillRing().areaColour()}) {
             int red = (colour >> 16) & 0xFF;
             int blue = colour & 0xFF;
             int green = (colour >> 8) & 0xFF;
@@ -393,7 +392,7 @@ class DungeonSettingsTest {
     @Test
     void theColourOfRefusalIsNot() {
         var settings = DungeonSettings.load();
-        int deny = settings.ringDenyColour();
+        int deny = settings.skillRing().denyColour();
 
         assertTrue(((deny >> 16) & 0xFF) > (deny & 0xFF),
                 "refusal is drawn in the same family as permission, which is the one"
@@ -405,14 +404,14 @@ class DungeonSettingsTest {
     void theShippedFileSetsTheSkillRingItself() {
         var settings = DungeonSettings.load();
 
-        assertTrue(settings.ringSegments() >= 24, "a circle of twelve straight bits is a clock");
-        assertTrue(settings.ringSelfRadius() > 0f, "a self-only skill still needs a ring");
-        assertTrue(settings.ringSelfRadius() < 10f,
+        assertTrue(settings.skillRing().segments() >= 24, "a circle of twelve straight bits is a clock");
+        assertTrue(settings.skillRing().selfRadius() > 0f, "a self-only skill still needs a ring");
+        assertTrue(settings.skillRing().selfRadius() < 10f,
                 "and it says 'only me' by being his size, not an area: "
-                        + settings.ringSelfRadius());
-        assertTrue(settings.ringFillAlpha() < settings.ringEdgeAlpha(),
+                        + settings.skillRing().selfRadius());
+        assertTrue(settings.skillRing().fillAlpha() < settings.skillRing().edgeAlpha(),
                 "the wash inside should be fainter than the ring itself");
-        assertNotEquals(settings.ringAllowColour(), settings.ringDenyColour(),
+        assertNotEquals(settings.skillRing().allowColour(), settings.skillRing().denyColour(),
                 "yes and no are the two answers the ring gives");
     }
 }

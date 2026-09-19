@@ -1,17 +1,48 @@
-; Duke Dungeon — every data file the game is made of, in the order it is read.
+; Duke Dungeon — the game itself: every data file it is made of, in the order it is
+; read, and the map it opens on.
 ;
 ; A unit's file is the whole of it: its template (modules and stats), what it does,
 ; how it looks, its portrait and its skills. A HERO's health, speed and blow there
-; are what his attributes are added to — see Attributes in the World block
-; (ini/dungeon.ini). Monsters carry GrowableBody, because depth raises their health
+; are what his attributes are added to — see the Attribute blocks in
+; data/world/world.duke. Monsters carry GrowableBody, because depth raises their health
 ; after they are built; props carry no Body at all, which is why nothing targets them.
 ;
 ; The order is not tidiness. Monster kinds are drawn in it, heroes are offered in
-; it and skills are read in it, so a file moved up this list changes which monster
-; a seed rolls. The Mage reads after the skeleton casters because that is the
-; order their skills always had. A new unit is a file and a line here — no Java.
-Manifest
+; it, skills are read in it and maps are listed in it, so a file moved up this list
+; changes which monster a seed rolls. The Mage reads after the skeleton casters
+; because that is the order their skills always had. A new unit is a file and a
+; line here — no Java.
+Game
+  ; Which map this build opens on, by its Name, if it opens on one at all. Blank
+  ; is the choice between the endless descent and every map drawn once below,
+  ; which is what this game is when nobody has said otherwise.
+  ;
+  ; Beaten by the command line, which is what an author uses while building one:
+  ;
+  ;   ./gradlew :dungeon:run --args="--map=first"
+  ;
+  ; A map's Name, or the path of a map file: looked for on disk first and inside
+  ; the game second, so an author edits a file and a player installs one. Maps
+  ; are drawn with ./gradlew :worldbuilder:run
+  StartMap =
+
   Files = [
+    ; The world: its rules, its panel, how it is lit, and what its floors are built of.
+    data/world/world.duke,
+    data/world/hud.duke,
+    data/world/scene.duke,
+    data/world/themes/dungeon.duke,
+    data/world/themes/forest.duke,
+
+    ; Where it is played: the endless descent, drawn from a seed every time, and
+    ; the maps drawn once, offered in this order.
+    data/maps/endless.duke,
+    data/maps/first.duke,
+    data/maps/deep.duke,
+
+    ; What everything on two legs moves by, linked from each unit.
+    data/animations/humanoid.duke,
+
     data/units/rogue.duke,
     data/units/knight.duke,
     data/units/skeleton.duke,

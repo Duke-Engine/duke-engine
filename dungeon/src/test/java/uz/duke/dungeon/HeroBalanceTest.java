@@ -159,7 +159,7 @@ class HeroBalanceTest {
         var arena = Dungeon.world(room(40, 30), SETTINGS, creatures, bag);
         var game = arena.game();
         var progress = new HeroProgress(arena.hero(), SETTINGS.levelling(),
-                SETTINGS.attributeRules(), SETTINGS.levelUpBannerFrames(), bag);
+                SETTINGS.attributeRules(), SETTINGS.progression().levelUpBannerFrames(), bag);
         progress.playing(SETTINGS.heroNamed(template));
         game.onTick(progress::tick);
         game.spawn(template, arena.hero(), 200f, 150f);

@@ -1,5 +1,7 @@
 package uz.duke.dungeon.skill;
 
+import uz.duke.core.data.Clip;
+
 /**
  * One skill as the data file describes it, and what it comes to at a given level.
  *
@@ -117,7 +119,7 @@ public record Skill(
         String projectile,
         String icon,
         String look,
-        String castAnim,
+        @Clip String castAnim,
         float castSeconds,
         String name,
         String blurb,

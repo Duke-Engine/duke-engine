@@ -317,12 +317,12 @@ class SkillRanksTest {
     @Test
     void aShippedHeroCanBeBuiltToTheTop() {
         var settings = DungeonSettings.load();
-        var ranks = new SkillRanks(settings.skillSpread());
-        ranks.startWith(settings.skillsFor(settings.playedHero()));
+        var ranks = new SkillRanks(settings.progression().skillSpread());
+        ranks.startWith(settings.skillsFor(settings.run().defaultHero()));
 
         for (int level = 1; level <= settings.levelling().maxLevel(); level++) {
             assertTrue(spendOne(ranks, level),
-                    settings.playedHero() + " had nothing to take at level " + level);
+                    settings.run().defaultHero() + " had nothing to take at level " + level);
         }
 
         for (var skill : ranks.getSkills()) {

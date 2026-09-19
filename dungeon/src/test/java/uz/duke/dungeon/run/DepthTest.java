@@ -26,26 +26,24 @@ class DepthTest {
 
     /** Levels that arrive on the first kill, and the shipped four floors under them. */
     private static final DungeonSettings BRISK = DungeonSettings.parse("""
-            World Dungeon
-              Depth = Descent
-                Bosses = Warden Reaper Necromancer Champion
-              End
-              Leveling = Progression
-                MaxLevel = 20
-                XpBase = 5
-                XpStep = 0
-                ArmourPercentPerLevel = 3
-                MinDamageTakenPercent = 40
-              End
-              Attributes = Conversion
-                DamagePerPrimary = 1.0
-              End
-              Attribute = Strength
-                Short = STR
-                HealthPerPoint = 10
+            ProceduralMap
+              Descent = Descent
+                Bosses = [Warden, Reaper, Necromancer, Champion]
               End
             End
-            """, """
+            Progression
+              MaxLevel = 20
+              XpBase = 5
+              XpStep = 0
+              ArmourPercentPerLevel = 3
+              MinDamageTakenPercent = 40
+              DamagePerPrimary = 1.0
+            End
+            Attribute
+              Name = Strength
+              ShortName = STR
+              HealthPerPoint = 10
+            End
             Hero
               Name = Rogue
               Primary = AGI
@@ -119,7 +117,7 @@ class DepthTest {
         var boss = bossOf(session);
         assertNotNull(boss, "there should be a boss to defeat");
         game.getLogic().destroyObject(boss);
-        game.runHeadless(BRISK.descendDelayFrames() + 4);
+        game.runHeadless(BRISK.run().descendDelayFrames() + 4);
     }
 
     /**
@@ -152,7 +150,7 @@ class DepthTest {
         assertEquals(BRISK.finalDepth(), session.run().getDepth(), "at the bottom of it");
 
         session.game().getLogic().destroyObject(bossOf(session));
-        session.game().runHeadless(BRISK.descendDelayFrames() + 4);
+        session.game().runHeadless(BRISK.run().descendDelayFrames() + 4);
 
         assertEquals(DungeonRun.State.WON, session.run().getState(), "the run should be won");
         assertEquals(BRISK.finalDepth(), session.run().getDepth(),
@@ -171,9 +169,9 @@ class DepthTest {
             defeatTheBoss(session);
         }
         game.getLogic().destroyObject(bossOf(session));
-        game.runHeadless(BRISK.descendDelayFrames() + 4);
+        game.runHeadless(BRISK.run().descendDelayFrames() + 4);
 
-        game.runHeadless(BRISK.victoryFrames() + 4);
+        game.runHeadless(BRISK.run().victoryFrames() + 4);
 
         assertEquals(DungeonRun.State.RUNNING, session.run().getState());
         assertEquals(1, session.run().getDepth(), "back to the top");
@@ -192,7 +190,7 @@ class DepthTest {
         assertEquals(1, session.run().getDepth(),
                 "there has to be a moment to pick up what the boss left");
 
-        game.runHeadless(BRISK.descendDelayFrames() + 4);
+        game.runHeadless(BRISK.run().descendDelayFrames() + 4);
         assertEquals(2, session.run().getDepth(), "and then the floor closes");
     }
 
@@ -287,7 +285,7 @@ class DepthTest {
         assertEquals(3, session.run().getDepth(), "two floors down");
 
         game.getLogic().destroyObject(hero(game));
-        game.runHeadless(BRISK.respawnDelayFrames() + 5);
+        game.runHeadless(BRISK.run().respawnDelayFrames() + 5);
 
         assertEquals(1, session.run().getDepth(), "back to the top");
         assertEquals(1, session.progress().getLevel(), "with nothing earned");

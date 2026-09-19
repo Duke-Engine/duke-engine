@@ -210,20 +210,20 @@ only, transparent middle), `panel/` (frame plus an opaque middle),
 were not. The rule exists so that `character_medieval_2.glb` becomes a name that
 says what the thing is; here the number **is** what the thing is. There are
 thirty-two interchangeable frames with nothing to tell them apart but their
-carving, `dungeon.ini` picks between them by name, and inventing
+carving, `data/world/hud.duke` picks between them by name, and inventing
 `frame_studded.png` for `panel-border-013.png` would replace a number anyone can
 look up in the pack with an adjective only this repository knows. The folders
 were renamed — lower case, underscores for the spaces — and the files were not.
 
 All 280 were copied rather than the eight in use, at 388 KB the lot, so that
-choosing a different frame is an edit to `dungeon.ini` rather than a trip back to
+choosing a different frame is an edit to `data/world/hud.duke` rather than a trip back to
 the pack.
 
 ### The particles, and why they are half the size they shipped at
 
 **Particle Pack** (Kenney, CC0, version 1.1) ships at `effects/particles/` with its
 own `License.txt` beside it — all 96 of the transparent textures, `rotated/`
-included, so choosing a different smoke for a skill is an edit to `dungeon.ini`
+included, so choosing a different smoke for a skill is an edit to its effect in `data/effects/`
 rather than a trip back to the pack.
 
 They shipped at 512×512 and are kept at **256×256**. A particle is a soft shape
@@ -248,14 +248,14 @@ thing that tells them apart. The folders were lower-cased on the way in.
 The mouse pointers are Kenney's **Cursor Pack 1.1** (CC0), at `ui/cursors/`,
 with its `License.txt` beside them. The *Outline* family in both sizes — 182
 drawings at 32 pixels in `default/` and the same 182 at 64 in `double/` — so
-swapping size is one word in `dungeon.ini`. Five are used.
+swapping size is one word in `data/world/hud.duke`. Five are used.
 
 Only *Outline* was copied, and that is a decision rather than a preference. The
 pack's other family, *Basic*, is pure white with no keyline: measured, one colour
 and one colour only. A white pointer is invisible over a lit floor, and a
 dungeon has both a lit floor and a dark one. The outlined drawings are white
 **inside a black line**, which is what lets the client tint them — see
-the `Cursor` sections of `dungeon.ini` — and what keeps them readable whatever they are over.
+the `Cursor` blocks of `data/world/hud.duke` — and what keeps them readable whatever they are over.
 
 ### The pointers that came before
 

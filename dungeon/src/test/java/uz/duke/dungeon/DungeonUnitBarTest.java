@@ -158,7 +158,7 @@ class DungeonUnitBarTest {
     void theWholeRangeTheTableCoversIsCountable() {
         var look = look();
         int ceiling = look.steps().get(look.steps().size() - 1).value() * MOST;
-        for (int health = SETTINGS.unitBarShortestAt(); health <= ceiling; health++) {
+        for (int health = SETTINGS.unitBar().shortestAt(); health <= ceiling; health++) {
             int marks = look.segmentsFor(health);
             assertTrue(marks >= FEWEST && marks <= MOST,
                     health + " health gives " + marks + " marks, one worth "

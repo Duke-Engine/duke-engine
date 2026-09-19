@@ -57,6 +57,7 @@ Monster
   ; a different thing across a dark room, which is all a monster has to be.
   ; GeometryHeight is 16.
   Model = models/monsters/skeleton_warrior.glb
+  Animations = Humanoid
   ; What is looking at you out of the dark.
   Effect = EmberEyes
   ModelScale = 7.4

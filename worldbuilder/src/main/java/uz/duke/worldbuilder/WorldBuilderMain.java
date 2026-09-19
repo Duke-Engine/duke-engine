@@ -14,7 +14,7 @@ import uz.duke.worldbuilder.ui.BuilderWindow;
  *
  * <pre>{@code
  * ./gradlew :worldbuilder:run
- * ./gradlew :worldbuilder:run --args="stages/first.stage"
+ * ./gradlew :worldbuilder:run --args="dungeon/src/main/resources/data/maps/first.duke"
  * }</pre>
  *
  * <p>Without a file it starts on a dungeon drawn from the clock, which is a first

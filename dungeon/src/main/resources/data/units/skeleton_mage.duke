@@ -85,6 +85,7 @@ Monster
   ; The staff-carrier again, burning: a warm wash tells it from the pale Revenant
   ; before its fire does.
   Model = models/monsters/skeleton_mage.glb
+  Animations = Humanoid
   Effect = EmberEyes
   ModelScale = 6.0
   Held = Held

@@ -17,7 +17,7 @@ import uz.duke.dungeon.content.DungeonSettings;
  * the writing end of the format and {@code HeroPanelTest} holds the reading end.
  *
  * <p>What is checked is the shape and where each part came from — that the name
- * is the one in the creature file, the words are the ones in {@code dungeon.ini},
+ * is the one in the creature file, the words are the ones in {@code data/world/hud.duke},
  * and there is a slot for every skill the file gives him. Not the values: the
  * hero's health and the length of his cooldowns are balance, and balance is meant
  * to be tuned without a test objecting.
@@ -117,7 +117,7 @@ class HeroStatusTest {
 
         // His skills, not the file's: the panel describes whoever is being played,
         // and the file holds a second hero's four as well now.
-        var his = settings.skillsFor(settings.playedHero());
+        var his = settings.skillsFor(settings.run().defaultHero());
         assertEquals(his.size(), line.split("\\|skill=", -1).length - 1,
                 "a slot each, no more and no fewer: " + line);
         for (var skill : his) {
@@ -143,7 +143,7 @@ class HeroStatusTest {
 
         assertTrue(lineFrom(5L).contains(
                         "|skill=" + waiting.key() + "," + waiting.icon()
-                                + ",lock," + waiting.levelForRank(1) + settings.hudRankSuffix()),
+                                + ",lock," + waiting.levelForRank(1) + settings.hud().rankSuffix()),
                 "the locked slot should name its level the way the panel names them");
     }
 
@@ -157,7 +157,7 @@ class HeroStatusTest {
     @Test
     void anUnboughtOrdinarySlotNamesNoLevel() {
         var settings = DungeonSettings.load();
-        var ordinary = settings.skillsFor(settings.playedHero()).stream()
+        var ordinary = settings.skillsFor(settings.run().defaultHero()).stream()
                 .filter(skill -> !skill.isUltimate())
                 .findFirst().orElseThrow();
 
@@ -173,11 +173,11 @@ class HeroStatusTest {
         var settings = DungeonSettings.load();
         var line = lineFrom(5L);
 
-        for (var skill : settings.skillsFor(settings.playedHero())) {
+        for (var skill : settings.skillsFor(settings.run().defaultHero())) {
             assertTrue(line.contains("|srank=" + skill.key() + ",0," + skill.maxRank() + ","),
                     "no rank field for " + skill.key() + " in: " + line);
         }
-        assertTrue(line.contains("|pts=1," + settings.hudPointsWord()),
+        assertTrue(line.contains("|pts=1," + settings.hud().pointsWord()),
                 "a hero at his first level has one point to spend: " + line);
     }
 
@@ -201,7 +201,7 @@ class HeroStatusTest {
         var line = lineFrom(77L);
         var settings = DungeonSettings.load();
 
-        for (var skill : settings.skillsFor(settings.playedHero())) {
+        for (var skill : settings.skillsFor(settings.run().defaultHero())) {
             var icon = skill.icon();
             if (icon.isBlank()) {
                 continue; // no picture named: the slot draws the letter, as it always did
@@ -232,16 +232,14 @@ class HeroStatusTest {
     @Test
     void changingTheFileChangesTheWords() {
         var settings = DungeonSettings.parse("""
-                World Dungeon
-                  Hud = Panel
-                    DepthWord = FLOOR
-                    RankSuffix = th level
-                  End
+                Hud
+                  DepthWord = FLOOR
+                  RankSuffix = th level
                 End
                 """);
 
-        assertEquals("FLOOR", settings.hudDepthWord());
-        assertEquals("th level", settings.hudRankSuffix());
+        assertEquals("FLOOR", settings.hud().depthWord());
+        assertEquals("th level", settings.hud().rankSuffix());
     }
 
     /**
@@ -265,7 +263,7 @@ class HeroStatusTest {
 
     /**
      * The figures beside his attributes come from the creature file and his level, and
-     * are named by {@code dungeon.ini}. His speed is not one of them any more: it is what
+     * are named by {@code data/world/hud.duke}. His speed is not one of them any more: it is what
      * one of his attributes became, and it is read on that attribute's card.
      */
     @Test
@@ -273,15 +271,15 @@ class HeroStatusTest {
         var settings = DungeonSettings.load();
         var line = lineFrom(4321L);
 
-        for (var word : new String[] {settings.hudAttackWord(), settings.hudArmourWord()}) {
+        for (var word : new String[] {settings.hud().attackWord(), settings.hud().armourWord()}) {
             assertFalse(word.isBlank(), "the shipped file should name its own figures");
             assertTrue(line.contains("|stat=" + word + ","), word + " missing from " + line);
         }
-        assertFalse(line.contains("|stat=" + settings.hudSpeedWord() + ","),
+        assertFalse(line.contains("|stat=" + settings.hud().speedWord() + ","),
                 "his speed is what his agility became, not a figure beside it: " + line);
-        assertFalse(settings.hudSpeedNowWord().isBlank(), "the shipped file should name it");
+        assertFalse(settings.hud().speedNowWord().isBlank(), "the shipped file should name it");
         assertTrue(line.contains("|atTipFoot=" + settings.attributeRules().indexOf("AGI") + ","
-                        + settings.hudSpeedNowWord() + " "),
+                        + settings.hud().speedNowWord() + " "),
                 "it is said on agility's card instead: " + line);
     }
 
@@ -312,13 +310,13 @@ class HeroStatusTest {
                 "the archer's is agility, twelve of it at the first level: " + line);
         assertTrue(line.contains("|atTipName=" + strength + "," + art.get(strength).word()),
                 "a card over strength: " + line);
-        assertTrue(line.contains("|atTipRow=" + strength + "," + settings.hudHealthWord() + ",+12,"),
+        assertTrue(line.contains("|atTipRow=" + strength + "," + settings.hud().healthWord() + ",+12,"),
                 "which says a point of it is twelve health: " + line);
-        assertTrue(line.contains("|atTipRow=" + agility + "," + settings.hudAttackWord() + ",+1,"),
+        assertTrue(line.contains("|atTipRow=" + agility + "," + settings.hud().attackWord() + ",+1,"),
                 "and agility's says it is his arrow as well: " + line);
-        assertFalse(line.contains("|atTipRow=" + strength + "," + settings.hudAttackWord() + ","),
+        assertFalse(line.contains("|atTipRow=" + strength + "," + settings.hud().attackWord() + ","),
                 "strength is not the archer's arrow: " + line);
-        assertFalse(line.contains("|atTipRow=" + strength + "," + settings.hudSpeedWord() + ","),
+        assertFalse(line.contains("|atTipRow=" + strength + "," + settings.hud().speedWord() + ","),
                 "and a figure a point of it does not move gets no row: " + line);
     }
 
@@ -351,19 +349,17 @@ class HeroStatusTest {
      */
     @Test
     void anAttributeTheFileAddsRidesTheLineWithItsCard() {
-        var world = Content.world() + """
-
-                World Dungeon
-                  Attribute = Vigour
-                    Short = VIG
-                    Word = Quvvat
-                    Icon = icons/stats/stat_vigour.png
-                    HealthPerPoint = 3
-                  End
+        var block = """
+                Attribute
+                  Name = Vigour
+                  ShortName = VIG
+                  Word = Quvvat
+                  Icon = icons/stats/stat_vigour.png
+                  HealthPerPoint = 3
                 End
                 """;
         var data = Content.data().replace("    AGI = [12, 2.2]\n", "    AGI = [12, 2.2]\n    VIG = [7, 0.5]\n");
-        var settings = DungeonSettings.parse(world, data);
+        var settings = DungeonSettings.parse(data + block);
         var session = Dungeon.newSession(4321L, settings);
         var game = session.game();
         game.runHeadless(1);
@@ -375,7 +371,7 @@ class HeroStatusTest {
         assertTrue(vigour > line.indexOf("|attr=" + settings.attributeArt().get(2).word() + ","),
                 "vigour, after the shipped three: " + line);
         assertTrue(line.contains("|atTipName=3,Quvvat"), "with a card of its own: " + line);
-        assertTrue(line.contains("|atTipRow=3," + settings.hudHealthWord() + ",+3,"),
+        assertTrue(line.contains("|atTipRow=3," + settings.hud().healthWord() + ",+3,"),
                 "saying what a point of it is worth: " + line);
     }
 

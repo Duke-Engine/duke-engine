@@ -27,7 +27,7 @@ import uz.duke.dungeon.content.PortraitArt;
  * frame with something wrong in it that nobody can attribute.
  *
  * <p>The half this cannot see is whether the portrait is a good picture of him.
- * That needs eyes, and the numbers it needs are all in {@code dungeon.ini} where
+ * That needs eyes, and the numbers it needs are all in the data files where
  * eyes can change them.
  */
 class DungeonPortraitTest {
@@ -65,7 +65,7 @@ class DungeonPortraitTest {
     void theHeroHasAPortrait() {
         var portraits = SETTINGS.portraits();
 
-        assertFalse(portraits.isEmpty(), "dungeon.ini describes no portrait at all");
+        assertFalse(portraits.isEmpty(), "the data describes no portrait at all");
         assertNotNull(portraits.stream().filter(art -> art.name().equals("Rogue"))
                 .findFirst().orElse(null), "the hero was left without one");
     }
@@ -135,7 +135,7 @@ class DungeonPortraitTest {
     @Test
     void everySelectableCreatureGetsAFace() {
         assertNotNull(SETTINGS.everyPortrait(),
-                "dungeon.ini names no Portraits section, so only the hero has a face");
+                "the data names no portraits, so only the hero has a face");
     }
 
     /** Which is where these are asked of: every block, the one for everybody too. */
@@ -199,7 +199,7 @@ class DungeonPortraitTest {
     /** How often it is drawn comes out of the file, not out of Java. */
     @Test
     void theRateIsTheFilesToSay() {
-        assertEquals(24, SETTINGS.portraitFps(),
+        assertEquals(24, SETTINGS.hud().portraitFps(),
                 "PortraitFps in Hud is what the panel is drawn at");
     }
 
@@ -241,7 +241,7 @@ class DungeonPortraitTest {
      */
     @Test
     void reboundInTheFileIsReboundInTheGame() {
-        var rebound = DungeonSettings.parse("", """
+        var rebound = DungeonSettings.parse("""
                 Hero
                   Name = Rogue
                   Model = models/heroes/ranger.glb
@@ -264,8 +264,8 @@ class DungeonPortraitTest {
     @Test
     void aBlockThatNamesNoClipStillDescribesAPortrait() {
         var bare = DungeonSettings.parse("""
-                World Dungeon
-                  Portraits = Everyone
+                Hud
+                  Portrait = PortraitArt
                     Head = 0.7
                     Show = 0.6
                   End
@@ -285,7 +285,7 @@ class DungeonPortraitTest {
     /** And a second hero is a second block, with no Java anywhere in the way. */
     @Test
     void aSecondHeroIsASecondBlock() {
-        var two = DungeonSettings.parse("", """
+        var two = DungeonSettings.parse("""
                 Hero
                   Name = Rogue
                   Model = models/heroes/ranger.glb

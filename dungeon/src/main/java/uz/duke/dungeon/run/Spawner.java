@@ -57,7 +57,7 @@ public final class Spawner {
     public static Placed place(DukeGame game, GamePlayer heroPlayer, GamePlayer dungeonPlayer,
             GeneratedDungeon dungeon, DungeonSettings settings, int depth, LootTable drops) {
         return place(game, heroPlayer, dungeonPlayer, dungeon, settings, depth, drops,
-                settings.playedHero());
+                settings.run().defaultHero());
     }
 
     /**
@@ -147,8 +147,8 @@ public final class Spawner {
     /** Give a monster something to leave behind, if the game asked for loot at all. */
     private static void dropsFrom(GameObject monster, LootTable drops, DungeonSettings settings,
             int depth, boolean boss) {
-        if (drops != null && !settings.lootTemplate().isBlank()) {
-            monster.addModule(new LootDrop(monster, drops, settings.lootTemplate(), depth, boss));
+        if (drops != null && !settings.lootDrops().template().isBlank()) {
+            monster.addModule(new LootDrop(monster, drops, settings.lootDrops().template(), depth, boss));
         }
     }
 

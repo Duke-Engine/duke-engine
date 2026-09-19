@@ -8,7 +8,7 @@ package uz.duke.dungeon.loot;
  * are worked out from.
  *
  * <p>Which items exist, what they are called and what each is worth is written in
- * {@code dungeon.ini}. This is the part that needs Java.
+ * {@code data/world/world.duke}. This is the part that needs Java.
  */
 public enum LootKind {
 

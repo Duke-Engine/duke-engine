@@ -64,7 +64,7 @@ public record OrderMark(float startRadius, float endRadius, float seconds, float
         float brightness, float ringRadius, int blinks, int moveColour, int attackColour) {
 
     /** What a game that asks for nothing gets. Tuned by eye at a dungeon's scale. */
-    public static final OrderMark DEFAULT = new OrderMark(
+    public static final OrderMark DEFAULTS = new OrderMark(
             7f, 1f, 0.40f, 3.5f, 3f, 0.25f, 3f, 0.6f, 22f, 1.6f, 7f, 2, 0x3CFF6E, 0xFF4436);
 
     public OrderMark {

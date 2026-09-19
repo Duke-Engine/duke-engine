@@ -78,6 +78,7 @@ Monster
   ; The staff-carrier, which is what a thing that mends itself should look like.
   ; GeometryHeight is 20.
   Model = models/monsters/skeleton_mage.glb
+  Animations = Humanoid
   ; What is looking at you out of the dark.
   Effect = EmberEyes
   ModelScale = 9.2

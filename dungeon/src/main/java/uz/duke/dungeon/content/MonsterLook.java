@@ -24,12 +24,15 @@ package uz.duke.dungeon.content;
  * @param tint        multiplied over the texture, packed {@code 0xRRGGBB}. White
  *                    leaves the skin alone; a wash of colour separates two
  *                    monsters that share one
- * @param idle        clip names, taken from the animation library named in the
- *                    settings; null falls back to the library's defaults
+ * @param animations  the {@link AnimationSet} it moves by, or null for none
+ * @param libraries   the files its clips are taken from — its set's, once {@link #in} has
+ *                    filled them in
+ * @param idle        clip names, taken from those files; null takes its set's
  * @param hurt        what it plays when something takes health off it — a short
  *                    flinch, played over whatever else it was doing. Without one a
  *                    monster absorbs a blow with no sign that it landed, which
  *                    reads as the weapon having missed
+ * @param death       what it plays once as it falls, before the body is taken away
  */
 public record MonsterLook(
         String model,
@@ -37,20 +40,35 @@ public record MonsterLook(
         float modelScale,
         int tint,
         float facing,
+        String animations,
+        java.util.List<String> libraries,
         String idle,
         String walk,
         String attack,
         String hurt,
+        String death,
         Held held,
         String effect) {
 
     public MonsterLook {
+        libraries = libraries == null ? java.util.List.of() : java.util.List.copyOf(libraries);
         held = held == null ? Held.NOTHING : held;
     }
 
     /** No art at all: this kind is drawn as a coloured shape, as everything was. */
     public static final MonsterLook NONE = new MonsterLook(null, null, 1f, 0xFFFFFF, 90f,
-            null, null, null, null, Held.NOTHING, null);
+            null, java.util.List.of(), null, null, null, null, null, Held.NOTHING, null);
+
+    /** This look moving by {@code set}: its libraries, and its clip wherever this names none of its own. */
+    public MonsterLook in(AnimationSet set) {
+        return new MonsterLook(model, texture, modelScale, tint, facing, animations, set.libraries(),
+                idle != null ? idle : set.idle(),
+                walk != null ? walk : set.walk(),
+                attack != null ? attack : set.attack(),
+                hurt != null ? hurt : set.hurt(),
+                death != null ? death : set.death(),
+                held, effect);
+    }
 
     /** Whether there is a model to draw rather than a shape. */
     public boolean hasModel() {
@@ -60,16 +78,5 @@ public record MonsterLook(
     /** The tint as AWT sees it. */
     public java.awt.Color awtTint() {
         return new java.awt.Color(tint);
-    }
-
-    /** This look with any unset clip name filled in from the game's defaults. */
-    public MonsterLook withDefaults(String defaultIdle, String defaultWalk, String defaultAttack,
-            String defaultHurt) {
-        return new MonsterLook(model, texture, modelScale, tint, facing,
-                idle == null ? defaultIdle : idle,
-                walk == null ? defaultWalk : walk,
-                attack == null ? defaultAttack : attack,
-                hurt == null ? defaultHurt : hurt,
-                held, effect);
     }
 }

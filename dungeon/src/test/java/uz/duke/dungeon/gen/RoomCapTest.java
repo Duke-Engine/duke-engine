@@ -23,7 +23,7 @@ class RoomCapTest {
     private static DungeonSettings mageEverywhere(int maxPerRoom) {
         var shipped = ShippedBlock.of(MAGE);
         var mage = shipped.with("MinDepth", 1).with("Weight", 10000).with("MaxPerRoom", maxPerRoom);
-        return DungeonSettings.parse(Content.world(), Content.data().replace(shipped.text(), mage.text()));
+        return DungeonSettings.parse(Content.data().replace(shipped.text(), mage.text()));
     }
 
     /** The most mages any one room of this floor holds. */

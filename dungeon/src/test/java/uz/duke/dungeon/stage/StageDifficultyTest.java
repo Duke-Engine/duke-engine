@@ -93,7 +93,7 @@ class StageDifficultyTest {
                 .findFirst().orElse(null);
         assertNotNull(hero);
         game.getLogic().destroyObject(hero);
-        game.runHeadless(1 + SETTINGS.respawnDelayFrames() + 3);
+        game.runHeadless(1 + SETTINGS.run().respawnDelayFrames() + 3);
 
         assertEquals(DungeonRun.State.RUNNING, session.run().getState());
         assertEquals(8, session.run().getDepth(), "the same stage means the same depth");
@@ -152,7 +152,7 @@ class StageDifficultyTest {
      */
     @Test
     void theLargeShippedStageIsLargeAndDeep() {
-        var stage = Stages.load("stages/deep.stage", SETTINGS);
+        var stage = Stages.load("deep", SETTINGS);
         var rows = stage.floor().asciiMap().strip().split("\n");
 
         assertTrue(rows.length > SETTINGS.mapHeight(),

@@ -84,7 +84,7 @@ class KnightOrderTest {
         var templates = templates();
         for (var him : SETTINGS.heroes()) {
             float stopsAt = him.closeDistance() > 0f
-                    ? him.closeDistance() : SETTINGS.closeDistance();
+                    ? him.closeDistance() : SETTINGS.combat().closeDistance();
             float reaches = reachOf(templates, him.name());
 
             assertTrue(stopsAt < reaches, him.name() + " stops " + stopsAt + " away and reaches "

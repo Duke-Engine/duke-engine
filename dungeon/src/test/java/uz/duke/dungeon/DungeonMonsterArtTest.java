@@ -36,6 +36,8 @@ import uz.duke.dungeon.content.DungeonSettings;
 class DungeonMonsterArtTest {
 
     private static final DungeonSettings SETTINGS = DungeonSettings.load();
+    /** What every monster moves by: one set, linked from each of their blocks. */
+    private static final uz.duke.dungeon.content.AnimationSet HUMANOID = SETTINGS.animationSet("Humanoid");
 
     /**
      * One loader for the whole class, as the game has one.
@@ -213,10 +215,10 @@ class DungeonMonsterArtTest {
     /** The libraries are shipped, and they are libraries: many clips, no creature. */
     @Test
     void theAnimationLibrariesAreShippedAndFullOfClips() {
-        assertFalse(SETTINGS.animationLibraries().isEmpty(),
+        assertFalse(HUMANOID.libraries().isEmpty(),
                 "the monsters were left with nowhere to take clips from");
         int clips = 0;
-        for (var path : SETTINGS.animationLibraries()) {
+        for (var path : HUMANOID.libraries()) {
             var composer = control(assets().loadModel(path), AnimComposer.class);
             assertNotNull(composer, path + " has no animations in it at all");
             clips += composer.getAnimClipsNames().size();
@@ -231,20 +233,20 @@ class DungeonMonsterArtTest {
             for (var clip : new String[] {look.idle(), look.walk(), look.attack()}) {
                 assertNotNull(clip, "a monster was left without one of its three clips");
                 assertTrue(inAMonsterLibrary(clip),
-                        clip + " is named in dungeon.ini but is in none of the libraries");
+                        clip + " is named in the data but is in none of the libraries");
             }
             // Optional, and off in the shipped file — but a name that is there has
             // to be a name a library answers to, or switching it on is a silence.
             if (look.hurt() != null) {
                 assertTrue(inAMonsterLibrary(look.hurt()),
-                        look.hurt() + " is named in dungeon.ini but is in no library");
+                        look.hurt() + " is named in the Humanoid set but is in no library");
             }
         }
     }
 
     /** Whether any library the monsters share carries a clip under this name. */
     private static boolean inAMonsterLibrary(String clip) {
-        for (var path : SETTINGS.animationLibraries()) {
+        for (var path : HUMANOID.libraries()) {
             var composer = control(assets().loadModel(path), AnimComposer.class);
             if (composer != null && composer.getAnimClip(clip) != null) {
                 return true;
@@ -281,7 +283,7 @@ class DungeonMonsterArtTest {
             if (attack.startsWith(RANGED)) {
                 continue; // it shoots, and a shot is not a swing
             }
-            assertEquals(SETTINGS.defaultAttack(), attack,
+            assertEquals(HUMANOID.attack(), attack,
                     kind.name() + " swings differently from the rest of the dungeon");
         }
     }
@@ -334,7 +336,7 @@ class DungeonMonsterArtTest {
     void nothingFlinchesYet() {
         for (var kind : SETTINGS.monsters()) {
             assertNull(SETTINGS.lookOf(kind).hurt(),
-                    kind.name() + " has a flinch again — see the note in dungeon.ini");
+                    kind.name() + " has a flinch again — see the note in data/animations/humanoid.duke");
         }
     }
 
@@ -348,9 +350,9 @@ class DungeonMonsterArtTest {
      */
     @Test
     void everythingHasADeathToPlay() {
-        assertNotNull(SETTINGS.deathClip(), "the monsters were left without one");
-        assertTrue(inAMonsterLibrary(SETTINGS.deathClip()),
-                SETTINGS.deathClip() + " is named in dungeon.ini but is in no library");
+        assertNotNull(HUMANOID.death(), "the monsters were left without one");
+        assertTrue(inAMonsterLibrary(HUMANOID.death()),
+                HUMANOID.death() + " is named in the Humanoid set but is in no library");
 
         var hero = hero();
         assertNotNull(hero.death(), "and so was the hero");
@@ -361,8 +363,8 @@ class DungeonMonsterArtTest {
     /**
      * The hero the game ships.
      *
-     * <p>A list now, because the roster is the file's — a second hero is a block
-     * in {@code dungeon.ini} and no Java. Most of what is asked below is about
+     * <p>A list now, because the roster is the files' — a second hero is a file
+     * in {@code data/units/} and no Java. Most of what is asked below is about
      * <em>this</em> one and could not be asked of another: which side his bow's
      * string is on, and which knee his run bends. What generalises is asked of
      * every hero named, in {@link #everyHeroNamedIsShippedWithHisClips}.
@@ -684,7 +686,7 @@ class DungeonMonsterArtTest {
         for (var look : looks()) {
             var monster = loader.loadModel(look.model());
             int copied = 0;
-            for (var path : SETTINGS.animationLibraries()) {
+            for (var path : HUMANOID.libraries()) {
                 copied += AnimationLibrary.copy(loader.loadModel(path), monster, clipsOf(look));
             }
 
@@ -700,7 +702,7 @@ class DungeonMonsterArtTest {
         var loader = assets();
         var look = looks().get(0);
         var monster = loader.loadModel(look.model());
-        for (var path : SETTINGS.animationLibraries()) {
+        for (var path : HUMANOID.libraries()) {
             AnimationLibrary.copy(loader.loadModel(path), monster, List.of(look.walk()));
         }
 
@@ -967,7 +969,7 @@ class DungeonMonsterArtTest {
      */
     @Test
     void anythingThatShootsStandsWithItsWeaponUp() {
-        var atRest = weaponHandHeight(SETTINGS.defaultIdle());
+        var atRest = weaponHandHeight(HUMANOID.idle());
         for (var kind : SETTINGS.monsters()) {
             var look = SETTINGS.lookOf(kind);
             if (!look.attack().startsWith(RANGED) || !look.hasModel()) {
@@ -991,7 +993,7 @@ class DungeonMonsterArtTest {
      */
     private static float weaponHandHeight(String clip) {
         var model = assets().loadModel(SETTINGS.lookOf(SETTINGS.monsters().get(0)).model());
-        for (var path : SETTINGS.animationLibraries()) {
+        for (var path : HUMANOID.libraries()) {
             AnimationLibrary.copy(assets().loadModel(path), model, List.of(clip));
         }
         var composer = control(model, AnimComposer.class);
@@ -1118,7 +1120,7 @@ class DungeonMonsterArtTest {
      */
     @Test
     void theArrowIsLongThinAndCheap() {
-        var arrow = SETTINGS.projectile(SETTINGS.arrowTemplate());
+        var arrow = SETTINGS.projectile(SETTINGS.combat().arrowTemplate());
         assertTrue(arrow.hasModel(), "the settings should name a model for the arrow");
 
         var model = assets().loadModel(arrow.model());
@@ -1159,7 +1161,7 @@ class DungeonMonsterArtTest {
         var him = assets().loadModel(hero().model());
         var walk = SETTINGS.lookOf(SETTINGS.monsters().get(0)).walk();
         int copied = 0;
-        for (var path : SETTINGS.animationLibraries()) {
+        for (var path : HUMANOID.libraries()) {
             copied += AnimationLibrary.copy(assets().loadModel(path), him, List.of(walk));
         }
         assertEquals(1, copied, walk + " did not go onto the hero at all");
@@ -1191,7 +1193,7 @@ class DungeonMonsterArtTest {
         var monster = loader.loadModel(look.model());
 
         com.jme3.anim.AnimClip borrowed = null;
-        for (var path : SETTINGS.animationLibraries()) {
+        for (var path : HUMANOID.libraries()) {
             var held = control(loader.loadModel(path), AnimComposer.class).getAnimClip(look.walk());
             if (held != null) {
                 borrowed = held;

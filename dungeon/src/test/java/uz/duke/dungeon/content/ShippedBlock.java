@@ -12,6 +12,12 @@ import java.util.regex.Pattern;
  */
 public record ShippedBlock(String text) {
 
+    /** Every shipped block, with the one {@code name} names setting {@code key} to {@code value}. */
+    public static String dataWith(String name, String key, Object value) {
+        var shipped = of(name);
+        return Content.data().replace(shipped.text(), shipped.with(key, value).text());
+    }
+
     /** The unit's block, from the word that opens it to its {@code End}. */
     public static ShippedBlock of(String unit) {
         var data = Content.data();

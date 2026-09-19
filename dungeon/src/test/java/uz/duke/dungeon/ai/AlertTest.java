@@ -57,7 +57,7 @@ class AlertTest {
      * told rather than something it saw.
      */
     private static DungeonSettings skeletons(float senseRadius, float alertRadius) {
-        return DungeonSettings.parse("", """
+        return DungeonSettings.parse("""
                 Monster
                   Name = Skeleton
                   SenseRadius = %s

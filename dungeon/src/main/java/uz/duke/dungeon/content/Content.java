@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
+import uz.duke.client3d.OrderMark;
 import uz.duke.core.data.Binder;
 import uz.duke.core.data.DataException;
 import uz.duke.core.data.DukeText;
@@ -20,13 +21,38 @@ import uz.duke.dungeon.combat.Bow;
 import uz.duke.dungeon.combat.EyesOnly;
 import uz.duke.dungeon.combat.FallingUpdate;
 import uz.duke.dungeon.combat.Swing;
+import uz.duke.dungeon.level.Attribute;
 import uz.duke.dungeon.level.GrowableBody;
 import uz.duke.dungeon.level.Recovery;
 import uz.duke.dungeon.loot.LootUpdate;
+import uz.duke.dungeon.map.ProceduralMap;
+import uz.duke.dungeon.map.StaticMap;
 import uz.duke.dungeon.skill.MendingUpdate;
 import uz.duke.dungeon.skill.SkillBook;
 import uz.duke.dungeon.skill.SummoningUpdate;
 import uz.duke.game.script.ScriptModule;
+import uz.duke.dungeon.world.Audio;
+import uz.duke.dungeon.world.Camera;
+import uz.duke.dungeon.world.Combat;
+import uz.duke.dungeon.world.Cursor;
+import uz.duke.dungeon.world.EffectBudget;
+import uz.duke.dungeon.world.Fog;
+import uz.duke.dungeon.world.HitFeel;
+import uz.duke.dungeon.world.Hud;
+import uz.duke.dungeon.world.LootDrops;
+import uz.duke.dungeon.world.LootItem;
+import uz.duke.dungeon.world.Menu;
+import uz.duke.dungeon.world.Moment;
+import uz.duke.dungeon.world.Progression;
+import uz.duke.dungeon.world.Run;
+import uz.duke.dungeon.world.Skin;
+import uz.duke.dungeon.world.SkillRing;
+import uz.duke.dungeon.world.StatBlock;
+import uz.duke.dungeon.world.Sun;
+import uz.duke.dungeon.world.Theme;
+import uz.duke.dungeon.world.Tiles;
+import uz.duke.dungeon.world.UnitBar;
+import uz.duke.dungeon.world.World;
 import uz.duke.rts.RtsTemplate;
 import uz.duke.rts.module.RtsModules;
 
@@ -36,9 +62,8 @@ import uz.duke.rts.module.RtsModules;
  * <p>The creature definitions and the tuning used to be Java text blocks, which meant changing
  * how much a skeleton hurts was a code change and a rebuild. They are data, so they live in
  * files: {@code .duke} files, each block the record its word names — a {@code Monster} block is
- * a {@link Monster}, its fields the record's — and {@link #MANIFEST} names every one of them.
- * The {@code World} block is {@link #WORLD}, read by {@link DungeonSettings} until its sections
- * are records of their own.
+ * a {@link Monster}, its fields the record's — and the {@link Game} block of {@link #GAME} names every
+ * one of them: the world's own blocks in {@code data/world/} and its maps in {@code data/maps/} among them.
  *
  * <p>A file may hold any blocks, so what reaches each reader is sorted out here: a world builds
  * the templates ({@link #units}), and the settings read everything ({@link #data}), each unit's
@@ -46,11 +71,8 @@ import uz.duke.rts.module.RtsModules;
  */
 public final class Content {
 
-    /** The world's settings, one {@code World} block. */
-    public static final String WORLD = "ini/dungeon.ini";
-
-    /** Every other data file the game is made of, in the order it is read. */
-    public static final String MANIFEST = "data/content.duke";
+    /** The game itself: every other data file it is made of, and the map it opens on. */
+    public static final String GAME = "data/game.duke";
 
     /** The hand-drawn room's own frozen creatures, independent of the game's. */
     public static final String FIXTURE_CREATURES = "data/fixture-creatures.duke";
@@ -67,16 +89,26 @@ public final class Content {
                     SummoningUpdate.Data.class, Swing.Data.class, LootUpdate.Data.class))
             .flatMap(List::stream).toList();
 
-    /** The record each block of a data file is, by the word it opens with. */
-    private static final Map<String, Class<? extends Record>> TYPES = Map.of(
-            "object", RtsTemplate.class, "monster", Monster.class, "hero", Hero.class,
-            "projectile", Projectile.class, "prop", Prop.class, "effect", Effect.class,
-            "sound", Sound.class, "heavyshot", HeavyShot.class);
+    /** The record each block of a data file is, by the word it opens with: its own name, but for Object. */
+    private static final Map<String, Class<? extends Record>> TYPES = Map.ofEntries(
+            Map.entry("object", RtsTemplate.class), named(Monster.class), named(Hero.class),
+            named(Projectile.class), named(Prop.class), named(Effect.class), named(Sound.class),
+            named(HeavyShot.class), named(AnimationSet.class), named(Attribute.class), named(LootItem.class),
+            named(Moment.class), named(Cursor.class), named(Skin.class), named(Theme.class),
+            named(Combat.class), named(Run.class), named(Progression.class), named(LootDrops.class),
+            named(Camera.class), named(Hud.class), named(UnitBar.class), named(StatBlock.class),
+            named(SkillRing.class), named(OrderMark.class), named(Menu.class), named(Sun.class),
+            named(Fog.class), named(Tiles.class), named(EffectBudget.class), named(HitFeel.class),
+            named(Audio.class), named(World.class), named(ProceduralMap.class), named(StaticMap.class));
 
     /** The blocks a world builds things from. */
     private static final Set<String> TEMPLATES = Set.of("object", "monster", "hero", "projectile", "prop");
 
     private Content() {
+    }
+
+    private static Map.Entry<String, Class<? extends Record>> named(Class<? extends Record> type) {
+        return Map.entry(type.getSimpleName().toLowerCase(Locale.ROOT), type);
     }
 
     /**
@@ -92,21 +124,21 @@ public final class Content {
         return gather(word -> true);
     }
 
-    /** The {@code World} block's text. */
-    public static String world() {
-        return read(WORLD);
-    }
-
     /**
-     * The files {@link #MANIFEST} names, in the order they are read. The order is the game's:
+     * The files the game is made of, in the order they are read. The order is the game's:
      * monster kinds are drawn in it and heroes offered in it.
      */
     public static List<String> files() {
-        var blocks = DukeText.parse(read(MANIFEST), MANIFEST);
-        if (blocks.size() != 1 || !blocks.getFirst().word().equalsIgnoreCase("Manifest")) {
-            throw new DataException(MANIFEST, "holds one block, the Manifest");
+        return game().files();
+    }
+
+    /** The game's own block: its files, and the map it opens on. */
+    public static Game game() {
+        var blocks = DukeText.parse(read(GAME), GAME);
+        if (blocks.size() != 1 || !blocks.getFirst().word().equalsIgnoreCase("Game")) {
+            throw new DataException(GAME, "holds one block, the Game");
         }
-        return new Binder().bind(blocks.getFirst(), Manifest.class).files();
+        return new Binder().bind(blocks.getFirst(), Game.class);
     }
 
     /** Each block of {@code text} as the record its word names; {@code source} is how errors name the text. */

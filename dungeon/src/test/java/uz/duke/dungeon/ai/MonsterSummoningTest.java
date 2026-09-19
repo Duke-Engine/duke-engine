@@ -102,7 +102,7 @@ class MonsterSummoningTest {
     /** The shipped summoner, with its summoning's numbers changed. */
     private static DungeonSettings summoningWith(int count, int most, int lasts, int percent,
             int cooldown) {
-        return DungeonSettings.parse("", ShippedBlock.of(SUMMONER).with("SummonCount", count)
+        return DungeonSettings.parse(ShippedBlock.of(SUMMONER).with("SummonCount", count)
                 .with("MaxSummoned", most).with("DurationFrames", lasts)
                 .with("SummonExperiencePercent", percent).with("CooldownFrames", cooldown).text());
     }
@@ -213,7 +213,7 @@ class MonsterSummoningTest {
         game.runHeadless(1);
 
         var spots = Summoning.spots(game.getLogic(), first(game, SUMMONER), null,
-                summoning().radius(), 4, 8f, SETTINGS.summonTurnDegrees(), SETTINGS.summonTurns());
+                summoning().radius(), 4, 8f, SETTINGS.combat().summonTurnDegrees(), SETTINGS.combat().summonTurns());
 
         assertTrue(spots.isEmpty(), "spots found in solid rock: " + spots);
     }

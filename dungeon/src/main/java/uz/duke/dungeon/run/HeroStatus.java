@@ -102,12 +102,12 @@ final class HeroStatus {
         var line = new StringBuilder()
                 .append("name=")
                 .append("|depth=").append(howFarDown(depth, lastDepth))
-                .append("|depthWord=").append(settings.hudDepthWord())
+                .append("|depthWord=").append(settings.hud().depthWord())
                 // The headings belong to the furniture rather than to whoever is
                 // selected: the sockets under them are drawn empty, and an empty
                 // grid with no heading over it is a hole rather than a bag.
-                .append("|itWord=").append(settings.hudItemsWord())
-                .append("|skWord=").append(settings.hudSkillsWord());
+                .append("|itWord=").append(settings.hud().itemsWord())
+                .append("|skWord=").append(settings.hud().skillsWord());
         // The buttons are furniture too, and stay for the same reason the sockets
         // do. Nothing is selected, so nothing is doing anything and none of them
         // may be pressed -- but four dim buttons are a bar, and a gap is a hole.
@@ -154,27 +154,27 @@ final class HeroStatus {
                 .append("|hp=").append(Math.round(creature.getBody().getHealth()))
                 .append('/').append(Math.round(creature.getBody().getMaxHealth()))
                 .append("|depth=").append(howFarDown(depth, lastDepth))
-                .append("|depthWord=").append(settings.hudDepthWord())
+                .append("|depthWord=").append(settings.hud().depthWord())
                 // Headings again: a skeleton has no bag and no skills, and the
                 // empty sockets under these words say so better than a gap would.
-                .append("|itWord=").append(settings.hudItemsWord())
-                .append("|skWord=").append(settings.hudSkillsWord());
+                .append("|itWord=").append(settings.hud().itemsWord())
+                .append("|skWord=").append(settings.hud().skillsWord());
         // It is not his, so he cannot order it -- and it is still DOING something,
         // and that is worth as much across the room as it is under his own feet.
         // Reading a skeleton off the bar is how a player learns to read the bar.
         appendOrders(line, settings, Doing.of(creature, false), his);
-        if (!settings.hudMonsterFace().isBlank()) {
-            line.append("|face=").append(settings.hudMonsterFace());
+        if (!settings.hud().monsterFace().isBlank()) {
+            line.append("|face=").append(settings.hud().monsterFace());
         }
-        var pictures = settings.hudStatIcons();
+        var pictures = settings.hud().statIcons();
         float damage = weaponDamage(creature.getTemplate()) * settings.monsterDamageAt(depth);
         if (damage > 0f) {
-            stat(line, settings.hudAttackWord(), Math.round(damage), Math.round(damage),
+            stat(line, settings.hud().attackWord(), Math.round(damage), Math.round(damage),
                     pictures.get(0));
         }
         float speed = walkingSpeed(creature.getTemplate());
         if (speed > 0f) {
-            stat(line, settings.hudSpeedWord(), Math.round(speed), Math.round(speed),
+            stat(line, settings.hud().speedWord(), Math.round(speed), Math.round(speed),
                     pictures.get(2));
         }
         if (look != null && !look.isBlank()) {
@@ -276,13 +276,13 @@ final class HeroStatus {
         var line = new StringBuilder()
                 .append("name=").append(nameOf(hero))
                 .append("|title=").append(titleOf(hero, settings))
-                .append("|rank=").append(level).append(settings.hudRankSuffix())
+                .append("|rank=").append(level).append(settings.hud().rankSuffix())
                 .append("|hp=").append(Math.round(hero.getBody().getHealth()))
                 .append('/').append(Math.round(hero.getBody().getMaxHealth()))
                 .append("|xp=").append(progress.getExperienceIntoLevel())
                 .append('/').append(progress.getExperienceForNextLevel())
                 .append("|depth=").append(howFarDown(depth, lastDepth))
-                .append("|depthWord=").append(settings.hudDepthWord());
+                .append("|depthWord=").append(settings.hud().depthWord());
         appendStats(line, hero, progress, settings);
         appendOrders(line, settings, Doing.of(hero, holding), true);
         appendItems(line, progress, settings);
@@ -302,23 +302,23 @@ final class HeroStatus {
             }
         }
         if (book != null) {
-            line.append("|skWord=").append(settings.hudSkillsWord());
+            line.append("|skWord=").append(settings.hud().skillsWord());
             line.append(Skills.slots(book, learnt, level,
-                    new Skills.Words(settings.hudRankSuffix(), settings.hudMasterWord(),
-                            settings.hudLockedWord(),
+                    new Skills.Words(settings.hud().rankSuffix(), settings.hud().masterWord(),
+                            settings.hud().lockedWord(),
                             new uz.duke.dungeon.skill.SkillTip.Words(
-                                    settings.hudDamageWord(), settings.hudCooldownWord(),
-                                    settings.hudRadiusWord(), settings.hudRangeWord(),
-                                    settings.hudBoostWord(), settings.hudRaiseWord(),
-                                    settings.hudRaiseKeyWord(),
-                                    settings.hudMaxedWord(), settings.hudNoPointsWord(),
-                                    settings.hudRankSuffix(), settings.hudSecondsWord(),
-                                    settings.hudManaWord()))));
+                                    settings.hud().damageWord(), settings.hud().cooldownWord(),
+                                    settings.hud().radiusWord(), settings.hud().rangeWord(),
+                                    settings.hud().boostWord(), settings.hud().raiseWord(),
+                                    settings.hud().raiseKeyWord(),
+                                    settings.hud().maxedWord(), settings.hud().noPointsWord(),
+                                    settings.hud().rankSuffix(), settings.hud().secondsWord(),
+                                    settings.hud().manaWord()))));
             // How many levels he has not spent yet, and the word for them. Beside
             // the heading rather than on a slot, because it belongs to none of
             // them: it is what the four are competing for.
             line.append("|pts=").append(learnt.unspent(level))
-                    .append(',').append(settings.hudPointsWord());
+                    .append(',').append(settings.hud().pointsWord());
             appendCast(line, book, hero);
         }
         // What he just picked up, for as long as it is worth saying. A line rather
@@ -360,8 +360,8 @@ final class HeroStatus {
      */
     private static void appendOrders(StringBuilder line, DungeonSettings settings,
             Doing doing, boolean his) {
-        var words = settings.hudOrderWords();
-        var pictures = settings.hudOrderIcons();
+        var words = settings.hud().orderWords();
+        var pictures = settings.hud().orderIcons();
         // Drawn in this order and read in this order — walk, attack, stop, guard —
         // which is the order the words come in the file and the order Doing counts
         // its four states in. The LETTERS are not in that order and are not meant
@@ -403,7 +403,7 @@ final class HeroStatus {
      */
     private static void appendItems(StringBuilder line, HeroProgress progress,
             DungeonSettings settings) {
-        line.append("|itWord=").append(settings.hudItemsWord());
+        line.append("|itWord=").append(settings.hud().itemsWord());
         var held = new java.util.LinkedHashMap<String, int[]>();
         var icons = new java.util.LinkedHashMap<String, String>();
         for (var item : progress.getLoot().getFound()) {
@@ -465,10 +465,10 @@ final class HeroStatus {
         int armour = Math.round((1f - levelling.damageTakenWith(level,
                 worn + progress.getLoot().armourPercent())) * 100f);
         int bareArmour = Math.round((1f - levelling.damageTakenWith(level, worn)) * 100f);
-        var pictures = settings.hudStatIcons();
-        stat(line, settings.hudAttackWord(), Math.round(now.attack()), Math.round(bare.attack()),
+        var pictures = settings.hud().statIcons();
+        stat(line, settings.hud().attackWord(), Math.round(now.attack()), Math.round(bare.attack()),
                 pictures.get(0));
-        stat(line, settings.hudArmourWord(), armour, bareArmour, pictures.get(1));
+        stat(line, settings.hud().armourWord(), armour, bareArmour, pictures.get(1));
     }
 
     /**
@@ -485,24 +485,24 @@ final class HeroStatus {
             DungeonSettings settings) {
         line.append("|atTipName=").append(index).append(',').append(word);
         line.append("|atTipAt=").append(index).append(',')
-                .append(primary ? settings.hudPrimaryWord() : "");
+                .append(primary ? settings.hud().primaryWord() : "");
         var rows = new StringBuilder();
-        cardRow(rows, index, settings.hudHealthWord(), attribute.healthPerPoint());
-        cardRow(rows, index, settings.hudSpeedWord(), attribute.speedPerPoint());
-        cardRow(rows, index, settings.hudManaWord(), attribute.manaPerPoint());
+        cardRow(rows, index, settings.hud().healthWord(), attribute.healthPerPoint().value());
+        cardRow(rows, index, settings.hud().speedWord(), attribute.speedPerPoint().value());
+        cardRow(rows, index, settings.hud().manaWord(), attribute.manaPerPoint().value());
         if (primary) {
-            cardRow(rows, index, settings.hudAttackWord(), rules.damagePerPrimary());
+            cardRow(rows, index, settings.hud().attackWord(), rules.damagePerPrimary());
         }
-        if (!rows.isEmpty() && !settings.hudEachPointWord().isEmpty()) {
+        if (!rows.isEmpty() && !settings.hud().eachPointWord().isEmpty()) {
             line.append("|atTipText=").append(index).append(',')
-                    .append(settings.hudEachPointWord());
+                    .append(settings.hud().eachPointWord());
         }
         line.append(rows);
         // His speed was a figure beside the others. It is what this attribute became,
         // so it is said here, under what a point of it is worth.
-        if (attribute.speedPerPoint() > 0 && !settings.hudSpeedNowWord().isEmpty()) {
+        if (attribute.speedPerPoint().value() > 0 && !settings.hud().speedNowWord().isEmpty()) {
             line.append("|atTipFoot=").append(index).append(',')
-                    .append(settings.hudSpeedNowWord()).append(' ').append(speedNow);
+                    .append(settings.hud().speedNowWord()).append(' ').append(speedNow);
         }
     }
 
@@ -570,7 +570,7 @@ final class HeroStatus {
      */
     private static String titleOf(GameObject hero, DungeonSettings settings) {
         var his = settings.heroNamed(hero.getTemplate().name()).title();
-        return his == null || his.isBlank() ? settings.hudHeroTitle() : his;
+        return his == null || his.isBlank() ? settings.hud().heroTitle() : his;
     }
 
     /** What the player calls him, falling back to what the code calls him. */

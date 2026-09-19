@@ -143,8 +143,8 @@ class SkillTipTest {
     /** A row's label may not carry a comma, which is what separates the fields. */
     @Test
     void noWordUsedInARowCarriesASeparator() {
-        for (var word : new String[] {SETTINGS.hudDamageWord(), SETTINGS.hudCooldownWord(),
-                SETTINGS.hudRadiusWord(), SETTINGS.hudRangeWord(), SETTINGS.hudBoostWord()}) {
+        for (var word : new String[] {SETTINGS.hud().damageWord(), SETTINGS.hud().cooldownWord(),
+                SETTINGS.hud().radiusWord(), SETTINGS.hud().rangeWord(), SETTINGS.hud().boostWord()}) {
             assertFalse(word.contains(","), "\"" + word + "\" has a comma in it, and a row is"
                     + " split on commas -- the card would be drawn with its halves shuffled");
             assertFalse(word.contains("|"), "\"" + word + "\" has a pipe in it, which ends"

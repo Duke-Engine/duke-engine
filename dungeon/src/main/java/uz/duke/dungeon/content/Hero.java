@@ -1,5 +1,7 @@
 package uz.duke.dungeon.content;
 
+import uz.duke.core.data.Clip;
+import uz.duke.core.data.Link;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -27,14 +29,16 @@ import uz.duke.dungeon.skill.Skill;
  *                   has no attributes
  * @param attributes each attribute he has, by its short name: what he starts with and what a
  *                   level adds, {@code STR = [10, 1.6]}
+ * @param animations the {@link AnimationSet} he moves by; his own clips are the ones he plays differently
  * @param held       what he carries, each a {@code Held} block in {@code Held = [ … ]}, in the order written
  */
 public record Hero(String name, String displayName, Set<Kind> kindOf, float visionRange, Geometry geometry,
         List<ModuleData> modules,
         String title, float closeDistance, int armourPercent, int maxMana, int manaRegen, int healthRegen,
         String primary, Map<String, Growth> attributes,
-        String model, String texture, float modelScale, float facing, List<String> animationsFrom,
-        String idle, String walk, String attack, String hurt, String death, List<Held> held,
+        String model, String texture, float modelScale, float facing, @Link(AnimationSet.class) String animations,
+        @Clip String idle, @Clip String walk, @Clip String attack, @Clip String hurt, @Clip String death,
+        List<Held> held,
         PortraitArt portrait, List<Skill> skills) implements Solid, Sighted, Classified, Titled {
 
     /**
@@ -59,7 +63,7 @@ public record Hero(String name, String displayName, Set<Kind> kindOf, float visi
     static final Hero DEFAULTS = new Hero("", "", Set.of(), 0f, Geometry.POINT, List.of(),
             "", 0f, 0, 0, 0, 0,
             null, Map.of(),
-            null, null, 1f, 90f, List.of(),
+            null, null, 1f, 90f, null,
             null, null, null, null, null, List.of(),
             null, List.of());
 
@@ -70,16 +74,23 @@ public record Hero(String name, String displayName, Set<Kind> kindOf, float visi
         modules = modules == null ? List.of() : List.copyOf(modules);
         title = title == null ? "" : title;
         attributes = attributes == null ? Map.of() : attributes;
-        animationsFrom = animationsFrom == null ? List.of() : List.copyOf(animationsFrom);
         held = held == null ? List.of() : List.copyOf(held);
         skills = skills == null ? List.of() : List.copyOf(skills);
     }
 
-    /** What he is drawn as and what he is made of, with his attributes laid out as the rules order them. */
-    public HeroLook look(AttributeRules rules) {
+    /**
+     * What he is drawn as and what he is made of, with his attributes laid out as the rules order them,
+     * moving by {@code set}: its libraries, and its clip wherever he names none of his own.
+     */
+    public HeroLook look(AttributeRules rules, AnimationSet set) {
         return new HeroLook(name, title, closeDistance, armourPercent, maxMana, manaRegen, healthRegen,
-                attributes(rules), model, texture, modelScale, facing, animationsFrom, idle, walk, attack,
-                hurt, death, held);
+                attributes(rules), model, texture, modelScale, facing, set.libraries(),
+                idle != null ? idle : set.idle(),
+                walk != null ? walk : set.walk(),
+                attack != null ? attack : set.attack(),
+                hurt != null ? hurt : set.hurt(),
+                death != null ? death : set.death(),
+                held);
     }
 
     /**

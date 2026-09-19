@@ -576,7 +576,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
                 // takes the rest of the room with it.
                 if (!Shot.looseAlong(owner, towards, damageOf(skill, level), DamageType.NORMAL,
                         skill.projectile(), speedOf(skill),
-                        settings.arrowMuzzleOffset(), skill.range(), skill.radius())) {
+                        settings.combat().arrowMuzzleOffset(), skill.range(), skill.radius())) {
                     return false; // no arrow to throw; the cooldown is not spent
                 }
                 world.post(new WeaponFired(world.getFrame(), owner.getId(), null,
@@ -713,7 +713,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     private void land(Skill skill, int level, GameObject owner, GameObject victim) {
         float damage = damageOf(skill, level);
         if (skill.hasProjectile() && Shot.loose(owner, victim, damage, DamageType.NORMAL,
-                skill.projectile(), speedOf(skill), settings.arrowMuzzleOffset())) {
+                skill.projectile(), speedOf(skill), settings.combat().arrowMuzzleOffset())) {
             // The client draws a muzzle flash and plays the shooting sound off this
             // — the same moment the bow announces, for the same reason.
             var world = owner.getWorld();
@@ -1018,7 +1018,7 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
         // Two that rise together stand a body apart, the body being what rises.
         float apart = 2f * uz.duke.core.thing.Solid.of(creature).footprintRadius();
         var spots = Summoning.spots(world, owner, towards, skill.radius(), room, apart,
-                settings.summonTurnDegrees(), settings.summonTurns());
+                settings.combat().summonTurnDegrees(), settings.combat().summonTurns());
         int opened = 0;
         for (var spot : spots) {
             var opening = world.spawn(rift, spot, owner.getPlayerIndex());

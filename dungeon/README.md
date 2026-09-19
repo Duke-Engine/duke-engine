@@ -74,35 +74,36 @@ o'sha burchaklarda o'sha maxluqlar, har safar. Savol "shuni yengaman-mi?" ga
 aylanadi — Warcraft custom map uslubi.
 
 ```
-./gradlew :dungeon:run --args="--stage=stages/first.stage"
+./gradlew :dungeon:run --args="--map=first"
 ```
 
-yoki `dungeon.ini` da:
+yoki `data/game.duke` da:
 
-```ini
-World Dungeon
-  Stage = Play
-    File = stages/first.stage
-  End
+```
+Game
+  StartMap = first
+  Files = [ … ]
 End
 ```
 
-Yo'l **bo'sh bo'lsa — roguelike**, aynan avvalgidek. Argument INI'dan ustun
-turadi. Yo'l avval diskdan, topilmasa classpath'dan qidiriladi (shipping stage
-installer ichida yuradi).
+Map uning `Name`i bilan yoki map faylining yo'li bilan so'raladi. **Bo'sh bo'lsa —
+roguelike**, aynan avvalgidek. Argument fayldan ustun turadi. Yo'l avval diskdan,
+topilmasa classpath'dan qidiriladi (shipping map installer ichida yuradi).
 
 **Stage'da:** o'lsang — o'sha stage boshidan (yangi dungeon EMAS). Bossni
 o'ldirsang — g'alaba, chunki ostida qavat yo'q.
 
-### Format — `dungeon/src/main/resources/stages/first.stage`
+### Format — `dungeon/src/main/resources/data/maps/first.duke`
 
-Matn, engine'ning o'z INI o'quvchisi bilan. Binar format — hech kim ocholmaydigan
-daraja: g'alati ishlaydigan stage kimdir ochib, o'qib, xatoni ko'ra oladigan fayl
-bo'lishi kerak. Koordinatalar **katakda** (dunyo birligida emas), chunki ular bir
-xil fakt va faqat birini tepadagi xarita bo'yicha ko'z bilan sanash mumkin.
+Matn: bitta `StaticMap` bloki, boshqa `.duke` fayllar kabi o'qiladi. Binar format —
+hech kim ocholmaydigan daraja: g'alati ishlaydigan stage kimdir ochib, o'qib, xatoni
+ko'ra oladigan fayl bo'lishi kerak. Koordinatalar **katakda** (dunyo birligida emas),
+chunki ular bir xil fakt va faqat birini `Cells` rasmi bo'yicha ko'z bilan sanash mumkin.
 
-Fayl ichida: metama'lumot + seed, ikki xarita qatlami (tosh va qavat), xonalar,
-koridor ulanishlari, kirish, boss, maxluqlar, prop'lar.
+Fayl ichida: metama'lumot + seed, bitta `Cells` xaritasi (`#` tosh, raqam qavat,
+`/` zina), xonalar, koridor ulanishlari, kirish, boss, maxluqlar, prop'lar. Map
+`data/game.duke` ro'yxatida bo'lsa — menyuda chiqadi. Endless tushishning sozlamalari
+esa `data/maps/endless.duke` dagi `ProceduralMap`.
 
 **Stage fayli — muzlatilgan `GeneratedDungeon`.** Ya'ni `Spawner` qotirilgan
 qavatni bir daqiqa oldin chizilganidan ajrata olmaydi — "stage o'zi kesilgan

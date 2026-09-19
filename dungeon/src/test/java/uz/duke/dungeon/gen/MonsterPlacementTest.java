@@ -141,7 +141,7 @@ class MonsterPlacementTest {
     /** Who guards the boss is the file's to say, and saying nobody sends them away. */
     @Test
     void theGuardIsTheFilesToName() {
-        var runners = guardedBy("Runner 3");
+        var runners = guardedBy("Runner = 3");
         var nobody = guardedBy("");
         for (long seed = 0; seed <= 20; seed++) {
             var guarded = DungeonGenerator.generate(seed, runners, 1);
@@ -172,15 +172,18 @@ class MonsterPlacementTest {
         }
     }
 
+    /** The shipped files with the boss guarded by this one line, or by nobody at all. */
     private static DungeonSettings guardedBy(String guard) {
-        return DungeonSettings.parse(uz.duke.dungeon.content.Content.world() + """
-
-                World Dungeon
-                  Depth = Descent
-                    BossGuards = %s
-                  End
-                End
-                """.formatted(guard), uz.duke.dungeon.content.Content.data());
+        var data = uz.duke.dungeon.content.Content.data();
+        var shipped = """
+                    BossGuards
+                      SkeletonHealer = 2
+                      SkeletonSummoner = 2
+                    End
+                """;
+        assertTrue(data.contains(shipped), "the shipped map no longer guards its boss this way");
+        var guards = guard.isEmpty() ? "" : "    BossGuards\n      " + guard + "\n    End\n";
+        return DungeonSettings.parse(data.replace(shipped, guards));
     }
 
     private static long cellOf(GeneratedDungeon.Placement at) {
@@ -205,7 +208,7 @@ class MonsterPlacementTest {
      */
     @Test
     void changingTheFileChangesWhoAppears() {
-        var noRunners = DungeonSettings.parse("", """
+        var noRunners = DungeonSettings.parse("""
                 Monster
                   Name = Runner
                   MinDepth = 99
@@ -228,7 +231,7 @@ class MonsterPlacementTest {
     /** An override changes the kind it names and nothing else about it. */
     @Test
     void namingOneKindLeavesTheOthersStanding() {
-        var tweaked = DungeonSettings.parse("", """
+        var tweaked = DungeonSettings.parse("""
                 Monster
                   Name = Brute
                   SenseRadius = 500

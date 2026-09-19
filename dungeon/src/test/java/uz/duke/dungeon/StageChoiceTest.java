@@ -42,27 +42,24 @@ class StageChoiceTest {
     /**
      * The shipped stage is found, read and offered.
      *
-     * <p>Found by being a {@code .stage} file in the folder rather than by being
-     * named anywhere: an author drops one in and it is on the screen. In a build
-     * this reads it out of the copied resources; installed, it reads it out of the
-     * jar, which is a different kind of thing to list and the reason the listing
-     * asks the URL what it is looking at.
+     * <p>Found by being a map the game's file lists: an author adds a line there and it is on
+     * the screen, in the order the file gives.
      */
     @Test
     void theShippedStageIsFound() {
         var found = Stages.all(SETTINGS);
 
         assertFalse(found.isEmpty(), "the stage that ships with the game was not found");
-        assertTrue(found.stream().anyMatch(listed -> listed.path().endsWith("first.stage")),
-                "found " + found.stream().map(Stages.Listed::path).toList());
+        assertTrue(found.stream().anyMatch(listed -> listed.name().equals("first")),
+                "found " + found.stream().map(Stages.Listed::name).toList());
     }
 
     /** And what is offered is playable — the listing has already checked it. */
     @Test
     void everyStageOfferedCanActuallyBeLoaded() {
         for (var listed : Stages.all(SETTINGS)) {
-            assertNotNull(Stages.load(listed.path(), SETTINGS),
-                    listed.path() + " was offered but will not load");
+            assertNotNull(Stages.load(listed.name(), SETTINGS),
+                    listed.name() + " was offered but will not load");
         }
     }
 
@@ -71,7 +68,7 @@ class StageChoiceTest {
     void eachStageSpeaksForItself() {
         for (var listed : Stages.all(SETTINGS)) {
             assertFalse(listed.stage().name().isBlank(),
-                    listed.path() + " would be offered as a blank row");
+                    listed.name() + " would be offered as a blank row");
         }
     }
 
@@ -81,10 +78,10 @@ class StageChoiceTest {
     void theFirstQuestionIsWhichGame() {
         var how = path();
 
-        assertEquals(SETTINGS.hudChooseModeWord(), how.title());
+        assertEquals(SETTINGS.hud().chooseModeWord(), how.title());
         assertEquals(2, how.options().size(), "two games, two rows");
-        assertEquals(SETTINGS.hudEndlessWord(), how.options().get(0).label());
-        assertEquals(SETTINGS.hudStagesWord(), how.options().get(1).label());
+        assertEquals(SETTINGS.hud().endlessWord(), how.options().get(0).label());
+        assertEquals(SETTINGS.hud().stagesWord(), how.options().get(1).label());
     }
 
     /** The endless descent asks nothing more than who is walking into it. */
@@ -93,7 +90,7 @@ class StageChoiceTest {
         var endless = path().options().get(0);
 
         assertNotNull(endless.next(), "it should still ask who is playing");
-        assertEquals(SETTINGS.hudChooseHeroWord(), endless.next().title());
+        assertEquals(SETTINGS.hud().chooseHeroWord(), endless.next().title());
     }
 
     /** The stage branch asks which one first, and only then who. */
@@ -102,11 +99,11 @@ class StageChoiceTest {
         var stages = path().options().get(1).next();
 
         assertNotNull(stages, "the stage row led nowhere");
-        assertEquals(SETTINGS.hudChooseStageWord(), stages.title());
+        assertEquals(SETTINGS.hud().chooseStageWord(), stages.title());
         assertFalse(stages.options().isEmpty(), "an empty list would be a dead end");
         for (var row : stages.options()) {
             assertNotNull(row.next(), row.label() + " starts the game without asking who");
-            assertEquals(SETTINGS.hudChooseHeroWord(), row.next().title());
+            assertEquals(SETTINGS.hud().chooseHeroWord(), row.next().title());
         }
     }
 
@@ -258,17 +255,17 @@ class StageChoiceTest {
         // screen exists only because a stage was found.
         assertFalse(Stages.all(SETTINGS).isEmpty(),
                 "this build ships a stage, so the mode screen is expected");
-        assertEquals(SETTINGS.hudChooseModeWord(), path().title());
+        assertEquals(SETTINGS.hud().chooseModeWord(), path().title());
     }
 
     /** Every word on all three screens comes out of the file. */
     @Test
     void thePathIsWordedByTheFile() {
-        for (var word : java.util.List.of(SETTINGS.hudChooseModeWord(),
-                SETTINGS.hudChooseModeHint(), SETTINGS.hudChooseStageWord(),
-                SETTINGS.hudChooseStageHint(), SETTINGS.hudEndlessWord(),
-                SETTINGS.hudEndlessBlurb(), SETTINGS.hudStagesWord(),
-                SETTINGS.hudStagesBlurb())) {
+        for (var word : java.util.List.of(SETTINGS.hud().chooseModeWord(),
+                SETTINGS.hud().chooseModeHint(), SETTINGS.hud().chooseStageWord(),
+                SETTINGS.hud().chooseStageHint(), SETTINGS.hud().endlessWord(),
+                SETTINGS.hud().endlessBlurb(), SETTINGS.hud().stagesWord(),
+                SETTINGS.hud().stagesBlurb())) {
             assertFalse(word.isBlank(), "the client would have to write this one itself");
         }
     }

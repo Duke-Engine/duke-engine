@@ -160,7 +160,7 @@ class DungeonCombatTest {
      */
     @Test
     void aSkeletonThatSensesTheHeroAdvancesOnHim() {
-        float gap = SETTINGS.skeletonSenseRadius() * 0.7f; // comfortably within notice
+        float gap = SETTINGS.combat().skeletonSenseRadius() * 0.7f; // comfortably within notice
         var fight = fight(150f, 150f, 150f + gap, 150f);
         float before = fight.hero().getPosition().distance(fight.skeleton().getPosition());
 
@@ -174,7 +174,7 @@ class DungeonCombatTest {
     /** A skeleton far beyond its notice keeps to itself — aggro spreads room by room. */
     @Test
     void aSkeletonOutOfRangeStaysPut() {
-        float gap = SETTINGS.skeletonChaseRadius() * 2f; // well outside anything it reacts to
+        float gap = SETTINGS.combat().skeletonChaseRadius() * 2f; // well outside anything it reacts to
         var fight = fight(60f, 150f, 60f + gap, 150f);
         var startedAt = fight.skeleton().getPosition();
 
@@ -294,7 +294,7 @@ class DungeonCombatTest {
      */
     @Test
     void theHeroFightsBackAgainstWhateverAttacksHim() {
-        float gap = SETTINGS.skeletonSenseRadius() * 0.7f;
+        float gap = SETTINGS.combat().skeletonSenseRadius() * 0.7f;
         var fight = fight(150f, 150f, 150f + gap, 150f);
         var skeleton = fight.skeleton();
         float skeletonHealthBefore = skeleton.getBody().getHealth();
@@ -312,7 +312,7 @@ class DungeonCombatTest {
     /** Skeletons fight back once they arrive — the advance is not a harmless parade. */
     @Test
     void anAdvancingSkeletonDrawsBlood() {
-        float gap = SETTINGS.skeletonSenseRadius() * 0.7f;
+        float gap = SETTINGS.combat().skeletonSenseRadius() * 0.7f;
         var fight = fight(150f, 150f, 150f + gap, 150f);
         var hero = fight.hero();
         float before = hero.getBody().getHealth();

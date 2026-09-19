@@ -84,11 +84,10 @@ class ContentTest {
         assertEquals(templates, ends(Content.units()), "a world builds every template once");
     }
 
-    /** The world, the list of files, and every file it lists. */
+    /** The game's own file, and every file it lists. */
     private static java.util.List<String> gameFiles() {
         var files = new java.util.ArrayList<String>();
-        files.add(Content.WORLD);
-        files.add(Content.MANIFEST);
+        files.add(Content.GAME);
         files.addAll(Content.files());
         return files;
     }

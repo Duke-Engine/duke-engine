@@ -6,35 +6,30 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
 
 /**
- * Which stage is being played, and where its file came from.
+ * Which stage is being played, and where it came from.
  *
- * <p>Two ways to ask for one, and they answer the same question at different
- * distances. The settings file is where a build says what it ships — a stage
- * named there is what the game opens on. The command line beats it, because that
- * is what an author does twenty times an hour while he is building one:
+ * <p>Two ways to ask for one, and they answer the same question at different distances. The
+ * game's own file is where a build says what it ships — the map its {@code StartMap} names is what
+ * the game opens on. The command line beats it, because that is what an author does twenty times
+ * an hour while he is building one:
  *
- * <pre>{@code ./gradlew :dungeon:run --args="--stage=stages/first.stage"}</pre>
+ * <pre>{@code ./gradlew :dungeon:run --args="--map=first"}</pre>
  *
- * <p>Neither of them is a mode switch. A stage named nowhere is the endless
- * dungeon this game has always been, unchanged and reached by exactly the same
- * road; naming one swaps where the floors come from and nothing else.
+ * <p>Neither of them is a mode switch. A stage named nowhere is the endless dungeon this game has
+ * always been, unchanged and reached by exactly the same road; naming one swaps where the floors
+ * come from and nothing else.
  *
- * <p>A path is looked for on disk first and on the classpath second, in that
- * order and for that reason: the file an author is editing is a file on his disk,
- * and the file a player installed is inside the jar.
+ * <p>A stage is asked for by its map's {@code Name}, or by the path of a map file an author is
+ * still drawing — looked for on disk first and on the classpath second, in that order and for
+ * that reason: the file an author is editing is a file on his disk.
  */
 public final class Stages {
 
-    private static final String ARG = "--stage=";
-
-    /** Where stages live, on disk and inside the game alike. */
-    public static final String FOLDER = "stages";
-
-    /** What one is called. Anything else in the folder is not a stage. */
-    private static final String SUFFIX = ".stage";
+    private static final String ARG = "--map=";
 
     private static final java.util.logging.Logger LOG =
             java.util.logging.Logger.getLogger(Stages.class.getName());
@@ -42,200 +37,99 @@ public final class Stages {
     private Stages() {
     }
 
-    /** One stage found and read, and the path it was found at. */
-    public record Listed(String path, Stage stage) {
+    /** One stage offered, and the name it is asked for by. */
+    public record Listed(String name, Stage stage) {
     }
 
     /**
-     * Every stage this game can offer, ready to be chosen from.
+     * Every stage this game can offer, ready to be chosen from: each map drawn once that the game's
+     * files list, in their order.
      *
-     * <p>Two places, in the order {@link #load} already prefers them: the
-     * {@code stages} folder beside the game, then the one inside it. A file on
-     * disk with the same name as a shipped one hides it, which is what an author
-     * editing a copy of a shipped stage expects.
-     *
-     * <p><b>Broken stages are left out, loudly.</b> A stage with a room nothing
-     * can walk to cannot be played, so offering it would be offering a row that
-     * stops the game — but leaving it out silently is worse for the one person it
-     * matters to, the author who has just written it and is wondering where it
-     * went. So it is dropped from the list and said in full in the log, and naming
-     * it outright on the command line still refuses in the old loud way.
-     *
-     * <p>Nothing here throws. A folder that is missing, unreadable or empty is a
-     * game with no stages in it, which is a game — the endless dungeon is what
-     * this has always been.
+     * <p><b>Broken stages are left out, loudly.</b> A stage with a room nothing can walk to cannot be
+     * played, so offering it would be offering a row that stops the game — but leaving it out
+     * silently is worse for the one person it matters to, the author who has just written it and is
+     * wondering where it went. So it is dropped from the list and said in full in the log, and
+     * naming it outright on the command line still refuses in the old loud way.
      */
     public static List<Listed> all(DungeonSettings settings) {
-        var found = new java.util.TreeMap<String, Listed>();
-        for (var path : names()) {
-            String at = FOLDER + "/" + path;
+        var found = new java.util.ArrayList<Listed>();
+        for (var map : settings.staticMaps()) {
             try {
-                var stage = StageFile.read(textOf(at), at);
+                var stage = StageFile.stage(map, map.name());
                 var problems = StageCheck.problems(stage, settings);
                 if (!problems.isEmpty()) {
-                    LOG.warning(() -> at + " is not offered because it cannot be played:\n  - "
+                    LOG.warning(() -> map.name() + " is not offered because it cannot be played:\n  - "
                             + String.join("\n  - ", problems));
                     continue;
                 }
-                found.put(path, new Listed(at, stage));
+                found.add(new Listed(map.name(), stage));
             } catch (RuntimeException e) {
-                LOG.warning(() -> at + " is not offered: " + e.getMessage());
+                LOG.warning(() -> map.name() + " is not offered: " + e.getMessage());
             }
         }
-        return List.copyOf(found.values());
+        return List.copyOf(found);
     }
 
     /**
-     * The file names in the stage folder, from disk and from inside the game.
+     * The stage the player asked for, by name or path, or {@code null} for the endless dungeon.
      *
-     * <p>Sorted and de-duplicated by the caller, so the same name in both places
-     * is one stage and the disk one wins — which is the rule {@link #load} reads
-     * them by.
+     * <p>Only the name. Reading it is {@link #load} and is separate on purpose: asking which stage
+     * was wanted is a question that cannot fail, and opening a file is a question that can.
      */
-    private static java.util.Set<String> names() {
-        var names = new java.util.TreeSet<String>();
-        onDisk(names);
-        inTheGame(names);
-        return names;
-    }
-
-    private static void onDisk(java.util.Set<String> into) {
-        var folder = Path.of(FOLDER);
-        if (!Files.isDirectory(folder)) {
-            return;
-        }
-        try (var listing = Files.list(folder)) {
-            listing.filter(Files::isRegularFile)
-                    .map(file -> file.getFileName().toString())
-                    .filter(name -> name.endsWith(SUFFIX))
-                    .forEach(into::add);
-        } catch (IOException e) {
-            LOG.warning(() -> "could not read the " + FOLDER + " folder: " + e.getMessage());
-        }
-    }
-
-    /**
-     * The ones shipped inside the game, which is a jar once it is installed.
-     *
-     * <p>A folder in a jar is not a folder and cannot be listed with a file API,
-     * so the jar is opened as a file system and walked. In development the very
-     * same resource is a plain directory on disk — Gradle copies resources into
-     * the build folder — so both shapes have to work, and which one it is, is
-     * whatever the URL says.
-     */
-    private static void inTheGame(java.util.Set<String> into) {
-        var url = Stages.class.getResource("/" + FOLDER);
-        if (url == null) {
-            return; // the game ships none, which is allowed
-        }
-        try {
-            var uri = url.toURI();
-            if ("jar".equals(uri.getScheme())) {
-                // Opened if nobody has it open yet, and never closed if somebody
-                // does: closing a file system another caller is reading from
-                // would break them rather than tidy up after us.
-                try (var jar = java.nio.file.FileSystems.newFileSystem(uri, java.util.Map.of())) {
-                    listInto(jar.getPath("/" + FOLDER), into);
-                } catch (java.nio.file.FileSystemAlreadyExistsException already) {
-                    listInto(java.nio.file.FileSystems.getFileSystem(uri)
-                            .getPath("/" + FOLDER), into);
-                }
-                return;
-            }
-            listInto(Path.of(uri), into);
-        } catch (java.net.URISyntaxException | IOException | RuntimeException e) {
-            LOG.warning(() -> "could not read the stages inside the game: " + e.getMessage());
-        }
-    }
-
-    private static void listInto(Path folder, java.util.Set<String> into) throws IOException {
-        if (!Files.isDirectory(folder)) {
-            return;
-        }
-        try (var listing = Files.list(folder)) {
-            listing.map(file -> file.getFileName().toString())
-                    .filter(name -> name.endsWith(SUFFIX))
-                    .forEach(into::add);
-        }
-    }
-
-    /**
-     * The stage the player asked for, or {@code null} for the endless dungeon.
-     *
-     * <p>Only the path. Reading it is {@link #load} and is separate on purpose:
-     * asking which stage was wanted is a question that cannot fail, and opening a
-     * file is a question that can.
-     */
-    public static String chosen(String[] args, DungeonSettings settings) {
+    public static String chosen(String[] args) {
         for (var arg : args) {
             if (arg.startsWith(ARG)) {
-                var path = arg.substring(ARG.length()).strip();
-                return path.isEmpty() ? null : path;
+                var name = arg.substring(ARG.length()).strip();
+                return name.isEmpty() ? null : name;
             }
         }
-        var shipped = settings.stageFile();
-        return shipped == null || shipped.isBlank() ? null : shipped;
+        return Content.game().startMap();
     }
 
     /**
-     * The stage at this path, read and checked.
+     * The stage by this name — one the game's files list — or at this path, read and checked.
      *
-     * <p>Checked here rather than by the caller so that there is no way to load a
-     * broken stage by forgetting to ask. A file with a room nobody can walk to is
-     * a file that stops the game with a list of what is wrong — never a run that
-     * begins and turns out, twenty minutes in, to have had no way through.
+     * <p>Checked here rather than by the caller so that there is no way to load a broken stage by
+     * forgetting to ask. A file with a room nobody can walk to is a file that stops the game with a
+     * list of what is wrong — never a run that begins and turns out, twenty minutes in, to have had
+     * no way through.
      */
-    public static Stage load(String path, DungeonSettings settings) {
-        var stage = StageFile.read(textOf(path), path);
+    public static Stage load(String nameOrPath, DungeonSettings settings) {
+        var stage = settings.staticMaps().stream()
+                .filter(map -> map.name().equals(nameOrPath))
+                .findFirst()
+                .map(map -> StageFile.stage(map, map.name()))
+                .orElseGet(() -> StageFile.read(textOf(nameOrPath), nameOrPath));
         var problems = StageCheck.problems(stage, settings);
         if (problems.isEmpty()) {
             return stage;
         }
-        var said = new StringBuilder(path).append(" cannot be played:");
+        var said = new StringBuilder(nameOrPath).append(" cannot be played:");
         for (var problem : problems) {
             said.append("\n  - ").append(problem);
         }
         throw new IllegalStateException(said.toString());
     }
 
-    /**
-     * A stage's text, with its lines ending in {@code \n} whatever they ended
-     * with on disk.
-     *
-     * <p>★ The same normalising {@code Content.read} does, and here it matters
-     * more: a stage's map is READ AS CHARACTERS, one per cell, so a line ending in
-     * CRLF hands the row an extra cell of {@code \r} on the end. The floor is then
-     * one wider than it says it is, or refuses to load for a width that does not
-     * match — on Windows only, out of a file that is byte-for-byte the same one
-     * everybody else has.
-     *
-     * <p>A stage may also come off disk rather than out of the jar, which is the
-     * world-builder handing one over, and that is if anything MORE likely to have
-     * been saved by a Windows editor.
-     */
+    /** A map file's text. Its line endings are the parser's business: DukeText reads CRLF as LF. */
     private static String textOf(String path) {
         var file = Path.of(path);
         if (Files.isRegularFile(file)) {
             try {
-                return unixLines(Files.readString(file, StandardCharsets.UTF_8));
+                return Files.readString(file, StandardCharsets.UTF_8);
             } catch (IOException e) {
-                throw new UncheckedIOException("could not read the stage at " + path, e);
+                throw new UncheckedIOException("could not read the map at " + path, e);
             }
         }
         var resource = path.startsWith("/") ? path : "/" + path;
         try (var stream = Stages.class.getResourceAsStream(resource)) {
             if (stream == null) {
-                throw new IllegalStateException("no stage at " + path
-                        + " — neither on disk nor inside the game");
+                throw new IllegalStateException("no map is called " + path
+                        + ", and there is no file at that path — neither on disk nor inside the game");
             }
-            return unixLines(new String(stream.readAllBytes(), StandardCharsets.UTF_8));
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException e) {
-            throw new UncheckedIOException("could not read the stage at " + path, e);
+            throw new UncheckedIOException("could not read the map at " + path, e);
         }
-    }
-
-    /** Whatever a machine ends its lines with, read as {@code \n}. */
-    static String unixLines(String text) {
-        return text.replace("\r\n", "\n").replace("\r", "\n");
     }
 }

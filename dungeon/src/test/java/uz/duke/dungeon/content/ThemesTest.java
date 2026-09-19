@@ -26,43 +26,58 @@ import org.junit.jupiter.api.Test;
  */
 class ThemesTest {
 
-    private static final String THREE = """
-            World Dungeon
-              Theme = Stone
-                TileSize = 2
-              End
-              Tone = Stone Damp
-                Floor = Models/stone/damp.obj
-              End
-              Tone = Stone Dry
-                Floor = Models/stone/dry.obj
-              End
-              Theme = Ice
-                FogTint = 0x0A1830
-              End
-              Tone = Ice Blue
-                Floor = Models/ice/blue.obj
-              End
-              Theme = Lava
-              End
-              Tone = Lava Hot
-                Floor = Models/lava/hot.obj
-              End
-              Themes = Order
-                Order = Stone Stone Ice Lava
-                WhenExhausted = Repeat
-              End
+    /** Which depth wears which: the map's. */
+    private static final String ORDER = """
+            ProceduralMap
+              Themes = [Stone, Stone, Ice, Lava]
+              WhenExhausted = Repeat
             End
             """;
 
-    private static Themes themes(String ini) {
-        return DungeonSettings.parse(ini).themes();
+    private static final String THREE = """
+            Theme
+              Name = Stone
+              TileSize = 2
+              Tones = [
+                Tone
+                  Name = Damp
+                  Floor = Models/stone/damp.obj
+                End
+                Tone
+                  Name = Dry
+                  Floor = Models/stone/dry.obj
+                End
+              ]
+            End
+            Theme
+              Name = Ice
+              FogTint = 0x0A1830
+              Tones = [
+                Tone
+                  Name = Blue
+                  Floor = Models/ice/blue.obj
+                End
+              ]
+            End
+            Theme
+              Name = Lava
+              Tones = [
+                Tone
+                  Name = Hot
+                  Floor = Models/lava/hot.obj
+                End
+              ]
+            End
+            """;
+
+    private static Themes themes(String order, String themes) {
+        return DungeonSettings.parse(order + themes).themes();
     }
 
     /** The order in the file is the order the depths wear. */
     @Test
     void depthFollowsTheOrderTheFileGives() {
-        var themes = themes(THREE);
+        var themes = themes(ORDER, THREE);
 
         assertEquals("Stone", themes.nameFor(1));
         assertEquals("Stone", themes.nameFor(2));
@@ -73,7 +88,7 @@ class ThemesTest {
     /** Past the end of the list it begins again, when the file says so. */
     @Test
     void repeatComesRoundAgain() {
-        var themes = themes(THREE);
+        var themes = themes(ORDER, THREE);
 
         assertEquals("Stone", themes.nameFor(5), "the fifth floor is the first again");
         assertEquals("Ice", themes.nameFor(7));
@@ -83,7 +98,7 @@ class ThemesTest {
     /** Or stays in the deepest look for ever, when it says that instead. */
     @Test
     void lastStaysInTheDeepestLook() {
-        var themes = themes(THREE.replace("WhenExhausted = Repeat", "WhenExhausted = Last"));
+        var themes = themes(ORDER.replace("WhenExhausted = Repeat", "WhenExhausted = Last"), THREE);
 
         assertEquals("Lava", themes.nameFor(4));
         assertEquals("Lava", themes.nameFor(5));
@@ -93,8 +108,7 @@ class ThemesTest {
     /** Re-order the file and the depths wear something else. The order is data. */
     @Test
     void changingTheFileChangesWhatADepthWears() {
-        var themes = themes(THREE.replace("Order = Stone Stone Ice Lava",
-                "Order = Lava Ice Stone"));
+        var themes = themes(ORDER.replace("[Stone, Stone, Ice, Lava]", "[Lava, Ice, Stone]"), THREE);
 
         assertEquals("Lava", themes.nameFor(1), "the first floor is now lava");
         assertEquals("Ice", themes.nameFor(2));
@@ -112,8 +126,8 @@ class ThemesTest {
     @Test
     void oneSeedAndOneDepthAlwaysGiveTheSameFloor() {
         for (int depth = 1; depth <= 8; depth++) {
-            var first = themes(THREE).pick(4321L, depth);
-            var again = themes(THREE).pick(4321L, depth);
+            var first = themes(ORDER, THREE).pick(4321L, depth);
+            var again = themes(ORDER, THREE).pick(4321L, depth);
 
             assertNotNull(first, "depth " + depth + " should have a look");
             assertEquals(first.asStatus(), again.asStatus(),
@@ -130,7 +144,7 @@ class ThemesTest {
      */
     @Test
     void theSameThemeAtTwoDepthsCanVary() {
-        var themes = themes(THREE);
+        var themes = themes(ORDER, THREE);
         var shallow = themes.pick(99L, 1);
         var deeper = themes.pick(99L, 5);
 
@@ -149,7 +163,7 @@ class ThemesTest {
     /** A different seed is a different dungeon, tones and all. */
     @Test
     void differentSeedsDrawDifferentVariations() {
-        var themes = themes(THREE);
+        var themes = themes(ORDER, THREE);
 
         boolean everDiffers = false;
         for (long seed = 0; seed < 40 && !everDiffers; seed++) {
@@ -159,22 +173,22 @@ class ThemesTest {
         assertTrue(everDiffers, "every seed drew the same tone, so it is not drawn at all");
     }
 
-    /** A theme's own numbers and its variations find each other across three blocks. */
+    /** A theme's own numbers and its variations are one block, the tones inside it. */
     @Test
     void aThemeIsAssembledFromItsThreeKindsOfBlock() {
-        var stone = themes(THREE).themeNamed("Stone");
+        var stone = themes(ORDER, THREE).themeNamed("Stone");
 
         assertNotNull(stone);
         assertEquals(2f, stone.tileSize(), 0.001f);
         assertEquals(2, stone.tones().size(), "both of its tones, and neither of anyone else's");
-        assertEquals(1, themes(THREE).themeNamed("Ice").tones().size());
-        assertEquals(0x0A1830, themes(THREE).themeNamed("Ice").fogTint());
+        assertEquals(1, themes(ORDER, THREE).themeNamed("Ice").tones().size());
+        assertEquals(0x0A1830, themes(ORDER, THREE).themeNamed("Ice").fogTint());
     }
 
     /** A tone's pieces are the whole paths its block writes, with no folder put in front. */
     @Test
     void aTonesPiecesAreThePathsItsBlockWrites() {
-        var stone = themes(THREE).themeNamed("Stone");
+        var stone = themes(ORDER, THREE).themeNamed("Stone");
 
         var tone = stone.tones().get(0);
         assertEquals("Models/stone/damp.obj", tone.floor());
@@ -184,7 +198,7 @@ class ThemesTest {
     /** A game that describes no themes gets none, and is drawn as it always was. */
     @Test
     void aFileWithNoThemesAsksForNothing() {
-        var themes = themes("World Dungeon\n  Run = Loop\n    RespawnDelayFrames = 60\n  End\nEnd\n");
+        var themes = themes("", "Run\n  RespawnDelayFrames = 60\nEnd\n");
 
         assertTrue(themes.isEmpty());
         assertNull(themes.pick(1L, 1), "nothing to pick from");
@@ -194,7 +208,7 @@ class ThemesTest {
     /** An order naming a theme the file never described picks nothing, rather than guessing. */
     @Test
     void anOrderNamingSomethingUnknownDrawsNothing() {
-        var themes = themes(THREE.replace("Order = Stone Stone Ice Lava", "Order = Fog"));
+        var themes = themes(ORDER.replace("[Stone, Stone, Ice, Lava]", "[Fog]"), THREE);
 
         assertEquals("Fog", themes.nameFor(1), "the order is still what the file said");
         assertNull(themes.pick(1L, 1), "but there is no such theme to draw");

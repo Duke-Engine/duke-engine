@@ -105,7 +105,7 @@ class MonsterKindsTest {
      */
     @Test
     void aMonsterToldToKeepItsDistanceFightsFromOutThere() {
-        var skirmisher = DungeonSettings.parse("", """
+        var skirmisher = DungeonSettings.parse("""
                 Monster
                   Name = Stalker
                   SenseRadius = 150
@@ -304,7 +304,7 @@ class MonsterKindsTest {
     /** Behaviour is data: a re-tuned file gives a differently behaved monster. */
     @Test
     void changingTheFileChangesHowAKindBehaves() {
-        var blind = DungeonSettings.parse("", """
+        var blind = DungeonSettings.parse("""
                 Monster
                   Name = Skeleton
                   SenseRadius = 1
@@ -346,7 +346,7 @@ class MonsterKindsTest {
      */
     @Test
     void somethingShotComesForTheShooterHoweverDeafItIs() {
-        var blind = DungeonSettings.parse("", """
+        var blind = DungeonSettings.parse("""
                 Monster
                   Name = Skeleton
                   SenseRadius = 1
@@ -372,7 +372,7 @@ class MonsterKindsTest {
     /** Being healed is not being hit — one of these mends itself as it fights. */
     @Test
     void mendingItselfDoesNotCountAsBeingAttacked() {
-        var blind = DungeonSettings.parse("", """
+        var blind = DungeonSettings.parse("""
                 Monster
                   Name = Revenant
                   SenseRadius = 1

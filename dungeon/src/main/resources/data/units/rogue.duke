@@ -113,11 +113,8 @@ Hero
 ; exporter-generated clip name inside it -- so the FILE was the only thing saying
 ; which was the run. A character KIT is the other way round: a few libraries,
 ; each holding dozens of clips under names that mean something. So he is named
-; the way the monsters are, and AnimationsFrom is repeatable because the kit
-; sorts its clips by what the movement is for.
-;
-; The two skeletons never meet and do not need to: a creature is animated from a
-; library built on its own rig.
+; the way the monsters are, and moves by the same set they do: Humanoid, in
+; data/animations/, whose files the kit sorts by what the movement is for.
 ;
 ; Facing turns the model's forward onto the engine's. A quarter out and he walks
 ; sideways, a half out and he moonwalks — so it is here rather than in Java, and
@@ -127,7 +124,7 @@ Hero
 ;
 ; The block's name is the CREATURE TEMPLATE it describes, and it
 ; is the same word his Skill blocks are headed with. Repeatable: a second
-; hero is a file like this one and a line in the Manifest (data/content.duke), and no
+; hero is a file like this one and a line in the game's Files (data/game.duke), and no
 ; Java. It used to be a single unnamed block whose fields were written straight
 ; onto the settings, so a second one would have quietly overwritten the first.
 ; ---------------------------------------------------------------------------
@@ -148,10 +145,9 @@ Hero
   ModelScale = 5.50
   Facing = 90
 
-  ; His clips come out of three libraries rather than one, because the kit sorts
-  ; them by what the movement is for. Naming all three and asking for five clips
-  ; costs nothing: only the ones named below are taken off a library.
-  AnimationsFrom = [animations/characters/general.glb, animations/characters/movement.glb, animations/characters/ranged.glb]
+  ; What he moves by, as everything on two legs does; the clips below are the ones
+  ; he plays his own way.
+  Animations = Humanoid
 
   ; Standing with the bow rather than empty-handed, because he is holding one.
   Idle = Ranged_Bow_Idle
@@ -255,8 +251,8 @@ Hero
 
 
 ; The hero's own, because two of his states are things no monster has: a bow held
-; ready, and a flourish for a new level. His clips come out of the same three
-; libraries Hero names above. Each is one word to change — worth trying:
+; ready, and a flourish for a new level. His clips come out of the Humanoid
+; set he links above. Each is one word to change — worth trying:
 ; Idle_A / Idle_B / Ranged_Bow_Aiming_Idle for the standing ones, Death_B for a
 ; slower fall (2.6s, longer than the floor stays open), Interact / Throw /
 ; Ranged_Bow_Draw_Up for the flourish.

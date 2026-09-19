@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
-import uz.duke.core.ini.IniException;
+import uz.duke.core.data.DataException;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.gen.DungeonGenerator;
 
@@ -52,10 +52,9 @@ class StageFileTest {
     @Test
     void theFileLooksLikeTheMapItHolds() {
         var text = StageFile.write(stageOf(7L));
-        assertTrue(text.contains("StageTerrain"), "the map layer is named");
-        assertTrue(text.contains("StageStoreys"), "and so is the height layer");
-        assertTrue(text.contains("\n  ####"), "the map is drawn in the file as a map");
-        assertTrue(text.contains("Monster = "), "a monster is a line saying what and where");
+        assertTrue(text.contains("\nStaticMap\n"), "the block is named");
+        assertTrue(text.contains("\n    \"####"), "the map is drawn in the file as a map");
+        assertTrue(text.contains("  Monsters = [\n    "), "a monster is a line saying what and where");
     }
 
     /** Written twice, the same stage is the same file — so a diff shows edits only. */
@@ -71,12 +70,12 @@ class StageFileTest {
     @Test
     void aFileWithNoMapSaysSo() {
         var text = """
-                Stage broken
-                  Name = Nowhere
+                StaticMap
+                  Name = nowhere
                 End
                 """;
-        var thrown = assertThrows(IniException.class, () -> StageFile.read(text, "broken.stage"));
-        assertTrue(thrown.getMessage().contains("StageTerrain"),
+        var thrown = assertThrows(DataException.class, () -> StageFile.read(text, "broken.duke"));
+        assertTrue(thrown.getMessage().contains("Cells"),
                 "the complaint should name what is missing: " + thrown.getMessage());
     }
 
@@ -84,39 +83,26 @@ class StageFileTest {
     @Test
     void anUnknownFieldIsNotIgnored() {
         var text = StageFile.write(stageOf(3L)).replace("  Difficulty = ", "  Difficultly = ");
-        var thrown = assertThrows(IniException.class, () -> StageFile.read(text, "typo.stage"));
+        var thrown = assertThrows(DataException.class, () -> StageFile.read(text, "typo.duke"));
         assertTrue(thrown.getMessage().contains("Difficultly"),
                 "the complaint should quote the word: " + thrown.getMessage());
     }
 
-    /**
-     * A semicolon begins a comment, so a description cannot hold one — and the
-     * writer says so instead of quietly cutting the sentence in half.
-     */
+    /** A semicolon begins a comment, so a description holding one is written quoted — and comes back whole. */
     @Test
-    void aDescriptionCannotHideAComment() {
+    void aDescriptionKeepsItsSemicolon() {
         var stage = new Stage("test", "Test", "one room; then another", 1, 1, 1L,
                 DungeonGenerator.generate(1L, SETTINGS, 1));
-        var thrown = assertThrows(IllegalArgumentException.class, () -> StageFile.write(stage));
-        assertTrue(thrown.getMessage().contains(";"), thrown.getMessage());
+        assertEquals(stage, StageFile.read(StageFile.write(stage), "test"));
     }
 
     /**
-     * A stage's lines are read as {@code \n}, whatever a machine wrote them as.
-     *
-     * <p>Sharper here than anywhere else in the game, because a stage's map is
-     * read AS CHARACTERS, one per cell: a row ending in CRLF hands the floor an
-     * extra cell of {@code \r} on the end, so it is one wider than it says it is
-     * — on Windows only, out of a file byte-for-byte the same as everybody
-     * else's. A stage off disk is if anything likelier to have been saved by a
-     * Windows editor than one out of the jar.
+     * A map saved with Windows line endings is the same map: a row keeping its carriage return
+     * would be a row one cell wider than it says.
      */
     @Test
-    void aStagesLinesAreNormalised() {
-        var windowsDrawn = "##\r\n#.\r\n";
-
-        assertEquals("##\n#.\n", Stages.unixLines(windowsDrawn),
-                "a map row keeping its carriage return is a row one cell wider than it says");
-        assertEquals("##\n#.\n", Stages.unixLines("##\n#.\n"), "and LF is left alone");
+    void aMapSavedOnWindowsIsTheSameMap() {
+        var text = StageFile.write(stageOf(5L));
+        assertEquals(StageFile.read(text, "lf"), StageFile.read(text.replace("\n", "\r\n"), "crlf"));
     }
 }

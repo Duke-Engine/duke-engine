@@ -60,7 +60,7 @@ final class Chevrons {
     Chevrons(AssetManager assets, Node root, OrderMark look) {
         this.assets = assets;
         this.root = root;
-        this.look = look == null ? OrderMark.DEFAULT : look;
+        this.look = look == null ? OrderMark.DEFAULTS : look;
         this.arrowhead = arrowhead(this.look.size(), this.look.width());
     }
 

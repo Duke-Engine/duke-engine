@@ -93,6 +93,7 @@ Monster
   Scale = 1.8
   ; The plain skeleton, grown until it is nothing like one. GeometryHeight is 18.
   Model = models/monsters/skeleton_minion.glb
+  Animations = Humanoid
   ; What is looking at you out of the dark.
   Effect = EmberEyes
   ModelScale = 8.3

@@ -21,16 +21,16 @@ import org.junit.jupiter.api.Test;
  * its bits, so a sum taken in another order or a division moved by one step is a failure
  * here and not a rounding nobody notices.
  *
- * <p>The heroes are written out below rather than read from {@code dungeon.ini}, so
+ * <p>The heroes are written out below rather than read from {@code data/units/}, so
  * re-balancing the file does not break this. It is the arithmetic being held still, not
  * the balance.
  */
 class HeroFiguresGoldenTest {
 
     private static final AttributeRules RULES = new AttributeRules(List.of(
-            new Attribute("Strength", "STR", 1200, 0, 0),
-            new Attribute("Agility", "AGI", 0, 15, 0),
-            new Attribute("Intelligence", "INT", 0, 0, 500)), 100);
+            new Attribute("Strength", "STR", "", "", new Hundredths(1200), new Hundredths(0), new Hundredths(0)),
+            new Attribute("Agility", "AGI", "", "", new Hundredths(0), new Hundredths(15), new Hundredths(0)),
+            new Attribute("Intelligence", "INT", "", "", new Hundredths(0), new Hundredths(0), new Hundredths(500))), 100);
 
     private record Hero(String name, HeroBase block, int mana, HeroAttributes attributes) {
     }

@@ -53,6 +53,7 @@ Monster
   Scale = 1.6
   ; The hooded one. It boxes 3.05 rather than 2.17, so its scale is the odd one.
   Model = models/monsters/skeleton_rogue.glb
+  Animations = Humanoid
   ; What is looking at you out of the dark.
   Effect = EmberEyes
   ModelScale = 6.2

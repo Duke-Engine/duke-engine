@@ -133,7 +133,7 @@ class KnightTest {
      */
     @Test
     void hisNumbersComeOutOfTheFile() {
-        var rewritten = DungeonSettings.parse("", """
+        var rewritten = DungeonSettings.parse("""
                 Hero
                   Name = Knight
                   Title = Boshqacha
@@ -249,7 +249,7 @@ class KnightTest {
      */
     @Test
     void theFileNamesAHeroItAlsoDescribes() {
-        var played = SETTINGS.playedHero();
+        var played = SETTINGS.run().defaultHero();
 
         assertEquals(played, SETTINGS.playedHeroLook().name(),
                 "DefaultHero names " + played + ", which has no Hero block");
@@ -261,14 +261,12 @@ class KnightTest {
     @Test
     void namingTheOtherOneSwapsHimIn() {
         var swapped = DungeonSettings.parse("""
-                World Dungeon
-                  Run = Loop
-                    DefaultHero = Knight
-                  End
+                Run
+                  DefaultHero = Knight
                 End
                 """);
 
-        assertEquals(KNIGHT, swapped.playedHero());
+        assertEquals(KNIGHT, swapped.run().defaultHero());
     }
 
     /**
@@ -284,7 +282,7 @@ class KnightTest {
         game.runHeadless(1);
 
         var spawned = game.getLogic().getObjects().stream()
-                .filter(object -> object.getTemplate().name().equals(SETTINGS.playedHero()))
+                .filter(object -> object.getTemplate().name().equals(SETTINGS.run().defaultHero()))
                 .findFirst().orElse(null);
 
         assertNotNull(spawned, "nobody of the played hero's template is in the dungeon");
@@ -301,7 +299,7 @@ class KnightTest {
      */
     @Test
     void aWholeRunStartsWithTheKnightInIt() {
-        var asKnight = DungeonSettings.parse(withDefaultHero(KNIGHT), Content.data());
+        var asKnight = DungeonSettings.parse(withDefaultHero(KNIGHT));
         var game = Dungeon.create(4242L, asKnight);
 
         game.runHeadless(120); // four seconds of a real floor
@@ -318,7 +316,7 @@ class KnightTest {
     /** And swapping back is the same one line. */
     @Test
     void andSwappingBackStartsTheArcher() {
-        var game = Dungeon.create(4242L, DungeonSettings.parse(withDefaultHero(ARCHER), Content.data()));
+        var game = Dungeon.create(4242L, DungeonSettings.parse(withDefaultHero(ARCHER)));
 
         game.runHeadless(30);
 
@@ -334,13 +332,13 @@ class KnightTest {
      * map size — and this has to be a real run.
      */
     private static String withDefaultHero(String template) {
-        var file = Content.world();
+        var file = Content.data();
         // Whatever it currently says, not "the archer's line": the point of the
         // line is that somebody changes it, so a test that only knew how to change
         // it away from one value would fail for the person using it.
         var swapped = file.replaceAll("(?m)^(\\s*)DefaultHero\\s*=.*$",
                 "$1DefaultHero = " + template);
-        assertFalse(swapped.equals(file) && !SETTINGS.playedHero().equals(template),
+        assertFalse(swapped.equals(file) && !SETTINGS.run().defaultHero().equals(template),
                 "DefaultHero is not written the way this test expects to find it");
         return swapped;
     }
@@ -372,7 +370,7 @@ class KnightTest {
         game.runHeadless(1);
         var him = find(game, template);
         var progress = new HeroProgress(world.hero(), SETTINGS.levelling(),
-                SETTINGS.attributeRules(), SETTINGS.levelUpBannerFrames(),
+                SETTINGS.attributeRules(), SETTINGS.progression().levelUpBannerFrames(),
                 new uz.duke.dungeon.loot.LootBag());
         progress.playing(SETTINGS.heroNamed(template));
         progress.carryOver(game, him);
@@ -478,7 +476,7 @@ class KnightTest {
      */
     @Test
     void oneThingCarriedIsStillOneBlock() {
-        var one = DungeonSettings.parse("", """
+        var one = DungeonSettings.parse("""
                 Hero
                   Name = Solo
                   Model = models/heroes/rogue.glb

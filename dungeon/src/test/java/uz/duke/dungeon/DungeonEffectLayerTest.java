@@ -359,10 +359,10 @@ class DungeonEffectLayerTest {
      */
     @Test
     void theHitFlashIsBrief() {
-        assertTrue(SETTINGS.hitFlashStrength() > 0f, "the shipped file should flash");
-        assertTrue(SETTINGS.hitFlashSeconds() > 0.05f && SETTINGS.hitFlashSeconds() <= 0.2f,
-                "a flash of " + SETTINGS.hitFlashSeconds() + " s");
-        assertTrue(SETTINGS.shakeScale() >= 0f);
+        assertTrue(SETTINGS.hitFeel().hitFlashStrength() > 0f, "the shipped file should flash");
+        assertTrue(SETTINGS.hitFeel().hitFlashSeconds() > 0.05f && SETTINGS.hitFeel().hitFlashSeconds() <= 0.2f,
+                "a flash of " + SETTINGS.hitFeel().hitFlashSeconds() + " s");
+        assertTrue(SETTINGS.hitFeel().shakeScale() >= 0f);
     }
 
     // ---- a blast is exactly as wide as it hurts ----
@@ -504,7 +504,7 @@ class DungeonEffectLayerTest {
     /** And the budget the file sets reaches the client. */
     @Test
     void theParticleCeilingIsTheFiles() {
-        assertTrue(SETTINGS.effectParticles() > 0, "a ceiling of nothing draws no layers");
+        assertTrue(SETTINGS.effectBudget().maxParticles() > 0, "a ceiling of nothing draws no layers");
     }
 
     // ---- columns of light, and the moments they are played on ----

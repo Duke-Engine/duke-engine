@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
  */
 class OrderMarkTest {
 
-    private static final OrderMark LOOK = OrderMark.DEFAULT;
+    private static final OrderMark LOOK = OrderMark.DEFAULTS;
 
     @Test
     void itStartsWideAndEndsOnTheSpotThatWasClicked() {

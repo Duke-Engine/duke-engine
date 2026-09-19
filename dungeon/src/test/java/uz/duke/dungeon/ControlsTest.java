@@ -93,7 +93,7 @@ class ControlsTest {
 
         // The played hero's four. Both heroes cast on the same four keys, so the
         // file has two skills on Q and only one of them is bound.
-        for (var skill : SHIPPED.skillsFor(SHIPPED.playedHero())) {
+        for (var skill : SHIPPED.skillsFor(SHIPPED.run().defaultHero())) {
             var aim = controls.aimOf(skill.key());
             assertNotNull(aim, "no binding for " + skill.key());
             assertEquals(switch (skill.effect().aim()) {
@@ -145,7 +145,7 @@ class ControlsTest {
                                 + " it hands the skill a target it cannot use and it refuses");
                 var ring = visuals.getSkillRange(skill.key());
                 assertNotNull(ring, him + "'s " + skill.key() + " has no ring to draw");
-                assertEquals(Main.rangeOf(skill, SHIPPED.ringSelfRadius()), ring,
+                assertEquals(Main.rangeOf(skill, SHIPPED.skillRing().selfRadius()), ring,
                         him + "'s " + skill.key() + " is drawn as somebody else's skill");
             }
         }
@@ -191,12 +191,9 @@ class ControlsTest {
     @Test
     void aSecondHerosKeysComeFromTheFileToo() {
         var settings = DungeonSettings.parse("""
-                World Dungeon
-                  Run = Loop
-                    DefaultHero = Rogue
-                  End
+                Run
+                  DefaultHero = Rogue
                 End
-                """, """
                 Hero
                   Name = Rogue
                   Skills = [
@@ -228,12 +225,9 @@ class ControlsTest {
     @Test
     void theHeroWhoIsNotPlayedGetsNoKeys() {
         var settings = DungeonSettings.parse("""
-                World Dungeon
-                  Run = Loop
-                    DefaultHero = Rogue
-                  End
+                Run
+                  DefaultHero = Rogue
                 End
-                """, """
                 Hero
                   Name = Rogue
                   Skills = [
@@ -297,7 +291,7 @@ class ControlsTest {
                 .filter(skill -> skill.effect() == uz.duke.dungeon.skill.SkillEffect.SKILLSHOT)
                 .findFirst().orElseThrow(() -> new AssertionError("nothing is a skillshot"));
 
-        var drawn = uz.duke.dungeon.Main.rangeOf(fireball, settings.ringSelfRadius());
+        var drawn = uz.duke.dungeon.Main.rangeOf(fireball, settings.skillRing().selfRadius());
 
         assertEquals(uz.duke.client3d.SkillRange.Shape.DOWN_A_LANE, drawn.shape());
         assertEquals(fireball.hitWidth(), drawn.width(), 0.001f, "the lane is the shot");

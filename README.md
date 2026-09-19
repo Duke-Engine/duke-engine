@@ -36,7 +36,7 @@ studio  →  client3d  →  game  →  rts  →  core
 ```
 
 - **core** — the genre-neutral engine. Subsystems and the fixed-timestep loop,
-  objects/templates/modules, the INI data layer, spatial queries, pathfinding,
+  objects/templates/modules, the .duke data layer, spatial queries, pathfinding,
   lock-step networking, fog of war, scripting triggers. It knows nothing about
   any particular game: no commands, no weapons, no economy.
 - **rts** — the RTS on top of it: the command set, combat, production, economy,
@@ -128,8 +128,6 @@ Requires nothing pre-installed beyond the wrapper — Gradle provisions the
   (one word opens a block, `Key = value`, `[a, b]` lists, `Geometry = Cylinder`
   with its fields under it, `Modules = [` a block for each `]`); `Binder` makes
   each block the record its word names, every line of it a component by name.
-- **INI data layer** (`uz.duke.core.ini`) — faithful tokeniser, field parse
-  tables, scan helpers; what still reads the dungeon's world settings.
 - **Math** (`uz.duke.core.math`) — `Coord3D` / `Coord2D` / `ICoord3D`.
 - **Thing/Object/Module system** — `ThingTemplate`, `ThingFactory`,
   `GameObject`, composable `Module`s, `ModuleFactory`, `Kind` classification.

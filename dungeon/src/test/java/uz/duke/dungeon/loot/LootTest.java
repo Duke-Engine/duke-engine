@@ -17,7 +17,7 @@ import uz.duke.game.DukeGame;
  * What a dead monster leaves, and what picking it up is worth.
  *
  * <p>Nothing here asserts a balance figure — which items exist and what they are
- * worth is written in {@code dungeon.ini}, so a re-tune should move these tests
+ * worth is written in {@code data/world/world.duke}, so a re-tune should move these tests
  * with it. What is held still is the mechanism: that the draw is the seed's and
  * not the clock's, that a monster's own draw does not depend on when it died,
  * that the floor decides what may be found, and that a run's findings die with it.
@@ -164,15 +164,13 @@ class LootTest {
     @Test
     void aChestIsLeftAndPickedUp() {
         var settings = DungeonSettings.parse("""
-                World Dungeon
-                  Loot = Drops
-                    Template = Chest
-                    DropPercent = 100
-                    BossDropPercent = 100
-                    PickupRange = 14
-                    ValuePercentPerDepth = 0
-                    NoteFrames = 90
-                  End
+                LootDrops
+                  Template = Chest
+                  DropPercent = 100
+                  BossDropPercent = 100
+                  PickupRange = 14
+                  ValuePercentPerDepth = 0
+                  NoteFrames = 90
                 End
                 """);
         var session = Dungeon.newSession(21L, settings);
@@ -220,7 +218,7 @@ class LootTest {
                 "a sword he found should reach the arrow he looses");
 
         game.getLogic().destroyObject(find(game, "Rogue"));
-        game.runHeadless(DungeonSettings.load().respawnDelayFrames() + 4);
+        game.runHeadless(DungeonSettings.load().run().respawnDelayFrames() + 4);
         assertTrue(session.progress().getLoot().getFound().isEmpty(),
                 "a new run starts with nothing, what he found included");
         assertEquals(plain, player.getWeaponDamageBonus(), 0.0001f,
@@ -230,7 +228,7 @@ class LootTest {
     @Test
     void theFileDecidesWhatCanBeFound() {
         assertFalse(SHIPPED.loot().isEmpty(), "the shipped game leaves something behind");
-        assertEquals("Chest", SHIPPED.lootTemplate());
+        assertEquals("Chest", SHIPPED.lootDrops().template());
         for (var item : SHIPPED.loot()) {
             assertFalse(item.name().isBlank(), item.id() + " has nothing to say for itself");
             assertTrue(item.value() > 0, item.id() + " is worth nothing");

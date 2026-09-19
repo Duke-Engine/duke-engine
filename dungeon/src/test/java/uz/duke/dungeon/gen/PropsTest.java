@@ -8,8 +8,8 @@ import java.util.HashSet;
 import org.junit.jupiter.api.Test;
 import uz.duke.core.pathfind.MapLoader;
 import uz.duke.core.pathfind.PathGrid;
-import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.content.ShippedBlock;
 
 /**
  * The things standing about in the rooms, and the two ways they can ruin a floor.
@@ -151,15 +151,7 @@ class PropsTest {
     /** Ask for none and there are none — and the floor is otherwise the same one. */
     @Test
     void aFloorCanBeAskedForNoFurnitureAtAll() {
-        var bare = DungeonSettings.parse(Content.world() + """
-
-                World Dungeon
-                  Props = Scatter
-                    MinPerRoom = 0
-                    MaxPerRoom = 0
-                  End
-                End
-                """, Content.data());
+        var bare = DungeonSettings.parse(ShippedBlock.dataWith("Endless", "PropsPerRoom", "[0, 0]"));
 
         for (long seed = 0; seed < 20; seed++) {
             var dungeon = DungeonGenerator.generate(seed, bare, 1);

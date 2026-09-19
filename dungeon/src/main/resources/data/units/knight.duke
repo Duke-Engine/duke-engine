@@ -6,7 +6,7 @@
 ; of playing him is deciding when to walk into a room rather than where to stand
 ; outside it. Nearly every number below is that one sentence, said in figures.
 ;
-; Which of the two is played is DefaultHero in dungeon.ini. There is no choosing
+; Which of the two is played is DefaultHero in data/world/world.duke. There is no choosing
 ; screen yet; this is what makes him playable enough to be balanced.
 ;
 ; He is NOT a stronger archer. Twice the health and two thirds of the range is a
@@ -98,8 +98,8 @@ Hero
 ; Out of KayKit Adventurers 2.0 (CC0), the same pack all three heroes come from,
 ; so the
 ; rig matches and every clip below retargets onto him without a thing being done
-; to it. His clips are the archer's three libraries plus melee.glb, which was
-; already shipped and used by nobody.
+; to it. His clips come out of the Humanoid set, melee.glb among them: his swings, his
+; blocks and his two-handed stance are all in that one.
 ;
 ; HE CARRIES A GREATSWORD, and that is not decoration: the pack has no
 ; Melee_1H_Idle, so a one-handed sword would have to stand in Melee_Unarmed_Idle
@@ -139,9 +139,9 @@ Hero
   ModelScale = 4.72
   Facing = 90
 
-  ; The archer's three, and melee.glb on top: the swings, the blocks and the
-  ; two-handed stance all live in that one and nothing used it until now.
-  AnimationsFrom = [animations/characters/general.glb, animations/characters/movement.glb, animations/characters/melee.glb]
+  ; What he moves by, as everything on two legs does; the clips below are the ones
+  ; he plays his own way.
+  Animations = Humanoid
 
   ; ★ SHIELD UP. He carries a sword and a shield now rather than two hands of
   ; greatsword, so the two-handed idle -- both fists on one hilt -- would have

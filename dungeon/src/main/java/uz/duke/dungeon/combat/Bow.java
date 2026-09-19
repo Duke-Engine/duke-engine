@@ -70,15 +70,15 @@ public final class Bow extends Module implements ProjectileLauncher {
 
     private String projectile() {
         return data == null || data.projectile() == null
-                ? settings.arrowTemplate() : data.projectile();
+                ? settings.combat().arrowTemplate() : data.projectile();
     }
 
     private float speed() {
-        return data == null || data.speed() <= 0f ? settings.arrowSpeed() : data.speed();
+        return data == null || data.speed() <= 0f ? settings.combat().arrowSpeed() : data.speed();
     }
 
     private float muzzleOffset() {
         return data == null || data.muzzleOffset() < 0f
-                ? settings.arrowMuzzleOffset() : data.muzzleOffset();
+                ? settings.combat().arrowMuzzleOffset() : data.muzzleOffset();
     }
 }

@@ -48,7 +48,7 @@ Monster
 ; ---------------------------------------------------------------------------
 ; What lives down here. One block per kind; the game reads this list and wires
 ; a brain for each, so a new monster is a file like this one and a line in the
-; Manifest (data/content.duke). No Java.
+; game's Files (data/game.duke). No Java.
 ;
 ; Health, speed and damage are unit stats and live in the template. What is
 ; here is behaviour (which no template field can express) and how the dungeon
@@ -92,6 +92,7 @@ Monster
   ; The plain skeleton of the pack, with a blade. GeometryHeight is 12 in
   ; its template and the model boxes 2.17 tall.
   Model = models/monsters/skeleton_minion.glb
+  Animations = Humanoid
   ; What is looking at you out of the dark.
   Effect = EmberEyes
   ModelScale = 5.5

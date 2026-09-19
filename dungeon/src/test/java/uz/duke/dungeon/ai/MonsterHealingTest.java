@@ -61,7 +61,7 @@ class MonsterHealingTest {
 
     /** The shipped file, with the ones it mends told to notice nothing and answer no shout. */
     private static DungeonSettings settings(String more) {
-        return DungeonSettings.parse("", """
+        return DungeonSettings.parse("""
                 Monster
                   Name = Skeleton
                   SenseRadius = 1

@@ -124,7 +124,7 @@ public final class DungeonRun {
         this.drops = drops;
         this.themes = settings.themes();
         this.look = lookOfThisFloor();
-        this.heroTemplate = settings.playedHero();
+        this.heroTemplate = settings.run().defaultHero();
         this.depth = floors.firstDepth();
     }
 
@@ -273,7 +273,7 @@ public final class DungeonRun {
         if (dead) {
             state = State.DEAD;
             endedFrame = logic.getFrame();
-            game.setBanner("lost|" + settings.diedWord());
+            game.setBanner("lost|" + settings.run().diedWord());
             return;
         }
         if (bossId != null && logic.findObject(bossId) == null && descendAtFrame == 0) {
@@ -284,12 +284,12 @@ public final class DungeonRun {
             if (floors.lastDepth() > 0 && depth >= floors.lastDepth()) {
                 state = State.WON;
                 endedFrame = logic.getFrame();
-                game.setBanner("won|" + settings.wonWord());
+                game.setBanner("won|" + settings.run().wonWord());
                 return;
             }
             // The floor is finished, but not left yet — see below.
-            descendAtFrame = logic.getFrame() + settings.descendDelayFrames();
-            game.setBanner("depth|" + settings.nextDepthWord(depth + 1));
+            descendAtFrame = logic.getFrame() + settings.run().descendDelayFrames();
+            game.setBanner("depth|" + settings.run().nextDepthWord(depth + 1));
         }
         if (descendAtFrame > 0 && logic.getFrame() >= descendAtFrame) {
             depth++;
@@ -361,7 +361,7 @@ public final class DungeonRun {
      * wants a moment to have been finished in.
      */
     private void whileDead(DukeGame game) {
-        if (game.getLogic().getFrame() - endedFrame < settings.respawnDelayFrames()) {
+        if (game.getLogic().getFrame() - endedFrame < settings.run().respawnDelayFrames()) {
             return;
         }
         begin(game);
@@ -378,7 +378,7 @@ public final class DungeonRun {
      * to have been a win rather than an interruption.
      */
     private void whileWon(DukeGame game) {
-        if (game.getLogic().getFrame() - endedFrame < settings.victoryFrames()) {
+        if (game.getLogic().getFrame() - endedFrame < settings.run().victoryFrames()) {
             return;
         }
         begin(game);

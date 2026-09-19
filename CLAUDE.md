@@ -66,14 +66,14 @@ special-casing:
 |---|---|---|
 | Commands | `Command`, `MessageStream` | its own **sealed** command hierarchy (sealed types cannot cross modules) |
 | Wire format | `PacketCodec` plug on `SocketTransport` | a codec for its commands |
-| Data | `DukeText` reads `.duke` text; `Binder` makes each block the record its word names, every line in it one of its components by name — `Speed = 10`, `Geometry = Cylinder … End`, `Modules = [ … ]` — so the record is the field table | its records, and `Binder.vocabulary` for an open type, as its modules are words by class name |
+| Data | `DukeText` reads `.duke` text; `Binder` makes each block the record its word names, every line in it one of its components by name — `Speed = 10`, `Geometry = Cylinder … End`, `Modules = [ … ]` — so the record is the field table. `@Link(X.class)` marks a component that names another block (`Animations = Humanoid`), `@Clip` one that names an animation clip; the editor reads both | its records, and `Binder.vocabulary` for an open type, as its modules are words by class name. A thing many units share is one block the units link, not a copy in each |
 | Modules | `ModuleFactory.withDefaults()` (body + locomotor), registered by `Data` record; a block is named by its module's class | its own module set, e.g. `RtsModules` |
 | Players | `Player` (identity + diplomacy), `PlayerList(PlayerFactory)` | its `Player` subtype, e.g. `RtsPlayer` |
 | Classification | `Kind`, interned by name | its vocabulary, e.g. `RtsKinds` |
 | Module groups | `@ModuleGroup` + `ModuleGroups` (Movement, Body, Combat, Effect, Script) | its own families, e.g. `RtsModuleGroups` (Economy, Progression) |
 | Events | `WorldEvent` + the post/drain channel | its own events, e.g. `WeaponFired` |
 | Templates | `ThingTemplate` (name + modules) and one interface per thing a template may have — `Solid`, `Sighted`, `Classified`, `Titled`; `ThingTemplateLoader.type` gives a record its own block | its records, each implementing what it has: a `Monster` block is a `record Monster implements Solid, Sighted, …` |
-| World | `WorldTemplate` (a name) and one interface per thing a world may have — `Layered`: every map is laid at its storey height; `DukeGame.world(...)` hands it over; `Ini.section` reads a section inside a block | its record, implementing what its world has — `World Dungeon` is a `record DungeonWorld implements Layered` — and the block's other sections, `Generation = Layout … End` |
+| World | `WorldTemplate` (a name) and one interface per thing a world may have — `Layered`: every map is laid at its storey height; `DukeGame.world(...)` hands it over | its record, implementing what its world has — a `World` block is a `record World implements Layered` — the rest of the world as blocks of their own records (`data/world/`: `Hud`, `Combat`, a `Theme` per file…), and its maps as blocks of theirs (`data/maps/`: a `ProceduralMap`, each `StaticMap`) |
 
 Before adding anything to `core`, ask: *would a game that is not an RTS want
 this?* If the answer is no, it goes in `rts`.
@@ -144,9 +144,9 @@ animations/ clips that are not inside a model, by who they move
 audio/      sfx/ · ui/ · voice/ · music/
 icons/      skills/ and any other interface art
 fonts/      bitmap fonts, baked by BitmapFontBaker
-data/       the .duke data files — units/ · projectiles/ · effects/ · props/ · sounds/ —
+data/       the .duke data files — units/ · projectiles/ · effects/ · props/ · sounds/ ·
+            world/ · maps/ · animations/ — and game.duke, which lists them all;
             read through the game's own Content class
-ini/        the world's settings, until they are .duke too
 ```
 
 **Naming:** lower case, underscores, and what the thing is —

@@ -96,7 +96,7 @@ class MonsterSkillTest {
      * block says nothing of its skill, so it keeps the shipped one.
      */
     private static DungeonSettings standingStill() {
-        return DungeonSettings.parse("", """
+        return DungeonSettings.parse("""
                 Monster
                   Name = SkeletonMage
                   SenseRadius = 400
@@ -110,7 +110,7 @@ class MonsterSkillTest {
 
     /** A caster that holds the band it is given, and notices him from anywhere in the room. */
     private static DungeonSettings keeping(String band, String distance) {
-        return DungeonSettings.parse("", """
+        return DungeonSettings.parse("""
                 Monster
                   Name = SkeletonMage
                   SenseRadius = 300
@@ -305,12 +305,12 @@ class MonsterSkillTest {
         World world = arena.game().getLogic();
 
         assertNull(KeepingDistance.stepBack(world, new Coord3D(at(2), at(20), 0f),
-                new Coord3D(at(6), at(20), 0f), 63f, SETTINGS.retreatTurnDegrees(),
-                SETTINGS.retreatTurns()), "stone behind it and on both sides, and yet it found a way");
+                new Coord3D(at(6), at(20), 0f), 63f, SETTINGS.combat().retreatTurnDegrees(),
+                SETTINGS.combat().retreatTurns()), "stone behind it and on both sides, and yet it found a way");
 
         var inTheOpen = new Coord3D(at(40), at(20), 0f);
         var spot = KeepingDistance.stepBack(world, inTheOpen, new Coord3D(at(44), at(20), 0f), 63f,
-                SETTINGS.retreatTurnDegrees(), SETTINGS.retreatTurns());
+                SETTINGS.combat().retreatTurnDegrees(), SETTINGS.combat().retreatTurns());
         assertNotNull(spot, "in the open it has somewhere to go");
         assertEquals(inTheOpen.y(), spot.y(), 0.01f, "and it is straight back");
         assertTrue(spot.x() < inTheOpen.x(), "away from him");

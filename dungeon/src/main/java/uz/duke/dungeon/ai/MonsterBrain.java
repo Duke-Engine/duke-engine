@@ -263,7 +263,7 @@ public final class MonsterBrain extends UnitScript {
         float dy = here.y() - there.y();
         float widths = Math.max(0f, (float) Math.sqrt(dx * dx + dy * dy) - gap);
         var away = KeepingDistance.stepBack(world(), here, there, kind.keepFurthest() + widths,
-                settings.retreatTurnDegrees(), settings.retreatTurns());
+                settings.combat().retreatTurnDegrees(), settings.combat().retreatTurns());
         if (away == null) {
             standAndFace(move, hero); // cornered: it fights where it stands
             return;
@@ -296,7 +296,7 @@ public final class MonsterBrain extends UnitScript {
     private void advanceOn(MoveUpdate move, GameObject hero) {
         if (waitingOn != null) {
             if (WayAhead.stillShut(unit(), waitingOn, hero.getPosition(),
-                    settings.wayAheadProbe(), hero)) {
+                    settings.combat().wayAheadProbe(), hero)) {
                 return; // the way is shut. Stand, and look again next frame.
             }
             // It opened — or the wait stopped being about anything. Go, whether or
@@ -306,7 +306,7 @@ public final class MonsterBrain extends UnitScript {
             sendAfter(hero);
             return;
         }
-        var ahead = WayAhead.noWayPast(unit(), settings.wayAheadProbe(), hero);
+        var ahead = WayAhead.noWayPast(unit(), settings.combat().wayAheadProbe(), hero);
         if (ahead != null) {
             // A body in front of it and no way round: stand rather than shove, and
             // remember the spot rather than the heading. See WayAhead.

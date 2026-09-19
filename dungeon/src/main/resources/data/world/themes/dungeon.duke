@@ -1,0 +1,111 @@
+; ---------------------------------------------------------------------------
+; How a floor looks
+;
+; Every floor is the same fight; what changes is what it is made of. A theme is
+; a kit to build the floor from, a colour for the dark, and whatever creatures
+; are drawn differently while it lasts. It changes no room, no monster and no
+; number the simulation reads -- which is exactly why the choice can be drawn
+; from the seed without disturbing the world's own dice, and why a test can hold
+; the checksum still across a change of theme.
+;
+; A fourth theme is a file like this one and a folder of models. There is no Java.
+;
+;   Theme      what the kit is and how it is placed
+;   Tones      its variations, one drawn from the seed for each floor
+;   Monsters   the creatures drawn differently while it lasts
+;
+; Which depth wears which is the map's to say: Themes in data/maps/endless.duke.
+;
+; The placement numbers are the awkward part and they are awkward because kits
+; disagree. Where a wall's origin sits, how wide a wall was modelled against its
+; own floor tiles, whether the models carry their own colours -- every kit
+; answers differently, and every one of those answers is measured rather than
+; guessed. See DungeonTilesTest, which loads each of them and checks.
+;
+; And one of them is not a measurement at all but a question about the art:
+; is the wall piece a SURFACE or a THING? A surface tiles -- two storeys of it is
+; two courses, every one alike, all facing the way the boundary faces. A thing
+; does none of that: two storeys of tree is one bigger tree, and a row of
+; identical trees at identical spacing is an orchard rather than a wood. That is
+; what WallFillsRock, WallClump, WallSpread and WallVariety are between them, and a
+; kit that says none of them gets masonry, which is what every kit got before
+; they existed.
+; ---------------------------------------------------------------------------
+
+; Worked stone, four-unit tiles, one colour atlas. The wall is a slab a unit
+; thick centred on its own origin, so it is pushed back half a unit to put its
+; face on the boundary; it stands on its origin, so it needs no lift.
+;
+; No corner post. This kit's corner piece is a length of wall bent round a right
+; angle rather than the quarter-tile plug the notch wants, and a bent wall
+; dropped into the notch stands across both walls that meet there.
+Theme
+  Name = Dungeon
+  TileSize = 4
+  WallHeight = 4
+  WallShift = -0.5
+  Stairs = models/tiles/dungeon/stairs.gltf
+  ; ★ The lid on the rock is a FLOOR TILE -- the same model and the same picture
+  ; as the ground of a room, laid at the top of the walls instead of under the
+  ; feet. That is right, and it is also the reason a player asked where he was
+  ; allowed to walk: two surfaces, one texture, both facing up, so the one sun
+  ; meets them at the same angle and shades them the same. No light fixes it --
+  ; see Sun -- and a colour does, for one material and no extra geometry.
+  ;
+  ; Cooler and about two thirds as bright: the top of a wall is stone in shade,
+  ; and it still reads as the same stone.
+  CapTint = 0xA8A8B4
+  ; And each storey up a little brighter, which is the same question one level
+  ; out: a raised room is the same tiles higher up, and looking down a slope
+  ; there is otherwise nothing to say it is not simply further away. 100 is flat.
+  ;
+  ; Worked DOWN from the tallest storey the map has, because a tint multiplies
+  ; and multiplying can only darken -- ask a white tile to be brighter and it
+  ; hands back the white it already was. So the top floor is left alone and the
+  ; ones under it step down, which comes out looking like what this says.
+  StoreyShadePercent = 108
+  ; No WallBase: a wall is a surface here, so two storeys of rock is two courses
+  ; of masonry and the mass between them is already closed in by its own faces.
+  FogTint = 0x07060A
+  Tones = [
+    Tone
+      Name = Stone
+      Floor = models/tiles/dungeon/floor.gltf
+      Wall = models/tiles/dungeon/wall.gltf
+    End
+    Tone
+      Name = Cracked
+      Floor = models/tiles/dungeon/floor_rocks.gltf
+      Wall = models/tiles/dungeon/wall_cracked.gltf
+    End
+  ]
+  Monsters = [
+    ; ---- what stands about, theme by theme ------------------------------------
+    ;
+    ; The templates are the same either way (data/props/); what a Pillar is made
+    ; of is the theme's business. Scales are measured off the models: a pillar four
+    ; units tall wants 2.5 to stand a storey high, a barrel two units wants 3.
+    ThemeMonster
+      Name = Pillar
+      Model = models/props/dungeon/pillar.gltf
+      ModelScale = 2.5
+    End
+    ThemeMonster
+      Name = Statue
+      Model = models/props/dungeon/pillar_decorated.gltf
+      ModelScale = 2.5
+    End
+    ThemeMonster
+      Name = Barrel
+      Model = models/props/dungeon/barrel.gltf
+      ModelScale = 3.0
+    End
+    ; The chest a monster leaves behind. It has been a torch-coloured box since the
+    ; game was written, because no kit shipped with one; this one does.
+    ThemeMonster
+      Name = Chest
+      Model = models/props/dungeon/chest.gltf
+      ModelScale = 5.0
+    End
+  ]
+End

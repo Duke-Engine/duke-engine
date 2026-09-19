@@ -74,6 +74,7 @@ Monster
   ; The staff-carrier in a robe repainted purple. White tint, so the purple is the
   ; robe's own.
   Model = models/monsters/skeleton_mage.glb
+  Animations = Humanoid
   Texture = models/monsters/skeleton_texture_purple.png
   Effect = EmberEyes
   ModelScale = 6.0

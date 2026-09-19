@@ -46,7 +46,7 @@ import uz.duke.game.script.ScriptModule;
  * learn that is to strip away everything that could hide the answer.
  *
  * <p>This class is only assembly. What the creatures are is data
- * ({@code data/units/}), how a dungeon is laid out is data ({@code dungeon.ini}),
+ * ({@code data/units/}), how a dungeon is laid out is data ({@code data/maps/}),
  * how they behave is {@link uz.duke.dungeon.ai}, and when a run ends is
  * {@link DungeonRun}. Nothing here is added to the engine — the game is definitions
  * and orders the engine already understands, which is the real test: if a game
@@ -199,7 +199,7 @@ public final class Dungeon {
                     // creature like any other -- it is in the world, so the client
                     // draws it without being told anything special.
                     factory.register(LootUpdate.Data.class, (owner, data) -> new LootUpdate(owner, bag,
-                            settings.lootPickupRange(), settings.lootNoteFrames()));
+                            settings.lootDrops().pickupRange(), settings.lootDrops().noteFrames()));
                 })
                 // A unit is one block, and its record is its word: a Monster block is a Monster.
                 .templates(loader -> loader.type(Monster.class).type(Hero.class)
@@ -289,8 +289,8 @@ public final class Dungeon {
         // What he has put his levels into: a floor gives him a fresh body and a
         // fresh SkillBook, so what he has learnt has to live somewhere that
         // outlives both.
-        var learnt = new uz.duke.dungeon.skill.SkillRanks(settings.skillSpread());
-        learnt.startWith(settings.skillsFor(settings.playedHero()));
+        var learnt = new uz.duke.dungeon.skill.SkillRanks(settings.progression().skillSpread());
+        learnt.startWith(settings.skillsFor(settings.run().defaultHero()));
         var bag = new LootBag();
         var arena = world(floor.asciiMap(), floor.levelMap(), settings,
                 Content.units(), bag);
@@ -299,13 +299,13 @@ public final class Dungeon {
         // Told which creature is the hero and everything his block says about him --
         // see DefaultHero and Hero.
         var progress = new HeroProgress(arena.hero(), settings.levelling(),
-                settings.attributeRules(), settings.levelUpBannerFrames(), bag);
+                settings.attributeRules(), settings.progression().levelUpBannerFrames(), bag);
         progress.playing(settings.playedHeroLook());
-        progress.manaPerKill(settings.manaPerKill());
+        progress.manaPerKill(settings.progression().manaPerKill());
         // Drawn from the run's seed as well, so a seed is the whole run: the same
         // one drops the same things off the same monsters.
-        var drops = new LootTable(settings.loot(), seed, settings.lootDropPercent(),
-                settings.lootBossDropPercent(), settings.lootValuePercentPerDepth());
+        var drops = new LootTable(settings.loot(), seed, settings.lootDrops().dropPercent(),
+                settings.lootDrops().bossDropPercent(), settings.lootDrops().valuePercentPerDepth());
         var run = new DungeonRun(arena.hero(), arena.dungeon(), floors, settings, progress,
                 drops, arena.orders(), learnt);
 

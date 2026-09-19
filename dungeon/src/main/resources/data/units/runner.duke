@@ -58,6 +58,7 @@ Monster
   ; a glance -- one texture serves the whole pack, so colour is what separates
   ; them. GeometryHeight is 9.
   Model = models/monsters/skeleton_minion.glb
+  Animations = Humanoid
   ; What is looking at you out of the dark.
   Effect = EmberEyes
   ModelScale = 4.2

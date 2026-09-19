@@ -12,7 +12,7 @@ import uz.duke.client3d.Visuals;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.dungeon.content.DungeonSettings;
 import uz.duke.dungeon.content.HeroLook;
-import uz.duke.dungeon.content.ThemeArt;
+import uz.duke.dungeon.world.Theme;
 import uz.duke.dungeon.skill.CastSkill;
 import uz.duke.dungeon.stage.Stages;
 
@@ -269,7 +269,7 @@ public final class Main {
                 uz.duke.client3d.PanelSkin.BUTTON, uz.duke.client3d.PanelSkin.ITEM,
                 uz.duke.client3d.PanelSkin.DIVIDER, uz.duke.client3d.PanelSkin.BANNER,
                 uz.duke.client3d.PanelSkin.BANNER_WON, uz.duke.client3d.PanelSkin.BANNER_LOST);
-        for (var piece : settings.skin()) {
+        for (var piece : settings.skins()) {
             if (!known.contains(piece.name())) {
                 LOG.warning(() -> "Skin names no part of the panel: " + piece.name()
                         + " — that part is drawn as it was; known parts are " + known);
@@ -291,22 +291,22 @@ public final class Main {
      */
     static uz.duke.client3d.UnitBarLook unitBars(DungeonSettings settings) {
         var steps = new java.util.ArrayList<uz.duke.client3d.UnitBarLook.Step>();
-        for (var rung : settings.unitBarSegments()) {
+        for (var rung : settings.unitBar().segments()) {
             steps.add(new uz.duke.client3d.UnitBarLook.Step(rung.upTo(), rung.value()));
         }
         return new uz.duke.client3d.UnitBarLook(steps,
-                settings.unitBarShortestAt(), settings.unitBarLongestAt(),
-                settings.unitBarShortest(), settings.unitBarLongest(),
-                settings.unitBarHeight(), settings.unitBarManaHeight(),
-                settings.unitBarGap(), settings.unitBarLift(),
-                settings.unitBarRing(), settings.unitBarRingEdge(),
-                settings.unitBarRingGap(), settings.unitBarArc(),
-                settings.unitBarEnemy(), settings.unitBarFriend(), settings.unitBarMana(),
-                settings.unitBarTrough(), settings.unitBarTick(), settings.unitBarRingFace(),
-                settings.unitBarRingRim(), settings.unitBarBossRim(),
-                settings.unitBarLettering(),
-                settings.unitBarNameSize(), settings.unitBarBossNameSize(),
-                settings.unitBarCountSize(), settings.unitBarLevelSize());
+                settings.unitBar().shortestAt(), settings.unitBar().longestAt(),
+                settings.unitBar().shortest(), settings.unitBar().longest(),
+                settings.unitBar().height(), settings.unitBar().manaHeight(),
+                settings.unitBar().gap(), settings.unitBar().lift(),
+                settings.unitBar().ring(), settings.unitBar().ringEdge(),
+                settings.unitBar().ringGap(), settings.unitBar().arc(),
+                settings.unitBar().enemy(), settings.unitBar().friend(), settings.unitBar().mana(),
+                settings.unitBar().trough(), settings.unitBar().tick(), settings.unitBar().ringFace(),
+                settings.unitBar().ringRim(), settings.unitBar().bossRim(),
+                settings.unitBar().lettering(),
+                settings.unitBar().nameSize(), settings.unitBar().bossNameSize(),
+                settings.unitBar().countSize(), settings.unitBar().levelSize());
     }
 
     /**
@@ -320,7 +320,7 @@ public final class Main {
      */
     private static uz.duke.client3d.SoundBank soundsOf(DungeonSettings settings) {
         var bank = uz.duke.client3d.SoundBank.create();
-        bank.voiceGap(settings.voiceGapSeconds());
+        bank.voiceGap(settings.audio().voiceGapSeconds());
         for (var cue : settings.sounds()) {
             bank.cue(cue.name(), channelOf(cue.channel()), cue.positional(), cue.gain(),
                     cue.gapSeconds(), cue.files(), cue.label());
@@ -346,7 +346,7 @@ public final class Main {
      * — see {@code DungeonRun} and {@code HeroStatus}.
      *
      * <p>Nothing here is a decision. Every number and every path comes out of
-     * {@code dungeon.ini}, so a fourth theme is three blocks and a folder of
+     * {@code data/world/themes/}, so a fourth theme is a file and a folder of
      * models, and this method does not change.
      */
     private static void themes(Visuals visuals, DungeonSettings settings) {
@@ -382,10 +382,10 @@ public final class Main {
     }
 
     /** One creature drawn the way a theme wants it, described from nothing. */
-    private static void themedCreature(Visuals.Theme look, ThemeArt.ThemeMonster themed,
+    private static void themedCreature(Visuals.Theme look, Theme.ThemeMonster themed,
             DungeonSettings settings) {
-        var art = themed.look();
-        look.unit(themed.template(), unit -> {
+        var art = settings.animated(themed.look());
+        look.unit(themed.name(), unit -> {
             unit.colour(art.awtTint());
             if (!art.hasModel()) {
                 return;
@@ -400,16 +400,16 @@ public final class Main {
                     .attack(art.attack())
                     .hurt(art.hurt())
                     .effect(art.effect())
-                    .die(themed.death() != null ? themed.death() : settings.deathClip());
+                    .die(art.death());
             carry(unit, art.held());
             // Borrowed only when the file says so. A themed creature usually comes
             // with a model of its own, and a model of its own carries its own
             // clips -- copying them onto it from a second copy of the same file
             // rebinds the tracks to the wrong skeleton and the thing collapses.
-            // Naming the game's shared library here is for a theme that re-skins a
-            // creature with another model from that same kit.
-            if (themed.animationsFrom() != null) {
-                unit.animationsFrom(themed.animationsFrom());
+            // Linking animations here is for a theme that re-skins a creature with
+            // another model from the same kit.
+            for (var library : art.libraries()) {
+                unit.animationsFrom(library);
             }
         });
     }
@@ -484,7 +484,7 @@ public final class Main {
      */
     static void ringsFor(Visuals visuals, DungeonSettings settings, String hero) {
         for (var skill : settings.skillsFor(hero)) {
-            visuals.skillRange(rangeOf(skill, settings.ringSelfRadius()));
+            visuals.skillRange(rangeOf(skill, settings.skillRing().selfRadius()));
         }
     }
 
@@ -546,13 +546,13 @@ public final class Main {
      * change had worked.
      */
     private static Dungeon.Session chosenGame(String[] args, DungeonSettings settings) {
-        var path = Stages.chosen(args, settings);
-        if (path == null) {
+        var map = Stages.chosen(args);
+        if (map == null) {
             // The seed is the one thing the clock touches, and it is outside the
             // simulation: it chooses WHICH deterministic dungeon to play.
             return Dungeon.newSession(System.nanoTime(), settings);
         }
-        return Dungeon.newStageSession(Stages.load(path, settings), settings);
+        return Dungeon.newStageSession(Stages.load(map, settings), settings);
     }
 
     /**
@@ -602,8 +602,8 @@ public final class Main {
                         session.run().startWith(session.game(), him);
                     }));
         }
-        return new uz.duke.client3d.Shell.Question(settings.hudChooseHeroWord(),
-                settings.hudChooseHeroHint(), options);
+        return new uz.duke.client3d.Shell.Question(settings.hud().chooseHeroWord(),
+                settings.hud().chooseHeroHint(), options);
     }
 
     /**
@@ -629,16 +629,16 @@ public final class Main {
             return hero; // nothing to choose between; the only question left is who
         }
         var modes = List.of(
-                new uz.duke.client3d.Shell.Option(settings.hudEndlessWord(),
-                        settings.hudEndlessBlurb(),
+                new uz.duke.client3d.Shell.Option(settings.hud().endlessWord(),
+                        settings.hud().endlessBlurb(),
                         () -> session.run().playing(uz.duke.dungeon.run.Floors.generated(
                                 System.nanoTime(), settings)),
                         hero),
-                new uz.duke.client3d.Shell.Option(settings.hudStagesWord(),
-                        settings.hudStagesBlurb(), null,
+                new uz.duke.client3d.Shell.Option(settings.hud().stagesWord(),
+                        settings.hud().stagesBlurb(), null,
                         whichStage(session, settings, stages, hero)));
-        return new uz.duke.client3d.Shell.Question(settings.hudChooseModeWord(),
-                settings.hudChooseModeHint(), modes);
+        return new uz.duke.client3d.Shell.Question(settings.hud().chooseModeWord(),
+                settings.hud().chooseModeHint(), modes);
     }
 
     /**
@@ -664,8 +664,8 @@ public final class Main {
                             uz.duke.dungeon.run.Floors.ofStage(stage)),
                     hero));
         }
-        return new uz.duke.client3d.Shell.Question(settings.hudChooseStageWord(),
-                settings.hudChooseStageHint(), rows);
+        return new uz.duke.client3d.Shell.Question(settings.hud().chooseStageWord(),
+                settings.hud().chooseStageHint(), rows);
     }
 
     /**
@@ -702,7 +702,7 @@ public final class Main {
         var keys = Hotkeys.create();
         // The file's default hero to begin with, and whoever is actually chosen
         // the moment he is -- see aimsFor, and whoToPlay, which calls it again.
-        aimsFor(keys, settings, settings.playedHero());
+        aimsFor(keys, settings, settings.run().defaultHero());
         // Spending a level on a slot. A click on the badge rather than a letter,
         // so it comes through a door of its own -- and it is a COMMAND like every
         // other decision, settled on a frame boundary where the rules live.
@@ -887,8 +887,8 @@ public final class Main {
                         .hurt(look.hurt())
                         .effect(look.effect());
                 carry(unit, look.held());
-                unit.die(settings.deathClip());
-                for (var library : settings.animationLibraries()) {
+                unit.die(look.death());
+                for (var library : look.libraries()) {
                     unit.animationsFrom(library);
                 }
             });
@@ -941,7 +941,7 @@ public final class Main {
         for (var portrait : settings.portraits()) {
             visuals.portrait(portrait.name(), portraitLook(portrait));
         }
-        visuals.portraitFps(settings.portraitFps());
+        visuals.portraitFps(settings.hud().portraitFps());
         // What a dead monster leaves lying about. No chest in the kit, so it is
         // a box in torch colour -- which is what a thing worth walking over to
         // has to be, whatever it is eventually modelled as.
@@ -963,14 +963,14 @@ public final class Main {
         for (var look : settings.projectiles()) {
             arrow(visuals, look.name(), look);
         }
-        visuals.effectBudget(settings.effectLights(), settings.effectsPerKind(),
-                settings.effectBursts(), settings.effectDistance());
-        visuals.skillRings(settings.effectRings());
-        visuals.particleBudget(settings.effectParticles());
-        visuals.shakeScale(settings.shakeScale());
-        visuals.hitFlash(new Visuals.HitFlashLook(settings.hitFlashColour(),
-                settings.hitFlashSeconds(), settings.hitFlashStrength()));
-        visuals.strikeWithin(settings.strikeWithin());
+        visuals.effectBudget(settings.effectBudget().maxLights(), settings.effectBudget().maxPerEffect(),
+                settings.effectBudget().maxBursts(), settings.effectBudget().maxDistance());
+        visuals.skillRings(settings.effectBudget().maxRings());
+        visuals.particleBudget(settings.effectBudget().maxParticles());
+        visuals.shakeScale(settings.hitFeel().shakeScale());
+        visuals.hitFlash(new Visuals.HitFlashLook(settings.hitFeel().hitFlashColour(),
+                settings.hitFeel().hitFlashSeconds(), settings.hitFeel().hitFlashStrength()));
+        visuals.strikeWithin(settings.hitFeel().strikeWithin());
         // The run's own moments -- a level, the boss down, a floor reached -- and the
         // look each one plays on the hero.
         for (var moment : settings.moments()) {
@@ -985,7 +985,7 @@ public final class Main {
         // same number, and re-tuning one cannot leave the other behind.
         // Whoever is being played: a knight sees a shorter way than an archer, and
         // the floor has to open up around the eyes that are actually there.
-        visuals.discoveredBy(settings.playedHero());
+        visuals.discoveredBy(settings.run().defaultHero());
 
         // What it all sounds like — see the Sound blocks in data/sounds/. Handed over
         // whole, like the tiles and the themes: the client raises moments by name
@@ -995,18 +995,18 @@ public final class Main {
         // The lettering the menus are set in -- carved Roman capitals, baked from
         // the TTF by BitmapFontBaker. Named in the file rather than here for the
         // same reason every other asset is: a path in Java is a path that needs a
-        // rebuild to move. See Menu in dungeon.ini.
+        // rebuild to move. See Menu in data/world/hud.duke.
         visuals.menuStyle(new uz.duke.client3d.MenuStyle(
-                settings.menuTitleFont(), settings.menuRowFont()));
+                settings.menu().titleFont(), settings.menu().rowFont()));
 
         // What the panel's edges are painted with -- see Skin in
-        // dungeon.ini. The client knows where a socket goes; this says what its
+        // data/world/hud.duke. The client knows where a socket goes; this says what its
         // rim is made of.
         visuals.panelSkin(panelSkin(settings));
         visuals.unitBars(unitBars(settings));
 
         // And what the mouse pointer looks like over each thing -- see
-        // Cursor in dungeon.ini. The client knows what is under the
+        // Cursor in data/world/hud.duke. The client knows what is under the
         // pointer; this says what to draw there.
         for (var pointer : settings.cursors()) {
             visuals.pointer(pointer.name(), pointer.image(), pointer.hotX(), pointer.hotY(),
@@ -1015,16 +1015,16 @@ public final class Main {
 
         // What the dark is worth: whether stone stops sight, how dim a room he
         // has left should be, and what colour nothing is. All of it drawing, and
-        // all of it in the file — see Fog in dungeon.ini.
+        // all of it in the file — see Fog in data/world/scene.duke.
         // Shoving the camera with the cursor, on top of the keys — see
-        // Camera in dungeon.ini.
-        visuals.edgeScroll(new EdgeScroll(settings.edgeScrollMargin(),
-                settings.edgeScrollSpeedPercent()));
+        // Camera in data/world/world.duke.
+        visuals.edgeScroll(new EdgeScroll(settings.camera().edgeMargin(),
+                settings.camera().edgeSpeedPercent()));
 
-        visuals.fog(new Fog(settings.fogLineOfSight(),
-                settings.fogUnseenPercent() / 100f, settings.fogRememberedPercent() / 100f,
-                settings.fogVisiblePercent() / 100f, settings.fogSoftenCells(),
-                settings.fogOpenPerSecond(), settings.fogTextureSize(), settings.fogTint()));
+        visuals.fog(new Fog(settings.fog().lineOfSight(),
+                settings.fog().unseenPercent() / 100f, settings.fog().rememberedPercent() / 100f,
+                settings.fog().visiblePercent() / 100f, settings.fog().softenCells(),
+                settings.fog().openPerSecond(), settings.fog().textureSize(), settings.fog().tint()));
 
         // What a caster is seen doing, keyed by the recipe the cast is announced
         // under -- see Visuals.castAnim. A skill that names no gesture is cast
@@ -1038,11 +1038,11 @@ public final class Main {
         // Whether the panel may colour the skill pictures. It always did, which is
         // how one white drawing served three states; a painted set cannot take it
         // — see IconLook.
-        visuals.iconLook(new uz.duke.client3d.IconLook(settings.hudPaintedSkillIcons()));
+        visuals.iconLook(new uz.duke.client3d.IconLook(settings.hud().paintedSkillIcons()));
 
         // How the block under the experience bar is drawn -- see StatBlock. The
         // client knows where its three columns go; the file says how big and what colour.
-        var statBlockArt = settings.statBlockArt();
+        var statBlockArt = settings.statBlock();
         visuals.statLook(new uz.duke.client3d.StatLook(statBlockArt.figureIcon(),
                 statBlockArt.primaryIcon(), statBlockArt.attributeIcon(), statBlockArt.iconShare(),
                 statBlockArt.rowGap(), statBlockArt.gapUnderBar(), statBlockArt.figureColumn(),
@@ -1056,33 +1056,29 @@ public final class Main {
 
         // Where the light comes from — see Sun. The pitch is what decides
         // whether the floor plan reads as a place with heights in it.
-        visuals.sunlight(new uz.duke.client3d.Sunlight(settings.sunPitch(), settings.sunYaw(),
-                settings.sunStrengthPercent() / 100f, settings.sunAmbientPercent() / 100f,
-                settings.sunColour(), settings.sunAmbientTint()));
+        visuals.sunlight(new uz.duke.client3d.Sunlight(settings.sun().pitch(), settings.sun().yaw(),
+                settings.sun().strengthPercent() / 100f, settings.sun().ambientPercent() / 100f,
+                settings.sun().colour(), settings.sun().ambientTint()));
 
-        // The three arrowheads that answer a click — see OrderMark.
-        visuals.orderMark(new uz.duke.client3d.OrderMark(
-                settings.markStartRadius(), settings.markEndRadius(), settings.markSeconds(),
-                settings.markSize(), settings.markWidth(), settings.markHeight(),
-                settings.markEasePower(), settings.markFadeFrom(), settings.markSpinDegrees(),
-                settings.markBrightness(), settings.markRingRadius(), settings.markBlinks(),
-                settings.markMoveColour(), settings.markAttackColour()));
+        // The three arrowheads that answer a click — the client's own OrderMark, which the
+        // block of that name is read straight into.
+        visuals.orderMark(settings.orderMark());
 
         // How far each skill reaches, so the client can draw it before it is spent
         // — see SkillRing, and SkillRange for what each shape means.
         visuals.rangeLook(new uz.duke.client3d.RangeLook(
-                settings.ringBandWidth(), settings.ringFillAlpha(), settings.ringEdgeAlpha(),
-                settings.ringHeight(), settings.ringPulseDepth(), settings.ringPulsePerSecond(),
-                settings.ringSegments(), settings.ringAllowColour(), settings.ringDenyColour(),
-                settings.ringAreaColour(), settings.ringBrightness()));
+                settings.skillRing().bandWidth(), settings.skillRing().fillAlpha(), settings.skillRing().edgeAlpha(),
+                settings.skillRing().height(), settings.skillRing().pulseDepth(), settings.skillRing().pulsePerSecond(),
+                settings.skillRing().segments(), settings.skillRing().allowColour(), settings.skillRing().denyColour(),
+                settings.skillRing().areaColour(), settings.skillRing().brightness()));
         // The file's default hero to begin with, and whoever is actually chosen
         // the moment he is -- see ringsFor.
-        ringsFor(visuals, settings, settings.playedHero());
+        ringsFor(visuals, settings, settings.run().defaultHero());
 
         themes(visuals, settings);
 
         // The floor is a modular kit, laid out by the client from the same grid
-        // the pathfinder uses. Named in dungeon.ini rather than here, so swapping
+        // the pathfinder uses. Named in data/world/scene.duke rather than here, so swapping
         // the kit — or dropping back to plain blocks — is an edit, not a rebuild.
         var art = settings.tiles();
         if (art.floor() != null) {

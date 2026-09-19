@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 class AttackFlashTest {
 
     private static final float NOW = 100f;
-    private static final OrderMark LOOK = OrderMark.DEFAULT;
+    private static final OrderMark LOOK = OrderMark.DEFAULTS;
 
     private record Scene(AttackFlash flash, Node root, OrderMarkers orders) {
     }

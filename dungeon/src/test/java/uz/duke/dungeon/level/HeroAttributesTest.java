@@ -53,7 +53,7 @@ class HeroAttributesTest {
         var arena = Dungeon.world(room(60, 40), settings, Content.units(), bag);
         var game = arena.game();
         var progress = new HeroProgress(arena.hero(), settings.levelling(),
-                settings.attributeRules(), settings.levelUpBannerFrames(), bag);
+                settings.attributeRules(), settings.progression().levelUpBannerFrames(), bag);
         progress.playing(settings.heroNamed(template));
         game.onTick(progress::tick);
         game.spawn(template, arena.hero(), 150f, 200f);
@@ -236,13 +236,13 @@ class HeroAttributesTest {
     void theFileIsWhatDecidesTheHeroInTheWorld() {
         float shipped = play("Knight").body().getBody().getMaxHealth();
 
-        var stronger = DungeonSettings.parse(Content.world(), Content.data().replace("    STR = [22, 3.0]",
+        var stronger = DungeonSettings.parse(Content.data().replace("    STR = [22, 3.0]",
                 "    STR = [30, 3.0]"));
         assertEquals(shipped + 8 * 12, play("Knight", stronger).body().getBody().getMaxHealth(), 0f,
                 "eight more strength is ninety-six more health");
 
-        var richer = DungeonSettings.parse(Content.world().replace("  HealthPerPoint = 12",
-                "  HealthPerPoint = 20"), Content.data());
+        var richer = DungeonSettings.parse(Content.data().replace("  HealthPerPoint = 12",
+                "  HealthPerPoint = 20"));
         assertEquals(shipped + 22 * 8, play("Knight", richer).body().getBody().getMaxHealth(), 0f,
                 "eight more a point, twenty-two times");
     }
@@ -269,7 +269,7 @@ class HeroAttributesTest {
         var signature = new StringBuilder();
         for (int step = 0; step < 90; step++) {
             game.runHeadless(10);
-            var hero = find(game, SETTINGS.playedHero());
+            var hero = find(game, SETTINGS.run().defaultHero());
             if (hero == null) {
                 signature.append("gone|");
                 continue;

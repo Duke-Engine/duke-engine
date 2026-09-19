@@ -306,7 +306,7 @@ class SkillCastingTest {
     /** Every ordinary arrow in the air right now, by id. */
     private static java.util.Set<Integer> ordinaryArrows(DukeGame game) {
         return game.getLogic().getObjects().stream()
-                .filter(o -> o.getTemplate().name().equals(SETTINGS.arrowTemplate()))
+                .filter(o -> o.getTemplate().name().equals(SETTINGS.combat().arrowTemplate()))
                 .map(o -> o.getId().value())
                 .collect(java.util.stream.Collectors.toSet());
     }
@@ -338,7 +338,7 @@ class SkillCastingTest {
     /**
      * The ultimate makes his skills hit harder, not only his bow.
      *
-     * <p>Which is what {@code dungeon.ini} says it is for — "a window, during
+     * <p>Which is what {@code data/units/rogue.duke} says it is for — "a window, during
      * which everything else he does is worth more" — and for a while it was not
      * true: the boost rode the engine's weapon seam, and a skill that damages a
      * body directly never passes through a weapon.
@@ -707,7 +707,7 @@ class SkillCastingTest {
     /** Re-tune one skill in the file and that skill changes; the others do not. */
     @Test
     void changingTheFileChangesTheSkill() {
-        var fierce = DungeonSettings.parse("", """
+        var fierce = DungeonSettings.parse("""
                 Hero
                   Name = Rogue
                   Skills = [
@@ -744,7 +744,7 @@ class SkillCastingTest {
         // called Hero and stopped being fine the moment the archer BECAME the
         // rogue: the test then handed its two invented skills to a hero who
         // already had four, and asked why he had six.
-        var withTwo = DungeonSettings.parse("", """
+        var withTwo = DungeonSettings.parse("""
                 Hero
                   Name = Sellsword
                   Skills = [
@@ -867,7 +867,7 @@ class SkillCastingTest {
 
         // Kill him, and wait out the pause before the next dungeon.
         creature(game, "Rogue").getBody().damage(100000f);
-        game.runHeadless(SETTINGS.respawnDelayFrames() + 10);
+        game.runHeadless(SETTINGS.run().respawnDelayFrames() + 10);
 
         var next = creature(game, "Rogue").findModule(SkillBook.class);
         assertNotEquals(book, next, "a new run means a new hero");
@@ -894,7 +894,7 @@ class SkillCastingTest {
      * making is false.
      */
     private static DungeonSettings heroWhose(String q) {
-        return DungeonSettings.parse("", "Hero\n  Name = Rogue\n  Skills = [\n    Skill\n      Key = Q\n" + q + "    End\n  ]\nEnd\n");
+        return DungeonSettings.parse("Hero\n  Name = Rogue\n  Skills = [\n    Skill\n      Key = Q\n" + q + "    End\n  ]\nEnd\n");
     }
 
     /**

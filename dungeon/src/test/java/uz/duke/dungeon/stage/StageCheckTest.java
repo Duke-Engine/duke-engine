@@ -181,7 +181,7 @@ class StageCheckTest {
         var stage = good(12L);
         var floor = stage.floor();
         var broken = with(stage, floorWith(floor, null, floor.monsters(), null, floor.props()));
-        var path = folder.resolve("broken.stage");
+        var path = folder.resolve("broken.duke");
         Files.writeString(path, StageFile.write(broken));
 
         var thrown = assertThrows(IllegalStateException.class,
@@ -191,12 +191,12 @@ class StageCheckTest {
                 "both faults should be listed at once: " + thrown.getMessage());
     }
 
-    /** A path that names nothing is not a silent fall back to the endless dungeon. */
+    /** A name that names nothing is not a silent fall back to the endless dungeon. */
     @Test
     void aMissingStageFileSaysSo() {
         var thrown = assertThrows(IllegalStateException.class,
-                () -> Stages.load("stages/nothing-here.stage", SETTINGS));
-        assertTrue(thrown.getMessage().contains("no stage at"), thrown.getMessage());
+                () -> Stages.load("nothing-here", SETTINGS));
+        assertTrue(thrown.getMessage().contains("no map is called nothing-here"), thrown.getMessage());
     }
 
     /** Somewhere on the map that is solid rock. */

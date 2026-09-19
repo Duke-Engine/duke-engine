@@ -1,5 +1,6 @@
 package uz.duke.dungeon.content;
 
+import uz.duke.core.data.Clip;
 import java.util.List;
 
 /**
@@ -45,11 +46,11 @@ public record PortraitArt(
         float yaw,
         float pitch,
         float fov,
-        String calm,
-        String fight,
-        String hurt,
-        String dead,
-        String levelUp,
+        @Clip String calm,
+        @Clip String fight,
+        @Clip String hurt,
+        @Clip String dead,
+        @Clip String levelUp,
         float hurtBelowPercent,
         float hurtSpeed) {
 

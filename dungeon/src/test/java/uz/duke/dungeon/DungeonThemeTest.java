@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
-import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.content.ShippedBlock;
 
 /**
  * A floor's look is a look and nothing else.
@@ -26,15 +26,10 @@ import uz.duke.dungeon.content.DungeonSettings;
  */
 class DungeonThemeTest {
 
-    /** The shipped file with its theme order rewritten. */
+    /** The shipped files with the endless map's theme order rewritten. */
     private static DungeonSettings withOrder(String order) {
-        var text = Content.world();
-        var edited = new StringBuilder();
-        for (var line : text.split("\n", -1)) {
-            edited.append(line.trim().startsWith("Order =") ? "  Order = " + order : line)
-                    .append('\n');
-        }
-        return DungeonSettings.parse(edited.toString(), Content.data());
+        var themes = "[" + String.join(", ", order.split(" ")) + "]";
+        return DungeonSettings.parse(ShippedBlock.dataWith("Endless", "Themes", themes));
     }
 
     /**

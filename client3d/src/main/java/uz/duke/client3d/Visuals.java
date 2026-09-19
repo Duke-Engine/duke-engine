@@ -971,7 +971,7 @@ public final class Visuals {
         return edgeScroll;
     }
 
-    private OrderMark orderMark = OrderMark.DEFAULT;
+    private OrderMark orderMark = OrderMark.DEFAULTS;
 
     /**
      * How the flash that answers a click should look and move — see
@@ -982,7 +982,7 @@ public final class Visuals {
      * sensible "off" to default to.
      */
     public Visuals orderMark(OrderMark orderMark) {
-        this.orderMark = orderMark == null ? OrderMark.DEFAULT : orderMark;
+        this.orderMark = orderMark == null ? OrderMark.DEFAULTS : orderMark;
         return this;
     }
 
