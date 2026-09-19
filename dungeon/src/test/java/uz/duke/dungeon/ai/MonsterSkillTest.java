@@ -91,31 +91,34 @@ class MonsterSkillTest {
                 .findFirst().orElse(null);
     }
 
-    /** A caster that never walks: it casts from where it was put, or it does not cast. */
+    /**
+     * A caster that never walks: it casts from where it was put, or it does not cast. Its
+     * block says nothing of its skill, so it keeps the shipped one.
+     */
     private static DungeonSettings standingStill() {
-        return DungeonSettings.parse("""
-                Monster SkeletonMage
+        return DungeonSettings.parse("", """
+                Monster
+                  Name = SkeletonMage
                   SenseRadius = 400
                   ChaseRadius = 400
                   CloseDistance = 500
                   SwingFrames = 20
-                  Skill = Q
-                  SkillDistance = 20 60
+                  SkillDistance = [20, 60]
                 End
                 """);
     }
 
     /** A caster that holds the band it is given, and notices him from anywhere in the room. */
     private static DungeonSettings keeping(String band, String distance) {
-        return DungeonSettings.parse("""
-                Monster SkeletonMage
+        return DungeonSettings.parse("", """
+                Monster
+                  Name = SkeletonMage
                   SenseRadius = 300
                   ChaseRadius = 300
                   CloseDistance = 6
                   SwingFrames = 20
-                  Skill = Q
-                  SkillDistance = %s
-                  KeepDistance = %s
+                  SkillDistance = [%s]
+                  KeepDistance = [%s]
                 End
                 """.formatted(distance, band));
     }
@@ -286,7 +289,7 @@ class MonsterSkillTest {
 
     @Test
     void itComesAfterAHeroWhoIsTooFarAndStopsInsideTheBand() {
-        var fight = fight(keeping("35 55", "20 60"), room(NO_WALL), 350f, 200f);
+        var fight = fight(keeping("35, 55", "20, 60"), room(NO_WALL), 350f, 200f);
 
         fight.game().runHeadless(600);
 
@@ -316,15 +319,15 @@ class MonsterSkillTest {
     /** The band is the file's: the same fight with a wider band settles further out. */
     @Test
     void aWiderBandInTheFileIsAWiderBandOnTheFloor() {
-        float close = settledGap("35 55");
-        float wide = settledGap("80 100");
+        float close = settledGap("35, 55");
+        float wide = settledGap("80, 100");
 
         assertTrue(close < 62f, "with 35 to 55 it settled at " + close);
         assertTrue(wide > 72f, "with 80 to 100 it settled at " + wide);
     }
 
     private static float settledGap(String band) {
-        var fight = fight(keeping(band, "20 120"), room(NO_WALL), 215f, 200f);
+        var fight = fight(keeping(band, "20, 120"), room(NO_WALL), 215f, 200f);
         fight.game().runHeadless(600);
         return fight.gap();
     }

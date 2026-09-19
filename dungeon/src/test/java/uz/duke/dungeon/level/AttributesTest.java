@@ -205,7 +205,7 @@ class AttributesTest {
     @Test
     void aHeroIsBuiltWithHisFirstLevelAlreadyInHim() {
         assertEquals(980f, HeroBuild.body(new GrowableBody.Data(716f), KNIGHT, RULES).maxHealth(), 0f);
-        assertEquals(21f, HeroBuild.legs(new MoveUpdate.Data(19.5f), KNIGHT, RULES).speedPerSecond(),
+        assertEquals(21f, HeroBuild.legs(new MoveUpdate.Data(19.5f), KNIGHT, RULES).speed(),
                 0.0001f);
         var weapon = HeroBuild.weapon(new WeaponUpdate.Data(8f, 11f, 34), KNIGHT, RULES);
         assertEquals(30f, weapon.damage(), 0f);
@@ -262,23 +262,24 @@ class AttributesTest {
     @Test
     void theFileIsWhatDecidesIt() {
         var shipped = DungeonSettings.load();
-        var text = Content.settings();
+        var world = Content.world();
+        var data = Content.data();
         var knight = shipped.heroNamed("Knight").attributes().atLevel(1);
 
-        var richer = DungeonSettings.parse(text.replace("  HealthPerPoint = 12",
-                "  HealthPerPoint = 20"));
+        var richer = DungeonSettings.parse(world.replace("  HealthPerPoint = 12",
+                "  HealthPerPoint = 20"), data);
         assertEquals(shipped.attributeRules().health(knight) * 20 / 12,
                 richer.attributeRules().health(knight), "a point of strength is worth what the file says");
 
-        var stronger = DungeonSettings.parse(text.replace("  Attribute = STR 22 3.0",
-                "  Attribute = STR 30 3.0"));
+        var stronger = DungeonSettings.parse(world, data.replace("    STR = [22, 3.0]",
+                "    STR = [30, 3.0]"));
         assertEquals(300, stronger.heroNamed("Knight").attributes().base().at(STR));
 
-        var quicker = DungeonSettings.parse(text.replace("  Attribute = AGI 12 2.2",
-                "  Attribute = AGI 12 3.4"));
+        var quicker = DungeonSettings.parse(world, data.replace("    AGI = [12, 2.2]",
+                "    AGI = [12, 3.4]"));
         assertEquals(34, quicker.heroNamed("Rogue").attributes().perLevel().at(AGI));
 
-        var swapped = DungeonSettings.parse(text.replace("  Primary = AGI", "  Primary = STR"));
+        var swapped = DungeonSettings.parse(world, data.replace("  Primary = AGI", "  Primary = STR"));
         assertEquals(STR, swapped.heroNamed("Rogue").attributes().primary());
     }
 
@@ -291,9 +292,7 @@ class AttributesTest {
      */
     @Test
     void anAttributeTheFileAddsIsAHerosAttributeWithNoJava() {
-        var text = Content.settings()
-                .replace("  Primary = STR\n", "  Primary = STR\n  Attribute = VIG 10 1.0\n")
-                + """
+        var world = Content.world() + """
 
                 World Dungeon
                   Attribute = Vigour
@@ -305,7 +304,8 @@ class AttributesTest {
                   End
                 End
                 """;
-        var settings = DungeonSettings.parse(text);
+        var settings = DungeonSettings.parse(world, Content.data()
+                .replace("    STR = [22, 3.0]\n", "    STR = [22, 3.0]\n    VIG = [10, 1.0]\n"));
         var rules = settings.attributeRules();
 
         assertEquals(List.of("STR", "AGI", "INT", "VIG"),
@@ -342,10 +342,14 @@ class AttributesTest {
                     SpeedPerPoint = 0.15
                   End
                 End
-                Hero Solo
+                """, """
+                Hero
+                  Name = Solo
                   Primary = INT
-                  Attribute = STR 22.5 0
-                  Attribute = INT 0 1.8
+                  Attributes
+                    STR = [22.5, 0]
+                    INT = [0, 1.8]
+                  End
                 End
                 """);
         var rules = exact.attributeRules();
@@ -363,37 +367,44 @@ class AttributesTest {
                   End
                 End
                 """), "a third place is refused, not rounded");
-        assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
-                Hero Solo
+        assertThrows(RuntimeException.class, () -> DungeonSettings.parse("", """
+                Hero
+                  Name = Solo
                   Primary = STR
-                  Attribute = STR 22.55 0
+                  Attributes
+                    STR = [22.55, 0]
+                  End
                 End
                 """), "and a second place on an attribute");
     }
 
     @Test
     void attributesWithNoPrimaryAreRefused() {
-        assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
-                Hero Solo
-                  Attribute = STR 12 0
+        assertThrows(RuntimeException.class, () -> DungeonSettings.parse("", """
+                Hero
+                  Name = Solo
+                  Attributes
+                    STR = [12, 0]
+                  End
                 End
                 """), "a hero with attributes has to say which one he hits with");
     }
 
-    /** A hero's line is which, what he starts with and what a level adds — all three. */
+    /** A hero's attribute is which, what he starts with and what a level adds — all three. */
     @Test
     void aHerosAttributeLineHasToBeWhole() {
         for (var line : new String[] {
-            "  Attribute = LUCK 5 1\n", // no attribute is called that
-            "  Attribute = STR 12\n", // what a level adds is missing
-            "  Attribute = STR 12 1 5\n", // and something is left over
-            "  Attribute = STR 12 1\n  Attribute = Strength 3 0\n", // the same one twice
+            "    LUCK = [5, 1]\n", // no attribute is called that
+            "    STR = [12]\n", // what a level adds is missing
+            "    STR = [12, 1, 5]\n", // and something is left over
+            "    STR = [12, 1]\n    Strength = [3, 0]\n", // the same one twice
         }) {
-            assertThrows(RuntimeException.class, () -> DungeonSettings.parse(
-                    "Hero Solo\n  Primary = STR\n" + line + "End\n"), line);
+            assertThrows(RuntimeException.class, () -> DungeonSettings.parse("",
+                    "Hero\n  Name = Solo\n  Primary = STR\n  Attributes\n" + line + "  End\nEnd\n"), line);
         }
-        assertThrows(RuntimeException.class, () -> DungeonSettings.parse("""
-                Hero Solo
+        assertThrows(RuntimeException.class, () -> DungeonSettings.parse("", """
+                Hero
+                  Name = Solo
                   Primary = LUCK
                 End
                 """), "a primary has to be one of the file's attributes");

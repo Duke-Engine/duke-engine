@@ -1,8 +1,6 @@
 package uz.duke.dungeon.level;
 
 import uz.duke.core.GameConstants;
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.module.ModuleGroups;
@@ -24,6 +22,10 @@ import uz.duke.core.thing.GameObject;
 @ModuleGroup(ModuleGroups.BODY)
 public final class Recovery extends UpdateModule {
 
+    /** It reads no fields; the block only says the unit has one. */
+    public record Data() implements ModuleData {
+    }
+
     private static final int A_SECOND = 10 * GameConstants.LOGICFRAMES_PER_SECOND;
 
     private int tenthsPerSecond;
@@ -32,14 +34,6 @@ public final class Recovery extends UpdateModule {
     public Recovery(GameObject owner) {
         super(owner);
     }
-
-    /** The empty block that puts this on a creature; the rate is set in code. */
-    public static ModuleData parseData(Ini ini) {
-        ini.initFromIni(new Object(), NO_FIELDS);
-        return null;
-    }
-
-    private static final FieldParseTable<Object> NO_FIELDS = new FieldParseTable<>();
 
     /** How fast, in tenths of a point a second. */
     public void rate(int tenthsPerSecond) {

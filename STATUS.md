@@ -236,32 +236,38 @@ SAGE'ning `ThingTemplate` / `Object` / `Module` tuzilishi saqlangan:
   near, radius)` ("bu shakl qayerga sig'adi?"), `findClosestInReach(from, reach,
   filter)` va `World.reachBetween(a, b)` (masofa markazdan emas, devordan devorga).
 
-### 3.4 INI ma'lumot qatlami
+### 3.4 Ma'lumot qatlami: `.duke`
 
-`core.ini.Ini` — SAGE tokenizatorining sodiq porti (ajratkichlar bo'sh joy / tab / `=`, `;` = izoh,
-blok/`End` sikli, `X:Y:Z` sub-tokenlari). `FieldParseTable`/`FieldParser` C++ dagi offset+userData
-hiylasini lambda-setter bilan almashtiradi. `ThingTemplateLoader` `Object … End` bloklarini,
-ichidagi modul sub-bloklari bilan birga, template'ga aylantiradi.
+`core.data.DukeText` — `.duke` matnini bloklarga o'qiydi, faqat sintaksis: yolg'iz so'z blok ochadi,
+`End` eng ichkisini yopadi, `Key = value`, ro'yxat `[a, b]` (bir necha qatorga cho'zilishi mumkin),
+`;` — izoh. `core.data.Binder` blokni u nomlagan **record**ga bog'laydi: kalit — record komponenti
+(harf kattaligi farqsiz), ichki blok — shu nomdagi komponent yoki turi: record, sealed `Geometry` ning
+`Cylinder` i, yoki o'yin bergan lug'at (modullar). Yozilmagan komponent recordning `DEFAULTS`
+qiymatidan, u bo'lmasa nol/bo'sh olinadi. `ThingTemplateLoader` `Object` (va o'yin qo'shgan
+`Monster` kabi) bloklarni shu yo'l bilan template'ga aylantiradi; modul bloki — modul klassining
+nomi, ma'lumoti uning ichidagi `Data` recordi.
 
-```ini
-Object Tank
+```
+Object
+  Name = Tank
   DisplayName = Battle Tank
-  KindOf = VEHICLE SELECTABLE CAN_ATTACK
-  Geometry = BOX
-  GeometryMajorRadius = 8
-  GeometryMinorRadius = 5
-  GeometryHeight = 6
+  KindOf = [VEHICLE, SELECTABLE, CAN_ATTACK]
+  Box
+    MajorRadius = 8
+    MinorRadius = 5
+    Height = 6
+  End
   BuildCost = 700
   BuildTime = 6.0
   VisionRange = 45
-  Body = ActiveBody Tag
+  ActiveBody
     MaxHealth = 300
   End
-  Update = MoveUpdate Tag
+  MoveUpdate
     Speed = 20
     TurnRate = 120
   End
-  Update = WeaponUpdate Tag
+  WeaponUpdate
     Damage = 40
     AttackRange = 30
     ReloadFrames = 45
@@ -270,6 +276,9 @@ Object Tank
   End
 End
 ```
+
+`core.ini.Ini` — SAGE tokenizatorining porti — hozircha faqat dungeon'ning `World` blokini
+(`ini/dungeon.ini`) o'qiydi.
 
 ### 3.5 Buyruq quvuri
 
@@ -806,7 +815,7 @@ API: `onStart()` / `onUpdate()` (30 Hz) + yordamchilar `unit()`, `world()`, `pos
 `attack()`, `stop()`, `money()`, `productionQueue()`, `trainUnit(name)`, `setRallyPoint()`.
 
 `ScriptModule` adapter qiladi va **xatoni izolyatsiya qiladi**: skript exception tashlasa, u log
-qilinadi va o'chiriladi — simulyatsiya davom etadi. INI tag'i: `Update = Script:<Nom> Tag`.
+qilinadi va o'chiriladi — simulyatsiya davom etadi. `.duke` bloki: `ScriptModule`, ichida `Name = <Nom>`.
 
 Determinizm shartnomasi skriptga ham tegishli: devor-soati yo'q, `Math.random()` yo'q, thread yo'q, UI yo'q.
 
@@ -933,19 +942,19 @@ armiya markazlari start pozitsiyalariga, armiyalarning o'zi esa faction'ning bos
 
 ### 6.2 Capability → engine modul jadvali
 
-Studio'da birlikka "qobiliyat" qo'shish = INI modul bloki generatsiyasi (`GameFactory.toIni`):
+Studio'da birlikka "qobiliyat" qo'shish = `.duke` modul bloki generatsiyasi (`GameFactory.unitsText`):
 
-| Studio capability | Generatsiya qilinadigan INI | Parametrlar |
+| Studio capability | Generatsiya qilinadigan blok | Parametrlar |
 |---|---|---|
-| MOVE | `Update = MoveUpdate` | Speed, TurnRate |
-| ATTACK | `Update = WeaponUpdate` | Damage, AttackRange, ReloadFrames, SplashRadius, DamageType |
-| PRODUCE | `Update = ProductionUpdate` | Builds (bo'sh joy bilan ajratilgan nomlar) |
-| POWER | `Update = PowerModule` | Produces, Consumes |
-| EXPERIENCE | `Behavior = ExperienceModule` | ExperienceValue, ExperienceRequired, LevelDamageBonus, HealOnPromotion |
-| AUTO_HEAL | `Update = AutoHealUpdate` | HealPerSecond |
-| SUPPLY | `Behavior = SupplyModule` | Amount |
-| HARVEST | `Update = HarvestUpdate` | LoadPerTrip, FramesPerTrip |
-| (skriptlar) | `Update = Script:<Nom>` | — |
+| MOVE | `MoveUpdate` | Speed, TurnRate |
+| ATTACK | `WeaponUpdate` | Damage, AttackRange, ReloadFrames, SplashRadius, DamageType |
+| PRODUCE | `ProductionUpdate` | Builds (`[a, b]` ro'yxat) |
+| POWER | `PowerModule` | Produces, Consumes |
+| EXPERIENCE | `ExperienceModule` | ExperienceValue, ExperienceRequired, LevelDamageBonus, HealOnPromotion |
+| AUTO_HEAL | `AutoHealUpdate` | HealPerSecond |
+| SUPPLY | `SupplyModule` | Amount |
+| HARVEST | `HarvestUpdate` | LoadPerTrip, FramesPerTrip |
+| (skriptlar) | `ScriptModule`, ichida `Name = <Nom>` | — |
 
 `KindOf` avtomatik hisoblanadi: STRUCTURE yoki INFANTRY + SELECTABLE, ATTACK bo'lsa CAN_ATTACK,
 POWER bo'lsa POWERED.

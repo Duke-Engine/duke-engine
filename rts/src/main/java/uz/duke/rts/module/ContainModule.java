@@ -2,8 +2,6 @@ package uz.duke.rts.module;
 
 import java.util.ArrayList;
 import java.util.List;
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.Module;
 import uz.duke.core.module.ModuleData;
@@ -26,23 +24,6 @@ public final class ContainModule extends Module {
 
     /** INI config: {@code Slots} (passenger capacity). */
     public record Data(int slots) implements ModuleData {
-    }
-
-    private static final class DataBuilder {
-        int slots;
-
-        Data build() {
-            return new Data(slots);
-        }
-    }
-
-    private static final FieldParseTable<DataBuilder> DATA_TABLE = new FieldParseTable<DataBuilder>()
-            .add("Slots", Ini.integer((b, v) -> b.slots = v));
-
-    public static ModuleData parseData(Ini ini) {
-        var builder = new DataBuilder();
-        ini.initFromIni(builder, DATA_TABLE);
-        return builder.build();
     }
 
     private static final Coord3D UNLOAD_OFFSET = new Coord3D(0f, -5f, 0f);

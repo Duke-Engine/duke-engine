@@ -17,7 +17,7 @@ import uz.duke.dungeon.skill.SkillBook;
  * actually draw.
  *
  * <p>Two files that have to agree and that nothing makes agree. A skill names a
- * {@code DungeonEffect} block by a string; a block that is not there is a skill
+ * {@code Effect} block by a string; a block that is not there is a skill
  * with no effect, and a block that is there but describes nothing is a skill with
  * an effect that draws nothing. Neither refuses at run time — both are a skill
  * that goes off in silence, which reads as a bug in the skill rather than as a
@@ -305,7 +305,7 @@ class SkillLookTest {
     @Test
     void theLookCannotReachTheSimulation() {
         var with = DungeonSettings.load();
-        var without = DungeonSettings.parse(withoutTheLooks(Content.settings()));
+        var without = DungeonSettings.parse(Content.world(), withoutTheLooks(Content.data()));
 
         assertTrue(playersSkills().stream().allMatch(skill -> skill.hasLook()));
         assertTrue(without.skills().stream().noneMatch(skill -> skill.hasLook()),
@@ -338,7 +338,7 @@ class SkillLookTest {
         return line.toString();
     }
 
-    private static DungeonSettings.EffectLook lookOf(String name) {
+    private static uz.duke.dungeon.content.Effect lookOf(String name) {
         return SETTINGS.effects().stream().filter(look -> look.name().equals(name))
                 .findFirst().orElseThrow(() -> new AssertionError("no block called " + name));
     }

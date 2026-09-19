@@ -1,0 +1,13 @@
+Prop
+  Name = Statue
+  DisplayName = Statue
+  KindOf = [STRUCTURE]
+  VisionRange = 0
+  Cylinder
+    Radius = 3.5
+    Height = 14
+  End
+
+
+  Weight = 2
+End

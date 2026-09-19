@@ -1,0 +1,111 @@
+; The purple one, and it brings more of them. Frail and slow like the other two, with a
+; mote of dark for its ordinary shot, and its skill opens rifts that skeletons climb out
+; of -- see Monster SkeletonSummoner and DungeonSkill SkeletonSummoner Q
+; below.
+Monster
+  Name = SkeletonSummoner
+  DisplayName = Skeleton Summoner
+  KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
+  Cylinder
+    Radius = 4
+    Height = 13
+  End
+  VisionRange = 64
+  GrowableBody
+    MaxHealth = 40
+  End
+  MoveUpdate
+    Speed = 13
+    TurnRate = 0
+  End
+  ; For while the rifts come back: a little weaker than the Skeleton Mage's fire, and
+  ; reaching the far edge of the same band.
+  WeaponUpdate
+    Damage = 5
+    AttackRange = 58
+    ReloadFrames = 60
+    AttackOnTheMove = No
+  End
+  SkillBook
+  End
+  ; Before the Bow, as on the Skeleton Mage: a throw still leaving it holds its rifts.
+  Swing
+  End
+  Bow
+    Projectile = ShadowSpark
+    Speed = 95
+    MuzzleOffset = 8
+  End
+  EyesOnly
+  End
+  StatusUpdate
+  End
+  ScriptModule
+    Name = SkeletonSummonerBrain
+  End
+  ExperienceModule
+    ExperienceValue = 26
+    ExperienceRequired = [0, 0, 0]
+  End
+
+
+  ; The purple one, and it brings more of them. It holds the same band as the other
+  ; two, and whenever he is inside its SkillDistance and in plain sight it opens rifts
+  ; round itself that ordinary skeletons climb out of -- toward him first. They last a
+  ; while, fall down again, and are worth nothing: kill the summoner, not what it
+  ; calls up.
+  SenseRadius = 64
+  ChaseRadius = 120
+  ; Unused: it holds the band below rather than closing.
+  CloseDistance = 6
+  AlertRadius = 70
+  RepathFrames = 10
+  SwingFrames = 20
+  MinDepth = 3
+  Weight = 8
+  ; One to a room: with its MaxSummoned that is four called-up skeletons a room at most.
+  MaxPerRoom = 1
+  Colour = 0xB06AE8
+  Scale = 1
+  SkillDistance = [20, 70]
+  KeepDistance = [35, 55]
+  ; The staff-carrier in a robe repainted purple. White tint, so the purple is the
+  ; robe's own.
+  Model = models/monsters/skeleton_mage.glb
+  Texture = models/monsters/skeleton_texture_purple.png
+  Effect = EmberEyes
+  ModelScale = 6.0
+  Held
+    Model = models/monsters/staff.gltf
+    Bone = handslot.r
+  End
+  Attack = Ranged_Magic_Shoot
+  Idle = Ranged_Magic_Spellcasting_Long
+
+  Skill
+    Key = Q
+    ; Rifts in the floor round it, and an ordinary skeleton out of each: toward him
+    ; first and then turned aside -- see SummonTurnDegrees in the Combat section -- and only
+    ; on open floor it can see.
+    Effect = SUMMON
+    Summons = Skeleton
+    ; Two a cast and never more than four of its own standing at once: a room with a
+    ; summoner in it is a fight that grows, with a ceiling on how far.
+    SummonCount = 2
+    MaxSummoned = 4
+    ; How far from it they rise.
+    Radius = 16
+    ; Twenty seconds, and then they fall down again.
+    DurationFrames = 600
+    ; Worth nothing: a skeleton that was never placed on the floor is not a well to
+    ; draw experience from.
+    SummonExperiencePercent = 0
+    ; How long a rift lies open before one climbs out: long enough to be seen.
+    WindUpFrames = 20
+    Projectile = SummoningRift
+    ; Twelve seconds between castings.
+    CooldownFrames = 360
+    MaxRank = 1
+    Name = Chaqiruv
+  End
+End

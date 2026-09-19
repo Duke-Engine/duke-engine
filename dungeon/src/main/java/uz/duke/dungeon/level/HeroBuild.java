@@ -32,9 +32,9 @@ public final class HeroBuild {
         if (data == null || !hero.hasPrimary()) {
             return data;
         }
-        var built = firstLevel(new HeroBase(0f, data.speedPerSecond(),
-                data.turnRateDegreesPerSecond(), 0f), hero, rules);
-        return new MoveUpdate.Data(built.speed(), data.turnRateDegreesPerSecond());
+        var built = firstLevel(new HeroBase(0f, data.speed(),
+                data.turnRate(), 0f), hero, rules);
+        return new MoveUpdate.Data(built.speed(), data.turnRate());
     }
 
     public static WeaponUpdate.Data weapon(WeaponUpdate.Data data, HeroAttributes hero,

@@ -143,13 +143,7 @@ class DungeonSettingsTest {
     @Test
     void theHeroStopsInsideHisOwnReach() {
         var settings = DungeonSettings.load();
-        var hero = Content.units().split("Monster Skeleton")[0];
-
-        var reach = java.util.regex.Pattern.compile("AttackRange\\s*=\\s*(\\d+)")
-                .matcher(hero).results()
-                .map(match -> Integer.parseInt(match.group(1)))
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("the hero carries no weapon"));
+        var reach = Float.parseFloat(ShippedBlock.of(settings.playedHero()).value("AttackRange"));
 
         assertTrue(settings.closeDistance() < reach,
                 "he stops at " + settings.closeDistance() + " but reaches only " + reach);
@@ -159,16 +153,16 @@ class DungeonSettingsTest {
     @Test
     void theCreatureFilesArePresentAndDescribeBothSides() {
         var creatures = Content.units();
-        assertTrue(creatures.contains("Hero Rogue"));
-        assertTrue(creatures.contains("Monster Skeleton"));
-        assertTrue(creatures.contains("Script:SkeletonBrain"),
+        assertTrue(creatures.contains("Hero\n  Name = Rogue\n"));
+        assertTrue(creatures.contains("Monster\n  Name = Skeleton\n"));
+        assertTrue(ShippedBlock.of("Skeleton").text().contains("  ScriptModule\n    Name = SkeletonBrain\n"),
                 "the game's skeletons should carry their behaviour");
 
         var fixture = Content.read(Content.FIXTURE_CREATURES);
-        assertTrue(fixture.contains("Object Rogue"));
+        assertTrue(fixture.contains("Object\n  Name = Rogue\n"));
         assertTrue(fixture.contains("Speed = 0"),
                 "the fixture's skeletons stand still, whatever the game's do");
-        assertTrue(!fixture.contains("Script:"),
+        assertTrue(!fixture.contains("ScriptModule"),
                 "the fixture exercises the engine's mechanics with nothing layered on");
     }
 

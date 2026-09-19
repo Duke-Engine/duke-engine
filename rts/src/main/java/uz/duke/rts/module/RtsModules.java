@@ -1,5 +1,7 @@
 package uz.duke.rts.module;
 
+import java.util.List;
+import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.ModuleFactory;
 
 /**
@@ -9,10 +11,17 @@ import uz.duke.core.module.ModuleFactory;
  *
  * <p>This is the seam between {@code core} and this module. A plain game calls
  * {@link ModuleFactory#withDefaults()} and gets a body and a locomotor; an RTS
- * calls {@link #withDefaults()} here and gets the full RTS vocabulary, still
- * addressed from INI by tag.
+ * calls {@link #withDefaults()} here and gets the full RTS vocabulary, each
+ * module written in a file as a block named after its class.
  */
 public final class RtsModules {
+
+    /** Every RTS module, by its data: the words an RTS's files may add to the engine's. */
+    public static final List<Class<? extends ModuleData>> MODULES = List.of(
+            WeaponUpdate.Data.class, ProductionUpdate.Data.class, ExperienceModule.Data.class,
+            AutoHealUpdate.Data.class, StatusUpdate.Data.class, PowerModule.Data.class,
+            CapacityGate.Data.class, SpecialPowerModule.Data.class, ContainModule.Data.class,
+            SupplyModule.Data.class, HarvestUpdate.Data.class);
 
     private RtsModules() {
     }
@@ -26,38 +35,16 @@ public final class RtsModules {
 
     /** Add the RTS modules to an existing factory. */
     public static void register(ModuleFactory factory) {
-        factory.register("WeaponUpdate",
-                (owner, data) -> new WeaponUpdate(owner, (WeaponUpdate.Data) data),
-                WeaponUpdate::parseData);
-        factory.register("ProductionUpdate",
-                (owner, data) -> new ProductionUpdate(owner, (ProductionUpdate.Data) data),
-                ProductionUpdate::parseData);
-        factory.register("ExperienceModule",
-                (owner, data) -> new ExperienceModule(owner, (ExperienceModule.Data) data),
-                ExperienceModule::parseData);
-        factory.register("AutoHealUpdate",
-                (owner, data) -> new AutoHealUpdate(owner, (AutoHealUpdate.Data) data),
-                AutoHealUpdate::parseData);
-        factory.register("StatusUpdate",
-                (owner, data) -> new StatusUpdate(owner, (StatusUpdate.Data) data),
-                StatusUpdate::parseData);
-        factory.register("PowerModule",
-                (owner, data) -> new PowerModule(owner, (PowerModule.Data) data),
-                PowerModule::parseData);
-        factory.register("CapacityGate",
-                (owner, data) -> new CapacityGate(owner, (CapacityGate.Data) data),
-                CapacityGate::parseData);
-        factory.register("SpecialPowerModule",
-                (owner, data) -> new SpecialPowerModule(owner, (SpecialPowerModule.Data) data),
-                SpecialPowerModule::parseData);
-        factory.register("ContainModule",
-                (owner, data) -> new ContainModule(owner, (ContainModule.Data) data),
-                ContainModule::parseData);
-        factory.register("SupplyModule",
-                (owner, data) -> new SupplyModule(owner, (SupplyModule.Data) data),
-                SupplyModule::parseData);
-        factory.register("HarvestUpdate",
-                (owner, data) -> new HarvestUpdate(owner, (HarvestUpdate.Data) data),
-                HarvestUpdate::parseData);
+        factory.register(WeaponUpdate.Data.class, WeaponUpdate::new)
+                .register(ProductionUpdate.Data.class, ProductionUpdate::new)
+                .register(ExperienceModule.Data.class, ExperienceModule::new)
+                .register(AutoHealUpdate.Data.class, AutoHealUpdate::new)
+                .register(StatusUpdate.Data.class, StatusUpdate::new)
+                .register(PowerModule.Data.class, PowerModule::new)
+                .register(CapacityGate.Data.class, CapacityGate::new)
+                .register(SpecialPowerModule.Data.class, SpecialPowerModule::new)
+                .register(ContainModule.Data.class, ContainModule::new)
+                .register(SupplyModule.Data.class, SupplyModule::new)
+                .register(HarvestUpdate.Data.class, HarvestUpdate::new);
     }
 }

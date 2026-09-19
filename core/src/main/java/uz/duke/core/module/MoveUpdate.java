@@ -2,8 +2,6 @@ package uz.duke.core.module;
 
 import java.util.List;
 import uz.duke.core.GameConstants;
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.thing.Footprint;
 import uz.duke.core.thing.GameObject;
@@ -38,34 +36,15 @@ import uz.duke.core.thing.World;
 public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     /**
-     * INI configuration: {@code Speed} (world units/sec) and an optional
-     * {@code TurnRate} (degrees/sec). A turn rate of 0 means the unit can change
-     * heading instantly (the original straight-line behaviour); a positive rate
-     * makes it rotate toward its goal and curve along its facing.
+     * {@code Speed} (world units/sec) and an optional {@code TurnRate} (degrees/sec). A
+     * turn rate of 0 means the unit can change heading instantly (the original
+     * straight-line behaviour); a positive rate makes it rotate toward its goal and
+     * curve along its facing.
      */
-    public record Data(float speedPerSecond, float turnRateDegreesPerSecond) implements ModuleData {
-        public Data(float speedPerSecond) {
-            this(speedPerSecond, 0f);
+    public record Data(float speed, float turnRate) implements ModuleData {
+        public Data(float speed) {
+            this(speed, 0f);
         }
-    }
-
-    private static final class DataBuilder {
-        float speedPerSecond;
-        float turnRateDegreesPerSecond;
-
-        Data build() {
-            return new Data(speedPerSecond, turnRateDegreesPerSecond);
-        }
-    }
-
-    private static final FieldParseTable<DataBuilder> DATA_TABLE = new FieldParseTable<DataBuilder>()
-            .add("Speed", Ini.real((b, v) -> b.speedPerSecond = v))
-            .add("TurnRate", Ini.real((b, v) -> b.turnRateDegreesPerSecond = v));
-
-    public static ModuleData parseData(Ini ini) {
-        var builder = new DataBuilder();
-        ini.initFromIni(builder, DATA_TABLE);
-        return builder.build();
     }
 
     /**
@@ -94,9 +73,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     public MoveUpdate(GameObject owner, Data data) {
         super(owner);
-        this.stepPerFrame = data.speedPerSecond() * GameConstants.SECONDS_PER_LOGICFRAME;
+        this.stepPerFrame = data.speed() * GameConstants.SECONDS_PER_LOGICFRAME;
         this.turnPerFrame = (float) Math.toRadians(
-                data.turnRateDegreesPerSecond() * GameConstants.SECONDS_PER_LOGICFRAME);
+                data.turnRate() * GameConstants.SECONDS_PER_LOGICFRAME);
         this.progressEpsilon = stepPerFrame * 0.25f;
     }
 

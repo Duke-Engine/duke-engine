@@ -94,7 +94,7 @@ class KnightOrderTest {
 
     private static float reachOf(uz.duke.core.thing.ThingFactory templates, String template) {
         for (var entry : templates.findTemplate(template).modules()) {
-            if (entry.data() instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
+            if (entry instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
                 return weapon.attackRange();
             }
         }

@@ -34,7 +34,7 @@ class VisionTest {
     void setUp() {
         var thingFactory = new ThingFactory(ModuleFactory.withDefaults());
         scout = ThingTemplate.named("Scout")
-                .module("ActiveBody", new uz.duke.core.module.ActiveBody.Data(50f))
+                .module(new uz.duke.core.module.ActiveBody.Data(50f))
                 .visionRange(20f)
                 .build();
         thingFactory.addTemplate(scout);

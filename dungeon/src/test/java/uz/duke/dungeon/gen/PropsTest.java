@@ -151,7 +151,7 @@ class PropsTest {
     /** Ask for none and there are none — and the floor is otherwise the same one. */
     @Test
     void aFloorCanBeAskedForNoFurnitureAtAll() {
-        var bare = DungeonSettings.parse(Content.settings() + """
+        var bare = DungeonSettings.parse(Content.world() + """
 
                 World Dungeon
                   Props = Scatter
@@ -159,7 +159,7 @@ class PropsTest {
                     MaxPerRoom = 0
                   End
                 End
-                """);
+                """, Content.data());
 
         for (long seed = 0; seed < 20; seed++) {
             var dungeon = DungeonGenerator.generate(seed, bare, 1);

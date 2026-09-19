@@ -864,9 +864,9 @@
     "semantic_hash": "b877cde5c28696dd73d46ca74f048788"
   },
   "core/src/main/java/uz/duke/core/module/ActiveBody.java": {
-    "mtime": 1789708516.6980546,
-    "seen": 1789708728.4376607,
-    "ast_hash": "76eacce31ce2411688e0f746de90d511",
+    "mtime": 1789806288.7719336,
+    "seen": 1789812917.6209276,
+    "ast_hash": "fff1f5316d1a2d8957b9f7c87baac66d",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/duke/core/module/Armor.java": {
@@ -906,21 +906,21 @@
     "semantic_hash": "799e6576d4752df33a74eee241f7142a"
   },
   "core/src/main/java/uz/duke/core/module/ModuleData.java": {
-    "mtime": 1781410560.8657691,
-    "seen": 1789646845.8879328,
-    "ast_hash": "ad51dc763d4679b1209fef879d4988c7",
-    "semantic_hash": "ad51dc763d4679b1209fef879d4988c7"
+    "mtime": 1789806263.6759107,
+    "seen": 1789812917.6209366,
+    "ast_hash": "2fba47c3036efe3b8f63dab1f2cfbc32",
+    "semantic_hash": ""
   },
   "core/src/main/java/uz/duke/core/module/ModuleFactory.java": {
-    "mtime": 1788716374.2511084,
-    "seen": 1789646845.8879335,
-    "ast_hash": "37d9b7a975ffdf7044eef7e3cfd60521",
-    "semantic_hash": "37d9b7a975ffdf7044eef7e3cfd60521"
+    "mtime": 1789806662.6710699,
+    "seen": 1789812917.6209378,
+    "ast_hash": "8e2f8fbb81273ea6e9bc230bb6bff46e",
+    "semantic_hash": ""
   },
   "core/src/main/java/uz/duke/core/module/MoveUpdate.java": {
-    "mtime": 1789708516.7376828,
-    "seen": 1789708728.4376779,
-    "ast_hash": "4a52feab4787135e2f68af5ad6eab839",
+    "mtime": 1789806305.2755208,
+    "seen": 1789812917.6209428,
+    "ast_hash": "298ef833cc2d4534c86774067fd4bfd8",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/duke/core/module/UpdateModule.java": {
@@ -1146,21 +1146,21 @@
     "semantic_hash": "abe806ee4076207c743f5fbfac2b3d47"
   },
   "core/src/main/java/uz/duke/core/thing/ThingFactory.java": {
-    "mtime": 1789749658.568575,
-    "seen": 1789754192.778326,
-    "ast_hash": "154211c993f6904279dee998e6bc49d6",
+    "mtime": 1789806322.3645244,
+    "seen": 1789812917.6209946,
+    "ast_hash": "777657ce71c37b61b5d8e64abbcb6155",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/duke/core/thing/ThingTemplate.java": {
-    "mtime": 1789749583.896654,
-    "seen": 1789754192.778327,
-    "ast_hash": "f53e268fa788d4e62807d52b31913db9",
+    "mtime": 1789806322.230082,
+    "seen": 1789812917.6209955,
+    "ast_hash": "0558d689b17b85f801973612686c5a90",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/duke/core/thing/ThingTemplateLoader.java": {
-    "mtime": 1789749658.5354595,
-    "seen": 1789754192.7783284,
-    "ast_hash": "2be9160a6a10c0cea9579106621351fd",
+    "mtime": 1789807190.683291,
+    "seen": 1789812917.6209967,
+    "ast_hash": "6618cf3815cf501e7dc99cda949c8260",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/duke/core/thing/World.java": {
@@ -1170,9 +1170,9 @@
     "semantic_hash": "8bc55f06a3a821ad56c1ce5af057337f"
   },
   "core/src/test/java/uz/duke/core/FlatWorldChecksumTest.java": {
-    "mtime": 1789749732.1853478,
-    "seen": 1789754192.7783327,
-    "ast_hash": "87e3433122eecb29e39479ac4260e15c",
+    "mtime": 1789806376.8432858,
+    "seen": 1789812917.6210012,
+    "ast_hash": "59b02edd2f8666ac80555497be7991ea",
     "semantic_hash": ""
   },
   "core/src/test/java/uz/duke/core/GameEngineTest.java": {
@@ -1200,15 +1200,15 @@
     "semantic_hash": "548a8f4faf225e45c4b3c0d9d06af297"
   },
   "core/src/test/java/uz/duke/core/VisionTest.java": {
-    "mtime": 1788717870.4564426,
-    "seen": 1789646845.8879757,
-    "ast_hash": "ae338aaf9906236f6f612a3a35326189",
-    "semantic_hash": "ae338aaf9906236f6f612a3a35326189"
+    "mtime": 1789806376.8855395,
+    "seen": 1789812917.6210072,
+    "ast_hash": "f4b33739ccb8fed394868c937c0cef04",
+    "semantic_hash": ""
   },
   "core/src/test/java/uz/duke/core/event/WorldEventTest.java": {
-    "mtime": 1789749732.1823492,
-    "seen": 1789754192.77834,
-    "ast_hash": "c19cf0a7f8e64bbbbf9980e697e5f6e2",
+    "mtime": 1789806376.83921,
+    "seen": 1789812917.6210108,
+    "ast_hash": "d2654bdf59afa45a716e9de0834866eb",
     "semantic_hash": ""
   },
   "core/src/test/java/uz/duke/core/ini/IniTest.java": {
@@ -1224,10 +1224,10 @@
     "semantic_hash": "9fd86ef7be85f766380681397953403f"
   },
   "core/src/test/java/uz/duke/core/message/CommandPipelineTest.java": {
-    "mtime": 1788716750.3311677,
-    "seen": 1789646845.887979,
-    "ast_hash": "95987939b87c5939f20f3e1f8b8a0176",
-    "semantic_hash": "95987939b87c5939f20f3e1f8b8a0176"
+    "mtime": 1789806376.8463187,
+    "seen": 1789812917.6210146,
+    "ast_hash": "73dd3a441cf405284b7d4dfcef7563aa",
+    "semantic_hash": ""
   },
   "core/src/test/java/uz/duke/core/message/MessageStreamTest.java": {
     "mtime": 1788716689.5219924,
@@ -1236,34 +1236,34 @@
     "semantic_hash": "428358daa8b8f0dc3f73c39acca77aad"
   },
   "core/src/test/java/uz/duke/core/module/ClimbingTest.java": {
-    "mtime": 1789065800.8352296,
-    "seen": 1789646845.8879807,
-    "ast_hash": "ccfaa41edb6782735568dbc917ea06af",
-    "semantic_hash": "ccfaa41edb6782735568dbc917ea06af"
+    "mtime": 1789806376.8491023,
+    "seen": 1789812917.6210167,
+    "ast_hash": "ab684269ff76c34aa08ec5a20ad6dddb",
+    "semantic_hash": ""
   },
   "core/src/test/java/uz/duke/core/module/CollisionTest.java": {
-    "mtime": 1788782516.4170527,
-    "seen": 1789646845.8879817,
-    "ast_hash": "a018a540c939a076bc7a6925a48f9380",
-    "semantic_hash": "a018a540c939a076bc7a6925a48f9380"
+    "mtime": 1789806376.8531065,
+    "seen": 1789812917.6210182,
+    "ast_hash": "a8988bf4ed6d24539a0a500539b22e48",
+    "semantic_hash": ""
   },
   "core/src/test/java/uz/duke/core/module/MoveUpdateTest.java": {
-    "mtime": 1788716731.7657776,
-    "seen": 1789646845.8879821,
-    "ast_hash": "1d26f352d0531c53af9b87430a10ee4c",
-    "semantic_hash": "1d26f352d0531c53af9b87430a10ee4c"
+    "mtime": 1789806420.1538353,
+    "seen": 1789812917.6210206,
+    "ast_hash": "5f7a5237cd473c0983de1fe2e640299b",
+    "semantic_hash": ""
   },
   "core/src/test/java/uz/duke/core/module/PathFollowingTest.java": {
-    "mtime": 1788716638.010578,
-    "seen": 1789646845.887983,
-    "ast_hash": "343982ee88892e10f7ee202b272455c5",
-    "semantic_hash": "343982ee88892e10f7ee202b272455c5"
+    "mtime": 1789806376.8602307,
+    "seen": 1789812917.6210217,
+    "ast_hash": "832e924b46e130a02b8ec9ae2262e7f4",
+    "semantic_hash": ""
   },
   "core/src/test/java/uz/duke/core/network/LockstepGateTest.java": {
-    "mtime": 1788764337.9903553,
-    "seen": 1789646845.8879838,
-    "ast_hash": "9349bfb7fbb788a08da41b243e339011",
-    "semantic_hash": "9349bfb7fbb788a08da41b243e339011"
+    "mtime": 1789806376.8632264,
+    "seen": 1789812917.6210227,
+    "ast_hash": "e558ad4143cafc86c02d04eb74a7d34b",
+    "semantic_hash": ""
   },
   "core/src/test/java/uz/duke/core/network/LockstepSchedulerTest.java": {
     "mtime": 1788716709.8891592,
@@ -1272,10 +1272,10 @@
     "semantic_hash": "f54487aa9df6f6d51a3764785768d684"
   },
   "core/src/test/java/uz/duke/core/partition/PartitionManagerTest.java": {
-    "mtime": 1788716638.0328643,
-    "seen": 1789646845.8879855,
-    "ast_hash": "97b55a948a05898b43d0408d6498e7f8",
-    "semantic_hash": "97b55a948a05898b43d0408d6498e7f8"
+    "mtime": 1789806376.8664098,
+    "seen": 1789812917.6210256,
+    "ast_hash": "7b5cfbe6e389d1cb21275c69948d4fb3",
+    "semantic_hash": ""
   },
   "core/src/test/java/uz/duke/core/pathfind/LevelsTest.java": {
     "mtime": 1789065754.0235438,
@@ -1302,10 +1302,10 @@
     "semantic_hash": "26b76184711a11d22e0552bacabd3f0c"
   },
   "core/src/test/java/uz/duke/core/pathfind/StaticObstacleTest.java": {
-    "mtime": 1788755097.2344978,
-    "seen": 1789646845.8879895,
-    "ast_hash": "d9a14aaec4751c78abceaeed738b65a8",
-    "semantic_hash": "d9a14aaec4751c78abceaeed738b65a8"
+    "mtime": 1789806376.870336,
+    "seen": 1789812917.6210315,
+    "ast_hash": "f13f441e6bdf32f7c670797dff1e998c",
+    "semantic_hash": ""
   },
   "core/src/test/java/uz/duke/core/player/PlayerListTest.java": {
     "mtime": 1788717336.8841622,
@@ -1314,16 +1314,16 @@
     "semantic_hash": "36488d38d6e93c98a4479ffeeeee5d55"
   },
   "core/src/test/java/uz/duke/core/replay/ReplayTest.java": {
-    "mtime": 1788761678.3141394,
-    "seen": 1789646845.887991,
-    "ast_hash": "d5418c8fd510fba11c33b9c5b0249e3c",
-    "semantic_hash": "d5418c8fd510fba11c33b9c5b0249e3c"
+    "mtime": 1789806376.8736255,
+    "seen": 1789812917.6210334,
+    "ast_hash": "c62361df47ea2529809be6c83517844f",
+    "semantic_hash": ""
   },
   "core/src/test/java/uz/duke/core/script/ScriptEngineTest.java": {
-    "mtime": 1788716638.0443718,
-    "seen": 1789646845.887992,
-    "ast_hash": "dfd464cb037819061ff10ee792ef42bd",
-    "semantic_hash": "dfd464cb037819061ff10ee792ef42bd"
+    "mtime": 1789806376.8776426,
+    "seen": 1789812917.6210344,
+    "ast_hash": "9deffd5df4bac21f9c73c0e35fe7539b",
+    "semantic_hash": ""
   },
   "core/src/test/java/uz/duke/core/thing/GeometryTest.java": {
     "mtime": 1788752070.0973058,
@@ -1332,9 +1332,9 @@
     "semantic_hash": "07370963c4111bfd243ed5929c335877"
   },
   "core/src/test/java/uz/duke/core/thing/KindTest.java": {
-    "mtime": 1789749749.1534662,
-    "seen": 1789754192.778368,
-    "ast_hash": "233ac445ea9b85a20d0e8c7f9fa00561",
+    "mtime": 1789806411.4508677,
+    "seen": 1789812917.6210363,
+    "ast_hash": "db968864aa7e5e23b237e775908cd3c5",
     "semantic_hash": ""
   },
   "core/src/test/java/uz/duke/core/thing/ModuleCompositionTest.java": {
@@ -1344,15 +1344,15 @@
     "semantic_hash": "3b0cef909867efe3937d4b890fde4a1e"
   },
   "core/src/test/java/uz/duke/core/thing/ThingSystemTest.java": {
-    "mtime": 1788717870.4584422,
-    "seen": 1789646845.8879948,
-    "ast_hash": "a3e4310eea515d5ee1213c2f9817bc97",
-    "semantic_hash": "a3e4310eea515d5ee1213c2f9817bc97"
+    "mtime": 1789806411.4216056,
+    "seen": 1789812917.6210387,
+    "ast_hash": "1a6fa8f4ba3e58746a17104bae6d8b5e",
+    "semantic_hash": ""
   },
   "core/src/test/java/uz/duke/core/thing/ThingTemplateLoaderTest.java": {
-    "mtime": 1789749766.708937,
-    "seen": 1789754192.7783718,
-    "ast_hash": "c2a89db22dbe4557426efec1f9d87fff",
+    "mtime": 1789806431.529096,
+    "seen": 1789812917.6210396,
+    "ast_hash": "03427d1ae197d3d582622bd7df12da6c",
     "semantic_hash": ""
   },
   "duke-plugin/build.gradle.kts": {
@@ -1392,15 +1392,15 @@
     "semantic_hash": "016ed8c9c057f0b3e8f95c063f0b8a3f"
   },
   "dungeon/src/main/java/uz/duke/dungeon/Dungeon.java": {
-    "mtime": 1789752917.4835,
-    "seen": 1789754192.778411,
-    "ast_hash": "9e0d3c8f98d6155b11764f9bb7b967a0",
+    "mtime": 1789810139.741791,
+    "seen": 1789812917.6210775,
+    "ast_hash": "db2b2687996482343d6a33b0f1e0a225",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/Main.java": {
-    "mtime": 1789753256.9872336,
-    "seen": 1789754192.7784123,
-    "ast_hash": "e1a9bab7219f526e2d9a3ee40116814d",
+    "mtime": 1789810139.7973194,
+    "seen": 1789812917.6210823,
+    "ast_hash": "9b69a2c21c9f14f7aab5463d92956867",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/ai/AttackMove.java": {
@@ -1428,9 +1428,9 @@
     "semantic_hash": "7f4eb2df888e7b233aa41aa8a9765875"
   },
   "dungeon/src/main/java/uz/duke/dungeon/ai/HeroBrain.java": {
-    "mtime": 1789749732.2041616,
-    "seen": 1789754192.7784185,
-    "ast_hash": "7c718f521343ff9203e4e3e9cfaff154",
+    "mtime": 1789807793.8843625,
+    "seen": 1789812917.6210885,
+    "ast_hash": "e1e0329789f4b1922f17846c10f17b79",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/ai/HoldGround.java": {
@@ -1470,15 +1470,15 @@
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/combat/ArrowUpdate.java": {
-    "mtime": 1789708517.545356,
-    "seen": 1789708728.437839,
-    "ast_hash": "ab9345aa140633faea310431bc4a4eb7",
+    "mtime": 1789807214.1541128,
+    "seen": 1789812917.6210966,
+    "ast_hash": "99a23d2487a478cc206e5ea92ef67a8a",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/combat/Bow.java": {
-    "mtime": 1789753256.961122,
-    "seen": 1789754192.7784274,
-    "ast_hash": "89a0ea53e0fa9e741381ace0c8d6d5cc",
+    "mtime": 1789810280.198562,
+    "seen": 1789812917.6210976,
+    "ast_hash": "f25b71e13fd09efa09fae9bbccf54fb4",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/combat/DepthBonus.java": {
@@ -1488,15 +1488,15 @@
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/combat/EyesOnly.java": {
-    "mtime": 1789708517.5059288,
-    "seen": 1789708728.4378428,
-    "ast_hash": "e11cd6f92578513d4d03d869a19768f9",
+    "mtime": 1789807231.6433961,
+    "seen": 1789812917.6210995,
+    "ast_hash": "10f744ce238c2abed8bc4eec633cc065",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/combat/FallingUpdate.java": {
-    "mtime": 1789708517.583172,
-    "seen": 1789708728.437844,
-    "ast_hash": "5095385e3c58330678be086730800be2",
+    "mtime": 1789807214.1561165,
+    "seen": 1789812917.6211004,
+    "ast_hash": "37e352cf2819c28c6d2ddceaefef2849",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/combat/Shot.java": {
@@ -1506,9 +1506,9 @@
     "semantic_hash": "f7808b37995efc7f20934f7b3851beec"
   },
   "dungeon/src/main/java/uz/duke/dungeon/combat/Swing.java": {
-    "mtime": 1789708517.4034555,
-    "seen": 1789708728.4378462,
-    "ast_hash": "6bf394d49fea794971e2901b53849ee1",
+    "mtime": 1789807231.6433961,
+    "seen": 1789812917.6211026,
+    "ast_hash": "98672309028e038c5f36b65e1c9c7a14",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/content/AttributeArt.java": {
@@ -1518,21 +1518,21 @@
     "semantic_hash": "11712511617d3b9d19631940e2f4461a"
   },
   "dungeon/src/main/java/uz/duke/dungeon/content/Content.java": {
-    "mtime": 1789751010.4371502,
-    "seen": 1789754192.7784362,
-    "ast_hash": "fa2a4a093b3cd70673cca1c5bd4e7f38",
+    "mtime": 1789807736.963506,
+    "seen": 1789812917.621105,
+    "ast_hash": "5e64000b363e9dcf6681a67ecf4773b3",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/content/DungeonSettings.java": {
-    "mtime": 1789754131.2975264,
-    "seen": 1789754192.7784371,
-    "ast_hash": "a3abba529afeaee0dfd88a523acfc93f",
+    "mtime": 1789810139.7147076,
+    "seen": 1789812917.6211057,
+    "ast_hash": "fc466c945e3f31e64a73534eb2ccfb69",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/content/Held.java": {
-    "mtime": 1789700198.9450588,
-    "seen": 1789700659.4337907,
-    "ast_hash": "e2367e93b263be1eff0bd8d77bc285df",
+    "mtime": 1789807375.7884498,
+    "seen": 1789812917.6211102,
+    "ast_hash": "a953fe31ad03a782835ae6895ca4632f",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/content/HeroLook.java": {
@@ -1542,9 +1542,9 @@
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/content/MonsterKind.java": {
-    "mtime": 1789736252.961355,
-    "seen": 1789736959.3732579,
-    "ast_hash": "f0c5fa1bb907831eff21bb046b364bbb",
+    "mtime": 1789809740.9192457,
+    "seen": 1789812917.6211169,
+    "ast_hash": "9c1925d63c00429166953160be8d9d29",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/content/MonsterLook.java": {
@@ -1554,15 +1554,9 @@
     "semantic_hash": "fafbffac6b2354844b995b157050324c"
   },
   "dungeon/src/main/java/uz/duke/dungeon/content/PortraitArt.java": {
-    "mtime": 1789736252.9711313,
-    "seen": 1789736959.3732603,
-    "ast_hash": "d8fa3bcfbd2ad8dd9a6d158d7088ddf8",
-    "semantic_hash": ""
-  },
-  "dungeon/src/main/java/uz/duke/dungeon/content/SoundArt.java": {
-    "mtime": 1789736252.959352,
-    "seen": 1789736959.3732615,
-    "ast_hash": "8ea9895ef6c3e4fcdebc146b595e2e64",
+    "mtime": 1789807382.0060978,
+    "seen": 1789812917.6211202,
+    "ast_hash": "36b8f9b850dac4015c7e2055f9e3d2e4",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/content/StatBlockArt.java": {
@@ -1602,9 +1596,9 @@
     "semantic_hash": "a0ab1b5d2331bf09a2603f87464abcc3"
   },
   "dungeon/src/main/java/uz/duke/dungeon/gen/GeneratedDungeon.java": {
-    "mtime": 1789736252.9603517,
-    "seen": 1789736959.3732696,
-    "ast_hash": "d5aebf8148d62f5526a31790d80cfedd",
+    "mtime": 1789810139.7693598,
+    "seen": 1789812917.6211321,
+    "ast_hash": "60d90cbbd227f34ccc1ccc231168e0e2",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/gen/Layout.java": {
@@ -1638,9 +1632,9 @@
     "semantic_hash": "b8dacb6d6ec57c5034f738ad976cbcb2"
   },
   "dungeon/src/main/java/uz/duke/dungeon/level/GrowableBody.java": {
-    "mtime": 1789708517.2363672,
-    "seen": 1789708728.437876,
-    "ast_hash": "10267ce6d5ec3781f85c4d6283ed2198",
+    "mtime": 1789807214.1145296,
+    "seen": 1789812917.6211395,
+    "ast_hash": "83e20f33409f46edd72df355ad2e244f",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/level/HeroAttributes.java": {
@@ -1650,16 +1644,16 @@
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/level/HeroBase.java": {
-    "mtime": 1789750023.3126738,
-    "seen": 1789754192.7784696,
-    "ast_hash": "dca077ab7c369dc494d7cc43d11b0d7a",
+    "mtime": 1789807793.8873625,
+    "seen": 1789812917.6211412,
+    "ast_hash": "9ffff858b9ebc199e722e7157b548f8b",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/level/HeroBuild.java": {
-    "mtime": 1789360875.5000308,
-    "seen": 1789646845.888038,
-    "ast_hash": "32efc54e5aeabd25ffac23d4426fe6f3",
-    "semantic_hash": "32efc54e5aeabd25ffac23d4426fe6f3"
+    "mtime": 1789807771.9008076,
+    "seen": 1789812917.6211424,
+    "ast_hash": "343d11212cce2c068bbb34315e86169c",
+    "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/level/HeroFigures.java": {
     "mtime": 1789354291.061484,
@@ -1680,9 +1674,9 @@
     "semantic_hash": "5fd304612c44f35ab805cb75709316ef"
   },
   "dungeon/src/main/java/uz/duke/dungeon/level/Recovery.java": {
-    "mtime": 1789708517.2768755,
-    "seen": 1789708728.437885,
-    "ast_hash": "82e168f581771113ec817c098b061200",
+    "mtime": 1789807214.1578088,
+    "seen": 1789812917.6211472,
+    "ast_hash": "962019644ea92c34e878e22f3f3fd375",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/loot/Loot.java": {
@@ -1716,9 +1710,9 @@
     "semantic_hash": "787f1f52c1b845597e4dca8c7570dc3a"
   },
   "dungeon/src/main/java/uz/duke/dungeon/loot/LootUpdate.java": {
-    "mtime": 1789708517.818045,
-    "seen": 1789708728.4378922,
-    "ast_hash": "3ddee406f9d446db9802b7a981d963dc",
+    "mtime": 1789807214.1578088,
+    "seen": 1789812917.6211538,
+    "ast_hash": "42935d35980b15e99c97551b613bb717",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/run/DungeonRun.java": {
@@ -1740,9 +1734,9 @@
     "semantic_hash": "91eaa31211c470faf679708b52f8b0c1"
   },
   "dungeon/src/main/java/uz/duke/dungeon/run/HeroStatus.java": {
-    "mtime": 1789753256.990891,
-    "seen": 1789754192.7784882,
-    "ast_hash": "0bfbb26c9e097306e8ae93d8141abc62",
+    "mtime": 1789807793.8937035,
+    "seen": 1789812917.6211588,
+    "ast_hash": "cbfa7fabdf9f3b493f6b4fb8c9d1f5e1",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/run/Spawner.java": {
@@ -1776,21 +1770,21 @@
     "semantic_hash": "86b7aa9b3cc27311f30141b5f78d990f"
   },
   "dungeon/src/main/java/uz/duke/dungeon/skill/MendingUpdate.java": {
-    "mtime": 1789708517.6218996,
-    "seen": 1789708728.437904,
-    "ast_hash": "bff40521536a2862e9a48805482a82c2",
+    "mtime": 1789807214.159084,
+    "seen": 1789812917.6211658,
+    "ast_hash": "be7ec02f48dd570cd0e45a31482b24c3",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/skill/Skill.java": {
-    "mtime": 1789323641.756781,
-    "seen": 1789646845.8880544,
-    "ast_hash": "2db93510ed489152dc2b45b290c5f7a0",
-    "semantic_hash": "2db93510ed489152dc2b45b290c5f7a0"
+    "mtime": 1789810139.8252537,
+    "seen": 1789812917.6211672,
+    "ast_hash": "687fe44adecb8146b7bfeba2865472e8",
+    "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/skill/SkillBook.java": {
-    "mtime": 1789750023.226996,
-    "seen": 1789754192.7784975,
-    "ast_hash": "28dbe27801cdd46cdee42a9a09034cac",
+    "mtime": 1789807231.645399,
+    "seen": 1789812917.6211681,
+    "ast_hash": "e3453ffa41154d0856f1c589329cc9a2",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/skill/SkillEffect.java": {
@@ -1830,9 +1824,9 @@
     "semantic_hash": "113c85f2cbfe2fe22e6f8787b814f29a"
   },
   "dungeon/src/main/java/uz/duke/dungeon/skill/SummoningUpdate.java": {
-    "mtime": 1789708517.6598654,
-    "seen": 1789708728.4379148,
-    "ast_hash": "97e821522b8ef5533c4aca17b6d86f2a",
+    "mtime": 1789807214.1610835,
+    "seen": 1789812917.6211755,
+    "ast_hash": "e126ae5f968c13e7065ecb14b4de2703",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/skill/UpgradeSkill.java": {
@@ -1848,15 +1842,15 @@
     "semantic_hash": "98b9d33f28a0654228689f2f792d01eb"
   },
   "dungeon/src/main/java/uz/duke/dungeon/stage/StageCheck.java": {
-    "mtime": 1789750994.210558,
-    "seen": 1789754192.7785087,
-    "ast_hash": "ab793d4d3edbb247e7ea4efc93b79964",
+    "mtime": 1789810139.8526537,
+    "seen": 1789812917.6211789,
+    "ast_hash": "f05913cab688a934690d144c7a743f7b",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/stage/StageFile.java": {
-    "mtime": 1789736252.961355,
-    "seen": 1789736959.373319,
-    "ast_hash": "0c7767ea023e11762648e80ada36fe3a",
+    "mtime": 1789810139.880997,
+    "seen": 1789812917.6211796,
+    "ast_hash": "1bd21dd70e25cf87e2d7ba988f8b3a0c",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/stage/Stages.java": {
@@ -1878,9 +1872,9 @@
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/ControlsTest.java": {
-    "mtime": 1789753293.2891083,
-    "seen": 1789754192.7785144,
-    "ast_hash": "6d48e8bc8a603081812931bfd2c85290",
+    "mtime": 1789809979.0455112,
+    "seen": 1789812917.6211836,
+    "ast_hash": "6e0df4d29471824ec056a32b789876a8",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/DungeonCombatTest.java": {
@@ -1890,15 +1884,15 @@
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/DungeonEffectLayerTest.java": {
-    "mtime": 1789753314.5132923,
-    "seen": 1789754192.7785165,
-    "ast_hash": "8454f5a0f1b38787db221d2771eb52a4",
+    "mtime": 1789809186.5721369,
+    "seen": 1789812917.621186,
+    "ast_hash": "99b9969ae22b633a7a6fa03544300fce",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/DungeonFogTest.java": {
-    "mtime": 1789751367.3702195,
-    "seen": 1789754192.778518,
-    "ast_hash": "4763e949a9b40844b73c9705bdd3a725",
+    "mtime": 1789810106.7245057,
+    "seen": 1789812917.621187,
+    "ast_hash": "a0700a7fcf4e8cb0b1027e869a3dd675",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/DungeonFontTest.java": {
@@ -1908,21 +1902,21 @@
     "semantic_hash": "70088f4c30aab795aedfb7f8a4bccb9c"
   },
   "dungeon/src/test/java/uz/duke/dungeon/DungeonMonsterArtTest.java": {
-    "mtime": 1789751374.4463089,
-    "seen": 1789754192.7785199,
-    "ast_hash": "5e526809704241d86cf6bacb4f28fb82",
+    "mtime": 1789810139.942921,
+    "seen": 1789812917.621189,
+    "ast_hash": "2faf2b8b81cb54dee557dae7a144afbd",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/DungeonPortraitTest.java": {
-    "mtime": 1789753314.5519028,
-    "seen": 1789754192.778521,
-    "ast_hash": "45f8b5dbbc9d62ed90c999faf5305441",
+    "mtime": 1789809962.5695212,
+    "seen": 1789812917.62119,
+    "ast_hash": "098ea14a454dca09202be36ec3c8c3cb",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/DungeonSoundTest.java": {
-    "mtime": 1789753293.29021,
-    "seen": 1789754192.778522,
-    "ast_hash": "3b98f0ebf85d4b6028b5d32831a243fb",
+    "mtime": 1789809965.1520886,
+    "seen": 1789812917.621191,
+    "ast_hash": "563eafef1108ee230a13bda4eefac4f8",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/DungeonTest.java": {
@@ -1932,9 +1926,9 @@
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/DungeonThemeTest.java": {
-    "mtime": 1789735590.7264106,
-    "seen": 1789736959.373335,
-    "ast_hash": "f0b4522a22be4cb8b59e31a1b5ffe69c",
+    "mtime": 1789809220.2543433,
+    "seen": 1789812917.621193,
+    "ast_hash": "e1a841b3fa0221cab819d4cd4d295b19",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/DungeonTilesTest.java": {
@@ -1944,9 +1938,9 @@
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/DungeonUnitBarTest.java": {
-    "mtime": 1789751132.2414246,
-    "seen": 1789754192.7785268,
-    "ast_hash": "894c143df8d1d9e5238385d8548649b6",
+    "mtime": 1789807793.9019856,
+    "seen": 1789812917.621195,
+    "ast_hash": "7d092e8ee05e82cfe87ecb7cbab8908f",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/GuardOrderTest.java": {
@@ -1968,39 +1962,39 @@
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/KnightOrderTest.java": {
-    "mtime": 1789751132.242796,
-    "seen": 1789754192.7785318,
-    "ast_hash": "9f0cda586f6c86392ec19750ce5f48bd",
+    "mtime": 1789807793.9039836,
+    "seen": 1789812917.621201,
+    "ast_hash": "0d7c47b875ab1f7715f19e0ab93117c3",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/KnightTest.java": {
-    "mtime": 1789753293.2943137,
-    "seen": 1789754192.7785332,
-    "ast_hash": "1f4d0ce7d95acb29baf2cbd3a343d0c7",
+    "mtime": 1789809927.7915337,
+    "seen": 1789812917.6212022,
+    "ast_hash": "6e3707c62151ffd01ad63bce1a59eeba",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/MageTest.java": {
-    "mtime": 1789751296.4821148,
-    "seen": 1789754192.7785342,
-    "ast_hash": "1db321bf5af3a4633b4fae907275d8d3",
+    "mtime": 1789807793.9101841,
+    "seen": 1789812917.6212032,
+    "ast_hash": "d9c2449486fc3eae281e5fda3e467d16",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/ProjectileEffectTest.java": {
-    "mtime": 1789735590.7601027,
-    "seen": 1789736959.373346,
-    "ast_hash": "02630ff67787cb09f64313a68ffe80c4",
+    "mtime": 1789809461.3712094,
+    "seen": 1789812917.6212041,
+    "ast_hash": "797ca36c02a9eaa3a5b06b2aa94fa163",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/SkillCastingTest.java": {
-    "mtime": 1789751424.178778,
-    "seen": 1789754192.778536,
-    "ast_hash": "7b7c011f11952e2734e31683d5201f4a",
+    "mtime": 1789810106.6390395,
+    "seen": 1789812917.621205,
+    "ast_hash": "4117c0af165646bd10cb4c9335882cac",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/SkillLookTest.java": {
-    "mtime": 1789749732.3142426,
-    "seen": 1789754192.7785373,
-    "ast_hash": "7d8d1ac95eb7821a39b64776407697b4",
+    "mtime": 1789810139.9725254,
+    "seen": 1789812917.6212063,
+    "ast_hash": "540f09e00f29d0cac7f4a00efb85ee14",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/StageChoiceTest.java": {
@@ -2010,9 +2004,9 @@
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/ai/AlertTest.java": {
-    "mtime": 1789751296.4189997,
-    "seen": 1789754192.778539,
-    "ast_hash": "b4fdf8440219ae1010d87034449e2a3c",
+    "mtime": 1789809856.7149165,
+    "seen": 1789812917.6212084,
+    "ast_hash": "930faef6d8185bd423e8c64cf60b1eba",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/ai/AttackMoveTest.java": {
@@ -2034,27 +2028,27 @@
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/ai/MonsterHealingTest.java": {
-    "mtime": 1789751296.422001,
-    "seen": 1789754192.778543,
-    "ast_hash": "b28b2ea4049af738e15ff07cbf8de7f8",
+    "mtime": 1789809876.9756937,
+    "seen": 1789812917.6212125,
+    "ast_hash": "5de51486bbed2cafd4d3dd19ddd471e1",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/ai/MonsterKindsTest.java": {
-    "mtime": 1789751367.3357754,
-    "seen": 1789754192.7785442,
-    "ast_hash": "43440097c5ebc1a3d9a17a3adb7b05ea",
+    "mtime": 1789810098.5895703,
+    "seen": 1789812917.621214,
+    "ast_hash": "5348c4110851c9bf204471af2a0e4572",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/ai/MonsterSkillTest.java": {
-    "mtime": 1789751296.4249997,
-    "seen": 1789754192.7785451,
-    "ast_hash": "59604747cd32971b0995c5683c252cc8",
+    "mtime": 1789809885.024057,
+    "seen": 1789812917.6212149,
+    "ast_hash": "36e78e9c9e719c21e55a43c026724673",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/ai/MonsterSummoningTest.java": {
-    "mtime": 1789749732.2443326,
-    "seen": 1789754192.778546,
-    "ast_hash": "ab80844b5088635923192e27ffac1699",
+    "mtime": 1789809877.0551476,
+    "seen": 1789812917.621216,
+    "ast_hash": "501fb7c25286aabc44ac7fd4a328274f",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/ai/SightTest.java": {
@@ -2064,21 +2058,21 @@
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/ai/WedgedTest.java": {
-    "mtime": 1789751296.4279995,
-    "seen": 1789754192.7785487,
-    "ast_hash": "d5de145e935d91ec9698dd59d8b97bed",
+    "mtime": 1789809902.464225,
+    "seen": 1789812917.6212177,
+    "ast_hash": "8e281b129095caaae3ab1eb6247f3e29",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/content/ContentTest.java": {
-    "mtime": 1789751396.3446279,
-    "seen": 1789754192.77855,
-    "ast_hash": "84d9b0a947683f8c83f293aee83531e6",
+    "mtime": 1789810383.5706532,
+    "seen": 1789812917.621219,
+    "ast_hash": "976269c8f21fbfa2c74e0003afb258ae",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/content/DungeonSettingsTest.java": {
-    "mtime": 1789753413.0949628,
-    "seen": 1789754192.778551,
-    "ast_hash": "218471f79db9c91ee62e9c6e210f8866",
+    "mtime": 1789810094.1040351,
+    "seen": 1789812917.6212196,
+    "ast_hash": "16e05ee0b6f4b3939f21ec081ae0d72e",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/content/ThemesTest.java": {
@@ -2106,39 +2100,39 @@
     "semantic_hash": "df56a9c54c1336bd73a477dbf261ee42"
   },
   "dungeon/src/test/java/uz/duke/dungeon/gen/MonsterPlacementTest.java": {
-    "mtime": 1789753293.292316,
-    "seen": 1789754192.778558,
-    "ast_hash": "4c02c04dc12e37959b45b4f78f4d354a",
+    "mtime": 1789809902.5296576,
+    "seen": 1789812917.6212287,
+    "ast_hash": "ad67ff53a4745b03b1f3bba55fbde518",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/gen/PropsTest.java": {
-    "mtime": 1789753293.292316,
-    "seen": 1789754192.778559,
-    "ast_hash": "cd2b9fe6387ad9cf893d2fa45d15fbcb",
+    "mtime": 1789809214.572646,
+    "seen": 1789812917.6212301,
+    "ast_hash": "3da1893ad4889bea45d08a7c2a3c3eff",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/gen/RoomCapTest.java": {
-    "mtime": 1789751296.438093,
-    "seen": 1789754192.77856,
-    "ast_hash": "f2a53ff8fd210140cd02b483af8f02f1",
+    "mtime": 1789809855.5419743,
+    "seen": 1789812917.621231,
+    "ast_hash": "1f2fe6bb09c0d835d26b1352e3eb290e",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/gen/StoreysTest.java": {
-    "mtime": 1789753293.293315,
-    "seen": 1789754192.778561,
-    "ast_hash": "b4b7dcdc9b176a8b4a1618d434b7f533",
+    "mtime": 1789809218.13052,
+    "seen": 1789812917.621232,
+    "ast_hash": "d5ef3d3446ae0bce50d96eb4a2ff487a",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/level/AttributesTest.java": {
-    "mtime": 1789753293.295317,
-    "seen": 1789754192.778562,
-    "ast_hash": "de35f0a1ef2471321dd8a31686199be8",
+    "mtime": 1789809287.6199858,
+    "seen": 1789812917.6212332,
+    "ast_hash": "68e76c173c1861ffa83d1855f8d5e3a5",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/level/HeroAttributesTest.java": {
-    "mtime": 1789749732.279785,
-    "seen": 1789754192.778563,
-    "ast_hash": "538915f7d1a6eee1f65cb0b9feb31bc2",
+    "mtime": 1789809247.312697,
+    "seen": 1789812917.6212342,
+    "ast_hash": "8027e5668c38af1798bf5e51c6026cd0",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/level/HeroFiguresGoldenTest.java": {
@@ -2148,9 +2142,9 @@
     "semantic_hash": "e45ec01b113736b7da7aac96455aa056"
   },
   "dungeon/src/test/java/uz/duke/dungeon/level/HeroProgressTest.java": {
-    "mtime": 1789753293.2963166,
-    "seen": 1789754192.7785652,
-    "ast_hash": "3dbe98354206be428ae1c0d92af12c57",
+    "mtime": 1789809946.626365,
+    "seen": 1789812917.621237,
+    "ast_hash": "9556c07fd90b32cc09468c5e632976dd",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/level/LevellingTest.java": {
@@ -2166,9 +2160,9 @@
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/run/DepthTest.java": {
-    "mtime": 1789753293.2973135,
-    "seen": 1789754192.7785685,
-    "ast_hash": "e5075771c581e53ab8ebb15187ae56b1",
+    "mtime": 1789809946.6952667,
+    "seen": 1789812917.6212406,
+    "ast_hash": "4d98d2d8cf1e34a505ad255f121bec7c",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/run/DungeonRunTest.java": {
@@ -2178,9 +2172,9 @@
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/run/HeroStatusTest.java": {
-    "mtime": 1789753293.2986355,
-    "seen": 1789754192.7785702,
-    "ast_hash": "5bfd530c0817b1d1a7790048c7f5f0a1",
+    "mtime": 1789809509.6386375,
+    "seen": 1789812917.6212425,
+    "ast_hash": "dc2e4d77dd1f857937c8369980b758f3",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/run/StuckDiagnosisTest.java": {
@@ -2250,9 +2244,9 @@
     "semantic_hash": "718a500d4569b42729da8d8cccb63fe6"
   },
   "game/src/main/java/uz/duke/game/DukeGame.java": {
-    "mtime": 1789752793.3640535,
-    "seen": 1789754192.7785835,
-    "ast_hash": "7130e104435048e67a91ba6415e0355c",
+    "mtime": 1789806800.2292504,
+    "seen": 1789812917.6212564,
+    "ast_hash": "4403d2817b34babb7786ab1923252a6b",
     "semantic_hash": ""
   },
   "game/src/main/java/uz/duke/game/GamePlayer.java": {
@@ -2286,9 +2280,9 @@
     "semantic_hash": "ee63d30de3ad0d9d05e5c5aa4f569cb4"
   },
   "game/src/main/java/uz/duke/game/script/ScriptModule.java": {
-    "mtime": 1789749732.1959376,
-    "seen": 1789754192.7785943,
-    "ast_hash": "8ffe2efe64a9b6e335e033a5fa98a9e6",
+    "mtime": 1789806671.2584524,
+    "seen": 1789812917.621264,
+    "ast_hash": "4d1a5cd63d5113b64fcabd852f02d4c5",
     "semantic_hash": ""
   },
   "game/src/main/java/uz/duke/game/script/UnitScript.java": {
@@ -2322,8 +2316,8 @@
     "semantic_hash": "f8b38360061c71179a91098b50b3960a"
   },
   "game/src/test/java/uz/duke/game/DukeGameTest.java": {
-    "mtime": 1788717482.8032663,
-    "seen": 1789646845.888131,
+    "mtime": 1789806750.4681964,
+    "seen": 1789812917.6212702,
     "ast_hash": "31d43af986ff4b016d8473dfa8032fea",
     "semantic_hash": "31d43af986ff4b016d8473dfa8032fea"
   },
@@ -2370,10 +2364,10 @@
     "semantic_hash": "af8204f79319091fb98f873634f95da4"
   },
   "game/src/test/java/uz/duke/game/script/ScriptModuleTest.java": {
-    "mtime": 1788717482.8151891,
-    "seen": 1789646845.8881376,
-    "ast_hash": "8be9d8e26a8ad07e4bcd9b79b18552d3",
-    "semantic_hash": "8be9d8e26a8ad07e4bcd9b79b18552d3"
+    "mtime": 1789806750.4681964,
+    "seen": 1789812917.6212795,
+    "ast_hash": "6b47757e2e9f9d89a10e60b9b09a9b3c",
+    "semantic_hash": ""
   },
   "gradlew": {
     "mtime": 1789619895.1896098,
@@ -2412,21 +2406,21 @@
     "semantic_hash": "4542ff05d58e2073fe9d8a39f8c658cf"
   },
   "rts/src/main/java/uz/duke/rts/module/AutoHealUpdate.java": {
-    "mtime": 1789708516.8898294,
-    "seen": 1789708728.4380493,
-    "ast_hash": "3b5a2a8d17c5d6ec906051d83860b0d0",
+    "mtime": 1789806503.6992238,
+    "seen": 1789812917.6212916,
+    "ast_hash": "cf476479e1adf5df1e82f4f134dbe1b7",
     "semantic_hash": ""
   },
   "rts/src/main/java/uz/duke/rts/module/CapacityGate.java": {
-    "mtime": 1789708517.121729,
-    "seen": 1789708728.4380507,
-    "ast_hash": "041d1b11d29513df4cc4d96699f8e6ac",
+    "mtime": 1789806522.3705359,
+    "seen": 1789812917.6212924,
+    "ast_hash": "a85f897ed7b471ab06fabcbe46a20a6e",
     "semantic_hash": ""
   },
   "rts/src/main/java/uz/duke/rts/module/ContainModule.java": {
-    "mtime": 1789708517.1604607,
-    "seen": 1789708728.4380522,
-    "ast_hash": "4fcc4c6f2f066f881fa85f6d722dfd84",
+    "mtime": 1789806503.700359,
+    "seen": 1789812917.6212933,
+    "ast_hash": "bb4670503751db7b700ad82490a6ce39",
     "semantic_hash": ""
   },
   "rts/src/main/java/uz/duke/rts/module/DamageModifier.java": {
@@ -2436,15 +2430,15 @@
     "semantic_hash": "4fcf911e996d41683c4273a05a5ede0b"
   },
   "rts/src/main/java/uz/duke/rts/module/ExperienceModule.java": {
-    "mtime": 1789708516.8504403,
-    "seen": 1789708728.4380553,
-    "ast_hash": "0c4b73dcee8fd2b0bc0a15a8d5674f66",
+    "mtime": 1789806522.4290667,
+    "seen": 1789812917.6212952,
+    "ast_hash": "f158d0e3970bfb6b6287ce24dfd0baf1",
     "semantic_hash": ""
   },
   "rts/src/main/java/uz/duke/rts/module/HarvestUpdate.java": {
-    "mtime": 1789708517.0050902,
-    "seen": 1789708728.4380572,
-    "ast_hash": "4a276a92a348e197de14db6e9e51f08f",
+    "mtime": 1789806503.7026553,
+    "seen": 1789812917.6212964,
+    "ast_hash": "8b8bd5eb5625b06d0118093e7df8e213",
     "semantic_hash": ""
   },
   "rts/src/main/java/uz/duke/rts/module/PowerGrid.java": {
@@ -2454,9 +2448,9 @@
     "semantic_hash": "ca3344f8a6aa6e33328b821d49307e8a"
   },
   "rts/src/main/java/uz/duke/rts/module/PowerModule.java": {
-    "mtime": 1789708517.0834394,
-    "seen": 1789708728.4380605,
-    "ast_hash": "81f597933e10bd16047263f0e861b982",
+    "mtime": 1789806522.4001498,
+    "seen": 1789812917.6212993,
+    "ast_hash": "4cb326cccc89e4dde75d248fc6e248dd",
     "semantic_hash": ""
   },
   "rts/src/main/java/uz/duke/rts/module/ProductionGate.java": {
@@ -2466,9 +2460,9 @@
     "semantic_hash": "cd4a7981ee4ecbc650c5b5f4aeb42fd6"
   },
   "rts/src/main/java/uz/duke/rts/module/ProductionUpdate.java": {
-    "mtime": 1789749844.2600374,
-    "seen": 1789754192.7786317,
-    "ast_hash": "81d4ee49cad33c6e41426b7a0cf2b074",
+    "mtime": 1789806503.7036545,
+    "seen": 1789812917.6213014,
+    "ast_hash": "283b3e74f821674422dc9a7cdf39478b",
     "semantic_hash": ""
   },
   "rts/src/main/java/uz/duke/rts/module/ProjectileLauncher.java": {
@@ -2478,27 +2472,27 @@
     "semantic_hash": "ed156a63c81e69082e488874c2fa1475"
   },
   "rts/src/main/java/uz/duke/rts/module/RtsModules.java": {
-    "mtime": 1788934762.8248813,
-    "seen": 1789646845.888152,
-    "ast_hash": "184dfe9b97832eae52d746754dc77f81",
-    "semantic_hash": "184dfe9b97832eae52d746754dc77f81"
+    "mtime": 1789806542.6136906,
+    "seen": 1789812917.6213048,
+    "ast_hash": "272fc8193d37d028bdae8795b90208a8",
+    "semantic_hash": ""
   },
   "rts/src/main/java/uz/duke/rts/module/SpecialPowerModule.java": {
-    "mtime": 1789708516.8130412,
-    "seen": 1789708728.43807,
-    "ast_hash": "1ee0926dc66e9508d8b237cd2c6fb985",
+    "mtime": 1789806503.704654,
+    "seen": 1789812917.621306,
+    "ast_hash": "86164c6f820330781be8ee189c041868",
     "semantic_hash": ""
   },
   "rts/src/main/java/uz/duke/rts/module/StatusUpdate.java": {
-    "mtime": 1789708516.92636,
-    "seen": 1789708728.4380717,
-    "ast_hash": "e841020f434f5c383af1f15a6d7f55c0",
+    "mtime": 1789806503.704654,
+    "seen": 1789812917.6213071,
+    "ast_hash": "be879da5234ac7b6753739cb8dc5c773",
     "semantic_hash": ""
   },
   "rts/src/main/java/uz/duke/rts/module/SupplyModule.java": {
-    "mtime": 1789708517.0432048,
-    "seen": 1789708728.4380734,
-    "ast_hash": "e91f6d8f4039f8cc8162d5e5818bf033",
+    "mtime": 1789806503.7058663,
+    "seen": 1789812917.6213083,
+    "ast_hash": "5989ea2234c656a067039a6bb53a0ad9",
     "semantic_hash": ""
   },
   "rts/src/main/java/uz/duke/rts/module/WeaponHold.java": {
@@ -2508,9 +2502,9 @@
     "semantic_hash": "2cee9ff9e67f3936c6fb46f458e88998"
   },
   "rts/src/main/java/uz/duke/rts/module/WeaponUpdate.java": {
-    "mtime": 1789708516.7759736,
-    "seen": 1789708728.4380765,
-    "ast_hash": "9c8e812dd4ad1436dbba6b3ef595b479",
+    "mtime": 1789806529.8808732,
+    "seen": 1789812917.6213107,
+    "ast_hash": "dc7aa75c80caf4f2d201c140471bb6e2",
     "semantic_hash": ""
   },
   "rts/src/main/java/uz/duke/rts/network/CommandCodec.java": {
@@ -2544,9 +2538,9 @@
     "semantic_hash": "dc52defb831baf72b659fe6c5219ee1e"
   },
   "rts/src/test/java/uz/duke/rts/DeterminismIntegrationTest.java": {
-    "mtime": 1789749922.9543347,
-    "seen": 1789754192.7786477,
-    "ast_hash": "2b3e12f93726e35e7dab7d4e9c2c2b75",
+    "mtime": 1789806637.1909635,
+    "seen": 1789812917.6213179,
+    "ast_hash": "102a595f7c62462dff41ef46b0f1208f",
     "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/UpgradeTest.java": {
@@ -2556,118 +2550,118 @@
     "semantic_hash": "534dca9215e0325e7e975469302f57b5"
   },
   "rts/src/test/java/uz/duke/rts/client/AsciiRendererTest.java": {
-    "mtime": 1788717870.4624424,
-    "seen": 1789646845.8881624,
-    "ast_hash": "78f75959a1a3dc7950fdc010bb168942",
-    "semantic_hash": "78f75959a1a3dc7950fdc010bb168942"
+    "mtime": 1789806376.8890886,
+    "seen": 1789812917.62132,
+    "ast_hash": "66ecaadd9dc502a723ee9b282b0148d7",
+    "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/event/WeaponFiredTest.java": {
-    "mtime": 1788756069.271134,
-    "seen": 1789646845.888163,
-    "ast_hash": "a1f5b3604c5773f19d0834a2f472da3c",
-    "semantic_hash": "a1f5b3604c5773f19d0834a2f472da3c"
+    "mtime": 1789806376.8929765,
+    "seen": 1789812917.621321,
+    "ast_hash": "e1d39edc2e9d112371675f50345e8911",
+    "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/ArmorTest.java": {
-    "mtime": 1788717364.8769279,
-    "seen": 1789646845.8881643,
-    "ast_hash": "ab8695ac7c1fcccb327f600c7f2298a3",
-    "semantic_hash": "ab8695ac7c1fcccb327f600c7f2298a3"
+    "mtime": 1789806609.87447,
+    "seen": 1789812917.621322,
+    "ast_hash": "87b5ec2437a833bedf8320a72399a7de",
+    "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/AttackOnTheMoveTest.java": {
-    "mtime": 1788966179.9059227,
-    "seen": 1789646845.8881652,
-    "ast_hash": "338000f8e0e6a187abb95e65ab522907",
-    "semantic_hash": "338000f8e0e6a187abb95e65ab522907"
+    "mtime": 1789806376.900883,
+    "seen": 1789812917.6213236,
+    "ast_hash": "555ebc139907e29da9543cb7780f9c63",
+    "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/AutoHealUpdateTest.java": {
-    "mtime": 1788717394.7024179,
-    "seen": 1789646845.8881662,
-    "ast_hash": "0a4e0f1ee4f2e71e59d24a0cd79db570",
-    "semantic_hash": "0a4e0f1ee4f2e71e59d24a0cd79db570"
+    "mtime": 1789806376.9044273,
+    "seen": 1789812917.6213245,
+    "ast_hash": "25edff93343eb12f9c3e0bc5ebabdce7",
+    "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/CombatTest.java": {
-    "mtime": 1788935945.559214,
-    "seen": 1789646845.888167,
-    "ast_hash": "2645be30428e92857b9b5b66e761fdea",
-    "semantic_hash": "2645be30428e92857b9b5b66e761fdea"
+    "mtime": 1789806376.907425,
+    "seen": 1789812917.6213255,
+    "ast_hash": "822c9201c869f79ea86b7b3090359486",
+    "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/ContainTest.java": {
-    "mtime": 1788717394.7521818,
-    "seen": 1789646845.8881676,
-    "ast_hash": "12ca66213b95ef04c971e8e098fc454a",
-    "semantic_hash": "12ca66213b95ef04c971e8e098fc454a"
+    "mtime": 1789806376.9104254,
+    "seen": 1789812917.6213267,
+    "ast_hash": "bb5f4673d0e3c5763886778590de31f7",
+    "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/DamageModifierTest.java": {
-    "mtime": 1788933617.907987,
-    "seen": 1789646845.8881688,
-    "ast_hash": "6727ebc6de9166cadc43bc5ef0530f64",
-    "semantic_hash": "6727ebc6de9166cadc43bc5ef0530f64"
+    "mtime": 1789806376.9146364,
+    "seen": 1789812917.6213276,
+    "ast_hash": "4b5842201186571cd70924a71f177b21",
+    "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/DepthTest.java": {
-    "mtime": 1789749910.1348197,
-    "seen": 1789754192.7786596,
-    "ast_hash": "0b7fad2adb0abed590384325225cec86",
+    "mtime": 1789806376.9180403,
+    "seen": 1789812917.6213286,
+    "ast_hash": "f36302d21429d342e22f18b57cada884",
     "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/ExperienceModuleTest.java": {
-    "mtime": 1788934134.6625693,
-    "seen": 1789646845.8881702,
-    "ast_hash": "a1dc830ce514c22a523a7ab67736b1df",
-    "semantic_hash": "a1dc830ce514c22a523a7ab67736b1df"
+    "mtime": 1789806609.903786,
+    "seen": 1789812917.62133,
+    "ast_hash": "8ef702af144cfe8ceb648c4ea94cb208",
+    "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/HarvestTest.java": {
-    "mtime": 1788717394.7996962,
-    "seen": 1789646845.888171,
-    "ast_hash": "06dda2c40c10c7211b69024859112405",
-    "semantic_hash": "06dda2c40c10c7211b69024859112405"
+    "mtime": 1789806376.9214857,
+    "seen": 1789812917.6213307,
+    "ast_hash": "dc7fe31cf82934f5dd1796d470a44a93",
+    "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/PowerTest.java": {
-    "mtime": 1789749910.2342088,
-    "seen": 1789754192.778663,
-    "ast_hash": "727c2b81670c07458bd4bd3db4e773e2",
+    "mtime": 1789806376.9250612,
+    "seen": 1789812917.621332,
+    "ast_hash": "f600eda5ca61aabbf942cd6e00f96488",
     "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/ProductionGateTest.java": {
-    "mtime": 1789749910.333434,
-    "seen": 1789754192.7786639,
-    "ast_hash": "d0ffdff1cf41d02aea4f5a3cc6266355",
+    "mtime": 1789806376.9280632,
+    "seen": 1789812917.6213326,
+    "ast_hash": "0eb1c9de5785362460e6b31389f3eba5",
     "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/ProductionTest.java": {
-    "mtime": 1789749922.8483667,
-    "seen": 1789754192.778665,
-    "ast_hash": "ec6553d4c765a54d73861476758262a7",
+    "mtime": 1789806637.130018,
+    "seen": 1789812917.621334,
+    "ast_hash": "ef7af66d9373e5a5b7784081e72a65bd",
     "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/ProjectileLauncherTest.java": {
-    "mtime": 1788960600.867757,
-    "seen": 1789646845.8881743,
-    "ast_hash": "929b758f575f648eb5055a530eace98a",
-    "semantic_hash": "929b758f575f648eb5055a530eace98a"
+    "mtime": 1789806376.9344358,
+    "seen": 1789812917.621335,
+    "ast_hash": "8ba3ca3583ed5dbfc4433dfb7e226429",
+    "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/SolidWorldTest.java": {
-    "mtime": 1789749910.5302882,
-    "seen": 1789754192.7786672,
-    "ast_hash": "dc48dba384bb0a00af870a3ab3003875",
+    "mtime": 1789806376.9383063,
+    "seen": 1789812917.6213362,
+    "ast_hash": "744706bca9b7170bce83c441af6f86a9",
     "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/SpecialPowerTest.java": {
-    "mtime": 1788717394.8716252,
-    "seen": 1789646845.8881762,
-    "ast_hash": "87ac47ba3f071bd676323c99482469e8",
-    "semantic_hash": "87ac47ba3f071bd676323c99482469e8"
+    "mtime": 1789806376.9417014,
+    "seen": 1789812917.6213372,
+    "ast_hash": "f87f82bfa3a60e4fa5afe409f48619f2",
+    "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/StatusUpdateTest.java": {
-    "mtime": 1788717394.897698,
-    "seen": 1789646845.888177,
-    "ast_hash": "e2c716215cd5efca8673f1afe70500af",
-    "semantic_hash": "e2c716215cd5efca8673f1afe70500af"
+    "mtime": 1789806376.9448533,
+    "seen": 1789812917.6213381,
+    "ast_hash": "7ec05be4e39c124ccbb1b07a80f829b7",
+    "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/module/WeaponHoldTest.java": {
-    "mtime": 1788968001.467395,
-    "seen": 1789646845.8881776,
-    "ast_hash": "8e2ada0eabcb40088b345cd00d2ca2de",
-    "semantic_hash": "8e2ada0eabcb40088b345cd00d2ca2de"
+    "mtime": 1789806376.9490736,
+    "seen": 1789812917.621339,
+    "ast_hash": "24052c114448cef62ad921ed35e7a9c3",
+    "semantic_hash": ""
   },
   "rts/src/test/java/uz/duke/rts/network/CommandCodecTest.java": {
     "mtime": 1788717364.8950925,
@@ -2694,9 +2688,9 @@
     "semantic_hash": "d53a90daee881dec91a7a27c84ebf1c5"
   },
   "rts/src/test/java/uz/duke/rts/save/GameSnapshotTest.java": {
-    "mtime": 1789749923.01925,
-    "seen": 1789754192.7786765,
-    "ast_hash": "53a1458405754e72084e8115cf7de0af",
+    "mtime": 1789806637.1610932,
+    "seen": 1789812917.6213446,
+    "ast_hash": "c086f6cdedaf051396f1d63ca77d1de5",
     "semantic_hash": ""
   },
   "settings.gradle.kts": {
@@ -2730,10 +2724,10 @@
     "semantic_hash": "010f983b54fd3abd61d87ce8f3e4b87b"
   },
   "studio/src/main/java/uz/duke/studio/export/GameExporter.java": {
-    "mtime": 1788751168.087216,
-    "seen": 1789646845.8881865,
-    "ast_hash": "9b2bc40063ddd380cf90531b350b1b2c",
-    "semantic_hash": "9b2bc40063ddd380cf90531b350b1b2c"
+    "mtime": 1789806893.4567363,
+    "seen": 1789812917.6213517,
+    "ast_hash": "c83dc251fdbda95999ebb7c87e253915",
+    "semantic_hash": ""
   },
   "studio/src/main/java/uz/duke/studio/io/AssetImporter.java": {
     "mtime": 1788751168.0882154,
@@ -2760,10 +2754,10 @@
     "semantic_hash": "dc9a6127b15889e3c894166275d5a068"
   },
   "studio/src/main/java/uz/duke/studio/model/GameFactory.java": {
-    "mtime": 1788934816.4170623,
-    "seen": 1789646845.8881905,
-    "ast_hash": "4ac2d34d68d998278b1110e79b106664",
-    "semantic_hash": "4ac2d34d68d998278b1110e79b106664"
+    "mtime": 1789806886.3445618,
+    "seen": 1789812917.6213572,
+    "ast_hash": "9e7ad541f316adeea614f334e660ede5",
+    "semantic_hash": ""
   },
   "studio/src/main/java/uz/duke/studio/model/ScriptCompiler.java": {
     "mtime": 1788751168.0930037,
@@ -2808,10 +2802,10 @@
     "semantic_hash": "897a569baafc4f4f3c01d6969c5b4fc8"
   },
   "studio/src/main/java/uz/duke/studio/ui/StudioWindow.java": {
-    "mtime": 1788751168.099899,
-    "seen": 1789646845.8881967,
-    "ast_hash": "8298d0d8ab3e1dcd3044e80f8cd80f41",
-    "semantic_hash": "8298d0d8ab3e1dcd3044e80f8cd80f41"
+    "mtime": 1789806899.9384136,
+    "seen": 1789812917.621367,
+    "ast_hash": "dad9e3a8cdcbcc6184200c59996874dd",
+    "semantic_hash": ""
   },
   "studio/src/test/java/uz/duke/studio/AssetImporterTest.java": {
     "mtime": 1788751168.1018965,
@@ -3312,27 +3306,27 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1789753993.2759209,
-    "seen": 1789754192.7787266,
-    "ast_hash": "f27c4fc68fb2c595c5f7a04c7a284931",
+    "mtime": 1789812770.851289,
+    "seen": 1789812917.6213963,
+    "ast_hash": "6dc1fc955864ee852fe91878d85c4e40",
     "semantic_hash": ""
   },
   "CREDITS.md": {
-    "mtime": 1789754006.509376,
-    "seen": 1789754192.7787278,
-    "ast_hash": "733f903cc9f318c91b167373c6f2fbbc",
+    "mtime": 1789812734.5740254,
+    "seen": 1789812917.6213973,
+    "ast_hash": "29a245ee1ae72bba4fb95a2416b5e7e9",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1789557215.7863665,
-    "seen": 1789647677.5675492,
-    "ast_hash": "37ab645db33eefa7f91785fada09540e",
+    "mtime": 1789812744.2887714,
+    "seen": 1789812917.621398,
+    "ast_hash": "24e6f0705a6690d55d936be326a5aa86",
     "semantic_hash": ""
   },
   "STATUS.md": {
-    "mtime": 1789700507.2215395,
-    "seen": 1789700659.4340785,
-    "ast_hash": "d84d5fbcb2c2b6516d11459603bdebd9",
+    "mtime": 1789812706.7821658,
+    "seen": 1789812917.621399,
+    "ast_hash": "771e21fb509062a80ba0d6fc9b58fdd9",
     "semantic_hash": ""
   },
   "client3d/README.md": {
@@ -3342,21 +3336,21 @@
     "semantic_hash": ""
   },
   "core/README.md": {
-    "mtime": 1788782710.418384,
-    "seen": 1789647677.567557,
-    "ast_hash": "3f598fc7eae2a93606a1171741315413",
+    "mtime": 1789812740.4369183,
+    "seen": 1789812917.621401,
+    "ast_hash": "5dd008db08ded12aeaf6e847ce12d422",
     "semantic_hash": ""
   },
   "duke-plugin/CHANGELOG.md": {
-    "mtime": 1789753987.5416582,
-    "seen": 1789754192.7787333,
-    "ast_hash": "f73d22d749ea89bd236eccf567743542",
+    "mtime": 1789812819.3989723,
+    "seen": 1789812917.621402,
+    "ast_hash": "40d37ad36a0a1add5d23ae526da5142f",
     "semantic_hash": ""
   },
   "duke-plugin/README.md": {
-    "mtime": 1789753987.5052216,
-    "seen": 1789754192.778734,
-    "ast_hash": "a585f608eaeb6c709d64944066f990f7",
+    "mtime": 1789812809.2750604,
+    "seen": 1789812917.6214032,
+    "ast_hash": "c6644693fdeae5278eaedfca700ad8e7",
     "semantic_hash": ""
   },
   "dungeon/README.md": {
@@ -3405,12 +3399,6 @@
     "mtime": 1789036768.686925,
     "seen": 1789647677.5676725,
     "ast_hash": "259a8a47592497f6646cc78e447bb69f",
-    "semantic_hash": ""
-  },
-  "dungeon/src/main/resources/ini/fixture-room.txt": {
-    "mtime": 1788922040.5680902,
-    "seen": 1789647677.5677595,
-    "ast_hash": "902cb0344eb99a06bdef211911c1f5c8",
     "semantic_hash": ""
   },
   "dungeon/src/main/resources/models/heroes/License.txt": {
@@ -8250,9 +8238,9 @@
     "semantic_hash": ""
   },
   "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniHighlighting.kt": {
-    "mtime": 1789753656.3429556,
-    "seen": 1789754192.7783885,
-    "ast_hash": "22f77685c12bccdf19551f7789af4264",
+    "mtime": 1789811456.2510178,
+    "seen": 1789812917.6210597,
+    "ast_hash": "52cee90ae518f93a624b80f9359783c3",
     "semantic_hash": ""
   },
   "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniLanguage.kt": {
@@ -8262,75 +8250,45 @@
     "semantic_hash": ""
   },
   "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniLexer.kt": {
-    "mtime": 1789753618.849299,
-    "seen": 1789754192.7783914,
-    "ast_hash": "f583e32e7a3358e344e9a9a5029c8647",
+    "mtime": 1789811415.5719018,
+    "seen": 1789812917.6210618,
+    "ast_hash": "ba5c50f1e01adcb2bc3c7c2cfab42a37",
     "semantic_hash": ""
   },
   "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniParser.kt": {
-    "mtime": 1789753639.5876253,
-    "seen": 1789754192.7783935,
-    "ast_hash": "d448bcbe584cfbe933bf4a23eb50bfc8",
+    "mtime": 1789811426.9298208,
+    "seen": 1789812917.621063,
+    "ast_hash": "35aad1a496bb11e8849269035897490c",
     "semantic_hash": ""
   },
   "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniPsi.kt": {
-    "mtime": 1789753664.9053743,
-    "seen": 1789754192.778396,
-    "ast_hash": "eb137c2ed16d3001ae47a91cb49d55d4",
+    "mtime": 1789811445.8944788,
+    "seen": 1789812917.621065,
+    "ast_hash": "e6b551db3709ce57243af3a5c37c79e4",
     "semantic_hash": ""
   },
   "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniStructure.kt": {
-    "mtime": 1789753656.379178,
-    "seen": 1789754192.7783968,
-    "ast_hash": "d0590287155bd32f0a4a5a1087af07a1",
+    "mtime": 1789811456.2817326,
+    "seen": 1789812917.621066,
+    "ast_hash": "87e0e7f32da4cf17d194ed99477e225b",
     "semantic_hash": ""
   },
   "duke-plugin/src/test/kotlin/uz/duke/plugin/ini/DukeIniTest.kt": {
-    "mtime": 1789753822.168809,
-    "seen": 1789754192.7784038,
-    "ast_hash": "db67fcee9fb7e027d244e571f03e3a3c",
-    "semantic_hash": ""
-  },
-  "duke-plugin/src/main/kotlin/uz/duke/plugin/engine/DukeModuleRegistrationInspection.kt": {
-    "mtime": 1789665578.8748312,
-    "seen": 1789666729.7775648,
-    "ast_hash": "2909ee47585b38e4ce17cf722b19fa9d",
-    "semantic_hash": ""
-  },
-  "duke-plugin/src/main/kotlin/uz/duke/plugin/engine/DukeModules.kt": {
-    "mtime": 1789740607.4066038,
-    "seen": 1789740874.7927268,
-    "ast_hash": "484722e9f669cb050ed20259926066e8",
-    "semantic_hash": ""
-  },
-  "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniModules.kt": {
-    "mtime": 1789698038.7924166,
-    "seen": 1789698172.6566367,
-    "ast_hash": "35b9cd13cc3065f7b07eddb4c155aa93",
+    "mtime": 1789812381.9196193,
+    "seen": 1789812917.6210718,
+    "ast_hash": "b5917608592db48e9f70be96deb13219",
     "semantic_hash": ""
   },
   "duke-plugin/src/test/kotlin/uz/duke/plugin/engine/DukeEngineSourcesTest.kt": {
-    "mtime": 1789753903.0218456,
-    "seen": 1789754192.7784016,
-    "ast_hash": "8d37dec6d5cbb2093d6dec3a326fef06",
-    "semantic_hash": ""
-  },
-  "duke-plugin/src/test/kotlin/uz/duke/plugin/engine/DukeModulesTest.kt": {
-    "mtime": 1789666394.5311873,
-    "seen": 1789666729.777579,
-    "ast_hash": "9ce3bd7374d44f55174a6ba4cc29a3f0",
-    "semantic_hash": ""
-  },
-  "duke-plugin/src/main/resources/inspectionDescriptions/DukeModuleRegistration.html": {
-    "mtime": 1789665613.593729,
-    "seen": 1789666729.7778947,
-    "ast_hash": "3131e1360dd83929480e56a6bd2852e0",
+    "mtime": 1789812361.1111362,
+    "seen": 1789812917.6210709,
+    "ast_hash": "462fe981e7b333b19b5c4a29bce997ba",
     "semantic_hash": ""
   },
   "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniAssets.kt": {
-    "mtime": 1789700549.5940292,
-    "seen": 1789700659.4337404,
-    "ast_hash": "8038cd4dd9a7943f9c23646046e7629f",
+    "mtime": 1789811613.2486715,
+    "seen": 1789812917.6210573,
+    "ast_hash": "341c1567638493289809ff0b9abe1e88",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/duke/core/module/ModuleGroup.java": {
@@ -8364,9 +8322,9 @@
     "semantic_hash": ""
   },
   "duke-plugin/src/main/kotlin/uz/duke/plugin/engine/DukeSchema.kt": {
-    "mtime": 1789753743.9890559,
-    "seen": 1789754192.778382,
-    "ast_hash": "5da280c00a93f14ce73b771dcfa542c7",
+    "mtime": 1789811600.9749992,
+    "seen": 1789812917.6210542,
+    "ast_hash": "77315be5be818699035a9283ac84897d",
     "semantic_hash": ""
   },
   "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeClips.kt": {
@@ -8376,45 +8334,39 @@
     "semantic_hash": ""
   },
   "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniEdits.kt": {
-    "mtime": 1789753784.0539274,
-    "seen": 1789754192.7783873,
-    "ast_hash": "15f854acf8b9ff96284a91938dfa1809",
+    "mtime": 1789811463.560403,
+    "seen": 1789812917.6210582,
+    "ast_hash": "8b26a6c91188612c7614415c6b1496dc",
     "semantic_hash": ""
   },
   "duke-plugin/src/main/kotlin/uz/duke/plugin/ini/DukeIniProject.kt": {
-    "mtime": 1789753696.809408,
-    "seen": 1789754192.778395,
-    "ast_hash": "b0691320241db2041842bc4f5e223507",
+    "mtime": 1789811486.9823258,
+    "seen": 1789812917.621064,
+    "ast_hash": "64a685177904613e08e85579f79fc8aa",
     "semantic_hash": ""
   },
   "duke-plugin/src/main/kotlin/uz/duke/plugin/inspector/DukeInspector.kt": {
-    "mtime": 1789753775.4975052,
-    "seen": 1789754192.778398,
-    "ast_hash": "91073372b4fcf743516b76e5878389a4",
+    "mtime": 1789811543.2785668,
+    "seen": 1789812917.621067,
+    "ast_hash": "b0371c4e8155e42dfacb09e812508514",
     "semantic_hash": ""
   },
   "duke-plugin/src/main/kotlin/uz/duke/plugin/inspector/InspectorModel.kt": {
-    "mtime": 1789753765.9273546,
-    "seen": 1789754192.778399,
-    "ast_hash": "cfa42463ad0e44d7e074bb2878332f0a",
-    "semantic_hash": ""
-  },
-  "duke-plugin/src/main/kotlin/uz/duke/plugin/inspector/NewUnit.kt": {
-    "mtime": 1789751989.342655,
-    "seen": 1789754192.7784004,
-    "ast_hash": "42db74ebf3ff8e5c4955174f0e5f00e7",
+    "mtime": 1789811505.4392586,
+    "seen": 1789812917.6210682,
+    "ast_hash": "88d453c4af4458c581b5f91022beb723",
     "semantic_hash": ""
   },
   "duke-plugin/src/test/kotlin/uz/duke/plugin/inspector/DukeInspectorTest.kt": {
-    "mtime": 1789753839.9203508,
-    "seen": 1789754192.778405,
-    "ast_hash": "f07f717b6a982cb85b90f118a1b110f0",
+    "mtime": 1789812404.1987376,
+    "seen": 1789812917.621073,
+    "ast_hash": "d3b1377ae0e34ef3f5e9ad0b0b6a880c",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/duke/core/thing/Classified.java": {
-    "mtime": 1789749589.5249429,
-    "seen": 1789754192.7783122,
-    "ast_hash": "ef493a8cc95d97fabbd6982de86d62c7",
+    "mtime": 1789806322.2602003,
+    "seen": 1789812917.6209803,
+    "ast_hash": "b49d154f60765901186ad5589be4fc0e",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/duke/core/thing/Layered.java": {
@@ -8424,9 +8376,9 @@
     "semantic_hash": ""
   },
   "core/src/main/java/uz/duke/core/thing/ObjectTemplate.java": {
-    "mtime": 1789749596.9421535,
-    "seen": 1789754192.7783227,
-    "ast_hash": "5c1935a9728ec8fd8f41aa081465ae76",
+    "mtime": 1789806331.9765365,
+    "seen": 1789812917.6209905,
+    "ast_hash": "4296fe0dea73048df4cfb7ff16513419",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/duke/core/thing/Sighted.java": {
@@ -8436,27 +8388,21 @@
     "semantic_hash": ""
   },
   "core/src/main/java/uz/duke/core/thing/Solid.java": {
-    "mtime": 1789749585.5696778,
-    "seen": 1789754192.778325,
-    "ast_hash": "4d90abcdb2ec18f9191ae9f45187ee45",
+    "mtime": 1789806322.334263,
+    "seen": 1789812917.6209931,
+    "ast_hash": "b9eb3cbb3ade023ea3c83187b16ca97c",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/duke/core/thing/Titled.java": {
-    "mtime": 1789749591.2672808,
-    "seen": 1789754192.7783294,
-    "ast_hash": "4aff5381fa9910e7bab6e978d8f28c49",
+    "mtime": 1789806322.299517,
+    "seen": 1789812917.6209977,
+    "ast_hash": "32b821c3e9098404ad469371649c2456",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/duke/core/thing/WorldTemplate.java": {
     "mtime": 1789752504.6565204,
     "seen": 1789754192.7783318,
     "ast_hash": "93708b2c010f2ebd2b1efe51543e5b6c",
-    "semantic_hash": ""
-  },
-  "dungeon/src/main/java/uz/duke/dungeon/content/DungeonTemplates.java": {
-    "mtime": 1789751543.954672,
-    "seen": 1789754192.7784379,
-    "ast_hash": "dda518024799c5e488baea03d500e755",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/content/DungeonWorld.java": {
@@ -8466,45 +8412,195 @@
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/content/Hero.java": {
-    "mtime": 1789750076.1438727,
-    "seen": 1789754192.7784412,
-    "ast_hash": "4d1f8d2a4a0eb7442c2fc82c40dc19d7",
+    "mtime": 1789807438.9745336,
+    "seen": 1789812917.6211119,
+    "ast_hash": "bc09fd8d81e7f458652bd3b114a461a7",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/content/Monster.java": {
-    "mtime": 1789750073.2767317,
-    "seen": 1789754192.7784433,
-    "ast_hash": "53ed92a77e9a3472160edd6de9819e5f",
+    "mtime": 1789807422.3750274,
+    "seen": 1789812917.621116,
+    "ast_hash": "192d78739cc0c6543f98d89e8b05397c",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/content/Projectile.java": {
-    "mtime": 1789751543.890514,
-    "seen": 1789754192.7784493,
-    "ast_hash": "506844d6e93f661c2450ffa378279a4a",
+    "mtime": 1789807449.8509593,
+    "seen": 1789812917.6211216,
+    "ast_hash": "6e35b9ddbc9dd9533e2b92b4853475d4",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/duke/dungeon/content/Prop.java": {
-    "mtime": 1789751543.9209986,
-    "seen": 1789754192.7784503,
-    "ast_hash": "5e33285035b9b671eddbd8f3fba98230",
+    "mtime": 1789807454.4976552,
+    "seen": 1789812917.6211228,
+    "ast_hash": "e4e67b6cabada78096fbf3e565a15efe",
     "semantic_hash": ""
   },
   "dungeon/src/test/java/uz/duke/dungeon/content/UnitBlocksTest.java": {
-    "mtime": 1789751717.8612144,
-    "seen": 1789754192.778553,
-    "ast_hash": "19eaa87f894cbfa2207f77dcd4a3fc3d",
+    "mtime": 1789809510.750904,
+    "seen": 1789812917.6212242,
+    "ast_hash": "9466d38298b7ce786a6cf4b3881ae091",
     "semantic_hash": ""
   },
   "rts/src/main/java/uz/duke/rts/Buildable.java": {
-    "mtime": 1789749781.164095,
-    "seen": 1789754192.7786143,
-    "ast_hash": "fee5c61515c2f21b6e72f6e6bf3cd947",
+    "mtime": 1789806554.7272494,
+    "seen": 1789812917.621284,
+    "ast_hash": "7e31d0e8051e5d67949bc6d42bd73341",
     "semantic_hash": ""
   },
   "rts/src/main/java/uz/duke/rts/RtsTemplate.java": {
-    "mtime": 1789749792.0236704,
-    "seen": 1789754192.7786164,
-    "ast_hash": "8f8a29534c727d6b198b9bb08cce1e30",
+    "mtime": 1789806563.9380915,
+    "seen": 1789812917.6212866,
+    "ast_hash": "3df148fbcebc37be33543e9e28b26b23",
+    "semantic_hash": ""
+  },
+  "core/src/main/java/uz/duke/core/data/Binder.java": {
+    "mtime": 1789807186.0524647,
+    "seen": 1789812917.6209025,
+    "ast_hash": "2aee3af4d2508b2b0677b50cfe9828d3",
+    "semantic_hash": ""
+  },
+  "core/src/main/java/uz/duke/core/data/Block.java": {
+    "mtime": 1789805895.3915415,
+    "seen": 1789812917.6209047,
+    "ast_hash": "a799fc44cb5e0fc3de832949b4fde5c2",
+    "semantic_hash": ""
+  },
+  "core/src/main/java/uz/duke/core/data/DataException.java": {
+    "mtime": 1789805896.5044427,
+    "seen": 1789812917.6209059,
+    "ast_hash": "14fe7afe857890e7e2611367358837ca",
+    "semantic_hash": ""
+  },
+  "core/src/main/java/uz/duke/core/data/DukeText.java": {
+    "mtime": 1789805937.8406546,
+    "seen": 1789812917.6209073,
+    "ast_hash": "cf9486d70caad5382d556462b5d19d73",
+    "semantic_hash": ""
+  },
+  "core/src/main/java/uz/duke/core/data/Field.java": {
+    "mtime": 1789805893.0087836,
+    "seen": 1789812917.6209083,
+    "ast_hash": "a8addef0f6386c182f3072edb0385ae7",
+    "semantic_hash": ""
+  },
+  "core/src/main/java/uz/duke/core/data/Value.java": {
+    "mtime": 1789805891.885069,
+    "seen": 1789812917.62091,
+    "ast_hash": "646b011cd07a131ab075cc26b4fa3f18",
+    "semantic_hash": ""
+  },
+  "core/src/test/java/uz/duke/core/data/BinderTest.java": {
+    "mtime": 1789806030.8940697,
+    "seen": 1789812917.6210084,
+    "ast_hash": "3592d975463038fb41cefc91754a7c02",
+    "semantic_hash": ""
+  },
+  "core/src/test/java/uz/duke/core/data/DukeTextTest.java": {
+    "mtime": 1789806058.104439,
+    "seen": 1789812917.6210096,
+    "ast_hash": "bafeb1730bcc21e455808d9b0d105140",
+    "semantic_hash": ""
+  },
+  "duke-plugin/src/main/kotlin/uz/duke/plugin/duke/DukeCompletion.kt": {
+    "mtime": 1789811242.1592505,
+    "seen": 1789812917.6210458,
+    "ast_hash": "e0b69a1c611f3c1433f3c11e3ef6837e",
+    "semantic_hash": ""
+  },
+  "duke-plugin/src/main/kotlin/uz/duke/plugin/duke/DukeEditing.kt": {
+    "mtime": 1789811373.1209967,
+    "seen": 1789812917.6210465,
+    "ast_hash": "cc7d4bfb4eccbf7bca516e6605a65f1c",
+    "semantic_hash": ""
+  },
+  "duke-plugin/src/main/kotlin/uz/duke/plugin/duke/DukeHighlighting.kt": {
+    "mtime": 1789812271.699682,
+    "seen": 1789812917.6210475,
+    "ast_hash": "1981b27e8d4392c4f849b1aac1620035",
+    "semantic_hash": ""
+  },
+  "duke-plugin/src/main/kotlin/uz/duke/plugin/duke/DukeLanguage.kt": {
+    "mtime": 1789810790.6309762,
+    "seen": 1789812917.6210482,
+    "ast_hash": "a4b8e07dc6ac06204d31a0174f5ed364",
+    "semantic_hash": ""
+  },
+  "duke-plugin/src/main/kotlin/uz/duke/plugin/duke/DukeLexer.kt": {
+    "mtime": 1789810935.0317388,
+    "seen": 1789812917.6210494,
+    "ast_hash": "bda1d52906d24fce6ba5d36719bf65bf",
+    "semantic_hash": ""
+  },
+  "duke-plugin/src/main/kotlin/uz/duke/plugin/duke/DukeParser.kt": {
+    "mtime": 1789810955.8697464,
+    "seen": 1789812917.6210501,
+    "ast_hash": "b49e49a3f57122e85845bb0886a93d2d",
+    "semantic_hash": ""
+  },
+  "duke-plugin/src/main/kotlin/uz/duke/plugin/duke/DukePsi.kt": {
+    "mtime": 1789810971.155878,
+    "seen": 1789812917.6210508,
+    "ast_hash": "f9556e7278549ea85ce355c5b7dcb2da",
+    "semantic_hash": ""
+  },
+  "duke-plugin/src/main/kotlin/uz/duke/plugin/duke/DukeRecords.kt": {
+    "mtime": 1789812577.5793152,
+    "seen": 1789812917.6210518,
+    "ast_hash": "00aa7859bbd9285fe2889644c2b03b84",
+    "semantic_hash": ""
+  },
+  "duke-plugin/src/main/kotlin/uz/duke/plugin/duke/DukeReferences.kt": {
+    "mtime": 1789812271.634508,
+    "seen": 1789812917.621053,
+    "ast_hash": "dc46976d1b5eee0984d94adb6f74fe5a",
+    "semantic_hash": ""
+  },
+  "duke-plugin/src/test/kotlin/uz/duke/plugin/duke/DukeTest.kt": {
+    "mtime": 1789812287.1266017,
+    "seen": 1789812917.6210697,
+    "ast_hash": "0de921d70ad8fe6ccf490a08b1d28567",
+    "semantic_hash": ""
+  },
+  "dungeon/src/main/java/uz/duke/dungeon/content/Effect.java": {
+    "mtime": 1789807493.6262705,
+    "seen": 1789812917.621108,
+    "ast_hash": "fa2f0f3fcfd570ba93c4cc971f2fdb99",
+    "semantic_hash": ""
+  },
+  "dungeon/src/main/java/uz/duke/dungeon/content/HeavyShot.java": {
+    "mtime": 1789807456.81516,
+    "seen": 1789812917.621109,
+    "ast_hash": "5d1b9dcb47e61d82bf0d0ab6ebaf8c06",
+    "semantic_hash": ""
+  },
+  "dungeon/src/main/java/uz/duke/dungeon/content/Layer.java": {
+    "mtime": 1789807505.4928231,
+    "seen": 1789812917.621114,
+    "ast_hash": "d06ee390bda5b606f87316c26fcf81a4",
+    "semantic_hash": ""
+  },
+  "dungeon/src/main/java/uz/duke/dungeon/content/Manifest.java": {
+    "mtime": 1789807465.252944,
+    "seen": 1789812917.621115,
+    "ast_hash": "e6e13b8f0e1ac94cdc0b9e29cd8075f7",
+    "semantic_hash": ""
+  },
+  "dungeon/src/main/java/uz/duke/dungeon/content/Sound.java": {
+    "mtime": 1789807517.153572,
+    "seen": 1789812917.6211238,
+    "ast_hash": "0e80529916834259a8c6ba4a4ea5b75e",
+    "semantic_hash": ""
+  },
+  "dungeon/src/test/java/uz/duke/dungeon/content/ShippedBlock.java": {
+    "mtime": 1789810058.2065685,
+    "seen": 1789812917.6212213,
+    "ast_hash": "b7ebb657205b06304e4f82ab2dc355ea",
+    "semantic_hash": ""
+  },
+  "dungeon/src/main/resources/data/fixture-room.txt": {
+    "mtime": 1788922040.5680902,
+    "seen": 1789812917.6214106,
+    "ast_hash": "902cb0344eb99a06bdef211911c1f5c8",
     "semantic_hash": ""
   }
 }

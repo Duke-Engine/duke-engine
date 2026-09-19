@@ -38,6 +38,9 @@ public record Held(String model, String bone, float scale, float pitch, float ya
     /** Empty-handed, which is what everything was before there was a bone to use. */
     public static final Held NOTHING = new Held(null, null, 1f, 0f, 0f, 0f, 0f, 0f, 0f);
 
+    /** What a {@code Held} block leaves out: at its own size, turned and moved nowhere. */
+    static final Held DEFAULTS = NOTHING;
+
     /** Whether there is anything to hang, and anywhere to hang it. */
     public boolean isCarried() {
         return model != null && bone != null;

@@ -34,12 +34,12 @@ class WeaponFiredTest {
     private static final int RELOAD_FRAMES = 10;
 
     private static final ThingTemplate GUNNER = ThingTemplate.named("Gunner")
-            .module("ActiveBody", new ActiveBody.Data(100f))
-            .module("WeaponUpdate", new WeaponUpdate.Data(1f, 50f, RELOAD_FRAMES))
+            .module(new ActiveBody.Data(100f))
+            .module(new WeaponUpdate.Data(1f, 50f, RELOAD_FRAMES))
             .build();
 
     private static final ThingTemplate DUMMY = ThingTemplate.named("Dummy")
-            .module("ActiveBody", new ActiveBody.Data(100000f)) // never dies, so firing continues
+            .module(new ActiveBody.Data(100000f)) // never dies, so firing continues
             .build();
 
     @Test

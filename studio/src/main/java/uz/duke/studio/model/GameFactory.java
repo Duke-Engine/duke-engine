@@ -1,7 +1,20 @@
 package uz.duke.studio.model;
 
 import java.awt.Color;
+import java.util.List;
 import java.util.Map;
+import uz.duke.core.module.ActiveBody;
+import uz.duke.core.module.ModuleData;
+import uz.duke.core.module.ModuleFactory;
+import uz.duke.core.module.MoveUpdate;
+import uz.duke.rts.module.AutoHealUpdate;
+import uz.duke.rts.module.CapacityGate;
+import uz.duke.rts.module.ExperienceModule;
+import uz.duke.rts.module.HarvestUpdate;
+import uz.duke.rts.module.PowerModule;
+import uz.duke.rts.module.ProductionUpdate;
+import uz.duke.rts.module.SupplyModule;
+import uz.duke.rts.module.WeaponUpdate;
 import uz.duke.client3d.Visuals;
 import uz.duke.game.DukeGame;
 import uz.duke.game.GamePlayer;
@@ -9,8 +22,8 @@ import uz.duke.game.script.ScriptModule;
 import uz.duke.game.script.UnitScript;
 
 /**
- * Turns a {@link StudioProject} into runnable engine artifacts: the INI the
- * engine loads, the {@link Visuals} bindings, and a fully configured
+ * Turns a {@link StudioProject} into runnable engine artifacts: the units'
+ * {@code .duke} text the engine loads, the {@link Visuals} bindings, and a fully configured
  * {@link DukeGame} — the same generation the Play button and the exporter use,
  * so "what you play is what you ship".
  */
@@ -19,17 +32,18 @@ public final class GameFactory {
     private GameFactory() {
     }
 
-    /** Generate the engine INI for every unit in the project. */
-    public static String toIni(StudioProject project) {
-        var ini = new StringBuilder();
+    /** The {@code .duke} text of every unit in the project: one {@code Object} block each. */
+    public static String unitsText(StudioProject project) {
+        var text = new StringBuilder();
         for (var unit : project.units) {
-            appendUnit(ini, unit);
+            appendUnit(text, unit);
         }
-        return ini.toString();
+        return text.toString();
     }
 
     private static void appendUnit(StringBuilder ini, StudioProject.UnitDef unit) {
-        ini.append("Object ").append(unit.name).append('\n');
+        ini.append("Object\n");
+        ini.append("  Name = ").append(unit.name).append('\n');
         if (!unit.displayName.isBlank()) {
             ini.append("  DisplayName = ").append(unit.displayName).append('\n');
         }
@@ -39,44 +53,57 @@ public final class GameFactory {
             ini.append("  BuildTime = ").append(unit.buildTimeSeconds).append('\n');
         }
         ini.append("  VisionRange = ").append(unit.visionRange).append('\n');
-        ini.append("  Body = ActiveBody Tag\n");
+        ini.append("  ").append(ModuleFactory.nameOf(ActiveBody.Data.class)).append('\n');
         ini.append("    MaxHealth = ").append(unit.maxHealth).append('\n');
         ini.append("  End\n");
 
-        appendCapability(ini, unit, CapabilityType.MOVE, "Update = MoveUpdate");
-        appendCapability(ini, unit, CapabilityType.ATTACK, "Update = WeaponUpdate");
-        appendCapability(ini, unit, CapabilityType.PRODUCE, "Update = ProductionUpdate");
-        appendCapability(ini, unit, CapabilityType.POWER, "Update = PowerModule");
-        appendCapability(ini, unit, CapabilityType.CAPACITY_GATE, "Behavior = CapacityGate");
-        appendCapability(ini, unit, CapabilityType.EXPERIENCE, "Behavior = ExperienceModule");
-        appendCapability(ini, unit, CapabilityType.AUTO_HEAL, "Update = AutoHealUpdate");
-        appendCapability(ini, unit, CapabilityType.SUPPLY, "Behavior = SupplyModule");
-        appendCapability(ini, unit, CapabilityType.HARVEST, "Update = HarvestUpdate");
+        appendCapability(ini, unit, CapabilityType.MOVE, MoveUpdate.Data.class);
+        appendCapability(ini, unit, CapabilityType.ATTACK, WeaponUpdate.Data.class);
+        appendCapability(ini, unit, CapabilityType.PRODUCE, ProductionUpdate.Data.class);
+        appendCapability(ini, unit, CapabilityType.POWER, PowerModule.Data.class);
+        appendCapability(ini, unit, CapabilityType.CAPACITY_GATE, CapacityGate.Data.class);
+        appendCapability(ini, unit, CapabilityType.EXPERIENCE, ExperienceModule.Data.class);
+        appendCapability(ini, unit, CapabilityType.AUTO_HEAL, AutoHealUpdate.Data.class);
+        appendCapability(ini, unit, CapabilityType.SUPPLY, SupplyModule.Data.class);
+        appendCapability(ini, unit, CapabilityType.HARVEST, HarvestUpdate.Data.class);
         for (var script : unit.scripts) {
-            ini.append("  Update = ").append(ScriptModule.TAG_PREFIX).append(script).append(" Tag\n");
+            ini.append("  ").append(ModuleFactory.nameOf(ScriptModule.Data.class)).append('\n');
+            ini.append("    Name = ").append(script).append('\n');
             ini.append("  End\n");
         }
         ini.append("End\n");
     }
 
     private static void appendCapability(StringBuilder ini, StudioProject.UnitDef unit,
-            CapabilityType type, String moduleHeader) {
+            CapabilityType type, Class<? extends ModuleData> module) {
         var params = unit.capabilities.get(type.name());
         if (params == null) {
             return;
         }
-        ini.append("  ").append(moduleHeader).append(" Tag\n");
+        ini.append("  ").append(ModuleFactory.nameOf(module)).append('\n');
         for (var entry : params.entrySet()) {
             var value = entry.getValue() == null ? "" : entry.getValue().trim();
             if (value.isEmpty() || isDefaultZero(entry.getKey(), value)) {
                 continue;
             }
-            ini.append("    ").append(entry.getKey()).append(" = ").append(value).append('\n');
+            ini.append("    ").append(entry.getKey()).append(" = ")
+                    .append(isList(module, entry.getKey()) ? "[" + String.join(", ", value.split("[\\s,]+")) + "]" : value)
+                    .append('\n');
         }
         ini.append("  End\n");
     }
 
-    /** Omit zero-valued optional numerics so the INI stays clean. */
+    /** A field the module's data holds as a list, written {@code [a, b]}. */
+    private static boolean isList(Class<? extends ModuleData> module, String key) {
+        for (var component : module.getRecordComponents()) {
+            if (component.getName().equalsIgnoreCase(key)) {
+                return component.getType() == List.class;
+            }
+        }
+        return false;
+    }
+
+    /** Omit zero-valued optional numerics so the text stays clean. */
     private static boolean isDefaultZero(String key, String value) {
         return (key.equals("SplashRadius") || key.equals("TurnRate")
                 || key.equals("Produces") || key.equals("Consumes"))
@@ -84,15 +111,15 @@ public final class GameFactory {
     }
 
     private static String kindOf(StudioProject.UnitDef unit) {
-        var kinds = new StringBuilder(unit.structure ? "STRUCTURE" : "INFANTRY");
-        kinds.append(" SELECTABLE");
+        var kinds = new StringBuilder("[").append(unit.structure ? "STRUCTURE" : "INFANTRY");
+        kinds.append(", SELECTABLE");
         if (unit.capabilities.containsKey(CapabilityType.ATTACK.name())) {
-            kinds.append(" CAN_ATTACK");
+            kinds.append(", CAN_ATTACK");
         }
         if (unit.capabilities.containsKey(CapabilityType.POWER.name())) {
-            kinds.append(" POWERED");
+            kinds.append(", POWERED");
         }
-        return kinds.toString();
+        return kinds.append("]").toString();
     }
 
     /** Build the {@link Visuals} bindings from the project's asset fields. */
@@ -143,7 +170,7 @@ public final class GameFactory {
         var defaultMap = project.maps.get(0);
         var game = DukeGame.create(project.title)
                 .subtitle(project.menuSubtitle)
-                .loadUnits(toIni(project))
+                .loadUnits(unitsText(project))
                 .map(defaultMap.cellsWide, defaultMap.cellsHigh);
 
         game.customModules(factory -> {

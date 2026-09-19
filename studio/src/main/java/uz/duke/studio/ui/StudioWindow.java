@@ -69,7 +69,7 @@ public final class StudioWindow extends JFrame {
     private final MapPanel mapPanel;
     private final javax.swing.JComboBox<String> mapSelector = new javax.swing.JComboBox<>();
     private final ScriptsPanel scriptsPanel;
-    private final JTextArea iniPreview = new JTextArea();
+    private final JTextArea unitsPreview = new JTextArea();
     private final JButton playButton = new JButton("▶ Play 3D");
 
     public StudioWindow(StudioProject project) {
@@ -225,12 +225,12 @@ public final class StudioWindow extends JFrame {
         mapTab.add(mapPanel, BorderLayout.CENTER);
         tabs.addTab("Map", mapTab);
         tabs.addTab("Scripts", scriptsPanel);
-        iniPreview.setEditable(false);
-        iniPreview.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        tabs.addTab("Generated INI", new JScrollPane(iniPreview));
+        unitsPreview.setEditable(false);
+        unitsPreview.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        tabs.addTab("Generated units (.duke)", new JScrollPane(unitsPreview));
         tabs.addChangeListener(e -> {
             if (tabs.getSelectedIndex() == 2) {
-                iniPreview.setText(GameFactory.toIni(project));
+                unitsPreview.setText(GameFactory.unitsText(project));
             }
         });
         return tabs;

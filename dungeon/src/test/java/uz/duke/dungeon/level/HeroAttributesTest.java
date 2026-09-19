@@ -234,16 +234,15 @@ class HeroAttributesTest {
     /** A number changed in the file is a different hero standing in the world. */
     @Test
     void theFileIsWhatDecidesTheHeroInTheWorld() {
-        var text = Content.settings();
         float shipped = play("Knight").body().getBody().getMaxHealth();
 
-        var stronger = DungeonSettings.parse(text.replace("  Attribute = STR 22 3.0",
-                "  Attribute = STR 30 3.0"));
+        var stronger = DungeonSettings.parse(Content.world(), Content.data().replace("    STR = [22, 3.0]",
+                "    STR = [30, 3.0]"));
         assertEquals(shipped + 8 * 12, play("Knight", stronger).body().getBody().getMaxHealth(), 0f,
                 "eight more strength is ninety-six more health");
 
-        var richer = DungeonSettings.parse(text.replace("  HealthPerPoint = 12",
-                "  HealthPerPoint = 20"));
+        var richer = DungeonSettings.parse(Content.world().replace("  HealthPerPoint = 12",
+                "  HealthPerPoint = 20"), Content.data());
         assertEquals(shipped + 22 * 8, play("Knight", richer).body().getBody().getMaxHealth(), 0f,
                 "eight more a point, twenty-two times");
     }

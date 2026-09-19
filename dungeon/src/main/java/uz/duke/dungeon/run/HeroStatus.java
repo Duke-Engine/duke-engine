@@ -544,7 +544,7 @@ final class HeroStatus {
 
     private static float weaponDamage(ThingTemplate template) {
         for (var entry : template.modules()) {
-            if (entry.data() instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
+            if (entry instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
                 return weapon.damage();
             }
         }
@@ -553,8 +553,8 @@ final class HeroStatus {
 
     private static float walkingSpeed(ThingTemplate template) {
         for (var entry : template.modules()) {
-            if (entry.data() instanceof MoveUpdate.Data move) {
-                return move.speedPerSecond();
+            if (entry instanceof MoveUpdate.Data move) {
+                return move.speed();
             }
         }
         return 0f;

@@ -1,7 +1,5 @@
 package uz.duke.rts.module;
 
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.module.Module;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.ModuleGroup;
@@ -19,27 +17,8 @@ import uz.duke.core.thing.GameObject;
 @ModuleGroup(RtsModuleGroups.ECONOMY)
 public final class PowerModule extends Module {
 
-    /** INI config: {@code Produces} / {@code Consumes} (power units). */
-    public record Data(int produced, int consumed) implements ModuleData {
-    }
-
-    private static final class DataBuilder {
-        int produced;
-        int consumed;
-
-        Data build() {
-            return new Data(produced, consumed);
-        }
-    }
-
-    private static final FieldParseTable<DataBuilder> DATA_TABLE = new FieldParseTable<DataBuilder>()
-            .add("Produces", Ini.integer((b, v) -> b.produced = v))
-            .add("Consumes", Ini.integer((b, v) -> b.consumed = v));
-
-    public static ModuleData parseData(Ini ini) {
-        var builder = new DataBuilder();
-        ini.initFromIni(builder, DATA_TABLE);
-        return builder.build();
+    /** {@code Produces} / {@code Consumes} (power units). */
+    public record Data(int produces, int consumes) implements ModuleData {
     }
 
     private final int produced;
@@ -47,8 +26,8 @@ public final class PowerModule extends Module {
 
     public PowerModule(GameObject owner, Data data) {
         super(owner);
-        this.produced = data.produced();
-        this.consumed = data.consumed();
+        this.produced = data.produces();
+        this.consumed = data.consumes();
     }
 
     public int getProduced() {

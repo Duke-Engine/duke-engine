@@ -40,12 +40,12 @@ class ContainTest {
     void setUp() {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());
         transport = ThingTemplate.named("Transport")
-                .module("ActiveBody", new ActiveBody.Data(200f))
-                .module("ContainModule", new ContainModule.Data(2))
+                .module(new ActiveBody.Data(200f))
+                .module(new ContainModule.Data(2))
                 .build();
         infantry = ThingTemplate.named("Infantry")
-                .module("ActiveBody", new ActiveBody.Data(50f))
-                .module("MoveUpdate", new MoveUpdate.Data(30f))
+                .module(new ActiveBody.Data(50f))
+                .module(new MoveUpdate.Data(30f))
                 .build();
         thingFactory.addTemplate(transport);
         thingFactory.addTemplate(infantry);

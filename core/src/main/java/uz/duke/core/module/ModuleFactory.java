@@ -1,72 +1,79 @@
 package uz.duke.core.module;
 
-import java.util.HashMap;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import uz.duke.core.SubsystemInterface;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.thing.GameObject;
 
 /**
- * Builds {@link Module}s by their INI tag, ported from SAGE's
- * {@code ModuleFactory}.
+ * Builds {@link Module}s from their data, ported from SAGE's {@code ModuleFactory}.
  *
- * <p>Each concrete module registers a builder under the name it is referenced by
- * in INI (e.g. {@code ActiveBody}). {@link uz.duke.core.thing.ThingFactory}
- * consults this factory to populate a new object's modules from its template.
- * Builder registrations are code, not game data, so they survive {@link #reset()}.
+ * <p>Each module is registered by its data record, which is also how a file names it: the
+ * record's class, {@code MoveUpdate.Data} for a {@code MoveUpdate} block. {@link
+ * uz.duke.core.thing.ThingFactory} consults this factory to build a new object's modules from its
+ * template. Registrations are code, not game data, so they survive {@link #reset()}; a second
+ * registration of the same data replaces the first, which is how a game builds an engine module
+ * its own way.
  */
 public final class ModuleFactory extends SubsystemInterface {
 
-    /** Constructs a module of one kind for an owner from its parsed data. */
+    /** Constructs a module of one kind for an owner from the data its block was read into. */
     @FunctionalInterface
-    public interface Builder {
-        Module build(GameObject owner, ModuleData data);
+    public interface Builder<D extends ModuleData> {
+        Module build(GameObject owner, D data);
     }
 
-    /** Reads a module's INI sub-block (up to {@code End}) into its data. */
-    @FunctionalInterface
-    public interface DataParser {
-        ModuleData parse(Ini ini);
-    }
+    /** The engine's genre-neutral modules: a body that holds health and a locomotor that walks to a goal. */
+    public static final List<Class<? extends ModuleData>> ENGINE_MODULES = List.of(ActiveBody.Data.class, MoveUpdate.Data.class);
 
-    private final Map<String, Builder> builders = new HashMap<>();
-    private final Map<String, DataParser> dataParsers = new HashMap<>();
+    private final Map<Class<? extends ModuleData>, Builder<?>> builders = new LinkedHashMap<>();
 
     /**
-     * A factory pre-loaded with the engine's genre-neutral modules: a body that
-     * holds health and a locomotor that walks to a goal. Whatever a specific
-     * genre needs on top is registered by that genre's own module set — see
-     * {@code uz.duke.rts.module.RtsModules}.
+     * A factory pre-loaded with {@link #ENGINE_MODULES}. Whatever a specific genre needs on top is
+     * registered by that genre's own module set — see {@code uz.duke.rts.module.RtsModules}.
      */
     public static ModuleFactory withDefaults() {
         var factory = new ModuleFactory();
-        factory.register("ActiveBody",
-                (owner, data) -> new ActiveBody(owner, (ActiveBody.Data) data),
-                ActiveBody::parseData);
-        factory.register("MoveUpdate",
-                (owner, data) -> new MoveUpdate(owner, (MoveUpdate.Data) data),
-                MoveUpdate::parseData);
+        factory.register(ActiveBody.Data.class, ActiveBody::new);
+        factory.register(MoveUpdate.Data.class, MoveUpdate::new);
         return factory;
     }
 
-    /** Register a module that is only created in code (no INI sub-block). */
-    public void register(String tag, Builder builder) {
-        builders.put(tag, builder);
+    /** Modules whose block reads into {@code data} are built by {@code builder}. */
+    public <D extends ModuleData> ModuleFactory register(Class<D> data, Builder<? super D> builder) {
+        builders.put(data, builder);
+        return this;
     }
 
-    /** Register a module that can also be loaded from an INI sub-block. */
-    public void register(String tag, Builder builder, DataParser dataParser) {
-        builders.put(tag, builder);
-        dataParsers.put(tag, dataParser);
+    /** The builder {@code data} was registered with, or null: for a registration that adds to an earlier one. */
+    public Builder<?> builderFor(Class<? extends ModuleData> data) {
+        return builders.get(data);
     }
 
-    /** Parse a module's data sub-block by module type, reading up to {@code End}. */
-    public ModuleData parseData(String tag, Ini ini) {
-        var parser = dataParsers.get(tag);
-        if (parser == null) {
-            throw new IllegalArgumentException("no INI data parser registered for module '" + tag + "'");
+    /** What a module's block is called: its class's name, {@code MoveUpdate} for {@code MoveUpdate.Data}. */
+    public static String nameOf(Class<? extends ModuleData> data) {
+        var module = data.getEnclosingClass();
+        return (module != null ? module : data).getSimpleName();
+    }
+
+    /** Every module this factory builds, by the word a block names it with. */
+    public Map<String, Class<? extends ModuleData>> vocabulary() {
+        return vocabularyOf(builders.keySet());
+    }
+
+    /** {@code modules} by the word a block names each with. */
+    public static Map<String, Class<? extends ModuleData>> vocabularyOf(Collection<Class<? extends ModuleData>> modules) {
+        var words = new LinkedHashMap<String, Class<? extends ModuleData>>();
+        for (var data : modules) {
+            var clash = words.put(nameOf(data), data);
+            if (clash != null && clash != data) {
+                throw new IllegalArgumentException("two modules are called " + nameOf(data) + ": "
+                        + clash.getName() + " and " + data.getName());
+            }
         }
-        return parser.parse(ini);
+        return words;
     }
 
     @Override
@@ -82,11 +89,12 @@ public final class ModuleFactory extends SubsystemInterface {
     public void update() {
     }
 
-    /** Build a module for {@code owner} from its tag and data. */
-    public Module newModule(String tag, GameObject owner, ModuleData data) {
-        var builder = builders.get(tag);
+    /** Build the module {@code data} was read for, on {@code owner}. */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Module newModule(GameObject owner, ModuleData data) {
+        Builder builder = builders.get(data.getClass());
         if (builder == null) {
-            throw new IllegalArgumentException("no module registered for tag '" + tag + "'");
+            throw new IllegalArgumentException("no module registered for " + nameOf(data.getClass()));
         }
         return builder.build(owner, data);
     }

@@ -30,8 +30,8 @@ import uz.duke.core.thing.ThingTemplate;
 class LockstepGateTest {
 
     private static final ThingTemplate RUNNER = ThingTemplate.named("Runner")
-            .module("ActiveBody", new ActiveBody.Data(100f))
-            .module("MoveUpdate", new MoveUpdate.Data(12f))
+            .module(new ActiveBody.Data(100f))
+            .module(new MoveUpdate.Data(12f))
             .build();
 
     /** One player's simulation, applying the commands the gate hands it. */

@@ -13,6 +13,7 @@ import uz.duke.core.thing.GameObject;
 import uz.duke.dungeon.Dungeon;
 import uz.duke.dungeon.combat.DepthBonus;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.content.ShippedBlock;
 import uz.duke.dungeon.skill.Skill;
 import uz.duke.dungeon.skill.SkillBook;
 import uz.duke.dungeon.skill.Summoned;
@@ -98,26 +99,12 @@ class MonsterSummoningTest {
         return SETTINGS.skillsFor(SUMMONER).get(0);
     }
 
-    /** The shipped summoning with its numbers changed, said whole because a block replaces a skill. */
+    /** The shipped summoner, with its summoning's numbers changed. */
     private static DungeonSettings summoningWith(int count, int most, int lasts, int percent,
             int cooldown) {
-        var skill = summoning();
-        return DungeonSettings.parse("""
-                DungeonSkill SkeletonSummoner Q
-                  Effect = SUMMON
-                  Summons = %s
-                  SummonCount = %d
-                  MaxSummoned = %d
-                  Radius = %s
-                  DurationFrames = %d
-                  SummonExperiencePercent = %d
-                  WindUpFrames = %d
-                  Projectile = %s
-                  CooldownFrames = %d
-                  MaxRank = 1
-                End
-                """.formatted(skill.summons(), count, most, skill.radius(), lasts, percent,
-                skill.windUpFrames(), skill.projectile(), cooldown));
+        return DungeonSettings.parse("", ShippedBlock.of(SUMMONER).with("SummonCount", count)
+                .with("MaxSummoned", most).with("DurationFrames", lasts)
+                .with("SummonExperiencePercent", percent).with("CooldownFrames", cooldown).text());
     }
 
     /** Long enough for it to finish a throw it had started and for its rifts to land. */

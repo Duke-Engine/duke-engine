@@ -1,0 +1,106 @@
+; The green one, and it fights for the others. Frail and slow like the Skeleton Mage,
+; with a spark of light for its ordinary shot, and its skill is holy light called down
+; on whichever of its own is worst hurt -- see Monster SkeletonHealer and
+; DungeonSkill SkeletonHealer Q below.
+Monster
+  Name = SkeletonHealer
+  DisplayName = Skeleton Healer
+  KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
+  Cylinder
+    Radius = 4
+    Height = 13
+  End
+  VisionRange = 64
+  GrowableBody
+    ; The frailest of the three: it is the one to kill first.
+    MaxHealth = 36
+  End
+  MoveUpdate
+    Speed = 13
+    TurnRate = 0
+  End
+  ; For while the mending comes back: weaker than the Skeleton Mage's fire, and
+  ; reaching the far edge of the same band.
+  WeaponUpdate
+    Damage = 4
+    AttackRange = 58
+    ReloadFrames = 60
+    AttackOnTheMove = No
+  End
+  SkillBook
+  End
+  ; Before the Bow, as on the Skeleton Mage: a throw still leaving it holds its mending.
+  Swing
+  End
+  Bow
+    Projectile = HolySpark
+    Speed = 95
+    MuzzleOffset = 8
+  End
+  EyesOnly
+  End
+  StatusUpdate
+  End
+  ScriptModule
+    Name = SkeletonHealerBrain
+  End
+  ExperienceModule
+    ExperienceValue = 22
+    ExperienceRequired = [0, 0, 0]
+  End
+
+
+  ; The green one, and it fights for the others. It holds the same band as the
+  ; Skeleton Mage, throws a spark of light while it waits, and whenever one of its
+  ; own in plain sight is badly hurt it calls holy light down on him -- the worst
+  ; hurt first. It cannot mend itself: kill it first and the room stops mending.
+  SenseRadius = 64
+  ChaseRadius = 120
+  ; Unused: it holds the band below rather than closing.
+  CloseDistance = 6
+  AlertRadius = 70
+  RepathFrames = 10
+  SwingFrames = 20
+  ; From the third floor, where there is enough in a room worth mending.
+  MinDepth = 3
+  Weight = 8
+  ; One to a room: two would mend each other for as long as the fight lasted.
+  MaxPerRoom = 1
+  Colour = 0x8FDC6A
+  Scale = 1
+  KeepDistance = [35, 55]
+  ; The staff-carrier in a robe repainted green: its colour says what it does before
+  ; its light does. White tint, so the green is the robe's own.
+  Model = models/monsters/skeleton_mage.glb
+  Texture = models/monsters/skeleton_texture_green.png
+  Effect = EmberEyes
+  ModelScale = 6.0
+  Held
+    Model = models/monsters/staff.gltf
+    Bone = handslot.r
+  End
+  Attack = Ranged_Magic_Shoot
+  Idle = Ranged_Magic_Spellcasting_Long
+
+  Skill
+    Key = Q
+    ; Holy light, called down on whichever of its own is worst hurt -- counted as a
+    ; share of his own health, and only if that is below HealBelowPercent, so it is
+    ; never spent on someone who does not need it. Within Range of the healer and in
+    ; plain sight of it, and it may not mend itself.
+    Effect = HEAL
+    ; A third of a Skeleton, a tenth of the Warden: it keeps the rank and file standing
+    ; and only slows a boss. It grows with the depth, as the healer's blows do.
+    Heal = 30
+    HealBelowPercent = 60
+    Range = 60
+    ; The light lies on the floor this long before it lands and mends: long enough to
+    ; be seen coming, and to finish off the one it was coming for.
+    WindUpFrames = 20
+    Projectile = MendingLight
+    ; Eight seconds between mendings. Noticeable, and not a wall.
+    CooldownFrames = 240
+    MaxRank = 1
+    Name = Muqaddas nur
+  End
+End

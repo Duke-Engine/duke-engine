@@ -53,6 +53,16 @@ public record PortraitArt(
         float hurtBelowPercent,
         float hurtSpeed) {
 
+    /** What a {@code Portrait} block leaves out: the framing that suits most things standing up. */
+    static final PortraitArt DEFAULTS = new PortraitArt(null, 0.74f, 0.64f, 22f, -4f, 34f,
+            null, null, null, null, null, 30f, 1.5f);
+
+    /** This framing, as the face of {@code name}: a unit's block writes it without saying whose. */
+    public PortraitArt named(String name) {
+        return new PortraitArt(name, head, show, yaw, pitch, fov, calm, fight, hurt, dead, levelUp,
+                hurtBelowPercent, hurtSpeed);
+    }
+
     /** Every clip it asks for, so a test can check they are all in his libraries. */
     public List<String> clips() {
         return java.util.stream.Stream.of(calm, fight, hurt, dead, levelUp)

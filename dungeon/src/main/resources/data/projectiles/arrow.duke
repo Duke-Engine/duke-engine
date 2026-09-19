@@ -1,0 +1,65 @@
+; An arrow in flight. Not a creature so much as a thing on its way somewhere:
+;
+;   - no Body, so no weapon will ever acquire it as a target
+;   - no Geometry, so it passes through the world instead of shouldering
+;     monsters aside on its way past
+;
+; Both of those are absences rather than settings, which is why they are written
+; down: nothing in the file says "arrows are not shot at", and the reason they
+; are not is that there is no Body line below.
+Projectile
+  Name = Arrow
+  DisplayName = Arrow
+  VisionRange = 0
+  ArrowUpdate
+  End
+
+
+; ---------------------------------------------------------------------------
+; What each thing in flight is drawn as.
+;
+; Named after the template it is, repeatable, and one block each. It was one
+; block describing two shots with a "Heavy" prefix on the second, which stopped
+; being a scheme the moment there were four of them.
+;
+; Model may be left out entirely: a fireball has no file anywhere and is drawn by
+; its effect. Facing turns a model onto the engine's forward -- if things fly
+; blunt end first, that is the number. Tint multiplies over the model's own
+; colours, and Height is what the shot is drawn at: the simulation is flat, and
+; this is the line the shot is drawn along.
+;
+; Effect names a block further down and is what makes a thing burn.
+; ---------------------------------------------------------------------------
+
+  Model = models/heroes/arrow.gltf
+  ; The model is 1.26 long, and 5.4 of that is the length it always flew at.
+  Scale = 5.4
+  Facing = 90
+  Height = 7
+  Tint = 0xE8DCB0
+End
+
+; ---------------------------------------------------------------------------
+; What an arrow is drawn as.
+;
+; An arrow of its own, which it did not used to be: the hero's model carried one
+; on his string and a single mesh was cut out of that file and flown. It worked,
+; and it was a 24MB file to fetch one shaft out of, under a name the exporter had
+; shuffled -- the mesh called Eyes was the arrow, the one called Arrow was his
+; clothes. The kit ships an arrow, so the arrow is the arrow.
+;
+; Facing turns it onto the engine's forward, as everywhere else. If arrows fly
+; blunt end first, this is the number.
+;
+; Tint is multiplied over the model's own colours; white would leave them alone.
+; ---------------------------------------------------------------------------
+
+HeavyShot
+  ; The drawn shot Q looses, which is a skill rather than a weapon and so has its
+  ; template and its speed here rather than on a creature. How it is DRAWN is
+  ; below, with everything else that flies.
+  Template = HeavyArrow
+  ; Slower than an ordinary arrow on purpose: it is the one shot the player chose
+  ; to spend, so it is the one worth watching cross the room.
+  Speed = 120
+End

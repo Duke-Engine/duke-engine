@@ -9,6 +9,7 @@ import uz.duke.core.math.Coord3D;
 import uz.duke.core.thing.GameObject;
 import uz.duke.dungeon.Dungeon;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.content.ShippedBlock;
 import uz.duke.game.DukeGame;
 
 /**
@@ -104,8 +105,9 @@ class MonsterKindsTest {
      */
     @Test
     void aMonsterToldToKeepItsDistanceFightsFromOutThere() {
-        var skirmisher = DungeonSettings.parse("""
-                Monster Stalker
+        var skirmisher = DungeonSettings.parse("", """
+                Monster
+                  Name = Stalker
                   SenseRadius = 150
                   ChaseRadius = 260
                   CloseDistance = 55
@@ -136,9 +138,8 @@ class MonsterKindsTest {
      */
     @Test
     void everyMonsterStopsInsideItsOwnReach() {
-        var creatures = uz.duke.dungeon.content.Content.units();
         for (var kind : SETTINGS.monsters()) {
-            float reach = attackRangeOf(creatures, kind.name());
+            float reach = Float.parseFloat(ShippedBlock.of(kind.name()).value("AttackRange"));
             assertTrue(kind.closeDistance() < reach,
                     kind.name() + " stops at " + kind.closeDistance()
                             + " but only reaches " + reach);
@@ -195,25 +196,11 @@ class MonsterKindsTest {
     private static uz.duke.dungeon.combat.Bow.Data launcherOf(String kind) {
         var fight = fight(kind, 900f);
         for (var module : fight.monster().getTemplate().modules()) {
-            if (module.data() instanceof uz.duke.dungeon.combat.Bow.Data bow) {
+            if (module instanceof uz.duke.dungeon.combat.Bow.Data bow) {
                 return bow;
             }
         }
         return null;
-    }
-
-    /** {@code AttackRange} out of a creature block, read as the loader would. */
-    private static float attackRangeOf(String iniText, String template) {
-        boolean inside = false;
-        for (var line : iniText.split("\n")) {
-            var trimmed = line.trim();
-            if (!line.isEmpty() && Character.isLetter(line.charAt(0)) && !trimmed.equals("End")) {
-                inside = trimmed.equals("Monster " + template);
-            } else if (inside && trimmed.startsWith("AttackRange")) {
-                return Float.parseFloat(trimmed.substring(trimmed.indexOf('=') + 1).trim());
-            }
-        }
-        return 0f;
     }
 
     /** The skeleton, by contrast, walks all the way in. */
@@ -317,8 +304,9 @@ class MonsterKindsTest {
     /** Behaviour is data: a re-tuned file gives a differently behaved monster. */
     @Test
     void changingTheFileChangesHowAKindBehaves() {
-        var blind = DungeonSettings.parse("""
-                Monster Skeleton
+        var blind = DungeonSettings.parse("", """
+                Monster
+                  Name = Skeleton
                   SenseRadius = 1
                   ChaseRadius = 1
                   CloseDistance = 4
@@ -358,8 +346,9 @@ class MonsterKindsTest {
      */
     @Test
     void somethingShotComesForTheShooterHoweverDeafItIs() {
-        var blind = DungeonSettings.parse("""
-                Monster Skeleton
+        var blind = DungeonSettings.parse("", """
+                Monster
+                  Name = Skeleton
                   SenseRadius = 1
                   ChaseRadius = 1
                   CloseDistance = 4
@@ -383,8 +372,9 @@ class MonsterKindsTest {
     /** Being healed is not being hit — one of these mends itself as it fights. */
     @Test
     void mendingItselfDoesNotCountAsBeingAttacked() {
-        var blind = DungeonSettings.parse("""
-                Monster Revenant
+        var blind = DungeonSettings.parse("", """
+                Monster
+                  Name = Revenant
                   SenseRadius = 1
                   ChaseRadius = 1
                   CloseDistance = 4

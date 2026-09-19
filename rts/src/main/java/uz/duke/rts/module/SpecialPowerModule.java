@@ -1,7 +1,5 @@
 package uz.duke.rts.module;
 
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.ModuleGroup;
@@ -24,27 +22,6 @@ public final class SpecialPowerModule extends UpdateModule {
 
     /** INI config: {@code RechargeFrames}, {@code Radius}, {@code Damage}. */
     public record Data(int rechargeFrames, float radius, float damage) implements ModuleData {
-    }
-
-    private static final class DataBuilder {
-        int rechargeFrames;
-        float radius;
-        float damage;
-
-        Data build() {
-            return new Data(rechargeFrames, radius, damage);
-        }
-    }
-
-    private static final FieldParseTable<DataBuilder> DATA_TABLE = new FieldParseTable<DataBuilder>()
-            .add("RechargeFrames", Ini.integer((b, v) -> b.rechargeFrames = v))
-            .add("Radius", Ini.real((b, v) -> b.radius = v))
-            .add("Damage", Ini.real((b, v) -> b.damage = v));
-
-    public static ModuleData parseData(Ini ini) {
-        var builder = new DataBuilder();
-        ini.initFromIni(builder, DATA_TABLE);
-        return builder.build();
     }
 
     private final int rechargeFrames;

@@ -13,6 +13,7 @@ import uz.duke.core.thing.GameObject;
 import uz.duke.core.thing.ObjectId;
 import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.content.ShippedBlock;
 import uz.duke.dungeon.skill.CastSkill;
 import uz.duke.dungeon.skill.SkillBook;
 import uz.duke.game.DukeGame;
@@ -81,20 +82,11 @@ class SkillCastingTest {
      *
      * <p>A weapon that reaches nothing acquires nothing, so with this file anything
      * that gets hurt was hurt by a skill. His skills are untouched: their range is
-     * their own, in his DungeonSkill blocks.
+     * their own, in his Skill blocks.
      */
     private static String creaturesWithNoBow() {
-        var lines = Content.units().split("\n", -1);
-        boolean inHero = false;
-        var edited = new StringBuilder();
-        for (var line : lines) {
-            if (!line.isEmpty() && Character.isLetter(line.charAt(0)) && !line.trim().equals("End")) {
-                inHero = line.trim().equals("Hero Rogue");
-            }
-            edited.append(inHero && line.trim().startsWith("AttackRange")
-                    ? "    AttackRange = 0" : line).append('\n');
-        }
-        return edited.toString();
+        var rogue = ShippedBlock.of("Rogue");
+        return Content.units().replace(rogue.text(), rogue.with("AttackRange", 0).text());
     }
 
     /** An arena where only his skills can hurt anything. */
@@ -321,16 +313,7 @@ class SkillCastingTest {
 
     /** {@code ReloadFrames} from the hero's own block, rather than a copy of it. */
     private static int heroReloadFrames() {
-        boolean inHero = false;
-        for (var line : Content.units().split("\n")) {
-            var trimmed = line.trim();
-            if (!line.isEmpty() && Character.isLetter(line.charAt(0)) && !trimmed.equals("End")) {
-                inHero = trimmed.equals("Hero Rogue");
-            } else if (inHero && trimmed.startsWith("ReloadFrames")) {
-                return Integer.parseInt(trimmed.substring(trimmed.indexOf('=') + 1).trim());
-            }
-        }
-        throw new AssertionError("the hero has no ReloadFrames");
+        return Integer.parseInt(ShippedBlock.of("Rogue").value("ReloadFrames"));
     }
 
     /**
@@ -724,12 +707,16 @@ class SkillCastingTest {
     /** Re-tune one skill in the file and that skill changes; the others do not. */
     @Test
     void changingTheFileChangesTheSkill() {
-        var fierce = DungeonSettings.parse("""
-                DungeonSkill Rogue Q
-                  Effect = AREA_DAMAGE
-                  Damage = 500
-                  Radius = 200
-                  CooldownFrames = 5
+        var fierce = DungeonSettings.parse("", """
+                Hero
+                  Name = Rogue
+                  Skill
+                    Key = Q
+                    Effect = AREA_DAMAGE
+                    Damage = 500
+                    Radius = 200
+                    CooldownFrames = 5
+                  End
                 End
                 """);
         var arena = arena(fierce, 170f, 150f, 150f, 190f);
@@ -755,21 +742,26 @@ class SkillCastingTest {
         // called Hero and stopped being fine the moment the archer BECAME the
         // rogue: the test then handed its two invented skills to a hero who
         // already had four, and asked why he had six.
-        var withTwo = DungeonSettings.parse("""
-                DungeonSkill Sellsword A
-                  Effect = DASH
-                  Distance = 120
-                  CooldownFrames = 60
-                End
-                DungeonSkill Sellsword S
-                  Effect = STRIKE
-                  Damage = 500
-                  Range = 60
-                  CooldownFrames = 30
+        var withTwo = DungeonSettings.parse("", """
+                Hero
+                  Name = Sellsword
+                  Skill
+                    Key = A
+                    Effect = DASH
+                    Distance = 120
+                    CooldownFrames = 60
+                  End
+                  Skill
+                    Key = S
+                    Effect = STRIKE
+                    Damage = 500
+                    Range = 60
+                    CooldownFrames = 30
+                  End
                 End
                 """);
         var creatures = Content.units()
-                .replace("Hero Rogue\n", "Hero Sellsword\n");
+                .replace("Hero\n  Name = Rogue\n", "Hero\n  Name = Sellsword\n");
 
         var world = Dungeon.world(arena(), withTwo, creatures);
         var game = world.game();
@@ -893,12 +885,12 @@ class SkillCastingTest {
      * A hero whose Q is the shape being tested, with the rest of him untouched.
      *
      * <p>Written as a file rather than as a fifth skill on the shipped hero,
-     * because that is exactly how the next hero will arrive: a block of INI and no
+     * because that is exactly how the next hero will arrive: a block of data and no
      * Java. If these tests need a line of code changed to run, the claim they are
      * making is false.
      */
     private static DungeonSettings heroWhose(String q) {
-        return DungeonSettings.parse("DungeonSkill Rogue Q\n" + q + "\nEnd\n");
+        return DungeonSettings.parse("", "Hero\n  Name = Rogue\n  Skill\n    Key = Q\n" + q + "  End\nEnd\n");
     }
 
     /**

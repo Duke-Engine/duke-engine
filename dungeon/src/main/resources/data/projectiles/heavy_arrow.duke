@@ -1,0 +1,29 @@
+; The drawn shot. Exactly the same creature — no body, no geometry, so nothing
+; can shoot it and it passes through the world — and the same ArrowUpdate flies
+; it. What differs is what carries it here (a skill, not the bow), how hard it
+; hits, and how it is drawn; see HeavySpeed in arrow.ini and the block below.
+Projectile
+  Name = HeavyArrow
+  DisplayName = Heavy Arrow
+  VisionRange = 0
+  ArrowUpdate
+  End
+
+
+  ; The same shaft, nearly twice the size and in torch colour, so the shot the
+  ; player chose to spend is not mistaken for the ones he gets for free. And it
+  ; is the one that burns -- that is the whole of what Q now is to look at.
+  Model = models/heroes/arrow.gltf
+  Scale = 9.5
+  Facing = 90
+  Height = 7
+  Tint = 0xE8A33D
+  Effect = FlameArrow
+  ; Where on it the fire sits, forward of its middle. The model is 1.26 long and
+  ; scaled 9.5, so the shaft is twelve units and the head is six ahead of the
+  ; origin -- which is where a burning arrow burns. Left at zero the flame comes
+  ; out of the middle of the shaft, and left off entirely it comes out of the
+  ; GROUND, because the node a projectile hangs from is where it stands rather
+  ; than where it is drawn.
+  EffectOffset = 6
+End

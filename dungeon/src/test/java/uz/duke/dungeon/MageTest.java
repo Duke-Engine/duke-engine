@@ -491,7 +491,7 @@ class MageTest {
 
     private static uz.duke.rts.module.WeaponUpdate.Data weaponOf(String hero) {
         for (var entry : templateOf(hero).modules()) {
-            if (entry.data() instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
+            if (entry instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
                 return weapon;
             }
         }

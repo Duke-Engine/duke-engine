@@ -1,0 +1,145 @@
+Effect
+  Name = KnightCharge
+  ; W. Both ends again, like the archer's sprint -- and heavier at both, because
+  ; this one goes THROUGH what is in the way. The knock is what says so.
+  Kinds = [SHOCKWAVE]
+  Colour = 0xFFB068
+  WaveFrom = 3
+  WaveTo = 18
+  WaveSeconds = 0.34
+  WaveEase = 2.8
+  WaveEdge = 0.9
+  WaveWash = 0.20
+  ShakeSeconds = 0.16
+  ShakePower = 1.1
+
+  ; The charge: dust kicked up along the whole run in the order he ran it, a streak of
+  ; speed over it for a breath, and where he stopped a hard ring, a ring of dust
+  ; rolling out after it, grit thrown up and a thump of light.
+  Layer
+    Name = Dust
+    Type = TRAIL
+    At = PATH
+    Texture = effects/particles/smoke_03.png
+    Blend = Alpha
+    Seconds = 0.2
+    Count = 20
+    Radius = 3
+    Life = [0.6, 0.9]
+    Size = [6, 14]
+    SizeEase = 2
+    SizeJitter = 0.3
+    Colour = [0x8A7A68, 0x5A5048]
+    Alpha = [0.7, 0]
+    FadeIn = 0.1
+    Speed = [3, 8]
+    Direction = UP
+    Spread = 50
+    Drag = 2.5
+    Gravity = -3
+    Spin = 30
+    Height = 1
+  End
+
+  Layer
+    Name = Streak
+    Type = BEAM
+    At = PATH
+    Texture = effects/particles/trace_07.png
+    Blend = Additive
+    Count = 1
+    Life = [0.22, 0.22]
+    Size = [30, 10]
+    Colour = [0xFFE6C0, 0xFF9040]
+    Alpha = [0.7, 0]
+    Height = 5
+  End
+
+  Layer
+    Name = Wave
+    Type = RING
+    At = TO
+    Measure = Reach
+    Texture = effects/particles/circle_03.png
+    Blend = Additive
+    Cover = 0.2
+    Count = 1
+    Life = [0.34, 0.34]
+    Size = [0.4, 3.2]
+    SizeEase = 2.8
+    Colour = [0xFFE6C0, 0xFF8A30]
+    Alpha = [1, 0]
+    FadeOut = 0.5
+    Height = 0.5
+    TurnJitter = 0
+  End
+
+  Layer
+    Name = Ring
+    Type = RING
+    At = TO
+    Measure = Reach
+    Texture = effects/particles/smoke_10.png
+    Blend = Alpha
+    Delay = 0.03
+    Count = 1
+    Life = [0.7, 0.7]
+    Size = [0.6, 3.6]
+    SizeEase = 2.4
+    Colour = [0x9A8A78, 0x6A5E54]
+    Alpha = [0.6, 0]
+    FadeOut = 0.6
+    Spin = 20
+    Height = 0.6
+  End
+
+  Layer
+    Name = Grit
+    Type = BURST
+    At = TO
+    Texture = effects/particles/dirt_01.png
+    Blend = Alpha
+    Count = 12
+    Life = [0.5, 0.8]
+    Size = [3, 2]
+    SizeJitter = 0.5
+    Colour = [0x6A5A4A, 0x4A3E34]
+    Alpha = [1, 0.8]
+    FadeOut = 0.3
+    Speed = [20, 40]
+    Direction = UP
+    Spread = 70
+    Gravity = 90
+    Drag = 0.5
+    Spin = 200
+    Height = 1
+  End
+
+  Layer
+    Name = Thump
+    Type = IMPACT
+    At = TO
+    Texture = effects/particles/circle_05.png
+    Blend = Additive
+    Cover = 0.3
+    Count = 1
+    Life = [0.2, 0.2]
+    Size = [8, 22]
+    SizeEase = 2.5
+    Colour = [0xFFF0D8, 0xFFA050]
+    Alpha = [1, 0]
+    FadeOut = 0.6
+    Height = 3
+  End
+
+  Layer
+    Name = Light
+    Type = LIGHT
+    At = TO
+    Seconds = 0.25
+    LightColour = 0xFFC080
+    LightPower = 2
+    LightRadius = 48
+    FadeOut = 0.8
+  End
+End

@@ -51,9 +51,9 @@ class CombatTest {
     void setUp() {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());
         soldier = ThingTemplate.named("Soldier")
-                .module("ActiveBody", new ActiveBody.Data(100f))
-                .module("WeaponUpdate", new WeaponUpdate.Data(25f, 10f, 2))
-                .module("ExperienceModule", ExperienceModule.Data.ofThresholds(100, 100, 300, 600))
+                .module(new ActiveBody.Data(100f))
+                .module(new WeaponUpdate.Data(25f, 10f, 2))
+                .module(ExperienceModule.Data.ofThresholds(100, 100, 300, 600))
                 .build();
         thingFactory.addTemplate(soldier);
 

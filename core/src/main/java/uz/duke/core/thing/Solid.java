@@ -7,6 +7,6 @@ public interface Solid extends ThingTemplate {
 
     /** The shape of any template: its own if it is solid, a point that collides with nothing if not. */
     static Geometry of(ThingTemplate template) {
-        return template instanceof Solid solid ? solid.geometry() : Geometry.POINT;
+        return template instanceof Solid solid && solid.geometry() != null ? solid.geometry() : Geometry.POINT;
     }
 }

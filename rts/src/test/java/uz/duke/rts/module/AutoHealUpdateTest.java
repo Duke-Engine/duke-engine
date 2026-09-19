@@ -37,8 +37,8 @@ class AutoHealUpdateTest {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());
         // 30 health/sec at 30Hz == 1 health per frame.
         template = ThingTemplate.named("Regenerator")
-                .module("ActiveBody", new ActiveBody.Data(100f))
-                .module("AutoHealUpdate", new AutoHealUpdate.Data(30f))
+                .module(new ActiveBody.Data(100f))
+                .module(new AutoHealUpdate.Data(30f))
                 .build();
         thingFactory.addTemplate(template);
         logic = new TestLogic(thingFactory);

@@ -1,0 +1,66 @@
+Monster
+  Name = Brute
+  DisplayName = Brute
+  KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
+  Cylinder
+    Radius = 6
+    Height = 16
+  End
+  VisionRange = 45
+  GrowableBody
+    MaxHealth = 170
+  End
+  MoveUpdate
+    ; Slow enough to be outrun, hard enough that you should.
+    Speed = 10
+    TurnRate = 0
+  End
+  WeaponUpdate
+    Damage = 20
+    AttackRange = 10
+    ReloadFrames = 48
+  End
+  ; Tells the brain the frame a blow landed, so it stands and finishes the swing
+  ; instead of walking off mid-blow. It launches nothing -- see Swing.
+  Swing
+  End
+  ; Timers for the statuses it is wearing -- the engine's own, and today that
+  ; means SLOWED. MoveUpdate already halves the step of anything wearing it, and
+  ; StatusUpdate already counts it down and takes it off, so a monster that
+  ; carries this thaws by itself whether or not whoever chilled it is still alive.
+  StatusUpdate
+  End
+  ScriptModule
+    Name = BruteBrain
+  End
+  ExperienceModule
+    ExperienceValue = 26
+    ExperienceRequired = [0, 0, 0]
+  End
+
+
+  ; Slow and heavy. Short sight, so it can be walked around — if you see it first.
+  SenseRadius = 29
+  ChaseRadius = 58
+  CloseDistance = 4
+  AlertRadius = 70
+  RepathFrames = 14
+  ; A heavy swing, and a long one -- the widest window in the dungeon.
+  SwingFrames = 22
+  MinDepth = 2
+  Weight = 18
+  Colour = 0x8E5BD0
+  Scale = 1.45
+  ; Armoured, with an axe, and half again as tall as the ordinary one: read as
+  ; a different thing across a dark room, which is all a monster has to be.
+  ; GeometryHeight is 16.
+  Model = models/monsters/skeleton_warrior.glb
+  ; What is looking at you out of the dark.
+  Effect = EmberEyes
+  ModelScale = 7.4
+  Held
+    Model = models/monsters/axe.gltf
+    Bone = handslot.r
+  End
+End
+

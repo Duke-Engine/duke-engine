@@ -33,8 +33,8 @@ package uz.duke.dungeon.content;
  * @param scale        drawn size relative to its geometry, when drawn as a shape
  * @param look         the model, skin and animations to draw it with — empty when
  *                     this kind has no art, and then it falls back to a shape
- * @param skillKey     which of its own skills it decides to cast, by key: a
- *                     {@code DungeonSkill} block headed by its name, as a hero's are.
+ * @param skillKey     which of its own skills it decides to cast, by key: the first
+ *                     {@code Skill} inside its block, as a hero's are.
  *                     Zero for a thing with no skill
  * @param skillNearest the nearest it casts from, surface to surface
  * @param skillFurthest and the furthest
@@ -63,7 +63,7 @@ public record MonsterKind(
         float keepFurthest,
         int maxPerRoom) {
 
-    /** The behaviour tag a creature definition references: {@code Script:<name>Brain}. */
+    /** The script a creature definition names in its {@code ScriptModule}: {@code <name>Brain}. */
     public String brainTag() {
         return name + "Brain";
     }
@@ -75,6 +75,13 @@ public record MonsterKind(
     /** Whether it has a skill of its own to decide about. */
     public boolean hasSkill() {
         return skillKey != 0;
+    }
+
+    /** The same kind, casting the skill on this key. */
+    public MonsterKind casting(char key) {
+        return new MonsterKind(name, senseRadius, chaseRadius, closeDistance, alertRadius, repathFrames,
+                swingFrames, minDepth, weight, colour, scale, look, key, skillNearest, skillFurthest,
+                keepNearest, keepFurthest, maxPerRoom);
     }
 
     /** Whether it holds a band of distance from him rather than closing to fight. */

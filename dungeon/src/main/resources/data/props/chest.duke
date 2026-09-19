@@ -1,0 +1,19 @@
+; What a dead monster leaves on the floor.
+;
+; Not a creature so much as a thing lying there, and the absences say so:
+;
+;   - no Body, so no weapon will ever shoot at it
+;   - no Geometry, so it does not shoulder anything aside or block a corridor
+;   - no CAN_ATTACK and nothing to attack with
+;
+; STRUCTURE is what makes the client draw it as a box on the floor rather than as
+; a creature, and gives it a bigger dot on the minimap -- which is the point of a
+; chest, since walking over to one is the decision it asks for.
+Object
+  Name = Chest
+  DisplayName = Chest
+  KindOf = [STRUCTURE]
+  VisionRange = 0
+  LootUpdate
+  End
+End

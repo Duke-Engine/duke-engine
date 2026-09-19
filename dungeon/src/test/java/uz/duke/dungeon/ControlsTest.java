@@ -196,10 +196,15 @@ class ControlsTest {
                     DefaultHero = Rogue
                   End
                 End
-                DungeonSkill Rogue Z
-                  Effect = DASH
-                  Distance = 40
-                  CooldownFrames = 60
+                """, """
+                Hero
+                  Name = Rogue
+                  Skill
+                    Key = Z
+                    Effect = DASH
+                    Distance = 40
+                    CooldownFrames = 60
+                  End
                 End
                 """);
 
@@ -226,15 +231,24 @@ class ControlsTest {
                     DefaultHero = Rogue
                   End
                 End
-                DungeonSkill Rogue Z
-                  Effect = DASH
-                  Distance = 40
-                  CooldownFrames = 60
+                """, """
+                Hero
+                  Name = Rogue
+                  Skill
+                    Key = Z
+                    Effect = DASH
+                    Distance = 40
+                    CooldownFrames = 60
+                  End
                 End
-                DungeonSkill Bard Y
-                  Effect = AREA_DAMAGE
-                  Radius = 20
-                  CooldownFrames = 60
+                Hero
+                  Name = Bard
+                  Skill
+                    Key = Y
+                    Effect = AREA_DAMAGE
+                    Radius = 20
+                    CooldownFrames = 60
+                  End
                 End
                 """);
 

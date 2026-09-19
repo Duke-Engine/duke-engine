@@ -1,7 +1,5 @@
 package uz.duke.rts.module;
 
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.module.MoveUpdate;
@@ -25,25 +23,6 @@ public final class HarvestUpdate extends UpdateModule {
 
     /** INI config: {@code LoadPerTrip}, {@code FramesPerTrip}. */
     public record Data(int loadPerTrip, int framesPerTrip) implements ModuleData {
-    }
-
-    private static final class DataBuilder {
-        int loadPerTrip;
-        int framesPerTrip;
-
-        Data build() {
-            return new Data(loadPerTrip, framesPerTrip);
-        }
-    }
-
-    private static final FieldParseTable<DataBuilder> DATA_TABLE = new FieldParseTable<DataBuilder>()
-            .add("LoadPerTrip", Ini.integer((b, v) -> b.loadPerTrip = v))
-            .add("FramesPerTrip", Ini.integer((b, v) -> b.framesPerTrip = v));
-
-    public static ModuleData parseData(Ini ini) {
-        var builder = new DataBuilder();
-        ini.initFromIni(builder, DATA_TABLE);
-        return builder.build();
     }
 
     private final int loadPerTrip;

@@ -46,7 +46,7 @@ class AsciiRendererTest {
     }
 
     private ThingTemplate template(String name, float vision, Kind... kinds) {
-        var t = ThingTemplate.named(name).module("ActiveBody", new ActiveBody.Data(100f)).visionRange(vision);
+        var t = ThingTemplate.named(name).module(new ActiveBody.Data(100f)).visionRange(vision);
         for (var k : kinds) {
             t.addKindOf(k);
         }

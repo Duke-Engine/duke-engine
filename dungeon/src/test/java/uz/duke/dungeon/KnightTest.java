@@ -133,8 +133,9 @@ class KnightTest {
      */
     @Test
     void hisNumbersComeOutOfTheFile() {
-        var rewritten = DungeonSettings.parse("""
-                Hero Knight
+        var rewritten = DungeonSettings.parse("", """
+                Hero
+                  Name = Knight
                   Title = Boshqacha
                   ArmourPercent = 44
                 End
@@ -300,7 +301,7 @@ class KnightTest {
      */
     @Test
     void aWholeRunStartsWithTheKnightInIt() {
-        var asKnight = DungeonSettings.parse(withDefaultHero(KNIGHT));
+        var asKnight = DungeonSettings.parse(withDefaultHero(KNIGHT), Content.data());
         var game = Dungeon.create(4242L, asKnight);
 
         game.runHeadless(120); // four seconds of a real floor
@@ -317,7 +318,7 @@ class KnightTest {
     /** And swapping back is the same one line. */
     @Test
     void andSwappingBackStartsTheArcher() {
-        var game = Dungeon.create(4242L, DungeonSettings.parse(withDefaultHero(ARCHER)));
+        var game = Dungeon.create(4242L, DungeonSettings.parse(withDefaultHero(ARCHER), Content.data()));
 
         game.runHeadless(30);
 
@@ -333,7 +334,7 @@ class KnightTest {
      * map size — and this has to be a real run.
      */
     private static String withDefaultHero(String template) {
-        var file = Content.settings();
+        var file = Content.world();
         // Whatever it currently says, not "the archer's line": the point of the
         // line is that somebody changes it, so a test that only knew how to change
         // it away from one value would fail for the person using it.
@@ -470,22 +471,23 @@ class KnightTest {
     }
 
     /**
-     * A hero who carries one thing is still written the way he always was.
+     * A hero who carries one thing writes one {@code Held} block.
      *
-     * <p>The promise the repeatable form has to keep. Every monster in the game
-     * names one {@code Holds} and one {@code HeldIn}, and none of them was
-     * touched; this checks the hero side of the same shape by reading a block
-     * that names exactly one.
+     * <p>A monster carries at most one, written the same way; this checks the hero side of
+     * the same shape by reading a block that names exactly one.
      */
     @Test
     void oneThingCarriedIsStillOneBlock() {
-        var one = DungeonSettings.parse("""
-                Hero Solo
+        var one = DungeonSettings.parse("", """
+                Hero
+                  Name = Solo
                   Model = models/heroes/rogue.glb
-                  Holds = models/heroes/bow.gltf
-                  HeldIn = handslot.l
-                  HeldScale = 2
-                  HeldRoll = 180
+                  Held
+                    Model = models/heroes/bow.gltf
+                    Bone = handslot.l
+                    Scale = 2
+                    Roll = 180
+                  End
                 End
                 """).heroNamed("Solo").held();
 
@@ -496,7 +498,7 @@ class KnightTest {
         assertEquals(180f, one.get(0).roll(), 0.001f);
     }
 
-    /** And a spot on a bone is three numbers on one line, because a place is one fact. */
+    /** And a carried thing may sit off its bone, by X, Y and Z. */
     @Test
     void aCarriedThingMayBeShiftedOffItsBone() {
         var quiver = SETTINGS.heroNamed("Rogue").held().stream()
@@ -578,7 +580,7 @@ class KnightTest {
 
     private static float reach(String template) {
         for (var entry : templateOf(template).modules()) {
-            if (entry.data() instanceof WeaponUpdate.Data weapon) {
+            if (entry instanceof WeaponUpdate.Data weapon) {
                 return weapon.attackRange();
             }
         }

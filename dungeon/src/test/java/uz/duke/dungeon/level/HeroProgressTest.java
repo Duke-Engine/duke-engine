@@ -39,12 +39,6 @@ class HeroProgressTest {
                 HealthPerPoint = 10
               End
             End
-            Hero Rogue
-              Primary = AGI
-              Attribute = STR 12 4
-              Attribute = AGI 12 12
-              Attribute = INT 8 1
-            End
             World Dungeon
               Leveling = Progression
                 MaxLevel = 10
@@ -52,6 +46,16 @@ class HeroProgressTest {
                 XpStep = 0
                 ArmourPercentPerLevel = 10
                 MinDamageTakenPercent = 40
+              End
+            End
+            """, """
+            Hero
+              Name = Rogue
+              Primary = AGI
+              Attributes
+                STR = [12, 4]
+                AGI = [12, 12]
+                INT = [8, 1]
               End
             End
             """);

@@ -36,7 +36,7 @@ class PartitionManagerTest {
     @BeforeEach
     void setUp() {
         var thingFactory = new ThingFactory(ModuleFactory.withDefaults());
-        unit = ThingTemplate.named("Unit").module("ActiveBody", new ActiveBody.Data(100f)).build();
+        unit = ThingTemplate.named("Unit").module(new ActiveBody.Data(100f)).build();
         thingFactory.addTemplate(unit);
         logic = new TestLogic(thingFactory);
         logic.init();

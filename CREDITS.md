@@ -146,9 +146,9 @@ so. Two things make it cheap to undo if that ever changes:
 
 - The source `.fbx` is at `dungeon/art/anim/`, outside the resources, so removing
   the animation is deleting two files rather than unpicking a folder.
-- Nothing else depends on it. `DungeonSkill Mage R` names the clip; delete the
-  two lines and the mage casts his meteor standing still, exactly as he did
-  before this arrived.
+- Nothing else depends on it. `CastAnim` in the mage's `R` skill
+  (`data/units/mage.duke`) names the clip; delete the two lines and the mage casts
+  his meteor standing still, exactly as he did before this arrived.
 
 The bones are KayKit's own, which is luck rather than planning: it was animated
 on the mage himself, so the 23 joints are named as the kit names them and the

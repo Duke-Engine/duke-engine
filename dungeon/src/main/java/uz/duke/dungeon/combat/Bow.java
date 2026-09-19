@@ -1,7 +1,5 @@
 package uz.duke.dungeon.combat;
 
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.module.DamageType;
 import uz.duke.core.module.Module;
 import uz.duke.core.module.ModuleData;
@@ -44,6 +42,9 @@ public final class Bow extends Module implements ProjectileLauncher {
      *     does not squeeze out of its own chest
      */
     public record Data(String projectile, float speed, float muzzleOffset) implements ModuleData {
+
+        /** A block that leaves the offset out means the game's own, and zero is an offset. */
+        static final Data DEFAULTS = new Data(null, 0f, -1f);
     }
 
     private final DungeonSettings settings;
@@ -54,24 +55,6 @@ public final class Bow extends Module implements ProjectileLauncher {
         this.data = data;
         this.settings = settings;
     }
-
-    public static ModuleData parseData(Ini ini) {
-        var builder = new DataBuilder();
-        ini.initFromIni(builder, DATA_TABLE);
-        return new Data(builder.projectile, builder.speed, builder.muzzleOffset);
-    }
-
-    private static final class DataBuilder {
-        private String projectile;
-        private float speed;
-        private float muzzleOffset = -1f;
-    }
-
-    private static final FieldParseTable<DataBuilder> DATA_TABLE =
-            new FieldParseTable<DataBuilder>()
-                    .add("Projectile", Ini.string((b, v) -> b.projectile = v))
-                    .add("Speed", Ini.real((b, v) -> b.speed = v))
-                    .add("MuzzleOffset", Ini.real((b, v) -> b.muzzleOffset = v));
 
     /**
      * Declining rather than swallowing the shot: a creature whose projectile is

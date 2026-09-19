@@ -6,8 +6,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import uz.duke.core.GameConstants;
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.thing.Classified;
 import uz.duke.core.thing.Geometry;
@@ -20,50 +18,38 @@ import uz.duke.core.thing.Titled;
 /**
  * An RTS's {@code Object}: the engine's fields, and what it costs to build. Every thing
  * in an RTS may come out of a factory, so the library gives the {@code Object} block
- * itself the two fields — see {@link #register}.
+ * itself the two fields — {@code BuildCost} and {@code BuildTime} — see {@link #register}.
  */
-public record RtsTemplate(String name, String displayName, Set<Kind> kinds, float visionRange, Geometry geometry,
-        List<ModuleEntry> modules, int buildCost, int buildTimeFrames)
+public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, float visionRange, Geometry geometry,
+        List<ModuleData> modules, int buildCost, float buildTime)
         implements Solid, Sighted, Classified, Titled, Buildable {
 
     public RtsTemplate {
-        kinds = Set.copyOf(kinds);
-        modules = List.copyOf(modules);
+        displayName = displayName == null ? "" : displayName;
+        kindOf = kindOf == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(kindOf));
+        geometry = geometry == null ? Geometry.POINT : geometry;
+        modules = modules == null ? List.of() : List.copyOf(modules);
     }
-
-    /** What an {@code Object} block adds in an RTS. */
-    private static final class Cost {
-        private int buildCost;
-        private int buildTimeFrames;
-    }
-
-    private static final FieldParseTable<Cost> COST = new FieldParseTable<Cost>()
-            .add("BuildCost", Ini.integer((c, v) -> c.buildCost = v))
-            // Seconds in the file, frames in the template, as SAGE writes it.
-            .add("BuildTime", (ini, c) -> c.buildTimeFrames =
-                    Math.round(Ini.scanReal(ini.getNextToken()) * GameConstants.LOGICFRAMES_PER_SECOND));
 
     /** Makes {@code Object} blocks RTS templates, with a build cost and a build time. */
     public static ThingTemplateLoader register(ThingTemplateLoader loader) {
-        return loader.type("Object", RtsTemplate.class, COST, Cost::new,
-                (parts, cost) -> new RtsTemplate(parts.name(), parts.displayName(), parts.kinds(), parts.visionRange(),
-                        parts.geometry(), parts.modules(), cost.buildCost, cost.buildTimeFrames));
+        return loader.type("Object", RtsTemplate.class);
     }
 
     public static Builder named(String name) {
         return new Builder(name);
     }
 
-    /** For a template built in code; INI goes through {@link #register}. */
+    /** For a template built in code; a file goes through {@link #register}. */
     public static final class Builder {
         private final String name;
         private String displayName = "";
         private final Set<Kind> kinds = new LinkedHashSet<>();
-        private final List<ModuleEntry> modules = new ArrayList<>();
+        private final List<ModuleData> modules = new ArrayList<>();
         private float visionRange;
         private Geometry geometry = Geometry.POINT;
         private int buildCost;
-        private int buildTimeFrames;
+        private float buildTime;
 
         private Builder(String name) {
             this.name = name;
@@ -94,8 +80,8 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kinds, floa
             return this;
         }
 
-        public Builder module(String tag, ModuleData data) {
-            modules.add(new ModuleEntry(tag, data));
+        public Builder module(ModuleData data) {
+            modules.add(data);
             return this;
         }
 
@@ -104,13 +90,14 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kinds, floa
             return this;
         }
 
+        /** In frames, as a test counts them; a file writes seconds. */
         public Builder buildTimeFrames(int buildTimeFrames) {
-            this.buildTimeFrames = buildTimeFrames;
+            this.buildTime = buildTimeFrames / (float) GameConstants.LOGICFRAMES_PER_SECOND;
             return this;
         }
 
         public RtsTemplate build() {
-            return new RtsTemplate(name, displayName, kinds, visionRange, geometry, modules, buildCost, buildTimeFrames);
+            return new RtsTemplate(name, displayName, kinds, visionRange, geometry, modules, buildCost, buildTime);
         }
     }
 }

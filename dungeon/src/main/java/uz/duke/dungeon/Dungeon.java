@@ -11,6 +11,10 @@ import uz.duke.dungeon.combat.EyesOnly;
 import uz.duke.dungeon.combat.Swing;
 import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.content.Hero;
+import uz.duke.dungeon.content.Monster;
+import uz.duke.dungeon.content.Projectile;
+import uz.duke.dungeon.content.Prop;
 import uz.duke.dungeon.gen.DungeonGenerator;
 import uz.duke.dungeon.level.GrowableBody;
 import uz.duke.dungeon.level.HeroAttributes;
@@ -42,7 +46,7 @@ import uz.duke.game.script.ScriptModule;
  * learn that is to strip away everything that could hide the answer.
  *
  * <p>This class is only assembly. What the creatures are is data
- * ({@code ini/units/}), how a dungeon is laid out is data ({@code dungeon.ini}),
+ * ({@code data/units/}), how a dungeon is laid out is data ({@code dungeon.ini}),
  * how they behave is {@link uz.duke.dungeon.ai}, and when a run ends is
  * {@link DungeonRun}. Nothing here is added to the engine — the game is definitions
  * and orders the engine already understands, which is the real test: if a game
@@ -142,7 +146,7 @@ public final class Dungeon {
                     ScriptModule.registerScript(factory, "HeroBrain",
                             () -> new HeroBrain(settings, orders));
                     // One brain per kind, wired from the list the settings file
-                    // names — so adding a monster is two blocks of INI and no Java.
+                    // names — so adding a monster is a file and no Java.
                     for (var kind : settings.monsters()) {
                         ScriptModule.registerScript(factory, kind.brainTag(),
                                 () -> new MonsterBrain(kind, settings));
@@ -157,73 +161,49 @@ public final class Dungeon {
                     // wherever he is spawned. Anything that is not a hero is built
                     // exactly as its block says. See HeroBuild.
                     var rules = settings.attributeRules();
-                    factory.register("GrowableBody",
-                            (owner, data) -> new GrowableBody(owner, HeroBuild.body(
-                                    (GrowableBody.Data) data, attributesOf(settings, owner), rules)),
-                            GrowableBody::parseData);
-                    factory.register("MoveUpdate",
+                    factory.register(GrowableBody.Data.class, (owner, data) -> new GrowableBody(owner,
+                            HeroBuild.body(data, attributesOf(settings, owner), rules)));
+                    factory.register(uz.duke.core.module.MoveUpdate.Data.class,
                             (owner, data) -> new uz.duke.core.module.MoveUpdate(owner,
-                                    HeroBuild.legs((uz.duke.core.module.MoveUpdate.Data) data,
-                                            attributesOf(settings, owner), rules)),
-                            uz.duke.core.module.MoveUpdate::parseData);
-                    factory.register("WeaponUpdate",
+                                    HeroBuild.legs(data, attributesOf(settings, owner), rules)));
+                    factory.register(uz.duke.rts.module.WeaponUpdate.Data.class,
                             (owner, data) -> new uz.duke.rts.module.WeaponUpdate(owner,
-                                    HeroBuild.weapon((uz.duke.rts.module.WeaponUpdate.Data) data,
-                                            attributesOf(settings, owner), rules)),
-                            uz.duke.rts.module.WeaponUpdate::parseData);
+                                    HeroBuild.weapon(data, attributesOf(settings, owner), rules)));
                     // Health coming back on its own, at the rate his block names --
                     // set by HeroProgress, as his mana is.
-                    factory.register("Recovery", (owner, data) -> new Recovery(owner),
-                            Recovery::parseData);
-                    // Which skills a hero has is not in his creature block — it is
-                    // in his DungeonSkill blocks, under his template's name. So the block says
-                    // only that he has some, and a second hero needs the same line
-                    // and his own DungeonSkill blocks, and no code at all.
-                    factory.register("SkillBook",
-                            (owner, data) -> new SkillBook(owner,
-                                    settings.skillsFor(owner.getTemplate().name()), settings),
-                            SkillBook::parseData);
+                    factory.register(Recovery.Data.class, (owner, data) -> new Recovery(owner));
+                    // Which skills a unit has is the Skill blocks written inside its own:
+                    // the SkillBook block says only that it has some.
+                    factory.register(SkillBook.Data.class, (owner, data) -> new SkillBook(owner,
+                            settings.skillsFor(owner.getTemplate().name()), settings));
                     // An archer's shots become things in the world. The engine's
                     // weapon still aims and reloads; these two decide what
                     // happens between letting go and landing.
-                    factory.register("Bow",
-                            (owner, data) -> new Bow(owner, (Bow.Data) data, settings),
-                            Bow::parseData);
+                    factory.register(Bow.Data.class, (owner, data) -> new Bow(owner, data, settings));
                     // Stone stops his shots as well as his eyes.
-                    factory.register("EyesOnly",
-                            (owner, data) -> new EyesOnly(owner, settings), EyesOnly::parseData);
-                    factory.register("ArrowUpdate",
-                            (owner, data) -> new ArrowUpdate(owner, data),
-                            ArrowUpdate::parseData);
+                    factory.register(EyesOnly.Data.class, (owner, data) -> new EyesOnly(owner, settings));
+                    factory.register(ArrowUpdate.Data.class, ArrowUpdate::new);
                     // A blast with a pause in the middle. The mark it leaves is a
                     // thing in the world like the arrow above, so the client draws
                     // the warning without being told anything special.
-                    factory.register("FallingUpdate",
-                            (owner, data) -> new FallingUpdate(owner, data),
-                            FallingUpdate::parseData);
+                    factory.register(FallingUpdate.Data.class, FallingUpdate::new);
                     // The meteor's mark turned round: holy light lying where it will
                     // land, and mending whoever it came down for when it does.
-                    factory.register("MendingUpdate",
-                            (owner, data) -> new MendingUpdate(owner, data),
-                            MendingUpdate::parseData);
+                    factory.register(MendingUpdate.Data.class, MendingUpdate::new);
                     // And a rift, which something of the dungeon's own climbs out of.
-                    factory.register("SummoningUpdate",
-                            (owner, data) -> new SummoningUpdate(owner, data),
-                            SummoningUpdate::parseData);
+                    factory.register(SummoningUpdate.Data.class, SummoningUpdate::new);
                     // A monster's blow lands where it stands, as it always did.
                     // This is only how the brain finds out that it struck.
-                    factory.register("Swing", Swing::new, Swing::parseData);
+                    factory.register(Swing.Data.class, Swing::new);
                     // What a dead monster leaves lying about. The chest is a
                     // creature like any other -- it is in the world, so the client
                     // draws it without being told anything special.
-                    factory.register("LootUpdate",
-                            (owner, data) -> new LootUpdate(owner, bag,
-                                    settings.lootPickupRange(), settings.lootNoteFrames()),
-                            LootUpdate::parseData);
+                    factory.register(LootUpdate.Data.class, (owner, data) -> new LootUpdate(owner, bag,
+                            settings.lootPickupRange(), settings.lootNoteFrames()));
                 })
-                // Monster, Hero, Projectile and Prop blocks: the engine's part read here, the
-                // dungeon's taken from the settings, which read it from the same blocks.
-                .templates(loader -> uz.duke.dungeon.content.DungeonTemplates.register(loader, settings))
+                // A unit is one block, and its record is its word: a Monster block is a Monster.
+                .templates(loader -> loader.type(Monster.class).type(Hero.class)
+                        .type(Projectile.class).type(Prop.class))
                 .loadUnits(creaturesIni)
                 // How tall a storey stands is the World block's, and the engine lays
                 // every map at it: this one and each floor after it.

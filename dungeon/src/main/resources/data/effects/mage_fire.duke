@@ -1,0 +1,26 @@
+Effect
+  Name = MageFire
+  ; The mage's ORDINARY attack, so it is small. What a fireball proper looks like
+  ; is a later question, and it will be a second block here rather than an edit
+  ; to this one.
+  Kinds = [GLOW_ORB, FLAME_TRAIL, IMPACT_BURST]
+  Colour = 0xFF7A2A
+  FadeColour = 0x5A0E00
+  LightColour = 0xFF6A18
+  LightPower = 1.8
+  LightRadius = 44
+  ; The body, since there is no model: a couple of units across, which is about
+  ; a fist at the scale everything else down here is drawn at.
+  OrbSize = 1.1
+  ; And enough fire to wrap it. The orb on its own is a plain sphere and reads as
+  ; one -- a coloured ball rather than something burning -- so the trail has to be
+  ; wide enough to hide its edge. Still an ordinary attack, still cheap: thirty
+  ; sparks against the flaming arrow's sixty.
+  Particles = 32
+  ParticleSize = 3.0
+  ParticleLife = 0.45
+  Spread = 5
+  BurstParticles = 26
+  BurstSize = 2.6
+  BurstSeconds = 0.32
+End

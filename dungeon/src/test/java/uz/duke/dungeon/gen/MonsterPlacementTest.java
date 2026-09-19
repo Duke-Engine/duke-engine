@@ -173,14 +173,14 @@ class MonsterPlacementTest {
     }
 
     private static DungeonSettings guardedBy(String guard) {
-        return DungeonSettings.parse(uz.duke.dungeon.content.Content.settings() + """
+        return DungeonSettings.parse(uz.duke.dungeon.content.Content.world() + """
 
                 World Dungeon
                   Depth = Descent
                     BossGuards = %s
                   End
                 End
-                """.formatted(guard));
+                """.formatted(guard), uz.duke.dungeon.content.Content.data());
     }
 
     private static long cellOf(GeneratedDungeon.Placement at) {
@@ -205,8 +205,9 @@ class MonsterPlacementTest {
      */
     @Test
     void changingTheFileChangesWhoAppears() {
-        var noRunners = DungeonSettings.parse("""
-                Monster Runner
+        var noRunners = DungeonSettings.parse("", """
+                Monster
+                  Name = Runner
                   MinDepth = 99
                 End
                 """);
@@ -227,8 +228,9 @@ class MonsterPlacementTest {
     /** An override changes the kind it names and nothing else about it. */
     @Test
     void namingOneKindLeavesTheOthersStanding() {
-        var tweaked = DungeonSettings.parse("""
-                Monster Brute
+        var tweaked = DungeonSettings.parse("", """
+                Monster
+                  Name = Brute
                   SenseRadius = 500
                 End
                 """);

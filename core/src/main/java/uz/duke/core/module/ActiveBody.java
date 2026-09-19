@@ -1,7 +1,6 @@
 package uz.duke.core.module;
 
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
+import java.util.Map;
 import uz.duke.core.thing.GameObject;
 
 /**
@@ -14,39 +13,17 @@ import uz.duke.core.thing.GameObject;
 public final class ActiveBody extends BodyModule {
 
     /**
-     * INI configuration for an {@link ActiveBody}: {@code MaxHealth} and optional
-     * {@link Armor}. The single-arg form (no armor) keeps existing call sites
-     * working.
+     * {@code MaxHealth}, and an {@code Armor} block of damage multipliers by type:
+     * {@code ARMOR_PIERCING = 2.0} is a weakness, {@code FLAME = 0.5} half the harm.
      */
-    public record Data(float maxHealth, Armor armor) implements ModuleData {
+    public record Data(float maxHealth, Map<DamageType, Float> armor) implements ModuleData {
+        public Data {
+            armor = armor == null ? Map.of() : Map.copyOf(armor);
+        }
+
         public Data(float maxHealth) {
-            this(maxHealth, Armor.NONE);
+            this(maxHealth, Map.of());
         }
-    }
-
-    /** Mutable accumulator used while parsing a {@link Data} from INI. */
-    private static final class DataBuilder {
-        float maxHealth;
-        final Armor.Builder armor = Armor.builder();
-
-        Data build() {
-            return new Data(maxHealth, armor.build());
-        }
-    }
-
-    private static final FieldParseTable<DataBuilder> DATA_TABLE = new FieldParseTable<DataBuilder>()
-            .add("MaxHealth", Ini.real((b, v) -> b.maxHealth = v))
-            // Armor = ARMOR_PIERCING:1.5  (one weakness/resistance per line, repeatable)
-            .add("Armor", (ini, b) -> {
-                var type = Ini.scanEnum(DamageType.class, ini.getNextToken(Ini.SEPS_COLON));
-                b.armor.set(type, Ini.scanReal(ini.getNextToken(Ini.SEPS_COLON)));
-            });
-
-    /** Read an {@link ActiveBody} sub-block's fields up to its {@code End}. */
-    public static ModuleData parseData(Ini ini) {
-        var builder = new DataBuilder();
-        ini.initFromIni(builder, DATA_TABLE);
-        return builder.build();
     }
 
     private final float maxHealth;
@@ -56,7 +33,7 @@ public final class ActiveBody extends BodyModule {
     public ActiveBody(GameObject owner, Data data) {
         super(owner);
         this.maxHealth = data.maxHealth();
-        this.armor = data.armor();
+        this.armor = new Armor(data.armor());
         this.health = data.maxHealth();
     }
 

@@ -241,12 +241,15 @@ class DungeonPortraitTest {
      */
     @Test
     void reboundInTheFileIsReboundInTheGame() {
-        var rebound = DungeonSettings.parse("""
-                Hero Rogue
+        var rebound = DungeonSettings.parse("", """
+                Hero
+                  Name = Rogue
                   Model = models/heroes/ranger.glb
-                  PortraitCalm = Idle_A
-                  PortraitFight = Melee_Unarmed_Idle
-                  PortraitDead = Death_B
+                  Portrait
+                    Calm = Idle_A
+                    Fight = Melee_Unarmed_Idle
+                    Dead = Death_B
+                  End
                 End
                 """);
 
@@ -282,16 +285,22 @@ class DungeonPortraitTest {
     /** And a second hero is a second block, with no Java anywhere in the way. */
     @Test
     void aSecondHeroIsASecondBlock() {
-        var two = DungeonSettings.parse("""
-                Hero Rogue
+        var two = DungeonSettings.parse("", """
+                Hero
+                  Name = Rogue
                   Model = models/heroes/ranger.glb
-                  PortraitCalm = Ranged_Bow_Idle
+                  Portrait
+                    Calm = Ranged_Bow_Idle
+                  End
                 End
-                Hero Mage
+                Hero
+                  Name = Mage
                   Model = models/heroes/mage.glb
                   Idle = Idle_A
-                  PortraitCalm = Idle_A
-                  PortraitYaw = -30
+                  Portrait
+                    Calm = Idle_A
+                    Yaw = -30
+                  End
                 End
                 """);
 

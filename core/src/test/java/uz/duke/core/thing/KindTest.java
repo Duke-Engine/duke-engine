@@ -32,6 +32,6 @@ class KindTest {
 
         org.junit.jupiter.api.Assertions.assertTrue(template.isKindOf(Kind.of("SPELLCASTER")));
         org.junit.jupiter.api.Assertions.assertFalse(template.isKindOf(Kind.of("UNDEAD")));
-        assertEquals(2, template.kinds().size());
+        assertEquals(2, template.kindOf().size());
     }
 }

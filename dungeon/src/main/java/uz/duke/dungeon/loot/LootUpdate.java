@@ -26,6 +26,10 @@ import uz.duke.rts.module.RtsModuleGroups;
 @ModuleGroup(RtsModuleGroups.ECONOMY)
 public final class LootUpdate extends UpdateModule {
 
+    /** It reads no fields; the block only says the unit has one. */
+    public record Data() implements ModuleData {
+    }
+
     private final LootBag bag;
     private final float pickupRange;
     private final int noteFrames;
@@ -38,15 +42,6 @@ public final class LootUpdate extends UpdateModule {
         this.pickupRange = pickupRange;
         this.noteFrames = noteFrames;
     }
-
-    /** The empty block that puts this on the chest; the monster that dropped it fills the rest in. */
-    public static ModuleData parseData(uz.duke.core.ini.Ini ini) {
-        ini.initFromIni(new Object(), NO_FIELDS);
-        return null;
-    }
-
-    private static final uz.duke.core.ini.FieldParseTable<Object> NO_FIELDS =
-            new uz.duke.core.ini.FieldParseTable<>();
 
     /** Say what is in it. Called once, by whatever dropped it. */
     void holds(Loot item) {

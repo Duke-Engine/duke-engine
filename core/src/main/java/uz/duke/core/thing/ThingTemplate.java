@@ -19,13 +19,10 @@ import uz.duke.core.module.ModuleData;
  */
 public interface ThingTemplate {
 
-    /** One module to attach to each instance: its factory tag plus its data. */
-    record ModuleEntry(String tag, ModuleData data) {
-    }
-
     String name();
 
-    List<ModuleEntry> modules();
+    /** What each instance is built with: one module per entry, the data its block was read into. */
+    List<ModuleData> modules();
 
     /** An {@code Object} built in code, as tests and tools build one. */
     static ObjectTemplate.Builder named(String name) {

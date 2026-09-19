@@ -70,7 +70,7 @@ package uz.duke.dungeon.skill;
  * @param blurb         one or two sentences on what it does — what the tooltip
  *     says above the numbers. The numbers themselves are never in here: they are
  *     computed from the rank and would go stale the moment anything was retuned
- * @param look          the name of the {@code DungeonEffect} block that says what
+ * @param look          the name of the {@code Effect} block that says what
  *     this one looks like going off -- the ring across the floor, the knock to
  *     the camera -- or empty for a skill that is drawn by nothing but whatever it
  *     throws. Named rather than described, so two skills may share a look and a
@@ -134,6 +134,23 @@ public record Skill(
      * frame is not a skill, and a file is free to sharpen one too far by accident.
      */
     public static final int MIN_COOLDOWN_FRAMES = 1;
+
+    /**
+     * What a {@code Skill} block leaves out: a plain strike on a three-second cooldown, four
+     * ranks deep, whose owner is the block it is written in.
+     */
+    static final Skill DEFAULTS = new Skill(null, '\0', SkillEffect.STRIKE, 0f, 0f, 0f, 0f, 0f, 0f,
+            0, 0, 0, 0, 0, 90, 0, 4, 0, 0, 0, 0, "", "", "", "", 0f, "", "", 0f, 0f, 0, "", 0, 0, 0);
+
+    /** This skill as {@code owner}'s, its key the one a player presses. */
+    public Skill ownedBy(String owner) {
+        return new Skill(owner, Character.toUpperCase(key), effect, damage, damagePerLevel, radius, range,
+                distance, hitWidth, boostPercent, boostPerLevel, durationFrames, tickFrames, slowFrames,
+                cooldownFrames, cooldownPerLevel, maxRank, levelPerRank, windUpFrames, manaCost,
+                manaCostPerLevel, projectile, icon, look, castAnim, castSeconds, name, blurb,
+                projectileSpeed, heal, healBelowPercent, summons, summonCount, maxSummoned,
+                summonExperiencePercent);
+    }
 
     /** Levels earned past the first — what every growth figure is multiplied by. */
     private int grown(int level) {

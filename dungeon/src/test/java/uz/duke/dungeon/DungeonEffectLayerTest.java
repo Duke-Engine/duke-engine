@@ -71,10 +71,10 @@ class DungeonEffectLayerTest {
     @Test
     void everyLayerBelongsToAnEffectThatExists() {
         var effects = SETTINGS.effects().stream()
-                .map(DungeonSettings.EffectLook::name).collect(Collectors.toSet());
+                .map(uz.duke.dungeon.content.Effect::name).collect(Collectors.toSet());
         for (var layer : SETTINGS.effectLayers()) {
-            assertTrue(effects.contains(layer.effect()), "DungeonEffectLayer " + layer.effect()
-                    + " " + layer.name() + " belongs to no DungeonEffect");
+            assertTrue(effects.contains(layer.effect()), "Layer " + layer.effect()
+                    + " " + layer.name() + " belongs to no Effect");
         }
     }
 
@@ -168,20 +168,31 @@ class DungeonEffectLayerTest {
                 "so it has the client's own default");
     }
 
-    /** One layer block as the file writes it: each field's name, and the rest of its line. */
+    /** One layer block as the file writes it: each field's name, and its value, a list's items spaced. */
     private static java.util.Map<String, String> saidIn(String effect, String name) {
-        var lines = uz.duke.dungeon.content.Content.settings().lines().toList();
         var said = new java.util.LinkedHashMap<String, String>();
-        int at = lines.indexOf("DungeonEffectLayer " + effect + " " + name);
-        assertTrue(at >= 0, "no block DungeonEffectLayer " + effect + " " + name);
-        for (int i = at + 1; !lines.get(i).trim().equals("End"); i++) {
-            var line = lines.get(i).trim();
-            int equals = line.indexOf('=');
-            if (!line.startsWith(";") && equals > 0) {
-                said.put(line.substring(0, equals).trim(), line.substring(equals + 1).trim());
+        for (var block : uz.duke.core.data.DukeText.parse(uz.duke.dungeon.content.Content.data(), "data")) {
+            if (!block.word().equals("Effect") || !named(block, effect)) {
+                continue;
+            }
+            for (var layer : block.blocks()) {
+                if (layer.word().equals("Layer") && named(layer, name)) {
+                    for (var field : layer.fields()) {
+                        said.put(field.key(), switch (field.value()) {
+                            case uz.duke.core.data.Value.Text text -> text.text();
+                            case uz.duke.core.data.Value.Items items -> String.join(" ", items.items());
+                        });
+                    }
+                    return said;
+                }
             }
         }
-        return said;
+        return fail("no Layer " + name + " in Effect " + effect);
+    }
+
+    private static boolean named(uz.duke.core.data.Block block, String name) {
+        return block.fields().stream().anyMatch(field -> field.key().equals("Name")
+                && field.value().equals(new uz.duke.core.data.Value.Text(name)));
     }
 
     /** Smoke and dust cover; they are never drawn as light. */

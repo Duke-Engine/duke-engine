@@ -28,13 +28,13 @@ class DungeonThemeTest {
 
     /** The shipped file with its theme order rewritten. */
     private static DungeonSettings withOrder(String order) {
-        var text = Content.settings();
+        var text = Content.world();
         var edited = new StringBuilder();
         for (var line : text.split("\n", -1)) {
             edited.append(line.trim().startsWith("Order =") ? "  Order = " + order : line)
                     .append('\n');
         }
-        return DungeonSettings.parse(edited.toString());
+        return DungeonSettings.parse(edited.toString(), Content.data());
     }
 
     /**

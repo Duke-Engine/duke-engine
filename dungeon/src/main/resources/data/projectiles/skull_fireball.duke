@@ -1,0 +1,15 @@
+; The Skeleton Mage's fireball: the same creature as the Mage's, from the other side.
+Projectile
+  Name = SkullFireball
+  DisplayName = Fireball
+  VisionRange = 0
+  ArrowUpdate
+  End
+
+
+; The Skeleton Mage's fireball, violet where the Mage's is gold.
+  Height = 7
+  Tint = 0xB04AFF
+  Effect = SkullFireball
+  EffectOffset = 0
+End

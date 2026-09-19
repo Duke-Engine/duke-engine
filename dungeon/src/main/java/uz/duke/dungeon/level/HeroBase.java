@@ -20,7 +20,7 @@ public record HeroBase(float maxHealth, float speed, float turnRate, float damag
         WeaponUpdate.Data weapon = null;
         // The first of each, as every other reader of a template takes it.
         for (var entry : template.modules()) {
-            switch (entry.data()) {
+            switch (entry) {
                 case GrowableBody.Data found -> body = body == null ? found : body;
                 case MoveUpdate.Data found -> legs = legs == null ? found : legs;
                 case WeaponUpdate.Data found -> weapon = weapon == null ? found : weapon;
@@ -29,8 +29,8 @@ public record HeroBase(float maxHealth, float speed, float turnRate, float damag
             }
         }
         return new HeroBase(body == null ? 0f : body.maxHealth(),
-                legs == null ? 0f : legs.speedPerSecond(),
-                legs == null ? 0f : legs.turnRateDegreesPerSecond(),
+                legs == null ? 0f : legs.speed(),
+                legs == null ? 0f : legs.turnRate(),
                 weapon == null ? 0f : weapon.damage());
     }
 }

@@ -19,12 +19,13 @@ import uz.duke.rts.RtsTemplate;
 class GameSnapshotTest {
 
     private static final String INI = """
-            Object Tank
-              KindOf = VEHICLE
-              Body = ActiveBody Tag
+            Object
+              Name = Tank
+              KindOf = [VEHICLE]
+              ActiveBody
                 MaxHealth = 100
               End
-              Update = MoveUpdate Tag
+              MoveUpdate
                 Speed = 30
               End
             End
@@ -46,7 +47,7 @@ class GameSnapshotTest {
 
     private static TestLogic newLogic() {
         var thingFactory = new ThingFactory(ModuleFactory.withDefaults());
-        RtsTemplate.register(new ThingTemplateLoader(thingFactory)).load(INI);
+        RtsTemplate.register(new ThingTemplateLoader(thingFactory)).load(INI, "units.duke");
         var logic = new TestLogic(thingFactory);
         logic.init();
         return logic;

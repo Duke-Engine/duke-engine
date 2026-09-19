@@ -1,0 +1,95 @@
+Monster
+  Name = Revenant
+  DisplayName = Revenant
+  KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
+  Cylinder
+    Radius = 4
+    Height = 13
+  End
+  VisionRange = 58
+  GrowableBody
+    MaxHealth = 90
+  End
+  MoveUpdate
+    Speed = 16
+    TurnRate = 0
+  End
+  WeaponUpdate
+    Damage = 8
+    ; It throws fire rather than walking up. Shorter than the crossbow: this one
+    ; is dangerous because it will not die, not because it reaches.
+    AttackRange = 46
+    ReloadFrames = 58
+    AttackOnTheMove = No
+  End
+  ; A small one, and small on purpose -- this is its ordinary attack.
+  Bow
+    Projectile = Fireball
+    ; Slower than a bolt, so it can be seen coming and walked out from under.
+    Speed = 95
+    ; Out at the end of the staff, not out of its chest.
+    MuzzleOffset = 8
+  End
+  ; It throws at what it can see, for the same reason the crossbow shoots at it.
+  EyesOnly
+  End
+  ; The whole character of it: leave it alive and the fight resets.
+  AutoHealUpdate
+    HealPerSecond = 7
+  End
+  ; Tells the brain the frame a blow landed, so it stands and finishes the swing
+  ; instead of walking off mid-blow. It launches nothing -- see Swing.
+  Swing
+  End
+  ; Timers for the statuses it is wearing -- the engine's own, and today that
+  ; means SLOWED. MoveUpdate already halves the step of anything wearing it, and
+  ; StatusUpdate already counts it down and takes it off, so a monster that
+  ; carries this thaws by itself whether or not whoever chilled it is still alive.
+  StatusUpdate
+  End
+  ScriptModule
+    Name = RevenantBrain
+  End
+  ExperienceModule
+    ExperienceValue = 24
+    ExperienceRequired = [0, 0, 0]
+  End
+
+
+  ; Heals itself (AutoHealUpdate in its template above). Kill it quickly or it undoes
+  ; the fight — a damage check rather than a health check.
+  ;
+  ; And it throws fire, which it did not: a thing in a pointed hat that walks up
+  ; and hits you is a skeleton with a hat on. Its ordinary attack is a small
+  ; fireball -- small on purpose, because it is an ordinary attack. What a
+  ; fireball proper looks like is a skill, and a later question.
+  SenseRadius = 36
+  ChaseRadius = 75
+  CloseDistance = 38
+  AlertRadius = 70
+  RepathFrames = 10
+  SwingFrames = 14
+  ; It casts rather than swings.
+  Attack = Ranged_Magic_Shoot
+  ; And it STANDS with the staff up, which is the half that makes the other half
+  ; visible. With the ordinary idle its weapon hand sits at 0.53 -- down at its
+  ; side -- so the staff hung at its feet and the cast was a twitch between two
+  ; frames of that. Hands up and forward at 0.89, and the throw reads as a throw.
+  Idle = Ranged_Magic_Spellcasting_Long
+  MinDepth = 3
+  Weight = 12
+  Colour = 0x6FA8FF
+  Scale = 1.1
+  ; The one that carries a staff, because the one that mends itself should not
+  ; look like the ones that only swing. GeometryHeight is 13.
+  Model = models/monsters/skeleton_mage.glb
+  ; What is looking at you out of the dark.
+  Effect = EmberEyes
+  ModelScale = 6.0
+  Held
+    Model = models/monsters/staff.gltf
+    Bone = handslot.r
+  End
+  ; It heals itself; the pale wash says so before the health bar does.
+  Tint = 0x9FC4FF
+End

@@ -38,14 +38,14 @@ class SolidWorldTest {
             .geometry(new Geometry.Cylinder(3f, 9f))
             .buildCost(100)
             .buildTimeFrames(2)
-            .module("ActiveBody", new ActiveBody.Data(80f))
-            .module("WeaponUpdate", new WeaponUpdate.Data(10f, 5f, 10)) // very short reach
+            .module(new ActiveBody.Data(80f))
+            .module(new WeaponUpdate.Data(10f, 5f, 10)) // very short reach
             .build();
 
     private static final ThingTemplate BARRACKS = RtsTemplate.named("Barracks")
             .geometry(new Geometry.Box(20f, 16f, 14f))
-            .module("ActiveBody", new ActiveBody.Data(600f))
-            .module("ProductionUpdate", new ProductionUpdate.Data())
+            .module(new ActiveBody.Data(600f))
+            .module(new ProductionUpdate.Data())
             .build();
 
     private static TestLogic logicWith(ThingTemplate... templates) {

@@ -42,15 +42,15 @@ class ProductionTest {
     void setUp() {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());
         soldier = RtsTemplate.named("Soldier")
-                .module("ActiveBody", new ActiveBody.Data(50f))
+                .module(new ActiveBody.Data(50f))
                 .buildCost(100)
                 .buildTimeFrames(3)
                 .build();
         thingFactory.addTemplate(soldier);
 
         var barracksTemplate = RtsTemplate.named("Barracks")
-                .module("ActiveBody", new ActiveBody.Data(500f))
-                .module("ProductionUpdate", new ProductionUpdate.Data())
+                .module(new ActiveBody.Data(500f))
+                .module(new ProductionUpdate.Data())
                 .build();
         thingFactory.addTemplate(barracksTemplate);
 
@@ -121,14 +121,15 @@ class ProductionTest {
     void buildCostAndTimeLoadFromIni() {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());
         RtsTemplate.register(new ThingTemplateLoader(thingFactory)).load("""
-                Object Tank
+                Object
+                  Name = Tank
                   BuildCost = 200
                   BuildTime = 2.0
-                  Body = ActiveBody Tag
+                  ActiveBody
                     MaxHealth = 100
                   End
                 End
-                """);
+                """, "units.duke");
         var tank = (RtsTemplate) thingFactory.findTemplate("Tank");
         assertEquals(200, tank.buildCost());
         assertEquals(60, tank.buildTimeFrames()); // 2.0s * 30 fps

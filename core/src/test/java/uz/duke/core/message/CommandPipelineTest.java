@@ -58,7 +58,7 @@ class CommandPipelineTest {
     void setUp() {
         var thingFactory = new ThingFactory(ModuleFactory.withDefaults());
         template = ThingTemplate.named("Unit")
-                .module("ActiveBody", new ActiveBody.Data(100f))
+                .module(new ActiveBody.Data(100f))
                 .build();
         thingFactory.addTemplate(template);
         logic = new CommandLogic(thingFactory);

@@ -42,11 +42,11 @@ class SpecialPowerTest {
     void setUp() {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());
         target = ThingTemplate.named("Target")
-                .module("ActiveBody", new ActiveBody.Data(100f))
+                .module(new ActiveBody.Data(100f))
                 .build();
         var battleStation = ThingTemplate.named("Station")
-                .module("ActiveBody", new ActiveBody.Data(500f))
-                .module("SpecialPowerModule", new SpecialPowerModule.Data(30, 15f, 40f))
+                .module(new ActiveBody.Data(500f))
+                .module(new SpecialPowerModule.Data(30, 15f, 40f))
                 .build();
         thingFactory.addTemplate(target);
         thingFactory.addTemplate(battleStation);

@@ -1,0 +1,125 @@
+Effect
+  Name = ArcherFocus
+  ; R, the window in which everything else is worth more. Slow, wide and quiet,
+  ; because it is the one effect here that is not an impact -- it is a state
+  ; beginning, and a thing that thumps would read as a blast that did no damage.
+  Kinds = [SHOCKWAVE, IMPACT_BURST]
+  Colour = 0xFFE66A
+  LightColour = 0xFFC021
+  LightPower = 2.6
+  LightRadius = 64
+  BurstParticles = 26
+  BurstSize = 2.8
+  BurstSeconds = 0.42
+  WaveFrom = 1
+  ; ★ SMALLER, 26 -> 15. Nothing about it reaches past him -- it sharpens his
+  ; own sword -- so it should not be drawn as something that fills a room.
+  WaveTo = 15
+  WaveSeconds = 0.55
+  ; Under 2: it gathers rather than bursts, which is the one place in this file
+  ; where the slow start is the right picture.
+  WaveEase = 1.4
+  WaveEdge = 0.95
+  WaveWash = 0.30
+
+  ; The focus, round her for exactly as long as it lasts -- no Seconds, so the
+  ; skill's own DurationFrames: a warm glow that goes where she goes and blinks
+  ; through its last fifth, a reticle turning over her head, gold motes rising, and
+  ; a flash and a ring when she takes aim. The brief called this a piercing volley
+  ; with a line of energy; the skill is EMPOWER, which has no direction to draw a
+  ; line along, so it is drawn as what it is: a window in which she hits harder.
+  Layer
+    Name = Glow
+    Type = AURA
+    Texture = effects/particles/light_02.png
+    Blend = Additive
+    Cover = 0.1
+    Count = 1
+    Size = [22, 22]
+    Colour = [0xFFE66A, 0xFFC021]
+    Alpha = [0.45, 0.45]
+    FadeIn = 0.03
+    FadeOut = 0.2
+    PulseRate = 5
+    PulseDepth = 0.65
+    Spin = 30
+    Height = 6
+  End
+
+  Layer
+    Name = Reticle
+    Type = AURA
+    Texture = effects/particles/magic_03.png
+    Blend = Additive
+    Cover = 0.1
+    Count = 1
+    Size = [9, 9]
+    Colour = [0xFFF0A0, 0xFFD040]
+    Alpha = [0.6, 0.6]
+    FadeIn = 0.03
+    FadeOut = 0.2
+    Spin = 60
+    Height = 17
+    TurnJitter = 0
+  End
+
+  Layer
+    Name = Motes
+    Type = AURA
+    Texture = effects/particles/star_01.png
+    Blend = Additive
+    Count = 10
+    Rate = 7
+    Radius = 6
+    Life = [0.8, 1.2]
+    Size = [2.4, 0.4]
+    Colour = [0xFFF0A0, 0xFFB020]
+    Speed = [2, 5]
+    Direction = UP
+    Spread = 20
+    Height = 1
+  End
+
+  Layer
+    Name = Flash
+    Type = IMPACT
+    Texture = effects/particles/star_08.png
+    Blend = Additive
+    Count = 1
+    Life = [0.3, 0.3]
+    Size = [8, 30]
+    SizeEase = 3
+    Colour = [0xFFFFFF, 0xFFD040]
+    Alpha = [1, 0]
+    FadeOut = 0.6
+    Height = 8
+    TurnJitter = 0
+  End
+
+  Layer
+    Name = Ring
+    Type = RING
+    Texture = effects/particles/circle_02.png
+    Blend = Additive
+    Cover = 0.2
+    Count = 1
+    Life = [0.5, 0.5]
+    Size = [6, 30]
+    SizeEase = 1.6
+    Colour = [0xFFF0A0, 0xFFC021]
+    Alpha = [1, 0]
+    FadeOut = 0.5
+    Height = 0.4
+    TurnJitter = 0
+  End
+
+  Layer
+    Name = Light
+    Type = LIGHT
+    Seconds = 0.4
+    LightColour = 0xFFC021
+    LightPower = 2.6
+    LightRadius = 64
+    FadeOut = 0.85
+  End
+End

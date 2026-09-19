@@ -1,7 +1,5 @@
 package uz.duke.rts.module;
 
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.module.DamageType;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.ModuleGroup;
@@ -56,6 +54,13 @@ public final class WeaponUpdate extends UpdateModule {
     public record Data(float damage, float attackRange, int reloadFrames,
             DamageType damageType, float splashRadius,
             boolean attackOnTheMove) implements ModuleData {
+        /** What a block leaves out: plain damage, no splash, and a shot taken on the move. */
+        static final Data DEFAULTS = new Data(0f, 0f, 0, DamageType.NORMAL, 0f, true);
+
+        public Data {
+            damageType = damageType == null ? DamageType.NORMAL : damageType;
+        }
+
         public Data(float damage, float attackRange, int reloadFrames) {
             this(damage, attackRange, reloadFrames, DamageType.NORMAL, 0f);
         }
@@ -68,34 +73,6 @@ public final class WeaponUpdate extends UpdateModule {
                 float splashRadius) {
             this(damage, attackRange, reloadFrames, damageType, splashRadius, true);
         }
-    }
-
-    private static final class DataBuilder {
-        float damage;
-        float attackRange;
-        int reloadFrames;
-        DamageType damageType = DamageType.NORMAL;
-        float splashRadius;
-        boolean attackOnTheMove = true;
-
-        Data build() {
-            return new Data(damage, attackRange, reloadFrames, damageType, splashRadius,
-                    attackOnTheMove);
-        }
-    }
-
-    private static final FieldParseTable<DataBuilder> DATA_TABLE = new FieldParseTable<DataBuilder>()
-            .add("Damage", Ini.real((b, v) -> b.damage = v))
-            .add("AttackRange", Ini.real((b, v) -> b.attackRange = v))
-            .add("ReloadFrames", Ini.integer((b, v) -> b.reloadFrames = v))
-            .add("DamageType", Ini.enumeration(DamageType.class, (b, v) -> b.damageType = v))
-            .add("SplashRadius", Ini.real((b, v) -> b.splashRadius = v))
-            .add("AttackOnTheMove", Ini.bool((b, v) -> b.attackOnTheMove = v));
-
-    public static ModuleData parseData(Ini ini) {
-        var builder = new DataBuilder();
-        ini.initFromIni(builder, DATA_TABLE);
-        return builder.build();
     }
 
     private final float damage;

@@ -33,21 +33,21 @@ class StaticObstacleTest {
     /** No locomotor: it can never move, so it counts as terrain. */
     private static final ThingTemplate BUNKER = ThingTemplate.named("Bunker")
             .geometry(new Geometry.Box(20f, 20f, 10f))
-            .module("ActiveBody", new ActiveBody.Data(100f))
+            .module(new ActiveBody.Data(100f))
             .build();
 
     /** Same shape, but it can drive away — so it must not be baked into the map. */
     private static final ThingTemplate TANK = ThingTemplate.named("Tank")
             .geometry(new Geometry.Box(20f, 20f, 10f))
-            .module("ActiveBody", new ActiveBody.Data(100f))
-            .module("MoveUpdate", new MoveUpdate.Data(20f))
+            .module(new ActiveBody.Data(100f))
+            .module(new MoveUpdate.Data(20f))
             .build();
 
     /** Small and quick, for walking the length of the map in a test. */
     private static final ThingTemplate WALKER = ThingTemplate.named("Walker")
             .geometry(new Geometry.Cylinder(3f, 9f))
-            .module("ActiveBody", new ActiveBody.Data(100f))
-            .module("MoveUpdate", new MoveUpdate.Data(60f))
+            .module(new ActiveBody.Data(100f))
+            .module(new MoveUpdate.Data(60f))
             .build();
 
     private static final Coord3D START = new Coord3D(25f, 105f, 0f);

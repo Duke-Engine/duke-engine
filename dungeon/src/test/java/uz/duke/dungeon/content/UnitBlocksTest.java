@@ -29,7 +29,7 @@ class UnitBlocksTest {
         assertFalse(brute.modules().isEmpty(), "and the engine's part has its modules");
 
         var rogue = assertInstanceOf(Hero.class, factory.findTemplate("Rogue"));
-        assertEquals("Rogue", rogue.look().name());
+        assertEquals("Rogue", rogue.name());
 
         // An arrow has no body to hit and sees nothing, but it could: a flare would.
         var arrow = assertInstanceOf(Projectile.class, factory.findTemplate("Arrow"));
@@ -42,9 +42,12 @@ class UnitBlocksTest {
     /** A monster may frame a face of its own, as a hero does. */
     @Test
     void aMonsterBlockMayFrameItsOwnPortrait() {
-        var settings = DungeonSettings.parse("""
-                Monster Warden
-                  PortraitYaw = -12
+        var settings = DungeonSettings.parse("", """
+                Monster
+                  Name = Warden
+                  Portrait
+                    Yaw = -12
+                  End
                 End
                 """);
 

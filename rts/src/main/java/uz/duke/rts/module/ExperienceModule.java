@@ -2,8 +2,6 @@ package uz.duke.rts.module;
 
 import java.util.ArrayList;
 import java.util.List;
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.module.Module;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.ModuleGroup;
@@ -42,14 +40,35 @@ public class ExperienceModule extends Module implements DamageModifier {
     }
 
     /**
-     * INI config: what this unit is worth when killed, the ladder it climbs, and
-     * whether being promoted heals it.
+     * What this unit is worth when killed, the ladder it climbs, and whether being promoted
+     * heals it. The ladder is written as SAGE writes it, a list of costs and one of bonuses:
+     * {@code ExperienceRequired = [60, 180, 360]}, {@code LevelDamageBonus = [1.1, 1.2, 1.3]}. A
+     * ladder may name its costs and say nothing of bonuses; its rungs are then worth reaching only
+     * for whatever the game hangs off the rank itself.
      */
-    public record Data(int experienceValue, List<Rank> ranks, boolean healOnPromotion)
-            implements ModuleData {
+    public record Data(int experienceValue, List<Integer> experienceRequired, List<Float> levelDamageBonus,
+            boolean healOnPromotion) implements ModuleData {
 
         public Data {
-            ranks = List.copyOf(ranks);
+            experienceRequired = experienceRequired == null ? List.of() : List.copyOf(experienceRequired);
+            levelDamageBonus = levelDamageBonus == null ? List.of() : List.copyOf(levelDamageBonus);
+            if (levelDamageBonus.size() > experienceRequired.size()) {
+                throw new IllegalArgumentException("LevelDamageBonus names more rungs than ExperienceRequired");
+            }
+        }
+
+        public Data(int experienceValue, List<Rank> ranks, boolean healOnPromotion) {
+            this(experienceValue, ranks.stream().map(Rank::experience).toList(),
+                    ranks.stream().map(Rank::damageMultiplier).toList(), healOnPromotion);
+        }
+
+        /** The ladder, one rung per cost. */
+        public List<Rank> ranks() {
+            var ranks = new ArrayList<Rank>(experienceRequired.size());
+            for (int i = 0; i < experienceRequired.size(); i++) {
+                ranks.add(new Rank(experienceRequired.get(i), i < levelDamageBonus.size() ? levelDamageBonus.get(i) : 1f));
+            }
+            return List.copyOf(ranks);
         }
 
         /** A ladder of thresholds that carry no combat bonus. */
@@ -62,60 +81,15 @@ public class ExperienceModule extends Module implements DamageModifier {
         }
     }
 
-    private static final class DataBuilder {
-        int experienceValue;
-        List<Integer> thresholds = List.of();
-        List<Float> bonuses = List.of();
-        boolean healOnPromotion;
-
-        Data build() {
-            var ranks = new ArrayList<Rank>(thresholds.size());
-            for (int i = 0; i < thresholds.size(); i++) {
-                // A ladder may name its costs and say nothing about bonuses; the
-                // rungs are then worth reaching only for whatever the game hangs
-                // off the rank itself.
-                float bonus = i < bonuses.size() ? bonuses.get(i) : 1f;
-                ranks.add(new Rank(thresholds.get(i), bonus));
-            }
-            return new Data(experienceValue, ranks, healOnPromotion);
-        }
-    }
-
-    private static final FieldParseTable<DataBuilder> DATA_TABLE = new FieldParseTable<DataBuilder>()
-            .add("ExperienceValue", Ini.integer((b, v) -> b.experienceValue = v))
-            // ExperienceRequired = 60 180 360   (as many rungs as the game wants)
-            .add("ExperienceRequired", (ini, b) -> {
-                var thresholds = new ArrayList<Integer>();
-                for (var token = ini.getNextTokenOrNull(); token != null;
-                        token = ini.getNextTokenOrNull()) {
-                    thresholds.add(Ini.scanInt(token));
-                }
-                b.thresholds = thresholds;
-            })
-            // LevelDamageBonus = 1.1 1.2 1.3    (one per rung; missing ones are 1.0)
-            .add("LevelDamageBonus", (ini, b) -> {
-                var bonuses = new ArrayList<Float>();
-                for (var token = ini.getNextTokenOrNull(); token != null;
-                        token = ini.getNextTokenOrNull()) {
-                    bonuses.add(Ini.scanReal(token));
-                }
-                b.bonuses = bonuses;
-            })
-            .add("HealOnPromotion", Ini.bool((b, v) -> b.healOnPromotion = v));
-
-    public static ModuleData parseData(Ini ini) {
-        var builder = new DataBuilder();
-        ini.initFromIni(builder, DATA_TABLE);
-        return builder.build();
-    }
-
     protected final Data data;
+    private final List<Rank> ranks;
     private int experience;
     private int level; // 0 = unranked; 1..n index into the ladder
 
     public ExperienceModule(GameObject owner, Data data) {
         super(owner);
         this.data = data;
+        this.ranks = data.ranks();
     }
 
     /** Grant experience and re-evaluate rank. Negative amounts are ignored. */
@@ -150,7 +124,7 @@ public class ExperienceModule extends Module implements DamageModifier {
 
     /** The highest rung this much experience has reached; 0 if none. */
     protected int levelFor(int xp) {
-        var ranks = data.ranks();
+        var ranks = this.ranks;
         for (int rung = ranks.size(); rung > 0; rung--) {
             int threshold = ranks.get(rung - 1).experience();
             if (threshold > 0 && xp >= threshold) {
@@ -176,12 +150,12 @@ public class ExperienceModule extends Module implements DamageModifier {
 
     /** How many rungs this unit's ladder has. */
     public int getRankCount() {
-        return data.ranks().size();
+        return ranks.size();
     }
 
     /** The combat damage multiplier the current rank carries. */
     @Override
     public float damageMultiplier() {
-        return level == 0 ? 1f : data.ranks().get(level - 1).damageMultiplier();
+        return level == 0 ? 1f : ranks.get(level - 1).damageMultiplier();
     }
 }

@@ -1,5 +1,6 @@
 package uz.duke.dungeon.combat;
 
+import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.DamageType;
 import uz.duke.core.module.Module;
 import uz.duke.core.module.ModuleGroup;
@@ -31,21 +32,16 @@ import uz.duke.rts.module.ProjectileLauncher;
 @ModuleGroup(ModuleGroups.COMBAT)
 public final class Swing extends Module implements ProjectileLauncher {
 
+    /** It reads no fields; the block only says the unit has one. */
+    public record Data() implements ModuleData {
+    }
+
     /** Long before any run begins, so nothing counts as recently struck at first. */
     private int struckOn = Integer.MIN_VALUE / 2;
 
     public Swing(GameObject owner, uz.duke.core.module.ModuleData ignored) {
         super(owner);
     }
-
-    /** The empty block that puts this on a creature; it has nothing to configure. */
-    public static uz.duke.core.module.ModuleData parseData(uz.duke.core.ini.Ini ini) {
-        ini.initFromIni(new Object(), NO_FIELDS);
-        return null;
-    }
-
-    private static final uz.duke.core.ini.FieldParseTable<Object> NO_FIELDS =
-            new uz.duke.core.ini.FieldParseTable<>();
 
     /** Whether the blow it struck is still in progress at {@code frame}. */
     public boolean stillSwinging(int frame, int swingFrames) {

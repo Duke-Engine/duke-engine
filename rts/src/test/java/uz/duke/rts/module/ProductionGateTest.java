@@ -46,13 +46,13 @@ class ProductionGateTest {
     void setUp() {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());
         soldier = RtsTemplate.named("Soldier")
-                .module("ActiveBody", new ActiveBody.Data(50f))
+                .module(new ActiveBody.Data(50f))
                 .buildCost(10)
                 .buildTimeFrames(2)
                 .build();
         plainFactory = RtsTemplate.named("Factory")
-                .module("ActiveBody", new ActiveBody.Data(400f))
-                .module("ProductionUpdate", new ProductionUpdate.Data())
+                .module(new ActiveBody.Data(400f))
+                .module(new ProductionUpdate.Data())
                 .build();
         thingFactory.addTemplate(soldier);
         thingFactory.addTemplate(plainFactory);

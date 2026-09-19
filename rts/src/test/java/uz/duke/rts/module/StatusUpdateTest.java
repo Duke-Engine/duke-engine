@@ -41,9 +41,9 @@ class StatusUpdateTest {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());
         // Speed 30/s == 1 unit/frame at 30Hz.
         template = ThingTemplate.named("Unit")
-                .module("ActiveBody", new ActiveBody.Data(100f))
-                .module("MoveUpdate", new MoveUpdate.Data(30f))
-                .module("StatusUpdate", new StatusUpdate.Data())
+                .module(new ActiveBody.Data(100f))
+                .module(new MoveUpdate.Data(30f))
+                .module(new StatusUpdate.Data())
                 .build();
         thingFactory.addTemplate(template);
         logic = new TestLogic(thingFactory);
@@ -93,9 +93,9 @@ class StatusUpdateTest {
     void disabledUnitHoldsFire() {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());
         var armed = ThingTemplate.named("Armed")
-                .module("ActiveBody", new ActiveBody.Data(100f))
-                .module("WeaponUpdate", new WeaponUpdate.Data(25f, 10f, 2))
-                .module("StatusUpdate", new StatusUpdate.Data())
+                .module(new ActiveBody.Data(100f))
+                .module(new WeaponUpdate.Data(25f, 10f, 2))
+                .module(new StatusUpdate.Data())
                 .build();
         thingFactory.addTemplate(armed);
         var combatLogic = new TestLogic(thingFactory);

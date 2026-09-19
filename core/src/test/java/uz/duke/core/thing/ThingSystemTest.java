@@ -51,14 +51,14 @@ class ThingSystemTest {
     @BeforeEach
     void setUp() {
         var moduleFactory = ModuleFactory.withDefaults();
-        moduleFactory.register("Mover", (owner, data) -> new MoverUpdate(owner, (MoverUpdate.Data) data));
+        moduleFactory.register(MoverUpdate.Data.class, MoverUpdate::new);
         var thingFactory = new ThingFactory(moduleFactory);
 
         tankTemplate = ThingTemplate.named("TestTank")
                 .displayName("Test Tank")
                 .kindOf(Kind.of("VEHICLE"), Kind.of("SELECTABLE"), Kind.of("CAN_ATTACK"))
-                .module("ActiveBody", new ActiveBody.Data(100f))
-                .module("Mover", new MoverUpdate.Data(new Coord3D(1f, 0f, 0f)))
+                .module(new ActiveBody.Data(100f))
+                .module(new MoverUpdate.Data(new Coord3D(1f, 0f, 0f)))
                 .build();
         thingFactory.addTemplate(tankTemplate);
 

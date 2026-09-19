@@ -1,0 +1,193 @@
+Sound
+  Name = arrow_fired
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.55
+  Files = [audio/sfx/bow_shot_1.ogg, audio/sfx/bow_shot_2.ogg, audio/sfx/bow_shot_3.ogg]
+End
+
+; The drawn shot Q looses -- one sound, because it happens once in a while and
+; wants to be recognised rather than varied.
+Sound
+  Name = spawned.HeavyArrow
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.8
+  Files = [audio/sfx/bow_shot_heavy.ogg]
+End
+
+Sound
+  Name = struck.Arrow
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.7
+  Files = [audio/sfx/arrow_hit_1.ogg, audio/sfx/arrow_hit_2.ogg, audio/sfx/arrow_hit_3.ogg]
+End
+
+; ---- being hit, and dying -------------------------------------------------
+
+Sound
+  Name = hurt.Hero
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.9
+  ; Half a second apart at most: three arrows landing at once should sound like
+  ; trouble, not like a rattle.
+  GapSeconds = 0.35
+  Files = [audio/sfx/hero_hurt_1.ogg, audio/sfx/hero_hurt_2.ogg]
+End
+
+; Death, by what died. The client asks for died.<Template> and falls through to
+; died, so a creature nobody wrote a line for still makes a noise.
+Sound
+  Name = died
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.7
+  Files = [audio/sfx/death_generic.ogg]
+End
+
+Sound
+  Name = died.Skeleton
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.7
+  Files = [audio/sfx/death_skeleton_1.ogg, audio/sfx/death_skeleton_2.ogg]
+End
+
+Sound
+  Name = died.Runner
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.7
+  Files = [audio/sfx/death_runner.ogg]
+End
+
+Sound
+  Name = died.Brute
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.85
+  Files = [audio/sfx/death_brute.ogg]
+End
+
+Sound
+  Name = died.Boss
+  Channel = Effects
+  Positional = Yes
+  Gain = 1.0
+  Files = [audio/sfx/death_boss.ogg]
+End
+
+Sound
+  Name = spawned.Boss
+  Channel = Effects
+  Positional = Yes
+  Gain = 1.0
+  Files = [audio/sfx/boss_appears.ogg]
+End
+
+; A Skeleton Healer calling its light down: the empower chime, softer, because it is
+; the same thing happening to the other side.
+Sound
+  Name = spawned.MendingLight
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.5
+  Files = [audio/sfx/skill_empower.ogg]
+End
+
+; A Skeleton Summoner opening its rifts: the descent's rush, quieter -- something is
+; coming up out of the floor.
+Sound
+  Name = spawned.SummoningRift
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.45
+  Files = [audio/sfx/descend.ogg]
+End
+
+; ---- the skills, by the key that casts them -------------------------------
+
+Sound
+  Name = skill.Q
+  Channel = Effects
+  Positional = Yes
+  Files = [audio/sfx/skill_aim.ogg]
+End
+
+Sound
+  Name = skill.W
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.8
+  Files = [audio/sfx/skill_burst.ogg]
+End
+
+Sound
+  Name = skill.E
+  Channel = Effects
+  Positional = Yes
+  Files = [audio/sfx/skill_dash.ogg]
+End
+
+Sound
+  Name = skill.R
+  Channel = Effects
+  Positional = Yes
+  Files = [audio/sfx/skill_empower.ogg]
+End
+
+; ---- moving about ---------------------------------------------------------
+
+Sound
+  Name = walking.Hero
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.35
+  ; His stride. Without this the client would play one per frame and a walk
+  ; would be a buzz rather than a walk.
+  GapSeconds = 0.34
+  Files = [
+    audio/sfx/footstep_1.ogg,
+    audio/sfx/footstep_2.ogg,
+    audio/sfx/footstep_3.ogg,
+    audio/sfx/footstep_4.ogg,
+    audio/sfx/footstep_5.ogg,
+  ]
+End
+
+Sound
+  Name = loot
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.8
+  Files = [audio/sfx/loot_1.ogg, audio/sfx/loot_2.ogg]
+End
+
+; The drawn shot Q looses lands harder than an ordinary one, and is worth
+; hearing land -- so it gets its own rather than sharing the plain arrow's.
+Sound
+  Name = struck.HeavyArrow
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.9
+  Files = [audio/sfx/melee_hit_1.ogg, audio/sfx/melee_hit_2.ogg]
+End
+
+; The Skeleton Mage's fireball leaving its staff, and bursting on him.
+Sound
+  Name = spawned.SkullFireball
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.7
+  Files = [audio/sfx/skill_dash.ogg]
+End
+
+Sound
+  Name = struck.SkullFireball
+  Channel = Effects
+  Positional = Yes
+  Gain = 0.8
+  Files = [audio/sfx/skill_burst.ogg]
+End

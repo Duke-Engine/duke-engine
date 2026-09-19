@@ -1,5 +1,6 @@
 package uz.duke.dungeon.combat;
 
+import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.Module;
 import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.module.ModuleGroups;
@@ -49,6 +50,10 @@ import uz.duke.rts.module.WeaponUpdate;
 @ModuleGroup(ModuleGroups.COMBAT)
 public final class EyesOnly extends Module implements WeaponHold {
 
+    /** It reads no fields; the block only says the unit has one. */
+    public record Data() implements ModuleData {
+    }
+
     /**
      * Read for one number: how far apart two storeys are.
      *
@@ -62,15 +67,6 @@ public final class EyesOnly extends Module implements WeaponHold {
         super(owner);
         this.settings = settings;
     }
-
-    /** The empty block that puts this on a creature; it has nothing to configure. */
-    public static uz.duke.core.module.ModuleData parseData(uz.duke.core.ini.Ini ini) {
-        ini.initFromIni(new Object(), NO_FIELDS);
-        return null;
-    }
-
-    private static final uz.duke.core.ini.FieldParseTable<Object> NO_FIELDS =
-            new uz.duke.core.ini.FieldParseTable<>();
 
     @Override
     public boolean holdingFire() {

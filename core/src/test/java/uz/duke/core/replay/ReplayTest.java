@@ -30,8 +30,8 @@ import uz.duke.core.thing.ThingTemplate;
 class ReplayTest {
 
     private static final ThingTemplate RUNNER = ThingTemplate.named("Runner")
-            .module("ActiveBody", new ActiveBody.Data(100f))
-            .module("MoveUpdate", new MoveUpdate.Data(15f))
+            .module(new ActiveBody.Data(100f))
+            .module(new MoveUpdate.Data(15f))
             .build();
 
     /** A world with a mind of its own: it issues commands as well as obeying them. */

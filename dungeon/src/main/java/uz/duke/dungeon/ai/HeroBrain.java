@@ -604,7 +604,7 @@ public final class HeroBrain extends UnitScript {
         if (weaponRange < 0f) {
             weaponRange = 0f;
             for (var module : unit().getTemplate().modules()) {
-                if (module.data() instanceof WeaponUpdate.Data weapon) {
+                if (module instanceof WeaponUpdate.Data weapon) {
                     weaponRange = Math.max(weaponRange, weapon.attackRange());
                 }
             }

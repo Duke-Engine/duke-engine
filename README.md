@@ -124,14 +124,18 @@ Requires nothing pre-installed beyond the wrapper — Gradle provisions the
 - **Subsystem framework + main loop** — `SubsystemInterface`, `SubsystemList`,
   `GameEngine` (fixed-timestep 30Hz logic / capped render).
 - **`NameKeyGenerator`** — string→key interning.
+- **`.duke` data layer** (`uz.duke.core.data`) — `DukeText` reads the syntax
+  (one word opens a block, `Key = value`, `[a, b]` lists); `Binder` makes each
+  block the record its word names, each key a component of that record.
 - **INI data layer** (`uz.duke.core.ini`) — faithful tokeniser, field parse
-  tables, scan helpers.
+  tables, scan helpers; what still reads the dungeon's world settings.
 - **Math** (`uz.duke.core.math`) — `Coord3D` / `Coord2D` / `ICoord3D`.
 - **Thing/Object/Module system** — `ThingTemplate`, `ThingFactory`,
   `GameObject`, composable `Module`s, `ModuleFactory`, `Kind` classification.
   `GameLogic` owns objects, ticks them, reaps the dead.
-- **Data-driven objects** — `ThingTemplateLoader` loads `Object` INI blocks,
-  including nested module sub-blocks, into templates.
+- **Data-driven objects** — `ThingTemplateLoader` loads `Object` blocks from
+  `.duke` text into templates, each module a block named by its class; a game
+  adds block types of its own (`loader.type(Monster.class)`).
 - **Command pipeline** — `Command` + `MessageStream`; commands are queued and
   drained deterministically at the start of each frame.
 - **Movement** — `MoveUpdate` steers an object toward a goal at its configured

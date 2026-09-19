@@ -33,6 +33,10 @@ import uz.duke.rts.module.ExperienceModule;
 @ModuleGroup({ModuleGroups.MOVEMENT, ModuleGroups.COMBAT})
 public final class ArrowUpdate extends UpdateModule {
 
+    /** It reads no fields; the block only says the unit has one. */
+    public record Data() implements ModuleData {
+    }
+
     /**
      * How long an arrow may stay in the air before it is given up on.
      *
@@ -67,15 +71,6 @@ public final class ArrowUpdate extends UpdateModule {
     public ArrowUpdate(GameObject owner, ModuleData ignored) {
         super(owner);
     }
-
-    /** The empty block that puts this on the arrow; a shot fills the rest in. */
-    public static ModuleData parseData(uz.duke.core.ini.Ini ini) {
-        ini.initFromIni(new Object(), NO_FIELDS);
-        return null;
-    }
-
-    private static final uz.duke.core.ini.FieldParseTable<Object> NO_FIELDS =
-            new uz.duke.core.ini.FieldParseTable<>();
 
     /** Send it after something, carrying what the weapon decided it was worth. */
     void loose(GameObject from, GameObject at, float carrying, DamageType type, float speed) {

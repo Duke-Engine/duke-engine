@@ -1,8 +1,6 @@
 package uz.duke.dungeon.skill;
 
 import java.util.List;
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.module.ModuleGroups;
@@ -30,13 +28,9 @@ import uz.duke.rts.module.ExperienceModule;
 @ModuleGroup({ModuleGroups.COMBAT, ModuleGroups.EFFECT})
 public final class SummoningUpdate extends UpdateModule {
 
-    /** Empty in the creature file: what, how soon and for how long are the skill's. */
-    public static ModuleData parseData(Ini ini) {
-        ini.initFromIni(new Object(), NO_FIELDS);
-        return null;
+    /** It reads no fields; the block only says the unit has one. */
+    public record Data() implements ModuleData {
     }
-
-    private static final FieldParseTable<Object> NO_FIELDS = new FieldParseTable<>();
 
     private ObjectId caller;
     private String creature;

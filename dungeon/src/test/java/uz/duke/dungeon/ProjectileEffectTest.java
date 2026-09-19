@@ -113,7 +113,7 @@ class ProjectileEffectTest {
     @Test
     void theEffectsCannotReachTheSimulation() {
         var with = DungeonSettings.load();
-        var without = DungeonSettings.parse(withoutTheBurning(Content.settings()));
+        var without = DungeonSettings.parse(Content.world(), withoutTheBurning(Content.data()));
 
         assertFalse(with.effects().isEmpty(), "the shipped file should describe effects");
         assertTrue(without.effects().isEmpty(), "and the stripped one should describe none");
@@ -121,18 +121,18 @@ class ProjectileEffectTest {
                 "a floor played differently once the fire was taken out of it");
     }
 
-    /** The same file with every DungeonEffect block cut out of it. */
+    /** The same files with every top-level Effect block cut out of them. */
     private static String withoutTheBurning(String file) {
         var kept = new StringBuilder();
         boolean inside = false;
         for (var line : file.split("\n", -1)) {
-            if (line.startsWith("DungeonEffect")) {
+            if (line.equals("Effect")) {
                 inside = true;
             }
             if (!inside) {
                 kept.append(line).append('\n');
             }
-            if (inside && line.trim().equals("End")) {
+            if (inside && line.equals("End")) {
                 inside = false;
             }
         }

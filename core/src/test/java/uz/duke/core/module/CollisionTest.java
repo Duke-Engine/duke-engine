@@ -27,19 +27,19 @@ class CollisionTest {
 
     private static final ThingTemplate WALKER = ThingTemplate.named("Walker")
             .geometry(new Geometry.Cylinder(3f, 8f))
-            .module("ActiveBody", new ActiveBody.Data(100f))
-            .module("MoveUpdate", new MoveUpdate.Data(60f))
+            .module(new ActiveBody.Data(100f))
+            .module(new MoveUpdate.Data(60f))
             .build();
 
     private static final ThingTemplate BUNKER = ThingTemplate.named("Bunker")
             .geometry(new Geometry.Box(20f, 20f, 10f))
-            .module("ActiveBody", new ActiveBody.Data(500f))
+            .module(new ActiveBody.Data(500f))
             .build();
 
     /** A ghost: no geometry at all, the pre-collision default. */
     private static final ThingTemplate GHOST = ThingTemplate.named("Ghost")
-            .module("ActiveBody", new ActiveBody.Data(100f))
-            .module("MoveUpdate", new MoveUpdate.Data(60f))
+            .module(new ActiveBody.Data(100f))
+            .module(new MoveUpdate.Data(60f))
             .build();
 
     private static TestLogic logicWith(ThingTemplate... templates) {

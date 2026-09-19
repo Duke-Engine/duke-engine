@@ -56,8 +56,8 @@ class WeaponHoldTest {
     void setUp() {
         var factory = new ThingFactory(RtsModules.withDefaults());
         soldier = ThingTemplate.named("Soldier")
-                .module("ActiveBody", new ActiveBody.Data(1000f))
-                .module("WeaponUpdate", new WeaponUpdate.Data(DAMAGE, 30f, RELOAD))
+                .module(new ActiveBody.Data(1000f))
+                .module(new WeaponUpdate.Data(DAMAGE, 30f, RELOAD))
                 .build();
         factory.addTemplate(soldier);
 

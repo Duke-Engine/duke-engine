@@ -59,11 +59,11 @@ class DepthTest {
     @Test
     void splashDamageHitsBystandingEnemies() {
         var artillery = RtsTemplate.named("Artillery")
-                .module("ActiveBody", new ActiveBody.Data(100f))
-                .module("WeaponUpdate", new WeaponUpdate.Data(20f, 30f, 2, DamageType.EXPLOSION, 8f))
+                .module(new ActiveBody.Data(100f))
+                .module(new WeaponUpdate.Data(20f, 30f, 2, DamageType.EXPLOSION, 8f))
                 .build();
         var grunt = RtsTemplate.named("Grunt")
-                .module("ActiveBody", new ActiveBody.Data(100f))
+                .module(new ActiveBody.Data(100f))
                 .build();
         var logic = logicWith(artillery, grunt);
         int me = logic.getPlayerList().addPlayer("Me").getIndex();
@@ -89,17 +89,17 @@ class DepthTest {
     @Test
     void promotionHealsTheUnitToFull() {
         var trooper = RtsTemplate.named("Trooper")
-                .module("ActiveBody", new ActiveBody.Data(100f))
-                .module("WeaponUpdate", new WeaponUpdate.Data(40f, 10f, 1))
+                .module(new ActiveBody.Data(100f))
+                .module(new WeaponUpdate.Data(40f, 10f, 1))
                 // Healing on promotion is asked for here, since that is what this tests.
-                .module("ExperienceModule", new ExperienceModule.Data(0,
+                .module(new ExperienceModule.Data(0,
                         java.util.List.of(new ExperienceModule.Rank(10, 1f),
                                 new ExperienceModule.Rank(50, 1f),
                                 new ExperienceModule.Rank(100, 1f)), true))
                 .build();
         var dummy = RtsTemplate.named("Dummy")
-                .module("ActiveBody", new ActiveBody.Data(30f))
-                .module("ExperienceModule", ExperienceModule.Data.ofThresholds(20, 10, 50, 100)) // worth 20 -> first rank
+                .module(new ActiveBody.Data(30f))
+                .module(ExperienceModule.Data.ofThresholds(20, 10, 50, 100)) // worth 20 -> first rank
                 .build();
         var logic = logicWith(trooper, dummy);
         int me = logic.getPlayerList().addPlayer("Me").getIndex();
@@ -124,14 +124,14 @@ class DepthTest {
     @Test
     void producedUnitsMoveToRallyPoint() {
         var soldier = RtsTemplate.named("Soldier")
-                .module("ActiveBody", new ActiveBody.Data(50f))
-                .module("MoveUpdate", new MoveUpdate.Data(20f))
+                .module(new ActiveBody.Data(50f))
+                .module(new MoveUpdate.Data(20f))
                 .buildCost(0)
                 .buildTimeFrames(2)
                 .build();
         var factory = RtsTemplate.named("Factory")
-                .module("ActiveBody", new ActiveBody.Data(400f))
-                .module("ProductionUpdate", new ProductionUpdate.Data())
+                .module(new ActiveBody.Data(400f))
+                .module(new ProductionUpdate.Data())
                 .build();
         var logic = logicWith(soldier, factory);
         int me = logic.getPlayerList().addPlayer("Me").getIndex();
@@ -160,8 +160,8 @@ class DepthTest {
     @Test
     void turnRateMakesUnitCurveInsteadOfSnapping() {
         var tank = RtsTemplate.named("Tank")
-                .module("ActiveBody", new ActiveBody.Data(100f))
-                .module("MoveUpdate", new MoveUpdate.Data(30f, 90f)) // 90 deg/sec turn rate
+                .module(new ActiveBody.Data(100f))
+                .module(new MoveUpdate.Data(30f, 90f)) // 90 deg/sec turn rate
                 .build();
         var logic = logicWith(tank);
         int me = logic.getPlayerList().addPlayer("Me").getIndex();

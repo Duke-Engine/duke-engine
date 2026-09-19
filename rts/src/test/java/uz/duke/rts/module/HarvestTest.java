@@ -40,11 +40,11 @@ class HarvestTest {
     void setUp() {
         thingFactory = new ThingFactory(RtsModules.withDefaults());
         harvester = ThingTemplate.named("Harvester")
-                .module("ActiveBody", new ActiveBody.Data(100f))
-                .module("HarvestUpdate", new HarvestUpdate.Data(100, 10)) // 100 per 10 frames
+                .module(new ActiveBody.Data(100f))
+                .module(new HarvestUpdate.Data(100, 10)) // 100 per 10 frames
                 .build();
         supplyPile = ThingTemplate.named("Supplies")
-                .module("SupplyModule", new SupplyModule.Data(1000))
+                .module(new SupplyModule.Data(1000))
                 .build();
         thingFactory.addTemplate(harvester);
         thingFactory.addTemplate(supplyPile);
@@ -81,7 +81,7 @@ class HarvestTest {
     @Test
     void harvestingStopsWhenPileExhausted() {
         var smallPile = ThingTemplate.named("SmallSupplies")
-                .module("SupplyModule", new SupplyModule.Data(250)) // 100,100,50 then empty
+                .module(new SupplyModule.Data(250)) // 100,100,50 then empty
                 .build();
         thingFactory.addTemplate(smallPile);
 

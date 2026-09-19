@@ -300,12 +300,11 @@ class DungeonMonsterArtTest {
      */
     @Test
     void anythingDrawnShootingHasSomethingToShoot() {
-        var file = uz.duke.dungeon.content.Content.units();
         for (var kind : SETTINGS.monsters()) {
             if (!SETTINGS.lookOf(kind).attack().startsWith(RANGED)) {
                 continue;
             }
-            assertTrue(launches(file, kind.name()) || castsSomethingThatFlies(kind),
+            assertTrue(launches(kind.name()) || castsSomethingThatFlies(kind),
                     kind.name() + " is drawn shooting but carries no Bow and casts nothing"
                             + " that flies, so nothing leaves it");
         }
@@ -318,14 +317,8 @@ class DungeonMonsterArtTest {
     }
 
     /** Whether the template of this name carries a launcher. */
-    private static boolean launches(String creatureFiles, String template) {
-        int at = creatureFiles.indexOf("Monster " + template + "\n");
-        if (at < 0) {
-            return false;
-        }
-        int end = creatureFiles.indexOf("\nEnd\n", at);
-        var block = creatureFiles.substring(at, end < 0 ? creatureFiles.length() : end);
-        return block.contains("Update = Bow ");
+    private static boolean launches(String template) {
+        return uz.duke.dungeon.content.ShippedBlock.of(template).text().contains("\n  Bow\n");
     }
 
     /**
@@ -478,7 +471,7 @@ class DungeonMonsterArtTest {
     private static boolean shoots(String template) {
         var found = templates().findTemplate(template);
         for (var module : found.modules()) {
-            if (module.data() instanceof uz.duke.dungeon.combat.Bow.Data) {
+            if (module instanceof uz.duke.dungeon.combat.Bow.Data) {
                 return true;
             }
         }
@@ -488,7 +481,7 @@ class DungeonMonsterArtTest {
     private static int reloadFramesOf(String template) {
         var found = templates().findTemplate(template);
         for (var module : found.modules()) {
-            if (module.data() instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
+            if (module instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
                 return weapon.reloadFrames();
             }
         }
@@ -519,7 +512,7 @@ class DungeonMonsterArtTest {
      * Every clip a skill says it is cast with is on the hero who casts it.
      *
      * <p>Two things have to line up and neither says so out loud. The clip is
-     * named in a {@code DungeonSkill} block; the libraries it could come from are
+     * named in a {@code Skill} block; the libraries it could come from are
      * named in the hero's own. Nothing checks that the second contains the first,
      * and the failure is the quietest in the game — the spell goes off, the
      * effect opens, and the caster stands there like a man who dropped something.

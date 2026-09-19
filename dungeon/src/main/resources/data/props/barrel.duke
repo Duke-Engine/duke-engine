@@ -1,0 +1,13 @@
+Prop
+  Name = Barrel
+  DisplayName = Barrel
+  KindOf = [STRUCTURE]
+  VisionRange = 0
+  Cylinder
+    Radius = 2.5
+    Height = 6
+  End
+
+
+  Weight = 3
+End

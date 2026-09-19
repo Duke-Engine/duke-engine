@@ -59,7 +59,7 @@ public final class Main {
      * ignored with a warning rather than refused — a burning arrow whose trail is
      * missing is still an arrow that arrives.
      */
-    private static void effect(Visuals visuals, DungeonSettings.EffectLook look) {
+    private static void effect(Visuals visuals, uz.duke.dungeon.content.Effect look) {
         visuals.effect(look.name(), recipe -> {
             for (var kind : look.kinds()) {
                 recipe.kind(kind);
@@ -313,7 +313,7 @@ public final class Main {
      * Every moment the game has a sound for, handed to the client at launch.
      *
      * <p>Nothing here is a decision. Which channel, how loud, how far apart and
-     * which files all come out of {@code ini/sounds/}, so a new sound is a block
+     * which files all come out of {@code data/sounds/}, so a new sound is a block
      * there and this method does not change. An unknown channel name is
      * read as an effect rather than refused: a typo should cost the right knob,
      * not the sound.
@@ -529,7 +529,7 @@ public final class Main {
         }
         float reach = 0f;
         for (var module : template.modules()) {
-            if (module.data() instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
+            if (module instanceof uz.duke.rts.module.WeaponUpdate.Data weapon) {
                 reach = Math.max(reach, weapon.attackRange());
             }
         }
@@ -987,7 +987,7 @@ public final class Main {
         // the floor has to open up around the eyes that are actually there.
         visuals.discoveredBy(settings.playedHero());
 
-        // What it all sounds like — see DungeonSound in ini/sounds/. Handed over
+        // What it all sounds like — see the Sound blocks in data/sounds/. Handed over
         // whole, like the tiles and the themes: the client raises moments by name
         // and this is the only place that knows what a moment sounds like.
         visuals.sounds(soundsOf(settings));

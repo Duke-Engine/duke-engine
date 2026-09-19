@@ -2,7 +2,6 @@ package uz.duke.rts.module;
 
 import uz.duke.core.module.Module;
 import uz.duke.core.module.ModuleData;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.thing.GameObject;
 
@@ -33,13 +32,6 @@ public final class CapacityGate extends Module implements ProductionGate {
 
     /** No configuration: the rule is the same wherever it is attached. */
     public record Data() implements ModuleData {
-    }
-
-    private static final Data DATA = new Data();
-
-    public static ModuleData parseData(Ini ini) {
-        ini.initFromIni(DATA, new uz.duke.core.ini.FieldParseTable<Data>());
-        return DATA;
     }
 
     public CapacityGate(GameObject owner, Data data) {

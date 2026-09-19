@@ -73,12 +73,12 @@ class FlatWorldChecksumTest {
         var thingFactory = new ThingFactory(ModuleFactory.withDefaults());
         thingFactory.addTemplate(ThingTemplate.named("Runner")
                 .geometry(new Geometry.Cylinder(4f, 10f))
-                .module("ActiveBody", new ActiveBody.Data(100f))
-                .module("MoveUpdate", new MoveUpdate.Data(40f))
+                .module(new ActiveBody.Data(100f))
+                .module(new MoveUpdate.Data(40f))
                 .build());
         thingFactory.addTemplate(ThingTemplate.named("Rock")
                 .geometry(new Geometry.Box(8f, 8f, 10f))
-                .module("ActiveBody", new ActiveBody.Data(500f))
+                .module(new ActiveBody.Data(500f))
                 .build());
 
         var logic = new TestLogic(thingFactory);

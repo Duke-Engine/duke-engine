@@ -1,5 +1,6 @@
 package uz.duke.dungeon.skill;
 
+import uz.duke.core.module.ModuleData;
 import java.util.List;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.DamageType;
@@ -46,6 +47,10 @@ import uz.duke.rts.module.WeaponUpdate;
  */
 @ModuleGroup({ModuleGroups.COMBAT, ModuleGroups.MOVEMENT, ModuleGroups.EFFECT, ModuleGroups.BODY})
 public final class SkillBook extends UpdateModule implements DamageModifier, WeaponHold {
+
+    /** It reads no fields; the block only says the unit has one. */
+    public record Data() implements ModuleData {
+    }
 
     /** How far apart a dash checks the ground it is crossing. */
     private static final float DASH_STEP = 5f;
@@ -291,20 +296,6 @@ public final class SkillBook extends UpdateModule implements DamageModifier, Wea
     public boolean canAfford(char key, int level) {
         int slot = slotOf(key);
         return slot < 0 || !usesMana || mana >= skills.get(slot).manaAt(level);
-    }
-
-    private static final uz.duke.core.ini.FieldParseTable<Object> NO_FIELDS =
-            new uz.duke.core.ini.FieldParseTable<>();
-
-    /**
-     * The creature block carries no skill data — only the fact that this creature
-     * has skills, which ones being its DungeonSkill blocks' business. The block still
-     * has to be read to its {@code End}, or the rest of the creature is parsed as
-     * though it were inside one.
-     */
-    public static uz.duke.core.module.ModuleData parseData(uz.duke.core.ini.Ini ini) {
-        ini.initFromIni(new Object(), NO_FIELDS);
-        return null;
     }
 
     public List<Skill> getSkills() {

@@ -48,7 +48,7 @@ class WorldEventTest {
     }
 
     private static final ThingTemplate SOLDIER = ThingTemplate.named("Soldier")
-            .module("ActiveBody", new ActiveBody.Data(50f))
+            .module(new ActiveBody.Data(50f))
             .build();
 
     private static final ThingTemplate WRECK = ThingTemplate.named("Wreck").build();

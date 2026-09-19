@@ -75,8 +75,8 @@ class ProjectileLauncherTest {
     void setUp() {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());
         soldier = ThingTemplate.named("Soldier")
-                .module("ActiveBody", new ActiveBody.Data(1000f))
-                .module("WeaponUpdate", new WeaponUpdate.Data(20f, 10f, 1))
+                .module(new ActiveBody.Data(1000f))
+                .module(new WeaponUpdate.Data(20f, 10f, 1))
                 .build();
         thingFactory.addTemplate(soldier);
 

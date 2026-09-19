@@ -75,16 +75,24 @@ beshta chok orqali o'zingiznikini qo'yasiz:
 | `MoveUpdate` | 202 | waypoint harakati, tezlik, burilish tezligi + **to'qnashuv**: har qadamdan oldin `World.findBlocker`, band bo'lsa ±45°/±90° chetlab o'tish, ilgarilamasa 2 soniyada voz kechish |
 | `Locomotor` | 19 | marker interfeys: "bu modul obyektni o'z kuchi bilan harakatlantira oladi". Engine shu orqali janrsiz so'raydi — bu obyekt relyefning bir qismimi? |
 | `ActiveBody` / `BodyModule` | 99 / 42 | sog'liq, zarar, davolash |
-| `ModuleFactory` | 93 | INI tag → modul builder. `withDefaults()` faqat 2 ta: `ActiveBody`, `MoveUpdate` |
+| `ModuleFactory` | 93 | modul `Data` recordi → modul builder; blok so'zi — modul klassining nomi. `withDefaults()` faqat 2 ta: `ActiveBody`, `MoveUpdate` |
 | `Armor` / `DamageType` | 47 / 18 | zarar turi ↔ zirh ko'paytirgichi |
 | `Module` / `UpdateModule` / `ModuleData` | 26 / 20 / 17 | kompozitsiya asosi: obyekt xulqi = modullari yig'indisi |
 
-### `uz.duke.core.ini` — ma'lumot qatlami
+### `uz.duke.core.data` — `.duke` ma'lumot qatlami
+
+`DukeText` — `.duke` sintaksisi: yolg'iz so'z blok ochadi, `End` yopadi,
+`Key = value`, `[a, b]` ro'yxat, `;` izoh · `Binder` — blokni u nomlagan
+recordga bog'laydi: kalit = record komponenti, ichki blok = komponent yoki
+turi (record, sealed tur, o'yin bergan lug'at — modullar) · `Block` / `Field`
+/ `Value` / `DataException`. Template'lar, modullar va o'yin sozlamalari shu
+orqali o'qiladi — alohida maydon jadvali yo'q, record o'zi jadval.
+
+### `uz.duke.core.ini` — INI qatlami
 
 `Ini` (322) SAGE tokenizatorining sodiq porti · `FieldParseTable` /
 `FieldParser` — C++ dagi offset+userData hiylasi o'rniga lambda-setter ·
-`IniException`. Engine'ning data-driven bo'lishi shu 4 faylga tayanadi
-(15 joyda ishlatiladi).
+`IniException`. Hozir faqat dungeon'ning `World` bloki shu orqali o'qiladi.
 
 ### `uz.duke.core.message` — buyruq quvuri
 

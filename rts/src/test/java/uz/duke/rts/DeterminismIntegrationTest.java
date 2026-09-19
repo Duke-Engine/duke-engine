@@ -30,15 +30,16 @@ import uz.duke.rts.module.WeaponUpdate;
 class DeterminismIntegrationTest {
 
     private static final String UNITS_INI = """
-            Object Tank
-              KindOf = SELECTABLE VEHICLE CAN_ATTACK
-              Body = ActiveBody Tag
+            Object
+              Name = Tank
+              KindOf = [SELECTABLE, VEHICLE, CAN_ATTACK]
+              ActiveBody
                 MaxHealth = 100
               End
-              Update = MoveUpdate Tag
+              MoveUpdate
                 Speed = 30
               End
-              Update = WeaponUpdate Tag2
+              WeaponUpdate
                 Damage = 10
                 AttackRange = 8
                 ReloadFrames = 3
@@ -96,7 +97,7 @@ class DeterminismIntegrationTest {
 
     private static BattleLogic newScenario() {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());
-        RtsTemplate.register(new ThingTemplateLoader(thingFactory)).load(UNITS_INI);
+        RtsTemplate.register(new ThingTemplateLoader(thingFactory)).load(UNITS_INI, "units.duke");
         var logic = new BattleLogic(thingFactory);
         logic.init();
 

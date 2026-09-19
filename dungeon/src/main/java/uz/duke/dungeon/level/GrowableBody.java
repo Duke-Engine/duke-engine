@@ -1,7 +1,5 @@
 package uz.duke.dungeon.level;
 
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.module.Armor;
 import uz.duke.core.module.BodyModule;
 import uz.duke.core.module.DamageType;
@@ -34,19 +32,6 @@ public final class GrowableBody extends BodyModule {
 
     /** INI configuration: the same {@code MaxHealth} field every body reads. */
     public record Data(float maxHealth) implements ModuleData {
-    }
-
-    private static final class DataBuilder {
-        float maxHealth;
-    }
-
-    private static final FieldParseTable<DataBuilder> DATA_TABLE = new FieldParseTable<DataBuilder>()
-            .add("MaxHealth", Ini.real((b, v) -> b.maxHealth = v));
-
-    public static ModuleData parseData(Ini ini) {
-        var builder = new DataBuilder();
-        ini.initFromIni(builder, DATA_TABLE);
-        return new Data(builder.maxHealth);
     }
 
     private float maxHealth;

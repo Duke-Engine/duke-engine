@@ -2,7 +2,6 @@ package uz.duke.rts.module;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.math.Coord3D;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.ModuleGroup;
@@ -52,24 +51,6 @@ public final class ProductionUpdate extends UpdateModule {
 
     /** How far to look for free ground when the doorway is crowded. */
     private static final float EXIT_SEARCH_RADIUS = 60f;
-
-    private static final class DataBuilder {
-        final java.util.List<String> builds = new java.util.ArrayList<>();
-    }
-
-    private static final uz.duke.core.ini.FieldParseTable<DataBuilder> DATA_TABLE =
-            new uz.duke.core.ini.FieldParseTable<DataBuilder>()
-                    .add("Builds", (ini, b) -> {
-                        for (var token = ini.getNextTokenOrNull(); token != null; token = ini.getNextTokenOrNull()) {
-                            b.builds.add(token);
-                        }
-                    });
-
-    public static ModuleData parseData(Ini ini) {
-        var builder = new DataBuilder();
-        ini.initFromIni(builder, DATA_TABLE);
-        return new Data(builder.builds);
-    }
 
     private static final class Job {
         final ThingTemplate unit;

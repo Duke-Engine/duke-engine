@@ -1,7 +1,5 @@
 package uz.duke.dungeon.combat;
 
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.module.DamageType;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.ModuleGroup;
@@ -37,18 +35,9 @@ import uz.duke.rts.module.ExperienceModule;
 @ModuleGroup({ModuleGroups.EFFECT, ModuleGroups.COMBAT})
 public final class FallingUpdate extends UpdateModule {
 
-    /**
-     * How long it falls and what it does when it arrives.
-     *
-     * <p>Empty in the creature file the way an arrow's block is: what falls, how
-     * hard and how wide is the skill's, and is filled in by whoever calls it down.
-     */
-    public static ModuleData parseData(Ini ini) {
-        ini.initFromIni(new Object(), NO_FIELDS);
-        return null;
+    /** It reads no fields; the block only says the unit has one. */
+    public record Data() implements ModuleData {
     }
-
-    private static final FieldParseTable<Object> NO_FIELDS = new FieldParseTable<>();
 
     private ObjectId caller;
     private float damage;

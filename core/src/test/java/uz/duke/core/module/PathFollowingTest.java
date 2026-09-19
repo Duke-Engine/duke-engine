@@ -27,8 +27,8 @@ class PathFollowingTest {
     void unitDetoursThroughTheGapInAWall() {
         var thingFactory = new ThingFactory(ModuleFactory.withDefaults());
         var template = ThingTemplate.named("Runner")
-                .module("ActiveBody", new ActiveBody.Data(100f))
-                .module("MoveUpdate", new MoveUpdate.Data(100f)) // fast, so it finishes in-test
+                .module(new ActiveBody.Data(100f))
+                .module(new MoveUpdate.Data(100f)) // fast, so it finishes in-test
                 .build();
         thingFactory.addTemplate(template);
 

@@ -1,8 +1,6 @@
 package uz.duke.rts.module;
 
 import uz.duke.core.GameConstants;
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.module.BodyModule;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.ModuleGroup;
@@ -24,23 +22,6 @@ public final class AutoHealUpdate extends UpdateModule {
 
     /** INI config: {@code HealPerSecond}. */
     public record Data(float healPerSecond) implements ModuleData {
-    }
-
-    private static final class DataBuilder {
-        float healPerSecond;
-
-        Data build() {
-            return new Data(healPerSecond);
-        }
-    }
-
-    private static final FieldParseTable<DataBuilder> DATA_TABLE = new FieldParseTable<DataBuilder>()
-            .add("HealPerSecond", Ini.real((b, v) -> b.healPerSecond = v));
-
-    public static ModuleData parseData(Ini ini) {
-        var builder = new DataBuilder();
-        ini.initFromIni(builder, DATA_TABLE);
-        return builder.build();
     }
 
     private final float healPerFrame;

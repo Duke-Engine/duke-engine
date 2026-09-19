@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import uz.duke.core.math.Coord3D;
 import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.content.ShippedBlock;
 import uz.duke.game.DukeGame;
 import uz.duke.rts.message.GameMessage;
 
@@ -49,17 +50,8 @@ class DungeonFogTest {
 
     /** The shipped creature file with the hero's sight changed to {@code range}. */
     private static String creaturesSeeing(int range) {
-        var lines = Content.units().split("\n", -1);
-        boolean inHero = false;
-        var edited = new StringBuilder();
-        for (var line : lines) {
-            if (!line.isEmpty() && Character.isLetter(line.charAt(0)) && !line.trim().equals("End")) {
-                inHero = line.trim().equals("Hero Rogue");
-            }
-            edited.append(inHero && line.trim().startsWith("VisionRange")
-                    ? "  VisionRange = " + range : line).append('\n');
-        }
-        return edited.toString();
+        var rogue = ShippedBlock.of("Rogue");
+        return Content.units().replace(rogue.text(), rogue.with("VisionRange", range).text());
     }
 
     /** A hero and one skeleton, a chosen distance apart, with a chosen sight. */

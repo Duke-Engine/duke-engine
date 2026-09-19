@@ -247,102 +247,80 @@ public final class DungeonSettings {
 
     /** The settings shipped with the game. */
     public static DungeonSettings load() {
-        return parse(Content.settings());
+        return parse(Content.world(), Content.data());
     }
 
     /**
-     * Settings from INI text — the seam a test uses to prove that changing the
-     * file changes the game, without a rebuild.
+     * Settings from the World block's text, with everything else as shipped — the seam a test
+     * uses to prove that changing the file changes the game, without a rebuild.
      */
-    public static DungeonSettings parse(String iniText) {
+    public static DungeonSettings parse(String worldText) {
+        return parse(worldText, "");
+    }
+
+    /**
+     * Settings from the World block's text and the text of {@code .duke} files: a test's own
+     * monsters, heroes, projectiles, props, effects and sounds, each overriding the shipped one of
+     * its name — see {@link #fillInMissingMonsters} — and leaving every other alone.
+     */
+    public static DungeonSettings parse(String worldText, String data) {
         var settings = new DungeonSettings();
-        // Entries rather than Map.of: that stops at ten pairs.
-        var ini = Ini.of(iniText, Map.ofEntries(
+        Ini.of(worldText, Map.of(
                 // The world: one block, and every setting of it a section inside, headed
                 // `Generation = Layout` and closed by an End of its own. See WORLD.
-                Map.entry("World", reader -> {
+                "World", reader -> {
                     settings.worldName = reader.getNextToken();
                     reader.initFromIni(settings, WORLD);
-                }),
-                // Repeatable: the block's name is the monster's, so the list of
-                // kinds is the file's, not a constant somewhere in Java. The block is
-                // his template as well; the engine's fields in it are a world's to read.
-                // A monster may frame a face of its own too, under Portrait... names, as a
-                // hero does; one that writes none wears the one every creature gets.
-                Map.entry("Monster", reader -> {
-                    var monster = new Framed<>(reader.getNextToken(), MonsterBuilder::new);
-                    reader.initFromIni(monster, MONSTER_BLOCK);
-                    settings.monsters.add(monster.unit.build());
-                    monster.portrait().ifPresent(settings.portraits::add);
-                }),
-                // Repeatable and named after the template he is, exactly as
-                // DungeonSkill already is: his four skill blocks are headed with the
-                // same word. A second hero is a block here, four there, and no Java.
-                // What he looks like in the panel's frame is in the same block, under
-                // Portrait... names: where the little camera stands and what he does
-                // in front of it.
-                Map.entry("Hero", reader -> {
-                    var hero = new Framed<>(reader.getNextToken(), HeroBuilder::new);
-                    reader.initFromIni(hero, HERO_BLOCK);
-                    settings.heroes.add(hero.unit);
-                    hero.portrait().ifPresent(settings.portraits::add);
-                }),
-                Map.entry("DungeonArrow", reader -> {
-                    reader.getNextToken();
-                    reader.initFromIni(settings, ARROW_LOOK);
-                }),
-                // How each thing in flight is drawn, and what it burns like. Named
-                // and repeatable, like the monsters and the themes, and for the
-                // same reason: a fourth projectile is a block here and no Java.
-                Map.entry("Projectile", reader -> {
-                    var projectile = new ProjectileBuilder(reader.getNextToken());
-                    reader.initFromIni(projectile, PROJECTILE_BLOCK);
-                    settings.projectiles.add(projectile);
-                }),
-                Map.entry("DungeonEffect", reader -> {
-                    var effect = new EffectBuilder(reader.getNextToken());
-                    reader.initFromIni(effect, EFFECT);
-                    settings.effects.add(effect);
-                }),
-                // A layer of an effect, named by the effect and then by itself, as a
-                // tone is named by its theme. In file order, which is draw order.
-                Map.entry("DungeonEffectLayer", reader -> {
-                    var layer = new LayerBuilder(reader.getNextToken(), reader.getNextToken());
-                    reader.initFromIni(layer, LAYER);
-                    settings.effectLayers.add(layer);
-                }),
-                // What stands about in the rooms. Named and repeatable like the
-                // monsters, and for the same reason: a fourth kind of thing to
-                // walk round is a file in ini/props/: this block and its template.
-                Map.entry("Prop", reader -> {
-                    var prop = new PropBuilder(reader.getNextToken());
-                    reader.initFromIni(prop, PROP_BLOCK);
-                    settings.props.add(prop);
-                }),
-                // What the game sounds like. One block per moment, and the client
-                // asks for moments by name -- it has never heard of a bow.
-                Map.entry("DungeonSound", reader -> {
-                    var cue = new SoundBuilder(reader.getNextToken());
-                    reader.initFromIni(cue, SOUND);
-                    settings.sounds.add(cue);
-                }),
-                // Repeatable, and named by whose skill it is: the block header is
-                // the hero's template and the key that casts it. A second hero is
-                // four more of these and no Java — the roster lives in the file.
-                Map.entry("DungeonSkill", reader -> {
-                    var skill = new SkillBuilder(reader.getNextToken(), reader.getNextToken());
-                    reader.initFromIni(skill, SKILL);
-                    settings.skills.add(skill.build());
-                })));
-        ini.load();
+                })).load();
+        settings.read(Content.records(data, "data"));
         if (!readingShippedFile) {
             settings.fillInMissingMonsters();
             settings.fillInMissingSkills();
             settings.fillInMissingLoot();
             settings.fillInMissingAttributes();
+            // A block that re-tunes a monster and says nothing of its skill keeps the shipped
+            // one, as every other skill is kept -- and so keeps casting it.
+            settings.monsters.replaceAll(kind -> kind.hasSkill() ? kind : settings.skillsFor(kind.name())
+                    .stream().findFirst().map(skill -> kind.casting(skill.key())).orElse(kind));
         }
         settings.validate();
         return settings;
+    }
+
+    /**
+     * Everything the data files hold besides templates' engine parts, each by what it is. A unit's
+     * skills are its own, written inside it, and its framing is its own face.
+     */
+    private void read(List<Record> records) {
+        for (var record : records) {
+            switch (record) {
+                case Monster monster -> {
+                    monsters.add(monster.kind());
+                    own(monster.name(), monster.portrait(), monster.skills());
+                }
+                case Hero hero -> {
+                    heroes.add(hero);
+                    own(hero.name(), hero.portrait(), hero.skills());
+                }
+                case Projectile projectile -> projectiles.add(projectile);
+                case Prop prop -> props.add(prop);
+                case Effect effect -> effects.add(effect);
+                case Sound sound -> sounds.add(sound);
+                case HeavyShot shot -> heavyShot = shot;
+                default -> {
+                    // an Object, which is a world's to build and has nothing of the settings'
+                }
+            }
+        }
+    }
+
+    private void own(String unit, PortraitArt portrait, List<Skill> itsSkills) {
+        if (portrait != null) {
+            portraits.add(portrait.named(unit));
+        }
+        for (var skill : itsSkills) {
+            skills.add(skill.ownedBy(unit));
+        }
     }
 
     /**
@@ -464,7 +442,7 @@ public final class DungeonSettings {
         }
         readingShippedFile = true;
         try {
-            var shipped = parse(Content.settings());
+            var shipped = parse(Content.world(), Content.data());
             SHIPPED_MONSTERS.addAll(shipped.monsters);
             SHIPPED_SKILLS.addAll(shipped.skills);
             SHIPPED_LOOT.addAll(shipped.loot);
@@ -505,8 +483,8 @@ public final class DungeonSettings {
             if (kind.hasSkill()) {
                 var skill = skillsFor(kind.name()).stream()
                         .filter(one -> one.key() == kind.skillKey()).findFirst().orElse(null);
-                require(skill != null, name + " casts " + kind.skillKey() + ", and no DungeonSkill "
-                        + kind.name() + " " + kind.skillKey() + " says what that is");
+                require(skill != null, name + " casts " + kind.skillKey() + ", and no Skill inside it"
+                        + " says what that is");
                 // A mending is cast on its own side, so how far off HE is means nothing to it.
                 require(skill.effect() == SkillEffect.HEAL
                                 || kind.skillNearest() >= 0f && kind.skillFurthest() > kind.skillNearest(),
@@ -588,14 +566,14 @@ public final class DungeonSettings {
                     "a skill's Icon may not contain ',' or '|': " + skill.key());
             switch (skill.effect()){
                 case HEAL -> {
-                    var name = "DungeonSkill " + skill.heroTemplate() + " " + skill.key();
+                    var name = skill.heroTemplate() + "'s Skill " + skill.key();
                     require(skill.heal() > 0f && skill.range() > 0f, name + " mends nobody: it needs a Heal and a Range");
                     require(skill.healBelowPercent() > 0 && skill.healBelowPercent() <= 100,
                             name + "'s HealBelowPercent is a share of health, from 1 to 100");
                     require(skill.hasProjectile(), name + " has no light to call down: name it in Projectile");
                 }
                 case SUMMON -> {
-                    var name = "DungeonSkill " + skill.heroTemplate() + " " + skill.key();
+                    var name = skill.heroTemplate() + "'s Skill " + skill.key();
                     require(!skill.summons().isBlank() && skill.summonCount() >= 1 && skill.maxSummoned() >= 1,
                             name + " calls up nothing: it needs Summons, a SummonCount and a MaxSummoned");
                     require(skill.radius() > 0f && skill.durationFrames() > 0,
@@ -638,22 +616,22 @@ public final class DungeonSettings {
             }
         }
         for (var hero : heroes) {
-            var name = "Hero " + hero.name;
+            var name = "Hero " + hero.name();
             var named = new java.util.HashSet<Integer>();
-            for (var line : hero.attributeLines) {
-                int at = rules.indexOf(line.attribute());
-                require(at >= 0, name + " has " + line.attribute()
+            for (var attribute : hero.attributes().entrySet()) {
+                int at = rules.indexOf(attribute.getKey());
+                require(at >= 0, name + " has " + attribute.getKey()
                         + ", and no Attribute is called that");
-                require(named.add(at), name + " names " + line.attribute() + " twice");
-                require(line.base() >= 0 && line.perLevel() >= 0,
+                require(named.add(at), name + " names " + attribute.getKey() + " twice");
+                require(attribute.getValue().base().value() >= 0 && attribute.getValue().perLevel().value() >= 0,
                         name + ": an attribute cannot be negative, and a level cannot take one away");
             }
-            require(hero.primary == null || rules.indexOf(hero.primary) >= 0,
-                    name + "'s Primary is " + hero.primary
+            require(hero.primary() == null || rules.indexOf(hero.primary()) >= 0,
+                    name + "'s Primary is " + hero.primary()
                             + ", and no Attribute is called that");
-            require(hero.primary != null || hero.attributeLines.isEmpty(),
+            require(hero.primary() != null || hero.attributes().isEmpty(),
                     name + " has attributes and no Primary: say which of them he hits with");
-            require(hero.manaRegen >= 0 && hero.healthRegen >= 0,
+            require(hero.manaRegen() >= 0 && hero.healthRegen() >= 0,
                     name + ": what comes back on its own cannot be negative");
         }
         for (var item : loot) {
@@ -712,51 +690,116 @@ public final class DungeonSettings {
                     .add("EntranceStorey", Ini.integer((s, v) -> s.entranceStorey = v))
                     .add("BossStorey", Ini.integer((s, v) -> s.bossStorey = v));
 
-    // ---- what the game sounds like ----
+    // ---- what the data files hold, each block a record ----
 
-    private final java.util.List<SoundBuilder> sounds = new java.util.ArrayList<>();
-    private float voiceGapSeconds = 1.5f;
+    private final java.util.List<Hero> heroes = new java.util.ArrayList<>();
+    private final java.util.List<PortraitArt> portraits = new java.util.ArrayList<>();
+    private final java.util.List<Projectile> projectiles = new java.util.ArrayList<>();
+    private final java.util.List<Prop> props = new java.util.ArrayList<>();
+    private final java.util.List<Effect> effects = new java.util.ArrayList<>();
+    private final java.util.List<Sound> sounds = new java.util.ArrayList<>();
+    private HeavyShot heavyShot = HeavyShot.DEFAULTS;
 
-    private static final class SoundBuilder {
-        private final String name;
-        String channel = "Effects";
-        boolean positional = true;
-        float gain = 1f;
-        float gap;
-        String label;
-        final java.util.List<String> files = new java.util.ArrayList<>();
-
-        SoundBuilder(String name) {
-            this.name = name;
-        }
+    /**
+     * What each hero the files describe is drawn as, in the order they name them.
+     *
+     * <p>A list because the roster is the files'. Empty when they name none, and then whoever
+     * is playing is a coloured shape, as he was before there was a model.
+     */
+    public java.util.List<HeroLook> heroes() {
+        var rules = attributeRules();
+        return heroes.stream().map(hero -> hero.look(rules)).toList();
     }
 
-    private static final FieldParseTable<SoundBuilder> SOUND =
-            new FieldParseTable<SoundBuilder>()
-                    .add("Channel", Ini.string((s, v) -> s.channel = v))
-                    .add("Positional", Ini.bool((s, v) -> s.positional = v))
-                    .add("Gain", Ini.real((s, v) -> s.gain = v))
-                    .add("GapSeconds", Ini.real((s, v) -> s.gap = v))
-                    // Repeated on purpose: each File line adds one more way this
-                    // moment can sound, and a moment heard a hundred times a run
-                    // wants several.
-                    .add("File", Ini.string((s, v) -> s.files.add(v)))
-                    // Only the music is ever named on screen, and only because
-                    // the player picks from it -- so a label is optional and the
-                    // rest of the cues never write one.
-                    .add("Label", Ini.restOfLine((s, v) -> s.label = v));
+    /** That hero's block, or {@link HeroLook#NONE} if no file describes such a one. */
+    public HeroLook heroNamed(String templateName) {
+        for (var hero : heroes) {
+            if (hero.name().equals(templateName)) {
+                return hero.look(attributeRules());
+            }
+        }
+        return HeroLook.NONE;
+    }
+
+    /** Every live portrait a unit frames for itself, by the creature it is the face of. */
+    public java.util.List<PortraitArt> portraits() {
+        return java.util.List.copyOf(portraits);
+    }
+
+    /** Every projectile the files describe, in the order they describe them. */
+    public java.util.List<ArrowLook> projectiles() {
+        return projectiles.stream().map(Projectile::look).toList();
+    }
+
+    /** How one is drawn, or a plain shape when no file describes such a thing. */
+    public ArrowLook projectile(String template) {
+        for (var projectile : projectiles) {
+            if (projectile.name().equals(template)) {
+                return projectile.look();
+            }
+        }
+        return new ArrowLook(template, null, null, 1f, 90f, 0f, 0xFFFFFF, null, 0f);
+    }
+
+    /** The creature a drawn shot becomes — the same shaft, drawn bigger. */
+    public String heavyArrowTemplate() {
+        return heavyShot.template();
+    }
+
+    /**
+     * Slower than an ordinary arrow, on purpose. It is the one shot the player
+     * chose to spend, so it is the one worth watching cross the room.
+     */
+    public float heavyArrowSpeed() {
+        return heavyShot.speed();
+    }
+
+    /**
+     * One prop by its template's name. One the files do not describe is one they never
+     * scatter, which is what a weight of nothing says.
+     */
+    public PropKind prop(String template) {
+        for (var prop : props) {
+            if (prop.name().equals(template)) {
+                return prop.kind();
+            }
+        }
+        return new PropKind(template, 0);
+    }
+
+    /** What may be scattered through the rooms, in file order. */
+    public java.util.List<PropKind> propKinds() {
+        return props.stream().map(Prop::kind).toList();
+    }
+
+    /** Every effect the files describe, in the order they describe them. */
+    public java.util.List<Effect> effects() {
+        return java.util.List.copyOf(effects);
+    }
+
+    /**
+     * Every layer an effect is drawn from, in the order written — which is also the order they
+     * are drawn in, one over another.
+     */
+    public java.util.List<EffectLayerArt> effectLayers() {
+        return effects.stream()
+                .flatMap(effect -> effect.layers().stream()
+                        .map(layer -> new EffectLayerArt(effect.name(), layer.name(), layer.fields())))
+                .toList();
+    }
+
+    /** Every moment the game has a sound for. */
+    public java.util.List<Sound> sounds() {
+        return java.util.List.copyOf(sounds);
+    }
+
+    // ---- what the game sounds like ----
+
+    private float voiceGapSeconds = 1.5f;
 
     private static final FieldParseTable<DungeonSettings> SOUNDS =
             new FieldParseTable<DungeonSettings>()
                     .add("VoiceGapSeconds", Ini.real((s, v) -> s.voiceGapSeconds = v));
-
-    /** Every moment the game has a sound for. */
-    public java.util.List<SoundArt> sounds() {
-        return sounds.stream()
-                .map(cue -> new SoundArt(cue.name, cue.channel, cue.positional, cue.gain,
-                        cue.gap, cue.files, cue.label))
-                .toList();
-    }
 
     /**
      * The least time between two of the hero's lines.
@@ -797,49 +840,13 @@ public final class DungeonSettings {
     public record PropKind(String template, int weight) {
     }
 
-    private static final class PropBuilder {
-        private final String template;
-        int weight = 1;
-
-        PropBuilder(String template) {
-            this.template = template;
-        }
-    }
-
-    private final java.util.List<PropBuilder> props = new java.util.ArrayList<>();
     private int minPropsPerRoom;
     private int maxPropsPerRoom = 3;
-
-    private static final FieldParseTable<PropBuilder> PROP =
-            new FieldParseTable<PropBuilder>()
-                    .add("Weight", Ini.integer((p, v) -> p.weight = v));
 
     private static final FieldParseTable<DungeonSettings> PROPS =
             new FieldParseTable<DungeonSettings>()
                     .add("MinPerRoom", Ini.integer((s, v) -> s.minPropsPerRoom = v))
                     .add("MaxPerRoom", Ini.integer((s, v) -> s.maxPropsPerRoom = v));
-
-    /**
-     * One prop by its template's name. One these settings do not describe is one they
-     * never scatter, which is what a weight of nothing says.
-     */
-    public PropKind prop(String template) {
-        for (var prop : props) {
-            if (prop.template.equals(template)) {
-                return new PropKind(prop.template, prop.weight);
-            }
-        }
-        return new PropKind(template, 0);
-    }
-
-    /** What may be scattered through the rooms, in file order. */
-    public java.util.List<PropKind> propKinds() {
-        var kinds = new java.util.ArrayList<PropKind>(props.size());
-        for (var prop : props) {
-            kinds.add(new PropKind(prop.template, prop.weight));
-        }
-        return java.util.List.copyOf(kinds);
-    }
 
     public int minPropsPerRoom() {
         return minPropsPerRoom;
@@ -889,13 +896,35 @@ public final class DungeonSettings {
     private static final class ThemeMonsterBuilder {
         private final String theme;
         private final String template;
-        final MonsterBuilder art = new MonsterBuilder("themed");
+        final LookBuilder art = new LookBuilder();
         String animationsFrom;
         String death;
 
         ThemeMonsterBuilder(String theme, String template) {
             this.theme = theme;
             this.template = template;
+        }
+    }
+
+    /** What a themed creature is drawn as instead, which is a monster's look and nothing else. */
+    private static final class LookBuilder {
+        String model;
+        String texture;
+        float modelScale = 1f;
+        int tint = 0xFFFFFF;
+        float facing = 90f;
+        String idle;
+        String walk;
+        String attack;
+        String hurt;
+        String effect;
+        String holds;
+        String heldIn;
+        float heldScale = 1f;
+
+        MonsterLook look() {
+            return new MonsterLook(model, texture, modelScale, tint, facing, idle, walk, attack, hurt,
+                    new Held(holds, heldIn, heldScale, 0f, 0f, 0f, 0f, 0f, 0f), effect);
         }
     }
 
@@ -993,241 +1022,6 @@ public final class DungeonSettings {
         }
         return new Themes(themeOrder, whenExhausted, built);
     }
-
-    private static final class MonsterBuilder {
-        private final String name;
-        float senseRadius = 90f;
-        float chaseRadius = 150f;
-        float closeDistance = 4f;
-        float alertRadius = 70f;
-        int repathFrames = 10;
-        int swingFrames = 12;
-        int minDepth = 1;
-        int weight;
-        int colour = 0xFFFFFF;
-        float scale = 1f;
-        String model;
-        String texture;
-        float modelScale = 1f;
-        int tint = 0xFFFFFF;
-        float facing = 90f;
-        String idle;
-        String walk;
-        String attack;
-        String hurt;
-        String effect;
-        String holds;
-        String heldIn;
-        float heldScale = 1f;
-        float heldPitch;
-        float heldYaw;
-        float heldRoll;
-        char skillKey;
-        float skillNearest;
-        float skillFurthest;
-        float keepNearest;
-        float keepFurthest;
-        int maxPerRoom;
-
-        MonsterBuilder(String name) {
-            this.name = name;
-        }
-
-        MonsterKind build() {
-            return new MonsterKind(name, senseRadius, chaseRadius, closeDistance, alertRadius,
-                    repathFrames, swingFrames, minDepth, weight, colour, scale, look(), skillKey,
-                    skillNearest, skillFurthest, keepNearest, keepFurthest, maxPerRoom);
-        }
-
-        /** Just the art of it, which is all a theme overriding a creature needs. */
-        MonsterLook look() {
-            return new MonsterLook(model, texture, modelScale, tint, facing, idle, walk, attack,
-                    hurt, new Held(holds, heldIn, heldScale, heldPitch, heldYaw, heldRoll,
-                            0f, 0f, 0f),
-                    effect);
-        }
-    }
-
-    private static final FieldParseTable<MonsterBuilder> MONSTER =
-            new FieldParseTable<MonsterBuilder>()
-                    .add("SenseRadius", Ini.real((m, v) -> m.senseRadius = v))
-                    .add("ChaseRadius", Ini.real((m, v) -> m.chaseRadius = v))
-                    .add("CloseDistance", Ini.real((m, v) -> m.closeDistance = v))
-                    .add("AlertRadius", Ini.real((m, v) -> m.alertRadius = v))
-                    .add("RepathFrames", Ini.integer((m, v) -> m.repathFrames = v))
-                    .add("SwingFrames", Ini.integer((m, v) -> m.swingFrames = v))
-                    .add("MinDepth", Ini.integer((m, v) -> m.minDepth = v))
-                    .add("Weight", Ini.integer((m, v) -> m.weight = v))
-                    // Decoded rather than scanned so a file can write 0xRRGGBB,
-                    // which is how anyone actually writes a colour.
-                    .add("Colour", (ini, m) -> m.colour = Integer.decode(ini.getNextToken()))
-                    .add("Scale", Ini.real((m, v) -> m.scale = v))
-                    // What it is drawn as. Read here rather than in a block of its
-                    // own so a new monster stays one block: its behaviour and its
-                    // appearance are written together, where they are decided.
-                    .add("Model", Ini.string((m, v) -> m.model = v))
-                    .add("Texture", Ini.string((m, v) -> m.texture = v))
-                    .add("ModelScale", Ini.real((m, v) -> m.modelScale = v))
-                    .add("Tint", (ini, m) -> m.tint = Integer.decode(ini.getNextToken()))
-                    .add("Facing", Ini.real((m, v) -> m.facing = v))
-                    .add("Idle", Ini.string((m, v) -> m.idle = v))
-                    .add("Walk", Ini.string((m, v) -> m.walk = v))
-                    .add("Attack", Ini.string((m, v) -> m.attack = v))
-                    .add("Hurt", Ini.string((m, v) -> m.hurt = v))
-                    .add("Effect", Ini.string((m, v) -> m.effect = v))
-                    .add("Holds", Ini.string((m, v) -> m.holds = v))
-                    .add("HeldIn", Ini.string((m, v) -> m.heldIn = v))
-                    .add("HeldScale", Ini.real((m, v) -> m.heldScale = v))
-                    .add("HeldPitch", Ini.real((m, v) -> m.heldPitch = v))
-                    .add("HeldYaw", Ini.real((m, v) -> m.heldYaw = v))
-                    .add("HeldRoll", Ini.real((m, v) -> m.heldRoll = v))
-                    // Which of its own skills it decides to cast, by key. The skill is a
-                    // DungeonSkill block headed by this creature's name, as a hero's are.
-                    .add("Skill", Ini.string((m, v) -> m.skillKey = v.isEmpty() ? 0
-                            : Character.toUpperCase(v.charAt(0))))
-                    // The nearest and the furthest it casts from, surface to surface.
-                    .add("SkillDistance", (ini, m) -> {
-                        m.skillNearest = Ini.scanReal(ini.getNextToken());
-                        m.skillFurthest = Ini.scanReal(ini.getNextToken());
-                    })
-                    // The band it holds: nearer and it backs away, further and it comes.
-                    // Unsaid, it closes to CloseDistance like everything else.
-                    .add("KeepDistance", (ini, m) -> {
-                        m.keepNearest = Ini.scanReal(ini.getNextToken());
-                        m.keepFurthest = Ini.scanReal(ini.getNextToken());
-                    })
-                    // How many of it one room may hold; zero for no limit.
-                    .add("MaxPerRoom", Ini.integer((m, v) -> m.maxPerRoom = v));
-
-    /** Accumulates one {@code DungeonSkill <hero> <key>} block. */
-    private static final class SkillBuilder {
-        private final String heroTemplate;
-        private final char key;
-        SkillEffect effect = SkillEffect.STRIKE;
-        float damage;
-        float damagePerLevel;
-        float radius;
-        float range;
-        float distance;
-        float hitWidth;
-        int boostPercent;
-        int boostPerLevel;
-        int durationFrames;
-        int tickFrames;
-        int slowFrames;
-        int cooldownFrames = 90;
-        int cooldownPerLevel;
-        int maxRank = 4;
-        int levelPerRank;
-        int windUpFrames;
-        String projectile = "";
-        String icon = "";
-        String look = "";
-        String name = "";
-        String blurb = "";
-        String castAnim = "";
-        float castSeconds;
-        int manaCost;
-        int manaCostPerLevel;
-        float projectileSpeed;
-        float heal;
-        int healBelowPercent;
-        String summons = "";
-        int summonCount;
-        int maxSummoned;
-        int summonExperiencePercent;
-
-        SkillBuilder(String heroTemplate, String key) {
-            this.heroTemplate = heroTemplate;
-            this.key = Character.toUpperCase(key.charAt(0));
-        }
-
-        Skill build() {
-            return new Skill(heroTemplate, key, effect, damage, damagePerLevel, radius, range,
-                    distance, hitWidth, boostPercent, boostPerLevel, durationFrames, tickFrames,
-                    slowFrames, cooldownFrames, cooldownPerLevel, maxRank, levelPerRank,
-                    windUpFrames, manaCost, manaCostPerLevel,
-                    projectile, icon, look, castAnim, castSeconds, name, blurb, projectileSpeed,
-                    heal, healBelowPercent, summons, summonCount, maxSummoned,
-                    summonExperiencePercent);
-        }
-    }
-
-    private static final FieldParseTable<SkillBuilder> SKILL =
-            new FieldParseTable<SkillBuilder>()
-                    .add("Effect", Ini.enumeration(SkillEffect.class, (s, v) -> s.effect = v))
-                    .add("Damage", Ini.real((s, v) -> s.damage = v))
-                    .add("DamagePerLevel", Ini.real((s, v) -> s.damagePerLevel = v))
-                    .add("Radius", Ini.real((s, v) -> s.radius = v))
-                    .add("Range", Ini.real((s, v) -> s.range = v))
-                    .add("Distance", Ini.real((s, v) -> s.distance = v))
-                    // How wide the thing a SKILLSHOT throws is. Drawing only --
-                    // see the note on Skill.hitWidth.
-                    .add("HitWidth", Ini.real((s, v) -> s.hitWidth = v))
-                    .add("BoostPercent", Ini.integer((s, v) -> s.boostPercent = v))
-                    .add("BoostPerLevel", Ini.integer((s, v) -> s.boostPerLevel = v))
-                    .add("DurationFrames", Ini.integer((s, v) -> s.durationFrames = v))
-                    // How often a lasting AREA_DAMAGE lands. Zero lands it once,
-                    // which is every skill written before there was a whirlwind.
-                    .add("TickFrames", Ini.integer((s, v) -> s.tickFrames = v))
-                    // How long an area blast leaves whoever it caught dragging his
-                    // feet. Zero is a blast that only hurts, which is what every
-                    // area skill written before there was a frost nova says.
-                    .add("SlowFrames", Ini.integer((s, v) -> s.slowFrames = v))
-                    .add("CooldownFrames", Ini.integer((s, v) -> s.cooldownFrames = v))
-                    .add("CooldownPerLevel", Ini.integer((s, v) -> s.cooldownPerLevel = v))
-                    // How many points may go into it -- four for an ordinary
-                    // skill, three for an ultimate.
-                    .add("MaxRank", Ini.integer((s, v) -> s.maxRank = v))
-                    // And the hero level its Nth rank waits for, as a multiple:
-                    // 4 is "first at 4, second at 8, third at 12". Naming it at
-                    // all is what makes a skill an ultimate.
-                    .add("LevelPerRank", Ini.integer((s, v) -> s.levelPerRank = v))
-                    .add("WindUpFrames", Ini.integer((s, v) -> s.windUpFrames = v))
-                    .add("Projectile", Ini.string((s, v) -> s.projectile = v))
-                    .add("Icon", Ini.string((s, v) -> s.icon = v))
-                    // What it LOOKS like going off: the name of a DungeonEffect
-                    // block. Named rather than described here for the reason every
-                    // other look in this file is -- two skills may want the same
-                    // ring, and a fifth skill should be a fifth block.
-                    .add("Look", Ini.string((s, v) -> s.look = v))
-                    // What the caster DOES, as against what the spell does. A
-                    // clip out of one of his libraries, played once where he
-                    // stands -- and the hero is given it automatically, because
-                    // naming it here and again in his own block would be one
-                    // name in two places and eventually two names.
-                    // What it costs to cast, and what a rank does to that. The
-                    // second is the DamagePerLevel pattern and may be negative:
-                    // a skill can be made cheaper by learning it as easily as
-                    // dearer by strengthening it.
-                    .add("ManaCost", Ini.integer((s, v) -> s.manaCost = v))
-                    .add("ManaCostPerLevel", Ini.integer((s, v) -> s.manaCostPerLevel = v))
-                    .add("CastAnim", Ini.string((s, v) -> s.castAnim = v))
-                    // How long it should take. The clip's own length by default
-                    // (0), or stretched to this -- a gesture that ends when the
-                    // spell lands reads as having caused it, and one that runs
-                    // on past reads as somebody waving after the fact.
-                    .add("CastSeconds", Ini.real((s, v) -> s.castSeconds = v))
-                    // What the player is told it is called, and what it does. The
-                    // NUMBERS are never here -- they are worked out from the rank,
-                    // and a sentence with a figure in it goes stale the moment
-                    // anything above is retuned.
-                    .add("Name", Ini.restOfLine((s, v) -> s.name = v))
-                    .add("Blurb", Ini.restOfLine((s, v) -> s.blurb = v))
-                    // How fast what it throws travels, in units a second. Unsaid, it is
-                    // the drawn arrow's HeavySpeed, which every hero's shot flies at.
-                    .add("ProjectileSpeed", Ini.real((s, v) -> s.projectileSpeed = v))
-                    // What a HEAL gives back, and how hurt somebody has to be, as a share
-                    // of his own health, before it is spent on him at all.
-                    .add("Heal", Ini.real((s, v) -> s.heal = v))
-                    .add("HealBelowPercent", Ini.integer((s, v) -> s.healBelowPercent = v))
-                    // What a SUMMON calls up, how many a cast and at most, and what killing
-                    // one is worth as a share of its own kind.
-                    .add("Summons", Ini.string((s, v) -> s.summons = v))
-                    .add("SummonCount", Ini.integer((s, v) -> s.summonCount = v))
-                    .add("MaxSummoned", Ini.integer((s, v) -> s.maxSummoned = v))
-                    .add("SummonExperiencePercent",
-                            Ini.integer((s, v) -> s.summonExperiencePercent = v));
 
     /** Accumulates one {@code LootItem = <id>} section of the World block. */
     private static final class LootBuilder {
@@ -1387,24 +1181,6 @@ public final class DungeonSettings {
         return kind.look().withDefaults(defaultIdle, defaultWalk, defaultAttack, defaultHurt);
     }
 
-    private final java.util.List<HeroBuilder> heroes = new java.util.ArrayList<>();
-    private final java.util.List<PortraitBuilder> portraits = new java.util.ArrayList<>();
-
-    /**
-     * What each hero the file describes is drawn as, in the order it names them.
-     *
-     * <p>A list because the roster is the file's. He used to be a set of fields on
-     * this class — one hero, and a second block would have silently overwritten
-     * the first — which was the one place the data layer could not keep the
-     * promise it keeps about monsters, skills and loot.
-     *
-     * <p>Empty when the file names none, and then whoever is playing is a coloured
-     * shape, as he was before there was a model.
-     */
-    public java.util.List<HeroLook> heroes() {
-        var rules = attributeRules();
-        return heroes.stream().map(hero -> hero.build(rules)).toList();
-    }
 
     private String playedHero = "Rogue";
 
@@ -1437,24 +1213,9 @@ public final class DungeonSettings {
         return stageFile;
     }
 
-    /** That hero's block, or {@link HeroLook#NONE} if the file describes no such one. */
-    public HeroLook heroNamed(String templateName) {
-        for (var hero : heroes) {
-            if (hero.name.equals(templateName)) {
-                return hero.build(attributeRules());
-            }
-        }
-        return HeroLook.NONE;
-    }
-
     /** The one being played, which is what the run spawns and the panel describes. */
     public HeroLook playedHeroLook() {
         return heroNamed(playedHero);
-    }
-
-    /** Every live portrait the file describes, by the creature it is the face of. */
-    public java.util.List<PortraitArt> portraits() {
-        return portraits.stream().map(PortraitBuilder::build).toList();
     }
 
     private final PortraitBuilder everyPortrait = new PortraitBuilder("");
@@ -1481,105 +1242,6 @@ public final class DungeonSettings {
 
     public int portraitFps() {
         return portraitFps;
-    }
-
-    /**
-     * One hero, as his block spells him.
-     *
-     * <p>Everything about his art except the two things that are only true in a
-     * portrait, which are in {@link PortraitBuilder} beside it.
-     */
-    private static final class HeroBuilder {
-        private final String name;
-        String title = "";
-        float closeDistance;
-        int maxMana;
-        int manaRegen;
-        int healthRegen;
-        int armourPercent;
-        /** Which attribute he hits with, as his block names it; null for none. */
-        String primary;
-        /** One per Attribute line, in the order he names them. */
-        final java.util.List<AttributeLine> attributeLines = new java.util.ArrayList<>();
-        String model;
-        String texture;
-        float modelScale = 1f;
-        float facing = 90f;
-        final java.util.List<String> animations = new java.util.ArrayList<>();
-        String idle;
-        String walk;
-        String attack;
-        String hurt;
-        String death;
-        /**
-         * Everything he carries, in the order the file names it.
-         *
-         * <p>{@code Holds} starts a new one and every {@code Held*} line after it
-         * describes that one, the way a paragraph describes the heading above it.
-         * It reads the way the old single-item block read, which is the point: a
-         * hero who carries one thing is written exactly as he always was.
-         */
-        final java.util.List<Held> carried = new java.util.ArrayList<>();
-
-        /** Start a new thing carried; the Held* lines below it fill it in. */
-        void holds(String model) {
-            carried.add(new Held(model, null, 1f, 0f, 0f, 0f, 0f, 0f, 0f));
-        }
-
-        /**
-         * Rewrite the one being described.
-         *
-         * <p>A {@code Held*} line with no {@code Holds} above it would otherwise
-         * be a silent no-op; it gets an empty one to fill in instead, which
-         * {@link Held#isCarried} then drops for having no model. The file is
-         * wrong either way and this is the way that cannot corrupt the item
-         * before it.
-         */
-        void describe(java.util.function.UnaryOperator<Held> change) {
-            if (carried.isEmpty()) {
-                holds(null);
-            }
-            carried.set(carried.size() - 1, change.apply(carried.getLast()));
-        }
-
-        HeroBuilder(String name) {
-            this.name = name;
-        }
-
-        HeroLook build(AttributeRules rules) {
-            return new HeroLook(name, title, closeDistance, armourPercent, maxMana, manaRegen,
-                    healthRegen, attributes(rules),
-                    model, texture,
-                    modelScale, facing,
-                    animations, idle, walk, attack, hurt, death,
-                    java.util.List.copyOf(carried));
-        }
-
-        /**
-         * His attributes laid out in the file's order, whatever order his lines name
-         * them in. One he has no line for is none of it, and never grows.
-         */
-        private HeroAttributes attributes(AttributeRules rules) {
-            if (primary == null) {
-                return HeroAttributes.NONE;
-            }
-            int size = rules.attributes().size();
-            var base = new int[size];
-            var perLevel = new int[size];
-            for (var line : attributeLines) {
-                int at = rules.indexOf(line.attribute());
-                if (at >= 0) {
-                    base[at] = line.base();
-                    perLevel[at] = line.perLevel();
-                }
-            }
-            return new HeroAttributes(rules.indexOf(primary), Attributes.of(base),
-                    Attributes.of(perLevel));
-        }
-    }
-
-    /** One {@code Attribute = STR 22 3.0} line: which, what he starts with, what a level adds. */
-    private record AttributeLine(String attribute, int base, int perLevel) {
     }
 
     /**
@@ -1613,19 +1275,13 @@ public final class DungeonSettings {
         }
     }
 
-    private String arrowModel;
-    private String arrowPart;
-    private float arrowScale = 1f;
-    private float arrowFacing = 90f;
-    private float arrowHeight;
-    private int arrowTint = 0xFFFFFF;
 
     /**
      * What an arrow is drawn as: one named mesh out of a model file, or nothing,
      * in which case it falls back to a coloured shape.
      *
      * @param part the name <em>inside</em> the file, which need not be a sensible
-     *             one — see the Projectile blocks in {@code ini/projectiles/}
+     *             one — see the Projectile blocks in {@code data/projectiles/}
      */
     public record ArrowLook(String name, String model, String part, float scale, float facing,
             float height, int tint, String effect, float effectOffset) {
@@ -1645,156 +1301,6 @@ public final class DungeonSettings {
         }
     }
 
-    /**
-     * How each projectile is drawn, by the name of the template it is.
-     *
-     * <p>Named and repeatable, which it was not: there were two shots in the game
-     * and one block described both, the second under a {@code Heavy} prefix. A
-     * dungeon with a crossbow in it and a mage throwing fire has four, and a
-     * prefix each is not a scheme.
-     */
-    private final java.util.List<ProjectileBuilder> projectiles = new java.util.ArrayList<>();
-
-    private static final class ProjectileBuilder {
-        private final String name;
-        String model;
-        String part;
-        float scale = 1f;
-        float facing = 90f;
-        float height;
-        int tint = 0xFFFFFF;
-        String effect;
-        float effectOffset;
-
-        ProjectileBuilder(String name) {
-            this.name = name;
-        }
-
-        ArrowLook look() {
-            return new ArrowLook(name, model, part, scale, facing, height, tint, effect,
-                    effectOffset);
-        }
-    }
-
-    /** Every projectile the file describes, in the order it describes them. */
-    public java.util.List<ArrowLook> projectiles() {
-        return projectiles.stream().map(ProjectileBuilder::look).toList();
-    }
-
-    /** How one is drawn, or a plain shape when the file describes no such thing. */
-    public ArrowLook projectile(String template) {
-        for (var projectile : projectiles) {
-            if (projectile.name.equals(template)) {
-                return projectile.look();
-            }
-        }
-        return new ArrowLook(template, null, null, 1f, 90f, 0f, 0xFFFFFF, null, 0f);
-    }
-
-    private String heavyArrowTemplate = "HeavyArrow";
-    private float heavyArrowSpeed = 120f;
-
-    /** The creature a drawn shot becomes — the same shaft, drawn bigger. */
-    public String heavyArrowTemplate() {
-        return heavyArrowTemplate;
-    }
-
-    /**
-     * Slower than an ordinary arrow, on purpose. It is the one shot the player
-     * chose to spend, so it is the one worth watching cross the room.
-     */
-    public float heavyArrowSpeed() {
-        return heavyArrowSpeed;
-    }
-
-    private static final FieldParseTable<DungeonSettings> ARROW_LOOK =
-            new FieldParseTable<DungeonSettings>()
-                    .add("HeavyTemplate", Ini.string((s, v) -> s.heavyArrowTemplate = v))
-                    .add("HeavySpeed", Ini.real((s, v) -> s.heavyArrowSpeed = v));
-
-    /**
-     * What a thing in flight looks like, by name.
-     *
-     * <p>Shared rather than written on each projectile: an arrow and the drawn
-     * shot the hero looses are the same fire at two sizes. The client owns the
-     * <em>kinds</em> — a trail, a glowing body, a burst where it lands — and every
-     * number in them is here, so a new burning thing is a block of settings and
-     * not a class.
-     */
-    public record EffectLook(String name, java.util.List<String> kinds,
-            java.util.List<String> parts, int colour, int fade,
-            int lightColour, float lightPower, float lightRadius,
-            int particles, float particleSize, float particleLife, float spread,
-            float orbSize, int burstParticles, float burstSize, float burstSeconds,
-            float waveFrom, float waveTo, float waveSeconds, float waveEase,
-            float waveEdge, float waveWash, float markRadius, float markSeconds,
-            float shakeSeconds, float shakePower) {
-
-        public EffectLook {
-            kinds = java.util.List.copyOf(kinds);
-            parts = java.util.List.copyOf(parts);
-        }
-
-        public java.awt.Color awtColour() {
-            return new java.awt.Color(colour);
-        }
-
-        public java.awt.Color awtFade() {
-            return new java.awt.Color(fade);
-        }
-
-        public java.awt.Color awtLight() {
-            return new java.awt.Color(lightColour);
-        }
-    }
-
-    private final java.util.List<EffectBuilder> effects = new java.util.ArrayList<>();
-
-    private static final class EffectBuilder {
-        private final String name;
-        final java.util.List<String> kinds = new java.util.ArrayList<>();
-        final java.util.List<String> parts = new java.util.ArrayList<>();
-        int colour = 0xFFFFFF;
-        int fade = 0x000000;
-        int lightColour = 0xFFFFFF;
-        float lightPower;
-        float lightRadius;
-        int particles;
-        float particleSize = 1f;
-        float particleLife = 0.4f;
-        float spread;
-        float orbSize;
-        int burstParticles;
-        float burstSize = 1f;
-        float burstSeconds = 0.3f;
-        float waveFrom;
-        float waveTo;
-        float waveSeconds = 0.45f;
-        float waveEase = 2.4f;
-        float waveEdge = 1f;
-        float waveWash = 0.25f;
-        float markRadius;
-        float markSeconds;
-        float shakeSeconds;
-        float shakePower;
-
-        EffectBuilder(String name) {
-            this.name = name;
-        }
-
-        EffectLook look() {
-            return new EffectLook(name, kinds, parts, colour, fade, lightColour, lightPower,
-                    lightRadius, particles, particleSize, particleLife, spread, orbSize,
-                    burstParticles, burstSize, burstSeconds, waveFrom, waveTo, waveSeconds,
-                    waveEase, waveEdge, waveWash, markRadius, markSeconds, shakeSeconds,
-                    shakePower);
-        }
-    }
-
-    /** Every effect the file describes, in the order it describes them. */
-    public java.util.List<EffectLook> effects() {
-        return effects.stream().map(EffectBuilder::look).toList();
-    }
 
     /**
      * One painted edge of the hero panel: which part, which picture, and how.
@@ -1886,49 +1392,6 @@ public final class DungeonSettings {
                     .add("Scale", Ini.real((s, v) -> s.scale = v))
                     .add("Tint", (ini, s) -> s.tint = Integer.decode(ini.getNextToken()));
 
-    private static final FieldParseTable<EffectBuilder> EFFECT =
-            new FieldParseTable<EffectBuilder>()
-                    // Repeatable: one thing can trail, glow and burst at once.
-                    .add("Kind", Ini.string((e, v) -> e.kinds.add(v)))
-                    .add("Colour", (ini, e) -> e.colour = Integer.decode(ini.getNextToken()))
-                    .add("FadeColour", (ini, e) -> e.fade = Integer.decode(ini.getNextToken()))
-                    .add("LightColour",
-                            (ini, e) -> e.lightColour = Integer.decode(ini.getNextToken()))
-                    .add("LightPower", Ini.real((e, v) -> e.lightPower = v))
-                    .add("LightRadius", Ini.real((e, v) -> e.lightRadius = v))
-                    .add("Particles", Ini.integer((e, v) -> e.particles = v))
-                    .add("ParticleSize", Ini.real((e, v) -> e.particleSize = v))
-                    .add("ParticleLife", Ini.real((e, v) -> e.particleLife = v))
-                    .add("Spread", Ini.real((e, v) -> e.spread = v))
-                    .add("OrbSize", Ini.real((e, v) -> e.orbSize = v))
-                    // Repeatable: "the eyes and the jaw" is two lines.
-                    .add("Part", Ini.string((e, v) -> e.parts.add(v)))
-                    .add("BurstParticles", Ini.integer((e, v) -> e.burstParticles = v))
-                    .add("BurstSize", Ini.real((e, v) -> e.burstSize = v))
-                    .add("BurstSeconds", Ini.real((e, v) -> e.burstSeconds = v))
-                    // SHOCKWAVE: the ring that opens across the floor. From and To
-                    // are where it starts and stops; To of zero and it never runs.
-                    // A skill that says nothing about its own width gets these, and
-                    // one that has a Radius of its own overrides them at the cast.
-                    .add("WaveFrom", Ini.real((e, v) -> e.waveFrom = v))
-                    .add("WaveTo", Ini.real((e, v) -> e.waveTo = v))
-                    .add("WaveSeconds", Ini.real((e, v) -> e.waveSeconds = v))
-                    // The whole of the feel, in one number. 1 opens at a constant
-                    // speed and reads as a circle being resized; above 1 it leaps
-                    // and then slows, which is what an impact does. 2 to 3 is the
-                    // useful range and 2.4 is what a block that says nothing gets.
-                    .add("WaveEase", Ini.real((e, v) -> e.waveEase = v))
-                    .add("WaveEdge", Ini.real((e, v) -> e.waveEdge = v))
-                    .add("WaveWash", Ini.real((e, v) -> e.waveWash = v))
-                    // GROUND_MARK: the disc that STAYS. MarkSeconds of zero and
-                    // there is none; MarkRadius of zero takes the skill's own.
-                    .add("MarkRadius", Ini.real((e, v) -> e.markRadius = v))
-                    .add("MarkSeconds", Ini.real((e, v) -> e.markSeconds = v))
-                    // And the knock. Small numbers: a shake is felt rather than
-                    // seen, and one that can be SEEN is one a player turns off.
-                    .add("ShakeSeconds", Ini.real((e, v) -> e.shakeSeconds = v))
-                    .add("ShakePower", Ini.real((e, v) -> e.shakePower = v));
-
     // ---- the layers an effect is drawn from ----
 
     /**
@@ -1941,7 +1404,7 @@ public final class DungeonSettings {
      * already checked to be the kind of value each one is, so a typo is caught
      * when the file is read rather than when the effect is drawn.
      *
-     * @param effect the effect this is a layer of — a {@code DungeonEffect} name
+     * @param effect the effect this is a layer of — an {@code Effect} name
      * @param name   what this layer is called, for whoever reads the file
      * @param fields what it said, by the client's name for each
      */
@@ -1952,50 +1415,13 @@ public final class DungeonSettings {
         }
     }
 
-    private static final class LayerBuilder {
-        private final String effect;
-        private final String name;
-        private final java.util.Map<String, String> fields = new java.util.LinkedHashMap<>();
-
-        LayerBuilder(String effect, String name) {
-            this.effect = effect;
-            this.name = name;
-        }
-
-        void put(String key, String value) {
-            fields.put(key, value);
-        }
-
-        void two(String first, String second, String low, String high) {
-            put(first, String.valueOf(Float.parseFloat(low)));
-            put(second, String.valueOf(Float.parseFloat(high)));
-        }
-
-        void twoColours(String first, String second, String start, String end) {
-            put(first, String.valueOf(Integer.decode(start)));
-            put(second, String.valueOf(Integer.decode(end)));
-        }
-    }
-
-    private final java.util.List<LayerBuilder> effectLayers = new java.util.ArrayList<>();
-
-    /**
-     * Every layer the file describes, in the order it describes them — which is
-     * also the order they are drawn in, one over another.
-     */
-    public java.util.List<EffectLayerArt> effectLayers() {
-        return effectLayers.stream()
-                .map(layer -> new EffectLayerArt(layer.effect, layer.name, layer.fields))
-                .toList();
-    }
-
     /**
      * What one of the run's own moments looks like: a level gained, the boss down,
      * the hero arriving on a floor. The client notices the moment; this says which
      * recipe it plays on him.
      *
      * @param name   which moment, in the client's word for it
-     * @param effect the recipe it plays, a {@code DungeonEffect} drawn in layers
+     * @param effect the recipe it plays, an {@code Effect} drawn in layers
      * @param scale  how much bigger than the recipe is written it is drawn; 1 as written
      */
     public record MomentArt(String name, String effect, float scale) {
@@ -2068,60 +1494,6 @@ public final class DungeonSettings {
         return strikeWithin;
     }
 
-    private static final FieldParseTable<LayerBuilder> LAYER =
-            new FieldParseTable<LayerBuilder>()
-                    .add("Type", Ini.string((l, v) -> l.put("type", v.toUpperCase(java.util.Locale.ROOT))))
-                    .add("Texture", Ini.string((l, v) -> l.put("texture", v)))
-                    // Additive for light -- fire, magic, sparks -- and Alpha for stuff: smoke
-                    // and dust drawn additively brighten the floor they are meant to hide.
-                    .add("Blend", Ini.string((l, v) -> l.put("additive",
-                            String.valueOf(!"Alpha".equalsIgnoreCase(v)))))
-                    // And how much of the floor it hides, for fire that has to read on
-                    // pale ground: 0 is Additive's, 1 is Alpha's.
-                    .add("Cover", Ini.real((l, v) -> l.put("cover", String.valueOf(v))))
-                    .add("Count", Ini.integer((l, v) -> l.put("count", String.valueOf(v))))
-                    .add("Rate", Ini.real((l, v) -> l.put("rate", String.valueOf(v))))
-                    .add("Delay", Ini.real((l, v) -> l.put("delay", String.valueOf(v))))
-                    .add("Seconds", Ini.real((l, v) -> l.put("seconds", String.valueOf(v))))
-                    .add("SizeEase", Ini.real((l, v) -> l.put("sizeEase", String.valueOf(v))))
-                    .add("SizeJitter", Ini.real((l, v) -> l.put("sizeJitter", String.valueOf(v))))
-                    .add("ColourEase", Ini.real((l, v) -> l.put("colourEase", String.valueOf(v))))
-                    .add("FadeIn", Ini.real((l, v) -> l.put("fadeIn", String.valueOf(v))))
-                    .add("FadeOut", Ini.real((l, v) -> l.put("fadeOut", String.valueOf(v))))
-                    .add("Spread", Ini.real((l, v) -> l.put("spread", String.valueOf(v))))
-                    .add("Radius", Ini.real((l, v) -> l.put("radius", String.valueOf(v))))
-                    .add("Height", Ini.real((l, v) -> l.put("height", String.valueOf(v))))
-                    .add("Gravity", Ini.real((l, v) -> l.put("gravity", String.valueOf(v))))
-                    .add("Drag", Ini.real((l, v) -> l.put("drag", String.valueOf(v))))
-                    .add("Stretch", Ini.real((l, v) -> l.put("stretch", String.valueOf(v))))
-                    .add("Spin", Ini.real((l, v) -> l.put("spin", String.valueOf(v))))
-                    .add("Turn", Ini.real((l, v) -> l.put("turn", String.valueOf(v))))
-                    .add("TurnJitter", Ini.real((l, v) -> l.put("turnJitter", String.valueOf(v))))
-                    .add("PulseRate", Ini.real((l, v) -> l.put("pulseRate", String.valueOf(v))))
-                    .add("PulseDepth", Ini.real((l, v) -> l.put("pulseDepth", String.valueOf(v))))
-                    .add("LightPower", Ini.real((l, v) -> l.put("lightPower", String.valueOf(v))))
-                    .add("LightRadius", Ini.real((l, v) -> l.put("lightRadius", String.valueOf(v))))
-                    .add("Fall", Ini.real((l, v) -> l.put("fall", String.valueOf(v))))
-                    // A PILLAR's end that moves: how much of its life it takes to cross
-                    // the whole height, and along what curve.
-                    .add("Rise", Ini.real((l, v) -> l.put("rise", String.valueOf(v))))
-                    .add("RiseEase", Ini.real((l, v) -> l.put("riseEase", String.valueOf(v))))
-                    // Whether a layer on somebody goes where he goes. An AURA always does.
-                    .add("Follows", Ini.bool((l, v) -> l.put("follows", String.valueOf(v))))
-                    // Two numbers, where a thing has a start and an end or a least and a most.
-                    .add("Life", (ini, l) -> l.two("lifeMin", "lifeMax", ini.getNextToken(), ini.getNextToken()))
-                    .add("Size", (ini, l) -> l.two("sizeStart", "sizeEnd", ini.getNextToken(), ini.getNextToken()))
-                    .add("Alpha", (ini, l) -> l.two("alphaStart", "alphaEnd", ini.getNextToken(), ini.getNextToken()))
-                    .add("Speed", (ini, l) -> l.two("speedMin", "speedMax", ini.getNextToken(), ini.getNextToken()))
-                    .add("Colour", (ini, l) -> l.twoColours("colourStart", "colourEnd",
-                            ini.getNextToken(), ini.getNextToken()))
-                    .add("LightColour", (ini, l) -> l.put("lightColour",
-                            String.valueOf(Integer.decode(ini.getNextToken()))))
-                    .add("Direction", Ini.string((l, v) -> l.put("direction", v.toUpperCase(java.util.Locale.ROOT))))
-                    .add("At", Ini.string((l, v) -> l.put("at", v.toUpperCase(java.util.Locale.ROOT))))
-                    // UNITS, or REACH for a shape as wide as the skill's own radius.
-                    .add("Measure", Ini.string((l, v) -> l.put("measure", v.toUpperCase(java.util.Locale.ROOT))));
-
     // ---- what the client may spend on all of it ----
 
     private int effectLights = 4;
@@ -2182,17 +1554,6 @@ public final class DungeonSettings {
                     .add("HitFlashSeconds", Ini.real((s, v) -> s.hitFlashSeconds = v))
                     .add("HitFlashStrength", Ini.real((s, v) -> s.hitFlashStrength = v))
                     .add("StrikeWithin", Ini.real((s, v) -> s.strikeWithin = v));
-
-    private static final FieldParseTable<ProjectileBuilder> PROJECTILE =
-            new FieldParseTable<ProjectileBuilder>()
-                    .add("Model", Ini.string((p, v) -> p.model = v))
-                    .add("Part", Ini.string((p, v) -> p.part = v))
-                    .add("Scale", Ini.real((p, v) -> p.scale = v))
-                    .add("Facing", Ini.real((p, v) -> p.facing = v))
-                    .add("Height", Ini.real((p, v) -> p.height = v))
-                    .add("Tint", (ini, p) -> p.tint = Integer.decode(ini.getNextToken()))
-                    .add("Effect", Ini.string((p, v) -> p.effect = v))
-                    .add("EffectOffset", Ini.real((p, v) -> p.effectOffset = v));
 
     // ---- the camera ----
 
@@ -3142,70 +2503,6 @@ public final class DungeonSettings {
                     .add("TitleFont", Ini.string((s, v) -> s.menuTitleFont = v))
                     .add("RowFont", Ini.string((s, v) -> s.menuRowFont = v));
 
-    private static final FieldParseTable<HeroBuilder> HERO_LOOK =
-            new FieldParseTable<HeroBuilder>()
-                    // What the panel calls him under his name. His, not the
-                    // panel's: one line in Hud was the archer's title on
-                    // every hero who came after him.
-                    .add("Title", Ini.restOfLine((s, v) -> s.title = v))
-                    // What he shrugs off before earning a level. Here rather than
-                    // in his creature block because a hero's armour is rewritten
-                    // from his level whenever it changes, so a template's own
-                    // figure would not survive the first one.
-                    // How close he walks before letting his weapon work. His, because
-                    // it has to be inside HIS reach: one figure for everybody was
-                    // the archer's, and a swordsman stopped four bodies short.
-                    .add("CloseDistance", Ini.real((s, v) -> s.closeDistance = v))
-                    // What he casts out of, before any level is earned. Two
-                    // numbers rather than one because a pool and a trickle are
-                    // different things to play against: see HeroLook.
-                    .add("MaxMana", Ini.integer((s, v) -> s.maxMana = v))
-                    .add("ManaRegen", Ini.integer((s, v) -> s.manaRegen = v))
-                    .add("HealthRegen", Ini.integer((s, v) -> s.healthRegen = v))
-                    .add("ArmourPercent", Ini.integer((s, v) -> s.armourPercent = v))
-                    // Which attribute he hits with, and a line for each he has: which,
-                    // what he starts with, what a level adds. The numbers are decimals
-                    // read into exact tenths, never through a float: a level of 1.8
-                    // fifteen times over has to be 27 on every machine.
-                    .add("Primary", Ini.string((s, v) -> s.primary = v))
-                    .add("Attribute", (ini, s) -> s.attributeLines.add(attributeLine(ini)))
-                    .add("Model", Ini.string((s, v) -> s.model = v))
-                    .add("Texture", Ini.string((s, v) -> s.texture = v))
-                    .add("ModelScale", Ini.real((s, v) -> s.modelScale = v))
-                    .add("Facing", Ini.real((s, v) -> s.facing = v))
-                    // Repeatable: a kit sorts its clips by what the movement is
-                    // for, so standing and dying come out of one file and a bow
-                    // out of another, and he needs all of them.
-                    .add("AnimationsFrom", Ini.string((s, v) -> s.animations.add(v)))
-                    .add("Idle", Ini.string((s, v) -> s.idle = v))
-                    .add("Walk", Ini.string((s, v) -> s.walk = v))
-                    .add("Attack", Ini.string((s, v) -> s.attack = v))
-                    .add("Hurt", Ini.string((s, v) -> s.hurt = v))
-                    .add("Death", Ini.string((s, v) -> s.death = v))
-                    // ★ Repeatable, like AnimationsFrom above and for the same
-                    // reason: a hero is rarely one thing in one hand. Holds names
-                    // a thing and every Held* line under it describes THAT thing,
-                    // so a knight is a sword paragraph and a shield paragraph.
-                    .add("Holds", Ini.string((s, v) -> s.holds(v)))
-                    .add("HeldIn", Ini.string((s, v) -> s.describe(h -> new Held(h.model(), v,
-                            h.scale(), h.pitch(), h.yaw(), h.roll(), h.x(), h.y(), h.z()))))
-                    .add("HeldScale", Ini.real((s, v) -> s.describe(h -> new Held(h.model(),
-                            h.bone(), v, h.pitch(), h.yaw(), h.roll(), h.x(), h.y(), h.z()))))
-                    .add("HeldPitch", Ini.real((s, v) -> s.describe(h -> new Held(h.model(),
-                            h.bone(), h.scale(), v, h.yaw(), h.roll(), h.x(), h.y(), h.z()))))
-                    .add("HeldYaw", Ini.real((s, v) -> s.describe(h -> new Held(h.model(),
-                            h.bone(), h.scale(), h.pitch(), v, h.roll(), h.x(), h.y(), h.z()))))
-                    .add("HeldRoll", Ini.real((s, v) -> s.describe(h -> new Held(h.model(),
-                            h.bone(), h.scale(), h.pitch(), h.yaw(), v, h.x(), h.y(), h.z()))))
-                    // Three numbers on one line, because a place is one fact.
-                    .add("HeldAt", (ini, s) -> {
-                        float x = Ini.scanReal(ini.getNextToken());
-                        float y = Ini.scanReal(ini.getNextToken());
-                        float z = Ini.scanReal(ini.getNextToken());
-                        s.describe(h -> new Held(h.model(), h.bone(), h.scale(), h.pitch(),
-                                h.yaw(), h.roll(), x, y, z));
-                    });
-
     /**
      * The live portrait's block.
      *
@@ -3352,21 +2649,6 @@ public final class DungeonSettings {
                             (ini, a) -> a.speedPerPoint = exactly(ini, "SpeedPerPoint", 2))
                     .add("ManaPerPoint",
                             (ini, a) -> a.manaPerPoint = exactly(ini, "ManaPerPoint", 2));
-
-    /** {@code Attribute = STR 22 3.0}: which, what he starts with, and what a level adds. */
-    private static AttributeLine attributeLine(Ini ini) {
-        var attribute = ini.getNextToken();
-        var field = "Attribute " + attribute;
-        int base = exactly(ini, field, 1);
-        int perLevel = exactly(ini, field, 1);
-        var more = ini.getNextTokenOrNull();
-        if (more != null) {
-            throw new IllegalArgumentException("dungeon.ini: " + field + " has " + more
-                    + " after its two numbers: an attribute line is which, what he starts"
-                    + " with, and what a level adds");
-        }
-        return new AttributeLine(attribute, base, perLevel);
-    }
 
     // ---- the block under the experience bar ----
 
@@ -3752,55 +3034,7 @@ public final class DungeonSettings {
         return 1f + Math.max(0, depth - 1) * percentPerDepth / 100f;
     }
 
-    /** A unit block as the settings read it: the unit's own part, and its portrait's camera if the block frames one. */
-    private static final class Framed<U> {
-        private final String name;
-        private final U unit;
-        private PortraitBuilder portrait;
 
-        Framed(String name, java.util.function.Function<String, U> newUnit) {
-            this.name = name;
-            this.unit = newUnit.apply(name);
-        }
-
-        /** The portrait, made the first time the block writes a Portrait... line. */
-        PortraitBuilder framing() {
-            if (portrait == null) {
-                portrait = new PortraitBuilder(name);
-            }
-            return portrait;
-        }
-
-        java.util.Optional<PortraitBuilder> portrait() {
-            return java.util.Optional.ofNullable(portrait);
-        }
-
-        /** {@code fields} for the unit, and the portrait's under Portrait... names. */
-        static <U> FieldParseTable<Framed<U>> table(FieldParseTable<U> fields) {
-            return fields.<Framed<U>>on(framed -> framed.unit)
-                    .addAll(PORTRAIT.prefixed("Portrait").<Framed<U>>on(Framed::framing));
-        }
-    }
-
-    // The unit blocks as the settings read them: the dungeon's fields, and the engine's
-    // passed over, a world being the one to read those. Declared last, after every table
-    // they are made of.
-    private static final FieldParseTable<Framed<MonsterBuilder>> MONSTER_FRAMED = Framed.table(MONSTER);
-    private static final FieldParseTable<Framed<HeroBuilder>> HERO_FRAMED = Framed.table(HERO_LOOK);
-    private static final FieldParseTable<Framed<MonsterBuilder>> MONSTER_BLOCK =
-            ThingTemplateLoader.passingOverEngineFields(MONSTER_FRAMED, Monster.class);
-    private static final FieldParseTable<Framed<HeroBuilder>> HERO_BLOCK =
-            ThingTemplateLoader.passingOverEngineFields(HERO_FRAMED, Hero.class);
-    private static final FieldParseTable<ProjectileBuilder> PROJECTILE_BLOCK =
-            ThingTemplateLoader.passingOverEngineFields(PROJECTILE, Projectile.class);
-    private static final FieldParseTable<PropBuilder> PROP_BLOCK =
-            ThingTemplateLoader.passingOverEngineFields(PROP, Prop.class);
-
-    // What a world's template loader passes over in the same blocks: the dungeon's own fields.
-    static final java.util.Set<String> MONSTER_FIELDS = MONSTER_FRAMED.names();
-    static final java.util.Set<String> HERO_FIELDS = HERO_FRAMED.names();
-    static final java.util.Set<String> PROJECTILE_FIELDS = PROJECTILE.names();
-    static final java.util.Set<String> PROP_FIELDS = PROP.names();
 
     // The World block: how tall a storey stands, which the engine reads, and every section
     // of the dungeon's own. A section the world has one of reads into the settings and its

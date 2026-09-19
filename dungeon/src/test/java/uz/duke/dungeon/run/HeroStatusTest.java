@@ -351,9 +351,7 @@ class HeroStatusTest {
      */
     @Test
     void anAttributeTheFileAddsRidesTheLineWithItsCard() {
-        var text = Content.settings()
-                .replace("  Primary = AGI\n", "  Primary = AGI\n  Attribute = VIG 7 0.5\n")
-                + """
+        var world = Content.world() + """
 
                 World Dungeon
                   Attribute = Vigour
@@ -364,7 +362,8 @@ class HeroStatusTest {
                   End
                 End
                 """;
-        var settings = DungeonSettings.parse(text);
+        var data = Content.data().replace("    AGI = [12, 2.2]\n", "    AGI = [12, 2.2]\n    VIG = [7, 0.5]\n");
+        var settings = DungeonSettings.parse(world, data);
         var session = Dungeon.newSession(4321L, settings);
         var game = session.game();
         game.runHeadless(1);

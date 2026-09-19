@@ -155,14 +155,14 @@ class DungeonSoundTest {
                     VoiceGapSeconds = 2.5
                   End
                 End
-
-                DungeonSound vo.move
+                """, """
+                Sound
+                  Name = vo.move
                   Channel = Voice
                   Positional = No
                   Gain = 0.8
                   GapSeconds = 0.4
-                  File = audio/voice/move_1.ogg
-                  File = audio/voice/move_2.ogg
+                  Files = [audio/voice/move_1.ogg, audio/voice/move_2.ogg]
                 End
                 """);
 

@@ -1,7 +1,5 @@
 package uz.duke.dungeon.skill;
 
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.module.ModuleGroups;
@@ -27,13 +25,9 @@ import uz.duke.core.thing.ObjectId;
 @ModuleGroup({ModuleGroups.EFFECT, ModuleGroups.BODY})
 public final class MendingUpdate extends UpdateModule {
 
-    /** Empty in the creature file: who, how much and how soon are the skill's. */
-    public static ModuleData parseData(Ini ini) {
-        ini.initFromIni(new Object(), NO_FIELDS);
-        return null;
+    /** It reads no fields; the block only says the unit has one. */
+    public record Data() implements ModuleData {
     }
-
-    private static final FieldParseTable<Object> NO_FIELDS = new FieldParseTable<>();
 
     private ObjectId patient;
     private float amount;

@@ -121,16 +121,21 @@ class ExperienceModuleTest {
         assertEquals(0, xp.getLevel());
     }
 
+    private static ExperienceModule.Data read(String block) {
+        return new uz.duke.core.data.Binder().bind(uz.duke.core.data.DukeText.parse(block, "xp.duke").getFirst(),
+                ExperienceModule.Data.class);
+    }
+
     @Test
-    void parsesFromIni() {
-        var ini = uz.duke.core.ini.Ini.of("""
-                ExperienceValue = 25
-                ExperienceRequired = 100 200 400
-                LevelDamageBonus = 1.1 1.2 1.3
-                HealOnPromotion = Yes
+    void isReadFromItsBlock() {
+        var data = read("""
+                ExperienceModule
+                  ExperienceValue = 25
+                  ExperienceRequired = [100, 200, 400]
+                  LevelDamageBonus = [1.1, 1.2, 1.3]
+                  HealOnPromotion = Yes
                 End
-                """, uz.duke.core.ini.Ini.registry());
-        var data = (ExperienceModule.Data) ExperienceModule.parseData(ini);
+                """);
 
         assertEquals(25, data.experienceValue());
         assertEquals(3, data.ranks().size());
@@ -143,12 +148,12 @@ class ExperienceModuleTest {
     /** A ladder may name its costs and say nothing about bonuses. */
     @Test
     void aLadderWithoutBonusesStillParses() {
-        var ini = uz.duke.core.ini.Ini.of("""
-                ExperienceValue = 10
-                ExperienceRequired = 5 10
+        var data = read("""
+                ExperienceModule
+                  ExperienceValue = 10
+                  ExperienceRequired = [5, 10]
                 End
-                """, uz.duke.core.ini.Ini.registry());
-        var data = (ExperienceModule.Data) ExperienceModule.parseData(ini);
+                """);
 
         assertEquals(2, data.ranks().size());
         assertEquals(1f, data.ranks().get(1).damageMultiplier(), 1e-6f);

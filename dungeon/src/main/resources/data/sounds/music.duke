@@ -1,0 +1,33 @@
+; ---- and what it sounds like underneath -----------------------------------
+;
+; Three of them, and which one plays is the player's to say from the settings
+; screen -- the one channel where the choice is taste rather than a moment. Add
+; a fourth by writing a fourth block; the screen lists whatever is here, in the
+; order it is written, and Label is what it calls them.
+
+Sound
+  Name = music.industrial
+  Channel = Music
+  Positional = No
+  Gain = 0.5
+  Label = Industrial
+  Files = [audio/music/dungeon_loop.ogg]
+End
+
+Sound
+  Name = music.uncertainty
+  Channel = Music
+  Positional = No
+  Gain = 0.6
+  Label = Uncertainty
+  Files = [audio/music/uncertainty.ogg]
+End
+
+Sound
+  Name = music.sentinel
+  Channel = Music
+  Positional = No
+  Gain = 0.6
+  Label = The Sentinel
+  Files = [audio/music/sentinel.ogg]
+End

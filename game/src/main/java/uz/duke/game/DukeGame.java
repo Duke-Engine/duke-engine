@@ -20,6 +20,7 @@ import uz.duke.core.pathfind.MapLoader;
 import uz.duke.core.pathfind.PathGrid;
 import uz.duke.core.player.Relationship;
 import uz.duke.core.thing.GameObject;
+import uz.duke.core.thing.ThingTemplate;
 import uz.duke.core.thing.ThingTemplateLoader;
 import uz.duke.core.thing.Titled;
 import uz.duke.core.thing.WorldTemplate;
@@ -64,7 +65,8 @@ public final class DukeGame {
     static final String DESYNC_MESSAGE = "Synchronization lost - game stopped";
 
     private final String title;
-    private final List<String> unitIniTexts = new ArrayList<>();
+    private final List<UnitText> unitTexts = new ArrayList<>();
+    private final List<ThingTemplate> units = new ArrayList<>();
     private final List<GamePlayer> players = new ArrayList<>();
     private final List<Runnable> scenario = new ArrayList<>();
     private final List<Consumer<DukeGame>> startCallbacks = new ArrayList<>();
@@ -120,17 +122,29 @@ public final class DukeGame {
 
     // ---- builder configuration (before start) ----
 
-    /** Load unit/structure definitions from INI text (SAGE-style {@code Object} blocks). */
-    public DukeGame loadUnits(String iniText) {
+    private record UnitText(String text, String source) {
+    }
+
+    /** Unit and structure templates from the text of a {@code .duke} file: {@code Object} blocks, or the game's own. */
+    public DukeGame loadUnits(String text) {
         requireNotStarted();
-        unitIniTexts.add(iniText);
+        unitTexts.add(new UnitText(text, "units"));
         return this;
     }
 
-    /** Load unit definitions from an INI file. */
+    /** Templates a game has already read, as a game that reads its files once for every world does. */
+    public DukeGame addUnits(java.util.Collection<? extends ThingTemplate> templates) {
+        requireNotStarted();
+        units.addAll(templates);
+        return this;
+    }
+
+    /** Unit definitions from a {@code .duke} file. */
     public DukeGame loadUnitsFile(Path file) {
         try {
-            return loadUnits(Files.readString(file));
+            requireNotStarted();
+            unitTexts.add(new UnitText(Files.readString(file), file.toString()));
+            return this;
         } catch (IOException e) {
             throw new UncheckedIOException("could not read units file: " + file, e);
         }
@@ -210,14 +224,14 @@ public final class DukeGame {
         var template = logic.getThingFactory().findTemplate(templateName);
         if (template == null) {
             throw new IllegalArgumentException("unknown unit template '" + templateName
-                    + "' — did you loadUnits() its INI definition?");
+                    + "' — did you loadUnits() its block?");
         }
         return logic.spawn(template, new Coord3D(x, y, 0f), owner.getIndex());
     }
 
     /**
      * Register custom engine modules (e.g. compiled {@code UnitScript}s) before
-     * unit INI is parsed — the extension point for user code:
+     * units are read — the extension point for user code:
      * {@code game.customModules(mf -> ScriptModule.registerScript(mf, "Guard", Guard::new))}.
      */
     public DukeGame customModules(Consumer<uz.duke.core.module.ModuleFactory> customizer) {
@@ -227,8 +241,8 @@ public final class DukeGame {
     }
 
     /**
-     * Register the game's own template block types before unit INI is parsed:
-     * {@code game.templates(loader -> loader.type("Monster", Monster.class, ...))}. An
+     * Register the game's own template block types before its units are read:
+     * {@code game.templates(loader -> loader.type(Monster.class))}. An
      * {@code Object} block is already an RTS template, with a build cost and time.
      */
     public DukeGame templates(Consumer<ThingTemplateLoader> customizer) {
@@ -622,7 +636,7 @@ public final class DukeGame {
         engine.setMaxFps(maxFps);
         engine.init(); // note: engine init resets subsystems — apply scenario after
 
-        // custom modules must exist before INI references them
+        // custom modules must exist before a unit's block names them
         for (var customizer : moduleCustomizers) {
             customizer.accept(logic.getThingFactory().getModuleFactory());
         }
@@ -630,8 +644,11 @@ public final class DukeGame {
         for (var customizer : templateCustomizers) {
             customizer.accept(loader);
         }
-        for (var iniText : unitIniTexts) {
-            loader.load(iniText);
+        for (var template : units) {
+            logic.getThingFactory().addTemplate(template);
+        }
+        for (var text : unitTexts) {
+            loader.load(text.text(), text.source());
         }
         logic.setWorld(world);
         if (terrain != null) {
@@ -783,7 +800,7 @@ public final class DukeGame {
             return List.of();
         }
         for (var entry : factoryTemplate.modules()) {
-            if (entry.data() instanceof uz.duke.rts.module.ProductionUpdate.Data data) {
+            if (entry instanceof uz.duke.rts.module.ProductionUpdate.Data data) {
                 var options = new ArrayList<BuildOption>();
                 for (var name : data.builds()) {
                     var unit = logic.getThingFactory().findTemplate(name);
@@ -866,107 +883,115 @@ public final class DukeGame {
     // ---- starter content ----
 
     /**
-     * A small, balanced starter faction so a first game needs no INI authoring:
+     * A small, balanced starter faction so a first game needs no data files:
      * a power plant, a barracks that builds riflemen, a rifleman and a tank.
      */
     public static final String STARTER_UNITS = """
-            Object PowerPlant
+            Object
+              Name = PowerPlant
               DisplayName = Power Plant
-              KindOf = STRUCTURE SELECTABLE POWERED
-              Geometry = BOX
-              GeometryMajorRadius = 18
-              GeometryMinorRadius = 14
-              GeometryHeight = 16
+              KindOf = [STRUCTURE, SELECTABLE, POWERED]
+              Box
+                MajorRadius = 18
+                MinorRadius = 14
+                Height = 16
+              End
               BuildCost = 600
               BuildTime = 4.0
               VisionRange = 30
-              Body = ActiveBody Tag
+              ActiveBody
                 MaxHealth = 400
               End
-              Update = PowerModule Tag
+              PowerModule
                 Produces = 10
               End
             End
-            Object Barracks
+            Object
+              Name = Barracks
               DisplayName = Barracks
-              KindOf = STRUCTURE SELECTABLE
-              Geometry = BOX
-              GeometryMajorRadius = 20
-              GeometryMinorRadius = 16
-              GeometryHeight = 14
+              KindOf = [STRUCTURE, SELECTABLE]
+              Box
+                MajorRadius = 20
+                MinorRadius = 16
+                Height = 14
+              End
               BuildCost = 500
               BuildTime = 5.0
               VisionRange = 35
-              Body = ActiveBody Tag
+              ActiveBody
                 MaxHealth = 600
               End
-              Update = ProductionUpdate Tag
-                Builds = Rifleman Tank
+              ProductionUpdate
+                Builds = [Rifleman, Tank]
               End
-              Update = PowerModule Tag
+              PowerModule
                 Consumes = 3
               End
               ; Stall the line when the base outgrows its plants. Asked for here
               ; rather than assumed by the engine — a game with no notion of
               ; capacity simply leaves this off.
-              Behavior = CapacityGate Tag
+              CapacityGate
               End
             End
-            Object Rifleman
+            Object
+              Name = Rifleman
               DisplayName = Rifleman
-              KindOf = INFANTRY SELECTABLE CAN_ATTACK
-              Geometry = CYLINDER
-              GeometryMajorRadius = 3
-              GeometryHeight = 9
+              KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
+              Cylinder
+                Radius = 3
+                Height = 9
+              End
               BuildCost = 120
               BuildTime = 1.5
               VisionRange = 40
-              Body = ActiveBody Tag
+              ActiveBody
                 MaxHealth = 80
               End
-              Update = MoveUpdate Tag
+              MoveUpdate
                 Speed = 14
               End
-              Update = WeaponUpdate Tag
+              WeaponUpdate
                 Damage = 9
                 AttackRange = 22
                 ReloadFrames = 12
               End
-              Behavior = ExperienceModule Tag
+              ExperienceModule
                 ExperienceValue = 30
-                ExperienceRequired = 60 180 360
-                LevelDamageBonus = 1.1 1.2 1.3
+                ExperienceRequired = [60, 180, 360]
+                LevelDamageBonus = [1.1, 1.2, 1.3]
                 HealOnPromotion = Yes
               End
             End
-            Object Tank
+            Object
+              Name = Tank
               DisplayName = Battle Tank
-              KindOf = VEHICLE SELECTABLE CAN_ATTACK
-              Geometry = BOX
-              GeometryMajorRadius = 8
-              GeometryMinorRadius = 5
-              GeometryHeight = 6
+              KindOf = [VEHICLE, SELECTABLE, CAN_ATTACK]
+              Box
+                MajorRadius = 8
+                MinorRadius = 5
+                Height = 6
+              End
               BuildCost = 700
               BuildTime = 6.0
               VisionRange = 45
-              Body = ActiveBody Tag
+              ActiveBody
                 MaxHealth = 300
               End
-              Update = MoveUpdate Tag
+              MoveUpdate
                 Speed = 20
                 TurnRate = 120
               End
-              Update = WeaponUpdate Tag
+              WeaponUpdate
                 Damage = 40
                 AttackRange = 30
                 ReloadFrames = 45
                 SplashRadius = 6
                 DamageType = EXPLOSION
               End
-              Behavior = ExperienceModule Tag
+              ExperienceModule
                 ExperienceValue = 100
-                ExperienceRequired = 200 500 1000
-                LevelDamageBonus = 1.1 1.2 1.3
+                ExperienceRequired = [200, 500, 1000]
+                LevelDamageBonus = [1.1, 1.2, 1.3]
                 HealOnPromotion = Yes
               End
             End

@@ -45,7 +45,7 @@ class AttackOnTheMoveTest {
         factory.addTemplate(shooter("Rifleman", true));
         factory.addTemplate(shooter("Archer", false));
         factory.addTemplate(ThingTemplate.named("Target")
-                .module("ActiveBody", new ActiveBody.Data(1000f))
+                .module(new ActiveBody.Data(1000f))
                 .build());
 
         logic = new CombatTest.CombatLogic(factory);
@@ -60,9 +60,9 @@ class AttackOnTheMoveTest {
 
     private static ThingTemplate shooter(String name, boolean onTheMove) {
         return ThingTemplate.named(name)
-                .module("ActiveBody", new ActiveBody.Data(100f))
-                .module("MoveUpdate", new MoveUpdate.Data(90f, 0f))
-                .module("WeaponUpdate", new WeaponUpdate.Data(DAMAGE, RANGE, RELOAD,
+                .module(new ActiveBody.Data(100f))
+                .module(new MoveUpdate.Data(90f, 0f))
+                .module(new WeaponUpdate.Data(DAMAGE, RANGE, RELOAD,
                         uz.duke.core.module.DamageType.NORMAL, 0f, onTheMove))
                 .build();
     }

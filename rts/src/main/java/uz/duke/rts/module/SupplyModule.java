@@ -1,7 +1,5 @@
 package uz.duke.rts.module;
 
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.module.Module;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.ModuleGroup;
@@ -20,23 +18,6 @@ public final class SupplyModule extends Module {
 
     /** INI config: {@code Amount} (starting resources). */
     public record Data(int amount) implements ModuleData {
-    }
-
-    private static final class DataBuilder {
-        int amount;
-
-        Data build() {
-            return new Data(amount);
-        }
-    }
-
-    private static final FieldParseTable<DataBuilder> DATA_TABLE = new FieldParseTable<DataBuilder>()
-            .add("Amount", Ini.integer((b, v) -> b.amount = v));
-
-    public static ModuleData parseData(Ini ini) {
-        var builder = new DataBuilder();
-        ini.initFromIni(builder, DATA_TABLE);
-        return builder.build();
     }
 
     private int remaining;

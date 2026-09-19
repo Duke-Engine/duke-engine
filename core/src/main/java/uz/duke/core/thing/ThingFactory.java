@@ -62,7 +62,7 @@ public final class ThingFactory extends SubsystemInterface {
     public GameObject newObject(ThingTemplate template, ObjectId id) {
         var object = new GameObject(id, template);
         for (var entry : template.modules()) {
-            object.addModule(moduleFactory.newModule(entry.tag(), object, entry.data()));
+            object.addModule(moduleFactory.newModule(object, entry));
         }
         return object;
     }

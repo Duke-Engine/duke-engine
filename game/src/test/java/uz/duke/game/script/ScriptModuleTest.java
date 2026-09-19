@@ -38,17 +38,20 @@ class ScriptModuleTest {
     }
 
     private static final String INI = """
-            Object Runner
-              KindOf = INFANTRY SELECTABLE
-              Body = ActiveBody Tag
+            Object
+              Name = Runner
+              KindOf = [INFANTRY, SELECTABLE]
+              ActiveBody
                 MaxHealth = 50
               End
-              Update = MoveUpdate Tag
+              MoveUpdate
                 Speed = 30
               End
-              Update = Script:Walker Tag
+              ScriptModule
+                Name = Walker
               End
-              Update = Script:Broken Tag
+              ScriptModule
+                Name = Broken
               End
             End
             """;

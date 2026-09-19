@@ -162,14 +162,14 @@ class StoreysTest {
     /** Turn height off and the generator draws the dungeon it drew before it. */
     @Test
     void aDungeonWithNoStoreysIsTheOldFlatOne() {
-        var flat = DungeonSettings.parse(Content.settings() + """
+        var flat = DungeonSettings.parse(Content.world() + """
 
                 World Dungeon
                   Generation = Layout
                     MaxStorey = 0
                   End
                 End
-                """);
+                """, Content.data());
 
         for (long seed = 0; seed < 20; seed++) {
             var dungeon = DungeonGenerator.generate(seed, flat, 1);
@@ -228,14 +228,14 @@ class StoreysTest {
     @Test
     void takingTheHeightAwayChangesTheRun() {
         var raised = playedOut(SETTINGS);
-        var flattened = playedOut(DungeonSettings.parse(Content.settings() + """
+        var flattened = playedOut(DungeonSettings.parse(Content.world() + """
 
                 World Dungeon
                   Generation = Layout
                     MaxStorey = 0
                   End
                 End
-                """));
+                """, Content.data()));
 
         assertTrue(!raised.equals(flattened),
                 "a dungeon with storeys played out exactly like a flat one, so the "

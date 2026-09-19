@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import uz.duke.core.thing.GameObject;
 import uz.duke.dungeon.Dungeon;
 import uz.duke.dungeon.content.DungeonSettings;
+import uz.duke.dungeon.content.ShippedBlock;
 import uz.duke.dungeon.skill.Skill;
 import uz.duke.dungeon.skill.SkillBook;
 import uz.duke.game.DukeGame;
@@ -60,13 +61,15 @@ class MonsterHealingTest {
 
     /** The shipped file, with the ones it mends told to notice nothing and answer no shout. */
     private static DungeonSettings settings(String more) {
-        return DungeonSettings.parse("""
-                Monster Skeleton
+        return DungeonSettings.parse("", """
+                Monster
+                  Name = Skeleton
                   SenseRadius = 1
                   ChaseRadius = 1
                   AlertRadius = 0
                 End
-                Monster Warden
+                Monster
+                  Name = Warden
                   SenseRadius = 1
                   ChaseRadius = 1
                   AlertRadius = 0
@@ -110,22 +113,9 @@ class MonsterHealingTest {
         return SETTINGS.skillsFor(HEALER).get(0);
     }
 
-    /** The shipped mending with another threshold, said whole because a block replaces a skill. */
+    /** The shipped healer, mending at another threshold. */
     private static String mendingBelow(int percent) {
-        var skill = mending();
-        return """
-                DungeonSkill SkeletonHealer Q
-                  Effect = HEAL
-                  Heal = %s
-                  HealBelowPercent = %d
-                  Range = %s
-                  WindUpFrames = %d
-                  Projectile = %s
-                  CooldownFrames = %d
-                  MaxRank = 1
-                End
-                """.formatted(skill.heal(), percent, skill.range(), skill.windUpFrames(),
-                skill.projectile(), skill.cooldownFrames());
+        return ShippedBlock.of(HEALER).with("HealBelowPercent", percent).text();
     }
 
     /** Long enough for it to look, to finish a throw it had started, and for the light to land. */

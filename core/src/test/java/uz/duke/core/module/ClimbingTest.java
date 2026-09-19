@@ -55,8 +55,8 @@ class ClimbingTest {
         var thingFactory = new ThingFactory(ModuleFactory.withDefaults());
         thingFactory.addTemplate(ThingTemplate.named("Walker")
                 .geometry(new Geometry.Cylinder(4f, 10f))
-                .module("ActiveBody", new ActiveBody.Data(100f))
-                .module("MoveUpdate", new MoveUpdate.Data(30f))
+                .module(new ActiveBody.Data(100f))
+                .module(new MoveUpdate.Data(30f))
                 .build());
 
         var logic = new TestLogic(thingFactory);

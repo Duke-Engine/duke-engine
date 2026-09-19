@@ -57,8 +57,8 @@ class MoveUpdateTest {
         var thingFactory = new ThingFactory(ModuleFactory.withDefaults());
         // Speed 30 units/sec at 30Hz == exactly 1 unit per frame.
         template = ThingTemplate.named("Mover")
-                .module("ActiveBody", new ActiveBody.Data(100f))
-                .module("MoveUpdate", new MoveUpdate.Data(30f))
+                .module(new ActiveBody.Data(100f))
+                .module(new MoveUpdate.Data(30f))
                 .build();
         thingFactory.addTemplate(template);
         logic = new MovementLogic(thingFactory);
@@ -99,13 +99,11 @@ class MoveUpdateTest {
         assertFalse(unit.findModule(MoveUpdate.class).isMoving());
     }
 
+    /** The block's keys are the data's components: {@code Speed} is {@code speed}. */
     @Test
-    void speedParsesFromIni() {
-        var ini = uz.duke.core.ini.Ini.of("""
-                Speed = 45
-                End
-                """, uz.duke.core.ini.Ini.registry());
-        var data = (MoveUpdate.Data) MoveUpdate.parseData(ini);
-        assertEquals(45f, data.speedPerSecond(), 1e-6f);
+    void speedIsReadFromItsBlock() {
+        var block = uz.duke.core.data.DukeText.parse("MoveUpdate\n  Speed = 45\nEnd\n", "move.duke").getFirst();
+        var data = new uz.duke.core.data.Binder().bind(block, MoveUpdate.Data.class);
+        assertEquals(45f, data.speed(), 1e-6f);
     }
 }

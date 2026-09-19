@@ -45,11 +45,15 @@ class DepthTest {
                 HealthPerPoint = 10
               End
             End
-            Hero Rogue
+            """, """
+            Hero
+              Name = Rogue
               Primary = AGI
-              Attribute = STR 12 3
-              Attribute = AGI 12 4
-              Attribute = INT 8 1
+              Attributes
+                STR = [12, 3]
+                AGI = [12, 4]
+                INT = [8, 1]
+              End
             End
             """);
 

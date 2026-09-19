@@ -43,20 +43,20 @@ class PowerTest {
     void setUp() {
         thingFactory = new ThingFactory(RtsModules.withDefaults());
         soldier = RtsTemplate.named("Soldier")
-                .module("ActiveBody", new ActiveBody.Data(50f))
+                .module(new ActiveBody.Data(50f))
                 .buildCost(100)
                 .buildTimeFrames(3)
                 .build();
         factoryTemplate = RtsTemplate.named("Factory")
-                .module("ActiveBody", new ActiveBody.Data(400f))
-                .module("ProductionUpdate", new ProductionUpdate.Data())
-                .module("PowerModule", new PowerModule.Data(0, 8)) // consumes 8
+                .module(new ActiveBody.Data(400f))
+                .module(new ProductionUpdate.Data())
+                .module(new PowerModule.Data(0, 8)) // consumes 8
                 // The stall rule is opt-in now: a factory that wants it says so.
-                .module("CapacityGate", new CapacityGate.Data())
+                .module(new CapacityGate.Data())
                 .build();
         powerPlant = RtsTemplate.named("PowerPlant")
-                .module("ActiveBody", new ActiveBody.Data(300f))
-                .module("PowerModule", new PowerModule.Data(10, 0)) // produces 10
+                .module(new ActiveBody.Data(300f))
+                .module(new PowerModule.Data(10, 0)) // produces 10
                 .build();
         thingFactory.addTemplate(soldier);
         thingFactory.addTemplate(factoryTemplate);

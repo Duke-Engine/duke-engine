@@ -3,8 +3,6 @@ package uz.duke.rts.module;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.Map;
-import uz.duke.core.ini.FieldParseTable;
-import uz.duke.core.ini.Ini;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.module.ModuleGroup;
 import uz.duke.core.module.ModuleGroups;
@@ -28,11 +26,6 @@ public final class StatusUpdate extends UpdateModule {
 
     /** No configuration. */
     public record Data() implements ModuleData {
-    }
-
-    public static ModuleData parseData(Ini ini) {
-        ini.initFromIni(new Object(), new FieldParseTable<>());
-        return new Data();
     }
 
     private final Map<ObjectStatus, Integer> timers = new EnumMap<>(ObjectStatus.class);
