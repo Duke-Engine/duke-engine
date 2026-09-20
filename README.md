@@ -1,9 +1,47 @@
 # duke-engine
 
-A from-scratch reimplementation of the **SAGE engine** (the engine behind
-*Command & Conquer: Generals — Zero Hour*) in modern Java — split into a
-genre-neutral engine and an RTS built on top of it, with a **Unity-style API
-for building a game in a few lines**:
+[![CI](https://github.com/abdurasul29052002/duke-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/abdurasul29052002/duke-engine/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Java](https://img.shields.io/badge/Java-25-orange.svg)](https://openjdk.org/)
+
+**A deterministic game engine in Java, and an IntelliJ plugin that makes games with it without
+writing code.**
+
+A game here is text files. What a unit is, what it looks like, what it can do, where it stands on a
+map — all of it is `.duke` blocks the engine reads into your own Java records, and the plugin turns
+those same records into a form, a 3D map editor and a preview. Changing how much a unit costs is
+changing a line in a file, not a recompile.
+
+The engine is a from-scratch reimplementation of the **SAGE engine** (behind *Command & Conquer:
+Generals — Zero Hour*): a subsystem framework driving a fixed-rate, lock-step simulation cleanly
+separated from presentation. What is kept from SAGE is the architecture; what is not is Generals'
+game design — every rule that engine baked in is a knob here.
+
+> **0.2.0 is the first published release.** Until it lands on Maven Central, build it locally with
+> `./gradlew publishToMavenLocal`, or let the plugin's **New Project** wire it up for you.
+
+## Making a game
+
+### With the plugin
+
+Install **Duke Engine** in IntelliJ, then **File → New → Project → Duke Game**. You get a project
+that already runs: two units, a light and a camera as `.duke` blocks, a couple of effects from the
+kit, a `Main` that opens the 3D client, and a test that loads the whole thing headless. Nothing is
+drawn from a model file, because a new project has no art yet and a template with no `Model` is
+drawn as its `Geometry` — so the first thing you see is your own game.
+
+Then open a `.duke` file and the plugin shows it as a form; open a map and it opens in 3D.
+
+See [duke-plugin/README.md](duke-plugin/README.md).
+
+### By hand
+
+```kotlin
+dependencies {
+    implementation("uz.duke-engine:client3d:0.2.0") // brings core, rts and game with it
+    implementation("uz.duke-engine:kit:0.2.0")      // effects to start from, data only
+}
+```
 
 ```java
 var game = DukeGame.create("My RTS")
@@ -20,14 +58,25 @@ game.spawn("Tank", foe, 550, 100);
 game.start(); // opens a window: select with LMB, order with RMB
 ```
 
-The core is a faithful but Java-idiomatic port of SAGE's architecture: a
-subsystem framework driving a deterministic, lock-step simulation cleanly
-separated from presentation. The `rts` module adds the RTS; the `game` module
-layers the easy API on top.
+## Two games, on purpose
 
-The original C++ source (EA's GPL release) lives at
-`../CnC_Generals_Zero_Hour` and is used purely as a reference for behaviour and
-structure.
+Templates taken from one game fit that game by construction and prove nothing. So there are two,
+written independently and deliberately unalike — and what the second one could **not** do is where
+several of the engine's seams came from.
+
+| | **Duke Dungeon** | **Duke Skirmish** |
+|---|---|---|
+| | a 3D roguelike | a small RTS |
+| you are | one hero | two sides |
+| the world | floors, storeys, stairs | one open field |
+| creatures | spawn in rooms | are **bought** |
+| you keep | loot, levels, skills, mana | money, build cost, build time |
+| you win by | descending | destroying their base |
+
+```
+./gradlew :dungeon:run
+./gradlew :skirmish:run
+```
 
 ## Modules
 
@@ -37,63 +86,50 @@ dungeon, skirmish  →  client3d  →  game  →  rts  →  core
 ```
 
 - **core** — the genre-neutral engine. Subsystems and the fixed-timestep loop,
-  objects/templates/modules, the .duke data layer, spatial queries, pathfinding,
-  lock-step networking, fog of war, scripting triggers. It knows nothing about
-  any particular game: no commands, no weapons, no economy.
-- **rts** — the RTS on top of it: the command set, combat, production, economy,
-  veterancy, power, transports, superweapons, the RTS classification vocabulary
-  and the save format.
-- **game** — the Unity-style API: the `DukeGame` facade, a built-in Swing 2D
-  renderer, camera, unit selection, right-click orders, HUD, two-player
-  lock-step multiplayer over TCP. Zero external dependencies.
-- **client3d** — the full 3D client on jMonkeyEngine: glTF/Ogre **model
-  loading**, skeletal **animation**, positional **sound**, RTS camera,
-  ray-picked selection, health bars, menus and a minimap. Assets bind
-  Unity-style via `Visuals`; units without art get clean primitives.
-- **kit** — the starter set a game begins from: the effects library, 27 effects
-  in eight groups with the particle art they are drawn with. A game links them,
-  and replaces one by writing its own of the same name.
-- **dungeon** — Duke Dungeon, the first game written on the engine: a 3D
-  roguelike whose floors are drawn from a seed, or a **stage** — one floor
-  frozen into a text file and played the same way every time.
-- **skirmish** — Duke Skirmish, the second game, and deliberately nothing like
-  the first: no hero, no floors, no levels or loot — two sides, a purse each,
-  and units that are bought. It is here to answer what the engine owes a game
-  that is not the dungeon; what it turned up is in
-  `docs/plan/2026-09-20-vocabulary-and-scripts.md`.
+  objects/templates/modules, the `.duke` data layer, spatial queries, pathfinding, lock-step
+  networking, fog of war, scripting triggers. It knows nothing about any genre: no commands, no
+  weapons, no economy.
+- **rts** — the RTS on top of it: the command set, combat, production, economy, veterancy, power,
+  transports, superweapons, the RTS vocabulary and the save format.
+- **game** — the Unity-style API: the `DukeGame` facade, a built-in Swing 2D renderer, camera, unit
+  selection, right-click orders, HUD, two-player lock-step multiplayer over TCP.
+- **client3d** — the 3D client on jMonkeyEngine: glTF/Ogre model loading, skeletal animation,
+  positional sound, an RTS camera, ray-picked selection, effects, menus and a minimap.
+- **kit** — the starter set a game begins from: an effects library, 27 effects in eight groups with
+  the particle art they are drawn with. Data only, no code. A game links one and replaces it by
+  writing its own of the same name.
+- **dungeon**, **skirmish** — the two games above. Not published: they are played, not depended on.
 
-`core` never imports `rts`. Building a game that is not an RTS means depending
-on `core` alone and supplying your own commands, modules and vocabulary — see
-**Extending** below.
+`core` never imports `rts`. Building a game that is not an RTS means depending on `core` alone and
+supplying your own commands, modules and vocabulary — see **Extending** below.
 
 ## Architecture
 
 SAGE's core split is preserved:
 
-| SAGE concept            | duke-engine                         |
-|-------------------------|-------------------------------------|
-| `SubsystemInterface`    | `uz.dukeengine.core.SubsystemInterface`   |
-| `SubsystemInterfaceList`| `uz.dukeengine.core.SubsystemList`        |
-| `GameEngine` (main loop)| `uz.dukeengine.core.GameEngine`           |
-| `GameLogic` (simulation)| `uz.dukeengine.core.GameLogic`            |
-| `GameClient` (present)  | `uz.dukeengine.core.GameClient`           |
+| SAGE concept            | duke-engine                             |
+|-------------------------|-----------------------------------------|
+| `SubsystemInterface`    | `uz.dukeengine.core.SubsystemInterface` |
+| `SubsystemInterfaceList`| `uz.dukeengine.core.SubsystemList`      |
+| `GameEngine` (main loop)| `uz.dukeengine.core.GameEngine`         |
+| `GameLogic` (simulation)| `uz.dukeengine.core.GameLogic`          |
+| `GameClient` (present)  | `uz.dukeengine.core.GameClient`         |
 
 ### The loop
 
-The simulation advances in fixed **30 Hz logic frames** — each frame is a fixed
-slice of game time, which is what makes the simulation deterministic and
-replayable, and is the unit lock-step networking synchronises on.
+The simulation advances in fixed **30 Hz logic frames** — each frame is a fixed slice of game time,
+which is what makes the simulation deterministic and replayable, and is the unit lock-step
+networking synchronises on.
 
-`GameEngine.execute()` uses a fixed-timestep accumulator: the logic steps at
-exactly 30 Hz (draining banked time) while the client renders once per loop, up
-to `maxFps` (default 45). Game time therefore tracks wall time regardless of
-render rate. This implements the decoupling SAGE's own `update()` flagged as a
-`@todo` but never shipped.
+`GameEngine.execute()` uses a fixed-timestep accumulator: the logic steps at exactly 30 Hz (draining
+banked time) while the client renders once per loop, up to `maxFps` (default 45). Game time
+therefore tracks wall time regardless of render rate. This implements the decoupling SAGE's own
+`update()` flagged as a `@todo` but never shipped.
 
 ## Extending — what a game supplies
 
-The engine deliberately ships no game content. Five seams let a game fill in
-its own, and the `rts` module is the worked example of each:
+The engine deliberately ships no game content. These seams let a game fill in its own, and the `rts`
+module is the worked example of each:
 
 | Seam | core | rts |
 |---|---|---|
@@ -102,95 +138,56 @@ its own, and the `rts` module is the worked example of each:
 | Behaviour modules | `ModuleFactory.withDefaults()` — `ActiveBody`, `MoveUpdate` | `RtsModules` — weapons, production, economy, … |
 | Players | `Player` (identity, diplomacy) + `PlayerList(PlayerFactory)` | `RtsPlayer` (money, upgrades) |
 | Classification | `Kind`, interned by name | `RtsKinds` (`STRUCTURE`, `INFANTRY`, …) |
+| Templates | one interface per thing a template may have — `Solid`, `Sighted`, `Classified`, `Titled`, `Drawn` | `RtsTemplate`: an `Object` block with a price and a look |
 
-Command hierarchies are sealed on purpose, so a new command is a compile error
-at every dispatch site until it is handled — and sealed types cannot cross a
-module boundary, which is exactly why the engine holds only the marker.
+Command hierarchies are sealed on purpose, so a new command is a compile error at every dispatch
+site until it is handled — and sealed types cannot cross a module boundary, which is exactly why the
+engine holds only the marker.
+
+The full table of seams, and the rule for which module a thing belongs in, is in
+[CLAUDE.md](CLAUDE.md).
 
 ## Build
 
-Requires nothing pre-installed beyond the wrapper — Gradle provisions the
-**Java 25** toolchain.
+Requires nothing pre-installed beyond the wrapper — Gradle provisions the **Java 25** toolchain.
 
 ```
-./gradlew build            # compile + test
-./gradlew :dungeon:run     # Duke Dungeon
-./gradlew :skirmish:run    # Duke Skirmish — the second game
-./gradlew :dungeon:newMap --args="crypt 42"  # a new stage from a seed; fill it on the Map tab in the IDE
+./gradlew build                  # compile + test
+./gradlew publishToMavenLocal    # the engine, for a game on this machine
+./gradlew :dungeon:run           # Duke Dungeon
+./gradlew :skirmish:run          # Duke Skirmish
+./gradlew :dungeon:newMap --args="crypt 42"   # a new map from a seed; fill it on the Map tab
 ```
 
-## Implemented
+The IntelliJ plugin is a build of its own:
 
-**core** — genre-neutral:
-
-- **Subsystem framework + main loop** — `SubsystemInterface`, `SubsystemList`,
-  `GameEngine` (fixed-timestep 30Hz logic / capped render).
-- **`NameKeyGenerator`** — string→key interning.
-- **`.duke` data layer** (`uz.dukeengine.core.data`) — `DukeText` reads the syntax
-  (one word opens a block, `Key = value`, `[a, b]` lists, `Geometry = Cylinder`
-  with its fields under it, `Modules = [` a block for each `]`); `Binder` makes
-  each block the record its word names, every line of it a component by name.
-- **Math** (`uz.dukeengine.core.math`) — `Coord3D` / `Coord2D` / `ICoord3D`.
-- **Thing/Object/Module system** — `ThingTemplate`, `ThingFactory`,
-  `GameObject`, composable `Module`s, `ModuleFactory`, `Kind` classification.
-  `GameLogic` owns objects, ticks them, reaps the dead.
-- **Data-driven objects** — `ThingTemplateLoader` loads `Object` blocks from
-  `.duke` text into templates, each module a block named by its class in the
-  `Modules = [ … ]` list; a game adds block types of its own
-  (`loader.type(Monster.class)`).
-- **Command pipeline** — `Command` + `MessageStream`; commands are queued and
-  drained deterministically at the start of each frame.
-- **Movement** — `MoveUpdate` steers an object toward a goal at its configured
-  speed, with an optional turn rate, on the fixed logic clock.
-- **Health & damage** — `BodyModule`/`ActiveBody`, `DamageType`, `Armor`.
-- **Players** — `Player` / `PlayerList` with `Relationship` diplomacy.
-- **Spatial queries** — `PartitionManager` + composable `PartitionFilter`.
-- **Pathfinding** — deterministic A* (`Pathfinder`/`PathGrid`/`Path`);
-  `MapLoader` builds a grid from ASCII text.
-- **Lock-step networking** — `LockstepScheduler`/`LockstepDriver` gate each
-  frame until every player's commands have arrived; `Transport` +
-  `LoopbackTransport`/`SocketTransport` (real TCP, no external dependency).
-- **Desync detection** — `GameLogic.checksum()` hashes the whole world each
-  frame (SAGE's `VERIFY_CRC`).
-- **Fog of war** — vision ranges; `canSee` / `getVisibleObjects`, allies share
-  sight.
-- **Scripting** — `Trigger` + `ScriptEngine` for victory/defeat and map events.
-- **Rendering seam** — `Renderer` + `RenderingGameClient`.
-
-**rts** — the RTS on top:
-
-- **Combat** — `WeaponUpdate`: reload cycle, range gating, splash, never fires
-  on allies, typed damage against armor.
-- **Economy & production** — build cost/time, `ProductionUpdate` (queue, charge,
-  rally point), `SupplyModule` piles + `HarvestUpdate` gather loop.
-- **Veterancy** — `ExperienceModule` + `VeterancyLevel`; kills earn XP, ranks
-  raise damage and heal to full.
-- **Power grid** — `PowerModule` + `PowerGrid`; production stalls when a base is
-  under-powered.
-- **Upgrades** — `Upgrade` + `RtsSimulation.purchaseUpgrade`, player-wide bonuses.
-- **Status effects** — `StatusUpdate` applying DISABLED/SLOWED for a duration.
-- **Garrison / transport** — `ContainModule`.
-- **Special powers** — `SpecialPowerModule`, a rechargeable area-damage superweapon.
-- **Commands & wire format** — sealed `GameMessage` + `CommandCodec`.
-- **Save / load** — `GameSnapshot` serializes the world to text and restores it
-  to a checksum-identical state.
-- **Text rendering** — `AsciiRenderer`, a fog-aware top-down minimap.
+```
+cd duke-plugin && ./gradlew test runIde
+```
 
 ## Status
 
-The engine is split and green at 165 tests: a genre-neutral core, an RTS on top
-of it, lock-step multiplayer over real TCP, save/load, a 3D client and an
-editor that exports standalone games.
+**1,582 tests** across the engine and **54** in the plugin, all green. `core`, `rts`, `game`,
+`client3d` and `kit` publish to Maven Central under `uz.duke-engine`; the two games do not.
 
-Known gaps: exported games bake in one map and faction set instead of offering
-the skirmish menu; multiplayer is two players only and does not yet compare
-checksums live; save/load is not wired into any UI; per-module in-flight state
-(move goals, reload counters, build queues) is not yet serialized.
+Known gaps: multiplayer is two players only and does not compare checksums live; save/load is not
+wired into any UI; per-module in-flight state (move goals, reload counters, build queues) is not yet
+serialised; maps are edited in the plugin and nowhere else.
+
+## Contributing
+
+Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) — it covers how
+to build, how the modules are allowed to depend on each other, and the handful of rules that are not
+negotiable (determinism above all).
 
 ## License
 
 The code is released under the [MIT License](LICENSE).
 
-The models, animations, sounds, fonts and pictures the games ship are not
-covered by it: each keeps its own terms, listed in [CREDITS.md](CREDITS.md) and
-kept in a `License.txt` beside the files.
+The models, animations, sounds, fonts and pictures the games ship are **not** covered by it: each
+keeps its own terms, listed in [CREDITS.md](CREDITS.md) and kept in a `License.txt` beside the
+files.
+
+*Command & Conquer* and *Generals* are trademarks of Electronic Arts. This project is not affiliated
+with EA; the original C++ source (EA's GPL release) is used purely as a reference for behaviour and
+structure.
