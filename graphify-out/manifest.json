@@ -24,9 +24,9 @@
     "semantic_hash": "20f1b74b606154903b4b84e4a67ac853"
   },
   "duke-plugin/build.gradle.kts": {
-    "mtime": 1789890832.6040876,
-    "seen": 1789891126.6353889,
-    "ast_hash": "c2152a4dacf738764d87fbb74bb009dd",
+    "mtime": 1789891362.5630333,
+    "seen": 1789891380.6658123,
+    "ast_hash": "1121de0618bfd1cc3ce5ba423b85864e",
     "semantic_hash": ""
   },
   "duke-plugin/gradlew": {
@@ -546,15 +546,15 @@
     "semantic_hash": ""
   },
   "duke-plugin/CHANGELOG.md": {
-    "mtime": 1789889479.5844574,
-    "seen": 1789889520.0329459,
-    "ast_hash": "a2cf98c4b1f0273ae0cdc66cff776016",
+    "mtime": 1789891454.4437025,
+    "seen": 1789891634.2249024,
+    "ast_hash": "ea65f3fe05760d05aced0213cd814c34",
     "semantic_hash": ""
   },
   "duke-plugin/README.md": {
-    "mtime": 1789889479.614392,
-    "seen": 1789889520.0329468,
-    "ast_hash": "f872347d16c265adff37ac1fff3573ad",
+    "mtime": 1789891555.2853553,
+    "seen": 1789891634.2249036,
+    "ast_hash": "3459d3d3d6d82f3c9acf1dc2731bf7b3",
     "semantic_hash": ""
   },
   "dungeon/README.md": {
@@ -5490,9 +5490,9 @@
     "semantic_hash": ""
   },
   "docs/plan/2026-09-20-vocabulary-and-scripts.md": {
-    "mtime": 1789890946.9926744,
-    "seen": 1789891126.6357281,
-    "ast_hash": "f9e6941fae135321a375ba6694807ba8",
+    "mtime": 1789891583.058368,
+    "seen": 1789891634.2248993,
+    "ast_hash": "98602632952630799866f99e8f73af5a",
     "semantic_hash": ""
   },
   "skirmish/build.gradle.kts": {

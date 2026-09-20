@@ -734,3 +734,30 @@ foydalanuvchi uchun buzuvchi o'zgarish bo'lardi. Bu oxirgi arzon lahza edi.
 - sehrgar yozgan loyiha **haqiqiy Gradle bilan** qurildi va o'z testi o'tdi,
   endi `uz.dukeengine.*` importlari va `uz.duke-engine:client3d:0.2.0`
   koordinatasi bilan
+
+### Plagin relizi
+
+Versiya **0.2.0** (engine bilan bir xil). `duke-plugin/build.gradle.kts` ga
+reliz bloki qo'shildi:
+
+- `sinceBuild = 253` (2025.3), **untilBuild yo'q**. Yuqori chegara yozish —
+  hech kim sinab ko'rmasdan turib plaginni yangi IDE'ga o'rnatishdan man qilish
+  degani; buni `verifyPlugin` aytadi, raqam emas.
+- `changeNotes` — `CHANGELOG.md` dan o'qiladi, ikki joyda yozilmaydi.
+  `patchChangelog` ishga tushirildi: `Unreleased` bo'limi `## 0.2.0` ostiga
+  ko'chdi.
+- **Kanal:** `0.x` versiya **beta** kanaliga ketadi — uni faqat o'sha kanalni
+  ataylab qo'shgan odam oladi. Birinchi `0.` siz versiya default kanalga.
+- Imzo va token — `PUBLISH_TOKEN`, `CERTIFICATE_CHAIN`, `PRIVATE_KEY`,
+  `PRIVATE_KEY_PASSWORD` muhit o'zgaruvchilari. Repoda hech narsa yo'q.
+
+`<vendor url>` `duke-engine.uz` ga o'zgartirildi, `<id>` esa paket
+o'zgarishi bilan `uz.dukeengine.plugin` bo'ldi. Ikkalasi ham hali nashr
+qilinmagani uchun bepul.
+
+Tekshirildi: `buildPlugin` (1.0 MB zip), `verifyPluginProjectConfiguration`,
+`verifyPluginStructure` — hammasi toza. Paketlangan `plugin.xml` da
+`since-build="253"`, versiya, change-notes va New Project tavsifi bor.
+
+**Qolgani:** `verifyPlugin` (IDE'larni yuklab oladi, ~GB) va haqiqiy
+`publishPlugin` — ikkalasi ham kalit va tokenni talab qiladi, ya'ni seniki.
