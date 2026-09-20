@@ -38,10 +38,17 @@ See [duke-plugin/README.md](duke-plugin/README.md).
 
 ```kotlin
 dependencies {
-    implementation("uz.duke-engine:client3d:0.2.0") // brings core, rts and game with it
-    implementation("uz.duke-engine:kit:0.2.0")      // effects to start from, data only
+    // The version, once. Everything below comes from it.
+    implementation(platform("uz.duke-engine:bom:0.2.0"))
+
+    implementation("uz.duke-engine:client3d") // brings core, rts and game with it
+    implementation("uz.duke-engine:kit")      // effects to start from, data only
 }
 ```
+
+Each module is its own artifact — depend on `core` alone and you get the genre-neutral engine and
+nothing else. The BOM only says which versions go together, so a client from one release can never
+meet a core from another.
 
 ```java
 var game = DukeGame.create("My RTS")
@@ -98,6 +105,7 @@ dungeon, skirmish  →  client3d  →  game  →  rts  →  core
 - **kit** — the starter set a game begins from: an effects library, 27 effects in eight groups with
   the particle art they are drawn with. Data only, no code. A game links one and replaces it by
   writing its own of the same name.
+- **bom** — every module at one version, so a game writes the version once.
 - **dungeon**, **skirmish** — the two games above. Not published: they are played, not depended on.
 
 `core` never imports `rts`. Building a game that is not an RTS means depending on `core` alone and

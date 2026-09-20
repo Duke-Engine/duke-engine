@@ -1,6 +1,7 @@
 package uz.dukeengine.skirmish;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -149,5 +150,42 @@ class SkirmishTest {
 
         assertTrue(uz.dukeengine.rts.player.RtsPlayer.of(game.getLogic(), match.left().getIndex()).getMoney() > 0,
                 "a side with nowhere to unload still gets its money");
+    }
+
+    /**
+     * The map package end to end: found under {@code maps/} rather than listed, read as this game's own
+     * record, laid as the ground the game walks on, and with what the file puts on it standing there.
+     *
+     * <p>This is the engine's map seam exercised by a game that is not the dungeon — which is the only way to
+     * know the seam is a seam and not the dungeon's shape with a different name on it.
+     */
+    @Test
+    void theFieldIsLaidFromItsOwnMapFolder() {
+        var match = Skirmish.on("clearing", 500);
+        var game = match.game();
+        game.runHeadless(1);
+
+        assertEquals("The Clearing", match.field().displayName());
+        assertEquals(48, match.field().width());
+        assertEquals(32, match.field().height());
+        assertEquals(6, game.getLogic().getObjects().size(), "the ore the file puts on the field");
+
+        // The rock down the middle is rock, and the open ground around it is not.
+        assertTrue(game.getTerrain().isBlocked(23, 15), "the spine of rock should be in the way");
+        assertFalse(game.getTerrain().isBlocked(10, 15), "and the field around it should not be");
+    }
+
+    /** A side walks its worker out of its own corner and mines what the map put there. */
+    @Test
+    void aSideStartsWhereTheMapSaysAndMinesWhatIsOnIt() {
+        var match = Skirmish.on("clearing", 0);
+        var game = match.game();
+        var start = match.field().starts().getFirst();
+        game.spawn("Depot", match.left(), Skirmish.at(start.x()), Skirmish.at(start.y()));
+        game.spawn("Worker", match.left(), Skirmish.at(start.x() + 2), Skirmish.at(start.y()));
+        game.runHeadless(30 * 40);
+
+        assertTrue(uz.dukeengine.rts.player.RtsPlayer.of(game.getLogic(), match.left().getIndex()).getMoney() > 0,
+                "the worker should have found the map's ore and brought some back");
     }
 }

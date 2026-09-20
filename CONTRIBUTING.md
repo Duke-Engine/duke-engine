@@ -26,6 +26,10 @@ cd duke-plugin
 Open the sandbox IDE on this repository — the plugin reads the games' `.duke` files against the
 engine's own records, so the repository is its own best test project.
 
+The plugin's tests read two checkouts off the disk: the engine and a game. Both are looked for in
+the usual places and can be pointed anywhere with `DUKE_ENGINE` and `DUKE_SAMPLE` — see
+[duke-plugin/README.md](duke-plugin/README.md).
+
 > If `runIde` fails to start, close any sandbox IDE that is already open: the plugin jar is locked
 > while one is running.
 

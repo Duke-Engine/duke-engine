@@ -3,6 +3,7 @@ package uz.dukeengine.skirmish.content;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -16,6 +17,7 @@ import uz.dukeengine.core.data.Binder;
 import uz.dukeengine.core.data.DataException;
 import uz.dukeengine.core.data.DukeText;
 import uz.dukeengine.core.module.ModuleData;
+import uz.dukeengine.core.map.MapPackages;
 import uz.dukeengine.core.module.ModuleFactory;
 import uz.dukeengine.rts.module.RtsModules;
 
@@ -30,13 +32,16 @@ public final class Content {
 
     private static final String GAME = "data/game.duke";
 
+    /** Where the maps are: one folder a map, inside the game and beside it. */
+    private static final String MAPS = "maps";
+
     /** Every module a unit's block may hold: the engine's, and the RTS library's. Nothing of this game's own yet. */
     public static final List<Class<? extends ModuleData>> MODULES =
             Stream.of(ModuleFactory.ENGINE_MODULES, RtsModules.MODULES).flatMap(List::stream).toList();
 
     /** The record each block is, by the word it opens with. */
     private static final Map<String, Class<? extends Record>> TYPES = Map.ofEntries(
-            named(Unit.class), named(Field.class), named(AnimationSet.class),
+            named(Unit.class), named(Field.class), named(Battlefield.class), named(AnimationSet.class),
             named(Effect.class), named(Sound.class),
             named(uz.dukeengine.client3d.Sun.class), named(uz.dukeengine.client3d.Camera.class));
 
@@ -98,6 +103,28 @@ public final class Content {
             records.add(binder.bind(block, type));
         }
         return records;
+    }
+
+    /**
+     * The map the game opens on, by the name of its folder — or the one {@code game.duke} names when asked
+     * for none.
+     *
+     * <p>A map is <b>found, not listed</b>: it is a folder under {@code maps/}, inside the game or beside it,
+     * and dropping one there is what puts it in the game. See {@code uz.dukeengine.core.map.MapPackage}.
+     */
+    public static Battlefield map(String wanted) {
+        var name = wanted == null || wanted.isBlank() ? game().startMap() : wanted;
+        for (var pack : MapPackages.all(MAPS, Path.of(MAPS))) {
+            if (!pack.name().equals(name)) {
+                continue;
+            }
+            for (var block : records(pack.text(), pack.name())) {
+                if (block instanceof Battlefield field) {
+                    return field;
+                }
+            }
+        }
+        throw new DataException(MAPS, "no map is called '" + name + "'");
     }
 
     /** A file of the game's, from the classpath — so a built game reads its own data out of its jar. */

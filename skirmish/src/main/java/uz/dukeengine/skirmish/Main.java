@@ -22,19 +22,21 @@ public final class Main {
     }
 
     public static void main(String[] args) {
-        var match = Skirmish.open(60, 44, 1000);
+        // The field, the ore on it and each side's corner all come out of maps/clearing/ — this method
+        // names none of them.
+        var match = Skirmish.on(args.length > 0 ? args[0] : null, 1000);
         var game = match.game();
-
-        // A starting force each, at opposite ends. No base building yet: the point today is that a second game
-        // reaches the screen at all.
-        game.spawn("Barracks", match.left(), 80f, 140f);
-        game.spawn("Soldier", match.left(), 120f, 120f);
-        game.spawn("Soldier", match.left(), 120f, 160f);
-        game.spawn("Worker", match.left(), 80f, 180f);
-        game.spawn("Barracks", match.right(), 460f, 140f);
-        game.spawn("Soldier", match.right(), 420f, 120f);
-        game.spawn("Archer", match.right(), 420f, 160f);
-        game.spawn("Worker", match.right(), 460f, 180f);
+        var sides = java.util.List.of(match.left(), match.right());
+        for (int side = 0; side < sides.size() && side < match.field().starts().size(); side++) {
+            var start = match.field().starts().get(side);
+            var who = sides.get(side);
+            int facing = side == 0 ? 1 : -1;
+            game.spawn("Barracks", who, Skirmish.at(start.x()), Skirmish.at(start.y()));
+            game.spawn("Depot", who, Skirmish.at(start.x() + facing * 2), Skirmish.at(start.y() - 3));
+            game.spawn("Worker", who, Skirmish.at(start.x() + facing * 2), Skirmish.at(start.y() + 2));
+            game.spawn("Soldier", who, Skirmish.at(start.x() + facing * 3), Skirmish.at(start.y() - 1));
+            game.spawn("Archer", who, Skirmish.at(start.x() + facing * 3), Skirmish.at(start.y() + 1));
+        }
 
         Duke3D.launch(game, visuals());
     }

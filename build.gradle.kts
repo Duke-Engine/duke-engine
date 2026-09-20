@@ -17,6 +17,11 @@ allprojects {
 }
 
 subprojects {
+    // The BOM is a `java-platform`, which is a different kind of thing: it has no sources, no tests and
+    // no toolchain, and applying the java plugin to it fails outright.
+    if (name == "bom") {
+        return@subprojects
+    }
     apply(plugin = "java")
 
     java {
@@ -59,6 +64,8 @@ subprojects {
 // ---------------------------------------------------------------------------
 
 val published = mapOf(
+    "bom" to "Every module of the engine at one version, so a game writes the version once and cannot mix "
+        + "a client from one release with a core from another.",
     "core" to "The genre-neutral engine: subsystems, the fixed-rate deterministic loop, objects and modules, "
         + "the .duke data layer, pathfinding, fog of war and lock-step networking.",
     "rts" to "The RTS library on top of core: commands, combat, production, economy, veterancy and the RTS "

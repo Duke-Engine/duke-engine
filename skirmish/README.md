@@ -44,7 +44,19 @@ Qisqasi:
 4. Yassi o'yin `Layered` ga umuman tegmaydi — seam haqiqatan ixtiyoriy.
 5. `Sun` va `Camera` hech o'zgarishsiz ishlatildi — 2a-bosqich to'g'ri tanlagan.
 
+## Xarita
+
+`maps/clearing/` — 48×32 katak ochiq maydon, o'rtasida tosh tizma, burchaklarda
+ma'dan. `Battlefield` rekordi dungeon'nikidan mustaqil yozilgan: unda `Starts`
+bor (har tomonga burchak), xona ham, koridor ham, boss ham yo'q, va u `Layered`
+emas — maydon tekis.
+
+```
+./gradlew :skirmish:run              # clearing
+./gradlew :skirmish:run --args=<nom> # boshqa xarita
+```
+
 ## Nima yo'q
 
-Xarita paketi yo'q — maydon hozircha `DukeGame.map(w, h)` bilan quriladi. Ikki
-tomon ham qo'lda joylashtiriladi; AI yo'q.
+AI yo'q — ikkala tomon ham qo'lda buyuriladi. Xaritaning `preview.png` i ham
+yo'q: uni plagindagi **Save Preview** yozadi.

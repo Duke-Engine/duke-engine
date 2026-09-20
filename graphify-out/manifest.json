@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "build.gradle.kts": {
-    "mtime": 1789890824.653555,
-    "seen": 1789891126.635093,
-    "ast_hash": "90d378d994371771cbb57925fe3f59d0",
+    "mtime": 1789901543.855768,
+    "seen": 1789901750.3544083,
+    "ast_hash": "6e4ecce47d202ebfcb7cf19cc9e5edf8",
     "semantic_hash": ""
   },
   "client3d/build.gradle.kts": {
@@ -78,9 +78,9 @@
     "semantic_hash": "2387d014ddaa685b74788c98a72b8b4b"
   },
   "settings.gradle.kts": {
-    "mtime": 1789879569.5476637,
-    "seen": 1789880410.971846,
-    "ast_hash": "907cd86848cdde7b6e2954de208fc645",
+    "mtime": 1789901543.7086477,
+    "seen": 1789901750.3553119,
+    "ast_hash": "3445133ea018851cbfa893aa1c5f722f",
     "semantic_hash": ""
   },
   "dungeon/src/main/resources/audio/music/dungeon_loop.ogg": {
@@ -522,9 +522,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1789892030.7769313,
-    "seen": 1789892158.066987,
-    "ast_hash": "61bd5184aa13a0e5cea03788ff40373e",
+    "mtime": 1789901699.679151,
+    "seen": 1789901750.355348,
+    "ast_hash": "909059b0abe5659be76baacbdc2ec629",
     "semantic_hash": ""
   },
   "client3d/README.md": {
@@ -546,9 +546,9 @@
     "semantic_hash": ""
   },
   "duke-plugin/README.md": {
-    "mtime": 1789891555.2853553,
-    "seen": 1789891634.2249036,
-    "ast_hash": "3459d3d3d6d82f3c9acf1dc2731bf7b3",
+    "mtime": 1789907627.6035295,
+    "seen": 1789907677.1101685,
+    "ast_hash": "872354a4bc4157c8755bf77b9b4fea23",
     "semantic_hash": ""
   },
   "dungeon/README.md": {
@@ -5484,9 +5484,9 @@
     "semantic_hash": ""
   },
   "docs/plan/2026-09-20-vocabulary-and-scripts.md": {
-    "mtime": 1789891583.058368,
-    "seen": 1789891634.2248993,
-    "ast_hash": "98602632952630799866f99e8f73af5a",
+    "mtime": 1789907654.8706121,
+    "seen": 1789907677.1101665,
+    "ast_hash": "d2ae03bc77fb1ae8cad251182b1699a0",
     "semantic_hash": ""
   },
   "skirmish/build.gradle.kts": {
@@ -5526,9 +5526,9 @@
     "semantic_hash": ""
   },
   "skirmish/README.md": {
-    "mtime": 1789885793.6538916,
-    "seen": 1789888374.490193,
-    "ast_hash": "e528b5c73f5e6aeec6bb8039c4e1c362",
+    "mtime": 1789907627.6653829,
+    "seen": 1789907677.110197,
+    "ast_hash": "96652365ffe6b682a422122415f9f898",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/AnimationLibrary.java": {
@@ -7356,9 +7356,9 @@
     "semantic_hash": ""
   },
   "duke-plugin/src/main/kotlin/uz/dukeengine/plugin/project/GameTemplate.kt": {
-    "mtime": 1789890833.5313368,
-    "seen": 1789891126.6354218,
-    "ast_hash": "37cf1c4a449e6db5c42abc055dc50120",
+    "mtime": 1789901578.6209416,
+    "seen": 1789901750.3549166,
+    "ast_hash": "0bc7f59de2ed68a45e5a036c045f3320",
     "semantic_hash": ""
   },
   "duke-plugin/src/test/kotlin/uz/dukeengine/plugin/duke/DukeTest.kt": {
@@ -7368,9 +7368,9 @@
     "semantic_hash": ""
   },
   "duke-plugin/src/test/kotlin/uz/dukeengine/plugin/engine/DukeEngineSourcesTest.kt": {
-    "mtime": 1789890833.6259985,
-    "seen": 1789891126.6354303,
-    "ast_hash": "97d07afde9481a23ad52f413b3cfc922",
+    "mtime": 1789907507.8575387,
+    "seen": 1789907677.109806,
+    "ast_hash": "0cdc7b95f69d796e0f2fce668454eb3e",
     "semantic_hash": ""
   },
   "duke-plugin/src/test/kotlin/uz/dukeengine/plugin/inspector/DukeInspectorTest.kt": {
@@ -7398,9 +7398,9 @@
     "semantic_hash": ""
   },
   "duke-plugin/src/test/kotlin/uz/dukeengine/plugin/project/GameTemplateTest.kt": {
-    "mtime": 1789890833.778226,
-    "seen": 1789891126.6354349,
-    "ast_hash": "ec7870a7318331029c33956350146f63",
+    "mtime": 1789901636.7515912,
+    "seen": 1789901750.3549345,
+    "ast_hash": "2ab08aa4b4bf0af431c6f4b0cbeccef6",
     "semantic_hash": ""
   },
   "dungeon/src/main/java/uz/dukeengine/dungeon/Dungeon.java": {
@@ -8886,21 +8886,21 @@
     "semantic_hash": ""
   },
   "skirmish/src/main/java/uz/dukeengine/skirmish/Main.java": {
-    "mtime": 1789890841.5796275,
-    "seen": 1789891126.6357033,
-    "ast_hash": "e79078f8baba06fc9df1f63a3deb0a8b",
+    "mtime": 1789907395.2954867,
+    "seen": 1789907677.1101367,
+    "ast_hash": "97bec445ef3e587dd5e95fff626f7f7e",
     "semantic_hash": ""
   },
   "skirmish/src/main/java/uz/dukeengine/skirmish/Skirmish.java": {
-    "mtime": 1789890841.6088088,
-    "seen": 1789891126.635704,
-    "ast_hash": "d769cfa8f524f9231283f4befd77e54a",
+    "mtime": 1789907337.241302,
+    "seen": 1789907677.1101384,
+    "ast_hash": "5b44c2181f693c8ee3ce3af0214bf997",
     "semantic_hash": ""
   },
   "skirmish/src/main/java/uz/dukeengine/skirmish/content/Content.java": {
-    "mtime": 1789890841.4939802,
-    "seen": 1789891126.6357048,
-    "ast_hash": "51d16c92cbf03591298b993bb23d092d",
+    "mtime": 1789907313.926003,
+    "seen": 1789907677.1101406,
+    "ast_hash": "aadb19a6167510f6f888bc057bd993bf",
     "semantic_hash": ""
   },
   "skirmish/src/main/java/uz/dukeengine/skirmish/content/Field.java": {
@@ -8916,15 +8916,33 @@
     "semantic_hash": ""
   },
   "skirmish/src/test/java/uz/dukeengine/skirmish/SkirmishTest.java": {
-    "mtime": 1789890841.6372871,
-    "seen": 1789891126.6357074,
-    "ast_hash": "4ebf1d275fda66a48e514b1363b8f6b2",
+    "mtime": 1789907373.0976567,
+    "seen": 1789907677.110145,
+    "ast_hash": "aa4d3e7c1267a8b4c3d09eda461b4ed1",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
-    "mtime": 1789892030.8052096,
-    "seen": 1789892158.0669825,
-    "ast_hash": "9e9df4572d45d2714f344e05372a73e8",
+    "mtime": 1789907627.6338565,
+    "seen": 1789907677.1101608,
+    "ast_hash": "6c1c3306376a21516e767dfb353a80dd",
+    "semantic_hash": ""
+  },
+  "bom/build.gradle.kts": {
+    "mtime": 1789901543.6525333,
+    "seen": 1789901750.3544023,
+    "ast_hash": "a4f411c9a1901293451664c95bab7b88",
+    "semantic_hash": ""
+  },
+  "duke-plugin/src/test/kotlin/uz/dukeengine/plugin/engine/Repos.kt": {
+    "mtime": 1789907449.9924123,
+    "seen": 1789907677.109809,
+    "ast_hash": "1421f3e5a43be23e590eb06da1f61bba",
+    "semantic_hash": ""
+  },
+  "skirmish/src/main/java/uz/dukeengine/skirmish/content/Battlefield.java": {
+    "mtime": 1789907253.9516134,
+    "seen": 1789907677.1101394,
+    "ast_hash": "3c0bd90ff7fd40da047b9670535a657b",
     "semantic_hash": ""
   }
 }

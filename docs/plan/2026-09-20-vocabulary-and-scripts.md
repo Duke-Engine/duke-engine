@@ -761,3 +761,91 @@ Tekshirildi: `buildPlugin` (1.0 MB zip), `verifyPluginProjectConfiguration`,
 
 **Qolgani:** `verifyPlugin` (IDE'larni yuklab oladi, ~GB) va haqiqiy
 `publishPlugin` — ikkalasi ham kalit va tokenni talab qiladi, ya'ni seniki.
+
+### BOM — `uz.duke-engine:bom`
+
+Yangi modul: `bom/`, `java-platform`. Beshta modulning versiyasini bitta joyda
+ushlaydi:
+
+```kotlin
+implementation(platform("uz.duke-engine:bom:0.2.0"))
+implementation("uz.duke-engine:client3d")   // versiyasiz
+implementation("uz.duke-engine:kit")
+```
+
+**Nega:** ko'p modulli kutubxona oson qiladigan yagona xato — bitta relizdan
+`client3d`, boshqasidan `core` olib qo'yish. BOM buni imkonsiz qiladi.
+
+**Tuzoq:** root build hamma subproject'ga `java` plaginini qo'llaydi, `bom` esa
+`java-platform` — ikkalasi birga qo'llanmaydi. Shuning uchun `subprojects` bloki
+boshida `bom` uchun chiqib ketadi.
+
+Tekshirildi: `bom-0.2.0.pom` da `<packaging>pom</packaging>` va beshta modul
+`<dependencyManagement>` da; sehrgar yozgan loyiha BOM bilan **haqiqiy Gradle
+bilan** qurildi va o'z testi o'tdi.
+
+Har bir modul baribir **alohida artefakt** bo'lib qoladi: faqat `core` ga
+bog'lanish mumkin va boshqa hech narsa kelmaydi. BOM faqat "qaysi versiyalar
+birga yuradi" deydi.
+
+---
+
+## Repo'larni ajratishga tayyorgarlik (2026-09-20)
+
+Maqsad: `duke-engine`, `duke-plugin` va `duke-dungeon` — uchta alohida repo,
+jMonkeyEngine modelida. Ajratish kuni ish qolmasligi uchun ikkita to'siq
+oldindan olib tashlandi.
+
+### 1. Skirmish endi to'liq misol o'yin
+
+Unda xarita paketi yo'q edi — maydon `DukeGame.map(w, h)` bilan qurilardi, ya'ni
+u dungeon o'rnini bosa olmasdi.
+
+Endi `maps/clearing/clearing.map` bor va u **engine'ning xarita seam'ini
+uchidan-uchiga** ishlatadi: `MapPackages` papkani topadi (ro'yxat yo'q),
+`MapTerrain` `@Grid` ni reflection bilan o'qib yerni yotqizadi, fayldagi
+narsalar maydonga qo'yiladi.
+
+`Battlefield` rekordi dungeon'nikidan **mustaqil yozilgan** va farqi o'zi dalil:
+
+| dungeon `StaticMap` | skirmish `Battlefield` |
+|---|---|
+| `rooms`, `links`, `boss` | `starts` — har tomonga burchak |
+| `Layered` (qavat balandligi) | **emas** — maydon tekis |
+| `relief` | yo'q |
+
+Ikkita yangi test: xarita papkadan topilib yotqizilishi, va ishchining
+xaritadagi ma'danni topib qaytarishi.
+
+### 2. Plagin testlari endi joylashuvga bog'liq emas
+
+`DukeEngineSourcesTest` `../core`, `../dungeon` deb qotirib yozgan edi — ya'ni
+plagin engine ichida turishi shart edi.
+
+Yangi `Repos` obyekti ikkala checkout'ni **qidiradi**:
+
+| | Qidiriladigan joylar | O'zgaruvchi |
+|---|---|---|
+| engine | `..`, `../duke-engine`, `../DukeEngine` | `DUKE_ENGINE` |
+| o'yin | `../dungeon`, `<engine>/dungeon`, `../duke-dungeon` | `DUKE_SAMPLE` |
+
+Topilmasa, qayerlarga qaraganini aytib to'xtaydi.
+
+**Testlarni qayta yozmadim** — dungeon ma'lumoti eng boyi (relyef, qo'ldagi
+qurol, temalar, animatsiya to'plamlari, ikkita xarita paketi), va uni skirmish
+bilan almashtirish qamrovni kamaytirardi. Kelajakda skirmish boyigach
+almashtirish mumkin.
+
+**Tasdiqlandi:** testlar muhit o'zgaruvchilari bilan ham (mutlaq yo'llar bilan)
+o'tdi — ya'ni ajratilgandan keyin ham ishlaydi.
+
+### Endi ajratish uchun qolgani
+
+```bash
+git subtree split --prefix=duke-plugin -b plugin-only
+git subtree split --prefix=dungeon     -b dungeon-only
+```
+
+Dungeon'ning yangi repo'siga `settings.gradle.kts` da `includeBuild("../duke-engine")`
+qo'shiladi, `build.gradle.kts` da esa oddiy koordinatalar — nashrdan keyin
+`includeBuild` satri o'chadi.
