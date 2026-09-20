@@ -49,8 +49,7 @@ Monster
     ; carries this thaws by itself whether or not whoever chilled it is still alive.
     StatusUpdate
     End
-    ScriptModule
-      Name = WardenBrain
+    MonsterBrain
     End
     ExperienceModule
       ; Worth a level or two on its own — it is the gate to the next depth.

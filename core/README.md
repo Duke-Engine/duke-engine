@@ -31,7 +31,7 @@ beshta chok orqali o'zingiznikini qo'yasiz:
 
 ## Nima bor (paket bo'yicha)
 
-### `uz.duke.core` — sikl va hayot sikli
+### `uz.dukeengine.core` — sikl va hayot sikli
 
 | Fayl | Qator | Vazifa | Ishlatiladimi |
 |---|---|---|---|
@@ -48,7 +48,7 @@ beshta chok orqali o'zingiznikini qo'yasiz:
 > ularga bironta murojaat yo'q. `Kind.of(name)` internlashi ularning o'rnini
 > bosgan.
 
-### `uz.duke.core.thing` — obyekt modeli
+### `uz.dukeengine.core.thing` — obyekt modeli
 
 | Fayl | Qator | Vazifa |
 |---|---|---|
@@ -68,7 +68,7 @@ beshta chok orqali o'zingiznikini qo'yasiz:
 > template'ga kengaytma-ma'lumot mexanizmi va `ThingTemplateLoader` ga
 > maydon-registratsiyasi kerak (o'yin o'z `.duke` maydonlarini qo'sha olsin).
 
-### `uz.duke.core.module` — janrsiz xulq modullari
+### `uz.dukeengine.core.module` — janrsiz xulq modullari
 
 | Fayl | Qator | Vazifa |
 |---|---|---|
@@ -79,7 +79,7 @@ beshta chok orqali o'zingiznikini qo'yasiz:
 | `Armor` / `DamageType` | 47 / 18 | zarar turi ↔ zirh ko'paytirgichi |
 | `Module` / `UpdateModule` / `ModuleData` | 26 / 20 / 17 | kompozitsiya asosi: obyekt xulqi = modullari yig'indisi |
 
-### `uz.duke.core.data` — `.duke` ma'lumot qatlami
+### `uz.dukeengine.core.data` — `.duke` ma'lumot qatlami
 
 `DukeText` — `.duke` sintaksisi: yolg'iz so'z blok ochadi, `End` yopadi,
 `Key = value`, `[a, b]` ro'yxat, `Key = Class` + maydonlari + `End` (bitta
@@ -90,14 +90,14 @@ bergani yoki o'yin bergan lug'at so'zi (modullar) · `Block` / `Field` /
 `Value` / `DataException`. Template'lar, modullar va o'yin sozlamalari shu
 orqali o'qiladi — alohida maydon jadvali yo'q, record o'zi jadval.
 
-### `uz.duke.core.message` — buyruq quvuri
+### `uz.dukeengine.core.message` — buyruq quvuri
 
 `Command` (marker, bitta metod: `playerIndex()`) · `MessageStream` (FIFO, kadr
 boshida drenaj) · `CommandHandler`. Buyruqlarning **o'zi** bu yerda emas —
 sealed ierarxiya modul chegarasidan o'ta olmaydi, shuning uchun buyruq to'plami
 o'yinniki.
 
-### `uz.duke.core.event` — lahzalar kanali
+### `uz.dukeengine.core.event` — lahzalar kanali
 
 `WorldEvent` (marker: `frame()`, ixtiyoriy `where()`) · `ObjectDied` (nima edi,
 kimniki, qayerda — chunki o'qilganda obyekt dunyoda yo'q).
@@ -112,7 +112,7 @@ chegaralangan: hech kim drenaj qilmasa eng eskisi tashlanadi.
 kirmaydi. Simulyatsiyani o'zgartiradigan narsa — hodisa emas, **modul**:
 `DieModule` vayronani qoldiradi, `ObjectDied` esa renderga portlashni aytadi.
 
-### `uz.duke.core.replay` — o'yinni yozib olish
+### `uz.dukeengine.core.replay` — o'yinni yozib olish
 
 `FrameLog` (yozib olish choki) · `ReplayRecorder` · `Replay` · `ReplayMismatch`.
 
@@ -131,7 +131,7 @@ ishlaydi. `Replay.beforeStep` avval `discardPendingCommands()` qiladi, aks holda
 simning o'zi yaratgan buyruq (skript, taymer) qayta o'ynatishda ikki marta
 qo'llanardi.
 
-### `uz.duke.core.network` — lock-step
+### `uz.dukeengine.core.network` — lock-step
 
 **Ikkita plan bitta ulanishda:** `NetMessage` sealed — `CommandPacket`
 (*ma'lumot* plani, o'yinniki, o'yinning `PacketCodec` i kodlaydi) hamda
@@ -174,7 +174,7 @@ Tiklash (resync/reconnect) engine ishi emas.
 
 Tashqi kutubxona yo'q — hammasi `java.net`.
 
-### `uz.duke.core.pathfind` — yo'l topish
+### `uz.dukeengine.core.pathfind` — yo'l topish
 
 `Pathfinder` (250 — deterministik A*: butun sonli narxlar 10/14, octile
 evristika, tenglikda katak indeksi bo'yicha uziladi, qat'iy qo'shni tartibi) ·
@@ -208,12 +208,12 @@ qo'yiladi: `commitObstacles()` yangi qatlamni eskisi bilan solishtiradi va faqat
 haqiqatan farq bo'lsa oshiradi, aks holda har bir tayyor bo'lgan piyoda butun
 armiyani qayta yo'l tuzishga majbur qilardi.
 
-### `uz.duke.core.player` — o'yinchilar
+### `uz.dukeengine.core.player` — o'yinchilar
 
 `PlayerList` (88 — `PlayerFactory` orqali o'yin o'z subtipini qo'yadi) ·
 `Player` (63 — faqat identity + diplomatiya) · `Relationship`.
 
-### `uz.duke.core.partition` — fazoviy so'rovlar
+### `uz.dukeengine.core.partition` — fazoviy so'rovlar
 
 `PartitionManager` (140 — "radiusdagi obyektlar", "eng yaqin dushman",
 "bu yer bo'shmi", "shu joydan nimaga yetaman"; hozircha halol brute-force skan)
@@ -228,18 +228,18 @@ armiyani qayta yo'l tuzishga majbur qilardi.
 | `findClosestInReach(from, reach, filter)` | "shu yerdan nimaga yetaman?" — masofa markazdan emas, **yuzadan yuzaga** |
 | `World.reachBetween(a, b)` | ikki obyekt orasidagi devordan devorgacha masofa |
 
-### `uz.duke.core.script` — trigger'lar
+### `uz.dukeengine.core.script` — trigger'lar
 
 `ScriptEngine` (65 — har kadr baholaydi) + `Trigger` (shart→harakat).
 `GameLogic` ishlatadi, lekin yuqori qatlamlar (`game` / `client3d`) undan
 foydalanmaydi — u yerdagi `UnitScript` butunlay boshqa mexanizm.
 
-### `uz.duke.core.math` — matematika
+### `uz.dukeengine.core.math` — matematika
 
 `Coord3D` (61) hamma joyda ishlatiladi. `Coord2D` (44) va `ICoord3D` (23) —
 **bironta joyda, hatto testda ham ishlatilmaydi.**
 
-### `uz.duke.core.client` — rendering choki
+### `uz.dukeengine.core.client` — rendering choki
 
 `Renderer` interfeysi (21) + `RenderingGameClient` (38).
 **Haqiqiy klientlarning hech biri buni ishlatmaydi:** `game` ning Swing paneli

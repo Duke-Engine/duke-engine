@@ -499,7 +499,7 @@ funksiyasi. Demak yozib olinadigan narsa aynan shu ikkitasi; dunyoning o'zini
 saqlash shart emas, uni qaytadan hisoblab chiqarsa bo'ladi. Bu — lock-step
 allaqachon tayanadigan xususiyatning o'zi.
 
-`uz.duke.core.replay`: `FrameLog` (yozib olish choki) · `ReplayRecorder` ·
+`uz.dukeengine.core.replay`: `FrameLog` (yozib olish choki) · `ReplayRecorder` ·
 `Replay` (o'qish + haydash) · `ReplayMismatch`.
 
 - **Format = sim protokolining o'zi.** Yozuv `NetFraming` bilan yoziladi:
@@ -805,7 +805,7 @@ Unity'ning MonoBehaviour naqshi, mavjud modul seami ustida:
 ```java
 package game.scripts;
 
-import uz.duke.game.script.UnitScript;
+import uz.dukeengine.game.script.UnitScript;
 
 public class Berserker extends UnitScript {
     @Override
@@ -4689,7 +4689,7 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
   `game` nomi `game.scripts` paketi bilan to'qnashadi.
 - **Sealed modul chegarasidan o'tmaydi:** shuning uchun buyruq to'plami `core` da tura olmaydi.
   Yangi janr qo'shsangiz — o'z sealed `Command` ierarxiyangizni o'z modulingizda e'lon qiling.
-- **`java.lang.Module` to'qnashuvi:** `uz.duke.core.module.Module` ni boshqa paketdan
+- **`java.lang.Module` to'qnashuvi:** `uz.dukeengine.core.module.Module` ni boshqa paketdan
   ishlatganda importni unutmang, aks holda kompilyator jimgina `java.lang.Module` ni oladi va
   xato "cannot inherit from final Module" bo'lib chiqadi.
 - **`Kind` identity bo'yicha solishtiriladi:** `Kind.of(...)` interned, shuning uchun

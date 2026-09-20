@@ -25,7 +25,7 @@ Hero
   VisionRange = 70
   Modules = [
     ; HeroBody rather than the engine's ActiveBody: this one can grow, because the
-    ; whole game is him becoming harder to kill. See uz.duke.dungeon.level.
+    ; whole game is him becoming harder to kill. See uz.dukeengine.dungeon.level.
     GrowableBody
       ; ★ BEFORE HIS STRENGTH, whose ten points at twelve apiece go on as the body
       ; is built -- 550 in all, low enough that a careless walk into a second room
@@ -71,7 +71,7 @@ Hero
       ; whatever he was pointed at, so the shot leaves the moment he stops.
       AttackOnTheMove = No
     End
-    ; His shots leave the bow and have to get there — see uz.duke.dungeon.combat.
+    ; His shots leave the bow and have to get there — see uz.dukeengine.dungeon.combat.
     Bow
     End
     ; He shoots at what he can see. This also switches the engine's own target
@@ -81,8 +81,7 @@ Hero
     EyesOnly
     End
     ; Walks to whatever he is told to attack — see HeroBrain.
-    ScriptModule
-      Name = HeroBrain
+    HeroBrain
     End
     ; Q, W, E and R. Which four they are is not written here: this line says he has
     ; skills, and the Skill blocks at the end of this file say which. A second

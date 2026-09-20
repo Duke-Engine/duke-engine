@@ -31,8 +31,7 @@ Monster
     ; carries this thaws by itself whether or not whoever chilled it is still alive.
     StatusUpdate
     End
-    ScriptModule
-      Name = RunnerBrain
+    MonsterBrain
     End
     ExperienceModule
       ExperienceValue = 8

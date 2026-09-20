@@ -41,8 +41,7 @@ Monster
     End
     StatusUpdate
     End
-    ScriptModule
-      Name = SkeletonSummonerBrain
+    MonsterBrain
     End
     ExperienceModule
       ExperienceValue = 26

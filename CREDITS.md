@@ -305,3 +305,21 @@ The line-drawn skill icons these replaced are at
 are game-icons.net's, CC BY 3.0, and **do** require attribution — which is why
 they were moved rather than deleted: if the generated set ever has to go, the
 art that replaces it is already there and its terms are already known.
+
+## Duke Skirmish
+
+Everything lives under `skirmish/src/main/resources/`, so the paths below are
+written from there. Every file here is a copy of one the dungeon already ships,
+renamed for what it is in *this* game — a rock is an ore node, a decorated
+pillar is a barracks — because a game owns its own assets rather than reaching
+into another's. Each `.gltf` was copied with its `.bin` and its texture, and the
+`uri` line inside it rewritten to the new name.
+
+| What | Who | Licence | Where |
+|---|---|---|---|
+| The three units — worker, soldier, archer (the dungeon's rogue, knight and ranger) | **KayKit** / Kay Lousberg ([kaylousberg.com](https://kaylousberg.com)) | CC0 | `models/units/` |
+| Ore nodes and a bare tree (its rocks and trees) | KayKit | CC0 | `models/ground/` |
+| The field it is all fought on (its dirt floor) | KayKit | CC0 | `models/ground/field.*` |
+| A barracks and a depot (its decorated pillar and chest) | KayKit | CC0 | `models/base/` |
+
+Each folder keeps the pack's own `License.txt` beside the files.

@@ -1,0 +1,105 @@
+package uz.dukeengine.game;
+
+import java.util.ArrayList;
+import uz.dukeengine.core.GameClient;
+import uz.dukeengine.rts.thing.RtsKinds;
+import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.game.view.WorldSnapshot;
+import uz.dukeengine.rts.module.PowerGrid;
+
+/**
+ * The presentation client behind {@link DukeGame}: once per client frame it
+ * copies what the local player can see into an immutable {@link WorldSnapshot}
+ * for the Swing layer to draw.
+ *
+ * <p>This is the only place simulation state crosses threads, and it crosses as
+ * a deep copy — the window never touches live {@code GameObject}s, so the
+ * deterministic logic stays single-threaded.
+ */
+final class RtsClient extends GameClient {
+
+    private final RtsLogic logic;
+    private volatile int viewerPlayer = -1; // bound once players exist, at game start
+    private volatile WorldSnapshot snapshot = WorldSnapshot.EMPTY;
+    private volatile String banner = "";
+    /** The game's own HUD line — the engine sets it, never reads it. */
+    private volatile String status = "";
+
+    /** Big centered message ("VICTORY") shown by the display layer. */
+    void setBanner(String banner) {
+        this.banner = banner == null ? "" : banner;
+    }
+
+    void setStatus(String status) {
+        this.status = status == null ? "" : status;
+    }
+
+    RtsClient(RtsLogic logic) {
+        this.logic = logic;
+    }
+
+    void setViewerPlayer(int viewerPlayer) {
+        this.viewerPlayer = viewerPlayer;
+    }
+
+    /** The latest frame of the world; safe to call from any thread. */
+    WorldSnapshot getSnapshot() {
+        return snapshot;
+    }
+
+    @Override
+    protected void render() {
+        // Drained every client frame, viewer or not: the queue is bounded, and
+        // leaving it to fill would silently start dropping the oldest moments.
+        var drained = logic.drainEvents();
+        if (viewerPlayer < 0) {
+            return; // no viewer bound yet — nothing to show
+        }
+        // Fog applies to moments as much as to state: without this you would hear
+        // an explosion in territory you have no eyes on.
+        var events = new ArrayList<uz.dukeengine.core.event.WorldEvent>();
+        for (var event : drained) {
+            var where = event.where();
+            if (where == null || logic.canSee(viewerPlayer, where)) {
+                events.add(event);
+            }
+        }
+        var units = new ArrayList<UnitView>();
+        for (var object : logic.getVisibleObjects(viewerPlayer)) {
+            if (object.isContained()) {
+                continue; // riding inside a transport — not on the map
+            }
+            var template = object.getTemplate();
+            var position = object.getPosition();
+            var body = object.getBody();
+            var ai = object.findModule(uz.dukeengine.core.module.MoveUpdate.class);
+            var weapon = object.findModule(uz.dukeengine.rts.module.WeaponUpdate.class);
+            var production = object.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
+            units.add(new UnitView(
+                    object.getId().value(),
+                    template.name(),
+                    object.getPlayerIndex(),
+                    position.x(),
+                    position.y(),
+                    object.getOrientation(),
+                    body == null ? 0f : body.getHealth(),
+                    body == null ? 0f : body.getMaxHealth(),
+                    object.isKindOf(RtsKinds.STRUCTURE),
+                    object.isKindOf(RtsKinds.SELECTABLE),
+                    ai != null && ai.isMoving(),
+                    weapon != null && weapon.isAttacking(),
+                    production == null ? -1 : production.getQueueSize()));
+        }
+        var player = logic.getRtsPlayer(viewerPlayer);
+        snapshot = new WorldSnapshot(
+                logic.getFrame(),
+                logic.getGameTimeSeconds(),
+                logic.isGamePaused(),
+                player == null ? 0 : player.getMoney(),
+                PowerGrid.surplus(logic, viewerPlayer),
+                units,
+                events,
+                banner,
+                status);
+    }
+}

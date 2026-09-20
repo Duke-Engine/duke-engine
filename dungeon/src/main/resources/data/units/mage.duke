@@ -69,8 +69,7 @@ Hero
     ; Stone stops what he throws as well as what he sees.
     EyesOnly
     End
-    ScriptModule
-      Name = HeroBrain
+    HeroBrain
     End
     ; Q, W, E and R -- Fireball, Frost Nova, Blink and Meteor. Which four is in
     ; the Skill blocks further down, as it is for the other two.

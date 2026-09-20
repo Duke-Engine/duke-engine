@@ -41,7 +41,7 @@ concurrency:
 
 env:
   APP_NAME: Duke Dungeon
-  MAIN_CLASS: uz.duke.dungeon.Main
+  MAIN_CLASS: uz.dukeengine.dungeon.Main
 
 jobs:
   # ---------------------------------------------------------------------------

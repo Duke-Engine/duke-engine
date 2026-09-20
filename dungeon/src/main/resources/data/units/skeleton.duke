@@ -23,7 +23,7 @@ Monster
       AttackRange = 10
       ReloadFrames = 30
     End
-    ; Comes for the hero when it notices him — see SkeletonBrain.
+    ; Comes for the hero when it notices him — see MonsterBrain.
     ; Tells the brain the frame a blow landed, so it stands and finishes the swing
     ; instead of walking off mid-blow. It launches nothing -- see Swing.
     Swing
@@ -34,8 +34,7 @@ Monster
     ; carries this thaws by itself whether or not whoever chilled it is still alive.
     StatusUpdate
     End
-    ScriptModule
-      Name = SkeletonBrain
+    MonsterBrain
     End
     ; What killing one is worth to the hero. Its own ranks are switched off too.
     ExperienceModule

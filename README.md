@@ -32,9 +32,8 @@ structure.
 ## Modules
 
 ```
-dungeon  →  client3d  →  game  →  rts  →  core
-   ↓
-  kit
+dungeon, skirmish  →  client3d  →  game  →  rts  →  core
+       └───────────→  kit
 ```
 
 - **core** — the genre-neutral engine. Subsystems and the fixed-timestep loop,
@@ -57,6 +56,11 @@ dungeon  →  client3d  →  game  →  rts  →  core
 - **dungeon** — Duke Dungeon, the first game written on the engine: a 3D
   roguelike whose floors are drawn from a seed, or a **stage** — one floor
   frozen into a text file and played the same way every time.
+- **skirmish** — Duke Skirmish, the second game, and deliberately nothing like
+  the first: no hero, no floors, no levels or loot — two sides, a purse each,
+  and units that are bought. It is here to answer what the engine owes a game
+  that is not the dungeon; what it turned up is in
+  `docs/plan/2026-09-20-vocabulary-and-scripts.md`.
 
 `core` never imports `rts`. Building a game that is not an RTS means depending
 on `core` alone and supplying your own commands, modules and vocabulary — see
@@ -68,11 +72,11 @@ SAGE's core split is preserved:
 
 | SAGE concept            | duke-engine                         |
 |-------------------------|-------------------------------------|
-| `SubsystemInterface`    | `uz.duke.core.SubsystemInterface`   |
-| `SubsystemInterfaceList`| `uz.duke.core.SubsystemList`        |
-| `GameEngine` (main loop)| `uz.duke.core.GameEngine`           |
-| `GameLogic` (simulation)| `uz.duke.core.GameLogic`            |
-| `GameClient` (present)  | `uz.duke.core.GameClient`           |
+| `SubsystemInterface`    | `uz.dukeengine.core.SubsystemInterface`   |
+| `SubsystemInterfaceList`| `uz.dukeengine.core.SubsystemList`        |
+| `GameEngine` (main loop)| `uz.dukeengine.core.GameEngine`           |
+| `GameLogic` (simulation)| `uz.dukeengine.core.GameLogic`            |
+| `GameClient` (present)  | `uz.dukeengine.core.GameClient`           |
 
 ### The loop
 
@@ -111,6 +115,7 @@ Requires nothing pre-installed beyond the wrapper — Gradle provisions the
 ```
 ./gradlew build            # compile + test
 ./gradlew :dungeon:run     # Duke Dungeon
+./gradlew :skirmish:run    # Duke Skirmish — the second game
 ./gradlew :dungeon:newMap --args="crypt 42"  # a new stage from a seed; fill it on the Map tab in the IDE
 ```
 
@@ -121,11 +126,11 @@ Requires nothing pre-installed beyond the wrapper — Gradle provisions the
 - **Subsystem framework + main loop** — `SubsystemInterface`, `SubsystemList`,
   `GameEngine` (fixed-timestep 30Hz logic / capped render).
 - **`NameKeyGenerator`** — string→key interning.
-- **`.duke` data layer** (`uz.duke.core.data`) — `DukeText` reads the syntax
+- **`.duke` data layer** (`uz.dukeengine.core.data`) — `DukeText` reads the syntax
   (one word opens a block, `Key = value`, `[a, b]` lists, `Geometry = Cylinder`
   with its fields under it, `Modules = [` a block for each `]`); `Binder` makes
   each block the record its word names, every line of it a component by name.
-- **Math** (`uz.duke.core.math`) — `Coord3D` / `Coord2D` / `ICoord3D`.
+- **Math** (`uz.dukeengine.core.math`) — `Coord3D` / `Coord2D` / `ICoord3D`.
 - **Thing/Object/Module system** — `ThingTemplate`, `ThingFactory`,
   `GameObject`, composable `Module`s, `ModuleFactory`, `Kind` classification.
   `GameLogic` owns objects, ticks them, reaps the dead.

@@ -58,11 +58,13 @@ these rather than special-casing:
 |---|---|---|
 | Damage | `DamageModifier`, multiplied by `WeaponUpdate` | per-unit bonuses: levels, buffs, ranks |
 | Production | `ProductionGate`, asked by the factory | what stalls the line, or nothing |
+| Closing on a target | `PursueUpdate` — an opt-in module that walks a unit into its weapon's range and stops it there | whether a unit closes at all, and how far it will stray before letting go |
+| Gathering | `SupplyModule` piles, `SupplyDepot` marks, `HarvestUpdate` walks the loop | which of its buildings are depots, how much a trip is worth, how far a harvester looks |
 | Progression | `ExperienceModule` — XP plus a configurable rung table | how many rungs, what each costs and is worth |
 | Bodies | `BodyModule` (abstract) | a body that grows, or armours differently |
 | Player bonuses | named bonuses on `RtsPlayer`, multi-effect `Upgrade` | what the names mean |
 | HUD | `WorldSnapshot.status`, which the engine never reads | whatever this game counts |
-| Build cost | `Buildable`, and `RtsTemplate`: an `Object` block with `BuildCost`/`BuildTime` | its own records that implement `Buildable` |
+| Build cost | `Buildable`, and `RtsTemplate`: an `Object` block with `BuildCost`/`BuildTime`, and a look (`Model`, `Idle`…) so a game gets a drawn unit without a record of its own | its own records that implement `Buildable` |
 
 The seams that keep `core` genre-free — extend these rather than
 special-casing:
@@ -77,10 +79,10 @@ special-casing:
 | Classification | `Kind`, interned by name | its vocabulary, e.g. `RtsKinds` |
 | Module groups | `@ModuleGroup` + `ModuleGroups` (Movement, Body, Combat, Effect, Script) | its own families, e.g. `RtsModuleGroups` (Economy, Progression) |
 | Events | `WorldEvent` + the post/drain channel | its own events, e.g. `WeaponFired` |
-| Templates | `ThingTemplate` (name + modules) and one interface per thing a template may have — `Solid`, `Sighted`, `Classified`, `Titled`; `ThingTemplateLoader.type` gives a record its own block | its records, each implementing what it has: a `Monster` block is a `record Monster implements Solid, Sighted, …` |
+| Templates | `ThingTemplate` (name + modules) and one interface per thing a template may have — `Solid`, `Sighted`, `Classified`, `Titled`, `Drawn` (a model, its size, tint and facing, and the four clips every game turned out to need; everything but the model has a default, so a record implements it by having whatever components it has). `ThingTemplateLoader.type` gives a record its own block | its records, each implementing what it has: a `Monster` block is a `record Monster implements Solid, Sighted, …` |
 | World | `WorldTemplate` (a name) and one interface per thing a world may have — `Layered`: every map is laid at its storey height; `DukeGame.world(...)` hands it over | its record, implementing what its world has — a `World` block is a `record World implements Layered` — the rest of the world as blocks of their own records (`data/world/`: `Hud`, `Combat`, a `Theme` per file…), and how its floors are drawn when nobody drew one (`data/world/generation.duke`: a `ProceduralMap`) |
 | Maps | `MapTemplate` and one interface per thing a map may have — `Described`, `Peopled`, `Scaled`, `Layered`; `MapPackage`/`MapPackages` find a map's folder (inside the game, and beside it) and read its head without its cells; `MapTerrain` lays the grid from the components marked `@Grid` and `@Relief` | its record, implementing what its maps have — a `StaticMap` block is a `record StaticMap implements MapTemplate, Described, …` — one map a folder under `maps/`, its own `.map` file, its preview, and `.duke` files of its own read after the game's |
-| Effects | `Effect` and its `Layer`s (`client3d`), which the client draws; `kit`'s starter set of them | its own blocks, each linked by `@Link(Effect.class)` — one named as a kit effect is drawn instead of it |
+| Effects | `Effect` and its `Layer`s (`core.content`) — data, so anything that reads a template may link one; the client turns them into what it draws. `kit`'s starter set of them | its own blocks, each linked by `@Link(Effect.class)` — one named as a kit effect is drawn instead of it |
 
 Before adding anything to `core`, ask: *would a game that is not an RTS want
 this?* If the answer is no, it goes in `rts`.

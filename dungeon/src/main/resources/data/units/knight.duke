@@ -76,8 +76,7 @@ Hero
     ; left on -- there is nothing between him and what he is hitting.
     ;
     ; Walks to whatever he is told to attack — see HeroBrain, which both heroes use.
-    ScriptModule
-      Name = HeroBrain
+    HeroBrain
     End
     ; Q, W, E and R. Which four is in the Skill blocks at the end of this file,
     ; exactly as the archer's are in his: this line only says that he has skills.

@@ -13,7 +13,7 @@ dependencies {
 }
 
 application {
-    mainClass.set("uz.duke.dungeon.Main")
+    mainClass.set("uz.dukeengine.dungeon.Main")
 }
 
 // ---------------------------------------------------------------------------
@@ -98,7 +98,7 @@ tasks.register("convertAnimations") {
 tasks.register<JavaExec>("newMap") {
     group = "application"
     description = "Draw a new map from a seed, into a folder of its own under maps/"
-    mainClass.set("uz.duke.dungeon.stage.MapWriter")
+    mainClass.set("uz.dukeengine.dungeon.stage.MapWriter")
     classpath = sourceSets["main"].runtimeClasspath
     workingDir = rootProject.projectDir
 }
@@ -107,7 +107,7 @@ tasks.register<JavaExec>("newMap") {
 tasks.register<JavaExec>("writeExampleMaps") {
     group = "application"
     description = "Write the maps the game ships again, from their seeds"
-    mainClass.set("uz.duke.dungeon.stage.MapWriter")
+    mainClass.set("uz.dukeengine.dungeon.stage.MapWriter")
     classpath = sourceSets["main"].runtimeClasspath
     workingDir = rootProject.projectDir
 }
@@ -116,7 +116,7 @@ tasks.register<JavaExec>("writeExampleMaps") {
 tasks.register<JavaExec>("writeMapPreviews") {
     group = "application"
     description = "Draw preview.png for every map the game keeps"
-    mainClass.set("uz.duke.dungeon.stage.MapPicture")
+    mainClass.set("uz.dukeengine.dungeon.stage.MapPicture")
     classpath = sourceSets["main"].runtimeClasspath
     workingDir = rootProject.projectDir
 }
@@ -124,7 +124,7 @@ tasks.register<JavaExec>("writeMapPreviews") {
 tasks.register<JavaExec>("cutIcons") {
     group = "application"
     description = "Cut the icon sheets into the game's own icon folders"
-    mainClass.set("uz.duke.dungeon.tools.IconSheets")
+    mainClass.set("uz.dukeengine.dungeon.tools.IconSheets")
     classpath = sourceSets["main"].runtimeClasspath
     // From the repository root, so the paths in the Java are the paths you would
     // type -- the same reason newMap sets this.
@@ -187,7 +187,7 @@ tasks.register<Exec>("packageInstaller") {
                 "--description", "A dungeon crawler on the duke-engine",
                 "--input", lib.absolutePath,
                 "--main-jar", tasks.jar.get().archiveFileName.get(),
-                "--main-class", "uz.duke.dungeon.Main",
+                "--main-class", "uz.dukeengine.dungeon.Main",
                 // Spelled out rather than left to the default: LWJGL reaches for
                 // sun.misc.Unsafe, which lives in jdk.unsupported, and a runtime
                 // built without it fails at the first frame rather than here.
