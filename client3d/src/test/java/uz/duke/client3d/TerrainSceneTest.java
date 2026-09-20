@@ -259,6 +259,54 @@ class TerrainSceneTest {
         return Tileset.create().floor("floor").wall("wall").corner("corner").tileSize(4f);
     }
 
+    /** Pieces with a mesh in them — a flat square tile — so bending them over the ground has something to bend. */
+    private static final class SquareTiles implements TileSource {
+        @Override
+        public com.jme3.scene.Spatial piece(String assetPath) {
+            var node = new Node(assetPath);
+            var tile = new com.jme3.scene.Geometry("tile", new com.jme3.scene.shape.Quad(4f, 4f));
+            tile.rotate(-com.jme3.math.FastMath.HALF_PI, 0f, 0f);
+            node.attachChild(tile);
+            return node;
+        }
+    }
+
+    /** The highest corner of any tile under [root], in world space. */
+    private static float highestCorner(Node root) {
+        root.updateGeometricState();
+        float highest = Float.NEGATIVE_INFINITY;
+        var corner = new com.jme3.math.Vector3f();
+        var world = new com.jme3.math.Vector3f();
+        for (var spatial : root.descendantMatches(com.jme3.scene.Geometry.class)) {
+            var positions = spatial.getMesh().getFloatBuffer(com.jme3.scene.VertexBuffer.Type.Position);
+            for (int i = 0; i + 2 < positions.limit(); i += 3) {
+                corner.set(positions.get(i), positions.get(i + 1), positions.get(i + 2));
+                spatial.getWorldTransform().transformVector(corner, world);
+                highest = Math.max(highest, world.y);
+            }
+        }
+        return highest;
+    }
+
+    /**
+     * Relief lifts the picture as it lifts the walkers: ground eight steps higher everywhere is every tile half a
+     * storey higher — 8 of 16 steps to a ten-unit cell — and nothing moves where there is no relief at all.
+     */
+    @Test
+    void theTilesRiseWithTheReliefUnderThem() {
+        var flatRoot = new Node("terrain");
+        new TerrainScene(flatRoot, color -> null, true, kit(), new SquareTiles()).rebuild(MapLoader.fromText(ROOM));
+
+        var raised = MapLoader.fromText(ROOM);
+        var steps = new int[6 * 6];
+        java.util.Arrays.fill(steps, 8);
+        raised.setRelief(new uz.duke.core.pathfind.HeightMap(6, 6, steps));
+        var raisedRoot = new Node("terrain");
+        new TerrainScene(raisedRoot, color -> null, true, kit(), new SquareTiles()).rebuild(raised);
+
+        assertEquals(highestCorner(flatRoot) + 5f, highestCorner(raisedRoot), 0.001f);
+    }
+
     /**
      * The pieces of a kind that are lying on the floor.
      *

@@ -42,14 +42,17 @@ public record ProceduralMap(String name, Layout generation, @Link(Theme.class) L
      * @param stairLength     how many cells of a corridor a stair takes up
      * @param entranceStorey  which storey the hero starts on, never above {@code maxStorey}
      * @param bossStorey      which storey the boss waits on — the top, by default
+     * @param hills           how high the floor rises and falls over its storeys, in steps of a sixteenth of a
+     *                        cell, 0 to 15: never enough for a cliff; zero, and every floor lies flat
+     * @param hillSize        about how many cells across a hill is
      */
     public record Layout(int mapWidth, int mapHeight, int minRooms, int maxRooms, int minRoomSize, int maxRoomSize,
             int roomGap, int placementAttempts, int corridorWidth, int maxRoomSpacing, int minSkeletonsPerRoom,
             int maxSkeletonsPerRoom, int maxStorey, int storeyChangePercent, int stairLength, int entranceStorey,
-            int bossStorey) {
+            int bossStorey, int hills, int hillSize) {
 
         /** What a block leaves out. */
-        public static final Layout DEFAULTS = new Layout(50, 36, 5, 8, 5, 9, 1, 600, 2, 24, 2, 6, 2, 45, 1, 0, 2);
+        public static final Layout DEFAULTS = new Layout(50, 36, 5, 8, 5, 9, 1, 600, 2, 24, 2, 6, 2, 45, 1, 0, 2, 0, 4);
     }
 
     /** Fewest and most, written {@code [0, 3]}. */

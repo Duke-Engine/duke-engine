@@ -51,6 +51,7 @@ public final class StageCheck {
         try {
             grid = MapLoader.fromText(floor.asciiMap());
             MapLoader.levels(grid, floor.levelMap());
+            grid.setRelief(floor.relief());
         } catch (RuntimeException e) {
             problems.add("the map itself cannot be read: " + e.getMessage());
             return List.copyOf(problems);
@@ -214,6 +215,8 @@ public final class StageCheck {
         }
         if (grid.isBlocked(at.cellX(), at.cellY())) {
             problems.add(what + " at " + where(at) + " is inside stone");
+        } else if (grid.getRelief() != null && grid.getRelief().isCliff(at.cellX(), at.cellY())) {
+            problems.add(what + " at " + where(at) + " is on a slope too steep to stand on");
         }
         var already = taken.putIfAbsent(key(at), what);
         if (already != null) {

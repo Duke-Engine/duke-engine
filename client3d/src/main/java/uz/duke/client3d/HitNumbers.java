@@ -28,8 +28,8 @@ package uz.duke.client3d;
  * lands inside the engine's own weapon, and a game that had to post an event for
  * each source would be silent for exactly the blows the player is being hit by.
  *
- * <p>Everything here is a number in the game's data file. See
- * {@code DungeonHitNumbers}.
+ * <p>Everything here is a number in the game's data file: a {@code HitNumbers} block, which
+ * the game reads straight into this record.
  *
  * @param seconds     how long one stays up. Short on purpose — see above
  * @param popScale    how much bigger than its final size it appears, as a
@@ -58,7 +58,7 @@ public record HitNumbers(float seconds, float popScale, float textScale, float s
         int healColour, float brightness) {
 
     /** What a game that asks for nothing gets. */
-    public static final HitNumbers DEFAULT = new HitNumbers(
+    public static final HitNumbers DEFAULTS = new HitNumbers(
             0.40f, 2.1f, 0.85f, 34f, 38f, 14f, 1f, 0xFFE0A0, 0xC22A22, 0x4FBF4F, 1f);
 
     public HitNumbers {

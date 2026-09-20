@@ -17,6 +17,7 @@ import uz.duke.dungeon.gen.Layout;
  * ./gradlew :dungeon:newMap --args="crypt 42"             # crypt, from seed 42, at depth 1, a floor's size
  * ./gradlew :dungeon:newMap --args="crypt 42 3 60 40 12"  # at depth 3, 60 by 40 cells, 12 rooms
  * ./gradlew :dungeon:writeExampleMaps                     # the two the game ships, written again
+ * ./gradlew :dungeon:writeExampleMaps --args=first        # only the first of them
  * }</pre>
  *
  * <p>Drawn by the generator rather than by hand because a floor carries a guarantee a hand would break:
@@ -26,7 +27,8 @@ import uz.duke.dungeon.gen.Layout;
  */
 public final class MapWriter {
 
-    private static final Path FOLDER = Path.of("dungeon", "src", "main", "resources", "data", "maps");
+    /** Where the game's own maps live: one folder a map, named for it, as every map is kept. */
+    static final Path FOLDER = Path.of("dungeon", "src", "main", "resources", "maps");
 
     /**
      * One map to draw.
@@ -56,6 +58,11 @@ public final class MapWriter {
             write(settings, DEEP, true);
             return;
         }
+        // One of the two by its name, the other left as it is.
+        if (args.length == 1 && (args[0].equals(FIRST.name()) || args[0].equals(DEEP.name()))) {
+            write(settings, args[0].equals(FIRST.name()) ? FIRST : DEEP, true);
+            return;
+        }
         if (args.length != 2 && args.length != 3 && args.length != 6) {
             throw new IllegalArgumentException(
                     "a new map is: name seed [difficulty [width height rooms]] — not " + String.join(" ", args));
@@ -68,22 +75,31 @@ public final class MapWriter {
     }
 
     private static void write(DungeonSettings settings, Drawn drawn, boolean again) {
-        var path = FOLDER.resolve(drawn.name() + ".duke");
+        var path = FOLDER.resolve(drawn.name()).resolve(drawn.name() + uz.duke.core.map.MapPackage.SUFFIX);
         if (!again && Files.exists(path)) {
             // A map an author has already filled is a morning's work: drawing over it is never what was meant.
             throw new IllegalStateException(path + " is there already: choose another name, or delete it first");
         }
+        var stage = stage(settings, drawn);
         try {
             Files.createDirectories(path.toAbsolutePath().getParent());
-            Files.writeString(path, text(settings, drawn), StandardCharsets.UTF_8);
+            Files.writeString(path, StageFile.write(stage), StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new UncheckedIOException("could not write " + path, e);
         }
+        // The folder is the map, and its picture is part of it: a map drawn into a folder with no preview in it
+        // is a map the screen it is chosen on has nothing to show of.
+        MapPicture.write(stage, path.toAbsolutePath().getParent());
         System.out.println("wrote " + path.toAbsolutePath());
     }
 
     /** The file of {@code drawn}: its floor drawn from its seed, at its depth and size, and checked as the game checks it. */
     static String text(DungeonSettings settings, Drawn drawn) {
+        return StageFile.write(stage(settings, drawn));
+    }
+
+    /** The stage {@code drawn} draws, refused if the game's own checks would refuse it. */
+    private static Stage stage(DungeonSettings settings, Drawn drawn) {
         int depth = Math.max(1, drawn.difficulty());
         var floor = DungeonGenerator.generate(drawn.seed(), settings, depth,
                 Layout.sized(settings, drawn.width(), drawn.height(), drawn.rooms()));
@@ -92,6 +108,6 @@ public final class MapWriter {
         if (!problems.isEmpty()) {
             throw new IllegalStateException(drawn.name() + " is broken: " + problems);
         }
-        return StageFile.write(stage);
+        return stage;
     }
 }

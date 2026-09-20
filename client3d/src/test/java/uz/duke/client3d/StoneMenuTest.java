@@ -36,7 +36,7 @@ class StoneMenuTest {
     private static StoneMenu menu() {
         var assets = new DesktopAssetManager(true);
         var font = assets.loadFont("Interface/Fonts/Default.fnt");
-        return new StoneMenu(new StoneCraft(assets, font), font, font,
+        return new StoneMenu(new StoneCraft(assets, font, MenuStyle.DEFAULTS), font, font,
                 new Node("gui"), WIDTH, HEIGHT);
     }
 
@@ -268,5 +268,67 @@ class StoneMenuTest {
                 "Save is the left socket and Cancel the right; they must not overlap");
         assertTrue(missed.stream().anyMatch(x -> x > lastSave && x < firstCancel),
                 "the stone between the two buttons should not be a button");
+    }
+
+    // ---- what a row says and shows ----
+
+    /**
+     * A line under an option saying what taking it means is drawn.
+     *
+     * <p>It was not: a menu drew a row's {@code label()}, and a question's lines carry theirs in {@code value()},
+     * so every blurb was a blank forty-four pixels between two names.
+     */
+    @Test
+    void theLineUnderAnOptionIsRead() {
+        var gui = new Node("gui");
+        var menu = menu(gui);
+        menu.show("DUKE", "How to play", List.of(
+                new StoneMenu.Action("Endless", () -> { }),
+                new StoneMenu.Words("", "Down until it kills you."),
+                new StoneMenu.Action("Back", () -> { })),
+                "", "", false);
+
+        assertTrue(writtenIn(gui).contains("Down until it kills you."),
+                "the blurb should be on the screen: " + writtenIn(gui));
+    }
+
+    /** The lit row's picture, beside the list — and nothing at all where the game ships no such file. */
+    @Test
+    void theLitRowsPictureIsShownBesideTheList() {
+        var gui = new Node("gui");
+        var menu = menu(gui);
+        menu.show("DUKE", "", List.of(
+                new StoneMenu.Action("The First Descent", () -> { }, false, "Interface/Fonts/Default.png"),
+                new StoneMenu.Action("Back", () -> { })),
+                "", "", false);
+        assertTrue(drawn(gui, "picture-plate"), "the first row is the lit one, and it has a picture");
+
+        menu.show("DUKE", "", List.of(
+                new StoneMenu.Action("The First Descent", () -> { }, false, "maps/nowhere/preview.png"),
+                new StoneMenu.Action("Back", () -> { })),
+                "", "", false);
+        assertFalse(drawn(gui, "picture-plate"), "a picture the game does not ship leaves the row as it was");
+    }
+
+    private static StoneMenu menu(Node gui) {
+        var assets = new DesktopAssetManager(true);
+        var font = assets.loadFont("Interface/Fonts/Default.fnt");
+        return new StoneMenu(new StoneCraft(assets, font, MenuStyle.DEFAULTS), font, font, gui, WIDTH, HEIGHT);
+    }
+
+    private static List<String> writtenIn(Node gui) {
+        var found = new ArrayList<String>();
+        gui.depthFirstTraversal(spatial -> {
+            if (spatial instanceof com.jme3.font.BitmapText text) {
+                found.add(text.getText());
+            }
+        });
+        return found;
+    }
+
+    private static boolean drawn(Node gui, String name) {
+        var found = new ArrayList<String>();
+        gui.depthFirstTraversal(spatial -> found.add(spatial.getName()));
+        return found.contains(name);
     }
 }

@@ -168,11 +168,11 @@ class StagePlayTest {
      */
     @Test
     void everyShippedStageCanBePlayed() {
-        var offered = Stages.all(SETTINGS);
+        var offered = Stages.all();
         assertTrue(offered.size() >= 2,
                 "the game should ship more than one stage, and offers " + offered.size());
         for (var listed : offered) {
-            var game = Dungeon.createStage(listed.stage(), SETTINGS);
+            var game = Dungeon.createStage(Stages.load(listed.map(), SETTINGS), SETTINGS);
             game.runHeadless(30);
             assertNotNull(heroOf(game), listed.name() + " put no hero in the world");
         }

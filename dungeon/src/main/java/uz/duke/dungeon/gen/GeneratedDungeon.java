@@ -1,6 +1,7 @@
 package uz.duke.dungeon.gen;
 
 import java.util.List;
+import uz.duke.core.pathfind.HeightMap;
 import uz.duke.core.pathfind.PathGrid;
 
 /**
@@ -34,6 +35,8 @@ import uz.duke.core.pathfind.PathGrid;
  * @param roomStoreys how high each room ended up standing, in the same order as
  *                  {@code rooms} — what the generator decided, after any climb it
  *                  had to give up to keep the dungeon walkable
+ * @param relief      how the floor rises and falls over its storeys, corner by corner, or
+ *                  {@code null} where it lies flat on them
  */
 public record GeneratedDungeon(
         String asciiMap,
@@ -45,7 +48,10 @@ public record GeneratedDungeon(
         List<Room> rooms,
         List<Link> links,
         List<Integer> roomStoreys,
-        List<Prop> props) {
+        List<Prop> props,
+        HeightMap relief,
+        /** How tall one storey of this floor stands, in world units; 0 leaves the world's own. */
+        float levelHeight) {
 
     /** A spot in the world, in world units (not cells). */
     public record Placement(float x, float y) {

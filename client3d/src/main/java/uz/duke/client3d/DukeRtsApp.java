@@ -509,9 +509,9 @@ final class DukeRtsApp extends SimpleApplication {
         guiNode.attachChild(hint);
 
         heroPanel = new HeroPanel(assetManager, guiFont,
-                fontOrDefault(visuals.getMenuStyle().titleFont()), guiNode, cam.getWidth(),
+                fontOrDefault(visuals.getMenuStyle().titleFont()), guiNode, cam.getWidth(), cam.getHeight(),
                 visuals.getPanelSkin(), visuals.getRangeLook(), visuals.getIconLook(),
-                visuals.getStatLook());
+                visuals.getStatLook(), visuals.getPanelLook());
         // Built the same way units are -- see buildBody -- so the face in the
         // frame is the creature that is on the floor and not a second version
         // of it.
@@ -623,8 +623,8 @@ final class DukeRtsApp extends SimpleApplication {
      * rectangle in window pixels and the other fits itself to it.
      */
     private void placeMinimap() {
-        if (heroPanel != null && heroPanel.isShowing()) {
-            var socket = heroPanel.minimapRect();
+        var socket = heroPanel != null && heroPanel.isShowing() ? heroPanel.minimapRect() : null;
+        if (socket != null) {
             minimapScale = socket[2] / Math.max(1f, Math.max(minimap.widthPixels(),
                     minimap.heightPixels()));
             // Centred in its socket: a map that is not square leaves a margin, and
@@ -632,9 +632,10 @@ final class DukeRtsApp extends SimpleApplication {
             minimapX = socket[0] + (socket[2] - minimap.widthPixels() * minimapScale) / 2f;
             minimapY = socket[1] + (socket[2] - minimap.heightPixels() * minimapScale) / 2f;
         } else {
+            // In the corner, over a bar that is showing without a socket for it.
             minimapScale = 1f;
             minimapX = cam.getWidth() - minimap.widthPixels() - 12f;
-            minimapY = 34f;
+            minimapY = 34f + (heroPanel == null ? 0f : heroPanel.heightPixels());
         }
         minimapNode.setLocalScale(minimapScale);
         // Above the socket it sits in. The GUI bucket is drawn in order of depth,
@@ -1028,11 +1029,30 @@ final class DukeRtsApp extends SimpleApplication {
             float height = storey * storeyHeight;
             var hit = meetsAt(near, dir, height);
             float floor = floorAt.apply(hit.x, hit.z);
-            if (storeyHeight <= 0f || Math.abs(floor - height) <= storeyHeight * 0.5f) {
-                return floor == height ? hit : meetsAt(near, dir, floor);
+            // The storey's own ground, or ground a hill raises above it but not up to the next storey.
+            boolean thisStorey = Math.abs(floor - height) <= storeyHeight * 0.5f
+                    || (floor >= height && floor < height + storeyHeight);
+            if (storeyHeight <= 0f || thisStorey) {
+                return floor == height ? hit : settled(near, dir, meetsAt(near, dir, floor), floorAt);
             }
         }
         return meetsAt(near, dir, 0f);
+    }
+
+    /**
+     * A hit moved along the ray until it stands on the ground under it: on a slope the ground under the first guess is
+     * a little higher or lower than it, and a few steps settle it. Where the ground is level the first step is exact.
+     */
+    private static Vector3f settled(Vector3f near, Vector3f dir, Vector3f hit,
+                                    java.util.function.BiFunction<Float, Float, Float> floorAt) {
+        for (int step = 0; step < 4; step++) {
+            float floor = floorAt.apply(hit.x, hit.z);
+            if (Math.abs(floor - hit.y) < 0.01f) {
+                break;
+            }
+            hit = meetsAt(near, dir, floor);
+        }
+        return hit;
     }
 
     /**
@@ -1177,7 +1197,7 @@ final class DukeRtsApp extends SimpleApplication {
                 } else {
                     startGame();
                 }
-            }));
+            }, false, option.picture()));
             if (!option.blurb().isBlank()) {
                 // Under the name rather than beside it: what he is choosing is the
                 // word above, and the line below says what taking it means.
@@ -1574,7 +1594,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private StoneMenu buildMenu(float width, float height) {
         if (craft == null) {
-            craft = new StoneCraft(assetManager, guiFont);
+            craft = new StoneCraft(assetManager, guiFont, visuals.getMenuStyle());
         }
         var style = visuals.getMenuStyle();
         return new StoneMenu(craft, fontOrDefault(style.titleFont()),
@@ -1982,9 +2002,9 @@ final class DukeRtsApp extends SimpleApplication {
         var armed = heroPanel.armedKey();
         heroPanel.destroy();
         heroPanel = new HeroPanel(assetManager, guiFont,
-                fontOrDefault(visuals.getMenuStyle().titleFont()), guiNode, width,
+                fontOrDefault(visuals.getMenuStyle().titleFont()), guiNode, width, height,
                 visuals.getPanelSkin(), visuals.getRangeLook(), visuals.getIconLook(),
-                visuals.getStatLook());
+                visuals.getStatLook(), visuals.getPanelLook());
         heroPanel.arm(armed);
         placeMinimap();
         menu.destroy();

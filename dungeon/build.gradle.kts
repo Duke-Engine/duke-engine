@@ -93,11 +93,11 @@ tasks.register("convertAnimations") {
 //   ./gradlew :dungeon:newMap --args="crypt 42"             # a floor's size, at depth 1
 //   ./gradlew :dungeon:newMap --args="crypt 42 3 60 40 12"  # depth 3, 60 by 40 cells, 12 rooms
 //
-// From the repository root, so the file lands in this module's data/maps/ rather
+// From the repository root, so the folder lands in this module's maps/ rather
 // than under the module's own directory, where nothing would ever read it.
 tasks.register<JavaExec>("newMap") {
     group = "application"
-    description = "Draw a new map from a seed, into data/maps/"
+    description = "Draw a new map from a seed, into a folder of its own under maps/"
     mainClass.set("uz.duke.dungeon.stage.MapWriter")
     classpath = sourceSets["main"].runtimeClasspath
     workingDir = rootProject.projectDir
@@ -108,6 +108,15 @@ tasks.register<JavaExec>("writeExampleMaps") {
     group = "application"
     description = "Write the maps the game ships again, from their seeds"
     mainClass.set("uz.duke.dungeon.stage.MapWriter")
+    classpath = sourceSets["main"].runtimeClasspath
+    workingDir = rootProject.projectDir
+}
+
+// The picture beside each map, drawn from the map as it stands — the map itself is not touched.
+tasks.register<JavaExec>("writeMapPreviews") {
+    group = "application"
+    description = "Draw preview.png for every map the game keeps"
+    mainClass.set("uz.duke.dungeon.stage.MapPicture")
     classpath = sourceSets["main"].runtimeClasspath
     workingDir = rootProject.projectDir
 }

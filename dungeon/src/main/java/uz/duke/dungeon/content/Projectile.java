@@ -1,7 +1,7 @@
 package uz.duke.dungeon.content;
 
 import java.util.List;
-import uz.duke.client3d.Effect;
+import uz.duke.core.effect.Effect;
 import uz.duke.core.data.Link;
 import uz.duke.core.module.ModuleData;
 import uz.duke.core.thing.Sighted;

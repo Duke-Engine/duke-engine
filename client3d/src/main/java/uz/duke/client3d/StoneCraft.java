@@ -1,6 +1,7 @@
 package uz.duke.client3d;
 
 import com.jme3.asset.AssetManager;
+import com.jme3.asset.AssetNotFoundException;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.font.Rectangle;
@@ -15,6 +16,7 @@ import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.VertexBuffer;
 import com.jme3.scene.shape.Quad;
+import com.jme3.texture.Texture;
 import com.jme3.util.BufferUtils;
 
 /**
@@ -35,24 +37,66 @@ import com.jme3.util.BufferUtils;
  */
 final class StoneCraft {
 
-    // ---- the palette a dungeon is lit by ----
+    // ---- the palette a dungeon is lit by, which is the game's own: see MenuStyle ----
 
-    static final ColorRGBA STONE_DEEP = rgb(0x16130F);
-    static final ColorRGBA STONE = rgb(0x2B2620);
-    static final ColorRGBA STONE_LIT = rgb(0x3D362C);
-    static final ColorRGBA STONE_EDGE = rgb(0x5A5042);
-    static final ColorRGBA TORCH = rgb(0xE8A33D);
-    static final ColorRGBA TORCH_HOT = rgb(0xFFD089);
-    static final ColorRGBA BONE = rgb(0xD9CFBA);
-    static final ColorRGBA BLOOD = rgb(0xA8322B);
-    static final ColorRGBA MUTE = rgb(0x7A7062);
+    final ColorRGBA stoneDeep;
+    final ColorRGBA stone;
+    final ColorRGBA stoneLit;
+    final ColorRGBA stoneEdge;
+    final ColorRGBA slabFoot;
+    final ColorRGBA gloomTop;
+    final ColorRGBA gloomMiddle;
+    final ColorRGBA veil;
+    final ColorRGBA torch;
+    final ColorRGBA torchHot;
+    final ColorRGBA bone;
+    final ColorRGBA blood;
+    final ColorRGBA mute;
+    final ColorRGBA hint;
+    final ColorRGBA rule;
+    final ColorRGBA dangerLit;
+    final ColorRGBA row;
+    final ColorRGBA groove;
+    final ColorRGBA dim;
+    final ColorRGBA quiet;
+    final ColorRGBA onTop;
+    final ColorRGBA onFoot;
+    final ColorRGBA fillTop;
+    final ColorRGBA fillFoot;
+    final ColorRGBA footnote;
 
     private final AssetManager assets;
     private final BitmapFont font;
 
-    StoneCraft(AssetManager assets, BitmapFont font) {
+    StoneCraft(AssetManager assets, BitmapFont font, MenuStyle look) {
         this.assets = assets;
         this.font = font;
+        var style = look == null ? MenuStyle.DEFAULTS : look;
+        stoneDeep = rgb(style.stoneDeepColour());
+        stone = rgb(style.stoneColour());
+        stoneLit = rgb(style.stoneLitColour());
+        stoneEdge = rgb(style.stoneEdgeColour());
+        slabFoot = rgb(style.slabFootColour());
+        gloomTop = rgb(style.gloomTopColour());
+        gloomMiddle = rgb(style.gloomMiddleColour());
+        veil = fade(rgb(style.veilColour()), style.veilPercent() / 100f);
+        torch = rgb(style.torchColour());
+        torchHot = rgb(style.torchHotColour());
+        bone = rgb(style.boneColour());
+        blood = rgb(style.bloodColour());
+        mute = rgb(style.muteColour());
+        hint = rgb(style.hintColour());
+        rule = rgb(style.ruleColour());
+        dangerLit = rgb(style.dangerLitColour());
+        row = rgb(style.rowColour());
+        groove = rgb(style.grooveColour());
+        dim = rgb(style.dimColour());
+        quiet = rgb(style.quietColour());
+        onTop = rgb(style.onTopColour());
+        onFoot = rgb(style.onFootColour());
+        fillTop = rgb(style.fillTopColour());
+        fillFoot = rgb(style.fillFootColour());
+        footnote = rgb(style.footnoteColour());
     }
 
     BitmapFont font() {
@@ -91,6 +135,36 @@ final class StoneCraft {
         return geometry;
     }
 
+    /**
+     * A picture on a flat rectangle, or null when the game ships no such file.
+     *
+     * <p>Null rather than an error: a picture is what a screen shows of something, and a screen that refuses to
+     * open because one is missing is a worse screen than one that shows a name on its own.
+     */
+    Geometry picture(String what, float side, String path) {
+        Texture texture;
+        try {
+            texture = assets.loadTexture(path);
+        } catch (AssetNotFoundException e) {
+            return null;
+        }
+        // Its own shape, not the box's: a map fifty cells by thirty is a wide picture, and stretching it square
+        // is a preview of a place that is not there.
+        var image = texture.getImage();
+        float wide = Math.max(image.getWidth(), 1);
+        float tall = Math.max(image.getHeight(), 1);
+        float width = wide >= tall ? side : side * wide / tall;
+        float height = wide >= tall ? side * tall / wide : side;
+        var material = new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
+        material.setTexture("ColorMap", texture);
+        material.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
+        material.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
+        material.getAdditionalRenderState().setDepthTest(false);
+        var geometry = new Geometry(what, new Quad(width, height));
+        geometry.setMaterial(material);
+        return geometry;
+    }
+
     /** A rectangle shading from the first colour at the top to the last at the foot. */
     Geometry shaded(String what, float width, float height, ColorRGBA... stops) {
         var geometry = new Geometry(what, gradient(width, height, stops));
@@ -106,9 +180,9 @@ final class StoneCraft {
      */
     Node slab(String what, float width, float height) {
         var node = new Node(what);
-        attach(node, shaded(what + "-face", width, height, STONE_LIT, STONE), 0f, 0f, 0f);
-        attach(node, flat(what + "-lip", width, 2f, STONE_EDGE), 0f, height - 2f, 1f);
-        attach(node, flat(what + "-foot", width, 2f, rgb(0x0A0806)), 0f, 0f, 1f);
+        attach(node, shaded(what + "-face", width, height, stoneLit, stone), 0f, 0f, 0f);
+        attach(node, flat(what + "-lip", width, 2f, stoneEdge), 0f, height - 2f, 1f);
+        attach(node, flat(what + "-foot", width, 2f, slabFoot), 0f, 0f, 1f);
         return node;
     }
 

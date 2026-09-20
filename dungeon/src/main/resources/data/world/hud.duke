@@ -68,8 +68,9 @@ Hud
   EndlessBlurb = Har safar yangi qavat. Qanchaga tushasiz?
   StagesWord = Bosqich
   StagesBlurb = O'zgarmaydigan xarita. Yutqazish o'rgatadi.
-  ; And the list itself. The rows are the stages' own names and descriptions,
-  ; out of the files -- drop a .stage in the folder and it is on this screen.
+  ; And the list itself. The rows are the maps' own names and descriptions, read
+  ; from the head of each map's file -- drop a map folder in maps/ and it is on
+  ; this screen.
   ChooseStageWord = BOSQICHNI TANLANG
   ChooseStageHint = YUQORI PAST tanlang    ENTER tanlash    ESC ortga
   ; The figures beside his attributes. What they are worth is worked out from the
@@ -502,18 +503,89 @@ OrderMark
 End
 
 ; ---------------------------------------------------------------------------
-; The lettering the menus are set in.
+; The numbers that come off a creature as it is hurt or healed.
+;
+; They punch rather than drift: large on the spot, shrinking to their own size,
+; then gone -- the eye catches the change of size without following anything.
+; Several landing at once burst out along a fan of directions from the same
+; point, so they can be told apart. Seconds is short on purpose: a number still
+; up when the next blow lands is in the way of the thing it announces.
+; ---------------------------------------------------------------------------
+HitNumbers
+  Seconds = 0.4
+  ; How much bigger than its settled size it appears; the whole movement is
+  ; this coming back to 1.
+  PopScale = 2.1
+  TextScale = 0.85
+  ; How far out it bursts, in pixels, and how widely the directions fan either
+  ; side of straight up.
+  Spread = 34
+  FanDegrees = 38
+  ; Over the creature's head, in world units, rather than at its feet.
+  Height = 14
+  ; A trickle of regeneration one point at a time is not news.
+  LeastWorth = 1
+  ; What he deals, what he takes -- the one he has to notice -- and healing.
+  HurtColour = 0xFFE0A0
+  TakenColour = 0xC22A22
+  HealColour = 0x4FBF4F
+  Brightness = 1
+End
+
+; ---------------------------------------------------------------------------
+; The lettering the menus are set in, and the stone they are cut from.
 ;
 ; Carved Roman capitals, baked from the TTF into a page of glyphs and a table by
 ; BitmapFontBaker — jME cannot read a TrueType font. Named here rather than in
 ; the client because the client draws four games and none of the others is a
 ; dungeon.
 ;
-; Naming nothing puts the menus back to the engine's own plain lettering.
+; Naming no font puts the menus back to the engine's own plain lettering; leaving
+; a colour out gives it the one below, which is this dungeon's.
+;
+; The shapes are the client's -- a slab, a lit line, a bar, an arrowhead -- and
+; the colours are not: these are the same three the bar is lit by (stone, torch,
+; bone), so a game that re-tints one re-tints the other and the two never drift.
 ; ---------------------------------------------------------------------------
-Menu
+MenuStyle
   TitleFont = fonts/cinzel-22.fnt
   RowFont = fonts/cinzel-17.fnt
+
+  ; A slab: its face from the lit top down to the foot, the lip along its top
+  ; edge, and the shadow under it.
+  StoneDeepColour = 0x16130F
+  StoneColour = 0x2B2620
+  StoneLitColour = 0x3D362C
+  StoneEdgeColour = 0x5A5042
+  SlabFootColour = 0x0A0806
+  ; What is behind a menu: dark at the top and the foot, warmer across the middle
+  ; where the two torches are.
+  GloomTopColour = 0x0C0A08
+  GloomMiddleColour = 0x241E19
+  ; And what the world under a menu is washed with, and how heavily.
+  VeilColour = 0x080605
+  VeilPercent = 78
+
+  ; The torch a menu is read by; the same, hotter, for the row the hand is on.
+  TorchColour = 0xE8A33D
+  TorchHotColour = 0xFFD089
+  BoneColour = 0xD9CFBA
+  ; Quitting and giving up are the only rows drawn in blood.
+  BloodColour = 0xA8322B
+  MuteColour = 0x7A7062
+  HintColour = 0x8B8171
+  RuleColour = 0x3A322A
+  DangerLitColour = 0xE08A80
+  RowColour = 0xA69B87
+  GrooveColour = 0x2A241D
+  DimColour = 0x5A5346
+  QuietColour = 0x5D5548
+  ; A setting that is on, and the filled part of a slider.
+  OnTopColour = 0x4A3A1E
+  OnFootColour = 0x2E2413
+  FillTopColour = 0xF0BC6B
+  FillFootColour = 0xA06D1F
+  FootnoteColour = 0x443E35
 End
 
 ; ---------------------------------------------------------------------------
@@ -611,6 +683,109 @@ Cursor
 End
 
 ; ---------------------------------------------------------------------------
+; The hero's bar: which blocks it has, in what order, how big its sockets are,
+; and every colour it is painted in.
+;
+; Blocks IS the bar, left to right. Minimap is the map's socket with the order
+; buttons beside it; Hero is his portrait, what is left of him under it, and his
+; name, experience and figures beside it; then Bag, Skills and Depth. Leave one
+; out and the bar closes up where it was -- and without Minimap the map stands
+; in the corner over the bar instead.
+;
+; The sizes are in the pixels the design was drawn at, DesignWidth wide. The bar
+; is scaled from there to the window: never smaller than MinScale while it still
+; fits, never larger than MaxScale. A socket asked to be bigger than the bar is
+; tall is drawn as big as fits, so a bag of five rows is five rows of smaller
+; sockets rather than a bag through the floor.
+;
+; Every colour is 0xRRGGBB. The stone is the field everything is cut into; the
+; carved edges laid over it are the Skin blocks below, and are not these.
+; ---------------------------------------------------------------------------
+PanelLook
+  Blocks = [Minimap, Hero, Bag, Skills, Depth]
+  ; A block that stands on its own instead, hung from a corner or an edge of the
+  ; window on a plate of the same stone:
+  ;
+  ;   Places = [Minimap TopRight 12 12]
+  ;
+  ; takes the map off the bar and hangs it twelve pixels in from the top right
+  ; corner -- and the bar closes up where it was. The places are TopLeft, Top,
+  ; TopRight, Left, Middle, Right, BottomLeft, Bottom and BottomRight (spell them
+  ; TOP_RIGHT or top-right if you like), and the two numbers are always measured
+  ; INWARDS from what the anchor names, so the same pair means the same distance
+  ; at every corner. At Middle they move it right and up from the centre instead.
+  ;
+  ; A block named here comes off Blocks above: it stands on the bar or on its own,
+  ; never both. Hang every block somewhere and the bar itself is not drawn at all,
+  ; and the world reaches the bottom of the window.
+  Places = []
+  DesignWidth = 1300
+  MinScale = 0.55
+  MaxScale = 1.3
+
+  ItemColumns = 3
+  ItemRows = 2
+  ItemSlot = 42
+  SkillSlot = 58
+  ; Drawn proud of the other four, and the one the eye finds without looking.
+  UltimateSlot = 64
+  UltimateKey = R
+
+  ; The slab, top to bottom, and the lit rim along its top edge.
+  SlabTopColour = 0x4A4033
+  SlabHighColour = 0x3A3127
+  SlabMidColour = 0x2B241C
+  SlabLowColour = 0x221C16
+  SlabRimColour = 0x6B5C46
+  ; A warm grey that catches light. A third darker and every gold edge on the
+  ; bar loses the contrast it was chosen for.
+  StoneDeepColour = 0x16130F
+  StoneColour = 0x332B22
+  StoneLitColour = 0x4A4033
+  StoneDeadColour = 0x191510
+  StoneDeadLitColour = 0x231F1A
+  SocketRimColour = 0x453D30
+  HoleColour = 0x0C0A08
+  EdgeColour = 0x100D0A
+  DropColour = 0x0A0806
+  PortraitTopColour = 0x4A4034
+  PortraitBottomColour = 0x241E17
+  PortraitRimColour = 0x5A4E3C
+  ItemTopColour = 0x3E3529
+  ItemBottomColour = 0x201A14
+
+  ; Torch for what a skill is, blood for health, green for experience, blue for
+  ; what he can spend.
+  TorchColour = 0xE8A33D
+  GoldColour = 0xC9A24B
+  GoldHiColour = 0xF0D48A
+  GainColour = 0x7FBF6A
+  BoneColour = 0xD9CFBA
+  BloodColour = 0xA8322B
+  ArcaneColour = 0x5F8C7B
+  ManaColour = 0x3E6FA8
+  ; What the mana bar flashes when he asks for what he has not got, and what a
+  ; skill he cannot pay for is washed with.
+  ManaDeniedColour = 0xE06A5A
+  ManaWashColour = 0x9EC7FF
+  DeadColour = 0x4A443B
+  GlyphColdColour = 0x6A6154
+  PipDarkColour = 0x2A241D
+  ; The cold stone a skill waiting for its target is cut from: the one cold
+  ; colour on a warm bar, so it has nothing to blend into.
+  SelStoneColour = 0x16302E
+  SelStoneLitColour = 0x2E4A46
+  LabelColour = 0x8B8171
+  LockLabelColour = 0x6E6555
+  ItemNumberColour = 0x7A7062
+  BadgeColour = 0x4A3A18
+  FleshColour = 0x6B5B45
+  ; Each bag socket's drawing, socket by socket: the client does not know what
+  ; a flask is, so it colours by place rather than by picture.
+  ItemColours = [0xC4564A, 0x5F8C7B, 0xC9A24B, 0xE8A33D, 0x8FA8C4, 0xB08CC4]
+End
+
+; ---------------------------------------------------------------------------
 ; What the panel's edges are painted with.
 ;
 ; The panel was drawn entirely out of flat colour: a lit line along a top edge,
@@ -627,7 +802,7 @@ End
 ;
 ; Inset is the number that makes one file serve everything. It says how many
 ; pixels at each edge of the picture are corner, and those pixels are never
-; stretched: the middle of each edge is repeated instead. So a 48-pixel square
+; stretched: only the middle of each edge is, along its own length. So a 48-pixel square
 ; frames a 22-pixel chip and a 190-pixel bar without its corners melting. The
 ; value is read off the file -- it is the width of the corner motif -- and a
 ; wrong one shows up at once as either a stretched corner or a fat edge.
@@ -642,8 +817,8 @@ End
 ; Every one of these is optional. Delete a block and that part of the panel is
 ; drawn the way it was before there were any pictures; delete them all and the
 ; panel is exactly the one the game shipped with. A name that is not one of
-; Minimap, Portrait, Slot, Gauge, Chip or Divider is said in the log and
-; ignored, for the same reason.
+; Minimap, Portrait, Slot, Gauge, Chip, Button, Item, Divider, Banner, BannerWon
+; or BannerLost is said in the log and ignored, for the same reason.
 ; ---------------------------------------------------------------------------
 Skin
   Name = Minimap

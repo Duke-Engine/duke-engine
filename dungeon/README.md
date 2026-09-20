@@ -93,7 +93,7 @@ topilmasa classpath'dan qidiriladi (shipping map installer ichida yuradi).
 **Stage'da:** o'lsang — o'sha stage boshidan (yangi dungeon EMAS). Bossni
 o'ldirsang — g'alaba, chunki ostida qavat yo'q.
 
-### Format — `dungeon/src/main/resources/data/maps/first.duke`
+### Format — `dungeon/src/main/resources/maps/first/first.map`
 
 Matn: bitta `StaticMap` bloki, boshqa `.duke` fayllar kabi o'qiladi. Binar format —
 hech kim ocholmaydigan daraja: g'alati ishlaydigan stage kimdir ochib, o'qib, xatoni
@@ -101,9 +101,10 @@ ko'ra oladigan fayl bo'lishi kerak. Koordinatalar **katakda** (dunyo birligida e
 chunki ular bir xil fakt va faqat birini `Cells` rasmi bo'yicha ko'z bilan sanash mumkin.
 
 Fayl ichida: metama'lumot + seed, bitta `Cells` xaritasi (`#` tosh, raqam qavat,
-`/` zina), xonalar, koridor ulanishlari, kirish, boss, maxluqlar, prop'lar. Map
-`data/game.duke` ro'yxatida bo'lsa — menyuda chiqadi. Endless tushishning sozlamalari
-esa `data/maps/endless.duke` dagi `ProceduralMap`.
+`/` zina), xonalar, koridor ulanishlari, kirish, boss, maxluqlar, prop'lar. Har bir
+map — o'z papkasi: `maps/<nom>/<nom>.map`, yonida `preview.png` va shu mapning o'z
+`.duke` bloklari. Ro'yxat yo'q — menyu `maps/` ichida turganini topadi. Endless
+tushishning sozlamalari esa `data/world/generation.duke` dagi `ProceduralMap`.
 
 **Stage fayli — muzlatilgan `GeneratedDungeon`.** Ya'ni `Spawner` qotirilgan
 qavatni bir daqiqa oldin chizilganidan ajrata olmaydi — "stage o'zi kesilgan
@@ -116,6 +117,11 @@ o'yin **hammasini ro'yxat qilib to'xtaydi** — jimgina roguelike'ga qaytmaydi.
 Yurish engine'ning `PathGrid.canStep` i bilan tekshiriladi, nusxasi bilan emas.
 
 Stage yasash — `./gradlew :dungeon:newMap --args="nom seed [chuqurlik [eni bo'yi xonalar]]"` qavatni seed'dan chizadi; nima qayerda turishini IDE'dagi **Map** tabida qo'lda qo'yasiz.
+
+Har bir map papkasida `preview.png` — mapning ustidan ko'rinishi, va map tanlanadigan
+ekran shuni ko'rsatadi. `newMap` uni o'zi yozadi; allaqachon chizilgan maplar uchun
+`./gradlew :dungeon:writeMapPreviews` (mapning o'ziga tegmaydi), IDE'da esa **Map**
+tabidagi **Save Preview**.
 
 ### Qiyinchilik = chuqurlik
 
@@ -143,8 +149,8 @@ Generatsiya o'lchami endi `Layout` record'i orqali override qilinadi
 (`gen/Layout.java`). `Layout.of(settings)` — bugungi dungeon, **bit-baravar**;
 `Layout.sized(settings, w, h, rooms)` — muallif so'ragani.
 
-Shipping bosqichlar: `first.stage` (50×36, 9 xona, chuqurlik 1) va
-`deep.stage` (100×76, 28 xona, **chuqurlik 8** — tushishdan chuqurroq).
+Shipping bosqichlar: `maps/first/first.map` (50×36, 9 xona, chuqurlik 1) va
+`maps/deep/deep.map` (100×76, 28 xona, **chuqurlik 8** — tushishdan chuqurroq).
 Ikkalasini `./gradlew :dungeon:writeExampleMaps` qayta yozadi.
 
 **Ulanish kafolati kattalikda ham tekshirilgan:** `LayoutTest` 180×140 / 60 xona

@@ -1,7 +1,7 @@
 package uz.duke.dungeon.world;
 
 import uz.duke.core.data.Link;
-import uz.duke.client3d.Effect;
+import uz.duke.core.effect.Effect;
 
 /**
  * What one of the run's own moments plays on the hero: a level gained, the boss down, the hero

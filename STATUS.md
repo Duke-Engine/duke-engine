@@ -5,6 +5,13 @@
 Bu hujjat "nima qurilgan va u qanday ishlaydi" savoliga javob beradi.
 Kodlash qoidalari uchun `CLAUDE.md`, umumiy tanishtiruv uchun `README.md`.
 
+> **Ogohlantirish — bu 2026-09-14 holati.** O'shandan beri o'zgargani:
+> INI butunlay `.duke` bilan almashdi; muharrir `studio` moduli emas, IntelliJ
+> plagini (`duke-plugin/`) — `studio` o'chirildi; xaritalar `maps/<nom>/<nom>.map`
+> papkalari; `kit` moduli qo'shildi; HUD data'dan o'qiladi. Quyidagi bo'limlar
+> shu o'zgarishlarni hali aks ettirmaydi — ishonchli manba kod va modul
+> README'lari.
+
 > **2026-09-06 — engine ikkiga bo'lindi.** `core` endi janrsiz universal engine;
 > RTS'ga xos hamma narsa yangi `rts` moduliga chiqdi. Quyidagi hujjat shu holatni
 > aks ettiradi. Tarix: `git log` (4 ta commit, `9d1cc10` baseline).
@@ -27,9 +34,6 @@ Hamma modulda `-Xlint:all`, testlar JUnit 5.11.3.
 | `generals` | `api rts` | Generals'ning **o'z qoidalari** (4 rank veteranlik va h.k.) — "Generals ham shunchaki bir o'yin" isboti |
 | `game` | `api rts` | Unity-uslub `DukeGame` fasadi, 2D Swing klient, multiplayer sessiyasi |
 | `client3d` | `api game` + jMonkeyEngine 3.7.0-stable | To'liq 3D klient: model/animatsiya/ovoz, menyular, minimap, HUD |
-| `studio` | `client3d` + Gson 2.11.0 | Duke Studio — Swing IDE (`uz.duke.studio.StudioMain`) |
-| `sandbox` | `game` | 2D skirmish demo (~70 qator) |
-| `sandbox3d` | `client3d` + jme3-testdata | 3D skirmish demo (~74 qator) |
 | `kit` | — | Boshlang'ich to'plam: 27 ta effekt (8 guruh, `kit/data/effects/`) va ularning zarracha rasmlari (`kit/effects/particles/`). O'yin effektni `@Link` bilan oladi, shu nomli o'z blokini yozsa — o'shanisi chiziladi |
 | `dungeon` | `client3d` + `kit` | **Duke Dungeon** — engine ustidagi ilk o'yin (3D roguelike: seed'li generatsiya + run loop + AI, ma'lumoti INI fayllarda, primitiv shakllar) |
 
@@ -41,16 +45,10 @@ Ishga tushirish:
 
 ```
 ./gradlew build                  # kompilyatsiya + testlar
-./gradlew :studio:run            # Duke Studio IDE
-./gradlew :studio:run --args="../examples/RohanVsMordor.duke"
-./gradlew :sandbox:run           # 2D demo
-./gradlew :sandbox3d:run         # 3D demo
 ./gradlew :dungeon:run           # Duke Dungeon — engine ustidagi ilk o'yin
 ./gradlew :dungeon:run --args="--map=first"   # qotirilgan xarita
 ./gradlew :dungeon:newMap --args="crypt 42"  # seed'dan yangi xarita; ichini IDE'dagi Map tabida to'ldirasiz
 ./gradlew :dungeon:writeExampleMaps         # shipping xaritalarni seed'idan qayta yozadi
-./gradlew :studio:writeExamples  # examples/RohanVsMordor.duke ni qayta yozadi
-./gradlew :studio:exportExample  # dist/RohanVsMordor/ mustaqil loyihasini chiqaradi
 ```
 
 ---
@@ -59,14 +57,14 @@ Ishga tushirish:
 
 ```
 +------------------------------------------------------------+
-| studio — Duke Studio IDE (Swing + Gson)                    |
-|   .duke loyihasi = yagona haqiqat manbai                   |
-|        | Play                          | Export            |
-+--------|------------------------------ |-------------------+
-         v                               v
-   +----------------------+     mustaqil Gradle loyihasi
-   | client3d — jME 3D    |     (generatsiya qilingan Main.java
-   | (yoki game'ning 2D   |      + libs/ dagi engine jar'lari)
+| IntelliJ + duke-plugin — muharrir                          |
+|   .duke fayllar = yagona haqiqat manbai                    |
+|        | Play                                              |
++--------|---------------------------------------------------+
+         v
+   +----------------------+
+   | client3d — jME 3D    |
+   | (yoki game'ning 2D   |
    |  Swing oynasi)       |
    +----------+-----------+
               v
@@ -929,112 +927,6 @@ bosilganda (yoki `Shell.none()` bo'lsa — darhol) boshlanadi.
   (o't ochish — ko'tarilish qirrasida; o'lim — evristika: yo'qolganda hp < 35 % = o'lim, tuman emas),
   sog'liq chiziqlari (`BillboardControl`), dul olovi. Modeli yo'q birliklar toza primitivlar bilan chiziladi.
 - **Koordinatalar:** sim (x, y) → jME (x, 0, z); yo'nalish `fromAngles(0, -θ, 0)`, primitivlarning oldi = +X.
-
----
-
-## 6. `studio` — Duke Studio IDE (17 fayl)
-
-### 6.1 Loyiha modeli
-
-`.duke` fayli = JSON hujjat (`StudioProject`).
-**Loyiha — yagona haqiqat manbai; engine INI'si esa build artefakti.**
-
-- **`FactionDef`** — nom, ko'rinadigan nom, rang, tavsif va **`startingUnits`** (o'yinchi start
-  pozitsiyasida qanday baza bilan boshlaydi). Shu sababli faction istalgan map'da o'ynay oladi.
-- **`MapDef`** — nom, o'lcham, to'siq kataklari, **start pozitsiyalari** (8 tagacha), neytral
-  obyektlar. **Map'da armiya bo'lmaydi.**
-- **`UnitDef`** — nom, faction (bo'sh = umumiy), sog'liq, narx, ko'rish masofasi, `capabilities`
-  xaritasi, vizual maydonlar (model / animatsiya / ovoz), biriktirilgan skriptlar.
-- **`PlayerDef`** — nom, rang, pul, jamoa (bir jamoa = ittifoqchi), faction.
-- **`ScriptDef`** — nom + Java manba kodi.
-
-`ensureIntegrity()` har yuklashda va har o'zgarishda chaqiriladi: null'larni tuzatadi, osilib qolgan
-havolalarni tozalaydi va **eski formatni migratsiya qiladi** (bitta map + chizilgan armiyalar →
-armiya markazlari start pozitsiyalariga, armiyalarning o'zi esa faction'ning boshlang'ich bazasiga).
-
-### 6.2 Capability → engine modul jadvali
-
-Studio'da birlikka "qobiliyat" qo'shish = `Modules = [ … ]` ichidagi `.duke` modul bloki generatsiyasi (`GameFactory.unitsText`):
-
-| Studio capability | Generatsiya qilinadigan blok | Parametrlar |
-|---|---|---|
-| MOVE | `MoveUpdate` | Speed, TurnRate |
-| ATTACK | `WeaponUpdate` | Damage, AttackRange, ReloadFrames, SplashRadius, DamageType |
-| PRODUCE | `ProductionUpdate` | Builds (`[a, b]` ro'yxat) |
-| POWER | `PowerModule` | Produces, Consumes |
-| EXPERIENCE | `ExperienceModule` | ExperienceValue, ExperienceRequired, LevelDamageBonus, HealOnPromotion |
-| AUTO_HEAL | `AutoHealUpdate` | HealPerSecond |
-| SUPPLY | `SupplyModule` | Amount |
-| HARVEST | `HarvestUpdate` | LoadPerTrip, FramesPerTrip |
-| (skriptlar) | `ScriptModule`, ichida `Name = <Nom>` | — |
-
-`KindOf` avtomatik hisoblanadi: STRUCTURE yoki INFANTRY + SELECTABLE, ATTACK bo'lsa CAN_ATTACK,
-POWER bo'lsa POWERED.
-
-### 6.3 UI
-
-- **Chap:** faction → unit daraxti (+ "(shared units)" tuguni), `+ Faction` / `+ Unit` / `−`.
-- **Markaz:** `Map` tab (map tanlagich + `+ Map`; relyef cho'tkasi 1–3 katak, start-pozitsiya asbobi
-  slot tanlovi bilan, neytral birliklar; MMB-pan, g'ildirak zoom 1×–8×) · `Scripts` tab
-  (ro'yxat + muharrir + Compile) · `Generated INI` tab (faqat o'qish — engine nimani ko'rishini ko'rsatadi).
-- **O'ng:** CardLayout — `InspectorPanel` (birlik: faction, sog'liq, narx, qobiliyat checkbox'lari →
-  parametr formasi, model/ovoz uchun "…" browse tugmalari, custom skript checkbox'lari) yoki
-  `FactionPanel` (id / nom / rang / tavsif + **boshlang'ich baza jadvali**: unit / dx / dy).
-- **Menyular:** File (New / Open / Save / Save As / Export game) · Edit (**Ctrl+Z / Ctrl+Y undo-redo**,
-  **Ctrl+D duplicate unit**) · Game (Play 3D / Play 2D) · Project (Add faction, Players…, Add map,
-  Map size…, **Import map (text/image)…**, Game menu…) · Help.
-- **Undo/redo** — butun loyihaning JSON snapshot'lari (limit 100), har o'zgarishda push,
-  yangi o'zgarishda redo tozalanadi.
-
-### 6.4 Play yo'li
-
-`GameFactory.toGame(project, compiledScripts)`:
-
-1. `ensureIntegrity()`
-2. INI generatsiya → `loadUnits`
-3. skriptlarni `customModules` orqali ro'yxatdan o'tkazish
-4. o'yinchilar + diplomatiya (jamoa bo'yicha) + pul
-5. `skirmish(maps, factions, assembler)` — match play vaqtida tanlanadi
-
-Play tugmasi **avval skriptlarni kompilyatsiya qiladi** (`ScriptCompiler`, `javax.tools`,
-classpath = `java.class.path`; `extends UnitScript` va klass nomi tekshiriladi) va xato bo'lsa
-ishga tushirishni **rad etadi**. O'yin `duke-play` nomli thread'da, shu jarayon ichida ochiladi.
-
-### 6.5 Map va asset importi
-
-- **Map import** (`MapImporter`): `.txt` / `.map` → core `MapLoader`; **rasm** (`.png`, `.jpg`…) →
-  1 piksel = 1 katak, yorqinlik < 0.4 = to'siq; tomoni 200 katakdan katta bo'lsa avtomatik
-  kichraytiriladi. Ya'ni map'ni istalgan rasm muharririda chizsa bo'ladi.
-- **Asset import** (`AssetImporter`): loyiha asset papkasi = `.duke` fayli yonidagi `<nom>_assets/`
-  (saqlanmagan loyiha avval saqlashni so'raydi). Fayl `assets/<kategoriya>/` ga ko'chiriladi va
-  engine yo'li (`Models/x.glb`) qaytariladi. `.gltf` / `.mesh.xml` / `.obj` uchun yondosh fayllar ham
-  ko'chiriladi (.bin / .material / .skeleton.xml / .mtl / rasmlar). **`.glb` va `.j3o` tavsiya
-  etiladi** — ular o'zi-yetarli.
-
-### 6.6 Export yo'li
-
-`GameExporter.export(project, targetDir, engineRoot, assetsRoot)` mustaqil Gradle loyihasini yozadi:
-
-```
-<Nom>/
-  settings.gradle.kts
-  build.gradle.kts                   <- jME Maven'dan, toolchain 25, fatJar + packageApp tasklari
-  gradlew, gradlew.bat, gradle/wrapper/
-  README.md
-  libs/                              <- core, game, client3d jar'lari
-  src/main/java/game/Main.java       <- generatsiya qilingan
-  src/main/java/game/scripts/*.java  <- custom skriptlar (manba holida, runtime kompilyatsiya YO'Q)
-  src/main/resources/                <- assetlar (classpath'da -> locator kerak emas)
-```
-
-Chiqarilgan loyihada:
-
-- `gradlew run` — o'ynash
-- `gradlew fatJar` → `build/fat/game-all.jar` (bitta yugurtiriladigan jar)
-- `gradlew packageApp` → `build/package/<Nom>/<Nom>.exe` (o'z Java runtime'i bilan; maqsad
-  mashinada JDK kerak emas). jpackage faqat o'zi ishlayotgan OS uchun quradi — .exe / Linux / macOS
-  uchun har OS'da alohida yugurtiring.
-- `gradlew distZip` — launch skriptlari bilan portativ zip
 
 ---
 
@@ -4914,11 +4806,6 @@ oladigan hamma narsa olib tashlangan. Qilinmagani — kelasi bosqichlar, kamchil
 | `game/…/game/script/UnitScript.java` | custom kod API'si |
 | `client3d/…/client3d/DukeRtsApp.java` | 3D klient (1024 qator) |
 | `client3d/…/client3d/Visuals.java` | asset bog'lashlari |
-| `studio/…/studio/model/StudioProject.java` | `.duke` hujjat modeli |
-| `studio/…/studio/model/GameFactory.java` | loyiha → INI / Visuals / DukeGame |
-| `studio/…/studio/export/GameExporter.java` | mustaqil o'yin loyihasi generatori |
-| `studio/…/studio/ui/StudioWindow.java` | IDE asosiy oynasi |
-| `studio/…/studio/examples/RohanVsMordor.java` | namunaviy o'yinning muallifligi |
 | `client3d/…/client3d/TerrainScene.java` | relyef sahnasi — qayta qurish almashtiradi, qo'shmaydi |
 | `client3d/…/client3d/MinimapProjection.java` | dunyo ↔ minimap matematikasi + viewport konturi |
 | `client3d/…/client3d/CameraFocus.java` | kamera nishoni/zoom — boshda o'z birligiga, keyin erkin |

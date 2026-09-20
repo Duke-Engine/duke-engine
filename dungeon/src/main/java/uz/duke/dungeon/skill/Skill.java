@@ -2,7 +2,7 @@ package uz.duke.dungeon.skill;
 
 import uz.duke.core.data.Clip;
 import uz.duke.core.data.Link;
-import uz.duke.client3d.Effect;
+import uz.duke.core.effect.Effect;
 import uz.duke.dungeon.content.Monster;
 import uz.duke.dungeon.content.Projectile;
 

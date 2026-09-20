@@ -78,7 +78,8 @@ special-casing:
 | Module groups | `@ModuleGroup` + `ModuleGroups` (Movement, Body, Combat, Effect, Script) | its own families, e.g. `RtsModuleGroups` (Economy, Progression) |
 | Events | `WorldEvent` + the post/drain channel | its own events, e.g. `WeaponFired` |
 | Templates | `ThingTemplate` (name + modules) and one interface per thing a template may have — `Solid`, `Sighted`, `Classified`, `Titled`; `ThingTemplateLoader.type` gives a record its own block | its records, each implementing what it has: a `Monster` block is a `record Monster implements Solid, Sighted, …` |
-| World | `WorldTemplate` (a name) and one interface per thing a world may have — `Layered`: every map is laid at its storey height; `DukeGame.world(...)` hands it over | its record, implementing what its world has — a `World` block is a `record World implements Layered` — the rest of the world as blocks of their own records (`data/world/`: `Hud`, `Combat`, a `Theme` per file…), and its maps as blocks of theirs (`data/maps/`: a `ProceduralMap`, each `StaticMap`) |
+| World | `WorldTemplate` (a name) and one interface per thing a world may have — `Layered`: every map is laid at its storey height; `DukeGame.world(...)` hands it over | its record, implementing what its world has — a `World` block is a `record World implements Layered` — the rest of the world as blocks of their own records (`data/world/`: `Hud`, `Combat`, a `Theme` per file…), and how its floors are drawn when nobody drew one (`data/world/generation.duke`: a `ProceduralMap`) |
+| Maps | `MapTemplate` and one interface per thing a map may have — `Described`, `Peopled`, `Scaled`, `Layered`; `MapPackage`/`MapPackages` find a map's folder (inside the game, and beside it) and read its head without its cells; `MapTerrain` lays the grid from the components marked `@Grid` and `@Relief` | its record, implementing what its maps have — a `StaticMap` block is a `record StaticMap implements MapTemplate, Described, …` — one map a folder under `maps/`, its own `.map` file, its preview, and `.duke` files of its own read after the game's |
 | Effects | `Effect` and its `Layer`s (`client3d`), which the client draws; `kit`'s starter set of them | its own blocks, each linked by `@Link(Effect.class)` — one named as a kit effect is drawn instead of it |
 
 Before adding anything to `core`, ask: *would a game that is not an RTS want
@@ -153,8 +154,11 @@ audio/      sfx/ · ui/ · voice/ · music/
 icons/      skills/ and any other interface art
 fonts/      bitmap fonts, baked by BitmapFontBaker
 data/       the .duke data files — units/ · projectiles/ · effects/ · props/ · sounds/ ·
-            world/ · maps/ · animations/ — and game.duke, which lists them all;
+            world/ · animations/ — and game.duke, which lists them all;
             read through the game's own Content class
+maps/       one folder a map, named for it: <name>/<name>.map, its preview.png, and
+            any .duke files of its own — found rather than listed, so a map dropped
+            in is a map the game offers. A player's own live in maps/ beside the game
 ```
 
 **Naming:** lower case, underscores, and what the thing is —
@@ -198,7 +202,7 @@ now and expensive to find after a release.
 ## Before claiming "done"
 
 - `./gradlew build` passes.
-- `./gradlew :sandbox:run` still drives the loop.
+- `duke-plugin` is its own Gradle build: `cd duke-plugin && ./gradlew test`.
 - No new `-Xlint:all` warnings.
 - `core` still compiles with no reference to `rts` (it cannot see it — but
   check that nothing genre-specific leaked in the other direction either).

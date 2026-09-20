@@ -417,6 +417,11 @@ public final class DungeonRun {
     private static uz.duke.core.pathfind.PathGrid terrainOf(uz.duke.dungeon.gen.GeneratedDungeon floor) {
         var grid = MapLoader.fromText(floor.asciiMap());
         MapLoader.levels(grid, floor.levelMap());
+        grid.setRelief(floor.relief());
+        if (floor.levelHeight() > 0f) {
+            // A map that says how tall its storeys are is laid at its own height rather than the world's.
+            grid.setLevelHeight(floor.levelHeight());
+        }
         return grid;
     }
 

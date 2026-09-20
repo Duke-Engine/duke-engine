@@ -36,6 +36,14 @@ class GroundPickTest {
         return DukeRtsApp.groundHit(from, DOWNWARD, STOREY, 1, GroundPickTest::terraced);
     }
 
+    /** On a hill the click lands on the hill, where the ground under the cursor is — not on the level plane under it. */
+    @Test
+    void aClickOnASlopeLandsOnTheSlope() {
+        var hit = DukeRtsApp.groundHit(new Vector3f(50f, 40f, 100f), DOWNWARD, STOREY, 0, (x, z) -> x * 0.08f);
+
+        assertEquals(hit.x * 0.08f, hit.y, 0.02f, "standing on the ground at " + hit);
+    }
+
     /** On flat ground the answer is the plain one: where the ray meets zero. */
     @Test
     void aClickOnTheGroundFloorLandsWhereTheRayMeetsIt() {

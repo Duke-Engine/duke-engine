@@ -42,7 +42,7 @@ class SkillTipTest {
         var assets = new DesktopAssetManager(true);
         assets.registerLocator("/", com.jme3.asset.plugins.ClasspathLocator.class);
         var font = assets.loadFont("Interface/Fonts/Default.fnt");
-        var panel = new HeroPanel(assets, font, new Node("gui"), 1600f, PanelSkin.NONE,
+        var panel = new HeroPanel(assets, font, new Node("gui"), 1600f, 900f, PanelSkin.NONE,
                 RangeLook.DEFAULT);
         assertTrue(panel.show(LINE, 0f), "the panel should have taken the line");
         return panel;

@@ -95,6 +95,54 @@ class BinderTest {
         assertEquals(Map.of(Channel.MUSIC, 0.5f), crate.volume());
     }
 
+    /** One thing on a line, {@code Skeleton 17 16} — and the same record as a block, where a line is not enough. */
+    record Placed(String kind, int x, int y, int facing) {
+
+        public static Placed of(String line) {
+            var words = line.strip().split(" ");
+            return new Placed(words[0], Integer.parseInt(words[1]), Integer.parseInt(words[2]), 0);
+        }
+    }
+
+    record Floor(String name, List<Placed> monsters) {
+    }
+
+    /**
+     * A list of things read from one line each may be written as blocks instead, for the day one of them has
+     * more to say than a line holds — the lines it replaces say the same thing.
+     */
+    @Test
+    void aListOfOneLinersMayBeWrittenAsBlocks() {
+        var lines = bind("""
+                Floor
+                  Name = crypt
+                  Monsters = [Skeleton 17 16, Ghoul 4 9]
+                End
+                """, Floor.class);
+        var blocks = bind("""
+                Floor
+                  Name = crypt
+                  Monsters = [
+                    Placed
+                      Kind = Skeleton
+                      X = 17
+                      Y = 16
+                    End
+                    Placed
+                      Kind = Ghoul
+                      X = 4
+                      Y = 9
+                      Facing = 90
+                    End
+                  ]
+                End
+                """, Floor.class);
+
+        assertEquals(List.of(new Placed("Skeleton", 17, 16, 0), new Placed("Ghoul", 4, 9, 0)), lines.monsters());
+        assertEquals(new Placed("Skeleton", 17, 16, 0), blocks.monsters().getFirst());
+        assertEquals(90, blocks.monsters().get(1).facing(), "and a block may say what a line cannot");
+    }
+
     @Test
     void aRecordWithNothingWrittenInItIsItsWordAlone() {
         var crate = bind("Crate\n  Geometry = Sphere\n  Generation = Generation\nEnd\n", Crate.class);

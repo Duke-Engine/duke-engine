@@ -109,7 +109,9 @@ public final class DungeonGenerator {
         var props = scatter(rng, rooms, settings, storeys.map(), monsters, hero, boss.at());
 
         return new GeneratedDungeon(render(cells), render(storeys.map()), hero, monsters, boss,
-                bossRoom, List.copyOf(rooms), List.copyOf(links), storeys.perRoom(), props);
+                bossRoom, List.copyOf(rooms), List.copyOf(links), storeys.perRoom(), props,
+                settings.hills() > 0 ? Hills.of(seed, layout.width(), layout.height(), settings.hills(), settings.hillSize()) : null,
+                0f);
     }
 
     /**

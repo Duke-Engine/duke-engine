@@ -32,7 +32,9 @@ structure.
 ## Modules
 
 ```
-studio  →  client3d  →  game  →  rts  →  core
+dungeon  →  client3d  →  game  →  rts  →  core
+   ↓
+  kit
 ```
 
 - **core** — the genre-neutral engine. Subsystems and the fixed-timestep loop,
@@ -49,15 +51,12 @@ studio  →  client3d  →  game  →  rts  →  core
   loading**, skeletal **animation**, positional **sound**, RTS camera,
   ray-picked selection, health bars, menus and a minimap. Assets bind
   Unity-style via `Visuals`; units without art get clean primitives.
-- **studio** — Duke Studio, the Swing editor: author factions, units, maps and
-  scripts, press Play, export a standalone cross-platform game.
 - **kit** — the starter set a game begins from: the effects library, 27 effects
   in eight groups with the particle art they are drawn with. A game links them,
   and replaces one by writing its own of the same name.
 - **dungeon** — Duke Dungeon, the first game written on the engine: a 3D
   roguelike whose floors are drawn from a seed, or a **stage** — one floor
   frozen into a text file and played the same way every time.
-- **sandbox** / **sandbox3d** — the 2D and 3D demo skirmishes, ~70 lines each.
 
 `core` never imports `rts`. Building a game that is not an RTS means depending
 on `core` alone and supplying your own commands, modules and vocabulary — see
@@ -110,10 +109,7 @@ Requires nothing pre-installed beyond the wrapper — Gradle provisions the
 **Java 25** toolchain.
 
 ```
-./gradlew build            # compile + test (165 tests)
-./gradlew :studio:run      # the Duke Studio editor
-./gradlew :sandbox:run     # the 2D demo skirmish
-./gradlew :sandbox3d:run   # the 3D demo skirmish
+./gradlew build            # compile + test
 ./gradlew :dungeon:run     # Duke Dungeon
 ./gradlew :dungeon:newMap --args="crypt 42"  # a new stage from a seed; fill it on the Map tab in the IDE
 ```

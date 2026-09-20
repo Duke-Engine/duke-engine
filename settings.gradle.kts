@@ -1,3 +1,3 @@
 rootProject.name = "duke-engine"
 
-include("core", "rts", "game", "client3d",  "studio", "kit", "dungeon")
+include("core", "rts", "game", "client3d", "kit", "dungeon")

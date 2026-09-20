@@ -4,7 +4,7 @@ import uz.duke.core.data.Clip;
 import uz.duke.core.data.Link;
 import java.util.List;
 import uz.duke.dungeon.content.AnimationSet;
-import uz.duke.client3d.Effect;
+import uz.duke.core.effect.Effect;
 import uz.duke.dungeon.content.Held;
 import uz.duke.dungeon.content.MonsterLook;
 

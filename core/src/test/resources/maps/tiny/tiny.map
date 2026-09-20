@@ -1,0 +1,11 @@
+; A map on the classpath, for the test that a game's own maps are found wherever it is run from.
+StaticMap
+  Name = tiny
+  DisplayName = The Shipped One
+  Players = 1
+  Cells = [
+    "###",
+    "#0#",
+    "###",
+  ]
+End

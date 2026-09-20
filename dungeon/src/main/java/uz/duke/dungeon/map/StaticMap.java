@@ -2,6 +2,11 @@ package uz.duke.dungeon.map;
 
 import java.util.List;
 import uz.duke.core.data.Grid;
+import uz.duke.core.data.Relief;
+import uz.duke.core.map.Described;
+import uz.duke.core.map.MapTemplate;
+import uz.duke.core.map.Peopled;
+import uz.duke.core.thing.Layered;
 import uz.duke.dungeon.content.Monster;
 import uz.duke.dungeon.content.Prop;
 
@@ -21,22 +26,30 @@ import uz.duke.dungeon.content.Prop;
  * @param entrance    where the hero comes in; none while an author is still deciding
  * @param cells       the floor, a row of characters for each row of cells: {@code #} is stone, a
  *     digit the storey a cell stands on, {@code /} a stair
+ * @param relief      how the floor rises and falls over its storeys: a row of whole numbers for every row of cell
+ *     corners, each that corner's height in steps of a sixteenth of a cell; none, and every floor is flat
  * @param rooms       the rooms the floor was cut into, in the order they were placed — the first is
  *     where the hero starts
  * @param links       which rooms a corridor joins, by their place in {@code rooms}
  * @param boss        who waits in the last room; killing it wins the map
+ * @param levelHeight how tall one of its storeys is, in world units; 0 leaves the world's own. How WIDE a cell
+ *     is stays the engine's here: a dungeon counts sight and placement in cells of {@code PathGrid.DEFAULT_CELL_SIZE},
+ *     so a map at another width would be a map its own monsters could not see across
  */
 public record StaticMap(String name, String displayName, String description, int difficulty, int players, long seed,
-        Cell entrance, @Grid List<String> cells, List<Room> rooms, List<Link> links,
+        float levelHeight,
+        Cell entrance, @Grid List<String> cells, @Relief List<String> relief, List<Room> rooms, List<Link> links,
         @uz.duke.core.data.Link(Monster.class) Placed boss, @uz.duke.core.data.Link(Monster.class) List<Placed> monsters,
-        @uz.duke.core.data.Link(Prop.class) List<Placed> props) {
+        @uz.duke.core.data.Link(Prop.class) List<Placed> props)
+        implements MapTemplate, Described, Peopled, Layered {
 
     /** What a block leaves out. */
-    public static final StaticMap DEFAULTS = new StaticMap("", "", "", 1, 1, 0L, null, List.of(), List.of(), List.of(),
-            null, List.of(), List.of());
+    public static final StaticMap DEFAULTS = new StaticMap("", "", "", 1, 1, 0L, 0f, null, List.of(), List.of(),
+            List.of(), List.of(), null, List.of(), List.of());
 
     public StaticMap {
         cells = cells == null ? List.of() : List.copyOf(cells);
+        relief = relief == null ? List.of() : List.copyOf(relief);
         rooms = rooms == null ? List.of() : List.copyOf(rooms);
         links = links == null ? List.of() : List.copyOf(links);
         monsters = monsters == null ? List.of() : List.copyOf(monsters);

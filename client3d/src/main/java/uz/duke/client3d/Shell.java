@@ -79,8 +79,13 @@ public final class Shell {
      * @param next  the question this opens, or {@code null} to start the game.
      *     A branch may be as long as it likes and the branches need not match:
      *     one of them can ask something the other never does
+     * @param picture what this row is a row about, shown beside the list while it
+     *     is the lit one — the map that would be played, the hero that would be
+     *     taken — as a path the game's assets are loaded by, or {@code null}. The
+     *     client never looks for one: a row with a picture is a row the game gave
+     *     a picture to
      */
-    public record Option(String label, String blurb, Runnable taken, Question next) {
+    public record Option(String label, String blurb, Runnable taken, Question next, String picture) {
 
         public Option {
             label = label == null ? "" : label;
@@ -89,7 +94,11 @@ public final class Shell {
 
         /** A row that settles something and starts the game. */
         public Option(String label, String blurb, Runnable taken) {
-            this(label, blurb, taken, null);
+            this(label, blurb, taken, null, null);
+        }
+
+        public Option(String label, String blurb, Runnable taken, Question next) {
+            this(label, blurb, taken, next, null);
         }
     }
 

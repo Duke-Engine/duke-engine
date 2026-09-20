@@ -71,7 +71,7 @@ class DungeonEffectLayerTest {
     @Test
     void everyLayerBelongsToAnEffectThatExists() {
         var effects = SETTINGS.effects().stream()
-                .map(uz.duke.client3d.Effect::name).collect(Collectors.toSet());
+                .map(uz.duke.core.effect.Effect::name).collect(Collectors.toSet());
         for (var layer : SETTINGS.effectLayers()) {
             assertTrue(effects.contains(layer.effect()), "Layer " + layer.effect()
                     + " " + layer.name() + " belongs to no Effect");

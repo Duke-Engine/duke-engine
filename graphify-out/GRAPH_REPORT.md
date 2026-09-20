@@ -1,126 +1,126 @@
 # Graph Report - duke-engine  (2026-09-20)
 
 ## Corpus Check
-- 586 files · ~854,128 words
+- 616 files · ~889,833 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 178 file(s) not represented in the graph (top: .duke 75, .bin 31, .gltf 31)
+- Unclassified: 179 file(s) not represented in the graph (top: .duke 73, .bin 31, .gltf 31)
 
 ## Summary
-- 8425 nodes · 26979 edges · 345 communities (202 shown, 143 thin omitted)
-- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 3159 edges (avg confidence: 0.84)
+- 8936 nodes · 28487 edges · 353 communities (205 shown, 148 thin omitted)
+- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 3221 edges (avg confidence: 0.84)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `c6f055ac`
+- Built from commit: `14d4472f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- asserttrue
-- Rows
-- Coord3D
 - DungeonSettings
-- MapCanvas
+- InspectorRows.kt
+- Override
+- RtsLogic
+- DukeMapEditor
 - HeroPanel
-- .simpleInitApp
+- Reader
 - org.junit.jupiter.api.Test
-- com.jme3.scene.Node
-- GameLogic
-- javax.swing.JPanel
+- com.jme3.scene.Geometry
+- Cylinder
+- map.js
 - com.jme3.scene.Mesh
 - StudioWindow
 - viewer.js
 - PathGrid
 - .fromText
-- Cylinder
+- BinderTest
 - LayeredEffects
 - Tileset
 - DukeReferences.kt
 - SkillCastingTest
 - NewFromTemplate.kt
-- .named
-- WorldEventTest
+- Coord3D
+- list
 - DungeonMonsterArtTest
-- GrowableBody
+- Discovery
 - StoneMenu
-- .newSession
+- Session
 - InspectorModel.kt
-- GeneratedDungeon
-- .newLogic
+- DungeonGenerator
+- org.junit.jupiter.api.BeforeEach
 - .world
-- DukeLinks.kt
+- DukeLinks
 - .parse
 - GameEngine
-- WorldSnapshot
+- AttributeRules
 - Builder
 - What You Must Do When Invoked
-- Main
+- hud.js
 - Shell
 - Hotkeys
-- Discovery
+- DungeonTilesTest
 - Visuals
-- GameObject
-- Kengaytirish choklari
-- MoveUpdate
+- .getOwner
+- Geometry
+- HeightMap
 - ParticleLayer
 - PanelLayoutTest
 - incorrectoperationexception
-- DukeRtsApp
+- .showSettingsMenu
 - LayeredEffectsTest
 - Storeys
-- com.jme3.math.Vector3f
+- DukeMapEditor.kt
 - UnitBarsTest
 - DiscoveryTest
 - DukeRecords
 - StudioProject
 - UnitVisual
-- .of
+- Monster.java
 - .generate
-- AudioSink
-- .looks
-- DataException
+- DamageType
+- DungeonEffectLayerTest
+- .burstAt
 - .findPath
 - .getLogic
-- RtsLogic
 - HeroPortraitTest
-- Builder
+- com.jme3.scene.Spatial
+- UnitScript
 - SkillEffectsTest
-- .ensureIntegrity
+- Grid
 - SightTest
 - ManaTest
-- list
+- com.jme3.math.ColorRGBA
 - Theme
 - LightPool
 - MageTest
-- .simpleUpdate
-- NetMessage
-- InspectorPanel
-- DukeMapEditor
-- Reader
-- ArrowTest
-- LootBag
-- MonsterSkillTest
+- MinimapProjection
+- HostTransport
+- javax.swing.JPanel
+- DukePlay.kt
 - .create
+- ArrowTest
+- .simpleInitApp
+- MonsterSkillTest
+- WorldSnapshot
 - Reading
 - Piece
 - LockstepGate
-- MonsterSummoningTest
-- files
-- com.jme3.scene.Spatial
+- AttributesTest
+- AssetImporter
+- .looks
 - DukeCompletion.kt
-- .create
-- SkillRanks
+- MonsterSummoningTest
+- Attribute
 - CursorsTest
-- GamePlayer
+- SubsystemInterface
 - DukeEditing.kt
-- PsiElement
-- DungeonTilesTest
+- MoveUpdate
+- StudioWindow.java
 - RtsPlayer
-- .installInput
+- DukeRtsApp
 - MonsterKindsTest
 - CameraFocus
-- Replay
-- AttackObject
+- .world
+- 8.bh Statistika bloki Warcraft III uslubida, atributlar ro'yxati INI'da
 - TileLayoutTest
 - MonsterHealingTest
 - .frame
@@ -131,31 +131,31 @@
 - DukeBlock
 - Sounds
 - LockstepGateTest
-- UnitView
-- ModuleGroupsTest
-- .heroes
+- DukeTextTest
+- 10. Tuzoqlar (gotchas)
+- PanelLookTest
 - DukeParser.kt
 - StagePlayTest
-- DungeonPortraitTest
+- HeroLook
 - StaticMap
 - Field
 - psipolyvariantreference
 - SkillRanksTest
 - ModelPreview.kt
-- AnimationLibrary
-- BinderTest
+- SoundBank
+- FloatingNumbersTest
 - SkillLookTest
-- ReplayTest
-- .rows
+- Replay
+- GameObject
 - SkillEffect
 - ExperienceModuleTest
-- ScriptEngine
-- OrderMarkers
-- Content.java
-- .init
+- PsiElement
+- .of
+- ModuleData
+- MoveTo
 - NameKeyGenerator
-- SoundBank
-- SubsystemInterface
+- com.jme3.scene.Node
+- DungeonGeneratorTest
 - ChevronsTest
 - DukeLexer
 - SoundTouchesNothingTest
@@ -163,140 +163,140 @@
 - .asCloseAsHeCanGet
 - PortraitCameraTest
 - Duke Dungeon
-- .everySizeTheGameMakes
-- Cursors
+- .of
+- PacketCodec
 - ModuleCompositionTest
 - GameFactory
-- 8.at Mana — skilllar endi resurs sarflaydi
+- .newSession
 - PanelSkinTest
-- ProductionTest
+- AnimationLibrary
 - FogMap
-- ProductionUpdate
+- .run
 - StaticObstacleTest
-- AttackFlashTest
-- WedgedTest
+- MapPicture
+- Content.java
 - graphify reference: extra exports and benchmark
 - SelectionBoxTest
 - RunMoments
-- AttributesTest
-- Stage
-- StageCheckTest
-- .themes
-- HeroProgressTest
-- DukeParser
-- Heard
+- Attributes
 - HeroBalanceTest
+- DungeonThemeTest
+- Locomotor
+- HeroProgressTest
+- StoneMenuTest
+- .create
+- ArtLoad
 - GameExporter
-- shrink_particles.py
-- MonsterKind
-- HotkeysTest
-- ScriptEngineTest
 - DukeClips
-- HarvestTest
-- HoldGroundTest
+- LootTest
 - .world
-- ModelPreview
+- Heard
+- Content
+- InspectorPanel
+- HoldGroundTest
+- DukeParser
+- Placement
 - RangeRingsTest
-- ProjectileLauncherTest
-- GroundPickTest
+- ModuleGroupsTest
+- com.jme3.math.Vector3f
 - CollisionTest
-- HeroProgress
-- PacketCodec
-- PropsTest
-- .setUp
-- .registerScript
+- 8.bg Atributlar — Kuch, Epchillik, Aql
+- 8.av Skill effektlari — qatlamlangan zarrachalar
+- MinimapProjectionTest
+- AttackMoveTest
+- MultiplayerSession
 - DukeInspector.kt
-- Block
+- UnitView
 - ScriptCompiler.java
-- DungeonFogTest
-- SocketTransport.java
-- Nima bor
+- SpecialPowerTest
+- GameLogic
+- duke-engine
 - .plan
-- Served
-- SessionState
+- DukeEngineSourcesTest.kt
+- AttackObject
 - graphify reference: query, path, explain
-- DamageModifierTest
+- arrange
 - HeroPortrait
 - SkillTipTest
-- NetFraming
-- DungeonSoundTest
-- DungeonThemeTest
-- Place
+- SkillBook
+- VisionTest
+- WedgedTest
+- .mood
 - .spread
-- WatchingTest
+- GeneratedDungeon
 - LockstepScheduler
 - AlertTest
 - SolidWorldTest
 - ScriptsPanel
-- ObjectId
-- 8.bb Binafsha Skelet-Mage — chaqiruvchi
+- Doing
+- .controls
 - graphify reference: add a URL and watch a folder
-- Main.java
-- MapDef
-- LootTest
+- MapPackage
+- IconSheets
+- ProductionGateTest
 - graphify reference: commit hook and native CLAUDE.md integration
-- Attribute
-- Glyphs
-- DukePlayTest.kt
+- AudioSink
+- CapabilityType
+- HotkeysTest
 - CountingLogic
-- StatusUpdateTest
-- DefaultWordsScanner
+- Place
+- NetMessage
 - Binder
-- .init
+- .themes
 - Nima bor
-- VisionTest
+- AttackFlashTest
 - graphify reference: GitHub clone and cross-repo merge
 - fbx_to_glb.py
-- O'chirish tahlili
-- AttackOnTheMoveTest
-- .setUp
+- box
+- desktopassetmanager
+- documentlistener
 - Duke-plugin
-- PreviewFiles
+- .named
 - duke-plugin/gradlew
-- Effect
+- DamageModifierTest
 - gradlew
 - duke-plugin/build.gradle.kts
 - duke-plugin/settings.gradle.kts
-- Layer
+- SkillRangeTest
 - .claude/CLAUDE.md
 - extraction-spec.md
 - dukeinitypes
-- EventVisibilityTest
-- DukePlayTest
-- TestLogic
-- TestLogic
-- AttackMoveTest
-- assetkind
+- DungeonSoundTest
+- DungeonFogTest
+- Glyphs
+- dukeblock
+- WeaponHoldTest
+- dukefile
 - StoreysTest
-- DungeonGeneratorTest
+- StageCheckTest
 - datamanager
-- ProductionGateTest
+- dukefiletype
 - bytearrayinputstream
 - DukeGame
-- PlayerListTest
+- HeroFigures
 - collapsiblerow
 - elementmanipulators
-- DukeEngineSourcesTest.kt
+- AssetKind
 - inheritanceutil
-- WeaponHoldTest
+- ProjectileLauncherTest
 - graphify reference: incremental update and cluster-only
 - intentionpreviewutils
 - objects
-- desktopassetmanager
+- .heroes
 - DukeRecordsTest
 - icons/README.md
 - defaultwordsscanner
 - progressmanager
-- dukeassets
+- duketypes
 - psicompiledelement
 - 8. Nima ishlaydi (tasdiqlangan)
-- dukeblock
+- dukevalue
 - dukeschemas
 - psiifstatement
 - emittersphereshape
 - runinedtandwait
 - throwablecomputable
-- OrderMark
+- OrderMarkers
 - gridbagconstraints
 - DoingTest
 - gridlayout
@@ -304,16 +304,16 @@
 - jbutton
 - jlist
 - jtoolbar
-- SessionHalted
+- SocketTransport
 - localsearchscope
-- Player
-- .newScenario
-- GameSettingsTest
-- DukeInspectorPanel
+- HeroProgress
+- ThingTemplateLoader
+- mapmodels
+- dukeassets
 - message
 - particlemesh
-- ArrowLook
-- com.jme3.math.ColorRGBA
+- previewscenes
+- WatchingTest
 - pattern
 - .twoGamesOverTcpStayBitIdentical
 - psiassignmentexpression
@@ -343,27 +343,34 @@
 - resolvecache
 - sphere
 - world
-- .skinKey
-- 8.av Skill effektlari — qatlamlangan zarrachalar
-- .setUp
-- NoGapsTest
-- .init
-- 3. `core` — janrsiz engine yadrosi
-- SoundSink.java
-- duketypes
-- 9. Nima yo'q / ochiq ishlar
+- HeightMapTest
+- Footprint
+- DukePlayTest
+- Block
+- .damage
+- GeneratedFloors
+- DungeonRunTest
+- `client3d` — 3D klient (jMonkeyEngine)
+- ScriptEngineTest
+- .of
+- March
+- ProductionTest
+- CommandLogic
+- Stages
+- DefaultWordsScanner
+- Layer
 
 ## God Nodes (most connected - your core abstractions)
 1. `GameObject` - 429 edges
-2. `Coord3D` - 405 edges
-3. `DungeonSettings` - 345 edges
+2. `Coord3D` - 413 edges
+3. `DungeonSettings` - 357 edges
 4. `DukeGame` - 266 edges
-5. `DukeRtsApp` - 218 edges
-6. `GameLogic` - 151 edges
-7. `HeroPanel` - 147 edges
+5. `DukeRtsApp` - 219 edges
+6. `HeroPanel` - 159 edges
+7. `GameLogic` - 151 edges
 8. `ObjectId` - 137 edges
-9. `8. Nima ishlaydi (tasdiqlangan)` - 128 edges
-10. `Visuals` - 127 edges
+9. `PathGrid` - 135 edges
+10. `Visuals` - 130 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `3.4 Ma'lumot qatlami: `.duke`` --references--> `Binder`  [INFERRED]
@@ -372,83 +379,79 @@
   STATUS.md → core/src/main/java/uz/duke/core/event/ObjectDied.java
 - `3.6b To'qnashuv — obyektlar fizik jism` --references--> `Geometry`  [INFERRED]
   STATUS.md → core/src/main/java/uz/duke/core/thing/Geometry.java
-- `8. Nima ishlaydi (tasdiqlangan)` --references--> `Colour`  [INFERRED]
-  STATUS.md → duke-plugin/src/main/kotlin/uz/duke/plugin/inspector/InspectorModel.kt
 - `4.2 `setUp()` tartibi — muhim` --references--> `RtsLogic`  [INFERRED]
   STATUS.md → game/src/main/java/uz/duke/game/RtsLogic.java
+- `6.3 UI` --references--> `Scripts`  [INFERRED]
+  STATUS.md → game/src/main/java/uz/duke/game/script/ScriptModule.java
 
 ## Import Cycles
 - None detected.
 
-## Communities (345 total, 143 thin omitted)
+## Communities (353 total, 148 thin omitted)
 
-### Community 0 - "asserttrue"
+### Community 0 - "DungeonSettings"
 Cohesion: 0.04
-Nodes (41): animcomposer, animtrack, assertarrayequals, assertequals, assertfalse, assertinstanceof, assertnotequals, assertnotnull (+33 more)
+Nodes (35): animcomposer, animtrack, assertarrayequals, assertequals, assertfalse, assertinstanceof, assertnotequals, assertnotnull (+27 more)
 
-### Community 1 - "Rows"
-Cohesion: 0.14
-Nodes (13): FieldRow, JComponent, Row, RowHost, Rows, RowPanel, FocusAdapter, FocusAdapter (+5 more)
+### Community 1 - "InspectorRows.kt"
+Cohesion: 0.09
+Nodes (29): actionlink, colorpanel, FieldRow, Color, Document, Graphics, JComponent, JPanel (+21 more)
 
-### Community 2 - "Coord3D"
+### Community 2 - "Override"
+Cohesion: 0.09
+Nodes (6): Override, FunctionalInterface, PartitionFilter, Override, PartitionManager, PartitionManagerTest
+
+### Community 3 - "RtsLogic"
+Cohesion: 0.09
+Nodes (11): `game` — Unity-uslub API qatlami, O'chirish tahlili, RtsClient, Override, RtsGameEngine, DefeatListener, IntervalCallback, FunctionalInterface (+3 more)
+
+### Community 4 - "DukeMapEditor"
 Cohesion: 0.03
-Nodes (32): `uz.duke.core.thing` — obyekt modeli, Override, ObjectDied, WorldEvent, Coord3D, DieModule, Locomotor, FunctionalInterface (+24 more)
-
-### Community 3 - "DungeonSettings"
-Cohesion: 0.02
-Nodes (37): Layered, The pointers, Format — `dungeon/src/main/resources/data/maps/first.duke`, O'lcham, Qiyinchilik = chuqurlik, Stage rejimi — o'zgarmaydigan xarita, DungeonSettings, PropKind (+29 more)
-
-### Community 4 - "MapCanvas"
-Cohesion: 0.08
-Nodes (25): basicstroke, Color, Dimension, Graphics, Graphics2D, JComponent, Layer, MouseEvent (+17 more)
+Nodes (49): basicstroke, bytearrayoutputstream, Corner, BOTTOM, BOTTOM_LEFT, BOTTOM_RIGHT, LEFT, MIDDLE (+41 more)
 
 ### Community 5 - "HeroPanel"
 Cohesion: 0.05
-Nodes (14): Block, HeroPanel, ItemReading, ItemSlot, Align, OrderButton, OrderReading, Placing (+6 more)
-
-### Community 6 - ".simpleInitApp"
-Cohesion: 0.06
-Nodes (3): ArtLoad, BitmapFont, Override
+Nodes (13): Block, HeroPanel, ItemReading, ItemSlot, Align, Loose, OrderButton, OrderReading (+5 more)
 
 ### Community 7 - "org.junit.jupiter.api.Test"
 Cohesion: 0.03
-Nodes (12): HeroPanelTest, MinimapProjectionTest, PortraitMoodTest, SkillTipTest, SunlightTest, Coord3DTest, ThingSystemTest, UnitBlocksTest (+4 more)
+Nodes (13): GameSettingsTest, HeroPanelTest, OrderMarkTest, SkillTipTest, SunlightTest, Coord3DTest, ThingSystemTest, UnitBlocksTest (+5 more)
 
-### Community 8 - "com.jme3.scene.Node"
-Cohesion: 0.04
-Nodes (50): analoglistener, animcontrol, bifunction, billboardcontrol, bitmaptext, blendableaction, blendmode, bufferutils (+42 more)
+### Community 8 - "com.jme3.scene.Geometry"
+Cohesion: 0.05
+Nodes (51): ambientlight, analoglistener, animcontrol, assetnotfoundexception, bifunction, billboardcontrol, bitmaptext, blendableaction (+43 more)
 
-### Community 9 - "GameLogic"
-Cohesion: 0.03
-Nodes (34): Nima bor (paket bo'yicha), `uz.duke.core.client` — rendering choki, `uz.duke.core.event` — lahzalar kanali, `uz.duke.core.partition` — fazoviy so'rovlar, `uz.duke.core.pathfind` — yo'l topish, `uz.duke.core.player` — o'yinchilar, Renderer, Override (+26 more)
+### Community 9 - "Cylinder"
+Cohesion: 0.23
+Nodes (5): Box, Cylinder, Override, Sphere, GeometryTest
 
-### Community 10 - "javax.swing.JPanel"
-Cohesion: 0.10
-Nodes (26): borderfactory, borderlayout, boxlayout, gridbaglayout, insets, java.awt.GridBagConstraints, javax.swing.Box, javax.swing.DefaultListModel (+18 more)
+### Community 10 - "map.js"
+Cohesion: 0.05
+Nodes (41): ambient, camera, capTop(), cellMark, cellTools, controls, CORNERS, draped() (+33 more)
 
 ### Community 11 - "com.jme3.scene.Mesh"
 Cohesion: 0.09
 Nodes (6): UnitBarReading, Bar, Lettering, Standing, UnitBars, com.jme3.scene.Mesh
 
-### Community 12 - "StudioWindow"
-Cohesion: 0.08
-Nodes (23): ActionListener, dimension, filenameextensionfilter, GameWindow, java.awt.CardLayout, javax.swing.JFileChooser, javax.swing.JFrame, javax.swing.JMenuBar (+15 more)
-
 ### Community 13 - "viewer.js"
-Cohesion: 0.11
-Nodes (28): actions, actionsBar, camera, clips, clock, controls, drawActions(), drawSounds() (+20 more)
+Cohesion: 0.10
+Nodes (33): dress(), hang(), loaded, loader, model(), res(), skin(), skins (+25 more)
 
 ### Community 14 - "PathGrid"
-Cohesion: 0.09
+Cohesion: 0.08
 Nodes (6): Placement, TileLayout, Pathfinder, PathGrid, 3.5c Balandlik — diskret qavatlar, 3.6 Yo'l topish
 
 ### Community 15 - ".fromText"
 Cohesion: 0.08
-Nodes (10): TileSource, ColourWatchingTiles, Override, Spatial, RailedStair, StubTiles, StubTilesWithFace, TerrainSceneTest (+2 more)
+Nodes (11): TileSource, ColourWatchingTiles, Override, Spatial, RailedStair, SquareTiles, StubTiles, StubTilesWithFace (+3 more)
 
-### Community 16 - "Cylinder"
-Cohesion: 0.14
-Nodes (8): Box, Cylinder, Override, Sphere, FlatWorldChecksumTest, Override, TestLogic, GeometryTest
+### Community 16 - "BinderTest"
+Cohesion: 0.19
+Nodes (13): At, BinderTest, Channel, EFFECTS, MUSIC, Crate, Floor, Generation (+5 more)
+
+### Community 17 - "LayeredEffects"
+Cohesion: 0.13
+Nodes (7): EffectLayer, LayeredEffects, Moment, Place, Playing, Riding, com.jme3.renderer.Camera
 
 ### Community 18 - "Tileset"
 Cohesion: 0.05
@@ -459,208 +462,204 @@ Cohesion: 0.12
 Nodes (20): AbstractElementManipulator, constant(), DukeChoiceReference, DukeConstantReference, DukeKeySearcher, DukeLeafManipulator, DukeValueReferences, ASTWrapperPsiElement (+12 more)
 
 ### Community 21 - "NewFromTemplate.kt"
-Cohesion: 0.07
-Nodes (28): alignx, allicons, combobox, DialogWrapper, DukeFile, DukeFileType, DukeLanguage, Icon (+20 more)
-
-### Community 23 - "WorldEventTest"
-Cohesion: 0.31
-Nodes (3): Override, TestLogic, WorldEventTest
-
-### Community 25 - "GrowableBody"
 Cohesion: 0.08
-Nodes (7): Override, Armor, Builder, BodyModule, GrowableBody, Override, enummap
+Nodes (26): alignx, applicationmanager, com, DukeFile, DialogWrapper, JComponent, Project, VirtualFile (+18 more)
+
+### Community 22 - "Coord3D"
+Cohesion: 0.04
+Nodes (52): atomicinteger, atomicreference, collectors, color, `uz.duke.core.thing` — obyekt modeli, Coord3D, Command, ActiveBody (+44 more)
+
+### Community 23 - "list"
+Cohesion: 0.03
+Nodes (59): arraydeque, arraylist, arrays, assertiterableequals, biconsumer, boundingsphere, bufferedimage, bufferedreader (+51 more)
+
+### Community 24 - "DungeonMonsterArtTest"
+Cohesion: 0.08
+Nodes (4): AnimationSet, Color, MonsterLook, DungeonMonsterArtTest
 
 ### Community 26 - "StoneMenu"
-Cohesion: 0.07
-Nodes (15): Align, StoneCraft, Action, Buttons, Choice, Hit, Level, Opens (+7 more)
-
-### Community 27 - ".newSession"
-Cohesion: 0.11
-Nodes (3): HeroChoiceTest, DepthTest, DungeonRunTest
+Cohesion: 0.08
+Nodes (14): Align, StoneCraft, Action, Buttons, Choice, Hit, Level, Opens (+6 more)
 
 ### Community 28 - "InspectorModel.kt"
 Cohesion: 0.08
-Nodes (36): AddRow, BlockChoice, Builder, CardRow, Check, Choice, Clip, ClipOption (+28 more)
+Nodes (34): AddRow, Builder, CardRow, Check, Choice, Clip, ClipOption, Defaults (+26 more)
 
-### Community 29 - "GeneratedDungeon"
-Cohesion: 0.09
-Nodes (9): DeterministicRng, DungeonGenerator, GeneratedDungeon, Link, Monster, Placement, Prop, Room (+1 more)
+### Community 29 - "DungeonGenerator"
+Cohesion: 0.06
+Nodes (6): PropKind, Color, MonsterKind, DeterministicRng, DungeonGenerator, Room
 
-### Community 30 - ".newLogic"
-Cohesion: 0.12
-Nodes (7): GameSnapshot, GameSnapshotTest, Override, TestLogic, Override, TestLogic, UpgradeTest
+### Community 30 - "org.junit.jupiter.api.BeforeEach"
+Cohesion: 0.03
+Nodes (30): Override, MovementLogic, MoveUpdateTest, Override, TestLogic, Override, TestLogic, KindTest (+22 more)
 
-### Community 31 - ".world"
-Cohesion: 0.09
-Nodes (3): Progression, KnightTest, 8.al Ikkinchi qahramon — Knight, va u'ning aksi
-
-### Community 32 - "DukeLinks.kt"
-Cohesion: 0.13
-Nodes (13): cachedvalueprovider, cachedvaluesmanager, DukeLinkReference, DukeLinks, PsiClass, PsiElement, PsiRecordComponent, PsiReferenceBase (+5 more)
+### Community 32 - "DukeLinks"
+Cohesion: 0.24
+Nodes (4): DukeLinks, PsiClass, PsiElement, PsiRecordComponent
 
 ### Community 33 - ".parse"
-Cohesion: 0.04
-Nodes (12): Block, Game, ContentTest, DungeonSettingsTest, RoomCapTest, HeroStatusTest, MapWriterTest, 8.ay Skelet-Mage — skill ishlatadigan birinchi monster (+4 more)
+Cohesion: 0.05
+Nodes (5): ContentTest, DungeonSettingsTest, RoomCapTest, HeroStatusTest, MapWriterTest
 
 ### Community 34 - "GameEngine"
 Cohesion: 0.12
-Nodes (7): GameEngine, Override, SubsystemList, java.util.logging.Logger, Architecture, The loop, 3.1 Asosiy sikl
+Nodes (7): `uz.duke.core` — sikl va hayot sikli, GameEngine, Override, SubsystemList, java.util.logging.Logger, The loop, 3.1 Asosiy sikl
 
-### Community 35 - "WorldSnapshot"
-Cohesion: 0.09
-Nodes (15): `client3d` — 3D klient (jMonkeyEngine), Koordinatalar, O'chirish tahlili, GamePanel, Override, WorldSnapshot, java.awt.Graphics2D, java.awt.Rectangle (+7 more)
+### Community 35 - "AttributeRules"
+Cohesion: 0.27
+Nodes (4): AttributeRules, Data, HeroAttributes, HeroBuild
 
 ### Community 37 - "What You Must Do When Invoked"
 Cohesion: 0.08
 Nodes (24): For /graphify add and --watch, For /graphify query, For the commit hook and native CLAUDE.md integration, For --update and --cluster-only, /graphify, Honesty Rules, Interpreter guard for subcommands, Part A - Structural extraction for code files (+16 more)
 
-### Community 38 - "Main"
-Cohesion: 0.08
-Nodes (7): Session, Channel, Logger, Main, Listed, ControlsTest, StageChoiceTest
+### Community 38 - "hud.js"
+Cohesion: 0.13
+Nodes (49): BANNERS, box(), button(), canvas, ctx, divider(), draw(), drawBag() (+41 more)
 
 ### Community 39 - "Shell"
-Cohesion: 0.09
-Nodes (17): Boshqaruv, Menyu kimniki, Nima bor, Sozlamalar, Entry, HOST_LAN, JOIN_LAN, PLAY (+9 more)
+Cohesion: 0.10
+Nodes (13): Menyu kimniki, Entry, HOST_LAN, JOIN_LAN, PLAY, QUIT, SETTINGS, SKIRMISH (+5 more)
 
 ### Community 40 - "Hotkeys"
-Cohesion: 0.12
-Nodes (11): Aim, GROUND, NOW, OPEN_GROUND, UNIT, UNIT_OR_GROUND, Aimed, Binding (+3 more)
-
-### Community 41 - "Discovery"
 Cohesion: 0.11
-Nodes (3): bitset, Discovery, 8.z O'q endi yoritmaydi
+Nodes (10): Aim, GROUND, NOW, OPEN_GROUND, UNIT, UNIT_OR_GROUND, Aimed, Binding (+2 more)
 
 ### Community 42 - "Visuals"
 Cohesion: 0.05
-Nodes (11): EdgeScroll, MenuStyle, Sunlight, CastAnim, EffectBudget, EffectVisual, HitFlashLook, MomentLook (+3 more)
+Nodes (11): EdgeScroll, Sunlight, CastAnim, EffectBudget, EffectVisual, HitFlashLook, MomentLook, Visuals (+3 more)
 
-### Community 43 - "GameObject"
+### Community 43 - ".getOwner"
 Cohesion: 0.03
-Nodes (25): GameObject, World, SightLine, ArrowUpdate, Override, Override, Override, Shot (+17 more)
+Nodes (23): Data, Override, MoverUpdate, Override, Override, Override, Override, Override (+15 more)
 
-### Community 44 - "Kengaytirish choklari"
-Cohesion: 0.17
-Nodes (6): Placed, Spawner, ProductionGate, 2. Qatlamlar, Engine generalizatsiyasi — bajarilgani va qolgani, Kengaytirish choklari
+### Community 44 - "Geometry"
+Cohesion: 0.05
+Nodes (22): Classified, Geometry, Override, Kind, Builder, ObjectTemplate, Sighted, Solid (+14 more)
 
-### Community 45 - "MoveUpdate"
-Cohesion: 0.07
-Nodes (11): Data, Override, MoveUpdate, of(), HeroBrain, Override, Override, MonsterBrain (+3 more)
+### Community 45 - "HeightMap"
+Cohesion: 0.15
+Nodes (3): NoGapsTest, HeightMap, Override
 
 ### Community 47 - "PanelLayoutTest"
 Cohesion: 0.12
 Nodes (5): BitmapFont, ColorRGBA, PanelLayoutTest, Span, com.jme3.bounding.BoundingBox
 
-### Community 49 - "DukeRtsApp"
-Cohesion: 0.06
-Nodes (14): DukeRtsApp, Preferences, Screen, LOADING, MENU, PAUSED, PLAYING, SETTINGS (+6 more)
+### Community 49 - ".showSettingsMenu"
+Cohesion: 0.08
+Nodes (11): Screen, LOADING, MENU, PAUSED, PLAYING, SETTINGS, Size, GameSettings (+3 more)
 
 ### Community 51 - "Storeys"
-Cohesion: 0.16
+Cohesion: 0.17
 Nodes (3): Corridor, Result, Storeys
 
-### Community 52 - "com.jme3.math.Vector3f"
-Cohesion: 0.19
-Nodes (6): EffectLayer, Moment, Place, Riding, com.jme3.math.Vector3f, com.jme3.renderer.Camera
+### Community 52 - "DukeMapEditor.kt"
+Cohesion: 0.04
+Nodes (56): actionmanager, alarm, anactionevent, appexecutorutil, combobox, defaultactiongroup, DefaultListModel, Checkered (+48 more)
 
 ### Community 53 - "UnitBarsTest"
 Cohesion: 0.16
 Nodes (3): UnitBarReadingTest, Screen, UnitBarsTest
 
 ### Community 55 - "DukeRecords"
-Cohesion: 0.08
-Nodes (29): CachedValue, classinheritorssearch, concurrentfactorymap, DukeRecords, DukeShape, Entries, PsiClass, PsiElement (+21 more)
+Cohesion: 0.06
+Nodes (39): CachedValue, cachedvalueprovider, cachedvaluesmanager, classinheritorssearch, concurrentfactorymap, DukeLinkReference, PsiReferenceBase, TextRange (+31 more)
 
 ### Community 56 - "StudioProject"
-Cohesion: 0.15
-Nodes (6): 6.1 Loyiha modeli, RohanVsMordor, PlayerDef, ScriptDef, StudioProject, UnitDef
+Cohesion: 0.11
+Nodes (10): playerdef, 6.1 Loyiha modeli, RohanVsMordor, FactionDef, Placement, PlayerDef, ScriptDef, StartingUnit (+2 more)
 
 ### Community 57 - "UnitVisual"
-Cohesion: 0.06
-Nodes (6): AnimationSource, Carried, Color, Theme, UnitVisual, Held
+Cohesion: 0.07
+Nodes (5): AnimationSource, Carried, Color, Theme, UnitVisual
 
-### Community 58 - ".of"
-Cohesion: 0.23
-Nodes (4): KindTest, AsciiRenderer, Override, AsciiRendererTest
+### Community 58 - "Monster.java"
+Cohesion: 0.15
+Nodes (19): Effect, Glow, collections, Clip, Grid, Group, Link, Relief (+11 more)
 
 ### Community 59 - ".generate"
-Cohesion: 0.08
-Nodes (9): BossGuard, GeneratedFloors, Override, DungeonShapeTest, MonsterPlacementTest, 8.bc Boss xonasi: qo'riqchilar INI'dan, `DungeonDepth Descent`, Qoida (+1 more)
+Cohesion: 0.09
+Nodes (7): BossGuard, DungeonShapeTest, MonsterPlacementTest, 8.bc Boss xonasi: qo'riqchilar INI'dan, `DungeonDepth Descent`, Qoida, Testlar — `MonsterPlacementTest` ga 3 ta qo'shildi
 
-### Community 60 - "AudioSink"
-Cohesion: 0.28
-Nodes (5): audiodata, AudioSink, Node, Override, com.jme3.audio.AudioNode
+### Community 60 - "DamageType"
+Cohesion: 0.06
+Nodes (19): Data, Armor, Builder, BodyModule, DamageType, ARMOR_PIERCING, EXPLOSION, FLAME (+11 more)
 
-### Community 61 - ".looks"
-Cohesion: 0.10
-Nodes (4): EffectLayerArt, Builder, DungeonEffectLayerTest, Block
+### Community 61 - "DungeonEffectLayerTest"
+Cohesion: 0.14
+Nodes (3): EffectLayerArt, DungeonEffectLayerTest, Block
 
-### Community 62 - "DataException"
-Cohesion: 0.22
-Nodes (3): DataException, Text, DukeTextTest
+### Community 62 - ".burstAt"
+Cohesion: 0.18
+Nodes (6): Blow, Gone, Landing, LandingTest, Mexanizm: yangi `SUMMON` effekti, Qaror va vaqt
 
 ### Community 63 - ".findPath"
-Cohesion: 0.14
+Cohesion: 0.13
 Nodes (3): LevelsTest, PathfinderTest, PathSmoothingTest
 
 ### Community 64 - ".getLogic"
-Cohesion: 0.08
-Nodes (8): Orders, Arena, DungeonRun, State, DEAD, RUNNING, WON, Floors
+Cohesion: 0.05
+Nodes (10): Qiyinchilik = chuqurlik, DungeonRun, State, DEAD, RUNNING, WON, Floors, Placed (+2 more)
 
-### Community 65 - "RtsLogic"
-Cohesion: 0.09
-Nodes (9): RtsClient, Override, RtsGameEngine, DefeatListener, IntervalCallback, FunctionalInterface, Logger, Override (+1 more)
+### Community 65 - "HeroPortraitTest"
+Cohesion: 0.21
+Nodes (3): Bodies, HeroPortraitTest, com.jme3.renderer.RenderManager
 
-### Community 67 - "Builder"
-Cohesion: 0.12
-Nodes (4): Builder, DepthTest, Override, TestLogic
+### Community 66 - "com.jme3.scene.Spatial"
+Cohesion: 0.11
+Nodes (10): Color, Texture, KitTiles, UnitSkinTest, com.jme3.scene.Spatial, SkinningControl, 8.bd Uchala mage o'yinning o'zida: glTF'dagi tekstura teskari o'qilardi, Ko'z bilan tekshiruv (+2 more)
+
+### Community 67 - "UnitScript"
+Cohesion: 0.07
+Nodes (14): Builder, Builder, FunctionalInterface, Custom kod, Data, Override, ScriptModule, Scripts (+6 more)
 
 ### Community 68 - "SkillEffectsTest"
 Cohesion: 0.12
 Nodes (4): Cast, Vector3f, SkillEffects, SkillEffectsTest
 
-### Community 71 - "ManaTest"
-Cohesion: 0.13
-Nodes (3): Cast, ManaTest, Determinizm — butun son, float emas
+### Community 69 - "Grid"
+Cohesion: 0.25
+Nodes (8): describe(), Grid, highestFloorAround(), layout(), pick(), rockFacedBy(), solidAt(), surfaceAt()
 
-### Community 72 - "list"
-Cohesion: 0.03
-Nodes (64): arraydeque, arraylist, arrays, assertiterableequals, biconsumer, boundingsphere, bufferedimage, Module boundaries (the most important rule) (+56 more)
+### Community 71 - "ManaTest"
+Cohesion: 0.11
+Nodes (10): Cast, ManaTest, 8.at Mana — skilllar endi resurs sarflaydi, Balans, va noto'g'ri o'lchov, Determinizm — butun son, float emas, ★ Dushmanlar uchun knob qo'shilmadi, Fikr-mulohaza, HUD (+2 more)
+
+### Community 72 - "com.jme3.math.ColorRGBA"
+Cohesion: 0.07
+Nodes (11): Flash, HitFlash, IconLook, Shade, Step, UnitBarLook, HitFlashTest, UnitBarLookTest (+3 more)
 
 ### Community 73 - "Theme"
-Cohesion: 0.14
-Nodes (12): Chosen, Themes, WhenExhausted, LAST, REPEAT, Layout, PerRoom, ProceduralMap (+4 more)
+Cohesion: 0.15
+Nodes (10): Chosen, Themes, WhenExhausted, LAST, REPEAT, Color, Standing, Theme (+2 more)
 
 ### Community 74 - "LightPool"
-Cohesion: 0.16
+Cohesion: 0.18
 Nodes (4): LightPool, Color, ProjectileEffects, com.jme3.light.PointLight
 
 ### Community 75 - "MageTest"
 Cohesion: 0.14
 Nodes (3): Arena, Data, MageTest
 
-### Community 76 - ".simpleUpdate"
-Cohesion: 0.06
-Nodes (3): MinimapProjection, Point, 8.af Hech narsa tanlanmagan bo'lsa panel bo'sh
+### Community 77 - "HostTransport"
+Cohesion: 0.23
+Nodes (5): Arrival, HostTransport, Override, Link, java.net.Socket
 
-### Community 77 - "NetMessage"
-Cohesion: 0.18
-Nodes (8): Arrival, HostTransport, Override, Link, Override, LoopbackTransport, NetMessage, java.net.Socket
-
-### Community 78 - "InspectorPanel"
+### Community 78 - "javax.swing.JPanel"
 Cohesion: 0.10
-Nodes (17): Container, java.awt.Component, CapabilityType, ATTACK, AUTO_HEAL, CAPACITY_GATE, EXPERIENCE, HARVEST (+9 more)
+Nodes (26): borderfactory, borderlayout, boxlayout, gridbaglayout, insets, java.awt.GridBagConstraints, javax.swing.Box, javax.swing.DefaultListModel (+18 more)
 
-### Community 79 - "DukeMapEditor"
-Cohesion: 0.12
-Nodes (6): DukeMapEditor, JComponent, Layer, FileEditorState, PropertyChangeListener, UserDataHolderBase
+### Community 79 - "DukePlay.kt"
+Cohesion: 0.09
+Nodes (20): argparse, main(), Bring Kenney's Particle Pack into the game at a size a laptop can afford. The…, shrink(), DukePlay, Project, VirtualFile, The two gradients a column of light is drawn from: a white-hot core and a soft… (+12 more)
 
-### Community 82 - "LootBag"
-Cohesion: 0.15
-Nodes (6): Loot, LootBag, LootTable, Data, Override, LootUpdate
+### Community 80 - ".create"
+Cohesion: 0.14
+Nodes (5): PreloadTest, ProjectileEffectsTest, Override, Stub, ThemedLookTest
 
-### Community 84 - ".create"
-Cohesion: 0.11
-Nodes (5): DukeGameTest, GameCommandTest, Shout, ReplayRoundTripTest, StatusLineTest
+### Community 84 - "WorldSnapshot"
+Cohesion: 0.18
+Nodes (5): GamePanel, Override, WorldSnapshot, java.awt.Graphics2D, java.awt.Rectangle
 
 ### Community 85 - "Reading"
 Cohesion: 0.09
@@ -671,63 +670,67 @@ Cohesion: 0.25
 Nodes (8): Piece, CAP, CORNER, FLOOR, LEDGE, ROCK_FACE, STAIR, WALL
 
 ### Community 87 - "LockstepGate"
-Cohesion: 0.08
-Nodes (7): Desync, Override, LockstepGate, Transport, Override, MultiplayerSession, java.util.function.IntConsumer
-
-### Community 88 - "MonsterSummoningTest"
-Cohesion: 0.21
-Nodes (4): Circle, Floor, MonsterSummoningTest, Rising
-
-### Community 89 - "files"
 Cohesion: 0.11
-Nodes (14): com.google.gson.Gson, files, gsonbuilder, java.nio.file.Path, playerdef, properties, standardcopyoption, stream (+6 more)
+Nodes (5): Desync, Override, LockstepGate, Transport, java.util.function.IntConsumer
 
-### Community 90 - "com.jme3.scene.Spatial"
-Cohesion: 0.12
-Nodes (6): Color, Texture, KitTiles, com.jme3.scene.Spatial, SkinningControl, 8.ag Portret — rasm emas, kichkina sahna
+### Community 90 - ".looks"
+Cohesion: 0.07
+Nodes (14): ArrowLook, Color, Builder, Channel, Held, Logger, Main, 8.bb Binafsha Skelet-Mage — chaqiruvchi (+6 more)
 
 ### Community 91 - "DukeCompletion.kt"
 Cohesion: 0.10
-Nodes (22): autopopupcontroller, CompletionContributor, CompletionParameters, CompletionResultSet, completiontype, DukeCompletionContributor, CompletionProvider, DukeTypedHandler (+14 more)
+Nodes (21): autopopupcontroller, CompletionContributor, CompletionParameters, CompletionResultSet, completiontype, DukeCompletionContributor, CompletionProvider, DukeTypedHandler (+13 more)
 
-### Community 92 - ".create"
-Cohesion: 0.15
-Nodes (5): PreloadTest, ProjectileEffectsTest, Override, Stub, ThemedLookTest
+### Community 92 - "MonsterSummoningTest"
+Cohesion: 0.21
+Nodes (4): Circle, Floor, MonsterSummoningTest, Rising
 
-### Community 93 - "SkillRanks"
-Cohesion: 0.08
-Nodes (9): Doing, FIGHTING, GUARDING, STANDING, WALKING, AttributeArt, HeroStatus, SkillRanks (+1 more)
+### Community 93 - "Attribute"
+Cohesion: 0.22
+Nodes (4): bigdecimal, Attribute, Hundredths, Progression
 
 ### Community 94 - "CursorsTest"
-Cohesion: 0.14
-Nodes (4): Over, CursorsTest, JmeCursor, com.jme3.texture.Image
+Cohesion: 0.09
+Nodes (10): Cursors, Look, Over, CursorsTest, JmeCursor, com.jme3.cursors.plugins.JmeCursor, com.jme3.input.InputManager, com.jme3.texture.Image (+2 more)
 
 ### Community 96 - "DukeEditing.kt"
 Cohesion: 0.05
 Nodes (31): bracepair, Commenter, DukeBraceMatcher, DukeCommenter, DukeFoldingBuilder, DukeStructureElement, DukeStructureViewFactory, TreeBasedStructureViewBuilder (+23 more)
 
-### Community 97 - "PsiElement"
-Cohesion: 0.18
-Nodes (5): DukeFileReference, DukeFindUsagesProvider, DukeKeyReference, DukeWordReference, PsiElement
+### Community 97 - "MoveUpdate"
+Cohesion: 0.05
+Nodes (14): Data, Override, MoveUpdate, Chasing, HeroBrain, Override, Override, MonsterBrain (+6 more)
+
+### Community 98 - "StudioWindow.java"
+Cohesion: 0.07
+Nodes (24): ActionListener, appsettings, Duke3D, com.google.gson.Gson, dimension, filenameextensionfilter, GameWindow, gsonbuilder (+16 more)
+
+### Community 99 - "RtsPlayer"
+Cohesion: 0.07
+Nodes (5): Player, PlayerListTest, ScoredPlayer, RtsPlayer, ★ Engine'ning puli ishlatilmadi, va nega
+
+### Community 100 - "DukeRtsApp"
+Cohesion: 0.06
+Nodes (4): DukeRtsApp, Preferences, Rad etish qurollantirishdan *oldin*, Vector4f
 
 ### Community 101 - "MonsterKindsTest"
-Cohesion: 0.20
-Nodes (3): Fight, Data, MonsterKindsTest
+Cohesion: 0.17
+Nodes (4): Fight, Data, MonsterKindsTest, 8.az Skelet-Mage skill orasida oddiy ataka qiladi, olov shari kuchliroq
 
-### Community 103 - "Replay"
-Cohesion: 0.14
-Nodes (5): `uz.duke.core.replay` — o'yinni yozib olish, Replay, Override, ReplayMismatch, 3.6e Replay — o'yinni yozib olish
+### Community 103 - ".world"
+Cohesion: 0.37
+Nodes (3): ClimbingTest, Override, TestLogic
 
-### Community 104 - "AttackObject"
-Cohesion: 0.09
-Nodes (12): `dungeon` — Duke Dungeon (engine'dagi ilk o'yin), Hozirgi qadam, Ikkita nozik joy, Keyingi qadamlar (hozir YO'Q), Klient — engine'ning 3D klienti, DungeonCombatTest, Fight, DungeonTest (+4 more)
+### Community 104 - "8.bh Statistika bloki Warcraft III uslubida, atributlar ro'yxati INI'da"
+Cohesion: 0.10
+Nodes (9): PanelBlock, BAG, DEPTH, HERO, MINIMAP, SKILLS, StatLook, PanelHitTest (+1 more)
 
 ### Community 106 - "MonsterHealingTest"
-Cohesion: 0.08
-Nodes (16): Change, Death, HealthWatch, Blow, Gone, Landing, HealthWatchTest, LandingTest (+8 more)
+Cohesion: 0.32
+Nodes (3): Hurt, MonsterHealingTest, Ward
 
 ### Community 107 - ".frame"
-Cohesion: 0.21
+Cohesion: 0.19
 Nodes (3): NineSlice, Rect, NineSliceTest
 
 ### Community 108 - "BannerPanel"
@@ -735,92 +738,100 @@ Cohesion: 0.14
 Nodes (6): BannerPanel, PanelSkin, Piece, BannerPanelTest, BitmapText, Screen
 
 ### Community 110 - "FloatingNumbers"
-Cohesion: 0.11
-Nodes (5): FloatingNumbers, Mark, HitNumbers, FloatingNumbersTest, Screen
+Cohesion: 0.14
+Nodes (3): FloatingNumbers, Mark, HitNumbers
 
 ### Community 111 - "Heard"
-Cohesion: 0.19
+Cohesion: 0.21
 Nodes (3): Heard, Override, SoundsTest
 
 ### Community 112 - "DukeBlock"
-Cohesion: 0.13
-Nodes (12): DukeBlock, Icon, ItemPresentation, DukeEdits, Document, Project, PsiElement, PsiFile (+4 more)
+Cohesion: 0.12
+Nodes (9): DukeBlock, DukeEdits, Document, Project, PsiElement, PsiFile, TextRange, MapScene (+1 more)
 
 ### Community 113 - "Sounds"
-Cohesion: 0.18
+Cohesion: 0.16
 Nodes (8): Channel, EFFECTS, MUSIC, UI, VOICE, Sounds, SoundSink, java.util.random.RandomGenerator
 
 ### Community 114 - "LockstepGateTest"
 Cohesion: 0.23
 Nodes (5): Override, LockstepGateTest, Peer, PeerLogic, Switchboard
 
-### Community 115 - "UnitView"
-Cohesion: 0.07
-Nodes (16): Dying, UnitNode, GameSounds, com.jme3.animation.AnimChannel, Override, UnitView, Override, PowerGrid (+8 more)
+### Community 115 - "DukeTextTest"
+Cohesion: 0.29
+Nodes (3): Items, Text, DukeTextTest
 
-### Community 116 - "ModuleGroupsTest"
-Cohesion: 0.19
-Nodes (4): BiggerBlast, ModuleGroupsTest, Unfiled, EveryModuleIsGroupedTest
+### Community 116 - "10. Tuzoqlar (gotchas)"
+Cohesion: 0.09
+Nodes (12): 10. Tuzoqlar (gotchas), 11. Fayl xaritasi (asosiylari), 4.2 `setUp()` tartibi — muhim, 4.3 Thread modeli, 4.5 Multiplayer, 4. `game` — Unity-uslub qatlam (12 fayl), 9. Nima yo'q / ochiq ishlar, Duke Dungeon — ataylab qilinmagan narsalar (+4 more)
 
-### Community 117 - ".heroes"
-Cohesion: 0.22
-Nodes (3): Fight, KnightOrderTest, 8.ap Ritsar nega urmasdi — ikkita raqam, ikkita boshqa fayl
+### Community 117 - "PanelLookTest"
+Cohesion: 0.12
+Nodes (13): PanelAnchor, BOTTOM, BOTTOM_LEFT, BOTTOM_RIGHT, LEFT, MIDDLE, RIGHT, TOP (+5 more)
 
 ### Community 118 - "DukeParser.kt"
 Cohesion: 0.13
 Nodes (14): DukeElementType, DukeTypes, DukeParserDefinition, ASTNode, IElementType, Project, PsiElement, FileViewProvider (+6 more)
 
 ### Community 119 - "StagePlayTest"
-Cohesion: 0.17
-Nodes (3): StageDifficultyTest, StagePlayTest, 8.am Stage — o'zgarmaydigan xarita, va uni yasaydigan asbob
+Cohesion: 0.21
+Nodes (3): HandDrawnMapTest, StagePlayTest, 8.am Stage — o'zgarmaydigan xarita, va uni yasaydigan asbob
 
 ### Community 121 - "StaticMap"
 Cohesion: 0.09
-Nodes (10): Cell, Link, Placed, Room, StaticMap, Placed, StageFile, Logger (+2 more)
+Nodes (13): Format — `dungeon/src/main/resources/maps/first/first.map`, O'lcham, Stage rejimi — o'zgarmaydigan xarita, Cell, Link, Placed, Room, StaticMap (+5 more)
 
 ### Community 125 - "ModelPreview.kt"
-Cohesion: 0.23
-Nodes (14): BoolRef, CefBrowser, CefFrame, cefloadhandleradapter, CefRequest, cefrequesthandleradapter, CefResourceHandler, CefResourceRequestHandler (+6 more)
+Cohesion: 0.08
+Nodes (32): BoolRef, ByteArray, CefBrowser, CefCallback, CefFrame, cefloadhandleradapter, cefpostdataelement, CefRequest (+24 more)
 
-### Community 126 - "AnimationLibrary"
-Cohesion: 0.27
-Nodes (5): AnimationLibrary, com.jme3.anim.Armature, com.jme3.anim.Joint, Quaternion, ★ Ikkinchi nuqson: sehrgar yotib animatsiya qilardi
+### Community 126 - "SoundBank"
+Cohesion: 0.16
+Nodes (3): Builder, Cue, SoundBank
 
-### Community 127 - "BinderTest"
-Cohesion: 0.22
-Nodes (12): At, BinderTest, Channel, EFFECTS, MUSIC, Crate, Generation, Held (+4 more)
+### Community 127 - "FloatingNumbersTest"
+Cohesion: 0.15
+Nodes (6): Change, Death, HealthWatch, FloatingNumbersTest, Screen, HealthWatchTest
 
-### Community 129 - "ReplayTest"
-Cohesion: 0.26
-Nodes (4): Override, ReplayTest, ScriptedLogic, TestCodec
+### Community 128 - "SkillLookTest"
+Cohesion: 0.11
+Nodes (7): ProjectileEffectTest, SkillLookTest, 8.ay Skelet-Mage — skill ishlatadigan birinchi monster, Ko'z bilan tekshiruv (yashirin oynada), Ochiq qolganlar, Skelet-Mage, Testlar
+
+### Community 129 - "Replay"
+Cohesion: 0.14
+Nodes (6): `uz.duke.core.replay` — o'yinni yozib olish, Replay, Override, ReplayMismatch, ReplayTest, 3.6e Replay — o'yinni yozib olish
+
+### Community 130 - "GameObject"
+Cohesion: 0.04
+Nodes (14): GameObject, World, KeepingDistance, SightLine, ArrowUpdate, Data, Override, Data (+6 more)
 
 ### Community 131 - "SkillEffect"
 Cohesion: 0.12
 Nodes (17): Aim, GROUND, OPEN_GROUND, SELF, UNIT, SkillEffect, AREA_AT_SPOT, AREA_DAMAGE (+9 more)
 
-### Community 132 - "ExperienceModuleTest"
-Cohesion: 0.22
-Nodes (4): Data, Data, Rank, ExperienceModuleTest
+### Community 133 - "PsiElement"
+Cohesion: 0.18
+Nodes (5): DukeFileReference, DukeFindUsagesProvider, DukeKeyReference, DukeWordReference, PsiElement
 
-### Community 133 - "ScriptEngine"
-Cohesion: 0.48
-Nodes (4): `uz.duke.core.script` — trigger'lar, ScriptEngine, Trigger, Studio'da ochilmagan engine imkoniyatlari
+### Community 134 - ".of"
+Cohesion: 0.12
+Nodes (3): LayoutTest, StageDifficultyTest, 8.ao Bosqich qanchalik katta va qanchalik qiyin — generatsiyadan oldin so'raladi
 
-### Community 134 - "OrderMarkers"
-Cohesion: 0.15
-Nodes (7): Kind, ATTACK, ATTACK_MOVE, MOVE, Marker, OrderMarkers, OrderMarkersTest
+### Community 135 - "ModuleData"
+Cohesion: 0.04
+Nodes (47): `uz.duke.core.module` — janrsiz xulq modullari, Module, ModuleData, ModuleGroup, ModuleGroups, UpdateModule, ObjectStatus, DISABLED (+39 more)
 
-### Community 135 - "Content.java"
-Cohesion: 0.02
-Nodes (81): Builder, `uz.duke.core.module` — janrsiz xulq modullari, GameConstants, Data, DamageType, ARMOR_PIERCING, EXPLOSION, FLAME (+73 more)
+### Community 136 - "MoveTo"
+Cohesion: 0.17
+Nodes (4): DungeonCombatTest, Fight, DungeonTest, MoveTo
 
 ### Community 137 - "NameKeyGenerator"
-Cohesion: 0.20
-Nodes (5): `uz.duke.core` — sikl va hayot sikli, Override, NameKeyGenerator, NameKeyType, NameKeyGeneratorTest
+Cohesion: 0.19
+Nodes (5): O'chirish tahlili, Override, NameKeyGenerator, NameKeyType, NameKeyGeneratorTest
 
-### Community 138 - "SoundBank"
-Cohesion: 0.17
-Nodes (3): Builder, Cue, SoundBank
+### Community 138 - "com.jme3.scene.Node"
+Cohesion: 0.07
+Nodes (11): AttackFlash, Chevrons, Mark, GroundRing, OrderMark, Step, RangeLook, ColorRGBA (+3 more)
 
 ### Community 142 - "SoundTouchesNothingTest"
 Cohesion: 0.29
@@ -830,329 +841,345 @@ Nodes (4): Override, Vector3f, Recorder, SoundTouchesNothingTest
 Cohesion: 0.25
 Nodes (7): Baked, BitmapFontBaker, Glyph, Graphics2D, FontMetrics, java.awt.Font, java.awt.font.FontRenderContext
 
-### Community 144 - ".asCloseAsHeCanGet"
-Cohesion: 0.27
-Nodes (3): Destination, DestinationTest, 8.aa Xona birga jang qiladi, tiqilgan narsa to'xtaydi
-
 ### Community 146 - "Duke Dungeon"
+Cohesion: 0.17
+Nodes (12): Duke Dungeon, The audio, in full, The frames, and why they keep Kenney's numbering, The icons, and what is not known about them, The icons that came before, The lettering, The level-up sound — licence to confirm, The music — licences to confirm (+4 more)
+
+### Community 147 - ".of"
 Cohesion: 0.10
-Nodes (19): Credits, Duke Dungeon, The audio, in full, The frames, and why they keep Kenney's numbering, The icons, and what is not known about them, The icons that came before, The kit, The lettering (+11 more)
+Nodes (9): Described, MapTemplate, MapTerrain, Peopled, Scaled, Cave, Floor, MapTerrainTest (+1 more)
 
-### Community 147 - ".everySizeTheGameMakes"
-Cohesion: 0.22
-Nodes (3): BarStep, UnitBar, DungeonUnitBarTest
-
-### Community 148 - "Cursors"
-Cohesion: 0.23
-Nodes (5): Cursors, Look, com.jme3.cursors.plugins.JmeCursor, com.jme3.input.InputManager, intbuffer
+### Community 148 - "PacketCodec"
+Cohesion: 0.14
+Nodes (4): NetFraming, PacketCodec, Override, ReplayRecorder
 
 ### Community 149 - "ModuleCompositionTest"
 Cohesion: 0.22
 Nodes (4): Override, Legs, ModuleCompositionTest, Ticker
 
 ### Community 150 - "GameFactory"
-Cohesion: 0.20
+Cohesion: 0.18
 Nodes (6): 6.2 Capability → engine modul jadvali, 6.3 UI, 6.5 Map va asset importi, 6.6 Export yo'li, 6. `studio` — Duke Studio IDE (17 fayl), GameFactory
 
-### Community 151 - "8.at Mana — skilllar endi resurs sarflaydi"
-Cohesion: 0.25
-Nodes (7): 8.at Mana — skilllar endi resurs sarflaydi, Balans, va noto'g'ri o'lchov, ★ Dushmanlar uchun knob qo'shilmadi, Fikr-mulohaza, HUD, Sig'im va tarkib ajratildi, Tiklash manbalari
+### Community 153 - "AnimationLibrary"
+Cohesion: 0.15
+Nodes (11): AnimationLibrary, com.jme3.anim.Joint, Quaternion, 1. ✅ Rig muammosi umuman yo'q edi, 3. ⚠️ Davomiylik teskari tomonga og'gan, 8.as Meteor uchun ikki qo'llik animatsiya, va skill animatsiyasi degan mexanizm, ★ Ikkinchi nuqson: sehrgar yotib animatsiya qilardi, Konvertatsiya (+3 more)
 
 ### Community 154 - "FogMap"
 Cohesion: 0.16
 Nodes (6): FogMap, ColorRGBA, FogMapTest, colorspace, com.jme3.texture.Texture2D, java.nio.ByteBuffer
 
-### Community 155 - "ProductionUpdate"
-Cohesion: 0.11
-Nodes (5): Buildable, Data, Override, Job, ProductionUpdate
-
 ### Community 156 - "StaticObstacleTest"
 Cohesion: 0.31
 Nodes (3): Override, StaticObstacleTest, TestLogic
 
-### Community 158 - "WedgedTest"
-Cohesion: 0.30
-Nodes (3): Queue, Watch, WedgedTest
+### Community 157 - "MapPicture"
+Cohesion: 0.18
+Nodes (5): Graphics2D, MapPicture, Drawn, MapWriter, MapPictureTest
+
+### Community 158 - "Content.java"
+Cohesion: 0.03
+Nodes (34): MenuStyle, The pointers, PortraitArt, LootKind, ARMOUR, ATTACK, ATTRIBUTE, HEALTH (+26 more)
 
 ### Community 159 - "graphify reference: extra exports and benchmark"
 Cohesion: 0.22
 Nodes (8): graphify reference: extra exports and benchmark, Step 6b - Wiki (only if --wiki flag), Step 7 - Neo4j export (only if --neo4j or --neo4j-push flag), Step 7a - FalkorDB export (only if --falkordb or --falkordb-push flag), Step 7b - SVG export (only if --svg flag), Step 7c - GraphML export (only if --graphml flag), Step 7d - MCP server (only if --mcp flag), Step 8 - Token reduction benchmark (only if total_words > 5000)
 
 ### Community 160 - "SelectionBoxTest"
-Cohesion: 0.24
+Cohesion: 0.27
 Nodes (3): Candidate, SelectionBox, SelectionBoxTest
 
 ### Community 161 - "RunMoments"
-Cohesion: 0.19
-Nodes (10): Moment, RunMoments, RunMomentsTest, Descent, 8.aw Nur ustuni (`PILLAR`) — daraja, boss, yangi qavat, Ko'z bilan tekshirildi (yashirin oynada), Ovoz, Qanday chiziladi (+2 more)
+Cohesion: 0.21
+Nodes (8): Moment, RunMoments, RunMomentsTest, 8.aw Nur ustuni (`PILLAR`) — daraja, boss, yangi qavat, Ko'z bilan tekshirildi (yashirin oynada), Ovoz, Qanday chiziladi, Testlar
 
-### Community 162 - "AttributesTest"
-Cohesion: 0.07
-Nodes (15): AttributeRules, Attributes, Override, Data, HeroAttributes, HeroBase, HeroBuild, Found (+7 more)
-
-### Community 163 - "Stage"
-Cohesion: 0.08
-Nodes (9): Layout, Override, StageFloors, Drawn, MapWriter, Stage, StageCheck, LayoutTest (+1 more)
-
-### Community 165 - ".themes"
-Cohesion: 0.17
-Nodes (3): ThemesTest, DungeonFontTest, BitmapFont
+### Community 165 - "Locomotor"
+Cohesion: 0.29
+Nodes (3): `uz.duke.core.pathfind` — yo'l topish, Locomotor, 3.6c Harakatlanmaydigan jism = relyef
 
 ### Community 166 - "HeroProgressTest"
 Cohesion: 0.29
 Nodes (3): Arena, Fight, HeroProgressTest
 
-### Community 168 - "Heard"
-Cohesion: 0.38
-Nodes (3): Heard, Override, SelectedCardSoundTest
+### Community 168 - ".create"
+Cohesion: 0.15
+Nodes (4): DukeGameTest, GameCommandTest, Shout, ReplayRoundTripTest
 
 ### Community 170 - "GameExporter"
-Cohesion: 0.18
+Cohesion: 0.19
 Nodes (4): graphify reference: transcribe video and audio, Step 2.5 - Transcribe video / audio files (only if video files detected), ExportExample, GameExporter
 
-### Community 171 - "shrink_particles.py"
-Cohesion: 0.15
-Nodes (11): argparse, main(), Bring Kenney's Particle Pack into the game at a size a laptop can afford. The…, shrink(), The two gradients a column of light is drawn from: a white-hot core and a soft…, numpy, os, Path (+3 more)
-
-### Community 172 - "MonsterKind"
-Cohesion: 0.09
-Nodes (7): AnimationSet, Held, Color, MonsterKind, Color, MonsterLook, ThemeMonster
-
-### Community 173 - "HotkeysTest"
-Cohesion: 0.17
-Nodes (3): HotkeysTest, PowerTest, 8.ax Daraja oshganda kuch tanlash olib tashlandi
-
-### Community 174 - "ScriptEngineTest"
-Cohesion: 0.23
-Nodes (3): Override, ScriptEngineTest, TestLogic
-
-### Community 175 - "DukeClips"
+### Community 171 - "DukeClips"
 Cohesion: 0.21
 Nodes (7): ByteBuffer, byteorder, concurrenthashmap, DukeClips, VirtualFile, Read, inputstream
 
-### Community 176 - "HarvestTest"
-Cohesion: 0.25
-Nodes (3): HarvestTest, Override, TestLogic
+### Community 173 - ".world"
+Cohesion: 0.40
+Nodes (3): FlatWorldChecksumTest, Override, TestLogic
+
+### Community 174 - "Heard"
+Cohesion: 0.38
+Nodes (3): Heard, Override, SelectedCardSoundTest
+
+### Community 175 - "Content"
+Cohesion: 0.09
+Nodes (9): DataException, GameConstants, Block, Content, Game, Monster, Prop, intstream (+1 more)
+
+### Community 176 - "InspectorPanel"
+Cohesion: 0.20
+Nodes (6): Container, java.awt.Component, javax.swing.JCheckBox, AssetHandler, InspectorPanel, JComboBox
 
 ### Community 177 - "HoldGroundTest"
 Cohesion: 0.19
 Nodes (4): HoldGround, HoldGroundTest, Standoff, 8.ac Panel maketga to'liq keltirildi
 
-### Community 178 - ".world"
-Cohesion: 0.37
-Nodes (3): ClimbingTest, Override, TestLogic
-
-### Community 179 - "ModelPreview"
-Cohesion: 0.27
-Nodes (4): Color, Disposable, JComponent, ModelPreview
-
 ### Community 180 - "RangeRingsTest"
-Cohesion: 0.11
-Nodes (11): Shape, AROUND_HIM, AT_A_CREATURE, AT_A_SPOT, DOWN_A_LANE, ON_HIMSELF, SkillRange, RangeRingsTest (+3 more)
+Cohesion: 0.16
+Nodes (10): Shape, AROUND_HIM, AT_A_CREATURE, AT_A_SPOT, DOWN_A_LANE, ON_HIMSELF, SkillRange, RangeRingsTest (+2 more)
+
+### Community 181 - "ModuleGroupsTest"
+Cohesion: 0.19
+Nodes (4): BiggerBlast, ModuleGroupsTest, Unfiled, EveryModuleIsGroupedTest
+
+### Community 182 - "com.jme3.math.Vector3f"
+Cohesion: 0.18
+Nodes (6): Override, music(), musicGain(), play(), GroundPickTest, com.jme3.math.Vector3f
 
 ### Community 183 - "CollisionTest"
 Cohesion: 0.37
 Nodes (3): CollisionTest, Override, TestLogic
 
-### Community 184 - "HeroProgress"
-Cohesion: 0.14
-Nodes (3): HeroProgress, Levelling, LevellingTest
+### Community 184 - "8.bg Atributlar — Kuch, Epchillik, Aql"
+Cohesion: 0.24
+Nodes (3): Levelling, LevellingTest, 8.bg Atributlar — Kuch, Epchillik, Aql
 
-### Community 185 - "PacketCodec"
-Cohesion: 0.15
-Nodes (5): PacketCodec, Override, SocketTransport, Override, ReplayRecorder
+### Community 185 - "8.av Skill effektlari — qatlamlangan zarrachalar"
+Cohesion: 0.20
+Nodes (10): 8.av Skill effektlari — qatlamlangan zarrachalar, Brif bilan ziddiyatlar, Byudjet — maqsad emas, shift, Cover — yorug'lik bilan modda o'rtasi, Effekt — bir nechta qatlam, har biri o'z ishini qiladi, Ekranni egallamasdan ko'z bilan tekshirildi, Ochiq qolganlar, Qancha davom etishi va qanchalik keng — skillning o'zidan (+2 more)
 
-### Community 188 - ".registerScript"
-Cohesion: 0.17
-Nodes (5): Builder, FunctionalInterface, Broken, Override, ScriptModuleTest
+### Community 186 - "MinimapProjectionTest"
+Cohesion: 0.20
+Nodes (3): MinimapProjectionTest, DungeonFontTest, BitmapFont
+
+### Community 188 - "MultiplayerSession"
+Cohesion: 0.10
+Nodes (7): SessionState, DESYNCED, DISCONNECTED, RUNNING, Override, MultiplayerSession, 7. Uchidan-uchiga oqim
 
 ### Community 189 - "DukeInspector.kt"
-Cohesion: 0.03
-Nodes (91): actionlink, actionmanager, actionupdatethread, alarm, anactionevent, appexecutorutil, applicationmanager, CaretEvent (+83 more)
+Cohesion: 0.04
+Nodes (58): actionupdatethread, CaretEvent, caretlistener, contentfactory, caretPositionChanged(), changedUpdate(), Column, documentChanged() (+50 more)
 
-### Community 190 - "Block"
-Cohesion: 0.20
-Nodes (7): `uz.duke.core.data` — `.duke` ma'lumot qatlami, Block, Field, Items, Nested, NestedList, Value
+### Community 190 - "UnitView"
+Cohesion: 0.08
+Nodes (9): Dying, UnitNode, GameSounds, com.jme3.anim.AnimComposer, Override, UnitView, PowerGrid, 8.ag Portret — rasm emas, kichkina sahna (+1 more)
 
 ### Community 191 - "ScriptCompiler.java"
-Cohesion: 0.10
-Nodes (15): bytearrayoutputstream, diagnosticcollector, fileobject, forwardingjavafilemanager, javafileobject, javax.tools.SimpleJavaFileObject, outputstream, standardjavafilemanager (+7 more)
+Cohesion: 0.11
+Nodes (13): diagnosticcollector, fileobject, forwardingjavafilemanager, javafileobject, javax.tools.SimpleJavaFileObject, outputstream, standardjavafilemanager, Override (+5 more)
 
-### Community 193 - "SocketTransport.java"
-Cohesion: 0.33
-Nodes (7): bufferedreader, bufferedwriter, copyonwritearraylist, inputstreamreader, java.net.ServerSocket, java.util.concurrent.ConcurrentLinkedQueue, outputstreamwriter
+### Community 192 - "SpecialPowerTest"
+Cohesion: 0.05
+Nodes (19): Bilib qo'yish kerak, Boshqa, Gameplay modullari, Nima bor, O'chirish tahlili, `rts` — RTS janr moduli, GameSnapshot, ContainTest (+11 more)
 
-### Community 194 - "Nima bor"
-Cohesion: 0.33
-Nodes (5): Bilib qo'yish kerak, Boshqa, Gameplay modullari, Nima bor, `rts` — RTS janr moduli
+### Community 193 - "GameLogic"
+Cohesion: 0.02
+Nodes (63): Module boundaries (the most important rule), `core` — janrsiz engine yadrosi, Determinizm haqida bitta qattiq qoida, Nima bor (paket bo'yicha), Ochiq ishlar, `uz.duke.core.client` — rendering choki, `uz.duke.core.data` — `.duke` ma'lumot qatlami, `uz.duke.core.event` — lahzalar kanali (+55 more)
+
+### Community 194 - "duke-engine"
+Cohesion: 0.20
+Nodes (8): Credits, The kit, Architecture, Build, duke-engine, License, Modules, Status
 
 ### Community 195 - ".plan"
-Cohesion: 0.16
+Cohesion: 0.17
 Nodes (8): Job, Kind, ANIMATIONS, MODEL, SOUND, TEXTURE, TILE, Preload
 
-### Community 196 - "Served"
-Cohesion: 0.28
-Nodes (6): CefCallback, CefResourceHandlerAdapter, CefResponse, Served, IntRef, StringRef
+### Community 196 - "DukeEngineSourcesTest.kt"
+Cohesion: 0.06
+Nodes (23): allicons, DukeFileType, DukeLanguage, Icon, DukeBundle, DukeMapAnnotator, AnnotationHolder, Annotator (+15 more)
 
-### Community 197 - "SessionState"
-Cohesion: 0.25
-Nodes (4): SessionState, DESYNCED, DISCONNECTED, RUNNING
+### Community 197 - "AttackObject"
+Cohesion: 0.23
+Nodes (7): `dungeon` — Duke Dungeon (engine'dagi ilk o'yin), Hozirgi qadam, Ikkita nozik joy, Keyingi qadamlar (hozir YO'Q), Klient — engine'ning 3D klienti, AttackObject, CombatTest
 
 ### Community 198 - "graphify reference: query, path, explain"
 Cohesion: 0.33
 Nodes (5): For /graphify explain, For /graphify path, graphify reference: query, path, explain, Step 0 — Constrained query expansion (REQUIRED before traversal), Step 1 — Traversal
 
-### Community 199 - "DamageModifierTest"
-Cohesion: 0.37
-Nodes (3): DamageModifierTest, Override, Sharpened
+### Community 199 - "arrange"
+Cohesion: 0.29
+Nodes (8): arrange(), bits(), blend(), measure(), plan(), shaded(), steady(), upright()
 
 ### Community 200 - "HeroPortrait"
-Cohesion: 0.05
-Nodes (23): ambientlight, State, REMEMBERED, UNSEEN, VISIBLE, Bodies, HeroPortrait, Clips (+15 more)
+Cohesion: 0.06
+Nodes (15): State, REMEMBERED, UNSEEN, VISIBLE, HeroPortrait, Clips, PortraitLook, State (+7 more)
 
-### Community 205 - "Place"
-Cohesion: 0.24
-Nodes (3): Surroundings, Override, Place
+### Community 202 - "SkillBook"
+Cohesion: 0.05
+Nodes (14): Skill, CastMark, Data, Override, SkillBook, Words, SkillTip, Words (+6 more)
+
+### Community 204 - "WedgedTest"
+Cohesion: 0.30
+Nodes (3): Queue, Watch, WedgedTest
 
 ### Community 206 - ".spread"
 Cohesion: 0.31
 Nodes (3): Formation, Spot, FormationTest
 
+### Community 207 - "GeneratedDungeon"
+Cohesion: 0.24
+Nodes (5): GeneratedDungeon, Link, Override, StageFloors, Stage
+
 ### Community 208 - "LockstepScheduler"
-Cohesion: 0.20
-Nodes (4): Override, LockstepScheduler, LockstepSchedulerTest, 3.7 Tarmoq (lock-step)
+Cohesion: 0.22
+Nodes (3): Override, LockstepScheduler, LockstepSchedulerTest
 
 ### Community 210 - "SolidWorldTest"
 Cohesion: 0.36
 Nodes (3): Override, SolidWorldTest, TestLogic
 
-### Community 212 - "ObjectId"
-Cohesion: 0.03
-Nodes (48): atomicinteger, atomicreference, collectors, color, `core` — janrsiz engine yadrosi, Determinizm haqida bitta qattiq qoida, Ochiq ishlar, `uz.duke.core.message` — buyruq quvuri (+40 more)
-
-### Community 213 - "8.bb Binafsha Skelet-Mage — chaqiruvchi"
+### Community 212 - "Doing"
 Cohesion: 0.29
-Nodes (7): 8.bb Binafsha Skelet-Mage — chaqiruvchi, Chegara va kuluar, Joy tanlash (`Summoning`) — deterministik, `Math.random` yo'q, Testlar — `MonsterSummoningTest` (10 ta), Tur: `SkeletonSummoner`, Unumdorlik, XP va chuqurlik
+Nodes (6): Doing, FIGHTING, GUARDING, STANDING, WALKING, of()
 
 ### Community 214 - "graphify reference: add a URL and watch a folder"
 Cohesion: 0.50
 Nodes (3): For /graphify add, For --watch, graphify reference: add a URL and watch a folder
 
-### Community 215 - "Main.java"
-Cohesion: 0.20
-Nodes (4): appsettings, Duke3D, HeroLook, fog
+### Community 215 - "MapPackage"
+Cohesion: 0.11
+Nodes (6): Override, MapPackage, MapPackages, MapPackageTest, java.net.URI, java.nio.file.FileSystem
 
-### Community 216 - "MapDef"
-Cohesion: 0.14
-Nodes (8): Box, IconSheets, Sheet, imageio, java.awt.image.BufferedImage, MapImporter, MapDef, Placement
+### Community 216 - "IconSheets"
+Cohesion: 0.26
+Nodes (4): Box, IconSheets, Sheet, java.awt.image.BufferedImage
+
+### Community 217 - "ProductionGateTest"
+Cohesion: 0.32
+Nodes (3): Override, Permit, ProductionGateTest
 
 ### Community 218 - "graphify reference: commit hook and native CLAUDE.md integration"
 Cohesion: 0.50
 Nodes (3): For git commit hook, For native CLAUDE.md integration, graphify reference: commit hook and native CLAUDE.md integration
 
-### Community 219 - "Attribute"
-Cohesion: 0.29
-Nodes (3): bigdecimal, Attribute, Hundredths
+### Community 219 - "AudioSink"
+Cohesion: 0.28
+Nodes (5): audiodata, AudioSink, Node, Override, com.jme3.audio.AudioNode
 
-### Community 221 - "DukePlayTest.kt"
-Cohesion: 0.32
-Nodes (4): PreviewFilesTest, rule, temporaryfolder, test
+### Community 220 - "CapabilityType"
+Cohesion: 0.16
+Nodes (12): CapabilityType, ATTACK, AUTO_HEAL, CAPACITY_GATE, EXPERIENCE, HARVEST, MOVE, POWER (+4 more)
+
+### Community 221 - "HotkeysTest"
+Cohesion: 0.16
+Nodes (3): HotkeysTest, PowerTest, 8.ax Daraja oshganda kuch tanlash olib tashlandi
 
 ### Community 222 - "CountingLogic"
 Cohesion: 0.36
 Nodes (4): CountingLogic, GameLogicTest, Override, Storeyed
 
-### Community 223 - "StatusUpdateTest"
-Cohesion: 0.36
-Nodes (3): Override, StatusUpdateTest, TestLogic
+### Community 223 - "Place"
+Cohesion: 0.19
+Nodes (3): Surroundings, Override, Place
+
+### Community 224 - "NetMessage"
+Cohesion: 0.14
+Nodes (15): `uz.duke.core.network` — lock-step, FrameChecksum, Override, LoopbackTransport, NetMessage, PeerLeft, Override, SessionHalted (+7 more)
 
 ### Community 225 - "Binder"
 Cohesion: 0.17
 Nodes (5): ClassValue, Binder, java.lang.reflect.Method, java.lang.reflect.RecordComponent, java.lang.reflect.Type
 
 ### Community 227 - "Nima bor"
-Cohesion: 0.14
+Cohesion: 0.13
 Nodes (12): 1. Bir qarashda, IO va export, Ma'lum kamchiliklar, Model (loyiha hujjati), Nima bor, O'chirish tahlili, O'YIN MAZMUNI (engine emas), `studio` — Duke Studio IDE (+4 more)
 
 ### Community 230 - "fbx_to_glb.py"
 Cohesion: 0.40
 Nodes (3): bpy, Turns an .fbx of one animation into a .glb the game can read. ./gradlew…, sys
 
-### Community 231 - "O'chirish tahlili"
-Cohesion: 0.29
-Nodes (5): O'chirish tahlili, DukeBundle, dynamicbundle, nls, propertykey
-
 ### Community 234 - "Duke-plugin"
 Cohesion: 0.10
 Nodes (19): 0.1.0-beta.1 - 2026-09-19, Added, Added, Duke-plugin Changelog, Removed, Unreleased, Assets, Build script (+11 more)
+
+### Community 235 - ".named"
+Cohesion: 0.31
+Nodes (3): DepthTest, Override, TestLogic
 
 ### Community 236 - "duke-plugin/gradlew"
 Cohesion: 0.83
 Nodes (3): gradlew script, die(), warn()
 
-### Community 237 - "Effect"
-Cohesion: 0.21
-Nodes (14): Effect, Glow, Clip, Grid, Group, Link, Moment, elementtype (+6 more)
+### Community 237 - "DamageModifierTest"
+Cohesion: 0.37
+Nodes (3): DamageModifierTest, Override, Sharpened
 
 ### Community 238 - "gradlew"
 Cohesion: 0.83
 Nodes (3): gradlew script, die(), warn()
 
-### Community 262 - "ProductionGateTest"
-Cohesion: 0.22
-Nodes (5): Override, TestLogic, Override, Permit, ProductionGateTest
+### Community 257 - "WeaponHoldTest"
+Cohesion: 0.36
+Nodes (3): Busy, Override, WeaponHoldTest
 
 ### Community 264 - "DukeGame"
 Cohesion: 0.06
-Nodes (11): Fasad va mantiq, BuildOption, DukeGame, IntConsumer, Logger, ServerSocket, SkirmishAssembler, UnitText (+3 more)
+Nodes (13): Fasad va mantiq, BuildOption, DukeGame, IntConsumer, Logger, ServerSocket, SkirmishAssembler, UnitText (+5 more)
 
-### Community 268 - "DukeEngineSourcesTest.kt"
-Cohesion: 0.06
-Nodes (26): AssetKind, AUDIO, DATA, FONT, IMAGE, MODEL, DukeAssets, PsiElement (+18 more)
+### Community 265 - "HeroFigures"
+Cohesion: 0.27
+Nodes (6): HeroBase, Found, HeroFigures, Find, Hero, HeroFiguresGoldenTest
 
-### Community 270 - "WeaponHoldTest"
-Cohesion: 0.22
-Nodes (5): CombatLogic, Override, Busy, Override, WeaponHoldTest
+### Community 268 - "AssetKind"
+Cohesion: 0.08
+Nodes (21): AssetKind, AUDIO, DATA, FONT, IMAGE, MODEL, DukeAssets, PsiElement (+13 more)
+
+### Community 270 - "ProjectileLauncherTest"
+Cohesion: 0.28
+Nodes (4): Override, ProjectileLauncherTest, Quiver, Sharpened
 
 ### Community 271 - "graphify reference: incremental update and cluster-only"
 Cohesion: 0.50
 Nodes (3): For --cluster-only, For --update (incremental re-extraction), graphify reference: incremental update and cluster-only
 
+### Community 274 - ".heroes"
+Cohesion: 0.14
+Nodes (4): DungeonUnitBarTest, Fight, KnightOrderTest, 8.ap Ritsar nega urmasdi — ikkita raqam, ikkita boshqa fayl
+
 ### Community 275 - "DukeRecordsTest"
-Cohesion: 0.07
-Nodes (11): BasePlatformTestCase, addEngineStubs(), DukeRecordsTest, DukeSyntaxTest, LightJavaCodeInsightFixtureTestCase, javacodeinsighttestfixture, lookup, platformtestutil (+3 more)
+Cohesion: 0.08
+Nodes (10): BasePlatformTestCase, addEngineStubs(), DukeRecordsTest, DukeSyntaxTest, LightJavaCodeInsightFixtureTestCase, javacodeinsighttestfixture, lookup, platformtestutil (+2 more)
 
 ### Community 281 - "8. Nima ishlaydi (tasdiqlangan)"
-Cohesion: 0.08
-Nodes (14): Report, StuckDiagnosisTest, 8.ae Kursor endi nima ustida turganini aytadi, 8.ah Yo'l ochiq bo'lsa yuradi, bo'lmasa turadi, 8.ai To'siq ustiga ham yurish buyrug'i beriladi, 8.aj Klikka javob: yurishga o'q uchlari, hujumga halqa, 8.au HUD v3 — panel qayta tuzildi, unit barlari dunyodan ekranga ko'chdi, 8.be Jon barlari 30% qisqartirildi (+6 more)
+Cohesion: 0.10
+Nodes (16): Colour, Report, StuckDiagnosisTest, EventVisibilityTest, 8.ad Panel tanlangan narsani ko'rsatadi, doim geroyni emas, 8.ah Yo'l ochiq bo'lsa yuradi, bo'lmasa turadi, 8.ai To'siq ustiga ham yurish buyrug'i beriladi, 8.aj Klikka javob: yurishga o'q uchlari, hujumga halqa (+8 more)
 
-### Community 288 - "OrderMark"
-Cohesion: 0.11
-Nodes (6): AttackFlash, Chevrons, Mark, OrderMark, Step, OrderMarkTest
+### Community 288 - "OrderMarkers"
+Cohesion: 0.12
+Nodes (7): Kind, ATTACK, ATTACK_MOVE, MOVE, Marker, OrderMarkers, OrderMarkersTest
 
-### Community 297 - "SessionHalted"
-Cohesion: 0.17
-Nodes (10): BooleanSupplier, `uz.duke.core.network` — lock-step, FrameChecksum, PeerLeft, Override, SessionHalted, org.junit.jupiter.api.Timeout, Guest (+2 more)
+### Community 297 - "SocketTransport"
+Cohesion: 0.16
+Nodes (7): BooleanSupplier, Override, SocketTransport, Bilib qo'yish kerak, org.junit.jupiter.api.Timeout, Guest, NetworkTransportTest
 
-### Community 300 - ".newScenario"
-Cohesion: 0.33
-Nodes (3): BattleLogic, DeterminismIntegrationTest, Override
+### Community 299 - "HeroProgress"
+Cohesion: 0.06
+Nodes (10): AttributeArt, HeroProgress, Loot, LootBag, Override, LootTable, Data, Override (+2 more)
 
-### Community 302 - "DukeInspectorPanel"
-Cohesion: 0.07
-Nodes (16): document, DukeInspectorPanel, MouseAdapter, MouseAdapter, Color, Disposable, Editor, JComponent (+8 more)
-
-### Community 306 - "com.jme3.math.ColorRGBA"
-Cohesion: 0.07
-Nodes (12): Flash, HitFlash, IconLook, Shade, Step, UnitBarLook, HitFlashTest, UnitBarLookTest (+4 more)
+### Community 300 - "ThingTemplateLoader"
+Cohesion: 0.09
+Nodes (9): ThingTemplateLoader, Type, ThingTemplateLoaderTest, BattleLogic, DeterminismIntegrationTest, Override, AttackOnTheMoveTest, CombatLogic (+1 more)
 
 ### Community 308 - ".twoGamesOverTcpStayBitIdentical"
-Cohesion: 0.15
-Nodes (9): 2D klient, Bilib qo'yish kerak, `game` — Unity-uslub API qatlami, Multiplayer, Nima bor, O'chirish tahlili, Thread seami, MultiplayerSyncTest (+1 more)
+Cohesion: 0.22
+Nodes (6): 2D klient, Multiplayer, Nima bor, Thread seami, MultiplayerSyncTest, ThreePlayerSyncTest
+
+### Community 310 - "DukeMapTest"
+Cohesion: 0.09
+Nodes (7): document, BlockChoice, InspectorModel, DukeInspectorTest, LightJavaCodeInsightFixtureTestCase, DukeMapTest, LightJavaCodeInsightFixtureTestCase
 
 ### Community 312 - "MapPanel.java"
-Cohesion: 0.12
-Nodes (10): defaultcomboboxmodel, graphics2d, java.awt.event.MouseAdapter, java.awt.Graphics, java.awt.Point, mouseevent, placement, Canvas (+2 more)
+Cohesion: 0.10
+Nodes (12): defaultcomboboxmodel, graphics2d, java.awt.Graphics, java.awt.Point, javax.swing.JToolBar, mouseevent, placement, MapImporter (+4 more)
 
 ### Community 314 - "TestEngine"
 Cohesion: 0.25
@@ -1168,47 +1195,39 @@ Nodes (3): `uz.duke.core.math` — matematika, Coord2D, ICoord3D
 
 ### Community 331 - "DukeHighlighting.kt"
 Cohesion: 0.07
-Nodes (40): ActionContext, AnnotationHolder, Annotator, astnode, createtextattributeskey, defaultlanguagehighlightercolors, DukeAnnotator, DukeAssetAnnotator (+32 more)
+Nodes (41): ActionContext, astnode, createtextattributeskey, defaultlanguagehighlightercolors, DukeAnnotator, DukeAssetAnnotator, DukeEngineAnnotator, DukeSyntaxHighlighter (+33 more)
 
-### Community 336 - ".skinKey"
-Cohesion: 0.31
-Nodes (5): UnitSkinTest, 8.bd Uchala mage o'yinning o'zida: glTF'dagi tekstura teskari o'qilardi, Ko'z bilan tekshiruv, Topilgan xato: yashil va binafsha to'n krem rangda chiqdi, TextureKey
+### Community 339 - "Block"
+Cohesion: 0.28
+Nodes (5): Block, Field, Nested, NestedList, Value
 
-### Community 337 - "8.av Skill effektlari — qatlamlangan zarrachalar"
-Cohesion: 0.22
-Nodes (9): 8.av Skill effektlari — qatlamlangan zarrachalar, Brif bilan ziddiyatlar, Byudjet — maqsad emas, shift, Cover — yorug'lik bilan modda o'rtasi, Ekranni egallamasdan ko'z bilan tekshirildi, Ochiq qolganlar, Qancha davom etishi va qanchalik keng — skillning o'zidan, Tegish chaqnashi va kamera silkinishi (+1 more)
+### Community 343 - "`client3d` — 3D klient (jMonkeyEngine)"
+Cohesion: 0.29
+Nodes (6): Boshqaruv, `client3d` — 3D klient (jMonkeyEngine), Koordinatalar, Nima bor, O'chirish tahlili, Sozlamalar
 
-### Community 341 - "3. `core` — janrsiz engine yadrosi"
-Cohesion: 0.33
-Nodes (6): 3.4 Ma'lumot qatlami: `.duke`, 3.6b To'qnashuv — obyektlar fizik jism, 3.6c Harakatlanmaydigan jism = relyef, 3.7b Topologiya: host = markaz, 3.7c Uzilish — muzlash emas, qaror, 3. `core` — janrsiz engine yadrosi
-
-### Community 342 - "SoundSink.java"
-Cohesion: 0.60
-Nodes (4): Override, music(), musicGain(), play()
-
-### Community 344 - "9. Nima yo'q / ochiq ishlar"
+### Community 350 - "Stages"
 Cohesion: 0.40
-Nodes (5): 9. Nima yo'q / ochiq ishlar, Duke Dungeon — ataylab qilinmagan narsalar, Fizika va relyef, Infratuzilma, Studio'ning kichikroq kamchiliklari
+Nodes (3): Logger, Listed, Stages
 
 ## Knowledge Gaps
-- **262 isolated node(s):** `UNSEEN`, `REMEMBERED`, `VISIBLE`, `MENU`, `LOADING` (+257 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1157 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **143 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **328 isolated node(s):** `UNSEEN`, `REMEMBERED`, `VISIBLE`, `MENU`, `LOADING` (+323 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1263 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **148 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `DungeonSettings` connect `DungeonSettings` to `SkillLookTest`, `asserttrue`, `AttackMoveTest`, `StoreysTest`, `DungeonGeneratorTest`, `Content.java`, `org.junit.jupiter.api.Test`, `GameLogic`, `.everySizeTheGameMakes`, `SkillCastingTest`, `DungeonMonsterArtTest`, `8. Nima ishlaydi (tasdiqlangan)`, `.newSession`, `GeneratedDungeon`, `WedgedTest`, `.world`, `OrderMark`, `.parse`, `DoingTest`, `Stage`, `StageCheckTest`, `Main`, `HeroProgressTest`, `Hotkeys`, `HeroBalanceTest`, `GameObject`, `MonsterKind`, `MoveUpdate`, `ArrowLook`, `HoldGroundTest`, `Storeys`, `UnitVisual`, `PropsTest`, `.generate`, `.looks`, `.getLogic`, `DungeonFogTest`, `SightTest`, `ManaTest`, `list`, `Theme`, `SkillTipTest`, `DungeonSoundTest`, `DungeonThemeTest`, `MageTest`, `WatchingTest`, `AlertTest`, `LootBag`, `MonsterSkillTest`, `ArrowTest`, `ObjectId`, `Main.java`, `MonsterSummoningTest`, `LootTest`, `files`, `Attribute`, `SkillRanks`, `MonsterKindsTest`, `AttackObject`, `MonsterHealingTest`, `Effect`, `HeroAttributesTest`, `.heroes`, `StagePlayTest`, `DungeonPortraitTest`, `StaticMap`, `Field`?**
-  _High betweenness centrality (0.072) - this node is a cross-community bridge._
-- **Why does `DukeRtsApp` connect `DukeRtsApp` to `HeroPanel`, `.simpleInitApp`, `OrderMarkers`, `com.jme3.scene.Node`, `DukeGame`, `com.jme3.scene.Mesh`, `PathGrid`, `LayeredEffects`, `Tileset`, `Cursors`, `8. Nima ishlaydi (tasdiqlangan)`, `FogMap`, `StoneMenu`, `OrderMark`, `SelectionBoxTest`, `AttributesTest`, `RunMoments`, `WorldSnapshot`, `GameEngine`, `Shell`, `Hotkeys`, `Discovery`, `Visuals`, `com.jme3.math.ColorRGBA`, `com.jme3.math.Vector3f`, `GroundPickTest`, `UnitVisual`, `AudioSink`, `SkillEffectsTest`, `HeroPortrait`, `LightPool`, `.simpleUpdate`, `Place`, `.skinKey`, `com.jme3.scene.Spatial`, `.installInput`, `CameraFocus`, `MonsterHealingTest`, `BannerPanel`, `FloatingNumbers`, `UnitView`?**
-  _High betweenness centrality (0.067) - this node is a cross-community bridge._
-- **Why does `Coord3D` connect `Coord3D` to `asserttrue`, `ReplayTest`, `AttackMoveTest`, `org.junit.jupiter.api.Test`, `com.jme3.scene.Node`, `GameLogic`, `Content.java`, `DukeGame`, `PathGrid`, `.fromText`, `.asCloseAsHeCanGet`, `Cylinder`, `WeaponHoldTest`, `SkillCastingTest`, `.named`, `WorldEventTest`, `8. Nima ishlaydi (tasdiqlangan)`, `ProductionUpdate`, `StaticObstacleTest`, `AttackFlashTest`, `WedgedTest`, `.newLogic`, `OrderMark`, `DoingTest`, `WorldSnapshot`, `HeroProgressTest`, `Hotkeys`, `SessionHalted`, `GameObject`, `.newScenario`, `HotkeysTest`, `MoveUpdate`, `DukeRtsApp`, `.world`, `HoldGroundTest`, `RangeRingsTest`, `.twoGamesOverTcpStayBitIdentical`, `ProjectileLauncherTest`, `CollisionTest`, `.of`, `.findPath`, `.getLogic`, `DungeonFogTest`, `Builder`, `SkillEffectsTest`, `Coord2D`, `SightTest`, `DamageModifierTest`, `list`, `MageTest`, `LockstepScheduler`, `ArrowTest`, `.setUp`, `MonsterSkillTest`, `ObjectId`, `.create`, `SolidWorldTest`, `MonsterSummoningTest`, `GamePlayer`, `StatusUpdateTest`, `.installInput`, `VisionTest`, `MonsterKindsTest`, `AttackObject`, `AttackOnTheMoveTest`, `HeroAttributesTest`, `LockstepGateTest`, `UnitView`, `Field`?**
-  _High betweenness centrality (0.065) - this node is a cross-community bridge._
-- **Are the 131 inferred relationships involving `Coord3D` (e.g. with `.theRingFollowsTheCreatureItWasGivenTo()` and `.whatWasPointedAtIsHandedOn()`) actually correct?**
-  _`Coord3D` has 131 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `DungeonSettings` connect `DungeonSettings` to `HeroPanel`, `org.junit.jupiter.api.Test`, `SkillCastingTest`, `Coord3D`, `list`, `DungeonMonsterArtTest`, `Session`, `DungeonGenerator`, `.world`, `.parse`, `Hotkeys`, `.getOwner`, `Geometry`, `Storeys`, `Monster.java`, `.generate`, `DamageType`, `DungeonEffectLayerTest`, `.getLogic`, `SightTest`, `ManaTest`, `Theme`, `MageTest`, `ArrowTest`, `MonsterSkillTest`, `.looks`, `MonsterSummoningTest`, `Attribute`, `MoveUpdate`, `MonsterKindsTest`, `MonsterHealingTest`, `HeroAttributesTest`, `FloatingNumbers`, `StagePlayTest`, `HeroLook`, `StaticMap`, `Field`, `SkillLookTest`, `GameObject`, `.of`, `ModuleData`, `MoveTo`, `com.jme3.scene.Node`, `DungeonGeneratorTest`, `.newSession`, `.run`, `MapPicture`, `Content.java`, `HeroBalanceTest`, `DungeonThemeTest`, `HeroProgressTest`, `LootTest`, `Content`, `HoldGroundTest`, `Placement`, `AttackMoveTest`, `GameLogic`, `SkillTipTest`, `SkillBook`, `WedgedTest`, `GeneratedDungeon`, `AlertTest`, `.controls`, `MapPackage`, `DungeonSoundTest`, `DungeonFogTest`, `StoreysTest`, `StageCheckTest`, `.heroes`, `8. Nima ishlaydi (tasdiqlangan)`, `DoingTest`, `HeroProgress`, `WatchingTest`, `GeneratedFloors`, `DungeonRunTest`, `.of`, `.validate`, `Stages`?**
+  _High betweenness centrality (0.090) - this node is a cross-community bridge._
+- **Why does `Coord3D` connect `Coord3D` to `DungeonSettings`, `Replay`, `GameObject`, `Override`, `WeaponHoldTest`, `org.junit.jupiter.api.Test`, `com.jme3.scene.Geometry`, `Cylinder`, `com.jme3.scene.Node`, `ModuleData`, `MoveTo`, `DukeGame`, `PathGrid`, `.fromText`, `.asCloseAsHeCanGet`, `ProjectileLauncherTest`, `SkillCastingTest`, `list`, `8. Nima ishlaydi (tasdiqlangan)`, `StaticObstacleTest`, `org.junit.jupiter.api.BeforeEach`, `DoingTest`, `HeroProgressTest`, `Hotkeys`, `.create`, `SocketTransport`, `.getOwner`, `Geometry`, `HeightMap`, `.world`, `ThingTemplateLoader`, `HoldGroundTest`, `RangeRingsTest`, `.twoGamesOverTcpStayBitIdentical`, `CollisionTest`, `AttackMoveTest`, `UnitView`, `.findPath`, `.getLogic`, `GameLogic`, `SpecialPowerTest`, `UnitScript`, `SkillEffectsTest`, `Coord2D`, `SightTest`, `AttackObject`, `SkillBook`, `VisionTest`, `WedgedTest`, `MageTest`, `HeightMapTest`, `Footprint`, `ArrowTest`, `MonsterSkillTest`, `WorldSnapshot`, `SolidWorldTest`, `March`, `CommandLogic`, `HotkeysTest`, `MonsterSummoningTest`, `MoveUpdate`, `DukeRtsApp`, `AttackFlashTest`, `MonsterKindsTest`, `.world`, `.named`, `HeroAttributesTest`, `DamageModifierTest`, `LockstepGateTest`, `SkillRangeTest`, `Field`, `DungeonFogTest`?**
+  _High betweenness centrality (0.069) - this node is a cross-community bridge._
+- **Why does `DukeRtsApp` connect `DukeRtsApp` to `HeroPanel`, `com.jme3.scene.Geometry`, `DukeGame`, `com.jme3.scene.Node`, `com.jme3.scene.Mesh`, `PathGrid`, `LayeredEffects`, `Tileset`, `AnimationLibrary`, `Discovery`, `StoneMenu`, `FogMap`, `OrderMarkers`, `RunMoments`, `SelectionBoxTest`, `GameEngine`, `Shell`, `Hotkeys`, `ArtLoad`, `Visuals`, `.showSettingsMenu`, `com.jme3.math.Vector3f`, `UnitVisual`, `.burstAt`, `UnitView`, `com.jme3.scene.Spatial`, `SkillEffectsTest`, `HeroPortrait`, `com.jme3.math.ColorRGBA`, `LightPool`, `MinimapProjection`, `.simpleInitApp`, `WorldSnapshot`, `AudioSink`, `CursorsTest`, `Place`, `CameraFocus`, `8.bh Statistika bloki Warcraft III uslubida, atributlar ro'yxati INI'da`, `BannerPanel`, `FloatingNumbers`, `10. Tuzoqlar (gotchas)`, `FloatingNumbersTest`?**
+  _High betweenness centrality (0.061) - this node is a cross-community bridge._
+- **Are the 133 inferred relationships involving `Coord3D` (e.g. with `.drape()` and `.theRingFollowsTheCreatureItWasGivenTo()`) actually correct?**
+  _`Coord3D` has 133 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `UNSEEN`, `REMEMBERED`, `VISIBLE` to the rest of the system?**
-  _262 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `asserttrue` be split into smaller, more focused modules?**
-  _Cohesion score 0.042352610102715633 - nodes in this community are weakly interconnected._
-- **Should `Rows` be split into smaller, more focused modules?**
-  _Cohesion score 0.1414141414141414 - nodes in this community are weakly interconnected._
+  _328 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `DungeonSettings` be split into smaller, more focused modules?**
+  _Cohesion score 0.03926110715134236 - nodes in this community are weakly interconnected._
+- **Should `InspectorRows.kt` be split into smaller, more focused modules?**
+  _Cohesion score 0.08972972972972973 - nodes in this community are weakly interconnected._

@@ -3,6 +3,7 @@ package uz.duke.dungeon.stage;
 import java.util.List;
 import java.util.stream.IntStream;
 import uz.duke.core.data.DataException;
+import uz.duke.core.pathfind.HeightMap;
 import uz.duke.dungeon.content.Content;
 import uz.duke.dungeon.gen.GeneratedDungeon;
 import uz.duke.dungeon.gen.GeneratedDungeon.Link;
@@ -29,11 +30,19 @@ public final class StageFile {
     private static final String HEADER = """
             ; Duke Dungeon — a map drawn once: a dungeon that has stopped changing.
             ;
+            ; This file is one map, and the folder around it is the map: anything else in
+            ; the folder belongs to it. A picture beside it (preview.png) is what the screen
+            ; where a map is chosen shows; a .duke file beside it holds blocks of this map's
+            ; own — a monster only this floor has, a theme it is laid in — read after the
+            ; game's, so one sharing a name with the game's is this map's version of it.
+            ;
             ; Drawn from a seed (./gradlew :dungeon:newMap), filled on the Map tab of the
-            ; IDE, and read by the game (--map=<its Name, or this file>). Hand-editing is
-            ; expected — every position is a cell, counted from the top-left of Cells — and
-            ; every edit is checked on load: a monster inside a wall or a room nothing can
-            ; walk to stops the game with a list of what is wrong rather than starting.
+            ; IDE, and read by the game (--map=<its folder's name, or a path to either>).
+            ; Hand-editing is expected — every position is a cell, counted from the top-left
+            ; of Cells — and every edit is checked on load: a monster inside a wall or a room
+            ; nothing can walk to stops the game with a list of what is wrong rather than
+            ; starting. The plain lines at the top are read on their own when a screen lists
+            ; the maps, so they come before the rows.
 
             """;
 
@@ -63,6 +72,10 @@ public final class StageFile {
         }
         out.append("  ; '#' is stone, a digit the storey a cell stands on, '/' a stair.\n");
         list(out, "Cells", floor.levelMap().strip().lines().map(row -> "\"" + row + "\"").toList());
+        if (floor.relief() != null) {
+            out.append("  ; How the floor rises and falls: every corner of every cell, in sixteenths of a cell.\n");
+            list(out, "Relief", floor.relief().written().stream().map(row -> "\"" + row + "\"").toList());
+        }
         out.append("  ; x y width height storey, in the order they were placed: the first is where he starts.\n");
         list(out, "Rooms", IntStream.range(0, floor.rooms().size()).mapToObj(i -> {
             var room = floor.rooms().get(i);
@@ -147,9 +160,29 @@ public final class StageFile {
         var monsters = map.monsters().stream().map(placed -> new Monster(placed.kind(), at(placed))).toList();
         var props = map.props().stream().map(placed -> new Prop(placed.kind(), at(placed))).toList();
         var floor = new GeneratedDungeon(walls, levels, entrance, monsters, boss, bossRoom(map), rooms, links, storeys,
-                props);
+                props, reliefOf(map, source), map.levelHeight());
         return new Stage(map.name(), map.displayName(), map.description(), map.difficulty(), map.players(), map.seed(),
                 floor);
+    }
+
+    /** The map's relief, or null for none: one more row of corners than it has cells, and one more corner a row. */
+    private static HeightMap reliefOf(StaticMap map, String source) {
+        if (map.relief().isEmpty()) {
+            return null;
+        }
+        HeightMap relief;
+        try {
+            relief = HeightMap.parse(map.relief());
+        } catch (IllegalArgumentException e) {
+            throw new DataException(source, e.getMessage());
+        }
+        int width = map.cells().getFirst().length();
+        if (relief.rows() != map.cells().size() + 1 || relief.columns() != width + 1) {
+            throw new DataException(source, "the Relief of " + map.name() + " is " + relief.columns() + " by "
+                    + relief.rows() + " corners, and its " + width + " by " + map.cells().size() + " cells have "
+                    + (width + 1) + " by " + (map.cells().size() + 1));
+        }
+        return relief;
     }
 
     /** Which room the boss stands in: the one its cell is inside, so it is written once, as the cell. */

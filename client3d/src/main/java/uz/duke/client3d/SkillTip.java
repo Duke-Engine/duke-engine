@@ -50,17 +50,18 @@ final class SkillTip {
     private static final float ROW_STEP = 15f;
     private static final float GAP = 6f;
 
-    private static final ColorRGBA EDGE = HeroPanel.rgb(0x0A0806);
-    private static final ColorRGBA FACE_TOP = HeroPanel.rgb(0x2E2820);
-    private static final ColorRGBA FACE_FOOT = HeroPanel.rgb(0x191510);
-    private static final ColorRGBA RULE = HeroPanel.rgb(0x3A322A);
-    private static final ColorRGBA NAME = HeroPanel.rgb(0xF0D48A);
-    private static final ColorRGBA QUIET = HeroPanel.rgb(0x8A7F6C);
-    private static final ColorRGBA BODY = HeroPanel.rgb(0xA69B87);
-    private static final ColorRGBA VALUE = HeroPanel.rgb(0xDCD2BC);
-    private static final ColorRGBA GAIN = HeroPanel.rgb(0x7FBF6A);
-    private static final ColorRGBA FOOT = HeroPanel.rgb(0xC9A24B);
-    private static final ColorRGBA FOOT_DEAD = HeroPanel.rgb(0x6E6555);
+    // The card is the bar's own furniture, so it is cut from the bar's own palette: see PanelLook.
+    private final ColorRGBA edgeColour;
+    private final ColorRGBA faceTop;
+    private final ColorRGBA faceFoot;
+    private final ColorRGBA ruleColour;
+    private final ColorRGBA nameColour;
+    private final ColorRGBA quietColour;
+    private final ColorRGBA bodyColour;
+    private final ColorRGBA valueColour;
+    private final ColorRGBA gainColour;
+    private final ColorRGBA footColour;
+    private final ColorRGBA footDeadColour;
 
     /** As many rows as any skill in any game is likely to want. */
     private static final int MOST_ROWS = 6;
@@ -77,21 +78,33 @@ final class SkillTip {
     private final List<BitmapText> labels = new ArrayList<>();
     private final List<BitmapText> values = new ArrayList<>();
 
-    SkillTip(AssetManager assets, BitmapFont font, Node parent) {
+    SkillTip(AssetManager assets, BitmapFont font, Node parent, PanelLook look) {
+        var palette = look == null ? PanelLook.DEFAULTS : look;
+        edgeColour = HeroPanel.rgb(palette.dropColour());
+        faceTop = HeroPanel.rgb(palette.cardTopColour());
+        faceFoot = HeroPanel.rgb(palette.cardFootColour());
+        ruleColour = HeroPanel.rgb(palette.cardRuleColour());
+        nameColour = HeroPanel.rgb(palette.goldHiColour());
+        quietColour = HeroPanel.rgb(palette.cardQuietColour());
+        bodyColour = HeroPanel.rgb(palette.cardBodyColour());
+        valueColour = HeroPanel.rgb(palette.cardValueColour());
+        gainColour = HeroPanel.rgb(palette.gainColour());
+        footColour = HeroPanel.rgb(palette.goldColour());
+        footDeadColour = HeroPanel.rgb(palette.lockLabelColour());
         this.assets = assets;
-        edge = plate(EDGE);
-        face = plate(FACE_TOP);
-        rule = plate(RULE);
+        edge = plate(edgeColour);
+        face = plate(faceTop);
+        rule = plate(ruleColour);
         node.attachChild(edge);
         node.attachChild(face);
         node.attachChild(rule);
-        name = line(font, NAME_SIZE, NAME, BitmapFont.Align.Left);
-        at = line(font, AT_SIZE, QUIET, BitmapFont.Align.Left);
-        blurb = line(font, BLURB_SIZE, BODY, BitmapFont.Align.Left);
-        foot = line(font, FOOT_SIZE, FOOT, BitmapFont.Align.Left);
+        name = line(font, NAME_SIZE, nameColour, BitmapFont.Align.Left);
+        at = line(font, AT_SIZE, quietColour, BitmapFont.Align.Left);
+        blurb = line(font, BLURB_SIZE, bodyColour, BitmapFont.Align.Left);
+        foot = line(font, FOOT_SIZE, footColour, BitmapFont.Align.Left);
         for (int i = 0; i < MOST_ROWS; i++) {
-            labels.add(line(font, ROW_SIZE, QUIET, BitmapFont.Align.Left));
-            values.add(line(font, ROW_SIZE, VALUE, BitmapFont.Align.Right));
+            labels.add(line(font, ROW_SIZE, quietColour, BitmapFont.Align.Left));
+            values.add(line(font, ROW_SIZE, valueColour, BitmapFont.Align.Right));
         }
         this.parent = parent;
     }
@@ -227,7 +240,7 @@ final class SkillTip {
             // whole string against the edge and the green half has to be the
             // rightmost part of it. One colour per line is the price; the arrow
             // carries the meaning, and the row is read as "now, then".
-            value.setColor(Shade.linear(row.next().isEmpty() ? VALUE : GAIN));
+            value.setColor(Shade.linear(row.next().isEmpty() ? valueColour : gainColour));
             value.setText(row.next().isEmpty() ? row.now()
                     : row.now().isEmpty() ? row.next() : row.now() + "  →  " + row.next());
             top -= ROW_STEP;
@@ -239,7 +252,7 @@ final class SkillTip {
             rule.setLocalTranslation(PAD, top - GAP / 2f, 2f);
             place(foot, PAD, top - GAP - FOOT_SIZE, WIDTH - PAD * 2f);
             foot.setText(tip.foot());
-            foot.setColor(Shade.linear(tip.canRaise() ? FOOT : FOOT_DEAD));
+            foot.setColor(Shade.linear(tip.canRaise() ? footColour : footDeadColour));
             foot.setCullHint(Spatial.CullHint.Inherit);
         } else {
             rule.setCullHint(Spatial.CullHint.Always);

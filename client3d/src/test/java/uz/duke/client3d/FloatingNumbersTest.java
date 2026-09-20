@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 class FloatingNumbersTest {
 
     private static final float NOW = 100f;
-    private static final HitNumbers LOOK = HitNumbers.DEFAULT;
+    private static final HitNumbers LOOK = HitNumbers.DEFAULTS;
 
     private record Screen(FloatingNumbers numbers, Node gui, Camera camera) {
     }

@@ -58,7 +58,7 @@ final class FloatingNumbers {
 
     FloatingNumbers(BitmapFont font, Node gui, HitNumbers look) {
         this.font = font;
-        this.look = look == null ? HitNumbers.DEFAULT : look;
+        this.look = look == null ? HitNumbers.DEFAULTS : look;
         this.root = new Node("hit-numbers");
         gui.attachChild(root);
     }

@@ -41,6 +41,9 @@ final class StoneMenu {
     private static final float MENU_WIDTH = 330f;
     private static final float CONTROL_WIDTH = 190f;
     private static final float SLIDER_HEIGHT = 9f;
+    /** How big a picture beside the list may be, and the least it is worth drawing at. */
+    private static final float PICTURE_SIDE = 240f;
+    private static final float PICTURE_LEAST = 90f;
 
     // ---- what a screen is made of ----
 
@@ -49,10 +52,19 @@ final class StoneMenu {
         String label();
     }
 
-    /** A line that does something when taken. */
-    record Action(String label, Runnable take, boolean danger) implements Row {
+    /**
+     * A line that does something when taken.
+     *
+     * @param picture what the row is a row about, drawn beside the list while the row is the lit one — a map's
+     *     preview, a hero's portrait — as a path the game's assets are loaded by, or null for a row with none
+     */
+    record Action(String label, Runnable take, boolean danger, String picture) implements Row {
         Action(String label, Runnable take) {
-            this(label, take, false);
+            this(label, take, false, null);
+        }
+
+        Action(String label, Runnable take, boolean danger) {
+            this(label, take, danger, null);
         }
     }
 
@@ -538,22 +550,22 @@ final class StoneMenu {
         float w = screenWidth / scale;
         float h = screenHeight / scale;
         StoneCraft.attach(sheet, craft.shaded("gloom", w, h,
-                StoneCraft.rgb(0x0C0A08), StoneCraft.rgb(0x241E19),
-                StoneCraft.rgb(0x0C0A08)), 0f, 0f, 0f);
+                craft.gloomTop, craft.gloomMiddle,
+                craft.gloomTop), 0f, 0f, 0f);
         // Two torches, off the edges, throwing light in. What makes it a room
         // rather than a colour.
         float pool = h * 0.30f;
         StoneCraft.attach(sheet, craft.glow("torch-left", pool,
-                StoneCraft.TORCH, 0.09f), -pool * 0.25f, h * 0.58f, 1f);
+                craft.torch, 0.09f), -pool * 0.25f, h * 0.58f, 1f);
         StoneCraft.attach(sheet, craft.glow("torch-right", pool,
-                StoneCraft.TORCH, 0.09f), w + pool * 0.25f, h * 0.58f, 1f);
+                craft.torch, 0.09f), w + pool * 0.25f, h * 0.58f, 1f);
     }
 
     private void drawDim() {
         // Dark enough to read a menu over, thin enough to see the room he stopped
         // in. A player who cannot see where he was has to remember instead.
         StoneCraft.attach(sheet, craft.flat("dim", screenWidth / scale, screenHeight / scale,
-                new ColorRGBA(0.03f, 0.024f, 0.02f, 0.78f)), 0f, 0f, 0f);
+                craft.veil), 0f, 0f, 0f);
     }
 
     /** @return the y the rows should start below, in the sheet's own units */
@@ -564,7 +576,7 @@ final class StoneMenu {
             return h * 0.72f;
         }
         float size = settings ? 30f : 46f;
-        var text = craft.text(titleFont, size, StoneCraft.TORCH, 0f, 0f, w,
+        var text = craft.text(titleFont, size, craft.torch, 0f, 0f, w,
                 BitmapFont.Align.Center);
         text.setText(title);
         float plaqueWidth = Math.min(w - 40f, craft.widthOf(titleFont, size, title) + 92f);
@@ -579,7 +591,7 @@ final class StoneMenu {
         text.setBox(new com.jme3.font.Rectangle(0f, textY + size, w, size * 1.4f));
         StoneCraft.attach(sheet, text, 0f, 0f, 4f);
         if (!subtitle.isEmpty()) {
-            var sub = craft.text(rowFont, 14f, StoneCraft.rgb(0x8B8171), 0f,
+            var sub = craft.text(rowFont, 14f, craft.hint, 0f,
                     textY - 24f, w, BitmapFont.Align.Center);
             sub.setText(subtitle);
             // In front of the plaque, like the title. Attached plainly it lands
@@ -605,15 +617,28 @@ final class StoneMenu {
             boolean lit = i == chosen;
             boolean danger = row instanceof Action action && action.danger();
             var node = new Node("item-" + i);
+            if (row instanceof Words words) {
+                // A line under a name saying what taking it means: read rather than taken, so it carries none of
+                // the marks that say a row can be chosen, and is given the width of the screen rather than the
+                // column's — a sentence is longer than a word.
+                var said = craft.text(rowFont, 14f, craft.hint, (MENU_WIDTH - ROW_WIDTH) / 2f,
+                        ROW_HEIGHT - 20f, ROW_WIDTH, BitmapFont.Align.Center);
+                said.setText(words.value());
+                StoneCraft.attach(node, said, 0f, 0f, 3f);
+                StoneCraft.attach(sheet, node, left, y, 3f);
+                drawn.add(node);
+                hitBoxes.add(OFF_SCREEN);
+                continue;
+            }
             if (lit) {
                 StoneCraft.attach(node, craft.shaded("lit", MENU_WIDTH, ROW_HEIGHT - 6f,
-                        StoneCraft.fade(danger ? StoneCraft.BLOOD : StoneCraft.TORCH, 0f),
-                        StoneCraft.fade(danger ? StoneCraft.BLOOD : StoneCraft.TORCH, 0.13f),
-                        StoneCraft.fade(danger ? StoneCraft.BLOOD : StoneCraft.TORCH, 0f)),
+                        StoneCraft.fade(danger ? craft.blood : craft.torch, 0f),
+                        StoneCraft.fade(danger ? craft.blood : craft.torch, 0.13f),
+                        StoneCraft.fade(danger ? craft.blood : craft.torch, 0f)),
                         0f, 3f, 1f);
             }
-            var mark = lit ? (danger ? StoneCraft.BLOOD : StoneCraft.TORCH)
-                    : StoneCraft.rgb(0x3A322A);
+            var mark = lit ? (danger ? craft.blood : craft.torch)
+                    : craft.rule;
             StoneCraft.attach(node, craft.flat("rule-l", 30f, 1f, mark), 14f,
                     ROW_HEIGHT / 2f, 2f);
             StoneCraft.attach(node, craft.flat("rule-r", 30f, 1f, mark),
@@ -625,8 +650,8 @@ final class StoneMenu {
                         MENU_WIDTH - 61f, ROW_HEIGHT / 2f - 4.5f, 3f);
             }
             var colour = lit
-                    ? (danger ? StoneCraft.rgb(0xE08A80) : StoneCraft.TORCH_HOT)
-                    : StoneCraft.rgb(0xA69B87);
+                    ? (danger ? craft.dangerLit : craft.torchHot)
+                    : craft.row;
             var text = craft.text(titleFont, 19f, colour, 0f, ROW_HEIGHT / 2f - 12f,
                     MENU_WIDTH, BitmapFont.Align.Center);
             text.setText(row.label());
@@ -637,6 +662,35 @@ final class StoneMenu {
             hitBoxes.add(new Hit(left * scale, (y + 3f) * scale, MENU_WIDTH * scale,
                     (ROW_HEIGHT - 6f) * scale, 0f, 0f));
         }
+        drawPicture(top, left, w);
+    }
+
+    /**
+     * What the lit row is a row about, beside the column: the map that would be played, the hero that would be
+     * taken. Only the lit one, because a wall of thumbnails is a screen to search rather than a choice to make.
+     *
+     * <p>Nothing at all where the window is too narrow to hold one beside the list, or where the game ships no
+     * such picture: a name on its own is a row that still works.
+     */
+    private void drawPicture(float top, float left, float w) {
+        if (chosen < 0 || chosen >= rows.size() || !(rows.get(chosen) instanceof Action action)
+                || action.picture() == null) {
+            return;
+        }
+        float side = Math.min(PICTURE_SIDE, (w - MENU_WIDTH) / 2f - 48f);
+        if (side < PICTURE_LEAST) {
+            return;
+        }
+        var picture = craft.picture("picture", side, action.picture());
+        if (picture == null) {
+            return;
+        }
+        var quad = (com.jme3.scene.shape.Quad) picture.getMesh();
+        var node = new Node("picture-plate");
+        StoneCraft.attach(node, craft.slab("picture-slab", quad.getWidth() + 12f, quad.getHeight() + 12f), 0f, 0f, 0f);
+        StoneCraft.attach(node, picture, 6f, 6f, 2f);
+        StoneCraft.attach(sheet, node, left + MENU_WIDTH + 28f, top - quad.getHeight() - 12f, 3f);
+        drawn.add(node);
     }
 
     /** The settings: a label, a control, and what it currently says. */
@@ -662,16 +716,16 @@ final class StoneMenu {
             var node = new Node("row-" + i);
             if (lit) {
                 StoneCraft.attach(node, craft.shaded("lit", width, ROW_HEIGHT - 4f,
-                        StoneCraft.fade(StoneCraft.TORCH, 0.11f),
-                        StoneCraft.fade(StoneCraft.TORCH, 0.02f),
-                        StoneCraft.fade(StoneCraft.TORCH, 0f)), 0f, 2f, 1f);
+                        StoneCraft.fade(craft.torch, 0.11f),
+                        StoneCraft.fade(craft.torch, 0.02f),
+                        StoneCraft.fade(craft.torch, 0f)), 0f, 2f, 1f);
             }
             StoneCraft.attach(node, craft.flat("groove", width, 1f,
-                    StoneCraft.rgb(0x2A241D)), 0f, 0f, 1f);
+                    craft.groove), 0f, 0f, 1f);
 
             var row = rows.get(i);
-            var labelColour = dimmed ? StoneCraft.rgb(0x5A5346)
-                    : lit ? StoneCraft.TORCH_HOT : StoneCraft.rgb(0xA69B87);
+            var labelColour = dimmed ? craft.dim
+                    : lit ? craft.torchHot : craft.row;
             var label = craft.text(titleFont, 15f, labelColour, 16f,
                     ROW_HEIGHT / 2f - 10f, width * 0.45f, BitmapFont.Align.Left);
             label.setText(row.label());
@@ -706,7 +760,7 @@ final class StoneMenu {
         float from = (width - socketWidth * 2f - gap) / 2f;
 
         if (!buttons.note().isEmpty()) {
-            var note = craft.text(rowFont, 12f, StoneCraft.TORCH, 0f,
+            var note = craft.text(rowFont, 12f, craft.torch, 0f,
                     ROW_HEIGHT - 6f, width, BitmapFont.Align.Center);
             note.setText(buttons.note());
             StoneCraft.attach(node, note, 0f, 0f, 3f);
@@ -720,11 +774,11 @@ final class StoneMenu {
             StoneCraft.attach(node, socket, x, 0f, 1f);
             if (onThis) {
                 StoneCraft.attach(node, craft.flat("socket-lit", socketWidth, socketHeight,
-                        StoneCraft.fade(StoneCraft.TORCH, 0.16f)), x, 0f, 2f);
+                        StoneCraft.fade(craft.torch, 0.16f)), x, 0f, 2f);
             }
             var word = craft.text(titleFont, 14f,
-                    onThis ? StoneCraft.TORCH_HOT
-                            : side == 0 ? StoneCraft.BONE : StoneCraft.MUTE,
+                    onThis ? craft.torchHot
+                            : side == 0 ? craft.bone : craft.mute,
                     0f, socketHeight / 2f - 9f, socketWidth, BitmapFont.Align.Center);
             word.setText(side == 0 ? buttons.take() : buttons.leave());
             StoneCraft.attach(node, word, x, 0f, 3f);
@@ -738,8 +792,8 @@ final class StoneMenu {
 
     private void drawControl(Node node, Row row, float x, boolean lit, boolean dimmed,
             int index) {
-        var arrowColour = dimmed ? StoneCraft.rgb(0x3A322A)
-                : lit ? StoneCraft.TORCH : StoneCraft.rgb(0x5D5548);
+        var arrowColour = dimmed ? craft.rule
+                : lit ? craft.torch : craft.quiet;
         boolean nudgeable = row instanceof Choice || row instanceof Level;
         if (nudgeable) {
             StoneCraft.attach(node, craft.arrowhead("less", 8f, false, arrowColour),
@@ -756,11 +810,11 @@ final class StoneMenu {
                 for (int o = 0; o < choice.options().size(); o++) {
                     boolean on = o == at;
                     StoneCraft.attach(node, craft.shaded("cell", each - 4f, 20f,
-                            on ? StoneCraft.rgb(0x4A3A1E) : StoneCraft.STONE_DEEP,
-                            on ? StoneCraft.rgb(0x2E2413) : StoneCraft.STONE_DEEP),
+                            on ? craft.onTop : craft.stoneDeep,
+                            on ? craft.onFoot : craft.stoneDeep),
                             x + o * each, ROW_HEIGHT / 2f - 10f, 2f);
                     var word = craft.text(rowFont, 12f,
-                            on ? StoneCraft.TORCH : StoneCraft.rgb(0x5D5548),
+                            on ? craft.torch : craft.quiet,
                             0f, ROW_HEIGHT / 2f - 8f, each - 4f, BitmapFont.Align.Center);
                     word.setText(choice.options().get(o));
                     StoneCraft.attach(node, word, x + o * each, 0f, 3f);
@@ -769,15 +823,15 @@ final class StoneMenu {
             case Level level -> {
                 int value = Math.clamp(level.read().getAsInt(), 0, 100);
                 StoneCraft.attach(node, craft.flat("trough", CONTROL_WIDTH, SLIDER_HEIGHT,
-                        StoneCraft.STONE_DEEP), x, ROW_HEIGHT / 2f - 4f, 2f);
+                        craft.stoneDeep), x, ROW_HEIGHT / 2f - 4f, 2f);
                 if (value > 0) {
                     StoneCraft.attach(node, craft.shaded("fill",
                             (CONTROL_WIDTH - 2f) * value / 100f, SLIDER_HEIGHT - 2f,
-                            StoneCraft.rgb(0xF0BC6B), StoneCraft.TORCH,
-                            StoneCraft.rgb(0xA06D1F)), x + 1f, ROW_HEIGHT / 2f - 3f, 3f);
+                            craft.fillTop, craft.torch,
+                            craft.fillFoot), x + 1f, ROW_HEIGHT / 2f - 3f, 3f);
                 }
                 var shown = craft.text(titleFont, 13f,
-                        dimmed ? StoneCraft.rgb(0x5A5346) : StoneCraft.BONE,
+                        dimmed ? craft.dim : craft.bone,
                         0f, ROW_HEIGHT / 2f - 9f, 58f, BitmapFont.Align.Right);
                 shown.setText(value == 0 ? "OFF" : value + "%");
                 StoneCraft.attach(node, shown, x + CONTROL_WIDTH + 22f, 0f, 3f);
@@ -785,18 +839,18 @@ final class StoneMenu {
             case Opens open -> {
                 int at = Math.clamp(open.read().getAsInt(), 0, open.options().size() - 1);
                 var shown = craft.text(titleFont, 14f,
-                        dimmed ? StoneCraft.rgb(0x5A5346) : StoneCraft.BONE,
+                        dimmed ? craft.dim : craft.bone,
                         0f, ROW_HEIGHT / 2f - 9f, CONTROL_WIDTH, BitmapFont.Align.Center);
                 shown.setText(open.options().isEmpty() ? "—" : open.options().get(at));
                 StoneCraft.attach(node, shown, x, 0f, 3f);
                 // A chevron rather than the two arrows: this one opens, and the
                 // mark should say which of the two things a row does.
                 StoneCraft.attach(node, craft.arrowhead("opens", 8f, true,
-                        lit ? StoneCraft.TORCH : StoneCraft.rgb(0x5D5548)),
+                        lit ? craft.torch : craft.quiet),
                         x + CONTROL_WIDTH + 8f, ROW_HEIGHT / 2f - 4f, 3f);
             }
             case Words words -> {
-                var shown = craft.text(titleFont, 14f, StoneCraft.MUTE, 0f,
+                var shown = craft.text(titleFont, 14f, craft.mute, 0f,
                         ROW_HEIGHT / 2f - 9f, CONTROL_WIDTH, BitmapFont.Align.Center);
                 shown.setText(words.value());
                 StoneCraft.attach(node, shown, x, 0f, 3f);
@@ -824,15 +878,15 @@ final class StoneMenu {
             boolean lit = o == openedAt;
             if (lit) {
                 StoneCraft.attach(list, craft.flat("lit", listWidth - 12f, rowHeight - 2f,
-                        StoneCraft.fade(StoneCraft.TORCH, 0.16f)), 6f, rowY, 1f);
+                        StoneCraft.fade(craft.torch, 0.16f)), 6f, rowY, 1f);
             }
             boolean current = o == Math.clamp(open.read().getAsInt(), 0, count - 1);
             if (current) {
-                StoneCraft.attach(list, craft.arrowhead("dot", 6f, true, StoneCraft.TORCH),
+                StoneCraft.attach(list, craft.arrowhead("dot", 6f, true, craft.torch),
                         12f, rowY + rowHeight / 2f - 3f, 2f);
             }
             var text = craft.text(titleFont, 13f,
-                    lit ? StoneCraft.TORCH_HOT : StoneCraft.rgb(0xA69B87),
+                    lit ? craft.torchHot : craft.row,
                     24f, rowY + rowHeight / 2f - 8f, listWidth - 36f, BitmapFont.Align.Left);
             text.setText(open.options().get(o));
             StoneCraft.attach(list, text, 0f, 0f, 2f);
@@ -851,13 +905,13 @@ final class StoneMenu {
     private void drawFooter() {
         float w = screenWidth / scale;
         if (!hint.isEmpty()) {
-            var line = craft.text(rowFont, 13f, StoneCraft.rgb(0x5D5548), 0f, 14f, w,
+            var line = craft.text(rowFont, 13f, craft.quiet, 0f, 14f, w,
                     BitmapFont.Align.Center);
             line.setText(hint);
             StoneCraft.attach(sheet, line, 0f, 0f, 5f);
         }
         if (!corner.isEmpty()) {
-            var line = craft.text(rowFont, 12f, StoneCraft.rgb(0x443E35), 0f, 12f, w - 16f,
+            var line = craft.text(rowFont, 12f, craft.footnote, 0f, 12f, w - 16f,
                     BitmapFont.Align.Right);
             line.setText(corner);
             StoneCraft.attach(sheet, line, 0f, 0f, 5f);

@@ -11,7 +11,7 @@ Bu modul ikki vazifani bajaradi:
 | | |
 |---|---|
 | Bog'liqligi | `api project(":core")` |
-| Kim bunga bog'lanadi | `game` (→ `client3d` → `studio`) |
+| Kim bunga bog'lanadi | `game` (→ `client3d` → `dungeon`) |
 | Hajmi | 21 fayl, ~1 750 qator |
 | Testlar | 71 ta |
 
@@ -34,8 +34,8 @@ Bu modul ikki vazifani bajaradi:
 
 | Fayl | Qator | Vazifa | Yuqori qatlamda ochilganmi |
 |---|---|---|---|
-| `WeaponUpdate` | 216 | reload sikli, splash, ittifoqchini urmaydi, XP beradi; masofa **yuzadan yuzaga** (devorga tiralgan birlik binoni ura oladi) | ha (Studio: ATTACK) |
-| `ProductionUpdate` | 175 | navbat, pulni oldindan yechish, rally nuqtasi; quvvat yetmasa to'xtaydi; tayyor birlik zavod devoridan **tashqarida, bo'sh yerda** paydo bo'ladi | ha (Studio: PRODUCE) |
+| `WeaponUpdate` | 216 | reload sikli, splash, ittifoqchini urmaydi, XP beradi; masofa **yuzadan yuzaga** (devorga tiralgan birlik binoni ura oladi) | ha |
+| `ProductionUpdate` | 175 | navbat, pulni oldindan yechish, rally nuqtasi; quvvat yetmasa to'xtaydi; tayyor birlik zavod devoridan **tashqarida, bo'sh yerda** paydo bo'ladi | ha |
 | `ExperienceModule` | 114 | XP yig'ish, `VeterancyLevel` bo'yicha ko'tarilish (ko'tarilganda to'liq davolanadi) | ha (EXPERIENCE) |
 | `SpecialPowerModule` | 98 | qayta zaryadlanuvchi radiusli superqurol | **yo'q** |
 | `ContainModule` | 97 | garnizon / transport (ichidagilar jim, nishonga olinmaydi) | **yo'q** |
@@ -65,7 +65,7 @@ Bu modul ikki vazifani bajaradi:
 |---|---|---|
 | `client/AsciiRenderer` | `game` ham, `client3d` ham buni ishlatmaydi — ikkalasi `WorldSnapshot` o'qiydi. `core/client/Renderer` seami bilan birga o'chadi | vizual regressiya testining bir turi yo'qoladi |
 | `save/GameSnapshot` | yuqori qatlamlarga umuman ulanmagan; modul ichidagi "in-flight" holat (ishlab chiqarish taymerlari) baribir saqlanmaydi, ya'ni hozirgi holida yarim ishlaydi | o'yin ichida save/load qilmoqchi bo'lsangiz noldan yozish kerak |
-| `module/SpecialPowerModule`, `module/ContainModule`, `module/StatusUpdate`, `player/Upgrade` | faqat `RtsModules` da ro'yxatdan o'tadi — Studio'da ham, biror o'yinda ham ishlatilmaydi. Qo'lda INI yozsa ishlaydi | RTS to'liqligi kamayadi; keyin kerak bo'lsa qayta yozish |
+| `module/SpecialPowerModule`, `module/ContainModule`, `module/StatusUpdate`, `player/Upgrade` | faqat `RtsModules` da ro'yxatdan o'tadi — biror o'yinda ishlatilmaydi. Qo'lda `.duke` bloki yozsa ishlaydi | RTS to'liqligi kamayadi; keyin kerak bo'lsa qayta yozish |
 
 > Diqqat: bu 4 ta modulni o'chirsangiz `RtsModules` dan registratsiyasini,
 > tegishli testlarni (`SpecialPowerTest`, `ContainTest`, `StatusUpdateTest`,
@@ -75,8 +75,8 @@ Bu modul ikki vazifani bajaradi:
 **O'chirib bo'lmaydi:** `RtsSimulation`, `GameMessage`, `CommandCodec`,
 `RtsModules`, `RtsPlayer`, `RtsKinds`, `WeaponUpdate`, `ProductionUpdate`,
 `PowerModule`+`PowerGrid`, `SupplyModule`+`HarvestUpdate`, `ExperienceModule`+
-`VeterancyLevel`, `AutoHealUpdate` — bularning hammasi Studio capability'lari
-yoki `game` mantig'i orqali ishlatiladi.
+`VeterancyLevel`, `AutoHealUpdate` — bularning hammasi `game` mantig'i orqali
+ishlatiladi.
 
 ## Bilib qo'yish kerak
 

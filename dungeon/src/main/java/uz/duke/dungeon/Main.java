@@ -4,7 +4,7 @@ import java.util.List;
 
 import uz.duke.client3d.Duke3D;
 import uz.duke.client3d.EdgeScroll;
-import uz.duke.client3d.Effect;
+import uz.duke.core.effect.Effect;
 import uz.duke.client3d.Fog;
 import uz.duke.client3d.Hotkeys;
 import uz.duke.client3d.Shell;
@@ -401,8 +401,12 @@ public final class Main {
     }
 
     public static void main(String[] args) {
-        var settings = DungeonSettings.load();
-        var session = chosenGame(args, settings);
+        // Which map the game opens on is settled before its data is read, because a map brings blocks of its
+        // own with it — see MapPackage — and they are part of the settings everything else is built from.
+        var wanted = Stages.chosen(args);
+        var opening = wanted == null ? null : Stages.found(wanted);
+        var settings = DungeonSettings.of(opening);
+        var session = chosenGame(opening, settings);
         // Held rather than passed straight in: the question below reaches back
         // into it, because whose eyes open the map is part of who you chose.
         var visuals = looks(settings);
@@ -531,8 +535,7 @@ public final class Main {
      * anything had gone wrong, and an author editing one would think his last
      * change had worked.
      */
-    private static Dungeon.Session chosenGame(String[] args, DungeonSettings settings) {
-        var map = Stages.chosen(args);
+    private static Dungeon.Session chosenGame(uz.duke.core.map.MapPackage map, DungeonSettings settings) {
         if (map == null) {
             // The seed is the one thing the clock touches, and it is outside the
             // simulation: it chooses WHICH deterministic dungeon to play.
@@ -610,7 +613,7 @@ public final class Main {
     static uz.duke.client3d.Shell.Question howToPlay(Dungeon.Session session,
             DungeonSettings settings, Visuals visuals, Hotkeys keys) {
         var hero = whoToPlay(session, settings, visuals, keys);
-        var stages = uz.duke.dungeon.stage.Stages.all(settings);
+        var stages = uz.duke.dungeon.stage.Stages.all();
         if (stages.isEmpty()) {
             return hero; // nothing to choose between; the only question left is who
         }
@@ -632,8 +635,8 @@ public final class Main {
      *
      * <p>The rows are the stages' own words — an author names his stage and says
      * one line about it in the file, and that is what a player reads. Nothing here
-     * is a list somebody keeps in step: drop a {@code .stage} file in the folder
-     * and it is on this screen.
+     * is a list somebody keeps in step: a map is a folder under {@code maps/} — beside the game, or inside it —
+     * and dropping one there is what puts it on this screen. See {@code uz.duke.core.map.MapPackage}.
      *
      * <p>Taking one only says which floors to lay. Who lays them is the next
      * question, which is the same one the endless descent asks — a stage does not
@@ -644,11 +647,14 @@ public final class Main {
             uz.duke.client3d.Shell.Question hero) {
         var rows = new java.util.ArrayList<uz.duke.client3d.Shell.Option>();
         for (var listed : stages) {
-            var stage = listed.stage();
-            rows.add(new uz.duke.client3d.Shell.Option(stage.name(), stage.description(),
-                    () -> session.run().playing(
-                            uz.duke.dungeon.run.Floors.ofStage(stage)),
-                    hero));
+            // Read when it is chosen rather than when it is listed: the row is written from the head of the
+            // map's file, and a map that cannot be played says so here rather than keeping its row out.
+            rows.add(new uz.duke.client3d.Shell.Option(listed.title(), listed.description(), () -> {
+                var stage = uz.duke.dungeon.stage.Stages.offer(listed, settings);
+                if (stage != null) {
+                    session.run().playing(uz.duke.dungeon.run.Floors.ofStage(stage));
+                }
+            }, hero, listed.picture()));
         }
         return new uz.duke.client3d.Shell.Question(settings.hud().chooseStageWord(),
                 settings.hud().chooseStageHint(), rows);
@@ -976,12 +982,10 @@ public final class Main {
         // and this is the only place that knows what a moment sounds like.
         visuals.sounds(soundsOf(settings));
 
-        // The lettering the menus are set in -- carved Roman capitals, baked from
-        // the TTF by BitmapFontBaker. Named in the file rather than here for the
-        // same reason every other asset is: a path in Java is a path that needs a
-        // rebuild to move. See Menu in data/world/hud.duke.
-        visuals.menuStyle(new uz.duke.client3d.MenuStyle(
-                settings.menu().titleFont(), settings.menu().rowFont()));
+        // The lettering the menus are set in and the stone they are cut from -- carved Roman capitals, baked
+        // from the TTF by BitmapFontBaker. Named in the file rather than here for the same reason every other
+        // asset is: a path in Java is a path that needs a rebuild to move. See MenuStyle in data/world/hud.duke.
+        visuals.menuStyle(settings.menu());
 
         // What the panel's edges are painted with -- see Skin in
         // data/world/hud.duke. The client knows where a socket goes; this says what its
@@ -1047,6 +1051,8 @@ public final class Main {
         // The three arrowheads that answer a click — the client's own OrderMark, which the
         // block of that name is read straight into.
         visuals.orderMark(settings.orderMark());
+        visuals.panelLook(settings.panelLook());
+        visuals.hitNumbers(settings.hitNumbers());
 
         // How far each skill reaches, so the client can draw it before it is spent
         // — see SkillRing, and SkillRange for what each shape means.

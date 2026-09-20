@@ -44,7 +44,8 @@ class GameLogicTest {
         assertFalse(logic.isInGame());
     }
 
-    private record Storeyed(String name, float levelHeight) implements uz.duke.core.thing.Layered {
+    private record Storeyed(String name, float levelHeight)
+            implements uz.duke.core.thing.WorldTemplate, uz.duke.core.thing.Layered {
     }
 
     /** Every map laid in a layered world stands at its height: one laid before it was said, and one after. */

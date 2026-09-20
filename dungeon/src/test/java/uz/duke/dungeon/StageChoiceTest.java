@@ -42,12 +42,11 @@ class StageChoiceTest {
     /**
      * The shipped stage is found, read and offered.
      *
-     * <p>Found by being a map the game's file lists: an author adds a line there and it is on
-     * the screen, in the order the file gives.
+     * <p>Found by being a folder under maps/: an author draws one and it is on the screen, in name order.
      */
     @Test
     void theShippedStageIsFound() {
-        var found = Stages.all(SETTINGS);
+        var found = Stages.all();
 
         assertFalse(found.isEmpty(), "the stage that ships with the game was not found");
         assertTrue(found.stream().anyMatch(listed -> listed.name().equals("first")),
@@ -57,7 +56,7 @@ class StageChoiceTest {
     /** And what is offered is playable — the listing has already checked it. */
     @Test
     void everyStageOfferedCanActuallyBeLoaded() {
-        for (var listed : Stages.all(SETTINGS)) {
+        for (var listed : Stages.all()) {
             assertNotNull(Stages.load(listed.name(), SETTINGS),
                     listed.name() + " was offered but will not load");
         }
@@ -66,8 +65,8 @@ class StageChoiceTest {
     /** Each row is the stage's own words, not its file name. */
     @Test
     void eachStageSpeaksForItself() {
-        for (var listed : Stages.all(SETTINGS)) {
-            assertFalse(listed.stage().name().isBlank(),
+        for (var listed : Stages.all()) {
+            assertFalse(listed.title().isBlank(),
                     listed.name() + " would be offered as a blank row");
         }
     }
@@ -111,12 +110,12 @@ class StageChoiceTest {
     @Test
     void everyStageFoundIsARowOfItsOwn() {
         var rows = path().options().get(1).next().options();
-        var found = Stages.all(SETTINGS);
+        var found = Stages.all();
 
         assertEquals(found.size(), rows.size());
         for (int at = 0; at < found.size(); at++) {
-            assertEquals(found.get(at).stage().name(), rows.get(at).label());
-            assertEquals(found.get(at).stage().description(), rows.get(at).blurb());
+            assertEquals(found.get(at).title(), rows.get(at).label());
+            assertEquals(found.get(at).description(), rows.get(at).blurb());
         }
     }
 
@@ -155,7 +154,7 @@ class StageChoiceTest {
         var how = Main.howToPlay(session, SETTINGS, Visuals.create(),
                 Main.controls(SETTINGS));
         var stageRow = how.options().get(1).next().options().getFirst();
-        var stage = Stages.all(SETTINGS).getFirst().stage();
+        var stage = Stages.load(Stages.all().getFirst().map(), SETTINGS);
 
         stageRow.taken().run();
         stageRow.next().options().getFirst().taken().run();
@@ -212,7 +211,7 @@ class StageChoiceTest {
     /** A stage can be played by either hero: the stage does not decide. */
     @Test
     void aStageCanBePlayedByEitherHero() {
-        var chosen = Stages.all(SETTINGS).getFirst().stage();
+        var chosen = Stages.load(Stages.all().getFirst().map(), SETTINGS);
         for (var hero : SETTINGS.heroes()) {
             var session = Dungeon.newSession(7L, SETTINGS);
             var how = Main.howToPlay(session, SETTINGS, Visuals.create(),
@@ -253,7 +252,7 @@ class StageChoiceTest {
         // A settings object whose stage folder has nothing in it is not something
         // this can arrange, so the shape is asserted from the other end: the mode
         // screen exists only because a stage was found.
-        assertFalse(Stages.all(SETTINGS).isEmpty(),
+        assertFalse(Stages.all().isEmpty(),
                 "this build ships a stage, so the mode screen is expected");
         assertEquals(SETTINGS.hud().chooseModeWord(), path().title());
     }

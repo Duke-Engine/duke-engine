@@ -7,7 +7,7 @@ qurol bor, na pul, na `MoveTo` buyrug'i.
 | | |
 |---|---|
 | Bog'liqligi | **yo'q** — sof Java, tashqi kutubxonasiz |
-| Kim bunga bog'lanadi | `rts` (→ `game` → `client3d` → `studio`) |
+| Kim bunga bog'lanadi | `rts` (→ `game` → `client3d` → `dungeon`) |
 | Hajmi | 58 fayl, ~4 020 qator |
 | Testlar | 124 ta |
 
@@ -231,7 +231,7 @@ armiyani qayta yo'l tuzishga majbur qilardi.
 ### `uz.duke.core.script` — trigger'lar
 
 `ScriptEngine` (65 — har kadr baholaydi) + `Trigger` (shart→harakat).
-`GameLogic` ishlatadi, lekin yuqori qatlamlar (`game` / `studio`) undan
+`GameLogic` ishlatadi, lekin yuqori qatlamlar (`game` / `client3d`) undan
 foydalanmaydi — u yerdagi `UnitScript` butunlay boshqa mexanizm.
 
 ### `uz.duke.core.math` — matematika

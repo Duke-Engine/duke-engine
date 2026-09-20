@@ -248,7 +248,8 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      * Which floor a point is on — the number two objects have to share before
      * either can be in the other's way.
      */
-    private int levelAt(Coord3D position) {
+    @Override
+    public int levelAt(Coord3D position) {
         return pathGrid == null
                 ? 0
                 : pathGrid.level(pathGrid.toCellX(position), pathGrid.toCellY(position));
@@ -294,8 +295,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     public final void setPathGrid(PathGrid pathGrid) {
         this.pathGrid = pathGrid;
         // A world built in storeys says how tall one is, and every map laid in it is laid at
-        // that height: a floor swapped in mid-game included.
-        if (pathGrid != null && world instanceof Layered layered) {
+        // that height: a floor swapped in mid-game included. A map that says its own keeps it —
+        // the world's height is what a map is laid at when it has not said.
+        if (pathGrid != null && pathGrid.getLevelHeight() <= 0f && world instanceof Layered layered) {
             pathGrid.setLevelHeight(layered.levelHeight());
         }
         this.staticObstaclesDirty = true;

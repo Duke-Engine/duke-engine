@@ -10,6 +10,7 @@ import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Quad;
 import java.util.function.Function;
+import uz.duke.core.math.Coord3D;
 import uz.duke.core.pathfind.PathGrid;
 
 /**
@@ -156,7 +157,7 @@ final class TerrainScene {
                     // A room standing above the ground plane needs something under
                     // it, or its floor is a colour on the ground and the units
                     // walking about on it are in mid-air.
-                    float ground = grid.groundHeight(cx, cy);
+                    float ground = grid.storeyHeight(cx, cy);
                     if (ground > 0f) {
                         var plinth = new Geometry("plinth",
                                 new Box(cell / 2f, ground / 2f, cell / 2f));
@@ -187,7 +188,7 @@ final class TerrainScene {
         for (int dy = -1; dy <= 1; dy++) {
             for (int dx = -1; dx <= 1; dx++) {
                 if (grid.inBounds(cx + dx, cy + dy) && !grid.isBlocked(cx + dx, cy + dy)) {
-                    highest = Math.max(highest, grid.groundHeight(cx + dx, cy + dy));
+                    highest = Math.max(highest, grid.storeyHeight(cx + dx, cy + dy));
                 }
             }
         }
@@ -244,6 +245,42 @@ final class TerrainScene {
                         tintFor(standing.piece(), standing.ground(), storey, tallest));
             }
         }
+        drape(grid);
+    }
+
+    /**
+     * Every piece bent over the map's relief: each corner of its mesh raised by the relief under it, so a floor
+     * rises and falls with the ground its walkers stand on and a wall follows the ground along its foot. The layout
+     * is the storeys', and this the one place the relief enters the picture.
+     *
+     * <p>Only where a map has relief. A mesh is shared by every piece cut from one model, so a bent piece bends a
+     * copy of its own.
+     */
+    private void drape(PathGrid grid) {
+        if (grid.getRelief() == null) {
+            return;
+        }
+        root.updateGeometricState();
+        var local = new Vector3f();
+        var world = new Vector3f();
+        root.depthFirstTraversal(spatial -> {
+            if (!(spatial instanceof Geometry geometry)) {
+                return;
+            }
+            var mesh = geometry.getMesh().deepClone();
+            var positions = mesh.getFloatBuffer(com.jme3.scene.VertexBuffer.Type.Position);
+            var transform = geometry.getWorldTransform();
+            for (int i = 0; i + 2 < positions.limit(); i += 3) {
+                local.set(positions.get(i), positions.get(i + 1), positions.get(i + 2));
+                transform.transformVector(local, world);
+                world.y += grid.reliefHeight(new Coord3D(world.x, world.z, 0f));
+                transform.transformInverseVector(world, local);
+                positions.put(i, local.x).put(i + 1, local.y).put(i + 2, local.z);
+            }
+            mesh.getBuffer(com.jme3.scene.VertexBuffer.Type.Position).setUpdateNeeded();
+            mesh.updateBound();
+            geometry.setMesh(mesh);
+        });
     }
 
     /**
@@ -470,7 +507,7 @@ final class TerrainScene {
         if (rock >= 0) {
             return highestFloorAround(grid, rock % grid.getWidth(), rock / grid.getWidth());
         }
-        return grid.groundHeight(placement.cellX(), placement.cellY());
+        return grid.storeyHeight(placement.cellX(), placement.cellY());
     }
 
     /**

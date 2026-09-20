@@ -46,7 +46,7 @@ import uz.duke.game.script.ScriptModule;
  * learn that is to strip away everything that could hide the answer.
  *
  * <p>This class is only assembly. What the creatures are is data
- * ({@code data/units/}), how a dungeon is laid out is data ({@code data/maps/}),
+ * ({@code data/units/}), how a dungeon is laid out is data ({@code maps/}),
  * how they behave is {@link uz.duke.dungeon.ai}, and when a run ends is
  * {@link DungeonRun}. Nothing here is added to the engine — the game is definitions
  * and orders the engine already understands, which is the real test: if a game
@@ -294,6 +294,11 @@ public final class Dungeon {
         var bag = new LootBag();
         var arena = world(floor.asciiMap(), floor.levelMap(), settings,
                 Content.units(), bag);
+        // And the relief the floors lie on, over the levels just laid: the same grid, as the next floor's is.
+        arena.game().getTerrain().setRelief(floor.relief());
+        if (floor.levelHeight() > 0f) {
+            arena.game().getTerrain().setLevelHeight(floor.levelHeight());
+        }
         var game = arena.game().subtitle(subtitle);
 
         // Told which creature is the hero and everything his block says about him --

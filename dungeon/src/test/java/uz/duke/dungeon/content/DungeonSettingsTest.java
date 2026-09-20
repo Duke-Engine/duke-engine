@@ -3,10 +3,15 @@ package uz.duke.dungeon.content;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
+import uz.duke.client3d.MenuStyle;
+import uz.duke.client3d.PanelBlock;
+import uz.duke.client3d.PanelLook;
 import uz.duke.dungeon.world.World;
 
 /**
@@ -50,6 +55,64 @@ class DungeonSettingsTest {
         var game = uz.duke.dungeon.Dungeon.world(".....\n.....\n", settings).game();
         game.runHeadless(1);
         assertEquals(12f, game.getTerrain().getLevelHeight(), "the engine lays the map at the world's height");
+    }
+
+    /**
+     * The hero's bar the shipped file describes is the bar as it was designed — the file is its whole arrangement
+     * and palette, written out to be changed — and a file that says otherwise gets its own bar.
+     */
+    @Test
+    void theHerosBarIsTheOneTheFileDescribes() {
+        assertEquals(PanelLook.DEFAULTS, DungeonSettings.load().panelLook());
+        var own = DungeonSettings.parse("""
+                PanelLook
+                  Blocks = [Skills, Hero]
+                  ItemColumns = 4
+                  UltimateKey = T
+                  StoneColour = 0x102030
+                End
+                """).panelLook();
+
+        assertEquals(List.of(PanelBlock.SKILLS, PanelBlock.HERO), own.blocks());
+        assertEquals(4, own.itemColumns());
+        assertEquals('T', own.ultimateKey());
+        assertEquals(0x102030, own.stoneColour());
+        assertEquals(PanelLook.DEFAULTS.torchColour(), own.torchColour(), "what it leaves out is the design's");
+    }
+
+    /** The menus are the file's: its own lettering, and the stone and torchlight it says they are cut from. */
+    @Test
+    void theMenusAreTheFilesToo() {
+        var shipped = DungeonSettings.load().menu();
+        assertEquals("fonts/cinzel-22.fnt", shipped.titleFont());
+        assertEquals(MenuStyle.DEFAULTS.torchColour(), shipped.torchColour());
+        assertEquals(MenuStyle.DEFAULTS.veilPercent(), shipped.veilPercent());
+
+        var own = DungeonSettings.parse("""
+                MenuStyle
+                  TorchColour = 0x00FF00
+                  VeilPercent = 140
+                End
+                """).menu();
+        assertEquals(0x00FF00, own.torchColour());
+        assertEquals(100, own.veilPercent(), "a veil is never heavier than the whole of it");
+        assertNull(own.titleFont(), "a file that names no font gets the client's own lettering");
+    }
+
+    /** The numbers that come off a creature are the file's too, and the shipped file writes the client's own. */
+    @Test
+    void theHitNumbersAreTheFilesToo() {
+        assertEquals(uz.duke.client3d.HitNumbers.DEFAULTS, DungeonSettings.load().hitNumbers());
+        var quick = DungeonSettings.parse("""
+                HitNumbers
+                  Seconds = 0.25
+                  TakenColour = 0xFF0000
+                End
+                """).hitNumbers();
+
+        assertEquals(0.25f, quick.seconds(), 0.0001f);
+        assertEquals(0xFF0000, quick.takenColour());
+        assertEquals(uz.duke.client3d.HitNumbers.DEFAULTS.popScale(), quick.popScale(), 0.0001f);
     }
 
     /** The point of the whole exercise: a different file is a different game. */

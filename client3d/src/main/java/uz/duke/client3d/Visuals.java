@@ -712,6 +712,21 @@ public final class Visuals {
         return statLook;
     }
 
+    private PanelLook panelLook = PanelLook.DEFAULTS;
+
+    /**
+     * Which blocks the hero's bar has, in what order, how big its sockets are and every colour it is painted
+     * in — see {@link PanelLook}. A game that never says gets the bar as it was designed.
+     */
+    public Visuals panelLook(PanelLook look) {
+        this.panelLook = look == null ? PanelLook.DEFAULTS : look;
+        return this;
+    }
+
+    public PanelLook getPanelLook() {
+        return panelLook;
+    }
+
     /**
      * What the caster is seen doing, and for how long.
      *
@@ -835,7 +850,7 @@ public final class Visuals {
         return rangeLook;
     }
 
-    private HitNumbers hitNumbers = HitNumbers.DEFAULT;
+    private HitNumbers hitNumbers = HitNumbers.DEFAULTS;
 
     /**
      * How the numbers that come off a creature as it is hurt or healed should look
@@ -846,7 +861,7 @@ public final class Visuals {
      * blow is are the game's, like the fog and the pointer.
      */
     public Visuals hitNumbers(HitNumbers hitNumbers) {
-        this.hitNumbers = hitNumbers == null ? HitNumbers.DEFAULT : hitNumbers;
+        this.hitNumbers = hitNumbers == null ? HitNumbers.DEFAULTS : hitNumbers;
         return this;
     }
 
@@ -1132,7 +1147,7 @@ public final class Visuals {
 
     // ---- menus ----
 
-    private MenuStyle menuStyle = MenuStyle.PLAIN;
+    private MenuStyle menuStyle = MenuStyle.DEFAULTS;
 
     /**
      * How this game's menus are lettered — see { MenuStyle}.
@@ -1141,7 +1156,7 @@ public final class Visuals {
      * menu and the game says what it should look like.
      */
     public Visuals menuStyle(MenuStyle style) {
-        this.menuStyle = style == null ? MenuStyle.PLAIN : style;
+        this.menuStyle = style == null ? MenuStyle.DEFAULTS : style;
         return this;
     }
 

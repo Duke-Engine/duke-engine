@@ -158,6 +158,14 @@ public interface World {
     float groundHeight(Coord3D position);
 
     /**
+     * Which floor a position stands on: the level of the cell under it. Zero on a world with one floor — and on a
+     * world whose floor rises and falls, still the floor it is, however high the ground there stands.
+     */
+    default int levelAt(Coord3D position) {
+        return 0;
+    }
+
+    /**
      * Somewhere at or near {@code near} where {@code shape} fits without
      * overlapping anything — where to put a newly produced unit, a dropped
      * passenger, or anything else that must appear beside something solid.

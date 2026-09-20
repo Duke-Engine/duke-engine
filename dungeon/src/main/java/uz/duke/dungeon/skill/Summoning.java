@@ -23,9 +23,6 @@ import uz.duke.dungeon.ai.SightLine;
  */
 public final class Summoning {
 
-    /** How far the ground may stand from the caster's and still be the floor it is on. */
-    private static final float SAME_FLOOR = 0.01f;
-
     private Summoning() {
     }
 
@@ -36,7 +33,7 @@ public final class Summoning {
         double ahead = towards == null ? caster.getOrientation()
                 : StrictMath.atan2(towards.y() - from.y(), towards.x() - from.x());
         double turn = StrictMath.toRadians(turnDegrees);
-        float floor = world.groundHeight(from);
+        int floor = world.levelAt(from);
         var found = new ArrayList<Coord3D>(count);
         for (int attempt = 0; attempt <= 2 * turns && found.size() < count; attempt++) {
             int aside = (attempt + 1) / 2;
@@ -52,9 +49,11 @@ public final class Summoning {
         return found;
     }
 
-    private static boolean open(World world, GameObject caster, Coord3D spot, float floor) {
+    // The floor the caster is on, by its level rather than its height: where the ground rises and falls, the same
+    // floor stands at a different height a few steps away.
+    private static boolean open(World world, GameObject caster, Coord3D spot, int floor) {
         return !world.isGroundBlocked(spot)
-                && Math.abs(spot.z() - floor) <= SAME_FLOOR
+                && world.levelAt(spot) == floor
                 && world.findBlocker(caster, spot) == null
                 && SightLine.clear(world, caster.getPosition(), spot);
     }

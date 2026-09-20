@@ -46,7 +46,7 @@ class StageCheckTest {
     private static GeneratedDungeon floorWith(GeneratedDungeon floor, Placement hero,
             List<Monster> monsters, Monster boss, List<GeneratedDungeon.Prop> props) {
         return new GeneratedDungeon(floor.asciiMap(), floor.levelMap(), hero, monsters, boss,
-                floor.bossRoom(), floor.rooms(), floor.links(), floor.roomStoreys(), props);
+                floor.bossRoom(), floor.rooms(), floor.links(), floor.roomStoreys(), props, floor.relief(), floor.levelHeight());
     }
 
     /**
@@ -153,7 +153,7 @@ class StageCheckTest {
         }
         var sealed = new GeneratedDungeon(String.join("\n", walls) + "\n", floor.levelMap(),
                 floor.hero(), List.of(), floor.boss(), floor.bossRoom(), floor.rooms(),
-                floor.links(), floor.roomStoreys(), List.of());
+                floor.links(), floor.roomStoreys(), List.of(), floor.relief(), floor.levelHeight());
 
         var said = problems(with(stage, sealed));
         assertTrue(said.stream().anyMatch(p -> p.contains("cannot be walked to")),
@@ -169,7 +169,7 @@ class StageCheckTest {
         shortened = shortened.substring(0, shortened.lastIndexOf('\n')) + "\n";
         var broken = with(stage, new GeneratedDungeon(floor.asciiMap(), shortened, floor.hero(),
                 floor.monsters(), floor.boss(), floor.bossRoom(), floor.rooms(), floor.links(),
-                floor.roomStoreys(), floor.props()));
+                floor.roomStoreys(), floor.props(), floor.relief(), floor.levelHeight()));
 
         assertTrue(problems(broken).stream().anyMatch(p -> p.contains("different heights")),
                 problems(broken).toString());
@@ -181,7 +181,7 @@ class StageCheckTest {
         var stage = good(12L);
         var floor = stage.floor();
         var broken = with(stage, floorWith(floor, null, floor.monsters(), null, floor.props()));
-        var path = folder.resolve("broken.duke");
+        var path = folder.resolve("broken.map");
         Files.writeString(path, StageFile.write(broken));
 
         var thrown = assertThrows(IllegalStateException.class,

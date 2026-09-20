@@ -7,7 +7,7 @@ va `DukeGame.postCommand()` orqali buyruq qaytaradi.
 | | |
 |---|---|
 | Bog'liqligi | `api project(":game")` + **jMonkeyEngine 3.7.0-stable** (jme3-core / desktop / lwjgl3 / plugins / jogg) |
-| Kim bunga bog'lanadi | `studio`, `sandbox3d` |
+| Kim bunga bog'lanadi | `dungeon` |
 | Hajmi | 5 fayl, ~1 470 qator |
 | Testlar | 5 ta (`Shell` — jME talab qilmaydigan yagona qism) |
 
@@ -67,9 +67,8 @@ da saqlanadi (`duke-engine/game` tugunida: `resIndex`, `fullscreen`, `volume`).
 
 ## O'chirish tahlili
 
-**Bu modul o'chirilsa nima bo'ladi:** `studio` ning Play 3D tugmasi va butun
-export quvuri (chiqarilgan o'yin `client3d` ni ishlatadi) yiqiladi, `sandbox3d`
-ham ketadi. Ya'ni `studio` ni saqlab, `client3d` ni o'chirib bo'lmaydi.
+**Bu modul o'chirilsa nima bo'ladi:** `dungeon` butunlay yiqiladi — o'yin shu klient
+ustida turadi — va chiqarilgan o'yin ham (u `client3d` ni ishlatadi).
 
 **Modul ichida o'chiriladigan narsa yo'q** — 4 ta fayl ham ishlatiladi.
 
@@ -82,9 +81,8 @@ ham ketadi. Ya'ni `studio` ni saqlab, `client3d` ni o'chirib bo'lmaydi.
 2. **Prezentatsiya ikki marta yozilgan:** bu modul va `game/swing` bir xil ishni
    ikki xil qiladi. Birini tanlash kerak — 3D to'liqroq (menyular, minimap,
    build menyusi, model/ovoz), 2D esa jME'siz va tez.
-3. **jME versiyasi qulflangan** (3.7.0-stable) — `sandbox3d` ning
-   `jme3-testdata` bog'liqligi tarmoq sekin bo'lsa `./gradlew build` ni aynan
-   shu yerda yiqitadi (kod muammosi emas).
+3. **jME versiyasi qulflangan** (3.7.0-stable) — jME bog'liqliklari tarmoq sekin
+   bo'lsa `./gradlew build` ni aynan shu yerda yiqitadi (kod muammosi emas).
 
 ## Koordinatalar
 

@@ -21,9 +21,10 @@ Game
   ;
   ;   ./gradlew :dungeon:run --args="--map=first"
   ;
-  ; A map's Name, or the path of a map file: looked for on disk first and inside
-  ; the game second, so an author edits a file and a player installs one. Maps
-  ; are drawn with ./gradlew :dungeon:newMap and filled on the IDE's Map tab.
+  ; A map's name — the name of its folder under maps/ — or the path of a map file
+  ; or its folder: a player's own maps are looked for first and the game's own
+  ; second, so an author edits a file and a player installs one. Maps are drawn
+  ; with ./gradlew :dungeon:newMap and filled on the IDE's Map tab.
   StartMap =
 
   Files = [
@@ -34,11 +35,10 @@ Game
     data/world/themes/dungeon.duke,
     data/world/themes/forest.duke,
 
-    ; Where it is played: the endless descent, drawn from a seed every time, and
-    ; the maps drawn once, offered in this order.
-    data/maps/endless.duke,
-    data/maps/first.duke,
-    data/maps/deep.duke,
+    ; How a floor is drawn when nobody drew it: the endless descent's own recipe.
+    ; The maps drawn once are NOT listed here — each is a folder of its own under
+    ; maps/, found rather than listed, so one dropped in is one that is offered.
+    data/world/generation.duke,
 
     ; What everything on two legs moves by, linked from each unit.
     data/animations/humanoid.duke,

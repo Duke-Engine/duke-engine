@@ -15,7 +15,7 @@ game.start();   // oyna ochiladi, yopilguncha bloklaydi
 | | |
 |---|---|
 | Bog'liqligi | `api project(":rts")`. Tashqi kutubxona **yo'q** (Swing = JDK) |
-| Kim bunga bog'lanadi | `client3d` (→ `studio`), `sandbox` |
+| Kim bunga bog'lanadi | `client3d` (→ `dungeon`) |
 | Hajmi | 12 fayl, ~2 010 qator |
 | Testlar | 18 ta |
 
@@ -76,7 +76,7 @@ Bu modulda **o'lik kod yo'q** — hamma fayl ishlatiladi.
 
 Savol boshqacha: **`game` moduli umuman kerakmi?** Ikki qarash bor.
 
-**Kerak, chunki:** `client3d` va `studio` butunlay shunga tayanadi (`DukeGame`
+**Kerak, chunki:** `client3d` va `dungeon` butunlay shunga tayanadi (`DukeGame`
 13 joyda ishlatiladi). `RtsLogic` dagi buyruq routingi va egalik tekshiruvi
 haqiqiy mantiq, uni yo'qotsangiz har bir o'yin qaytadan yozadi.
 
@@ -84,7 +84,7 @@ haqiqiy mantiq, uni yo'qotsangiz har bir o'yin qaytadan yozadi.
 
 | Nomzod | Sabab | Narxi |
 |---|---|---|
-| `swing/GamePanel` + `swing/GameWindow` (~404 qator) | ikkinchi, kambag'alroq klient. `client3d` to'liq (menyular, minimap, build menyusi, model/ovoz) — 2D panelda banner ham, build menyusi ham yo'q | `sandbox` va Studio'ning "Play 2D" tugmasi yo'qoladi; jME'siz tez sinov usuli qoladi |
+| `swing/GamePanel` + `swing/GameWindow` (~404 qator) | ikkinchi, kambag'alroq klient. `client3d` to'liq (menyular, minimap, build menyusi, model/ovoz) — 2D panelda banner ham, build menyusi ham yo'q | jME'siz tez sinov usuli yo'qoladi |
 | `MultiplayerSession` | agar multiplayer maqsad bo'lmasa. Hozir 2 o'yinchiga qattiq kodlangan | LAN o'yin yo'qoladi; `core` dagi lock-step primitivlari qoladi |
 
 > `DukeGame` ning 762 qatori — modulning eng katta bo'lagi va u ham fasad, ham

@@ -145,6 +145,9 @@ final class Destination {
         if (diagonal && (grid.isBlocked(toX, fromY) || grid.isBlocked(fromX, toY))) {
             return false; // no cutting round the corner of a wall
         }
+        if (grid.getRelief() != null && grid.getRelief().isCliff(toX, toY)) {
+            return false; // too steep to walk onto, as the simulation refuses it
+        }
         int climb = grid.level(toX, toY) - grid.level(fromX, fromY);
         if (climb == 0) {
             return true;

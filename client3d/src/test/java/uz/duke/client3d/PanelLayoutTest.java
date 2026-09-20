@@ -39,7 +39,7 @@ import org.junit.jupiter.api.Test;
 class PanelLayoutTest {
 
     /** A full line of the kind the dungeon really sends, taken from its own output. */
-    private static final String LINE =
+    static final String LINE =
             "name=Erika|title=O'q ustasi|rank=7-daraja|hp=128/200|xp=38/100"
                     + "|depth=III / IV|depthWord=CHUQURLIK"
                     + "|stat=Zarba,34,+6|stat=Zirh,12,+2|stat=Tezlik,52"
@@ -53,7 +53,7 @@ class PanelLayoutTest {
         var assets = new DesktopAssetManager(true);
         var font = assets.loadFont("Interface/Fonts/Default.fnt");
         var gui = new Node("gui");
-        var hero = new HeroPanel(assets, font, gui, width, PanelSkin.NONE, RangeLook.DEFAULT);
+        var hero = new HeroPanel(assets, font, gui, width, 900f, PanelSkin.NONE, RangeLook.DEFAULT);
         assertTrue(hero.show(LINE, 0f), "the panel should have taken the line");
         gui.updateGeometricState();
         return gui;
@@ -264,7 +264,7 @@ class PanelLayoutTest {
         var assets = new DesktopAssetManager(true);
         var font = assets.loadFont("Interface/Fonts/Default.fnt");
         var gui = new Node("gui");
-        var hero = new HeroPanel(assets, font, gui, 1600f, PanelSkin.NONE, RangeLook.DEFAULT);
+        var hero = new HeroPanel(assets, font, gui, 1600f, 900f, PanelSkin.NONE, RangeLook.DEFAULT);
         assertTrue(hero.show(card, 0f), "the panel should have taken the card");
         gui.updateGeometricState();
         return gui;
@@ -394,7 +394,7 @@ class PanelLayoutTest {
         var assets = new DesktopAssetManager(true);
         var font = assets.loadFont("Interface/Fonts/Default.fnt");
         var gui = new Node("gui");
-        var hero = new HeroPanel(assets, font, gui, 1600f, PanelSkin.NONE, RangeLook.DEFAULT);
+        var hero = new HeroPanel(assets, font, gui, 1600f, 900f, PanelSkin.NONE, RangeLook.DEFAULT);
         assertTrue(hero.show(card, 0f), "the panel should have taken the card");
         gui.updateGeometricState();
         return hero;
@@ -570,7 +570,7 @@ class PanelLayoutTest {
             var assets = new DesktopAssetManager(true);
             var font = assets.loadFont("Interface/Fonts/Default.fnt");
             var gui = new Node("gui");
-            var hero = new HeroPanel(assets, font, gui, width, PanelSkin.NONE, RangeLook.DEFAULT);
+            var hero = new HeroPanel(assets, font, gui, width, 900f, PanelSkin.NONE, RangeLook.DEFAULT);
             assertTrue(hero.show(four, 0f), "the panel should have taken the line at " + width);
             gui.updateGeometricState();
 

@@ -55,7 +55,7 @@ class PanelSkinTest {
         var assets = new DesktopAssetManager(true);
         var font = assets.loadFont("Interface/Fonts/Default.fnt");
         var gui = new Node("gui");
-        var panel = new HeroPanel(assets, font, gui, 1280f, skin, RangeLook.DEFAULT);
+        var panel = new HeroPanel(assets, font, gui, 1280f, 720f, skin, RangeLook.DEFAULT);
         assertTrue(panel.show(LINE, 0f), "the panel should have taken its own game's line");
         return gui;
     }
@@ -133,7 +133,7 @@ class PanelSkinTest {
         var gui = new Node("gui");
         var only = Map.of(PanelSkin.GAUGE,
                 new PanelSkin.Piece(REAL, 2f, 1f, Color.WHITE));
-        new HeroPanel(assets, font, gui, 1280f, new PanelSkin(only), RangeLook.DEFAULT).show(LINE, 0f);
+        new HeroPanel(assets, font, gui, 1280f, 720f, new PanelSkin(only), RangeLook.DEFAULT).show(LINE, 0f);
 
         assertNotNull(frame(gui, PanelSkin.GAUGE));
         assertEquals(null, frame(gui, PanelSkin.SLOT), "nobody asked for a socket rim");

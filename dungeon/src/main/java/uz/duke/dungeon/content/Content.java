@@ -10,8 +10,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
-import uz.duke.client3d.Effect;
+import uz.duke.core.effect.Effect;
 import uz.duke.client3d.OrderMark;
+import uz.duke.client3d.HitNumbers;
+import uz.duke.client3d.MenuStyle;
+import uz.duke.client3d.PanelLook;
 import uz.duke.core.data.Binder;
 import uz.duke.core.data.DataException;
 import uz.duke.core.data.DukeText;
@@ -42,7 +45,6 @@ import uz.duke.dungeon.world.HitFeel;
 import uz.duke.dungeon.world.Hud;
 import uz.duke.dungeon.world.LootDrops;
 import uz.duke.dungeon.world.LootItem;
-import uz.duke.dungeon.world.Menu;
 import uz.duke.dungeon.world.Moment;
 import uz.duke.dungeon.world.Progression;
 import uz.duke.dungeon.world.Run;
@@ -64,7 +66,8 @@ import uz.duke.rts.module.RtsModules;
  * how much a skeleton hurts was a code change and a rebuild. They are data, so they live in
  * files: {@code .duke} files, each block the record its word names — a {@code Monster} block is
  * a {@link Monster}, its fields the record's — and the {@link Game} block of {@link #GAME} names every
- * one of them: the world's own blocks in {@code data/world/} and its maps in {@code data/maps/} among them.
+ * one of them: the world's own blocks in {@code data/world/} among them. Its maps are not listed —
+ * a map is a folder under {@code maps/}, found by its being there.
  *
  * <p>A file may hold any blocks, so what reaches each reader is sorted out here: a world builds
  * the templates ({@link #units}), and the settings read everything ({@link #data}), each unit's
@@ -98,7 +101,7 @@ public final class Content {
             named(Moment.class), named(Cursor.class), named(Skin.class), named(Theme.class),
             named(Combat.class), named(Run.class), named(Progression.class), named(LootDrops.class),
             named(Camera.class), named(Hud.class), named(UnitBar.class), named(StatBlock.class),
-            named(SkillRing.class), named(OrderMark.class), named(Menu.class), named(Sun.class),
+            named(SkillRing.class), named(OrderMark.class), named(PanelLook.class), named(HitNumbers.class), named(MenuStyle.class), named(Sun.class),
             named(Fog.class), named(Tiles.class), named(EffectBudget.class), named(HitFeel.class),
             named(Audio.class), named(World.class), named(ProceduralMap.class), named(StaticMap.class));
 

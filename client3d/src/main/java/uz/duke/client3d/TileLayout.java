@@ -158,7 +158,7 @@ final class TileLayout {
                     addLedges(placements, grid, cx, cy, cell, lid);
                     continue; // the stone itself is not drawn; it is what the walls face
                 }
-                float ground = grid.groundHeight(cx, cy);
+                float ground = grid.storeyHeight(cx, cy);
                 placements.add(new Placement(Piece.FLOOR, cx, cy,
                         (cx + 0.5f) * cell, (cy + 0.5f) * cell, 0f, ground));
                 addWalls(placements, grid, cx, cy, cell);
@@ -208,7 +208,7 @@ final class TileLayout {
                 // this cell it leaves a band open above the wall, and through that
                 // band you see the inside of the map.
                 float lid = highestFloorAround(grid, nx, ny);
-                float here = grid.groundHeight(cx, cy);
+                float here = grid.storeyHeight(cx, cy);
                 for (float foot = here; foot <= lid + 0.001f; foot += Math.max(storey, 1f)) {
                     into.add(new Placement(Piece.WALL, cx, cy, x, z, side[2], foot));
                     if (storey <= 0f) {
@@ -220,8 +220,8 @@ final class TileLayout {
             if (grid.canStep(cx, cy, nx, ny)) {
                 continue; // open ground to open ground: nothing stands between them
             }
-            float here = grid.groundHeight(cx, cy);
-            float there = grid.groundHeight(nx, ny);
+            float here = grid.storeyHeight(cx, cy);
+            float there = grid.storeyHeight(nx, ny);
             if (here <= there || storey <= 0f) {
                 continue; // the higher of the two puts up the wall
             }
@@ -310,7 +310,7 @@ final class TileLayout {
         for (int dy = -1; dy <= 1; dy++) {
             for (int dx = -1; dx <= 1; dx++) {
                 if (!solid(grid, cx + dx, cy + dy)) {
-                    highest = Math.max(highest, grid.groundHeight(cx + dx, cy + dy));
+                    highest = Math.max(highest, grid.storeyHeight(cx + dx, cy + dy));
                 }
             }
         }
@@ -335,7 +335,7 @@ final class TileLayout {
             if (!walled(grid, cx, cy, cx + dx, cy) || !walled(grid, cx, cy, cx, cy + dy)) {
                 continue; // only where both sides are walled does a notch exist
             }
-            float here = grid.groundHeight(cx, cy);
+            float here = grid.storeyHeight(cx, cy);
             float storey = grid.getLevelHeight();
             float foot = Math.min(openGround(grid, cx + dx, cy, here),
                     openGround(grid, cx, cy + dy, here));
@@ -356,7 +356,7 @@ final class TileLayout {
 
     /** The floor of a neighbour, or {@code ifStone} where there is no floor to stand on. */
     private static float openGround(PathGrid grid, int cx, int cy, float ifStone) {
-        return solid(grid, cx, cy) ? ifStone : grid.groundHeight(cx, cy);
+        return solid(grid, cx, cy) ? ifStone : grid.storeyHeight(cx, cy);
     }
 
     /** Off the map counts as stone, so the outermost rooms are walled in. */

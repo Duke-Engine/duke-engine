@@ -197,7 +197,10 @@ public final class Binder {
                     yield collection(raw, read);
                 }
                 case Value.NestedList list -> {
-                    if (!choosable(element)) {
+                    // A record read from one line — {@code Skeleton 17 16} — may also be written as a block, for
+                    // a list whose things have more to say than a line holds: a monster that starts asleep, a
+                    // prop turned to face the door. One or the other for the whole list, not both in one.
+                    if (!choosable(element) && !element.isRecord()) {
                         throw new DataException(where, "'" + key + "' is a list: write it [a, b]");
                     }
                     var read = new ArrayList<Object>(list.blocks().size());

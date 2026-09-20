@@ -33,8 +33,13 @@ import uz.duke.core.math.Coord3D;
  * <p>Levels are integers rather than a height field on purpose. A whole number
  * hashes identically on every machine, cannot drift by a rounding, and answers
  * the only questions a simulation asks of height — may I walk there, are we on
- * the same floor. Continuous terrain, slopes and movement costs are a different
- * and much more expensive thing, and nothing here is a step toward it.
+ * the same floor.
+ *
+ * <p><b>Relief.</b> Over the levels a map may lay a {@link HeightMap}: SAGE's height
+ * map, whole-numbered steps at every corner, so a floor can rise and fall across a
+ * room. It adds to the height under a mover and never to its level, so walls,
+ * stairs and who stands on which floor are the levels' business still; and a cell
+ * steep enough to be a cliff is one nothing steps onto.
  *
  * <p>A grid nobody tells about height is flat: every cell is level 0, no cell is
  * a ramp, {@link #getLevelHeight()} is zero, and every rule above collapses back
@@ -56,6 +61,7 @@ public final class PathGrid {
     private final int[] level;               // which floor this cell stands on; 0 everywhere
     private final boolean[] ramp;            // cells that link one level to the next
     private float levelHeight;               // world units per level; 0 = the world is flat
+    private HeightMap relief;                // smooth ground over the levels; null = none
 
     public PathGrid(int width, int height) {
         this(width, height, DEFAULT_CELL_SIZE);
@@ -197,9 +203,37 @@ public final class PathGrid {
         this.levelHeight = levelHeight;
     }
 
-    /** How high the floor of a cell stands. Zero on a flat grid, always. */
-    public float groundHeight(int cx, int cy) {
+    /**
+     * The relief the floors lie on, or null: SAGE's height map, a whole number of steps at every corner, over
+     * the levels — hills in a room, a slope down a valley.
+     */
+    public HeightMap getRelief() {
+        return relief;
+    }
+
+    public void setRelief(HeightMap relief) {
+        if (relief != null && (relief.columns() != width + 1 || relief.rows() != height + 1)) {
+            throw new IllegalArgumentException("a relief over " + width + "x" + height + " cells is "
+                    + (width + 1) + "x" + (height + 1) + " corners, not " + relief.columns() + "x" + relief.rows());
+        }
+        this.relief = relief;
+    }
+
+    /**
+     * How high a cell's storey stands: its level times the level height, before any relief. What a picture of the
+     * map is laid out by, storey by storey, and then bent over the relief ({@link #reliefHeight}).
+     */
+    public float storeyHeight(int cx, int cy) {
         return level(cx, cy) * levelHeight;
+    }
+
+    /** How high the floor of a cell stands, at its centre. Zero on a flat grid, always. */
+    public float groundHeight(int cx, int cy) {
+        if (relief == null) {
+            return level(cx, cy) * levelHeight;
+        }
+        int middle = HeightMap.SUBCELL / 2;
+        return level(cx, cy) * levelHeight + HeightMap.lengthOf(relief.fixedAt(cx, cy, middle, middle), cellSize);
     }
 
     /**
@@ -218,9 +252,16 @@ public final class PathGrid {
     public float groundHeight(Coord3D worldPos) {
         int cx = toCellX(worldPos);
         int cy = toCellY(worldPos);
+        // Nothing is added where there is no relief, not even a zero: -0f + 0f is 0f, and a checksum tells them apart.
+        float floor = storeyHeightUnder(worldPos, cx, cy);
+        return relief == null ? floor : floor + reliefUnder(worldPos, cx, cy);
+    }
+
+    /** The height of the storeys under a world position: flat within a cell, rising across a ramp. */
+    private float storeyHeightUnder(Coord3D worldPos, int cx, int cy) {
         var rise = rampDirection(cx, cy);
         if (rise == null) {
-            return groundHeight(cx, cy);
+            return level(cx, cy) * levelHeight;
         }
         // How far across the cell it is, along the way the ramp climbs: nothing at
         // the near edge, all of it at the far one.
@@ -229,7 +270,24 @@ public final class PathGrid {
         float across = rise[0] != 0
                 ? (rise[0] > 0 ? alongX : 1f - alongX)
                 : (rise[1] > 0 ? alongY : 1f - alongY);
-        return groundHeight(cx, cy) + levelHeight * Math.clamp(across, 0f, 1f);
+        return level(cx, cy) * levelHeight + levelHeight * Math.clamp(across, 0f, 1f);
+    }
+
+    /** The relief's height under a world position, in world units; zero where there is none. */
+    public float reliefHeight(Coord3D worldPos) {
+        return relief == null ? 0f : reliefUnder(worldPos, toCellX(worldPos), toCellY(worldPos));
+    }
+
+    /**
+     * The relief's height under a world position, in world units.
+     *
+     * <p>The position is the one thing here that is not a whole number: it becomes 256ths of a cell once, and
+     * from there the height is SAGE's triangles in integers.
+     */
+    private float reliefUnder(Coord3D worldPos, int cx, int cy) {
+        int fx = Math.clamp((int) ((worldPos.x() / cellSize - cx) * HeightMap.SUBCELL), 0, HeightMap.SUBCELL - 1);
+        int fy = Math.clamp((int) ((worldPos.y() / cellSize - cy) * HeightMap.SUBCELL), 0, HeightMap.SUBCELL - 1);
+        return HeightMap.lengthOf(relief.fixedAt(cx, cy, fx, fy), cellSize);
     }
 
     /**
@@ -276,6 +334,9 @@ public final class PathGrid {
      */
     public boolean canStep(int fromX, int fromY, int toX, int toY) {
         if (isBlocked(fromX, fromY) || isBlocked(toX, toY)) {
+            return false;
+        }
+        if (relief != null && relief.isCliff(toX, toY)) {
             return false;
         }
         int climb = level(toX, toY) - level(fromX, fromY);

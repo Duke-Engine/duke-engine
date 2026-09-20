@@ -2,8 +2,11 @@ package uz.duke.dungeon.content;
 
 import java.util.List;
 import java.util.Map;
-import uz.duke.client3d.Effect;
+import uz.duke.core.effect.Effect;
 import uz.duke.client3d.OrderMark;
+import uz.duke.client3d.HitNumbers;
+import uz.duke.client3d.MenuStyle;
+import uz.duke.client3d.PanelLook;
 import uz.duke.core.thing.ThingTemplateLoader;
 import uz.duke.dungeon.loot.Loot;
 import uz.duke.dungeon.loot.LootKind;
@@ -15,7 +18,6 @@ import uz.duke.dungeon.level.Attributes;
 import uz.duke.dungeon.level.HeroAttributes;
 import uz.duke.dungeon.level.Levelling;
 import uz.duke.dungeon.map.ProceduralMap;
-import uz.duke.dungeon.map.StaticMap;
 import uz.duke.dungeon.world.Audio;
 import uz.duke.dungeon.world.Camera;
 import uz.duke.dungeon.world.Combat;
@@ -26,7 +28,6 @@ import uz.duke.dungeon.world.HitFeel;
 import uz.duke.dungeon.world.Hud;
 import uz.duke.dungeon.world.LootDrops;
 import uz.duke.dungeon.world.LootItem;
-import uz.duke.dungeon.world.Menu;
 import uz.duke.dungeon.world.Moment;
 import uz.duke.dungeon.world.Progression;
 import uz.duke.dungeon.world.Run;
@@ -40,9 +41,12 @@ import uz.duke.dungeon.world.UnitBar;
 import uz.duke.dungeon.world.World;
 
 /**
- * Every tuning number that is not a unit stat: the world's own blocks in {@code data/world/}, the
- * maps in {@code data/maps/}, and the dungeon's part of the unit, skill, effect and sound blocks —
- * every file the game's manifest lists.
+ * Every tuning number that is not a unit stat: the world's own blocks in {@code data/world/} and the
+ * dungeon's part of the unit, skill, effect and sound blocks — every file the game's manifest lists.
+ *
+ * <p>Maps are not among them: a map is a folder of its own under {@code maps/}, found rather than listed —
+ * see {@code uz.duke.core.map.MapPackage} — and the blocks it brings with it are read after these, by
+ * {@link #of}.
  *
  * <p>Unit stats belong in the unit blocks, where the engine's template
  * loader reads them. What is left is the shape of a dungeon and the decisions its
@@ -65,9 +69,6 @@ public final class DungeonSettings {
     /** The map the endless descent is drawn from. */
     private ProceduralMap map = ProceduralMap.DEFAULTS;
 
-    /** Every map drawn once, in file order: the stages the game offers. */
-    private final List<StaticMap> staticMaps = new java.util.ArrayList<>();
-
     // ---- the world's own blocks, each the record its word names ----
 
     private Combat combat = Combat.DEFAULTS;
@@ -80,7 +81,9 @@ public final class DungeonSettings {
     private StatBlock statBlock = StatBlock.DEFAULTS;
     private SkillRing skillRing = SkillRing.DEFAULTS;
     private OrderMark orderMark = OrderMark.DEFAULTS;
-    private Menu menu = Menu.DEFAULTS;
+    private PanelLook panelLook = PanelLook.DEFAULTS;
+    private HitNumbers hitNumbers = HitNumbers.DEFAULTS;
+    private MenuStyle menu = MenuStyle.DEFAULTS;
     private Sun sun = Sun.DEFAULTS;
     private Fog fog = Fog.DEFAULTS;
     private Tiles tiles = Tiles.DEFAULTS;
@@ -137,7 +140,15 @@ public final class DungeonSettings {
         return orderMark;
     }
 
-    public Menu menu() {
+    public PanelLook panelLook() {
+        return panelLook;
+    }
+
+    public HitNumbers hitNumbers() {
+        return hitNumbers;
+    }
+
+    public MenuStyle menu() {
         return menu;
     }
 
@@ -253,6 +264,20 @@ public final class DungeonSettings {
     }
 
     /**
+     * The settings the game plays a map by: its own, and then whatever blocks the map brings with it.
+     *
+     * <p>A map is a folder and may keep blocks of its own in it -- a monster this floor alone has, a theme it
+     * is laid in -- and they are read after the game's, so one that shares a name with the game's is this
+     * map's version of it while this map is played. Warcraft III carries the same thing inside its maps; here
+     * it is simply another file in the folder, which is a file an editor can open.
+     *
+     * <p>Null is the game on its own, which is what the endless descent is played by.
+     */
+    public static DungeonSettings of(uz.duke.core.map.MapPackage map) {
+        return map == null || map.extras().isEmpty() ? load() : parse(Content.data() + "\n" + map.extrasText());
+    }
+
+    /**
      * Settings from the text of {@code .duke} files: a test's own blocks, a monster, hero,
      * projectile, prop, effect or sound each overriding the shipped one of its name — see
      * {@link #fillInMissingMonsters} — and leaving every other alone. A block the world has one
@@ -306,7 +331,6 @@ public final class DungeonSettings {
                 case Cursor cursor -> cursors.add(cursor);
                 case Skin skin -> skins.add(skin);
                 case Theme theme -> themes.add(theme);
-                case StaticMap staticMap -> staticMaps.add(staticMap);
                 case AnimationSet set -> animationSets.add(set);
                 case HeavyShot shot -> heavyShot = once(shot, once);
                 case Combat block -> combat = once(block, once);
@@ -319,7 +343,9 @@ public final class DungeonSettings {
                 case StatBlock block -> statBlock = once(block, once);
                 case SkillRing block -> skillRing = once(block, once);
                 case OrderMark block -> orderMark = once(block, once);
-                case Menu block -> menu = once(block, once);
+                case PanelLook block -> panelLook = once(block, once);
+                case HitNumbers block -> hitNumbers = once(block, once);
+                case MenuStyle block -> menu = once(block, once);
                 case Sun block -> sun = once(block, once);
                 case Fog block -> fog = once(block, once);
                 case Tiles block -> tiles = once(block, once);
@@ -569,6 +595,9 @@ public final class DungeonSettings {
         // bottleneck is where the biggest creature wedges — see the corridor
         // width above, which is a correctness setting for the same reason.
         require(map.generation().stairLength() >= 1, "a stair of no cells is a cliff");
+        require(map.generation().hills() >= 0 && map.generation().hills() <= 15,
+                "Hills are 0 to 15 steps: from 16 a cell is a cliff, and a floor checked walkable would not be");
+        require(map.generation().hillSize() >= 1, "a hill is at least one cell across");
         // Not checked against MaxStorey: turning height off with MaxStorey = 0
         // should not then demand two more fields be edited to match. Both are
         // read back through the ceiling — see entranceStorey() and bossStorey().
@@ -1002,14 +1031,19 @@ public final class DungeonSettings {
         return world;
     }
 
-    /** Every map drawn once that the files describe: the stages, in file order. */
-    public List<StaticMap> staticMaps() {
-        return List.copyOf(staticMaps);
-    }
-
     /** How many cells of a corridor a stair takes up. */
     public int stairLength() {
         return map.generation().stairLength();
+    }
+
+    /** How high the floor rises and falls over its storeys, in steps; zero for flat floors. */
+    public int hills() {
+        return map.generation().hills();
+    }
+
+    /** About how many cells across a hill is. */
+    public int hillSize() {
+        return map.generation().hillSize();
     }
 
     /** Which storey the hero starts on, never above the dungeon's own ceiling. */

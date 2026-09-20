@@ -330,7 +330,7 @@ class HeroPanelTest {
         var painted = new IconLook(true);
 
         for (var state : new boolean[][] {{false, false}, {false, true}, {true, false}}) {
-            var colour = HeroPanel.skillColour(painted, state[0], state[1]);
+            var colour = HeroPanel.skillColour(painted, PanelLook.DEFAULTS, state[0], state[1]);
             assertEquals(colour.r, colour.g, 0.001f,
                     "a painted picture may be darkened but never tinted");
             assertEquals(colour.g, colour.b, 0.001f,
@@ -342,9 +342,9 @@ class HeroPanelTest {
     @Test
     void andItsThreeStatesAreStillToldApart() {
         var painted = new IconLook(true);
-        float ready = HeroPanel.skillColour(painted, false, false).r;
-        float cooling = HeroPanel.skillColour(painted, false, true).r;
-        float locked = HeroPanel.skillColour(painted, true, false).r;
+        float ready = HeroPanel.skillColour(painted, PanelLook.DEFAULTS, false, false).r;
+        float cooling = HeroPanel.skillColour(painted, PanelLook.DEFAULTS, false, true).r;
+        float locked = HeroPanel.skillColour(painted, PanelLook.DEFAULTS, true, false).r;
 
         assertTrue(ready > cooling, "a skill he can cast is brighter than one reloading");
         assertTrue(cooling > locked, "and one reloading is brighter than one he has not earned");
@@ -355,9 +355,9 @@ class HeroPanelTest {
     @Test
     void aWhiteDrawingIsStillColouredByItsState() {
         var white = IconLook.DEFAULT;
-        var ready = HeroPanel.skillColour(white, false, false);
-        var cooling = HeroPanel.skillColour(white, false, true);
-        var locked = HeroPanel.skillColour(white, true, false);
+        var ready = HeroPanel.skillColour(white, PanelLook.DEFAULTS, false, false);
+        var cooling = HeroPanel.skillColour(white, PanelLook.DEFAULTS, false, true);
+        var locked = HeroPanel.skillColour(white, PanelLook.DEFAULTS, true, false);
 
         assertNotEquals(ready.r, ready.b, "the torch colour is warm, not grey");
         assertFalse(ready.equals(cooling) || cooling.equals(locked),
@@ -527,7 +527,7 @@ class HeroPanelTest {
     private static HeroPanel shown(String line) {
         var assets = new com.jme3.asset.DesktopAssetManager(true);
         var font = assets.loadFont("Interface/Fonts/Default.fnt");
-        var panel = new HeroPanel(assets, font, new com.jme3.scene.Node("gui"), 1600f,
+        var panel = new HeroPanel(assets, font, new com.jme3.scene.Node("gui"), 1600f, 900f,
                 PanelSkin.NONE, RangeLook.DEFAULT);
         assertTrue(panel.show(line, 0f), "the panel should have taken the line");
         return panel;
