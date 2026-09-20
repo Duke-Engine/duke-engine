@@ -1,0 +1,18 @@
+; Duke Skirmish — a small RTS, written to find out what a second game needs.
+;
+; Nothing here is the dungeon's: no hero, no floors, no skills, no levels, no
+; loot. A side is a purse and a handful of units; a barracks turns money into
+; soldiers; the side whose barracks falls has lost.
+
+Game
+  Files = [
+    data/units/worker.duke,
+    data/units/soldier.duke,
+    data/units/archer.duke,
+    data/units/barracks.duke,
+    data/units/ore.duke,
+    data/units/depot.duke,
+    data/world/field.duke,
+  ]
+  StartMap = clearing
+End

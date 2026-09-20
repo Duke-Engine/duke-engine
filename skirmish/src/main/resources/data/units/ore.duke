@@ -1,0 +1,23 @@
+; A pile of ore. Not a creature and not a building — a thing on the field that
+; a side turns into money, which the dungeon has no idea of.
+
+Unit
+  Name = OreNode
+  DisplayName = Ore
+  KindOf = [STRUCTURE]
+  VisionRange = 0
+  Geometry = Cylinder
+    Radius = 6
+    Height = 6
+  End
+  Model = models/ground/ore.gltf
+  ModelScale = 7
+  Modules = [
+    ActiveBody
+      MaxHealth = 9999
+    End
+    SupplyModule
+      Amount = 2000
+    End
+  ]
+End

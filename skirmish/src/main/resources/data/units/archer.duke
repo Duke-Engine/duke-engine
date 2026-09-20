@@ -1,0 +1,33 @@
+; Outranges a soldier and dies to one. The whole of this game's unit design.
+
+Unit
+  Name = Archer
+  DisplayName = Archer
+  KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
+  VisionRange = 180
+  Geometry = Cylinder
+    Radius = 3
+    Height = 10
+  End
+  BuildCost = 120
+  BuildTime = 7
+  Model = models/units/archer.glb
+  ModelScale = 4
+  Modules = [
+    ActiveBody
+      MaxHealth = 70
+    End
+    MoveUpdate
+      Speed = 24
+    End
+    WeaponUpdate
+      Damage = 10
+      AttackRange = 60
+      ReloadFrames = 36
+    End
+    PursueUpdate
+      RepathFrames = 10
+      GiveUpBeyond = 200
+    End
+  ]
+End

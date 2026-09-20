@@ -1,0 +1,18 @@
+; The world every skirmish is fought in. Flat: there are no storeys here, so the
+; world says nothing about their height — the idea is absent, not set to zero.
+
+Field
+  Name = Open Field
+End
+
+Sun
+  Pitch = 50
+  Yaw = 200
+  StrengthPercent = 110
+  AmbientPercent = 60
+End
+
+Camera
+  EdgeMargin = 12
+  EdgeSpeedPercent = 100
+End

@@ -1,0 +1,23 @@
+; Where a worker unloads. Nothing but a mark and a wall: what makes it a depot is
+; the module, so a game says which of its buildings are ones by putting it on them.
+
+Unit
+  Name = Depot
+  DisplayName = Depot
+  KindOf = [STRUCTURE, SELECTABLE]
+  VisionRange = 100
+  Geometry = Box
+    MajorRadius = 7
+    MinorRadius = 7
+    Height = 10
+  End
+  Model = models/base/depot.gltf
+  ModelScale = 8
+  Modules = [
+    ActiveBody
+      MaxHealth = 400
+    End
+    SupplyDepot
+    End
+  ]
+End

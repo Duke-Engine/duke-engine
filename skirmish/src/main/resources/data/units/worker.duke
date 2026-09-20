@@ -1,0 +1,32 @@
+; Gathers, and cannot fight. The cheapest thing a side can lose.
+
+Unit
+  Name = Worker
+  DisplayName = Worker
+  KindOf = [INFANTRY, SELECTABLE]
+  VisionRange = 90
+  Geometry = Cylinder
+    Radius = 3
+    Height = 9
+  End
+  BuildCost = 50
+  BuildTime = 4
+  Model = models/units/worker.glb
+  ModelScale = 4
+  Tint = 0xBFD8FF
+  Modules = [
+    ActiveBody
+      MaxHealth = 40
+    End
+    MoveUpdate
+      Speed = 26
+    End
+    ; Walks to the nearest pile within SearchRange, loads, and carries it back to
+    ; the side's nearest Depot. With no depot anywhere it banks where it stands.
+    HarvestUpdate
+      LoadPerTrip = 25
+      FramesPerTrip = 30
+      SearchRange = 400
+    End
+  ]
+End

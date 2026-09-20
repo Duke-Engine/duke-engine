@@ -1,0 +1,24 @@
+; Turns money into soldiers, and cannot move. Lose it and the skirmish is over.
+
+Unit
+  Name = Barracks
+  DisplayName = Barracks
+  KindOf = [STRUCTURE, SELECTABLE]
+  VisionRange = 120
+  Geometry = Box
+    MajorRadius = 9
+    MinorRadius = 9
+    Height = 16
+  End
+  BuildCost = 0
+  Model = models/base/barracks.gltf
+  ModelScale = 9
+  Modules = [
+    ActiveBody
+      MaxHealth = 600
+    End
+    ProductionUpdate
+      Builds = [Worker, Soldier, Archer]
+    End
+  ]
+End

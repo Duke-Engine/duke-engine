@@ -1,0 +1,34 @@
+; The line unit. Bought, not found: everything about it is a price and a number.
+
+Unit
+  Name = Soldier
+  DisplayName = Soldier
+  KindOf = [INFANTRY, SELECTABLE, CAN_ATTACK]
+  VisionRange = 140
+  Geometry = Cylinder
+    Radius = 4
+    Height = 11
+  End
+  BuildCost = 100
+  BuildTime = 6
+  Model = models/units/soldier.glb
+  ModelScale = 4
+  Modules = [
+    ActiveBody
+      MaxHealth = 120
+    End
+    MoveUpdate
+      Speed = 22
+    End
+    WeaponUpdate
+      Damage = 14
+      AttackRange = 14
+      ReloadFrames = 24
+    End
+    ; Walks up to whatever it is sent at. Without this it stands still and waits
+    ; for the enemy to come into range -- see PursueUpdate.
+    PursueUpdate
+      RepathFrames = 10
+    End
+  ]
+End
