@@ -1,8 +1,8 @@
 {
   "build.gradle.kts": {
-    "mtime": 1789984589.345849,
-    "seen": 1789984639.7567375,
-    "ast_hash": "9799d44db91f631def6a338fdab6c38a",
+    "mtime": 1790012762.159867,
+    "seen": 1790012895.4788146,
+    "ast_hash": "ccf3c9c0f775cad491bca31314e9ae85",
     "semantic_hash": ""
   },
   "client3d/build.gradle.kts": {
