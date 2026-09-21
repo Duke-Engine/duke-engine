@@ -7,9 +7,9 @@ qurol bor, na pul, na `MoveTo` buyrug'i.
 | | |
 |---|---|
 | Bog'liqligi | **yo'q** — sof Java, tashqi kutubxonasiz |
-| Kim bunga bog'lanadi | `rts` (→ `game` → `client3d` → `dungeon`) |
-| Hajmi | 58 fayl, ~4 020 qator |
-| Testlar | 124 ta |
+| Kim bunga bog'lanadi | `rts` (→ `game` → `client3d` → `skirmish`) |
+| Hajmi | 104 fayl, ~8 235 qator |
+| Testlar | 183 ta |
 
 **Asosiy invariant:** `core` hech qachon `rts` ni import qilmaydi. Bu Gradle
 darajasida ta'minlangan (`core/build.gradle.kts` da bironta bog'liqlik yo'q),

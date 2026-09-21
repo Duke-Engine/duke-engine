@@ -7,12 +7,14 @@ umuman o'xshamaydi.
 |---|---|
 | Bog'liqligi | `client3d` + `kit` |
 | Kim bunga bog'lanadi | hech kim |
-| Hajmi | 385 qator Java + 141 qator data |
+| Hajmi | 435 qator Java + 268 qator data |
 | Ishga tushirish | `./gradlew :skirmish:run` |
 
 ## Nega bor
 
-Dungeon'dan olingan shablonlar dungeon'ga mos tushishi hech narsani isbotlamaydi
+Engine ustida qurilgan birinchi o'yin —
+[duke-dungeon](https://github.com/Duke-Engine/duke-dungeon), o'z repo'sida.
+Undan olingan shablonlar o'sha o'yinga mos tushishi hech narsani isbotlamaydi
 — ular o'shandan kelib chiqqan. Shuning uchun **noldan yozilgan, boshqacha**
 o'yin kerak edi: engine haqiqatan istalgan RTS/RPG ni ko'tara oladimi, va
 universal qatlamga nimalar yetishmayapti degan savolga javob beradi.

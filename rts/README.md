@@ -11,9 +11,9 @@ Bu modul ikki vazifani bajaradi:
 | | |
 |---|---|
 | Bog'liqligi | `api project(":core")` |
-| Kim bunga bog'lanadi | `game` (→ `client3d` → `dungeon`) |
-| Hajmi | 21 fayl, ~1 750 qator |
-| Testlar | 71 ta |
+| Kim bunga bog'lanadi | `game` (→ `client3d` → `skirmish`) |
+| Hajmi | 31 fayl, ~2 444 qator |
+| Testlar | 110 ta |
 
 ---
 

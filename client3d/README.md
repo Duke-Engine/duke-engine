@@ -7,9 +7,9 @@ va `DukeGame.postCommand()` orqali buyruq qaytaradi.
 | | |
 |---|---|
 | Bog'liqligi | `api project(":game")` + **jMonkeyEngine 3.7.0-stable** (jme3-core / desktop / lwjgl3 / plugins / jogg) |
-| Kim bunga bog'lanadi | `dungeon` |
-| Hajmi | 5 fayl, ~1 470 qator |
-| Testlar | 5 ta (`Shell` — jME talab qilmaydigan yagona qism) |
+| Kim bunga bog'lanadi | `skirmish` |
+| Hajmi | 81 fayl, ~25 194 qator |
+| Testlar | 554 ta, 52 klassda — jME'siz ishlaydigan qismlar (layout, o'lchov, holat) |
 
 Bu — loyihadagi yagona og'ir tashqi bog'liqlik. `core`, `rts`, `game` sof Java;
 jME faqat shu yerdan boshlanadi.
@@ -18,22 +18,29 @@ jME faqat shu yerdan boshlanadi.
 
 ## Nima bor
 
-| Fayl | Qator | Vazifa |
+81 fayl. Ro'yxat emas, guruhlar — chunki bittalab sanash 81 qatorlik jadval
+bo'ladi va hech kimga hech narsa aytmaydi:
+
+| Guruh | Kattaroqlari | Vazifa |
 |---|---|---|
-| `DukeRtsApp` | **1 024** | butun klient: snapshot→sahna sinxronizatsiyasi, glTF/Ogre model yuklash, `AnimComposer` va eski `AnimControl` animatsiyasi, pozitsion ovoz, RTS kamera, ray-pick tanlash, sog'liq chiziqlari, HUD, build menyusi, minimap, formatsiya harakati, ekran holat mashinasi (MENU → PLAYING ⇄ PAUSED + SETTINGS) |
-| `MenuOverlay` | 140 | GUI kutubxonasiz menyu: xiralashgan quad + `BitmapText` tugmalar, hover/klik hit-testing |
-| `Visuals` | 122 | Unity-uslub asset bog'lash: `.unit("Tank", u -> u.model("Models/tank.glb").walk("Drive").fireSound("..."))`. Modeli yo'q birliklar primitiv bilan chiziladi |
-| `Duke3D` | 80 | `launch(game, visuals[, shell])` — oyna ochadi, yopilguncha bloklaydi |
-| `Shell` | 120 | **bosh menyuni o'yin belgilaydi**: qaysi bandlar, qanday nomlanadi, yoki umuman menyusiz |
+| **Kirish nuqtasi** | `Duke3D` · `DukeRtsApp` (**5 020**) | `launch(game, visuals[, shell])` oyna ochadi va yopilguncha bloklaydi; `DukeRtsApp` — snapshot→sahna sinxronizatsiyasi, kamera, ray-pick tanlash, ekran holat mashinasi (MENU → PLAYING ⇄ PAUSED + SETTINGS) |
+| **Assetlarni bog'lash** | `Visuals` (1 313) · `AnimationLibrary` · `Preload` | shablonni modelga, klipga, ovozga bog'laydi. `draw(Drawn, AnimationSet)` — shablonning o'zi aytadi, klient fayl nomini bilmaydi |
+| **Yer va nur** | `TerrainScene` (896) · `Tileset` · `TileLayout` · `Sun` · `Sunlight` · `Fog` · `FogMap` | kataklardan sahna, tumanlik va yorug'lik |
+| **HUD** | `HeroPanel` (**4 232**) · `HeroPortrait` · `UnitBars` · `PanelSkin` · `NineSlice` · `SkillRing` · `StoneMenu` (936) | panellar, portretlar, sog'liq chiziqlari, minimap — hammasi ma'lumot faylidan o'lchanadi |
+| **Effektlar** | `LayeredEffects` (951) · `EffectLayer` · `ParticleLayer` · `SkillEffects` · `ProjectileEffects` · `EffectBudget` | `core.content.Effect` ni chizilgan narsaga aylantiradi |
+| **Buyruq va sezgi** | `Hotkeys` · `Formation` · `OrderMarkers` · `HitFeel` · `HitFlash` · `FloatingNumbers` · `Chevrons` | kirish → buyruq, va buyruq bajarilgani ko'rinadigan qilib |
+| **Menyu** | `Shell` · `MenuStyle` · `GameSettings` | **bosh menyuni o'yin belgilaydi**: qaysi bandlar, qanday nomlanadi, yoki umuman menyusiz |
+| **Ovoz** | `Sounds` · `SoundBank` · `AudioSink` · `GameSounds` | pozitsion ovoz va uning manbalari |
 
 ### Menyu kimniki
 
 Ilgari klient bosh menyuni o'zi qurardi va buni yomon qilardi: ikkita o'yinchi
-slot bo'lsa "Host LAN Game" taklif qilardi — bir kishilik dungeon'da esa
-ikkinchi slot bu skeletlar egasi. Bu — engine strukturaviy fakt asosida
+slot bo'lsa "Host LAN Game" taklif qilardi — bir kishilik zindon o'yinida
+([duke-dungeon](https://github.com/Duke-Engine/duke-dungeon)) esa ikkinchi slot
+bu skeletlar egasi. Bu — engine strukturaviy fakt asosida
 mahsulot qarorini chiqarishi, va bu uning qarori emas.
 
-Endi chegara aniq: **mexanizm klientniki** (`MenuOverlay` — xiralashgan qatlam
+Endi chegara aniq: **mexanizm klientniki** (`StoneMenu` — xiralashgan qatlam
 va bosiladigan matn), **mazmun o'yinniki** (`Shell`). Klient faqat bandning
 ma'nosi bor-yo'qligini tekshiradi (bir kishilik o'yinga LAN bandi ko'rsatilmaydi).
 
@@ -42,7 +49,7 @@ pauza menyusi, chiqish: bular mashina haqida, o'yin haqida emas.
 
 ```java
 Duke3D.launch(game, visuals, Shell.create()
-        .entry(Shell.Entry.PLAY, "Enter the dungeon")
+        .entry(Shell.Entry.PLAY, "Start skirmish")
         .entry(Shell.Entry.SETTINGS)
         .entry(Shell.Entry.QUIT));
 ```
@@ -67,17 +74,19 @@ da saqlanadi (`duke-engine/game` tugunida: `resIndex`, `fullscreen`, `volume`).
 
 ## O'chirish tahlili
 
-**Bu modul o'chirilsa nima bo'ladi:** `dungeon` butunlay yiqiladi — o'yin shu klient
+**Bu modul o'chirilsa nima bo'ladi:** `skirmish` butunlay yiqiladi — o'yin shu klient
 ustida turadi — va chiqarilgan o'yin ham (u `client3d` ni ishlatadi).
 
-**Modul ichida o'chiriladigan narsa yo'q** — 4 ta fayl ham ishlatiladi.
+**Modul ichida o'chiriladigan narsa yo'q** — 81 faylning hammasi ishlatiladi.
 
 **Lekin e'tibor bering:**
 
-1. **`DukeRtsApp` = 1 024 qator, bitta fayl, 0 test.** Loyihadagi eng zich va eng
-   tekshirilmagan bo'lak. Agar "engine tugatish" maqsad bo'lsa, bu yerni
-   bo'lish (sahna sinxronizatsiyasi / kirish / HUD / menyu) va hech bo'lmasa
-   snapshot→sahna qismini testlash eng katta foyda beradi.
+1. **`DukeRtsApp` = 5 020 qator va `HeroPanel` = 4 232 qator.** Loyihadagi eng
+   zich ikki fayl: ikkisi modulning uchdan biri. Ular atrofidagi kichik
+   sinflar (`PanelPlace`, `Formation`, `MinimapProjection`…) jME'siz
+   testlangani uchun 554 test shu yerdan keladi — testlanmagani aynan shu ikki
+   faylning ichi. Agar "engine tugatish" maqsad bo'lsa, ularni bo'lish eng
+   katta foyda beradi.
 2. **Prezentatsiya ikki marta yozilgan:** bu modul va `game/swing` bir xil ishni
    ikki xil qiladi. Birini tanlash kerak — 3D to'liqroq (menyular, minimap,
    build menyusi, model/ovoz), 2D esa jME'siz va tez.

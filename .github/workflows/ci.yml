@@ -1,19 +1,14 @@
-# Duke Dungeon: the gate on master, and the release when a version is tagged.
+# The gate on master, and the release to Maven Central when a version is tagged.
 #
-# One file for both, because they are one pipeline with a longer tail rather than
-# two pipelines. Every push to master is built and tested on all three platforms
-# it ships to; a tag runs the same jobs and then keeps what they produced.
+# The engine is a library: what a release produces is jars in a repository, not
+# an installer. The games built on it have release pipelines of their own, in
+# their own repositories — see Duke-Engine/duke-dungeon.
 #
-# What a release contains is one installer per platform — an MSI, a DMG and a
-# .deb — each built by that platform's own packaging tools and carrying its own
-# Java runtime, so a player installs the game and nothing else. That is also why
-# there are three runners: jpackage builds for the machine it is standing on and
-# cannot cross-compile, so the MSI can only be made on Windows.
+#   git tag v0.2.0 && git push origin v0.2.0
 #
-#   git tag v0.1.0 && git push origin v0.1.0
-#
-# Or run it by hand from the Actions tab with a version, for a release without a
-# tag on the history.
+# The tag is the version. What it publishes is whatever `version` says in
+# build.gradle.kts, so the two are kept in step by hand — a tag that disagrees
+# with the build file publishes the build file's version, not the tag's.
 
 name: CI
 
@@ -24,24 +19,15 @@ on:
   pull_request:
     branches: [master]
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release, without the v (e.g. 0.1.0)'
-        required: true
-        type: string
 
 permissions:
-  contents: write # the release job creates a release and uploads to it
+  contents: read
 
 concurrency:
-  # One run per branch or tag. A second push while the first is still packaging
+  # One run per branch or tag. A second push while the first is still running
   # cancels it — except for tags, where a cancelled run is a half-made release.
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
-
-env:
-  APP_NAME: Duke Dungeon
-  MAIN_CLASS: uz.dukeengine.dungeon.Main
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -80,26 +66,23 @@ jobs:
           retention-days: 7
 
   # ---------------------------------------------------------------------------
-  # The installers. Only for a tag, or when asked by hand.
+  # The release. Only for a tag, and only once the gate has passed everywhere.
+  #
+  # Needs four secrets, none of which are in this repository:
+  #
+  #   MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD  a token from
+  #       central.sonatype.com, under View Account → Generate User Token
+  #   SIGNING_KEY            the ascii-armoured secret key, whole
+  #   SIGNING_KEY_PASSWORD   its passphrase
+  #
+  # Central will not take an unsigned artifact, so a missing key fails here
+  # rather than halfway through the upload.
   # ---------------------------------------------------------------------------
-  package:
-    name: Package for ${{ matrix.label }}
+  publish:
+    name: Publish to Maven Central
     needs: test
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            label: windows-x64
-            type: msi
-          - os: macos-latest
-            label: macos-arm64
-            type: dmg
-          - os: ubuntu-latest
-            label: linux-x64
-            type: deb
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -111,187 +94,10 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # jpackage shells out to the platform's own packaging tools and says so
-      # only when it cannot find them, so both are put there first.
-      - name: WiX, which jpackage needs to write an MSI
-        if: matrix.type == 'msi'
-        shell: bash
-        run: |
-          # The runner image usually ships it. When it does not, take the
-          # binaries from WiX's own release rather than a package manager:
-          # a pinned zip on the PATH cannot quietly become a different version.
-          for dir in "/c/Program Files (x86)/WiX Toolset v3.14/bin" \
-                     "/c/Program Files (x86)/WiX Toolset v3.11/bin"; do
-            if [ -x "$dir/candle.exe" ]; then
-              echo "found $dir"
-              cygpath -w "$dir" >> "$GITHUB_PATH"
-              exit 0
-            fi
-          done
-          echo "no WiX on the image; fetching it"
-          curl -sSL -o wix.zip \
-            https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip
-          mkdir -p "$RUNNER_TEMP/wix" && unzip -oq wix.zip -d "$RUNNER_TEMP/wix"
-          cygpath -w "$RUNNER_TEMP/wix" >> "$GITHUB_PATH"
-
-      - name: fakeroot, which jpackage needs to write a .deb
-        if: matrix.type == 'deb'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq fakeroot
-
-      # A tag is v0.1.0 and jpackage wants 0.1.0 — on Windows it insists, because
-      # the version goes into the installer's own metadata.
-      - name: Work out the version
-        id: version
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Assemble the game
-        shell: bash
-        run: ./gradlew :dungeon:installDist --no-daemon
-
-      # One installer, built by the platform's own tools, carrying its own Java
-      # runtime. --add-modules is spelled out rather than left to the default:
-      # LWJGL needs sun.misc.Unsafe, which lives in jdk.unsupported, and a
-      # runtime built without it fails at the first frame rather than at build
-      # time. The per-platform flags below are all about where the game ends up
-      # and how it is started, which is the part an archive left to the player.
-      - name: Build the installer
-        id: installer
-        shell: bash
-        run: |
-          VERSION="${{ steps.version.outputs.value }}"
-          MAIN_JAR=$(cd dungeon/build/install/dungeon/lib && ls dungeon-*.jar | head -1)
-          echo "main jar: $MAIN_JAR"
-          case "${{ matrix.type }}" in
-            msi)
-              # Per-user, so nobody has to be an administrator to play a game.
-              EXTRA=(--win-dir-chooser --win-menu --win-shortcut --win-per-user-install)
-              ;;
-            dmg)
-              # GLFW wants the process's first thread on macOS, and the flag has
-              # to be baked in here — there is no command line to add it to.
-              EXTRA=(--java-options -XstartOnFirstThread)
-              ;;
-            deb)
-              # dpkg will not have a package name with a capital or a space in it.
-              EXTRA=(--linux-package-name duke-dungeon --linux-shortcut
-                     --linux-menu-group Game)
-              ;;
-          esac
-          # $JAVA_HOME rather than the bare name. A jpackage from an older JDK
-          # builds an older runtime, which then refuses the classes it was handed
-          # — and on Windows the windowed exe dies with exit 1 and no message,
-          # which is a long afternoon for whoever meets it next.
-          "$JAVA_HOME/bin/jpackage" \
-            --type "${{ matrix.type }}" \
-            --name "$APP_NAME" \
-            --app-version "$VERSION" \
-            --vendor "${{ github.repository_owner }}" \
-            --description "A dungeon crawler on the duke-engine" \
-            --input dungeon/build/install/dungeon/lib \
-            --main-jar "$MAIN_JAR" \
-            --main-class "$MAIN_CLASS" \
-            --add-modules java.se,jdk.unsupported \
-            --java-options "-Xmx2g" \
-            "${EXTRA[@]}" \
-            --dest build/installer
-          # Each platform names its own output its own way — "Duke Dungeon-0.1.0.msi",
-          # "duke-dungeon_0.1.0-1_amd64.deb" — so take whatever was made and give
-          # it the one name a release page can list three of and stay readable.
-          NAME="duke-dungeon-$VERSION-${{ matrix.label }}"
-          mkdir -p build/release
-          BUILT=$(ls build/installer | head -1)
-          mv "build/installer/$BUILT" "build/release/$NAME.${{ matrix.type }}"
-          ls -la build/release
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.installer.outputs.name }}
-          path: build/release/*
-          retention-days: 7
-
-  # ---------------------------------------------------------------------------
-  # The release itself: one per tag, holding all three bundles.
-  # ---------------------------------------------------------------------------
-  release:
-    name: Publish the release
-    needs: package
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # the notes are written from the log since the last tag
-
-      - uses: actions/download-artifact@v4
-        with:
-          path: bundles
-          merge-multiple: true
-
-      - name: Work out the version
-        id: version
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Write the notes
-        id: notes
-        shell: bash
-        run: |
-          PREVIOUS=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
-          {
-            echo '## What is in it'
-            echo
-            if [ -n "$PREVIOUS" ]; then
-              git log --no-merges --pretty='- %s' "$PREVIOUS..HEAD"
-            else
-              git log --no-merges --pretty='- %s' -20
-            fi
-            echo
-            echo '## Which file'
-            echo
-            echo 'Each one carries its own Java runtime, so there is nothing to install first.'
-            echo
-            echo '| You are on | Download | Then |'
-            echo '|---|---|---|'
-            echo '| Windows | `…-windows-x64.msi` | Run it. It installs for you alone, so no administrator is needed. Unsigned, so SmartScreen asks once: More info → Run anyway. |'
-            echo '| macOS (Apple silicon) | `…-macos-arm64.dmg` | Open it and drag the app to Applications. Unsigned, so the first launch is right-click → Open. |'
-            echo '| Linux (Debian, Ubuntu) | `…-linux-x64.deb` | `sudo apt install ./duke-dungeon-…-linux-x64.deb`, then find it in the menu. |'
-          } > notes.md
-          cat notes.md
-
-      # gh, rather than one of the release actions: it is on the runner already,
-      # so the only things this workflow trusts are GitHub's own and Gradle's.
       - name: Publish
-        shell: bash
+        run: ./gradlew publishAndReleaseToMavenCentral --no-daemon --stacktrace
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}"
-          test -n "$(ls bundles)" || { echo "nothing was packaged"; exit 1; }
-          ls -la bundles
-          # Upload if the release is already there, create it if it is not.
-          # Both happen: a tag pushed from a terminal arrives with no release
-          # attached, while "Draft a new release" in the web interface makes the
-          # tag and the release together and then triggers this — and a bare
-          # "create" would fail on the second of those, after ten minutes of
-          # packaging, with everything built and nowhere to put it.
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "release $TAG exists; uploading to it"
-            gh release upload "$TAG" bundles/* --clobber
-          else
-            gh release create "$TAG" bundles/* \
-              --title "Duke Dungeon ${{ steps.version.outputs.value }}" \
-              --notes-file notes.md \
-              --target "$GITHUB_SHA"
-          fi
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}

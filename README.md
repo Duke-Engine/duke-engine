@@ -1,6 +1,6 @@
 # duke-engine
 
-[![CI](https://github.com/abdurasul29052002/duke-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/abdurasul29052002/duke-engine/actions/workflows/ci.yml)
+[![CI](https://github.com/Duke-Engine/duke-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Duke-Engine/duke-engine/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Java](https://img.shields.io/badge/Java-25-orange.svg)](https://openjdk.org/)
 
@@ -32,7 +32,7 @@ drawn as its `Geometry` — so the first thing you see is your own game.
 
 Then open a `.duke` file and the plugin shows it as a form; open a map and it opens in 3D.
 
-See [duke-plugin/README.md](duke-plugin/README.md).
+See [Duke-Engine/duke-plugin](https://github.com/Duke-Engine/duke-plugin).
 
 ### By hand
 
@@ -80,16 +80,22 @@ several of the engine's seams came from.
 | you keep | loot, levels, skills, mana | money, build cost, build time |
 | you win by | descending | destroying their base |
 
+**Duke Skirmish is in this repository**, as the example a game is copied from:
+
 ```
-./gradlew :dungeon:run
 ./gradlew :skirmish:run
 ```
+
+**Duke Dungeon** is a repository of its own —
+[Duke-Engine/duke-dungeon](https://github.com/Duke-Engine/duke-dungeon) — because it is a game with
+its own releases rather than a part of the engine. It is also the richer of the two, and the one
+worth reading to see what a finished game on this engine looks like.
 
 ## Modules
 
 ```
-dungeon, skirmish  →  client3d  →  game  →  rts  →  core
-       └───────────→  kit
+skirmish  →  client3d  →  game  →  rts  →  core
+    └─────→  kit
 ```
 
 - **core** — the genre-neutral engine. Subsystems and the fixed-timestep loop,
@@ -106,7 +112,7 @@ dungeon, skirmish  →  client3d  →  game  →  rts  →  core
   the particle art they are drawn with. Data only, no code. A game links one and replaces it by
   writing its own of the same name.
 - **bom** — every module at one version, so a game writes the version once.
-- **dungeon**, **skirmish** — the two games above. Not published: they are played, not depended on.
+- **skirmish** — the example game above. Not published: it is played and copied from, not depended on.
 
 `core` never imports `rts`. Building a game that is not an RTS means depending on `core` alone and
 supplying your own commands, modules and vocabulary — see **Extending** below.
@@ -162,21 +168,19 @@ Requires nothing pre-installed beyond the wrapper — Gradle provisions the **Ja
 ```
 ./gradlew build                  # compile + test
 ./gradlew publishToMavenLocal    # the engine, for a game on this machine
-./gradlew :dungeon:run           # Duke Dungeon
-./gradlew :skirmish:run          # Duke Skirmish
-./gradlew :dungeon:newMap --args="crypt 42"   # a new map from a seed; fill it on the Map tab
+./gradlew :skirmish:run          # Duke Skirmish, the example game
 ```
 
-The IntelliJ plugin is a build of its own:
-
-```
-cd duke-plugin && ./gradlew test runIde
-```
+The IntelliJ plugin is a repository of its own:
+[Duke-Engine/duke-plugin](https://github.com/Duke-Engine/duke-plugin).
 
 ## Status
 
-**1,582 tests** across the engine and **54** in the plugin, all green. `core`, `rts`, `game`,
-`client3d` and `kit` publish to Maven Central under `uz.duke-engine`; the two games do not.
+**883 tests**, all green. `core`, `rts`, `game`, `client3d`, `kit` and `bom` publish to Maven Central
+under `uz.duke-engine`; `skirmish` does not — it is an example, not a library.
+
+The other two repositories of the project: [duke-plugin](https://github.com/Duke-Engine/duke-plugin)
+(54 tests) and [duke-dungeon](https://github.com/Duke-Engine/duke-dungeon) (701).
 
 Known gaps: multiplayer is two players only and does not compare checksums live; save/load is not
 wired into any UI; per-module in-flight state (move goals, reload counters, build queues) is not yet

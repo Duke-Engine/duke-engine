@@ -48,9 +48,9 @@ subprojects {
 // ---------------------------------------------------------------------------
 // What is published, and what is not.
 //
-// The engine is: a game built on it depends on these and on nothing else here. `dungeon` and `skirmish` are
-// games rather than libraries — they are here to be played and to prove the engine carries more than one kind
-// of game, and nobody should be able to depend on them by accident.
+// The engine is: a game built on it depends on these and on nothing else here. `skirmish` is a
+// game rather than a library — it is here to be played and to prove the engine carries more than one kind
+// of game, and nobody should be able to depend on it by accident.
 //
 //   ./gradlew publishToMavenLocal            # to try it against a game on this machine
 //   ./gradlew publishAndReleaseToMavenCentral   # needs the credentials and the signing key below
@@ -96,7 +96,7 @@ configure(subprojects.filter { it.name in published }) {
             licenses {
                 license {
                     name.set("MIT License")
-                    url.set("https://github.com/abdurasul29052002/duke-engine/blob/master/LICENSE")
+                    url.set("https://github.com/Duke-Engine/duke-engine/blob/master/LICENSE")
                     distribution.set("repo")
                 }
             }
@@ -108,8 +108,8 @@ configure(subprojects.filter { it.name in published }) {
                 }
             }
             scm {
-                url.set("https://github.com/abdurasul29052002/duke-engine")
-                connection.set("scm:git:https://github.com/abdurasul29052002/duke-engine.git")
+                url.set("https://github.com/Duke-Engine/duke-engine")
+                connection.set("scm:git:https://github.com/Duke-Engine/duke-engine.git")
                 developerConnection.set("scm:git:ssh://git@github.com/abdurasul29052002/duke-engine.git")
             }
         }

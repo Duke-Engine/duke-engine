@@ -15,9 +15,18 @@ games'.
 - **`rts`** — a **library for making RTS games**, drawing on SAGE for how an RTS
   is put together. It is not "the Generals layer": it gives every RTS the
   mechanisms they share and leaves the rules to the game.
-- **`generals`** — Generals' own rules, as one game among the games that could be
-  built here. It exists to prove that point, and to keep the Generals-specific
-  work rather than throw it away.
+- **`game`** — the runtime a game boots through: `DukeGame`, its scripts, and
+  the wiring that turns data files into a world.
+- **`client3d`** — the 3D client the logic is drawn by. It ships no assets but
+  the shader it draws terrain with.
+- **`skirmish`** — a small RTS, the example game in this repository. It exists
+  to prove the point that `rts` is a library rather than one game's engine, and
+  it is deliberately unlike the other game built on this engine
+  ([duke-dungeon](https://github.com/Duke-Engine/duke-dungeon), its own repo):
+  what two independently written games both need is a seam, what one of them
+  needs is that game's rule.
+- **`bom`** — the `java-platform` published beside the modules, so a game names
+  one version and gets a matching set.
 - **`kit`** — the starter set a game made in the editor begins from: today the
   effects library (27 effects in `kit/data/effects/<group>/`, and the particle art
   they are drawn with), all of it under `kit/` on the classpath. A game links a
@@ -35,7 +44,7 @@ core is pure Java; a render/audio backend comes later.
 - **`rts` knows no particular game.** It is the RTS library on top of core — the
   command set, combat, production, economy, vocabulary and save format — but only
   the parts every RTS shares. A rule one game happens to have is the game's.
-- `game` → `rts` → `core`, and `generals` → `rts`. Never the other way; `core`
+- `skirmish` → `client3d` → `game` → `rts` → `core`. Never the other way; `core`
   never imports `rts`. A game depends on `kit`, and `kit` on nothing but data.
 
 **The question to ask before adding to `rts`:** *would BFME need this, and
@@ -204,13 +213,17 @@ now and expensive to find after a release.
 ## Before claiming "done"
 
 - `./gradlew build` passes.
-- `duke-plugin` is its own Gradle build: `cd duke-plugin && ./gradlew test`.
 - No new `-Xlint:all` warnings.
 - `core` still compiles with no reference to `rts` (it cannot see it — but
   check that nothing genre-specific leaked in the other direction either).
 - Nothing new in `rts` answers a question only one game would ask. If it does,
-  it belongs behind a seam, with the answer in the game — `generals` is where
-  Generals' answers live.
+  it belongs behind a seam, with the answer in the game — `skirmish` is where
+  this repository's game answers live, and a change that only `skirmish` wants
+  is a change to `skirmish`.
+- A change that touches the `.duke` format or the seams the editor reads is a
+  change [duke-plugin](https://github.com/Duke-Engine/duke-plugin) has to be
+  run against: it is its own repository, and its tests find this checkout
+  beside them (or by `DUKE_ENGINE`).
 
 ## graphify
 

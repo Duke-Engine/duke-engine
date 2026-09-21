@@ -9,29 +9,34 @@ worth an issue on its own.
 Nothing needs installing beyond the wrapper; Gradle provisions the Java 25 toolchain itself.
 
 ```
-git clone https://github.com/abdurasul29052002/duke-engine.git
+git clone https://github.com/Duke-Engine/duke-engine.git
 cd duke-engine
-./gradlew build          # compile + every test, about a minute
-./gradlew :dungeon:run   # see that it actually plays
+./gradlew build           # compile + every test, about a minute
+./gradlew :skirmish:run   # see that it actually plays
 ```
 
-The IntelliJ plugin is a **separate Gradle build** in `duke-plugin/`:
+## The other two repositories
+
+The project is three repositories, and which one a change belongs in is usually obvious:
+
+| | | |
+|---|---|---|
+| [duke-engine](https://github.com/Duke-Engine/duke-engine) | this one | the engine, and `skirmish` as its example game |
+| [duke-plugin](https://github.com/Duke-Engine/duke-plugin) | the IntelliJ plugin | editing `.duke` files, the map editor, New Project |
+| [duke-dungeon](https://github.com/Duke-Engine/duke-dungeon) | a game on the engine | the richest example there is |
+
+The plugin and the game both expect the engine **beside** them:
 
 ```
-cd duke-plugin
-./gradlew test     # 54 tests
-./gradlew runIde   # a sandbox IDE with the plugin in it
+<folder>/
+  duke-engine/
+  duke-plugin/
+  duke-dungeon/
 ```
 
-Open the sandbox IDE on this repository — the plugin reads the games' `.duke` files against the
-engine's own records, so the repository is its own best test project.
-
-The plugin's tests read two checkouts off the disk: the engine and a game. Both are looked for in
-the usual places and can be pointed anywhere with `DUKE_ENGINE` and `DUKE_SAMPLE` — see
-[duke-plugin/README.md](duke-plugin/README.md).
-
-> If `runIde` fails to start, close any sandbox IDE that is already open: the plugin jar is locked
-> while one is running.
+The game takes the engine from `includeBuild("../duke-engine")` until 0.2.0 is on Maven Central; the
+plugin's tests read both checkouts off the disk and can be pointed anywhere with `DUKE_ENGINE` and
+`DUKE_SAMPLE`.
 
 ## What to work on
 
@@ -61,7 +66,7 @@ bit. `Math.sqrt` and `Math.abs` are exact and fine. Presentation code may use `M
 ### 2. Module boundaries
 
 ```
-dungeon, skirmish  →  client3d  →  game  →  rts  →  core
+skirmish  →  client3d  →  game  →  rts  →  core
 ```
 
 Never the other way. `core` never imports `rts`.
@@ -97,8 +102,7 @@ ready. Beyond that:
 ## Before you open a pull request
 
 ```
-./gradlew build                          # green
-cd duke-plugin && ./gradlew test         # green, if you touched the plugin
+./gradlew build   # green
 ```
 
 - No new `-Xlint:all` warnings.

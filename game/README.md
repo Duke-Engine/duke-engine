@@ -15,9 +15,9 @@ game.start();   // oyna ochiladi, yopilguncha bloklaydi
 | | |
 |---|---|
 | Bog'liqligi | `api project(":rts")`. Tashqi kutubxona **yo'q** (Swing = JDK) |
-| Kim bunga bog'lanadi | `client3d` (→ `dungeon`) |
-| Hajmi | 12 fayl, ~2 010 qator |
-| Testlar | 18 ta |
+| Kim bunga bog'lanadi | `client3d` (→ `skirmish`) |
+| Hajmi | 12 fayl, ~2 451 qator |
+| Testlar | 28 ta |
 
 ---
 
@@ -76,7 +76,7 @@ Bu modulda **o'lik kod yo'q** — hamma fayl ishlatiladi.
 
 Savol boshqacha: **`game` moduli umuman kerakmi?** Ikki qarash bor.
 
-**Kerak, chunki:** `client3d` va `dungeon` butunlay shunga tayanadi (`DukeGame`
+**Kerak, chunki:** `client3d` va `skirmish` butunlay shunga tayanadi (`DukeGame`
 13 joyda ishlatiladi). `RtsLogic` dagi buyruq routingi va egalik tekshiruvi
 haqiqiy mantiq, uni yo'qotsangiz har bir o'yin qaytadan yozadi.
 
