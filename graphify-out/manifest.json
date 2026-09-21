@@ -2532,9 +2532,9 @@
     "semantic_hash": ""
   },
   "game/src/test/java/uz/dukeengine/game/MultiplayerSyncTest.java": {
-    "mtime": 1790000999.391415,
-    "seen": 1790001040.2014122,
-    "ast_hash": "5e25144925f3cc6ba910412e39ed97be",
+    "mtime": 1790012322.1660411,
+    "seen": 1790012456.497245,
+    "ast_hash": "8aa30b7d0135f73256c14b233d65edb8",
     "semantic_hash": ""
   },
   "game/src/test/java/uz/dukeengine/game/ProductionCommandTest.java": {
