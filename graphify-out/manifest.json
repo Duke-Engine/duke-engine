@@ -108,9 +108,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1789983765.2069006,
-    "seen": 1789984639.757249,
-    "ast_hash": "7220735417f985902610217408f4cc17",
+    "mtime": 1789999619.614196,
+    "seen": 1790001040.2015085,
+    "ast_hash": "f307bffb8ac3bfe9f6e6e0a6f62b9bad",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -2532,9 +2532,9 @@
     "semantic_hash": ""
   },
   "game/src/test/java/uz/dukeengine/game/MultiplayerSyncTest.java": {
-    "mtime": 1789983051.180972,
-    "seen": 1789983069.8786445,
-    "ast_hash": "da87c2e23416920fda9c23aae8ee5db8",
+    "mtime": 1790000999.391415,
+    "seen": 1790001040.2014122,
+    "ast_hash": "5e25144925f3cc6ba910412e39ed97be",
     "semantic_hash": ""
   },
   "game/src/test/java/uz/dukeengine/game/ProductionCommandTest.java": {
