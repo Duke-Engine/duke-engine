@@ -1,10 +1,4 @@
 {
-  "art/effects/shrink_particles.py": {
-    "mtime": 1789983050.7337391,
-    "seen": 1789983069.8779554,
-    "ast_hash": "50802d0f71e7f3f2f382728877e43cfb",
-    "semantic_hash": ""
-  },
   "build.gradle.kts": {
     "mtime": 1789984589.345849,
     "seen": 1789984639.7567375,
