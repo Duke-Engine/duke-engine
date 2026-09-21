@@ -1,7 +1,8 @@
-# The gate on master, and the release to Maven Central when a version is tagged.
+# The gate on master, and the release when a version is tagged.
 #
-# The engine is a library: what a release produces is jars in a repository, not
-# an installer. The games built on it have release pipelines of their own, in
+# The engine is a library: what a release produces is jars, published to Maven
+# Central for anyone using Gradle or Maven, and attached to a GitHub Release for
+# anyone who is not. The games built on it release installers of their own, in
 # their own repositories — see Duke-Engine/duke-dungeon.
 #
 #   git tag v0.2.0 && git push origin v0.2.0
@@ -9,6 +10,11 @@
 # The tag is the version. What it publishes is whatever `version` says in
 # build.gradle.kts, so the two are kept in step by hand — a tag that disagrees
 # with the build file publishes the build file's version, not the tag's.
+#
+# The GitHub Release needs no secrets and always happens. Maven Central needs
+# four, and when they are not set that job says so and stops without failing the
+# release: a repository without the keys is a repository that can still cut a
+# release, which is what lets this file work unchanged in a fork.
 
 name: CI
 
@@ -21,7 +27,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # the release job creates a release and uploads to it
 
 concurrency:
   # One run per branch or tag. A second push while the first is still running
@@ -66,25 +72,20 @@ jobs:
           retention-days: 7
 
   # ---------------------------------------------------------------------------
-  # The release. Only for a tag, and only once the gate has passed everywhere.
+  # The release: one per tag, holding every published module's jars.
   #
-  # Needs four secrets, none of which are in this repository:
-  #
-  #   MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD  a token from
-  #       central.sonatype.com, under View Account → Generate User Token
-  #   SIGNING_KEY            the ascii-armoured secret key, whole
-  #   SIGNING_KEY_PASSWORD   its passphrase
-  #
-  # Central will not take an unsigned artifact, so a missing key fails here
-  # rather than halfway through the upload.
+  # Needs nothing but the token GitHub hands every workflow, so a tag always
+  # produces a release even when Maven Central is not set up.
   # ---------------------------------------------------------------------------
-  publish:
-    name: Publish to Maven Central
+  release:
+    name: Publish the release
     needs: test
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the notes are written from the log since the last tag
 
       - name: Install Java 25
         uses: actions/setup-java@v4
@@ -94,7 +95,136 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # One jar per module a game depends on. `bom` has no jar — it is a pom —
+      # and `skirmish` is a game rather than a library, so neither is here.
+      # Sources and javadoc are not attached: they are what Central is for, and
+      # fifteen files make a release page nobody reads.
+      - name: Assemble the jars
+        run: ./gradlew assemble --no-daemon --stacktrace
+
+      - name: Gather them
+        id: jars
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p build/release
+          for module in core rts game client3d kit; do
+            jar="$module/build/libs/$module-$VERSION.jar"
+            test -f "$jar" || { echo "no $jar — does build.gradle.kts say $VERSION?"; exit 1; }
+            cp "$jar" build/release/
+          done
+          ls -la build/release
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Write the notes
+        run: |
+          PREVIOUS=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          {
+            echo '## What changed'
+            echo
+            if [ -n "$PREVIOUS" ]; then
+              git log --no-merges --pretty='- %s' "$PREVIOUS..HEAD"
+            else
+              git log --no-merges --pretty='- %s' -20
+            fi
+            echo
+            echo '## Using it'
+            echo
+            echo 'From Maven Central, which is where a build should take it from:'
+            echo
+            echo '```kotlin'
+            echo 'dependencies {'
+            echo "    implementation(platform(\"uz.duke-engine:bom:${GITHUB_REF_NAME#v}\"))"
+            echo '    implementation("uz.duke-engine:core")'
+            echo '    implementation("uz.duke-engine:rts")'
+            echo '    implementation("uz.duke-engine:game")'
+            echo '    implementation("uz.duke-engine:client3d")'
+            echo '    implementation("uz.duke-engine:kit")'
+            echo '}'
+            echo '```'
+            echo
+            echo 'The BOM names one version and the modules take it, so there is one number to change.'
+            echo
+            echo 'The jars below are the same classes, for a build that does not use a repository.'
+            echo 'Sources and javadoc are on Central rather than here.'
+          } > notes.md
+          cat notes.md
+
+      # gh, rather than one of the release actions: it is on the runner already,
+      # so the only things this workflow trusts are GitHub's own and Gradle's.
       - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          # Upload if the release is already there, create it if it is not. Both
+          # happen: a tag pushed from a terminal arrives with no release attached,
+          # while "Draft a new release" in the web interface makes the tag and the
+          # release together and then triggers this — and a bare "create" would
+          # fail on the second of those with everything built and nowhere to put it.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG exists; uploading to it"
+            gh release upload "$TAG" build/release/* --clobber
+          else
+            gh release create "$TAG" build/release/* \
+              --title "duke-engine ${{ steps.jars.outputs.version }}" \
+              --notes-file notes.md \
+              --target "$GITHUB_SHA"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Maven Central. Only for a tag, and only when the keys are there.
+  #
+  # Four secrets, none of which are in this repository:
+  #
+  #   MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD  a token from
+  #       central.sonatype.com, under View Account -> Generate User Token
+  #   SIGNING_KEY            the ascii-armoured secret key, whole
+  #   SIGNING_KEY_PASSWORD   its passphrase
+  #
+  # Central will not take an unsigned artifact, so a missing key stops this job
+  # before the upload rather than halfway through it.
+  # ---------------------------------------------------------------------------
+  publish:
+    name: Publish to Maven Central
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Are the keys here?
+        id: keys
+        env:
+          USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+        run: |
+          if [ -z "$USERNAME" ] || [ -z "$SIGNING_KEY" ]; then
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            {
+              echo '### Maven Central was skipped'
+              echo
+              echo 'This repository has no publishing keys set, so the tag produced a'
+              echo 'GitHub Release and nothing was uploaded to Central. Set'
+              echo '`MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `SIGNING_KEY`'
+              echo 'and `SIGNING_KEY_PASSWORD` under Settings -> Secrets and variables'
+              echo '-> Actions, then re-run this job.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Java 25
+        if: steps.keys.outputs.ready == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.keys.outputs.ready == 'true'
+
+      - name: Publish
+        if: steps.keys.outputs.ready == 'true'
         run: ./gradlew publishAndReleaseToMavenCentral --no-daemon --stacktrace
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
