@@ -76,7 +76,12 @@ class MultiplayerSyncTest {
         // not enough on a CI runner carrying three jobs, and a flaky test on the
         // release path is a tag that fails for no reason anybody can act on.
         long giveUp = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(120);
-        while (frameOf(host) < 300 && frameOf(guest) < 300 && System.nanoTime() < giveUp) {
+        // Until BOTH have made 300 frames, not until either has. The difference is
+        // not style: stopping at the first to arrive lets one world race ahead and
+        // leaves the other behind, so the counters rarely line up and there is
+        // almost nothing to compare — and a world that had stopped dead would still
+        // pass, because its peer got to 300 on its own.
+        while ((frameOf(host) < 300 || frameOf(guest) < 300) && System.nanoTime() < giveUp) {
             int wasAt = frameOf(host) + frameOf(guest);
             host.runHeadless(1);
             comparableFrames += compareIfSameFrame(host, guest);
@@ -88,7 +93,7 @@ class MultiplayerSyncTest {
                 Thread.sleep(1);
             }
         }
-        assertTrue(frameOf(host) >= 300 || frameOf(guest) >= 300,
+        assertTrue(frameOf(host) >= 300 && frameOf(guest) >= 300,
                 "the worlds never got through 300 frames: host at " + frameOf(host)
                         + ", guest at " + frameOf(guest));
         assertTrue(comparableFrames > 100, "the games must actually run in lock-step, got "
