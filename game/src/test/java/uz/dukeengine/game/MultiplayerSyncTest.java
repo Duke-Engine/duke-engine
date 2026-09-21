@@ -70,7 +70,12 @@ class MultiplayerSyncTest {
         // slow one the turns go on waiting, a handful of frames pass, and the
         // failure arrives as an assertion about a unit that has not moved yet.
         int comparableFrames = 0;
-        long giveUp = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
+        // Two minutes, which is not a guess at how long this takes — on any machine
+        // that is not thrashing it is under a second. It is the ceiling at which a
+        // sync that will never come stops being a hung build. Thirty seconds was
+        // not enough on a CI runner carrying three jobs, and a flaky test on the
+        // release path is a tag that fails for no reason anybody can act on.
+        long giveUp = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(120);
         while (frameOf(host) < 300 && frameOf(guest) < 300 && System.nanoTime() < giveUp) {
             int wasAt = frameOf(host) + frameOf(guest);
             host.runHeadless(1);
