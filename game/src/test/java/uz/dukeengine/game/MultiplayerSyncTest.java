@@ -84,8 +84,21 @@ class MultiplayerSyncTest {
         while ((frameOf(host) < 300 || frameOf(guest) < 300) && System.nanoTime() < giveUp) {
             int wasAt = frameOf(host) + frameOf(guest);
             host.runHeadless(1);
-            comparableFrames += compareIfSameFrame(host, guest);
             guest.runHeadless(1);
+            // Then step whichever is behind until they are level, because the two
+            // do not stay level on their own. `runHeadless(1)` is one ATTEMPT, and
+            // an attempt whose peer input has not arrived advances nothing — so one
+            // stall puts a world a frame behind, and from there stepping them one
+            // each keeps the gap exactly as it is, for ever. They are then never on
+            // the same frame, nothing is ever compared, and the test rides to 300
+            // frames having checked nothing. That is what failed on CI, twice.
+            for (int i = 0; i < 16 && frameOf(host) != frameOf(guest) && System.nanoTime() < giveUp; i++) {
+                if (frameOf(host) < frameOf(guest)) {
+                    host.runHeadless(1);
+                } else {
+                    guest.runHeadless(1);
+                }
+            }
             comparableFrames += compareIfSameFrame(host, guest);
             if (frameOf(host) + frameOf(guest) == wasAt) {
                 // Both held for the other's orders. Spinning on that would be a
