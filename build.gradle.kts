@@ -82,7 +82,11 @@ configure(subprojects.filter { it.name in published }) {
     apply(plugin = "com.vanniktech.maven.publish")
 
     configure<com.vanniktech.maven.publish.MavenPublishBaseExtension> {
-        publishToMavenCentral()
+        // CENTRAL_PORTAL, not the default. The default is the old OSSRH at oss.sonatype.org, which works by
+        // creating a staging repository against an account this project does not have — the failure reads
+        // "Cannot get stagingProfiles for account (402)", which says nothing about the real cause. A namespace
+        // verified at central.sonatype.com is a Central Portal namespace, and the Portal takes a bundle instead.
+        publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
         // Only when a key is there. Central will not take an unsigned artifact, but publishing to the local
         // repository to try the engine against a game must not need one — and a key is never in a repository.
         if (providers.gradleProperty("signingInMemoryKey").isPresent) {
