@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -67,7 +68,7 @@ class ThreePlayerSyncTest {
             }
         }, "test-join-2");
         joinTwo.start();
-        Thread.sleep(100); // keep the join order deterministic: player 2, then 3
+        Thread.sleep(100); // nudges guest 2 in first; the assertions below do not rely on it
         guestThree.joinMultiplayer("127.0.0.1", PORT);
         joinTwo.join(10_000);
         hostThread.join(10_000);
@@ -80,14 +81,22 @@ class ThreePlayerSyncTest {
         for (var game : games) {
             game.runHeadless(0); // boot every world
         }
-        assertEquals(1, host.getLocalPlayerIndex());
-        assertEquals(2, guestTwo.getLocalPlayerIndex());
-        assertEquals(3, guestThree.getLocalPlayerIndex());
+        // Which guest got which index is the accept order's business, and the sleep
+        // above is a nudge rather than a guarantee: under load the two can be taken
+        // in either order, and this test used to fail on that with "expected 2 but
+        // was 3" — a race in its own setup, dressed as a sync failure. What the
+        // engine actually promises is that each world controls exactly one player,
+        // so the test reads the indices it was given and uses them.
+        int two = guestTwo.getLocalPlayerIndex();
+        int three = guestThree.getLocalPlayerIndex();
+        assertEquals(1, host.getLocalPlayerIndex(), "the host is always player 1");
+        assertEquals(Set.of(1, 2, 3), Set.of(host.getLocalPlayerIndex(), two, three),
+                "each world controls one player, and between them all three");
 
         // Guests 2 and 3 have no connection to each other; both orders must still
-        // reach both worlds, by way of the host.
-        guestTwo.postCommand(new GameMessage.MoveTo(2, List.of(new ObjectId(2)), new Coord3D(250f, 60f, 0f)));
-        guestThree.postCommand(new GameMessage.MoveTo(3, List.of(new ObjectId(3)), new Coord3D(60f, 250f, 0f)));
+        // reach both worlds, by way of the host. A player's unit carries its number.
+        guestTwo.postCommand(new GameMessage.MoveTo(two, List.of(new ObjectId(two)), new Coord3D(250f, 60f, 0f)));
+        guestThree.postCommand(new GameMessage.MoveTo(three, List.of(new ObjectId(three)), new Coord3D(60f, 250f, 0f)));
 
         // Frames, not attempts. A lock-step game that is waiting on a peer takes a
         // turn of runHeadless and advances nothing — which is correct, and which
@@ -96,31 +105,56 @@ class ThreePlayerSyncTest {
         // frames pass, the ordered unit has not gone anywhere, and the failure
         // lands on an assertion about movement that had nothing to do with it.
         int comparableFrames = 0;
-        long giveUp = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
-        while (host.getLogic().getFrame() < 400 && System.nanoTime() < giveUp) {
-            int wasAt = host.getLogic().getFrame();
+        // Inside the @Timeout above, on purpose: a deadline longer than the one
+        // JUnit enforces never fires, and the failure arrives as a bare timeout
+        // instead of the assertion below saying which world was where.
+        long giveUp = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(45);
+        while (games.stream().anyMatch(g -> g.getLogic().getFrame() < 400) && System.nanoTime() < giveUp) {
+            int wasAt = games.stream().mapToInt(g -> g.getLogic().getFrame()).sum();
             for (var game : games) {
                 game.runHeadless(1);
-                comparableFrames += compareAllOnSameFrame(games);
             }
-            if (host.getLogic().getFrame() == wasAt) {
+            // Then bring the laggards up to the leader, because three worlds do not
+            // stay level on their own. `runHeadless(1)` is one ATTEMPT, and one whose
+            // peer input has not arrived advances nothing — so a single stall puts a
+            // world a frame behind, and stepping them one each from there keeps the
+            // gap exactly as it is. With three, all three must be on the same frame
+            // for anything to be compared at all, so the drift bites sooner: this
+            // test was down to 24 comparisons in four hundred frames.
+            for (int i = 0; i < 32 && !allOnSameFrame(games) && System.nanoTime() < giveUp; i++) {
+                int leader = games.stream().mapToInt(g -> g.getLogic().getFrame()).max().orElse(0);
+                for (var game : games) {
+                    if (game.getLogic().getFrame() < leader) {
+                        game.runHeadless(1);
+                    }
+                }
+            }
+            comparableFrames += compareAllOnSameFrame(games);
+            if (games.stream().mapToInt(g -> g.getLogic().getFrame()).sum() == wasAt) {
                 // Held for a peer. Spinning on it would be a poll loop racing the
                 // network and losing; there is nothing to do here but wait.
                 Thread.sleep(1);
             }
         }
-        assertTrue(host.getLogic().getFrame() >= 400,
-                "the worlds never got through 400 frames: " + host.getLogic().getFrame());
+        assertTrue(games.stream().allMatch(g -> g.getLogic().getFrame() >= 400),
+                "the worlds never got through 400 frames: "
+                        + games.stream().map(g -> String.valueOf(g.getLogic().getFrame())).toList());
         assertTrue(comparableFrames > 100,
                 "the three must actually run in lock-step, got " + comparableFrames + " comparisons");
 
         // What guest 2 did is visible, identically, in guest 3's world — and they
         // never exchanged a byte.
-        var inTwo = guestTwo.getLogic().findObject(new ObjectId(2)).getPosition();
-        var inThree = guestThree.getLogic().findObject(new ObjectId(2)).getPosition();
+        var inTwo = guestTwo.getLogic().findObject(new ObjectId(two)).getPosition();
+        var inThree = guestThree.getLogic().findObject(new ObjectId(two)).getPosition();
         assertTrue(inTwo.x() < 390f, "guest 2's own unit moved");
         assertEquals(inTwo.x(), inThree.x(), 1e-6f);
         assertEquals(inTwo.y(), inThree.y(), 1e-6f);
+    }
+
+    /** Whether every world is on the same frame, which is when there is anything to compare. */
+    private static boolean allOnSameFrame(List<DukeGame> games) {
+        int frame = games.get(0).getLogic().getFrame();
+        return games.stream().allMatch(g -> g.getLogic().getFrame() == frame);
     }
 
     /** Assert equality across every pair of games that happen to be on the same frame. */
