@@ -3,6 +3,22 @@
 Versions are `major.minor.patch`. While the major is 0, a minor may break what came before — and
 when it does, this page says exactly what to change and how.
 
+## 0.4.1
+
+**Fixed: a quoted value in a `Map` kept its quotes.** `Properties = [uniqueID = "Crusader 1701"]` bound
+`"Crusader 1701"` — quotes and all — where every other quoted value in the format loses them.
+
+The reader hands a map's entry over whole, because to it `uniqueID = "…"` is one value with a quote in
+the middle; the entry becomes two halves only once the `Binder` splits it at the `=`, and the `Binder`
+was not finishing the job. It does now, for the key as well as the value, using the same `unquote` the
+reader uses — which moved to `DukeText` so the rule is written once.
+
+A value that opens with a quote and does not close on one is trailing text, which was already an error
+inside a list and is now one here: `'X': nothing may follow a quoted value, '"a" b'`.
+
+Anything that has a `Map<String, String>` read from data is affected — Generals' `Properties`,
+`Defaults` and `Palette` among them. No file changes; re-read them and the quotes are gone.
+
 ## 0.4.0
 
 **Core can ask four more things of a map.** All four are additions: a map record that compiled against
