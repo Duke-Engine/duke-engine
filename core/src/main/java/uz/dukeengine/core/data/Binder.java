@@ -181,9 +181,10 @@ public final class Binder {
                     throw new DataException(where,
                             "'" + key + "' holds entries written 'key = value'; '" + entry + "' has no '='");
                 }
-                var name = entry.substring(0, sign).strip();
+                var name = written(entry.substring(0, sign), where, key);
                 twice(read.put(scalar(name, raw(arguments[0]), where, key),
-                        scalar(entry.substring(sign + 1).strip(), raw(arguments[1]), where, key)), name, key, where);
+                        scalar(written(entry.substring(sign + 1), where, key), raw(arguments[1]), where, key)),
+                        name, key, where);
             }
             return Collections.unmodifiableMap(read);
         }
@@ -195,6 +196,26 @@ public final class Binder {
             return Collections.unmodifiableMap(read);
         }
         throw new DataException(where, "'" + key + "' is a map: write it " + key + " = [key = value, key = value]");
+    }
+
+    /**
+     * One half of an entry as it was written: without its quotes, which is how a value holding a space, a
+     * comma or an {@code =} is written anywhere else — {@code uniqueID = "Crusader 1701"} holds
+     * {@code Crusader 1701}.
+     *
+     * <p>The reader could not do it: it handed over the whole entry, quotes and all, because to it
+     * {@code uniqueID = "…"} is one value and the quote is in the middle of it. The {@code =} is this class's
+     * business, so the quotes around what follows it are too.
+     */
+    private static String written(String half, String where, String key) {
+        var text = half.strip();
+        if (!text.startsWith("\"")) {
+            return text;
+        }
+        if (text.length() < 2 || !text.endsWith("\"")) {
+            throw new DataException(where, "'" + key + "': nothing may follow a quoted value, '" + text + "'");
+        }
+        return DukeText.unquote(text);
     }
 
     private static void twice(Object was, String name, String key, String where) {

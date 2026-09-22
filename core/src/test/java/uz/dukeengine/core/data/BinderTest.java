@@ -98,6 +98,30 @@ class BinderTest {
                 "a map is a list of its entries, keys read as the map's own type");
     }
 
+    record Tagged(String name, Map<String, String> properties) {
+    }
+
+    /**
+     * A map's value is quoted for the same reasons any other is — a space, a comma, an {@code =} of its own —
+     * and the quotes come off. They used not to: the reader hands over {@code key = "a b"} as one value,
+     * because to it the quote is in the middle of one, and whoever splits it at the {@code =} owes the rest.
+     */
+    @Test
+    void aQuotedEntryLosesItsQuotesLikeEveryOtherValue() {
+        var tagged = bind("""
+                Tagged
+                  Name = crusader
+                  Properties = [uniqueID = "AmericaTankCrusader 1701", bare = false,
+                                note = "a, b = c", empty = ""]
+                End
+                """, Tagged.class);
+
+        assertEquals("AmericaTankCrusader 1701", tagged.properties().get("uniqueID"));
+        assertEquals("false", tagged.properties().get("bare"), "an unquoted value is itself");
+        assertEquals("a, b = c", tagged.properties().get("note"), "the comma and the = inside it are text");
+        assertEquals("", tagged.properties().get("empty"));
+    }
+
     /**
      * An entry whose value holds more than a line does is a block, opened by the key it belongs to —
      * the same list, the same commas, and the value read as a value of its type is read anywhere.
@@ -214,6 +238,8 @@ class BinderTest {
                 "Crate\n  Parts = [\n    First = Wheel\n    End\n  ]\nEnd\n", Crate.class);
         assertError("crate.duke:2: 'Geometry' takes one value, not a map",
                 "Crate\n  Geometry = [\n    First = Sphere\n    End\n  ]\nEnd\n", Crate.class);
+        assertError("crate.duke:2: 'Properties': nothing may follow a quoted value, '\"a\" b'",
+                "Tagged\n  Properties = [x = \"a\" b]\nEnd\n", Tagged.class);
     }
 
     /** The files were written the other way first, so a block in the old place says where it goes now. */

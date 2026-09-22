@@ -60,6 +60,25 @@ public final class DukeText {
         return new Reader(text, source).blocks();
     }
 
+    /**
+     * A quoted value without its quotes, {@code \"} for a quote of its own: {@code "a, b"} is {@code a, b}.
+     *
+     * <p>Whoever splits a line further than the reader does has to finish the job — the {@link Binder} does,
+     * for the two halves of a map's entry — and the rule a value is written by belongs here, with the format,
+     * rather than being spelt a second time somewhere that would drift from it.
+     */
+    static String unquote(String quoted) {
+        var text = new StringBuilder(quoted.length());
+        for (int i = 1; i < quoted.length() - 1; i++) {
+            char c = quoted.charAt(i);
+            if (c == '\\' && i + 1 < quoted.length() - 1) {
+                c = quoted.charAt(++i);
+            }
+            text.append(c);
+        }
+        return text.toString();
+    }
+
     /** A line with code on it: its number, how deep it is indented, and its code without the comment. */
     private record Line(int number, int indent, String code) {
 
@@ -401,18 +420,6 @@ public final class DukeText {
                 }
             }
             throw error(line, "a quote is never closed");
-        }
-
-        private static String unquote(String quoted) {
-            var text = new StringBuilder(quoted.length());
-            for (int i = 1; i < quoted.length() - 1; i++) {
-                char c = quoted.charAt(i);
-                if (c == '\\' && i + 1 < quoted.length() - 1) {
-                    c = quoted.charAt(++i);
-                }
-                text.append(c);
-            }
-            return text.toString();
         }
 
         private DataException unreadable(Line line) {
