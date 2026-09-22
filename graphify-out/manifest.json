@@ -2976,9 +2976,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1790096605.7788477,
-    "seen": 1790096660.3786762,
-    "ast_hash": "e66e5950e1c84e6d3402b26649474af5",
+    "mtime": 1790099698.2258382,
+    "seen": 1790099738.52545,
+    "ast_hash": "6c2333ed3357e11d5537525c58bb3594",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/data/Paint.java": {
