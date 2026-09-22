@@ -5,7 +5,7 @@
 # anyone who is not. The games built on it release installers of their own, in
 # their own repositories — see Duke-Engine/duke-dungeon.
 #
-#   git tag v0.2.0 && git push origin v0.2.0
+#   git tag v0.3.0 && git push origin v0.3.0
 #
 # The tag is the version. What it publishes is whatever `version` says in
 # build.gradle.kts, so the two are kept in step by hand — a tag that disagrees

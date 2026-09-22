@@ -34,9 +34,9 @@ The plugin and the game both expect the engine **beside** them:
   duke-dungeon/
 ```
 
-The game takes the engine from `includeBuild("../duke-engine")` until 0.2.0 is on Maven Central; the
-plugin's tests read both checkouts off the disk and can be pointed anywhere with `DUKE_ENGINE` and
-`DUKE_SAMPLE`.
+The game takes the engine from `includeBuild("../duke-engine")` rather than Maven Central, so a change
+to the engine is a change the game is built against the same afternoon; the plugin's tests read both
+checkouts off the disk and can be pointed anywhere with `DUKE_ENGINE` and `DUKE_SAMPLE`.
 
 ## What to work on
 

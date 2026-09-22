@@ -17,8 +17,11 @@ Generals — Zero Hour*): a subsystem framework driving a fixed-rate, lock-step 
 separated from presentation. What is kept from SAGE is the architecture; what is not is Generals'
 game design — every rule that engine baked in is a knob here.
 
-> **0.2.0 is the first published release.** Until it lands on Maven Central, build it locally with
-> `./gradlew publishToMavenLocal`, or let the plugin's **New Project** wire it up for you.
+> **0.3.0 changes the `.duke` syntax in two ways that break files written for 0.2.0.** A `Map` is a
+> list of its entries — `Armor = [FLAME = 0.5]`, or a block per entry where a value holds more than a
+> line — rather than a block of them; and the entries of a block list are separated by a comma, so an
+> `End` that is not the last one is written `End,`. [CHANGELOG.md](CHANGELOG.md) says why, and
+> carries the command that migrates a game's files.
 
 ## Making a game
 
@@ -39,7 +42,7 @@ See [Duke-Engine/duke-plugin](https://github.com/Duke-Engine/duke-plugin).
 ```kotlin
 dependencies {
     // The version, once. Everything below comes from it.
-    implementation(platform("uz.duke-engine:bom:0.2.0"))
+    implementation(platform("uz.duke-engine:bom:0.3.0"))
 
     implementation("uz.duke-engine:client3d") // brings core, rts and game with it
     implementation("uz.duke-engine:kit")      // effects to start from, data only
