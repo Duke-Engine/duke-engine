@@ -31299,9 +31299,9 @@
         "unresolved_calls": [
           {
             "callee": "atan2",
-            "receiver_type": "Math",
+            "receiver_type": "StrictMath",
             "lang": "java",
-            "line": "L42"
+            "line": "L45"
           }
         ]
       },
@@ -279435,5 +279435,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "42c17955051312b31b6c48b3daab726eec11cd52"
+  "built_at_commit": "e9805b5100108f910e112b8ae57a4649604ac982"
 }

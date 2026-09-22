@@ -1,7 +1,7 @@
-# Graph Report - duke-engine  (2026-09-21)
+# Graph Report - duke-engine  (2026-09-22)
 
 ## Corpus Check
-- 389 files · ~439,707 words
+- 389 files · ~439,755 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 65 file(s) not represented in the graph (top: .duke 35, .bin 6, .gltf 6)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `42c17955`
+- Built from commit: `e9805b51`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -1025,11 +1025,11 @@ Nodes (12): Override, TestLogic, WorldEventTest, WreckOnDeath, Override, Overrid
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `DukeRtsApp` connect `DukeRtsApp` to `SkillEffects`, `MinimapProjection`, `HeroPanel`, `DukeGame`, `GameSounds`, `FloatingNumbers`, `LayeredEffects`, `Tileset`, `com.jme3.scene.Mesh`, `BannerPanel`, `FogMap`, `StoneMenu`, `Discovery`, `RunMoments`, `LoadingOverlay`, `.showMainMenu`, `Shell`, `.placesFor`, `Visuals`, `.has`, `HeroPortrait`, `.showSettingsMenu`, `com.jme3.scene.Spatial`, `com.jme3.math.Vector3f`, `com.jme3.math.ColorRGBA`, `OrderMarkers`, `DukeRtsApp.java`, `com.jme3.scene.Node`, `.skinKey`, `OrderMark`, `PathGrid`, `CameraFocus`, `CursorsTest`, `.syncOrderMarkers`, `Theme`, `.burstAt`, `HealthWatchTest`, `.dress`, `GamePanel.java`?**
-  _High betweenness centrality (0.133) - this node is a cross-community bridge._
+  _High betweenness centrality (0.128) - this node is a cross-community bridge._
 - **Why does `DukeGame` connect `DukeGame` to `assertequals`, `WorldTemplate`, `MultiplayerSession`, `org.junit.jupiter.api.Test`, `.getLogic`, `list`, `.skirmish`, `.create`, `ThingTemplate`, `.showMainMenu`, `.launch`, `Replay`, `Visuals`, `SubsystemInterface`, `RtsLogic`, `DukeRtsApp`, `DukeRtsApp.java`, `GameWindow.java`, `GamePlayer`, `SoundTouchesNothingTest`, `PathGrid`, `Command`, `PacketCodec`, `GamePanel.java`?**
-  _High betweenness centrality (0.074) - this node is a cross-community bridge._
+  _High betweenness centrality (0.080) - this node is a cross-community bridge._
 - **Why does `Coord3D` connect `Coord3D` to `assertequals`, `.of`, `CollisionTest`, `NetworkTransportTest.java`, `SkillEffects`, `Box`, `GameObject`, `GameSounds`, `DukeGame`, `org.junit.jupiter.api.Test`, `RangeRingsTest`, `VisionTest`, `UnitScript`, `.fromText`, `.asCloseAsHeCanGet`, `AttackOnTheMoveTest`, `Tileset`, `.getLogic`, `.isBlocked`, `list`, `WeaponHoldTest`, `Footprint`, `.named`, `.create`, `DamageModifierTest`, `StaticObstacleTest`, `RtsPlayer`, `ThingTemplate`, `Coord2D`, `HotkeysTest`, `Replay`, `ProjectileLauncherTest`, `SkillRangeTest`, `HeightMap`, `com.jme3.math.ColorRGBA`, `ObjectId`, `OrderMarkers`, `.findPath`, `DukeRtsApp`, `DukeRtsApp.java`, `.newScenario`, `com.jme3.scene.Node`, `LevelsTest`, `GamePlayer`, `SkillEffectsTest`, `World`, `OrderMark`, `.getOwner`, `SolidWorldTest`, `HeightMapTest`, `GameLogic`, `PathGrid`, `LockstepScheduler`, `.named`, `LockstepGateTest`, `AttackObject`, `GamePanel.java`?**
-  _High betweenness centrality (0.066) - this node is a cross-community bridge._
+  _High betweenness centrality (0.070) - this node is a cross-community bridge._
 - **Are the 79 inferred relationships involving `Coord3D` (e.g. with `.drape()` and `.theRingFollowsTheCreatureItWasGivenTo()`) actually correct?**
   _`Coord3D` has 79 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `EffectBudget`, `Step`, `Moment` to the rest of the system?**
