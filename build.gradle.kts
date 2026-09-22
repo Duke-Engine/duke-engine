@@ -9,7 +9,7 @@ allprojects {
     // The namespace verified at central.sonatype.com, which is the domain backwards. A Maven groupId may hold
     // a hyphen and a Java package may not, so the packages stay `uz.dukeengine.*` — the two need not match.
     group = "uz.duke-engine"
-    version = "0.3.0"
+    version = "0.4.0"
 
     repositories {
         mavenCentral()

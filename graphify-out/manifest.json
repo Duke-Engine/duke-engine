@@ -114,9 +114,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790068920.764274,
-    "seen": 1790068945.475439,
-    "ast_hash": "6027ee2e8b096be9e3082c7478da49d3",
+    "mtime": 1790096330.1503336,
+    "seen": 1790096518.5570073,
+    "ast_hash": "248b280eeac50f6330648c1b49d09f1a",
     "semantic_hash": ""
   },
   "CREDITS.md": {
@@ -1788,9 +1788,9 @@
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/map/MapTemplate.java": {
-    "mtime": 1789983050.861964,
-    "seen": 1789983069.878208,
-    "ast_hash": "496bbaf32f11febe955e3848faeaf9f3",
+    "mtime": 1790095992.1516807,
+    "seen": 1790096518.5567567,
+    "ast_hash": "a4fc2e265aa8e48ca4ea72873104e91d",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/map/MapTerrain.java": {
@@ -2916,9 +2916,9 @@
     "semantic_hash": ""
   },
   "skirmish/src/main/java/uz/dukeengine/skirmish/Skirmish.java": {
-    "mtime": 1789983051.3533664,
-    "seen": 1789983069.8787274,
-    "ast_hash": "5b44c2181f693c8ee3ce3af0214bf997",
+    "mtime": 1790096023.0027618,
+    "seen": 1790096518.5569863,
+    "ast_hash": "f792f8a9519670813eea5b70eb02ef6f",
     "semantic_hash": ""
   },
   "skirmish/src/main/java/uz/dukeengine/skirmish/content/Content.java": {
@@ -2940,9 +2940,9 @@
     "semantic_hash": ""
   },
   "skirmish/src/test/java/uz/dukeengine/skirmish/SkirmishTest.java": {
-    "mtime": 1789983051.3853183,
-    "seen": 1789983069.8787339,
-    "ast_hash": "aa4d3e7c1267a8b4c3d09eda461b4ed1",
+    "mtime": 1790096225.7697666,
+    "seen": 1790096518.5569925,
+    "ast_hash": "460cb40d7451106b0796d46c94ba7c66",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -2958,9 +2958,9 @@
     "semantic_hash": ""
   },
   "skirmish/src/main/java/uz/dukeengine/skirmish/content/Battlefield.java": {
-    "mtime": 1789983051.3543665,
-    "seen": 1789983069.8787286,
-    "ast_hash": "3c0bd90ff7fd40da047b9670535a657b",
+    "mtime": 1790096013.2305655,
+    "seen": 1790096518.5569873,
+    "ast_hash": "10970f7eceb0e5571d695fb424a14874",
     "semantic_hash": ""
   },
   "docs/plan/2026-09-22-commas.js": {
@@ -2979,6 +2979,60 @@
     "mtime": 1790076061.7571108,
     "seen": 1790076117.0453274,
     "ast_hash": "60b9b26cf8ec7ba96c84dc868be8950a",
+    "semantic_hash": ""
+  },
+  "core/src/main/java/uz/dukeengine/core/data/Paint.java": {
+    "mtime": 1790095916.1142828,
+    "seen": 1790096518.5567415,
+    "ast_hash": "3a2e967cff63f47dac6093dcb19469bd",
+    "semantic_hash": ""
+  },
+  "core/src/main/java/uz/dukeengine/core/map/Furnished.java": {
+    "mtime": 1790095981.2566464,
+    "seen": 1790096518.5567505,
+    "ast_hash": "bfa8445d75b79b061a64c9bfe3807f91",
+    "semantic_hash": ""
+  },
+  "core/src/main/java/uz/dukeengine/core/map/MapArea.java": {
+    "mtime": 1790095937.982556,
+    "seen": 1790096518.556752,
+    "ast_hash": "13e6662779636af7bfa34467492e8975",
+    "semantic_hash": ""
+  },
+  "core/src/main/java/uz/dukeengine/core/map/MapSide.java": {
+    "mtime": 1790095952.813433,
+    "seen": 1790096518.5567555,
+    "ast_hash": "ce1d66eb73d888d2ed571e065916016f",
+    "semantic_hash": ""
+  },
+  "core/src/main/java/uz/dukeengine/core/map/MapThing.java": {
+    "mtime": 1790095974.9817338,
+    "seen": 1790096518.5567596,
+    "ast_hash": "9e53b7d9dc89661422f964d619a4ea27",
+    "semantic_hash": ""
+  },
+  "core/src/main/java/uz/dukeengine/core/map/Painted.java": {
+    "mtime": 1790095925.2609012,
+    "seen": 1790096518.5567613,
+    "ast_hash": "be9ec929fa7bb79fe4c517b45af4653e",
+    "semantic_hash": ""
+  },
+  "core/src/main/java/uz/dukeengine/core/map/Sided.java": {
+    "mtime": 1790095957.763553,
+    "seen": 1790096518.556765,
+    "ast_hash": "22cbddbf931546ebf90f825eb057837f",
+    "semantic_hash": ""
+  },
+  "core/src/main/java/uz/dukeengine/core/map/Zoned.java": {
+    "mtime": 1790095943.3710291,
+    "seen": 1790096518.5567663,
+    "ast_hash": "79f715681860afddc89051a9898d4c39",
+    "semantic_hash": ""
+  },
+  "core/src/test/java/uz/dukeengine/core/map/MapCapabilitiesTest.java": {
+    "mtime": 1790096122.569301,
+    "seen": 1790096518.556857,
+    "ast_hash": "aa5fdbcdc464023b4b292ad11a1b2512",
     "semantic_hash": ""
   }
 }

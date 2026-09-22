@@ -42,7 +42,7 @@ See [Duke-Engine/duke-plugin](https://github.com/Duke-Engine/duke-plugin).
 ```kotlin
 dependencies {
     // The version, once. Everything below comes from it.
-    implementation(platform("uz.duke-engine:bom:0.3.0"))
+    implementation(platform("uz.duke-engine:bom:0.4.0"))
 
     implementation("uz.duke-engine:client3d") // brings core, rts and game with it
     implementation("uz.duke-engine:kit")      // effects to start from, data only

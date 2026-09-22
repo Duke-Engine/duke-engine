@@ -3,6 +3,36 @@
 Versions are `major.minor.patch`. While the major is 0, a minor may break what came before — and
 when it does, this page says exactly what to change and how.
 
+## 0.4.0
+
+**Core can ask four more things of a map.** All four are additions: a map record that compiled against
+0.3.0 compiles against this unchanged, and answers the new questions by implementing what it has.
+
+| Question | Core supplies | A game supplies |
+|---|---|---|
+| What is a cell painted with? | `@Paint` on the rows, `Painted.palette()` | rows one character a cell, and what each character names |
+| Where is the water? | `MapArea`, `Zoned.areas()` | its own `Area` record, implementing `MapArea` |
+| Who are the sides? | `MapSide`, `Sided.sides()` | its own `Side` record |
+| What stands there before the first frame? | `MapThing`, `Furnished.things()` | its own `Thing` record |
+
+The three that answer with more than a number answer with **interfaces**, not records core hands out, so
+a block keeps the word it was written with — a game's `record Area(…) implements MapArea` needs no change
+to its data files. It is the bargain `ThingTemplate` already strikes with `Solid` and `Sighted`.
+
+`MapTerrain.rows(map, Paint.class, "paint")` reads the paint rows; it already read any mark of that kind,
+so `@Paint` needed no new engine code.
+
+Across the ground, cells; up it, steps. `MapThing.x()`/`y()` are cells, `z()` is steps, `facing()` is
+degrees, and world units appear only in `Scaled.cellSize()`.
+
+**Nothing in core consumes any of it.** Water in the pathfinder and paint in the renderer are their own
+jobs; this release is about being able to ask.
+
+**Breaking, for the example game only:** `skirmish`'s `Battlefield.Placed` is now
+`(String template, float x, float y, float facing)` and implements `MapThing` — it was
+`(String kind, int x, int y)`. `skirmish` is not published, so nothing on Maven Central changes shape. A
+map file is unaffected: `OreNode 9 7` reads as it did.
+
 ## 0.3.0
 
 **Two breaking changes to the `.duke` syntax, both the same correction.** The rule the format is
