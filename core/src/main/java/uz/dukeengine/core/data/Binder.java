@@ -33,9 +33,9 @@ import java.util.Set;
  * {@code =}, the record itself, one of the records a sealed type permits, or a word the game gave an
  * open type ({@link #vocabulary}) — a module, for {@code ModuleData}. With nothing to write in it,
  * the word alone does: {@code Geometry = Sphere}. A list of records is {@code Modules = [} with a
- * block for each, named the same way, then {@code ]}. A {@code Map} is a block named after its
- * component, each line a key and its value: {@code Armor} holding {@code FLAME = 0.5}. So every line
- * of a block names one of its components, and no block is found by what it is.
+ * block for each, named the same way, then {@code ]}, one comma between each. A {@code Map} is a list
+ * of its entries: {@code Armor = [FLAME = 0.5, SNIPER = 2.0]}. So every line of a block names one of
+ * its components, and no block is found by what it is.
  *
  * <p>A component the block does not write takes the record's {@code static final DEFAULTS} value if
  * it has one, else zero, {@code false}, {@code null} or an empty collection. What a record refuses in
@@ -97,17 +97,13 @@ public final class Binder {
             values[i] = value(field.value(), components[i].getGenericType(), block.at(field.line()), field.key());
             given[i] = true;
         }
-        for (var inner : block.blocks()) {
-            int i = named(components, inner.word());
-            if (i < 0 || raw(components[i].getGenericType()) != Map.class) {
-                throw new DataException(block.at(inner.line()), misplaced(block, components, inner.word()));
-            }
-            if (given[i]) {
-                throw new DataException(block.at(inner.line()),
-                        "'" + inner.word() + "' is written twice in '" + block.word() + "'");
-            }
-            values[i] = map(inner, components[i].getGenericType());
-            given[i] = true;
+        // Nothing may stand inside a block but its own fields. A map used to: it was written as a block of
+        // its entries, and those entries named nothing the record had, which is the one place the rule
+        // "every line of a block is one of its fields" did not hold. Since 0.3.0 a map is a field like any
+        // other, written as a list of its entries.
+        if (!block.blocks().isEmpty()) {
+            var inner = block.blocks().getFirst();
+            throw new DataException(block.at(inner.line()), misplaced(block, components, inner.word()));
         }
         for (int i = 0; i < components.length; i++) {
             if (!given[i]) {
@@ -134,6 +130,9 @@ public final class Binder {
         int named = named(components, word);
         if (named >= 0) {
             var generic = components[named].getGenericType();
+            if (raw(generic) == Map.class) {
+                return "'" + word + "' is a map: write it " + word + " = [key = value, key = value]";
+            }
             if (many(generic)) {
                 return choosable(element(generic))
                         ? "'" + word + "' is a list of blocks: '" + word + " = [', a block for each, then ']'"
@@ -161,26 +160,40 @@ public final class Binder {
         return "'" + holder.word() + "' holds no block '" + word + "'";
     }
 
-    /** A {@code Map} written as a block of its entries: each field's key and value, read as the map's types. */
-    private Object map(Block block, Type type) {
-        if (!block.blocks().isEmpty()) {
-            var inner = block.blocks().getFirst();
-            throw new DataException(block.at(inner.line()), "'" + block.word() + "' holds entries, not blocks");
+    /**
+     * A {@code Map} written as a list of its entries: {@code Multipliers = [CRUSH = 2.0, FLAME = 1.5]}.
+     *
+     * <p>The reader knows nothing of maps — it sees a list of values and hands over the text of each one.
+     * The {@code =} inside an entry is this method's business, which keeps the syntax of a map and the
+     * syntax of a list the same thing on the page and only different here.
+     */
+    private Object entries(Value value, Type target, String where, String key) {
+        if (!(value instanceof Value.Items items)) {
+            throw new DataException(where, "'" + key + "' is a map: write it " + key + " = [key = value, key = value]");
         }
-        var arguments = type instanceof ParameterizedType p ? p.getActualTypeArguments() : new Type[] {Object.class, Object.class};
-        var entries = new LinkedHashMap<Object, Object>();
-        for (var field : block.fields()) {
-            var where = block.at(field.line());
-            entries.put(scalar(field.key(), raw(arguments[0]), where, field.key()),
-                    value(field.value(), arguments[1], where, field.key()));
+        var arguments = target instanceof ParameterizedType p
+                ? p.getActualTypeArguments() : new Type[] {Object.class, Object.class};
+        var read = new LinkedHashMap<Object, Object>();
+        for (var entry : items.items()) {
+            int sign = entry.indexOf('=');
+            if (sign < 0) {
+                throw new DataException(where,
+                        "'" + key + "' holds entries written 'key = value'; '" + entry + "' has no '='");
+            }
+            var name = entry.substring(0, sign).strip();
+            var was = read.put(scalar(name, raw(arguments[0]), where, key),
+                    scalar(entry.substring(sign + 1).strip(), raw(arguments[1]), where, key));
+            if (was != null) {
+                throw new DataException(where, "'" + name + "' is written twice in '" + key + "'");
+            }
         }
-        return Collections.unmodifiableMap(entries);
+        return Collections.unmodifiableMap(read);
     }
 
     private Object value(Value value, Type target, String where, String key) {
         var raw = raw(target);
         if (raw == Map.class) {
-            throw new DataException(where, "'" + key + "' holds entries: write it as a block of its own, " + key + " … End");
+            return entries(value, target, where, key);
         }
         if (many(target)) {
             var element = element(target);

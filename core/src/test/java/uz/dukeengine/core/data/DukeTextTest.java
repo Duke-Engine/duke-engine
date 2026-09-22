@@ -23,7 +23,7 @@ class DukeTextTest {
                   Modules = [               ; its behaviour
                     MoveUpdate
                       Speed = 10
-                    End
+                    End,
                     EyesOnly
                     End
                   ]
@@ -98,6 +98,63 @@ class DukeTextTest {
         assertEquals(new Value.Items(List.of()), fields.get(3).value());
         assertEquals(new Value.Text("x; y"), fields.get(4).value());
         assertEquals(new Value.Items(List.of("TRAIL", "GLOW")), fields.get(5).value(), "words with commas are values");
+    }
+
+    /**
+     * A list of blocks separates its entries the way a list of values does. Before 0.3.0 it did not, so
+     * {@code End} followed by a word was two entries and {@code End} followed by {@code ]} was one, and
+     * nothing on the page said which — the reader had to count.
+     */
+    @Test
+    void aListOfBlocksSeparatesItsEntriesWithACommaToo() {
+        var modules = DukeText.parse("""
+                Unit
+                  Modules = [
+                    MoveUpdate
+                      Speed = 10
+                    End,
+                    Turret
+                      Arc = 90
+                    End
+                  ]
+                End
+                """, "units.duke").getFirst().fields().getFirst().value();
+        assertEquals(List.of("MoveUpdate", "Turret"),
+                ((Value.NestedList) modules).blocks().stream().map(Block::word).toList());
+    }
+
+    @Test
+    void theLastEntryOfAListMayCarryACommaOrNot() {
+        for (var last : List.of("End,", "End")) {
+            var one = DukeText.parse("""
+                    Unit
+                      Modules = [
+                        MoveUpdate
+                          Speed = 10
+                        %s
+                      ]
+                    End
+                    """.formatted(last), "units.duke").getFirst().fields().getFirst().value();
+            assertEquals(1, ((Value.NestedList) one).blocks().size(), "written '" + last + "'");
+        }
+    }
+
+    @Test
+    void aMissingCommaSaysWhatToWriteAndWhere() {
+        assertError("units.duke:6: 'Modules' separates its blocks with a comma: write 'End,' before 'Turret',"
+                        + " or ']' if the list is done",
+                """
+                Unit
+                  Modules = [
+                    MoveUpdate
+                      Speed = 10
+                    End
+                    Turret
+                      Arc = 90
+                    End
+                  ]
+                End
+                """);
     }
 
     @Test

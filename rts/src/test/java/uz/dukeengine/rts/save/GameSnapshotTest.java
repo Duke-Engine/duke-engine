@@ -25,7 +25,7 @@ class GameSnapshotTest {
               Modules = [
                 ActiveBody
                   MaxHealth = 100
-                End
+                End,
                 MoveUpdate
                   Speed = 30
                 End

@@ -122,7 +122,7 @@ Effect
       Size = [8, 5]
       Colour = [0xFFF0C0, 0xFFA040]
       Alpha = [1, 0.5]
-    End
+    End,
 
     Layer
       Name = Fire
@@ -144,7 +144,7 @@ Effect
       Drag = 2
       Gravity = -6
       Spin = 120
-    End
+    End,
 
     Layer
       Name = Embers
@@ -160,7 +160,7 @@ Effect
       Direction = ALL
       Drag = 1.5
       Gravity = 20
-    End
+    End,
 
     Layer
       Name = Glow
@@ -168,7 +168,7 @@ Effect
       LightColour = 0xFF8A28
       LightPower = 3.4
       LightRadius = 78
-    End
+    End,
 
     Layer
       Name = Flash
@@ -184,7 +184,7 @@ Effect
       FadeOut = 0.6
       Height = 5
       TurnJitter = 45
-    End
+    End,
 
     Layer
       Name = Burst
@@ -207,7 +207,7 @@ Effect
       Gravity = -6
       Spin = 60
       Height = 3
-    End
+    End,
 
     Layer
       Name = Sparks
@@ -225,7 +225,7 @@ Effect
       Drag = 2.5
       Gravity = 40
       Height = 3
-    End
+    End,
 
     Layer
       Name = Puff
@@ -246,7 +246,7 @@ Effect
       Gravity = -5
       Spin = 30
       Height = 3
-    End
+    End,
 
     Layer
       Name = Light

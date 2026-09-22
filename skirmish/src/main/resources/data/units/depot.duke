@@ -16,7 +16,7 @@ Unit
   Modules = [
     ActiveBody
       MaxHealth = 400
-    End
+    End,
     SupplyDepot
     End
   ]

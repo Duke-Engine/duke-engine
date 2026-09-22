@@ -902,7 +902,7 @@ public final class DukeGame {
               Modules = [
                 ActiveBody
                   MaxHealth = 400
-                End
+                End,
                 PowerModule
                   Produces = 10
                 End
@@ -923,13 +923,13 @@ public final class DukeGame {
               Modules = [
                 ActiveBody
                   MaxHealth = 600
-                End
+                End,
                 ProductionUpdate
                   Builds = [Rifleman, Tank]
-                End
+                End,
                 PowerModule
                   Consumes = 3
-                End
+                End,
                 ; Stall the line when the base outgrows its plants. Asked for here
                 ; rather than assumed by the engine — a game with no notion of
                 ; capacity simply leaves this off.
@@ -951,15 +951,15 @@ public final class DukeGame {
               Modules = [
                 ActiveBody
                   MaxHealth = 80
-                End
+                End,
                 MoveUpdate
                   Speed = 14
-                End
+                End,
                 WeaponUpdate
                   Damage = 9
                   AttackRange = 22
                   ReloadFrames = 12
-                End
+                End,
                 ExperienceModule
                   ExperienceValue = 30
                   ExperienceRequired = [60, 180, 360]
@@ -983,18 +983,18 @@ public final class DukeGame {
               Modules = [
                 ActiveBody
                   MaxHealth = 300
-                End
+                End,
                 MoveUpdate
                   Speed = 20
                   TurnRate = 120
-                End
+                End,
                 WeaponUpdate
                   Damage = 40
                   AttackRange = 30
                   ReloadFrames = 45
                   SplashRadius = 6
                   DamageType = EXPLOSION
-                End
+                End,
                 ExperienceModule
                   ExperienceValue = 100
                   ExperienceRequired = [200, 500, 1000]

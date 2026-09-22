@@ -30,7 +30,7 @@ Effect
       Radius = 2
       Spin = 120
       Fall = 160
-    End
+    End,
 
     Layer
       Name = Heart
@@ -45,7 +45,7 @@ Effect
       Colour = [0xFFF0C8, 0xFFA040]
       Alpha = [1, 0.6]
       Fall = 160
-    End
+    End,
 
     Layer
       Name = Flames
@@ -68,7 +68,7 @@ Effect
       Drag = 2
       Spin = 80
       Fall = 160
-    End
+    End,
 
     Layer
       Name = Wake
@@ -85,7 +85,7 @@ Effect
       Direction = UP
       Spin = 20
       Fall = 160
-    End
+    End,
 
     Layer
       Name = Glow
@@ -94,7 +94,7 @@ Effect
       LightPower = 3.5
       LightRadius = 100
       Fall = 160
-    End
+    End,
 
     Layer
       Name = Scorch
@@ -109,7 +109,7 @@ Effect
       Alpha = [0.6, 0.6]
       FadeOut = 0.35
       Height = 0.3
-    End
+    End,
 
     Layer
       Name = Dust
@@ -127,7 +127,7 @@ Effect
       FadeOut = 0.6
       Spin = 15
       Height = 0.6
-    End
+    End,
 
     Layer
       Name = Wave
@@ -145,7 +145,7 @@ Effect
       FadeOut = 0.55
       Height = 0.5
       TurnJitter = 0
-    End
+    End,
 
     Layer
       Name = Smoke
@@ -170,7 +170,7 @@ Effect
       Gravity = -4
       Spin = 18
       Height = 4
-    End
+    End,
 
     Layer
       Name = Debris
@@ -191,7 +191,7 @@ Effect
       Drag = 0.5
       Spin = 240
       Height = 2
-    End
+    End,
 
     Layer
       Name = Fire
@@ -216,7 +216,7 @@ Effect
       Gravity = -8
       Spin = 50
       Height = 3
-    End
+    End,
 
     Layer
       Name = Core
@@ -232,7 +232,7 @@ Effect
       Alpha = [0.7, 0]
       FadeOut = 0.7
       Height = 3
-    End
+    End,
 
     Layer
       Name = Sparks
@@ -250,7 +250,7 @@ Effect
       Drag = 2.5
       Gravity = 60
       Height = 3
-    End
+    End,
 
     Layer
       Name = Flash
@@ -266,7 +266,7 @@ Effect
       FadeOut = 0.6
       Height = 4
       TurnJitter = 0
-    End
+    End,
 
     Layer
       Name = Blast

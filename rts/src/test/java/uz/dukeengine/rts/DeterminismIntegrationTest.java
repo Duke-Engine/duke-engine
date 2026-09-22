@@ -36,10 +36,10 @@ class DeterminismIntegrationTest {
               Modules = [
                 ActiveBody
                   MaxHealth = 100
-                End
+                End,
                 MoveUpdate
                   Speed = 30
-                End
+                End,
                 WeaponUpdate
                   Damage = 10
                   AttackRange = 8

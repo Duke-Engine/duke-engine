@@ -21,7 +21,7 @@ Effect
       Alpha = [0.8, 0]
       FadeOut = 0
       Follows = Yes
-    End
+    End,
 
     Layer
       Name = Halo
@@ -42,7 +42,7 @@ Effect
       FadeIn = 0.04
       FadeOut = 0
       Follows = Yes
-    End
+    End,
 
     Layer
       Name = Core
@@ -63,7 +63,7 @@ Effect
       FadeIn = 0.03
       FadeOut = 0
       Follows = Yes
-    End
+    End,
 
     Layer
       Name = Motes
@@ -84,7 +84,7 @@ Effect
       Gravity = 30
       Drag = 1
       Follows = Yes
-    End
+    End,
 
     Layer
       Name = Flash

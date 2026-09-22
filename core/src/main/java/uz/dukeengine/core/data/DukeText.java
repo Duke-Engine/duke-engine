@@ -63,7 +63,17 @@ public final class DukeText {
         }
 
         boolean isEnd() {
-            return code.equalsIgnoreCase(END);
+            return code.equalsIgnoreCase(END) || code.equalsIgnoreCase(END + ",");
+        }
+
+        /**
+         * Whether this line carries the comma that holds one entry of a list apart from the next.
+         *
+         * <p>Only an {@code End} inside a {@code [ … ]} has one. A comma anywhere else belongs to the value
+         * it is written in — {@code KindOf = [INFANTRY, CAN_ATTACK]} — and is none of this line's business.
+         */
+        boolean comma() {
+            return code.endsWith(",");
         }
     }
 
@@ -71,6 +81,8 @@ public final class DukeText {
         private final String[] lines;
         private final String source;
         private int next;
+        /** The End of the block last read, so a list can ask whether it carried a separating comma. */
+        private Line lastEnd;
 
         Reader(String text, String source) {
             this.lines = text.split("\r?\n", -1);
@@ -118,6 +130,9 @@ public final class DukeText {
                     throw noEnd(word, opening, key);
                 }
                 if (line.isEnd()) {
+                    // Kept so the list this block may belong to can ask whether its End carried the comma.
+                    // The alternative is returning a pair from every one of block()'s three callers.
+                    lastEnd = line;
                     return new Block(word, fields, blocks, source, opening.number());
                 }
                 if (line.isWord()) {
@@ -180,9 +195,16 @@ public final class DukeText {
             return second >= 0 && (lineAt(second).indent() > lineAt(first).indent() || lineAt(second).isEnd());
         }
 
-        /** A block for each item, each closed by its End, then {@code ]} on a line of its own. */
+        /**
+         * A block for each item, each closed by its End, then {@code ]} on a line of its own.
+         *
+         * <p>One entry is held apart from the next by a comma on its {@code End}, the same comma a list of
+         * values is written with. The last entry may carry one or not; between entries it is required,
+         * because {@code End} followed by a word reads as neither clearly enough to guess at.
+         */
         private List<Block> blockList(String key, Line opening) {
             var blocks = new ArrayList<Block>();
+            var closed = false;
             for (var line = nextCode(); line != null; line = nextCode()) {
                 if (line.code().equals("]")) {
                     return blocks;
@@ -191,7 +213,12 @@ public final class DukeText {
                     throw error(line.number(), "'" + key + "' is a list of blocks, each closed by End,"
                             + " and ends with ']' on a line of its own, not '" + line.code() + "'");
                 }
+                if (closed) {
+                    throw error(line.number(), "'" + key + "' separates its blocks with a comma: write 'End,'"
+                            + " before '" + line.code() + "', or ']' if the list is done");
+                }
                 blocks.add(block(line.code(), line));
+                closed = !lastEnd.comma();
             }
             throw error(opening.number(), "'" + key + " = [' is never closed by ']'");
         }

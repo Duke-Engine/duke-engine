@@ -15,7 +15,7 @@ Effect
       Size = [4.05, 2.7]
       Colour = [0xEBCCFF, 0xD89AFF]
       Alpha = [1, 0.5]
-    End
+    End,
     Layer
       Name = Sparks
       Type = TRAIL
@@ -33,14 +33,14 @@ Effect
       Direction = ALL
       Drag = 2
       Spin = 90
-    End
+    End,
     Layer
       Name = Glow
       Type = LIGHT
       LightColour = 0xA850F0
       LightPower = 1.4
       LightRadius = 36
-    End
+    End,
     Layer
       Name = Flash
       Type = IMPACT
@@ -55,7 +55,7 @@ Effect
       FadeOut = 0.6
       Height = 5
       TurnJitter = 45
-    End
+    End,
     Layer
       Name = Burst
       Type = BURST

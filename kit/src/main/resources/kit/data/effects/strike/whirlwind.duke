@@ -33,7 +33,7 @@ Effect
       FadeOut = 0.08
       Spin = 900
       Height = 5
-    End
+    End,
 
     Layer
       Name = Gust
@@ -49,7 +49,7 @@ Effect
       FadeOut = 0.08
       Spin = -600
       Height = 4
-    End
+    End,
 
     Layer
       Name = Dust
@@ -66,7 +66,7 @@ Effect
       FadeOut = 0.6
       Spin = 60
       Height = 0.5
-    End
+    End,
 
     Layer
       Name = Sparks

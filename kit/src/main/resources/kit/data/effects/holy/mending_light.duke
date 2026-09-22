@@ -21,7 +21,7 @@ Effect
       Alpha = [0.55, 0]
       Radius = 3
       Height = 1
-    End
+    End,
 
     Layer
       Name = Glow
@@ -29,7 +29,7 @@ Effect
       LightColour = 0xB8F070
       LightPower = 1.2
       LightRadius = 36
-    End
+    End,
 
     Layer
       Name = Ring
@@ -45,7 +45,7 @@ Effect
       ColourEase = 2
       Alpha = [0.8, 0]
       FadeOut = 0
-    End
+    End,
 
     Layer
       Name = Halo
@@ -65,7 +65,7 @@ Effect
       Alpha = [0.55, 0]
       FadeIn = 0.04
       FadeOut = 0
-    End
+    End,
 
     Layer
       Name = Core
@@ -85,7 +85,7 @@ Effect
       Alpha = [1, 0]
       FadeIn = 0.03
       FadeOut = 0
-    End
+    End,
 
     Layer
       Name = Motes
@@ -105,7 +105,7 @@ Effect
       Height = 40
       Gravity = 30
       Drag = 1
-    End
+    End,
 
     Layer
       Name = Flash

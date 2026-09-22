@@ -27,7 +27,7 @@ Effect
       FadeOut = 0.6
       Spin = 180
       Height = 5
-    End
+    End,
 
     Layer
       Name = Motes
@@ -47,7 +47,7 @@ Effect
       Drag = 2
       Gravity = -6
       Height = 2
-    End
+    End,
 
     Layer
       Name = Rune
@@ -65,7 +65,7 @@ Effect
       FadeOut = 0.5
       Spin = 120
       Height = 0.4
-    End
+    End,
 
     Layer
       Name = Thread
@@ -79,7 +79,7 @@ Effect
       Colour = [0xE0CCFF, 0x9050FF]
       Alpha = [0.8, 0]
       Height = 5
-    End
+    End,
 
     Layer
       Name = Glint

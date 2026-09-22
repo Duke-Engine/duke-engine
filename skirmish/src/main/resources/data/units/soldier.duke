@@ -16,15 +16,15 @@ Unit
   Modules = [
     ActiveBody
       MaxHealth = 120
-    End
+    End,
     MoveUpdate
       Speed = 22
-    End
+    End,
     WeaponUpdate
       Damage = 14
       AttackRange = 14
       ReloadFrames = 24
-    End
+    End,
     ; Walks up to whatever it is sent at. Without this it stands still and waits
     ; for the enemy to come into range -- see PursueUpdate.
     PursueUpdate

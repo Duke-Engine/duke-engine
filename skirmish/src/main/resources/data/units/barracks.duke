@@ -16,7 +16,7 @@ Unit
   Modules = [
     ActiveBody
       MaxHealth = 600
-    End
+    End,
     ProductionUpdate
       Builds = [Worker, Soldier, Archer]
     End

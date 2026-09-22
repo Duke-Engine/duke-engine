@@ -59,10 +59,7 @@ class ArmorTest {
         var body = binder.bind(DukeText.parse("""
                 ActiveBody
                   MaxHealth = 200
-                  Armor
-                    ARMOR_PIERCING = 2.0
-                    FLAME = 0.5
-                  End
+                  Armor = [ARMOR_PIERCING = 2.0, FLAME = 0.5]
                 End
                 """, "body.duke").getFirst(), ActiveBody.Data.class);
         assertEquals(200f, body.maxHealth(), 1e-6f);

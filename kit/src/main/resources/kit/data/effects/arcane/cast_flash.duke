@@ -23,7 +23,7 @@ Effect
       FadeOut = 0.6
       Height = 6
       TurnJitter = 0
-    End
+    End,
 
     Layer
       Name = Puff
@@ -42,7 +42,7 @@ Effect
       Drag = 4
       Spin = 90
       Height = 6
-    End
+    End,
 
     Layer
       Name = Motes
@@ -58,7 +58,7 @@ Effect
       Direction = ALL
       Drag = 3
       Height = 6
-    End
+    End,
 
     Layer
       Name = Light

@@ -20,7 +20,7 @@ Effect
       Colour = [0xFFB8FB, 0xDF30FF]
       Alpha = [1, 0.6]
       Radius = 0.3
-    End
+    End,
 
     Layer
       Name = Heart
@@ -37,7 +37,7 @@ Effect
       Alpha = [1, 0]
       Radius = 1
       Spin = 240
-    End
+    End,
 
     Layer
       Name = Flames
@@ -59,7 +59,7 @@ Effect
       Drag = 2
       Gravity = -10
       Spin = 120
-    End
+    End,
 
     Layer
       Name = Embers
@@ -75,7 +75,7 @@ Effect
       Direction = ALL
       Drag = 1.5
       Gravity = -4
-    End
+    End,
 
     Layer
       Name = Wake
@@ -93,7 +93,7 @@ Effect
       Spread = 60
       Gravity = -6
       Spin = 30
-    End
+    End,
 
     Layer
       Name = Glow
@@ -101,7 +101,7 @@ Effect
       LightColour = 0xC228FF
       LightPower = 3.2
       LightRadius = 80
-    End
+    End,
 
     Layer
       Name = Scorch
@@ -116,7 +116,7 @@ Effect
       Alpha = [0.55, 0.55]
       FadeOut = 0.4
       Height = 0.25
-    End
+    End,
 
     Layer
       Name = Wave
@@ -134,7 +134,7 @@ Effect
       FadeOut = 0.6
       Spin = 20
       Height = 0.5
-    End
+    End,
 
     Layer
       Name = Ring
@@ -152,7 +152,7 @@ Effect
       FadeOut = 0.5
       Height = 0.4
       TurnJitter = 0
-    End
+    End,
 
     Layer
       Name = Smoke
@@ -177,7 +177,7 @@ Effect
       Gravity = -6
       Spin = 25
       Height = 4
-    End
+    End,
 
     Layer
       Name = Fire
@@ -202,7 +202,7 @@ Effect
       Gravity = -8
       Spin = 60
       Height = 3
-    End
+    End,
 
     Layer
       Name = Tongues
@@ -223,7 +223,7 @@ Effect
       Spread = 35
       Drag = 5
       Height = 3
-    End
+    End,
 
     Layer
       Name = Bloom
@@ -240,7 +240,7 @@ Effect
       Alpha = [0.8, 0]
       FadeOut = 0.7
       Height = 3
-    End
+    End,
 
     Layer
       Name = Sparks
@@ -258,7 +258,7 @@ Effect
       Drag = 3
       Gravity = 40
       Height = 2
-    End
+    End,
 
     Layer
       Name = Flash
@@ -274,7 +274,7 @@ Effect
       FadeOut = 0.6
       Height = 4
       TurnJitter = 30
-    End
+    End,
 
     Layer
       Name = Blast

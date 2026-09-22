@@ -76,7 +76,7 @@ Effect
       Speed = [-24, -20]
       Direction = OUT
       Height = 7
-    End
+    End,
 
     Layer
       Name = Charge
@@ -93,7 +93,7 @@ Effect
       FadeOut = 0.12
       Height = 7
       TurnJitter = 0
-    End
+    End,
 
     Layer
       Name = Glint

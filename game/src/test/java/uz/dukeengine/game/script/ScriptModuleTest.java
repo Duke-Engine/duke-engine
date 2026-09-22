@@ -50,12 +50,12 @@ class ScriptModuleTest {
               Modules = [
                 ActiveBody
                   MaxHealth = 50
-                End
+                End,
                 MoveUpdate
                   Speed = 30
-                End
+                End,
                 Walker
-                End
+                End,
                 Broken
                 End
               ]

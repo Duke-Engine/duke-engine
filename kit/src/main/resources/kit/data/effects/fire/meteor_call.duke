@@ -36,7 +36,7 @@ Effect
       PulseDepth = 0.45
       Height = 0.35
       TurnJitter = 0
-    End
+    End,
 
     Layer
       Name = Rune
@@ -53,7 +53,7 @@ Effect
       FadeOut = 0.08
       Spin = 40
       Height = 0.45
-    End
+    End,
 
     Layer
       Name = Heat
@@ -71,7 +71,7 @@ Effect
       Spread = 20
       Gravity = -6
       Height = 0.5
-    End
+    End,
 
     Layer
       Name = Glow

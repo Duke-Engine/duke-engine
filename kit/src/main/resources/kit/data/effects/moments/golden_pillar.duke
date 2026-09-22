@@ -51,7 +51,7 @@ Effect
       FadeOut = 0
       At = CASTER
       Follows = Yes
-    End
+    End,
 
     Layer
       Name = Halo
@@ -73,7 +73,7 @@ Effect
       FadeOut = 0
       At = CASTER
       Follows = Yes
-    End
+    End,
 
     Layer
       Name = Core
@@ -95,7 +95,7 @@ Effect
       FadeOut = 0
       At = CASTER
       Follows = Yes
-    End
+    End,
 
     Layer
       Name = Motes
@@ -116,7 +116,7 @@ Effect
       Drag = 1.5
       At = CASTER
       Follows = Yes
-    End
+    End,
 
     Layer
       Name = Flash

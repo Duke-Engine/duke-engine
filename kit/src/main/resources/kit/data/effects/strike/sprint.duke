@@ -30,7 +30,7 @@ Effect
       Gravity = -3
       Spin = 40
       Height = 1
-    End
+    End,
 
     Layer
       Name = Streak
@@ -44,7 +44,7 @@ Effect
       Colour = [0xE8F6FF, 0x9AD0FF]
       Alpha = [0.6, 0]
       Height = 5
-    End
+    End,
 
     Layer
       Name = Kick
@@ -64,7 +64,7 @@ Effect
       Drag = 4
       Spin = 40
       Height = 1
-    End
+    End,
 
     Layer
       Name = Landing

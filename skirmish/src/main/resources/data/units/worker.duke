@@ -17,10 +17,10 @@ Unit
   Modules = [
     ActiveBody
       MaxHealth = 40
-    End
+    End,
     MoveUpdate
       Speed = 26
-    End
+    End,
     ; Walks to the nearest pile within SearchRange, loads, and carries it back to
     ; the side's nearest Depot. With no depot anywhere it banks where it stands.
     HarvestUpdate

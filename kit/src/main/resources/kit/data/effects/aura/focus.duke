@@ -27,7 +27,7 @@ Effect
       PulseDepth = 0.65
       Spin = 30
       Height = 6
-    End
+    End,
 
     Layer
       Name = Reticle
@@ -44,7 +44,7 @@ Effect
       Spin = 60
       Height = 17
       TurnJitter = 0
-    End
+    End,
 
     Layer
       Name = Motes
@@ -61,7 +61,7 @@ Effect
       Direction = UP
       Spread = 20
       Height = 1
-    End
+    End,
 
     Layer
       Name = Flash
@@ -77,7 +77,7 @@ Effect
       FadeOut = 0.6
       Height = 8
       TurnJitter = 0
-    End
+    End,
 
     Layer
       Name = Ring
@@ -94,7 +94,7 @@ Effect
       FadeOut = 0.5
       Height = 0.4
       TurnJitter = 0
-    End
+    End,
 
     Layer
       Name = Light

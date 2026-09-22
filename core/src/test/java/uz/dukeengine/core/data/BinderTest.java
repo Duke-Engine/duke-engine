@@ -64,7 +64,7 @@ class BinderTest {
                       Model = models/bow.gltf
                       In = handslot.l
                       At = [0.12, 0.1, -0.22]
-                    End
+                    End,
                     Held
                       Model = models/quiver.gltf
                     End
@@ -77,9 +77,7 @@ class BinderTest {
                       Size = 3
                     End
                   ]
-                  Volume
-                    MUSIC = 0.5
-                  End
+                  Volume = [MUSIC = 0.5, EFFECTS = 1.0]
                 End
                 """, Crate.class);
 
@@ -92,7 +90,8 @@ class BinderTest {
                 new Held("models/quiver.gltf", null, null)), crate.held());
         assertEquals(new Generation(80, 36, true), crate.generation(), "what it leaves out is the default");
         assertEquals(List.of(new Wheel(3)), crate.parts());
-        assertEquals(Map.of(Channel.MUSIC, 0.5f), crate.volume());
+        assertEquals(Map.of(Channel.MUSIC, 0.5f, Channel.EFFECTS, 1.0f), crate.volume(),
+                "a map is a list of its entries, keys read as the map's own type");
     }
 
     /** One thing on a line, {@code Skeleton 17 16} — and the same record as a block, where a line is not enough. */
@@ -127,7 +126,7 @@ class BinderTest {
                       Kind = Skeleton
                       X = 17
                       Y = 16
-                    End
+                    End,
                     Placed
                       Kind = Ghoul
                       X = 4
@@ -168,8 +167,14 @@ class BinderTest {
         assertError("crate.duke:2: 'Parts' is a list of blocks: 'Parts = [', a block for each, then ']'",
                 "Crate\n  Parts = Wheel\nEnd\n", Crate.class);
         assertError("crate.duke:2: 'Crate' holds no block 'Lid'", "Crate\n  Lid\n  End\nEnd\n", Crate.class);
-        assertError("crate.duke:4: 'Volume' is written twice in 'Crate'",
-                "Crate\n  Volume\n  End\n  Volume\n  End\nEnd\n", Crate.class);
+        // A map is a field now. Written the way it used to be, it says so; written twice inside its own
+        // brackets, the entry is the thing that is doubled.
+        assertError("crate.duke:2: 'Volume' is a map: write it Volume = [key = value, key = value]",
+                "Crate\n  Volume\n    MUSIC = 0.5\n  End\nEnd\n", Crate.class);
+        assertError("crate.duke:2: 'MUSIC' is written twice in 'Volume'",
+                "Crate\n  Volume = [MUSIC = 0.5, MUSIC = 1.0]\nEnd\n", Crate.class);
+        assertError("crate.duke:2: 'Volume' holds entries written 'key = value'; 'MUSIC' has no '='",
+                "Crate\n  Volume = [MUSIC]\nEnd\n", Crate.class);
     }
 
     /** The files were written the other way first, so a block in the old place says where it goes now. */

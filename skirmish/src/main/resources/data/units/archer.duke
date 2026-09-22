@@ -16,15 +16,15 @@ Unit
   Modules = [
     ActiveBody
       MaxHealth = 70
-    End
+    End,
     MoveUpdate
       Speed = 24
-    End
+    End,
     WeaponUpdate
       Damage = 10
       AttackRange = 60
       ReloadFrames = 36
-    End
+    End,
     PursueUpdate
       RepathFrames = 10
       GiveUpBeyond = 200

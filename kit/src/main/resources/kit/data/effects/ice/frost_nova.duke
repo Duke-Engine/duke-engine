@@ -31,7 +31,7 @@ Effect
       FadeOut = 0.7
       Height = 3
       TurnJitter = 45
-    End
+    End,
 
     Layer
       Name = Swirl
@@ -49,7 +49,7 @@ Effect
       FadeOut = 0.55
       Spin = 90
       Height = 0.4
-    End
+    End,
 
     Layer
       Name = Rim
@@ -67,7 +67,7 @@ Effect
       FadeOut = 0.5
       Height = 0.5
       TurnJitter = 0
-    End
+    End,
 
     Layer
       Name = Shards
@@ -85,7 +85,7 @@ Effect
       Spread = 20
       Drag = 5
       Height = 2
-    End
+    End,
 
     Layer
       Name = Mist
@@ -106,7 +106,7 @@ Effect
       Drag = 2.5
       Spin = 20
       Height = 2
-    End
+    End,
 
     Layer
       Name = Frost
@@ -124,7 +124,7 @@ Effect
       FadeOut = 0.6
       Spin = 25
       Height = 0.3
-    End
+    End,
 
     ; On whoever the nova caught, for exactly as long as it slows them: no Seconds, so
     ; the skill's own SlowFrames. The client is never told who is slowed, but it is told
@@ -146,7 +146,7 @@ Effect
       Direction = UP
       Spread = 40
       Drag = 1
-    End
+    End,
 
     Layer
       Name = Chill

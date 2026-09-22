@@ -31,7 +31,7 @@ Effect
       Direction = DOWN
       Spread = 8
       Height = 60
-    End
+    End,
 
     Layer
       Name = Dust
@@ -54,7 +54,7 @@ Effect
       Gravity = -4
       Spin = 40
       Height = 1
-    End
+    End,
 
     Layer
       Name = Sparks
@@ -74,7 +74,7 @@ Effect
       Drag = 2
       Gravity = 60
       Height = 1
-    End
+    End,
 
     Layer
       Name = Ring
@@ -92,7 +92,7 @@ Effect
       FadeOut = 0.5
       Height = 0.4
       TurnJitter = 0
-    End
+    End,
 
     Layer
       Name = Light
