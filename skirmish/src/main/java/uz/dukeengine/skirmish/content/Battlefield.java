@@ -4,7 +4,9 @@ import java.util.List;
 import uz.dukeengine.core.data.Grid;
 import uz.dukeengine.core.data.Link;
 import uz.dukeengine.core.map.Described;
+import uz.dukeengine.core.map.Furnished;
 import uz.dukeengine.core.map.MapTemplate;
+import uz.dukeengine.core.map.MapThing;
 import uz.dukeengine.core.map.Peopled;
 
 /**
@@ -26,7 +28,7 @@ public record Battlefield(String name, String displayName, String description, i
         @Grid List<String> cells,
         List<Start> starts,
         @Link(Unit.class) List<Placed> things)
-        implements MapTemplate, Described, Peopled {
+        implements MapTemplate, Described, Peopled, Furnished {
 
     /** Where a side begins: its base, and the corner its first units stand in. */
     public record Start(int x, int y) {
@@ -41,8 +43,14 @@ public record Battlefield(String name, String displayName, String description, i
         }
     }
 
-    /** One thing standing on the field: what it is, and the cell it stands in. */
-    public record Placed(String kind, int x, int y) {
+    /**
+     * One thing standing on the field: what it is, and where it stands.
+     *
+     * <p>Cells, and fractions of one — a field's ore nodes all sit on whole numbers, but the place is the
+     * engine's {@link MapThing} rather than this game's, and a bridge or a wall on some other game's map does
+     * not. A whole number is the middle of a cell either way.
+     */
+    public record Placed(String template, float x, float y, float facing) implements MapThing {
 
         /** {@code OreNode 30 12} — the unit's name, then its cell. */
         public static Placed of(String written) {
@@ -50,7 +58,7 @@ public record Battlefield(String name, String displayName, String description, i
             if (words.length != 3) {
                 throw new IllegalArgumentException("a thing is 'Kind x y', not '" + written + "'");
             }
-            return new Placed(words[0], Integer.parseInt(words[1]), Integer.parseInt(words[2]));
+            return new Placed(words[0], Float.parseFloat(words[1]), Float.parseFloat(words[2]), 0f);
         }
     }
 

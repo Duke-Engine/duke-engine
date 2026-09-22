@@ -170,6 +170,13 @@ class SkirmishTest {
         assertEquals(32, match.field().height());
         assertEquals(6, game.getLogic().getObjects().size(), "the ore the file puts on the field");
 
+        // Read through the engine's own MapThing, which counts in cells: `OreNode 9 7` is the ninth
+        // cell across and the seventh down, whatever the field's cells turn out to be worth in the world.
+        var ore = match.field().things().getFirst();
+        assertEquals("OreNode", ore.template());
+        assertEquals(9f, ore.x());
+        assertEquals(7f, ore.y());
+
         // The rock down the middle is rock, and the open ground around it is not.
         assertTrue(game.getTerrain().isBlocked(23, 15), "the spine of rock should be in the way");
         assertFalse(game.getTerrain().isBlocked(10, 15), "and the field around it should not be");

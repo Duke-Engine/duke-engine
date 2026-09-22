@@ -52,7 +52,7 @@ public final class Skirmish {
         game.applyMapTerrain(MapTerrain.of(field, PathGrid.DEFAULT_CELL_SIZE, 0f));
         var match = set(game, purse, field);
         for (var thing : field.things()) {
-            game.spawn(thing.kind(), match.left(), at(thing.x()), at(thing.y()));
+            game.spawn(thing.template(), match.left(), at(thing.x()), at(thing.y()));
         }
         return match;
     }
@@ -66,7 +66,7 @@ public final class Skirmish {
     }
 
     /** The middle of a cell, in world units — where a thing put in a cell stands. */
-    public static float at(int cell) {
+    public static float at(float cell) {
         return (cell + 0.5f) * PathGrid.DEFAULT_CELL_SIZE;
     }
 
