@@ -34,8 +34,9 @@ import java.util.Set;
  * open type ({@link #vocabulary}) — a module, for {@code ModuleData}. With nothing to write in it,
  * the word alone does: {@code Geometry = Sphere}. A list of records is {@code Modules = [} with a
  * block for each, named the same way, then {@code ]}, one comma between each. A {@code Map} is a list
- * of its entries: {@code Armor = [FLAME = 0.5, SNIPER = 2.0]}. So every line of a block names one of
- * its components, and no block is found by what it is.
+ * of its entries: {@code Armor = [FLAME = 0.5, SNIPER = 2.0]}, or, where a value holds more than a
+ * line does, a block for each entry opened by its key: {@code Pieces = [Minimap = Piece … End]}. So
+ * every line of a block names one of its components, and no block is found by what it is.
  *
  * <p>A component the block does not write takes the record's {@code static final DEFAULTS} value if
  * it has one, else zero, {@code false}, {@code null} or an empty collection. What a record refuses in
@@ -161,33 +162,45 @@ public final class Binder {
     }
 
     /**
-     * A {@code Map} written as a list of its entries: {@code Multipliers = [CRUSH = 2.0, FLAME = 1.5]}.
+     * A {@code Map} written as a list of its entries: {@code Multipliers = [CRUSH = 2.0, FLAME = 1.5]},
+     * or {@code Pieces = [Minimap = Piece … End, …]} where a value holds more than a line does.
      *
-     * <p>The reader knows nothing of maps — it sees a list of values and hands over the text of each one.
-     * The {@code =} inside an entry is this method's business, which keeps the syntax of a map and the
-     * syntax of a list the same thing on the page and only different here.
+     * <p>The reader knows nothing of maps. It sees a list of values and hands over the text of each one,
+     * or a list of blocks each opened by the key it belongs to; what the {@code =} between a key and its
+     * value means is this method's business. That keeps the syntax of a map and the syntax of a list the
+     * same thing on the page and only different here.
      */
     private Object entries(Value value, Type target, String where, String key) {
-        if (!(value instanceof Value.Items items)) {
-            throw new DataException(where, "'" + key + "' is a map: write it " + key + " = [key = value, key = value]");
-        }
         var arguments = target instanceof ParameterizedType p
                 ? p.getActualTypeArguments() : new Type[] {Object.class, Object.class};
         var read = new LinkedHashMap<Object, Object>();
-        for (var entry : items.items()) {
-            int sign = entry.indexOf('=');
-            if (sign < 0) {
-                throw new DataException(where,
-                        "'" + key + "' holds entries written 'key = value'; '" + entry + "' has no '='");
+        if (value instanceof Value.Items items) {
+            for (var entry : items.items()) {
+                int sign = entry.indexOf('=');
+                if (sign < 0) {
+                    throw new DataException(where,
+                            "'" + key + "' holds entries written 'key = value'; '" + entry + "' has no '='");
+                }
+                var name = entry.substring(0, sign).strip();
+                twice(read.put(scalar(name, raw(arguments[0]), where, key),
+                        scalar(entry.substring(sign + 1).strip(), raw(arguments[1]), where, key)), name, key, where);
             }
-            var name = entry.substring(0, sign).strip();
-            var was = read.put(scalar(name, raw(arguments[0]), where, key),
-                    scalar(entry.substring(sign + 1).strip(), raw(arguments[1]), where, key));
-            if (was != null) {
-                throw new DataException(where, "'" + name + "' is written twice in '" + key + "'");
-            }
+            return Collections.unmodifiableMap(read);
         }
-        return Collections.unmodifiableMap(read);
+        if (value instanceof Value.NestedEntries written) {
+            for (var entry : written.entries()) {
+                twice(read.put(scalar(entry.key(), raw(arguments[0]), where, key),
+                        value(entry.value(), arguments[1], where, entry.key())), entry.key(), key, where);
+            }
+            return Collections.unmodifiableMap(read);
+        }
+        throw new DataException(where, "'" + key + "' is a map: write it " + key + " = [key = value, key = value]");
+    }
+
+    private static void twice(Object was, String name, String key, String where) {
+        if (was != null) {
+            throw new DataException(where, "'" + name + "' is written twice in '" + key + "'");
+        }
     }
 
     private Object value(Value value, Type target, String where, String key) {
@@ -227,6 +240,8 @@ public final class Binder {
                         : "'" + key + "' is a list: write it [a, b]");
                 case Value.Nested nested -> throw new DataException(where,
                         "'" + key + "' is a list of blocks: '" + key + " = [', a block for each, then ']'");
+                case Value.NestedEntries written -> throw new DataException(where, "'" + key + "' is a list,"
+                        + " not a map: its blocks are named by what they are, not by a key");
             };
         }
         return switch (value) {
@@ -236,6 +251,8 @@ public final class Binder {
             case Value.Items items when raw.isRecord() -> positional(items, raw, where, key);
             case Value.Items items -> throw new DataException(where, "'" + key + "' takes one value, not a list");
             case Value.NestedList list -> throw new DataException(where, "'" + key + "' takes one value, not a list");
+            case Value.NestedEntries written -> throw new DataException(where,
+                    "'" + key + "' takes one value, not a map");
             case Value.Text text -> choosable(raw) ? chosen(text.text(), raw, where, key) : scalar(text.text(), raw, where, key);
         };
     }

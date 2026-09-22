@@ -38,8 +38,12 @@ class BinderTest {
     record Wheel(int size) implements Part {
     }
 
+    record Sticker(String art, float scale) {
+    }
+
     record Crate(String name, float weight, Set<Kind> kindOf, Geometry geometry, List<Held> held,
-            Generation generation, List<Part> parts, int colour, Map<Channel, Float> volume) {
+            Generation generation, List<Part> parts, int colour, Map<Channel, Float> volume,
+            Map<String, Sticker> stickers) {
     }
 
     private static <R> R bind(String text, Class<R> type) {
@@ -92,6 +96,31 @@ class BinderTest {
         assertEquals(List.of(new Wheel(3)), crate.parts());
         assertEquals(Map.of(Channel.MUSIC, 0.5f, Channel.EFFECTS, 1.0f), crate.volume(),
                 "a map is a list of its entries, keys read as the map's own type");
+    }
+
+    /**
+     * An entry whose value holds more than a line does is a block, opened by the key it belongs to —
+     * the same list, the same commas, and the value read as a value of its type is read anywhere.
+     */
+    @Test
+    void aMapWhoseValuesAreRecordsWritesEachOneAsABlock() {
+        var crate = bind("""
+                Crate
+                  Stickers = [
+                    Lid = Sticker
+                      Art = art/fragile.png
+                      Scale = 2
+                    End,
+                    Side = Sticker
+                      Art = art/thisWayUp.png
+                    End
+                  ]
+                End
+                """, Crate.class);
+
+        assertEquals(Map.of("Lid", new Sticker("art/fragile.png", 2f),
+                "Side", new Sticker("art/thisWayUp.png", 0f)), crate.stickers());
+        assertEquals(List.of("Lid", "Side"), List.copyOf(crate.stickers().keySet()), "in the order written");
     }
 
     /** One thing on a line, {@code Skeleton 17 16} — and the same record as a block, where a line is not enough. */
@@ -175,6 +204,16 @@ class BinderTest {
                 "Crate\n  Volume = [MUSIC = 0.5, MUSIC = 1.0]\nEnd\n", Crate.class);
         assertError("crate.duke:2: 'Volume' holds entries written 'key = value'; 'MUSIC' has no '='",
                 "Crate\n  Volume = [MUSIC]\nEnd\n", Crate.class);
+        assertError("crate.duke:2: 'Lid' is written twice in 'Stickers'",
+                "Crate\n  Stickers = [\n    Lid = Sticker\n    End,\n    Lid = Sticker\n    End\n  ]\nEnd\n",
+                Crate.class);
+        assertError("crate.duke:3: 'Lid' is one of [Sticker], not 'Label'",
+                "Crate\n  Stickers = [\n    Lid = Label\n    End\n  ]\nEnd\n", Crate.class);
+        assertError("crate.duke:2: 'Parts' is a list, not a map:"
+                + " its blocks are named by what they are, not by a key",
+                "Crate\n  Parts = [\n    First = Wheel\n    End\n  ]\nEnd\n", Crate.class);
+        assertError("crate.duke:2: 'Geometry' takes one value, not a map",
+                "Crate\n  Geometry = [\n    First = Sphere\n    End\n  ]\nEnd\n", Crate.class);
     }
 
     /** The files were written the other way first, so a block in the old place says where it goes now. */

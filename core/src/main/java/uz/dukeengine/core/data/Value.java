@@ -26,4 +26,14 @@ public sealed interface Value {
             blocks = List.copyOf(blocks);
         }
     }
+
+    /**
+     * {@code Pieces = [}, {@code Minimap = Piece} and its fields for each entry, then {@code ]}: the
+     * entries of a map whose values hold more than a line does. Every value is a {@link Nested}.
+     */
+    record NestedEntries(List<Field> entries) implements Value {
+        public NestedEntries {
+            entries = List.copyOf(entries);
+        }
+    }
 }

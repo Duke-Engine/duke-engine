@@ -139,6 +139,34 @@ class DukeTextTest {
         }
     }
 
+    /**
+     * {@code Key = Word} with a body, where a list of values would have a value: the entries of a map
+     * whose values hold more than a line does. The reader tells them apart by the shape alone.
+     */
+    @Test
+    void aListWhoseEntriesAreNamedByAKeyIsAMapOfBlocks() {
+        var fields = DukeText.parse("""
+                Panel
+                  Armor = [FLAME = 0.5, SNIPER = 2.0]
+                  Pieces = [
+                    Minimap = Piece
+                      Inset = 16
+                    End,
+                    Portrait = Piece
+                    End
+                  ]
+                End
+                """, "panel.duke").getFirst().fields();
+
+        assertInstanceOf(Value.Items.class, fields.get(0).value(), "a value on a line is a list of values");
+        var pieces = assertInstanceOf(Value.NestedEntries.class, fields.get(1).value()).entries();
+        assertEquals(List.of("Minimap", "Portrait"), pieces.stream().map(Field::key).toList());
+        var minimap = assertInstanceOf(Value.Nested.class, pieces.getFirst().value()).block();
+        assertEquals("Piece", minimap.word());
+        assertEquals(new Field("Inset", new Value.Text("16"), 5), minimap.fields().getFirst());
+        assertEquals(List.of(), assertInstanceOf(Value.Nested.class, pieces.get(1).value()).block().fields());
+    }
+
     @Test
     void aMissingCommaSaysWhatToWriteAndWhere() {
         assertError("units.duke:6: 'Modules' separates its blocks with a comma: write 'End,' before 'Turret',"
@@ -152,6 +180,30 @@ class DukeTextTest {
                     Turret
                       Arc = 90
                     End
+                  ]
+                End
+                """);
+        assertError("units.duke:6: 'Pieces' separates its blocks with a comma: write 'End,'"
+                        + " before 'Portrait = Piece', or ']' if the list is done",
+                """
+                Panel
+                  Pieces = [
+                    Minimap = Piece
+                      Inset = 16
+                    End
+                    Portrait = Piece
+                    End
+                  ]
+                End
+                """);
+        assertError("units.duke:5: 'Pieces' is a map of blocks, each opened by 'key = Word' and closed by End,"
+                        + " and ends with ']' on a line of its own, not 'Inset = 16'",
+                """
+                Panel
+                  Pieces = [
+                    Minimap = Piece
+                    End,
+                    Inset = 16
                   ]
                 End
                 """);

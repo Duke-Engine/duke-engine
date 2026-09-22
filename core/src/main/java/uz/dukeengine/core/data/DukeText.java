@@ -17,9 +17,13 @@ import java.util.regex.Pattern;
  *     Radius = 6
  *     Height = 16
  *   End
+ *   Armor = [FLAME = 0.5, SNIPER = 2.0]
  *   Modules = [                      ; a list of records, each named by its class
  *     MoveUpdate
  *       Speed = 10
+ *     End,                           ; a comma holds one entry apart from the next
+ *     Turret
+ *       Arc = 90
  *     End
  *   ]
  * End                                ; closes the innermost open block
@@ -27,14 +31,15 @@ import java.util.regex.Pattern;
  *
  * <p>A key is written once per block. A list of values may run over several lines, and a value
  * holding a comma, a bracket or a {@code ;} is quoted: {@code "like; this"}. {@code ;} starts a
- * comment outside quotes. A word alone inside a block opens a block of entries, named by its field:
- * {@code Armor} holding {@code FLAME = 0.5}.
+ * comment outside quotes. Between the entries of any list the comma is required, after the last one
+ * optional.
  *
  * <p>{@code Key = Word} opens a block only when the next line is indented deeper; otherwise the word
  * is a value, as {@code Geometry = Sphere} is a sphere with nothing written in it, and a block so
  * opened keeps to that depth to its End. A {@code [} alone on its line holds blocks when its first
- * item is a word with its fields under it, or its End. Those are the only places indentation means
- * anything.
+ * item is a word with its fields under it, or its End, and the entries of a map when that word is
+ * written after a key's {@code =}: {@code Pieces = [Minimap = Piece … End]}. Those are the only
+ * places indentation means anything.
  *
  * <p>SAGE's INI reader is the ancestor: blocks closed by {@code End}, fields looked up by name. What
  * changed is that every line says by its shape what it is.
@@ -163,6 +168,9 @@ public final class DukeText {
             if (text.equals("[") && itemsAreBlocks()) {
                 return new Value.NestedList(blockList(key, line));
             }
+            if (text.equals("[") && entriesAreBlocks()) {
+                return new Value.NestedEntries(entryList(key, line));
+            }
             if (text.startsWith("[")) {
                 return items(text, line.number());
             }
@@ -191,8 +199,27 @@ public final class DukeText {
             if (first < 0 || !lineAt(first).isWord() || lineAt(first).isEnd()) {
                 return false;
             }
-            int second = codeFrom(first + 1);
-            return second >= 0 && (lineAt(second).indent() > lineAt(first).indent() || lineAt(second).isEnd());
+            return bodied(first);
+        }
+
+        /**
+         * Whether it holds the entries of a map whose values are blocks: its first entry is
+         * {@code Key = Word} with a body or an End, which no list of values can be — the value of
+         * {@code [FLAME = 0.5, …]} carries the comma that holds the entries apart, or is not a word.
+         */
+        private boolean entriesAreBlocks() {
+            int first = codeFrom(next);
+            if (first < 0) {
+                return false;
+            }
+            var field = FIELD.matcher(lineAt(first).code());
+            return field.matches() && WORD.matcher(field.group(2).strip()).matches() && bodied(first);
+        }
+
+        /** Whether the line at {@code at} is followed by one deeper than it, or by its End. */
+        private boolean bodied(int at) {
+            int second = codeFrom(at + 1);
+            return second >= 0 && (lineAt(second).indent() > lineAt(at).indent() || lineAt(second).isEnd());
         }
 
         /**
@@ -218,6 +245,35 @@ public final class DukeText {
                             + " before '" + line.code() + "', or ']' if the list is done");
                 }
                 blocks.add(block(line.code(), line));
+                closed = !lastEnd.comma();
+            }
+            throw error(opening.number(), "'" + key + " = [' is never closed by ']'");
+        }
+
+        /**
+         * {@code Key = Word} and its fields for each entry, each closed by its End, then {@code ]} — a map
+         * whose values hold more than a line does. The same comma holds one entry apart from the next.
+         */
+        private List<Field> entryList(String key, Line opening) {
+            var entries = new ArrayList<Field>();
+            var closed = false;
+            for (var line = nextCode(); line != null; line = nextCode()) {
+                if (line.code().equals("]")) {
+                    return entries;
+                }
+                var field = FIELD.matcher(line.code());
+                var word = field.matches() ? field.group(2).strip() : "";
+                if (!WORD.matcher(word).matches()) {
+                    throw error(line.number(), "'" + key + "' is a map of blocks, each opened by 'key = Word'"
+                            + " and closed by End, and ends with ']' on a line of its own, not '"
+                            + line.code() + "'");
+                }
+                if (closed) {
+                    throw error(line.number(), "'" + key + "' separates its blocks with a comma: write 'End,'"
+                            + " before '" + line.code() + "', or ']' if the list is done");
+                }
+                var name = field.group(1);
+                entries.add(new Field(name, new Value.Nested(block(word, line, name)), line.number()));
                 closed = !lastEnd.comma();
             }
             throw error(opening.number(), "'" + key + " = [' is never closed by ']'");
