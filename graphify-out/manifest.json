@@ -1,8 +1,8 @@
 {
   "build.gradle.kts": {
-    "mtime": 1790012762.159867,
-    "seen": 1790012895.4788146,
-    "ast_hash": "ccf3c9c0f775cad491bca31314e9ae85",
+    "mtime": 1790076015.4820256,
+    "seen": 1790076117.044842,
+    "ast_hash": "25d7f0e370c83af151590c7d5b4e3310",
     "semantic_hash": ""
   },
   "client3d/build.gradle.kts": {
@@ -108,9 +108,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1789999619.614196,
-    "seen": 1790001040.2015085,
-    "ast_hash": "f307bffb8ac3bfe9f6e6e0a6f62b9bad",
+    "mtime": 1790076015.5449574,
+    "seen": 1790076117.045325,
+    "ast_hash": "38ba92d780e7a397fb47069ee0bd0655",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -126,9 +126,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1789983960.5589852,
-    "seen": 1789984639.7572532,
-    "ast_hash": "7225507de25cbb15f7dbf68f3024996c",
+    "mtime": 1790076039.2888706,
+    "seen": 1790076117.0453339,
+    "ast_hash": "695ac59af9813f5aa273f2c89780e2f6",
     "semantic_hash": ""
   },
   "client3d/README.md": {
@@ -2946,15 +2946,15 @@
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
-    "mtime": 1789983960.670466,
-    "seen": 1789984639.7572513,
-    "ast_hash": "541affe98b0df483cac9a488e970200d",
+    "mtime": 1790076046.3272638,
+    "seen": 1790076117.0453312,
+    "ast_hash": "edcccd29cf5e6bd20299581c4744ce24",
     "semantic_hash": ""
   },
   "bom/build.gradle.kts": {
-    "mtime": 1789983050.734741,
-    "seen": 1789983069.8779612,
-    "ast_hash": "a4f411c9a1901293451664c95bab7b88",
+    "mtime": 1790076015.5122383,
+    "seen": 1790076117.0448384,
+    "ast_hash": "1f91633999aab8ca2a1747086a03f2fe",
     "semantic_hash": ""
   },
   "skirmish/src/main/java/uz/dukeengine/skirmish/content/Battlefield.java": {
@@ -2973,6 +2973,12 @@
     "mtime": 1790067383.0257785,
     "seen": 1790068604.027988,
     "ast_hash": "06ef4b26ddc4117346781fc2e9ba88d8",
+    "semantic_hash": ""
+  },
+  "CHANGELOG.md": {
+    "mtime": 1790076061.7571108,
+    "seen": 1790076117.0453274,
+    "ast_hash": "60b9b26cf8ec7ba96c84dc868be8950a",
     "semantic_hash": ""
   }
 }
