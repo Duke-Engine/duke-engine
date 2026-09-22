@@ -39,6 +39,9 @@ public record Coord2D(float x, float y) {
      * Ported from SAGE's {@code Coord2D::toAngle}.
      */
     public float toAngle() {
-        return (float) Math.atan2(y, x);
+        // StrictMath, not Math: atan2 is specified only to within 1 ulp and may use a platform intrinsic, so
+        // two peers can differ in the last bit and the worlds come apart. Nothing calls this yet, which is the
+        // only reason it has never desynced anything.
+        return (float) StrictMath.atan2(y, x);
     }
 }

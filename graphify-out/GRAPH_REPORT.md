@@ -1,7 +1,7 @@
 # Graph Report - duke-engine  (2026-09-21)
 
 ## Corpus Check
-- 389 files · ~439,520 words
+- 389 files · ~439,707 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 65 file(s) not represented in the graph (top: .duke 35, .bin 6, .gltf 6)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ec595634`
+- Built from commit: `42c17955`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
