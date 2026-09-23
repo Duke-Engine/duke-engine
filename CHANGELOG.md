@@ -5,7 +5,34 @@ when it does, this page says exactly what to change and how.
 
 ## 0.6.0
 
-**A template may name a model for the state its thing is in.** `Drawn` named one, so a thing looked
+### A game names its own kinds of damage
+
+`DamageType` was an enum of five whose own javadoc called it "a representative subset" — and a combat
+table cannot be a subset. It is now a word, interned, exactly as `Kind` already was.
+
+```
+Armor = [SMALL_ARMS = 1.0, ARMOR_PIERCING = 0.1, POISON = 0.0]
+DamageType = SMALL_ARMS
+```
+
+Nothing is registered first: the `Binder` makes one out of the word in the block, because that is how it
+reads any type with a static `of(String)`. A file naming a type no armour lists loads — which is what
+"unlisted is 1.0" already meant. The five constants read exactly as they did and **not one caller
+needed editing**.
+
+Identity equality, so a lookup on every landed shot costs what the enum cost. `Armor` and
+`ActiveBody.Data` now keep their multipliers in the order the block wrote them rather than a hash's,
+because the key hashes by identity and that is settled per run of the JVM.
+
+### A map is chosen by its picture
+
+`MapPackage.previewResource()` names the picture beside a map's own file the way a resource loader wants
+it — `maps/crypt/preview.png` — rather than as a `Path`, which is no use for a map shipped inside a jar.
+`MapPackages.shipped` is what tells it the folder, so neither spells `maps/` in code, and a map read off
+the machine names none. `DukeGame.mapPictures(...)` carries them by map name, and the skirmish menu draws
+one beside the lit row — which `StoneMenu` has been able to do all along.
+
+### A template may name a model for the state its thing is in `Drawn` named one, so a thing looked
 the same however hurt it was and whatever world it stood in.
 
 ```

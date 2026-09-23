@@ -114,9 +114,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790154274.115559,
-    "seen": 1790154305.1866796,
-    "ast_hash": "6b2e1f92a7a278a29632c92901a76f98",
+    "mtime": 1790161311.7356393,
+    "seen": 1790161340.6988385,
+    "ast_hash": "12d79dfbe5ae1efaac534b1b57c3ce9b",
     "semantic_hash": ""
   },
   "CREDITS.md": {
@@ -882,9 +882,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/DukeRtsApp.java": {
-    "mtime": 1790154045.3033803,
-    "seen": 1790154305.1862261,
-    "ast_hash": "071ec258053fc75ed31cc2b0080f93e2",
+    "mtime": 1790161412.848108,
+    "seen": 1790161498.4616587,
+    "ast_hash": "192f7713c3e72056fd4df92a8d160199",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/EdgeScroll.java": {
@@ -1776,15 +1776,15 @@
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/map/MapPackage.java": {
-    "mtime": 1789983050.859623,
-    "seen": 1789983069.878206,
-    "ast_hash": "5364fc36386165c9cd6ee96caeb24024",
+    "mtime": 1790161394.9910257,
+    "seen": 1790161498.4618442,
+    "ast_hash": "cb283db58db151638baf9fbc933dfe53",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/map/MapPackages.java": {
-    "mtime": 1789983050.860963,
-    "seen": 1789983069.8782067,
-    "ast_hash": "c0e8d06812ddbc4d399e165dd4b1a8c9",
+    "mtime": 1790161399.8848603,
+    "seen": 1790161498.4618454,
+    "ast_hash": "186c6cf8518387984bd5c7b5ec6030bd",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/map/MapTemplate.java": {
@@ -1854,15 +1854,15 @@
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/module/ActiveBody.java": {
-    "mtime": 1789983050.8699193,
-    "seen": 1789983069.878224,
-    "ast_hash": "bc62203d634d8337a420ded56975aec5",
+    "mtime": 1790161155.9098225,
+    "seen": 1790161340.6985085,
+    "ast_hash": "438e8e6484c914cac47f4de1c77fc1dd",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/module/Armor.java": {
-    "mtime": 1789983050.8709686,
-    "seen": 1789983069.8782253,
-    "ast_hash": "86bb9d0db580360e8035a2a84136964d",
+    "mtime": 1790161150.7666056,
+    "seen": 1790161340.698511,
+    "ast_hash": "38c094dae86cb851af7ce9de0af384af",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/module/BodyModule.java": {
@@ -1872,9 +1872,9 @@
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/module/DamageType.java": {
-    "mtime": 1789983050.871979,
-    "seen": 1789983069.878228,
-    "ast_hash": "7155c98a24c3a303a6f5f65787f87571",
+    "mtime": 1790161139.0077531,
+    "seen": 1790161340.6985142,
+    "ast_hash": "e2499c74479ee2490f953a41fc5faddd",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/module/DieModule.java": {
@@ -2442,9 +2442,9 @@
     "semantic_hash": ""
   },
   "game/src/main/java/uz/dukeengine/game/DukeGame.java": {
-    "mtime": 1790132865.3933284,
-    "seen": 1790133227.7997854,
-    "ast_hash": "4b7345d0544c2a647fe18297127a1027",
+    "mtime": 1790161406.9495468,
+    "seen": 1790161498.4619818,
+    "ast_hash": "03b4d2244b62d3404eae67fc2ed4434f",
     "semantic_hash": ""
   },
   "game/src/main/java/uz/dukeengine/game/GamePlayer.java": {
@@ -2778,9 +2778,9 @@
     "semantic_hash": ""
   },
   "rts/src/test/java/uz/dukeengine/rts/module/ArmorTest.java": {
-    "mtime": 1790068325.1459186,
-    "seen": 1790068604.0278592,
-    "ast_hash": "6305984b78d446a32e5a37184e4e0399",
+    "mtime": 1790161277.9288688,
+    "seen": 1790161340.6987677,
+    "ast_hash": "e2a662b0fc4917fb014652700bce4472",
     "semantic_hash": ""
   },
   "rts/src/test/java/uz/dukeengine/rts/module/AttackOnTheMoveTest.java": {
@@ -3030,9 +3030,9 @@
     "semantic_hash": ""
   },
   "core/src/test/java/uz/dukeengine/core/map/MapCapabilitiesTest.java": {
-    "mtime": 1790096122.569301,
-    "seen": 1790096518.556857,
-    "ast_hash": "aa5fdbcdc464023b4b292ad11a1b2512",
+    "mtime": 1790161455.529185,
+    "seen": 1790161498.4619467,
+    "ast_hash": "28f84c1ae225933af5c4577354a84c9b",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/GroundPaint.java": {
@@ -3057,6 +3057,12 @@
     "mtime": 1790154215.024696,
     "seen": 1790154305.1863146,
     "ast_hash": "e8229b9b143d79b5d626943e015fe98f",
+    "semantic_hash": ""
+  },
+  "core/src/test/java/uz/dukeengine/core/module/DamageTypeTest.java": {
+    "mtime": 1790161257.1049573,
+    "seen": 1790161340.6986167,
+    "ast_hash": "4d2a4106bd8294df069863062fe96441",
     "semantic_hash": ""
   }
 }
