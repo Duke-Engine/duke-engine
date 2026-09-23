@@ -224,6 +224,21 @@ class CursorsTest {
     }
 
     /**
+     * Over something nothing he has selected may be fired at — a helicopter, and only tanks selected — the
+     * attack would be refused, and the pointer says so the way it says any order would be.
+     */
+    @Test
+    void overWhatNothingSelectedCanHitItRefuses() {
+        assertEquals(Cursors.DENY, Cursors.situationFor(
+                new Cursors.Over(true, null, true, false, true, false, false)));
+        assertEquals(Cursors.ATTACK, Cursors.situationFor(
+                new Cursors.Over(true, null, true, false, true, false, true)));
+        assertEquals(Cursors.FRIEND, Cursors.situationFor(
+                new Cursors.Over(true, null, true, false, true, true, false)),
+                "his own is his own, whatever his guns can hit");
+    }
+
+    /**
      * An armed skill outranks whatever is standing there.
      *
      * <p>It is the reason the next click will not do what a click usually does, so

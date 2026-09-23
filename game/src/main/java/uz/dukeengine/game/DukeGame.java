@@ -717,6 +717,7 @@ public final class DukeGame {
         client = new RtsClient(logic);
         client.setCommands(this::buttonsNow);
         client.setAimFits(this::aimFitsNow);
+        client.setAttackable(this::attackableNow);
         engine = new RtsGameEngine(logic, client);
         if (recorder != null) {
             logic.setFrameLog(recorder);
@@ -1085,6 +1086,50 @@ public final class DukeGame {
     private boolean aimFitsNow() {
         var now = aim;
         return now == null || aimFits == null || aimFits.test(now.button(), now.place(), now.facing());
+    }
+
+    // ---- what the pointer is on ----
+
+    private volatile int pointedAt = -1;
+
+    /**
+     * Thread-safe: the thing under the window's pointer, or -1 for none — so the next snapshot can say whether
+     * an attack on it by what is selected would be taken ({@link uz.dukeengine.game.view.WorldSnapshot#attackable}).
+     * One-way, like the selection: the window writes, the simulation reads.
+     */
+    public void setPointedAt(int unitId) {
+        this.pointedAt = unitId;
+    }
+
+    /**
+     * Whether an attack on what the pointer is on would be taken: refused only where the selection holds
+     * something armed of the local player's and not one of its weapons may be fired at it. Nothing under the
+     * pointer, or nothing armed selected, is no refusal — so a game whose weapons name no classes draws its
+     * pointer exactly as it did.
+     */
+    private boolean attackableNow() {
+        int at = pointedAt;
+        var world = logic;
+        var victim = at < 0 || world == null ? null : world.findObject(new uz.dukeengine.core.thing.ObjectId(at));
+        if (victim == null) {
+            return true;
+        }
+        boolean armed = false;
+        for (var id : selection) {
+            var unit = world.findObject(new uz.dukeengine.core.thing.ObjectId(id));
+            if (unit == null || unit.getPlayerIndex() != getLocalPlayerIndex()) {
+                continue;
+            }
+            var weapon = unit.findModule(uz.dukeengine.rts.module.WeaponUpdate.class);
+            if (weapon == null) {
+                continue;
+            }
+            armed = true;
+            if (weapon.canFireAt(victim)) {
+                return true;
+            }
+        }
+        return !armed;
     }
 
     /** Thread-safe: run work on the simulation thread next frame. */

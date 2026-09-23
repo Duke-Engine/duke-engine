@@ -55,6 +55,13 @@ final class RtsClient extends GameClient {
         this.aimFits = aimFits == null ? () -> true : aimFits;
     }
 
+    /** Whether an attack on what the pointer is on would be taken, asked here for the same reason as the bar. */
+    private volatile java.util.function.BooleanSupplier attackable = () -> true;
+
+    void setAttackable(java.util.function.BooleanSupplier attackable) {
+        this.attackable = attackable == null ? () -> true : attackable;
+    }
+
     RtsClient(RtsLogic logic) {
         this.logic = logic;
     }
@@ -123,6 +130,7 @@ final class RtsClient extends GameClient {
                 banner,
                 status,
                 commands.get(),
-                aimFits.getAsBoolean());
+                aimFits.getAsBoolean(),
+                attackable.getAsBoolean());
     }
 }

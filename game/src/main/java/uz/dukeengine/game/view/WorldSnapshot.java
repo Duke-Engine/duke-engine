@@ -22,6 +22,9 @@ import uz.dukeengine.core.event.WorldEvent;
  * <p>{@link #commands} is the same bargain with a shape: what the player may do with whatever he has
  * selected, worked out here — on the simulation thread, where the state it is about lives — and drawn by
  * the window. The engine knows what none of the buttons mean.
+ * <p>{@link #attackable} is the simulation's answer to the one thing the pointer asks of it over a thing that
+ * is not the player's: would an attack on that by what is selected be taken — for the pointer to say so, since
+ * an order to attack something no selected weapon may be fired at is refused.
  */
 public record WorldSnapshot(
         int frame,
@@ -34,10 +37,19 @@ public record WorldSnapshot(
         String banner,
         String status,
         List<CommandButton> commands,
-        boolean aimFits) {
+        boolean aimFits,
+        boolean attackable) {
 
     public static final WorldSnapshot EMPTY =
-            new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "", List.of(), true);
+            new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "", List.of(), true, true);
+
+    /** A frame that says nothing of attacking, which is a frame in which nothing is refused. */
+    public WorldSnapshot(int frame, float gameTimeSeconds, boolean paused, int localPlayerMoney,
+            int localPlayerPowerSurplus, List<UnitView> units, List<WorldEvent> events, String banner,
+            String status, List<CommandButton> commands, boolean aimFits) {
+        this(frame, gameTimeSeconds, paused, localPlayerMoney, localPlayerPowerSurplus, units, events, banner,
+                status, commands, aimFits, true);
+    }
 
     public boolean hasBanner() {
         return banner != null && !banner.isEmpty();

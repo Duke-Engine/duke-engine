@@ -3279,6 +3279,9 @@ final class DukeRtsApp extends SimpleApplication {
         int local = game.getLocalPlayerIndex();
         var enemy = pickUnit();
         if (enemy != null && enemy.view.playerIndex() != local && enemy.view.playerIndex() != 0) {
+            if (!snapshot.attackable()) {
+                return; // nothing selected may be fired at it: refused, as the pointer already said
+            }
             game.postCommand(new GameMessage.AttackObject(local, units, new ObjectId(enemy.view.id())));
             markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(), OrderMarkers.Kind.ATTACK);
             // His own orders only. In a game with more than one player at it,
@@ -3437,6 +3440,9 @@ final class DukeRtsApp extends SimpleApplication {
         followTheWindowSize();
         showOnlyWhilePlaying();
         snapshot = game.getSnapshot();
+        // What the pointer is on, so the next snapshot says whether an attack on it would be taken.
+        var pointedAt = screen == Screen.PLAYING && !menu.isVisible() ? pickUnit() : null;
+        game.setPointedAt(pointedAt == null || pointedAt.view == null ? -1 : pointedAt.view.id());
         // Before every early return below, not after them. The menu and the
         // loading screen are screens too, and a pointer that only appears once
         // the world does leaves the player clicking Play with the operating
@@ -3872,7 +3878,8 @@ final class DukeRtsApp extends SimpleApplication {
         var over = aiming ? null : pickUnit();
         return new Cursors.Over(true, armed, canReach,
                 heroPanel.contains(at.x, at.y) || overTheMinimap(at),
-                over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex());
+                over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex(),
+                snapshot.attackable());
     }
 
     /**

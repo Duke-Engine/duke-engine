@@ -86,6 +86,22 @@ public abstract class RtsSimulation extends GameLogic {
         return placementRules;
     }
 
+    private java.util.List<uz.dukeengine.rts.module.TargetRule> targetRules = java.util.List.of();
+
+    /**
+     * What each thing is, to a weapon: the game's lines, in order, the first that matches a thing deciding its
+     * classes — see {@link uz.dukeengine.rts.module.TargetRule}. None, the default, gives no thing a class,
+     * which matters only to a weapon that names classes: a weapon that names none fires at anything, as every
+     * weapon did before this existed.
+     */
+    public final void setTargetRules(java.util.List<uz.dukeengine.rts.module.TargetRule> rules) {
+        this.targetRules = rules == null ? java.util.List.of() : java.util.List.copyOf(rules);
+    }
+
+    public final java.util.List<uz.dukeengine.rts.module.TargetRule> getTargetRules() {
+        return targetRules;
+    }
+
     /** Apply a {@code Construct} order; see {@link uz.dukeengine.rts.construction.Construction#order}. */
     protected final boolean construct(GameMessage.Construct order) {
         return uz.dukeengine.rts.construction.Construction.order(this, order, placementRules);

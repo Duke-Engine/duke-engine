@@ -98,9 +98,18 @@ final class Cursors {
      *                   orders
      * @param overUnit   a selectable creature is under the pointer
      * @param ownUnit    and it is his
+     * @param canAttack  and, if it is not, whether an attack on it by what he has selected would be taken —
+     *                   the simulation's answer, since an order to attack something no selected weapon may be
+     *                   fired at is refused
      */
     record Over(boolean playing, Hotkeys.Aim armed, boolean canReach, boolean overPanel,
-            boolean overUnit, boolean ownUnit) {
+            boolean overUnit, boolean ownUnit, boolean canAttack) {
+
+        /** Everything but whether it may be attacked, which is then never refused — as before it was asked. */
+        Over(boolean playing, Hotkeys.Aim armed, boolean canReach, boolean overPanel,
+                boolean overUnit, boolean ownUnit) {
+            this(playing, armed, canReach, overPanel, overUnit, ownUnit, true);
+        }
     }
 
     /**
@@ -133,7 +142,9 @@ final class Cursors {
             return POINT;
         }
         if (over.overUnit()) {
-            return over.ownUnit() ? FRIEND : ATTACK;
+            // Something nothing selected may be fired at is refused the way any order is: one refusal,
+            // drawn one way.
+            return over.ownUnit() ? FRIEND : over.canAttack() ? ATTACK : DENY;
         }
         // Open ground, and the same question asked of it: stone, or somewhere he
         // has never been, will not take a walking order any more than it will take

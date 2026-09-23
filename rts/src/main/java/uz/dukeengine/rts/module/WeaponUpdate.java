@@ -35,6 +35,13 @@ import uz.dukeengine.rts.player.RtsPlayer;
  *
  * <p>{@link WeaponHold} is the same idea for a moment rather than a movement: any
  * module on the unit may say it is busy, and the weapon keeps quiet while it is.
+ *
+ * <p><b>What it may be fired at.</b> A weapon is built for some targets and useless against others: in the RTS
+ * this was measured in, 47 of 363 weapons can hit aircraft, 27 cannot hit anything on the ground, and a
+ * bulldozer's mine-clearing charge (range 5, damage 1) would otherwise attack every enemy that came near it.
+ * So a weapon may name the classes it is fired at ({@link Data#targets}), and the game says which classes each
+ * thing has ({@link TargetRule}). Acquiring a target, keeping one, and taking an order to attack one all ask
+ * the same question — {@link #canFireAt} — and an order to attack something it cannot hit is refused.
  */
 @ModuleGroup(ModuleGroups.COMBAT)
 public final class WeaponUpdate extends UpdateModule {
@@ -50,15 +57,20 @@ public final class WeaponUpdate extends UpdateModule {
      *     weapon did before this existed. No is for the weapons that have to be
      *     stood still for — a drawn bow, a deployed siege gun: the owner keeps its
      *     target and keeps reloading, but the shot waits until it stops.
+     * @param targets  the classes it may be fired at, words the game's {@link TargetRule}s give things —
+     *     {@code Targets = [GROUND, AIRBORNE_VEHICLE]}. None, the default, is anything at all, which is
+     *     what every weapon was before this existed; the reference game reads none as ground only, and a
+     *     game that wants that says so
      */
     public record Data(float damage, float attackRange, int reloadFrames,
             DamageType damageType, float splashRadius,
-            boolean attackOnTheMove) implements ModuleData {
-        /** What a block leaves out: plain damage, no splash, and a shot taken on the move. */
-        static final Data DEFAULTS = new Data(0f, 0f, 0, DamageType.NORMAL, 0f, true);
+            boolean attackOnTheMove, java.util.List<String> targets) implements ModuleData {
+        /** What a block leaves out: plain damage, no splash, a shot taken on the move, at anything. */
+        static final Data DEFAULTS = new Data(0f, 0f, 0, DamageType.NORMAL, 0f, true, java.util.List.of());
 
         public Data {
             damageType = damageType == null ? DamageType.NORMAL : damageType;
+            targets = targets == null ? java.util.List.of() : java.util.List.copyOf(targets);
         }
 
         public Data(float damage, float attackRange, int reloadFrames) {
@@ -73,6 +85,11 @@ public final class WeaponUpdate extends UpdateModule {
                 float splashRadius) {
             this(damage, attackRange, reloadFrames, damageType, splashRadius, true);
         }
+
+        public Data(float damage, float attackRange, int reloadFrames, DamageType damageType,
+                float splashRadius, boolean attackOnTheMove) {
+            this(damage, attackRange, reloadFrames, damageType, splashRadius, attackOnTheMove, java.util.List.of());
+        }
     }
 
     private final float damage;
@@ -81,6 +98,7 @@ public final class WeaponUpdate extends UpdateModule {
     private final DamageType damageType;
     private final float splashRadius;
     private final boolean attackOnTheMove;
+    private final java.util.List<String> targets;
 
     private ObjectId target;
     private int cooldown;
@@ -93,11 +111,42 @@ public final class WeaponUpdate extends UpdateModule {
         this.damageType = data.damageType();
         this.splashRadius = data.splashRadius();
         this.attackOnTheMove = data.attackOnTheMove();
+        this.targets = data.targets();
     }
 
-    /** Order this weapon to engage {@code target}. */
-    public void attack(ObjectId target) {
+    /**
+     * Order this weapon to engage {@code target} — refused, and whatever it was doing kept, when the target is
+     * something it may not be fired at ({@link #canFireAt}).
+     *
+     * @return whether it took the order
+     */
+    public boolean attack(ObjectId target) {
+        var world = getOwner().getWorld();
+        var victim = world == null || target == null ? null : world.findObject(target);
+        if (victim != null && !canFireAt(victim)) {
+            return false;
+        }
         this.target = target;
+        return true;
+    }
+
+    /**
+     * Whether this weapon may be fired at {@code victim} at all — its class, not its range or its side: one of
+     * the classes the world's {@link TargetRule}s give it is among the ones this weapon names. A weapon that
+     * names none may be fired at anything.
+     */
+    public boolean canFireAt(GameObject victim) {
+        if (targets.isEmpty()) {
+            return true;
+        }
+        var rules = getOwner().getWorld() instanceof uz.dukeengine.rts.RtsSimulation rts
+                ? rts.getTargetRules() : java.util.List.<TargetRule>of();
+        for (var named : TargetRule.classesOf(rules, victim)) {
+            if (targets.contains(named)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public void holdFire() {
@@ -162,6 +211,10 @@ public final class WeaponUpdate extends UpdateModule {
         }
         if (world.getRelationship(owner.getPlayerIndex(), victim.getPlayerIndex()) == Relationship.ALLIES) {
             target = null; // never fire on allies
+            return;
+        }
+        if (!canFireAt(victim)) {
+            target = null; // it took off, or was never something this could hit
             return;
         }
         if (rangeTo(owner, victim) > attackRange) {
@@ -292,7 +345,7 @@ public final class WeaponUpdate extends UpdateModule {
         return uz.dukeengine.core.thing.World.reachBetween(owner, victim);
     }
 
-    /** Pick the nearest living enemy within range as the new target, if any. */
+    /** Pick the nearest living enemy within range that it may be fired at as the new target, if any. */
     private void acquireTarget(uz.dukeengine.core.thing.World world, GameObject owner) {
         var enemy = world.findClosestInReach(owner, attackRange, candidate ->
                 candidate != owner
@@ -300,7 +353,8 @@ public final class WeaponUpdate extends UpdateModule {
                         && candidate.getBody() != null
                         && !candidate.isEffectivelyDead()
                         && world.getRelationship(owner.getPlayerIndex(), candidate.getPlayerIndex())
-                                == Relationship.ENEMIES);
+                                == Relationship.ENEMIES
+                        && canFireAt(candidate));
         if (enemy != null) {
             target = enemy.getId();
         }

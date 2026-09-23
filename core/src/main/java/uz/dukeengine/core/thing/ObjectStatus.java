@@ -17,5 +17,12 @@ public enum ObjectStatus {
      * {@code OBJECT_STATUS_UNDER_CONSTRUCTION}. Only a module that builds it runs meanwhile; see
      * {@code UpdateModule.runsWhileUnderConstruction}.
      */
-    UNDER_CONSTRUCTION
+    UNDER_CONSTRUCTION,
+    /**
+     * In the air: flying, not standing on the ground under it — SAGE's {@code OBJECT_STATUS_AIRBORNE_TARGET}.
+     * Nothing in the engine flies yet, so nothing in it sets this; a game whose aircraft take off sets it when
+     * they do and clears it when they land, and whatever asks whether a thing is in the air asks this. When
+     * the engine flies things itself it will set it the same way.
+     */
+    AIRBORNE
 }
