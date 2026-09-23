@@ -5,6 +5,83 @@ when it does, this page says exactly what to change and how.
 
 ## 0.6.0
 
+### What to change
+
+- `DukeGame.pressCommand(id, place, target)` is `pressCommand(id, place, facing, target)`, `setAim(id, place)`
+  is `setAim(id, place, facing)`, and an `aimFits` lambda takes the facing too: `(button, place, facing) ->`.
+  `CommandPress` carries the `facing` between `place` and `target`.
+- `World` has `random()`. Only `GameLogic` implements it in this repository; anything else that does must too.
+- `ObjectStatus` has `AIRBORNE`: a `switch` over it with no `default` needs the case.
+- Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
+  `HarvestUpdate.Data`, `WeaponFired`, `WorldSnapshot`, `SoundBank.Cue`, `Sound` — and every new field left out
+  means what the old record did.
+
+### What a weapon may be fired at
+
+`WeaponUpdate.Data.targets` names the classes a weapon may be fired at — `Targets = [GROUND, AIRBORNE_VEHICLE]`
+— and a game gives the world its `TargetRule`s, `RtsSimulation.setTargetRules(...)`: the kinds a thing must
+have (any one), whether it must be in the air (`ObjectStatus.AIRBORNE`, which a game sets while its aircraft
+are aloft), and the classes it then has, the first line that matches deciding. Acquiring, keeping and taking
+an order all ask `canFireAt`; an order to attack what nothing can hit is refused, and the pointer says so —
+`DukeGame.setPointedAt(id)` out, `WorldSnapshot.attackable` back. A weapon that names none fires at anything,
+as before. In the RTS this was measured in, 47 of 363 weapons can hit aircraft and 27 nothing on the ground.
+
+### A weapon's clip
+
+`ClipSize` (0 = none), `ClipReloadFrames`, `AutoReload` (yes) and `ReloadFramesMax` — `ReloadFrames` stays the
+delay between shots, drawn up to the max from the simulation's own random numbers. The weapon says
+`getStatus()` (`READY`, `BETWEEN_SHOTS`, `RELOADING`, `OUT`) and `getRounds()`, and `refill()` fills it. Both
+waits are divided by the unit's `RateOfFireModifier`s and floored. A clip of three with 0.1 s and 1.0 s fires
+at 0, 0.1, 0.2, then 1.2, 1.3, 1.4.
+
+### More than one weapon, and sets of them
+
+`Weapon` blocks, handed over with `addWeapons`, linked by name from `WeaponSlot`s in `WeaponSet`s:
+`WeaponUpdate.Data.weaponSets`. The set is the one whose words the unit has — `GameObject.setCondition(word)`
+— chosen by the rule conditional models use, now `core.thing.Conditions`. The slot is chosen per target as
+the reference's `chooseBestWeaponForTarget` does: preferred-against kinds win outright; else the ready one
+that deals most after armour (`BodyModule.estimateDamage`); ties to the lower slot. Each weapon keeps its clip
+across a swap. `WeaponFired.weapon` says which fired. A block with no sets is the one weapon it always was.
+
+### The simulation's own random numbers
+
+There were none. `World.random()` is a `LogicRandom` — SplitMix64, a `long` of state — seeded by
+`GameLogic.setRandomSeed` (`DEFAULT_RANDOM_SEED` otherwise), reset with the world and saved with it.
+
+### A harvester waits at the depot
+
+`HarvestUpdate.Data` gains `FramesAtDepot` (the money arrives at the end of them), and `FramesPerUnit` with
+`UnitOfLoad` — a unit an act, one act more than it has units, a pile that runs out ending the wait early. Four
+boxes with 1.0 s at the pile and 0.4 s at the depot stand 5.0 s and 0.4 s. Left out, as before.
+
+### What an RTS makes a sound for
+
+`fired.<weapon>`, `selected.<template>`, `ordered.<order>.<template>`, `moving.<template>`,
+`<word>.<template>` for each `WhenHurt` word as health first falls below it, and `ambient.<template>` — a loop
+that follows its thing and swaps to `ambient.<template>.<word>` while hurt. A cue may be heard by its
+`OWNER` only, and may `interrupt` the last of itself; `Sound` blocks say both. `arrow_fired` is still played
+for a nameless weapon where a game names nothing under `fired`.
+
+### Particle systems
+
+`ParticleSystem` blocks — the reference game's model, field for field — run a frame at a time at 30 a second
+from the client's own random numbers and are drawn as squares facing the camera or lying flat, or as a streak.
+Slave systems, systems riding each particle, and a budget by priority. A game hands them over with
+`Visuals.particleSystems(...)`, and names one wherever it would name an effect; `died.<template>` and
+`fired.<weapon>` take a look through `Visuals.moment`.
+
+### Placing things turned, and building beside them
+
+A `CommandButton` has a `facing` its ghost is drawn at; pressing on the ground and dragging turns it along the
+drag, and the thing stays where the press went down. A builder already beside its own site raises it without
+moving; box against box is now measured exactly; and a slow-turning vehicle reaches a point just behind it.
+
+### A second overlay
+
+`@Overlay` and `@Fade` may each mark more than one component; the n-th of each go together, and each layer is
+drawn over the ones before it by `OverlayOrder` rather than by the camera's distance. A map with one pair
+draws as before.
+
 ### Building in the world
 
 A building is placed, not produced — and there was no order that put a thing somewhere.
