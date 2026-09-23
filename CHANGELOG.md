@@ -3,6 +3,49 @@
 Versions are `major.minor.patch`. While the major is 0, a minor may break what came before — and
 when it does, this page says exactly what to change and how.
 
+## 0.6.0
+
+**A template may name a model for the state its thing is in.** `Drawn` named one, so a thing looked
+the same however hurt it was and whatever world it stood in.
+
+```
+Object
+  Name  = Barracks
+  Model = models/barracks.glb
+  Models = [DAMAGED = models/barracks_d.glb, "DAMAGED SNOW" = models/barracks_ds.glb]
+  WhenHurt = [DAMAGED = 0.5, RUBBLE = 0.1]
+End
+```
+
+| | |
+|---|---|
+| `Drawn.models()` | **new**, default `Map.of()`: a model per set of conditions, keyed by the words that must all hold, separated by spaces |
+| `Drawn.whenHurt()` | **new**, default `Map.of()`: below what share of its health each condition holds |
+| `Visuals.world(String...)` | what is true of the whole world — weather, the hour, the season — said once when the map is loaded |
+| `Visuals.UnitVisual.modelFor(health, world)` | the matching, as a pure function |
+| `RtsTemplate` | carries both, so an `Object` block uses this without a record of its own |
+
+**A condition is a word and nothing else.** The engine defines none of them and knows what none of them
+mean: `SNOW`, `TORCHLIT`, `HARVESTED` are all alike to it.
+
+**The rule.** A candidate fits when every word of it holds; among those that fit, the one with the most
+words wins, so `DAMAGED SNOW` beats `SNOW` beats the plain model. A tie goes to the sorted words, never
+to iteration order — two machines with one snapshot must draw one building.
+
+**How deep a threshold is counts for nothing.** `RUBBLE` alone does not beat `DAMAGED`; a game that
+wants the wreck to win writes `"DAMAGED RUBBLE"`, which is the same rule the world's conditions use
+rather than a second one about health.
+
+**Nothing of it reaches the simulation.** The choosing happens in the client, downstream of the
+snapshot, so a machine drawing snow and one drawing summer are still playing the same game.
+
+**A template that names no second model pays nothing** — not a lookup, not a set — and is drawn exactly
+as it was.
+
+The 3D client swaps the model where the thing stands: place and facing live on its node, so a child is
+exchanged and neither moves. The bar height and the animation controls are read off the new body, and
+the clip that was playing carries over by name where the new model has one.
+
 ## 0.5.0
 
 **A map that says what its ground is painted with is now drawn with it.** `Painted` and `@Paint`

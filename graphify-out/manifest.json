@@ -114,9 +114,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790133190.5574474,
-    "seen": 1790133227.7999046,
-    "ast_hash": "8f61975cb7a2aedb76344e2b73e68b87",
+    "mtime": 1790154274.115559,
+    "seen": 1790154305.1866796,
+    "ast_hash": "6b2e1f92a7a278a29632c92901a76f98",
     "semantic_hash": ""
   },
   "CREDITS.md": {
@@ -882,9 +882,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/DukeRtsApp.java": {
-    "mtime": 1790132865.4248044,
-    "seen": 1790133227.799446,
-    "ast_hash": "5cb02cdbf8f7fd02402fb2503d8bf215",
+    "mtime": 1790154045.3033803,
+    "seen": 1790154305.1862261,
+    "ast_hash": "071ec258053fc75ed31cc2b0080f93e2",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/EdgeScroll.java": {
@@ -1284,9 +1284,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/Visuals.java": {
-    "mtime": 1789983050.7956426,
-    "seen": 1789983069.8780897,
-    "ast_hash": "f7a3de505e63994b1f9d3ac659c08fec",
+    "mtime": 1790153964.211903,
+    "seen": 1790154305.1863084,
+    "ast_hash": "6482182ee8476041f4cb62c8e77230cc",
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/AttackFlashTest.java": {
@@ -2124,9 +2124,9 @@
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/thing/Drawn.java": {
-    "mtime": 1789983050.9019892,
-    "seen": 1789983069.8782861,
-    "ast_hash": "0bb00eef590bbd7ba97549914d39eeca",
+    "mtime": 1790153935.5276787,
+    "seen": 1790154305.186483,
+    "ast_hash": "daba54358516b052b724caeade63ae40",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/thing/Footprint.java": {
@@ -2580,9 +2580,9 @@
     "semantic_hash": ""
   },
   "rts/src/main/java/uz/dukeengine/rts/RtsTemplate.java": {
-    "mtime": 1789983051.3039277,
-    "seen": 1789983069.8786588,
-    "ast_hash": "2233d92e9ec4274bb67bfc4d2e2ce11c",
+    "mtime": 1790154111.9833958,
+    "seen": 1790154305.1865878,
+    "ast_hash": "a7cab2ac3b91217491172d178add478e",
     "semantic_hash": ""
   },
   "rts/src/main/java/uz/dukeengine/rts/client/AsciiRenderer.java": {
@@ -3051,6 +3051,12 @@
     "mtime": 1790133028.7479656,
     "seen": 1790133227.7995696,
     "ast_hash": "2dfe62907fc60b349f7782780535141a",
+    "semantic_hash": ""
+  },
+  "client3d/src/test/java/uz/dukeengine/client3d/ConditionalModelTest.java": {
+    "mtime": 1790154215.024696,
+    "seen": 1790154305.1863146,
+    "ast_hash": "e8229b9b143d79b5d626943e015fe98f",
     "semantic_hash": ""
   }
 }
