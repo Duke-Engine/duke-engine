@@ -170,6 +170,8 @@ final class RtsLogic extends RtsSimulation {
                     production.setRallyPoint(rally.point());
                 }
             }
+            case GameMessage.Construct build -> construct(build);
+            case GameMessage.CancelConstruction cancel -> cancelConstruction(cancel);
         }
     }
 

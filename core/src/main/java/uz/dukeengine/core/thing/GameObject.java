@@ -164,8 +164,15 @@ public final class GameObject {
      */
     public void updateModules() {
         int revision = moduleRevision;
+        // One guard here rather than one in every module: a thing still being built does none of what it is
+        // for, and every module a building might have would otherwise have to remember to ask.
+        boolean building = statuses.contains(ObjectStatus.UNDER_CONSTRUCTION);
         for (int i = 0; i < updateModules.size(); i++) {
-            updateModules.get(i).update();
+            var module = updateModules.get(i);
+            if (building && !module.runsWhileUnderConstruction()) {
+                continue;
+            }
+            module.update();
             if (moduleRevision != revision) {
                 throw new java.util.ConcurrentModificationException(
                         "object '" + template.name() + "' changed its modules while updating");

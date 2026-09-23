@@ -17,4 +17,12 @@ public abstract class UpdateModule extends Module {
     }
 
     public abstract void update();
+
+    /**
+     * Whether this goes on running while its object is {@code UNDER_CONSTRUCTION} — which only the thing
+     * raising it should. Everything else a half-built building has waits until it is whole.
+     */
+    public boolean runsWhileUnderConstruction() {
+        return false;
+    }
 }

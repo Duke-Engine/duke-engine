@@ -60,6 +60,13 @@ public final class CommandCodec implements PacketCodec {
                     + "," + Float.toString(r.point().x())
                     + "," + Float.toString(r.point().y())
                     + "," + Float.toString(r.point().z());
+            case GameMessage.Construct c -> "BUILD," + c.playerIndex() + "," + c.builder().value()
+                    + "," + c.template()
+                    + "," + Float.toString(c.place().x())
+                    + "," + Float.toString(c.place().y())
+                    + "," + Float.toString(c.place().z())
+                    + "," + Float.toString(c.facing());
+            case GameMessage.CancelConstruction c -> "UNBUILD," + c.playerIndex() + "," + c.site().value();
         };
     }
 
@@ -92,6 +99,11 @@ public final class CommandCodec implements PacketCodec {
             case "RALLY" -> new GameMessage.SetRallyPoint(player,
                     new ObjectId(Integer.parseInt(parts[2])),
                     new Coord3D(Float.parseFloat(parts[3]), Float.parseFloat(parts[4]), Float.parseFloat(parts[5])));
+            case "BUILD" -> new GameMessage.Construct(player,
+                    new ObjectId(Integer.parseInt(parts[2])), parts[3],
+                    new Coord3D(Float.parseFloat(parts[4]), Float.parseFloat(parts[5]), Float.parseFloat(parts[6])),
+                    Float.parseFloat(parts[7]));
+            case "UNBUILD" -> new GameMessage.CancelConstruction(player, new ObjectId(Integer.parseInt(parts[2])));
             default -> throw new IllegalArgumentException("unknown command kind: " + kind);
         };
     }

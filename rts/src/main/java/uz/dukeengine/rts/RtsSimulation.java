@@ -74,6 +74,42 @@ public abstract class RtsSimulation extends GameLogic {
         LOG.warning(() -> "ignoring non-RTS command: " + command.getClass().getName());
     }
 
+    private uz.dukeengine.rts.construction.PlacementRules placementRules =
+            uz.dukeengine.rts.construction.PlacementRules.DEFAULTS;
+
+    /** Where this game's buildings may stand and what calling one off gives back — the game's numbers. */
+    public final void setPlacementRules(uz.dukeengine.rts.construction.PlacementRules rules) {
+        this.placementRules = rules == null ? uz.dukeengine.rts.construction.PlacementRules.DEFAULTS : rules;
+    }
+
+    public final uz.dukeengine.rts.construction.PlacementRules getPlacementRules() {
+        return placementRules;
+    }
+
+    /** Apply a {@code Construct} order; see {@link uz.dukeengine.rts.construction.Construction#order}. */
+    protected final boolean construct(GameMessage.Construct order) {
+        return uz.dukeengine.rts.construction.Construction.order(this, order, placementRules);
+    }
+
+    /** Apply a {@code CancelConstruction} order. */
+    protected final boolean cancelConstruction(GameMessage.CancelConstruction order) {
+        return uz.dukeengine.rts.construction.Construction.cancel(this, order);
+    }
+
+    /**
+     * Whether {@code template} may stand at {@code place}, as an order to build it there would be judged —
+     * for a client to show, never to decide.
+     */
+    public final uz.dukeengine.rts.construction.Placement.Fit fits(String template,
+            uz.dukeengine.core.math.Coord3D place, float facing) {
+        var thing = findTemplate(template);
+        if (thing == null || getPathGrid() == null) {
+            return uz.dukeengine.rts.construction.Placement.Fit.OFF_THE_MAP;
+        }
+        return uz.dukeengine.rts.construction.Placement.check(this, getPathGrid(), thing, place, facing,
+                placementRules);
+    }
+
     /** The RTS player at {@code index}, or {@code null} if there is none. */
     public final RtsPlayer getRtsPlayer(int index) {
         return getPlayerList().getPlayer(index) instanceof RtsPlayer player ? player : null;

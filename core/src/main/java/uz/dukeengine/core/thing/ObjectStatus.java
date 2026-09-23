@@ -10,5 +10,12 @@ package uz.dukeengine.core.thing;
  */
 public enum ObjectStatus {
     DISABLED,
-    SLOWED
+    SLOWED,
+    /**
+     * Still being built: standing, seen, and able to be hurt, but doing nothing of what it is for until it is
+     * whole — a half-built barracks trains nobody and a half-built tower shoots at nobody. SAGE's
+     * {@code OBJECT_STATUS_UNDER_CONSTRUCTION}. Only a module that builds it runs meanwhile; see
+     * {@code UpdateModule.runsWhileUnderConstruction}.
+     */
+    UNDER_CONSTRUCTION
 }

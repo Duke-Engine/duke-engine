@@ -80,6 +80,8 @@ class DeterminismIntegrationTest {
                 }
                 case GameMessage.SetRallyPoint ignored -> {
                 }
+                case GameMessage.Construct build -> construct(build);
+                case GameMessage.CancelConstruction cancel -> cancelConstruction(cancel);
             }
         }
 

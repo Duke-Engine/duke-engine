@@ -38,6 +38,10 @@ class DepthTest {
                 }
                 case GameMessage.SetRallyPoint ignored -> {
                 }
+                case GameMessage.Construct ignored -> {
+                }
+                case GameMessage.CancelConstruction ignored -> {
+                }
             }
         }
 

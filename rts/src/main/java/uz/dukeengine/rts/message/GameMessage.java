@@ -25,7 +25,8 @@ import uz.dukeengine.core.thing.ObjectId;
  */
 public sealed interface GameMessage extends Command
         permits GameMessage.MoveTo, GameMessage.AttackObject, GameMessage.StopMoving,
-                GameMessage.QueueProduction, GameMessage.SetRallyPoint {
+                GameMessage.QueueProduction, GameMessage.SetRallyPoint, GameMessage.Construct,
+                GameMessage.CancelConstruction {
 
     /** Order the given units to move to a destination. */
     record MoveTo(int playerIndex, List<ObjectId> units, Coord3D destination) implements GameMessage {
@@ -57,5 +58,23 @@ public sealed interface GameMessage extends Command
 
     /** Point a production structure's finished units at a rally position. */
     record SetRallyPoint(int playerIndex, ObjectId factory, Coord3D point) implements GameMessage {
+    }
+
+    /**
+     * Build {@code template} at {@code place}, facing {@code facing} degrees: the one order that puts a thing
+     * <em>somewhere</em>. {@link QueueProduction} makes a unit come out of a factory, which is right for a
+     * soldier and wrong for a building, because a building is not produced — it is placed.
+     *
+     * <p>The builder walks there; a site rises the frame it arrives and grows whole over the template's build
+     * time while a builder stands beside it. The money is taken when the order is <em>accepted</em>, on the
+     * frame it is applied — on every machine at once — not when a window sent it. A place the simulation
+     * refuses costs nothing. The template name must not contain the wire separators {@code , | ; :}.
+     */
+    record Construct(int playerIndex, ObjectId builder, String template, Coord3D place, float facing)
+            implements GameMessage {
+    }
+
+    /** Call off a site still going up: the share the game says comes back, and the site is gone. */
+    record CancelConstruction(int playerIndex, ObjectId site) implements GameMessage {
     }
 }
