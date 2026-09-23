@@ -65,6 +65,42 @@ class MoveUpdateTest {
         logic.init();
     }
 
+    /**
+     * A vehicle that turns slowly and only drives forward, sent to a point one body-length behind it,
+     * arrives there. It used to circle the point — a point behind is always inside the turning circle — and
+     * the progress check gave up on it short of the goal.
+     */
+    @Test
+    void aSlowTurningVehicleReachesAPointJustBehindIt() {
+        var thingFactory = new ThingFactory(ModuleFactory.withDefaults());
+        var vehicle = ThingTemplate.named("Dozer")
+                .module(new ActiveBody.Data(100f))
+                .module(new MoveUpdate.Data(30f, 45f)) // one unit a frame; an eighth of a turn a second
+                .build();
+        thingFactory.addTemplate(vehicle);
+        var world = new MovementLogic(thingFactory);
+        world.init();
+        var dozer = world.createObject(vehicle);
+        dozer.setPosition(new Coord3D(50f, 50f, 0f));
+        dozer.setOrientation(0f); // facing +x
+        var behind = new Coord3D(35f, 50f, 0f); // fifteen units behind: one body-length
+
+        world.issueCommand(new TestCommand.Move(0, List.of(dozer.getId()), behind));
+        var mover = dozer.findModule(MoveUpdate.class);
+        world.update(); // the order is applied at the start of a frame
+        int frames = 1;
+        while (mover.isMoving() && frames < 30 * 20) {
+            world.update();
+            frames++;
+        }
+
+        var at = dozer.getPosition();
+        float off = (float) Math.sqrt((at.x() - behind.x()) * (at.x() - behind.x())
+                + (at.y() - behind.y()) * (at.y() - behind.y()));
+        assertTrue(off < 0.01f, "it got there, not " + off + " short, in " + frames + " frames");
+        assertEquals(behind, mover.getGoal(), "and arrived rather than being given up on");
+    }
+
     @Test
     void unitWalksToGoalAndStops() {
         GameObject unit = logic.createObject(template);

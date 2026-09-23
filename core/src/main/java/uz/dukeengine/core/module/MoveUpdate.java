@@ -156,6 +156,24 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         // later. That is what the shivering on the top step was.
         float distance = (float) Math.sqrt(delta.x() * delta.x() + delta.y() * delta.y());
 
+        float desired = (float) StrictMath.atan2(delta.y(), delta.x());
+        if (turnPerFrame > 0f && distance > step) {
+            float off = Math.abs(angleBetween(owner.getOrientation(), desired));
+            if (off > HALF_TURN / 2f) {
+                // A mover that only drives forward cannot reach a point inside its own turning circle, and a
+                // point behind it always is. Driving on at full speed it circles the point, and the progress
+                // check gives up on it: a dozer sent nine units behind itself drove 36 on, turned, came back,
+                // and was stopped 27 short. So it turns where it stands until the point is ahead of it. Each
+                // such frame turns it a full turn's worth toward the point, so it cannot last more than half a
+                // circle — and it is not counted against its progress, because it is progress.
+                owner.setOrientation(rotateToward(owner.getOrientation(), desired, turnPerFrame));
+                return;
+            }
+            // Ahead, but perhaps inside the circle a full-speed turn draws: then slow until the turn it can
+            // make reaches it, rather than orbiting it.
+            step = Math.min(step, tightestStep(distance, off));
+        }
+
         if (madeNoProgress(distance)) {
             stop(); // as close as it is ever going to get — stop rather than circle forever
             return;
@@ -174,7 +192,6 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             return;
         }
 
-        float desired = (float) StrictMath.atan2(delta.y(), delta.x());
         float facing = turnPerFrame <= 0f
                 ? desired // instant turning: head straight for the waypoint
                 : rotateToward(owner.getOrientation(), desired, turnPerFrame);
@@ -301,11 +318,31 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     /** Step {@code current} toward {@code target} by at most {@code maxStep} radians. */
     private static float rotateToward(float current, float target, float maxStep) {
-        float diff = (float) StrictMath.atan2(
-                StrictMath.sin(target - current), StrictMath.cos(target - current));
+        float diff = angleBetween(current, target);
         if (Math.abs(diff) <= maxStep) {
             return target;
         }
         return current + Math.signum(diff) * maxStep;
+    }
+
+    /** Half a full turn, in radians. */
+    private static final float HALF_TURN = (float) StrictMath.PI;
+
+    /** The signed turn from {@code from} to {@code to}, the short way round, in radians. */
+    private static float angleBetween(float from, float to) {
+        return (float) StrictMath.atan2(StrictMath.sin(to - from), StrictMath.cos(to - from));
+    }
+
+    /**
+     * The longest step that still lets a turn at this mover's rate reach a point {@code distance} away and
+     * {@code off} radians off its heading.
+     *
+     * <p>A mover turning as hard as it can draws a circle of radius step / turn. A point is inside one of the
+     * two circles tangent to the heading — and so out of reach going on at that speed — when it is nearer than
+     * twice that radius times the sine of its bearing; slowing shrinks the circle until it is not.
+     */
+    private float tightestStep(float distance, float off) {
+        float sine = (float) StrictMath.sin(off);
+        return sine <= 0.0001f ? Float.MAX_VALUE : turnPerFrame * distance / (2f * sine);
     }
 }

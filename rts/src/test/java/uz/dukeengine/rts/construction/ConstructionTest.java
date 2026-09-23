@@ -224,6 +224,73 @@ class ConstructionTest {
         assertNull(barracks(scene.world()));
     }
 
+    // ---- a box builder beside its own site ----
+
+    /** A barracks-sized box site and a dozer that is a box too, turning slowly, as the RTS it was found in. */
+    private static Scene boxScene(float dozerX, float dozerFacing) {
+        var factory = new ThingFactory(RtsModules.withDefaults());
+        factory.addTemplate(RtsTemplate.named("Dozer")
+                .geometry(new Geometry.Box(7.5f, 5f, 6f))
+                .module(new ActiveBody.Data(100f))
+                .module(new MoveUpdate.Data(30f, 90f))
+                .build());
+        factory.addTemplate(RtsTemplate.named("Barracks")
+                .geometry(new Geometry.Box(27.5f, 22.5f, 16f))
+                .module(new ActiveBody.Data(600f))
+                .buildCost(COST)
+                .buildTimeFrames(BUILD_FRAMES)
+                .build());
+        var world = new World(factory);
+        world.init();
+        world.setPathGrid(new PathGrid(40, 40));
+        world.setPlacementRules(new PlacementRules(10f, 30f, 0.5f, 0.1f));
+        int player = world.getPlayerList().addPlayer("Builder").getIndex();
+        world.getRtsPlayer(player).deposit(1000);
+        var dozer = world.createObject(factory.findTemplate("Dozer"));
+        dozer.setPlayerIndex(player);
+        dozer.setPosition(new Coord3D(dozerX, PLACE.y(), 0f));
+        dozer.setOrientation((float) StrictMath.toRadians(dozerFacing));
+        return new Scene(world, player, dozer);
+    }
+
+    /** The barracks' right-hand wall stands at 205 + 27.5; the dozer's left end is 7.5 behind its middle. */
+    private static final float WALL = PLACE.x() + 27.5f + 7.5f;
+
+    /**
+     * Put down right beside the builder — where a player very often puts a building — the site rises and the
+     * builder does not move. It used to take a step first, and that step carried it into the footprint, where
+     * it counted as standing on the spot and was sent out again.
+     */
+    @Test
+    void aBoxBuilderAlreadyBesideTheSiteRaisesItWithoutMoving() {
+        var scene = boxScene(WALL + 0.5f, 0f); // half a unit clear of the wall, facing away from it
+        var before = scene.dozer().getPosition();
+        build(scene, PLACE);
+        scene.world().update();
+
+        assertNotNull(barracks(scene.world()), "the site rose the frame the order was applied");
+        assertEquals(before, scene.dozer().getPosition(), "and the builder never moved");
+        assertEquals(1000 - COST, scene.world().getRtsPlayer(scene.player()).getMoney());
+    }
+
+    /** Standing a unit inside where the building goes, the builder steps out of it and raises it. */
+    @Test
+    void aBoxBuilderStandingOnTheSpotStepsOutAndRaisesIt() {
+        for (float facing : new float[] {0f, 180f}) { // facing away from the site, and toward it
+            var scene = boxScene(WALL - 1f, facing);
+            build(scene, PLACE);
+            for (int frame = 0; frame < 30 * 10 && barracks(scene.world()) == null; frame++) {
+                scene.world().update();
+            }
+            var site = barracks(scene.world());
+            assertNotNull(site, "risen, facing " + facing);
+            float gap = uz.dukeengine.core.thing.Footprint.of(scene.dozer())
+                    .separation(uz.dukeengine.core.thing.Footprint.of(site));
+            assertTrue(gap >= 0f && gap <= 10f, "with the builder beside it, not in it: " + gap);
+            assertEquals(1000 - COST, scene.world().getRtsPlayer(scene.player()).getMoney(), "and paid for once");
+        }
+    }
+
     /** The same orders on two machines build the same site on the same frame, and every frame after. */
     @Test
     void twoRunsOfTheSameOrdersEndOnTheSameHash() {

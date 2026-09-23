@@ -44,15 +44,17 @@ public record Footprint(Geometry shape, Coord3D center, float orientation) {
      * The shortest gap between the two shapes' outlines on the ground: negative
      * when they overlap, 0 when just touching, positive when apart.
      *
-     * <p>Two boxes are compared by their bounding circles — the one approximation
-     * here. It over-reports contact at a box's corners, which matters only when
-     * two box-shaped objects are tested against each other (in practice, one
-     * building against another). Every unit-against-anything test is exact.
+     * <p>Exact for every pair, two boxes included. Two boxes used to be compared by
+     * their bounding circles, on the reasoning that only a building is tested
+     * against a building — but in an RTS most vehicles are boxes, and a builder is a
+     * vehicle, so the builder against its own site is a box against a box. Measured
+     * there: a dozer 11.9 units from a barracks' wall read as overlapping it by
+     * 0.16, and the order to build was given up. See {@link #boxToBox}.
      */
     public float separation(Footprint other) {
         return switch (shape) {
-            case Geometry.Box box -> other.shape instanceof Geometry.Box
-                    ? boundingGap(other)
+            case Geometry.Box box -> other.shape instanceof Geometry.Box otherBox
+                    ? boxToBox(box, center, orientation, otherBox, other.center, other.orientation)
                     : boxToCircle(box, center, orientation, other.center, other.shape.footprintRadius());
             case Geometry.Sphere sphere -> circleTo(sphere.radius(), other);
             case Geometry.Cylinder cylinder -> circleTo(cylinder.radius(), other);
@@ -79,9 +81,87 @@ public record Footprint(Geometry shape, Coord3D center, float orientation) {
         return groundDistance(center, other.center) - radius - other.shape.footprintRadius();
     }
 
-    private float boundingGap(Footprint other) {
-        return groundDistance(center, other.center)
-                - shape.footprintRadius() - other.shape.footprintRadius();
+    /**
+     * The exact gap between two turned rectangles.
+     *
+     * <p>Overlapping, by separating axes: each rectangle's two edge directions are
+     * the only axes a gap between two rectangles can open along, so the rectangles
+     * overlap exactly when all four projections do, and the shallowest of those
+     * overlaps is how deep they are in each other — returned negative.
+     *
+     * <p>Apart, by corners and edges: the nearest two points of two separate convex
+     * shapes are a corner of one and a point on an edge of the other, so the gap is
+     * the least of the sixteen corner-to-edge distances. The separating axes alone
+     * would under-report it wherever two corners face each other diagonally.
+     */
+    private static float boxToBox(Geometry.Box a, Coord3D aCenter, float aTurn,
+                                  Geometry.Box b, Coord3D bCenter, float bTurn) {
+        float[] one = corners(a, aCenter, aTurn);
+        float[] two = corners(b, bCenter, bTurn);
+        float widest = -Float.MAX_VALUE;
+        for (float turn : new float[] {aTurn, bTurn}) {
+            float cos = (float) StrictMath.cos(turn);
+            float sin = (float) StrictMath.sin(turn);
+            widest = Math.max(widest, gapAlong(one, two, cos, sin));
+            widest = Math.max(widest, gapAlong(one, two, -sin, cos));
+        }
+        if (widest <= 0f) {
+            return widest; // overlapping, or touching: the shallowest way out
+        }
+        float nearest = Float.MAX_VALUE;
+        for (int corner = 0; corner < 4; corner++) {
+            for (int edge = 0; edge < 4; edge++) {
+                nearest = Math.min(nearest, toSegment(one[corner * 2], one[corner * 2 + 1], two, edge));
+                nearest = Math.min(nearest, toSegment(two[corner * 2], two[corner * 2 + 1], one, edge));
+            }
+        }
+        return nearest;
+    }
+
+    /** A box's four corners, x then y, in order round it. */
+    private static float[] corners(Geometry.Box box, Coord3D at, float turn) {
+        float cos = (float) StrictMath.cos(turn);
+        float sin = (float) StrictMath.sin(turn);
+        float[] across = {box.majorRadius(), -box.majorRadius(), -box.majorRadius(), box.majorRadius()};
+        float[] along = {box.minorRadius(), box.minorRadius(), -box.minorRadius(), -box.minorRadius()};
+        float[] points = new float[8];
+        for (int i = 0; i < 4; i++) {
+            points[i * 2] = at.x() + across[i] * cos - along[i] * sin;
+            points[i * 2 + 1] = at.y() + across[i] * sin + along[i] * cos;
+        }
+        return points;
+    }
+
+    /** How far apart two corner sets are along one axis; negative where their shadows on it overlap. */
+    private static float gapAlong(float[] one, float[] two, float axisX, float axisY) {
+        float oneLow = Float.MAX_VALUE;
+        float oneHigh = -Float.MAX_VALUE;
+        float twoLow = Float.MAX_VALUE;
+        float twoHigh = -Float.MAX_VALUE;
+        for (int i = 0; i < 4; i++) {
+            float p = one[i * 2] * axisX + one[i * 2 + 1] * axisY;
+            float q = two[i * 2] * axisX + two[i * 2 + 1] * axisY;
+            oneLow = Math.min(oneLow, p);
+            oneHigh = Math.max(oneHigh, p);
+            twoLow = Math.min(twoLow, q);
+            twoHigh = Math.max(twoHigh, q);
+        }
+        return Math.max(twoLow - oneHigh, oneLow - twoHigh);
+    }
+
+    /** From a point to one edge of a corner set — edge {@code i} runs from corner i to corner i + 1. */
+    private static float toSegment(float px, float py, float[] corners, int edge) {
+        float ax = corners[edge * 2];
+        float ay = corners[edge * 2 + 1];
+        float bx = corners[(edge + 1) % 4 * 2];
+        float by = corners[(edge + 1) % 4 * 2 + 1];
+        float ex = bx - ax;
+        float ey = by - ay;
+        float length = ex * ex + ey * ey;
+        float t = length <= 0f ? 0f : Math.clamp(((px - ax) * ex + (py - ay) * ey) / length, 0f, 1f);
+        float dx = px - (ax + ex * t);
+        float dy = py - (ay + ey * t);
+        return (float) Math.sqrt(dx * dx + dy * dy);
     }
 
     /**
