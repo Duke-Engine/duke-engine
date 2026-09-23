@@ -62,6 +62,8 @@ final class GameSounds {
     private final float touching;
     /** A template's hurt words and the share of health each holds below — its look's {@code WhenHurt}. */
     private final java.util.function.Function<String, Map<String, Float>> hurtWords;
+    /** Whether the game named any loop at all — asked once, since the bank never changes. */
+    private final boolean anyLoops;
 
     /** A loop that is going, and the cue it is — so a loop is only restarted when the cue it wants changes. */
     private record Loop(String cue, SoundSink.Playing playing) {
@@ -84,6 +86,7 @@ final class GameSounds {
         this.sounds = sounds;
         this.touching = touching;
         this.hurtWords = hurtWords;
+        this.anyLoops = sounds.names("ambient");
     }
 
     Sounds sounds() {
@@ -113,7 +116,6 @@ final class GameSounds {
                         shooter != null && shooter.playerIndex() == localPlayer);
             }
         }
-        boolean anyLoops = sounds.names("ambient");
         for (var view : snapshot.units()) {
             boolean owned = view.playerIndex() == localPlayer;
             var was = before.get(view.id());

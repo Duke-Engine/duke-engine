@@ -12,6 +12,9 @@ when it does, this page says exactly what to change and how.
   `CommandPress` carries the `facing` between `place` and `target`.
 - `World` has `random()`. Only `GameLogic` implements it in this repository; anything else that does must too.
 - `ObjectStatus` has `AIRBORNE`: a `switch` over it with no `default` needs the case.
+- `DamageType` is no longer an enum (see below), so `DamageType.values()` is gone: the set is open, and a game
+  that walked every type — duke-dungeon's `GrowableBody` does, to armour a hero against all of them — names
+  the types it means.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
   `HarvestUpdate.Data`, `WeaponFired`, `WorldSnapshot`, `SoundBank.Cue`, `Sound` — and every new field left out
   means what the old record did.
@@ -194,8 +197,8 @@ DamageType = SMALL_ARMS
 
 Nothing is registered first: the `Binder` makes one out of the word in the block, because that is how it
 reads any type with a static `of(String)`. A file naming a type no armour lists loads — which is what
-"unlisted is 1.0" already meant. The five constants read exactly as they did and **not one caller
-needed editing**.
+"unlisted is 1.0" already meant. The five constants read exactly as they did; what went is `values()`,
+since an open set has no list of all of it.
 
 Identity equality, so a lookup on every landed shot costs what the enum cost. `Armor` and
 `ActiveBody.Data` now keep their multipliers in the order the block wrote them rather than a hash's,
