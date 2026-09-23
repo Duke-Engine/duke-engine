@@ -114,9 +114,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790096330.1503336,
-    "seen": 1790096518.5570073,
-    "ast_hash": "248b280eeac50f6330648c1b49d09f1a",
+    "mtime": 1790133190.5574474,
+    "seen": 1790133227.7999046,
+    "ast_hash": "8f61975cb7a2aedb76344e2b73e68b87",
     "semantic_hash": ""
   },
   "CREDITS.md": {
@@ -882,9 +882,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/DukeRtsApp.java": {
-    "mtime": 1789983050.748842,
-    "seen": 1789983069.8779962,
-    "ast_hash": "09c7a8efb5b140ac9ce2ced93afd2871",
+    "mtime": 1790132865.4248044,
+    "seen": 1790133227.799446,
+    "ast_hash": "5cb02cdbf8f7fd02402fb2503d8bf215",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/EdgeScroll.java": {
@@ -1242,9 +1242,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/TerrainScene.java": {
-    "mtime": 1789983050.791417,
-    "seen": 1789983069.8780806,
-    "ast_hash": "badebabf759457a7b8f110682d81ccd2",
+    "mtime": 1790133153.0395975,
+    "seen": 1790133227.7995274,
+    "ast_hash": "8bfdef98ffe6d33bf994bd467e5bcd8f",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/TileLayout.java": {
@@ -1560,15 +1560,15 @@
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/TerrainSceneTest.java": {
-    "mtime": 1789983050.8306818,
-    "seen": 1789983069.878155,
-    "ast_hash": "d11e3021c85b7d9d476118c70a4ad8b7",
+    "mtime": 1790132773.2422738,
+    "seen": 1790133227.7995968,
+    "ast_hash": "2db179b2b55f913d8357c2e7b4602fd1",
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/ThemedLookTest.java": {
-    "mtime": 1789983050.8306818,
-    "seen": 1789983069.8781562,
-    "ast_hash": "daa96af326c3736ba26966be79d23708",
+    "mtime": 1790132773.2461572,
+    "seen": 1790133227.7995975,
+    "ast_hash": "8ed443c1f5f7006bdc3368ae60b5c7ca",
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/TileLayoutTest.java": {
@@ -1794,9 +1794,9 @@
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/map/MapTerrain.java": {
-    "mtime": 1789983050.861964,
-    "seen": 1789983069.8782094,
-    "ast_hash": "61e0d10410ee160316c0f209789dcde4",
+    "mtime": 1790133007.1052258,
+    "seen": 1790133227.7996497,
+    "ast_hash": "68f8b5ac5cdb429e3728667f59eacd74",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/map/Peopled.java": {
@@ -2442,9 +2442,9 @@
     "semantic_hash": ""
   },
   "game/src/main/java/uz/dukeengine/game/DukeGame.java": {
-    "mtime": 1790067810.8540187,
-    "seen": 1790068604.0277162,
-    "ast_hash": "5bde597af3a3e91cf8a844897b0b725a",
+    "mtime": 1790132865.3933284,
+    "seen": 1790133227.7997854,
+    "ast_hash": "4b7345d0544c2a647fe18297127a1027",
     "semantic_hash": ""
   },
   "game/src/main/java/uz/dukeengine/game/GamePlayer.java": {
@@ -3012,9 +3012,9 @@
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/map/Painted.java": {
-    "mtime": 1790095925.2609012,
-    "seen": 1790096518.5567613,
-    "ast_hash": "be9ec929fa7bb79fe4c517b45af4653e",
+    "mtime": 1790132639.2205691,
+    "seen": 1790133227.7996528,
+    "ast_hash": "7aeb31f24318266f9c12484ceaeb795f",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/map/Sided.java": {
@@ -3033,6 +3033,24 @@
     "mtime": 1790096122.569301,
     "seen": 1790096518.556857,
     "ast_hash": "aa5fdbcdc464023b4b292ad11a1b2512",
+    "semantic_hash": ""
+  },
+  "client3d/src/main/java/uz/dukeengine/client3d/GroundPaint.java": {
+    "mtime": 1790132674.1629744,
+    "seen": 1790133227.7994637,
+    "ast_hash": "4cc907bfa53e85837ef6a52d0b8d776c",
+    "semantic_hash": ""
+  },
+  "client3d/src/main/java/uz/dukeengine/client3d/Surfaces.java": {
+    "mtime": 1790132688.1130123,
+    "seen": 1790133227.7995257,
+    "ast_hash": "2e1e36a427ea56497ea152923e4d7bc5",
+    "semantic_hash": ""
+  },
+  "client3d/src/test/java/uz/dukeengine/client3d/PaintedGroundTest.java": {
+    "mtime": 1790133028.7479656,
+    "seen": 1790133227.7995696,
+    "ast_hash": "2dfe62907fc60b349f7782780535141a",
     "semantic_hash": ""
   }
 }

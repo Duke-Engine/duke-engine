@@ -4,7 +4,7 @@ plugins {
 
 // Every module of the engine, at one version. A game writes the version once:
 //
-//   implementation(platform("uz.duke-engine:bom:0.4.1"))
+//   implementation(platform("uz.duke-engine:bom:0.5.0"))
 //   implementation("uz.duke-engine:client3d")
 //   implementation("uz.duke-engine:kit")
 //

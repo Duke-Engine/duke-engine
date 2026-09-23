@@ -3,6 +3,39 @@
 Versions are `major.minor.patch`. While the major is 0, a minor may break what came before — and
 when it does, this page says exactly what to change and how.
 
+## 0.5.0
+
+**A map that says what its ground is painted with is now drawn with it.** `Painted` and `@Paint`
+shipped in 0.4.1 and nothing answered them: the 3D client drew one flat coloured `Quad` whatever the
+map said. It now lays one mesh per palette entry over the map's relief.
+
+| | |
+|---|---|
+| `Painted.coverage()` | **new**, defaulting to `Map.of()`: how many cells one copy of a picture spans, by palette key. A key it does not name covers one cell. |
+| `client3d` `GroundPaint` | reads the `@Paint` rows and the palette, and reports what is wrong with them |
+| `client3d` `Surfaces` | how a ground material is made, from a colour and a picture |
+
+**A palette value is used exactly as written.** No folder is put in front of it, no suffix taken off:
+where a game keeps its art is that game's arrangement, and a path invented in the engine is a path
+that game cannot move. The one thing read into it is whether it begins with `#`, which makes it a
+colour — `#3A5F2B`, or `#FC0` — so a game that ships no textures gets painted ground too.
+
+**How much ground one picture covers comes from the map.** Texture coordinates run across the world
+divided by that, not 0..1 inside each cell — which is the difference between ground and a
+chequerboard, since a picture laid per cell shows the whole of itself in every one and its own edges
+draw the grid. Per palette entry, because one game's road repeats every two cells and its grass every
+ten.
+
+**A kit beats paint.** A map with both is drawn from its `Tileset` floor models; the dungeon's look is
+unchanged. Paint is for the other kind of map — an outdoor field with no floor models at all.
+
+**Nothing of it reaches the simulation.** Paint is look: no pathfinding, no cover, no speed.
+
+**Not in it:** blending where two pictures meet. Seams are hard edges today.
+
+Also fixed: `MapTerrain.rows` now calls `setAccessible`, as the `Binder` already did, so a map record
+that is not `public` is read rather than throwing.
+
 ## 0.4.1
 
 **Fixed: a quoted value in a `Map` kept its quotes.** `Properties = [uniqueID = "Crusader 1701"]` bound
