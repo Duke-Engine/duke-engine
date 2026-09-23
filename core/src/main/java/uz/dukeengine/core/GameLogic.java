@@ -420,14 +420,111 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return Pathfinder.findPath(pathGrid, from, to);
     }
 
+    /**
+     * A route for {@code mover} to {@code to} — or, where there is none, to the nearest place there is one to,
+     * {@link Path#reachesGoal} saying which: see {@link Pathfinder#findPathOrNearest}.
+     */
     @Override
     public Path findPath(GameObject mover, Coord3D to) {
         if (pathGrid == null) {
             return new Path(List.of(to));
         }
         refreshStaticObstacles();
-        return Pathfinder.findPath(pathGrid, mover.getPosition(), to,
+        return Pathfinder.findPathOrNearest(pathGrid, mover.getPosition(), to,
                 Solid.of(mover.getTemplate()).footprintRadius());
+    }
+
+    /**
+     * Where {@code who} should stand to work on {@code what}: beside it, on ground it can stand on, and somewhere
+     * it can walk to from where it is.
+     *
+     * <p>The straight line toward the thing, stopped a cell short, is that spot whenever it will do — and on
+     * open ground it always does. It would not always: measured in an RTS on the engine, a supply truck leaving
+     * a pile for its depot on a map with cliffs was given a spot on a cliff face; no route led there, the truck
+     * never set off, and the load it carried was never banked. So where the straight-line spot cannot be stood
+     * on or reached, the answer is the cell beside the thing nearest it that can be reached — found by walking
+     * outward from the mover with the pathfinder's own steps, so that "reached" is the search's own answer
+     * rather than a guess about it.
+     *
+     * <p>Its own position only when it is beside the thing already. Where no cell beside it can be reached at
+     * all — the thing is walled off from it — the reachable place nearest the straight-line spot: sent there, a
+     * mover gets as close as it can and says so ({@link Path#reachesGoal}).
+     */
+    @Override
+    public Coord3D standingNextTo(GameObject who, GameObject what) {
+        var straight = World.super.standingNextTo(who, what);
+        if (pathGrid == null || isBeside(who, what)) {
+            return straight;
+        }
+        refreshStaticObstacles();
+        float clearance = Solid.of(who.getTemplate()).footprintRadius();
+        int cx = pathGrid.toCellX(straight);
+        int cy = pathGrid.toCellY(straight);
+        // The spot will do if it can be stood on and walked to. The walk is the search's to say, and on open
+        // ground the search finds it at once; only a spot on stone is not worth asking about.
+        if (!pathGrid.isBlocked(cx, cy)
+                && Pathfinder.findPath(pathGrid, who.getPosition(), straight, clearance).reachesGoal()) {
+            return straight;
+        }
+        var reached = Pathfinder.reachableFrom(pathGrid, who.getPosition(), clearance);
+        var beside = besideCellNearest(who, what, straight, reached);
+        return beside != null ? beside : reachableNearest(straight, reached);
+    }
+
+    /** Of the cells beside {@code what} that can be reached, the one nearest {@code wanted}; null for none. */
+    private Coord3D besideCellNearest(GameObject who, GameObject what, Coord3D wanted, boolean[] reached) {
+        var target = Footprint.of(what);
+        float reach = target.shape().footprintRadius() + Solid.of(who.getTemplate()).footprintRadius()
+                + 2f * pathGrid.getCellSize();
+        var middle = what.getPosition();
+        int fromX = pathGrid.toCellX(new Coord3D(middle.x() - reach, middle.y() - reach, 0f));
+        int toX = pathGrid.toCellX(new Coord3D(middle.x() + reach, middle.y() + reach, 0f));
+        int fromY = pathGrid.toCellY(new Coord3D(middle.x() - reach, middle.y() - reach, 0f));
+        int toY = pathGrid.toCellY(new Coord3D(middle.x() + reach, middle.y() + reach, 0f));
+        Coord3D best = null;
+        float nearest = Float.MAX_VALUE;
+        for (int y = fromY; y <= toY; y++) {
+            for (int x = fromX; x <= toX; x++) {
+                if (!pathGrid.inBounds(x, y) || !reached[y * pathGrid.getWidth() + x]) {
+                    continue;
+                }
+                var centre = pathGrid.cellCenter(x, y);
+                float gap = Footprint.of(who, centre).separation(target);
+                if (gap < 0f || gap > cellSize()) {
+                    continue; // on top of it, or not near enough to work on it
+                }
+                float away = squaredAcross(centre, wanted);
+                if (away < nearest) {
+                    nearest = away;
+                    best = centre;
+                }
+            }
+        }
+        return best;
+    }
+
+    /** The reachable cell nearest {@code wanted}, or {@code wanted} where nothing at all can be reached. */
+    private Coord3D reachableNearest(Coord3D wanted, boolean[] reached) {
+        Coord3D best = null;
+        float nearest = Float.MAX_VALUE;
+        for (int cell = 0; cell < reached.length; cell++) {
+            if (!reached[cell]) {
+                continue;
+            }
+            var centre = pathGrid.cellCenter(cell % pathGrid.getWidth(), cell / pathGrid.getWidth());
+            float away = squaredAcross(centre, wanted);
+            if (away < nearest) {
+                nearest = away;
+                best = centre;
+            }
+        }
+        return best != null ? best : wanted;
+    }
+
+    private static float squaredAcross(Coord3D a, Coord3D b) {
+        float dx = a.x() - b.x();
+        float dy = a.y() - b.y();
+        return dx * dx + dy * dy;
     }
 
     private void clearState() {

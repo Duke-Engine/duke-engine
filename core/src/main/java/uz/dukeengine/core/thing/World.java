@@ -68,14 +68,7 @@ public interface World {
         return Footprint.of(a).separation(Footprint.of(b));
     }
 
-    /**
-     * Where {@code who} should stand to be just short of touching {@code what}.
-     *
-     * <p>Sent at a thing's own position, a unit is sent at a square the thing is standing on — and anything
-     * that does not move is baked into the obstacle layer, so that square cannot be walked to and the path
-     * fails before a step is taken. So it stops a whole cell short — less than that and the square it is sent
-     * to is still inside the thing's own footprint. x and y are the ground; z is height.
-     */
+    /** How wide a cell of the world's ground is: the width of the band "beside" a thing is measured in. */
     default float cellSize() {
         return uz.dukeengine.core.pathfind.PathGrid.DEFAULT_CELL_SIZE;
     }
@@ -85,6 +78,17 @@ public interface World {
         return reachBetween(who, what) <= cellSize();
     }
 
+    /**
+     * Where {@code who} should stand to be just short of touching {@code what}.
+     *
+     * <p>Sent at a thing's own position, a unit is sent at a square the thing is standing on — and anything
+     * that does not move is baked into the obstacle layer, so that square cannot be walked to and the path
+     * fails before a step is taken. So it stops a whole cell short — less than that and the square it is sent
+     * to is still inside the thing's own footprint. x and y are the ground; z is height.
+     *
+     * <p>This is the straight-line answer, which is all a world with no ground to walk on can give. A world
+     * that has one gives a spot that can be stood on and walked to as well — see {@code GameLogic}.
+     */
     default Coord3D standingNextTo(GameObject who, GameObject what) {
         float gap = reachBetween(who, what) - cellSize();
         var here = who.getPosition();

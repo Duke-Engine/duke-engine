@@ -83,6 +83,8 @@ public final class HarvestUpdate extends UpdateModule {
     private GameObject atPile;
     /** Whether it has been sent somewhere and not yet been found standing still again. */
     private boolean sent;
+    /** What it has come as near to as it gets in this phase; it stays arrived there until the phase is over. */
+    private GameObject reached;
     private int elapsed;
     private int carrying;
 
@@ -116,6 +118,7 @@ public final class HarvestUpdate extends UpdateModule {
             if (doing == was) {
                 return;
             }
+            reached = null; // a new phase is a new errand
         }
     }
 
@@ -205,29 +208,39 @@ public final class HarvestUpdate extends UpdateModule {
      * so a harvester sent at one walks up to its edge and stops against it — waiting for the two to actually
      * touch is waiting for something that never happens, which is what left the worker circling. A harvester
      * with no legs at all is always there, which is how this module worked before it could walk.
+     *
+     * <p><b>Once there, it stays there</b> for the rest of the phase. Asked again the frame after it had
+     * stopped as near as it got, it used to find itself neither beside the depot nor moving nor sent, and was
+     * sent again — a mover with nowhere nearer to go that does not move — so it flickered between arrived and
+     * on its way every other frame, the wait at the depot was started again each time, and the load it carried
+     * was never banked.
      */
     private boolean walkTo(GameObject owner, GameObject there) {
         var legs = owner.findModule(MoveUpdate.class);
-        if (legs == null) {
+        if (legs == null || there == reached) {
             return true;
         }
         if (owner.getWorld().isBeside(owner, there)) {
             if (legs.isMoving()) {
                 legs.stop();
             }
-            sent = false;
-            return true;
+            return arrived(there);
         }
         if (legs.isMoving()) {
             return false;
         }
         if (sent) {
-            sent = false;
-            return true; // it set off and has stopped: this is as near as it gets
+            return arrived(there); // it set off and has stopped: this is as near as it gets
         }
         legs.moveTo(owner.getWorld().standingNextTo(owner, there));
         sent = true;
         return false;
+    }
+
+    private boolean arrived(GameObject there) {
+        sent = false;
+        reached = there;
+        return true;
     }
 
     /** What it is carrying and has not banked yet, for a client that draws a full harvester differently. */

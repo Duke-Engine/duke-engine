@@ -73,14 +73,170 @@ public final class Pathfinder {
         // that ended up inside a wall unable to plan its way out for the rest of
         // the game — permanently frozen rather than merely wedged.
         if (grid.isBlocked(grid.toCellX(from), grid.toCellY(from))) {
-            var escape = nearestOpenCell(grid, from);
-            return escape == null ? Path.EMPTY : new Path(List.of(escape));
+            return escape(grid, from);
         }
-        var path = search(grid, from, to, clearance);
+        var path = search(grid, from, to, clearance, false);
         if (path.isEmpty() && clearance > 0f) {
-            path = search(grid, from, to, 0f);
+            path = search(grid, from, to, 0f, false);
         }
         return path;
+    }
+
+    /**
+     * A route to {@code to}, or — where there is none — to the place nearest it that there is one to, as the
+     * reference game's pathfinder does ({@code Pathfinder::findClosestPath}). {@link Path#reachesGoal} says
+     * which it is.
+     *
+     * <p>What a mover is given. Sent at a spot it cannot reach — a cliff, the far side of a wall, a pocket
+     * with no way in — it used to be handed no route at all, and stood where it was with its goal still set:
+     * an order that did nothing, and an errand waiting on it that never finished. Now it goes as near as it
+     * can and stops there, and whatever sent it can tell that from arriving.
+     *
+     * <p>Nearest by the grid's straight-line distance to the goal's cell, a tie going to the cell that is the
+     * shorter walk and then to the lower cell index, so every machine settles on the same spot. Width is
+     * treated as {@link #findPath} treats it: a route with room first, one that squeezes if that is the only
+     * way there, and of two routes that both stop short, the one that stops nearer — room winning a tie.
+     */
+    public static Path findPathOrNearest(PathGrid grid, Coord3D from, Coord3D to, float clearance) {
+        if (grid.isBlocked(grid.toCellX(from), grid.toCellY(from))) {
+            return escape(grid, from);
+        }
+        var path = search(grid, from, to, clearance, true);
+        if (path.reachesGoal() || clearance <= 0f) {
+            return path;
+        }
+        var squeezed = search(grid, from, to, 0f, true);
+        if (squeezed.reachesGoal()) {
+            return squeezed;
+        }
+        return awayFrom(squeezed, from, to) < awayFrom(path, from, to) ? squeezed : path;
+    }
+
+    /** How far from {@code to} a route leaves its mover, across the ground. */
+    private static float awayFrom(Path path, Coord3D from, Coord3D to) {
+        var end = path.isEmpty() ? from : path.getDestination();
+        float dx = end.x() - to.x();
+        float dy = end.y() - to.y();
+        return dx * dx + dy * dy;
+    }
+
+    /**
+     * Off the blocked cell it stands on: the only useful first move from there, and a route that ends short
+     * of wherever it was going, since it is only the way out.
+     */
+    private static Path escape(PathGrid grid, Coord3D from) {
+        var way = nearestOpenCell(grid, from);
+        return way == null ? Path.EMPTY : Path.partial(List.of(way));
+    }
+
+    // ---- where can be walked to ----
+
+    /**
+     * Every cell a body of {@code clearance} can walk to from {@code from}, by the search's own steps: one flag
+     * a cell, indexed {@code cy * width + cx}. From a blocked cell, from the nearest open one — the way it would
+     * step out first.
+     */
+    public static boolean[] reachableFrom(PathGrid grid, Coord3D from, float clearance) {
+        var reached = new boolean[grid.getWidth() * grid.getHeight()];
+        var flood = flood(grid, from, clearance);
+        for (int at = 0; at < flood.count(); at++) {
+            reached[flood.cells()[at]] = true;
+        }
+        return reached;
+    }
+
+    /**
+     * {@code wanted} itself where it can be walked to from {@code from}; otherwise the middle of the reachable
+     * cell nearest it, the first found walking outward from {@code from} winning a tie — the nearest place to a
+     * point that cannot be reached.
+     */
+    public static Coord3D nearestReachable(PathGrid grid, Coord3D from, Coord3D wanted) {
+        var flood = flood(grid, from, 0f);
+        if (flood.count() == 0) {
+            return wanted;
+        }
+        int width = grid.getWidth();
+        int goalX = grid.toCellX(wanted);
+        int goalY = grid.toCellY(wanted);
+        int best = flood.cells()[0];
+        long nearest = Long.MAX_VALUE;
+        for (int at = 0; at < flood.count(); at++) {
+            int cell = flood.cells()[at];
+            int cx = cell % width;
+            int cy = cell / width;
+            if (cx == goalX && cy == goalY) {
+                return wanted;
+            }
+            long away = away(cx, cy, goalX, goalY);
+            if (away < nearest) {
+                nearest = away;
+                best = cell;
+            }
+        }
+        var reached = grid.cellCenter(best % width, best / width);
+        return new Coord3D(reached.x(), reached.y(), wanted.z());
+    }
+
+    /** The cells a flood reached, in the order it reached them: {@code cells[0..count)}. */
+    private record Flood(int[] cells, int count) {
+    }
+
+    /**
+     * Outward from {@code from}, a ring at a time and in the search's fixed neighbour order, by exactly the steps
+     * the search would take — so a cell this reaches is a cell a route can be found to, on every machine alike.
+     */
+    private static Flood flood(PathGrid grid, Coord3D from, float clearance) {
+        int startX = grid.toCellX(from);
+        int startY = grid.toCellY(from);
+        if (grid.isBlocked(startX, startY)) {
+            var way = nearestOpenCell(grid, from);
+            if (way == null) {
+                return new Flood(new int[0], 0);
+            }
+            startX = grid.toCellX(way);
+            startY = grid.toCellY(way);
+        }
+        int width = grid.getWidth();
+        var seen = new boolean[width * grid.getHeight()];
+        var queue = new int[seen.length];
+        int head = 0;
+        int tail = 0;
+        int start = grid.index(startX, startY);
+        seen[start] = true;
+        queue[tail++] = start;
+        while (head < tail) {
+            int cell = queue[head++];
+            int cx = cell % width;
+            int cy = cell / width;
+            for (var step : NEIGHBOURS) {
+                int nx = cx + step[0];
+                int ny = cy + step[1];
+                if (!grid.inBounds(nx, ny) || seen[grid.index(nx, ny)] || !canTake(grid, cx, cy, step, clearance)) {
+                    continue;
+                }
+                seen[grid.index(nx, ny)] = true;
+                queue[tail++] = grid.index(nx, ny);
+            }
+        }
+        return new Flood(queue, tail);
+    }
+
+    /** Whether the search would take this step: room at the far end, a step the grid allows, no corner cut. */
+    private static boolean canTake(PathGrid grid, int cx, int cy, int[] step, float clearance) {
+        int nx = cx + step[0];
+        int ny = cy + step[1];
+        if (!fits(grid, nx, ny, clearance) || !grid.canStep(cx, cy, nx, ny)) {
+            return false;
+        }
+        boolean diagonal = step[0] != 0 && step[1] != 0;
+        return !diagonal || !grid.isBlocked(cx + step[0], cy) && !grid.isBlocked(cx, cy + step[1]);
+    }
+
+    /** How far apart two cells are, squared, which is enough to compare them. */
+    private static long away(int cx, int cy, int goalX, int goalY) {
+        long dx = cx - goalX;
+        long dy = cy - goalY;
+        return dx * dx + dy * dy;
     }
 
     /**
@@ -114,13 +270,19 @@ public final class Pathfinder {
     /** How far to look for a way out before deciding there is none. */
     private static final int ESCAPE_RINGS = 8;
 
-    private static Path search(PathGrid grid, Coord3D from, Coord3D to, float clearance) {
+    /**
+     * A* from {@code from} to {@code to}. With {@code orNearest}, a goal that cannot be reached — blocked, or
+     * walled off — gives a {@linkplain Path#partial partial} route to the searched cell nearest it rather than
+     * none: the search has walked every cell it could reach by the time it gives up, so the answer costs
+     * nothing more than the failure did.
+     */
+    private static Path search(PathGrid grid, Coord3D from, Coord3D to, float clearance, boolean orNearest) {
         int startX = grid.toCellX(from);
         int startY = grid.toCellY(from);
         int goalX = grid.toCellX(to);
         int goalY = grid.toCellY(to);
 
-        if (grid.isBlocked(startX, startY) || grid.isBlocked(goalX, goalY)) {
+        if (grid.isBlocked(startX, startY) || grid.isBlocked(goalX, goalY) && !orNearest) {
             return Path.EMPTY;
         }
         if (startX == goalX && startY == goalY) {
@@ -147,6 +309,8 @@ public final class Pathfinder {
         });
         open.add(startIndex);
 
+        int nearest = startIndex;
+        long nearestAway = away(startX, startY, goalX, goalY);
         while (!open.isEmpty()) {
             int current = open.poll();
             if (current == goalIndex) {
@@ -159,12 +323,25 @@ public final class Pathfinder {
 
             int cx = current % width;
             int cy = current / width;
+            long away = away(cx, cy, goalX, goalY);
+            if (away < nearestAway || away == nearestAway && (gScore[current] < gScore[nearest]
+                    || gScore[current] == gScore[nearest] && current < nearest)) {
+                nearest = current;
+                nearestAway = away;
+            }
             for (var step : NEIGHBOURS) {
                 expand(grid, gScore, fScore, cameFrom, closed, open,
                         cx, cy, step[0], step[1], goalX, goalY, clearance);
             }
         }
-        return Path.EMPTY;
+        if (!orNearest) {
+            return Path.EMPTY;
+        }
+        if (nearest == startIndex) {
+            return Path.partial(List.of()); // nowhere nearer than where it stands
+        }
+        var there = grid.cellCenter(nearest % width, nearest / width);
+        return Path.partial(reconstruct(grid, cameFrom, nearest, startIndex, from, there, clearance).getWaypoints());
     }
 
     private static void expand(PathGrid grid, int[] gScore, int[] fScore, int[] cameFrom,

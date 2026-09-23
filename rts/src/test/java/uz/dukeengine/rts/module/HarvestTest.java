@@ -275,4 +275,48 @@ class HarvestTest {
         logic.update();
         assertEquals(2, logic.getRtsPlayer(usa).getMoney(), "the third act found the pile empty: 90 frames, not 150");
     }
+
+    /**
+     * The truck of a real map: the straight line from its pile toward its depot runs onto a cliff face just
+     * north-west of the depot. It used to be sent there, find no route, stand still, and flicker between
+     * arrived and on its way until the end of the game with its load on board. It walks round the rock to the
+     * depot's side instead, waits its frames there, and banks.
+     */
+    @Test
+    void aHarvesterWhoseDepotStandsBesideACliffStillBanksAfterItsWait() {
+        var grid = new PathGrid(30, 30);
+        for (int cx = 12; cx <= 13; cx++) {
+            for (int cy = 16; cy <= 18; cy++) {
+                grid.setBlocked(cx, cy, true);
+            }
+        }
+        logic.setPathGrid(grid);
+        var truck = RtsTemplate.named("Truck")
+                .geometry(new Geometry.Cylinder(3f, 6f))
+                .module(new ActiveBody.Data(100f))
+                .module(new MoveUpdate.Data(30f))
+                .module(new HarvestUpdate.Data(100, 10, 0f, 10, 0, 0))
+                .build();
+        var depot = RtsTemplate.named("CliffDepot")
+                .geometry(new Geometry.Box(10f, 10f, 8f))
+                .module(new SupplyDepot.Data())
+                .build();
+        var pile = RtsTemplate.named("CliffPile")
+                .geometry(new Geometry.Cylinder(5f, 5f))
+                .module(new SupplyModule.Data(1000))
+                .build();
+        thingFactory.addTemplate(truck);
+        thingFactory.addTemplate(depot);
+        thingFactory.addTemplate(pile);
+        spawnAt(depot, 155f, 155f);
+        spawnAt(pile, 45f, 265f);
+        spawnAt(truck, 60f, 250f);
+
+        int frame = 0;
+        while (logic.getRtsPlayer(usa).getMoney() == 0 && frame < 3000) {
+            logic.update();
+            frame++;
+        }
+        assertEquals(100, logic.getRtsPlayer(usa).getMoney(), "banked, after " + frame + " frames");
+    }
 }

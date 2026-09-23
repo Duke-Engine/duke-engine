@@ -40,8 +40,17 @@ class FlatWorldChecksumTest {
     /**
      * What this world hashes to after {@link #FRAMES} frames, on the engine as it
      * stood before levels were added.
+     *
+     * <p>Changed once, on purpose, and by one object only: the runner sent into
+     * the rock. The rock goes down after the order, its cell is solid by the first
+     * frame, and a move to a place that cannot be reached used to be given no
+     * route at all — so that runner never left its start, at (25, 85), which is
+     * not what the scenario below says it does. Since a move goes as near as it
+     * can instead, as the reference game's pathfinder has it, the runner walks to
+     * the rock and stops against it at (55, 85). Every other object ends exactly
+     * where it did, to the bit; the value before was 1351068428557216477.
      */
-    private static final long GOLDEN = 1351068428557216477L;
+    private static final long GOLDEN = 976960149169760989L;
 
     private static final int FRAMES = 300; // ten seconds at 30 Hz
 

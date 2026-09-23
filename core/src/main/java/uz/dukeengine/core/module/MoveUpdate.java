@@ -70,6 +70,12 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     private int navigationVersion;    // the world's shape when this route was planned
     private float closestApproach;
     private int framesWithoutProgress;
+    /** Whether the route it follows ends at {@link #destination}, rather than as near to it as it gets. */
+    private boolean goalReachable = true;
+    /** Whether its last move ended short of where it was sent — see {@link #stoppedShort}. */
+    private boolean stoppedShort;
+    /** Whether a route that stopped short has had its one fresh look from where it ended. */
+    private boolean lookedAgain;
 
     public MoveUpdate(GameObject owner, Data data) {
         super(owner);
@@ -83,10 +89,21 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
      * Order the unit to move to {@code destination}, routing around terrain via
      * the world's pathfinder. Falls back to a straight line when there is no
      * world or no navigation grid.
+     *
+     * <p>Somewhere it cannot reach, it goes as near as it can instead of standing
+     * where it is — the reference game's pathfinder does the same — and says so
+     * once it gets there: {@link #stoppedShort}.
      */
     public void moveTo(Coord3D destination) {
         this.destination = destination;
+        this.stoppedShort = false;
+        this.lookedAgain = false;
         planRoute();
+        if (!isMoving() && !goalReachable) {
+            // Nowhere nearer than where it stands: that is already as near as it gets.
+            lookedAgain = true;
+            stoppedShort = true;
+        }
     }
 
     /** Work out the way to {@link #destination} from wherever the owner stands now. */
@@ -94,15 +111,54 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         var world = getOwner().getWorld();
         if (world == null) {
             this.waypoints = List.of(destination);
+            this.goalReachable = true;
         } else {
             // Asked for this owner, so the route allows for its width and comes
-            // back straightened rather than as a walk of cell centres.
+            // back straightened rather than as a walk of cell centres — and, where
+            // there is no way there, as a route to the nearest place there is one.
             var path = world.findPath(getOwner(), destination);
-            this.waypoints = path.isEmpty() ? List.of() : path.getWaypoints();
+            this.waypoints = path.getWaypoints();
+            this.goalReachable = path.reachesGoal();
             this.navigationVersion = world.getNavigationVersion();
         }
         this.waypointIndex = 0;
         resetProgress();
+    }
+
+    /**
+     * It has walked its route to the end. For a route that stops short of where it was sent, that is as near
+     * as it gets — after one fresh look from where it now stands, which is what takes a mover the rest of the
+     * way once it has stepped out of a wall it was standing in, or a gate has opened.
+     */
+    private void routeWalked() {
+        if (goalReachable || destination == null) {
+            return; // arrived
+        }
+        if (!lookedAgain) {
+            lookedAgain = true;
+            planRoute();
+            if (isMoving()) {
+                return;
+            }
+        }
+        stoppedShort = true;
+    }
+
+    /**
+     * Whether its last move ended somewhere other than where it was sent: there was no way there and it went
+     * as near as it could, or it stopped getting any nearer. What tells an errand "got as close as it could"
+     * from "arrived". False while it is moving, after it arrives, and after an order to stop.
+     */
+    public boolean stoppedShort() {
+        return stoppedShort;
+    }
+
+    /**
+     * Whether the route it is following ends where it was sent; false when there is no way there and it is
+     * going as near as it can instead.
+     */
+    public boolean isGoalReachable() {
+        return goalReachable;
     }
 
     /** Cancel any current move. */
@@ -110,6 +166,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         this.waypoints = List.of();
         this.waypointIndex = 0;
         this.destination = null;
+        this.stoppedShort = false;
         resetProgress();
     }
 
@@ -141,7 +198,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         if (routeIsStale(owner)) {
             planRoute(); // something was built or destroyed across the way — think again
             if (!isMoving()) {
-                return; // no way through any more
+                routeWalked(); // no way nearer from here
+                return;
             }
         }
 
@@ -176,6 +234,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
         if (madeNoProgress(distance)) {
             stop(); // as close as it is ever going to get — stop rather than circle forever
+            stoppedShort = true;
             return;
         }
 
@@ -188,6 +247,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
                 owner.setPosition(onGround(owner, target));
                 waypointIndex++; // advance to the next leg (or finish the path)
                 resetProgress();
+                if (!isMoving()) {
+                    routeWalked();
+                }
             }
             return;
         }
