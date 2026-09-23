@@ -5,6 +5,37 @@ when it does, this page says exactly what to change and how.
 
 ## 0.6.0
 
+### The binder works out what a record is once
+
+`Binder` asked reflection the same questions for every block — a record's components, their generic types,
+the constructor — and looked up every scalar type's `of(String)` by throwing twice when it had none. Both are
+now kept per class in a `ClassValue`. Measured on 2400 blocks of real templates, parse and bind together:
+**~580 ms → ~60 ms** warm, 1180 → 210 cold. Every record, every error message and every order are what they
+were.
+
+### House colour
+
+`Visuals.houseColour(prefix)` names the meshes that take their owner's colour — `HOUSECOLOR01` and the like,
+which RTS art already marks by name. The client multiplies the owner's colour (`game.getColor`) over the
+mesh's own colour and picture, ambient included, so the shading painted into it survives. Painted when a
+unit arrives and again when its model is swapped for a condition. The engine names no prefix; a game that
+names none is drawn as before.
+
+### The sun belongs to the world
+
+`Visuals.sunlight(...)` may now be said after launch, when a map is chosen, and it lights the next world
+built. It used to be read once when the application was made, so every match was lit by one sun. A game
+that sets it once before launch sees no difference.
+
+### A match reads what it can draw
+
+`DukeGame.boot()` assembles the world without stepping a frame, and `templatesThisMatchCanDraw()` reads off
+it what stands there and everything those can produce, through `ProductionUpdate`. The art plan is that set
+when a match was chosen — measured: 876 models (70 MB) down to the 63 (3 MB) the match can ever draw — and
+everything the game registered when none was, as before. Sound cues made for a template (`died.Rifleman`)
+follow it. Warming is a time budget of half a frame rather than one model a frame. A look's models for its
+conditions are now planned and warmed too.
+
 ### A command bar
 
 There was no way to hand the client a set of orders. A dungeon's `HeroPanel` reads its skills out of a
