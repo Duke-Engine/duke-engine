@@ -138,7 +138,7 @@ class ThemedLookTest {
     @Test
     void anotherKitBuildsAnotherWorld() {
         var root = new Node("terrain");
-        var terrain = new TerrainScene(root, colour -> null, true,
+        var terrain = new TerrainScene(root, (colour, texture) -> null, true,
                 kit("stone.obj", "stonewall.obj"), new Stub());
         var grid = MapLoader.fromText(ROOM);
 
@@ -155,7 +155,7 @@ class ThemedLookTest {
     @Test
     void noKitFallsBackToTheGamesOwn() {
         var root = new Node("terrain");
-        var terrain = new TerrainScene(root, colour -> null, true,
+        var terrain = new TerrainScene(root, (colour, texture) -> null, true,
                 kit("stone.obj", "stonewall.obj"), new Stub());
 
         terrain.rebuild(MapLoader.fromText(ROOM), null);
@@ -178,7 +178,7 @@ class ThemedLookTest {
         var root = new Node("terrain");
         var twoAndFour = Tileset.create().floor("floor.obj").wall("wall.obj")
                 .tileSize(2f).wallTileSize(4f).wallHeight(4f);
-        var terrain = new TerrainScene(root, colour -> null, true, twoAndFour, new Stub());
+        var terrain = new TerrainScene(root, (colour, texture) -> null, true, twoAndFour, new Stub());
         var grid = MapLoader.fromText(ROOM);
 
         terrain.rebuild(grid);
@@ -199,7 +199,7 @@ class ThemedLookTest {
         var root = new Node("terrain");
         var sunken = Tileset.create().floor("floor.obj").wall("wall.obj")
                 .tileSize(2f).wallHeight(2f).wallLift(1f);
-        var terrain = new TerrainScene(root, colour -> null, true, sunken, new Stub());
+        var terrain = new TerrainScene(root, (colour, texture) -> null, true, sunken, new Stub());
         var grid = MapLoader.fromText(ROOM);
 
         terrain.rebuild(grid);
@@ -227,9 +227,9 @@ class ThemedLookTest {
         var grid = MapLoader.fromText(ROOM);
 
         var shiftedRoot = new Node("shifted");
-        new TerrainScene(shiftedRoot, colour -> null, true, shifted, new Stub()).rebuild(grid);
+        new TerrainScene(shiftedRoot, (colour, texture) -> null, true, shifted, new Stub()).rebuild(grid);
         var plainRoot = new Node("plain");
-        new TerrainScene(plainRoot, colour -> null, true, plain, new Stub()).rebuild(grid);
+        new TerrainScene(plainRoot, (colour, texture) -> null, true, plain, new Stub()).rebuild(grid);
 
         // Every wall moved, and no two of them the same way — which is what
         // "along its own facing" means when the room has four sides.

@@ -9,7 +9,6 @@ import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Quad;
-import java.util.function.Function;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.pathfind.PathGrid;
 
@@ -56,7 +55,7 @@ final class TerrainScene {
     private static final float BLOCK_HALF_HEIGHT = 3f;
 
     private final Node root;
-    private final Function<ColorRGBA, Material> material;
+    private final Surfaces material;
     private final boolean discovery;
 
     /**
@@ -84,15 +83,15 @@ final class TerrainScene {
     private Geometry[] rocks = new Geometry[0];
     private int cellsWide;
 
-    TerrainScene(Node root, Function<ColorRGBA, Material> material) {
+    TerrainScene(Node root, Surfaces material) {
         this(root, material, false);
     }
 
-    TerrainScene(Node root, Function<ColorRGBA, Material> material, boolean discovery) {
+    TerrainScene(Node root, Surfaces material, boolean discovery) {
         this(root, material, discovery, null, null);
     }
 
-    TerrainScene(Node root, Function<ColorRGBA, Material> material, boolean discovery,
+    TerrainScene(Node root, Surfaces material, boolean discovery,
             Tileset tileset, TileSource tiles) {
         this.root = root;
         this.material = material;
@@ -124,6 +123,19 @@ final class TerrainScene {
      * started with. A game that never named a kit still gets blocks.
      */
     void rebuild(PathGrid grid, Tileset kit) {
+        rebuild(grid, kit, null);
+    }
+
+    /**
+     * Lay out {@code grid} from {@code kit}, painted with {@code paint} where the map carries any.
+     *
+     * <p><b>A kit beats paint.</b> A kit's floors are models with a look of their own — a dungeon is built
+     * out of them and its rock, its stairs and the lids over them all belong to the same set — and painting
+     * over that would leave a floor drawn twice at the same height. Paint is for the other kind of map: an
+     * outdoor field with no floor models at all, where the ground was a single coloured quad and now is not.
+     * A map with both is drawn from the kit, and the paint is ignored rather than argued about.
+     */
+    void rebuild(PathGrid grid, Tileset kit, GroundPaint paint) {
         this.tileset = kit != null && kit.isUsable() && tiles != null ? kit : defaultTileset;
         root.detachAllChildren();
         cellNodes = new Node[0];
@@ -135,11 +147,15 @@ final class TerrainScene {
         float worldW = grid == null ? DEFAULT_WIDTH : grid.getWidth() * grid.getCellSize();
         float worldH = grid == null ? DEFAULT_HEIGHT : grid.getHeight() * grid.getCellSize();
 
-        var plane = new Geometry("ground", new Quad(worldW, worldH));
-        plane.setMaterial(material.apply(GROUND));
-        plane.rotate(-FastMath.HALF_PI, 0, 0);
-        plane.setLocalTranslation(0, 0, worldH);
-        root.attachChild(plane);
+        if (grid != null && paint != null) {
+            paintGround(grid, paint);
+        } else {
+            var plane = new Geometry("ground", new Quad(worldW, worldH));
+            plane.setMaterial(material.of(GROUND, null));
+            plane.rotate(-FastMath.HALF_PI, 0, 0);
+            plane.setLocalTranslation(0, 0, worldH);
+            root.attachChild(plane);
+        }
 
         if (grid == null) {
             rocks = new Geometry[0];
@@ -149,8 +165,8 @@ final class TerrainScene {
         float cell = grid.getCellSize();
         cellsWide = grid.getWidth();
         rocks = discovery ? new Geometry[grid.getWidth() * grid.getHeight()] : new Geometry[0];
-        var stone = material.apply(ROCK);
-        var raised = material.apply(GROUND);
+        var stone = material.of(ROCK, null);
+        var raised = material.of(GROUND, null);
         for (int cy = 0; cy < grid.getHeight(); cy++) {
             for (int cx = 0; cx < grid.getWidth(); cx++) {
                 if (!grid.isBlocked(cx, cy)) {
@@ -180,6 +196,89 @@ final class TerrainScene {
                 }
             }
         }
+    }
+
+    /**
+     * The ground as the map painted it: one mesh a surface, every cell of it lifted onto the relief.
+     *
+     * <p><b>One geometry a palette entry, not a cell.</b> A converted Command &amp; Conquer map is sixty
+     * thousand cells and a dozen pictures. Gathered, that is a dozen meshes and a dozen materials; a
+     * geometry a cell would be sixty thousand of each, and a scene graph that size is not slow to draw so
+     * much as slow to walk, which the fog does every frame.
+     *
+     * <p><b>The texture coordinates run across the world, not across a cell.</b> This is the whole
+     * difference between ground and a chequerboard: a picture laid 0..1 inside every cell shows the whole
+     * of itself sixty thousand times and its own edges draw the grid. So {@code u} is the world position
+     * divided by how much ground one copy covers — which the map says, per entry, because one game's road
+     * repeats every two cells and its grass every ten, and a number in the engine could only ever be wrong
+     * for one of them.
+     *
+     * <p>Corners are not shared between cells. Two cells of the same surface meet at the same position with
+     * the same texture coordinate, so nothing shows; and not sharing is what lets each cell carry the flat
+     * normal of its own slope, which is the look this client's art is drawn for.
+     */
+    private void paintGround(PathGrid grid, GroundPaint paint) {
+        float cell = grid.getCellSize();
+        int width = grid.getWidth();
+        for (var patch : paint.patches(width, grid.getHeight())) {
+            float span = patch.coverage() * cell;
+            var positions = com.jme3.util.BufferUtils.createFloatBuffer(patch.cells().length * 12);
+            var normals = com.jme3.util.BufferUtils.createFloatBuffer(patch.cells().length * 12);
+            var uvs = com.jme3.util.BufferUtils.createFloatBuffer(patch.cells().length * 8);
+            var indices = com.jme3.util.BufferUtils.createIntBuffer(patch.cells().length * 6);
+            int vertex = 0;
+            for (var at : patch.cells()) {
+                int cx = at % width;
+                int cy = at / width;
+                float x0 = cx * cell;
+                float x1 = x0 + cell;
+                float z0 = cy * cell;
+                float z1 = z0 + cell;
+                float h00 = groundAt(grid, x0, z0);
+                float h10 = groundAt(grid, x1, z0);
+                float h11 = groundAt(grid, x1, z1);
+                float h01 = groundAt(grid, x0, z1);
+                // The slope of this cell, from the two diagonals of its own corners: flat where the ground
+                // is flat, and tilted into the sun where it is not.
+                var normal = new Vector3f(x1 - x0, h10 - h00, 0f)
+                        .cross(new Vector3f(0f, h01 - h00, z1 - z0)).negateLocal().normalizeLocal();
+                positions.put(x0).put(h00).put(z0).put(x1).put(h10).put(z0)
+                        .put(x1).put(h11).put(z1).put(x0).put(h01).put(z1);
+                for (int corner = 0; corner < 4; corner++) {
+                    normals.put(normal.x).put(normal.y).put(normal.z);
+                }
+                uvs.put(x0 / span).put(z0 / span).put(x1 / span).put(z0 / span)
+                        .put(x1 / span).put(z1 / span).put(x0 / span).put(z1 / span);
+                // Wound so the face looks up: 0,3,1 and 1,3,2 give a normal along +y for a cell laid out
+                // +x to the right and +z away, which is how a grid's cells are laid.
+                indices.put(vertex).put(vertex + 3).put(vertex + 1)
+                        .put(vertex + 1).put(vertex + 3).put(vertex + 2);
+                vertex += 4;
+            }
+            var mesh = new com.jme3.scene.Mesh();
+            mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Position, 3, positions);
+            mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Normal, 3, normals);
+            mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord, 2, uvs);
+            mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Index, 3, indices);
+            mesh.updateBound();
+            var ground = new Geometry("painted", mesh);
+            ground.setMaterial(material.of(patch.surface().colour(), patch.surface().texture()));
+            root.attachChild(ground);
+        }
+    }
+
+    /**
+     * How high the painted ground stands at a place: the relief, and zero where the map has none.
+     *
+     * <p>The same number the pathfinder reads, asked the same way, so the ground a unit walks on and the
+     * ground drawn under it cannot drift apart. Two cells sharing a corner ask about the same world
+     * position and get the same answer, so the meshes meet without a crack even though they share no vertex.
+     *
+     * <p>Storeys are not in it. A map built in storeys is a map built from a kit — see {@link #rebuild} —
+     * and a painted map is the flat outdoor sort, where a storey is a thing it does not have.
+     */
+    private static float groundAt(PathGrid grid, float x, float z) {
+        return grid.reliefHeight(new Coord3D(x, z, 0f));
     }
 
     /** The tallest floor touching a cell, so rock and lids rise with the rooms. */
@@ -699,7 +798,7 @@ final class TerrainScene {
         if (storey <= 0f) {
             return;
         }
-        var stone = material.apply(ROCK);
+        var stone = material.of(ROCK, null);
         var node = new Node("steps");
         float depth = cell / BUILT_STEPS;
         for (int i = 0; i < BUILT_STEPS; i++) {

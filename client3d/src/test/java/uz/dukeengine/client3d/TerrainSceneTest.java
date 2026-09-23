@@ -23,7 +23,7 @@ import uz.dukeengine.core.pathfind.MapLoader;
 class TerrainSceneTest {
 
     private static TerrainScene scene(Node root) {
-        return new TerrainScene(root, color -> null);
+        return new TerrainScene(root, (colour, texture) -> null);
     }
 
     /** Three cells of stone in a five-wide room. */
@@ -132,7 +132,7 @@ class TerrainSceneTest {
             """;
 
     private static TerrainScene discovering(Node root) {
-        return new TerrainScene(root, color -> null, true);
+        return new TerrainScene(root, (colour, texture) -> null, true);
     }
 
     /**
@@ -295,14 +295,14 @@ class TerrainSceneTest {
     @Test
     void theTilesRiseWithTheReliefUnderThem() {
         var flatRoot = new Node("terrain");
-        new TerrainScene(flatRoot, color -> null, true, kit(), new SquareTiles()).rebuild(MapLoader.fromText(ROOM));
+        new TerrainScene(flatRoot, (colour, texture) -> null, true, kit(), new SquareTiles()).rebuild(MapLoader.fromText(ROOM));
 
         var raised = MapLoader.fromText(ROOM);
         var steps = new int[6 * 6];
         java.util.Arrays.fill(steps, 8);
         raised.setRelief(new uz.dukeengine.core.pathfind.HeightMap(6, 6, steps));
         var raisedRoot = new Node("terrain");
-        new TerrainScene(raisedRoot, color -> null, true, kit(), new SquareTiles()).rebuild(raised);
+        new TerrainScene(raisedRoot, (colour, texture) -> null, true, kit(), new SquareTiles()).rebuild(raised);
 
         assertEquals(highestCorner(flatRoot) + 5f, highestCorner(raisedRoot), 0.001f);
     }
@@ -341,7 +341,7 @@ class TerrainSceneTest {
     @Test
     void aTiledWorldIsBuiltOfPiecesAndHasNoGroundPlane() {
         var root = new Node("terrain");
-        var terrain = new TerrainScene(root, color -> null, true, kit(), new StubTiles());
+        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
 
         terrain.rebuild(MapLoader.fromText(ROOM));
 
@@ -364,7 +364,7 @@ class TerrainSceneTest {
     @Test
     void theRockIsRoofedAtTheTopOfTheWalls() {
         var root = new Node("terrain");
-        var terrain = new TerrainScene(root, color -> null, true, kit(), new StubTiles());
+        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
         var grid = MapLoader.fromText(ROOM);
 
         terrain.rebuild(grid);
@@ -385,7 +385,7 @@ class TerrainSceneTest {
     @Test
     void rebuildingReplacesATiledWorld() {
         var root = new Node("terrain");
-        var terrain = new TerrainScene(root, color -> null, true, kit(), new StubTiles());
+        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
 
         terrain.rebuild(MapLoader.fromText(ROOM));
         int first = pieces(root, "floor").size();
@@ -402,7 +402,7 @@ class TerrainSceneTest {
     void aKitWithoutEveryPieceStillBuilds() {
         var root = new Node("terrain");
         var partial = Tileset.create().floor("floor").tileSize(4f);
-        var terrain = new TerrainScene(root, color -> null, true, partial, new StubTiles());
+        var terrain = new TerrainScene(root, (colour, texture) -> null, true, partial, new StubTiles());
 
         terrain.rebuild(MapLoader.fromText(ROOM));
 
@@ -416,7 +416,7 @@ class TerrainSceneTest {
     void anUndiscoveredTileIsNotDrawn() {
         var root = new Node("terrain");
         var grid = MapLoader.fromText(ROOM);
-        var terrain = new TerrainScene(root, color -> null, true, kit(), new StubTiles());
+        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
         terrain.rebuild(grid);
 
         terrain.applyDiscovery(new Discovery(grid));
@@ -438,7 +438,7 @@ class TerrainSceneTest {
     void aWallAtTheEdgeOfTheLightGoesDimRatherThanOut() {
         var root = new Node("terrain");
         var grid = MapLoader.fromText(WIDE);
-        var terrain = new TerrainScene(root, color -> null, true, kit(), new StubTiles());
+        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
         terrain.rebuild(grid);
         var seen = new Discovery(grid);
 
@@ -469,7 +469,7 @@ class TerrainSceneTest {
     void aPieceIsCulledForWhereItStands() {
         var root = new Node("terrain");
         var grid = MapLoader.fromText(WIDE);
-        var terrain = new TerrainScene(root, color -> null, true, kit(), new StubTiles());
+        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles());
         terrain.rebuild(grid);
         var seen = new Discovery(grid);
 
@@ -542,7 +542,7 @@ class TerrainSceneTest {
     private static java.util.List<com.jme3.scene.Spatial> wallsOf(Tileset kit,
             uz.dukeengine.core.pathfind.PathGrid grid) {
         var root = new Node("terrain");
-        new TerrainScene(root, color -> null, true, kit, new StubTiles()).rebuild(grid);
+        new TerrainScene(root, (colour, texture) -> null, true, kit, new StubTiles()).rebuild(grid);
         return pieces(root, "wall");
     }
 
@@ -643,7 +643,7 @@ class TerrainSceneTest {
         var grid = MapLoader.fromText(ROOM);
         float cell = grid.getCellSize();
         var root = new Node("terrain");
-        new TerrainScene(root, color -> null, true,
+        new TerrainScene(root, (colour, texture) -> null, true,
                 kit().wallClump(3).wallSpread(0.3f).wallVariety(0.5f), new StubTiles())
                 .rebuild(grid);
 
@@ -717,7 +717,7 @@ class TerrainSceneTest {
     void aStairIsScaledByWhatItClimbsRatherThanByHowTallItsModelBoxes() {
         var grid = twoStoreys();
         var root = new Node("terrain");
-        new TerrainScene(root, color -> null, true, kit().stairs("stairs"), new RailedStair())
+        new TerrainScene(root, (colour, texture) -> null, true, kit().stairs("stairs"), new RailedStair())
                 .rebuild(grid);
 
         var stairs = pieces(root, "stairs");
@@ -741,7 +741,7 @@ class TerrainSceneTest {
         var grid = twoStoreys();
         float cell = grid.getCellSize();
         var root = new Node("terrain");
-        new TerrainScene(root, color -> null, true, kit().stairs("stairs"), new RailedStair())
+        new TerrainScene(root, (colour, texture) -> null, true, kit().stairs("stairs"), new RailedStair())
                 .rebuild(grid);
         root.updateGeometricState();
 
@@ -790,7 +790,7 @@ class TerrainSceneTest {
     @Test
     void theLidOverTheRockIsAskedForInADifferentColourFromTheFloor() {
         var watching = new ColourWatchingTiles();
-        new TerrainScene(new Node("terrain"), color -> null, true,
+        new TerrainScene(new Node("terrain"), (colour, texture) -> null, true,
                 kit().capTint(0x808080), watching).rebuild(MapLoader.fromText(ROOM));
 
         assertEquals(java.util.Set.of(0xFFFFFF, 0x808080), watching.asked.get("floor"),
@@ -802,7 +802,7 @@ class TerrainSceneTest {
     void andEachStoreyIsAskedForInAColourOfItsOwn() {
         var grid = twoStoreys();
         var watching = new ColourWatchingTiles();
-        new TerrainScene(new Node("terrain"), color -> null, true,
+        new TerrainScene(new Node("terrain"), (colour, texture) -> null, true,
                 kit().storeyShade(1.2f), watching).rebuild(grid);
 
         assertTrue(watching.asked.get("floor").size() > 1,
@@ -814,7 +814,7 @@ class TerrainSceneTest {
     @Test
     void andAKitThatAsksForNeitherIsDrawnInOneColourAsBefore() {
         var watching = new ColourWatchingTiles();
-        new TerrainScene(new Node("terrain"), color -> null, true, kit(), watching)
+        new TerrainScene(new Node("terrain"), (colour, texture) -> null, true, kit(), watching)
                 .rebuild(twoStoreys());
 
         for (var entry : watching.asked.entrySet()) {
@@ -877,7 +877,7 @@ class TerrainSceneTest {
         MapLoader.levels(grid, TOWER);
         grid.setLevelHeight(10f);
         var root = new Node("terrain");
-        new TerrainScene(root, color -> null, true, of, new StubTilesWithFace()).rebuild(grid);
+        new TerrainScene(root, (colour, texture) -> null, true, of, new StubTilesWithFace()).rebuild(grid);
         return pieces(root, "face");
     }
 
@@ -971,7 +971,7 @@ class TerrainSceneTest {
         MapLoader.levels(grid, ROCK_STEP);
         grid.setLevelHeight(10f);
         var root = new Node("terrain");
-        new TerrainScene(root, color -> null, true, forestLike().rockFace("face"),
+        new TerrainScene(root, (colour, texture) -> null, true, forestLike().rockFace("face"),
                 new StubTilesWithFace()).rebuild(grid);
         float cell = grid.getCellSize();
 

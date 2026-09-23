@@ -446,7 +446,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         // Needs the locators above, so it cannot be built with the app itself.
         terrain = new TerrainScene(terrainNode,
-                fogMap == null ? this::lit : this::foggedTerrain,
+                this::ground,
                 visuals.getDiscoveryTemplate() != null, visuals.getTiles(), new KitTiles());
 
         rootNode.addLight(new DirectionalLight(sunDirection, sunColour));
@@ -2223,7 +2223,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (skillEffects != null) {
             skillEffects.clear();
         }
-        terrain.rebuild(builtFrom, currentKit);
+        terrain.rebuild(builtFrom, currentKit, GroundPaint.of(game.getMapRecord()));
         if (visuals.getDiscoveryTemplate() == null) {
             return;
         }
@@ -4946,6 +4946,50 @@ final class DukeRtsApp extends SimpleApplication {
         material.setColor("Diffuse", color);
         material.setColor("Ambient", color.mult(0.7f));
         return material;
+    }
+
+    /**
+     * A material for a piece of ground: the colour it is painted, and the picture the map named for it.
+     *
+     * <p>The picture is loaded by the name the map wrote and nothing else — no folder put in front of it,
+     * no suffix taken off. Where it will not load, that is said once and the ground is drawn in its colour,
+     * because a map with a typo in one palette entry should be a map with one grey field in it rather than
+     * a black screen.
+     *
+     * <p>Set to repeat, because the ground's texture coordinates run across the world rather than 0..1
+     * inside a cell — see {@code TerrainScene.paintGround}. Clamped, one cell would show the whole picture
+     * and every cell after it the picture's last column, which is a map drawn in stripes.
+     */
+    private Material ground(ColorRGBA colour, String texture) {
+        var picture = texture == null ? null : groundTexture(texture);
+        if (picture == null) {
+            return fogMap == null ? lit(colour) : foggedTerrain(colour);
+        }
+        if (fogMap == null) {
+            var material = lit(colour);
+            material.setTexture("DiffuseMap", picture);
+            return material;
+        }
+        return fogged(colour, ambientColour.mult(PLAIN_AMBIENT), picture);
+    }
+
+    private final java.util.Map<String, com.jme3.texture.Texture> groundTextures =
+            new java.util.HashMap<>();
+
+    /** The picture a palette entry names, loaded once and set to repeat, or null with a word about why. */
+    private com.jme3.texture.Texture groundTexture(String path) {
+        return groundTextures.computeIfAbsent(path, named -> {
+            try {
+                var texture = assetManager.loadTexture(named);
+                texture.setWrap(com.jme3.texture.Texture.WrapMode.Repeat);
+                return texture;
+            } catch (RuntimeException notThere) {
+                LOG.log(java.util.logging.Level.WARNING,
+                        "the ground names a picture that will not load: {0} ({1})",
+                        new Object[] {named, notThere.getMessage()});
+                return null;
+            }
+        });
     }
 
     /**

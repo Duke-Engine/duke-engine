@@ -79,6 +79,8 @@ public final class DukeGame {
     private final List<Consumer<uz.dukeengine.core.module.ModuleFactory>> moduleCustomizers = new ArrayList<>();
     private final List<Consumer<ThingTemplateLoader>> templateCustomizers = new ArrayList<>();
     private PathGrid terrain;
+    /** The map record {@code terrain} was laid from, for a client that wants more of the map than its cells. */
+    private Object mapRecord;
     private WorldTemplate world;
     private GamePlayer localPlayer;
     private int windowWidth = 1120;
@@ -362,10 +364,29 @@ public final class DukeGame {
 
     /** Swap in the chosen map's terrain during skirmish assembly. */
     public void applyMapTerrain(PathGrid grid) {
+        applyMapTerrain(grid, null);
+    }
+
+    /**
+     * The same, keeping the map's own record beside the grid it was laid from.
+     *
+     * <p>A grid is what the simulation needs and the whole of it: cells, storeys, relief. A client needs
+     * more — what the ground is painted with, where the water is — and those are questions core asks of the
+     * record ({@code Painted}, {@code Zoned}) rather than of the grid. Kept as {@code Object} because the
+     * record is the game's own and nothing here may know its type, which is the same bargain
+     * {@code MapTerrain.of} strikes.
+     */
+    public void applyMapTerrain(PathGrid grid, Object map) {
         this.terrain = grid;
+        this.mapRecord = map;
         if (logic != null) {
             logic.setPathGrid(grid);
         }
+    }
+
+    /** The record the current terrain was laid from, or null where the game never handed one over. */
+    public Object getMapRecord() {
+        return mapRecord;
     }
 
     /** Place a neutral object (resource pile, critter) — owner is nobody. */

@@ -70,7 +70,12 @@ public final class MapTerrain {
             return List.of();
         }
         try {
-            var read = component.getAccessor().invoke(map);
+            // As the Binder reads a record's components. A game's map record need not be public to be a
+            // map: it is named by its own file and built by reflection, and nothing outside its game ever
+            // holds one by its type.
+            var accessor = component.getAccessor();
+            accessor.setAccessible(true);
+            var read = accessor.invoke(map);
             if (!(read instanceof List<?> rows)) {
                 throw new IllegalArgumentException(named(map) + "'s " + what + " is written as rows of text");
             }
