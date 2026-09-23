@@ -21,7 +21,8 @@ public final class RtsModules {
             WeaponUpdate.Data.class, PursueUpdate.Data.class, ProductionUpdate.Data.class, ExperienceModule.Data.class,
             AutoHealUpdate.Data.class, StatusUpdate.Data.class, PowerModule.Data.class,
             CapacityGate.Data.class, SpecialPowerModule.Data.class, ContainModule.Data.class,
-            SupplyModule.Data.class, SupplyDepot.Data.class, HarvestUpdate.Data.class);
+            SupplyModule.Data.class, SupplyDepot.Data.class, HarvestUpdate.Data.class, CrushUpdate.Data.class,
+            Crushable.Data.class);
 
     private RtsModules() {
     }
@@ -47,6 +48,8 @@ public final class RtsModules {
                 .register(ContainModule.Data.class, ContainModule::new)
                 .register(SupplyModule.Data.class, SupplyModule::new)
                 .register(SupplyDepot.Data.class, SupplyDepot::new)
-                .register(HarvestUpdate.Data.class, HarvestUpdate::new);
+                .register(HarvestUpdate.Data.class, HarvestUpdate::new)
+                .register(CrushUpdate.Data.class, CrushUpdate::new)
+                .register(Crushable.Data.class, Crushable::new);
     }
 }

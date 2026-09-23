@@ -80,6 +80,8 @@ public final class Visuals {
         String attackAnim;
         String hurtAnim;
         String dieAnim;
+        /** Its clips for particular deaths, by the death type's name; see {@link #die(String, String)}. */
+        final java.util.Map<String, String> dieAnims = new java.util.LinkedHashMap<>();
         /** Clips it needs for something other than standing, walking and dying. */
         final java.util.List<String> otherAnims = new java.util.ArrayList<>();
         String fireSound;
@@ -414,6 +416,23 @@ public final class Visuals {
         public UnitVisual die(String animName) {
             this.dieAnim = animName;
             return this;
+        }
+
+        /**
+         * What it plays as it dies this way — {@code die("EXPLODED", "Die_Thrown")} — instead of the plain
+         * {@link #die(String)} clip, which is what every other death still plays. The reference's soldiers fall
+         * over when shot, are thrown when shelled and burn when burned, and all three are one model.
+         */
+        public UnitVisual die(String deathType, String animName) {
+            if (deathType != null && animName != null) {
+                dieAnims.put(deathType.toUpperCase(java.util.Locale.ROOT), animName);
+            }
+            return this;
+        }
+
+        /** The clip it dies by for this death: the one given for it, or the plain one. */
+        String dieAnimFor(uz.dukeengine.core.module.DeathType deathType) {
+            return deathType == null ? dieAnim : dieAnims.getOrDefault(deathType.name(), dieAnim);
         }
 
         /**
@@ -1186,9 +1205,20 @@ public final class Visuals {
         return this;
     }
 
-    /** The look given to a moment, or {@code null} for one given none. */
+    /**
+     * The look given to a moment, or, where none was, to the name it falls back to — the one without its last
+     * dotted part, as a sound's cue does: {@code died.Soldier.exploded}, then {@code died.Soldier}, then {@code
+     * died}. {@code null} for a moment nothing it falls back to was given a look.
+     */
     public MomentLook getMoment(String name) {
-        return name == null ? null : moments.get(name);
+        for (var key = name; key != null; key = key.lastIndexOf('.') < 0 ? null
+                : key.substring(0, key.lastIndexOf('.'))) {
+            var look = moments.get(key);
+            if (look != null) {
+                return look;
+            }
+        }
+        return null;
     }
 
     // ---- the portrait ----

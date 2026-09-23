@@ -12,9 +12,21 @@ package uz.dukeengine.core.module;
  * posted for the same death. Keep them apart: a die module changes the
  * simulation and must be deterministic; an event only tells a renderer
  * something happened and never affects the outcome.
+ *
+ * <p>It is told how the death came — the death type the killing blow dealt and
+ * whose blow it was — because that is what the reference's die modules decide
+ * by: in the RTS this was measured in, 746 of them answer every death but being
+ * run over, 148 only burning, and a wreck is left for a tank shelled and not for
+ * one crushed.
  */
 public interface DieModule {
 
-    /** Called once, when the object's death is final. */
-    void onDie();
+    /** Called once, when the object's death is final, told how it came. */
+    default void onDie(Death death) {
+        onDie();
+    }
+
+    /** The form every die module was written against before a death said how it came. */
+    default void onDie() {
+    }
 }

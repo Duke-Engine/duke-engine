@@ -2,6 +2,7 @@ package uz.dukeengine.rts.module;
 
 import java.util.List;
 import uz.dukeengine.core.module.DamageType;
+import uz.dukeengine.core.module.DeathType;
 
 /**
  * A weapon, as a block of its own: what it deals, how far, how often and at what. Named, so the
@@ -16,13 +17,23 @@ import uz.dukeengine.core.module.DamageType;
  */
 public record Weapon(String name, float damage, float attackRange, int reloadFrames, int reloadFramesMax,
         DamageType damageType, float splashRadius, boolean attackOnTheMove, List<String> targets, int clipSize,
-        int clipReloadFrames, boolean autoReload) {
+        int clipReloadFrames, boolean autoReload, DeathType deathType) {
 
     /** What a block leaves out: plain damage, no splash, a shot taken on the move, at anything, no clip. */
-    static final Weapon DEFAULTS = new Weapon(null, 0f, 0f, 0, 0, DamageType.NORMAL, 0f, true, List.of(), 0, 0, true);
+    static final Weapon DEFAULTS = new Weapon(null, 0f, 0f, 0, 0, DamageType.NORMAL, 0f, true, List.of(), 0, 0, true,
+            DeathType.NORMAL);
 
     public Weapon {
         damageType = damageType == null ? DamageType.NORMAL : damageType;
+        deathType = deathType == null ? DeathType.NORMAL : deathType;
+    }
+
+    /** A weapon whose kills are plain deaths: every weapon from before a weapon said what death it deals. */
+    public Weapon(String name, float damage, float attackRange, int reloadFrames, int reloadFramesMax,
+            DamageType damageType, float splashRadius, boolean attackOnTheMove, List<String> targets, int clipSize,
+            int clipReloadFrames, boolean autoReload) {
+        this(name, damage, attackRange, reloadFrames, reloadFramesMax, damageType, splashRadius, attackOnTheMove,
+                targets, clipSize, clipReloadFrames, autoReload, DeathType.NORMAL);
         targets = targets == null ? List.of() : List.copyOf(targets);
     }
 
@@ -30,6 +41,6 @@ public record Weapon(String name, float damage, float attackRange, int reloadFra
     static Weapon of(WeaponUpdate.Data data) {
         return new Weapon(data.name(), data.damage(), data.attackRange(), data.reloadFrames(), data.reloadFramesMax(),
                 data.damageType(), data.splashRadius(), data.attackOnTheMove(), data.targets(), data.clipSize(),
-                data.clipReloadFrames(), data.autoReload());
+                data.clipReloadFrames(), data.autoReload(), data.deathType());
     }
 }

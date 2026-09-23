@@ -125,7 +125,8 @@ class WorldEventTest {
     void anUndrainedQueueStaysBounded() {
         var logic = newLogic(); // nothing is draining: a headless run
         for (int i = 0; i < 5000; i++) {
-            logic.post(new ObjectDied(i, new uz.dukeengine.core.thing.ObjectId(i), "Soldier", 1, Coord3D.ZERO));
+            logic.post(new ObjectDied(i, new uz.dukeengine.core.thing.ObjectId(i), "Soldier", 1, Coord3D.ZERO,
+                    null, null));
         }
 
         var events = logic.drainEvents();

@@ -9,6 +9,7 @@ import uz.dukeengine.core.event.WorldEvent;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.message.Command;
 import uz.dukeengine.core.message.MessageStream;
+import uz.dukeengine.core.module.Death;
 import uz.dukeengine.core.module.DieModule;
 import uz.dukeengine.core.module.ModuleFactory;
 import uz.dukeengine.core.partition.PartitionManager;
@@ -641,13 +642,14 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         // Announce and react only once the corpses are gone, so a die module that
         // spawns wreckage builds it in a world that no longer holds the body.
         for (var object : leaving) {
+            var death = object.isEffectivelyDead() ? object.getBody().getDeath() : Death.NORMAL;
             if (object.isEffectivelyDead()) {
                 post(new ObjectDied(frame, object.getId(), object.getTemplate().name(),
-                        object.getPlayerIndex(), object.getPosition()));
+                        object.getPlayerIndex(), object.getPosition(), death.type(), death.killer()));
             }
             for (var module : object.getModules()) {
                 if (module instanceof DieModule die) {
-                    die.onDie();
+                    die.onDie(death);
                 }
             }
         }

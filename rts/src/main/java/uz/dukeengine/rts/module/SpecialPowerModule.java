@@ -1,6 +1,9 @@
 package uz.dukeengine.rts.module;
 
 import uz.dukeengine.core.math.Coord3D;
+import uz.dukeengine.core.module.DamageType;
+import uz.dukeengine.core.module.Death;
+import uz.dukeengine.core.module.DeathType;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
@@ -63,7 +66,7 @@ public final class SpecialPowerModule extends UpdateModule {
                         && !candidate.isEffectivelyDead()
                         && world.getRelationship(ownerPlayer, candidate.getPlayerIndex()) == Relationship.ENEMIES);
         for (var victim : victims) {
-            victim.getBody().damage(damage);
+            victim.getBody().damage(damage, DamageType.NORMAL, new Death(DeathType.NORMAL, owner.getId()));
         }
         cooldown = rechargeFrames;
         return true;

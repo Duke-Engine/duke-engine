@@ -41,7 +41,7 @@ class WeaponSetsTest {
             new TargetRule(List.of(), false, List.of("GROUND")));
 
     private static Weapon weapon(String name, float damage, int reload, List<String> targets) {
-        return new Weapon(name, damage, 60f, reload, 0, DamageType.NORMAL, 0f, true, targets, 0, 0, true);
+        return new Weapon(name, damage, 60f, reload, 0, DamageType.NORMAL, 0f, true, targets, 0, 0, true, null);
     }
 
     private static final Weapon GUN = weapon("Gun", 10f, 5, List.of("GROUND"));
@@ -180,7 +180,7 @@ class WeaponSetsTest {
      */
     @Test
     void aConditionWordSwapsTheSetAndEachWeaponKeepsItsClip() {
-        var gun = new Weapon("Gun", 10f, 60f, 5, 0, DamageType.NORMAL, 0f, true, List.of(), 3, 90, true);
+        var gun = new Weapon("Gun", 10f, 60f, 5, 0, DamageType.NORMAL, 0f, true, List.of(), 3, 90, true, null);
         var bigGun = weapon("BigGun", 40f, 5, List.of());
         var scene = scene(WeaponUpdate.Data.sets(List.of(
                 new WeaponSet(List.of(), List.of(new WeaponSlot("Gun"))),
@@ -228,7 +228,7 @@ class WeaponSetsTest {
         assertNull(unnamed.fired().getFirst(), "a weapon with no name of its own says none");
 
         var named = scene(new WeaponUpdate.Data(10f, 60f, 5, DamageType.NORMAL, 0f, true, List.of(),
-                0, 0, 0, true, "Bow", List.of()));
+                0, 0, 0, true, "Bow", List.of(), null));
         named.enemy("Tank", 20f);
         named.run(1);
         assertEquals(List.of("Bow"), named.fired());

@@ -100,11 +100,20 @@ final class GameSounds {
      * relationship with the simulation. Two players watching the same replay may
      * hear different footsteps and still see the same world.
      */
+    /**
+     * What a death is called, for its sound and its look alike: {@code died.<template>.<death type>}, the type
+     * lower-cased — {@code died.Soldier.exploded} — which finds {@code died.Soldier} where the game named nothing
+     * for that death, and {@code died} where it named nothing for that template.
+     */
+    static String diedMoment(ObjectDied died) {
+        return "died." + died.templateName() + "." + died.deathType().name().toLowerCase(java.util.Locale.ROOT);
+    }
+
     void frame(WorldSnapshot snapshot, int localPlayer, float now) {
         var after = index(snapshot.units());
         for (var event : snapshot.events()) {
             if (event instanceof ObjectDied died) {
-                sounds.play("died." + died.templateName(), at(died.position()), now,
+                sounds.play(diedMoment(died), at(died.position()), now,
                         died.playerIndex() == localPlayer);
                 if (died.playerIndex() != localPlayer) {
                     sounds.play("vo.kill", now);

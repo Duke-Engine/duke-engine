@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.event.ObjectDied;
 import uz.dukeengine.core.event.WorldEvent;
 import uz.dukeengine.core.math.Coord3D;
+import uz.dukeengine.core.module.DeathType;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.view.UnitView;
 import uz.dukeengine.game.view.WorldSnapshot;
@@ -121,7 +122,8 @@ class RtsMomentsTest {
         noises.frame(frame(List.of(reactor)), ME, 0.1f);
         assertEquals(List.of("hum.ogg"), heard.looping, "started once, not once a frame");
 
-        noises.frame(frame(List.of(), new ObjectDied(2, new ObjectId(3), "Reactor", ME, new Coord3D(30f, 0f, 0f))),
+        noises.frame(frame(List.of(), new ObjectDied(2, new ObjectId(3), "Reactor", ME, new Coord3D(30f, 0f, 0f),
+                null, null)),
                 ME, 0.2f);
         assertEquals(List.of("hum.ogg"), heard.stopped);
     }
@@ -237,5 +239,38 @@ class RtsMomentsTest {
         noises.ordered("move", humvee, ME, 5f);
         assertEquals(List.of("yes.ogg"), heard.stopped, "the first answer cut off by the second");
         assertEquals(2, heard.played.size());
+    }
+
+    /** A death sounds by how it came: the shell's own cry where the game wrote one, the plain one where not. */
+    @Test
+    void aDeathPlaysTheCueForItsTypeAndFallsBackToThePlainOne() {
+        var heard = new Heard();
+        var bank = effect(effect(SoundBank.create(), "died.Soldier", "fall.ogg"),
+                "died.Soldier.exploded", "thrown.ogg").build();
+        var noises = noises(bank, heard);
+
+        noises.frame(frame(List.of(), died(4, DeathType.of("EXPLODED"))), ME, 0f);
+        noises.frame(frame(List.of(), died(5, DeathType.NORMAL)), ME, 1f);
+
+        assertEquals(List.of("thrown.ogg", "fall.ogg"), heard.played);
+    }
+
+    /** The look falls back the same way, and the corpse falls over by the clip for its death. */
+    @Test
+    void aDeathsLookAndClipFallBackToThePlainOnes() {
+        var visuals = Visuals.create()
+                .moment("died.Soldier", "blood", 1f)
+                .moment("died.Soldier.exploded", "gibs", 1f)
+                .unit("Soldier", look -> look.die("Die").die("exploded", "Die_Thrown"));
+
+        assertEquals("gibs", visuals.getMoment("died.Soldier.exploded").effect());
+        assertEquals("blood", visuals.getMoment("died.Soldier.burned").effect());
+        assertEquals(null, visuals.getMoment("died.Tank.exploded"), "nothing was given to a tank");
+        assertEquals("Die_Thrown", visuals.of("Soldier").dieAnimFor(DeathType.of("EXPLODED")));
+        assertEquals("Die", visuals.of("Soldier").dieAnimFor(DeathType.of("BURNED")));
+    }
+
+    private static ObjectDied died(int id, DeathType how) {
+        return new ObjectDied(2, new ObjectId(id), "Soldier", THEM, new Coord3D(30f, 0f, 0f), how, new ObjectId(1));
     }
 }

@@ -9,6 +9,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.DamageType;
+import uz.dukeengine.core.module.Death;
+import uz.dukeengine.core.module.DeathType;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
@@ -108,18 +110,21 @@ public final class WeaponUpdate extends UpdateModule {
      * @param weaponSets  the unit's weapons, set by set. Given, they are its weapons and the one written in
      *     place is not read; a unit none of whose sets fits holds its fire. None, the default, is the one
      *     weapon written in place, as before
+     * @param deathType  the death its killing blow deals — {@code DeathType = EXPLODED} — which the victim's
+     *     die modules are told and its client sounds and draws by. {@code NORMAL} by default
      */
     public record Data(float damage, float attackRange, int reloadFrames,
             DamageType damageType, float splashRadius,
             boolean attackOnTheMove, List<String> targets,
             int reloadFramesMax, int clipSize, int clipReloadFrames, boolean autoReload,
-            String name, List<WeaponSet> weaponSets) implements ModuleData {
+            String name, List<WeaponSet> weaponSets, DeathType deathType) implements ModuleData {
         /** What a block leaves out: plain damage, no splash, a shot taken on the move, at anything, no clip. */
         static final Data DEFAULTS = new Data(0f, 0f, 0, DamageType.NORMAL, 0f, true, List.of(),
-                0, 0, 0, true, null, List.of());
+                0, 0, 0, true, null, List.of(), DeathType.NORMAL);
 
         public Data {
             damageType = damageType == null ? DamageType.NORMAL : damageType;
+            deathType = deathType == null ? DeathType.NORMAL : deathType;
             targets = targets == null ? List.of() : List.copyOf(targets);
             weaponSets = weaponSets == null ? List.of() : List.copyOf(weaponSets);
         }
@@ -155,9 +160,18 @@ public final class WeaponUpdate extends UpdateModule {
                     reloadFramesMax, clipSize, clipReloadFrames, autoReload, null, List.of());
         }
 
+        public Data(float damage, float attackRange, int reloadFrames, DamageType damageType,
+                float splashRadius, boolean attackOnTheMove, List<String> targets,
+                int reloadFramesMax, int clipSize, int clipReloadFrames, boolean autoReload,
+                String name, List<WeaponSet> weaponSets) {
+            this(damage, attackRange, reloadFrames, damageType, splashRadius, attackOnTheMove, targets,
+                    reloadFramesMax, clipSize, clipReloadFrames, autoReload, name, weaponSets, DeathType.NORMAL);
+        }
+
         /** A unit whose weapons are these sets, with nothing written in place. */
         public static Data sets(List<WeaponSet> weaponSets) {
-            return new Data(0f, 0f, 0, DamageType.NORMAL, 0f, true, List.of(), 0, 0, 0, true, null, weaponSets);
+            return new Data(0f, 0f, 0, DamageType.NORMAL, 0f, true, List.of(), 0, 0, 0, true, null, weaponSets,
+                    DeathType.NORMAL);
         }
     }
 
@@ -360,7 +374,7 @@ public final class WeaponUpdate extends UpdateModule {
         // announced — but whether it lands now is the launcher's to decide.
         boolean inFlight = handOver(owner, victim, shot);
         if (!inFlight) {
-            victim.getBody().damage(shot.damage(), weapon.damageType()); // scaled by the victim's armor
+            victim.getBody().damage(shot.damage(), weapon.damageType(), blow(shot)); // scaled by its armour
         }
         chosen.clip().fired(world.random(), rateOfFire(owner));
         world.post(new WeaponFired(world.getFrame(), owner.getId(), victim.getId(),
@@ -393,9 +407,14 @@ public final class WeaponUpdate extends UpdateModule {
         var shooter = world.findObject(shot.shooter());
         var hit = victim == null || victim.isEffectivelyDead() || victim.getBody() == null ? null : victim;
         if (hit != null) {
-            hit.getBody().damage(shot.damage(), shot.weapon().damageType());
+            hit.getBody().damage(shot.damage(), shot.weapon().damageType(), blow(shot));
         }
         struck(world, shot, shooter, hit, where, from == null ? where : from);
+    }
+
+    /** The death a shot deals if it kills, and whose it is: its weapon's, and its shooter's. */
+    private static Death blow(Shot shot) {
+        return new Death(shot.weapon().deathType(), shot.shooter());
     }
 
     /**
@@ -672,7 +691,7 @@ public final class WeaponUpdate extends UpdateModule {
                         && !candidate.isEffectivelyDead()
                         && world.getRelationship(shot.side(), candidate.getPlayerIndex()) == Relationship.ENEMIES);
         for (var bystander : caught) {
-            bystander.getBody().damage(shot.damage(), shot.weapon().damageType());
+            bystander.getBody().damage(shot.damage(), shot.weapon().damageType(), blow(shot));
             if (bystander.isEffectivelyDead() && shooter != null) {
                 grantKillExperience(shooter, bystander);
             }

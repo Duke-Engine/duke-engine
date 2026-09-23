@@ -4206,8 +4206,8 @@ final class DukeRtsApp extends SimpleApplication {
                         new uz.dukeengine.core.math.Coord3D(died.position().x(),
                                 died.position().y(), 0f),
                         cam.getLocation());
-                layOut(died.object().value());
-                lookOfMoment("died." + died.templateName(), died.position().x(), died.position().y(),
+                layOut(died.object().value(), died.deathType());
+                lookOfMoment(GameSounds.diedMoment(died), died.position().x(), died.position().y(),
                         died.object().value());
             } else if (event instanceof WeaponFired fired) {
                 if (fired.weapon() != null) {
@@ -4410,13 +4410,13 @@ final class DukeRtsApp extends SimpleApplication {
      * the game, cannot be selected, and must not be given a walk animation because
      * the simulation says it is moving. What is left is a clip and a timer.
      */
-    private void layOut(int unitId) {
+    private void layOut(int unitId, uz.dukeengine.core.module.DeathType deathType) {
         var node = unitNodes.remove(unitId);
         selected.remove(unitId);
         if (node == null) {
             return;
         }
-        var clipName = visualFor(node.view.templateName()).dieAnim;
+        var clipName = visualFor(node.view.templateName()).dieAnimFor(deathType);
         var clip = clipName == null || node.composer == null
                 ? null : node.composer.getAnimClip(clipName);
         if (clip == null) {
@@ -4870,6 +4870,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
         for (var name : alsoWanted) {
             if (name != null && !wanted.contains(name)) {
+                wanted.add(name);
+            }
+        }
+        for (var name : visual.dieAnims.values()) {
+            if (!wanted.contains(name)) {
                 wanted.add(name);
             }
         }

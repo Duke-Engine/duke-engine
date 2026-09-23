@@ -31,9 +31,9 @@ import uz.dukeengine.rts.message.GameMessage;
 class ShotLandingTest {
 
     private static final Weapon GUN = new Weapon("Gun", 10f, 60f, 5, 0, DamageType.NORMAL, 0f, true,
-            List.of(), 0, 0, true);
+            List.of(), 0, 0, true, null);
     private static final Weapon SHELL = new Weapon("Shell", 40f, 60f, 30, 0, DamageType.EXPLOSION, 8f, true,
-            List.of(), 0, 0, true);
+            List.of(), 0, 0, true, null);
 
     /** A game's launcher: it carries the shots of the weapons it is told to, and declines the rest. */
     private static final class Rack extends Module implements ProjectileLauncher {
