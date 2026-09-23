@@ -49,6 +49,7 @@ import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.game.view.UnitView;
 import uz.dukeengine.game.view.WorldSnapshot;
+import uz.dukeengine.rts.event.ShotLanded;
 import uz.dukeengine.rts.event.WeaponFired;
 import uz.dukeengine.rts.message.GameMessage;
 
@@ -157,6 +158,13 @@ final class DukeRtsApp extends SimpleApplication {
     /** The game's particle systems, burning, and drawn — see {@link Visuals#particleSystems}. */
     private Particles particles;
     private ParticleDrawing particleDrawing;
+    /** The game's effect lists, played where the world's moments happen — see {@link Visuals#effectLists}. */
+    private EffectLists lists;
+    /** What those lists play besides particle systems: a sound, a light, the camera, a mark, a streak. */
+    private ListShow listShow;
+    private final Node listNode = new Node("effect-lists");
+    /** Every drawn thing's barrels: where its shots come out, its flashes and its kick — see {@link Barrels}. */
+    private final Barrels barrels = new Barrels();
     private final Map<String, Material> particleMaterials = new HashMap<>();
     /**
      * Whoever of theirs was just hit, going white -- see {@link HitFlash}.
@@ -510,6 +518,14 @@ final class DukeRtsApp extends SimpleApplication {
         particleDrawing = new ParticleDrawing(particles, this::particleMaterial);
         rootNode.attachChild(particleDrawing.node());
         layered.drawsSystemsWith(particles);
+        listShow = new ListShow(assetManager, listNode, effects.lights(), (cue, at) -> {
+            if (noises != null) {
+                noises.sounds().play(cue, at, timer.getTimeInSeconds());
+            }
+        }, () -> new Vector3f(camera.targetX(), 0f, camera.targetZ()), this::floorHeightAt);
+        rootNode.attachChild(listNode);
+        lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
+        layered.drawsListsWith(lists);
         hitFlash = new HitFlash(visuals.getHitFlash());
 
         rootNode.attachChild(terrainNode);
@@ -2228,6 +2244,7 @@ final class DukeRtsApp extends SimpleApplication {
             node.root.removeFromParent();
         }
         unitNodes.clear();
+        barrels.clear();
     }
 
     /**
@@ -2336,6 +2353,9 @@ final class DukeRtsApp extends SimpleApplication {
         if (particles != null) {
             particles.clear();
             particleDrawing.clear();
+        }
+        if (listShow != null) {
+            listShow.clear();
         }
         if (hitFlash != null) {
             hitFlash.clear();
@@ -3539,6 +3559,8 @@ final class DukeRtsApp extends SimpleApplication {
         hitFlash.update(tpf);
         layered.update(tpf, cam);
         particles.step(tpf);
+        listShow.update(tpf);
+        barrels.update(tpf);
         particleDrawing.draw(cam);
         carryTheLightsToTheStone();
         reapTheDead();
@@ -3978,6 +4000,9 @@ final class DukeRtsApp extends SimpleApplication {
         // is what is actually happening. It also keeps the thing the player is
         // watching in the middle of the screen while the world rattles round it.
         var knock = skillEffects == null ? Vector3f.ZERO : skillEffects.shakeNow();
+        if (listShow != null) {
+            knock = knock.add(listShow.shakeNow());
+        }
         cam.setLocation(target.add(new Vector3f(0, distance * 0.82f, distance * 0.57f))
                 .addLocal(knock));
         cam.lookAt(target, Vector3f.UNIT_Y);
@@ -4069,6 +4094,7 @@ final class DukeRtsApp extends SimpleApplication {
             // Its layers are grounded whether it arrived or merely walked out of the
             // light -- what it did on the way down is Landing's to say.
             layered.grounded(entry.getKey());
+            barrels.forget(entry.getKey());
             var node = entry.getValue();
             var at = node.root.getLocalTranslation();
             if (Landing.arrived(node.view, game.getLocalPlayerIndex(),
@@ -4126,17 +4152,22 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * A moment of the world's that the game gave a look to by name — {@code died.<template>},
-     * {@code fired.<weapon>} — played where it happened: an effect, or a particle system of that name.
+     * A moment of the world's that the game gave a look to by name — {@code died.<template>.<type>},
+     * {@code fired.<weapon>}, {@code landed.<weapon>} — played where {@link WorldMoments} says it happened: an
+     * effect list, an effect, or a particle system of that name.
      */
-    private void lookOfMoment(String name, float x, float y, int on) {
+    private void moment(String name, EffectLists.Cue cue, int on) {
         var look = visuals.getMoment(name);
-        if (look == null || layered == null) {
+        if (look == null || cue == null) {
             return;
         }
-        var spot = new Vector3f(x, floorHeightAt(x, y), y);
-        layered.cast(look.effect(), new LayeredEffects.Moment(spot, null, null, 0f, 1f, 0f, on, on), cam,
-                look.scale());
+        if (lists != null && lists.play(look.effect(), cue)) {
+            return;
+        }
+        if (layered != null) {
+            layered.cast(look.effect(), new LayeredEffects.Moment(cue.at(), null, null, 0f, 1f, cue.radius(), on,
+                    on), cam, look.scale());
+        }
     }
 
     /**
@@ -4206,15 +4237,21 @@ final class DukeRtsApp extends SimpleApplication {
                         new uz.dukeengine.core.math.Coord3D(died.position().x(),
                                 died.position().y(), 0f),
                         cam.getLocation());
+                var dying = unitNodes.get(died.object().value());
                 layOut(died.object().value(), died.deathType());
-                lookOfMoment(GameSounds.diedMoment(died), died.position().x(), died.position().y(),
+                barrels.forget(died.object().value());
+                moment(GameSounds.diedMoment(died),
+                        WorldMoments.died(died, dying == null ? null : dying.root, this::floorHeightAt),
                         died.object().value());
             } else if (event instanceof WeaponFired fired) {
+                var node = unitNodes.get(fired.shooter().value());
+                // Its barrel flashes and kicks whether or not the shot was given a look of its own.
+                var bone = node == null ? null : barrels.fire(fired.shooter().value(), fired.slot());
                 if (fired.weapon() != null) {
-                    lookOfMoment("fired." + fired.weapon(), fired.from().x(), fired.from().y(),
+                    moment("fired." + fired.weapon(),
+                            WorldMoments.fired(fired, bone, node == null ? null : node.root, this::floorHeightAt),
                             fired.shooter().value());
                 }
-                var node = unitNodes.get(fired.shooter().value());
                 if (node != null) {
                     playSound(visualFor(node.view.templateName()).fireSound,
                             node.root.getLocalTranslation());
@@ -4222,6 +4259,11 @@ final class DukeRtsApp extends SimpleApplication {
                     // the snapshot says when that was.
                     playOnce(node, visualFor(node.view.templateName()).attackAnim);
                 }
+            } else if (event instanceof ShotLanded landed && landed.weapon() != null) {
+                var victim = landed.victim() == null ? null : unitNodes.get(landed.victim().value());
+                moment("landed." + landed.weapon(),
+                        WorldMoments.landed(landed, victim == null ? null : victim.root, this::floorHeightAt),
+                        landed.victim() == null ? LayeredEffects.NOBODY : landed.victim().value());
             }
         }
     }
@@ -4528,6 +4570,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
         snap(node.composer, visual.attackAnim);
         snap(node.composer, visual.hurtAnim);
+        // Its barrels are the model's, so a new model is found again: a wreck may have none.
+        Integer id = node.root.getUserData("unitId");
+        if (id != null) {
+            barrels.dress(id, body, visual);
+        }
     }
 
     /**

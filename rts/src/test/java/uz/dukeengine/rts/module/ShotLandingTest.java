@@ -166,6 +166,37 @@ class ShotLandingTest {
         assertEquals(instant, 1000f - carriedBunker.getBody().getHealth(), 0.01f);
     }
 
+    /** Where a client draws an instant hit landing: halfway up what it hit, with the blast's reach. */
+    @Test
+    void anInstantHitLandsAtTheMiddleOfItsVictim() {
+        var bunker = spawn("Bunker", them, 20f);
+        attack(spawn("Mortar", us, 0f), bunker, 1);
+
+        var landed = landed().getFirst();
+        assertEquals(new Coord3D(20f, 0f, 3f), landed.where(), "a bunker 6 tall, struck 3 up");
+        assertEquals(8f, landed.radius(), 0f);
+    }
+
+    /** A shot says which slot fired it, and whether it strikes what it touches rather than from a distance. */
+    @Test
+    void aShotSaysItsSlotAndWhetherItStrikesByContact() {
+        var humvee = spawn("Humvee", us, 0f);
+        attack(humvee, spawn("Bunker", them, 20f), 2);
+        var shots = events.stream().filter(WeaponFired.class::isInstance).map(WeaponFired.class::cast).toList();
+        assertEquals(List.of(1, 0), shots.stream().map(WeaponFired::slot).toList(), "the shell's slot, the gun's");
+        assertTrue(shots.stream().noneMatch(WeaponFired::contact), "both fire from 60 away");
+        assertEquals(8f, shots.getFirst().radius(), 0f);
+
+        var knife = new Weapon("Knife", 5f, 5f, 30, 0, DamageType.NORMAL, 0f, true, List.of(), 0, 0, true);
+        logic.addWeapons(List.of(knife));
+        logic.getThingFactory().addTemplate(shooter("Commando", new WeaponSlot("Knife")));
+        events.clear();
+        attack(spawn("Commando", us, 100f), spawn("Bunker", them, 106f), 1);
+        var stab = events.stream().filter(WeaponFired.class::isInstance).map(WeaponFired.class::cast)
+                .findFirst().orElseThrow();
+        assertTrue(stab.contact(), "a reach of 5 is under a pathfinding cell: it strikes what it touches");
+    }
+
     /** The blast catches an enemy beside the victim, and the kill is the shooter's rank. */
     @Test
     void aLandedShotSplashesAndCreditsTheKill() {

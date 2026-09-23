@@ -645,7 +645,8 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             var death = object.isEffectivelyDead() ? object.getBody().getDeath() : Death.NORMAL;
             if (object.isEffectivelyDead()) {
                 post(new ObjectDied(frame, object.getId(), object.getTemplate().name(),
-                        object.getPlayerIndex(), object.getPosition(), death.type(), death.killer()));
+                        object.getPlayerIndex(), object.getPosition(), death.type(), death.killer(),
+                        object.getOrientation()));
             }
             for (var module : object.getModules()) {
                 if (module instanceof DieModule die) {

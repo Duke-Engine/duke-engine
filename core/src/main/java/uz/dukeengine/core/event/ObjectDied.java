@@ -18,6 +18,7 @@ import uz.dukeengine.core.thing.ObjectId;
  *
  * @param deathType how it died, which a client draws and sounds by ({@code died.<template>.<type>})
  * @param killer    what dealt the killing blow, or {@code null} for a death by no one
+ * @param orientation which way it faced, so what is drawn for its death turns with it
  */
 public record ObjectDied(
         int frame,
@@ -26,7 +27,8 @@ public record ObjectDied(
         int playerIndex,
         Coord3D position,
         DeathType deathType,
-        ObjectId killer) implements WorldEvent {
+        ObjectId killer,
+        float orientation) implements WorldEvent {
 
     public ObjectDied {
         deathType = deathType == null ? DeathType.NORMAL : deathType;

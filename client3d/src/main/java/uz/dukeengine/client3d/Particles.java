@@ -42,8 +42,26 @@ final class Particles {
     /** The most frames run for one of the client's: a longer stall is let go rather than run all at once. */
     private static final int MOST_FRAMES_AT_ONCE = 8;
 
-    /** Where a system stands, in its own Z-up frame, and how far it is turned about up, in radians. */
-    record Placement(float x, float y, float z, float turn) {
+    /**
+     * Where a system stands, in its own Z-up frame, and how it is turned: about up by {@code turn}, in radians —
+     * or, where {@code axes} is given, by that rotation, its nine numbers row by row, which is how a system
+     * turned with a bone or tipped over by an effect list stands.
+     */
+    record Placement(float x, float y, float z, float turn, float[] axes) {
+
+        Placement(float x, float y, float z, float turn) {
+            this(x, y, z, turn, null);
+        }
+
+        /** Its rotation, row by row: {@code axes}, or the turn about up. */
+        float[] rotation() {
+            if (axes != null) {
+                return axes;
+            }
+            float cos = (float) Math.cos(turn);
+            float sin = (float) Math.sin(turn);
+            return new float[] {cos, -sin, 0f, sin, cos, 0f, 0f, 0f, 1f};
+        }
     }
 
     /** How high the ground stands at a place, in the same frame. */

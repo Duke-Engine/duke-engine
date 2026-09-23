@@ -80,6 +80,10 @@ public final class Visuals {
         String attackAnim;
         String hurtAnim;
         String dieAnim;
+        /** Its weapon slots' named points, by slot; see {@link #fireBone}. */
+        final java.util.Map<Integer, WeaponBones> weaponBones = new java.util.TreeMap<>();
+        /** How its barrels kick back; see {@link #recoil}. */
+        Barrels.Recoil recoil = Barrels.Recoil.REFERENCE;
         /** Its clips for particular deaths, by the death type's name; see {@link #die(String, String)}. */
         final java.util.Map<String, String> dieAnims = new java.util.LinkedHashMap<>();
         /** Clips it needs for something other than standing, walking and dying. */
@@ -412,6 +416,49 @@ public final class Visuals {
             return this;
         }
 
+        /**
+         * Where weapon slot {@code slot}'s shots come out: the bone its {@code fired.<weapon>} effect plays at,
+         * turned with it — the reference's {@code WeaponFireFXBone}. Numbered per barrel: {@code Muzzle} is {@code
+         * MUZZLE01}, {@code MUZZLE02} … taken in turn, a barrel a shot, or {@code MUZZLE} alone where the model
+         * numbers none. The first slot is 0. With none, a shot's effect plays at the middle of the thing.
+         */
+        public UnitVisual fireBone(int slot, String bone) {
+            var was = weaponBones.getOrDefault(slot, new WeaponBones(null, null, null));
+            weaponBones.put(slot, new WeaponBones(bone, was.flash(), was.recoil()));
+            return this;
+        }
+
+        /**
+         * The piece of the model slot {@code slot}'s muzzle flash is drawn with, numbered per barrel as {@link
+         * #fireBone} is: hidden but on the frames its barrel fires — the reference's {@code WeaponMuzzleFlash}.
+         */
+        public UnitVisual muzzleFlash(int slot, String piece) {
+            var was = weaponBones.getOrDefault(slot, new WeaponBones(null, null, null));
+            weaponBones.put(slot, new WeaponBones(was.fire(), piece, was.recoil()));
+            return this;
+        }
+
+        /**
+         * The bone that kicks back along its own x when slot {@code slot}'s barrel fires, numbered per barrel as
+         * {@link #fireBone} is — the reference's {@code WeaponRecoilBone}. How it kicks is {@link #recoil}.
+         */
+        public UnitVisual recoilBone(int slot, String bone) {
+            var was = weaponBones.getOrDefault(slot, new WeaponBones(null, null, null));
+            weaponBones.put(slot, new WeaponBones(was.fire(), was.flash(), bone));
+            return this;
+        }
+
+        /**
+         * How its barrels kick: {@code initial} back the first frame, that times {@code damping} each frame after,
+         * as far as {@code most}; then back again at {@code settle} a frame. The reference's {@code
+         * InitialRecoilSpeed}, {@code MaxRecoilDistance}, {@code RecoilDamping} and {@code RecoilSettleSpeed}, in
+         * frames; left alone, its defaults: 2, 3, 0.4 and 0.065.
+         */
+        public UnitVisual recoil(float initial, float most, float damping, float settle) {
+            this.recoil = new Barrels.Recoil(initial, most, damping, settle);
+            return this;
+        }
+
         /** What it plays as it dies, before the body is taken away. */
         public UnitVisual die(String animName) {
             this.dieAnim = animName;
@@ -491,6 +538,16 @@ public final class Visuals {
 
     public String getAssetRoot() {
         return assetRoot;
+    }
+
+    /**
+     * A weapon slot's named points on a model — see {@link UnitVisual#fireBone}. Any of them may be missing.
+     *
+     * @param fire   the bone its shots' effect plays at
+     * @param flash  the piece its muzzle flash is drawn with
+     * @param recoil the bone that kicks back
+     */
+    public record WeaponBones(String fire, String flash, String recoil) {
     }
 
     /** Configure the look and sound of one unit template. */
@@ -700,6 +757,37 @@ public final class Visuals {
     /** The particle system under that name, or {@code null} when the game named none. */
     public uz.dukeengine.core.content.ParticleSystem particleSystemNamed(String name) {
         return name == null ? null : particleSystems.get(name);
+    }
+
+    // ---- effect lists ----
+
+    private final Map<String, uz.dukeengine.core.content.EffectList> effectLists = new java.util.LinkedHashMap<>();
+
+    /**
+     * The game's effect lists — see {@link uz.dukeengine.core.content.EffectList}: several things at once by one
+     * name. Wherever the game names an effect it may name one of these instead, and a name that is a list is
+     * played as that list before it is looked for as an effect or a particle system.
+     */
+    public Visuals effectLists(java.util.Collection<uz.dukeengine.core.content.EffectList> lists) {
+        for (var list : lists) {
+            if (list != null && list.name() != null) {
+                effectLists.put(list.name(), list);
+            }
+        }
+        return this;
+    }
+
+    /** The effect list under that name, or {@code null} when the game named none. */
+    public uz.dukeengine.core.content.EffectList effectListNamed(String name) {
+        return name == null ? null : effectLists.get(name);
+    }
+
+    /** Every picture a list marks the ground with, for reading before the match starts. */
+    java.util.List<String> scorchPictures() {
+        return effectLists.values().stream().flatMap(list -> list.entries().stream())
+                .filter(uz.dukeengine.core.content.EffectList.Scorch.class::isInstance)
+                .flatMap(entry -> ((uz.dukeengine.core.content.EffectList.Scorch) entry).pictures().stream())
+                .distinct().toList();
     }
 
     /** Every picture a particle system is drawn with, for reading before the match starts. */

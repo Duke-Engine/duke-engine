@@ -123,7 +123,7 @@ class RtsMomentsTest {
         assertEquals(List.of("hum.ogg"), heard.looping, "started once, not once a frame");
 
         noises.frame(frame(List.of(), new ObjectDied(2, new ObjectId(3), "Reactor", ME, new Coord3D(30f, 0f, 0f),
-                null, null)),
+                null, null, 0f)),
                 ME, 0.2f);
         assertEquals(List.of("hum.ogg"), heard.stopped);
     }
@@ -271,6 +271,7 @@ class RtsMomentsTest {
     }
 
     private static ObjectDied died(int id, DeathType how) {
-        return new ObjectDied(2, new ObjectId(id), "Soldier", THEM, new Coord3D(30f, 0f, 0f), how, new ObjectId(1));
+        return new ObjectDied(2, new ObjectId(id), "Soldier", THEM, new Coord3D(30f, 0f, 0f), how, new ObjectId(1),
+                0f);
     }
 }

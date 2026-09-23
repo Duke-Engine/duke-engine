@@ -34,7 +34,10 @@ final class Emitter {
     private float x;
     private float y;
     private float z;
-    private float turn;
+    /** How it is turned, row by row: what its particles' places and speeds are turned by. */
+    private float[] axes = {1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f};
+    /** The radius its sphere or cylinder lets particles out within, where it was given one; 0 keeps its own. */
+    private float volumeRadius;
     private float lastX;
     private float lastY;
     private float lastZ;
@@ -87,15 +90,42 @@ final class Emitter {
         this.lifetimeLeft = data.systemLifetime();
         this.forever = data.systemLifetime() == 0;
         if (control != null) {
-            place(control.x, control.y, control.z, 0f);
+            place(control.x, control.y, control.z, null);
         } else if (follows != null) {
             var at = follows.get();
             if (at == null) {
                 destroyed = true;
             } else {
-                place(at.x(), at.y(), at.z(), at.turn());
+                place(at.x(), at.y(), at.z(), at.rotation());
             }
         }
+    }
+
+    /** Wait this many frames before anything happens, instead of the delay its data draws. */
+    void delay(int frames) {
+        delayLeft = Math.max(0, frames);
+    }
+
+    /**
+     * Let particles out within this radius, instead of the one its data gives its sphere or cylinder — the
+     * reference's {@code UseCallersRadius}, a blast's reach. A system of another shape keeps its own.
+     */
+    void volumeRadius(float radius) {
+        volumeRadius = Math.max(0f, radius);
+    }
+
+    int delayLeft() {
+        return delayLeft;
+    }
+
+    /** Where it stands this frame, in its own frame. */
+    float[] where() {
+        return new float[] {x, y, z};
+    }
+
+    /** How it is turned, row by row. */
+    float[] axes() {
+        return axes.clone();
     }
 
     /**
@@ -206,7 +236,7 @@ final class Emitter {
     /** Where it stands this frame: on the particle it rides, or where what it rides says it is. */
     private void follow() {
         if (control != null) {
-            place(control.x, control.y, control.z, 0f);
+            place(control.x, control.y, control.z, null);
             return;
         }
         if (follows == null) {
@@ -217,17 +247,19 @@ final class Emitter {
             destroy(); // what it rode is gone, and it goes with it
             return;
         }
-        place(at.x(), at.y(), at.z(), at.turn());
+        place(at.x(), at.y(), at.z(), at.rotation());
     }
 
-    private void place(float atX, float atY, float atZ, float turnedBy) {
+    private void place(float atX, float atY, float atZ, float[] turnedBy) {
         lastX = x;
         lastY = y;
         lastZ = z;
         x = atX;
         y = atY;
         z = atZ;
-        turn = turnedBy;
+        if (turnedBy != null) {
+            axes = turnedBy;
+        }
     }
 
     /** A burst: its count of particles at once, each with a slave and a rider where the system has them. */
@@ -268,13 +300,13 @@ final class Emitter {
             firstPlace = false;
         }
         float back = 1f - (float) number / count;
-        float cos = (float) Math.cos(turn);
-        float sin = (float) Math.sin(turn);
-        float bornX = x + cos * local[0] - sin * local[1] - back * (x - lastX);
-        float bornY = y + sin * local[0] + cos * local[1] - back * (y - lastY);
-        float bornZ = z + local[2] - back * (z - lastZ);
-        float velocityX = cos * velocity[0] - sin * velocity[1];
-        float velocityY = sin * velocity[0] + cos * velocity[1];
+        var m = axes;
+        float bornX = x + m[0] * local[0] + m[1] * local[1] + m[2] * local[2] - back * (x - lastX);
+        float bornY = y + m[3] * local[0] + m[4] * local[1] + m[5] * local[2] - back * (y - lastY);
+        float bornZ = z + m[6] * local[0] + m[7] * local[1] + m[8] * local[2] - back * (z - lastZ);
+        float velocityX = m[0] * velocity[0] + m[1] * velocity[1] + m[2] * velocity[2];
+        float velocityY = m[3] * velocity[0] + m[4] * velocity[1] + m[5] * velocity[2];
+        float velocityZ = m[6] * velocity[0] + m[7] * velocity[1] + m[8] * velocity[2];
 
         float velocityDamping = world.draw(data.velocityDamping());
         float angularDamping = world.draw(data.angularDamping());
@@ -293,7 +325,7 @@ final class Emitter {
             alphas[key] = world.between(alphaLeast[key], alphaMost[key]);
         }
         float colourScale = world.draw(data.colourScale()) / 255f;
-        return new Particle.Born(bornX, bornY, bornZ, velocityX, velocityY, velocity[2], velocityDamping, angle,
+        return new Particle.Born(bornX, bornY, bornZ, velocityX, velocityY, velocityZ, velocityDamping, angle,
                 angularRate, angularDamping, lifetime, size, sizeRate, sizeRateDamping, alphas, colourScale, x, y);
     }
 
@@ -344,14 +376,15 @@ final class Emitter {
             }
             case BOX -> box(data.volBoxHalfSize());
             case SPHERE -> {
-                float radius = data.isHollow() ? data.volSphereRadius() : world.between(0f, data.volSphereRadius());
+                float most = volumeRadius > 0f ? volumeRadius : data.volSphereRadius();
+                float radius = data.isHollow() ? most : world.between(0f, most);
                 var direction = pointOnUnitSphere();
                 yield new float[] {direction[0] * radius, direction[1] * radius, direction[2] * radius};
             }
             case CYLINDER -> {
                 float around = world.between(0f, (float) (2 * Math.PI));
-                float radius = data.isHollow() ? data.volCylinderRadius()
-                        : world.between(0f, data.volCylinderRadius());
+                float most = volumeRadius > 0f ? volumeRadius : data.volCylinderRadius();
+                float radius = data.isHollow() ? most : world.between(0f, most);
                 float half = data.volCylinderLength() / 2f;
                 yield new float[] {radius * (float) Math.cos(around), radius * (float) Math.sin(around),
                     world.between(-half, half)};

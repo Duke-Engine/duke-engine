@@ -78,6 +78,12 @@ public final class WeaponUpdate extends UpdateModule {
     /** Weapon names a slot linked that the world did not have, said once each rather than once a frame. */
     private static final Set<String> MISSING = ConcurrentHashMap.newKeySet();
 
+    /**
+     * A weapon whose range, this much over, is under a pathfinding cell strikes what it touches — the
+     * reference's {@code ATTACK_RANGE_FUDGE} in {@code WeaponTemplate::isContactWeapon}.
+     */
+    private static final float CONTACT_FUDGE = 1.05f;
+
     /** What a slot preferred against its target counts as dealing: more than any weapon could. */
     private static final float PREFERRED = Float.MAX_VALUE;
 
@@ -378,12 +384,13 @@ public final class WeaponUpdate extends UpdateModule {
         }
         chosen.clip().fired(world.random(), rateOfFire(owner));
         world.post(new WeaponFired(world.getFrame(), owner.getId(), victim.getId(),
-                owner.getPosition(), victim.getPosition(), weapon.name()));
+                owner.getPosition(), victim.getPosition(), weapon.name(), chosen.index(),
+                weapon.attackRange() * CONTACT_FUDGE < world.cellSize(), weapon.splashRadius()));
 
         if (inFlight) {
             return; // nothing has been hit yet; the blast and the kill wait for land()
         }
-        struck(world, shot, owner, victim, victim.getPosition(), owner.getPosition());
+        struck(world, shot, owner, victim, victim.getPosition(), middleOf(victim), owner.getPosition());
         if (victim.isEffectivelyDead()) {
             target = null;
         }
@@ -409,7 +416,13 @@ public final class WeaponUpdate extends UpdateModule {
         if (hit != null) {
             hit.getBody().damage(shot.damage(), shot.weapon().damageType(), blow(shot));
         }
-        struck(world, shot, shooter, hit, where, from == null ? where : from);
+        struck(world, shot, shooter, hit, where, where, from == null ? where : from);
+    }
+
+    /** Halfway up a thing: where a shot that hit it at once is drawn landing. */
+    private static Coord3D middleOf(GameObject thing) {
+        var at = thing.getPosition();
+        return new Coord3D(at.x(), at.y(), at.z() + thing.getGeometry().height() / 2f);
     }
 
     /** The death a shot deals if it kills, and whose it is: its weapon's, and its shooter's. */
@@ -422,7 +435,7 @@ public final class WeaponUpdate extends UpdateModule {
      * blast, the kill experience, and the moment it landed.
      */
     private static void struck(uz.dukeengine.core.thing.World world, Shot shot, GameObject shooter,
-            GameObject victim, Coord3D where, Coord3D from) {
+            GameObject victim, Coord3D where, Coord3D shown, Coord3D from) {
         if (shot.weapon().splashRadius() > 0f) {
             splash(world, shot, shooter, victim, where);
         }
@@ -430,7 +443,8 @@ public final class WeaponUpdate extends UpdateModule {
             grantKillExperience(shooter, victim);
         }
         world.post(new ShotLanded(world.getFrame(), shot.shooter(),
-                victim == null ? null : victim.getId(), shot.weapon().name(), where, from));
+                victim == null ? null : victim.getId(), shot.weapon().name(), shown, from,
+                shot.weapon().splashRadius()));
     }
 
     /** A frame has passed for every weapon it has, carried or swapped out: reloads run on through a swap. */

@@ -154,6 +154,8 @@ final class LayeredEffects {
 
     /** The game's particle systems, for a name that is one of them rather than an effect. */
     private Particles systems;
+    /** The game's effect lists, for a name that is one of them: played wherever the effect would have been. */
+    private EffectLists lists;
     /** A particle system riding a thing or a projectile, by its id, let go of when that is gone. */
     private final Map<Integer, Emitter> riders = new HashMap<>();
 
@@ -164,6 +166,14 @@ final class LayeredEffects {
      */
     void drawsSystemsWith(Particles systems) {
         this.systems = systems;
+    }
+
+    /**
+     * Play a name that is an effect list with these: at a moment's spot, handed its reach; on a thing or a
+     * projectile, riding it — a list's systems that attach to their thing go where it goes, and end with it.
+     */
+    void drawsListsWith(EffectLists lists) {
+        this.lists = lists;
     }
 
     LayeredEffects(AssetManager assets, Node root, Visuals visuals, LightPool lights,
@@ -196,6 +206,10 @@ final class LayeredEffects {
      * be one look at two sizes, rather than the same blocks written out twice.
      */
     void cast(String recipeName, Moment moment, Camera camera, float scale) {
+        if (lists != null && moment != null && moment.spot() != null && lists.play(recipeName,
+                new EffectLists.Cue(moment.spot(), null, null, null, moment.radius() * scale))) {
+            return;
+        }
         var recipe = visuals.effectNamed(recipeName);
         if (recipe == null) {
             startSystem(recipeName, moment == null ? null : moment.spot());
@@ -219,6 +233,11 @@ final class LayeredEffects {
      */
     void flying(int projectileId, String recipeName, Spatial node, Vector3f offset,
             Camera camera) {
+        if (lists != null && node != null && lists.has(recipeName)) {
+            lists.play(recipeName, new EffectLists.Cue(node.localToWorld(offset == null ? Vector3f.ZERO : offset,
+                    null), node.getWorldRotation().clone(), node, null, 0f));
+            return;
+        }
         var recipe = visuals.effectNamed(recipeName);
         if (recipe == null) {
             rideSystem(projectileId, recipeName, node, offset);
