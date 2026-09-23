@@ -106,6 +106,9 @@ final class Preload {
         // And the mouse pointers. Read now because the first one is wanted on the
         // frame the world appears, which is the frame that can least afford it.
         add(jobs, seen, Kind.TEXTURE, visuals.pointerImages());
+        // And what particle systems are drawn with: small files, few of them, and wanted the instant a shot
+        // is fired — every one, since which systems a match will light is not known before it starts.
+        add(jobs, seen, Kind.TEXTURE, visuals.particleSystemTextures());
         return List.copyOf(jobs);
     }
 

@@ -152,6 +152,20 @@ final class LayeredEffects {
         }
     }
 
+    /** The game's particle systems, for a name that is one of them rather than an effect. */
+    private Particles systems;
+    /** A particle system riding a thing or a projectile, by its id, let go of when that is gone. */
+    private final Map<Integer, Emitter> riders = new HashMap<>();
+
+    /**
+     * Draw a name that is a particle system rather than an effect with these: wherever an effect is started —
+     * at a moment's spot, on a thing, on a projectile — a system of that name is started instead, at the spot or
+     * riding the thing until it is gone.
+     */
+    void drawsSystemsWith(Particles systems) {
+        this.systems = systems;
+    }
+
     LayeredEffects(AssetManager assets, Node root, Visuals visuals, LightPool lights,
             Surroundings world, int maxParticles, float maxDistance) {
         this(assets, root, visuals, lights, world, maxParticles, maxDistance, new Random());
@@ -183,7 +197,11 @@ final class LayeredEffects {
      */
     void cast(String recipeName, Moment moment, Camera camera, float scale) {
         var recipe = visuals.effectNamed(recipeName);
-        if (recipe == null || moment == null || moment.spot() == null || scale <= 0f) {
+        if (recipe == null) {
+            startSystem(recipeName, moment == null ? null : moment.spot());
+            return;
+        }
+        if (moment == null || moment.spot() == null || scale <= 0f) {
             return;
         }
         var layers = recipe.getLayers();
@@ -202,7 +220,11 @@ final class LayeredEffects {
     void flying(int projectileId, String recipeName, Spatial node, Vector3f offset,
             Camera camera) {
         var recipe = visuals.effectNamed(recipeName);
-        if (recipe == null || node == null) {
+        if (recipe == null) {
+            rideSystem(projectileId, recipeName, node, offset);
+            return;
+        }
+        if (node == null) {
             return;
         }
         var layers = recipe.getLayers();
@@ -250,6 +272,10 @@ final class LayeredEffects {
         if (projectileId == NOBODY) {
             return;
         }
+        var rider = riders.remove(projectileId);
+        if (rider != null) {
+            rider.destroy(); // what it let out burns out where it is
+        }
         for (var going : playing) {
             if (going.projectile == projectileId && going.rides != null) {
                 stopFeeding(going);
@@ -267,6 +293,41 @@ final class LayeredEffects {
         return EffectLayer.TRAIL.equals(layer.type()) && !EffectLayer.PATH.equals(layer.at())
                 || EffectLayer.AURA.equals(layer.type())
                 || EffectLayer.LIGHT.equals(layer.type()) && layer.seconds() <= 0f;
+    }
+
+    // ---- a particle system in an effect's place ----
+
+    /** A particle system standing at a spot, where a name is one. */
+    private void startSystem(String name, Vector3f spot) {
+        if (systems == null || spot == null || visuals.particleSystemNamed(name) == null) {
+            return;
+        }
+        systems.startAt(name, placementAt(spot, 0f));
+    }
+
+    /** A particle system riding a thing's node — its place and its turn — until the thing is gone. */
+    private void rideSystem(int id, String name, Spatial node, Vector3f offset) {
+        if (systems == null || node == null || visuals.particleSystemNamed(name) == null) {
+            return;
+        }
+        var local = offset == null ? new Vector3f() : offset.clone();
+        var rider = systems.start(name, () -> node.getParent() == null ? null
+                : placementAt(node.localToWorld(local, null), node.getWorldRotation().toAngles(null)[1]));
+        if (rider != null && id != NOBODY) {
+            var before = riders.put(id, rider);
+            if (before != null) {
+                before.destroy();
+            }
+        }
+    }
+
+    /**
+     * A place in this client's frame, as a particle system's own Z-up frame has it — the models' quarter turn
+     * undone: the client's {@code (x, y, z)} is the system's {@code (x, -z, y)}, and a turn about the client's up
+     * is the same turn about the system's.
+     */
+    static Particles.Placement placementAt(Vector3f at, float turn) {
+        return new Particles.Placement(at.x, -at.z, at.y, turn);
     }
 
     // ---- starting a layer ----
@@ -833,6 +894,7 @@ final class LayeredEffects {
 
     /** Everything back in the box at once: a world being rebuilt has nothing burning. */
     void clear() {
+        riders.clear();
         for (var one : playing) {
             putAway(one);
         }

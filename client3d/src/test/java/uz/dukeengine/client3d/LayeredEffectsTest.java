@@ -663,4 +663,71 @@ class LayeredEffectsTest {
         assertEquals(0, particleGeometries(rig.root()));
         assertEquals(0, rig.lights().lit());
     }
+
+    // ---- a particle system named where an effect goes ----
+
+    private static Particles systemsFor(Rig rig, String block) {
+        var system = new uz.dukeengine.core.data.Binder().bind(
+                uz.dukeengine.core.data.DukeText.parse(block, "systems.duke").getFirst(),
+                uz.dukeengine.core.content.ParticleSystem.class);
+        rig.visuals().particleSystems(List.of(system));
+        var systems = new Particles(rig.visuals()::particleSystemNamed, 1L, Particles.Ground.FLAT,
+                Integer.MAX_VALUE, Integer.MAX_VALUE);
+        rig.effects().drawsSystemsWith(systems);
+        return systems;
+    }
+
+    /** A name that is no effect but a particle system starts that system, where the effect would have played. */
+    @Test
+    void aNameThatIsAParticleSystemStartsOneWhereAnEffectWouldPlay() {
+        var rig = rig(100, 4);
+        var systems = systemsFor(rig, """
+                ParticleSystem
+                  Name = Sparks
+                  Blend = ADDITIVE
+                  BurstCount = [1]
+                  BurstDelay = [1000]
+                  Lifetime = [30]
+                End
+                """);
+        rig.effects().cast("Sparks", at(30f, 40f), rig.camera());
+        systems.update();
+
+        assertEquals(1, systems.emitters().size());
+        var spark = systems.emitters().getFirst().particles().getFirst();
+        assertEquals(new Vector3f(30f, 0f, 40f), ParticleDrawing.toClient(spark.x, spark.y, spark.z),
+                "on the spot the effect would have played on");
+        assertEquals(0, rig.effects().playingCount(), "and no layer played for it");
+    }
+
+    /** One riding a thing follows it, and is let go of — burning out where it is — when the thing is gone. */
+    @Test
+    void aParticleSystemRidingAThingFollowsItAndIsLetGoWithIt() {
+        var rig = rig(100, 4);
+        var systems = systemsFor(rig, """
+                ParticleSystem
+                  Name = Smoke
+                  Blend = ALPHA
+                  BurstCount = [1]
+                  BurstDelay = [0]
+                  Lifetime = [30]
+                End
+                """);
+        var thing = new Node("thing");
+        rig.root().attachChild(thing);
+        thing.setLocalTranslation(5f, 0f, 7f);
+        rig.effects().flying(12, "Smoke", thing, null, rig.camera());
+        systems.update();
+
+        thing.setLocalTranslation(15f, 0f, 7f);
+        rig.root().updateGeometricState();
+        systems.update();
+        systems.update();
+        var smoke = systems.emitters().getFirst();
+        var latest = smoke.particles().getLast();
+        assertEquals(15f, latest.x, 1e-4f, "where the thing went");
+
+        rig.effects().grounded(12);
+        assertTrue(smoke.isDestroyed(), "let go of with the thing");
+    }
 }

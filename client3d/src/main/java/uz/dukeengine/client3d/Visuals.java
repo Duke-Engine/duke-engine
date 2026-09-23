@@ -655,6 +655,59 @@ public final class Visuals {
         return name == null ? null : effects.get(name);
     }
 
+    // ---- particle systems ----
+
+    private final Map<String, uz.dukeengine.core.content.ParticleSystem> particleSystems =
+            new java.util.LinkedHashMap<>();
+    private int particleSystemMost = Integer.MAX_VALUE;
+    private int particleSystemNeverRefusedFrom = Integer.MAX_VALUE;
+
+    /**
+     * The game's particle systems — see {@link uz.dukeengine.core.content.ParticleSystem}.
+     *
+     * <p>Wherever the game names an effect — a thing's own, a projectile's, a moment's — it may name one of these
+     * instead: a name that is an effect is drawn as that effect, as it always was, and one that is not is drawn
+     * as the particle system of that name. So the two sit side by side and neither has to know of the other.
+     */
+    public Visuals particleSystems(java.util.Collection<uz.dukeengine.core.content.ParticleSystem> systems) {
+        for (var system : systems) {
+            if (system != null && system.name() != null) {
+                particleSystems.put(system.name(), system);
+            }
+        }
+        return this;
+    }
+
+    /** The particle system under that name, or {@code null} when the game named none. */
+    public uz.dukeengine.core.content.ParticleSystem particleSystemNamed(String name) {
+        return name == null ? null : particleSystems.get(name);
+    }
+
+    /** Every picture a particle system is drawn with, for reading before the match starts. */
+    java.util.List<String> particleSystemTextures() {
+        return particleSystems.values().stream().map(uz.dukeengine.core.content.ParticleSystem::texture)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+    }
+
+    /**
+     * How many particle-system particles may be burning at once, and the priority from which one is never
+     * refused. Past the most, making a particle lets go of the oldest of a lower priority first — the reference
+     * game's rule. Left unset there is no most, and nothing is let go of.
+     */
+    public Visuals particleSystemBudget(int most, int neverRefusedFrom) {
+        this.particleSystemMost = Math.max(0, most);
+        this.particleSystemNeverRefusedFrom = neverRefusedFrom;
+        return this;
+    }
+
+    public int getParticleSystemMost() {
+        return particleSystemMost;
+    }
+
+    public int getParticleSystemNeverRefusedFrom() {
+        return particleSystemNeverRefusedFrom;
+    }
+
     /**
      * What the client may spend on things in flight.
      *
@@ -1119,6 +1172,12 @@ public final class Visuals {
      * <p>The client notices the moment -- a level, the boss down, a new floor -- and
      * the game says what it looks like, which is the division everything else here
      * keeps too. A moment given no look is not drawn.
+     *
+     * <p>The world's own moments take a look the same way, named as their sounds are:
+     * {@code died.<template>} where a thing of that template died, and
+     * {@code fired.<weapon>} where a weapon of that name fired — an explosion and a
+     * muzzle flash. The effect named may be a particle system; see
+     * {@link #particleSystems}.
      */
     public Visuals moment(String name, String effect, float scale) {
         if (name != null && effect != null && !effect.isBlank() && scale > 0f) {

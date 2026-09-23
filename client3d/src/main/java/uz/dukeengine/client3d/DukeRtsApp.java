@@ -154,6 +154,10 @@ final class DukeRtsApp extends SimpleApplication {
      * light budget is one budget.
      */
     private LayeredEffects layered;
+    /** The game's particle systems, burning, and drawn — see {@link Visuals#particleSystems}. */
+    private Particles particles;
+    private ParticleDrawing particleDrawing;
+    private final Map<String, Material> particleMaterials = new HashMap<>();
     /**
      * Whoever of theirs was just hit, going white -- see {@link HitFlash}.
      */
@@ -498,6 +502,14 @@ final class DukeRtsApp extends SimpleApplication {
         skillEffects = new SkillEffects(visuals, budget.distance());
         layered = new LayeredEffects(assetManager, rootNode, visuals, effects.lights(),
                 surroundings(), visuals.getParticleBudget(), budget.distance());
+        // Beside the layered effects, and started wherever a name that is one of them is given in an effect's
+        // place. Seeded from nothing the simulation knows: sparks are this machine's own.
+        particles = new Particles(visuals::particleSystemNamed, new java.util.Random().nextLong(),
+                (x, y) -> floorHeightAt(x, -y), visuals.getParticleSystemMost(),
+                visuals.getParticleSystemNeverRefusedFrom());
+        particleDrawing = new ParticleDrawing(particles, this::particleMaterial);
+        rootNode.attachChild(particleDrawing.node());
+        layered.drawsSystemsWith(particles);
         hitFlash = new HitFlash(visuals.getHitFlash());
 
         rootNode.attachChild(terrainNode);
@@ -2321,6 +2333,10 @@ final class DukeRtsApp extends SimpleApplication {
         if (layered != null) {
             layered.clear();
         }
+        if (particles != null) {
+            particles.clear();
+            particleDrawing.clear();
+        }
         if (hitFlash != null) {
             hitFlash.clear();
         }
@@ -3522,6 +3538,8 @@ final class DukeRtsApp extends SimpleApplication {
         skillEffects.update(tpf);
         hitFlash.update(tpf);
         layered.update(tpf, cam);
+        particles.step(tpf);
+        particleDrawing.draw(cam);
         carryTheLightsToTheStone();
         reapTheDead();
         syncMinimap();
@@ -4107,6 +4125,58 @@ final class DukeRtsApp extends SimpleApplication {
                 && !discovery.canSee(view.x(), view.y());
     }
 
+    /**
+     * A moment of the world's that the game gave a look to by name — {@code died.<template>},
+     * {@code fired.<weapon>} — played where it happened: an effect, or a particle system of that name.
+     */
+    private void lookOfMoment(String name, float x, float y, int on) {
+        var look = visuals.getMoment(name);
+        if (look == null || layered == null) {
+            return;
+        }
+        var spot = new Vector3f(x, floorHeightAt(x, y), y);
+        layered.cast(look.effect(), new LayeredEffects.Moment(spot, null, null, 0f, 1f, 0f, on, on), cam,
+                look.scale());
+    }
+
+    /**
+     * One material a picture and a blend, shared by every particle system drawn with both: the picture times
+     * each particle's colour and alpha, blended as the system says — added, by alpha, by an alpha test, or
+     * multiplied with what is behind it.
+     */
+    private Material particleMaterial(uz.dukeengine.core.content.ParticleSystem system) {
+        return particleMaterials.computeIfAbsent(system.texture() + "|" + system.blend(), key -> {
+            var material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+            material.setBoolean("VertexColor", true);
+            if (system.texture() != null) {
+                try {
+                    material.setTexture("ColorMap", assetManager.loadTexture(system.texture()));
+                } catch (RuntimeException notThere) {
+                    LOG.warning(() -> "the particle system '" + system.name() + "' names a picture that will not"
+                            + " load: " + system.texture() + " (" + notThere.getMessage() + ")");
+                }
+            }
+            var state = material.getAdditionalRenderState();
+            state.setFaceCullMode(com.jme3.material.RenderState.FaceCullMode.Off);
+            switch (system.blend()) {
+                case ADDITIVE -> {
+                    state.setBlendMode(com.jme3.material.RenderState.BlendMode.Additive);
+                    state.setDepthWrite(false);
+                }
+                case ALPHA -> {
+                    state.setBlendMode(com.jme3.material.RenderState.BlendMode.Alpha);
+                    state.setDepthWrite(false);
+                }
+                case ALPHA_TEST -> material.setFloat("AlphaDiscardThreshold", 0.5f);
+                case MULTIPLY -> {
+                    state.setBlendMode(com.jme3.material.RenderState.BlendMode.Modulate);
+                    state.setDepthWrite(false);
+                }
+            }
+            return material;
+        });
+    }
+
     private void handleEvents() {
         if (snapshot == lastEventedSnapshot) {
             return; // the sim has not produced a new frame; do not replay this one
@@ -4137,7 +4207,13 @@ final class DukeRtsApp extends SimpleApplication {
                                 died.position().y(), 0f),
                         cam.getLocation());
                 layOut(died.object().value());
+                lookOfMoment("died." + died.templateName(), died.position().x(), died.position().y(),
+                        died.object().value());
             } else if (event instanceof WeaponFired fired) {
+                if (fired.weapon() != null) {
+                    lookOfMoment("fired." + fired.weapon(), fired.from().x(), fired.from().y(),
+                            fired.shooter().value());
+                }
                 var node = unitNodes.get(fired.shooter().value());
                 if (node != null) {
                     playSound(visualFor(node.view.templateName()).fireSound,
