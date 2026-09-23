@@ -387,10 +387,43 @@ final class DukeRtsApp extends SimpleApplication {
         this.visuals = visuals;
         this.shell = shell;
         this.hotkeys = hotkeys == null ? Hotkeys.none() : hotkeys;
-        var sun = visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
-        this.sunDirection = sun.direction();
-        this.sunColour = sun.sunColour();
-        this.ambientColour = sun.ambientColour();
+        var light = visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
+        this.litBy = light;
+        this.sunDirection = light.direction();
+        this.sunColour = light.sunColour();
+        this.ambientColour = light.ambientColour();
+    }
+
+    /**
+     * Take up whatever sun the game says the world now being built is lit by.
+     *
+     * <p>A map is a place and a time. It used to be read once, when the application was made — before
+     * any map was chosen — so every match was lit by one sun, and a night map was drawn at noon. Read here
+     * instead, where the world is built, which is the moment the game knows which world it is: the same
+     * moment {@code Visuals.world(...)} is said, for the same reason.
+     *
+     * <p>Everything lit is built after this — the ground, the tiles, every unit that arrives — and reads
+     * the fields as they now stand, so what is relit here is only the two scene lights themselves. A world
+     * that asks for the sun it already has changes nothing, which is every game that sets its sun once.
+     *
+     * <p>Light is drawing. Nothing in the simulation reads it.
+     */
+    private void adoptTheSun() {
+        var light = visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
+        if (light.equals(litBy)) {
+            return;
+        }
+        litBy = light;
+        sunDirection = light.direction();
+        sunColour = light.sunColour();
+        ambientColour = light.ambientColour();
+        if (sun != null) {
+            sun.setDirection(sunDirection);
+            sun.setColor(sunColour);
+        }
+        if (ambient != null) {
+            ambient.setColor(ambientColour);
+        }
     }
 
     /**
@@ -451,8 +484,10 @@ final class DukeRtsApp extends SimpleApplication {
                 this::ground,
                 visuals.getDiscoveryTemplate() != null, visuals.getTiles(), new KitTiles());
 
-        rootNode.addLight(new DirectionalLight(sunDirection, sunColour));
-        rootNode.addLight(new AmbientLight(ambientColour));
+        sun = new DirectionalLight(sunDirection, sunColour);
+        ambient = new AmbientLight(ambientColour);
+        rootNode.addLight(sun);
+        rootNode.addLight(ambient);
 
         // Before the terrain, because rebuilding a world clears what is burning in
         // it and there has to be something there to clear.
@@ -2216,6 +2251,8 @@ final class DukeRtsApp extends SimpleApplication {
      * Build (or rebuild) the ground and rocks for the world as it stands now.
      */
     private void buildTerrain() {
+        // First: every material built from here on reads the sun, and this is the world it is for.
+        adoptTheSun();
         builtFrom = game.getTerrain();
         // A new world is a world with nothing burning in it yet.
         if (layered != null) {
@@ -5150,9 +5187,14 @@ final class DukeRtsApp extends SimpleApplication {
      * with the same normal, and how far is a decision about how a game should look
      * rather than a fact about drawing one.
      */
-    private final Vector3f sunDirection;
-    private final ColorRGBA sunColour;
-    private final ColorRGBA ambientColour;
+    private Vector3f sunDirection;
+    private ColorRGBA sunColour;
+    private ColorRGBA ambientColour;
+    /** The two scene lights, kept so a new world can relight them rather than add a second sun. */
+    private DirectionalLight sun;
+    private AmbientLight ambient;
+    /** The sunlight the scene is lit by now, so a world that asks for the same one changes nothing. */
+    private Sunlight litBy;
 
     /**
      * How much of the ambient plain terrain returns — what {@link #lit} asks for.

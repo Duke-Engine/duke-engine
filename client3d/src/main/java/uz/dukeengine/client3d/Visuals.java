@@ -806,6 +806,12 @@ public final class Visuals {
      * overhead meets a floor and the top of a wall at the same angle and shades
      * them the same. A game that never asks is lit exactly as the client always
      * lit it.
+     *
+     * <p><b>A fact about the world, not about the game.</b> A map is a place and a
+     * time, and a night map lit at noon is the wrong map. So this may be said
+     * again after launch — when a map is chosen, beside {@link #world(String...)}
+     * — and it lights the next world built. A game that says it once before
+     * launch, as games always have, sees no difference.
      */
     public Visuals sunlight(Sunlight sunlight) {
         this.sunlight = sunlight == null ? Sunlight.DEFAULT : sunlight;
