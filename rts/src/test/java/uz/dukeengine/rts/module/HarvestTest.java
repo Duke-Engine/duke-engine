@@ -10,6 +10,10 @@ import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.core.GameLogic;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.ActiveBody;
+import uz.dukeengine.core.module.MoveUpdate;
+import uz.dukeengine.core.pathfind.PathGrid;
+import uz.dukeengine.core.thing.Geometry;
+import uz.dukeengine.rts.RtsTemplate;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
@@ -113,5 +117,162 @@ class HarvestTest {
         assertEquals(0, supply.getRemaining());
         assertEquals(0, supply.take(50)); // nothing left
         assertTrue(supply.getRemaining() == 0);
+    }
+
+    // ---- standing at either end ----
+
+    /** A harvester with legs, a pile and a depot of its side, 150 apart on open ground. */
+    private GameObject walkingHarvesterBetween(int framesAtDepot) {
+        logic.setPathGrid(new PathGrid(40, 40));
+        var walker = RtsTemplate.named("Walker")
+                .geometry(new Geometry.Cylinder(3f, 6f))
+                .module(new ActiveBody.Data(100f))
+                .module(new MoveUpdate.Data(30f))
+                .module(new HarvestUpdate.Data(100, 10, 0f, framesAtDepot, 0, 0))
+                .build();
+        var depot = RtsTemplate.named("Depot")
+                .geometry(new Geometry.Box(10f, 10f, 8f))
+                .module(new SupplyDepot.Data())
+                .build();
+        var pile = RtsTemplate.named("Pile")
+                .geometry(new Geometry.Cylinder(5f, 5f))
+                .module(new SupplyModule.Data(1000))
+                .build();
+        thingFactory.addTemplate(walker);
+        thingFactory.addTemplate(depot);
+        thingFactory.addTemplate(pile);
+        spawnAt(depot, 100f, 100f);
+        spawnAt(pile, 250f, 100f);
+        return spawnAt(walker, 150f, 100f);
+    }
+
+    private GameObject spawnAt(ThingTemplate template, float x, float y) {
+        var o = logic.createObject(template);
+        o.setPlayerIndex(usa);
+        o.setPosition(new Coord3D(x, y, 0f));
+        return o;
+    }
+
+    /** What one frame left behind: where the harvester stood, whether it was at the depot, and the purse. */
+    private record Frame(Coord3D position, boolean atDepot, int carrying, int money) {
+    }
+
+    /** Every frame until the first load is banked, and ten more. */
+    private java.util.List<Frame> untilTheFirstLoadIsBanked(GameObject harvester) {
+        var depot = logic.getObjects().stream()
+                .filter(o -> o.findModule(SupplyDepot.class) != null).findFirst().orElseThrow();
+        var frames = new java.util.ArrayList<Frame>();
+        for (int frame = 0; frame < 3000; frame++) {
+            logic.update();
+            frames.add(new Frame(harvester.getPosition(), logic.isBeside(harvester, depot),
+                    harvester.findModule(HarvestUpdate.class).getCarrying(), logic.getRtsPlayer(usa).getMoney()));
+            if (frames.getLast().money() > 0 && frames.size() > 10 && frames.get(frames.size() - 11).money() > 0) {
+                return frames;
+            }
+        }
+        throw new AssertionError("nothing was ever banked");
+    }
+
+    /**
+     * The frame it came to the depot with a load — beside it, having carried one the frame before: the first
+     * frame of its wait there.
+     */
+    private static int arrival(java.util.List<Frame> frames) {
+        for (int at = 1; at < frames.size(); at++) {
+            if (frames.get(at).atDepot() && frames.get(at - 1).carrying() > 0) {
+                return at;
+            }
+        }
+        throw new AssertionError("it never came back to the depot with a load");
+    }
+
+    private static int firstMoney(java.util.List<Frame> frames) {
+        for (int at = 0; at < frames.size(); at++) {
+            if (frames.get(at).money() > 0) {
+                return at;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Ten frames at the depot: it is seen standing beside it for ten frames, and the money rises on the tenth —
+     * the frame it arrived in the first of them, as at the pile — not the moment it arrives.
+     */
+    @Test
+    void aHarvesterStandsItsFramesAtTheDepotBeforeTheMoneyArrives() {
+        var frames = untilTheFirstLoadIsBanked(walkingHarvesterBetween(10));
+        int arrived = arrival(frames);
+
+        assertEquals(arrived + 9, firstMoney(frames), "banked on its tenth frame at the depot");
+        assertEquals(100, frames.get(arrived + 9).money());
+        for (int at = arrived; at <= arrived + 9; at++) {
+            assertEquals(frames.get(arrived).position(), frames.get(at).position(), "standing still, frame " + at);
+            assertTrue(frames.get(at).atDepot());
+        }
+        assertTrue(frames.get(arrived + 10).position().distance(frames.get(arrived).position()) > 0f,
+                "and off again the frame after");
+    }
+
+    /** Nothing at the depot is what there always was: the money on the frame it arrives. */
+    @Test
+    void aHarvesterWithNoWaitAtTheDepotBanksTheMomentItArrives() {
+        var frames = untilTheFirstLoadIsBanked(walkingHarvesterBetween(0));
+
+        assertEquals(arrival(frames), firstMoney(frames));
+    }
+
+    /**
+     * A load a unit at a time, as the reference docks a truck: four boxes worth 75 each, 30 frames an act. It
+     * is handed a box on each of the first four acts and leaves on the fifth, the one that finds it full — five
+     * acts, 150 frames, 5.0 s at the pile for four boxes.
+     */
+    @Test
+    void aLoadHandedOverAUnitAtATimeTakesOneActMoreThanItHasUnits() {
+        var trucker = ThingTemplate.named("Truck")
+                .module(new ActiveBody.Data(100f))
+                .module(new HarvestUpdate.Data(300, 0, 0f, 0, 30, 75))
+                .build();
+        thingFactory.addTemplate(trucker);
+        var truck = spawn(trucker);
+        spawn(supplyPile);
+
+        var carried = new java.util.ArrayList<Integer>();
+        int banked = -1;
+        for (int frame = 1; frame <= 150 && banked < 0; frame++) {
+            logic.update();
+            if (frame % 30 == 0 && frame < 150) {
+                carried.add(truck.findModule(HarvestUpdate.class).getCarrying());
+            }
+            if (logic.getRtsPlayer(usa).getMoney() > 0) {
+                banked = frame;
+            }
+        }
+        assertEquals(java.util.List.of(75, 150, 225, 300), carried, "a box an act");
+        assertEquals(150, banked, "and the act that finds it full is the fifth");
+        assertEquals(300, logic.getRtsPlayer(usa).getMoney());
+    }
+
+    /** A pile that runs out part-way ends the wait at the act that finds it empty, and what was loaded goes home. */
+    @Test
+    void aPileThatRunsOutPartWayEndsTheWaitEarly() {
+        var trucker = ThingTemplate.named("Truck")
+                .module(new ActiveBody.Data(100f))
+                .module(new HarvestUpdate.Data(4, 0, 0f, 0, 30, 0))
+                .build();
+        var twoBoxes = ThingTemplate.named("TwoBoxes")
+                .module(new SupplyModule.Data(2))
+                .build();
+        thingFactory.addTemplate(trucker);
+        thingFactory.addTemplate(twoBoxes);
+        spawn(trucker);
+        spawn(twoBoxes);
+
+        for (int frame = 1; frame < 90; frame++) {
+            logic.update();
+        }
+        assertEquals(0, logic.getRtsPlayer(usa).getMoney(), "two boxes handed over, the third act not yet come");
+        logic.update();
+        assertEquals(2, logic.getRtsPlayer(usa).getMoney(), "the third act found the pile empty: 90 frames, not 150");
     }
 }
