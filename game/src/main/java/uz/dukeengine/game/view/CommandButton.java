@@ -30,9 +30,15 @@ package uz.dukeengine.game.view;
  * @param ghost     for a button that aims at a place, what to draw at the cursor while it is armed — the
  *                  name of a template, drawn as that template is drawn, or the path to a model. Null for no
  *                  ghost at all
+ * @param facing    which way the ghost faces until the player turns it, in the simulation's degrees — the
+ *                  unit {@code GameMessage.Construct} takes, 0 along +x. A game that puts its buildings down
+ *                  turned says so here: one RTS measured puts 254 of its 271 turned things down at -45 or
+ *                  -135, fronts to the camera, and a ghost drawn square-on showed a different footprint from
+ *                  the one that was built. The reference game starts its placement icon at the thing's own
+ *                  angle and deliberately not the camera's, so it faces the player until he turns it
  */
 public record CommandButton(String id, String picture, String label, String hotkey, boolean available,
-        Aim aim, String ghost) {
+        Aim aim, String ghost, float facing) {
 
     /**
      * What a button needs from the player between being pressed and being sent.
@@ -43,7 +49,7 @@ public record CommandButton(String id, String picture, String label, String hotk
     public enum Aim {
         /** Sent the moment it is pressed. */
         NOW,
-        /** Pressing arms the cursor; the next click on the ground is the place. */
+        /** Pressing arms the cursor; the next click on the ground is the place — dragged, the facing too. */
         GROUND,
         /** Pressing arms the cursor; the next click on a thing is the target. */
         UNIT
@@ -56,7 +62,13 @@ public record CommandButton(String id, String picture, String label, String hotk
 
     /** A button sent the moment it is pressed. */
     public CommandButton(String id, String picture, String label, String hotkey, boolean available) {
-        this(id, picture, label, hotkey, available, Aim.NOW, null);
+        this(id, picture, label, hotkey, available, Aim.NOW, null, 0f);
+    }
+
+    /** A button that aims, its ghost facing along +x until it is turned. */
+    public CommandButton(String id, String picture, String label, String hotkey, boolean available, Aim aim,
+            String ghost) {
+        this(id, picture, label, hotkey, available, aim, ghost, 0f);
     }
 
     /** A button that is simply there and may be pressed. */

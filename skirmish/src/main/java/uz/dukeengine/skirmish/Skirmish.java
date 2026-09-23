@@ -117,8 +117,8 @@ public final class Skirmish {
             return buttons;
         });
         // Whether the ghost is green: the simulation's own answer, asked of the world as it stands.
-        game.aimFits((button, place) -> !button.startsWith("build:")
-                || game.getLogic().fits(button.substring("build:".length()), place, 0f)
+        game.aimFits((button, place, facing) -> !button.startsWith("build:")
+                || game.getLogic().fits(button.substring("build:".length()), place, facing)
                         == uz.dukeengine.rts.construction.Placement.Fit.FITS);
         game.onCommandPressed(press -> {
             if (press.selection().size() != 1) {
@@ -133,7 +133,7 @@ public final class Skirmish {
             } else if (press.id().startsWith("build:") && press.place() != null) {
                 game.postCommand(new uz.dukeengine.rts.message.GameMessage.Construct(
                         game.getLocalPlayerIndex(), chosen, press.id().substring("build:".length()),
-                        press.place(), 0f));
+                        press.place(), press.facing()));
             }
         });
     }

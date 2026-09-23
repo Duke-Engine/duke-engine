@@ -78,12 +78,41 @@ class CommandBarTest {
         game.setSelection(List.of(4));
 
         var place = new uz.dukeengine.core.math.Coord3D(120f, 80f, 0f);
-        game.pressCommand("build:Barracks", place, -1);
-        game.pressCommand("power:Airstrike", null, 17);
+        game.pressCommand("build:Barracks", place, 45f, -1);
+        game.pressCommand("power:Airstrike", null, 0f, 17);
 
         assertEquals(place, pressed.getFirst().place());
+        assertEquals(45f, pressed.getFirst().facing(), "and faced the way the ghost showed");
         assertEquals(17, pressed.get(1).target());
         assertEquals(CommandButton.Aim.NOW, CommandButton.of("x", null, "x", null).aim(), "the default aims at nothing");
+        assertEquals(0f, new CommandButton("b", null, "b", null, true, CommandButton.Aim.GROUND, "Barracks").facing(),
+                "and a button that says nothing of facing faces along +x");
+    }
+
+    /**
+     * Whether an armed button's place will do is asked with the facing the ghost has at that moment: for a
+     * box, the footprint the player sees is the question.
+     */
+    @Test
+    void theAimIsJudgedAtTheFacingTheGhostHas() {
+        var asked = new ArrayList<Float>();
+        var game = headless().aimFits((button, place, facing) -> {
+            asked.add(facing);
+            return facing < 90f;
+        });
+        game.addPlayer("Me", java.awt.Color.CYAN);
+        game.runHeadless(1);
+
+        var place = new uz.dukeengine.core.math.Coord3D(50f, 50f, 0f);
+        game.setAim("build:Barracks", place, 45f);
+        game.runHeadless(1);
+        assertTrue(game.getSnapshot().aimFits());
+        assertEquals(45f, asked.getLast());
+
+        game.setAim("build:Barracks", place, 135f);
+        game.runHeadless(1);
+        assertFalse(game.getSnapshot().aimFits(), "turned, the same place is a different answer");
+        assertEquals(135f, asked.getLast());
     }
 
     /** A game that asked for none of this is a game that had none of it, which is every game until now. */

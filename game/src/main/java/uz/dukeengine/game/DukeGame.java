@@ -1024,32 +1024,48 @@ public final class DukeGame {
 
     /** Thread-safe: the player pressed a button of the bar that needs nothing more. */
     public void pressCommand(String id) {
-        pressCommand(id, null, -1);
+        pressCommand(id, null, 0f, -1);
     }
 
-    /** Thread-safe: the player pressed a button of the bar and then clicked where, or at what. */
-    public void pressCommand(String id, Coord3D place, int target) {
+    /**
+     * Thread-safe: the player pressed a button of the bar and then clicked where, or at what — and, for a
+     * place, which way the thing put there faces.
+     */
+    public void pressCommand(String id, Coord3D place, float facing, int target) {
         var handler = commandPressed;
         if (handler != null && id != null) {
-            handler.accept(new uz.dukeengine.game.view.CommandPress(id, selection, place, target));
+            handler.accept(new uz.dukeengine.game.view.CommandPress(id, selection, place, facing, target));
         }
     }
 
     // ---- aiming ----
 
-    private volatile String aimButton;
-    private volatile Coord3D aimPlace;
-    private java.util.function.BiPredicate<String, Coord3D> aimFits;
+    /** Whether an armed button's place, faced one way, would do — see {@link #aimFits}. */
+    @FunctionalInterface
+    public interface AimFits {
+        boolean test(String button, Coord3D place, float facing);
+    }
+
+    /** What the window last reported of an armed button: which, where, and facing which way. */
+    private record Aim(String button, Coord3D place, float facing) {
+    }
+
+    private volatile Aim aim;
+    private AimFits aimFits;
 
     /**
      * Whether an armed button's place would do, asked as the cursor moves — for a ghost to be drawn green or
      * red. The game answers from the simulation's side: for a building, {@code RtsSimulation.fits}.
      *
+     * <p>Asked with the facing the ghost has at that moment, because for anything but a round footprint the
+     * answer depends on it: a long building turned across a slope is a different question from the same
+     * building along it, and green has to be the answer for the footprint the player is looking at.
+     *
      * <p>Asked on the simulation thread as the snapshot is built, like the bar itself, so the answer may read
      * the world as it stands; the window only shows it. What decides whether a place will do is the order
      * that is sent, which is judged again when it is applied.
      */
-    public DukeGame aimFits(java.util.function.BiPredicate<String, Coord3D> fits) {
+    public DukeGame aimFits(AimFits fits) {
         this.aimFits = fits;
         if (client != null) {
             client.setAimFits(this::aimFitsNow);
@@ -1057,16 +1073,18 @@ public final class DukeGame {
         return this;
     }
 
-    /** Thread-safe: the button the window has armed and where its cursor stands, or null when none is. */
-    public void setAim(String buttonId, Coord3D place) {
-        this.aimPlace = place;
-        this.aimButton = buttonId;
+    /**
+     * Thread-safe: the button the window has armed, where its cursor stands and which way the ghost faces —
+     * or a null button when none is armed. One write of one value, so the simulation never reads a place
+     * from one moment with a facing from another.
+     */
+    public void setAim(String buttonId, Coord3D place, float facing) {
+        this.aim = buttonId == null || place == null ? null : new Aim(buttonId, place, facing);
     }
 
     private boolean aimFitsNow() {
-        var button = aimButton;
-        var place = aimPlace;
-        return button == null || place == null || aimFits == null || aimFits.test(button, place);
+        var now = aim;
+        return now == null || aimFits == null || aimFits.test(now.button(), now.place(), now.facing());
     }
 
     /** Thread-safe: run work on the simulation thread next frame. */

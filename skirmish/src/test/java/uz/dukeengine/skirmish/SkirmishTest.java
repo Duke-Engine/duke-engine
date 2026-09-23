@@ -282,14 +282,14 @@ class SkirmishTest {
         assertEquals("Barracks", build.ghost(), "and shows what it will put there");
 
         var place = new uz.dukeengine.core.math.Coord3D(200f, 150f, 0f);
-        game.setAim(build.id(), place);
+        game.setAim(build.id(), place, 0f);
         game.runHeadless(1);
         assertTrue(game.getSnapshot().aimFits(), "open ground: the ghost is green");
-        game.setAim(build.id(), new uz.dukeengine.core.math.Coord3D(2f, 2f, 0f));
+        game.setAim(build.id(), new uz.dukeengine.core.math.Coord3D(2f, 2f, 0f), 0f);
         game.runHeadless(1);
         assertFalse(game.getSnapshot().aimFits(), "half off the map: red");
 
-        game.pressCommand(build.id(), place, -1);
+        game.pressCommand(build.id(), place, 0f, -1);
         for (int frame = 0; frame < 30 * 30 && game.getSnapshot().units().stream()
                 .noneMatch(unit -> unit.templateName().equals("Barracks")); frame++) {
             game.runHeadless(1);

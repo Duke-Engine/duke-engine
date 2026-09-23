@@ -2536,6 +2536,8 @@ final class DukeRtsApp extends SimpleApplication {
                             // second button is that button and not a place for the first.
                         } else if (pressed && armedButton != null) {
                             aimArmedButton(); // this click is the armed button's place or thing
+                        } else if (!pressed && placement != null && placement.pressed()) {
+                            releaseArmedButton(); // let go: put down where it went down, turned as dragged
                         } else if (pressed && arming != null) {
                             // This click belongs to the armed key, not to selection.
                             // The release is swallowed with it, or letting go would
@@ -3597,16 +3599,21 @@ final class DukeRtsApp extends SimpleApplication {
         disarmButton();
         armedButton = button;
         if (button.aim() == uz.dukeengine.game.view.CommandButton.Aim.GROUND) {
+            placement = new PlacementDrag(button.facing());
             showGhost(button.ghost());
         }
     }
+
+    /** Where an armed placing button's thing stands and which way it faces; null for any other button. */
+    private PlacementDrag placement;
 
     private void disarmButton() {
         if (armedButton == null) {
             return;
         }
         armedButton = null;
-        game.setAim(null, null);
+        placement = null;
+        game.setAim(null, null, 0f);
         if (ghost != null) {
             ghost.removeFromParent();
             ghost = null;
@@ -3614,11 +3621,8 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * The armed button's click: the place, or the thing, and the press sent with it.
-     *
-     * <p>A place the simulation last said will not do is not sent, and the button stays armed — the ghost
-     * was red, and a click on red is a player looking for somewhere green. The simulation's word decides
-     * either way: a place sent is judged again when its order is applied, and refused there costs nothing.
+     * The armed button's press: the thing, sent at once — or, for a place, where it goes down. A place is
+     * sent when the press is let go, so a drag in between can turn it; see {@link PlacementDrag}.
      */
     private void aimArmedButton() {
         var button = armedButton;
@@ -3628,17 +3632,31 @@ final class DukeRtsApp extends SimpleApplication {
                 return; // it had to be a thing, and the click found none
             }
             disarmButton();
-            game.pressCommand(button.id(), null, unit.view.id());
+            game.pressCommand(button.id(), null, 0f, unit.view.id());
             markOrder(unit.view.x(), unit.view.y(), unit.view.id(), OrderMarkers.Kind.ATTACK);
             return;
         }
         var ground = pickGround();
-        if (ground == null || snapshot == null || !snapshot.aimFits()) {
+        var cursor = inputManager.getCursorPosition();
+        placement.press(cursor.x, cursor.y, ground == null ? null : new Coord3D(ground.x, ground.z, 0f));
+    }
+
+    /**
+     * The press let go: put down where it went down, facing the way it was dragged or its button's way.
+     *
+     * <p>A place the simulation last said will not do is not sent, and the button stays armed — the ghost
+     * was red, and a click on red is a player looking for somewhere green. The simulation's word decides
+     * either way: a place sent is judged again when its order is applied, and refused there costs nothing.
+     */
+    private void releaseArmedButton() {
+        var placed = placement.release();
+        if (placed == null || snapshot == null || !snapshot.aimFits()) {
             return;
         }
+        var button = armedButton;
         disarmButton();
-        game.pressCommand(button.id(), new Coord3D(ground.x, ground.z, 0f), -1);
-        markOrder(ground.x, ground.z, -1, OrderMarkers.Kind.MOVE);
+        game.pressCommand(button.id(), placed.place(), placed.facing(), -1);
+        markOrder(placed.place().x(), placed.place().y(), -1, OrderMarkers.Kind.MOVE);
     }
 
     /**
@@ -3685,16 +3703,21 @@ final class DukeRtsApp extends SimpleApplication {
      * colour the simulation last gave for it — a frame behind the cursor, which is not worth racing for.
      */
     private void followTheAim() {
-        if (armedButton == null || armedButton.aim() != uz.dukeengine.game.view.CommandButton.Aim.GROUND) {
+        if (armedButton == null || placement == null) {
             return;
         }
         var ground = pickGround();
-        if (ground == null) {
+        var cursor = inputManager.getCursorPosition();
+        placement.cursor(cursor.x, cursor.y, ground == null ? null : new Coord3D(ground.x, ground.z, 0f));
+        var where = placement.where();
+        if (where == null) {
             return;
         }
-        game.setAim(armedButton.id(), new Coord3D(ground.x, ground.z, 0f));
+        // Asked at the facing the ghost has now: for a box the footprint the player sees is the question.
+        game.setAim(armedButton.id(), where, placement.facing());
         if (ghost != null) {
-            ghost.setLocalTranslation(ground.x, floorHeightAt(ground.x, ground.z), ground.z);
+            ghost.setLocalTranslation(where.x(), floorHeightAt(where.x(), where.y()), where.y());
+            ghost.setLocalRotation(PlacementDrag.turnedTo(placement.facing()));
             ghostMaterial.setColor("Color", snapshot != null && snapshot.aimFits() ? GHOST_FITS : GHOST_REFUSED);
         }
     }
