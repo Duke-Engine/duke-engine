@@ -249,10 +249,12 @@ final class TerrainScene {
                 }
                 uvs.put(x0 / span).put(z0 / span).put(x1 / span).put(z0 / span)
                         .put(x1 / span).put(z1 / span).put(x0 / span).put(z1 / span);
-                // Wound so the face looks up: 0,3,1 and 1,3,2 give a normal along +y for a cell laid out
-                // +x to the right and +z away, which is how a grid's cells are laid.
-                indices.put(vertex).put(vertex + 3).put(vertex + 1)
-                        .put(vertex + 1).put(vertex + 3).put(vertex + 2);
+                // Cut along the top-left to bottom-right diagonal, the one HeightMap.fixedAt cuts along.
+                // It was cut along the other: on a slope the two triangles then describe a different
+                // surface from the one the pathfinder walks, and a unit stood a little in the air or a
+                // little in the ground on every tilted cell. Wound 0,3,2 and 0,2,1 so the face looks up.
+                indices.put(vertex).put(vertex + 3).put(vertex + 2)
+                        .put(vertex).put(vertex + 2).put(vertex + 1);
                 vertex += 4;
             }
             var mesh = new com.jme3.scene.Mesh();
@@ -265,6 +267,77 @@ final class TerrainScene {
             ground.setMaterial(material.of(patch.surface().colour(), patch.surface().texture()));
             root.attachChild(ground);
         }
+        for (var overlay : paint.overlays(width, grid.getHeight())) {
+            layOver(grid, overlay);
+        }
+    }
+
+    /**
+     * A second picture laid over the ground where two kinds of it meet, faded in by the shape each cell names.
+     *
+     * <p>Four triangles a cell, meeting at its middle, because that is what makes every one of the sixteen
+     * fades exact — see {@link FadeShape}. It costs nothing in the fit: the middle lies on the diagonal the
+     * ground under it is cut along, at the height the ground has there, so all four triangles lie in the two
+     * the ground is made of and the overlay cannot sink into it or float above it.
+     *
+     * <p>Drawn after the ground and blended over it, and never in any order among themselves that matters:
+     * a cell has one overlay at most, so no two of these ever cover the same place. Which is what makes
+     * blending possible here when it was not across a whole map of layers — nothing has to be sorted.
+     *
+     * <p>Laid across the world at its own coverage, like the ground's pictures, so an overlay lines up with
+     * the same picture drawn as ground next door rather than starting again in every cell.
+     */
+    private void layOver(PathGrid grid, GroundPaint.OverlayPatch overlay) {
+        float cell = grid.getCellSize();
+        int width = grid.getWidth();
+        float span = overlay.coverage() * cell;
+        int count = overlay.cells().length;
+        var positions = com.jme3.util.BufferUtils.createFloatBuffer(count * 5 * 3);
+        var normals = com.jme3.util.BufferUtils.createFloatBuffer(count * 5 * 3);
+        var colours = com.jme3.util.BufferUtils.createFloatBuffer(count * 5 * 4);
+        var uvs = com.jme3.util.BufferUtils.createFloatBuffer(count * 5 * 2);
+        var indices = com.jme3.util.BufferUtils.createIntBuffer(count * 12);
+        int vertex = 0;
+        for (int i = 0; i < count; i++) {
+            int at = overlay.cells()[i];
+            float x0 = at % width * cell;
+            float z0 = at / width * cell;
+            float x1 = x0 + cell;
+            float z1 = z0 + cell;
+            float xm = x0 + cell / 2f;
+            float zm = z0 + cell / 2f;
+            float h00 = groundAt(grid, x0, z0);
+            float h10 = groundAt(grid, x1, z0);
+            float h11 = groundAt(grid, x1, z1);
+            float h01 = groundAt(grid, x0, z1);
+            var normal = new Vector3f(x1 - x0, h10 - h00, 0f)
+                    .cross(new Vector3f(0f, h01 - h00, z1 - z0)).negateLocal().normalizeLocal();
+            positions.put(x0).put(h00).put(z0).put(x1).put(h10).put(z0).put(x1).put(h11).put(z1)
+                    .put(x0).put(h01).put(z1).put(xm).put(groundAt(grid, xm, zm)).put(zm);
+            uvs.put(x0 / span).put(z0 / span).put(x1 / span).put(z0 / span).put(x1 / span).put(z1 / span)
+                    .put(x0 / span).put(z1 / span).put(xm / span).put(zm / span);
+            // White, so the picture is what is seen; the fade is the alpha alone.
+            for (var strength : FadeShape.strengths(overlay.shapes()[i])) {
+                colours.put(1f).put(1f).put(1f).put(strength);
+                normals.put(normal.x).put(normal.y).put(normal.z);
+            }
+            // Corner, middle, next corner, round the cell: each wound so its face looks up.
+            for (int corner = 0; corner < 4; corner++) {
+                indices.put(vertex + corner).put(vertex + 4).put(vertex + (corner + 1) % 4);
+            }
+            vertex += 5;
+        }
+        var mesh = new com.jme3.scene.Mesh();
+        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Position, 3, positions);
+        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Normal, 3, normals);
+        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Color, 4, colours);
+        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord, 2, uvs);
+        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Index, 3, indices);
+        mesh.updateBound();
+        var laid = new Geometry("overlay", mesh);
+        laid.setMaterial(material.overlay(overlay.surface().colour(), overlay.surface().texture()));
+        laid.setQueueBucket(com.jme3.renderer.queue.RenderQueue.Bucket.Transparent);
+        root.attachChild(laid);
     }
 
     /**

@@ -238,6 +238,134 @@ class PaintedGroundTest {
         assertFalse(root.getChildren().isEmpty(), "and something was laid");
     }
 
+    // ---- the second layer ----
+
+    /** Grass meeting sand down the middle, the boundary cells laying sand over the grass from its side. */
+    record Shore(String name, float cellSize,
+            @Grid List<String> cells,
+            @Relief List<String> relief,
+            @Paint List<String> paint,
+            @uz.dukeengine.core.data.Overlay List<String> overlay,
+            @uz.dukeengine.core.data.Fade List<String> fade,
+            Map<String, String> palette,
+            Map<String, Float> coverage)
+            implements MapTemplate, Scaled, Painted {
+    }
+
+    private static Shore shore(List<String> fade) {
+        var palette = new LinkedHashMap<String, String>();
+        palette.put("g", "textures/ground/grass.png");
+        palette.put("s", "textures/ground/sand.png");
+        return new Shore("shore", 10f,
+                List.of("....", "....", "...."),
+                List.of("0 0 0 0 0", "0 1 2 1 0", "0 2 3 2 0", "0 0 1 0 0"),
+                List.of("ggss", "ggss", "ggss"),
+                List.of("..s.", "..s.", "..s."),
+                fade,
+                palette,
+                Map.of("s", 2f));
+    }
+
+    private static List<Geometry> named(Node root, String name) {
+        return root.getChildren().stream()
+                .filter(Geometry.class::isInstance).map(Geometry.class::cast)
+                .filter(geometry -> name.equals(geometry.getName()))
+                .toList();
+    }
+
+    /** Where grass meets sand, the sand is laid over the grass and fades out across the cell. */
+    @Test
+    void anOverlayIsLaidOverTheCellsThatNameOne() {
+        var map = shore(List.of("..1.", "..1.", "..1.")); // sand fading in from the right
+        var root = drawn(map);
+        var overlays = named(root, "overlay");
+
+        assertEquals(1, overlays.size(), "one picture laid over, one mesh");
+        var mesh = overlays.getFirst().getMesh();
+        assertEquals(3 * 5, mesh.getVertexCount(), "three cells, four corners and a middle each");
+        assertEquals(3 * 4, mesh.getTriangleCount(), "four triangles a cell, meeting at the middle");
+
+        // From the right: none at the left edge, all at the right, half in the middle.
+        var alpha = mesh.getFloatBuffer(VertexBuffer.Type.Color);
+        assertEquals(0f, alpha.get(3), "top-left");
+        assertEquals(1f, alpha.get(7), "top-right");
+        assertEquals(1f, alpha.get(11), "bottom-right");
+        assertEquals(0f, alpha.get(15), "bottom-left");
+        assertEquals(0.5f, alpha.get(19), "the middle");
+        assertEquals(com.jme3.renderer.queue.RenderQueue.Bucket.Transparent,
+                overlays.getFirst().getQueueBucket(), "drawn over the ground, after it");
+    }
+
+    /** Turning the overlay off in the data draws the step again: the ground alone, as it always was. */
+    @Test
+    void aMapWithNoSecondLayerBuildsNoneOfIt() {
+        assertTrue(named(drawn(shore(List.of("....", "....", "...."))), "overlay").isEmpty(),
+                "every fade says none");
+        assertTrue(named(drawn(field()), "overlay").isEmpty(), "and a map with no fade rows at all");
+    }
+
+    /**
+     * The picture laid over lines up with the same picture drawn as ground next door, rather than
+     * starting again in every cell: across the world, at its own coverage.
+     */
+    @Test
+    void anOverlayIsLaidAcrossTheWorldAtItsOwnSize() {
+        var root = drawn(shore(List.of("..1.", "..1.", "..1.")));
+        var uvs = named(root, "overlay").getFirst().getMesh().getFloatBuffer(VertexBuffer.Type.TexCoord);
+
+        // The first overlay cell is column 2: x from 20 to 30, and one copy of the sand spans two cells.
+        assertEquals(20f / 20f, uvs.get(0), 1e-5f);
+        assertEquals(30f / 20f, uvs.get(2), 1e-5f);
+    }
+
+    /**
+     * The overlay lies exactly on the ground: its middle is on the diagonal the ground is cut along, at the
+     * height the ground has there — and that diagonal is the one the pathfinder cuts along too.
+     */
+    @Test
+    void anOverlayLiesOnTheGroundAndTheGroundOnWhatIsWalked() {
+        var map = shore(List.of("..6.", "..6.", "..6.")); // a corner, so the middle is not the corners' mean
+        var grid = MapTerrain.of(map, 10f, 0f);
+        var positions = named(drawn(map), "overlay").getFirst().getMesh()
+                .getFloatBuffer(VertexBuffer.Type.Position);
+
+        for (int vertex = 0; vertex < positions.limit() / 3; vertex++) {
+            float x = positions.get(vertex * 3);
+            float z = positions.get(vertex * 3 + 2);
+            assertEquals(grid.reliefHeight(new uz.dukeengine.core.math.Coord3D(x, z, 0f)),
+                    positions.get(vertex * 3 + 1), 1e-4f, "vertex " + vertex);
+        }
+
+        // And the ground under it is cut the way HeightMap is: corner 0 to corner 2, top-left to bottom-right.
+        var indices = painted(drawn(map)).getFirst().getMesh().getIndexBuffer();
+        assertEquals(0, indices.get(0));
+        assertEquals(2, indices.get(2), "the first triangle ends on the bottom-right corner");
+    }
+
+    /** The mask is the engine's: five strengths a shape, and the reversed eight are one minus the rest. */
+    @Test
+    void theSixteenFadesAreExactRampsAndTheirReverses() {
+        assertEquals(List.of(1f, 0f, 0f, 1f, 0.5f), strengths(0), "from the left");
+        assertEquals(List.of(1f, 0f, 0f, 0f, 0f), strengths(4), "the top-left corner's triangle");
+        assertEquals(List.of(0f, 1f, 1f, 1f, 1f), strengths(12), "and everything but it");
+        for (int shape = 0; shape < 8; shape++) {
+            var plain = strengths(shape);
+            var reversed = strengths(shape + 8);
+            for (int at = 0; at < 5; at++) {
+                assertEquals(1f, plain.get(at) + reversed.get(at), 1e-6f, "shape " + shape + " at " + at);
+            }
+        }
+        assertEquals(10, FadeShape.of('A'));
+        assertEquals(10, FadeShape.of('a'), "either case");
+        assertEquals(FadeShape.NONE, FadeShape.of('.'));
+        assertEquals(FadeShape.UNREADABLE, FadeShape.of('x'));
+    }
+
+    private static List<Float> strengths(int shape) {
+        var five = FadeShape.strengths(shape);
+        return List.of(five[0], five[1], five[2], five[3], five[4]);
+    }
+
     /** A flat square tile with a mesh in it, so a kit has something to lay. */
     private static final class SquareTiles implements TileSource {
         @Override

@@ -19,6 +19,11 @@ attribute vec2 inTexCoord;
 varying vec2 texCoord;
 #endif
 
+#ifdef VERTEX_ALPHA
+attribute vec4 inColor;
+varying float vertexAlpha;
+#endif
+
 void main() {
     vec4 world = g_WorldMatrix * vec4(inPosition, 1.0);
 
@@ -34,6 +39,10 @@ void main() {
 
     #ifdef HAS_COLORMAP
     texCoord = inTexCoord;
+    #endif
+
+    #ifdef VERTEX_ALPHA
+    vertexAlpha = inColor.a;
     #endif
 
     gl_Position = g_WorldViewProjectionMatrix * vec4(inPosition, 1.0);

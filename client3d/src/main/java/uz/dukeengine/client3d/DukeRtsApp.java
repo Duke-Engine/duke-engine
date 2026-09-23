@@ -481,7 +481,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         // Needs the locators above, so it cannot be built with the app itself.
         terrain = new TerrainScene(terrainNode,
-                this::ground,
+                groundSurfaces,
                 visuals.getDiscoveryTemplate() != null, visuals.getTiles(), new KitTiles());
 
         sun = new DirectionalLight(sunDirection, sunColour);
@@ -5266,6 +5266,41 @@ final class DukeRtsApp extends SimpleApplication {
         }
         return fogged(colour, ambientColour.mult(PLAIN_AMBIENT), picture);
     }
+
+    /**
+     * A picture laid over the ground and faded into it by the alpha each vertex carries.
+     *
+     * <p>The ground's own material with three things changed: it reads the vertex alpha, it blends over
+     * what is under it, and it neither writes depth nor loses to the ground it lies exactly on — pulled a
+     * hair toward the eye instead. It is only ever asked for by a map with a second layer, so the ground of
+     * every other map is built exactly as it was.
+     */
+    private Material groundOverlay(ColorRGBA colour, String texture) {
+        var material = ground(colour, texture);
+        if (fogMap != null) {
+            material.setBoolean("VertexAlpha", true);
+        } else {
+            material.setBoolean("UseVertexColor", true);
+        }
+        var state = material.getAdditionalRenderState();
+        state.setBlendMode(com.jme3.material.RenderState.BlendMode.Alpha);
+        state.setDepthWrite(false);
+        state.setPolyOffset(-1f, -1f);
+        return material;
+    }
+
+    /** The ground's materials, both kinds — see {@link Surfaces}. */
+    private final Surfaces groundSurfaces = new Surfaces() {
+        @Override
+        public Material of(ColorRGBA colour, String texture) {
+            return ground(colour, texture);
+        }
+
+        @Override
+        public Material overlay(ColorRGBA colour, String texture) {
+            return groundOverlay(colour, texture);
+        }
+    };
 
     private final java.util.Map<String, com.jme3.texture.Texture> groundTextures =
             new java.util.HashMap<>();

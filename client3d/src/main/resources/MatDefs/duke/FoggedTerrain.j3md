@@ -5,6 +5,9 @@ MaterialDef Fogged Terrain {
 
         // The surface itself: a colour, and a texture atlas if the kit has one.
         Texture2D ColorMap
+        // Whether each vertex carries how much of this surface shows there -- a picture laid over
+        // other ground and faded into it. Off for the ground itself, which then pays nothing for it.
+        Boolean VertexAlpha
         Color Color
         // How much of the scene's ambient light this surface returns, already
         // multiplied by the ambient light itself -- the client has one sun and one
@@ -38,6 +41,7 @@ MaterialDef Fogged Terrain {
         Defines {
             BOUND_DRAW_BUFFER: BoundDrawBuffer
             HAS_COLORMAP : ColorMap
+            VERTEX_ALPHA : VertexAlpha
         }
     }
 }

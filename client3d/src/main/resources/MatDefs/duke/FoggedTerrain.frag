@@ -33,10 +33,17 @@ uniform sampler2D m_ColorMap;
 varying vec2 texCoord;
 #endif
 
+#ifdef VERTEX_ALPHA
+varying float vertexAlpha;
+#endif
+
 void main() {
     vec4 albedo = m_Color;
     #ifdef HAS_COLORMAP
     albedo *= texture2D(m_ColorMap, texCoord);
+    #endif
+    #ifdef VERTEX_ALPHA
+    albedo.a *= vertexAlpha;
     #endif
 
     // One sun and one flat ambient. The art is flat-shaded palette work, so

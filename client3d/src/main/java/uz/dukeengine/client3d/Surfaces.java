@@ -29,4 +29,16 @@ interface Surfaces {
      *                the rest is its edge pixel smeared across the map
      */
     Material of(ColorRGBA colour, String texture);
+
+    /**
+     * A material for a picture laid over the ground and faded into it: the same as {@link #of}, but blended
+     * by the alpha of each vertex, drawn over what is under it rather than hiding it, and pulled a hair
+     * toward the eye so the ground it lies exactly on does not fight it for the same pixels.
+     *
+     * <p>A default rather than a second abstract method, so a scene that is only being looked at — every
+     * test here — can still hand over a single function. Only a map with a second layer ever asks.
+     */
+    default Material overlay(ColorRGBA colour, String texture) {
+        return of(colour, texture);
+    }
 }

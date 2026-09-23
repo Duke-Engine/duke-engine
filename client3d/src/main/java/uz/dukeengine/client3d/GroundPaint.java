@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import uz.dukeengine.core.data.Fade;
+import uz.dukeengine.core.data.Overlay;
 import uz.dukeengine.core.data.Paint;
 import uz.dukeengine.core.map.MapTemplate;
 import uz.dukeengine.core.map.MapTerrain;
@@ -50,17 +52,29 @@ final class GroundPaint {
     record Patch(Surface surface, float coverage, int[] cells) {
     }
 
+    /**
+     * One picture laid over other ground, every cell it lies on, and how it fades into each —
+     * {@code shapes[i]} for {@code cells[i]}, one of {@link FadeShape}'s sixteen.
+     */
+    record OverlayPatch(Surface surface, float coverage, int[] cells, int[] shapes) {
+    }
+
     private final String what;
     private final List<String> rows;
     private final Map<String, String> palette;
     private final Map<String, Float> coverage;
+    /** The second layer: empty for a map that has none, which is every map that never asked. */
+    private final List<String> overlays;
+    private final List<String> fades;
 
     private GroundPaint(String what, List<String> rows, Map<String, String> palette,
-            Map<String, Float> coverage) {
+            Map<String, Float> coverage, List<String> overlays, List<String> fades) {
         this.what = what;
         this.rows = rows;
         this.palette = palette;
         this.coverage = coverage;
+        this.overlays = overlays;
+        this.fades = fades;
     }
 
     /**
@@ -77,7 +91,8 @@ final class GroundPaint {
             return null;
         }
         var coverage = painted.coverage() == null ? Map.<String, Float>of() : painted.coverage();
-        return new GroundPaint(named(map), rows, painted.palette(), coverage);
+        return new GroundPaint(named(map), rows, painted.palette(), coverage,
+                MapTerrain.rows(map, Overlay.class, "overlay"), MapTerrain.rows(map, Fade.class, "fade"));
     }
 
     /**
@@ -128,6 +143,61 @@ final class GroundPaint {
                 of[i] = painted.get(i);
             }
             patches.add(new Patch(Surface.of(palette.get(key)), coverageOf(key), of));
+        });
+        return patches;
+    }
+
+    /**
+     * The second layer, gathered the same way: one patch a picture that is laid over anything, each cell
+     * with the shape it fades in by. Empty — and nothing built, nothing drawn — for a map with no
+     * {@link Fade} rows, which is every map that did not ask for this.
+     *
+     * <p>A cell is read only where its fade names a shape; the overlay character anywhere else is a
+     * placeholder. What cannot be read is said once, like the paint's own mistakes, and left out.
+     */
+    List<OverlayPatch> overlays(int width, int height) {
+        if (fades.isEmpty()) {
+            return List.of();
+        }
+        var cells = new LinkedHashMap<String, List<int[]>>();
+        var unnamed = new LinkedHashMap<String, Integer>();
+        var unreadable = new LinkedHashMap<Character, Integer>();
+        for (int cy = 0; cy < height && cy < fades.size(); cy++) {
+            var fade = fades.get(cy);
+            var over = cy < overlays.size() ? overlays.get(cy) : "";
+            for (int cx = 0; cx < width && cx < fade.length(); cx++) {
+                int shape = FadeShape.of(fade.charAt(cx));
+                if (shape == FadeShape.NONE) {
+                    continue;
+                }
+                if (shape == FadeShape.UNREADABLE) {
+                    unreadable.merge(fade.charAt(cx), 1, Integer::sum);
+                    continue;
+                }
+                var key = cx < over.length() ? String.valueOf(over.charAt(cx)) : "";
+                if (!palette.containsKey(key)) {
+                    unnamed.merge(key, 1, Integer::sum);
+                    continue;
+                }
+                cells.computeIfAbsent(key, k -> new ArrayList<>()).add(new int[] {cy * width + cx, shape});
+            }
+        }
+        unreadable.forEach((written, count) -> LOG.log(Level.WARNING,
+                "{0}: ''{1}'' is no fade — a fade is . or one of 0-F — on {2} cell(s)",
+                new Object[] {what, written, count}));
+        unnamed.forEach((key, count) -> LOG.log(Level.WARNING,
+                "{0}: the palette does not say what the overlay ''{1}'' is, and {2} cell(s) are laid with it",
+                new Object[] {what, key, count}));
+
+        var patches = new ArrayList<OverlayPatch>(cells.size());
+        cells.forEach((key, laid) -> {
+            var at = new int[laid.size()];
+            var shapes = new int[laid.size()];
+            for (int i = 0; i < at.length; i++) {
+                at[i] = laid.get(i)[0];
+                shapes[i] = laid.get(i)[1];
+            }
+            patches.add(new OverlayPatch(Surface.of(palette.get(key)), coverageOf(key), at, shapes));
         });
         return patches;
     }
