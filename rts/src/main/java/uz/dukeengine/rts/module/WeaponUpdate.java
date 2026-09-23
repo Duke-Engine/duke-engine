@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.DamageType;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
@@ -18,6 +19,7 @@ import uz.dukeengine.core.thing.Conditions;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.ObjectStatus;
+import uz.dukeengine.rts.event.ShotLanded;
 import uz.dukeengine.rts.event.WeaponFired;
 import uz.dukeengine.rts.player.RtsPlayer;
 
@@ -159,8 +161,8 @@ public final class WeaponUpdate extends UpdateModule {
         }
     }
 
-    /** A weapon one slot of the set in use carries, with its clip: what is weighed when a target is. */
-    private record Armed(WeaponSlot slot, Weapon weapon, Clip clip) {
+    /** A weapon one slot of the set in use carries, which slot, and its clip: what is weighed when a target is. */
+    private record Armed(int index, WeaponSlot slot, Weapon weapon, Clip clip) {
     }
 
     /** The slot the weapon written in place sits in: no preference, chosen as freely by the unit as by an order. */
@@ -181,7 +183,7 @@ public final class WeaponUpdate extends UpdateModule {
         this.sets = data.weaponSets();
         var written = Weapon.of(data);
         this.inPlace = sets.isEmpty()
-                ? List.of(new Armed(IN_PLACE, written, clipOf(written)))
+                ? List.of(new Armed(0, IN_PLACE, written, clipOf(written)))
                 : List.of();
     }
 
@@ -352,29 +354,64 @@ public final class WeaponUpdate extends UpdateModule {
 
     private void fire(uz.dukeengine.core.thing.World world, GameObject owner, GameObject victim, Armed chosen) {
         var weapon = chosen.weapon();
-        float dealt = dealt(owner, weapon);
+        var shot = new Shot(owner.getId(), owner.getPlayerIndex(), weapon, chosen.index(), dealt(owner, weapon));
 
         // A shot was fired either way — the reload runs and the moment is
         // announced — but whether it lands now is the launcher's to decide.
-        boolean inFlight = handOver(owner, victim, dealt, weapon.damageType());
+        boolean inFlight = handOver(owner, victim, shot);
         if (!inFlight) {
-            victim.getBody().damage(dealt, weapon.damageType()); // scaled by the victim's armor
+            victim.getBody().damage(shot.damage(), weapon.damageType()); // scaled by the victim's armor
         }
         chosen.clip().fired(world.random(), rateOfFire(owner));
         world.post(new WeaponFired(world.getFrame(), owner.getId(), victim.getId(),
                 owner.getPosition(), victim.getPosition(), weapon.name()));
 
         if (inFlight) {
-            return; // nothing has been hit yet; splash and the kill wait with it
+            return; // nothing has been hit yet; the blast and the kill wait for land()
         }
-        if (weapon.splashRadius() > 0f) {
-            applySplash(world, owner, victim, dealt, weapon);
-        }
-
+        struck(world, shot, owner, victim, victim.getPosition(), owner.getPosition());
         if (victim.isEffectivelyDead()) {
-            grantKillExperience(owner, victim);
             target = null;
         }
+    }
+
+    /**
+     * Land a shot a {@link ProjectileLauncher} carried, where it came down — exactly what a weapon's instant hit
+     * does from the moment the shot is handed over: the direct hit on {@code victim}, if there is one and it is
+     * still alive, scaled by its armour as always; the blast round {@code where}, by the weapon's radius and the
+     * same rules; the kill experience to the shooter, if it is still there to take it; and {@link ShotLanded}.
+     *
+     * <p>A shot may come down where its victim no longer is — it moved, or a shell was aimed at a spot — and then
+     * {@code victim} is {@code null} and only the blast lands. The shooter may be dead by now: the damage lands
+     * all the same, with nobody to credit. Call it inside the simulation frame, as a launcher's own update is.
+     *
+     * @param from where it came from, so what is drawn where it landed faces the way it travelled; {@code null}
+     *             for straight down
+     */
+    public static void land(uz.dukeengine.core.thing.World world, Shot shot, GameObject victim, Coord3D where,
+            Coord3D from) {
+        var shooter = world.findObject(shot.shooter());
+        var hit = victim == null || victim.isEffectivelyDead() || victim.getBody() == null ? null : victim;
+        if (hit != null) {
+            hit.getBody().damage(shot.damage(), shot.weapon().damageType());
+        }
+        struck(world, shot, shooter, hit, where, from == null ? where : from);
+    }
+
+    /**
+     * Everything that follows the direct hit, one way for a shot that hit at once and one that was carried: the
+     * blast, the kill experience, and the moment it landed.
+     */
+    private static void struck(uz.dukeengine.core.thing.World world, Shot shot, GameObject shooter,
+            GameObject victim, Coord3D where, Coord3D from) {
+        if (shot.weapon().splashRadius() > 0f) {
+            splash(world, shot, shooter, victim, where);
+        }
+        if (victim != null && victim.isEffectivelyDead() && shooter != null) {
+            grantKillExperience(shooter, victim);
+        }
+        world.post(new ShotLanded(world.getFrame(), shot.shooter(),
+                victim == null ? null : victim.getId(), shot.weapon().name(), where, from));
     }
 
     /** A frame has passed for every weapon it has, carried or swapped out: reloads run on through a swap. */
@@ -407,8 +444,10 @@ public final class WeaponUpdate extends UpdateModule {
             return List.of();
         }
         var world = getOwner().getWorld();
-        var armed = new ArrayList<Armed>(sets.get(fits).slots().size());
-        for (var slot : sets.get(fits).slots()) {
+        var slots = sets.get(fits).slots();
+        var armed = new ArrayList<Armed>(slots.size());
+        for (int index = 0; index < slots.size(); index++) {
+            var slot = slots.get(index);
             var weapon = world instanceof uz.dukeengine.rts.RtsSimulation rts ? rts.findWeapon(slot.weapon()) : null;
             if (weapon == null) {
                 if (MISSING.add(String.valueOf(slot.weapon()))) {
@@ -417,7 +456,7 @@ public final class WeaponUpdate extends UpdateModule {
                 }
                 continue;
             }
-            armed.add(new Armed(slot, weapon, clips.computeIfAbsent(weapon.name(), name -> clipOf(weapon))));
+            armed.add(new Armed(index, slot, weapon, clips.computeIfAbsent(weapon.name(), name -> clipOf(weapon))));
         }
         return armed;
     }
@@ -559,10 +598,9 @@ public final class WeaponUpdate extends UpdateModule {
      *
      * @return whether one took it
      */
-    private static boolean handOver(GameObject owner, GameObject victim, float dealt, DamageType damageType) {
+    private static boolean handOver(GameObject owner, GameObject victim, Shot shot) {
         for (var module : owner.getModules()) {
-            if (module instanceof ProjectileLauncher launcher
-                    && launcher.launch(owner, victim, dealt, damageType)) {
+            if (module instanceof ProjectileLauncher launcher && launcher.launch(owner, victim, shot)) {
                 return true;
             }
         }
@@ -620,21 +658,23 @@ public final class WeaponUpdate extends UpdateModule {
         return multiplier;
     }
 
-    /** Deal area damage to other enemies around the impact point. */
-    private static void applySplash(uz.dukeengine.core.thing.World world, GameObject owner, GameObject victim,
-            float dealt, Weapon weapon) {
-        int ownerPlayer = owner.getPlayerIndex();
-        var caught = world.objectsInRange(victim.getPosition(), weapon.splashRadius(), candidate ->
+    /**
+     * Area damage to the enemies of the shot's side round where it struck — neither the victim, which took the
+     * direct hit, nor the shooter. What the blast kills is the shooter's to be credited with, if it is there.
+     */
+    private static void splash(uz.dukeengine.core.thing.World world, Shot shot, GameObject shooter,
+            GameObject victim, Coord3D where) {
+        var caught = world.objectsInRange(where, shot.weapon().splashRadius(), candidate ->
                 candidate != victim
-                        && candidate != owner
+                        && !candidate.getId().equals(shot.shooter())
                         && !candidate.isContained()
                         && candidate.getBody() != null
                         && !candidate.isEffectivelyDead()
-                        && world.getRelationship(ownerPlayer, candidate.getPlayerIndex()) == Relationship.ENEMIES);
+                        && world.getRelationship(shot.side(), candidate.getPlayerIndex()) == Relationship.ENEMIES);
         for (var bystander : caught) {
-            bystander.getBody().damage(dealt, weapon.damageType());
-            if (bystander.isEffectivelyDead()) {
-                grantKillExperience(owner, bystander);
+            bystander.getBody().damage(shot.damage(), shot.weapon().damageType());
+            if (bystander.isEffectivelyDead() && shooter != null) {
+                grantKillExperience(shooter, bystander);
             }
         }
     }

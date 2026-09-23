@@ -20,15 +20,24 @@ import uz.dukeengine.core.thing.GameObject;
  * <p>The mirror of {@link DamageModifier}, which changes <em>how hard</em> a shot
  * lands; this changes <em>whether and when</em> it does. Neither is a rule the
  * library imposes: a game that installs no launcher is hitscan exactly as before.
+ *
+ * <p><b>When it arrives</b>, {@link WeaponUpdate#land} lands it: the direct hit,
+ * the blast round where it came down, the kill experience and the events —
+ * exactly what the weapon would have done had it hit at once. A launcher that
+ * only damaged the victim used to be the weaker weapon: no blast, and no rank
+ * for the kill.
  */
 public interface ProjectileLauncher {
 
     /**
-     * Take this shot, or decline it.
+     * Take this shot, or decline it — told which weapon fired it and from which
+     * slot. A unit often carries an instant weapon beside a launched one (a tank's
+     * gun beside its anti-air missiles), and a launcher that could not tell them
+     * apart had to guess.
      *
      * <p>The damage is final — every modifier and player bonus has already been
-     * applied — so a launcher carries a number rather than having to work one out
-     * again on arrival.
+     * applied — so a launcher carries the shot rather than having to work anything
+     * out again on arrival.
      *
      * <p>Declining is not an error: a launcher with nowhere to put a projectile
      * says so, and the weapon lands the shot itself rather than the unit quietly
@@ -39,5 +48,16 @@ public interface ProjectileLauncher {
      *
      * @return whether the shot was taken; false leaves it to the weapon
      */
-    boolean launch(GameObject shooter, GameObject victim, float damage, DamageType type);
+    default boolean launch(GameObject shooter, GameObject victim, Shot shot) {
+        return launch(shooter, victim, shot.damage(), shot.weapon().damageType());
+    }
+
+    /**
+     * The form every launcher was written against before a shot said which weapon
+     * fired it: still called, through the form above, by one that implements only
+     * this. Declines by default.
+     */
+    default boolean launch(GameObject shooter, GameObject victim, float damage, DamageType type) {
+        return false;
+    }
 }

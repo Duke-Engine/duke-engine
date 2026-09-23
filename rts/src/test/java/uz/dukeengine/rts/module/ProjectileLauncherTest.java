@@ -204,8 +204,8 @@ class ProjectileLauncherTest {
      * A kill is not credited for a shot still in the air.
      *
      * <p>The victim is alive when the weapon lets go of it, so there is nothing to
-     * be credited for. Whatever carries the shot has to hand out the experience if
-     * it turns out to kill — a real difference, and the reason it is stated here.
+     * be credited for. The kill is credited when the shot lands, by
+     * {@link WeaponUpdate#land} — see {@code ShotLandingTest}.
      */
     @Test
     void nothingIsCreditedForAShotThatHasNotArrived() {
