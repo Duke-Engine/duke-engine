@@ -13,8 +13,9 @@ import uz.dukeengine.rts.player.RtsPlayer;
  * Saves and restores the deterministic world state as portable text, ported in
  * spirit from SAGE's {@code Snapshot}/{@code Xfer} system.
  *
- * <p>Captures the strategic state — frame counter, players (money, weapon-bonus,
- * upgrades) and objects (template, owner, transform, health, status) — enough
+ * <p>Captures the strategic state — frame counter, where the simulation's random
+ * numbers stand, players (money, weapon-bonus, upgrades) and objects (template,
+ * owner, transform, health, status) — enough
  * that a restored world has the same {@link GameLogic#checksum()} as the saved
  * one. Float values use {@link Float#toString}, which round-trips to identical
  * bits.
@@ -35,6 +36,7 @@ public final class GameSnapshot {
         var sb = new StringBuilder();
         sb.append("FRAME ").append(logic.getFrame()).append('\n');
         sb.append("NEXTID ").append(logic.getNextObjectId()).append('\n');
+        sb.append("RANDOM ").append(logic.random().state()).append('\n');
 
         var players = logic.getPlayerList();
         for (int i = 0; i < players.getPlayerCount(); i++) {
@@ -77,6 +79,7 @@ public final class GameSnapshot {
             switch (key) {
                 case "FRAME" -> logic.setFrame(Integer.parseInt(rest.trim()));
                 case "NEXTID" -> logic.setNextObjectId(Integer.parseInt(rest.trim()));
+                case "RANDOM" -> logic.random().restore(Long.parseLong(rest.trim()));
                 case "PLAYER" -> loadPlayer(rest, logic);
                 case "OBJECT" -> loadObject(rest, logic);
                 default -> throw new IllegalArgumentException("unknown snapshot line: " + key);

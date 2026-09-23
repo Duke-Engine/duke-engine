@@ -199,6 +199,12 @@ public interface World {
     }
 
     /**
+     * The simulation's own random numbers: the one stream everything the world decides by chance draws from,
+     * seeded the same on every machine — see {@link uz.dukeengine.core.math.LogicRandom}.
+     */
+    uz.dukeengine.core.math.LogicRandom random();
+
+    /**
      * Somewhere at or near {@code near} where {@code shape} fits without
      * overlapping anything — where to put a newly produced unit, a dropped
      * passenger, or anything else that must appear beside something solid.

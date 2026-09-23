@@ -42,6 +42,12 @@ import uz.dukeengine.rts.player.RtsPlayer;
  * So a weapon may name the classes it is fired at ({@link Data#targets}), and the game says which classes each
  * thing has ({@link TargetRule}). Acquiring a target, keeping one, and taking an order to attack one all ask
  * the same question — {@link #canFireAt} — and an order to attack something it cannot hit is refused.
+ *
+ * <p><b>Its clip.</b> Most RTS weapons fire from a clip, and the clip is the rate of fire: in the RTS this was
+ * measured in, 314 of 363 weapons give a clip size, 112 hold one round — so they fire once a reload and never
+ * wait their delay — 20 hold thirty (bursts, then a pause), and 13 are refilled only when their aircraft lands.
+ * See {@link Clip} for the rule; {@link #getStatus}, {@link #getRounds} and {@link #refill} are the weapon's
+ * side of it. Left out, a weapon has no clip and waits {@code ReloadFrames} after every shot, as it always did.
  */
 @ModuleGroup(ModuleGroups.COMBAT)
 public final class WeaponUpdate extends UpdateModule {
@@ -61,12 +67,23 @@ public final class WeaponUpdate extends UpdateModule {
      *     {@code Targets = [GROUND, AIRBORNE_VEHICLE]}. None, the default, is anything at all, which is
      *     what every weapon was before this existed; the reference game reads none as ground only, and a
      *     game that wants that says so
+     * @param reloadFrames  the wait after a shot that leaves rounds in the clip — after every shot, for a weapon
+     *     with no clip. The reference's delay between shots
+     * @param reloadFramesMax  the most that wait may be: with this above {@code ReloadFrames}, each wait is drawn
+     *     from the two, both included, from the simulation's own random numbers. Left out, the wait is exactly
+     *     {@code ReloadFrames} and nothing is drawn
+     * @param clipSize  rounds before a reload. 0, the default, is no clip
+     * @param clipReloadFrames  how long refilling an emptied clip takes, from the shot that emptied it
+     * @param autoReload  whether it refills itself. Yes by default; no, and an emptied clip stays empty —
+     *     {@link WeaponStatus#OUT} — until {@link #refill}
      */
     public record Data(float damage, float attackRange, int reloadFrames,
             DamageType damageType, float splashRadius,
-            boolean attackOnTheMove, java.util.List<String> targets) implements ModuleData {
-        /** What a block leaves out: plain damage, no splash, a shot taken on the move, at anything. */
-        static final Data DEFAULTS = new Data(0f, 0f, 0, DamageType.NORMAL, 0f, true, java.util.List.of());
+            boolean attackOnTheMove, java.util.List<String> targets,
+            int reloadFramesMax, int clipSize, int clipReloadFrames, boolean autoReload) implements ModuleData {
+        /** What a block leaves out: plain damage, no splash, a shot taken on the move, at anything, no clip. */
+        static final Data DEFAULTS = new Data(0f, 0f, 0, DamageType.NORMAL, 0f, true, java.util.List.of(),
+                0, 0, 0, true);
 
         public Data {
             damageType = damageType == null ? DamageType.NORMAL : damageType;
@@ -90,28 +107,50 @@ public final class WeaponUpdate extends UpdateModule {
                 float splashRadius, boolean attackOnTheMove) {
             this(damage, attackRange, reloadFrames, damageType, splashRadius, attackOnTheMove, java.util.List.of());
         }
+
+        public Data(float damage, float attackRange, int reloadFrames, DamageType damageType,
+                float splashRadius, boolean attackOnTheMove, java.util.List<String> targets) {
+            this(damage, attackRange, reloadFrames, damageType, splashRadius, attackOnTheMove, targets,
+                    0, 0, 0, true);
+        }
     }
 
     private final float damage;
     private final float attackRange;
-    private final int reloadFrames;
     private final DamageType damageType;
     private final float splashRadius;
     private final boolean attackOnTheMove;
     private final java.util.List<String> targets;
 
+    private final Clip clip;
+
     private ObjectId target;
-    private int cooldown;
 
     public WeaponUpdate(GameObject owner, Data data) {
         super(owner);
         this.damage = data.damage();
         this.attackRange = data.attackRange();
-        this.reloadFrames = data.reloadFrames();
         this.damageType = data.damageType();
         this.splashRadius = data.splashRadius();
         this.attackOnTheMove = data.attackOnTheMove();
         this.targets = data.targets();
+        this.clip = new Clip(data.clipSize(), data.reloadFrames(), data.reloadFramesMax(), data.clipReloadFrames(),
+                data.autoReload());
+    }
+
+    /** Whether it may fire now, is waiting between shots, is refilling its clip, or is out. */
+    public WeaponStatus getStatus() {
+        return clip.status();
+    }
+
+    /** Rounds left in its clip; 0 for a weapon with no clip, which counts none. */
+    public int getRounds() {
+        return clip.rounds();
+    }
+
+    /** Fill its clip and make it ready at once — what a game does when an aircraft lands at base, or on a crate. */
+    public void refill() {
+        clip.refill();
     }
 
     /**
@@ -177,9 +216,7 @@ public final class WeaponUpdate extends UpdateModule {
                 || getOwner().hasStatus(ObjectStatus.DISABLED)) {
             return; // dead, inside a transport, or disabled — hold fire
         }
-        if (cooldown > 0) {
-            cooldown--;
-        }
+        clip.tick();
 
         var owner = getOwner();
         if (heldByAModule(owner)) {
@@ -193,8 +230,8 @@ public final class WeaponUpdate extends UpdateModule {
             return;
         }
         var world = owner.getWorld();
-        if (world == null) {
-            return;
+        if (world == null || clip.status() == WeaponStatus.OUT) {
+            return; // an empty gun looks for nothing, and keeps what it had for when it is refilled
         }
 
         if (target == null) {
@@ -220,8 +257,8 @@ public final class WeaponUpdate extends UpdateModule {
         if (rangeTo(owner, victim) > attackRange) {
             return; // out of range — wait for movement to close in
         }
-        if (cooldown > 0) {
-            return; // still reloading
+        if (clip.status() != WeaponStatus.READY) {
+            return; // between shots, or refilling its clip
         }
 
         float dealt = damage * damageModifiers(owner);
@@ -236,7 +273,7 @@ public final class WeaponUpdate extends UpdateModule {
         if (!inFlight) {
             victim.getBody().damage(dealt, damageType); // scaled by the victim's armor
         }
-        cooldown = reloadFrames;
+        clip.fired(world.random(), rateOfFire(owner));
         world.post(new WeaponFired(world.getFrame(), owner.getId(), victim.getId(),
                 owner.getPosition(), victim.getPosition()));
 
@@ -304,6 +341,17 @@ public final class WeaponUpdate extends UpdateModule {
         for (var module : owner.getModules()) {
             if (module instanceof DamageModifier modifier) {
                 multiplier *= modifier.damageMultiplier();
+            }
+        }
+        return multiplier;
+    }
+
+    /** Everything on this unit that changes how fast it fires, multiplied together in module order. */
+    private static float rateOfFire(GameObject owner) {
+        float multiplier = 1f;
+        for (var module : owner.getModules()) {
+            if (module instanceof RateOfFireModifier modifier) {
+                multiplier *= modifier.rateOfFireMultiplier();
             }
         }
         return multiplier;

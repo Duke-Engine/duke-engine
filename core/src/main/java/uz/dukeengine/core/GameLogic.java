@@ -63,6 +63,16 @@ public abstract class GameLogic extends SubsystemInterface implements World {
 
     private final ArrayDeque<WorldEvent> pendingEvents = new ArrayDeque<>();
 
+    /**
+     * Where every world starts its random numbers unless its game says otherwise: fixed, so two peers and a
+     * replay draw the same sequence with nothing to agree on first.
+     */
+    public static final long DEFAULT_RANDOM_SEED = 0x5AFE5EEDL;
+
+    private long randomSeed = DEFAULT_RANDOM_SEED;
+    private final uz.dukeengine.core.math.LogicRandom random =
+            new uz.dukeengine.core.math.LogicRandom(DEFAULT_RANDOM_SEED);
+
     private int frame;
     private int nextObjectId = 1;
     private boolean paused;
@@ -423,6 +433,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     private void clearState() {
         objects.clear();
         staticObstaclesDirty = true;
+        random.restore(randomSeed);
         frame = 0;
         nextObjectId = 1;
         paused = false;
@@ -633,6 +644,21 @@ public abstract class GameLogic extends SubsystemInterface implements World {
 
     private static long mix(long hash, int value) {
         return hash * 31 + value;
+    }
+
+    @Override
+    public final uz.dukeengine.core.math.LogicRandom random() {
+        return random;
+    }
+
+    /**
+     * Start this world's random numbers from {@code seed} — before the first frame, and the same on every peer
+     * and in every replay of the match, or the worlds part company at the first thing decided by chance. A
+     * game that never calls this draws from {@link #DEFAULT_RANDOM_SEED}.
+     */
+    public final void setRandomSeed(long seed) {
+        this.randomSeed = seed;
+        random.restore(seed);
     }
 
     /** The current logic frame number — the simulation's clock. */

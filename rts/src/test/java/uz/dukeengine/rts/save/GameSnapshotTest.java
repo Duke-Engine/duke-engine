@@ -101,6 +101,19 @@ class GameSnapshotTest {
         assertEquals(3, restored.createObject(tank).getId().value()); // nextObjectId preserved
     }
 
+    /** Where the simulation's random numbers stand is saved too, so a loaded game draws what the saved one would. */
+    @Test
+    void theRandomNumbersCarryOnFromWhereTheyWereSaved() {
+        var orig = newLogic();
+        orig.random().nextLong();
+        var saved = GameSnapshot.save(orig);
+        long next = orig.random().nextLong();
+
+        var restored = newLogic();
+        GameSnapshot.load(saved, restored);
+        assertEquals(next, restored.random().nextLong());
+    }
+
     @Test
     void savedTextIsStableForSameState() {
         var logic = newLogic();
