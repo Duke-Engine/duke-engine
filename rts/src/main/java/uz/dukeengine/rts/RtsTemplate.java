@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import uz.dukeengine.core.GameConstants;
 import uz.dukeengine.core.module.ModuleData;
@@ -30,7 +31,8 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
         String model, float modelScale, int tint, float facing,
         @Link(AnimationSet.class) String animations,
         @Clip String idle, @Clip String walk, @Clip String attack, @Clip String death,
-        @Link(Effect.class) String effect)
+        @Link(Effect.class) String effect,
+        Map<String, String> models, Map<String, Float> whenHurt)
         implements Solid, Sighted, Classified, Titled, Buildable, Drawn {
 
     public RtsTemplate {
@@ -38,6 +40,8 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
         kindOf = kindOf == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(kindOf));
         geometry = geometry == null ? Geometry.POINT : geometry;
         modules = modules == null ? List.of() : List.copyOf(modules);
+        models = models == null ? Map.of() : Map.copyOf(models);
+        whenHurt = whenHurt == null ? Map.of() : Map.copyOf(whenHurt);
     }
 
     /** Makes {@code Object} blocks RTS templates, with a build cost and a build time. */
@@ -107,7 +111,7 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
 
         public RtsTemplate build() {
             return new RtsTemplate(name, displayName, kinds, visionRange, geometry, modules, buildCost, buildTime,
-                    null, 1f, 0xFFFFFF, 0f, null, null, null, null, null, null);
+                    null, 1f, 0xFFFFFF, 0f, null, null, null, null, null, null, Map.of(), Map.of());
         }
     }
 }

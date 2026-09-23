@@ -345,6 +345,8 @@ final class DukeRtsApp extends SimpleApplication {
         float bornZ;
         float bornAt;
         Spatial body;      // the shape a click has to hit
+        /** The file the body was loaded from, so a change of condition is noticed. */
+        String modelPath;
         AnimComposer composer;
         AnimChannel legacyChannel;
         String currentAnim = "";
@@ -4009,15 +4011,10 @@ final class DukeRtsApp extends SimpleApplication {
         node.bornAt = timer.getTimeInSeconds();
         node.root.setUserData("unitId", view.id());
 
-        Spatial body = buildBody(visual, java.util.List.of());
+        node.modelPath = visual.modelFor(view.healthFraction(), visuals.getWorldConditions());
+        Spatial body = buildBody(visual, java.util.List.of(), node.modelPath);
         if (body != null) {
-            node.composer = findControl(body, AnimComposer.class);
-            var legacy = findControl(body, AnimControl.class);
-            if (node.composer == null && legacy != null) {
-                node.legacyChannel = legacy.createChannel();
-            }
-            snap(node.composer, visual.attackAnim);
-            snap(node.composer, visual.hurtAnim);
+            takeUpBody(node, body, visual);
         }
         if (body == null) {
             // A fireball has no model and should not be given the capsule-with-a-
@@ -4069,13 +4066,78 @@ final class DukeRtsApp extends SimpleApplication {
      *                   would ever fetch them off the library
      */
     private Spatial buildBody(Visuals.UnitVisual visual, java.util.Collection<String> alsoWanted) {
-        if (visual.modelPath == null) {
+        return buildBody(visual, alsoWanted, visual.modelPath);
+    }
+
+    /** Whatever a node has to know about the body it is drawn with: how it is animated, and how tall it is. */
+    private void takeUpBody(UnitNode node, Spatial body, Visuals.UnitVisual visual) {
+        node.composer = findControl(body, AnimComposer.class);
+        node.legacyChannel = null;
+        var legacy = findControl(body, AnimControl.class);
+        if (node.composer == null && legacy != null) {
+            node.legacyChannel = legacy.createChannel();
+        }
+        snap(node.composer, visual.attackAnim);
+        snap(node.composer, visual.hurtAnim);
+    }
+
+    /**
+     * Draw a thing with a different model than the one it has been wearing, without it moving.
+     *
+     * <p>A building crossing a health threshold stops being whole and starts being wrecked, and the thing
+     * on screen has to become the other model where it stands. What holds its place is its own node — the
+     * translation and the rotation live there and the body hangs under it — so the swap is a child
+     * exchanged, and where it stands and which way it faces are never touched.
+     *
+     * <p>Everything measured off the body is measured again, because the new one is a different shape: the
+     * height its bar floats at, and whatever animation controls the new file happens to carry. A swapped
+     * model is usually a different skeleton, so the clip that was playing carries over <b>by name</b> where
+     * the new one has a clip of that name; where it has not, the state machine is let choose again next
+     * frame, which is a thing standing rather than a thing frozen.
+     *
+     * <p>A file that will not load leaves it wearing what it had. Half a wrecked building is better than
+     * none of one.
+     */
+    private void swapBody(UnitNode node, UnitView view, Visuals.UnitVisual visual, String wanted) {
+        var body = buildBody(visual, java.util.List.of(), wanted);
+        if (body == null) {
+            node.modelPath = wanted; // it will not load; do not try again every frame
+            return;
+        }
+        var playing = node.currentAnim;
+        if (node.body != null) {
+            node.body.removeFromParent();
+        }
+        node.modelPath = wanted;
+        node.body = body;
+        node.root.attachChild(body);
+        takeUpBody(node, body, visual);
+        node.barTop = heightOf(body, view) + visuals.getUnitBars().lift();
+        // Cleared first either way: what it says it is playing has to be true of the model it is on.
+        node.currentAnim = "";
+        node.actionUntil = 0f;
+        if (playing != null && !playing.isEmpty() && node.composer != null
+                && node.composer.getAnimClip(playing) != null) {
+            play(node, view.templateName(), playing, true);
+        }
+    }
+
+    /**
+     * The same, drawn from a named file rather than from the visual's plain one.
+     *
+     * <p>Which file is the caller's: a template may name a model for a set of conditions — hurt, in snow,
+     * at night — and which of them holds is decided per thing and per frame. Everything else about the body
+     * is the same whichever file it came from.
+     */
+    private Spatial buildBody(Visuals.UnitVisual visual, java.util.Collection<String> alsoWanted,
+            String modelPath) {
+        if (modelPath == null) {
             return null;
         }
         try {
-            var body = assetManager.loadModel(visual.modelPath);
+            var body = assetManager.loadModel(modelPath);
             if (visual.modelPart != null) {
-                body = partOf(body, visual.modelPart, visual.modelPath);
+                body = partOf(body, visual.modelPart, modelPath);
             }
             body.setLocalScale(visual.scale);
             body.setLocalTranslation(0, visual.yOffset, 0);
@@ -4089,7 +4151,7 @@ final class DukeRtsApp extends SimpleApplication {
             borrowAnimations(body, visual, alsoWanted);
             return body;
         } catch (RuntimeException e) {
-            warnOnce(visual.modelPath, "model");
+            warnOnce(modelPath, "model");
             return null;
         }
     }
@@ -4432,6 +4494,14 @@ final class DukeRtsApp extends SimpleApplication {
 
     private void updateUnitNode(UnitNode node, UnitView view) {
         node.view = view;
+        // What it looks like can change while it stands there: a building past a health threshold is a
+        // wrecked building, and the wreck is a different file. Asked every frame because the answer is a
+        // lookup against a map that is empty for every template that named no second model.
+        var visual = visualFor(view.templateName());
+        var wanted = visual.modelFor(view.healthFraction(), visuals.getWorldConditions());
+        if (node.body != null && wanted != null && !wanted.equals(node.modelPath)) {
+            swapBody(node, view, visual, wanted);
+        }
         node.root.setLocalTranslation(view.x(), floorHeightAt(view.x(), view.y()), view.y());
         node.root.setLocalRotation(new Quaternion().fromAngles(0, -view.orientation(), 0));
 

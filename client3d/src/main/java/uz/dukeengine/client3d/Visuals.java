@@ -87,9 +87,81 @@ public final class Visuals {
         java.awt.Color colour; // null = the owning player's colour
         java.awt.Color tint;   // multiplied over the model's own texture
 
+        /** Models for conditions, by the words that must all hold; see {@link #modelFor}. */
+        final java.util.Map<String, String> conditionalModels = new java.util.LinkedHashMap<>();
+        /** Below what share of its health each condition holds — the ones a thing decides for itself. */
+        final java.util.Map<String, Float> whenHurt = new java.util.LinkedHashMap<>();
+
         public UnitVisual model(String assetPath) {
             this.modelPath = assetPath;
             return this;
+        }
+
+        /** The model for a set of conditions, drawn instead of the plain one when every word of it holds. */
+        public UnitVisual model(java.util.Set<String> conditions, String assetPath) {
+            conditionalModels.put(String.join(" ", new java.util.TreeSet<>(conditions)), assetPath);
+            return this;
+        }
+
+        /** The share of its health below which {@code condition} holds: {@code whenHurt("DAMAGED", 0.5f)}. */
+        public UnitVisual whenHurt(String condition, float belowShareOfHealth) {
+            whenHurt.put(condition, belowShareOfHealth);
+            return this;
+        }
+
+        /**
+         * Which model to draw: the best-fitting of the conditional ones, or the plain one.
+         *
+         * <p>A candidate fits when every word of it holds. Among those that fit the one with the most words
+         * wins, so {@code DAMAGED SNOW} beats {@code SNOW} beats the plain model — the more a look says
+         * about the moment, the better it describes it.
+         *
+         * <p><b>A tie is broken by the words themselves, sorted.</b> Not by whichever the map happened to
+         * hand over first: two machines with the same snapshot and the same world must draw the same
+         * building, and an iteration order is not a promise. It is the one thing here that would be
+         * invisible until two players disagreed about what they were looking at.
+         *
+         * @param healthFraction what share of its health it has left, for {@link #whenHurt}
+         * @param world          the conditions the world is in, which it was given once when it was loaded
+         */
+        public String modelFor(float healthFraction, java.util.Set<String> world) {
+            if (conditionalModels.isEmpty()) {
+                return modelPath; // a template that names none pays nothing, not even the set below
+            }
+            var holding = new java.util.HashSet<>(world == null ? java.util.Set.<String>of() : world);
+            whenHurt.forEach((word, below) -> {
+                if (healthFraction < below) {
+                    holding.add(word);
+                }
+            });
+            String best = null;
+            String bestWords = null;
+            int most = 0;
+            for (var candidate : conditionalModels.entrySet()) {
+                var words = wordsOf(candidate.getKey());
+                if (words.isEmpty() || !holding.containsAll(words)) {
+                    continue;
+                }
+                var sorted = String.join(" ", words);
+                if (best == null || words.size() > most
+                        || words.size() == most && sorted.compareTo(bestWords) < 0) {
+                    best = candidate.getValue();
+                    bestWords = sorted;
+                    most = words.size();
+                }
+            }
+            return best == null ? modelPath : best;
+        }
+
+        /** The words of a condition key, sorted and without repeats, so two spellings of one set are one. */
+        private static java.util.SortedSet<String> wordsOf(String key) {
+            var words = new java.util.TreeSet<String>();
+            for (var word : key.trim().split("\\s+")) {
+                if (!word.isEmpty()) {
+                    words.add(word);
+                }
+            }
+            return words;
         }
 
         /**
@@ -426,6 +498,8 @@ public final class Visuals {
         return unit(template.name(), drawn -> {
             drawn.model(template.model()).scale(template.modelScale())
                     .tint(new java.awt.Color(template.tint())).facing(template.facing());
+            template.models().forEach(drawn.conditionalModels::put);
+            template.whenHurt().forEach(drawn::whenHurt);
             if (set != null) {
                 for (var library : set.libraries()) {
                     drawn.animationsFrom(library);
@@ -444,6 +518,30 @@ public final class Visuals {
     /** What the template said, or what the set it links says for that moment. */
     private static String clipOf(String own, String fromSet) {
         return own == null || own.isBlank() ? fromSet : own;
+    }
+
+    private java.util.Set<String> worldConditions = java.util.Set.of();
+
+    /**
+     * What is true of the world everything in it is drawn in: the weather, the hour, the season — whatever
+     * words this game uses for them.
+     *
+     * <p>Said once, when the map is loaded, because these are the conditions nothing standing in the world
+     * changes by itself. What a thing decides for itself is {@code Drawn.whenHurt}, read every frame off
+     * the snapshot.
+     *
+     * <p>The engine invents none of these words and knows what none of them mean — see
+     * {@link uz.dukeengine.core.thing.Drawn#models()}. It only matches them.
+     */
+    public Visuals world(String... conditions) {
+        worldConditions = conditions == null ? java.util.Set.of()
+                : java.util.Set.copyOf(java.util.Arrays.asList(conditions));
+        return this;
+    }
+
+    /** The conditions the world is in; empty for a game that never named any. */
+    public java.util.Set<String> getWorldConditions() {
+        return worldConditions;
     }
 
     public Visuals unit(String templateName, Consumer<UnitVisual> config) {

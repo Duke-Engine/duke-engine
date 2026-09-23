@@ -25,6 +25,42 @@ public interface Drawn extends ThingTemplate {
     /** Its model, as a whole path from the resource root: {@code models/units/soldier.glb}. */
     String model();
 
+    /**
+     * Models for particular conditions, keyed by the words that must <em>all</em> hold — one word, or
+     * several with a space between them:
+     *
+     * <pre>
+     * Models = [DAMAGED = models/barracks_d.glb, "DAMAGED SNOW" = models/barracks_ds.glb]
+     * </pre>
+     *
+     * <p>{@link #model()} is what is drawn when none of them fits, so a template that names none of these
+     * is drawn exactly as it was before there were any.
+     *
+     * <p><b>A condition is only a word.</b> The engine defines none of them and knows what none of them
+     * mean: a dungeon may say {@code TORCHLIT}, a farming game {@code HARVESTED}, and the matching is the
+     * same either way. Two words come from two places — the world says some of them once when it is loaded
+     * (weather, the hour, the season), and the thing's own state says the rest, which is what
+     * {@link #whenHurt()} is for.
+     *
+     * <p><b>And it is drawing only.</b> Which model is chosen never reaches the simulation. It is decided
+     * downstream of the snapshot, in the client, so that a machine drawing a building in snow and one
+     * drawing it in summer are still playing the same game.
+     */
+    default java.util.Map<String, String> models() {
+        return java.util.Map.of();
+    }
+
+    /**
+     * Below what share of its health each condition holds: {@code WhenHurt = [DAMAGED = 0.5]} means the
+     * word {@code DAMAGED} holds once it is under half health.
+     *
+     * <p>The conditions a thing decides for itself, as against the ones its world does. A client reads
+     * health out of the snapshot already, so this costs it nothing it was not doing.
+     */
+    default java.util.Map<String, Float> whenHurt() {
+        return java.util.Map.of();
+    }
+
     /** How much bigger than the file it is drawn. */
     default float modelScale() {
         return 1f;
