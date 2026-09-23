@@ -5,6 +5,45 @@ when it does, this page says exactly what to change and how.
 
 ## 0.6.0
 
+### Building in the world
+
+A building is placed, not produced — and there was no order that put a thing somewhere.
+
+| | |
+|---|---|
+| `GameMessage.Construct(player, builder, template, place, facing)` | the builder walks there; a site rises the frame it arrives; whole a build time later |
+| `GameMessage.CancelConstruction(player, site)` | the share the game says comes back; the site is gone |
+| `ObjectStatus.UNDER_CONSTRUCTION` | SAGE's status: the site is the real building, owned, seen, shootable — and inert but for what builds it |
+| `UpdateModule.runsWhileUnderConstruction()` | the one guard, in `GameObject.updateModules`, rather than one in every module |
+| `rts.construction.Placement` | off the map, too near the edge, on rock, too steep, in the way — the simulation's answer, only ever shown by a client |
+| `rts.construction.PlacementRules` | the game's numbers: how steep, how near the edge, the refund, the health a site rises at |
+| `RtsSimulation.fits(...)` | the same question, for a client to show |
+
+The money goes when the order is **accepted** — the frame it is applied, on every machine at once. A place
+refused costs nothing. A builder sent elsewhere, stopped, or unable to get there gives its errand up with
+the money back in full. A site knocked down gives back nothing and leaves nothing. Health grows by being
+added, so a site shot as it goes up is finished hurt. Two runs of the same orders end on the same checksum.
+
+### A command button may ask for a place
+
+`CommandButton.aim` — `NOW`, `GROUND`, `UNIT`. Pressing one that aims arms the cursor; the next click is the
+place or the thing; a right click or Escape thinks better of it. The press comes back as a `CommandPress`
+(id, selection, place, target) — **`onCommandPressed` now takes one**, where it took an id and a selection.
+While a `GROUND` button is armed, its `ghost` — a template, or a model's path — is drawn at the cursor, green
+or red by the game's `aimFits`, asked on the simulation thread through `DukeGame.setAim` and carried back in
+`WorldSnapshot.aimFits`. A click on red is not sent.
+
+### Ground that blends
+
+`@Overlay` rows lay a second picture from the palette over a cell, and `@Fade` rows name the shape it fades in
+by — `.` for none, or one of sixteen hex digits: from a side, a corner's triangle, each reversed. The masks
+are the engine's, drawn as vertex alpha over four triangles a cell meeting at its middle, which makes every
+shape exact; blended after the opaque ground in any order, because a cell has one overlay at most. A map
+with no fade rows builds none of it.
+
+Fixed on the way: 0.5.0 cut the painted ground along the other diagonal from the one `HeightMap` — what is
+walked — cuts along, so on a slope the ground drawn and the ground walked differed. They agree now.
+
 ### The binder works out what a record is once
 
 `Binder` asked reflection the same questions for every block — a record's components, their generic types,
