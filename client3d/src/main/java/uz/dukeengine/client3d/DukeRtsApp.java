@@ -1225,10 +1225,13 @@ final class DukeRtsApp extends SimpleApplication {
         }
 
         var items = new java.util.ArrayList<StoneMenu.Row>();
+        // The map's own preview beside the row while it is lit: what a map looks like is most of what a
+        // player is choosing between, and a column of names says none of it. A game that names no picture
+        // gets the row it always got.
         items.add(new StoneMenu.Action("Map: " + chosenMap, () -> {
             chosenMap = maps.get((maps.indexOf(chosenMap) + 1) % maps.size());
             showSkirmishMenu();
-        }));
+        }, false, game.getMapPicture(chosenMap)));
         for (int p = 0; p < chosenFactions.size(); p++) {
             final int player = p;
             items.add(new StoneMenu.Action("Player " + (p + 1) + ": " + chosenFactions.get(p), () -> {

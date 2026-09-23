@@ -132,6 +132,32 @@ public final class MapPackage {
         return preview;
     }
 
+    /**
+     * The same picture named the way a resource loader wants it — {@code maps/crypt/preview.png} — or null
+     * where there is none, or where the map came off the machine rather than out of the game.
+     *
+     * <p>A {@link Path} is no use to a client: a map shipped inside a jar has a path inside that jar's own
+     * file system, and what draws the picture asks for a resource by name. The name is the folder the map
+     * was found under and the file's own, which {@link MapPackages#shipped} knows and this is told, rather
+     * than either of them spelling {@code maps/} in code — a game keeps its maps where it likes and the
+     * folder it named is the folder that is read.
+     */
+    public String previewResource() {
+        return preview == null || resourceFolder == null ? null
+                : resourceFolder + "/" + name + "/" + fileName(preview);
+    }
+
+    /**
+     * The classpath folder this map was found under, for {@link #previewResource}, or null for a map read
+     * off the machine — a player's own, which no resource loader will find.
+     */
+    MapPackage under(String resourceFolder) {
+        this.resourceFolder = resourceFolder;
+        return this;
+    }
+
+    private String resourceFolder;
+
     /** The whole map, as text: what a game binds to its own record. Line endings are the file's own machine's. */
     public String text() {
         return read(file);

@@ -107,6 +107,29 @@ class MapCapabilitiesTest {
         assertEquals(2, grid.getRelief().at(2, 2), "the relief came through untouched");
     }
 
+    /**
+     * A shipped map's preview, named the way a resource loader wants it rather than as a {@link
+     * java.nio.file.Path} — which is no use to a client, because a map inside a jar has a path inside that
+     * jar. Null for a map read off the machine: a player's own is nowhere a resource loader will look.
+     */
+    @Test
+    void aShippedMapNamesItsPreviewAsAResource() {
+        var shipped = MapPackages.shipped("maps");
+        org.junit.jupiter.api.Assumptions.assumeFalse(shipped.isEmpty(), "no maps on this classpath");
+
+        for (var map : shipped) {
+            if (map.preview() != null) {
+                assertEquals("maps/" + map.name() + "/" + map.preview().getFileName(),
+                        map.previewResource(), "the folder it was found under, and its own file");
+            } else {
+                assertEquals(null, map.previewResource(), "no picture, no name for one");
+            }
+        }
+        assertEquals(null, MapPackages.under(java.nio.file.Path.of("nowhere")).stream()
+                .map(MapPackage::previewResource).findFirst().orElse(null),
+                "and a map off the machine names none");
+    }
+
     /** Each is one question a type, so a map answers only the ones it has — and a bare one still lays ground. */
     @Test
     void aMapThatSaysNothingOfPaintOrWaterIsStillAMap() {

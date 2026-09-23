@@ -47,7 +47,8 @@ public final class MapPackages {
                 var uri = roots.nextElement().toURI();
                 var folder = "jar".equals(uri.getScheme()) ? jarPath(uri, root) : Path.of(uri);
                 for (var map : under(folder)) {
-                    found.putIfAbsent(map.name(), map);
+                    // Told where it was found, so its preview can be asked for by resource name later.
+                    found.putIfAbsent(map.name(), map.under(root));
                 }
             }
         } catch (IOException | URISyntaxException e) {

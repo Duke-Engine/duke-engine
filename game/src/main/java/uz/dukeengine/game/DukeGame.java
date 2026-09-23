@@ -343,6 +343,26 @@ public final class DukeGame {
         return mapChoices;
     }
 
+    private java.util.Map<String, String> mapPictures = java.util.Map.of();
+
+    /**
+     * A picture for each map the player may choose, by the map's name — what a menu draws beside the row
+     * while it is the lit one.
+     *
+     * <p>The game's to say, because the game knows where its maps are: {@code MapPackage.previewResource()}
+     * is the name of the one found beside the map's own file. A map named here with no picture, or no
+     * picture at all, is a row of words, which is what every map was.
+     */
+    public DukeGame mapPictures(java.util.Map<String, String> byMapName) {
+        this.mapPictures = byMapName == null ? java.util.Map.of() : java.util.Map.copyOf(byMapName);
+        return this;
+    }
+
+    /** The picture for a map, or null. */
+    public String getMapPicture(String mapName) {
+        return mapPictures.get(mapName);
+    }
+
     public List<String> getFactionChoices() {
         return factionChoices;
     }
