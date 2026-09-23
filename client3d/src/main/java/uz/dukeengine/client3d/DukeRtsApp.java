@@ -1341,6 +1341,10 @@ final class DukeRtsApp extends SimpleApplication {
 
     private void startGame() {
         if (!artIsReady) {
+            // Assembled first, run later. What a match can ever draw is decided by what is in it, and
+            // that is only known once the match is built — so the world is built now, not one frame of it
+            // stepped, and the art plan is read off it. See DukeGame.templatesThisMatchCanDraw.
+            game.boot();
             beginLoadingArt();
             return; // the world waits until there is something to draw it with
         }
@@ -1375,7 +1379,7 @@ final class DukeRtsApp extends SimpleApplication {
      * {@link Visuals}, which has known since before the window opened.
      */
     private void beginLoadingArt() {
-        artLoad = new ArtLoad();
+        artLoad = new ArtLoad(game.templatesThisMatchCanDraw());
         menu.hide();
         loading.show(game.getTitle());
         screen = Screen.LOADING;
@@ -1417,21 +1421,29 @@ final class DukeRtsApp extends SimpleApplication {
     private final class ArtLoad {
 
         /**
-         * How many pieces are handed to the card per frame, so the bar still moves.
+         * How long one frame may spend handing things to the card.
+         *
+         * <p>A share of a frame rather than a count of pieces. It was one piece a frame, which made the
+         * wait a count of frames: 876 models were 876 frames, a quarter of a minute at sixty, however
+         * fast the card was. Half of a sixty-a-second frame keeps the bar moving and lets a quick machine
+         * be quick.
          */
-        private static final int WARM_PER_FRAME = 1;
+        private static final long WARM_BUDGET_NANOS = 8_000_000L;
 
-        private final List<Preload.Job> files = Preload.plan(visuals);
+        /** One model to show the card, and the look that says how it is dressed. */
+        private record Warm(Visuals.UnitVisual look, String path) {
+        }
+
+        /** The templates this match can draw, or null to read everything the game registered. */
+        private final java.util.Set<String> only;
+        private final List<Preload.Job> files;
         /**
-         * One look per model, not one per creature: six kinds cut from one kit
+         * One entry per model file, not one per creature: six kinds cut from one kit
          * share a file, and showing the card the same mesh six times teaches it
-         * nothing it did not know after the first.
+         * nothing it did not know after the first. A look's models for its
+         * conditions are here too — a building first drawn wrecked is a stall.
          */
-        private final List<Visuals.UnitVisual> looks = visuals.allLooks().stream()
-                .filter(look -> look.modelPath != null)
-                .collect(java.util.stream.Collectors.toMap(look -> look.modelPath,
-                        look -> look, (first, next) -> first, java.util.LinkedHashMap::new))
-                .values().stream().toList();
+        private final List<Warm> looks;
         /**
          * Every sound, from both places a game may name one.
          *
@@ -1440,22 +1452,62 @@ final class DukeRtsApp extends SimpleApplication {
          * disc as it plays rather than held, so reading it here would be reading a
          * megabyte to throw it away.
          */
-        private final List<String> sounds = java.util.stream.Stream.concat(
-                        files.stream().filter(job -> job.kind() == Preload.Kind.SOUND)
-                                .map(Preload.Job::assetPath),
-                        visuals.getSounds().all().stream()
-                                .filter(cue -> cue.channel() != SoundBank.Channel.MUSIC)
-                                .flatMap(cue -> cue.files().stream()))
-                .distinct().toList();
+        private final List<String> sounds;
         private final java.util.concurrent.atomic.AtomicInteger read =
                 new java.util.concurrent.atomic.AtomicInteger();
         private volatile String reading = "";
         private int warmed;
 
-        ArtLoad() {
+        ArtLoad(java.util.Set<String> only) {
+            this.only = only;
+            this.files = Preload.plan(visuals, only);
+            this.looks = warmList();
+            this.sounds = soundList();
             var reader = new Thread(this::readEverything, "duke-art");
             reader.setDaemon(true); // a window closed mid-load must still close
             reader.start();
+        }
+
+        private List<Warm> warmList() {
+            var byPath = new java.util.LinkedHashMap<String, Warm>();
+            for (var look : only == null ? visuals.allLooks() : visuals.looksNamed(only)) {
+                if (look.modelPath != null) {
+                    byPath.putIfAbsent(look.modelPath, new Warm(look, look.modelPath));
+                }
+                for (var path : look.conditionalModels.values()) {
+                    byPath.putIfAbsent(path, new Warm(look, path));
+                }
+            }
+            return List.copyOf(byPath.values());
+        }
+
+        private List<String> soundList() {
+            var everyTemplate = visuals.lookNames();
+            return java.util.stream.Stream.concat(
+                            files.stream().filter(job -> job.kind() == Preload.Kind.SOUND)
+                                    .map(Preload.Job::assetPath),
+                            visuals.getSounds().all().stream()
+                                    .filter(cue -> cue.channel() != SoundBank.Channel.MUSIC)
+                                    .filter(cue -> belongsToThisMatch(cue.name(), everyTemplate))
+                                    .flatMap(cue -> cue.files().stream()))
+                    .distinct().toList();
+        }
+
+        /**
+         * Whether a cue can be heard in this match.
+         *
+         * <p>A cue made for one template ends with its name — {@code died.Rifleman}, which the client plays
+         * when a rifleman dies — and is this match's only if that template is. Everything else, a click, a
+         * voice line, {@code died} on its own, is anybody's and stays. Only what is provably another
+         * template's is left out, so a game that names its cues some other way loses nothing.
+         */
+        private boolean belongsToThisMatch(String cue, java.util.Set<String> everyTemplate) {
+            if (only == null) {
+                return true;
+            }
+            int dot = cue.lastIndexOf('.');
+            var whose = dot < 0 ? null : cue.substring(dot + 1);
+            return whose == null || !everyTemplate.contains(whose) || only.contains(whose);
         }
 
         private void readEverything() {
@@ -1507,11 +1559,17 @@ final class DukeRtsApp extends SimpleApplication {
             if (read.get() < files.size()) {
                 return false; // still reading; the bar is the only thing to do
             }
-            for (int i = 0; i < WARM_PER_FRAME && warmed < looks.size() + sounds.size() + 1; i++) {
+            int all = looks.size() + sounds.size() + 1;
+            // At least one a frame, however slow the one; then as many more as fit in the budget.
+            long until = System.nanoTime() + WARM_BUDGET_NANOS;
+            do {
+                if (warmed >= all) {
+                    break;
+                }
                 warmOne();
                 warmed++;
-            }
-            return warmed >= looks.size() + sounds.size() + 1;
+            } while (System.nanoTime() < until);
+            return warmed >= all;
         }
 
         private void warmOne() {
@@ -1535,12 +1593,13 @@ final class DukeRtsApp extends SimpleApplication {
          * memory, and the compiled shader for the one material every creature of
          * this kit shares. The next one built is the cheap one.
          */
-        private void warmLook(Visuals.UnitVisual look) {
-            reading = look.modelPath;
+        private void warmLook(Warm one) {
+            var look = one.look();
+            reading = one.path();
             try {
-                var body = assetManager.loadModel(look.modelPath);
+                var body = assetManager.loadModel(one.path());
                 if (look.modelPart != null) {
-                    body = partOf(body, look.modelPart, look.modelPath);
+                    body = partOf(body, look.modelPart, one.path());
                 }
                 dressModel(body, look);
                 // Left in the scene, culled, for as long as the window lasts. A
@@ -1550,7 +1609,7 @@ final class DukeRtsApp extends SimpleApplication {
                 rootNode.updateGeometricState();
                 renderManager.preloadScene(body);
             } catch (RuntimeException e) {
-                warnOnce(look.modelPath, "model");
+                warnOnce(one.path(), "model");
             }
         }
     }

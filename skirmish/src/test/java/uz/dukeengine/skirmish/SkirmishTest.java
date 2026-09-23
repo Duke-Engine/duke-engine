@@ -226,6 +226,41 @@ class SkirmishTest {
         assertEquals(before + 1, line.getQueueSize(), "the press joined the queue, a frame later");
     }
 
+    /**
+     * What a match can ever draw, read off the world once it is assembled and before one frame of it has
+     * run: what stands in it, and everything those can produce, followed through {@code ProductionUpdate}.
+     * A barracks brings in what it trains; the depot nobody placed and nobody builds stays out.
+     */
+    @Test
+    void aMatchCanDrawWhatItHoldsAndWhatThatCanProduce() {
+        var game = uz.dukeengine.game.DukeGame.create("Plan")
+                .templates(loader -> loader.type(uz.dukeengine.skirmish.content.Unit.class))
+                .loadUnits(uz.dukeengine.skirmish.content.Content.units())
+                .map(40, 30);
+        var me = game.addPlayer("Me", java.awt.Color.CYAN);
+        game.skirmish(List.of("field"), List.of("Any"), (built, map, sides) -> {
+            built.spawn("Barracks", me, 100f, 100f);
+            built.spawnNeutral("OreNode", 200f, 200f);
+        });
+        assertEquals(null, game.templatesThisMatchCanDraw(), "nothing to plan from before it is built");
+
+        game.selectSkirmish("field", List.of("Any"));
+        game.boot();
+        var drawn = game.templatesThisMatchCanDraw();
+
+        assertEquals(java.util.Set.of("Barracks", "OreNode", "Worker", "Soldier", "Archer"), drawn);
+        assertEquals(0, game.getLogic().getFrame(), "built, and not one frame of it run");
+    }
+
+    /** A game that chose no match — a dungeon, spawning floor by floor — is planned from everything. */
+    @Test
+    void aGameWithNoChosenMatchIsPlannedFromEverything() {
+        var match = Skirmish.open(20, 20, 100);
+        match.game().boot();
+
+        assertEquals(null, match.game().templatesThisMatchCanDraw());
+    }
+
     /** A button he cannot pay for keeps its place and is drawn dim, so the bar does not move under him. */
     @Test
     void aTrainingHeCannotAffordIsStillOnTheBar() {

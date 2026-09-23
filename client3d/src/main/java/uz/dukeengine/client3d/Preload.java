@@ -57,10 +57,28 @@ final class Preload {
      * to the moment the floor changes, which is a worse moment for it.
      */
     static List<Job> plan(Visuals visuals) {
+        return plan(visuals, null);
+    }
+
+    /**
+     * The same, for only the templates a match can draw — or for everything, where {@code only} is null.
+     *
+     * <p>An RTS registers a look for every kind of thing it has, because the client must be able to draw
+     * any of them. One match can draw a small share. Measured: a match on one map with two sides read 876
+     * models, 70 MB, before its first frame — and could ever draw 63 of them, 3 MB. So when the game can
+     * say what a match holds, the plan is the match's; a game that plays everything it registers loads
+     * exactly what it loaded before.
+     *
+     * <p>A look's models for its conditions are in it too: a building that is only read when it is first
+     * hurt is a stall at the moment a player is watching it take the hit.
+     */
+    static List<Job> plan(Visuals visuals, Set<String> only) {
         var jobs = new ArrayList<Job>();
         Set<String> seen = new LinkedHashSet<>();
-        var looks = visuals.allLooks();
+        var looks = only == null ? visuals.allLooks() : visuals.looksNamed(only);
         add(jobs, seen, Kind.MODEL, looks.stream().map(look -> look.modelPath).toList());
+        add(jobs, seen, Kind.MODEL, looks.stream()
+                .flatMap(look -> look.conditionalModels.values().stream()).toList());
         // What a unit carries is a model like any other, and read at the same
         // moment as the unit: a bow fetched when the hero first appears is a stall
         // at the one moment the player is watching him.

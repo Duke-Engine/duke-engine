@@ -596,10 +596,70 @@ public final class DukeGame {
      * done. Returns the simulation thread so the caller can join it.
      */
     public Thread startEngineOnly() {
-        setUp();
+        boot();
         var engineThread = new Thread(engine::execute, "duke-sim");
         engineThread.start();
         return engineThread;
+    }
+
+    /**
+     * Build the world without running it: templates read, players added, the chosen match assembled — and
+     * not one frame stepped.
+     *
+     * <p>Separate from {@link #startEngineOnly} so a client can look at the world before it moves. What a
+     * match can ever draw is decided by what is in it, and that is not known until the match is assembled;
+     * loading every look the game registered instead read 876 models for a match that could draw 63. Once
+     * booted, {@link #templatesThisMatchCanDraw} says which. Nothing here reads a clock, so booting early
+     * changes no frame.
+     */
+    public void boot() {
+        if (!started) {
+            setUp();
+        }
+    }
+
+    /**
+     * Every template this match can ever draw, or {@code null} where there is no match to plan from.
+     *
+     * <p>What stands in the world once it is assembled, everything those can produce, and what that can
+     * produce in turn — followed through {@code ProductionUpdate}, the one module of the RTS library that
+     * names other templates, so the engine needs no help from the game to follow it. A barracks that
+     * trains riflemen brings the rifleman in; a factory that builds a war factory brings in everything
+     * the war factory builds.
+     *
+     * <p>Null before {@link #boot}, and for a game that chose no match — a dungeon spawns its monsters floor
+     * by floor, long after booting, and planning from its first empty world would miss all of them. Such a
+     * game is planned from everything it registered, as it always was.
+     *
+     * <p>A thing that turns up by some other road — debris, a crate's reward — is not in it, and is read
+     * when it first appears. That is the stall preloading exists to prevent, and the right trade for a
+     * thing that is rare.
+     */
+    public java.util.Set<String> templatesThisMatchCanDraw() {
+        if (!started || chosenMap == null) {
+            return null;
+        }
+        var seen = new java.util.LinkedHashSet<String>();
+        var next = new java.util.ArrayDeque<String>();
+        for (var object : logic.getObjects()) {
+            next.add(object.getTemplate().name());
+        }
+        while (!next.isEmpty()) {
+            var name = next.poll();
+            if (!seen.add(name)) {
+                continue;
+            }
+            var template = logic.getThingFactory().findTemplate(name);
+            if (template == null) {
+                continue;
+            }
+            for (var module : template.modules()) {
+                if (module instanceof uz.dukeengine.rts.module.ProductionUpdate.Data line) {
+                    next.addAll(line.builds());
+                }
+            }
+        }
+        return java.util.Collections.unmodifiableSet(seen);
     }
 
     /**

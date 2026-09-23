@@ -136,4 +136,38 @@ class PreloadTest {
 
         assertEquals(List.of("floor.obj", "wall.obj"), pathsOf(visuals, Preload.Kind.TILE));
     }
+
+    /**
+     * A match reads what it can draw, not everything the game registered. Measured in one RTS: 876 models
+     * read before the first frame, of which a match on one map with two sides could ever draw 63.
+     */
+    @Test
+    void aMatchReadsOnlyWhatItCanDraw() {
+        var visuals = Visuals.create()
+                .unit("Barracks", look -> look.model("models/barracks.glb").fireSound("audio/b.ogg"))
+                .unit("Rifleman", look -> look.model("models/rifleman.glb"))
+                .unit("Carrier", look -> look.model("models/carrier.glb")); // on no side in this match
+
+        var models = Preload.plan(visuals, java.util.Set.of("Barracks", "Rifleman")).stream()
+                .filter(job -> job.kind() == Preload.Kind.MODEL).map(Preload.Job::assetPath).toList();
+
+        assertEquals(List.of("models/barracks.glb", "models/rifleman.glb"), models);
+        assertEquals(3, Preload.plan(visuals, null).stream()
+                .filter(job -> job.kind() == Preload.Kind.MODEL).count(),
+                "and a game with no match to plan from reads all of it, as it always did");
+    }
+
+    /**
+     * A building first drawn wrecked, read only then, is a stall at the one moment a player is watching it
+     * take the hit — so a look's models for its conditions are read with it.
+     */
+    @Test
+    void aLooksModelsForItsConditionsAreReadWithIt() {
+        var visuals = Visuals.create().unit("Barracks", look -> look.model("models/barracks.glb")
+                .model(java.util.Set.of("DAMAGED"), "models/barracks_d.glb")
+                .model(java.util.Set.of("DAMAGED", "SNOW"), "models/barracks_ds.glb"));
+
+        assertEquals(List.of("models/barracks.glb", "models/barracks_d.glb", "models/barracks_ds.glb"),
+                pathsOf(visuals, Preload.Kind.MODEL));
+    }
 }

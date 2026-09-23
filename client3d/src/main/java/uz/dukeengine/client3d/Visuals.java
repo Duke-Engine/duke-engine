@@ -1427,6 +1427,36 @@ public final class Visuals {
         return all;
     }
 
+    /**
+     * The looks of these templates only — the game's own and every theme's — in the order they were
+     * registered, for a plan that knows which templates a match can draw.
+     */
+    java.util.List<UnitVisual> looksNamed(java.util.Set<String> templateNames) {
+        var named = new java.util.ArrayList<UnitVisual>();
+        units.forEach((name, look) -> {
+            if (templateNames.contains(name)) {
+                named.add(look);
+            }
+        });
+        for (var theme : themes.values()) {
+            theme.units.forEach((name, look) -> {
+                if (templateNames.contains(name)) {
+                    named.add(look);
+                }
+            });
+        }
+        return named;
+    }
+
+    /** Every template name that has a look anywhere, so a plan can tell whose a sound is. */
+    java.util.Set<String> lookNames() {
+        var names = new java.util.LinkedHashSet<>(units.keySet());
+        for (var theme : themes.values()) {
+            names.addAll(theme.units.keySet());
+        }
+        return names;
+    }
+
     /** Every kit a world may be built from: the game's own, and its themes'. */
     java.util.List<Tileset> allKits() {
         var all = new java.util.ArrayList<Tileset>();
