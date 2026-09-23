@@ -1,5 +1,12 @@
 package uz.dukeengine.rts.module;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 import uz.dukeengine.core.module.DamageType;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
@@ -7,6 +14,7 @@ import uz.dukeengine.core.module.ModuleGroups;
 import uz.dukeengine.core.module.MoveUpdate;
 import uz.dukeengine.core.module.UpdateModule;
 import uz.dukeengine.core.player.Relationship;
+import uz.dukeengine.core.thing.Conditions;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.ObjectStatus;
@@ -15,8 +23,8 @@ import uz.dukeengine.rts.player.RtsPlayer;
 
 /**
  * Fires at a target object, applying damage on a reload cycle — a lean fusion of
- * SAGE's {@code Weapon}/{@code WeaponTemplate} and the {@code AIUpdate} attack
- * state.
+ * SAGE's {@code Weapon}/{@code WeaponTemplate}, its {@code WeaponSet} and the
+ * {@code AIUpdate} attack state.
  *
  * <p>Given a target (typically from an {@code AttackObject} command), each frame
  * it counts down its reload, and when the target is a valid, non-allied,
@@ -48,9 +56,26 @@ import uz.dukeengine.rts.player.RtsPlayer;
  * wait their delay — 20 hold thirty (bursts, then a pause), and 13 are refilled only when their aircraft lands.
  * See {@link Clip} for the rule; {@link #getStatus}, {@link #getRounds} and {@link #refill} are the weapon's
  * side of it. Left out, a weapon has no clip and waits {@code ReloadFrames} after every shot, as it always did.
+ *
+ * <p><b>More than one weapon, and sets of them.</b> A block may write its one weapon in place, as every block
+ * did, or give {@link Data#weaponSets}: in the RTS this was measured in, of 556 armed objects 185 carry a second
+ * weapon, 65 a third, and 215 more than one set, swapped by a condition — an upgrade bought, a car bomb fitted,
+ * a rank. The set in use is the one whose conditions the unit has ({@link GameObject#setCondition}), chosen by
+ * the rule conditional models are; its slots link {@link Weapon}s the game gave the world by name. Which slot
+ * fires is chosen again every time a target is weighed — see {@link #choose} — and each weapon keeps its own
+ * clip and reload across a swap, so a swap cannot be used to skip one. A block with no sets has one weapon and
+ * behaves exactly as it did.
  */
 @ModuleGroup(ModuleGroups.COMBAT)
 public final class WeaponUpdate extends UpdateModule {
+
+    private static final Logger LOG = Logger.getLogger(WeaponUpdate.class.getName());
+
+    /** Weapon names a slot linked that the world did not have, said once each rather than once a frame. */
+    private static final Set<String> MISSING = ConcurrentHashMap.newKeySet();
+
+    /** What a slot preferred against its target counts as dealing: more than any weapon could. */
+    private static final float PREFERRED = Float.MAX_VALUE;
 
     /**
      * INI configuration: {@code Damage}, {@code AttackRange}, {@code ReloadFrames},
@@ -76,18 +101,25 @@ public final class WeaponUpdate extends UpdateModule {
      * @param clipReloadFrames  how long refilling an emptied clip takes, from the shot that emptied it
      * @param autoReload  whether it refills itself. Yes by default; no, and an emptied clip stays empty —
      *     {@link WeaponStatus#OUT} — until {@link #refill}
+     * @param name  the name of the weapon written in place, which is what its shot sounds as
+     *     ({@code fired.<name>}); none, the default, is a weapon with no name of its own
+     * @param weaponSets  the unit's weapons, set by set. Given, they are its weapons and the one written in
+     *     place is not read; a unit none of whose sets fits holds its fire. None, the default, is the one
+     *     weapon written in place, as before
      */
     public record Data(float damage, float attackRange, int reloadFrames,
             DamageType damageType, float splashRadius,
-            boolean attackOnTheMove, java.util.List<String> targets,
-            int reloadFramesMax, int clipSize, int clipReloadFrames, boolean autoReload) implements ModuleData {
+            boolean attackOnTheMove, List<String> targets,
+            int reloadFramesMax, int clipSize, int clipReloadFrames, boolean autoReload,
+            String name, List<WeaponSet> weaponSets) implements ModuleData {
         /** What a block leaves out: plain damage, no splash, a shot taken on the move, at anything, no clip. */
-        static final Data DEFAULTS = new Data(0f, 0f, 0, DamageType.NORMAL, 0f, true, java.util.List.of(),
-                0, 0, 0, true);
+        static final Data DEFAULTS = new Data(0f, 0f, 0, DamageType.NORMAL, 0f, true, List.of(),
+                0, 0, 0, true, null, List.of());
 
         public Data {
             damageType = damageType == null ? DamageType.NORMAL : damageType;
-            targets = targets == null ? java.util.List.of() : java.util.List.copyOf(targets);
+            targets = targets == null ? List.of() : List.copyOf(targets);
+            weaponSets = weaponSets == null ? List.of() : List.copyOf(weaponSets);
         }
 
         public Data(float damage, float attackRange, int reloadFrames) {
@@ -105,57 +137,99 @@ public final class WeaponUpdate extends UpdateModule {
 
         public Data(float damage, float attackRange, int reloadFrames, DamageType damageType,
                 float splashRadius, boolean attackOnTheMove) {
-            this(damage, attackRange, reloadFrames, damageType, splashRadius, attackOnTheMove, java.util.List.of());
+            this(damage, attackRange, reloadFrames, damageType, splashRadius, attackOnTheMove, List.of());
         }
 
         public Data(float damage, float attackRange, int reloadFrames, DamageType damageType,
-                float splashRadius, boolean attackOnTheMove, java.util.List<String> targets) {
+                float splashRadius, boolean attackOnTheMove, List<String> targets) {
             this(damage, attackRange, reloadFrames, damageType, splashRadius, attackOnTheMove, targets,
                     0, 0, 0, true);
         }
+
+        public Data(float damage, float attackRange, int reloadFrames, DamageType damageType,
+                float splashRadius, boolean attackOnTheMove, List<String> targets,
+                int reloadFramesMax, int clipSize, int clipReloadFrames, boolean autoReload) {
+            this(damage, attackRange, reloadFrames, damageType, splashRadius, attackOnTheMove, targets,
+                    reloadFramesMax, clipSize, clipReloadFrames, autoReload, null, List.of());
+        }
+
+        /** A unit whose weapons are these sets, with nothing written in place. */
+        public static Data sets(List<WeaponSet> weaponSets) {
+            return new Data(0f, 0f, 0, DamageType.NORMAL, 0f, true, List.of(), 0, 0, 0, true, null, weaponSets);
+        }
     }
 
-    private final float damage;
-    private final float attackRange;
-    private final DamageType damageType;
-    private final float splashRadius;
-    private final boolean attackOnTheMove;
-    private final java.util.List<String> targets;
+    /** A weapon one slot of the set in use carries, with its clip: what is weighed when a target is. */
+    private record Armed(WeaponSlot slot, Weapon weapon, Clip clip) {
+    }
 
-    private final Clip clip;
+    /** The slot the weapon written in place sits in: no preference, chosen as freely by the unit as by an order. */
+    private static final WeaponSlot IN_PLACE = new WeaponSlot(null);
+
+    private final List<WeaponSet> sets;
+    /** The one weapon written in place, when there are no sets — every unit from before sets. */
+    private final List<Armed> inPlace;
+    /** Every weapon the sets have armed, by name, with its clip: kept across swaps, and ticking through them. */
+    private final Map<String, Clip> clips = new LinkedHashMap<>();
 
     private ObjectId target;
+    /** Whether the target was an order's, rather than one it found for itself — which slots it may use. */
+    private boolean ordered;
 
     public WeaponUpdate(GameObject owner, Data data) {
         super(owner);
-        this.damage = data.damage();
-        this.attackRange = data.attackRange();
-        this.damageType = data.damageType();
-        this.splashRadius = data.splashRadius();
-        this.attackOnTheMove = data.attackOnTheMove();
-        this.targets = data.targets();
-        this.clip = new Clip(data.clipSize(), data.reloadFrames(), data.reloadFramesMax(), data.clipReloadFrames(),
-                data.autoReload());
+        this.sets = data.weaponSets();
+        var written = Weapon.of(data);
+        this.inPlace = sets.isEmpty()
+                ? List.of(new Armed(IN_PLACE, written, clipOf(written)))
+                : List.of();
     }
 
-    /** Whether it may fire now, is waiting between shots, is refilling its clip, or is out. */
+    private static Clip clipOf(Weapon weapon) {
+        return new Clip(weapon.clipSize(), weapon.reloadFrames(), weapon.reloadFramesMax(), weapon.clipReloadFrames(),
+                weapon.autoReload());
+    }
+
+    // ---- what a game asks of it ----
+
+    /** Whether its primary weapon may fire now, is waiting between shots, is refilling its clip, or is out. */
     public WeaponStatus getStatus() {
-        return clip.status();
+        return getStatus(0);
     }
 
-    /** Rounds left in its clip; 0 for a weapon with no clip, which counts none. */
+    /** The same, of the weapon in {@code slot} of the set in use; READY for a slot it does not have. */
+    public WeaponStatus getStatus(int slot) {
+        var armed = armed();
+        return slot >= 0 && slot < armed.size() ? armed.get(slot).clip().status() : WeaponStatus.READY;
+    }
+
+    /** Rounds left in its primary weapon's clip; 0 for a weapon with no clip, which counts none. */
     public int getRounds() {
-        return clip.rounds();
+        return getRounds(0);
     }
 
-    /** Fill its clip and make it ready at once — what a game does when an aircraft lands at base, or on a crate. */
-    public void refill() {
-        clip.refill();
+    /** The same, of the weapon in {@code slot} of the set in use; 0 for a slot it does not have. */
+    public int getRounds(int slot) {
+        var armed = armed();
+        return slot >= 0 && slot < armed.size() ? armed.get(slot).clip().rounds() : 0;
     }
 
     /**
-     * Order this weapon to engage {@code target} — refused, and whatever it was doing kept, when the target is
-     * something it may not be fired at ({@link #canFireAt}).
+     * Fill every clip it has and make each weapon ready at once — what a game does when an aircraft lands at
+     * base, or on a crate.
+     */
+    public void refill() {
+        for (var armed : inPlace) {
+            armed.clip().refill();
+        }
+        for (var clip : clips.values()) {
+            clip.refill();
+        }
+    }
+
+    /**
+     * Order it to engage {@code target} — refused, and whatever it was doing kept, when the target is
+     * something none of its weapons may be fired at ({@link #canFireAt}).
      *
      * @return whether it took the order
      */
@@ -166,22 +240,18 @@ public final class WeaponUpdate extends UpdateModule {
             return false;
         }
         this.target = target;
+        this.ordered = true;
         return true;
     }
 
     /**
-     * Whether this weapon may be fired at {@code victim} at all — its class, not its range or its side: one of
-     * the classes the world's {@link TargetRule}s give it is among the ones this weapon names. A weapon that
-     * names none may be fired at anything.
+     * Whether any weapon of the set in use may be fired at {@code victim} at all — its class, not its range or
+     * its side: one of the classes the world's {@link TargetRule}s give it is among the ones a weapon names. A
+     * weapon that names none may be fired at anything.
      */
     public boolean canFireAt(GameObject victim) {
-        if (targets.isEmpty()) {
-            return true;
-        }
-        var rules = getOwner().getWorld() instanceof uz.dukeengine.rts.RtsSimulation rts
-                ? rts.getTargetRules() : java.util.List.<TargetRule>of();
-        for (var named : TargetRule.classesOf(rules, victim)) {
-            if (targets.contains(named)) {
+        for (var armed : armed()) {
+            if (mayHit(armed.weapon(), victim)) {
                 return true;
             }
         }
@@ -197,18 +267,25 @@ public final class WeaponUpdate extends UpdateModule {
     }
 
     /**
-     * Whether {@code victim} is close enough to fire on, surface to surface, as this weapon measures it.
+     * Whether {@code victim} is close enough to fire on, surface to surface, as the weapon it would choose for it
+     * measures it.
      *
      * <p>Asked rather than told: the range is the weapon's and whoever is steering the unit has no business
      * keeping a second copy of it. See {@link PursueUpdate}, which is the one caller.
      */
     public boolean isInRange(GameObject victim) {
-        return victim != null && rangeTo(getOwner(), victim) <= attackRange;
+        if (victim == null) {
+            return false;
+        }
+        var chosen = choose(armed(), victim, ordered);
+        return chosen != null && rangeTo(getOwner(), victim) <= chosen.weapon().attackRange();
     }
 
     public ObjectId getTarget() {
         return target;
     }
+
+    // ---- each frame ----
 
     @Override
     public void update() {
@@ -216,13 +293,18 @@ public final class WeaponUpdate extends UpdateModule {
                 || getOwner().hasStatus(ObjectStatus.DISABLED)) {
             return; // dead, inside a transport, or disabled — hold fire
         }
-        clip.tick();
+        tick();
 
         var owner = getOwner();
         if (heldByAModule(owner)) {
             return; // busy with something else — see WeaponHold
         }
-        if (!attackOnTheMove && isWalking(owner)) {
+        var armed = armed();
+        if (armed.isEmpty()) {
+            return; // no set of its fits what it is now
+        }
+        boolean walking = isWalking(owner);
+        if (walking && noneFiresOnTheMove(armed)) {
             // Reloading on the way, and keeping whatever it was aimed at, but not
             // firing. This has to live here rather than in whatever is steering the
             // unit: a weapon acquires its own target and fires in the same call, so
@@ -230,15 +312,16 @@ public final class WeaponUpdate extends UpdateModule {
             return;
         }
         var world = owner.getWorld();
-        if (world == null || clip.status() == WeaponStatus.OUT) {
+        if (world == null || allOut(armed)) {
             return; // an empty gun looks for nothing, and keeps what it had for when it is refilled
         }
 
         if (target == null) {
-            acquireTarget(world, owner);
+            acquireTarget(world, owner, armed);
             if (target == null) {
                 return;
             }
+            ordered = false;
         }
 
         var victim = world.findObject(target);
@@ -250,44 +333,201 @@ public final class WeaponUpdate extends UpdateModule {
             target = null; // never fire on allies
             return;
         }
-        if (!canFireAt(victim)) {
+        var chosen = choose(armed, victim, ordered);
+        if (chosen == null) {
             target = null; // it took off, or was never something this could hit
             return;
         }
-        if (rangeTo(owner, victim) > attackRange) {
+        if (rangeTo(owner, victim) > chosen.weapon().attackRange()) {
             return; // out of range — wait for movement to close in
         }
-        if (clip.status() != WeaponStatus.READY) {
+        if (walking && !chosen.weapon().attackOnTheMove()) {
+            return; // this one is stood still for
+        }
+        if (chosen.clip().status() != WeaponStatus.READY) {
             return; // between shots, or refilling its clip
         }
+        fire(world, owner, victim, chosen);
+    }
 
-        float dealt = damage * damageModifiers(owner);
-        var shooter = RtsPlayer.of(world, owner.getPlayerIndex());
-        if (shooter != null) {
-            dealt *= shooter.getWeaponDamageBonus(); // player-wide upgrade bonus
-        }
+    private void fire(uz.dukeengine.core.thing.World world, GameObject owner, GameObject victim, Armed chosen) {
+        var weapon = chosen.weapon();
+        float dealt = dealt(owner, weapon);
 
         // A shot was fired either way — the reload runs and the moment is
         // announced — but whether it lands now is the launcher's to decide.
-        boolean inFlight = handOver(owner, victim, dealt);
+        boolean inFlight = handOver(owner, victim, dealt, weapon.damageType());
         if (!inFlight) {
-            victim.getBody().damage(dealt, damageType); // scaled by the victim's armor
+            victim.getBody().damage(dealt, weapon.damageType()); // scaled by the victim's armor
         }
-        clip.fired(world.random(), rateOfFire(owner));
+        chosen.clip().fired(world.random(), rateOfFire(owner));
         world.post(new WeaponFired(world.getFrame(), owner.getId(), victim.getId(),
-                owner.getPosition(), victim.getPosition()));
+                owner.getPosition(), victim.getPosition(), weapon.name()));
 
         if (inFlight) {
             return; // nothing has been hit yet; splash and the kill wait with it
         }
-        if (splashRadius > 0f) {
-            applySplash(world, owner, victim, dealt);
+        if (weapon.splashRadius() > 0f) {
+            applySplash(world, owner, victim, dealt, weapon);
         }
 
         if (victim.isEffectivelyDead()) {
             grantKillExperience(owner, victim);
             target = null;
         }
+    }
+
+    /** A frame has passed for every weapon it has, carried or swapped out: reloads run on through a swap. */
+    private void tick() {
+        for (var armed : inPlace) {
+            armed.clip().tick();
+        }
+        for (var clip : clips.values()) {
+            clip.tick();
+        }
+    }
+
+    // ---- which weapons, and which of them ----
+
+    /**
+     * The weapons of the set in use, slot by slot: the one written in place where there are no sets, else the
+     * set whose conditions the unit has, the most of them winning — {@link Conditions#bestFit}, the rule a
+     * template's models are chosen by. A slot whose weapon the world does not have is left out, said once.
+     */
+    private List<Armed> armed() {
+        if (sets.isEmpty()) {
+            return inPlace;
+        }
+        var said = new ArrayList<List<String>>(sets.size());
+        for (var set : sets) {
+            said.add(set.conditions());
+        }
+        int fits = Conditions.bestFit(said, getOwner().getConditions());
+        if (fits < 0) {
+            return List.of();
+        }
+        var world = getOwner().getWorld();
+        var armed = new ArrayList<Armed>(sets.get(fits).slots().size());
+        for (var slot : sets.get(fits).slots()) {
+            var weapon = world instanceof uz.dukeengine.rts.RtsSimulation rts ? rts.findWeapon(slot.weapon()) : null;
+            if (weapon == null) {
+                if (MISSING.add(String.valueOf(slot.weapon()))) {
+                    LOG.warning(() -> getOwner().getTemplate().name() + "'s weapon set names the weapon '"
+                            + slot.weapon() + "', which the game never gave the world — see addWeapons");
+                }
+                continue;
+            }
+            armed.add(new Armed(slot, weapon, clips.computeIfAbsent(weapon.name(), name -> clipOf(weapon))));
+        }
+        return armed;
+    }
+
+    /**
+     * Which of {@code armed} to use on {@code victim} — the reference game's choice, from its source
+     * ({@code WeaponSet::chooseBestWeaponForTarget}), made again every time a target is weighed:
+     *
+     * <ul>
+     *   <li>A slot is passed over if the unit may not pick it by itself and nobody ordered this target; if it
+     *       is out and does not reload itself; if its weapon may not be fired at the target's class; or if it
+     *       would do no damage to it after armour.
+     *   <li>A slot preferred against a kind the target has wins outright, and is kept even while it reloads.
+     *   <li>Otherwise the ready slot that would do the most damage wins — readiness before damage: one that is
+     *       reloading is only a fall-back, the best of those if nothing is ready. Ties go to the lower slot.
+     *   <li>Nothing at all: the first slot, if it may be fired at the target — a weapon that deals nothing
+     *       still fires, as every such weapon always has.
+     * </ul>
+     *
+     * <p>Range is not weighed, as it is not there: a better weapon out of reach is a reason to close in.
+     *
+     * @return the slot, or {@code null} where none may be fired at the target at all
+     */
+    private Armed choose(List<Armed> armed, GameObject victim, boolean byOrder) {
+        if (armed.isEmpty()) {
+            return null;
+        }
+        float scale = dealtScale(getOwner());
+        Armed ready = null;
+        Armed fallBack = null;
+        float mostReady = 0f;
+        float mostFallBack = 0f;
+        // Backwards, and >= below, so that a tie goes to the lower slot.
+        for (int at = armed.size() - 1; at >= 0; at--) {
+            var one = armed.get(at);
+            if (!byOrder && !one.slot().autoChoosable()) {
+                continue;
+            }
+            var status = one.clip().status();
+            if (status == WeaponStatus.OUT || !mayHit(one.weapon(), victim)) {
+                continue;
+            }
+            float damage = victim.getBody() == null ? 0f
+                    : victim.getBody().estimateDamage(one.weapon().damage() * scale, one.weapon().damageType());
+            if (damage <= 0f) {
+                continue;
+            }
+            boolean isReady = status == WeaponStatus.READY;
+            if (preferredAgainst(one.slot(), victim)) {
+                damage = PREFERRED;
+                isReady = true; // kept even while it reloads; out of ammo was passed over above
+            }
+            if (isReady && damage >= mostReady) {
+                ready = one;
+                mostReady = damage;
+            } else if (!isReady && damage >= mostFallBack) {
+                fallBack = one;
+                mostFallBack = damage;
+            }
+        }
+        if (ready != null) {
+            return ready;
+        }
+        if (fallBack != null) {
+            return fallBack;
+        }
+        var first = armed.getFirst();
+        return mayHit(first.weapon(), victim) && first.clip().status() != WeaponStatus.OUT ? first : null;
+    }
+
+    private static boolean preferredAgainst(WeaponSlot slot, GameObject victim) {
+        for (var kind : slot.preferredAgainst()) {
+            if (victim.isKindOf(kind)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether {@code weapon} may be fired at {@code victim}'s class — see {@link TargetRule}. */
+    private boolean mayHit(Weapon weapon, GameObject victim) {
+        if (weapon.targets().isEmpty()) {
+            return true;
+        }
+        var rules = getOwner().getWorld() instanceof uz.dukeengine.rts.RtsSimulation rts
+                ? rts.getTargetRules() : List.<TargetRule>of();
+        for (var named : TargetRule.classesOf(rules, victim)) {
+            if (weapon.targets().contains(named)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean noneFiresOnTheMove(List<Armed> armed) {
+        for (var one : armed) {
+            if (one.weapon().attackOnTheMove()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean allOut(List<Armed> armed) {
+        for (var one : armed) {
+            if (one.clip().status() != WeaponStatus.OUT) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -319,7 +559,7 @@ public final class WeaponUpdate extends UpdateModule {
      *
      * @return whether one took it
      */
-    private boolean handOver(GameObject owner, GameObject victim, float dealt) {
+    private static boolean handOver(GameObject owner, GameObject victim, float dealt, DamageType damageType) {
         for (var module : owner.getModules()) {
             if (module instanceof ProjectileLauncher launcher
                     && launcher.launch(owner, victim, dealt, damageType)) {
@@ -327,6 +567,29 @@ public final class WeaponUpdate extends UpdateModule {
             }
         }
         return false;
+    }
+
+    /**
+     * What {@code weapon} deals before the target's armour: its damage, this unit's and its side's bonuses —
+     * multiplied in that order, as they always were, so a shot deals the same bits it did.
+     */
+    private static float dealt(GameObject owner, Weapon weapon) {
+        float dealt = weapon.damage() * damageModifiers(owner);
+        var shooter = RtsPlayer.of(owner.getWorld(), owner.getPlayerIndex());
+        if (shooter != null) {
+            dealt *= shooter.getWeaponDamageBonus(); // player-wide upgrade bonus
+        }
+        return dealt;
+    }
+
+    /** This unit's modifiers times its side's bonus — the same for every weapon it carries. */
+    private static float dealtScale(GameObject owner) {
+        float scale = damageModifiers(owner);
+        var shooter = RtsPlayer.of(owner.getWorld(), owner.getPlayerIndex());
+        if (shooter != null) {
+            scale *= shooter.getWeaponDamageBonus(); // player-wide upgrade bonus
+        }
+        return scale;
     }
 
     /**
@@ -358,9 +621,10 @@ public final class WeaponUpdate extends UpdateModule {
     }
 
     /** Deal area damage to other enemies around the impact point. */
-    private void applySplash(uz.dukeengine.core.thing.World world, GameObject owner, GameObject victim, float dealt) {
+    private static void applySplash(uz.dukeengine.core.thing.World world, GameObject owner, GameObject victim,
+            float dealt, Weapon weapon) {
         int ownerPlayer = owner.getPlayerIndex();
-        var caught = world.objectsInRange(victim.getPosition(), splashRadius, candidate ->
+        var caught = world.objectsInRange(victim.getPosition(), weapon.splashRadius(), candidate ->
                 candidate != victim
                         && candidate != owner
                         && !candidate.isContained()
@@ -368,7 +632,7 @@ public final class WeaponUpdate extends UpdateModule {
                         && !candidate.isEffectivelyDead()
                         && world.getRelationship(ownerPlayer, candidate.getPlayerIndex()) == Relationship.ENEMIES);
         for (var bystander : caught) {
-            bystander.getBody().damage(dealt, damageType);
+            bystander.getBody().damage(dealt, weapon.damageType());
             if (bystander.isEffectivelyDead()) {
                 grantKillExperience(owner, bystander);
             }
@@ -393,18 +657,38 @@ public final class WeaponUpdate extends UpdateModule {
         return uz.dukeengine.core.thing.World.reachBetween(owner, victim);
     }
 
-    /** Pick the nearest living enemy within range that it may be fired at as the new target, if any. */
-    private void acquireTarget(uz.dukeengine.core.thing.World world, GameObject owner) {
-        var enemy = world.findClosestInReach(owner, attackRange, candidate ->
+    /**
+     * Pick the nearest living enemy that one of the weapons it may pick by itself can reach and may be fired
+     * at, as the new target, if any.
+     */
+    private void acquireTarget(uz.dukeengine.core.thing.World world, GameObject owner, List<Armed> armed) {
+        float reach = 0f;
+        for (var one : armed) {
+            if (one.slot().autoChoosable() && one.clip().status() != WeaponStatus.OUT) {
+                reach = Math.max(reach, one.weapon().attackRange());
+            }
+        }
+        var enemy = world.findClosestInReach(owner, reach, candidate ->
                 candidate != owner
                         && !candidate.isContained()
                         && candidate.getBody() != null
                         && !candidate.isEffectivelyDead()
                         && world.getRelationship(owner.getPlayerIndex(), candidate.getPlayerIndex())
                                 == Relationship.ENEMIES
-                        && canFireAt(candidate));
+                        && mayPickFor(armed, candidate));
         if (enemy != null) {
             target = enemy.getId();
         }
+    }
+
+    /** Whether a weapon it may pick by itself, and has rounds for, may be fired at {@code candidate}. */
+    private boolean mayPickFor(List<Armed> armed, GameObject candidate) {
+        for (var one : armed) {
+            if (one.slot().autoChoosable() && one.clip().status() != WeaponStatus.OUT
+                    && mayHit(one.weapon(), candidate)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

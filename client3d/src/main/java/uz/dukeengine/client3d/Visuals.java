@@ -134,23 +134,18 @@ public final class Visuals {
                     holding.add(word);
                 }
             });
-            String best = null;
-            String bestWords = null;
-            int most = 0;
+            // The engine's one rule for choosing by condition — the simulation picks weapon sets by it too.
+            var paths = new java.util.ArrayList<String>();
+            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
             for (var candidate : conditionalModels.entrySet()) {
-                var words = wordsOf(candidate.getKey());
-                if (words.isEmpty() || !holding.containsAll(words)) {
-                    continue;
-                }
-                var sorted = String.join(" ", words);
-                if (best == null || words.size() > most
-                        || words.size() == most && sorted.compareTo(bestWords) < 0) {
-                    best = candidate.getValue();
-                    bestWords = sorted;
-                    most = words.size();
+                var said = wordsOf(candidate.getKey());
+                if (!said.isEmpty()) {
+                    paths.add(candidate.getValue());
+                    words.add(said);
                 }
             }
-            return best == null ? modelPath : best;
+            int best = uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
+            return best < 0 ? modelPath : paths.get(best);
         }
 
         /** The words of a condition key, sorted and without repeats, so two spellings of one set are one. */

@@ -15,7 +15,7 @@ import uz.dukeengine.rts.player.RtsPlayer;
  *
  * <p>Captures the strategic state — frame counter, where the simulation's random
  * numbers stand, players (money, weapon-bonus, upgrades) and objects (template,
- * owner, transform, health, status) — enough
+ * owner, transform, health, status, condition words) — enough
  * that a restored world has the same {@link GameLogic#checksum()} as the saved
  * one. Float values use {@link Float#toString}, which round-trips to identical
  * bits.
@@ -61,7 +61,8 @@ public final class GameSnapshot {
                     .append(Float.toString(pos.z())).append('|')
                     .append(Float.toString(o.getOrientation())).append('|')
                     .append(health).append('|')
-                    .append(statuses).append('\n');
+                    .append(statuses).append('|')
+                    .append(String.join(",", o.getConditions())).append('\n');
         }
         return sb.toString();
     }
@@ -120,6 +121,7 @@ public final class GameSnapshot {
         float orientation = Float.parseFloat(parts[6]);
         var health = parts[7];
         var statuses = parts[8];
+        var conditions = parts.length > 9 ? parts[9] : ""; // a save from before conditions has none
 
         var template = logic.getThingFactory().findTemplate(templateName);
         if (template == null) {
@@ -135,6 +137,11 @@ public final class GameSnapshot {
         if (!statuses.isEmpty()) {
             for (var status : statuses.split(",")) {
                 object.setStatus(ObjectStatus.valueOf(status));
+            }
+        }
+        if (!conditions.isEmpty()) {
+            for (var word : conditions.split(",")) {
+                object.setCondition(word);
             }
         }
     }

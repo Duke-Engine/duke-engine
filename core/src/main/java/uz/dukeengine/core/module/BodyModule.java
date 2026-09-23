@@ -33,6 +33,15 @@ public abstract class BodyModule extends Module {
         damage(amount, DamageType.NORMAL);
     }
 
+    /**
+     * How much of {@code amount} of {@code type} damage this body would take, without taking it — what a unit
+     * choosing between its weapons weighs them by. SAGE's {@code BodyModule::estimateDamage}. A body with no
+     * armour takes all of it, which is this default; one that armours itself says otherwise.
+     */
+    public float estimateDamage(float amount, DamageType type) {
+        return Math.max(0f, amount);
+    }
+
     /** Restore {@code amount} of health, clamped to the maximum. */
     public abstract void heal(float amount);
 

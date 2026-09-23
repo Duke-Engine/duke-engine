@@ -64,6 +64,11 @@ public final class ActiveBody extends BodyModule {
     }
 
     @Override
+    public float estimateDamage(float amount, DamageType type) {
+        return amount <= 0f ? 0f : amount * armor.getMultiplier(type);
+    }
+
+    @Override
     public void heal(float amount) {
         if (amount <= 0f) {
             return;

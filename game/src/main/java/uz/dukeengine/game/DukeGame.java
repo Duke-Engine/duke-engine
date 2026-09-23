@@ -67,6 +67,7 @@ public final class DukeGame {
     private final String title;
     private final List<UnitText> unitTexts = new ArrayList<>();
     private final List<ThingTemplate> units = new ArrayList<>();
+    private final List<uz.dukeengine.rts.module.Weapon> weapons = new ArrayList<>();
     private final List<GamePlayer> players = new ArrayList<>();
     private final List<Runnable> scenario = new ArrayList<>();
     private final List<Consumer<DukeGame>> startCallbacks = new ArrayList<>();
@@ -138,6 +139,16 @@ public final class DukeGame {
     public DukeGame addUnits(java.util.Collection<? extends ThingTemplate> templates) {
         requireNotStarted();
         units.addAll(templates);
+        return this;
+    }
+
+    /**
+     * The weapons the game's units link by name from their weapon sets — one block a weapon, however many
+     * units carry it. Handed to the world when it boots.
+     */
+    public DukeGame addWeapons(java.util.Collection<uz.dukeengine.rts.module.Weapon> more) {
+        requireNotStarted();
+        weapons.addAll(more);
         return this;
     }
 
@@ -751,6 +762,7 @@ public final class DukeGame {
         for (var template : units) {
             logic.getThingFactory().addTemplate(template);
         }
+        logic.addWeapons(weapons);
         for (var text : unitTexts) {
             loader.load(text.text(), text.source());
         }

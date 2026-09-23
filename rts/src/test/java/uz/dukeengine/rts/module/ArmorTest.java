@@ -45,6 +45,18 @@ class ArmorTest {
         assertEquals(60f, plain.getHealth(), 1e-4f); // unlisted type -> 1.0
     }
 
+    /** What a unit weighs its weapons by: exactly what the hit would take, and nothing taken. */
+    @Test
+    void anEstimateIsWhatTheHitWouldTakeWithoutTakingIt() {
+        var body = bodyWithArmor(Map.of(DamageType.FLAME, 0.5f));
+        assertEquals(20f, body.estimateDamage(40f, DamageType.FLAME), 1e-4f);
+        assertEquals(40f, body.estimateDamage(40f, DamageType.EXPLOSION), 1e-4f, "unlisted: in full");
+        assertEquals(100f, body.getHealth(), 1e-4f, "and it took none of it");
+
+        var immune = bodyWithArmor(Map.of(DamageType.FLAME, 0f));
+        assertEquals(0f, immune.estimateDamage(40f, DamageType.FLAME), "a flamethrower is no use on it");
+    }
+
     @Test
     void untypedDamageIsNormalType() {
         var armor = Map.of(DamageType.NORMAL, 0.25f);

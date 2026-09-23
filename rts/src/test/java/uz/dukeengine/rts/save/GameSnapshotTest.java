@@ -101,6 +101,20 @@ class GameSnapshotTest {
         assertEquals(3, restored.createObject(tank).getId().value()); // nextObjectId preserved
     }
 
+    /** A thing's condition words are saved with it: which weapons it carries hangs on them. */
+    @Test
+    void conditionWordsAreSavedWithTheThing() {
+        var orig = newLogic();
+        var tank = orig.createObject(orig.getThingFactory().findTemplate("Tank"));
+        tank.setCondition("PLAYER_UPGRADE");
+        tank.setCondition("VETERAN");
+
+        var restored = newLogic();
+        GameSnapshot.load(GameSnapshot.save(orig), restored);
+        var back = restored.getObjects().getFirst();
+        assertEquals(java.util.List.of("PLAYER_UPGRADE", "VETERAN"), java.util.List.copyOf(back.getConditions()));
+    }
+
     /** Where the simulation's random numbers stand is saved too, so a loaded game draws what the saved one would. */
     @Test
     void theRandomNumbersCarryOnFromWhereTheyWereSaved() {

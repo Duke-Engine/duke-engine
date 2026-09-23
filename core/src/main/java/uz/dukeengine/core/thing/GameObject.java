@@ -43,6 +43,7 @@ public final class GameObject {
     private boolean contained;
     private World world;
     private final EnumSet<ObjectStatus> statuses = EnumSet.noneOf(ObjectStatus.class);
+    private final java.util.TreeSet<String> conditions = new java.util.TreeSet<>();
 
     public GameObject(ObjectId id, ThingTemplate template) {
         this.id = id;
@@ -221,6 +222,31 @@ public final class GameObject {
 
     public void clearStatus(ObjectStatus status) {
         statuses.remove(status);
+    }
+
+    /**
+     * Say that a word holds for this thing — an upgrade it has finished, a crate it picked up, a rank. A
+     * condition is only a word: the engine defines none of them and knows what none of them mean, and what
+     * reads them is a game's data, such as a weapon set that names them. It is simulation state, so it is set
+     * from the simulation, and alike on every machine.
+     */
+    public void setCondition(String word) {
+        if (word != null && !word.isBlank()) {
+            conditions.add(word);
+        }
+    }
+
+    public void clearCondition(String word) {
+        conditions.remove(word);
+    }
+
+    public boolean hasCondition(String word) {
+        return conditions.contains(word);
+    }
+
+    /** Every word that holds for it, sorted, so it reads the same way on every machine. */
+    public java.util.SortedSet<String> getConditions() {
+        return java.util.Collections.unmodifiableSortedSet(conditions);
     }
 
     public List<Module> getModules() {

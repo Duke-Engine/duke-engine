@@ -86,6 +86,26 @@ public abstract class RtsSimulation extends GameLogic {
         return placementRules;
     }
 
+    private final java.util.Map<String, uz.dukeengine.rts.module.Weapon> weapons = new java.util.LinkedHashMap<>();
+
+    /**
+     * The weapons this game's {@link uz.dukeengine.rts.module.WeaponSlot}s link by name — one block a weapon,
+     * however many units carry it. A later weapon of a name replaces an earlier. Data, like the templates: a
+     * new game in the same world keeps them.
+     */
+    public final void addWeapons(java.util.Collection<uz.dukeengine.rts.module.Weapon> more) {
+        for (var weapon : more) {
+            if (weapon != null && weapon.name() != null) {
+                weapons.put(weapon.name(), weapon);
+            }
+        }
+    }
+
+    /** The weapon of this name, or {@code null} where the game gave none. */
+    public final uz.dukeengine.rts.module.Weapon findWeapon(String name) {
+        return name == null ? null : weapons.get(name);
+    }
+
     private java.util.List<uz.dukeengine.rts.module.TargetRule> targetRules = java.util.List.of();
 
     /**
