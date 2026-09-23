@@ -27,6 +27,9 @@ import java.lang.annotation.Target;
  * side is simply the opposite side, and for a corner is everything but that corner's triangle.
  *
  * <p>Top is the first row and left the first column, as the rows are written.
+ *
+ * <p>A map with more than one {@link Overlay} has one of these a layer: the n-th {@code @Fade}, in the order
+ * the record declares its components, says how the n-th overlay fades in.
  */
 @Documented
 @Target(ElementType.RECORD_COMPONENT)

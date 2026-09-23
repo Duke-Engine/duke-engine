@@ -66,9 +66,32 @@ public final class MapTerrain {
     /** The rows of the component that carries this mark, or none where the record has no such component. */
     public static List<String> rows(Object map, Class<? extends Annotation> mark, String what) {
         var component = markedWith(map, mark);
-        if (component == null) {
+        return component == null ? List.of() : read(map, component, what);
+    }
+
+    /**
+     * The rows of every component that carries this mark, in the order the record declares them — for a mark
+     * a map may carry more than once, as a painted map carries one {@code @Overlay} a layer. Empty where the
+     * record has none.
+     *
+     * <p>Declaration order is the only order there is to go by, and it is a fixed one: a record's components
+     * are reported in the order its header writes them, so the n-th of one mark and the n-th of another are
+     * the same n on every machine and in every reading.
+     */
+    public static List<List<String>> rowsOfEach(Object map, Class<? extends Annotation> mark, String what) {
+        if (map == null || !map.getClass().isRecord()) {
             return List.of();
         }
+        var each = new java.util.ArrayList<List<String>>();
+        for (var component : map.getClass().getRecordComponents()) {
+            if (component.getAnnotation(mark) != null) {
+                each.add(read(map, component, what));
+            }
+        }
+        return List.copyOf(each);
+    }
+
+    private static List<String> read(Object map, RecordComponent component, String what) {
         try {
             // As the Binder reads a record's components. A game's map record need not be public to be a
             // map: it is named by its own file and built by reflection, and nothing outside its game ever

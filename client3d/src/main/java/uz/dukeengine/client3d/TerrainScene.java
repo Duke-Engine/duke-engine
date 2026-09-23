@@ -273,16 +273,20 @@ final class TerrainScene {
     }
 
     /**
-     * A second picture laid over the ground where two kinds of it meet, faded in by the shape each cell names.
+     * A picture laid over the ground where kinds of it meet, faded in by the shape each cell names.
      *
      * <p>Four triangles a cell, meeting at its middle, because that is what makes every one of the sixteen
      * fades exact — see {@link FadeShape}. It costs nothing in the fit: the middle lies on the diagonal the
      * ground under it is cut along, at the height the ground has there, so all four triangles lie in the two
      * the ground is made of and the overlay cannot sink into it or float above it.
      *
-     * <p>Drawn after the ground and blended over it, and never in any order among themselves that matters:
-     * a cell has one overlay at most, so no two of these ever cover the same place. Which is what makes
-     * blending possible here when it was not across a whole map of layers — nothing has to be sorted.
+     * <p>Drawn after the ground and blended over it. Within a layer the order never matters — a cell has one
+     * overlay a layer, so no two of a layer's meshes cover the same place. Between layers it is everything:
+     * where three kinds of ground meet, a cell carries one picture a layer on exactly the same triangles, and
+     * the later layer has to land on top. So each mesh is marked with its layer ({@link OverlayOrder#LAYER})
+     * and the transparent bucket is drawn in layer order by {@link OverlayOrder} — a fixed order, not the
+     * camera's distance to a mesh that spans the map, and not a depth test two identical surfaces would
+     * fight over.
      *
      * <p>Laid across the world at its own coverage, like the ground's pictures, so an overlay lines up with
      * the same picture drawn as ground next door rather than starting again in every cell.
@@ -337,6 +341,7 @@ final class TerrainScene {
         var laid = new Geometry("overlay", mesh);
         laid.setMaterial(material.overlay(overlay.surface().colour(), overlay.surface().texture()));
         laid.setQueueBucket(com.jme3.renderer.queue.RenderQueue.Bucket.Transparent);
+        laid.setUserData(OverlayOrder.LAYER, overlay.layer());
         root.attachChild(laid);
     }
 

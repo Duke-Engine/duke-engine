@@ -54,21 +54,25 @@ final class GroundPaint {
 
     /**
      * One picture laid over other ground, every cell it lies on, and how it fades into each —
-     * {@code shapes[i]} for {@code cells[i]}, one of {@link FadeShape}'s sixteen.
+     * {@code shapes[i]} for {@code cells[i]}, one of {@link FadeShape}'s sixteen — and which layer it is
+     * part of: 0 for the first {@link Overlay}, 1 for the second, drawn in that order.
      */
-    record OverlayPatch(Surface surface, float coverage, int[] cells, int[] shapes) {
+    record OverlayPatch(int layer, Surface surface, float coverage, int[] cells, int[] shapes) {
     }
 
     private final String what;
     private final List<String> rows;
     private final Map<String, String> palette;
     private final Map<String, Float> coverage;
-    /** The second layer: empty for a map that has none, which is every map that never asked. */
-    private final List<String> overlays;
-    private final List<String> fades;
+    /**
+     * The layers laid over the paint, one {@link Overlay} and its {@link Fade} each, in the order the map's
+     * record declares them: none for a map that has none, which is every map that never asked.
+     */
+    private final List<List<String>> overlays;
+    private final List<List<String>> fades;
 
     private GroundPaint(String what, List<String> rows, Map<String, String> palette,
-            Map<String, Float> coverage, List<String> overlays, List<String> fades) {
+            Map<String, Float> coverage, List<List<String>> overlays, List<List<String>> fades) {
         this.what = what;
         this.rows = rows;
         this.palette = palette;
@@ -91,8 +95,18 @@ final class GroundPaint {
             return null;
         }
         var coverage = painted.coverage() == null ? Map.<String, Float>of() : painted.coverage();
+        var overlays = MapTerrain.rowsOfEach(map, Overlay.class, "overlay");
+        var fades = MapTerrain.rowsOfEach(map, Fade.class, "fade");
+        int layers = Math.min(overlays.size(), fades.size());
+        if (overlays.size() != fades.size()) {
+            // Said here, once a reading, rather than a cell at a time: it is one mistake in the record, and
+            // the layers that are whole are still worth drawing.
+            LOG.log(Level.WARNING, "{0} marks {1} component(s) @Overlay and {2} @Fade; the n-th of each go"
+                    + " together, so {3} layer(s) are drawn and the rest are not",
+                    new Object[] {named(map), overlays.size(), fades.size(), layers});
+        }
         return new GroundPaint(named(map), rows, painted.palette(), coverage,
-                MapTerrain.rows(map, Overlay.class, "overlay"), MapTerrain.rows(map, Fade.class, "fade"));
+                overlays.subList(0, layers), fades.subList(0, layers));
     }
 
     /**
@@ -148,30 +162,44 @@ final class GroundPaint {
     }
 
     /**
-     * The second layer, gathered the same way: one patch a picture that is laid over anything, each cell
-     * with the shape it fades in by. Empty — and nothing built, nothing drawn — for a map with no
-     * {@link Fade} rows, which is every map that did not ask for this.
+     * The layers over the paint, gathered the same way: one patch a picture a layer, each cell with the
+     * shape it fades in by, the first layer's patches before the second's. Empty — and nothing built,
+     * nothing drawn — for a map with no {@link Fade} rows, which is every map that did not ask for this.
+     *
+     * <p>More than one layer is for where three kinds of ground meet. One overlay blends two: the cell's own
+     * picture and the one laid over it. At a junction of three the third needs a picture of its own, and
+     * with one layer it simply stops hard — 0.22% of the cells of the 65 maps of the RTS this was measured
+     * in, 29,241 of 13.3 million, always a small patch where three textures meet.
      *
      * <p>A cell is read only where its fade names a shape; the overlay character anywhere else is a
      * placeholder. What cannot be read is said once, like the paint's own mistakes, and left out.
      */
     List<OverlayPatch> overlays(int width, int height) {
-        if (fades.isEmpty()) {
-            return List.of();
+        var patches = new ArrayList<OverlayPatch>();
+        for (int layer = 0; layer < fades.size(); layer++) {
+            patches.addAll(layer(layer, width, height));
         }
+        return patches;
+    }
+
+    private List<OverlayPatch> layer(int layer, int width, int height) {
+        var fade = fades.get(layer);
+        var overlay = overlays.get(layer);
+        // A map of one layer says what it always said; of more, which layer it means.
+        var where = fades.size() == 1 ? what : what + " (overlay " + (layer + 1) + ")";
         var cells = new LinkedHashMap<String, List<int[]>>();
         var unnamed = new LinkedHashMap<String, Integer>();
         var unreadable = new LinkedHashMap<Character, Integer>();
-        for (int cy = 0; cy < height && cy < fades.size(); cy++) {
-            var fade = fades.get(cy);
-            var over = cy < overlays.size() ? overlays.get(cy) : "";
-            for (int cx = 0; cx < width && cx < fade.length(); cx++) {
-                int shape = FadeShape.of(fade.charAt(cx));
+        for (int cy = 0; cy < height && cy < fade.size(); cy++) {
+            var row = fade.get(cy);
+            var over = cy < overlay.size() ? overlay.get(cy) : "";
+            for (int cx = 0; cx < width && cx < row.length(); cx++) {
+                int shape = FadeShape.of(row.charAt(cx));
                 if (shape == FadeShape.NONE) {
                     continue;
                 }
                 if (shape == FadeShape.UNREADABLE) {
-                    unreadable.merge(fade.charAt(cx), 1, Integer::sum);
+                    unreadable.merge(row.charAt(cx), 1, Integer::sum);
                     continue;
                 }
                 var key = cx < over.length() ? String.valueOf(over.charAt(cx)) : "";
@@ -184,10 +212,10 @@ final class GroundPaint {
         }
         unreadable.forEach((written, count) -> LOG.log(Level.WARNING,
                 "{0}: ''{1}'' is no fade — a fade is . or one of 0-F — on {2} cell(s)",
-                new Object[] {what, written, count}));
+                new Object[] {where, written, count}));
         unnamed.forEach((key, count) -> LOG.log(Level.WARNING,
                 "{0}: the palette does not say what the overlay ''{1}'' is, and {2} cell(s) are laid with it",
-                new Object[] {what, key, count}));
+                new Object[] {where, key, count}));
 
         var patches = new ArrayList<OverlayPatch>(cells.size());
         cells.forEach((key, laid) -> {
@@ -197,7 +225,7 @@ final class GroundPaint {
                 at[i] = laid.get(i)[0];
                 shapes[i] = laid.get(i)[1];
             }
-            patches.add(new OverlayPatch(Surface.of(palette.get(key)), coverageOf(key), at, shapes));
+            patches.add(new OverlayPatch(layer, Surface.of(palette.get(key)), coverageOf(key), at, shapes));
         });
         return patches;
     }

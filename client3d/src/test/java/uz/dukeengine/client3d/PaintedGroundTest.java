@@ -342,6 +342,159 @@ class PaintedGroundTest {
         assertEquals(2, indices.get(2), "the first triangle ends on the bottom-right corner");
     }
 
+    // ---- more than one layer ----
+
+    /**
+     * Where three kinds of ground meet: grass painted everywhere, sand laid over it as the first layer down
+     * the middle two columns, and rock over both as the second down the right two. Column 2 carries both.
+     */
+    record Junction(String name, float cellSize,
+            @Grid List<String> cells,
+            @Paint List<String> paint,
+            @uz.dukeengine.core.data.Overlay List<String> sand,
+            @uz.dukeengine.core.data.Fade List<String> sandFade,
+            @uz.dukeengine.core.data.Overlay List<String> rock,
+            @uz.dukeengine.core.data.Fade List<String> rockFade,
+            Map<String, String> palette)
+            implements MapTemplate, Scaled, Painted {
+    }
+
+    private static Junction junction() {
+        var palette = new LinkedHashMap<String, String>();
+        palette.put("g", "textures/ground/grass.png");
+        palette.put("s", "textures/ground/sand.png");
+        palette.put("r", "textures/ground/rock.png");
+        return new Junction("junction", 10f,
+                List.of("....", "....", "...."),
+                List.of("gggg", "gggg", "gggg"),
+                List.of(".ss.", ".ss.", ".ss."),
+                List.of(".22.", ".22.", ".22."),
+                List.of("..rr", "..rr", "..rr"),
+                List.of("..11", "..11", "..11"),
+                palette);
+    }
+
+    /**
+     * Two layers are two meshes, and where a cell carries both the second is drawn over the first — checked in
+     * the order jME's own queue draws them, through the order the client installs on its view, from a camera
+     * that would have put them the other way round.
+     */
+    @Test
+    void aSecondLayerIsASecondMeshDrawnOverTheFirst() {
+        var root = drawn(junction());
+        var overlays = named(root, "overlay");
+        assertEquals(2, overlays.size(), "one picture a layer, one mesh each");
+        var sand = overlays.getFirst();
+        var rock = overlays.get(1);
+        assertEquals(0, (int) sand.getUserData(OverlayOrder.LAYER));
+        assertEquals(1, (int) rock.getUserData(OverlayOrder.LAYER));
+        assertEquals(6 * 5, sand.getMesh().getVertexCount(), "two columns of three cells");
+        assertEquals(20f, rock.getMesh().getFloatBuffer(VertexBuffer.Type.Position).get(0),
+                "and the rock's first cell is column 2, the one the sand covers too");
+
+        // Something else see-through, beyond both: a spark hanging far over the map.
+        var spark = new Geometry("spark", new com.jme3.scene.shape.Quad(1f, 1f));
+        spark.setLocalTranslation(400f, 5f, 15f);
+        spark.setQueueBucket(com.jme3.renderer.queue.RenderQueue.Bucket.Transparent);
+        root.attachChild(spark);
+        root.updateGeometricState();
+
+        // Standing off the sand's side of the map, the rock's mesh is the farther of the two.
+        var camera = new com.jme3.renderer.Camera(640, 480);
+        camera.setLocation(new com.jme3.math.Vector3f(-200f, 50f, 15f));
+
+        assertEquals(List.of(spark, rock, sand), drawnInOrder(new com.jme3.renderer.ViewPort("jME's own", camera),
+                camera, sand, rock, spark),
+                "back to front by distance alone: the rock laid first, under the sand, and the spark painted over");
+
+        var view = new com.jme3.renderer.ViewPort("the client's", camera);
+        OverlayOrder.install(view);
+        assertEquals(List.of(sand, rock, spark), drawnInOrder(view, camera, spark, rock, sand),
+                "the layers in their order whatever the camera, and everything else after the ground");
+    }
+
+    /** What a view's transparent bucket draws, in the order it draws it: jME's queue, with no GPU behind it. */
+    private static List<Geometry> drawnInOrder(com.jme3.renderer.ViewPort view, com.jme3.renderer.Camera camera,
+            Geometry... queued) {
+        var bucket = com.jme3.renderer.queue.RenderQueue.Bucket.Transparent;
+        for (var geometry : queued) {
+            view.getQueue().addToQueue(geometry, bucket);
+        }
+        var drawn = new java.util.ArrayList<Geometry>();
+        var renderer = new com.jme3.renderer.RenderManager(new com.jme3.system.NullRenderer()) {
+            @Override
+            public void renderGeometry(Geometry geometry) {
+                drawn.add(geometry);
+            }
+        };
+        view.getQueue().renderQueue(bucket, renderer, camera, true);
+        return drawn;
+    }
+
+    /** A map of one pair is drawn as it always was: one mesh, the first layer, and nothing said about it. */
+    @Test
+    void aMapOfOneLayerIsDrawnAsBefore() {
+        var said = new java.util.ArrayList<String>();
+        var shore = shore(List.of("..1.", "..1.", "..1."));
+        List<Geometry> overlays = listening(said, () -> named(drawn(shore), "overlay"));
+
+        assertEquals(1, overlays.size());
+        assertEquals(0, (int) overlays.getFirst().getUserData(OverlayOrder.LAYER));
+        assertEquals(3 * 5, overlays.getFirst().getMesh().getVertexCount());
+        assertTrue(said.isEmpty(), "a whole pair is nothing to remark on: " + said);
+    }
+
+    /**
+     * Two {@code @Overlay} and one {@code @Fade}: said once, naming the map, and the pair that is whole is still
+     * drawn — the first overlay with the only fade.
+     */
+    @Test
+    void aMapWithMoreOverlaysThanFadesSaysSoAndDrawsThePairThatIsWhole() {
+        record Lopsided(String name, float cellSize,
+                @Grid List<String> cells,
+                @Paint List<String> paint,
+                @uz.dukeengine.core.data.Overlay List<String> sand,
+                @uz.dukeengine.core.data.Fade List<String> sandFade,
+                @uz.dukeengine.core.data.Overlay List<String> rock,
+                Map<String, String> palette)
+                implements MapTemplate, Scaled, Painted {
+        }
+        var junction = junction();
+        var lopsided = new Lopsided("lopsided", 10f, junction.cells(), junction.paint(), junction.sand(),
+                junction.sandFade(), junction.rock(), junction.palette());
+
+        var said = new java.util.ArrayList<String>();
+        List<Geometry> overlays = listening(said, () -> named(drawn(lopsided), "overlay"));
+
+        assertEquals(1, said.size(), "once: " + said);
+        assertTrue(said.getFirst().contains("'lopsided'"), "naming the map: " + said);
+        assertEquals(1, overlays.size(), "and the whole pair is drawn");
+        assertEquals(10f, overlays.getFirst().getMesh().getFloatBuffer(VertexBuffer.Type.Position).get(0),
+                "the sand, from column 1");
+    }
+
+    /** Runs {@code work} with every warning {@link GroundPaint} gives written into {@code said}. */
+    private static <T> T listening(List<String> said, java.util.function.Supplier<T> work) {
+        var listening = new java.util.logging.Handler() {
+            @Override public void publish(java.util.logging.LogRecord record) {
+                said.add(java.text.MessageFormat.format(record.getMessage(), record.getParameters()));
+            }
+
+            @Override public void flush() {
+            }
+
+            @Override public void close() {
+            }
+        };
+        var log = java.util.logging.Logger.getLogger(GroundPaint.class.getName());
+        log.addHandler(listening);
+        try {
+            return work.get();
+        } finally {
+            log.removeHandler(listening);
+        }
+    }
+
     /** The mask is the engine's: five strengths a shape, and the reversed eight are one minus the rest. */
     @Test
     void theSixteenFadesAreExactRampsAndTheirReverses() {

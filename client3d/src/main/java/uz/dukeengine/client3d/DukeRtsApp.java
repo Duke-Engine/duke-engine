@@ -468,6 +468,8 @@ final class DukeRtsApp extends SimpleApplication {
         viewPort.setBackgroundColor(visuals.getDiscoveryTemplate() == null
                 ? new ColorRGBA(0.05f, 0.07f, 0.10f, 1f)
                 : visuals.getFog().tintColour());
+        // The ground's overlays in their layers' order, under every other see-through thing.
+        OverlayOrder.install(viewPort);
 
         // project assets folder (Studio Play); exported games use the classpath
         if (visuals.getAssetRoot() != null) {
