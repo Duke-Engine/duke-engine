@@ -716,6 +716,7 @@ public final class DukeGame {
         logic = new RtsLogic();
         client = new RtsClient(logic);
         client.setCommands(this::buttonsNow);
+        client.setAimFits(this::aimFitsNow);
         engine = new RtsGameEngine(logic, client);
         if (recorder != null) {
             logic.setFrameLog(recorder);
@@ -966,7 +967,7 @@ public final class DukeGame {
     private volatile List<Integer> selection = List.of();
     private java.util.function.Function<List<Integer>,
             List<uz.dukeengine.game.view.CommandButton>> commandBar;
-    private BiConsumer<String, List<Integer>> commandPressed;
+    private Consumer<uz.dukeengine.game.view.CommandPress> commandPressed;
 
     /**
      * What the player may do with whatever he has selected, asked once a frame as the snapshot is built.
@@ -1008,24 +1009,64 @@ public final class DukeGame {
     }
 
     /**
-     * What to do when one of the bar's buttons is pressed: the button's own id, and what was selected.
+     * What to do when one of the bar's buttons is pressed: which, what was selected, and where or at what
+     * for one that aims — see {@link uz.dukeengine.game.view.CommandPress}.
      *
      * <p>The handler's job is to turn that into one of the game's own {@link Command}s and
      * {@link #postCommand} it, which is the road every order already travels — queued from the input
      * thread, applied at the start of a frame, written to the replay log. Doing anything to the world
      * here instead would be doing it off the simulation thread and out of the log.
      */
-    public DukeGame onCommandPressed(BiConsumer<String, List<Integer>> pressed) {
+    public DukeGame onCommandPressed(Consumer<uz.dukeengine.game.view.CommandPress> pressed) {
         this.commandPressed = pressed;
         return this;
     }
 
-    /** Thread-safe: the player pressed a button of the bar. */
+    /** Thread-safe: the player pressed a button of the bar that needs nothing more. */
     public void pressCommand(String id) {
+        pressCommand(id, null, -1);
+    }
+
+    /** Thread-safe: the player pressed a button of the bar and then clicked where, or at what. */
+    public void pressCommand(String id, Coord3D place, int target) {
         var handler = commandPressed;
         if (handler != null && id != null) {
-            handler.accept(id, selection);
+            handler.accept(new uz.dukeengine.game.view.CommandPress(id, selection, place, target));
         }
+    }
+
+    // ---- aiming ----
+
+    private volatile String aimButton;
+    private volatile Coord3D aimPlace;
+    private java.util.function.BiPredicate<String, Coord3D> aimFits;
+
+    /**
+     * Whether an armed button's place would do, asked as the cursor moves — for a ghost to be drawn green or
+     * red. The game answers from the simulation's side: for a building, {@code RtsSimulation.fits}.
+     *
+     * <p>Asked on the simulation thread as the snapshot is built, like the bar itself, so the answer may read
+     * the world as it stands; the window only shows it. What decides whether a place will do is the order
+     * that is sent, which is judged again when it is applied.
+     */
+    public DukeGame aimFits(java.util.function.BiPredicate<String, Coord3D> fits) {
+        this.aimFits = fits;
+        if (client != null) {
+            client.setAimFits(this::aimFitsNow);
+        }
+        return this;
+    }
+
+    /** Thread-safe: the button the window has armed and where its cursor stands, or null when none is. */
+    public void setAim(String buttonId, Coord3D place) {
+        this.aimPlace = place;
+        this.aimButton = buttonId;
+    }
+
+    private boolean aimFitsNow() {
+        var button = aimButton;
+        var place = aimPlace;
+        return button == null || place == null || aimFits == null || aimFits.test(button, place);
     }
 
     /** Thread-safe: run work on the simulation thread next frame. */

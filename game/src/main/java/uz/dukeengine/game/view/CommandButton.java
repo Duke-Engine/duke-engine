@@ -9,8 +9,9 @@ package uz.dukeengine.game.view;
  * one over with. So nothing could be built, trained or ordered except from a keyboard.
  *
  * <p><b>The engine does not know what any of these mean.</b> It draws a picture, a word and a key, reports
- * which one was pressed, and the game does the rest — the same bargain {@code WorldSnapshot.status}
- * strikes. Building a power plant, casting a spell and calling an airstrike are one thing from here.
+ * which one was pressed — and where, for one that {@link Aim aims} — and the game does the rest: the same
+ * bargain {@code WorldSnapshot.status} strikes. Building a power plant, setting a rally point and calling
+ * an airstrike are one thing from here.
  *
  * <p>Carried in the {@link WorldSnapshot}, which is to say computed on the simulation thread from the
  * selection the client last reported. That is what keeps it out of a race: a button is worked out where
@@ -25,11 +26,37 @@ package uz.dukeengine.game.view;
  *                  second way of pressing it
  * @param available whether it may be pressed now — a button that cannot is drawn dim rather than hidden,
  *                  because a bar whose buttons move around as money comes and goes cannot be learned
+ * @param aim       what it needs before it is sent: nothing, a place, or a thing
+ * @param ghost     for a button that aims at a place, what to draw at the cursor while it is armed — the
+ *                  name of a template, drawn as that template is drawn, or the path to a model. Null for no
+ *                  ghost at all
  */
-public record CommandButton(String id, String picture, String label, String hotkey, boolean available) {
+public record CommandButton(String id, String picture, String label, String hotkey, boolean available,
+        Aim aim, String ghost) {
+
+    /**
+     * What a button needs from the player between being pressed and being sent.
+     *
+     * <p>A place or a thing arrives the same way whatever it is for — a building's corner, a rally point,
+     * where an airstrike lands — and the engine does not know which.
+     */
+    public enum Aim {
+        /** Sent the moment it is pressed. */
+        NOW,
+        /** Pressing arms the cursor; the next click on the ground is the place. */
+        GROUND,
+        /** Pressing arms the cursor; the next click on a thing is the target. */
+        UNIT
+    }
 
     public CommandButton {
         label = label == null ? "" : label;
+        aim = aim == null ? Aim.NOW : aim;
+    }
+
+    /** A button sent the moment it is pressed. */
+    public CommandButton(String id, String picture, String label, String hotkey, boolean available) {
+        this(id, picture, label, hotkey, available, Aim.NOW, null);
     }
 
     /** A button that is simply there and may be pressed. */

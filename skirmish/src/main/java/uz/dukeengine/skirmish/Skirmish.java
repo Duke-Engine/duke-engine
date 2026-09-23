@@ -67,12 +67,19 @@ public final class Skirmish {
     }
 
     /**
-     * What a selected building offers: one button per unit it may train, priced.
+     * What a worker may put down. This game's rule, and written here because it is one: a worker builds the
+     * two buildings a side needs, and nothing else builds anything.
+     */
+    private static final java.util.List<String> A_WORKER_BUILDS = java.util.List.of("Barracks", "Depot");
+
+    /**
+     * What a selected thing offers: a building, one button per unit it may train, priced; a worker, one per
+     * building it may put down — a button that aims at the ground, with that building as its ghost.
      *
      * <p>The engine asks and this answers, which is the whole of the seam. What a button <em>means</em> is
-     * here and nowhere in the engine — that these are units, that they cost money, that a queue takes them
-     * one at a time — and a different game answering the same question would put entirely different words
-     * on entirely different buttons.
+     * here and nowhere in the engine — that these are units, that they cost money, that a building is placed
+     * rather than produced — and a different game answering the same question would put entirely different
+     * words on entirely different buttons.
      *
      * <p>Whether a button may be pressed is this game's rule too: a barracks the player cannot afford is
      * drawn dim rather than taken away, so the bar stays the same shape as his money comes and goes.
@@ -81,35 +88,59 @@ public final class Skirmish {
         game.commandBar(selection -> {
             var logic = game.getLogic();
             if (logic == null || selection.size() != 1) {
-                return java.util.List.of(); // one building at a time; a crowd has no one line to build
+                return java.util.List.of(); // one at a time; a crowd has no one line to build
             }
             var chosen = logic.findObject(new uz.dukeengine.core.thing.ObjectId(selection.getFirst()));
-            var line = chosen == null ? null
-                    : chosen.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
-            if (line == null || chosen.getPlayerIndex() != game.getLocalPlayerIndex()) {
-                return java.util.List.of(); // not his, or it builds nothing
+            if (chosen == null || chosen.getPlayerIndex() != game.getLocalPlayerIndex()) {
+                return java.util.List.of(); // not his
             }
             int purse = logic.getRtsPlayer(chosen.getPlayerIndex()).getMoney();
             var buttons = new java.util.ArrayList<uz.dukeengine.game.view.CommandButton>();
-            for (var name : line.getBuilds()) {
-                var template = logic.getThingFactory().findTemplate(name);
-                int cost = template instanceof uz.dukeengine.rts.Buildable priced ? priced.buildCost() : 0;
-                buttons.add(new uz.dukeengine.game.view.CommandButton(
-                        "train:" + name, null, name + " " + cost, null, cost <= purse));
+            var line = chosen.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
+            if (line != null) {
+                for (var name : line.getBuilds()) {
+                    int cost = costOf(logic, name);
+                    buttons.add(new uz.dukeengine.game.view.CommandButton(
+                            "train:" + name, null, name + " " + cost, null, cost <= purse));
+                }
+            }
+            if (chosen.findModule(uz.dukeengine.rts.module.HarvestUpdate.class) != null) {
+                // A building is placed, not produced: the button arms the cursor, a ghost of the
+                // building follows it, and the click is the place.
+                for (var name : A_WORKER_BUILDS) {
+                    int cost = costOf(logic, name);
+                    buttons.add(new uz.dukeengine.game.view.CommandButton("build:" + name, null,
+                            name + " " + cost, null, cost <= purse,
+                            uz.dukeengine.game.view.CommandButton.Aim.GROUND, name));
+                }
             }
             return buttons;
         });
-        game.onCommandPressed((id, selection) -> {
-            if (!id.startsWith("train:") || selection.size() != 1) {
+        // Whether the ghost is green: the simulation's own answer, asked of the world as it stands.
+        game.aimFits((button, place) -> !button.startsWith("build:")
+                || game.getLogic().fits(button.substring("build:".length()), place, 0f)
+                        == uz.dukeengine.rts.construction.Placement.Fit.FITS);
+        game.onCommandPressed(press -> {
+            if (press.selection().size() != 1) {
                 return;
             }
+            var chosen = new uz.dukeengine.core.thing.ObjectId(press.selection().getFirst());
             // Posted, never done: this runs on the window's thread, and the only safe thing to do with a
             // press there is put it in the queue -- it is applied on a frame boundary like every order.
-            game.postCommand(new uz.dukeengine.rts.message.GameMessage.QueueProduction(
-                    game.getLocalPlayerIndex(),
-                    new uz.dukeengine.core.thing.ObjectId(selection.getFirst()),
-                    id.substring("train:".length())));
+            if (press.id().startsWith("train:")) {
+                game.postCommand(new uz.dukeengine.rts.message.GameMessage.QueueProduction(
+                        game.getLocalPlayerIndex(), chosen, press.id().substring("train:".length())));
+            } else if (press.id().startsWith("build:") && press.place() != null) {
+                game.postCommand(new uz.dukeengine.rts.message.GameMessage.Construct(
+                        game.getLocalPlayerIndex(), chosen, press.id().substring("build:".length()),
+                        press.place(), 0f));
+            }
         });
+    }
+
+    private static int costOf(uz.dukeengine.rts.RtsSimulation logic, String name) {
+        return logic.getThingFactory().findTemplate(name) instanceof uz.dukeengine.rts.Buildable priced
+                ? priced.buildCost() : 0;
     }
 
     /** The middle of a cell, in world units — where a thing put in a cell stands. */

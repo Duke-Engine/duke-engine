@@ -261,6 +261,43 @@ class SkirmishTest {
         assertEquals(null, match.game().templatesThisMatchCanDraw());
     }
 
+    /**
+     * Building a base, through the bar, as a window would: select a worker, press "Barracks" — a button that
+     * aims at the ground and draws a barracks as its ghost — say where, and a barracks rises there. What the
+     * window would show as green or red is the simulation's own answer, asked while the button is armed.
+     */
+    @Test
+    void aWorkerPlacesABuildingThroughTheBar() {
+        var match = Skirmish.open(40, 30, 5000);
+        var game = match.game();
+        game.spawn("Worker", match.left(), 60f, 60f);
+        game.runHeadless(2);
+        int worker = game.getSnapshot().units().getFirst().id();
+
+        game.setSelection(List.of(worker));
+        game.runHeadless(2);
+        var build = game.getSnapshot().commands().stream()
+                .filter(button -> button.id().equals("build:Barracks")).findFirst().orElseThrow();
+        assertEquals(uz.dukeengine.game.view.CommandButton.Aim.GROUND, build.aim(), "it needs a place");
+        assertEquals("Barracks", build.ghost(), "and shows what it will put there");
+
+        var place = new uz.dukeengine.core.math.Coord3D(200f, 150f, 0f);
+        game.setAim(build.id(), place);
+        game.runHeadless(1);
+        assertTrue(game.getSnapshot().aimFits(), "open ground: the ghost is green");
+        game.setAim(build.id(), new uz.dukeengine.core.math.Coord3D(2f, 2f, 0f));
+        game.runHeadless(1);
+        assertFalse(game.getSnapshot().aimFits(), "half off the map: red");
+
+        game.pressCommand(build.id(), place, -1);
+        for (int frame = 0; frame < 30 * 30 && game.getSnapshot().units().stream()
+                .noneMatch(unit -> unit.templateName().equals("Barracks")); frame++) {
+            game.runHeadless(1);
+        }
+        assertTrue(game.getSnapshot().units().stream().anyMatch(unit -> unit.templateName().equals("Barracks")),
+                "the worker walked there and it rose");
+    }
+
     /** A button he cannot pay for keeps its place and is drawn dim, so the bar does not move under him. */
     @Test
     void aTrainingHeCannotAffordIsStillOnTheBar() {

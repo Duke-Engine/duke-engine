@@ -54,18 +54,36 @@ class CommandBarTest {
 
     @Test
     void aPressComesBackAsTheButtonsOwnWordAndWhatWasSelected() {
-        var pressed = new ArrayList<String>();
-        var about = new ArrayList<List<Integer>>();
-        var game = headless().onCommandPressed((id, selection) -> {
-            pressed.add(id);
-            about.add(selection);
-        });
+        var pressed = new ArrayList<uz.dukeengine.game.view.CommandPress>();
+        var game = headless().onCommandPressed(pressed::add);
 
         game.setSelection(List.of(4));
-        game.pressCommand("build.barracks");
+        game.pressCommand("stop");
 
-        assertEquals(List.of("build.barracks"), pressed, "the game's own word, never read by the engine");
-        assertEquals(List.of(List.of(4)), about, "and what it was about");
+        assertEquals(1, pressed.size());
+        assertEquals("stop", pressed.getFirst().id(), "the game's own word, never read by the engine");
+        assertEquals(List.of(4), pressed.getFirst().selection(), "and what it was about");
+        assertEquals(null, pressed.getFirst().place(), "a button that aims at nothing carries no place");
+        assertEquals(-1, pressed.getFirst().target());
+    }
+
+    /**
+     * A button that aims comes back with where it was aimed. A building's corner, a rally point and where
+     * an airstrike lands arrive the same way; the engine does not know which.
+     */
+    @Test
+    void anAimedPressComesBackWithItsPlaceOrItsTarget() {
+        var pressed = new ArrayList<uz.dukeengine.game.view.CommandPress>();
+        var game = headless().onCommandPressed(pressed::add);
+        game.setSelection(List.of(4));
+
+        var place = new uz.dukeengine.core.math.Coord3D(120f, 80f, 0f);
+        game.pressCommand("build:Barracks", place, -1);
+        game.pressCommand("power:Airstrike", null, 17);
+
+        assertEquals(place, pressed.getFirst().place());
+        assertEquals(17, pressed.get(1).target());
+        assertEquals(CommandButton.Aim.NOW, CommandButton.of("x", null, "x", null).aim(), "the default aims at nothing");
     }
 
     /** A game that asked for none of this is a game that had none of it, which is every game until now. */

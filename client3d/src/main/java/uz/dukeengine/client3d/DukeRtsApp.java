@@ -2531,7 +2531,12 @@ final class DukeRtsApp extends SimpleApplication {
                         if (holdingASkill()) {
                             break; // the mouse has no part in a skill being held
                         }
-                        if (pressed && arming != null) {
+                        if (pressed && commandBarClick()) {
+                            // The bar took it -- before anything armed does, so pressing a
+                            // second button is that button and not a place for the first.
+                        } else if (pressed && armedButton != null) {
+                            aimArmedButton(); // this click is the armed button's place or thing
+                        } else if (pressed && arming != null) {
                             // This click belongs to the armed key, not to selection.
                             // The release is swallowed with it, or letting go would
                             // end a drag that never began.
@@ -2551,7 +2556,9 @@ final class DukeRtsApp extends SimpleApplication {
                     if (arming == null && heroPanel.contains(over.x, over.y)) {
                         break; // a right-click on the bar is not an order to the world
                     }
-                    if (arming != null) {
+                    if (armedButton != null) {
+                        disarmButton(); // second thoughts, for a bar button as for a key
+                    } else if (arming != null) {
                         disarm(); // second thoughts, the way a right-click always means
                     } else {
                         order();
@@ -2586,7 +2593,9 @@ final class DukeRtsApp extends SimpleApplication {
                             // is a player who is playing -- had to press it twice
                             // to stop. Letting go of a unit is what clicking the
                             // floor is for; Escape is for leaving.
-                            if (arming != null) {
+                            if (armedButton != null) {
+                                disarmButton(); // mid-aim with a bar button: one keypress deep
+                            } else if (arming != null) {
                                 disarm(); // he is mid-aim, and that is one keypress deep
                             } else {
                                 showPauseMenu();
@@ -3187,9 +3196,6 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void beginDrag() {
-        if (commandBarClick()) {
-            return; // the bar took the press; not a selection
-        }
         if (minimapClick()) {
             return; // the minimap took the press; not a selection
         }
@@ -3535,6 +3541,10 @@ final class DukeRtsApp extends SimpleApplication {
         }
         commandBar.unhide();
         commandBar.show(buttons, cam.getWidth());
+        if (armedButton != null && buttons.stream().noneMatch(one -> one.id().equals(armedButton.id()))) {
+            disarmButton(); // the thing that offered it is no longer selected: nothing is waiting to build
+        }
+        followTheAim();
     }
 
     /**
@@ -3553,12 +3563,140 @@ final class DukeRtsApp extends SimpleApplication {
         if (button == null) {
             return false;
         }
-        if (button.available()) {
-            // Straight to the game, which turns it into one of its own commands and posts it -- the road
-            // every order already travels. Nothing here touches the world.
-            game.pressCommand(button.id());
+        if (!button.available()) {
+            return true; // dim: it takes the click and does nothing with it
         }
+        if (button.aim() != uz.dukeengine.game.view.CommandButton.Aim.NOW) {
+            armButton(button); // it needs a place or a thing first; the next click supplies it
+            return true;
+        }
+        // Straight to the game, which turns it into one of its own commands and posts it -- the road
+        // every order already travels. Nothing here touches the world.
+        game.pressCommand(button.id());
         return true;
+    }
+
+    // ---- a bar button that aims ----
+
+    /** The bar's button waiting for its place or its thing, or null. Never at once with a hotkey's. */
+    private uz.dukeengine.game.view.CommandButton armedButton;
+    /** What the armed button will put down, drawn at the cursor, or null for a button with no ghost. */
+    private Node ghost;
+    private Material ghostMaterial;
+
+    /** Green where the simulation says it may stand; red where it says no. Translucent either way. */
+    private static final ColorRGBA GHOST_FITS = new ColorRGBA(0.35f, 1f, 0.35f, 0.45f);
+    private static final ColorRGBA GHOST_REFUSED = new ColorRGBA(1f, 0.3f, 0.3f, 0.45f);
+
+    /**
+     * Arm a button that needs a place or a thing: the next click supplies it, and a right click or Escape
+     * thinks better of it — the same two-step a hotkey that aims has always had.
+     */
+    private void armButton(uz.dukeengine.game.view.CommandButton button) {
+        disarm(); // a hotkey armed first is given up: one thing waits for the next click, never two
+        disarmButton();
+        armedButton = button;
+        if (button.aim() == uz.dukeengine.game.view.CommandButton.Aim.GROUND) {
+            showGhost(button.ghost());
+        }
+    }
+
+    private void disarmButton() {
+        if (armedButton == null) {
+            return;
+        }
+        armedButton = null;
+        game.setAim(null, null);
+        if (ghost != null) {
+            ghost.removeFromParent();
+            ghost = null;
+        }
+    }
+
+    /**
+     * The armed button's click: the place, or the thing, and the press sent with it.
+     *
+     * <p>A place the simulation last said will not do is not sent, and the button stays armed — the ghost
+     * was red, and a click on red is a player looking for somewhere green. The simulation's word decides
+     * either way: a place sent is judged again when its order is applied, and refused there costs nothing.
+     */
+    private void aimArmedButton() {
+        var button = armedButton;
+        if (button.aim() == uz.dukeengine.game.view.CommandButton.Aim.UNIT) {
+            var unit = pickUnit();
+            if (unit == null) {
+                return; // it had to be a thing, and the click found none
+            }
+            disarmButton();
+            game.pressCommand(button.id(), null, unit.view.id());
+            markOrder(unit.view.x(), unit.view.y(), unit.view.id(), OrderMarkers.Kind.ATTACK);
+            return;
+        }
+        var ground = pickGround();
+        if (ground == null || snapshot == null || !snapshot.aimFits()) {
+            return;
+        }
+        disarmButton();
+        game.pressCommand(button.id(), new Coord3D(ground.x, ground.z, 0f), -1);
+        markOrder(ground.x, ground.z, -1, OrderMarkers.Kind.MOVE);
+    }
+
+    /**
+     * What the armed button will put down, drawn where it would stand.
+     *
+     * <p>Named by the game as a template — drawn as that template is drawn, at its size and turned its
+     * way — or, failing that, as a model's path. One flat translucent colour over the whole of it, because
+     * a ghost is a question, not the building: what it answers is green or red.
+     */
+    private void showGhost(String named) {
+        if (named == null) {
+            return;
+        }
+        var look = visualFor(named);
+        Spatial body = look != null && look.modelPath != null ? buildBody(look, java.util.List.of()) : null;
+        if (body == null) {
+            try {
+                body = assetManager.loadModel(named);
+            } catch (RuntimeException notAModel) {
+                warnOnce(named, "ghost");
+                return;
+            }
+        }
+        if (ghostMaterial == null) {
+            ghostMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+            ghostMaterial.getAdditionalRenderState().setBlendMode(
+                    com.jme3.material.RenderState.BlendMode.Alpha);
+            ghostMaterial.getAdditionalRenderState().setDepthWrite(false);
+        }
+        ghostMaterial.setColor("Color", GHOST_FITS);
+        body.depthFirstTraversal(spatial -> {
+            if (spatial instanceof Geometry geometry) {
+                geometry.setMaterial(ghostMaterial);
+            }
+        });
+        ghost = new Node("ghost");
+        ghost.attachChild(body);
+        ghost.setQueueBucket(com.jme3.renderer.queue.RenderQueue.Bucket.Transparent);
+        markerNode.attachChild(ghost);
+    }
+
+    /**
+     * Every frame an armed button waits: tell the game where the cursor is, and draw the ghost there in the
+     * colour the simulation last gave for it — a frame behind the cursor, which is not worth racing for.
+     */
+    private void followTheAim() {
+        if (armedButton == null || armedButton.aim() != uz.dukeengine.game.view.CommandButton.Aim.GROUND) {
+            return;
+        }
+        var ground = pickGround();
+        if (ground == null) {
+            return;
+        }
+        game.setAim(armedButton.id(), new Coord3D(ground.x, ground.z, 0f));
+        if (ghost != null) {
+            ghost.setLocalTranslation(ground.x, floorHeightAt(ground.x, ground.z), ground.z);
+            ghostMaterial.setColor("Color", snapshot != null && snapshot.aimFits() ? GHOST_FITS : GHOST_REFUSED);
+        }
     }
 
     /**

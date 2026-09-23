@@ -48,6 +48,13 @@ final class RtsClient extends GameClient {
         this.commands = commands == null ? java.util.List::of : commands;
     }
 
+    /** Whether the place an armed button is aimed at would do, asked here for the same reason as the bar. */
+    private volatile java.util.function.BooleanSupplier aimFits = () -> true;
+
+    void setAimFits(java.util.function.BooleanSupplier aimFits) {
+        this.aimFits = aimFits == null ? () -> true : aimFits;
+    }
+
     RtsClient(RtsLogic logic) {
         this.logic = logic;
     }
@@ -115,6 +122,7 @@ final class RtsClient extends GameClient {
                 events,
                 banner,
                 status,
-                commands.get());
+                commands.get(),
+                aimFits.getAsBoolean());
     }
 }

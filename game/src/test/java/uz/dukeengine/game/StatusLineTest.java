@@ -86,7 +86,7 @@ class StatusLineTest {
     @Test
     void nothingIsNeverNull() {
         var snapshot = new WorldSnapshot(0, 0f, false, 0, 0,
-                java.util.List.of(), java.util.List.of(), null, null, null);
+                java.util.List.of(), java.util.List.of(), null, null, null, true);
 
         assertEquals("", snapshot.status());
         assertEquals("", snapshot.banner());

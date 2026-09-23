@@ -33,10 +33,11 @@ public record WorldSnapshot(
         List<WorldEvent> events,
         String banner,
         String status,
-        List<CommandButton> commands) {
+        List<CommandButton> commands,
+        boolean aimFits) {
 
     public static final WorldSnapshot EMPTY =
-            new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "", List.of());
+            new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "", List.of(), true);
 
     public boolean hasBanner() {
         return banner != null && !banner.isEmpty();
