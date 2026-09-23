@@ -77,6 +77,42 @@ class ArmorTest {
         assertTrue(weapon.attackOnTheMove(), "what the block leaves out is the default");
     }
 
+    /**
+     * A game's own kind of damage, fired by a weapon and answered by an armour, with the engine never
+     * having heard the word. This is the case the closed enum could not express, and the one an RTS's
+     * whole armour table is made of: infantry take rifles in full and shrug off a tank shell, so the two
+     * kinds have to be two words or a rifle shreds tanks.
+     */
+    @Test
+    void aGamesOwnDamageTypeIsFiredAndAnsweredWithoutTheEngineKnowingTheWord() {
+        var smallArms = DamageType.of("SMALL_ARMS");
+        var binder = new Binder();
+        var infantry = binder.bind(DukeText.parse("""
+                ActiveBody
+                  MaxHealth = 100
+                  Armor = [SMALL_ARMS = 1.0, ARMOR_PIERCING = 0.1]
+                End
+                """, "infantry.duke").getFirst(), ActiveBody.Data.class);
+        var rifle = binder.bind(DukeText.parse("""
+                WeaponUpdate
+                  Damage = 20
+                  AttackRange = 5
+                  ReloadFrames = 2
+                  DamageType = SMALL_ARMS
+                End
+                """, "rifle.duke").getFirst(), WeaponUpdate.Data.class);
+
+        assertEquals(smallArms, rifle.damageType(), "read out of the block, interned, never registered");
+
+        var body = new ActiveBody(new GameObject(new ObjectId(1), ThingTemplate.named("Rifleman").build()),
+                infantry);
+        body.damage(rifle.damage(), rifle.damageType());
+        assertEquals(80f, body.getHealth(), 1e-4f, "a rifle takes a man in full");
+
+        body.damage(rifle.damage(), DamageType.ARMOR_PIERCING);
+        assertEquals(78f, body.getHealth(), 1e-4f, "and a tank shell barely scratches him");
+    }
+
     @Test
     void weaponDamageTypeMeetsTargetArmorInCombat() {
         var thingFactory = new ThingFactory(RtsModules.withDefaults());

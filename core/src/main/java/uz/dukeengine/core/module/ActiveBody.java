@@ -18,7 +18,10 @@ public final class ActiveBody extends BodyModule {
      */
     public record Data(float maxHealth, Map<DamageType, Float> armor) implements ModuleData {
         public Data {
-            armor = armor == null ? Map.of() : Map.copyOf(armor);
+            // Kept in the order the block wrote them, not a hash's: see Armor, whose key is interned
+            // and therefore hashes by identity.
+            armor = armor == null || armor.isEmpty() ? Map.of()
+                    : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(armor));
         }
 
         public Data(float maxHealth) {
