@@ -1,8 +1,8 @@
 {
   "build.gradle.kts": {
-    "mtime": 1790099688.5257065,
-    "seen": 1790099691.832136,
-    "ast_hash": "63514ffd319f58f7e1c3310472d25ebb",
+    "mtime": 1790133235.4028077,
+    "seen": 1790133294.869968,
+    "ast_hash": "cd5ad0c13b1510c7d31d9fea6974261b",
     "semantic_hash": ""
   },
   "client3d/build.gradle.kts": {
@@ -108,9 +108,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1790099688.593979,
-    "seen": 1790099691.8325937,
-    "ast_hash": "41c0759c82c8a87d97fd0f4dbf66a8db",
+    "mtime": 1790133235.4630592,
+    "seen": 1790133294.870447,
+    "ast_hash": "a45c801c486a1d538cb6d7b6e1d6d5ce",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -126,9 +126,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1790099688.561224,
-    "seen": 1790099691.8325996,
-    "ast_hash": "2e137123c81809437a62e463fc751920",
+    "mtime": 1790133235.4334972,
+    "seen": 1790133294.8704524,
+    "ast_hash": "a941a8931ce431d468421fa64a7f9dd4",
     "semantic_hash": ""
   },
   "client3d/README.md": {
@@ -2952,9 +2952,9 @@
     "semantic_hash": ""
   },
   "bom/build.gradle.kts": {
-    "mtime": 1790099688.558505,
-    "seen": 1790099691.8321316,
-    "ast_hash": "c5037c46b11cfe29c24af7ee015a17dc",
+    "mtime": 1790133235.4321702,
+    "seen": 1790133294.8699641,
+    "ast_hash": "63eb4e3b940fe73b6096ffe539b5e21e",
     "semantic_hash": ""
   },
   "skirmish/src/main/java/uz/dukeengine/skirmish/content/Battlefield.java": {
@@ -2976,9 +2976,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1790099698.2258382,
-    "seen": 1790099738.52545,
-    "ast_hash": "6c2333ed3357e11d5537525c58bb3594",
+    "mtime": 1790133250.8212566,
+    "seen": 1790133294.870448,
+    "ast_hash": "7df715ad885ff1a8d5df96a65da8a1fe",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/data/Paint.java": {
