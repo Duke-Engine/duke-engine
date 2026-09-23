@@ -26,12 +26,50 @@ import uz.dukeengine.rts.event.WeaponFired;
  * words. It raises the moment; whether it makes a sound is the game's answer, in
  * its own file. That is what lets this serve a dungeon and three other games
  * without a line about arrows in it.
+ *
+ * <p><b>What an RTS speaks at.</b> Counted over the objects of the one this was measured in: a line when
+ * selected on 680, when ordered to move on 409 and to attack on 403, a sound on becoming damaged and really
+ * damaged on 420, on starting to move on 288, a loop while it stands there on 308. So, named after the
+ * template like the rest:
+ * <ul>
+ *   <li>{@code fired.<weapon>} — after the weapon, so a unit with two sounds two ways; {@code fired} for a
+ *       weapon with no name of its own.
+ *   <li>{@code selected.<template>} and {@code ordered.<order>.<template>} — the local player's own clicks,
+ *       for the first thing selected or ordered, once a click; see {@link #selected} and {@link #ordered}.
+ *   <li>{@code moving.<template>} — the frame it starts to move, not every frame it is moving (that is
+ *       {@code walking}).
+ *   <li>{@code <word>.<template>} for each word of the template's {@code WhenHurt}, lower-cased — the frame
+ *       its health first falls below that word's share: {@code WhenHurt = [DAMAGED = 0.7, REALLY_DAMAGED =
+ *       0.35]} sounds {@code damaged.Tank}, then {@code really_damaged.Tank}. The thresholds are the ones its
+ *       look already changes at, and the words are the game's.
+ *   <li>{@code ambient.<template>} — a loop that follows it while it is there, and stops when it is gone or
+ *       dead; {@code ambient.<template>.<word>} while a hurt word holds, the deepest one, so a damaged
+ *       building can crackle — falling back, like every name, to the plain loop where the game wrote none.
+ * </ul>
+ * A cue may keep itself for the thing's owner, and may cut off the last of itself — see {@link SoundBank.Cue}.
  */
 final class GameSounds {
+
+    /**
+     * What a weapon with no name of its own sounded as before shots said which weapon fired: the dungeon's
+     * bow. Heard only where a game names nothing under {@code fired}, so a game written before still sounds
+     * as it did; once its file says {@code fired}, this is never reached and can go.
+     */
+    private static final String UNNAMED_SHOT_BEFORE = "arrow_fired";
 
     private final Sounds sounds;
     /** How close a thing has to vanish to something else to have hit it. */
     private final float touching;
+    /** A template's hurt words and the share of health each holds below — its look's {@code WhenHurt}. */
+    private final java.util.function.Function<String, Map<String, Float>> hurtWords;
+
+    /** A loop that is going, and the cue it is — so a loop is only restarted when the cue it wants changes. */
+    private record Loop(String cue, SoundSink.Playing playing) {
+    }
+
+    /** Which of each thing's hurt words held last frame, so a word sounds on the frame it comes to hold. */
+    private final Map<Integer, java.util.Set<String>> hurt = new HashMap<>();
+    private final Map<Integer, Loop> loops = new HashMap<>();
 
     private Map<Integer, UnitView> before = Map.of();
     private String lastDepth = "";
@@ -39,8 +77,13 @@ final class GameSounds {
     private final Map<Character, Boolean> wasCooling = new HashMap<>();
 
     GameSounds(Sounds sounds, float touching) {
+        this(sounds, touching, template -> Map.of());
+    }
+
+    GameSounds(Sounds sounds, float touching, java.util.function.Function<String, Map<String, Float>> hurtWords) {
         this.sounds = sounds;
         this.touching = touching;
+        this.hurtWords = hurtWords;
     }
 
     Sounds sounds() {
@@ -55,37 +98,149 @@ final class GameSounds {
      * hear different footsteps and still see the same world.
      */
     void frame(WorldSnapshot snapshot, int localPlayer, float now) {
+        var after = index(snapshot.units());
         for (var event : snapshot.events()) {
             if (event instanceof ObjectDied died) {
-                sounds.play("died." + died.templateName(), at(died.position()), now);
+                sounds.play("died." + died.templateName(), at(died.position()), now,
+                        died.playerIndex() == localPlayer);
                 if (died.playerIndex() != localPlayer) {
                     sounds.play("vo.kill", now);
                 }
+                stopLoop(died.object().value());
             } else if (event instanceof WeaponFired fired) {
-                sounds.play("arrow_fired", at(fired.from()), now);
+                var shooter = after.get(fired.shooter().value());
+                fired(fired.weapon(), at(fired.from()), now,
+                        shooter != null && shooter.playerIndex() == localPlayer);
             }
         }
-        var after = index(snapshot.units());
+        boolean anyLoops = sounds.names("ambient");
         for (var view : snapshot.units()) {
+            boolean owned = view.playerIndex() == localPlayer;
             var was = before.get(view.id());
             if (was == null) {
-                sounds.play("spawned." + view.templateName(), at(view), now);
+                sounds.play("spawned." + view.templateName(), at(view), now, owned);
             } else if (view.health() < was.health()) {
-                sounds.play("hurt." + view.templateName(), at(view), now);
+                sounds.play("hurt." + view.templateName(), at(view), now, owned);
+            }
+            if (view.moving() && was != null && !was.moving()) {
+                sounds.play("moving." + view.templateName(), at(view), now, owned);
             }
             if (view.moving()) {
                 // Every frame he is walking, which is what walking looks like from
                 // out here. The stride is the cue's own business — see GapSeconds.
-                sounds.play("walking." + view.templateName(), at(view), now);
+                sounds.play("walking." + view.templateName(), at(view), now, owned);
+            }
+            var deepest = hurtWordsNow(view, was != null, now, owned);
+            if (anyLoops) {
+                keepLooping(view, deepest, owned);
             }
         }
         for (var was : before.values()) {
             if (after.containsKey(was.id())) {
                 continue;
             }
-            sounds.play(ending(was) + was.templateName(), at(was), now);
+            sounds.play(ending(was) + was.templateName(), at(was), now, was.playerIndex() == localPlayer);
+            stopLoop(was.id());
+            hurt.remove(was.id());
         }
         before = after;
+    }
+
+    /**
+     * A shot: {@code fired.<weapon>}, or {@code fired} for a weapon with no name — and, for that one only, the
+     * word shots used to have where the game names nothing under {@code fired} at all.
+     */
+    private void fired(String weapon, Vector3f at, float now, boolean owned) {
+        if (weapon != null) {
+            sounds.play("fired." + weapon, at, now, owned);
+        } else if (sounds.resolved("fired") != null) {
+            sounds.play("fired", at, now, owned);
+        } else {
+            sounds.play(UNNAMED_SHOT_BEFORE, at, now, owned);
+        }
+    }
+
+    /**
+     * Sound each of its hurt words on the frame it comes to hold, and say which is the deepest holding now —
+     * the one with the least share of health. A thing seen for the first time sounds none: it did not fall
+     * below anything in front of anybody, and a building going up from a tenth of its health is not a
+     * building being shot to pieces.
+     */
+    private String hurtWordsNow(UnitView view, boolean seenBefore, float now, boolean owned) {
+        var words = hurtWords.apply(view.templateName());
+        if (words == null || words.isEmpty()) {
+            return null;
+        }
+        float share = view.healthFraction();
+        var held = hurt.getOrDefault(view.id(), java.util.Set.of());
+        var holding = new java.util.TreeSet<String>();
+        String deepest = null;
+        float lowest = Float.MAX_VALUE;
+        for (var word : words.entrySet()) {
+            if (share >= word.getValue()) {
+                continue;
+            }
+            holding.add(word.getKey());
+            if (seenBefore && !held.contains(word.getKey())) {
+                sounds.play(word.getKey().toLowerCase(java.util.Locale.ROOT) + "." + view.templateName(),
+                        at(view), now, owned);
+            }
+            if (word.getValue() < lowest) {
+                lowest = word.getValue();
+                deepest = word.getKey();
+            }
+        }
+        hurt.put(view.id(), holding);
+        return deepest;
+    }
+
+    /** Its loop, following it: started, swapped for another where the cue it wants has changed, or moved. */
+    private void keepLooping(UnitView view, String deepest, boolean owned) {
+        var name = "ambient." + view.templateName()
+                + (deepest == null ? "" : "." + deepest.toLowerCase(java.util.Locale.ROOT));
+        var wanted = sounds.resolved(name);
+        var going = loops.get(view.id());
+        if (going != null && java.util.Objects.equals(going.cue(), wanted)) {
+            going.playing().moveTo(at(view));
+            return;
+        }
+        stopLoop(view.id());
+        if (wanted == null) {
+            return;
+        }
+        var playing = sounds.loop(wanted, at(view), owned);
+        if (playing != null) {
+            loops.put(view.id(), new Loop(wanted, playing));
+        }
+    }
+
+    private void stopLoop(int id) {
+        var going = loops.remove(id);
+        if (going != null) {
+            going.playing().stop();
+        }
+    }
+
+    /**
+     * The local player selected something, and this is the first of it: {@code selected.<template>}, once a
+     * click. Whether he hears it is the cue's — a voice kept for its owner says nothing for an enemy picked
+     * out to be looked at.
+     */
+    void selected(UnitView first, int localPlayer, float now) {
+        if (first != null) {
+            sounds.play("selected." + first.templateName(), at(first), now, first.playerIndex() == localPlayer);
+        }
+    }
+
+    /**
+     * The local player gave an order, and this is the first thing given it: {@code ordered.<order>.<template>},
+     * once an order — {@code move}, {@code attack}, or the word of the button that gave it.
+     */
+    void ordered(String order, UnitView first, int localPlayer, float now) {
+        if (first != null && order != null) {
+            sounds.play("ordered." + order + "." + first.templateName(), at(first), now,
+                    first.playerIndex() == localPlayer);
+        }
     }
 
     /**
@@ -179,6 +334,11 @@ final class GameSounds {
 
     /** A new world; nothing carried over from the one before it. */
     void forget() {
+        for (var going : loops.values()) {
+            going.playing().stop();
+        }
+        loops.clear();
+        hurt.clear();
         before = Map.of();
         lastNote = "";
         wasCooling.clear();

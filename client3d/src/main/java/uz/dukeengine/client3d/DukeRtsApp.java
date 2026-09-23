@@ -584,7 +584,9 @@ final class DukeRtsApp extends SimpleApplication {
         var grid = game.getTerrain();
         noises = new GameSounds(sounds,
                 grid == null ? uz.dukeengine.core.pathfind.PathGrid.DEFAULT_CELL_SIZE
-                        : grid.getCellSize());
+                        : grid.getCellSize(),
+                // A thing sounds hurt where it starts to look hurt: its look's own words and shares.
+                template -> visuals.of(template).whenHurt);
         applyVolume();
     }
 
@@ -2791,6 +2793,9 @@ final class DukeRtsApp extends SimpleApplication {
             if (isNew && mine) {
                 noises.moment("vo.select", timer.getTimeInSeconds());
             }
+            if (isNew) {
+                noises.selected(hit.view, game.getLocalPlayerIndex(), timer.getTimeInSeconds());
+            }
         }
     }
 
@@ -3230,7 +3235,29 @@ final class DukeRtsApp extends SimpleApplication {
         if (!add) {
             selected.clear();
         }
-        selected.addAll(SelectionBox.inside(from.x, from.y, cursor.x, cursor.y, onScreenUnits()));
+        var boxed = SelectionBox.inside(from.x, from.y, cursor.x, cursor.y, onScreenUnits());
+        var first = boxed.stream().filter(id -> !selected.contains(id)).findFirst();
+        selected.addAll(boxed);
+        // One answer for the box, as for a click: the first thing it took in.
+        first.ifPresent(id -> noises.selected(viewOf(id), game.getLocalPlayerIndex(), timer.getTimeInSeconds()));
+    }
+
+    /** What the last snapshot says of one thing, or null where it said nothing. */
+    private uz.dukeengine.game.view.UnitView viewOf(int id) {
+        for (var view : snapshot.units()) {
+            if (view.id() == id) {
+                return view;
+            }
+        }
+        return null;
+    }
+
+    /** An order the player gave the selection: {@code ordered.<order>.<template>} for the first of it. */
+    private void answerOrder(String order, List<ObjectId> units) {
+        if (!units.isEmpty()) {
+            noises.ordered(order, viewOf(units.getFirst().value()), game.getLocalPlayerIndex(),
+                    timer.getTimeInSeconds());
+        }
     }
 
     /**
@@ -3283,6 +3310,7 @@ final class DukeRtsApp extends SimpleApplication {
                 return; // nothing selected may be fired at it: refused, as the pointer already said
             }
             game.postCommand(new GameMessage.AttackObject(local, units, new ObjectId(enemy.view.id())));
+            answerOrder("attack", units);
             markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(), OrderMarkers.Kind.ATTACK);
             // His own orders only. In a game with more than one player at it,
             // each hears his own hero answer and nobody hears anyone else's.
@@ -3321,6 +3349,7 @@ final class DukeRtsApp extends SimpleApplication {
         // with more than one player at it each hears his own hero and nobody
         // hears anyone else's.
         noises.moment("vo.move", (float) timer.getTimeInSeconds());
+        answerOrder("move", units);
     }
 
     /**
@@ -3583,6 +3612,7 @@ final class DukeRtsApp extends SimpleApplication {
         // Straight to the game, which turns it into one of its own commands and posts it -- the road
         // every order already travels. Nothing here touches the world.
         game.pressCommand(button.id());
+        answerOrder(button.id(), selectedIds());
         return true;
     }
 
@@ -3641,6 +3671,7 @@ final class DukeRtsApp extends SimpleApplication {
             }
             disarmButton();
             game.pressCommand(button.id(), null, 0f, unit.view.id());
+            answerOrder(button.id(), selectedIds());
             markOrder(unit.view.x(), unit.view.y(), unit.view.id(), OrderMarkers.Kind.ATTACK);
             return;
         }
@@ -3664,6 +3695,7 @@ final class DukeRtsApp extends SimpleApplication {
         var button = armedButton;
         disarmButton();
         game.pressCommand(button.id(), placed.place(), placed.facing(), -1);
+        answerOrder(button.id(), selectedIds());
         markOrder(placed.place().x(), placed.place().y(), -1, OrderMarkers.Kind.MOVE);
     }
 

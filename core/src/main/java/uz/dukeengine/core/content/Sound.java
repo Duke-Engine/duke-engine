@@ -21,12 +21,22 @@ import java.util.List;
  *     needs a stride between it and the next one, or a walk is a buzz
  * @param label       what to call it on a settings screen, for the music a
  *     player picks between. Null for everything else, which is never named
+ * @param audience    who hears it when it is about a thing — Everyone, or Owner for a voice only
+ *     the player whose unit spoke should hear
+ * @param interrupts  whether a new one cuts off the last of it still playing, rather than the two
+ *     talking over each other
  */
 public record Sound(String name, String channel, boolean positional, float gain,
-        float gapSeconds, List<String> files, String label) {
+        float gapSeconds, List<String> files, String label, String audience, boolean interrupts) {
 
-    /** What a block leaves out: a sound effect, heard where it happened, at its own loudness. */
-    static final Sound DEFAULTS = new Sound(null, "Effects", true, 1f, 0f, List.of(), null);
+    /** What a block leaves out: a sound effect, heard where it happened by everyone, at its own loudness. */
+    static final Sound DEFAULTS = new Sound(null, "Effects", true, 1f, 0f, List.of(), null, "Everyone", false);
+
+    /** A sound everyone hears, that never cuts itself off — every sound before either could be said. */
+    public Sound(String name, String channel, boolean positional, float gain, float gapSeconds, List<String> files,
+            String label) {
+        this(name, channel, positional, gain, gapSeconds, files, label, "Everyone", false);
+    }
 
     public Sound {
         files = files == null ? List.of() : List.copyOf(files);

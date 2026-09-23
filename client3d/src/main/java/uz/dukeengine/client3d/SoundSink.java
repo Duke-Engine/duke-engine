@@ -25,6 +25,40 @@ interface SoundSink {
      */
     void play(String assetPath, float gain, Vector3f at);
 
+    /**
+     * A sound that is still going and can be stopped, or moved to follow the thing it belongs to — what
+     * {@link #playStoppable} and {@link #loop} hand back.
+     */
+    interface Playing {
+
+        /** Nothing to stop: what a sink that cannot keep hold of a sound hands back. */
+        Playing NONE = () -> {
+        };
+
+        void stop();
+
+        /** It has moved; a sound that belongs to it goes with it. */
+        default void moveTo(Vector3f at) {
+        }
+    }
+
+    /**
+     * Play it once, and hand back what stops it — for a cue that cuts off the last of itself. A sink that
+     * cannot stop a sound plays it and hands back {@link Playing#NONE}, which is overlapping rather than silence.
+     */
+    default Playing playStoppable(String assetPath, float gain, Vector3f at) {
+        play(assetPath, gain, at);
+        return Playing.NONE;
+    }
+
+    /**
+     * Play it over and over, from where it is, until it is stopped — a thing's own noise while it stands there.
+     * A sink that cannot loop plays nothing, which is the silence every game had before.
+     */
+    default Playing loop(String assetPath, float gain, Vector3f at) {
+        return Playing.NONE;
+    }
+
     /** Start the loop, or stop it when the path is null. */
     void music(String assetPath, float gain);
 

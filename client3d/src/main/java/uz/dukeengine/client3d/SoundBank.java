@@ -32,6 +32,20 @@ public final class SoundBank {
     public enum Channel { EFFECTS, VOICE, UI, MUSIC }
 
     /**
+     * Who hears a moment that is about a thing.
+     *
+     * <p>A unit's voice is its owner's: in the RTS this was measured in, 428 voice lines are heard only by
+     * the player whose unit spoke, so selecting an enemy says nothing and an enemy's orders are silent. A
+     * shot, a death, a footstep is everyone's.
+     */
+    public enum Audience {
+        /** Anyone near enough, as every cue has always been. */
+        EVERYONE,
+        /** Only the player the thing belongs to. */
+        OWNER
+    }
+
+    /**
      * One moment, and what it can sound like.
      *
      * @param files  one or more. More than one is not decoration: the bow is
@@ -45,13 +59,24 @@ public final class SoundBank {
      *     A footstep needs a stride; a voice line needs the last one to finish
      * @param label  what to call it on a settings screen, for the one channel a
      *     player picks from by name. Null for the many that are never named
+     * @param audience  who hears it, when it is about a thing — see {@link Audience}. Everyone by default
+     * @param interrupts  whether a new one stops the last of this cue still playing: a voice that answers a
+     *     second order cuts off its answer to the first rather than talking over itself. In the RTS this was
+     *     measured in, 145 sounds do. No by default, and two overlap
      */
     public record Cue(String name, Channel channel, boolean positional, float gain,
-            float gapSeconds, List<String> files, String label) {
+            float gapSeconds, List<String> files, String label, Audience audience, boolean interrupts) {
 
         public Cue {
             files = List.copyOf(files);
             gain = gain <= 0f ? 1f : gain;
+            audience = audience == null ? Audience.EVERYONE : audience;
+        }
+
+        /** Heard by everyone, and never cutting itself off — every cue before either could be said. */
+        public Cue(String name, Channel channel, boolean positional, float gain, float gapSeconds,
+                List<String> files, String label) {
+            this(name, channel, positional, gain, gapSeconds, files, label, Audience.EVERYONE, false);
         }
 
         /**
@@ -142,6 +167,16 @@ public final class SoundBank {
         return cues.values().stream().filter(cue -> cue.channel() == Channel.MUSIC).toList();
     }
 
+    /** Whether the game named any cue that {@code name} or one of its dotted children would find. */
+    boolean names(String name) {
+        for (var key : cues.keySet()) {
+            if (key.equals(name) || key.startsWith(name + ".")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Every cue, for whatever wants to read every file that may be needed. */
     java.util.Collection<Cue> all() {
         return cues.values();
@@ -173,10 +208,16 @@ public final class SoundBank {
 
         public Builder cue(String name, Channel channel, boolean positional, float gain,
                 float gapSeconds, List<String> files, String label) {
+            return cue(name, channel, positional, gain, gapSeconds, files, label, Audience.EVERYONE, false);
+        }
+
+        public Builder cue(String name, Channel channel, boolean positional, float gain,
+                float gapSeconds, List<String> files, String label, Audience audience, boolean interrupts) {
             if (name == null || name.isBlank() || files.isEmpty()) {
                 return this; // a cue with no files is a cue nobody has recorded yet
             }
-            cues.put(name, new Cue(name, channel, positional, gain, gapSeconds, files, label));
+            cues.put(name, new Cue(name, channel, positional, gain, gapSeconds, files, label, audience,
+                    interrupts));
             return this;
         }
 

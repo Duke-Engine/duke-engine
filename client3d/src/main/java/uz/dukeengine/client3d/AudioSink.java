@@ -59,6 +59,85 @@ final class AudioSink implements SoundSink {
         node.playInstance();
     }
 
+    /**
+     * One node a file for the cues that cut themselves off, kept apart from {@link #nodes}: an instance
+     * {@code playInstance} started cannot be stopped, so a sound that must be stoppable is played on a node
+     * of its own, and stopping the node stops it.
+     */
+    private final Map<String, AudioNode> stoppable = new HashMap<>();
+
+    @Override
+    public Playing playStoppable(String assetPath, float gain, Vector3f at) {
+        var node = stoppable.get(assetPath);
+        if (node == null) {
+            node = fresh(assetPath, at != null);
+            if (node == null) {
+                return Playing.NONE;
+            }
+            stoppable.put(assetPath, node);
+        }
+        node.setVolume(gain);
+        if (at != null) {
+            node.setLocalTranslation(at);
+        }
+        node.play();
+        var playing = node;
+        return playing::stop;
+    }
+
+    /**
+     * A loop is a node of its own, every time: it has a place of its own to follow, and it is let go of — stopped
+     * and taken out of the scene — when what it belongs to is gone, so nothing is left behind a thing that died.
+     */
+    @Override
+    public Playing loop(String assetPath, float gain, Vector3f at) {
+        var node = fresh(assetPath, at != null);
+        if (node == null) {
+            return Playing.NONE;
+        }
+        node.setLooping(true);
+        node.setVolume(gain);
+        if (at != null) {
+            node.setLocalTranslation(at);
+        }
+        node.play();
+        return new Playing() {
+            @Override
+            public void stop() {
+                node.stop();
+                node.removeFromParent();
+            }
+
+            @Override
+            public void moveTo(Vector3f where) {
+                if (where != null) {
+                    node.setLocalTranslation(where);
+                }
+            }
+        };
+    }
+
+    /** A new node for a file, placed if it is meant to be and can be, or null for a file that will not load. */
+    private AudioNode fresh(String assetPath, boolean positional) {
+        if (assetPath == null || missing.contains(assetPath)) {
+            return null;
+        }
+        try {
+            var node = new AudioNode(assets, assetPath, AudioData.DataType.Buffer);
+            node.setPositional(positional && isMono(node));
+            if (node.isPositional()) {
+                node.setRefDistance(REFERENCE_DISTANCE);
+            }
+            root.attachChild(node);
+            return node;
+        } catch (RuntimeException e) {
+            missing.add(assetPath);
+            LOG.warning(() -> "sound not found: " + assetPath + " (" + e.getMessage()
+                    + ") — the game plays on without it");
+            return null;
+        }
+    }
+
     @Override
     public void music(String assetPath, float gain) {
         if (music != null) {

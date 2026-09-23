@@ -28,6 +28,8 @@ final class Sounds {
 
     /** Which file of each cue was heard last, so the next one is a different one. */
     private final Map<String, Integer> lastFile = new HashMap<>();
+    /** The last of each cue that cuts itself off, so the next one can. */
+    private final Map<String, SoundSink.Playing> lastOf = new HashMap<>();
     /** When each cue last played, for the cues that insist on a gap. */
     private final Map<String, Float> lastPlayed = new HashMap<>();
     /** And when the voice last spoke, which is a gap across every line at once. */
@@ -87,9 +89,22 @@ final class Sounds {
      *     cue held back by its own gap is the gap working
      */
     boolean play(String cueName, Vector3f at, float now) {
+        return play(cueName, at, now, true);
+    }
+
+    /**
+     * Raise a moment about a thing, which its cue may keep for the thing's owner — see
+     * {@link SoundBank.Audience}.
+     *
+     * @param owned whether the thing it is about is the listening player's
+     */
+    boolean play(String cueName, Vector3f at, float now, boolean owned) {
         var cue = bank.find(cueName);
         if (cue == null) {
             return false;
+        }
+        if (cue.audience() == SoundBank.Audience.OWNER && !owned) {
+            return false; // his voice, and not this player's to hear
         }
         if (gainOf(cue.channel(), cue.gain()) <= 0f) {
             return false; // turned off; not worth choosing a file for
@@ -106,9 +121,42 @@ final class Sounds {
         if (cue.channel() == SoundBank.Channel.VOICE) {
             lastVoiceAt = now;
         }
+        if (cue.interrupts()) {
+            var cutOff = lastOf.remove(cue.name());
+            if (cutOff != null) {
+                cutOff.stop();
+            }
+            lastOf.put(cue.name(), sink.playStoppable(pick(cue), gainOf(cue.channel(), cue.gain()),
+                    cue.positional() ? at : null));
+            return true;
+        }
         sink.play(pick(cue), gainOf(cue.channel(), cue.gain()),
                 cue.positional() ? at : null);
         return true;
+    }
+
+    /**
+     * Start a moment's loop, following a thing, and hand back what stops it — or {@code null} where the game
+     * named no such cue, or keeps it for another player's ears, or has it turned off.
+     */
+    SoundSink.Playing loop(String cueName, Vector3f at, boolean owned) {
+        var cue = bank.find(cueName);
+        if (cue == null || cue.audience() == SoundBank.Audience.OWNER && !owned
+                || gainOf(cue.channel(), cue.gain()) <= 0f) {
+            return null;
+        }
+        return sink.loop(pick(cue), gainOf(cue.channel(), cue.gain()), cue.positional() ? at : null);
+    }
+
+    /** The name of the cue {@code cueName} would play — itself, or what it falls back to — or null for none. */
+    String resolved(String cueName) {
+        var cue = bank.find(cueName);
+        return cue == null ? null : cue.name();
+    }
+
+    /** Whether the game named any cue under {@code name}, for a moment not worth working out for nobody. */
+    boolean names(String name) {
+        return bank.names(name);
     }
 
     boolean play(String cueName, float now) {
