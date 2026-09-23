@@ -62,7 +62,54 @@ public final class Skirmish {
         var left = game.addPlayer("Left", Color.CYAN);
         var right = game.addPlayer("Right", Color.ORANGE);
         game.enemies(left, right).money(left, purse).money(right, purse).localPlayer(left);
+        commandBar(game);
         return new Match(game, left, right, field);
+    }
+
+    /**
+     * What a selected building offers: one button per unit it may train, priced.
+     *
+     * <p>The engine asks and this answers, which is the whole of the seam. What a button <em>means</em> is
+     * here and nowhere in the engine — that these are units, that they cost money, that a queue takes them
+     * one at a time — and a different game answering the same question would put entirely different words
+     * on entirely different buttons.
+     *
+     * <p>Whether a button may be pressed is this game's rule too: a barracks the player cannot afford is
+     * drawn dim rather than taken away, so the bar stays the same shape as his money comes and goes.
+     */
+    private static void commandBar(DukeGame game) {
+        game.commandBar(selection -> {
+            var logic = game.getLogic();
+            if (logic == null || selection.size() != 1) {
+                return java.util.List.of(); // one building at a time; a crowd has no one line to build
+            }
+            var chosen = logic.findObject(new uz.dukeengine.core.thing.ObjectId(selection.getFirst()));
+            var line = chosen == null ? null
+                    : chosen.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
+            if (line == null || chosen.getPlayerIndex() != game.getLocalPlayerIndex()) {
+                return java.util.List.of(); // not his, or it builds nothing
+            }
+            int purse = logic.getRtsPlayer(chosen.getPlayerIndex()).getMoney();
+            var buttons = new java.util.ArrayList<uz.dukeengine.game.view.CommandButton>();
+            for (var name : line.getBuilds()) {
+                var template = logic.getThingFactory().findTemplate(name);
+                int cost = template instanceof uz.dukeengine.rts.Buildable priced ? priced.buildCost() : 0;
+                buttons.add(new uz.dukeengine.game.view.CommandButton(
+                        "train:" + name, null, name + " " + cost, null, cost <= purse));
+            }
+            return buttons;
+        });
+        game.onCommandPressed((id, selection) -> {
+            if (!id.startsWith("train:") || selection.size() != 1) {
+                return;
+            }
+            // Posted, never done: this runs on the window's thread, and the only safe thing to do with a
+            // press there is put it in the queue -- it is applied on a frame boundary like every order.
+            game.postCommand(new uz.dukeengine.rts.message.GameMessage.QueueProduction(
+                    game.getLocalPlayerIndex(),
+                    new uz.dukeengine.core.thing.ObjectId(selection.getFirst()),
+                    id.substring("train:".length())));
+        });
     }
 
     /** The middle of a cell, in world units — where a thing put in a cell stands. */

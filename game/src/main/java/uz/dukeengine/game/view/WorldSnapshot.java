@@ -19,6 +19,9 @@ import uz.dukeengine.core.event.WorldEvent;
  * wants on screen that the engine has no name for — a hero's level, a wave
  * number, a countdown. The engine cannot enumerate those in advance, so it
  * carries a string it never reads and leaves the meaning to the game.
+ * <p>{@link #commands} is the same bargain with a shape: what the player may do with whatever he has
+ * selected, worked out here — on the simulation thread, where the state it is about lives — and drawn by
+ * the window. The engine knows what none of the buttons mean.
  */
 public record WorldSnapshot(
         int frame,
@@ -29,10 +32,11 @@ public record WorldSnapshot(
         List<UnitView> units,
         List<WorldEvent> events,
         String banner,
-        String status) {
+        String status,
+        List<CommandButton> commands) {
 
     public static final WorldSnapshot EMPTY =
-            new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "");
+            new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "", List.of());
 
     public boolean hasBanner() {
         return banner != null && !banner.isEmpty();
@@ -48,5 +52,6 @@ public record WorldSnapshot(
         events = List.copyOf(events);
         banner = banner == null ? "" : banner;
         status = status == null ? "" : status;
+        commands = commands == null ? List.of() : List.copyOf(commands);
     }
 }

@@ -195,4 +195,50 @@ class SkirmishTest {
         assertTrue(uz.dukeengine.rts.player.RtsPlayer.of(game.getLogic(), match.left().getIndex()).getMoney() > 0,
                 "the worker should have found the map's ore and brought some back");
     }
+
+    /**
+     * The engine's command bar, answered by a game that is not the dungeon — which is the only way to know
+     * the seam is a seam. Select a barracks and the bar offers what it trains, at what it costs; press one
+     * and a unit joins the queue.
+     */
+    @Test
+    void selectingABarracksOffersWhatItTrainsAndPressingOneQueuesIt() {
+        var match = Skirmish.open(40, 30, 5000);
+        var game = match.game();
+        game.spawn("Barracks", match.left(), 100f, 100f);
+        game.runHeadless(2);
+
+        assertTrue(game.getSnapshot().commands().isEmpty(), "nothing selected, nothing offered");
+
+        int id = game.getSnapshot().units().getFirst().id();
+        var barracks = game.getLogic().findObject(new uz.dukeengine.core.thing.ObjectId(id));
+        game.setSelection(List.of(id));
+        game.runHeadless(2);
+        var offered = game.getSnapshot().commands();
+        assertFalse(offered.isEmpty(), "a barracks trains something");
+        assertTrue(offered.stream().allMatch(uz.dukeengine.game.view.CommandButton::available),
+                "and with 5000 in the purse he can afford all of it");
+
+        var line = barracks.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
+        int before = line.getQueueSize();
+        game.pressCommand(offered.getFirst().id());
+        game.runHeadless(2);
+        assertEquals(before + 1, line.getQueueSize(), "the press joined the queue, a frame later");
+    }
+
+    /** A button he cannot pay for keeps its place and is drawn dim, so the bar does not move under him. */
+    @Test
+    void aTrainingHeCannotAffordIsStillOnTheBar() {
+        var match = Skirmish.open(40, 30, 0);
+        var game = match.game();
+        game.spawn("Barracks", match.left(), 100f, 100f);
+        game.runHeadless(2);
+        game.setSelection(List.of(game.getSnapshot().units().getFirst().id()));
+        game.runHeadless(2);
+
+        var offered = game.getSnapshot().commands();
+        assertFalse(offered.isEmpty(), "still offered");
+        assertTrue(offered.stream().noneMatch(uz.dukeengine.game.view.CommandButton::available),
+                "with an empty purse, none of it may be pressed");
+    }
 }

@@ -5,6 +5,36 @@ when it does, this page says exactly what to change and how.
 
 ## 0.6.0
 
+### A command bar
+
+There was no way to hand the client a set of orders. A dungeon's `HeroPanel` reads its skills out of a
+line of text, which works because the thing selected never changes; an RTS selects a barracks and then a
+tank and wants a different set each time — so nothing could be built, trained or ordered except from the
+keyboard.
+
+| | |
+|---|---|
+| `CommandButton` | a picture, a word, a key, and whether it may be pressed — plus the id sent back |
+| `WorldSnapshot.commands` | **new component**: the buttons for the current selection |
+| `DukeGame.commandBar(fn)` | asked once a frame, **on the simulation thread**, so it may read live state |
+| `DukeGame.setSelection(ids)` | the window reports what it has; one-way, thread-safe |
+| `DukeGame.onCommandPressed(fn)` | the button's id and what it was about |
+| `client3d` `CommandBar` | draws the grid and answers a click |
+
+**Worked out where the state lives.** The selection goes out now and the buttons come back in the *next*
+snapshot, computed on the simulation thread — so asking "can he afford this, is the power on, what does
+this building train" reads live objects safely, and only the answer crosses.
+
+**The engine knows what none of the buttons mean.** Training a rifleman, casting a spell and calling an
+airstrike are one thing from here; a press is the game's own word, handed back.
+
+**The key on a button is a label.** What a key *does* is claimed through `Hotkeys`, which a game has been
+able to do for years — this is not a second way of pressing one.
+
+A button that cannot be pressed keeps its place and is drawn dim: a bar whose buttons come and go as
+money does is a bar nobody can learn. `skirmish` answers it — select a barracks and it offers what it
+trains, priced — which is what proves it is a seam rather than one game's shape.
+
 ### A game names its own kinds of damage
 
 `DamageType` was an enum of five whose own javadoc called it "a representative subset" — and a combat

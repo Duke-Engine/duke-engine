@@ -655,6 +655,7 @@ public final class DukeGame {
 
         logic = new RtsLogic();
         client = new RtsClient(logic);
+        client.setCommands(this::buttonsNow);
         engine = new RtsGameEngine(logic, client);
         if (recorder != null) {
             logic.setFrameLog(recorder);
@@ -899,6 +900,73 @@ public final class DukeGame {
 
     /** Held until boot, like every other callback: the simulation exists only then. */
     private Consumer<Command> commandHandler;
+
+    // ---- the command bar ----
+
+    private volatile List<Integer> selection = List.of();
+    private java.util.function.Function<List<Integer>,
+            List<uz.dukeengine.game.view.CommandButton>> commandBar;
+    private BiConsumer<String, List<Integer>> commandPressed;
+
+    /**
+     * What the player may do with whatever he has selected, asked once a frame as the snapshot is built.
+     *
+     * <p>Asked <b>on the simulation thread</b>, which is what makes it safe to read live state inside it:
+     * what a barracks can train, what this player can afford, whether the power is on. What crosses to the
+     * window is the answer — a list of buttons — rather than the objects it was worked out from, exactly
+     * as everything else in a snapshot does.
+     *
+     * <p>The selection it is given is the one the window last reported ({@link #setSelection}), in the
+     * order the window holds it. The engine knows what none of the buttons mean.
+     */
+    public DukeGame commandBar(java.util.function.Function<List<Integer>,
+            List<uz.dukeengine.game.view.CommandButton>> buttons) {
+        this.commandBar = buttons;
+        if (client != null) {
+            client.setCommands(this::buttonsNow);
+        }
+        return this;
+    }
+
+    private List<uz.dukeengine.game.view.CommandButton> buttonsNow() {
+        return commandBar == null ? List.of() : commandBar.apply(selection);
+    }
+
+    /**
+     * What the window has selected, so the next snapshot's buttons are about it.
+     *
+     * <p>Thread-safe and one-way: the window writes, the simulation reads. Selection is the window's own
+     * idea — the simulation has never had one and does not gain one here, because two players selecting
+     * different things must still reach the same frame.
+     */
+    public void setSelection(List<Integer> unitIds) {
+        this.selection = unitIds == null ? List.of() : List.copyOf(unitIds);
+    }
+
+    public List<Integer> getSelection() {
+        return selection;
+    }
+
+    /**
+     * What to do when one of the bar's buttons is pressed: the button's own id, and what was selected.
+     *
+     * <p>The handler's job is to turn that into one of the game's own {@link Command}s and
+     * {@link #postCommand} it, which is the road every order already travels — queued from the input
+     * thread, applied at the start of a frame, written to the replay log. Doing anything to the world
+     * here instead would be doing it off the simulation thread and out of the log.
+     */
+    public DukeGame onCommandPressed(BiConsumer<String, List<Integer>> pressed) {
+        this.commandPressed = pressed;
+        return this;
+    }
+
+    /** Thread-safe: the player pressed a button of the bar. */
+    public void pressCommand(String id) {
+        var handler = commandPressed;
+        if (handler != null && id != null) {
+            handler.accept(id, selection);
+        }
+    }
 
     /** Thread-safe: run work on the simulation thread next frame. */
     public void runOnSimThread(Runnable task) {

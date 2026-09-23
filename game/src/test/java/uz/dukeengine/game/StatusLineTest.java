@@ -86,10 +86,11 @@ class StatusLineTest {
     @Test
     void nothingIsNeverNull() {
         var snapshot = new WorldSnapshot(0, 0f, false, 0, 0,
-                java.util.List.of(), java.util.List.of(), null, null);
+                java.util.List.of(), java.util.List.of(), null, null, null);
 
         assertEquals("", snapshot.status());
         assertEquals("", snapshot.banner());
+        assertEquals(java.util.List.of(), snapshot.commands(), "a game that asked for no bar");
         assertFalse(snapshot.hasStatus());
     }
 }

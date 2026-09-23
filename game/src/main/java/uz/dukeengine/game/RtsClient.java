@@ -3,6 +3,7 @@ package uz.dukeengine.game;
 import java.util.ArrayList;
 import uz.dukeengine.core.GameClient;
 import uz.dukeengine.rts.thing.RtsKinds;
+import uz.dukeengine.game.view.CommandButton;
 import uz.dukeengine.game.view.UnitView;
 import uz.dukeengine.game.view.WorldSnapshot;
 import uz.dukeengine.rts.module.PowerGrid;
@@ -32,6 +33,19 @@ final class RtsClient extends GameClient {
 
     void setStatus(String status) {
         this.status = status == null ? "" : status;
+    }
+
+    /**
+     * What the player may do with whatever he has selected.
+     *
+     * <p>Asked here rather than by the window, and that is the whole of why it is safe: it is asked on the
+     * simulation thread, as the snapshot is built, so it may read live state -- what a barracks can train,
+     * what this player can afford -- and what crosses is the answer rather than the objects.
+     */
+    private volatile java.util.function.Supplier<java.util.List<CommandButton>> commands = java.util.List::of;
+
+    void setCommands(java.util.function.Supplier<java.util.List<CommandButton>> commands) {
+        this.commands = commands == null ? java.util.List::of : commands;
     }
 
     RtsClient(RtsLogic logic) {
@@ -100,6 +114,7 @@ final class RtsClient extends GameClient {
                 units,
                 events,
                 banner,
-                status);
+                status,
+                commands.get());
     }
 }

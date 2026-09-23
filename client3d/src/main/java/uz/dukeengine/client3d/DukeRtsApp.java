@@ -3091,6 +3091,9 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void beginDrag() {
+        if (commandBarClick()) {
+            return; // the bar took the press; not a selection
+        }
         if (minimapClick()) {
             return; // the minimap took the press; not a selection
         }
@@ -3389,9 +3392,77 @@ final class DukeRtsApp extends SimpleApplication {
         // picture and the drawing and has to be told which it has.
         drawThePortrait(tpf);
         updateHud();
+        updateCommandBar();
         updateBanner();
         updateHover();
         placeMinimap();
+    }
+
+    private CommandBar commandBar;
+    /** What was last reported to the game, so an unchanged selection is not copied every frame. */
+    private java.util.List<Integer> toldSelection = java.util.List.of();
+
+    /**
+     * Tell the game what is selected, and draw what it says may be done with it.
+     *
+     * <p>Two halves of one conversation and deliberately a frame apart. The selection goes out now; the
+     * buttons come back in the <em>next</em> snapshot, because they are worked out on the simulation
+     * thread where the state they are about lives — what a barracks can train, what this player can
+     * afford. A frame is not worth racing for.
+     *
+     * <p>A game that never asked for a bar sends no buttons and nothing is drawn, which is what every
+     * game had before there was one.
+     */
+    private void updateCommandBar() {
+        if (screen != Screen.PLAYING) {
+            if (commandBar != null) {
+                commandBar.hide();
+            }
+            return;
+        }
+        if (!selected.equals(new java.util.HashSet<>(toldSelection))) {
+            // In the order the client holds them, so the game's answer is about the same list twice.
+            toldSelection = java.util.List.copyOf(selected);
+            game.setSelection(toldSelection);
+        }
+        var buttons = snapshot == null ? java.util.List.<uz.dukeengine.game.view.CommandButton>of()
+                : snapshot.commands();
+        if (commandBar == null) {
+            if (buttons.isEmpty()) {
+                return; // nothing to draw and nothing to build for it
+            }
+            if (craft == null) {
+                craft = new StoneCraft(assetManager, guiFont, visuals.getMenuStyle());
+            }
+            commandBar = new CommandBar(craft, fontOrDefault(visuals.getMenuStyle().rowFont()));
+            guiNode.attachChild(commandBar.node());
+        }
+        commandBar.unhide();
+        commandBar.show(buttons, cam.getWidth());
+    }
+
+    /**
+     * Whether the press at the cursor landed on the command bar, in which case it pressed a button and is
+     * not the beginning of a selection.
+     *
+     * <p>Asked before the drag starts, like the minimap's: a click that is doing one thing must not also
+     * be doing another, or building a barracks would deselect the base that was about to build it.
+     */
+    private boolean commandBarClick() {
+        if (commandBar == null || commandBar.isEmpty() || screen != Screen.PLAYING) {
+            return false;
+        }
+        var cursor = inputManager.getCursorPosition();
+        var button = commandBar.at(cursor.x, cursor.y);
+        if (button == null) {
+            return false;
+        }
+        if (button.available()) {
+            // Straight to the game, which turns it into one of its own commands and posts it -- the road
+            // every order already travels. Nothing here touches the world.
+            game.pressCommand(button.id());
+        }
+        return true;
     }
 
     /**

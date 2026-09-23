@@ -72,7 +72,7 @@ these rather than special-casing:
 | Progression | `ExperienceModule` — XP plus a configurable rung table | how many rungs, what each costs and is worth |
 | Bodies | `BodyModule` (abstract) | a body that grows, or armours differently |
 | Player bonuses | named bonuses on `RtsPlayer`, multi-effect `Upgrade` | what the names mean |
-| HUD | `WorldSnapshot.status`, which the engine never reads | whatever this game counts |
+| HUD | `WorldSnapshot.status`, which the engine never reads; and `commands` — `CommandButton`s worked out on the sim thread from the selection the window reported (`DukeGame.setSelection`), drawn by `CommandBar`, a press coming back as the button's own id | whatever this game counts, and what a selection may be ordered to do |
 | Build cost | `Buildable`, and `RtsTemplate`: an `Object` block with `BuildCost`/`BuildTime`, and a look (`Model`, `Idle`…) so a game gets a drawn unit without a record of its own | its own records that implement `Buildable` |
 
 The seams that keep `core` genre-free — extend these rather than
