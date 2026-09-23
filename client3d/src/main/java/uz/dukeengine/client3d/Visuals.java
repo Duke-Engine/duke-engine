@@ -520,6 +520,32 @@ public final class Visuals {
         return own == null || own.isBlank() ? fromSet : own;
     }
 
+    private String houseColour;
+
+    /**
+     * Which meshes of a model take their owner's colour: those whose name begins with {@code prefix}.
+     *
+     * <p>Game art marks the parts of a model meant to be painted in the owner's colour by naming them —
+     * one RTS measured had it on 2600 of its 7672 models, as meshes called {@code HOUSECOLOR01},
+     * {@code HOUSECOLOR02}, which survive into the files the client loads. Without it two armies drawn
+     * from the same models are told apart only by the rings under their feet, which nobody reads in a
+     * battle.
+     *
+     * <p>The name is the game's; the engine picks none. The colour is the owner's as the game gives it,
+     * laid <b>over</b> the mesh's own picture rather than instead of it — house-colour parts are painted
+     * in greys precisely so their shading survives being multiplied. A game that names no prefix is drawn
+     * exactly as before, and none of it reaches the simulation.
+     */
+    public Visuals houseColour(String prefix) {
+        this.houseColour = prefix == null || prefix.isBlank() ? null : prefix;
+        return this;
+    }
+
+    /** The prefix of the meshes that take their owner's colour, or null for none. */
+    public String getHouseColour() {
+        return houseColour;
+    }
+
     private java.util.Set<String> worldConditions = java.util.Set.of();
 
     /**

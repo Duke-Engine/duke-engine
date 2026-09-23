@@ -4125,6 +4125,7 @@ final class DukeRtsApp extends SimpleApplication {
         node.modelPath = visual.modelFor(view.healthFraction(), visuals.getWorldConditions());
         Spatial body = buildBody(visual, java.util.List.of(), node.modelPath);
         if (body != null) {
+            paintHouseColour(body, view);
             takeUpBody(node, body, visual);
         }
         if (body == null) {
@@ -4215,6 +4216,7 @@ final class DukeRtsApp extends SimpleApplication {
             node.modelPath = wanted; // it will not load; do not try again every frame
             return;
         }
+        paintHouseColour(body, view); // a wrecked barracks is still his
         var playing = node.currentAnim;
         if (node.body != null) {
             node.body.removeFromParent();
@@ -4417,6 +4419,58 @@ final class DukeRtsApp extends SimpleApplication {
     /**
      * Flat lighting over a kit's own colour map, tinted.
      */
+    /**
+     * Paint the parts of a body its art marked for its owner in its owner's colour.
+     *
+     * <p>Laid over what is there, never instead of it: the material's own colour and its own picture are
+     * multiplied by the owner's, so the shading painted into a house-colour mesh — which is grey for
+     * exactly this reason — comes through. The shadowed side too, or a red army goes grey in the shade.
+     *
+     * <p>After the body is built rather than inside {@link #buildBody}, because a body does not know whose
+     * it is — the same file serves both sides, and the portrait builds one that belongs to nobody. So it is
+     * done where the owner is known: when a unit arrives, and again when its model is swapped for a
+     * condition, because a wrecked barracks is still his.
+     */
+    private void paintHouseColour(Spatial body, UnitView view) {
+        var prefix = visuals.getHouseColour();
+        if (prefix == null || body == null) {
+            return; // a game that names none is drawn as it always was
+        }
+        var owner = toColor(game.getColor(view.playerIndex()));
+        body.depthFirstTraversal(spatial -> {
+            if (!(spatial instanceof Geometry geometry) || !isHouseColoured(geometry, body, prefix)) {
+                return;
+            }
+            var material = geometry.getMaterial();
+            for (var channel : java.util.List.of("Diffuse", "Ambient")) {
+                if (material.getParamValue(channel) instanceof ColorRGBA was) {
+                    material.setColor(channel, was.mult(owner));
+                }
+            }
+        });
+    }
+
+    /**
+     * Whether a mesh is one of the parts marked for its owner: its own name, or the name of anything it
+     * hangs under inside this body, begins with the prefix the game gave — letter case aside.
+     *
+     * <p>The ancestors as well as the mesh, because a loader does not always keep a name where the art put
+     * it. A glTF node called {@code HOUSECOLOR01} may reach the scene as a node of that name holding a
+     * geometry called something else entirely, and it is the node the artist named.
+     */
+    static boolean isHouseColoured(Spatial geometry, Spatial body, String prefix) {
+        for (Spatial at = geometry; at != null; at = at.getParent()) {
+            var name = at.getName();
+            if (name != null && name.regionMatches(true, 0, prefix, 0, prefix.length())) {
+                return true;
+            }
+            if (at == body) {
+                return false; // nothing above the body is part of it
+            }
+        }
+        return false;
+    }
+
     private Material creatureMaterial(com.jme3.texture.Texture skin, ColorRGBA tint) {
         var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
         material.setBoolean("UseMaterialColors", true);
