@@ -250,7 +250,14 @@ final class DukeRtsApp extends SimpleApplication {
      * How high the camera is looking, eased toward the ground under its target.
      */
     private float cameraHeight;
-    private final boolean[] pan = new boolean[4]; // W A S D
+    /** The client's own controls on the game's keys — see {@link KeyMap} and {@link Controls}. */
+    private Controls controls;
+    /** Shift and Alt down, beside Ctrl: a key means one thing with them and another without. */
+    private boolean shiftDown;
+    private boolean altDown;
+    /** Whether the player has put the command bar away. */
+    private boolean commandBarHidden;
+    private com.jme3.app.state.ScreenshotAppState screenshots;
     private BitmapText hud;
     private BitmapText buildMenu;
     private BannerPanel banner;
@@ -399,6 +406,7 @@ final class DukeRtsApp extends SimpleApplication {
         this.visuals = visuals;
         this.shell = shell;
         this.hotkeys = hotkeys == null ? Hotkeys.none() : hotkeys;
+        this.controls = new Controls(this.hotkeys.keyMap());
         var light = visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
         this.litBy = light;
         this.sunDirection = light.direction();
@@ -866,6 +874,9 @@ final class DukeRtsApp extends SimpleApplication {
                 hitNumbers.add(change, now, look.height());
                 if (!change.healed() && !change.his()) {
                     flash(change.unitId());
+                }
+                if (!change.healed() && change.his()) {
+                    controls.alert(change.x(), change.y()); // his, under attack: the place Space goes to
                 }
             }
             playTheRunsMoments(now);
@@ -2486,72 +2497,16 @@ final class DukeRtsApp extends SimpleApplication {
         bound.clear();
         map("Select", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
         map("Order", new MouseButtonTrigger(MouseInput.BUTTON_RIGHT));
-        bindKeys("PanUp", KeyInput.KEY_W, KeyInput.KEY_UP);
-        bindKeys("PanLeft", KeyInput.KEY_A, KeyInput.KEY_LEFT);
-        bindKeys("PanDown", KeyInput.KEY_S, KeyInput.KEY_DOWN);
-        bindKeys("PanRight", KeyInput.KEY_D, KeyInput.KEY_RIGHT);
-        map("Shift", new KeyTrigger(KeyInput.KEY_LSHIFT), new KeyTrigger(KeyInput.KEY_RSHIFT));
-        // Held rather than pressed, like Shift above: it changes what the NEXT
-        // key means rather than meaning anything itself.
-        map("Ctrl", new KeyTrigger(KeyInput.KEY_LCONTROL), new KeyTrigger(KeyInput.KEY_RCONTROL));
-        bindKeys("Halt", KeyInput.KEY_H);
-        bindKeys("Pause", KeyInput.KEY_P);
-        map("Fullscreen", new KeyTrigger(KeyInput.KEY_F11));
-        map("Deselect", new KeyTrigger(KeyInput.KEY_ESCAPE));
-        map("Take", new KeyTrigger(KeyInput.KEY_RETURN),
-                new KeyTrigger(KeyInput.KEY_NUMPADENTER), new KeyTrigger(KeyInput.KEY_SPACE));
         map("ZoomIn", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, false));
         map("ZoomOut", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, true));
-        int[] buildKeys = {KeyInput.KEY_1, KeyInput.KEY_2, KeyInput.KEY_3, KeyInput.KEY_4,
-                KeyInput.KEY_5, KeyInput.KEY_6, KeyInput.KEY_7, KeyInput.KEY_8, KeyInput.KEY_9};
-        for (int i = 0; i < buildKeys.length; i++) {
-            map("Build" + (i + 1), new KeyTrigger(buildKeys[i]));
+        // Every key anything is on, one mapping each: what it does is worked out in one place, pressKey, and
+        // never by two listeners racing to it.
+        for (int code : listenedKeys()) {
+            map(KEY + code, new KeyTrigger(code));
         }
 
-        var shiftHeld = new boolean[1];
-        boolean[] ctrlHeld = this.ctrlHeld;
         ActionListener actions = (name, pressed, tpf) -> {
             switch (name) {
-                case "Shift" -> shiftHeld[0] = pressed;
-                case "Ctrl" -> ctrlHeld[0] = pressed;
-                // The same four keys steer the camera in the world and the
-                // choice on a menu. They cannot do both at once, and which one
-                // they are doing is never ambiguous: a menu is up or it is not.
-                case "PanUp" -> {
-                    if (steer(pressed, menu::up)) {
-                        pan[0] = pressed;
-                    }
-                }
-                case "PanLeft" -> {
-                    if (steer(pressed, menu::left)) {
-                        pan[1] = pressed;
-                    }
-                }
-                case "PanDown" -> {
-                    if (steer(pressed, menu::down)) {
-                        pan[2] = pressed;
-                    }
-                }
-                case "PanRight" -> {
-                    if (steer(pressed, menu::right)) {
-                        pan[3] = pressed;
-                    }
-                }
-                case "Take" -> {
-                    if (!pressed) {
-                        break;
-                    }
-                    if (menu.isVisible()) {
-                        if (menu.enter()) {
-                            noises.moment("menu_click", timer.getTimeInSeconds());
-                        }
-                    } else if (screen == Screen.PLAYING) {
-                        // Back to the hero, wherever the pan keys have got to. The
-                        // same one-shot request a new run makes, so the camera is
-                        // his again the moment it lands.
-                        camera.requestOwnUnit();
-                    }
-                }
                 case "Select" -> {
                     if (menu.isVisible()) {
                         if (!pressed) {
@@ -2586,7 +2541,7 @@ final class DukeRtsApp extends SimpleApplication {
                         } else if (pressed) {
                             beginDrag();
                         } else if (dragFrom != null) {
-                            endDrag(shiftHeld[0]);
+                            endDrag(controls.isHeld(KeyMap.Control.ADD_TO_SELECTION));
                         }
                     }
                 }
@@ -2606,63 +2561,11 @@ final class DukeRtsApp extends SimpleApplication {
                         order();
                     }
                 }
-                case "Halt" -> {
-                    if (pressed && screen == Screen.PLAYING) {
-                        haltSelected();
-                    }
-                }
-                case "Fullscreen" -> {
-                    if (pressed) {
-                        toggleFullscreen();
-                    }
-                }
-                case "Pause" -> {
-                    // Set here rather than queued for the simulation: a paused
-                    // engine does not step, so a task asking it to resume would
-                    // never be reached and the pause could not be lifted.
-                    if (pressed && screen == Screen.PLAYING) {
-                        setSimulationPaused(!game.getLogic().isGamePaused());
-                    }
-                }
-                case "Deselect" -> {
-                    if (!pressed) {
-                        break;
-                    }
-                    switch (screen) {
-                        case PLAYING -> {
-                            // Escape opens the menu. It used to clear the selection
-                            // first, so a player who had a hero selected -- which
-                            // is a player who is playing -- had to press it twice
-                            // to stop. Letting go of a unit is what clicking the
-                            // floor is for; Escape is for leaving.
-                            if (armedButton != null) {
-                                disarmButton(); // mid-aim with a bar button: one keypress deep
-                            } else if (arming != null) {
-                                disarm(); // he is mid-aim, and that is one keypress deep
-                            } else {
-                                showPauseMenu();
-                            }
-                        }
-                        case PAUSED -> {
-                            if (!menu.escape()) {
-                                resumeGame();
-                            }
-                        }
-                        case SETTINGS -> {
-                            // The open list first, then the screen. Escaping the
-                            // screen throws away what was not saved -- and puts
-                            // back what had already been applied, which is the
-                            // promise a Cancel button makes and Escape is the
-                            // same answer.
-                            if (!menu.escape()) {
-                                undoSettings();
-                            }
-                        }
-                        case MENU -> {
-                        }
-                    }
-                }
                 default -> {
+                    if (name.startsWith(KEY)) {
+                        pressKey(Integer.parseInt(name.substring(KEY.length())), pressed);
+                        return;
+                    }
                     if (screen != Screen.PLAYING) {
                         return;
                     }
@@ -2675,10 +2578,7 @@ final class DukeRtsApp extends SimpleApplication {
                         }
                         return;
                     }
-                    if (name.startsWith("Build")) {
-                        int index = Integer.parseInt(name.substring(5)) - 1;
-                        queueBuild(index);
-                    } else if (name.startsWith(HOTKEY)) {
+                    if (name.startsWith(HOTKEY)) {
                         char letter = name.charAt(HOTKEY.length());
                         if (ctrlHeld[0]) {
                             // ★ Ctrl and the letter spends a level on that skill,
@@ -2714,24 +2614,219 @@ final class DukeRtsApp extends SimpleApplication {
         inputManager.addListener(zoom, "ZoomIn", "ZoomOut");
     }
 
+    /** What a key's mapping is called: this and its code. */
+    private static final String KEY = "Key";
+
+    /** How fast a held turn turns the camera: a quarter turn a second. */
+    private static final float TURN_SPEED = FastMath.HALF_PI;
+    /** How far a held zoom takes the camera in a second: halfway there. */
+    private static final float HELD_ZOOM = 0.5f;
+
     /**
-     * Bind a control to whichever of these keys the game has not claimed — see
-     * {@link Hotkeys#unclaimed}.
-     *
-     * <p>Binding nothing is fine: the listener registers the name either way, and
-     * a mapping with no trigger simply never fires.
+     * Every key the client listens to: every one its controls, groups and bookmarks are on; the modifiers, which
+     * change what the others mean; the keys a menu is walked with; every letter, for the command bar's buttons;
+     * and — while nothing else has them — the digits, which build.
      */
-    private void bindKeys(String mapping, int... codes) {
-        var free = hotkeys.unclaimed(codes);
-        if (free.length == 0) {
+    private java.util.Set<Integer> listenedKeys() {
+        var codes = new java.util.LinkedHashSet<Integer>(controls.map().codes());
+        codes.addAll(List.of(KeyInput.KEY_LSHIFT, KeyInput.KEY_RSHIFT, KeyInput.KEY_LCONTROL,
+                KeyInput.KEY_RCONTROL, KeyInput.KEY_LMENU, KeyInput.KEY_RMENU, KeyInput.KEY_ESCAPE,
+                KeyInput.KEY_RETURN, KeyInput.KEY_NUMPADENTER, KeyInput.KEY_SPACE, KeyInput.KEY_UP,
+                KeyInput.KEY_DOWN, KeyInput.KEY_LEFT, KeyInput.KEY_RIGHT));
+        for (char letter = 'A'; letter <= 'Z'; letter++) {
+            codes.add(Hotkeys.codeOf(letter));
+        }
+        if (!controls.map().takesDigits()) {
+            codes.addAll(List.of(KeyInput.KEY_1, KeyInput.KEY_2, KeyInput.KEY_3, KeyInput.KEY_4, KeyInput.KEY_5,
+                    KeyInput.KEY_6, KeyInput.KEY_7, KeyInput.KEY_8, KeyInput.KEY_9));
+        }
+        return codes;
+    }
+
+    /**
+     * A key, down or up. On a menu it walks the menu. In play: Escape first gives up an aim; a letter the game
+     * claimed for itself is the game's; then whatever the game's key map puts on it; then the command bar button
+     * showing it; then, if the digits are free, a build.
+     */
+    private void pressKey(int code, boolean pressed) {
+        switch (code) {
+            case KeyInput.KEY_LSHIFT, KeyInput.KEY_RSHIFT -> shiftDown = pressed;
+            case KeyInput.KEY_LCONTROL, KeyInput.KEY_RCONTROL -> ctrlHeld[0] = pressed;
+            case KeyInput.KEY_LMENU, KeyInput.KEY_RMENU -> altDown = pressed;
+            default -> {
+            }
+        }
+        if (!pressed) {
+            controls.release(code);
             return;
         }
-        var triggers = new com.jme3.input.controls.Trigger[free.length];
-        for (int i = 0; i < free.length; i++) {
-            triggers[i] = new KeyTrigger(free[i]);
+        var key = new KeyMap.Key(code, ctrlHeld[0], shiftDown, altDown);
+        if (menu.isVisible() || screen != Screen.PLAYING) {
+            menuKey(code, key);
+            return;
         }
-        map(mapping, triggers);
+        if (code == KeyInput.KEY_ESCAPE && (armedButton != null || arming != null)) {
+            if (armedButton != null) {
+                disarmButton(); // mid-aim with a bar button: one keypress deep
+            } else {
+                disarm(); // mid-aim with a key: the same
+            }
+            return;
+        }
+        char letter = letterOf(code);
+        if (letter != 0 && hotkeys.unclaimed(code).length == 0) {
+            return; // the game's own letter, answered by its own mapping
+        }
+        var press = controls.press(key, timer.getTimeInSeconds(), controlScene);
+        if (press.taken()) {
+            if (press.control() != null) {
+                clientControl(press.control());
+            }
+            return;
+        }
+        if (letter != 0 && pressBarKey(letter)) {
+            return;
+        }
+        int digit = code - KeyInput.KEY_1 + 1;
+        if (digit >= 1 && digit <= 9 && !controls.map().takesDigits()) {
+            queueBuild(digit - 1);
+        }
     }
+
+    /** A key on a menu: the pan keys and the arrows walk it, Enter and Space take, Escape goes back. */
+    private void menuKey(int code, KeyMap.Key key) {
+        var control = controls.controlOn(key);
+        if (control == KeyMap.Control.FULLSCREEN) {
+            toggleFullscreen();
+            return;
+        }
+        if (menu.isVisible()) {
+            Runnable step = code == KeyInput.KEY_UP || control == KeyMap.Control.PAN_UP ? menu::up
+                    : code == KeyInput.KEY_DOWN || control == KeyMap.Control.PAN_DOWN ? menu::down
+                    : code == KeyInput.KEY_LEFT || control == KeyMap.Control.PAN_LEFT ? menu::left
+                    : code == KeyInput.KEY_RIGHT || control == KeyMap.Control.PAN_RIGHT ? menu::right : null;
+            if (step != null) {
+                step.run();
+                noises.moment("menu_hover", timer.getTimeInSeconds());
+                return;
+            }
+            if (code == KeyInput.KEY_RETURN || code == KeyInput.KEY_NUMPADENTER || code == KeyInput.KEY_SPACE) {
+                if (menu.enter()) {
+                    noises.moment("menu_click", timer.getTimeInSeconds());
+                }
+                return;
+            }
+        }
+        if (code != KeyInput.KEY_ESCAPE) {
+            return;
+        }
+        switch (screen) {
+            case PAUSED -> {
+                if (!menu.escape()) {
+                    resumeGame();
+                }
+            }
+            case SETTINGS -> {
+                // The open list first, then the screen. Escaping the screen throws away what was not saved --
+                // and puts back what had already been applied, which is the promise a Cancel button makes and
+                // Escape is the same answer.
+                if (!menu.escape()) {
+                    undoSettings();
+                }
+            }
+            case PLAYING, MENU -> {
+            }
+        }
+    }
+
+    /** A control of the client's own that is not about the world: the menu, the bar, chat, a picture, the clock. */
+    private void clientControl(KeyMap.Control control) {
+        switch (control) {
+            case OPTIONS -> showPauseMenu();
+            case TOGGLE_COMMAND_BAR -> commandBarHidden = !commandBarHidden;
+            case CHAT_ALL -> hotkeys.chat(game, true);
+            case CHAT_ALLIES -> hotkeys.chat(game, false);
+            case SCREENSHOT -> {
+                if (screenshots == null) {
+                    screenshots = new com.jme3.app.state.ScreenshotAppState("", "screenshot");
+                    stateManager.attach(screenshots);
+                }
+                screenshots.takeScreenshot();
+            }
+            // Set here rather than queued for the simulation: a paused engine does not step, so a task asking it
+            // to resume would never be reached and the pause could not be lifted.
+            case PAUSE -> setSimulationPaused(!game.getLogic().isGamePaused());
+            case FULLSCREEN -> toggleFullscreen();
+            default -> {
+            }
+        }
+    }
+
+    /** The letter a key is, or 0 for one that is not a letter. */
+    private static char letterOf(int code) {
+        for (char letter = 'A'; letter <= 'Z'; letter++) {
+            if (Hotkeys.codeOf(letter) == code) {
+                return letter;
+            }
+        }
+        return 0;
+    }
+
+    /** What the client's controls are handed: the world as this client draws it. */
+    private final Controls.Scene controlScene = new Controls.Scene() {
+        @Override
+        public List<uz.dukeengine.game.view.UnitView> units() {
+            return snapshot == null ? List.of() : snapshot.units();
+        }
+
+        @Override
+        public int localPlayer() {
+            return game.getLocalPlayerIndex();
+        }
+
+        @Override
+        public Set<Integer> selection() {
+            return selected;
+        }
+
+        @Override
+        public boolean onScreen(uz.dukeengine.game.view.UnitView unit) {
+            var at = cam.getScreenCoordinates(new Vector3f(unit.x(), floorHeightAt(unit.x(), unit.y()), unit.y()));
+            return at.z < 1f && at.x >= 0f && at.x <= cam.getWidth() && at.y >= 0f && at.y <= cam.getHeight();
+        }
+
+        @Override
+        public boolean hasKind(uz.dukeengine.game.view.UnitView unit, String kind) {
+            var template = game.getLogic().getThingFactory().findTemplate(unit.templateName());
+            return template != null && uz.dukeengine.core.thing.Classified.of(template)
+                    .contains(uz.dukeengine.core.thing.Kind.of(kind));
+        }
+
+        @Override
+        public float sizeOf(uz.dukeengine.game.view.UnitView unit) {
+            var template = game.getLogic().getThingFactory().findTemplate(unit.templateName());
+            return template == null ? 0f : uz.dukeengine.core.thing.Solid.of(template).footprintRadius();
+        }
+
+        @Override
+        public CameraFocus camera() {
+            return camera;
+        }
+
+        @Override
+        public void stop(List<Integer> units) {
+            if (!units.isEmpty()) {
+                game.postCommand(new GameMessage.StopMoving(game.getLocalPlayerIndex(),
+                        units.stream().map(ObjectId::new).toList()));
+            }
+        }
+
+        @Override
+        public void move(Map<Integer, Coord3D> destinations) {
+            destinations.forEach((unit, to) -> game.postCommand(new GameMessage.MoveTo(game.getLocalPlayerIndex(),
+                    List.of(new ObjectId(unit)), to)));
+        }
+    };
 
     /**
      * Bind a control, and remember that it is one the listener has to hear.
@@ -3341,7 +3436,10 @@ final class DukeRtsApp extends SimpleApplication {
         }
         int local = game.getLocalPlayerIndex();
         var enemy = pickUnit();
-        if (enemy != null && enemy.view.playerIndex() != local && enemy.view.playerIndex() != 0) {
+        // With the force-attack key held, a neutral thing is fired on too — not a friend: the simulation never
+        // fires on an ally, ordered or not.
+        boolean forced = controls.isHeld(KeyMap.Control.FORCE_ATTACK);
+        if (enemy != null && enemy.view.playerIndex() != local && (forced || enemy.view.playerIndex() != 0)) {
             if (!snapshot.attackable()) {
                 return; // nothing selected may be fired at it: refused, as the pointer already said
             }
@@ -3474,13 +3572,6 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
-    private void haltSelected() {
-        var units = selectedIds();
-        if (!units.isEmpty()) {
-            game.postCommand(new GameMessage.StopMoving(game.getLocalPlayerIndex(), units));
-        }
-    }
-
     /**
      * The selected units an order may be given to: his own, and only his own.
      *
@@ -3595,7 +3686,7 @@ final class DukeRtsApp extends SimpleApplication {
      * game had before there was one.
      */
     private void updateCommandBar() {
-        if (screen != Screen.PLAYING) {
+        if (screen != Screen.PLAYING || commandBarHidden) {
             if (commandBar != null) {
                 commandBar.hide();
             }
@@ -3645,15 +3736,38 @@ final class DukeRtsApp extends SimpleApplication {
         if (!button.available()) {
             return true; // dim: it takes the click and does nothing with it
         }
+        pressButton(button);
+        return true;
+    }
+
+    /**
+     * A letter the bar shows on one of its buttons presses that button, as clicking it does — a button keeps the
+     * key its label names. A dim one takes the key and does nothing, as it takes a click.
+     */
+    private boolean pressBarKey(char letter) {
+        if (commandBar == null || commandBar.isEmpty() || commandBarHidden || snapshot == null) {
+            return false;
+        }
+        for (var button : snapshot.commands()) {
+            if (button.hotkey() != null && button.hotkey().equalsIgnoreCase(String.valueOf(letter))) {
+                if (button.available()) {
+                    pressButton(button);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void pressButton(uz.dukeengine.game.view.CommandButton button) {
         if (button.aim() != uz.dukeengine.game.view.CommandButton.Aim.NOW) {
             armButton(button); // it needs a place or a thing first; the next click supplies it
-            return true;
+            return;
         }
         // Straight to the game, which turns it into one of its own commands and posts it -- the road
         // every order already travels. Nothing here touches the world.
         game.pressCommand(button.id());
         answerOrder(button.id(), selectedIds());
-        return true;
     }
 
     // ---- a bar button that aims ----
@@ -3874,15 +3988,9 @@ final class DukeRtsApp extends SimpleApplication {
      * which also stops the camera being left drifting when a menu opens
      * mid-press and the release never reaches it
      */
-    private boolean steer(boolean pressed, Runnable move) {
-        if (!menu.isVisible()) {
-            return true;
-        }
-        if (pressed) {
-            move.run();
-            noises.moment("menu_hover", (float) timer.getTimeInSeconds());
-        }
-        return false;
+    /** Whether a held control of the client's is held now, and play is what is going on. */
+    private boolean held(KeyMap.Control control) {
+        return screen == Screen.PLAYING && !menu.isVisible() && controls.isHeld(control);
     }
 
     private void showOnlyWhilePlaying() {
@@ -3977,10 +4085,27 @@ final class DukeRtsApp extends SimpleApplication {
 
     private void updateCamera(float tpf) {
         float speed = camera.panSpeed() * tpf;
-        float dx = (pan[3] ? speed : 0f) - (pan[1] ? speed : 0f);
-        float dz = (pan[2] ? speed : 0f) - (pan[0] ? speed : 0f);
         var shove = edgeShove(speed);
-        camera.panBy(dx + shove.x, dz + shove.y);
+        float across = (held(KeyMap.Control.PAN_RIGHT) ? speed : 0f) - (held(KeyMap.Control.PAN_LEFT) ? speed : 0f)
+                + shove.x;
+        float down = (held(KeyMap.Control.PAN_DOWN) ? speed : 0f) - (held(KeyMap.Control.PAN_UP) ? speed : 0f)
+                + shove.y;
+        // Across and down the screen, which is the ground turned the way the camera is.
+        float cos = FastMath.cos(camera.yaw());
+        float sin = FastMath.sin(camera.yaw());
+        camera.panBy(across * cos + down * sin, down * cos - across * sin);
+        if (held(KeyMap.Control.TURN_LEFT)) {
+            camera.turnBy(TURN_SPEED * tpf);
+        }
+        if (held(KeyMap.Control.TURN_RIGHT)) {
+            camera.turnBy(-TURN_SPEED * tpf);
+        }
+        if (held(KeyMap.Control.ZOOM_IN)) {
+            camera.zoomBy((float) Math.pow(HELD_ZOOM, tpf));
+        }
+        if (held(KeyMap.Control.ZOOM_OUT)) {
+            camera.zoomBy((float) Math.pow(1f / HELD_ZOOM, tpf));
+        }
 
         // The camera rides up with the ground under what it is looking at, or a
         // room on the second storey is a room seen from underneath. Eased rather
@@ -4003,8 +4128,9 @@ final class DukeRtsApp extends SimpleApplication {
         if (listShow != null) {
             knock = knock.add(listShow.shakeNow());
         }
-        cam.setLocation(target.add(new Vector3f(0, distance * 0.82f, distance * 0.57f))
-                .addLocal(knock));
+        var back = new Quaternion().fromAngleAxis(camera.yaw(), Vector3f.UNIT_Y)
+                .mult(new Vector3f(0, distance * 0.82f, distance * 0.57f));
+        cam.setLocation(target.add(back).addLocal(knock));
         cam.lookAt(target, Vector3f.UNIT_Y);
     }
 
@@ -4237,6 +4363,7 @@ final class DukeRtsApp extends SimpleApplication {
                         new uz.dukeengine.core.math.Coord3D(died.position().x(),
                                 died.position().y(), 0f),
                         cam.getLocation());
+                controls.died(died.object().value());
                 var dying = unitNodes.get(died.object().value());
                 layOut(died.object().value(), died.deathType());
                 barrels.forget(died.object().value());

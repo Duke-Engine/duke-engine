@@ -41,6 +41,8 @@ final class CameraFocus {
     private float targetX;
     private float targetZ;
     private float distance = START_DISTANCE;
+    /** How far it is turned about the point it looks at, in radians; 0 is the way it starts. */
+    private float yaw;
     private boolean wantsOwnUnit;
     private float groundWidth;
     private float groundHeight;
@@ -124,6 +126,38 @@ final class CameraFocus {
     /** Zoom by a factor, kept between the nearest and furthest useful distances. */
     void zoomBy(float factor) {
         distance = Math.clamp(distance * factor, NEAREST, FURTHEST);
+    }
+
+    /** Turn it about the point it looks at. */
+    void turnBy(float radians) {
+        yaw = (yaw + radians) % (2f * (float) Math.PI);
+    }
+
+    /** Back to how it starts: unturned, at its first distance, looking where it looks. */
+    void resetView() {
+        yaw = 0f;
+        distance = START_DISTANCE;
+    }
+
+    /** Where it looks, which way it is turned and how far back it stands: what a bookmark keeps. */
+    record View(float x, float z, float yaw, float distance) {
+    }
+
+    View view() {
+        return new View(targetX, targetZ, yaw, distance);
+    }
+
+    /** Back to a view that was kept. */
+    void restore(View view) {
+        targetX = view.x();
+        targetZ = view.z();
+        yaw = view.yaw();
+        distance = Math.clamp(view.distance(), NEAREST, FURTHEST);
+        keepOnTheGround();
+    }
+
+    float yaw() {
+        return yaw;
     }
 
     /** How fast panning should feel — further back, faster, so it takes the same time. */

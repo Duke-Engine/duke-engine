@@ -12,7 +12,8 @@ import uz.dukeengine.game.DukeGame;
  * Keys the game claims for itself, and what it does when one is pressed.
  *
  * <p>The client owns the standard controls — select, order, pan, halt — because
- * they are the same in every game it draws. What a game adds on top it cannot
+ * they are the same in every game it draws; which keys they are on is the game's
+ * to say ({@link #controls}). What a game adds on top it cannot
  * expect the client to know: a dungeon's Q is a skill, and the client has never
  * heard of skills and should not have to.
  *
@@ -190,6 +191,42 @@ public final class Hotkeys {
     }
 
     private BiConsumer<DukeGame, Character> raiseSkill;
+
+    // ---- the client's own controls ----
+
+    private KeyMap keyMap = KeyMap.standard();
+    private BiConsumer<DukeGame, Boolean> chat;
+
+    /**
+     * The keys the client's own controls are on — see {@link KeyMap}. Left alone, {@link KeyMap#standard()}: the
+     * keys the client has always had. The game's own letters above still come first: a letter bound here and
+     * claimed with {@link #on} is the game's.
+     */
+    public Hotkeys controls(KeyMap keys) {
+        this.keyMap = keys == null ? KeyMap.standard() : keys;
+        return this;
+    }
+
+    public KeyMap keyMap() {
+        return keyMap;
+    }
+
+    /**
+     * What to do when the player asks to talk: to everyone, or — {@code false} — to his allies only. The engine
+     * has no chat of its own to open; a game that has one opens it here. None by default, and the keys do
+     * nothing.
+     */
+    public Hotkeys onChat(BiConsumer<DukeGame, Boolean> toEveryone) {
+        this.chat = toEveryone;
+        return this;
+    }
+
+    /** The player asked to talk, to everyone or to his allies. */
+    public void chat(DukeGame game, boolean toEveryone) {
+        if (chat != null) {
+            chat.accept(game, toEveryone);
+        }
+    }
 
     /**
      * Do what a letter does, for a letter that needs nothing pointed at.
