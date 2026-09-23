@@ -20,10 +20,10 @@ package uz.dukeengine.game.view;
  * @param id        what is sent back when it is pressed — the game's own word, never read here
  * @param picture   the whole path to its icon, as the game wrote it, or null for a button of words
  * @param label     what it is called, for the button and whatever the game wants read off it
- * @param hotkey    the key that presses it, drawn in the corner of the button so the player can learn it.
- *                  What the key actually <em>does</em> is claimed through the client's {@code Hotkeys} —
- *                  a game has been able to take a key for years — so this is the label for one, never a
- *                  second way of pressing it
+ * @param hotkey    the key that presses it, drawn in the corner of the button so the player can learn it —
+ *                  a letter. It presses the button as a click does, unless the game took that letter for
+ *                  itself ({@code Hotkeys}) or put one of the client's own controls on it ({@code KeyMap}),
+ *                  which come first
  * @param available whether it may be pressed now — a button that cannot is drawn dim rather than hidden,
  *                  because a bar whose buttons move around as money comes and goes cannot be learned
  * @param aim       what it needs before it is sent: nothing, a place, or a thing

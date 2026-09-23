@@ -15,9 +15,69 @@ when it does, this page says exactly what to change and how.
 - `DamageType` is no longer an enum (see below), so `DamageType.values()` is gone: the set is open, and a game
   that walked every type — duke-dungeon's `GrowableBody` does, to armour a hero against all of them — names
   the types it means.
+- `ObjectDied` carries the death type, the killer and the facing: `new ObjectDied(frame, id, template, player,
+  position, deathType, killer, orientation)`, the first two of them `null` for a plain death by no one. Only
+  the engine posts one; a test that makes one adds the three.
+- The client reads its own keys from a `KeyMap`, `KeyMap.standard()` unless the game gives one — the keys it
+  always had. Two things are new with it: a letter the command bar shows on a button presses that button (after
+  the game's own letters and its map), and Enter or Space put the camera on the player's own units at once.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
-  `HarvestUpdate.Data`, `WeaponFired`, `WorldSnapshot`, `SoundBank.Cue`, `Sound` — and every new field left out
-  means what the old record did.
+  `HarvestUpdate.Data`, `WeaponFired`, `Weapon`, `WorldSnapshot`, `SoundBank.Cue`, `Sound` — and every new
+  field left out means what the old record did. `ProjectileLauncher.launch(shooter, victim, damage, type)` and
+  `DieModule.onDie()` are still called, through the forms that now say more.
+
+### A spot beside a thing that a mover can actually reach
+
+`World.standingNextTo` worked out a spot on the straight line, and on a cliff the line ends on rock: the
+harvester was sent there, found no route, stood with its goal still set, and flickered between "sent" and
+"arrived" so its wait at the depot never finished. Now the spot is one the mover can reach — the straight one
+where it can, else the reachable cell beside the thing nearest to it — and `Pathfinder.findPathOrNearest`
+takes a mover sent somewhere it cannot get to as near as it can: `Path.reachesGoal()` says which,
+`MoveUpdate.stoppedShort()` that it has given up short. On a real map's cliff-side depot: nothing banked in
+two minutes before, 2400 after.
+
+### A shot in flight lands the way an instant one does
+
+A `ProjectileLauncher` is handed a `Shot` — who fired it and for which side, which `Weapon` from which slot,
+and the final damage — so a unit with a gun beside a missile launches only the missile. `WeaponUpdate.land(world,
+shot, victim, where, from)` does what an instant hit does from the hand-over on, as the same code: the direct
+hit if the victim is still alive, the blast round `where`, the kill experience to the shooter if it is still
+there, and `ShotLanded` — new, and posted for instant hits too, at the middle of what was hit. A victim of
+`null` is a shell on open ground: the blast only.
+
+### A death knows how it came
+
+`DeathType` is an open vocabulary like `DamageType` (the engine names `NORMAL`); a weapon deals one —
+`DeathType = EXPLODED` — and a blow carries it with the killer: `BodyModule.damage(amount, type, Death)`. The
+body keeps the blow that killed it (`getDeath()`), `DieModule.onDie(Death)` is told, and `ObjectDied` carries
+both. Running a thing over is new: `CrushUpdate` on what crushes and `Crushable` on what is crushed, the
+reference's levels and `SquishCollide`'s rule, dealing `CRUSH` and the `CRUSHED` death. The client plays
+`died.<template>.<type>` (lower case), which falls back to `died.<template>` for its sound and its look, and
+`UnitVisual.die(type, clip)` gives a death its own fall.
+
+### An effect list, and where the world's moments play
+
+`core.content.EffectList` is the reference's `FXList`: entries played together — `ParticleSystem` (count, offset
+turned with the thing, a ring's radius, height or the ground's, a delay replacing the system's own, rotations,
+orient to, attach to, ricochet, the caller's radius), `Sound`, `LightPulse`, `Shake` (six strengths),
+`Scorch`, `Tracer`, and `AtBone` for another list at a model's bones. `Visuals.effectLists(...)` hands them
+over, and a list may be named wherever an effect may. `fired.<weapon>` now plays at the fire bone of the slot
+that fired (`UnitVisual.fireBone`, numbered per barrel and taken in turn), whose `muzzleFlash` piece shows on
+that frame only and whose `recoilBone` kicks back and settles; with no bone, at the thing's middle, or at the
+target for a contact weapon. `landed.<weapon>` is new, at the middle of what was hit or where a shell came
+down, turned along the shot; `died.<template>` plays at the thing's own height, turned with it. For that,
+`WeaponFired` says its `slot`, whether it is a `contact` weapon, and its blast `radius`.
+
+### The client's own controls, on the keys the game says
+
+`Hotkeys.controls(KeyMap)`: every control of the client's on keys the game chooses, with Ctrl, Shift and Alt,
+or on none — pan, turn, zoom and reset the camera, stop, scatter, the held force-attack, queue and
+add-to-selection keys, select all (leaving out the kinds the game names), all of a kind, the same type on
+screen and — twice — everywhere, next and previous, the base, the latest alert, the menu, the command bar,
+chat (`Hotkeys.onChat`), a screenshot, pause, fullscreen. Control groups (`groupsOnDigits()`: Ctrl makes,
+the digit selects and twice goes there, Shift adds, Alt goes) and camera bookmarks (`bookmarksOnFunctionKeys`)
+are the player's own and never the simulation's. The digits build only while nothing else is on them. Force
+attack reaches neutral things; a friend and the ground, and queued waypoints, are not yet.
 
 ### What a weapon may be fired at
 
@@ -178,8 +238,8 @@ this building train" reads live objects safely, and only the answer crosses.
 **The engine knows what none of the buttons mean.** Training a rifleman, casting a spell and calling an
 airstrike are one thing from here; a press is the game's own word, handed back.
 
-**The key on a button is a label.** What a key *does* is claimed through `Hotkeys`, which a game has been
-able to do for years — this is not a second way of pressing one.
+**The key on a button presses it** — after the game's own letters (`Hotkeys`) and its key map (`KeyMap`),
+which come first.
 
 A button that cannot be pressed keeps its place and is drawn dim: a bar whose buttons come and go as
 money does is a bar nobody can learn. `skirmish` answers it — select a barracks and it offers what it
