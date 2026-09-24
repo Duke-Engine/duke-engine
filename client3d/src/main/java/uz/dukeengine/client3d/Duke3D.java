@@ -306,8 +306,8 @@ public final class Duke3D {
 
     /**
      * The same, with a circle of {@code radius} world units round the cursor on the ground — a special power's reach
-     * — and the pointer {@code pointer} while it is armed, a situation the game named for its pointers ({@code
-     * Visuals.pointers}); 0 and null for neither.
+     * — and the pointer {@code pointer} while it is armed, a situation the game gave a picture with {@code
+     * Visuals.pointer(situation, …)}; 0 and null for neither.
      */
     public void aim(uz.dukeengine.game.view.CommandButton button, float radius, String pointer,
             java.util.function.Consumer<AimOutcome> ended) {
