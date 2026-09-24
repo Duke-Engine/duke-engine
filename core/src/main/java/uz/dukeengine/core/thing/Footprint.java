@@ -32,6 +32,29 @@ public record Footprint(Geometry shape, Coord3D center, float orientation) {
         return new Footprint(Solid.of(object.getTemplate()), position, object.getOrientation());
     }
 
+    /**
+     * The point of this shape's ground outline nearest {@code point}, at {@code point}'s height — the point itself
+     * where it lies within the shape, and the centre for a shape with no extent. Where a blast's edge meets a thing.
+     */
+    public Coord3D nearestTo(Coord3D point) {
+        float dx = point.x() - center.x();
+        float dy = point.y() - center.y();
+        if (shape instanceof Geometry.Box box) {
+            float cos = (float) StrictMath.cos(orientation);
+            float sin = (float) StrictMath.sin(orientation);
+            float localX = Math.clamp(dx * cos + dy * sin, -box.majorRadius(), box.majorRadius());
+            float localY = Math.clamp(-dx * sin + dy * cos, -box.minorRadius(), box.minorRadius());
+            return new Coord3D(center.x() + localX * cos - localY * sin, center.y() + localX * sin + localY * cos,
+                    point.z());
+        }
+        float radius = shape.footprintRadius();
+        float distance = (float) Math.sqrt(dx * dx + dy * dy);
+        if (distance <= radius) {
+            return point;
+        }
+        return new Coord3D(center.x() + dx / distance * radius, center.y() + dy / distance * radius, point.z());
+    }
+
     /** True when the two shapes share ground. Points never overlap anything. */
     public boolean overlaps(Footprint other) {
         if (shape.isPoint() || other.shape.isPoint()) {

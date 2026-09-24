@@ -65,7 +65,8 @@ class DeathTest {
 
         assertSame(EXPLODED, witness.seen.type(), "the blow that killed it, not one that landed on the corpse");
         assertEquals(SHOOTER, witness.seen.killer());
-        var died = (ObjectDied) logic.drainEvents().getFirst();
+        var died = logic.drainEvents().stream().filter(ObjectDied.class::isInstance).map(ObjectDied.class::cast)
+                .findFirst().orElseThrow();
         assertSame(EXPLODED, died.deathType());
         assertEquals(SHOOTER, died.killer());
     }

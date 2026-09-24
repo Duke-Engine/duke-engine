@@ -163,6 +163,8 @@ final class DukeRtsApp extends SimpleApplication {
     /** What those lists play besides particle systems: a sound, a light, the camera, a mark, a streak. */
     private ListShow listShow;
     private final Node listNode = new Node("effect-lists");
+    /** What a blow shows, by name — see {@link HurtMoments} and {@link Visuals#hurt}. */
+    private HurtMoments hurtMoments;
     /** Every drawn thing's barrels: where its shots come out, its flashes and its kick — see {@link Barrels}. */
     private final Barrels barrels = new Barrels();
     private final Map<String, Material> particleMaterials = new HashMap<>();
@@ -534,6 +536,7 @@ final class DukeRtsApp extends SimpleApplication {
         rootNode.attachChild(listNode);
         lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
         layered.drawsListsWith(lists);
+        hurtMoments = new HurtMoments(visuals::hurtRule);
         hitFlash = new HitFlash(visuals.getHitFlash());
 
         rootNode.attachChild(terrainNode);
@@ -4364,6 +4367,7 @@ final class DukeRtsApp extends SimpleApplication {
                                 died.position().y(), 0f),
                         cam.getLocation());
                 controls.died(died.object().value());
+                hurtMoments.forget(died.object().value());
                 var dying = unitNodes.get(died.object().value());
                 layOut(died.object().value(), died.deathType());
                 barrels.forget(died.object().value());
@@ -4385,6 +4389,17 @@ final class DukeRtsApp extends SimpleApplication {
                     // The swing, on the frame the weapon let go. Nothing else in
                     // the snapshot says when that was.
                     playOnce(node, visualFor(node.view.templateName()).attackAnim);
+                }
+            } else if (event instanceof uz.dukeengine.core.event.ObjectHurt hurt) {
+                var name = hurtMoments.nameFor(hurt);
+                if (name != null) {
+                    var victim = unitNodes.get(hurt.object().value());
+                    var cue = WorldMoments.hurt(hurt, victim == null ? null : victim.root, this::floorHeightAt);
+                    moment(name, cue, hurt.object().value());
+                    if (noises != null) {
+                        noises.sounds().play(name, cue.at(), timer.getTimeInSeconds(),
+                                hurt.playerIndex() == game.getLocalPlayerIndex());
+                    }
                 }
             } else if (event instanceof ShotLanded landed && landed.weapon() != null) {
                 var victim = landed.victim() == null ? null : unitNodes.get(landed.victim().value());

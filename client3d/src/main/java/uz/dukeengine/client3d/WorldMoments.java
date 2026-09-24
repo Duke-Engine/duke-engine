@@ -62,6 +62,16 @@ final class WorldMoments {
                 shot.radius());
     }
 
+    /**
+     * A blow: where on the thing it landed — its middle, or the point of it nearest a blast — turned to face the
+     * way the blow came. Handed the thing, and where the blow came from.
+     */
+    static EffectLists.Cue hurt(uz.dukeengine.core.event.ObjectHurt hurt, Spatial victim, Floor floor) {
+        var where = standing(hurt.where(), floor);
+        var from = hurt.from() == null ? null : standing(hurt.from(), floor);
+        return new EffectLists.Cue(where, from == null ? null : along(where.subtract(from)), victim, from, 0f);
+    }
+
     /** A death: where the thing was, at its own height — a helicopter dies in the air — turned the way it faced. */
     static EffectLists.Cue died(ObjectDied death, Spatial thing, Floor floor) {
         return new EffectLists.Cue(standing(death.position(), floor),

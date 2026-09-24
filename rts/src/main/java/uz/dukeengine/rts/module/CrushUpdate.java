@@ -82,7 +82,8 @@ public final class CrushUpdate extends UpdateModule {
             var there = victim.getPosition();
             boolean ahead = (there.x() - here.x()) * headingX + (there.y() - here.y()) * headingY > 0f;
             if (ahead && footprint.distanceTo(there) <= VICTIM_RADIUS) {
-                victim.getBody().damage(HUGE_DAMAGE, CRUSH, new Death(CRUSHED, owner.getId()));
+                victim.getBody().damage(HUGE_DAMAGE, CRUSH, new Death(CRUSHED, owner.getId()),
+                        WeaponUpdate.middleOf(victim), here);
             }
         }
     }

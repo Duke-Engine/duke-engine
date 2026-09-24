@@ -380,7 +380,8 @@ public final class WeaponUpdate extends UpdateModule {
         // announced — but whether it lands now is the launcher's to decide.
         boolean inFlight = handOver(owner, victim, shot);
         if (!inFlight) {
-            victim.getBody().damage(shot.damage(), weapon.damageType(), blow(shot)); // scaled by its armour
+            victim.getBody().damage(shot.damage(), weapon.damageType(), blow(shot), middleOf(victim),
+                    owner.getPosition()); // scaled by its armour
         }
         chosen.clip().fired(world.random(), rateOfFire(owner));
         world.post(new WeaponFired(world.getFrame(), owner.getId(), victim.getId(),
@@ -414,15 +415,23 @@ public final class WeaponUpdate extends UpdateModule {
         var shooter = world.findObject(shot.shooter());
         var hit = victim == null || victim.isEffectivelyDead() || victim.getBody() == null ? null : victim;
         if (hit != null) {
-            hit.getBody().damage(shot.damage(), shot.weapon().damageType(), blow(shot));
+            hit.getBody().damage(shot.damage(), shot.weapon().damageType(), blow(shot), middleOf(hit),
+                    from == null ? where : from);
         }
         struck(world, shot, shooter, hit, where, where, from == null ? where : from);
     }
 
     /** Halfway up a thing: where a shot that hit it at once is drawn landing. */
-    private static Coord3D middleOf(GameObject thing) {
+    static Coord3D middleOf(GameObject thing) {
         var at = thing.getPosition();
         return new Coord3D(at.x(), at.y(), at.z() + thing.getGeometry().height() / 2f);
+    }
+
+    /** The point of a thing nearest a blast, halfway up it: where the blast is drawn striking it. */
+    static Coord3D nearestOf(GameObject thing, Coord3D blast) {
+        var middle = middleOf(thing);
+        return uz.dukeengine.core.thing.Footprint.of(thing)
+                .nearestTo(new Coord3D(blast.x(), blast.y(), middle.z()));
     }
 
     /** The death a shot deals if it kills, and whose it is: its weapon's, and its shooter's. */
@@ -705,7 +714,8 @@ public final class WeaponUpdate extends UpdateModule {
                         && !candidate.isEffectivelyDead()
                         && world.getRelationship(shot.side(), candidate.getPlayerIndex()) == Relationship.ENEMIES);
         for (var bystander : caught) {
-            bystander.getBody().damage(shot.damage(), shot.weapon().damageType(), blow(shot));
+            bystander.getBody().damage(shot.damage(), shot.weapon().damageType(), blow(shot),
+                    nearestOf(bystander, where), where);
             if (bystander.isEffectivelyDead() && shooter != null) {
                 grantKillExperience(shooter, bystander);
             }

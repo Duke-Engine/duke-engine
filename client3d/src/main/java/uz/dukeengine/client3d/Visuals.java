@@ -759,6 +759,52 @@ public final class Visuals {
         return name == null ? null : particleSystems.get(name);
     }
 
+    // ---- a thing hurt ----
+
+    /**
+     * How a blow shows on a thing: {@code hurt.<template>.<type>.major} for one worth at least {@code majorAt}
+     * after its armour, {@code .minor} below it, and no second of the same damage type on the same thing within
+     * {@code throttleFrames} of the game's frames.
+     *
+     * @param majorAt        the least a blow is worth to be a major one; {@link Float#POSITIVE_INFINITY} for never
+     * @param throttleFrames how soon the same thing may show a blow of the same type again; 0 for every blow
+     */
+    public record HurtRule(float majorAt, int throttleFrames) {
+
+        /** Where a game gave none: every blow minor, and every one shown. */
+        public static final HurtRule NONE = new HurtRule(Float.POSITIVE_INFINITY, 0);
+    }
+
+    private final Map<String, HurtRule> hurtRules = new java.util.HashMap<>();
+
+    /**
+     * The rule for blows of {@code damageType} to things of {@code template} — the reference's {@code
+     * AmountForMajorFX} and {@code ThrottleTime}, per armour set and damage type. Either may be null for any: a
+     * rule for a template and a type beats one for the template, which beats one for the type, which beats one for
+     * both.
+     */
+    public Visuals hurt(String template, String damageType, float majorAt, int throttleFrames) {
+        hurtRules.put(hurtKey(template, damageType), new HurtRule(majorAt, Math.max(0, throttleFrames)));
+        return this;
+    }
+
+    /** The rule for a blow of this type to a thing of this template: see {@link #hurt}. */
+    public HurtRule hurtRule(String template, String damageType) {
+        for (var key : new String[] {hurtKey(template, damageType), hurtKey(template, null),
+            hurtKey(null, damageType), hurtKey(null, null)}) {
+            var rule = hurtRules.get(key);
+            if (rule != null) {
+                return rule;
+            }
+        }
+        return HurtRule.NONE;
+    }
+
+    private static String hurtKey(String template, String damageType) {
+        return (template == null ? "*" : template) + "|"
+                + (damageType == null ? "*" : damageType.toUpperCase(java.util.Locale.ROOT));
+    }
+
     // ---- effect lists ----
 
     private final Map<String, uz.dukeengine.core.content.EffectList> effectLists = new java.util.LinkedHashMap<>();

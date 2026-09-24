@@ -1,5 +1,7 @@
 package uz.dukeengine.core.module;
 
+import uz.dukeengine.core.event.ObjectHurt;
+import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.GameObject;
 
 /**
@@ -42,11 +44,43 @@ public abstract class BodyModule extends Module {
      * brought back and killed again died of the second.
      */
     public final void damage(float amount, DamageType type, Death blow) {
+        damage(amount, type, blow, null, null);
+    }
+
+    /**
+     * The same, saying where on the body the blow landed and where it came from, for the {@link ObjectHurt} it
+     * posts — a blow that takes health posts one, a blow that takes none nothing.
+     *
+     * @param at   where on the body it landed, or {@code null} for the body's middle
+     * @param from where it came from, or {@code null} for wherever its dealer stands
+     */
+    public final void damage(float amount, DamageType type, Death blow, Coord3D at, Coord3D from) {
         boolean wasAlive = !isDead();
+        float worth = wasAlive ? estimateDamage(amount, type) : 0f;
         damage(amount, type);
-        if (wasAlive) {
-            death = isDead() ? blow : null;
+        if (!wasAlive) {
+            return;
         }
+        death = isDead() ? blow : null;
+        if (worth > 0f) {
+            hurt(type, worth, blow, at, from);
+        }
+    }
+
+    private void hurt(DamageType type, float worth, Death blow, Coord3D at, Coord3D from) {
+        var owner = getOwner();
+        var world = owner.getWorld();
+        if (world == null) {
+            return;
+        }
+        var attacker = blow == null ? null : blow.killer();
+        var dealer = attacker == null ? null : world.findObject(attacker);
+        var middle = owner.getPosition();
+        var where = at != null ? at
+                : new Coord3D(middle.x(), middle.y(), middle.z() + owner.getGeometry().height() / 2f);
+        world.post(new ObjectHurt(world.getFrame(), owner.getId(), owner.getTemplate().name(),
+                owner.getPlayerIndex(), type, worth, attacker, where,
+                from != null ? from : dealer == null ? null : dealer.getPosition()));
     }
 
     /**

@@ -66,7 +66,8 @@ public final class SpecialPowerModule extends UpdateModule {
                         && !candidate.isEffectivelyDead()
                         && world.getRelationship(ownerPlayer, candidate.getPlayerIndex()) == Relationship.ENEMIES);
         for (var victim : victims) {
-            victim.getBody().damage(damage, DamageType.NORMAL, new Death(DeathType.NORMAL, owner.getId()));
+            victim.getBody().damage(damage, DamageType.NORMAL, new Death(DeathType.NORMAL, owner.getId()),
+                    WeaponUpdate.nearestOf(victim, target), target);
         }
         cooldown = rechargeFrames;
         return true;

@@ -72,8 +72,9 @@ class WorldEventTest {
         logic.update();
 
         var events = logic.drainEvents();
-        assertEquals(1, events.size());
-        var died = (ObjectDied) events.get(0);
+        assertEquals(2, events.size(), "the blow that hurt it, and its death");
+        assertTrue(events.get(0) instanceof ObjectHurt, "struck first");
+        var died = (ObjectDied) events.get(1);
         assertEquals(id, died.object());
         assertEquals("Soldier", died.templateName(), "it is gone, so the event must say what it was");
         assertEquals(2, died.playerIndex());
@@ -117,7 +118,7 @@ class WorldEventTest {
         logic.spawn(SOLDIER, Coord3D.ZERO, 1).getBody().damage(999f);
         logic.update();
 
-        assertEquals(1, logic.drainEvents().size());
+        assertEquals(2, logic.drainEvents().size(), "hurt, then dead");
         assertTrue(logic.drainEvents().isEmpty(), "a moment is reported once, not every frame");
     }
 
