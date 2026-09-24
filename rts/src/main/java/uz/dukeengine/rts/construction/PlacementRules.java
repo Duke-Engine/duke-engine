@@ -10,8 +10,22 @@ package uz.dukeengine.rts.construction;
  * @param refundShare what share of the cost comes back when a site is cancelled before it is finished. Half,
  *                    there
  * @param startShare  what share of its health a site has the frame it rises, growing to whole as it is built
+ * @param words       the words a site holds while it goes up, and a sold building while it comes down
  */
-public record PlacementRules(float maxRise, float edgeMargin, float refundShare, float startShare) {
+public record PlacementRules(float maxRise, float edgeMargin, float refundShare, float startShare, SiteWords words) {
+
+    /**
+     * The words a site holds while it goes up — the reference's {@code AWAITING_CONSTRUCTION}, {@code
+     * PARTIALLY_CONSTRUCTED} and {@code ACTIVELY_BEING_CONSTRUCTED}, which its looks are chosen by: {@code awaiting}
+     * until a builder first works on it, {@code partlyBuilt} from then until it is finished, {@code beingBuilt} on the
+     * frames a builder works on it; none once it is finished. A building being sold holds the last two while it comes
+     * down, as the reference's does. A word left out is not held.
+     */
+    public record SiteWords(String awaiting, String partlyBuilt, String beingBuilt) {
+
+        /** For a game that names none. */
+        public static final SiteWords NONE = new SiteWords(null, null, null);
+    }
 
     /**
      * For a game that says nothing: any slope, right up to the edge, half back on a cancel, and a site that
@@ -26,5 +40,11 @@ public record PlacementRules(float maxRise, float edgeMargin, float refundShare,
             throw new IllegalArgumentException("placement rules out of range: " + maxRise + ", " + edgeMargin
                     + ", " + refundShare + ", " + startShare);
         }
+        words = words == null ? SiteWords.NONE : words;
+    }
+
+    /** Rules whose sites hold no words, as every site did before they could. */
+    public PlacementRules(float maxRise, float edgeMargin, float refundShare, float startShare) {
+        this(maxRise, edgeMargin, refundShare, startShare, null);
     }
 }

@@ -24,6 +24,9 @@ import uz.dukeengine.rts.player.RtsPlayer;
  *
  * <p>Destroyed half-built, it leaves nothing: it is taken away like anything that dies, and there is no
  * refund for what the enemy knocked down. Cancelled by its owner, it gives back the share the game says.
+ *
+ * <p>It holds the game's words while it goes up ({@link PlacementRules.SiteWords}): awaiting its first work,
+ * partly built after it, being built on each frame a builder works on it, none once it is whole.
  */
 public final class ConstructionSite extends UpdateModule {
 
@@ -41,6 +44,7 @@ public final class ConstructionSite extends UpdateModule {
         this.rules = rules;
         float seconds = site.getTemplate() instanceof Buildable buildable ? buildable.buildTime() : 0f;
         this.frames = Math.max(1, Math.round(seconds * GameConstants.LOGICFRAMES_PER_SECOND));
+        site.setCondition(rules.words().awaiting());
     }
 
     @Override
@@ -68,15 +72,22 @@ public final class ConstructionSite extends UpdateModule {
         }
         var world = site.getWorld();
         var who = world.findObject(builder);
+        var words = rules.words();
         if (who == null || who.isEffectivelyDead() || !world.isBeside(who, site)) {
+            site.clearCondition(words.beingBuilt());
             return; // nobody at work on it: it waits
         }
+        site.clearCondition(words.awaiting());
+        site.setCondition(words.partlyBuilt());
+        site.setCondition(words.beingBuilt());
         worked++;
         var body = site.getBody();
         if (body != null) {
             body.heal(body.getMaxHealth() * (1f - rules.startShare()) / frames);
         }
         if (worked >= frames) {
+            site.clearCondition(words.partlyBuilt());
+            site.clearCondition(words.beingBuilt());
             site.clearStatus(ObjectStatus.UNDER_CONSTRUCTION);
             if (world instanceof uz.dukeengine.rts.RtsSimulation rts) {
                 rts.constructed(who, site);

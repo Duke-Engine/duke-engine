@@ -143,7 +143,8 @@ final class RtsClient extends GameClient {
                     object.statusBits(),
                     hold == null ? java.util.List.of()
                             : hold.getPassengers().stream().map(uz.dukeengine.core.thing.ObjectId::value).toList(),
-                    java.util.List.copyOf(object.getConditions())));
+                    java.util.List.copyOf(object.getConditions()),
+                    built(object)));
         }
         var player = everything ? null : logic.getRtsPlayer(viewerPlayer);
         snapshot = new WorldSnapshot(
@@ -163,4 +164,21 @@ final class RtsClient extends GameClient {
                 everything || logic.isMapRevealedTo(viewerPlayer),
                 contextOrder.get());
     }
+
+    /**
+     * How far a thing is built, for the client to draw it rising: a site's progress, a sold building's share of the
+     * way down (from 1 to the reference's -0.5), 1 for everything else.
+     */
+    private static float built(uz.dukeengine.core.thing.GameObject object) {
+        if (object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.UNDER_CONSTRUCTION)) {
+            var site = object.findModule(uz.dukeengine.rts.construction.ConstructionSite.class);
+            return site == null ? 1f : site.progress();
+        }
+        if (object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.SOLD)) {
+            var sale = object.findModule(uz.dukeengine.rts.construction.Selling.Coming.class);
+            return sale == null ? 1f : Math.min(1f, sale.share() / 100f);
+        }
+        return 1f;
+    }
+
 }

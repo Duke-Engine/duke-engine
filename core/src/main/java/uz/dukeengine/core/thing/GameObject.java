@@ -253,7 +253,9 @@ public final class GameObject {
     }
 
     public void clearCondition(String word) {
-        conditions.remove(word);
+        if (word != null) {
+            conditions.remove(word);
+        }
     }
 
     public boolean hasCondition(String word) {

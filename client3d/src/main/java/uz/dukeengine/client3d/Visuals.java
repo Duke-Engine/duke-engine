@@ -91,6 +91,8 @@ public final class Visuals {
         Barrels.Recoil recoil = Barrels.Recoil.REFERENCE;
         /** Its clips chosen by the words it holds, in the order the game gave them; see {@link #clip}. */
         final java.util.List<ClipState> clipStates = new java.util.ArrayList<>();
+        /** Whether it is drawn rising out of the ground as it is built; see {@link #risesAsBuilt}. */
+        boolean risesAsBuilt;
         /** Its treads, or null for none; see {@link #treads}. */
         Treads treads;
         /** Its wheels, or null for none; see {@link #wheels}. */
@@ -153,6 +155,17 @@ public final class Visuals {
         private java.util.Map<Integer, WeaponBones> bonesFor(java.util.Set<String> conditions) {
             return conditionalWeaponBones.computeIfAbsent(String.join(" ", new java.util.TreeSet<>(conditions)),
                     key -> new java.util.TreeMap<>());
+        }
+
+        /**
+         * Drawn rising out of the ground as it is built — the reference's {@code ADJUST_HEIGHT_BY_CONSTRUCTION_PERCENT}:
+         * sunk by what is left to build times its model's height, so at nothing built its top is at the ground, at
+         * half it stands half out, and finished it stands where it is; and sinking again as it is sold. From the
+         * simulation's own progress ({@code UnitView.built}), so the same on every machine.
+         */
+        public UnitVisual risesAsBuilt() {
+            this.risesAsBuilt = true;
+            return this;
         }
 
         /**

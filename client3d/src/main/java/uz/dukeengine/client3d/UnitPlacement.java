@@ -23,6 +23,28 @@ final class UnitPlacement {
         return new Vector3f(view.x(), view.ownHeight() ? view.z() : Math.max(ground, view.z()), view.y());
     }
 
+    /**
+     * How far a model {@code top} high is sunk into the ground when {@code built} of it is built: all of it at 0, its top
+     * at the ground; half at a half; none once it is whole; more than all as a sold building goes below nothing.
+     */
+    static float sunk(float built, float top) {
+        return Math.max(0f, 1f - built) * top;
+    }
+
+    /**
+     * How high a body's top stands above the ground its thing is placed on: measured off the model as it hangs from its
+     * node, before or after it is hung there.
+     */
+    static float topOf(com.jme3.scene.Spatial body) {
+        body.updateModelBound();
+        body.updateGeometricState();
+        if (!(body.getWorldBound() instanceof com.jme3.bounding.BoundingBox box)) {
+            return 0f;
+        }
+        float ground = body.getParent() == null ? 0f : body.getParent().getWorldTranslation().y;
+        return box.getCenter().y + box.getYExtent() - ground;
+    }
+
     /** How it is turned: its facing, then its pitch, then its roll. */
     static Quaternion turn(UnitView view) {
         var facing = new Quaternion().fromAngles(0f, -view.orientation(), 0f);

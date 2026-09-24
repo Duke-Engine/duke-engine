@@ -55,6 +55,9 @@ public final class Selling {
         Errand.giveUpAll(building);
         building.setStatus(ObjectStatus.SOLD);
         building.addModule(new Coming(building, world.getSellRules(), world.getFrame()));
+        // Coming down as it went up: the reference's BuildAssistant::sellObject shows the scaffold while it sinks.
+        building.setCondition(world.getPlacementRules().words().partlyBuilt());
+        building.setCondition(world.getPlacementRules().words().beingBuilt());
         return true;
     }
 

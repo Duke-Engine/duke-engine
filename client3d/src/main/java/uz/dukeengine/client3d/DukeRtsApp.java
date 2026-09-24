@@ -419,6 +419,8 @@ final class DukeRtsApp extends SimpleApplication {
         final Pieces pieces = new Pieces();
         /** Its clip as the words it holds choose it — see {@link Visuals.UnitVisual#clip}. */
         final WordClip wordClip = new WordClip();
+        /** How high its model's top stands above the ground it is placed on, for one drawn rising as it is built. */
+        float bodyTop;
         /** The weapon slots' bones its barrels were found by, as its words chose them. */
         java.util.Map<Integer, Visuals.WeaponBones> barrelBones;
         AnimComposer composer;
@@ -5245,6 +5247,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         snap(node.composer, visual.attackAnim);
         snap(node.composer, visual.hurtAnim);
+        node.bodyTop = visual.risesAsBuilt ? UnitPlacement.topOf(body) : 0f;
         // Its barrels are the model's, so a new model is found again: a wreck may have none.
         Integer id = node.root.getUserData("unitId");
         if (id != null) {
@@ -5801,6 +5804,9 @@ final class DukeRtsApp extends SimpleApplication {
         }
         node.root.setLocalTranslation(UnitPlacement.where(view, this::floorHeightAt));
         node.root.setLocalRotation(UnitPlacement.turn(view));
+        if (visual.risesAsBuilt && node.body != null) {
+            node.body.setLocalTranslation(0f, visual.yOffset - UnitPlacement.sunk(view.built(), node.bodyTop), 0f);
+        }
         runningGear.see(view.id(), view, snapshot.frame());
 
         node.ring.setCullHint(selected.contains(view.id())
