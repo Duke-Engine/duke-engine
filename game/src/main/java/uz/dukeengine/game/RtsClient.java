@@ -114,6 +114,7 @@ final class RtsClient extends GameClient {
             var ai = object.getLocomotor();
             var weapon = object.findModule(uz.dukeengine.rts.module.WeaponUpdate.class);
             var production = object.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
+            var hold = object.findModule(uz.dukeengine.rts.module.ContainModule.class);
             units.add(new UnitView(
                     object.getId().value(),
                     template.name(),
@@ -133,7 +134,9 @@ final class RtsClient extends GameClient {
                     object.getPitch(),
                     object.getRoll(),
                     object.keepsOwnHeight(),
-                    object.statusBits()));
+                    object.statusBits(),
+                    hold == null ? java.util.List.of()
+                            : hold.getPassengers().stream().map(uz.dukeengine.core.thing.ObjectId::value).toList()));
         }
         var player = everything ? null : logic.getRtsPlayer(viewerPlayer);
         snapshot = new WorldSnapshot(

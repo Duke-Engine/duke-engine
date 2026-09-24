@@ -10,6 +10,7 @@ package uz.dukeengine.game.view;
  * @param roll      banked to its right, in radians
  * @param ownHeight whether it is drawn at {@code z} even under the ground; otherwise at {@code z} or on the ground,
  *                  whichever is higher
+ * @param passengers the ids of what rides inside it, in the order they got in; empty for anything that carries none
  */
 public record UnitView(
         int id,
@@ -29,7 +30,20 @@ public record UnitView(
         float pitch,
         float roll,
         boolean ownHeight,
-        int statuses) {
+        int statuses,
+        java.util.List<Integer> passengers) {
+
+    public UnitView {
+        passengers = passengers == null ? java.util.List.of() : java.util.List.copyOf(passengers);
+    }
+
+    /** A view that says nothing of passengers: every view from before they were carried. */
+    public UnitView(int id, String templateName, int playerIndex, float x, float y, float orientation, float health,
+            float maxHealth, boolean structure, boolean selectable, boolean moving, boolean attacking,
+            int productionQueue, float z, float pitch, float roll, boolean ownHeight, int statuses) {
+        this(id, templateName, playerIndex, x, y, orientation, health, maxHealth, structure, selectable, moving,
+                attacking, productionQueue, z, pitch, roll, ownHeight, statuses, java.util.List.of());
+    }
 
     /** A unit on the ground, level: every view from before a thing could be drawn at its own height. */
     public UnitView(int id, String templateName, int playerIndex, float x, float y, float orientation, float health,

@@ -52,6 +52,14 @@ public final class ContainModule extends Module {
         return passengers.contains(id);
     }
 
+    /**
+     * Who rides inside, in the order they got in — one getting out leaves the others in theirs: the reference's
+     * contain list, which a bar walks to show an exit button a passenger ({@code ControlBar::populateInvDataCallback}).
+     */
+    public List<ObjectId> getPassengers() {
+        return List.copyOf(passengers);
+    }
+
     /** Load {@code passenger}; returns false if full. The passenger goes idle. */
     public boolean load(GameObject passenger) {
         if (isFull() || passenger == getOwner()) {

@@ -70,6 +70,28 @@ class ContainTest {
     }
 
     @Test
+    void passengersAreListedInTheOrderTheyGotIn() {
+        var chinook = logic.createObject(ThingTemplate.named("Chinook")
+                .module(new ActiveBody.Data(400f)).module(new ContainModule.Data(8)).build());
+        var hold = chinook.findModule(ContainModule.class);
+        var a = logic.createObject(infantry);
+        var b = logic.createObject(infantry);
+        var c = logic.createObject(infantry);
+        var d = logic.createObject(infantry);
+
+        hold.load(a);
+        hold.load(b);
+        hold.load(c);
+        assertEquals(java.util.List.of(a.getId(), b.getId(), c.getId()), hold.getPassengers());
+
+        hold.unload(b);
+        assertEquals(java.util.List.of(a.getId(), c.getId()), hold.getPassengers(), "the others keep their places");
+
+        hold.load(d);
+        assertEquals(java.util.List.of(a.getId(), c.getId(), d.getId()), hold.getPassengers(), "and the new one last");
+    }
+
+    @Test
     void containedUnitsDoNotMove() {
         var apc = logic.createObject(transport);
         var rider = logic.createObject(infantry);
