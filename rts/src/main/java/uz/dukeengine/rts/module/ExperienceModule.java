@@ -47,14 +47,23 @@ public class ExperienceModule extends Module implements DamageModifier {
      * for whatever the game hangs off the rank itself.
      */
     public record Data(int experienceValue, List<Integer> experienceRequired, List<Float> levelDamageBonus,
-            boolean healOnPromotion) implements ModuleData {
+            boolean healOnPromotion, List<String> levelWords) implements ModuleData {
 
         public Data {
             experienceRequired = experienceRequired == null ? List.of() : List.copyOf(experienceRequired);
             levelDamageBonus = levelDamageBonus == null ? List.of() : List.copyOf(levelDamageBonus);
+            levelWords = levelWords == null ? List.of() : List.copyOf(levelWords);
             if (levelDamageBonus.size() > experienceRequired.size()) {
                 throw new IllegalArgumentException("LevelDamageBonus names more rungs than ExperienceRequired");
             }
+            if (levelWords.size() > experienceRequired.size()) {
+                throw new IllegalArgumentException("LevelWords names more rungs than ExperienceRequired");
+            }
+        }
+
+        public Data(int experienceValue, List<Integer> experienceRequired, List<Float> levelDamageBonus,
+                boolean healOnPromotion) {
+            this(experienceValue, experienceRequired, levelDamageBonus, healOnPromotion, List.of());
         }
 
         public Data(int experienceValue, List<Rank> ranks, boolean healOnPromotion) {
@@ -101,6 +110,7 @@ public class ExperienceModule extends Module implements DamageModifier {
         int earned = levelFor(experience);
         if (earned != level) {
             level = earned;
+            wearTheRank();
             onPromoted();
         }
     }
@@ -119,6 +129,21 @@ public class ExperienceModule extends Module implements DamageModifier {
         var body = getOwner().getBody();
         if (body != null) {
             body.heal(body.getMaxHealth());
+        }
+    }
+
+    /**
+     * The word of the rung it stands on, held, and every other rung's let go — {@code LevelWords = [VETERAN, ELITE,
+     * HEROIC]} — so whatever chooses by words (weapon sets, armour sets, the weapon bonus table) follows the rank.
+     */
+    private void wearTheRank() {
+        var words = data.levelWords();
+        for (int rung = 0; rung < words.size(); rung++) {
+            if (rung == level - 1) {
+                getOwner().setCondition(words.get(rung));
+            } else {
+                getOwner().clearCondition(words.get(rung));
+            }
         }
     }
 

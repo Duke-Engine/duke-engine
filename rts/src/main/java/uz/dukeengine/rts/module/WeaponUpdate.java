@@ -300,7 +300,7 @@ public final class WeaponUpdate extends UpdateModule {
             return false;
         }
         var chosen = choose(armed(), victim, ordered);
-        return chosen != null && rangeTo(getOwner(), victim) <= chosen.weapon().attackRange();
+        return chosen != null && rangeTo(getOwner(), victim) <= range(getOwner(), chosen.weapon());
     }
 
     public ObjectId getTarget() {
@@ -360,7 +360,7 @@ public final class WeaponUpdate extends UpdateModule {
             target = null; // it took off, or was never something this could hit
             return;
         }
-        if (rangeTo(owner, victim) > chosen.weapon().attackRange()) {
+        if (rangeTo(owner, victim) > range(owner, chosen.weapon())) {
             return; // out of range — wait for movement to close in
         }
         if (walking && !chosen.weapon().attackOnTheMove()) {
@@ -374,7 +374,8 @@ public final class WeaponUpdate extends UpdateModule {
 
     private void fire(uz.dukeengine.core.thing.World world, GameObject owner, GameObject victim, Armed chosen) {
         var weapon = chosen.weapon();
-        var shot = new Shot(owner.getId(), owner.getPlayerIndex(), weapon, chosen.index(), dealt(owner, weapon));
+        var shot = new Shot(owner.getId(), owner.getPlayerIndex(), weapon, chosen.index(), dealt(owner, weapon),
+                weapon.splashRadius() * bonus(owner, WeaponBonus.Kind.RADIUS));
 
         // A shot was fired either way — the reload runs and the moment is
         // announced — but whether it lands now is the launcher's to decide.
@@ -386,7 +387,7 @@ public final class WeaponUpdate extends UpdateModule {
         chosen.clip().fired(world.random(), rateOfFire(owner));
         world.post(new WeaponFired(world.getFrame(), owner.getId(), victim.getId(),
                 owner.getPosition(), victim.getPosition(), weapon.name(), chosen.index(),
-                weapon.attackRange() * CONTACT_FUDGE < world.cellSize(), weapon.splashRadius()));
+                weapon.attackRange() * CONTACT_FUDGE < world.cellSize(), shot.radius()));
 
         if (inFlight) {
             return; // nothing has been hit yet; the blast and the kill wait for land()
@@ -445,7 +446,7 @@ public final class WeaponUpdate extends UpdateModule {
      */
     private static void struck(uz.dukeengine.core.thing.World world, Shot shot, GameObject shooter,
             GameObject victim, Coord3D where, Coord3D shown, Coord3D from) {
-        if (shot.weapon().splashRadius() > 0f) {
+        if (shot.radius() > 0f) {
             splash(world, shot, shooter, victim, where);
         }
         if (victim != null && victim.isEffectivelyDead() && shooter != null) {
@@ -453,7 +454,7 @@ public final class WeaponUpdate extends UpdateModule {
         }
         world.post(new ShotLanded(world.getFrame(), shot.shooter(),
                 victim == null ? null : victim.getId(), shot.weapon().name(), shown, from,
-                shot.weapon().splashRadius()));
+                shot.radius()));
     }
 
     /** A frame has passed for every weapon it has, carried or swapped out: reloads run on through a swap. */
@@ -654,7 +655,7 @@ public final class WeaponUpdate extends UpdateModule {
      * multiplied in that order, as they always were, so a shot deals the same bits it did.
      */
     private static float dealt(GameObject owner, Weapon weapon) {
-        float dealt = weapon.damage() * damageModifiers(owner);
+        float dealt = weapon.damage() * damageModifiers(owner) * bonus(owner, WeaponBonus.Kind.DAMAGE);
         var shooter = RtsPlayer.of(owner.getWorld(), owner.getPlayerIndex());
         if (shooter != null) {
             dealt *= shooter.getWeaponDamageBonus(); // player-wide upgrade bonus
@@ -664,7 +665,7 @@ public final class WeaponUpdate extends UpdateModule {
 
     /** This unit's modifiers times its side's bonus — the same for every weapon it carries. */
     private static float dealtScale(GameObject owner) {
-        float scale = damageModifiers(owner);
+        float scale = damageModifiers(owner) * bonus(owner, WeaponBonus.Kind.DAMAGE);
         var shooter = RtsPlayer.of(owner.getWorld(), owner.getPlayerIndex());
         if (shooter != null) {
             scale *= shooter.getWeaponDamageBonus(); // player-wide upgrade bonus
@@ -689,9 +690,19 @@ public final class WeaponUpdate extends UpdateModule {
         return multiplier;
     }
 
+    /** The game's weapon bonuses for what this unit holds, of one kind, multiplied — see {@link WeaponBonus}. */
+    private static float bonus(GameObject owner, WeaponBonus.Kind kind) {
+        return owner.getWorld() instanceof uz.dukeengine.rts.RtsSimulation rts ? rts.weaponBonus(owner, kind) : 1f;
+    }
+
+    /** How far a weapon reaches in this unit's hands: its range, and the game's bonuses for what it holds. */
+    private static float range(GameObject owner, Weapon weapon) {
+        return weapon.attackRange() * bonus(owner, WeaponBonus.Kind.RANGE);
+    }
+
     /** Everything on this unit that changes how fast it fires, multiplied together in module order. */
     private static float rateOfFire(GameObject owner) {
-        float multiplier = 1f;
+        float multiplier = bonus(owner, WeaponBonus.Kind.RATE_OF_FIRE);
         for (var module : owner.getModules()) {
             if (module instanceof RateOfFireModifier modifier) {
                 multiplier *= modifier.rateOfFireMultiplier();
@@ -706,7 +717,7 @@ public final class WeaponUpdate extends UpdateModule {
      */
     private static void splash(uz.dukeengine.core.thing.World world, Shot shot, GameObject shooter,
             GameObject victim, Coord3D where) {
-        var caught = world.objectsInRange(where, shot.weapon().splashRadius(), candidate ->
+        var caught = world.objectsInRange(where, shot.radius(), candidate ->
                 candidate != victim
                         && !candidate.getId().equals(shot.shooter())
                         && !candidate.isContained()
@@ -748,7 +759,7 @@ public final class WeaponUpdate extends UpdateModule {
         float reach = 0f;
         for (var one : armed) {
             if (one.slot().autoChoosable() && one.clip().status() != WeaponStatus.OUT) {
-                reach = Math.max(reach, one.weapon().attackRange());
+                reach = Math.max(reach, range(owner, one.weapon()));
             }
         }
         var enemy = world.findClosestInReach(owner, reach, candidate ->

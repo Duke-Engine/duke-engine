@@ -249,6 +249,34 @@ public abstract class RtsSimulation extends GameLogic {
                 building.getPlayerIndex(), refund, building.getPosition()));
     }
 
+    // ---- weapon bonuses ----
+
+    private java.util.List<uz.dukeengine.rts.module.WeaponBonus> weaponBonuses = java.util.List.of();
+
+    /**
+     * The game's weapon bonus table: every line whose word a thing holds multiplies its weapons' damage, range, rate
+     * of fire or blast — see {@link uz.dukeengine.rts.module.WeaponBonus}. Kept in the order of their words, sorted,
+     * so the product is the same on every machine.
+     */
+    public final void setWeaponBonuses(java.util.Collection<uz.dukeengine.rts.module.WeaponBonus> lines) {
+        this.weaponBonuses = lines.stream()
+                .sorted(java.util.Comparator.comparing(uz.dukeengine.rts.module.WeaponBonus::word)
+                        .thenComparing(uz.dukeengine.rts.module.WeaponBonus::kind))
+                .toList();
+    }
+
+    /** What the table multiplies {@code kind} by for {@code thing}, as its words stand now. */
+    public final float weaponBonus(uz.dukeengine.core.thing.GameObject thing,
+            uz.dukeengine.rts.module.WeaponBonus.Kind kind) {
+        float product = 1f;
+        for (var line : weaponBonuses) {
+            if (line.kind() == kind && thing.hasCondition(line.word())) {
+                product *= line.multiplier();
+            }
+        }
+        return product;
+    }
+
     // ---- what a side may make ----
 
     private java.util.function.BiPredicate<String, String> countsAs = String::equals;

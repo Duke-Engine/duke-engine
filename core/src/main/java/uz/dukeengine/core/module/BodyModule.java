@@ -106,6 +106,25 @@ public abstract class BodyModule extends Module {
     /** Restore {@code amount} of health, clamped to the maximum. */
     public abstract void heal(float amount);
 
+    /** What a change of a body's most health does to what it has now: SAGE's {@code MaxHealthChangeType}. */
+    public enum MaxHealthChange {
+        /** The same share of the new most as of the old — {@code PRESERVE_RATIO}: 50 of 100 is 100 of 200. */
+        KEEP_SHARE,
+        /** What the most rose or fell by, added — {@code ADD_CURRENT_HEALTH_TOO}: 50 of 100 is 150 of 200. */
+        ADD_DIFFERENCE,
+        /** What it has, left as it is — {@code SAME_CURRENTHEALTH}: 50 of 100 is 50 of 200. */
+        KEEP_HEALTH
+    }
+
+    /**
+     * Change the most health it may have, and what it has now by {@code rule} — an upgrade's, from game code on the
+     * simulation thread. A body that cannot says so in the log and stays as it is.
+     */
+    public void setMaxHealth(float most, MaxHealthChange rule) {
+        java.util.logging.Logger.getLogger(BodyModule.class.getName()).warning(
+                getClass().getSimpleName() + " cannot change its most health; it stays " + getMaxHealth());
+    }
+
     public boolean isDead() {
         return getHealth() <= 0f;
     }
