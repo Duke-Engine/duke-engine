@@ -64,9 +64,12 @@ when it does, this page says exactly what to change and how.
 - The client keeps a model's glTF `BLEND` and `MASK` when it dresses the model in its own lit material: a
   blended material is drawn in the transparent bucket without writing depth, and a masked one is cut out at its
   cutoff. Every dressed material used to be drawn opaque.
+- `Locomotor` has `leave(way, destination)`, the first leg a unit walks out of its maker; a mover of a game's own
+  that does not implement it goes straight to the destination, as its `moveTo` does.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
-  `HarvestUpdate.Data`, `WeaponFired`, `Weapon` (and its own `Bonuses`), `WorldSnapshot` (and `revealed`),
-  `SoundBank.Cue`, `Sound`, `UnitView` (and `passengers`, `conditions`), `CommandButton`, `Upgrade`, `ProductionUpdate.Data`,
+  `HarvestUpdate.Data`, `WeaponFired`, `Weapon` (and its own `Bonuses`), `WorldSnapshot` (and `revealed`, `contextOrder`),
+  `SoundBank.Cue`, `Sound`, `UnitView` (and `passengers`, `conditions`), `CommandButton`, `Upgrade`, `ProductionUpdate.Data`
+  (and its `Exit` and `Door`),
   `RtsTemplate`, `Shot`, `ActiveBody.Data`, `ExperienceModule.Data` (and `LevelHealthBonus`) — and every new field
   left out means what the old record did. A template that names no prerequisite, word or cap is buildable as
   before; a save from before granted words and computer sides loads.
@@ -97,6 +100,48 @@ What the player selects reaches `DukeGame.getSelection()` whatever draws the HUD
 command bar hangs it off the selection as the client's bar does. `DukeGame.select(ids)` goes the other way, from
 the game's own code on any thread: the client takes the pick up at its next frame, in the game's order, under the
 rule a click follows (the player's own things, or one of someone else's alone).
+
+### A factory's exit and door
+
+`ProductionUpdate.Data` may name an `Exit` and a `Door`, the reference's production exits and factory doors. With an
+exit, a unit is made at `CreatePoint` and walks first to `RallyPoint`. Both points are in the factory's own frame,
+turned and placed with it. The unit is made facing the factory's way and walks straight out through the factory's
+own walls (`Locomotor.leave`), then by a route to the rally point the player set, or back to the door's point. After
+one leaves, the next waits `Delay` frames, except for the first `Burst`. A finished unit that may not leave yet waits,
+complete, at the head of the queue.
+
+A door opens when a unit is finished, and the unit is made the frame it is open. The door stays open for its time after
+the last one left, and a unit finishing meanwhile leaves at once. Then it closes, and a unit finishing while it closes
+has it open again. The factory holds the three words the game names (`DOOR_1_OPENING`, `DOOR_1_WAITING_OPEN`,
+`DOOR_1_CLOSING`) for exactly the frames given. A factory that names neither lets its units out of its side as before.
+
+### Clips chosen by the words a thing holds
+
+`UnitVisual.clip(conditions, clip, mode, start, keepGroup)` plays a clip while the words a thing holds best fit
+`conditions`, in place of its idle and walk. `ONCE` stays on its last frame, `ONCE_BACKWARDS` returns to its first,
+`LOOP` and `LOOP_BACKWARDS` go round, and `HOLD` stays on one frame. It starts at `FIRST`, `LAST` or `RANDOM`. It
+starts again when the choice changes, unless the two states share a keep group, when it carries on from the same
+fraction. Its time comes from the game's frames, so every machine shows the same frame. Words given no clip play the
+roles as before.
+
+### The pointer says what a click would do
+
+- `Visuals.pointer(situation, strip, frames, hotX, hotY, jiffies)` animates a pointer: pictures side by side, each
+  shown for its sixtieths of a second.
+- `Move` is open ground where the selection would walk.
+- `Scroll-N` to `Scroll-NW` show while the view is scrolled at the window's edge.
+- `DukeGame.contextOrder(rule)` lets the game name the order a click on a thing would give what is selected: `Enter`,
+  `Dock`, `Repair`. `WorldSnapshot.contextOrder` carries it, the pointer shows that word's picture, and the click
+  sends it as a `GameOrder` for `onOrder`.
+
+A situation the game drew no picture for falls back: Move to Point, a word to Friend or Attack, a scroll to whatever is
+under it.
+
+### A power's picture on the ground
+
+`Duke3D.aim(button, radius, pointer, decal, ended)` lays an `AimDecal` on the ground under the pointer while armed,
+in place of the ring: a picture 2 × radius across, following the ground, its opacity throbbing between two values as
+the reference's radius cursors do, and seen only by the player aiming.
 
 ### The reference's mouse
 
