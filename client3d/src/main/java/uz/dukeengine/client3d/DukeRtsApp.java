@@ -629,6 +629,21 @@ final class DukeRtsApp extends SimpleApplication {
         applyVolume();
     }
 
+    /** A cue the game plays itself, flat — see {@link Duke3D#sound}. */
+    void playFlat(String cue) {
+        noises.sounds().flat(cue, timer.getTimeInSeconds());
+    }
+
+    /** See {@link Duke3D#cueVolume}. */
+    void cueVolume(String cue, float multiplier) {
+        noises.sounds().cueVolume(cue, multiplier);
+    }
+
+    /** See {@link Duke3D#volume}. */
+    void gameVolume(SoundBank.Channel channel, float zeroToOne) {
+        noises.sounds().gameVolume(channel, zeroToOne);
+    }
+
     /**
      * Assemble the minimap once: its terrain layer, then the viewport outline over it.
      */

@@ -1,6 +1,9 @@
 package uz.dukeengine.client3d;
 
 import com.jme3.system.AppSettings;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 import uz.dukeengine.game.DukeGame;
 
 /**
@@ -19,41 +22,92 @@ import uz.dukeengine.game.DukeGame;
  * <p>Pass a {@link Shell} to say what the game puts in front of itself — its own
  * menu entries, or none at all. Without one it gets the client's standard menu,
  * which is what every game got before it could choose.
+ *
+ * <p><b>The client as a game talks to it.</b> {@link #of} makes one to keep: what it is launched with is said on it
+ * before {@link #launch}, and what the game asks of the client while it runs — a sound, a volume — is asked of it
+ * afterwards, from whichever thread the game's code is on. Nothing asked of it reaches the simulation.
  */
 public final class Duke3D {
 
-    private Duke3D() {
+    private final DukeGame game;
+    private final Visuals visuals;
+    private Shell shell = Shell.standard();
+    private Hotkeys hotkeys = Hotkeys.none();
+    private int width = 1280;
+    private int height = 720;
+
+    /** The running client, once launched; what is asked of it before then waits here, in order. */
+    private DukeRtsApp app;
+    private final List<Consumer<DukeRtsApp>> waiting = new ArrayList<>();
+
+    private Duke3D(DukeGame game, Visuals visuals) {
+        this.game = game;
+        this.visuals = visuals;
     }
 
-    public static void launch(DukeGame game, Visuals visuals) {
-        launch(game, visuals, Shell.standard());
+    /** The client for this game, drawn as {@code visuals} says, to be launched and then talked to. */
+    public static Duke3D of(DukeGame game, Visuals visuals) {
+        return new Duke3D(game, visuals);
     }
 
-    public static void launch(DukeGame game, Visuals visuals, Shell shell) {
-        launch(game, visuals, shell, 1280, 720);
-    }
-
-    public static void launch(DukeGame game, Visuals visuals, int width, int height) {
-        launch(game, visuals, Shell.standard(), width, height);
+    public Duke3D shell(Shell shell) {
+        this.shell = shell == null ? Shell.standard() : shell;
+        return this;
     }
 
     /**
      * With keys of the game's own — see {@link Hotkeys}. The client keeps its
      * standard controls; these are what a particular game adds on top.
      */
+    public Duke3D hotkeys(Hotkeys hotkeys) {
+        this.hotkeys = hotkeys == null ? Hotkeys.none() : hotkeys;
+        return this;
+    }
+
+    /** The window's size for somebody who has never chosen one; what the player last chose wins. */
+    public Duke3D window(int width, int height) {
+        this.width = width;
+        this.height = height;
+        return this;
+    }
+
+    public static void launch(DukeGame game, Visuals visuals) {
+        of(game, visuals).launch();
+    }
+
+    public static void launch(DukeGame game, Visuals visuals, Shell shell) {
+        of(game, visuals).shell(shell).launch();
+    }
+
+    public static void launch(DukeGame game, Visuals visuals, int width, int height) {
+        of(game, visuals).window(width, height).launch();
+    }
+
     public static void launch(DukeGame game, Visuals visuals, Shell shell, Hotkeys hotkeys) {
-        launch(game, visuals, shell, hotkeys, 1280, 720);
+        of(game, visuals).shell(shell).hotkeys(hotkeys).launch();
     }
 
     public static void launch(DukeGame game, Visuals visuals, Shell shell, int width, int height) {
-        launch(game, visuals, shell, Hotkeys.none(), width, height);
+        of(game, visuals).shell(shell).window(width, height).launch();
     }
 
     public static void launch(DukeGame game, Visuals visuals, Shell shell, Hotkeys hotkeys,
             int width, int height) {
+        of(game, visuals).shell(shell).hotkeys(hotkeys).window(width, height).launch();
+    }
+
+    /** Open the window and run the game in it; blocks until the window is closed. */
+    public void launch() {
         // the simulation starts when the player presses Play — or at once, if the
         // game asked for no menu at all
-        var app = new DukeRtsApp(game, visuals, shell, hotkeys);
+        var client = new DukeRtsApp(game, visuals, shell, hotkeys);
+        synchronized (waiting) {
+            app = client;
+            for (var task : waiting) {
+                client.enqueue(() -> task.accept(client));
+            }
+            waiting.clear();
+        }
         var settings = new AppSettings(true);
         settings.setTitle(game.getTitle());
         // saved display settings win over the caller's defaults
@@ -65,22 +119,22 @@ public final class Duke3D {
         settings.setResolution(chosen.number("width", width), chosen.number("height", height));
         settings.setFullscreen(chosen.flag("fullscreen", false));
         settings.setVSync(true);
-        app.setSettings(settings);
-        app.setShowSettings(false);
-        app.setDisplayStatView(false);
+        client.setSettings(settings);
+        client.setShowSettings(false);
+        client.setDisplayStatView(false);
         // Frames per second is a developer's number. It sat over the line of
         // controls at the bottom of the screen, and neither could be read.
-        app.setDisplayFps(false);
-        app.setPauseOnLostFocus(false);
-        app.start();
+        client.setDisplayFps(false);
+        client.setPauseOnLostFocus(false);
+        client.start();
 
         try {
-            app.awaitStop();
+            client.awaitStop();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
         game.stop();
-        var simThread = app.getSimThread();
+        var simThread = client.getSimThread();
         if (simThread != null) {
             try {
                 simThread.join(5000);
@@ -88,5 +142,46 @@ public final class Duke3D {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    // ---- what the game asks of the client while it runs, from any thread ----
+
+    /**
+     * Play a sound cue of the game's {@link SoundBank} now, flat — on its own channel, at no place — with the cue's
+     * own rules kept: which of its files, its loudness, its gap, cutting off the last of itself. What a front end
+     * plays when a button is pressed. A name the bank does not have plays nothing and is logged once.
+     */
+    public void sound(String cue) {
+        later(client -> client.playFlat(cue));
+    }
+
+    /**
+     * How loud a cue plays from now on against its own loudness, until changed: 1 is its own, 0 silences it, 6
+     * six times as loud (as loud as the sound device goes).
+     */
+    public void cueVolume(String cue, float multiplier) {
+        later(client -> client.cueVolume(cue, multiplier));
+    }
+
+    /**
+     * The game's volume for a channel, 0 to 1 — music, sound, speech, the interface — multiplied with the
+     * player's own setting for it rather than replacing it, as the reference keeps a script volume beside the
+     * player's.
+     */
+    public void volume(SoundBank.Channel channel, float zeroToOne) {
+        later(client -> client.gameVolume(channel, zeroToOne));
+    }
+
+    /** Do this on the client's own thread: at its next frame, or once it is launched. */
+    private void later(Consumer<DukeRtsApp> task) {
+        DukeRtsApp running;
+        synchronized (waiting) {
+            running = app;
+            if (running == null) {
+                waiting.add(task);
+                return;
+            }
+        }
+        running.enqueue(() -> task.accept(running));
     }
 }

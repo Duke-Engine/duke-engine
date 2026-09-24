@@ -22,6 +22,8 @@ import java.util.random.RandomGenerator;
  */
 final class Sounds {
 
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger.getLogger(Sounds.class.getName());
+
     private final SoundBank bank;
     private final SoundSink sink;
     private final RandomGenerator random;
@@ -37,8 +39,23 @@ final class Sounds {
     private float voiceGapSeconds;
 
     private final Map<SoundBank.Channel, Float> volumes = new HashMap<>();
+    /**
+     * The game's own volume for each channel, beside the player's: the reference keeps a script volume and a
+     * system volume per channel and plays at their product ({@code AudioManager::setVolume}), so a menu that turns
+     * the battle behind it down to 5% leaves the player's own setting where he put it.
+     */
+    private final Map<SoundBank.Channel, Float> gameVolumes = new HashMap<>();
+    /**
+     * A cue's volume against its own, by the cue's name, as the game last set it — the reference's
+     * {@code setAudioEventVolumeOverride}, which holds until changed.
+     */
+    private final Map<String, Float> cueVolumes = new HashMap<>();
+    /** The names played flat that the game never named, each said once. */
+    private final java.util.Set<String> unknown = new java.util.HashSet<>();
     private float master = 1f;
     private String playing; // the music, if any
+    /** The playing track's own loudness: its cue's gain, and the game's volume for that cue. */
+    private float playingGain = 1f;
 
     Sounds(SoundBank bank, SoundSink sink) {
         this(bank, sink, RandomGenerator.getDefault());
@@ -50,6 +67,7 @@ final class Sounds {
         this.random = random;
         for (var channel : SoundBank.Channel.values()) {
             volumes.put(channel, 1f);
+            gameVolumes.put(channel, 1f);
         }
     }
 
@@ -68,13 +86,38 @@ final class Sounds {
     void volume(SoundBank.Channel channel, float zeroToOne) {
         volumes.put(channel, Math.clamp(zeroToOne, 0f, 1f));
         if (channel == SoundBank.Channel.MUSIC) {
-            sink.musicGain(gainOf(SoundBank.Channel.MUSIC, 1f));
+            sink.musicGain(channelGain(SoundBank.Channel.MUSIC) * playingGain);
+        }
+    }
+
+    /** The game's volume for a channel, which the player's is multiplied by; see {@link #gameVolumes}. */
+    void gameVolume(SoundBank.Channel channel, float zeroToOne) {
+        gameVolumes.put(channel, Math.clamp(zeroToOne, 0f, 1f));
+        if (channel == SoundBank.Channel.MUSIC) {
+            sink.musicGain(channelGain(SoundBank.Channel.MUSIC) * playingGain);
+        }
+    }
+
+    /**
+     * How loud a cue plays against its own loudness, until changed: 1 is its own, 0 silences it, 6 is six times
+     * as loud — as loud as the sink will go, since the gain is handed on as it is and the sink clamps where it
+     * clamps.
+     */
+    void cueVolume(String cueName, float multiplier) {
+        if (cueName == null) {
+            return;
+        }
+        float kept = Math.max(0f, multiplier);
+        if (kept == 1f) {
+            cueVolumes.remove(cueName);
+        } else {
+            cueVolumes.put(cueName, kept);
         }
     }
 
     void masterVolume(float zeroToOne) {
         this.master = Math.clamp(zeroToOne, 0f, 1f);
-        sink.musicGain(gainOf(SoundBank.Channel.MUSIC, 1f));
+        sink.musicGain(channelGain(SoundBank.Channel.MUSIC) * playingGain);
     }
 
     float volumeOf(SoundBank.Channel channel) {
@@ -106,7 +149,7 @@ final class Sounds {
         if (cue.audience() == SoundBank.Audience.OWNER && !owned) {
             return false; // his voice, and not this player's to hear
         }
-        if (gainOf(cue.channel(), cue.gain()) <= 0f) {
+        if (gainOf(cue) <= 0f) {
             return false; // turned off; not worth choosing a file for
         }
         if (cue.channel() == SoundBank.Channel.VOICE
@@ -126,13 +169,27 @@ final class Sounds {
             if (cutOff != null) {
                 cutOff.stop();
             }
-            lastOf.put(cue.name(), sink.playStoppable(pick(cue), gainOf(cue.channel(), cue.gain()),
-                    cue.positional() ? at : null));
+            lastOf.put(cue.name(), sink.playStoppable(pick(cue), gainOf(cue), cue.positional() ? at : null));
             return true;
         }
-        sink.play(pick(cue), gainOf(cue.channel(), cue.gain()),
-                cue.positional() ? at : null);
+        sink.play(pick(cue), gainOf(cue), cue.positional() ? at : null);
         return true;
+    }
+
+    /**
+     * A cue the game plays itself, now and flat: on its own channel, at no place, so no distance takes anything
+     * off it — with every other rule of the cue kept, which of its files, its loudness, its gap, cutting off the
+     * last of itself. A name the game never wrote plays nothing and is said once, being a name in the game's own
+     * code rather than a moment the game chose to leave silent.
+     */
+    boolean flat(String cueName, float now) {
+        if (bank.find(cueName) == null) {
+            if (unknown.add(String.valueOf(cueName))) {
+                LOG.warning("no sound named " + cueName);
+            }
+            return false;
+        }
+        return play(cueName, null, now, true);
     }
 
     /**
@@ -141,11 +198,10 @@ final class Sounds {
      */
     SoundSink.Playing loop(String cueName, Vector3f at, boolean owned) {
         var cue = bank.find(cueName);
-        if (cue == null || cue.audience() == SoundBank.Audience.OWNER && !owned
-                || gainOf(cue.channel(), cue.gain()) <= 0f) {
+        if (cue == null || cue.audience() == SoundBank.Audience.OWNER && !owned || gainOf(cue) <= 0f) {
             return null;
         }
-        return sink.loop(pick(cue), gainOf(cue.channel(), cue.gain()), cue.positional() ? at : null);
+        return sink.loop(pick(cue), gainOf(cue), cue.positional() ? at : null);
     }
 
     /** The name of the cue {@code cueName} would play — itself, or what it falls back to — or null for none. */
@@ -185,8 +241,18 @@ final class Sounds {
         return files.get(index);
     }
 
-    private float gainOf(SoundBank.Channel channel, float cueGain) {
-        return master * volumes.get(channel) * cueGain;
+    /** The player's knobs and the game's for one channel, multiplied. */
+    private float channelGain(SoundBank.Channel channel) {
+        return master * volumes.get(channel) * gameVolumes.get(channel);
+    }
+
+    /** How loud this cue plays: its channel, its own gain, and the game's volume for it. */
+    private float gainOf(SoundBank.Cue cue) {
+        return channelGain(cue.channel()) * ownGain(cue);
+    }
+
+    private float ownGain(SoundBank.Cue cue) {
+        return cue.gain() * cueVolumes.getOrDefault(cue.name(), 1f);
     }
 
     // ---- music ----
@@ -205,8 +271,8 @@ final class Sounds {
             return;
         }
         playing = wanted;
-        sink.music(wanted, gainOf(SoundBank.Channel.MUSIC,
-                cue == null ? 1f : cue.gain()));
+        playingGain = cue == null ? 1f : ownGain(cue);
+        sink.music(wanted, channelGain(SoundBank.Channel.MUSIC) * playingGain);
     }
 
     /** Every file the game may ask for, so it can be read before it is wanted. */
