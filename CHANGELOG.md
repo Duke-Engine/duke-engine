@@ -58,9 +58,15 @@ when it does, this page says exactly what to change and how.
   `Playing.ended` are defaults.
 - A right click gives up an armed button wherever the pointer is, and so does Escape. A right click off the
   world's part of the window used to do nothing.
+- The model a thing is drawn with is chosen by the words it holds as well — `UnitView.conditions`, whatever the
+  game set on it with `GameObject.setCondition` — beside the world's and those its health decides. A template
+  whose `Models` name a word its things hold now draws that model where it drew the plain one.
+- The client keeps a model's glTF `BLEND` and `MASK` when it dresses the model in its own lit material: a
+  blended material is drawn in the transparent bucket without writing depth, and a masked one is cut out at its
+  cutoff. Every dressed material used to be drawn opaque.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
   `HarvestUpdate.Data`, `WeaponFired`, `Weapon` (and its own `Bonuses`), `WorldSnapshot` (and `revealed`),
-  `SoundBank.Cue`, `Sound`, `UnitView` (and `passengers`), `CommandButton`, `Upgrade`, `ProductionUpdate.Data`,
+  `SoundBank.Cue`, `Sound`, `UnitView` (and `passengers`, `conditions`), `CommandButton`, `Upgrade`, `ProductionUpdate.Data`,
   `RtsTemplate`, `Shot`, `ActiveBody.Data`, `ExperienceModule.Data` (and `LevelHealthBonus`) — and every new field
   left out means what the old record did. A template that names no prerequisite, word or cap is buildable as
   before; a save from before granted words and computer sides loads.
@@ -91,6 +97,40 @@ What the player selects reaches `DukeGame.getSelection()` whatever draws the HUD
 command bar hangs it off the selection as the client's bar does. `DukeGame.select(ids)` goes the other way, from
 the game's own code on any thread: the client takes the pick up at its next frame, in the game's order, under the
 rule a click follows (the player's own things, or one of someone else's alone).
+
+### The reference's mouse
+
+`Duke3D.mouse(Mouse.LEFT_COMMANDS)` is the reference's own mouse: a left click on one of the player's own things
+selects it, and anywhere else, with something of the player's selected, is the order the right button gives by
+default — a move, an attack, the context order. A right click lets the selection go. A left drag boxes either way,
+and `Mouse.RIGHT_COMMANDS`, the default, is the mouse as it was.
+
+### A model's pieces, by the words a thing holds
+
+`UnitView.conditions` carries the words a thing holds to the client, which chooses its look by them with the
+world's and its health's. `UnitVisual.pieces(words, hide, show)` hides and shows pieces of the model while the
+words best fit, as the reference's `HideSubObject` and `ShowSubObject` per condition state do: sticky, a state
+changing only what it names, and kept when the model is swapped for a damaged one. `fireBone`, `muzzleFlash` and
+`recoilBone` take a set of words too, so an upgraded turret fires from its own muzzle.
+
+### Model materials drawn as the file marks them
+
+A glTF material with `extras.blend` set to `ADDITIVE` or `MULTIPLY` is drawn added to or multiplied with what is
+behind it, as the reference's shaders draw a headlight's cone or a shadow decal. One glTF marks `BLEND` is
+blended, and `MASK` is cut out at its `alphaCutoff`. The added, multiplied and blended ones write no depth and
+are drawn in the transparent bucket.
+
+### Treads that run, wheels that roll
+
+`UnitVisual.treads(left, right, rate, driveFraction, pivotFraction)` and `UnitVisual.wheels(bones, multiplier,
+front, steerDegrees)` are the reference's `W3DTankDraw` and `W3DTruckDraw`, worked out by the client from where a
+thing stands in each new frame of the game, so nothing of them reaches the simulation. A tread's picture runs along
+u at `rate` lengths a second: every tread with the vehicle when it drives faster than `driveFraction` of its
+speed, the two sides opposite ways when it turns slower than `pivotFraction`, and not at all otherwise. The speed
+is the fastest the client has seen the thing go. Treads are found by the start of their names, so `TREADSL` is
+`TREADSL01`, `TREADSL02` and so on, and a tread both names match is neither side's. A wheel rolls `multiplier`
+radians a unit travelled (one over its radius rolls it true) about the vehicle's own side, and the front ones steer
+toward a turn.
 
 ### What a container holds, a sound's end, the map revealed
 
