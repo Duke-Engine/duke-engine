@@ -210,8 +210,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             return;
         }
         var owner = getOwner();
-        if (owner.isEffectivelyDead() || owner.isContained() || owner.hasStatus(ObjectStatus.DISABLED)) {
-            return; // dead, inside a transport, or frozen — cannot move
+        if (owner.isEffectivelyDead() || owner.isContained() || owner.hasStatus(ObjectStatus.DISABLED)
+                || owner.hasStatus(ObjectStatus.HELD)) {
+            return; // dead, inside a transport, frozen or held — cannot move, and keeps its orders for when it can
         }
         float step = owner.hasStatus(ObjectStatus.SLOWED) ? stepPerFrame * 0.5f : stepPerFrame;
 

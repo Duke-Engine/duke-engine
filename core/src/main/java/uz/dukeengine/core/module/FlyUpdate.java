@@ -132,6 +132,9 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
             return;
         }
         owner.setStatus(ObjectStatus.AIRBORNE);
+        if (owner.hasStatus(ObjectStatus.DISABLED) || owner.hasStatus(ObjectStatus.HELD)) {
+            return; // it hangs where it is, keeping its speed and its orders for when it may go
+        }
         var here = owner.getPosition();
         var target = targetNow(world, here);
         float heading = owner.getOrientation();

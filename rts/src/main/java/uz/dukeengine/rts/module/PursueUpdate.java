@@ -57,8 +57,9 @@ public final class PursueUpdate extends UpdateModule {
         var weapon = owner.findModule(WeaponUpdate.class);
         var legs = owner.getLocomotor();
         var world = owner.getWorld();
-        if (weapon == null || legs == null || world == null || owner.isEffectivelyDead()) {
-            return;
+        if (weapon == null || legs == null || world == null || owner.isEffectivelyDead()
+                || owner.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HELD)) {
+            return; // held, it fights from where it stands and chases nothing
         }
         var victim = weapon.getTarget() == null ? null : world.findObject(weapon.getTarget());
         if (victim == null || victim.isEffectivelyDead()) {

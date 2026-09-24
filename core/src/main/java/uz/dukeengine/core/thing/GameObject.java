@@ -226,6 +226,15 @@ public final class GameObject {
         statuses.add(status);
     }
 
+    /** Every status it carries, a bit each in the order they are declared: what the world's checksum mixes in. */
+    public int statusBits() {
+        int bits = 0;
+        for (var status : statuses) {
+            bits |= 1 << status.ordinal();
+        }
+        return bits;
+    }
+
     public void clearStatus(ObjectStatus status) {
         statuses.remove(status);
     }

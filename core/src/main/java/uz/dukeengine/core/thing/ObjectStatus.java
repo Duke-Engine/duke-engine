@@ -5,12 +5,21 @@ package uz.dukeengine.core.thing;
  * {@code ObjectStatusType}.
  *
  * <p>Modules query these to alter behaviour: a {@link #DISABLED} unit cannot act
- * at all, a {@link #SLOWED} unit moves at reduced speed. Timed application is
- * handled by a status module; the flag itself just records the current state.
+ * at all, a {@link #HELD} one cannot move and still fights, a {@link #SLOWED} unit
+ * moves at reduced speed. Timed application is handled by a status module; the
+ * flag itself just records the current state. They are part of the world's
+ * checksum.
  */
 public enum ObjectStatus {
     DISABLED,
     SLOWED,
+    /**
+     * Kept where it is, and still fighting — SAGE's {@code DISABLED_HELD}: nothing moves it (an order to move is
+     * taken and goes nowhere, a pursuit does not close in), while its weapons go on choosing and firing at what is
+     * in their range, and it can be hit, killed and carried. A game's code sets it and clears it; cleared, a move
+     * it was ordered on goes on at once.
+     */
+    HELD,
     /**
      * Still being built: standing, seen, and able to be hurt, but doing nothing of what it is for until it is
      * whole — a half-built barracks trains nobody and a half-built tower shoots at nobody. SAGE's
@@ -20,9 +29,8 @@ public enum ObjectStatus {
     UNDER_CONSTRUCTION,
     /**
      * In the air: flying, not standing on the ground under it — SAGE's {@code OBJECT_STATUS_AIRBORNE_TARGET}.
-     * Nothing in the engine flies yet, so nothing in it sets this; a game whose aircraft take off sets it when
-     * they do and clears it when they land, and whatever asks whether a thing is in the air asks this. When
-     * the engine flies things itself it will set it the same way.
+     * {@code FlyUpdate} sets it while its thing is aloft; a game that flies things some other way sets it when they
+     * take off and clears it when they land, and whatever asks whether a thing is in the air asks this.
      */
     AIRBORNE
 }

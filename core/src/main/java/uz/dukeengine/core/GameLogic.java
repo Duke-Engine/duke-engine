@@ -807,7 +807,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      * SAGE's {@code VERIFY_CRC}. In lock-step every peer must compute the same
      * value each frame; a mismatch is a desync. Mixes each object's identity,
      * ownership, transform and health in creation order, using
-     * {@link Float#floatToIntBits} so float state hashes identically everywhere.
+     * {@link Float#floatToIntBits} so float state hashes identically everywhere —
+     * and its statuses, for an object that carries any, which leaves the checksum of
+     * a world with none, and every recording of one, as it was.
      */
     public final long checksum() {
         long hash = 1125899906842597L; // a large prime seed
@@ -820,6 +822,10 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             hash = mix(hash, Float.floatToIntBits(p.z()));
             hash = mix(hash, Float.floatToIntBits(object.getOrientation()));
             hash = mix(hash, object.getBody() == null ? -1 : Float.floatToIntBits(object.getBody().getHealth()));
+            int statuses = object.statusBits();
+            if (statuses != 0) {
+                hash = mix(hash, statuses);
+            }
         }
         return hash;
     }

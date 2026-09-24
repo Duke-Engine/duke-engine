@@ -61,6 +61,29 @@ class FlyUpdateTest {
     }
 
     @Test
+    void aHeldHelicopterHangsWhereItIsAndGoesOnOnceLetGo() {
+        var helicopter = spawn("Helicopter", 50f, 50f);
+        for (int frame = 0; frame < 60; frame++) {
+            world.update(); // up to its height first
+        }
+        var hanging = helicopter.getPosition();
+        helicopter.setStatus(ObjectStatus.HELD);
+
+        helicopter.getLocomotor().moveTo(new Coord3D(150f, 50f, 0f));
+        for (int frame = 0; frame < 120; frame++) {
+            world.update();
+        }
+
+        assertEquals(hanging, helicopter.getPosition(), "held in the air: nothing moves it");
+        assertTrue(helicopter.hasStatus(ObjectStatus.AIRBORNE), "and it is still aloft");
+        helicopter.clearStatus(ObjectStatus.HELD);
+        for (int frame = 0; frame < 30; frame++) {
+            world.update();
+        }
+        assertTrue(helicopter.getPosition().x() > hanging.x(), "let go, it flies its order");
+    }
+
+    @Test
     void aHoveringThingFliesStraightOverTheCliffAtItsHeightAndStopsThere() {
         var helicopter = spawn("Helicopter", 50f, 50f);
         var legs = helicopter.getLocomotor();
