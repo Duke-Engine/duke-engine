@@ -26,7 +26,7 @@ import uz.dukeengine.core.thing.ObjectId;
 public sealed interface GameMessage extends Command
         permits GameMessage.MoveTo, GameMessage.AttackObject, GameMessage.StopMoving,
                 GameMessage.QueueProduction, GameMessage.SetRallyPoint, GameMessage.Construct,
-                GameMessage.CancelConstruction {
+                GameMessage.CancelConstruction, GameMessage.QueueResearch, GameMessage.CancelProduction {
 
     /** Order the given units to move to a destination. */
     record MoveTo(int playerIndex, List<ObjectId> units, Coord3D destination) implements GameMessage {
@@ -76,5 +76,16 @@ public sealed interface GameMessage extends Command
 
     /** Call off a site still going up: the share the game says comes back, and the site is gone. */
     record CancelConstruction(int playerIndex, ObjectId site) implements GameMessage {
+    }
+
+    /**
+     * Research {@code upgrade} at {@code factory}: queued among its units, charged now, done its time later.
+     * The name must not contain the wire separators {@code , | ; :}.
+     */
+    record QueueResearch(int playerIndex, ObjectId factory, String upgrade) implements GameMessage {
+    }
+
+    /** Call off the {@code index}-th thing a factory has queued, the first 0: its cost comes back in full. */
+    record CancelProduction(int playerIndex, ObjectId factory, int index) implements GameMessage {
     }
 }

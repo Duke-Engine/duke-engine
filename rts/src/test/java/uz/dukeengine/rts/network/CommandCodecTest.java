@@ -35,6 +35,13 @@ class CommandCodecTest {
     }
 
     @Test
+    void researchAndCallingOffAQueuedThingRoundTrip() {
+        assertRoundTrips(new CommandPacket(12, 1, List.of(
+                new GameMessage.QueueResearch(1, new ObjectId(4), "Upgrade_Armour"),
+                new GameMessage.CancelProduction(1, new ObjectId(4), 2))));
+    }
+
+    @Test
     void floatBitsArePreserved() {
         float awkward = 0.1f + 0.2f; // not exactly representable
         var packet = new CommandPacket(1, 1, List.of(

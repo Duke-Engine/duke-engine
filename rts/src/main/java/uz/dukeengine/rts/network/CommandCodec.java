@@ -67,6 +67,10 @@ public final class CommandCodec implements PacketCodec {
                     + "," + Float.toString(c.place().z())
                     + "," + Float.toString(c.facing());
             case GameMessage.CancelConstruction c -> "UNBUILD," + c.playerIndex() + "," + c.site().value();
+            case GameMessage.QueueResearch r -> "RESEARCH," + r.playerIndex() + "," + r.factory().value()
+                    + "," + r.upgrade();
+            case GameMessage.CancelProduction c -> "UNQUEUE," + c.playerIndex() + "," + c.factory().value()
+                    + "," + c.index();
         };
     }
 
@@ -104,6 +108,10 @@ public final class CommandCodec implements PacketCodec {
                     new Coord3D(Float.parseFloat(parts[4]), Float.parseFloat(parts[5]), Float.parseFloat(parts[6])),
                     Float.parseFloat(parts[7]));
             case "UNBUILD" -> new GameMessage.CancelConstruction(player, new ObjectId(Integer.parseInt(parts[2])));
+            case "RESEARCH" -> new GameMessage.QueueResearch(player, new ObjectId(Integer.parseInt(parts[2])),
+                    parts[3]);
+            case "UNQUEUE" -> new GameMessage.CancelProduction(player, new ObjectId(Integer.parseInt(parts[2])),
+                    Integer.parseInt(parts[3]));
             default -> throw new IllegalArgumentException("unknown command kind: " + kind);
         };
     }

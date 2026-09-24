@@ -68,6 +68,7 @@ public final class DukeGame {
     private final List<UnitText> unitTexts = new ArrayList<>();
     private final List<ThingTemplate> units = new ArrayList<>();
     private final List<uz.dukeengine.rts.module.Weapon> weapons = new ArrayList<>();
+    private final List<uz.dukeengine.rts.player.Upgrade> upgrades = new ArrayList<>();
     private final List<GamePlayer> players = new ArrayList<>();
     private final List<Runnable> scenario = new ArrayList<>();
     private final List<Consumer<DukeGame>> startCallbacks = new ArrayList<>();
@@ -153,6 +154,13 @@ public final class DukeGame {
     public DukeGame addWeapons(java.util.Collection<uz.dukeengine.rts.module.Weapon> more) {
         requireNotStarted();
         weapons.addAll(more);
+        return this;
+    }
+
+    /** The upgrades the game's buildings research by name — {@code ProductionUpdate.Data.researches}. */
+    public DukeGame addUpgrades(java.util.Collection<uz.dukeengine.rts.player.Upgrade> more) {
+        requireNotStarted();
+        upgrades.addAll(more);
         return this;
     }
 
@@ -786,6 +794,7 @@ public final class DukeGame {
             logic.getThingFactory().addTemplate(template);
         }
         logic.addWeapons(weapons);
+        logic.addUpgrades(upgrades);
         for (var text : unitTexts) {
             loader.load(text.text(), text.source());
         }

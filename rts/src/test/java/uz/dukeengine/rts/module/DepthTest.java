@@ -40,6 +40,10 @@ class DepthTest {
                 }
                 case GameMessage.Construct ignored -> {
                 }
+                case GameMessage.QueueResearch ignored -> {
+                }
+                case GameMessage.CancelProduction ignored -> {
+                }
                 case GameMessage.CancelConstruction ignored -> {
                 }
             }

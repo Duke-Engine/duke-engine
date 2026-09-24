@@ -1,7 +1,7 @@
 package uz.dukeengine.rts.module;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.ArrayList;
+import java.util.List;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
@@ -12,7 +12,9 @@ import uz.dukeengine.core.thing.Solid;
 import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.core.thing.World;
 import uz.dukeengine.rts.Buildable;
+import uz.dukeengine.rts.RtsSimulation;
 import uz.dukeengine.rts.player.RtsPlayer;
+import uz.dukeengine.rts.player.Upgrade;
 
 /**
  * Builds units over time, ported in spirit from SAGE's {@code ProductionUpdate}.
@@ -23,23 +25,50 @@ import uz.dukeengine.rts.player.RtsPlayer;
  * unit is spawned next to the producer. Build cost and time come from the unit's
  * own {@link ThingTemplate}, mirroring SAGE's {@code BuildCost}/{@code BuildTime}.
  *
- * <p>One unit builds at a time, in queue order — deterministic by construction.
+ * <p>Research waits in the same queue ({@link #queueResearch}): one thing at a time, in
+ * order, charged when queued and refunded when called off ({@link #cancel}) — a unit
+ * the same. An upgrade of the side's may be queued once for the whole side and never
+ * again once it is done; one of the building's own, once for that building.
+ *
+ * <p>One thing builds at a time, in queue order — deterministic by construction.
  */
 @ModuleGroup(RtsModuleGroups.ECONOMY)
 public final class ProductionUpdate extends UpdateModule {
 
     /**
      * Per-structure configuration: the unit template names this structure may
-     * build — SAGE's command set. INI: {@code Builds = ElfArcher Rider}.
+     * build — SAGE's command set — and the upgrades it may research.
+     * {@code Builds = [ElfArcher, Rider]}, {@code Researches = [Upgrade_Armour]}.
      * An empty list means "no build menu" (scripts can still queue anything).
      */
-    public record Data(java.util.List<String> builds) implements ModuleData {
+    public record Data(List<String> builds, List<String> researches) implements ModuleData {
         public Data {
-            builds = java.util.List.copyOf(builds);
+            builds = builds == null ? List.of() : List.copyOf(builds);
+            researches = researches == null ? List.of() : List.copyOf(researches);
+        }
+
+        public Data(List<String> builds) {
+            this(builds, List.of());
         }
 
         public Data() {
-            this(java.util.List.of());
+            this(List.of(), List.of());
+        }
+    }
+
+    /**
+     * One thing waiting in the queue, as a reader sees it: a unit or research, and how far along it is — 0 for
+     * all but the first, which counts from 0 to 1.
+     */
+    public record Queued(ThingTemplate unit, Upgrade research, float progress) {
+
+        /** The unit's template name or the upgrade's name. */
+        public String name() {
+            return unit != null ? unit.name() : research.name();
+        }
+
+        public boolean isResearch() {
+            return research != null;
         }
     }
 
@@ -54,31 +83,51 @@ public final class ProductionUpdate extends UpdateModule {
 
     private static final class Job {
         final ThingTemplate unit;
+        final Upgrade research;
+        final int frames;
         int framesRemaining;
 
-        Job(ThingTemplate unit, int framesRemaining) {
+        Job(ThingTemplate unit, Upgrade research, int frames) {
             this.unit = unit;
-            this.framesRemaining = framesRemaining;
+            this.research = research;
+            this.frames = frames;
+            this.framesRemaining = frames;
+        }
+
+        int cost() {
+            return research != null ? research.cost() : Buildable.costOf(unit);
         }
     }
 
-    private final Deque<Job> queue = new ArrayDeque<>();
-    private final java.util.List<String> builds;
+    private final List<Job> queue = new ArrayList<>();
+    private final List<String> builds;
+    private final List<String> researches;
     private Coord3D rallyPoint;
 
     public ProductionUpdate(GameObject owner, Data data) {
         super(owner);
         this.builds = data.builds();
+        this.researches = data.researches();
     }
 
     /** The unit template names this structure offers in its build menu. */
-    public java.util.List<String> getBuilds() {
+    public List<String> getBuilds() {
         return builds;
     }
 
     /** Whether this structure's build menu offers {@code templateName}. */
     public boolean canBuild(String templateName) {
         return builds.contains(templateName);
+    }
+
+    /** The upgrades this structure may research. */
+    public List<String> getResearches() {
+        return researches;
+    }
+
+    /** Whether this structure may research {@code upgrade}. */
+    public boolean canResearch(String upgrade) {
+        return researches.contains(upgrade);
     }
 
     /** Set where finished units should move to once produced (null = stay put). */
@@ -95,16 +144,62 @@ public final class ProductionUpdate extends UpdateModule {
      * the owner cannot afford it (nothing is queued in that case).
      */
     public boolean queue(ThingTemplate unit) {
-        var world = getOwner().getWorld();
-        if (world == null) {
-            return false;
-        }
-        var player = RtsPlayer.of(world, getOwner().getPlayerIndex());
+        var player = owner();
         if (player == null || !player.withdraw(Buildable.costOf(unit))) {
             return false;
         }
-        queue.addLast(new Job(unit, Math.max(1, Buildable.framesOf(unit))));
+        queue.add(new Job(unit, null, Math.max(1, Buildable.framesOf(unit))));
         return true;
+    }
+
+    /**
+     * Charge the owner and enqueue research of {@code upgrade}. Refused — nothing charged, nothing queued —
+     * where it cannot be afforded, where the side already has an upgrade of the side's or has it queued at any
+     * building, or where this building already has, or has queued, an upgrade of its own.
+     */
+    public boolean queueResearch(Upgrade upgrade) {
+        var player = owner();
+        if (player == null || upgrade == null) {
+            return false;
+        }
+        boolean taken = upgrade.scope() == Upgrade.Scope.PLAYER
+                ? getOwner().getWorld() instanceof RtsSimulation rts
+                        && (rts.hasUpgrade(player.getIndex(), upgrade.name())
+                                || rts.isUpgradeQueued(player.getIndex(), upgrade.name()))
+                : getOwner().hasCondition(upgrade.name()) || isResearching(upgrade.name());
+        if (taken || !player.withdraw(upgrade.cost())) {
+            return false;
+        }
+        queue.add(new Job(null, upgrade, Math.max(1, upgrade.frames())));
+        return true;
+    }
+
+    /** Whether {@code upgrade} is waiting in, or at the head of, this queue. */
+    public boolean isResearching(String upgrade) {
+        return queue.stream().anyMatch(job -> job.research != null && job.research.name().equals(upgrade));
+    }
+
+    /**
+     * Call off the {@code index}-th thing queued, the first 0: its cost comes back in full, as the reference
+     * refunds, and what was behind it moves up — the next starting from nothing.
+     *
+     * @return whether there was such a thing
+     */
+    public boolean cancel(int index) {
+        if (index < 0 || index >= queue.size()) {
+            return false;
+        }
+        var job = queue.remove(index);
+        var player = owner();
+        if (player != null) {
+            player.deposit(job.cost());
+        }
+        return true;
+    }
+
+    private RtsPlayer owner() {
+        var world = getOwner().getWorld();
+        return world == null ? null : RtsPlayer.of(world, getOwner().getPlayerIndex());
     }
 
     public boolean isProducing() {
@@ -115,9 +210,20 @@ public final class ProductionUpdate extends UpdateModule {
         return queue.size();
     }
 
-    /** What is queued, in the order it will be built — the first still counting down. A copy, to read. */
-    public java.util.List<ThingTemplate> getQueue() {
-        return queue.stream().map(job -> job.unit).toList();
+    /** The units queued, in the order they will be built — research left out; {@link #getEntries} has both. */
+    public List<ThingTemplate> getQueue() {
+        return queue.stream().filter(job -> job.unit != null).map(job -> job.unit).toList();
+    }
+
+    /** Everything queued, units and research, in order, with how far along each is. A copy, to read. */
+    public List<Queued> getEntries() {
+        var entries = new ArrayList<Queued>(queue.size());
+        for (int at = 0; at < queue.size(); at++) {
+            var job = queue.get(at);
+            float progress = at == 0 ? 1f - job.framesRemaining / (float) job.frames : 0f;
+            entries.add(new Queued(job.unit, job.research, progress));
+        }
+        return entries;
     }
 
     /**
@@ -139,10 +245,10 @@ public final class ProductionUpdate extends UpdateModule {
 
     @Override
     public void update() {
-        var head = queue.peekFirst();
-        if (head == null) {
+        if (queue.isEmpty()) {
             return;
         }
+        var head = queue.getFirst();
         var world = getOwner().getWorld();
         if (!gatesAllow()) {
             return; // something attached to this factory is holding the line
@@ -154,6 +260,12 @@ public final class ProductionUpdate extends UpdateModule {
         queue.removeFirst();
 
         var owner = getOwner();
+        if (head.research != null) {
+            if (world instanceof RtsSimulation rts) {
+                rts.upgradeCompleted(owner, head.research);
+            }
+            return;
+        }
         if (world != null) {
             var produced = world.spawn(head.unit, exitPosition(world, owner, head.unit), owner.getPlayerIndex());
             if (rallyPoint != null) {
@@ -162,7 +274,7 @@ public final class ProductionUpdate extends UpdateModule {
                     ai.moveTo(rallyPoint);
                 }
             }
-            if (world instanceof uz.dukeengine.rts.RtsSimulation rts) {
+            if (world instanceof RtsSimulation rts) {
                 rts.produced(owner, produced);
             }
         }

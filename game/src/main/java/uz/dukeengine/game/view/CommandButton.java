@@ -30,6 +30,8 @@ package uz.dukeengine.game.view;
  * @param ghost     for a button that aims at a place, what to draw at the cursor while it is armed — the
  *                  name of a template, drawn as that template is drawn, or the path to a model. Null for no
  *                  ghost at all
+ * @param progress  how far along what the button stands for is, from 0 to 1, drawn as a shade over what is
+ *                  still to do; {@link #NO_PROGRESS} for a button that shows none
  * @param facing    which way the ghost faces until the player turns it, in the simulation's degrees — the
  *                  unit {@code GameMessage.Construct} takes, 0 along +x. A game that puts its buildings down
  *                  turned says so here: one RTS measured puts 254 of its 271 turned things down at -45 or
@@ -38,7 +40,10 @@ package uz.dukeengine.game.view;
  *                  angle and deliberately not the camera's, so it faces the player until he turns it
  */
 public record CommandButton(String id, String picture, String label, String hotkey, boolean available,
-        Aim aim, String ghost, float facing) {
+        Aim aim, String ghost, float facing, float progress) {
+
+    /** What {@link #progress} is for a button that shows none. */
+    public static final float NO_PROGRESS = -1f;
 
     /**
      * What a button needs from the player between being pressed and being sent.
@@ -58,6 +63,21 @@ public record CommandButton(String id, String picture, String label, String hotk
     public CommandButton {
         label = label == null ? "" : label;
         aim = aim == null ? Aim.NOW : aim;
+    }
+
+    /** A button with no progress to show: every button from before a queue could be drawn on the bar. */
+    public CommandButton(String id, String picture, String label, String hotkey, boolean available, Aim aim,
+            String ghost, float facing) {
+        this(id, picture, label, hotkey, available, aim, ghost, facing, NO_PROGRESS);
+    }
+
+    /**
+     * The same button showing how far along something is, from 0 to 1 — a unit or research at the head of a
+     * factory's queue ({@code ProductionUpdate.getEntries}), drawn with what is still to do shaded over it.
+     */
+    public CommandButton withProgress(float share) {
+        return new CommandButton(id, picture, label, hotkey, available, aim, ghost, facing,
+                Math.clamp(share, 0f, 1f));
     }
 
     /** A button sent the moment it is pressed. */

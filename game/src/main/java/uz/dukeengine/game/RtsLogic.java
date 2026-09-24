@@ -172,6 +172,20 @@ final class RtsLogic extends RtsSimulation {
             }
             case GameMessage.Construct build -> construct(build);
             case GameMessage.CancelConstruction cancel -> cancelConstruction(cancel);
+            case GameMessage.QueueResearch research -> {
+                var production = ownProduction(research.factory(), research.playerIndex());
+                var upgrade = findUpgrade(research.upgrade());
+                // the research list is the contract, as the build menu is for units
+                if (production != null && upgrade != null && production.canResearch(research.upgrade())) {
+                    production.queueResearch(upgrade);
+                }
+            }
+            case GameMessage.CancelProduction cancel -> {
+                var production = ownProduction(cancel.factory(), cancel.playerIndex());
+                if (production != null) {
+                    production.cancel(cancel.index());
+                }
+            }
         }
     }
 

@@ -41,6 +41,8 @@ final class CommandBar {
     /** Ready, and out of reach: a button that cannot be pressed is dimmed rather than taken away. */
     private static final ColorRGBA READY = new ColorRGBA(1f, 1f, 1f, 1f);
     private static final ColorRGBA BARRED = new ColorRGBA(0.4f, 0.4f, 0.4f, 0.7f);
+    /** What is still to do on a button showing progress. */
+    private static final ColorRGBA PROGRESS_SHADE = new ColorRGBA(0f, 0f, 0f, 0.6f);
 
     private final StoneCraft craft;
     private final BitmapFont font;
@@ -115,6 +117,14 @@ final class CommandBar {
                     BitmapFont.Align.Center);
             name.setText(shortened(button.label()));
             StoneCraft.attach(root, name, 0f, 0f, 2f);
+        }
+        if (button.progress() >= 0f && button.progress() < 1f) {
+            // What is still to do, shaded from the top down: the reference sweeps a clock over its queue icons.
+            float side = BUTTON - 8f;
+            var shade = craft.flat("progress", side, side * (1f - button.progress()), PROGRESS_SHADE);
+            shade.getMaterial().getAdditionalRenderState()
+                    .setBlendMode(com.jme3.material.RenderState.BlendMode.Alpha);
+            StoneCraft.attach(root, shade, x + 4f, y + 4f + side * button.progress(), 2.5f);
         }
         if (button.hotkey() != null && !button.hotkey().isEmpty()) {
             var key = craft.text(font, 11f, colour, x + 4f, y + 2f, BUTTON - 8f, BitmapFont.Align.Right);

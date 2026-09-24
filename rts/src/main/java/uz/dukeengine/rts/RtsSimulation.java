@@ -218,12 +218,107 @@ public abstract class RtsSimulation extends GameLogic {
         if (!player.withdraw(upgrade.cost())) {
             return false;
         }
+        finishForTheSide(playerIndex, upgrade, null);
+        return true;
+    }
+
+    // ---- upgrades researched ----
+
+    private final java.util.Map<String, Upgrade> upgrades = new java.util.LinkedHashMap<>();
+
+    /** The upgrades a building may research by name — {@code ProductionUpdate.Data.researches} links them. */
+    public final void addUpgrades(java.util.Collection<Upgrade> more) {
+        for (var upgrade : more) {
+            upgrades.put(upgrade.name(), upgrade);
+        }
+    }
+
+    /** The upgrade of this name, or {@code null}. */
+    public final Upgrade findUpgrade(String name) {
+        return name == null ? null : upgrades.get(name);
+    }
+
+    /** Whether the side has finished an upgrade of the side's by this name. */
+    public final boolean hasUpgrade(int playerIndex, String name) {
+        var player = getRtsPlayer(playerIndex);
+        return player != null && player.hasUpgrade(name);
+    }
+
+    /** Whether any building of the side has this upgrade queued: what greys its button out everywhere. */
+    public final boolean isUpgradeQueued(int playerIndex, String name) {
+        for (var object : getObjects()) {
+            if (object.getPlayerIndex() != playerIndex || object.isDestroyed()) {
+                continue;
+            }
+            var production = object.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
+            if (production != null && production.isResearching(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Research of {@code upgrade} is finished at {@code researcher}. The side's: recorded for the side with its
+     * effects, as {@link #purchaseUpgrade} records one, and on every thing of it. Its own: a word on the
+     * researcher alone. Either way the {@code UpgradeListener}s of what it reaches are told and an
+     * {@code UpgradeCompleted} is posted.
+     */
+    public final void upgradeCompleted(uz.dukeengine.core.thing.GameObject researcher, Upgrade upgrade) {
+        if (upgrade.scope() == Upgrade.Scope.PLAYER) {
+            finishForTheSide(researcher.getPlayerIndex(), upgrade, researcher);
+            return;
+        }
+        reach(researcher, upgrade.name());
+        post(new uz.dukeengine.rts.event.UpgradeCompleted(getFrame(), researcher.getPlayerIndex(), upgrade.name(),
+                researcher.getId(), false, researcher.getPosition()));
+    }
+
+    private void finishForTheSide(int playerIndex, Upgrade upgrade, uz.dukeengine.core.thing.GameObject researcher) {
+        var player = getRtsPlayer(playerIndex);
+        if (player == null || player.hasUpgrade(upgrade.name())) {
+            return;
+        }
         player.addUpgrade(upgrade.name());
         // Name order, so every machine compounds the same bonuses in the same
         // sequence — the effects map is sorted for exactly this reason.
         for (var effect : upgrade.effects().entrySet()) {
             player.multiplyBonus(effect.getKey(), effect.getValue());
         }
-        return true;
+        for (var object : getObjects()) {
+            if (object.getPlayerIndex() == playerIndex && !object.isDestroyed()) {
+                reach(object, upgrade.name());
+            }
+        }
+        post(new uz.dukeengine.rts.event.UpgradeCompleted(getFrame(), playerIndex, upgrade.name(),
+                researcher == null ? null : researcher.getId(), true,
+                researcher == null ? null : researcher.getPosition()));
+    }
+
+    /** An upgrade reaches a thing: its word holds for it, and its listeners are told. */
+    private static void reach(uz.dukeengine.core.thing.GameObject thing, String upgrade) {
+        thing.setCondition(upgrade);
+        for (var module : thing.getModules()) {
+            if (module instanceof uz.dukeengine.rts.module.UpgradeListener listener) {
+                listener.onUpgrade(upgrade);
+            }
+        }
+    }
+
+    /**
+     * A thing made for a side is made with the side's upgrades: their words, and its listeners told, in name
+     * order — as the reference runs a new object's upgrade modules.
+     */
+    @Override
+    public uz.dukeengine.core.thing.GameObject spawn(uz.dukeengine.core.thing.ThingTemplate template,
+            uz.dukeengine.core.math.Coord3D position, int playerIndex) {
+        var thing = super.spawn(template, position, playerIndex);
+        var player = getRtsPlayer(playerIndex);
+        if (player != null) {
+            for (var upgrade : player.getUpgrades()) {
+                reach(thing, upgrade);
+            }
+        }
+        return thing;
     }
 }
