@@ -166,23 +166,31 @@ final class Sounds {
      * @param owned whether the thing it is about is the listening player's
      */
     boolean play(String cueName, Vector3f at, float now, boolean owned) {
+        return start(cueName, at, now, owned, false) != null;
+    }
+
+    /**
+     * Raise a moment, the cue's every rule kept: null where nothing played, else what plays — held on to where
+     * {@code keep} asks or the cue cuts off the last of itself, {@link SoundSink.Playing#NONE} otherwise.
+     */
+    private SoundSink.Playing start(String cueName, Vector3f at, float now, boolean owned, boolean keep) {
         var cue = bank.find(cueName);
-        if (cue == null) {
-            return false;
+        if (cue == null || cue.files().isEmpty()) {
+            return null;
         }
         if (cue.audience() == SoundBank.Audience.OWNER && !owned) {
-            return false; // his voice, and not this player's to hear
+            return null; // his voice, and not this player's to hear
         }
         if (gainOf(cue) <= 0f) {
-            return false; // turned off; not worth choosing a file for
+            return null; // turned off; not worth choosing a file for
         }
         if (cue.channel() == SoundBank.Channel.VOICE
                 && now - lastVoiceAt < voiceGapSeconds) {
-            return false; // she is still speaking
+            return null; // she is still speaking
         }
         var last = lastPlayed.get(cue.name());
         if (cue.gapSeconds() > 0f && last != null && now - last < cue.gapSeconds()) {
-            return false;
+            return null;
         }
         lastPlayed.put(cue.name(), now);
         if (cue.channel() == SoundBank.Channel.VOICE) {
@@ -193,11 +201,15 @@ final class Sounds {
             if (cutOff != null) {
                 cutOff.stop();
             }
-            lastOf.put(cue.name(), sink.playStoppable(pick(cue), gainOf(cue), cue.positional() ? at : null));
-            return true;
+            var playing = sink.playStoppable(pick(cue), gainOf(cue), cue.positional() ? at : null);
+            lastOf.put(cue.name(), playing);
+            return playing;
+        }
+        if (keep) {
+            return sink.playStoppable(pick(cue), gainOf(cue), cue.positional() ? at : null);
         }
         sink.play(pick(cue), gainOf(cue), cue.positional() ? at : null);
-        return true;
+        return SoundSink.Playing.NONE;
     }
 
     /**
@@ -214,6 +226,33 @@ final class Sounds {
             return false;
         }
         return play(cueName, null, now, true);
+    }
+
+    /** Played flat and waited on: what plays, and who is told when it has played out. */
+    private record Ending(SoundSink.Playing sound, Runnable ended) {
+    }
+
+    private final java.util.List<Ending> endings = new java.util.ArrayList<>();
+
+    /**
+     * The same, and {@code ended} told — from {@link #update}, on the window's thread — once what it played has played
+     * out, as the reference's EVA waits on {@code isCurrentlyPlaying} before its next line. At once where it played
+     * nothing: a name the game never wrote, a cue with no file, one held back by its gap or turned off — or a sink that
+     * cannot say when a sound ends. A cue that cuts off the last of itself ends that one as the next begins.
+     */
+    boolean flat(String cueName, float now, Runnable ended) {
+        if (bank.find(cueName) == null) {
+            flat(cueName, now); // said once, as any unknown name is
+            ended.run();
+            return false;
+        }
+        var sound = start(cueName, null, now, true, true);
+        if (sound == null || sound == SoundSink.Playing.NONE) {
+            ended.run();
+            return sound != null;
+        }
+        endings.add(new Ending(sound, ended));
+        return true;
     }
 
     /**
@@ -365,6 +404,7 @@ final class Sounds {
 
     /** Time passing, for whatever is fading. */
     void update(float seconds) {
+        tellWhatEnded();
         for (var going = fades.iterator(); going.hasNext(); ) {
             var fade = going.next();
             fade.elapsed += seconds;
@@ -387,6 +427,22 @@ final class Sounds {
         if (!playlist.isEmpty() && (track.ended() || track == SoundSink.Playing.NONE)) {
             inTurn = (inTurn + 1) % playlist.size();
             change(cue(playlist.get(inTurn)), 0f, 0f, false);
+        }
+    }
+
+    /** Everyone waiting on a sound that has now played out, told — after the list is walked, as one may play another. */
+    private void tellWhatEnded() {
+        java.util.List<Runnable> told = null;
+        for (var waiting = endings.iterator(); waiting.hasNext(); ) {
+            var ending = waiting.next();
+            if (ending.sound().ended()) {
+                waiting.remove();
+                told = told == null ? new java.util.ArrayList<>() : told;
+                told.add(ending.ended());
+            }
+        }
+        if (told != null) {
+            told.forEach(Runnable::run);
         }
     }
 

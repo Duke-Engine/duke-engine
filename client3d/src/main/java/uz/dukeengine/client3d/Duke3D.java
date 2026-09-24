@@ -223,6 +223,17 @@ public final class Duke3D {
     }
 
     /**
+     * The same, and {@code ended} told on the window's thread once what it played has played out — or at once where it
+     * played nothing: a name the game never wrote, a cue with no file, one held back by its gap or turned off. What a
+     * game that speaks one line at a time waits on before the next, as the reference's EVA waits on
+     * {@code isCurrentlyPlaying}. A cue that cuts off the last of itself ends that one as the next begins.
+     */
+    public void sound(String cue, Runnable ended) {
+        java.util.Objects.requireNonNull(ended, "ended");
+        later(client -> client.playFlat(cue, ended));
+    }
+
+    /**
      * How loud a cue plays from now on against its own loudness, until changed: 1 is its own, 0 silences it, 6
      * six times as loud (as loud as the sound device goes).
      */

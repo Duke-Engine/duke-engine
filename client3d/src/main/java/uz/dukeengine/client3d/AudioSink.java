@@ -64,6 +64,8 @@ final class AudioSink implements SoundSink {
      * of its own, and stopping the node stops it.
      */
     private final Map<String, AudioNode> stoppable = new HashMap<>();
+    /** How many times each stoppable file has been started: a handle's turn is over once it is started again. */
+    private final Map<String, Integer> turns = new HashMap<>();
 
     @Override
     public Playing playStoppable(String assetPath, float gain, Vector3f at) {
@@ -81,7 +83,20 @@ final class AudioSink implements SoundSink {
         }
         node.play();
         var playing = node;
-        return playing::stop;
+        int turn = turns.merge(assetPath, 1, Integer::sum);
+        return new Playing() {
+            @Override
+            public void stop() {
+                playing.stop();
+            }
+
+            /** Played out, stopped, or started again for a later play of the same file: its turn is over. */
+            @Override
+            public boolean ended() {
+                return playing.getStatus() == com.jme3.audio.AudioSource.Status.Stopped
+                        || turns.get(assetPath) != turn;
+            }
+        };
     }
 
     /**

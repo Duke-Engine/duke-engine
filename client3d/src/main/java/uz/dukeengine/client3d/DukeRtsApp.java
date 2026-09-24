@@ -941,6 +941,11 @@ final class DukeRtsApp extends SimpleApplication {
         noises.sounds().flat(cue, timer.getTimeInSeconds());
     }
 
+    /** The same, and told when it has played out — see {@link Duke3D#sound(String, Runnable)}. */
+    void playFlat(String cue, Runnable ended) {
+        noises.sounds().flat(cue, timer.getTimeInSeconds(), ended);
+    }
+
     /** See {@link Duke3D#cueVolume}. */
     void cueVolume(String cue, float multiplier) {
         noises.sounds().cueVolume(cue, multiplier);
