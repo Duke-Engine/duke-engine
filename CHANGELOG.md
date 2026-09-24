@@ -21,10 +21,115 @@ when it does, this page says exactly what to change and how.
 - The client reads its own keys from a `KeyMap`, `KeyMap.standard()` unless the game gives one — the keys it
   always had. Two things are new with it: a letter the command bar shows on a button presses that button (after
   the game's own letters and its map), and Enter or Space put the camera on the player's own units at once.
+- `World.findPath` may answer `null`: the frame's path searching is spent, and the mover asks again next frame.
+  `MoveUpdate` waits its turn walking the route it had; a module of a game's own that asks for a route does the
+  same.
+- A `PursueUpdate` with `RepathFrames = 0` planned again every frame; it now plans only when it must — no route
+  yet, the target more than a cell from where it planned to, the route used up. A number keeps it on a schedule
+  besides, staggered by id.
+- Every blow that does harm posts `ObjectHurt`, before any `ObjectDied` it causes: code that took the first event
+  of a blow for its death filters for `ObjectDied`.
+- `NetMessage` has `LoadProgress`: a `switch` over it with no `default` needs the case. Machines of a network game
+  run the same engine, and the welcome line now carries the host's settings encoded.
+- A `SoundSink`'s music is a handle it hands back (`Playing music(path, gain)`), which is what lets one track fade
+  while the next plays; the interface is the client's own, so only a test's sink changes.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
-  `HarvestUpdate.Data`, `WeaponFired`, `Weapon`, `WorldSnapshot`, `SoundBank.Cue`, `Sound` — and every new
-  field left out means what the old record did. `ProjectileLauncher.launch(shooter, victim, damage, type)` and
-  `DieModule.onDie()` are still called, through the forms that now say more.
+  `HarvestUpdate.Data`, `WeaponFired`, `Weapon`, `WorldSnapshot`, `SoundBank.Cue`, `Sound`, `UnitView`,
+  `CommandButton`, `Upgrade`, `ProductionUpdate.Data` — and every new field left out means what the old record did.
+  `ProjectileLauncher.launch(shooter, victim, damage, type)` and `DieModule.onDie()` are still called, through the
+  forms that now say more. The static `Duke3D.launch` methods are shorthand for `Duke3D.of(game, visuals)...launch()`.
+
+### A factory says what came out of it, and a site says when it is done
+
+`ProductionListener.onProduced(unit)` on a factory's own modules, `ConstructionListener.onConstructed(builder,
+building)` on the building's the frame `UNDER_CONSTRUCTION` clears, and the same two for a game's code:
+`DukeGame.onProduced` and `onConstructed` (or `RtsSimulation`'s). On the simulation thread, in the order things
+happen. `ProductionUpdate.getEntries()` lists the queue, units and research, in order.
+
+### Research in a factory's queue
+
+An `Upgrade` may take `Frames` to research and be `PLAYER` (side-wide, and every thing the side makes later gets
+it) or `OBJECT` (the researcher alone). `ProductionUpdate.Data.researches` names what a building researches;
+`GameMessage.QueueResearch` puts one in the queue beside the units, paid for when accepted, and
+`CancelProduction(index)` takes any entry out with its money. `UpgradeListener` and `UpgradeCompleted` say when it
+is done; `CommandButton.progress` shades a button while its entry is under way.
+
+### A thing hurt, as a moment
+
+`ObjectHurt` — who, how much after armour, the damage type, the blow's point on the victim nearest the attacker,
+and who dealt it — posted by `BodyModule` for every blow that does harm. The client plays
+`hurt.<template>.<type>.<major|minor>` (`Visuals.hurt`, the line between the two a game's rule), falling back as
+every moment's name does.
+
+### A thing drawn at its own height, pitched and rolled
+
+`GameObject` keeps a pitch, a roll and whether it keeps its own height; `UnitView` carries them with its `z`, and
+the client draws a thing there — on the ground where it follows the ground, at its own height where it says so.
+
+### Moving through the air
+
+`FlyUpdate` is a locomotor for what flies, hovering or winged: a height it climbs to at its rate and holds, its
+speed, acceleration, braking and turn rate, and for a winged one a least speed it circles at rather than stopping —
+`ObjectStatus.AIRBORNE` while aloft. `Locomotor` has `moveTo`, `stop`, `isMoving`,
+`stoppedShort` and `flies`, and `GameObject.getLocomotor()` finds whichever a thing has, so an order, a factory's
+rally point and a pursuit treat a flyer as they treat a walker. Nothing aloft blocks the ground.
+
+### Pathfinding a game can afford
+
+A frame's path searches are held to a budget of cells — the reference's `PATHFIND_CELLS_PER_FRAME`, 5000,
+`GameLogic.setPathfindBudget` — a search started only while the frame is under it and run to its end once
+started; a mover refused waits its turn. `getCellsExaminedLastFrame()` says what a frame cost. The grid keeps its
+connected `Zones`, recomputed when its shape changes: a goal in another zone is known to be out of reach at once,
+and the search goes straight for the nearest cell of the mover's own zone; `standingNextTo` asks the zones instead
+of searching. Eighty units chasing each other across walls cost 0.7 ms a frame.
+
+### A canvas a game draws on, and the input under it
+
+`Canvas`: pictures (a file or a part of an atlas, held a quarter turn or not, modulated by a colour, blended by
+alpha, added, laid solid or in grey), filled and outlined rectangles, triangles, lines with a gradient, a clip
+rectangle, and text in a `Canvas.Font` — a system font or a font file, a pixel height, bold, an average width it
+is condensed to as Windows condenses a face, and a wide face for code points from 256 up. Clipped exactly, the
+picture with its quad; drawn in call order over the world and the client's HUD by the game's `Painter`, every
+frame, told the screen's size. `CanvasInput` sees the raw input first — pointer, buttons with double clicks,
+wheel, keys with repeats, typed code points — and what it takes goes no further. `Duke3D.of(game,
+visuals).canvas(painter).input(input)`.
+
+`Shell.drawnByTheGame()` hides every menu and all of the client's HUD and opens on the game's front end.
+`Duke3D.startMatch(match)` plays a match the game built from its own setup — a fresh `DukeGame` each time, a
+match being played once — and `frontEnd()` ends it and goes back. A game with its own lobby hosts and joins with
+`MultiplayerSession`, whose settings reach the guests whole, and attaches the session with
+`DukeGame.multiplayer(session)`; `DukeGame.observe()` is a seat that watches.
+
+### A sound the game plays itself, and how loud each kind is
+
+`Duke3D.sound(cue)` plays a cue now and flat, on its own channel, with the cue's other rules kept; a name the bank
+does not have plays nothing and is logged once. `cueVolume(cue, multiplier)` holds until changed, and
+`volume(channel, v)` is the game's volume for a channel, multiplied with the player's own, as the reference
+multiplies its script and system volumes. From any thread.
+
+### A world behind the front end
+
+`Duke3D.backdrop(recipe)` runs a match behind the front end — made fresh each time the front end is shown,
+watched, the canvas over it, torn down when a match starts; `DukeGame.randomSeed(seed)` makes it play the same way
+every time. `DukeGame.camera()` is the camera as the game drives it, from its own code on the simulation thread,
+stepped once a logic frame: `moveTo(x, y, frames)` in a straight line at an even pace keeping pitch and zoom,
+`lookToward(x, y)` to end the move facing a point, `angle`, `pitch`, `zoom`, `current()`, and `release()` to give
+it back; while the game has it, `WorldSnapshot.camera` carries it and the player's controls wait.
+`Duke3D.music(track)` plays a track by its cue, the old one fading out over two seconds.
+
+### A movie
+
+`Duke3D.playMovie(movie, ended)`: a `Movie` is a zip of pictures in order, a rate and a sound, stretched over the
+window or into a rectangle, under the canvas. Read ahead on a thread of its own; the sound keeps the time; the game
+is told when the last picture's time is up; `holdingItsLastFrame()` stays on it until `stopMovie()`.
+
+### Loading, drawn and told
+
+A match is built on a thread of its own while the window draws. `Duke3D.onLoading(percent)` hears 0 to 100, rising,
+each figure once, the canvas painted after every one — building the match the first 40, as `DukeGame.boot(progress)`
+says its steps, reading the art the rest. `holdMatchStart(true)` keeps a loaded match at 100, not a frame of it
+stepped, until `releaseMatchStart()`. In a network game every machine's figure reaches the others:
+`DukeGame.onPeerLoadProgress`.
 
 ### A spot beside a thing that a mover can actually reach
 
