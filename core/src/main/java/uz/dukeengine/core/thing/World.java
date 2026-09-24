@@ -117,7 +117,8 @@ public interface World {
 
     /**
      * A route for {@code mover} to {@code to}, wide enough for its body and
-     * pulled straight wherever it can see ahead.
+     * pulled straight wherever it can see ahead — or {@code null} where the frame's
+     * searching is spent and it has to wait its turn: asked again next frame, it gets one.
      *
      * <p>The version to use for anything that actually walks. A path found for a
      * point grazes corners the mover then collides with, and comes out of cell

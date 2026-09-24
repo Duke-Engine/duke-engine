@@ -4,7 +4,7 @@ import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
-import uz.dukeengine.core.module.MoveUpdate;
+import uz.dukeengine.core.module.Locomotor;
 import uz.dukeengine.core.module.UpdateModule;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.World;
@@ -24,8 +24,10 @@ import uz.dukeengine.core.thing.World;
  *
  * @param giveUpBeyond how far it will stray from where it took the target before letting go; 0 is as far as
  *     it takes, which is what a pursuing unit does in a game with no leash
- * @param repathFrames how often it asks again where the target has got to. Every frame is a path a frame, and
- *     a target that has not moved is a path that has not changed; 0 means every frame
+ * @param repathFrames how often it plans again anyway, to keep up, staggered by the unit's id so a crowd does not
+ *     plan on the same frame. It plans whenever it must besides: when it has no route to the target yet, when the
+ *     target has moved more than a cell from where the route was planned to, and when the route is used up. 0 is
+ *     only when it must — a unit closing on something that stands still plans once
  */
 @ModuleGroup(ModuleGroups.COMBAT)
 public final class PursueUpdate extends UpdateModule {
@@ -38,7 +40,10 @@ public final class PursueUpdate extends UpdateModule {
 
     /** Where it stood when it took its current target, so a leash is measured from there and not from home. */
     private Coord3D tookItFrom;
-    private int since;
+    /** Where the target stood when the route to it was planned, or null for no route to it yet. */
+    private Coord3D plannedFor;
+    /** How many routes it has planned, for a test to count. */
+    private int plans;
 
     public PursueUpdate(GameObject owner, Data data) {
         super(owner);
@@ -58,6 +63,7 @@ public final class PursueUpdate extends UpdateModule {
         var victim = weapon.getTarget() == null ? null : world.findObject(weapon.getTarget());
         if (victim == null || victim.isEffectivelyDead()) {
             tookItFrom = null;
+            plannedFor = null;
             return;
         }
         if (tookItFrom == null) {
@@ -69,21 +75,48 @@ public final class PursueUpdate extends UpdateModule {
             if (legs.isMoving()) {
                 legs.stop();
             }
-            since = 0;
+            plannedFor = null;
             return;
         }
         if (giveUpBeyond > 0f && tookItFrom.distance(owner.getPosition()) > giveUpBeyond) {
             weapon.holdFire();
             legs.stop();
             tookItFrom = null;
+            plannedFor = null;
             return;
         }
-        if (since > 0 && since < repathFrames) {
-            since++;
+        if (!mustPlan(owner, legs, victim, world)) {
             return;
         }
-        since = 1;
+        plannedFor = victim.getPosition();
+        plans++;
         // Something in the air goes straight to it; something on the ground to a spot beside it it can reach.
         legs.moveTo(legs.flies() ? victim.getPosition() : world.standingNextTo(owner, victim));
+    }
+
+    /**
+     * Whether to plan a route now: none yet, the target more than a cell from where the route was planned to, the
+     * route used up without its giving up short, or — every {@code repathFrames} frames, staggered by id — to keep up.
+     */
+    private boolean mustPlan(GameObject owner, Locomotor legs, GameObject victim, World world) {
+        if (plannedFor == null) {
+            return true;
+        }
+        var at = victim.getPosition();
+        float dx = at.x() - plannedFor.x();
+        float dy = at.y() - plannedFor.y();
+        float cell = world.cellSize();
+        if (dx * dx + dy * dy > cell * cell) {
+            return true;
+        }
+        if (!legs.isMoving() && !legs.stoppedShort()) {
+            return true;
+        }
+        return repathFrames > 0 && Math.floorMod(world.getFrame() + owner.getId().value(), repathFrames) == 0;
+    }
+
+    /** How many routes it has planned since it was made. */
+    int plans() {
+        return plans;
     }
 }

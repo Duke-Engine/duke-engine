@@ -53,6 +53,19 @@ public final class Pathfinder {
     private Pathfinder() {
     }
 
+    /**
+     * The cells searches examined, added up — what a world holds a frame's searching to, as the reference holds
+     * it to {@code PATHFIND_CELLS_PER_FRAME}.
+     */
+    public static final class Tally {
+        private int cells;
+
+        /** How many cells the searches it was handed examined. */
+        public int cells() {
+            return cells;
+        }
+    }
+
     /** Find a path for something with no width — a marker, a camera, a test. */
     public static Path findPath(PathGrid grid, Coord3D from, Coord3D to) {
         return findPath(grid, from, to, 0f);
@@ -75,9 +88,9 @@ public final class Pathfinder {
         if (grid.isBlocked(grid.toCellX(from), grid.toCellY(from))) {
             return escape(grid, from);
         }
-        var path = search(grid, from, to, clearance, false);
+        var path = search(grid, from, to, clearance, false, null);
         if (path.isEmpty() && clearance > 0f) {
-            path = search(grid, from, to, 0f, false);
+            path = search(grid, from, to, 0f, false, null);
         }
         return path;
     }
@@ -98,14 +111,45 @@ public final class Pathfinder {
      * way there, and of two routes that both stop short, the one that stops nearer — room winning a tie.
      */
     public static Path findPathOrNearest(PathGrid grid, Coord3D from, Coord3D to, float clearance) {
-        if (grid.isBlocked(grid.toCellX(from), grid.toCellY(from))) {
+        return findPathOrNearest(grid, from, to, clearance, null, null);
+    }
+
+    /**
+     * The same, knowing the grid's {@link Zones}: a goal in another zone than the mover's is known to be out of
+     * reach at once, and the search goes straight for the cell of the mover's zone nearest it — rather than walking
+     * every cell it can reach to find that out.
+     *
+     * @param zones the grid's zones as it stands, or {@code null} to search as before
+     * @param tally where the cells the search examined are added, or {@code null}
+     */
+    public static Path findPathOrNearest(PathGrid grid, Coord3D from, Coord3D to, float clearance, Zones zones,
+            Tally tally) {
+        int startX = grid.toCellX(from);
+        int startY = grid.toCellY(from);
+        if (grid.isBlocked(startX, startY)) {
             return escape(grid, from);
         }
-        var path = search(grid, from, to, clearance, true);
+        int goalX = grid.toCellX(to);
+        int goalY = grid.toCellY(to);
+        int zone = zones == null ? -1 : zones.zoneOf(startX, startY);
+        if (zone >= 0 && !zones.connected(startX, startY, goalX, goalY)) {
+            int nearest = zones.nearestIn(zone, goalX, goalY, startX, startY);
+            int width = grid.getWidth();
+            if (nearest == startY * width + startX) {
+                return Path.partial(List.of()); // nowhere nearer than where it stands
+            }
+            var there = grid.cellCenter(nearest % width, nearest / width);
+            var way = search(grid, from, there, clearance, false, tally);
+            if (way.isEmpty() && clearance > 0f) {
+                way = search(grid, from, there, 0f, false, tally);
+            }
+            return Path.partial(way.getWaypoints());
+        }
+        var path = search(grid, from, to, clearance, true, tally);
         if (path.reachesGoal() || clearance <= 0f) {
             return path;
         }
-        var squeezed = search(grid, from, to, 0f, true);
+        var squeezed = search(grid, from, to, 0f, true, tally);
         if (squeezed.reachesGoal()) {
             return squeezed;
         }
@@ -276,7 +320,8 @@ public final class Pathfinder {
      * none: the search has walked every cell it could reach by the time it gives up, so the answer costs
      * nothing more than the failure did.
      */
-    private static Path search(PathGrid grid, Coord3D from, Coord3D to, float clearance, boolean orNearest) {
+    private static Path search(PathGrid grid, Coord3D from, Coord3D to, float clearance, boolean orNearest,
+            Tally tally) {
         int startX = grid.toCellX(from);
         int startY = grid.toCellY(from);
         int goalX = grid.toCellX(to);
@@ -318,6 +363,9 @@ public final class Pathfinder {
             }
             if (closed[current]) {
                 continue; // stale entry from a superseded g-score
+            }
+            if (tally != null) {
+                tally.cells++;
             }
             closed[current] = true;
 

@@ -76,6 +76,11 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     private boolean stoppedShort;
     /** Whether a route that stopped short has had its one fresh look from where it ended. */
     private boolean lookedAgain;
+    /**
+     * Whether it asked for a route while the frame's searching was spent, and waits its turn: it keeps walking the
+     * route it had, or stands, and asks again each frame until it is given one.
+     */
+    private boolean waiting;
 
     public MoveUpdate(GameObject owner, Data data) {
         super(owner);
@@ -99,8 +104,12 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         this.stoppedShort = false;
         this.lookedAgain = false;
         planRoute();
-        if (!isMoving() && !goalReachable) {
-            // Nowhere nearer than where it stands: that is already as near as it gets.
+        nowhereNearer();
+    }
+
+    /** A route given that leads nowhere nearer than where it stands: that is already as near as it gets. */
+    private void nowhereNearer() {
+        if (!waiting && !isMoving() && !goalReachable) {
             lookedAgain = true;
             stoppedShort = true;
         }
@@ -117,6 +126,11 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             // back straightened rather than as a walk of cell centres — and, where
             // there is no way there, as a route to the nearest place there is one.
             var path = world.findPath(getOwner(), destination);
+            if (path == null) {
+                waiting = true; // the frame's searching is spent: the old route, or standing, until its turn
+                return;
+            }
+            waiting = false;
             this.waypoints = path.getWaypoints();
             this.goalReachable = path.reachesGoal();
             this.navigationVersion = world.getNavigationVersion();
@@ -163,6 +177,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     /** Cancel any current move. */
     public void stop() {
+        this.waiting = false;
         this.waypoints = List.of();
         this.waypointIndex = 0;
         this.destination = null;
@@ -176,7 +191,12 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     }
 
     public boolean isMoving() {
-        return waypointIndex < waypoints.size();
+        return waiting || waypointIndex < waypoints.size();
+    }
+
+    /** Whether it is waiting its turn for a route; see {@link #waiting}. */
+    public boolean isWaitingForRoute() {
+        return waiting;
     }
 
     /** Where the unit was ordered to go, or {@code null} if it has no orders. */
@@ -194,6 +214,18 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             return; // dead, inside a transport, or frozen — cannot move
         }
         float step = owner.hasStatus(ObjectStatus.SLOWED) ? stepPerFrame * 0.5f : stepPerFrame;
+
+        if (waiting) {
+            planRoute(); // its turn, if this frame's searching has room for it
+            if (!waiting && !isMoving()) {
+                nowhereNearer();
+                routeWalked();
+                return;
+            }
+        }
+        if (waypointIndex >= waypoints.size()) {
+            return; // still waiting, and no old route to walk meanwhile
+        }
 
         if (routeIsStale(owner)) {
             planRoute(); // something was built or destroyed across the way — think again

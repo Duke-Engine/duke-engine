@@ -58,6 +58,8 @@ public final class PathGrid {
     private final boolean[] obstacle;        // objects: the committed layer everyone reads
     private final boolean[] obstacleScratch; // objects: the layer being rebuilt
     private int obstacleVersion;
+    /** Bumped whenever anything that decides where can be walked changes: see {@link #getShapeVersion}. */
+    private int shapeVersion;
     private final int[] level;               // which floor this cell stands on; 0 everywhere
     private final boolean[] ramp;            // cells that link one level to the next
     private float levelHeight;               // world units per level; 0 = the world is flat
@@ -118,8 +120,9 @@ public final class PathGrid {
     }
 
     public void setBlocked(int cx, int cy, boolean value) {
-        if (inBounds(cx, cy)) {
+        if (inBounds(cx, cy) && blocked[cy * width + cx] != value) {
             blocked[cy * width + cx] = value;
+            shapeVersion++;
         }
     }
 
@@ -157,6 +160,15 @@ public final class PathGrid {
         }
         System.arraycopy(obstacleScratch, 0, obstacle, 0, obstacle.length);
         obstacleVersion++;
+        shapeVersion++;
+    }
+
+    /**
+     * Increments whenever anything that decides where a body can walk changes — terrain, what stands on it, a
+     * level or a ramp, the relief's cliffs. What {@link Zones} are recomputed by.
+     */
+    public int getShapeVersion() {
+        return shapeVersion;
     }
 
     // ---- height ----
@@ -170,8 +182,9 @@ public final class PathGrid {
     }
 
     public void setLevel(int cx, int cy, int value) {
-        if (inBounds(cx, cy)) {
+        if (inBounds(cx, cy) && level[cy * width + cx] != value) {
             level[cy * width + cx] = value;
+            shapeVersion++;
         }
     }
 
@@ -186,6 +199,7 @@ public final class PathGrid {
     public void setRamp(int cx, int cy, boolean value) {
         if (inBounds(cx, cy)) {
             ramp[cy * width + cx] = value;
+            shapeVersion++;
         }
     }
 
@@ -212,6 +226,7 @@ public final class PathGrid {
     }
 
     public void setRelief(HeightMap relief) {
+        shapeVersion++;
         if (relief != null && (relief.columns() != width + 1 || relief.rows() != height + 1)) {
             throw new IllegalArgumentException("a relief over " + width + "x" + height + " cells is "
                     + (width + 1) + "x" + (height + 1) + " corners, not " + relief.columns() + "x" + relief.rows());
@@ -332,6 +347,11 @@ public final class PathGrid {
      * <p>On a flat grid the level test is {@code 0 == 0} for every pair, so this
      * is the passability check that was here before it.
      */
+    /** Whether the relief makes this cell a cliff, which nothing can step onto. */
+    public boolean isCliff(int cx, int cy) {
+        return relief != null && relief.isCliff(cx, cy);
+    }
+
     public boolean canStep(int fromX, int fromY, int toX, int toY) {
         if (isBlocked(fromX, fromY) || isBlocked(toX, toY)) {
             return false;

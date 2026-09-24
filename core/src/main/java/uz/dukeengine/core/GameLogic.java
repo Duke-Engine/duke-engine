@@ -444,8 +444,60 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             return new Path(List.of(to));
         }
         refreshStaticObstacles();
-        return Pathfinder.findPathOrNearest(pathGrid, mover.getPosition(), to,
-                Solid.of(mover.getTemplate()).footprintRadius());
+        if (cellsThisFrame >= pathfindBudget) {
+            return null; // the frame's searching is spent: it waits for the next
+        }
+        // A search once started runs to its end, as the reference's do (processPathfindQueue starts one only while
+        // the frame's total is under PATHFIND_CELLS_PER_FRAME): a frame goes over by one search at most, and no
+        // search is thrown away half done to be started again.
+        var tally = new Pathfinder.Tally();
+        var path = Pathfinder.findPathOrNearest(pathGrid, mover.getPosition(), to,
+                Solid.of(mover.getTemplate()).footprintRadius(), zones(), tally);
+        cellsThisFrame += tally.cells();
+        return path;
+    }
+
+    // ---- what searching costs ----
+
+    /** SAGE's {@code PATHFIND_CELLS_PER_FRAME} (AIPathfind.cpp): the cells a frame's path searches may examine. */
+    public static final int DEFAULT_PATHFIND_BUDGET = 5000;
+
+    private int pathfindBudget = DEFAULT_PATHFIND_BUDGET;
+    private int cellsThisFrame;
+    private int cellsLastFrame;
+    private uz.dukeengine.core.pathfind.Zones zones;
+
+    /**
+     * How many cells a frame's path searches may examine before the rest wait for the next frame — a mover
+     * waiting keeps the route it had, or stands. A search is started only while the frame is under it, and runs to
+     * its end once started. The same on every machine; 5000 unless the game says otherwise.
+     */
+    public final void setPathfindBudget(int cells) {
+        this.pathfindBudget = Math.max(1, cells);
+    }
+
+    public final int getPathfindBudget() {
+        return pathfindBudget;
+    }
+
+    /** How many cells the last whole frame's path searches examined. */
+    public final int getCellsExaminedLastFrame() {
+        return cellsLastFrame;
+    }
+
+    /**
+     * The grid's connected zones as it stands — recomputed when anything that decides where can be walked has
+     * changed ({@link PathGrid#getShapeVersion}). Null for a world with no grid.
+     */
+    public final uz.dukeengine.core.pathfind.Zones zones() {
+        if (pathGrid == null) {
+            return null;
+        }
+        refreshStaticObstacles();
+        if (zones == null || !zones.isCurrent(pathGrid)) {
+            zones = uz.dukeengine.core.pathfind.Zones.of(pathGrid);
+        }
+        return zones;
     }
 
     /**
@@ -470,23 +522,48 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         if (pathGrid == null || isBeside(who, what)) {
             return straight;
         }
-        refreshStaticObstacles();
-        float clearance = Solid.of(who.getTemplate()).footprintRadius();
-        int cx = pathGrid.toCellX(straight);
-        int cy = pathGrid.toCellY(straight);
-        // The spot will do if it can be stood on and walked to. The walk is the search's to say, and on open
-        // ground the search finds it at once; only a spot on stone is not worth asking about.
-        if (!pathGrid.isBlocked(cx, cy)
-                && Pathfinder.findPath(pathGrid, who.getPosition(), straight, clearance).reachesGoal()) {
+        var zones = zones();
+        var from = who.getPosition();
+        int fromX = pathGrid.toCellX(from);
+        int fromY = pathGrid.toCellY(from);
+        if (pathGrid.isBlocked(fromX, fromY)) {
+            // Standing in stone, it steps out first: what it can reach is what that cell can.
+            var way = nearestOpenCentre(from);
+            if (way == null) {
+                return straight;
+            }
+            fromX = pathGrid.toCellX(way);
+            fromY = pathGrid.toCellY(way);
+        }
+        int zone = zones.zoneOf(fromX, fromY);
+        // The spot will do if it can be stood on and walked to — which its zone says at once, where it used to take a
+        // search each time, and every frame for a unit closing on something.
+        if (zones.zoneOf(pathGrid.toCellX(straight), pathGrid.toCellY(straight)) == zone && zone >= 0) {
             return straight;
         }
-        var reached = Pathfinder.reachableFrom(pathGrid, who.getPosition(), clearance);
-        var beside = besideCellNearest(who, what, straight, reached);
-        return beside != null ? beside : reachableNearest(straight, reached);
+        var beside = besideCellNearest(who, what, straight, zones, zone);
+        return beside != null ? beside : reachableNearest(straight, zones, zone, fromX, fromY);
     }
 
-    /** Of the cells beside {@code what} that can be reached, the one nearest {@code wanted}; null for none. */
-    private Coord3D besideCellNearest(GameObject who, GameObject what, Coord3D wanted, boolean[] reached) {
+    /** The centre of the open cell nearest a point in stone, in rings outward, or null for none near. */
+    private Coord3D nearestOpenCentre(Coord3D from) {
+        int cx = pathGrid.toCellX(from);
+        int cy = pathGrid.toCellY(from);
+        for (int ring = 1; ring <= 8; ring++) {
+            for (int dy = -ring; dy <= ring; dy++) {
+                for (int dx = -ring; dx <= ring; dx++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dy)) == ring && !pathGrid.isBlocked(cx + dx, cy + dy)) {
+                        return pathGrid.cellCenter(cx + dx, cy + dy);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Of the cells beside {@code what} in the zone {@code zone}, the one nearest {@code wanted}; null for none. */
+    private Coord3D besideCellNearest(GameObject who, GameObject what, Coord3D wanted,
+            uz.dukeengine.core.pathfind.Zones zones, int zone) {
         var target = Footprint.of(what);
         float reach = target.shape().footprintRadius() + Solid.of(who.getTemplate()).footprintRadius()
                 + 2f * pathGrid.getCellSize();
@@ -499,7 +576,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         float nearest = Float.MAX_VALUE;
         for (int y = fromY; y <= toY; y++) {
             for (int x = fromX; x <= toX; x++) {
-                if (!pathGrid.inBounds(x, y) || !reached[y * pathGrid.getWidth() + x]) {
+                if (zone < 0 || zones.zoneOf(x, y) != zone) {
                     continue;
                 }
                 var centre = pathGrid.cellCenter(x, y);
@@ -517,22 +594,12 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return best;
     }
 
-    /** The reachable cell nearest {@code wanted}, or {@code wanted} where nothing at all can be reached. */
-    private Coord3D reachableNearest(Coord3D wanted, boolean[] reached) {
-        Coord3D best = null;
-        float nearest = Float.MAX_VALUE;
-        for (int cell = 0; cell < reached.length; cell++) {
-            if (!reached[cell]) {
-                continue;
-            }
-            var centre = pathGrid.cellCenter(cell % pathGrid.getWidth(), cell / pathGrid.getWidth());
-            float away = squaredAcross(centre, wanted);
-            if (away < nearest) {
-                nearest = away;
-                best = centre;
-            }
-        }
-        return best != null ? best : wanted;
+    /** The cell of the zone nearest {@code wanted}, or {@code wanted} where the zone is no zone at all. */
+    private Coord3D reachableNearest(Coord3D wanted, uz.dukeengine.core.pathfind.Zones zones, int zone, int fromX,
+            int fromY) {
+        int nearest = zone < 0 ? -1
+                : zones.nearestIn(zone, pathGrid.toCellX(wanted), pathGrid.toCellY(wanted), fromX, fromY);
+        return nearest < 0 ? wanted : pathGrid.cellCenter(nearest % pathGrid.getWidth(), nearest / pathGrid.getWidth());
     }
 
     private static float squaredAcross(Coord3D a, Coord3D b) {
@@ -560,6 +627,8 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         reapDestroyed();
         simulate();
         scriptEngine.evaluate(this);
+        cellsLastFrame = cellsThisFrame;
+        cellsThisFrame = 0;
         frame++;
     }
 
