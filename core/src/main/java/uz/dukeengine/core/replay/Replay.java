@@ -9,6 +9,7 @@ import uz.dukeengine.core.GameLogic;
 import uz.dukeengine.core.message.Command;
 import uz.dukeengine.core.network.CommandPacket;
 import uz.dukeengine.core.network.FrameChecksum;
+import uz.dukeengine.core.network.LoadProgress;
 import uz.dukeengine.core.network.NetFraming;
 import uz.dukeengine.core.network.PacketCodec;
 import uz.dukeengine.core.network.PeerLeft;
@@ -73,6 +74,9 @@ public final class Replay {
                 case SessionHalted ignored -> {
                     // Likewise: a recording of a game that ended in a desync still
                     // replays as far as it goes, and stops where the frames run out.
+                }
+                case LoadProgress ignored -> {
+                    // A figure for a load screen, said before the first frame.
                 }
             }
         }

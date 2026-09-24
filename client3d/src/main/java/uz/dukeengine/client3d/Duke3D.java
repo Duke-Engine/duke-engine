@@ -37,6 +37,7 @@ public final class Duke3D {
     private int height = 720;
     private Painter painter;
     private CanvasInput input;
+    private java.util.function.IntConsumer loading;
 
     /** The running client, once launched; what is asked of it before then waits here, in order. */
     private DukeRtsApp app;
@@ -88,6 +89,18 @@ public final class Duke3D {
         return this;
     }
 
+    /**
+     * Told how far a match has got loading, 0 to 100, each new figure once and rising, on the window's thread — the
+     * canvas painted after every one — for a load screen of the game's own. Building the match is the first 40
+     * (templates, the world, players, what the game placed, the match it assembled, the pathfinder); reading and
+     * showing the card its art is the rest; 100 is ready. In a network game every machine's figure is shared: see
+     * {@link DukeGame#onPeerLoadProgress}.
+     */
+    public Duke3D onLoading(java.util.function.IntConsumer percent) {
+        this.loading = percent;
+        return this;
+    }
+
     public static void launch(DukeGame game, Visuals visuals) {
         of(game, visuals).launch();
     }
@@ -117,7 +130,7 @@ public final class Duke3D {
     public void launch() {
         // the simulation starts when the player presses Play — or at once, if the
         // game asked for no menu at all
-        var client = new DukeRtsApp(game, visuals, shell, hotkeys, painter, input);
+        var client = new DukeRtsApp(game, visuals, shell, hotkeys, painter, input, loading);
         synchronized (waiting) {
             app = client;
             for (var task : waiting) {
@@ -205,6 +218,19 @@ public final class Duke3D {
      */
     public void frontEnd() {
         later(DukeRtsApp::backToFrontEnd);
+    }
+
+    /**
+     * Whether a loaded match waits at 100 for the game to let it start — for a load screen that fades to black before
+     * the match appears. Held, no frame of the match is stepped or drawn until {@link #releaseMatchStart}.
+     */
+    public void holdMatchStart(boolean hold) {
+        later(client -> client.holdMatchStart(hold));
+    }
+
+    /** Let the match being loaded start once it is loaded — at once if it is there already. */
+    public void releaseMatchStart() {
+        later(DukeRtsApp::releaseMatchStart);
     }
 
     /** Do this on the client's own thread: at its next frame, or once it is launched. */

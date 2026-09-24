@@ -63,6 +63,7 @@ public final class LockstepGate {
     private final List<Runnable> lostConnectionListeners = new ArrayList<>();
     private final List<Consumer<Desync>> desyncListeners = new ArrayList<>();
     private final List<Integer> lostLinks = new ArrayList<>(); // filled during pump, on the game thread
+    private final List<java.util.function.BiConsumer<Integer, Integer>> progressListeners = new ArrayList<>();
 
     /** This peer's own view of the world at each checked frame. */
     private final Map<Integer, Long> ownChecksums = new HashMap<>();
@@ -124,6 +125,25 @@ public final class LockstepGate {
      */
     public boolean isConnectionLost() {
         return state == SessionState.DISCONNECTED;
+    }
+
+    /** Told, by player index, how far another peer has got loading the match — see {@link LoadProgress}. */
+    public void onPeerProgress(java.util.function.BiConsumer<Integer, Integer> listener) {
+        progressListeners.add(listener);
+    }
+
+    /** Say how far this peer has got loading the match, to every other. */
+    public void shareProgress(int percent) {
+        transport.send(new LoadProgress(localPlayer, percent));
+    }
+
+    /**
+     * Take in what has arrived before the game has begun to step — the others' progress, and the first commands of
+     * any that began first — on the thread doing the loading, which is the only one touching the gate until the
+     * simulation's own thread is started.
+     */
+    public void pumpWhileLoading() {
+        transport.pump();
     }
 
     /** Told, by player index, when a player has been dropped from the game. */
@@ -227,6 +247,13 @@ public final class LockstepGate {
                     // way to see. Its word is enough; stopping needs no second opinion.
                     halt(new Desync(halted.frame(), localPlayer, halted.expected(),
                             halted.playerIndex(), halted.actual()));
+            case LoadProgress progress -> {
+                if (progress.playerIndex() != localPlayer) { // our own send echoes back
+                    for (var listener : progressListeners) {
+                        listener.accept(progress.playerIndex(), progress.percent());
+                    }
+                }
+            }
             case FrameChecksum reported -> {
                 if (reported.playerIndex() != localPlayer) { // our own send echoes back
                     reportedChecksums

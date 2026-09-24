@@ -107,6 +107,12 @@ final class DukeRtsApp extends SimpleApplication {
     /** The game's own drawing, and its first look at the input — see {@link Painter} and {@link CanvasInput}. */
     private final Painter painter;
     private final CanvasInput canvasInput;
+    /** The game's ear for how far a match has got loading — see {@link Duke3D#onLoading}. */
+    private final java.util.function.IntConsumer loadingEar;
+    /** Whether a loaded match waits for the game to let it start — see {@link Duke3D#holdMatchStart}. */
+    private boolean holdStart;
+    /** The match being made ready, while it is. */
+    private MatchLoad matchLoad;
     private CanvasText canvasText;
     private CanvasDrawing canvasDrawing;
     /** The size the painter was last told the screen is. */
@@ -418,12 +424,13 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     DukeRtsApp(DukeGame game, Visuals visuals, Shell shell, Hotkeys hotkeys, Painter painter,
-            CanvasInput canvasInput) {
+            CanvasInput canvasInput, java.util.function.IntConsumer loadingEar) {
         this.game = game;
         this.visuals = visuals;
         this.shell = shell;
         this.painter = painter;
         this.canvasInput = canvasInput;
+        this.loadingEar = loadingEar;
         this.hotkeys = hotkeys == null ? Hotkeys.none() : hotkeys;
         this.controls = new Controls(this.hotkeys.keyMap());
         var light = visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
@@ -704,7 +711,8 @@ final class DukeRtsApp extends SimpleApplication {
      * — the engine's thread lets go of it as it leaves. A load under way is abandoned where it stands.
      */
     private void endTheMatch() {
-        if (artLoad != null) {
+        if (matchLoad != null) {
+            matchLoad = null;
             artLoad = null;
             loading.hide();
         }
@@ -1556,8 +1564,7 @@ final class DukeRtsApp extends SimpleApplication {
             // Assembled first, run later. What a match can ever draw is decided by what is in it, and
             // that is only known once the match is built — so the world is built now, not one frame of it
             // stepped, and the art plan is read off it. See DukeGame.templatesThisMatchCanDraw.
-            game.boot();
-            beginLoadingArt();
+            beginLoading();
             return; // the world waits until there is something to draw it with
         }
         if (simThread == null) {
@@ -1594,8 +1601,13 @@ final class DukeRtsApp extends SimpleApplication {
      * <p>It could not have learned earlier from the game, but it could have asked
      * {@link Visuals}, which has known since before the window opened.
      */
-    private void beginLoadingArt() {
-        artLoad = new ArtLoad(game.templatesThisMatchCanDraw());
+    private void beginLoading() {
+        matchLoad = new MatchLoad(game, built -> artLoad = new ArtLoad(built.templatesThisMatchCanDraw()),
+                percent -> {
+                    if (loadingEar != null) {
+                        loadingEar.accept(percent);
+                    }
+                }, holdStart);
         menu.hide();
         if (!shell.isDrawnByTheGame()) {
             loading.show(game.getTitle()); // a game that draws its own screens draws its own load screen
@@ -1604,14 +1616,37 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void advanceLoadingArt() {
-        loading.progress(artLoad.done(), artLoad.what());
-        if (!artLoad.step()) {
+        matchLoad.frame();
+        var failure = matchLoad.failure();
+        if (failure != null) {
+            LOG.log(java.util.logging.Level.SEVERE, "the match could not be built", failure);
+            matchLoad = null;
+            artLoad = null;
+            loading.hide();
+            showMainMenu();
+            return;
+        }
+        loading.progress(matchLoad.percent() / 100f, artLoad == null ? "" : artLoad.what());
+        if (!matchLoad.ready()) {
             return;
         }
         artIsReady = true;
         artLoad = null;
+        matchLoad = null;
         loading.hide();
         startGame();
+    }
+
+    /** Whether a loaded match waits for the game — see {@link Duke3D#holdMatchStart}. */
+    void holdMatchStart(boolean hold) {
+        this.holdStart = hold;
+    }
+
+    /** Let a held match start — see {@link Duke3D#releaseMatchStart}. */
+    void releaseMatchStart() {
+        if (matchLoad != null) {
+            matchLoad.release();
+        }
     }
 
     /**
@@ -1636,7 +1671,7 @@ final class DukeRtsApp extends SimpleApplication {
      * no error, no warning, and a stall in exactly the frame this exists to spare.
      * So one instance of each is kept for the life of the window.
      */
-    private final class ArtLoad {
+    private final class ArtLoad implements MatchLoad.Art {
 
         /**
          * How long one frame may spend handing things to the card.
@@ -1758,7 +1793,8 @@ final class DukeRtsApp extends SimpleApplication {
         /**
          * How far along, counting both halves as one.
          */
-        float done() {
+        @Override
+        public float done() {
             return (read.get() + warmed) / (float) Math.max(1, total());
         }
 
@@ -1773,7 +1809,8 @@ final class DukeRtsApp extends SimpleApplication {
         /**
          * Do this frame's share of the work; {@code true} once there is none left.
          */
-        boolean step() {
+        @Override
+        public boolean step() {
             if (read.get() < files.size()) {
                 return false; // still reading; the bar is the only thing to do
             }

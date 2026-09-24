@@ -9,6 +9,7 @@ package uz.dukeengine.core.network;
  * L &lt;playerIndex&gt; &lt;fromFrame&gt;
  * K &lt;playerIndex&gt; &lt;frame&gt; &lt;checksum&gt;
  * H &lt;frame&gt; &lt;playerIndex&gt; &lt;expected&gt; &lt;actual&gt;
+ * P &lt;playerIndex&gt; &lt;percent&gt;
  * </pre>
  *
  * <p>The engine owns this outer envelope and the control plane inside it; the
@@ -26,6 +27,7 @@ public final class NetFraming {
     private static final char LEFT = 'L';
     private static final char CHECKSUM = 'K';
     private static final char HALTED = 'H';
+    private static final char PROGRESS = 'P';
 
     private NetFraming() {
     }
@@ -38,6 +40,7 @@ public final class NetFraming {
                     CHECKSUM + " " + sum.playerIndex() + " " + sum.frame() + " " + sum.checksum();
             case SessionHalted halted -> HALTED + " " + halted.frame() + " " + halted.playerIndex()
                     + " " + halted.expected() + " " + halted.actual();
+            case LoadProgress progress -> PROGRESS + " " + progress.playerIndex() + " " + progress.percent();
         };
     }
 
@@ -51,6 +54,7 @@ public final class NetFraming {
             case LEFT -> decodeLeft(body);
             case CHECKSUM -> decodeChecksum(body);
             case HALTED -> decodeHalted(body);
+            case PROGRESS -> decodeProgress(body);
             default -> throw new IllegalArgumentException("unknown net message kind: " + line);
         };
     }
@@ -59,6 +63,11 @@ public final class NetFraming {
         var parts = fields(body, 4, "session-halted");
         return new SessionHalted(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]),
                 Long.parseLong(parts[2]), Long.parseLong(parts[3]));
+    }
+
+    private static LoadProgress decodeProgress(String body) {
+        var parts = fields(body, 2, "load-progress");
+        return new LoadProgress(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
     }
 
     private static PeerLeft decodeLeft(String body) {

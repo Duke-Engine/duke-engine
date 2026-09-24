@@ -672,6 +672,7 @@ public final class DukeGame {
      */
     public Thread startEngineOnly() {
         boot();
+        running = true;
         var engineThread = new Thread(() -> {
             engine.execute();
             if (multiplayer != null) {
@@ -693,8 +694,59 @@ public final class DukeGame {
      * changes no frame.
      */
     public void boot() {
+        boot(percent -> {
+        });
+    }
+
+    /**
+     * The same, saying how far it has got, 0 to 100, as it goes: templates read, the world laid, players seated,
+     * what the game placed, the match the game assembled, the pathfinder's map of what reaches what, the game's own
+     * start — and 100 when the world is built.
+     */
+    public void boot(java.util.function.IntConsumer progress) {
         if (!started) {
-            setUp();
+            setUp(progress);
+        }
+        progress.accept(100);
+    }
+
+    /** How far this machine has got loading, as last shared — so the same figure is not said twice. */
+    private int sharedProgress = -1;
+    private final List<java.util.function.ObjIntConsumer<GamePlayer>> peerProgress = new ArrayList<>();
+
+    /**
+     * How far this machine has got loading the match, 0 to 100, told by whatever does the loading — the 3D client
+     * does — on its own thread, once the match is built and until it starts. In a network game it is said to every
+     * other machine, and what they have said is taken in: see {@link #onPeerLoadProgress}.
+     */
+    public void loadProgress(int percent) {
+        if (multiplayer == null) {
+            return;
+        }
+        if (percent != sharedProgress) {
+            sharedProgress = percent;
+            multiplayer.shareProgress(percent);
+        } else {
+            multiplayer.listenWhileLoading();
+        }
+    }
+
+    /**
+     * Told how far another machine of a network game has got loading — which player, what percent — for a load
+     * screen that shows a bar for everybody. On the thread doing this machine's load until the match starts, and on
+     * the simulation's thread after, for a slower machine still loading.
+     */
+    public DukeGame onPeerLoadProgress(java.util.function.ObjIntConsumer<GamePlayer> listener) {
+        peerProgress.add(listener);
+        return this;
+    }
+
+    private void heardProgress(int playerIndex, int percent) {
+        if (playerIndex < 1 || playerIndex > players.size()) {
+            return;
+        }
+        for (var listener : peerProgress) {
+            listener.accept(players.get(playerIndex - 1), percent);
         }
     }
 
@@ -774,7 +826,8 @@ public final class DukeGame {
      */
     public void runHeadless(int frames) {
         if (!started) {
-            setUp();
+            setUp(percent -> {
+            });
         }
         for (int i = 0; i < frames; i++) {
             if (multiplayer == null || multiplayer.beforeStep(logic)) {
@@ -784,8 +837,8 @@ public final class DukeGame {
         }
     }
 
-    /** Boot the engine and apply everything configured on this builder. */
-    private void setUp() {
+    /** Boot the engine and apply everything configured on this builder, saying how far it has got. */
+    private void setUp(java.util.function.IntConsumer progress) {
         if (started) {
             throw new IllegalStateException("game already started");
         }
@@ -811,6 +864,7 @@ public final class DukeGame {
             logic.setSession(multiplayer);   // local commands go over the wire
             engine.setSession(multiplayer);  // frames wait for every player's input
             multiplayer.onPlayerLeft(this::announcePlayerLeft);
+            multiplayer.onPeerProgress(this::heardProgress);
             // A cut-off peer and a peer waiting on a slow one look identical from
             // the outside — both stopped — so say which this is.
             multiplayer.onConnectionLost(() -> setBanner("CONNECTION LOST"));
@@ -821,6 +875,7 @@ public final class DukeGame {
         }
         engine.setMaxFps(maxFps);
         engine.init(); // note: engine init resets subsystems — apply scenario after
+        progress.accept(5);
 
         // custom modules must exist before a unit's block names them
         for (var customizer : moduleCustomizers) {
@@ -838,20 +893,24 @@ public final class DukeGame {
         for (var text : unitTexts) {
             loader.load(text.text(), text.source());
         }
+        progress.accept(15);
         logic.setWorld(world);
         if (terrain != null) {
             logic.setPathGrid(terrain);
         }
+        progress.accept(20);
 
         for (var player : players) {
             player.bind(logic.getPlayerList().addPlayer(player.getName()).getIndex());
         }
         client.setViewerPlayer(localPlayer == null ? RtsClient.EVERYONE : localPlayer.getIndex());
+        progress.accept(30);
 
         started = true; // spawn() from here on is immediate
         for (var action : scenario) {
             action.run();
         }
+        progress.accept(40);
 
         if (commandHandler != null) {
             logic.setGameCommandHandler(commandHandler);
@@ -878,11 +937,17 @@ public final class DukeGame {
         if (skirmishAssembler != null) {
             skirmishAssembler.assemble(this, chosenMap, chosenFactions);
         }
+        progress.accept(70);
+        // What reaches what, worked out now rather than by the first order given: a big map's zones are a pass over
+        // every cell, and the load is where a pass over every cell belongs.
+        logic.zones();
+        progress.accept(80);
 
         logic.setInGame(true);
         for (var callback : startCallbacks) {
             callback.accept(this);
         }
+        progress.accept(90);
     }
 
     /**
@@ -931,10 +996,19 @@ public final class DukeGame {
         }
     }
 
-    /** Ask the engine loop to exit; {@link #start()} then returns. */
+    /** Whether the simulation's thread was ever started. */
+    private volatile boolean running;
+
+    /**
+     * Ask the engine loop to exit; {@link #start()} then returns. A network match that was never run lets go of its
+     * session here, as a run one does when its loop ends.
+     */
     public void stop() {
         if (engine != null) {
             engine.setQuitting(true);
+        }
+        if (!running && multiplayer != null) {
+            multiplayer.close();
         }
     }
 

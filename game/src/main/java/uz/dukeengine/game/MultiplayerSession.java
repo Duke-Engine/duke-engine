@@ -175,6 +175,25 @@ public final class MultiplayerSession implements AutoCloseable {
         return gate.getState() == uz.dukeengine.core.network.SessionState.DESYNCED;
     }
 
+    /** Told, by player index, how far another machine has got loading the match. */
+    public void onPeerProgress(java.util.function.BiConsumer<Integer, Integer> listener) {
+        gate.onPeerProgress(listener);
+    }
+
+    /**
+     * Say how far this machine has got loading the match, and take in what the others have said — on the thread
+     * doing the load, until the match starts stepping.
+     */
+    public void shareProgress(int percent) {
+        gate.shareProgress(percent);
+        gate.pumpWhileLoading();
+    }
+
+    /** Take in what the others have said, saying nothing new. */
+    void listenWhileLoading() {
+        gate.pumpWhileLoading();
+    }
+
     /** Told, by player index, when a player drops out of the game. */
     public void onPlayerLeft(IntConsumer listener) {
         gate.onPlayerLeft(listener);
