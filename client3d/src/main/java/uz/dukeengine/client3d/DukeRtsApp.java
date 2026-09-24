@@ -5198,8 +5198,8 @@ final class DukeRtsApp extends SimpleApplication {
         if (node.body != null && wanted != null && !wanted.equals(node.modelPath)) {
             swapBody(node, view, visual, wanted);
         }
-        node.root.setLocalTranslation(view.x(), floorHeightAt(view.x(), view.y()), view.y());
-        node.root.setLocalRotation(new Quaternion().fromAngles(0, -view.orientation(), 0));
+        node.root.setLocalTranslation(UnitPlacement.where(view, this::floorHeightAt));
+        node.root.setLocalRotation(UnitPlacement.turn(view));
 
         node.ring.setCullHint(selected.contains(view.id())
                 ? Spatial.CullHint.Never : Spatial.CullHint.Always);

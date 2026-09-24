@@ -116,7 +116,11 @@ final class RtsClient extends GameClient {
                     object.isKindOf(RtsKinds.SELECTABLE),
                     ai != null && ai.isMoving(),
                     weapon != null && weapon.isAttacking(),
-                    production == null ? -1 : production.getQueueSize()));
+                    production == null ? -1 : production.getQueueSize(),
+                    position.z(),
+                    object.getPitch(),
+                    object.getRoll(),
+                    object.keepsOwnHeight()));
         }
         var player = logic.getRtsPlayer(viewerPlayer);
         snapshot = new WorldSnapshot(

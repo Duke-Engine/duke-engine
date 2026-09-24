@@ -38,6 +38,12 @@ public final class GameObject {
 
     private Coord3D position = Coord3D.ZERO;
     private float orientation; // facing angle in radians, 0 = +x
+    /** Nose up, in radians: for how it is drawn, and read by nothing in the simulation. */
+    private float pitch;
+    /** Banked to its right, in radians: the same. */
+    private float roll;
+    /** Whether it is drawn at its own height even under the ground; see {@link #setKeepsOwnHeight}. */
+    private boolean keepsOwnHeight;
     private int playerIndex = NEUTRAL_PLAYER;
     private boolean destroyed;
     private boolean contained;
@@ -299,6 +305,40 @@ public final class GameObject {
 
     public void setOrientation(float orientation) {
         this.orientation = orientation;
+    }
+
+    public float getPitch() {
+        return pitch;
+    }
+
+    /**
+     * Tip its nose up by {@code pitch} radians — a climbing jet, a shell arcing — beside its facing. How it is drawn
+     * only: the simulation reads none of it, and it is no part of the checksum.
+     */
+    public void setPitch(float pitch) {
+        this.pitch = pitch;
+    }
+
+    public float getRoll() {
+        return roll;
+    }
+
+    /** Bank it to its right by {@code roll} radians — into a turn. How it is drawn only, as {@link #setPitch}. */
+    public void setRoll(float roll) {
+        this.roll = roll;
+    }
+
+    public boolean keepsOwnHeight() {
+        return keepsOwnHeight;
+    }
+
+    /**
+     * Draw it at its own height even where that is under the ground — a thing that dives or digs. Left alone it is
+     * drawn at its height or on the ground, whichever is higher, so a ground unit whose height is stale is never
+     * drawn under the map.
+     */
+    public void setKeepsOwnHeight(boolean keepsOwnHeight) {
+        this.keepsOwnHeight = keepsOwnHeight;
     }
 
     public int getPlayerIndex() {
