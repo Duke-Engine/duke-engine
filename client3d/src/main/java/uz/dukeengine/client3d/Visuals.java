@@ -91,6 +91,8 @@ public final class Visuals {
         Barrels.Recoil recoil = Barrels.Recoil.REFERENCE;
         /** Its clips chosen by the words it holds, in the order the game gave them; see {@link #clip}. */
         final java.util.List<ClipState> clipStates = new java.util.ArrayList<>();
+        /** Its other models, by name, in the order the game named them; see {@link #layer}. */
+        final java.util.Map<String, UnitVisual> layers = new java.util.LinkedHashMap<>();
         /** Whether it is drawn rising out of the ground as it is built; see {@link #risesAsBuilt}. */
         boolean risesAsBuilt;
         /** Its treads, or null for none; see {@link #treads}. */
@@ -155,6 +157,18 @@ public final class Visuals {
         private java.util.Map<Integer, WeaponBones> bonesFor(java.util.Set<String> conditions) {
             return conditionalWeaponBones.computeIfAbsent(String.join(" ", new java.util.TreeSet<>(conditions)),
                     key -> new java.util.TreeMap<>());
+        }
+
+        /**
+         * Another model drawn with it, named {@code name}: the reference's second draw modules — a war factory's door,
+         * its crane, its scaffold. The layer is a look of its own with the same means as this one — {@link #model} and
+         * models by words, {@code model(words, null)} drawing nothing while those words fit; {@link #pieces}; {@link
+         * #clip} and its idle; {@link #risesAsBuilt}; its size and facing — drawn at the thing's place and facing,
+         * painted in its owner's colour, and chosen by the words the thing holds, each layer on its own. Asked again by the
+         * same name, the same layer. What is picked, ringed and barred is still the thing's own look.
+         */
+        public UnitVisual layer(String name) {
+            return layers.computeIfAbsent(name, named -> new UnitVisual());
         }
 
         /**

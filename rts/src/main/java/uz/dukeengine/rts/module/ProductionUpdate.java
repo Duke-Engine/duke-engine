@@ -44,12 +44,20 @@ public final class ProductionUpdate extends UpdateModule {
      * build — SAGE's command set — and the upgrades it may research.
      * {@code Builds = [ElfArcher, Rider]}, {@code Researches = [Upgrade_Armour]}.
      * An empty list means "no build menu" (scripts can still queue anything).
-     * Its {@link Exit} and {@link Door}, where it has them; without an exit its units step out of its side.
+     * Its {@link Exit} and {@link Door}, where it has them; without an exit its units step out of its side. The
+     * {@link Words} it holds while it works, where the game names them.
      */
-    public record Data(List<String> builds, List<String> researches, Exit exit, Door door) implements ModuleData {
+    public record Data(List<String> builds, List<String> researches, Exit exit, Door door, Words words)
+            implements ModuleData {
         public Data {
             builds = builds == null ? List.of() : List.copyOf(builds);
             researches = researches == null ? List.of() : List.copyOf(researches);
+            words = words == null ? Words.NONE : words;
+        }
+
+        /** A factory that holds no words while it works, as every one did before it could. */
+        public Data(List<String> builds, List<String> researches, Exit exit, Door door) {
+            this(builds, researches, exit, door, null);
         }
 
         /** A factory that lets its units out of its side at once, as every one did before it had an exit. */
@@ -94,6 +102,19 @@ public final class ProductionUpdate extends UpdateModule {
      */
     public record Door(int openingFrames, int openFrames, int closingFrames, String opening, String open,
             String closing) {
+    }
+
+    /**
+     * The words a factory holds while it works, the game's to name and its look's to be chosen by: {@code busy} while
+     * anything is in its queue — the reference's {@code ACTIVELY_CONSTRUCTING}, which its cranes move under — and
+     * {@code made} for {@code madeFrames} from a unit finished and on its way out ({@code CONSTRUCTION_COMPLETE} for
+     * {@code ConstructionCompleteDuration}), not started again while it holds, as the reference's is not. A word left
+     * out is not held.
+     */
+    public record Words(String busy, String made, int madeFrames) {
+
+        /** For a factory that names none. */
+        public static final Words NONE = new Words(null, null, 0);
     }
 
     /**
@@ -144,6 +165,9 @@ public final class ProductionUpdate extends UpdateModule {
     private final List<String> researches;
     private final Exit exit;
     private final Doorway doorway;
+    private final Words words;
+    /** Frames the made word is held for yet; 0 while it is not. */
+    private int madeLeft;
     private Coord3D rallyPoint;
     /** Frames before the next unit may leave by the exit. */
     private int exitWait;
@@ -156,6 +180,7 @@ public final class ProductionUpdate extends UpdateModule {
         this.researches = data.researches();
         this.exit = data.exit();
         this.doorway = data.door() == null ? null : new Doorway(data.door());
+        this.words = data.words();
         this.burstLeft = exit == null ? 0 : Math.max(0, exit.burst());
     }
 
@@ -324,9 +349,14 @@ public final class ProductionUpdate extends UpdateModule {
         } else if (exitWait > 0) {
             exitWait--;
         }
+        if (madeLeft > 0 && --madeLeft == 0) {
+            getOwner().clearCondition(words.made());
+        }
         if (queue.isEmpty()) {
+            getOwner().clearCondition(words.busy());
             return;
         }
+        getOwner().setCondition(words.busy());
         var head = queue.getFirst();
         var world = getOwner().getWorld();
         if (!gatesAllow()) {
@@ -347,8 +377,15 @@ public final class ProductionUpdate extends UpdateModule {
             }
             return;
         }
-        if (burstLeft == 0 && exitWait > 0 || doorway != null && !doorway.letOut(owner)) {
+        if (burstLeft == 0 && exitWait > 0) {
             return; // complete, and waiting at the head of the queue for the way out
+        }
+        if (words.made() != null && madeLeft == 0) {
+            owner.setCondition(words.made()); // finished and on its way out: from the door's first opening
+            madeLeft = Math.max(1, words.madeFrames());
+        }
+        if (doorway != null && !doorway.letOut(owner)) {
+            return;
         }
         queue.removeFirst();
         if (world != null) {

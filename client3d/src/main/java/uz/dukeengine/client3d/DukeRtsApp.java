@@ -421,6 +421,8 @@ final class DukeRtsApp extends SimpleApplication {
         final WordClip wordClip = new WordClip();
         /** How high its model's top stands above the ground it is placed on, for one drawn rising as it is built. */
         float bodyTop;
+        /** Its other models, each chosen and moved by its words on its own — see {@link Visuals.UnitVisual#layer}. */
+        final java.util.List<ModelLayer> layers = new java.util.ArrayList<>();
         /** The weapon slots' bones its barrels were found by, as its words chose them. */
         java.util.Map<Integer, Visuals.WeaponBones> barrelBones;
         AnimComposer composer;
@@ -5204,6 +5206,9 @@ final class DukeRtsApp extends SimpleApplication {
         node.body = body;
         node.root.attachChild(body);
 
+        for (var look : visual.layers.values()) {
+            node.layers.add(new ModelLayer(look, path -> buildBody(look, java.util.List.of(), path)));
+        }
         node.ring = buildSelectionRing(view);
         node.root.attachChild(node.ring);
         node.barTop = heightOf(body, view) + visuals.getUnitBars().lift();
@@ -5807,6 +5812,11 @@ final class DukeRtsApp extends SimpleApplication {
         if (visual.risesAsBuilt && node.body != null) {
             node.body.setLocalTranslation(0f, visual.yOffset - UnitPlacement.sunk(view.built(), node.bodyTop), 0f);
         }
+        for (var layer : node.layers) {
+            layer.wear(node.root, view, visuals.getWorldConditions(), snapshot.frame(),
+                    body -> paintHouseColour(body, view),
+                    clip -> warnOnce(view.templateName() + "/" + clip, "animation"));
+        }
         runningGear.see(view.id(), view, snapshot.frame());
 
         node.ring.setCullHint(selected.contains(view.id())
@@ -5886,26 +5896,16 @@ final class DukeRtsApp extends SimpleApplication {
             return false;
         }
         var holding = visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
-        int index = visual.clipStateFor(holding);
-        var clip = index < 0 ? null : node.composer.getAnimClip(visual.clipStates.get(index).clip());
-        if (clip == null) {
-            if (index >= 0) {
-                warnOnce(view.templateName() + "/" + visual.clipStates.get(index).clip(), "animation");
-            }
-            if (node.wordClip.choose(-1, visual.clipStates, 0, snapshot.frame(), view.id())) {
+        boolean had = node.wordClip.chosen();
+        var chosen = WordClip.playOn(node.composer, node.wordClip, node.currentAnim, visual, holding, snapshot.frame(),
+                view.id(), clip -> warnOnce(view.templateName() + "/" + clip, "animation"));
+        if (chosen == null) {
+            if (had) {
                 node.currentAnim = "";
             }
             return false;
         }
-        String name = visual.clipStates.get(index).clip();
-        node.wordClip.choose(index, visual.clipStates, clip.getLength(), snapshot.frame(), view.id());
-        var action = node.composer.getCurrentAction();
-        if (action == null || !name.equals(node.currentAnim)) {
-            action = node.composer.setCurrentAction(name, AnimComposer.DEFAULT_LAYER, true);
-            node.currentAnim = name;
-        }
-        action.setSpeed(0);
-        node.composer.setTime(AnimComposer.DEFAULT_LAYER, node.wordClip.timeAt(snapshot.frame()));
+        node.currentAnim = chosen;
         return true;
     }
 
@@ -6008,7 +6008,8 @@ final class DukeRtsApp extends SimpleApplication {
     private void play(UnitNode node, String templateName, String clipName, boolean loop) {
         try {
             if (node.composer != null) {
-                node.composer.setCurrentAction(clipName, AnimComposer.DEFAULT_LAYER, loop);
+                // At its own speed: a clip its words held still, or a cast timed to its wind-up, left its action slowed.
+                node.composer.setCurrentAction(clipName, AnimComposer.DEFAULT_LAYER, loop).setSpeed(1);
             } else if (node.legacyChannel != null) {
                 node.legacyChannel.setAnim(clipName, BLEND_SECONDS);
                 node.legacyChannel.setLoopMode(loop

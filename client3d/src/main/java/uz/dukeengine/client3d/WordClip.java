@@ -1,7 +1,10 @@
 package uz.dukeengine.client3d;
 
+import com.jme3.anim.AnimComposer;
 import java.util.List;
+import java.util.Set;
 import java.util.SplittableRandom;
+import java.util.function.Consumer;
 import uz.dukeengine.core.GameConstants;
 
 /**
@@ -42,6 +45,40 @@ final class WordClip {
             from = startOf(next, fraction, thing, frame);
         }
         return true;
+    }
+
+    /** Whether its words chose a clip, rather than leaving it to its roles. */
+    boolean chosen() {
+        return chosen != null;
+    }
+
+    /**
+     * The clip {@code look}'s words choose for what holds {@code holding}, set on {@code composer} at the game's frame
+     * {@code frame} and held there — its time the frame's, never the window's — or null where they choose none, or
+     * name a clip the model does not have ({@code missing} is told its name).
+     *
+     * @param playing the clip the composer was last set to, so an unchanged one is not set again
+     */
+    static String playOn(AnimComposer composer, WordClip clip, String playing, Visuals.UnitVisual look,
+            Set<String> holding, int frame, int thing, Consumer<String> missing) {
+        int index = look.clipStateFor(holding);
+        var anim = index < 0 ? null : composer.getAnimClip(look.clipStates.get(index).clip());
+        if (anim == null) {
+            if (index >= 0) {
+                missing.accept(look.clipStates.get(index).clip());
+            }
+            clip.choose(-1, look.clipStates, 0, frame, thing);
+            return null;
+        }
+        String name = look.clipStates.get(index).clip();
+        clip.choose(index, look.clipStates, anim.getLength(), frame, thing);
+        var action = composer.getCurrentAction();
+        if (action == null || !name.equals(playing)) {
+            action = composer.setCurrentAction(name, AnimComposer.DEFAULT_LAYER, true);
+        }
+        action.setSpeed(0);
+        composer.setTime(AnimComposer.DEFAULT_LAYER, clip.timeAt(frame));
+        return name;
     }
 
     /** How far into its clip it is in the game's frame {@code frame}, in seconds. */

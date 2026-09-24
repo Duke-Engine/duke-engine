@@ -32,6 +32,11 @@ class ProductionExitTest {
 
     /** A factory 80 across at (200, 200), with this exit and door, and a tank it makes in {@code frames}. */
     private void world(ProductionUpdate.Exit exit, ProductionUpdate.Door door, int frames) {
+        world(exit, door, null, frames);
+    }
+
+    private void world(ProductionUpdate.Exit exit, ProductionUpdate.Door door, ProductionUpdate.Words words,
+            int frames) {
         var things = new ThingFactory(RtsModules.withDefaults());
         tank = RtsTemplate.named("Tank")
                 .module(new ActiveBody.Data(100f))
@@ -42,7 +47,7 @@ class ProductionExitTest {
         things.addTemplate(tank);
         var warFactory = RtsTemplate.named("WarFactory")
                 .module(new ActiveBody.Data(1000f))
-                .module(new ProductionUpdate.Data(List.of(), List.of(), exit, door))
+                .module(new ProductionUpdate.Data(List.of(), List.of(), exit, door, words))
                 .geometry(new Geometry.Box(40f, 40f, 20f))
                 .build();
         things.addTemplate(warFactory);
@@ -178,6 +183,27 @@ class ProductionExitTest {
         var made = tanks().getFirst();
         assertTrue(made.getPosition().y() < 160f, "beside the factory, clear of its walls, as ever");
         assertEquals(0f, made.getOrientation(), 1e-6f);
+    }
+
+    @Test
+    void aFactoryHoldsItsBusyWordWhileAnythingIsQueuedAndItsMadeWordAWhileAfterEachUnit() {
+        world(WAR_FACTORY, null, new ProductionUpdate.Words("ACTIVELY_CONSTRUCTING", "CONSTRUCTION_COMPLETE", 4), 3);
+        logic.update();
+        assertFalse(factory.hasCondition("ACTIVELY_CONSTRUCTING"), "nothing queued: its cranes still");
+
+        production().queue(tank);
+        production().queue(tank);
+        var busy = new ArrayList<Boolean>();
+        var made = new ArrayList<Boolean>();
+        for (int frame = 1; frame <= 12; frame++) {
+            logic.update();
+            busy.add(factory.hasCondition("ACTIVELY_CONSTRUCTING"));
+            made.add(factory.hasCondition("CONSTRUCTION_COMPLETE"));
+        }
+        assertEquals(List.of(true, true, true, true, true, true, false, false, false, false, false, false), busy,
+                "busy while either tank is in the queue: made at 3 and 6");
+        assertEquals(List.of(false, false, true, true, true, true, false, false, false, false, false, false), made,
+                "4 frames from the first tank, 3 to 6: the second, made at 6 while it holds, does not start it again");
     }
 
     @Test
