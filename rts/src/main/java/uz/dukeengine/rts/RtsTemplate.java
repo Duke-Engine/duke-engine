@@ -34,7 +34,7 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
         @Link(Effect.class) String effect,
         Map<String, String> models, Map<String, Float> whenHurt,
         List<String> prerequisites, List<String> requiredWords, Buildability buildability, int maxSimultaneous,
-        String maxSimultaneousLinkKey)
+        String maxSimultaneousLinkKey, int refundValue)
         implements Solid, Sighted, Classified, Titled, Buildable, Drawn, Prerequisites {
 
     public RtsTemplate {
@@ -48,6 +48,7 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
         requiredWords = requiredWords == null ? List.of() : List.copyOf(requiredWords);
         buildability = buildability == null ? Buildability.YES : buildability;
         maxSimultaneous = Math.max(0, maxSimultaneous);
+        refundValue = Math.max(0, refundValue);
     }
 
     /** Makes {@code Object} blocks RTS templates, with a build cost and a build time. */
@@ -74,6 +75,7 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
         private Buildability buildability = Buildability.YES;
         private int maxSimultaneous;
         private String linkKey;
+        private int refundValue;
 
         private Builder(String name) {
             this.name = name;
@@ -146,10 +148,15 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
             return this;
         }
 
+        public Builder refundValue(int refund) {
+            this.refundValue = refund;
+            return this;
+        }
+
         public RtsTemplate build() {
             return new RtsTemplate(name, displayName, kinds, visionRange, geometry, modules, buildCost, buildTime,
                     null, 1f, 0xFFFFFF, 0f, null, null, null, null, null, null, Map.of(), Map.of(),
-                    prerequisites, requiredWords, buildability, maxSimultaneous, linkKey);
+                    prerequisites, requiredWords, buildability, maxSimultaneous, linkKey, refundValue);
         }
     }
 }

@@ -26,7 +26,9 @@ import uz.dukeengine.core.thing.ObjectId;
 public sealed interface GameMessage extends Command
         permits GameMessage.MoveTo, GameMessage.AttackObject, GameMessage.StopMoving,
                 GameMessage.QueueProduction, GameMessage.SetRallyPoint, GameMessage.Construct,
-                GameMessage.CancelConstruction, GameMessage.QueueResearch, GameMessage.CancelProduction {
+                GameMessage.CancelConstruction, GameMessage.QueueResearch, GameMessage.CancelProduction,
+                GameMessage.Sell, GameMessage.AttackMove, GameMessage.Guard, GameMessage.Evacuate,
+                GameMessage.ExitContainer {
 
     /** Order the given units to move to a destination. */
     record MoveTo(int playerIndex, List<ObjectId> units, Coord3D destination) implements GameMessage {
@@ -87,5 +89,39 @@ public sealed interface GameMessage extends Command
 
     /** Call off the {@code index}-th thing a factory has queued, the first 0: its cost comes back in full. */
     record CancelProduction(int playerIndex, ObjectId factory, int index) implements GameMessage {
+    }
+
+    /** Sell a building: its queue paid back at once, and its worth once it has come down. */
+    record Sell(int playerIndex, ObjectId building) implements GameMessage {
+    }
+
+    /** Move to a point, taking on every enemy that comes within sight on the way. */
+    record AttackMove(int playerIndex, List<ObjectId> units, Coord3D destination) implements GameMessage {
+        public AttackMove {
+            units = List.copyOf(units);
+        }
+    }
+
+    /**
+     * Guard a point, or a thing — {@code place} or {@code target}, the other null; both null guards where each unit
+     * stands.
+     */
+    record Guard(int playerIndex, List<ObjectId> units, Coord3D place, ObjectId target, Mode mode)
+            implements GameMessage {
+        public Guard {
+            units = List.copyOf(units);
+            mode = mode == null ? Mode.NORMAL : mode;
+        }
+
+        /** How it guards: taking enemies on and chasing them, only what its weapons reach, or only what flies. */
+        public enum Mode { NORMAL, WITHOUT_PURSUIT, FLYING_ONLY }
+    }
+
+    /** Every passenger of a transport or a garrisoned building gets out. */
+    record Evacuate(int playerIndex, ObjectId container) implements GameMessage {
+    }
+
+    /** One passenger gets out of whatever carries it. */
+    record ExitContainer(int playerIndex, ObjectId passenger) implements GameMessage {
     }
 }

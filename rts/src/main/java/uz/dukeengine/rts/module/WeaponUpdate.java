@@ -312,8 +312,8 @@ public final class WeaponUpdate extends UpdateModule {
     @Override
     public void update() {
         if (getOwner().isEffectivelyDead() || getOwner().isContained()
-                || getOwner().hasStatus(ObjectStatus.DISABLED)) {
-            return; // dead, inside a transport, or disabled — hold fire
+                || getOwner().hasStatus(ObjectStatus.DISABLED) || getOwner().hasStatus(ObjectStatus.SOLD)) {
+            return; // dead, inside a transport, disabled or being sold — hold fire
         }
         tick();
 

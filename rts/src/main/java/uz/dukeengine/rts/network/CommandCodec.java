@@ -71,6 +71,19 @@ public final class CommandCodec implements PacketCodec {
                     + "," + r.upgrade();
             case GameMessage.CancelProduction c -> "UNQUEUE," + c.playerIndex() + "," + c.factory().value()
                     + "," + c.index();
+            case GameMessage.Sell s -> "SELL," + s.playerIndex() + "," + s.building().value();
+            case GameMessage.AttackMove a -> "AMOVE," + a.playerIndex() + "," + ids(a.units())
+                    + "," + Float.toString(a.destination().x())
+                    + "," + Float.toString(a.destination().y())
+                    + "," + Float.toString(a.destination().z());
+            case GameMessage.Guard g -> "GUARD," + g.playerIndex() + "," + ids(g.units())
+                    + "," + (g.place() == null ? "" : Float.toString(g.place().x()))
+                    + "," + (g.place() == null ? "" : Float.toString(g.place().y()))
+                    + "," + (g.place() == null ? "" : Float.toString(g.place().z()))
+                    + "," + (g.target() == null ? "" : Integer.toString(g.target().value()))
+                    + "," + g.mode().name();
+            case GameMessage.Evacuate e -> "EVAC," + e.playerIndex() + "," + e.container().value();
+            case GameMessage.ExitContainer e -> "EXIT," + e.playerIndex() + "," + e.passenger().value();
         };
     }
 
@@ -112,6 +125,16 @@ public final class CommandCodec implements PacketCodec {
                     parts[3]);
             case "UNQUEUE" -> new GameMessage.CancelProduction(player, new ObjectId(Integer.parseInt(parts[2])),
                     Integer.parseInt(parts[3]));
+            case "SELL" -> new GameMessage.Sell(player, new ObjectId(Integer.parseInt(parts[2])));
+            case "AMOVE" -> new GameMessage.AttackMove(player, parseIds(parts[2]),
+                    new Coord3D(Float.parseFloat(parts[3]), Float.parseFloat(parts[4]), Float.parseFloat(parts[5])));
+            case "GUARD" -> new GameMessage.Guard(player, parseIds(parts[2]),
+                    parts[3].isEmpty() ? null : new Coord3D(Float.parseFloat(parts[3]), Float.parseFloat(parts[4]),
+                            Float.parseFloat(parts[5])),
+                    parts[6].isEmpty() ? null : new ObjectId(Integer.parseInt(parts[6])),
+                    GameMessage.Guard.Mode.valueOf(parts[7]));
+            case "EVAC" -> new GameMessage.Evacuate(player, new ObjectId(Integer.parseInt(parts[2])));
+            case "EXIT" -> new GameMessage.ExitContainer(player, new ObjectId(Integer.parseInt(parts[2])));
             default -> throw new IllegalArgumentException("unknown command kind: " + kind);
         };
     }

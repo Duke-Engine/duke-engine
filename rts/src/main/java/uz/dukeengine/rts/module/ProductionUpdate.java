@@ -7,6 +7,7 @@ import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.UpdateModule;
 import uz.dukeengine.core.thing.GameObject;
+import uz.dukeengine.core.thing.ObjectStatus;
 import uz.dukeengine.core.thing.Solid;
 import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.core.thing.World;
@@ -145,7 +146,7 @@ public final class ProductionUpdate extends UpdateModule {
      */
     public boolean queue(ThingTemplate unit) {
         var player = owner();
-        if (player == null
+        if (player == null || getOwner().hasStatus(ObjectStatus.SOLD)
                 || getOwner().getWorld() instanceof RtsSimulation rts && !rts.canBuild(player.getIndex(), unit)
                 || !player.withdraw(Buildable.costOf(unit))) {
             return false;
@@ -161,7 +162,7 @@ public final class ProductionUpdate extends UpdateModule {
      */
     public boolean queueResearch(Upgrade upgrade) {
         var player = owner();
-        if (player == null || upgrade == null) {
+        if (player == null || upgrade == null || getOwner().hasStatus(ObjectStatus.SOLD)) {
             return false;
         }
         boolean taken = upgrade.scope() == Upgrade.Scope.PLAYER
@@ -197,6 +198,13 @@ public final class ProductionUpdate extends UpdateModule {
             player.deposit(job.cost());
         }
         return true;
+    }
+
+    /** Call off everything queued, each paid back in full, as a building being sold does. */
+    public void cancelAll() {
+        while (!queue.isEmpty()) {
+            cancel(queue.size() - 1);
+        }
     }
 
     private RtsPlayer owner() {

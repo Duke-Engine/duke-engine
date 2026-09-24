@@ -118,6 +118,7 @@ final class RtsLogic extends RtsSimulation {
                     if (unit == null || unit.getPlayerIndex() != move.playerIndex()) {
                         continue; // gone, or not the issuer's unit to command
                     }
+                    uz.dukeengine.rts.module.Errand.giveUpAll(unit);
                     var ai = unit.getLocomotor();
                     if (ai != null) {
                         ai.moveTo(move.destination());
@@ -134,6 +135,7 @@ final class RtsLogic extends RtsSimulation {
                     if (unit == null || unit.getPlayerIndex() != attack.playerIndex()) {
                         continue;
                     }
+                    uz.dukeengine.rts.module.Errand.giveUpAll(unit);
                     var weapon = unit.findModule(WeaponUpdate.class);
                     if (weapon != null) {
                         weapon.attack(attack.target());
@@ -146,6 +148,7 @@ final class RtsLogic extends RtsSimulation {
                     if (unit == null || unit.getPlayerIndex() != stop.playerIndex()) {
                         continue;
                     }
+                    uz.dukeengine.rts.module.Errand.giveUpAll(unit);
                     var ai = unit.getLocomotor();
                     if (ai != null) {
                         ai.stop();
@@ -186,6 +189,11 @@ final class RtsLogic extends RtsSimulation {
                     production.cancel(cancel.index());
                 }
             }
+            case GameMessage.Sell sell -> uz.dukeengine.rts.construction.Selling.order(this, sell);
+            case GameMessage.AttackMove move -> uz.dukeengine.rts.module.AttackMoveOrder.order(this, move);
+            case GameMessage.Guard guard -> uz.dukeengine.rts.module.GuardOrder.order(this, guard);
+            case GameMessage.Evacuate evacuate -> uz.dukeengine.rts.module.ContainModule.evacuate(this, evacuate);
+            case GameMessage.ExitContainer exit -> uz.dukeengine.rts.module.ContainModule.exit(this, exit);
         }
     }
 

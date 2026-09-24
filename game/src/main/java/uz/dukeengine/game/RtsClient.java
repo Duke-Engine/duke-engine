@@ -124,14 +124,16 @@ final class RtsClient extends GameClient {
                     body == null ? 0f : body.getHealth(),
                     body == null ? 0f : body.getMaxHealth(),
                     object.isKindOf(RtsKinds.STRUCTURE),
-                    object.isKindOf(RtsKinds.SELECTABLE),
+                    object.isKindOf(RtsKinds.SELECTABLE)
+                            && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.SOLD),
                     ai != null && ai.isMoving(),
                     weapon != null && weapon.isAttacking(),
                     production == null ? -1 : production.getQueueSize(),
                     position.z(),
                     object.getPitch(),
                     object.getRoll(),
-                    object.keepsOwnHeight()));
+                    object.keepsOwnHeight(),
+                    object.statusBits()));
         }
         var player = everything ? null : logic.getRtsPlayer(viewerPlayer);
         snapshot = new WorldSnapshot(

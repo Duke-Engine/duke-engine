@@ -77,6 +77,7 @@ public final class DukeGame {
             producedCallbacks = new ArrayList<>();
     private final List<BiConsumer<uz.dukeengine.core.thing.GameObject, uz.dukeengine.core.thing.GameObject>>
             constructedCallbacks = new ArrayList<>();
+    private final List<Consumer<uz.dukeengine.core.thing.GameObject>> soldCallbacks = new ArrayList<>();
     private final List<double[]> intervalSeconds = new ArrayList<>(); // [seconds, callbackIndex]
     private final List<Consumer<DukeGame>> intervalCallbacks = new ArrayList<>();
     private final List<BiConsumer<DukeGame, GamePlayer>> defeatCallbacks = new ArrayList<>();
@@ -393,6 +394,15 @@ public final class DukeGame {
     }
 
     /** Runs when a player who had units loses all of them (annihilation). */
+    /**
+     * Told when a building its side sold is down and gone — taken down for its worth, not destroyed by an enemy — on
+     * the simulation thread, the frame it goes, its refund paid.
+     */
+    public DukeGame onSold(Consumer<uz.dukeengine.core.thing.GameObject> callback) {
+        soldCallbacks.add(callback);
+        return this;
+    }
+
     public DukeGame onPlayerDefeated(BiConsumer<DukeGame, GamePlayer> callback) {
         defeatCallbacks.add(callback);
         return this;
@@ -888,6 +898,7 @@ public final class DukeGame {
         logic = new RtsLogic();
         producedCallbacks.forEach(logic::onProduced);
         constructedCallbacks.forEach(logic::onConstructed);
+        soldCallbacks.forEach(logic::onSold);
         client = new RtsClient(logic);
         client.setCommands(this::buttonsNow);
         client.setAimFits(this::aimFitsNow);

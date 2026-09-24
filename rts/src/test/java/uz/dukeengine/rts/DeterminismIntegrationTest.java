@@ -86,6 +86,11 @@ class DeterminismIntegrationTest {
                 }
                 case GameMessage.CancelProduction ignored -> {
                 }
+                case GameMessage.Sell sell -> uz.dukeengine.rts.construction.Selling.order(this, sell);
+                case GameMessage.AttackMove move -> uz.dukeengine.rts.module.AttackMoveOrder.order(this, move);
+                case GameMessage.Guard guard -> uz.dukeengine.rts.module.GuardOrder.order(this, guard);
+                case GameMessage.Evacuate evacuate -> uz.dukeengine.rts.module.ContainModule.evacuate(this, evacuate);
+                case GameMessage.ExitContainer exit -> uz.dukeengine.rts.module.ContainModule.exit(this, exit);
             }
         }
 

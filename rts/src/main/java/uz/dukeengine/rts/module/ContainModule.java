@@ -62,6 +62,45 @@ public final class ContainModule extends Module {
         return true;
     }
 
+    /** Every passenger of the player's container out beside it — an {@code Evacuate} order. */
+    public static boolean evacuate(uz.dukeengine.core.thing.World world,
+            uz.dukeengine.rts.message.GameMessage.Evacuate order) {
+        var container = world.findObject(order.container());
+        var hold = container == null || container.getPlayerIndex() != order.playerIndex() ? null
+                : container.findModule(ContainModule.class);
+        if (hold == null || hold.passengers.isEmpty()) {
+            return false;
+        }
+        hold.unloadAll();
+        return true;
+    }
+
+    /** One of the player's passengers out of whatever carries it — an {@code ExitContainer} order. */
+    public static boolean exit(uz.dukeengine.core.thing.World world,
+            uz.dukeengine.rts.message.GameMessage.ExitContainer order) {
+        var passenger = world.findObject(order.passenger());
+        if (passenger == null || passenger.getPlayerIndex() != order.playerIndex() || !passenger.isContained()) {
+            return false;
+        }
+        for (var carrier : world.getObjects()) {
+            var hold = carrier.findModule(ContainModule.class);
+            if (hold != null && hold.contains(passenger.getId())) {
+                hold.unload(passenger);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** One passenger out, beside the transport. */
+    public void unload(GameObject passenger) {
+        if (!passengers.remove(passenger.getId())) {
+            return;
+        }
+        passenger.setContained(false);
+        passenger.setPosition(getOwner().getPosition().add(UNLOAD_OFFSET));
+    }
+
     /** Eject every passenger back into the world beside the transport. */
     public void unloadAll() {
         var world = getOwner().getWorld();

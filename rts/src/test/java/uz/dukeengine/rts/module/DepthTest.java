@@ -46,6 +46,16 @@ class DepthTest {
                 }
                 case GameMessage.CancelConstruction ignored -> {
                 }
+                case GameMessage.Sell ignored -> {
+                }
+                case GameMessage.AttackMove ignored -> {
+                }
+                case GameMessage.Guard ignored -> {
+                }
+                case GameMessage.Evacuate ignored -> {
+                }
+                case GameMessage.ExitContainer ignored -> {
+                }
             }
         }
 

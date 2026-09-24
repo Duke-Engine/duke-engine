@@ -21,6 +21,11 @@ public enum ObjectStatus {
      */
     HELD,
     /**
+     * Being taken down for its worth — SAGE's {@code OBJECT_STATUS_SOLD}: it may no longer be selected and does
+     * nothing it was for, while it can still be hit; when it is down, its side has its refund and it is gone.
+     */
+    SOLD,
+    /**
      * Still being built: standing, seen, and able to be hurt, but doing nothing of what it is for until it is
      * whole — a half-built barracks trains nobody and a half-built tower shoots at nobody. SAGE's
      * {@code OBJECT_STATUS_UNDER_CONSTRUCTION}. Only a module that builds it runs meanwhile; see

@@ -28,14 +28,28 @@ public record UnitView(
         float z,
         float pitch,
         float roll,
-        boolean ownHeight) {
+        boolean ownHeight,
+        int statuses) {
 
     /** A unit on the ground, level: every view from before a thing could be drawn at its own height. */
     public UnitView(int id, String templateName, int playerIndex, float x, float y, float orientation, float health,
             float maxHealth, boolean structure, boolean selectable, boolean moving, boolean attacking,
             int productionQueue) {
         this(id, templateName, playerIndex, x, y, orientation, health, maxHealth, structure, selectable, moving,
-                attacking, productionQueue, 0f, 0f, 0f, false);
+                attacking, productionQueue, 0f, 0f, 0f, false, 0);
+    }
+
+    /** A view that says nothing of statuses: every view from before they were carried. */
+    public UnitView(int id, String templateName, int playerIndex, float x, float y, float orientation, float health,
+            float maxHealth, boolean structure, boolean selectable, boolean moving, boolean attacking,
+            int productionQueue, float z, float pitch, float roll, boolean ownHeight) {
+        this(id, templateName, playerIndex, x, y, orientation, health, maxHealth, structure, selectable, moving,
+                attacking, productionQueue, z, pitch, roll, ownHeight, 0);
+    }
+
+    /** Whether the thing carries this status — held, sold, in the air, going up. */
+    public boolean has(uz.dukeengine.core.thing.ObjectStatus status) {
+        return (statuses & (1 << status.ordinal())) != 0;
     }
 
     /** Whether this unit is a production structure (has a build queue). */

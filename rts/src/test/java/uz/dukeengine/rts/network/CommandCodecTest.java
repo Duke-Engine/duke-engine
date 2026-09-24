@@ -42,6 +42,19 @@ class CommandCodecTest {
     }
 
     @Test
+    void theBarsEverydayOrdersRoundTrip() {
+        assertRoundTrips(new CommandPacket(20, 1, List.of(
+                new GameMessage.Sell(1, new ObjectId(7)),
+                new GameMessage.AttackMove(1, List.of(new ObjectId(2), new ObjectId(3)), new Coord3D(40f, 60.5f, 0f)),
+                new GameMessage.Guard(1, List.of(new ObjectId(2)), new Coord3D(10f, 20f, 0f), null,
+                        GameMessage.Guard.Mode.WITHOUT_PURSUIT),
+                new GameMessage.Guard(1, List.of(new ObjectId(3)), null, new ObjectId(9),
+                        GameMessage.Guard.Mode.FLYING_ONLY),
+                new GameMessage.Evacuate(1, new ObjectId(11)),
+                new GameMessage.ExitContainer(1, new ObjectId(12)))));
+    }
+
+    @Test
     void floatBitsArePreserved() {
         float awkward = 0.1f + 0.2f; // not exactly representable
         var packet = new CommandPacket(1, 1, List.of(

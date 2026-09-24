@@ -207,6 +207,48 @@ public abstract class RtsSimulation extends GameLogic {
         return getPlayerList().getPlayer(index) instanceof RtsPlayer player ? player : null;
     }
 
+    // ---- selling, guarding ----
+
+    private uz.dukeengine.rts.construction.SellRules sellRules = uz.dukeengine.rts.construction.SellRules.DEFAULT;
+    private uz.dukeengine.rts.module.GuardRules guardRules = uz.dukeengine.rts.module.GuardRules.DEFAULT;
+    private final java.util.List<java.util.function.Consumer<uz.dukeengine.core.thing.GameObject>> soldWatchers =
+            new java.util.ArrayList<>();
+
+    /** How a sold building comes down and what it gives back — see {@code Selling}. */
+    public final void setSellRules(uz.dukeengine.rts.construction.SellRules rules) {
+        this.sellRules = rules == null ? uz.dukeengine.rts.construction.SellRules.DEFAULT : rules;
+    }
+
+    public final uz.dukeengine.rts.construction.SellRules getSellRules() {
+        return sellRules;
+    }
+
+    /** How a guard guards and an attack-move chases — see {@code GuardOrder}. */
+    public final void setGuardRules(uz.dukeengine.rts.module.GuardRules rules) {
+        this.guardRules = rules == null ? uz.dukeengine.rts.module.GuardRules.DEFAULT : rules;
+    }
+
+    public final uz.dukeengine.rts.module.GuardRules getGuardRules() {
+        return guardRules;
+    }
+
+    /**
+     * Told when a building its side sold is down and gone — taken down, not destroyed by anyone — on the simulation
+     * thread, the frame it goes, its refund already paid.
+     */
+    public final void onSold(java.util.function.Consumer<uz.dukeengine.core.thing.GameObject> watcher) {
+        soldWatchers.add(watcher);
+    }
+
+    /** A sold building is down: its watchers told, and the moment posted. */
+    public final void sold(uz.dukeengine.core.thing.GameObject building, int refund) {
+        for (var watcher : soldWatchers) {
+            watcher.accept(building);
+        }
+        post(new uz.dukeengine.rts.event.StructureSold(getFrame(), building.getId(), building.getTemplate().name(),
+                building.getPlayerIndex(), refund, building.getPosition()));
+    }
+
     // ---- what a side may make ----
 
     private java.util.function.BiPredicate<String, String> countsAs = String::equals;
