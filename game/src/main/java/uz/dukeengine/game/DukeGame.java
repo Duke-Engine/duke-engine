@@ -80,6 +80,7 @@ public final class DukeGame {
             constructedCallbacks = new ArrayList<>();
     private final List<Consumer<uz.dukeengine.core.thing.GameObject>> soldCallbacks = new ArrayList<>();
     private final List<Consumer<GameMessage.GameOrder>> orderCallbacks = new ArrayList<>();
+    private final List<Consumer<uz.dukeengine.core.event.ObjectDied>> diedCallbacks = new ArrayList<>();
     private final List<double[]> intervalSeconds = new ArrayList<>(); // [seconds, callbackIndex]
     private final List<Consumer<DukeGame>> intervalCallbacks = new ArrayList<>();
     private final List<BiConsumer<DukeGame, GamePlayer>> defeatCallbacks = new ArrayList<>();
@@ -289,9 +290,9 @@ public final class DukeGame {
         return this;
     }
 
-    /** Give a player starting money. */
+    /** Give a player starting money: in its balance, neither earned nor spent. */
     public DukeGame money(GamePlayer player, int amount) {
-        scenario.add(() -> logic.getRtsPlayer(player.getIndex()).deposit(amount));
+        scenario.add(() -> logic.getRtsPlayer(player.getIndex()).give(amount));
         return this;
     }
 
@@ -408,6 +409,16 @@ public final class DukeGame {
      */
     public DukeGame onSold(Consumer<uz.dukeengine.core.thing.GameObject> callback) {
         soldCallbacks.add(callback);
+        return this;
+    }
+
+    /**
+     * Told every death as it is reaped, on the simulation thread: what died, whose it was, what killed it and whose
+     * side that was — known even when the killer is gone too — beside the client's event rather than instead of it.
+     * Where a game counts what each side destroyed. A building sold, or anything removed without dying, is not heard.
+     */
+    public DukeGame onDied(Consumer<uz.dukeengine.core.event.ObjectDied> callback) {
+        diedCallbacks.add(callback);
         return this;
     }
 
@@ -991,6 +1002,7 @@ public final class DukeGame {
         constructedCallbacks.forEach(logic::onConstructed);
         soldCallbacks.forEach(logic::onSold);
         orderCallbacks.forEach(logic::onOrder);
+        diedCallbacks.forEach(logic::onDied);
         client = new RtsClient(logic);
         client.setCommands(this::buttonsNow);
         client.setAimFits(this::aimFitsNow);

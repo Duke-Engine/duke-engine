@@ -435,9 +435,9 @@ public final class WeaponUpdate extends UpdateModule {
                 .nearestTo(new Coord3D(blast.x(), blast.y(), middle.z()));
     }
 
-    /** The death a shot deals if it kills, and whose it is: its weapon's, and its shooter's. */
+    /** The death a shot deals if it kills, and whose it is: its weapon's, its shooter's, and the side it fired for. */
     private static Death blow(Shot shot) {
-        return new Death(shot.weapon().deathType(), shot.shooter());
+        return new Death(shot.weapon().deathType(), shot.shooter(), shot.side());
     }
 
     /**

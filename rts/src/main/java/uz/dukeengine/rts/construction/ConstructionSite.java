@@ -96,7 +96,7 @@ public final class ConstructionSite extends UpdateModule {
         }
         var player = RtsPlayer.of(site.getWorld(), site.getPlayerIndex());
         if (player != null) {
-            player.deposit(Math.round(cost * rules.refundShare()));
+            player.refund(Math.round(cost * rules.refundShare()));
         }
         site.markDestroyed();
         return true;

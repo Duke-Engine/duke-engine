@@ -15,7 +15,7 @@ import uz.dukeengine.rts.player.RtsPlayer;
  *
  * <p>Captures the strategic state — frame counter, where the simulation's random
  * numbers stand, players (money, weapon-bonus, upgrades, granted words, whether a computer
- * plays them) and objects (template,
+ * plays them, what they earned and spent) and objects (template,
  * owner, transform, health, status, condition words) — enough
  * that a restored world has the same {@link GameLogic#checksum()} as the saved
  * one. Float values use {@link Float#toString}, which round-trips to identical
@@ -48,7 +48,9 @@ public final class GameSnapshot {
                     .append(Float.toString(p.getWeaponDamageBonus())).append('|')
                     .append(upgrades).append('|')
                     .append(String.join(",", p.getGranted())).append('|')
-                    .append(p.isComputer()).append('\n');
+                    .append(p.isComputer()).append('|')
+                    .append(p.getEarned()).append('|')
+                    .append(p.getSpent()).append('\n');
         }
 
         for (var o : logic.getObjects()) {
@@ -104,7 +106,9 @@ public final class GameSnapshot {
             players.addPlayer(name); // index 0 (neutral) already exists after reset
         }
         var player = (RtsPlayer) players.getPlayer(index);
-        player.deposit(money);
+        // A save from before the books has neither total.
+        player.restoreBooks(money, parts.length > 7 ? Long.parseLong(parts[7]) : 0L,
+                parts.length > 8 ? Long.parseLong(parts[8]) : 0L);
         player.multiplyWeaponDamageBonus(bonus); // players start at 1.0 after reset
         if (!upgrades.isEmpty()) {
             for (var upgrade : upgrades.split(",")) {

@@ -98,7 +98,7 @@ public final class Selling {
             int refund = refundOf(building, rules);
             var side = RtsPlayer.of(world, building.getPlayerIndex());
             if (side != null) {
-                side.deposit(refund);
+                side.refund(refund);
             }
             if (world instanceof RtsSimulation rts) {
                 rts.sold(building, refund);

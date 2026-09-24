@@ -112,7 +112,7 @@ public final class BuildOrder extends UpdateModule {
         over = true;
         var player = RtsPlayer.of(getOwner().getWorld(), getOwner().getPlayerIndex());
         if (player != null) {
-            player.deposit(cost);
+            player.refund(cost);
         }
     }
 

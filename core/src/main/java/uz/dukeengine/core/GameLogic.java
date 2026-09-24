@@ -3,6 +3,7 @@ package uz.dukeengine.core;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import uz.dukeengine.core.event.ObjectDied;
 import uz.dukeengine.core.event.WorldEvent;
@@ -394,6 +395,19 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return pathGrid == null ? 0 : pathGrid.getObstacleVersion();
     }
 
+    /** Told every death as it is reaped — see {@link #onDied}. */
+    private final List<Consumer<ObjectDied>> deathWatchers = new ArrayList<>();
+
+    /**
+     * Told every death as it is reaped, on the simulation thread: the same {@link ObjectDied} the client's event
+     * carries — whose it was, who dealt the blow and whose side that was — beside the event rather than instead of it.
+     * A watcher here may change the world, as a kill counted or a bounty paid does, which an event never may. A thing
+     * removed without dying — sold, cleared away — is no death, and is not heard.
+     */
+    public final void onDied(Consumer<ObjectDied> watcher) {
+        deathWatchers.add(watcher);
+    }
+
     @Override
     public final void post(WorldEvent event) {
         if (pendingEvents.size() >= MAX_PENDING_EVENTS) {
@@ -726,9 +740,13 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         for (var object : leaving) {
             var death = object.isEffectivelyDead() ? object.getBody().getDeath() : Death.NORMAL;
             if (object.isEffectivelyDead()) {
-                post(new ObjectDied(frame, object.getId(), object.getTemplate().name(),
+                var died = new ObjectDied(frame, object.getId(), object.getTemplate().name(),
                         object.getPlayerIndex(), object.getPosition(), death.type(), death.killer(),
-                        object.getOrientation()));
+                        object.getOrientation(), sideOf(death, leaving));
+                post(died);
+                for (var watcher : deathWatchers) {
+                    watcher.accept(died);
+                }
             }
             for (var module : object.getModules()) {
                 if (module instanceof DieModule die) {
@@ -736,6 +754,21 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                 }
             }
         }
+    }
+
+    /**
+     * Whose side dealt a death: what the blow says, or — for a blow that did not say — the killer's, looked for among
+     * what stands and what leaves this frame with it. -1 for nobody, or a killer long gone.
+     */
+    private int sideOf(Death death, List<GameObject> leaving) {
+        if (death.killer() == null || death.killerPlayerIndex() >= 0) {
+            return death.killerPlayerIndex();
+        }
+        var killer = findObject(death.killer());
+        if (killer == null) {
+            killer = leaving.stream().filter(gone -> gone.getId().equals(death.killer())).findFirst().orElse(null);
+        }
+        return killer == null ? -1 : killer.getPlayerIndex();
     }
 
     /** Advance game-specific state by one logic frame. */

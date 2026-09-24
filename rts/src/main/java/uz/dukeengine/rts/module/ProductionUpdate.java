@@ -195,7 +195,7 @@ public final class ProductionUpdate extends UpdateModule {
         var job = queue.remove(index);
         var player = owner();
         if (player != null) {
-            player.deposit(job.cost());
+            player.refund(job.cost());
         }
         return true;
     }

@@ -38,6 +38,9 @@ public final class RtsPlayer extends Player {
     private boolean computer;
     private final Map<String, Float> bonuses = new TreeMap<>();
     private int money;
+    /** What the side took in, and what it paid out and kept paid — see {@link #getEarned}, {@link #getSpent}. */
+    private long earned;
+    private long spent;
 
     public RtsPlayer(int index, String name) {
         super(index, name);
@@ -55,19 +58,63 @@ public final class RtsPlayer extends Player {
         return money;
     }
 
+    /** Money the side earned — a supply truck's load, a bounty, a hack: in the balance, and in what it earned. */
     public void deposit(int amount) {
         if (amount > 0) {
             money += amount;
+            earned += amount;
         }
     }
 
-    /** Withdraw up to {@code amount}; returns true if the player could afford it. */
+    /** Withdraw up to {@code amount}; returns true if the player could afford it — and then it is spent. */
     public boolean withdraw(int amount) {
         if (amount < 0 || money < amount) {
             return false;
         }
         money -= amount;
+        spent += amount;
         return true;
+    }
+
+    /**
+     * Money coming back from what was spent: an order called off, a building sold for its worth. Taken off what the
+     * side spent rather than counted as earned, as the reference's score keeps a sale out of what a side collected.
+     */
+    public void refund(int amount) {
+        if (amount > 0) {
+            money += amount;
+            spent = Math.max(0L, spent - amount);
+        }
+    }
+
+    /**
+     * Money handed to the side rather than earned by it — the money it starts with, a script's gift: in the balance,
+     * and in neither total.
+     */
+    public void give(int amount) {
+        if (amount > 0) {
+            money += amount;
+        }
+    }
+
+    /**
+     * All the money the side has taken in — supply returns, bounties, hacks, whatever was deposited — for a score
+     * screen: what one frame both earns and spends, the balance hides, and this does not.
+     */
+    public long getEarned() {
+        return earned;
+    }
+
+    /** All the money the side has paid out and not had back — see {@link #refund}. */
+    public long getSpent() {
+        return spent;
+    }
+
+    /** The side's money and its books as a save wrote them down. */
+    public void restoreBooks(int money, long earned, long spent) {
+        this.money = Math.max(0, money);
+        this.earned = Math.max(0L, earned);
+        this.spent = Math.max(0L, spent);
     }
 
     public boolean hasUpgrade(String upgradeName) {
