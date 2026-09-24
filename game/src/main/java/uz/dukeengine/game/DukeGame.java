@@ -1367,6 +1367,26 @@ public final class DukeGame {
         return selection;
     }
 
+    /** The selection the game last asked the client for — see {@link #select}. */
+    private final java.util.concurrent.atomic.AtomicReference<List<uz.dukeengine.core.thing.ObjectId>> selectionWanted =
+            new java.util.concurrent.atomic.AtomicReference<>();
+
+    /**
+     * Select these things in the client, from the game's own code on any thread: a portrait of a multi-selection
+     * clicked, a double-click choosing all of a kind on the game's own bar. The client takes it up at its next frame,
+     * in this order, under its own rule of what may be selected together — the player's own things, or one of
+     * someone else's alone; what is gone or hidden is left out — and tells the selection back as it tells any other
+     * ({@link #getSelection}).
+     */
+    public void select(List<uz.dukeengine.core.thing.ObjectId> ids) {
+        selectionWanted.set(List.copyOf(ids));
+    }
+
+    /** The selection the game last asked for, taken once by the client that shows it; null when none waits. */
+    public List<uz.dukeengine.core.thing.ObjectId> takeSelectionRequest() {
+        return selectionWanted.getAndSet(null);
+    }
+
     /**
      * What to do when one of the bar's buttons is pressed: which, what was selected, and where or at what
      * for one that aims — see {@link uz.dukeengine.game.view.CommandPress}.

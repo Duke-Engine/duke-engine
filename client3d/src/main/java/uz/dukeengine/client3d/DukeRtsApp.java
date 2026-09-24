@@ -264,7 +264,8 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private int mapStoreys;
     private final Map<Integer, UnitNode> unitNodes = new HashMap<>();
-    private final Set<Integer> selected = new HashSet<>();
+    /** What is selected, in the order it was selected: the order the game is told it in. */
+    private final Set<Integer> selected = new java.util.LinkedHashSet<>();
     private final Map<String, AudioNode> audioCache = new HashMap<>();
     private final Set<String> missingAssets = new HashSet<>();
     /**
@@ -4071,6 +4072,7 @@ final class DukeRtsApp extends SimpleApplication {
         // picture and the drawing and has to be told which it has.
         drawThePortrait(tpf);
         updateHud();
+        keepTheSelectionInStep();
         updateCommandBar();
         followTheAim(); // the bar's aim or the game's, whether or not the client's bar is up
         updateBanner();
@@ -4079,16 +4081,30 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private CommandBar commandBar;
-    /** What was last reported to the game, so an unchanged selection is not copied every frame. */
-    private java.util.List<Integer> toldSelection = java.util.List.of();
+    /** The selection kept in step with the game's, both ways — see {@link SelectionLink}. */
+    private final SelectionLink selectionLink = new SelectionLink();
 
     /**
-     * Tell the game what is selected, and draw what it says may be done with it.
+     * The game told what is selected whenever that changes, and the game's own pick taken up — in a match, whatever
+     * draws the HUD: a game that draws its own bar hangs it off the selection just as the client's bar does.
      *
-     * <p>Two halves of one conversation and deliberately a frame apart. The selection goes out now; the
-     * buttons come back in the <em>next</em> snapshot, because they are worked out on the simulation
-     * thread where the state they are about lives — what a barracks can train, what this player can
-     * afford. A frame is not worth racing for.
+     * <p>Half of one conversation with {@link #updateCommandBar}, and deliberately a frame apart from it: the
+     * selection goes out now, and the buttons come back in the <em>next</em> snapshot, because they are worked out
+     * on the simulation thread where the state they are about lives — what a barracks can train, what this player
+     * can afford. A frame is not worth racing for.
+     */
+    private void keepTheSelectionInStep() {
+        if (screen != Screen.PLAYING && screen != Screen.PAUSED) {
+            return;
+        }
+        if (snapshot != null) {
+            selectionLink.takeUp(selected, game, snapshot.units(), game.getLocalPlayerIndex());
+        }
+        selectionLink.tell(selected, game);
+    }
+
+    /**
+     * Draw what the game says may be done with the selection, when the client's own HUD is up.
      *
      * <p>A game that never asked for a bar sends no buttons and nothing is drawn, which is what every
      * game had before there was one.
@@ -4099,11 +4115,6 @@ final class DukeRtsApp extends SimpleApplication {
                 commandBar.hide();
             }
             return;
-        }
-        if (!selected.equals(new java.util.HashSet<>(toldSelection))) {
-            // In the order the client holds them, so the game's answer is about the same list twice.
-            toldSelection = java.util.List.copyOf(selected);
-            game.setSelection(toldSelection);
         }
         var buttons = snapshot == null ? java.util.List.<uz.dukeengine.game.view.CommandButton>of()
                 : snapshot.commands();
