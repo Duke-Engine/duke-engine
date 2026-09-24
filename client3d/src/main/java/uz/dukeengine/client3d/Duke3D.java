@@ -265,6 +265,18 @@ public final class Duke3D {
         later(client -> client.playMovie(movie, ended));
     }
 
+    /**
+     * Draw the world in this part of the window, in shares of it from its top left — the top 80% where the game's bar
+     * takes the foot of the screen: {@code worldView(0, 0, 1, 0.8f)}. The camera renders into it with its shape, its
+     * vertical angle kept; picking, the drag box, placing and scrolling at the edge are measured in it; outside it the
+     * world takes no pointer and draws nothing but black, under the game's canvas. From the next frame, the camera not
+     * moved; {@code worldView(0, 0, 1, 1)} is the whole window again.
+     */
+    public void worldView(float left, float top, float width, float height) {
+        var region = new WorldRegion(left, top, width, height);
+        later(client -> client.worldView(region));
+    }
+
     /** Stop the movie playing, and its sound, at once — for a key the game says skips it. */
     public void stopMovie() {
         later(DukeRtsApp::stopMovie);

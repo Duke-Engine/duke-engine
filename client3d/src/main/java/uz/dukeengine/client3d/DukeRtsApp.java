@@ -118,6 +118,12 @@ final class DukeRtsApp extends SimpleApplication {
     /** The game's ear for what the players say — see {@link Duke3D#onChat}. */
     private final java.util.function.Consumer<uz.dukeengine.core.network.ChatLine> chatEar;
     private Backdrop backdrop;
+    /** The part of the window the world is drawn in — see {@link Duke3D#worldView} — and what it was last laid as. */
+    private WorldRegion worldRegion = WorldRegion.WHOLE;
+    private WorldRegion laidRegion;
+    private int laidRegionFor;
+    /** What clears the window round a world drawn in part of it: black, under the game's canvas. */
+    private com.jme3.renderer.ViewPort surround;
     /** The movie playing, and where it is shown — see {@link Duke3D#playMovie}. */
     private MoviePlayer movie;
     private MovieScreen movieScreen;
@@ -668,6 +674,11 @@ final class DukeRtsApp extends SimpleApplication {
         canvasDrawing = new CanvasDrawing(assetManager, canvasText);
         guiNode.attachChild(canvasDrawing.node());
         movieScreen = new MovieScreen(assetManager, guiNode);
+        surround = renderManager.createPreView("world-surround", new com.jme3.renderer.Camera(cam.getWidth(),
+                cam.getHeight()));
+        surround.setBackgroundColor(ColorRGBA.Black);
+        surround.setClearFlags(true, true, true);
+        surround.setEnabled(false);
         if (backdropRecipe != null) {
             backdrop = new Backdrop(backdropRecipe, built -> new ArtLoad(built.templatesThisMatchCanDraw()));
         }
@@ -684,6 +695,36 @@ final class DukeRtsApp extends SimpleApplication {
         } catch (RuntimeException e) {
             return null;
         }
+    }
+
+    /** Draw the world in this part of the window from the next frame — see {@link Duke3D#worldView}. */
+    void worldView(WorldRegion region) {
+        this.worldRegion = region;
+    }
+
+    /**
+     * The camera laid into the world's part of the window, again whenever that part or the window changes: its
+     * viewport and its shape, and the black round it.
+     */
+    private void layTheWorldRegion() {
+        int size = cam.getWidth() * 100_000 + cam.getHeight();
+        if (worldRegion.equals(laidRegion) && size == laidRegionFor) {
+            return;
+        }
+        worldRegion.applyTo(cam);
+        laidRegion = worldRegion;
+        laidRegionFor = size;
+        surround.getCamera().resize(cam.getWidth(), cam.getHeight(), false);
+        surround.setEnabled(!worldRegion.isWhole());
+        var bottom = worldRegion.bottomPixel(cam.getHeight());
+        unitBars.within(worldRegion.leftPixel(cam.getWidth()), bottom, worldRegion.rightPixel(cam.getWidth()),
+                worldRegion.topPixel(cam.getHeight()));
+    }
+
+    /** Whether the pointer is over the world: in the part of the window it is drawn in. */
+    private boolean pointerOnTheWorld() {
+        var at = inputManager.getCursorPosition();
+        return worldRegion.contains(at.x, at.y, cam.getWidth(), cam.getHeight());
     }
 
     /** Play a movie — see {@link Duke3D#playMovie}; one playing is stopped first. */
@@ -2846,6 +2887,8 @@ final class DukeRtsApp extends SimpleApplication {
                         if (pressed && commandBarClick()) {
                             // The bar took it -- before anything armed does, so pressing a
                             // second button is that button and not a place for the first.
+                        } else if (pressed && !pointerOnTheWorld()) {
+                            // Off the world's part of the window: nothing of the world is there to take it.
                         } else if (pressed && armedButton != null) {
                             aimArmedButton(); // this click is the armed button's place or thing
                         } else if (!pressed && placement != null && placement.pressed()) {
@@ -2863,7 +2906,7 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                 }
                 case "Order" -> {
-                    if (!pressed || screen != Screen.PLAYING) {
+                    if (!pressed || screen != Screen.PLAYING || !pointerOnTheWorld()) {
                         break;
                     }
                     var over = inputManager.getCursorPosition();
@@ -3182,6 +3225,9 @@ final class DukeRtsApp extends SimpleApplication {
      * of a monster cannot be clicked instead of it.
      */
     private UnitNode pickUnit() {
+        if (!pointerOnTheWorld()) {
+            return null; // nothing of the world under a pointer off the world's part of the window
+        }
         var click = inputManager.getCursorPosition();
         var near = cam.getWorldCoordinates(new Vector2f(click.x, click.y), 0f);
         var ray = new Ray(near, cam.getWorldCoordinates(new Vector2f(click.x, click.y), 1f)
@@ -3928,6 +3974,7 @@ final class DukeRtsApp extends SimpleApplication {
         keepTheBackdropGoing();
         rootNode.setCullHint(worldShown() ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
         followTheWindowSize();
+        layTheWorldRegion();
         showOnlyWhilePlaying();
         snapshot = game.getSnapshot();
         // What the pointer is on, so the next snapshot says whether an attack on it would be taken.
@@ -4511,16 +4558,21 @@ final class DukeRtsApp extends SimpleApplication {
             return still;
         }
         var cursor = inputManager.getCursorPosition();
+        if (!pointerOnTheWorld()) {
+            return still; // the edges are the world's part of the window, and the pointer is off it
+        }
         float margin = wanted.marginPixels();
         float speed = keySpeed * wanted.speedPercent() / 100f;
-        float width = cam.getWidth();
-        float height = cam.getHeight();
+        float left = worldRegion.leftPixel(cam.getWidth());
+        float right = worldRegion.rightPixel(cam.getWidth());
+        float bottom = worldRegion.bottomPixel(cam.getHeight());
+        float top = worldRegion.topPixel(cam.getHeight());
         // jME's cursor y grows upward, so the top of the screen is the far side of
         // the map — the same direction the up key sends the camera.
         return new Vector2f(
-                (cursor.x >= width - margin ? speed : 0f) - (cursor.x <= margin ? speed : 0f),
-                (cursor.y <= margin ? speed : 0f)
-                        - (cursor.y >= height - margin ? speed : 0f));
+                (cursor.x >= right - margin ? speed : 0f) - (cursor.x <= left + margin ? speed : 0f),
+                (cursor.y <= bottom + margin ? speed : 0f)
+                        - (cursor.y >= top - margin ? speed : 0f));
     }
 
     /**

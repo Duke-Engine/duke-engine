@@ -186,6 +186,13 @@ final class UnitBars {
      * the camera pans, and a bar that stayed where the screen used to be would
      * belong to a patch of floor rather than to anybody.
      */
+    /** The part of the screen the world is drawn in, up from the bottom: a bar is shown only over it. */
+    private float[] within;
+
+    void within(float left, float bottom, float right, float top) {
+        this.within = new float[] {left, bottom, right, top};
+    }
+
     void update(Camera camera, List<Standing> standing, UnitBarReading reading) {
         int at = 0;
         if (look.draws()) {
@@ -219,8 +226,12 @@ final class UnitBars {
             return true;
         }
         float margin = look.longest();
-        return onScreen.x < -margin || onScreen.x > camera.getWidth() + margin
-                || onScreen.y < -margin || onScreen.y > camera.getHeight() + margin;
+        float left = within == null ? 0f : within[0];
+        float bottom = within == null ? 0f : within[1];
+        float right = within == null ? camera.getWidth() : within[2];
+        float top = within == null ? camera.getHeight() : within[3];
+        return onScreen.x < left - margin || onScreen.x > right + margin
+                || onScreen.y < bottom || onScreen.y > top + margin;
     }
 
     // ---- one bar ----
