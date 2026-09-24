@@ -27,6 +27,14 @@ public interface Locomotor {
     default void moveTo(Coord3D destination) {
     }
 
+    /**
+     * Walk straight to {@code way}, out of whatever it was made inside, and then on to {@code destination}: how a
+     * thing leaves its maker through the door. A mover with no such first leg goes straight to the destination.
+     */
+    default void leave(Coord3D way, Coord3D destination) {
+        moveTo(destination);
+    }
+
     /** Stop where it is — or, for a thing that cannot stop in the air, circle there. */
     default void stop() {
     }

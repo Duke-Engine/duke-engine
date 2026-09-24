@@ -81,6 +81,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
      * route it had, or stands, and asks again each frame until it is given one.
      */
     private boolean waiting;
+    /** Where it goes on to by a route once it has walked the way it was given — see {@link #leave}. */
+    private Coord3D then;
 
     public MoveUpdate(GameObject owner, Data data) {
         super(owner);
@@ -100,11 +102,39 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
      * once it gets there: {@link #stoppedShort}.
      */
     public void moveTo(Coord3D destination) {
+        this.then = null;
         this.destination = destination;
         this.stoppedShort = false;
         this.lookedAgain = false;
         planRoute();
         nowhereNearer();
+    }
+
+    /**
+     * The reference's {@code aiFollowExitProductionPath}: straight to {@code way} — its maker's door, through its
+     * maker's own walls, which no route could be planned out of and none is needed through, since a mover standing
+     * in something is let walk out of it ({@link #isBlocked}) — then on to {@code destination} by a route. Where the
+     * way makes no headway, it goes on from wherever it got to.
+     */
+    @Override
+    public void leave(Coord3D way, Coord3D destination) {
+        stop();
+        this.destination = way;
+        this.then = destination;
+        this.waypoints = List.of(way);
+        this.goalReachable = true;
+        this.lookedAgain = false;
+        var world = getOwner().getWorld();
+        this.navigationVersion = world == null ? 0 : world.getNavigationVersion();
+    }
+
+    /** On from the way it was given to where it was going, if it was given one — see {@link #leave}. */
+    private boolean goOn() {
+        if (then == null) {
+            return false;
+        }
+        moveTo(then);
+        return true;
     }
 
     /** A route given that leads nowhere nearer than where it stands: that is already as near as it gets. */
@@ -145,6 +175,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
      * way once it has stepped out of a wall it was standing in, or a gate has opened.
      */
     private void routeWalked() {
+        if (goOn()) {
+            return;
+        }
         if (goalReachable || destination == null) {
             return; // arrived
         }
@@ -177,6 +210,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     /** Cancel any current move. */
     public void stop() {
+        this.then = null;
         this.waiting = false;
         this.waypoints = List.of();
         this.waypointIndex = 0;
@@ -228,7 +262,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             return; // still waiting, and no old route to walk meanwhile
         }
 
-        if (routeIsStale(owner)) {
+        if (then == null && routeIsStale(owner)) { // a way it was given is walked as given
             planRoute(); // something was built or destroyed across the way — think again
             if (!isMoving()) {
                 routeWalked(); // no way nearer from here
@@ -266,6 +300,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         }
 
         if (madeNoProgress(distance)) {
+            if (goOn()) {
+                return; // something stands in the doorway: on from here by a route
+            }
             stop(); // as close as it is ever going to get — stop rather than circle forever
             stoppedShort = true;
             return;

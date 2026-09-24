@@ -31,6 +31,10 @@ import uz.dukeengine.rts.player.Upgrade;
  * again once it is done; one of the building's own, once for that building.
  *
  * <p>One thing builds at a time, in queue order — deterministic by construction.
+ *
+ * <p>A factory with an {@link Exit} lets what it made out as the reference's do: made inside, walking out through
+ * its door, one at a time; one with a {@link Door} makes nothing until the door is open. A finished unit that may
+ * not leave yet waits at the head of the queue, complete, and the queue waits with it.
  */
 @ModuleGroup(RtsModuleGroups.ECONOMY)
 public final class ProductionUpdate extends UpdateModule {
@@ -40,11 +44,17 @@ public final class ProductionUpdate extends UpdateModule {
      * build — SAGE's command set — and the upgrades it may research.
      * {@code Builds = [ElfArcher, Rider]}, {@code Researches = [Upgrade_Armour]}.
      * An empty list means "no build menu" (scripts can still queue anything).
+     * Its {@link Exit} and {@link Door}, where it has them; without an exit its units step out of its side.
      */
-    public record Data(List<String> builds, List<String> researches) implements ModuleData {
+    public record Data(List<String> builds, List<String> researches, Exit exit, Door door) implements ModuleData {
         public Data {
             builds = builds == null ? List.of() : List.copyOf(builds);
             researches = researches == null ? List.of() : List.copyOf(researches);
+        }
+
+        /** A factory that lets its units out of its side at once, as every one did before it had an exit. */
+        public Data(List<String> builds, List<String> researches) {
+            this(builds, researches, null, null);
         }
 
         public Data(List<String> builds) {
@@ -54,6 +64,36 @@ public final class ProductionUpdate extends UpdateModule {
         public Data() {
             this(List.of(), List.of());
         }
+    }
+
+    /**
+     * Where what a factory makes comes out: the reference's {@code UnitCreatePoint}, {@code NaturalRallyPoint},
+     * {@code ExitDelay} and {@code InitialBurst} ({@code QueueProductionExitUpdate}). A unit is made at {@code
+     * createPoint} and walks first to {@code rallyPoint} — both in the factory's own frame, turned and placed with
+     * it, so a factory built facing east lets its units out on its east side — through the factory's own walls, and
+     * then on to the rally point the player set, if there is one. It is made facing the way its factory faces.
+     * After one leaves, the next waits {@code delay} frames, but for the first {@code burst}, which leave together.
+     *
+     * <p>{@code CreatePoint = [-10, -30, 0]}, {@code RallyPoint = [53, -30, 0]}. The reference pushes its natural
+     * rally point two cells further out from the factory's centre; here the unit walks to the point as written.
+     */
+    public record Exit(Coord3D createPoint, Coord3D rallyPoint, int delay, int burst) {
+        public Exit {
+            createPoint = createPoint == null ? new Coord3D(0f, 0f, 0f) : createPoint;
+            rallyPoint = rallyPoint == null ? createPoint : rallyPoint;
+        }
+    }
+
+    /**
+     * A factory's door: {@code ProductionUpdate}'s {@code DoorOpeningTime}, {@code DoorWaitOpenTime} and {@code
+     * DoorCloseTime}, in frames, and the words the factory holds meanwhile, which the game names and its look is
+     * chosen by. A finished unit opens it — {@code opening} for {@code openingFrames} — and is made the frame it is
+     * open; it stays {@code open} for {@code openFrames} after the last one left, a unit finishing meanwhile
+     * leaving at once, then {@code closing} for {@code closingFrames}, then none of the three. A unit finishing
+     * while it closes has it open again at once. A word left out is not held.
+     */
+    public record Door(int openingFrames, int openFrames, int closingFrames, String opening, String open,
+            String closing) {
     }
 
     /**
@@ -102,12 +142,21 @@ public final class ProductionUpdate extends UpdateModule {
     private final List<Job> queue = new ArrayList<>();
     private final List<String> builds;
     private final List<String> researches;
+    private final Exit exit;
+    private final Doorway doorway;
     private Coord3D rallyPoint;
+    /** Frames before the next unit may leave by the exit. */
+    private int exitWait;
+    /** How many more may leave with no wait at all. */
+    private int burstLeft;
 
     public ProductionUpdate(GameObject owner, Data data) {
         super(owner);
         this.builds = data.builds();
         this.researches = data.researches();
+        this.exit = data.exit();
+        this.doorway = data.door() == null ? null : new Doorway(data.door());
+        this.burstLeft = exit == null ? 0 : Math.max(0, exit.burst());
     }
 
     /** The unit template names this structure offers in its build menu. */
@@ -266,6 +315,15 @@ public final class ProductionUpdate extends UpdateModule {
 
     @Override
     public void update() {
+        // The door and the exit keep time whether or not anything is being made, as the reference's own modules do.
+        if (doorway != null) {
+            doorway.step(getOwner());
+        }
+        if (burstLeft > 0) {
+            exitWait = 0;
+        } else if (exitWait > 0) {
+            exitWait--;
+        }
         if (queue.isEmpty()) {
             return;
         }
@@ -274,30 +332,148 @@ public final class ProductionUpdate extends UpdateModule {
         if (!gatesAllow()) {
             return; // something attached to this factory is holding the line
         }
-        head.framesRemaining--;
+        if (head.framesRemaining > 0) {
+            head.framesRemaining--;
+        }
         if (head.framesRemaining > 0) {
             return;
         }
-        queue.removeFirst();
 
         var owner = getOwner();
         if (head.research != null) {
+            queue.removeFirst();
             if (world instanceof RtsSimulation rts) {
                 rts.upgradeCompleted(owner, head.research);
             }
             return;
         }
+        if (burstLeft == 0 && exitWait > 0 || doorway != null && !doorway.letOut(owner)) {
+            return; // complete, and waiting at the head of the queue for the way out
+        }
+        queue.removeFirst();
         if (world != null) {
-            var produced = world.spawn(head.unit, exitPosition(world, owner, head.unit), owner.getPlayerIndex());
-            if (rallyPoint != null) {
-                var ai = produced.getLocomotor();
-                if (ai != null) {
-                    ai.moveTo(rallyPoint);
-                }
-            }
+            var produced = exit == null ? outOfTheSide(world, owner, head.unit) : outOfTheDoor(world, owner, head.unit);
             if (world instanceof RtsSimulation rts) {
                 rts.produced(owner, produced);
             }
+        }
+    }
+
+    /** What a factory with no exit does: the unit beside it, sent to the rally point if there is one. */
+    private GameObject outOfTheSide(World world, GameObject owner, ThingTemplate unit) {
+        var produced = world.spawn(unit, exitPosition(world, owner, unit), owner.getPlayerIndex());
+        var ai = produced.getLocomotor();
+        if (rallyPoint != null && ai != null) {
+            ai.moveTo(rallyPoint);
+        }
+        return produced;
+    }
+
+    /**
+     * The reference's {@code exitObjectViaDoor}: made at the create point on the ground, facing its factory's way,
+     * and on its way out through the door — on to the rally point, or else to the door's own point once more, as the
+     * reference sends it so that two made together do not stand on one another.
+     */
+    private GameObject outOfTheDoor(World world, GameObject owner, ThingTemplate unit) {
+        var made = inFrameOf(owner, exit.createPoint());
+        var produced = world.spawn(unit, new Coord3D(made.x(), made.y(), world.groundHeight(made)),
+                owner.getPlayerIndex());
+        produced.setOrientation(owner.getOrientation());
+        var door = inFrameOf(owner, exit.rallyPoint());
+        var ai = produced.getLocomotor();
+        if (ai != null) {
+            ai.leave(door, rallyPoint != null ? rallyPoint : door);
+        }
+        exitWait = exit.delay();
+        if (burstLeft > 0) {
+            burstLeft--;
+        }
+        return produced;
+    }
+
+    /** A point of the factory's own frame where it stands: turned by its facing about its centre, and moved there. */
+    private static Coord3D inFrameOf(GameObject owner, Coord3D point) {
+        float cos = (float) StrictMath.cos(owner.getOrientation());
+        float sin = (float) StrictMath.sin(owner.getOrientation());
+        var at = owner.getPosition();
+        return new Coord3D(at.x() + point.x() * cos - point.y() * sin, at.y() + point.x() * sin + point.y() * cos,
+                at.z() + point.z());
+    }
+
+    /**
+     * A factory's door as it stands — {@code ProductionUpdate::updateDoors} — counting down its time in each state
+     * and holding that state's word on the factory while it is in it.
+     */
+    private static final class Doorway {
+        private enum State { CLOSED, OPENING, OPEN, CLOSING }
+
+        private final Door door;
+        private State state = State.CLOSED;
+        private int left;
+
+        Doorway(Door door) {
+            this.door = door;
+        }
+
+        /** A frame of its time: into the next state once this one's is up. */
+        void step(GameObject owner) {
+            if (state == State.CLOSED || --left > 0) {
+                return;
+            }
+            switch (state) {
+                case OPENING -> become(owner, State.OPEN, door.openFrames());
+                case OPEN -> become(owner, State.CLOSING, door.closingFrames());
+                case CLOSING -> become(owner, State.CLOSED, 0);
+                case CLOSED -> { }
+            }
+        }
+
+        /**
+         * A finished unit wants out: whether it may go now. A closed door starts opening and it waits; an open one
+         * stays open its whole time again; a closing one is open again at once.
+         */
+        boolean letOut(GameObject owner) {
+            switch (state) {
+                case CLOSED -> {
+                    if (door.openingFrames() > 0) {
+                        become(owner, State.OPENING, door.openingFrames());
+                        return false;
+                    }
+                    become(owner, State.OPEN, door.openFrames());
+                }
+                case OPENING -> {
+                    return false;
+                }
+                case OPEN, CLOSING -> become(owner, State.OPEN, door.openFrames());
+            }
+            return true;
+        }
+
+        private void become(GameObject owner, State next, int frames) {
+            hold(owner, wordOf(state), false);
+            state = next;
+            left = frames;
+            hold(owner, wordOf(state), true);
+        }
+
+        private static void hold(GameObject owner, String word, boolean held) {
+            if (word == null) {
+                return;
+            }
+            if (held) {
+                owner.setCondition(word);
+            } else {
+                owner.clearCondition(word);
+            }
+        }
+
+        private String wordOf(State of) {
+            return switch (of) {
+                case CLOSED -> null;
+                case OPENING -> door.opening();
+                case OPEN -> door.open();
+                case CLOSING -> door.closing();
+            };
         }
     }
 
