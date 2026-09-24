@@ -1,7 +1,7 @@
 # Graph Report - duke-engine  (2026-09-24)
 
 ## Corpus Check
-- 540 files · ~577,386 words
+- 540 files · ~577,387 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 65 file(s) not represented in the graph (top: .duke 35, .bin 6, .gltf 6)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `462ce4a6`
+- Built from commit: `450fd8e1`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -55,7 +55,7 @@
 - ParticleDrawing
 - What You Must Do When Invoked
 - .getPosition
-- Chevrons
+- com.jme3.math.Vector3f
 - WeaponSetsTest
 - SellRules
 - Visuals
@@ -67,7 +67,7 @@
 - incorrectoperationexception
 - .of
 - Shell
-- MovieFrames
+- Movie
 - HeightMap
 - UnitBarsTest
 - LayeredEffectsTest
@@ -105,7 +105,7 @@
 - Heard
 - StoneMenu
 - ChevronsTest
-- com.jme3.math.Vector3f
+- Sounds
 - .getOwner
 - autopopupcontroller
 - SkillEffectsTest
@@ -117,7 +117,7 @@
 - argparse
 - SubsystemInterface
 - Nima bor
-- LevelsTest
+- Chevrons
 - box
 - CountingLogic
 - .of
@@ -140,7 +140,7 @@
 - ParticleLayer
 - MinimapProjection
 - psipolyvariantreference
-- .levels
+- Module boundaries (the most important rule)
 - rectangle
 - RtsMomentsTest
 - GamePanel.java
@@ -171,7 +171,7 @@
 - ProductionUpdate
 - PaintedGroundTest
 - CanvasInputTest.java
-- Sounds
+- .handleEvents
 - Box
 - pil
 - World
@@ -195,7 +195,7 @@
 - RtsModuleGroups
 - DeathTest
 - allicons
-- ProjectileLauncherTest
+- LevelsTest
 - CommandButton
 - SoundTouchesNothingTest
 - Content
@@ -205,7 +205,7 @@
 - actionupdatethread
 - alarm
 - HowItDiedTest
-- Theme
+- .levels
 - diagnosticcollector
 - alignx
 - .groundHit
@@ -234,9 +234,9 @@
 - intbuffer
 - .spread
 - graphify reference: commit hook and native CLAUDE.md integration
-- WeaponBonus
+- ProjectileLauncherTest
 - .create
-- GameWindow.java
+- PortraitCameraTest
 - byteorder
 - cachedvaluesmanager
 - SolidWorldTest
@@ -258,7 +258,7 @@
 - intellijplatform
 - cefpostdataelement
 - EffectLists
-- OrderMarkTest
+- Theme
 - .claude/CLAUDE.md
 - extraction-spec.md
 - dukeinitypes
@@ -271,7 +271,7 @@
 - Changelog
 - Coord3D
 - datamanager
-- Aim
+- WeaponBonus
 - Contributing to duke-engine
 - DukeGame
 - PanelLookTest
@@ -305,7 +305,7 @@
 - jbutton
 - .init
 - jtoolbar
-- SpecialPowerModule
+- OrderMarkTest
 - localsearchscope
 - .isHouseColoured
 - combobox
@@ -314,9 +314,9 @@
 - message
 - particlemesh
 - .world
-- WeaponStatus
+- Aim
 - pattern
-- PortraitCameraTest
+- Piece
 - psiassignmentexpression
 - Duke3D
 - psielementresolveresult
@@ -333,7 +333,7 @@
 - psimethodreferenceexpression
 - psiparenthesizedexpression
 - .check
-- Piece
+- SpecialPowerModule
 - font
 - psireturnstatement
 - psisearchhelper
@@ -348,7 +348,7 @@
 - .skinKey
 - dukeblock
 - concurrentfactorymap
-- .handleEvents
+- GameWindow.java
 - CanvasTest
 - dukefile
 - dukevalue
@@ -356,7 +356,7 @@
 - hudscenes
 - boxlayout
 - inspectormodels
-- DrawnTest
+- WeaponStatus
 - desktopassetmanager
 - mapmodels
 - mapscenes
@@ -385,7 +385,7 @@
 - MovieTest
 - GameCommandTest
 - .box
-- Kind
+- DrawnTest
 - PlayerFactory
 - objects
 - Blend
@@ -393,6 +393,7 @@
 - Type
 - .watched
 - FloatingNumbers
+- Kind
 - .piece
 - jlabel
 - jmenu
@@ -408,7 +409,6 @@
 - uimanager
 - Geometry
 - WorldRegion
-- Module boundaries (the most important rule)
 - ContainTest
 - PathGrid
 - com.jme3.scene.Spatial
@@ -706,9 +706,9 @@ Nodes (31): For /graphify add and --watch, For /graphify query, For the commit h
 Cohesion: 0.06
 Nodes (15): CommandPipelineTest, Override, PathFollowingTest, TestLogic, Bilib qo'yish kerak, O'chirish tahlili, `rts` — RTS janr moduli, Data (+7 more)
 
-### Community 39 - "Chevrons"
-Cohesion: 0.19
-Nodes (5): Chevrons, Mark, OrderMark, Step, Marker
+### Community 39 - "com.jme3.math.Vector3f"
+Cohesion: 0.12
+Nodes (8): Override, ListShow, Scorch, Tracer, Override, Shown, Override, com.jme3.math.Vector3f
 
 ### Community 40 - "WeaponSetsTest"
 Cohesion: 0.19
@@ -746,7 +746,7 @@ Nodes (5): MapTerrain, Cave, Floor, MapTerrainTest, java.lang.annotation.Annotat
 Cohesion: 0.10
 Nodes (12): Menyu kimniki, Entry, HOST_LAN, JOIN_LAN, PLAY, QUIT, SETTINGS, SKIRMISH (+4 more)
 
-### Community 51 - "MovieFrames"
+### Community 51 - "Movie"
 Cohesion: 0.11
 Nodes (6): A movie, Movie, Frame, Override, MovieFrames, MoviePlayer
 
@@ -862,9 +862,9 @@ Nodes (3): GameSoundTest, Heard, Override
 Cohesion: 0.07
 Nodes (12): Align, StoneCraft, Action, Buttons, Choice, Hit, Level, Row (+4 more)
 
-### Community 89 - "com.jme3.math.Vector3f"
-Cohesion: 0.12
-Nodes (8): Override, ListShow, Scorch, Tracer, Override, Shown, Override, com.jme3.math.Vector3f
+### Community 89 - "Sounds"
+Cohesion: 0.07
+Nodes (17): Cue, Audience, EVERYONE, OWNER, Builder, Channel, EFFECTS, MUSIC (+9 more)
 
 ### Community 90 - ".getOwner"
 Cohesion: 0.06
@@ -893,6 +893,10 @@ Nodes (3): `uz.dukeengine.core` — sikl va hayot sikli, SubsystemInterface, Sub
 ### Community 100 - "Nima bor"
 Cohesion: 0.14
 Nodes (13): Boshqaruv, Nima bor, Sozlamalar, Cursor, HitFeel, MenuStyle, SkillRing, Color (+5 more)
+
+### Community 101 - "Chevrons"
+Cohesion: 0.19
+Nodes (5): Chevrons, Mark, OrderMark, Step, Marker
 
 ### Community 103 - "CountingLogic"
 Cohesion: 0.36
@@ -949,6 +953,10 @@ Nodes (30): assetnotfoundexception, blendmode, bytebuffer, AttackFlash, GroundRi
 ### Community 120 - "Pathfinder"
 Cohesion: 0.09
 Nodes (5): `uz.dukeengine.core.pathfind` — yo'l topish, Override, Flood, Pathfinder, Zones
+
+### Community 124 - "Module boundaries (the most important rule)"
+Cohesion: 0.06
+Nodes (29): A button on the game's canvas aims as the bar's does, A canvas a game draws on, and the input under it, A command button may ask for a place, Research in a factory's queue, Selling, attack-move, guard, evacuate, The simulation's own random numbers, What to change, Module boundaries (the most important rule) (+21 more)
 
 ### Community 127 - "GamePanel.java"
 Cohesion: 0.09
@@ -1042,9 +1050,9 @@ Nodes (7): Field, ViewPort, Junction, PaintedGroundTest, Shore, SquareTiles, Sca
 Cohesion: 0.22
 Nodes (8): actionlistener, CanvasInputTest, Hand, com.jme3.input.dummy.DummyKeyInput, com.jme3.input.dummy.DummyMouseInput, com.jme3.input.event.InputEvent, com.jme3.input.event.MouseButtonEvent, mousebuttontrigger
 
-### Community 155 - "Sounds"
-Cohesion: 0.07
-Nodes (17): Cue, Audience, EVERYONE, OWNER, Builder, Channel, EFFECTS, MUSIC (+9 more)
+### Community 155 - ".handleEvents"
+Cohesion: 0.20
+Nodes (5): Dying, HurtMoments, Floor, FunctionalInterface, WorldMoments
 
 ### Community 156 - "Box"
 Cohesion: 0.19
@@ -1101,10 +1109,6 @@ Nodes (10): What a side may build, Construction, CancelConstruction, Construct, 
 ### Community 177 - "DeathTest"
 Cohesion: 0.27
 Nodes (3): DeathTest, Override, Logic
-
-### Community 180 - "ProjectileLauncherTest"
-Cohesion: 0.28
-Nodes (4): Override, ProjectileLauncherTest, Quiver, Sharpened
 
 ### Community 181 - "CommandButton"
 Cohesion: 0.07
@@ -1178,17 +1182,13 @@ Nodes (3): Formation, Spot, FormationTest
 Cohesion: 0.50
 Nodes (3): For git commit hook, For native CLAUDE.md integration, graphify reference: commit hook and native CLAUDE.md integration
 
-### Community 219 - "WeaponBonus"
-Cohesion: 0.22
-Nodes (7): Words in a fight, Kind, DAMAGE, RADIUS, RANGE, RATE_OF_FIRE, WeaponBonus
+### Community 219 - "ProjectileLauncherTest"
+Cohesion: 0.28
+Nodes (4): Override, ProjectileLauncherTest, Quiver, Sharpened
 
 ### Community 220 - ".create"
 Cohesion: 0.20
 Nodes (3): Heard, Override, SoundsTest
-
-### Community 221 - "GameWindow.java"
-Cohesion: 0.33
-Nodes (5): dimension, GameWindow, javax.swing.JFrame, windowadapter, windowevent
 
 ### Community 224 - "SolidWorldTest"
 Cohesion: 0.36
@@ -1242,9 +1242,9 @@ Nodes (6): 0.2.0, 0.3.0, 0.4.1, A list of blocks separates its entries with a co
 Cohesion: 0.06
 Nodes (31): Override, ObjectHurt, WorldEvent, Coord3D, ActiveBody, Data, ArmorSet, DamageType (+23 more)
 
-### Community 262 - "Aim"
-Cohesion: 0.25
-Nodes (7): Over, Aim, GROUND, NOW, OPEN_GROUND, UNIT, UNIT_OR_GROUND
+### Community 262 - "WeaponBonus"
+Cohesion: 0.22
+Nodes (7): Words in a fight, Kind, DAMAGE, RADIUS, RANGE, RATE_OF_FIRE, WeaponBonus
 
 ### Community 263 - "Contributing to duke-engine"
 Cohesion: 0.14
@@ -1286,17 +1286,17 @@ Nodes (4): Credits, Duke Skirmish, The kit, Why the particles are half the size 
 Cohesion: 0.13
 Nodes (5): IntConsumer, Aimed, Binding, Hotkeys, ObjIntConsumer
 
-### Community 297 - "SpecialPowerModule"
-Cohesion: 0.29
-Nodes (3): Data, Override, SpecialPowerModule
-
 ### Community 305 - ".world"
 Cohesion: 0.40
 Nodes (3): FlatWorldChecksumTest, Override, TestLogic
 
-### Community 306 - "WeaponStatus"
-Cohesion: 0.29
-Nodes (5): WeaponStatus, BETWEEN_SHOTS, OUT, READY, RELOADING
+### Community 306 - "Aim"
+Cohesion: 0.25
+Nodes (7): Over, Aim, GROUND, NOW, OPEN_GROUND, UNIT, UNIT_OR_GROUND
+
+### Community 308 - "Piece"
+Cohesion: 0.25
+Nodes (8): Piece, CAP, CORNER, FLOOR, LEDGE, ROCK_FACE, STAIR, WALL
 
 ### Community 310 - "Duke3D"
 Cohesion: 0.12
@@ -1310,17 +1310,17 @@ Nodes (13): Described, Furnished, MapSide, MapTemplate, Peopled, Sided, Army, Is
 Cohesion: 0.21
 Nodes (8): Fit, FITS, IN_THE_WAY, OFF_THE_MAP, ON_ROCK, TOO_NEAR_THE_EDGE, TOO_STEEP, Placement
 
-### Community 325 - "Piece"
-Cohesion: 0.25
-Nodes (8): Piece, CAP, CORNER, FLOOR, LEDGE, ROCK_FACE, STAIR, WALL
+### Community 325 - "SpecialPowerModule"
+Cohesion: 0.29
+Nodes (3): Data, Override, SpecialPowerModule
 
-### Community 341 - ".handleEvents"
-Cohesion: 0.20
-Nodes (5): Dying, HurtMoments, Floor, FunctionalInterface, WorldMoments
+### Community 341 - "GameWindow.java"
+Cohesion: 0.33
+Nodes (5): dimension, GameWindow, javax.swing.JFrame, windowadapter, windowevent
 
-### Community 349 - "DrawnTest"
-Cohesion: 0.60
-Nodes (3): DrawnTest, Full, Sparse
+### Community 349 - "WeaponStatus"
+Cohesion: 0.29
+Nodes (5): WeaponStatus, BETWEEN_SHOTS, OUT, READY, RELOADING
 
 ### Community 375 - "VolumeType"
 Cohesion: 0.33
@@ -1330,9 +1330,9 @@ Nodes (6): VolumeType, BOX, CYLINDER, LINE, POINT, SPHERE
 Cohesion: 0.36
 Nodes (3): Override, MovieTest, Sound
 
-### Community 379 - "Kind"
-Cohesion: 0.40
-Nodes (4): Kind, ATTACK, ATTACK_MOVE, MOVE
+### Community 379 - "DrawnTest"
+Cohesion: 0.60
+Nodes (3): DrawnTest, Full, Sparse
 
 ### Community 380 - "PlayerFactory"
 Cohesion: 0.40
@@ -1354,13 +1354,13 @@ Nodes (5): Type, DRAWABLE, PARTICLE, STREAK, VOLUME_PARTICLE
 Cohesion: 0.16
 Nodes (3): FloatingNumbers, Mark, HitNumbers
 
+### Community 387 - "Kind"
+Cohesion: 0.40
+Nodes (4): Kind, ATTACK, ATTACK_MOVE, MOVE
+
 ### Community 411 - "Geometry"
 Cohesion: 0.06
 Nodes (15): content, Classified, Geometry, Override, Kind, Builder, ObjectTemplate, Sighted (+7 more)
-
-### Community 414 - "Module boundaries (the most important rule)"
-Cohesion: 0.06
-Nodes (29): A button on the game's canvas aims as the bar's does, A canvas a game draws on, and the input under it, A command button may ask for a place, Research in a factory's queue, Selling, attack-move, guard, evacuate, The simulation's own random numbers, What to change, Module boundaries (the most important rule) (+21 more)
 
 ### Community 432 - "ContainTest"
 Cohesion: 0.28
@@ -1402,11 +1402,11 @@ Nodes (3): FlyUpdateTest, Override, Sky
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `DukeRtsApp` connect `DukeRtsApp` to `PanelBlock`, `MultiplayerSession`, `UnitView`, `HotkeysTest`, `FloatingNumbers`, `OrderMarkers`, `DukeGame`, `CanvasDrawing`, `.showSettingsMenu`, `LightPool`, `Tileset`, `com.jme3.math.ColorRGBA`, `LayeredEffects`, `FloatingNumbersTest`, `com.jme3.material.Material`, `.burstAt`, `Box`, `WorldRegion`, `ObjectId`, `Hotkeys`, `HeroPortrait`, `ParticleDrawing`, `list`, `Chevrons`, `Visuals`, `DiscoveryTest`, `.isHouseColoured`, `Shell`, `PathGrid`, `com.jme3.scene.Spatial`, `CommandButton`, `Duke3D`, `.showMainMenu`, `MovieFrames`, `CanvasInput`, `HeroPanel`, `Particles`, `Theme`, `.fromText`, `.simpleInitApp`, `.groundHit`, `RunMoments`, `AudioSink`, `ArtLoad`, `BannerPanel`, `Controls`, `Sunlight`, `.skinKey`, `.handleEvents`, `StoneMenu`, `com.jme3.math.Vector3f`, `SkillEffectsTest`, `MatchLoad`, `Cursors`, `HitFlash`, `CameraFocus`, `CanvasText`, `com.jme3.scene.Node`, `EffectLists`, `MinimapProjection`, `GamePanel.java`?**
-  _High betweenness centrality (0.147) - this node is a cross-community bridge._
-- **Why does `Coord3D` connect `Coord3D` to `assertequals`, `UnitView`, `UnitScript`, `GameLogic`, `World`, `Footprint`, `.withDefaults`, `.named`, `ModuleData`, `.newScenario`, `Replay`, `ObjectId`, `.world`, `FlyUpdate`, `.getPosition`, `Chevrons`, `WeaponSetsTest`, `GameLogic.java`, `.fromText`, `.findPath`, `DukeRtsApp`, `AttackObject`, `ProductionTest`, `.newLogic`, `NetMessage`, `RangeRingsTest`, `Locomotor`, `Controls`, `MoveUpdate`, `7-bosqich — plaginda New Project ✅ BAJARILDI (2026-09-20)`, `.getOwner`, `SkillEffectsTest`, `LockstepGate`, `MatchLoad`, `LevelsTest`, `.of`, `.create`, `LockstepGateTest`, `.create`, `org.junit.jupiter.api.Test`, `WeaponUpdate`, `com.jme3.scene.Node`, `Pathfinder`, `RtsMomentsTest`, `GamePanel.java`, `WeaponTargetsTest`, `.of`, `.world`, `.addTemplate`, `EffectListsTest`, `.asCloseAsHeCanGet`, `DamageModifierTest`, `ProductionUpdate`, `PaintedGroundTest`, `Box`, `World`, `StaticObstacleTest`, `ConstructionTest`, `list`, `CollisionTest`, `Prerequisites`, `CommandBarTest`, `ProjectileLauncherTest`, `CommandButton`, `ResearchTest`, `HowItDiedTest`, `ShotLandingTest`, `CombatLogic`, `HeightMapTest`, `ExperienceModule`, `SolidWorldTest`, `Nima bor (paket bo'yicha)`, `OrderMarkers`, `DukeGame`, `PrerequisitesTest`, `WeaponHoldTest`, `WorldEventTest`, `Hotkeys`, `SpecialPowerModule`, `.world`, `VisionTest`, `.check`, `.handleEvents`, `.box`, `.named`, `Geometry`, `Module boundaries (the most important rule)`, `ContainTest`, `PathGrid`, `.withDefaults`, `GameObject`, `AttackOnTheMoveTest`, `FlyUpdateTest`?**
-  _High betweenness centrality (0.080) - this node is a cross-community bridge._
-- **Why does `DukeGame` connect `DukeGame` to `assertequals`, `UnitView`, `MultiplayerSession`, `Coord3D`, `.watched`, `GameLogic`, `0.6.0`, `.skirmish`, `Geometry`, `Replay`, `ObjectId`, `Module boundaries (the most important rule)`, `Hotkeys`, `NetFraming`, `list`, `GameCamera`, `CommandBarTest`, `StatusLineTest`, `.showMainMenu`, `PathGrid`, `CommandButton`, `Duke3D`, `SoundTouchesNothingTest`, `GameObject`, `DukeRtsApp`, `.setUp`, `KeyMap`, `7-bosqich — plaginda New Project ✅ BAJARILDI (2026-09-20)`, `WeaponBonus`, `LockstepGate`, `MatchLoad`, `GameWindow.java`, `SubsystemInterface`, `WorldTemplate`, `.create`, `WeaponUpdate`, `GameCommandTest`, `GamePanel.java`?**
+- **Why does `DukeRtsApp` connect `DukeRtsApp` to `PanelBlock`, `MultiplayerSession`, `UnitView`, `HotkeysTest`, `FloatingNumbers`, `OrderMarkers`, `DukeGame`, `CanvasDrawing`, `.showSettingsMenu`, `LightPool`, `Tileset`, `com.jme3.math.ColorRGBA`, `LayeredEffects`, `FloatingNumbersTest`, `com.jme3.material.Material`, `.burstAt`, `.handleEvents`, `Box`, `WorldRegion`, `ObjectId`, `Hotkeys`, `HeroPortrait`, `ParticleDrawing`, `list`, `com.jme3.math.Vector3f`, `Visuals`, `DiscoveryTest`, `.isHouseColoured`, `Shell`, `PathGrid`, `com.jme3.scene.Spatial`, `CommandButton`, `Duke3D`, `.showMainMenu`, `Movie`, `CanvasInput`, `HeroPanel`, `Particles`, `.fromText`, `.simpleInitApp`, `.groundHit`, `RunMoments`, `AudioSink`, `ArtLoad`, `BannerPanel`, `Controls`, `Sunlight`, `.skinKey`, `StoneMenu`, `SkillEffectsTest`, `MatchLoad`, `Chevrons`, `Cursors`, `HitFlash`, `CameraFocus`, `CanvasText`, `com.jme3.scene.Node`, `EffectLists`, `Theme`, `MinimapProjection`, `GamePanel.java`?**
+  _High betweenness centrality (0.146) - this node is a cross-community bridge._
+- **Why does `Coord3D` connect `Coord3D` to `assertequals`, `UnitView`, `UnitScript`, `GameLogic`, `World`, `Footprint`, `.withDefaults`, `.named`, `ModuleData`, `.newScenario`, `Replay`, `ObjectId`, `.world`, `FlyUpdate`, `.getPosition`, `WeaponSetsTest`, `GameLogic.java`, `.fromText`, `.findPath`, `DukeRtsApp`, `AttackObject`, `ProductionTest`, `.newLogic`, `NetMessage`, `RangeRingsTest`, `Locomotor`, `Controls`, `MoveUpdate`, `7-bosqich — plaginda New Project ✅ BAJARILDI (2026-09-20)`, `.getOwner`, `SkillEffectsTest`, `LockstepGate`, `MatchLoad`, `Chevrons`, `.of`, `.create`, `LockstepGateTest`, `.create`, `org.junit.jupiter.api.Test`, `WeaponUpdate`, `com.jme3.scene.Node`, `Pathfinder`, `Module boundaries (the most important rule)`, `RtsMomentsTest`, `GamePanel.java`, `WeaponTargetsTest`, `.of`, `.world`, `.addTemplate`, `EffectListsTest`, `.asCloseAsHeCanGet`, `DamageModifierTest`, `ProductionUpdate`, `PaintedGroundTest`, `.handleEvents`, `Box`, `World`, `StaticObstacleTest`, `ConstructionTest`, `list`, `CollisionTest`, `Prerequisites`, `CommandBarTest`, `LevelsTest`, `CommandButton`, `ResearchTest`, `HowItDiedTest`, `ShotLandingTest`, `CombatLogic`, `HeightMapTest`, `ExperienceModule`, `ProjectileLauncherTest`, `SolidWorldTest`, `Nima bor (paket bo'yicha)`, `OrderMarkers`, `DukeGame`, `PrerequisitesTest`, `WeaponHoldTest`, `WorldEventTest`, `Hotkeys`, `.world`, `VisionTest`, `.check`, `SpecialPowerModule`, `.box`, `.named`, `Geometry`, `ContainTest`, `PathGrid`, `.withDefaults`, `GameObject`, `AttackOnTheMoveTest`, `FlyUpdateTest`?**
+  _High betweenness centrality (0.083) - this node is a cross-community bridge._
+- **Why does `DukeGame` connect `DukeGame` to `assertequals`, `UnitView`, `MultiplayerSession`, `Coord3D`, `.watched`, `GameLogic`, `WeaponBonus`, `0.6.0`, `.skirmish`, `Geometry`, `Replay`, `ObjectId`, `Hotkeys`, `NetFraming`, `list`, `GameCamera`, `CommandBarTest`, `StatusLineTest`, `.showMainMenu`, `PathGrid`, `CommandButton`, `Duke3D`, `SoundTouchesNothingTest`, `GameObject`, `DukeRtsApp`, `.setUp`, `KeyMap`, `7-bosqich — plaginda New Project ✅ BAJARILDI (2026-09-20)`, `GameWindow.java`, `LockstepGate`, `MatchLoad`, `SubsystemInterface`, `WorldTemplate`, `.create`, `WeaponUpdate`, `GameCommandTest`, `Module boundaries (the most important rule)`, `GamePanel.java`?**
   _High betweenness centrality (0.079) - this node is a cross-community bridge._
 - **Are the 140 inferred relationships involving `Coord3D` (e.g. with `.drape()` and `.groundAt()`) actually correct?**
   _`Coord3D` has 140 INFERRED edges - model-reasoned connections that need verification._

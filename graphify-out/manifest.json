@@ -876,9 +876,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/Duke3D.java": {
-    "mtime": 1790221358.2181487,
-    "seen": 1790221501.0565965,
-    "ast_hash": "05ddf637a8da95a4e8577e3a36de7321",
+    "mtime": 1790222671.9787655,
+    "seen": 1790222698.215571,
+    "ast_hash": "aaac5639f2aceaa88df23c0f07a538ae",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/DukeRtsApp.java": {
