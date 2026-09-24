@@ -2889,9 +2889,9 @@ final class DukeRtsApp extends SimpleApplication {
                             // second button is that button and not a place for the first.
                         } else if (pressed && !pointerOnTheWorld()) {
                             // Off the world's part of the window: nothing of the world is there to take it.
-                        } else if (pressed && armedButton != null) {
+                        } else if (pressed && aiming.isArmed()) {
                             aimArmedButton(); // this click is the armed button's place or thing
-                        } else if (!pressed && placement != null && placement.pressed()) {
+                        } else if (!pressed && aiming.placement() != null && aiming.placement().pressed()) {
                             releaseArmedButton(); // let go: put down where it went down, turned as dragged
                         } else if (pressed && arming != null) {
                             // This click belongs to the armed key, not to selection.
@@ -2906,19 +2906,16 @@ final class DukeRtsApp extends SimpleApplication {
                     }
                 }
                 case "Order" -> {
-                    if (!pressed || screen != Screen.PLAYING || !pointerOnTheWorld()) {
+                    if (!pressed || screen != Screen.PLAYING) {
                         break;
                     }
                     var over = inputManager.getCursorPosition();
-                    if (arming == null && heroPanel.contains(over.x, over.y)) {
-                        break; // a right-click on the bar is not an order to the world
-                    }
-                    if (armedButton != null) {
-                        disarmButton(); // second thoughts, for a bar button as for a key
+                    if (aiming.isArmed()) {
+                        disarmButton(); // second thoughts, wherever the pointer is: a bar's button or the game's
                     } else if (arming != null) {
                         disarm(); // second thoughts, the way a right-click always means
-                    } else {
-                        order();
+                    } else if (pointerOnTheWorld() && !heroPanel.contains(over.x, over.y)) {
+                        order(); // a right-click on the bar, or off the world, is not an order to the world
                     }
                 }
                 default -> {
@@ -3028,8 +3025,8 @@ final class DukeRtsApp extends SimpleApplication {
             menuKey(code, key);
             return;
         }
-        if (code == KeyInput.KEY_ESCAPE && (armedButton != null || arming != null)) {
-            if (armedButton != null) {
+        if (code == KeyInput.KEY_ESCAPE && (aiming.isArmed() || arming != null)) {
+            if (aiming.isArmed()) {
                 disarmButton(); // mid-aim with a bar button: one keypress deep
             } else {
                 disarm(); // mid-aim with a key: the same
@@ -4046,6 +4043,7 @@ final class DukeRtsApp extends SimpleApplication {
         drawThePortrait(tpf);
         updateHud();
         updateCommandBar();
+        followTheAim(); // the bar's aim or the game's, whether or not the client's bar is up
         updateBanner();
         updateHover();
         placeMinimap();
@@ -4092,10 +4090,10 @@ final class DukeRtsApp extends SimpleApplication {
         }
         commandBar.unhide();
         commandBar.show(buttons, cam.getWidth());
-        if (armedButton != null && buttons.stream().noneMatch(one -> one.id().equals(armedButton.id()))) {
+        if (aiming.isArmed() && aiming.fromTheBar()
+                && buttons.stream().noneMatch(one -> one.id().equals(aiming.button().id()))) {
             disarmButton(); // the thing that offered it is no longer selected: nothing is waiting to build
         }
-        followTheAim();
     }
 
     /**
@@ -4153,8 +4151,10 @@ final class DukeRtsApp extends SimpleApplication {
 
     // ---- a bar button that aims ----
 
-    /** The bar's button waiting for its place or its thing, or null. Never at once with a hotkey's. */
-    private uz.dukeengine.game.view.CommandButton armedButton;
+    /** The button waiting for its place or its thing — the bar's, or the game's. Never at once with a hotkey's. */
+    private final Aiming aiming = new Aiming();
+    /** The circle round the cursor an aim at the ground may ask for, made when first wanted. */
+    private GroundRing aimRing;
     /** What the armed button will put down, drawn at the cursor, or null for a button with no ghost. */
     private Node ghost;
     private Material ghostMaterial;
@@ -4168,28 +4168,49 @@ final class DukeRtsApp extends SimpleApplication {
      * thinks better of it — the same two-step a hotkey that aims has always had.
      */
     private void armButton(uz.dukeengine.game.view.CommandButton button) {
+        arm(button, true, 0f, null, null);
+    }
+
+    /**
+     * Arm a button of the game's own canvas exactly as the bar arms its own — see {@link Duke3D#aim}. The game is
+     * told how it ended.
+     */
+    void armFromGame(uz.dukeengine.game.view.CommandButton button, float radius, String pointer,
+            java.util.function.Consumer<AimOutcome> told) {
+        arm(button, false, radius, pointer, told);
+    }
+
+    private void arm(uz.dukeengine.game.view.CommandButton button, boolean fromTheBar, float radius, String pointer,
+            java.util.function.Consumer<AimOutcome> told) {
         disarm(); // a hotkey armed first is given up: one thing waits for the next click, never two
         disarmButton();
-        armedButton = button;
+        if (button.aim() == uz.dukeengine.game.view.CommandButton.Aim.NOW) {
+            return; // nothing to wait for: a button that needs no place is pressed, not armed
+        }
+        aiming.arm(button, fromTheBar, radius, pointer, told);
         if (button.aim() == uz.dukeengine.game.view.CommandButton.Aim.GROUND) {
-            placement = new PlacementDrag(button.facing());
             showGhost(button.ghost());
         }
     }
 
-    /** Where an armed placing button's thing stands and which way it faces; null for any other button. */
-    private PlacementDrag placement;
-
+    /** Give the armed button up: nothing sent, and whoever armed it told so. */
     private void disarmButton() {
-        if (armedButton == null) {
+        if (!aiming.isArmed()) {
             return;
         }
-        armedButton = null;
-        placement = null;
+        aiming.giveUp();
+        forgetTheAim();
+    }
+
+    /** Take down what an aim put up: the ghost, the circle, and the game's question about the place. */
+    private void forgetTheAim() {
         game.setAim(null, null, 0f);
         if (ghost != null) {
             ghost.removeFromParent();
             ghost = null;
+        }
+        if (aimRing != null) {
+            aimRing.hide();
         }
     }
 
@@ -4198,21 +4219,22 @@ final class DukeRtsApp extends SimpleApplication {
      * sent when the press is let go, so a drag in between can turn it; see {@link PlacementDrag}.
      */
     private void aimArmedButton() {
-        var button = armedButton;
+        var button = aiming.button();
         if (button.aim() == uz.dukeengine.game.view.CommandButton.Aim.UNIT) {
             var unit = pickUnit();
             if (unit == null) {
                 return; // it had to be a thing, and the click found none
             }
-            disarmButton();
-            game.pressCommand(button.id(), null, 0f, unit.view.id());
+            var press = aiming.target(unit.view.id());
+            forgetTheAim();
+            game.pressCommand(press.button().id(), null, 0f, press.target());
             answerOrder(button.id(), selectedIds());
             markOrder(unit.view.x(), unit.view.y(), unit.view.id(), OrderMarkers.Kind.ATTACK);
             return;
         }
         var ground = pickGround();
         var cursor = inputManager.getCursorPosition();
-        placement.press(cursor.x, cursor.y, ground == null ? null : new Coord3D(ground.x, ground.z, 0f));
+        aiming.placement().press(cursor.x, cursor.y, ground == null ? null : new Coord3D(ground.x, ground.z, 0f));
     }
 
     /**
@@ -4223,15 +4245,14 @@ final class DukeRtsApp extends SimpleApplication {
      * either way: a place sent is judged again when its order is applied, and refused there costs nothing.
      */
     private void releaseArmedButton() {
-        var placed = placement.release();
-        if (placed == null || snapshot == null || !snapshot.aimFits()) {
+        var press = aiming.putDown(snapshot != null && snapshot.aimFits());
+        if (press == null) {
             return;
         }
-        var button = armedButton;
-        disarmButton();
-        game.pressCommand(button.id(), placed.place(), placed.facing(), -1);
-        answerOrder(button.id(), selectedIds());
-        markOrder(placed.place().x(), placed.place().y(), -1, OrderMarkers.Kind.MOVE);
+        forgetTheAim();
+        game.pressCommand(press.button().id(), press.place(), press.facing(), -1);
+        answerOrder(press.button().id(), selectedIds());
+        markOrder(press.place().x(), press.place().y(), -1, OrderMarkers.Kind.MOVE);
     }
 
     /**
@@ -4278,7 +4299,8 @@ final class DukeRtsApp extends SimpleApplication {
      * colour the simulation last gave for it — a frame behind the cursor, which is not worth racing for.
      */
     private void followTheAim() {
-        if (armedButton == null || placement == null) {
+        var placement = aiming.placement();
+        if (!aiming.isArmed() || placement == null) {
             return;
         }
         var ground = pickGround();
@@ -4289,11 +4311,21 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         // Asked at the facing the ghost has now: for a box the footprint the player sees is the question.
-        game.setAim(armedButton.id(), where, placement.facing());
+        game.setAim(aiming.button().id(), where, placement.facing());
+        boolean fits = snapshot != null && snapshot.aimFits();
         if (ghost != null) {
             ghost.setLocalTranslation(where.x(), floorHeightAt(where.x(), where.y()), where.y());
             ghost.setLocalRotation(PlacementDrag.turnedTo(placement.facing()));
-            ghostMaterial.setColor("Color", snapshot != null && snapshot.aimFits() ? GHOST_FITS : GHOST_REFUSED);
+            ghostMaterial.setColor("Color", fits ? GHOST_FITS : GHOST_REFUSED);
+        }
+        if (aiming.radius() > 0f) {
+            var look = visuals.getRangeLook() == null ? RangeLook.DEFAULT : visuals.getRangeLook();
+            if (aimRing == null) {
+                aimRing = new GroundRing(assetManager, markerNode, look.bandWidth(), look.segments(),
+                        look.brightness());
+            }
+            aimRing.show(where, aiming.radius(), look.height(), fits ? look.allowColour() : look.denyColour(),
+                    look.edgeAlpha(), look.fillAlpha(), this::floorHeightAt);
         }
     }
 
@@ -4407,6 +4439,10 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void showTheRightPointer() {
         if (cursors == null || !cursors.any()) {
+            return;
+        }
+        if (aiming.isArmed() && aiming.pointer() != null) {
+            cursors.show(aiming.pointer()); // the pointer the game named for this aim
             return;
         }
         cursors.show(Cursors.situationFor(whatThePointerIsOver()));
