@@ -36,6 +36,8 @@ when it does, this page says exactly what to change and how.
   the product (a veteran's 110% with a 125% upgrade is 135%, no longer 137.5%).
 - `DukeGame.getLocalPlayerIndex()` is -1 once the machine has taken a watcher's seat mid-match (`watch()`).
   `GameLogic.checksum()` mixes in the players the map was revealed to, when there are any.
+- The client tells `DukeGame.getSelection()` in every frame of a match, and in the order the things were chosen,
+  whatever draws the HUD. With `Shell.drawnByTheGame()` it used to stay empty, and the order was a hash's.
 - A cue with no file plays nothing; it used to throw when played. A save carries each thing's most health, and the
   players the map was revealed to on a `REVEALED` line that an older engine does not read.
 - The client reads its own keys from a `KeyMap`, `KeyMap.standard()` unless the game gives one — the keys it
@@ -82,6 +84,13 @@ same `ObjectDied` the client's event carries, beside it rather than from it, wit
 whose blow it was, taken when the blow landed, so a kill is credited even when the killer is gone too. A thing
 removed without dying, such as a sold building, is not heard. A side's books keep what it earned and what it
 spent apart where its balance nets them (see what to change).
+
+### The selection both ways
+
+What the player selects reaches `DukeGame.getSelection()` whatever draws the HUD, so a game that draws its own
+command bar hangs it off the selection as the client's bar does. `DukeGame.select(ids)` goes the other way, from
+the game's own code on any thread: the client takes the pick up at its next frame, in the game's order, under the
+rule a click follows (the player's own things, or one of someone else's alone).
 
 ### What a container holds, a sound's end, the map revealed
 
