@@ -115,6 +115,8 @@ final class DukeRtsApp extends SimpleApplication {
     private MatchLoad matchLoad;
     /** The game's recipe for the match behind its front end, and that match — see {@link Duke3D#backdrop}. */
     private final java.util.function.Supplier<DukeGame> backdropRecipe;
+    /** The game's ear for how far the backdrop being made has got — see {@link Duke3D#onBackdropLoading}. */
+    private final java.util.function.IntConsumer backdropEar;
     /** The game's ear for what the players say — see {@link Duke3D#onChat}. */
     private final java.util.function.Consumer<uz.dukeengine.core.network.ChatLine> chatEar;
     private Backdrop backdrop;
@@ -447,7 +449,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     DukeRtsApp(DukeGame game, Visuals visuals, Shell shell, Hotkeys hotkeys, Painter painter,
             CanvasInput canvasInput, java.util.function.IntConsumer loadingEar,
-            java.util.function.Supplier<DukeGame> backdropRecipe,
+            java.util.function.Supplier<DukeGame> backdropRecipe, java.util.function.IntConsumer backdropEar,
             java.util.function.Consumer<uz.dukeengine.core.network.ChatLine> chatEar) {
         this.game = game;
         this.visuals = visuals;
@@ -456,6 +458,7 @@ final class DukeRtsApp extends SimpleApplication {
         this.canvasInput = canvasInput;
         this.loadingEar = loadingEar;
         this.backdropRecipe = backdropRecipe;
+        this.backdropEar = backdropEar;
         this.chatEar = chatEar;
         listenForChat(game);
         this.hotkeys = hotkeys == null ? Hotkeys.none() : hotkeys;
@@ -680,7 +683,8 @@ final class DukeRtsApp extends SimpleApplication {
         surround.setClearFlags(true, true, true);
         surround.setEnabled(false);
         if (backdropRecipe != null) {
-            backdrop = new Backdrop(backdropRecipe, built -> new ArtLoad(built.templatesThisMatchCanDraw()));
+            backdrop = new Backdrop(backdropRecipe, built -> new ArtLoad(built.templatesThisMatchCanDraw()),
+                    backdropEar == null ? percent -> { } : backdropEar);
         }
         if (canvasInput != null) {
             inputManager.addRawInputListener(new CanvasInputs(canvasInput, () -> cam.getHeight()));
@@ -799,6 +803,13 @@ final class DukeRtsApp extends SimpleApplication {
     private boolean backdropShown() {
         return screen == Screen.FRONT && backdrop != null && backdrop.running() != null
                 && game == backdrop.running();
+    }
+
+    /** Whether the match behind the front end waits to be made — see {@link Duke3D#holdBackdrop}. */
+    void holdBackdrop(boolean hold) {
+        if (backdrop != null) {
+            backdrop.hold(hold);
+        }
     }
 
     /** Keep the match behind the front end going, and draw it once there is one. */

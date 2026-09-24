@@ -437,6 +437,7 @@ public final class DukeGame {
     private List<String> factionChoices = List.of();
     private String chosenMap;
     private List<String> chosenFactions;
+    private boolean placesEverythingAtSetup;
 
     /**
      * Register the skirmish catalogue: the maps and factions the player can
@@ -488,6 +489,17 @@ public final class DukeGame {
 
     public String getChosenMap() {
         return chosenMap;
+    }
+
+    /**
+     * Say that this match places everything it will ever draw while it is set up — a front end's shell map, a mission
+     * laid out whole — so {@link #templatesThisMatchCanDraw} plans from what stands in it, as it does for a map chosen
+     * from the skirmish list, rather than the client reading every look the game registered.
+     */
+    public DukeGame placesEverythingAtSetup() {
+        requireNotStarted();
+        this.placesEverythingAtSetup = true;
+        return this;
     }
 
     public List<String> getChosenFactions() {
@@ -862,16 +874,17 @@ public final class DukeGame {
      * trains riflemen brings the rifleman in; a factory that builds a war factory brings in everything
      * the war factory builds.
      *
-     * <p>Null before {@link #boot}, and for a game that chose no match — a dungeon spawns its monsters floor
-     * by floor, long after booting, and planning from its first empty world would miss all of them. Such a
-     * game is planned from everything it registered, as it always was.
+     * <p>Null before {@link #boot}, and for a game that chose no match and did not say it
+     * {@link #placesEverythingAtSetup} — a dungeon spawns its monsters floor by floor, long after booting, and
+     * planning from its first empty world would miss all of them. Such a game is planned from everything it
+     * registered, as it always was.
      *
      * <p>A thing that turns up by some other road — debris, a crate's reward — is not in it, and is read
      * when it first appears. That is the stall preloading exists to prevent, and the right trade for a
      * thing that is rare.
      */
     public java.util.Set<String> templatesThisMatchCanDraw() {
-        if (!started || chosenMap == null) {
+        if (!started || chosenMap == null && !placesEverythingAtSetup) {
             return null;
         }
         var seen = new java.util.LinkedHashSet<String>();

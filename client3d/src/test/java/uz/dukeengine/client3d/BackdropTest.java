@@ -3,10 +3,13 @@ package uz.dukeengine.client3d;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
@@ -14,7 +17,10 @@ import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.rts.message.GameMessage;
 
-/** The match behind a front end: nobody plays it, it takes no orders, and made again it plays the same way. */
+/**
+ * The match behind a front end: nobody plays it, it takes no orders, and made again it plays the same way; held back
+ * while the game's movies play, and telling the game's load screen how far it has got.
+ */
 class BackdropTest {
 
     /** Art with nothing to read. */
@@ -59,7 +65,7 @@ class BackdropTest {
 
     @Test
     void aBackdropAdvancesWithNobodyPlayingItAndTakesNoOrders() throws Exception {
-        var backdrop = new Backdrop(BackdropTest::recipe, built -> NOTHING);
+        var backdrop = new Backdrop(BackdropTest::recipe, built -> NOTHING, percent -> { });
         var running = started(backdrop);
         try {
             assertEquals(-1, running.getLocalPlayerIndex(), "watched: nobody's seat");
@@ -83,6 +89,91 @@ class BackdropTest {
         var again = started(backdrop);
         backdrop.stop();
         assertNotSame(running, again, "and when the front end comes back, a fresh one");
+    }
+
+    @Test
+    void heldItIsNotAskedForOrReadAndLetGoItIsMadeOnceAndToldUpTo100() throws Exception {
+        var asked = new AtomicInteger();
+        var read = new AtomicInteger();
+        var told = new ArrayList<Integer>();
+        var ranBy100 = new boolean[1];
+        var self = new Backdrop[1];
+        var backdrop = new Backdrop(() -> {
+            asked.incrementAndGet();
+            return recipe();
+        }, built -> {
+            read.incrementAndGet();
+            return NOTHING;
+        }, percent -> {
+            told.add(percent);
+            if (percent == 100) { // the world, at the moment the game hears 100
+                var running = self[0].running();
+                ranBy100[0] = running != null && running.getSnapshot().frame() > 0;
+            }
+        });
+        self[0] = backdrop;
+
+        backdrop.hold(true);
+        for (int frame = 0; frame < 300; frame++) {
+            assertNull(backdrop.frame());
+        }
+        assertEquals(0, asked.get(), "held: the recipe not asked over 300 frames");
+        assertEquals(0, read.get(), "and nothing of it read: a movie played meanwhile has the machine to itself");
+        assertTrue(told.isEmpty());
+
+        backdrop.hold(false);
+        var running = started(backdrop);
+        try {
+            waitFor(() -> {
+                backdrop.frame();
+                return told.contains(100);
+            }, "100");
+            assertEquals(1, asked.get(), "let go, made once");
+            assertEquals(1, read.get());
+            for (int i = 1; i < told.size(); i++) {
+                assertTrue(told.get(i) > told.get(i - 1), "each figure once, rising: " + told);
+            }
+            assertEquals(100, told.getLast());
+            assertTrue(ranBy100[0], "100 once a frame of it has run, not when it is merely started");
+        } finally {
+            backdrop.stop();
+        }
+        int stoppedAt = running.getLogic().getFrame();
+        Thread.sleep(100);
+        assertEquals(stoppedAt, running.getLogic().getFrame(), "a match started: the backdrop still stops");
+    }
+
+    @Test
+    void heldAgainTheNextFrontEndMakesNoneUntilLetGo() throws Exception {
+        var asked = new AtomicInteger();
+        var backdrop = new Backdrop(() -> {
+            asked.incrementAndGet();
+            return recipe();
+        }, built -> NOTHING, percent -> { });
+        started(backdrop);
+        backdrop.stop(); // a match starts
+
+        backdrop.hold(true); // and before the front end comes back, the game holds it again
+        for (int frame = 0; frame < 300; frame++) {
+            assertNull(backdrop.frame());
+        }
+        assertEquals(1, asked.get());
+
+        backdrop.hold(false);
+        started(backdrop);
+        backdrop.stop();
+        assertEquals(2, asked.get(), "a fresh one once let go");
+    }
+
+    @Test
+    void aRecipeThatMakesNoMatchStillTells100() {
+        var told = new ArrayList<Integer>();
+        var backdrop = new Backdrop(() -> null, built -> NOTHING, told::add);
+
+        assertNull(backdrop.frame());
+        assertNull(backdrop.frame());
+
+        assertEquals(List.of(100), told, "none to be had: the load screen is not left waiting for ever");
     }
 
     @Test

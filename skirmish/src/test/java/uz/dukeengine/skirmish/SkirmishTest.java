@@ -252,6 +252,27 @@ class SkirmishTest {
         assertEquals(0, game.getLogic().getFrame(), "built, and not one frame of it run");
     }
 
+    /**
+     * A match that says it places everything at setup — a front end's shell map — is planned from what stands in it,
+     * with no map chosen from the skirmish list.
+     */
+    @Test
+    void aMatchThatPlacesEverythingAtSetupIsPlannedFromWhatStandsInIt() {
+        var game = uz.dukeengine.game.DukeGame.create("Shell map")
+                .templates(loader -> loader.type(uz.dukeengine.skirmish.content.Unit.class))
+                .loadUnits(uz.dukeengine.skirmish.content.Content.units())
+                .map(40, 30)
+                .placesEverythingAtSetup();
+        var me = game.addPlayer("Me", java.awt.Color.CYAN);
+        game.spawn("Barracks", me, 100f, 100f);
+        game.spawnNeutral("OreNode", 200f, 200f);
+
+        game.boot();
+
+        assertEquals(java.util.Set.of("Barracks", "OreNode", "Worker", "Soldier", "Archer"),
+                game.templatesThisMatchCanDraw());
+    }
+
     /** A game that chose no match — a dungeon, spawning floor by floor — is planned from everything. */
     @Test
     void aGameWithNoChosenMatchIsPlannedFromEverything() {

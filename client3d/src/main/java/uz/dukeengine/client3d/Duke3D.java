@@ -39,6 +39,7 @@ public final class Duke3D {
     private CanvasInput input;
     private java.util.function.IntConsumer loading;
     private java.util.function.Supplier<DukeGame> backdrop;
+    private java.util.function.IntConsumer backdropLoading;
     private java.util.function.Consumer<uz.dukeengine.core.network.ChatLine> chat;
 
     /** The running client, once launched; what is asked of it before then waits here, in order. */
@@ -116,6 +117,18 @@ public final class Duke3D {
     }
 
     /**
+     * Told how far the backdrop being made has got, 0 to 100, each new figure once and rising, on the window's thread
+     * — the canvas painted after every one — as {@link #onLoading} tells a match's: building it the first 40, reading
+     * its art the rest. 100 once a frame of it has run, so a load screen of the game's own can fill its bar and fade
+     * its menu in over a world that is there; 100 too when there is none to be had (the recipe made no match, or it
+     * could not be built — both logged), so the load screen never waits for ever. Each fresh backdrop counts from 0.
+     */
+    public Duke3D onBackdropLoading(java.util.function.IntConsumer percent) {
+        this.backdropLoading = percent;
+        return this;
+    }
+
+    /**
      * Told, on the window's thread, every line said to this machine's player in a match — its own included — with who
      * said it and to whom: what a game's screen shows at its top left. Said with {@link DukeGame#say}.
      */
@@ -153,7 +166,8 @@ public final class Duke3D {
     public void launch() {
         // the simulation starts when the player presses Play — or at once, if the
         // game asked for no menu at all
-        var client = new DukeRtsApp(game, visuals, shell, hotkeys, painter, input, loading, backdrop, chat);
+        var client = new DukeRtsApp(game, visuals, shell, hotkeys, painter, input, loading, backdrop,
+                backdropLoading, chat);
         synchronized (waiting) {
             app = client;
             for (var task : waiting) {
@@ -325,6 +339,16 @@ public final class Duke3D {
      */
     public void holdMatchStart(boolean hold) {
         later(client -> client.holdMatchStart(hold));
+    }
+
+    /**
+     * Whether the backdrop waits to be made: while held its recipe is not asked and nothing of it is read — so the
+     * game's movies play alone, as the reference plays its logo and trailer before it loads its shell map — and let go,
+     * it is made as it always was, told through {@link #onBackdropLoading}. Asked before launch, it is held from the
+     * first frame. A backdrop already begun goes on; the hold keeps the next from being begun.
+     */
+    public void holdBackdrop(boolean hold) {
+        later(client -> client.holdBackdrop(hold));
     }
 
     /** Let the match being loaded start once it is loaded — at once if it is there already. */
