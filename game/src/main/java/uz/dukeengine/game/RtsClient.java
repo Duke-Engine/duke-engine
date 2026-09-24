@@ -61,6 +61,12 @@ final class RtsClient extends GameClient {
     /** Whether an attack on what the pointer is on would be taken, asked here for the same reason as the bar. */
     private volatile java.util.function.BooleanSupplier attackable = () -> true;
 
+    private volatile java.util.function.Supplier<String> contextOrder = () -> null;
+
+    void setContextOrder(java.util.function.Supplier<String> contextOrder) {
+        this.contextOrder = contextOrder == null ? () -> null : contextOrder;
+    }
+
     void setAttackable(java.util.function.BooleanSupplier attackable) {
         this.attackable = attackable == null ? () -> true : attackable;
     }
@@ -154,6 +160,7 @@ final class RtsClient extends GameClient {
                 aimFits.getAsBoolean(),
                 attackable.getAsBoolean(),
                 camera.get(),
-                everything || logic.isMapRevealedTo(viewerPlayer));
+                everything || logic.isMapRevealedTo(viewerPlayer),
+                contextOrder.get());
     }
 }

@@ -25,6 +25,9 @@ import uz.dukeengine.core.event.WorldEvent;
  * <p>{@link #attackable} is the simulation's answer to the one thing the pointer asks of it over a thing that
  * is not the player's: would an attack on that by what is selected be taken — for the pointer to say so, since
  * an order to attack something no selected weapon may be fired at is refused.
+ * <p>{@link #contextOrder} is the game's word for the order a click on the thing under the pointer would give what
+ * is selected — {@code Enter}, {@code Dock}, {@code Repair} — or {@code null} for none: the pointer shows that word's
+ * picture, and the click sends it as a {@code GameOrder}. The engine never reads it.
  */
 public record WorldSnapshot(
         int frame,
@@ -40,10 +43,20 @@ public record WorldSnapshot(
         boolean aimFits,
         boolean attackable,
         CameraView camera,
-        boolean revealed) {
+        boolean revealed,
+        String contextOrder) {
 
-    public static final WorldSnapshot EMPTY =
-            new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "", List.of(), true, true, null, false);
+    public static final WorldSnapshot EMPTY = new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "",
+            List.of(), true, true, null, false, null);
+
+    /** A frame that says nothing of a click's order: every frame from before a click had any but its own. */
+    public WorldSnapshot(int frame, float gameTimeSeconds, boolean paused, int localPlayerMoney,
+            int localPlayerPowerSurplus, List<UnitView> units, List<WorldEvent> events, String banner,
+            String status, List<CommandButton> commands, boolean aimFits, boolean attackable, CameraView camera,
+            boolean revealed) {
+        this(frame, gameTimeSeconds, paused, localPlayerMoney, localPlayerPowerSurplus, units, events, banner,
+                status, commands, aimFits, attackable, camera, revealed, null);
+    }
 
     /** A frame that says nothing of the map being revealed: every frame from before a map could be. */
     public WorldSnapshot(int frame, float gameTimeSeconds, boolean paused, int localPlayerMoney,
@@ -84,5 +97,6 @@ public record WorldSnapshot(
         banner = banner == null ? "" : banner;
         status = status == null ? "" : status;
         commands = commands == null ? List.of() : List.copyOf(commands);
+        contextOrder = contextOrder == null || contextOrder.isBlank() ? null : contextOrder;
     }
 }

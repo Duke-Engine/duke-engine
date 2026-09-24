@@ -1007,6 +1007,7 @@ public final class DukeGame {
         client.setCommands(this::buttonsNow);
         client.setAimFits(this::aimFitsNow);
         client.setAttackable(this::attackableNow);
+        client.setContextOrder(this::contextOrderNow);
         engine = new RtsGameEngine(logic, client);
         if (recorder != null) {
             logic.setFrameLog(recorder);
@@ -1508,6 +1509,53 @@ public final class DukeGame {
             }
         }
         return !armed;
+    }
+
+    // ---- the order a click would give ----
+
+    /** The word of the order a click on a thing would give what is selected — see {@link #contextOrder}. */
+    @FunctionalInterface
+    public interface ContextOrder {
+        /**
+         * @param selection the local player's own things that are selected, in the order they were chosen
+         * @param target    the thing under the pointer
+         * @return the order's word — {@code Enter}, {@code Dock}, {@code Repair}, {@code Capture} — or {@code null}
+         *         where a click on it gives what a click gives anyway
+         */
+        String orderOn(List<GameObject> selection, GameObject target);
+    }
+
+    private ContextOrder contextOrder;
+
+    /**
+     * What a click on a thing means beyond selecting it and attacking it: the reference's context commands, the
+     * game's to name. Asked on the simulation thread as the snapshot is built, for the thing under the pointer and
+     * what the local player has selected — a transport its infantry may board is {@code Enter}, a supply dock its
+     * truck works at {@code Dock}. The snapshot carries the word ({@code WorldSnapshot.contextOrder}), the pointer
+     * shows the word's picture, and the click sends {@code GameMessage.GameOrder(player, word, selection, place,
+     * target, 0)} for the game's {@link #onOrder} to carry out. The engine never reads the word.
+     */
+    public DukeGame contextOrder(ContextOrder rule) {
+        this.contextOrder = rule;
+        return this;
+    }
+
+    private String contextOrderNow() {
+        var rule = contextOrder;
+        int at = pointedAt;
+        var world = logic;
+        if (rule == null || at < 0 || world == null) {
+            return null;
+        }
+        var target = world.findObject(new uz.dukeengine.core.thing.ObjectId(at));
+        var selected = new java.util.ArrayList<GameObject>();
+        for (var id : selection) {
+            var unit = world.findObject(new uz.dukeengine.core.thing.ObjectId(id));
+            if (unit != null && unit != target && unit.getPlayerIndex() == getLocalPlayerIndex()) {
+                selected.add(unit);
+            }
+        }
+        return target == null || selected.isEmpty() ? null : rule.orderOn(List.copyOf(selected), target);
     }
 
     /** Thread-safe: run work on the simulation thread next frame. */

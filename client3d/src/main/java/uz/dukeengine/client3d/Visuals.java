@@ -1824,6 +1824,27 @@ public final class Visuals {
         return this;
     }
 
+    /**
+     * A pointer that moves: {@code frames} pictures side by side in one file, shown one after another round and
+     * round, each for its {@code jiffies} — sixtieths of a second, the reference's {@code Mouse.ini} unit. The hot
+     * spot is the same on every picture. The reference's back-and-forth orders are laid out as pictures in turn.
+     *
+     * <p>Besides {@code Point}, {@code Friend}, {@code Attack}, {@code Aim} and {@code Deny}, the client names {@code
+     * Move} — open ground something of his that is selected would walk to — a situation for each order a click on a
+     * thing would give, named by the game's word for it ({@code DukeGame.contextOrder}), and {@code Scroll-N},
+     * {@code Scroll-NE} … {@code Scroll-NW} while the view is scrolled at the window's edge.
+     */
+    public Visuals pointer(String situation, String stripPath, int frames, int hotX, int hotY, int[] jiffies) {
+        if (situation != null && stripPath != null && !stripPath.isBlank()) {
+            var times = new java.util.ArrayList<Integer>();
+            for (int jiffy : jiffies == null ? new int[0] : jiffies) {
+                times.add(jiffy);
+            }
+            pointers.put(situation, new Cursors.Look(stripPath, hotX, hotY, 0xFFFFFF, frames, times));
+        }
+        return this;
+    }
+
     java.util.Map<String, Cursors.Look> getPointers() {
         return java.util.Map.copyOf(pointers);
     }

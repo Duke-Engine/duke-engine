@@ -64,16 +64,35 @@ final class Cursors {
     /** A skill is armed and this is not. */
     static final String DENY = "Deny";
 
+    /** Open ground something of his that is selected would be sent to walk to. */
+    static final String MOVE = "Move";
+
+    /** The view being scrolled, and which way: {@code Scroll-N}, {@code Scroll-NE} … {@code Scroll-NW}. */
+    static final String SCROLL = "Scroll-";
+
     /**
      * One pointer.
      *
-     * @param hotX how far from the <em>left</em> of the picture the tip is
-     * @param hotY how far from the <em>top</em> of the picture the tip is — read
-     *             off the file the way a person reads it, and turned round here
-     * @param tint what to paint it, as packed RGB. White leaves the drawing alone,
-     *             which is what a pack that is already coloured wants
+     * @param hotX    how far from the <em>left</em> of a picture the tip is
+     * @param hotY    how far from the <em>top</em> of a picture the tip is — read
+     *                off the file the way a person reads it, and turned round here
+     * @param tint    what to paint it, as packed RGB. White leaves the drawing alone,
+     *                which is what a pack that is already coloured wants
+     * @param frames  how many pictures stand side by side in the file, shown one after another round and round: 1
+     *                for a still one
+     * @param jiffies how long each is shown, in sixtieths of a second — the reference's {@code Mouse.ini} unit
      */
-    record Look(String image, int hotX, int hotY, int tint) {
+    record Look(String image, int hotX, int hotY, int tint, int frames, java.util.List<Integer> jiffies) {
+
+        Look {
+            frames = Math.max(1, frames);
+            jiffies = jiffies == null ? java.util.List.of() : java.util.List.copyOf(jiffies);
+        }
+
+        /** A still one, painted. */
+        Look(String image, int hotX, int hotY, int tint) {
+            this(image, hotX, hotY, tint, 1, java.util.List.of());
+        }
 
         /** The ordinary case: paint it as it was drawn. */
         Look(String image, int hotX, int hotY) {
@@ -101,9 +120,19 @@ final class Cursors {
      * @param canAttack  and, if it is not, whether an attack on it by what he has selected would be taken —
      *                   the simulation's answer, since an order to attack something no selected weapon may be
      *                   fired at is refused
+     * @param ordering   whether a click would order something of his: he has some of his own selected
+     * @param order      the game's word for the order a click on the thing under the pointer would give — {@code
+     *                   Enter}, {@code Dock} — or {@code null}
+     * @param scrolling  which way the view is being scrolled — {@code N}, {@code NE} … — or {@code null}
      */
     record Over(boolean playing, Hotkeys.Aim armed, boolean canReach, boolean overPanel,
-            boolean overUnit, boolean ownUnit, boolean canAttack) {
+            boolean overUnit, boolean ownUnit, boolean canAttack, boolean ordering, String order, String scrolling) {
+
+        /** Everything a pointer asked before it could say what a click would order, or that the view scrolls. */
+        Over(boolean playing, Hotkeys.Aim armed, boolean canReach, boolean overPanel,
+                boolean overUnit, boolean ownUnit, boolean canAttack) {
+            this(playing, armed, canReach, overPanel, overUnit, ownUnit, canAttack, false, null, null);
+        }
 
         /** Everything but whether it may be attacked, which is then never refused — as before it was asked. */
         Over(boolean playing, Hotkeys.Aim armed, boolean canReach, boolean overPanel,
@@ -127,8 +156,29 @@ final class Cursors {
      * not what is standing there. Then the bar. Then the world.
      */
     static String situationFor(Over over) {
+        return situationsFor(over).getFirst();
+    }
+
+    /**
+     * The pointers that belong over that, the one wanted first and after it what stands in for it where the game
+     * painted none: {@code Move} stands in as {@code Point}, the order a click would give on a thing as {@code
+     * Friend} or {@code Attack}, and a scrolling view as whatever it is scrolling over. The view being scrolled is
+     * shown over everything else, as the reference shows it.
+     */
+    static java.util.List<String> situationsFor(Over over) {
+        var under = underThePointer(over);
+        if (!over.playing() || over.scrolling() == null) {
+            return under;
+        }
+        var all = new java.util.ArrayList<String>(under.size() + 1);
+        all.add(SCROLL + over.scrolling());
+        all.addAll(under);
+        return all;
+    }
+
+    private static java.util.List<String> underThePointer(Over over) {
         if (!over.playing()) {
-            return POINT;
+            return java.util.List.of(POINT);
         }
         // ★ ARMED IS NOT AIMING. A skill with nothing to point at is held only so
         // its reach can be looked at before it is spent, and the click that ends
@@ -136,20 +186,35 @@ final class Cursors {
         // not here" about it is answering a question the player was never asked,
         // and it took the pointer off the thing he actually wanted to look at.
         if (over.armed() != null && over.armed().needsPointing()) {
-            return over.canReach() ? AIM : DENY;
+            return java.util.List.of(over.canReach() ? AIM : DENY);
         }
         if (over.overPanel()) {
-            return POINT;
+            return java.util.List.of(POINT);
         }
         if (over.overUnit()) {
+            if (over.order() != null) {
+                return java.util.List.of(over.order(), over.ownUnit() ? FRIEND : ATTACK);
+            }
             // Something nothing selected may be fired at is refused the way any order is: one refusal,
             // drawn one way.
-            return over.ownUnit() ? FRIEND : over.canAttack() ? ATTACK : DENY;
+            return java.util.List.of(over.ownUnit() ? FRIEND : over.canAttack() ? ATTACK : DENY);
         }
         // Open ground, and the same question asked of it: stone, or somewhere he
         // has never been, will not take a walking order any more than it will take
         // a skill. One refusal, drawn one way.
-        return over.canReach() ? POINT : DENY;
+        if (!over.canReach()) {
+            return java.util.List.of(DENY);
+        }
+        return over.ordering() ? java.util.List.of(MOVE, POINT) : java.util.List.of(POINT);
+    }
+
+    /**
+     * Which way the view is being scrolled, from how far it is pushed across and down the screen this frame, or
+     * {@code null} where it is not: {@code N} up the screen, {@code E} to its right, {@code NE} both.
+     */
+    static String scrollDirection(float across, float down) {
+        String way = (down < 0f ? "N" : down > 0f ? "S" : "") + (across > 0f ? "E" : across < 0f ? "W" : "");
+        return way.isEmpty() ? null : way;
     }
 
     private final AssetManager assets;
@@ -182,15 +247,22 @@ final class Cursors {
      * situations.
      */
     void show(String situation) {
-        if (situation == null || situation.equals(showing)) {
-            return;
+        showFirst(situation == null ? java.util.List.of() : java.util.List.of(situation));
+    }
+
+    /** The first of these the game painted — see {@link #situationsFor}. */
+    void showFirst(java.util.List<String> situations) {
+        for (var situation : situations) {
+            if (situation.equals(showing)) {
+                return;
+            }
+            var cursor = cursorFor(situation);
+            if (cursor != null) {
+                showing = situation;
+                input.setMouseCursor(cursor);
+                return;
+            }
         }
-        var cursor = cursorFor(situation);
-        if (cursor == null) {
-            return;
-        }
-        showing = situation;
-        input.setMouseCursor(cursor);
     }
 
     /** The cursor for a situation, built and kept. Package-private so it can be checked. */
@@ -228,34 +300,55 @@ final class Cursors {
     }
 
     /**
-     * One picture, turned into the shape jME hands the window.
+     * One picture, or a strip of them side by side, turned into the shape jME hands the window: one image a frame,
+     * one after another, each shown for its time.
      *
      * <p>Package-private and taking the image rather than a path so that the two
      * conversions can be checked without a window or a file.
+     *
+     * <p>A frame's time goes to the window in milliseconds, whatever {@code JmeCursor}'s own words say: the window
+     * compares it with milliseconds, and jME's own loader of animated cursors multiplies a sixtieth by 17 on the way.
      */
     static JmeCursor build(Image image, Look look) {
-        int width = image.getWidth();
+        int frames = look.frames();
+        int stripWidth = image.getWidth();
+        int width = Math.max(1, stripWidth / frames);
         int height = image.getHeight();
         var pixels = argb(image);
-        var data = BufferUtils.createIntBuffer(width * height);
-        for (int row = 0; row < height; row++) {
-            for (int column = 0; column < width; column++) {
-                // Bottom-up: the buffer's last row is the picture's first.
-                data.put((height - 1 - row) * width + column,
-                        painted(pixels[row * width + column], look.tint()));
+        var data = BufferUtils.createIntBuffer(frames * width * height);
+        for (int frame = 0; frame < frames; frame++) {
+            for (int row = 0; row < height; row++) {
+                for (int column = 0; column < width; column++) {
+                    // Bottom-up: the buffer's last row is the picture's first.
+                    data.put(frame * width * height + (height - 1 - row) * width + column,
+                            painted(pixels[row * stripWidth + frame * width + column], look.tint()));
+                }
             }
         }
         var cursor = new JmeCursor();
         cursor.setWidth(width);
         cursor.setHeight(height);
-        cursor.setNumImages(1);
+        cursor.setNumImages(frames);
         cursor.setImagesData(data);
         cursor.setxHotSpot(clamp(look.hotX(), width));
         // From the bottom, because that is what is subtracted from the height
         // again on the way out.
         cursor.setyHotSpot(height - clamp(look.hotY(), height));
-        cursor.setImagesDelay(IntBuffer.allocate(0));
+        cursor.setImagesDelay(frames == 1 ? IntBuffer.allocate(0) : delays(look, frames));
         return cursor;
+    }
+
+    /** Each frame's time in milliseconds; a frame given none keeps the last one given, or a tenth of a second. */
+    private static IntBuffer delays(Look look, int frames) {
+        var delays = BufferUtils.createIntBuffer(frames);
+        int jiffies = 6;
+        for (int frame = 0; frame < frames; frame++) {
+            if (frame < look.jiffies().size()) {
+                jiffies = Math.max(1, look.jiffies().get(frame));
+            }
+            delays.put(frame, Math.round(jiffies * 1000f / 60f));
+        }
+        return delays;
     }
 
     private static int clamp(int at, int size) {

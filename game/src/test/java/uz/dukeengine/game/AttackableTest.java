@@ -137,4 +137,25 @@ class AttackableTest {
 
         assertEquals(null, scene.tank().findModule(WeaponUpdate.class).getTarget(), "refused");
     }
+    @Test
+    void theGameNamesTheOrderAClickOnAThingWouldGiveAndTheSnapshotCarriesIt() {
+        var scene = scene();
+        var game = scene.game();
+        game.contextOrder((selection, target) -> target.getTemplate().name().equals("Tank")
+                && selection.stream().allMatch(u -> u.getTemplate().name().equals("Worker")) ? "Enter" : null);
+        game.setSelection(List.of(scene.worker().getId().value()));
+
+        game.setPointedAt(scene.tank().getId().value());
+        game.runHeadless(1);
+        assertEquals("Enter", game.getSnapshot().contextOrder(), "a worker pointed at the tank it may board");
+
+        game.setPointedAt(scene.helicopter().getId().value());
+        game.runHeadless(1);
+        assertEquals(null, game.getSnapshot().contextOrder(), "nothing to board there");
+
+        game.setSelection(List.of());
+        game.setPointedAt(scene.tank().getId().value());
+        game.runHeadless(1);
+        assertEquals(null, game.getSnapshot().contextOrder(), "nothing selected, nothing ordered");
+    }
 }

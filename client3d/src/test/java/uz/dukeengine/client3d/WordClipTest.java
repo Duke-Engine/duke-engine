@@ -104,7 +104,7 @@ class WordClipTest {
         var factory = new Node("WarFactory");
         factory.attachChild(door);
         var swing = new AnimClip("ABWarFact_A8");
-        swing.setTracks(new AnimTrack[] {new TransformTrack(door, new float[] {0f, 1f},
+        swing.setTracks(new AnimTrack<?>[] {new TransformTrack(door, new float[] {0f, 1f},
                 new Vector3f[] {new Vector3f(), new Vector3f(10f, 0f, 0f)},
                 null, null)});
         var composer = new AnimComposer();

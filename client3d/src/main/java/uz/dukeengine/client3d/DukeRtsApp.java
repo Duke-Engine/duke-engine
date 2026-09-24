@@ -3777,8 +3777,9 @@ final class DukeRtsApp extends SimpleApplication {
         var cursor = inputManager.getCursorPosition();
         if (!SelectionBox.isDrag(from.x, from.y, cursor.x, cursor.y)) {
             var hit = pickUnit();
+            // One of his own that a click would give an order on — a transport to board — is ordered, not chosen.
             boolean onOwn = hit != null && hit.view.selectable()
-                    && hit.view.playerIndex() == game.getLocalPlayerIndex();
+                    && hit.view.playerIndex() == game.getLocalPlayerIndex() && snapshot.contextOrder() == null;
             if (mouse.leftClickOrders(onOwn, !selectedIds().isEmpty())) {
                 order(); // the reference's left-click mouse: a click off his own things commands them
                 return;
@@ -3859,6 +3860,14 @@ final class DukeRtsApp extends SimpleApplication {
         }
         int local = game.getLocalPlayerIndex();
         var enemy = pickUnit();
+        if (enemy != null && snapshot.contextOrder() != null) {
+            // The order the game said a click on this thing gives — see DukeGame.contextOrder.
+            game.postCommand(new GameMessage.GameOrder(local, snapshot.contextOrder(), units,
+                    new Coord3D(enemy.view.x(), enemy.view.y(), 0f), new ObjectId(enemy.view.id()), 0));
+            markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(), OrderMarkers.Kind.MOVE);
+            answerOrder("move", units);
+            return;
+        }
         // With the force-attack key held, a neutral thing is fired on too — not a friend: the simulation never
         // fires on an ally, ordered or not.
         boolean forced = controls.isHeld(KeyMap.Control.FORCE_ATTACK);
@@ -4507,11 +4516,12 @@ final class DukeRtsApp extends SimpleApplication {
         if (cursors == null || !cursors.any()) {
             return;
         }
-        if (aiming.isArmed() && aiming.pointer() != null) {
+        var over = whatThePointerIsOver();
+        if (aiming.isArmed() && aiming.pointer() != null && over.scrolling() == null) {
             cursors.show(aiming.pointer()); // the pointer the game named for this aim
             return;
         }
-        cursors.show(Cursors.situationFor(whatThePointerIsOver()));
+        cursors.showFirst(Cursors.situationsFor(over));
     }
 
     /**
@@ -4537,10 +4547,12 @@ final class DukeRtsApp extends SimpleApplication {
             canReach = couldStandThere(groundUnder(at.x, at.y));
         }
         var over = aiming ? null : pickUnit();
+        var shove = edgeShove(1f);
         return new Cursors.Over(true, armed, canReach,
                 heroPanel.contains(at.x, at.y) || overTheMinimap(at),
                 over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex(),
-                snapshot.attackable());
+                snapshot.attackable(), !selectedIds().isEmpty(), over == null ? null : snapshot.contextOrder(),
+                Cursors.scrollDirection(shove.x, shove.y));
     }
 
     /**

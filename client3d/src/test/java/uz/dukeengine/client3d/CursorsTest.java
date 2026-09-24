@@ -323,4 +323,59 @@ class CursorsTest {
         cursors.show(Cursors.ATTACK); // would need an input manager if it did anything
         cursors.show(null);
     }
+    /** Three pictures side by side, each one opaque colour: red, green and blue, two by two. */
+    private static Image strip() {
+        int[][] colours = {{0xFF, 0, 0}, {0, 0xFF, 0}, {0, 0, 0xFF}};
+        var bytes = BufferUtils.createByteBuffer(6 * 2 * 4);
+        for (int row = 0; row < 2; row++) {
+            for (int column = 0; column < 6; column++) {
+                var colour = colours[column / 2];
+                bytes.put((byte) colour[0]).put((byte) colour[1]).put((byte) colour[2]).put((byte) 0xFF);
+            }
+        }
+        bytes.rewind();
+        return new Image(Image.Format.RGBA8, 6, 2, bytes, ColorSpace.sRGB);
+    }
+
+    @Test
+    void aStripOfThreeReachesTheWindowAsThreeImagesEachShownItsTime() {
+        var cursor = Cursors.build(strip(),
+                new Cursors.Look("move.png", 1, 1, 0xFFFFFF, 3, java.util.List.of(4, 8, 4)));
+
+        assertEquals(3, cursor.getNumImages());
+        assertEquals(2, cursor.getWidth(), "a picture is a third of the strip");
+        assertEquals(0xFF00FF00, cursor.getImagesData().get(2 * 2), "the second image is the middle picture");
+        var delays = cursor.getImagesDelay();
+        assertEquals(java.util.List.of(67, 133, 67), java.util.List.of(delays.get(0), delays.get(1), delays.get(2)),
+                "4, 8 and 4 sixtieths of a second, in the milliseconds the window counts in");
+    }
+
+    /** A tank of his selected, and what a click would do wherever the pointer is. */
+    private static Cursors.Over withATank(boolean overUnit, boolean own, String order) {
+        return new Cursors.Over(true, null, true, false, overUnit, own, true, true, order, null);
+    }
+
+    @Test
+    void whatAClickWouldDoIsWhatThePointerSays() {
+        assertEquals(Cursors.MOVE, Cursors.situationFor(withATank(false, false, null)), "open ground: he would go");
+        assertEquals(java.util.List.of(Cursors.MOVE, Cursors.POINT),
+                Cursors.situationsFor(withATank(false, false, null)), "the arrow where the game drew no Move");
+        assertEquals(Cursors.ATTACK, Cursors.situationFor(withATank(true, false, null)), "an enemy");
+        assertEquals(Cursors.FRIEND, Cursors.situationFor(withATank(true, true, null)), "the tank itself");
+        assertEquals(java.util.List.of("Enter", Cursors.FRIEND),
+                Cursors.situationsFor(withATank(true, true, "Enter")), "a transport it may board");
+        assertEquals(Cursors.POINT, Cursors.situationFor(
+                new Cursors.Over(true, null, true, false, false, false, true, false, null, null)),
+                "nothing selected: nothing a click on the ground would order");
+    }
+
+    @Test
+    void theViewScrollingShowsWhichWayOverEverythingElse() {
+        assertEquals("E", Cursors.scrollDirection(1f, 0f), "against the right edge");
+        assertEquals("NW", Cursors.scrollDirection(-1f, -1f));
+        assertEquals(null, Cursors.scrollDirection(0f, 0f));
+        var atTheRightEdge = new Cursors.Over(true, null, true, false, true, false, true, true, null, "E");
+        assertEquals(java.util.List.of("Scroll-E", Cursors.ATTACK), Cursors.situationsFor(atTheRightEdge),
+                "scrolling first, and what it is over where the game drew no scroll");
+    }
 }
