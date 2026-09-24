@@ -1558,6 +1558,21 @@ public final class DukeGame {
         return target == null || selected.isEmpty() ? null : rule.orderOn(List.copyOf(selected), target);
     }
 
+    /**
+     * Float a short text up from a point of the world, in a colour with its alpha — money earned there, a bounty paid —
+     * as the reference's floating text: seen by each machine's player whose view of the point is clear, drawn rising
+     * and fading as the client's look says. From any thread, shown from the next frame; the simulation's own code may
+     * post a {@link uz.dukeengine.core.event.TextFloated} itself. Not part of the checksum: it is an event.
+     *
+     * @param z    the point's height
+     * @param argb its colour, alpha included
+     */
+    public void floatText(String text, float x, float y, float z, int argb) {
+        var world = logic;
+        world.postTask(() -> world.post(new uz.dukeengine.core.event.TextFloated(world.getFrame(),
+                new Coord3D(x, y, z), text, argb)));
+    }
+
     /** Thread-safe: run work on the simulation thread next frame. */
     public void runOnSimThread(Runnable task) {
         logic.postTask(task);

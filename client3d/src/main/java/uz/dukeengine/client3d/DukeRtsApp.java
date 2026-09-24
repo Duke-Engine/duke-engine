@@ -373,6 +373,8 @@ final class DukeRtsApp extends SimpleApplication {
      * The numbers that come off a creature as it is hurt or healed.
      */
     private FloatingNumbers hitNumbers;
+    /** Texts floated up from points of the world — see {@link FloatingTexts}. */
+    private FloatingTexts floatingTexts;
     private final HealthWatch healthWatch = new HealthWatch();
 
     /**
@@ -624,6 +626,7 @@ final class DukeRtsApp extends SimpleApplication {
         attackFlash = new AttackFlash(assetManager, markerNode, visuals.getOrderMark());
         modelMarks = new ModelMarks(markerNode, this::loadMarkModel);
         hitNumbers = new FloatingNumbers(guiFont, guiNode, visuals.getHitNumbers());
+        floatingTexts = new FloatingTexts(guiFont, guiNode, visuals.getFloatingText());
         // The display face a boss's name is set in is the one the game already
         // named for its menus. A second field naming the same file would be a
         // second thing to keep in step with it, for no second decision.
@@ -1212,6 +1215,8 @@ final class DukeRtsApp extends SimpleApplication {
                 this::whereThatUnitIsNow, this::floorHeightAt);
         syncSkillRange(now);
         syncHitNumbers(now);
+        // Where the player's view of the point is clear, and nowhere else — the reference's fog test for its texts.
+        floatingTexts.update(snapshot.frame(), cam, (x, y) -> discovery == null || discovery.canSee(x, y));
     }
 
     /**
@@ -2877,6 +2882,7 @@ final class DukeRtsApp extends SimpleApplication {
         chevrons.clear();
         attackFlash.clear();
         hitNumbers.clear();
+        floatingTexts.clear();
         unitBars.clear();
         healthWatch.forget(); // new creatures, new ids; nobody here was just hit
         camera.requestOwnUnit(); // his units are somewhere else entirely now
@@ -4960,6 +4966,8 @@ final class DukeRtsApp extends SimpleApplication {
                                 hurt.playerIndex() == game.getLocalPlayerIndex());
                     }
                 }
+            } else if (event instanceof uz.dukeengine.core.event.TextFloated text) {
+                floatingTexts.add(text, text.frame());
             } else if (event instanceof ShotLanded landed && landed.weapon() != null) {
                 var victim = landed.victim() == null ? null : unitNodes.get(landed.victim().value());
                 moment("landed." + landed.weapon(),

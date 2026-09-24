@@ -1495,6 +1495,22 @@ public final class Visuals {
         return hitNumbers;
     }
 
+    private FloatingTexts.Look floatingText = FloatingTexts.Look.REFERENCE;
+
+    /**
+     * How a text floated up from a point of the world moves — see {@code DukeGame.floatText}: {@code rise} pixels a
+     * frame of the game, its colour kept {@code hold} frames, then {@code int(k × fade)} of its alpha lost on the k-th
+     * frame after. Left alone, the reference's: 1, 10 and 0.1, so an alpha of 230 is gone 82 frames after it appeared.
+     */
+    public Visuals floatingText(float rise, int hold, float fade) {
+        this.floatingText = new FloatingTexts.Look(rise, hold, fade);
+        return this;
+    }
+
+    FloatingTexts.Look getFloatingText() {
+        return floatingText;
+    }
+
     /**
      * How a creature that is hit flashes -- see {@link HitFlash}.
      *
