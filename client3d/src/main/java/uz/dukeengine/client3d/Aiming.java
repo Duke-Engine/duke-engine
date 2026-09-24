@@ -23,6 +23,7 @@ final class Aiming {
     private Consumer<AimOutcome> told;
     private float radius;
     private String pointer;
+    private AimDecal decal;
     private boolean fromTheBar;
 
     /**
@@ -34,7 +35,14 @@ final class Aiming {
      * @param told       told how it ended, or null
      */
     void arm(CommandButton button, boolean fromTheBar, float radius, String pointer, Consumer<AimOutcome> told) {
+        arm(button, fromTheBar, radius, pointer, null, told);
+    }
+
+    /** The same, with a picture on the ground under the cursor in place of the circle; null for the circle. */
+    void arm(CommandButton button, boolean fromTheBar, float radius, String pointer, AimDecal decal,
+            Consumer<AimOutcome> told) {
         giveUp();
+        this.decal = decal;
         this.armed = button;
         this.fromTheBar = fromTheBar;
         this.radius = Math.max(0f, radius);
@@ -63,6 +71,11 @@ final class Aiming {
 
     String pointer() {
         return pointer;
+    }
+
+    /** The picture laid on the ground under the cursor, or null for the circle. */
+    AimDecal decal() {
+        return decal;
     }
 
     boolean fromTheBar() {
@@ -104,6 +117,7 @@ final class Aiming {
         told = null;
         radius = 0f;
         pointer = null;
+        decal = null;
         fromTheBar = false;
         if (ear != null) {
             ear.accept(outcome);

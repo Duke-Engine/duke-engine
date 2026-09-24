@@ -336,7 +336,17 @@ public final class Duke3D {
      */
     public void aim(uz.dukeengine.game.view.CommandButton button, float radius, String pointer,
             java.util.function.Consumer<AimOutcome> ended) {
-        later(client -> client.armFromGame(button, radius, pointer, ended));
+        aim(button, radius, pointer, null, ended);
+    }
+
+    /**
+     * The same, with the power's own picture laid on the ground under the cursor in place of the circle — {@code
+     * 2 × radius} across, following the ground, its opacity throbbing as {@code decal} says — seen by this player
+     * only; null for the circle.
+     */
+    public void aim(uz.dukeengine.game.view.CommandButton button, float radius, String pointer, AimDecal decal,
+            java.util.function.Consumer<AimOutcome> ended) {
+        later(client -> client.armFromGame(button, radius, pointer, decal, ended));
     }
 
     /**

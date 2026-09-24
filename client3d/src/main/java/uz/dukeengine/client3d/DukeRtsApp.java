@@ -4230,6 +4230,8 @@ final class DukeRtsApp extends SimpleApplication {
     private final Aiming aiming = new Aiming();
     /** The circle round the cursor an aim at the ground may ask for, made when first wanted. */
     private GroundRing aimRing;
+    /** The picture on the ground an aim may ask for in place of the circle, made when first wanted. */
+    private GroundDecal aimDecal;
     /** What the armed button will put down, drawn at the cursor, or null for a button with no ghost. */
     private Node ghost;
     private Material ghostMaterial;
@@ -4243,26 +4245,26 @@ final class DukeRtsApp extends SimpleApplication {
      * thinks better of it — the same two-step a hotkey that aims has always had.
      */
     private void armButton(uz.dukeengine.game.view.CommandButton button) {
-        arm(button, true, 0f, null, null);
+        arm(button, true, 0f, null, null, null);
     }
 
     /**
      * Arm a button of the game's own canvas exactly as the bar arms its own — see {@link Duke3D#aim}. The game is
      * told how it ended.
      */
-    void armFromGame(uz.dukeengine.game.view.CommandButton button, float radius, String pointer,
+    void armFromGame(uz.dukeengine.game.view.CommandButton button, float radius, String pointer, AimDecal decal,
             java.util.function.Consumer<AimOutcome> told) {
-        arm(button, false, radius, pointer, told);
+        arm(button, false, radius, pointer, decal, told);
     }
 
     private void arm(uz.dukeengine.game.view.CommandButton button, boolean fromTheBar, float radius, String pointer,
-            java.util.function.Consumer<AimOutcome> told) {
+            AimDecal decal, java.util.function.Consumer<AimOutcome> told) {
         disarm(); // a hotkey armed first is given up: one thing waits for the next click, never two
         disarmButton();
         if (button.aim() == uz.dukeengine.game.view.CommandButton.Aim.NOW) {
             return; // nothing to wait for: a button that needs no place is pressed, not armed
         }
-        aiming.arm(button, fromTheBar, radius, pointer, told);
+        aiming.arm(button, fromTheBar, radius, pointer, decal, told);
         if (button.aim() == uz.dukeengine.game.view.CommandButton.Aim.GROUND) {
             showGhost(button.ghost());
         }
@@ -4286,6 +4288,9 @@ final class DukeRtsApp extends SimpleApplication {
         }
         if (aimRing != null) {
             aimRing.hide();
+        }
+        if (aimDecal != null) {
+            aimDecal.hide();
         }
     }
 
@@ -4393,7 +4398,12 @@ final class DukeRtsApp extends SimpleApplication {
             ghost.setLocalRotation(PlacementDrag.turnedTo(placement.facing()));
             ghostMaterial.setColor("Color", fits ? GHOST_FITS : GHOST_REFUSED);
         }
-        if (aiming.radius() > 0f) {
+        if (aiming.radius() > 0f && aiming.decal() != null) {
+            if (aimDecal == null) {
+                aimDecal = new GroundDecal(assetManager, markerNode);
+            }
+            aimDecal.show(where, aiming.radius(), aiming.decal(), snapshot.frame(), this::floorHeightAt);
+        } else if (aiming.radius() > 0f) {
             var look = visuals.getRangeLook() == null ? RangeLook.DEFAULT : visuals.getRangeLook();
             if (aimRing == null) {
                 aimRing = new GroundRing(assetManager, markerNode, look.bandWidth(), look.segments(),
