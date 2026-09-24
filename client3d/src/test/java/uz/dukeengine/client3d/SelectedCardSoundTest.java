@@ -34,11 +34,8 @@ class SelectedCardSoundTest {
         }
 
         @Override
-        public void music(String assetPath, float gain) {
-        }
-
-        @Override
-        public void musicGain(float gain) {
+        public Playing music(String assetPath, float gain) {
+            return Playing.NONE;
         }
     }
 

@@ -65,6 +65,13 @@ final class RtsClient extends GameClient {
         this.attackable = attackable == null ? () -> true : attackable;
     }
 
+    /** Where the game has put the camera, asked on the simulation thread as the snapshot is built; null for none. */
+    private volatile java.util.function.Supplier<uz.dukeengine.game.view.CameraView> camera = () -> null;
+
+    void setCamera(java.util.function.Supplier<uz.dukeengine.game.view.CameraView> camera) {
+        this.camera = camera == null ? () -> null : camera;
+    }
+
     RtsClient(RtsLogic logic) {
         this.logic = logic;
     }
@@ -139,6 +146,7 @@ final class RtsClient extends GameClient {
                 status,
                 commands.get(),
                 aimFits.getAsBoolean(),
-                attackable.getAsBoolean());
+                attackable.getAsBoolean(),
+                camera.get());
     }
 }

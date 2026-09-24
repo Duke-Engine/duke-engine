@@ -36,12 +36,9 @@ class SoundsTest {
         }
 
         @Override
-        public void music(String assetPath, float gain) {
+        public Playing music(String assetPath, float gain) {
             music = assetPath;
-        }
-
-        @Override
-        public void musicGain(float gain) {
+            return () -> music = null;
         }
     }
 

@@ -40,6 +40,10 @@ interface SoundSink {
         /** It has moved; a sound that belongs to it goes with it. */
         default void moveTo(Vector3f at) {
         }
+
+        /** It should now be this loud. */
+        default void volume(float gain) {
+        }
     }
 
     /**
@@ -59,11 +63,11 @@ interface SoundSink {
         return Playing.NONE;
     }
 
-    /** Start the loop, or stop it when the path is null. */
-    void music(String assetPath, float gain);
-
-    /** The music is already playing and should now be louder or quieter. */
-    void musicGain(float gain);
+    /**
+     * A track of music, over and over, flat, until it is stopped — handed back to be made louder or quieter as it
+     * plays, and faded. Two can play at once while one fades out and the next comes in.
+     */
+    Playing music(String assetPath, float gain);
 
     /** A sink for a machine that cannot make a sound, and for tests. */
     SoundSink SILENT = new SoundSink() {
@@ -72,11 +76,8 @@ interface SoundSink {
         }
 
         @Override
-        public void music(String assetPath, float gain) {
-        }
-
-        @Override
-        public void musicGain(float gain) {
+        public Playing music(String assetPath, float gain) {
+            return Playing.NONE;
         }
     };
 }

@@ -203,6 +203,36 @@ public final class DukeGame {
     /** Whether this machine watches rather than plays; see {@link #observe}. */
     private boolean observing;
 
+    private final GameCamera camera = new GameCamera();
+    private Long randomSeed;
+
+    /**
+     * The camera as the game drives it, from its own code on the simulation thread — see {@link GameCamera}. Stepped
+     * once a logic frame, before the game's own per-frame code.
+     */
+    public GameCamera camera() {
+        return camera;
+    }
+
+    /**
+     * Where the player is looking, told by the client from its own thread — what the game's camera follows while the
+     * game is not driving it.
+     */
+    public void setCameraSeen(float x, float y, float angle) {
+        camera.seen(new uz.dukeengine.game.view.CameraView(x, y, angle, Float.NaN, Float.NaN));
+    }
+
+    /**
+     * Draw this match's chance from {@code seed} — the same on every machine of a network game, and the same each
+     * time for a match that is to play the same way every time. A match that names none draws from the engine's one
+     * fixed seed.
+     */
+    public DukeGame randomSeed(long seed) {
+        requireNotStarted();
+        this.randomSeed = seed;
+        return this;
+    }
+
     /**
      * Watch rather than play: no player is this machine's, so everything is seen — through no player's fog — and
      * nothing is ordered. An observer's seat in a skirmish, and a match run behind a front end.
@@ -875,6 +905,10 @@ public final class DukeGame {
         }
         engine.setMaxFps(maxFps);
         engine.init(); // note: engine init resets subsystems — apply scenario after
+        if (randomSeed != null) {
+            logic.setRandomSeed(randomSeed);
+        }
+        client.setCamera(camera::shown);
         progress.accept(5);
 
         // custom modules must exist before a unit's block names them
@@ -915,6 +949,8 @@ public final class DukeGame {
         if (commandHandler != null) {
             logic.setGameCommandHandler(commandHandler);
         }
+        // The camera first: a move the game's code orders in a frame takes its first step in the next.
+        logic.addTickCallback(camera::step);
         for (var callback : tickCallbacks) {
             logic.addTickCallback(() -> callback.accept(this));
         }

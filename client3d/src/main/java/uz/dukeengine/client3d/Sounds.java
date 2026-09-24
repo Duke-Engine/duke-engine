@@ -56,6 +56,27 @@ final class Sounds {
     private String playing; // the music, if any
     /** The playing track's own loudness: its cue's gain, and the game's volume for that cue. */
     private float playingGain = 1f;
+    /** The track playing, and how loud it was last made. */
+    private SoundSink.Playing track = SoundSink.Playing.NONE;
+    private float trackLoudness;
+    /** Tracks on their way out, and the one on its way in. */
+    private final java.util.List<Fade> fades = new java.util.ArrayList<>();
+
+    /** A track going from how loud it was to silence, or from silence to as loud as the knobs say, over a while. */
+    private static final class Fade {
+        final SoundSink.Playing sound;
+        final float from;
+        final boolean out;
+        final float seconds;
+        float elapsed;
+
+        Fade(SoundSink.Playing sound, float from, boolean out, float seconds) {
+            this.sound = sound;
+            this.from = from;
+            this.out = out;
+            this.seconds = seconds;
+        }
+    }
 
     Sounds(SoundBank bank, SoundSink sink) {
         this(bank, sink, RandomGenerator.getDefault());
@@ -86,7 +107,7 @@ final class Sounds {
     void volume(SoundBank.Channel channel, float zeroToOne) {
         volumes.put(channel, Math.clamp(zeroToOne, 0f, 1f));
         if (channel == SoundBank.Channel.MUSIC) {
-            sink.musicGain(channelGain(SoundBank.Channel.MUSIC) * playingGain);
+            followTheKnobs();
         }
     }
 
@@ -94,7 +115,7 @@ final class Sounds {
     void gameVolume(SoundBank.Channel channel, float zeroToOne) {
         gameVolumes.put(channel, Math.clamp(zeroToOne, 0f, 1f));
         if (channel == SoundBank.Channel.MUSIC) {
-            sink.musicGain(channelGain(SoundBank.Channel.MUSIC) * playingGain);
+            followTheKnobs();
         }
     }
 
@@ -117,7 +138,7 @@ final class Sounds {
 
     void masterVolume(float zeroToOne) {
         this.master = Math.clamp(zeroToOne, 0f, 1f);
-        sink.musicGain(channelGain(SoundBank.Channel.MUSIC) * playingGain);
+        followTheKnobs();
     }
 
     float volumeOf(SoundBank.Channel channel) {
@@ -265,14 +286,74 @@ final class Sounds {
      * without stopping and restarting the same track every time.
      */
     void music(String cueName) {
+        music(cueName, 0f, 0f);
+    }
+
+    /**
+     * The same, the track playing fading out over {@code fadeOut} seconds while this one comes in over
+     * {@code fadeIn} — at once for none. What the game asks for by name: the reference's {@code MUSIC_SET_TRACK}.
+     */
+    void music(String cueName, float fadeOut, float fadeIn) {
         var cue = cueName == null ? null : bank.find(cueName);
         var wanted = cue == null || cue.files().isEmpty() ? null : cue.files().get(0);
         if (java.util.Objects.equals(wanted, playing)) {
             return;
         }
+        var leaving = track;
+        fades.removeIf(fade -> fade.sound == leaving && !fade.out);
+        if (fadeOut > 0f) {
+            fades.add(new Fade(leaving, trackLoudness, true, fadeOut));
+        } else {
+            leaving.stop();
+        }
         playing = wanted;
         playingGain = cue == null ? 1f : ownGain(cue);
-        sink.music(wanted, channelGain(SoundBank.Channel.MUSIC) * playingGain);
+        if (wanted == null) {
+            track = SoundSink.Playing.NONE;
+            return;
+        }
+        trackLoudness = fadeIn > 0f ? 0f : musicLoudness();
+        track = sink.music(wanted, trackLoudness);
+        if (fadeIn > 0f) {
+            fades.add(new Fade(track, 0f, false, fadeIn));
+        }
+    }
+
+    /** Time passing, for whatever is fading. */
+    void update(float seconds) {
+        for (var going = fades.iterator(); going.hasNext(); ) {
+            var fade = going.next();
+            fade.elapsed += seconds;
+            float share = Math.min(1f, fade.elapsed / fade.seconds);
+            if (fade.out) {
+                fade.sound.volume(fade.from * (1f - share));
+                if (share >= 1f) {
+                    fade.sound.stop();
+                    going.remove();
+                }
+            } else {
+                trackLoudness = musicLoudness() * share;
+                fade.sound.volume(trackLoudness);
+                if (share >= 1f) {
+                    going.remove();
+                }
+            }
+        }
+    }
+
+    /** How loud the track playing is to be, by every knob and its own gain. */
+    private float musicLoudness() {
+        return channelGain(SoundBank.Channel.MUSIC) * playingGain;
+    }
+
+    /** A knob turned: the track playing follows at once, unless it is still fading in, which follows as it goes. */
+    private void followTheKnobs() {
+        var current = track;
+        if (fades.stream().anyMatch(fade -> fade.sound == current && !fade.out)) {
+            return;
+        }
+        trackLoudness = musicLoudness();
+        current.volume(trackLoudness);
     }
 
     /** Every file the game may ask for, so it can be read before it is wanted. */

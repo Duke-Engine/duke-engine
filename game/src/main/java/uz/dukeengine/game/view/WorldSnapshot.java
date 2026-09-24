@@ -38,10 +38,19 @@ public record WorldSnapshot(
         String status,
         List<CommandButton> commands,
         boolean aimFits,
-        boolean attackable) {
+        boolean attackable,
+        CameraView camera) {
 
     public static final WorldSnapshot EMPTY =
-            new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "", List.of(), true, true);
+            new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "", List.of(), true, true, null);
+
+    /** A frame in which the game has not taken the camera: it is the player's. */
+    public WorldSnapshot(int frame, float gameTimeSeconds, boolean paused, int localPlayerMoney,
+            int localPlayerPowerSurplus, List<UnitView> units, List<WorldEvent> events, String banner,
+            String status, List<CommandButton> commands, boolean aimFits, boolean attackable) {
+        this(frame, gameTimeSeconds, paused, localPlayerMoney, localPlayerPowerSurplus, units, events, banner,
+                status, commands, aimFits, attackable, null);
+    }
 
     /** A frame that says nothing of attacking, which is a frame in which nothing is refused. */
     public WorldSnapshot(int frame, float gameTimeSeconds, boolean paused, int localPlayerMoney,

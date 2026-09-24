@@ -39,7 +39,6 @@ final class AudioSink implements SoundSink {
     private final com.jme3.scene.Node root;
     private final Map<String, AudioNode> nodes = new HashMap<>();
     private final Set<String> missing = new java.util.HashSet<>();
-    private AudioNode music;
 
     AudioSink(AssetManager assets, com.jme3.scene.Node root) {
         this.assets = assets;
@@ -139,34 +138,32 @@ final class AudioSink implements SoundSink {
     }
 
     @Override
-    public void music(String assetPath, float gain) {
-        if (music != null) {
-            music.stop();
-            music.removeFromParent();
-            music = null;
-        }
-        if (assetPath == null) {
-            return;
-        }
+    public Playing music(String assetPath, float gain) {
         // Streamed rather than held in memory: a loop is a minute of audio where
         // a footstep is a tenth of a second, and it is played once from start to
-        // finish rather than fired off a hundred times.
-        music = nodeFor(assetPath, true, false);
-        if (music == null) {
-            return;
+        // finish rather than fired off a hundred times. A node of its own each
+        // time, so one track can fade out while the next plays.
+        var track = nodeFor(assetPath, true, false);
+        if (track == null) {
+            return Playing.NONE;
         }
-        music.setLooping(true);
-        music.setPositional(false);
-        music.setVolume(gain);
-        root.attachChild(music);
-        music.play();
-    }
+        track.setLooping(true);
+        track.setPositional(false);
+        track.setVolume(gain);
+        root.attachChild(track);
+        track.play();
+        return new Playing() {
+            @Override
+            public void stop() {
+                track.stop();
+                track.removeFromParent();
+            }
 
-    @Override
-    public void musicGain(float gain) {
-        if (music != null) {
-            music.setVolume(gain);
-        }
+            @Override
+            public void volume(float loudness) {
+                track.setVolume(loudness);
+            }
+        };
     }
 
     /**

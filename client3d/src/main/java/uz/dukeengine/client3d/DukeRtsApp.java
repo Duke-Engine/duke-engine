@@ -113,6 +113,17 @@ final class DukeRtsApp extends SimpleApplication {
     private boolean holdStart;
     /** The match being made ready, while it is. */
     private MatchLoad matchLoad;
+    /** The game's recipe for the match behind its front end, and that match — see {@link Duke3D#backdrop}. */
+    private final java.util.function.Supplier<DukeGame> backdropRecipe;
+    private Backdrop backdrop;
+    /**
+     * How steeply the camera looks down, in radians: the game's where it set one, else the client's own, the slope it
+     * has always stood at — 0.82 up for 0.57 back.
+     */
+    private float cameraPitch = DEFAULT_PITCH;
+    private static final float DEFAULT_PITCH = FastMath.atan2(0.82f, 0.57f);
+    /** How far back the eye is at a distance of one: the length of that slope. */
+    private static final float EYE_REACH = FastMath.sqrt(0.82f * 0.82f + 0.57f * 0.57f);
     private CanvasText canvasText;
     private CanvasDrawing canvasDrawing;
     /** The size the painter was last told the screen is. */
@@ -424,13 +435,15 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     DukeRtsApp(DukeGame game, Visuals visuals, Shell shell, Hotkeys hotkeys, Painter painter,
-            CanvasInput canvasInput, java.util.function.IntConsumer loadingEar) {
+            CanvasInput canvasInput, java.util.function.IntConsumer loadingEar,
+            java.util.function.Supplier<DukeGame> backdropRecipe) {
         this.game = game;
         this.visuals = visuals;
         this.shell = shell;
         this.painter = painter;
         this.canvasInput = canvasInput;
         this.loadingEar = loadingEar;
+        this.backdropRecipe = backdropRecipe;
         this.hotkeys = hotkeys == null ? Hotkeys.none() : hotkeys;
         this.controls = new Controls(this.hotkeys.keyMap());
         var light = visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
@@ -490,6 +503,9 @@ final class DukeRtsApp extends SimpleApplication {
 
     @Override
     public void destroy() {
+        if (backdrop != null) {
+            backdrop.stop();
+        }
         // Before the application goes, because it owns the render manager the
         // portrait's viewport is standing in.
         portrait.close();
@@ -649,6 +665,9 @@ final class DukeRtsApp extends SimpleApplication {
         });
         canvasDrawing = new CanvasDrawing(assetManager, canvasText);
         guiNode.attachChild(canvasDrawing.node());
+        if (backdropRecipe != null) {
+            backdrop = new Backdrop(backdropRecipe, built -> new ArtLoad(built.templatesThisMatchCanDraw()));
+        }
         if (canvasInput != null) {
             inputManager.addRawInputListener(new CanvasInputs(canvasInput, () -> cam.getHeight()));
         }
@@ -684,7 +703,31 @@ final class DukeRtsApp extends SimpleApplication {
      * to draw but the one the last match left.
      */
     private boolean worldShown() {
-        return !shell.isDrawnByTheGame() || (screen != Screen.FRONT && screen != Screen.LOADING);
+        return backdropShown()
+                || !shell.isDrawnByTheGame() || (screen != Screen.FRONT && screen != Screen.LOADING);
+    }
+
+    /** Whether the match behind the front end is what is drawn. */
+    private boolean backdropShown() {
+        return screen == Screen.FRONT && backdrop != null && backdrop.running() != null
+                && game == backdrop.running();
+    }
+
+    /** Keep the match behind the front end going, and draw it once there is one. */
+    private void keepTheBackdropGoing() {
+        if (screen != Screen.FRONT || backdrop == null) {
+            return;
+        }
+        var behind = backdrop.frame();
+        if (behind != null && game != behind) {
+            forgetTheWorld();
+            game = behind;
+        }
+    }
+
+    /** The game's own music by name — see {@link Duke3D#music}. */
+    void music(String track, float fadeOutSeconds, float fadeInSeconds) {
+        noises.sounds().music(track, fadeOutSeconds, fadeInSeconds);
     }
 
     /**
@@ -692,6 +735,9 @@ final class DukeRtsApp extends SimpleApplication {
      * is built and its art read as the first one was.
      */
     void startMatch(DukeGame match) {
+        if (backdrop != null) {
+            backdrop.stop(); // torn down when a real match starts, made fresh when the front end comes back
+        }
         endTheMatch();
         forgetTheWorld();
         game = match;
@@ -2825,8 +2871,11 @@ final class DukeRtsApp extends SimpleApplication {
         // the note on `bound`.
         inputManager.addListener(actions, bound.toArray(new String[0]));
 
-        AnalogListener zoom = (name, value, tpf) ->
-                camera.zoomBy(name.equals("ZoomIn") ? 0.92f : 1.09f);
+        AnalogListener zoom = (name, value, tpf) -> {
+            if (screen == Screen.PLAYING && snapshot.camera() == null) {
+                camera.zoomBy(name.equals("ZoomIn") ? 0.92f : 1.09f); // nobody's to zoom while the game has it
+            }
+        };
         inputManager.addListener(zoom, "ZoomIn", "ZoomOut");
     }
 
@@ -3813,12 +3862,14 @@ final class DukeRtsApp extends SimpleApplication {
 
     @Override
     public void simpleUpdate(float tpf) {
+        noises.sounds().update(tpf);
         frame(tpf);
         // Last, over everything, whatever the screen: the game's front end, its load screen, its HUD in play.
         paintTheCanvas();
     }
 
     private void frame(float tpf) {
+        keepTheBackdropGoing();
         rootNode.setCullHint(worldShown() ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
         followTheWindowSize();
         showOnlyWhilePlaying();
@@ -3841,7 +3892,7 @@ final class DukeRtsApp extends SimpleApplication {
                 noises.moment("menu_hover", (float) timer.getTimeInSeconds());
             }
         }
-        if (screen == Screen.MENU || screen == Screen.FRONT) {
+        if (screen == Screen.MENU || screen == Screen.FRONT && !backdropShown()) {
             hud.setText("");
             buildMenu.setText("");
             return; // the world starts when the player presses Play
@@ -4309,6 +4360,22 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void updateCamera(float tpf) {
+        var directed = snapshot.camera();
+        if (directed != null) {
+            // The game has the camera: it goes where the game's code put it, and the player's controls wait.
+            camera.restore(new CameraFocus.View(directed.x(), directed.y(), directed.angle(),
+                    Float.isNaN(directed.zoom()) ? camera.distance() : directed.zoom()));
+            cameraPitch = Float.isNaN(directed.pitch()) ? DEFAULT_PITCH : directed.pitch();
+        } else {
+            steerTheCamera(tpf);
+            cameraPitch = DEFAULT_PITCH;
+            game.setCameraSeen(camera.targetX(), camera.targetZ(), camera.yaw());
+        }
+        placeTheCamera(tpf);
+    }
+
+    /** The player's own hands on the camera: the pan keys and the screen's edges, turning, zooming. */
+    private void steerTheCamera(float tpf) {
         float speed = camera.panSpeed() * tpf;
         var shove = edgeShove(speed);
         float across = (held(KeyMap.Control.PAN_RIGHT) ? speed : 0f) - (held(KeyMap.Control.PAN_LEFT) ? speed : 0f)
@@ -4331,7 +4398,10 @@ final class DukeRtsApp extends SimpleApplication {
         if (held(KeyMap.Control.ZOOM_OUT)) {
             camera.zoomBy((float) Math.pow(1f / HELD_ZOOM, tpf));
         }
+    }
 
+    /** The eye where the focus says, riding up with the ground under it, at its slope, shaken by what landed. */
+    private void placeTheCamera(float tpf) {
         // The camera rides up with the ground under what it is looking at, or a
         // room on the second storey is a room seen from underneath. Eased rather
         // than stepped: a storey is a whole body's height and arriving at one in a
@@ -4354,7 +4424,8 @@ final class DukeRtsApp extends SimpleApplication {
             knock = knock.add(listShow.shakeNow());
         }
         var back = new Quaternion().fromAngleAxis(camera.yaw(), Vector3f.UNIT_Y)
-                .mult(new Vector3f(0, distance * 0.82f, distance * 0.57f));
+                .mult(new Vector3f(0, distance * EYE_REACH * FastMath.sin(cameraPitch),
+                        distance * EYE_REACH * FastMath.cos(cameraPitch)));
         cam.setLocation(target.add(back).addLocal(knock));
         cam.lookAt(target, Vector3f.UNIT_Y);
     }
@@ -4406,6 +4477,10 @@ final class DukeRtsApp extends SimpleApplication {
      * {@link UnitBars}, which is the one of the three that the camera decides.
      */
     private void showUnitBars() {
+        if (screen == Screen.FRONT) {
+            unitBars.clear(); // behind a front end: a picture, with nothing of play laid over it
+            return;
+        }
         var standing = new ArrayList<UnitBars.Standing>(unitNodes.size());
         int mine = game.getLocalPlayerIndex();
         for (var node : unitNodes.values()) {

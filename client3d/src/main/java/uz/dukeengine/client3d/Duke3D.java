@@ -38,6 +38,7 @@ public final class Duke3D {
     private Painter painter;
     private CanvasInput input;
     private java.util.function.IntConsumer loading;
+    private java.util.function.Supplier<DukeGame> backdrop;
 
     /** The running client, once launched; what is asked of it before then waits here, in order. */
     private DukeRtsApp app;
@@ -101,6 +102,18 @@ public final class Duke3D {
         return this;
     }
 
+    /**
+     * A match run behind the game's front end — the reference's shell map. {@code recipe} makes it, not yet started:
+     * a map, its players and things, the game's per-frame code for its scripts and its camera flight, and a
+     * {@link DukeGame#randomSeed} so it plays the same way every time. The client makes a fresh one each time the
+     * front end is shown, watches it — nobody's input, nobody's fog, no HUD, the game's canvas over it — and tears it
+     * down when a match starts.
+     */
+    public Duke3D backdrop(java.util.function.Supplier<DukeGame> recipe) {
+        this.backdrop = recipe;
+        return this;
+    }
+
     public static void launch(DukeGame game, Visuals visuals) {
         of(game, visuals).launch();
     }
@@ -130,7 +143,7 @@ public final class Duke3D {
     public void launch() {
         // the simulation starts when the player presses Play — or at once, if the
         // game asked for no menu at all
-        var client = new DukeRtsApp(game, visuals, shell, hotkeys, painter, input, loading);
+        var client = new DukeRtsApp(game, visuals, shell, hotkeys, painter, input, loading, backdrop);
         synchronized (waiting) {
             app = client;
             for (var task : waiting) {
@@ -218,6 +231,19 @@ public final class Duke3D {
      */
     public void frontEnd() {
         later(DukeRtsApp::backToFrontEnd);
+    }
+
+    /**
+     * Play a track of the game's {@link SoundBank} by its cue's name, over and over, the one playing fading out over
+     * two seconds — the reference's {@code MUSIC_SET_TRACK}. Null fades the music out to nothing.
+     */
+    public void music(String track) {
+        music(track, 2f, 0f);
+    }
+
+    /** The same, the old track fading out and the new one in over as many seconds as the game says. */
+    public void music(String track, float fadeOutSeconds, float fadeInSeconds) {
+        later(client -> client.music(track, fadeOutSeconds, fadeInSeconds));
     }
 
     /**
