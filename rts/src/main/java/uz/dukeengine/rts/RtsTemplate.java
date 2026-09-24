@@ -51,6 +51,16 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
         refundValue = Math.max(0, refundValue);
     }
 
+    /** A template that needs nothing, has no cap and no refund of its own — what one was before those. */
+    public RtsTemplate(String name, String displayName, Set<Kind> kindOf, float visionRange, Geometry geometry,
+            List<ModuleData> modules, int buildCost, float buildTime, String model, float modelScale, int tint,
+            float facing, String animations, String idle, String walk, String attack, String death, String effect,
+            Map<String, String> models, Map<String, Float> whenHurt) {
+        this(name, displayName, kindOf, visionRange, geometry, modules, buildCost, buildTime, model, modelScale, tint,
+                facing, animations, idle, walk, attack, death, effect, models, whenHurt,
+                List.of(), List.of(), Buildability.YES, 0, null, 0);
+    }
+
     /** Makes {@code Object} blocks RTS templates, with a build cost and a build time. */
     public static ThingTemplateLoader register(ThingTemplateLoader loader) {
         return loader.type("Object", RtsTemplate.class);

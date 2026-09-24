@@ -96,9 +96,13 @@ public interface Canvas {
 
     /**
      * A picture the game made over {@code [x0, x1) × [y0, y1)}, stretched and filtered as {@link #drawImage} stretches
-     * a file's, modulated by {@code argb} and clipped — see {@link Picture}.
+     * a file's, modulated by {@code argb} and clipped — see {@link Picture}. The window's canvas draws it; a canvas of
+     * a game's own written before pictures were — a test's, forwarding to another — refuses it rather than dropping
+     * it without a word.
      */
-    void drawPicture(Picture picture, float x0, float y0, float x1, float y1, int argb, Blend blend);
+    default void drawPicture(Picture picture, float x0, float y0, float x1, float y1, int argb, Blend blend) {
+        throw new UnsupportedOperationException(getClass().getName() + " draws no pictures the game makes");
+    }
 
     /** The same in its own colours, blended by its alpha: how a radar's layers are laid one over another. */
     default void drawPicture(Picture picture, float x0, float y0, float x1, float y1) {
