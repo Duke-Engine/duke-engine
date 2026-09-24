@@ -114,9 +114,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790263146.086734,
-    "seen": 1790263169.288842,
-    "ast_hash": "919d55788bd899d67084945871597293",
+    "mtime": 1790264625.2672367,
+    "seen": 1790264647.2315552,
+    "ast_hash": "9dcfe7d860c8d10ade42eefe47f6f2d5",
     "semantic_hash": ""
   },
   "CREDITS.md": {
@@ -882,9 +882,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/DukeRtsApp.java": {
-    "mtime": 1790262891.736668,
-    "seen": 1790263049.4735656,
-    "ast_hash": "4820163355782a1d0f80753dafd95d0c",
+    "mtime": 1790264571.1277802,
+    "seen": 1790264616.6847281,
+    "ast_hash": "e2b39b6956a36858502718bb1e1252bb",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/EdgeScroll.java": {
@@ -2442,9 +2442,9 @@
     "semantic_hash": ""
   },
   "game/src/main/java/uz/dukeengine/game/DukeGame.java": {
-    "mtime": 1790262855.5264006,
-    "seen": 1790263049.4744086,
-    "ast_hash": "9cbf9f11d9b14b59dd6c309ebb2d8ebb",
+    "mtime": 1790264445.2423353,
+    "seen": 1790264616.6855376,
+    "ast_hash": "97988b00ca9cc8321a440b4908357657",
     "semantic_hash": ""
   },
   "game/src/main/java/uz/dukeengine/game/GamePlayer.java": {
@@ -2976,9 +2976,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1790263127.8374696,
-    "seen": 1790263169.2888389,
-    "ast_hash": "576e1f45467322b9be80545e3f920225",
+    "mtime": 1790264625.2672367,
+    "seen": 1790264647.2315526,
+    "ast_hash": "aebd4da499333e59ecf9bd51236f5e0b",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/data/Paint.java": {
@@ -3915,6 +3915,18 @@
     "mtime": 1790262971.135467,
     "seen": 1790263049.4744742,
     "ast_hash": "151cbc78cb3f88531a7a9a455e351512",
+    "semantic_hash": ""
+  },
+  "client3d/src/main/java/uz/dukeengine/client3d/SelectionLink.java": {
+    "mtime": 1790264427.011312,
+    "seen": 1790264616.6848888,
+    "ast_hash": "b8df4c572b23a05b23b03d5a5dd36959",
+    "semantic_hash": ""
+  },
+  "client3d/src/test/java/uz/dukeengine/client3d/SelectionLinkTest.java": {
+    "mtime": 1790264478.558936,
+    "seen": 1790264616.6850874,
+    "ast_hash": "c90b9e20ac26e2295b855599d236a3db",
     "semantic_hash": ""
   }
 }
