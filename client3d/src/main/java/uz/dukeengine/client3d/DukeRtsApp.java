@@ -823,10 +823,6 @@ final class DukeRtsApp extends SimpleApplication {
         noises.sounds().playlist(tracks, fadeOutSeconds, fadeInSeconds);
     }
 
-    /**
-     * Play this match — see {@link Duke3D#startMatch}. Whatever runs is stopped and forgotten first, and the match
-     * is built and its art read as the first one was.
-     */
     /** What the players of this match say reaches the game's ear on this thread. */
     private void listenForChat(DukeGame match) {
         if (chatEar != null) {
@@ -834,6 +830,10 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /**
+     * Play this match — see {@link Duke3D#startMatch}. Whatever runs is stopped and forgotten first, and the match
+     * is built and its art read as the first one was.
+     */
     void startMatch(DukeGame match) {
         if (backdrop != null) {
             backdrop.stop(); // torn down when a real match starts, made fresh when the front end comes back

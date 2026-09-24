@@ -179,13 +179,6 @@ final class UnitBars {
         }
     }
 
-    /**
-     * Put a bar over each of them, and away the ones nobody needs this frame.
-     *
-     * <p>Projected every frame rather than placed once: the creature walks and
-     * the camera pans, and a bar that stayed where the screen used to be would
-     * belong to a patch of floor rather than to anybody.
-     */
     /** The part of the screen the world is drawn in, up from the bottom: a bar is shown only over it. */
     private float[] within;
 
@@ -193,6 +186,13 @@ final class UnitBars {
         this.within = new float[] {left, bottom, right, top};
     }
 
+    /**
+     * Put a bar over each of them, and away the ones nobody needs this frame.
+     *
+     * <p>Projected every frame rather than placed once: the creature walks and
+     * the camera pans, and a bar that stayed where the screen used to be would
+     * belong to a patch of floor rather than to anybody.
+     */
     void update(Camera camera, List<Standing> standing, UnitBarReading reading) {
         int at = 0;
         if (look.draws()) {

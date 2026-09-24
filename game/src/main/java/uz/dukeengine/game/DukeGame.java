@@ -159,7 +159,6 @@ public final class DukeGame {
         return this;
     }
 
-    /** The upgrades the game's buildings research by name — {@code ProductionUpdate.Data.researches}. */
     /** The game's weapon bonus table — see {@link uz.dukeengine.rts.module.WeaponBonus}. */
     public DukeGame addWeaponBonuses(java.util.Collection<uz.dukeengine.rts.module.WeaponBonus> more) {
         requireNotStarted();
@@ -167,6 +166,7 @@ public final class DukeGame {
         return this;
     }
 
+    /** The upgrades the game's buildings research by name — {@code ProductionUpdate.Data.researches}. */
     public DukeGame addUpgrades(java.util.Collection<uz.dukeengine.rts.player.Upgrade> more) {
         requireNotStarted();
         upgrades.addAll(more);
@@ -401,7 +401,6 @@ public final class DukeGame {
         return this;
     }
 
-    /** Runs when a player who had units loses all of them (annihilation). */
     /**
      * Told when a building its side sold is down and gone — taken down for its worth, not destroyed by an enemy — on
      * the simulation thread, the frame it goes, its refund paid.
@@ -411,6 +410,7 @@ public final class DukeGame {
         return this;
     }
 
+    /** Runs when a player who had units loses all of them (annihilation). */
     public DukeGame onPlayerDefeated(BiConsumer<DukeGame, GamePlayer> callback) {
         defeatCallbacks.add(callback);
         return this;
