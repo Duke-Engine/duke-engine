@@ -31,6 +31,13 @@ when it does, this page says exactly what to change and how.
 - `DukeGame.runHeadless` feeds a replay (`playReplay`) before each step, as the engine's own loop does: its game
   takes the recording's input and not live input, and a checksum that no longer matches is reported. It used to
   step a replay's game on live input.
+- The weapon bonus table's lines are summed as the reference sums them, `1 + Σ(multiplier − 1)`, where they were
+  multiplied. A thing holding one word deals, reaches and fires as it did; one holding two or more gets less than
+  the product (a veteran's 110% with a 125% upgrade is 135%, no longer 137.5%).
+- `DukeGame.getLocalPlayerIndex()` is -1 once the machine has taken a watcher's seat mid-match (`watch()`).
+  `GameLogic.checksum()` mixes in the players the map was revealed to, when there are any.
+- A cue with no file plays nothing; it used to throw when played. A save carries each thing's most health, and the
+  players the map was revealed to on a `REVEALED` line that an older engine does not read.
 - The client reads its own keys from a `KeyMap`, `KeyMap.standard()` unless the game gives one — the keys it
   always had. Two things are new with it: a letter the command bar shows on a button presses that button (after
   the game's own letters and its map), and Enter or Space put the camera on the player's own units at once.
@@ -50,10 +57,11 @@ when it does, this page says exactly what to change and how.
 - A right click gives up an armed button wherever the pointer is, and so does Escape. A right click off the
   world's part of the window used to do nothing.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
-  `HarvestUpdate.Data`, `WeaponFired`, `Weapon`, `WorldSnapshot`, `SoundBank.Cue`, `Sound`, `UnitView`,
-  `CommandButton`, `Upgrade`, `ProductionUpdate.Data`, `RtsTemplate`, `Shot`, `ActiveBody.Data`,
-  `ExperienceModule.Data` — and every new field left out means what the old record did. A template that names no
-  prerequisite, word or cap is buildable as before; a save from before granted words and computer sides loads.
+  `HarvestUpdate.Data`, `WeaponFired`, `Weapon` (and its own `Bonuses`), `WorldSnapshot` (and `revealed`),
+  `SoundBank.Cue`, `Sound`, `UnitView` (and `passengers`), `CommandButton`, `Upgrade`, `ProductionUpdate.Data`,
+  `RtsTemplate`, `Shot`, `ActiveBody.Data`, `ExperienceModule.Data` (and `LevelHealthBonus`) — and every new field
+  left out means what the old record did. A template that names no prerequisite, word or cap is buildable as
+  before; a save from before granted words and computer sides loads.
   `Canvas.drawPicture(Picture, …)` is a default that refuses, so a game's own canvas compiles as it did.
   `ProjectileLauncher.launch(shooter, victim, damage, type)` and `DieModule.onDie()` are still called, through the
   forms that now say more. The static `Duke3D.launch` methods are shorthand for `Duke3D.of(game, visuals)...launch()`.
@@ -74,6 +82,17 @@ same `ObjectDied` the client's event carries, beside it rather than from it, wit
 whose blow it was, taken when the blow landed, so a kill is credited even when the killer is gone too. A thing
 removed without dying, such as a sold building, is not heard. A side's books keep what it earned and what it
 spent apart where its balance nets them (see what to change).
+
+### What a container holds, a sound's end, the map revealed
+
+`ContainModule.getPassengers()` gives the ids of what rides inside, in the order they got in, and
+`UnitView.passengers` carries the same list to the client. `Duke3D.sound(cue, ended)` tells the game on the
+window's thread when what it played has played out: at once where nothing played, and at the next line's start
+for a cue that cuts itself off. `DukeGame.revealMapTo(player)` reveals the whole map to one player for the rest
+of the match, from code on the simulation thread (the reference's `MAP_REVEAL_ALL_PERM`). It is in the checksum
+and the save, and `WorldSnapshot.revealed` opens the client's shroud for that view. `DukeGame.watch()` makes the
+machine a watcher mid-match: nothing selected or ordered, everything seen, and the machine still in the
+lock-step.
 
 ### Held in place
 
@@ -110,8 +129,11 @@ default.
 
 `ActiveBody` may carry `ArmorSets`, each with the condition words it is for, and the best fit to the thing's words
 is its armour. The weapon bonus table (`WeaponBonus`, `DukeGame.addWeaponBonuses`) has one line per word, kind
-and multiplier. It multiplies damage, range, rate of fire (the clip's reload with it) and blast radius for every
-word a thing holds, in the order of the words sorted. `ExperienceModule`'s `LevelWords` sets the word of the rung
+and multiplier. It raises damage, range, rate of fire (the clip's reload with it) and blast radius for every word
+a thing holds, the lines adding up as the reference's `WeaponBonus::appendBonuses` adds them: `1 + Σ(multiplier −
+1)`. A `Weapon` block may carry `Bonuses` of its own, which apply to that weapon alone and add up with the
+table's. `ExperienceModule`'s `LevelHealthBonus` scales the most health as a rung is reached, by its bonus over
+the last one's with the share kept, as `ActiveBody::onVeterancyLevelChanged` does. `ExperienceModule`'s `LevelWords` sets the word of the rung
 a unit stands on and lets go of the others, so all three follow its rank. `BodyModule.setMaxHealth(most,
 change)` changes the most a body can have: keeping the share, adding the difference, or leaving the health as it
 is.
