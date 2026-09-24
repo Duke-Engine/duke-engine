@@ -133,10 +133,16 @@ public final class Shell {
 
     private final Map<Entry, String> items = new LinkedHashMap<>();
     private final boolean startsImmediately;
+    private final boolean drawnByTheGame;
     private Question question;
 
     private Shell(boolean startsImmediately) {
+        this(startsImmediately, false);
+    }
+
+    private Shell(boolean startsImmediately, boolean drawnByTheGame) {
         this.startsImmediately = startsImmediately;
+        this.drawnByTheGame = drawnByTheGame;
     }
 
     /**
@@ -175,6 +181,22 @@ public final class Shell {
     /** No menu: the game begins the moment the window opens. */
     public static Shell none() {
         return new Shell(true);
+    }
+
+    /**
+     * Every screen is the game's own, drawn on its {@link Canvas}: the client shows none of its menus — no front
+     * menu, no pause menu, no settings — and none of its HUD, and the window opens on the game's front end with no
+     * match behind it. The game starts a match with {@link Duke3D#startMatch} and comes back with
+     * {@link Duke3D#frontEnd}. The client keeps the world's own controls — selecting, ordering, the camera — for
+     * whatever the game's canvas does not take.
+     */
+    public static Shell drawnByTheGame() {
+        return new Shell(false, true);
+    }
+
+    /** Whether the game draws every screen itself; see {@link #drawnByTheGame}. */
+    public boolean isDrawnByTheGame() {
+        return drawnByTheGame;
     }
 
     /** Add an entry with the client's own wording. */

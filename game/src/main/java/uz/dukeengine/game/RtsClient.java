@@ -19,6 +19,9 @@ import uz.dukeengine.rts.module.PowerGrid;
  */
 final class RtsClient extends GameClient {
 
+    /** The viewer of a machine that watches: every object, every moment, through nobody's fog. */
+    static final int EVERYONE = Integer.MAX_VALUE;
+
     private final RtsLogic logic;
     private volatile int viewerPlayer = -1; // bound once players exist, at game start
     private volatile WorldSnapshot snapshot = WorldSnapshot.EMPTY;
@@ -86,14 +89,15 @@ final class RtsClient extends GameClient {
         // Fog applies to moments as much as to state: without this you would hear
         // an explosion in territory you have no eyes on.
         var events = new ArrayList<uz.dukeengine.core.event.WorldEvent>();
+        boolean everything = viewerPlayer == EVERYONE;
         for (var event : drained) {
             var where = event.where();
-            if (where == null || logic.canSee(viewerPlayer, where)) {
+            if (everything || where == null || logic.canSee(viewerPlayer, where)) {
                 events.add(event);
             }
         }
         var units = new ArrayList<UnitView>();
-        for (var object : logic.getVisibleObjects(viewerPlayer)) {
+        for (var object : everything ? logic.getObjects() : logic.getVisibleObjects(viewerPlayer)) {
             if (object.isContained()) {
                 continue; // riding inside a transport — not on the map
             }
@@ -122,13 +126,13 @@ final class RtsClient extends GameClient {
                     object.getRoll(),
                     object.keepsOwnHeight()));
         }
-        var player = logic.getRtsPlayer(viewerPlayer);
+        var player = everything ? null : logic.getRtsPlayer(viewerPlayer);
         snapshot = new WorldSnapshot(
                 logic.getFrame(),
                 logic.getGameTimeSeconds(),
                 logic.isGamePaused(),
                 player == null ? 0 : player.getMoney(),
-                PowerGrid.surplus(logic, viewerPlayer),
+                everything ? 0 : PowerGrid.surplus(logic, viewerPlayer),
                 units,
                 events,
                 banner,

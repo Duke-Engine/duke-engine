@@ -31,7 +31,7 @@ import uz.dukeengine.rts.network.CommandCodec;
  * flowing on it:
  * <pre>
  * guest → host   DUKE-JOIN
- * host  → guest  DUKE-WELCOME &lt;yourIndex&gt; &lt;playerCount&gt; &lt;scenario&gt;
+ * host  → guest  DUKE-WELCOME &lt;yourIndex&gt; &lt;playerCount&gt; &lt;scenario, "=" and URL-encoded, or "-"&gt;
  * host  → guest  DUKE-START                (once everyone has arrived)
  * </pre>
  * All machines must be running the same game definition.
@@ -86,7 +86,7 @@ public final class MultiplayerSession implements AutoCloseable {
                     throw new IOException("unexpected handshake from guest: " + hello);
                 }
                 write(socket, "DUKE-WELCOME " + index + " " + playerCount + " "
-                        + (spec.isBlank() ? "-" : spec));
+                        + (spec.isEmpty() ? "-" : "=" + java.net.URLEncoder.encode(spec, StandardCharsets.UTF_8)));
                 guests.put(index, socket);
                 if (onGuestJoined != null) {
                     onGuestJoined.accept(guests.size());
@@ -133,11 +133,16 @@ public final class MultiplayerSession implements AutoCloseable {
         var session = new MultiplayerSession(
                 SocketTransport.wrap(socket, CommandCodec.INSTANCE, HOST_PLAYER_INDEX),
                 assigned, playerCount, false);
-        session.scenarioSpec = parts.length > 3 && !parts[3].equals("-") ? parts[3] : "";
+        // Sent encoded, so a spec with spaces in it is still one word of the line; "=" is never an encoding's.
+        session.scenarioSpec = parts.length > 3 && parts[3].startsWith("=")
+                ? java.net.URLDecoder.decode(parts[3].substring(1), StandardCharsets.UTF_8) : "";
         return session;
     }
 
-    /** The host's map/faction choice, exactly as sent in the welcome. */
+    /**
+     * The host's settings for the match, exactly as the host gave them — spaces, line breaks and all: the choice
+     * {@link DukeGame} makes of a map and factions, or whatever a game that runs its own lobby writes of its slots.
+     */
     public String getScenarioSpec() {
         return scenarioSpec;
     }

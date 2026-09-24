@@ -35,6 +35,8 @@ public final class Duke3D {
     private Hotkeys hotkeys = Hotkeys.none();
     private int width = 1280;
     private int height = 720;
+    private Painter painter;
+    private CanvasInput input;
 
     /** The running client, once launched; what is asked of it before then waits here, in order. */
     private DukeRtsApp app;
@@ -71,6 +73,21 @@ public final class Duke3D {
         return this;
     }
 
+    /**
+     * The game's own drawing, painted every frame over the world and the client's HUD — see {@link Canvas}. With
+     * {@link Shell#drawnByTheGame} it is every screen there is.
+     */
+    public Duke3D canvas(Painter painter) {
+        this.painter = painter;
+        return this;
+    }
+
+    /** The game's first look at the raw input; what it takes goes no further — see {@link CanvasInput}. */
+    public Duke3D input(CanvasInput input) {
+        this.input = input;
+        return this;
+    }
+
     public static void launch(DukeGame game, Visuals visuals) {
         of(game, visuals).launch();
     }
@@ -100,7 +117,7 @@ public final class Duke3D {
     public void launch() {
         // the simulation starts when the player presses Play — or at once, if the
         // game asked for no menu at all
-        var client = new DukeRtsApp(game, visuals, shell, hotkeys);
+        var client = new DukeRtsApp(game, visuals, shell, hotkeys, painter, input);
         synchronized (waiting) {
             app = client;
             for (var task : waiting) {
@@ -133,7 +150,7 @@ public final class Duke3D {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        game.stop();
+        client.currentGame().stop();
         var simThread = client.getSimThread();
         if (simThread != null) {
             try {
@@ -170,6 +187,24 @@ public final class Duke3D {
      */
     public void volume(SoundBank.Channel channel, float zeroToOne) {
         later(client -> client.gameVolume(channel, zeroToOne));
+    }
+
+    /**
+     * Play this match: whatever is running stops, this one is built, its art read — the game's canvas drawn all the
+     * while — and it starts. A match is a {@link DukeGame} played once: the game makes a fresh one for each, with
+     * the players, sides, colours, teams, money and map its setup chose, and for a network game the session its
+     * lobby made ({@link DukeGame#multiplayer}).
+     */
+    public void startMatch(DukeGame match) {
+        later(client -> client.startMatch(match));
+    }
+
+    /**
+     * End the match and go back to the front end: the simulation stops and is let go of, a network session with it,
+     * and the game's own front end — or the client's menu — is what is shown.
+     */
+    public void frontEnd() {
+        later(DukeRtsApp::backToFrontEnd);
     }
 
     /** Do this on the client's own thread: at its next frame, or once it is launched. */

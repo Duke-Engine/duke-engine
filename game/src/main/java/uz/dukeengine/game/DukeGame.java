@@ -194,10 +194,24 @@ public final class DukeGame {
         requireNotStarted();
         var player = new GamePlayer(name, color);
         players.add(player);
-        if (localPlayer == null) {
+        if (localPlayer == null && !observing) {
             localPlayer = player;
         }
         return player;
+    }
+
+    /** Whether this machine watches rather than plays; see {@link #observe}. */
+    private boolean observing;
+
+    /**
+     * Watch rather than play: no player is this machine's, so everything is seen — through no player's fog — and
+     * nothing is ordered. An observer's seat in a skirmish, and a match run behind a front end.
+     */
+    public DukeGame observe() {
+        requireNotStarted();
+        this.observing = true;
+        this.localPlayer = null;
+        return this;
     }
 
     /** Make two players mutual enemies. */
@@ -222,6 +236,7 @@ public final class DukeGame {
     /** Choose whose point of view (and input) the window uses. */
     public DukeGame localPlayer(GamePlayer player) {
         this.localPlayer = player;
+        this.observing = player == null;
         return this;
     }
 
@@ -558,9 +573,29 @@ public final class DukeGame {
         return multiplayer;
     }
 
+    /**
+     * Play this match over a session made before it — for a game that runs its own lobby, hosts or joins with
+     * {@link MultiplayerSession#host} and {@link MultiplayerSession#join}, reads the host's settings off
+     * {@link MultiplayerSession#getScenarioSpec}, and builds the match from them. This machine plays the player the
+     * session seated it as. Before starting.
+     */
+    public DukeGame multiplayer(MultiplayerSession session) {
+        requireNotStarted();
+        requireNetworkPlayers(session.getPlayerCount());
+        this.multiplayer = session;
+        this.observing = false;
+        this.localPlayer = players.get(session.getLocalPlayerIndex() - 1);
+        return this;
+    }
+
     /** Whether this game is wired to a network session. */
     public boolean isMultiplayer() {
         return multiplayer != null;
+    }
+
+    /** Whether this match has been started — booted, and so never to be started again. */
+    public boolean hasStarted() {
+        return started;
     }
 
     // ---- replay ----
@@ -637,7 +672,12 @@ public final class DukeGame {
      */
     public Thread startEngineOnly() {
         boot();
-        var engineThread = new Thread(engine::execute, "duke-sim");
+        var engineThread = new Thread(() -> {
+            engine.execute();
+            if (multiplayer != null) {
+                multiplayer.close(); // the match is over for this machine; the others are told it has gone
+            }
+        }, "duke-sim");
         engineThread.start();
         return engineThread;
     }
@@ -806,7 +846,7 @@ public final class DukeGame {
         for (var player : players) {
             player.bind(logic.getPlayerList().addPlayer(player.getName()).getIndex());
         }
-        client.setViewerPlayer(localPlayer.getIndex());
+        client.setViewerPlayer(localPlayer == null ? RtsClient.EVERYONE : localPlayer.getIndex());
 
         started = true; // spawn() from here on is immediate
         for (var action : scenario) {

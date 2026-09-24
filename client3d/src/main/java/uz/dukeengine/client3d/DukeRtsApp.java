@@ -84,7 +84,11 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private final boolean[] ctrlHeld = {false};
 
-    private enum Screen {MENU, LOADING, PLAYING, PAUSED, SETTINGS}
+    /**
+     * What is on the screen. {@code FRONT} is a game's own front end, drawn on its canvas — see
+     * {@link Shell#drawnByTheGame} — with no match behind it.
+     */
+    private enum Screen {MENU, FRONT, LOADING, PLAYING, PAUSED, SETTINGS}
 
     /**
      * Persisted display/audio settings, shared by every duke-engine game.
@@ -94,9 +98,19 @@ final class DukeRtsApp extends SimpleApplication {
     private static final int[][] RESOLUTIONS = {{1280, 720}, {1600, 900}, {1920, 1080}};
     private static final int[] VOLUMES = {100, 75, 50, 25, 0};
 
-    private final DukeGame game;
+    /** The match being drawn: the one the window opened with, or the last the game started. */
+    private DukeGame game;
+    /** The match whose simulation was started, which is never started again. */
+    private DukeGame played;
     private final Visuals visuals;
     private final Shell shell;
+    /** The game's own drawing, and its first look at the input — see {@link Painter} and {@link CanvasInput}. */
+    private final Painter painter;
+    private final CanvasInput canvasInput;
+    private CanvasText canvasText;
+    private CanvasDrawing canvasDrawing;
+    /** The size the painter was last told the screen is. */
+    private int paintedFor;
     /**
      * Keys this game claimed for itself, over and above the standard controls.
      */
@@ -403,10 +417,13 @@ final class DukeRtsApp extends SimpleApplication {
         UnitView view;
     }
 
-    DukeRtsApp(DukeGame game, Visuals visuals, Shell shell, Hotkeys hotkeys) {
+    DukeRtsApp(DukeGame game, Visuals visuals, Shell shell, Hotkeys hotkeys, Painter painter,
+            CanvasInput canvasInput) {
         this.game = game;
         this.visuals = visuals;
         this.shell = shell;
+        this.painter = painter;
+        this.canvasInput = canvasInput;
         this.hotkeys = hotkeys == null ? Hotkeys.none() : hotkeys;
         this.controls = new Controls(this.hotkeys.keyMap());
         var light = visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
@@ -453,6 +470,11 @@ final class DukeRtsApp extends SimpleApplication {
      */
     Thread getSimThread() {
         return simThread;
+    }
+
+    /** The match drawn now — the last the game started, or the one the window opened with. */
+    DukeGame currentGame() {
+        return game;
     }
 
     void awaitStop() throws InterruptedException {
@@ -601,8 +623,127 @@ final class DukeRtsApp extends SimpleApplication {
         loading = new LoadingOverlay(guiFont, assetManager, guiNode,
                 cam.getWidth(), cam.getHeight());
         buildSounds();
+        buildCanvas();
         showMainMenu();
         applyVolume();
+    }
+
+    /**
+     * The game's canvas, over everything else in the GUI, and its first look at the input — before any control of
+     * the client's own, since the input manager hands a consumed event to nothing after its raw listeners.
+     */
+    private void buildCanvas() {
+        canvasText = new CanvasText(path -> {
+            try {
+                return assetManager.locateAsset(new com.jme3.asset.AssetKey<>(path)).openStream();
+            } catch (RuntimeException e) {
+                return null;
+            }
+        });
+        canvasDrawing = new CanvasDrawing(assetManager, canvasText);
+        guiNode.attachChild(canvasDrawing.node());
+        if (canvasInput != null) {
+            inputManager.addRawInputListener(new CanvasInputs(canvasInput, () -> cam.getHeight()));
+        }
+    }
+
+    /** The game's drawing for this frame, over whatever else is on the screen. */
+    private void paintTheCanvas() {
+        if (painter == null) {
+            return;
+        }
+        int width = cam.getWidth();
+        int height = cam.getHeight();
+        if (paintedFor != width * 100_000 + height) {
+            paintedFor = width * 100_000 + height;
+            painter.resized(width, height);
+        }
+        var frame = new CanvasFrame(width, height, canvasText, canvasDrawing::sizeOf);
+        try {
+            painter.paint(frame);
+        } catch (RuntimeException e) {
+            warnOnce(String.valueOf(e), "canvas painter failure");
+        }
+        canvasDrawing.show(frame.triangles(), height);
+    }
+
+    /** Whether the client's own HUD is up: in play, for a game that does not draw its own. */
+    private boolean clientHud() {
+        return screen == Screen.PLAYING && !shell.isDrawnByTheGame();
+    }
+
+    /**
+     * Whether the world is drawn: always, but behind a game's own front end or load screen, where there is no world
+     * to draw but the one the last match left.
+     */
+    private boolean worldShown() {
+        return !shell.isDrawnByTheGame() || (screen != Screen.FRONT && screen != Screen.LOADING);
+    }
+
+    /**
+     * Play this match — see {@link Duke3D#startMatch}. Whatever runs is stopped and forgotten first, and the match
+     * is built and its art read as the first one was.
+     */
+    void startMatch(DukeGame match) {
+        endTheMatch();
+        forgetTheWorld();
+        game = match;
+        artIsReady = false;
+        startGame();
+    }
+
+    /** Stop the match and show the front end — see {@link Duke3D#frontEnd}. */
+    void backToFrontEnd() {
+        endTheMatch();
+        forgetTheWorld();
+        showMainMenu();
+    }
+
+    /**
+     * Stop whatever match is running and wait for its last frame: its simulation ends, and a network session with it
+     * — the engine's thread lets go of it as it leaves. A load under way is abandoned where it stands.
+     */
+    private void endTheMatch() {
+        if (artLoad != null) {
+            artLoad = null;
+            loading.hide();
+        }
+        game.stop();
+        if (simThread != null) {
+            try {
+                simThread.join(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            simThread = null;
+        }
+    }
+
+    /**
+     * Put away everything drawn from a match that is over: its things, what was burning, what was selected and what
+     * was about to be heard. The ground is laid again from whatever match comes next.
+     */
+    private void forgetTheWorld() {
+        for (var node : unitNodes.values()) {
+            node.root.removeFromParent();
+        }
+        unitNodes.clear();
+        for (var body : dying) {
+            body.root().removeFromParent();
+        }
+        dying.clear();
+        barrels.clear();
+        selected.clear();
+        clearWhatIsBurning();
+        noises.forget();
+        snapshot = WorldSnapshot.EMPTY;
+        lastEventedSnapshot = WorldSnapshot.EMPTY;
+        lookChanged = true; // the next match's ground is laid on its first frame, whatever it is
+        if (commandBar != null) {
+            commandBar.hide();
+        }
+        setSimulationPaused(false);
+        menu.hide();
     }
 
     /**
@@ -1207,6 +1348,11 @@ final class DukeRtsApp extends SimpleApplication {
      * be a dead button.
      */
     private void showMainMenu() {
+        if (shell.isDrawnByTheGame()) {
+            screen = Screen.FRONT; // the game's own front end, on its canvas
+            menu.hide();
+            return;
+        }
         if (shell.startsImmediately()) {
             startGame(); // this game has no front menu; nothing to come back to
             return;
@@ -1401,6 +1547,11 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void startGame() {
+        if (game == played && simThread == null) {
+            // A match that has been played and stopped cannot be played again: the next is a fresh DukeGame.
+            LOG.warning("this match has been played; start the next with Duke3D.startMatch");
+            return;
+        }
         if (!artIsReady) {
             // Assembled first, run later. What a match can ever draw is decided by what is in it, and
             // that is only known once the match is built — so the world is built now, not one frame of it
@@ -1411,13 +1562,17 @@ final class DukeRtsApp extends SimpleApplication {
         }
         if (simThread == null) {
             simThread = game.startEngineOnly();
+            played = game;
         }
         // Open on the player's own units rather than the middle of the map, which
         // left him hunting the map for whatever he is supposed to be controlling.
         camera.requestOwnUnit();
         menu.hide();
-        // Underneath everything from here on, until he goes back to the menu.
-        playChosenMusic();
+        if (!shell.isDrawnByTheGame()) {
+            // Underneath everything from here on, until he goes back to the menu. A game that draws its own
+            // screens plays its own music.
+            playChosenMusic();
+        }
         screen = Screen.PLAYING;
     }
 
@@ -1442,7 +1597,9 @@ final class DukeRtsApp extends SimpleApplication {
     private void beginLoadingArt() {
         artLoad = new ArtLoad(game.templatesThisMatchCanDraw());
         menu.hide();
-        loading.show(game.getTitle());
+        if (!shell.isDrawnByTheGame()) {
+            loading.show(game.getTitle()); // a game that draws its own screens draws its own load screen
+        }
         screen = Screen.LOADING;
     }
 
@@ -2170,7 +2327,7 @@ final class DukeRtsApp extends SimpleApplication {
         menu.destroy();
         menu = buildMenu(width, height);
         switch (screen) {
-            case MENU -> showMainMenu();
+            case MENU, FRONT -> showMainMenu();
             case PAUSED -> showPauseMenu();
             case SETTINGS -> showSettingsMenu(settingsReturn);
             case PLAYING -> menu.hide();
@@ -2375,7 +2532,27 @@ final class DukeRtsApp extends SimpleApplication {
         // First: every material built from here on reads the sun, and this is the world it is for.
         adoptTheSun();
         builtFrom = game.getTerrain();
-        // A new world is a world with nothing burning in it yet.
+        clearWhatIsBurning();
+        terrain.rebuild(builtFrom, currentKit, GroundPaint.of(game.getMapRecord()));
+        if (visuals.getDiscoveryTemplate() == null) {
+            return;
+        }
+        fogMap.resize(builtFrom);
+        // The one thing in a fogged material that a new world changes.
+        for (var material : fogged) {
+            material.setVector2("FogSize", fogMap.worldSize());
+        }
+        // A new floor is a floor nobody has walked: memory belongs to one world,
+        // and carrying it over would open rooms in a dungeon nobody has entered.
+        if (discovery == null) {
+            discovery = new Discovery(builtFrom, visuals.getFog());
+        } else {
+            discovery.reset(builtFrom);
+        }
+    }
+
+    /** A new world is a world with nothing burning in it yet. */
+    private void clearWhatIsBurning() {
         if (layered != null) {
             layered.clear();
         }
@@ -2392,22 +2569,6 @@ final class DukeRtsApp extends SimpleApplication {
         effects.clear();
         if (skillEffects != null) {
             skillEffects.clear();
-        }
-        terrain.rebuild(builtFrom, currentKit, GroundPaint.of(game.getMapRecord()));
-        if (visuals.getDiscoveryTemplate() == null) {
-            return;
-        }
-        fogMap.resize(builtFrom);
-        // The one thing in a fogged material that a new world changes.
-        for (var material : fogged) {
-            material.setVector2("FogSize", fogMap.worldSize());
-        }
-        // A new floor is a floor nobody has walked: memory belongs to one world,
-        // and carrying it over would open rooms in a dungeon nobody has entered.
-        if (discovery == null) {
-            discovery = new Discovery(builtFrom, visuals.getFog());
-        } else {
-            discovery.reset(builtFrom);
         }
     }
 
@@ -2760,7 +2921,11 @@ final class DukeRtsApp extends SimpleApplication {
     /** A control of the client's own that is not about the world: the menu, the bar, chat, a picture, the clock. */
     private void clientControl(KeyMap.Control control) {
         switch (control) {
-            case OPTIONS -> showPauseMenu();
+            case OPTIONS -> {
+                if (!shell.isDrawnByTheGame()) {
+                    showPauseMenu(); // a game that draws its own screens has its own for this
+                }
+            }
             case TOGGLE_COMMAND_BAR -> commandBarHidden = !commandBarHidden;
             case CHAT_ALL -> hotkeys.chat(game, true);
             case CHAT_ALLIES -> hotkeys.chat(game, false);
@@ -3611,6 +3776,13 @@ final class DukeRtsApp extends SimpleApplication {
 
     @Override
     public void simpleUpdate(float tpf) {
+        frame(tpf);
+        // Last, over everything, whatever the screen: the game's front end, its load screen, its HUD in play.
+        paintTheCanvas();
+    }
+
+    private void frame(float tpf) {
+        rootNode.setCullHint(worldShown() ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
         followTheWindowSize();
         showOnlyWhilePlaying();
         snapshot = game.getSnapshot();
@@ -3632,7 +3804,7 @@ final class DukeRtsApp extends SimpleApplication {
                 noises.moment("menu_hover", (float) timer.getTimeInSeconds());
             }
         }
-        if (screen == Screen.MENU) {
+        if (screen == Screen.MENU || screen == Screen.FRONT) {
             hud.setText("");
             buildMenu.setText("");
             return; // the world starts when the player presses Play
@@ -3704,7 +3876,7 @@ final class DukeRtsApp extends SimpleApplication {
      * game had before there was one.
      */
     private void updateCommandBar() {
-        if (screen != Screen.PLAYING || commandBarHidden) {
+        if (!clientHud() || commandBarHidden) {
             if (commandBar != null) {
                 commandBar.hide();
             }
@@ -3948,8 +4120,7 @@ final class DukeRtsApp extends SimpleApplication {
     private void drawThePortrait(float tpf) {
         var reading = heroPanel.reading();
         portrait.show(portraitSubject(), reading == null ? "" : reading.rank());
-        portrait.update(tpf, screen == Screen.PLAYING && !menu.isVisible()
-                && !snapshot.paused());
+        portrait.update(tpf, clientHud() && !menu.isVisible() && !snapshot.paused());
         heroPanel.live(portrait.texture());
     }
 
@@ -3962,7 +4133,7 @@ final class DukeRtsApp extends SimpleApplication {
      * "Skeleton" would be the panel disagreeing with itself.
      */
     private UnitView portraitSubject() {
-        if (screen != Screen.PLAYING || selected.size() != 1) {
+        if (!clientHud() || selected.size() != 1) {
             return null;
         }
         int only = selected.iterator().next();
@@ -4012,13 +4183,12 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void showOnlyWhilePlaying() {
-        var hint = screen == Screen.PLAYING
-                ? Spatial.CullHint.Never : Spatial.CullHint.Always;
+        var hint = clientHud() ? Spatial.CullHint.Never : Spatial.CullHint.Always;
         minimapNode.setCullHint(hint);
         if (controlsHint != null) {
             controlsHint.setCullHint(hint);
         }
-        if (heroPanel != null && screen != Screen.PLAYING) {
+        if (heroPanel != null && !clientHud()) {
             heroPanel.hide();
             // And the frame stops being redrawn with it. Said here rather than
             // beside the rest of the portrait's work because the menu and the
@@ -5397,7 +5567,7 @@ final class DukeRtsApp extends SimpleApplication {
         // With a menu up there is no panel and no figures along the top: the
         // menu is what he is looking at, and a bar left showing underneath it
         // has a hole in it where the minimap was culled.
-        if (screen != Screen.PLAYING) {
+        if (!clientHud()) {
             heroPanel.hide();
             hud.setText("");
             buildMenu.setText("");
@@ -5447,7 +5617,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void updateBanner() {
-        banner.show(snapshot.hasBanner() ? snapshot.banner() : null,
+        banner.show(snapshot.hasBanner() && !shell.isDrawnByTheGame() ? snapshot.banner() : null,
                 cam.getWidth(), cam.getHeight());
     }
 
