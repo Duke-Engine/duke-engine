@@ -129,8 +129,10 @@ by the thing's words on its own and painted in its owner's colour; picking and r
 
 `OrderMark.model(path, clip, frames)` answers a move, and an attack-move, with a model laid on the ground where the
 order goes — the reference's `MoveHintName` — its clip played once from its first frame, gone after `frames` of the
-game's frames. A new order from the same selection moves its mark rather than laying another. `attackRing(false)`
-answers an attack on a thing with nothing, the pointer having said it already, as the reference does.
+game's frames. A new order from the same selection moves its mark rather than laying another. Those orders alone, as
+there: with a model named, a rally point, a power's place and an order the game names get no mark, and a lone
+building told to move gets none. `attackRing(false)` answers an attack on a thing with nothing, the pointer having
+said it already, as the reference does.
 
 ### Text floated up from the world
 

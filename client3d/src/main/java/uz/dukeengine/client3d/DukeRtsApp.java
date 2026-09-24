@@ -3569,8 +3569,11 @@ final class DukeRtsApp extends SimpleApplication {
         // worth knowing and is not a fence. He may be sent to fight his way
         // across the whole floor.
         var landing = heroPanel.isAnOrder(aimed) ? spot : clampedToReach(aimed, spot);
-        markOrder(landing.x(), landing.y(), binding.aim() == Hotkeys.Aim.UNIT_OR_GROUND
-                ? OrderMarkers.Kind.ATTACK_MOVE : OrderMarkers.Kind.MOVE);
+        boolean attackMove = binding.aim() == Hotkeys.Aim.UNIT_OR_GROUND;
+        markOrder(landing.x(), landing.y(), attackMove ? OrderMarkers.Kind.ATTACK_MOVE : OrderMarkers.Kind.MOVE);
+        if (attackMove) {
+            hintMove(landing.x(), landing.y());
+        }
     }
 
     /**
@@ -3930,6 +3933,7 @@ final class DukeRtsApp extends SimpleApplication {
         // one thing he wants to see, which is whether he clicked where he meant
         // to. How far they actually get is theirs to work out on the way.
         markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
+        hintMove(ground.x, ground.z);
         // And one answer, for the same reason. His own orders only: in a game
         // with more than one player at it each hears his own hero and nobody
         // hears anyone else's.
@@ -3970,12 +3974,22 @@ final class DukeRtsApp extends SimpleApplication {
     private void markOrder(float worldX, float worldY, int unitId, OrderMarkers.Kind kind) {
         float now = timer.getTimeInSeconds();
         orderMarkers.add(worldX, worldY, unitId, kind, now);
-        var look = visuals.getOrderMark();
-        if (look.model() != null && kind != OrderMarkers.Kind.ATTACK) {
-            var selection = selectedIds().stream().map(ObjectId::value).toList();
-            modelMarks.add(selection, worldX, worldY, floorHeightAt(worldX, worldY), look, now);
-        }
         noises.moment("order_mark", now);
+    }
+
+    /**
+     * A move, or an attack-move, answered with the game's own model where it names one — the reference's move hint,
+     * laid for those orders alone: a rally point, a power's place or an order the game names are not moves, and a
+     * lone building told to go nowhere gets none, as a lone {@code KINDOF_IMMOBILE} thing does there.
+     */
+    private void hintMove(float worldX, float worldY) {
+        var look = visuals.getOrderMark();
+        if (look.model() == null || selected.size() == 1 && snapshot.units().stream()
+                .anyMatch(view -> selected.contains(view.id()) && view.structure())) {
+            return;
+        }
+        var selection = selectedIds().stream().map(ObjectId::value).toList();
+        modelMarks.add(selection, worldX, worldY, floorHeightAt(worldX, worldY), look, timer.getTimeInSeconds());
     }
 
     /** A move mark's model, as the file has it: no dressing, it is the game's own answer to a click. */

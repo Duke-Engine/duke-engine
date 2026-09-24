@@ -85,7 +85,8 @@ public record OrderMark(float startRadius, float endRadius, float seconds, float
      * The same, answering a move — and an attack-move — with the game's own model instead of the arrowheads: the
      * reference's {@code MoveHintName}, a model laid on the ground at the spot, its clip {@code clip} played once from
      * its first frame, gone after {@code frames} of the game's frames (40 there). A new order from the same selection
-     * moves its mark rather than laying another.
+     * moves its mark rather than laying another. Those orders alone, as there: a rally point, a power's place and an
+     * order the game names are answered with no mark, and a lone building told to move with none.
      */
     public OrderMark model(String path, String clip, int frames) {
         return new OrderMark(startRadius, endRadius, seconds, size, width, height, easePower, fadeFrom, spinDegrees,
