@@ -138,6 +138,32 @@ final class AudioSink implements SoundSink {
     }
 
     @Override
+    public Playing once(String assetPath, float gain) {
+        var sound = nodeFor(assetPath, true, false);
+        if (sound == null) {
+            return Playing.NONE;
+        }
+        sound.setLooping(false);
+        sound.setPositional(false);
+        sound.setVolume(gain);
+        root.attachChild(sound);
+        sound.play();
+        return new Playing() {
+            @Override
+            public void stop() {
+                sound.stop();
+                sound.removeFromParent();
+            }
+
+            @Override
+            public float seconds() {
+                return sound.getStatus() == com.jme3.audio.AudioSource.Status.Playing
+                        ? sound.getPlaybackTime() : Float.NaN;
+            }
+        };
+    }
+
+    @Override
     public Playing music(String assetPath, float gain) {
         // Streamed rather than held in memory: a loop is a minute of audio where
         // a footstep is a tenth of a second, and it is played once from start to

@@ -44,6 +44,11 @@ interface SoundSink {
         /** It should now be this loud. */
         default void volume(float gain) {
         }
+
+        /** How far into itself it has played, in seconds; NaN while that is not known, or it is not playing. */
+        default float seconds() {
+            return Float.NaN;
+        }
     }
 
     /**
@@ -68,6 +73,15 @@ interface SoundSink {
      * plays, and faded. Two can play at once while one fades out and the next comes in.
      */
     Playing music(String assetPath, float gain);
+
+    /**
+     * A long sound, once, flat, from the disc as it plays — a movie's — handed back to be stopped and asked how far it
+     * has got. A sink that cannot keep hold of a sound plays it and hands back {@link Playing#NONE}.
+     */
+    default Playing once(String assetPath, float gain) {
+        play(assetPath, gain, null);
+        return Playing.NONE;
+    }
 
     /** A sink for a machine that cannot make a sound, and for tests. */
     SoundSink SILENT = new SoundSink() {

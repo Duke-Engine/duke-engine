@@ -116,6 +116,9 @@ final class DukeRtsApp extends SimpleApplication {
     /** The game's recipe for the match behind its front end, and that match — see {@link Duke3D#backdrop}. */
     private final java.util.function.Supplier<DukeGame> backdropRecipe;
     private Backdrop backdrop;
+    /** The movie playing, and where it is shown — see {@link Duke3D#playMovie}. */
+    private MoviePlayer movie;
+    private MovieScreen movieScreen;
     /**
      * How steeply the camera looks down, in radians: the game's where it set one, else the client's own, the slope it
      * has always stood at — 0.82 up for 0.57 back.
@@ -656,21 +659,60 @@ final class DukeRtsApp extends SimpleApplication {
      * the client's own, since the input manager hands a consumed event to nothing after its raw listeners.
      */
     private void buildCanvas() {
-        canvasText = new CanvasText(path -> {
-            try {
-                return assetManager.locateAsset(new com.jme3.asset.AssetKey<>(path)).openStream();
-            } catch (RuntimeException e) {
-                return null;
-            }
-        });
+        canvasText = new CanvasText(this::openAsset);
         canvasDrawing = new CanvasDrawing(assetManager, canvasText);
         guiNode.attachChild(canvasDrawing.node());
+        movieScreen = new MovieScreen(assetManager, guiNode);
         if (backdropRecipe != null) {
             backdrop = new Backdrop(backdropRecipe, built -> new ArtLoad(built.templatesThisMatchCanDraw()));
         }
         if (canvasInput != null) {
             inputManager.addRawInputListener(new CanvasInputs(canvasInput, () -> cam.getHeight()));
         }
+    }
+
+    /** A file the game named, by its whole path — from the classpath or a folder the game registered — or null. */
+    private java.io.InputStream openAsset(String path) {
+        try {
+            var found = assetManager.locateAsset(new com.jme3.asset.AssetKey<>(path));
+            return found == null ? null : found.openStream();
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** Play a movie — see {@link Duke3D#playMovie}; one playing is stopped first. */
+    void playMovie(Movie wanted, Runnable ended) {
+        stopMovie();
+        var frames = new MovieFrames(() -> openAsset(wanted.frames()), MovieFrames.AHEAD);
+        var sound = wanted.sound() == null ? SoundSink.Playing.NONE : noises.sounds().movieSound(wanted.sound());
+        movie = new MoviePlayer(wanted, frames, sound, ended == null ? () -> { } : ended);
+    }
+
+    /** Stop the movie playing, and its sound, now. */
+    void stopMovie() {
+        if (movie != null) {
+            movie.stop();
+            movie = null;
+            movieScreen.hide();
+        }
+    }
+
+    /** The movie's next picture, if one is due, over whatever is on the screen. */
+    private void runTheMovie(float tpf) {
+        if (movie == null) {
+            return;
+        }
+        var picture = movie.update(tpf);
+        if (picture != null) {
+            movieScreen.show(picture);
+        }
+        if (movie.isOver()) {
+            movie = null;
+            movieScreen.hide();
+            return;
+        }
+        movieScreen.place(movie.movie(), cam.getWidth(), cam.getHeight());
     }
 
     /** The game's drawing for this frame, over whatever else is on the screen. */
@@ -3864,6 +3906,7 @@ final class DukeRtsApp extends SimpleApplication {
     public void simpleUpdate(float tpf) {
         noises.sounds().update(tpf);
         frame(tpf);
+        runTheMovie(tpf);
         // Last, over everything, whatever the screen: the game's front end, its load screen, its HUD in play.
         paintTheCanvas();
     }

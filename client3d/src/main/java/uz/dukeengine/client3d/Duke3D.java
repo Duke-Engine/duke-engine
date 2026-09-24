@@ -247,6 +247,20 @@ public final class Duke3D {
     }
 
     /**
+     * Play a movie over whatever is on the screen and under the game's canvas — see {@link Movie}. {@code ended} is
+     * told once, on the window's thread, when its last picture's time is up, whether it then goes or holds that
+     * picture. One playing is stopped first.
+     */
+    public void playMovie(Movie movie, Runnable ended) {
+        later(client -> client.playMovie(movie, ended));
+    }
+
+    /** Stop the movie playing, and its sound, at once — for a key the game says skips it. */
+    public void stopMovie() {
+        later(DukeRtsApp::stopMovie);
+    }
+
+    /**
      * Whether a loaded match waits at 100 for the game to let it start — for a load screen that fades to black before
      * the match appears. Held, no frame of the match is stepped or drawn until {@link #releaseMatchStart}.
      */

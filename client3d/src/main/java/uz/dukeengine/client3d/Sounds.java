@@ -319,6 +319,14 @@ final class Sounds {
         }
     }
 
+    /**
+     * A movie's sound, once, flat: at the speech volume and four fifths of it, as the reference plays a movie's sound
+     * ({@code BinkVideoPlayer.cpp}).
+     */
+    SoundSink.Playing movieSound(String assetPath) {
+        return sink.once(assetPath, channelGain(SoundBank.Channel.VOICE) * 0.8f);
+    }
+
     /** Time passing, for whatever is fading. */
     void update(float seconds) {
         for (var going = fades.iterator(); going.hasNext(); ) {
