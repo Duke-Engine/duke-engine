@@ -39,10 +39,19 @@ public record WorldSnapshot(
         List<CommandButton> commands,
         boolean aimFits,
         boolean attackable,
-        CameraView camera) {
+        CameraView camera,
+        boolean revealed) {
 
     public static final WorldSnapshot EMPTY =
-            new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "", List.of(), true, true, null);
+            new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "", List.of(), true, true, null, false);
+
+    /** A frame that says nothing of the map being revealed: every frame from before a map could be. */
+    public WorldSnapshot(int frame, float gameTimeSeconds, boolean paused, int localPlayerMoney,
+            int localPlayerPowerSurplus, List<UnitView> units, List<WorldEvent> events, String banner,
+            String status, List<CommandButton> commands, boolean aimFits, boolean attackable, CameraView camera) {
+        this(frame, gameTimeSeconds, paused, localPlayerMoney, localPlayerPowerSurplus, units, events, banner,
+                status, commands, aimFits, attackable, camera, false);
+    }
 
     /** A frame in which the game has not taken the camera: it is the player's. */
     public WorldSnapshot(int frame, float gameTimeSeconds, boolean paused, int localPlayerMoney,

@@ -2784,6 +2784,14 @@ final class DukeRtsApp extends SimpleApplication {
         if (discovery == null) {
             return;
         }
+        if (snapshot.revealed()) {
+            discovery.openEverything(); // the map revealed to this player, or a watcher's seat
+            discovery.soften(tpf);
+            fogMap.update(discovery);
+            terrain.applyDiscovery(discovery);
+            applyMinimapDiscovery(builtFrom);
+            return;
+        }
         // Re-read when the eyes change, not only the first time. A game may say
         // late — or differently — whose sight opens the map: the dungeon lets the
         // player choose who he is, and a knight sees a shorter way than an archer.

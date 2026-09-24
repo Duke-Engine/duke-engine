@@ -152,6 +152,7 @@ final class RtsClient extends GameClient {
                 commands.get(),
                 aimFits.getAsBoolean(),
                 attackable.getAsBoolean(),
-                camera.get());
+                camera.get(),
+                everything || logic.isMapRevealedTo(viewerPlayer));
     }
 }

@@ -148,6 +148,12 @@ final class Discovery {
         explored.or(visible);
     }
 
+    /** The whole map open and in sight: for a player it was revealed to, and for a watcher. */
+    void openEverything() {
+        visible.set(0, width * height);
+        explored.set(0, width * height);
+    }
+
     /**
      * Mark every cell whose centre lies within {@code radius} of a point — and,
      * if the game asked for it, only the ones he could actually see from there.

@@ -1,6 +1,7 @@
 package uz.dukeengine.rts.save;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -113,6 +114,20 @@ class GameSnapshotTest {
         GameSnapshot.load(GameSnapshot.save(orig), restored);
         var back = restored.getObjects().getFirst();
         assertEquals(java.util.List.of("PLAYER_UPGRADE", "VETERAN"), java.util.List.copyOf(back.getConditions()));
+    }
+
+    /** A map revealed to a player stays revealed through a save, and the world sums the same. */
+    @Test
+    void aMapRevealedToAPlayerIsSavedWithTheWorld() {
+        var orig = newLogic();
+        orig.revealMapTo(2);
+
+        var restored = newLogic();
+        GameSnapshot.load(GameSnapshot.save(orig), restored);
+
+        assertTrue(restored.isMapRevealedTo(2));
+        assertFalse(restored.isMapRevealedTo(1));
+        assertEquals(orig.checksum(), restored.checksum());
     }
 
     /** Where the simulation's random numbers stand is saved too, so a loaded game draws what the saved one would. */

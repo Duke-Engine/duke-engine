@@ -38,6 +38,10 @@ public final class GameSnapshot {
         sb.append("FRAME ").append(logic.getFrame()).append('\n');
         sb.append("NEXTID ").append(logic.getNextObjectId()).append('\n');
         sb.append("RANDOM ").append(logic.random().state()).append('\n');
+        if (!logic.getRevealedTo().isEmpty()) {
+            sb.append("REVEALED ").append(logic.getRevealedTo().stream().map(String::valueOf)
+                    .collect(Collectors.joining(","))).append('\n');
+        }
 
         var players = logic.getPlayerList();
         for (int i = 0; i < players.getPlayerCount(); i++) {
@@ -88,6 +92,11 @@ public final class GameSnapshot {
                 case "FRAME" -> logic.setFrame(Integer.parseInt(rest.trim()));
                 case "NEXTID" -> logic.setNextObjectId(Integer.parseInt(rest.trim()));
                 case "RANDOM" -> logic.random().restore(Long.parseLong(rest.trim()));
+                case "REVEALED" -> {
+                    for (var player : rest.trim().split(",")) {
+                        logic.revealMapTo(Integer.parseInt(player));
+                    }
+                }
                 case "PLAYER" -> loadPlayer(rest, logic);
                 case "OBJECT" -> loadObject(rest, logic);
                 default -> throw new IllegalArgumentException("unknown snapshot line: " + key);

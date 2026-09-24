@@ -163,6 +163,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      * happened after the thing itself has gone.
      */
     public final boolean canSee(int viewerPlayer, Coord3D position) {
+        if (revealedTo.contains(viewerPlayer)) {
+            return true; // the whole map, for good
+        }
         for (var watcher : objects) {
             if (watcher.isEffectivelyDead() || Sighted.of(watcher.getTemplate()) <= 0f) {
                 continue;
@@ -175,6 +178,29 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             }
         }
         return false;
+    }
+
+    /** The players the whole map has been revealed to, for good — see {@link #revealMapTo}. Sorted. */
+    private final java.util.TreeSet<Integer> revealedTo = new java.util.TreeSet<>();
+
+    /**
+     * Reveal the whole map to {@code player} for the rest of the match: no fog, no shroud, in what that player is
+     * shown — the reference's {@code MAP_REVEAL_ALL_PERM}, and what a player beaten while the others fight on is given
+     * to watch the end by. From code on the simulation thread, where every machine does it on the same frame: it is
+     * part of the checksum. Nothing the simulation decides reads it.
+     */
+    public final void revealMapTo(int player) {
+        revealedTo.add(player);
+    }
+
+    /** Whether the whole map has been revealed to {@code player}. */
+    public final boolean isMapRevealedTo(int player) {
+        return revealedTo.contains(player);
+    }
+
+    /** The players the whole map has been revealed to, in order — for a save. */
+    public final java.util.SortedSet<Integer> getRevealedTo() {
+        return java.util.Collections.unmodifiableSortedSet(revealedTo);
     }
 
     /** Every object {@code viewerPlayer} can currently see, in creation order. */
@@ -624,6 +650,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
 
     private void clearState() {
         objects.clear();
+        revealedTo.clear();
         staticObstaclesDirty = true;
         random.restore(randomSeed);
         frame = 0;
@@ -859,6 +886,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             if (statuses != 0) {
                 hash = mix(hash, statuses);
             }
+        }
+        for (int player : revealedTo) {
+            hash = mix(hash, player); // nothing revealed sums as it always did
         }
         return hash;
     }

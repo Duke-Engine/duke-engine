@@ -1199,7 +1199,40 @@ public final class DukeGame {
 
     /** The index of the viewing player (whose units the window commands). */
     public int getLocalPlayerIndex() {
-        return localPlayer != null && localPlayer.isBound() ? localPlayer.getIndex() : -1;
+        return !watching && localPlayer != null && localPlayer.isBound() ? localPlayer.getIndex() : -1;
+    }
+
+    /** Whether this machine has taken a watcher's seat mid-match — see {@link #watch}. */
+    private volatile boolean watching;
+
+    /**
+     * Reveal the whole map to {@code player} for the rest of the match — the reference's {@code MAP_REVEAL_ALL_PERM},
+     * and what a player beaten while the others fight on gets to watch the end by. From code on the simulation thread
+     * (a defeat callback, a script), so every machine does it on the same frame; it is in the checksum. That player's
+     * view has no fog and no shroud from the next frame; nobody else's changes.
+     */
+    public DukeGame revealMapTo(GamePlayer player) {
+        logic.revealMapTo(player.getIndex());
+        return this;
+    }
+
+    /**
+     * Make this machine a watcher from now on, mid-match: no player of its own, so nothing selected and no order sent
+     * — the whole map seen, through nobody's fog. The machine goes on taking part in the match's lock-step, so the
+     * others play on. For the machine whose player was beaten ({@code getLocalPlayerIndex()} before the call); what
+     * {@link #observe} is before a match starts.
+     */
+    public DukeGame watch() {
+        watching = true;
+        if (client != null) {
+            client.setViewerPlayer(RtsClient.EVERYONE);
+        }
+        return this;
+    }
+
+    /** Whether this machine is a watcher: from the start ({@link #observe}), or since {@link #watch}. */
+    public boolean isWatching() {
+        return watching || observing;
     }
 
     private GamePlayer playerByIndex(int index) {
