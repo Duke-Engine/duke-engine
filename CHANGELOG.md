@@ -15,14 +15,22 @@ when it does, this page says exactly what to change and how.
 - `GameLogic.checksum()` mixes in a thing's statuses when it has any. A world where nothing has a status sums
   as it did, so old goldens and replays hold; one where something is `HELD`, `AIRBORNE` or under construction
   sums differently than it did in 0.5.0.
-- `GameMessage` has `Sell`, `AttackMove`, `Guard`, `Evacuate` and `ExitContainer`, each with its line in
-  `CommandCodec`: a `switch` over it with no `default` needs the cases.
+- `GameMessage` has `Sell`, `AttackMove`, `Guard`, `Evacuate`, `ExitContainer` and `GameOrder`, each with its
+  line in `CommandCodec`: a `switch` over it with no `default` needs the cases.
 - `DamageType` is no longer an enum (see below), so `DamageType.values()` is gone: the set is open, and a game
   that walked every type — duke-dungeon's `GrowableBody` does, to armour a hero against all of them — names
   the types it means.
-- `ObjectDied` carries the death type, the killer and the facing: `new ObjectDied(frame, id, template, player,
-  position, deathType, killer, orientation)`, the first two of them `null` for a plain death by no one. Only
-  the engine posts one; a test that makes one adds the three.
+- `ObjectDied` carries the death type, the killer, the facing and the killer's side: `new ObjectDied(frame, id,
+  template, player, position, deathType, killer, orientation, killerPlayerIndex)`, the killer `null` and its side
+  -1 for a death by no one. Only the engine posts one. A test that makes one adds them; the form without the
+  killer's side is kept, and means nobody's. `Death` has `killerPlayerIndex` beside the killer the same way.
+- A side's money keeps books. `RtsPlayer.deposit` is earned (`getEarned`) and `withdraw` is spent
+  (`getSpent`). Money coming back is `refund`, which is taken off what was spent, and money handed over is
+  `give`, which is in neither. `DukeGame.money` now gives. A game that deposits its own starting money or a
+  script's gift, and does not want it counted as earned, calls `give`.
+- `DukeGame.runHeadless` feeds a replay (`playReplay`) before each step, as the engine's own loop does: its game
+  takes the recording's input and not live input, and a checksum that no longer matches is reported. It used to
+  step a replay's game on live input.
 - The client reads its own keys from a `KeyMap`, `KeyMap.standard()` unless the game gives one — the keys it
   always had. Two things are new with it: a letter the command bar shows on a button presses that button (after
   the game's own letters and its map), and Enter or Space put the camera on the player's own units at once.
@@ -50,6 +58,23 @@ when it does, this page says exactly what to change and how.
   `ProjectileLauncher.launch(shooter, victim, damage, type)` and `DieModule.onDie()` are still called, through the
   forms that now say more. The static `Duke3D.launch` methods are shorthand for `Duke3D.of(game, visuals)...launch()`.
 
+### A game's own orders
+
+`GameMessage.GameOrder(playerIndex, word, units, place, target, number)` is an order whose meaning is the game's,
+such as a special power fired at a place or a science bought. It travels as every order does: posted with
+`DukeGame.postCommand` from any thread, sent to every machine, applied on a frame boundary in the order given, and
+written into a replay. The game hears it on the simulation thread through `DukeGame.onOrder`
+(`RtsSimulation.onOrder`) and does what it means there. The engine never reads the word or the number. On the
+wire it is `ORDER`, with the word percent-encoded so it may hold any character.
+
+### Deaths heard, and a side's books
+
+`DukeGame.onDied` (`GameLogic.onDied`) hears every death as it is reaped, on the simulation thread. It gets the
+same `ObjectDied` the client's event carries, beside it rather than from it, with `killerPlayerIndex`: the side
+whose blow it was, taken when the blow landed, so a kill is credited even when the killer is gone too. A thing
+removed without dying, such as a sold building, is not heard. A side's books keep what it earned and what it
+spent apart where its balance nets them (see what to change).
+
 ### Held in place
 
 `ObjectStatus.HELD` (the reference's `DISABLED_HELD`): nothing moves the thing. A move order is taken and goes
@@ -70,9 +95,10 @@ counting as the thing it reskins. `DukeGame.computer(player)` marks a computer s
 ### Selling, attack-move, guard, evacuate
 
 `GameMessage.Sell` puts a building up for sale. It is marked `SOLD` and stands in scaffold for
-`SellRules.scaffoldFrames`, then its health falls `percentPerFrame` of its most each frame down to -50%. Then it is
-gone: not destroyed, told through `StructureSold` and `DukeGame.onSold`, with `sellShare` of its cost refunded, or
-its `RefundValue` where it names one. A building killed while it comes down pays nothing.
+`SellRules.scaffoldFrames`, then comes down `percentPerFrame` a frame, from just under 100 to -50%, as the
+reference runs a building's construction percent backwards. Its health is not touched. Then it is gone: not
+destroyed, told through `StructureSold` and `DukeGame.onSold`, with `sellShare` of its cost refunded, or its
+`RefundValue` where it names one. A building killed while it comes down pays nothing.
 
 `AttackMove` walks to a place and fights whatever it meets on the way. `Guard` holds a place or keeps to a thing,
 in one of three modes: `NORMAL`, `WITHOUT_PURSUIT`, or `FLYING_ONLY`, where only what flies is engaged. The radii,
