@@ -51,8 +51,17 @@ when it does, this page says exactly what to change and how.
   besides, staggered by id.
 - Every blow that does harm posts `ObjectHurt`, before any `ObjectDied` it causes: code that took the first event
   of a blow for its death filters for `ObjectDied`.
-- `NetMessage` has `LoadProgress` and `ChatLine`: a `switch` over it with no `default` needs the cases. Machines
-  of a network game run the same engine, and the welcome line now carries the host's settings encoded.
+- `NetMessage` has `LoadProgress`, `ChatLine` and `Resent`: a `switch` over it with no `default` needs the cases.
+  Machines of a network game run the same engine: the welcome line now carries the host's settings encoded, a
+  guest's join line the port it listens on, and the host names every guest's (`DUKE-PEERS`) before it starts.
+- A player who leaves a network game is told (`DukeGame.onPlayerLeft`, `LockstepGate.onPlayerLeft`) as the frame
+  they left from runs, on the simulation thread and on the same frame on every machine, so the callback may change
+  the world — hand the side to an ally with `handOverAll`. It used to be told when the news came in, a frame that
+  differed from machine to machine. A guest whose host leaves plays on, the next player relaying, where it used to
+  stop with CONNECTION LOST; in a match of two the one left plays on alone.
+- A harvester that moves is paid only once it stands beside its depot, where a trip that ended anywhere used to be
+  paid. It loads at the pile it walked to, topping up a part load, where it took from whichever was nearest then;
+  and one that flies flies to its work (`getLocomotor()`), where it only ever walked.
 - A `SoundSink`'s music is a handle it hands back (`Playing music(path, gain)`), which is what lets one track fade
   while the next plays; the interface is the client's own, so only a test's sink changes. `musicOnce` and
   `Playing.ended` are defaults.
@@ -67,15 +76,88 @@ when it does, this page says exactly what to change and how.
 - `Locomotor` has `leave(way, destination)`, the first leg a unit walks out of its maker; a mover of a game's own
   that does not implement it goes straight to the destination, as its `moveTo` does.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
-  `HarvestUpdate.Data`, `WeaponFired`, `Weapon` (and its own `Bonuses`), `WorldSnapshot` (and `revealed`, `contextOrder`),
-  `SoundBank.Cue`, `Sound`, `UnitView` (and `passengers`, `conditions`), `CommandButton`, `Upgrade`, `ProductionUpdate.Data`
-  (and its `Exit` and `Door`),
-  `RtsTemplate`, `Shot`, `ActiveBody.Data`, `ExperienceModule.Data` (and `LevelHealthBonus`) — and every new field
-  left out means what the old record did. A template that names no prerequisite, word or cap is buildable as
-  before; a save from before granted words and computer sides loads.
+  `HarvestUpdate.Data`, `WeaponFired`, `Weapon` (and its own `Bonuses`), `WorldSnapshot` (and `revealed`,
+  `contextOrder`), `SoundBank.Cue`, `Sound`, `UnitView` (and `passengers`, `conditions`, `built`), `CommandButton`,
+  `Upgrade`, `ProductionUpdate.Data` (and its `Exit`, `Door` and `Words`), `PlacementRules` (and its `SiteWords`),
+  `ContainModule.Data`, `OrderMark`, `RtsTemplate`, `Shot`, `ActiveBody.Data`, `ExperienceModule.Data` (and
+  `LevelHealthBonus`) — and every new field left out means what the old record did. A template that names no
+  prerequisite, word or cap is buildable as before; a save from before granted words and computer sides loads.
   `Canvas.drawPicture(Picture, …)` is a default that refuses, so a game's own canvas compiles as it did.
   `ProjectileLauncher.launch(shooter, victim, damage, type)` and `DieModule.onDie()` are still called, through the
   forms that now say more. The static `Duke3D.launch` methods are shorthand for `Duke3D.of(game, visuals)...launch()`.
+
+### The host leaving is not the end
+
+A network match goes on when the host's machine goes. Every guest listens from the start, and the host tells each
+where the others listen before the first frame, so the order they fall back in is their seats, agreed by all: the
+next living player takes over relaying and the others reconnect to it — the reference's packet router fallback.
+Nothing is lost or run twice on the way. Every machine resends what it held for the frames still in play and says
+`Resent`; only then does the new relay say the old one has left, from a frame past every order of its anybody held.
+The match waits while it is found again, as it does for a slow player, and a machine that reaches nobody within five
+seconds plays on alone, as in the reference. `LockstepGate` takes a `RelayFallback` for it, and `MultiplayerSession`
+gives every gate one.
+
+### A side handed to another player
+
+`RtsSimulation.handOver(things, to)` hands things to another player — the reference's `transferAssetsFromThat`, for a
+side that quits with a living ally or anything a game gives away — and `handOverAll(from, to, money)` a whole side,
+with its money where asked (`RtsPlayer.handOver`, in neither book). Called on the simulation thread — from `onOrder`,
+or `onPlayerLeft`, now told on the same frame everywhere — every machine hands over the same things on the same
+frame. What the engine keeps for an owner follows each thing: a factory's queue and rally point, its power, its sight,
+its experience. The client paints a thing handed over in its new owner's colour, and lets it go from the old owner's
+selection.
+
+### A site that rises, and the words it holds
+
+`PlacementRules` may name `SiteWords`, the words a site holds while it goes up — the reference's
+`AWAITING_CONSTRUCTION`, `PARTIALLY_CONSTRUCTED` and `ACTIVELY_BEING_CONSTRUCTED`: the first until a builder first
+works on it, the second from then until it is finished, the third on the frames a builder works on it. A building
+being sold holds the last two while it comes down. `UnitVisual.risesAsBuilt()` draws a thing rising out of the
+ground as it is built and sinking as it is sold — the reference's `ADJUST_HEIGHT_BY_CONSTRUCTION_PERCENT` — from
+`UnitView.built`, the simulation's own progress, so every machine shows the same height.
+
+### A factory's working words, and a thing drawn by several models
+
+`ProductionUpdate.Data` may name `Words`: `busy` while anything is in the queue — the reference's
+`ACTIVELY_CONSTRUCTING` — and `made` for `madeFrames` from a unit finished (`CONSTRUCTION_COMPLETE`), not started
+again while it holds. `UnitVisual.layer(name)` draws another model with a thing — a factory's door, its crane, its
+scaffold, the reference's second draw modules — a look of its own with the same means as the thing's: models by
+words (`model(words, null)` hides it), pieces, clips by words, rising as built, size and facing. Each layer is chosen
+by the thing's words on its own and painted in its owner's colour; picking and rings stay with the thing's own look.
+
+### An order answered with the game's own model
+
+`OrderMark.model(path, clip, frames)` answers a move, and an attack-move, with a model laid on the ground where the
+order goes — the reference's `MoveHintName` — its clip played once from its first frame, gone after `frames` of the
+game's frames. A new order from the same selection moves its mark rather than laying another. `attackRing(false)`
+answers an attack on a thing with nothing, the pointer having said it already, as the reference does.
+
+### Text floated up from the world
+
+`DukeGame.floatText(text, x, y, z, argb)` floats a short text up from a point — money earned there, a bounty — as the
+reference's floating text does. It is an event (`TextFloated`, which the simulation's own code may post too), seen
+only by a player whose view of the point is clear. The client draws it rising and fading as
+`Visuals.floatingText(rise, hold, fade)` says, the reference's 1, 10 and 0.1 where the game says nothing.
+
+### Harvesters told where to work
+
+`HarvestUpdate.workAt(place)` sends a harvester to a pile to fetch from, or a depot of its side to deliver to — the
+reference's preferred dock — and it goes back there after every delivery, however far, until told another or the
+place is gone. A load is banked only beside the depot (see what to change); a trip cut short keeps its load, and the
+harvester sets off again a second later.
+
+### A hold shared by a side
+
+`ContainModule`'s `SharedBy` names a network: every thing of a side whose hold names it holds one list of passengers
+with one capacity — the reference's tunnel network. What gets in at any of them may get out at any of them; the
+passengers live through the loss of any but the last, and die with that one. `RtsSimulation.sharedHold` reads the
+list.
+
+### A module told it is taken off
+
+`Module.onRemoved()` is called when a module is taken off its thing — an errand given up for a new order, a module
+swapped for another — on the simulation thread, before the thing's modules next update, so it can take back what it
+put on the thing, such as the words it set for its show.
 
 ### A game's own orders
 
