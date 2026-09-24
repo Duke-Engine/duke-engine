@@ -58,14 +58,48 @@ package uz.dukeengine.client3d;
  *                     three is a warning light
  * @param moveColour   packed RGB for "go there"
  * @param attackColour packed RGB for "kill that"
+ * @param model        the game's own model a move is answered with instead of the arrowheads, or null for them —
+ *                     see {@link #model(String, String, int)}
+ * @param clip         the clip of that model played once from its first frame, or null for none
+ * @param frames       how many of the game's frames that model stands
+ * @param noAttackRing whether an attack is answered with nothing at all: the pointer already said it
  */
 public record OrderMark(float startRadius, float endRadius, float seconds, float size,
         float width, float height, float easePower, float fadeFrom, float spinDegrees,
-        float brightness, float ringRadius, int blinks, int moveColour, int attackColour) {
+        float brightness, float ringRadius, int blinks, int moveColour, int attackColour,
+        String model, String clip, int frames, boolean noAttackRing) {
 
     /** What a game that asks for nothing gets. Tuned by eye at a dungeon's scale. */
     public static final OrderMark DEFAULTS = new OrderMark(
             7f, 1f, 0.40f, 3.5f, 3f, 0.25f, 3f, 0.6f, 22f, 1.6f, 7f, 2, 0x3CFF6E, 0xFF4436);
+
+    /** The arrowheads and the ring, drawn as the numbers say: every mark from before a game could name a model. */
+    public OrderMark(float startRadius, float endRadius, float seconds, float size, float width, float height,
+            float easePower, float fadeFrom, float spinDegrees, float brightness, float ringRadius, int blinks,
+            int moveColour, int attackColour) {
+        this(startRadius, endRadius, seconds, size, width, height, easePower, fadeFrom, spinDegrees, brightness,
+                ringRadius, blinks, moveColour, attackColour, null, null, 0, false);
+    }
+
+    /**
+     * The same, answering a move — and an attack-move — with the game's own model instead of the arrowheads: the
+     * reference's {@code MoveHintName}, a model laid on the ground at the spot, its clip {@code clip} played once from
+     * its first frame, gone after {@code frames} of the game's frames (40 there). A new order from the same selection
+     * moves its mark rather than laying another.
+     */
+    public OrderMark model(String path, String clip, int frames) {
+        return new OrderMark(startRadius, endRadius, seconds, size, width, height, easePower, fadeFrom, spinDegrees,
+                brightness, ringRadius, blinks, moveColour, attackColour, path, clip, frames, noAttackRing);
+    }
+
+    /**
+     * The same, with an attack on a thing answered by the ring round it, or by nothing — the reference draws none,
+     * its pointer having already said it.
+     */
+    public OrderMark attackRing(boolean shown) {
+        return new OrderMark(startRadius, endRadius, seconds, size, width, height, easePower, fadeFrom, spinDegrees,
+                brightness, ringRadius, blinks, moveColour, attackColour, model, clip, frames, !shown);
+    }
 
     public OrderMark {
         startRadius = Math.max(0f, startRadius);
@@ -78,6 +112,8 @@ public record OrderMark(float startRadius, float endRadius, float seconds, float
         brightness = Math.max(0f, brightness);
         ringRadius = Math.max(0.01f, ringRadius);
         blinks = Math.max(1, blinks);
+        model = model == null || model.isBlank() ? null : model;
+        frames = Math.max(1, frames);
     }
 
     /**

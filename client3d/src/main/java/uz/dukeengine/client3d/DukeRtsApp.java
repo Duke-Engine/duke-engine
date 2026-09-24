@@ -366,6 +366,8 @@ final class DukeRtsApp extends SimpleApplication {
      * And the red ring that flashes round whatever was ordered attacked.
      */
     private AttackFlash attackFlash;
+    /** Orders answered with the game's own model, where it names one — see {@link OrderMark#model}. */
+    private ModelMarks modelMarks;
 
     /**
      * The numbers that come off a creature as it is hurt or healed.
@@ -620,6 +622,7 @@ final class DukeRtsApp extends SimpleApplication {
         rootNode.attachChild(markerNode);
         chevrons = new Chevrons(assetManager, markerNode, visuals.getOrderMark());
         attackFlash = new AttackFlash(assetManager, markerNode, visuals.getOrderMark());
+        modelMarks = new ModelMarks(markerNode, this::loadMarkModel);
         hitNumbers = new FloatingNumbers(guiFont, guiNode, visuals.getHitNumbers());
         // The display face a boss's name is set in is the one the game already
         // named for its menus. A second field naming the same file would be a
@@ -1200,10 +1203,13 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void syncOrderMarkers() {
         float now = timer.getTimeInSeconds();
-        orderMarkers.prune(now, visuals.getOrderMark().seconds());
-        chevrons.show(orderMarkers.markers(), now, this::floorHeightAt);
-        attackFlash.show(orderMarkers.markers(), now, this::whereThatUnitIsNow,
-                this::floorHeightAt);
+        var look = visuals.getOrderMark();
+        orderMarkers.prune(now, look.seconds());
+        modelMarks.update(now, look);
+        // A move the game answers with its own model has no arrowheads; an attack it answers with nothing, no ring.
+        chevrons.show(look.model() == null ? orderMarkers.markers() : java.util.List.of(), now, this::floorHeightAt);
+        attackFlash.show(look.noAttackRing() ? java.util.List.of() : orderMarkers.markers(), now,
+                this::whereThatUnitIsNow, this::floorHeightAt);
         syncSkillRange(now);
         syncHitNumbers(now);
     }
@@ -2865,6 +2871,9 @@ final class DukeRtsApp extends SimpleApplication {
         rebuildMinimapTerrain();
         noises.forget(); // a new floor; nothing about the last one is news
         orderMarkers.clear(); // orders given in the old world mean nothing here
+        if (modelMarks != null) {
+            modelMarks.clear();
+        }
         chevrons.clear();
         attackFlash.clear();
         hitNumbers.clear();
@@ -3955,7 +3964,22 @@ final class DukeRtsApp extends SimpleApplication {
     private void markOrder(float worldX, float worldY, int unitId, OrderMarkers.Kind kind) {
         float now = timer.getTimeInSeconds();
         orderMarkers.add(worldX, worldY, unitId, kind, now);
+        var look = visuals.getOrderMark();
+        if (look.model() != null && kind != OrderMarkers.Kind.ATTACK) {
+            var selection = selectedIds().stream().map(ObjectId::value).toList();
+            modelMarks.add(selection, worldX, worldY, floorHeightAt(worldX, worldY), look, now);
+        }
         noises.moment("order_mark", now);
+    }
+
+    /** A move mark's model, as the file has it: no dressing, it is the game's own answer to a click. */
+    private Spatial loadMarkModel(String path) {
+        try {
+            return assetManager.loadModel(path);
+        } catch (RuntimeException notThere) {
+            warnOnce(path, "order mark");
+            return null;
+        }
     }
 
     /**
