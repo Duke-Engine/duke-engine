@@ -89,6 +89,10 @@ public final class Visuals {
         final java.util.List<PieceState> pieceStates = new java.util.ArrayList<>();
         /** How its barrels kick back; see {@link #recoil}. */
         Barrels.Recoil recoil = Barrels.Recoil.REFERENCE;
+        /** Its treads, or null for none; see {@link #treads}. */
+        Treads treads;
+        /** Its wheels, or null for none; see {@link #wheels}. */
+        Wheels wheels;
         /** Its clips for particular deaths, by the death type's name; see {@link #die(String, String)}. */
         final java.util.Map<String, String> dieAnims = new java.util.LinkedHashMap<>();
         /** Clips it needs for something other than standing, walking and dying. */
@@ -559,6 +563,32 @@ public final class Visuals {
             return this;
         }
 
+        /**
+         * Its treads, whose picture runs as it moves — the reference's {@code W3DTankDraw}. Every piece whose name
+         * begins {@code left} is a left tread and {@code right} a right one — {@code TREADSL} is {@code TREADSL01},
+         * {@code TREADSL02} … — and one both begin is neither side's: it runs as the vehicle drives and stands as it
+         * pivots. {@code rate} is how many lengths of the tread's picture run by in a second ({@code
+         * TreadAnimationRate}); turning slower than {@code pivotFraction} of its speed, the sides run opposite ways
+         * ({@code TreadPivotSpeedFraction}); faster than {@code driveFraction} of it, all run with it ({@code
+         * TreadDriveSpeedFraction}); otherwise they stand. See {@link RunningGear}.
+         */
+        public UnitVisual treads(String left, String right, float rate, float driveFraction, float pivotFraction) {
+            this.treads = new Treads(left, right, rate, driveFraction, pivotFraction);
+            return this;
+        }
+
+        /**
+         * Its wheels, rolling as it moves — the reference's {@code W3DTruckDraw}. Each of {@code bones} and of
+         * {@code front} rolls {@code multiplier} radians a unit it travels ({@code TireRotationMultiplier}; one over
+         * the tyre's radius rolls it without skidding), and the {@code front} ones steer as far as {@code
+         * steerDegrees} toward a turn (its locomotor's {@code FrontWheelTurnAngle}). See {@link RunningGear}.
+         */
+        public UnitVisual wheels(java.util.List<String> bones, float multiplier, java.util.List<String> front,
+                float steerDegrees) {
+            this.wheels = new Wheels(bones, multiplier, front, (float) Math.toRadians(steerDegrees));
+            return this;
+        }
+
         /** What it plays as it dies, before the body is taken away. */
         public UnitVisual die(String animName) {
             this.dieAnim = animName;
@@ -663,6 +693,18 @@ public final class Visuals {
             words = java.util.Collections.unmodifiableSortedSet(new java.util.TreeSet<>(words));
             hide = hide == null ? java.util.List.of() : java.util.List.copyOf(hide);
             show = show == null ? java.util.List.of() : java.util.List.copyOf(show);
+        }
+    }
+
+    /** A vehicle's treads — see {@link UnitVisual#treads}. */
+    record Treads(String left, String right, float rate, float driveFraction, float pivotFraction) {
+    }
+
+    /** A vehicle's wheels — see {@link UnitVisual#wheels}; how far the front ones steer, in radians. */
+    record Wheels(java.util.List<String> bones, float multiplier, java.util.List<String> front, float steer) {
+        Wheels {
+            bones = bones == null ? java.util.List.of() : java.util.List.copyOf(bones);
+            front = front == null ? java.util.List.of() : java.util.List.copyOf(front);
         }
     }
 

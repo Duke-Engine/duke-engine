@@ -211,6 +211,8 @@ final class DukeRtsApp extends SimpleApplication {
     private HurtMoments hurtMoments;
     /** Every drawn thing's barrels: where its shots come out, its flashes and its kick — see {@link Barrels}. */
     private final Barrels barrels = new Barrels();
+    /** Every drawn vehicle's treads and wheels, run as it moves — see {@link RunningGear}. */
+    private final RunningGear runningGear = new RunningGear();
     private final Map<String, Material> particleMaterials = new HashMap<>();
     /**
      * Whoever of theirs was just hit, going white -- see {@link HitFlash}.
@@ -911,6 +913,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         dying.clear();
         barrels.clear();
+        runningGear.clear();
         selected.clear();
         clearWhatIsBurning();
         noises.forget();
@@ -2643,6 +2646,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         unitNodes.clear();
         barrels.clear();
+        runningGear.clear();
     }
 
     /**
@@ -4725,6 +4729,7 @@ final class DukeRtsApp extends SimpleApplication {
             // light -- what it did on the way down is Landing's to say.
             layered.grounded(entry.getKey());
             barrels.forget(entry.getKey());
+            runningGear.forget(entry.getKey());
             var node = entry.getValue();
             var at = node.root.getLocalTranslation();
             if (Landing.arrived(node.view, game.getLocalPlayerIndex(),
@@ -4872,6 +4877,7 @@ final class DukeRtsApp extends SimpleApplication {
                 var dying = unitNodes.get(died.object().value());
                 layOut(died.object().value(), died.deathType());
                 barrels.forget(died.object().value());
+                runningGear.forget(died.object().value());
                 moment(GameSounds.diedMoment(died),
                         WorldMoments.died(died, dying == null ? null : dying.root, this::floorHeightAt),
                         died.object().value());
@@ -5220,6 +5226,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (id != null) {
             barrels.dress(id, body, node.barrelBones != null ? node.barrelBones : visual.weaponBones, visual.recoil);
             node.pieces.applyTo(body, barrels.flashes(id));
+            runningGear.dress(id, body, visual);
         }
     }
 
@@ -5770,6 +5777,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         node.root.setLocalTranslation(UnitPlacement.where(view, this::floorHeightAt));
         node.root.setLocalRotation(UnitPlacement.turn(view));
+        runningGear.see(view.id(), view, snapshot.frame());
 
         node.ring.setCullHint(selected.contains(view.id())
                 ? Spatial.CullHint.Never : Spatial.CullHint.Always);
