@@ -71,7 +71,7 @@ public abstract class UnitScript {
     }
 
     protected final boolean isMoving() {
-        var ai = unit.findModule(MoveUpdate.class);
+        var ai = unit.getLocomotor();
         return ai != null && ai.isMoving();
     }
 
@@ -98,7 +98,7 @@ public abstract class UnitScript {
 
     /** Walk toward a point (pathfinds around obstacles if the unit can move). */
     protected final void moveTo(float x, float y) {
-        var ai = unit.findModule(MoveUpdate.class);
+        var ai = unit.getLocomotor();
         if (ai != null) {
             ai.moveTo(new Coord3D(x, y, 0f));
         }
@@ -114,7 +114,7 @@ public abstract class UnitScript {
 
     /** Stop moving and hold fire. */
     protected final void stop() {
-        var ai = unit.findModule(MoveUpdate.class);
+        var ai = unit.getLocomotor();
         if (ai != null) {
             ai.stop();
         }

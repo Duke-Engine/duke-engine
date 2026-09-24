@@ -194,6 +194,16 @@ public interface World {
      */
     float groundHeight(Coord3D position);
 
+    /** How far the map reaches across x, in world units — 0 for a world with no edge to keep inside. */
+    default float mapWidth() {
+        return 0f;
+    }
+
+    /** How far the map reaches across y, the same. */
+    default float mapHeight() {
+        return 0f;
+    }
+
     /**
      * Which floor a position stands on: the level of the cell under it. Zero on a world with one floor — and on a
      * world whose floor rises and falls, still the floor it is, however high the ground there stands.

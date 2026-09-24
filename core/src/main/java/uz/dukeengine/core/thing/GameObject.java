@@ -259,6 +259,19 @@ public final class GameObject {
         return List.copyOf(modules);
     }
 
+    /**
+     * What moves it — its {@link uz.dukeengine.core.module.Locomotor}, walking or flying — or {@code null} for a thing
+     * that cannot move itself. What anything giving orders asks, so the two are ordered alike.
+     */
+    public uz.dukeengine.core.module.Locomotor getLocomotor() {
+        for (var module : modules) {
+            if (module instanceof uz.dukeengine.core.module.Locomotor locomotor) {
+                return locomotor;
+            }
+        }
+        return null;
+    }
+
     /** The first attached module of the given type, or {@code null} if none. */
     public <M extends Module> M findModule(Class<M> type) {
         for (var module : modules) {

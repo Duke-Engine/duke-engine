@@ -255,6 +255,16 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return pathGrid == null ? 0f : pathGrid.groundHeight(position);
     }
 
+    @Override
+    public final float mapWidth() {
+        return pathGrid == null ? 0f : pathGrid.getWidth() * pathGrid.getCellSize();
+    }
+
+    @Override
+    public final float mapHeight() {
+        return pathGrid == null ? 0f : pathGrid.getHeight() * pathGrid.getCellSize();
+    }
+
     /**
      * Which floor a point is on — the number two objects have to share before
      * either can be in the other's way.
@@ -277,6 +287,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                 candidate -> !candidate.isDestroyed()
                         && !candidate.isEffectivelyDead()
                         && !candidate.isContained()
+                        && !candidate.hasStatus(uz.dukeengine.core.thing.ObjectStatus.AIRBORNE)
                         && levelAt(candidate.getPosition()) == level) == null;
     }
 
@@ -294,11 +305,13 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             return null; // no body, nothing to bump into
         }
         int level = levelAt(position);
+        // Something in the air is in nobody's way on the ground, as the reference's aircraft are not.
         return partition.firstOverlapping(Footprint.of(mover, position),
                 candidate -> candidate != mover
                         && !candidate.isDestroyed()
                         && !candidate.isEffectivelyDead()
                         && !candidate.isContained()
+                        && !candidate.hasStatus(uz.dukeengine.core.thing.ObjectStatus.AIRBORNE)
                         && levelAt(candidate.getPosition()) == level);
     }
 

@@ -50,7 +50,7 @@ public final class PursueUpdate extends UpdateModule {
     public void update() {
         var owner = getOwner();
         var weapon = owner.findModule(WeaponUpdate.class);
-        var legs = owner.findModule(MoveUpdate.class);
+        var legs = owner.getLocomotor();
         var world = owner.getWorld();
         if (weapon == null || legs == null || world == null || owner.isEffectivelyDead()) {
             return;
@@ -83,6 +83,7 @@ public final class PursueUpdate extends UpdateModule {
             return;
         }
         since = 1;
-        legs.moveTo(world.standingNextTo(owner, victim));
+        // Something in the air goes straight to it; something on the ground to a spot beside it it can reach.
+        legs.moveTo(legs.flies() ? victim.getPosition() : world.standingNextTo(owner, victim));
     }
 }

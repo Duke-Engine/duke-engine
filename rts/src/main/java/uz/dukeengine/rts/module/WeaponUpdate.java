@@ -628,7 +628,7 @@ public final class WeaponUpdate extends UpdateModule {
 
     /** Whether the owner is under way — nothing to say if it cannot move at all. */
     private static boolean isWalking(GameObject owner) {
-        var locomotor = owner.findModule(MoveUpdate.class);
+        var locomotor = owner.getLocomotor();
         return locomotor != null && locomotor.isMoving();
     }
 

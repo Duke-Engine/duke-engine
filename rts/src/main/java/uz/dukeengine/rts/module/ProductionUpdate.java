@@ -5,7 +5,6 @@ import java.util.List;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
-import uz.dukeengine.core.module.MoveUpdate;
 import uz.dukeengine.core.module.UpdateModule;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.Solid;
@@ -269,7 +268,7 @@ public final class ProductionUpdate extends UpdateModule {
         if (world != null) {
             var produced = world.spawn(head.unit, exitPosition(world, owner, head.unit), owner.getPlayerIndex());
             if (rallyPoint != null) {
-                var ai = produced.findModule(MoveUpdate.class);
+                var ai = produced.getLocomotor();
                 if (ai != null) {
                     ai.moveTo(rallyPoint);
                 }

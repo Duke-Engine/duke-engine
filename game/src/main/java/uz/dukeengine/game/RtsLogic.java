@@ -118,7 +118,7 @@ final class RtsLogic extends RtsSimulation {
                     if (unit == null || unit.getPlayerIndex() != move.playerIndex()) {
                         continue; // gone, or not the issuer's unit to command
                     }
-                    var ai = unit.findModule(MoveUpdate.class);
+                    var ai = unit.getLocomotor();
                     if (ai != null) {
                         ai.moveTo(move.destination());
                     }
@@ -146,7 +146,7 @@ final class RtsLogic extends RtsSimulation {
                     if (unit == null || unit.getPlayerIndex() != stop.playerIndex()) {
                         continue;
                     }
-                    var ai = unit.findModule(MoveUpdate.class);
+                    var ai = unit.getLocomotor();
                     if (ai != null) {
                         ai.stop();
                     }

@@ -27,7 +27,8 @@ public final class ModuleFactory extends SubsystemInterface {
     }
 
     /** The engine's genre-neutral modules: a body that holds health and a locomotor that walks to a goal. */
-    public static final List<Class<? extends ModuleData>> ENGINE_MODULES = List.of(ActiveBody.Data.class, MoveUpdate.Data.class);
+    public static final List<Class<? extends ModuleData>> ENGINE_MODULES = List.of(ActiveBody.Data.class, MoveUpdate.Data.class,
+            FlyUpdate.Data.class);
 
     private final Map<Class<? extends ModuleData>, Builder<?>> builders = new LinkedHashMap<>();
 
@@ -39,6 +40,7 @@ public final class ModuleFactory extends SubsystemInterface {
         var factory = new ModuleFactory();
         factory.register(ActiveBody.Data.class, ActiveBody::new);
         factory.register(MoveUpdate.Data.class, MoveUpdate::new);
+        factory.register(FlyUpdate.Data.class, FlyUpdate::new);
         return factory;
     }
 

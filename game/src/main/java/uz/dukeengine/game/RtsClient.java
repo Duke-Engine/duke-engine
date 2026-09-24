@@ -100,7 +100,7 @@ final class RtsClient extends GameClient {
             var template = object.getTemplate();
             var position = object.getPosition();
             var body = object.getBody();
-            var ai = object.findModule(uz.dukeengine.core.module.MoveUpdate.class);
+            var ai = object.getLocomotor();
             var weapon = object.findModule(uz.dukeengine.rts.module.WeaponUpdate.class);
             var production = object.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
             units.add(new UnitView(
