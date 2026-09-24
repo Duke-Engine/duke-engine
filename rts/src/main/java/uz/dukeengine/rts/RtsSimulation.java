@@ -5,6 +5,7 @@ import uz.dukeengine.core.GameLogic;
 import uz.dukeengine.core.message.Command;
 import uz.dukeengine.core.player.PlayerList;
 import uz.dukeengine.core.thing.ThingFactory;
+import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.rts.module.RtsModules;
 import uz.dukeengine.rts.player.RtsPlayer;
@@ -204,6 +205,138 @@ public abstract class RtsSimulation extends GameLogic {
     /** The RTS player at {@code index}, or {@code null} if there is none. */
     public final RtsPlayer getRtsPlayer(int index) {
         return getPlayerList().getPlayer(index) instanceof RtsPlayer player ? player : null;
+    }
+
+    // ---- what a side may make ----
+
+    private java.util.function.BiPredicate<String, String> countsAs = String::equals;
+    private final java.util.Map<String, Integer> caps = new java.util.TreeMap<>();
+
+    /**
+     * Whether a thing of template {@code owned} counts as one of {@code wanted} — for a requirement, and for a limit
+     * of how many — the game's answer, as the reference's {@code isEquivalentTo} is for build variations and reskins.
+     * The same template and no other, where the game says nothing.
+     */
+    public final void countsAs(java.util.function.BiPredicate<String, String> rule) {
+        this.countsAs = rule == null ? String::equals : rule;
+    }
+
+    /**
+     * How many things with this link key a side may have at once in this match, whatever their templates say — a
+     * game's superweapon option. A negative number lifts it.
+     */
+    public final void setCap(String linkKey, int most) {
+        if (most < 0) {
+            caps.remove(linkKey);
+        } else {
+            caps.put(linkKey, most);
+        }
+    }
+
+    /** Give a side a word to hold — a science it chose — which {@link Prerequisites#requiredWords} read. */
+    public final void grant(int playerIndex, String word) {
+        var side = getRtsPlayer(playerIndex);
+        if (side != null) {
+            side.grant(word);
+        }
+    }
+
+    /** Whether the side may make a thing of this name now; see {@link #canBuild(int, ThingTemplate)}. */
+    public final boolean canBuild(int playerIndex, String templateName) {
+        var template = findTemplate(templateName);
+        return template != null && canBuild(playerIndex, template);
+    }
+
+    /**
+     * Whether the side may make {@code template} now, as the reference's {@code Player::canBuild} decides: never if it
+     * is buildable by nobody; always if it ignores what it needs; only by a computer where it says so; otherwise
+     * every requirement met — one of its templates owned, finished and alive — every word held, and fewer standing,
+     * going up and queued than its limit. A template that says none of it may be made by anyone.
+     */
+    public final boolean canBuild(int playerIndex, ThingTemplate template) {
+        var side = getRtsPlayer(playerIndex);
+        if (side == null) {
+            return false;
+        }
+        if (!(template instanceof Prerequisites rules)) {
+            return true;
+        }
+        switch (rules.buildability()) {
+            case NO -> {
+                return false;
+            }
+            case IGNORING_PREREQUISITES -> {
+                return true;
+            }
+            case ONLY_BY_COMPUTER -> {
+                if (!side.isComputer()) {
+                    return false;
+                }
+            }
+            case YES -> {
+            }
+        }
+        for (var requirement : rules.prerequisites()) {
+            if (!ownsFinished(playerIndex, Prerequisites.alternatives(requirement))) {
+                return false;
+            }
+        }
+        for (var word : rules.requiredWords()) {
+            if (!side.holds(word)) {
+                return false;
+            }
+        }
+        return underItsLimit(playerIndex, template, rules);
+    }
+
+    /** Whether the side owns a finished, living thing counting as one of these. */
+    private boolean ownsFinished(int playerIndex, java.util.List<String> anyOf) {
+        for (var object : getObjects()) {
+            if (object.getPlayerIndex() != playerIndex || object.isEffectivelyDead()
+                    || object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.UNDER_CONSTRUCTION)) {
+                continue;
+            }
+            for (var wanted : anyOf) {
+                if (countsAs.test(object.getTemplate().name(), wanted)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Whether one more would stay within its limit: the side's living things of the template, or of any template
+     * sharing its link key — standing or going up — its builders' errands on their way to raise one, and what its
+     * factories have queued.
+     */
+    private boolean underItsLimit(int playerIndex, ThingTemplate template, Prerequisites rules) {
+        var key = rules.maxSimultaneousLinkKey();
+        int most = key != null && caps.containsKey(key) ? caps.get(key) : rules.maxSimultaneous();
+        if (most <= 0 && (key == null || !caps.containsKey(key))) {
+            return true;
+        }
+        java.util.function.Predicate<ThingTemplate> counted = other -> countsAs.test(other.name(), template.name())
+                || key != null && other instanceof Prerequisites them && key.equals(them.maxSimultaneousLinkKey());
+        int count = 0;
+        for (var object : getObjects()) {
+            if (object.getPlayerIndex() != playerIndex || object.isEffectivelyDead()) {
+                continue;
+            }
+            if (counted.test(object.getTemplate())) {
+                count++;
+            }
+            for (var module : object.getModules()) {
+                switch (module) {
+                    case uz.dukeengine.rts.module.ProductionUpdate factory -> count += factory.countQueued(counted);
+                    case uz.dukeengine.rts.construction.BuildOrder errand when errand.isUnderWay()
+                            && counted.test(errand.template()) -> count++;
+                    default -> {
+                    }
+                }
+            }
+        }
+        return count < most;
     }
 
     /**

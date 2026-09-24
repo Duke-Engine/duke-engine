@@ -270,6 +270,15 @@ public final class DukeGame {
         return this;
     }
 
+    /**
+     * A side a computer plays: what only a computer may make, it may
+     * ({@code Prerequisites.Buildability.ONLY_BY_COMPUTER}).
+     */
+    public DukeGame computer(GamePlayer player) {
+        scenario.add(() -> logic.getRtsPlayer(player.getIndex()).setComputer(true));
+        return this;
+    }
+
     /** Give a player starting money. */
     public DukeGame money(GamePlayer player, int amount) {
         scenario.add(() -> logic.getRtsPlayer(player.getIndex()).deposit(amount));

@@ -90,6 +90,16 @@ public final class BuildOrder extends UpdateModule {
         }
     }
 
+    /** What it is on its way to raise. */
+    public ThingTemplate template() {
+        return template;
+    }
+
+    /** Whether it is still on its way: the site not yet risen, the errand not given up. */
+    public boolean isUnderWay() {
+        return !over;
+    }
+
     boolean isOver() {
         return over;
     }

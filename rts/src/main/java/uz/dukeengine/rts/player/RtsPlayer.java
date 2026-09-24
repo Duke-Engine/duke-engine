@@ -33,6 +33,9 @@ public final class RtsPlayer extends Player {
     public static final String WEAPON_DAMAGE = "WeaponDamage";
 
     private final Set<String> upgrades = new TreeSet<>();
+    /** Words granted to the side — a science it chose — beside the upgrades it researched. */
+    private final Set<String> granted = new TreeSet<>();
+    private boolean computer;
     private final Map<String, Float> bonuses = new TreeMap<>();
     private int money;
 
@@ -79,6 +82,30 @@ public final class RtsPlayer extends Player {
     /** Mark an upgrade as completed for this player. */
     public void addUpgrade(String upgradeName) {
         upgrades.add(upgradeName);
+    }
+
+    /** Give the side a word to hold — a science it chose — for what needs it ({@code Prerequisites}). */
+    public void grant(String word) {
+        granted.add(word);
+    }
+
+    /** Whether the side holds a word: one granted it, or an upgrade of the side's it has. */
+    public boolean holds(String word) {
+        return granted.contains(word) || upgrades.contains(word);
+    }
+
+    /** The words granted the side, in name order. */
+    public Set<String> getGranted() {
+        return java.util.Collections.unmodifiableSortedSet(new TreeSet<>(granted));
+    }
+
+    /** Whether a computer plays this side: what it may make only a computer may ({@code ONLY_BY_COMPUTER}). */
+    public boolean isComputer() {
+        return computer;
+    }
+
+    public void setComputer(boolean computer) {
+        this.computer = computer;
     }
 
     // ---- player-wide bonuses ----

@@ -14,7 +14,8 @@ import uz.dukeengine.rts.player.RtsPlayer;
  * spirit from SAGE's {@code Snapshot}/{@code Xfer} system.
  *
  * <p>Captures the strategic state — frame counter, where the simulation's random
- * numbers stand, players (money, weapon-bonus, upgrades) and objects (template,
+ * numbers stand, players (money, weapon-bonus, upgrades, granted words, whether a computer
+ * plays them) and objects (template,
  * owner, transform, health, status, condition words) — enough
  * that a restored world has the same {@link GameLogic#checksum()} as the saved
  * one. Float values use {@link Float#toString}, which round-trips to identical
@@ -45,7 +46,9 @@ public final class GameSnapshot {
             sb.append("PLAYER ").append(i).append('|').append(p.getName()).append('|')
                     .append(p.getMoney()).append('|')
                     .append(Float.toString(p.getWeaponDamageBonus())).append('|')
-                    .append(upgrades).append('\n');
+                    .append(upgrades).append('|')
+                    .append(String.join(",", p.getGranted())).append('|')
+                    .append(p.isComputer()).append('\n');
         }
 
         for (var o : logic.getObjects()) {
@@ -108,6 +111,13 @@ public final class GameSnapshot {
                 player.addUpgrade(upgrade);
             }
         }
+        // A save from before granted words and computer sides has neither.
+        if (parts.length > 5 && !parts[5].isEmpty()) {
+            for (var word : parts[5].split(",")) {
+                player.grant(word);
+            }
+        }
+        player.setComputer(parts.length > 6 && Boolean.parseBoolean(parts[6]));
     }
 
     private static void loadObject(String rest, RtsSimulation logic) {

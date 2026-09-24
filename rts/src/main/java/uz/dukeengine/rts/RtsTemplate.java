@@ -32,8 +32,10 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
         @Link(AnimationSet.class) String animations,
         @Clip String idle, @Clip String walk, @Clip String attack, @Clip String death,
         @Link(Effect.class) String effect,
-        Map<String, String> models, Map<String, Float> whenHurt)
-        implements Solid, Sighted, Classified, Titled, Buildable, Drawn {
+        Map<String, String> models, Map<String, Float> whenHurt,
+        List<String> prerequisites, List<String> requiredWords, Buildability buildability, int maxSimultaneous,
+        String maxSimultaneousLinkKey)
+        implements Solid, Sighted, Classified, Titled, Buildable, Drawn, Prerequisites {
 
     public RtsTemplate {
         displayName = displayName == null ? "" : displayName;
@@ -42,6 +44,10 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
         modules = modules == null ? List.of() : List.copyOf(modules);
         models = models == null ? Map.of() : Map.copyOf(models);
         whenHurt = whenHurt == null ? Map.of() : Map.copyOf(whenHurt);
+        prerequisites = prerequisites == null ? List.of() : List.copyOf(prerequisites);
+        requiredWords = requiredWords == null ? List.of() : List.copyOf(requiredWords);
+        buildability = buildability == null ? Buildability.YES : buildability;
+        maxSimultaneous = Math.max(0, maxSimultaneous);
     }
 
     /** Makes {@code Object} blocks RTS templates, with a build cost and a build time. */
@@ -63,6 +69,11 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
         private Geometry geometry = Geometry.POINT;
         private int buildCost;
         private float buildTime;
+        private final List<String> prerequisites = new ArrayList<>();
+        private final List<String> requiredWords = new ArrayList<>();
+        private Buildability buildability = Buildability.YES;
+        private int maxSimultaneous;
+        private String linkKey;
 
         private Builder(String name) {
             this.name = name;
@@ -109,9 +120,36 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
             return this;
         }
 
+        /** One requirement: any of these templates, owned, finished and alive. */
+        public Builder requires(String... anyOf) {
+            prerequisites.add(String.join(" | ", anyOf));
+            return this;
+        }
+
+        public Builder requiresWord(String word) {
+            requiredWords.add(word);
+            return this;
+        }
+
+        public Builder buildability(Buildability buildability) {
+            this.buildability = buildability;
+            return this;
+        }
+
+        public Builder maxSimultaneous(int most) {
+            this.maxSimultaneous = most;
+            return this;
+        }
+
+        public Builder maxSimultaneousLinkKey(String key) {
+            this.linkKey = key;
+            return this;
+        }
+
         public RtsTemplate build() {
             return new RtsTemplate(name, displayName, kinds, visionRange, geometry, modules, buildCost, buildTime,
-                    null, 1f, 0xFFFFFF, 0f, null, null, null, null, null, null, Map.of(), Map.of());
+                    null, 1f, 0xFFFFFF, 0f, null, null, null, null, null, null, Map.of(), Map.of(),
+                    prerequisites, requiredWords, buildability, maxSimultaneous, linkKey);
         }
     }
 }

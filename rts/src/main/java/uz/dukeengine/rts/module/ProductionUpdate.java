@@ -140,11 +140,14 @@ public final class ProductionUpdate extends UpdateModule {
 
     /**
      * Charge the owner and enqueue {@code unit} for production. Returns false if
-     * the owner cannot afford it (nothing is queued in that case).
+     * the side may not make it yet ({@link RtsSimulation#canBuild}) or cannot
+     * afford it (nothing is queued or charged in either case).
      */
     public boolean queue(ThingTemplate unit) {
         var player = owner();
-        if (player == null || !player.withdraw(Buildable.costOf(unit))) {
+        if (player == null
+                || getOwner().getWorld() instanceof RtsSimulation rts && !rts.canBuild(player.getIndex(), unit)
+                || !player.withdraw(Buildable.costOf(unit))) {
             return false;
         }
         queue.add(new Job(unit, null, Math.max(1, Buildable.framesOf(unit))));
@@ -207,6 +210,17 @@ public final class ProductionUpdate extends UpdateModule {
 
     public int getQueueSize() {
         return queue.size();
+    }
+
+    /** How many units queued here the test counts. */
+    public int countQueued(java.util.function.Predicate<ThingTemplate> test) {
+        int count = 0;
+        for (var job : queue) {
+            if (job.unit != null && test.test(job.unit)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /** The units queued, in the order they will be built — research left out; {@link #getEntries} has both. */
