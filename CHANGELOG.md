@@ -203,6 +203,14 @@ stepped once a logic frame: `moveTo(x, y, frames)` in a straight line at an even
 it back; while the game has it, `WorldSnapshot.camera` carries it and the player's controls wait.
 `Duke3D.music(track)` plays a track by its cue, the old one fading out over two seconds.
 
+`Duke3D.holdBackdrop(true)` keeps the backdrop from being made: its recipe is not asked and nothing of it is read,
+so the game's movies play alone, as the reference plays its logo and trailer before loading its shell map. Let go,
+it is made as before; asked before launch, the hold is there from the first frame. `onBackdropLoading(percent)`
+hears its load as `onLoading` hears a match's, 0 to 100. The 100 comes once a frame of it has run, or when there
+is none to be had. `DukeGame.placesEverythingAtSetup()` says a match places at setup everything it will ever draw,
+so `templatesThisMatchCanDraw` plans from what stands in it with no skirmish map chosen. A shell map then reads its
+own art rather than every look the game registered.
+
 ### A movie
 
 `Duke3D.playMovie(movie, ended)`: a `Movie` is a zip of pictures in order, a rate and a sound, stretched over the
