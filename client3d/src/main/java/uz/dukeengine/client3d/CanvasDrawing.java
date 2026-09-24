@@ -53,6 +53,10 @@ final class CanvasDrawing {
     private final List<Texture2D> pages = new ArrayList<>();
     private final List<Integer> pageVersions = new ArrayList<>();
     private final Map<String, Material> materials = new HashMap<>();
+    /** The game's own pictures, each with its texture and its material by blend: let go when the game lets go. */
+    private final Map<Picture, Texture2D> madeTextures = new java.util.WeakHashMap<>();
+    private final Map<Picture, Map<Canvas.Blend, Material>> madeMaterials = new java.util.WeakHashMap<>();
+    private final PictureUploads uploads = new PictureUploads();
     private final List<Run> runs = new ArrayList<>();
 
     /** One mesh the canvas keeps and fills again each frame. */
@@ -151,6 +155,9 @@ final class CanvasDrawing {
     }
 
     private Material material(CanvasFrame.Source source, Canvas.Blend blend) {
+        if (source instanceof CanvasFrame.Pixels made) {
+            return madeMaterial(made.picture(), blend);
+        }
         var key = source + "|" + blend;
         var known = materials.get(key);
         if (known != null) {
@@ -160,10 +167,51 @@ final class CanvasDrawing {
             case CanvasFrame.Plain plain -> null;
             case CanvasFrame.Picture picture -> picture.gray() ? gray(picture.path()) : picture(picture.path());
             case CanvasFrame.Glyphs glyphs -> glyphs.page() < pages.size() ? pages.get(glyphs.page()) : null;
+            case CanvasFrame.Pixels made -> null; // answered above
         };
         if (texture == null && !(source instanceof CanvasFrame.Plain)) {
             return null;
         }
+        var material = unshaded(texture, blend);
+        materials.put(key, material);
+        return material;
+    }
+
+    /**
+     * A picture the game made, handed to the card again only when the game has changed it since — and a material for
+     * each blend it is drawn in.
+     */
+    private Material madeMaterial(Picture picture, Canvas.Blend blend) {
+        var texture = madeTextures.get(picture);
+        if (texture == null) {
+            texture = texture(new Image(Image.Format.RGBA8, picture.width(), picture.height(), pixels(picture),
+                    ColorSpace.sRGB));
+            madeTextures.put(picture, texture);
+            uploads.needsUpload(picture);
+        } else if (uploads.needsUpload(picture)) {
+            texture.getImage().setData(0, pixels(picture));
+            texture.getImage().setUpdateNeeded();
+        }
+        var made = texture;
+        return madeMaterials.computeIfAbsent(picture, key -> new java.util.EnumMap<>(Canvas.Blend.class))
+                .computeIfAbsent(blend, key -> unshaded(made, blend));
+    }
+
+    /** A picture's pixels as the card takes them: red, green, blue, alpha, the bottom row first. */
+    static ByteBuffer pixels(Picture picture) {
+        int width = picture.width();
+        var argb = picture.argb();
+        var data = BufferUtils.createByteBuffer(width * picture.height() * 4);
+        for (int y = picture.height() - 1; y >= 0; y--) {
+            for (int x = 0; x < width; x++) {
+                int pixel = argb[y * width + x];
+                data.put((byte) (pixel >>> 16)).put((byte) (pixel >>> 8)).put((byte) pixel).put((byte) (pixel >>> 24));
+            }
+        }
+        return data.flip();
+    }
+
+    private Material unshaded(Texture texture, Canvas.Blend blend) {
         var material = new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
         material.setBoolean("VertexColor", true);
         if (texture != null) {
@@ -178,7 +226,6 @@ final class CanvasDrawing {
         state.setDepthTest(false);
         state.setDepthWrite(false);
         state.setFaceCullMode(RenderState.FaceCullMode.Off);
-        materials.put(key, material);
         return material;
     }
 

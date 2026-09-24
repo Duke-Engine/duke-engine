@@ -16,7 +16,7 @@ import java.util.function.Function;
 final class CanvasFrame implements Canvas {
 
     /** What a triangle is filled from. */
-    sealed interface Source permits Plain, Picture, Glyphs {
+    sealed interface Source permits Plain, Picture, Glyphs, Pixels {
     }
 
     /** Its colour alone. */
@@ -29,6 +29,10 @@ final class CanvasFrame implements Canvas {
 
     /** A page of {@link CanvasText}'s glyphs. */
     record Glyphs(int page) implements Source {
+    }
+
+    /** A picture the game made, the very one — see {@link uz.dukeengine.client3d.Picture}. */
+    record Pixels(uz.dukeengine.client3d.Picture picture) implements Source {
     }
 
     private static final Plain PLAIN = new Plain();
@@ -95,6 +99,17 @@ final class CanvasFrame implements Canvas {
                     vertex(x0, y0, left, top, argb), vertex(x1, y0, right, top, argb),
                     vertex(x1, y1, right, bottom, argb), vertex(x0, y1, left, bottom, argb)});
         }
+    }
+
+    @Override
+    public void drawPicture(uz.dukeengine.client3d.Picture picture, float x0, float y0, float x1, float y1, int argb,
+            Blend blend) {
+        if (picture == null) {
+            return;
+        }
+        polygon(new Pixels(picture), blend, new float[][]{
+                vertex(x0, y0, 0f, 0f, argb), vertex(x1, y0, 1f, 0f, argb),
+                vertex(x1, y1, 1f, 1f, argb), vertex(x0, y1, 0f, 1f, argb)});
     }
 
     @Override

@@ -94,6 +94,17 @@ public interface Canvas {
      */
     void drawImage(Image image, float x0, float y0, float x1, float y1, int argb, Blend blend);
 
+    /**
+     * A picture the game made over {@code [x0, x1) × [y0, y1)}, stretched and filtered as {@link #drawImage} stretches
+     * a file's, modulated by {@code argb} and clipped — see {@link Picture}.
+     */
+    void drawPicture(Picture picture, float x0, float y0, float x1, float y1, int argb, Blend blend);
+
+    /** The same in its own colours, blended by its alpha: how a radar's layers are laid one over another. */
+    default void drawPicture(Picture picture, float x0, float y0, float x1, float y1) {
+        drawPicture(picture, x0, y0, x1, y1, 0xFFFFFFFF, Blend.ALPHA);
+    }
+
     /** {@code [x, x + w) × [y, y + h)} filled, blended by the colour's alpha. */
     void fillRect(float x, float y, float w, float h, int argb);
 
