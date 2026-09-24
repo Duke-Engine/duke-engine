@@ -5596,15 +5596,29 @@ final class DukeRtsApp extends SimpleApplication {
         if (prefix == null || body == null) {
             return; // a game that names none is drawn as it always was
         }
-        var owner = toColor(game.getColor(view.playerIndex()));
+        paintOwner(body, prefix, toColor(game.getColor(view.playerIndex())));
+    }
+
+    /**
+     * The parts of {@code body} named with {@code prefix} painted {@code owner}: the colour each was drawn with, kept
+     * the first time, times the owner's — so painting again for a new owner gives that colour times theirs.
+     */
+    static void paintOwner(Spatial body, String prefix, ColorRGBA owner) {
         body.depthFirstTraversal(spatial -> {
             if (!(spatial instanceof Geometry geometry) || !isHouseColoured(geometry, body, prefix)) {
                 return;
             }
             var material = geometry.getMaterial();
             for (var channel : java.util.List.of("Diffuse", "Ambient")) {
-                if (material.getParamValue(channel) instanceof ColorRGBA was) {
-                    material.setColor(channel, was.mult(owner));
+                // From the colour it was drawn with, kept the first time: painted again for a new owner, it is that
+                // colour times theirs, not the last owner's times theirs.
+                ColorRGBA base = geometry.getUserData("house." + channel);
+                if (base == null && material.getParamValue(channel) instanceof ColorRGBA was) {
+                    base = was.clone();
+                    geometry.setUserData("house." + channel, base);
+                }
+                if (base != null) {
+                    material.setColor(channel, base.mult(owner));
                 }
             }
         });
@@ -5823,7 +5837,14 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private void updateUnitNode(UnitNode node, UnitView view) {
+        boolean handedOver = node.view != null && node.view.playerIndex() != view.playerIndex();
         node.view = view;
+        if (handedOver) {
+            // Its owner changed, however it did: drawn in the new owner's colour, and out of the old owner's hands.
+            paintHouseColour(node.body, view);
+            node.layers.forEach(layer -> paintHouseColour(layer.body(), view));
+            selected.remove(view.id());
+        }
         // What it looks like can change while it stands there: a building past a health threshold is a
         // wrecked building, and the wreck is a different file. Asked every frame because the answer is a
         // lookup against a map that is empty for every template that named no second model.

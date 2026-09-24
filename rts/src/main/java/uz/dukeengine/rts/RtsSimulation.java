@@ -133,6 +133,35 @@ public abstract class RtsSimulation extends GameLogic {
     private uz.dukeengine.rts.construction.PlacementRules placementRules =
             uz.dukeengine.rts.construction.PlacementRules.DEFAULTS;
 
+    /**
+     * Hand {@code things} to player {@code to}: the reference's {@code Player::transferAssetsFromThat}, for a side that
+     * quits or surrenders with a living ally, or anything a game gives away. Call it on the simulation thread — from
+     * {@code onOrder}, or the frame a player leaves — so every machine hands over the same things on the same frame.
+     * Whatever the engine keeps for an owner follows the thing, being read off its owner each frame: a factory's queue,
+     * its research and its rally point carry on for the new owner, its power counts for them, it sees and is seen for
+     * them, and its experience and the words its own upgrades put on it stay with it. A shared hold's passengers stay
+     * in the old side's list.
+     */
+    public final void handOver(java.util.Collection<uz.dukeengine.core.thing.GameObject> things, int to) {
+        for (var thing : things) {
+            if (thing != null && !thing.isDestroyed()) {
+                thing.setPlayerIndex(to);
+            }
+        }
+    }
+
+    /** Everything player {@code from} has, handed to {@code to} — and, where {@code money}, all its money too. */
+    public final void handOverAll(int from, int to, boolean money) {
+        var theirs = getObjects().stream()
+                .filter(thing -> thing.getPlayerIndex() == from && !thing.isEffectivelyDead()).toList();
+        handOver(theirs, to);
+        var giver = getRtsPlayer(from);
+        var taker = getRtsPlayer(to);
+        if (money && giver != null && taker != null) {
+            taker.give(giver.handOver());
+        }
+    }
+
     /** The passengers of every side's shared holds, by side and then network — see {@code ContainModule}. */
     private final java.util.Map<Integer, java.util.Map<String, java.util.List<uz.dukeengine.core.thing.ObjectId>>>
             sharedHolds = new java.util.TreeMap<>();

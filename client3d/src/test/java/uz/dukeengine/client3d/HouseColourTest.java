@@ -69,4 +69,22 @@ class HouseColourTest {
         assertNull(Visuals.create().houseColour("  ").getHouseColour(), "a blank one is none");
         assertEquals("TEAM_", Visuals.create().houseColour("TEAM_").getHouseColour());
     }
+
+    /** Handed to another side, a thing is painted in the new owner's colour, not the old one's times the new. */
+    @Test
+    void paintedAgainForANewOwnerItIsTheirColourNotTheLastOwnersTimesTheirs() {
+        var assets = new com.jme3.asset.DesktopAssetManager(true);
+        var stripe = mesh("HOUSECOLOR01");
+        var material = new com.jme3.material.Material(assets, "Common/MatDefs/Light/Lighting.j3md");
+        material.setBoolean("UseMaterialColors", true);
+        material.setColor("Diffuse", new com.jme3.math.ColorRGBA(0.5f, 0.5f, 0.5f, 1f));
+        stripe.setMaterial(material);
+        var body = new Node("tank");
+        body.attachChild(stripe);
+
+        DukeRtsApp.paintOwner(body, "HOUSECOLOR", com.jme3.math.ColorRGBA.Red);
+        DukeRtsApp.paintOwner(body, "HOUSECOLOR", com.jme3.math.ColorRGBA.Blue);
+        assertEquals(new com.jme3.math.ColorRGBA(0f, 0f, 0.5f, 1f), material.getParamValue("Diffuse"),
+                "grey times blue: the red is gone");
+    }
 }

@@ -98,6 +98,18 @@ public final class RtsPlayer extends Player {
     }
 
     /**
+     * All its money handed away — to an ally, as it leaves: out of its balance and in neither total, as {@link #give}
+     * puts it into the ally's.
+     *
+     * @return how much it had
+     */
+    public int handOver() {
+        int all = money;
+        money = 0;
+        return all;
+    }
+
+    /**
      * All the money the side has taken in — supply returns, bounties, hacks, whatever was deposited — for a score
      * screen: what one frame both earns and spends, the balance hides, and this does not.
      */
