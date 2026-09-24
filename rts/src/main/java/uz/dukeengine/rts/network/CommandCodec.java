@@ -23,6 +23,8 @@ import uz.dukeengine.rts.message.GameMessage;
  *
  * <p>Field separators: {@code ;} between packet fields, {@code |} between
  * commands, {@code ,} between a command's parts, {@code :} between object ids.
+ * A game's own order carries a word the engine never reads, so that word is
+ * percent-encoded and may hold any of them.
  */
 public final class CommandCodec implements PacketCodec {
 
@@ -84,6 +86,14 @@ public final class CommandCodec implements PacketCodec {
                     + "," + g.mode().name();
             case GameMessage.Evacuate e -> "EVAC," + e.playerIndex() + "," + e.container().value();
             case GameMessage.ExitContainer e -> "EXIT," + e.playerIndex() + "," + e.passenger().value();
+            case GameMessage.GameOrder o -> "ORDER," + o.playerIndex() + ","
+                    + java.net.URLEncoder.encode(o.word(), java.nio.charset.StandardCharsets.UTF_8)
+                    + "," + ids(o.units())
+                    + "," + (o.place() == null ? "" : Float.toString(o.place().x()))
+                    + "," + (o.place() == null ? "" : Float.toString(o.place().y()))
+                    + "," + (o.place() == null ? "" : Float.toString(o.place().z()))
+                    + "," + (o.target() == null ? "" : Integer.toString(o.target().value()))
+                    + "," + o.number();
         };
     }
 
@@ -135,6 +145,13 @@ public final class CommandCodec implements PacketCodec {
                     GameMessage.Guard.Mode.valueOf(parts[7]));
             case "EVAC" -> new GameMessage.Evacuate(player, new ObjectId(Integer.parseInt(parts[2])));
             case "EXIT" -> new GameMessage.ExitContainer(player, new ObjectId(Integer.parseInt(parts[2])));
+            case "ORDER" -> new GameMessage.GameOrder(player,
+                    java.net.URLDecoder.decode(parts[2], java.nio.charset.StandardCharsets.UTF_8),
+                    parseIds(parts[3]),
+                    parts[4].isEmpty() ? null : new Coord3D(Float.parseFloat(parts[4]), Float.parseFloat(parts[5]),
+                            Float.parseFloat(parts[6])),
+                    parts[7].isEmpty() ? null : new ObjectId(Integer.parseInt(parts[7])),
+                    Long.parseLong(parts[8]));
             default -> throw new IllegalArgumentException("unknown command kind: " + kind);
         };
     }

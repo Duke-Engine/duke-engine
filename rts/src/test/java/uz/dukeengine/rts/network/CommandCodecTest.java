@@ -55,6 +55,17 @@ class CommandCodecTest {
     }
 
     @Test
+    void aGamesOwnOrderRoundTripsWhateverItsWordHolds() {
+        assertRoundTrips(new CommandPacket(30, 2, List.of(
+                new GameMessage.GameOrder(2, "SPECIAL_POWER:Nuke|at,here;now дўст", List.of(new ObjectId(4)),
+                        new Coord3D(120.5f, 80f, 0f), null, 7L),
+                new GameMessage.GameOrder(2, "PURCHASE_SCIENCE", List.of(), null, null, Long.MIN_VALUE),
+                new GameMessage.GameOrder(2, "", List.of(new ObjectId(1), new ObjectId(2)), null, new ObjectId(9),
+                        -1L),
+                new GameMessage.MoveTo(2, List.of(new ObjectId(1)), new Coord3D(5f, 6f, 0f)))));
+    }
+
+    @Test
     void floatBitsArePreserved() {
         float awkward = 0.1f + 0.2f; // not exactly representable
         var packet = new CommandPacket(1, 1, List.of(

@@ -194,6 +194,7 @@ final class RtsLogic extends RtsSimulation {
             case GameMessage.Guard guard -> uz.dukeengine.rts.module.GuardOrder.order(this, guard);
             case GameMessage.Evacuate evacuate -> uz.dukeengine.rts.module.ContainModule.evacuate(this, evacuate);
             case GameMessage.ExitContainer exit -> uz.dukeengine.rts.module.ContainModule.exit(this, exit);
+            case GameMessage.GameOrder order -> ordered(order);
         }
     }
 
@@ -216,12 +217,11 @@ final class RtsLogic extends RtsSimulation {
                 session.issueLocal(rts); // ships to both peers, applied in lock-step
             } else {
                 if (session != null) {
-                    // The wire codec speaks the RTS set. A game that wants its own
-                    // commands in a network game has to supply a codec for them;
-                    // applying this one locally would desync, so say so loudly.
+                    // The wire codec speaks the RTS set, and applying this one locally
+                    // would desync, so say so loudly — and say what does travel.
                     var unsendable = command;
                     LOG.warning(() -> "game command cannot be sent to peers: "
-                            + unsendable.getClass().getName());
+                            + unsendable.getClass().getName() + "; send it as a GameMessage.GameOrder");
                     continue;
                 }
                 issueCommand(command); // applied at the start of the next frame

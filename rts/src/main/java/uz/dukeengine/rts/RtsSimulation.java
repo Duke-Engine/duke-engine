@@ -249,6 +249,27 @@ public abstract class RtsSimulation extends GameLogic {
                 building.getPlayerIndex(), refund, building.getPosition()));
     }
 
+    // ---- the game's own orders ----
+
+    private final java.util.List<java.util.function.Consumer<uz.dukeengine.rts.message.GameMessage.GameOrder>>
+            orderWatchers = new java.util.ArrayList<>();
+
+    /**
+     * Told every order of the game's own as it is applied — the same frame and the same order on every machine, and
+     * again in a replay — on the simulation thread, where the game does what the order means: grant a science, fire a
+     * power. What it does there must be deterministic, as everything on this thread is.
+     */
+    public final void onOrder(java.util.function.Consumer<uz.dukeengine.rts.message.GameMessage.GameOrder> watcher) {
+        orderWatchers.add(watcher);
+    }
+
+    /** A game's order applied: every watcher told, in the order they were added. */
+    public final void ordered(uz.dukeengine.rts.message.GameMessage.GameOrder order) {
+        for (var watcher : orderWatchers) {
+            watcher.accept(order);
+        }
+    }
+
     // ---- weapon bonuses ----
 
     private java.util.List<uz.dukeengine.rts.module.WeaponBonus> weaponBonuses = java.util.List.of();

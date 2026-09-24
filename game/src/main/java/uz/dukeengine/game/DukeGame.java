@@ -79,6 +79,7 @@ public final class DukeGame {
     private final List<BiConsumer<uz.dukeengine.core.thing.GameObject, uz.dukeengine.core.thing.GameObject>>
             constructedCallbacks = new ArrayList<>();
     private final List<Consumer<uz.dukeengine.core.thing.GameObject>> soldCallbacks = new ArrayList<>();
+    private final List<Consumer<GameMessage.GameOrder>> orderCallbacks = new ArrayList<>();
     private final List<double[]> intervalSeconds = new ArrayList<>(); // [seconds, callbackIndex]
     private final List<Consumer<DukeGame>> intervalCallbacks = new ArrayList<>();
     private final List<BiConsumer<DukeGame, GamePlayer>> defeatCallbacks = new ArrayList<>();
@@ -407,6 +408,17 @@ public final class DukeGame {
      */
     public DukeGame onSold(Consumer<uz.dukeengine.core.thing.GameObject> callback) {
         soldCallbacks.add(callback);
+        return this;
+    }
+
+    /**
+     * Told every order of the game's own — a {@link GameMessage.GameOrder}, posted with {@link #postCommand} from any
+     * thread — as it is applied: on the simulation thread, on the same frame and in the same order on every machine,
+     * and again when a replay plays it. The game does what the order means there — grants a science, fires a power —
+     * deterministically. The engine never reads its word or its number.
+     */
+    public DukeGame onOrder(Consumer<GameMessage.GameOrder> listener) {
+        orderCallbacks.add(listener);
         return this;
     }
 
@@ -947,11 +959,22 @@ public final class DukeGame {
         }
         for (int i = 0; i < frames; i++) {
             talk();
-            if (multiplayer == null || multiplayer.beforeStep(logic)) {
+            if (frameReady()) {
                 logic.update();
             }
             client.update(); // keeps snapshots flowing for assertions
         }
+    }
+
+    /**
+     * Where a frame's input comes from, as the engine's loop asks it: a replay's is known and fed now, a network
+     * game's waits for every player, and alone it is always there.
+     */
+    private boolean frameReady() {
+        if (replay != null) {
+            return replay.beforeStep(logic);
+        }
+        return multiplayer == null || multiplayer.beforeStep(logic);
     }
 
     /** Boot the engine and apply everything configured on this builder, saying how far it has got. */
@@ -967,6 +990,7 @@ public final class DukeGame {
         producedCallbacks.forEach(logic::onProduced);
         constructedCallbacks.forEach(logic::onConstructed);
         soldCallbacks.forEach(logic::onSold);
+        orderCallbacks.forEach(logic::onOrder);
         client = new RtsClient(logic);
         client.setCommands(this::buttonsNow);
         client.setAimFits(this::aimFitsNow);
@@ -1236,6 +1260,10 @@ public final class DukeGame {
      *
      * <p>A game that never calls this is unaffected: a foreign command is still
      * logged and ignored, exactly as before.
+     *
+     * <p>A command of the game's own class stays on this machine: the wire and the
+     * replay speak the RTS set. An order that must reach every machine and every
+     * replay is a {@link GameMessage.GameOrder}, heard through {@link #onOrder}.
      */
     public DukeGame onCommand(Consumer<Command> handler) {
         this.commandHandler = handler;
