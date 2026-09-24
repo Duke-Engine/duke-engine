@@ -82,6 +82,9 @@ public final class Replay {
                 case ChatLine ignored -> {
                     // What the players said is not what happened; a recording keeps the match alone.
                 }
+                case uz.dukeengine.core.network.Resent ignored -> {
+                    // The relay moving is a fact about the network too; the frames it ran are the recording.
+                }
             }
         }
         return new Replay(commands, checkpoints);

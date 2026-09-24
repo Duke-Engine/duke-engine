@@ -37,16 +37,47 @@ import uz.dukeengine.core.message.Command;
  * Nothing is repaired — the peers are computing different worlds, and every frame
  * after that is a player deciding about a game only they can see. Stopping where
  * it broke, and saying so, is the honest end.
+ *
+ * <p><b>The relay leaving is not the end</b> for a peer given a {@link RelayFallback}: the next living player in the
+ * order agreed at the start takes over relaying, the others reconnect to it, and every peer sends it everything it
+ * held for the frames still in play — its own packets and those it had from others, the old relay's among them —
+ * before saying {@link Resent}. Only then does the new relay decide the old one is gone, and from which frame, so a
+ * frame some peer ran with the old relay's packet is run with it by all, and none is run twice or skipped. The game
+ * stalls while it is found again, as it does for a slow peer.
+ *
+ * <p>Who left is told as the frame they left from runs, on every peer alike, so what a game does about it — hand their
+ * side to an ally, or take it away — happens on the same frame everywhere.
  */
 public final class LockstepGate {
 
     private static final Logger LOG = Logger.getLogger(LockstepGate.class.getName());
 
     private final LockstepScheduler scheduler;
-    private final Transport transport;
+    private Transport transport;
     private final int localPlayer;
     private final int frameDelay;
-    private final boolean host;
+    private boolean host;
+    /** Where to find the game again when the relay is gone; null for a peer that stops instead. */
+    private final RelayFallback fallback;
+    /** Finding the game again, off the game's thread; null while not. */
+    private java.util.concurrent.CompletableFuture<RelayFallback.Relay> migrating;
+    /** The relay whose loss it is finding the game again after. */
+    private int lostRelay;
+    /** For a new relay: the peers that reached it and have not yet sent everything they held. */
+    private final java.util.Set<Integer> awaitingResent = new java.util.TreeSet<>();
+    /** For a new relay: who is gone — the old relay, and those that never reached it — once every resend is in. */
+    private final List<Integer> goneOnceResent = new ArrayList<>();
+    /** Every packet held for the frames in play and the last few run, by frame and then player: what a resend sends. */
+    private final java.util.TreeMap<Integer, Map<Integer, CommandPacket>> history = new java.util.TreeMap<>();
+    /** The highest frame each player's packets have been seen for, by anyone it has heard from. */
+    private final Map<Integer, Integer> highestHeld = new HashMap<>();
+    /** Who leaves from which frame, told as that frame runs. */
+    private final java.util.TreeMap<Integer, List<Integer>> leaving = new java.util.TreeMap<>();
+    /** The frame about to run. */
+    private int nextFrame;
+
+    /** How many run frames' packets are kept to resend: no peer is more than a frame delay or two behind another. */
+    private static final int HISTORY_FRAMES = 64;
 
     /**
      * How often the peers compare worlds, in frames. Once a second at 30Hz: a few
@@ -86,6 +117,15 @@ public final class LockstepGate {
      */
     public LockstepGate(LockstepScheduler scheduler, Transport transport,
             int localPlayer, int frameDelay, boolean host) {
+        this(scheduler, transport, localPlayer, frameDelay, host, null);
+    }
+
+    /**
+     * The same, finding the game again through {@code fallback} when the relay it talks through is gone, rather than
+     * stopping — see {@link RelayFallback}.
+     */
+    public LockstepGate(LockstepScheduler scheduler, Transport transport,
+            int localPlayer, int frameDelay, boolean host, RelayFallback fallback) {
         if (frameDelay < 1) {
             throw new IllegalArgumentException("frameDelay must be >= 1");
         }
@@ -94,6 +134,7 @@ public final class LockstepGate {
         this.localPlayer = localPlayer;
         this.frameDelay = frameDelay;
         this.host = host;
+        this.fallback = fallback;
         this.nextSubmitFrame = frameDelay;
 
         transport.subscribe(this::receive);
@@ -224,9 +265,26 @@ public final class LockstepGate {
             }
         }
 
-        transport.pump(); // arrivals and disconnections, in order, on this thread
         int frame = logic.getFrame();
+        nextFrame = frame;
+        if (migrating != null) {
+            if (!migrating.isDone()) {
+                return false; // finding the game again: it waits, as for a slow peer
+            }
+            var relay = migrating.join();
+            migrating = null;
+            if (relay == null) {
+                disconnect();
+                return false;
+            }
+            moveTo(relay);
+        }
+        transport.pump(); // arrivals and disconnections, in order, on this thread
         handleLostLinks(frame);
+        if (migrating != null) {
+            return false; // its relay has just gone
+        }
+        retireOnceAllHaveResent(frame);
         submitLocal(frame);
         compareWorlds(logic, frame);
 
@@ -235,10 +293,69 @@ public final class LockstepGate {
         if (!state.canAdvance() || !scheduler.isFrameReady(frame)) {
             return false;
         }
+        tellWhoLeft(frame);
         for (var command : scheduler.takeCommands(frame)) {
             logic.issueCommand(command);
         }
+        nextFrame = frame + 1;
+        history.headMap(frame - HISTORY_FRAMES).clear();
         return true;
+    }
+
+    /**
+     * The game found again through {@code relay}: talk through it from now on, and send it everything held for the
+     * frames still in play, then say so. A new relay waits for each peer that reached it to say the same before it
+     * decides who is gone.
+     */
+    private void moveTo(RelayFallback.Relay relay) {
+        transport = relay.transport();
+        host = relay.relaying();
+        transport.subscribe(this::receive);
+        transport.onLinkLost(lostLinks::add);
+        if (host) {
+            awaitingResent.addAll(relay.reached());
+            goneOnceResent.add(lostRelay);
+            for (var player : scheduler.getPlayers()) {
+                if (player != localPlayer && player != lostRelay && scheduler.isExpectedAt(nextFrame, player)
+                        && !relay.reached().contains(player)) {
+                    goneOnceResent.add(player); // never found its way to this relay
+                }
+            }
+        }
+        for (var packets : List.copyOf(history.values())) {
+            for (var packet : new java.util.TreeMap<>(packets).values()) {
+                transport.send(packet);
+            }
+        }
+        transport.send(new Resent(localPlayer));
+    }
+
+    /** For a new relay whose peers have all sent what they held: the old relay, and the unreached, are gone now. */
+    private void retireOnceAllHaveResent(int frame) {
+        if (!host || goneOnceResent.isEmpty() || !awaitingResent.isEmpty()) {
+            return;
+        }
+        lostLinks.addAll(goneOnceResent);
+        goneOnceResent.clear();
+        handleLostLinks(frame);
+    }
+
+    /** Those leaving from {@code frame}, or before it, told now — the same frame on every peer. */
+    private void tellWhoLeft(int frame) {
+        while (!leaving.isEmpty() && leaving.firstKey() <= frame) {
+            for (var player : leaving.pollFirstEntry().getValue()) {
+                for (var listener : leftListeners) {
+                    listener.accept(player);
+                }
+            }
+        }
+    }
+
+    private void disconnect() {
+        state = SessionState.DISCONNECTED;
+        for (var listener : lostConnectionListeners) {
+            listener.run();
+        }
     }
 
     private void submitLocal(int frame) {
@@ -253,14 +370,19 @@ public final class LockstepGate {
 
     private void receive(NetMessage message) {
         switch (message) {
-            case CommandPacket packet ->
-                    scheduler.submit(packet.frame(), packet.playerIndex(), packet.commands());
+            case CommandPacket packet -> {
+                highestHeld.merge(packet.playerIndex(), packet.frame(), Math::max);
+                if (packet.frame() < nextFrame) {
+                    return; // a frame already run here: a resend's, after the relay moved
+                }
+                history.computeIfAbsent(packet.frame(), f -> new HashMap<>()).put(packet.playerIndex(), packet);
+                scheduler.submit(packet.frame(), packet.playerIndex(), packet.commands());
+            }
             case PeerLeft left -> {
                 scheduler.retirePlayer(left.playerIndex(), left.fromFrame());
-                for (var listener : leftListeners) {
-                    listener.accept(left.playerIndex());
-                }
+                leaving.computeIfAbsent(left.fromFrame(), f -> new ArrayList<>()).add(left.playerIndex());
             }
+            case Resent resent -> awaitingResent.remove(resent.playerIndex());
             case SessionHalted halted ->
                     // The host found a divergence, possibly one this peer had no
                     // way to see. Its word is enough; stopping needs no second opinion.
@@ -370,14 +492,30 @@ public final class LockstepGate {
         var lost = List.copyOf(lostLinks);
         lostLinks.clear();
         if (!host) {
-            state = SessionState.DISCONNECTED; // a guest's only link is the host
-            for (var listener : lostConnectionListeners) {
-                listener.run();
+            // A guest's only link is its relay. With a fallback it finds the game again; without, it stops.
+            if (fallback == null || migrating != null) {
+                disconnect();
+                return;
             }
+            lostRelay = lost.getFirst();
+            var stillIn = new java.util.TreeSet<Integer>();
+            for (var player : scheduler.getPlayers()) {
+                if (player != lostRelay && scheduler.isExpectedAt(frame, player)) {
+                    stillIn.add(player);
+                }
+            }
+            migrating = java.util.concurrent.CompletableFuture.supplyAsync(
+                    () -> fallback.reconnect(lostRelay, stillIn), job -> {
+                        var finding = new Thread(job, "relay-fallback");
+                        finding.setDaemon(true);
+                        finding.start();
+                    });
             return;
         }
-        int fromFrame = frame + frameDelay; // far enough ahead that nobody has run it
         for (var player : lost) {
+            // Far enough ahead that nobody has run it — and past every packet of theirs anybody could have had, as
+            // the relay has seen each: a frame some peer ran with their commands is a frame all run with them.
+            int fromFrame = Math.max(frame + frameDelay, highestHeld.getOrDefault(player, -1) + 1);
             for (int f = frame; f < fromFrame; f++) {
                 if (!scheduler.hasSubmitted(f, player)) {
                     transport.send(new CommandPacket(f, player, List.of()));

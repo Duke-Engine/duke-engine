@@ -11,6 +11,7 @@ package uz.dukeengine.core.network;
  * H &lt;frame&gt; &lt;playerIndex&gt; &lt;expected&gt; &lt;actual&gt;
  * P &lt;playerIndex&gt; &lt;percent&gt;
  * T &lt;sender&gt; &lt;recipients, joined by ':', or '-'&gt; &lt;text, URL-encoded&gt;
+ * R &lt;playerIndex&gt;
  * </pre>
  *
  * <p>The engine owns this outer envelope and the control plane inside it; the
@@ -30,6 +31,7 @@ public final class NetFraming {
     private static final char HALTED = 'H';
     private static final char PROGRESS = 'P';
     private static final char TALK = 'T';
+    private static final char RESENT = 'R';
 
     private NetFraming() {
     }
@@ -47,6 +49,7 @@ public final class NetFraming {
                     + (line.recipients().isEmpty() ? "-" : line.recipients().stream().map(String::valueOf)
                             .collect(java.util.stream.Collectors.joining(":")))
                     + " " + java.net.URLEncoder.encode(line.text(), java.nio.charset.StandardCharsets.UTF_8);
+            case Resent resent -> RESENT + " " + resent.playerIndex();
         };
     }
 
@@ -62,6 +65,7 @@ public final class NetFraming {
             case HALTED -> decodeHalted(body);
             case PROGRESS -> decodeProgress(body);
             case TALK -> decodeTalk(body);
+            case RESENT -> new Resent(Integer.parseInt(body.trim()));
             default -> throw new IllegalArgumentException("unknown net message kind: " + line);
         };
     }

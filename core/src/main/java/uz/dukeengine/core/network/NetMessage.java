@@ -16,5 +16,5 @@ package uz.dukeengine.core.network;
  * determinism without knowing a single thing about a game's command set.
  */
 public sealed interface NetMessage
-        permits CommandPacket, PeerLeft, FrameChecksum, SessionHalted, LoadProgress, ChatLine {
+        permits CommandPacket, PeerLeft, FrameChecksum, SessionHalted, LoadProgress, ChatLine, Resent {
 }
