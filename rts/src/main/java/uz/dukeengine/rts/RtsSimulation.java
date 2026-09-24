@@ -133,6 +133,20 @@ public abstract class RtsSimulation extends GameLogic {
     private uz.dukeengine.rts.construction.PlacementRules placementRules =
             uz.dukeengine.rts.construction.PlacementRules.DEFAULTS;
 
+    /** The passengers of every side's shared holds, by side and then network — see {@code ContainModule}. */
+    private final java.util.Map<Integer, java.util.Map<String, java.util.List<uz.dukeengine.core.thing.ObjectId>>>
+            sharedHolds = new java.util.TreeMap<>();
+
+    /**
+     * The one list of passengers a side's network of shared holds carries, in the order they got in — every thing of
+     * the side whose {@code ContainModule} is {@code SharedBy} that network loads to and unloads from it. The list
+     * itself, for {@code ContainModule} to change; anything else reads it.
+     */
+    public final java.util.List<uz.dukeengine.core.thing.ObjectId> sharedHold(int player, String network) {
+        return sharedHolds.computeIfAbsent(player, side -> new java.util.TreeMap<>())
+                .computeIfAbsent(network, name -> new java.util.ArrayList<>());
+    }
+
     /** Where this game's buildings may stand and what calling one off gives back — the game's numbers. */
     public final void setPlacementRules(uz.dukeengine.rts.construction.PlacementRules rules) {
         this.placementRules = rules == null ? uz.dukeengine.rts.construction.PlacementRules.DEFAULTS : rules;
