@@ -89,6 +89,8 @@ public final class Visuals {
         final java.util.List<PieceState> pieceStates = new java.util.ArrayList<>();
         /** How its barrels kick back; see {@link #recoil}. */
         Barrels.Recoil recoil = Barrels.Recoil.REFERENCE;
+        /** Its clips chosen by the words it holds, in the order the game gave them; see {@link #clip}. */
+        final java.util.List<ClipState> clipStates = new java.util.ArrayList<>();
         /** Its treads, or null for none; see {@link #treads}. */
         Treads treads;
         /** Its wheels, or null for none; see {@link #wheels}. */
@@ -151,6 +153,37 @@ public final class Visuals {
         private java.util.Map<Integer, WeaponBones> bonesFor(java.util.Set<String> conditions) {
             return conditionalWeaponBones.computeIfAbsent(String.join(" ", new java.util.TreeSet<>(conditions)),
                     key -> new java.util.TreeMap<>());
+        }
+
+        /**
+         * A clip it plays while its words best fit {@code conditions}, in place of its idle and its walk: the
+         * reference's condition state's {@code Animation} and {@code AnimationMode}. {@code ONCE} plays to the end and
+         * stays there, {@code ONCE_BACKWARDS} back to the start, a loop either way, or {@code HOLD} on one frame,
+         * starting at {@code start} — {@code null} for the first frame, or the last for one played backwards. Chosen
+         * by the rule its model is chosen by, it starts again whenever the choice changes, unless the state before and
+         * this one name the same {@code keepGroup} and this one says nothing of where to start: then it carries on
+         * from as far through as the other was ({@code MAINTAIN_FRAME_ACROSS_STATES}). Stepped by the game's frames,
+         * so every machine shows the same frame, and held while the game is paused. Words given no clip play its roles
+         * as before. A door: {@code clip(Set.of("DOOR_1_OPENING"), "ABWarFact_A8", ONCE, FIRST, null)}, {@code
+         * clip(Set.of("DOOR_1_WAITING_OPEN"), "ABWarFact_A8", HOLD, LAST, null)}, {@code
+         * clip(Set.of("DOOR_1_CLOSING"), "ABWarFact_A8", ONCE_BACKWARDS, LAST, null)}.
+         */
+        public UnitVisual clip(java.util.Set<String> conditions, String clip, ClipMode mode, ClipStart start,
+                String keepGroup) {
+            clipStates.add(new ClipState(new java.util.TreeSet<>(conditions), clip, mode, start, keepGroup));
+            return this;
+        }
+
+        /** Which of its clip states its words best fit, or -1 for none: then its roles play. */
+        int clipStateFor(java.util.Set<String> holding) {
+            if (clipStates.isEmpty()) {
+                return -1;
+            }
+            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
+            for (var state : clipStates) {
+                words.add(state.words());
+            }
+            return uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
         }
 
         /** Whether anything of its look is chosen by words, so a client need not work out its words otherwise. */
@@ -693,6 +726,43 @@ public final class Visuals {
             words = java.util.Collections.unmodifiableSortedSet(new java.util.TreeSet<>(words));
             hide = hide == null ? java.util.List.of() : java.util.List.copyOf(hide);
             show = show == null ? java.util.List.of() : java.util.List.copyOf(show);
+        }
+    }
+
+    /** How a clip chosen by words plays — see {@link UnitVisual#clip}. */
+    public enum ClipMode {
+        /** To its end, and it stays there. */
+        ONCE,
+        /** Back to its start, and it stays there. */
+        ONCE_BACKWARDS,
+        LOOP,
+        LOOP_BACKWARDS,
+        /** Held on the frame it starts at: the reference's {@code MANUAL}. */
+        HOLD
+    }
+
+    /** Where a clip chosen by words starts — see {@link UnitVisual#clip}. */
+    public enum ClipStart {
+        FIRST,
+        LAST,
+        /** Anywhere in it, the same on every machine for the same thing and frame. */
+        RANDOM
+    }
+
+    /**
+     * A clip for a set of words — see {@link UnitVisual#clip}.
+     *
+     * @param words     the condition words it is for, all of which must hold
+     * @param clip      the clip's name on the model
+     * @param mode      how it plays
+     * @param start     where it starts, or {@code null} for where its mode starts
+     * @param keepGroup the group it keeps the frame across, or {@code null} for none
+     */
+    public record ClipState(java.util.SortedSet<String> words, String clip, ClipMode mode, ClipStart start,
+            String keepGroup) {
+        public ClipState {
+            words = java.util.Collections.unmodifiableSortedSet(new java.util.TreeSet<>(words));
+            mode = mode == null ? ClipMode.LOOP : mode;
         }
     }
 

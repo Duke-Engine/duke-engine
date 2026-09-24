@@ -417,6 +417,8 @@ final class DukeRtsApp extends SimpleApplication {
         String modelPath;
         /** Its pieces as its states have left them — kept for the thing, laid on again on a swapped model. */
         final Pieces pieces = new Pieces();
+        /** Its clip as the words it holds choose it — see {@link Visuals.UnitVisual#clip}. */
+        final WordClip wordClip = new WordClip();
         /** The weapon slots' bones its barrels were found by, as its words chose them. */
         java.util.Map<Integer, Visuals.WeaponBones> barrelBones;
         AnimComposer composer;
@@ -5834,12 +5836,49 @@ final class DukeRtsApp extends SimpleApplication {
             return; // a blow or a flinch has the model; it will hand it back
         }
         var visual = visualFor(view.templateName());
+        if (playByWords(node, visual, view)) {
+            return;
+        }
         String wanted = view.moving() && visual.walkAnim != null
                 ? visual.walkAnim : visual.idleAnim;
         if (wanted == null || wanted.equals(node.currentAnim)) {
             return;
         }
         play(node, view.templateName(), wanted, true);
+    }
+
+    /**
+     * The clip the words it holds choose, where they choose one: set on the model when the choice changes, held still
+     * — its time set from the game's frame, never advanced by the window's — and false where they choose none, so
+     * its roles play. Leaving a chosen clip clears what it was playing, so its role starts afresh even where it is
+     * the same clip.
+     */
+    private boolean playByWords(UnitNode node, Visuals.UnitVisual visual, UnitView view) {
+        if (visual.clipStates.isEmpty() || node.composer == null) {
+            return false;
+        }
+        var holding = visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
+        int index = visual.clipStateFor(holding);
+        var clip = index < 0 ? null : node.composer.getAnimClip(visual.clipStates.get(index).clip());
+        if (clip == null) {
+            if (index >= 0) {
+                warnOnce(view.templateName() + "/" + visual.clipStates.get(index).clip(), "animation");
+            }
+            if (node.wordClip.choose(-1, visual.clipStates, 0, snapshot.frame(), view.id())) {
+                node.currentAnim = "";
+            }
+            return false;
+        }
+        String name = visual.clipStates.get(index).clip();
+        node.wordClip.choose(index, visual.clipStates, clip.getLength(), snapshot.frame(), view.id());
+        var action = node.composer.getCurrentAction();
+        if (action == null || !name.equals(node.currentAnim)) {
+            action = node.composer.setCurrentAction(name, AnimComposer.DEFAULT_LAYER, true);
+            node.currentAnim = name;
+        }
+        action.setSpeed(0);
+        node.composer.setTime(AnimComposer.DEFAULT_LAYER, node.wordClip.timeAt(snapshot.frame()));
+        return true;
     }
 
     /**
