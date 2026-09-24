@@ -115,6 +115,8 @@ final class DukeRtsApp extends SimpleApplication {
     private MatchLoad matchLoad;
     /** The game's recipe for the match behind its front end, and that match — see {@link Duke3D#backdrop}. */
     private final java.util.function.Supplier<DukeGame> backdropRecipe;
+    /** The game's ear for what the players say — see {@link Duke3D#onChat}. */
+    private final java.util.function.Consumer<uz.dukeengine.core.network.ChatLine> chatEar;
     private Backdrop backdrop;
     /** The movie playing, and where it is shown — see {@link Duke3D#playMovie}. */
     private MoviePlayer movie;
@@ -439,7 +441,8 @@ final class DukeRtsApp extends SimpleApplication {
 
     DukeRtsApp(DukeGame game, Visuals visuals, Shell shell, Hotkeys hotkeys, Painter painter,
             CanvasInput canvasInput, java.util.function.IntConsumer loadingEar,
-            java.util.function.Supplier<DukeGame> backdropRecipe) {
+            java.util.function.Supplier<DukeGame> backdropRecipe,
+            java.util.function.Consumer<uz.dukeengine.core.network.ChatLine> chatEar) {
         this.game = game;
         this.visuals = visuals;
         this.shell = shell;
@@ -447,6 +450,8 @@ final class DukeRtsApp extends SimpleApplication {
         this.canvasInput = canvasInput;
         this.loadingEar = loadingEar;
         this.backdropRecipe = backdropRecipe;
+        this.chatEar = chatEar;
+        listenForChat(game);
         this.hotkeys = hotkeys == null ? Hotkeys.none() : hotkeys;
         this.controls = new Controls(this.hotkeys.keyMap());
         var light = visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
@@ -776,6 +781,13 @@ final class DukeRtsApp extends SimpleApplication {
      * Play this match — see {@link Duke3D#startMatch}. Whatever runs is stopped and forgotten first, and the match
      * is built and its art read as the first one was.
      */
+    /** What the players of this match say reaches the game's ear on this thread. */
+    private void listenForChat(DukeGame match) {
+        if (chatEar != null) {
+            match.onChat(line -> enqueue(() -> chatEar.accept(line)));
+        }
+    }
+
     void startMatch(DukeGame match) {
         if (backdrop != null) {
             backdrop.stop(); // torn down when a real match starts, made fresh when the front end comes back
@@ -783,6 +795,7 @@ final class DukeRtsApp extends SimpleApplication {
         endTheMatch();
         forgetTheWorld();
         game = match;
+        listenForChat(match);
         artIsReady = false;
         startGame();
     }

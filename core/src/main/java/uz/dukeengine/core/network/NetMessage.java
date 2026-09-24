@@ -8,11 +8,13 @@ package uz.dukeengine.core.network;
  * game's own {@link PacketCodec}. {@link PeerLeft}, {@link FrameChecksum} and
  * {@link SessionHalted} are the <b>control</b> plane — who is still in the game,
  * whether everyone is still playing the same one, and when to stop — and so is
- * {@link LoadProgress}, how far each has got before the game begins. All of that
+ * {@link LoadProgress}, how far each has got before the game begins, and {@link ChatLine}, what the
+ * players say to each other. All of that
  * is the engine's business, and the engine encodes it itself.
  *
  * <p>Keeping them apart is what lets the engine manage membership and verify
  * determinism without knowing a single thing about a game's command set.
  */
-public sealed interface NetMessage permits CommandPacket, PeerLeft, FrameChecksum, SessionHalted, LoadProgress {
+public sealed interface NetMessage
+        permits CommandPacket, PeerLeft, FrameChecksum, SessionHalted, LoadProgress, ChatLine {
 }

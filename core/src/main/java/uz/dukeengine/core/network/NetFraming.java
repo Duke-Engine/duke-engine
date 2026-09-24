@@ -10,6 +10,7 @@ package uz.dukeengine.core.network;
  * K &lt;playerIndex&gt; &lt;frame&gt; &lt;checksum&gt;
  * H &lt;frame&gt; &lt;playerIndex&gt; &lt;expected&gt; &lt;actual&gt;
  * P &lt;playerIndex&gt; &lt;percent&gt;
+ * T &lt;sender&gt; &lt;recipients, joined by ':', or '-'&gt; &lt;text, URL-encoded&gt;
  * </pre>
  *
  * <p>The engine owns this outer envelope and the control plane inside it; the
@@ -28,6 +29,7 @@ public final class NetFraming {
     private static final char CHECKSUM = 'K';
     private static final char HALTED = 'H';
     private static final char PROGRESS = 'P';
+    private static final char TALK = 'T';
 
     private NetFraming() {
     }
@@ -41,6 +43,10 @@ public final class NetFraming {
             case SessionHalted halted -> HALTED + " " + halted.frame() + " " + halted.playerIndex()
                     + " " + halted.expected() + " " + halted.actual();
             case LoadProgress progress -> PROGRESS + " " + progress.playerIndex() + " " + progress.percent();
+            case ChatLine line -> TALK + " " + line.sender() + " "
+                    + (line.recipients().isEmpty() ? "-" : line.recipients().stream().map(String::valueOf)
+                            .collect(java.util.stream.Collectors.joining(":")))
+                    + " " + java.net.URLEncoder.encode(line.text(), java.nio.charset.StandardCharsets.UTF_8);
         };
     }
 
@@ -55,6 +61,7 @@ public final class NetFraming {
             case CHECKSUM -> decodeChecksum(body);
             case HALTED -> decodeHalted(body);
             case PROGRESS -> decodeProgress(body);
+            case TALK -> decodeTalk(body);
             default -> throw new IllegalArgumentException("unknown net message kind: " + line);
         };
     }
@@ -68,6 +75,14 @@ public final class NetFraming {
     private static LoadProgress decodeProgress(String body) {
         var parts = fields(body, 2, "load-progress");
         return new LoadProgress(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
+    }
+
+    private static ChatLine decodeTalk(String body) {
+        var parts = fields(body, 3, "chat");
+        var recipients = parts[1].equals("-") ? java.util.List.<Integer>of()
+                : java.util.Arrays.stream(parts[1].split(":")).map(Integer::parseInt).toList();
+        return new ChatLine(Integer.parseInt(parts[0]), recipients,
+                java.net.URLDecoder.decode(parts[2], java.nio.charset.StandardCharsets.UTF_8));
     }
 
     private static PeerLeft decodeLeft(String body) {

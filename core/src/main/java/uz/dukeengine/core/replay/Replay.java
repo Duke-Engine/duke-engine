@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import uz.dukeengine.core.GameLogic;
 import uz.dukeengine.core.message.Command;
+import uz.dukeengine.core.network.ChatLine;
 import uz.dukeengine.core.network.CommandPacket;
 import uz.dukeengine.core.network.FrameChecksum;
 import uz.dukeengine.core.network.LoadProgress;
@@ -77,6 +78,9 @@ public final class Replay {
                 }
                 case LoadProgress ignored -> {
                     // A figure for a load screen, said before the first frame.
+                }
+                case ChatLine ignored -> {
+                    // What the players said is not what happened; a recording keeps the match alone.
                 }
             }
         }

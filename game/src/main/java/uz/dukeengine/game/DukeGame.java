@@ -767,6 +767,52 @@ public final class DukeGame {
         progress.accept(100);
     }
 
+    // ---- what the players say ----
+
+    private final java.util.Queue<uz.dukeengine.core.network.ChatLine> toSay =
+            new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private final List<Consumer<uz.dukeengine.core.network.ChatLine>> chatListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * Say a line from this machine's player to these players — everyone, allies, a chosen few — from any thread. It
+     * goes beside the match, never in it: no frame waits for it, and neither the replay nor the checksum sees it. In a
+     * network game every addressed machine hears it; alone, the sender hears its own.
+     */
+    public void say(String text, java.util.Collection<Integer> to) {
+        toSay.add(new uz.dukeengine.core.network.ChatLine(getLocalPlayerIndex(), List.copyOf(to), text));
+    }
+
+    /**
+     * Told every line said to this machine's player — its own included — with who said it and to whom, in the order
+     * each sender said them, on the simulation's thread. The 3D client's {@code Duke3D.onChat} hands them to the
+     * window's.
+     */
+    public DukeGame onChat(Consumer<uz.dukeengine.core.network.ChatLine> listener) {
+        chatListeners.add(listener);
+        return this;
+    }
+
+    /** Send what was said, and take in what arrived: every turn of the loop, paused or waiting or not. */
+    private void talk() {
+        for (var line = toSay.poll(); line != null; line = toSay.poll()) {
+            if (multiplayer != null) {
+                multiplayer.say(line.text(), line.recipients());
+            } else {
+                heardChat(line);
+            }
+        }
+        if (multiplayer != null) {
+            multiplayer.listen();
+        }
+    }
+
+    private void heardChat(uz.dukeengine.core.network.ChatLine line) {
+        for (var listener : chatListeners) {
+            listener.accept(line);
+        }
+    }
+
     /** How far this machine has got loading, as last shared — so the same figure is not said twice. */
     private int sharedProgress = -1;
     private final List<java.util.function.ObjIntConsumer<GamePlayer>> peerProgress = new ArrayList<>();
@@ -887,6 +933,7 @@ public final class DukeGame {
             });
         }
         for (int i = 0; i < frames; i++) {
+            talk();
             if (multiplayer == null || multiplayer.beforeStep(logic)) {
                 logic.update();
             }
@@ -923,6 +970,7 @@ public final class DukeGame {
             engine.setSession(multiplayer);  // frames wait for every player's input
             multiplayer.onPlayerLeft(this::announcePlayerLeft);
             multiplayer.onPeerProgress(this::heardProgress);
+            multiplayer.onChat(this::heardChat);
             // A cut-off peer and a peer waiting on a slow one look identical from
             // the outside — both stopped — so say which this is.
             multiplayer.onConnectionLost(() -> setBanner("CONNECTION LOST"));
@@ -932,6 +980,7 @@ public final class DukeGame {
             multiplayer.onDesync(desync -> setBanner(DESYNC_MESSAGE));
         }
         engine.setMaxFps(maxFps);
+        engine.everyTurn(this::talk);
         engine.init(); // note: engine init resets subsystems — apply scenario after
         if (randomSeed != null) {
             logic.setRandomSeed(randomSeed);

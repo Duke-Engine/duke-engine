@@ -29,6 +29,19 @@ final class RtsGameEngine extends GameEngine {
         this.replay = replay;
     }
 
+    /** What runs every turn of the loop, frames or not: the players' talk. */
+    private Runnable everyTurn = () -> { };
+
+    void everyTurn(Runnable task) {
+        this.everyTurn = task;
+    }
+
+    @Override
+    public void update() {
+        everyTurn.run();
+        super.update();
+    }
+
     /**
      * Where a frame's input comes from, and whether there is any yet.
      *

@@ -64,6 +64,7 @@ public final class LockstepGate {
     private final List<Consumer<Desync>> desyncListeners = new ArrayList<>();
     private final List<Integer> lostLinks = new ArrayList<>(); // filled during pump, on the game thread
     private final List<java.util.function.BiConsumer<Integer, Integer>> progressListeners = new ArrayList<>();
+    private final List<Consumer<ChatLine>> chatListeners = new ArrayList<>();
 
     /** This peer's own view of the world at each checked frame. */
     private final Map<Integer, Long> ownChecksums = new HashMap<>();
@@ -125,6 +126,24 @@ public final class LockstepGate {
      */
     public boolean isConnectionLost() {
         return state == SessionState.DISCONNECTED;
+    }
+
+    /** Told every line said to this peer, its own included, in the order each sender said them. */
+    public void onChat(Consumer<ChatLine> listener) {
+        chatListeners.add(listener);
+    }
+
+    /** Say a line — from this peer, whoever the game says sent it being this peer's player. */
+    public void say(String text, java.util.Collection<Integer> to) {
+        transport.send(new ChatLine(localPlayer, List.copyOf(to), text));
+    }
+
+    /**
+     * Take in what has arrived, between frames as well as before them — what the players say goes on while the
+     * game is paused or waiting for a peer. On the game's own thread, like every pump.
+     */
+    public void pumpBetweenFrames() {
+        transport.pump();
     }
 
     /** Told, by player index, how far another peer has got loading the match — see {@link LoadProgress}. */
@@ -247,6 +266,13 @@ public final class LockstepGate {
                     // way to see. Its word is enough; stopping needs no second opinion.
                     halt(new Desync(halted.frame(), localPlayer, halted.expected(),
                             halted.playerIndex(), halted.actual()));
+            case ChatLine line -> {
+                if (line.reaches(localPlayer)) {
+                    for (var listener : chatListeners) {
+                        listener.accept(line);
+                    }
+                }
+            }
             case LoadProgress progress -> {
                 if (progress.playerIndex() != localPlayer) { // our own send echoes back
                     for (var listener : progressListeners) {

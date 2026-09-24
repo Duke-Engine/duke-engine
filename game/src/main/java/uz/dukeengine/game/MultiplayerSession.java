@@ -194,6 +194,21 @@ public final class MultiplayerSession implements AutoCloseable {
         gate.pumpWhileLoading();
     }
 
+    /** Told every line said to this machine's player, its own included. */
+    void onChat(java.util.function.Consumer<uz.dukeengine.core.network.ChatLine> listener) {
+        gate.onChat(listener);
+    }
+
+    /** Say a line to these players and take in what has arrived — on the game's own thread. */
+    void say(String text, java.util.Collection<Integer> to) {
+        gate.say(text, to);
+    }
+
+    /** Take in what has arrived between frames — on the game's own thread. */
+    void listen() {
+        gate.pumpBetweenFrames();
+    }
+
     /** Told, by player index, when a player drops out of the game. */
     public void onPlayerLeft(IntConsumer listener) {
         gate.onPlayerLeft(listener);

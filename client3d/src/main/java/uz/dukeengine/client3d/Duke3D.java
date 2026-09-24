@@ -39,6 +39,7 @@ public final class Duke3D {
     private CanvasInput input;
     private java.util.function.IntConsumer loading;
     private java.util.function.Supplier<DukeGame> backdrop;
+    private java.util.function.Consumer<uz.dukeengine.core.network.ChatLine> chat;
 
     /** The running client, once launched; what is asked of it before then waits here, in order. */
     private DukeRtsApp app;
@@ -114,6 +115,15 @@ public final class Duke3D {
         return this;
     }
 
+    /**
+     * Told, on the window's thread, every line said to this machine's player in a match — its own included — with who
+     * said it and to whom: what a game's screen shows at its top left. Said with {@link DukeGame#say}.
+     */
+    public Duke3D onChat(java.util.function.Consumer<uz.dukeengine.core.network.ChatLine> ear) {
+        this.chat = ear;
+        return this;
+    }
+
     public static void launch(DukeGame game, Visuals visuals) {
         of(game, visuals).launch();
     }
@@ -143,7 +153,7 @@ public final class Duke3D {
     public void launch() {
         // the simulation starts when the player presses Play — or at once, if the
         // game asked for no menu at all
-        var client = new DukeRtsApp(game, visuals, shell, hotkeys, painter, input, loading, backdrop);
+        var client = new DukeRtsApp(game, visuals, shell, hotkeys, painter, input, loading, backdrop, chat);
         synchronized (waiting) {
             app = client;
             for (var task : waiting) {
