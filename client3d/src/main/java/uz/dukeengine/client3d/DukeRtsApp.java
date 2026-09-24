@@ -413,6 +413,10 @@ final class DukeRtsApp extends SimpleApplication {
         Spatial body;      // the shape a click has to hit
         /** The file the body was loaded from, so a change of condition is noticed. */
         String modelPath;
+        /** Its pieces as its states have left them — kept for the thing, laid on again on a swapped model. */
+        final Pieces pieces = new Pieces();
+        /** The weapon slots' bones its barrels were found by, as its words chose them. */
+        java.util.Map<Integer, Visuals.WeaponBones> barrelBones;
         AnimComposer composer;
         AnimChannel legacyChannel;
         String currentAnim = "";
@@ -5140,7 +5144,9 @@ final class DukeRtsApp extends SimpleApplication {
         node.bornAt = timer.getTimeInSeconds();
         node.root.setUserData("unitId", view.id());
 
-        node.modelPath = visual.modelFor(view.healthFraction(), visuals.getWorldConditions());
+        node.modelPath = visual.choosesByWords()
+                ? visual.modelFor(visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()))
+                : visual.modelFor(view.healthFraction(), visuals.getWorldConditions());
         Spatial body = buildBody(visual, java.util.List.of(), node.modelPath);
         if (body != null) {
             paintHouseColour(body, view);
@@ -5212,7 +5218,29 @@ final class DukeRtsApp extends SimpleApplication {
         // Its barrels are the model's, so a new model is found again: a wreck may have none.
         Integer id = node.root.getUserData("unitId");
         if (id != null) {
-            barrels.dress(id, body, visual);
+            barrels.dress(id, body, node.barrelBones != null ? node.barrelBones : visual.weaponBones, visual.recoil);
+            node.pieces.applyTo(body, barrels.flashes(id));
+        }
+    }
+
+    /**
+     * Its barrels and its pieces as the words it holds choose them: the best-fitting set's fire bones, flashes and
+     * recoil bones, found on the model again when the choice changes, and its pieces hidden and shown as its states
+     * leave them — see {@link Visuals.UnitVisual#pieces}. A barrel's flash is left to the barrel.
+     */
+    private void wearTheWords(UnitNode node, Visuals.UnitVisual visual, java.util.Set<String> holding) {
+        Integer id = node.root.getUserData("unitId");
+        if (id == null || node.body == null) {
+            return;
+        }
+        var bones = visual.weaponBonesFor(holding);
+        boolean redressed = bones != node.barrelBones;
+        if (redressed) {
+            node.barrelBones = bones;
+            barrels.dress(id, node.body, bones, visual.recoil);
+        }
+        if (node.pieces.choose(visual.pieceStateFor(holding), visual.pieceStates) || redressed) {
+            node.pieces.applyTo(node.body, barrels.flashes(id));
         }
     }
 
@@ -5729,9 +5757,16 @@ final class DukeRtsApp extends SimpleApplication {
         // wrecked building, and the wreck is a different file. Asked every frame because the answer is a
         // lookup against a map that is empty for every template that named no second model.
         var visual = visualFor(view.templateName());
-        var wanted = visual.modelFor(view.healthFraction(), visuals.getWorldConditions());
+        // Its own words too — an upgrade's weapon set, a rank — for a look that chooses anything by them.
+        var holding = visual.choosesByWords()
+                ? visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()) : null;
+        var wanted = holding != null ? visual.modelFor(holding)
+                : visual.modelFor(view.healthFraction(), visuals.getWorldConditions());
         if (node.body != null && wanted != null && !wanted.equals(node.modelPath)) {
             swapBody(node, view, visual, wanted);
+        }
+        if (holding != null) {
+            wearTheWords(node, visual, holding);
         }
         node.root.setLocalTranslation(UnitPlacement.where(view, this::floorHeightAt));
         node.root.setLocalRotation(UnitPlacement.turn(view));

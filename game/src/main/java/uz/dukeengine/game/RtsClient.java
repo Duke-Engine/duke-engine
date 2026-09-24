@@ -136,7 +136,8 @@ final class RtsClient extends GameClient {
                     object.keepsOwnHeight(),
                     object.statusBits(),
                     hold == null ? java.util.List.of()
-                            : hold.getPassengers().stream().map(uz.dukeengine.core.thing.ObjectId::value).toList()));
+                            : hold.getPassengers().stream().map(uz.dukeengine.core.thing.ObjectId::value).toList(),
+                    java.util.List.copyOf(object.getConditions())));
         }
         var player = everything ? null : logic.getRtsPlayer(viewerPlayer);
         snapshot = new WorldSnapshot(

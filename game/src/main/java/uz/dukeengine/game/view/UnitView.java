@@ -11,6 +11,8 @@ package uz.dukeengine.game.view;
  * @param ownHeight whether it is drawn at {@code z} even under the ground; otherwise at {@code z} or on the ground,
  *                  whichever is higher
  * @param passengers the ids of what rides inside it, in the order they got in; empty for anything that carries none
+ * @param conditions the words it holds, sorted — a rank, an upgrade's weapon set, whatever the game set on it — which
+ *                   a client chooses its model, its pieces and its barrels by
  */
 public record UnitView(
         int id,
@@ -31,10 +33,21 @@ public record UnitView(
         float roll,
         boolean ownHeight,
         int statuses,
-        java.util.List<Integer> passengers) {
+        java.util.List<Integer> passengers,
+        java.util.List<String> conditions) {
 
     public UnitView {
         passengers = passengers == null ? java.util.List.of() : java.util.List.copyOf(passengers);
+        conditions = conditions == null ? java.util.List.of() : java.util.List.copyOf(conditions);
+    }
+
+    /** A view that says nothing of the words it holds: every view from before they were carried. */
+    public UnitView(int id, String templateName, int playerIndex, float x, float y, float orientation, float health,
+            float maxHealth, boolean structure, boolean selectable, boolean moving, boolean attacking,
+            int productionQueue, float z, float pitch, float roll, boolean ownHeight, int statuses,
+            java.util.List<Integer> passengers) {
+        this(id, templateName, playerIndex, x, y, orientation, health, maxHealth, structure, selectable, moving,
+                attacking, productionQueue, z, pitch, roll, ownHeight, statuses, passengers, java.util.List.of());
     }
 
     /** A view that says nothing of passengers: every view from before they were carried. */

@@ -82,6 +82,11 @@ public final class Visuals {
         String dieAnim;
         /** Its weapon slots' named points, by slot; see {@link #fireBone}. */
         final java.util.Map<Integer, WeaponBones> weaponBones = new java.util.TreeMap<>();
+        /** Weapon slots' bones for sets of conditions, by the words that must all hold; see {@link #weaponBonesFor}. */
+        final java.util.Map<String, java.util.Map<Integer, WeaponBones>> conditionalWeaponBones =
+                new java.util.LinkedHashMap<>();
+        /** Its pieces' states, in the order the game gave them; see {@link #pieces}. */
+        final java.util.List<PieceState> pieceStates = new java.util.ArrayList<>();
         /** How its barrels kick back; see {@link #recoil}. */
         Barrels.Recoil recoil = Barrels.Recoil.REFERENCE;
         /** Its clips for particular deaths, by the death type's name; see {@link #die(String, String)}. */
@@ -97,6 +102,99 @@ public final class Visuals {
         final java.util.Map<String, String> conditionalModels = new java.util.LinkedHashMap<>();
         /** Below what share of its health each condition holds — the ones a thing decides for itself. */
         final java.util.Map<String, Float> whenHurt = new java.util.LinkedHashMap<>();
+
+        /**
+         * Pieces of its model hidden and shown while its words best fit {@code conditions} — the reference's {@code
+         * HideSubObject} and {@code ShowSubObject} per condition state, chosen by the rule the model is chosen by. A
+         * piece is a node of the model's tree, named bare ({@code TURRETUP01}) or with its container ({@code
+         * AVHUMMER.TURRETUP01}), ignoring case. Sticky, as the reference's are: a state changes only what it names,
+         * and a piece no state names keeps the file's own visibility. A barrel's muzzle flash stays its barrel's.
+         */
+        public UnitVisual pieces(java.util.Set<String> conditions, java.util.List<String> hide,
+                java.util.List<String> show) {
+            pieceStates.add(new PieceState(new java.util.TreeSet<>(conditions), hide, show));
+            return this;
+        }
+
+        /**
+         * Where weapon slot {@code slot}'s shots come out while its words best fit {@code conditions}: an upgraded
+         * Humvee firing from {@code MuzzleUp} — see {@link #fireBone(int, String)}. The best-fitting set's bones are
+         * used, and the plain ones where none fits.
+         */
+        public UnitVisual fireBone(java.util.Set<String> conditions, int slot, String bone) {
+            var bones = bonesFor(conditions);
+            var was = bones.getOrDefault(slot, new WeaponBones(null, null, null));
+            bones.put(slot, new WeaponBones(bone, was.flash(), was.recoil()));
+            return this;
+        }
+
+        /** Slot {@code slot}'s muzzle flash piece while its words best fit {@code conditions}. */
+        public UnitVisual muzzleFlash(java.util.Set<String> conditions, int slot, String piece) {
+            var bones = bonesFor(conditions);
+            var was = bones.getOrDefault(slot, new WeaponBones(null, null, null));
+            bones.put(slot, new WeaponBones(was.fire(), piece, was.recoil()));
+            return this;
+        }
+
+        /** Slot {@code slot}'s recoil bone while its words best fit {@code conditions}. */
+        public UnitVisual recoilBone(java.util.Set<String> conditions, int slot, String bone) {
+            var bones = bonesFor(conditions);
+            var was = bones.getOrDefault(slot, new WeaponBones(null, null, null));
+            bones.put(slot, new WeaponBones(was.fire(), was.flash(), bone));
+            return this;
+        }
+
+        private java.util.Map<Integer, WeaponBones> bonesFor(java.util.Set<String> conditions) {
+            return conditionalWeaponBones.computeIfAbsent(String.join(" ", new java.util.TreeSet<>(conditions)),
+                    key -> new java.util.TreeMap<>());
+        }
+
+        /** Whether anything of its look is chosen by words, so a client need not work out its words otherwise. */
+        boolean choosesByWords() {
+            return !conditionalModels.isEmpty() || !pieceStates.isEmpty() || !conditionalWeaponBones.isEmpty();
+        }
+
+        /**
+         * The words it holds, to choose by: its own — a rank, an upgrade's weapon set — the world's, and those its
+         * health decides ({@link #whenHurt}).
+         */
+        java.util.Set<String> holding(float healthFraction, java.util.Set<String> world,
+                java.util.Collection<String> own) {
+            var holding = new java.util.HashSet<>(world == null ? java.util.Set.<String>of() : world);
+            if (own != null) {
+                holding.addAll(own);
+            }
+            whenHurt.forEach((word, below) -> {
+                if (healthFraction < below) {
+                    holding.add(word);
+                }
+            });
+            return holding;
+        }
+
+        /** Which of its pieces' states its words best fit, or -1 for none. */
+        int pieceStateFor(java.util.Set<String> holding) {
+            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
+            for (var state : pieceStates) {
+                words.add(state.words());
+            }
+            return uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
+        }
+
+        /** Its weapon slots' bones for the words it holds: the best-fitting set's, or the plain ones. */
+        java.util.Map<Integer, WeaponBones> weaponBonesFor(java.util.Set<String> holding) {
+            if (conditionalWeaponBones.isEmpty()) {
+                return weaponBones;
+            }
+            var sets = new java.util.ArrayList<java.util.Map<Integer, WeaponBones>>();
+            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
+            for (var candidate : conditionalWeaponBones.entrySet()) {
+                sets.add(candidate.getValue());
+                words.add(wordsOf(candidate.getKey()));
+            }
+            int best = uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
+            return best < 0 ? weaponBones : sets.get(best);
+        }
 
         public UnitVisual model(String assetPath) {
             this.modelPath = assetPath;
@@ -134,12 +232,14 @@ public final class Visuals {
             if (conditionalModels.isEmpty()) {
                 return modelPath; // a template that names none pays nothing, not even the set below
             }
-            var holding = new java.util.HashSet<>(world == null ? java.util.Set.<String>of() : world);
-            whenHurt.forEach((word, below) -> {
-                if (healthFraction < below) {
-                    holding.add(word);
-                }
-            });
+            return modelFor(holding(healthFraction, world, java.util.List.of()));
+        }
+
+        /** The same, for the words it holds as {@link #holding} worked them out — its own among them. */
+        String modelFor(java.util.Set<String> holding) {
+            if (conditionalModels.isEmpty()) {
+                return modelPath;
+            }
             // The engine's one rule for choosing by condition — the simulation picks weapon sets by it too.
             var paths = new java.util.ArrayList<String>();
             var words = new java.util.ArrayList<java.util.SortedSet<String>>();
@@ -548,6 +648,22 @@ public final class Visuals {
      * @param recoil the bone that kicks back
      */
     public record WeaponBones(String fire, String flash, String recoil) {
+    }
+
+    /**
+     * One state of a model's pieces — see {@link UnitVisual#pieces}.
+     *
+     * @param words the condition words it is for, all of which must hold
+     * @param hide  the pieces it hides
+     * @param show  the pieces it shows
+     */
+    public record PieceState(java.util.SortedSet<String> words, java.util.List<String> hide,
+            java.util.List<String> show) {
+        public PieceState {
+            words = java.util.Collections.unmodifiableSortedSet(new java.util.TreeSet<>(words));
+            hide = hide == null ? java.util.List.of() : java.util.List.copyOf(hide);
+            show = show == null ? java.util.List.of() : java.util.List.copyOf(show);
+        }
     }
 
     /** Configure the look and sound of one unit template. */

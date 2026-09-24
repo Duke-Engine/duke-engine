@@ -165,4 +165,20 @@ class ConditionalModelTest {
 
         assertEquals("models/wall_sn.glb", visuals.of("Wall").modelFor(1f, Set.of("NIGHT", "SNOW")));
     }
+
+    /** A thing's own words — an upgrade's weapon set — choose among its models beside the world's and its health's. */
+    @Test
+    void aThingsOwnWordsChooseItsModelToo() {
+        var look = Visuals.create().unit("Humvee", humvee -> humvee.model(PLAIN)
+                .model(Set.of("WEAPONSET_PLAYER_UPGRADE"), "models/humvee_tow.glb")
+                .model(Set.of("WEAPONSET_PLAYER_UPGRADE", "DAMAGED"), "models/humvee_tow_d.glb")
+                .whenHurt("DAMAGED", 0.5f)).of("Humvee");
+
+        assertEquals("models/humvee_tow.glb",
+                look.modelFor(look.holding(1f, Set.of(), java.util.List.of("WEAPONSET_PLAYER_UPGRADE"))));
+        assertEquals("models/humvee_tow_d.glb",
+                look.modelFor(look.holding(0.3f, Set.of(), java.util.List.of("WEAPONSET_PLAYER_UPGRADE"))),
+                "its own word and the one its health decides, together");
+        assertEquals(PLAIN, look.modelFor(look.holding(1f, Set.of(), java.util.List.of())));
+    }
 }

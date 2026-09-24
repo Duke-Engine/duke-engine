@@ -71,12 +71,21 @@ final class Barrels {
      * a model is made with showing.
      */
     void dress(int thing, Spatial model, Visuals.UnitVisual visual) {
-        if (model == null || visual == null || visual.weaponBones.isEmpty()) {
+        dress(thing, model, visual == null ? Map.of() : visual.weaponBones,
+                visual == null ? Recoil.REFERENCE : visual.recoil);
+    }
+
+    /**
+     * The same, with the slots' bones its words chose — an upgraded Humvee's turret fires from {@code MuzzleUp} —
+     * found on the model again whenever the choice changes.
+     */
+    void dress(int thing, Spatial model, Map<Integer, Visuals.WeaponBones> bones, Recoil recoil) {
+        if (model == null || bones.isEmpty()) {
             things.remove(thing);
             return;
         }
         var slots = new HashMap<Integer, Slot>();
-        for (var entry : visual.weaponBones.entrySet()) {
+        for (var entry : bones.entrySet()) {
             var barrels = barrels(model, entry.getValue());
             for (var barrel : barrels) {
                 if (barrel.flash != null) {
@@ -85,7 +94,24 @@ final class Barrels {
             }
             slots.put(entry.getKey(), new Slot(barrels));
         }
-        things.put(thing, new Dressed(slots, visual.recoil));
+        things.put(thing, new Dressed(slots, recoil));
+    }
+
+    /** The pieces a thing's barrels draw their muzzle flashes with: theirs to show and hide, nobody else's. */
+    java.util.Set<Spatial> flashes(int thing) {
+        var dressed = things.get(thing);
+        if (dressed == null) {
+            return java.util.Set.of();
+        }
+        var flashes = new java.util.HashSet<Spatial>();
+        for (var slot : dressed.slots().values()) {
+            for (var barrel : slot.barrels) {
+                if (barrel.flash != null) {
+                    flashes.add(barrel.flash);
+                }
+            }
+        }
+        return flashes;
     }
 
     /**
