@@ -702,6 +702,13 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /** Which button selects and which commands — see {@link Duke3D#mouse}. */
+    private Mouse mouse = Mouse.RIGHT_COMMANDS;
+
+    void mouse(Mouse chosen) {
+        this.mouse = chosen == null ? Mouse.RIGHT_COMMANDS : chosen;
+    }
+
     /** Draw the world in this part of the window from the next frame — see {@link Duke3D#worldView}. */
     void worldView(WorldRegion region) {
         this.worldRegion = region;
@@ -2944,6 +2951,8 @@ final class DukeRtsApp extends SimpleApplication {
                         disarmButton(); // second thoughts, wherever the pointer is: a bar's button or the game's
                     } else if (arming != null) {
                         disarm(); // second thoughts, the way a right-click always means
+                    } else if (mouse.rightClickLetsGo()) {
+                        selected.clear(); // the reference's left-click mouse: the right button lets go
                     } else if (pointerOnTheWorld() && !heroPanel.contains(over.x, over.y)) {
                         order(); // a right-click on the bar, or off the world, is not an order to the world
                     }
@@ -3757,6 +3766,13 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var cursor = inputManager.getCursorPosition();
         if (!SelectionBox.isDrag(from.x, from.y, cursor.x, cursor.y)) {
+            var hit = pickUnit();
+            boolean onOwn = hit != null && hit.view.selectable()
+                    && hit.view.playerIndex() == game.getLocalPlayerIndex();
+            if (mouse.leftClickOrders(onOwn, !selectedIds().isEmpty())) {
+                order(); // the reference's left-click mouse: a click off his own things commands them
+                return;
+            }
             select(add);
             return;
         }

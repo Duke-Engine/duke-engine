@@ -339,6 +339,16 @@ public final class Duke3D {
         later(client -> client.armFromGame(button, radius, pointer, ended));
     }
 
+    /**
+     * Which button selects and which commands: {@link Mouse#RIGHT_COMMANDS}, the default, or the reference's
+     * {@link Mouse#LEFT_COMMANDS} — a left click selects the player's own things and commands what is selected
+     * everywhere else, a right click lets the selection go. From any thread, before launch or while it runs: an
+     * options screen's switch.
+     */
+    public void mouse(Mouse arrangement) {
+        later(client -> client.mouse(arrangement));
+    }
+
     /** Stop the movie playing, and its sound, at once — for a key the game says skips it. */
     public void stopMovie() {
         later(DukeRtsApp::stopMovie);
