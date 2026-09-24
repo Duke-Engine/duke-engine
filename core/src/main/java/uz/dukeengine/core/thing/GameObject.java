@@ -116,6 +116,7 @@ public final class GameObject {
             // rather than simply cleared.
             mobile = modules.stream().anyMatch(Locomotor.class::isInstance);
         }
+        module.onRemoved();
         return true;
     }
 

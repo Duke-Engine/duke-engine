@@ -23,4 +23,12 @@ public abstract class Module {
     public final GameObject getOwner() {
         return owner;
     }
+
+    /**
+     * Told it has been taken off its thing — given up for a new order, swapped for another, anything that removes
+     * it — on the simulation thread, before the thing's modules next update: so it can take back what it put on the
+     * thing for as long as it was there, such as the words it set for its show. Nothing by default.
+     */
+    public void onRemoved() {
+    }
 }
