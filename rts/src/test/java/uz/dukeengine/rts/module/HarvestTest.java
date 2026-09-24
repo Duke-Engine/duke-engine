@@ -319,4 +319,88 @@ class HarvestTest {
         }
         assertEquals(100, logic.getRtsPlayer(usa).getMoney(), "banked, after " + frame + " frames");
     }
+
+    // ---- told where to work, paid on arrival, and flying ----
+
+    private ThingTemplate kind(String name, uz.dukeengine.core.module.ModuleData... modules) {
+        var builder = RtsTemplate.named(name).geometry(new Geometry.Cylinder(4f, 6f));
+        for (var module : modules) {
+            builder.module(module);
+        }
+        var made = builder.build();
+        thingFactory.addTemplate(made);
+        return made;
+    }
+
+    @Test
+    void aTruckToldToWorkWarehouseBGoesBackToItAfterEveryDeliveryThoughANearerOneStands() {
+        logic.setPathGrid(new PathGrid(60, 60));
+        var truck = spawnAt(kind("Truck", new ActiveBody.Data(100f), new MoveUpdate.Data(60f),
+                new HarvestUpdate.Data(100, 10, 0f)), 130f, 100f);
+        spawnAt(kind("Centre", new SupplyDepot.Data()), 100f, 100f);
+        var a = spawnAt(kind("WarehouseA", new SupplyModule.Data(1000)), 170f, 100f);
+        var b = spawnAt(kind("WarehouseB", new SupplyModule.Data(1000)), 100f, 400f);
+
+        truck.findModule(HarvestUpdate.class).workAt(b);
+        for (int frame = 0; frame < 6000 && logic.getRtsPlayer(usa).getMoney() < 300; frame++) {
+            logic.update();
+        }
+        assertEquals(300, logic.getRtsPlayer(usa).getMoney(), "three deliveries");
+        assertEquals(700, b.findModule(SupplyModule.class).getRemaining(), "every load from B");
+        assertEquals(1000, a.findModule(SupplyModule.class).getRemaining(), "none from the nearer A");
+    }
+
+    @Test
+    void aTruckOrderedAwayOnItsWayHomeKeepsItsLoadAndTheMoneyIsUntouched() {
+        logic.setPathGrid(new PathGrid(60, 60));
+        var truck = spawnAt(kind("Truck", new ActiveBody.Data(100f), new MoveUpdate.Data(30f),
+                new HarvestUpdate.Data(300, 10, 0f)), 450f, 100f);
+        spawnAt(kind("Centre", new SupplyDepot.Data()), 100f, 100f);
+        spawnAt(kind("Warehouse", new SupplyModule.Data(1000)), 480f, 100f);
+        var harvest = truck.findModule(HarvestUpdate.class);
+        for (int frame = 0; frame < 500 && harvest.getCarrying() < 300; frame++) {
+            logic.update();
+        }
+        for (int frame = 0; frame < 20; frame++) {
+            logic.update(); // on its way home with 300
+        }
+        assertEquals(300, harvest.getCarrying());
+
+        truck.getLocomotor().moveTo(new Coord3D(450f, 500f, 0f)); // the player sends it elsewhere
+        logic.update();
+        for (int frame = 0; frame < 2000 && truck.getLocomotor().isMoving(); frame++) {
+            logic.update();
+        }
+        assertTrue(truck.getPosition().distance(new Coord3D(100f, 100f, 0f)) > 300f, "stopped far from the centre");
+        assertEquals(300, harvest.getCarrying(), "it still carries 300");
+        assertEquals(0, logic.getRtsPlayer(usa).getMoney(), "and nothing was paid where it stopped");
+    }
+
+    @Test
+    void aFlyingHarvesterFliesItsTripsAndIsPaidBesideTheCentre() {
+        var chinook = spawnAt(kind("Chinook", new ActiveBody.Data(100f),
+                new uz.dukeengine.core.module.FlyUpdate.Data(uz.dukeengine.core.module.FlyUpdate.Kind.HOVERING,
+                        60f, 0f, 0f, 0f, 0f, 50f, 0f),
+                new HarvestUpdate.Data(100, 10, 0f)), 300f, 100f);
+        var centre = spawnAt(kind("Centre", new SupplyDepot.Data()), 100f, 100f);
+        var warehouse = spawnAt(kind("Warehouse", new SupplyModule.Data(1000)), 500f, 100f);
+
+        float nearestToThePile = Float.MAX_VALUE;
+        boolean paidAwayFromTheCentre = false;
+        int money = 0;
+        for (int frame = 0; frame < 2000 && money == 0; frame++) {
+            logic.update();
+            nearestToThePile = Math.min(nearestToThePile,
+                    uz.dukeengine.core.thing.World.reachBetween(chinook, warehouse));
+            int now = logic.getRtsPlayer(usa).getMoney();
+            if (now > money && !logic.isBeside(chinook, centre)) {
+                paidAwayFromTheCentre = true;
+            }
+            money = now;
+        }
+        assertTrue(nearestToThePile <= logic.cellSize(), "it flew to the warehouse: " + nearestToThePile);
+        assertEquals(100, money, "and back, and was paid");
+        assertTrue(!paidAwayFromTheCentre, "only beside the centre");
+    }
 }
+
