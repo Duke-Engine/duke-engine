@@ -61,7 +61,7 @@ package uz.dukeengine.client3d;
  * @param model        the game's own model a move is answered with instead of the arrowheads, or null for them —
  *                     see {@link #model(String, String, int)}
  * @param clip         the clip of that model played once from its first frame, or null for none
- * @param frames       how many of the game's frames that model stands
+ * @param frames       how long that model stands, in thirtieths of a second
  * @param noAttackRing whether an attack is answered with nothing at all: the pointer already said it
  */
 public record OrderMark(float startRadius, float endRadius, float seconds, float size,
@@ -84,7 +84,7 @@ public record OrderMark(float startRadius, float endRadius, float seconds, float
     /**
      * The same, answering a move — and an attack-move — with the game's own model instead of the arrowheads: the
      * reference's {@code MoveHintName}, a model laid on the ground at the spot, its clip {@code clip} played once from
-     * its first frame, gone after {@code frames} of the game's frames (40 there). A new order from the same selection
+     * its first frame, gone after {@code frames} thirtieths of a second (40 there). A new order from the same selection
      * moves its mark rather than laying another. Those orders alone, as there: a rally point, a power's place and an
      * order the game names are answered with no mark, and a lone building told to move with none.
      */
