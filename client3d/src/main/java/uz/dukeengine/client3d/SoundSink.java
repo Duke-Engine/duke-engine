@@ -45,6 +45,11 @@ interface SoundSink {
         default void volume(float gain) {
         }
 
+        /** Whether it has played to its end — a track played once through; one that loops never has. */
+        default boolean ended() {
+            return false;
+        }
+
         /** How far into itself it has played, in seconds; NaN while that is not known, or it is not playing. */
         default float seconds() {
             return Float.NaN;
@@ -73,6 +78,14 @@ interface SoundSink {
      * plays, and faded. Two can play at once while one fades out and the next comes in.
      */
     Playing music(String assetPath, float gain);
+
+    /**
+     * The same, once through: {@link Playing#ended} says when it has played to its end — a playlist's track. A sink
+     * that cannot tell loops it, and a playlist stays on its first.
+     */
+    default Playing musicOnce(String assetPath, float gain) {
+        return music(assetPath, gain);
+    }
 
     /**
      * A long sound, once, flat, from the disc as it plays — a movie's — handed back to be stopped and asked how far it

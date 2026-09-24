@@ -165,6 +165,15 @@ final class AudioSink implements SoundSink {
 
     @Override
     public Playing music(String assetPath, float gain) {
+        return track(assetPath, gain, true);
+    }
+
+    @Override
+    public Playing musicOnce(String assetPath, float gain) {
+        return track(assetPath, gain, false);
+    }
+
+    private Playing track(String assetPath, float gain, boolean looping) {
         // Streamed rather than held in memory: a loop is a minute of audio where
         // a footstep is a tenth of a second, and it is played once from start to
         // finish rather than fired off a hundred times. A node of its own each
@@ -173,7 +182,7 @@ final class AudioSink implements SoundSink {
         if (track == null) {
             return Playing.NONE;
         }
-        track.setLooping(true);
+        track.setLooping(looping);
         track.setPositional(false);
         track.setVolume(gain);
         root.attachChild(track);
@@ -188,6 +197,11 @@ final class AudioSink implements SoundSink {
             @Override
             public void volume(float loudness) {
                 track.setVolume(loudness);
+            }
+
+            @Override
+            public boolean ended() {
+                return track.getStatus() == com.jme3.audio.AudioSource.Status.Stopped;
             }
         };
     }

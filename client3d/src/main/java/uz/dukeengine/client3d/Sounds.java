@@ -54,6 +54,9 @@ final class Sounds {
     private final java.util.Set<String> unknown = new java.util.HashSet<>();
     private float master = 1f;
     private String playing; // the music, if any
+    /** The playlist the game asked for, each once through in turn and round again; empty while one track loops. */
+    private java.util.List<String> playlist = java.util.List.of();
+    private int inTurn;
     /** The playing track's own loudness: its cue's gain, and the game's volume for that cue. */
     private float playingGain = 1f;
     /** The track playing, and how loud it was last made. */
@@ -294,11 +297,44 @@ final class Sounds {
      * {@code fadeIn} — at once for none. What the game asks for by name: the reference's {@code MUSIC_SET_TRACK}.
      */
     void music(String cueName, float fadeOut, float fadeIn) {
-        var cue = cueName == null ? null : bank.find(cueName);
-        var wanted = cue == null || cue.files().isEmpty() ? null : cue.files().get(0);
-        if (java.util.Objects.equals(wanted, playing)) {
+        var cue = cue(cueName);
+        if (playlist.isEmpty() && java.util.Objects.equals(fileOf(cue), playing)) {
             return;
         }
+        playlist = java.util.List.of(); // a track the playlist had on, asked for alone, loops from its start
+        change(cue, fadeOut, fadeIn, true);
+    }
+
+    /**
+     * Play these cues' tracks each once through, in turn, and round again from the first — the reference's list of
+     * music, which its next-track key walks ({@code AudioManager::nextTrackName}). Asking for the list already playing
+     * changes nothing; a cue with no file is passed over, and a list with none is silence.
+     */
+    void playlist(java.util.List<String> cueNames, float fadeOut, float fadeIn) {
+        var wanted = cueNames.stream().filter(name -> fileOf(cue(name)) != null).toList();
+        if (wanted.isEmpty()) {
+            music(null, fadeOut, fadeIn);
+            return;
+        }
+        if (wanted.equals(playlist)) {
+            return;
+        }
+        playlist = wanted;
+        inTurn = 0;
+        change(cue(wanted.getFirst()), fadeOut, fadeIn, false);
+    }
+
+    private SoundBank.Cue cue(String name) {
+        return name == null ? null : bank.find(name);
+    }
+
+    private static String fileOf(SoundBank.Cue cue) {
+        return cue == null || cue.files().isEmpty() ? null : cue.files().getFirst();
+    }
+
+    /** The track playing goes — faded out, or at once — and this cue's comes in, looping or once through. */
+    private void change(SoundBank.Cue cue, float fadeOut, float fadeIn, boolean looping) {
+        var wanted = fileOf(cue);
         var leaving = track;
         fades.removeIf(fade -> fade.sound == leaving && !fade.out);
         if (fadeOut > 0f) {
@@ -313,7 +349,7 @@ final class Sounds {
             return;
         }
         trackLoudness = fadeIn > 0f ? 0f : musicLoudness();
-        track = sink.music(wanted, trackLoudness);
+        track = looping ? sink.music(wanted, trackLoudness) : sink.musicOnce(wanted, trackLoudness);
         if (fadeIn > 0f) {
             fades.add(new Fade(track, 0f, false, fadeIn));
         }
@@ -346,6 +382,11 @@ final class Sounds {
                     going.remove();
                 }
             }
+        }
+        // A track the sink could not play is passed over as one that has ended.
+        if (!playlist.isEmpty() && (track.ended() || track == SoundSink.Playing.NONE)) {
+            inTurn = (inTurn + 1) % playlist.size();
+            change(cue(playlist.get(inTurn)), 0f, 0f, false);
         }
     }
 

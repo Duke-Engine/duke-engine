@@ -257,6 +257,22 @@ public final class Duke3D {
     }
 
     /**
+     * Play these tracks of the game's {@link SoundBank}, by their cues' names, each once through in turn and round
+     * again from the first — the reference's list of music ({@code AudioManager::nextTrackName}) — the one playing
+     * fading out over two seconds. The same list asked for again changes nothing; {@link #music} replaces it, and an
+     * empty list is silence.
+     */
+    public void playlist(java.util.List<String> tracks) {
+        playlist(tracks, 2f, 0f);
+    }
+
+    /** The same, the old track fading out and the list's first in over as many seconds as the game says. */
+    public void playlist(java.util.List<String> tracks, float fadeOutSeconds, float fadeInSeconds) {
+        var list = java.util.List.copyOf(tracks);
+        later(client -> client.playlist(list, fadeOutSeconds, fadeInSeconds));
+    }
+
+    /**
      * Play a movie over whatever is on the screen and under the game's canvas — see {@link Movie}. {@code ended} is
      * told once, on the window's thread, when its last picture's time is up, whether it then goes or holds that
      * picture. One playing is stopped first.

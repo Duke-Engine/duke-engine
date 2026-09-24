@@ -818,6 +818,11 @@ final class DukeRtsApp extends SimpleApplication {
         noises.sounds().music(track, fadeOutSeconds, fadeInSeconds);
     }
 
+    /** The game's own tracks in turn — see {@link Duke3D#playlist}. */
+    void playlist(List<String> tracks, float fadeOutSeconds, float fadeInSeconds) {
+        noises.sounds().playlist(tracks, fadeOutSeconds, fadeInSeconds);
+    }
+
     /**
      * Play this match — see {@link Duke3D#startMatch}. Whatever runs is stopped and forgotten first, and the match
      * is built and its art read as the first one was.
