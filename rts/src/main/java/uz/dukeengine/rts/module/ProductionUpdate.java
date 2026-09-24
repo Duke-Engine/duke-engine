@@ -115,6 +115,11 @@ public final class ProductionUpdate extends UpdateModule {
         return queue.size();
     }
 
+    /** What is queued, in the order it will be built — the first still counting down. A copy, to read. */
+    public java.util.List<ThingTemplate> getQueue() {
+        return queue.stream().map(job -> job.unit).toList();
+    }
+
     /**
      * Whether every gate attached to this factory agrees the line may move.
      *
@@ -156,6 +161,9 @@ public final class ProductionUpdate extends UpdateModule {
                 if (ai != null) {
                     ai.moveTo(rallyPoint);
                 }
+            }
+            if (world instanceof uz.dukeengine.rts.RtsSimulation rts) {
+                rts.produced(owner, produced);
             }
         }
     }

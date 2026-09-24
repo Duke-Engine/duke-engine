@@ -102,6 +102,40 @@ class ConstructionTest {
                 "Barracks", place, 0f));
     }
 
+    /** What a game's module on the dozer hears. */
+    private static final class Foreman extends uz.dukeengine.core.module.Module implements ConstructionListener {
+        final java.util.List<GameObject> built = new java.util.ArrayList<>();
+
+        Foreman(GameObject owner) {
+            super(owner);
+        }
+
+        @Override
+        public void onConstructed(GameObject builder, GameObject building) {
+            built.add(building);
+        }
+    }
+
+    @Test
+    void aFinishedSiteSaysWhichDozerBuiltIt() {
+        var scene = scene();
+        var foreman = new Foreman(scene.dozer());
+        scene.dozer().addModule(foreman);
+        var told = new java.util.ArrayList<GameObject[]>();
+        scene.world().onConstructed((builder, building) -> told.add(new GameObject[] {builder, building}));
+        build(scene, PLACE);
+
+        for (int frame = 0; frame < 1000 && told.isEmpty(); frame++) {
+            scene.world().update();
+        }
+
+        assertEquals(1, told.size());
+        assertEquals(scene.dozer(), told.getFirst()[0], "the dozer that built it");
+        assertEquals(barracks(scene.world()), told.getFirst()[1]);
+        assertFalse(told.getFirst()[1].hasStatus(ObjectStatus.UNDER_CONSTRUCTION), "told once it is whole");
+        assertEquals(java.util.List.of(barracks(scene.world())), foreman.built, "and the dozer's own module heard");
+    }
+
     @Test
     void theMoneyGoesTheFrameTheOrderIsAccepted() {
         var scene = scene();

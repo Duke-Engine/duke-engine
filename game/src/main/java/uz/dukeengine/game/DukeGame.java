@@ -72,6 +72,10 @@ public final class DukeGame {
     private final List<Runnable> scenario = new ArrayList<>();
     private final List<Consumer<DukeGame>> startCallbacks = new ArrayList<>();
     private final List<Consumer<DukeGame>> tickCallbacks = new ArrayList<>();
+    private final List<BiConsumer<uz.dukeengine.core.thing.GameObject, uz.dukeengine.core.thing.GameObject>>
+            producedCallbacks = new ArrayList<>();
+    private final List<BiConsumer<uz.dukeengine.core.thing.GameObject, uz.dukeengine.core.thing.GameObject>>
+            constructedCallbacks = new ArrayList<>();
     private final List<double[]> intervalSeconds = new ArrayList<>(); // [seconds, callbackIndex]
     private final List<Consumer<DukeGame>> intervalCallbacks = new ArrayList<>();
     private final List<BiConsumer<DukeGame, GamePlayer>> defeatCallbacks = new ArrayList<>();
@@ -306,6 +310,23 @@ public final class DukeGame {
     public DukeGame everySeconds(double seconds, Consumer<DukeGame> callback) {
         intervalSeconds.add(new double[] {seconds, intervalCallbacks.size()});
         intervalCallbacks.add(callback);
+        return this;
+    }
+
+    /**
+     * Runs on the simulation thread whenever a factory releases a unit, as {@code (factory, unit)} — the frame it
+     * happens, in the order registered. See {@link uz.dukeengine.rts.RtsSimulation#onProduced}.
+     */
+    public DukeGame onProduced(BiConsumer<uz.dukeengine.core.thing.GameObject,
+            uz.dukeengine.core.thing.GameObject> callback) {
+        producedCallbacks.add(callback);
+        return this;
+    }
+
+    /** Runs on the simulation thread whenever a building is finished, as {@code (builder, building)}. */
+    public DukeGame onConstructed(BiConsumer<uz.dukeengine.core.thing.GameObject,
+            uz.dukeengine.core.thing.GameObject> callback) {
+        constructedCallbacks.add(callback);
         return this;
     }
 
@@ -725,6 +746,8 @@ public final class DukeGame {
         }
 
         logic = new RtsLogic();
+        producedCallbacks.forEach(logic::onProduced);
+        constructedCallbacks.forEach(logic::onConstructed);
         client = new RtsClient(logic);
         client.setCommands(this::buttonsNow);
         client.setAimFits(this::aimFitsNow);

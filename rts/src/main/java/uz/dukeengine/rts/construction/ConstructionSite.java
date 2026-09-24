@@ -78,6 +78,9 @@ public final class ConstructionSite extends UpdateModule {
         }
         if (worked >= frames) {
             site.clearStatus(ObjectStatus.UNDER_CONSTRUCTION);
+            if (world instanceof uz.dukeengine.rts.RtsSimulation rts) {
+                rts.constructed(who, site);
+            }
         }
     }
 

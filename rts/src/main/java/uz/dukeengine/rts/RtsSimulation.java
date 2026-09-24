@@ -74,6 +74,61 @@ public abstract class RtsSimulation extends GameLogic {
         LOG.warning(() -> "ignoring non-RTS command: " + command.getClass().getName());
     }
 
+    private final java.util.List<java.util.function.BiConsumer<uz.dukeengine.core.thing.GameObject,
+            uz.dukeengine.core.thing.GameObject>> producedWatchers = new java.util.ArrayList<>();
+    private final java.util.List<java.util.function.BiConsumer<uz.dukeengine.core.thing.GameObject,
+            uz.dukeengine.core.thing.GameObject>> constructedWatchers = new java.util.ArrayList<>();
+
+    /**
+     * Game code told whenever a factory releases a unit, as {@code (factory, unit)}: on the simulation's thread,
+     * the frame it happens, after the factory's own {@link uz.dukeengine.rts.module.ProductionListener}s, and in
+     * the order watchers were registered — a computer player's {@code onUnitProduced}.
+     */
+    public final void onProduced(java.util.function.BiConsumer<uz.dukeengine.core.thing.GameObject,
+            uz.dukeengine.core.thing.GameObject> watcher) {
+        producedWatchers.add(watcher);
+    }
+
+    /** Game code told whenever a building is finished, as {@code (builder, building)} — see {@link #onProduced}. */
+    public final void onConstructed(java.util.function.BiConsumer<uz.dukeengine.core.thing.GameObject,
+            uz.dukeengine.core.thing.GameObject> watcher) {
+        constructedWatchers.add(watcher);
+    }
+
+    /**
+     * {@code factory} has released {@code unit}: its {@code ProductionListener}s are told, then every watcher.
+     * What a factory's own queue does, and what game code that hands out a unit of its own from a building — a
+     * free harvester from a supply centre as it is finished — calls to say the building made it.
+     */
+    public final void produced(uz.dukeengine.core.thing.GameObject factory, uz.dukeengine.core.thing.GameObject unit) {
+        for (var module : factory.getModules()) {
+            if (module instanceof uz.dukeengine.rts.module.ProductionListener listener) {
+                listener.onProduced(unit);
+            }
+        }
+        for (var watcher : producedWatchers) {
+            watcher.accept(factory, unit);
+        }
+    }
+
+    /**
+     * {@code builder} has finished {@code building}: the {@code ConstructionListener}s on the builder, then on the
+     * building, then every watcher.
+     */
+    public final void constructed(uz.dukeengine.core.thing.GameObject builder,
+            uz.dukeengine.core.thing.GameObject building) {
+        for (var told : builder == null ? java.util.List.of(building) : java.util.List.of(builder, building)) {
+            for (var module : told.getModules()) {
+                if (module instanceof uz.dukeengine.rts.construction.ConstructionListener listener) {
+                    listener.onConstructed(builder, building);
+                }
+            }
+        }
+        for (var watcher : constructedWatchers) {
+            watcher.accept(builder, building);
+        }
+    }
+
     private uz.dukeengine.rts.construction.PlacementRules placementRules =
             uz.dukeengine.rts.construction.PlacementRules.DEFAULTS;
 
