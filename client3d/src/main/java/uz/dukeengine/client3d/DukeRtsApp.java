@@ -2027,7 +2027,7 @@ final class DukeRtsApp extends SimpleApplication {
                 if (look.modelPart != null) {
                     body = partOf(body, look.modelPart, one.path());
                 }
-                dressModel(body, look);
+                dressModel(body, look, one.path());
                 // Left in the scene, culled, for as long as the window lasts. A
                 // clone is what holds a parsed model in jME's cache; drop it and
                 // the file is read again the first time a creature needs it.
@@ -5279,7 +5279,7 @@ final class DukeRtsApp extends SimpleApplication {
             body.setLocalTranslation(0, visual.yOffset, 0);
             body.setLocalRotation(new Quaternion().fromAngles(0,
                     FastMath.DEG_TO_RAD * visual.facingDegrees, 0));
-            dressModel(body, visual);
+            dressModel(body, visual, modelPath);
             // After being dressed, because dressing replaces every material on
             // it and would put the fire out again.
             effects.lightThePartsOf(body, visual.effect);
@@ -5313,7 +5313,7 @@ final class DukeRtsApp extends SimpleApplication {
      * the pose of the skeleton driving it, so two monsters on one material would
      * both stand in whichever pose was written last.
      */
-    private void dressModel(Spatial body, Visuals.UnitVisual visual) {
+    private void dressModel(Spatial body, Visuals.UnitVisual visual, String modelPath) {
         com.jme3.texture.Texture skin = null;
         if (visual.texturePath != null) {
             try {
@@ -5324,12 +5324,50 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var tint = visual.tint == null ? ColorRGBA.White : toColor(visual.tint);
         var named = skin;
+        var marked = blendsOf(modelPath);
         body.depthFirstTraversal(spatial -> {
             if (spatial instanceof Geometry geometry) {
-                geometry.setMaterial(creatureMaterial(
-                        named != null ? named : skinOf(geometry.getMaterial()), tint));
+                var loaded = geometry.getMaterial();
+                var blend = loaded == null || loaded.getName() == null ? null : marked.get(loaded.getName());
+                var colours = named != null ? named : skinOf(loaded);
+                // A marked light or shadow stays as unlit as the file made it; the rest is lit as it always was.
+                var dressed = blend != null && ModelBlends.unlit(loaded)
+                        ? unlitMaterial(colours, tint) : creatureMaterial(colours, tint);
+                ModelBlends.carryOver(loaded, dressed, geometry, blend);
+                geometry.setMaterial(dressed);
             }
         });
+    }
+
+    /** The materials of a model file the game marked with a blend of its own — see {@link ModelBlends}. Read once. */
+    private final Map<String, Map<String, ModelBlends.Blend>> blendsByModel = new HashMap<>();
+
+    private Map<String, ModelBlends.Blend> blendsOf(String modelPath) {
+        if (modelPath == null || !modelPath.endsWith(".glb")) {
+            return Map.of();
+        }
+        return blendsByModel.computeIfAbsent(modelPath, path -> {
+            var found = assetManager.locateAsset(new com.jme3.asset.AssetKey<>(path));
+            if (found == null) {
+                return Map.of();
+            }
+            try (var in = found.openStream()) {
+                return ModelBlends.read(in);
+            } catch (java.io.IOException | RuntimeException e) {
+                warnOnce(path, "model's materials");
+                return Map.of();
+            }
+        });
+    }
+
+    /** An unlit material over a colour map, tinted: for a marked light or shadow the file drew without lighting. */
+    private Material unlitMaterial(com.jme3.texture.Texture colours, ColorRGBA tint) {
+        var material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        material.setColor("Color", tint);
+        if (colours != null) {
+            material.setTexture("ColorMap", colours);
+        }
+        return material;
     }
 
     /**
