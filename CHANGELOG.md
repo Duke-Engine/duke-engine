@@ -11,7 +11,12 @@ when it does, this page says exactly what to change and how.
   is `setAim(id, place, facing)`, and an `aimFits` lambda takes the facing too: `(button, place, facing) ->`.
   `CommandPress` carries the `facing` between `place` and `target`.
 - `World` has `random()`. Only `GameLogic` implements it in this repository; anything else that does must too.
-- `ObjectStatus` has `AIRBORNE`: a `switch` over it with no `default` needs the case.
+- `ObjectStatus` has `AIRBORNE`, `HELD` and `SOLD`: a `switch` over it with no `default` needs the cases.
+- `GameLogic.checksum()` mixes in a thing's statuses when it has any. A world where nothing has a status sums
+  as it did, so old goldens and replays hold; one where something is `HELD`, `AIRBORNE` or under construction
+  sums differently than it did in 0.5.0.
+- `GameMessage` has `Sell`, `AttackMove`, `Guard`, `Evacuate` and `ExitContainer`, each with its line in
+  `CommandCodec`: a `switch` over it with no `default` needs the cases.
 - `DamageType` is no longer an enum (see below), so `DamageType.values()` is gone: the set is open, and a game
   that walked every type — duke-dungeon's `GrowableBody` does, to armour a hero against all of them — names
   the types it means.
@@ -29,15 +34,96 @@ when it does, this page says exactly what to change and how.
   besides, staggered by id.
 - Every blow that does harm posts `ObjectHurt`, before any `ObjectDied` it causes: code that took the first event
   of a blow for its death filters for `ObjectDied`.
-- `NetMessage` has `LoadProgress`: a `switch` over it with no `default` needs the case. Machines of a network game
-  run the same engine, and the welcome line now carries the host's settings encoded.
+- `NetMessage` has `LoadProgress` and `ChatLine`: a `switch` over it with no `default` needs the cases. Machines
+  of a network game run the same engine, and the welcome line now carries the host's settings encoded.
 - A `SoundSink`'s music is a handle it hands back (`Playing music(path, gain)`), which is what lets one track fade
-  while the next plays; the interface is the client's own, so only a test's sink changes.
+  while the next plays; the interface is the client's own, so only a test's sink changes. `musicOnce` and
+  `Playing.ended` are defaults.
+- A right click gives up an armed button wherever the pointer is, and so does Escape. A right click off the
+  world's part of the window used to do nothing.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
   `HarvestUpdate.Data`, `WeaponFired`, `Weapon`, `WorldSnapshot`, `SoundBank.Cue`, `Sound`, `UnitView`,
-  `CommandButton`, `Upgrade`, `ProductionUpdate.Data` — and every new field left out means what the old record did.
+  `CommandButton`, `Upgrade`, `ProductionUpdate.Data`, `RtsTemplate`, `Shot`, `ActiveBody.Data`,
+  `ExperienceModule.Data` — and every new field left out means what the old record did. A template that names no
+  prerequisite, word or cap is buildable as before; a save from before granted words and computer sides loads.
+  `Canvas.drawPicture(Picture, …)` is a default that refuses, so a game's own canvas compiles as it did.
   `ProjectileLauncher.launch(shooter, victim, damage, type)` and `DieModule.onDie()` are still called, through the
   forms that now say more. The static `Duke3D.launch` methods are shorthand for `Duke3D.of(game, visuals)...launch()`.
+
+### Held in place
+
+`ObjectStatus.HELD` (the reference's `DISABLED_HELD`): nothing moves the thing. A move order is taken and goes
+nowhere, and a pursuit does not close in; a flyer hangs where it is. Its weapons still fire at whatever comes
+into range. It is part of the checksum.
+
+### What a side may build
+
+An `Object` block may name `Prerequisites` (each entry one requirement, its templates separated by `|`: any one of
+them, and every entry), `RequiredWords` (words the side must have been granted: sciences), `Buildability` (`YES`,
+`NO`, `ONLY_BY_COMPUTER`, `IGNORING_PREREQUISITES`), and `MaxSimultaneous` with a `MaxSimultaneousLinkKey`
+that things sharing a cap share. What counts toward a cap: things alive, sites included; factory queues; and
+builders on their way. `RtsSimulation.canBuild(player, template)` answers, and `QueueProduction` and `Construct`
+refuse what it refuses, at no cost. `grant(player, word)` gives a side a word, `setCap(linkKey, most)` caps a link
+key for the match (a game's superweapon option), and `countsAs(rule)` is the game's own equivalence: a reskin
+counting as the thing it reskins. `DukeGame.computer(player)` marks a computer side.
+
+### Selling, attack-move, guard, evacuate
+
+`GameMessage.Sell` puts a building up for sale. It is marked `SOLD` and stands in scaffold for
+`SellRules.scaffoldFrames`, then its health falls `percentPerFrame` of its most each frame down to -50%. Then it is
+gone: not destroyed, told through `StructureSold` and `DukeGame.onSold`, with `sellShare` of its cost refunded, or
+its `RefundValue` where it names one. A building killed while it comes down pays nothing.
+
+`AttackMove` walks to a place and fights whatever it meets on the way. `Guard` holds a place or keeps to a thing,
+in one of three modes: `NORMAL`, `WITHOUT_PURSUIT`, or `FLYING_ONLY`, where only what flies is engaged. The radii,
+the chase time and how often it looks are `GuardRules`. `Evacuate` empties a container and `ExitContainer` lets
+one passenger out. Every one has its line in `CommandCodec`; the numbers are the game's, the reference's by
+default.
+
+### Words in a fight
+
+`ActiveBody` may carry `ArmorSets`, each with the condition words it is for, and the best fit to the thing's words
+is its armour. The weapon bonus table (`WeaponBonus`, `DukeGame.addWeaponBonuses`) has one line per word, kind
+and multiplier. It multiplies damage, range, rate of fire (the clip's reload with it) and blast radius for every
+word a thing holds, in the order of the words sorted. `ExperienceModule`'s `LevelWords` sets the word of the rung
+a unit stands on and lets go of the others, so all three follow its rank. `BodyModule.setMaxHealth(most,
+change)` changes the most a body can have: keeping the share, adding the difference, or leaving the health as it
+is.
+
+### Players talk during a match
+
+`DukeGame.say(text, to)` sends a line to the players named. Each machine addressed hears it, the sender's
+included, in order, through `onChat` and, on the window's thread, `Duke3D.onChat`. A line to a player who has
+left goes nowhere. Chat is outside lock-step: no frame waits for it, it is not a command, and it has no part in
+a replay or the checksum.
+
+### Pictures the game makes
+
+`Picture`: ARGB rows from the top, drawn by `Canvas.drawPicture` like a file's picture: stretched, modulated,
+blended and clipped. A picture that has not changed is not uploaded again: a radar's layers and a minimap drawn
+by the game.
+
+### The world drawn in part of the window
+
+`Duke3D.worldView(left, top, width, height)` sets the part of the window the world is drawn in, the whole window
+by default. The camera keeps its vertical angle and takes the region's shape. Picking, the drag box, placing,
+edge scroll and the bars over units all work inside that part. Outside it the world takes no pointer and draws
+only black, under the game's canvas. The change shows from the next frame, and the camera does not move.
+
+### A button on the game's canvas aims as the bar's does
+
+`Duke3D.aim(button, ended)` arms the client's aim from game code. For a place, the ghost follows the cursor,
+green or red by `aimFits`, turned by a drag. For a thing, the next click on one is the target. The click where it
+fits is `pressCommand(id, place, facing, target)`. A right click, Escape, or arming another gives it up, and
+`ended` hears `AimOutcome.USED` or `GIVEN_UP`. Another form adds a circle of a radius round the cursor and a
+pointer the game names.
+
+### Music in turn
+
+`Duke3D.playlist(tracks)` plays the named cues' tracks once each, in turn, and starts again from the first after
+the last: the reference's music list (`AudioManager::nextTrackName`). The same list asked for again changes
+nothing, and a cue with no file is passed over. `music(track)` replaces the list, and null or an empty list is
+silence.
 
 ### A factory says what came out of it, and a site says when it is done
 
