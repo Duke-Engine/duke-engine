@@ -17,15 +17,31 @@ import uz.dukeengine.core.module.DeathType;
  */
 public record Weapon(String name, float damage, float attackRange, int reloadFrames, int reloadFramesMax,
         DamageType damageType, float splashRadius, boolean attackOnTheMove, List<String> targets, int clipSize,
-        int clipReloadFrames, boolean autoReload, DeathType deathType) {
+        int clipReloadFrames, boolean autoReload, DeathType deathType, List<WeaponBonus> bonuses) {
 
     /** What a block leaves out: plain damage, no splash, a shot taken on the move, at anything, no clip. */
     static final Weapon DEFAULTS = new Weapon(null, 0f, 0f, 0, 0, DamageType.NORMAL, 0f, true, List.of(), 0, 0, true,
-            DeathType.NORMAL);
+            DeathType.NORMAL, List.of());
 
+    /**
+     * @param bonuses lines of its own — {@code WeaponBonus = PLAYER_UPGRADE DAMAGE 125%} inside a reference weapon —
+     *                added to the game's table for this weapon alone: a Technical's machine gun gets the AP bullets
+     *                its rocket launcher does not
+     */
     public Weapon {
         damageType = damageType == null ? DamageType.NORMAL : damageType;
         deathType = deathType == null ? DeathType.NORMAL : deathType;
+        bonuses = bonuses == null ? List.of() : bonuses.stream()
+                .sorted(java.util.Comparator.comparing(WeaponBonus::word).thenComparing(WeaponBonus::kind))
+                .toList();
+    }
+
+    /** A weapon with no bonus lines of its own: every weapon from before a weapon could carry them. */
+    public Weapon(String name, float damage, float attackRange, int reloadFrames, int reloadFramesMax,
+            DamageType damageType, float splashRadius, boolean attackOnTheMove, List<String> targets, int clipSize,
+            int clipReloadFrames, boolean autoReload, DeathType deathType) {
+        this(name, damage, attackRange, reloadFrames, reloadFramesMax, damageType, splashRadius, attackOnTheMove,
+                targets, clipSize, clipReloadFrames, autoReload, deathType, List.of());
     }
 
     /** A weapon whose kills are plain deaths: every weapon from before a weapon said what death it deals. */

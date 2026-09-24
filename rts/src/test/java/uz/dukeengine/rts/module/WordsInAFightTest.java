@@ -95,7 +95,7 @@ class WordsInAFightTest {
     }
 
     @Test
-    void twoWordsBonusesMultiply() {
+    void twoWordsBonusesAddUpAsTheReferenceSumsThem() {
         var world = world();
         var tank = put(world, "Tank", 1, 100f);
         tank.setCondition("VETERAN");
@@ -103,7 +103,7 @@ class WordsInAFightTest {
 
         var done = fire(world, tank, put(world, "Target", 2, 140f));
 
-        assertEquals(10f * 1.1f * 1.5f, done[1] / done[0], 1e-3f);
+        assertEquals(10f * (1f + 0.1f + 0.5f), done[1] / done[0], 1e-3f);
     }
 
     @Test

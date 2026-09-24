@@ -16,7 +16,7 @@ import uz.dukeengine.rts.player.RtsPlayer;
  * <p>Captures the strategic state — frame counter, where the simulation's random
  * numbers stand, players (money, weapon-bonus, upgrades, granted words, whether a computer
  * plays them, what they earned and spent) and objects (template,
- * owner, transform, health, status, condition words) — enough
+ * owner, transform, health and most health, status, condition words) — enough
  * that a restored world has the same {@link GameLogic#checksum()} as the saved
  * one. Float values use {@link Float#toString}, which round-trips to identical
  * bits.
@@ -57,6 +57,7 @@ public final class GameSnapshot {
             var statuses = Arrays.stream(ObjectStatus.values())
                     .filter(o::hasStatus).map(Enum::name).collect(Collectors.joining(","));
             var health = o.getBody() == null ? "" : Float.toString(o.getBody().getHealth());
+            var most = o.getBody() == null ? "" : Float.toString(o.getBody().getMaxHealth());
             var pos = o.getPosition();
             sb.append("OBJECT ").append(o.getId().value()).append('|')
                     .append(o.getTemplate().name()).append('|')
@@ -67,7 +68,8 @@ public final class GameSnapshot {
                     .append(Float.toString(o.getOrientation())).append('|')
                     .append(health).append('|')
                     .append(statuses).append('|')
-                    .append(String.join(",", o.getConditions())).append('\n');
+                    .append(String.join(",", o.getConditions())).append('|')
+                    .append(most).append('\n');
         }
         return sb.toString();
     }
@@ -136,6 +138,7 @@ public final class GameSnapshot {
         var health = parts[7];
         var statuses = parts[8];
         var conditions = parts.length > 9 ? parts[9] : ""; // a save from before conditions has none
+        var most = parts.length > 10 ? parts[10] : ""; // and one from before most health, the template's
 
         var template = logic.getThingFactory().findTemplate(templateName);
         if (template == null) {
@@ -145,6 +148,12 @@ public final class GameSnapshot {
         object.setPlayerIndex(player);
         object.setPosition(new Coord3D(x, y, z));
         object.setOrientation(orientation);
+        // The most first: health is held to it, and an upgraded Crusader's 680 would be cut to its template's 480.
+        if (!most.isEmpty() && object.getBody() != null
+                && Float.parseFloat(most) != object.getBody().getMaxHealth()) {
+            object.getBody().setMaxHealth(Float.parseFloat(most),
+                    uz.dukeengine.core.module.BodyModule.MaxHealthChange.KEEP_HEALTH);
+        }
         if (!health.isEmpty() && object.getBody() != null) {
             object.getBody().setHealth(Float.parseFloat(health));
         }

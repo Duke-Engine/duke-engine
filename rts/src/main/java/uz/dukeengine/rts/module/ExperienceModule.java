@@ -2,6 +2,7 @@ package uz.dukeengine.rts.module;
 
 import java.util.ArrayList;
 import java.util.List;
+import uz.dukeengine.core.module.BodyModule;
 import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
@@ -47,18 +48,33 @@ public class ExperienceModule extends Module implements DamageModifier {
      * for whatever the game hangs off the rank itself.
      */
     public record Data(int experienceValue, List<Integer> experienceRequired, List<Float> levelDamageBonus,
-            boolean healOnPromotion, List<String> levelWords) implements ModuleData {
+            boolean healOnPromotion, List<String> levelWords, List<Float> levelHealthBonus) implements ModuleData {
 
+        /**
+         * @param levelHealthBonus what each rung makes of the most health, against no rank at all —
+         *                         {@code LevelHealthBonus = [1.2, 1.3, 1.5]}, the reference's
+         *                         {@code HealthBonus_Veteran}, {@code _Elite}, {@code _Heroic}. Reaching a rung
+         *                         scales the most health by its bonus over the last one's, the share kept.
+         */
         public Data {
             experienceRequired = experienceRequired == null ? List.of() : List.copyOf(experienceRequired);
             levelDamageBonus = levelDamageBonus == null ? List.of() : List.copyOf(levelDamageBonus);
             levelWords = levelWords == null ? List.of() : List.copyOf(levelWords);
+            levelHealthBonus = levelHealthBonus == null ? List.of() : List.copyOf(levelHealthBonus);
+            if (levelHealthBonus.size() > experienceRequired.size()) {
+                throw new IllegalArgumentException("LevelHealthBonus names more rungs than ExperienceRequired");
+            }
             if (levelDamageBonus.size() > experienceRequired.size()) {
                 throw new IllegalArgumentException("LevelDamageBonus names more rungs than ExperienceRequired");
             }
             if (levelWords.size() > experienceRequired.size()) {
                 throw new IllegalArgumentException("LevelWords names more rungs than ExperienceRequired");
             }
+        }
+
+        public Data(int experienceValue, List<Integer> experienceRequired, List<Float> levelDamageBonus,
+                boolean healOnPromotion, List<String> levelWords) {
+            this(experienceValue, experienceRequired, levelDamageBonus, healOnPromotion, levelWords, List.of());
         }
 
         public Data(int experienceValue, List<Integer> experienceRequired, List<Float> levelDamageBonus,
@@ -109,10 +125,31 @@ public class ExperienceModule extends Module implements DamageModifier {
         experience += amount;
         int earned = levelFor(experience);
         if (earned != level) {
+            int was = level;
             level = earned;
             wearTheRank();
+            takeTheRanksHealth(was);
             onPromoted();
         }
+    }
+
+    /**
+     * The most health the new rung makes of it, against the rung it left — the reference's
+     * {@code ActiveBody::onVeterancyLevelChanged}: scaled by the new bonus over the old, the share of it kept, so a
+     * unit promoted at full health stays full.
+     */
+    private void takeTheRanksHealth(int was) {
+        float ratio = healthBonus(level) / healthBonus(was);
+        var body = getOwner().getBody();
+        if (body != null && ratio != 1f) {
+            body.setMaxHealth(body.getMaxHealth() * ratio, BodyModule.MaxHealthChange.KEEP_SHARE);
+        }
+    }
+
+    /** What a rung makes of the most health: 1 for no rank, or a rung the game gave no bonus. */
+    private float healthBonus(int rung) {
+        var bonuses = data.levelHealthBonus();
+        return rung < 1 || rung > bonuses.size() ? 1f : bonuses.get(rung - 1);
     }
 
     /**

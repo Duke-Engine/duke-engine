@@ -375,7 +375,7 @@ public final class WeaponUpdate extends UpdateModule {
     private void fire(uz.dukeengine.core.thing.World world, GameObject owner, GameObject victim, Armed chosen) {
         var weapon = chosen.weapon();
         var shot = new Shot(owner.getId(), owner.getPlayerIndex(), weapon, chosen.index(), dealt(owner, weapon),
-                weapon.splashRadius() * bonus(owner, WeaponBonus.Kind.RADIUS));
+                weapon.splashRadius() * bonus(owner, weapon, WeaponBonus.Kind.RADIUS));
 
         // A shot was fired either way — the reload runs and the moment is
         // announced — but whether it lands now is the launcher's to decide.
@@ -384,7 +384,7 @@ public final class WeaponUpdate extends UpdateModule {
             victim.getBody().damage(shot.damage(), weapon.damageType(), blow(shot), middleOf(victim),
                     owner.getPosition()); // scaled by its armour
         }
-        chosen.clip().fired(world.random(), rateOfFire(owner));
+        chosen.clip().fired(world.random(), rateOfFire(owner, weapon));
         world.post(new WeaponFired(world.getFrame(), owner.getId(), victim.getId(),
                 owner.getPosition(), victim.getPosition(), weapon.name(), chosen.index(),
                 weapon.attackRange() * CONTACT_FUDGE < world.cellSize(), shot.radius()));
@@ -527,7 +527,6 @@ public final class WeaponUpdate extends UpdateModule {
         if (armed.isEmpty()) {
             return null;
         }
-        float scale = dealtScale(getOwner());
         Armed ready = null;
         Armed fallBack = null;
         float mostReady = 0f;
@@ -543,7 +542,7 @@ public final class WeaponUpdate extends UpdateModule {
                 continue;
             }
             float damage = victim.getBody() == null ? 0f
-                    : victim.getBody().estimateDamage(one.weapon().damage() * scale, one.weapon().damageType());
+                    : victim.getBody().estimateDamage(dealt(getOwner(), one.weapon()), one.weapon().damageType());
             if (damage <= 0f) {
                 continue;
             }
@@ -655,22 +654,12 @@ public final class WeaponUpdate extends UpdateModule {
      * multiplied in that order, as they always were, so a shot deals the same bits it did.
      */
     private static float dealt(GameObject owner, Weapon weapon) {
-        float dealt = weapon.damage() * damageModifiers(owner) * bonus(owner, WeaponBonus.Kind.DAMAGE);
+        float dealt = weapon.damage() * damageModifiers(owner) * bonus(owner, weapon, WeaponBonus.Kind.DAMAGE);
         var shooter = RtsPlayer.of(owner.getWorld(), owner.getPlayerIndex());
         if (shooter != null) {
             dealt *= shooter.getWeaponDamageBonus(); // player-wide upgrade bonus
         }
         return dealt;
-    }
-
-    /** This unit's modifiers times its side's bonus — the same for every weapon it carries. */
-    private static float dealtScale(GameObject owner) {
-        float scale = damageModifiers(owner) * bonus(owner, WeaponBonus.Kind.DAMAGE);
-        var shooter = RtsPlayer.of(owner.getWorld(), owner.getPlayerIndex());
-        if (shooter != null) {
-            scale *= shooter.getWeaponDamageBonus(); // player-wide upgrade bonus
-        }
-        return scale;
     }
 
     /**
@@ -690,19 +679,23 @@ public final class WeaponUpdate extends UpdateModule {
         return multiplier;
     }
 
-    /** The game's weapon bonuses for what this unit holds, of one kind, multiplied — see {@link WeaponBonus}. */
-    private static float bonus(GameObject owner, WeaponBonus.Kind kind) {
-        return owner.getWorld() instanceof uz.dukeengine.rts.RtsSimulation rts ? rts.weaponBonus(owner, kind) : 1f;
+    /**
+     * The game's weapon bonuses and this weapon's own for what this unit holds, of one kind, added up — see
+     * {@link WeaponBonus}.
+     */
+    private static float bonus(GameObject owner, Weapon weapon, WeaponBonus.Kind kind) {
+        return owner.getWorld() instanceof uz.dukeengine.rts.RtsSimulation rts
+                ? rts.weaponBonus(owner, kind, weapon.bonuses()) : 1f;
     }
 
-    /** How far a weapon reaches in this unit's hands: its range, and the game's bonuses for what it holds. */
+    /** How far a weapon reaches in this unit's hands: its range, and the bonuses for what it holds. */
     private static float range(GameObject owner, Weapon weapon) {
-        return weapon.attackRange() * bonus(owner, WeaponBonus.Kind.RANGE);
+        return weapon.attackRange() * bonus(owner, weapon, WeaponBonus.Kind.RANGE);
     }
 
-    /** Everything on this unit that changes how fast it fires, multiplied together in module order. */
-    private static float rateOfFire(GameObject owner) {
-        float multiplier = bonus(owner, WeaponBonus.Kind.RATE_OF_FIRE);
+    /** Everything that changes how fast this weapon fires in this unit's hands, multiplied together in module order. */
+    private static float rateOfFire(GameObject owner, Weapon weapon) {
+        float multiplier = bonus(owner, weapon, WeaponBonus.Kind.RATE_OF_FIRE);
         for (var module : owner.getModules()) {
             if (module instanceof RateOfFireModifier modifier) {
                 multiplier *= modifier.rateOfFireMultiplier();

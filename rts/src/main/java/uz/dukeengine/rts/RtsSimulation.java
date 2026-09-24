@@ -286,16 +286,33 @@ public abstract class RtsSimulation extends GameLogic {
                 .toList();
     }
 
-    /** What the table multiplies {@code kind} by for {@code thing}, as its words stand now. */
+    /** What the table makes {@code kind} for {@code thing}, as its words stand now — see the overload below. */
     public final float weaponBonus(uz.dukeengine.core.thing.GameObject thing,
             uz.dukeengine.rts.module.WeaponBonus.Kind kind) {
-        float product = 1f;
+        return weaponBonus(thing, kind, java.util.List.of());
+    }
+
+    /**
+     * What the table and a weapon's own lines make {@code kind} for {@code thing}, as its words stand now: 1, and for
+     * every line whose word it holds, what that line adds over 1 — {@code 1 + Σ(multiplier − 1)}, as the reference's
+     * {@code WeaponBonus::appendBonuses} sums the game's set and then the weapon's extra one. Added in a fixed order,
+     * the table's lines by their words and then the weapon's, so it comes to the same bits on every machine.
+     */
+    public final float weaponBonus(uz.dukeengine.core.thing.GameObject thing,
+            uz.dukeengine.rts.module.WeaponBonus.Kind kind,
+            java.util.List<uz.dukeengine.rts.module.WeaponBonus> own) {
+        float sum = 1f;
         for (var line : weaponBonuses) {
             if (line.kind() == kind && thing.hasCondition(line.word())) {
-                product *= line.multiplier();
+                sum += line.multiplier() - 1f;
             }
         }
-        return product;
+        for (var line : own) {
+            if (line.kind() == kind && thing.hasCondition(line.word())) {
+                sum += line.multiplier() - 1f;
+            }
+        }
+        return sum;
     }
 
     // ---- what a side may make ----
