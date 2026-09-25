@@ -104,8 +104,7 @@ final class RtsClient extends GameClient {
         var events = new ArrayList<uz.dukeengine.core.event.WorldEvent>();
         boolean everything = viewerPlayer == EVERYONE;
         for (var event : drained) {
-            var where = event.where();
-            if ((everything || where == null || logic.canSee(viewerPlayer, where)) && !firedUnseen(event, everything)) {
+            if (shown(event, everything)) {
                 events.add(event);
             }
         }
@@ -188,6 +187,27 @@ final class RtsClient extends GameClient {
                 everything || logic.isMapRevealedTo(viewerPlayer),
                 contextOrder.get(),
                 beams);
+    }
+
+    /**
+     * Whether this viewer is shown {@code event}: where it happened is in its sight, and it is no shot of a thing hidden
+     * from it — or, for a text that says who sees it, it is one of those players, or the owner of the thing the text is
+     * about, or sees that thing.
+     */
+    private boolean shown(uz.dukeengine.core.event.WorldEvent event, boolean everything) {
+        if (event instanceof uz.dukeengine.core.event.TextFloated text
+                && (!text.shownTo().isEmpty() || text.about() != null)) {
+            if (everything) {
+                return true;
+            }
+            if (!text.shownTo().isEmpty()) {
+                return text.shownTo().contains(viewerPlayer);
+            }
+            var thing = logic.findObject(text.about());
+            return thing != null && logic.canSee(viewerPlayer, thing);
+        }
+        var where = event.where();
+        return (everything || where == null || logic.canSee(viewerPlayer, where)) && !firedUnseen(event, everything);
     }
 
     /** Whether {@code event} is a shot fired by something hidden from this viewer, whose shots it is not shown. */

@@ -1642,6 +1642,20 @@ public final class DukeGame {
     }
 
     /**
+     * The same, rising from a thing and shown only to its owner and to whoever may see it — a hidden building's income
+     * told to no enemy who has not found it. From any thread; a thing gone by then floats nothing.
+     */
+    public void floatTextAbout(uz.dukeengine.core.thing.ObjectId thing, String text, int argb) {
+        var world = logic;
+        world.postTask(() -> {
+            var about = world.findObject(thing);
+            if (about != null) {
+                world.post(uz.dukeengine.core.event.TextFloated.about(world.getFrame(), about, text, argb));
+            }
+        });
+    }
+
+    /**
      * Play the effect of that name at a point of the world, turned to {@code facing} — a moment, an effect list, an
      * effect or a particle system the game named — from any thread, as {@link #floatText}: the simulation's own code
      * calls {@code World.effect}, which this posts. Not part of the checksum: it is an event.
