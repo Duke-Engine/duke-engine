@@ -58,7 +58,8 @@ final class Engaging {
         var at = victim.getPosition();
         float cell = unit.getWorld().cellSize();
         if (chasedTo == null || at.distance(chasedTo) > cell || !legs.isMoving()) {
-            legs.moveExactlyTo(legs.flies() ? at : unit.getWorld().standingNextTo(unit, victim));
+            legs.moveExactlyTo(legs.flies() || weapon.closesToTouch(victim) ? at
+                    : unit.getWorld().standingNextTo(unit, victim));
             return at;
         }
         return chasedTo;

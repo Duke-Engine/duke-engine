@@ -91,8 +91,10 @@ public final class PursueUpdate extends UpdateModule {
         }
         plannedFor = victim.getPosition();
         plans++;
-        // Something in the air goes straight to it; something on the ground to a spot beside it it can reach.
-        legs.moveExactlyTo(legs.flies() ? victim.getPosition() : world.standingNextTo(owner, victim));
+        // Something in the air goes straight to it, and so does a weapon that must touch; something on the ground to a
+        // spot beside it it can reach.
+        legs.moveExactlyTo(legs.flies() || weapon.closesToTouch(victim) ? victim.getPosition()
+                : world.standingNextTo(owner, victim));
     }
 
     /**

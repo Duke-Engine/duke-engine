@@ -20,6 +20,15 @@ public record Weapon(String name, float damage, float attackRange, int reloadFra
         int clipReloadFrames, boolean autoReload, DeathType deathType, List<WeaponBonus> bonuses,
         List<Affects> affects, float secondaryDamage, float secondaryRadius) {
 
+    /**
+     * Whether it is a contact weapon: its range less a quarter of a cell under a cell — the reference's {@code
+     * WeaponTemplate::isContactWeapon}, whose range it undersizes so the goal is not teetering on the edge of firing
+     * range. A unit closing with one runs into its target itself rather than to a spot a cell off.
+     */
+    public boolean isContact(float cell) {
+        return attackRange - cell / 4f < cell;
+    }
+
     /** What a block leaves out: plain damage, no splash, a shot taken on the move, at anything, no clip. */
     static final Weapon DEFAULTS = new Weapon(null, 0f, 0f, 0, 0, DamageType.NORMAL, 0f, true, List.of(), 0, 0, true,
             DeathType.NORMAL, List.of(), List.of(), 0f, 0f);
