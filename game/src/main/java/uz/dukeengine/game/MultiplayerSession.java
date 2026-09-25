@@ -395,6 +395,28 @@ public final class MultiplayerSession implements AutoCloseable {
         gate.pumpBetweenFrames();
     }
 
+    /**
+     * Whom the game is waiting for while it does not move, and how long since each was last heard from — for a waiting
+     * screen, the reference's, which it shows once the frame has not moved for 5 s. Empty while the game moves.
+     */
+    public List<uz.dukeengine.core.network.LockstepGate.Waiting> waitingFor() {
+        return gate.waitingFor();
+    }
+
+    /**
+     * On the host: take out a player who has sent nothing for {@code limit} while the game waits on him, his silence
+     * filled in and his leaving told from a frame nobody has run, the same on every machine — as one whose link closed
+     * is. The reference's is 60 s; {@code Duration.ZERO}, the default, waits for ever.
+     */
+    public void setSilenceLimit(java.time.Duration limit) {
+        gate.setSilenceLimit(limit == null ? 0L : limit.toMillis());
+    }
+
+    /** On the host: take {@code player} out on the game's word — a vote on its waiting screen — the same way. */
+    public void takeOut(int player) {
+        gate.takeOut(player);
+    }
+
     /** Told, by player index, when a player drops out of the game. */
     public void onPlayerLeft(IntConsumer listener) {
         gate.onPlayerLeft(listener);

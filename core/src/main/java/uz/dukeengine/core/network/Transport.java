@@ -43,4 +43,11 @@ public interface Transport {
      */
     default void onLinkLost(IntConsumer listener) {
     }
+
+    /**
+     * Let a peer's link go — the relay taking a player out of the game, who sent nothing for too long or was voted
+     * out: reported as a lost link is, in order. Nothing, for a transport that is no relay.
+     */
+    default void drop(int playerIndex) {
+    }
 }

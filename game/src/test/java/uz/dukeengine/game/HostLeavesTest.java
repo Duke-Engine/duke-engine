@@ -30,13 +30,13 @@ class HostLeavesTest {
     private static final int PLAYED_AFTER = 1800;
 
     /** One world: its sum every frame, and the frame each player was told gone on. */
-    private record Watched(DukeGame game, Map<Integer, Long> sums, Map<Integer, Integer> leftAt) {
+    record Watched(DukeGame game, Map<Integer, Long> sums, Map<Integer, Integer> leftAt) {
         int frame() {
             return game.getLogic().getFrame();
         }
     }
 
-    private static Watched watched(int players, MultiplayerSession session) {
+    static Watched watched(int players, MultiplayerSession session) {
         var game = DukeGame.create("host-leaves").loadUnits(DukeGame.STARTER_UNITS);
         for (int i = 1; i <= players; i++) {
             game.spawn("Rifleman", game.addPlayer("P" + i, Color.BLUE), 200f * i, 0f); // unit i is player i's
@@ -49,7 +49,7 @@ class HostLeavesTest {
         return new Watched(game, sums, leftAt);
     }
 
-    private static List<MultiplayerSession> sessions(int port, int players) throws Exception {
+    static List<MultiplayerSession> sessions(int port, int players) throws Exception {
         var hosted = new AtomicReference<MultiplayerSession>();
         var failed = new AtomicReference<Exception>();
         var hosting = new Thread(() -> {
@@ -88,7 +88,7 @@ class HostLeavesTest {
     }
 
     /** Every world stepped until each is past {@code frame}, or the time is up. */
-    private static void stepUntil(List<Watched> worlds, int frame, long giveUp) throws InterruptedException {
+    static void stepUntil(List<Watched> worlds, int frame, long giveUp) throws InterruptedException {
         while (worlds.stream().anyMatch(w -> w.frame() < frame) && System.nanoTime() < giveUp) {
             int wasAt = worlds.stream().mapToInt(Watched::frame).sum();
             for (var world : worlds) {

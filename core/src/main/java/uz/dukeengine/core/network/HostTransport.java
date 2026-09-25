@@ -98,6 +98,12 @@ public final class HostTransport implements Transport, AutoCloseable {
         }
     }
 
+    /** The link to {@code playerIndex} let go at the next pump, after whatever arrived from it before. */
+    @Override
+    public void drop(int playerIndex) {
+        inbox.add(new Arrival(playerIndex, null));
+    }
+
     @Override
     public void pump() {
         Arrival arrival;

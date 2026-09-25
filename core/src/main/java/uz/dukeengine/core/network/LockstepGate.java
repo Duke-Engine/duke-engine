@@ -47,6 +47,13 @@ import uz.dukeengine.core.message.Command;
  *
  * <p>Who left is told as the frame they left from runs, on every peer alike, so what a game does about it — hand their
  * side to an ally, or take it away — happens on the same frame everywhere.
+ *
+ * <p><b>A peer that goes quiet</b>, its connection still open — a machine hung, asleep, or off its network without the
+ * connection being reset — stalls every other for good unless someone decides. While a frame waits, the gate says whom
+ * it waits for and how long since each was heard from ({@link #waitingFor}), for a game to draw its waiting screen; the
+ * relay takes out a player silent past the limit the game sets ({@link #setSilenceLimit}), or on the game's word, a
+ * vote ({@link #takeOut}), exactly as it takes out one whose link closed — the reference's {@code DisconnectManager}.
+ * A player taken out is told so and stops.
  */
 public final class LockstepGate {
 
@@ -75,6 +82,21 @@ public final class LockstepGate {
     private final java.util.TreeMap<Integer, List<Integer>> leaving = new java.util.TreeMap<>();
     /** The frame about to run. */
     private int nextFrame;
+    /** When each player was last heard from, on this machine's clock: what a waiting screen shows, never the game. */
+    private final Map<Integer, Long> lastHeard = new HashMap<>();
+    private final long startedAt = System.currentTimeMillis();
+    /** How long a player may say nothing while a frame waits on him before the relay takes him out; 0 for ever. */
+    private long silenceLimitMillis;
+    /** Those the relay has declared gone, each once. */
+    private final java.util.Set<Integer> declaredGone = new java.util.HashSet<>();
+    /** Those the game has voted out, taken out by the relay at its next frame. */
+    private final java.util.concurrent.ConcurrentLinkedQueue<Integer> votedOut =
+            new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private volatile List<Waiting> waiting = List.of();
+
+    /** A player a frame waits on, and how long since anything was heard from him. */
+    public record Waiting(int player, long silentMillis) {
+    }
 
     /** How many run frames' packets are kept to resend: no peer is more than a frame delay or two behind another. */
     private static final int HISTORY_FRAMES = 64;
@@ -238,6 +260,30 @@ public final class LockstepGate {
         return desync;
     }
 
+    /**
+     * Whom the frame about to run is waiting for, and how long since each was last heard from — empty while the game
+     * moves. From any thread.
+     */
+    public List<Waiting> waitingFor() {
+        return waiting;
+    }
+
+    /**
+     * For the relay: take out a player who has sent nothing for {@code millis} while a frame waits on him, as one whose
+     * link closed is — the reference's NetworkPlayerTimeoutTime, 60 s. 0, the default, waits for ever.
+     */
+    public void setSilenceLimit(long millis) {
+        this.silenceLimitMillis = Math.max(0L, millis);
+    }
+
+    /**
+     * For the relay: take {@code player} out at its next frame, on the game's word — the reference's vote on its
+     * waiting screen — as one whose link closed is. From any thread; a guest's word takes nobody out.
+     */
+    public void takeOut(int player) {
+        votedOut.add(player);
+    }
+
     /** Queue a command from local input; it ships with the next submission. */
     public void issueLocal(Command command) {
         pending.add(command);
@@ -287,6 +333,10 @@ public final class LockstepGate {
         retireOnceAllHaveResent(frame);
         submitLocal(frame);
         compareWorlds(logic, frame);
+        if (host && state.canAdvance()) {
+            takeOutTheSilentAndTheVoted(frame);
+        }
+        waiting = state.canAdvance() ? awaited(frame) : List.of();
 
         // compareWorlds may have just stopped the game, so the state is re-checked
         // here rather than only on the way in.
@@ -340,6 +390,44 @@ public final class LockstepGate {
         handleLostLinks(frame);
     }
 
+    /** Those still in whose packet for {@code frame} has not come, and how long since each was heard from. */
+    private List<Waiting> awaited(int frame) {
+        long now = System.currentTimeMillis();
+        var awaited = new ArrayList<Waiting>();
+        for (var player : new java.util.TreeSet<>(scheduler.getPlayers())) {
+            if (scheduler.isExpectedAt(frame, player) && !scheduler.hasSubmitted(frame, player)) {
+                awaited.add(new Waiting(player, now - lastHeard.getOrDefault(player, startedAt)));
+            }
+        }
+        return awaited;
+    }
+
+    /** The relay's decisions: those silent past the limit while this frame waits on them, and those voted out. */
+    private void takeOutTheSilentAndTheVoted(int frame) {
+        if (silenceLimitMillis > 0) {
+            for (var one : awaited(frame)) {
+                if (one.silentMillis() > silenceLimitMillis) {
+                    takeOut(one.player(), frame);
+                }
+            }
+        }
+        Integer voted;
+        while ((voted = votedOut.poll()) != null) {
+            takeOut(voted, frame);
+        }
+    }
+
+    /** Take a player out: his silence filled in and his leaving said — to him too — then his link let go. */
+    private void takeOut(int player, int frame) {
+        if (player == localPlayer || declaredGone.contains(player) || !scheduler.getPlayers().contains(player)
+                || !scheduler.isExpectedAt(frame, player)) {
+            return;
+        }
+        lostLinks.add(player);
+        handleLostLinks(frame);
+        transport.drop(player);
+    }
+
     /** Those leaving from {@code frame}, or before it, told now — the same frame on every peer. */
     private void tellWhoLeft(int frame) {
         while (!leaving.isEmpty() && leaving.firstKey() <= frame) {
@@ -371,6 +459,7 @@ public final class LockstepGate {
     private void receive(NetMessage message) {
         switch (message) {
             case CommandPacket packet -> {
+                lastHeard.put(packet.playerIndex(), System.currentTimeMillis());
                 highestHeld.merge(packet.playerIndex(), packet.frame(), Math::max);
                 if (packet.frame() < nextFrame) {
                     return; // a frame already run here: a resend's, after the relay moved
@@ -379,6 +468,10 @@ public final class LockstepGate {
                 scheduler.submit(packet.frame(), packet.playerIndex(), packet.commands());
             }
             case PeerLeft left -> {
+                if (left.playerIndex() == localPlayer) {
+                    disconnect(); // taken out by the relay: out of the game, not hunting for it
+                    return;
+                }
                 scheduler.retirePlayer(left.playerIndex(), left.fromFrame());
                 leaving.computeIfAbsent(left.fromFrame(), f -> new ArrayList<>()).add(left.playerIndex());
             }
@@ -513,6 +606,9 @@ public final class LockstepGate {
             return;
         }
         for (var player : lost) {
+            if (!declaredGone.add(player)) {
+                continue; // taken out already: its link closing now changes nothing
+            }
             // Far enough ahead that nobody has run it — and past every packet of theirs anybody could have had, as
             // the relay has seen each: a frame some peer ran with their commands is a frame all run with them.
             int fromFrame = Math.max(frame + frameDelay, highestHeld.getOrDefault(player, -1) + 1);
