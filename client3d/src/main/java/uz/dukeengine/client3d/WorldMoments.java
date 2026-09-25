@@ -78,6 +78,16 @@ final class WorldMoments {
                 new Quaternion().fromAngleAxis(-death.orientation(), Vector3f.UNIT_Y), thing, null, 0f);
     }
 
+    /**
+     * An effect the simulation played: on the thing it rides, where the thing is drawn now, or at its point; turned
+     * the way it says.
+     */
+    static EffectLists.Cue played(uz.dukeengine.core.event.EffectPlayed played, Spatial riding, Floor floor) {
+        var at = riding != null ? riding.getWorldTranslation().clone() : standing(played.where(), floor);
+        return new EffectLists.Cue(at, new Quaternion().fromAngleAxis(-played.facing(), Vector3f.UNIT_Y), riding,
+                null, 0f);
+    }
+
     /** A place of the simulation's in the client's frame, at its own height or on the floor, whichever is higher. */
     static Vector3f standing(Coord3D at, Floor floor) {
         return new Vector3f(at.x(), Math.max(floor.at(at.x(), at.y()), at.z()), at.y());

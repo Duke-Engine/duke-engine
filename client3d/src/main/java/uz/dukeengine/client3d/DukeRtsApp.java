@@ -4921,6 +4921,28 @@ final class DukeRtsApp extends SimpleApplication {
      * {@code fired.<weapon>}, {@code landed.<weapon>} — played where {@link WorldMoments} says it happened: an
      * effect list, an effect, or a particle system of that name.
      */
+    /**
+     * An effect the simulation played: the moment of that name, or else the game's effect list, effect or particle
+     * system of that name — riding the thing it names where it names one it can draw. A name the game has none of
+     * draws nothing.
+     */
+    private void played(uz.dukeengine.core.event.EffectPlayed played) {
+        var rider = played.riding() == null ? null : unitNodes.get(played.riding().value());
+        var riding = rider == null ? null : rider.root;
+        var cue = WorldMoments.played(played, riding, this::floorHeightAt);
+        int on = rider == null ? LayeredEffects.NOBODY : played.riding().value();
+        if (visuals.getMoment(played.name()) != null) {
+            moment(played.name(), cue, on);
+            return;
+        }
+        if (lists != null && lists.play(played.name(), cue)) {
+            return;
+        }
+        if (layered != null && !layered.rides(played.name(), riding)) {
+            layered.cast(played.name(), new LayeredEffects.Moment(cue.at(), null, null, 0f, 1f, 0f, on, on), cam);
+        }
+    }
+
     private void moment(String name, EffectLists.Cue cue, int on) {
         var look = visuals.getMoment(name);
         if (look == null || cue == null) {
@@ -5040,6 +5062,8 @@ final class DukeRtsApp extends SimpleApplication {
                 }
             } else if (event instanceof uz.dukeengine.core.event.TextFloated text) {
                 floatingTexts.add(text, text.frame());
+            } else if (event instanceof uz.dukeengine.core.event.EffectPlayed played) {
+                played(played);
             } else if (event instanceof ShotLanded landed && landed.weapon() != null) {
                 var victim = landed.victim() == null ? null : unitNodes.get(landed.victim().value());
                 moment("landed." + landed.weapon(),

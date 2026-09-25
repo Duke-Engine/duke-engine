@@ -221,6 +221,48 @@ class EffectListsTest {
         assertTrue(burning.isDestroyed(), "gone with the truck");
     }
 
+    /**
+     * An effect the simulation played on a thing is cued on it, and what attaches to a thing follows it; one at a
+     * point stands there turned its way; a name the game has no list by plays nothing.
+     */
+    @Test
+    void anEffectTheSimulationPlayedOnAThingFollowsIt() {
+        var scene = scene("""
+                EffectList
+                  Name = Burning
+                  Entries = [
+                    ParticleSystem
+                      Name = Smoke
+                      AttachToObject = Yes
+                    End
+                  ]
+                End
+                """);
+        var world = new Node("world");
+        var truck = new Node("truck");
+        truck.setLocalTranslation(10f, 0f, 20f);
+        world.attachChild(truck);
+        world.updateGeometricState();
+        var onTruck = new uz.dukeengine.core.event.EffectPlayed(5, "Burning", new Coord3D(10f, 20f, 0f), 0f,
+                new ObjectId(3));
+
+        var cue = WorldMoments.played(onTruck, truck, FLAT);
+        assertSame(truck, cue.thing());
+        assertTrue(scene.lists().play("Burning", cue));
+        var burning = scene.systems().emitters().getFirst();
+        truck.setLocalTranslation(30f, 0f, 40f);
+        world.updateGeometricState();
+        scene.systems().update();
+        assertAt(30f, -40f, 0f, burning);
+
+        var atAPoint = WorldMoments.played(new uz.dukeengine.core.event.EffectPlayed(5, "Burning",
+                new Coord3D(70f, 80f, 30f), 1f, null), null, FLAT);
+        assertEquals(new Vector3f(70f, 30f, 80f), atAPoint.at());
+        assertEquals(facing(1f), atAPoint.turn());
+        assertNull(atAPoint.thing());
+        assertFalse(scene.lists().play("NoSuchList", atAPoint), "no list by that name: nothing played, nothing broken");
+    }
+
     /** A tank whose gun has two barrels, a muzzle each: the reference's MUZZLE01 and MUZZLE02, and flashes. */
     private static Node tank() {
         var model = new Node("tank");

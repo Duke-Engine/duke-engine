@@ -160,6 +160,22 @@ public interface World {
     void post(WorldEvent event);
 
     /**
+     * Play the effect of that name at a point, turned to {@code facing} — see
+     * {@link uz.dukeengine.core.event.EffectPlayed}: shown by every machine's
+     * client from this frame, where its player sees the point. An event, so out
+     * of the checksum.
+     */
+    default void effect(String name, uz.dukeengine.core.math.Coord3D where, float facing) {
+        post(new uz.dukeengine.core.event.EffectPlayed(getFrame(), name, where, facing, null));
+    }
+
+    /** Play the effect of that name riding {@code thing}, from where it stands and turned the way it faces. */
+    default void effect(String name, GameObject thing) {
+        post(new uz.dukeengine.core.event.EffectPlayed(getFrame(), name, thing.getPosition(), thing.getOrientation(),
+                thing.getId()));
+    }
+
+    /**
      * The object that would be in the way if {@code mover} stood at
      * {@code position}, or {@code null} if the space is free — the question a
      * locomotor asks before every step.

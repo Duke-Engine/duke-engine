@@ -1641,6 +1641,16 @@ public final class DukeGame {
                 new Coord3D(x, y, z), text, argb)));
     }
 
+    /**
+     * Play the effect of that name at a point of the world, turned to {@code facing} — a moment, an effect list, an
+     * effect or a particle system the game named — from any thread, as {@link #floatText}: the simulation's own code
+     * calls {@code World.effect}, which this posts. Not part of the checksum: it is an event.
+     */
+    public void effect(String name, float x, float y, float z, float facing) {
+        var world = logic;
+        world.postTask(() -> world.effect(name, new Coord3D(x, y, z), facing));
+    }
+
     /** Thread-safe: run work on the simulation thread next frame. */
     public void runOnSimThread(Runnable task) {
         logic.postTask(task);

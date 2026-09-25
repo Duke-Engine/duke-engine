@@ -324,6 +324,15 @@ final class LayeredEffects {
         systems.startAt(name, placementAt(spot, 0f));
     }
 
+    /** A particle system of that name riding a thing's node till it is gone; false where the game has none by it. */
+    boolean rides(String name, Spatial node) {
+        if (systems == null || node == null || visuals.particleSystemNamed(name) == null) {
+            return false;
+        }
+        rideSystem(NOBODY, name, node, null);
+        return true;
+    }
+
     /** A particle system riding a thing's node — its place and its turn — until the thing is gone. */
     private void rideSystem(int id, String name, Spatial node, Vector3f offset) {
         if (systems == null || node == null || visuals.particleSystemNamed(name) == null) {
