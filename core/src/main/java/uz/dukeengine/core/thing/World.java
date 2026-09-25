@@ -84,9 +84,13 @@ public interface World {
         return uz.dukeengine.core.pathfind.PathGrid.DEFAULT_CELL_SIZE;
     }
 
-    /** Whether {@code who} is standing near enough to {@code what} to work on it: within a cell of touching. */
+    /**
+     * Whether {@code who} is standing near enough to {@code what} to work on it: within a cell of touching. A hair over
+     * counts — {@link #standingNextTo} stops a mover exactly a cell short, and the sums that put it there end a few
+     * millionths past it.
+     */
     default boolean isBeside(GameObject who, GameObject what) {
-        return reachBetween(who, what) <= cellSize();
+        return reachBetween(who, what) <= cellSize() * (1f + 1e-4f);
     }
 
     /**

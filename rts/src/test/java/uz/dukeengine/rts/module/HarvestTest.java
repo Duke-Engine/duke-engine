@@ -402,5 +402,106 @@ class HarvestTest {
         assertEquals(100, money, "and back, and was paid");
         assertTrue(!paidAwayFromTheCentre, "only beside the centre");
     }
-}
 
+    // ---- loaded only beside its pile, idle once ordered, one place to work ----
+
+    @Test
+    void aHarvesterMovedOffItsPileMidLoadTakesNothingMoreUntilItIsBackBesideIt() {
+        logic.setPathGrid(new PathGrid(60, 60));
+        var truck = spawnAt(kind("Truck", new ActiveBody.Data(100f), new MoveUpdate.Data(30f),
+                new HarvestUpdate.Data(300, 0, 0f, 0, 10, 75)), 120f, 100f);
+        spawnAt(kind("Centre", new SupplyDepot.Data()), 450f, 450f);
+        var pile = spawnAt(kind("Warehouse", new SupplyModule.Data(1000)), 100f, 100f);
+        var harvest = truck.findModule(HarvestUpdate.class);
+        for (int frame = 0; frame < 200 && harvest.getCarrying() < 75; frame++) {
+            logic.update();
+        }
+        assertEquals(75, harvest.getCarrying(), "a box handed over");
+
+        truck.setPosition(new Coord3D(120f, 350f, 0f)); // 250 off the pile, mid-load
+        int frames = 0;
+        while (!logic.isBeside(truck, pile) && frames < 2000) {
+            logic.update();
+            frames++;
+            assertEquals(75, harvest.getCarrying(), "nothing taken away from the pile, frame " + frames);
+        }
+        assertTrue(logic.isBeside(truck, pile), "it went back to it");
+        for (int frame = 0; frame < 200 && harvest.getCarrying() < 300; frame++) {
+            logic.update();
+        }
+        assertEquals(300, harvest.getCarrying(), "and filled up there");
+    }
+
+    @Test
+    void aLoadedTruckOrderedAwayStandsThereWithItsLoadUntilItIsToldWhereToWork() {
+        logic.setPathGrid(new PathGrid(60, 60));
+        var truck = spawnAt(kind("Truck", new ActiveBody.Data(100f), new MoveUpdate.Data(30f),
+                new HarvestUpdate.Data(300, 10, 0f)), 450f, 100f);
+        var centre = spawnAt(kind("Centre", new SupplyDepot.Data()), 100f, 100f);
+        spawnAt(kind("Warehouse", new SupplyModule.Data(1000)), 480f, 100f);
+        var harvest = truck.findModule(HarvestUpdate.class);
+        for (int frame = 0; frame < 500 && harvest.getCarrying() < 300; frame++) {
+            logic.update();
+        }
+        assertEquals(300, harvest.getCarrying());
+
+        var away = new Coord3D(450f, 400f, 0f);
+        truck.getLocomotor().moveTo(away); // the order, as the engine carries it out
+        harvest.onOrder(new GameMessage.MoveTo(usa, java.util.List.of(truck.getId()), away)); // and then tells it
+        for (int frame = 0; frame < 700; frame++) {
+            logic.update();
+        }
+        assertTrue(harvest.isPaused());
+        assertTrue(truck.getPosition().distance(away) < 1f, "it stands where it was sent: " + truck.getPosition());
+        assertEquals(300, harvest.getCarrying(), "with its load");
+        assertEquals(0, logic.getRtsPlayer(usa).getMoney(), "and nothing paid");
+
+        harvest.workAt(centre);
+        for (int frame = 0; frame < 2000 && logic.getRtsPlayer(usa).getMoney() == 0; frame++) {
+            logic.update();
+        }
+        assertEquals(300, logic.getRtsPlayer(usa).getMoney(), "told where to work, it goes and is paid");
+    }
+
+    @Test
+    void aTruckWithAPartLoadToldItsDepotDeliversItAtOnce() {
+        logic.setPathGrid(new PathGrid(60, 60));
+        var truck = spawnAt(kind("Truck", new ActiveBody.Data(100f), new MoveUpdate.Data(30f),
+                new HarvestUpdate.Data(300, 0, 0f, 0, 10, 100)), 470f, 100f);
+        var centre = spawnAt(kind("Centre", new SupplyDepot.Data()), 100f, 100f);
+        spawnAt(kind("Warehouse", new SupplyModule.Data(1000)), 500f, 100f);
+        var harvest = truck.findModule(HarvestUpdate.class);
+        for (int frame = 0; frame < 300 && harvest.getCarrying() < 100; frame++) {
+            logic.update();
+        }
+        assertEquals(100, harvest.getCarrying(), "100 of 300");
+
+        harvest.workAt(centre);
+        for (int frame = 0; frame < 2000 && logic.getRtsPlayer(usa).getMoney() == 0; frame++) {
+            logic.update();
+        }
+        assertEquals(100, logic.getRtsPlayer(usa).getMoney(), "paid its 100 on arrival");
+    }
+
+    @Test
+    void aPileNamedAfterADepotIsWorkedAndItsLoadsGoToTheNearestDepot() {
+        logic.setPathGrid(new PathGrid(60, 60));
+        var truck = spawnAt(kind("Truck", new ActiveBody.Data(100f), new MoveUpdate.Data(60f),
+                new HarvestUpdate.Data(100, 10, 0f)), 150f, 100f);
+        spawnAt(kind("NearCentre", new SupplyDepot.Data()), 100f, 100f);
+        var far = spawnAt(kind("FarCentre", new SupplyDepot.Data()), 500f, 500f);
+        var pile = spawnAt(kind("Warehouse", new SupplyModule.Data(1000)), 100f, 300f);
+        var harvest = truck.findModule(HarvestUpdate.class);
+
+        harvest.workAt(far);
+        harvest.workAt(pile); // the last named: the depot told before it is forgotten
+        boolean everAtFar = false;
+        for (int frame = 0; frame < 3000 && logic.getRtsPlayer(usa).getMoney() < 200; frame++) {
+            logic.update();
+            everAtFar |= logic.isBeside(truck, far);
+        }
+        assertEquals(200, logic.getRtsPlayer(usa).getMoney(), "two loads delivered");
+        assertEquals(800, pile.findModule(SupplyModule.class).getRemaining(), "both from the pile it was told");
+        assertTrue(!everAtFar, "to the nearest depot, never the far one told before");
+    }
+}

@@ -20,11 +20,13 @@ import uz.dukeengine.rts.player.RtsPlayer;
  * it stands. Both of those are what the whole module used to do, so a game that had neither keeps working exactly
  * as it did.
  *
- * <p><b>Told where to work</b> ({@link #workAt}) — the reference's preferred dock, a warehouse the player clicked — it
- * works there until told another or it is gone, however far it is. <b>Paid on arrival:</b> a load is banked only
- * once the harvester is beside the depot it carries it to, as the reference's truck is paid only docked; a trip cut
- * short, by an order elsewhere or a way that ends short, keeps its load, and the harvester sets off for the depot
- * again a second later.
+ * <p><b>Told where to work</b> ({@link #workAt}) — the reference's preferred dock, a warehouse or a supply centre the
+ * player clicked — it works there until told another place or it is gone, however far it is: one place, the last named.
+ * <b>Loaded and paid only beside:</b> it takes a load only while it stands beside its pile, and banks it only beside the
+ * depot it carries it to, as the reference's truck is loaded and paid only docked; a trip cut short keeps its load, and
+ * the harvester sets off again a second later. <b>Ordered elsewhere</b> — any order its player gives it, a move, an
+ * attack, a stop, a guard — it stops working and keeps what it carries, until it is next told where to work, as the
+ * reference's truck goes idle.
  *
  * <p>The walking is the point. Without it there was no distance to a pile and so no reason to put one
  * anywhere, no reason to defend a depot, and no cost to mining the far side of the map — which is most of
@@ -54,7 +56,7 @@ import uz.dukeengine.rts.player.RtsPlayer;
  *                      whose boxes are worth 75 of it says 75 here, and 300 as the load of four
  */
 @ModuleGroup(RtsModuleGroups.ECONOMY)
-public final class HarvestUpdate extends UpdateModule {
+public final class HarvestUpdate extends UpdateModule implements OrderListener {
 
     /** Where it is in the loop. */
     private enum Doing {
@@ -90,10 +92,10 @@ public final class HarvestUpdate extends UpdateModule {
     private static final int RETRY_FRAMES = GameConstants.LOGICFRAMES_PER_SECOND;
 
     private Doing doing = Doing.FETCHING;
-    /** The pile it was told to work, or null for the nearest. */
-    private GameObject pile;
-    /** The depot it was told to deliver to, or null for the nearest. */
-    private GameObject depot;
+    /** The one place it was told to work — a pile to fetch from or a depot of its side — or null for the nearest. */
+    private GameObject place;
+    /** Whether its player has ordered it elsewhere since it was last told where to work. */
+    private boolean paused;
     /** Frames before a harvester whose trip ended short sets off for its depot again. */
     private int retryIn;
     /** The pile it walked to, which a unit-at-a-time load is handed from until it is done. */
@@ -119,7 +121,7 @@ public final class HarvestUpdate extends UpdateModule {
     public void update() {
         var owner = getOwner();
         var world = owner.getWorld();
-        if (world == null || owner.isEffectivelyDead()) {
+        if (world == null || owner.isEffectivelyDead() || paused) {
             return;
         }
         // Each phase that finishes hands straight on to the next in the same frame, so a harvester with
@@ -141,36 +143,59 @@ public final class HarvestUpdate extends UpdateModule {
 
     /**
      * Work at {@code place} from now on — a pile to fetch from, or a depot of its side to deliver to, the game's to
-     * name — until told another or it is gone: after every delivery it goes back to it, however far it is. Sent to a
-     * pile with a part of a load, it fills up there before it delivers.
+     * name — until told another or it is gone: after every delivery it goes back to it, however far it is. One place,
+     * the last named: a depot replaces a pile told before it, and a pile a depot. It works again if its player had
+     * ordered it elsewhere. Sent to a pile with a part of a load, it fills up there first; sent to its depot with any
+     * load at all, it delivers it at once.
      */
     public void workAt(GameObject place) {
         if (place == null) {
             return;
         }
-        if (place.findModule(SupplyModule.class) != null) {
-            pile = place;
-            if (carrying < loadPerTrip) {
-                doing = Doing.FETCHING; // there first, with what it has
-                atPile = null;
-                elapsed = 0;
-                reached = null;
-                sent = false;
-            }
+        boolean isPile = place.findModule(SupplyModule.class) != null;
+        boolean isDepot = place.findModule(SupplyDepot.class) != null
+                && place.getPlayerIndex() == getOwner().getPlayerIndex();
+        if (!isPile && !isDepot) {
+            return;
         }
-        if (place.findModule(SupplyDepot.class) != null && place.getPlayerIndex() == getOwner().getPlayerIndex()) {
-            depot = place;
+        this.place = place;
+        paused = false;
+        atPile = null;
+        elapsed = 0;
+        retryIn = 0;
+        reached = null;
+        sent = false;
+        doing = isPile ? (carrying < loadPerTrip ? Doing.FETCHING : Doing.RETURNING)
+                : (carrying > 0 ? Doing.RETURNING : Doing.FETCHING);
+    }
+
+    /**
+     * Its player gave it an order: it stops working where it is, keeping what it carries, until it is next told where
+     * to work ({@link #workAt}) — the reference's truck, gone idle.
+     */
+    @Override
+    public void onOrder(uz.dukeengine.rts.message.GameMessage order) {
+        paused = true;
+    }
+
+    /** Whether it has stopped working for an order of its player's, until it is next told where to work. */
+    public boolean isPaused() {
+        return paused;
+    }
+
+    /** The place it was told to work, while it stands; else null. */
+    private GameObject toldPlace() {
+        if (place != null && place.isDestroyed()) {
+            place = null; // gone: back to the nearest
         }
+        return place;
     }
 
     /** The pile it fetches from: the one it was told, while it stands and has anything left; else the nearest. */
     private GameObject pileFor(GameObject owner, World world) {
-        if (pile != null && pile.isDestroyed()) {
-            pile = null; // gone: back to the nearest
-        }
-        var told = pile == null ? null : pile.findModule(SupplyModule.class);
+        var told = toldPlace() == null ? null : place.findModule(SupplyModule.class);
         if (told != null && told.getRemaining() > 0) {
-            return pile;
+            return place;
         }
         return world.findClosest(owner.getPosition(), searchRange, candidate -> {
             var supply = candidate.findModule(SupplyModule.class);
@@ -180,11 +205,10 @@ public final class HarvestUpdate extends UpdateModule {
 
     /** The depot it delivers to: the one it was told, while it stands and is its side's; else the nearest. */
     private GameObject depotFor(GameObject owner, World world) {
-        if (depot != null && (depot.isDestroyed() || depot.getPlayerIndex() != owner.getPlayerIndex())) {
-            depot = null;
-        }
-        if (depot != null) {
-            return depot;
+        var told = toldPlace();
+        if (told != null && told.findModule(SupplyDepot.class) != null
+                && told.getPlayerIndex() == owner.getPlayerIndex()) {
+            return told;
         }
         return world.findClosest(owner.getPosition(), Float.MAX_VALUE,
                 candidate -> candidate.findModule(SupplyDepot.class) != null
@@ -192,6 +216,10 @@ public final class HarvestUpdate extends UpdateModule {
     }
 
     private void fetch(GameObject owner, World world) {
+        if (retryIn > 0) {
+            retryIn--;
+            return; // its load was cut short away from the pile: a second before it sets off again
+        }
         var pile = pileFor(owner, world);
         if (pile == null) {
             return; // nothing left within reach — idle
@@ -204,6 +232,13 @@ public final class HarvestUpdate extends UpdateModule {
     }
 
     private void load(GameObject owner, World world) {
+        if (owner.getLocomotor() != null && (atPile == null || !world.isBeside(owner, atPile))) {
+            atPile = null; // moved off it: nothing more is taken until it is beside a pile again
+            elapsed = 0;
+            retryIn = RETRY_FRAMES;
+            doing = Doing.FETCHING;
+            return;
+        }
         if (framesPerUnit > 0) {
             loadAUnitAtATime();
             return;
