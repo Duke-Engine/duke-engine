@@ -82,6 +82,7 @@ class DeterminismIntegrationTest {
                 }
                 case GameMessage.Construct build -> construct(build);
                 case GameMessage.CancelConstruction cancel -> cancelConstruction(cancel);
+                case GameMessage.ResumeConstruction resume -> resumeConstruction(resume);
                 case GameMessage.QueueResearch ignored -> {
                 }
                 case GameMessage.CancelProduction ignored -> {

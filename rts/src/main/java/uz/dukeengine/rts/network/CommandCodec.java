@@ -90,6 +90,8 @@ public final class CommandCodec implements PacketCodec {
                     + "," + g.mode().name();
             case GameMessage.Evacuate e -> "EVAC," + e.playerIndex() + "," + e.container().value();
             case GameMessage.ExitContainer e -> "EXIT," + e.playerIndex() + "," + e.passenger().value();
+            case GameMessage.ResumeConstruction r -> "RESUME," + r.playerIndex() + "," + r.builder().value() + ","
+                    + r.site().value();
             case GameMessage.GameOrder o -> "ORDER," + o.playerIndex() + ","
                     + java.net.URLEncoder.encode(o.word(), java.nio.charset.StandardCharsets.UTF_8)
                     + "," + ids(o.units())
@@ -152,6 +154,8 @@ public final class CommandCodec implements PacketCodec {
                     GameMessage.Guard.Mode.valueOf(parts[7]));
             case "EVAC" -> new GameMessage.Evacuate(player, new ObjectId(Integer.parseInt(parts[2])));
             case "EXIT" -> new GameMessage.ExitContainer(player, new ObjectId(Integer.parseInt(parts[2])));
+            case "RESUME" -> new GameMessage.ResumeConstruction(player, new ObjectId(Integer.parseInt(parts[2])),
+                    new ObjectId(Integer.parseInt(parts[3])));
             case "ORDER" -> new GameMessage.GameOrder(player,
                     java.net.URLDecoder.decode(parts[2], java.nio.charset.StandardCharsets.UTF_8),
                     parseIds(parts[3]),

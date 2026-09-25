@@ -64,6 +64,40 @@ public final class Construction {
     }
 
     /**
+     * Send a builder to take up a half-built site of its side, or refuse at no cost — the reference's {@code
+     * ActionManager::canResumeConstructionOf}: refused if the builder is not the player's, cannot walk, or is gone; if
+     * the site is not the player's, not going up, or gone; or while its builder works on it. Taken, the builder is the
+     * site's from now — "even thinking about building sets us as the current builder", as the reference has it, so a
+     * second is refused — gives up any errand it was on, and sets off.
+     *
+     * @return whether it was taken
+     */
+    public static boolean resume(RtsSimulation world, GameMessage.ResumeConstruction order, PlacementRules rules) {
+        var builder = world.findObject(order.builder());
+        var site = world.findObject(order.site());
+        if (builder == null || builder.isEffectivelyDead() || builder.getPlayerIndex() != order.playerIndex()
+                || builder.findModule(MoveUpdate.class) == null || site == null || site.isEffectivelyDead()
+                || site.getPlayerIndex() != order.playerIndex()) {
+            return false;
+        }
+        var building = site.findModule(ConstructionSite.class);
+        if (building == null || building.isFinished() || !building.takeUp(builder)) {
+            return false;
+        }
+        for (var module : java.util.List.copyOf(builder.getModules())) {
+            if (module instanceof BuildOrder earlier) {
+                earlier.giveUp();
+                builder.removeModule(earlier);
+            }
+        }
+        var errand = new BuildOrder(builder, site.getTemplate(), site.getPosition(),
+                (float) Math.toDegrees(site.getOrientation()), 0, rules, site);
+        builder.addModule(errand);
+        errand.begin();
+        return true;
+    }
+
+    /**
      * Call off a site still going up, if it is the player's.
      *
      * @return whether there was a site of theirs to call off

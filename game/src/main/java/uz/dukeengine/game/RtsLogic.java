@@ -179,6 +179,7 @@ final class RtsLogic extends RtsSimulation {
             }
             case GameMessage.Construct build -> construct(build);
             case GameMessage.CancelConstruction cancel -> cancelConstruction(cancel);
+            case GameMessage.ResumeConstruction resume -> resumeConstruction(resume);
             case GameMessage.QueueResearch research -> {
                 var production = ownProduction(research.factory(), research.playerIndex());
                 var upgrade = findUpgrade(research.upgrade());

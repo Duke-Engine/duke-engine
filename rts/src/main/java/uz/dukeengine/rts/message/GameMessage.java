@@ -28,7 +28,7 @@ public sealed interface GameMessage extends Command
                 GameMessage.QueueProduction, GameMessage.SetRallyPoint, GameMessage.Construct,
                 GameMessage.CancelConstruction, GameMessage.QueueResearch, GameMessage.CancelProduction,
                 GameMessage.Sell, GameMessage.AttackMove, GameMessage.Guard, GameMessage.Evacuate,
-                GameMessage.ExitContainer, GameMessage.GameOrder {
+                GameMessage.ExitContainer, GameMessage.GameOrder, GameMessage.ResumeConstruction {
 
     /**
      * Order the given units to move to a destination, placed there as one group — see {@code GroupLayout}; {@code click}
@@ -153,6 +153,14 @@ public sealed interface GameMessage extends Command
 
     /** One passenger gets out of whatever carries it. */
     record ExitContainer(int playerIndex, ObjectId passenger) implements GameMessage {
+    }
+
+    /**
+     * Send {@code builder} to take up {@code site}, a building of its side still going up — the reference's resume
+     * construction ({@code DozerAIUpdate::privateResumeConstruction}): from when it stands beside the site, the site
+     * rises for it as for the one that put it down. Refused while the site's builder works on it.
+     */
+    record ResumeConstruction(int playerIndex, ObjectId builder, ObjectId site) implements GameMessage {
     }
 
     /**

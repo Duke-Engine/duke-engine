@@ -44,6 +44,8 @@ class DepthTest {
                 }
                 case GameMessage.CancelProduction ignored -> {
                 }
+                case GameMessage.ResumeConstruction ignored -> {
+                }
                 case GameMessage.CancelConstruction ignored -> {
                 }
                 case GameMessage.Sell ignored -> {

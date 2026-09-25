@@ -30,7 +30,8 @@ import uz.dukeengine.rts.player.RtsPlayer;
  */
 public final class ConstructionSite extends UpdateModule {
 
-    private final ObjectId builder;
+    /** Whose work raises it: the builder that put it down, or the last to take it up. */
+    private ObjectId builder;
     private final int cost;
     private final PlacementRules rules;
     /** Whole frames of a builder's work it takes, from the template's build time. */
@@ -64,6 +65,27 @@ public final class ConstructionSite extends UpdateModule {
     /** The builder whose work raises it. */
     public ObjectId builder() {
         return builder;
+    }
+
+    /**
+     * {@code who} takes it up, and is its builder from now — refused while its builder works on it: on its way to it or
+     * beside it at work, as the reference refuses a second dozer while one's build task is this building.
+     *
+     * @return whether it took it up
+     */
+    boolean takeUp(GameObject who) {
+        var site = getOwner();
+        var working = site.getWorld().findObject(builder);
+        if (working != null && working != who && !working.isEffectivelyDead()
+                && working.getPlayerIndex() == site.getPlayerIndex()) {
+            for (var module : working.getModules()) {
+                if (module instanceof BuildOrder order && order.isBuilding(site)) {
+                    return false; // one builder at a time: another adds nothing to it
+                }
+            }
+        }
+        builder = who.getId();
+        return true;
     }
 
     @Override
