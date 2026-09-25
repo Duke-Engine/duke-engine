@@ -48,6 +48,10 @@ public final class GameObject {
     private boolean destroyed;
     /** Whether its modules have been told it is made — see {@link #announceCreated}. */
     private boolean announced;
+    /** How far it sees where set for it alone, see {@link #setVisionRange}; negative for its template's. */
+    private float visionRange = -1f;
+    /** The first frame an enemy may target it — see {@link #setTargetableFrom}. */
+    private int targetableFrom;
     private boolean contained;
     private World world;
     private final EnumSet<ObjectStatus> statuses = EnumSet.noneOf(ObjectStatus.class);
@@ -208,9 +212,37 @@ public final class GameObject {
         return Solid.of(template);
     }
 
-    /** How far it sees: its template's range if that has eyes, nothing if not. */
+    /** How far it sees: the range set for it, or its template's if that has eyes, nothing if not. */
     public float getVisionRange() {
-        return Sighted.of(template);
+        return visionRange >= 0f ? visionRange : Sighted.of(template);
+    }
+
+    /**
+     * See {@code range} from now on, whatever its template says — a hijacked vehicle seeing as its driver, a power's
+     * view growing and shrinking, a plan's longer sight — or its template's again for a negative range. Read
+     * wherever sight is; in the checksum and a save while set.
+     */
+    public void setVisionRange(float range) {
+        this.visionRange = range;
+    }
+
+    /** The range set for it alone, or negative where it sees as its template does. */
+    public float getOwnVisionRange() {
+        return visionRange;
+    }
+
+    /**
+     * Keep it out of every enemy's targeting until {@code frame} — not acquired, not ordered at, not caught by a
+     * blast; from that frame a target as any — the reference's ejected pilot, nobody's enemy for two seconds. In the
+     * checksum and a save.
+     */
+    public void setTargetableFrom(int frame) {
+        this.targetableFrom = frame;
+    }
+
+    /** The first frame an enemy may target it; 0 for from the start. */
+    public int getTargetableFrom() {
+        return targetableFrom;
     }
 
     /** True while this object is inside a transport/structure (hidden, idle). */

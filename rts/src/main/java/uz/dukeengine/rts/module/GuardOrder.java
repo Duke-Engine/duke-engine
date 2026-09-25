@@ -4,7 +4,6 @@ import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.UpdateModule;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
-import uz.dukeengine.core.thing.Sighted;
 import uz.dukeengine.rts.RtsSimulation;
 import uz.dukeengine.rts.message.GameMessage;
 
@@ -77,7 +76,7 @@ public final class GuardOrder extends UpdateModule implements Errand {
         var legs = unit.getLocomotor();
         var rules = Engaging.rules(world);
         boolean computer = Engaging.computer(unit);
-        float vision = Sighted.of(unit.getTemplate());
+        float vision = unit.getVisionRange();
         var here = guarded(world);
         boolean pursues = mode != GameMessage.Guard.Mode.WITHOUT_PURSUIT && legs != null;
 

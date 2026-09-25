@@ -623,6 +623,10 @@ public final class WeaponUpdate extends UpdateModule {
 
     /** Whether {@code weapon} may be fired at {@code victim}'s class — see {@link TargetRule}. */
     private boolean mayHit(Weapon weapon, GameObject victim) {
+        var world = getOwner().getWorld();
+        if (world != null && victim.getTargetableFrom() > world.getFrame()) {
+            return false; // nobody's target yet
+        }
         if (weapon.targets().isEmpty()) {
             return true;
         }
@@ -781,6 +785,9 @@ public final class WeaponUpdate extends UpdateModule {
         var affects = shot.weapon().affects();
         if (candidate.getId().equals(shot.shooter())) {
             return affects.contains(Weapon.Affects.SELF);
+        }
+        if (candidate.getTargetableFrom() > world.getFrame()) {
+            return false; // nobody's target yet, a blast's no more than a gun's
         }
         var relationship = candidate.getPlayerIndex() == shot.side() ? Relationship.ALLIES
                 : world.getRelationship(shot.side(), candidate.getPlayerIndex());

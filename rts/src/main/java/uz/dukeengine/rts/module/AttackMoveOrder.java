@@ -4,7 +4,6 @@ import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.UpdateModule;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectId;
-import uz.dukeengine.core.thing.Sighted;
 import uz.dukeengine.rts.RtsSimulation;
 import uz.dukeengine.rts.message.GameMessage;
 
@@ -61,7 +60,7 @@ public final class AttackMoveOrder extends UpdateModule implements Errand {
             return;
         }
         var rules = Engaging.rules(world);
-        float vision = Sighted.of(unit.getTemplate());
+        float vision = unit.getVisionRange();
         if (target != null) {
             var victim = world.findObject(target);
             if (victim == null || victim.isEffectivelyDead() || !weapon.canFireAt(victim)

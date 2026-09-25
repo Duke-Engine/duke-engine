@@ -73,7 +73,9 @@ public final class GameSnapshot {
                     .append(health).append('|')
                     .append(statuses).append('|')
                     .append(String.join(",", o.getConditions())).append('|')
-                    .append(most).append('\n');
+                    .append(most).append('|')
+                    .append(o.getOwnVisionRange()).append('|')
+                    .append(o.getTargetableFrom()).append('\n');
         }
         return sb.toString();
     }
@@ -148,6 +150,9 @@ public final class GameSnapshot {
         var statuses = parts[8];
         var conditions = parts.length > 9 ? parts[9] : ""; // a save from before conditions has none
         var most = parts.length > 10 ? parts[10] : ""; // and one from before most health, the template's
+        // and one from before a thing's own sight and protection, its template's sight and none
+        float sight = parts.length > 11 && !parts[11].isEmpty() ? Float.parseFloat(parts[11]) : -1f;
+        int targetableFrom = parts.length > 12 && !parts[12].isEmpty() ? Integer.parseInt(parts[12]) : 0;
 
         var template = logic.getThingFactory().findTemplate(templateName);
         if (template == null) {
@@ -157,6 +162,8 @@ public final class GameSnapshot {
         object.setPlayerIndex(player);
         object.setPosition(new Coord3D(x, y, z));
         object.setOrientation(orientation);
+        object.setVisionRange(sight);
+        object.setTargetableFrom(targetableFrom);
         // The most first: health is held to it, and an upgraded Crusader's 680 would be cut to its template's 480.
         if (!most.isEmpty() && object.getBody() != null
                 && Float.parseFloat(most) != object.getBody().getMaxHealth()) {

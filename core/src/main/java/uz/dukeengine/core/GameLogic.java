@@ -24,7 +24,6 @@ import uz.dukeengine.core.thing.Footprint;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.Geometry;
 import uz.dukeengine.core.thing.Layered;
-import uz.dukeengine.core.thing.Sighted;
 import uz.dukeengine.core.thing.Solid;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.ThingFactory;
@@ -195,17 +194,31 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             return true; // the whole map, for good
         }
         for (var watcher : objects) {
-            if (watcher.isEffectivelyDead() || Sighted.of(watcher.getTemplate()) <= 0f) {
+            float sight = watcher.getVisionRange();
+            if (watcher.isEffectivelyDead() || sight <= 0f) {
                 continue;
             }
-            boolean friendlyEye = watcher.getPlayerIndex() == viewerPlayer
-                    || getRelationship(viewerPlayer, watcher.getPlayerIndex()) == Relationship.ALLIES;
-            if (friendlyEye
-                    && watcher.getPosition().distance(position) <= Sighted.of(watcher.getTemplate())) {
+            boolean eye = watcher.getPlayerIndex() == viewerPlayer
+                    || getRelationship(viewerPlayer, watcher.getPlayerIndex()) == Relationship.ALLIES
+                    || sharedSight != null && sharedSight.test(viewerPlayer, watcher);
+            if (eye && watcher.getPosition().distance(position) <= sight) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** Whose things lend a player their sight beyond its own and its allies' — see {@link #setSharedSight}. */
+    private java.util.function.BiPredicate<Integer, GameObject> sharedSight;
+
+    /**
+     * Let the game say which things that are neither a player's nor an ally's lend it their sight — the reference's
+     * CIA Intelligence and satellite hacks, seeing through the enemy's units for a time: asked of such a thing, on
+     * the simulation thread, and where it says yes the thing's sight counts for that player as its own units' does.
+     * A pure function of the simulation's state, or the peers see differently; null for none.
+     */
+    public final void setSharedSight(java.util.function.BiPredicate<Integer, GameObject> rule) {
+        this.sharedSight = rule;
     }
 
     /** The players the whole map has been revealed to, for good — see {@link #revealMapTo}. Sorted. */
@@ -917,6 +930,12 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             hash = mix(hash, object.getBody() == null ? -1 : Float.floatToIntBits(object.getBody().getHealth()));
             if (object.getBody() != null && object.getBody().getDamageScale() != 1f) {
                 hash = mix(hash, Float.floatToIntBits(object.getBody().getDamageScale())); // 1 sums as it always did
+            }
+            if (object.getOwnVisionRange() >= 0f) {
+                hash = mix(hash, Float.floatToIntBits(object.getOwnVisionRange()));
+            }
+            if (object.getTargetableFrom() > 0) {
+                hash = mix(hash, object.getTargetableFrom());
             }
             int statuses = object.statusBits();
             if (statuses != 0) {
