@@ -93,8 +93,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
      * @param braking             how fast it sheds speed, the same ({@code Braking})
      * @param accelerationDamaged its acceleration once damaged ({@code AccelerationDamaged}); 0 is its acceleration
      * @param brakingDamaged      its braking once damaged; 0 is its braking
-     * @param damagedBelow        the share of its most health below which it is damaged — the reference's
-     *                            {@code MovementPenaltyDamageState}, really damaged, under 0.1
+     * @param damagedBelow        the share of its most health at or below which it is damaged — the reference's
+     *                            {@code MovementPenaltyDamageState}, really damaged, at 0.1 or less
      * @param minSpeed            the least speed legs ease to nearing the end ({@code MinSpeed})
      * @param minTurnSpeed        the speed wheels turn at, where more than a quarter of its speed ({@code MinTurnSpeed})
      * @param closeEnough         how near the end of its route counts as arrived ({@code CloseEnoughDist}): 1 unless set
@@ -159,7 +159,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     /** Give up on a leg after this long without getting any closer to it. */
     private static final int STUCK_FRAME_LIMIT = 2 * GameConstants.LOGICFRAMES_PER_SECOND;
 
-    private final Data data;
+    private Data data;
     private float topSpeed;           // world units a second
     private float stepPerFrame;
     private float turnPerFrame; // radians/frame; 0 = instant turning
@@ -234,6 +234,18 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     public MoveUpdate(GameObject owner, Data data) {
         super(owner);
         this.data = data;
+        setSpeed(data.speed(), data.turnRate());
+    }
+
+    /**
+     * Its locomotor given whole from now on — the reference's locomotor set changed ({@code
+     * AIUpdateInterface::chooseLocomotorSet}): a heavy tank's upgrade doubling its acceleration, a worker's shoes. It
+     * keeps where it is going, its route, its block and its way out of its maker, and the speed it has, which it
+     * gains and sheds at the new rates from the next frame. Callable from any module's update, its own thing's
+     * included.
+     */
+    public void setLocomotor(Data data) {
+        this.data = java.util.Objects.requireNonNull(data);
         setSpeed(data.speed(), data.turnRate());
     }
 
@@ -1419,7 +1431,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     /** Whether its body is below the share of its health its data counts as damaged. */
     private boolean isDamaged(GameObject owner) {
         var body = owner.getBody();
-        return body != null && body.getMaxHealth() > 0f && body.getHealth() < body.getMaxHealth() * data.damagedBelow();
+        // At or below, as the reference's body is really damaged while health / most <= its threshold.
+        return body != null && body.getMaxHealth() > 0f
+                && body.getHealth() <= body.getMaxHealth() * data.damagedBelow();
     }
 
     private static float cellSize(GameObject owner) {

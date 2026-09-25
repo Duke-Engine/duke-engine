@@ -57,6 +57,48 @@ class GaitTest {
         return steps;
     }
 
+    /**
+     * The reference's heavy tank, its acceleration 15 and 30 once upgraded: given its new locomotor whole on its way,
+     * it gains at the new rate from the next frame, going on to where it was going, on the block it holds there.
+     */
+    @Test
+    void aMoverGivenItsLocomotorWholeOnItsWayGainsAtTheNewRateAndKeepsItsWay() {
+        var tank = mover(data(30f, 0f, 15f, 15f, MoveUpdate.Gait.LEGS), 25f, 25f, 0f);
+        var world = (GameLogic) tank.getWorld();
+        world.setPathGrid(new uz.dukeengine.core.pathfind.PathGrid(40, 40));
+        var legs = tank.findModule(MoveUpdate.class);
+        legs.moveTo(new Coord3D(325f, 25f, 0f));
+        var goal = legs.getGoal();
+        var block = world.getPathGrid().movers().goalOf(tank.getId().value());
+
+        var before = steps(tank, 3);
+        legs.setLocomotor(data(30f, 0f, 30f, 15f, MoveUpdate.Gait.LEGS));
+        var after = steps(tank, 3);
+
+        assertEquals(15f / 900f, before.get(2) - before.get(1), 1e-4f, "0.017 a frame each frame, at 15");
+        assertEquals(30f / 900f, after.get(0) - before.get(2), 1e-4f, "0.033 from the next frame, at 30");
+        assertEquals(30f / 900f, after.get(2) - after.get(1), 1e-4f);
+        assertEquals(goal, legs.getGoal(), "still going where it was going");
+        assertEquals(block, world.getPathGrid().movers().goalOf(tank.getId().value()), "to the block it held");
+    }
+
+    /**
+     * An infantryman at exactly his damagedBelow share of his health, 0.35: damaged, as the reference's body is at or
+     * below its threshold — he gains at his damaged acceleration, 50, not his 100.
+     */
+    @Test
+    void aMoverAtExactlyItsDamagedShareGainsAtItsDamagedAcceleration() {
+        var soldier = mover(new MoveUpdate.Data(30f, 0f, 100f, 100f, 50f, 0f, 0.35f, 0f, 0f, 1f, false,
+                MoveUpdate.Gait.LEGS), 25f, 25f, 0f);
+        soldier.getBody().setHealth(35f);
+        soldier.findModule(MoveUpdate.class).moveTo(new Coord3D(325f, 25f, 0f));
+
+        var steps = steps(soldier, 2);
+
+        assertEquals(50f / 900f, steps.get(0), 1e-4f, "0.056 a frame each frame, at 50");
+        assertEquals(100f / 900f, steps.get(1), 1e-4f);
+    }
+
     @Test
     void aWalkerGathersSpeedAtItsAccelerationAndEasesOntoItsGoalOverItsLastTwoPointOne() {
         var walker = mover(data(20f, 0f, 100f, 100f, MoveUpdate.Gait.LEGS), 0f, 0f, 0f);
