@@ -5566,7 +5566,7 @@ final class DukeRtsApp extends SimpleApplication {
         node.modelPath = visual.choosesByWords()
                 ? visual.modelFor(visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()))
                 : visual.modelFor(view.healthFraction(), visuals.getWorldConditions());
-        Spatial body = buildBody(visual, java.util.List.of(), node.modelPath);
+        Spatial body = visual.shapeless ? new Node("no-shape") : buildBody(visual, java.util.List.of(), node.modelPath);
         if (body != null && visual.line != null && view.span() != null) {
             body = layAlong(body, view, visual, node);
         }

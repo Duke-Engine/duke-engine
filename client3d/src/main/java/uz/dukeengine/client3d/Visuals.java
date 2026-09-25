@@ -573,6 +573,19 @@ public final class Visuals {
             return best < 0 ? weaponBones : sets.get(best);
         }
 
+        /** Whether it has no shape — see {@link #noShape}. */
+        boolean shapeless;
+
+        /**
+         * It has no shape: nothing is built or drawn for it — no placeholder, no shadow — and nothing picks it: the
+         * reference's draw module with no model, an ambient sound's or a shroud clearer's, which stood on the ground
+         * as grey boxes. Its sounds, its effects, its bars and its rings stay as any thing's.
+         */
+        public UnitVisual noShape() {
+            shapeless = true;
+            return this;
+        }
+
         public UnitVisual model(String assetPath) {
             chooseAgain();
             this.modelPath = assetPath;
