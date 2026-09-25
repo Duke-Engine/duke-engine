@@ -45,7 +45,10 @@ import uz.dukeengine.core.thing.ObjectId;
  * says they see out ({@code PassengersSeeOut}), a garrison's, and then from where it stands. <b>A holder taken out of
  * the world</b> without a death takes its passengers with it, taken away too and not killed, the same frame — the
  * reference's {@code OpenContain::onDelete}; a shared hold's stay while another of the network stands, and go with the
- * last, as the reference's tunnels cave in ({@code TunnelTracker::onTunnelDestroyed}).
+ * last, as the reference's tunnels cave in ({@code TunnelTracker::onTunnelDestroyed}). <b>A hold that shows its
+ * passengers</b> ({@code ShowsPassengers}) has them drawn where the game stands them, turned its way, and clicked as
+ * the hold — the reference's fire base, a soldier in each trench ({@code IsEnclosingContainer = No}); it moves none
+ * of them itself.
  */
 @ModuleGroup(ModuleGroups.MOVEMENT)
 public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
@@ -59,14 +62,22 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
      * ExitBone}: the bone of its model its passengers come out at, or null for the nearest clear ground outside it;
      * {@code ExitStart} and {@code ExitEnd}: the bones of its exit path, which they walk out along instead; {@code
      * PassengersSeeOut}: whether they see out of it, from where it stands; {@code RiderKinds}: the kinds of passenger
-     * that ride at its RiderBone, the others sitting inside — none named, every passenger rides.
+     * that ride at its RiderBone, the others sitting inside — none named, every passenger rides; {@code
+     * ShowsPassengers}: whether they are drawn where the game stands them.
      */
     public record Data(int slots, String sharedBy, boolean passengersFire, String riderBone, boolean passengersVanish,
-            String exitBone, String exitStart, String exitEnd, boolean passengersSeeOut, List<Kind> riderKinds)
-            implements ModuleData {
+            String exitBone, String exitStart, String exitEnd, boolean passengersSeeOut, List<Kind> riderKinds,
+            boolean showsPassengers) implements ModuleData {
 
         public Data {
             riderKinds = riderKinds == null ? List.of() : List.copyOf(riderKinds);
+        }
+
+        /** Passengers inside that nobody sees. */
+        public Data(int slots, String sharedBy, boolean passengersFire, String riderBone, boolean passengersVanish,
+                String exitBone, String exitStart, String exitEnd, boolean passengersSeeOut, List<Kind> riderKinds) {
+            this(slots, sharedBy, passengersFire, riderBone, passengersVanish, exitBone, exitStart, exitEnd,
+                    passengersSeeOut, riderKinds, false);
         }
 
         /** Every passenger riding, where it names a RiderBone. */
@@ -119,6 +130,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     private final String exitEnd;
     private final boolean passengersSeeOut;
     private final List<Kind> riderKinds;
+    private final boolean showsPassengers;
     private boolean passengersFire;
     private final List<ObjectId> passengers = new ArrayList<>();
 
@@ -134,6 +146,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         this.exitEnd = data.exitEnd();
         this.passengersSeeOut = data.passengersSeeOut();
         this.riderKinds = data.riderKinds();
+        this.showsPassengers = data.showsPassengers();
     }
 
     /** Let its passengers fire from inside, or hold them idle — the reference's PassengersFireUpgrade. */
@@ -148,6 +161,11 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     /** The bone of its model its passengers ride on top at, or null for a hold they sit inside. */
     public String riderBone() {
         return riderBone;
+    }
+
+    /** Whether its passengers are drawn where the game stands them, and clicked as it. */
+    public boolean showsPassengers() {
+        return showsPassengers;
     }
 
     /** Whether {@code passenger} rides on top at its RiderBone, rather than sitting inside. */
@@ -174,7 +192,9 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
                 continue;
             }
             if (!rides(passenger)) {
-                passenger.setPosition(owner.getPosition()); // fires as though it stood where its carrier does
+                if (!showsPassengers) {
+                    passenger.setPosition(owner.getPosition()); // fires as though it stood where its carrier does
+                }
                 continue;
             }
             passenger.setPosition(seat != null ? seat : owner.getPosition());

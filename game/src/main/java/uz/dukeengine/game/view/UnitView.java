@@ -15,7 +15,8 @@ package uz.dukeengine.game.view;
  *                   a client chooses its model, its pieces and its barrels by
  * @param built      how far it is built: 0 to 1 for a site going up, falling below 0 for a building being sold, as
  *                   the reference's construction percent does; 1 for anything else
- * @param ridesOn    the id of what it rides on top of — drawn where it stands, clicked as that — or -1
+ * @param ridesOn    the id of what it rides on top of, or of the hold that shows it — drawn where it stands, clicked
+ *                   as that — or -1
  * @param allied     whether it is the viewer's own or an ally's — everything, for a machine watching — for a look that
  *                   shows its own side what it shows no one else
  * @param span       the line it is drawn along — a bridge's two ends — or null for a thing drawn at its place
