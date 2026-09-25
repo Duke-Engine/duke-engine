@@ -1485,7 +1485,11 @@ public final class DukeGame {
 
     // ---- what the pointer is on ----
 
-    private volatile int pointedAt = -1;
+    /** What the window's pointer is on: a thing, or -1 and the point of the ground under it (null for none). */
+    private record Pointed(int unit, Coord3D ground) {
+    }
+
+    private volatile Pointed pointed = new Pointed(-1, null);
 
     /**
      * Thread-safe: the thing under the window's pointer, or -1 for none — so the next snapshot can say whether
@@ -1493,7 +1497,15 @@ public final class DukeGame {
      * One-way, like the selection: the window writes, the simulation reads.
      */
     public void setPointedAt(int unitId) {
-        this.pointedAt = unitId;
+        setPointedAt(unitId, null);
+    }
+
+    /**
+     * The same, with the point of the ground the pointer is on where it is on no thing — for the game's
+     * {@link #groundOrder} to answer. One write, so a thing from one moment never comes with ground from another.
+     */
+    public void setPointedAt(int unitId, Coord3D ground) {
+        this.pointed = new Pointed(unitId, unitId >= 0 ? null : ground);
     }
 
     /**
@@ -1503,7 +1515,7 @@ public final class DukeGame {
      * pointer exactly as it did.
      */
     private boolean attackableNow() {
-        int at = pointedAt;
+        int at = pointed.unit();
         var world = logic;
         var victim = at < 0 || world == null ? null : world.findObject(new uz.dukeengine.core.thing.ObjectId(at));
         if (victim == null) {
@@ -1543,6 +1555,32 @@ public final class DukeGame {
 
     private ContextOrder contextOrder;
 
+    /** The word of the order a click on the ground would give what is selected — see {@link #groundOrder}. */
+    @FunctionalInterface
+    public interface GroundOrder {
+        /**
+         * @param selection the local player's own things that are selected, in the order they were chosen
+         * @param place     the point of the ground under the pointer
+         * @return the order's word — {@code Steer} — or {@code null} where a click there moves what is selected
+         */
+        String orderAt(List<GameObject> selection, Coord3D place);
+    }
+
+    private GroundOrder groundOrder;
+
+    /**
+     * What a click on the ground means where it is not a move: the reference's
+     * {@code MSG_DO_SPECIAL_POWER_OVERRIDE_DESTINATION}, a particle beam or a gunship steered by any click on the
+     * ground. Asked as {@link #contextOrder} is, with the point under the pointer where the pointer is on no thing; the
+     * snapshot carries the word, the pointer shows its picture, and the click sends {@code GameMessage.GameOrder(player,
+     * word, selection, place, null, 0)} instead of a move. A click on a thing still selects it or gives what
+     * {@link #contextOrder} says.
+     */
+    public DukeGame groundOrder(GroundOrder rule) {
+        this.groundOrder = rule;
+        return this;
+    }
+
     /**
      * What a click on a thing means beyond selecting it and attacking it: the reference's context commands, the
      * game's to name. Asked on the simulation thread as the snapshot is built, for the thing under the pointer and
@@ -1557,21 +1595,35 @@ public final class DukeGame {
     }
 
     private String contextOrderNow() {
-        var rule = contextOrder;
-        int at = pointedAt;
+        var now = pointed;
         var world = logic;
-        if (rule == null || at < 0 || world == null) {
+        if (world == null) {
             return null;
         }
-        var target = world.findObject(new uz.dukeengine.core.thing.ObjectId(at));
+        if (now.unit() < 0) {
+            var rule = groundOrder;
+            var selected = rule == null || now.ground() == null ? List.<GameObject>of() : selectedOwn(world, null);
+            return selected.isEmpty() ? null : rule.orderAt(selected, now.ground());
+        }
+        var rule = contextOrder;
+        var target = world.findObject(new uz.dukeengine.core.thing.ObjectId(now.unit()));
+        if (rule == null || target == null) {
+            return null;
+        }
+        var selected = selectedOwn(world, target);
+        return selected.isEmpty() ? null : rule.orderOn(selected, target);
+    }
+
+    /** The local player's own selected things, but {@code except}. */
+    private List<GameObject> selectedOwn(RtsSimulation world, GameObject except) {
         var selected = new java.util.ArrayList<GameObject>();
         for (var id : selection) {
             var unit = world.findObject(new uz.dukeengine.core.thing.ObjectId(id));
-            if (unit != null && unit != target && unit.getPlayerIndex() == getLocalPlayerIndex()) {
+            if (unit != null && unit != except && unit.getPlayerIndex() == getLocalPlayerIndex()) {
                 selected.add(unit);
             }
         }
-        return target == null || selected.isEmpty() ? null : rule.orderOn(List.copyOf(selected), target);
+        return List.copyOf(selected);
     }
 
     /**

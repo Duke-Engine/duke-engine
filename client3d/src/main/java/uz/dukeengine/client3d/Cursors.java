@@ -199,6 +199,9 @@ final class Cursors {
             // drawn one way.
             return java.util.List.of(over.ownUnit() ? FRIEND : over.canAttack() ? ATTACK : DENY);
         }
+        if (over.order() != null) {
+            return java.util.List.of(over.order(), MOVE, POINT); // the game's word for a click on the ground
+        }
         // Open ground, and the same question asked of it: stone, or somewhere he
         // has never been, will not take a walking order any more than it will take
         // a skill. One refusal, drawn one way.

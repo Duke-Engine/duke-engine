@@ -369,6 +369,26 @@ class CursorsTest {
                 "nothing selected: nothing a click on the ground would order");
     }
 
+    /** The game's word for a click on the ground is what the pointer shows there, Move and the arrow standing in. */
+    @Test
+    void theGroundsWordIsWhatThePointerSaysOverTheGround() {
+        assertEquals(java.util.List.of("Steer", Cursors.MOVE, Cursors.POINT),
+                Cursors.situationsFor(withATank(false, false, "Steer")));
+    }
+
+    /** A click on the ground with the game's word for it is that order, at the place; with none, no order of its own. */
+    @Test
+    void aClickOnTheGroundWithTheGamesWordSendsItsOrderThere() {
+        var units = java.util.List.of(new uz.dukeengine.core.thing.ObjectId(7));
+        var ground = new com.jme3.math.Vector3f(120f, 4f, 80f); // the scene's y is up
+
+        var order = DukeRtsApp.groundOrder(1, units, "Steer", ground);
+
+        assertEquals(new uz.dukeengine.rts.message.GameMessage.GameOrder(1, "Steer", units,
+                new uz.dukeengine.core.math.Coord3D(120f, 80f, 4f), null, 0), order);
+        assertEquals(null, DukeRtsApp.groundOrder(1, units, null, ground), "no word: the move it always was");
+    }
+
     @Test
     void theViewScrollingShowsWhichWayOverEverythingElse() {
         assertEquals("E", Cursors.scrollDirection(1f, 0f), "against the right edge");

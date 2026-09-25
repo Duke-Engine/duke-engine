@@ -158,4 +158,32 @@ class AttackableTest {
         game.runHeadless(1);
         assertEquals(null, game.getSnapshot().contextOrder(), "nothing selected, nothing ordered");
     }
+
+    @Test
+    void theGameMayNameTheOrderAClickOnTheGroundWouldGive() {
+        var scene = scene();
+        var game = scene.game();
+        var asked = new java.util.ArrayList<uz.dukeengine.core.math.Coord3D>();
+        game.groundOrder((selection, place) -> {
+            asked.add(place);
+            return selection.contains(scene.tank()) ? "Steer" : null;
+        });
+        var place = new uz.dukeengine.core.math.Coord3D(200f, 150f, 0f);
+
+        game.setSelection(List.of(scene.tank().getId().value()));
+        game.setPointedAt(-1, place);
+        game.runHeadless(1);
+        assertEquals("Steer", game.getSnapshot().contextOrder(), "the tank steered by a click on the ground");
+        assertEquals(place, asked.getLast(), "asked with the point under the pointer");
+
+        game.setSelection(List.of(scene.worker().getId().value()));
+        game.runHeadless(1);
+        assertEquals(null, game.getSnapshot().contextOrder(), "no word: a click there moves the worker");
+
+        asked.clear();
+        game.setPointedAt(scene.worker().getId().value(), place);
+        game.runHeadless(1);
+        assertEquals(null, game.getSnapshot().contextOrder(), "on his own unit a click selects it");
+        assertTrue(asked.isEmpty(), "and the ground is not asked about");
+    }
 }

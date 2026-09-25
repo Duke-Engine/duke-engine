@@ -3852,6 +3852,12 @@ final class DukeRtsApp extends SimpleApplication {
         first.ifPresent(id -> noises.selected(viewOf(id), game.getLocalPlayerIndex(), timer.getTimeInSeconds()));
     }
 
+    /** The order a click on the ground gives where the game has a word for it ({@code DukeGame.groundOrder}), or null. */
+    static GameMessage.GameOrder groundOrder(int local, List<ObjectId> units, String word, Vector3f ground) {
+        return word == null ? null
+                : new GameMessage.GameOrder(local, word, units, new Coord3D(ground.x, ground.z, ground.y), null, 0);
+    }
+
     /** What the last snapshot says of one thing, or null where it said nothing. */
     private uz.dukeengine.game.view.UnitView viewOf(int id) {
         for (var view : snapshot.units()) {
@@ -3940,6 +3946,13 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var ground = pickGround();
         if (ground == null) {
+            return;
+        }
+        var steer = groundOrder(local, units, enemy == null ? snapshot.contextOrder() : null, ground);
+        if (steer != null) {
+            game.postCommand(steer); // the game's word for a click here — see DukeGame.groundOrder
+            markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
+            answerOrder("move", units);
             return;
         }
         // a selected factory takes the click as its rally point, not a move order
@@ -4121,8 +4134,11 @@ final class DukeRtsApp extends SimpleApplication {
         showOnlyWhilePlaying();
         snapshot = game.getSnapshot();
         // What the pointer is on, so the next snapshot says whether an attack on it would be taken.
-        var pointedAt = screen == Screen.PLAYING && !menu.isVisible() ? pickUnit() : null;
-        game.setPointedAt(pointedAt == null || pointedAt.view == null ? -1 : pointedAt.view.id());
+        boolean pointing = screen == Screen.PLAYING && !menu.isVisible();
+        var pointedAt = pointing ? pickUnit() : null;
+        var pointedGround = pointing && pointedAt == null ? pickGround() : null;
+        game.setPointedAt(pointedAt == null || pointedAt.view == null ? -1 : pointedAt.view.id(),
+                pointedGround == null ? null : new Coord3D(pointedGround.x, pointedGround.z, pointedGround.y));
         // Before every early return below, not after them. The menu and the
         // loading screen are screens too, and a pointer that only appears once
         // the world does leaves the player clicking Play with the operating
@@ -4642,7 +4658,7 @@ final class DukeRtsApp extends SimpleApplication {
         return new Cursors.Over(true, armed, canReach,
                 heroPanel.contains(at.x, at.y) || overTheMinimap(at),
                 over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex(),
-                snapshot.attackable(), !selectedIds().isEmpty(), over == null ? null : snapshot.contextOrder(),
+                snapshot.attackable(), !selectedIds().isEmpty(), snapshot.contextOrder(), // a thing's, or the ground's
                 Cursors.scrollDirection(shove.x, shove.y));
     }
 
