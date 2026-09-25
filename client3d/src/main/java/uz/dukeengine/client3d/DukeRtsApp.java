@@ -3931,10 +3931,9 @@ final class DukeRtsApp extends SimpleApplication {
         var cursor = inputManager.getCursorPosition();
         if (!SelectionBox.isDrag(from.x, from.y, cursor.x, cursor.y, visuals.getDragDistance())) {
             var hit = pickUnit();
-            // One of his own that a click would give an order on — a transport to board — is ordered, not chosen.
             boolean onOwn = hit != null && hit.view.selectable()
-                    && hit.view.playerIndex() == game.getLocalPlayerIndex() && snapshot.contextOrder() == null;
-            if (mouse.leftClickOrders(onOwn, !selectedIds().isEmpty())) {
+                    && hit.view.playerIndex() == game.getLocalPlayerIndex();
+            if (leftClickOrders(mouse, onOwn, snapshot.contextOrder() != null, add, !selectedIds().isEmpty())) {
                 order(); // the reference's left-click mouse: a click off his own things commands them
                 return;
             }
@@ -3953,6 +3952,17 @@ final class DukeRtsApp extends SimpleApplication {
         first.ifPresent(id -> noises.selected(viewOf(id), game.getLocalPlayerIndex(), timer.getTimeInSeconds()));
     }
 
+    /**
+     * Whether a left click, not a drag, orders what is selected rather than choosing what it landed on: under the
+     * left-click mouse, a click off the player's own things, or on one of them a click gives the game's word on — a
+     * transport to board — unless the add-to-selection key is held, which always chooses, adding the thing, as the
+     * reference's shift-click does whatever the context command ({@code isInPreferSelectionMode}).
+     */
+    static boolean leftClickOrders(Mouse mouse, boolean onOwnSelectable, boolean worded, boolean add,
+            boolean ownSelected) {
+        return mouse.leftClickOrders(onOwnSelectable && (add || !worded), ownSelected);
+    }
+
     /** The order a click on the ground gives where the game has a word for it ({@code DukeGame.groundOrder}), or null. */
     static GameMessage.GameOrder groundOrder(int local, List<ObjectId> units, String word, Vector3f ground) {
         return word == null ? null
@@ -3969,7 +3979,6 @@ final class DukeRtsApp extends SimpleApplication {
         return null;
     }
 
-    /** An order the player gave the selection: {@code ordered.<order>.<template>} for the first of it. */
     /** A click that gave the game's word answered as the game names: its moment, none, or a move's. */
     private void answerWord(String word, List<ObjectId> units) {
         var answer = visuals.orderAnswerFor(word);
@@ -3978,6 +3987,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /** An order the player gave the selection: {@code ordered.<order>.<template>} for the first of it. */
     private void answerOrder(String order, List<ObjectId> units) {
         if (!units.isEmpty()) {
             noises.ordered(order, viewOf(units.getFirst().value()), game.getLocalPlayerIndex(),
