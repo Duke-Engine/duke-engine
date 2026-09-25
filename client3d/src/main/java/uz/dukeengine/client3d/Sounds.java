@@ -192,6 +192,14 @@ final class Sounds {
     }
 
     /**
+     * Raise a moment about a thing, and keep hold of what plays, to move it with the thing: null where nothing played,
+     * {@link SoundSink.Playing#NONE} where the sink cannot keep hold of a sound.
+     */
+    SoundSink.Playing held(String cueName, Vector3f at, float now, boolean owned) {
+        return start(cueName, at, now, owned, true);
+    }
+
+    /**
      * Raise a moment, the cue's every rule kept: null where nothing played, else what plays — held on to where
      * {@code keep} asks or the cue cuts off the last of itself, {@link SoundSink.Playing#NONE} otherwise.
      */

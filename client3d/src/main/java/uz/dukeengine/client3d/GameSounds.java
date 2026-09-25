@@ -73,6 +73,12 @@ final class GameSounds {
     private final Map<Integer, java.util.Set<String>> hurt = new HashMap<>();
     private final Map<Integer, Loop> loops = new HashMap<>();
 
+    /** A cue the simulation played riding a thing, and the thing — moved with it while it stands and it lasts. */
+    private record Riding(int thing, SoundSink.Playing playing) {
+    }
+
+    private final java.util.List<Riding> riding = new java.util.ArrayList<>();
+
     private Map<Integer, UnitView> before = Map.of();
     private String lastDepth = "";
     private String lastNote = "";
@@ -154,7 +160,32 @@ final class GameSounds {
             stopLoop(was.id());
             hurt.remove(was.id());
         }
+        riding.removeIf(one -> {
+            var view = after.get(one.thing());
+            if (view == null || one.playing().ended()) {
+                return true; // its thing gone, or the sound played out: it stops where it was
+            }
+            one.playing().moveTo(at(view));
+            return false;
+        });
         before = after;
+    }
+
+    /**
+     * A cue the simulation played by name that is nothing else of the game's — the reference plays a saboteur's
+     * feedback and a battle plan's announcement straight from its logic, by the sound's own name: heard at its place
+     * as the cue's own rules say, who hears it and how far, as a list's sound entry there is; riding a thing ({@code
+     * thing} its id, -1 for none), following it while it stands and the sound lasts. Whether anything played.
+     */
+    boolean played(String cue, Vector3f at, int thing, boolean owned, float now) {
+        if (thing < 0) {
+            return sounds.play(cue, at, now, owned);
+        }
+        var playing = sounds.held(cue, at, now, owned);
+        if (playing != null && playing != SoundSink.Playing.NONE) {
+            riding.add(new Riding(thing, playing));
+        }
+        return playing != null;
     }
 
     /**

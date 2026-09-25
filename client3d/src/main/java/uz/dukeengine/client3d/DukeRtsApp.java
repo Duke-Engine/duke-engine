@@ -5256,8 +5256,8 @@ final class DukeRtsApp extends SimpleApplication {
 
     /**
      * An effect the simulation played: the moment of that name, or else the game's effect list, effect or particle
-     * system of that name — riding the thing it names where it names one it can draw. A name the game has none of
-     * draws nothing.
+     * system of that name — riding the thing it names where it names one it can draw — or else its sound cue of that
+     * name, heard there and following the thing it rides. A name the game has none of draws nothing.
      */
     private void played(uz.dukeengine.core.event.EffectPlayed played) {
         var rider = played.riding() == null ? null : unitNodes.get(played.riding().value());
@@ -5269,6 +5269,15 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         if (lists != null && lists.play(played.name(), cue)) {
+            return;
+        }
+        if (visuals.effectNamed(played.name()) == null && visuals.particleSystemNamed(played.name()) == null) {
+            if (noises != null && cue != null) {
+                boolean owned = rider == null || rider.view == null
+                        || rider.view.playerIndex() == game.getLocalPlayerIndex();
+                noises.played(played.name(), cue.at(), rider == null ? -1 : played.riding().value(), owned,
+                        timer.getTimeInSeconds());
+            }
             return;
         }
         if (layered != null && !layered.rides(played.name(), riding)) {
