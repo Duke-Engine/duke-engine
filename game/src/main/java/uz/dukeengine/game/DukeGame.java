@@ -1749,6 +1749,28 @@ public final class DukeGame {
         world.postTask(() -> world.effect(name, new Coord3D(x, y, z), facing));
     }
 
+    /** A mark the map burns into its ground — see {@link #markGround}. */
+    public record GroundMark(String picture, float x, float y, float radius) {
+    }
+
+    private final List<GroundMark> groundMarks = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * A mark of {@code picture} burnt into the ground at a place, {@code radius} each way — as the reference lays a
+     * map's own scorches as it loads ({@code W3DTerrainVisual::load}, {@code addScorch}): drawn with the ground
+     * whatever any player sees, as an effect's scorch is drawn only where its player could see it played, and in the
+     * budget the effects' scorches share, the oldest let go. At load or at any time, from any thread; drawing only.
+     */
+    public DukeGame markGround(String picture, float x, float y, float radius) {
+        groundMarks.add(new GroundMark(picture, x, y, radius));
+        return this;
+    }
+
+    /** Every mark the game has burnt into the ground, in the order it laid them. */
+    public List<GroundMark> groundMarks() {
+        return java.util.Collections.unmodifiableList(groundMarks);
+    }
+
     /** Thread-safe: run work on the simulation thread next frame. */
     public void runOnSimThread(Runnable task) {
         logic.postTask(task);

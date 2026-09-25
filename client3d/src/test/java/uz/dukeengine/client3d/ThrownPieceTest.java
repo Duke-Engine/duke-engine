@@ -22,7 +22,7 @@ class ThrownPieceTest {
         var lists = new ArrayList<Played>();
         var show = new ListShow(null, new Node(), null, (cue, at) -> sounds.add(new Played(cue, at)),
                 () -> Vector3f.ZERO, (x, z) -> 0f, (model, piece) -> new Node("piece"),
-                (name, at) -> lists.add(new Played(name, at)), null);
+                (name, at) -> lists.add(new Played(name, at)), null, null);
         var debris = new EffectList.Debris("models/plank.glb", null, 1, List.of(), List.of(), List.of(), 1f, 0.5f,
                 List.of(200f), 0, 0f, false, "PlankBounce", null, List.of(), "PlankLanded", false);
         var thrown = new Thrown(new Vector3f(10f, 0f, 20f), new Vector3f(1f, 10f, 0f), Vector3f.UNIT_Y, 0f, 1f, 0.5f,

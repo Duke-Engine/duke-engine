@@ -216,6 +216,14 @@ final class DukeRtsApp extends SimpleApplication {
     private final WordTints wordTints = new WordTints();
     /** How a thing kept from some players looks to the rest — see {@link StealthLook}. */
     private StealthLook stealthLook;
+    private Scorches scorches;
+    /** The paint the ground was last built with, for what is laid over it as it is drawn. */
+    private GroundPaint builtPaint;
+    /** How many of the game's own marks on the ground are laid, and for which game. */
+    private int marksLaid;
+    private DukeGame marksOf;
+    private final java.util.Map<String, Material> scorchLooks = new java.util.HashMap<>();
+    private final java.util.Set<String> missingScorches = new java.util.HashSet<>();
     private final SelectionFlash selectionFlash = new SelectionFlash();
     /** What was selected the frame before: a thing new to the selection flashes. */
     private java.util.Set<Integer> wasSelected = java.util.Set.of();
@@ -631,12 +639,13 @@ final class DukeRtsApp extends SimpleApplication {
         particleDrawing = new ParticleDrawing(particles, this::particleMaterial);
         rootNode.attachChild(particleDrawing.node());
         layered.drawsSystemsWith(particles);
+        scorches = new Scorches(listNode, this::drawnGround, this::scorchLook);
         listShow = new ListShow(assetManager, listNode, effects.lights(), (cue, at) -> {
             if (noises != null) {
                 noises.sounds().play(cue, at, timer.getTimeInSeconds());
             }
         }, () -> new Vector3f(camera.targetX(), 0f, camera.targetZ()), this::floorHeightAt, this::debrisPiece,
-                (name, at) -> lists.play(name, EffectLists.Cue.at(at)), this::paintThrown);
+                (name, at) -> lists.play(name, EffectLists.Cue.at(at)), this::paintThrown, scorches);
         rootNode.attachChild(listNode);
         lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
         lasers = new Lasers(assetManager, listNode, visuals::laserNamed, this::floorHeightAt);
@@ -2889,7 +2898,9 @@ final class DukeRtsApp extends SimpleApplication {
         adoptTheSun();
         builtFrom = game.getTerrain();
         clearWhatIsBurning();
-        terrain.rebuild(builtFrom, currentKit, GroundPaint.of(game.getMapRecord()));
+        builtPaint = GroundPaint.of(game.getMapRecord());
+        scorchLooks.clear(); // each made for the fog of the world it was laid in
+        terrain.rebuild(builtFrom, currentKit, builtPaint);
         if (visuals.getDiscoveryTemplate() == null) {
             return;
         }
@@ -4352,6 +4363,7 @@ final class DukeRtsApp extends SimpleApplication {
         // live list before anything decides it merely vanished. It also means a
         // shot lights its muzzle on the frame it was fired rather than the next.
         handleEvents();
+        layTheMapsMarks();
         // What this frame is worth hearing. Reads the same snapshot everything
         // else does and writes nothing back -- see GameSounds.
         noises.frame(snapshot, game.getLocalPlayerIndex(),
@@ -5516,6 +5528,98 @@ final class DukeRtsApp extends SimpleApplication {
                 selectionFlash.flash(rider.view.id(), rider.root, look, toColor(game.getColor(rider.view.wears())));
             }
         }
+    }
+
+    /** The marks the game burnt into its ground since the last frame, laid whatever the player sees. */
+    private void layTheMapsMarks() {
+        if (marksOf != game) {
+            marksOf = game;
+            marksLaid = 0;
+        }
+        var marks = game.groundMarks();
+        for (; marksLaid < marks.size(); marksLaid++) {
+            var mark = marks.get(marksLaid);
+            scorches.lay(mark.x(), mark.y(), mark.radius(), mark.picture());
+        }
+    }
+
+    /** The ground as it is drawn, for a mark laid on it: its cells, its heights, and the cut each is drawn along. */
+    private Scorches.Ground drawnGround() {
+        var grid = builtFrom;
+        if (grid == null) {
+            return Scorches.Ground.NONE;
+        }
+        var paint = builtPaint;
+        return new Scorches.Ground() {
+            @Override
+            public float cellSize() {
+                return grid.getCellSize();
+            }
+
+            @Override
+            public int columns() {
+                return grid.getWidth();
+            }
+
+            @Override
+            public int rows() {
+                return grid.getHeight();
+            }
+
+            @Override
+            public float heightAt(float x, float z) {
+                return floorHeightAt(x, z);
+            }
+
+            @Override
+            public uz.dukeengine.core.pathfind.HeightMap.Diagonal diagonal(int cx, int cy) {
+                return TerrainScene.drawnDiagonal(grid, paint, cx, cy);
+            }
+        };
+    }
+
+    /**
+     * How a mark burnt into the ground is drawn: its picture times the reference's one colour for every scorch — the
+     * ground's ambient and half its sun ({@code updateScorches}) — blended by its alpha over the ground, and shrouded
+     * as the ground is where the game keeps a fog. Null, said once, where the picture will not load.
+     */
+    private Material scorchLook(String path) {
+        if (scorchLooks.containsKey(path)) {
+            return scorchLooks.get(path);
+        }
+        Material look = null;
+        try {
+            var picture = assetManager.loadTexture(path);
+            picture.setWrap(com.jme3.texture.Texture.WrapMode.EdgeClamp);
+            var shade = ambientColour.add(sunColour.mult(0.5f));
+            shade.a = 1f;
+            if (fogMap == null) {
+                look = unshaded(shade);
+                look.setTexture("ColorMap", picture);
+            } else {
+                look = new Material(assetManager, "MatDefs/duke/FoggedTerrain.j3md");
+                look.setColor("Color", ColorRGBA.White);
+                look.setColor("Ambient", shade);
+                look.setColor("Sun", ColorRGBA.Black);
+                look.setVector3("SunDirection", sunDirection);
+                look.setTexture("FogMap", fogMap.texture());
+                look.setVector2("FogSize", fogMap.worldSize());
+                look.setTexture("ColorMap", picture);
+                // Set, and dark: nothing burning lights a scorch, and an array never written differs by driver.
+                look.setParam("PointLightColours", com.jme3.shader.VarType.Vector4Array, darkness());
+                look.setParam("PointLightPositions", com.jme3.shader.VarType.Vector4Array, darkness());
+            }
+            var state = look.getAdditionalRenderState();
+            state.setBlendMode(com.jme3.material.RenderState.BlendMode.Alpha);
+            state.setDepthWrite(false);
+            state.setPolyOffset(-1f, -1f);
+        } catch (RuntimeException notThere) {
+            if (missingScorches.add(path)) {
+                LOG.warning(() -> "a scorch mark names a picture that will not load: " + path);
+            }
+        }
+        scorchLooks.put(path, look);
+        return look;
     }
 
     /** A thrown piece's house-colour meshes in the colour the thing it was thrown for wears, dead or alive. */

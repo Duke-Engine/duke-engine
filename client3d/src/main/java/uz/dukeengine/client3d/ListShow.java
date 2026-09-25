@@ -13,16 +13,11 @@ import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.shape.Quad;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import uz.dukeengine.core.content.EffectList;
 
 /**
@@ -30,11 +25,6 @@ import uz.dukeengine.core.content.EffectList;
  * camera knocked, a scorch mark, a tracer — each the reference game's way, stepped at its 30 frames a second.
  */
 final class ListShow implements EffectLists.Show {
-
-    private static final Logger LOG = Logger.getLogger(ListShow.class.getName());
-
-    /** The reference's {@code MAX_SCORCH_MARKS}: past this many, the oldest mark is let go of. */
-    static final int MOST_SCORCHES = 500;
 
     /** How strong each of the six shakes is: {@code GlobalData}'s {@code ShakeSubtleIntensity} and the rest. */
     private static final float[] SHAKE = {0.5f, 1f, 2.5f, 5f, 8f, 12f};
@@ -46,9 +36,6 @@ final class ListShow implements EffectLists.Show {
     /** The stiff spring {@code W3DView} fakes: what is left of a knock after each frame. */
     private static final float SHAKE_DAMPING = 0.75f;
 
-    /** Laid this far over the ground, so a mark does not flicker against it. */
-    private static final float SCORCH_LIFT = 0.05f;
-
     private final AssetManager assets;
     private final Node node;
     private final LightPool lights;
@@ -58,13 +45,12 @@ final class ListShow implements EffectLists.Show {
     private final java.util.function.BiFunction<String, String, com.jme3.scene.Spatial> pieces;
     private final BiConsumer<String, Vector3f> list;
     private final BiConsumer<com.jme3.scene.Spatial, com.jme3.scene.Spatial> paint;
+    private final Scorches scorches;
     private final Random random = new Random();
 
     private final List<Pulse> pulses = new ArrayList<>();
-    private final Deque<Scorch> scorches = new ArrayDeque<>();
     private final List<Tracer> tracers = new ArrayList<>();
     private final List<Flung> flung = new ArrayList<>();
-    private final Set<String> missing = new HashSet<>();
 
     private float shake;
     private float shakeCos;
@@ -79,11 +65,13 @@ final class ListShow implements EffectLists.Show {
      * @param pieces  a fresh copy of a model, or of one named piece of it, for debris; null where it will not load
      * @param list    plays an effect list of the game's at a place: a piece's where it first lands
      * @param paint   paints a piece's house-colour meshes in the colour of the side of the thing it was thrown for
+     * @param scorches where a scorch mark is laid, with the map's own
      */
     ListShow(AssetManager assets, Node node, LightPool lights, BiConsumer<String, Vector3f> sound,
             Supplier<Vector3f> looking, WorldMoments.Floor floor,
             java.util.function.BiFunction<String, String, com.jme3.scene.Spatial> pieces,
-            BiConsumer<String, Vector3f> list, BiConsumer<com.jme3.scene.Spatial, com.jme3.scene.Spatial> paint) {
+            BiConsumer<String, Vector3f> list, BiConsumer<com.jme3.scene.Spatial, com.jme3.scene.Spatial> paint,
+            Scorches scorches) {
         this.assets = assets;
         this.node = node;
         this.lights = lights;
@@ -93,6 +81,7 @@ final class ListShow implements EffectLists.Show {
         this.pieces = pieces;
         this.list = list;
         this.paint = paint;
+        this.scorches = scorches;
     }
 
     @Override
@@ -171,57 +160,12 @@ final class ListShow implements EffectLists.Show {
 
     // ---- scorch marks ----
 
-    private record Scorch(Geometry mark, float x, float z, float radius, String picture) {
-    }
-
+    /** A mark laid on the ground's rise and fall with the map's own — see {@link Scorches}. */
     @Override
     public void scorch(Vector3f at, String picture, float radius) {
-        if (radius <= 0f) {
-            return;
+        if (scorches != null) {
+            scorches.lay(at.x, at.z, radius, picture);
         }
-        // BaseHeightMapRenderObjClass::addScorch: one next to one just like it is the same mark.
-        float near = radius / 4f;
-        for (var mark : scorches) {
-            if (Math.abs(at.x - mark.x()) < near && Math.abs(at.z - mark.z()) < near
-                    && Math.abs(radius - mark.radius()) < near && picture.equals(mark.picture())) {
-                return;
-            }
-        }
-        var material = material(picture);
-        if (material == null) {
-            return;
-        }
-        if (scorches.size() >= MOST_SCORCHES) {
-            scorches.pollFirst().mark().removeFromParent();
-        }
-        var mark = new Geometry("scorch", new Quad(radius * 2f, radius * 2f));
-        mark.setMaterial(material);
-        mark.setQueueBucket(RenderQueue.Bucket.Transparent);
-        mark.setLocalRotation(new Quaternion().fromAngleAxis(-FastMath.HALF_PI, Vector3f.UNIT_X));
-        mark.setLocalTranslation(at.x - radius, floor.at(at.x, at.z) + SCORCH_LIFT, at.z + radius);
-        node.attachChild(mark);
-        scorches.addLast(new Scorch(mark, at.x, at.z, radius, picture));
-    }
-
-    private Material material(String picture) {
-        try {
-            var material = new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
-            material.setTexture("ColorMap", assets.loadTexture(picture));
-            var state = material.getAdditionalRenderState();
-            state.setBlendMode(RenderState.BlendMode.Alpha);
-            state.setDepthWrite(false);
-            state.setPolyOffset(-1f, -1f);
-            return material;
-        } catch (RuntimeException notThere) {
-            if (missing.add(picture)) {
-                LOG.warning(() -> "a scorch mark names a picture that will not load: " + picture);
-            }
-            return null;
-        }
-    }
-
-    int scorchCount() {
-        return scorches.size();
     }
 
     // ---- tracers ----
@@ -452,8 +396,9 @@ final class ListShow implements EffectLists.Show {
     void clear() {
         pulses.forEach(pulse -> lights.give(pulse.light));
         pulses.clear();
-        scorches.forEach(mark -> mark.mark().removeFromParent());
-        scorches.clear();
+        if (scorches != null) {
+            scorches.clear();
+        }
         tracers.forEach(tracer -> tracer.streak.removeFromParent());
         tracers.clear();
         flung.forEach(one -> one.piece().removeFromParent());
