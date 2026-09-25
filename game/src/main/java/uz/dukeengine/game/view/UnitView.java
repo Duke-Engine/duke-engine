@@ -19,6 +19,7 @@ package uz.dukeengine.game.view;
  * @param allied     whether it is the viewer's own or an ally's — everything, for a machine watching — for a look that
  *                   shows its own side what it shows no one else
  * @param span       the line it is drawn along — a bridge's two ends — or null for a thing drawn at its place
+ * @param mobile     whether it can move: a click on open ground moves it, and never makes it a rally point
  */
 public record UnitView(
         int id,
@@ -44,10 +45,22 @@ public record UnitView(
         float built,
         int ridesOn,
         boolean allied,
-        uz.dukeengine.core.thing.Span span) {
+        uz.dukeengine.core.thing.Span span,
+        boolean mobile) {
     public UnitView {
         passengers = passengers == null ? java.util.List.of() : java.util.List.copyOf(passengers);
         conditions = conditions == null ? java.util.List.of() : java.util.List.copyOf(conditions);
+    }
+
+    /** A view that does not say whether it can move: every thing but a structure can, as views before it had it. */
+    public UnitView(int id, String templateName, int playerIndex, float x, float y, float orientation, float health,
+            float maxHealth, boolean structure, boolean selectable, boolean moving, boolean attacking,
+            int productionQueue, float z, float pitch, float roll, boolean ownHeight, int statuses,
+            java.util.List<Integer> passengers, java.util.List<String> conditions, float built, int ridesOn,
+            boolean allied, uz.dukeengine.core.thing.Span span) {
+        this(id, templateName, playerIndex, x, y, orientation, health, maxHealth, structure, selectable, moving,
+                attacking, productionQueue, z, pitch, roll, ownHeight, statuses, passengers, conditions, built, ridesOn,
+                allied, span, !structure);
     }
 
     /** A view of a thing drawn at its place: every view from before one could be drawn along a line. */

@@ -1617,6 +1617,14 @@ public final class DukeGame {
     }
 
     /**
+     * Whether this game names what a click on the ground orders — {@link #groundOrder} — and so decides rally points
+     * itself: a click its rule answers with no word is a move, never a rally point of the client's own.
+     */
+    public boolean namesGroundOrders() {
+        return groundOrder != null;
+    }
+
+    /**
      * What a click on a thing means beyond selecting it and attacking it: the reference's context commands, the
      * game's to name. Asked on the simulation thread as the snapshot is built, for the thing under the pointer and
      * what the local player has selected — a transport its infantry may board is {@code Enter}, a supply dock its

@@ -4021,37 +4021,66 @@ final class DukeRtsApp extends SimpleApplication {
         if (ground == null) {
             return;
         }
-        var steer = groundOrder(local, units, enemy == null ? snapshot.contextOrder() : null, ground);
+        var click = groundClick(local, selectedOwn(), enemy == null ? snapshot.contextOrder() : null,
+                game.namesGroundOrders(), ground);
+        switch (click) {
+            case null -> {
+                // nothing selected may take it: the pointer already said so
+            }
+            case GameMessage.GameOrder steer -> {
+                game.postCommand(steer); // the game's word for a click here — see DukeGame.groundOrder
+                markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
+                answerOrder("move", units);
+            }
+            case GameMessage.SetRallyPoint rally -> {
+                game.postCommand(rally);
+                markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
+            }
+            case GameMessage.MoveTo move -> {
+                game.postCommand(move);
+                // One mark for the order, not one per unit: it was a single decision. And
+                // put WHERE HE CLICKED rather than where they will end up. The mark is an
+                // answer to the click -- "that, understood" -- and moving it to the place
+                // they can reach answers a question the player did not ask and hides the
+                // one thing he wants to see, which is whether he clicked where he meant
+                // to. How far they actually get is theirs to work out on the way.
+                markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
+                hintMove(ground.x, ground.z);
+                // And one answer, for the same reason. His own orders only: in a game
+                // with more than one player at it each hears his own hero and nobody
+                // hears anyone else's.
+                noises.moment("vo.move", (float) timer.getTimeInSeconds());
+                answerOrder("move", move.units());
+            }
+            default -> throw new IllegalStateException("a ground click gave " + click);
+        }
+    }
+
+    /**
+     * What a click on open ground orders the local player's selected things: the game's word for it, where it has one;
+     * else one move for those of them that can move — placed as a group by the simulation, and the player's own click,
+     * which gathers a group clicked in its middle; else the rally point of a lone production building of his, only in a
+     * game that names no ground orders of its own; else nothing.
+     */
+    static GameMessage groundClick(int local, List<uz.dukeengine.game.view.UnitView> own, String word,
+            boolean gameDecides, Vector3f ground) {
+        var steer = groundOrder(local, own.stream().map(unit -> new ObjectId(unit.id())).toList(), word, ground);
         if (steer != null) {
-            game.postCommand(steer); // the game's word for a click here — see DukeGame.groundOrder
-            markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
-            answerOrder("move", units);
-            return;
+            return steer;
         }
-        // a selected factory takes the click as its rally point, not a move order
-        var producer = selectedProducer();
-        if (producer != null) {
-            game.postCommand(new GameMessage.SetRallyPoint(local,
-                    new ObjectId(producer.id()), new Coord3D(ground.x, ground.z, 0f)));
-            markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
-            return;
+        var place = new Coord3D(ground.x, ground.z, 0f);
+        var movers = own.stream().filter(uz.dukeengine.game.view.UnitView::mobile)
+                .map(unit -> new ObjectId(unit.id())).toList();
+        if (!movers.isEmpty()) {
+            return new GameMessage.MoveTo(local, movers, place, true);
         }
-        // One order for the whole selection, placed as a group by the simulation — see GroupLayout — and the player's
-        // own click, which gathers a group clicked in its middle. Somewhere they cannot get to, they go as near as they can.
-        game.postCommand(new GameMessage.MoveTo(local, units, new Coord3D(ground.x, ground.z, 0f), true));
-        // One mark for the order, not one per unit: it was a single decision. And
-        // put WHERE HE CLICKED rather than where they will end up. The mark is an
-        // answer to the click -- "that, understood" -- and moving it to the place
-        // they can reach answers a question the player did not ask and hides the
-        // one thing he wants to see, which is whether he clicked where he meant
-        // to. How far they actually get is theirs to work out on the way.
-        markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
-        hintMove(ground.x, ground.z);
-        // And one answer, for the same reason. His own orders only: in a game
-        // with more than one player at it each hears his own hero and nobody
-        // hears anyone else's.
-        noises.moment("vo.move", (float) timer.getTimeInSeconds());
-        answerOrder("move", units);
+        return rallies(own, gameDecides) ? new GameMessage.SetRallyPoint(local, new ObjectId(own.getFirst().id()), place)
+                : null;
+    }
+
+    /** Whether the client's own rule takes a click on open ground as the rally point of a lone building of his. */
+    private static boolean rallies(List<uz.dukeengine.game.view.UnitView> own, boolean gameDecides) {
+        return !gameDecides && own.size() == 1 && own.getFirst().producer() && !own.getFirst().mobile();
     }
 
     /**
@@ -4157,10 +4186,13 @@ final class DukeRtsApp extends SimpleApplication {
      * different answers.
      */
     private List<ObjectId> selectedIds() {
+        return selectedOwn().stream().map(u -> new ObjectId(u.id())).toList();
+    }
+
+    /** What the snapshot says of the selected things that are his. */
+    private List<uz.dukeengine.game.view.UnitView> selectedOwn() {
         return snapshot.units().stream()
-                .filter(u -> selected.contains(u.id())
-                        && u.playerIndex() == game.getLocalPlayerIndex())
-                .map(u -> new ObjectId(u.id()))
+                .filter(u -> selected.contains(u.id()) && u.playerIndex() == game.getLocalPlayerIndex())
                 .toList();
     }
 
@@ -4708,10 +4740,12 @@ final class DukeRtsApp extends SimpleApplication {
         // arrow, as the reference shows it over any window of its interface.
         boolean overPanel = heroPanel.contains(at.x, at.y) || overTheMinimap(at)
                 || canvasInputs != null && canvasInputs.pointerTaken() || !pointerOnTheWorld();
+        var own = selectedOwn();
         return new Cursors.Over(true, armed, canReach, overPanel,
                 over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex(),
-                snapshot.attackable(), !selectedIds().isEmpty(), snapshot.contextOrder(), // a thing's, or the ground's
-                scrolling);
+                snapshot.attackable(), !own.isEmpty(), snapshot.contextOrder(), // a thing's, or the ground's
+                scrolling, own.stream().anyMatch(uz.dukeengine.game.view.UnitView::mobile)
+                        || rallies(own, game.namesGroundOrders()));
     }
 
     /**
