@@ -209,6 +209,8 @@ final class DukeRtsApp extends SimpleApplication {
     private final Node listNode = new Node("effect-lists");
     /** The beams the simulation owns, drawn as the game's lasers — see {@link Lasers}. */
     private Lasers lasers;
+    /** The pictures laid on the ground under things by their words — see {@link GroundPictures}. */
+    private GroundPictures groundPictures;
     /** What a blow shows, by name — see {@link HurtMoments} and {@link Visuals#hurt}. */
     private HurtMoments hurtMoments;
     /** Every drawn thing's barrels: where its shots come out, its flashes and its kick — see {@link Barrels}. */
@@ -617,6 +619,7 @@ final class DukeRtsApp extends SimpleApplication {
         rootNode.attachChild(listNode);
         lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
         lasers = new Lasers(assetManager, listNode, visuals::laserNamed, this::floorHeightAt);
+        groundPictures = new GroundPictures(assetManager, listNode);
         layered.drawsListsWith(lists);
         hurtMoments = new HurtMoments(visuals::hurtRule);
         hitFlash = new HitFlash(visuals.getHitFlash());
@@ -2916,6 +2919,7 @@ final class DukeRtsApp extends SimpleApplication {
         chevrons.clear();
         attackFlash.clear();
         lasers.clear();
+        groundPictures.clear();
         hitNumbers.clear();
         floatingTexts.clear();
         unitBars.clear();
@@ -4865,6 +4869,7 @@ final class DukeRtsApp extends SimpleApplication {
             layered.grounded(entry.getKey());
             barrels.forget(entry.getKey());
             runningGear.forget(entry.getKey());
+            groundPictures.forget(entry.getKey());
             var node = entry.getValue();
             var at = node.root.getLocalTranslation();
             if (Landing.arrived(node.view, game.getLocalPlayerIndex(),
@@ -5992,6 +5997,12 @@ final class DukeRtsApp extends SimpleApplication {
         }
         node.root.setLocalTranslation(UnitPlacement.where(view, this::floorHeightAt));
         node.root.setLocalRotation(UnitPlacement.turn(view));
+        if (!visual.groundPictures.isEmpty()) {
+            groundPictures.see(view.id(), visual,
+                    visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()),
+                    new Coord3D(view.x(), view.y(), 0f), view.orientation(),
+                    timer.getTimePerFrame() / Particles.FRAME_SECONDS, this::floorHeightAt);
+        }
         if (visual.risesAsBuilt && node.body != null) {
             node.body.setLocalTranslation(0f, visual.yOffset - UnitPlacement.sunk(view.built(), node.bodyTop), 0f);
         }

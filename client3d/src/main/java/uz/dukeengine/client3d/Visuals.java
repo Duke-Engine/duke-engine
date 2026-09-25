@@ -236,6 +236,41 @@ public final class Visuals {
             return holding;
         }
 
+        /**
+         * A picture on the ground under it, chosen by its words — see {@link #groundPicture}.
+         *
+         * @param width along the way it faces
+         * @param depth across it
+         */
+        record GroundPicture(java.util.SortedSet<String> words, String picture, float width, float depth,
+                int fadeFrames) {
+        }
+
+        final java.util.List<GroundPicture> groundPictures = new java.util.ArrayList<>();
+
+        /**
+         * A picture laid on the ground under it while its words best fit {@code conditions} — the reference's horde and
+         * shadow decals: {@code width} along the way it faces and {@code depth} across, following it and its facing over
+         * the ground's rise and fall, fading in over {@code fadeFrames} of the game's frames when its words come and out
+         * when they go. One of no words is there whenever nothing more particular fits: a shadow. A whole path from the
+         * resource root; with the thing out of sight, gone.
+         */
+        public UnitVisual groundPicture(java.util.Set<String> conditions, String picture, float width, float depth,
+                int fadeFrames) {
+            groundPictures.add(new GroundPicture(new java.util.TreeSet<>(conditions), picture, width, depth,
+                    Math.max(0, fadeFrames)));
+            return this;
+        }
+
+        /** Which of its ground pictures its words best fit, or -1 for none. */
+        int groundPictureFor(java.util.Set<String> holding) {
+            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
+            for (var picture : groundPictures) {
+                words.add(picture.words());
+            }
+            return uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
+        }
+
         /** Which of its pieces' states its words best fit, or -1 for none. */
         int pieceStateFor(java.util.Set<String> holding) {
             var words = new java.util.ArrayList<java.util.SortedSet<String>>();

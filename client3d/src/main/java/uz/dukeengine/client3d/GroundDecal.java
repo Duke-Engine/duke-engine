@@ -50,17 +50,36 @@ final class GroundDecal {
      * its picture will not load.
      */
     void show(Coord3D at, float radius, AimDecal decal, int frame, BiFunction<Float, Float, Float> floorAt) {
-        var material = decal == null || radius <= 0f ? null : materialFor(decal.picture());
+        if (decal == null || radius <= 0f) {
+            hide();
+            return;
+        }
+        lay(at, 2f * radius, 2f * radius, 0f, decal.picture(), decal.colour(), decal.opacity(frame), floorAt);
+    }
+
+    /**
+     * Lay a picture {@code width} along {@code facing} — the way a thing faces, in the simulation's radians — and
+     * {@code depth} across it, centred on {@code at}, over the ground's rise and fall, in {@code colour} at {@code
+     * opacity}; hidden where its picture will not load.
+     */
+    void lay(Coord3D at, float width, float depth, float facing, String path, int colour, float opacity,
+            BiFunction<Float, Float, Float> floorAt) {
+        var material = width <= 0f || depth <= 0f ? null : materialFor(path);
         if (material == null) {
             hide();
             return;
         }
         float base = floorAt.apply(at.x(), at.y());
         node.setLocalTranslation(at.x(), base, at.y());
+        float cos = (float) Math.cos(facing);
+        float sin = (float) Math.sin(facing);
         for (int row = 0; row <= CELLS; row++) {
             for (int column = 0; column <= CELLS; column++) {
-                float x = (2f * column / CELLS - 1f) * radius;
-                float z = (2f * row / CELLS - 1f) * radius;
+                float along = ((float) column / CELLS - 0.5f) * width;
+                float across = ((float) row / CELLS - 0.5f) * depth;
+                // Turned as a thing is drawn turned: the map's y is the scene's z.
+                float x = along * cos - across * sin;
+                float z = along * sin + across * cos;
                 int corner = (row * (CELLS + 1) + column) * 3;
                 corners.put(corner, x).put(corner + 1, floorAt.apply(at.x() + x, at.y() + z) - base + LIFT)
                         .put(corner + 2, z);
@@ -69,12 +88,16 @@ final class GroundDecal {
         var mesh = picture.getMesh();
         mesh.getBuffer(VertexBuffer.Type.Position).updateData(corners);
         mesh.updateBound();
-        int colour = decal.colour();
         material.setColor("Color", new ColorRGBA(((colour >> 16) & 0xFF) / 255f, ((colour >> 8) & 0xFF) / 255f,
-                (colour & 0xFF) / 255f, decal.opacity(frame)));
+                (colour & 0xFF) / 255f, opacity));
         picture.setMaterial(material);
-        across = 2f * radius;
+        this.across = Math.max(width, depth);
         node.setCullHint(Spatial.CullHint.Inherit);
+    }
+
+    /** Taken out of the scene for good. */
+    void remove() {
+        node.removeFromParent();
     }
 
     void hide() {
@@ -119,7 +142,7 @@ final class GroundDecal {
             state.setPolyOffset(-1f, -1f);
         } catch (RuntimeException notThere) {
             material = null;
-            LOG.warning(() -> "an aim names a picture for the ground that will not load: " + path);
+            LOG.warning(() -> "a picture for the ground will not load: " + path);
         }
         materials.put(path, material);
         return material;
