@@ -1771,6 +1771,33 @@ public final class DukeGame {
         return java.util.Collections.unmodifiableList(groundMarks);
     }
 
+    /**
+     * A piece of a picture laid along the ground — a road's straight, its curve, its crossing — its corners going round
+     * it, {@code a} to {@code b} along the picture from {@code u0} to {@code u1} and {@code a} to {@code d} across it
+     * from {@code v0} to {@code v1}, a corner's height nothing; drawn in its {@code layer}, over an earlier one.
+     */
+    public record StripPiece(String picture, float u0, float v0, float u1, float v1, Coord3D a, Coord3D b, Coord3D c,
+            Coord3D d, int layer) {
+    }
+
+    private final List<StripPiece> stripPieces = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * Pieces of pictures laid along the ground — the reference's roads, pavements, tracks and painted marks ({@code
+     * W3DRoadBuffer}) — each laid over the ground's rise and fall as the reference lays its roads, lit and shrouded as
+     * the ground, a later layer over an earlier one. How the pieces of a road meet — its curves, its crossings, the
+     * picture each is cut from — is the game's to work out. At load or at any time, from any thread; drawing only.
+     */
+    public DukeGame layStrips(List<StripPiece> pieces) {
+        stripPieces.addAll(pieces);
+        return this;
+    }
+
+    /** Every piece the game has laid along the ground, in the order it laid them. */
+    public List<StripPiece> stripPieces() {
+        return java.util.Collections.unmodifiableList(stripPieces);
+    }
+
     /** Thread-safe: run work on the simulation thread next frame. */
     public void runOnSimThread(Runnable task) {
         logic.postTask(task);

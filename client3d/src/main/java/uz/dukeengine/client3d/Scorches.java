@@ -28,66 +28,20 @@ final class Scorches {
     /** How far over the ground a mark lies: the reference's {@code MAP_HEIGHT_SCALE / 10}, a tenth of its step. */
     static final float LIFT = 0.0625f;
 
-    /** The ground a mark lies on, as it is drawn. */
-    interface Ground {
-
-        /** How wide a cell is, or 0 where there are no cells: a mark then lies on the four corners of its square. */
-        float cellSize();
-
-        /** How many cells across and down, a mark laid past its edges cut at them. */
-        int columns();
-
-        int rows();
-
-        /** How high the ground stands at a place, in the client's frame: {@code z} is the map's y. */
-        float heightAt(float x, float z);
-
-        /** The diagonal a cell is drawn cut along. */
-        HeightMap.Diagonal diagonal(int cx, int cy);
-
-        /** Ground with no cells, flat at nothing. */
-        Ground NONE = new Ground() {
-            @Override
-            public float cellSize() {
-                return 0f;
-            }
-
-            @Override
-            public int columns() {
-                return 0;
-            }
-
-            @Override
-            public int rows() {
-                return 0;
-            }
-
-            @Override
-            public float heightAt(float x, float z) {
-                return 0f;
-            }
-
-            @Override
-            public HeightMap.Diagonal diagonal(int cx, int cy) {
-                return HeightMap.Diagonal.MAIN;
-            }
-        };
-    }
-
     private record Mark(Geometry drawn, float x, float z, float radius, String picture) {
     }
 
     private final Node node;
-    private final Supplier<Ground> ground;
+    private final Supplier<DrawnGround> ground;
     private final Function<String, Material> looks;
     private final Deque<Mark> marks = new ArrayDeque<>();
 
     /**
      * @param node   where the marks are hung
-     * @param ground the ground as it is drawn now
+     * @param ground the ground as it is drawn now; with no cells, a mark lies on the four corners of its square
      * @param looks  the material a mark's picture is drawn with, or null where the picture will not load
      */
-    Scorches(Node node, Supplier<Ground> ground, Function<String, Material> looks) {
+    Scorches(Node node, Supplier<DrawnGround> ground, Function<String, Material> looks) {
         this.node = node;
         this.ground = ground;
         this.looks = looks;
@@ -125,7 +79,7 @@ final class Scorches {
      * edge, each at the ground's height and {@link #LIFT} over it, its picture laid by its offset from the middle — the
      * whole picture across the mark's diameter, {@code v} growing with the map's y as the reference's does with its.
      */
-    static Mesh mesh(Ground ground, float x, float z, float radius) {
+    static Mesh mesh(DrawnGround ground, float x, float z, float radius) {
         float cell = ground.cellSize();
         int fromX;
         int toX;

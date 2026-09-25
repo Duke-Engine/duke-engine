@@ -217,6 +217,10 @@ final class DukeRtsApp extends SimpleApplication {
     /** How a thing kept from some players looks to the rest — see {@link StealthLook}. */
     private StealthLook stealthLook;
     private Scorches scorches;
+    private Strips strips;
+    /** How many of the game's pieces laid along the ground are laid, and for which game. */
+    private int stripsLaid;
+    private DukeGame stripsOf;
     /** The paint the ground was last built with, for what is laid over it as it is drawn. */
     private GroundPaint builtPaint;
     /** How many of the game's own marks on the ground are laid, and for which game. */
@@ -640,6 +644,7 @@ final class DukeRtsApp extends SimpleApplication {
         rootNode.attachChild(particleDrawing.node());
         layered.drawsSystemsWith(particles);
         scorches = new Scorches(listNode, this::drawnGround, this::scorchLook);
+        strips = new Strips(listNode, this::drawnGround, this::stripLook);
         listShow = new ListShow(assetManager, listNode, effects.lights(), (cue, at) -> {
             if (noises != null) {
                 noises.sounds().play(cue, at, timer.getTimeInSeconds());
@@ -2900,6 +2905,9 @@ final class DukeRtsApp extends SimpleApplication {
         clearWhatIsBurning();
         builtPaint = GroundPaint.of(game.getMapRecord());
         scorchLooks.clear(); // each made for the fog of the world it was laid in
+        if (strips != null) {
+            strips.clear(); // a new world lays its own
+        }
         terrain.rebuild(builtFrom, currentKit, builtPaint);
         if (visuals.getDiscoveryTemplate() == null) {
             return;
@@ -4364,6 +4372,7 @@ final class DukeRtsApp extends SimpleApplication {
         // shot lights its muzzle on the frame it was fired rather than the next.
         handleEvents();
         layTheMapsMarks();
+        layTheMapsStrips();
         // What this frame is worth hearing. Reads the same snapshot everything
         // else does and writes nothing back -- see GameSounds.
         noises.frame(snapshot, game.getLocalPlayerIndex(),
@@ -5543,14 +5552,43 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /** The pieces the game laid along its ground since the last frame. */
+    private void layTheMapsStrips() {
+        if (stripsOf != game) {
+            stripsOf = game;
+            stripsLaid = 0;
+        }
+        var pieces = game.stripPieces();
+        if (stripsLaid < pieces.size()) {
+            strips.lay(List.copyOf(pieces.subList(stripsLaid, pieces.size())));
+            stripsLaid = pieces.size();
+        }
+    }
+
+    /**
+     * How a piece laid along the ground is drawn: the ground's own material over its picture — lit and shrouded as the
+     * ground — blended by the picture's alpha over it, as the reference draws its roads. Null where it will not load.
+     */
+    private Material stripLook(String path) {
+        if (groundTexture(path) == null) {
+            return null;
+        }
+        var look = ground(ColorRGBA.White, path);
+        var state = look.getAdditionalRenderState();
+        state.setBlendMode(com.jme3.material.RenderState.BlendMode.Alpha);
+        state.setDepthWrite(false);
+        state.setPolyOffset(-1f, -1f);
+        return look;
+    }
+
     /** The ground as it is drawn, for a mark laid on it: its cells, its heights, and the cut each is drawn along. */
-    private Scorches.Ground drawnGround() {
+    private DrawnGround drawnGround() {
         var grid = builtFrom;
         if (grid == null) {
-            return Scorches.Ground.NONE;
+            return DrawnGround.NONE;
         }
         var paint = builtPaint;
-        return new Scorches.Ground() {
+        return new DrawnGround() {
             @Override
             public float cellSize() {
                 return grid.getCellSize();

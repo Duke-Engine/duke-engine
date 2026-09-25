@@ -15,7 +15,7 @@ import uz.dukeengine.core.pathfind.HeightMap;
 class ScorchesTest {
 
     /** A ridge running along the map's y at x = 100, falling a half a unit across; cells of 10, forty a side. */
-    private static final Scorches.Ground RIDGE = new Scorches.Ground() {
+    private static final DrawnGround RIDGE = new DrawnGround() {
         @Override
         public float cellSize() {
             return 10f;
@@ -42,7 +42,7 @@ class ScorchesTest {
         }
     };
 
-    private static Scorches scorches(Node node, Scorches.Ground ground) {
+    private static Scorches scorches(Node node, DrawnGround ground) {
         return new Scorches(node, () -> ground, picture -> new Material());
     }
 
@@ -82,7 +82,7 @@ class ScorchesTest {
     @Test
     void theFiveHundredAndFirstMarkLetsTheFirstGo() {
         var node = new Node("marks");
-        var marks = scorches(node, Scorches.Ground.NONE);
+        var marks = scorches(node, DrawnGround.NONE);
         marks.lay(0f, 0f, 10f, "textures/scorch.png");
         var first = marks.newest();
 
