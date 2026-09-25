@@ -7,7 +7,9 @@ import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.ModuleGroups;
+import uz.dukeengine.core.thing.Classified;
 import uz.dukeengine.core.thing.GameObject;
+import uz.dukeengine.core.thing.Kind;
 import uz.dukeengine.core.thing.ObjectId;
 
 /**
@@ -29,7 +31,9 @@ import uz.dukeengine.core.thing.ObjectId;
  * there, the reference's Humvee and Battle Bus. <b>Riders</b> ({@code RiderBone}): passengers standing on top of the
  * carrier at that bone of its model, turning with it and firing on their own, dying with it, and clicked as the carrier
  * — an Overlord's gattling cannon. No order lets a rider off, neither an evacuate nor an exit: only its carrier's
- * death, or the game's own {@link #unload}, as the reference's Overlord keeps its add-on through an evacuate.
+ * death, or the game's own {@link #unload}, as the reference's Overlord keeps its add-on through an evacuate. A hold
+ * may ride only some kinds ({@code RiderKinds}): its other passengers sit inside as any hold's do — the reference's
+ * Helix, soldiers inside and its one add-on on top ({@code HelixContain}).
  *
  * <p><b>Out of a building</b>, a passenger stands on the nearest clear ground outside its footprint, or at the exit bone
  * the holder names ({@code ExitBone}), not inside it; or, where the holder names an exit path ({@code ExitStart} and
@@ -51,10 +55,23 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
      * PassengersVanish}: whether passengers it loses in its death leave the world quietly rather than dying; {@code
      * ExitBone}: the bone of its model its passengers come out at, or null for the nearest clear ground outside it;
      * {@code ExitStart} and {@code ExitEnd}: the bones of its exit path, which they walk out along instead; {@code
-     * PassengersSeeOut}: whether they see out of it, from where it stands.
+     * PassengersSeeOut}: whether they see out of it, from where it stands; {@code RiderKinds}: the kinds of passenger
+     * that ride at its RiderBone, the others sitting inside — none named, every passenger rides.
      */
     public record Data(int slots, String sharedBy, boolean passengersFire, String riderBone, boolean passengersVanish,
-            String exitBone, String exitStart, String exitEnd, boolean passengersSeeOut) implements ModuleData {
+            String exitBone, String exitStart, String exitEnd, boolean passengersSeeOut, List<Kind> riderKinds)
+            implements ModuleData {
+
+        public Data {
+            riderKinds = riderKinds == null ? List.of() : List.copyOf(riderKinds);
+        }
+
+        /** Every passenger riding, where it names a RiderBone. */
+        public Data(int slots, String sharedBy, boolean passengersFire, String riderBone, boolean passengersVanish,
+                String exitBone, String exitStart, String exitEnd, boolean passengersSeeOut) {
+            this(slots, sharedBy, passengersFire, riderBone, passengersVanish, exitBone, exitStart, exitEnd,
+                    passengersSeeOut, List.of());
+        }
 
         /** Passengers that see nothing from inside, as the reference's transport's do. */
         public Data(int slots, String sharedBy, boolean passengersFire, String riderBone, boolean passengersVanish,
@@ -98,6 +115,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     private final String exitStart;
     private final String exitEnd;
     private final boolean passengersSeeOut;
+    private final List<Kind> riderKinds;
     private boolean passengersFire;
     private final List<ObjectId> passengers = new ArrayList<>();
 
@@ -112,6 +130,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         this.exitStart = data.exitStart();
         this.exitEnd = data.exitEnd();
         this.passengersSeeOut = data.passengersSeeOut();
+        this.riderKinds = data.riderKinds();
     }
 
     /** Let its passengers fire from inside, or hold them idle — the reference's PassengersFireUpgrade. */
@@ -128,6 +147,15 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         return riderBone;
     }
 
+    /** Whether {@code passenger} rides on top at its RiderBone, rather than sitting inside. */
+    public boolean rides(GameObject passenger) {
+        if (riderBone == null) {
+            return false;
+        }
+        var kinds = Classified.of(passenger.getTemplate());
+        return riderKinds.isEmpty() || riderKinds.stream().anyMatch(kinds::contains);
+    }
+
     /** Its riders stand where they ride, turned with it; its firing passengers where it stands. */
     @Override
     public void update() {
@@ -142,7 +170,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
             if (passenger == null) {
                 continue;
             }
-            if (riderBone == null) {
+            if (!rides(passenger)) {
                 passenger.setPosition(owner.getPosition()); // fires as though it stood where its carrier does
                 continue;
             }
@@ -155,7 +183,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     /** Whether {@code passenger} fires from inside what carries it: a hold whose passengers fire, or a rider. */
     public static boolean firesFromInside(GameObject passenger) {
         var hold = holdOf(passenger);
-        return hold != null && (hold.passengersFire || hold.riderBone != null);
+        return hold != null && (hold.passengersFire || hold.rides(passenger));
     }
 
     /** The hold of its own that {@code passenger} is in — a side's shared one left out — or null. */
@@ -223,11 +251,26 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         var container = world.findObject(order.container());
         var hold = container == null || container.getPlayerIndex() != order.playerIndex() ? null
                 : container.findModule(ContainModule.class);
-        if (hold == null || hold.hold().isEmpty() || hold.riderBone != null) {
-            return false;
+        return hold != null && hold.letOutTheInside();
+    }
+
+    /** Those inside out beside it, each on ground the one before left clear; its riders stay. Whether any came. */
+    private boolean letOutTheInside() {
+        var world = getOwner().getWorld();
+        var hold = hold();
+        boolean any = false;
+        for (var id : List.copyOf(hold)) {
+            var passenger = world.findObject(id);
+            if (passenger != null && rides(passenger)) {
+                continue;
+            }
+            hold.remove(id);
+            if (passenger != null) {
+                letOut(passenger);
+                any = true;
+            }
         }
-        hold.unloadAll();
-        return true;
+        return any;
     }
 
     /** One of the player's passengers out of whatever carries it — an {@code ExitContainer} order; not a rider. */
@@ -240,7 +283,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         for (var carrier : world.getObjects()) {
             var hold = carrier.findModule(ContainModule.class);
             if (hold != null && standing(carrier) && hold.contains(passenger.getId())) {
-                if (hold.riderBone != null) {
+                if (hold.rides(passenger)) {
                     return false;
                 }
                 hold.unload(passenger);
@@ -402,7 +445,15 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     public void onDie(uz.dukeengine.core.module.Death death) {
         var world = getOwner().getWorld();
         if (riderBone != null && world != null) {
-            lose(world, passengers); // riders die with what they ride
+            var riders = new ArrayList<ObjectId>();
+            for (var id : passengers) {
+                var passenger = world.findObject(id);
+                if (passenger != null && rides(passenger)) {
+                    riders.add(id);
+                }
+            }
+            passengers.removeAll(riders);
+            lose(world, riders); // riders die with what they ride
             return;
         }
         if (sharedBy == null || !(world instanceof uz.dukeengine.rts.RtsSimulation rts) || anotherHoldsTheNetwork()) {

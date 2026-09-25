@@ -121,7 +121,7 @@ final class RtsClient extends GameClient {
         }
         for (var object : shown) {
             var carrier = object.isContained() ? uz.dukeengine.rts.module.ContainModule.holdOf(object) : null;
-            boolean rider = carrier != null && carrier.riderBone() != null;
+            boolean rider = carrier != null && carrier.rides(object);
             if (object.isContained() && !rider || object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)) {
                 continue; // riding inside a transport, or not there to be seen — not on the map
             }
