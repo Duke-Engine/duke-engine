@@ -137,21 +137,135 @@ when it does, this page says exactly what to change and how.
   `stillAlliesOn` and `runsOver`, a `findPath` that goes round movers it names, and a `findBlocker` that says
   whether the mover is passing. `Locomotor` has `moveExactlyTo` and `moveThrough`, and `Module` has `keepsBusy`.
   All of them are defaults: only a world or a mover that keeps ground cells implements them.
+- A factory's one `Door = Door … End` is written `Doors = [Door … End, …]` in a block; one made in code with a
+  single door is made as it was.
+- A passenger lends no sight while it rides, unless its hold says `PassengersSeeOut` (a garrison): a transport's
+  passengers used to go on seeing from where they got in.
+- A blast reaches each thing's bounding sphere, half its height up, not its middle: a thing at the edge of a blast is
+  caught where it was missed. `NOT_SIMILAR` spares only the allies of the template of what went off, where it spared
+  every thing of the shooter's template, and a blast that does not say `SELF` spares what went off and what made it.
+- A weapon whose range less a quarter cell is under a cell closes until it touches, and `WeaponFired`'s contact
+  flag asks the weapon by that rule, where it used the reference's older one.
+- `World.standingNextTo` measures from the footprint the mover will stand in, turned the way it will face. An
+  exact move goes on onto its point once close enough, where it stopped its close-enough short.
+- `GameLogic.getObjects()` hands out one copy until the objects next change; a copy handed out stays as it was.
+- A still thing turned or moved has its footprint laid again before the next route (`ObstacleRules`, every still
+  thing in the way unless the game says otherwise, as before).
+- `GameLogic.checksum()` mixes in a thing's producer and its own fog range when it has them, and a save carries
+  both; a world where no factory made anything and nothing set a fog range sums as it did, and an older save loads.
+- Under `RIGHT_COMMANDS` a game's `RightDrag` scrolls with the right button held, the order given as it is let go
+  as a click, where the button ordered the moment it went down. A shift-click on one of the player's own things
+  selects it even where the game names a word a click on it gives, and the force-attack key's click sends a forced
+  attack (`AttackObject.forced`, `,forced` on the wire; an older line reads as not forced).
+- A particle system at a bone its model lacks runs at the thing's own place, where it ran nothing.
+- A thing the world keeps dead is drawn by its words and its health — its model, pieces, clip and tints — where it
+  was drawn frozen as it fell, and what lay under it fades out over its frames from its death.
+- A look's ground picture of no words stays under the picture its words choose, where it gave way to it.
+- Every scorch mark is laid over the ground's rise and fall, shaded with the ground's ambient and half its sun and
+  shrouded as the ground, where it was a flat unlit square at its middle's height.
+- A laser look's tiling scalar is kept as written, where it was raised to 0.01, and a line's picture is tiled no more
+  than 50 times.
+- `MapArea` has `river()` and `riverStart()`, and `RtsModules` has `ToppleUpdate`, which a moving
+  `CrushUpdate` pushes over. Both are defaults a game's own records and modules need not write.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
-  `HarvestUpdate.Data`, `WeaponFired`, `Weapon` (and its own `Bonuses`, its `Affects` and second ring),
-  `WorldSnapshot` (and `revealed`, `contextOrder`, `beams`, `rallies`), `SoundBank.Cue`, `Sound`, `UnitView` (and
-  `passengers`, `conditions`, `built`, `ridesOn`, `allied`, `span`, `mobile`), `MoveUpdate.Data` (and its gait and
-  priorities), `GameMessage.MoveTo` (and `click`), `UnitBarLook` (and `plain`), `CommandButton`, `Upgrade`, `ProductionUpdate.Data` (and its
-  `Exit`, `Door` and `Words`), `ProductionUpdate.Queued`, `PlacementRules` (and its `SiteWords`), `ContainModule.Data`
-  (and `PassengersFire`, `RiderBone`, `PassengersVanish`, `ExitBone`), `OrderMark` (and `ContextColour`),
-  `RtsTemplate`, `Shot`, `ActiveBody.Data`, `ExperienceModule.Data` (and `LevelHealthBonus`), `TextFloated`,
-  `HitNumbers` — and every new field left out means what the old record did. `PlacementRules` keeps its
-  constructors too, `siteAtOrder` left out as before.
+  `HarvestUpdate.Data` (and `NeedsDepot`, `WaitBy`), `WeaponFired`, `Weapon` (and its own `Bonuses`, its
+  `Affects` and second ring), `WorldSnapshot` (and `revealed`, `contextOrder`, `beams`, `rallies`, `effects`),
+  `SoundBank.Cue`, `Sound`, `UnitView` (and `passengers`, `conditions`, `built`, `ridesOn`, `allied`, `span`,
+  `mobile`, `drawnAs`, `wears`, `opacity`, `hostile`), `MoveUpdate.Data` (and its gait and priorities),
+  `GameMessage.MoveTo` (and `click`), `UnitBarLook` (and `plain`), `CommandButton`, `Upgrade`,
+  `ProductionUpdate.Data` (and its `Exit`, `Door`s and `Words`, and `RefundsPriceNow`), `ProductionUpdate.Queued`,
+  `PlacementRules` (and its `SiteWords`), `ContainModule.Data`
+  (and `PassengersFire`, `RiderBone`, `PassengersVanish`, `ExitBone`, its exit path, `PassengersSeeOut`),
+  `OrderMark` (and `ContextColour`), `RtsTemplate` (and `FogRange`, `SeenByAllWithin`, its fence), `Shot`,
+  `EffectList.Debris`, `GameMessage.AttackObject`, `ActiveBody.Data`, `ExperienceModule.Data` (and
+  `LevelHealthBonus`), `TextFloated`, `HitNumbers` — and every new field left out means what the old record did.
+  `PlacementRules` keeps its constructors too, `siteAtOrder` left out as before.
   A template that names no prerequisite, word or cap is buildable as before; a save from before granted words and
   computer sides loads.
   `Canvas.drawPicture(Picture, …)` is a default that refuses, so a game's own canvas compiles as it did.
   `ProjectileLauncher.launch(shooter, victim, damage, type)` and `DieModule.onDie()` are still called, through the
   forms that now say more. The static `Duke3D.launch` methods are shorthand for `Duke3D.of(game, visuals)...launch()`.
+
+### A frame at a thousand things
+
+The frame no longer copies the object list for every walk; a footprint's sine and cosine are worked out once as a thing
+turns, not in every test; the snapshot sorts the lookers that show a player anything into squares of the ground by what
+their reach covers, and asks each thing only of those — the same answers as `canSee`, one by one. The game says how
+often a weapon with no target looks for one (`RtsSimulation.setTargetScanFrames`, the reference's
+`MoodAttackCheckRate`), each thing on its own frame of the round.
+
+### Harvesters, builders and factories
+
+A harvester sent beside its depot or pile is beside it where its move ends. A `Construct` order the engine takes is
+told to the builder's `OrderListener`s, so a worker drops its harvesting. A harvester may need a depot
+(`NeedsDepot`): with none standing it keeps its load and waits by a thing of the kinds it names (`WaitBy`). A
+factory may have several doors, a job going out by the one its reservation names (`ProductionReservation.door`),
+and a module may hold one open (`holdDoorOpen`); it may give back the side's price at the moment of a cancel
+(`RefundsPriceNow`). A holder may let passengers out along an exit path (`ExitStart`, `ExitEnd`), through its own
+walls to free ground or its rally point.
+
+### What a player sees, and of whom
+
+A thing's fog range stands apart from its sight: a template's `FogRange` and a thing's own at run time
+(`setFogRange`) clear the fog, its sight still what it looks for targets by; a site clears only over its footprint,
+and a finished thing may be seen by every player within `SeenByAllWithin`. A passenger sees nothing unless its hold
+lets it see out. A hidden thing's shot may be shown anyway, by the kind of thing or the weapon
+(`setShownWhenHidden`, `ShownWhenHidden`), and its other shots kept from its allies too
+(`setHiddenShotsToOwnerOnly`).
+
+### Blasts, what went off, and weapons that touch
+
+A blast reaches a thing's bounding sphere; `NOT_SIMILAR` and `SELF` read off what went off (`Shot.wentOffAs`) and
+what made it (`GameObject.getProducer`, set by a factory); a contact weapon closes until it touches.
+
+### What is in the way on the ground
+
+`GameLogic.setObstacleRules`: the kinds of thing in the way (the reference's structures), the kinds never in it,
+and how far over the ground a thing may stand and still be; a fence is in the way along its line alone
+(`FenceWidth`, `FenceOffset`); a still thing turned or moved is laid again; a thing inside another is in nobody's.
+
+### A thing drawn as another, or as nothing
+
+`GameObject.drawAs(template, player)`: another template's look to every viewer, in that player's colours to those not
+on its side (`UnitView.looksAs`, `wears`), faded through the change (`setDrawnOpacity`); the `Disguise` seam,
+a thing passed off as none of a side's targets taken only by a forced attack. `UnitVisual.noShape`: a thing drawn as
+nothing, and picked by nothing.
+
+### Effects that ride, strips that rise, bones where they are drawn
+
+`World.effect(name, thing, bone, offset)` plays a particle system riding a thing until `endEffect` stops it.
+`World.strip(name, where, seconds, rise)` plays a strip of pictures (`Visuals.strip`) at a place, rising and fading.
+`Bones.inWorld` reads a bone on any model a thing is drawn with, at a clip's last frame, turned with its turret,
+matched without case.
+
+### Sounds held to budgets, the camera's keys, and the mouse
+
+A cue's `Limit` of how many play at once, and its priority within the game's budget of sounds at a place and flat
+(`SoundBank.budget`). A `CameraFrame`'s turn-key and zoom-key speeds and the share the eye closes a frame
+(`CameraAdjustSpeed`). The right button's scroll under either mouse, its pointer and its `floor`. The ground rule
+told whether the player has ever seen the point (`SeenGroundOrder`); the moment that answers a click giving the
+game's word (`Visuals.orderAnswer`), and how it is marked — the order mark, the thing flashed, or nothing
+(`Visuals.wordMark`); a thing flashing as it is selected (`Visuals.selectionFlash`).
+
+### Looks by words
+
+A transition's keep group, its particle systems, and `waitFor`; a clip's slowest and fastest speed; a system at a
+missing bone at the thing's place; a glow its own player alone sees (`Visuals.ownGlow`); a kept-dead thing drawn by
+its words and health. A shadow under the picture its words choose, a picture hidden from its owner's enemies, one of
+no size as large as its model (`UnitView.hostile`). Several marks by the health bar at once, each placed as the
+reference places its own (`Visuals.MarkPlace`), a strip starting on a picture drawn at random. Debris that sounds
+where it strikes, trails a system, plays clips, lands with a list, takes its thrower's colour, lies out its life from
+rest and slides to a stop (`EffectList.Debris`). A laser's picture tiled between none and 50 times.
+
+### The ground
+
+A map may turn cells to be drawn cut along the other diagonal (`@Flipped`) and lay a cell's picture by its corners
+(`@PictureCorners`), for the drawing alone. A game may burn marks into the ground (`DukeGame.markGround`), kept
+whatever any player sees, and lay strips of pictures along it — roads (`DukeGame.layStrips`); every scorch lies on
+the ground's rise and fall. Water (`Visuals.water`, `MapArea.river`), the ground lit by lights of its own
+(`Visuals.groundLight`, `thingSuns`) and pictures multiplied over it (`Visuals.groundShade`,
+`Duke3D.groundShades`). Trees that sway (`UnitVisual.sway`), topple under a crushing vehicle and sink away
+(`ToppleUpdate`).
 
 ### Ground movers keep cells of their own
 
