@@ -216,6 +216,9 @@ final class DukeRtsApp extends SimpleApplication {
     private final WordTints wordTints = new WordTints();
     /** How a thing kept from some players looks to the rest — see {@link StealthLook}. */
     private StealthLook stealthLook;
+    private final SelectionFlash selectionFlash = new SelectionFlash();
+    /** What was selected the frame before: a thing new to the selection flashes. */
+    private java.util.Set<Integer> wasSelected = java.util.Set.of();
     /** What a blow shows, by name — see {@link HurtMoments} and {@link Visuals#hurt}. */
     private HurtMoments hurtMoments;
     /** Every drawn thing's barrels: where its shots come out, its flashes and its kick — see {@link Barrels}. */
@@ -3007,6 +3010,7 @@ final class DukeRtsApp extends SimpleApplication {
         groundPictures.clear();
         wordTints.clear();
         stealthLook.clear();
+        selectionFlash.clear();
         hitNumbers.clear();
         floatingTexts.clear();
         pictureStrips.clear();
@@ -4050,8 +4054,16 @@ final class DukeRtsApp extends SimpleApplication {
             // The order the game said a click on this thing gives — see DukeGame.contextOrder.
             game.postCommand(new GameMessage.GameOrder(local, snapshot.contextOrder(), units,
                     new Coord3D(enemy.view.x(), enemy.view.y(), 0f), new ObjectId(enemy.view.id()), 0));
-            markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(),
-                    visuals.getOrderMark().ringsContextOrders() ? OrderMarkers.Kind.CONTEXT : OrderMarkers.Kind.MOVE);
+            switch (visuals.wordMarkFor(snapshot.contextOrder())) {
+                case MARK -> markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(),
+                        visuals.getOrderMark().ringsContextOrders()
+                                ? OrderMarkers.Kind.CONTEXT : OrderMarkers.Kind.MOVE);
+                case FLASH -> flash(enemy.view.id(), visuals.getSelectionFlash() != null
+                        ? visuals.getSelectionFlash() : Visuals.SelectionFlashLook.REFERENCE);
+                case NONE -> {
+                    // the game named this order answered by nothing drawn
+                }
+            }
             answerWord(snapshot.contextOrder(), units);
             return;
         }
@@ -4082,7 +4094,9 @@ final class DukeRtsApp extends SimpleApplication {
             }
             case GameMessage.GameOrder steer -> {
                 game.postCommand(steer); // the game's word for a click here — see DukeGame.groundOrder
-                markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
+                if (visuals.wordMarkFor(steer.word()) == Visuals.WordMark.MARK) {
+                    markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE); // no thing on open ground to flash
+                }
                 answerWord(steer.word(), units);
             }
             case GameMessage.SetRallyPoint rally -> {
@@ -4345,6 +4359,7 @@ final class DukeRtsApp extends SimpleApplication {
         keepHisOwnSelected();
         tellTheGameWhatHeIsLookingAt();
         syncUnits();
+        flashTheNewlySelected(tpf);
         showUnitBars();
         // After the units, because a burst lit this frame has to reach the stone
         // this frame — the terrain reads its lights off a material parameter, not
@@ -5110,6 +5125,7 @@ final class DukeRtsApp extends SimpleApplication {
             groundPictures.forget(entry.getKey());
             wordTints.forget(entry.getKey());
             stealthLook.forget(entry.getKey());
+            selectionFlash.forget(entry.getKey());
             var node = entry.getValue();
             var at = node.root.getLocalTranslation();
             if (Landing.arrived(node.view, game.getLocalPlayerIndex(),
@@ -5469,6 +5485,37 @@ final class DukeRtsApp extends SimpleApplication {
                 return discovery == null || discovery.canSee(x, z);
             }
         };
+    }
+
+    /**
+     * Every flash eased on by the game's time, and a thing new to the selection flashed as the game names — the
+     * reference's {@code Drawable::onSelected} — with the riders it shows.
+     */
+    private void flashTheNewlySelected(float tpf) {
+        selectionFlash.update(tpf / Particles.FRAME_SECONDS);
+        var look = visuals.getSelectionFlash();
+        if (look != null) {
+            for (int id : selected) {
+                if (!wasSelected.contains(id)) {
+                    flash(id, look);
+                }
+            }
+        }
+        wasSelected = java.util.Set.copyOf(selected);
+    }
+
+    /** A thing flashed as {@code look} says, and what rides on it with it — {@code clientVisibleContainedFlash...}. */
+    private void flash(int id, Visuals.SelectionFlashLook look) {
+        var node = unitNodes.get(id);
+        if (node == null || node.view == null) {
+            return;
+        }
+        selectionFlash.flash(id, node.root, look, toColor(game.getColor(node.view.wears())));
+        for (var rider : unitNodes.values()) {
+            if (rider.view != null && rider.view.ridesOn() == id) {
+                selectionFlash.flash(rider.view.id(), rider.root, look, toColor(game.getColor(rider.view.wears())));
+            }
+        }
     }
 
     /** A thrown piece's house-colour meshes in the colour the thing it was thrown for wears, dead or alive. */

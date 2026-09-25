@@ -645,7 +645,6 @@ public final class Visuals {
             return this;
         }
 
-        /** Which of its ground pictures its words best fit, or -1 for none. */
         /** Its picture of no words — a shadow — kept under whichever its words choose; null for none. */
         GroundPicture plainGroundPicture() {
             for (var picture : groundPictures) {
@@ -656,6 +655,7 @@ public final class Visuals {
             return null;
         }
 
+        /** Which of its ground pictures its words best fit, or -1 for none. */
         int groundPictureFor(java.util.Set<String> holding) {
             var words = new java.util.ArrayList<java.util.SortedSet<String>>();
             for (var picture : groundPictures) {
@@ -2015,6 +2015,71 @@ public final class Visuals {
     /** The moment that answers a click giving {@code word}: the game's, none (null), or a move's. */
     String orderAnswerFor(String word) {
         return word != null && orderAnswers.containsKey(word) ? orderAnswers.get(word) : "move";
+    }
+
+    /**
+     * How a thing flashes as it is selected — the reference's {@code Drawable::flashAsSelected}: white, or the colour
+     * it is drawn in where {@code ownersColour} ({@code SelectionFlashHouseColor}), saturated as the reference
+     * saturates it — each channel times {@code saturation} ({@code SelectionFlashSaturationFactor}) less half of it —
+     * added to the thing at once and eased out over {@code frames} of the game's frames. The reference's: 0.5, white,
+     * over 4, so +0.25 grey.
+     */
+    public record SelectionFlashLook(float saturation, boolean ownersColour, int frames) {
+
+        public static final SelectionFlashLook REFERENCE = new SelectionFlashLook(0.5f, false, 4);
+
+        public SelectionFlashLook {
+            frames = Math.max(1, frames);
+        }
+
+        /** The colour it adds at its height to a thing drawn in {@code owner}'s colour. */
+        com.jme3.math.ColorRGBA peakFor(com.jme3.math.ColorRGBA owner) {
+            var base = ownersColour && owner != null ? owner : com.jme3.math.ColorRGBA.White;
+            float less = saturation / 2f;
+            return new com.jme3.math.ColorRGBA(base.r * saturation - less, base.g * saturation - less,
+                    base.b * saturation - less, 1f);
+        }
+    }
+
+    private SelectionFlashLook selectionFlash;
+
+    /** Things flashing as they are selected, and the riders they show with them — see {@link SelectionFlashLook}. */
+    public Visuals selectionFlash(SelectionFlashLook look) {
+        this.selectionFlash = look;
+        return this;
+    }
+
+    /** How a thing flashes as it is selected, or null where the game names no flash. */
+    public SelectionFlashLook getSelectionFlash() {
+        return selectionFlash;
+    }
+
+    /** What a click giving one of the game's words is marked with — see {@link #wordMark}. */
+    public enum WordMark {
+        /** As {@link OrderMark} marks an order the game names: its ring round the thing, or a move's arrowheads. */
+        MARK,
+        /** The thing it was given on flashed as a thing is when it is selected: the reference's garrison hint. */
+        FLASH,
+        /** Nothing drawn. */
+        NONE
+    }
+
+    private final Map<String, WordMark> wordMarks = new java.util.HashMap<>();
+
+    /**
+     * How a click that gives the game's word {@code word} is marked — the reference answers an order to enter a thing
+     * by flashing the thing entered ({@code InGameUI::createGarrisonHint}), as it flashes when it is selected, with the
+     * game's selection flash or else the reference's, and draws nothing for a dock, a repair, a capture or a hijack. A
+     * word it names nothing for is marked as {@link OrderMark} marks an order the game names.
+     */
+    public Visuals wordMark(String word, WordMark mark) {
+        wordMarks.put(word, mark == null ? WordMark.MARK : mark);
+        return this;
+    }
+
+    /** How a click giving {@code word} is marked. */
+    WordMark wordMarkFor(String word) {
+        return word == null ? WordMark.MARK : wordMarks.getOrDefault(word, WordMark.MARK);
     }
 
     private float dragDistance = SelectionBox.DRAG_THRESHOLD_PIXELS;
