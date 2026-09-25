@@ -16,6 +16,8 @@ public abstract class BodyModule extends Module {
 
     /** The blow that killed it, once one has; see {@link #getDeath}. */
     private Death death;
+    /** What every blow is multiplied by after armour — see {@link #setDamageScale}. */
+    private float damageScale = 1f;
 
     protected BodyModule(GameObject owner) {
         super(owner);
@@ -49,14 +51,20 @@ public abstract class BodyModule extends Module {
 
     /**
      * The same, saying where on the body the blow landed and where it came from, for the {@link ObjectHurt} it
-     * posts — a blow that takes health posts one, a blow that takes none nothing.
+     * posts — a blow that takes health posts one, a blow that takes none nothing — and for the thing's
+     * {@link DamageListener}s, told at once.
+     *
+     * <p>The whole blow, seen before it is taken: a body of a game's own may override this to take it (calling this),
+     * to pass it whole to another body — the same blow, killer and death, which that body takes and tells of — or to
+     * take none, and then nothing is posted or told. The reference's HiveStructureBody passes its soldiers' blows to
+     * the spawn nearest the shooter.
      *
      * @param at   where on the body it landed, or {@code null} for the body's middle
      * @param from where it came from, or {@code null} for wherever its dealer stands
      */
-    public final void damage(float amount, DamageType type, Death blow, Coord3D at, Coord3D from) {
+    public void damage(float amount, DamageType type, Death blow, Coord3D at, Coord3D from) {
         boolean wasAlive = !isDead();
-        float worth = wasAlive ? estimateDamage(amount, type) : 0f;
+        float worth = wasAlive ? scaled(estimateDamage(amount, type), type) : 0f;
         damage(amount, type);
         if (!wasAlive) {
             return;
@@ -64,7 +72,50 @@ public abstract class BodyModule extends Module {
         death = isDead() ? blow : null;
         if (worth > 0f) {
             hurt(type, worth, blow, at, from);
+            var attacker = blow == null ? null : blow.killer();
+            int frame = getOwner().getWorld() == null ? 0 : getOwner().getWorld().getFrame();
+            for (var module : java.util.List.copyOf(getOwner().getModules())) {
+                if (module instanceof DamageListener listener) {
+                    listener.onDamage(type, worth, attacker, frame);
+                }
+            }
         }
+    }
+
+    /**
+     * Tell the thing's {@link DamageListener}s it was healed by {@code amount}: for a body's {@link #heal} to call
+     * with what it restored — {@link ActiveBody}'s does; a body of a game's own calls it from its own.
+     */
+    protected final void healed(float amount) {
+        if (amount <= 0f) {
+            return;
+        }
+        for (var module : java.util.List.copyOf(getOwner().getModules())) {
+            if (module instanceof DamageListener listener) {
+                listener.onHealing(amount);
+            }
+        }
+    }
+
+    /**
+     * Multiply every blow this body takes by {@code scale} after its armour — the reference's damage scalar, which a
+     * battle plan sets to 0.9 on a side's infantry and vehicles while it is on — except a blow of the damage the game
+     * names unresistable ({@code GameLogic.setUnresistableDamage}). Left out of {@link #estimateDamage}; in the
+     * checksum while it is not 1.
+     */
+    public final void setDamageScale(float scale) {
+        this.damageScale = scale;
+    }
+
+    public final float getDamageScale() {
+        return damageScale;
+    }
+
+    /** {@code afterArmour} as this body takes it: times its damage scale, unless {@code type} is unresistable. */
+    protected final float scaled(float afterArmour, DamageType type) {
+        var world = getOwner().getWorld();
+        boolean unresistable = world != null && type.equals(world.unresistableDamage());
+        return unresistable ? afterArmour : afterArmour * damageScale;
     }
 
     private void hurt(DamageType type, float worth, Death blow, Coord3D at, Coord3D from) {

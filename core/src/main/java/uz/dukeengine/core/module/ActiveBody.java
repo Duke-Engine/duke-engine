@@ -93,7 +93,7 @@ public final class ActiveBody extends BodyModule {
         if (amount <= 0f) {
             return;
         }
-        health = clamp(health - amount * armorNow().getMultiplier(type));
+        health = clamp(health - scaled(amount * armorNow().getMultiplier(type), type));
     }
 
     @Override
@@ -106,7 +106,11 @@ public final class ActiveBody extends BodyModule {
         if (amount <= 0f) {
             return;
         }
+        float was = health;
         health = clamp(health + amount);
+        if (was > 0f) {
+            healed(health - was); // a body already dead is told nothing
+        }
     }
 
     private float clamp(float value) {

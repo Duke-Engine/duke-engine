@@ -72,6 +72,8 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     public static final long DEFAULT_RANDOM_SEED = 0x5AFE5EEDL;
 
     private long randomSeed = DEFAULT_RANDOM_SEED;
+    /** The damage a body's damage scale leaves as it is; see {@link #setUnresistableDamage}. */
+    private uz.dukeengine.core.module.DamageType unresistableDamage;
     private final uz.dukeengine.core.math.LogicRandom random =
             new uz.dukeengine.core.math.LogicRandom(DEFAULT_RANDOM_SEED);
 
@@ -155,6 +157,19 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         setup.accept(object);
         onSpawned(object);
         return object;
+    }
+
+    /**
+     * Name the damage a body's damage scale leaves as it is — the reference's {@code DAMAGE_UNRESISTABLE}, what kills
+     * outright whatever the thing's plan; null for none.
+     */
+    public final void setUnresistableDamage(uz.dukeengine.core.module.DamageType type) {
+        this.unresistableDamage = type;
+    }
+
+    @Override
+    public final uz.dukeengine.core.module.DamageType unresistableDamage() {
+        return unresistableDamage;
     }
 
     /** A thing just made and set up, for a simulation to give what every thing it makes gets. Nothing here. */
@@ -900,6 +915,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             hash = mix(hash, Float.floatToIntBits(p.z()));
             hash = mix(hash, Float.floatToIntBits(object.getOrientation()));
             hash = mix(hash, object.getBody() == null ? -1 : Float.floatToIntBits(object.getBody().getHealth()));
+            if (object.getBody() != null && object.getBody().getDamageScale() != 1f) {
+                hash = mix(hash, Float.floatToIntBits(object.getBody().getDamageScale())); // 1 sums as it always did
+            }
             int statuses = object.statusBits();
             if (statuses != 0) {
                 hash = mix(hash, statuses);

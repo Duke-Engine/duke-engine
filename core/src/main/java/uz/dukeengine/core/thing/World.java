@@ -211,6 +211,14 @@ public interface World {
         return 0f;
     }
 
+    /**
+     * The damage the game names unresistable — the reference's {@code DAMAGE_UNRESISTABLE} — which a body's damage
+     * scale does not change; null where it names none.
+     */
+    default uz.dukeengine.core.module.DamageType unresistableDamage() {
+        return null;
+    }
+
     /** How far the map reaches across y, the same. */
     default float mapHeight() {
         return 0f;
