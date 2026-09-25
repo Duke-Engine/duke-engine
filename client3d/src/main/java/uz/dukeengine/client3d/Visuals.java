@@ -1528,6 +1528,23 @@ public final class Visuals {
         return glowWord;
     }
 
+    private String ownGlowWord;
+
+    /**
+     * The word a thing holds while it glows to its own player alone — the reference's stealthy unit that has shown
+     * itself by firing or using an ability ({@code StealthUpdate::hintDetectableWhileUnstealthed}), drawn with the heat
+     * vision for its controller only, so he knows it can be seen: the glow's light over its model, whole every frame it
+     * holds the word and fading as the first word's glow does after. Nobody else sees it.
+     */
+    public Visuals ownGlow(String word) {
+        this.ownGlowWord = word;
+        return this;
+    }
+
+    public String getOwnGlowWord() {
+        return ownGlowWord;
+    }
+
     private final Map<String, uz.dukeengine.core.content.Laser> lasers = new java.util.LinkedHashMap<>();
 
     /** The game's looks for the beams its simulation owns — see {@link uz.dukeengine.core.content.Laser}. */

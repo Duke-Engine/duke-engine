@@ -127,4 +127,30 @@ class StealthLookTest {
         assertSame(own, piece.getMaterial());
         assertTrue(body.getLocalLightList().size() == 0);
     }
+
+    /**
+     * A stealthy unit that has shown itself by firing: it glows to its own player alone, as the reference draws it with
+     * the heat vision for its controller so he knows it can be seen — plainly to an ally, and to an enemy who sees it.
+     */
+    @Test
+    void aThingHoldingTheOwnGlowWordGlowsForItsOwnPlayerAndIsDrawnPlainlyForAnyoneElse() {
+        var visuals = Visuals.create().seeThrough("STEALTHED").glow("DETECTED").ownGlow("FIRING");
+        var mine = body(new Geometry("coat", new Box(1f, 2f, 1f)));
+        var allys = body(new Geometry("coat", new Box(1f, 2f, 1f)));
+        var enemys = body(new Geometry("coat", new Box(1f, 2f, 1f)));
+        var look = new StealthLook(ASSETS);
+
+        look.see(view(true, "FIRING"), mine, visuals, SNIPER, 1f, true);
+        new StealthLook(ASSETS).see(view(true, "FIRING"), allys, visuals, SNIPER, 1f, false);
+        new StealthLook(ASSETS).see(view(false, "FIRING"), enemys, visuals, SNIPER, 1f, false);
+
+        assertEquals(1, mine.getLocalLightList().size(), "the glow's light over it, for its own player");
+        assertEquals(0, allys.getLocalLightList().size(), "plain to an ally");
+        assertEquals(0, enemys.getLocalLightList().size(), "and to an enemy who sees it");
+
+        for (int frame = 0; frame < 40; frame++) {
+            look.see(view(true), mine, visuals, SNIPER, 1f, true);
+        }
+        assertEquals(0, mine.getLocalLightList().size(), "faded once the word went, as the first glow does");
+    }
 }

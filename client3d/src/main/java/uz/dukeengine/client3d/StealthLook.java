@@ -27,6 +27,9 @@ import uz.dukeengine.game.view.UnitView;
  * colour over its see-through look. Whole every frame it holds the word, fading ×0.8 each drawn frame once it does not,
  * gone under 0.001 ({@link #glowAfter}).
  *
+ * <p><b>Glow to its own player</b> ({@link Visuals#ownGlow}): holding that word, it is drawn to its own player alone
+ * with the glow's light over its model, renewed and fading as the first glow is; to everyone else, plainly.
+ *
  * <p><b>Opacity</b> the game drives ({@code GameObject.setDrawnOpacity}) — a disguise fading out and in again as the
  * model is swapped — multiplies whatever else it is drawn at, to every viewer.
  */
@@ -67,6 +70,7 @@ final class StealthLook {
     private static final class Look {
         private float phase;
         private float glow;
+        private float ownGlow;
         /** What each piece was drawn with before this took it over, to be given back. */
         private final Map<Geometry, Material> own = new LinkedHashMap<>();
         private final Map<Geometry, RenderQueue.Bucket> buckets = new LinkedHashMap<>();
@@ -88,6 +92,11 @@ final class StealthLook {
      * @param frames how many of the game's frames have passed since the last time: what its pulse moves on by
      */
     void see(UnitView view, Spatial body, Visuals visuals, Visuals.UnitVisual look, float frames) {
+        see(view, body, visuals, look, frames, false);
+    }
+
+    /** The same, {@code own} saying whether the thing is the viewing player's own: its own glow is his alone. */
+    void see(UnitView view, Spatial body, Visuals visuals, Visuals.UnitVisual look, float frames, boolean own) {
         if (body == null) {
             return;
         }
@@ -96,15 +105,18 @@ final class StealthLook {
                 && view.allied();
         boolean held = look.glows && visuals.getGlowWord() != null && words.contains(visuals.getGlowWord());
         boolean faded = view.opacity() < 1f; // the game driving a change of look: a disguise fading out and in
+        boolean ownHeld = own && look.glows && visuals.getOwnGlowWord() != null
+                && words.contains(visuals.getOwnGlowWord());
         var state = looks.get(view.id());
         if (state == null) {
-            if (!seeThrough && !held && !faded) {
+            if (!seeThrough && !held && !faded && !ownHeld) {
                 return;
             }
             state = new Look();
             looks.put(view.id(), state);
         }
         state.glow = glowAfter(state.glow, held);
+        state.ownGlow = glowAfter(state.ownGlow, ownHeld);
         if (seeThrough) {
             state.phase += PULSE_STEP * frames;
         }
@@ -116,8 +128,9 @@ final class StealthLook {
         } else {
             fade(body, (seeThrough ? opacityAt(look.seeThroughFaintest, state.phase) : 1f) * view.opacity());
         }
-        light(state, body, glowing && view.allied() ? HEAT.mult(state.glow) : null);
-        if (!seeThrough && !glowing && !faded) {
+        float lit = Math.max(glowing && view.allied() ? state.glow : 0f, state.ownGlow);
+        light(state, body, lit > 0f ? HEAT.mult(lit) : null);
+        if (!seeThrough && !glowing && !faded && state.ownGlow <= 0f) {
             forget(view.id());
         }
     }

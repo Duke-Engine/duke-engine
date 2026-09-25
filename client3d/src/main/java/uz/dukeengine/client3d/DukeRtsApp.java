@@ -6270,9 +6270,10 @@ final class DukeRtsApp extends SimpleApplication {
                     new Coord3D(view.x(), view.y(), 0f), view.orientation(),
                     timer.getTimePerFrame() / Particles.FRAME_SECONDS, this::floorHeightAt);
         }
-        if (visuals.getSeeThroughWord() != null || visuals.getGlowWord() != null || view.opacity() < 1f
-                || stealthLook.looking(view.id())) {
-            stealthLook.see(view, node.body, visuals, visual, timer.getTimePerFrame() / Particles.FRAME_SECONDS);
+        if (visuals.getSeeThroughWord() != null || visuals.getGlowWord() != null || visuals.getOwnGlowWord() != null
+                || view.opacity() < 1f || stealthLook.looking(view.id())) {
+            stealthLook.see(view, node.body, visuals, visual, timer.getTimePerFrame() / Particles.FRAME_SECONDS,
+                    view.playerIndex() == game.getLocalPlayerIndex());
         }
         if (!visual.wordTints.isEmpty()) {
             wordTints.see(view.id(), node.root, visual,
