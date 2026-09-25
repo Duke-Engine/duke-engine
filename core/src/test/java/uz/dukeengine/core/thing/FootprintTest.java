@@ -67,4 +67,17 @@ class FootprintTest {
         assertEquals(3f, box.separation(round), 1e-5f);
         assertEquals(3f, round.separation(box), 1e-5f);
     }
+
+    /** A thing's facing worked out once as it turns, to the bit what a footprint works out for itself. */
+    @Test
+    void aTurnedThingsFootprintCarriesTheFacingItWouldWorkOutItself() {
+        var thing = new GameObject(new ObjectId(1), ThingTemplate.named("Tank").build());
+        for (float turn : new float[] {0.7f, -0f, 3.1f, 0f}) {
+            thing.setOrientation(turn);
+            var carried = Footprint.of(thing);
+            var worked = new Footprint(carried.shape(), carried.center(), turn);
+            assertEquals(Float.floatToRawIntBits(worked.cos()), Float.floatToRawIntBits(carried.cos()));
+            assertEquals(Float.floatToRawIntBits(worked.sin()), Float.floatToRawIntBits(carried.sin()));
+        }
+    }
 }

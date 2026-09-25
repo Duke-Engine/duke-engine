@@ -38,6 +38,9 @@ public final class GameObject {
 
     private Coord3D position = Coord3D.ZERO;
     private float orientation; // facing angle in radians, 0 = +x
+    /** Its facing's cosine and sine, worked out once as it turns rather than in every footprint test. */
+    private float facingCos = 1f;
+    private float facingSin = 0f;
     /** Nose up, in radians: for how it is drawn, and read by nothing in the simulation. */
     private float pitch;
     /** Banked to its right, in radians: the same. */
@@ -547,7 +550,21 @@ public final class GameObject {
         if (!mobile && !contained && world != null && orientation != this.orientation) {
             world.stillThingMoved(); // its footprint turned with it
         }
+        if (Float.floatToRawIntBits(orientation) != Float.floatToRawIntBits(this.orientation)) {
+            facingCos = (float) StrictMath.cos(orientation); // to the bit what a footprint worked out for itself: -0 too
+            facingSin = (float) StrictMath.sin(orientation);
+        }
         this.orientation = orientation;
+    }
+
+    /** Its facing's cosine, as {@code (float) StrictMath.cos(getOrientation())}. */
+    public float getFacingCos() {
+        return facingCos;
+    }
+
+    /** Its facing's sine, as {@code (float) StrictMath.sin(getOrientation())}. */
+    public float getFacingSin() {
+        return facingSin;
     }
 
     public float getPitch() {
