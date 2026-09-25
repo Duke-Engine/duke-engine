@@ -30,6 +30,16 @@ class SkirmishTest {
         assertTrue(soldier.hasModel());
     }
 
+    /** The world's Camera block reaches the client: the edges of the window shove the view, as its file says. */
+    @Test
+    void theWorldsCameraBlockTurnsOnEdgeScrolling() {
+        var edges = Main.visuals().getEdgeScroll();
+
+        assertEquals(12f, edges.marginPixels(), 0f, "EdgeMargin = 12 in data/world/field.duke");
+        assertEquals(100f, edges.speedPercent(), 0f);
+        assertTrue(edges.wanted());
+    }
+
     /**
      * Two sides meet and fight, with no brain script anywhere.
      *

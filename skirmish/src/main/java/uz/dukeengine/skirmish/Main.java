@@ -1,7 +1,9 @@
 package uz.dukeengine.skirmish;
 
 import java.awt.Color;
+import uz.dukeengine.client3d.Camera;
 import uz.dukeengine.client3d.Duke3D;
+import uz.dukeengine.client3d.EdgeScroll;
 import uz.dukeengine.client3d.Sun;
 import uz.dukeengine.client3d.Visuals;
 import uz.dukeengine.skirmish.content.Content;
@@ -42,7 +44,7 @@ public final class Main {
     }
 
     /** Everything the client is told, built out of the game's own files. */
-    private static Visuals visuals() {
+    static Visuals visuals() {
         var visuals = Visuals.create();
         var everything = Content.everything();
         var sets = everything.stream().filter(uz.dukeengine.core.content.AnimationSet.class::isInstance)
@@ -54,6 +56,8 @@ public final class Main {
                 case Sun sun -> visuals.sunlight(new uz.dukeengine.client3d.Sunlight(sun.pitch(), sun.yaw(),
                         sun.strengthPercent() / 100f, sun.ambientPercent() / 100f,
                         sun.colour(), sun.ambientTint()));
+                case Camera camera -> visuals.edgeScroll(new EdgeScroll(camera.edgeMargin(),
+                        camera.edgeSpeedPercent()));
                 default -> {
                     // Blocks the client is not told about: the field itself, and anything added later.
                 }
