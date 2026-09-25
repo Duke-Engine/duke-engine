@@ -88,6 +88,15 @@ class EffectListsTest {
         public void tracer(Vector3f from, Vector3f to, EffectList.Tracer tracer) {
             tracers.add(to);
         }
+
+        final List<String> thrown = new ArrayList<>();
+        final List<Thrown> flights = new ArrayList<>();
+
+        @Override
+        public void debris(String model, String piece, Quaternion turn, Thrown flight) {
+            thrown.add(model + "#" + piece);
+            flights.add(flight);
+        }
     }
 
     private record Scene(Particles systems, EffectLists lists, Shown shown) {
@@ -232,7 +241,7 @@ class EffectListsTest {
                   Name = Burning
                   Entries = [
                     ParticleSystem
-                      Name = Smoke
+                      Name = Flash
                       AttachToObject = Yes
                     End
                   ]
@@ -261,6 +270,41 @@ class EffectListsTest {
         assertEquals(facing(1f), atAPoint.turn());
         assertNull(atAPoint.thing());
         assertFalse(scene.lists().play("NoSuchList", atAPoint), "no list by that name: nothing played, nothing broken");
+    }
+
+    /** A list's debris: its copies thrown from where it plays, each up and out within its ranges. */
+    @Test
+    void aListThrowsItsDebrisFromWhereItPlays() {
+        var scene = scene("""
+                EffectList
+                  Name = TurretBlownOff
+                  Entries = [
+                    Debris
+                      Model = models/vehicles/tank.glb
+                      Piece = Turret
+                      Count = 3
+                      Up = [8, 12]
+                      Out = [2, 4]
+                      Lifetime = [60, 90]
+                    End
+                  ]
+                End
+                """);
+
+        scene.lists().play("TurretBlownOff", EffectLists.Cue.at(new Vector3f(50f, 0f, 70f)));
+
+        assertEquals(List.of("models/vehicles/tank.glb#Turret", "models/vehicles/tank.glb#Turret",
+                "models/vehicles/tank.glb#Turret"), scene.shown().thrown);
+        for (var flight : scene.shown().flights) {
+            var start = flight.at().clone();
+            assertEquals(new Vector3f(50f, 0f, 70f), start, "from where it played");
+            flight.frame(FLAT);
+            var first = flight.at().subtract(start);
+            float up = first.y + 1f; // what gravity took off it in the first frame
+            float out = (float) Math.hypot(first.x, first.z);
+            assertTrue(up >= 8f && up <= 12f, "up within its range: " + up);
+            assertTrue(out >= 2f - 1e-4f && out <= 4f + 1e-4f, "and out: " + out);
+        }
     }
 
     /** A tank whose gun has two barrels, a muzzle each: the reference's MUZZLE01 and MUZZLE02, and flashes. */

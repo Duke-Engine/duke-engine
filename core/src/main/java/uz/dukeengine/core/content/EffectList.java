@@ -30,7 +30,7 @@ public record EffectList(String name, List<Entry> entries) {
     }
 
     /** One thing a list plays. */
-    public sealed interface Entry permits ParticleSystem, Sound, LightPulse, Shake, Scorch, Tracer, AtBone {
+    public sealed interface Entry permits ParticleSystem, Sound, LightPulse, Shake, Scorch, Tracer, AtBone, Debris {
     }
 
     /**
@@ -129,6 +129,36 @@ public record EffectList(String name, List<Entry> entries) {
             implements Entry {
 
         static final Tracer DEFAULTS = new Tracer(0f, 10f, 1f, 0xFFFFFF, 1f, 1f);
+    }
+
+    /**
+     * Pieces thrown off where the list plays — the reference's {@code CreateDebris}: a model, or one named piece of
+     * one, {@code count} copies each flung up and out at speeds drawn from the ranges, at an angle of its own, turning,
+     * falling under gravity, bouncing off the ground with a share of its speed kept, and fading away over the last
+     * frames of a life drawn from its range.
+     *
+     * @param model      the model, a whole path from the resource root
+     * @param piece      the one piece of it thrown, by name; none for the whole model
+     * @param up         how fast it rises at first, a frame
+     * @param out        how fast it flies outward at first, a frame
+     * @param spin       how fast it turns, radians a frame, about an axis drawn for each copy
+     * @param gravity    how much faster it falls each frame: the reference's {@code Gravity}, 1
+     * @param bounce     the share of its speed it keeps each time it strikes the ground; 0 stops it where it lands
+     * @param lifetime   frames before it is gone
+     * @param fadeFrames the last frames of its life, over which it fades away
+     */
+    public record Debris(String model, String piece, int count, List<Float> up, List<Float> out, List<Float> spin,
+            float gravity, float bounce, List<Float> lifetime, int fadeFrames) implements Entry {
+
+        static final Debris DEFAULTS = new Debris(null, null, 1, List.of(), List.of(), List.of(), 1f, 0.5f,
+                List.of(90f), 15);
+
+        public Debris {
+            up = up == null ? List.of() : List.copyOf(up);
+            out = out == null ? List.of() : List.copyOf(out);
+            spin = spin == null ? List.of() : List.copyOf(spin);
+            lifetime = lifetime == null ? List.of() : List.copyOf(lifetime);
+        }
     }
 
     /**

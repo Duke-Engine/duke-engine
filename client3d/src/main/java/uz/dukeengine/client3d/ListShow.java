@@ -54,11 +54,13 @@ final class ListShow implements EffectLists.Show {
     private final BiConsumer<String, Vector3f> sound;
     private final Supplier<Vector3f> looking;
     private final WorldMoments.Floor floor;
+    private final java.util.function.BiFunction<String, String, com.jme3.scene.Spatial> pieces;
     private final Random random = new Random();
 
     private final List<Pulse> pulses = new ArrayList<>();
     private final Deque<Scorch> scorches = new ArrayDeque<>();
     private final List<Tracer> tracers = new ArrayList<>();
+    private final List<Flung> flung = new ArrayList<>();
     private final Set<String> missing = new HashSet<>();
 
     private float shake;
@@ -71,15 +73,18 @@ final class ListShow implements EffectLists.Show {
      * @param lights  the lights every effect shares
      * @param sound   plays a cue of the game's sound bank at a place
      * @param looking where on the ground the camera looks, which a shake is measured from
+     * @param pieces  a fresh copy of a model, or of one named piece of it, for debris; null where it will not load
      */
     ListShow(AssetManager assets, Node node, LightPool lights, BiConsumer<String, Vector3f> sound,
-            Supplier<Vector3f> looking, WorldMoments.Floor floor) {
+            Supplier<Vector3f> looking, WorldMoments.Floor floor,
+            java.util.function.BiFunction<String, String, com.jme3.scene.Spatial> pieces) {
         this.assets = assets;
         this.node = node;
         this.lights = lights;
         this.sound = sound;
         this.looking = looking;
         this.floor = floor;
+        this.pieces = pieces;
     }
 
     @Override
@@ -288,6 +293,66 @@ final class ListShow implements EffectLists.Show {
         return tracers.size();
     }
 
+    // ---- debris ----
+
+    private record Flung(com.jme3.scene.Spatial piece, Thrown thrown, Quaternion start) {
+    }
+
+    @Override
+    public void debris(String model, String piece, Quaternion turn, Thrown thrown) {
+        var drawn = pieces == null ? null : pieces.apply(model, piece);
+        if (drawn == null) {
+            return;
+        }
+        // Materials of its own, to fade without fading every other copy of the model.
+        drawn.depthFirstTraversal(spatial -> {
+            if (spatial instanceof Geometry geometry && geometry.getMaterial() != null) {
+                geometry.setMaterial(geometry.getMaterial().clone());
+            }
+        });
+        node.attachChild(drawn);
+        var one = new Flung(drawn, thrown, turn == null ? new Quaternion() : turn.clone());
+        place(one);
+        flung.add(one);
+    }
+
+    private static void place(Flung one) {
+        one.piece().setLocalTranslation(one.thrown().at());
+        one.piece().setLocalRotation(one.thrown().turn().mult(one.start()));
+        float opacity = one.thrown().opacity();
+        if (opacity < 1f) {
+            fade(one.piece(), opacity);
+        }
+    }
+
+    /** Every surface of a piece drawn {@code opacity} seen, whichever of the usual materials it is drawn with. */
+    private static void fade(com.jme3.scene.Spatial piece, float opacity) {
+        piece.depthFirstTraversal(spatial -> {
+            if (!(spatial instanceof Geometry geometry) || geometry.getMaterial() == null) {
+                return;
+            }
+            var material = geometry.getMaterial();
+            for (var name : new String[] {"BaseColor", "Diffuse", "Color"}) {
+                if (material.getMaterialDef().getMaterialParam(name) == null) {
+                    continue;
+                }
+                var colour = material.getParamValue(name) instanceof ColorRGBA was ? was.clone() : ColorRGBA.White.clone();
+                colour.a = opacity;
+                material.setColor(name, colour);
+                if (name.equals("Diffuse")) {
+                    material.setBoolean("UseMaterialColors", true);
+                }
+                material.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Alpha);
+                geometry.setQueueBucket(RenderQueue.Bucket.Transparent);
+                return;
+            }
+        });
+    }
+
+    int flungCount() {
+        return flung.size();
+    }
+
     // ---- time ----
 
     /** The client's time passing, a game frame at a time. */
@@ -333,6 +398,15 @@ final class ListShow implements EffectLists.Show {
                 place(tracer);
             }
         }
+        for (var each = flung.iterator(); each.hasNext();) {
+            var one = each.next();
+            if (one.thrown().frame(floor)) {
+                place(one);
+            } else {
+                one.piece().removeFromParent();
+                each.remove();
+            }
+        }
     }
 
     /** Everything gone at once, for a new world. */
@@ -343,6 +417,8 @@ final class ListShow implements EffectLists.Show {
         scorches.clear();
         tracers.forEach(tracer -> tracer.streak.removeFromParent());
         tracers.clear();
+        flung.forEach(one -> one.piece().removeFromParent());
+        flung.clear();
         shake = 0f;
     }
 

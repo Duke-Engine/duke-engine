@@ -611,7 +611,7 @@ final class DukeRtsApp extends SimpleApplication {
             if (noises != null) {
                 noises.sounds().play(cue, at, timer.getTimeInSeconds());
             }
-        }, () -> new Vector3f(camera.targetX(), 0f, camera.targetZ()), this::floorHeightAt);
+        }, () -> new Vector3f(camera.targetX(), 0f, camera.targetZ()), this::floorHeightAt, this::debrisPiece);
         rootNode.attachChild(listNode);
         lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
         layered.drawsListsWith(lists);
@@ -4917,11 +4917,6 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * A moment of the world's that the game gave a look to by name — {@code died.<template>.<type>},
-     * {@code fired.<weapon>}, {@code landed.<weapon>} — played where {@link WorldMoments} says it happened: an
-     * effect list, an effect, or a particle system of that name.
-     */
-    /**
      * An effect the simulation played: the moment of that name, or else the game's effect list, effect or particle
      * system of that name — riding the thing it names where it names one it can draw. A name the game has none of
      * draws nothing.
@@ -4943,6 +4938,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /**
+     * A moment of the world's that the game gave a look to by name — {@code died.<template>.<type>},
+     * {@code fired.<weapon>}, {@code landed.<weapon>} — played where {@link WorldMoments} says it happened: an
+     * effect list, an effect, or a particle system of that name.
+     */
     private void moment(String name, EffectLists.Cue cue, int on) {
         var look = visuals.getMoment(name);
         if (look == null || cue == null) {
@@ -5203,6 +5203,17 @@ final class DukeRtsApp extends SimpleApplication {
                 return discovery == null || discovery.canSee(x, z);
             }
         };
+    }
+
+    /** A fresh copy of a model, or of one named piece of it, for something thrown off; null where it will not load. */
+    private Spatial debrisPiece(String model, String piece) {
+        try {
+            var loaded = assetManager.loadModel(model);
+            return piece == null ? loaded : partOf(loaded, piece, model);
+        } catch (RuntimeException notThere) {
+            warnOnce(model, "debris model");
+            return null;
+        }
     }
 
     /**

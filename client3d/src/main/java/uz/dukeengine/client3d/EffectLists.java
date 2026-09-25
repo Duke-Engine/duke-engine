@@ -46,6 +46,9 @@ final class EffectLists {
 
         /** A streak from one place toward another. */
         void tracer(Vector3f from, Vector3f to, EffectList.Tracer tracer);
+
+        /** A model, or a piece of it, thrown off and flown as {@code thrown} says, turned {@code turn} to start. */
+        void debris(String model, String piece, Quaternion turn, Thrown thrown);
     }
 
     /**
@@ -129,7 +132,28 @@ final class EffectLists {
                     }
                 }
                 case EffectList.AtBone atBone -> atBones(list, atBone, cue, depth);
+                case EffectList.Debris debris -> throwOff(debris, cue);
             }
+        }
+    }
+
+    /** {@code CreateDebris}: each copy flung up and out at speeds drawn from its ranges, at an angle of its own. */
+    private void throwOff(EffectList.Debris debris, Cue cue) {
+        if (debris.model() == null) {
+            return;
+        }
+        for (int copy = 0; copy < Math.max(1, debris.count()); copy++) {
+            float angle = (float) (random.nextDouble() * 2 * Math.PI);
+            float out = draw(debris.out());
+            var speed = new Vector3f(out * (float) Math.cos(angle), draw(debris.up()), out * (float) Math.sin(angle));
+            var axis = new Vector3f((float) random.nextDouble() - 0.5f, (float) random.nextDouble() - 0.5f,
+                    (float) random.nextDouble() - 0.5f);
+            if (axis.lengthSquared() < 1e-6f) {
+                axis.set(Vector3f.UNIT_Y);
+            }
+            show.debris(debris.model(), debris.piece(), cue.turn(), new Thrown(cue.at(), speed, axis.normalizeLocal(),
+                    draw(debris.spin()), debris.gravity(), debris.bounce(), Math.round(draw(debris.lifetime())),
+                    debris.fadeFrames()));
         }
     }
 
