@@ -1,6 +1,7 @@
 package uz.dukeengine.core.content;
 
 import java.util.List;
+import uz.dukeengine.core.data.Clip;
 import uz.dukeengine.core.data.Link;
 
 /**
@@ -137,28 +138,57 @@ public record EffectList(String name, List<Entry> entries) {
      * falling under gravity, bouncing off the ground with a share of its speed kept, and fading away over the last
      * frames of a life drawn from its range.
      *
-     * @param model      the model, a whole path from the resource root
-     * @param piece      the one piece of it thrown, by name; none for the whole model
-     * @param up         how fast it rises at first, a frame
-     * @param out        how fast it flies outward at first, a frame
-     * @param spin       how fast it turns, radians a frame, about an axis drawn for each copy
-     * @param gravity    how much faster it falls each frame: the reference's {@code Gravity}, 1
-     * @param bounce     the share of its speed it keeps each time it strikes the ground; 0 stops it where it lands
-     * @param lifetime   frames before it is gone
-     * @param fadeFrames the last frames of its life, over which it fades away
+     * @param model        the model, a whole path from the resource root
+     * @param piece        the one piece of it thrown, by name; none for the whole model
+     * @param up           how fast it rises at first, a frame
+     * @param out          how fast it flies outward at first, a frame
+     * @param spin         how fast it turns, radians a frame, about an axis drawn for each copy
+     * @param gravity      how much faster it falls each frame: the reference's {@code Gravity}, 1
+     * @param bounce       the share of its speed it keeps each time it strikes the ground; 0 stops it where it lands
+     * @param lifetime     frames before it is gone
+     * @param fadeFrames   the last frames of its life, over which it fades away
+     * @param friction     the share of its speed across the ground it loses a frame within three frames' fall of
+     *                     the ground, sliding to a stop there — the reference's {@code PhysicsBehavior}, 0.15; 0, it
+     *                     lies where it stops bouncing
+     * @param lifeFromRest its life counted from when it comes to rest rather than from the throw, however long it
+     *                     flew — the reference's debris, killed resting on the ground and lying out its slow death
+     * @param bounceSound  a cue played where it strikes the ground, each time — {@code BounceSound}
+     * @param particleSystem a particle system riding it, trailing it through the air — {@code ParticleSystem}
+     * @param clipSets     clips of its own model it plays, one set drawn for each copy — {@code AnimationSet}
+     * @param landedEffect a list played where it first lands — {@code FXFinal}
+     * @param houseColoured its house-colour meshes painted in the colour of the side the list is played for —
+     *                     {@code OkToChangeModelColor}
      */
     public record Debris(String model, String piece, int count, List<Float> up, List<Float> out, List<Float> spin,
-            float gravity, float bounce, List<Float> lifetime, int fadeFrames) implements Entry {
+            float gravity, float bounce, List<Float> lifetime, int fadeFrames, float friction, boolean lifeFromRest,
+            @Link(uz.dukeengine.core.content.Sound.class) String bounceSound,
+            @Link(uz.dukeengine.core.content.ParticleSystem.class) String particleSystem, List<ClipSet> clipSets,
+            @Link(EffectList.class) String landedEffect, boolean houseColoured) implements Entry {
 
         static final Debris DEFAULTS = new Debris(null, null, 1, List.of(), List.of(), List.of(), 1f, 0.5f,
-                List.of(90f), 15);
+                List.of(90f), 15, 0f, false, null, null, List.of(), null, false);
 
         public Debris {
             up = up == null ? List.of() : List.copyOf(up);
             out = out == null ? List.of() : List.copyOf(out);
             spin = spin == null ? List.of() : List.copyOf(spin);
             lifetime = lifetime == null ? List.of() : List.copyOf(lifetime);
+            clipSets = clipSets == null ? List.of() : List.copyOf(clipSets);
         }
+
+        /** A piece flown and drawn as it was before it could slide, lie out its life, or be heard. */
+        public Debris(String model, String piece, int count, List<Float> up, List<Float> out, List<Float> spin,
+                float gravity, float bounce, List<Float> lifetime, int fadeFrames) {
+            this(model, piece, count, up, out, spin, gravity, bounce, lifetime, fadeFrames, 0f, false, null, null,
+                    List.of(), null, false);
+        }
+    }
+
+    /**
+     * The clips a thrown piece plays, of its own model — the reference's {@code AnimationSet}, less its opening
+     * clip: one looped while it flies, one played once from where it first lands.
+     */
+    public record ClipSet(@Clip String flying, @Clip String landed) {
     }
 
     /**

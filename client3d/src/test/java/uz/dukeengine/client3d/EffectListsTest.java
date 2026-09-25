@@ -91,11 +91,25 @@ class EffectListsTest {
 
         final List<String> thrown = new ArrayList<>();
         final List<Thrown> flights = new ArrayList<>();
+        final List<EffectList.Debris> pieces = new ArrayList<>();
+        final List<EffectList.ClipSet> clips = new ArrayList<>();
+        /** Where what it draws is hung, or null to draw nothing. */
+        Node drawsUnder;
 
         @Override
-        public void debris(String model, String piece, Quaternion turn, Thrown flight) {
-            thrown.add(model + "#" + piece);
+        public com.jme3.scene.Spatial debris(EffectList.Debris debris, EffectList.ClipSet clips, Quaternion turn,
+                Thrown flight, com.jme3.scene.Spatial forWhom) {
+            thrown.add(debris.model() + "#" + debris.piece());
             flights.add(flight);
+            pieces.add(debris);
+            this.clips.add(clips);
+            if (drawsUnder == null) {
+                return null;
+            }
+            var piece = new Node("piece");
+            piece.setLocalTranslation(flight.at());
+            drawsUnder.attachChild(piece);
+            return piece;
         }
     }
 
@@ -305,6 +319,56 @@ class EffectListsTest {
             assertTrue(up >= 8f && up <= 12f, "up within its range: " + up);
             assertTrue(out >= 2f - 1e-4f && out <= 4f + 1e-4f, "and out: " + out);
         }
+    }
+
+    /** A thrown gunner: heard where it strikes, trailing smoke, flailing then landing, and in its side's colour. */
+    @Test
+    void aPieceNamesWhatItPlaysAfterTheThrow() {
+        var scene = scene("""
+                EffectList
+                  Name = GunnerThrown
+                  Entries = [
+                    Debris
+                      Model = models/infantry/gunner.glb
+                      Count = 4
+                      Up = [4]
+                      Friction = 0.15
+                      LifeFromRest = true
+                      Lifetime = [60]
+                      BounceSound = BodyThud
+                      ParticleSystem = Flash
+                      ClipSets = [
+                        ClipSet
+                          Flying = Flail_A
+                          Landed = Land_A
+                        End,
+                        ClipSet
+                          Flying = Flail_B
+                          Landed = Land_B
+                        End
+                      ]
+                      LandedEffect = BodyLanded
+                      HouseColoured = true
+                    End
+                  ]
+                End
+                """);
+        scene.shown().drawsUnder = new Node("scene");
+
+        scene.lists().play("GunnerThrown", EffectLists.Cue.at(new Vector3f(5f, 0f, 6f)));
+
+        var piece = scene.shown().pieces.getFirst();
+        assertEquals(0.15f, piece.friction());
+        assertTrue(piece.lifeFromRest());
+        assertEquals("BodyThud", piece.bounceSound());
+        assertEquals("BodyLanded", piece.landedEffect());
+        assertTrue(piece.houseColoured());
+        var sets = List.of(new EffectList.ClipSet("Flail_A", "Land_A"), new EffectList.ClipSet("Flail_B", "Land_B"));
+        assertEquals(sets, piece.clipSets());
+        assertEquals(4, scene.shown().clips.size());
+        assertTrue(sets.containsAll(scene.shown().clips), "each copy one of its sets: " + scene.shown().clips);
+        assertEquals(4, scene.systems().emitters().size(), "a trail riding each copy");
+        assertAt(5f, -6f, 0f, scene.systems().emitters().getFirst());
     }
 
     /** A tank whose gun has two barrels, a muzzle each: the reference's MUZZLE01 and MUZZLE02, and flashes. */

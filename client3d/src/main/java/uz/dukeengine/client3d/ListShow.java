@@ -1,5 +1,6 @@
 package uz.dukeengine.client3d;
 
+import com.jme3.anim.AnimComposer;
 import com.jme3.asset.AssetManager;
 import com.jme3.light.PointLight;
 import com.jme3.material.Material;
@@ -55,6 +56,8 @@ final class ListShow implements EffectLists.Show {
     private final Supplier<Vector3f> looking;
     private final WorldMoments.Floor floor;
     private final java.util.function.BiFunction<String, String, com.jme3.scene.Spatial> pieces;
+    private final BiConsumer<String, Vector3f> list;
+    private final BiConsumer<com.jme3.scene.Spatial, com.jme3.scene.Spatial> paint;
     private final Random random = new Random();
 
     private final List<Pulse> pulses = new ArrayList<>();
@@ -74,10 +77,13 @@ final class ListShow implements EffectLists.Show {
      * @param sound   plays a cue of the game's sound bank at a place
      * @param looking where on the ground the camera looks, which a shake is measured from
      * @param pieces  a fresh copy of a model, or of one named piece of it, for debris; null where it will not load
+     * @param list    plays an effect list of the game's at a place: a piece's where it first lands
+     * @param paint   paints a piece's house-colour meshes in the colour of the side of the thing it was thrown for
      */
     ListShow(AssetManager assets, Node node, LightPool lights, BiConsumer<String, Vector3f> sound,
             Supplier<Vector3f> looking, WorldMoments.Floor floor,
-            java.util.function.BiFunction<String, String, com.jme3.scene.Spatial> pieces) {
+            java.util.function.BiFunction<String, String, com.jme3.scene.Spatial> pieces,
+            BiConsumer<String, Vector3f> list, BiConsumer<com.jme3.scene.Spatial, com.jme3.scene.Spatial> paint) {
         this.assets = assets;
         this.node = node;
         this.lights = lights;
@@ -85,6 +91,8 @@ final class ListShow implements EffectLists.Show {
         this.looking = looking;
         this.floor = floor;
         this.pieces = pieces;
+        this.list = list;
+        this.paint = paint;
     }
 
     @Override
@@ -295,14 +303,16 @@ final class ListShow implements EffectLists.Show {
 
     // ---- debris ----
 
-    private record Flung(com.jme3.scene.Spatial piece, Thrown thrown, Quaternion start) {
+    private record Flung(com.jme3.scene.Spatial piece, Thrown thrown, Quaternion start, EffectList.Debris debris,
+            EffectList.ClipSet clips) {
     }
 
     @Override
-    public void debris(String model, String piece, Quaternion turn, Thrown thrown) {
-        var drawn = pieces == null ? null : pieces.apply(model, piece);
+    public com.jme3.scene.Spatial debris(EffectList.Debris debris, EffectList.ClipSet clips, Quaternion turn,
+            Thrown thrown, com.jme3.scene.Spatial forWhom) {
+        var drawn = pieces == null ? null : pieces.apply(debris.model(), debris.piece());
         if (drawn == null) {
-            return;
+            return null;
         }
         // Materials of its own, to fade without fading every other copy of the model.
         drawn.depthFirstTraversal(spatial -> {
@@ -310,10 +320,38 @@ final class ListShow implements EffectLists.Show {
                 geometry.setMaterial(geometry.getMaterial().clone());
             }
         });
+        if (debris.houseColoured() && forWhom != null && paint != null) {
+            paint.accept(drawn, forWhom); // W3DDebrisDraw::setModelName, given the thrower's colour
+        }
         node.attachChild(drawn);
-        var one = new Flung(drawn, thrown, turn == null ? new Quaternion() : turn.clone());
+        var one = new Flung(drawn, thrown, turn == null ? new Quaternion() : turn.clone(), debris, clips);
+        play(drawn, clips == null ? null : clips.flying(), true);
         place(one);
         flung.add(one);
+        return drawn;
+    }
+
+    /** A clip of the piece's own model: looped while it flies, once from where it lands — {@code W3DDebrisDraw}. */
+    private static void play(com.jme3.scene.Spatial piece, String clip, boolean loop) {
+        var composer = clip == null ? null : AnimationLibrary.findControl(piece, AnimComposer.class);
+        if (composer != null && composer.getAnimClip(clip) != null) {
+            composer.setCurrentAction(clip, AnimComposer.DEFAULT_LAYER, loop);
+        }
+    }
+
+    /** What a piece does as it strikes the ground and first lands: its sound each time, its clip and list once. */
+    private void touched(Flung one) {
+        var at = one.thrown().at();
+        if (one.thrown().struck() && one.debris().bounceSound() != null) {
+            sound.accept(one.debris().bounceSound(), at.clone());
+        }
+        if (!one.thrown().landedNow()) {
+            return;
+        }
+        play(one.piece(), one.clips() == null ? null : one.clips().landed(), false);
+        if (one.debris().landedEffect() != null && list != null) {
+            list.accept(one.debris().landedEffect(), at.clone());
+        }
     }
 
     private static void place(Flung one) {
@@ -402,6 +440,7 @@ final class ListShow implements EffectLists.Show {
             var one = each.next();
             if (one.thrown().frame(floor)) {
                 place(one);
+                touched(one);
             } else {
                 one.piece().removeFromParent();
                 each.remove();

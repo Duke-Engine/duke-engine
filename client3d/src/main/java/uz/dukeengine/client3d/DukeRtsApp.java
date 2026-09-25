@@ -627,7 +627,8 @@ final class DukeRtsApp extends SimpleApplication {
             if (noises != null) {
                 noises.sounds().play(cue, at, timer.getTimeInSeconds());
             }
-        }, () -> new Vector3f(camera.targetX(), 0f, camera.targetZ()), this::floorHeightAt, this::debrisPiece);
+        }, () -> new Vector3f(camera.targetX(), 0f, camera.targetZ()), this::floorHeightAt, this::debrisPiece,
+                (name, at) -> lists.play(name, EffectLists.Cue.at(at)), this::paintThrown);
         rootNode.attachChild(listNode);
         lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
         lasers = new Lasers(assetManager, listNode, visuals::laserNamed, this::floorHeightAt);
@@ -5456,6 +5457,14 @@ final class DukeRtsApp extends SimpleApplication {
         };
     }
 
+    /** A thrown piece's house-colour meshes in the colour the thing it was thrown for wears, dead or alive. */
+    private void paintThrown(Spatial piece, Spatial thing) {
+        Integer wears = thing.getUserData("wears");
+        if (visuals.getHouseColour() != null && wears != null) {
+            paintOwner(piece, visuals.getHouseColour(), toColor(game.getColor(wears)));
+        }
+    }
+
     /** A fresh copy of a model, or of one named piece of it, for something thrown off; null where it will not load. */
     private Spatial debrisPiece(String model, String piece) {
         try {
@@ -5582,6 +5591,7 @@ final class DukeRtsApp extends SimpleApplication {
         node.bornZ = view.y();
         node.bornAt = timer.getTimeInSeconds();
         node.root.setUserData("unitId", view.id());
+        node.root.setUserData("wears", view.wears()); // for what it throws once it is gone from the snapshot
 
         node.modelPath = visual.choosesByWords()
                 ? visual.modelFor(visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()))
@@ -6242,6 +6252,7 @@ final class DukeRtsApp extends SimpleApplication {
         node.view = view;
         if (handedOver || recoloured) {
             // Its owner changed, however it did, or the colours it wears to this viewer: drawn in the new ones.
+            node.root.setUserData("wears", view.wears());
             paintHouseColour(node.body, view);
             node.layers.forEach(layer -> paintHouseColour(layer.body(), view));
         }

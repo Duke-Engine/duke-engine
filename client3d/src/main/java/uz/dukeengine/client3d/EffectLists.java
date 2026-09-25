@@ -47,8 +47,14 @@ final class EffectLists {
         /** A streak from one place toward another. */
         void tracer(Vector3f from, Vector3f to, EffectList.Tracer tracer);
 
-        /** A model, or a piece of it, thrown off and flown as {@code thrown} says, turned {@code turn} to start. */
-        void debris(String model, String piece, Quaternion turn, Thrown thrown);
+        /**
+         * A model, or a piece of it, thrown off as {@code debris} says and flown as {@code thrown} says, turned {@code
+         * turn} to start, playing {@code clips} (or none), for the side of {@code forWhom} (or nobody's).
+         *
+         * @return what it drew, for a system to ride; null for nothing
+         */
+        Spatial debris(EffectList.Debris debris, EffectList.ClipSet clips, Quaternion turn, Thrown thrown,
+                Spatial forWhom);
     }
 
     /**
@@ -151,9 +157,15 @@ final class EffectLists {
             if (axis.lengthSquared() < 1e-6f) {
                 axis.set(Vector3f.UNIT_Y);
             }
-            show.debris(debris.model(), debris.piece(), cue.turn(), new Thrown(cue.at(), speed, axis.normalizeLocal(),
-                    draw(debris.spin()), debris.gravity(), debris.bounce(), Math.round(draw(debris.lifetime())),
-                    debris.fadeFrames()));
+            var clips = debris.clipSets().isEmpty() ? null
+                    : debris.clipSets().get(random.nextInt(debris.clipSets().size()));
+            var drawn = show.debris(debris, clips, cue.turn(), new Thrown(cue.at(), speed, axis.normalizeLocal(),
+                    draw(debris.spin()), debris.gravity(), debris.bounce(), debris.friction(),
+                    Math.round(draw(debris.lifetime())), debris.lifeFromRest(), debris.fadeFrames()), cue.thing());
+            if (drawn != null && systems != null && debris.particleSystem() != null) {
+                // Its trail rides it — the reference's attachToObject — and ends when it is taken away.
+                systems.start(debris.particleSystem(), () -> riding(drawn, new float[3], new float[3], UNTURNED));
+            }
         }
     }
 

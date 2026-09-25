@@ -59,4 +59,52 @@ class ThrownTest {
         assertEquals(12f, thrown.at().y, 1e-4f, "on the hill it came down on, lying there with no bounce");
         assertTrue(thrown.resting());
     }
+
+    /** A life counted from rest: gone the same 60 frames after it rests, however long it flew. */
+    @Test
+    void aLifeFromRestIsCountedFromWhenItRests() {
+        assertEquals(60, framesLyingAfterFlying(5f), "ten frames in the air");
+        assertEquals(60, framesLyingAfterFlying(50f), "a hundred");
+    }
+
+    private static int framesLyingAfterFlying(float up) {
+        var thrown = new Thrown(new Vector3f(), new Vector3f(0f, up, 0f), Vector3f.UNIT_Y, 0f, 1f, 0f, 0f, 60, true,
+                0);
+        int flew = 0;
+        while (!thrown.resting()) {
+            assertTrue(thrown.frame(FLAT), "alive while it flies");
+            flew++;
+        }
+        assertTrue(Math.abs(flew - up * 2f) <= 2f, "it flew " + flew + " frames");
+        int lying = 0;
+        while (thrown.frame(FLAT)) {
+            lying++;
+        }
+        return lying + 1; // the frame it went on
+    }
+
+    /**
+     * Thrown along the ground at 2 a frame with 0.15 of friction: 0.85 of its speed kept a frame, it is creeping by
+     * the thirtieth and lies still at the third after — the reference's {@code isVerySmall3D}, under 0.01 a frame.
+     */
+    @Test
+    void aPieceSlidesToAStopByItsFriction() {
+        var thrown = new Thrown(new Vector3f(), new Vector3f(2f, 0f, 0f), Vector3f.UNIT_Y, 0f, 1f, 0.5f, 0.15f, 1000,
+                false, 0);
+        float was = 0f;
+        for (int frame = 1; frame <= 30; frame++) {
+            thrown.frame(FLAT);
+            assertEquals(0f, thrown.at().y, "along the ground, never struck off it");
+            assertTrue(!thrown.struck());
+            if (frame == 30) {
+                assertTrue(thrown.at().x - was < 0.02f, "creeping by the thirtieth: " + (thrown.at().x - was));
+            }
+            was = thrown.at().x;
+        }
+        for (int frame = 31; frame <= 33; frame++) {
+            thrown.frame(FLAT);
+        }
+        assertTrue(thrown.resting(), "still by the thirty-third");
+        assertEquals(2f * 0.85f / 0.15f, thrown.at().x, 0.1f, "having slid what its speed sums to");
+    }
 }
