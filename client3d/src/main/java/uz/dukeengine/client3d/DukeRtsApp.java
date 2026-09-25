@@ -4760,7 +4760,16 @@ final class DukeRtsApp extends SimpleApplication {
             cursors.show(aiming.pointer()); // the pointer the game named for this aim, over the world
             return;
         }
-        cursors.showFirst(Cursors.situationsFor(over));
+        cursors.showFirst(Cursors.overCanvas(canvasPointer, canvasInputs != null && canvasInputs.pointerTaken(),
+                Cursors.situationsFor(over)));
+    }
+
+    /** The pointer the game named for while the pointer is over its canvas, or null for the client's own choice. */
+    private String canvasPointer;
+
+    /** See {@link Duke3D#canvasPointer}. */
+    void canvasPointer(String situation) {
+        this.canvasPointer = situation == null || situation.isBlank() ? null : situation;
     }
 
     /**

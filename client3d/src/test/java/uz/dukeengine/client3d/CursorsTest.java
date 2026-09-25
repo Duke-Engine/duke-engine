@@ -198,6 +198,15 @@ class CursorsTest {
     }
 
     @Test
+    void aPointerTheGameNamesShowsOverItsCanvasAndTheClientsOwnOverTheWorldAndWhenHandedBack() {
+        var own = Cursors.situationsFor(overOpenGround());
+
+        assertEquals("RadarMove", Cursors.overCanvas("RadarMove", true, own).getFirst(), "named, over the canvas");
+        assertEquals(own, Cursors.overCanvas("RadarMove", false, own), "over the world, the client's own");
+        assertEquals(own, Cursors.overCanvas(null, true, own), "handed back, what the canvas showed before");
+    }
+
+    @Test
     void overOpenGroundItIsThePlainPointer() {
         assertEquals(Cursors.POINT, Cursors.situationFor(overOpenGround()));
     }

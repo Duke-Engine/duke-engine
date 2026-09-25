@@ -225,6 +225,15 @@ final class Cursors {
     }
 
     /**
+     * The pointers wanted where the game may name one over its own canvas: {@code named} — the arrow standing in where
+     * it painted none — while the pointer is over the canvas and the game named one; otherwise {@code otherwise}, the
+     * client's own choice.
+     */
+    static java.util.List<String> overCanvas(String named, boolean overCanvas, java.util.List<String> otherwise) {
+        return named != null && overCanvas ? java.util.List.of(named, POINT) : otherwise;
+    }
+
+    /**
      * Which way the view is being scrolled, from how far it is pushed across and down the screen this frame, or
      * {@code null} where it is not: {@code N} up the screen, {@code E} to its right, {@code NE} both.
      */

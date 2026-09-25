@@ -378,6 +378,16 @@ public final class Duke3D {
     }
 
     /**
+     * Name the pointer shown while the pointer is over the game's own canvas — a situation the game gave a picture
+     * with {@code Visuals.pointer(situation, …)}, as the reference's radar chooses its own over its picture — or hand it
+     * back to the client's own choice with null. Over the world, the client's own pointer is shown either way. From any
+     * thread.
+     */
+    public void canvasPointer(String situation) {
+        later(client -> client.canvasPointer(situation));
+    }
+
+    /**
      * Which button selects and which commands: {@link Mouse#RIGHT_COMMANDS}, the default, or the reference's
      * {@link Mouse#LEFT_COMMANDS} — a left click selects the player's own things and commands what is selected
      * everywhere else, a right click lets the selection go. From any thread, before launch or while it runs: an
