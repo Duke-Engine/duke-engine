@@ -505,4 +505,71 @@ class HarvestTest {
         assertEquals(800, pile.findModule(SupplyModule.class).getRemaining(), "both from the pile it was told");
         assertTrue(!everAtFar, "to the nearest depot, never the far one told before");
     }
+
+    // ---- beside where its move ends ----
+
+    /**
+     * The truck of the measurement, 34 by 14, bringing its first load to a depot 104 by 94 from a pile 330 off one of
+     * the depot's corners, on legs that ease to a stop: beside the depot where its move there ends, the first time, and
+     * paid FramesAtDepot after it first stopped. Its move used to end its close-enough distance short of a spot planned
+     * for how it stood at the pile — more than a cell off — and it came again a second later, and again.
+     */
+    @Test
+    void aLoadedTruckFromEachCornerOfABoxDepotIsPaidItsWaitAfterItFirstStops() {
+        for (int corner = 0; corner < 4; corner++) {
+            setUp();
+            float sx = corner % 2 == 0 ? 1f : -1f;
+            float sy = corner < 2 ? 1f : -1f;
+            logic.setPathGrid(new PathGrid(90, 90));
+            var truckKind = RtsTemplate.named("Truck")
+                    .geometry(new Geometry.Box(17f, 7f, 10f))
+                    .module(new ActiveBody.Data(100f))
+                    .module(new MoveUpdate.Data(45f, 180f, 60f, 50f, 0f, 0f, 0.1f, 0f, 0f, 1f, false,
+                            MoveUpdate.Gait.LEGS))
+                    .module(new HarvestUpdate.Data(300, 30, 0f, 30, 0, 0))
+                    .build();
+            var depotKind = RtsTemplate.named("Depot")
+                    .geometry(new Geometry.Box(52f, 47f, 20f))
+                    .module(new SupplyDepot.Data())
+                    .build();
+            var pileKind = RtsTemplate.named("Pile")
+                    .geometry(new Geometry.Cylinder(10f, 10f))
+                    .module(new SupplyModule.Data(1000))
+                    .build();
+            thingFactory.addTemplate(truckKind);
+            thingFactory.addTemplate(depotKind);
+            thingFactory.addTemplate(pileKind);
+            var depot = spawnAt(depotKind, 450f, 450f);
+            float off = 330f / (float) Math.sqrt(2);
+            float pileX = 450f + sx * (52f + off);
+            float pileY = 450f + sy * (47f + off);
+            spawnAt(pileKind, pileX, pileY);
+            var truck = spawnAt(truckKind, pileX - sx * 25f, pileY - sy * 25f);
+            // Standing a little turned at the pile, it loads there without a step: turned 22 degrees off its way home, it
+            // reaches furthest toward the depot, and square to it at the end, 1.4 less far.
+            truck.setOrientation((float) StrictMath.atan2(-sy, -sx) + (float) Math.toRadians(22));
+            var harvest = truck.findModule(HarvestUpdate.class);
+
+            int frame = 0;
+            while (harvest.getCarrying() == 0 && frame < 600) {
+                logic.update();
+                frame++;
+            }
+            int stopped = -1;
+            float reach = Float.NaN;
+            while (logic.getRtsPlayer(usa).getMoney() == 0 && frame < 3000) {
+                logic.update();
+                frame++;
+                if (stopped < 0 && !truck.getLocomotor().isMoving()
+                        && uz.dukeengine.core.thing.World.reachBetween(truck, depot) < 40f) {
+                    stopped = frame;
+                    reach = uz.dukeengine.core.thing.World.reachBetween(truck, depot);
+                }
+            }
+            assertTrue(stopped > 0, "corner " + corner + ": it came to the depot");
+            assertTrue(reach <= logic.cellSize() * (1f + 1e-4f),
+                    "corner " + corner + ": beside the depot where it first stopped, " + reach + " off");
+            assertEquals(stopped + 29, frame, "corner " + corner + ": paid its 30 frames after it first stopped");
+        }
+    }
 }

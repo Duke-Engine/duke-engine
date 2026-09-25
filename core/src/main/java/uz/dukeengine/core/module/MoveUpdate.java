@@ -203,6 +203,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     private boolean toPlace;
     /** The place it was sent to, before the block round it it was given. */
     private Coord3D sentTo;
+    /** Whether it is going exactly to its point — {@link #moveExactlyTo} — and so onto it, not a close-enough short. */
+    private boolean exactly;
     /** Where it stood when this frame began, and how far it went the frame before. */
     private Coord3D lastPosition;
     private float lastStep;
@@ -261,7 +263,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     /**
      * Go exactly to {@code destination}, holding no block of the ground's cells there: a move into something —
      * entering it, docking at it, closing on it — which the reference leaves where it is ({@code
-     * setAdjustsDestination(false)}).
+     * setAdjustsDestination(false)}). It ends on the point, not its close-enough distance short: the reference's move
+     * that does not adjust its destination keeps its locomotor's goal once it is close enough ({@code
+     * AIInternalMoveToState::update}), and the mover goes on onto it — a truck onto its dock.
      */
     @Override
     public void moveExactlyTo(Coord3D destination) {
@@ -271,6 +275,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         }
         sentTo = destination;
         head(destination, false);
+        exactly = true;
     }
 
     /**
@@ -302,6 +307,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     }
 
     private void head(Coord3D destination, boolean place) {
+        this.exactly = false;
         this.then = null;
         this.through = List.of();
         this.throughTo = null;
@@ -330,6 +336,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             world.letPlaceGo(getOwner()); // the first leg is through its maker's walls: nowhere of its own yet
         }
         this.toPlace = false;
+        this.exactly = false;
         this.destination = way;
         this.then = destination;
         this.waypoints = List.of(way);
@@ -503,6 +510,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         this.asideUntil = -1;
         resetProgress();
         this.toPlace = false;
+        this.exactly = false;
         holdWhereItStands();
     }
 
@@ -719,10 +727,10 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     /**
      * Arrived: on its last leg, the rest of its way shorter than its close-enough distance — the reference's {@code
-     * onPathDistToGoal < getCloseEnoughDist()}. It stops where it stands.
+     * onPathDistToGoal < getCloseEnoughDist()}. It stops where it stands; but for a move exactly to its point.
      */
     private boolean arrivedCloseEnough(float rest) {
-        if (waypointIndex != waypoints.size() - 1 || rest >= data.closeEnough()) {
+        if (exactly || waypointIndex != waypoints.size() - 1 || rest >= data.closeEnough()) {
             return false;
         }
         waypointIndex = waypoints.size();
@@ -1029,6 +1037,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         this.then = null;
         this.destination = aside;
         this.toPlace = true;
+        this.exactly = false;
         this.stoppedShort = false;
         this.lookedAgain = false;
         this.round = java.util.Set.of();

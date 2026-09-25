@@ -101,24 +101,30 @@ public interface World {
      * fails before a step is taken. So it stops a whole cell short — less than that and the square it is sent
      * to is still inside the thing's own footprint. x and y are the ground; z is height.
      *
+     * <p>Measured as it will stand there — facing its way to it, as a mover arrives — not as it stands now: a truck
+     * standing a little turned at its pile reaches less far toward the depot once it is square to it, and its move
+     * ended a hair more than a cell off.
+     *
      * <p>This is the straight-line answer, which is all a world with no ground to walk on can give. A world
      * that has one gives a spot that can be stood on and walked to as well — see {@code GameLogic}.
      */
     default Coord3D standingNextTo(GameObject who, GameObject what) {
-        float gap = reachBetween(who, what) - cellSize();
         var here = who.getPosition();
-        if (gap <= 0f) {
+        if (reachBetween(who, what) - cellSize() <= 0f) {
             return here;
         }
         // Toward the nearest point of its outline, not its middle: heading for the middle of a box from off a
         // corner stops short of touching it — a saboteur stood 13.28 off a supply centre's corner, needing 10.
-        var there = Footprint.of(what).nearestTo(here);
+        var target = Footprint.of(what);
+        var there = target.nearestTo(here);
         float across = there.x() - here.x();
         float along = there.y() - here.y();
         float span = (float) Math.sqrt(across * across + along * along);
         if (span <= 0.0001f) {
             return here;
         }
+        var arriving = new Footprint(Solid.of(who.getTemplate()), here, (float) StrictMath.atan2(along, across));
+        float gap = Math.max(0f, arriving.separation(target) - cellSize());
         return new Coord3D(here.x() + across / span * gap, here.y() + along / span * gap, here.z());
     }
 
