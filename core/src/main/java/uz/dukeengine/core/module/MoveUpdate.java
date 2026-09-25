@@ -1251,6 +1251,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     private void walkByGait(GameObject owner, Coord3D position, Coord3D target, float distance, float desired,
             float rest, float top) {
         float was = Math.abs(angleBetween(owner.getOrientation(), desired));
+        int waitsWere = turnWaits;
         float travel = switch (data.gait()) {
             case LEGS -> legs(owner, desired, rest, top);
             case TREADS -> treads(owner, desired, distance, rest, top);
@@ -1260,8 +1261,10 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         float off = Math.abs(angleBetween(owner.getOrientation(), desired));
         boolean turnedToward = off < was - 1e-6f && off < lastOff;
         lastOff = off;
-        if (turnedToward) {
-            framesWithoutProgress = 0; // turning toward its way is progress, though it stands
+        if (turnedToward || turnWaits > waitsWere) {
+            // Turning toward its way is progress, though it stands; and a turn waiting on another's footprint is held,
+            // not stuck, until it goes through — the reference checks no turn against footprints at all.
+            framesWithoutProgress = 0;
         } else if (madeNoProgress(distance)) {
             if (goOn()) {
                 return;

@@ -279,6 +279,26 @@ class GroundCellsTest {
         assertTrue(box.getPosition().distance(goal) < 1f, "and the box got there: " + box.getPosition());
     }
 
+    /**
+     * A tank on treads parked between two others alongside it, sent behind itself: its turn waits on their footprints,
+     * held rather than stuck, goes through after its 2 s, and it arrives — the reference checks no turn against
+     * footprints at all, only a step.
+     */
+    @Test
+    void aBoxBoxedInOnTwoSidesSentBehindItselfTurnsAndArrives() {
+        var world = field();
+        var boxed = spawn(world, CRUSADER, 305f, 305f);
+        spawn(world, CRUSADER, 305f, 327f);
+        spawn(world, CRUSADER, 305f, 283f);
+
+        legsOf(boxed).moveTo(new Coord3D(105f, 305f, 0f));
+        var goal = legsOf(boxed).getDestination();
+        int frames = runUntilStill(world, List.of(boxed), 3000);
+
+        assertFalse(legsOf(boxed).stoppedShort(), "it did not give its order up");
+        assertTrue(boxed.getPosition().distance(goal) < 1f, "it arrived: " + boxed.getPosition() + " at " + frames);
+    }
+
     @Test
     void twoBoxesDrivenAtEachOtherAlongOneLineBothArriveAndNeitherGivesUp() {
         var world = field();
