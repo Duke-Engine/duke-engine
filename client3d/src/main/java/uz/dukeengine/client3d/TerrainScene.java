@@ -83,6 +83,8 @@ final class TerrainScene {
      */
     private Geometry[] rocks = new Geometry[0];
     private int cellsWide;
+    /** The ground's own lights, worked into the painted ground's corners; null where the things' light it. */
+    private Visuals.GroundLight light;
 
     TerrainScene(Node root, Surfaces material) {
         this(root, material, false);
@@ -137,6 +139,12 @@ final class TerrainScene {
      * A map with both is drawn from the kit, and the paint is ignored rather than argued about.
      */
     void rebuild(PathGrid grid, Tileset kit, GroundPaint paint) {
+        rebuild(grid, kit, paint, null);
+    }
+
+    /** The same, the painted ground lit by its own lights, per corner — see {@link Visuals.GroundLight}. */
+    void rebuild(PathGrid grid, Tileset kit, GroundPaint paint, Visuals.GroundLight groundLight) {
+        this.light = groundLight;
         this.tileset = kit != null && kit.isUsable() && tiles != null ? kit : defaultTileset;
         root.detachAllChildren();
         cellNodes = new Node[0];
@@ -238,6 +246,7 @@ final class TerrainScene {
             var normals = com.jme3.util.BufferUtils.createFloatBuffer(patch.cells().length * 12);
             var uvs = com.jme3.util.BufferUtils.createFloatBuffer(patch.cells().length * 8);
             var indices = com.jme3.util.BufferUtils.createIntBuffer(patch.cells().length * 6);
+            var lights = light == null ? null : com.jme3.util.BufferUtils.createFloatBuffer(patch.cells().length * 16);
             int vertex = 0;
             for (var at : patch.cells()) {
                 int cx = at % width;
@@ -260,6 +269,12 @@ final class TerrainScene {
                 for (int corner = 0; corner < 4; corner++) {
                     normals.put(normal.x).put(normal.y).put(normal.z);
                 }
+                if (lights != null) {
+                    for (var place : new float[][] {{x0, z0}, {x1, z0}, {x1, z1}, {x0, z1}}) {
+                        var lit = light.at(smoothNormal(grid, place[0], place[1]));
+                        lights.put(lit.r).put(lit.g).put(lit.b).put(1f);
+                    }
+                }
                 var laid = paint.cornersOf(cx, cy);
                 if (laid != null) {
                     uvs.put(laid); // up a cliff as the map lays it, not stretched straight down
@@ -281,14 +296,37 @@ final class TerrainScene {
             mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Normal, 3, normals);
             mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord, 2, uvs);
             mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Index, 3, indices);
+            if (lights != null) {
+                mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Color, 4, lights);
+            }
             mesh.updateBound();
             var ground = new Geometry("painted", mesh);
             ground.setMaterial(material.of(patch.surface().colour(), patch.surface().texture()));
+            litByCorners(ground);
             root.attachChild(ground);
         }
         for (var overlay : paint.overlays(width, grid.getHeight())) {
             layOver(grid, paint, overlay);
         }
+    }
+
+    /** A painted mesh carrying the ground's own light at its corners told to be drawn by it, where its material can. */
+    private void litByCorners(Geometry geometry) {
+        var look = geometry.getMaterial();
+        if (light != null && look != null && look.getMaterialDef().getMaterialParam("VertexLight") != null) {
+            look.setBoolean("VertexLight", true);
+        }
+    }
+
+    /**
+     * How the ground leans at a place, smoothed from the heights a cell either side — the reference's normal for its
+     * terrain lights, where a cell's own flat slope draws the facets its lit corners would blur.
+     */
+    static Vector3f smoothNormal(PathGrid grid, float x, float z) {
+        float cell = grid.getCellSize();
+        float across = groundAt(grid, x + cell, z) - groundAt(grid, x - cell, z);
+        float down = groundAt(grid, x, z + cell) - groundAt(grid, x, z - cell);
+        return new Vector3f(-across / (2f * cell), 1f, -down / (2f * cell)).normalizeLocal();
     }
 
     /**
@@ -354,9 +392,14 @@ final class TerrainScene {
                     .put(x0).put(h01).put(z1).put(xm).put(hm).put(zm);
             uvs.put(x0 / span).put(z0 / span).put(x1 / span).put(z0 / span).put(x1 / span).put(z1 / span)
                     .put(x0 / span).put(z1 / span).put(xm / span).put(zm / span);
-            // White, so the picture is what is seen; the fade is the alpha alone.
-            for (var strength : FadeShape.strengths(overlay.shapes()[i])) {
-                colours.put(1f).put(1f).put(1f).put(strength);
+            // White, so the picture is what is seen; the fade is the alpha alone — and the ground's own light, where
+            // it has one, at each corner and the middle.
+            float[][] places = {{x0, z0}, {x1, z0}, {x1, z1}, {x0, z1}, {xm, zm}};
+            var strengths = FadeShape.strengths(overlay.shapes()[i]);
+            for (int corner = 0; corner < strengths.length; corner++) {
+                var lit = light == null ? com.jme3.math.ColorRGBA.White
+                        : light.at(smoothNormal(grid, places[corner][0], places[corner][1]));
+                colours.put(lit.r).put(lit.g).put(lit.b).put(strengths[corner]);
                 normals.put(normal.x).put(normal.y).put(normal.z);
             }
             // Corner, middle, next corner, round the cell: each wound so its face looks up.
@@ -374,6 +417,7 @@ final class TerrainScene {
         mesh.updateBound();
         var laid = new Geometry("overlay", mesh);
         laid.setMaterial(material.overlay(overlay.surface().colour(), overlay.surface().texture()));
+        litByCorners(laid);
         laid.setQueueBucket(com.jme3.renderer.queue.RenderQueue.Bucket.Transparent);
         laid.setUserData(OverlayOrder.LAYER, overlay.layer());
         root.attachChild(laid);

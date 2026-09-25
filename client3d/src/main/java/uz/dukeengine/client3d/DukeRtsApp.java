@@ -627,6 +627,9 @@ final class DukeRtsApp extends SimpleApplication {
         ambient = new AmbientLight(ambientColour);
         rootNode.addLight(sun);
         rootNode.addLight(ambient);
+        for (var more : visuals.getThingSuns()) {
+            rootNode.addLight(new DirectionalLight(more.direction(), more.light())); // the things', not the ground's
+        }
 
         // Before the terrain, because rebuilding a world clears what is burning in
         // it and there has to be something there to clear.
@@ -2908,7 +2911,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (strips != null) {
             strips.clear(); // a new world lays its own
         }
-        terrain.rebuild(builtFrom, currentKit, builtPaint);
+        terrain.rebuild(builtFrom, currentKit, builtPaint, visuals.getGroundLight());
         if (visuals.getDiscoveryTemplate() == null) {
             return;
         }
@@ -4393,6 +4396,7 @@ final class DukeRtsApp extends SimpleApplication {
         barrels.update(tpf);
         particleDrawing.draw(cam);
         carryTheLightsToTheStone();
+        slideTheShades();
         reapTheDead();
         syncMinimap();
         syncViewportOutline();
@@ -7148,14 +7152,22 @@ final class DukeRtsApp extends SimpleApplication {
     private Material ground(ColorRGBA colour, String texture) {
         var picture = texture == null ? null : groundTexture(texture);
         if (picture == null) {
-            return fogMap == null ? lit(colour) : foggedTerrain(colour);
+            return foggedGround() ? foggedTerrain(colour) : lit(colour);
         }
-        if (fogMap == null) {
+        if (!foggedGround()) {
             var material = lit(colour);
             material.setTexture("DiffuseMap", picture);
             return material;
         }
         return fogged(colour, ambientColour.mult(PLAIN_AMBIENT), picture);
+    }
+
+    /**
+     * Whether the ground is drawn with its own shader: where there is a fog to lay over it, and where the game lights
+     * it by lights of its own or lays a picture over all of it, which only that shader draws.
+     */
+    private boolean foggedGround() {
+        return fogMap != null || visuals.getGroundLight() != null || !visuals.getGroundShades().isEmpty();
     }
 
     /**
@@ -7168,7 +7180,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private Material groundOverlay(ColorRGBA colour, String texture) {
         var material = ground(colour, texture);
-        if (fogMap != null) {
+        if (foggedGround()) {
             material.setBoolean("VertexAlpha", true);
         } else {
             material.setBoolean("UseVertexColor", true);
@@ -7264,10 +7276,21 @@ final class DukeRtsApp extends SimpleApplication {
         material.setColor("Ambient", ambient);
         material.setColor("Sun", sunColour);
         material.setVector3("SunDirection", sunDirection);
-        material.setTexture("FogMap", fogMap.texture());
-        material.setVector2("FogSize", fogMap.worldSize());
+        material.setTexture("FogMap", fogMap != null ? fogMap.texture() : noFog());
+        material.setVector2("FogSize", fogMap != null ? fogMap.worldSize() : new com.jme3.math.Vector2f(1f, 1f));
         if (atlas != null) {
             material.setTexture("ColorMap", atlas);
+        }
+        var shades = visuals.getGroundShades();
+        for (int i = 0; i < shades.size(); i++) {
+            var picture = groundTexture(shades.get(i).picture());
+            if (picture != null) {
+                material.setTexture(i == 0 ? "ShadeMap" : "ShadeMap2", picture);
+            }
+        }
+        if (!shades.isEmpty()) {
+            material.setFloat("ShadeShown", shadesShown ? 1f : 0f);
+            placeShades(material, snapshot == null ? 0f : snapshot.gameTimeSeconds());
         }
         material.setParam("PointLightColours",
                 com.jme3.shader.VarType.Vector4Array, terrainLightColours);
@@ -7275,6 +7298,51 @@ final class DukeRtsApp extends SimpleApplication {
                 com.jme3.shader.VarType.Vector4Array, terrainLightPlaces);
         fogged.add(material);
         return material;
+    }
+
+    private com.jme3.texture.Texture2D noFogTexture;
+
+    /** A fog of nothing, for ground drawn by the fog's shader where the game keeps no fog. */
+    private com.jme3.texture.Texture2D noFog() {
+        if (noFogTexture == null) {
+            var clear = com.jme3.util.BufferUtils.createByteBuffer(4);
+            clear.put(new byte[] {0, 0, 0, 0}).flip();
+            noFogTexture = new com.jme3.texture.Texture2D(
+                    new com.jme3.texture.Image(com.jme3.texture.Image.Format.RGBA8, 1, 1, clear,
+                            com.jme3.texture.image.ColorSpace.Linear));
+        }
+        return noFogTexture;
+    }
+
+    /** Whether the pictures laid over all the ground show — see {@link Duke3D#groundShades}. */
+    private volatile boolean shadesShown = true;
+
+    /** The pictures laid over all the ground shown or put away — see {@link Duke3D#groundShades}. */
+    void groundShades(boolean shown) {
+        this.shadesShown = shown;
+    }
+
+    /** Where each picture laid over all the ground lies {@code seconds} into the game, told to a ground material. */
+    private void placeShades(Material material, float seconds) {
+        var shades = visuals.getGroundShades();
+        for (int i = 0; i < shades.size(); i++) {
+            var place = shades.get(i).placeAt(seconds);
+            material.setVector4(i == 0 ? "ShadePlace" : "ShadePlace2",
+                    new com.jme3.math.Vector4f(place[0], place[1], place[2], place[3]));
+        }
+    }
+
+    /** The pictures over all the ground slid on with the game's time, and shown or put away as the game says. */
+    private void slideTheShades() {
+        if (visuals.getGroundShades().isEmpty() || snapshot == null) {
+            return;
+        }
+        for (var material : fogged) {
+            if (material.getParam("ShadeMap") != null) {
+                placeShades(material, snapshot.gameTimeSeconds());
+                material.setFloat("ShadeShown", shadesShown ? 1f : 0f);
+            }
+        }
     }
 
     private Material unshaded(ColorRGBA color) {

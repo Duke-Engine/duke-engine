@@ -406,6 +406,14 @@ public final class Duke3D {
         later(client -> client.scrollSpeed(share));
     }
 
+    /**
+     * The pictures laid over all the ground ({@code Visuals.groundShade}) shown or put away — the reference's clouds,
+     * off at night and by the player's options. From any thread, before launch or while it runs.
+     */
+    public void groundShades(boolean shown) {
+        later(client -> client.groundShades(shown));
+    }
+
     /** Stop the movie playing, and its sound, at once — for a key the game says skips it. */
     public void stopMovie() {
         later(DukeRtsApp::stopMovie);

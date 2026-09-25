@@ -19,9 +19,14 @@ attribute vec2 inTexCoord;
 varying vec2 texCoord;
 #endif
 
-#ifdef VERTEX_ALPHA
+#if defined(VERTEX_ALPHA) || defined(VERTEX_LIGHT)
 attribute vec4 inColor;
+#endif
+#ifdef VERTEX_ALPHA
 varying float vertexAlpha;
+#endif
+#ifdef VERTEX_LIGHT
+varying vec3 vertexLight;
 #endif
 
 void main() {
@@ -43,6 +48,9 @@ void main() {
 
     #ifdef VERTEX_ALPHA
     vertexAlpha = inColor.a;
+    #endif
+    #ifdef VERTEX_LIGHT
+    vertexLight = inColor.rgb;
     #endif
 
     gl_Position = g_WorldViewProjectionMatrix * vec4(inPosition, 1.0);

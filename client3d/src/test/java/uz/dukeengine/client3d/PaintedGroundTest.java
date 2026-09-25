@@ -601,4 +601,43 @@ class PaintedGroundTest {
         assertEquals(0f, grid.reliefHeight(new uz.dukeengine.core.math.Coord3D(5f, 5f, 0f)), 1e-6f,
                 "the middle's height on the relief's own diagonal, which the drawing does not change");
     }
+
+    /**
+     * With the ground's ambient half and one light of half straight down, flat ground is lit whole at every corner —
+     * the reference's terrain lights, apart from the things' — while the things' own sun lights it otherwise.
+     */
+    @Test
+    void theGroundLitByItsOwnLightsIsLitWholeUnderAnAmbientOfHalfAndHalfFromAbove() {
+        var light = new Visuals.GroundLight(0x808080, List.of(new Visuals.Sun(90f, 0f, 0x808080)));
+        var root = new Node("terrain");
+        new TerrainScene(root, (colour, texture) -> null)
+                .rebuild(MapTerrain.of(field(), 10f, 0f), null, GroundPaint.of(field()), light);
+
+        var colours = painted(root).getFirst().getMesh().getFloatBuffer(VertexBuffer.Type.Color);
+        assertNotNull(colours, "the light carried at its corners");
+        // The grass's first cell stands flat at the corner of the map; its first corner's light is whole.
+        assertEquals(1f, colours.get(0), 1e-4f);
+        assertEquals(1f, colours.get(1), 1e-4f);
+        assertEquals(1f, colours.get(2), 1e-4f);
+
+        var sun = Sunlight.DEFAULT;
+        float lambert = Math.max(0f, -com.jme3.math.Vector3f.UNIT_Y.dot(sun.direction()));
+        float thing = sun.ambientColour().g + sun.sunColour().g * lambert;
+        assertTrue(Math.abs(thing - 1f) > 0.05f, "a thing lit by its own set is not lit so: " + thing);
+    }
+
+    /** A picture laid over all the ground slides by its rate each second, in its own widths. */
+    @Test
+    void aSlidingPictureMovesByItsRateEachSecond() {
+        var clouds = new Visuals.GroundShade("textures/ground/clouds.png", 315f, -0.02f, -0.03f);
+
+        var first = clouds.placeAt(1f);
+        var second = clouds.placeAt(2f);
+        assertEquals(1f / 315f, first[0], 1e-7f, "one copy over 315 of the world");
+        assertEquals(0.98f, first[2], 1e-5f, "-0.02 a second, wrapped into the picture");
+        assertEquals(0.97f, first[3], 1e-5f);
+        assertEquals(0.96f, second[2], 1e-5f, "and as far again the next");
+        assertEquals(0f, new Visuals.GroundShade("textures/ground/noise.png", 315f, 0f, 0f).placeAt(9f)[2],
+                "one laid still stays");
+    }
 }

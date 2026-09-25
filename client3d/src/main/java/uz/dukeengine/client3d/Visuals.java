@@ -1902,6 +1902,132 @@ public final class Visuals {
         return sunlight;
     }
 
+    /**
+     * A light shining one way — see {@link #groundLight} and {@link #thingSuns}: {@code pitch} degrees above the
+     * horizon and {@code yaw} round, as a {@link Sunlight}'s, in {@code colour}, packed {@code 0xRRGGBB}.
+     */
+    public record Sun(float pitch, float yaw, int colour) {
+
+        public Sun {
+            pitch = Math.clamp(pitch, 0f, 90f);
+        }
+
+        /** The way it travels, down from where it stands. */
+        public com.jme3.math.Vector3f direction() {
+            return new Sunlight(Math.max(5f, pitch), yaw, 1f, 0f, colour, 0).direction();
+        }
+
+        /** Its colour, as the scene takes one. */
+        public com.jme3.math.ColorRGBA light() {
+            return new com.jme3.math.ColorRGBA((colour >> 16 & 0xFF) / 255f, (colour >> 8 & 0xFF) / 255f,
+                    (colour & 0xFF) / 255f, 1f);
+        }
+
+        private com.jme3.math.Vector3f exactDirection() {
+            // Straight down where it says 90: the Sunlight it borrows its sums from will not stand so high.
+            return pitch >= 90f ? new com.jme3.math.Vector3f(0f, -1f, 0f) : direction();
+        }
+    }
+
+    /**
+     * The ground's own lights, apart from those that light things — the reference keeps two sets an hour and lights its
+     * ground per corner with its three terrain lights ({@code BaseHeightMapRenderObjClass::doTheLight}): {@code
+     * ambient}, packed {@code 0xRRGGBB}, and up to three suns, each by how squarely it meets the ground there, the
+     * ground's lean smoothed from the heights round the corner, each colour held to one.
+     */
+    public record GroundLight(int ambient, java.util.List<Sun> suns) {
+
+        public static final int MOST_SUNS = 3;
+
+        public GroundLight {
+            suns = suns == null ? java.util.List.of()
+                    : java.util.List.copyOf(suns.subList(0, Math.min(MOST_SUNS, suns.size())));
+        }
+
+        /** The light on ground facing {@code normal}, in the client's frame, y up. */
+        public com.jme3.math.ColorRGBA at(com.jme3.math.Vector3f normal) {
+            float red = (ambient >> 16 & 0xFF) / 255f;
+            float green = (ambient >> 8 & 0xFF) / 255f;
+            float blue = (ambient & 0xFF) / 255f;
+            for (var sun : suns) {
+                float square = Math.max(0f, -normal.dot(sun.exactDirection()));
+                var light = sun.light();
+                red += light.r * square;
+                green += light.g * square;
+                blue += light.b * square;
+            }
+            return new com.jme3.math.ColorRGBA(Math.clamp(red, 0f, 1f), Math.clamp(green, 0f, 1f),
+                    Math.clamp(blue, 0f, 1f), 1f);
+        }
+    }
+
+    private GroundLight groundLight;
+
+    /** The ground lit by its own lights rather than the things' — see {@link GroundLight}; null for the things'. */
+    public Visuals groundLight(GroundLight light) {
+        this.groundLight = light;
+        return this;
+    }
+
+    public GroundLight getGroundLight() {
+        return groundLight;
+    }
+
+    /**
+     * A picture multiplied over all the ground — see {@link #groundShade}.
+     *
+     * @param size   how much ground one copy of it covers, in world units
+     * @param slideU how far it slides a second, in its own widths; 0 lays it still
+     */
+    public record GroundShade(String picture, float size, float slideU, float slideV) {
+
+        public GroundShade {
+            size = Math.max(0.01f, size);
+        }
+
+        /** Where it lies {@code seconds} into the game: one over its size, twice, then how far it has slid. */
+        public float[] placeAt(float seconds) {
+            float u = slideU * seconds;
+            float v = slideV * seconds;
+            return new float[] {1f / size, 1f / size, u - (float) Math.floor(u), v - (float) Math.floor(v)};
+        }
+    }
+
+    private final java.util.List<GroundShade> groundShades = new java.util.ArrayList<>();
+
+    /**
+     * A picture multiplied over all the ground by where it lies, still or sliding — the reference's slow cloud shadows
+     * ({@code TSCloudMed}, sliding -0.02 and -0.03 a second) and its macro noise ({@code TSNoiseUrb}, a copy every
+     * 31.5 cells) ({@code TerrainTex.cpp}, {@code HeightMap.cpp}). Up to two, the second over the first, put away and
+     * back by the game while it plays ({@code Duke3D.groundShades}). A whole path from the resource root.
+     */
+    public Visuals groundShade(String picture, float size, float slideU, float slideV) {
+        if (groundShades.size() < 2 && picture != null) {
+            groundShades.add(new GroundShade(picture, size, slideU, slideV));
+        }
+        return this;
+    }
+
+    public java.util.List<GroundShade> getGroundShades() {
+        return java.util.List.copyOf(groundShades);
+    }
+
+    private java.util.List<Sun> thingSuns = java.util.List.of();
+
+    /**
+     * Up to two more suns lighting the things beside the {@link Sunlight}'s — the reference's second and third object
+     * lights, which its maps carry an hour apart from the ground's. Drawing only.
+     */
+    public Visuals thingSuns(java.util.List<Sun> suns) {
+        this.thingSuns = suns == null ? java.util.List.of()
+                : java.util.List.copyOf(suns.subList(0, Math.min(2, suns.size())));
+        return this;
+    }
+
+    public java.util.List<Sun> getThingSuns() {
+        return thingSuns;
+    }
+
     private IconLook iconLook = IconLook.DEFAULT;
 
     /**

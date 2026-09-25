@@ -37,6 +37,20 @@ varying vec2 texCoord;
 varying float vertexAlpha;
 #endif
 
+#ifdef VERTEX_LIGHT
+varying vec3 vertexLight;
+#endif
+
+#ifdef HAS_SHADEMAP
+uniform sampler2D m_ShadeMap;
+uniform vec4 m_ShadePlace;
+uniform float m_ShadeShown;
+#endif
+#ifdef HAS_SHADEMAP2
+uniform sampler2D m_ShadeMap2;
+uniform vec4 m_ShadePlace2;
+#endif
+
 void main() {
     vec4 albedo = m_Color;
     #ifdef HAS_COLORMAP
@@ -49,8 +63,13 @@ void main() {
     // One sun and one flat ambient. The art is flat-shaded palette work, so
     // anything more would be spent on a look it was not drawn for.
     vec3 normal = normalize(worldNormal);
+    #ifdef VERTEX_LIGHT
+    // The ground's own lights, worked per corner and carried in: the reference's terrain lighting.
+    vec3 lit = albedo.rgb * vertexLight;
+    #else
     float lambert = max(dot(normal, -m_SunDirection), 0.0);
     vec3 lit = albedo.rgb * (m_Ambient.rgb + m_Sun.rgb * lambert);
+    #endif
 
     // What is burning nearby. Squared falloff rather than inverse-square: a light
     // that never quite reaches zero has to be cut off somewhere, and a cut-off
@@ -62,6 +81,15 @@ void main() {
         float facing = max(dot(normal, normalize(toLight + vec3(0.0, 0.001, 0.0))), 0.0);
         lit += albedo.rgb * m_PointLightColours[i].rgb * fall * fall * facing;
     }
+
+    // The pictures laid over all the ground -- clouds sliding, a noise that stays -- multiplied in by world place.
+    #ifdef HAS_SHADEMAP
+    vec3 shade = texture2D(m_ShadeMap, worldPos.xz * m_ShadePlace.xy + m_ShadePlace.zw).rgb;
+    #ifdef HAS_SHADEMAP2
+    shade *= texture2D(m_ShadeMap2, worldPos.xz * m_ShadePlace2.xy + m_ShadePlace2.zw).rgb;
+    #endif
+    lit *= mix(vec3(1.0), shade, m_ShadeShown);
+    #endif
 
     // The dark, taken at this fragment's own place on the map. Every part of a
     // wall gets its own value, so the light runs out along the wall rather than

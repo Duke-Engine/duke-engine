@@ -8,6 +8,9 @@ MaterialDef Fogged Terrain {
         // Whether each vertex carries how much of this surface shows there -- a picture laid over
         // other ground and faded into it. Off for the ground itself, which then pays nothing for it.
         Boolean VertexAlpha
+        // Whether each vertex carries the light that falls on it, worked out once per corner of the ground from the
+        // ground's own lights -- the reference's terrain lights -- in place of the one sun and ambient below.
+        Boolean VertexLight
         Color Color
         // How much of the scene's ambient light this surface returns, already
         // multiplied by the ambient light itself -- the client has one sun and one
@@ -27,6 +30,15 @@ MaterialDef Fogged Terrain {
         // this shader carries its own lights instead of asking the engine.
         Vector4Array PointLightColours
         Vector4Array PointLightPositions
+
+        // Up to two pictures multiplied over all the ground, laid by world position: xy is one over how much ground
+        // a copy covers, zw where it has slid to. The reference's clouds and its fixed macro noise.
+        Texture2D ShadeMap
+        Vector4 ShadePlace
+        Texture2D ShadeMap2
+        Vector4 ShadePlace2
+        // How much of them shows: 1, or 0 where the game has put them away.
+        Float ShadeShown
     }
 
     Technique {
@@ -42,6 +54,9 @@ MaterialDef Fogged Terrain {
             BOUND_DRAW_BUFFER: BoundDrawBuffer
             HAS_COLORMAP : ColorMap
             VERTEX_ALPHA : VertexAlpha
+            VERTEX_LIGHT : VertexLight
+            HAS_SHADEMAP : ShadeMap
+            HAS_SHADEMAP2 : ShadeMap2
         }
     }
 }
