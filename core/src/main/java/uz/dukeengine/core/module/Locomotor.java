@@ -67,6 +67,15 @@ public interface Locomotor {
     }
 
     /** Whether it goes through the air, over what blocks the ground — and so straight to what it closes on. */
+    /**
+     * How near the end of its way it counts as there — the reference's {@code CloseEnoughDist}: a mover an errand sent
+     * beside a thing is beside it once it stands this near the point it was sent to ({@code World.isBeside}). None
+     * for a mover that says nothing.
+     */
+    default float closeEnough() {
+        return 0f;
+    }
+
     default boolean flies() {
         return false;
     }

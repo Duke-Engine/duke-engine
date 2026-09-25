@@ -525,6 +525,12 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         return speedNow;
     }
 
+    @Override
+    public float closeEnough() {
+        return data.closeEnough();
+    }
+
+    @Override
     public boolean isMoving() {
         return waiting || waypointIndex < waypoints.size();
     }

@@ -944,6 +944,39 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     /**
+     * Where a mover was last sent beside a thing ({@link #standingNextTo}): the thing, where it stood then, and the
+     * point — a thing that has moved since, a unit closed on, has left the point behind.
+     */
+    private record SentBeside(int what, Coord3D whatAt, Coord3D at) {
+    }
+
+    private final java.util.Map<Integer, SentBeside> sentBeside = new java.util.HashMap<>();
+
+    /**
+     * Beside it as the world measures it — a cell off its outline — or, sent beside it ({@link #standingNextTo}) and
+     * arrived: stopped within its close-enough distance of the point, whichever way it faces, as the reference takes a
+     * unit within its {@code CloseEnoughDist} of its dock position as there ({@code AIInternalMoveToState}). A box that
+     * turned on its way — round a wall, say — stands on its point side on, farther off than the point was worked out
+     * for.
+     */
+    @Override
+    public boolean isBeside(GameObject who, GameObject what) {
+        if (World.super.isBeside(who, what)) {
+            return true;
+        }
+        var sent = sentBeside.get(who.getId().value());
+        var legs = who.getLocomotor();
+        if (sent == null || sent.what() != what.getId().value() || !what.getPosition().equals(sent.whatAt())
+                || legs == null || legs.isMoving()) {
+            return false;
+        }
+        float dx = who.getPosition().x() - sent.at().x();
+        float dy = who.getPosition().y() - sent.at().y();
+        float close = legs.closeEnough() + 1e-3f;
+        return dx * dx + dy * dy <= close * close;
+    }
+
+    /**
      * Where {@code who} should stand to work on {@code what}: beside it, on ground it can stand on, and somewhere
      * it can walk to from where it is.
      *
@@ -961,8 +994,14 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      */
     @Override
     public Coord3D standingNextTo(GameObject who, GameObject what) {
+        var point = spotBeside(who, what);
+        sentBeside.put(who.getId().value(), new SentBeside(what.getId().value(), what.getPosition(), point));
+        return point;
+    }
+
+    private Coord3D spotBeside(GameObject who, GameObject what) {
         var straight = World.super.standingNextTo(who, what);
-        if (pathGrid == null || isBeside(who, what)) {
+        if (pathGrid == null || World.super.isBeside(who, what)) {
             return straight;
         }
         var zones = zones();
@@ -1193,6 +1232,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         // spawns wreckage builds it in a world that no longer holds the body.
         for (var object : leaving) {
             groundCells().forget(object.getId()); // off the ground's cells, where it stood and where it was going
+            sentBeside.remove(object.getId().value());
             if (!object.hasDied() && !object.hasVanished()) {
                 die(object, leaving); // one kept dead was told when it died, and one vanished leaves without a word
             }

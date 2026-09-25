@@ -1,6 +1,7 @@
 package uz.dukeengine.rts.module;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -675,6 +676,74 @@ class HarvestTest {
                     "corner " + corner + ": beside the depot where it first stopped, " + reach + " off");
             assertEquals(stopped + 29, frame, "corner " + corner + ": paid its 30 frames after it first stopped");
         }
+    }
+
+    /**
+     * The worker of the measurement, on legs (Speed 25, Acceleration and Braking 100) with the reference's
+     * CloseEnoughDist of 1, sent to a pile by its harvester: beside it where it stops, and loading from that frame. It
+     * once stopped 0.9 short of its spot and never loaded; a docking move ends on its spot now, and one stopped within
+     * its close-enough distance of it is beside the pile besides.
+     */
+    @Test
+    void aWorkerThatStopsItsCloseEnoughShortLoadsOnArriving() {
+        logic.setPathGrid(new PathGrid(60, 60));
+        var worker = spawnAt(kind("Worker", new ActiveBody.Data(100f),
+                new MoveUpdate.Data(25f, 360f, 100f, 100f, 0f, 0f, 0.1f, 0f, 0f, 1f, false, MoveUpdate.Gait.LEGS),
+                new HarvestUpdate.Data(100, 30, 0f)), 100f, 100f);
+        var pile = spawnAt(kind("Pile", new SupplyModule.Data(1000)), 300f, 100f);
+
+        int stopped = -1;
+        int frame = 0;
+        while (logic.getRtsPlayer(usa).getMoney() == 0 && frame < 900) { // no depot: banked the frame it loads
+            logic.update();
+            frame++;
+            if (stopped < 0 && frame > 5 && !worker.getLocomotor().isMoving()) {
+                stopped = frame;
+            }
+        }
+        assertTrue(stopped > 0, "it came to the pile");
+        assertTrue(logic.isBeside(worker, pile), "beside it where it stopped");
+        assertEquals(stopped + 29, frame, "and loaded its 30 frames from the frame it stopped");
+    }
+
+    /**
+     * A truck, 34 by 14, sent beside a depot from behind a wall: its spot is worked out for it facing the depot, but it
+     * comes round the wall's end and stands on its spot side on, farther than a cell off the depot's outline — and
+     * beside it, arrived, whichever way it faces.
+     */
+    @Test
+    void aBoxTurningOnItsWayIsBesideWhereItStops() {
+        var grid = new PathGrid(90, 90);
+        for (int x = 36; x <= 54; x++) {
+            grid.setBlocked(x, 56, true); // a wall across its way, 60 short of it
+        }
+        logic.setPathGrid(grid);
+        var truck = RtsTemplate.named("Truck").geometry(new Geometry.Box(17f, 7f, 10f))
+                .module(new ActiveBody.Data(100f))
+                .module(new MoveUpdate.Data(40f, 90f, 240f, 50f, 0f, 0f, 0.1f, 0f, 15f, 1f, false,
+                        MoveUpdate.Gait.OTHER))
+                .build();
+        var depot = RtsTemplate.named("Depot").geometry(new Geometry.Box(52f, 47f, 20f))
+                .module(new SupplyDepot.Data()).build();
+        thingFactory.addTemplate(truck);
+        thingFactory.addTemplate(depot);
+        var building = spawnAt(depot, 450f, 450f);
+        var mover = spawnAt(truck, 450f, 650f);
+        mover.setOrientation((float) Math.toRadians(-90));
+
+        var spot = logic.standingNextTo(mover, building);
+        mover.getLocomotor().moveExactlyTo(spot);
+        for (int frame = 0; frame < 900 && (frame < 5 || mover.getLocomotor().isMoving()); frame++) {
+            logic.update();
+        }
+
+        assertFalse(mover.getLocomotor().isMoving(), "it arrived");
+        assertEquals(spot, mover.getPosition(), "on its spot");
+        assertTrue(uz.dukeengine.core.thing.World.reachBetween(mover, building) > logic.cellSize() * 1.5f,
+                "side on, farther than a cell off the depot");
+        assertTrue(logic.isBeside(mover, building), "and beside it all the same");
+        building.setPosition(new Coord3D(450f, 400f, 0f));
+        assertFalse(logic.isBeside(mover, building), "not once the thing it was sent beside has moved");
     }
 
     // ---- needing a depot ----
