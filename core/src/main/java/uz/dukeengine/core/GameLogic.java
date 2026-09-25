@@ -498,6 +498,12 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     @Override
+    public final Coord3D takePlace(GameObject mover, Coord3D place, Coord3D near) {
+        refreshStaticObstacles();
+        return groundCells().take(mover, place, near);
+    }
+
+    @Override
     public final boolean holdPlace(GameObject mover) {
         return groundCells().hold(mover);
     }

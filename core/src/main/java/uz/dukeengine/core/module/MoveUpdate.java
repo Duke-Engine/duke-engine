@@ -76,6 +76,14 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     }
 
     /**
+     * Where in a group walking a shared route a mover goes: the reference's locomotor {@code MovePriority}. A group's
+     * infantry end their columns 10 further back for each step from the front.
+     */
+    public enum MovePriority {
+        BACK, MIDDLE, FRONT
+    }
+
+    /**
      * How a ground mover moves: the reference's locomotor lines. Every rate is per second, a frame being a thirtieth of
      * one; 0 for an acceleration, a braking or a turn rate is at once.
      *
@@ -95,17 +103,20 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
      * @param pathPriority        which of two movers stuck on each other steps aside: the lower — the reference's
      *                            dozers first, which a game marks with a higher number; of two alike, one on wheels or
      *                            treads before one on legs ({@code AIUpdateInterface::hasHigherPathPriority})
+     * @param movePriority        where in a group's columns it goes — see {@link MovePriority}; the front unless set
      */
     public record Data(float speed, float turnRate, float acceleration, float braking, float accelerationDamaged,
             float brakingDamaged, float damagedBelow, float minSpeed, float minTurnSpeed, float closeEnough,
-            boolean canMoveBackwards, Gait gait, int pathPriority) implements ModuleData {
+            boolean canMoveBackwards, Gait gait, int pathPriority, MovePriority movePriority) implements ModuleData {
 
         /** What a block leaves out: at once, arriving within 1, damaged under a tenth, moving as things always moved. */
-        static final Data DEFAULTS = new Data(0f, 0f, 0f, 0f, 0f, 0f, 0.1f, 0f, 0f, 1f, false, Gait.OTHER, 0);
+        static final Data DEFAULTS = new Data(0f, 0f, 0f, 0f, 0f, 0f, 0.1f, 0f, 0f, 1f, false, Gait.OTHER, 0,
+                MovePriority.FRONT);
 
         public Data {
             gait = gait == null ? Gait.OTHER : gait;
             closeEnough = closeEnough <= 0f ? 1f : closeEnough;
+            movePriority = movePriority == null ? MovePriority.FRONT : movePriority;
         }
 
         public Data(float speed) {
@@ -114,7 +125,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
         /** A top speed and a turn rate; everything else as a block leaves it. */
         public Data(float speed, float turnRate) {
-            this(speed, turnRate, 0f, 0f, 0f, 0f, 0.1f, 0f, 0f, 1f, false, Gait.OTHER, 0);
+            this(speed, turnRate, 0f, 0f, 0f, 0f, 0.1f, 0f, 0f, 1f, false, Gait.OTHER, 0, MovePriority.FRONT);
         }
 
         /** Everything but a path priority, which is then none. */
@@ -123,6 +134,14 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
                 boolean canMoveBackwards, Gait gait) {
             this(speed, turnRate, acceleration, braking, accelerationDamaged, brakingDamaged, damagedBelow, minSpeed,
                     minTurnSpeed, closeEnough, canMoveBackwards, gait, 0);
+        }
+
+        /** Everything but a move priority, which is then the front. */
+        public Data(float speed, float turnRate, float acceleration, float braking, float accelerationDamaged,
+                float brakingDamaged, float damagedBelow, float minSpeed, float minTurnSpeed, float closeEnough,
+                boolean canMoveBackwards, Gait gait, int pathPriority) {
+            this(speed, turnRate, acceleration, braking, accelerationDamaged, brakingDamaged, damagedBelow, minSpeed,
+                    minTurnSpeed, closeEnough, canMoveBackwards, gait, pathPriority, MovePriority.FRONT);
         }
     }
 
@@ -175,6 +194,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     private boolean waiting;
     /** Where it goes on to by a route once it has walked the way it was given — see {@link #leave}. */
     private Coord3D then;
+    /** The points it has yet to go through, and the place it holds at their end — see {@link #moveThrough}. */
+    private List<Coord3D> through = List.of();
+    private Coord3D throughTo;
 
     // ---- the ground's cells ----
     /** Whether it is going to a place — a block of the ground's cells of its own — rather than into something. */
@@ -248,8 +270,38 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         head(destination, false);
     }
 
+    /**
+     * Through the points of {@code way} in turn, exactly — those within a cell of where it stands passed over — then to
+     * the block round {@code place} it takes now and holds as its own on the way ({@code AIFollowPathState}).
+     */
+    @Override
+    public void moveThrough(List<Coord3D> way, Coord3D place) {
+        var world = getOwner().getWorld();
+        var goal = world == null ? place : world.takePlace(getOwner(), place);
+        sentTo = place;
+        goThrough(way, goal);
+    }
+
+    private void goThrough(List<Coord3D> way, Coord3D goal) {
+        var world = getOwner().getWorld();
+        float cell = world == null ? 0f : world.cellSize();
+        int next = 0;
+        while (next < way.size() && across(way.get(next), getOwner().getPosition()) < cell) {
+            next++;
+        }
+        if (next == way.size()) {
+            head(goal, true);
+            return;
+        }
+        head(way.get(next), false);
+        through = List.copyOf(way.subList(next + 1, way.size()));
+        throughTo = goal;
+    }
+
     private void head(Coord3D destination, boolean place) {
         this.then = null;
+        this.through = List.of();
+        this.throughTo = null;
         this.destination = destination;
         this.toPlace = place;
         this.stoppedShort = false;
@@ -285,6 +337,10 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     /** On from the way it was given to where it was going, if it was given one — see {@link #leave}. */
     private boolean goOn() {
+        if (throughTo != null) {
+            goThrough(through, throughTo);
+            return true;
+        }
         if (then == null) {
             return false;
         }
@@ -421,6 +477,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         this.brakingOnto = false;
         this.backing = false;
         this.then = null;
+        this.through = List.of();
+        this.throughTo = null;
         this.waiting = false;
         this.waypoints = List.of();
         this.route = null;
@@ -986,6 +1044,11 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     /** Whether {@code thing} walks on legs, as the reference's infantry do: legs pass legs. */
     public static boolean walksOnLegs(GameObject thing) {
         return thing.getLocomotor() instanceof MoveUpdate walking && walking.data.gait() == Gait.LEGS;
+    }
+
+    /** Where in a group's columns it goes. */
+    public MovePriority movePriority() {
+        return data.movePriority();
     }
 
     /** How it moves. */

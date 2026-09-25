@@ -51,7 +51,8 @@ public final class CommandCodec implements PacketCodec {
             case GameMessage.MoveTo m -> "MOVE," + m.playerIndex() + "," + ids(m.units())
                     + "," + Float.toString(m.destination().x())
                     + "," + Float.toString(m.destination().y())
-                    + "," + Float.toString(m.destination().z());
+                    + "," + Float.toString(m.destination().z())
+                    + (m.click() ? ",click" : "");
             case GameMessage.AttackObject a -> "ATTACK," + a.playerIndex() + "," + ids(a.units())
                     + "," + a.target().value();
             case GameMessage.StopMoving s -> "STOP," + s.playerIndex() + "," + ids(s.units());
@@ -117,7 +118,8 @@ public final class CommandCodec implements PacketCodec {
         int player = Integer.parseInt(parts[1]);
         return switch (kind) {
             case "MOVE" -> new GameMessage.MoveTo(player, parseIds(parts[2]),
-                    new Coord3D(Float.parseFloat(parts[3]), Float.parseFloat(parts[4]), Float.parseFloat(parts[5])));
+                    new Coord3D(Float.parseFloat(parts[3]), Float.parseFloat(parts[4]), Float.parseFloat(parts[5])),
+                    parts.length > 6 && "click".equals(parts[6]));
             case "ATTACK" -> new GameMessage.AttackObject(player, parseIds(parts[2]),
                     new ObjectId(Integer.parseInt(parts[3])));
             case "STOP" -> new GameMessage.StopMoving(player, parseIds(parts[2]));

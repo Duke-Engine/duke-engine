@@ -71,6 +71,57 @@ final class GroundCells {
         return pointOf(block);
     }
 
+    /** How many cells a group's walk to a place is searched over before it counts as too far: the reference's 500. */
+    private static final int MOST_COSTED = 500;
+
+    /**
+     * Where {@code mover}, one of a group sent to {@code near}, goes when it wants {@code place}: the nearest block round
+     * the place it may have and can walk to — pulled along the line toward {@code near} onto the free block on it
+     * nearest {@code near} ({@code Pathfinder::tightenPath}) — whose walk from {@code near} is under 1.4 × (|dx| + |dy|),
+     * so not behind a wall from it ({@code checkForAdjust} given a group's destination, and {@code checkPathCost}).
+     * Where there is none, as {@link #take(GameObject, Coord3D)}.
+     */
+    Coord3D take(GameObject mover, Coord3D place, Coord3D near) {
+        if (!keepsCells(mover)) {
+            forget(mover.getId());
+            return place;
+        }
+        var chosen = new Block[1];
+        nearest(mover, place, candidate -> {
+            var pulled = pulledToward(mover, candidate, near);
+            var at = pointOf(pulled);
+            int dx = (int) Math.abs(near.x() - at.x());
+            int dy = (int) Math.abs(near.y() - at.y());
+            if (Pathfinder.walkCost(world.getPathGrid(), near, at, MOST_COSTED) > 1.4f * (dx + dy)) {
+                return false;
+            }
+            chosen[0] = pulled;
+            return true;
+        });
+        if (chosen[0] == null) {
+            return take(mover, place);
+        }
+        cells().claimGoal(mover.getId().value(), chosen[0]);
+        return pointOf(chosen[0]);
+    }
+
+    /** {@code block} pulled along the line from it toward {@code near}, onto the last block on it {@code mover} may have. */
+    private Block pulledToward(GameObject mover, Block block, Coord3D near) {
+        var from = pointOf(block);
+        float dx = near.x() - from.x();
+        float dy = near.y() - from.y();
+        int samples = (int) Math.ceil(Math.sqrt(dx * dx + dy * dy) / (world.getPathGrid().getCellSize() / 4f));
+        var pulled = block;
+        for (int s = 1; s <= samples; s++) {
+            float t = (float) s / samples;
+            var there = blockAt(mover, new Coord3D(from.x() + dx * t, from.y() + dy * t, 0f));
+            if (!there.equals(pulled) && mayHold(mover, there) && reachable(mover, there)) {
+                pulled = there;
+            }
+        }
+        return pulled;
+    }
+
     /**
      * {@code mover} holding the block it stands on as its own, as a mover does once it has stopped — where it may: not
      * where an ally is going, nor an enemy still.

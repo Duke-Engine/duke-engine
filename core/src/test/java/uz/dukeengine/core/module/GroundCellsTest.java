@@ -152,6 +152,33 @@ class GroundCellsTest {
         }
     }
 
+    @Test
+    void aMoverSentThroughPointsPassesEachInTurnAndHoldsItsPlaceAtTheEndFromTheStart() {
+        var world = field();
+        var mover = spawn(world, MOVER, 100f, 100f);
+        var first = new Coord3D(300f, 100f, 0f);
+        var second = new Coord3D(300f, 300f, 0f);
+
+        legsOf(mover).moveThrough(List.of(first, second), new Coord3D(100f, 300f, 0f));
+        var goal = Block.of(7f, 10f, 100f, 300f);
+        var rival = spawn(world, MOVER, 60f, 300f);
+        legsOf(rival).moveTo(new Coord3D(100f, 300f, 0f));
+        float nearFirst = Float.MAX_VALUE;
+        float nearSecond = Float.MAX_VALUE;
+        boolean secondBeforeFirst = false;
+        for (int frame = 0; frame < 1200 && legsOf(mover).isMoving(); frame++) {
+            world.update();
+            nearFirst = Math.min(nearFirst, mover.getPosition().distance(first));
+            nearSecond = Math.min(nearSecond, mover.getPosition().distance(second));
+            secondBeforeFirst |= nearSecond < 2f && nearFirst >= 2f;
+        }
+
+        assertTrue(nearFirst < 2f && nearSecond < 2f, "through both: " + nearFirst + ", " + nearSecond);
+        assertFalse(secondBeforeFirst, "in turn");
+        assertEquals(goal, blockOf(mover), "and on the place it was sent to at the end: " + mover.getPosition());
+        assertFalse(blockOf(rival).overlaps(goal), "held all the way: the other was given another");
+    }
+
     // ---- giving way (ask 3) ----
 
     @Test

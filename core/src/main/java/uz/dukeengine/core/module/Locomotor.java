@@ -43,6 +43,15 @@ public interface Locomotor {
         moveTo(destination);
     }
 
+    /**
+     * Go through the points of {@code way} in turn, exactly, and then to {@code place} — held as its own from the start:
+     * a group's shared route walked in columns ({@code aiFollowPath}). A mover with no ground of its own goes straight to
+     * the place.
+     */
+    default void moveThrough(java.util.List<Coord3D> way, Coord3D place) {
+        moveTo(place);
+    }
+
     /** Stop where it is — or, for a thing that cannot stop in the air, circle there. */
     default void stop() {
     }

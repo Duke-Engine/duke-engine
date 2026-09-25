@@ -28,6 +28,13 @@ class CommandCodecTest {
     }
 
     @Test
+    void aMoveThatIsThePlayersClickSaysSo() {
+        assertRoundTrips(new CommandPacket(10, 1, List.of(
+                new GameMessage.MoveTo(1, List.of(new ObjectId(3), new ObjectId(5)), new Coord3D(12.5f, -3.25f, 0f),
+                        true))));
+    }
+
+    @Test
     void attackAndStopRoundTrip() {
         assertRoundTrips(new CommandPacket(4, 2, List.of(
                 new GameMessage.AttackObject(2, List.of(new ObjectId(9)), new ObjectId(1)),

@@ -264,6 +264,19 @@ public abstract class RtsSimulation extends GameLogic {
         return getPlayerList().getPlayer(index) instanceof RtsPlayer player ? player : null;
     }
 
+    // ---- a group's move ----
+
+    private GroupLayout groupLayout = GroupMove.REFERENCE;
+
+    /** How the units one {@code MoveTo} names are sent to its point — see {@link GroupMove}, the default. */
+    public final void setGroupLayout(GroupLayout layout) {
+        this.groupLayout = layout == null ? GroupMove.REFERENCE : layout;
+    }
+
+    public final GroupLayout getGroupLayout() {
+        return groupLayout;
+    }
+
     // ---- selling, guarding ----
 
     private uz.dukeengine.rts.construction.SellRules sellRules = uz.dukeengine.rts.construction.SellRules.DEFAULT;

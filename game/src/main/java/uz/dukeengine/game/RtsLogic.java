@@ -113,21 +113,22 @@ final class RtsLogic extends RtsSimulation {
     protected void onRtsCommand(GameMessage command) {
         switch (command) {
             case GameMessage.MoveTo move -> {
+                var movers = new java.util.ArrayList<uz.dukeengine.core.thing.GameObject>();
                 for (var id : move.units()) {
                     var unit = findObject(id);
                     if (unit == null || unit.getPlayerIndex() != move.playerIndex()) {
                         continue; // gone, or not the issuer's unit to command
                     }
                     uz.dukeengine.rts.module.Errand.giveUpAll(unit);
-                    var ai = unit.getLocomotor();
-                    if (ai != null) {
-                        ai.moveTo(move.destination());
-                    }
                     var weapon = unit.findModule(WeaponUpdate.class);
                     if (weapon != null) {
                         weapon.holdFire(); // an explicit move overrides the current target
                     }
+                    if (unit.getLocomotor() != null) {
+                        movers.add(unit);
+                    }
                 }
+                getGroupLayout().send(this, movers, move.destination(), move.click());
                 tellOrder(move, move.units(), move.playerIndex());
             }
             case GameMessage.AttackObject attack -> {

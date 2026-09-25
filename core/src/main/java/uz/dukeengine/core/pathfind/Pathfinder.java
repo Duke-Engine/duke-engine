@@ -99,6 +99,57 @@ public final class Pathfinder {
         return cells;
     }
 
+    /**
+     * What walking from {@code from} to {@code to} costs a body with no width, in world units — a cell for a straight
+     * step, 1.4 for a diagonal, and the turns — the search giving up after {@code mostCells} cells, with {@link
+     * Integer#MAX_VALUE} then or where there is no way ({@code Pathfinder::checkPathCost}, which gives up at 500).
+     */
+    public static int walkCost(PathGrid grid, Coord3D from, Coord3D to, int mostCells) {
+        int startX = grid.toCellX(from);
+        int startY = grid.toCellY(from);
+        int goalX = grid.toCellX(to);
+        int goalY = grid.toCellY(to);
+        if (grid.isBlocked(startX, startY) || grid.isBlocked(goalX, goalY)) {
+            return Integer.MAX_VALUE;
+        }
+        int width = grid.getWidth();
+        int start = grid.index(startX, startY);
+        int goal = grid.index(goalX, goalY);
+        var cost = new java.util.HashMap<Integer, Integer>();
+        var cameFrom = new java.util.HashMap<Integer, Integer>();
+        var closed = new java.util.HashSet<Integer>();
+        var open = new PriorityQueue<int[]>((a, b) -> a[0] != b[0] ? Integer.compare(a[0], b[0])
+                : Integer.compare(a[1], b[1]));
+        cost.put(start, 0);
+        open.add(new int[] {heuristic(startX, startY, goalX, goalY), start});
+        while (!open.isEmpty() && closed.size() < mostCells) {
+            int current = open.poll()[1];
+            if (current == goal) {
+                return Math.round(cost.get(current) * grid.getCellSize() / ORTHOGONAL_COST);
+            }
+            if (!closed.add(current)) {
+                continue;
+            }
+            int cx = current % width;
+            int cy = current / width;
+            for (var step : NEIGHBOURS) {
+                int next = grid.index(cx + step[0], cy + step[1]);
+                if (!canTake(grid, cx, cy, step, 0f) || closed.contains(next)) {
+                    continue;
+                }
+                int tentative = cost.get(current) + (step[0] != 0 && step[1] != 0 ? DIAGONAL_COST : ORTHOGONAL_COST)
+                        + turnCost(grid, cameFrom.getOrDefault(current, -1), cx, cy, step[0], step[1]);
+                if (tentative >= cost.getOrDefault(next, Integer.MAX_VALUE)) {
+                    continue;
+                }
+                cost.put(next, tentative);
+                cameFrom.put(next, current);
+                open.add(new int[] {tentative + heuristic(cx + step[0], cy + step[1], goalX, goalY), next});
+            }
+        }
+        return Integer.MAX_VALUE;
+    }
+
     /** Find a path for something with no width — a marker, a camera, a test. */
     public static Path findPath(PathGrid grid, Coord3D from, Coord3D to) {
         return findPath(grid, from, to, 0f);
@@ -792,6 +843,11 @@ public final class Pathfinder {
             i = furthest + 1;
         }
         return straightened;
+    }
+
+    /** Whether a body of {@code clearance} radius walks straight from {@code a} to {@code b} past nothing that stops it. */
+    public static boolean isClearLine(PathGrid grid, Coord3D a, Coord3D b, float clearance) {
+        return isClearLine(grid, a, b, clearance, null);
     }
 
     /**

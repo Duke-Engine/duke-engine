@@ -3732,7 +3732,7 @@ final class DukeRtsApp extends SimpleApplication {
      * the whole of what each is for. A skill has to be <em>aimed</em>, so it may
      * only be sent somewhere the player has actually seen. A walking order is not
      * aimed — it may be given anywhere on the map, the dark included, and how far
-     * he gets is the simulation's business. See {@link Destination}.
+     * he gets is the simulation's business.
      *
      * <p>So the dark reads as open here. Not as a kindness: a pointer that turned
      * away over undiscovered stone would be reading the map out to the player
@@ -4036,15 +4036,9 @@ final class DukeRtsApp extends SimpleApplication {
             markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
             return;
         }
-        // Pointed at somewhere he cannot get to, he goes as near it as he can
-        // rather than nowhere at all. See Destination.
-        var target = asNearAsTheyCanGet(ground);
-        // Spread the group around the click so they don't all fight for one spot.
-        var spots = Formation.spread(units.size(), target.x(), target.y());
-        for (int i = 0; i < units.size(); i++) {
-            game.postCommand(new GameMessage.MoveTo(local, List.of(units.get(i)),
-                    new Coord3D(spots.get(i).x(), spots.get(i).y(), 0f)));
-        }
+        // One order for the whole selection, placed as a group by the simulation — see GroupLayout — and the player's
+        // own click, which gathers a group clicked in its middle. Somewhere they cannot get to, they go as near as they can.
+        game.postCommand(new GameMessage.MoveTo(local, units, new Coord3D(ground.x, ground.z, 0f), true));
         // One mark for the order, not one per unit: it was a single decision. And
         // put WHERE HE CLICKED rather than where they will end up. The mark is an
         // answer to the click -- "that, understood" -- and moving it to the place
@@ -4058,24 +4052,6 @@ final class DukeRtsApp extends SimpleApplication {
         // hears anyone else's.
         noises.moment("vo.move", (float) timer.getTimeInSeconds());
         answerOrder("move", units);
-    }
-
-    /**
-     * The click, pulled back to the nearest place the selected units can reach.
-     *
-     * <p>Measured from the first of them. A dungeon holds one hero, and even with
-     * a party behind him the map is the same map — a click into stone is out of
-     * everyone's reach, and which of them worked that out does not show.
-     */
-    private Coord3D asNearAsTheyCanGet(Vector3f ground) {
-        var wanted = new Coord3D(ground.x, ground.z, 0f);
-        for (var view : snapshot.units()) {
-            if (selected.contains(view.id())) {
-                return Destination.asCloseAsHeCanGet(game.getTerrain(),
-                        new Coord3D(view.x(), view.y(), 0f), wanted);
-            }
-        }
-        return wanted;
     }
 
     /**

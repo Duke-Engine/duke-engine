@@ -163,6 +163,14 @@ public interface World {
     }
 
     /**
+     * The same for one of a group sent to {@code near}: the block pulled toward it, and never one whose walk from it is
+     * far longer than the way across — behind a wall ({@code adjustDestination} given the group's destination).
+     */
+    default Coord3D takePlace(GameObject mover, Coord3D place, Coord3D near) {
+        return takePlace(mover, place);
+    }
+
+    /**
      * A ground mover holding the block it stands on as its own, as it does once it stops: false where it may not —
      * an ally going there, an enemy still on it — and holds nothing.
      */

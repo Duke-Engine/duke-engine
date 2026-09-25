@@ -30,10 +30,18 @@ public sealed interface GameMessage extends Command
                 GameMessage.Sell, GameMessage.AttackMove, GameMessage.Guard, GameMessage.Evacuate,
                 GameMessage.ExitContainer, GameMessage.GameOrder {
 
-    /** Order the given units to move to a destination. */
-    record MoveTo(int playerIndex, List<ObjectId> units, Coord3D destination) implements GameMessage {
+    /**
+     * Order the given units to move to a destination, placed there as one group — see {@code GroupLayout}; {@code click}
+     * says it is the player's own click, which gathers a group clicked in its middle.
+     */
+    record MoveTo(int playerIndex, List<ObjectId> units, Coord3D destination, boolean click) implements GameMessage {
         public MoveTo {
             units = List.copyOf(units);
+        }
+
+        /** An order the game's own code gives, not the player's click. */
+        public MoveTo(int playerIndex, List<ObjectId> units, Coord3D destination) {
+            this(playerIndex, units, destination, false);
         }
     }
 
