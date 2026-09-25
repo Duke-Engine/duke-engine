@@ -252,6 +252,25 @@ class LockstepGateTest {
         }
     }
 
+    /** A number the game keeps outside the engine, summed with the world: one peer's differs, and it is caught. */
+    @Test
+    void aGamesOwnNumberThatDiffersIsCaughtOnTheNextCheckedFrame() {
+        var board = new Switchboard();
+        var peers = peers(2, board);
+        peers.get(0).logic.checksumAlso(() -> 7L);
+        peers.get(1).logic.checksumAlso(() -> 8L); // its computer player's plan went another way
+
+        for (int turn = 0; turn < 150; turn++) {
+            stepAll(peers);
+        }
+
+        for (var peer : peers) {
+            var desync = peer.gate.getDesync();
+            assertNotNull(desync, "peer " + peer.index + " never noticed");
+            assertEquals(0, desync.frame(), "on the first checked frame");
+        }
+    }
+
     @Test
     void aDesyncIsReportedOnceAndTheGameStops() {
         var board = new Switchboard();

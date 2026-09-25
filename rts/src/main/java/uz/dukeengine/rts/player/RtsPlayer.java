@@ -54,6 +54,25 @@ public final class RtsPlayer extends Player {
         return world != null && world.getPlayer(index) instanceof RtsPlayer player ? player : null;
     }
 
+    /**
+     * Its money, what it has earned and spent, the words granted it and the upgrades it has, mixed into the frame's
+     * checksum, as the reference sums every player's money, sciences and upgrades ({@code GameLogic::getCRC}): two
+     * machines that part company over them are told on the next checked frame.
+     */
+    @Override
+    public long checksum(long hash) {
+        hash = hash * 31 + getMoney();
+        hash = hash * 31 + Long.hashCode(getEarned());
+        hash = hash * 31 + Long.hashCode(getSpent());
+        for (var word : granted) {
+            hash = hash * 31 + word.hashCode();
+        }
+        for (var upgrade : upgrades) {
+            hash = hash * 31 + upgrade.hashCode();
+        }
+        return hash;
+    }
+
     public int getMoney() {
         return money;
     }

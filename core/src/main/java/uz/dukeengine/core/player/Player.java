@@ -29,6 +29,15 @@ public class Player {
         this.name = name;
     }
 
+    /**
+     * What the side keeps that every machine must agree on, mixed into the frame's checksum ({@code
+     * GameLogic.checksum}) — its money, its sciences, for a player of a game that keeps them. A plain player keeps
+     * nothing of its own and sums nothing.
+     */
+    public long checksum(long hash) {
+        return hash;
+    }
+
     public final int getIndex() {
         return index;
     }

@@ -1425,7 +1425,31 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                 }
             }
         }
+        for (int index = 0; index < playerList.getPlayerCount(); index++) {
+            hash = playerList.getPlayer(index).checksum(hash); // a plain player sums nothing
+        }
+        long drawn = random.state();
+        if (drawn != randomSeed) {
+            // Where its random numbers stand, as the reference sums its seed: nothing drawn sums as it always did.
+            hash = mix(hash, (int) drawn);
+            hash = mix(hash, (int) (drawn >>> 32));
+        }
+        for (var part : checksumParts) {
+            long value = part.getAsLong();
+            hash = mix(hash, (int) value);
+            hash = mix(hash, (int) (value >>> 32));
+        }
         return hash;
+    }
+
+    private final java.util.List<java.util.function.LongSupplier> checksumParts = new java.util.ArrayList<>();
+
+    /**
+     * A number of the game's own mixed into every checksum — state it keeps outside the engine that every machine
+     * must agree on, its computer players' plans say — asked on the simulation's thread each time the world is summed.
+     */
+    public final void checksumAlso(java.util.function.LongSupplier part) {
+        checksumParts.add(part);
     }
 
     private static long mix(long hash, int value) {

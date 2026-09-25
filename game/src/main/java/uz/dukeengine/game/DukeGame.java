@@ -441,6 +441,18 @@ public final class DukeGame {
     private final List<BiConsumer<uz.dukeengine.core.thing.GameObject, uz.dukeengine.rts.player.Upgrade>>
             researchedCallbacks = new ArrayList<>();
 
+    private final List<java.util.function.LongSupplier> checksumParts = new ArrayList<>();
+
+    /**
+     * A number of the game's own mixed into the world's checksum on every checked frame — state it keeps outside the
+     * engine, which every machine must agree on — asked on the simulation thread. Two machines whose numbers part are
+     * told they desynced, as for any other difference. See {@code GameLogic.checksumAlso}.
+     */
+    public DukeGame checksumAlso(java.util.function.LongSupplier part) {
+        checksumParts.add(part);
+        return this;
+    }
+
     /**
      * Runs on the simulation thread whenever research finishes at a building or a unit, as {@code (researcher,
      * upgrade)} — the frame it finishes, after the upgrade has taken effect, in the order registered; not for an
@@ -1065,6 +1077,7 @@ public final class DukeGame {
         producedCallbacks.forEach(logic::onProduced);
         constructedCallbacks.forEach(logic::onConstructed);
         researchedCallbacks.forEach(logic::onResearched);
+        checksumParts.forEach(logic::checksumAlso);
         soldCallbacks.forEach(logic::onSold);
         orderCallbacks.forEach(logic::onOrder);
         diedCallbacks.forEach(logic::onDied);
