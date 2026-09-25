@@ -189,7 +189,8 @@ class AttackableTest {
 
     /**
      * A rule answering its word only over ground its player has seen, as the reference steers a beam only there: over
-     * ground never seen the snapshot carries no word, and the pointer is what it is with none; over seen ground, the word.
+     * ground never seen the snapshot carries no word, and the pointer is what it is with none; over seen ground, the
+     * word.
      */
     @Test
     void theGroundRuleIsToldWhetherThePlayerHasEverSeenThePoint() {
