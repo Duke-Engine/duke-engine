@@ -359,6 +359,15 @@ public final class Duke3D {
         later(client -> client.mouse(arrangement));
     }
 
+    /**
+     * The player's own scroll speed, as a share of the pan speed the game framed ({@link CameraFrame}) — an options
+     * screen's slider: 1 as framed, 0.5 half as fast. The pan keys and the window's edges take it. From any thread,
+     * before launch or while it runs.
+     */
+    public void scrollSpeed(float share) {
+        later(client -> client.scrollSpeed(share));
+    }
+
     /** Stop the movie playing, and its sound, at once — for a key the game says skips it. */
     public void stopMovie() {
         later(DukeRtsApp::stopMovie);

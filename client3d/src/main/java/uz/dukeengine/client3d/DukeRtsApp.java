@@ -740,9 +740,27 @@ final class DukeRtsApp extends SimpleApplication {
     private Mouse mouse = Mouse.RIGHT_COMMANDS;
     /** The game's first look at the input, where it asked for one — see {@link CanvasInputs}. */
     private CanvasInputs canvasInputs;
+    /** The player's own scroll speed, a share of the framed pan speed — see {@link Duke3D#scrollSpeed}. */
+    private float scrollSpeed = 1f;
+    /** Which way the player's view scrolled last frame — {@code N}, {@code NE} … — or null: what the pointer shows. */
+    private String scrolling;
 
     void mouse(Mouse chosen) {
         this.mouse = chosen == null ? Mouse.RIGHT_COMMANDS : chosen;
+    }
+
+    /** The player's own scroll speed — see {@link Duke3D#scrollSpeed}. */
+    void scrollSpeed(float share) {
+        this.scrollSpeed = Math.max(0f, share);
+    }
+
+    /** Whether the pointer is in the window at all: the window says so, where jME keeps only where it was last seen. */
+    private boolean pointerInTheWindow() {
+        if (!(getContext() instanceof com.jme3.system.lwjgl.LwjglWindow display) || display.getWindowHandle() == 0L) {
+            return true; // no window to ask
+        }
+        return org.lwjgl.glfw.GLFW.glfwGetWindowAttrib(display.getWindowHandle(), org.lwjgl.glfw.GLFW.GLFW_HOVERED)
+                == org.lwjgl.glfw.GLFW.GLFW_TRUE;
     }
 
     /** Draw the world in this part of the window from the next frame — see {@link Duke3D#worldView}. */
@@ -4693,7 +4711,6 @@ final class DukeRtsApp extends SimpleApplication {
             canReach = couldStandThere(groundUnder(at.x, at.y));
         }
         var over = aiming ? null : pickUnit();
-        var shove = edgeShove(1f);
         // Over a window of the game's own canvas, or off the world's part of the window, is over the panel: the
         // arrow, as the reference shows it over any window of its interface.
         boolean overPanel = heroPanel.contains(at.x, at.y) || overTheMinimap(at)
@@ -4701,7 +4718,7 @@ final class DukeRtsApp extends SimpleApplication {
         return new Cursors.Over(true, armed, canReach, overPanel,
                 over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex(),
                 snapshot.attackable(), !selectedIds().isEmpty(), snapshot.contextOrder(), // a thing's, or the ground's
-                Cursors.scrollDirection(shove.x, shove.y));
+                scrolling);
     }
 
     /**
@@ -4732,6 +4749,7 @@ final class DukeRtsApp extends SimpleApplication {
             camera.restore(new CameraFocus.View(directed.x(), directed.y(), directed.angle(),
                     Float.isNaN(directed.zoom()) ? camera.distance() : directed.zoom()));
             cameraPitch = Float.isNaN(directed.pitch()) ? camera.pitch() : directed.pitch();
+            scrolling = null;
         } else {
             steerTheCamera(tpf);
             cameraPitch = camera.pitch();
@@ -4740,22 +4758,27 @@ final class DukeRtsApp extends SimpleApplication {
         placeTheCamera(tpf);
     }
 
-    /** The player's own hands on the camera: the pan keys and the screen's edges, turning, zooming. */
+    /** The player's own hands on the camera: the pan keys and the window's edges, turning, zooming. */
     private void steerTheCamera(float tpf) {
         var moved = game.takeViewMove();
         if (moved != null) {
             camera.lookAt(moved.x(), moved.y()); // the game put his view here; he scrolls on from it
         }
-        float speed = camera.panSpeed() * tpf;
-        var shove = edgeShove(speed);
-        float across = (held(KeyMap.Control.PAN_RIGHT) ? speed : 0f) - (held(KeyMap.Control.PAN_LEFT) ? speed : 0f)
-                + shove.x;
-        float down = (held(KeyMap.Control.PAN_DOWN) ? speed : 0f) - (held(KeyMap.Control.PAN_UP) ? speed : 0f)
-                + shove.y;
+        var at = inputManager.getCursorPosition();
+        int tall = cam.getHeight();
+        // No edge while a menu is up: the pointer is being used for something else, and a view that drifted out from
+        // under a choice would be its own kind of bug.
+        boolean atTheEdges = screen == Screen.PLAYING && !menu.isVisible() && pointerInTheWindow();
+        var hands = new Steering.Hands(held(KeyMap.Control.PAN_LEFT), held(KeyMap.Control.PAN_RIGHT),
+                held(KeyMap.Control.PAN_UP), held(KeyMap.Control.PAN_DOWN), at.x, tall - at.y, atTheEdges,
+                cam.getWidth(), tall);
+        var pan = steering.scroll(hands, tpf, camera.panAcross() * scrollSpeed, camera.panAlong() * scrollSpeed,
+                visuals.getEdgeScroll());
+        scrolling = Cursors.scrollDirection(pan.x, pan.y);
         // Across and down the screen, which is the ground turned the way the camera is.
         float cos = FastMath.cos(camera.yaw());
         float sin = FastMath.sin(camera.yaw());
-        camera.panBy(across * cos + down * sin, down * cos - across * sin);
+        camera.panBy(pan.x * cos + pan.y * sin, pan.y * cos - pan.x * sin);
         camera.turnBy(steering.turn(inputManager.getCursorPosition().x, turnPerPixel()));
         if (held(KeyMap.Control.TURN_LEFT)) {
             camera.turnBy(TURN_SPEED * tpf);
@@ -4817,48 +4840,6 @@ final class DukeRtsApp extends SimpleApplication {
         } else if (steering.middleUp(at.x, at.y, now) && snapshot.camera() == null) {
             camera.resetView();
         }
-    }
-
-    /**
-     * How far the cursor shoves the camera this frame, resting against an edge.
-     *
-     * <p>Added to whatever the keys are doing rather than replacing it, so both
-     * hands work at once. It is measured as a share of the keys' own speed, which
-     * is itself a function of how far out the camera is — so shoving at full zoom
-     * moves the same amount of <em>screen</em> as shoving up close.
-     *
-     * <p>Nothing happens while a menu is up: that is a moment when the cursor is
-     * being used for something else, and a view that
-     * drifted out from under a choice would be its own kind of bug.
-     *
-     * <p>All four edges are the screen's own, the bottom one included. The bar
-     * covers the foot of the screen, but the band that scrolls is a few pixels
-     * deep and the skill slots sit well above it — so pushing the cursor to the
-     * very bottom still means "look further down", which is where a hand goes for
-     * it, and reaching for a slot still means reaching for a slot.
-     */
-    private Vector2f edgeShove(float keySpeed) {
-        var wanted = visuals.getEdgeScroll();
-        var still = new Vector2f(0f, 0f);
-        if (!wanted.wanted() || screen != Screen.PLAYING || menu.isVisible()) {
-            return still;
-        }
-        var cursor = inputManager.getCursorPosition();
-        if (!pointerOnTheWorld()) {
-            return still; // the edges are the world's part of the window, and the pointer is off it
-        }
-        float margin = wanted.marginPixels();
-        float speed = keySpeed * wanted.speedPercent() / 100f;
-        float left = worldRegion.leftPixel(cam.getWidth());
-        float right = worldRegion.rightPixel(cam.getWidth());
-        float bottom = worldRegion.bottomPixel(cam.getHeight());
-        float top = worldRegion.topPixel(cam.getHeight());
-        // jME's cursor y grows upward, so the top of the screen is the far side of
-        // the map — the same direction the up key sends the camera.
-        return new Vector2f(
-                (cursor.x >= right - margin ? speed : 0f) - (cursor.x <= left + margin ? speed : 0f),
-                (cursor.y <= bottom + margin ? speed : 0f)
-                        - (cursor.y >= top - margin ? speed : 0f));
     }
 
     /**

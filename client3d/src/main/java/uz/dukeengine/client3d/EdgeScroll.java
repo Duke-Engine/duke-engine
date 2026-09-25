@@ -11,8 +11,10 @@ package uz.dukeengine.client3d;
  * <p>Off unless a game asks, because it is a matter of taste rather than of
  * correctness and three other games use this client. A margin of zero is off.
  *
- * @param marginPixels how close to the edge the cursor has to be, in window
- *                     pixels; zero turns it off
+ * @param marginPixels how close to an edge of the window the cursor has to be,
+ *                     in its pixels — the window's own edges, the bottom one
+ *                     included under a bar of the game's own, and none while
+ *                     the pointer is outside the window; zero turns it off
  * @param speedPercent how fast, as a percentage of what the keys move the camera
  *                     at — a share rather than a figure, so shoving and panning
  *                     stay in step at every zoom instead of one of them being
