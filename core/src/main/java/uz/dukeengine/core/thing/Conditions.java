@@ -35,14 +35,20 @@ public final class Conditions {
         String bestWords = null;
         int most = -1;
         for (int at = 0; at < candidates.size(); at++) {
-            var words = new TreeSet<>(candidates.get(at));
-            if (!holding.containsAll(words)) {
+            var said = candidates.get(at);
+            if (!holding.containsAll(said)) {
                 continue;
             }
-            var sorted = String.join(" ", words);
-            if (best < 0 || words.size() > most || words.size() == most && sorted.compareTo(bestWords) < 0) {
+            // Sorted, and without repeats, only where the list does not come so: a candidate kept as a sorted set is
+            // read as it is, every frame it is asked about.
+            var words = said instanceof java.util.SortedSet<String> sorted ? sorted : new TreeSet<>(said);
+            if (best >= 0 && words.size() < most) {
+                continue;
+            }
+            var joined = String.join(" ", words);
+            if (best < 0 || words.size() > most || joined.compareTo(bestWords) < 0) {
                 best = at;
-                bestWords = sorted;
+                bestWords = joined;
                 most = words.size();
             }
         }

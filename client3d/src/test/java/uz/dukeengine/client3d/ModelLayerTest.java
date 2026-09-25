@@ -219,4 +219,38 @@ class ModelLayerTest {
         assertEquals(28f, tops[1], 1e-3f, "half built, 28");
         assertEquals(48f, tops[2], 1e-3f, "whole, 48");
     }
+
+    @Test
+    void aLookChoosesOnceForTheSameWordsAndAgainTheFrameAWordIsSet() {
+        var look = warFactory();
+        var layers = layersOf(look);
+        var root = new Node("root");
+
+        for (int frame = 0; frame < 100; frame++) {
+            wear(layers, root, holding("READY"), frame);
+        }
+        for (var layer : look.layers.values()) {
+            assertEquals(1, layer.choicesMade, "a hundred frames of the same words: chosen once");
+        }
+
+        wear(layers, root, holding("READY", "PARTIALLY_CONSTRUCTED"), 100);
+        for (var layer : look.layers.values()) {
+            assertEquals(2, layer.choicesMade, "a word set on it: chosen again that frame");
+        }
+        assertNotNull(layers.get(1).body(), "and the scaffold its new words choose is drawn");
+    }
+
+    @Test
+    void aChoiceKeptIsTheChoiceMade() {
+        var look = warFactory().layers.get("scaffold");
+        var words = Set.of("PARTIALLY_CONSTRUCTED");
+
+        var first = look.modelFor(words);
+        var again = look.modelFor(new java.util.HashSet<>(words));
+
+        assertEquals("models/abwarfact_a4.glb", first);
+        assertSame(first, again, "found, not worked out again");
+        assertEquals(1, look.choicesMade);
+        assertNull(look.modelFor(Set.of("READY")), "and other words choose afresh");
+    }
 }

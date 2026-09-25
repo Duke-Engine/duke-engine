@@ -124,6 +124,7 @@ public final class Visuals {
          */
         public UnitVisual pieces(java.util.Set<String> conditions, java.util.List<String> hide,
                 java.util.List<String> show) {
+            chooseAgain();
             pieceStates.add(new PieceState(new java.util.TreeSet<>(conditions), hide, show));
             return this;
         }
@@ -134,6 +135,7 @@ public final class Visuals {
          * used, and the plain ones where none fits.
          */
         public UnitVisual fireBone(java.util.Set<String> conditions, int slot, String bone) {
+            chooseAgain();
             var bones = bonesFor(conditions);
             var was = bones.getOrDefault(slot, new WeaponBones(null, null, null));
             bones.put(slot, new WeaponBones(bone, was.flash(), was.recoil()));
@@ -142,6 +144,7 @@ public final class Visuals {
 
         /** Slot {@code slot}'s muzzle flash piece while its words best fit {@code conditions}. */
         public UnitVisual muzzleFlash(java.util.Set<String> conditions, int slot, String piece) {
+            chooseAgain();
             var bones = bonesFor(conditions);
             var was = bones.getOrDefault(slot, new WeaponBones(null, null, null));
             bones.put(slot, new WeaponBones(was.fire(), piece, was.recoil()));
@@ -150,6 +153,7 @@ public final class Visuals {
 
         /** Slot {@code slot}'s recoil bone while its words best fit {@code conditions}. */
         public UnitVisual recoilBone(java.util.Set<String> conditions, int slot, String bone) {
+            chooseAgain();
             var bones = bonesFor(conditions);
             var was = bones.getOrDefault(slot, new WeaponBones(null, null, null));
             bones.put(slot, new WeaponBones(was.fire(), was.flash(), bone));
@@ -210,12 +214,53 @@ public final class Visuals {
          */
         public UnitVisual clip(java.util.Set<String> conditions, String clip, ClipMode mode, ClipStart start,
                 String keepGroup) {
+            chooseAgain();
             clipStates.add(new ClipState(new java.util.TreeSet<>(conditions), clip, mode, start, keepGroup));
             return this;
         }
 
+        /**
+         * What a set of words chooses of it — its model, its pieces' state, its clip state and its barrels — worked out once
+         * for each set of words it is asked about and kept: a factory drawn with six layers weighed 122 sets of words a
+         * frame, every candidate's words split again and copied, for the same answer as the frame before.
+         */
+        record Chosen(String model, int pieceState, int clipState, java.util.Map<Integer, WeaponBones> weaponBones) {
+        }
+
+        /** The choices made so far, by the words they were made for; cleared whenever what it chooses from changes. */
+        private final java.util.Map<java.util.Set<String>, Chosen> chosen = new java.util.concurrent.ConcurrentHashMap<>();
+        /** How many choices have been worked out rather than found, for a test. */
+        int choicesMade;
+
+        /** Most sets of words kept before the kept choices are let go and made again as asked. */
+        private static final int MOST_CHOICES = 256;
+
+        Chosen chooseFor(java.util.Set<String> holding) {
+            var known = chosen.get(holding);
+            if (known != null) {
+                return known;
+            }
+            choicesMade++;
+            var made = new Chosen(modelForNow(holding), pieceStateForNow(holding), clipStateForNow(holding),
+                    weaponBonesForNow(holding));
+            if (chosen.size() >= MOST_CHOICES) {
+                chosen.clear(); // ponytail: a look asked about more sets of words than this chooses them again
+            }
+            chosen.put(java.util.Set.copyOf(holding), made);
+            return made;
+        }
+
+        /** What it chooses from changed: every choice is made again. */
+        private void chooseAgain() {
+            chosen.clear();
+        }
+
         /** Which of its clip states its words best fit, or -1 for none: then its roles play. */
         int clipStateFor(java.util.Set<String> holding) {
+            return clipStates.isEmpty() ? -1 : chooseFor(holding).clipState();
+        }
+
+        private int clipStateForNow(java.util.Set<String> holding) {
             if (clipStates.isEmpty()) {
                 return -1;
             }
@@ -406,6 +451,10 @@ public final class Visuals {
 
         /** Which of its pieces' states its words best fit, or -1 for none. */
         int pieceStateFor(java.util.Set<String> holding) {
+            return pieceStates.isEmpty() ? -1 : chooseFor(holding).pieceState();
+        }
+
+        private int pieceStateForNow(java.util.Set<String> holding) {
             var words = new java.util.ArrayList<java.util.SortedSet<String>>();
             for (var state : pieceStates) {
                 words.add(state.words());
@@ -415,6 +464,10 @@ public final class Visuals {
 
         /** Its weapon slots' bones for the words it holds: the best-fitting set's, or the plain ones. */
         java.util.Map<Integer, WeaponBones> weaponBonesFor(java.util.Set<String> holding) {
+            return conditionalWeaponBones.isEmpty() ? weaponBones : chooseFor(holding).weaponBones();
+        }
+
+        private java.util.Map<Integer, WeaponBones> weaponBonesForNow(java.util.Set<String> holding) {
             if (conditionalWeaponBones.isEmpty()) {
                 return weaponBones;
             }
@@ -429,12 +482,14 @@ public final class Visuals {
         }
 
         public UnitVisual model(String assetPath) {
+            chooseAgain();
             this.modelPath = assetPath;
             return this;
         }
 
         /** The model for a set of conditions, drawn instead of the plain one when every word of it holds. */
         public UnitVisual model(java.util.Set<String> conditions, String assetPath) {
+            chooseAgain();
             conditionalModels.put(String.join(" ", new java.util.TreeSet<>(conditions)), assetPath);
             return this;
         }
@@ -469,6 +524,10 @@ public final class Visuals {
 
         /** The same, for the words it holds as {@link #holding} worked them out — its own among them. */
         String modelFor(java.util.Set<String> holding) {
+            return conditionalModels.isEmpty() ? modelPath : chooseFor(holding).model();
+        }
+
+        private String modelForNow(java.util.Set<String> holding) {
             if (conditionalModels.isEmpty()) {
                 return modelPath;
             }
@@ -511,6 +570,7 @@ public final class Visuals {
          * somebody can see it.
          */
         public UnitVisual modelPart(String assetPath, String partName) {
+            chooseAgain();
             this.modelPath = assetPath;
             this.modelPart = partName;
             return this;
