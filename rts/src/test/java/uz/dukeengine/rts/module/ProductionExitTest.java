@@ -108,11 +108,13 @@ class ProductionExitTest {
             assertTrue(made.getPosition().x() > x, "never back the way it came");
             x = made.getPosition().x();
         }
-        for (int frame = 0; frame < 400 && made.getPosition().distance(new Coord3D(300f, 300f, 0f)) > 0.5f; frame++) {
+        // The rally point's own block of cells: the leg to it takes the nearest one free, as every move to a place does.
+        var rally = new Coord3D(305f, 305f, 0f);
+        for (int frame = 0; frame < 400 && made.getPosition().distance(rally) > 0.5f; frame++) {
             logic.update();
         }
-        assertEquals(300f, made.getPosition().x(), 0.5f, "and on to the rally point by a route");
-        assertEquals(300f, made.getPosition().y(), 0.5f);
+        assertEquals(305f, made.getPosition().x(), 0.5f, "and on to the rally point by a route");
+        assertEquals(305f, made.getPosition().y(), 0.5f);
     }
 
     @Test

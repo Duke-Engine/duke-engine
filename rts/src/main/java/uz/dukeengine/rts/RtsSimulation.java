@@ -60,6 +60,20 @@ public abstract class RtsSimulation extends GameLogic {
     protected abstract void onRtsCommand(GameMessage command);
 
     /**
+     * A crusher runs over a thing whose crushable level is below its crusher level, never an ally's, and is not held up
+     * by it — the reference's {@code canCrushOrSquish} in {@code AIUpdateInterface::blockedBy}.
+     */
+    @Override
+    public boolean runsOver(uz.dukeengine.core.thing.GameObject mover, uz.dukeengine.core.thing.GameObject other) {
+        var crusher = mover.findModule(uz.dukeengine.rts.module.CrushUpdate.class);
+        var crushable = other.findModule(uz.dukeengine.rts.module.Crushable.class);
+        return crusher != null && crushable != null && crushable.getLevel() < crusher.getLevel()
+                && mover.getPlayerIndex() != other.getPlayerIndex()
+                && getRelationship(mover.getPlayerIndex(), other.getPlayerIndex())
+                        != uz.dukeengine.core.player.Relationship.ALLIES;
+    }
+
+    /**
      * Apply a command that is not part of the RTS set — a command the game built
      * on this library declared for itself.
      *

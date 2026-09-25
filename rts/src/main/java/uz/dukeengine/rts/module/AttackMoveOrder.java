@@ -93,4 +93,10 @@ public final class AttackMoveOrder extends UpdateModule implements Errand {
             legs.moveTo(destination);
         }
     }
+
+    /** On an errand, it is at work: not asked to step aside. */
+    @Override
+    public boolean keepsBusy() {
+        return true;
+    }
 }

@@ -11,8 +11,12 @@ import uz.dukeengine.core.math.Coord3D;
  * A* search over a {@link PathGrid}, ported from SAGE's {@code Pathfinder}.
  *
  * <p>Finds a short cell path between two world positions over an 8-connected
- * grid (orthogonal step cost 10, diagonal 14, matching SAGE's integer cost
- * scale), then returns it as world-space {@link Path} waypoints.
+ * grid, costed as SAGE costs it ({@code PathfindCell::costSoFar}, {@code
+ * costToGoal}): a step 10, a diagonal 14, and a change of direction 4 more at 45
+ * degrees, 8 at 90 and 16 at 135, so of two routes of one length the one that
+ * turns fewer times is taken; the estimate to the goal 10 times the longer side
+ * and 5 times the shorter; a diagonal step taken past one open side of it, not
+ * only between two. It returns the route as world-space {@link Path} waypoints.
  *
  * <p>Two things happen after the search, and both matter more than the search
  * itself does to how movement looks.
@@ -41,6 +45,17 @@ public final class Pathfinder {
     private static final int ORTHOGONAL_COST = 10;
     private static final int DIAGONAL_COST = 14;
 
+    /**
+     * What the movers on the ground add to a step onto a cell for the mover a route is sought for: a cost, or {@link
+     * #CLOSED} for a cell it may not step onto at all — see {@code GameLogic}. Asked of every cell a search reaches.
+     */
+    @FunctionalInterface
+    public interface Traffic {
+        int CLOSED = -1;
+
+        int costOf(int cx, int cy);
+    }
+
     /** How finely a straight line is sampled when testing whether it is clear. */
     private static final float LINE_SAMPLE_FRACTION = 0.25f;
 
@@ -66,6 +81,16 @@ public final class Pathfinder {
         }
     }
 
+    /**
+     * The cells a route from {@code from} to {@code to} goes through, in order, before it is pulled straight — what
+     * the search itself chose, which straightening hides on open ground.
+     */
+    static List<Integer> cellsOf(PathGrid grid, Coord3D from, Coord3D to) {
+        var cells = new ArrayList<Integer>();
+        search(grid, from, to, 0f, false, null, null, cells);
+        return cells;
+    }
+
     /** Find a path for something with no width — a marker, a camera, a test. */
     public static Path findPath(PathGrid grid, Coord3D from, Coord3D to) {
         return findPath(grid, from, to, 0f);
@@ -88,9 +113,9 @@ public final class Pathfinder {
         if (grid.isBlocked(grid.toCellX(from), grid.toCellY(from))) {
             return escape(grid, from);
         }
-        var path = search(grid, from, to, clearance, false, null);
+        var path = search(grid, from, to, clearance, false, null, null);
         if (path.isEmpty() && clearance > 0f) {
-            path = search(grid, from, to, 0f, false, null);
+            path = search(grid, from, to, 0f, false, null, null);
         }
         return path;
     }
@@ -124,6 +149,12 @@ public final class Pathfinder {
      */
     public static Path findPathOrNearest(PathGrid grid, Coord3D from, Coord3D to, float clearance, Zones zones,
             Tally tally) {
+        return findPathOrNearest(grid, from, to, clearance, zones, tally, null);
+    }
+
+    /** The same, each step costed also by the movers on the ground, as {@code traffic} says; null for none. */
+    public static Path findPathOrNearest(PathGrid grid, Coord3D from, Coord3D to, float clearance, Zones zones,
+            Tally tally, Traffic traffic) {
         int startX = grid.toCellX(from);
         int startY = grid.toCellY(from);
         if (grid.isBlocked(startX, startY)) {
@@ -139,17 +170,17 @@ public final class Pathfinder {
                 return Path.partial(List.of()); // nowhere nearer than where it stands
             }
             var there = grid.cellCenter(nearest % width, nearest / width);
-            var way = search(grid, from, there, clearance, false, tally);
+            var way = search(grid, from, there, clearance, false, tally, traffic);
             if (way.isEmpty() && clearance > 0f) {
-                way = search(grid, from, there, 0f, false, tally);
+                way = search(grid, from, there, 0f, false, tally, traffic);
             }
             return Path.partial(way.getWaypoints());
         }
-        var path = search(grid, from, to, clearance, true, tally);
+        var path = search(grid, from, to, clearance, true, tally, traffic);
         if (path.reachesGoal() || clearance <= 0f) {
             return path;
         }
-        var squeezed = search(grid, from, to, 0f, true, tally);
+        var squeezed = search(grid, from, to, 0f, true, tally, traffic);
         if (squeezed.reachesGoal()) {
             return squeezed;
         }
@@ -245,7 +276,7 @@ public final class Pathfinder {
                 boolean along = floor == 0
                         ? canTake(grid, cx, cy, step, clearance)
                         : grid.walks(floor, cx, cy, nx, ny) && (!diagonal
-                                || grid.walks(floor, cx, cy, nx, cy) && grid.walks(floor, cx, cy, cx, ny));
+                                || grid.walks(floor, cx, cy, nx, cy) || grid.walks(floor, cx, cy, cx, ny));
                 if (along) {
                     relax(g, f, came, closed, open, floor, nx, ny, cells, width, cost, current, goalX, goalY);
                 }
@@ -360,7 +391,7 @@ public final class Pathfinder {
     /** Whether the straight line between two points of one floor is walkable on it. */
     private static boolean clearOn(PathGrid grid, int floor, Coord3D a, Coord3D b, float clearance) {
         if (floor == 0) {
-            return isClearLine(grid, a, b, clearance);
+            return isClearLine(grid, a, b, clearance, null);
         }
         var deck = grid.deck(floor);
         float dx = b.x() - a.x();
@@ -499,7 +530,10 @@ public final class Pathfinder {
         return new Flood(queue, tail);
     }
 
-    /** Whether the search would take this step: room at the far end, a step the grid allows, no corner cut. */
+    /**
+     * Whether the search would take this step: room at the far end, a step the grid allows, and — for a diagonal — one
+     * of its two sides open, as the reference's {@code examineNeighboringCells} asks.
+     */
     private static boolean canTake(PathGrid grid, int cx, int cy, int[] step, float clearance) {
         int nx = cx + step[0];
         int ny = cy + step[1];
@@ -507,7 +541,7 @@ public final class Pathfinder {
             return false;
         }
         boolean diagonal = step[0] != 0 && step[1] != 0;
-        return !diagonal || !grid.isBlocked(cx + step[0], cy) && !grid.isBlocked(cx, cy + step[1]);
+        return !diagonal || !grid.isBlocked(cx + step[0], cy) || !grid.isBlocked(cx, cy + step[1]);
     }
 
     /** How far apart two cells are, squared, which is enough to compare them. */
@@ -555,7 +589,12 @@ public final class Pathfinder {
      * nothing more than the failure did.
      */
     private static Path search(PathGrid grid, Coord3D from, Coord3D to, float clearance, boolean orNearest,
-            Tally tally) {
+            Tally tally, Traffic traffic) {
+        return search(grid, from, to, clearance, orNearest, tally, traffic, null);
+    }
+
+    private static Path search(PathGrid grid, Coord3D from, Coord3D to, float clearance, boolean orNearest,
+            Tally tally, Traffic traffic, List<Integer> cellsChosen) {
         int startX = grid.toCellX(from);
         int startY = grid.toCellY(from);
         int goalX = grid.toCellX(to);
@@ -593,7 +632,12 @@ public final class Pathfinder {
         while (!open.isEmpty()) {
             int current = open.poll();
             if (current == goalIndex) {
-                return reconstruct(grid, cameFrom, current, startIndex, from, to, clearance);
+                if (cellsChosen != null) {
+                    for (int cell = current; cell != -1 && cell != startIndex; cell = cameFrom[cell]) {
+                        cellsChosen.addFirst(cell);
+                    }
+                }
+                return reconstruct(grid, cameFrom, current, startIndex, from, to, clearance, traffic);
             }
             if (closed[current]) {
                 continue; // stale entry from a superseded g-score
@@ -613,7 +657,7 @@ public final class Pathfinder {
             }
             for (var step : NEIGHBOURS) {
                 expand(grid, gScore, fScore, cameFrom, closed, open,
-                        cx, cy, step[0], step[1], goalX, goalY, clearance);
+                        cx, cy, step[0], step[1], goalX, goalY, clearance, traffic);
             }
         }
         if (!orNearest) {
@@ -623,27 +667,37 @@ public final class Pathfinder {
             return Path.partial(List.of()); // nowhere nearer than where it stands
         }
         var there = grid.cellCenter(nearest % width, nearest / width);
-        return Path.partial(reconstruct(grid, cameFrom, nearest, startIndex, from, there, clearance).getWaypoints());
+        return Path.partial(reconstruct(grid, cameFrom, nearest, startIndex, from, there, clearance, traffic)
+                .getWaypoints());
     }
 
     private static void expand(PathGrid grid, int[] gScore, int[] fScore, int[] cameFrom,
             boolean[] closed, PriorityQueue<Integer> open,
-            int cx, int cy, int dx, int dy, int goalX, int goalY, float clearance) {
+            int cx, int cy, int dx, int dy, int goalX, int goalY, float clearance, Traffic traffic) {
         int nx = cx + dx;
         int ny = cy + dy;
         if (!fits(grid, nx, ny, clearance) || !grid.canStep(cx, cy, nx, ny)) {
             return;
         }
         boolean diagonal = dx != 0 && dy != 0;
-        if (diagonal && (grid.isBlocked(cx + dx, cy) || grid.isBlocked(cx, cy + dy))) {
-            return; // no cutting around the corner of an obstacle
+        if (diagonal && grid.isBlocked(cx + dx, cy) && grid.isBlocked(cx, cy + dy)) {
+            return; // a diagonal needs one of its two sides open
         }
 
         int neighbour = grid.index(nx, ny);
         if (closed[neighbour]) {
             return;
         }
-        int tentative = gScore[grid.index(cx, cy)] + (diagonal ? DIAGONAL_COST : ORTHOGONAL_COST);
+        int here = grid.index(cx, cy);
+        int tentative = gScore[here] + (diagonal ? DIAGONAL_COST : ORTHOGONAL_COST) + turnCost(grid, cameFrom[here],
+                cx, cy, dx, dy);
+        if (traffic != null) {
+            int extra = traffic.costOf(nx, ny);
+            if (extra == Traffic.CLOSED) {
+                return;
+            }
+            tentative += extra;
+        }
         if (tentative >= gScore[neighbour]) {
             return;
         }
@@ -653,17 +707,33 @@ public final class Pathfinder {
         open.add(neighbour);
     }
 
-    /** Octile distance heuristic, on the same integer cost scale as the steps. */
+    /**
+     * What a change of direction adds to a step: the reference's 4 at 45 degrees, 8 at 90 and 16 at 135 ({@code
+     * PathfindCell::costSoFar}); nothing going straight on, or on the first step.
+     */
+    private static int turnCost(PathGrid grid, int parent, int cx, int cy, int dx, int dy) {
+        if (parent < 0) {
+            return 0;
+        }
+        int width = grid.getWidth();
+        int wasX = cx - parent % width;
+        int wasY = cy - parent / width;
+        if (wasX == dx && wasY == dy) {
+            return 0;
+        }
+        int dot = wasX * dx + wasY * dy;
+        return dot > 0 ? 4 : dot == 0 ? 8 : 16;
+    }
+
+    /** The reference's estimate to the goal ({@code costToGoal}): 10 times the longer side and 5 times the shorter. */
     private static int heuristic(int cx, int cy, int goalX, int goalY) {
         int dx = Math.abs(cx - goalX);
         int dy = Math.abs(cy - goalY);
-        int min = Math.min(dx, dy);
-        int max = Math.max(dx, dy);
-        return DIAGONAL_COST * min + ORTHOGONAL_COST * (max - min);
+        return ORTHOGONAL_COST * Math.max(dx, dy) + ORTHOGONAL_COST * Math.min(dx, dy) / 2;
     }
 
     private static Path reconstruct(PathGrid grid, int[] cameFrom, int goal, int start,
-            Coord3D exactFrom, Coord3D exactTo, float clearance) {
+            Coord3D exactFrom, Coord3D exactTo, float clearance, Traffic traffic) {
         int width = grid.getWidth();
         var cells = new ArrayList<Integer>();
         for (int cell = goal; cell != -1 && cell != start; cell = cameFrom[cell]) {
@@ -681,7 +751,7 @@ public final class Pathfinder {
                 waypoints.add(grid.cellCenter(cell % width, cell / width));
             }
         }
-        return new Path(straighten(grid, exactFrom, waypoints, clearance));
+        return new Path(straighten(grid, exactFrom, waypoints, clearance, traffic));
     }
 
     /**
@@ -694,7 +764,7 @@ public final class Pathfinder {
      * destination.
      */
     private static List<Coord3D> straighten(PathGrid grid, Coord3D from,
-            List<Coord3D> waypoints, float clearance) {
+            List<Coord3D> waypoints, float clearance, Traffic traffic) {
         if (waypoints.size() < 2) {
             return waypoints;
         }
@@ -704,7 +774,7 @@ public final class Pathfinder {
         while (i < waypoints.size()) {
             int furthest = i;
             for (int j = waypoints.size() - 1; j > i; j--) {
-                if (isClearLine(grid, anchor, waypoints.get(j), clearance)) {
+                if (isClearLine(grid, anchor, waypoints.get(j), clearance, traffic)) {
                     furthest = j;
                     break;
                 }
@@ -732,7 +802,7 @@ public final class Pathfinder {
      * crosses into a new cell, that crossing is asked the same question a step
      * would be asked.
      */
-    private static boolean isClearLine(PathGrid grid, Coord3D a, Coord3D b, float clearance) {
+    private static boolean isClearLine(PathGrid grid, Coord3D a, Coord3D b, float clearance, Traffic traffic) {
         float dx = b.x() - a.x();
         float dy = b.y() - a.y();
         float distance = (float) Math.sqrt(dx * dx + dy * dy);
@@ -751,6 +821,9 @@ public final class Pathfinder {
             int cy = (int) Math.floor(y / grid.getCellSize());
             if ((cx != lastX || cy != lastY) && !grid.canStep(lastX, lastY, cx, cy)) {
                 return false;
+            }
+            if ((cx != lastX || cy != lastY) && traffic != null && traffic.costOf(cx, cy) == Traffic.CLOSED) {
+                return false; // the route went round a mover it may not pass: so does the line
             }
             lastX = cx;
             lastY = cy;

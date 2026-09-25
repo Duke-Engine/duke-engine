@@ -135,4 +135,10 @@ public final class GuardOrder extends UpdateModule implements Errand {
         }
         return place;
     }
+
+    /** On an errand, it is at work: not asked to step aside. */
+    @Override
+    public boolean keepsBusy() {
+        return true;
+    }
 }

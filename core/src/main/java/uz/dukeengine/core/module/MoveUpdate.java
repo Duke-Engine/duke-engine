@@ -18,10 +18,16 @@ import uz.dukeengine.core.thing.World;
  * Speed is authored in world-units-per-second and converted to a per-frame step
  * using the fixed logic rate, so movement is identical regardless of render fps.
  *
- * <p>Movement is solid: before every step the locomotor asks the world whether
- * the space it is about to occupy is free ({@link World#findBlocker}), and steers
- * around whatever is in the way. Objects with no {@link uz.dukeengine.core.thing.Geometry}
- * pass through each other exactly as before.
+ * <p>Buildings and whatever else cannot move are solid: before every step the
+ * locomotor asks the world whether the space it is about to occupy is free
+ * ({@link World#findBlocker}), and steers around what is in the way. Other ground
+ * movers are not shoved or swerved round: a mover keeps a block of the ground's
+ * cells of its own ({@link World#takePlace}), is held up only by one it drives
+ * into, goes no faster than that one draws away, plans again round it when it is
+ * stuck, and steps aside for one of higher priority — the reference's {@code
+ * AIUpdateInterface::processCollision} and {@code blockedBy}. Legs pass legs.
+ * Objects with no {@link uz.dukeengine.core.thing.Geometry} pass through each
+ * other exactly as before.
  *
  * <p>How it gathers and sheds speed and turns is its {@link Gait}'s, as the
  * reference's locomotors move by their appearance ({@code Locomotor.cpp}): legs,
@@ -86,13 +92,16 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
      * @param closeEnough         how near the end of its route counts as arrived ({@code CloseEnoughDist}): 1 unless set
      * @param canMoveBackwards    whether wheels may back toward a point behind them ({@code CanMoveBackwards})
      * @param gait                how it moves — see {@link Gait}
+     * @param pathPriority        which of two movers stuck on each other steps aside: the lower — the reference's
+     *                            dozers first, which a game marks with a higher number; of two alike, one on wheels or
+     *                            treads before one on legs ({@code AIUpdateInterface::hasHigherPathPriority})
      */
     public record Data(float speed, float turnRate, float acceleration, float braking, float accelerationDamaged,
             float brakingDamaged, float damagedBelow, float minSpeed, float minTurnSpeed, float closeEnough,
-            boolean canMoveBackwards, Gait gait) implements ModuleData {
+            boolean canMoveBackwards, Gait gait, int pathPriority) implements ModuleData {
 
         /** What a block leaves out: at once, arriving within 1, damaged under a tenth, moving as things always moved. */
-        static final Data DEFAULTS = new Data(0f, 0f, 0f, 0f, 0f, 0f, 0.1f, 0f, 0f, 1f, false, Gait.OTHER);
+        static final Data DEFAULTS = new Data(0f, 0f, 0f, 0f, 0f, 0f, 0.1f, 0f, 0f, 1f, false, Gait.OTHER, 0);
 
         public Data {
             gait = gait == null ? Gait.OTHER : gait;
@@ -105,7 +114,15 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
         /** A top speed and a turn rate; everything else as a block leaves it. */
         public Data(float speed, float turnRate) {
-            this(speed, turnRate, 0f, 0f, 0f, 0f, 0.1f, 0f, 0f, 1f, false, Gait.OTHER);
+            this(speed, turnRate, 0f, 0f, 0f, 0f, 0.1f, 0f, 0f, 1f, false, Gait.OTHER, 0);
+        }
+
+        /** Everything but a path priority, which is then none. */
+        public Data(float speed, float turnRate, float acceleration, float braking, float accelerationDamaged,
+                float brakingDamaged, float damagedBelow, float minSpeed, float minTurnSpeed, float closeEnough,
+                boolean canMoveBackwards, Gait gait) {
+            this(speed, turnRate, acceleration, braking, accelerationDamaged, brakingDamaged, damagedBelow, minSpeed,
+                    minTurnSpeed, closeEnough, canMoveBackwards, gait, 0);
         }
     }
 
@@ -159,6 +176,34 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     /** Where it goes on to by a route once it has walked the way it was given — see {@link #leave}. */
     private Coord3D then;
 
+    // ---- the ground's cells ----
+    /** Whether it is going to a place — a block of the ground's cells of its own — rather than into something. */
+    private boolean toPlace;
+    /** The place it was sent to, before the block round it it was given. */
+    private Coord3D sentTo;
+    /** Where it stood when this frame began, and how far it went the frame before. */
+    private Coord3D lastPosition;
+    private float lastStep;
+
+    // ---- giving way ----
+    /** How many frames running another mover has held it up: the reference's {@code m_blockedFrames}. */
+    private int heldFrames;
+    /** The speed it is kept under after being held, world units a second: the reference's {@code m_bumpSpeedLimit}. */
+    private float bumpLimit = Float.MAX_VALUE;
+    /** The frame it last asked for a route, and — asked too soon after it — the frame it asks again. */
+    private int lastRouteFrame = Integer.MIN_VALUE / 2;
+    private int routeAgainAt = -1;
+    /** The movers it plans its next route round, as though they were stone: those it is stuck behind. */
+    private java.util.Set<uz.dukeengine.core.thing.ObjectId> round = java.util.Set.of();
+    /** Until which frame it passes through other movers: stepping aside with nowhere to step. */
+    private int passThroughUntil = -1;
+    /** Until which frame its step aside may last before it gives it up where it stands. */
+    private int asideUntil = -1;
+    /** Whether it is planning a route now: not asked aside by the allies its own route asks, round and round. */
+    private boolean planning;
+    /** How many frames running a box's turn has waited on another's footprint. */
+    private int turnWaits;
+
     public MoveUpdate(GameObject owner, Data data) {
         super(owner);
         this.data = data;
@@ -183,10 +228,34 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
      * once it gets there: {@link #stoppedShort}.
      */
     public void moveTo(Coord3D destination) {
+        var world = getOwner().getWorld();
+        sentTo = destination;
+        head(world == null ? destination : world.takePlace(getOwner(), destination), true);
+    }
+
+    /**
+     * Go exactly to {@code destination}, holding no block of the ground's cells there: a move into something —
+     * entering it, docking at it, closing on it — which the reference leaves where it is ({@code
+     * setAdjustsDestination(false)}).
+     */
+    @Override
+    public void moveExactlyTo(Coord3D destination) {
+        var world = getOwner().getWorld();
+        if (world != null) {
+            world.letPlaceGo(getOwner());
+        }
+        sentTo = destination;
+        head(destination, false);
+    }
+
+    private void head(Coord3D destination, boolean place) {
         this.then = null;
         this.destination = destination;
+        this.toPlace = place;
         this.stoppedShort = false;
         this.lookedAgain = false;
+        this.asideUntil = -1;
+        this.round = java.util.Set.of();
         planRoute();
         nowhereNearer();
     }
@@ -200,13 +269,17 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     @Override
     public void leave(Coord3D way, Coord3D destination) {
         stop();
+        var world = getOwner().getWorld();
+        if (world != null) {
+            world.letPlaceGo(getOwner()); // the first leg is through its maker's walls: nowhere of its own yet
+        }
+        this.toPlace = false;
         this.destination = way;
         this.then = destination;
         this.waypoints = List.of(way);
         this.route = null;
         this.goalReachable = true;
         this.lookedAgain = false;
-        var world = getOwner().getWorld();
         this.navigationVersion = world == null ? 0 : world.getNavigationVersion();
     }
 
@@ -235,22 +308,71 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             this.route = null;
             this.goalReachable = true;
         } else {
+            if (toPlace && sentTo != null && then == null && asideUntil < 0 && !world.holdsPlace(getOwner())) {
+                // An ally has claimed its block since: the nearest block it may have instead.
+                destination = world.takePlace(getOwner(), sentTo);
+            }
             // Asked for this owner, so the route allows for its width and comes
             // back straightened rather than as a walk of cell centres — and, where
             // there is no way there, as a route to the nearest place there is one.
-            var path = world.findPath(getOwner(), destination);
+            var path = round.isEmpty() ? world.findPath(getOwner(), destination)
+                    : world.findPath(getOwner(), destination, round);
             if (path == null) {
                 waiting = true; // the frame's searching is spent: the old route, or standing, until its turn
                 return;
             }
             waiting = false;
+            lastRouteFrame = world.getFrame();
             this.waypoints = path.getWaypoints();
             this.route = path;
             this.goalReachable = path.reachesGoal();
             this.navigationVersion = world.getNavigationVersion();
+            this.waypointIndex = 0;
+            planning = true;
+            try {
+                askAlliesAside(world);
+            } finally {
+                planning = false;
+            }
         }
         this.waypointIndex = 0;
+        heldFrames = 0;
         resetProgress();
+    }
+
+    /**
+     * The idle allies standing on the way it is to take — not moving, not busy — asked to step aside off it, as the
+     * reference's {@code Pathfinder::moveAllies} asks them once a route through them is found.
+     */
+    private void askAlliesAside(World world) {
+        var owner = getOwner();
+        if (!world.keepsCells(owner) || waypoints.isEmpty()) {
+            return;
+        }
+        float reach = uz.dukeengine.core.thing.Solid.of(owner.getTemplate()).footprintRadius();
+        var way = new java.util.ArrayList<Coord3D>(waypoints.size() + 1);
+        way.add(owner.getPosition());
+        way.addAll(waypoints);
+        var asked = new java.util.HashSet<uz.dukeengine.core.thing.ObjectId>();
+        float cell = world.cellSize();
+        for (int i = 1; i < way.size(); i++) {
+            var a = way.get(i - 1);
+            var b = way.get(i);
+            float length = (float) Math.sqrt((b.x() - a.x()) * (b.x() - a.x()) + (b.y() - a.y()) * (b.y() - a.y()));
+            int samples = Math.max(1, (int) Math.ceil(length / cell));
+            for (int s = 0; s <= samples; s++) {
+                float t = (float) s / samples;
+                var point = new Coord3D(a.x() + (b.x() - a.x()) * t, a.y() + (b.y() - a.y()) * t, a.z());
+                for (var other : world.objectsInRange(point, reach + OTHERS_REACH,
+                        candidate -> candidate != owner && isGroundMover(candidate) && idle(candidate)
+                                && allied(world, owner, candidate))) {
+                    float room = reach + uz.dukeengine.core.thing.Solid.of(other.getTemplate()).footprintRadius();
+                    if (across(other.getPosition(), point) < room && asked.add(other.getId())) {
+                        other.findModule(MoveUpdate.class).stepAsideFor(owner, way);
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -263,7 +385,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             return;
         }
         if (goalReachable || destination == null) {
-            return; // arrived
+            holdWhereItStands(); // arrived
+            return;
         }
         if (!lookedAgain) {
             lookedAgain = true;
@@ -273,6 +396,22 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             }
         }
         stoppedShort = true;
+        holdWhereItStands();
+    }
+
+    /**
+     * Stopped: it keeps its block where it is within a cell of it, and otherwise holds the block it stands on instead —
+     * as does one that went into something rather than to a place.
+     */
+    private void holdWhereItStands() {
+        var world = getOwner().getWorld();
+        if (world == null || !world.keepsCells(getOwner())) {
+            return;
+        }
+        var at = getOwner().getPosition();
+        if (!toPlace || destination == null || across(at, destination) > world.cellSize()) {
+            world.holdPlace(getOwner());
+        }
     }
 
     /**
@@ -292,7 +431,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         return goalReachable;
     }
 
-    /** Cancel any current move. */
+    /** Cancel any current move: it holds the block it stands on from now. */
     public void stop() {
         this.speedNow = 0f;
         this.brakingOnto = false;
@@ -304,7 +443,11 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         this.waypointIndex = 0;
         this.destination = null;
         this.stoppedShort = false;
+        this.heldFrames = 0;
+        this.asideUntil = -1;
         resetProgress();
+        this.toPlace = false;
+        holdWhereItStands();
     }
 
     private void resetProgress() {
@@ -334,15 +477,32 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     @Override
     public void update() {
+        var owner = getOwner();
+        var world = owner.getWorld();
+        var here = owner.getPosition();
+        lastStep = lastPosition == null ? 0f : across(here, lastPosition);
+        lastPosition = here;
+        if (world != null) {
+            world.markStanding(owner);
+        }
         if (!isMoving()) {
             speedNow = 0f;
+            heldFrames = 0;
+            standStill(owner, world);
             return;
         }
-        var owner = getOwner();
         if (owner.isEffectivelyDead() || owner.isContained() || owner.hasStatus(ObjectStatus.DISABLED)
                 || owner.hasStatus(ObjectStatus.HELD)) {
             speedNow = 0f;
             return; // dead, inside a transport, frozen or held — cannot move, and keeps its orders for when it can
+        }
+        if (asideUntil >= 0 && world != null && world.getFrame() > asideUntil) {
+            stop(); // ten seconds stepping aside is enough: it stays where it got to
+            return;
+        }
+        if (routeAgainAt >= 0 && world != null && world.getFrame() >= routeAgainAt) {
+            routeAgainAt = -1;
+            planRoute(); // its wait for a route asked too soon is over
         }
         boolean slowed = owner.hasStatus(ObjectStatus.SLOWED);
         float step = slowed ? stepPerFrame * 0.5f : stepPerFrame;
@@ -380,10 +540,15 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
         float desired = (float) StrictMath.atan2(delta.y(), delta.x());
         float rest = distance + legsAfter(waypointIndex);
+        float allowed = giveWay(owner, world, desired, slowed ? topSpeed * 0.5f : topSpeed);
+        if (!isMoving()) {
+            return; // it stepped aside, or planned again and has nowhere to go
+        }
         if (data.gait() != Gait.OTHER) {
-            walkByGait(owner, position, target, distance, desired, rest, slowed ? topSpeed * 0.5f : topSpeed);
+            walkByGait(owner, position, target, distance, desired, rest, allowed);
             return;
         }
+        step = Math.min(step, allowed * GameConstants.SECONDS_PER_LOGICFRAME);
         if (data.acceleration() > 0f || data.braking() > 0f) {
             speedNow = approach(speedNow, (slowed ? topSpeed * 0.5f : topSpeed), acceleration(owner), 0f);
             step = Math.min(step, speedNow * GameConstants.SECONDS_PER_LOGICFRAME);
@@ -430,16 +595,36 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         float facing = turnPerFrame <= 0f
                 ? desired // instant turning: head straight for the waypoint
                 : rotateToward(owner.getOrientation(), desired, turnPerFrame);
-        owner.setOrientation(facing);
+        turn(owner, facing);
+        facing = owner.getOrientation();
 
         if (!escaping && standingOnTheDestination(owner, position.add(headingVector(facing).scale(step)))) {
             stop(); // pressed against the thing we were sent to — this is arrival
             return;
         }
+        stepAlong(owner, position, facing, step, toward, escaping);
+    }
 
+    /**
+     * A step along {@code facing}, or — where something solid is in the way — along the first of the swerves that is
+     * clear. Another ground mover in the way is not swerved round: the step waits, and the giving way sorts it out.
+     */
+    private void stepAlong(GameObject owner, Coord3D position, float facing, float step, int toward,
+            boolean escaping) {
+        if (step <= 0f) {
+            return;
+        }
+        var straight = position.add(headingVector(facing).scale(step));
+        if (canStep(owner, position, straight, toward, escaping)) {
+            stepTo(owner, straight, toward);
+            return;
+        }
+        if (keepsCells(owner) && !solidInTheWay(owner, straight, toward)) {
+            return; // a mover in the way: it waits, and is held, not steered round
+        }
         for (var swerve : SWERVE_ANGLES) {
             var next = position.add(headingVector(facing + swerve).scale(step));
-            if (escaping || isClear(owner, next, toward)) {
+            if (canStep(owner, position, next, toward, escaping)) {
                 stepTo(owner, next, toward);
                 return;
             }
@@ -449,7 +634,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     /** Onto the waypoint it is a step from, where the ground there takes it, and on to the next leg or the end. */
     private void reach(GameObject owner, Coord3D target, int toward, boolean escaping) {
-        if (escaping || isClear(owner, target, toward)) {
+        if (canStep(owner, owner.getPosition(), target, toward, escaping)) {
             stepTo(owner, target, toward);
             waypointIndex++; // advance to the next leg (or finish the path)
             resetProgress();
@@ -486,6 +671,447 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             length += (float) Math.sqrt((b.x() - a.x()) * (b.x() - a.x()) + (b.y() - a.y()) * (b.y() - a.y()));
         }
         return length;
+    }
+
+    // ---- standing still ----
+
+    /** How often, in frames, a still mover looks whether it may keep the ground it stands on. */
+    private static final int STILL_LOOK_FRAMES = 8;
+
+    /**
+     * Still: it holds the block it stands on, as a mover does once it stops; and where it may not — another still one
+     * less than half a cell away holds it, an ally's claim, an enemy it cannot drive over — it goes to the nearest block
+     * it may have, unless it is busy: the reference's {@code AIUpdateInterface::processCollision} for two units on top of
+     * each other.
+     */
+    private void standStill(GameObject owner, World world) {
+        if (world == null || !world.keepsCells(owner)
+                || (world.getFrame() + owner.getId().value()) % STILL_LOOK_FRAMES != 0 || world.holdsPlace(owner)) {
+            return;
+        }
+        if (!world.holdPlace(owner) && !owner.isBusy()) {
+            moveTo(owner.getPosition());
+        }
+    }
+
+    // ---- giving way ----
+
+    /** The reference's {@code MIN_REPATH_TIME}-like rule: a route asked for within 3 frames of the last waits a second. */
+    private static final int TOO_SOON_FRAMES = 3;
+    /** Held this long, it plans again round what holds it: two seconds. */
+    private static final int STUCK_FRAMES = 2 * GameConstants.LOGICFRAMES_PER_SECOND;
+    /** Facing its way within this, it is not turning: the reference's {@code PI / 30}, 6 degrees. */
+    private static final float FACING_ITS_WAY = (float) (StrictMath.PI / 30.0);
+    /** How long a step aside may take, or passing through movers with nowhere to step aside to: 10 seconds. */
+    private static final int ASIDE_FRAMES = 10 * GameConstants.LOGICFRAMES_PER_SECOND;
+    /** How far ahead of where it stands a mover looks for the one it would drive into, at least. */
+    private static final float PROBE = 1f;
+
+    /**
+     * The fastest it may go this frame for the ground movers it would drive into — {@code blockedBy}, {@code
+     * calculateMaxBlockedSpeed} and {@code doLocomotor}'s bump limit: held, no faster than the one in front draws away,
+     * the limit falling 5% a frame, and growing back 5% a frame from a fifth of its speed once it is not. Held two
+     * seconds, or at once behind one standing still while facing its way, it plans again round them; stuck on each
+     * other, the one of lower priority steps aside; held by one on legs, a mover on wheels or treads has it step aside.
+     */
+    private float giveWay(GameObject owner, World world, float desired, float top) {
+        if (world == null || !world.keepsCells(owner) || world.getFrame() < passThroughUntil) {
+            heldFrames = 0;
+            return top;
+        }
+        float probe = Math.max(Math.max(PROBE, stepPerFrame), turningRoom(owner));
+        var ahead = owner.getPosition().add(headingVector(owner.getOrientation()).scale(probe));
+        var mine = uz.dukeengine.core.thing.Footprint.of(owner, ahead);
+        float reach = uz.dukeengine.core.thing.Solid.of(owner.getTemplate()).footprintRadius() + probe + OTHERS_REACH;
+        float limit = Float.MAX_VALUE;
+        var holders = new java.util.ArrayList<GameObject>();
+        for (var other : world.objectsInRange(owner.getPosition(), reach,
+                candidate -> candidate != owner && isGroundMover(candidate))) {
+            if (!mine.overlaps(uz.dukeengine.core.thing.Footprint.of(other)) || !heldBy(owner, world, other)) {
+                continue;
+            }
+            holders.add(other);
+            limit = Math.min(limit, blockedSpeed(owner, other));
+        }
+        boolean held = !holders.isEmpty();
+        float speed = top;
+        if (held && speed > limit) {
+            speed = limit;
+            bumpLimit = Math.min(bumpLimit, speed) * 0.95f;
+            speed = bumpLimit;
+            heldFrames++;
+        } else {
+            held = false;
+            heldFrames = 0;
+            if (bumpLimit < Float.MAX_VALUE) {
+                bumpLimit = Math.max(bumpLimit, top * 0.2f) * 1.05f;
+                if (bumpLimit >= top) {
+                    bumpLimit = Float.MAX_VALUE;
+                }
+            }
+            speed = Math.min(speed, bumpLimit);
+        }
+        if (held) {
+            resetProgress(); // held, it is not lost: the giving way sorts it out, and plans again if it must
+            sortOutTheHold(owner, world, holders, desired);
+        }
+        return speed;
+    }
+
+    /**
+     * How far ahead a box looks for the one it would drive into: far enough to stop with room to turn where it stands —
+     * its corners reach out to its bounding circle, a little past its front.
+     */
+    private static float turningRoom(GameObject owner) {
+        var shape = uz.dukeengine.core.thing.Solid.of(owner.getTemplate());
+        return shape instanceof uz.dukeengine.core.thing.Geometry.Box box
+                ? shape.footprintRadius() - box.majorRadius() + PROBE : 0f;
+    }
+
+    /** How far another mover's middle may be from its outline, at most, for the one looking for those it touches. */
+    private static final float OTHERS_REACH = 60f;
+
+    /** Held: who steps aside, and whether it plans again round them. */
+    private void sortOutTheHold(GameObject owner, World world, List<GameObject> holders, float desired) {
+        boolean facingItsWay = Math.abs(angleBetween(owner.getOrientation(), desired)) <= FACING_ITS_WAY;
+        boolean stuckBehindStill = false;
+        for (var other : holders) {
+            var theirs = other.findModule(MoveUpdate.class);
+            boolean otherMoving = theirs.isMoving();
+            if (!walksOnLegs(owner) && walksOnLegs(other) && !movingAwayFrom(other, owner) && !other.isBusy()) {
+                theirs.stepAsideFor(owner, wayAheadOf(owner)); // a vehicle held by infantry: the infantry steps aside
+                continue;
+            }
+            if (!otherMoving) {
+                stuckBehindStill |= facingItsWay;
+                continue;
+            }
+            if (facingItsWay && theirs.heldBy(other, world, owner) && !theirs.needsToTurn(other)
+                    && !higherPriority(owner, other)) {
+                stepAsideFor(other, wayAheadOf(other)); // stuck on each other: the lower priority steps aside
+                return;
+            }
+        }
+        if (heldFrames > STUCK_FRAMES || stuckBehindStill) {
+            var ids = new java.util.HashSet<uz.dukeengine.core.thing.ObjectId>();
+            for (var other : holders) {
+                ids.add(other.getId());
+            }
+            planAgainRound(world, ids);
+        }
+    }
+
+    /** A route round the movers it is stuck behind — or, asked for within 3 frames of the last, a second from now. */
+    private void planAgainRound(World world, java.util.Set<uz.dukeengine.core.thing.ObjectId> stuckBehind) {
+        round = stuckBehind;
+        heldFrames = 0;
+        if (world.getFrame() - lastRouteFrame < TOO_SOON_FRAMES) {
+            if (routeAgainAt < 0) {
+                routeAgainAt = world.getFrame() + GameConstants.LOGICFRAMES_PER_SECOND;
+            }
+            return;
+        }
+        planRoute();
+    }
+
+    /**
+     * Whether {@code other} holds {@code mover} up: it drives into it — the other within 45 degrees of its heading, 34
+     * if the other stands, the two not drawing apart — while more than a cell from its own goal; legs are never held by
+     * legs, nor anything by what it runs over ({@code AIUpdateInterface::blockedBy}).
+     */
+    boolean heldBy(GameObject mover, World world, GameObject other) {
+        if (walksOnLegs(mover) && walksOnLegs(other) || world.runsOver(mover, other)) {
+            return false;
+        }
+        var at = mover.getPosition();
+        if (destination != null && Math.abs(destination.x() - at.x()) < world.cellSize()
+                && Math.abs(destination.y() - at.y()) < world.cellSize()) {
+            return false; // nearly there: nothing holds it up now
+        }
+        var theirs = other.findModule(MoveUpdate.class);
+        boolean otherMoving = theirs != null && theirs.isMoving();
+        var there = other.getPosition();
+        float dx = at.x() - there.x();
+        float dy = at.y() - there.y();
+        float apart = dx * dx + dy * dy;
+        float cell = world.cellSize();
+        if (apart < cell * cell * 0.0001f) {
+            return higherPriority(mover, other); // on one point: the lower priority goes on
+        }
+        float mineX = (float) StrictMath.cos(mover.getOrientation());
+        float mineY = (float) StrictMath.sin(mover.getOrientation());
+        float theirX = (float) StrictMath.cos(other.getOrientation());
+        float theirY = (float) StrictMath.sin(other.getOrientation());
+        float sameWay = mineX * theirX + mineY * theirY;
+        if (heldFrames > GameConstants.LOGICFRAMES_PER_SECOND && sameWay <= 0f) {
+            return false; // held a second and crossing: through
+        }
+        float toThem = Math.abs(angleBetween(mover.getOrientation(), (float) StrictMath.atan2(-dy, -dx)));
+        float toMe = Math.abs(angleBetween(other.getOrientation(), (float) StrictMath.atan2(dy, dx)));
+        if (toThem > HALF_TURN / 2f) {
+            return false; // going away from it
+        }
+        float limit = HALF_TURN / 4f * (otherMoving ? 1f : 0.75f);
+        if (toThem > limit) {
+            if (sameWay <= 0f || !otherMoving || toMe <= limit) {
+                return false;
+            }
+            float nextX = dx + mineX - theirX;
+            float nextY = dy + mineY - theirY;
+            if (apart <= nextX * nextX + nextY * nextY) {
+                return false; // drawing apart
+            }
+            return !higherPriority(mover, other);
+        }
+        return !other.isEffectivelyDead();
+    }
+
+    /**
+     * How fast {@code mover} may go and not run into {@code other}: as fast as the other draws away along the line
+     * between them, over how much of its own heading lies along it; none where the other comes at it ({@code
+     * calculateMaxBlockedSpeed}).
+     */
+    private static float blockedSpeed(GameObject mover, GameObject other) {
+        float dx = other.getPosition().x() - mover.getPosition().x();
+        float dy = other.getPosition().y() - mover.getPosition().y();
+        float length = (float) Math.sqrt(dx * dx + dy * dy);
+        if (length <= 0f) {
+            return 0f;
+        }
+        dx /= length;
+        dy /= length;
+        float away = dx * (float) StrictMath.cos(other.getOrientation()) + dy * (float) StrictMath.sin(other.getOrientation());
+        if (away < 0f) {
+            return 0f; // it comes at us
+        }
+        var theirs = other.findModule(MoveUpdate.class);
+        float theirSpeed = theirs == null || !theirs.isMoving() ? 0f
+                : theirs.lastStep / GameConstants.SECONDS_PER_LOGICFRAME;
+        float toward = dx * (float) StrictMath.cos(mover.getOrientation())
+                + dy * (float) StrictMath.sin(mover.getOrientation());
+        if (toward <= 0f) {
+            return Float.MAX_VALUE;
+        }
+        return theirSpeed * away / toward;
+    }
+
+    /**
+     * Of two stuck on each other, whether {@code mover} goes on and {@code other} steps aside: the higher path priority
+     * — the game's, then wheels or treads before legs — then, going the same way, the one ahead, else the lower id
+     * ({@code hasHigherPathPriority}).
+     */
+    static boolean higherPriority(GameObject mover, GameObject other) {
+        var mine = mover.findModule(MoveUpdate.class);
+        var theirs = other.findModule(MoveUpdate.class);
+        int ours = mine == null ? 0 : mine.data.pathPriority();
+        int their = theirs == null ? 0 : theirs.data.pathPriority();
+        if (ours != their) {
+            return ours > their;
+        }
+        boolean vehicle = !walksOnLegs(mover);
+        if (vehicle != !walksOnLegs(other)) {
+            return vehicle;
+        }
+        float mineX = (float) StrictMath.cos(mover.getOrientation());
+        float mineY = (float) StrictMath.sin(mover.getOrientation());
+        float theirX = (float) StrictMath.cos(other.getOrientation());
+        float theirY = (float) StrictMath.sin(other.getOrientation());
+        if (mineX * theirX + mineY * theirY <= 0f) {
+            return mover.getId().value() < other.getId().value();
+        }
+        float ahead = (mineX + theirX) * (other.getPosition().x() - mover.getPosition().x())
+                + (mineY + theirY) * (other.getPosition().y() - mover.getPosition().y());
+        if (ahead != 0f) {
+            return ahead < 0f; // it is ahead of the other
+        }
+        return mover.getId().value() < other.getId().value();
+    }
+
+    /** Whether it has to turn to face the way on: more than 6 degrees off its next waypoint ({@code needToRotate}). */
+    private boolean needsToTurn(GameObject owner) {
+        if (waiting || waypointIndex >= waypoints.size()) {
+            return waiting;
+        }
+        var next = waypoints.get(waypointIndex);
+        var at = owner.getPosition();
+        float way = (float) StrictMath.atan2(next.y() - at.y(), next.x() - at.x());
+        return Math.abs(angleBetween(owner.getOrientation(), way)) > FACING_ITS_WAY;
+    }
+
+    /**
+     * Out of the way of {@code from}, going along {@code way}: to the nearest block it may have whose ground stays clear
+     * of it, for up to 10 seconds — going on to where it was sent afterwards if it was on its way somewhere — or, where
+     * there is no such block, through the movers in its way meanwhile ({@code aiMoveAwayFromUnit}).
+     */
+    void stepAsideFor(GameObject from, List<Coord3D> way) {
+        var owner = getOwner();
+        var world = owner.getWorld();
+        if (world == null) {
+            return;
+        }
+        var aside = world.placeAside(owner, from, way);
+        if (aside == null) {
+            passThroughUntil = world.getFrame() + ASIDE_FRAMES;
+            return;
+        }
+        var goOnTo = isMoving() && toPlace && asideUntil < 0 ? sentTo : null;
+        this.then = null;
+        this.destination = aside;
+        this.toPlace = true;
+        this.stoppedShort = false;
+        this.lookedAgain = false;
+        this.round = java.util.Set.of();
+        planRoute();
+        this.then = goOnTo;
+        this.asideUntil = world.getFrame() + ASIDE_FRAMES;
+    }
+
+    /** The way a mover is going from where it stands: its position and the waypoints left to it. */
+    private static List<Coord3D> wayAheadOf(GameObject mover) {
+        var way = new java.util.ArrayList<Coord3D>();
+        way.add(mover.getPosition());
+        var theirs = mover.findModule(MoveUpdate.class);
+        if (theirs != null) {
+            for (int i = theirs.waypointIndex; i < theirs.waypoints.size(); i++) {
+                way.add(theirs.waypoints.get(i));
+            }
+        }
+        return way;
+    }
+
+    /** Whether {@code other} is moving away from {@code from}. */
+    private static boolean movingAwayFrom(GameObject other, GameObject from) {
+        var theirs = other.findModule(MoveUpdate.class);
+        if (theirs == null || !theirs.isMoving() || theirs.lastStep <= 0f) {
+            return false;
+        }
+        float dx = other.getPosition().x() - from.getPosition().x();
+        float dy = other.getPosition().y() - from.getPosition().y();
+        return dx * (float) StrictMath.cos(other.getOrientation()) + dy * (float) StrictMath.sin(other.getOrientation())
+                > 0f;
+    }
+
+    // ---- stepping among movers ----
+
+    /** Whether a thing is a ground mover that keeps cells: walks, has a body, and is on the ground now. */
+    static boolean isGroundMover(GameObject thing) {
+        var world = thing.getWorld();
+        return thing.getLocomotor() instanceof MoveUpdate && world != null && world.keepsCells(thing);
+    }
+
+    /** Whether {@code thing} walks on legs, as the reference's infantry do: legs pass legs. */
+    public static boolean walksOnLegs(GameObject thing) {
+        return thing.getLocomotor() instanceof MoveUpdate walking && walking.data.gait() == Gait.LEGS;
+    }
+
+    /** How it moves. */
+    public Gait gait() {
+        return data.gait();
+    }
+
+    private static boolean keepsCells(GameObject owner) {
+        var world = owner.getWorld();
+        return world != null && world.keepsCells(owner);
+    }
+
+    /** Whether a mover not moving and not busy may be asked to step aside. */
+    private static boolean idle(GameObject thing) {
+        var theirs = thing.findModule(MoveUpdate.class);
+        return theirs != null && !theirs.isMoving() && !theirs.planning && !thing.isBusy()
+                && !thing.hasStatus(ObjectStatus.HELD);
+    }
+
+    private static boolean allied(World world, GameObject a, GameObject b) {
+        return a.getPlayerIndex() == b.getPlayerIndex()
+                || world.getRelationship(a.getPlayerIndex(), b.getPlayerIndex())
+                        == uz.dukeengine.core.player.Relationship.ALLIES;
+    }
+
+    /**
+     * Whether it may step from {@code from} to {@code to}: nothing solid there — or it is getting out of something
+     * solid it stands in — and, among the movers, no new one it may not pass, nor deeper into one it already overlaps.
+     */
+    private boolean canStep(GameObject owner, Coord3D from, Coord3D to, int toward, boolean escaping) {
+        if (!keepsCells(owner)) {
+            return escaping || isClear(owner, to, toward);
+        }
+        if (!escaping && solidInTheWay(owner, to, toward)) {
+            return false;
+        }
+        var world = owner.getWorld();
+        if (world.getFrame() < passThroughUntil) {
+            return true;
+        }
+        var before = moversOverlapping(owner, from);
+        for (var other : moversOverlapping(owner, to)) {
+            if (!before.contains(other)) {
+                return false; // into one more
+            }
+            var them = uz.dukeengine.core.thing.Footprint.of(other);
+            if (uz.dukeengine.core.thing.Footprint.of(owner, to).separation(them)
+                    < uz.dukeengine.core.thing.Footprint.of(owner, from).separation(them) - 1e-4f) {
+                return false; // deeper into one it overlaps
+            }
+        }
+        return true;
+    }
+
+    /** Whether something solid — anything but a ground mover — or the ground itself refuses a step there. */
+    private static boolean solidInTheWay(GameObject owner, Coord3D to, int toward) {
+        var world = owner.getWorld();
+        if (world.findBlocker(owner, to, MoveUpdate::isGroundMover) != null) {
+            return true;
+        }
+        return !world.canStep(owner, owner.getPosition(), to, toward)
+                && !world.isGroundBlocked(owner, owner.getPosition());
+    }
+
+    /** The ground movers {@code owner} would overlap standing at {@code at}, that it may not pass through. */
+    private static List<GameObject> moversOverlapping(GameObject owner, Coord3D at) {
+        var world = owner.getWorld();
+        var footprint = uz.dukeengine.core.thing.Footprint.of(owner, at);
+        float reach = uz.dukeengine.core.thing.Solid.of(owner.getTemplate()).footprintRadius() + OTHERS_REACH;
+        return world.objectsInRange(at, reach, other -> other != owner && isGroundMover(other)
+                && !(walksOnLegs(owner) && walksOnLegs(other)) && !world.runsOver(owner, other)
+                && footprint.overlaps(uz.dukeengine.core.thing.Footprint.of(other)));
+    }
+
+    /**
+     * Turned to {@code facing} — unless it is a box and the turn would put it into another's footprint, when the turn
+     * waits: the reference turns no box into another.
+     */
+    private void turn(GameObject owner, float facing) {
+        float was = owner.getOrientation();
+        if (facing == was) {
+            return;
+        }
+        if (!(uz.dukeengine.core.thing.Solid.of(owner.getTemplate()) instanceof uz.dukeengine.core.thing.Geometry.Box)
+                || !keepsCells(owner)) {
+            owner.setOrientation(facing);
+            return;
+        }
+        var world = owner.getWorld();
+        if (world.getFrame() < passThroughUntil || turnWaits > STUCK_FRAMES) {
+            owner.setOrientation(facing); // it has waited long enough: through, as a unit with nowhere to go does
+            turnWaits = 0;
+            return;
+        }
+        var before = moversOverlapping(owner, owner.getPosition());
+        owner.setOrientation(facing);
+        for (var other : moversOverlapping(owner, owner.getPosition())) {
+            if (!before.contains(other)) {
+                owner.setOrientation(was); // it would turn into another: it waits
+                turnWaits++;
+                return;
+            }
+        }
+        turnWaits = 0;
+    }
+
+    private static float across(Coord3D a, Coord3D b) {
+        float dx = a.x() - b.x();
+        float dy = a.y() - b.y();
+        return (float) Math.sqrt(dx * dx + dy * dy);
     }
 
     // ---- by its gait ----
@@ -538,7 +1164,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
                 return;
             }
             var slide = position.add(target.sub(position).scale(step / distance));
-            if (escaping || isClear(owner, slide, toward)) {
+            if (canStep(owner, position, slide, toward, escaping)) {
                 stepTo(owner, slide, toward);
             }
             return;
@@ -559,20 +1185,13 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             stop();
             return;
         }
-        for (var swerve : SWERVE_ANGLES) {
-            var next = position.add(headingVector(heading + swerve).scale(step));
-            if (escaping || isClear(owner, next, toward)) {
-                stepTo(owner, next, toward);
-                return;
-            }
-        }
+        stepAlong(owner, position, heading, step, toward, escaping);
     }
 
     /** Legs: turned toward its way, aiming at its speed less the share of 45 degrees it is still off. */
     private float legs(GameObject owner, float desired, float rest, float top) {
-        var facing = turnPerFrame <= 0f ? desired : rotateToward(owner.getOrientation(), desired, turnPerFrame);
-        owner.setOrientation(facing);
-        float off = Math.abs(angleBetween(facing, desired));
+        turn(owner, turnPerFrame <= 0f ? desired : rotateToward(owner.getOrientation(), desired, turnPerFrame));
+        float off = Math.abs(angleBetween(owner.getOrientation(), desired));
         float goal = top * (1f - Math.min(1f, off / QUARTER_OF_HALF));
         float braking = braking(owner);
         if (rest < slowDownDistance(speedNow, data.minSpeed(), braking)) {
@@ -584,9 +1203,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     /** Treads: turned and sped as legs are, and braking onto the end of the way within its stopping distance. */
     private float treads(GameObject owner, float desired, float distance, float rest, float top) {
-        var facing = turnPerFrame <= 0f ? desired : rotateToward(owner.getOrientation(), desired, turnPerFrame);
-        owner.setOrientation(facing);
-        float share = Math.min(1f, Math.abs(angleBetween(facing, desired)) / QUARTER_OF_HALF);
+        turn(owner, turnPerFrame <= 0f ? desired : rotateToward(owner.getOrientation(), desired, turnPerFrame));
+        float share = Math.min(1f, Math.abs(angleBetween(owner.getOrientation(), desired)) / QUARTER_OF_HALF);
         float goal = top * (1f - share);
         float cell = cellSize(owner);
         if (distance < 2f * cell && share > 0.05f) {
@@ -635,7 +1253,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         goal = brakeOnto(goal, slowDown, Math.max(slowDown, cell), rest, cell, braking);
         // It turns only as it rolls, by its speed's share of its turning speed: none while it stands.
         float turn = turnPerFrame <= 0f ? HALF_TURN : Math.min(1f, speedNow / turnSpeed) * turnPerFrame;
-        owner.setOrientation(rotateToward(facing, aim, speedNow == 0f ? 0f : turn));
+        turn(owner, rotateToward(facing, aim, speedNow == 0f ? 0f : turn));
         speedNow = approach(speedNow, goal, acceleration(owner), braking);
         return backing ? -speedNow : speedNow;
     }

@@ -88,6 +88,11 @@ public final class CrushUpdate extends UpdateModule {
         }
     }
 
+    /** How hard a thing it runs over may be to crush: the reference's {@code CrusherLevel}. */
+    public int getLevel() {
+        return level;
+    }
+
     private boolean crushableBelow(GameObject candidate) {
         var crushable = candidate.findModule(Crushable.class);
         return crushable != null && crushable.getLevel() < level;

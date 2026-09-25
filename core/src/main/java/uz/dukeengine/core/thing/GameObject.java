@@ -394,6 +394,16 @@ public final class GameObject {
         return mobile;
     }
 
+    /** Whether a module of its keeps it at work where it stands — see {@link uz.dukeengine.core.module.Module#keepsBusy}. */
+    public boolean isBusy() {
+        for (var module : modules) {
+            if (module.keepsBusy()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** The body module, or {@code null} if this object has none. */
     public BodyModule getBody() {
         return body;

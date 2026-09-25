@@ -40,4 +40,12 @@ public abstract class Module {
      */
     public void onCreated() {
     }
+
+    /**
+     * Whether this module has its thing at work where it stands — firing on something, loading, building, on an errand
+     * — so that it is not asked to step aside for a mover, nor moved off ground it shares. Nothing by default.
+     */
+    public boolean keepsBusy() {
+        return false;
+    }
 }

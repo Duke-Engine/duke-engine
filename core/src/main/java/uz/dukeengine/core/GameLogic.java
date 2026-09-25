@@ -458,6 +458,11 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      */
     @Override
     public GameObject findBlocker(GameObject mover, Coord3D position) {
+        return findBlocker(mover, position, candidate -> false);
+    }
+
+    @Override
+    public GameObject findBlocker(GameObject mover, Coord3D position, Predicate<GameObject> passing) {
         if (Solid.of(mover.getTemplate()).isPoint()) {
             return null; // no body, nothing to bump into
         }
@@ -470,7 +475,90 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                         && !candidate.isContained()
                         && !candidate.hasStatus(uz.dukeengine.core.thing.ObjectStatus.AIRBORNE)
                         && candidate.getFloor() == mover.getFloor() // over a deck and under it, nobody's way
-                        && levelAt(candidate.getPosition()) == level);
+                        && levelAt(candidate.getPosition()) == level
+                        && !passing.test(candidate));
+    }
+
+    // ---- ground movers on the cells ----
+
+    private GroundCells groundCells;
+
+    /** The movers on the ground's cells, made the first time they are asked for. */
+    private GroundCells groundCells() {
+        if (groundCells == null) {
+            groundCells = new GroundCells(this);
+        }
+        return groundCells;
+    }
+
+    @Override
+    public final Coord3D takePlace(GameObject mover, Coord3D place) {
+        refreshStaticObstacles();
+        return groundCells().take(mover, place);
+    }
+
+    @Override
+    public final boolean holdPlace(GameObject mover) {
+        return groundCells().hold(mover);
+    }
+
+    @Override
+    public final boolean keepsCells(GameObject mover) {
+        return groundCells().keepsCells(mover);
+    }
+
+    @Override
+    public final void letPlaceGo(GameObject mover) {
+        groundCells().letGo(mover);
+    }
+
+    @Override
+    public final boolean holdsPlace(GameObject mover) {
+        return groundCells().holds(mover);
+    }
+
+    @Override
+    public final void markStanding(GameObject mover) {
+        groundCells().mark(mover);
+    }
+
+    @Override
+    public final Coord3D placeAside(GameObject mover, GameObject from, List<Coord3D> way) {
+        if (!groundCells().keepsCells(mover)) {
+            return null;
+        }
+        float room = Solid.of(mover.getTemplate()).footprintRadius() + Solid.of(from.getTemplate()).footprintRadius();
+        float cell = pathGrid.getCellSize();
+        var block = groundCells().nearest(mover, mover.getPosition(), candidate -> {
+            var middle = groundCells().pointOf(candidate);
+            float reach = room + candidate.half() * cell;
+            return clearOf(way, middle, reach);
+        });
+        if (block == null) {
+            return null;
+        }
+        pathGrid.movers().claimGoal(mover.getId().value(), block);
+        return groundCells().pointOf(block);
+    }
+
+    /** Whether a point is further than {@code reach} from every leg of {@code way}. */
+    private static boolean clearOf(List<Coord3D> way, Coord3D point, float reach) {
+        for (int i = 1; i < way.size(); i++) {
+            if (distanceToLeg(point, way.get(i - 1), way.get(i)) < reach) {
+                return false;
+            }
+        }
+        return way.size() != 1 || squaredAcross(point, way.getFirst()) >= reach * reach;
+    }
+
+    private static float distanceToLeg(Coord3D p, Coord3D a, Coord3D b) {
+        float dx = b.x() - a.x();
+        float dy = b.y() - a.y();
+        float length = dx * dx + dy * dy;
+        float t = length <= 0f ? 0f : Math.clamp(((p.x() - a.x()) * dx + (p.y() - a.y()) * dy) / length, 0f, 1f);
+        float x = a.x() + dx * t - p.x();
+        float y = a.y() + dy * t - p.y();
+        return (float) Math.sqrt(x * x + y * y);
     }
 
     /** Install a navigation grid so movement routes around terrain obstacles. */
@@ -621,12 +709,36 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         // A search once started runs to its end, as the reference's do (processPathfindQueue starts one only while
         // the frame's total is under PATHFIND_CELLS_PER_FRAME): a frame goes over by one search at most, and no
         // search is thrown away half done to be started again.
+        return route(mover, to, java.util.Set.of());
+    }
+
+    @Override
+    public Path findPath(GameObject mover, Coord3D to, java.util.Set<ObjectId> round) {
+        if (pathGrid == null) {
+            return new Path(List.of(to));
+        }
+        refreshStaticObstacles();
+        if (cellsThisFrame >= pathfindBudget) {
+            return null;
+        }
+        return route(mover, to, round);
+    }
+
+    private Path route(GameObject mover, Coord3D to, java.util.Set<ObjectId> round) {
         var tally = new Pathfinder.Tally();
         float clearance = Solid.of(mover.getTemplate()).footprintRadius();
+        Pathfinder.Traffic traffic = null;
+        if (groundCells().keepsCells(mover)) {
+            var ids = new java.util.HashSet<Integer>();
+            for (var id : round) {
+                ids.add(id.value());
+            }
+            traffic = groundCells().trafficFor(mover, ids);
+        }
         var path = pathGrid.hasDecks()
                 ? Pathfinder.findPathOrNearest(pathGrid, mover.getPosition(), mover.getFloor(), to,
                         pathGrid.floorAt(to), clearance, null, tally)
-                : Pathfinder.findPathOrNearest(pathGrid, mover.getPosition(), to, clearance, zones(), tally);
+                : Pathfinder.findPathOrNearest(pathGrid, mover.getPosition(), to, clearance, zones(), tally, traffic);
         cellsThisFrame += tally.cells();
         return path;
     }
@@ -914,6 +1026,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         // Announce and react only once the corpses are gone, so a die module that
         // spawns wreckage builds it in a world that no longer holds the body.
         for (var object : leaving) {
+            groundCells().forget(object.getId()); // off the ground's cells, where it stood and where it was going
             if (!object.hasDied() && !object.hasVanished()) {
                 die(object, leaving); // one kept dead was told when it died, and one vanished leaves without a word
             }

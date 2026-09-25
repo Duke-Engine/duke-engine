@@ -183,6 +183,12 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
         return paused;
     }
 
+    /** At work on its loop, it is not asked to step aside, nor moved off the ground it loads on. */
+    @Override
+    public boolean keepsBusy() {
+        return !paused;
+    }
+
     /** The place it was told to work, while it stands; else null. */
     private GameObject toldPlace() {
         if (place != null && place.isDestroyed()) {
@@ -341,7 +347,7 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
         if (sent) {
             return arrived(there); // it set off and has stopped: this is as near as it gets
         }
-        legs.moveTo(owner.getWorld().standingNextTo(owner, there));
+        legs.moveExactlyTo(owner.getWorld().standingNextTo(owner, there)); // docking: no place of its own there
         sent = true;
         return false;
     }

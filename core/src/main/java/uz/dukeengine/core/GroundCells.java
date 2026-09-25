@@ -1,0 +1,289 @@
+package uz.dukeengine.core;
+
+import java.util.function.Predicate;
+import uz.dukeengine.core.math.Coord3D;
+import uz.dukeengine.core.module.MoveUpdate;
+import uz.dukeengine.core.pathfind.Block;
+import uz.dukeengine.core.pathfind.MoverCells;
+import uz.dukeengine.core.pathfind.Pathfinder;
+import uz.dukeengine.core.player.Relationship;
+import uz.dukeengine.core.thing.GameObject;
+import uz.dukeengine.core.thing.ObjectId;
+import uz.dukeengine.core.thing.ObjectStatus;
+import uz.dukeengine.core.thing.Solid;
+
+/**
+ * The ground movers on the grid's cells, as the reference's pathfinder places them ({@code AIPathfind.cpp}): the block
+ * each covers where it stands, the block each is going to, and what a move to a place becomes — the nearest block the
+ * mover may have ({@code Pathfinder::adjustDestination}) — and what the movers on a cell add to a route over it.
+ */
+final class GroundCells {
+
+    /** How many cells round a place are tried for a block: the reference's {@code MAX_CELLS_TO_TRY}. */
+    private static final int MOST_TRIED = 400;
+    /** What a cell an ally holds still, or one an ally is passing near the start, adds to a step: 3 diagonal steps. */
+    private static final int ALLY_COST = 42;
+    /** How near the start, in cells, an ally passing a cell makes it dearer. */
+    private static final int NEAR_START = 10;
+
+    private final GameLogic world;
+
+    GroundCells(GameLogic world) {
+        this.world = world;
+    }
+
+    /** Whether {@code mover} keeps cells: a body walking on the grid's ground, alive and not carried or in the air. */
+    boolean keepsCells(GameObject mover) {
+        return world.getPathGrid() != null
+                && mover.getLocomotor() instanceof MoveUpdate
+                && !Solid.of(mover.getTemplate()).isPoint()
+                && mover.getFloor() == 0
+                && !mover.isDestroyed()
+                && !mover.isEffectivelyDead()
+                && !mover.isContained()
+                && !mover.hasStatus(ObjectStatus.AIRBORNE);
+    }
+
+    /** The block {@code mover} covers standing at {@code at}. */
+    Block blockAt(GameObject mover, Coord3D at) {
+        return Block.of(Solid.of(mover.getTemplate()).footprintRadius(), world.getPathGrid().getCellSize(), at.x(),
+                at.y());
+    }
+
+    private MoverCells cells() {
+        return world.getPathGrid().movers();
+    }
+
+    /**
+     * Where {@code mover} sent to {@code place} goes: the nearest block round it that it may have and can walk to,
+     * held as its own from now on — or, where there is none within the reference's 400 cells, the place's own block.
+     */
+    Coord3D take(GameObject mover, Coord3D place) {
+        if (!keepsCells(mover)) {
+            forget(mover.getId());
+            return place;
+        }
+        var block = nearest(mover, place, any -> true);
+        if (block == null) {
+            block = blockAt(mover, place);
+        }
+        cells().claimGoal(mover.getId().value(), block);
+        return pointOf(block);
+    }
+
+    /**
+     * {@code mover} holding the block it stands on as its own, as a mover does once it has stopped — where it may: not
+     * where an ally is going, nor an enemy still.
+     */
+    boolean hold(GameObject mover) {
+        if (!keepsCells(mover)) {
+            return false;
+        }
+        var block = blockAt(mover, mover.getPosition());
+        if (!mayHold(mover, block)) {
+            return false;
+        }
+        cells().claimGoal(mover.getId().value(), block);
+        return true;
+    }
+
+    /** The block {@code mover} was going to, let go. */
+    void letGo(GameObject mover) {
+        if (world.getPathGrid() != null) {
+            cells().releaseGoal(mover.getId().value());
+        }
+    }
+
+    /** Whether the block {@code mover} is going to is still its own: no other has claimed any of its cells since. */
+    boolean holds(GameObject mover) {
+        if (world.getPathGrid() == null) {
+            return true;
+        }
+        int id = mover.getId().value();
+        var block = cells().goalOf(id);
+        if (block == null) {
+            return false;
+        }
+        for (int cy = block.minY(); cy <= block.maxY(); cy++) {
+            for (int cx = block.minX(); cx <= block.maxX(); cx++) {
+                int holder = cells().goalAt(cx, cy);
+                if (holder != id && world.getPathGrid().inBounds(cx, cy)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /** Where {@code mover} stands, marked on its cells; off the ground, its cells let go. */
+    void mark(GameObject mover) {
+        if (world.getPathGrid() == null) {
+            return;
+        }
+        if (!keepsCells(mover)) {
+            forget(mover.getId());
+            return;
+        }
+        cells().stand(mover.getId().value(), blockAt(mover, mover.getPosition()));
+    }
+
+    /** A thing gone from the ground for good. */
+    void forget(ObjectId id) {
+        if (world.getPathGrid() != null) {
+            cells().forget(id.value());
+        }
+    }
+
+    /** The goal point of a block, on the ground under it. */
+    Coord3D pointOf(Block block) {
+        var flat = block.point(world.getPathGrid().getCellSize(), 0f);
+        return new Coord3D(flat.x(), flat.y(), world.groundHeight(flat));
+    }
+
+    /**
+     * The nearest block round {@code place} that {@code mover} may have, can walk to and {@code also} takes, spiralling
+     * out from the place's own as the reference does — 1 east, 1 north, 2 west, 2 south, 3 east… — over 400 cells;
+     * null for none.
+     */
+    Block nearest(GameObject mover, Coord3D place, Predicate<Block> also) {
+        var start = blockAt(mover, place);
+        int i = start.x();
+        int j = start.y();
+        if (fits(mover, start, also)) {
+            return start;
+        }
+        int tried = 1;
+        int delta = 1;
+        while (tried < MOST_TRIED) {
+            for (int n = 0; n < delta; n++, tried++) {
+                i++;
+                if (fits(mover, start.at(i, j), also)) {
+                    return start.at(i, j);
+                }
+            }
+            for (int n = 0; n < delta; n++, tried++) {
+                j++;
+                if (fits(mover, start.at(i, j), also)) {
+                    return start.at(i, j);
+                }
+            }
+            delta++;
+            for (int n = 0; n < delta; n++, tried++) {
+                i--;
+                if (fits(mover, start.at(i, j), also)) {
+                    return start.at(i, j);
+                }
+            }
+            for (int n = 0; n < delta; n++, tried++) {
+                j--;
+                if (fits(mover, start.at(i, j), also)) {
+                    return start.at(i, j);
+                }
+            }
+            delta++;
+        }
+        return null;
+    }
+
+    private boolean fits(GameObject mover, Block block, Predicate<Block> also) {
+        return mayHold(mover, block) && reachable(mover, block) && also.test(block);
+    }
+
+    /**
+     * Whether {@code mover} may have {@code block}: every cell of it on the map, open — no obstacle, stone or cliff — and
+     * held as a goal by no ally, nor stood on still by an enemy it cannot run over ({@code Pathfinder::checkDestination}).
+     */
+    boolean mayHold(GameObject mover, Block block) {
+        var grid = world.getPathGrid();
+        int id = mover.getId().value();
+        for (int cy = block.minY(); cy <= block.maxY(); cy++) {
+            for (int cx = block.minX(); cx <= block.maxX(); cx++) {
+                if (!grid.inBounds(cx, cy) || grid.isBlocked(cx, cy) || grid.isCliff(cx, cy)) {
+                    return false;
+                }
+                int holder = cells().goalAt(cx, cy);
+                if (holder == 0 || holder == id) {
+                    continue;
+                }
+                var other = world.findObject(new ObjectId(holder));
+                if (other == null || other.isDestroyed()) {
+                    continue; // a claim left by something gone
+                }
+                if (allied(mover, other)) {
+                    return false; // an ally's goal is not taken from it
+                }
+                if (cells().standingAt(cx, cy) == holder && !world.runsOver(mover, other)) {
+                    return false; // an enemy still on it, and not one to drive over
+                }
+            }
+        }
+        return true;
+    }
+
+    /** Whether {@code mover} can walk to the block, as the grid's zones say; a mover standing in stone can go anywhere. */
+    private boolean reachable(GameObject mover, Block block) {
+        var zones = world.zones();
+        var grid = world.getPathGrid();
+        var at = mover.getPosition();
+        int fromX = grid.toCellX(at);
+        int fromY = grid.toCellY(at);
+        if (zones == null || zones.zoneOf(fromX, fromY) < 0) {
+            return true;
+        }
+        return zones.connected(fromX, fromY, block.x(), block.y());
+    }
+
+    /** Whether two things are on one side: the same player, or allies. */
+    boolean allied(GameObject a, GameObject b) {
+        return a.getPlayerIndex() == b.getPlayerIndex()
+                || world.getRelationship(a.getPlayerIndex(), b.getPlayerIndex()) == Relationship.ALLIES;
+    }
+
+    /**
+     * What the movers on the ground add to a step of {@code mover}'s route onto a cell — the reference's {@code
+     * checkForMovement} over the block it would cover there: 42 where an ally stands still on it, and 42 more where an
+     * ally is passing over it within 10 cells of the start; closed where an enemy it cannot run over stands still; and
+     * legs pass legs, still or moving. The movers in {@code closedToo} close their cells outright: those it is stuck
+     * behind.
+     */
+    Pathfinder.Traffic trafficFor(GameObject mover, java.util.Set<Integer> closedToo) {
+        var grid = world.getPathGrid();
+        var shape = blockAt(mover, mover.getPosition());
+        int startX = grid.toCellX(mover.getPosition());
+        int startY = grid.toCellY(mover.getPosition());
+        int id = mover.getId().value();
+        boolean legs = MoveUpdate.walksOnLegs(mover);
+        return (cx, cy) -> {
+            var there = shape.at(cx, cy);
+            boolean allyStill = false;
+            boolean allyPassing = false;
+            for (int y = there.minY(); y <= there.maxY(); y++) {
+                for (int x = there.minX(); x <= there.maxX(); x++) {
+                    int standing = cells().standingAt(x, y);
+                    if (standing == 0 || standing == id) {
+                        continue;
+                    }
+                    if (closedToo.contains(standing)) {
+                        return Pathfinder.Traffic.CLOSED;
+                    }
+                    var other = world.findObject(new ObjectId(standing));
+                    if (other == null || legs && MoveUpdate.walksOnLegs(other)) {
+                        continue;
+                    }
+                    boolean still = cells().goalAt(x, y) == standing;
+                    if (still) {
+                        if (allied(mover, other)) {
+                            allyStill = true;
+                        } else if (!world.runsOver(mover, other)) {
+                            return Pathfinder.Traffic.CLOSED;
+                        }
+                    } else if (allied(mover, other) && Math.abs(cx - startX) < NEAR_START
+                            && Math.abs(cy - startY) < NEAR_START) {
+                        allyPassing = true;
+                    }
+                }
+            }
+            return (allyStill ? ALLY_COST : 0) + (allyPassing ? ALLY_COST : 0);
+        };
+    }
+}

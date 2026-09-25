@@ -452,7 +452,8 @@ class HarvestTest {
             logic.update();
         }
         assertTrue(harvest.isPaused());
-        assertTrue(truck.getPosition().distance(away) < 1f, "it stands where it was sent: " + truck.getPosition());
+        // On the block of cells round where it was sent, as every move to a place ends.
+        assertTrue(truck.getPosition().distance(away) < 10f, "it stands where it was sent: " + truck.getPosition());
         assertEquals(300, harvest.getCarrying(), "with its load");
         assertEquals(0, logic.getRtsPlayer(usa).getMoney(), "and nothing paid");
 

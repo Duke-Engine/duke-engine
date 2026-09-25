@@ -144,6 +144,67 @@ public interface World {
     Path findPath(GameObject mover, Coord3D to);
 
     /**
+     * The same, going round the movers in {@code round} as though they were stone — those it is stuck behind — where
+     * the world keeps its movers on the ground's cells; the plain route otherwise.
+     */
+    default Path findPath(GameObject mover, Coord3D to, java.util.Set<ObjectId> round) {
+        return findPath(mover, to);
+    }
+
+    // ---- ground movers on the cells ----
+
+    /**
+     * Where a ground mover sent to {@code place} is to go: the nearest block of cells round it that it may have and can
+     * walk to, held as its own from now on — the reference's {@code Pathfinder::adjustDestination}, see {@code
+     * GameLogic}. Where a world keeps no cells, or for a mover that keeps none, the place itself.
+     */
+    default Coord3D takePlace(GameObject mover, Coord3D place) {
+        return place;
+    }
+
+    /**
+     * A ground mover holding the block it stands on as its own, as it does once it stops: false where it may not —
+     * an ally going there, an enemy still on it — and holds nothing.
+     */
+    default boolean holdPlace(GameObject mover) {
+        return false;
+    }
+
+    /** Whether {@code mover} keeps a block of the ground's cells: a body walking on the ground, alive and not carried. */
+    default boolean keepsCells(GameObject mover) {
+        return false;
+    }
+
+    /** The block a ground mover was going to, let go: a move into something holds none. */
+    default void letPlaceGo(GameObject mover) {
+    }
+
+    /** Whether the block a ground mover is going to is still its own, no ally having claimed it since. */
+    default boolean holdsPlace(GameObject mover) {
+        return true;
+    }
+
+    /** Where a ground mover stands, marked on the cells it covers; off the ground, its cells let go. */
+    default void markStanding(GameObject mover) {
+    }
+
+    /**
+     * A place for {@code mover} to step aside to, out of the way {@code from} is going: the nearest block it may have
+     * whose ground, its width and {@code from}'s, stays clear of {@code way} — held as its own — or null for none.
+     */
+    default Coord3D placeAside(GameObject mover, GameObject from, java.util.List<Coord3D> way) {
+        return null;
+    }
+
+    /**
+     * Whether {@code mover} runs over {@code other} rather than being held up by it — a crusher its victim, which is
+     * never an ally. Nothing is, where the world says nothing of crushing.
+     */
+    default boolean runsOver(GameObject mover, GameObject other) {
+        return false;
+    }
+
+    /**
      * Increments whenever the navigable world changes shape — a building goes up
      * or comes down.
      *
@@ -212,6 +273,12 @@ public interface World {
      * nothing and is blocked by nothing.
      */
     GameObject findBlocker(GameObject mover, Coord3D position);
+
+    /** The same, passing over the things {@code passing} takes: the movers a step does not stop for. */
+    default GameObject findBlocker(GameObject mover, Coord3D position, Predicate<GameObject> passing) {
+        var blocker = findBlocker(mover, position);
+        return blocker == null || passing.test(blocker) ? null : blocker;
+    }
 
     /**
      * Whether the ground at {@code position} cannot be walked on.

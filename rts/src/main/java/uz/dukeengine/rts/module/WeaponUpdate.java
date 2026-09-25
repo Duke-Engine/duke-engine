@@ -294,6 +294,12 @@ public final class WeaponUpdate extends UpdateModule {
         return false;
     }
 
+    /** Firing on something, it is at work where it stands: not asked to step aside. */
+    @Override
+    public boolean keepsBusy() {
+        return target != null;
+    }
+
     public void holdFire() {
         this.target = null;
     }

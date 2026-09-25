@@ -237,7 +237,7 @@ class FlyUpdateTest {
         var helicopter = spawn("Helicopter", 100f, 180f);
         world.update(); // it lifts off
         var tank = spawn("Tank", 50f, 180f);
-        tank.getLocomotor().moveTo(new Coord3D(150f, 180f, 0f));
+        tank.getLocomotor().moveExactlyTo(new Coord3D(150f, 180f, 0f));
 
         float nearest = Float.MAX_VALUE;
         for (int frame = 0; frame < 300 && tank.getLocomotor().isMoving(); frame++) {
@@ -253,7 +253,7 @@ class FlyUpdateTest {
     @Test
     void aGroundUnitSentTheSameWayStillGoesRoundTheCliff() {
         var tank = spawn("Tank", 50f, 50f);
-        tank.getLocomotor().moveTo(new Coord3D(150f, 50f, 0f));
+        tank.getLocomotor().moveExactlyTo(new Coord3D(150f, 50f, 0f));
 
         float highest = 0f;
         for (int frame = 0; frame < 900 && tank.getLocomotor().isMoving(); frame++) {

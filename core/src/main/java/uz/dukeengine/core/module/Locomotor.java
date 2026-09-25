@@ -23,8 +23,16 @@ import uz.dukeengine.core.math.Coord3D;
  */
 public interface Locomotor {
 
-    /** Go to {@code destination}. */
+    /** Go to {@code destination}: on the ground, to the nearest place round it of its own — see {@code MoveUpdate}. */
     default void moveTo(Coord3D destination) {
+    }
+
+    /**
+     * Go exactly to {@code destination}: a move into something — entering it, docking at it, closing on it — which
+     * takes no place of its own there. A mover that keeps none goes as {@link #moveTo} goes.
+     */
+    default void moveExactlyTo(Coord3D destination) {
+        moveTo(destination);
     }
 
     /**

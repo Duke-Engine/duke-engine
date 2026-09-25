@@ -82,7 +82,7 @@ class DeckTest {
     void aUnitSentAcrossTheRiverDrivesOverTheDeckAtItsHeight() {
         int deck = river(40);
         var unit = logic.spawn(walker, new Coord3D(50f, 200f, 0f), 1);
-        unit.findModule(MoveUpdate.class).moveTo(new Coord3D(350f, 200f, 0f));
+        unit.findModule(MoveUpdate.class).moveExactlyTo(new Coord3D(350f, 200f, 0f));
         var over = new ArrayList<Coord3D>();
 
         walk(unit, at -> {
@@ -104,7 +104,7 @@ class DeckTest {
     void aUnitPassesUnderADeckHighEnoughAndNotUnderALowOne() {
         valley(15f);
         var under = logic.spawn(walker, new Coord3D(50f, 200f, 0f), 1);
-        under.findModule(MoveUpdate.class).moveTo(new Coord3D(350f, 200f, 0f));
+        under.findModule(MoveUpdate.class).moveExactlyTo(new Coord3D(350f, 200f, 0f));
         walk(under, at -> assertEquals(0f, at.z(), 1e-3f, "under it, on the ground"));
         assertEquals(350f, under.getPosition().x(), 0.5f, "through the valley, under the deck 15 up");
 
@@ -112,7 +112,7 @@ class DeckTest {
         valley(5f);
         var stopped = logic.spawn(walker, new Coord3D(50f, 200f, 0f), 1);
         var legs = stopped.findModule(MoveUpdate.class);
-        legs.moveTo(new Coord3D(350f, 200f, 0f));
+        legs.moveExactlyTo(new Coord3D(350f, 200f, 0f));
         walk(stopped, at -> { });
         assertTrue(stopped.getPosition().x() < 180f, "a deck 5 up closes the valley: " + stopped.getPosition());
         assertTrue(legs.stoppedShort());
@@ -124,7 +124,7 @@ class DeckTest {
         var above = logic.spawn(walker, new Coord3D(140f, 205f, 20f), 1);
         assertEquals(1, above.getFloor(), "put down at the deck's height, it is on the deck");
         var below = logic.spawn(walker, new Coord3D(140f, 100f, 0f), 1);
-        below.findModule(MoveUpdate.class).moveTo(new Coord3D(140f, 300f, 0f));
+        below.findModule(MoveUpdate.class).moveExactlyTo(new Coord3D(140f, 300f, 0f));
 
         walk(below, at -> assertEquals(140f, at.x(), 1e-3f, "straight on under it, no step aside: " + at));
 

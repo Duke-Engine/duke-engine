@@ -76,6 +76,8 @@ public final class PathGrid {
     private float deckClearance = 10f;
     /** For each ground cell, how many open decks stand too low over it for it to be walked; null with no deck. */
     private int[] closedUnder;
+    /** The ground movers on its cells — see {@link MoverCells}; made the first time it is asked for. */
+    private MoverCells movers;
 
     public PathGrid(int width, int height) {
         this(width, height, DEFAULT_CELL_SIZE);
@@ -97,6 +99,14 @@ public final class PathGrid {
 
     public int getWidth() {
         return width;
+    }
+
+    /** The ground movers standing on its cells and going to them — see {@link MoverCells}. */
+    public MoverCells movers() {
+        if (movers == null) {
+            movers = new MoverCells(width, height);
+        }
+        return movers;
     }
 
     public int getHeight() {

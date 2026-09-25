@@ -106,7 +106,8 @@ class NearestReachableTest {
         var logic = world(grid);
         var truck = make(logic, "Truck", 55f, 155f);
         var legs = truck.findModule(MoveUpdate.class);
-        legs.moveTo(new Coord3D(155f, 155f, 0f));
+        // Exactly there, as a move into something goes: a move to a place would take the nearest block it can reach.
+        legs.moveExactlyTo(new Coord3D(155f, 155f, 0f));
         assertFalse(legs.isGoalReachable(), "known from the start");
         for (int frame = 0; frame < 300 && legs.isMoving(); frame++) {
             logic.update();

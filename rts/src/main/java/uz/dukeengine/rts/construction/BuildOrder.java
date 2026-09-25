@@ -119,7 +119,7 @@ public final class BuildOrder extends UpdateModule {
             stepsOut++;
         }
         if (walking != null) {
-            walking.moveTo(goal);
+            walking.moveExactlyTo(goal);
         }
     }
 
@@ -135,6 +135,12 @@ public final class BuildOrder extends UpdateModule {
 
     boolean isOver() {
         return over;
+    }
+
+    /** On its way to build, or building, it is at work: not asked to step aside. */
+    @Override
+    public boolean keepsBusy() {
+        return !over;
     }
 
     /** Give it up, the money back in full to the side that paid: nothing has been built — unless a site already stands. */
@@ -198,7 +204,7 @@ public final class BuildOrder extends UpdateModule {
                 }
                 stepsOut++;
                 goal = stepOut(builder);
-                walking.moveTo(goal);
+                walking.moveExactlyTo(goal);
             }
             return;
         }
@@ -208,7 +214,7 @@ public final class BuildOrder extends UpdateModule {
                 return;
             }
             goal = place; // stepped out past the band: back in toward the middle
-            walking.moveTo(goal);
+            walking.moveExactlyTo(goal);
         }
     }
 
@@ -224,7 +230,7 @@ public final class BuildOrder extends UpdateModule {
         }
         goal = gapAt(builder.getPosition()) < 0f ? stepOut(builder) : world.standingNextTo(builder, site);
         if (walking != null) {
-            walking.moveTo(goal);
+            walking.moveExactlyTo(goal);
         }
     }
 
