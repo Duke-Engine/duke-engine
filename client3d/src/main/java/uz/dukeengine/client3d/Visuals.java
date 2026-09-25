@@ -262,6 +262,80 @@ public final class Visuals {
             return this;
         }
 
+        /**
+         * A mark by its health bar, chosen by its words — see {@link #mark}.
+         *
+         * @param frames      the strip's pictures in order, whole paths from the resource root
+         * @param frameMillis how long each is shown, in the window's milliseconds
+         * @param pingPong    played back from the last to the first rather than round again
+         * @param along       where along the bar it is drawn, a share of the bar's width from its left end
+         * @param scale       how big, times each picture's own size in pixels
+         */
+        record Mark(java.util.SortedSet<String> words, java.util.List<String> frames, int frameMillis,
+                boolean pingPong, float along, float scale) {
+
+            /** The picture shown {@code seconds} into the strip. */
+            String frameAt(float seconds) {
+                int count = frames.size();
+                if (count <= 1) {
+                    return count == 0 ? null : frames.getFirst();
+                }
+                int cycle = pingPong ? 2 * count - 2 : count;
+                int step = Math.floorMod((int) Math.floor(seconds * 1000f / Math.max(1, frameMillis)), cycle);
+                return frames.get(step < count ? step : cycle - step);
+            }
+        }
+
+        final java.util.List<Mark> marks = new java.util.ArrayList<>();
+
+        /**
+         * A mark drawn just below its health bar while its words best fit {@code conditions} — the reference's
+         * Enthusiastic and Subliminal icons: a strip of pictures played {@code frameMillis} apiece, round again or back
+         * and forth, {@code along} of the bar's width from its left end, at {@code scale} of the pictures' own size — the
+         * reference's 1 for buildings and huge vehicles, 0.75 for vehicles and 0.5 otherwise, each template its own.
+         */
+        public UnitVisual mark(java.util.Set<String> conditions, java.util.List<String> frames, int frameMillis,
+                boolean pingPong, float along, float scale) {
+            marks.add(new Mark(new java.util.TreeSet<>(conditions), java.util.List.copyOf(frames), frameMillis,
+                    pingPong, along, scale));
+            return this;
+        }
+
+        /** Which of its marks its words best fit, or -1 for none. */
+        int markFor(java.util.Set<String> holding) {
+            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
+            for (var mark : marks) {
+                words.add(mark.words());
+            }
+            return uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
+        }
+
+        /** A colour added to its own, chosen by its words — see {@link #tint(java.util.Set, float, float, float, int)}. */
+        record WordTint(java.util.SortedSet<String> words, float red, float green, float blue, int easeFrames) {
+        }
+
+        final java.util.List<WordTint> wordTints = new java.util.ArrayList<>();
+
+        /**
+         * A colour added to its own while its words best fit {@code conditions} — the reference's Frenzy tints, (0.2,
+         * -0.2, -0.2) on a vehicle and (0, -0.7, -0.7) on a soldier — eased in over {@code easeFrames} of the game's
+         * frames when the words come and back out over them when they go. A component below nothing takes that much
+         * away.
+         */
+        public UnitVisual tint(java.util.Set<String> conditions, float red, float green, float blue, int easeFrames) {
+            wordTints.add(new WordTint(new java.util.TreeSet<>(conditions), red, green, blue, Math.max(0, easeFrames)));
+            return this;
+        }
+
+        /** Which of its tints its words best fit, or -1 for none. */
+        int tintFor(java.util.Set<String> holding) {
+            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
+            for (var tint : wordTints) {
+                words.add(tint.words());
+            }
+            return uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
+        }
+
         /** Which of its ground pictures its words best fit, or -1 for none. */
         int groundPictureFor(java.util.Set<String> holding) {
             var words = new java.util.ArrayList<java.util.SortedSet<String>>();

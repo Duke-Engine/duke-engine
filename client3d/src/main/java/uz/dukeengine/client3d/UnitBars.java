@@ -71,7 +71,21 @@ final class UnitBars {
      *             different number of pixels at every distance from the camera
      * @param his  whether it fights for the watching player
      */
-    record Standing(UnitView view, float top, float foot, boolean his) {
+    record Standing(UnitView view, float top, float foot, boolean his, Badge badge) {
+
+        /** One with no mark by its bar: every creature from before its words could put one there. */
+        Standing(UnitView view, float top, float foot, boolean his) {
+            this(view, top, foot, his, null);
+        }
+    }
+
+    /**
+     * A mark drawn just below a bar — {@code Visuals.UnitVisual.mark} — at the picture it is on now.
+     *
+     * @param along how far along the bar, a share of its width from its left end
+     * @param scale times the picture's own size in pixels
+     */
+    record Badge(String picture, float along, float scale) {
     }
 
     /** How many steps the experience ring is cut into. */
@@ -105,6 +119,8 @@ final class UnitBars {
 
     /** Every flat rectangle on screen is this, scaled. */
     private static final Mesh SQUARE = square();
+    /** The same, with a picture laid across it: a mark's. */
+    private static final Mesh PICTURED = pictured();
 
     private final AssetManager assets;
     private final BitmapFont plain;
@@ -140,6 +156,8 @@ final class UnitBars {
      * — his, theirs and mana — and forty creatures share three.
      */
     private final Map<Integer, Mesh> gauges = new HashMap<>();
+    /** The marks' pictures, by path; a picture that will not load is kept as missing, and draws no mark. */
+    private final Map<String, com.jme3.texture.Texture> pictures = new HashMap<>();
     private UnitBarLook look = UnitBarLook.NONE;
 
     UnitBars(AssetManager assets, BitmapFont plain, BitmapFont display) {
@@ -252,6 +270,10 @@ final class UnitBars {
         private Lettering level;
         private Lettering name;
         private Lettering bossName;
+        private Geometry badge;
+        private float badgeWide;
+        private float badgeTall;
+        private float badgeAlong;
         private boolean up;
         /** Which of the two name pieces is the one showing. */
         private Lettering lettered;
@@ -404,6 +426,42 @@ final class UnitBars {
         if (bar.bossName != null) {
             bar.bossName.show(lettered == bar.bossName);
         }
+        badge(bar, one.badge());
+    }
+
+    /** The mark its words put by its bar, at the picture the strip is on, or none. */
+    private void badge(Bar bar, Badge badge) {
+        var picture = badge == null ? null : picture(badge.picture());
+        var image = picture == null ? null : picture.getImage();
+        show(bar.badge, image != null);
+        if (image == null) {
+            return;
+        }
+        if (bar.badge.getMaterial().getTextureParam("ColorMap") == null
+                || bar.badge.getMaterial().getTextureParam("ColorMap").getTextureValue() != picture) {
+            bar.badge.getMaterial().setTexture("ColorMap", picture);
+        }
+        bar.badgeWide = image.getWidth() * badge.scale();
+        bar.badgeTall = image.getHeight() * badge.scale();
+        bar.badgeAlong = badge.along();
+        size(bar.badge, bar.badgeWide, bar.badgeTall);
+    }
+
+    private com.jme3.texture.Texture picture(String path) {
+        if (path == null) {
+            return null;
+        }
+        if (!pictures.containsKey(path)) {
+            com.jme3.texture.Texture loaded = null;
+            try {
+                loaded = assets.loadTexture(path);
+            } catch (RuntimeException notThere) {
+                java.util.logging.Logger.getLogger(UnitBars.class.getName())
+                        .warning(() -> "a mark names a picture that will not load: " + path);
+            }
+            pictures.put(path, loaded);
+        }
+        return pictures.get(path);
     }
 
     /** Where on the screen the whole assembly sits, measured from the creature. */
@@ -450,6 +508,8 @@ final class UnitBars {
             bar.lettered.centre(x, footY - 4f
                     - look.nameSize(bar.lettered == bar.bossName) / 2f);
         }
+        // Just below the bar, its middle where along the bar the game said: the reference's quarter.
+        at(bar.badge, barLeft + width * bar.badgeAlong - bar.badgeWide / 2f, y - EDGE - bar.badgeTall);
     }
 
     // ---- the pool ----
@@ -498,6 +558,9 @@ final class UnitBars {
         // gets one name and the plain one, which is what it asked for.
         bar.bossName = display == null ? null
                 : lettering(bar, display, look.nameSize(true), look.rim(true));
+        bar.badge = piece(bar, "badge", ColorRGBA.White, 8f);
+        bar.badge.setMesh(PICTURED);
+        show(bar.badge, false);
         bar.count.show(true);
         bar.level.show(true);
         root.attachChild(bar.node);
@@ -598,6 +661,13 @@ final class UnitBars {
     private static Mesh square() {
         return meshOf(new float[] {0f, 0f, 0f, 1f, 0f, 0f, 1f, 1f, 0f, 0f, 1f, 0f},
                 new int[] {0, 1, 2, 0, 2, 3});
+    }
+
+    /** The square with its picture's corners on its own. */
+    private static Mesh pictured() {
+        var mesh = square();
+        mesh.setBuffer(VertexBuffer.Type.TexCoord, 2, BufferUtils.createFloatBuffer(0f, 0f, 1f, 0f, 1f, 1f, 0f, 1f));
+        return mesh;
     }
 
     /**

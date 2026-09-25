@@ -211,6 +211,8 @@ final class DukeRtsApp extends SimpleApplication {
     private Lasers lasers;
     /** The pictures laid on the ground under things by their words — see {@link GroundPictures}. */
     private GroundPictures groundPictures;
+    /** The colours added to things by their words — see {@link WordTints}. */
+    private final WordTints wordTints = new WordTints();
     /** What a blow shows, by name — see {@link HurtMoments} and {@link Visuals#hurt}. */
     private HurtMoments hurtMoments;
     /** Every drawn thing's barrels: where its shots come out, its flashes and its kick — see {@link Barrels}. */
@@ -2920,6 +2922,7 @@ final class DukeRtsApp extends SimpleApplication {
         attackFlash.clear();
         lasers.clear();
         groundPictures.clear();
+        wordTints.clear();
         hitNumbers.clear();
         floatingTexts.clear();
         unitBars.clear();
@@ -4827,10 +4830,24 @@ final class DukeRtsApp extends SimpleApplication {
             }
             standing.add(new UnitBars.Standing(node.view, node.barTop,
                     node.root.getWorldTranslation().y,
-                    node.view.playerIndex() == mine));
+                    node.view.playerIndex() == mine, badgeOf(node.view)));
         }
         barReading = UnitBarReading.read(snapshot.status());
         unitBars.update(cam, standing, barReading);
+    }
+
+    /** The mark a thing's words put by its bar, at the picture its strip is on now, or null. */
+    private UnitBars.Badge badgeOf(UnitView view) {
+        var look = visualFor(view.templateName());
+        if (look.marks.isEmpty()) {
+            return null;
+        }
+        int chosen = look.markFor(look.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()));
+        if (chosen < 0) {
+            return null;
+        }
+        var mark = look.marks.get(chosen);
+        return new UnitBars.Badge(mark.frameAt(timer.getTimeInSeconds()), mark.along(), mark.scale());
     }
 
     private void syncUnits() {
@@ -4870,6 +4887,7 @@ final class DukeRtsApp extends SimpleApplication {
             barrels.forget(entry.getKey());
             runningGear.forget(entry.getKey());
             groundPictures.forget(entry.getKey());
+            wordTints.forget(entry.getKey());
             var node = entry.getValue();
             var at = node.root.getLocalTranslation();
             if (Landing.arrived(node.view, game.getLocalPlayerIndex(),
@@ -6002,6 +6020,11 @@ final class DukeRtsApp extends SimpleApplication {
                     visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()),
                     new Coord3D(view.x(), view.y(), 0f), view.orientation(),
                     timer.getTimePerFrame() / Particles.FRAME_SECONDS, this::floorHeightAt);
+        }
+        if (!visual.wordTints.isEmpty()) {
+            wordTints.see(view.id(), node.root, visual,
+                    visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()),
+                    timer.getTimePerFrame() / Particles.FRAME_SECONDS);
         }
         if (visual.risesAsBuilt && node.body != null) {
             node.body.setLocalTranslation(0f, visual.yOffset - UnitPlacement.sunk(view.built(), node.bodyTop), 0f);
