@@ -917,20 +917,35 @@ public final class DukeGame {
         }
         while (!next.isEmpty()) {
             var name = next.poll();
-            if (!seen.add(name)) {
-                continue;
-            }
             var template = logic.getThingFactory().findTemplate(name);
-            if (template == null) {
-                continue;
+            if (template == null || !seen.add(name)) {
+                continue; // a name nothing answers to draws nothing
             }
             for (var module : template.modules()) {
                 if (module instanceof uz.dukeengine.rts.module.ProductionUpdate.Data line) {
                     next.addAll(line.builds());
                 }
             }
+            if (brings != null) {
+                next.addAll(brings.apply(name));
+            }
         }
         return java.util.Collections.unmodifiableSet(seen);
+    }
+
+    /** What else each template may bring into the world, by name — see {@link #brings}. */
+    private java.util.function.Function<String, ? extends java.util.Collection<String>> brings;
+
+    /**
+     * Name, per template, the other templates it may bring into the world — what its death leaves (a hulk, rubble,
+     * a burning soldier), a crate it drops — followed as a factory's build list is, so the art of what only a death
+     * makes is read with the match rather than the first time one dies in the middle of a battle. Before
+     * {@link #start}; an empty list for none.
+     */
+    public DukeGame brings(java.util.function.Function<String, ? extends java.util.Collection<String>> rule) {
+        requireNotStarted();
+        this.brings = rule;
+        return this;
     }
 
     /**
