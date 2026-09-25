@@ -28,7 +28,8 @@ import uz.dukeengine.core.thing.ObjectId;
  * upgrade's bunker): each uses its own weapon, target and reload from where its carrier stands, as though it stood
  * there, the reference's Humvee and Battle Bus. <b>Riders</b> ({@code RiderBone}): passengers standing on top of the
  * carrier at that bone of its model, turning with it and firing on their own, dying with it, and clicked as the carrier
- * — an Overlord's gattling cannon.
+ * — an Overlord's gattling cannon. No order lets a rider off, neither an evacuate nor an exit: only its carrier's
+ * death, or the game's own {@link #unload}, as the reference's Overlord keeps its add-on through an evacuate.
  *
  * <p><b>Out of a building</b>, a passenger stands on the nearest clear ground outside its footprint, or at the exit bone
  * the holder names ({@code ExitBone}), not inside it; or, where the holder names an exit path ({@code ExitStart} and
@@ -216,20 +217,20 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         return true;
     }
 
-    /** Every passenger of the player's container out beside it — an {@code Evacuate} order. */
+    /** Every passenger of the player's container out beside it — an {@code Evacuate} order; its riders stay on. */
     public static boolean evacuate(uz.dukeengine.core.thing.World world,
             uz.dukeengine.rts.message.GameMessage.Evacuate order) {
         var container = world.findObject(order.container());
         var hold = container == null || container.getPlayerIndex() != order.playerIndex() ? null
                 : container.findModule(ContainModule.class);
-        if (hold == null || hold.hold().isEmpty()) {
+        if (hold == null || hold.hold().isEmpty() || hold.riderBone != null) {
             return false;
         }
         hold.unloadAll();
         return true;
     }
 
-    /** One of the player's passengers out of whatever carries it — an {@code ExitContainer} order. */
+    /** One of the player's passengers out of whatever carries it — an {@code ExitContainer} order; not a rider. */
     public static boolean exit(uz.dukeengine.core.thing.World world,
             uz.dukeengine.rts.message.GameMessage.ExitContainer order) {
         var passenger = world.findObject(order.passenger());
@@ -239,6 +240,9 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         for (var carrier : world.getObjects()) {
             var hold = carrier.findModule(ContainModule.class);
             if (hold != null && standing(carrier) && hold.contains(passenger.getId())) {
+                if (hold.riderBone != null) {
+                    return false;
+                }
                 hold.unload(passenger);
                 return true;
             }

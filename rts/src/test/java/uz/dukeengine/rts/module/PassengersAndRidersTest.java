@@ -1,6 +1,7 @@
 package uz.dukeengine.rts.module;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -81,5 +82,31 @@ class PassengersAndRidersTest {
         overlord.getBody().setHealth(0f);
         logic.update();
         assertEquals(0f, gattling.getBody().getHealth(), "and died with what it rode");
+    }
+
+    /**
+     * A carrier with a rider and nothing else, told to evacuate, keeps it on at its bone, and an exit naming the rider
+     * does nothing: the reference's Overlord keeps its add-on through an evacuate.
+     */
+    @Test
+    void anEvacuateOrAnExitLeavesARiderOn() {
+        var overlordType = RtsTemplate.named("Overlord").model("models/bones/overlord.gltf")
+                .module(new ActiveBody.Data(1100f)).module(new MoveUpdate.Data(30f))
+                .module(new ContainModule.Data(1, null, false, "GUNNER")).build();
+        var logic = world(overlordType, RANGER);
+        var overlord = logic.spawn(overlordType, new Coord3D(0f, 0f, 0f), 1);
+        var gattling = logic.spawn(RANGER, new Coord3D(0f, 0f, 0f), 1);
+        overlord.findModule(ContainModule.class).load(gattling);
+
+        assertFalse(ContainModule.evacuate(logic,
+                new uz.dukeengine.rts.message.GameMessage.Evacuate(1, overlord.getId())), "nobody to let out");
+        assertFalse(ContainModule.exit(logic,
+                new uz.dukeengine.rts.message.GameMessage.ExitContainer(1, gattling.getId())), "nor the rider");
+        logic.update();
+
+        assertTrue(gattling.isContained(), "still on");
+        assertEquals(Bones.inWorld(overlord, "GUNNER"), gattling.getPosition(), "at its bone");
+        overlord.findModule(ContainModule.class).unload(gattling);
+        assertFalse(gattling.isContained(), "let off by the game's own unload");
     }
 }
