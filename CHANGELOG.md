@@ -107,10 +107,40 @@ when it does, this page says exactly what to change and how.
 - The pointer over what the game's canvas takes (`CanvasInput.take`), or off the world's part of the window, is
   `Point`, and an armed aim's own pointer shows over the world only. The client's minimap outlines the world
   region's corners, where it outlined the window's.
+- A ground mover sent to a place ends on the nearest block of the ground's cells it may have and can walk to, as the
+  reference's pathfinder places it, and holds that block as its own. A radius-7 mover sent to (355, 355) stops at
+  (350.5, 350.5), and two sent to one point stop 20 apart instead of on one another. A move into something (entering
+  it, docking at it, closing on it) goes exactly there with `Locomotor.moveExactlyTo`; the engine's own errands
+  already do. A test that expects a mover exactly on the point it was sent to measures from its block's point
+  (`Block.of(radius, cellSize, x, y).point(cellSize, z)`).
+- Ground movers no longer shove or swerve round one another. One is held by the one it drives into and slows to what
+  that one allows. It plans a route round after two seconds, and the lower of two stuck on each other steps aside.
+  Legs pass legs. Buildings and other things that do not move stay solid as before. A route costs its turns and takes
+  a diagonal past one open side of it, so of two routes of one length it takes the one that turns less.
+- A mover whose data names a `Gait` moves by it. `MoveUpdate.Data` has acceleration and braking (and their damaged
+  values), the share of health below which it counts as damaged, least speed and least turn speed, close enough,
+  whether it backs up, its gait, and its path and move priorities. One that names none moves at once and turns as
+  things always did.
+- A `MoveTo` naming several units places them as a group (`RtsSimulation.getGroupLayout()`, `GroupMove` unless the
+  game sets another). It used to send every one of them to the one point. `MoveTo` has `click`, the player's own
+  click, written `,click` on the wire; an older line reads as not a click. The client posts one `MoveTo` for its
+  selection where it posted one per unit round the click.
+- A click on open ground moves a lone selected unit that has a production queue; it used to make the click its rally
+  point. In a game with a ground-order rule (`DukeGame.groundOrder`) the client never makes a rally point of its own:
+  a click the rule gives no word is a move. With nothing selected that can move and no word, the click is refused
+  (`Deny`) and sends nothing.
+- A drag box takes the player's units and leaves his buildings out, and takes one thing of another side's alone in
+  it. A box with nothing in it to take keeps the selection. It used to take all of his and let an empty box clear
+  the selection.
+- `World` has `takePlace`, `holdPlace`, `keepsCells`, `letPlaceGo`, `holdsPlace`, `markStanding`, `placeAside`,
+  `stillAlliesOn` and `runsOver`, a `findPath` that goes round movers it names, and a `findBlocker` that says
+  whether the mover is passing. `Locomotor` has `moveExactlyTo` and `moveThrough`, and `Module` has `keepsBusy`.
+  All of them are defaults: only a world or a mover that keeps ground cells implements them.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
   `HarvestUpdate.Data`, `WeaponFired`, `Weapon` (and its own `Bonuses`, its `Affects` and second ring),
-  `WorldSnapshot` (and `revealed`, `contextOrder`, `beams`), `SoundBank.Cue`, `Sound`, `UnitView` (and `passengers`,
-  `conditions`, `built`, `ridesOn`, `allied`, `span`), `CommandButton`, `Upgrade`, `ProductionUpdate.Data` (and its
+  `WorldSnapshot` (and `revealed`, `contextOrder`, `beams`, `rallies`), `SoundBank.Cue`, `Sound`, `UnitView` (and
+  `passengers`, `conditions`, `built`, `ridesOn`, `allied`, `span`, `mobile`), `MoveUpdate.Data` (and its gait and
+  priorities), `GameMessage.MoveTo` (and `click`), `UnitBarLook` (and `plain`), `CommandButton`, `Upgrade`, `ProductionUpdate.Data` (and its
   `Exit`, `Door` and `Words`), `ProductionUpdate.Queued`, `PlacementRules` (and its `SiteWords`), `ContainModule.Data`
   (and `PassengersFire`, `RiderBone`, `PassengersVanish`, `ExitBone`), `OrderMark` (and `ContextColour`),
   `RtsTemplate`, `Shot`, `ActiveBody.Data`, `ExperienceModule.Data` (and `LevelHealthBonus`), `TextFloated`,
@@ -121,6 +151,125 @@ when it does, this page says exactly what to change and how.
   `Canvas.drawPicture(Picture, …)` is a default that refuses, so a game's own canvas compiles as it did.
   `ProjectileLauncher.launch(shooter, victim, damage, type)` and `DieModule.onDie()` are still called, through the
   forms that now say more. The static `Duke3D.launch` methods are shorthand for `Duke3D.of(game, visuals)...launch()`.
+
+### Ground movers keep cells of their own
+
+The grid keeps, per cell, the ground mover standing on it and the one going to it (`PathGrid.movers()`). Each mover
+covers the reference's block (`Block`, `Pathfinder::getRadiusAndCenter`): a square of 1 to 5 cells from its bounding
+circle, centred on a cell or on a corner. A move to a place takes the nearest block the mover may have and can walk
+to, spiralling out over 400 cells as `adjustDestination` does. A block it may have has no stone, cliff or ally's goal
+on it, and no still enemy it cannot drive over. It holds that block until it moves again, and it has arrived once the
+rest of its route is shorter than its close-enough distance. Two still movers less than half a cell apart move apart
+onto blocks of their own. A route costs as the reference's does: 10 a step, 14 a diagonal, and 4, 8 or 16 more for a
+turn of 45, 90 or 135 degrees. A cell an ally stands still on costs 42 more, as does one an ally is passing within 10
+cells of the start. A still enemy that cannot be crushed closes its cell.
+
+### Movers give way instead of shoving
+
+As the reference's `AIUpdate` settles it (`blockedBy`, `calculateMaxBlockedSpeed`, `hasHigherPathPriority`):
+- Touching another ground mover, a mover is held only when it drives into it: the other within 45 degrees of its
+  heading (34 if the other stands still), the two not drawing apart, and itself more than a cell from its goal.
+- Held, it goes no faster than the other draws away. The limit falls 5% a frame while it is held and grows back 5%
+  a frame after, from a fifth of its speed.
+- Held two seconds, or at once behind one standing still while it already faces its way, it plans again round
+  them.
+- Of two held by each other, the one of lower path priority steps aside. A mover on wheels or treads held by one on
+  legs has the one on legs step aside. Stepping aside is to the nearest block clear of the other's route, for up to
+  ten seconds, or through movers where there is none.
+- Legs pass legs, and a crusher is never held by what it may crush. A box never turns into another's footprint, and
+  a mover brushes past one beside it rather than stopping. A route found through idle allies standing still asks
+  them aside (`moveAllies`).
+
+### Movers speed up, slow down and turn as their locomotors do
+
+`MoveUpdate.Data`'s `Gait` is the reference's locomotor appearance.
+- `LEGS` turn as they go, aim at their speed less the share of 45 degrees they are off, and ease to their least speed
+  near the end.
+- `TREADS` go at 0.6 of their speed off their way near a point, brake within `(v / 1.5) × (v / Braking)` of the end
+  and slide onto it.
+- `WHEELS` turn only while they roll, at a turning speed of a quarter of their speed or `MinTurnSpeed`, whichever
+  is more; they slow more than 9 degrees off, and back up or turn in three points where `CanMoveBackwards`.
+- Acceleration and braking have damaged values used below `damagedBelow` of the most health.
+- `OTHER`, and any mover that names no gait, moves as things always moved.
+
+### A group sent to one point
+
+A `MoveTo` naming several units goes to the game's `GroupLayout` on the simulation thread; the same happens on every
+machine. `GroupMove` is the reference's `AIGroup::groupMoveToPosition`:
+- A player's click inside the group's bounding rectangle scaled by 0.5 gathers it: nearest first, each onto the
+  nearest free block to the point.
+- Otherwise each goes to the point plus its offset from the member nearest the point, cut to six times its size. It
+  is pulled along the line toward the point onto the free block nearest it, and never onto a block whose walk from
+  the point costs more than 1.4 × (|dx| + |dy|), which is one behind a wall.
+- A group whose nearest member is 100 or more away walks one shared route, six cells wide. That happens when it is
+  over 500 away, spread over 500, larger than 6 infantry or 4 vehicles, or its infantry all have a clear line to its
+  middle member. Its infantry walk the route in 3 columns (5 from 16 of them) and end 22 apart across the last leg,
+  each 22 behind the one before; a locomotor that moves in the middle or at the back ends 10 or 20 further back.
+  Its vehicles do the same only on a route that bends more than six cells from its end: 2 columns walking, ending in
+  3 columns 32 apart (2 columns 30 apart when fewer than 5).
+Legs are the infantry, wheels and treads the vehicles. A mover walks a column's corners with `moveThrough`, holding
+its end place from the start. `GroupMove`'s numbers are the reference's (`GroupMove.REFERENCE`), and a game may give its
+own numbers or its own layout (`RtsSimulation.setGroupLayout`).
+
+### A factory's units stand round its rally point
+
+The leg to the rally point takes a block of its own like every move to a place. A unit made next is not stood on the
+first, and the first keeps the rally point's own block: allies are asked aside only when a route actually crosses
+them, and the line pulled straight goes round a still ally as the route did.
+
+### A click on open ground gives a rally point only as the game says
+
+The client decides a click on open ground in one place. The game's word comes first, where it has one. Otherwise the
+click is one move for whatever selected can move. Otherwise, only in a game that names no ground orders, it is the
+rally point of a lone building of the player's. Otherwise it is nothing, and the pointer shows `Deny` there.
+`UnitView.mobile` says whether a thing can move. `DukeGame.namesGroundOrders()` says whether the game decides.
+
+### A rally point shown while its building is selected
+
+`ProductionUpdate.rallyLine()` is the reference's line (`W3DWaypointBuffer::drawWaypoints`): from the door's create
+point, or the building's own position where it has no exit, through its natural rally point to the rally point. Where
+the rally point lies behind the door, the line goes round the footprint's corners as the reference's own tests take it.
+The snapshot carries these for the viewer's own things (`WorldSnapshot.rallies`). `Visuals.rally(RallyLook)` names the
+flag, its clip and facing, and the node model; it also sets the line's width, colour and picture. While exactly one of
+the player's buildings is selected, the flag stands on its rally point in his colour. Every selected building of his
+with a rally point gets its line, added and drawn over everything, with a node at the natural rally point and each
+corner. A game that names nothing gets the reference's 1.5-wide blue line and no models.
+
+### A drag box takes the player's units
+
+As the reference's `SelectionTranslator` has it, a box takes:
+- the player's units, leaving his buildings out;
+- his one building where it is all of his in the box, and nothing where there are more, the selection let go;
+- with nothing of his, one other side's thing alone in the box.
+An empty box keeps the selection. With the add key held, units are added to a selection of his units, and replace
+any other. How far a press must move to be a box is the game's (`Visuals.dragDistance`, the reference's
+`DragTolerance`, 25); it is 5 unless named.
+
+### A health bar drawn as an RTS draws it
+
+`UnitBarLook.plain(Plain)` is the reference's `Drawable::drawHealthBar`: an outline and the fill inside it, 3 and 1 in
+the reference. It is shown over every thing, or only over the selected ones and the one under the pointer. Its width
+is the thing's two radii added, kept between 20 and 150, times 2, at least 20, times a height the game names (232) over
+the eye's height. Its point is the geometry's top plus 10, with 45% of the width to its left. Each bar's colours come
+from the game's `BarColours` of the thing as the client sees it (`Visuals.barColours`). The reference's default runs
+green to yellow to red, with the outline at half, and blue to cyan while a thing goes up or is disabled. A colour of
+null means no bar for that thing. A thing's marks are drawn where its bar would be, shown or not.
+
+### An armed button given up or used by the game
+
+`Duke3D.giveUpAim()` gives up the button the game armed, as Escape does; its armer is told `GIVEN_UP`.
+`Duke3D.useAim(place)` presses it there as a click would, `pressCommand(id, place, its facing, -1)`, as the reference's
+radar presses the armed command at its point; the armer is told `USED`. Both work from any thread.
+
+### A move the game gives, answered as a click is
+
+`Duke3D.answerMove(place)` answers a move the game gave, such as a radar press, as the player's own click is answered:
+the order mark, and where the game named one the move model. A lone structure selected gets no model.
+
+### The pointer over the game's canvas
+
+`Duke3D.canvasPointer(situation)` names the pointer shown while the pointer is over the game's own canvas; null hands
+it back to the client. Over the world, the client's own pointer is shown either way.
 
 ### The player's camera, as the game frames it
 
