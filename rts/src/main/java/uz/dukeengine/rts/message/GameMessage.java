@@ -45,10 +45,19 @@ public sealed interface GameMessage extends Command
         }
     }
 
-    /** Order the given units to attack a target object. */
-    record AttackObject(int playerIndex, List<ObjectId> units, ObjectId target) implements GameMessage {
+    /**
+     * Order the given units to attack a target object — {@code forced}, the player's forced attack, taken on a thing
+     * passing itself off to their side as none of its targets ({@link uz.dukeengine.core.module.Disguise}).
+     */
+    record AttackObject(int playerIndex, List<ObjectId> units, ObjectId target, boolean forced)
+            implements GameMessage {
         public AttackObject {
             units = List.copyOf(units);
+        }
+
+        /** An attack that is not forced, as every one was before one could be. */
+        public AttackObject(int playerIndex, List<ObjectId> units, ObjectId target) {
+            this(playerIndex, units, target, false);
         }
     }
 

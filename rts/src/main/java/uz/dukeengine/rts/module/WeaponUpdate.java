@@ -189,6 +189,8 @@ public final class WeaponUpdate extends UpdateModule {
     private final Map<String, Clip> clips = new LinkedHashMap<>();
 
     private ObjectId target;
+    /** Whether its target was given it by a forced order: kept on though the target passes itself off. */
+    private boolean forced;
     /** Whether the target was an order's, rather than one it found for itself — which slots it may use. */
     private boolean ordered;
 
@@ -264,13 +266,22 @@ public final class WeaponUpdate extends UpdateModule {
      * @return whether it took the order
      */
     public boolean attack(ObjectId target) {
+        return attack(target, false);
+    }
+
+    /**
+     * The same, {@code forced} — the player's forced attack, taken on a thing passing itself off to this side as none
+     * of its targets ({@link GameObject#isDisguisedFrom}), which no plain order is; and kept on it.
+     */
+    public boolean attack(ObjectId target, boolean forced) {
         var world = getOwner().getWorld();
         var victim = world == null || target == null ? null : world.findObject(target);
-        if (victim != null && !canFireAt(victim)) {
+        if (victim != null && !canFireAt(victim, forced)) {
             return false;
         }
         this.target = target;
         this.ordered = true;
+        this.forced = forced;
         return true;
     }
 
@@ -280,6 +291,14 @@ public final class WeaponUpdate extends UpdateModule {
      * weapon that names none may be fired at anything.
      */
     public boolean canFireAt(GameObject victim) {
+        return canFireAt(victim, false);
+    }
+
+    /** The same, or, {@code forced}, whether it may be made to: a thing passed off to its side is forced targets only. */
+    public boolean canFireAt(GameObject victim, boolean forced) {
+        if (!forced && victim.isDisguisedFrom(getOwner().getPlayerIndex())) {
+            return false;
+        }
         for (var armed : armed()) {
             if (mayHit(armed.weapon(), victim)) {
                 return true;
@@ -296,6 +315,7 @@ public final class WeaponUpdate extends UpdateModule {
 
     public void holdFire() {
         this.target = null;
+        this.forced = false;
     }
 
     public boolean isAttacking() {
@@ -370,6 +390,7 @@ public final class WeaponUpdate extends UpdateModule {
                 return;
             }
             ordered = false;
+            forced = false;
         }
 
         var victim = world.findObject(target);
@@ -379,6 +400,10 @@ public final class WeaponUpdate extends UpdateModule {
         }
         if (world.getRelationship(owner.getPlayerIndex(), victim.getPlayerIndex()) == Relationship.ALLIES) {
             target = null; // never fire on allies
+            return;
+        }
+        if (!forced && victim.isDisguisedFrom(owner.getPlayerIndex())) {
+            target = null; // passed off as none of its targets: kept on only by a forced order
             return;
         }
         var chosen = choose(armed, victim, ordered);
@@ -900,6 +925,9 @@ public final class WeaponUpdate extends UpdateModule {
 
     /** Whether a weapon it may pick by itself, and has rounds for, may be fired at {@code candidate}. */
     private boolean mayPickFor(List<Armed> armed, GameObject candidate) {
+        if (candidate.isDisguisedFrom(getOwner().getPlayerIndex())) {
+            return false; // passed off to its side as none of its targets
+        }
         for (var one : armed) {
             if (one.slot().autoChoosable() && one.clip().status() != WeaponStatus.OUT
                     && mayHit(one.weapon(), candidate)) {

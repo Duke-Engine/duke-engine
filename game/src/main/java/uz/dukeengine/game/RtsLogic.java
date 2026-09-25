@@ -140,7 +140,7 @@ final class RtsLogic extends RtsSimulation {
                     uz.dukeengine.rts.module.Errand.giveUpAll(unit);
                     var weapon = unit.findModule(WeaponUpdate.class);
                     if (weapon != null) {
-                        weapon.attack(attack.target());
+                        weapon.attack(attack.target(), attack.forced());
                     }
                 }
                 tellOrder(attack, attack.units(), attack.playerIndex()); // weaponless or not

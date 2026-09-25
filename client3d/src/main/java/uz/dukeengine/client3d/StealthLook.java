@@ -26,6 +26,9 @@ import uz.dukeengine.game.view.UnitView;
  * pass of the model alone in the reference's heat-vision colour — and to its own side and allies as a light of that
  * colour over its see-through look. Whole every frame it holds the word, fading ×0.8 each drawn frame once it does not,
  * gone under 0.001 ({@link #glowAfter}).
+ *
+ * <p><b>Opacity</b> the game drives ({@code GameObject.setDrawnOpacity}) — a disguise fading out and in again as the
+ * model is swapped — multiplies whatever else it is drawn at, to every viewer.
  */
 final class StealthLook {
 
@@ -92,9 +95,10 @@ final class StealthLook {
         boolean seeThrough = visuals.getSeeThroughWord() != null && words.contains(visuals.getSeeThroughWord())
                 && view.allied();
         boolean held = look.glows && visuals.getGlowWord() != null && words.contains(visuals.getGlowWord());
+        boolean faded = view.opacity() < 1f; // the game driving a change of look: a disguise fading out and in
         var state = looks.get(view.id());
         if (state == null) {
-            if (!seeThrough && !held) {
+            if (!seeThrough && !held && !faded) {
                 return;
             }
             state = new Look();
@@ -110,10 +114,10 @@ final class StealthLook {
         if (asGlow) {
             state.heat.setColor("Color", HEAT.mult(state.glow));
         } else {
-            fade(body, seeThrough ? opacityAt(look.seeThroughFaintest, state.phase) : 1f);
+            fade(body, (seeThrough ? opacityAt(look.seeThroughFaintest, state.phase) : 1f) * view.opacity());
         }
         light(state, body, glowing && view.allied() ? HEAT.mult(state.glow) : null);
-        if (!seeThrough && !glowing) {
+        if (!seeThrough && !glowing && !faded) {
             forget(view.id());
         }
     }

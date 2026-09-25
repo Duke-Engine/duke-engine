@@ -1392,7 +1392,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (hitFlash == null || node == null || node.view == null) {
             return;
         }
-        var tint = visualFor(node.view.templateName()).tint;
+        var tint = visualFor(node.view.looksAs()).tint;
         var own = (tint == null ? ColorRGBA.White : toColor(tint)).mult(CREATURE_AMBIENT);
         hitFlash.struck(unitId, node.root, own);
     }
@@ -1629,6 +1629,13 @@ final class DukeRtsApp extends SimpleApplication {
                 minimapNode.attachChild(geometry);
                 return geometry;
             });
+            var wanted = colourOf(view);
+            var now = (ColorRGBA) dot.getMaterial().getParamValue("Color");
+            if (now == null || now.r != wanted.r || now.g != wanted.g || now.b != wanted.b) {
+                // A blip wears the colours the thing does to this viewer: a disguise's, as the reference's radar does.
+                float alpha = now == null ? 1f : now.a;
+                dot.getMaterial().setColor("Color", new ColorRGBA(wanted.r, wanted.g, wanted.b, alpha));
+            }
             var point = minimap.toMinimap(view.x(), view.y());
             dot.setLocalTranslation(point.x() - 2f, point.y() - 2f, 1);
             blink(dot, view);
@@ -5017,7 +5024,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** The mark a thing's words put by its bar, at the picture its strip is on now, or null. */
     private UnitBars.Badge badgeOf(UnitView view) {
-        var look = visualFor(view.templateName());
+        var look = visualFor(view.looksAs());
         if (look.marks.isEmpty()) {
             return null;
         }
@@ -5048,7 +5055,7 @@ final class DukeRtsApp extends SimpleApplication {
             boolean isNew = !unitNodes.containsKey(view.id());
             var node = unitNodes.computeIfAbsent(view.id(), id -> createUnitNode(view));
             updateUnitNode(node, view);
-            var look = visualFor(view.templateName());
+            var look = visualFor(view.looksAs());
             if (isNew) {
                 layered.flying(view.id(), look.effect, node.root,
                         new Vector3f(look.effectForward, look.yOffset, 0f), cam);
@@ -5078,7 +5085,7 @@ final class DukeRtsApp extends SimpleApplication {
                 // ended; whether it ended in a strike is only known once this
                 // frame's blows are read -- see burstWhatStruck.
                 endedShots.add(new Landing.Gone(entry.getKey(),
-                        visualFor(node.view.templateName()).effect,
+                        visualFor(node.view.looksAs()).effect,
                         node.view.playerIndex() == game.getLocalPlayerIndex(),
                         node.bornX, node.bornZ, node.bornAt, at.x, at.z,
                         timer.getTimeInSeconds()));
@@ -5265,11 +5272,11 @@ final class DukeRtsApp extends SimpleApplication {
                             fired.shooter().value());
                 }
                 if (node != null) {
-                    playSound(visualFor(node.view.templateName()).fireSound,
+                    playSound(visualFor(node.view.looksAs()).fireSound,
                             node.root.getLocalTranslation());
                     // The swing, on the frame the weapon let go. Nothing else in
                     // the snapshot says when that was.
-                    playOnce(node, visualFor(node.view.templateName()).attackAnim);
+                    playOnce(node, visualFor(node.view.looksAs()).attackAnim);
                 }
             } else if (event instanceof uz.dukeengine.core.event.ObjectHurt hurt) {
                 var name = hurtMoments.nameFor(hurt);
@@ -5511,7 +5518,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (node == null) {
             return;
         }
-        var clipName = visualFor(node.view.templateName()).dieAnimFor(deathType);
+        var clipName = visualFor(node.view.looksAs()).dieAnimFor(deathType);
         var clip = clipName == null || node.composer == null
                 ? null : node.composer.getAnimClip(clipName);
         if (clip == null) {
@@ -5548,7 +5555,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private UnitNode createUnitNode(UnitView view) {
-        var visual = visualFor(view.templateName());
+        var visual = visualFor(view.looksAs());
         var node = new UnitNode();
         node.root = new Node("unit-" + view.id());
         node.bornX = view.x();
@@ -5708,7 +5715,7 @@ final class DukeRtsApp extends SimpleApplication {
         node.actionUntil = 0f;
         if (playing != null && !playing.isEmpty() && node.composer != null
                 && node.composer.getAnimClip(playing) != null) {
-            play(node, view.templateName(), playing, true);
+            play(node, view.looksAs(), playing, true);
         }
     }
 
@@ -5969,7 +5976,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (prefix == null || body == null) {
             return; // a game that names none is drawn as it always was
         }
-        paintOwner(body, prefix, toColor(game.getColor(view.playerIndex())));
+        paintOwner(body, prefix, toColor(game.getColor(view.wears()))); // a disguise's to those it fools
     }
 
     /**
@@ -6134,8 +6141,8 @@ final class DukeRtsApp extends SimpleApplication {
      * and with no models yet there is nothing else to say it with.
      */
     private ColorRGBA colourOf(UnitView view) {
-        var own = visualFor(view.templateName()).colour;
-        return toColor(own != null ? own : game.getColor(view.playerIndex()));
+        var own = visualFor(view.looksAs()).colour;
+        return toColor(own != null ? own : game.getColor(view.wears()));
     }
 
     /**
@@ -6211,12 +6218,15 @@ final class DukeRtsApp extends SimpleApplication {
 
     private void updateUnitNode(UnitNode node, UnitView view) {
         boolean handedOver = node.view != null && node.view.playerIndex() != view.playerIndex();
+        boolean recoloured = node.view != null && node.view.wears() != view.wears();
         node.view = view;
-        if (handedOver) {
-            // Its owner changed, however it did: drawn in the new owner's colour, and out of the old owner's hands.
+        if (handedOver || recoloured) {
+            // Its owner changed, however it did, or the colours it wears to this viewer: drawn in the new ones.
             paintHouseColour(node.body, view);
             node.layers.forEach(layer -> paintHouseColour(layer.body(), view));
-            selected.remove(view.id());
+        }
+        if (handedOver) {
+            selected.remove(view.id()); // out of the old owner's hands
         }
         if (!view.selectable()) {
             selected.remove(view.id()); // made unselectable, or sold: out of the selection the frame it is
@@ -6224,7 +6234,7 @@ final class DukeRtsApp extends SimpleApplication {
         // What it looks like can change while it stands there: a building past a health threshold is a
         // wrecked building, and the wreck is a different file. Asked every frame because the answer is a
         // lookup against a map that is empty for every template that named no second model.
-        var visual = visualFor(view.templateName());
+        var visual = visualFor(view.looksAs());
         // Its own words too — an upgrade's weapon set, a rank — for a look that chooses anything by them.
         var holding = visual.choosesByWords()
                 ? visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()) : null;
@@ -6259,7 +6269,8 @@ final class DukeRtsApp extends SimpleApplication {
                     new Coord3D(view.x(), view.y(), 0f), view.orientation(),
                     timer.getTimePerFrame() / Particles.FRAME_SECONDS, this::floorHeightAt);
         }
-        if (visuals.getSeeThroughWord() != null || visuals.getGlowWord() != null) {
+        if (visuals.getSeeThroughWord() != null || visuals.getGlowWord() != null || view.opacity() < 1f
+                || stealthLook.looking(view.id())) {
             stealthLook.see(view, node.body, visuals, visual, timer.getTimePerFrame() / Particles.FRAME_SECONDS);
         }
         if (!visual.wordTints.isEmpty()) {
@@ -6318,7 +6329,7 @@ final class DukeRtsApp extends SimpleApplication {
         // Nothing on the first sight of a unit, and nothing on the blow that
         // killed it: that one has a death to play and this would talk over it.
         if (!Float.isNaN(before) && view.health() < before && view.health() > 0f) {
-            playOnce(node, visualFor(view.templateName()).hurtAnim);
+            playOnce(node, visualFor(view.looksAs()).hurtAnim);
         }
     }
 
@@ -6346,7 +6357,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (timer.getTimeInSeconds() < node.actionUntil) {
             return; // a blow or a flinch has the model; it will hand it back
         }
-        var visual = visualFor(view.templateName());
+        var visual = visualFor(view.looksAs());
         if (playByWords(node, visual, view)) {
             return;
         }
@@ -6355,7 +6366,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (wanted == null || wanted.equals(node.currentAnim)) {
             return;
         }
-        play(node, view.templateName(), wanted, true);
+        play(node, view.looksAs(), wanted, true);
     }
 
     /**
@@ -6414,7 +6425,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (clip == null) {
             return;
         }
-        play(node, node.view.templateName(), clipName, false);
+        play(node, node.view.looksAs(), clipName, false);
         node.actionUntil = (float) (timer.getTimeInSeconds() + clip.getLength());
     }
 
@@ -6443,7 +6454,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         float length = (float) clip.getLength();
         float seconds = gesture.seconds() > 0f ? gesture.seconds() : length;
-        play(node, node.view.templateName(), gesture.clip(), false);
+        play(node, node.view.looksAs(), gesture.clip(), false);
         var action = node.composer.getCurrentAction();
         if (action != null && seconds > 0f) {
             action.setSpeed(length / seconds);
@@ -6468,7 +6479,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (skin == null) {
             return;
         }
-        var visual = visualFor(node.view.templateName());
+        var visual = visualFor(node.view.looksAs());
         for (var one : visual.carried) {
             if (one.bone == null || skin.getArmature().getJoint(one.bone) == null) {
                 continue;

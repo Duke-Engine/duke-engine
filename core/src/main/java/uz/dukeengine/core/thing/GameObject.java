@@ -60,6 +60,12 @@ public final class GameObject {
     private int targetableFrom;
     /** What made it — see {@link #getProducer}. */
     private ObjectId producer;
+    /** The template it is drawn as, or null for its own — see {@link #drawAs}. */
+    private String drawnAs;
+    /** The player whose colours it wears to those not on its side, or -1 for its own. */
+    private int wearsColoursOf = -1;
+    /** How opaque it is drawn, 0 to 1. */
+    private float drawnOpacity = 1f;
     /** The floor it is on: 0 the ground, n the n-th deck laid over it — see {@link #getFloor}. */
     private int floor;
     /** The line it is drawn along, or null — see {@link #setSpan}. */
@@ -295,6 +301,56 @@ public final class GameObject {
 
     public void setProducer(ObjectId producer) {
         this.producer = producer;
+    }
+
+    /**
+     * Draw it as {@code template} — that template's model and clips, chosen by its own words — to every viewer, and in
+     * {@code player}'s colours, house and radar, to the viewers not its side's or allies' ({@code -1} for its own): the
+     * reference's bomb truck disguised as a vehicle it was ordered at ({@code StealthUpdate::disguiseAsObject}). Null
+     * for its own look again. Drawing only: nothing the simulation decides reads it, out of the checksum and not saved.
+     */
+    public void drawAs(String template, int player) {
+        this.drawnAs = template;
+        this.wearsColoursOf = template == null ? -1 : player;
+    }
+
+    /** The template it is drawn as, or null for its own. */
+    public String getDrawnAs() {
+        return drawnAs;
+    }
+
+    /** The player whose colours it wears to viewers not on its side, or -1 for its own. */
+    public int getWearsColoursOf() {
+        return wearsColoursOf;
+    }
+
+    /**
+     * How opaque it is drawn, 0 to 1, as the game drives it through a change of look — the reference's disguise fading
+     * out and in again over its transition, the model swapped at the half. Drawing only.
+     */
+    public void setDrawnOpacity(float opacity) {
+        this.drawnOpacity = Math.clamp(opacity, 0f, 1f);
+    }
+
+    public float getDrawnOpacity() {
+        return drawnOpacity;
+    }
+
+    /**
+     * Whether it passes, to {@code player}, for none of his side's targets — not acquired by their weapons nor taken
+     * as the target of an order unless it is forced — by a {@link uz.dukeengine.core.module.Disguise} of its; never to
+     * its own side.
+     */
+    public boolean isDisguisedFrom(int player) {
+        if (player == playerIndex) {
+            return false;
+        }
+        for (var module : modules) {
+            if (module instanceof uz.dukeengine.core.module.Disguise disguise && disguise.fools(player)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -54,7 +54,7 @@ public final class CommandCodec implements PacketCodec {
                     + "," + Float.toString(m.destination().z())
                     + (m.click() ? ",click" : "");
             case GameMessage.AttackObject a -> "ATTACK," + a.playerIndex() + "," + ids(a.units())
-                    + "," + a.target().value();
+                    + "," + a.target().value() + (a.forced() ? ",forced" : "");
             case GameMessage.StopMoving s -> "STOP," + s.playerIndex() + "," + ids(s.units());
             case GameMessage.QueueProduction q -> "QUEUE," + q.playerIndex() + ","
                     + q.factory().value() + "," + q.unitTemplate();
@@ -121,7 +121,7 @@ public final class CommandCodec implements PacketCodec {
                     new Coord3D(Float.parseFloat(parts[3]), Float.parseFloat(parts[4]), Float.parseFloat(parts[5])),
                     parts.length > 6 && "click".equals(parts[6]));
             case "ATTACK" -> new GameMessage.AttackObject(player, parseIds(parts[2]),
-                    new ObjectId(Integer.parseInt(parts[3])));
+                    new ObjectId(Integer.parseInt(parts[3])), parts.length > 4 && "forced".equals(parts[4]));
             case "STOP" -> new GameMessage.StopMoving(player, parseIds(parts[2]));
             case "QUEUE" -> new GameMessage.QueueProduction(player,
                     new ObjectId(Integer.parseInt(parts[2])), parts[3]);
