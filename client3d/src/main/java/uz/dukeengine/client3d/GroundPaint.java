@@ -11,6 +11,7 @@ import uz.dukeengine.core.data.Fade;
 import uz.dukeengine.core.data.Flipped;
 import uz.dukeengine.core.data.Overlay;
 import uz.dukeengine.core.data.Paint;
+import uz.dukeengine.core.data.PictureCorners;
 import uz.dukeengine.core.map.MapTemplate;
 import uz.dukeengine.core.map.MapTerrain;
 import uz.dukeengine.core.map.Painted;
@@ -73,10 +74,12 @@ final class GroundPaint {
     private final List<List<String>> fades;
     /** The rows marked {@link Flipped}: which cells are drawn cut along the other diagonal. None for most maps. */
     private final List<String> flipped;
+    /** The cells whose picture is laid by its corners ({@link PictureCorners}), by {@link #cellKey}. */
+    private final Map<Long, float[]> corners;
 
     private GroundPaint(String what, List<String> rows, Map<String, String> palette,
             Map<String, Float> coverage, List<List<String>> overlays, List<List<String>> fades,
-            List<String> flipped) {
+            List<String> flipped, Map<Long, float[]> corners) {
         this.what = what;
         this.rows = rows;
         this.palette = palette;
@@ -84,6 +87,7 @@ final class GroundPaint {
         this.overlays = overlays;
         this.fades = fades;
         this.flipped = flipped;
+        this.corners = corners;
     }
 
     /**
@@ -111,7 +115,43 @@ final class GroundPaint {
                     new Object[] {named(map), overlays.size(), fades.size(), layers});
         }
         return new GroundPaint(named(map), rows, painted.palette(), coverage,
-                overlays.subList(0, layers), fades.subList(0, layers), MapTerrain.rows(map, Flipped.class, "flipped"));
+                overlays.subList(0, layers), fades.subList(0, layers), MapTerrain.rows(map, Flipped.class, "flipped"),
+                corners(named(map), MapTerrain.rows(map, PictureCorners.class, "picture corners")));
+    }
+
+    /** Each entry {@code "cx cy u0 v0 … u3 v3"} read, one that cannot be said out loud and left out. */
+    private static Map<Long, float[]> corners(String what, List<String> entries) {
+        var read = new java.util.HashMap<Long, float[]>();
+        for (var entry : entries) {
+            var words = entry.strip().split("\\s+");
+            try {
+                if (words.length != 10) {
+                    throw new NumberFormatException(words.length + " numbers");
+                }
+                var uvs = new float[8];
+                for (int i = 0; i < 8; i++) {
+                    uvs[i] = Float.parseFloat(words[i + 2]);
+                }
+                read.put(cellKey(Integer.parseInt(words[0]), Integer.parseInt(words[1])), uvs);
+            } catch (NumberFormatException wrong) {
+                LOG.log(Level.WARNING, "{0}: picture corners ''{1}'' is not a cell and its eight corner numbers",
+                        new Object[] {what, entry.strip()});
+            }
+        }
+        return read;
+    }
+
+    private static long cellKey(int cx, int cy) {
+        return (long) cy << 32 | cx & 0xFFFFFFFFL;
+    }
+
+    /**
+     * The picture coordinates a cell's corners are laid by — {@code u, v} for ({@code cx}, {@code cy}), then round
+     * by ({@code cx+1}, {@code cy}), ({@code cx+1}, {@code cy+1}) and ({@code cx}, {@code cy+1}) — or null where it
+     * is laid straight down.
+     */
+    float[] cornersOf(int cx, int cy) {
+        return corners.get(cellKey(cx, cy));
     }
 
     /** Whether a cell is drawn cut along the other diagonal from its relief's — see {@link Flipped}. */

@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.data.Flipped;
 import uz.dukeengine.core.data.Grid;
 import uz.dukeengine.core.data.Paint;
+import uz.dukeengine.core.data.PictureCorners;
 import uz.dukeengine.core.data.Relief;
 import uz.dukeengine.core.map.MapTemplate;
 import uz.dukeengine.core.map.MapTerrain;
@@ -530,6 +531,33 @@ class PaintedGroundTest {
             node.attachChild(tile);
             return node;
         }
+    }
+
+    /** Two cells side by side, the second a cliff whose picture the map lays by its corners. */
+    record Cliff(String name, float cellSize,
+            @Grid List<String> cells,
+            @Relief List<String> relief,
+            @Paint List<String> paint,
+            @PictureCorners List<String> corners,
+            Map<String, String> palette,
+            Map<String, Float> coverage)
+            implements MapTemplate, Scaled, Painted {
+    }
+
+    /** A cell whose picture the map lays by its corners draws it so, and the cell beside it as before. */
+    @Test
+    void aCellWithItsOwnPictureCornersDrawsItsPictureByThem() {
+        var cliff = new Cliff("cliff", 10f, List.of(".."), List.of("0 0 40", "0 0 40"), List.of("gg"),
+                List.of("1 0 0.25 0 0.5 0 0.5 1.75 0.25 1.75"), Map.of("g", "textures/ground/cliff.png"), Map.of());
+        var uvs = painted(drawn(cliff)).getFirst().getMesh().getFloatBuffer(VertexBuffer.Type.TexCoord);
+        var read = new float[16];
+        uvs.rewind();
+        uvs.get(read);
+
+        assertEquals(List.of(0f, 0f, 1f, 0f, 1f, 1f, 0f, 1f),
+                java.util.stream.IntStream.range(0, 8).mapToObj(i -> read[i]).toList(), "its neighbour, straight down");
+        assertEquals(List.of(0.25f, 0f, 0.5f, 0f, 0.5f, 1.75f, 0.25f, 1.75f),
+                java.util.stream.IntStream.range(8, 16).mapToObj(i -> read[i]).toList(), "the cliff, as laid");
     }
 
     /** One cell whose far corner stands a whole cell high, turned or not by its map. */

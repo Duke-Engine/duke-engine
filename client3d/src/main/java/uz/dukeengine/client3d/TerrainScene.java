@@ -260,8 +260,13 @@ final class TerrainScene {
                 for (int corner = 0; corner < 4; corner++) {
                     normals.put(normal.x).put(normal.y).put(normal.z);
                 }
-                uvs.put(x0 / span).put(z0 / span).put(x1 / span).put(z0 / span)
-                        .put(x1 / span).put(z1 / span).put(x0 / span).put(z1 / span);
+                var laid = paint.cornersOf(cx, cy);
+                if (laid != null) {
+                    uvs.put(laid); // up a cliff as the map lays it, not stretched straight down
+                } else {
+                    uvs.put(x0 / span).put(z0 / span).put(x1 / span).put(z0 / span)
+                            .put(x1 / span).put(z1 / span).put(x0 / span).put(z1 / span);
+                }
                 // Cut along the diagonal HeightMap.fixedAt cuts along. It was once cut along the other: on a
                 // slope the two triangles then describe a different surface from the one the pathfinder walks,
                 // and a unit stood a little in the air or a little in the ground on every tilted cell. A cell the
