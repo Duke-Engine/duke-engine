@@ -1832,6 +1832,18 @@ public final class Visuals {
         return orderMark;
     }
 
+    private RallyLook rally = RallyLook.DEFAULT;
+
+    /** How a selected building's rally point is shown — see {@link RallyLook}; the reference's line unless named. */
+    public Visuals rally(RallyLook look) {
+        this.rally = look == null ? RallyLook.DEFAULT : look;
+        return this;
+    }
+
+    public RallyLook getRally() {
+        return rally;
+    }
+
     private UnitBarLook unitBars = UnitBarLook.NONE;
 
     /**

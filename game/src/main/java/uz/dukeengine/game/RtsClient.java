@@ -163,6 +163,18 @@ final class RtsClient extends GameClient {
                     object.getSpan(),
                     ai != null));
         }
+        var rallies = new ArrayList<uz.dukeengine.game.view.RallyView>();
+        for (var object : shown) {
+            if (!everything && object.getPlayerIndex() != viewerPlayer) {
+                continue; // a rally point is shown to its own side
+            }
+            var production = object.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
+            var line = production == null ? null : production.rallyLine();
+            if (line != null) {
+                rallies.add(new uz.dukeengine.game.view.RallyView(object.getId().value(), line.rallyPoint(),
+                        line.points(), line.nodes()));
+            }
+        }
         var beams = new ArrayList<uz.dukeengine.game.view.BeamView>();
         for (var beam : logic.getBeams()) {
             if (everything || logic.canSee(viewerPlayer, beam.from()) || logic.canSee(viewerPlayer, beam.to())) {
@@ -187,7 +199,8 @@ final class RtsClient extends GameClient {
                 camera.get(),
                 everything || logic.isMapRevealedTo(viewerPlayer),
                 contextOrder.get(),
-                beams);
+                beams,
+                rallies);
     }
 
     /**

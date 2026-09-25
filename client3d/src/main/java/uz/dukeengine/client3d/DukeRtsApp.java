@@ -207,6 +207,7 @@ final class DukeRtsApp extends SimpleApplication {
     private final Node listNode = new Node("effect-lists");
     /** The beams the simulation owns, drawn as the game's lasers — see {@link Lasers}. */
     private Lasers lasers;
+    private RallyMarks rallyMarks;
     /** The pictures laid on the ground under things by their words — see {@link GroundPictures}. */
     private GroundPictures groundPictures;
     /** The colours added to things by their words — see {@link WordTints}. */
@@ -627,6 +628,7 @@ final class DukeRtsApp extends SimpleApplication {
         rootNode.attachChild(listNode);
         lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
         lasers = new Lasers(assetManager, listNode, visuals::laserNamed, this::floorHeightAt);
+        rallyMarks = new RallyMarks(assetManager, listNode, this::loadMarkModel);
         groundPictures = new GroundPictures(assetManager, listNode);
         stealthLook = new StealthLook(assetManager);
         layered.drawsListsWith(lists);
@@ -1254,6 +1256,7 @@ final class DukeRtsApp extends SimpleApplication {
     private void syncOrderMarkers() {
         float now = timer.getTimeInSeconds();
         lasers.show(snapshot.beams(), cam.getLocation(), now); // the simulation's beams, where it moved them
+        showRallies();
         var look = visuals.getOrderMark();
         orderMarkers.prune(now, look.seconds());
         modelMarks.update(now, look);
@@ -2972,6 +2975,7 @@ final class DukeRtsApp extends SimpleApplication {
         chevrons.clear();
         attackFlash.clear();
         lasers.clear();
+        rallyMarks.clear();
         groundPictures.clear();
         wordTints.clear();
         stealthLook.clear();
@@ -4114,6 +4118,16 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var selection = selectedIds().stream().map(ObjectId::value).toList();
         modelMarks.add(selection, worldX, worldY, floorHeightAt(worldX, worldY), look, timer.getTimeInSeconds());
+    }
+
+    /** The rally points of the selected things of his that have one, and the flag of the only one — see RallyMarks. */
+    private void showRallies() {
+        var own = selectedOwn().stream().map(uz.dukeengine.game.view.UnitView::id).collect(java.util.stream.Collectors
+                .toSet());
+        var shown = snapshot.rallies().stream().filter(rally -> own.contains(rally.id())).toList();
+        rallyMarks.show(visuals.getRally(), shown, RallyMarks.flagOf(shown, selected.size()),
+                toColor(game.getColor(game.getLocalPlayerIndex())), visuals.getHouseColour(), this::floorHeightAt,
+                cam.getLocation());
     }
 
     /** A move mark's model, as the file has it: no dressing, it is the game's own answer to a click. */

@@ -42,6 +42,28 @@ class ProductionCommandTest {
     }
 
     @Test
+    void theSnapshotCarriesTheViewersOwnRallyPointsWithTheirLinesAndNoEnemys() {
+        var game = DukeGame.create("t").loadUnits(DukeGame.STARTER_UNITS);
+        var you = game.addPlayer("You", Color.BLUE);
+        var foe = game.addPlayer("Foe", Color.RED);
+        game.enemies(you, foe).localPlayer(you);
+        game.spawn("Barracks", you, 100, 100);  // id 1, yours
+        game.spawn("Barracks", foe, 300, 100);  // id 2, the enemy's
+        var rally = new Coord3D(200f, 150f, 0f);
+        game.onStart(g -> {
+            g.postCommand(new GameMessage.SetRallyPoint(you.getIndex(), new ObjectId(1), rally));
+            g.postCommand(new GameMessage.SetRallyPoint(foe.getIndex(), new ObjectId(2), new Coord3D(400f, 150f, 0f)));
+        });
+        game.runHeadless(5);
+
+        var rallies = game.getSnapshot().rallies();
+        assertEquals(1, rallies.size(), "the enemy's is not his to see");
+        assertEquals(1, rallies.getFirst().id());
+        assertEquals(rally, rallies.getFirst().rallyPoint());
+        assertEquals(rally, rallies.getFirst().line().getLast(), "the line ends on the rally point");
+    }
+
+    @Test
     void buildMenuIsTheContract() {
         var game = DukeGame.create("t").loadUnits(DukeGame.STARTER_UNITS);
         var you = game.addPlayer("You", Color.BLUE);

@@ -231,6 +231,102 @@ public final class ProductionUpdate extends UpdateModule {
     }
 
     /**
+     * How its rally point is shown while it is selected: the line through {@code points} and the nodes on it.
+     *
+     * @param rallyPoint the rally point, where the flag stands
+     * @param points     from its door's create point — its own position where it has no exit — through its natural
+     *                   rally point and any corners of its footprint to the rally point
+     * @param nodes      the natural rally point and the corners, where the reference sets a node
+     */
+    public record RallyLine(Coord3D rallyPoint, List<Coord3D> points, List<Coord3D> nodes) {
+        public RallyLine {
+            points = List.copyOf(points);
+            nodes = List.copyOf(nodes);
+        }
+    }
+
+    /**
+     * Its rally point as the player sees it while it is selected ({@code W3DWaypointBuffer::drawWaypoints}), or null
+     * while it has none. Where the rally point lies behind the door — back toward the factory from its natural rally
+     * point — the line first goes round its footprint: by the corner on the door's side nearest the rally point, and by
+     * the far side's nearest too when the rally point lies past the first.
+     */
+    public RallyLine rallyLine() {
+        if (rallyPoint == null) {
+            return null;
+        }
+        var owner = getOwner();
+        var door = exit == null ? owner.getPosition() : inFrameOf(owner, exit.createPoint());
+        var natural = exit == null ? door : inFrameOf(owner, exit.rallyPoint());
+        var points = new ArrayList<Coord3D>();
+        var nodes = new ArrayList<Coord3D>();
+        points.add(door);
+        if (!natural.equals(door)) {
+            points.add(natural);
+            roundTheCorners(owner, door, natural, points, nodes);
+        }
+        nodes.add(natural);
+        points.add(rallyPoint);
+        return new RallyLine(rallyPoint, points, nodes);
+    }
+
+    private void roundTheCorners(GameObject owner, Coord3D door, Coord3D natural, List<Coord3D> points,
+            List<Coord3D> nodes) {
+        float outX = natural.x() - door.x();
+        float outY = natural.y() - door.y();
+        float out = (float) Math.sqrt(outX * outX + outY * outY);
+        outX /= out;
+        outY /= out;
+        if ((natural.x() - rallyPoint.x()) * outX + (natural.y() - rallyPoint.y()) * outY <= 0f) {
+            return; // out beyond the door: straight there
+        }
+        var shape = Solid.of(owner.getTemplate());
+        float major = shape instanceof uz.dukeengine.core.thing.Geometry.Box box ? box.majorRadius()
+                : shape.footprintRadius();
+        float minor = shape instanceof uz.dukeengine.core.thing.Geometry.Box box ? box.minorRadius()
+                : shape.footprintRadius();
+        float cos = (float) StrictMath.cos(owner.getOrientation());
+        float sin = (float) StrictMath.sin(owner.getOrientation());
+        var at = owner.getPosition();
+        float[][] corners = {
+            {at.x() - major * cos - minor * sin, at.y() + minor * cos - major * sin},
+            {at.x() + major * cos - minor * sin, at.y() + minor * cos + major * sin},
+            {at.x() + major * cos + minor * sin, at.y() - minor * cos + major * sin},
+            {at.x() - major * cos + minor * sin, at.y() - minor * cos - major * sin},
+        };
+        float[] near = null;
+        float[] far = null;
+        float nearAway = Float.MAX_VALUE;
+        float farAway = Float.MAX_VALUE;
+        for (var corner : corners) {
+            boolean doorSide = (door.x() - corner[0]) * outX + (door.y() - corner[1]) * outY < 0f;
+            float awayX = rallyPoint.x() - corner[0];
+            float awayY = rallyPoint.y() - corner[1];
+            float away = awayX * awayX + awayY * awayY;
+            if (doorSide && away < nearAway) {
+                near = corner;
+                nearAway = away;
+            } else if (!doorSide && away < farAway) {
+                far = corner;
+                farAway = away;
+            }
+        }
+        if (near == null) {
+            return;
+        }
+        var first = new Coord3D(near[0], near[1], at.z());
+        points.add(first);
+        nodes.add(first);
+        // Past the first corner too: the rally point on the far side of it from the natural rally point.
+        if (far != null && (near[0] - rallyPoint.x()) * (natural.x() - near[0])
+                + (near[1] - rallyPoint.y()) * (natural.y() - near[1]) < 0f) {
+            var second = new Coord3D(far[0], far[1], at.z());
+            points.add(second);
+            nodes.add(second);
+        }
+    }
+
+    /**
      * Charge the owner and enqueue {@code unit} for production. Returns false if
      * the side may not make it yet ({@link RtsSimulation#canBuild}) or cannot
      * afford it (nothing is queued or charged in either case).
