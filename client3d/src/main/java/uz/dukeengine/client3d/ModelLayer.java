@@ -35,6 +35,10 @@ final class ModelLayer {
     private AnimComposer passingComposer;
     private int passingSince;
     private float passingLength;
+    /** Where in its clip the transition began, in seconds: its first frame, its last, or the frame a look kept. */
+    private float passingFrom;
+    /** The words it wears now: what a look waiting for its clip to end goes on being worn by. */
+    private Set<String> worn;
 
     /** A layer drawn as {@code look} says, its models built by {@code load}. */
     ModelLayer(Visuals.UnitVisual look, Function<String, Spatial> load) {
@@ -67,6 +71,11 @@ final class ModelLayer {
     void wear(Node parent, UnitView view, Set<String> world, int frame, Consumer<Spatial> paint,
             Consumer<String> missing, Function<String, Spatial> bones) {
         var holding = look.holding(view.healthFraction(), world, view.conditions());
+        if (worn != null && look.waits() && clip.holdsBack(frame)
+                && look.waitsFor(look.lookFor(worn), look.lookFor(holding))) {
+            holding = worn; // the look it wears is let play its clip to the end first
+        }
+        worn = holding;
         if (!look.transitions.isEmpty() && pass(parent, holding, frame, paint)) {
             return; // on its way between two looks
         }
@@ -154,20 +163,22 @@ final class ModelLayer {
     private boolean step(int frame) {
         float played = (frame - passingSince) * uz.dukeengine.core.GameConstants.SECONDS_PER_LOGICFRAME
                 * passing.speed();
-        if (played >= passingLength) {
+        boolean backwards = passing.mode() == Visuals.ClipMode.ONCE_BACKWARDS;
+        float at = backwards ? passingFrom - played : passingFrom + played;
+        if (backwards ? at <= 0f && played > 0f : at >= passingLength) {
             end();
             return false;
         }
-        boolean backwards = passing.mode() == Visuals.ClipMode.ONCE_BACKWARDS;
         // Never its end itself: to the model the end of a clip is its start again.
         float last = Math.nextDown(passingLength);
-        passingComposer.setTime(AnimComposer.DEFAULT_LAYER,
-                backwards ? Math.clamp(passingLength - played, 0f, last) : Math.min(played, last));
+        passingComposer.setTime(AnimComposer.DEFAULT_LAYER, Math.clamp(at, 0f, last));
         return true;
     }
 
     /** Onto the transition's model and clip, off whatever it wore: the new look's own is worn once it has played. */
     private void begin(Visuals.UnitVisual.Transition way, Node parent, int frame, Consumer<Spatial> paint) {
+        // Where the look it leaves stood, where both keep the frame: its share of its clip, read before it is let go.
+        double kept = way.keepGroup() != null && way.keepGroup().equals(clip.keepGroup()) ? clip.share(frame) : -1;
         end();
         if (body != null) {
             body.removeFromParent();
@@ -190,12 +201,20 @@ final class ModelLayer {
         passingComposer = clips;
         passingSince = frame;
         passingLength = (float) clip.getLength();
+        passingFrom = kept >= 0 ? (float) (kept * passingLength)
+                : way.mode() == Visuals.ClipMode.ONCE_BACKWARDS ? passingLength : 0f;
+        if (systems != null) {
+            systems.choose(way.particles(), model); // its own systems, while it plays
+        }
         step(frame); // its first frame set at once
     }
 
     private void end() {
         if (passingBody != null) {
             passingBody.removeFromParent();
+        }
+        if (systems != null && passing != null) {
+            systems.stop(); // its systems end with it; the look's own are chosen again as it is worn
         }
         passing = null;
         passingBody = null;

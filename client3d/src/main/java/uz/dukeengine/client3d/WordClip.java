@@ -52,6 +52,28 @@ final class WordClip {
         return chosen != null;
     }
 
+    /** The keep group of the state chosen, or null. */
+    String keepGroup() {
+        return chosen == null ? null : chosen.keepGroup();
+    }
+
+    /** How far through its clip it is in the game's frame {@code frame}, a share of its length; 0 for none. */
+    double share(int frame) {
+        return chosen == null || length <= 0 ? 0 : timeAt(frame) / length;
+    }
+
+    /** Whether its clip is one played once and has not yet played to its end: a look waiting for it is not left yet. */
+    boolean holdsBack(int frame) {
+        if (chosen == null || length <= 0) {
+            return false;
+        }
+        return switch (chosen.mode()) {
+            case ONCE -> timeAt(frame) < last();
+            case ONCE_BACKWARDS -> timeAt(frame) > 0;
+            default -> false;
+        };
+    }
+
     /**
      * The clip {@code look}'s words choose for what holds {@code holding}, set on {@code composer} at the game's frame
      * {@code frame} and held there — its time the frame's, never the window's — or null where they choose none, or

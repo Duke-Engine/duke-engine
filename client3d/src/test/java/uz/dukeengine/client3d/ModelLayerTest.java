@@ -365,4 +365,97 @@ class ModelLayerTest {
         assertNull(layer.body(), "played out: gone");
         assertEquals(0, root.getQuantity());
     }
+
+    // ---- a transition as the reference plays it ----
+
+    /** A model whose one clip, "Swing", is two seconds long, moving its "Arm" 20 across. */
+    private static Spatial crane(String path) {
+        var model = new Node(path);
+        var arm = new Node("Arm");
+        arm.attachChild(new com.jme3.scene.Geometry("arm", new com.jme3.scene.shape.Box(5f, 1f, 1f)));
+        model.attachChild(arm);
+        var swing = new AnimClip("Swing");
+        swing.setTracks(new AnimTrack<?>[] {new TransformTrack(arm, new float[] {0f, 2f},
+                new Vector3f[] {new Vector3f(), new Vector3f(20f, 0f, 0f)}, null, null)});
+        var composer = new AnimComposer();
+        model.addControl(composer);
+        composer.addAnimClip(swing);
+        return model;
+    }
+
+    /**
+     * A factory's crane swinging while it works, its way out the same clip in the same keep group: left at 1.5 of its
+     * 2 seconds, the way out starts at 1.5 and ends half a second later — it finishes the swing it is in.
+     */
+    @Test
+    void aTransitionInTheKeepGroupOfTheLookItLeavesStartsWhereThatLookStood() {
+        var look = Visuals.create().unit("Factory", l -> l.layer("crane")
+                .model("models/crane.glb")
+                .model(Set.of("DONE"), "models/crane_rest.glb")
+                .clip(Set.of(), "Swing", Visuals.ClipMode.LOOP, null, "swing")
+                .transition(Set.of(), Set.of("DONE"), "models/crane.glb", "Swing", Visuals.ClipMode.ONCE, 1f,
+                        "swing")).of("Factory");
+        var layer = new ModelLayer(look.layers.get("crane"), ModelLayerTest::crane);
+        var root = new Node("root");
+        layer.wear(root, holding(), Set.of(), 0, drawn -> { }, clip -> { });
+        layer.wear(root, holding(), Set.of(), 45, drawn -> { }, clip -> { });
+
+        layer.wear(root, holding("DONE"), Set.of(), 45, drawn -> { }, clip -> { });
+        var composer = AnimationLibrary.findControl(layer.body(), AnimComposer.class);
+        assertEquals(1.5, composer.getTime(AnimComposer.DEFAULT_LAYER), 1e-4, "from where the swing stood");
+        layer.wear(root, holding("DONE"), Set.of(), 59, drawn -> { }, clip -> { });
+        assertEquals("models/crane.glb", layer.body().getName(), "still on its way out");
+        layer.wear(root, holding("DONE"), Set.of(), 60, drawn -> { }, clip -> { });
+        assertEquals("models/crane_rest.glb", layer.body().getName(), "half a second later, at rest");
+    }
+
+    /** A command centre's fence rising over burning pits: the transition's system runs while it plays, then stops. */
+    @Test
+    void aTransitionsSystemRunsWhileItPlaysAndStopsWhenItEnds() {
+        var look = Visuals.create().unit("Site", l -> l.layer("fence")
+                .model(Set.of("AWAITING"), "models/fence.glb")
+                .transition(Set.of(), Set.of("AWAITING"), "models/fence_rise.glb", "Rise", Visuals.ClipMode.ONCE, 1f)
+                .transitionParticles("Panel", "Fire")).of("Site");
+        var scene = new Node("scene");
+        var root = new Node("root");
+        scene.attachChild(root);
+        var fire = new uz.dukeengine.core.data.Binder().bind(uz.dukeengine.core.data.DukeText.parse("""
+                ParticleSystem
+                  Name = Fire
+                  BurstCount = [1]
+                  BurstDelay = [5]
+                  Lifetime = [20]
+                  SystemLifetime = 0
+                End
+                """, "fx.duke").getFirst(), uz.dukeengine.core.content.ParticleSystem.class);
+        var particles = new Particles(name -> name.equals("Fire") ? fire : null, 7L, Particles.Ground.FLAT,
+                Integer.MAX_VALUE, Integer.MAX_VALUE);
+        var systems = new BoneSystems(particles, scene);
+        var layer = new ModelLayer(look.layers.get("fence"), ModelLayerTest::fence, systems);
+
+        layer.wear(root, holding("AWAITING"), Set.of(), 100, drawn -> { }, clip -> { });
+        assertEquals(1, systems.emitters().size(), "burning while the fence rises");
+        layer.wear(root, holding("AWAITING"), Set.of(), 130, drawn -> { }, clip -> { });
+        assertEquals(0, systems.emitters().size(), "and out once it has");
+    }
+
+    /** A Chinook's crates lifted before they are carried: the new look worn once the one before played its clip. */
+    @Test
+    void aLookWaitingForTheOneBeforeIsWornWhenThatOnesOnceClipEnds() {
+        var look = Visuals.create().unit("Chinook", l -> l.layer("crates")
+                .model("models/fence_rise.glb")
+                .model(Set.of("CARRIED"), "models/fence.glb")
+                .clip(Set.of(), "Rise", Visuals.ClipMode.ONCE, null, null)
+                .waitFor(Set.of(), Set.of("CARRIED"))).of("Chinook");
+        var layer = new ModelLayer(look.layers.get("crates"), ModelLayerTest::fence);
+        var root = new Node("root");
+        layer.wear(root, holding(), Set.of(), 0, drawn -> { }, clip -> { });
+
+        layer.wear(root, holding("CARRIED"), Set.of(), 15, drawn -> { }, clip -> { });
+        assertEquals("models/fence_rise.glb", layer.body().getName(), "half through its lift: still lifting");
+        layer.wear(root, holding("CARRIED"), Set.of(), 29, drawn -> { }, clip -> { });
+        assertEquals("models/fence_rise.glb", layer.body().getName());
+        layer.wear(root, holding("CARRIED"), Set.of(), 30, drawn -> { }, clip -> { });
+        assertEquals("models/fence.glb", layer.body().getName(), "the lift played to its end: carried");
+    }
 }

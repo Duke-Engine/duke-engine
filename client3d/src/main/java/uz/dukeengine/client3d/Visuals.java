@@ -178,8 +178,15 @@ public final class Visuals {
         }
 
         /** A clip played on the way from one of its looks to another — see {@link #transition}. */
+        /**
+         * @param keepGroup where the look it leaves names the same keep group, its clip starts at the share of its
+         *                  length the look it leaves had played — the reference's {@code
+         *                  MAINTAIN_FRAME_ACROSS_STATES}: a crane finishes the swing it is in; null starts it at its first
+         *                  frame, or its last
+         * @param particles particle systems at bones of its model, run while it plays: {@link #transitionParticles}
+         */
         record Transition(java.util.SortedSet<String> from, java.util.SortedSet<String> to, String model, String clip,
-                ClipMode mode, float speed) {
+                ClipMode mode, float speed, String keepGroup, java.util.List<BoneParticles> particles) {
         }
 
         final java.util.List<Transition> transitions = new java.util.ArrayList<>();
@@ -194,9 +201,62 @@ public final class Visuals {
          */
         public UnitVisual transition(java.util.Set<String> fromWords, java.util.Set<String> toWords, String model,
                 String clip, ClipMode mode, float speed) {
+            return transition(fromWords, toWords, model, clip, mode, speed, null);
+        }
+
+        /** The same, its clip started where the look it leaves stood where both name {@code keepGroup}. */
+        public UnitVisual transition(java.util.Set<String> fromWords, java.util.Set<String> toWords, String model,
+                String clip, ClipMode mode, float speed, String keepGroup) {
             transitions.add(new Transition(new java.util.TreeSet<>(fromWords), new java.util.TreeSet<>(toWords), model,
-                    clip, mode, speed <= 0f ? 1f : speed));
+                    clip, mode, speed <= 0f ? 1f : speed, keepGroup, java.util.List.of()));
             return this;
+        }
+
+        /**
+         * A particle system at a bone of the model of the transition last named, run while it plays — the reference's
+         * {@code ParticleSysBone} on a transition state: a command centre's fence rising over burning pits.
+         */
+        public UnitVisual transitionParticles(String bone, String system) {
+            if (transitions.isEmpty()) {
+                return this;
+            }
+            var last = transitions.removeLast();
+            var particles = new java.util.ArrayList<>(last.particles());
+            particles.add(new BoneParticles(new java.util.TreeSet<>(), bone, system));
+            transitions.add(new Transition(last.from(), last.to(), last.model(), last.clip(), last.mode(),
+                    last.speed(), last.keepGroup(), java.util.List.copyOf(particles)));
+            return this;
+        }
+
+        /** Looks one waits to leave for another — see {@link #waitFor}. */
+        private record Wait(java.util.SortedSet<String> from, java.util.SortedSet<String> to) {
+        }
+
+        private final java.util.List<Wait> waits = new java.util.ArrayList<>();
+
+        /**
+         * Going from the look {@code fromWords} choose to the one {@code toWords} choose, the second is worn only once
+         * the first's {@code ONCE} or {@code ONCE_BACKWARDS} clip has played to its end — the reference's {@code
+         * WaitForStateToFinishIfPossible}: a Chinook's crates lifted before they are carried, and set down before they
+         * are gone.
+         */
+        public UnitVisual waitFor(java.util.Set<String> fromWords, java.util.Set<String> toWords) {
+            waits.add(new Wait(new java.util.TreeSet<>(fromWords), new java.util.TreeSet<>(toWords)));
+            return this;
+        }
+
+        /** Whether going from look {@code from} to look {@code to} waits for the first's clip to end. */
+        boolean waitsFor(java.util.SortedSet<String> from, java.util.SortedSet<String> to) {
+            for (var one : waits) {
+                if (lookFor(one.from()).equals(from) && lookFor(one.to()).equals(to)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        boolean waits() {
+            return !waits.isEmpty();
         }
 
         /** Which of its looks a set of words chooses: the words of the model they choose, none for its plain one. */
