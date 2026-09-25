@@ -78,12 +78,6 @@ public final class WeaponUpdate extends UpdateModule {
     /** Weapon names a slot linked that the world did not have, said once each rather than once a frame. */
     private static final Set<String> MISSING = ConcurrentHashMap.newKeySet();
 
-    /**
-     * A weapon whose range, this much over, is under a pathfinding cell strikes what it touches — the
-     * reference's {@code ATTACK_RANGE_FUDGE} in {@code WeaponTemplate::isContactWeapon}.
-     */
-    private static final float CONTACT_FUDGE = 1.05f;
-
     /** What a slot preferred against its target counts as dealing: more than any weapon could. */
     private static final float PREFERRED = Float.MAX_VALUE;
 
@@ -422,7 +416,7 @@ public final class WeaponUpdate extends UpdateModule {
         chosen.clip().fired(world.random(), rateOfFire(owner, weapon));
         world.post(new WeaponFired(world.getFrame(), owner.getId(), victim.getId(),
                 owner.getPosition(), aimPoint(victim), weapon.name(), chosen.index(),
-                weapon.attackRange() * CONTACT_FUDGE < world.cellSize(), shot.radius()));
+                weapon.isContact(world.cellSize()), shot.radius()));
 
         if (inFlight) {
             return; // nothing has been hit yet; the blast and the kill wait for land()
