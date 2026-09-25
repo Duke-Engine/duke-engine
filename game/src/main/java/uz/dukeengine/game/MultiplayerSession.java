@@ -185,16 +185,35 @@ public final class MultiplayerSession implements AutoCloseable {
      */
     public static MultiplayerSession host(ServerSocket server, int playerCount,
             String scenarioSpec, IntConsumer onGuestJoined) throws IOException {
+        return host(server, playerCount, scenarioSpec, onGuestJoined, java.time.Duration.ZERO);
+    }
+
+    /**
+     * The same, each guest's first line awaited no longer than {@code limit}: one that connects and never says {@code
+     * DUKE-JOIN} is let go and its seat kept for the next to come, holding up nobody. {@code Duration.ZERO} is none.
+     */
+    public static MultiplayerSession host(ServerSocket server, int playerCount, String scenarioSpec,
+            IntConsumer onGuestJoined, java.time.Duration limit) throws IOException {
         if (playerCount < 2) {
             throw new IllegalArgumentException("a network game needs at least two players");
         }
         var spec = scenarioSpec == null ? "" : scenarioSpec;
+        int millis = millis(limit);
         Map<Integer, Socket> guests = new LinkedHashMap<>();
         Map<Integer, InetSocketAddress> listening = new LinkedHashMap<>();
         try {
-            for (int index = HOST_PLAYER_INDEX + 1; index <= playerCount; index++) {
+            int index = HOST_PLAYER_INDEX + 1;
+            while (index <= playerCount) {
                 var socket = server.accept();
-                var hello = readLine(socket);
+                String hello;
+                try {
+                    socket.setSoTimeout(millis);
+                    hello = readLine(socket);
+                    socket.setSoTimeout(0);
+                } catch (java.net.SocketTimeoutException silent) {
+                    closeQuietly(socket); // said nothing in time: its seat is kept for the next to come
+                    continue;
+                }
                 if (hello == null || !hello.startsWith("DUKE-JOIN")) {
                     socket.close();
                     throw new IOException("unexpected handshake from guest: " + hello);
@@ -210,9 +229,10 @@ public final class MultiplayerSession implements AutoCloseable {
                 if (onGuestJoined != null) {
                     onGuestJoined.accept(guests.size());
                 }
+                index++;
             }
             var peers = new StringBuilder("DUKE-PEERS");
-            listening.forEach((index, where) -> peers.append(' ').append(index).append('=')
+            listening.forEach((seat, where) -> peers.append(' ').append(seat).append('=')
                     .append(where.getAddress().getHostAddress()).append(':').append(where.getPort()));
             for (var socket : guests.values()) {
                 write(socket, peers.toString());
@@ -236,37 +256,55 @@ public final class MultiplayerSession implements AutoCloseable {
 
     /** Join a hosted game at {@code host:port}. Blocks until the host starts it. */
     public static MultiplayerSession join(String host, int port) throws IOException {
+        return join(host, port, java.time.Duration.ZERO);
+    }
+
+    /**
+     * The same, the connection and each line of the handshake awaited no longer than {@code limit} — the welcome at
+     * once, the start once every other guest has arrived — or an {@link IOException}: a host that took the connection
+     * and then said nothing, hung or gone without the connection being reset, held the join for good. A lobby that
+     * waits long for its players gives a limit to match; {@code Duration.ZERO} is none.
+     */
+    public static MultiplayerSession join(String host, int port, java.time.Duration limit) throws IOException {
+        int millis = millis(limit);
         var listening = new ServerSocket(0); // should it ever have to relay
-        var socket = new Socket(host, port);
-        write(socket, "DUKE-JOIN " + listening.getLocalPort());
-        var welcome = readLine(socket);
-        if (welcome == null || !welcome.startsWith("DUKE-WELCOME")) {
-            socket.close();
+        var socket = new Socket();
+        String welcome;
+        String go;
+        Map<Integer, InetSocketAddress> peers = new LinkedHashMap<>();
+        try {
+            socket.connect(new InetSocketAddress(host, port), millis);
+            socket.setSoTimeout(millis);
+            write(socket, "DUKE-JOIN " + listening.getLocalPort());
+            welcome = readLine(socket);
+            if (welcome == null || !welcome.startsWith("DUKE-WELCOME")) {
+                throw new IOException("host refused: " + welcome);
+            }
+            go = readLine(socket); // until every other guest has arrived
+            if (go != null && go.startsWith("DUKE-PEERS")) {
+                for (var one : go.trim().split("\\s+")) {
+                    int equals = one.indexOf('=');
+                    int colon = one.lastIndexOf(':');
+                    if (equals > 0 && colon > equals) {
+                        peers.put(Integer.parseInt(one.substring(0, equals)), new InetSocketAddress(
+                                one.substring(equals + 1, colon), Integer.parseInt(one.substring(colon + 1))));
+                    }
+                }
+                go = readLine(socket);
+            }
+            if (go == null || !go.startsWith("DUKE-START")) {
+                throw new IOException("host closed the lobby: " + go);
+            }
+            socket.setSoTimeout(0); // lock-step reads wait as long as a peer takes
+        } catch (IOException e) {
+            closeQuietly(socket);
             listening.close();
-            throw new IOException("host refused: " + welcome);
+            throw e instanceof java.net.SocketTimeoutException
+                    ? new IOException("the host said nothing for " + millis + " ms", e) : e;
         }
         var parts = welcome.trim().split("\\s+");
         int assigned = Integer.parseInt(parts[1]);
         int playerCount = Integer.parseInt(parts[2]);
-
-        Map<Integer, InetSocketAddress> peers = new LinkedHashMap<>();
-        var go = readLine(socket); // blocks until every other guest has arrived
-        if (go != null && go.startsWith("DUKE-PEERS")) {
-            for (var one : go.trim().split("\\s+")) {
-                int equals = one.indexOf('=');
-                int colon = one.lastIndexOf(':');
-                if (equals > 0 && colon > equals) {
-                    peers.put(Integer.parseInt(one.substring(0, equals)), new InetSocketAddress(
-                            one.substring(equals + 1, colon), Integer.parseInt(one.substring(colon + 1))));
-                }
-            }
-            go = readLine(socket);
-        }
-        if (go == null || !go.startsWith("DUKE-START")) {
-            socket.close();
-            listening.close();
-            throw new IOException("host closed the lobby: " + go);
-        }
 
         var session = new MultiplayerSession(
                 SocketTransport.wrap(socket, CommandCodec.INSTANCE, HOST_PLAYER_INDEX),
@@ -379,6 +417,11 @@ public final class MultiplayerSession implements AutoCloseable {
      */
     boolean beforeStep(RtsLogic logic) {
         return gate.beforeStep(logic);
+    }
+
+    /** A limit as a socket's timeout: none for zero. */
+    private static int millis(java.time.Duration limit) {
+        return limit == null ? 0 : (int) Math.clamp(limit.toMillis(), 0L, Integer.MAX_VALUE);
     }
 
     private static void write(Socket socket, String line) throws IOException {
