@@ -384,6 +384,7 @@ final class DukeRtsApp extends SimpleApplication {
     private FloatingNumbers hitNumbers;
     /** Texts floated up from points of the world — see {@link FloatingTexts}. */
     private FloatingTexts floatingTexts;
+    private PictureStrips pictureStrips;
     private final HealthWatch healthWatch = new HealthWatch();
 
     /**
@@ -647,6 +648,11 @@ final class DukeRtsApp extends SimpleApplication {
         modelMarks = new ModelMarks(markerNode, this::loadMarkModel);
         hitNumbers = new FloatingNumbers(guiFont, guiNode, visuals.getHitNumbers());
         floatingTexts = new FloatingTexts(guiFont, guiNode, visuals.getFloatingText());
+        pictureStrips = new PictureStrips(guiNode, this::stripPicture, visuals::stripNamed, picture -> {
+            var look = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+            look.setTexture("ColorMap", picture);
+            return look;
+        });
         // The display face a boss's name is set in is the one the game already
         // named for its menus. A second field naming the same file would be a
         // second thing to keep in step with it, for no second decision.
@@ -1274,6 +1280,7 @@ final class DukeRtsApp extends SimpleApplication {
         syncHitNumbers(now);
         // Where the player's view of the point is clear, and nowhere else — the reference's fog test for its texts.
         floatingTexts.update(snapshot.frame(), cam, (x, y) -> discovery == null || discovery.canSee(x, y));
+        pictureStrips.update(snapshot.frame(), cam, (x, y) -> discovery == null || discovery.canSee(x, y));
     }
 
     /**
@@ -2989,6 +2996,7 @@ final class DukeRtsApp extends SimpleApplication {
         stealthLook.clear();
         hitNumbers.clear();
         floatingTexts.clear();
+        pictureStrips.clear();
         unitBars.clear();
         healthWatch.forget(); // new creatures, new ids; nobody here was just hit
         camera.requestOwnUnit(); // his units are somewhere else entirely now
@@ -5116,6 +5124,20 @@ final class DukeRtsApp extends SimpleApplication {
                 && !discovery.canSee(view.x(), view.y());
     }
 
+    /** A strip's picture by its whole path, or null where it will not load — said once. */
+    private com.jme3.texture.Texture stripPicture(String path) {
+        try {
+            return assetManager.loadTexture(path);
+        } catch (RuntimeException notThere) {
+            if (missingStripPictures.add(path)) {
+                LOG.warning(() -> "a picture strip names a picture that will not load: " + path);
+            }
+            return null;
+        }
+    }
+
+    private final java.util.Set<String> missingStripPictures = new java.util.HashSet<>();
+
     /**
      * An effect the simulation played: the moment of that name, or else the game's effect list, effect or particle
      * system of that name — riding the thing it names where it names one it can draw. A name the game has none of
@@ -5262,6 +5284,8 @@ final class DukeRtsApp extends SimpleApplication {
                 }
             } else if (event instanceof uz.dukeengine.core.event.TextFloated text) {
                 floatingTexts.add(text, text.frame());
+            } else if (event instanceof uz.dukeengine.core.event.StripPlayed strip) {
+                pictureStrips.add(strip, strip.frame());
             } else if (event instanceof uz.dukeengine.core.event.EffectPlayed played) {
                 played(played);
             } else if (event instanceof ShotLanded landed && landed.weapon() != null) {

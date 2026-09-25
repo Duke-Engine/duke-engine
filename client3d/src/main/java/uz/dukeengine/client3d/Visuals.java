@@ -1949,6 +1949,39 @@ public final class Visuals {
      * frame of the game, its colour kept {@code hold} frames, then {@code int(k × fade)} of its alpha lost on the k-th
      * frame after. Left alone, the reference's: 1, 10 and 0.1, so an alpha of 230 is gone 82 frames after it appeared.
      */
+    /**
+     * A strip of pictures the simulation plays at a point of the world by name ({@code World.strip}) — the reference's
+     * {@code Animation2d}: its pictures in order, whole paths from the resource root, each shown {@code frameMillis}
+     * of the game's time, round again or held on the last.
+     */
+    public record Strip(java.util.List<String> frames, int frameMillis, boolean loop) {
+
+        public Strip {
+            frames = frames == null ? java.util.List.of() : java.util.List.copyOf(frames);
+        }
+
+        /** The picture shown {@code seconds} into the strip. */
+        String frameAt(float seconds) {
+            if (frames.isEmpty()) {
+                return null;
+            }
+            int step = (int) Math.floor(seconds * 1000f / Math.max(1, frameMillis));
+            return frames.get(loop ? Math.floorMod(step, frames.size()) : Math.clamp(step, 0, frames.size() - 1));
+        }
+    }
+
+    private final java.util.Map<String, Strip> strips = new java.util.HashMap<>();
+
+    /** The strip of pictures played by that name — see {@link Strip}. */
+    public Visuals strip(String name, java.util.List<String> frames, int frameMillis, boolean loop) {
+        strips.put(name, new Strip(frames, frameMillis, loop));
+        return this;
+    }
+
+    Strip stripNamed(String name) {
+        return name == null ? null : strips.get(name);
+    }
+
     public Visuals floatingText(float rise, int hold, float fade) {
         this.floatingText = new FloatingTexts.Look(rise, hold, fade);
         return this;

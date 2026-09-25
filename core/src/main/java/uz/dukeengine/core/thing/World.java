@@ -282,6 +282,15 @@ public interface World {
     default void endBeam(int beam) {
     }
 
+    /**
+     * Play the game's picture strip of that name at a point, for {@code seconds}, rising {@code rise} over them and
+     * fading as they end — see {@link uz.dukeengine.core.event.StripPlayed}: shown where its player sees the point. An
+     * event, so out of the checksum.
+     */
+    default void strip(String name, uz.dukeengine.core.math.Coord3D where, float seconds, float rise) {
+        post(new uz.dukeengine.core.event.StripPlayed(getFrame(), name, where, seconds, rise));
+    }
+
     /** Play the effect of that name riding {@code thing}, from where it stands and turned the way it faces. */
     default void effect(String name, GameObject thing) {
         post(new uz.dukeengine.core.event.EffectPlayed(getFrame(), name, thing.getPosition(), thing.getOrientation(),
