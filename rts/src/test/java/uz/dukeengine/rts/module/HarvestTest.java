@@ -830,6 +830,91 @@ class HarvestTest {
         assertEquals(999, farPile.findModule(SupplyModule.class).getRemaining(), "and the third at the far one");
     }
 
+    // ---- where it waits and acts ----
+
+    /**
+     * A flier whose pile names its middle as the place it acts at loads over the middle; its depot names a place to
+     * wait at and one to act at 47 in from it — the reference's supply centre, DOCKWAITING01 and DOCKACTION: it waits
+     * there, flies in, and is paid there.
+     */
+    @Test
+    void aFlierLoadsOverThePilesMiddleAndIsPaidWhereTheDepotActsAfterWaitingAtItsPlace() {
+        var middle = new Dock.Place(null, 0f, 0f);
+        var pile = spawnAt(kind("Warehouse", new SupplyModule.Data(1000, new Dock(0, null, middle))), 500f, 100f);
+        spawnAt(kind("Centre", new SupplyDepot.Data(new Dock(0, new Dock.Place(null, 0f, 67f),
+                new Dock.Place(null, 0f, 20f)))), 100f, 100f);
+        var chinook = spawnAt(kind("Chinook", new ActiveBody.Data(100f),
+                new uz.dukeengine.core.module.FlyUpdate.Data(uz.dukeengine.core.module.FlyUpdate.Kind.HOVERING,
+                        60f, 0f, 0f, 0f, 0f, 50f, 0f),
+                new HarvestUpdate.Data(100, 10, 0f)), 300f, 100f);
+        var waitAt = new Coord3D(100f, 167f, 0f);
+        var actAt = new Coord3D(100f, 120f, 0f);
+
+        float loadedAway = -1f;
+        float paidAway = -1f;
+        boolean waitedThere = false;
+        int carried = 0;
+        for (int frame = 0; frame < 3000 && paidAway < 0f; frame++) {
+            logic.update();
+            var at = chinook.getPosition();
+            int carrying = chinook.findModule(HarvestUpdate.class).getCarrying();
+            if (carrying > carried) {
+                loadedAway = (float) Math.hypot(at.x() - pile.getPosition().x(), at.y() - pile.getPosition().y());
+            }
+            carried = carrying;
+            waitedThere |= carrying > 0 && Math.hypot(at.x() - waitAt.x(), at.y() - waitAt.y()) <= 1.01;
+            if (logic.getRtsPlayer(usa).getMoney() > 0) {
+                paidAway = (float) Math.hypot(at.x() - actAt.x(), at.y() - actAt.y());
+            }
+        }
+
+        assertTrue(loadedAway >= 0f && loadedAway <= 1.01f, "loaded over the pile's middle: " + loadedAway);
+        assertTrue(waitedThere, "came to the place it waits at");
+        assertTrue(paidAway >= 0f && paidAway <= 1.01f, "and was paid where the depot acts: " + paidAway);
+    }
+
+    /**
+     * A truck, 34 long, working a pile and a depot 50 apart that name places to act at on their far sides: it goes
+     * from one to the other on every trip, where standing beside both it banked without moving.
+     */
+    @Test
+    void aTruckBetweenAPileAndADepotFiftyApartMovesOnEveryTrip() {
+        logic.setPathGrid(new PathGrid(60, 60));
+        var pile = spawnAt(kind("Warehouse", new SupplyModule.Data(100_000,
+                new Dock(0, null, new Dock.Place(null, -25f, 0f)))), 200f, 200f);
+        spawnAt(kind("Centre", new SupplyDepot.Data(new Dock(0, null, new Dock.Place(null, 25f, 0f)))), 250f, 200f);
+        var truck = RtsTemplate.named("Truck").geometry(new Geometry.Box(17f, 7f, 10f))
+                .module(new ActiveBody.Data(100f)).module(new MoveUpdate.Data(30f))
+                .module(new HarvestUpdate.Data(100, 10, 0f, 5, 0, 0, false, java.util.List.of(), 0, 0)).build();
+        thingFactory.addTemplate(truck);
+        var worker = spawnAt(truck, 225f, 230f);
+
+        var loadedAt = new java.util.ArrayList<Coord3D>();
+        var paidAt = new java.util.ArrayList<Coord3D>();
+        int carried = 0;
+        int money = 0;
+        for (int frame = 0; frame < 3000 && paidAt.size() < 3; frame++) {
+            logic.update();
+            int carrying = worker.findModule(HarvestUpdate.class).getCarrying();
+            if (carrying > carried) {
+                loadedAt.add(worker.getPosition());
+            }
+            carried = carrying;
+            int now = logic.getRtsPlayer(usa).getMoney();
+            if (now > money) {
+                paidAt.add(worker.getPosition());
+            }
+            money = now;
+        }
+
+        assertEquals(3, paidAt.size(), "three trips: loaded at " + loadedAt + ", paid at " + paidAt);
+        for (int trip = 0; trip < 3; trip++) {
+            assertTrue(loadedAt.get(trip).distance(paidAt.get(trip)) > 40f,
+                    "trip " + trip + " went from one to the other: " + loadedAt.get(trip) + " to " + paidAt.get(trip));
+        }
+        assertTrue(pile.findModule(SupplyModule.class).getRemaining() < 100_000);
+    }
+
     // ---- needing a depot ----
 
     /**

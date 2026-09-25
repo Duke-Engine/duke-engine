@@ -50,7 +50,9 @@ import uz.dukeengine.rts.player.RtsPlayer;
  *
  * <p><b>Docks.</b> A pile or a depot that names a {@link Dock} takes one harvester at a time: the others wait by it
  * and are let in in the order of their places, one let in counting its {@code FramesBeforeActs} from then, and out the
- * frame after its last act.
+ * frame after its last act. Where it names a place to wait at and a place to act at, a harvester goes to the one, and,
+ * let in, to the other, by its own movement, and loads or banks only there — from one to the other however near
+ * each other a pile and a depot stand.
  *
  * @param loadPerTrip   how much it carries in one go
  * @param framesPerTrip how long loading takes, once it is standing at the pile — unless it loads a unit at a
@@ -153,6 +155,13 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
     /** The pile or depot whose dock it waits by or is in, and the frame it began to wait there. */
     private GameObject docksAt;
     private int waitingSince;
+    /** Whether, let in, it has been sent to the place it acts at. */
+    private boolean sentIn;
+
+    /** Where a harvester stands at a dock that names a place to act at: there, on its way, or moved off. */
+    private enum InPlace {
+        THERE, GOING, OFF
+    }
 
     /** How long a harvester waits by a dock before it gives up and looks again: the reference's 30 seconds. */
     private static final int GIVE_UP_FRAMES = 30 * GameConstants.LOGICFRAMES_PER_SECOND;
@@ -194,6 +203,7 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
     private boolean doneActing(Doing next) {
         if (afterLeft < 0) {
             afterLeft = framesAfterActs;
+            sentIn = false;
             outOfTheDock(); // the next let in the frame after its last act; its time after it stands outside
         }
         if (afterLeft > 0) {
@@ -309,6 +319,83 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
             sent = false;
         }
         return false;
+    }
+
+    /**
+     * Walked to {@code there} for its dock: to the place it names to wait at, where it names one, else beside it.
+     * Whether it has come.
+     */
+    private boolean walkToTheDock(GameObject owner, GameObject there) {
+        var docking = dockOf(there);
+        var wait = docking == null ? null : docking.waitingPlace();
+        if (wait == null) {
+            return walkTo(owner, there);
+        }
+        var legs = owner.getLocomotor();
+        if (legs == null || there == reached) {
+            return true;
+        }
+        if (near(owner, wait)) {
+            if (legs.isMoving()) {
+                legs.stop();
+            }
+            return arrived(there);
+        }
+        if (legs.isMoving()) {
+            return false;
+        }
+        if (sent) {
+            return arrived(there); // it went, and stopped: as near as it gets — the ground's own block round the place
+        }
+        legs.moveTo(wait);
+        sent = true;
+        return false;
+    }
+
+    /**
+     * Let in at {@code there}: whether it is at the place it acts at — sent there the first time it is asked — on its
+     * way, or moved off it. Beside it, for a dock that names no such place, or none.
+     */
+    private InPlace inPlace(GameObject owner, GameObject there, World world) {
+        var legs = owner.getLocomotor();
+        if (legs == null) {
+            return InPlace.THERE;
+        }
+        if (there == null) {
+            return InPlace.OFF;
+        }
+        var docking = dockOf(there);
+        var act = docking == null ? null : docking.actingPlace();
+        if (act == null && docking != null && docking.waitingPlace() != null) {
+            return InPlace.THERE; // no place to act at: it acts where it waited
+        }
+        if (act == null) {
+            return world.isBeside(owner, there) ? InPlace.THERE : InPlace.OFF;
+        }
+        if (near(owner, act)) {
+            if (legs.isMoving()) {
+                legs.stop();
+            }
+            return InPlace.THERE;
+        }
+        if (legs.isMoving()) {
+            return sentIn ? InPlace.GOING : InPlace.OFF;
+        }
+        if (!sentIn) {
+            legs.moveExactlyTo(act);
+            sentIn = true;
+            return InPlace.GOING;
+        }
+        return InPlace.THERE; // it went, and stopped: as near as it gets
+    }
+
+    /** Whether it stands over {@code point}, within its close-enough distance, or 1. */
+    private static boolean near(GameObject owner, uz.dukeengine.core.math.Coord3D point) {
+        var legs = owner.getLocomotor();
+        float close = Math.max(1f, legs == null ? 0f : legs.closeEnough()) + 1e-3f;
+        float dx = owner.getPosition().x() - point.x();
+        float dy = owner.getPosition().y() - point.y();
+        return dx * dx + dy * dy <= close * close;
     }
 
     /** Whether {@code there} has room for it: a place by its dock, or it takes any number at once. */
@@ -447,13 +534,14 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
         if (pile == null) {
             return; // nothing left within reach — idle
         }
-        if (walkTo(owner, pile)) {
+        if (walkToTheDock(owner, pile)) {
             if (!letIn(owner, pile, world)) {
                 return; // waiting its turn by it
             }
             doing = Doing.LOADING;
             elapsed = 0;
             atPile = pile;
+            sentIn = false;
             beforeLeft = framesBeforeActs;
             afterLeft = -1;
         }
@@ -464,7 +552,8 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
             doneActing(carrying > 0 ? Doing.RETURNING : Doing.FETCHING); // standing out its time after its last act
             return;
         }
-        if (owner.getLocomotor() != null && (atPile == null || !world.isBeside(owner, atPile))) {
+        var where = inPlace(owner, atPile, world);
+        if (where == InPlace.OFF) {
             leaveTheDock();
             atPile = null; // moved off it: nothing more is taken until it is beside a pile again
             elapsed = 0;
@@ -472,8 +561,8 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
             doing = Doing.FETCHING;
             return;
         }
-        if (standingBefore()) {
-            return;
+        if (standingBefore() || where == InPlace.GOING) {
+            return; // its time before its acts counts from being let in; the acts are only where it acts
         }
         if (framesPerUnit > 0) {
             loadAUnitAtATime();
@@ -538,17 +627,19 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
             retryIn--;
             return; // its last trip ended short: a second before it sets off again
         }
-        if (depot != null && (!walkTo(owner, depot) || !letIn(owner, depot, world))) {
+        if (depot != null && (!walkToTheDock(owner, depot) || !letIn(owner, depot, world))) {
             elapsed = 0; // on its way, or waiting its turn by it: the wait at the depot starts when it is let in
             beforeLeft = framesBeforeActs;
             afterLeft = -1;
+            sentIn = false;
             return;
         }
         if (afterLeft >= 0) {
             doneActing(Doing.FETCHING); // banked: standing out its time before it sets off again
             return;
         }
-        if (depot != null && owner.getLocomotor() != null && !world.isBeside(owner, depot)) {
+        var where = depot == null ? InPlace.THERE : inPlace(owner, depot, world);
+        if (where == InPlace.OFF) {
             // Its trip ended somewhere else — sent away, or a way that ends short: it keeps what it carries.
             leaveTheDock();
             reached = null;
@@ -557,8 +648,8 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
             retryIn = RETRY_FRAMES;
             return;
         }
-        if (depot != null && standingBefore()) {
-            return;
+        if (depot != null && standingBefore() || where == InPlace.GOING) {
+            return; // its time before banking counts from being let in; it banks only where it acts
         }
         if (depot != null && ++elapsed < framesAtDepot) {
             return; // standing at it while it unloads

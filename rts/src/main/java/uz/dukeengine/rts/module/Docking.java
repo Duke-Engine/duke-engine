@@ -11,6 +11,7 @@ import uz.dukeengine.core.thing.ObjectId;
 final class Docking {
 
     private final GameObject owner;
+    private final Dock dock;
     private final int waitingPlaces;
     /** The harvester let in, or null. */
     private ObjectId in;
@@ -23,7 +24,18 @@ final class Docking {
 
     Docking(GameObject owner, Dock dock) {
         this.owner = owner;
+        this.dock = dock;
         this.waitingPlaces = dock.waitingPlaces();
+    }
+
+    /** Where its harvesters wait, in the world; null for beside it. */
+    uz.dukeengine.core.math.Coord3D waitingPlace() {
+        return dock.waitAt() == null ? null : dock.waitAt().in(owner);
+    }
+
+    /** Where the one let in loads or banks, in the world; null for where it waited. */
+    uz.dukeengine.core.math.Coord3D actingPlace() {
+        return dock.actAt() == null ? null : dock.actAt().in(owner);
     }
 
     /** Whether {@code harvester} is in, has a place by it, or may have one: a place free, or any number. */
