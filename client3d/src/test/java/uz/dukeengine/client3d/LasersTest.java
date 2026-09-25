@@ -23,6 +23,26 @@ class LasersTest {
     private static final Laser ORBITAL = new Laser("OrbitalBeam", 12, 0.6f, 26f, 0xFAFFFFFF, 0x960000FF, null,
             -1.75f, true, 0.15f, 1, 0f, 0f);
 
+    /**
+     * Its picture tiled as the reference's line holds it: a tiling scalar of -3 is drawn untiled, and the orbital
+     * beam's innermost line, 500 over 0.6 times 0.15 — 125 — is tiled 50 times.
+     */
+    @Test
+    void aLinesTilesAreHeldBetweenNoneAndFifty() {
+        var pictured = new Laser("OrbitalBeam", 12, 0.6f, 26f, 0xFAFFFFFF, 0x960000FF, "textures/beam.png", -1.75f,
+                true, 0.15f, 1, 0f, 0f);
+        var innermost = Lasers.lay(pictured, new Coord3D(0f, 0f, 500f), new Coord3D(0f, 0f, 0f), 1f, 1f, FLAT)
+                .getLast();
+        assertEquals(0.6f, innermost.width(), 1e-6f);
+        assertEquals(50f, innermost.tiles(), "125 held to 50");
+
+        var backwards = new Laser("Beacon", 1, 2f, 2f, 0xFFFFFFFF, 0xFFFFFFFF, "textures/beam.png", 0f, true, -3f, 1,
+                0f, 0f);
+        assertEquals(-3f, backwards.tilingScalar(), "kept as written");
+        assertEquals(0f, Lasers.lay(backwards, new Coord3D(0f, 0f, 0f), new Coord3D(100f, 0f, 0f), 1f, 1f, FLAT)
+                .getFirst().tiles(), "and drawn untiled");
+    }
+
     @Test
     void aBeamFromHighUpToTheGroundIsLaidUpright() {
         var lines = Lasers.lay(ORBITAL, new Coord3D(100f, 200f, 500f), new Coord3D(100f, 200f, 0f), 1f, 1f, FLAT);

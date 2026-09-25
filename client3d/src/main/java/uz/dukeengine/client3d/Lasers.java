@@ -74,11 +74,22 @@ final class Lasers {
             for (int beam = look.numBeams() - 1; beam >= 0; beam--) {
                 float width = widthOf(look, beam) * share;
                 float tiles = look.texture() != null && look.tile() && width > 0f
-                        ? a.distance(b) / width * aspect * look.tilingScalar() : 1f;
+                        ? tiles(a.distance(b) / width * aspect * look.tilingScalar()) : 1f;
                 lines.add(new Line(a, b, width, colourOf(look, beam), tiles));
             }
         }
         return lines;
+    }
+
+    /** {@code SegLineRendererClass::Set_Texture_Tile_Factor}'s {@code MAX_LINE_TILING_FACTOR}. */
+    static final float MOST_TILES = 50f;
+
+    /**
+     * How many times a line's picture is tiled along it, as the reference's line holds it: never more than {@link
+     * #MOST_TILES}, never fewer than none — a picture tiled no times is stretched untiled along it.
+     */
+    static float tiles(float count) {
+        return Math.clamp(count, 0f, MOST_TILES);
     }
 
     /** A point {@code along} the line, raised by the arc's cosine — highest in the middle — and never under the floor. */
