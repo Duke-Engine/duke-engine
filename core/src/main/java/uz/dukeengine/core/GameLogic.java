@@ -989,6 +989,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
 
     private void clearState() {
         objects.clear();
+        objectsCopy = null;
         revealedTo.clear();
         beams.clear();
         ridingEffects.clear();
@@ -1116,6 +1117,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             return;
         }
         objects.removeAll(leaving);
+        objectsCopy = null;
         staticObstaclesDirty = true; // a demolished building reopens its ground
         if (!ridingEffects.isEmpty()) {
             var gone = new java.util.HashSet<ObjectId>();
@@ -1185,6 +1187,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         var object = thingFactory.newObject(template, new ObjectId(nextObjectId++));
         object.setWorld(this);
         objects.add(object);
+        objectsCopy = null;
         staticObstaclesDirty = true;
         return object;
     }
@@ -1248,6 +1251,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     /** Remove every object — used when loading a saved game over this world. */
     public final void clearWorld() {
         objects.clear();
+        objectsCopy = null;
     }
 
     public final void setFrame(int frame) {
@@ -1264,6 +1268,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         object.restored();
         object.setWorld(this);
         objects.add(object);
+        objectsCopy = null;
         return object;
     }
 
@@ -1277,11 +1282,23 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return null;
     }
 
-    /** Live objects, in creation order. Unmodifiable snapshot. */
+    /**
+     * Live objects, in creation order. Unmodifiable snapshot: the world may change while it is walked. The same copy
+     * until the objects next change, rather than a copy for every caller — the frame's own walks and every partition
+     * query read it, and copying the list for each was a sixteenth of a busy frame.
+     */
     @Override
     public final List<GameObject> getObjects() {
-        return List.copyOf(objects);
+        var copy = objectsCopy;
+        if (copy == null) {
+            copy = List.copyOf(objects);
+            objectsCopy = copy;
+        }
+        return copy;
     }
+
+    /** The copy {@link #getObjects} hands out, or null once the objects have changed since it was made. */
+    private List<GameObject> objectsCopy;
 
     public final int getObjectCount() {
         return objects.size();

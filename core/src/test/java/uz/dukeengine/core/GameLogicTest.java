@@ -70,4 +70,26 @@ class GameLogicTest {
         logic.setGamePaused(true);
         assertTrue(logic.isGamePaused());
     }
+
+    /** One copy of the objects for every walk until they change: the frame's walks and the partition's queries share it. */
+    @Test
+    void theObjectsAreCopiedOnceUntilTheyChange() {
+        var factory = new uz.dukeengine.core.thing.ThingFactory(uz.dukeengine.core.module.ModuleFactory.withDefaults());
+        var rock = uz.dukeengine.core.thing.ThingTemplate.named("Rock").build();
+        factory.addTemplate(rock);
+        var logic = new GameLogic(factory) {
+            @Override
+            protected void simulate() {
+            }
+        };
+        logic.init();
+        logic.createObject(rock);
+
+        var first = logic.getObjects();
+        assertTrue(first == logic.getObjects(), "the same copy, nothing having changed");
+        logic.createObject(rock);
+        var second = logic.getObjects();
+        assertEquals(1, first.size(), "a copy handed out stays as it was");
+        assertEquals(2, second.size(), "and a new one after a change");
+    }
 }
