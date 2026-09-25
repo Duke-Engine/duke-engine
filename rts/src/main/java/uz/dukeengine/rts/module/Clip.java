@@ -82,6 +82,19 @@ final class Clip {
         wait = shortened(random.nextInt(leastDelay, mostDelay), rateOfFire);
     }
 
+    /**
+     * At least {@code share} of it full, rounded down — a jet on its pad for part of its reload — and ready now if
+     * that is any rounds at all. A clip with more already keeps them.
+     */
+    void refill(float share) {
+        rounds = Math.max(rounds, (int) Math.floor(size * share));
+        if (rounds > 0) {
+            out = false;
+            reloading = false;
+            wait = 0;
+        }
+    }
+
     /** Full, and ready now — a landing at base, a crate. */
     void refill() {
         rounds = size;

@@ -250,6 +250,20 @@ public final class WeaponUpdate extends UpdateModule {
     }
 
     /**
+     * Fill each clip it has to at least {@code share} of its rounds, rounded down, and make it ready if that is any
+     * at all — the reference's jets refilled on their pads in proportion to the time there: a Raptor's clip of 4 is 2
+     * after half its reload. A clip holding more keeps what it has; a weapon with no clip is left as it is.
+     */
+    public void refill(float share) {
+        for (var armed : inPlace) {
+            armed.clip().refill(share);
+        }
+        for (var clip : clips.values()) {
+            clip.refill(share);
+        }
+    }
+
+    /**
      * Order it to engage {@code target} — refused, and whatever it was doing kept, when the target is
      * something none of its weapons may be fired at ({@link #canFireAt}).
      *
@@ -382,17 +396,23 @@ public final class WeaponUpdate extends UpdateModule {
         // A shot was fired either way — the reload runs and the moment is
         // announced — but whether it lands now is the launcher's to decide.
         boolean inFlight = handOver(owner, victim, shot);
-        if (!inFlight) {
+        boolean thrownOff = offsetOf(victim) != null;
+        if (!inFlight && !thrownOff) {
             victim.getBody().damage(shot.damage(), weapon.damageType(), blow(shot), middleOf(victim),
                     owner.getPosition()); // scaled by its armour
         }
         chosen.clip().fired(world.random(), rateOfFire(owner, weapon));
         world.post(new WeaponFired(world.getFrame(), owner.getId(), victim.getId(),
-                owner.getPosition(), victim.getPosition(), weapon.name(), chosen.index(),
+                owner.getPosition(), aimPoint(victim), weapon.name(), chosen.index(),
                 weapon.attackRange() * CONTACT_FUDGE < world.cellSize(), shot.radius()));
 
         if (inFlight) {
             return; // nothing has been hit yet; the blast and the kill wait for land()
+        }
+        if (thrownOff) {
+            var point = aimPoint(victim); // it missed: only its blast, round where it was aimed, may hurt the thing
+            struck(world, shot, owner, null, point, point, owner.getPosition());
+            return;
         }
         struck(world, shot, owner, victim, victim.getPosition(), middleOf(victim), owner.getPosition());
         if (victim.isEffectivelyDead()) {
@@ -416,12 +436,32 @@ public final class WeaponUpdate extends UpdateModule {
     public static void land(uz.dukeengine.core.thing.World world, Shot shot, GameObject victim, Coord3D where,
             Coord3D from) {
         var shooter = world.findObject(shot.shooter());
-        var hit = victim == null || victim.isEffectivelyDead() || victim.getBody() == null ? null : victim;
+        var hit = victim == null || victim.isEffectivelyDead() || victim.getBody() == null || offsetOf(victim) != null
+                ? null : victim;
         if (hit != null) {
             hit.getBody().damage(shot.damage(), shot.weapon().damageType(), blow(shot), middleOf(hit),
                     from == null ? where : from);
         }
         struck(world, shot, shooter, hit, where, where, from == null ? where : from);
+    }
+
+    /**
+     * Where a shot at {@code victim} is aimed: at the thing, or where an {@link AimOffset} of its throws the aim —
+     * what a launcher carrying a shot flies to, a shot at a thing that has one landing its blast there alone.
+     */
+    public static Coord3D aimPoint(GameObject victim) {
+        var offset = offsetOf(victim);
+        return offset == null ? victim.getPosition() : victim.getPosition().add(offset);
+    }
+
+    /** The first aim offset a module of {@code victim} gives now, or null. */
+    private static Coord3D offsetOf(GameObject victim) {
+        for (var module : victim.getModules()) {
+            if (module instanceof AimOffset thrower && thrower.aimOffset() != null) {
+                return thrower.aimOffset();
+            }
+        }
+        return null;
     }
 
     /** Halfway up a thing: where a shot that hit it at once is drawn landing. */

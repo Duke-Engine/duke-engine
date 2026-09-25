@@ -124,6 +124,24 @@ class WeaponClipTest {
         assertEquals(4, shooting.shots().size(), "a full clip again");
     }
 
+    /** A Raptor sent off half way through its reload on its pad has half its clip, as the reference refills it. */
+    @Test
+    void aPartRefillFillsItToAtLeastItsShareAndMakesItReady() {
+        var shooting = shooting(clip(4, 3, 0, 240, false));
+        shooting.run(100);
+        assertEquals(WeaponStatus.OUT, shooting.weapon().getStatus());
+
+        shooting.weapon().refill(0.5f);
+        assertEquals(2, shooting.weapon().getRounds(), "half of four");
+        assertEquals(WeaponStatus.READY, shooting.weapon().getStatus());
+
+        shooting.weapon().refill(0.25f);
+        assertEquals(2, shooting.weapon().getRounds(), "a clip holding more keeps it");
+
+        shooting.weapon().refill(1f);
+        assertEquals(4, shooting.weapon().getRounds());
+    }
+
     @Test
     void itSaysWhereItStands() {
         var shooting = shooting(clip(2, 3, 0, 30, true));
