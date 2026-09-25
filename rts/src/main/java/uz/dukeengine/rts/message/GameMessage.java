@@ -48,11 +48,24 @@ public sealed interface GameMessage extends Command
     /**
      * Order the given units to attack a target object — {@code forced}, the player's forced attack, taken on a thing
      * passing itself off to their side as none of its targets ({@link uz.dukeengine.core.module.Disguise}).
+     *
+     * @param source who gave it, which decides the weapon slots it may pick ({@code WeaponSlot.autoChooseSources});
+     *               a player's where it names none
+     * @param slot   the slot of each unit's set in use its weapon is locked to until this attack is over or the
+     *               slot's clip is empty — the reference's {@code MSG_DO_WEAPON_AT_OBJECT}; -1, no lock, and any
+     *               lock until an attack is over let go
      */
-    record AttackObject(int playerIndex, List<ObjectId> units, ObjectId target, boolean forced)
-            implements GameMessage {
+    record AttackObject(int playerIndex, List<ObjectId> units, ObjectId target, boolean forced, OrderSource source,
+            int slot) implements GameMessage {
         public AttackObject {
             units = List.copyOf(units);
+            source = source == null || source == OrderSource.NONE ? OrderSource.PLAYER : source;
+            slot = Math.max(-1, slot);
+        }
+
+        /** A player's attack, with no lock: every attack from before one could say its source. */
+        public AttackObject(int playerIndex, List<ObjectId> units, ObjectId target, boolean forced) {
+            this(playerIndex, units, target, forced, OrderSource.PLAYER, -1);
         }
 
         /** An attack that is not forced, as every one was before one could be. */

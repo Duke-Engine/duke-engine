@@ -104,11 +104,11 @@ public abstract class UnitScript {
         }
     }
 
-    /** Engage a target (if the unit has a weapon). */
+    /** Engage a target (if the unit has a weapon), an order of the game's own. */
     protected final void attack(GameObject target) {
         var weapon = unit.findModule(WeaponUpdate.class);
         if (weapon != null) {
-            weapon.attack(target.getId());
+            weapon.attack(target.getId(), false, uz.dukeengine.rts.message.OrderSource.GAME);
         }
     }
 

@@ -42,6 +42,15 @@ class CommandCodecTest {
     }
 
     @Test
+    void anAttackSaysItsSourceAndTheSlotItLocksTo() {
+        assertRoundTrips(new CommandPacket(4, 2, List.of(
+                new GameMessage.AttackObject(2, List.of(new ObjectId(9)), new ObjectId(1), false,
+                        uz.dukeengine.rts.message.OrderSource.GAME, -1),
+                new GameMessage.AttackObject(2, List.of(new ObjectId(9)), new ObjectId(1), true,
+                        uz.dukeengine.rts.message.OrderSource.PLAYER, 1))));
+    }
+
+    @Test
     void researchAndCallingOffAQueuedThingRoundTrip() {
         assertRoundTrips(new CommandPacket(12, 1, List.of(
                 new GameMessage.QueueResearch(1, new ObjectId(4), "Upgrade_Armour"),

@@ -65,8 +65,12 @@ final class Clip {
         return rounds;
     }
 
-    /** A shot has been taken: count it, and start whichever wait follows it. */
-    void fired(LogicRandom random, float rateOfFire) {
+    /**
+     * A shot has been taken: count it, and start whichever wait follows it.
+     *
+     * @return whether it emptied the clip
+     */
+    boolean fired(LogicRandom random, float rateOfFire) {
         if (size > 0 && --rounds <= 0) {
             if (reloadsItself) {
                 rounds = size;
@@ -76,10 +80,11 @@ final class Clip {
                 out = true;
                 wait = 0;
             }
-            return;
+            return true;
         }
         reloading = false;
         wait = shortened(random.nextInt(leastDelay, mostDelay), rateOfFire);
+        return false;
     }
 
     /**

@@ -9,6 +9,7 @@ import uz.dukeengine.core.network.CommandPacket;
 import uz.dukeengine.core.network.PacketCodec;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.rts.message.OrderSource;
 
 /**
  * The RTS wire format: encodes a {@link CommandPacket} of {@link GameMessage}s
@@ -54,7 +55,9 @@ public final class CommandCodec implements PacketCodec {
                     + "," + Float.toString(m.destination().z())
                     + (m.click() ? ",click" : "");
             case GameMessage.AttackObject a -> "ATTACK," + a.playerIndex() + "," + ids(a.units())
-                    + "," + a.target().value() + (a.forced() ? ",forced" : "");
+                    + "," + a.target().value()
+                    + (a.source() == OrderSource.PLAYER && a.slot() < 0 ? (a.forced() ? ",forced" : "")
+                            : "," + (a.forced() ? "forced" : "") + "," + a.source().name() + "," + a.slot());
             case GameMessage.StopMoving s -> "STOP," + s.playerIndex() + "," + ids(s.units());
             case GameMessage.QueueProduction q -> "QUEUE," + q.playerIndex() + ","
                     + q.factory().value() + "," + q.unitTemplate();
@@ -121,7 +124,9 @@ public final class CommandCodec implements PacketCodec {
                     new Coord3D(Float.parseFloat(parts[3]), Float.parseFloat(parts[4]), Float.parseFloat(parts[5])),
                     parts.length > 6 && "click".equals(parts[6]));
             case "ATTACK" -> new GameMessage.AttackObject(player, parseIds(parts[2]),
-                    new ObjectId(Integer.parseInt(parts[3])), parts.length > 4 && "forced".equals(parts[4]));
+                    new ObjectId(Integer.parseInt(parts[3])), parts.length > 4 && "forced".equals(parts[4]),
+                    parts.length > 5 ? OrderSource.valueOf(parts[5]) : OrderSource.PLAYER,
+                    parts.length > 6 ? Integer.parseInt(parts[6]) : -1);
             case "STOP" -> new GameMessage.StopMoving(player, parseIds(parts[2]));
             case "QUEUE" -> new GameMessage.QueueProduction(player,
                     new ObjectId(Integer.parseInt(parts[2])), parts[3]);

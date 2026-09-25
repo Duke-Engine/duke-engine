@@ -140,7 +140,7 @@ final class RtsLogic extends RtsSimulation {
                     uz.dukeengine.rts.module.Errand.giveUpAll(unit);
                     var weapon = unit.findModule(WeaponUpdate.class);
                     if (weapon != null) {
-                        weapon.attack(attack.target(), attack.forced());
+                        attack(weapon, attack);
                     }
                 }
                 tellOrder(attack, attack.units(), attack.playerIndex()); // weaponless or not
@@ -205,6 +205,21 @@ final class RtsLogic extends RtsSimulation {
             case GameMessage.Evacuate evacuate -> uz.dukeengine.rts.module.ContainModule.evacuate(this, evacuate);
             case GameMessage.ExitContainer exit -> uz.dukeengine.rts.module.ContainModule.exit(this, exit);
             case GameMessage.GameOrder order -> ordered(order);
+        }
+    }
+
+    /**
+     * An attack as the reference's dispatch gives one: an attack naming a slot locks the weapon to it until the attack
+     * is over ({@code MSG_DO_WEAPON_AT_OBJECT}), any other lets a lock until then go ({@code MSG_DO_ATTACK_OBJECT});
+     * an attack refused leaves no lock of its own behind.
+     */
+    private static void attack(WeaponUpdate weapon, GameMessage.AttackObject attack) {
+        var until = WeaponUpdate.Lock.TEMPORARILY;
+        if (attack.slot() < 0 || !weapon.lock(attack.slot(), until)) {
+            weapon.unlock(until);
+        }
+        if (!weapon.attack(attack.target(), attack.forced(), attack.source())) {
+            weapon.unlock(until);
         }
     }
 

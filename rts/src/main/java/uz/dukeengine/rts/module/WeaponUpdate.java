@@ -23,6 +23,7 @@ import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.ObjectStatus;
 import uz.dukeengine.rts.event.ShotLanded;
 import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.rts.message.OrderSource;
 import uz.dukeengine.rts.player.RtsPlayer;
 
 /**
@@ -191,8 +192,25 @@ public final class WeaponUpdate extends UpdateModule {
     private ObjectId target;
     /** Whether its target was given it by a forced order: kept on though the target passes itself off. */
     private boolean forced;
-    /** Whether the target was an order's, rather than one it found for itself — which slots it may use. */
-    private boolean ordered;
+    /** Whose order its target was, or null for one it found for itself — which slots it may use. */
+    private OrderSource source;
+
+    /**
+     * How long a lock on one slot holds — the reference's {@code WeaponLockType}. While a lock holds, its slot alone
+     * is weighed and fired, whatever the slot's sources.
+     */
+    public enum Lock {
+        /** Until the attack it was given for is over, its slot's clip is emptied, or another lock. */
+        TEMPORARILY,
+        /** Until it is let go, another lock, or a change of the set in use. */
+        PERMANENTLY
+    }
+
+    /** The slot of the set in use its weapon is locked to, or -1. */
+    private int lockedSlot = -1;
+    private Lock lock;
+    /** The set in use when it last looked, by its index: a change lets every lock go, as the reference's does. */
+    private int setInUse = -1;
 
     public WeaponUpdate(GameObject owner, Data data) {
         super(owner);
@@ -290,15 +308,52 @@ public final class WeaponUpdate extends UpdateModule {
      * of its targets ({@link GameObject#isDisguisedFrom}), which no plain order is; and kept on it.
      */
     public boolean attack(ObjectId target, boolean forced) {
+        return attack(target, forced, OrderSource.PLAYER);
+    }
+
+    /** The same, an order of {@code source}'s: the slots it may pick are those the source may ({@link WeaponSlot}). */
+    public boolean attack(ObjectId target, boolean forced, OrderSource source) {
         var world = getOwner().getWorld();
         var victim = world == null || target == null ? null : world.findObject(target);
-        if (victim != null && !canFireAt(victim, forced)) {
+        var by = source == null || source == OrderSource.NONE ? OrderSource.PLAYER : source;
+        if (victim != null && !canFireAt(victim, forced, by)) {
             return false;
         }
         this.target = target;
-        this.ordered = true;
+        this.source = by;
         this.forced = forced;
         return true;
+    }
+
+    /**
+     * Lock its weapon to {@code slot} of the set in use — the reference's {@code Object::setWeaponLock}: that slot
+     * alone is weighed and fired, for an order and for its own look alike, until the lock is let go. A temporary lock
+     * leaves a permanent one standing.
+     *
+     * @return whether the set in use has that slot
+     */
+    public boolean lock(int slot, Lock lock) {
+        if (lock == null || slotOf(armed(), slot) == null) {
+            return false;
+        }
+        if (lock == Lock.PERMANENTLY || this.lock != Lock.PERMANENTLY) {
+            this.lockedSlot = slot;
+            this.lock = lock;
+        }
+        return true;
+    }
+
+    /** Let a lock go: a permanent one every lock, a temporary one only a temporary lock. */
+    public void unlock(Lock lock) {
+        if (this.lock != null && (lock == Lock.PERMANENTLY || this.lock == Lock.TEMPORARILY)) {
+            this.lockedSlot = -1;
+            this.lock = null;
+        }
+    }
+
+    /** The slot its weapon is locked to, or -1. */
+    public int getLockedSlot() {
+        return lockedSlot;
     }
 
     /**
@@ -312,11 +367,21 @@ public final class WeaponUpdate extends UpdateModule {
 
     /** The same, or, {@code forced}, whether it may be made to: what passes itself off is a forced target only. */
     public boolean canFireAt(GameObject victim, boolean forced) {
+        return canFireAt(victim, forced, OrderSource.PLAYER);
+    }
+
+    /** The same, for an order of {@code source}'s: only the slots it may pick, or the locked one. */
+    public boolean canFireAt(GameObject victim, boolean forced, OrderSource source) {
         if (!forced && victim.isDisguisedFrom(getOwner().getPlayerIndex())) {
             return false;
         }
-        for (var armed : armed()) {
-            if (mayHit(armed.weapon(), victim)) {
+        var armed = armed();
+        var locked = slotOf(armed, lockedSlot);
+        if (locked != null) {
+            return mayHit(locked.weapon(), victim);
+        }
+        for (var one : armed) {
+            if (one.slot().pickedBy(source) && mayHit(one.weapon(), victim)) {
                 return true;
             }
         }
@@ -329,9 +394,11 @@ public final class WeaponUpdate extends UpdateModule {
         return target != null;
     }
 
+    /** Let its target go: the attack is over, and a lock until it was is let go with it. */
     public void holdFire() {
         this.target = null;
         this.forced = false;
+        unlock(Lock.TEMPORARILY);
     }
 
     public boolean isAttacking() {
@@ -340,7 +407,7 @@ public final class WeaponUpdate extends UpdateModule {
 
     /** Whether its target was given it by an order — an attack, an attack-move's, a guard's — not picked by itself. */
     public boolean isTargetOrdered() {
-        return target != null && ordered;
+        return target != null && source != null;
     }
 
     /**
@@ -354,7 +421,7 @@ public final class WeaponUpdate extends UpdateModule {
         if (victim == null) {
             return false;
         }
-        var chosen = choose(armed(), victim, ordered);
+        var chosen = choose(armed(), victim, source);
         return chosen != null && rangeTo(getOwner(), victim) <= range(getOwner(), chosen.weapon());
     }
 
@@ -365,7 +432,7 @@ public final class WeaponUpdate extends UpdateModule {
      */
     public boolean closesToTouch(GameObject victim) {
         var world = getOwner().getWorld();
-        var chosen = victim == null || world == null ? null : choose(armed(), victim, ordered);
+        var chosen = victim == null || world == null ? null : choose(armed(), victim, source);
         return chosen != null && chosen.weapon().isContact(world.cellSize());
     }
 
@@ -377,6 +444,7 @@ public final class WeaponUpdate extends UpdateModule {
 
     @Override
     public void update() {
+        noticeTheSetInUse();
         if (getOwner().isEffectivelyDead()
                 || getOwner().isContained() && !ContainModule.firesFromInside(getOwner())
                 || getOwner().hasStatus(ObjectStatus.DISABLED) || getOwner().hasStatus(ObjectStatus.SOLD)) {
@@ -413,26 +481,26 @@ public final class WeaponUpdate extends UpdateModule {
             if (target == null) {
                 return;
             }
-            ordered = false;
+            source = null;
             forced = false;
         }
 
         var victim = world.findObject(target);
         if (victim == null || victim.isEffectivelyDead() || victim.getBody() == null) {
-            target = null;
+            holdFire();
             return;
         }
         if (world.getRelationship(owner.getPlayerIndex(), victim.getPlayerIndex()) == Relationship.ALLIES) {
-            target = null; // never fire on allies
+            holdFire(); // never fire on allies
             return;
         }
         if (!forced && victim.isDisguisedFrom(owner.getPlayerIndex())) {
-            target = null; // passed off as none of its targets: kept on only by a forced order
+            holdFire(); // passed off as none of its targets: kept on only by a forced order
             return;
         }
-        var chosen = choose(armed, victim, ordered);
+        var chosen = choose(armed, victim, source);
         if (chosen == null) {
-            target = null; // it took off, or was never something this could hit
+            holdFire(); // it took off, or was never something this could hit
             return;
         }
         if (rangeTo(owner, victim) > range(owner, chosen.weapon())) {
@@ -463,7 +531,9 @@ public final class WeaponUpdate extends UpdateModule {
             victim.getBody().damage(shot.damage(), weapon.damageType(), blow(shot), middleOf(victim),
                     owner.getPosition()); // scaled by its armour
         }
-        chosen.clip().fired(world.random(), rateOfFire(owner, weapon));
+        if (chosen.clip().fired(world.random(), rateOfFire(owner, weapon)) && chosen.index() == lockedSlot) {
+            unlock(Lock.TEMPORARILY); // its clip is empty: a lock until then is over
+        }
         world.post(new WeaponFired(world.getFrame(), owner.getId(), victim.getId(),
                 owner.getPosition(), aimPoint(victim), weapon.name(), chosen.index(),
                 weapon.isContact(world.cellSize()), shot.radius()));
@@ -478,7 +548,7 @@ public final class WeaponUpdate extends UpdateModule {
         }
         struck(world, shot, owner, victim, victim.getPosition(), middleOf(victim), owner.getPosition());
         if (victim.isEffectivelyDead()) {
-            target = null;
+            holdFire();
         }
     }
 
@@ -613,9 +683,12 @@ public final class WeaponUpdate extends UpdateModule {
      * ({@code WeaponSet::chooseBestWeaponForTarget}), made again every time a target is weighed:
      *
      * <ul>
-     *   <li>A slot is passed over if the unit may not pick it by itself and nobody ordered this target; if it
-     *       is out and does not reload itself; if its weapon may not be fired at the target's class; or if it
-     *       would do no damage to it after armour.
+     *   <li>A lock picks its slot, and nothing else is weighed ({@code isCurWeaponLocked}): the slot, if it may be
+     *       fired at the target's class and is not out.
+     *   <li>A slot is passed over if the unit may not pick it by itself and nobody ordered this target, or its
+     *       order's source may not pick it ({@link WeaponSlot#autoChooseSources}, a unit's own look counting as
+     *       the game's); if it is out and does not reload itself; if its weapon may not be fired at the target's
+     *       class; or if it would do no damage to it after armour.
      *   <li>A slot preferred against a kind the target has wins outright, and is kept even while it reloads.
      *   <li>Otherwise the ready slot that would do the most damage wins — readiness before damage: one that is
      *       reloading is only a fall-back, the best of those if nothing is ready. Ties go to the lower slot.
@@ -627,9 +700,13 @@ public final class WeaponUpdate extends UpdateModule {
      *
      * @return the slot, or {@code null} where none may be fired at the target at all
      */
-    private Armed choose(List<Armed> armed, GameObject victim, boolean byOrder) {
+    private Armed choose(List<Armed> armed, GameObject victim, OrderSource byOrder) {
         if (armed.isEmpty()) {
             return null;
+        }
+        var locked = slotOf(armed, lockedSlot);
+        if (locked != null) {
+            return mayHit(locked.weapon(), victim) && locked.clip().status() != WeaponStatus.OUT ? locked : null;
         }
         Armed ready = null;
         Armed fallBack = null;
@@ -638,7 +715,7 @@ public final class WeaponUpdate extends UpdateModule {
         // Backwards, and >= below, so that a tie goes to the lower slot.
         for (int at = armed.size() - 1; at >= 0; at--) {
             var one = armed.get(at);
-            if (!byOrder && !one.slot().autoChoosable()) {
+            if (!mayPick(one, byOrder)) {
                 continue;
             }
             var status = one.clip().status();
@@ -671,7 +748,40 @@ public final class WeaponUpdate extends UpdateModule {
             return fallBack;
         }
         var first = armed.getFirst();
-        return mayHit(first.weapon(), victim) && first.clip().status() != WeaponStatus.OUT ? first : null;
+        return mayPick(first, byOrder) && mayHit(first.weapon(), victim) && first.clip().status() != WeaponStatus.OUT
+                ? first : null;
+    }
+
+    /** Whether {@code one} may be picked for an order of {@code source}'s, or, null, for the unit's own look. */
+    private static boolean mayPick(Armed one, OrderSource source) {
+        return source != null ? one.slot().pickedBy(source)
+                : one.slot().autoChoosable() && one.slot().pickedBy(OrderSource.GAME);
+    }
+
+    /** The slot at {@code index} of the set in use, or null — for -1, or a slot the set does not have. */
+    private static Armed slotOf(List<Armed> armed, int index) {
+        for (var one : armed) {
+            if (one.index() == index) {
+                return one;
+            }
+        }
+        return null;
+    }
+
+    /** The set in use changed since it last looked: every lock is let go, as the reference's set swap lets them. */
+    private void noticeTheSetInUse() {
+        if (sets.isEmpty()) {
+            return;
+        }
+        var said = new ArrayList<List<String>>(sets.size());
+        for (var set : sets) {
+            said.add(set.conditions());
+        }
+        int fits = Conditions.bestFit(said, getOwner().getConditions());
+        if (fits != setInUse && setInUse >= 0) {
+            unlock(Lock.PERMANENTLY);
+        }
+        setInUse = fits;
     }
 
     private static boolean preferredAgainst(WeaponSlot slot, GameObject victim) {
@@ -937,7 +1047,7 @@ public final class WeaponUpdate extends UpdateModule {
     private void acquireTarget(uz.dukeengine.core.thing.World world, GameObject owner, List<Armed> armed) {
         float reach = 0f;
         for (var one : armed) {
-            if (one.slot().autoChoosable() && one.clip().status() != WeaponStatus.OUT) {
+            if (mayLookWith(armed, one) && one.clip().status() != WeaponStatus.OUT) {
                 reach = Math.max(reach, range(owner, one.weapon()));
             }
         }
@@ -960,11 +1070,17 @@ public final class WeaponUpdate extends UpdateModule {
             return false; // passed off to its side as none of its targets
         }
         for (var one : armed) {
-            if (one.slot().autoChoosable() && one.clip().status() != WeaponStatus.OUT
+            if (mayLookWith(armed, one) && one.clip().status() != WeaponStatus.OUT
                     && mayHit(one.weapon(), candidate)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** Whether its own look may pick {@code one}: the locked slot alone while a lock holds. */
+    private boolean mayLookWith(List<Armed> armed, Armed one) {
+        var locked = slotOf(armed, lockedSlot);
+        return locked != null ? locked == one : mayPick(one, null);
     }
 }
