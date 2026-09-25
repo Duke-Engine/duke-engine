@@ -61,6 +61,11 @@ public final class ConstructionSite extends UpdateModule {
         return !getOwner().hasStatus(ObjectStatus.UNDER_CONSTRUCTION);
     }
 
+    /** The builder whose work raises it. */
+    public ObjectId builder() {
+        return builder;
+    }
+
     @Override
     public void update() {
         var site = getOwner();

@@ -727,6 +727,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             if (goOn()) {
                 return; // something stands in the doorway: on from here by a route
             }
+            if (planRoundWhatStopsIt(owner, position)) {
+                return;
+            }
             stop(); // as close as it is ever going to get — stop rather than circle forever
             stoppedShort = true;
             return;
@@ -953,6 +956,29 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             }
             planAgainRound(world, ids);
         }
+    }
+
+    /**
+     * Stuck behind a mover standing still that no giving way moves — one at work, which is not asked aside — it plans
+     * once round it before it gives up, as the reference's blocked and stuck unit plans with the units about it as
+     * obstacles ({@code AIUpdateInterface::m_isBlockedAndStuck}).
+     *
+     * @return whether it planned round one
+     */
+    private boolean planRoundWhatStopsIt(GameObject owner, Coord3D position) {
+        var world = owner.getWorld();
+        if (world == null || !world.keepsCells(owner)) {
+            return false;
+        }
+        var ahead = position.add(headingVector(owner.getOrientation()).scale(Math.max(PROBE, stepPerFrame)));
+        var blocker = world.findBlocker(owner, ahead);
+        if (blocker == null || !isGroundMover(blocker) || blocker.getLocomotor().isMoving()
+                || round.contains(blocker.getId())) {
+            return false;
+        }
+        planAgainRound(world, java.util.Set.of(blocker.getId()));
+        resetProgress();
+        return true;
     }
 
     /** A route round the movers it is stuck behind — or, asked for within 3 frames of the last, a second from now. */
@@ -1433,7 +1459,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             // not stuck, until it goes through — the reference checks no turn against footprints at all.
             framesWithoutProgress = 0;
         } else if (madeNoProgress(distance)) {
-            if (goOn()) {
+            if (goOn() || planRoundWhatStopsIt(owner, position)) {
                 return;
             }
             stop();

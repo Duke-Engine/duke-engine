@@ -35,10 +35,16 @@ import uz.dukeengine.rts.player.RtsPlayer;
  * nothing was built.
  *
  * <p><b>A site put down at the order</b> ({@link PlacementRules#siteAtOrder}) already stands: the builder only goes to
- * it, and is done once beside it, the site's own module doing the work. Giving up then leaves the site standing, with
- * the money in it; calling the site off gives back what calling a site off gives.
+ * it. Giving up then leaves the site standing, with the money in it; calling the site off gives back what calling a
+ * site off gives.
+ *
+ * <p><b>At work</b> — beside its site, put down when it arrived or standing already — the builder keeps to it until the
+ * site is whole, as the reference's dozer keeps its build task ({@code DOZER_TASK_BUILD}): busy, so it keeps the place
+ * it stands on and an ally's route does not ask it aside; moved off by anything but an order — pushed, stepped aside —
+ * it walks back beside the site and goes on building. Another order for it, the site gone, whole, or taken up by
+ * another builder, and its work is over.
  */
-public final class BuildOrder extends UpdateModule {
+public final class BuildOrder extends UpdateModule implements uz.dukeengine.rts.module.OrderListener {
 
     /** How many times a builder standing on its own site is sent out of it before the order is given up. */
     private static final int STEPS_OUT = 3;
@@ -57,8 +63,10 @@ public final class BuildOrder extends UpdateModule {
     private float lastGap = -1f;
     private int stepsOut;
     private boolean over;
-    /** The site its order put down at once, or null for one put down when the builder arrives. */
-    private final GameObject site;
+    /** The site it is building: put down at its order, or when it arrived; null until there is one. */
+    private GameObject site;
+    /** Whether it is at work on its site, which it keeps to until the site is whole. */
+    private boolean atWork;
 
     BuildOrder(GameObject builder, ThingTemplate template, Coord3D place, float facing, int cost,
             PlacementRules rules, GameObject site) {
@@ -128,9 +136,19 @@ public final class BuildOrder extends UpdateModule {
         return template;
     }
 
-    /** Whether it is still on its way: the site not yet risen, the errand not given up. */
+    /** Whether it is still on its errand: on its way, or at work on its site until it is whole; not given up. */
     public boolean isUnderWay() {
         return !over;
+    }
+
+    /** Whether it is on its way to put down a site that does not stand yet — what a side's caps count as a building. */
+    public boolean awaitsItsSite() {
+        return !over && site == null;
+    }
+
+    /** Whether it is on its way to, or at work on, {@code building}. */
+    public boolean isBuilding(GameObject building) {
+        return !over && site == building;
     }
 
     boolean isOver() {
@@ -141,6 +159,14 @@ public final class BuildOrder extends UpdateModule {
     @Override
     public boolean keepsBusy() {
         return !over;
+    }
+
+    /** At work, any order but a build order ends its work — a stop as well as a move: the player's last word goes. */
+    @Override
+    public void onOrder(uz.dukeengine.rts.message.GameMessage order) {
+        if (atWork && !(order instanceof uz.dukeengine.rts.message.GameMessage.Construct)) {
+            over = true;
+        }
     }
 
     /** Give it up, the money back in full to the side that paid: nothing has been built — unless a site already stands. */
@@ -166,6 +192,10 @@ public final class BuildOrder extends UpdateModule {
         var builder = getOwner();
         if (builder.getPlayerIndex() != side) {
             giveUp(); // handed to another side: it builds nothing more for the old one, and nothing for the new
+            return;
+        }
+        if (atWork) {
+            work(builder);
             return;
         }
         if (site != null) {
@@ -225,7 +255,8 @@ public final class BuildOrder extends UpdateModule {
             if (walking != null) {
                 walking.stop(); // here already: the site's own module does the work
             }
-            over = true;
+            atWork = true;
+            goal = null;
             return;
         }
         goal = gapAt(builder.getPosition()) < 0f ? stepOut(builder) : world.standingNextTo(builder, site);
@@ -247,7 +278,8 @@ public final class BuildOrder extends UpdateModule {
         }
         if (world.isBeside(builder, site)) {
             walking.stop();
-            over = true;
+            atWork = true;
+            goal = null;
             return;
         }
         var heading = walking.getGoal();
@@ -262,6 +294,37 @@ public final class BuildOrder extends UpdateModule {
             }
             stepsOut++;
             goToTheSite(builder, walking);
+        }
+    }
+
+    /**
+     * At work: beside its site, standing; moved off it by anything but an order, back beside it once it stands; over
+     * once the site is whole, gone or another builder's, or the builder is sent elsewhere.
+     */
+    private void work(GameObject builder) {
+        var building = site.findModule(ConstructionSite.class);
+        var walking = builder.findModule(MoveUpdate.class);
+        if (site.isDestroyed() || site.isEffectivelyDead() || building == null || building.isFinished()
+                || !builder.getId().equals(building.builder()) || walking == null) {
+            over = true; // whole, gone, or taken up by another: its work here is done
+            return;
+        }
+        var heading = walking.getGoal();
+        if (heading != null && !heading.equals(goal)) {
+            over = true; // sent somewhere else: the site waits for a builder
+            return;
+        }
+        var world = builder.getWorld();
+        if (world.isBeside(builder, site)) {
+            if (walking.isMoving()) {
+                walking.stop(); // back beside it
+            }
+            goal = null;
+            return;
+        }
+        if (!walking.isMoving()) {
+            goal = world.standingNextTo(builder, site); // moved off it, and not by an order: back to work
+            walking.moveExactlyTo(goal);
         }
     }
 
@@ -342,7 +405,8 @@ public final class BuildOrder extends UpdateModule {
                 return;
             }
         }
-        over = true;
-        putDown(builder, template, place, facing, cost, rules);
+        site = putDown(builder, template, place, facing, cost, rules);
+        atWork = true;
+        goal = null;
     }
 }

@@ -604,7 +604,7 @@ public abstract class RtsSimulation extends GameLogic {
             for (var module : object.getModules()) {
                 switch (module) {
                     case uz.dukeengine.rts.module.ProductionUpdate factory -> count += factory.countQueued(counted);
-                    case uz.dukeengine.rts.construction.BuildOrder errand when errand.isUnderWay()
+                    case uz.dukeengine.rts.construction.BuildOrder errand when errand.awaitsItsSite()
                             && counted.test(errand.template()) -> count++;
                     default -> {
                     }
