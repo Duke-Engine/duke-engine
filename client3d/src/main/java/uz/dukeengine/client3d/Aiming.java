@@ -89,6 +89,21 @@ final class Aiming {
         }
     }
 
+    /**
+     * Used by the game at {@code place} rather than by a click — the reference's radar pressing the armed command at
+     * its point on the map: the press to send, facing the way it was turned or its button's way, and the aim used;
+     * null with nothing armed.
+     */
+    Press useAt(Coord3D place) {
+        if (armed == null) {
+            return null;
+        }
+        var button = armed;
+        float facing = placement != null ? placement.facing() : button.facing();
+        end(AimOutcome.USED);
+        return new Press(button, place, facing, -1);
+    }
+
     /** A thing clicked, for a button that aims at one: the press to send, and the aim used. */
     Press target(int unitId) {
         var button = armed;

@@ -4465,6 +4465,23 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /** The armed button given up by the game, as Escape gives it up — see {@link Duke3D#giveUpAim}. */
+    void giveUpAimFromGame() {
+        disarmButton();
+    }
+
+    /** The armed button used by the game at {@code place}, as a click there would use it — see {@link Duke3D#useAim}. */
+    void useAimFromGame(Coord3D place) {
+        var press = aiming.useAt(place);
+        if (press == null) {
+            return;
+        }
+        forgetTheAim();
+        game.pressCommand(press.button().id(), press.place(), press.facing(), press.target());
+        answerOrder(press.button().id(), selectedIds());
+        markOrder(place.x(), place.y(), -1, OrderMarkers.Kind.MOVE);
+    }
+
     /** Give the armed button up: nothing sent, and whoever armed it told so. */
     private void disarmButton() {
         if (!aiming.isArmed()) {

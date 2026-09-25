@@ -350,6 +350,24 @@ public final class Duke3D {
     }
 
     /**
+     * Give up the button armed with {@link #aim}, as Escape gives it up: nothing sent, its ghost, circle and pointer taken
+     * down, and whoever armed it told {@link AimOutcome#GIVEN_UP}. From any thread; with nothing armed, nothing happens.
+     */
+    public void giveUpAim() {
+        later(DukeRtsApp::giveUpAimFromGame);
+    }
+
+    /**
+     * Use the button armed with {@link #aim} at {@code place}, as a click there would press it — {@code
+     * DukeGame.pressCommand(id, place, its facing, -1)} — as the reference's radar presses the armed command at its point
+     * on the map: its ghost, circle and pointer taken down, and whoever armed it told {@link AimOutcome#USED}. From any
+     * thread; with nothing armed, nothing happens.
+     */
+    public void useAim(uz.dukeengine.core.math.Coord3D place) {
+        later(client -> client.useAimFromGame(place));
+    }
+
+    /**
      * Which button selects and which commands: {@link Mouse#RIGHT_COMMANDS}, the default, or the reference's
      * {@link Mouse#LEFT_COMMANDS} — a left click selects the player's own things and commands what is selected
      * everywhere else, a right click lets the selection go. From any thread, before launch or while it runs: an

@@ -36,6 +36,38 @@ class AimingTest {
     }
 
     @Test
+    void givenUpByTheGameItSendsNothingShowsNoCircleOrPointerAndItsArmerHearsGivenUpOnce() {
+        aiming.arm(BARRACKS, false, 40f, "Aim", heard::add);
+
+        aiming.giveUp();
+        aiming.giveUp();
+
+        assertFalse(aiming.isArmed());
+        assertEquals(0f, aiming.radius(), "no circle");
+        assertNull(aiming.pointer(), "the usual pointer");
+        assertEquals(List.of(AimOutcome.GIVEN_UP), heard, "told once");
+    }
+
+    @Test
+    void usedByTheGameAtAPlaceItIsThePressThereFacingItsWayAndItsArmerHearsUsed() {
+        aiming.arm(BARRACKS, false, 40f, "Aim", heard::add);
+
+        var press = aiming.useAt(new Coord3D(300f, 400f, 0f));
+
+        assertEquals(new Aiming.Press(BARRACKS, new Coord3D(300f, 400f, 0f), 90f, -1), press);
+        assertEquals(List.of(AimOutcome.USED), heard);
+        assertFalse(aiming.isArmed());
+        assertNull(aiming.useAt(new Coord3D(300f, 400f, 0f)), "used once");
+    }
+
+    @Test
+    void withNothingArmedNeitherDoesAnything() {
+        assertNull(aiming.useAt(new Coord3D(300f, 400f, 0f)));
+        aiming.giveUp();
+        assertTrue(heard.isEmpty());
+    }
+
+    @Test
     void aClickWhereItFitsIsThePressWithThatPlaceAndFacing() {
         aiming.arm(BARRACKS, false, 0f, null, heard::add);
         aiming.placement().cursor(400f, 300f, new Coord3D(12f, 34f, 0f));
