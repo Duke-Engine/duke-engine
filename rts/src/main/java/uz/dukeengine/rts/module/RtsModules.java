@@ -22,7 +22,7 @@ public final class RtsModules {
             AutoHealUpdate.Data.class, StatusUpdate.Data.class, PowerModule.Data.class,
             CapacityGate.Data.class, SpecialPowerModule.Data.class, ContainModule.Data.class,
             SupplyModule.Data.class, SupplyDepot.Data.class, HarvestUpdate.Data.class, CrushUpdate.Data.class,
-            Crushable.Data.class);
+            Crushable.Data.class, ToppleUpdate.Data.class);
 
     private RtsModules() {
     }
@@ -50,6 +50,7 @@ public final class RtsModules {
                 .register(SupplyDepot.Data.class, SupplyDepot::new)
                 .register(HarvestUpdate.Data.class, HarvestUpdate::new)
                 .register(CrushUpdate.Data.class, CrushUpdate::new)
-                .register(Crushable.Data.class, Crushable::new);
+                .register(Crushable.Data.class, Crushable::new)
+                .register(ToppleUpdate.Data.class, ToppleUpdate::new);
     }
 }

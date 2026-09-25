@@ -6539,6 +6539,10 @@ final class DukeRtsApp extends SimpleApplication {
         }
         node.root.setLocalTranslation(UnitPlacement.where(view, this::floorHeightAt));
         node.root.setLocalRotation(UnitPlacement.turn(view));
+        if (visual.sway != null && view.pitch() == 0f && view.roll() == 0f) {
+            node.root.setLocalRotation(visual.sway.tiltAt(view.id(), snapshot.gameTimeSeconds())
+                    .mult(node.root.getLocalRotation()));
+        }
         if (node.laidSpan != null && node.body != null) {
             // The line is the world's: where it starts and which way it runs, taken into the thing's own frame.
             var start = new Vector3f(node.laidSpan.from().x(), node.laidSpan.from().z(), node.laidSpan.from().y());

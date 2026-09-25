@@ -22,6 +22,9 @@ import uz.dukeengine.core.thing.ObjectStatus;
  * ahead of the way it is going, and it is not one of its own side's allies. A thing standing still crushes
  * nothing, and nothing in the air is crushed.
  *
+ * <p>Moving, it also pushes over what topples ({@link ToppleUpdate}) within its own radius and that thing's reach,
+ * as the reference's moving units push over its trees ({@code W3DTreeBuffer::unitMoved}).
+ *
  * <p>Opt-in, and the numbers are the game's: which of its vehicles crush, and how hard each thing is to crush.
  * Where the reference crushes a car in two stages — its front, then its back — this has the one.
  */
@@ -86,6 +89,33 @@ public final class CrushUpdate extends UpdateModule {
                         WeaponUpdate.middleOf(victim), here);
             }
         }
+        pushOver(world, here);
+    }
+
+    /** What topples within its own radius and the thing's reach, pushed over away from it. */
+    private void pushOver(uz.dukeengine.core.thing.World world, Coord3D here) {
+        var owner = getOwner();
+        float radius = pushingRadius(owner.getGeometry());
+        var standing = world.objectsInRange(here, radius + ToppleUpdate.MOST_REACH,
+                candidate -> candidate != owner && candidate.findModule(ToppleUpdate.class) != null);
+        for (var thing : standing) {
+            var topple = thing.findModule(ToppleUpdate.class);
+            float dx = thing.getPosition().x() - here.x();
+            float dy = thing.getPosition().y() - here.y();
+            float within = radius + topple.reach();
+            if (topple.topplesUnder(level) && dx * dx + dy * dy < within * within) {
+                topple.topple(owner, here);
+            }
+        }
+    }
+
+    /** {@code unitMoved}: a mover's radius, the smaller of a box's two. */
+    private static float pushingRadius(uz.dukeengine.core.thing.Geometry geometry) {
+        return switch (geometry) {
+            case uz.dukeengine.core.thing.Geometry.Box box -> Math.min(box.majorRadius(), box.minorRadius());
+            case uz.dukeengine.core.thing.Geometry.Cylinder cylinder -> cylinder.radius();
+            case uz.dukeengine.core.thing.Geometry.Sphere sphere -> sphere.radius();
+        };
     }
 
     /** How hard a thing it runs over may be to crush: the reference's {@code CrusherLevel}. */

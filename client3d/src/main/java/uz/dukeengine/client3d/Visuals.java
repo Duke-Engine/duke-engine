@@ -645,6 +645,54 @@ public final class Visuals {
             return this;
         }
 
+        /**
+         * How it sways in the wind — see {@link #sway}.
+         *
+         * @param bearing the way it leans, the simulation's radians as a thing's facing is
+         */
+        public record Sway(float least, float most, float bearing, float periodSeconds, int groups) {
+
+            public Sway {
+                periodSeconds = Math.max(0.01f, periodSeconds);
+                groups = Math.max(1, groups);
+            }
+
+            /**
+             * How far a thing leans {@code seconds} into the game: from its most, back to its least and round again
+             * once a period of its group's — its things spread over the groups, each group's period up to a tenth
+             * either side of the look's, so a forest does not move as one ({@code W3DTreeBuffer::updateSway}).
+             */
+            float angleAt(int thing, float seconds) {
+                int group = Math.floorMod(thing, groups);
+                float spread = groups == 1 ? 0f : -0.1f + 0.2f * group / (groups - 1);
+                float period = periodSeconds * (1f + spread);
+                float swing = (1f + (float) Math.cos(2.0 * Math.PI * seconds / period)) / 2f;
+                return least + (most - least) * swing;
+            }
+
+            /** The lean {@code seconds} into the game, as a turn laid over the thing's own. */
+            com.jme3.math.Quaternion tiltAt(int thing, float seconds) {
+                // Toward the bearing in the client's frame, where the map's y is the scene's z.
+                var toward = new com.jme3.math.Vector3f((float) Math.cos(bearing), 0f, (float) Math.sin(bearing));
+                var axis = com.jme3.math.Vector3f.UNIT_Y.cross(toward).normalizeLocal();
+                return new com.jme3.math.Quaternion().fromAngleNormalAxis(angleAt(thing, seconds), axis);
+            }
+        }
+
+        Sway sway;
+
+        /**
+         * It sways in the wind, as the reference's trees do ({@code W3DTreeBuffer::updateSway}, {@code BreezeInfo}):
+         * leaning toward {@code bearing} — the simulation's radians, as a thing's facing is — between {@code least} and
+         * {@code most} radians and back once a {@code periodSeconds} of the game's time, its things in {@code groups}
+         * whose periods lie up to a tenth either side of it. The reference's: 0 to 0.11 toward 60 degrees from its
+         * north, over 5 seconds, in 10. Drawing only; a thing leaned by the simulation — toppling — sways no more.
+         */
+        public UnitVisual sway(float least, float most, float bearing, float periodSeconds, int groups) {
+            this.sway = new Sway(least, most, bearing, periodSeconds, groups);
+            return this;
+        }
+
         /** Its picture of no words — a shadow — kept under whichever its words choose; null for none. */
         GroundPicture plainGroundPicture() {
             for (var picture : groundPictures) {
