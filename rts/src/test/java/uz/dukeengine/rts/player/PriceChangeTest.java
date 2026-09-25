@@ -76,7 +76,8 @@ class PriceChangeTest {
         var tank = RtsTemplate.named("Crusader").kindOf(RtsKinds.VEHICLE).module(new ActiveBody.Data(480f))
                 .buildCost(900).buildTimeFrames(300).build();
         var priceNow = RtsTemplate.named("PriceNow").kindOf(RtsKinds.STRUCTURE).module(new ActiveBody.Data(2000f))
-                .module(new ProductionUpdate.Data(java.util.List.of(), java.util.List.of(), null, null, null, true))
+                .module(new ProductionUpdate.Data(java.util.List.of(), java.util.List.of(), null, java.util.List.of(),
+                        null, true))
                 .build();
         var paid = RtsTemplate.named("Paid").kindOf(RtsKinds.STRUCTURE).module(new ActiveBody.Data(2000f))
                 .module(new ProductionUpdate.Data()).build();

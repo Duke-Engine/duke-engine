@@ -18,4 +18,13 @@ public interface ProductionReservation {
 
     /** The job holding {@code token} is done and {@code unit} made — the token saying, where it does, whose door opens. */
     void place(GameObject unit, Object token);
+
+    /**
+     * The door of its factory the job holding {@code token} goes out by, the first 0 — the reference's {@code
+     * reserveDoorForExit}, a parking space's own hangar door — or -1 where it names none, and the first is used. Its
+     * door, and no other, opens for it, and it is made once that door is open.
+     */
+    default int door(Object token) {
+        return -1;
+    }
 }

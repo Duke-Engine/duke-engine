@@ -44,22 +44,25 @@ public final class ProductionUpdate extends UpdateModule {
      * build — SAGE's command set — and the upgrades it may research.
      * {@code Builds = [ElfArcher, Rider]}, {@code Researches = [Upgrade_Armour]}.
      * An empty list means "no build menu" (scripts can still queue anything).
-     * Its {@link Exit} and {@link Door}, where it has them; without an exit its units step out of its side. The
-     * {@link Words} it holds while it works, where the game names them. {@code RefundsPriceNow}: a job called off gives
-     * back the side's price for it at the moment of the cancel, as the reference's does ({@code
-     * ProductionUpdate::cancelUnitCreate}, {@code calcCostToBuild}), rather than what was paid for it.
+     * Its {@link Exit} and {@link Door}s, where it has them — {@code Doors = [Door … End, Door … End]}, a job going out by
+     * the one its reservation names ({@link ProductionReservation#door}), else the first, as the reference's airfield
+     * keeps a door for each parking space; without an exit its units step out of its side. The {@link Words} it holds
+     * while it works, where the game names them. {@code RefundsPriceNow}: a job called off gives back the side's price
+     * for it at the moment of the cancel, as the reference's does ({@code ProductionUpdate::cancelUnitCreate}, {@code
+     * calcCostToBuild}), rather than what was paid for it.
      */
-    public record Data(List<String> builds, List<String> researches, Exit exit, Door door, Words words,
+    public record Data(List<String> builds, List<String> researches, Exit exit, List<Door> doors, Words words,
             boolean refundsPriceNow) implements ModuleData {
         public Data {
             builds = builds == null ? List.of() : List.copyOf(builds);
             researches = researches == null ? List.of() : List.copyOf(researches);
+            doors = doors == null ? List.of() : List.copyOf(doors);
             words = words == null ? Words.NONE : words;
         }
 
-        /** A factory whose cancel gives back what was paid, as every one did before it could say otherwise. */
+        /** A factory of one door or none, whose cancel gives back what was paid, as every one did before. */
         public Data(List<String> builds, List<String> researches, Exit exit, Door door, Words words) {
-            this(builds, researches, exit, door, words, false);
+            this(builds, researches, exit, door == null ? List.of() : List.of(door), words, false);
         }
 
         /** A factory that holds no words while it works, as every one did before it could. */
@@ -163,10 +166,12 @@ public final class ProductionUpdate extends UpdateModule {
         final int id;
         /** What its factory's reservations gave it as it was queued, module by module. */
         final java.util.Map<ProductionReservation, Object> tokens;
+        /** The door it goes out by, the first 0. */
+        final int door;
         int framesRemaining;
 
         Job(ThingTemplate unit, Upgrade research, int frames, int paid, int id,
-                java.util.Map<ProductionReservation, Object> tokens) {
+                java.util.Map<ProductionReservation, Object> tokens, int door) {
             this.unit = unit;
             this.research = research;
             this.frames = frames;
@@ -174,6 +179,7 @@ public final class ProductionUpdate extends UpdateModule {
             this.paid = paid;
             this.id = id;
             this.tokens = tokens;
+            this.door = door;
         }
 
         /** What a cancel gives back: what was paid, or the side's price for it now where the factory says so. */
@@ -188,7 +194,7 @@ public final class ProductionUpdate extends UpdateModule {
     private final List<String> builds;
     private final List<String> researches;
     private final Exit exit;
-    private final Doorway doorway;
+    private final List<Doorway> doorways;
     private final Words words;
     private final boolean refundsPriceNow;
     /** Frames the made word is held for yet; 0 while it is not. */
@@ -204,7 +210,7 @@ public final class ProductionUpdate extends UpdateModule {
         this.builds = data.builds();
         this.researches = data.researches();
         this.exit = data.exit();
-        this.doorway = data.door() == null ? null : new Doorway(data.door());
+        this.doorways = data.doors().stream().map(Doorway::new).toList();
         this.words = data.words();
         this.refundsPriceNow = data.refundsPriceNow();
         this.burstLeft = exit == null ? 0 : Math.max(0, exit.burst());
@@ -354,8 +360,31 @@ public final class ProductionUpdate extends UpdateModule {
             tokens.forEach(ProductionReservation::release);
             return false;
         }
-        queue.add(new Job(unit, null, Math.max(1, Buildable.framesOf(unit)), player.priceOf(unit), nextJob++, tokens));
+        queue.add(new Job(unit, null, Math.max(1, Buildable.framesOf(unit)), player.priceOf(unit), nextJob++, tokens,
+                doorFor(tokens)));
         return true;
+    }
+
+    /** The door the first reservation naming one of this factory's doors names for a job, else the first. */
+    private int doorFor(java.util.Map<ProductionReservation, Object> tokens) {
+        for (var entry : tokens.entrySet()) {
+            int door = entry.getKey().door(entry.getValue());
+            if (door >= 0 && door < doorways.size()) {
+                return door;
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Hold door {@code door} open, the first 0, or let it go — the reference's {@code setHoldDoorOpen}, a parking space
+     * keeping its hangar open while it holds a jet: a closed door held starts opening; a door held stays open past its
+     * time, and closes once let go.
+     */
+    public void holdDoorOpen(int door, boolean hold) {
+        if (door >= 0 && door < doorways.size()) {
+            doorways.get(door).hold(getOwner(), hold);
+        }
     }
 
     /** Every reservation of this factory's asked for {@code unit}: their tokens, or null where one refused. */
@@ -393,7 +422,7 @@ public final class ProductionUpdate extends UpdateModule {
             return false;
         }
         queue.add(new Job(null, upgrade, Math.max(1, upgrade.frames()), upgrade.cost(), nextJob++,
-                java.util.Map.of()));
+                java.util.Map.of(), 0));
         return true;
     }
 
@@ -488,8 +517,8 @@ public final class ProductionUpdate extends UpdateModule {
 
     @Override
     public void update() {
-        // The door and the exit keep time whether or not anything is being made, as the reference's own modules do.
-        if (doorway != null) {
+        // The doors and the exit keep time whether or not anything is being made, as the reference's own modules do.
+        for (var doorway : doorways) {
             doorway.step(getOwner());
         }
         if (burstLeft > 0) {
@@ -532,8 +561,8 @@ public final class ProductionUpdate extends UpdateModule {
             owner.setCondition(words.made()); // finished and on its way out: from the door's first opening
             madeLeft = Math.max(1, words.madeFrames());
         }
-        if (doorway != null && !doorway.letOut(owner)) {
-            return;
+        if (!doorways.isEmpty() && !doorways.get(head.door).letOut(owner)) {
+            return; // its own door, and no other, opens for it
         }
         queue.removeFirst();
         if (world != null) {
@@ -597,21 +626,45 @@ public final class ProductionUpdate extends UpdateModule {
         private final Door door;
         private State state = State.CLOSED;
         private int left;
+        /** Whether a module of the factory holds it open: it neither closes nor finishes closing meanwhile. */
+        private boolean held;
 
         Doorway(Door door) {
             this.door = door;
         }
 
-        /** A frame of its time: into the next state once this one's is up. */
+        /** A frame of its time: into the next state once this one's is up — but for one held open. */
         void step(GameObject owner) {
-            if (state == State.CLOSED || --left > 0) {
+            if (state == State.CLOSED) {
+                return;
+            }
+            if (left > 0) {
+                left--;
+            }
+            if (left > 0) {
                 return;
             }
             switch (state) {
                 case OPENING -> become(owner, State.OPEN, door.openFrames());
-                case OPEN -> become(owner, State.CLOSING, door.closingFrames());
-                case CLOSING -> become(owner, State.CLOSED, 0);
+                case OPEN -> {
+                    if (!held) {
+                        become(owner, State.CLOSING, door.closingFrames());
+                    }
+                }
+                case CLOSING -> {
+                    if (!held) {
+                        become(owner, State.CLOSED, 0);
+                    }
+                }
                 case CLOSED -> { }
+            }
+        }
+
+        /** Held open, or let go: a closed door held starts opening, as the reference's does. */
+        void hold(GameObject owner, boolean hold) {
+            held = hold;
+            if (hold && state == State.CLOSED) {
+                become(owner, State.OPENING, door.openingFrames());
             }
         }
 

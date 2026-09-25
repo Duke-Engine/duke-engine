@@ -221,14 +221,16 @@ class ProductionExitTest {
                         RallyPoint = [53, -30, 0]
                         Delay = 9
                       End
-                      Door = Door
-                        OpeningFrames = 98
-                        OpenFrames = 90
-                        ClosingFrames = 120
-                        Opening = DOOR_1_OPENING
-                        Open = DOOR_1_WAITING_OPEN
-                        Closing = DOOR_1_CLOSING
-                      End
+                      Doors = [
+                        Door
+                          OpeningFrames = 98
+                          OpenFrames = 90
+                          ClosingFrames = 120
+                          Opening = DOOR_1_OPENING
+                          Open = DOOR_1_WAITING_OPEN
+                          Closing = DOOR_1_CLOSING
+                        End
+                      ]
                     End
                   ]
                 End
@@ -238,8 +240,8 @@ class ProductionExitTest {
                 .findFirst().orElseThrow();
         assertEquals(new ProductionUpdate.Exit(new Coord3D(-10f, -30f, 0f), new Coord3D(53f, -30f, 0f), 9, 0),
                 data.exit());
-        assertEquals(new ProductionUpdate.Door(98, 90, 120, "DOOR_1_OPENING", "DOOR_1_WAITING_OPEN",
-                "DOOR_1_CLOSING"), data.door());
+        assertEquals(List.of(new ProductionUpdate.Door(98, 90, 120, "DOOR_1_OPENING", "DOOR_1_WAITING_OPEN",
+                "DOOR_1_CLOSING")), data.doors());
     }
 
     private String word() {
