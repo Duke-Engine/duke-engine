@@ -177,12 +177,13 @@ public final class Visuals {
             return layers.computeIfAbsent(name, named -> new UnitVisual());
         }
 
-        /** A clip played on the way from one of its looks to another — see {@link #transition}. */
         /**
+         * A clip played on the way from one of its looks to another — see {@link #transition}.
+         *
          * @param keepGroup where the look it leaves names the same keep group, its clip starts at the share of its
          *                  length the look it leaves had played — the reference's {@code
-         *                  MAINTAIN_FRAME_ACROSS_STATES}: a crane finishes the swing it is in; null starts it at its first
-         *                  frame, or its last
+         *                  MAINTAIN_FRAME_ACROSS_STATES}: a crane finishes the swing it is in; null starts it at its
+         *                  first frame, or its last
          * @param particles particle systems at bones of its model, run while it plays: {@link #transitionParticles}
          */
         record Transition(java.util.SortedSet<String> from, java.util.SortedSet<String> to, String model, String clip,
@@ -2070,13 +2071,6 @@ public final class Visuals {
         return hitNumbers;
     }
 
-    private FloatingTexts.Look floatingText = FloatingTexts.Look.REFERENCE;
-
-    /**
-     * How a text floated up from a point of the world moves — see {@code DukeGame.floatText}: {@code rise} pixels a
-     * frame of the game, its colour kept {@code hold} frames, then {@code int(k × fade)} of its alpha lost on the k-th
-     * frame after. Left alone, the reference's: 1, 10 and 0.1, so an alpha of 230 is gone 82 frames after it appeared.
-     */
     /**
      * A strip of pictures the simulation plays at a point of the world by name ({@code World.strip}) — the reference's
      * {@code Animation2d}: its pictures in order, whole paths from the resource root, each shown {@code frameMillis}
@@ -2110,6 +2104,13 @@ public final class Visuals {
         return name == null ? null : strips.get(name);
     }
 
+    private FloatingTexts.Look floatingText = FloatingTexts.Look.REFERENCE;
+
+    /**
+     * How a text floated up from a point of the world moves — see {@code DukeGame.floatText}: {@code rise} pixels a
+     * frame of the game, its colour kept {@code hold} frames, then {@code int(k × fade)} of its alpha lost on the k-th
+     * frame after. Left alone, the reference's: 1, 10 and 0.1, so an alpha of 230 is gone 82 frames after it appeared.
+     */
     public Visuals floatingText(float rise, int hold, float fade) {
         this.floatingText = new FloatingTexts.Look(rise, hold, fade);
         return this;

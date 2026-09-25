@@ -11,8 +11,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * How many of a sound play at once and which gives way, as the reference holds its sounds to budgets
- * ({@code doesViolateLimit}, {@code killLowestPrioritySoundImmediately}): a cue's limit, and the game's budget of sounds
- * at once shared by priority.
+ * ({@code doesViolateLimit}, {@code killLowestPrioritySoundImmediately}): a cue's limit, and the game's budget of
+ * sounds at once shared by priority.
  */
 class SoundLimitsTest {
 

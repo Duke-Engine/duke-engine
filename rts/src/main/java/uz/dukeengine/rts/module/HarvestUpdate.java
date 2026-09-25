@@ -88,7 +88,7 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
             waitBy = waitBy == null ? List.of() : List.copyOf(waitBy);
         }
 
-        /** A harvester that banks where it stands where its side has no depot, as every one did before it could wait. */
+        /** A harvester that banks where it stands where its side has no depot, as all did before one could wait. */
         public Data(int loadPerTrip, int framesPerTrip, float searchRange, int framesAtDepot, int framesPerUnit,
                 int unitOfLoad) {
             this(loadPerTrip, framesPerTrip, searchRange, framesAtDepot, framesPerUnit, unitOfLoad, false, List.of());

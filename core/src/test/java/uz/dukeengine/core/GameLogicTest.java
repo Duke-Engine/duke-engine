@@ -71,7 +71,7 @@ class GameLogicTest {
         assertTrue(logic.isGamePaused());
     }
 
-    /** One copy of the objects for every walk until they change: the frame's walks and the partition's queries share it. */
+    /** One copy of the objects for every walk until they change: the frame's walks and the partition's share it. */
     @Test
     void theObjectsAreCopiedOnceUntilTheyChange() {
         var factory = new uz.dukeengine.core.thing.ThingFactory(uz.dukeengine.core.module.ModuleFactory.withDefaults());

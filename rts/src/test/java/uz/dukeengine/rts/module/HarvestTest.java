@@ -545,8 +545,8 @@ class HarvestTest {
             float pileY = 450f + sy * (47f + off);
             spawnAt(pileKind, pileX, pileY);
             var truck = spawnAt(truckKind, pileX - sx * 25f, pileY - sy * 25f);
-            // Standing a little turned at the pile, it loads there without a step: turned 22 degrees off its way home, it
-            // reaches furthest toward the depot, and square to it at the end, 1.4 less far.
+            // Standing a little turned at the pile, it loads there without a step: turned 22 degrees off its way home,
+            // it reaches furthest toward the depot, and square to it at the end, 1.4 less far.
             truck.setOrientation((float) StrictMath.atan2(-sy, -sx) + (float) Math.toRadians(22));
             var harvest = truck.findModule(HarvestUpdate.class);
 

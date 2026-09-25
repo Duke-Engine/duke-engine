@@ -56,7 +56,8 @@ class TargetScanTest {
     void lookingEightFramesApartItIsTakenWithinEightAndNotBeforeItsLook() {
         world(8);
         int taken = framesToTake();
-        assertEquals(0, Math.floorMod(world.getFrame() - 1 + tank.getId().value(), 8), "taken on its own frame of the round");
+        assertEquals(0, Math.floorMod(world.getFrame() - 1 + tank.getId().value(), 8),
+                "taken on its own frame of the round");
         assertEquals(true, taken >= 1 && taken <= 8, "within eight frames: " + taken);
     }
 }

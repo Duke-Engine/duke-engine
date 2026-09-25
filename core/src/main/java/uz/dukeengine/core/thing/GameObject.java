@@ -551,7 +551,7 @@ public final class GameObject {
             world.stillThingMoved(); // its footprint turned with it
         }
         if (Float.floatToRawIntBits(orientation) != Float.floatToRawIntBits(this.orientation)) {
-            facingCos = (float) StrictMath.cos(orientation); // to the bit what a footprint worked out for itself: -0 too
+            facingCos = (float) StrictMath.cos(orientation); // to the bit what a footprint worked out: -0 too
             facingSin = (float) StrictMath.sin(orientation);
         }
         this.orientation = orientation;

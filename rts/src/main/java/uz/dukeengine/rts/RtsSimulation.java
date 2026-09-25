@@ -239,8 +239,8 @@ public abstract class RtsSimulation extends GameLogic {
 
     /**
      * How often a weapon with no target looks for one, in frames — the reference's {@code MoodAttackCheckRate}, 250
-     * ms, looking a quarter second apart rather than every frame; each thing on its own frame of the round, staggered by
-     * its id, so a crowd does not look all at once. 1, the default, is every frame, as always.
+     * ms, looking a quarter second apart rather than every frame; each thing on its own frame of the round, staggered
+     * by its id, so a crowd does not look all at once. 1, the default, is every frame, as always.
      */
     public final void setTargetScanFrames(int frames) {
         this.targetScanFrames = Math.max(1, frames);

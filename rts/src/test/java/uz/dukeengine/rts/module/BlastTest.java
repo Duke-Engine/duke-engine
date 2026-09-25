@@ -131,7 +131,7 @@ class BlastTest {
         assertEquals(100f, took(tank), "and an ally of another template hurt");
     }
 
-    /** A shell that says it went off as one hurts an allied thing of its gun's template: a Nuke Cannon beside the target. */
+    /** A shell said to go off as one hurts an allied thing of its gun's template: a Nuke Cannon beside the target. */
     @Test
     void aShellGoneOffAsOneHurtsAnAlliedThingOfItsGunsTemplate() {
         var otherGun = put("Soldier", ally, 101f, 100f);

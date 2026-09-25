@@ -67,8 +67,8 @@ class PriceChangeTest {
 
     /**
      * A factory that gives back the price at the moment of the cancel, as the reference's does: a tank queued at 900
-     * and called off with the refinery captured gives back 810; one queued at 810 and called off after it was lost, 900.
-     * A factory that does not say so gives back what was paid.
+     * and called off with the refinery captured gives back 810; one queued at 810 and called off after it was lost,
+     * 900. A factory that does not say so gives back what was paid.
      */
     @Test
     void aCancelGivesBackTheSidesPriceNowWhereTheFactorySaysSo() {

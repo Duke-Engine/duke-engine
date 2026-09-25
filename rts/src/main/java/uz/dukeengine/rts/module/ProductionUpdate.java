@@ -44,12 +44,12 @@ public final class ProductionUpdate extends UpdateModule {
      * build — SAGE's command set — and the upgrades it may research.
      * {@code Builds = [ElfArcher, Rider]}, {@code Researches = [Upgrade_Armour]}.
      * An empty list means "no build menu" (scripts can still queue anything).
-     * Its {@link Exit} and {@link Door}s, where it has them — {@code Doors = [Door … End, Door … End]}, a job going out by
-     * the one its reservation names ({@link ProductionReservation#door}), else the first, as the reference's airfield
-     * keeps a door for each parking space; without an exit its units step out of its side. The {@link Words} it holds
-     * while it works, where the game names them. {@code RefundsPriceNow}: a job called off gives back the side's price
-     * for it at the moment of the cancel, as the reference's does ({@code ProductionUpdate::cancelUnitCreate}, {@code
-     * calcCostToBuild}), rather than what was paid for it.
+     * Its {@link Exit} and {@link Door}s, where it has them — {@code Doors = [Door … End, Door … End]}, a job going out
+     * by the one its reservation names ({@link ProductionReservation#door}), else the first, as the reference's
+     * airfield keeps a door for each parking space; without an exit its units step out of its side. The {@link Words}
+     * it holds while it works, where the game names them. {@code RefundsPriceNow}: a job called off gives back the
+     * side's price for it at the moment of the cancel, as the reference's does ({@code
+     * ProductionUpdate::cancelUnitCreate}, {@code calcCostToBuild}), rather than what was paid for it.
      */
     public record Data(List<String> builds, List<String> researches, Exit exit, List<Door> doors, Words words,
             boolean refundsPriceNow) implements ModuleData {
