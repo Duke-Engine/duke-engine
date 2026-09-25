@@ -56,11 +56,17 @@ final class GroundPictures {
      */
     void see(int id, Visuals.UnitVisual look, Set<String> holding, Coord3D at, float facing, float frames,
             BiFunction<Float, Float, Float> floorAt) {
+        see(id, look, holding, false, at, facing, frames, floorAt);
+    }
+
+    /** The same, told whether the viewer takes its owner for an enemy, who is shown none of its hidden pictures. */
+    void see(int id, Visuals.UnitVisual look, Set<String> holding, boolean hostile, Coord3D at, float facing,
+            float frames, BiFunction<Float, Float, Float> floorAt) {
         var pictures = laid.computeIfAbsent(id, key -> new ArrayList<>());
         int chosen = holding == null ? -1 : look.groundPictureFor(holding);
-        var wanted = chosen < 0 ? null : look.groundPictures.get(chosen);
+        var wanted = chosen < 0 ? null : shownTo(look.groundPictures.get(chosen), hostile);
         // Its shadow stays under whatever its words choose, as the reference's shadow decal lies under its state's.
-        var shadow = holding == null ? null : look.plainGroundPicture();
+        var shadow = holding == null ? null : shownTo(look.plainGroundPicture(), hostile);
         var there = new java.util.HashSet<Visuals.UnitVisual.GroundPicture>();
         for (var one : pictures) {
             if ((one.picture == wanted || one.picture == shadow) && !one.leaving) {
@@ -91,6 +97,11 @@ final class GroundPictures {
         if (pictures.isEmpty()) {
             laid.remove(id);
         }
+    }
+
+    private static Visuals.UnitVisual.GroundPicture shownTo(Visuals.UnitVisual.GroundPicture picture,
+            boolean hostile) {
+        return picture == null || hostile && picture.hiddenFromEnemies() ? null : picture;
     }
 
     /** A thing gone, or out of sight: what lay under it goes with it. */

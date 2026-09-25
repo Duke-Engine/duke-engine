@@ -24,6 +24,8 @@ package uz.dukeengine.game.view;
  * @param wears      the player whose colours, house and radar, it is drawn in for this viewer: its own, or the one it
  *                   is disguised as to a viewer not on its side
  * @param opacity    how opaque it is drawn, 0 to 1, as the game drives it through a change of look
+ * @param hostile    whether the viewer takes its owner for an enemy — neither its own, an ally's nor a neutral's — for
+ *                   a look that hides from its enemies what it shows everyone else
  */
 public record UnitView(
         int id,
@@ -53,10 +55,23 @@ public record UnitView(
         boolean mobile,
         String drawnAs,
         int wears,
-        float opacity) {
+        float opacity,
+        boolean hostile) {
     public UnitView {
         passengers = passengers == null ? java.util.List.of() : java.util.List.copyOf(passengers);
         conditions = conditions == null ? java.util.List.of() : java.util.List.copyOf(conditions);
+    }
+
+    /** A view that takes whatever is not on the viewer's side for an enemy: every view from before one could ask. */
+    public UnitView(int id, String templateName, int playerIndex, float x, float y, float orientation, float health,
+            float maxHealth, boolean structure, boolean selectable, boolean moving, boolean attacking,
+            int productionQueue, float z, float pitch, float roll, boolean ownHeight, int statuses,
+            java.util.List<Integer> passengers, java.util.List<String> conditions, float built, int ridesOn,
+            boolean allied, uz.dukeengine.core.thing.Span span, boolean mobile, String drawnAs, int wears,
+            float opacity) {
+        this(id, templateName, playerIndex, x, y, orientation, health, maxHealth, structure, selectable, moving,
+                attacking, productionQueue, z, pitch, roll, ownHeight, statuses, passengers, conditions, built, ridesOn,
+                allied, span, mobile, drawnAs, wears, opacity, !allied);
     }
 
     /** A view of a thing drawn as itself, in its own colours, whole: every view from before one could be disguised. */

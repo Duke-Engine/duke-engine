@@ -461,11 +461,12 @@ public final class Visuals {
         /**
          * A picture on the ground under it, chosen by its words — see {@link #groundPicture}.
          *
-         * @param width along the way it faces
-         * @param depth across it
+         * @param width             along the way it faces
+         * @param depth             across it
+         * @param hiddenFromEnemies drawn only to viewers allied or neutral to its owner
          */
         record GroundPicture(java.util.SortedSet<String> words, String picture, float width, float depth,
-                int fadeFrames) {
+                int fadeFrames, boolean hiddenFromEnemies) {
         }
 
         final java.util.List<GroundPicture> groundPictures = new java.util.ArrayList<>();
@@ -480,8 +481,18 @@ public final class Visuals {
          */
         public UnitVisual groundPicture(java.util.Set<String> conditions, String picture, float width, float depth,
                 int fadeFrames) {
+            return groundPicture(conditions, picture, width, depth, fadeFrames, false);
+        }
+
+        /**
+         * The same, drawn only to viewers allied or neutral to its owner where {@code hiddenFromEnemies} — the
+         * reference's fake building, whose picture on the ground tells its own side and the neutral it is a fake and
+         * shows its enemies nothing ({@code Drawable::changedTeam}, {@code KINDOF_FS_FAKE}).
+         */
+        public UnitVisual groundPicture(java.util.Set<String> conditions, String picture, float width, float depth,
+                int fadeFrames, boolean hiddenFromEnemies) {
             groundPictures.add(new GroundPicture(new java.util.TreeSet<>(conditions), picture, width, depth,
-                    Math.max(0, fadeFrames)));
+                    Math.max(0, fadeFrames), hiddenFromEnemies));
             return this;
         }
 

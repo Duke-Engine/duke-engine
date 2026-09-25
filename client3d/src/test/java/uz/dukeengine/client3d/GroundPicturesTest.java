@@ -84,6 +84,20 @@ class GroundPicturesTest {
                 pictures.under(3).stream().map(GroundPictures.Shown::picture).toList(), "the horde gone: its shadow");
     }
 
+    /** A fake supply pile's picture: drawn to its owner and his ally, and not to his enemy. */
+    @Test
+    void aPictureHiddenFromEnemiesIsDrawnToItsSideAndNotToItsEnemy() {
+        var fake = Visuals.create().unit("FakeSupply", look -> look
+                .groundPicture(Set.of(), HORDE, 165f, 145f, 0, true)).of("FakeSupply");
+
+        pictures.see(4, fake, Set.of(), false, new Coord3D(0f, 0f, 0f), 0f, 1f, FLAT);
+        assertEquals(1, pictures.under(4).size(), "to its owner, or his ally");
+
+        pictures.forget(4);
+        pictures.see(4, fake, Set.of(), true, new Coord3D(0f, 0f, 0f), 0f, 1f, FLAT);
+        assertTrue(pictures.under(4).isEmpty(), "not to his enemy");
+    }
+
     @Test
     void aPictureOfNoWordsIsAlwaysThere() {
         var tank = Visuals.create().unit("Tank", look -> look.groundPicture(Set.of(), HORDE, 20f, 10f, 0))

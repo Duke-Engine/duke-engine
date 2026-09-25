@@ -132,8 +132,10 @@ final class RtsClient extends GameClient {
             var weapon = object.findModule(uz.dukeengine.rts.module.WeaponUpdate.class);
             var production = object.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
             var hold = object.findModule(uz.dukeengine.rts.module.ContainModule.class);
-            boolean allied = everything || object.getPlayerIndex() == viewerPlayer || logic.getRelationship(
-                    viewerPlayer, object.getPlayerIndex()) == uz.dukeengine.core.player.Relationship.ALLIES;
+            var regard = everything || object.getPlayerIndex() == viewerPlayer
+                    ? uz.dukeengine.core.player.Relationship.ALLIES
+                    : logic.getRelationship(viewerPlayer, object.getPlayerIndex());
+            boolean allied = regard == uz.dukeengine.core.player.Relationship.ALLIES;
             units.add(new UnitView(
                     object.getId().value(),
                     template.name(),
@@ -167,7 +169,8 @@ final class RtsClient extends GameClient {
                     // In the colours of the player it is disguised as to a viewer not on its side, as the reference
                     // draws a disguised bomb truck to its enemies; its own to its side.
                     allied || object.getWearsColoursOf() < 0 ? object.getPlayerIndex() : object.getWearsColoursOf(),
-                    object.getDrawnOpacity()));
+                    object.getDrawnOpacity(),
+                    regard == uz.dukeengine.core.player.Relationship.ENEMIES));
         }
         var rallies = new ArrayList<uz.dukeengine.game.view.RallyView>();
         for (var object : shown) {

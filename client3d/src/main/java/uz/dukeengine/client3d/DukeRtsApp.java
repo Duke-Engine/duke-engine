@@ -6350,7 +6350,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (!visual.groundPictures.isEmpty()) {
             groundPictures.see(view.id(), visual,
                     visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()),
-                    new Coord3D(view.x(), view.y(), 0f), view.orientation(),
+                    view.hostile(), new Coord3D(view.x(), view.y(), 0f), view.orientation(),
                     timer.getTimePerFrame() / Particles.FRAME_SECONDS, this::floorHeightAt);
         }
         if (visuals.getSeeThroughWord() != null || visuals.getGlowWord() != null || visuals.getOwnGlowWord() != null
