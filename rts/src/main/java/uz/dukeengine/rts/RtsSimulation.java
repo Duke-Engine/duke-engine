@@ -235,6 +235,21 @@ public abstract class RtsSimulation extends GameLogic {
         return targetRules;
     }
 
+    private int targetScanFrames = 1;
+
+    /**
+     * How often a weapon with no target looks for one, in frames — the reference's {@code MoodAttackCheckRate}, 250
+     * ms, looking a quarter second apart rather than every frame; each thing on its own frame of the round, staggered by
+     * its id, so a crowd does not look all at once. 1, the default, is every frame, as always.
+     */
+    public final void setTargetScanFrames(int frames) {
+        this.targetScanFrames = Math.max(1, frames);
+    }
+
+    public final int getTargetScanFrames() {
+        return targetScanFrames;
+    }
+
     private java.util.List<uz.dukeengine.core.thing.Kind> shownWhenHidden = java.util.List.of();
     private boolean hiddenShotsToOwnerOnly;
 

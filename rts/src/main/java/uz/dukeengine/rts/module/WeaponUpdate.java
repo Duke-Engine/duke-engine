@@ -385,6 +385,9 @@ public final class WeaponUpdate extends UpdateModule {
         }
 
         if (target == null) {
+            if (!scansNow(world, owner)) {
+                return; // between its looks for a target
+            }
             acquireTarget(world, owner, armed);
             if (target == null) {
                 return;
@@ -897,6 +900,12 @@ public final class WeaponUpdate extends UpdateModule {
      */
     private static float rangeTo(GameObject owner, GameObject victim) {
         return uz.dukeengine.core.thing.World.reachBetween(owner, victim);
+    }
+
+    /** Whether this is one of its frames to look for a target — see {@code RtsSimulation.setTargetScanFrames}. */
+    private static boolean scansNow(uz.dukeengine.core.thing.World world, GameObject owner) {
+        int every = world instanceof uz.dukeengine.rts.RtsSimulation rts ? rts.getTargetScanFrames() : 1;
+        return every <= 1 || Math.floorMod(world.getFrame() + owner.getId().value(), every) == 0;
     }
 
     /**
