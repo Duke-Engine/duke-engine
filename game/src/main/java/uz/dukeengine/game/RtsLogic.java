@@ -128,6 +128,7 @@ final class RtsLogic extends RtsSimulation {
                         weapon.holdFire(); // an explicit move overrides the current target
                     }
                 }
+                tellOrder(move, move.units(), move.playerIndex());
             }
             case GameMessage.AttackObject attack -> {
                 for (var id : attack.units()) {
@@ -141,6 +142,7 @@ final class RtsLogic extends RtsSimulation {
                         weapon.attack(attack.target());
                     }
                 }
+                tellOrder(attack, attack.units(), attack.playerIndex()); // weaponless or not
             }
             case GameMessage.StopMoving stop -> {
                 for (var id : stop.units()) {
@@ -158,6 +160,7 @@ final class RtsLogic extends RtsSimulation {
                         weapon.holdFire();
                     }
                 }
+                tellOrder(stop, stop.units(), stop.playerIndex());
             }
             case GameMessage.QueueProduction order -> {
                 var production = ownProduction(order.factory(), order.playerIndex());
@@ -190,8 +193,14 @@ final class RtsLogic extends RtsSimulation {
                 }
             }
             case GameMessage.Sell sell -> uz.dukeengine.rts.construction.Selling.order(this, sell);
-            case GameMessage.AttackMove move -> uz.dukeengine.rts.module.AttackMoveOrder.order(this, move);
-            case GameMessage.Guard guard -> uz.dukeengine.rts.module.GuardOrder.order(this, guard);
+            case GameMessage.AttackMove move -> {
+                uz.dukeengine.rts.module.AttackMoveOrder.order(this, move);
+                tellOrder(move, move.units(), move.playerIndex());
+            }
+            case GameMessage.Guard guard -> {
+                uz.dukeengine.rts.module.GuardOrder.order(this, guard);
+                tellOrder(guard, guard.units(), guard.playerIndex());
+            }
             case GameMessage.Evacuate evacuate -> uz.dukeengine.rts.module.ContainModule.evacuate(this, evacuate);
             case GameMessage.ExitContainer exit -> uz.dukeengine.rts.module.ContainModule.exit(this, exit);
             case GameMessage.GameOrder order -> ordered(order);

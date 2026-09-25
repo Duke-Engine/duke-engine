@@ -579,6 +579,25 @@ public abstract class RtsSimulation extends GameLogic {
                 researcher == null ? null : researcher.getPosition()));
     }
 
+    /**
+     * Tell the {@link uz.dukeengine.rts.module.OrderListener}s of each of {@code player}'s units named that it was
+     * given {@code order} — after the engine's own handling of it, in the order named.
+     */
+    protected final void tellOrder(GameMessage order, java.util.List<uz.dukeengine.core.thing.ObjectId> units,
+            int player) {
+        for (var id : units) {
+            var unit = findObject(id);
+            if (unit == null || unit.getPlayerIndex() != player) {
+                continue; // gone, or not the issuer's to command
+            }
+            for (var module : java.util.List.copyOf(unit.getModules())) {
+                if (module instanceof uz.dukeengine.rts.module.OrderListener listener) {
+                    listener.onOrder(order);
+                }
+            }
+        }
+    }
+
     /** An upgrade reaches a thing: its word holds for it, and its listeners are told. */
     private static void reach(uz.dukeengine.core.thing.GameObject thing, String upgrade) {
         thing.setCondition(upgrade);
