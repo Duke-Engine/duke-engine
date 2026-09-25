@@ -1544,6 +1544,15 @@ public final class DukeGame {
     }
 
     /**
+     * The thing the window last said its pointer is on ({@link #setPointedAt}), or -1 for none, whatever is selected —
+     * for a game's own canvas to show what is under the pointer. Presentation only: nothing in the simulation reads
+     * it. From any thread.
+     */
+    public int getPointedAt() {
+        return pointed.unit();
+    }
+
+    /**
      * Whether an attack on what the pointer is on would be taken: refused only where the selection holds
      * something armed of the local player's and not one of its weapons may be fired at it. Nothing under the
      * pointer, or nothing armed selected, is no refusal — so a game whose weapons name no classes draws its

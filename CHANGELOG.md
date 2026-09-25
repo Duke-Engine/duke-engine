@@ -273,7 +273,8 @@ the order mark, and where the game named one the move model. A lone structure se
 ### The pointer over the game's canvas
 
 `Duke3D.canvasPointer(situation)` names the pointer shown while the pointer is over the game's own canvas; null hands
-it back to the client. Over the world, the client's own pointer is shown either way.
+it back to the client. Over the world, the client's own pointer is shown either way. `DukeGame.getPointedAt()` is the
+thing the window's pointer is on, or -1, whatever is selected, for a game's own canvas to say what lies under it.
 
 ### The player's camera, as the game frames it
 
