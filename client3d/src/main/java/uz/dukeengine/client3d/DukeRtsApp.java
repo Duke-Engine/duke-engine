@@ -5458,7 +5458,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         snap(node.composer, visual.attackAnim);
         snap(node.composer, visual.hurtAnim);
-        node.bodyTop = visual.risesAsBuilt ? UnitPlacement.topOf(body) : 0f;
+        node.bodyTop = visual.risesAsBuilt ? UnitPlacement.riseOf(visual, body) : 0f;
         // Its barrels are the model's, so a new model is found again: a wreck may have none.
         Integer id = node.root.getUserData("unitId");
         if (id != null) {

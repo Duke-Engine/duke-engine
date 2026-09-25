@@ -55,7 +55,7 @@ final class ModelLayer {
             if (body != null) {
                 paint.accept(body);
                 parent.attachChild(body);
-                top = look.risesAsBuilt ? UnitPlacement.topOf(body) : 0f;
+                top = look.risesAsBuilt ? UnitPlacement.riseOf(look, body) : 0f;
                 pieces.applyTo(body, Set.of());
             }
         }

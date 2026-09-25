@@ -95,6 +95,8 @@ public final class Visuals {
         final java.util.Map<String, UnitVisual> layers = new java.util.LinkedHashMap<>();
         /** Whether it is drawn rising out of the ground as it is built; see {@link #risesAsBuilt}. */
         boolean risesAsBuilt;
+        /** How far it rises: the height the game named, or -1 for its model's own top. */
+        float riseHeight = -1f;
         /** Its treads, or null for none; see {@link #treads}. */
         Treads treads;
         /** Its wheels, or null for none; see {@link #wheels}. */
@@ -179,6 +181,17 @@ public final class Visuals {
          */
         public UnitVisual risesAsBuilt() {
             this.risesAsBuilt = true;
+            return this;
+        }
+
+        /**
+         * The same, sunk by what is left to build times {@code height} — the thing's own height, as the reference's
+         * {@code W3DModelDraw::adjustTransformMtx} sinks by its geometry's height whatever its model: at nothing built a
+         * model taller than the thing stands out of the ground by the difference (a factory's 48.1 over its 40).
+         */
+        public UnitVisual risesAsBuilt(float height) {
+            this.risesAsBuilt = true;
+            this.riseHeight = Math.max(0f, height);
             return this;
         }
 

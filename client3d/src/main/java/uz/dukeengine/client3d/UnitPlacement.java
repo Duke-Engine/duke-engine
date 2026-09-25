@@ -32,17 +32,29 @@ final class UnitPlacement {
     }
 
     /**
-     * How high a body's top stands above the ground its thing is placed on: measured off the model as it hangs from its
-     * node, before or after it is hung there.
+     * How high a body's top stands above the ground its thing is placed on: measured off the model as it would hang from
+     * its node, whether it hangs there yet or not.
+     *
+     * <p>Measured taken down and hung back. Brought up to date in place, a body hung this frame from a thing that
+     * appeared this frame worked out its lights from a node that had none yet, and was drawn black all match: jME does
+     * not work a body's lights out again until it is hung anew.
      */
     static float topOf(com.jme3.scene.Spatial body) {
+        var parent = body.getParent();
+        int at = parent == null ? -1 : parent.detachChild(body);
         body.updateModelBound();
         body.updateGeometricState();
-        if (!(body.getWorldBound() instanceof com.jme3.bounding.BoundingBox box)) {
-            return 0f;
+        float top = body.getWorldBound() instanceof com.jme3.bounding.BoundingBox box
+                ? box.getCenter().y + box.getYExtent() : 0f;
+        if (parent != null) {
+            parent.attachChildAt(body, at);
         }
-        float ground = body.getParent() == null ? 0f : body.getParent().getWorldTranslation().y;
-        return box.getCenter().y + box.getYExtent() - ground;
+        return top;
+    }
+
+    /** How far a look that rises as it is built rises: the height the game named, or else its model's own top. */
+    static float riseOf(Visuals.UnitVisual look, com.jme3.scene.Spatial body) {
+        return look.riseHeight >= 0f ? look.riseHeight : topOf(body);
     }
 
     /** How it is turned: its facing, then its pitch, then its roll. */

@@ -121,4 +121,102 @@ class ModelLayerTest {
         }
         return null;
     }
+
+    // ---- rising layers: lit from their first frame, and by a height the game names ----
+
+    /** A model 48 high: a box standing on the ground, its top at 48. */
+    private static Spatial tower(String path) {
+        var model = new Node(path);
+        var box = new com.jme3.scene.Geometry(path + "-mesh", new com.jme3.scene.shape.Box(5f, 24f, 5f));
+        box.setLocalTranslation(0f, 24f, 0f);
+        model.attachChild(box);
+        return model;
+    }
+
+    private static UnitView built(float share) {
+        return new UnitView(1, "CommandCenter", 0, 0f, 0f, 0f, 100f, 100f, true, true, false, false, 0, 0f, 0f, 0f,
+                false, 0, List.of(), List.of(), share);
+    }
+
+    private static int lightsOn(Spatial body) {
+        var count = new int[] {Integer.MAX_VALUE};
+        body.depthFirstTraversal(spatial -> {
+            if (spatial instanceof com.jme3.scene.Geometry geometry) {
+                count[0] = Math.min(count[0], geometry.getWorldLightList().size());
+            }
+        });
+        return count[0];
+    }
+
+    private static List<ModelLayer> commandCenter() {
+        var look = Visuals.create().unit("CommandCenter", l -> {
+            l.model("models/cc.glb");
+            l.layer("dish").model("models/dish.glb").risesAsBuilt();
+            l.layer("flag").model("models/flag.glb");
+        }).of("CommandCenter");
+        var layers = new ArrayList<ModelLayer>();
+        look.layers.values().forEach(one -> layers.add(new ModelLayer(one, ModelLayerTest::tower)));
+        return layers;
+    }
+
+    @Test
+    void aRisingLayerWornTheFrameItsThingAppearsIsLitAsOneThatDoesNotRise() {
+        var scene = new Node("scene");
+        scene.addLight(new com.jme3.light.DirectionalLight());
+        scene.updateGeometricState(); // the scene as it stood before the thing
+        var thing = new Node("thing");
+        scene.attachChild(thing); // it appears this frame, finished
+        var layers = commandCenter();
+
+        wear(layers, thing, built(1f), 0);
+        scene.updateGeometricState(); // the first frame drawn
+
+        for (var layer : layers) {
+            assertEquals(1, lightsOn(layer.body()), "the scene's light on every piece, rising or not");
+        }
+    }
+
+    @Test
+    void aRisingLayerOfAThingAppearingMidMatchIsLitToo() {
+        var scene = new Node("scene");
+        scene.addLight(new com.jme3.light.DirectionalLight());
+        var first = new Node("first");
+        scene.attachChild(first);
+        var early = commandCenter();
+        wear(early, first, built(1f), 0);
+        for (int frame = 0; frame < 3; frame++) {
+            scene.updateGeometricState();
+        }
+        var later = new Node("later");
+        scene.attachChild(later);
+        var layers = commandCenter();
+
+        wear(layers, later, built(0.5f), 90);
+        scene.updateGeometricState();
+
+        for (var layer : layers) {
+            assertEquals(1, lightsOn(layer.body()), "lit from the frame it appears");
+        }
+    }
+
+    @Test
+    void aLayerRisesByTheHeightTheGameNamesNotItsModelsTop() {
+        var look = Visuals.create().unit("Factory", l -> l.layer("walls").model("models/walls.glb")
+                .risesAsBuilt(40f)).of("Factory");
+        var layer = new ModelLayer(look.layers.get("walls"), ModelLayerTest::tower);
+        var thing = new Node("thing");
+
+        float[] tops = new float[3];
+        float[] shares = {0f, 0.5f, 1f};
+        for (int at = 0; at < 3; at++) {
+            layer.wear(thing, built(shares[at]), Set.of(), 0, body -> { }, clip -> { });
+            thing.updateGeometricState();
+            var box = (com.jme3.bounding.BoundingBox) layer.body().getWorldBound();
+            tops[at] = box.getCenter().y + box.getYExtent();
+        }
+
+        assertEquals(8f, tops[0], 1e-3f, "at nothing built the 48 model stands 8 out of the ground");
+        assertEquals(28f, tops[1], 1e-3f, "half built, 28");
+        assertEquals(48f, tops[2], 1e-3f, "whole, 48");
+    }
 }
