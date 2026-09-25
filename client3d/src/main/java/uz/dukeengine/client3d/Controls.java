@@ -59,6 +59,7 @@ final class Controls {
     private final Map<Integer, CameraFocus.View> bookmarks = new HashMap<>();
     private final Set<KeyMap.Control> held = EnumSet.noneOf(KeyMap.Control.class);
     private float[] latestAlert;
+    private boolean gamesAlerts;
 
     private int lastGroup = -1;
     private float lastGroupAt = Float.NEGATIVE_INFINITY;
@@ -159,9 +160,20 @@ final class Controls {
         return loose;
     }
 
-    /** Something worth looking at happened here: {@link KeyMap.Control#LATEST_ALERT} goes to the latest. */
+    /**
+     * Something worth looking at happened here — a thing of his hurt: {@link KeyMap.Control#LATEST_ALERT} goes to the
+     * latest, unless the game keeps its alerts itself ({@link #gamesAlert}).
+     */
     void alert(float x, float z) {
-        latestAlert = new float[] {x, z};
+        if (!gamesAlerts) {
+            latestAlert = new float[] {x, z};
+        }
+    }
+
+    /** The game's own latest alert, or null for none yet: the key looks there, and his hurt things move it no more. */
+    void gamesAlert(uz.dukeengine.core.math.Coord2D place) {
+        gamesAlerts = true;
+        latestAlert = place == null ? null : new float[] {place.x(), place.y()};
     }
 
     /** A unit is dead, and gone from every group it was in. */

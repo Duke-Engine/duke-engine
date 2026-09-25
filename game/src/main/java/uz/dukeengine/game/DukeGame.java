@@ -252,6 +252,30 @@ public final class DukeGame {
         return viewMove.getAndSet(null);
     }
 
+    private volatile boolean alertsAreTheGames;
+    private volatile uz.dukeengine.core.math.Coord2D latestAlert;
+
+    /**
+     * Where the key that looks at the latest alert looks — the reference's last radar event ({@code
+     * Radar::getLastEventLoc}): an attack at most once in ten seconds, a building finished, a unit lost — and from now
+     * on the client moves it no more on its own when a thing of the player's is hurt: the game says what an alert is.
+     * Null for none yet. From any thread.
+     */
+    public void setLatestAlert(uz.dukeengine.core.math.Coord2D place) {
+        latestAlert = place;
+        alertsAreTheGames = true;
+    }
+
+    /** Whether the game keeps the latest alert itself ({@link #setLatestAlert}). */
+    public boolean alertsAreTheGames() {
+        return alertsAreTheGames;
+    }
+
+    /** The latest alert the game set, or null. */
+    public uz.dukeengine.core.math.Coord2D latestAlert() {
+        return latestAlert;
+    }
+
     private volatile uz.dukeengine.game.view.ViewRays viewRays;
 
     /**

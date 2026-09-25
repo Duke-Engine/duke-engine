@@ -120,6 +120,28 @@ class ControlsTest {
         assertEquals(50f, world.camera.targetZ(), 0f);
     }
 
+    /**
+     * The latest alert: without the game, where a thing of his was last hurt; once the game keeps its own, where the
+     * game put it, a thing of his hurt after that moving it no more.
+     */
+    @Test
+    void theLatestAlertLooksWhereTheGameSaysOnceItKeepsItsOwn() {
+        var space = key(KeyInput.KEY_SPACE);
+        var controls = new Controls(KeyMap.empty().bind(KeyMap.Control.LATEST_ALERT, space));
+        var world = new World();
+
+        controls.alert(10f, 20f); // his, hurt
+        controls.press(space, 0f, world);
+        assertEquals(10f, world.camera.targetX(), 0f, "where he was hurt, as ever");
+        assertEquals(20f, world.camera.targetZ(), 0f);
+
+        controls.gamesAlert(new uz.dukeengine.core.math.Coord2D(300f, 400f));
+        controls.alert(10f, 20f); // hurt again
+        controls.press(space, 1f, world);
+        assertEquals(300f, world.camera.targetX(), 0f, "where the game put it");
+        assertEquals(400f, world.camera.targetZ(), 0f, "a hurt thing moving it no more");
+    }
+
     @Test
     void ctrlOneThenOneBringsTheGroupBack() {
         var controls = new Controls(KeyMap.empty().groupsOnDigits());

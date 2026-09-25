@@ -1324,6 +1324,9 @@ final class DukeRtsApp extends SimpleApplication {
         if (screen == Screen.PLAYING) {
             changes = healthWatch.since(snapshot.units(), game.getLocalPlayerIndex(),
                     look.leastWorth(), killedThisFrame);
+            if (game.alertsAreTheGames()) {
+                controls.gamesAlert(game.latestAlert());
+            }
             for (var change : changes) {
                 hitNumbers.add(change, now, look.height());
                 if (!change.healed() && !change.his()) {
