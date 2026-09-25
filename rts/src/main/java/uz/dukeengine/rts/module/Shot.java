@@ -19,9 +19,23 @@ import uz.dukeengine.core.thing.ObjectId;
  * @param secondaryDamage what its blast deals beyond {@code radius} and within {@code secondaryRadius}, applied as
  *                        {@code damage} is
  * @param secondaryRadius how far its blast's second ring reaches, as {@code radius} is; 0 for none
+ * @param wentOff         the template of what went off where it is not the shooter — a shell the shooter launched —
+ *                        or null: its blast spares things of that template allied to it ({@code NOT_SIMILAR}), and
+ *                        its launcher rather than the shooter's maker
  */
 public record Shot(ObjectId shooter, int side, Weapon weapon, int slot, float damage, float radius,
-        float secondaryDamage, float secondaryRadius) {
+        float secondaryDamage, float secondaryRadius, String wentOff) {
+
+    /** A shot the shooter itself goes off with, as every shot was before one could say otherwise. */
+    public Shot(ObjectId shooter, int side, Weapon weapon, int slot, float damage, float radius,
+            float secondaryDamage, float secondaryRadius) {
+        this(shooter, side, weapon, slot, damage, radius, secondaryDamage, secondaryRadius, null);
+    }
+
+    /** This shot gone off as {@code template} — the shell a launcher made of it — rather than as its shooter. */
+    public Shot wentOffAs(String template) {
+        return new Shot(shooter, side, weapon, slot, damage, radius, secondaryDamage, secondaryRadius, template);
+    }
 
     /** A shot whose blast is its weapon's own, with no bonus to it. */
     public Shot(ObjectId shooter, int side, Weapon weapon, int slot, float damage) {

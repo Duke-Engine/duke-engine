@@ -103,6 +103,7 @@ class ProductionTest {
                 .orElseThrow();
         assertEquals(usa, produced.getPlayerIndex());
         assertEquals(50f, produced.getBody().getMaxHealth(), 1e-6f);
+        assertEquals(logic.getObjects().getFirst().getId(), produced.getProducer(), "made by the barracks");
     }
 
     @Test

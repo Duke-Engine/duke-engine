@@ -116,6 +116,20 @@ class GameSnapshotTest {
         assertEquals(java.util.List.of("PLAYER_UPGRADE", "VETERAN"), java.util.List.copyOf(back.getConditions()));
     }
 
+    /** What made a thing is saved with it, and the world sums the same: a blast of its own spares its maker. */
+    @Test
+    void whatMadeAThingIsSavedWithIt() {
+        var orig = newLogic();
+        var factory = orig.createObject(orig.getThingFactory().findTemplate("Tank"));
+        var tank = orig.createObject(orig.getThingFactory().findTemplate("Tank"));
+        tank.setProducer(factory.getId());
+
+        var restored = newLogic();
+        GameSnapshot.load(GameSnapshot.save(orig), restored);
+        assertEquals(factory.getId(), restored.getObjects().get(1).getProducer());
+        assertEquals(orig.checksum(), restored.checksum());
+    }
+
     /** A map revealed to a player stays revealed through a save, and the world sums the same. */
     @Test
     void aMapRevealedToAPlayerIsSavedWithTheWorld() {

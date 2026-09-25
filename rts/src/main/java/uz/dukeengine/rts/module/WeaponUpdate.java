@@ -815,11 +815,15 @@ public final class WeaponUpdate extends UpdateModule {
         return Math.max(0f, (float) Math.sqrt(dx * dx + dy * dy + dz * dz) - shape.boundingSphereRadius());
     }
 
-    /** Whether the shot's blast hurts {@code candidate}, by whom its weapon says it hurts; enemies where it says none. */
+    /**
+     * Whether the shot's blast hurts {@code candidate}, by whom its weapon says it hurts; enemies where it says none.
+     * Read off what went off, as the reference reads it: {@code SELF} is what went off and its maker, {@code
+     * NOT_SIMILAR} its template and its allies.
+     */
     private static boolean hurts(uz.dukeengine.core.thing.World world, Shot shot, GameObject shooter,
             GameObject candidate) {
         var affects = shot.weapon().affects();
-        if (candidate.getId().equals(shot.shooter())) {
+        if (isSelf(shot, shooter, candidate)) {
             return affects.contains(Weapon.Affects.SELF);
         }
         if (candidate.getTargetableFrom() > world.getFrame() || candidate.hasStatus(ObjectStatus.HIDDEN)) {
@@ -830,9 +834,9 @@ public final class WeaponUpdate extends UpdateModule {
         if (affects.isEmpty()) {
             return relationship == Relationship.ENEMIES;
         }
-        if (affects.contains(Weapon.Affects.NOT_SIMILAR) && shooter != null
-                && candidate.getTemplate() == shooter.getTemplate()) {
-            return false;
+        if (affects.contains(Weapon.Affects.NOT_SIMILAR) && relationship == Relationship.ALLIES
+                && candidate.getTemplate().name().equals(wentOff(shot, shooter))) {
+            return false; // a Terrorist's charge spares the Terrorists beside him, not an enemy's
         }
         if (affects.contains(Weapon.Affects.NOT_AIRBORNE) && candidate.hasStatus(ObjectStatus.AIRBORNE)) {
             return false;
@@ -842,6 +846,20 @@ public final class WeaponUpdate extends UpdateModule {
             case ENEMIES -> Weapon.Affects.ENEMIES;
             case NEUTRAL -> Weapon.Affects.NEUTRALS;
         });
+    }
+
+    /**
+     * What went off and its maker, as the reference's {@code source == victim || source->getProducerID() == victim}:
+     * the shooter and the thing that made it — or, a shell having gone off, the shell's launcher, the shooter.
+     */
+    private static boolean isSelf(Shot shot, GameObject shooter, GameObject candidate) {
+        return candidate.getId().equals(shot.shooter())
+                || shot.wentOff() == null && shooter != null && candidate.getId().equals(shooter.getProducer());
+    }
+
+    /** The template of what went off: the shell's where one carried the shot, else the shooter's; null if gone. */
+    private static String wentOff(Shot shot, GameObject shooter) {
+        return shot.wentOff() != null ? shot.wentOff() : shooter == null ? null : shooter.getTemplate().name();
     }
 
     /** Award the killer the victim's experience value, if both track experience. */

@@ -113,15 +113,50 @@ class BlastTest {
         assertEquals(0f, took(firer), "and never the firer");
     }
 
+    /**
+     * NOT_SIMILAR as the reference reads it: of what went off's template and an ally of it. A Terrorist's charge spares
+     * the Terrorists beside him and hurts an enemy's.
+     */
     @Test
-    void notSimilarSparesACopyOfTheFirerWhateverItsSide() {
-        var copy = put("Soldier", foe, 101f, 100f);
-        var tank = put("Tank", foe, 99f, 100f);
+    void notSimilarSparesAnAllyOfTheFirersTemplateAndHurtsAnEnemyOfIt() {
+        var enemyCopy = put("Soldier", foe, 101f, 100f);
+        var allyCopy = put("Soldier", ally, 99f, 100f);
+        var tank = put("Tank", ally, 100f, 101f);
 
-        blast(bomb(List.of(Weapon.Affects.ENEMIES, Weapon.Affects.NOT_SIMILAR), 100f, 50f, 0f, 0f));
+        blast(bomb(List.of(Weapon.Affects.ALLIES, Weapon.Affects.ENEMIES, Weapon.Affects.NOT_SIMILAR), 100f, 50f,
+                0f, 0f));
 
-        assertEquals(0f, took(copy), "a soldier's blast spares soldiers");
-        assertEquals(100f, took(tank));
+        assertEquals(100f, took(enemyCopy), "an enemy of the firer's own template is hurt");
+        assertEquals(0f, took(allyCopy), "an ally of it spared");
+        assertEquals(100f, took(tank), "and an ally of another template hurt");
+    }
+
+    /** A shell that says it went off as one hurts an allied thing of its gun's template: a Nuke Cannon beside the target. */
+    @Test
+    void aShellGoneOffAsOneHurtsAnAlliedThingOfItsGunsTemplate() {
+        var otherGun = put("Soldier", ally, 101f, 100f);
+        var weapon = bomb(List.of(Weapon.Affects.ALLIES, Weapon.Affects.ENEMIES, Weapon.Affects.NOT_SIMILAR), 100f,
+                50f, 0f, 0f);
+
+        WeaponUpdate.land(world, new Shot(firer.getId(), mine, weapon, 0, weapon.damage()).wentOffAs("NukeShell"),
+                null, BLAST, null);
+
+        assertEquals(100f, took(otherGun), "the shell spares shells, not guns");
+        assertEquals(0f, took(firer), "and not the gun that fired it");
+    }
+
+    /** A unit's own blast spares the thing that made it, unless it says SELF: the reference's producer. */
+    @Test
+    void aUnitsBlastSparesTheThingThatMadeItUnlessItSaysSelf() {
+        var factory = put("Tank", mine, 101f, 100f);
+        firer.setProducer(factory.getId());
+
+        blast(bomb(List.of(Weapon.Affects.ALLIES, Weapon.Affects.ENEMIES), 100f, 50f, 0f, 0f));
+        assertEquals(0f, took(factory), "its maker spared");
+
+        blast(bomb(List.of(Weapon.Affects.ALLIES, Weapon.Affects.ENEMIES, Weapon.Affects.SELF), 100f, 50f, 0f, 0f));
+        assertEquals(100f, took(factory), "a blast that says SELF hurts it");
+        assertEquals(100f, took(firer), "and the firer");
     }
 
     @Test

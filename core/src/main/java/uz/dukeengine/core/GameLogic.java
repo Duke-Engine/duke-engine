@@ -1210,6 +1210,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             if (object.getTargetableFrom() > 0) {
                 hash = mix(hash, object.getTargetableFrom());
             }
+            if (object.getProducer() != null) {
+                hash = mix(hash, object.getProducer().value()); // made by nothing sums as it always did
+            }
             if (object.getFloor() != 0) {
                 hash = mix(hash, object.getFloor());
             }

@@ -56,6 +56,8 @@ public final class GameObject {
     private float visionRange = -1f;
     /** The first frame an enemy may target it — see {@link #setTargetableFrom}. */
     private int targetableFrom;
+    /** What made it — see {@link #getProducer}. */
+    private ObjectId producer;
     /** The floor it is on: 0 the ground, n the n-th deck laid over it — see {@link #getFloor}. */
     private int floor;
     /** The line it is drawn along, or null — see {@link #setSpan}. */
@@ -251,6 +253,18 @@ public final class GameObject {
     /** The first frame an enemy may target it; 0 for from the start. */
     public int getTargetableFrom() {
         return targetableFrom;
+    }
+
+    /**
+     * What made it — a factory its unit, a launcher its shell — or null: the reference's producer, which a blast of
+     * its own spares. In the checksum and a save.
+     */
+    public ObjectId getProducer() {
+        return producer;
+    }
+
+    public void setProducer(ObjectId producer) {
+        this.producer = producer;
     }
 
     /**
