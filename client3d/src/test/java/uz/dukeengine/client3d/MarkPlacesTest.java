@@ -74,6 +74,21 @@ class MarkPlacesTest {
         assertTrue(cross.getLocalScale().x < chevron.getLocalScale().x, "at its own scale");
     }
 
+    /**
+     * The reference's enthusiastic mark, 32 pixels square drawn at 0.5 on a soldier, with a quarter of its own height
+     * named as its gap ({@code Drawable::drawEnthusiastic}): its top 4 pixels below the plain bar's bottom edge, its
+     * middle a quarter along the bar; with none named, its top on the edge.
+     */
+    @Test
+    void aThirtyTwoPixelMarkAtAHalfStandsFourPixelsUnderThePlainBar() {
+        float drawn = 32f * 0.5f;
+        var corner = UnitBars.markCorner(ENTHUSIASTIC, drawn, drawn, 100f, 40f, 200f, 203f);
+        assertEquals(200f - 4f, corner[1] + drawn, 1e-4f, "its top 4 pixels below the bar's bottom edge");
+        assertEquals(100f + 40f / 4f, corner[0] + drawn / 2f, 1e-4f, "its middle a quarter along");
+        var unnamed = UnitBars.markCorner(Visuals.MarkPlace.under(0.25f), drawn, drawn, 100f, 40f, 200f, 203f);
+        assertEquals(200f, unnamed[1] + drawn, 1e-4f, "no gap unless named");
+    }
+
     @Test
     void aStripStartsOnAPictureOfItsOwnWhereItSaysSo() {
         var strip = List.of("e0", "e1", "e2", "e3");
