@@ -65,4 +65,27 @@ class WorldRegionTest {
         assertEquals(fovTop, camera.getFrustumTop(), 1e-5f, "the vertical angle kept throughout");
         assertEquals(new Vector3f(0f, 140f, 100f), camera.getLocation(), "and the camera never moved");
     }
+
+    /** Where a point 25 degrees across from the line of sight falls, counted from the window's left and top. */
+    private static float[] twentyFiveAcross(WorldRegion region) {
+        var camera = new Camera(800, 600);
+        camera.setFrustumPerspective(45f, 800f / 600f, 1f, 1000f);
+        camera.setLocation(Vector3f.ZERO);
+        camera.lookAtDirection(new Vector3f(0f, 0f, -1f), Vector3f.UNIT_Y);
+        region.applyTo(camera, 50f);
+        camera.update();
+        var at = camera.getScreenCoordinates(new Vector3f(100f * (float) Math.tan(Math.toRadians(25)), 0f, -100f));
+        return new float[] {at.x, camera.getHeight() - at.y};
+    }
+
+    @Test
+    void aFiftyDegreeFieldPutsAPoint25DegreesAcrossOnTheWindowsEdgeWholeOrInItsTop80Percent() {
+        var whole = twentyFiveAcross(WorldRegion.WHOLE);
+        assertEquals(800f, whole[0], 0.01f, "on the right edge of the whole window");
+        assertEquals(300f, whole[1], 0.01f);
+
+        var top = twentyFiveAcross(new WorldRegion(0f, 0f, 1f, 0.8f));
+        assertEquals(800f, top[0], 0.01f, "and of its top 80%: the height follows, the width is kept");
+        assertEquals(240f, top[1], 0.01f);
+    }
 }

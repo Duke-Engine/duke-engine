@@ -30,8 +30,19 @@ record WorldRegion(float left, float top, float width, float height) {
 
     /** Draw the camera into this part of its window, with this part's shape — nowhere in the world moved. */
     void applyTo(Camera camera) {
+        applyTo(camera, Float.NaN);
+    }
+
+    /**
+     * The same, seeing {@code fieldOfView} degrees across the whole window — the part's height following its shape, as
+     * the reference keeps its horizontal half-width — or, for NaN, keeping the camera's vertical angle.
+     */
+    void applyTo(Camera camera, float fieldOfView) {
         camera.setViewPort(left, left + width, 1f - top - height, 1f - top);
-        float fovY = FastMath.RAD_TO_DEG * 2f * FastMath.atan(camera.getFrustumTop() / camera.getFrustumNear());
+        float fovY = Float.isNaN(fieldOfView)
+                ? FastMath.RAD_TO_DEG * 2f * FastMath.atan(camera.getFrustumTop() / camera.getFrustumNear())
+                : (float) Math.toDegrees(2.0 * Math.atan(Math.tan(Math.toRadians(fieldOfView) / 2.0)
+                        * camera.getHeight() * height / camera.getWidth()));
         camera.setFrustumPerspective(fovY, camera.getWidth() * width / (camera.getHeight() * height),
                 camera.getFrustumNear(), camera.getFrustumFar());
     }

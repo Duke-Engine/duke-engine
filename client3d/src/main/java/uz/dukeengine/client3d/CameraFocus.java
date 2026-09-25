@@ -1,5 +1,8 @@
 package uz.dukeengine.client3d;
 
+import com.jme3.math.FastMath;
+import com.jme3.math.Quaternion;
+import com.jme3.math.Vector3f;
 import java.util.List;
 import uz.dukeengine.game.view.UnitView;
 
@@ -38,14 +41,40 @@ final class CameraFocus {
     private static final float NEAREST = 40f;
     private static final float FURTHEST = 400f;
 
+    /** How steeply it looks down unless the game frames it: 0.82 up for 0.57 back, the slope it has always had. */
+    static final float DEFAULT_PITCH = FastMath.atan2(0.82f, 0.57f);
+
     private float targetX;
     private float targetZ;
     private float distance = START_DISTANCE;
+    private float pitch = DEFAULT_PITCH;
+    private float nearest = NEAREST;
+    private float furthest = FURTHEST;
+    private float start = START_DISTANCE;
+    private float wheelStep = Float.NaN;
+    private float panAcross = Float.NaN;
+    private float panAlong = Float.NaN;
     /** How far it is turned about the point it looks at, in radians; 0 is the way it starts. */
     private float yaw;
     private boolean wantsOwnUnit;
     private float groundWidth;
     private float groundHeight;
+
+    /**
+     * Framed as the game says — see {@link CameraFrame}: its pitch, how near and far it may come, where it starts, how
+     * far a wheel notch takes it and how fast it pans, what the frame leaves NaN staying the client's own; and put back
+     * to how it starts.
+     */
+    void frame(CameraFrame frame) {
+        pitch = Float.isNaN(frame.pitch()) ? DEFAULT_PITCH : (float) Math.toRadians(frame.pitch());
+        nearest = Float.isNaN(frame.nearest()) ? NEAREST : frame.nearest();
+        furthest = Math.max(nearest, Float.isNaN(frame.furthest()) ? FURTHEST : frame.furthest());
+        start = Math.clamp(Float.isNaN(frame.start()) ? START_DISTANCE : frame.start(), nearest, furthest);
+        wheelStep = frame.wheelStep();
+        panAcross = frame.panAcross();
+        panAlong = frame.panAlong();
+        resetView();
+    }
 
     /** Look here — used before there is a world, and by the minimap. */
     void lookAt(float worldX, float worldY) {
@@ -125,7 +154,16 @@ final class CameraFocus {
 
     /** Zoom by a factor, kept between the nearest and furthest useful distances. */
     void zoomBy(float factor) {
-        distance = Math.clamp(distance * factor, NEAREST, FURTHEST);
+        distance = Math.clamp(distance * factor, nearest, furthest);
+    }
+
+    /** One notch of the wheel, in or out: the frame's step along its line of sight, or the client's own 0.92 and 1.09. */
+    void wheel(boolean in) {
+        if (Float.isNaN(wheelStep)) {
+            zoomBy(in ? 0.92f : 1.09f);
+            return;
+        }
+        distance = Math.clamp(distance + (in ? -wheelStep : wheelStep), nearest, furthest);
     }
 
     /** Turn it about the point it looks at. */
@@ -136,7 +174,7 @@ final class CameraFocus {
     /** Back to how it starts: unturned, at its first distance, looking where it looks. */
     void resetView() {
         yaw = 0f;
-        distance = START_DISTANCE;
+        distance = start;
     }
 
     /** Where it looks, which way it is turned and how far back it stands: what a bookmark keeps. */
@@ -152,7 +190,7 @@ final class CameraFocus {
         targetX = view.x();
         targetZ = view.z();
         yaw = view.yaw();
-        distance = Math.clamp(view.distance(), NEAREST, FURTHEST);
+        distance = Math.clamp(view.distance(), nearest, furthest);
         keepOnTheGround();
     }
 
@@ -163,6 +201,27 @@ final class CameraFocus {
     /** How fast panning should feel — further back, faster, so it takes the same time. */
     float panSpeed() {
         return distance * 0.9f;
+    }
+
+    /** How fast the keys pan it across the screen, in world units a second: the frame's whatever the zoom, else faster further back. */
+    float panAcross() {
+        return Float.isNaN(panAcross) ? panSpeed() : panAcross;
+    }
+
+    /** And up and down it, along the ground. */
+    float panAlong() {
+        return Float.isNaN(panAlong) ? panSpeed() : panAlong;
+    }
+
+    /** How steeply the player's camera looks down, in radians: the frame's, else the client's own. */
+    float pitch() {
+        return pitch;
+    }
+
+    /** Where the eye stands from the point it looks at: its distance back along its line of sight, turned, at {@code pitch}. */
+    Vector3f eyeOffset(float pitch) {
+        return new Quaternion().fromAngleAxis(yaw, Vector3f.UNIT_Y)
+                .mult(new Vector3f(0f, distance * FastMath.sin(pitch), distance * FastMath.cos(pitch)));
     }
 
     float targetX() {

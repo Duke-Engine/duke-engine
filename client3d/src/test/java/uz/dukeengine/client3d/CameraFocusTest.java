@@ -231,4 +231,85 @@ class CameraFocusTest {
         assertEquals(260f, camera.targetZ(), 0.001f);
         assertFalse(camera.isAwaitingOwnUnit(), "the request is spent, so it stays his");
     }
+
+    // ---- framed by the game ----
+
+    /**
+     * The reference's camera: 37.5 degrees down, 310 above the ground at its start and furthest, 120 at its nearest,
+     * a wheel notch 10 up or down — along the line of sight, 509, 197 and 16.4.
+     */
+    private static final float STEP = 10f / (float) Math.sin(Math.toRadians(37.5));
+    private static final CameraFrame REFERENCE = new CameraFrame(37.5f, 50f, 197f, 509f, 509f, STEP, 0.01f,
+            699f, 532f);
+
+    private static CameraFocus framed() {
+        var camera = new CameraFocus();
+        camera.frame(REFERENCE);
+        return camera;
+    }
+
+    private static float degreesDown(com.jme3.math.Vector3f eye) {
+        return (float) Math.toDegrees(Math.atan2(eye.y, Math.hypot(eye.x, eye.z)));
+    }
+
+    @Test
+    void framedAt37AndAHalfDegreesTheEyeLooksDownSoWhileThePlayerPans() {
+        var camera = framed();
+        assertEquals(37.5f, degreesDown(camera.eyeOffset(camera.pitch())), 1e-3f);
+        assertEquals(509f, camera.eyeOffset(camera.pitch()).length(), 1e-2f, "its whole distance back");
+
+        camera.panBy(250f, -80f);
+        camera.turnBy(0.7f);
+
+        assertEquals(37.5f, degreesDown(camera.eyeOffset(camera.pitch())), 1e-3f, "panned and turned, still 37.5");
+        assertEquals((float) Math.toDegrees(CameraFocus.DEFAULT_PITCH), degreesDown(new CameraFocus().eyeOffset(
+                new CameraFocus().pitch())), 1e-3f, "and unframed, the client's own slope");
+    }
+
+    @Test
+    void theWheelMovesTheEyeByItsStepAndStopsAtTheSetLimits() {
+        var camera = framed();
+        assertEquals(509f, camera.distance(), 1e-3f, "it starts at its start");
+        float high = camera.eyeOffset(camera.pitch()).y;
+
+        camera.wheel(true);
+        assertEquals(509f - STEP, camera.distance(), 1e-3f, "a notch in");
+        assertEquals(high - 10f, camera.eyeOffset(camera.pitch()).y, 1e-3f, "ten nearer the ground");
+
+        for (int notch = 0; notch < 40; notch++) {
+            camera.wheel(true);
+        }
+        assertEquals(197f, camera.distance(), 1e-3f, "no nearer than its nearest");
+        for (int notch = 0; notch < 40; notch++) {
+            camera.wheel(false);
+        }
+        assertEquals(509f, camera.distance(), 1e-3f, "no further than its furthest");
+    }
+
+    @Test
+    void aResetReturnsTheSetPitchNoTurnAndTheStartingDistance() {
+        var camera = framed();
+        camera.turnBy(1.2f);
+        camera.wheel(true);
+        camera.wheel(true);
+
+        camera.resetView();
+
+        assertEquals(0f, camera.yaw(), 0f);
+        assertEquals(509f, camera.distance(), 1e-3f);
+        assertEquals((float) Math.toRadians(37.5), camera.pitch(), 1e-6f);
+    }
+
+    /** What a new match does with the camera a backdrop's flight left turned and pulled back. */
+    @Test
+    void aViewTheBackdropLeftTurnedIsPutBackUnturnedAtItsStart() {
+        var camera = framed();
+        camera.restore(new CameraFocus.View(300f, 200f, 1.57f, 250f));
+
+        camera.resetView();
+
+        assertEquals(0f, camera.yaw(), 0f, "unturned");
+        assertEquals(509f, camera.distance(), 1e-3f, "at its start");
+        assertEquals(300f, camera.targetX(), 0f, "looking where it looked");
+    }
 }

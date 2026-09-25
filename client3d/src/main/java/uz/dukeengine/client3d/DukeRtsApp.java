@@ -129,14 +129,12 @@ final class DukeRtsApp extends SimpleApplication {
     /** The movie playing, and where it is shown — see {@link Duke3D#playMovie}. */
     private MoviePlayer movie;
     private MovieScreen movieScreen;
-    /**
-     * How steeply the camera looks down, in radians: the game's where it set one, else the client's own, the slope it
-     * has always stood at — 0.82 up for 0.57 back.
-     */
-    private float cameraPitch = DEFAULT_PITCH;
-    private static final float DEFAULT_PITCH = FastMath.atan2(0.82f, 0.57f);
-    /** How far back the eye is at a distance of one: the length of that slope. */
-    private static final float EYE_REACH = FastMath.sqrt(0.82f * 0.82f + 0.57f * 0.57f);
+    /** How steeply the camera looks down, in radians: the game's camera's where it set one, else the player's. */
+    private float cameraPitch = CameraFocus.DEFAULT_PITCH;
+    /** The player's camera as the game frames it — see {@link CameraFrame}. */
+    private final CameraFrame cameraFrame;
+    /** The player's mouse on the camera: a middle drag turning it — see {@link Steering}. */
+    private final Steering steering = new Steering();
     private CanvasText canvasText;
     private CanvasDrawing canvasDrawing;
     /** The size the painter was last told the screen is. */
@@ -492,6 +490,8 @@ final class DukeRtsApp extends SimpleApplication {
         listenForChat(game);
         this.hotkeys = hotkeys == null ? Hotkeys.none() : hotkeys;
         this.controls = new Controls(this.hotkeys.keyMap());
+        this.cameraFrame = visuals == null ? CameraFrame.NONE : visuals.getCameraFrame();
+        camera.frame(cameraFrame);
         var light = visuals == null ? Sunlight.DEFAULT : visuals.getSunlight();
         this.litBy = light;
         this.sunDirection = light.direction();
@@ -756,7 +756,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (worldRegion.equals(laidRegion) && size == laidRegionFor) {
             return;
         }
-        worldRegion.applyTo(cam);
+        worldRegion.applyTo(cam, cameraFrame.fieldOfView());
         laidRegion = worldRegion;
         laidRegionFor = size;
         surround.getCamera().resize(cam.getWidth(), cam.getHeight(), false);
@@ -892,6 +892,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         endTheMatch();
         forgetTheWorld();
+        camera.resetView(); // unturned and at its start, whatever the last match or the backdrop left it at
         game = match;
         listenForChat(match);
         artIsReady = false;
@@ -2985,6 +2986,7 @@ final class DukeRtsApp extends SimpleApplication {
         bound.clear();
         map("Select", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
         map("Order", new MouseButtonTrigger(MouseInput.BUTTON_RIGHT));
+        map("Turn", new MouseButtonTrigger(MouseInput.BUTTON_MIDDLE));
         map("ZoomIn", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, false));
         map("ZoomOut", new MouseAxisTrigger(MouseInput.AXIS_WHEEL, true));
         // Every key anything is on, one mapping each: what it does is worked out in one place, pressKey, and
@@ -3035,6 +3037,7 @@ final class DukeRtsApp extends SimpleApplication {
                         }
                     }
                 }
+                case "Turn" -> turnByTheMiddleButton(pressed);
                 case "Order" -> {
                     if (!pressed || screen != Screen.PLAYING) {
                         break;
@@ -3100,7 +3103,7 @@ final class DukeRtsApp extends SimpleApplication {
 
         AnalogListener zoom = (name, value, tpf) -> {
             if (screen == Screen.PLAYING && snapshot.camera() == null) {
-                camera.zoomBy(name.equals("ZoomIn") ? 0.92f : 1.09f); // nobody's to zoom while the game has it
+                camera.wheel(name.equals("ZoomIn")); // nobody's to zoom while the game has it
             }
         };
         inputManager.addListener(zoom, "ZoomIn", "ZoomOut");
@@ -4723,10 +4726,10 @@ final class DukeRtsApp extends SimpleApplication {
             // The game has the camera: it goes where the game's code put it, and the player's controls wait.
             camera.restore(new CameraFocus.View(directed.x(), directed.y(), directed.angle(),
                     Float.isNaN(directed.zoom()) ? camera.distance() : directed.zoom()));
-            cameraPitch = Float.isNaN(directed.pitch()) ? DEFAULT_PITCH : directed.pitch();
+            cameraPitch = Float.isNaN(directed.pitch()) ? camera.pitch() : directed.pitch();
         } else {
             steerTheCamera(tpf);
-            cameraPitch = DEFAULT_PITCH;
+            cameraPitch = camera.pitch();
             game.setCameraSeen(camera.targetX(), camera.targetZ(), camera.yaw());
         }
         placeTheCamera(tpf);
@@ -4744,6 +4747,7 @@ final class DukeRtsApp extends SimpleApplication {
         float cos = FastMath.cos(camera.yaw());
         float sin = FastMath.sin(camera.yaw());
         camera.panBy(across * cos + down * sin, down * cos - across * sin);
+        camera.turnBy(steering.turn(inputManager.getCursorPosition().x, turnPerPixel()));
         if (held(KeyMap.Control.TURN_LEFT)) {
             camera.turnBy(TURN_SPEED * tpf);
         }
@@ -4767,7 +4771,6 @@ final class DukeRtsApp extends SimpleApplication {
         float wanted = floorHeightAt(camera.targetX(), camera.targetZ());
         cameraHeight += (wanted - cameraHeight) * Math.min(1f, tpf * 6f);
 
-        float distance = camera.distance();
         var target = new Vector3f(camera.targetX(), cameraHeight, camera.targetZ());
         // The knock from whatever just landed, added to where the camera was
         // going to be rather than replacing it -- so the shake never argues with
@@ -4781,11 +4784,30 @@ final class DukeRtsApp extends SimpleApplication {
         if (listShow != null) {
             knock = knock.add(listShow.shakeNow());
         }
-        var back = new Quaternion().fromAngleAxis(camera.yaw(), Vector3f.UNIT_Y)
-                .mult(new Vector3f(0, distance * EYE_REACH * FastMath.sin(cameraPitch),
-                        distance * EYE_REACH * FastMath.cos(cameraPitch)));
-        cam.setLocation(target.add(back).addLocal(knock));
+        cam.setLocation(target.add(camera.eyeOffset(cameraPitch)).addLocal(knock));
         cam.lookAt(target, Vector3f.UNIT_Y);
+    }
+
+    /** How far a middle drag turns the view for each pixel it moves across, in radians; 0 where the game set none. */
+    private float turnPerPixel() {
+        float perPixel = cameraFrame.turnPerPixel();
+        return Float.isNaN(perPixel) ? 0f : perPixel;
+    }
+
+    /**
+     * The middle button on the player's camera, where the game framed a turn for it: held, a drag across turns the view
+     * (the reference's {@code LookAtTranslator}); let go as a click, the view is put back as a reset puts it.
+     */
+    private void turnByTheMiddleButton(boolean pressed) {
+        var at = inputManager.getCursorPosition();
+        float now = timer.getTimeInSeconds();
+        if (pressed) {
+            if (screen == Screen.PLAYING && !menu.isVisible() && snapshot.camera() == null && turnPerPixel() != 0f) {
+                steering.middleDown(at.x, at.y, now);
+            }
+        } else if (steering.middleUp(at.x, at.y, now) && snapshot.camera() == null) {
+            camera.resetView();
+        }
     }
 
     /**

@@ -1789,6 +1789,18 @@ public final class Visuals {
         return edgeScroll;
     }
 
+    private CameraFrame cameraFrame = CameraFrame.NONE;
+
+    /** The player's camera as this game frames it — see {@link CameraFrame}; unsaid, the client's own. */
+    public Visuals cameraFrame(CameraFrame frame) {
+        this.cameraFrame = frame == null ? CameraFrame.NONE : frame;
+        return this;
+    }
+
+    public CameraFrame getCameraFrame() {
+        return cameraFrame;
+    }
+
     private OrderMark orderMark = OrderMark.DEFAULTS;
 
     /**
