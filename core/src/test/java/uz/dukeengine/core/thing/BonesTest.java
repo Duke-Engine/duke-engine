@@ -64,6 +64,20 @@ class BonesTest {
         assertNull(Bones.inFrame(barracks(0f, 0f), "DOCKACTION"), "a missing bone says so");
     }
 
+    /**
+     * A bone of one of its draw layers' models, at its clip's last frame: the barracks turned a quarter carries a
+     * raised antenna's FXMain up 23.97, where the antenna model stands on it.
+     */
+    @Test
+    void aBoneOfADrawLayersModelAtItsClipsLastFrameIsWhereTheLayerIsDrawn() {
+        var thing = barracks(0f, (float) (Math.PI / 2));
+
+        assertNear(new Coord3D(100f, 100f, 23.97f),
+                Bones.inWorld(thing, "models/bones/antenna.gltf", "fxmain", "Raise", null, 0f), "raised");
+        assertNear(new Coord3D(100f, 104f, 0f),
+                Bones.inWorld(thing, "models/bones/antenna.gltf", "Dish", null, null, 0f), "turned with the thing");
+    }
+
     private static void assertNear(Coord3D expected, Coord3D actual, String message) {
         assertEquals(expected.x(), actual.x(), 1e-3f, message);
         assertEquals(expected.y(), actual.y(), 1e-3f, message);

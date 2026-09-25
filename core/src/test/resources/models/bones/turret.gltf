@@ -1,0 +1,40 @@
+{
+ "asset": {
+  "version": "2.0"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "nodes": [
+    0
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "name": "Hull",
+   "children": [
+    1
+   ]
+  },
+  {
+   "name": "Turret",
+   "translation": [
+    0,
+    5,
+    0
+   ],
+   "children": [
+    2
+   ]
+  },
+  {
+   "name": "TURRETMS01",
+   "translation": [
+    8.8,
+    0,
+    0
+   ]
+  }
+ ]
+}

@@ -49,4 +49,40 @@ class ModelBonesTest {
 
         assertNear(new Coord3D(1f, 10f, 20f), ModelBones.bones(out.toByteArray()).get("EXITSTART"));
     }
+
+    // ---- where it is drawn: a clip's last frame, a turret, and no case ----
+
+    private static final String ANTENNA = "models/bones/antenna.gltf";
+    private static final String TANK = "models/bones/turret.gltf";
+
+    /** An orbital cannon's FXMain, -10.33 high in the default pose and 23.97 at the last frame of its raising clip. */
+    @Test
+    void aBoneReadAtAClipsLastFrameIsWhereTheFilePutsItThen() {
+        assertNear(new Coord3D(0f, -10.33f, 0f), ModelBones.of(ANTENNA, "FXMain"));
+        assertNear(new Coord3D(0f, 23.97f, 0f), ModelBones.of(ANTENNA, "FXMain", "Raise", null, 0f));
+        assertNear(new Coord3D(4f, 0f, 0f), ModelBones.of(ANTENNA, "Dish", "Raise", null, 0f), "a bone it leaves");
+        assertNear(new Coord3D(0f, -10.33f, 0f), ModelBones.of(ANTENNA, "FXMain", "NoSuchClip", null, 0f));
+    }
+
+    /** A Crusader's launch bone, 8.8 ahead of its turret's pivot: turned a quarter round, a quarter round the pivot. */
+    @Test
+    void aBoneOnATurretTurnedAQuarterRoundIsAQuarterRoundThePivot() {
+        assertNear(new Coord3D(8.8f, 5f, 0f), ModelBones.of(TANK, "TURRETMS01", null, "Turret", 0f));
+        // A thing's turn runs from its forward, the file's x, toward the ground's other way, the file's z.
+        assertNear(new Coord3D(0f, 5f, 8.8f), ModelBones.of(TANK, "TURRETMS01", null, "Turret", (float) Math.PI / 2f));
+        assertNear(new Coord3D(0f, 5f, 0f), ModelBones.of(TANK, "Turret", null, "Turret", (float) Math.PI / 2f),
+                "the pivot stays where it is");
+    }
+
+    @Test
+    void aBoneAskedForInLowerCaseIsFoundWhereTheFileWritesItInCapitals() {
+        assertNear(new Coord3D(8.8f, 5f, 0f), ModelBones.of(TANK, "turretms01"));
+        assertNear(new Coord3D(1f, 10f, 20f), ModelBones.of(BARRACKS, "ExitStart"));
+    }
+
+    private static void assertNear(Coord3D expected, Coord3D actual, String message) {
+        assertEquals(expected.x(), actual.x(), 1e-4f, message);
+        assertEquals(expected.y(), actual.y(), 1e-4f, message);
+        assertEquals(expected.z(), actual.z(), 1e-4f, message);
+    }
 }

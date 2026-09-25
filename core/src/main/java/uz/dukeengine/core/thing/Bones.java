@@ -30,7 +30,26 @@ public final class Bones {
         if (!(thing.getTemplate() instanceof Drawn drawn) || !drawn.hasModel()) {
             return null;
         }
-        var file = ModelBones.of(modelFor(drawn, words), bone);
+        return inFrameOf(drawn, ModelBones.of(modelFor(drawn, words), bone));
+    }
+
+    /**
+     * Where {@code bone} stands in the world on {@code model} — a whole path, the thing's own model or one of its draw
+     * layers', drawn at the thing with its template's scale and facing — at the last frame of the model's clip {@code
+     * clip} (its default pose for null), and turned with the node {@code turret} by {@code turretTurn} radians where it
+     * hangs under it: an orbital cannon's antenna its clip raised, a gun's launch bone on its turret. Names matched
+     * without case. Null where the template draws no model, or the file has no such bone.
+     */
+    public static Coord3D inWorld(GameObject thing, String model, String bone, String clip, String turret,
+            float turretTurn) {
+        if (!(thing.getTemplate() instanceof Drawn drawn)) {
+            return null;
+        }
+        return worldOf(thing, inFrameOf(drawn, ModelBones.of(model, bone, clip, turret, turretTurn)));
+    }
+
+    /** A point of a model file drawn as {@code drawn} draws it, in its thing's own frame; null for none. */
+    private static Coord3D inFrameOf(Drawn drawn, Coord3D file) {
         if (file == null) {
             return null;
         }
@@ -47,7 +66,11 @@ public final class Bones {
 
     /** Where {@code bone} stands in the world: at the thing, turned with it; null as {@link #inFrame} is. */
     public static Coord3D inWorld(GameObject thing, String bone) {
-        var local = inFrame(thing, bone);
+        return worldOf(thing, inFrame(thing, bone));
+    }
+
+    /** A point of a thing's own frame in the world: at the thing, turned with it; null for none. */
+    private static Coord3D worldOf(GameObject thing, Coord3D local) {
         if (local == null) {
             return null;
         }
