@@ -1078,7 +1078,7 @@ final class DukeRtsApp extends SimpleApplication {
                     // With discovery every cell gets a square, floor included: an
                     // undiscovered floor has to be as black as undiscovered stone,
                     // and the backdrop showing through would draw it as open ground.
-                    if (!discovered && !grid.isBlocked(cx, cy)) {
+                    if (!discovered && !grid.isTerrainBlocked(cx, cy)) {
                         continue;
                     }
                     var cell = new Geometry("mm-rock", new Quad(cellPx, cellPx));
@@ -1173,7 +1173,7 @@ final class DukeRtsApp extends SimpleApplication {
             }
             int cx = index % grid.getWidth();
             int cy = index / grid.getWidth();
-            boolean stone = grid.isBlocked(cx, cy);
+            boolean stone = grid.isTerrainBlocked(cx, cy);
             int storey = Math.clamp(grid.level(cx, cy), 0, minimapFloors[0].length - 1);
             cell.setMaterial(switch (discovery.stateAt(cx, cy)) {
                 case UNSEEN -> minimapPalette[0];

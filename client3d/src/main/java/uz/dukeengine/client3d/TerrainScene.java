@@ -169,7 +169,7 @@ final class TerrainScene {
         var raised = material.of(GROUND, null);
         for (int cy = 0; cy < grid.getHeight(); cy++) {
             for (int cx = 0; cx < grid.getWidth(); cx++) {
-                if (!grid.isBlocked(cx, cy)) {
+                if (!grid.isTerrainBlocked(cx, cy)) {
                     // A room standing above the ground plane needs something under
                     // it, or its floor is a colour on the ground and the units
                     // walking about on it are in mid-air.
@@ -377,7 +377,7 @@ final class TerrainScene {
         float highest = 0f;
         for (int dy = -1; dy <= 1; dy++) {
             for (int dx = -1; dx <= 1; dx++) {
-                if (grid.inBounds(cx + dx, cy + dy) && !grid.isBlocked(cx + dx, cy + dy)) {
+                if (grid.inBounds(cx + dx, cy + dy) && !grid.isTerrainBlocked(cx + dx, cy + dy)) {
                     highest = Math.max(highest, grid.storeyHeight(cx + dx, cy + dy));
                 }
             }
@@ -713,7 +713,7 @@ final class TerrainScene {
                 + Math.round((placement.x() / cell - (placement.cellX() + 0.5f)) * 2f);
         int ny = placement.cellY()
                 + Math.round((placement.z() / cell - (placement.cellY() + 0.5f)) * 2f);
-        return grid.inBounds(nx, ny) && grid.isBlocked(nx, ny) ? ny * grid.getWidth() + nx : -1;
+        return grid.inBounds(nx, ny) && grid.isTerrainBlocked(nx, ny) ? ny * grid.getWidth() + nx : -1;
     }
 
     /**

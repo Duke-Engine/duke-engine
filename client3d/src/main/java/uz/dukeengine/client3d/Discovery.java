@@ -99,7 +99,7 @@ final class Discovery {
         storey = new int[width * height];
         for (int cy = 0; cy < height; cy++) {
             for (int cx = 0; cx < width; cx++) {
-                if (grid.isBlocked(cx, cy)) {
+                if (grid.isTerrainBlocked(cx, cy)) {
                     solid.set(cy * width + cx);
                 }
                 storey[cy * width + cx] = grid.level(cx, cy);

@@ -356,6 +356,22 @@ class DiscoveryTest {
         assertEquals(Discovery.State.UNSEEN, seen.stateAt(24, 10));
     }
 
+    /** A thing standing in the way stops a route, not sight: a fountain hides nothing behind it. */
+    @Test
+    void aThingStandingInTheWayHidesNothing() {
+        var grid = new PathGrid(40, 30);
+        grid.beginObstacles();
+        for (int cy = 0; cy < 30; cy++) {
+            grid.setObstacle(20, cy);
+        }
+        grid.commitObstacles();
+        var seen = seeing(grid, true);
+
+        seen.reveal(List.of(at(LOCAL, 175f, 105f)), LOCAL, 80f, "Rogue");
+
+        assertEquals(Discovery.State.VISIBLE, seen.stateAt(21, 10), "seen past what stands there");
+    }
+
     /** Through the doorway he can see, because there is nothing in the way. */
     @Test
     void aDoorwayLetsSightThrough() {

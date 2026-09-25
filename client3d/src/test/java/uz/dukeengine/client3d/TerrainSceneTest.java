@@ -71,6 +71,23 @@ class TerrainSceneTest {
         assertEquals(rocks(root) + 1, root.getChildren().size(), "plus the ground");
     }
 
+    /**
+     * A thing standing on a cell is in the way of routes, not stone: the ground under a fountain is drawn as ground,
+     * whenever the terrain is laid — here after its footprint was stamped into the obstacle layer.
+     */
+    @Test
+    void aCellAThingStandsOnIsDrawnAsGroundNotRock() {
+        var grid = MapLoader.fromText(SMALL);
+        grid.beginObstacles();
+        grid.setObstacle(1, 1);
+        grid.setObstacle(3, 1);
+        grid.commitObstacles();
+        var root = new Node("terrain");
+        scene(root).rebuild(grid);
+
+        assertEquals(blockedCells(SMALL), rocks(root), "only the map's stone");
+    }
+
     /** The heart of it: rebuilding shows the new world, not both worlds. */
     @Test
     void rebuildingReplacesTheWorldRatherThanAddingToIt() {

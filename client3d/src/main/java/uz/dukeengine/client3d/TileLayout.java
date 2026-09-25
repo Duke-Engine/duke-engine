@@ -362,6 +362,6 @@ final class TileLayout {
     /** Off the map counts as stone, so the outermost rooms are walled in. */
     private static boolean solid(PathGrid grid, int cx, int cy) {
         return cx < 0 || cy < 0 || cx >= grid.getWidth() || cy >= grid.getHeight()
-                || grid.isBlocked(cx, cy);
+                || grid.isTerrainBlocked(cx, cy);
     }
 }

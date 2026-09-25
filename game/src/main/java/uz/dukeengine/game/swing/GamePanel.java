@@ -289,8 +289,8 @@ public final class GamePanel extends JPanel {
                 if (sx + cellPx < 0 || sy + cellPx < 0 || sx > getWidth() || sy > getHeight()) {
                     continue;
                 }
-                g.setColor(grid.isBlocked(cx, cy) ? BLOCKED : GRID);
-                if (grid.isBlocked(cx, cy)) {
+                g.setColor(grid.isTerrainBlocked(cx, cy) ? BLOCKED : GRID);
+                if (grid.isTerrainBlocked(cx, cy)) {
                     g.fillRect(sx, sy, cellPx, cellPx);
                 } else {
                     g.drawRect(sx, sy, cellPx, cellPx);
