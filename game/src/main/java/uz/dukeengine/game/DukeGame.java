@@ -1520,11 +1520,14 @@ public final class DukeGame {
 
     // ---- what the pointer is on ----
 
-    /** What the window's pointer is on: a thing, or -1 and the point of the ground under it (null for none). */
-    private record Pointed(int unit, Coord3D ground) {
+    /**
+     * What the window's pointer is on: a thing, or -1 and the point of the ground under it (null for none), and whether
+     * the local player has ever seen that ground.
+     */
+    private record Pointed(int unit, Coord3D ground, boolean seen) {
     }
 
-    private volatile Pointed pointed = new Pointed(-1, null);
+    private volatile Pointed pointed = new Pointed(-1, null, true);
 
     /**
      * Thread-safe: the thing under the window's pointer, or -1 for none — so the next snapshot can say whether
@@ -1540,7 +1543,15 @@ public final class DukeGame {
      * {@link #groundOrder} to answer. One write, so a thing from one moment never comes with ground from another.
      */
     public void setPointedAt(int unitId, Coord3D ground) {
-        this.pointed = new Pointed(unitId, unitId >= 0 ? null : ground);
+        setPointedAt(unitId, ground, true);
+    }
+
+    /**
+     * The same, saying whether the local player has ever seen that ground, as the client's discovery has it — for the
+     * game's ground rule, which the simulation thread asks and which cannot read the client ({@link SeenGroundOrder}).
+     */
+    public void setPointedAt(int unitId, Coord3D ground, boolean seen) {
+        this.pointed = new Pointed(unitId, unitId >= 0 ? null : ground, seen);
     }
 
     /**
@@ -1610,7 +1621,18 @@ public final class DukeGame {
         String orderAt(List<GameObject> selection, Coord3D place);
     }
 
-    private GroundOrder groundOrder;
+    /** The same, told whether the local player has ever seen the point — see {@link #groundOrder(SeenGroundOrder)}. */
+    @FunctionalInterface
+    public interface SeenGroundOrder {
+        /**
+         * @param seen whether the local player has ever seen {@code place}, as the client's discovery has it: the
+         *             reference steers a power only over ground its player has seen ({@code
+         *             canOverrideSpecialPowerDestination}, {@code CELLSHROUD_SHROUDED})
+         */
+        String orderAt(List<GameObject> selection, Coord3D place, boolean seen);
+    }
+
+    private SeenGroundOrder groundOrder;
 
     /**
      * What a click on the ground means where it is not a move: the reference's
@@ -1621,6 +1643,16 @@ public final class DukeGame {
      * {@link #contextOrder} says.
      */
     public DukeGame groundOrder(GroundOrder rule) {
+        this.groundOrder = rule == null ? null : (selection, place, seen) -> rule.orderAt(selection, place);
+        return this;
+    }
+
+    /**
+     * The same, the rule told whether the local player has ever seen the ground it is asked about: a beam steered only
+     * over ground its player has seen, never into the black of the map. Over ground never seen a rule answering no word
+     * leaves the click what it is with none.
+     */
+    public DukeGame groundOrder(SeenGroundOrder rule) {
         this.groundOrder = rule;
         return this;
     }
@@ -1655,7 +1687,7 @@ public final class DukeGame {
         if (now.unit() < 0) {
             var rule = groundOrder;
             var selected = rule == null || now.ground() == null ? List.<GameObject>of() : selectedOwn(world, null);
-            return selected.isEmpty() ? null : rule.orderAt(selected, now.ground());
+            return selected.isEmpty() ? null : rule.orderAt(selected, now.ground(), now.seen());
         }
         var rule = contextOrder;
         var target = world.findObject(new uz.dukeengine.core.thing.ObjectId(now.unit()));

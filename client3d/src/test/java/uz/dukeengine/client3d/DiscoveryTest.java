@@ -55,6 +55,18 @@ class DiscoveryTest {
                 "some of the floor, not all of it: " + seen.exploredCells());
     }
 
+    /** Ground he has seen stays seen, for the game's ground rule; ground nobody walked never was. */
+    @Test
+    void groundOnceSeenIsSeenGroundNeverWalkedIsNot() {
+        var seen = discovery();
+        seen.reveal(List.of(at(LOCAL, 55f, 155f)), LOCAL, 30f, "Rogue");
+        seen.reveal(List.of(at(LOCAL, 355f, 155f)), LOCAL, 30f, "Rogue");
+
+        assertTrue(seen.everSeen(55f, 155f), "remembered");
+        assertTrue(seen.everSeen(355f, 155f), "in sight");
+        assertFalse(seen.everSeen(205f, 255f), "never walked");
+    }
+
     /** Walking on leaves the way back drawn behind him. */
     @Test
     void groundHeHasLeftStaysOnTheMap() {

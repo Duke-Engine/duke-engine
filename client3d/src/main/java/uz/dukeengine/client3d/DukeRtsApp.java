@@ -4275,7 +4275,8 @@ final class DukeRtsApp extends SimpleApplication {
         var pointedAt = pointing ? pickUnit() : null;
         var pointedGround = pointing && pointedAt == null ? pickGround() : null;
         game.setPointedAt(pointedAt == null || pointedAt.view == null ? -1 : pointedAt.view.id(),
-                pointedGround == null ? null : new Coord3D(pointedGround.x, pointedGround.z, pointedGround.y));
+                pointedGround == null ? null : new Coord3D(pointedGround.x, pointedGround.z, pointedGround.y),
+                pointedGround == null || discovery == null || discovery.everSeen(pointedGround.x, pointedGround.z));
         // Before every early return below, not after them. The menu and the
         // loading screen are screens too, and a pointer that only appears once
         // the world does leaves the player clicking Play with the operating

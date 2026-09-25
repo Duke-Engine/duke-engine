@@ -458,6 +458,14 @@ final class Discovery {
         return stateAt((int) (worldX / cellSize), (int) (worldY / cellSize)) == State.VISIBLE;
     }
 
+    /** Whether a point in the world has ever been seen: in sight now, or remembered. */
+    boolean everSeen(float worldX, float worldY) {
+        if (cellSize <= 0f) {
+            return true;
+        }
+        return stateAt((int) (worldX / cellSize), (int) (worldY / cellSize)) != State.UNSEEN;
+    }
+
     State stateAt(int cellX, int cellY) {
         if (cellX < 0 || cellY < 0 || cellX >= width || cellY >= height) {
             return State.UNSEEN;

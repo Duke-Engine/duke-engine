@@ -186,4 +186,25 @@ class AttackableTest {
         assertEquals(null, game.getSnapshot().contextOrder(), "on his own unit a click selects it");
         assertTrue(asked.isEmpty(), "and the ground is not asked about");
     }
+
+    /**
+     * A rule answering its word only over ground its player has seen, as the reference steers a beam only there: over
+     * ground never seen the snapshot carries no word, and the pointer is what it is with none; over seen ground, the word.
+     */
+    @Test
+    void theGroundRuleIsToldWhetherThePlayerHasEverSeenThePoint() {
+        var scene = scene();
+        var game = scene.game();
+        game.groundOrder((selection, place, seen) -> seen ? "Steer" : null);
+        var place = new uz.dukeengine.core.math.Coord3D(200f, 150f, 0f);
+        game.setSelection(List.of(scene.tank().getId().value()));
+
+        game.setPointedAt(-1, place, false);
+        game.runHeadless(1);
+        assertEquals(null, game.getSnapshot().contextOrder(), "never seen: no word");
+
+        game.setPointedAt(-1, place, true);
+        game.runHeadless(1);
+        assertEquals("Steer", game.getSnapshot().contextOrder(), "seen: the word");
+    }
 }
