@@ -82,6 +82,7 @@ import java.util.List;
  *                     is a different colour
  * @param countSize    how big the reading inside a bar is
  * @param levelSize    how big the level in the medallion is
+ * @param plain        the bar an RTS draws instead of all of this, or null — see {@link Plain}
  */
 public record UnitBarLook(
         List<Step> steps,
@@ -109,7 +110,49 @@ public record UnitBarLook(
         float nameSize,
         float bossNameSize,
         float countSize,
-        float levelSize) {
+        float levelSize,
+        Plain plain) {
+
+    /**
+     * The bar an RTS draws — the reference's {@code Drawable::drawHealthBar}: an outline and the fill inside it, as wide
+     * as the health share of the inside, and no medallion, count, name or marks across; coloured per bar by the game's
+     * {@link BarColours}. A thing's marks are drawn where its bar would be, shown or not.
+     *
+     * @param height     how tall, pixels — the reference's 3
+     * @param outline    how wide its outline, pixels — 1
+     * @param onlyPicked shown only over the selected things and the one under the pointer, as the reference shows it;
+     *                   otherwise over every thing that has health
+     * @param leastSize  the least a thing's two radii added count for — 20 — a sphere's or cylinder's radius twice
+     * @param mostSize   and the most — 150
+     * @param factor     times that — 2
+     * @param leastWidth the narrowest a bar is, pixels, before the eye's height is allowed for — 20
+     * @param atHeight   the eye's height at which a bar is that wide, its width times this over the eye's height; 0 for
+     *                   a width the camera never changes
+     * @param lift       how far over its geometry's top its point is, world units — 10
+     * @param leftShare  the share of its width to the left of that point — 0.45 — its middle row on it
+     */
+    public record Plain(float height, float outline, boolean onlyPicked, float leastSize, float mostSize, float factor,
+            float leastWidth, float atHeight, float lift, float leftShare) {
+
+        /** The reference's, at the height the eye stood at over the ground in the match it was measured in. */
+        public static final Plain REFERENCE = new Plain(3f, 1f, true, 20f, 150f, 2f, 20f, 232f, 10f, 0.45f);
+    }
+
+    /** A look that is the dungeon's bar: every look from before an RTS's could be drawn. */
+    public UnitBarLook(List<Step> steps, int shortestAt, int longestAt, float shortest, float longest, float height,
+            float manaHeight, float gap, float lift, float ring, float ringEdge, float ringGap, float arc, int enemy,
+            int friend, int mana, int trough, int tick, int ringFace, int ringRim, int bossRim, int lettering,
+            float nameSize, float bossNameSize, float countSize, float levelSize) {
+        this(steps, shortestAt, longestAt, shortest, longest, height, manaHeight, gap, lift, ring, ringEdge, ringGap,
+                arc, enemy, friend, mana, trough, tick, ringFace, ringRim, bossRim, lettering, nameSize, bossNameSize,
+                countSize, levelSize, null);
+    }
+
+    /** The plain bar of an RTS, and nothing of the dungeon's. */
+    public static UnitBarLook plain(Plain plain) {
+        return new UnitBarLook(List.of(), 1, 2, 0f, plain.mostSize() * plain.factor(), plain.height(), 0f, 0f,
+                plain.lift(), 0f, 0f, 0f, 0f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0f, 0f, 0f, 0f, plain);
+    }
 
     /**
      * One rung of the segment table: health up to {@code upTo} is marked off in
@@ -142,7 +185,7 @@ public record UnitBarLook(
 
     /** Whether there is anything here to draw at all. */
     public boolean draws() {
-        return !steps.isEmpty() && longest > 0f && height > 0f;
+        return plain != null || !steps.isEmpty() && longest > 0f && height > 0f;
     }
 
     /** Whether this game has a mana bar to put under the health one. */

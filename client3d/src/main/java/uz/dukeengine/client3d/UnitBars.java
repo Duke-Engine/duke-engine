@@ -71,11 +71,16 @@ final class UnitBars {
      *             different number of pixels at every distance from the camera
      * @param his  whether it fights for the watching player
      */
-    record Standing(UnitView view, float top, float foot, boolean his, Badge badge) {
+    record Standing(UnitView view, float top, float foot, boolean his, Badge badge, float size, boolean picked) {
 
         /** One with no mark by its bar: every creature from before its words could put one there. */
         Standing(UnitView view, float top, float foot, boolean his) {
             this(view, top, foot, his, null);
+        }
+
+        /** One that says nothing of its size or of being picked out: every creature from before an RTS bar. */
+        Standing(UnitView view, float top, float foot, boolean his, Badge badge) {
+            this(view, top, foot, his, badge, 0f, true);
         }
     }
 
@@ -195,6 +200,9 @@ final class UnitBars {
         for (var bar : pool) {
             put(bar);
         }
+        for (var bar : plains) {
+            show(bar.node, false);
+        }
     }
 
     /** The part of the screen the world is drawn in, up from the bottom: a bar is shown only over it. */
@@ -212,6 +220,22 @@ final class UnitBars {
      * belong to a patch of floor rather than to anybody.
      */
     void update(Camera camera, List<Standing> standing, UnitBarReading reading) {
+        update(camera, standing, reading, 0f, BarColours.REFERENCE);
+    }
+
+    /**
+     * The same, with the eye's height over the ground and the game's colours, which a plain bar is sized and coloured
+     * by — see {@link UnitBarLook.Plain}.
+     */
+    void update(Camera camera, List<Standing> standing, UnitBarReading reading, float eyeHeight,
+            BarColours colours) {
+        if (look.plain() != null) {
+            for (var bar : pool) {
+                put(bar);
+            }
+            updatePlain(camera, standing, eyeHeight, colours);
+            return;
+        }
         int at = 0;
         if (look.draws()) {
             for (var one : standing) {
@@ -512,6 +536,116 @@ final class UnitBars {
         at(bar.badge, barLeft + width * bar.badgeAlong - bar.badgeWide / 2f, y - EDGE - bar.badgeTall);
     }
 
+    // ---- the plain bar ----
+
+    /** A plain bar's pieces: its outline in four strips, the fill inside it, and the mark below it. */
+    private static final class PlainBar {
+        private final Node node = new Node("plain bar");
+        private final Geometry[] outline = new Geometry[4];
+        private Geometry fill;
+        private Geometry badge;
+    }
+
+    private final List<PlainBar> plains = new ArrayList<>();
+
+    /**
+     * How wide a plain bar is, in pixels ({@code Object::getHealthBoxDimensions}, {@code computeHealthRegion}): the
+     * thing's two radii added, kept between the look's bounds, times its factor, at least its least — times the height
+     * it names over the eye's, where it names one.
+     */
+    static float plainWidth(UnitBarLook.Plain plain, float size, float eyeHeight) {
+        float width = Math.max(plain.leastWidth(),
+                Math.clamp(size, plain.leastSize(), plain.mostSize()) * plain.factor());
+        return plain.atHeight() > 0f && eyeHeight > 0f ? width * plain.atHeight() / eyeHeight : width;
+    }
+
+    private void updatePlain(Camera camera, List<Standing> standing, float eyeHeight, BarColours colours) {
+        var plain = look.plain();
+        int at = 0;
+        for (var one : standing) {
+            var view = one.view();
+            var onScreen = camera.getScreenCoordinates(new Vector3f(view.x(), one.top(), view.y()));
+            if (offScreen(camera, onScreen)) {
+                continue;
+            }
+            var bar = at < plains.size() ? plains.get(at) : makePlain();
+            at++;
+            show(bar.node, true);
+            float width = plainWidth(plain, one.size(), eyeHeight);
+            float left = onScreen.x - width * plain.leftShare();
+            float bottom = onScreen.y - plain.height() / 2f;
+            boolean shown = (!plain.onlyPicked() || one.picked()) && view.health() > 0f && view.maxHealth() > 0f;
+            var coloured = shown ? colours.of(view) : null;
+            dressPlain(bar, coloured, left, bottom, width, plain, Math.clamp(view.healthFraction(), 0f, 1f));
+            plainBadge(bar, one.badge(), left, bottom, width);
+        }
+        for (int spare = at; spare < plains.size(); spare++) {
+            show(plains.get(spare).node, false);
+        }
+    }
+
+    private void dressPlain(PlainBar bar, BarColours.Colours colours, float left, float bottom, float width,
+            UnitBarLook.Plain plain, float share) {
+        for (var strip : bar.outline) {
+            show(strip, colours != null);
+        }
+        show(bar.fill, colours != null);
+        if (colours == null) {
+            return;
+        }
+        float edge = plain.outline();
+        float height = plain.height();
+        var outline = UnitBarLook.colour(colours.outline());
+        for (var strip : bar.outline) {
+            strip.getMaterial().setColor("Color", outline);
+        }
+        size(bar.outline[0], width, edge);
+        at(bar.outline[0], left, bottom + height - edge);
+        size(bar.outline[1], width, edge);
+        at(bar.outline[1], left, bottom);
+        size(bar.outline[2], edge, height - 2f * edge);
+        at(bar.outline[2], left, bottom + edge);
+        size(bar.outline[3], edge, height - 2f * edge);
+        at(bar.outline[3], left + width - edge, bottom + edge);
+        bar.fill.getMaterial().setColor("Color", UnitBarLook.colour(colours.fill()));
+        size(bar.fill, (width - 2f * edge) * share, height - 2f * edge);
+        at(bar.fill, left + edge, bottom + edge);
+    }
+
+    /** Its mark just below where the bar is, shown or not, its middle where along the bar the game said. */
+    private void plainBadge(PlainBar bar, Badge badge, float left, float bottom, float width) {
+        var picture = badge == null ? null : picture(badge.picture());
+        var image = picture == null ? null : picture.getImage();
+        show(bar.badge, image != null);
+        if (image == null) {
+            return;
+        }
+        bar.badge.getMaterial().setTexture("ColorMap", picture);
+        float wide = image.getWidth() * badge.scale();
+        float tall = image.getHeight() * badge.scale();
+        size(bar.badge, wide, tall);
+        at(bar.badge, left + width * badge.along() - wide / 2f, bottom - tall);
+    }
+
+    private PlainBar makePlain() {
+        var bar = new PlainBar();
+        for (int i = 0; i < 4; i++) {
+            bar.outline[i] = piece(bar.node, "outline" + i, ColorRGBA.Black, 0f);
+        }
+        bar.fill = piece(bar.node, "fill", ColorRGBA.Green, 1f);
+        bar.badge = piece(bar.node, "badge", ColorRGBA.White, 2f);
+        bar.badge.setMesh(PICTURED);
+        root.attachChild(bar.node);
+        plains.add(bar);
+        return bar;
+    }
+
+    /** The plain bars up now, for checking: each with its outline strips, its fill and its mark. */
+    List<Node> plainBars() {
+        return plains.stream().map(bar -> bar.node).filter(node -> node.getCullHint() != Spatial.CullHint.Always)
+                .toList();
+    }
+
     // ---- the pool ----
 
     /**
@@ -534,19 +668,19 @@ final class UnitBars {
         // The keyline first and furthest back. The same near-black as the marks,
         // and on purpose: both are the bar's own linework, and a second colour
         // would be a second thing to keep in step for no second decision.
-        bar.edge = piece(bar, "edge", look.tickColour(), -1f);
-        bar.trough = piece(bar, "trough", look.troughColour(), 0f);
-        bar.fill = shadedPiece(bar, "fill", 1f);
-        bar.ticks = piece(bar, "ticks", look.tickColour(), 2f);
-        bar.manaEdge = piece(bar, "manaEdge", look.tickColour(), -1f);
-        bar.manaTrough = piece(bar, "manaTrough", look.troughColour(), 0f);
-        bar.manaFill = shadedPiece(bar, "manaFill", 1f);
+        bar.edge = piece(bar.node, "edge", look.tickColour(), -1f);
+        bar.trough = piece(bar.node, "trough", look.troughColour(), 0f);
+        bar.fill = shadedPiece(bar.node, "fill", 1f);
+        bar.ticks = piece(bar.node, "ticks", look.tickColour(), 2f);
+        bar.manaEdge = piece(bar.node, "manaEdge", look.tickColour(), -1f);
+        bar.manaTrough = piece(bar.node, "manaTrough", look.troughColour(), 0f);
+        bar.manaFill = shadedPiece(bar.node, "manaFill", 1f);
         bar.manaFill.setMesh(gauge(look.mana()));
-        bar.back = piece(bar, "back", look.faceColour(), 3f);
+        bar.back = piece(bar.node, "back", look.faceColour(), 3f);
         bar.back.setMesh(disc(look.ring() / 2f));
-        bar.rim = piece(bar, "rim", look.rim(false), 4f);
+        bar.rim = piece(bar.node, "rim", look.rim(false), 4f);
         bar.rim.setMesh(ring(look.ring() / 2f - look.ringEdge(), look.arc()));
-        bar.arc = piece(bar, "arc", look.rim(false), 5f);
+        bar.arc = piece(bar.node, "arc", look.rim(false), 5f);
         bar.arc.setMesh(arcs.computeIfAbsent(ARC_STEPS, this::arcMesh));
         bar.count = lettering(bar, plain, look.countSize(), look.letteringColour());
         bar.level = lettering(bar, plain, look.levelSize(), look.letteringColour());
@@ -558,7 +692,7 @@ final class UnitBars {
         // gets one name and the plain one, which is what it asked for.
         bar.bossName = display == null ? null
                 : lettering(bar, display, look.nameSize(true), look.rim(true));
-        bar.badge = piece(bar, "badge", ColorRGBA.White, 8f);
+        bar.badge = piece(bar.node, "badge", ColorRGBA.White, 8f);
         bar.badge.setMesh(PICTURED);
         show(bar.badge, false);
         bar.count.show(true);
@@ -580,8 +714,8 @@ final class UnitBars {
      * <p>Which is what a shaded gauge needs: the three stops are vertex colours,
      * so the material carries nothing but white and the shape carries the light.
      */
-    private Geometry shadedPiece(Bar bar, String name, float depth) {
-        var geometry = piece(bar, name, ColorRGBA.White, depth);
+    private Geometry shadedPiece(Node parent, String name, float depth) {
+        var geometry = piece(parent, name, ColorRGBA.White, depth);
         geometry.getMaterial().setBoolean("VertexColor", true);
         return geometry;
     }
@@ -592,7 +726,7 @@ final class UnitBars {
                 colour -> shadedSquare(Shade.gauge(UnitBarLook.colour(colour))));
     }
 
-    private Geometry piece(Bar bar, String name, ColorRGBA colour, float depth) {
+    private Geometry piece(Node parent, String name, ColorRGBA colour, float depth) {
         var geometry = new Geometry(name, SQUARE);
         var material = new Material(assets, "Common/MatDefs/Misc/Unshaded.j3md");
         material.setColor("Color", colour);
@@ -619,7 +753,7 @@ final class UnitBars {
         geometry.setMaterial(material);
         geometry.setQueueBucket(RenderQueue.Bucket.Gui);
         geometry.setLocalTranslation(0f, 0f, depth);
-        bar.node.attachChild(geometry);
+        parent.attachChild(geometry);
         return geometry;
     }
 

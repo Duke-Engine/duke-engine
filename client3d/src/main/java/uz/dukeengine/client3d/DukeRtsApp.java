@@ -4917,16 +4917,43 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var standing = new ArrayList<UnitBars.Standing>(unitNodes.size());
         int mine = game.getLocalPlayerIndex();
+        var plain = visuals.getUnitBars().plain();
+        var pointed = plain == null ? null : pickUnit();
         for (var node : unitNodes.values()) {
             if (node.view == null || node.view.maxHealth() <= 0f) {
                 continue; // a prop or an arrow: nothing with a life to show
             }
-            standing.add(new UnitBars.Standing(node.view, node.barTop,
-                    node.root.getWorldTranslation().y,
-                    node.view.playerIndex() == mine, badgeOf(node.view)));
+            var template = game.getLogic().getThingFactory().findTemplate(node.view.templateName());
+            var shape = template == null ? null : uz.dukeengine.core.thing.Solid.of(template);
+            float foot = node.root.getWorldTranslation().y;
+            float top = plain == null ? node.barTop : foot + topOf(shape) + plain.lift();
+            boolean picked = selected.contains(node.view.id()) || pointed != null && pointed.view.id() == node.view.id();
+            standing.add(new UnitBars.Standing(node.view, top, foot, node.view.playerIndex() == mine,
+                    badgeOf(node.view), sizeOf(shape), picked));
         }
         barReading = UnitBarReading.read(snapshot.status());
-        unitBars.update(cam, standing, barReading);
+        var eye = cam.getLocation();
+        unitBars.update(cam, standing, barReading, eye.y - floorHeightAt(eye.x, eye.z), visuals.getBarColours());
+    }
+
+    /** How far over its position a thing's geometry reaches: a box's or cylinder's height, a sphere's radius. */
+    static float topOf(uz.dukeengine.core.thing.Geometry shape) {
+        return switch (shape) {
+            case uz.dukeengine.core.thing.Geometry.Box box -> box.height();
+            case uz.dukeengine.core.thing.Geometry.Cylinder cylinder -> cylinder.height();
+            case uz.dukeengine.core.thing.Geometry.Sphere sphere -> sphere.radius();
+            case null -> 0f;
+        };
+    }
+
+    /** A thing's two radii added, as the reference sizes a bar by them: a sphere's or cylinder's radius twice. */
+    static float sizeOf(uz.dukeengine.core.thing.Geometry shape) {
+        return switch (shape) {
+            case uz.dukeengine.core.thing.Geometry.Box box -> box.majorRadius() + box.minorRadius();
+            case uz.dukeengine.core.thing.Geometry.Cylinder cylinder -> 2f * cylinder.radius();
+            case uz.dukeengine.core.thing.Geometry.Sphere sphere -> 2f * sphere.radius();
+            case null -> 0f;
+        };
     }
 
     /** The mark a thing's words put by its bar, at the picture its strip is on now, or null. */

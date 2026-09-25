@@ -1847,6 +1847,18 @@ public final class Visuals {
         return dragDistance;
     }
 
+    private BarColours barColours = BarColours.REFERENCE;
+
+    /** The colours of each plain bar — see {@link UnitBarLook.Plain}; the reference's unless named. */
+    public Visuals barColours(BarColours colours) {
+        this.barColours = colours == null ? BarColours.REFERENCE : colours;
+        return this;
+    }
+
+    public BarColours getBarColours() {
+        return barColours;
+    }
+
     private RallyLook rally = RallyLook.DEFAULT;
 
     /** How a selected building's rally point is shown — see {@link RallyLook}; the reference's line unless named. */
