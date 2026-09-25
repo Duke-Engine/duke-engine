@@ -4132,7 +4132,9 @@ final class DukeRtsApp extends SimpleApplication {
                 markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
             }
             case GameMessage.MoveTo move -> {
-                game.postCommand(move);
+                if (!move.units().isEmpty()) {
+                    game.postCommand(move); // none of them can move: answered as a move all the same, and none sent
+                }
                 // One mark for the order, not one per unit: it was a single decision. And
                 // put WHERE HE CLICKED rather than where they will end up. The mark is an
                 // answer to the click -- "that, understood" -- and moving it to the place
@@ -4144,8 +4146,10 @@ final class DukeRtsApp extends SimpleApplication {
                 // And one answer, for the same reason. His own orders only: in a game
                 // with more than one player at it each hears his own hero and nobody
                 // hears anyone else's.
-                noises.moment("vo.move", (float) timer.getTimeInSeconds());
-                answerOrder("move", move.units());
+                if (!move.units().isEmpty()) {
+                    noises.moment("vo.move", (float) timer.getTimeInSeconds());
+                    answerOrder("move", move.units());
+                }
             }
             default -> throw new IllegalStateException("a ground click gave " + click);
         }
@@ -4155,7 +4159,9 @@ final class DukeRtsApp extends SimpleApplication {
      * What a click on open ground orders the local player's selected things: the game's word for it, where it has one;
      * else one move for those of them that can move — placed as a group by the simulation, and the player's own click,
      * which gathers a group clicked in its middle; else the rally point of a lone production building of his, only in a
-     * game that names no ground orders of its own; else nothing.
+     * game that names no ground orders of its own; else nothing for one structure of his selected alone, and for more a
+     * move of none of them — answered as a move, sent to nobody — as the reference issues its move whatever the
+     * selection ({@code CommandTranslator::evaluateContextCommand}).
      */
     static GameMessage groundClick(int local, List<uz.dukeengine.game.view.UnitView> own, String word,
             boolean gameDecides, Vector3f ground) {
@@ -4169,8 +4175,24 @@ final class DukeRtsApp extends SimpleApplication {
         if (!movers.isEmpty()) {
             return new GameMessage.MoveTo(local, movers, place, true);
         }
-        return rallies(own, gameDecides) ? new GameMessage.SetRallyPoint(local, new ObjectId(own.getFirst().id()), place)
-                : null;
+        if (rallies(own, gameDecides)) {
+            return new GameMessage.SetRallyPoint(local, new ObjectId(own.getFirst().id()), place);
+        }
+        return own.isEmpty() || loneStructure(own) ? null : new GameMessage.MoveTo(local, List.of(), place, true);
+    }
+
+    /**
+     * Whether a click on open ground with no word of the game's is taken — the move pointer — rather than refused: it
+     * is refused only to one structure of his selected alone that takes it as no rally point, as the reference's
+     * {@code InGameUI::createMouseoverHint} shows {@code GENERIC_INVALID} for a lone structure alone.
+     */
+    static boolean groundTakes(List<uz.dukeengine.game.view.UnitView> own, boolean gameDecides) {
+        return own.stream().anyMatch(uz.dukeengine.game.view.UnitView::mobile) || rallies(own, gameDecides)
+                || !loneStructure(own);
+    }
+
+    private static boolean loneStructure(List<uz.dukeengine.game.view.UnitView> own) {
+        return own.size() == 1 && own.getFirst().structure();
     }
 
     /** Whether the client's own rule takes a click on open ground as the rally point of a lone building of his. */
@@ -4900,8 +4922,7 @@ final class DukeRtsApp extends SimpleApplication {
         return new Cursors.Over(true, armed, canReach, overPanel,
                 over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex(),
                 snapshot.attackable(), !own.isEmpty(), snapshot.contextOrder(), // a thing's, or the ground's
-                scrolling, own.stream().anyMatch(uz.dukeengine.game.view.UnitView::mobile)
-                        || rallies(own, game.namesGroundOrders()));
+                scrolling, groundTakes(own, game.namesGroundOrders()));
     }
 
     /**

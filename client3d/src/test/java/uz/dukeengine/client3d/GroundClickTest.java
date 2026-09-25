@@ -2,6 +2,7 @@ package uz.dukeengine.client3d;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.jme3.math.Vector3f;
 import java.util.List;
@@ -24,6 +25,9 @@ class GroundClickTest {
     /** A war factory of his with a production queue: a structure, which cannot move. */
     private static final UnitView FACTORY = new UnitView(7, "WarFactory", LOCAL, 100f, 100f, 0f, 1000f, 1000f,
             true, true, false, false, 0);
+    /** A power plant of his: a structure with no queue. */
+    private static final UnitView POWER = new UnitView(8, "PowerPlant", LOCAL, 160f, 100f, 0f, 800f, 800f,
+            true, true, false, false, -1);
     /** A dozer of his, with a production queue of its own for its upgrades: it can move. */
     private static final UnitView DOZER = new UnitView(9, "Dozer", LOCAL, 120f, 100f, 0f, 250f, 250f,
             false, true, false, false, 0);
@@ -58,7 +62,23 @@ class GroundClickTest {
     @Test
     void aLoneBuildingWithAQueueAndNoWordShowsDenyAndSendsNothing() {
         assertNull(DukeRtsApp.groundClick(LOCAL, List.of(FACTORY), null, true, GROUND));
-        assertEquals(Cursors.DENY, Cursors.situationFor(overOpenGround(false, null)));
+        assertEquals(Cursors.DENY, Cursors.situationFor(
+                overOpenGround(DukeRtsApp.groundTakes(List.of(FACTORY), true), null)));
+    }
+
+    /**
+     * Two buildings selected with no word: the move pointer, and a click answered as a move — its mark and the game's
+     * move hint — with nobody in it and nothing sent, as the reference refuses the ground only to a lone structure.
+     */
+    @Test
+    void twoBuildingsWithNoWordShowTheMovePointerAndAClickIsAnsweredAsAMoveOfNobody() {
+        var both = List.of(FACTORY, POWER);
+        assertEquals(Cursors.MOVE, Cursors.situationFor(overOpenGround(DukeRtsApp.groundTakes(both, true), null)));
+
+        var click = DukeRtsApp.groundClick(LOCAL, both, null, true, GROUND);
+        assertEquals(new GameMessage.MoveTo(LOCAL, List.of(), PLACE, true), click, "a move of nobody");
+        var hint = OrderMark.DEFAULTS.model("models/scmovehint.glb", "SCMoveHint", 40);
+        assertTrue(DukeRtsApp.hintsMove(hint, java.util.Set.of(7, 8), both), "the move hint laid");
     }
 
     @Test

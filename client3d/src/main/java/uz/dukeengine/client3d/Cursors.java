@@ -124,8 +124,8 @@ final class Cursors {
      * @param order      the game's word for the order a click on the thing under the pointer would give — {@code
      *                   Enter}, {@code Dock} — or {@code null}
      * @param scrolling  which way the view is being scrolled — {@code N}, {@code NE} … — or {@code null}
-     * @param groundTakes whether a click on open ground with no word of the game's gives what he has selected an
-     *                   order: something of it can move, or it is the rally point of a lone building of his
+     * @param groundTakes whether a click on open ground with no word of the game's is taken: anything he has selected
+     *                   but one structure alone that takes it as no rally point
      */
     record Over(boolean playing, Hotkeys.Aim armed, boolean canReach, boolean overPanel,
             boolean overUnit, boolean ownUnit, boolean canAttack, boolean ordering, String order, String scrolling,
@@ -220,7 +220,7 @@ final class Cursors {
         if (!over.ordering()) {
             return java.util.List.of(POINT);
         }
-        // Nothing selected can move and nothing takes the click as its rally point: a click there orders nothing.
+        // One structure selected alone, which takes the click as no rally point: a click there orders nothing.
         return over.groundTakes() ? java.util.List.of(MOVE, POINT) : java.util.List.of(DENY);
     }
 
