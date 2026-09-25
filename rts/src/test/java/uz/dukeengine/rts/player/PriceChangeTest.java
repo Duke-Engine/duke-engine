@@ -64,4 +64,46 @@ class PriceChangeTest {
         side.removePriceChange(RtsKinds.VEHICLE, -0.1f);
         assertEquals(900, side.priceOf(tank), "taken away again: 900");
     }
+
+    /**
+     * A factory that gives back the price at the moment of the cancel, as the reference's does: a tank queued at 900
+     * and called off with the refinery captured gives back 810; one queued at 810 and called off after it was lost, 900.
+     * A factory that does not say so gives back what was paid.
+     */
+    @Test
+    void aCancelGivesBackTheSidesPriceNowWhereTheFactorySaysSo() {
+        var factory = new ThingFactory(RtsModules.withDefaults());
+        var tank = RtsTemplate.named("Crusader").kindOf(RtsKinds.VEHICLE).module(new ActiveBody.Data(480f))
+                .buildCost(900).buildTimeFrames(300).build();
+        var priceNow = RtsTemplate.named("PriceNow").kindOf(RtsKinds.STRUCTURE).module(new ActiveBody.Data(2000f))
+                .module(new ProductionUpdate.Data(java.util.List.of(), java.util.List.of(), null, null, null, true))
+                .build();
+        var paid = RtsTemplate.named("Paid").kindOf(RtsKinds.STRUCTURE).module(new ActiveBody.Data(2000f))
+                .module(new ProductionUpdate.Data()).build();
+        factory.addTemplate(tank);
+        factory.addTemplate(priceNow);
+        factory.addTemplate(paid);
+        var world = new World(factory);
+        world.init();
+        int usa = world.getPlayerList().addPlayer("USA").getIndex();
+        var side = world.getRtsPlayer(usa);
+        side.give(5000);
+        var now = world.spawn(priceNow, new Coord3D(0f, 0f, 0f), usa).findModule(ProductionUpdate.class);
+        var asPaid = world.spawn(paid, new Coord3D(200f, 0f, 0f), usa).findModule(ProductionUpdate.class);
+
+        assertTrue(now.queue(tank));
+        side.addPriceChange(RtsKinds.VEHICLE, -0.1f);
+        now.cancel(0);
+        assertEquals(5000 - 90, side.getMoney(), "queued at 900, called off at 810: 810 back");
+
+        assertTrue(now.queue(tank));
+        side.removePriceChange(RtsKinds.VEHICLE, -0.1f);
+        now.cancel(0);
+        assertEquals(5000, side.getMoney(), "queued at 810, called off at 900: 900 back");
+
+        assertTrue(asPaid.queue(tank));
+        side.addPriceChange(RtsKinds.VEHICLE, -0.1f);
+        asPaid.cancel(0);
+        assertEquals(5000, side.getMoney(), "the other factory gives back the 900 paid");
+    }
 }

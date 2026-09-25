@@ -45,14 +45,21 @@ public final class ProductionUpdate extends UpdateModule {
      * {@code Builds = [ElfArcher, Rider]}, {@code Researches = [Upgrade_Armour]}.
      * An empty list means "no build menu" (scripts can still queue anything).
      * Its {@link Exit} and {@link Door}, where it has them; without an exit its units step out of its side. The
-     * {@link Words} it holds while it works, where the game names them.
+     * {@link Words} it holds while it works, where the game names them. {@code RefundsPriceNow}: a job called off gives
+     * back the side's price for it at the moment of the cancel, as the reference's does ({@code
+     * ProductionUpdate::cancelUnitCreate}, {@code calcCostToBuild}), rather than what was paid for it.
      */
-    public record Data(List<String> builds, List<String> researches, Exit exit, Door door, Words words)
-            implements ModuleData {
+    public record Data(List<String> builds, List<String> researches, Exit exit, Door door, Words words,
+            boolean refundsPriceNow) implements ModuleData {
         public Data {
             builds = builds == null ? List.of() : List.copyOf(builds);
             researches = researches == null ? List.of() : List.copyOf(researches);
             words = words == null ? Words.NONE : words;
+        }
+
+        /** A factory whose cancel gives back what was paid, as every one did before it could say otherwise. */
+        public Data(List<String> builds, List<String> researches, Exit exit, Door door, Words words) {
+            this(builds, researches, exit, door, words, false);
         }
 
         /** A factory that holds no words while it works, as every one did before it could. */
@@ -169,9 +176,9 @@ public final class ProductionUpdate extends UpdateModule {
             this.tokens = tokens;
         }
 
-        /** What was paid for it, and so what a cancel gives back. */
-        int cost() {
-            return paid;
+        /** What a cancel gives back: what was paid, or the side's price for it now where the factory says so. */
+        int refund(RtsPlayer player, boolean priceNow) {
+            return priceNow && unit != null ? player.priceOf(unit) : paid;
         }
     }
 
@@ -183,6 +190,7 @@ public final class ProductionUpdate extends UpdateModule {
     private final Exit exit;
     private final Doorway doorway;
     private final Words words;
+    private final boolean refundsPriceNow;
     /** Frames the made word is held for yet; 0 while it is not. */
     private int madeLeft;
     private Coord3D rallyPoint;
@@ -198,6 +206,7 @@ public final class ProductionUpdate extends UpdateModule {
         this.exit = data.exit();
         this.doorway = data.door() == null ? null : new Doorway(data.door());
         this.words = data.words();
+        this.refundsPriceNow = data.refundsPriceNow();
         this.burstLeft = exit == null ? 0 : Math.max(0, exit.burst());
     }
 
@@ -395,7 +404,8 @@ public final class ProductionUpdate extends UpdateModule {
 
     /**
      * Call off the {@code index}-th thing queued, the first 0: its cost comes back in full, as the reference
-     * refunds, and what was behind it moves up — the next starting from nothing.
+     * refunds — what was paid, or the side's price now ({@link Data#refundsPriceNow}) — and what was behind it moves
+     * up, the next starting from nothing.
      *
      * @return whether there was such a thing
      */
@@ -406,7 +416,7 @@ public final class ProductionUpdate extends UpdateModule {
         var job = queue.remove(index);
         var player = owner();
         if (player != null) {
-            player.refund(job.cost());
+            player.refund(job.refund(player, refundsPriceNow));
         }
         job.tokens.forEach(ProductionReservation::release);
         return true;
