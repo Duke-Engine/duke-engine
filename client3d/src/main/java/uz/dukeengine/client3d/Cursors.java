@@ -242,6 +242,15 @@ final class Cursors {
         return way.isEmpty() ? null : way;
     }
 
+    /**
+     * The same while the right button is held as a drag, which shows the scroll picture from the moment it goes down:
+     * pointing right, the first of its eight, until the view moves — the reference's {@code setCursorDirection}.
+     */
+    static String scrollDirection(float across, float down, boolean dragging) {
+        var way = scrollDirection(across, down);
+        return way == null && dragging ? "E" : way;
+    }
+
     private final AssetManager assets;
     private final InputManager input;
     private final Map<String, Look> looks;

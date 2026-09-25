@@ -49,10 +49,20 @@ final class Steering {
                 anchorX = Math.clamp(anchorX, hands.x() - mostAcross, hands.x() + mostAcross);
                 anchorY = Math.clamp(anchorY, hands.y() - mostDown, hands.y() + mostDown);
             }
-            pan.x += drag.across() * (hands.x() - anchorX) * tpf;
-            pan.y += drag.along() * (hands.y() - anchorY) * tpf;
+            pan.x += drag.across() * floored(hands.x() - anchorX, drag.floor()) * tpf;
+            pan.y += drag.along() * floored(hands.y() - anchorY, drag.floor()) * tpf;
         }
         return pan;
+    }
+
+    /** How far the pointer counts as being from the anchor: {@code floor} pixels further, the way it is; none at it. */
+    static float floored(float off, float floor) {
+        return off == 0f ? 0f : off + Math.signum(off) * floor;
+    }
+
+    /** Whether the right button is held as a drag: the pointer is the scroll picture meanwhile. */
+    boolean dragging() {
+        return drag != null;
     }
 
     /** The right button's drag while it is held, or null. */

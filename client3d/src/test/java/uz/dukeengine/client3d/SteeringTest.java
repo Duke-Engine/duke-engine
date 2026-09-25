@@ -162,4 +162,29 @@ class SteeringTest {
 
         assertEquals(0f, across(steering, 500f, 300f, 1), 0f, "no view left scrolling on its own");
     }
+
+    // ---- held under either mouse: the scroll picture, and a floor ----
+
+    @Test
+    void theRightButtonDownAndHeldStillShowsTheScrollPicturePointingRight() {
+        var steering = new Steering();
+        steering.rightDown(400f, 300f, 20f, 0f, 0f, REFERENCE);
+        var pan = steering.scroll(pointer(400f, 300f, true), 1f / 30f, 699f, 532f, EdgeScroll.NONE);
+
+        assertTrue(steering.dragging());
+        assertEquals("E", Cursors.scrollDirection(pan.x, pan.y, steering.dragging()), "Scroll-E, the view not moving");
+        assertEquals("SW", Cursors.scrollDirection(-1f, 1f, true), "and the way it moves once it does");
+        assertEquals(null, Cursors.scrollDirection(0f, 0f, false), "nothing held, no scroll picture");
+    }
+
+    @Test
+    void withAFloorOfAQuarterAPointerFourPixelsRightScrollsAsOneFourAndAQuarterRightWould() {
+        var floored = new RightDrag(14f, 10.6f, 0.5f, 25f, 250f, 25f, 0.25f);
+        var steering = new Steering();
+        steering.rightDown(400f, 300f, 20f, 0f, 0f, floored);
+
+        assertEquals(14f * 4.25f, across(steering, 404f, 300f, 30), 1e-3f);
+        assertEquals(0f, across(steering, 400f, 300f, 30), 0f, "at the anchor, nothing");
+        assertEquals(-4.25f, Steering.floored(-4f, 0.25f), "the way it is from it");
+    }
 }

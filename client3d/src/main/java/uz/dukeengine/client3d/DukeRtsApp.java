@@ -3099,16 +3099,21 @@ final class DukeRtsApp extends SimpleApplication {
                         break;
                     }
                     var over = inputManager.getCursorPosition();
-                    if (mouse.rightClickLetsGo() && visuals.getRightDrag().wanted()) {
-                        // The reference's left-click mouse as the game framed it: held, the right button scrolls,
-                        // and only a click lets go.
+                    if (visuals.getRightDrag().wanted()) {
+                        // As the game framed it, whichever button commands: held, the right button scrolls, and it
+                        // acts only as it is let go as a click — the reference's SCROLL_RMB, and its alternate
+                        // mouse's order given on the click's release.
                         float y = cam.getHeight() - over.y;
                         if (pressed) {
                             steering.rightDown(over.x, y, timer.getTimeInSeconds(), camera.targetX(),
                                     camera.targetZ(), visuals.getRightDrag());
                         } else if (steering.rightUp(over.x, y, timer.getTimeInSeconds(), camera.targetX(),
                                 camera.targetZ())) {
-                            secondThoughts();
+                            if (aiming.isArmed() || arming != null || mouse.rightClickLetsGo()) {
+                                secondThoughts();
+                            } else if (pointerOnTheWorld() && !heroPanel.contains(over.x, over.y)) {
+                                order();
+                            }
                         }
                     } else if (pressed && (aiming.isArmed() || arming != null || mouse.rightClickLetsGo())) {
                         secondThoughts();
@@ -4880,7 +4885,7 @@ final class DukeRtsApp extends SimpleApplication {
                 cam.getWidth(), tall);
         var pan = steering.scroll(hands, tpf, camera.panAcross() * scrollSpeed, camera.panAlong() * scrollSpeed,
                 visuals.getEdgeScroll());
-        scrolling = Cursors.scrollDirection(pan.x, pan.y);
+        scrolling = Cursors.scrollDirection(pan.x, pan.y, steering.dragging());
         // Across and down the screen, which is the ground turned the way the camera is.
         float cos = FastMath.cos(camera.yaw());
         float sin = FastMath.sin(camera.yaw());
