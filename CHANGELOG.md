@@ -75,16 +75,120 @@ when it does, this page says exactly what to change and how.
   cutoff. Every dressed material used to be drawn opaque.
 - `Locomotor` has `leave(way, destination)`, the first leg a unit walks out of its maker; a mover of a game's own
   that does not implement it goes straight to the destination, as its `moveTo` does.
+- `GameLogic.spawn` is final. Code that ran after a spawn by overriding it overrides `onSpawned(thing)`, called once
+  the thing's place, owner and a setup's settings are in (`World.spawn(template, place, player, setup)`).
+- `ObjectStatus` has `HIDDEN` and `UNSELECTABLE`, and `EffectList.Entry` has `Debris`: a `switch` over either
+  with no `default` needs the case.
+- A winged flier arrives on the frame it passes over its goal, going wide and coming back to one inside its turning
+  circle, where it used to count itself arrived as soon as the goal was inside the circle; and one given nothing
+  circles where it is, where it used to fly straight on.
+- `World.standingNextTo` aims at the nearest point of the target's outline, not its middle, so what closes on a box
+  from off its corner stands beside it rather than short of it.
+- The side's power surplus counts every `PowerModule` of a thing, not only its first, and none of a thing lying
+  dead. A builder handed to another side gives up its build order that frame.
+- A click, and the pointer, pick the pieces of a thing drawn now, each as the box round its own mesh turned with it,
+  the nearest hit along the ray winning — no longer the world-axis box round the whole model and the nearest middle.
+  A click on the ground beside a thing, inside that old box, now gives the move.
+- A thing with a line (`GameObject.setSpan`) is in every player's snapshot, fog or not, as the ground under it is.
+- `GameLogic.checksum()` mixes in a thing's damage scale, own sight, protection and floor when they are set, and a
+  closed deck: a world that sets none of them sums as it did.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
-  `HarvestUpdate.Data`, `WeaponFired`, `Weapon` (and its own `Bonuses`), `WorldSnapshot` (and `revealed`,
-  `contextOrder`), `SoundBank.Cue`, `Sound`, `UnitView` (and `passengers`, `conditions`, `built`), `CommandButton`,
-  `Upgrade`, `ProductionUpdate.Data` (and its `Exit`, `Door` and `Words`), `PlacementRules` (and its `SiteWords`),
-  `ContainModule.Data`, `OrderMark`, `RtsTemplate`, `Shot`, `ActiveBody.Data`, `ExperienceModule.Data` (and
-  `LevelHealthBonus`) — and every new field left out means what the old record did. A template that names no
-  prerequisite, word or cap is buildable as before; a save from before granted words and computer sides loads.
+  `HarvestUpdate.Data`, `WeaponFired`, `Weapon` (and its own `Bonuses`, its `Affects` and second ring),
+  `WorldSnapshot` (and `revealed`, `contextOrder`, `beams`), `SoundBank.Cue`, `Sound`, `UnitView` (and `passengers`,
+  `conditions`, `built`, `ridesOn`, `allied`, `span`), `CommandButton`, `Upgrade`, `ProductionUpdate.Data` (and its
+  `Exit`, `Door` and `Words`), `ProductionUpdate.Queued`, `PlacementRules` (and its `SiteWords`), `ContainModule.Data`
+  (and `PassengersFire`, `RiderBone`), `OrderMark` (and `ContextColour`), `RtsTemplate`, `Shot`, `ActiveBody.Data`,
+  `ExperienceModule.Data` (and `LevelHealthBonus`) — and every new field left out means what the old record did.
+  A template that names no prerequisite, word or cap is buildable as before; a save from before granted words and
+  computer sides loads.
   `Canvas.drawPicture(Picture, …)` is a default that refuses, so a game's own canvas compiles as it did.
   `ProjectileLauncher.launch(shooter, victim, damage, type)` and `DieModule.onDie()` are still called, through the
   forms that now say more. The static `Duke3D.launch` methods are shorthand for `Duke3D.of(game, visuals)...launch()`.
+
+### Decks laid over the ground
+
+`GameLogic.addDeck(four corners)` lays a floor over the ground at run time and gives its number — the reference's
+bridge, classified as `PathfindLayer` classifies a layer's cells, walked at the height of the plane through its corners
+with the ground kept under it. A thing is on the ground or on one deck (`GameObject.getFloor`), put on the one whose
+height is nearest where it is placed, and gets on and off only at a deck's ends, as its route says; things are in each
+other's way only on one floor. The ground under a deck lower than the clearance (`setDeckClearance`, the reference's
+10) is closed; higher, units pass under while others drive over. `setDeckOpen` closes one — a bridge destroyed —
+handing whatever is on it down to the ground and telling the game who (`onDeckClosed`); every route is planned again.
+A click over a deck lands on it. Floors and closed decks are in the checksum and the save.
+
+### A click picks what is drawn
+
+The click and the pointer test each piece drawn now as the box round its own mesh, turned and placed as the piece
+is — the reference's `RTS3DScene::castRay` — skipping pieces hidden now and pieces drawn see-through or added (a
+muzzle flash, a headlight's beam), unless a thing has nothing else; the nearest hit along the ray wins.
+
+### A click on the ground may carry the game's word
+
+`DukeGame.groundOrder((selection, place) -> word)` is asked, as `contextOrder` is, where the pointer is on no thing —
+the reference's `MSG_DO_SPECIAL_POWER_OVERRIDE_DESTINATION`, a beam or a gunship steered by any click. The snapshot
+carries the word, the pointer shows it, and the click sends `GameOrder(word, selection, place)` instead of a move.
+
+### Effects, debris and beams the simulation plays
+
+`World.effect(name, place, facing)` and `effect(name, thing)` post an `EffectPlayed` — the reference's `FXList`
+played from object creation lists and behaviours — which each client plays from that frame where it sees the point: the
+moment of that name, or the effect list, effect or particle system; one on a thing rides it. `DukeGame.effect` does the
+same from any thread. An effect list may throw `Debris`, the reference's `CreateDebris`: a model or one piece of it
+flung up and out, spinning, falling (the reference's gravity, 1), bouncing with a share of its speed, fading at the end
+of its life. `World.beam(look, from, to, width)`, `moveBeam` and `endBeam` make, move and end a beam the simulation
+owns, carried in `WorldSnapshot.beams` to whoever sees an end and drawn with the game's `Laser` look — the reference's
+`W3DLaserDraw` field for field: nested lines, additive, a scrolling tiled picture, an arc. All of it outside the
+checksum.
+
+### Things hidden, kept from some players, unselectable, and kept dead
+
+`ObjectStatus.HIDDEN` keeps a thing from everyone while its modules run; a `Concealment` module keeps it from some
+players — not seen, picked, targeted or caught by a blast, its shots left out of their moments, never from its own
+side. Its look to the rest: `Visuals.seeThrough(word)` draws it to its own side and allies pulsing from its template's
+faintest (`UnitVisual.seeThrough`) to whole, as `StealthUpdate` does, and blinks its blip; `Visuals.glow(word)` draws
+it to the others as a glow in the reference's heat-vision colour instead of its model, and to its side as a light over
+it (`neverGlows` for a mine). `UnitView.allied` tells the client which is which. `ObjectStatus.UNSELECTABLE` keeps a
+thing out of every selection a while. A `KeepsDead` module keeps a dead thing in the world while its death plays out,
+its death told at once, the reference's `SlowDeathBehavior`.
+
+### Sight, protection and a blast's reach
+
+`GameObject.setVisionRange` sets a thing's own sight; `GameLogic.setSharedSight` lets a game lend another side's sight
+to a player (the reference's CIA Intelligence); `setTargetableFrom` keeps a thing out of every enemy's aim until a
+frame. A `Weapon`'s `Affects` names whom its blast hurts — allies, enemies, neutrals, the firer, not its own kind, not
+the air, the reference's `RadiusDamageAffects` — and `SecondaryDamage` within `SecondaryRadius` is its second ring.
+`WeaponUpdate.refill(share)` refills its clips in part; an `AimOffset` on a target throws direct fire off it.
+
+### A body, and a module, told more
+
+`DamageListener` tells a thing's modules each blow and heal; a body may see the whole blow before it takes it; and its
+damage scale multiplies what it takes after armour, but for the damage the game names unresistable. `Module.onCreated`
+is called once a thing is made, before its first update. `OrderListener` tells a unit's modules the standard orders it
+is given. `Locomotor.setSpeed` sets a mover's speed and turn in place.
+
+### Production, prices and power while the game runs
+
+`RtsPlayer.addPriceChange(kind, percent)` changes what a side pays for a kind of thing, the reference's
+`CostModifierUpgrade`; `priceOf` is what is charged. `PowerModule.setBonus` changes a module's output while the game
+runs. A `ProductionReservation` module has its say as a unit is queued and hears its job called off; jobs have ids.
+`DukeGame.brings(rule)` names what a template leaves behind, for the match's art. A builder handed to another side
+stops raising its site.
+
+### Passengers, riders and bones
+
+`ContainModule`'s `PassengersFire` lets passengers fire from inside, and its `RiderBone` stands them on top at a bone of
+the carrier's model, firing and dying with it (`UnitView.ridesOn`). `ModelBones` and `Bones` give the simulation
+where a model's named bones stand, as the client draws them, the same on every machine.
+
+### How things are drawn by their words
+
+`UnitVisual.groundPicture(words, picture, width, depth, fadeFrames)` lays a picture under a thing — a horde's ring, a
+shadow — following it and fading with its words. `mark(words, frames, …)` plays a strip of pictures by its health bar,
+the reference's Enthusiastic icon, and `tint(words, red, green, blue, easeFrames)` adds a colour to it, eased in and out.
+`alongALine(first, middle, last, across, up)` draws a thing with a line (`GameObject.setSpan`) as its model's pieces
+laid from end to end, the reference's bridges, fogged as the ground. `OrderMark.contextRing(colour)` answers an order
+the game named on a thing with the attack's ring in that colour. A relief may split its cells along the other diagonal
+(`@Relief(diagonal = ANTI)`).
 
 ### The host leaving is not the end
 
