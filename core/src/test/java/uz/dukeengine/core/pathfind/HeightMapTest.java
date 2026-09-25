@@ -70,6 +70,19 @@ class HeightMapTest {
         assertTrue(grid.canStep(2, 0, 1, 0), "and whatever stands on one may still come down");
     }
 
+    /** A cell rising to 16 at its (cx+1, cy) corner alone, read at its middle: 0 split one way, 8 the other. */
+    @Test
+    void aCellIsSplitAlongTheDiagonalItsReliefSays() {
+        var relief = HeightMap.parse(List.of("0 16", "0 0"));
+        int middle = HeightMap.SUBCELL / 2;
+
+        assertEquals(0, relief.fixedAt(0, 0, middle, middle) / HeightMap.SUBCELL, "the main diagonal: the low half");
+        var turned = relief.withDiagonal(HeightMap.Diagonal.ANTI);
+        assertEquals(8, turned.fixedAt(0, 0, middle, middle) / HeightMap.SUBCELL, "the other: halfway up the high one");
+        assertEquals(16 * HeightMap.SUBCELL, turned.fixedAt(0, 0, HeightMap.SUBCELL, 0), "and its corners as written");
+        assertEquals(0, turned.fixedAt(0, 0, 0, HeightMap.SUBCELL));
+    }
+
     @Test
     void aReliefIsTheSizeOfTheCornersOfItsGrid() {
         var grid = new PathGrid(3, 1);

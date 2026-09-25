@@ -32,12 +32,29 @@ public final class HeightMap {
     /** A cell's width in the fractions a place inside it is counted in. */
     public static final int SUBCELL = 256;
 
+    /**
+     * Which corners of a cell its split joins: {@link #MAIN}, ({@code cx}, {@code cy}) to ({@code cx+1},
+     * {@code cy+1}), as SAGE splits a cell in its own frame, whose y runs north; or {@link #ANTI}, ({@code cx+1},
+     * {@code cy}) to ({@code cx}, {@code cy+1}) — the same split for a map written north first, its rows turned
+     * over so the world is not drawn mirrored.
+     */
+    public enum Diagonal {
+        MAIN,
+        ANTI
+    }
+
     private final int columns;
     private final int rows;
     private final int[] steps;
+    private final Diagonal diagonal;
 
-    /** [steps] row by row: {@code columns} corners across, {@code rows} down. */
+    /** [steps] row by row: {@code columns} corners across, {@code rows} down; each cell split along the main diagonal. */
     public HeightMap(int columns, int rows, int[] steps) {
+        this(columns, rows, steps, Diagonal.MAIN);
+    }
+
+    /** The same, each cell split along {@code diagonal}. */
+    public HeightMap(int columns, int rows, int[] steps, Diagonal diagonal) {
         if (columns < 2 || rows < 2 || steps.length != columns * rows) {
             throw new IllegalArgumentException("a relief of " + columns + " by " + rows + " corners holds "
                     + columns * rows + " heights, not " + steps.length);
@@ -45,6 +62,17 @@ public final class HeightMap {
         this.columns = columns;
         this.rows = rows;
         this.steps = steps.clone();
+        this.diagonal = diagonal == null ? Diagonal.MAIN : diagonal;
+    }
+
+    /** Which diagonal its cells are split along — heights, the drawn ground and the pathfinder's slope alike. */
+    public Diagonal diagonal() {
+        return diagonal;
+    }
+
+    /** The same relief, its cells split along {@code split}. */
+    public HeightMap withDiagonal(Diagonal split) {
+        return split == diagonal ? this : new HeightMap(columns, rows, steps, split);
     }
 
     /** Rows of whole numbers, one per corner, as a map file writes them: {@code ["0 0 1", "0 1 2"]}. */
@@ -119,12 +147,20 @@ public final class HeightMap {
 
     /**
      * The height at a place inside cell ({@code cx}, {@code cy}), {@code fx} and {@code fy} 256ths of the way across
-     * it, in 256ths of a step: SAGE's {@code getHeightMapHeight}, the cell split along its corner-to-corner diagonal
-     * from ({@code cx}, {@code cy}) to ({@code cx+1}, {@code cy+1}) and each half a flat triangle.
+     * it, in 256ths of a step: SAGE's {@code getHeightMapHeight}, the cell split along its {@link #diagonal} and each
+     * half a flat triangle.
      */
     public int fixedAt(int cx, int cy, int fx, int fy) {
         int p0 = at(cx, cy);
         int p2 = at(cx + 1, cy + 1);
+        if (diagonal == Diagonal.ANTI) {
+            int p1 = at(cx + 1, cy);
+            int p3 = at(cx, cy + 1);
+            if (fx + fy <= SUBCELL) {
+                return p0 * SUBCELL + fx * (p1 - p0) + fy * (p3 - p0);
+            }
+            return p2 * SUBCELL + (SUBCELL - fx) * (p3 - p2) + (SUBCELL - fy) * (p1 - p2);
+        }
         if (fy > fx) {
             int p3 = at(cx, cy + 1);
             return p3 * SUBCELL + (SUBCELL - fy) * (p0 - p3) + fx * (p2 - p3);
@@ -136,12 +172,12 @@ public final class HeightMap {
     @Override
     public boolean equals(Object other) {
         return other instanceof HeightMap relief && relief.columns == columns && relief.rows == rows
-                && java.util.Arrays.equals(relief.steps, steps);
+                && relief.diagonal == diagonal && java.util.Arrays.equals(relief.steps, steps);
     }
 
     @Override
     public int hashCode() {
-        return 31 * (31 * columns + rows) + java.util.Arrays.hashCode(steps);
+        return 31 * (31 * (31 * columns + rows) + diagonal.ordinal()) + java.util.Arrays.hashCode(steps);
     }
 
     @Override

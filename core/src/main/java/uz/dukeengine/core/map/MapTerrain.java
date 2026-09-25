@@ -48,7 +48,8 @@ public final class MapTerrain {
         grid.setLevelHeight(heightOf(map, levelHeight));
         var relief = rows(map, Relief.class, "relief");
         if (!relief.isEmpty()) {
-            grid.setRelief(HeightMap.parse(relief));
+            grid.setRelief(HeightMap.parse(relief)
+                    .withDiagonal(markedWith(map, Relief.class).getAnnotation(Relief.class).diagonal()));
         }
         return grid;
     }

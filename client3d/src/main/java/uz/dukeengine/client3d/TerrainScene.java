@@ -199,6 +199,17 @@ final class TerrainScene {
     }
 
     /**
+     * A cell's two triangles, by its corners — 0 at (x0, z0), then round by (x1, z0), (x1, z1) and (x0, z1) — cut
+     * along {@code diagonal} and each wound so its face looks up.
+     */
+    static int[] cellTriangles(uz.dukeengine.core.pathfind.HeightMap.Diagonal diagonal) {
+        return switch (diagonal) {
+            case MAIN -> new int[] {0, 3, 2, 0, 2, 1};
+            case ANTI -> new int[] {0, 3, 1, 1, 3, 2};
+        };
+    }
+
+    /**
      * The ground as the map painted it: one mesh a surface, every cell of it lifted onto the relief.
      *
      * <p><b>One geometry a palette entry, not a cell.</b> A converted Command &amp; Conquer map is sixty
@@ -226,6 +237,8 @@ final class TerrainScene {
             var normals = com.jme3.util.BufferUtils.createFloatBuffer(patch.cells().length * 12);
             var uvs = com.jme3.util.BufferUtils.createFloatBuffer(patch.cells().length * 8);
             var indices = com.jme3.util.BufferUtils.createIntBuffer(patch.cells().length * 6);
+            var split = cellTriangles(grid.getRelief() == null ? uz.dukeengine.core.pathfind.HeightMap.Diagonal.MAIN
+                    : grid.getRelief().diagonal());
             int vertex = 0;
             for (var at : patch.cells()) {
                 int cx = at % width;
@@ -249,12 +262,12 @@ final class TerrainScene {
                 }
                 uvs.put(x0 / span).put(z0 / span).put(x1 / span).put(z0 / span)
                         .put(x1 / span).put(z1 / span).put(x0 / span).put(z1 / span);
-                // Cut along the top-left to bottom-right diagonal, the one HeightMap.fixedAt cuts along.
-                // It was cut along the other: on a slope the two triangles then describe a different
-                // surface from the one the pathfinder walks, and a unit stood a little in the air or a
-                // little in the ground on every tilted cell. Wound 0,3,2 and 0,2,1 so the face looks up.
-                indices.put(vertex).put(vertex + 3).put(vertex + 2)
-                        .put(vertex).put(vertex + 2).put(vertex + 1);
+                // Cut along the diagonal HeightMap.fixedAt cuts along. It was once cut along the other: on a
+                // slope the two triangles then describe a different surface from the one the pathfinder walks,
+                // and a unit stood a little in the air or a little in the ground on every tilted cell.
+                for (int corner : split) {
+                    indices.put(vertex + corner);
+                }
                 vertex += 4;
             }
             var mesh = new com.jme3.scene.Mesh();

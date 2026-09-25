@@ -70,6 +70,18 @@ class MapTerrainTest {
     }
 
     @Test
+    void aReliefMarkedWithTheOtherDiagonalIsSplitAlongIt() {
+        record Turned(String name, @Grid(solid = "#") List<String> cells,
+                @Relief(diagonal = uz.dukeengine.core.pathfind.HeightMap.Diagonal.ANTI) List<String> relief)
+                implements MapTemplate {
+        }
+        var grid = MapTerrain.of(new Turned("north-first", List.of(".."), List.of("0 16 0", "0 0 0")), 10f, 3f);
+
+        assertEquals(uz.dukeengine.core.pathfind.HeightMap.Diagonal.ANTI, grid.getRelief().diagonal());
+        assertEquals(0f, MapTerrain.of(floor(0), 10f, 3f).getRelief().diagonal().ordinal(), "unmarked: the main one");
+    }
+
+    @Test
     void aRecordWithNoCellsIsNoMap() {
         record Nothing(String name) implements MapTemplate {
         }
