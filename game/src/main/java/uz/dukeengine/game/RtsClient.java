@@ -132,7 +132,8 @@ final class RtsClient extends GameClient {
                     body == null ? 0f : body.getMaxHealth(),
                     object.isKindOf(RtsKinds.STRUCTURE),
                     object.isKindOf(RtsKinds.SELECTABLE)
-                            && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.SOLD),
+                            && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.SOLD)
+                            && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.UNSELECTABLE),
                     ai != null && ai.isMoving(),
                     weapon != null && weapon.isAttacking(),
                     production == null ? -1 : production.getQueueSize(),

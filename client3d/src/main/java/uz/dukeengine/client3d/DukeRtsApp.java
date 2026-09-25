@@ -5859,6 +5859,9 @@ final class DukeRtsApp extends SimpleApplication {
             node.layers.forEach(layer -> paintHouseColour(layer.body(), view));
             selected.remove(view.id());
         }
+        if (!view.selectable()) {
+            selected.remove(view.id()); // made unselectable, or sold: out of the selection the frame it is
+        }
         // What it looks like can change while it stands there: a building past a health threshold is a
         // wrecked building, and the wreck is a different file. Asked every frame because the answer is a
         // lookup against a map that is empty for every template that named no second model.

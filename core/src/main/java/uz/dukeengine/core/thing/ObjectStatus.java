@@ -44,5 +44,11 @@ public enum ObjectStatus {
      * place. A parachute before it opens, a missile after it bursts while its death plays out, a delivery plane
      * recovering off the map.
      */
-    HIDDEN
+    HIDDEN,
+    /**
+     * Not to be selected for now — a drone serving its master, a thing inside another: a click, a box, a double
+     * click, the pointer and a game's own selection all pass it by, and a selected thing that gets it leaves the
+     * selection that frame.
+     */
+    UNSELECTABLE
 }
