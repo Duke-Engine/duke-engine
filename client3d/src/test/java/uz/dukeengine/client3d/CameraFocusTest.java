@@ -329,4 +329,51 @@ class CameraFocusTest {
         assertEquals(0.4f, camera.yaw(), 1e-6f, "turned as it was");
         assertEquals(distance, camera.distance(), 0f, "as far back");
     }
+
+    // ---- the keys at the game's speeds, and the eye easing ----
+
+    private static CameraFocus keyed(float turnSpeed, float zoomSpeed, float zoomEase) {
+        var camera = new CameraFocus();
+        camera.frame(new CameraFrame(37.5f, 50f, 197f, 509f, 509f, STEP, 0.01f, 699f, 532f, turnSpeed, zoomSpeed,
+                zoomEase));
+        return camera;
+    }
+
+    @Test
+    void withThreeRadiansASecondTheTurnKeyHeldForASecondTurnsTheViewByThree() {
+        var camera = keyed(3f, Float.NaN, Float.NaN);
+        for (int frame = 0; frame < 60; frame++) {
+            camera.heldTurn(1, 1f / 60f);
+        }
+        assertEquals(3f, camera.yaw(), 1e-4f);
+        var own = new CameraFocus();
+        own.heldTurn(1, 1f);
+        assertEquals((float) Math.PI / 2f, own.yaw(), 1e-6f, "left alone, a quarter turn a second, as always");
+    }
+
+    @Test
+    void withAZoomSpeedTheZoomKeyHeldHalfASecondBringsTheEyeThatMuchNearerAndNoNearerThanTheNearest() {
+        var camera = keyed(Float.NaN, 492.8f, Float.NaN);
+        for (int frame = 0; frame < 15; frame++) {
+            camera.heldZoom(true, 1f / 30f);
+            camera.approach(1f / 30f);
+        }
+        assertEquals(509f - 246.4f, camera.distance(), 1e-2f);
+        camera.heldZoom(true, 5f);
+        assertEquals(197f, camera.distance(), "no nearer than the nearest");
+    }
+
+    @Test
+    void easingAShareEachThirtiethAWheelNotchHasMovedTheEyeAFifthThenNearlyAll() {
+        var camera = keyed(Float.NaN, Float.NaN, 0.3f);
+        camera.wheel(true);
+        assertEquals(509f, camera.distance(), "not at once");
+        camera.approach(1f / 30f);
+        assertEquals(STEP * 0.3f, 509f - camera.distance(), 1e-3f, "0.3 of the notch, 4.9, after a thirtieth");
+        for (int frame = 1; frame < 10; frame++) {
+            camera.approach(1f / 30f);
+        }
+        assertEquals(STEP * (1f - (float) Math.pow(0.7, 10)), 509f - camera.distance(), 1e-3f,
+                "97% of it, 16.0, after ten");
+    }
 }

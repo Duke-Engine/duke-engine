@@ -3175,11 +3175,6 @@ final class DukeRtsApp extends SimpleApplication {
     /** What a key's mapping is called: this and its code. */
     private static final String KEY = "Key";
 
-    /** How fast a held turn turns the camera: a quarter turn a second. */
-    private static final float TURN_SPEED = FastMath.HALF_PI;
-    /** How far a held zoom takes the camera in a second: halfway there. */
-    private static final float HELD_ZOOM = 0.5f;
-
     /**
      * Every key the client listens to: every one its controls, groups and bookmarks are on; the modifiers, which
      * change what the others mean; the keys a menu is walked with; every letter, for the command bar's buttons;
@@ -4892,17 +4887,18 @@ final class DukeRtsApp extends SimpleApplication {
         camera.panBy(pan.x * cos + pan.y * sin, pan.y * cos - pan.x * sin);
         camera.turnBy(steering.turn(inputManager.getCursorPosition().x, turnPerPixel()));
         if (held(KeyMap.Control.TURN_LEFT)) {
-            camera.turnBy(TURN_SPEED * tpf);
+            camera.heldTurn(1, tpf);
         }
         if (held(KeyMap.Control.TURN_RIGHT)) {
-            camera.turnBy(-TURN_SPEED * tpf);
+            camera.heldTurn(-1, tpf);
         }
         if (held(KeyMap.Control.ZOOM_IN)) {
-            camera.zoomBy((float) Math.pow(HELD_ZOOM, tpf));
+            camera.heldZoom(true, tpf);
         }
         if (held(KeyMap.Control.ZOOM_OUT)) {
-            camera.zoomBy((float) Math.pow(1f / HELD_ZOOM, tpf));
+            camera.heldZoom(false, tpf);
         }
+        camera.approach(tpf); // the eye closing on where the wheel and the keys set it
     }
 
     /** The eye where the focus says, riding up with the ground under it, at its slope, shaken by what landed. */

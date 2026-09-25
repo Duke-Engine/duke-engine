@@ -41,12 +41,24 @@ final class CameraFocus {
     private static final float NEAREST = 40f;
     private static final float FURTHEST = 400f;
 
+    /** How fast a held turn turns it unless the game says: a quarter turn a second. */
+    static final float TURN_SPEED = FastMath.HALF_PI;
+    /** How far a held zoom takes it in a second unless the game says: halfway there. */
+    static final float HELD_ZOOM = 0.5f;
+    /** How many times a second the eye closes its share of the way. */
+    private static final float EASE_STEPS = 30f;
+
     /** How steeply it looks down unless the game frames it: 0.82 up for 0.57 back, the slope it has always had. */
     static final float DEFAULT_PITCH = FastMath.atan2(0.82f, 0.57f);
 
     private float targetX;
     private float targetZ;
     private float distance = START_DISTANCE;
+    /** Where the wheel and the zoom keys have set it, which the eye closes on; the same where it lands at once. */
+    private float aimed = START_DISTANCE;
+    private float turnSpeed = Float.NaN;
+    private float zoomSpeed = Float.NaN;
+    private float zoomEase = Float.NaN;
     private float pitch = DEFAULT_PITCH;
     private float nearest = NEAREST;
     private float furthest = FURTHEST;
@@ -73,6 +85,9 @@ final class CameraFocus {
         wheelStep = frame.wheelStep();
         panAcross = frame.panAcross();
         panAlong = frame.panAlong();
+        turnSpeed = frame.turnSpeed();
+        zoomSpeed = frame.zoomSpeed();
+        zoomEase = frame.zoomEase();
         resetView();
     }
 
@@ -154,7 +169,7 @@ final class CameraFocus {
 
     /** Zoom by a factor, kept between the nearest and furthest useful distances. */
     void zoomBy(float factor) {
-        distance = Math.clamp(distance * factor, nearest, furthest);
+        aimAt(aimed * factor);
     }
 
     /** One notch of the wheel, in or out: the frame's step along its line of sight, or the client's own 0.92 and 1.09. */
@@ -163,7 +178,42 @@ final class CameraFocus {
             zoomBy(in ? 0.92f : 1.09f);
             return;
         }
-        distance = Math.clamp(distance + (in ? -wheelStep : wheelStep), nearest, furthest);
+        aimAt(aimed + (in ? -wheelStep : wheelStep));
+    }
+
+    /** The zoom keys held for {@code seconds}: the frame's speed along the line of sight, else halving or doubling. */
+    void heldZoom(boolean in, float seconds) {
+        if (Float.isNaN(zoomSpeed)) {
+            zoomBy((float) Math.pow(in ? HELD_ZOOM : 1f / HELD_ZOOM, seconds));
+            return;
+        }
+        aimAt(aimed + (in ? -zoomSpeed : zoomSpeed) * seconds);
+    }
+
+    /** The turn keys held for {@code seconds}, {@code way} 1 leftward and -1 rightward: the frame's speed, else ours. */
+    void heldTurn(int way, float seconds) {
+        turnBy(way * (Float.isNaN(turnSpeed) ? TURN_SPEED : turnSpeed) * seconds);
+    }
+
+    /** Where the eye is to go, kept between the nearest and the furthest; there at once where it does not ease. */
+    private void aimAt(float wanted) {
+        aimed = Math.clamp(wanted, nearest, furthest);
+        if (!eases()) {
+            distance = aimed;
+        }
+    }
+
+    private boolean eases() {
+        return zoomEase > 0f && zoomEase < 1f; // NaN is neither
+    }
+
+    /**
+     * {@code seconds} of the window gone: the eye closes the frame's share of the way to where the wheel and the keys
+     * set it each thirtieth of a second — the reference's {@code W3DView::update}, a notch 83% done after 5 frames and
+     * 97% after 10 — or is there already, where it does not ease.
+     */
+    void approach(float seconds) {
+        distance = eases() ? aimed + (distance - aimed) * (float) Math.pow(1f - zoomEase, seconds * EASE_STEPS) : aimed;
     }
 
     /** Turn it about the point it looks at. */
@@ -175,6 +225,7 @@ final class CameraFocus {
     void resetView() {
         yaw = 0f;
         distance = start;
+        aimed = start;
     }
 
     /** Where it looks, which way it is turned and how far back it stands: what a bookmark keeps. */
@@ -191,6 +242,7 @@ final class CameraFocus {
         targetZ = view.z();
         yaw = view.yaw();
         distance = Math.clamp(view.distance(), nearest, furthest);
+        aimed = distance;
         keepOnTheGround();
     }
 

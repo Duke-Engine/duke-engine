@@ -23,11 +23,27 @@ package uz.dukeengine.client3d;
  *                     second whatever the zoom, before the player's own speed ({@link Duke3D#scrollSpeed}); the
  *                     client's own is 0.9 of its distance a second
  * @param panAlong     and up and down it, along the ground
+ * @param turnSpeed    how fast the held turn keys turn the view, in radians a second — the reference's {@code
+ *                     KeyboardCameraRotateSpeed}, 0.1 a frame, 3 a second; the client's own is a quarter turn a second
+ * @param zoomSpeed    how fast the held zoom keys move the eye along its line of sight, in world units a second — the
+ *                     reference's 10 higher or lower a frame, 492.8 a second along a line 37.5 degrees down; the
+ *                     client's own halves or doubles its distance each second
+ * @param zoomEase     the share of the way to where the wheel and the zoom keys set it that the eye closes each
+ *                     thirtieth of a second — the reference's {@code CameraAdjustSpeed}, 0.3; the client's own lands
+ *                     there at once
  */
 public record CameraFrame(float pitch, float fieldOfView, float nearest, float furthest, float start,
-        float wheelStep, float turnPerPixel, float panAcross, float panAlong) {
+        float wheelStep, float turnPerPixel, float panAcross, float panAlong, float turnSpeed, float zoomSpeed,
+        float zoomEase) {
 
     /** Nothing framed: the client's own camera, as it always was. */
     public static final CameraFrame NONE = new CameraFrame(Float.NaN, Float.NaN, Float.NaN, Float.NaN, Float.NaN,
             Float.NaN, Float.NaN, Float.NaN, Float.NaN);
+
+    /** A frame that leaves the keys' turn and zoom and the eye's easing the client's own. */
+    public CameraFrame(float pitch, float fieldOfView, float nearest, float furthest, float start, float wheelStep,
+            float turnPerPixel, float panAcross, float panAlong) {
+        this(pitch, fieldOfView, nearest, furthest, start, wheelStep, turnPerPixel, panAcross, panAlong, Float.NaN,
+                Float.NaN, Float.NaN);
+    }
 }
