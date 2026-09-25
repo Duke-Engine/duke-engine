@@ -81,6 +81,43 @@ class BoneSystemsTest {
         assertTrue(emitter.isDestroyed(), "no bone in the scene to follow");
     }
 
+    /**
+     * A system at a bone its model lacks runs all the same, at the thing's own place and unturned, following it — as
+     * the reference's damaged airfield names Smoke01 on a model whose bone is SmokeS01, its smoke rising from its
+     * middle.
+     */
+    @Test
+    void aSystemAtABoneTheModelLacksRunsAtTheThingsPositionWhileOneAtABoneItHasRidesTheBone() {
+        var scene = new Node("scene");
+        var thing = new Node("unit");
+        thing.setLocalTranslation(100f, 0f, 50f);
+        thing.setLocalRotation(new com.jme3.math.Quaternion().fromAngles(0f, 1f, 0f));
+        var model = new Node("factory");
+        var sparks = new Node("SPARKS01");
+        sparks.setLocalTranslation(10f, 20f, 0f);
+        model.attachChild(sparks); // no SMOKE01 on this model
+        thing.attachChild(model);
+        scene.attachChild(thing);
+        scene.updateGeometricState();
+        var particles = new Particles(SYSTEMS::get, 7L, Particles.Ground.FLAT, Integer.MAX_VALUE, Integer.MAX_VALUE);
+        var systems = new BoneSystems(particles, scene);
+
+        systems.choose(SCAFFOLD.particlesFor(Set.of("PARTIALLY_CONSTRUCTED")), model);
+        particles.update();
+
+        var running = systems.emitters();
+        assertEquals(2, running.size(), "both run");
+        var boneAt = sparks.getWorldTranslation();
+        assertTrue(running.stream().anyMatch(e -> close(e.where(), boneAt.x, -boneAt.z, boneAt.y)),
+                "the one on its bone");
+        assertTrue(running.stream().anyMatch(e -> close(e.where(), 100f, -50f, 0f)), "the other at the thing's place");
+
+        thing.setLocalTranslation(200f, 0f, 80f);
+        scene.updateGeometricState();
+        particles.update();
+        assertTrue(systems.emitters().stream().anyMatch(e -> close(e.where(), 200f, -80f, 0f)), "and following it");
+    }
+
     private static boolean close(float[] at, float x, float y, float z) {
         return Math.abs(at[0] - x) < 1e-3f && Math.abs(at[1] - y) < 1e-3f && Math.abs(at[2] - z) < 1e-3f;
     }

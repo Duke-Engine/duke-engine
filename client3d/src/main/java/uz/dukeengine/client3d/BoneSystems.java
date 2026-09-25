@@ -40,12 +40,13 @@ final class BoneSystems {
         }
         for (var one : wanted) {
             var bone = Bones.named(model, one.bone());
-            if (bone == null) {
-                continue; // a bone its model does not have: nothing there
-            }
-            var emitter = systems.start(one.system(), () -> inScene(bone)
+            // A bone its model does not have runs the system all the same, at the thing's own place and unturned, as
+            // the reference leaves it at the drawable's origin: a damaged airfield names Smoke01 on a model whose
+            // bone is SmokeS01, and its smoke rises from its middle.
+            var thing = model.getParent() != null ? model.getParent() : model;
+            var emitter = systems.start(one.system(), () -> !inScene(bone != null ? bone : model) ? null : bone != null
                     ? LayeredEffects.placementAt(bone.getWorldTranslation(), bone.getWorldRotation().toAngles(null)[1])
-                    : null);
+                    : LayeredEffects.placementAt(thing.getWorldTranslation(), 0f));
             if (emitter != null) {
                 emitters.add(emitter);
             }
