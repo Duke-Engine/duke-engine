@@ -108,7 +108,7 @@ when it does, this page says exactly what to change and how.
   `Point`, and an armed aim's own pointer shows over the world only. The client's minimap outlines the world
   region's corners, where it outlined the window's.
 - A ground mover sent to a place ends on the nearest block of the ground's cells it may have and can walk to, as the
-  reference's pathfinder places it, and holds that block as its own. A radius-7 mover sent to (355, 355) stops at
+  reference's pathfinder places it, and holds that block as its own. A radius-7 mover sent to (352, 352) stops at
   (350.5, 350.5), and two sent to one point stop 20 apart instead of on one another. A move into something (entering
   it, docking at it, closing on it) goes exactly there with `Locomotor.moveExactlyTo`; the engine's own errands
   already do. A test that expects a mover exactly on the point it was sent to measures from its block's point
