@@ -754,13 +754,23 @@ final class DukeRtsApp extends SimpleApplication {
         this.scrollSpeed = Math.max(0f, share);
     }
 
+    /** The window's own handle, to ask it what jME does not keep; 0 where there is none. */
+    private long windowHandle() {
+        return getContext() instanceof com.jme3.system.lwjgl.LwjglWindow display ? display.getWindowHandle() : 0L;
+    }
+
     /** Whether the pointer is in the window at all: the window says so, where jME keeps only where it was last seen. */
     private boolean pointerInTheWindow() {
-        if (!(getContext() instanceof com.jme3.system.lwjgl.LwjglWindow display) || display.getWindowHandle() == 0L) {
-            return true; // no window to ask
-        }
-        return org.lwjgl.glfw.GLFW.glfwGetWindowAttrib(display.getWindowHandle(), org.lwjgl.glfw.GLFW.GLFW_HOVERED)
+        long window = windowHandle();
+        return window == 0L || org.lwjgl.glfw.GLFW.glfwGetWindowAttrib(window, org.lwjgl.glfw.GLFW.GLFW_HOVERED)
                 == org.lwjgl.glfw.GLFW.GLFW_TRUE;
+    }
+
+    /** Whether a mouse button is held, as the window says: true where there is no window to ask. */
+    private boolean buttonHeld(int glfwButton) {
+        long window = windowHandle();
+        return window == 0L
+                || org.lwjgl.glfw.GLFW.glfwGetMouseButton(window, glfwButton) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
     }
 
     /** Draw the world in this part of the window from the next frame — see {@link Duke3D#worldView}. */
@@ -3058,17 +3068,24 @@ final class DukeRtsApp extends SimpleApplication {
                 }
                 case "Turn" -> turnByTheMiddleButton(pressed);
                 case "Order" -> {
-                    if (!pressed || screen != Screen.PLAYING) {
+                    if (screen != Screen.PLAYING) {
                         break;
                     }
                     var over = inputManager.getCursorPosition();
-                    if (aiming.isArmed()) {
-                        disarmButton(); // second thoughts, wherever the pointer is: a bar's button or the game's
-                    } else if (arming != null) {
-                        disarm(); // second thoughts, the way a right-click always means
-                    } else if (mouse.rightClickLetsGo()) {
-                        selected.clear(); // the reference's left-click mouse: the right button lets go
-                    } else if (pointerOnTheWorld() && !heroPanel.contains(over.x, over.y)) {
+                    if (mouse.rightClickLetsGo() && visuals.getRightDrag().wanted()) {
+                        // The reference's left-click mouse as the game framed it: held, the right button scrolls,
+                        // and only a click lets go.
+                        float y = cam.getHeight() - over.y;
+                        if (pressed) {
+                            steering.rightDown(over.x, y, timer.getTimeInSeconds(), camera.targetX(),
+                                    camera.targetZ(), visuals.getRightDrag());
+                        } else if (steering.rightUp(over.x, y, timer.getTimeInSeconds(), camera.targetX(),
+                                camera.targetZ())) {
+                            secondThoughts();
+                        }
+                    } else if (pressed && (aiming.isArmed() || arming != null || mouse.rightClickLetsGo())) {
+                        secondThoughts();
+                    } else if (pressed && pointerOnTheWorld() && !heroPanel.contains(over.x, over.y)) {
                         order(); // a right-click on the bar, or off the world, is not an order to the world
                     }
                 }
@@ -4758,7 +4775,7 @@ final class DukeRtsApp extends SimpleApplication {
         placeTheCamera(tpf);
     }
 
-    /** The player's own hands on the camera: the pan keys and the window's edges, turning, zooming. */
+    /** The player's own hands on the camera: the pan keys, the window's edges and the right button, turning, zooming. */
     private void steerTheCamera(float tpf) {
         var moved = game.takeViewMove();
         if (moved != null) {
@@ -4769,6 +4786,8 @@ final class DukeRtsApp extends SimpleApplication {
         // No edge while a menu is up: the pointer is being used for something else, and a view that drifted out from
         // under a choice would be its own kind of bug.
         boolean atTheEdges = screen == Screen.PLAYING && !menu.isVisible() && pointerInTheWindow();
+        steering.stillHeld(buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_RIGHT),
+                buttonHeld(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_MIDDLE));
         var hands = new Steering.Hands(held(KeyMap.Control.PAN_LEFT), held(KeyMap.Control.PAN_RIGHT),
                 held(KeyMap.Control.PAN_UP), held(KeyMap.Control.PAN_DOWN), at.x, tall - at.y, atTheEdges,
                 cam.getWidth(), tall);
@@ -4818,6 +4837,20 @@ final class DukeRtsApp extends SimpleApplication {
         }
         cam.setLocation(target.add(camera.eyeOffset(cameraPitch)).addLocal(knock));
         cam.lookAt(target, Vector3f.UNIT_Y);
+    }
+
+    /**
+     * A right click's second thoughts: an armed button given up, wherever the pointer is — a bar's or the game's — or
+     * an armed key, the way a right-click always means; or, on the reference's left-click mouse, the selection let go.
+     */
+    private void secondThoughts() {
+        if (aiming.isArmed()) {
+            disarmButton();
+        } else if (arming != null) {
+            disarm();
+        } else if (mouse.rightClickLetsGo()) {
+            selected.clear();
+        }
     }
 
     /** How far a middle drag turns the view for each pixel it moves across, in radians; 0 where the game set none. */

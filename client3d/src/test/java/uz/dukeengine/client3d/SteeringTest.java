@@ -102,4 +102,64 @@ class SteeringTest {
     private static Cursors.Over scrolling(String way) {
         return new Cursors.Over(true, null, true, false, false, false, true, true, null, way);
     }
+
+    // ---- the right button held ----
+
+    /** 14 world units a second across for each pixel, 10.6 along, the anchor half the window behind at most. */
+    private static final RightDrag REFERENCE = new RightDrag(14f, 10.6f, 0.5f, 25f, 250f, 25f);
+
+    private static float across(Steering steering, float x, float y, int frames) {
+        float moved = 0f;
+        for (int frame = 0; frame < frames; frame++) {
+            moved += steering.scroll(pointer(x, y, true), 1f / 30f, 699f, 532f, EdgeScroll.NONE).x;
+        }
+        return moved;
+    }
+
+    @Test
+    void theRightButtonDownAndThePointerHeldAHundredRightForASecondScrolls1400AndIsNoClick() {
+        var steering = new Steering();
+        steering.rightDown(400f, 300f, 20f, 0f, 0f, REFERENCE);
+
+        assertEquals(1400f, across(steering, 500f, 300f, 30), 0.1f, "a still pointer away from the anchor keeps going");
+
+        assertFalse(steering.rightUp(500f, 300f, 21f, 1400f, 0f), "a drag: the selection is kept");
+        assertEquals(0f, across(steering, 500f, 300f, 1), 0f, "let go, the scrolling stops");
+    }
+
+    @Test
+    void downAndUpWithinTenPixelsAndATenthOfASecondIsAClickAndTheViewHasNotMoved() {
+        var steering = new Steering();
+        steering.rightDown(400f, 300f, 20f, 50f, 60f, REFERENCE);
+        assertEquals(0f, across(steering, 400f, 300f, 2), 0f, "held where it went down: no scrolling");
+
+        assertTrue(steering.rightUp(408f, 305f, 20.1f, 50f, 60f), "a click: the selection is let go");
+
+        steering.rightDown(400f, 300f, 20f, 50f, 60f, REFERENCE);
+        assertFalse(steering.rightUp(400f, 300f, 20.3f, 50f, 60f), "too slow for a click");
+        steering.rightDown(400f, 300f, 20f, 50f, 60f, REFERENCE);
+        assertFalse(steering.rightUp(426f, 300f, 20.1f, 50f, 60f), "too far");
+        steering.rightDown(400f, 300f, 20f, 50f, 60f, REFERENCE);
+        assertFalse(steering.rightUp(400f, 300f, 20.1f, 80f, 60f), "the view moved 30 meanwhile");
+    }
+
+    @Test
+    void theAnchorNeverLagsMoreThanHalfTheWindowBehindThePointer() {
+        var steering = new Steering();
+        steering.rightDown(400f, 300f, 20f, 0f, 0f, REFERENCE);
+
+        assertEquals(14f * 400f / 30f, across(steering, 1300f, 300f, 1), 1e-3f,
+                "900 away, the anchor dragged to 400 behind: half of 800");
+        assertEquals(-14f * 400f / 30f, across(steering, 0f, 300f, 1), 1e-3f, "and the other way");
+    }
+
+    @Test
+    void aReleaseTheGameTookStillEndsTheDrag() {
+        var steering = new Steering();
+        steering.rightDown(400f, 300f, 20f, 0f, 0f, REFERENCE);
+
+        steering.stillHeld(false, true);
+
+        assertEquals(0f, across(steering, 500f, 300f, 1), 0f, "no view left scrolling on its own");
+    }
 }

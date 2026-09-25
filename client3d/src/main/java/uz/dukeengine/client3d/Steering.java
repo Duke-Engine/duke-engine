@@ -3,9 +3,9 @@ package uz.dukeengine.client3d;
 import com.jme3.math.Vector2f;
 
 /**
- * The player's hands on the camera, as plain numbers: how far the pan keys and the pointer at the window's edges
- * scroll the view this frame, a middle-button drag turning it, and whether letting go of a button was a click. Held
- * apart from the application because none of it needs a window.
+ * The player's hands on the camera, as plain numbers: how far the pan keys, the pointer at the window's edges and the
+ * right button held scroll the view this frame, a middle-button drag turning it, and whether letting go of a button
+ * was a click. Held apart from the application because none of it needs a window.
  */
 final class Steering {
 
@@ -28,8 +28,9 @@ final class Steering {
     /**
      * How far the view scrolls this frame, across the screen and down it along the ground, in world units: the pan keys
      * at the speeds given, and the pointer resting at an edge of the window — the bottom one too, under a bar of the
-     * game's own — at {@code edges}' share of them, the two added so both hands work at once. The reference scrolls
-     * its keys and its display's edges alike ({@code LookAtTranslator}).
+     * game's own — at {@code edges}' share of them, the two added so both hands work at once, as the reference scrolls
+     * its keys and its display's edges alike ({@code LookAtTranslator}); and, while the right button is held, by how
+     * far the pointer is from its anchor, the anchor dragged after it first.
      */
     Vector2f scroll(Hands hands, float tpf, float speedAcross, float speedAlong, EdgeScroll edges) {
         float across = (hands.right() ? 1f : 0f) - (hands.left() ? 1f : 0f);
@@ -40,7 +41,72 @@ final class Steering {
             across += ((hands.x() >= hands.width() - margin ? 1f : 0f) - (hands.x() < margin ? 1f : 0f)) * share;
             down += ((hands.y() >= hands.height() - margin ? 1f : 0f) - (hands.y() < margin ? 1f : 0f)) * share;
         }
-        return new Vector2f(across * speedAcross * tpf, down * speedAlong * tpf);
+        var pan = new Vector2f(across * speedAcross * tpf, down * speedAlong * tpf);
+        if (drag != null) {
+            if (drag.reach() > 0f) {
+                float mostAcross = drag.reach() * hands.width();
+                float mostDown = drag.reach() * hands.height();
+                anchorX = Math.clamp(anchorX, hands.x() - mostAcross, hands.x() + mostAcross);
+                anchorY = Math.clamp(anchorY, hands.y() - mostDown, hands.y() + mostDown);
+            }
+            pan.x += drag.across() * (hands.x() - anchorX) * tpf;
+            pan.y += drag.along() * (hands.y() - anchorY) * tpf;
+        }
+        return pan;
+    }
+
+    /** The right button's drag while it is held, or null. */
+    private RightDrag drag;
+    private float anchorX;
+    private float anchorY;
+    private float rightDownX;
+    private float rightDownY;
+    private float rightDownAt;
+    private float rightDownViewX;
+    private float rightDownViewZ;
+
+    /**
+     * The right button down at {@code (x, y)}, {@code seconds} into the client's time, the view looking at {@code
+     * (viewX, viewZ)}: where it went down is the anchor the view scrolls from while it is held, as {@code drag} says.
+     */
+    void rightDown(float x, float y, float seconds, float viewX, float viewZ, RightDrag drag) {
+        this.drag = drag;
+        anchorX = x;
+        anchorY = y;
+        rightDownX = x;
+        rightDownY = y;
+        rightDownAt = seconds;
+        rightDownViewX = viewX;
+        rightDownViewZ = viewZ;
+    }
+
+    /**
+     * Let go at {@code (x, y)}, the view looking at {@code (viewX, viewZ)}: whether it was a click — near where it went
+     * down, soon after, and the view hardly moved meanwhile, as the reference's {@code SelectionTranslator} asks — and
+     * not a drag.
+     */
+    boolean rightUp(float x, float y, float seconds, float viewX, float viewZ) {
+        if (drag == null) {
+            return false;
+        }
+        var was = drag;
+        drag = null;
+        return Math.abs(x - rightDownX) <= was.clickPixels() && Math.abs(y - rightDownY) <= was.clickPixels()
+                && (seconds - rightDownAt) * 1000f <= was.clickMillis()
+                && Math.hypot(viewX - rightDownViewX, viewZ - rightDownViewZ) <= was.clickMoved();
+    }
+
+    /**
+     * Which buttons the window says are still held: a drag whose button was let go where the client never heard it —
+     * the game's canvas took the release — goes on no further.
+     */
+    void stillHeld(boolean right, boolean middle) {
+        if (!right) {
+            drag = null;
+        }
+        if (!middle) {
+            turning = false;
+        }
     }
 
     private boolean turning;

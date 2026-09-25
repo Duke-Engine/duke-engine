@@ -1801,6 +1801,18 @@ public final class Visuals {
         return cameraFrame;
     }
 
+    private RightDrag rightDrag = RightDrag.NONE;
+
+    /** The right button held scrolling the view, and letting go only as a click — see {@link RightDrag}. */
+    public Visuals rightDrag(RightDrag drag) {
+        this.rightDrag = drag == null ? RightDrag.NONE : drag;
+        return this;
+    }
+
+    public RightDrag getRightDrag() {
+        return rightDrag;
+    }
+
     private OrderMark orderMark = OrderMark.DEFAULTS;
 
     /**
