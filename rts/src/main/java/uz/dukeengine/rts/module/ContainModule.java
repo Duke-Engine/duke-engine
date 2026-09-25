@@ -48,7 +48,9 @@ import uz.dukeengine.core.thing.ObjectId;
  * last, as the reference's tunnels cave in ({@code TunnelTracker::onTunnelDestroyed}). <b>A hold that shows its
  * passengers</b> ({@code ShowsPassengers}) has them drawn where the game stands them, turned its way, and clicked as
  * the hold — the reference's fire base, a soldier in each trench ({@code IsEnclosingContainer = No}); it moves none
- * of them itself.
+ * of them itself. <b>Riders on its turret</b> ({@code RiderTurret}): their bone turned about the turret's as the
+ * carrier's {@link Turret} has it turned, each facing the turret's way — the reference's heavy tank, its battle bunker
+ * 15 behind the turret's pivot ({@code PassengersInTurret}, {@code Object::getSingleLogicalBonePositionOnTurret}).
  */
 @ModuleGroup(ModuleGroups.MOVEMENT)
 public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
@@ -63,14 +65,23 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
      * {@code ExitStart} and {@code ExitEnd}: the bones of its exit path, which they walk out along instead; {@code
      * PassengersSeeOut}: whether they see out of it, from where it stands; {@code RiderKinds}: the kinds of passenger
      * that ride at its RiderBone, the others sitting inside — none named, every passenger rides; {@code
-     * ShowsPassengers}: whether they are drawn where the game stands them.
+     * ShowsPassengers}: whether they are drawn where the game stands them; {@code RiderTurret}: the node of its model
+     * its RiderBone turns with as its turret turns, or null for riders on its body.
      */
     public record Data(int slots, String sharedBy, boolean passengersFire, String riderBone, boolean passengersVanish,
             String exitBone, String exitStart, String exitEnd, boolean passengersSeeOut, List<Kind> riderKinds,
-            boolean showsPassengers) implements ModuleData {
+            boolean showsPassengers, String riderTurret) implements ModuleData {
 
         public Data {
             riderKinds = riderKinds == null ? List.of() : List.copyOf(riderKinds);
+        }
+
+        /** Riders on its body. */
+        public Data(int slots, String sharedBy, boolean passengersFire, String riderBone, boolean passengersVanish,
+                String exitBone, String exitStart, String exitEnd, boolean passengersSeeOut, List<Kind> riderKinds,
+                boolean showsPassengers) {
+            this(slots, sharedBy, passengersFire, riderBone, passengersVanish, exitBone, exitStart, exitEnd,
+                    passengersSeeOut, riderKinds, showsPassengers, null);
         }
 
         /** Passengers inside that nobody sees. */
@@ -131,6 +142,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     private final boolean passengersSeeOut;
     private final List<Kind> riderKinds;
     private final boolean showsPassengers;
+    private final String riderTurret;
     private boolean passengersFire;
     private final List<ObjectId> passengers = new ArrayList<>();
 
@@ -147,6 +159,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         this.passengersSeeOut = data.passengersSeeOut();
         this.riderKinds = data.riderKinds();
         this.showsPassengers = data.showsPassengers();
+        this.riderTurret = data.riderTurret();
     }
 
     /** Let its passengers fire from inside, or hold them idle — the reference's PassengersFireUpgrade. */
@@ -185,7 +198,17 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         if (sharedBy != null || world == null || !passengersFire && riderBone == null && !passengersSeeOut) {
             return;
         }
-        var seat = riderBone == null ? null : uz.dukeengine.core.thing.Bones.inWorld(owner, riderBone);
+        Coord3D seat = null;
+        float facing = owner.getOrientation();
+        if (riderBone != null && riderTurret == null) {
+            seat = uz.dukeengine.core.thing.Bones.inWorld(owner, riderBone);
+        } else if (riderBone != null && owner.getTemplate() instanceof uz.dukeengine.core.thing.Drawn drawn) {
+            float turn = turretTurn(owner);
+            seat = uz.dukeengine.core.thing.Bones.inWorld(owner, drawn.model(), riderBone, null, riderTurret, turn);
+            var pointing = uz.dukeengine.core.thing.Bones.pointingInWorld(owner, drawn.model(), riderBone, null,
+                    riderTurret, turn);
+            facing = pointing != null ? pointing.turn() : owner.getOrientation() + turn;
+        }
         for (var id : passengers) {
             var passenger = world.findObject(id);
             if (passenger == null) {
@@ -198,9 +221,19 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
                 continue;
             }
             passenger.setPosition(seat != null ? seat : owner.getPosition());
-            passenger.setOrientation(owner.getOrientation());
+            passenger.setOrientation(facing);
             passenger.setKeepsOwnHeight(true);
         }
+    }
+
+    /** How far {@code owner}'s turret stands turned, as a {@link Turret} of its says; none where it has none. */
+    private static float turretTurn(GameObject owner) {
+        for (var module : owner.getModules()) {
+            if (module instanceof Turret turret) {
+                return turret.turretTurn();
+            }
+        }
+        return 0f;
     }
 
     /** Whether {@code passenger} fires from inside what carries it: a hold whose passengers fire, or a rider. */

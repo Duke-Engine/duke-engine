@@ -156,6 +156,48 @@ class PassengersAndRidersTest {
         assertTrue(gattling.isContained(), "the rider stays on");
     }
 
+    /** A game's turret, turned where the test says. */
+    static final class TurnedTurret extends uz.dukeengine.core.module.Module implements Turret {
+        private final float turn;
+
+        TurnedTurret(GameObject owner, float turn) {
+            super(owner);
+            this.turn = turn;
+        }
+
+        @Override
+        public float turretTurn() {
+            return turn;
+        }
+    }
+
+    /**
+     * The reference's heavy tank, its battle bunker riding at FIREPOINT01 on its turret, 15 behind the turret's pivot,
+     * the turret turned a quarter round at something beside it: the bunker stands a quarter round about the pivot from
+     * its default seat — 21.2 from it — facing the turret's way.
+     */
+    @Test
+    void aRiderOnATurretIsTurnedWithIt() {
+        var tankType = RtsTemplate.named("HeavyTank").model("models/bones/heavy_tank.gltf")
+                .module(new ActiveBody.Data(1000f)).module(new MoveUpdate.Data(30f))
+                .module(new ContainModule.Data(1, null, false, "FIREPOINT01", false, null, null, null, false,
+                        List.of(), false, "TURRET01")).build();
+        var logic = world(tankType, RANGER);
+        var tank = logic.spawn(tankType, new Coord3D(100f, 100f, 0f), 1);
+        var bunker = logic.spawn(RANGER, new Coord3D(100f, 100f, 0f), 1);
+        tank.addModule(new TurnedTurret(tank, (float) (Math.PI / 2)));
+        tank.findModule(ContainModule.class).load(bunker);
+        logic.update();
+
+        var pivot = Bones.inWorld(tank, "TURRET01");
+        var seat = Bones.inWorld(tank, "FIREPOINT01");
+        assertEquals(pivot.x(), bunker.getPosition().x(), 1e-3f, "a quarter round about the pivot");
+        assertEquals(pivot.y() - 15f, bunker.getPosition().y(), 1e-3f);
+        assertEquals(15f, bunker.getPosition().z(), 1e-3f, "as high as its seat");
+        assertEquals(21.21f, seat.distance(bunker.getPosition()), 0.01f, "21.2 from its default seat");
+        assertEquals((float) (Math.PI / 2), bunker.getOrientation(), 1e-5f, "facing the turret's way");
+    }
+
     /** Who hurt {@code victim} over the next {@code frames} frames. */
     private static Set<ObjectId> shootersOver(CombatTest.CombatLogic logic, GameObject victim, int frames) {
         for (int frame = 0; frame < frames; frame++) {
