@@ -97,6 +97,25 @@ class SharedHoldTest {
         assertTrue(rebels.subList(5, 11).stream().noneMatch(GameObject::isEffectivelyDead), "those outside live");
     }
 
+    /** One of two tunnels taken out of the world: its passengers stay in the network, and go with the last. */
+    @Test
+    void aTunnelTakenAwayLeavesItsPassengersInTheOtherAndTheLastTakesThem() {
+        world();
+        hold(tunnelA).load(rebels.get(0));
+        hold(tunnelA).load(rebels.get(1));
+
+        logic.destroyObject(tunnelA);
+        logic.update();
+        assertTrue(logic.getObjects().containsAll(rebels.subList(0, 2)), "still in the world");
+        assertTrue(rebels.get(0).isContained() && rebels.get(1).isContained(), "inside");
+        assertEquals(2, hold(tunnelB).getPassengerCount(), "held by the other tunnel");
+
+        logic.destroyObject(tunnelB);
+        logic.update();
+        assertTrue(rebels.subList(0, 2).stream().noneMatch(logic.getObjects()::contains), "the last takes them");
+        assertTrue(rebels.subList(0, 2).stream().noneMatch(GameObject::isEffectivelyDead), "not killed");
+    }
+
     @Test
     void aSoldTunnelLeavesTheNetworkAndItsPassengersStayInTheOtherUntilTheLastIsSold() {
         world();

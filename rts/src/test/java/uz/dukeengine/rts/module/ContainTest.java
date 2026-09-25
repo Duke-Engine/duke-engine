@@ -53,6 +53,25 @@ class ContainTest {
         logic.init();
     }
 
+    /** A transport holding two soldiers taken out of the world takes them with it, the same frame, killing nobody. */
+    @Test
+    void aHolderTakenOutOfTheWorldTakesItsPassengersWithIt() {
+        var apc = logic.createObject(transport);
+        var a = logic.createObject(infantry);
+        var b = logic.createObject(infantry);
+        apc.findModule(ContainModule.class).load(a);
+        apc.findModule(ContainModule.class).load(b);
+        logic.update();
+        logic.drainEvents();
+
+        logic.destroyObject(apc);
+        logic.update();
+
+        assertFalse(logic.getObjects().contains(a) || logic.getObjects().contains(b), "gone with it, the same frame");
+        assertTrue(logic.drainEvents().stream().noneMatch(uz.dukeengine.core.event.ObjectDied.class::isInstance),
+                "and nobody died");
+    }
+
     @Test
     void loadsUpToCapacityThenRejects() {
         var apc = logic.createObject(transport);

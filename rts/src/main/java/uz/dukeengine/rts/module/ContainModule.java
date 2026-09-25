@@ -42,7 +42,10 @@ import uz.dukeengine.core.thing.ObjectId;
  * building sold or removed</b> leaves the network that frame; its passengers come out only where it was the last.
  * <b>A holder that loses its passengers</b> in its death may take them out of the world quietly ({@code
  * PassengersVanish}): no death, no death effect, no kill for anyone. <b>Its passengers see nothing</b> but where it
- * says they see out ({@code PassengersSeeOut}), a garrison's, and then from where it stands.
+ * says they see out ({@code PassengersSeeOut}), a garrison's, and then from where it stands. <b>A holder taken out of
+ * the world</b> without a death takes its passengers with it, taken away too and not killed, the same frame — the
+ * reference's {@code OpenContain::onDelete}; a shared hold's stay while another of the network stands, and go with the
+ * last, as the reference's tunnels cave in ({@code TunnelTracker::onTunnelDestroyed}).
  */
 @ModuleGroup(ModuleGroups.MOVEMENT)
 public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
@@ -439,11 +442,15 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     /**
      * The last of its side's network gone, its passengers go with it — the reference's tunnel network, whose
      * passengers die when no tunnel is left to come out of; any other it shares its hold with still standing, they
-     * live on in that one.
+     * live on in that one. Taken out of the world rather than killed, it takes its passengers away with it.
      */
     @Override
     public void onDie(uz.dukeengine.core.module.Death death) {
         var world = getOwner().getWorld();
+        if (sharedBy == null && world != null && !getOwner().isEffectivelyDead()) {
+            takeAway(world, passengers);
+            return;
+        }
         if (riderBone != null && world != null) {
             var riders = new ArrayList<ObjectId>();
             for (var id : passengers) {
@@ -463,8 +470,19 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         if (getOwner().isEffectivelyDead()) {
             lose(world, hold);
         } else {
-            unloadAll(); // the last taken away, not killed: they come out where it stood
+            takeAway(world, hold); // the last taken away, not killed: the tunnels cave in on them
         }
+    }
+
+    /** Its passengers taken out of the world with it, and what they hold with them — none of them killed. */
+    private static void takeAway(uz.dukeengine.core.thing.World world, List<ObjectId> hold) {
+        for (var id : hold) {
+            var passenger = world.findObject(id);
+            if (passenger != null) {
+                passenger.markDestroyed();
+            }
+        }
+        hold.clear();
     }
 
     /** Its passengers lost with it: dead, or — where it says so — gone from the world without a death. */

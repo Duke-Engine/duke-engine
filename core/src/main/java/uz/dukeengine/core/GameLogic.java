@@ -1195,10 +1195,18 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     private void reapDestroyed() {
+        reap(true);
+        while (objects.stream().anyMatch(GameObject::isDestroyed)) {
+            reap(false); // what went took things with it — a hold its passengers — and they go the same frame
+        }
+    }
+
+    /** Take out what is destroyed, and — with {@code deaths} — what has died since the last frame. */
+    private void reap(boolean deaths) {
         List<GameObject> leaving = new ArrayList<>();
         List<GameObject> lying = new ArrayList<>();
         for (var object : objects) {
-            if (object.isEffectivelyDead() && !object.hasDied() && !object.isDestroyed()) {
+            if (deaths && object.isEffectivelyDead() && !object.hasDied() && !object.isDestroyed()) {
                 if (keptDead(object)) {
                     lying.add(object); // dies now, and stays while its death plays out
                     continue;
