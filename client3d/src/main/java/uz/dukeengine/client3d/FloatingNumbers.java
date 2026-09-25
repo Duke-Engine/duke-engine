@@ -70,6 +70,9 @@ final class FloatingNumbers {
      *               creature's head rather than at its feet
      */
     void add(HealthWatch.Change change, float now, float height) {
+        if (!look.shown()) {
+            return; // a game that draws none: the flash and the alert are the caller's, and go on
+        }
         var mark = borrow();
         mark.bornAt = now;
         mark.worldX = change.x();

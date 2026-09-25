@@ -244,4 +244,34 @@ class FloatingNumbersTest {
         assertEquals(new ColorRGBA(wanted.r, wanted.g, wanted.b, 1f),
                 firstUp(screen.gui()).getColor());
     }
+
+    /** A game that draws none: a thing hurt for 100 throws no number off. */
+    @Test
+    void noNumbersWhereTheGameHasNone() {
+        var assets = new com.jme3.asset.DesktopAssetManager(true);
+        var gui = new com.jme3.scene.Node("gui");
+        var numbers = new FloatingNumbers(assets.loadFont("Interface/Fonts/Default.fnt"), gui, HitNumbers.NONE);
+
+        numbers.add(hit(100f, false, true), NOW, 14f);
+
+        assertEquals(0, numbers.madeSoFar(), "nothing drawn, nothing made");
+    }
+
+    /** A game's data file may say so. */
+    @Test
+    void aGameSaysInItsDataFileThatItDrawsNone() {
+        var none = new uz.dukeengine.core.data.Binder().bind(uz.dukeengine.core.data.DukeText.parse("""
+                HitNumbers
+                  Shown = No
+                End
+                """, "hud.duke").getFirst(), HitNumbers.class);
+        var some = new uz.dukeengine.core.data.Binder().bind(uz.dukeengine.core.data.DukeText.parse("""
+                HitNumbers
+                  Seconds = 0.5
+                End
+                """, "hud.duke").getFirst(), HitNumbers.class);
+
+        assertEquals(false, none.shown());
+        assertEquals(true, some.shown(), "a file that says nothing of it draws them, as ever");
+    }
 }

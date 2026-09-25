@@ -52,14 +52,30 @@ package uz.dukeengine.client3d;
  *                    which is the one he has to notice
  * @param healColour  packed RGB for health going back on
  * @param brightness  what every colour is multiplied by
+ * @param shown       whether numbers are drawn at all. Without them a blow still flashes what it hurt, as the hit flash
+ *                    says, and a blow to one of his still marks the place the view goes to
  */
 public record HitNumbers(float seconds, float popScale, float textScale, float spread,
         float fanDegrees, float height, float leastWorth, int hurtColour, int takenColour,
-        int healColour, float brightness) {
+        int healColour, float brightness, boolean shown) {
 
     /** What a game that asks for nothing gets. */
     public static final HitNumbers DEFAULTS = new HitNumbers(
-            0.40f, 2.1f, 0.85f, 34f, 38f, 14f, 1f, 0xFFE0A0, 0xC22A22, 0x4FBF4F, 1f);
+            0.40f, 2.1f, 0.85f, 34f, 38f, 14f, 1f, 0xFFE0A0, 0xC22A22, 0x4FBF4F, 1f, true);
+
+    /**
+     * No numbers — the reference's, which throws none off a site going up or a building under fire. The flash and the
+     * under-attack mark are kept, each by its own setting.
+     */
+    public static final HitNumbers NONE = new HitNumbers(
+            0.40f, 2.1f, 0.85f, 34f, 38f, 14f, 1f, 0xFFE0A0, 0xC22A22, 0x4FBF4F, 1f, false);
+
+    /** Numbers that are drawn: every look from before one could have none. */
+    public HitNumbers(float seconds, float popScale, float textScale, float spread, float fanDegrees, float height,
+            float leastWorth, int hurtColour, int takenColour, int healColour, float brightness) {
+        this(seconds, popScale, textScale, spread, fanDegrees, height, leastWorth, hurtColour, takenColour,
+                healColour, brightness, true);
+    }
 
     public HitNumbers {
         seconds = Math.max(0.05f, seconds);
