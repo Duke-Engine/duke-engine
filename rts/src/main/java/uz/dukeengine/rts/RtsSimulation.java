@@ -235,9 +235,17 @@ public abstract class RtsSimulation extends GameLogic {
         return targetRules;
     }
 
-    /** Apply a {@code Construct} order; see {@link uz.dukeengine.rts.construction.Construction#order}. */
+    /**
+     * Apply a {@code Construct} order; see {@link uz.dukeengine.rts.construction.Construction#order}. One taken is
+     * told to the builder's {@link uz.dukeengine.rts.module.OrderListener}s after, as the other standard orders are:
+     * the reference's worker drops his supply work when he is told to build.
+     */
     protected final boolean construct(GameMessage.Construct order) {
-        return uz.dukeengine.rts.construction.Construction.order(this, order, placementRules);
+        boolean taken = uz.dukeengine.rts.construction.Construction.order(this, order, placementRules);
+        if (taken) {
+            tellOrder(order, java.util.List.of(order.builder()), order.playerIndex());
+        }
+        return taken;
     }
 
     /** Apply a {@code CancelConstruction} order. */

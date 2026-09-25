@@ -25,8 +25,8 @@ import uz.dukeengine.rts.player.RtsPlayer;
  * <b>Loaded and paid only beside:</b> it takes a load only while it stands beside its pile, and banks it only beside the
  * depot it carries it to, as the reference's truck is loaded and paid only docked; a trip cut short keeps its load, and
  * the harvester sets off again a second later. <b>Ordered elsewhere</b> — any order its player gives it, a move, an
- * attack, a stop, a guard — it stops working and keeps what it carries, until it is next told where to work, as the
- * reference's truck goes idle.
+ * attack, a stop, a guard, a build order — it stops working and keeps what it carries, until it is next told where to
+ * work, as the reference's truck goes idle.
  *
  * <p>The walking is the point. Without it there was no distance to a pile and so no reason to put one
  * anywhere, no reason to defend a depot, and no cost to mining the far side of the map — which is most of
