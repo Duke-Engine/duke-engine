@@ -2012,6 +2012,44 @@ public final class Visuals {
         return java.util.List.copyOf(groundShades);
     }
 
+    /**
+     * How a map's water is drawn — see {@link #water}.
+     *
+     * @param picture       standing water's picture, a whole path from the resource root
+     * @param size          how much ground one copy of it covers, world units — the reference's 150
+     * @param driftU        how far it drifts a second, in its own widths
+     * @param overlay       a second picture laid over it the same way — the reference's bubbles — or null
+     * @param tint          packed {@code 0xAARRGGBB}: the ground's light times this colour, and how opaque it is where
+     *                      it is deep — the reference's water diffuse for the hour
+     * @param fadeDepth     how deep the ground must lie under it for it to be whole; shallower, it is as clear as the
+     *                      ground is shallow — the reference's 3
+     * @param riverPicture  a river's picture, laid across it and down it from its start, or null for standing water's
+     * @param riverFlow     how fast a river's picture runs down it, in its own lengths a second
+     * @param riverEdge     a picture whose alpha, read across a river, fades its banks — the reference's {@code
+     *                      TWAlphaEdge} — or null
+     */
+    public record WaterLook(String picture, float size, float driftU, float driftV, String overlay, float overlaySize,
+            float overlayDriftU, float overlayDriftV, int tint, float fadeDepth, String riverPicture, float riverFlow,
+            String riverEdge) {
+    }
+
+    private WaterLook water;
+
+    /**
+     * A map's water areas drawn, as the reference draws its translucent water ({@code W3DWater.cpp}): standing water at
+     * its height over its outline, its picture drifting and a second over it, as clear at the shore as the ground is
+     * shallow; a river a strip down from its start ({@code MapArea.river}), its picture running down it. Its colour is
+     * the ground's light times the tint. None unless the game says how; drawing only.
+     */
+    public Visuals water(WaterLook look) {
+        this.water = look;
+        return this;
+    }
+
+    public WaterLook getWater() {
+        return water;
+    }
+
     private java.util.List<Sun> thingSuns = java.util.List.of();
 
     /**

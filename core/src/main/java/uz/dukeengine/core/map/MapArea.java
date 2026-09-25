@@ -32,4 +32,21 @@ public interface MapArea {
      * pairs them off; one that wants only to know where the water is never has to.
      */
     List<Float> points();
+
+    /**
+     * Whether its water runs — a river — rather than stands: drawn as a strip from {@link #riverStart} along its banks,
+     * its picture flowing down it, as the reference draws its rivers ({@code WaterRenderObjClass::drawRiverWater}).
+     * None unless the game says so.
+     */
+    default boolean river() {
+        return false;
+    }
+
+    /**
+     * Where a river starts: the corner whose edge to the next is its mouth, one bank running on from the next corner
+     * and the other back from this one — the reference's {@code getRiverStart}.
+     */
+    default int riverStart() {
+        return 0;
+    }
 }

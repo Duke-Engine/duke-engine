@@ -1,0 +1,49 @@
+MaterialDef Water {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+
+        // The water's picture, laid by world position: xy is one over how much ground a copy covers, zw where it
+        // has drifted to. For a river, laid along it instead: u across, v down it from its start.
+        Texture2D ColorMap
+        Vector4 ColorPlace
+        // A second picture laid over it the same way -- the reference's bubbles.
+        Texture2D OverlayMap
+        Vector4 OverlayPlace
+        // A river's banks faded by this picture's alpha, read across the river.
+        Texture2D EdgeMap
+        // Whether it is laid along a river, by its texture coordinates, rather than by world position.
+        Boolean Along
+
+        // Its colour: the ground's light times the game's tint, alpha the tint's.
+        Color Color
+
+        // The dark, as the ground's own shader takes it.
+        Texture2D FogMap
+        Vector2 FogSize
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/Water.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/Water.frag
+
+        WorldParameters {
+            WorldViewProjectionMatrix
+            WorldMatrix
+        }
+
+        RenderState {
+            Blend Alpha
+            DepthWrite Off
+            FaceCull Off
+        }
+
+        Defines {
+            BOUND_DRAW_BUFFER: BoundDrawBuffer
+            HAS_COLORMAP : ColorMap
+            HAS_OVERLAYMAP : OverlayMap
+            HAS_EDGEMAP : EdgeMap
+            ALONG : Along
+        }
+    }
+}

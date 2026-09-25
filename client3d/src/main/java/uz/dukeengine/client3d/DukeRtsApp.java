@@ -218,6 +218,7 @@ final class DukeRtsApp extends SimpleApplication {
     private StealthLook stealthLook;
     private Scorches scorches;
     private Strips strips;
+    private Water water;
     /** How many of the game's pieces laid along the ground are laid, and for which game. */
     private int stripsLaid;
     private DukeGame stripsOf;
@@ -648,6 +649,7 @@ final class DukeRtsApp extends SimpleApplication {
         layered.drawsSystemsWith(particles);
         scorches = new Scorches(listNode, this::drawnGround, this::scorchLook);
         strips = new Strips(listNode, this::drawnGround, this::stripLook);
+        water = new Water(listNode, this::waterLook);
         listShow = new ListShow(assetManager, listNode, effects.lights(), (cue, at) -> {
             if (noises != null) {
                 noises.sounds().play(cue, at, timer.getTimeInSeconds());
@@ -2912,6 +2914,10 @@ final class DukeRtsApp extends SimpleApplication {
             strips.clear(); // a new world lays its own
         }
         terrain.rebuild(builtFrom, currentKit, builtPaint, visuals.getGroundLight());
+        if (water != null) {
+            water.rebuild(game.getMapRecord() instanceof uz.dukeengine.core.map.Zoned zoned ? zoned.areas()
+                    : java.util.List.of(), drawnGround(), visuals.getWater());
+        }
         if (visuals.getDiscoveryTemplate() == null) {
             return;
         }
@@ -4397,6 +4403,9 @@ final class DukeRtsApp extends SimpleApplication {
         particleDrawing.draw(cam);
         carryTheLightsToTheStone();
         slideTheShades();
+        if (water != null && snapshot != null) {
+            water.update(snapshot.gameTimeSeconds());
+        }
         reapTheDead();
         syncMinimap();
         syncViewportOutline();
@@ -7297,6 +7306,46 @@ final class DukeRtsApp extends SimpleApplication {
         material.setParam("PointLightPositions",
                 com.jme3.shader.VarType.Vector4Array, terrainLightPlaces);
         fogged.add(material);
+        return material;
+    }
+
+    /**
+     * How a map's water is drawn: the water's own shader over its picture — laid across the world for standing water,
+     * along a river for running — in the ground's light times the game's tint, shrouded as the ground. Null where its
+     * picture will not load.
+     */
+    private Material waterLook(Visuals.WaterLook look, boolean river) {
+        var path = river && look.riverPicture() != null ? look.riverPicture() : look.picture();
+        var picture = path == null ? null : groundTexture(path);
+        if (path != null && picture == null) {
+            return null;
+        }
+        var material = new Material(assetManager, "MatDefs/duke/Water.j3md");
+        if (picture != null) {
+            material.setTexture("ColorMap", picture);
+        }
+        if (!river && look.overlay() != null && groundTexture(look.overlay()) != null) {
+            material.setTexture("OverlayMap", groundTexture(look.overlay()));
+        }
+        if (river && look.riverEdge() != null) {
+            try {
+                var edge = assetManager.loadTexture(look.riverEdge());
+                edge.setWrap(com.jme3.texture.Texture.WrapMode.EdgeClamp);
+                material.setTexture("EdgeMap", edge);
+            } catch (RuntimeException notThere) {
+                LOG.warning(() -> "a river's banks name a picture that will not load: " + look.riverEdge());
+            }
+        }
+        material.setBoolean("Along", river);
+        // W3DWater: the ground's light on flat ground, times the water's own colour for the hour.
+        var light = visuals.getGroundLight() != null ? visuals.getGroundLight().at(Vector3f.UNIT_Y)
+                : ambientColour.add(sunColour.mult(Math.max(0f, -sunDirection.y)));
+        int tint = look.tint();
+        material.setColor("Color", new ColorRGBA(Math.min(1f, light.r) * (tint >> 16 & 0xFF) / 255f,
+                Math.min(1f, light.g) * (tint >> 8 & 0xFF) / 255f, Math.min(1f, light.b) * (tint & 0xFF) / 255f,
+                (tint >>> 24) / 255f));
+        material.setTexture("FogMap", fogMap != null ? fogMap.texture() : noFog());
+        material.setVector2("FogSize", fogMap != null ? fogMap.worldSize() : new com.jme3.math.Vector2f(1f, 1f));
         return material;
     }
 
