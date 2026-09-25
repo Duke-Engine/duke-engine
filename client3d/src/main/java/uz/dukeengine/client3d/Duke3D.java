@@ -368,6 +368,16 @@ public final class Duke3D {
     }
 
     /**
+     * Answer a move the game gave at {@code place} as the player's own click there is answered — the order mark, and
+     * where the game named one ({@code OrderMark.model}) the move hint for the selection — as the reference answers
+     * every move on its message stream, a radar's press among them ({@code HintSpy}). A lone structure selected gets no
+     * hint, as for a click. From any thread.
+     */
+    public void answerMove(uz.dukeengine.core.math.Coord3D place) {
+        later(client -> client.answerMove(place));
+    }
+
+    /**
      * Which button selects and which commands: {@link Mouse#RIGHT_COMMANDS}, the default, or the reference's
      * {@link Mouse#LEFT_COMMANDS} — a left click selects the player's own things and commands what is selected
      * everywhere else, a right click lets the selection go. From any thread, before launch or while it runs: an

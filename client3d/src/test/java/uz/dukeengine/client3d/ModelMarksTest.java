@@ -39,6 +39,20 @@ class ModelMarksTest {
     }
 
     @Test
+    void aMoveTheGameGivesIsHintedForTwoUnitsAndNotForALoneBuilding() {
+        var tanks = java.util.List.of(
+                new uz.dukeengine.game.view.UnitView(4, "Tank", 1, 0f, 0f, 0f, 100f, 100f, false, true, false, false, -1),
+                new uz.dukeengine.game.view.UnitView(7, "Tank", 1, 0f, 0f, 0f, 100f, 100f, false, true, false, false, -1));
+        var factory = java.util.List.of(
+                new uz.dukeengine.game.view.UnitView(9, "WarFactory", 1, 0f, 0f, 0f, 900f, 900f, true, true, false, false,
+                        0));
+
+        assertTrue(DukeRtsApp.hintsMove(HINT, java.util.Set.of(4, 7), tanks), "two units: the model is laid");
+        assertFalse(DukeRtsApp.hintsMove(HINT, java.util.Set.of(9), factory), "a lone building: nothing");
+        assertFalse(DukeRtsApp.hintsMove(OrderMark.DEFAULTS, java.util.Set.of(4, 7), tanks), "no model named: none");
+    }
+
+    @Test
     void aMoveLaysOneAtTheGroundPointPlayingItsClipFromTheStartAndItGoesWhenItsFramesAreUp() {
         var markers = new Node("markers");
         var marks = new ModelMarks(markers, this::load);

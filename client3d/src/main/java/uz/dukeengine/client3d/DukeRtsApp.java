@@ -4114,8 +4114,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void hintMove(float worldX, float worldY) {
         var look = visuals.getOrderMark();
-        if (look.model() == null || selected.size() == 1 && snapshot.units().stream()
-                .anyMatch(view -> selected.contains(view.id()) && view.structure())) {
+        if (!hintsMove(look, selected, snapshot.units())) {
             return;
         }
         var selection = selectedIds().stream().map(ObjectId::value).toList();
@@ -4130,6 +4129,24 @@ final class DukeRtsApp extends SimpleApplication {
         rallyMarks.show(visuals.getRally(), shown, RallyMarks.flagOf(shown, selected.size()),
                 toColor(game.getColor(game.getLocalPlayerIndex())), visuals.getHouseColour(), this::floorHeightAt,
                 cam.getLocation());
+    }
+
+    /**
+     * Whether a move by {@code selected} is answered with the game's own model: where it named one, and not for a lone
+     * structure, which cannot move ({@code InGameUI::createMoveHint}, {@code KINDOF_IMMOBILE}).
+     */
+    static boolean hintsMove(OrderMark look, java.util.Set<Integer> selected, List<UnitView> units) {
+        return look.model() != null && !(selected.size() == 1
+                && units.stream().anyMatch(view -> selected.contains(view.id()) && view.structure()));
+    }
+
+    /**
+     * A move the game gave — a radar's press, its own {@code MoveTo} — answered as the player's own click there is: the
+     * order mark and, where the game named a model, the move hint for the selection. See {@link Duke3D#answerMove}.
+     */
+    void answerMove(Coord3D place) {
+        markOrder(place.x(), place.y(), OrderMarkers.Kind.MOVE);
+        hintMove(place.x(), place.y());
     }
 
     /** A move mark's model, as the file has it: no dressing, it is the game's own answer to a click. */
