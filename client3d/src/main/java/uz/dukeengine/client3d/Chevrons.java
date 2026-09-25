@@ -77,8 +77,8 @@ final class Chevrons {
             // by arrowheads on the floor -- see AttackFlash for why they are not
             // the same picture. One pointed at the floor is answered here like any
             // other order given to a place, and told apart by its colour.
-            if (marker.kind() == OrderMarkers.Kind.ATTACK) {
-                continue;
+            if (marker.kind() == OrderMarkers.Kind.ATTACK || marker.kind() == OrderMarkers.Kind.CONTEXT) {
+                continue; // a ring's, round the thing
             }
             float age = now - marker.bornAt();
             if (age < 0f || look.spent(age)) {

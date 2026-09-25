@@ -53,7 +53,9 @@ final class AttackFlash {
             BiFunction<Float, Float, Float> floorAt) {
         int used = 0;
         for (var marker : marks) {
-            if (marker.kind() != OrderMarkers.Kind.ATTACK) {
+            boolean attack = marker.kind() == OrderMarkers.Kind.ATTACK && !look.noAttackRing();
+            boolean context = marker.kind() == OrderMarkers.Kind.CONTEXT && look.ringsContextOrders();
+            if (!attack && !context) {
                 continue;
             }
             float age = now - marker.bornAt();
@@ -74,7 +76,8 @@ final class AttackFlash {
             var moved = marker.unitId() == OrderMarkers.NOBODY || whereItIsNow == null
                     ? null : whereItIsNow.apply(marker.unitId());
             ring.show(moved != null ? moved : new Coord3D(marker.x(), marker.y(), 0f),
-                    look.ringRadius(), look.height(), look.attackColour(), lit, lit * 0.22f,
+                    look.ringRadius(), look.height(), attack ? look.attackColour() : look.contextColour(), lit,
+                    lit * 0.22f,
                     floorAt);
         }
         for (int spare = used; spare < pool.size(); spare++) {

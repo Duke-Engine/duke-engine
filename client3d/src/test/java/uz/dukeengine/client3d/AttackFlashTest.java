@@ -119,6 +119,38 @@ class AttackFlashTest {
                 "kill that is red, but was " + colour);
     }
 
+    /** An order the game named on a thing, where the game asked for its ring: round the thing, in its colour. */
+    @Test
+    void anOrderTheGameNamedIsARingInItsOwnColourWhereTheGameAskedForOne() {
+        var root = new Node("markers");
+        var flash = new AttackFlash(new DesktopAssetManager(true), root,
+                LOOK.contextRing(0xFFD23C).attackRing(false));
+        var orders = new OrderMarkers();
+        orders.add(40f, 60f, 7, OrderMarkers.Kind.CONTEXT, NOW);
+        orders.add(90f, 90f, 8, OrderMarkers.Kind.ATTACK, NOW);
+
+        flash.show(orders.markers(), NOW, id -> null, (x, y) -> 0f);
+        root.updateGeometricState();
+
+        assertEquals(1, flash.madeSoFar(), "the named order's ring; the attack answered with none, as asked");
+        var ring = (Node) shown(root);
+        assertEquals(40f, ring.getLocalTranslation().x, 0.001f, "round the thing it was given on");
+        var colour = (ColorRGBA) ((Geometry) ring.getChild(1)).getMaterial().getParam("Color").getValue();
+        assertTrue(colour.r > colour.b && colour.g > colour.b, "yellow, as named, but was " + colour);
+    }
+
+    /** A game that named no colour draws no ring for such an order: the arrowheads answer it. */
+    @Test
+    void withNoColourNamedAnOrderTheGameNamedIsNotARing() {
+        var scene = scene();
+        scene.orders().add(40f, 60f, 7, OrderMarkers.Kind.CONTEXT, NOW);
+
+        draw(scene, NOW);
+
+        assertEquals(0, scene.flash().madeSoFar());
+        assertEquals(OrderMark.NO_CONTEXT_RING, OrderMark.DEFAULTS.contextColour(), "unless the game names one");
+    }
+
     /** Two attacks at once need two rings, and a hundred more need no more. */
     @Test
     void theSceneStopsGrowingOnceItHasSeenTheBusiestMoment() {

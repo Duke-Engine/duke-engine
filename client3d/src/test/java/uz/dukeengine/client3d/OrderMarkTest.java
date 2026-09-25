@@ -137,4 +137,23 @@ class OrderMarkTest {
         assertEquals(1f, silly.at(0f).alpha(), 0.001f);
         assertEquals(0f, silly.at(silly.seconds()).alpha(), 0.001f);
     }
+
+    /** A game names the ring its own orders are answered with in its data file; one that names none keeps arrowheads. */
+    @Test
+    void aGameNamesItsContextRingInItsDataFile() {
+        var binder = new uz.dukeengine.core.data.Binder();
+        var named = binder.bind(uz.dukeengine.core.data.DukeText.parse("""
+                OrderMark
+                  ContextColour = 0xFFD23C
+                End
+                """, "hud.duke").getFirst(), OrderMark.class);
+        var plain = binder.bind(uz.dukeengine.core.data.DukeText.parse("""
+                OrderMark
+                  Blinks = 3
+                End
+                """, "hud.duke").getFirst(), OrderMark.class);
+
+        assertEquals(0xFFD23C, named.contextColour());
+        assertEquals(OrderMark.NO_CONTEXT_RING, plain.contextColour());
+    }
 }

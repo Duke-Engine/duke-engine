@@ -33,7 +33,13 @@ final class OrderMarkers {
          * pointing at a piece of floor, so he is answered where he pointed, and
          * what he has asked for on the way there is a fight.
          */
-        ATTACK_MOVE
+        ATTACK_MOVE,
+        /**
+         * An order the game named, given on a thing — picking it up, boarding it. A ring round it, as an attack's,
+         * in the colour the game named for it ({@link OrderMark#contextColour}); asked for only by a game that named
+         * one, the rest answering such an order with a move's arrowheads.
+         */
+        CONTEXT
     }
 
     /**

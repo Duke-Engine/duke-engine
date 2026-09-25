@@ -1211,8 +1211,7 @@ final class DukeRtsApp extends SimpleApplication {
         modelMarks.update(now, look);
         // A move the game answers with its own model has no arrowheads; an attack it answers with nothing, no ring.
         chevrons.show(look.model() == null ? orderMarkers.markers() : java.util.List.of(), now, this::floorHeightAt);
-        attackFlash.show(look.noAttackRing() ? java.util.List.of() : orderMarkers.markers(), now,
-                this::whereThatUnitIsNow, this::floorHeightAt);
+        attackFlash.show(orderMarkers.markers(), now, this::whereThatUnitIsNow, this::floorHeightAt);
         syncSkillRange(now);
         syncHitNumbers(now);
         // Where the player's view of the point is clear, and nowhere else — the reference's fog test for its texts.
@@ -3925,7 +3924,8 @@ final class DukeRtsApp extends SimpleApplication {
             // The order the game said a click on this thing gives — see DukeGame.contextOrder.
             game.postCommand(new GameMessage.GameOrder(local, snapshot.contextOrder(), units,
                     new Coord3D(enemy.view.x(), enemy.view.y(), 0f), new ObjectId(enemy.view.id()), 0));
-            markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(), OrderMarkers.Kind.MOVE);
+            markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(),
+                    visuals.getOrderMark().ringsContextOrders() ? OrderMarkers.Kind.CONTEXT : OrderMarkers.Kind.MOVE);
             answerOrder("move", units);
             return;
         }

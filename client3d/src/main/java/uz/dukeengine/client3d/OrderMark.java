@@ -63,22 +63,28 @@ package uz.dukeengine.client3d;
  * @param clip         the clip of that model played once from its first frame, or null for none
  * @param frames       how long that model stands, in thirtieths of a second
  * @param noAttackRing whether an attack is answered with nothing at all: the pointer already said it
+ * @param contextColour packed RGB of the ring an order the game named on a thing ({@code DukeGame.contextOrder}) is
+ *                     answered with — round the thing, blinking and following it as an attack's ring does; -1, as
+ *                     written nowhere, answers it with the arrowheads of a move. See {@link #contextRing(int)}
  */
 public record OrderMark(float startRadius, float endRadius, float seconds, float size,
         float width, float height, float easePower, float fadeFrom, float spinDegrees,
         float brightness, float ringRadius, int blinks, int moveColour, int attackColour,
-        String model, String clip, int frames, boolean noAttackRing) {
+        String model, String clip, int frames, boolean noAttackRing, int contextColour) {
 
     /** What a game that asks for nothing gets. Tuned by eye at a dungeon's scale. */
     public static final OrderMark DEFAULTS = new OrderMark(
             7f, 1f, 0.40f, 3.5f, 3f, 0.25f, 3f, 0.6f, 22f, 1.6f, 7f, 2, 0x3CFF6E, 0xFF4436);
+
+    /** No colour: an order the game names is answered as a move is. */
+    public static final int NO_CONTEXT_RING = -1;
 
     /** The arrowheads and the ring, drawn as the numbers say: every mark from before a game could name a model. */
     public OrderMark(float startRadius, float endRadius, float seconds, float size, float width, float height,
             float easePower, float fadeFrom, float spinDegrees, float brightness, float ringRadius, int blinks,
             int moveColour, int attackColour) {
         this(startRadius, endRadius, seconds, size, width, height, easePower, fadeFrom, spinDegrees, brightness,
-                ringRadius, blinks, moveColour, attackColour, null, null, 0, false);
+                ringRadius, blinks, moveColour, attackColour, null, null, 0, false, NO_CONTEXT_RING);
     }
 
     /**
@@ -90,7 +96,8 @@ public record OrderMark(float startRadius, float endRadius, float seconds, float
      */
     public OrderMark model(String path, String clip, int frames) {
         return new OrderMark(startRadius, endRadius, seconds, size, width, height, easePower, fadeFrom, spinDegrees,
-                brightness, ringRadius, blinks, moveColour, attackColour, path, clip, frames, noAttackRing);
+                brightness, ringRadius, blinks, moveColour, attackColour, path, clip, frames, noAttackRing,
+                contextColour);
     }
 
     /**
@@ -99,7 +106,22 @@ public record OrderMark(float startRadius, float endRadius, float seconds, float
      */
     public OrderMark attackRing(boolean shown) {
         return new OrderMark(startRadius, endRadius, seconds, size, width, height, easePower, fadeFrom, spinDegrees,
-                brightness, ringRadius, blinks, moveColour, attackColour, model, clip, frames, !shown);
+                brightness, ringRadius, blinks, moveColour, attackColour, model, clip, frames, !shown, contextColour);
+    }
+
+    /**
+     * The same, with an order the game named on a thing — picking it up, boarding it — answered by the ring round it
+     * an attack is answered with, blinking and following it, in {@code colour} instead of the attack's; or, with
+     * {@link #NO_CONTEXT_RING}, by the arrowheads of a move.
+     */
+    public OrderMark contextRing(int colour) {
+        return new OrderMark(startRadius, endRadius, seconds, size, width, height, easePower, fadeFrom, spinDegrees,
+                brightness, ringRadius, blinks, moveColour, attackColour, model, clip, frames, noAttackRing, colour);
+    }
+
+    /** Whether an order the game names on a thing is answered with a ring rather than the arrowheads. */
+    public boolean ringsContextOrders() {
+        return contextColour >= 0;
     }
 
     public OrderMark {
