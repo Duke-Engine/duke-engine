@@ -48,6 +48,8 @@ public final class GameObject {
     private boolean destroyed;
     /** Whether its modules have been told it is made — see {@link #announceCreated}. */
     private boolean announced;
+    /** Whether its death has been told, and it is kept in the world dead — see {@link #hasDied}. */
+    private boolean died;
     /** How far it sees where set for it alone, see {@link #setVisionRange}; negative for its template's. */
     private float visionRange = -1f;
     /** The first frame an enemy may target it — see {@link #setTargetableFrom}. */
@@ -444,6 +446,19 @@ public final class GameObject {
         for (var module : List.copyOf(modules)) {
             module.onCreated();
         }
+    }
+
+    /**
+     * Whether its death has been told while it was kept in the world ({@link uz.dukeengine.core.module.KeepsDead}):
+     * it lies dead until destroyed, and leaves then without a second word.
+     */
+    public boolean hasDied() {
+        return died;
+    }
+
+    /** Its death told, it kept in the world: see {@link #hasDied}. */
+    public void markDied() {
+        died = true;
     }
 
     /** A thing brought back from a save: it was made long ago, and its modules are not told again. */

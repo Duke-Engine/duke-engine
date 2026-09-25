@@ -4777,9 +4777,18 @@ final class DukeRtsApp extends SimpleApplication {
 
     private void syncUnits() {
         var seen = new HashSet<Integer>();
+        lyingDead.clear();
         for (var view : snapshot.units()) {
             if (outOfSight(view)) {
                 continue; // behind a wall: not drawn, and taken away if it was
+            }
+            var corpse = corpseOf(view.id());
+            if (corpse != null) {
+                // Dead, and kept in the world while its death plays out: the body that fell stays, where the world
+                // says it is — sinking, if it sinks — and nothing of it gets up again.
+                corpse.root().setLocalTranslation(UnitPlacement.where(view, this::floorHeightAt));
+                lyingDead.add(view.id());
+                continue;
             }
             seen.add(view.id());
             boolean isNew = !unitNodes.containsKey(view.id());
@@ -5158,7 +5167,20 @@ final class DukeRtsApp extends SimpleApplication {
     /**
      * A body playing out its death, and when to take it away.
      */
-    private record Dying(Node root, float until) {
+    private record Dying(int id, Node root, float until) {
+    }
+
+    /** The bodies the world still keeps, dead, this frame: taken away only once it lets them go. */
+    private final java.util.Set<Integer> lyingDead = new java.util.HashSet<>();
+
+    /** The body playing out {@code id}'s death, or null. */
+    private Dying corpseOf(int id) {
+        for (var body : dying) {
+            if (body.id() == id) {
+                return body;
+            }
+        }
+        return null;
     }
 
     private final java.util.List<Dying> dying = new java.util.ArrayList<>();
@@ -5185,7 +5207,9 @@ final class DukeRtsApp extends SimpleApplication {
         var clip = clipName == null || node.composer == null
                 ? null : node.composer.getAnimClip(clipName);
         if (clip == null) {
-            node.root.removeFromParent(); // nothing to play; it simply goes
+            // Nothing to play: it goes — once the world lets it go, if it keeps the thing a while dead.
+            node.ring.removeFromParent();
+            dying.add(new Dying(unitId, node.root, timer.getTimeInSeconds()));
             return;
         }
         // The trappings of something alive. The bar over its head goes without
@@ -5195,7 +5219,7 @@ final class DukeRtsApp extends SimpleApplication {
         // Once through, not looping: a corpse that gets up and dies again forever
         // is worse than one that never fell over.
         node.composer.setCurrentAction(clipName, AnimComposer.DEFAULT_LAYER, false);
-        dying.add(new Dying(node.root,
+        dying.add(new Dying(unitId, node.root,
                 (float) (timer.getTimeInSeconds() + clip.getLength() + CORPSE_LINGER)));
     }
 
@@ -5207,8 +5231,8 @@ final class DukeRtsApp extends SimpleApplication {
     private void reapTheDead() {
         float now = (float) timer.getTimeInSeconds();
         dying.removeIf(body -> {
-            if (now < body.until()) {
-                return false;
+            if (now < body.until() || lyingDead.contains(body.id())) {
+                return false; // still playing, or still kept in the world
             }
             body.root().removeFromParent();
             return true;

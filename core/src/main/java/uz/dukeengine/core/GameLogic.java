@@ -440,8 +440,8 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         float halfCell = cellSize * 0.5f;
         for (var object : objects) {
             var shape = Solid.of(object.getTemplate());
-            if (object.isMobile() || shape.isPoint()) {
-                continue;
+            if (object.isMobile() || shape.isPoint() || object.isEffectivelyDead()) {
+                continue; // a building lying dead while its death plays out is in nobody's way
             }
             var footprint = Footprint.of(object);
             var position = object.getPosition();
@@ -793,19 +793,28 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     private void reapDestroyed() {
-        List<GameObject> leaving = null;
+        List<GameObject> leaving = new ArrayList<>();
+        List<GameObject> lying = new ArrayList<>();
         for (var object : objects) {
-            if (object.isEffectivelyDead()) {
+            if (object.isEffectivelyDead() && !object.hasDied() && !object.isDestroyed()) {
+                if (keptDead(object)) {
+                    lying.add(object); // dies now, and stays while its death plays out
+                    continue;
+                }
                 object.markDestroyed();
             }
             if (object.isDestroyed()) {
-                if (leaving == null) {
-                    leaving = new ArrayList<>();
-                }
                 leaving.add(object);
             }
         }
-        if (leaving == null) {
+        // Told with the thing still in the world, which it stays in: findObject finds it, and it is gone only when a
+        // module of its destroys it.
+        for (var object : lying) {
+            object.markDied();
+            die(object, leaving);
+            staticObstaclesDirty = true; // dead, it is in nobody's way
+        }
+        if (leaving.isEmpty()) {
             return;
         }
         objects.removeAll(leaving);
@@ -814,20 +823,37 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         // Announce and react only once the corpses are gone, so a die module that
         // spawns wreckage builds it in a world that no longer holds the body.
         for (var object : leaving) {
-            var death = object.isEffectivelyDead() ? object.getBody().getDeath() : Death.NORMAL;
-            if (object.isEffectivelyDead()) {
-                var died = new ObjectDied(frame, object.getId(), object.getTemplate().name(),
-                        object.getPlayerIndex(), object.getPosition(), death.type(), death.killer(),
-                        object.getOrientation(), sideOf(death, leaving));
-                post(died);
-                for (var watcher : deathWatchers) {
-                    watcher.accept(died);
-                }
+            if (!object.hasDied()) {
+                die(object, leaving); // one kept dead was told when it died, and leaves without a word
             }
-            for (var module : object.getModules()) {
-                if (module instanceof DieModule die) {
-                    die.onDie(death);
-                }
+        }
+    }
+
+    /** Whether a module of {@code object} keeps it in the world, dead — see {@link uz.dukeengine.core.module.KeepsDead}. */
+    private static boolean keptDead(GameObject object) {
+        for (var module : object.getModules()) {
+            if (module instanceof uz.dukeengine.core.module.KeepsDead keeper && keeper.keepsDead()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Tell a thing's death: the {@code ObjectDied}, if it died rather than was taken away, and its die modules. */
+    private void die(GameObject object, List<GameObject> leaving) {
+        var death = object.isEffectivelyDead() ? object.getBody().getDeath() : Death.NORMAL;
+        if (object.isEffectivelyDead()) {
+            var died = new ObjectDied(frame, object.getId(), object.getTemplate().name(),
+                    object.getPlayerIndex(), object.getPosition(), death.type(), death.killer(),
+                    object.getOrientation(), sideOf(death, leaving));
+            post(died);
+            for (var watcher : deathWatchers) {
+                watcher.accept(died);
+            }
+        }
+        for (var module : object.getModules()) {
+            if (module instanceof DieModule dieModule) {
+                dieModule.onDie(death);
             }
         }
     }
