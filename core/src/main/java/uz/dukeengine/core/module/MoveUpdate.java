@@ -23,8 +23,10 @@ import uz.dukeengine.core.thing.World;
  * around whatever is in the way. Objects with no {@link uz.dukeengine.core.thing.Geometry}
  * pass through each other exactly as before.
  *
- * <p>SAGE's real locomotor models acceleration, turn rates and movement
- * surfaces; this is the straight-line core those build on.
+ * <p>How it gathers and sheds speed and turns is its {@link Gait}'s, as the
+ * reference's locomotors move by their appearance ({@code Locomotor.cpp}): legs,
+ * treads and wheels each turn and slow their own way, and a mover whose data
+ * names none moves as the engine always moved things.
  *
  * <p>Determinism: trigonometry goes through {@link StrictMath}, not
  * {@link Math}. {@code Math.sin}/{@code cos}/{@code atan2} are only required to
@@ -36,14 +38,74 @@ import uz.dukeengine.core.thing.World;
 public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     /**
-     * {@code Speed} (world units/sec) and an optional {@code TurnRate} (degrees/sec). A
-     * turn rate of 0 means the unit can change heading instantly (the original
-     * straight-line behaviour); a positive rate makes it rotate toward its goal and
-     * curve along its facing.
+     * How a ground mover moves — the reference's locomotor appearance ({@code LOCO_LEGS_TWO}, {@code LOCO_TREADS},
+     * {@code LOCO_WHEELS_FOUR}, {@code LOCO_OTHER}) — which chooses how it turns and how it slows.
      */
-    public record Data(float speed, float turnRate) implements ModuleData {
+    public enum Gait {
+        /**
+         * On foot ({@code moveTowardsPositionLegs}): turns toward its way as it goes, aiming at its speed less the
+         * share of 45 degrees it is off — so on the spot 45 degrees or more off — and nearing the end eases to its least
+         * speed within {@code (v - MinSpeed)^2 / (2 × Braking) × 1.05}.
+         */
+        LEGS,
+        /**
+         * Tracks ({@code moveTowardsPositionTreads}): turns and gathers speed as legs do, goes at 0.6 of its speed off
+         * its way within two cells of a point, and brakes within {@code (v / 1.5) × (v / Braking)} of the end, then
+         * slides straight onto it.
+         */
+        TREADS,
+        /**
+         * Wheels ({@code moveTowardsPositionWheels}): turns only while it rolls, by its turn rate times its speed over
+         * its turning speed — {@code MinTurnSpeed} or a quarter of its speed, whichever is more — slowing to that speed
+         * more than 9 degrees off; brakes within {@code (v / 1.5) × (v / Braking + 1 frame) + 1 frame's travel}, at
+         * least a cell, of the end, then slides onto it; and, where it may move backwards, backs toward a point behind
+         * it, or turns in three points toward one more than five half-lengths away.
+         */
+        WHEELS,
+        /**
+         * As the engine always moved things: straight at its way, curving at its turn rate, and turning on the spot only
+         * toward a point more than 90 degrees off.
+         */
+        OTHER
+    }
+
+    /**
+     * How a ground mover moves: the reference's locomotor lines. Every rate is per second, a frame being a thirtieth of
+     * one; 0 for an acceleration, a braking or a turn rate is at once.
+     *
+     * @param speed               its top speed, world units a second
+     * @param turnRate            degrees a second it turns; 0 is at once
+     * @param acceleration        how fast it gains speed, world units a second each second ({@code Acceleration})
+     * @param braking             how fast it sheds speed, the same ({@code Braking})
+     * @param accelerationDamaged its acceleration once damaged ({@code AccelerationDamaged}); 0 is its acceleration
+     * @param brakingDamaged      its braking once damaged; 0 is its braking
+     * @param damagedBelow        the share of its most health below which it is damaged — the reference's
+     *                            {@code MovementPenaltyDamageState}, really damaged, under 0.1
+     * @param minSpeed            the least speed legs ease to nearing the end ({@code MinSpeed})
+     * @param minTurnSpeed        the speed wheels turn at, where more than a quarter of its speed ({@code MinTurnSpeed})
+     * @param closeEnough         how near the end of its route counts as arrived ({@code CloseEnoughDist}): 1 unless set
+     * @param canMoveBackwards    whether wheels may back toward a point behind them ({@code CanMoveBackwards})
+     * @param gait                how it moves — see {@link Gait}
+     */
+    public record Data(float speed, float turnRate, float acceleration, float braking, float accelerationDamaged,
+            float brakingDamaged, float damagedBelow, float minSpeed, float minTurnSpeed, float closeEnough,
+            boolean canMoveBackwards, Gait gait) implements ModuleData {
+
+        /** What a block leaves out: at once, arriving within 1, damaged under a tenth, moving as things always moved. */
+        static final Data DEFAULTS = new Data(0f, 0f, 0f, 0f, 0f, 0f, 0.1f, 0f, 0f, 1f, false, Gait.OTHER);
+
+        public Data {
+            gait = gait == null ? Gait.OTHER : gait;
+            closeEnough = closeEnough <= 0f ? 1f : closeEnough;
+        }
+
         public Data(float speed) {
             this(speed, 0f);
+        }
+
+        /** A top speed and a turn rate; everything else as a block leaves it. */
+        public Data(float speed, float turnRate) {
+            this(speed, turnRate, 0f, 0f, 0f, 0f, 0.1f, 0f, 0f, 1f, false, Gait.OTHER);
         }
     }
 
@@ -61,9 +123,20 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     /** Give up on a leg after this long without getting any closer to it. */
     private static final int STUCK_FRAME_LIMIT = 2 * GameConstants.LOGICFRAMES_PER_SECOND;
 
+    private final Data data;
+    private float topSpeed;           // world units a second
     private float stepPerFrame;
     private float turnPerFrame; // radians/frame; 0 = instant turning
     private float progressEpsilon;
+    /** How fast it is going now, world units a second: gathered and shed at its data's rates. */
+    private float speedNow;
+    /** Whether treads or wheels are braking onto the end of their way, which they then slide straight onto. */
+    private boolean brakingOnto;
+    /** Whether wheels are backing toward a point behind them, and whether in a three-point turn. */
+    private boolean backing;
+    private boolean threePoint;
+    /** How far off its way it was last frame, in radians, to tell a turn toward it from standing still. */
+    private float lastOff = Float.MAX_VALUE;
     private List<Coord3D> waypoints = List.of();
     /** The route the waypoints came from, for the floor each is on; null for a way given rather than planned. */
     private uz.dukeengine.core.pathfind.Path route;
@@ -88,11 +161,13 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     public MoveUpdate(GameObject owner, Data data) {
         super(owner);
+        this.data = data;
         setSpeed(data.speed(), data.turnRate());
     }
 
     @Override
     public void setSpeed(float speed, float turnRate) {
+        topSpeed = speed;
         stepPerFrame = speed * GameConstants.SECONDS_PER_LOGICFRAME;
         turnPerFrame = (float) Math.toRadians(turnRate * GameConstants.SECONDS_PER_LOGICFRAME);
         progressEpsilon = stepPerFrame * 0.25f;
@@ -219,6 +294,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     /** Cancel any current move. */
     public void stop() {
+        this.speedNow = 0f;
+        this.brakingOnto = false;
+        this.backing = false;
         this.then = null;
         this.waiting = false;
         this.waypoints = List.of();
@@ -232,6 +310,12 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     private void resetProgress() {
         this.closestApproach = Float.MAX_VALUE;
         this.framesWithoutProgress = 0;
+        this.lastOff = Float.MAX_VALUE;
+    }
+
+    /** How fast it is going now, world units a second. */
+    public float getSpeedNow() {
+        return speedNow;
     }
 
     public boolean isMoving() {
@@ -251,14 +335,17 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     @Override
     public void update() {
         if (!isMoving()) {
+            speedNow = 0f;
             return;
         }
         var owner = getOwner();
         if (owner.isEffectivelyDead() || owner.isContained() || owner.hasStatus(ObjectStatus.DISABLED)
                 || owner.hasStatus(ObjectStatus.HELD)) {
+            speedNow = 0f;
             return; // dead, inside a transport, frozen or held — cannot move, and keeps its orders for when it can
         }
-        float step = owner.hasStatus(ObjectStatus.SLOWED) ? stepPerFrame * 0.5f : stepPerFrame;
+        boolean slowed = owner.hasStatus(ObjectStatus.SLOWED);
+        float step = slowed ? stepPerFrame * 0.5f : stepPerFrame;
 
         if (waiting) {
             planRoute(); // its turn, if this frame's searching has room for it
@@ -292,6 +379,15 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         float distance = (float) Math.sqrt(delta.x() * delta.x() + delta.y() * delta.y());
 
         float desired = (float) StrictMath.atan2(delta.y(), delta.x());
+        float rest = distance + legsAfter(waypointIndex);
+        if (data.gait() != Gait.OTHER) {
+            walkByGait(owner, position, target, distance, desired, rest, slowed ? topSpeed * 0.5f : topSpeed);
+            return;
+        }
+        if (data.acceleration() > 0f || data.braking() > 0f) {
+            speedNow = approach(speedNow, (slowed ? topSpeed * 0.5f : topSpeed), acceleration(owner), 0f);
+            step = Math.min(step, speedNow * GameConstants.SECONDS_PER_LOGICFRAME);
+        }
         if (turnPerFrame > 0f && distance > step) {
             float off = Math.abs(angleBetween(owner.getOrientation(), desired));
             if (off > HALF_TURN / 2f) {
@@ -324,14 +420,10 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         boolean escaping = isBlocked(owner, position, toward);
 
         if (distance <= step || distance == 0f) {
-            if (escaping || isClear(owner, target, toward)) {
-                stepTo(owner, target, toward);
-                waypointIndex++; // advance to the next leg (or finish the path)
-                resetProgress();
-                if (!isMoving()) {
-                    routeWalked();
-                }
-            }
+            reach(owner, target, toward, escaping);
+            return;
+        }
+        if (arrivedCloseEnough(rest)) {
             return;
         }
 
@@ -353,6 +445,268 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             }
         }
         // Hemmed in on every side: hold position and let the progress check time it out.
+    }
+
+    /** Onto the waypoint it is a step from, where the ground there takes it, and on to the next leg or the end. */
+    private void reach(GameObject owner, Coord3D target, int toward, boolean escaping) {
+        if (escaping || isClear(owner, target, toward)) {
+            stepTo(owner, target, toward);
+            waypointIndex++; // advance to the next leg (or finish the path)
+            resetProgress();
+            if (!isMoving()) {
+                speedNow = 0f;
+                brakingOnto = false;
+                routeWalked();
+            }
+        }
+    }
+
+    /**
+     * Arrived: on its last leg, the rest of its way shorter than its close-enough distance — the reference's {@code
+     * onPathDistToGoal < getCloseEnoughDist()}. It stops where it stands.
+     */
+    private boolean arrivedCloseEnough(float rest) {
+        if (waypointIndex != waypoints.size() - 1 || rest >= data.closeEnough()) {
+            return false;
+        }
+        waypointIndex = waypoints.size();
+        speedNow = 0f;
+        brakingOnto = false;
+        resetProgress();
+        routeWalked();
+        return true;
+    }
+
+    /** How far its route goes on past waypoint {@code index}: the legs between the waypoints after it. */
+    private float legsAfter(int index) {
+        float length = 0f;
+        for (int i = index + 1; i < waypoints.size(); i++) {
+            var a = waypoints.get(i - 1);
+            var b = waypoints.get(i);
+            length += (float) Math.sqrt((b.x() - a.x()) * (b.x() - a.x()) + (b.y() - a.y()) * (b.y() - a.y()));
+        }
+        return length;
+    }
+
+    // ---- by its gait ----
+
+    /** A quarter of a half turn: the 45 degrees off its way at which legs and treads stand to turn. */
+    private static final float QUARTER_OF_HALF = (float) (StrictMath.PI / 4.0);
+    /** The 9 degrees off its way beyond which wheels slow to their turning speed: the reference's {@code PI / 20}. */
+    private static final float SMALL_TURN = (float) (StrictMath.PI / 20.0);
+    /**
+     * The least a braking tread or wheel slides a frame: the reference's {@code MIN_VEL}, a cell over the frames of a
+     * second.
+     */
+    private static final float SLIDE_FRAMES = GameConstants.LOGICFRAMES_PER_SECOND;
+
+    /**
+     * A frame of legs, treads or wheels: turned and sped or slowed by the gait's rules, then a step along its facing —
+     * or, braking onto the end, straight onto it — past whatever stands in the way as every step is.
+     */
+    private void walkByGait(GameObject owner, Coord3D position, Coord3D target, float distance, float desired,
+            float rest, float top) {
+        float was = Math.abs(angleBetween(owner.getOrientation(), desired));
+        float travel = switch (data.gait()) {
+            case LEGS -> legs(owner, desired, rest, top);
+            case TREADS -> treads(owner, desired, distance, rest, top);
+            case WHEELS -> wheels(owner, desired, rest, top);
+            case OTHER -> throw new IllegalStateException("walked as it always was");
+        };
+        float off = Math.abs(angleBetween(owner.getOrientation(), desired));
+        boolean turnedToward = off < was - 1e-6f && off < lastOff;
+        lastOff = off;
+        if (turnedToward) {
+            framesWithoutProgress = 0; // turning toward its way is progress, though it stands
+        } else if (madeNoProgress(distance)) {
+            if (goOn()) {
+                return;
+            }
+            stop();
+            stoppedShort = true;
+            return;
+        }
+        int toward = route == null ? -1 : route.floorOf(waypointIndex);
+        boolean escaping = isBlocked(owner, position, toward);
+        float step = Math.abs(travel) * GameConstants.SECONDS_PER_LOGICFRAME;
+        if (brakingOnto) {
+            // Braking, it does not go by its facing: it slides straight onto its point, as the reference's braking
+            // objects do, at least a cell a second.
+            step = Math.max(step, owner.getWorld() == null ? 1f / SLIDE_FRAMES : owner.getWorld().cellSize() / SLIDE_FRAMES);
+            if (distance <= step || distance == 0f) {
+                reach(owner, target, toward, escaping);
+                return;
+            }
+            var slide = position.add(target.sub(position).scale(step / distance));
+            if (escaping || isClear(owner, slide, toward)) {
+                stepTo(owner, slide, toward);
+            }
+            return;
+        }
+        if (step <= 0f) {
+            arrivedCloseEnough(rest);
+            return; // turning where it stands
+        }
+        if (distance <= step || distance == 0f) {
+            reach(owner, target, toward, escaping);
+            return;
+        }
+        if (arrivedCloseEnough(rest)) {
+            return;
+        }
+        float heading = travel < 0f ? owner.getOrientation() + HALF_TURN : owner.getOrientation();
+        if (!escaping && standingOnTheDestination(owner, position.add(headingVector(heading).scale(step)))) {
+            stop();
+            return;
+        }
+        for (var swerve : SWERVE_ANGLES) {
+            var next = position.add(headingVector(heading + swerve).scale(step));
+            if (escaping || isClear(owner, next, toward)) {
+                stepTo(owner, next, toward);
+                return;
+            }
+        }
+    }
+
+    /** Legs: turned toward its way, aiming at its speed less the share of 45 degrees it is still off. */
+    private float legs(GameObject owner, float desired, float rest, float top) {
+        var facing = turnPerFrame <= 0f ? desired : rotateToward(owner.getOrientation(), desired, turnPerFrame);
+        owner.setOrientation(facing);
+        float off = Math.abs(angleBetween(facing, desired));
+        float goal = top * (1f - Math.min(1f, off / QUARTER_OF_HALF));
+        float braking = braking(owner);
+        if (rest < slowDownDistance(speedNow, data.minSpeed(), braking)) {
+            goal = data.minSpeed();
+        }
+        speedNow = approach(speedNow, goal, acceleration(owner), braking);
+        return speedNow;
+    }
+
+    /** Treads: turned and sped as legs are, and braking onto the end of the way within its stopping distance. */
+    private float treads(GameObject owner, float desired, float distance, float rest, float top) {
+        var facing = turnPerFrame <= 0f ? desired : rotateToward(owner.getOrientation(), desired, turnPerFrame);
+        owner.setOrientation(facing);
+        float share = Math.min(1f, Math.abs(angleBetween(facing, desired)) / QUARTER_OF_HALF);
+        float goal = top * (1f - share);
+        float cell = cellSize(owner);
+        if (distance < 2f * cell && share > 0.05f) {
+            goal = speedNow * 0.6f; // near its point and off it: slower, rather than round it
+        }
+        float braking = braking(owner);
+        float slowDown = braking <= 0f ? 0f : speedNow / 1.5f * (speedNow / braking);
+        goal = brakeOnto(goal, slowDown, slowDown, rest, cell, braking);
+        speedNow = approach(speedNow, goal, acceleration(owner), braking);
+        return speedNow;
+    }
+
+    /**
+     * Wheels: turning only while rolling, at its speed's share of its turning speed; slowing to that speed off its way;
+     * backing where it may, and braking onto the end.
+     */
+    private float wheels(GameObject owner, float desired, float rest, float top) {
+        float facing = owner.getOrientation();
+        float turnSpeed = Math.max(data.minTurnSpeed(), top / 4f);
+        float off = angleBetween(facing, desired);
+        if (speedNow == 0f) {
+            backing = data.canMoveBackwards() && Math.abs(off) > HALF_TURN / 2f;
+            threePoint = backing && rest > 5f * halfLength(owner);
+        }
+        float aim = desired;
+        if (backing) {
+            if (Math.abs(off) < HALF_TURN / 2f) {
+                backing = false;
+            } else {
+                threePoint = rest > 5f * halfLength(owner);
+                if (!threePoint) {
+                    aim = desired + HALF_TURN; // its back toward the point
+                    off = angleBetween(facing, aim);
+                }
+            }
+        }
+        float goal = top;
+        if (Math.abs(off) > SMALL_TURN) {
+            goal = Math.min(goal, turnSpeed);
+        }
+        float braking = braking(owner);
+        float slowDown = braking <= 0f ? 0f
+                : speedNow / 1.5f * (speedNow / braking + GameConstants.SECONDS_PER_LOGICFRAME)
+                        + speedNow * GameConstants.SECONDS_PER_LOGICFRAME;
+        float cell = cellSize(owner);
+        goal = brakeOnto(goal, slowDown, Math.max(slowDown, cell), rest, cell, braking);
+        // It turns only as it rolls, by its speed's share of its turning speed: none while it stands.
+        float turn = turnPerFrame <= 0f ? HALF_TURN : Math.min(1f, speedNow / turnSpeed) * turnPerFrame;
+        owner.setOrientation(rotateToward(facing, aim, speedNow == 0f ? 0f : turn));
+        speedNow = approach(speedNow, goal, acceleration(owner), braking);
+        return backing ? -speedNow : speedNow;
+    }
+
+    /**
+     * The speed to aim at while braking onto the end of the way: the reference's {@code IS_BRAKING}, begun within
+     * {@code trigger} of the end, ended once the end is a cell and twice the stopping distance away; braking, a frame's
+     * braking off where it would not stop in time, half of it where it nearly would.
+     */
+    private float brakeOnto(float goal, float slowDown, float trigger, float rest, float cell, float braking) {
+        if (braking <= 0f) {
+            brakingOnto = false;
+            return goal;
+        }
+        if (rest < trigger) {
+            brakingOnto = true;
+        }
+        if (rest > cell && rest > 2f * slowDown) {
+            brakingOnto = false;
+        }
+        if (!brakingOnto) {
+            return goal;
+        }
+        float frame = braking * GameConstants.SECONDS_PER_LOGICFRAME;
+        if (slowDown > rest) {
+            return Math.max(0f, speedNow - frame);
+        }
+        return slowDown > rest * 0.75f ? Math.max(0f, speedNow - frame / 2f) : speedNow;
+    }
+
+    /** {@code speed} moved toward {@code goal} by at most a frame of its acceleration up or its braking down. */
+    private static float approach(float speed, float goal, float acceleration, float braking) {
+        float frame = GameConstants.SECONDS_PER_LOGICFRAME;
+        if (goal > speed) {
+            return acceleration <= 0f ? goal : Math.min(goal, speed + acceleration * frame);
+        }
+        return braking <= 0f ? goal : Math.max(goal, speed - braking * frame);
+    }
+
+    /** How far legs need to ease from {@code speed} to {@code least}: the reference's {@code calcSlowDownDist}. */
+    private static float slowDownDistance(float speed, float least, float braking) {
+        float over = speed - least;
+        if (over <= 0f || braking <= 0f) {
+            return 0f;
+        }
+        return over * over / braking * 0.5f * 1.05f; // its FUDGE, so a walker stops on a dime
+    }
+
+    private float acceleration(GameObject owner) {
+        return isDamaged(owner) && data.accelerationDamaged() > 0f ? data.accelerationDamaged() : data.acceleration();
+    }
+
+    private float braking(GameObject owner) {
+        return isDamaged(owner) && data.brakingDamaged() > 0f ? data.brakingDamaged() : data.braking();
+    }
+
+    /** Whether its body is below the share of its health its data counts as damaged. */
+    private boolean isDamaged(GameObject owner) {
+        var body = owner.getBody();
+        return body != null && body.getMaxHealth() > 0f && body.getHealth() < body.getMaxHealth() * data.damagedBelow();
+    }
+
+    private static float cellSize(GameObject owner) {
+        var world = owner.getWorld();
+        return world == null ? uz.dukeengine.core.pathfind.PathGrid.DEFAULT_CELL_SIZE : world.cellSize();
+    }
+
+    /** Half its length along its facing: a box's major radius, else its radius. */
+    private static float halfLength(GameObject owner) {
+        var shape = uz.dukeengine.core.thing.Solid.of(owner.getTemplate());
+        return shape instanceof uz.dukeengine.core.thing.Geometry.Box box ? box.majorRadius() : shape.footprintRadius();
     }
 
     /**

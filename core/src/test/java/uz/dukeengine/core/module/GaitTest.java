@@ -1,0 +1,153 @@
+package uz.dukeengine.core.module;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import uz.dukeengine.core.GameLogic;
+import uz.dukeengine.core.math.Coord3D;
+import uz.dukeengine.core.thing.GameObject;
+import uz.dukeengine.core.thing.ThingFactory;
+import uz.dukeengine.core.thing.ThingTemplate;
+
+/**
+ * Movers that gather and shed speed and turn as the reference's locomotors do, by how they move: legs, treads,
+ * wheels.
+ */
+class GaitTest {
+
+    private static final class Flat extends GameLogic {
+        Flat(ThingFactory things) {
+            super(things);
+        }
+
+        @Override
+        protected void simulate() {
+        }
+    }
+
+    private static GameObject mover(MoveUpdate.Data legs, float x, float y, float facing) {
+        var template = ThingTemplate.named("Mover").module(new ActiveBody.Data(100f)).module(legs).build();
+        var things = new ThingFactory(ModuleFactory.withDefaults());
+        things.addTemplate(template);
+        var world = new Flat(things);
+        world.init();
+        var mover = world.spawn(template, new Coord3D(x, y, 0f), 1);
+        mover.setOrientation(facing);
+        return mover;
+    }
+
+    private static MoveUpdate.Data data(float speed, float turnRate, float acceleration, float braking,
+            MoveUpdate.Gait gait) {
+        return new MoveUpdate.Data(speed, turnRate, acceleration, braking, 0f, 0f, 0.1f, 0f, 0f, 1f, false, gait);
+    }
+
+    /** Each frame's step, until it stops or {@code frames} have run. */
+    private static List<Float> steps(GameObject mover, int frames) {
+        var steps = new ArrayList<Float>();
+        var legs = mover.findModule(MoveUpdate.class);
+        for (int frame = 0; frame < frames && legs.isMoving(); frame++) {
+            var was = mover.getPosition();
+            ((GameLogic) mover.getWorld()).update();
+            steps.add((float) Math.hypot(mover.getPosition().x() - was.x(), mover.getPosition().y() - was.y()));
+        }
+        return steps;
+    }
+
+    @Test
+    void aWalkerGathersSpeedAtItsAccelerationAndEasesOntoItsGoalOverItsLastTwoPointOne() {
+        var walker = mover(data(20f, 0f, 100f, 100f, MoveUpdate.Gait.LEGS), 0f, 0f, 0f);
+        var goal = new Coord3D(100f, 0f, 0f);
+        walker.findModule(MoveUpdate.class).moveTo(goal);
+
+        var steps = steps(walker, 600);
+
+        float[] gathering = {0.111f, 0.222f, 0.333f, 0.444f, 0.556f, 0.667f};
+        for (int frame = 0; frame < gathering.length; frame++) {
+            assertEquals(gathering[frame], steps.get(frame), 1e-3f, "frame " + (frame + 1));
+        }
+        assertEquals(0.667f, steps.get(10), 1e-3f, "and on at its speed");
+        float walked = 0f;
+        for (int frame = 0; frame < steps.size(); frame++) {
+            if (frame >= 6 && steps.get(frame) < steps.get(frame - 1) - 1e-4f) {
+                break; // the first frame it walks slower: what was left then decided it
+            }
+            walked += steps.get(frame);
+        }
+        float left = 100f - walked;
+        assertTrue(left < 2.1f && left + 0.667f >= 2.1f, "it slows over its last 2.1, from " + left);
+        assertFalse(walker.findModule(MoveUpdate.class).isMoving(), "and stops");
+        assertTrue(walker.getPosition().distance(goal) < 1f, "within 1 of its goal: " + walker.getPosition());
+    }
+
+    @Test
+    void treadsNinetyDegreesOffTurnWhereTheyStandForSevenFramesThenGatherSpeedAsTheyStraighten() {
+        var tank = mover(data(30f, 180f, 0f, 0f, MoveUpdate.Gait.TREADS), 0f, 0f, 0f);
+        var goal = new Coord3D(0f, 100f, 0f); // straight up the y axis: 90 degrees to its facing
+        tank.findModule(MoveUpdate.class).moveTo(goal);
+
+        var steps = steps(tank, 1200);
+
+        for (int frame = 0; frame < 7; frame++) {
+            assertEquals(0f, steps.get(frame), 1e-6f, "turning where it stands, frame " + (frame + 1));
+        }
+        assertTrue(steps.get(7) > 0f, "under 45 degrees off it moves");
+        assertTrue(steps.get(8) > steps.get(7) && steps.get(9) > steps.get(8), "faster as it straightens");
+        assertFalse(tank.findModule(MoveUpdate.class).isMoving());
+        assertTrue(tank.getPosition().distance(goal) < 1f, "and it arrives: " + tank.getPosition());
+    }
+
+    @Test
+    void wheelsTurnOnlyWhileTheyRollAndCurveRoundAtTheirTurningSpeed() {
+        var truck = mover(data(60f, 90f, 0f, 0f, MoveUpdate.Gait.WHEELS), 100f, 100f, 0f);
+        var goal = new Coord3D(40f, 100f, 0f); // behind it
+        truck.findModule(MoveUpdate.class).moveTo(goal);
+        var legs = truck.findModule(MoveUpdate.class);
+
+        ((GameLogic) truck.getWorld()).update();
+        assertEquals(0f, truck.getOrientation(), 0f, "no turn while it stood");
+        assertEquals(15f, legs.getSpeedNow(), 1e-4f, "rolling at its turning speed, a quarter of 60");
+
+        ((GameLogic) truck.getWorld()).update();
+        assertTrue(Math.abs(truck.getOrientation()) > 0f, "turning once it rolls");
+        assertEquals(15f, legs.getSpeedNow(), 1e-4f, "and curving round at 15");
+
+        for (int frame = 0; frame < 1200 && legs.isMoving(); frame++) {
+            ((GameLogic) truck.getWorld()).update();
+        }
+        assertTrue(truck.getPosition().distance(goal) < 1f, "it gets there: " + truck.getPosition());
+    }
+
+    @Test
+    void aMoverBlockNamesItsGaitAndRates() {
+        var block = uz.dukeengine.core.data.DukeText.parse("""
+                MoveUpdate
+                  Speed = 30
+                  TurnRate = 180
+                  Acceleration = 60
+                  Braking = 90
+                  MinTurnSpeed = 12
+                  CloseEnough = 3
+                  CanMoveBackwards = Yes
+                  Gait = WHEELS
+                End
+                """, "move.duke").getFirst();
+
+        var legs = new uz.dukeengine.core.data.Binder().bind(block, MoveUpdate.Data.class);
+
+        assertEquals(MoveUpdate.Gait.WHEELS, legs.gait());
+        assertEquals(60f, legs.acceleration(), 0f);
+        assertEquals(90f, legs.braking(), 0f);
+        assertEquals(3f, legs.closeEnough(), 0f);
+        assertTrue(legs.canMoveBackwards());
+        assertEquals(0.1f, legs.damagedBelow(), 0f, "left out: the reference's really damaged");
+        var plain = new uz.dukeengine.core.data.Binder().bind(
+                uz.dukeengine.core.data.DukeText.parse("MoveUpdate\n  Speed = 20\nEnd\n", "m.duke").getFirst(),
+                MoveUpdate.Data.class);
+        assertEquals(MoveUpdate.Gait.OTHER, plain.gait(), "a block that names none moves as things always moved");
+        assertEquals(1f, plain.closeEnough(), 0f);
+    }
+}
