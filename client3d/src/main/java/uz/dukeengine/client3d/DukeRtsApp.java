@@ -3305,8 +3305,8 @@ final class DukeRtsApp extends SimpleApplication {
 
     /**
      * The unit under the mouse cursor, or {@code null}.
-     * The unit under the cursor, found by the space it occupies rather than by its
-     * triangles.
+     * The unit under the cursor, found by the boxes of the pieces of it drawn now
+     * rather than by its triangles — see {@link Picking}.
      *
      * <p>Triangle-accurate picking stopped working the day the creatures got
      * models. A skinned mesh is deformed on the graphics card; the copy this side
@@ -3315,11 +3315,14 @@ final class DukeRtsApp extends SimpleApplication {
      * through to the floor behind — which reads as an order given to the wrong
      * place rather than as a click that hit nothing.
      *
-     * <p>Its bounding box does not care how a thing is posed. It is a more
+     * <p>A piece's box does not care how a thing is posed. It is a more
      * generous target than the mesh, which is the right way to be wrong: in a
      * dungeon the cost of a click landing on the monster you meant is nothing, and
      * the cost of it landing on the floor behind him is a hero who walks into a
-     * room instead of shooting into it.
+     * room instead of shooting into it. The box of the whole model in the world's
+     * axes was too generous: a hidden muzzle flash made a tank a third longer, and
+     * a building put down at 45 degrees twice its area, so a click on the ground
+     * beside one's own things picked them and the move was never given.
      *
      * <p>Only things the game says are selectable, so an arrow crossing in front
      * of a monster cannot be clicked instead of it.
@@ -3340,13 +3343,10 @@ final class DukeRtsApp extends SimpleApplication {
             if (picked == null || !picked.view.selectable() || node.body == null) {
                 continue;
             }
-            var bound = node.body.getWorldBound();
-            if (bound == null || !bound.intersects(ray)) {
-                continue;
-            }
-            // Nearest to the camera wins, so clicking a monster standing in front
-            // of another picks the one you can see.
-            float away = bound.getCenter().distance(near);
+            // The nearest hit along the ray wins, so clicking a monster standing in
+            // front of another picks the one you can see — not the one whose middle
+            // is nearer, which a big thing behind a small one can be.
+            float away = Picking.drawnHit(node.body, ray);
             if (away < closest) {
                 closest = away;
                 nearest = picked;
