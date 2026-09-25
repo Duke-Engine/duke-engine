@@ -110,6 +110,29 @@ public abstract class RtsSimulation extends GameLogic {
         constructedWatchers.add(watcher);
     }
 
+    private final java.util.List<java.util.function.BiConsumer<uz.dukeengine.core.thing.GameObject, Upgrade>>
+            researchedWatchers = new java.util.ArrayList<>();
+
+    /**
+     * Game code told whenever research finishes at a building or a unit, as {@code (researcher, upgrade)}: on the
+     * simulation's thread, the frame it finishes, after the upgrade has taken effect, in the order watchers were
+     * registered — as the reference tells the researcher's owner ({@code ProductionUpdate::update}: its line, its
+     * radar event, its {@code ResearchSound}). Not for an upgrade bought at once ({@link #purchaseUpgrade}), nor for
+     * research called off.
+     */
+    public final void onResearched(java.util.function.BiConsumer<uz.dukeengine.core.thing.GameObject, Upgrade>
+            watcher) {
+        researchedWatchers.add(watcher);
+    }
+
+    /** Research at {@code researcher} has finished: {@code upgrade} takes effect, then every watcher is told. */
+    public final void researched(uz.dukeengine.core.thing.GameObject researcher, Upgrade upgrade) {
+        upgradeCompleted(researcher, upgrade);
+        for (var watcher : researchedWatchers) {
+            watcher.accept(researcher, upgrade);
+        }
+    }
+
     /**
      * {@code factory} has released {@code unit}: its {@code ProductionListener}s are told, then every watcher.
      * What a factory's own queue does, and what game code that hands out a unit of its own from a building — a

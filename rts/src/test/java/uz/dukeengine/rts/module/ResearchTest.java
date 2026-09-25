@@ -110,6 +110,33 @@ class ResearchTest {
         return logic.getRtsPlayer(red).getMoney();
     }
 
+    /** Game code told the frame research finishes, with who researched what — not for research bought or called off. */
+    @Test
+    void watchersAreToldOnceTheFrameResearchFinishesAndNotForAPurchaseOrACancel() {
+        var first = new ArrayList<String>();
+        var second = new ArrayList<String>();
+        logic.onResearched((researcher, upgrade) -> first.add(researcher.getId().value() + " " + upgrade.name()
+                + " " + logic.getFrame() + " " + logic.hasUpgrade(red, "Upgrade_Missiles")));
+        logic.onResearched((researcher, upgrade) -> second.add(upgrade.name()));
+
+        assertTrue(line(lab).queueResearch(MISSILES));
+        assertTrue(line(otherLab).queueResearch(ROOF));
+        run(40);
+
+        assertEquals(List.of(otherLab.getId().value() + " Upgrade_Roof 9 false",
+                lab.getId().value() + " Upgrade_Missiles 29 true"), first,
+                "each once, the frame it finished, the side's upgrade already taken");
+        assertEquals(List.of("Upgrade_Roof", "Upgrade_Missiles"), second, "every watcher, in the order registered");
+
+        assertTrue(line(lab).queueResearch(ARMOUR));
+        run(5);
+        line(lab).cancel(0);
+        logic.getRtsPlayer(blue).deposit(1000);
+        assertTrue(logic.purchaseUpgrade(blue, MISSILES));
+        run(120);
+        assertEquals(2, second.size(), "research called off and an upgrade bought at once tell nobody");
+    }
+
     @Test
     void threeSecondsOfResearchIsDoneAtFrameNinetyChargedWhenQueuedRefundedWhenCalledOff() {
         assertTrue(line(lab).queueResearch(ARMOUR));

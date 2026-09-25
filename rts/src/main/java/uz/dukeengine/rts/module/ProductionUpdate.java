@@ -550,7 +550,7 @@ public final class ProductionUpdate extends UpdateModule {
         if (head.research != null) {
             queue.removeFirst();
             if (world instanceof RtsSimulation rts) {
-                rts.upgradeCompleted(owner, head.research);
+                rts.researched(owner, head.research);
             }
             return;
         }

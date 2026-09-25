@@ -438,6 +438,20 @@ public final class DukeGame {
         return this;
     }
 
+    private final List<BiConsumer<uz.dukeengine.core.thing.GameObject, uz.dukeengine.rts.player.Upgrade>>
+            researchedCallbacks = new ArrayList<>();
+
+    /**
+     * Runs on the simulation thread whenever research finishes at a building or a unit, as {@code (researcher,
+     * upgrade)} — the frame it finishes, after the upgrade has taken effect, in the order registered; not for an
+     * upgrade bought at once, nor research called off. See {@link uz.dukeengine.rts.RtsSimulation#onResearched}.
+     */
+    public DukeGame onResearched(BiConsumer<uz.dukeengine.core.thing.GameObject, uz.dukeengine.rts.player.Upgrade>
+            callback) {
+        researchedCallbacks.add(callback);
+        return this;
+    }
+
     /**
      * Told when a building its side sold is down and gone — taken down for its worth, not destroyed by an enemy — on
      * the simulation thread, the frame it goes, its refund paid.
@@ -1050,6 +1064,7 @@ public final class DukeGame {
         logic = new RtsLogic();
         producedCallbacks.forEach(logic::onProduced);
         constructedCallbacks.forEach(logic::onConstructed);
+        researchedCallbacks.forEach(logic::onResearched);
         soldCallbacks.forEach(logic::onSold);
         orderCallbacks.forEach(logic::onOrder);
         diedCallbacks.forEach(logic::onDied);
