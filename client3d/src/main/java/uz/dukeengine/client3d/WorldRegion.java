@@ -1,7 +1,11 @@
 package uz.dukeengine.client3d;
 
 import com.jme3.math.FastMath;
+import com.jme3.math.Vector2f;
+import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
+import uz.dukeengine.core.math.Coord3D;
+import uz.dukeengine.game.view.ViewRays;
 
 /**
  * The part of the window the world is drawn in, in shares of the window from its top left — the whole of it, or the
@@ -45,6 +49,34 @@ record WorldRegion(float left, float top, float width, float height) {
                         * camera.getHeight() * height / camera.getWidth()));
         camera.setFrustumPerspective(fovY, camera.getWidth() * width / (camera.getHeight() * height),
                 camera.getFrustumNear(), camera.getFrustumFar());
+    }
+
+    /**
+     * The eye of a camera laid into it, and the rays through its four corners, in the map's axes — its y the scene's
+     * z, z up — see {@link ViewRays}.
+     */
+    ViewRays raysThrough(Camera camera) {
+        int wide = camera.getWidth();
+        int tall = camera.getHeight();
+        return new ViewRays(onTheMap(camera.getLocation()),
+                ray(camera, leftPixel(wide), topPixel(tall)), ray(camera, rightPixel(wide), topPixel(tall)),
+                ray(camera, rightPixel(wide), bottomPixel(tall)), ray(camera, leftPixel(wide), bottomPixel(tall)));
+    }
+
+    /** The corners of it, as the input manager counts the window: top left, top right, bottom right, bottom left. */
+    float[][] corners(int windowWidth, int windowHeight) {
+        return new float[][] {
+            {leftPixel(windowWidth), topPixel(windowHeight)}, {rightPixel(windowWidth), topPixel(windowHeight)},
+            {rightPixel(windowWidth), bottomPixel(windowHeight)}, {leftPixel(windowWidth), bottomPixel(windowHeight)}};
+    }
+
+    private static Coord3D ray(Camera camera, float x, float y) {
+        var near = camera.getWorldCoordinates(new Vector2f(x, y), 0f);
+        return onTheMap(camera.getWorldCoordinates(new Vector2f(x, y), 1f).subtractLocal(near).normalizeLocal());
+    }
+
+    private static Coord3D onTheMap(Vector3f scene) {
+        return new Coord3D(scene.x, scene.z, scene.y);
     }
 
     /** Whether a point of the window, counted as the input manager counts it — up from the bottom — is in it. */

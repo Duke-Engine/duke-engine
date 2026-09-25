@@ -1422,10 +1422,8 @@ final class DukeRtsApp extends SimpleApplication {
      * screen corner is cast onto the ground and the true quadrilateral is drawn.
      */
     private void syncViewportOutline() {
-        float w = cam.getWidth();
-        float h = cam.getHeight();
-        // Clockwise from the bottom-left of the screen, so the loop does not cross.
-        float[][] corners = {{0, 0}, {w, 0}, {w, h}, {0, h}};
+        // The corners of the world's part of the window, in turn round it so the loop does not cross.
+        float[][] corners = worldRegion.corners(cam.getWidth(), cam.getHeight());
         var worldXs = new float[VIEWPORT_CORNERS];
         var worldYs = new float[VIEWPORT_CORNERS];
         for (int i = 0; i < VIEWPORT_CORNERS; i++) {
@@ -4208,6 +4206,7 @@ final class DukeRtsApp extends SimpleApplication {
         syncDiscovery(tpf);
         camera.focusOnOwnUnit(snapshot.units(), game.getLocalPlayerIndex());
         updateCamera(tpf);
+        game.setViewRays(worldRegion.raysThrough(cam));
         // Before the units, not after: a death has to take the body out of the
         // live list before anything decides it merely vanished. It also means a
         // shot lights its muzzle on the frame it was fired rather than the next.

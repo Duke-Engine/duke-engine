@@ -233,6 +233,22 @@ public final class DukeGame {
         camera.seen(new uz.dukeengine.game.view.CameraView(x, y, angle, Float.NaN, Float.NaN));
     }
 
+    private volatile uz.dukeengine.game.view.ViewRays viewRays;
+
+    /**
+     * What the player's view covers, as the client last drew it — the eye and the rays through the corners of the
+     * world's part of the window, see {@link uz.dukeengine.game.view.ViewRays} — for a radar of the game's own to
+     * outline; null before the client has drawn a frame. From any thread.
+     */
+    public uz.dukeengine.game.view.ViewRays viewRays() {
+        return viewRays;
+    }
+
+    /** What the player's view covers, told by the client from its own thread each frame it draws the world. */
+    public void setViewRays(uz.dukeengine.game.view.ViewRays rays) {
+        viewRays = rays;
+    }
+
     /**
      * Draw this match's chance from {@code seed} — the same on every machine of a network game, and the same each
      * time for a match that is to play the same way every time. A match that names none draws from the engine's one

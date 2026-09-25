@@ -1,5 +1,6 @@
 package uz.dukeengine.client3d;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -7,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import org.junit.jupiter.api.Test;
+import uz.dukeengine.core.math.Coord3D;
+import uz.dukeengine.game.view.ViewRays;
 
 /** The world drawn in part of the window: the top 80%, with the bar under it, as the reference draws it. */
 class WorldRegionTest {
@@ -87,5 +90,66 @@ class WorldRegionTest {
         var top = twentyFiveAcross(new WorldRegion(0f, 0f, 1f, 0.8f));
         assertEquals(800f, top[0], 0.01f, "and of its top 80%: the height follows, the width is kept");
         assertEquals(240f, top[1], 0.01f);
+    }
+
+    // ---- what the view covers ----
+
+    /** A camera looking straight down at {@code (x, y)} on the map from 100 up, 90 degrees wide both ways. */
+    private static Camera straightDown(float x, float y, Vector3f up) {
+        var camera = new Camera(800, 800);
+        camera.setFrustumPerspective(90f, 1f, 1f, 1000f);
+        camera.setLocation(new Vector3f(x, 100f, y));
+        camera.lookAtDirection(new Vector3f(0f, -1f, 0f), up);
+        camera.update();
+        return camera;
+    }
+
+    /** Where a ray from the eye comes down to the ground, on the map. */
+    private static float[] ground(ViewRays rays, Coord3D ray) {
+        float along = -rays.eye().z() / ray.z();
+        return new float[] {rays.eye().x() + ray.x() * along, rays.eye().y() + ray.y() * along};
+    }
+
+    /** The top of the screen facing the map's smaller y, as the client's unturned camera faces. */
+    private static final Vector3f NORTH = new Vector3f(0f, 0f, -1f);
+
+    @Test
+    void straightDownFrom100WithANinetyDegreeFieldTheCornersMeetTheGround100EitherSide() {
+        var rays = WorldRegion.WHOLE.raysThrough(straightDown(500f, 500f, NORTH));
+
+        assertEquals(new Coord3D(500f, 500f, 100f), rays.eye(), "the eye, z up");
+        assertArrayEquals(new float[] {400f, 400f}, ground(rays, rays.topLeft()), 1e-2f);
+        assertArrayEquals(new float[] {600f, 400f}, ground(rays, rays.topRight()), 1e-2f);
+        assertArrayEquals(new float[] {600f, 600f}, ground(rays, rays.bottomRight()), 1e-2f);
+        assertArrayEquals(new float[] {400f, 600f}, ground(rays, rays.bottomLeft()), 1e-2f);
+        assertEquals(1f, rays.topLeft().length(), 1e-5f, "each ray of length one");
+    }
+
+    @Test
+    void pannedBy50TheCornersMoveBy50AndTurnedAQuarterTheyTurnWithIt() {
+        var panned = WorldRegion.WHOLE.raysThrough(straightDown(550f, 500f, NORTH));
+        assertArrayEquals(new float[] {450f, 400f}, ground(panned, panned.topLeft()), 1e-2f);
+        assertArrayEquals(new float[] {650f, 600f}, ground(panned, panned.bottomRight()), 1e-2f);
+
+        var turned = WorldRegion.WHOLE.raysThrough(straightDown(500f, 500f, new Vector3f(-1f, 0f, 0f)));
+        assertArrayEquals(new float[] {400f, 600f}, ground(turned, turned.topLeft()), 1e-2f,
+                "the top left where the bottom left was");
+        assertArrayEquals(new float[] {400f, 400f}, ground(turned, turned.topRight()), 1e-2f);
+        assertArrayEquals(new float[] {600f, 400f}, ground(turned, turned.bottomRight()), 1e-2f);
+        assertArrayEquals(new float[] {600f, 600f}, ground(turned, turned.bottomLeft()), 1e-2f);
+    }
+
+    @Test
+    void inTheTop80PercentTheRaysAreThroughItsCornersNotTheWindows() {
+        var camera = straightDown(500f, 500f, NORTH);
+        var region = new WorldRegion(0f, 0f, 1f, 0.8f);
+        region.applyTo(camera);
+        camera.update();
+
+        var rays = region.raysThrough(camera);
+
+        assertArrayEquals(new float[] {375f, 400f}, ground(rays, rays.topLeft()), 1e-2f,
+                "the vertical kept, the width following the shape: 125 either side across");
+        assertArrayEquals(new float[] {625f, 600f}, ground(rays, rays.bottomRight()), 1e-2f);
     }
 }
