@@ -27,17 +27,24 @@ final class GroundDecal {
     /** Cells a side of the grid it is laid on. */
     private static final int CELLS = 8;
     /** Just clear of the ground, as a scorch mark is. */
-    private static final float LIFT = 0.05f;
+    static final float LIFT = 0.05f;
 
     private final AssetManager assets;
     private final Node node = new Node("aim decal");
     private final Geometry picture;
     private final FloatBuffer corners = BufferUtils.createFloatBuffer((CELLS + 1) * (CELLS + 1) * 3);
     private final java.util.Map<String, Material> materials = new java.util.HashMap<>();
+    private final float lift;
     private float across;
 
     GroundDecal(AssetManager assets, Node parent) {
+        this(assets, parent, LIFT);
+    }
+
+    /** One laid {@code lift} over the ground: a picture over another, drawn over it. */
+    GroundDecal(AssetManager assets, Node parent, float lift) {
         this.assets = assets;
+        this.lift = lift;
         picture = new Geometry("aim decal", grid());
         picture.setQueueBucket(RenderQueue.Bucket.Transparent);
         node.attachChild(picture);
@@ -81,7 +88,7 @@ final class GroundDecal {
                 float x = along * cos - across * sin;
                 float z = along * sin + across * cos;
                 int corner = (row * (CELLS + 1) + column) * 3;
-                corners.put(corner, x).put(corner + 1, floorAt.apply(at.x() + x, at.y() + z) - base + LIFT)
+                corners.put(corner, x).put(corner + 1, floorAt.apply(at.x() + x, at.y() + z) - base + lift)
                         .put(corner + 2, z);
             }
         }

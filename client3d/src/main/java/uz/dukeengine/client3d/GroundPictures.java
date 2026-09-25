@@ -13,7 +13,7 @@ import uz.dukeengine.core.math.Coord3D;
 /**
  * The pictures laid on the ground under things by the words they hold — {@link Visuals.UnitVisual#groundPicture}, the
  * reference's horde and shadow decals: the one the words best fit laid under the thing and turned with it, fading in as
- * the one it replaces fades out.
+ * the one it replaces fades out, over its picture of no words — its shadow — which stays.
  */
 final class GroundPictures {
 
@@ -39,6 +39,9 @@ final class GroundPictures {
     private final Node node;
     private final Map<Integer, List<Laid>> laid = new HashMap<>();
 
+    /** How far over its shadow a picture its words chose is laid, so that it is drawn over it. */
+    private static final float OVER_THE_SHADOW = 0.02f;
+
     GroundPictures(AssetManager assets, Node node) {
         this.assets = assets;
         this.node = node;
@@ -56,16 +59,22 @@ final class GroundPictures {
         var pictures = laid.computeIfAbsent(id, key -> new ArrayList<>());
         int chosen = holding == null ? -1 : look.groundPictureFor(holding);
         var wanted = chosen < 0 ? null : look.groundPictures.get(chosen);
-        boolean there = false;
+        // Its shadow stays under whatever its words choose, as the reference's shadow decal lies under its state's.
+        var shadow = holding == null ? null : look.plainGroundPicture();
+        var there = new java.util.HashSet<Visuals.UnitVisual.GroundPicture>();
         for (var one : pictures) {
-            if (one.picture == wanted && !one.leaving) {
-                there = true;
+            if ((one.picture == wanted || one.picture == shadow) && !one.leaving) {
+                there.add(one.picture);
             } else {
                 one.leaving = true;
             }
         }
-        if (!there && wanted != null) {
-            pictures.add(new Laid(wanted, new GroundDecal(assets, node), wanted.fadeFrames() == 0 ? 1f : 0f));
+        for (var picture : java.util.Arrays.asList(shadow, wanted)) {
+            if (picture != null && there.add(picture)) {
+                float lift = picture == shadow ? GroundDecal.LIFT : GroundDecal.LIFT + OVER_THE_SHADOW;
+                pictures.add(new Laid(picture, new GroundDecal(assets, node, lift),
+                        picture.fadeFrames() == 0 ? 1f : 0f));
+            }
         }
         for (var each = pictures.iterator(); each.hasNext();) {
             var one = each.next();

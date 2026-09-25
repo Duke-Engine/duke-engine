@@ -474,8 +474,9 @@ public final class Visuals {
          * A picture laid on the ground under it while its words best fit {@code conditions} — the reference's horde and
          * shadow decals: {@code width} along the way it faces and {@code depth} across, following it and its facing over
          * the ground's rise and fall, fading in over {@code fadeFrames} of the game's frames when its words come and out
-         * when they go. One of no words is there whenever nothing more particular fits: a shadow. A whole path from the
-         * resource root; with the thing out of sight, gone.
+         * when they go. One of no words is always there, under whichever its words choose — the reference's shadow
+         * decal, which a soldier lies on while a horde's picture is laid over it. A whole path from the resource root;
+         * with the thing out of sight, gone.
          */
         public UnitVisual groundPicture(java.util.Set<String> conditions, String picture, float width, float depth,
                 int fadeFrames) {
@@ -605,6 +606,16 @@ public final class Visuals {
         }
 
         /** Which of its ground pictures its words best fit, or -1 for none. */
+        /** Its picture of no words — a shadow — kept under whichever its words choose; null for none. */
+        GroundPicture plainGroundPicture() {
+            for (var picture : groundPictures) {
+                if (picture.words().isEmpty()) {
+                    return picture;
+                }
+            }
+            return null;
+        }
+
         int groundPictureFor(java.util.Set<String> holding) {
             var words = new java.util.ArrayList<java.util.SortedSet<String>>();
             for (var picture : groundPictures) {

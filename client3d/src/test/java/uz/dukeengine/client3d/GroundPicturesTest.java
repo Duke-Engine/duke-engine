@@ -67,6 +67,23 @@ class GroundPicturesTest {
         assertTrue(pictures.under(7).isEmpty(), "in the fog, nothing of it is drawn");
     }
 
+    /** A soldier's shadow under him, and the horde's picture laid over it while he is in one. */
+    @Test
+    void aShadowStaysUnderThePictureTheWordsChoose() {
+        var soldier = Visuals.create().unit("RedGuard", look -> look
+                .groundPicture(Set.of(), NATIONALISM, 14f, 14f, 0)
+                .groundPicture(Set.of("HORDE"), HORDE, 14f, 14f, 0)).of("RedGuard");
+
+        pictures.see(3, soldier, Set.of("HORDE"), new Coord3D(0f, 0f, 0f), 0f, 1f, FLAT);
+        assertEquals(java.util.List.of(NATIONALISM, HORDE),
+                pictures.under(3).stream().map(GroundPictures.Shown::picture).toList(), "both, the shadow first");
+        assertTrue(pictures.under(3).stream().noneMatch(GroundPictures.Shown::leaving));
+
+        pictures.see(3, soldier, Set.of(), new Coord3D(0f, 0f, 0f), 0f, 1f, FLAT);
+        assertEquals(java.util.List.of(NATIONALISM),
+                pictures.under(3).stream().map(GroundPictures.Shown::picture).toList(), "the horde gone: its shadow");
+    }
+
     @Test
     void aPictureOfNoWordsIsAlwaysThere() {
         var tank = Visuals.create().unit("Tank", look -> look.groundPicture(Set.of(), HORDE, 20f, 10f, 0))
