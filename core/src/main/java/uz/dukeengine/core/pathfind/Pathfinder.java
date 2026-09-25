@@ -54,6 +54,14 @@ public final class Pathfinder {
         int CLOSED = -1;
 
         int costOf(int cx, int cy);
+
+        /**
+         * Whether an ally stands still on the cell: dearer to the search, and a line pulled straight goes round it as
+         * the route did rather than through it.
+         */
+        default boolean allyStill(int cx, int cy) {
+            return false;
+        }
     }
 
     /** How finely a straight line is sampled when testing whether it is clear. */
@@ -822,8 +830,9 @@ public final class Pathfinder {
             if ((cx != lastX || cy != lastY) && !grid.canStep(lastX, lastY, cx, cy)) {
                 return false;
             }
-            if ((cx != lastX || cy != lastY) && traffic != null && traffic.costOf(cx, cy) == Traffic.CLOSED) {
-                return false; // the route went round a mover it may not pass: so does the line
+            if ((cx != lastX || cy != lastY) && traffic != null
+                    && (traffic.costOf(cx, cy) == Traffic.CLOSED || traffic.allyStill(cx, cy))) {
+                return false; // the route went round a mover: so does the line
             }
             lastX = cx;
             lastY = cy;

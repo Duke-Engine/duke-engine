@@ -253,37 +253,92 @@ final class GroundCells {
         int startY = grid.toCellY(mover.getPosition());
         int id = mover.getId().value();
         boolean legs = MoveUpdate.walksOnLegs(mover);
-        return (cx, cy) -> {
-            var there = shape.at(cx, cy);
-            boolean allyStill = false;
-            boolean allyPassing = false;
-            for (int y = there.minY(); y <= there.maxY(); y++) {
-                for (int x = there.minX(); x <= there.maxX(); x++) {
-                    int standing = cells().standingAt(x, y);
-                    if (standing == 0 || standing == id) {
-                        continue;
-                    }
-                    if (closedToo.contains(standing)) {
-                        return Pathfinder.Traffic.CLOSED;
-                    }
-                    var other = world.findObject(new ObjectId(standing));
-                    if (other == null || legs && MoveUpdate.walksOnLegs(other)) {
-                        continue;
-                    }
-                    boolean still = cells().goalAt(x, y) == standing;
-                    if (still) {
-                        if (allied(mover, other)) {
-                            allyStill = true;
-                        } else if (!world.runsOver(mover, other)) {
+        return new Pathfinder.Traffic() {
+            @Override
+            public int costOf(int cx, int cy) {
+                var there = shape.at(cx, cy);
+                boolean allyStill = false;
+                boolean allyPassing = false;
+                for (int y = there.minY(); y <= there.maxY(); y++) {
+                    for (int x = there.minX(); x <= there.maxX(); x++) {
+                        int standing = cells().standingAt(x, y);
+                        if (standing == 0 || standing == id) {
+                            continue;
+                        }
+                        if (closedToo.contains(standing)) {
                             return Pathfinder.Traffic.CLOSED;
                         }
-                    } else if (allied(mover, other) && Math.abs(cx - startX) < NEAR_START
-                            && Math.abs(cy - startY) < NEAR_START) {
-                        allyPassing = true;
+                        var other = world.findObject(new ObjectId(standing));
+                        if (other == null || legs && MoveUpdate.walksOnLegs(other)) {
+                            continue;
+                        }
+                        boolean still = cells().goalAt(x, y) == standing;
+                        if (still) {
+                            if (allied(mover, other)) {
+                                allyStill = true;
+                            } else if (!world.runsOver(mover, other)) {
+                                return Pathfinder.Traffic.CLOSED;
+                            }
+                        } else if (allied(mover, other) && Math.abs(cx - startX) < NEAR_START
+                                && Math.abs(cy - startY) < NEAR_START) {
+                            allyPassing = true;
+                        }
+                    }
+                }
+                return (allyStill ? ALLY_COST : 0) + (allyPassing ? ALLY_COST : 0);
+            }
+
+            @Override
+            public boolean allyStill(int cx, int cy) {
+                return !stillAlliesAt(mover, shape.at(cx, cy)).isEmpty();
+            }
+        };
+    }
+
+    /**
+     * The allies standing still on the block {@code mover} would cover — what the reference's {@code moveAllies} asks
+     * off a route; legs leave legs be.
+     */
+    java.util.List<GameObject> stillAlliesAt(GameObject mover, Block there) {
+        int id = mover.getId().value();
+        boolean legs = MoveUpdate.walksOnLegs(mover);
+        var found = new java.util.ArrayList<GameObject>();
+        for (int y = there.minY(); y <= there.maxY(); y++) {
+            for (int x = there.minX(); x <= there.maxX(); x++) {
+                int standing = cells().standingAt(x, y);
+                if (standing == 0 || standing == id || cells().goalAt(x, y) != standing) {
+                    continue;
+                }
+                var other = world.findObject(new ObjectId(standing));
+                if (other != null && !found.contains(other) && allied(mover, other)
+                        && !(legs && MoveUpdate.walksOnLegs(other))) {
+                    found.add(other);
+                }
+            }
+        }
+        return found;
+    }
+
+    /** The allies standing still on the cells {@code mover} would cover along {@code way}, walked a quarter cell at a time. */
+    java.util.List<GameObject> stillAlliesOn(GameObject mover, java.util.List<Coord3D> way) {
+        var grid = world.getPathGrid();
+        float step = grid.getCellSize() / 4f;
+        var found = new java.util.ArrayList<GameObject>();
+        for (int i = 1; i < way.size(); i++) {
+            var a = way.get(i - 1);
+            var b = way.get(i);
+            float length = (float) Math.sqrt((b.x() - a.x()) * (b.x() - a.x()) + (b.y() - a.y()) * (b.y() - a.y()));
+            int samples = Math.max(1, (int) Math.ceil(length / step));
+            for (int s = 1; s <= samples; s++) {
+                float t = (float) s / samples;
+                var there = blockAt(mover, new Coord3D(a.x() + (b.x() - a.x()) * t, a.y() + (b.y() - a.y()) * t, 0f));
+                for (var other : stillAlliesAt(mover, there)) {
+                    if (!found.contains(other)) {
+                        found.add(other);
                     }
                 }
             }
-            return (allyStill ? ALLY_COST : 0) + (allyPassing ? ALLY_COST : 0);
-        };
+        }
+        return found;
     }
 }

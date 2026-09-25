@@ -523,6 +523,11 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     @Override
+    public final List<GameObject> stillAlliesOn(GameObject mover, List<Coord3D> way) {
+        return groundCells().keepsCells(mover) ? groundCells().stillAlliesOn(mover, way) : List.of();
+    }
+
+    @Override
     public final Coord3D placeAside(GameObject mover, GameObject from, List<Coord3D> way) {
         if (!groundCells().keepsCells(mover)) {
             return null;

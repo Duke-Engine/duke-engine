@@ -189,6 +189,14 @@ public interface World {
     }
 
     /**
+     * The allies standing still on the ground {@code mover} would cover walking {@code way}: those a route through them
+     * asks aside ({@code Pathfinder::moveAllies}). None where a world keeps no cells.
+     */
+    default java.util.List<GameObject> stillAlliesOn(GameObject mover, java.util.List<Coord3D> way) {
+        return java.util.List.of();
+    }
+
+    /**
      * A place for {@code mover} to step aside to, out of the way {@code from} is going: the nearest block it may have
      * whose ground, its width and {@code from}'s, stays clear of {@code way} — held as its own — or null for none.
      */

@@ -175,9 +175,14 @@ class GroundCellsTest {
     }
 
     @Test
-    void aBoxSentThroughAnIdleAlliedSoldierHasItStepAsideAndKeepsToItsLine() {
+    void aBoxSentThroughAnIdleAlliedSoldierInTheOneGapItCanPassHasItStepAsideAndKeepsToItsLine() {
         var world = field();
-        var soldier = spawn(world, RANGER, 300f, 300f);
+        for (int y = 0; y < 80; y++) {
+            if (y < 28 || y > 32) {
+                world.getPathGrid().setBlocked(32, y, true); // a wall, and a gap in it the box has room in along one row
+            }
+        }
+        var soldier = spawn(world, RANGER, 320f, 300f);
         for (int frame = 0; frame < 16; frame++) {
             world.update();
         }
@@ -194,10 +199,28 @@ class GroundCellsTest {
             furthest = Math.max(furthest, Math.abs(at.y() - lineY));
         }
 
-        assertTrue(soldier.getPosition().distance(new Coord3D(300f, 300f, 0f)) > 14f,
+        assertTrue(soldier.getPosition().distance(new Coord3D(320f, 300f, 0f)) > 14f,
                 "the soldier stepped aside: " + soldier.getPosition());
         assertTrue(furthest <= 10f, "the box kept within 10 of its line: " + furthest);
         assertTrue(box.getPosition().distance(goal) < 1f, "and got there: " + box.getPosition());
+    }
+
+    @Test
+    void inTheOpenABoxDrivesRoundAnIdleAlliedSoldierAndLeavesItWhereItStands() {
+        var world = field();
+        var soldier = spawn(world, RANGER, 300f, 300f);
+        for (int frame = 0; frame < 16; frame++) {
+            world.update();
+        }
+        var box = spawn(world, CRUSADER, 100f, 300f);
+
+        legsOf(box).moveTo(new Coord3D(500f, 300f, 0f));
+        var goal = legsOf(box).getGoal();
+        runUntilStill(world, List.of(box, soldier), 1200);
+
+        // Two cells round it cost less than the 42 each cell through it costs: the route is not blocked by the ally.
+        assertEquals(new Coord3D(300f, 300f, 0f), soldier.getPosition(), "the soldier was not asked aside");
+        assertTrue(box.getPosition().distance(goal) < 1f, "and the box got there: " + box.getPosition());
     }
 
     @Test

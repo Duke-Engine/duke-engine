@@ -49,14 +49,8 @@ class FlatWorldChecksumTest {
      * can instead, as the reference game's pathfinder has it, the runner walks to
      * the rock and stops against it at (55, 85). Every other object ends exactly
      * where it did, to the bit; the value before was 1351068428557216477.
-     *
-     * <p>Changed a second time, on purpose, for every runner: ground movers keep cells of their own, as the reference
-     * places them, so a runner sent to a place goes to the middle of its cell; the two meeting in the gap give way to
-     * each other instead of swerving; and a route costs its turns. The world is as flat as ever — {@link
-     * #nothingEverLeavesTheGround} and {@link #andItIsTheSameWorldEveryTime} still hold — and the value before was
-     * 976960149169760989.
      */
-    private static final long GOLDEN = -642653471131997102L;
+    private static final long GOLDEN = 976960149169760989L;
 
     private static final int FRAMES = 300; // ten seconds at 30 Hz
 

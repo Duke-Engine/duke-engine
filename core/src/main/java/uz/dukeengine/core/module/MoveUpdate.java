@@ -341,36 +341,20 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     }
 
     /**
-     * The idle allies standing on the way it is to take — not moving, not busy — asked to step aside off it, as the
-     * reference's {@code Pathfinder::moveAllies} asks them once a route through them is found.
+     * The idle allies standing still on the ground its route covers — not moving, not busy — asked to step aside off
+     * it, as the reference's {@code Pathfinder::moveAllies} asks them once a route through them is found.
      */
     private void askAlliesAside(World world) {
         var owner = getOwner();
         if (!world.keepsCells(owner) || waypoints.isEmpty()) {
             return;
         }
-        float reach = uz.dukeengine.core.thing.Solid.of(owner.getTemplate()).footprintRadius();
         var way = new java.util.ArrayList<Coord3D>(waypoints.size() + 1);
         way.add(owner.getPosition());
         way.addAll(waypoints);
-        var asked = new java.util.HashSet<uz.dukeengine.core.thing.ObjectId>();
-        float cell = world.cellSize();
-        for (int i = 1; i < way.size(); i++) {
-            var a = way.get(i - 1);
-            var b = way.get(i);
-            float length = (float) Math.sqrt((b.x() - a.x()) * (b.x() - a.x()) + (b.y() - a.y()) * (b.y() - a.y()));
-            int samples = Math.max(1, (int) Math.ceil(length / cell));
-            for (int s = 0; s <= samples; s++) {
-                float t = (float) s / samples;
-                var point = new Coord3D(a.x() + (b.x() - a.x()) * t, a.y() + (b.y() - a.y()) * t, a.z());
-                for (var other : world.objectsInRange(point, reach + OTHERS_REACH,
-                        candidate -> candidate != owner && isGroundMover(candidate) && idle(candidate)
-                                && allied(world, owner, candidate))) {
-                    float room = reach + uz.dukeengine.core.thing.Solid.of(other.getTemplate()).footprintRadius();
-                    if (across(other.getPosition(), point) < room && asked.add(other.getId())) {
-                        other.findModule(MoveUpdate.class).stepAsideFor(owner, way);
-                    }
-                }
+        for (var other : world.stillAlliesOn(owner, way)) {
+            if (idle(other)) {
+                other.findModule(MoveUpdate.class).stepAsideFor(owner, way);
             }
         }
     }
@@ -1027,9 +1011,15 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
                         == uz.dukeengine.core.player.Relationship.ALLIES;
     }
 
+    /** How far a mover may come into the footprint of one ahead of it: a touch. */
+    private static final float TOUCH = 1f;
+
     /**
      * Whether it may step from {@code from} to {@code to}: nothing solid there — or it is getting out of something
-     * solid it stands in — and, among the movers, no new one it may not pass, nor deeper into one it already overlaps.
+     * solid it stands in — and, among the movers it may not pass, none ahead of it that it comes more than a touch
+     * into, nor deeper into one ahead that it is already further into. One it passes beside it may brush past, as a
+     * diagonal step past an occupied cell takes it in the reference, where nothing stops a mover but the one it drives
+     * into; where they stand, their cells keep them apart.
      */
     private boolean canStep(GameObject owner, Coord3D from, Coord3D to, int toward, boolean escaping) {
         if (!keepsCells(owner)) {
@@ -1042,18 +1032,27 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         if (world.getFrame() < passThroughUntil) {
             return true;
         }
-        var before = moversOverlapping(owner, from);
+        var here = uz.dukeengine.core.thing.Footprint.of(owner, from);
+        var there = uz.dukeengine.core.thing.Footprint.of(owner, to);
         for (var other : moversOverlapping(owner, to)) {
-            if (!before.contains(other)) {
-                return false; // into one more
-            }
             var them = uz.dukeengine.core.thing.Footprint.of(other);
-            if (uz.dukeengine.core.thing.Footprint.of(owner, to).separation(them)
-                    < uz.dukeengine.core.thing.Footprint.of(owner, from).separation(them) - 1e-4f) {
-                return false; // deeper into one it overlaps
+            if (-there.separation(them) > Math.max(TOUCH, -here.separation(them)) + 1e-4f
+                    && ahead(from, to, other.getPosition())) {
+                return false;
             }
         }
         return true;
+    }
+
+    /** Whether {@code at} lies within 45 degrees of the step from {@code from} to {@code to}: driven into, not passed. */
+    private static boolean ahead(Coord3D from, Coord3D to, Coord3D at) {
+        float stepX = to.x() - from.x();
+        float stepY = to.y() - from.y();
+        float awayX = at.x() - from.x();
+        float awayY = at.y() - from.y();
+        float along = stepX * awayX + stepY * awayY;
+        return along > 0f
+                && along * along >= 0.5f * (stepX * stepX + stepY * stepY) * (awayX * awayX + awayY * awayY);
     }
 
     /** Whether something solid — anything but a ground mover — or the ground itself refuses a step there. */
