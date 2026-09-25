@@ -167,15 +167,44 @@ when it does, this page says exactly what to change and how.
   than 50 times.
 - `MapArea` has `river()` and `riverStart()`, and `RtsModules` has `ToppleUpdate`, which a moving
   `CrushUpdate` pushes over. Both are defaults a game's own records and modules need not write.
+- `GameLogic.checksum()` mixes in every side's money, what it has earned and spent, the words it was granted and its
+  upgrades, and the logic's random numbers once any have been drawn, where it summed the things alone: every RTS
+  world sums differently than it did, and a replay or a golden checksum recorded before is recorded again. A game
+  adds numbers of its own with `checksumAlso`.
+- A holder taken out of the world without a death takes its passengers with it, the same frame, where they were
+  left in the world contained and held by nothing; the last of a shared network taken away takes its passengers
+  away too, where they came out where it stood. `GameLogic` reaps again, the same frame, what the things it reaped
+  took with them.
+- An `Evacuate` lets no rider off its carrier, and an `ExitContainer` naming a rider does nothing; only the
+  carrier's death or the game's own `unload` lets one off.
+- With nothing selected that can move and no word of the game's for the click, only one structure of the player's
+  selected alone is refused open ground; two buildings show the move pointer, and a click is answered as a move of
+  nobody — its mark and the game's move hint — with nothing sent.
+- `World.isBeside` also takes a mover sent beside a thing (`standingNextTo`) that has stopped within its
+  close-enough distance of the point, the thing still where it stood, whichever way the mover faces.
+- A mover counts as damaged at or below its `damagedBelow` share of its most health, where it was below it.
+- A unit walking a move is neither stopped nor turned aside by `PursueUpdate` for a target its weapon picked
+  itself, and lets it go once out of range; an ordered target is closed on as before.
+- A box whose turn waits on another's footprint is held, not stuck: those frames no longer count against its
+  progress, and it turns through after its 2 s rather than give its order up.
+- A mover on a gait steers along its route (the reference's `Path::computePointOnPath`), passing a waypoint it went
+  past or cannot turn onto, where it stepped onto each in turn; wheels within four cells of the end of their way for
+  2.5 s brake and slide onto it. Routes that bend are driven along differently than they were. A mover that is
+  stepping aside for another is not asked again by it, and one waiting its turn for a route holds nobody up and is
+  asked aside by nobody; a search over decks uses the ground's zones.
+- `Transport` has `drop`, a default; a guest told the host took it out of the game stops, disconnected, where it
+  went looking for another relay.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
-  `HarvestUpdate.Data` (and `NeedsDepot`, `WaitBy`), `WeaponFired`, `Weapon` (and its own `Bonuses`, its
+  `HarvestUpdate.Data` (and `NeedsDepot`, `WaitBy`, `FramesBeforeActs`, `FramesAfterActs`), `SupplyModule.Data` and
+  `SupplyDepot.Data` (and `Dock`), `WeaponFired`, `Weapon` (and its own `Bonuses`, its
   `Affects` and second ring), `WorldSnapshot` (and `revealed`, `contextOrder`, `beams`, `rallies`, `effects`),
   `SoundBank.Cue`, `Sound`, `UnitView` (and `passengers`, `conditions`, `built`, `ridesOn`, `allied`, `span`,
-  `mobile`, `drawnAs`, `wears`, `opacity`, `hostile`), `MoveUpdate.Data` (and its gait and priorities),
+  `mobile`, `drawnAs`, `wears`, `opacity`, `hostile`, `speed`), `MoveUpdate.Data` (and its gait and priorities),
   `GameMessage.MoveTo` (and `click`), `UnitBarLook` (and `plain`), `CommandButton`, `Upgrade`,
   `ProductionUpdate.Data` (and its `Exit`, `Door`s and `Words`, and `RefundsPriceNow`), `ProductionUpdate.Queued`,
-  `PlacementRules` (and its `SiteWords`), `ContainModule.Data`
-  (and `PassengersFire`, `RiderBone`, `PassengersVanish`, `ExitBone`, its exit path, `PassengersSeeOut`),
+  `PlacementRules` (and its `SiteWords`), `Visuals.ClipState` (and its picks, `idles` and distance),
+  `ContainModule.Data` (and `PassengersFire`, `RiderBone`, `PassengersVanish`, `ExitBone`, its exit path,
+  `PassengersSeeOut`, `RiderKinds`, `ShowsPassengers`, `RiderTurret`),
   `OrderMark` (and `ContextColour`), `RtsTemplate` (and `FogRange`, `SeenByAllWithin`, its fence), `Shot`,
   `EffectList.Debris`, `GameMessage.AttackObject`, `ActiveBody.Data`, `ExperienceModule.Data` (and
   `LevelHealthBonus`), `TextFloated`, `HitNumbers` — and every new field left out means what the old record did.
@@ -185,6 +214,58 @@ when it does, this page says exactly what to change and how.
   `Canvas.drawPicture(Picture, …)` is a default that refuses, so a game's own canvas compiles as it did.
   `ProjectileLauncher.launch(shooter, victim, damage, type)` and `DieModule.onDie()` are still called, through the
   forms that now say more. The static `Duke3D.launch` methods are shorthand for `Duke3D.of(game, visuals)...launch()`.
+
+### Holds: riders by kind and on a turret, passengers shown, and a hold taken away
+
+A hold may ride only some kinds at its `RiderBone` (`RiderKinds`), the rest sitting inside, as the reference's Helix
+carries soldiers inside and one add-on on top (`ContainModule.rides`); may seat its riders on its turret
+(`RiderTurret`), turned as a game's `Turret` module says its turret is; and may show its passengers where the game
+stands them (`ShowsPassengers`), clicked as the hold — the reference's fire base. No order lets a rider off. A holder
+taken out of the world takes those inside with it.
+
+### Which way a bone points
+
+`Bones.pointingInFrame` and `pointingInWorld` (`Bones.Pointing`): which way a bone's forward axis points, about the
+up axis and above the ground, read from the model file as its place is (`ModelBones.forward`) — a jet parked facing
+its hangar bone, a missile launched along its silo's launch bone.
+
+### A mark's gap, the ground refused, the latest alert, and a sound by its cue's name
+
+A mark's gap below the plain bar, a share of its own height (`MarkPlace.gapShare`), is pinned at the reference's
+numbers. Open ground is refused only to a lone structure. A game may set where the latest-alert control looks
+(`DukeGame.setLatestAlert`), the client then moving it no more on its own. An `EffectPlayed` whose name is a sound
+cue of the game's plays it at the place, heard as the cue's rules say, and following the thing it rides.
+
+### Research told, the checksum, and harvesters: their range, their stands and their docks
+
+Game code is told when research finishes (`RtsSimulation.onResearched`, `DukeGame.onResearched`). The checksum takes
+in the sides, the random numbers and the game's own (`checksumAlso`). A harvester's search range may be set for one
+harvester (`HarvestUpdate.setSearchRange`) and the game says which piles it may take (`RtsSimulation.setPileRule`);
+it may stand `FramesBeforeActs` before its first act and `FramesAfterActs` after its last. A pile or a depot may name
+a `Dock`: one harvester at a time, the others waiting by it in the order of their places, how many may wait, a place
+to wait at and a place to act at (`Dock.Place`, a bone or a point from its middle) — the reference's `DockUpdate`.
+
+### A network game that waits, and gives up
+
+While the frame does not move, the session says whom it waits for and how long since each was heard from
+(`MultiplayerSession.waitingFor`); the host takes out a player silent past the game's limit (`setSilenceLimit`), or on
+the game's word (`takeOut`), as one whose link closed. `join` and `host` take a time limit for the handshake, and a
+guest may say the port it listens on, should it have to relay — one a firewall can be told.
+
+### Clips: none, by a thing's moments, several, and paced
+
+A clip state may name no clip, the model standing in its own pose and its roles not standing in. A game may name
+words for a thing's moments (`DukeGame.momentWords`, `MomentWords`) — moving, attacking, each weapon slot firing,
+between shots and reloading (`WeaponUpdate.slotsNow`), a turret turning — which the snapshot adds to what each holds
+while they last. A clip state, an idle and a death may name several clips, each with a weight (`Visuals.Pick`), one
+drawn the same on every machine; idles draw another as one ends. A walk or a clip state may name the distance one play
+covers, played at the rate that covers it at the thing's speed (`UnitView.speed`, `Locomotor.speedMoved`).
+
+### Movers: steering, stepping aside, a locomotor whole
+
+Movers on a gait steer along their route, and wheels slide onto an end they circle. A mover asked aside plans one
+route, not one a frame. A mover's locomotor may be given whole (`MoveUpdate.setLocomotor`), keeping its way. A move
+order is not stopped for a target the weapon picked, and a box whose turn waits is held, not stuck.
 
 ### A frame at a thousand things
 
