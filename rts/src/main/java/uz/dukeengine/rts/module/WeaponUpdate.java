@@ -374,8 +374,10 @@ public final class WeaponUpdate extends UpdateModule {
 
     private void fire(uz.dukeengine.core.thing.World world, GameObject owner, GameObject victim, Armed chosen) {
         var weapon = chosen.weapon();
-        var shot = new Shot(owner.getId(), owner.getPlayerIndex(), weapon, chosen.index(), dealt(owner, weapon),
-                weapon.splashRadius() * bonus(owner, weapon, WeaponBonus.Kind.RADIUS));
+        float wider = bonus(owner, weapon, WeaponBonus.Kind.RADIUS);
+        var shot = new Shot(owner.getId(), owner.getPlayerIndex(), weapon, chosen.index(),
+                dealt(owner, weapon, weapon.damage()), weapon.splashRadius() * wider,
+                dealt(owner, weapon, weapon.secondaryDamage()), weapon.secondaryRadius() * wider);
 
         // A shot was fired either way — the reload runs and the moment is
         // announced — but whether it lands now is the launcher's to decide.
@@ -446,7 +448,7 @@ public final class WeaponUpdate extends UpdateModule {
      */
     private static void struck(uz.dukeengine.core.thing.World world, Shot shot, GameObject shooter,
             GameObject victim, Coord3D where, Coord3D shown, Coord3D from) {
-        if (shot.radius() > 0f) {
+        if (shot.radius() > 0f || shot.secondaryRadius() > 0f) {
             splash(world, shot, shooter, victim, where);
         }
         if (victim != null && victim.isEffectivelyDead() && shooter != null) {
@@ -542,7 +544,8 @@ public final class WeaponUpdate extends UpdateModule {
                 continue;
             }
             float damage = victim.getBody() == null ? 0f
-                    : victim.getBody().estimateDamage(dealt(getOwner(), one.weapon()), one.weapon().damageType());
+                    : victim.getBody().estimateDamage(dealt(getOwner(), one.weapon(), one.weapon().damage()),
+                            one.weapon().damageType());
             if (damage <= 0f) {
                 continue;
             }
@@ -653,8 +656,8 @@ public final class WeaponUpdate extends UpdateModule {
      * What {@code weapon} deals before the target's armour: its damage, this unit's and its side's bonuses —
      * multiplied in that order, as they always were, so a shot deals the same bits it did.
      */
-    private static float dealt(GameObject owner, Weapon weapon) {
-        float dealt = weapon.damage() * damageModifiers(owner) * bonus(owner, weapon, WeaponBonus.Kind.DAMAGE);
+    private static float dealt(GameObject owner, Weapon weapon, float damage) {
+        float dealt = damage * damageModifiers(owner) * bonus(owner, weapon, WeaponBonus.Kind.DAMAGE);
         var shooter = RtsPlayer.of(owner.getWorld(), owner.getPlayerIndex());
         if (shooter != null) {
             dealt *= shooter.getWeaponDamageBonus(); // player-wide upgrade bonus
@@ -705,25 +708,57 @@ public final class WeaponUpdate extends UpdateModule {
     }
 
     /**
-     * Area damage to the enemies of the shot's side round where it struck — neither the victim, which took the
-     * direct hit, nor the shooter. What the blast kills is the shooter's to be credited with, if it is there.
+     * Area damage round where the shot struck, to whom its weapon's blast hurts ({@link Weapon.Affects}) — not the
+     * victim, which took the direct hit: the reference's {@code Weapon::dealDamageInternal}, its damage within the
+     * first ring and its second damage beyond it, within the second. What the blast kills is the shooter's to be
+     * credited with, if it is there.
      */
     private static void splash(uz.dukeengine.core.thing.World world, Shot shot, GameObject shooter,
             GameObject victim, Coord3D where) {
-        var caught = world.objectsInRange(where, shot.radius(), candidate ->
+        var caught = world.objectsInRange(where, Math.max(shot.radius(), shot.secondaryRadius()), candidate ->
                 candidate != victim
-                        && !candidate.getId().equals(shot.shooter())
                         && !candidate.isContained()
                         && candidate.getBody() != null
                         && !candidate.isEffectivelyDead()
-                        && world.getRelationship(shot.side(), candidate.getPlayerIndex()) == Relationship.ENEMIES);
+                        && hurts(world, shot, shooter, candidate));
         for (var bystander : caught) {
-            bystander.getBody().damage(shot.damage(), shot.weapon().damageType(), blow(shot),
+            float damage = where.distance(bystander.getPosition()) <= shot.radius() ? shot.damage()
+                    : shot.secondaryDamage();
+            if (damage <= 0f) {
+                continue;
+            }
+            bystander.getBody().damage(damage, shot.weapon().damageType(), blow(shot),
                     nearestOf(bystander, where), where);
             if (bystander.isEffectivelyDead() && shooter != null) {
                 grantKillExperience(shooter, bystander);
             }
         }
+    }
+
+    /** Whether the shot's blast hurts {@code candidate}, by whom its weapon says it hurts; enemies where it says none. */
+    private static boolean hurts(uz.dukeengine.core.thing.World world, Shot shot, GameObject shooter,
+            GameObject candidate) {
+        var affects = shot.weapon().affects();
+        if (candidate.getId().equals(shot.shooter())) {
+            return affects.contains(Weapon.Affects.SELF);
+        }
+        var relationship = candidate.getPlayerIndex() == shot.side() ? Relationship.ALLIES
+                : world.getRelationship(shot.side(), candidate.getPlayerIndex());
+        if (affects.isEmpty()) {
+            return relationship == Relationship.ENEMIES;
+        }
+        if (affects.contains(Weapon.Affects.NOT_SIMILAR) && shooter != null
+                && candidate.getTemplate() == shooter.getTemplate()) {
+            return false;
+        }
+        if (affects.contains(Weapon.Affects.NOT_AIRBORNE) && candidate.hasStatus(ObjectStatus.AIRBORNE)) {
+            return false;
+        }
+        return affects.contains(switch (relationship) {
+            case ALLIES -> Weapon.Affects.ALLIES;
+            case ENEMIES -> Weapon.Affects.ENEMIES;
+            case NEUTRAL -> Weapon.Affects.NEUTRALS;
+        });
     }
 
     /** Award the killer the victim's experience value, if both track experience. */

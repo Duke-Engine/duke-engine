@@ -17,23 +17,56 @@ import uz.dukeengine.core.module.DeathType;
  */
 public record Weapon(String name, float damage, float attackRange, int reloadFrames, int reloadFramesMax,
         DamageType damageType, float splashRadius, boolean attackOnTheMove, List<String> targets, int clipSize,
-        int clipReloadFrames, boolean autoReload, DeathType deathType, List<WeaponBonus> bonuses) {
+        int clipReloadFrames, boolean autoReload, DeathType deathType, List<WeaponBonus> bonuses,
+        List<Affects> affects, float secondaryDamage, float secondaryRadius) {
 
     /** What a block leaves out: plain damage, no splash, a shot taken on the move, at anything, no clip. */
     static final Weapon DEFAULTS = new Weapon(null, 0f, 0f, 0, 0, DamageType.NORMAL, 0f, true, List.of(), 0, 0, true,
-            DeathType.NORMAL, List.of());
+            DeathType.NORMAL, List.of(), List.of(), 0f, 0f);
 
     /**
-     * @param bonuses lines of its own — {@code WeaponBonus = PLAYER_UPGRADE DAMAGE 125%} inside a reference weapon —
-     *                added to the game's table for this weapon alone: a Technical's machine gun gets the AP bullets
-     *                its rocket launcher does not
+     * Whom a weapon's blast hurts — the reference's {@code RadiusDamageAffects}. A blast names every one it hurts;
+     * naming none is its enemies alone, as every blast was before a weapon could say.
+     */
+    public enum Affects {
+        /** The firer's side and its allies. */
+        ALLIES,
+        /** Its enemies. */
+        ENEMIES,
+        /** Sides it is neither allied nor at war with. */
+        NEUTRALS,
+        /** The firer itself. */
+        SELF,
+        /** Not things of the firer's own kind, whatever their side. */
+        NOT_SIMILAR,
+        /** Not things in the air. */
+        NOT_AIRBORNE
+    }
+
+    /**
+     * @param bonuses         lines of its own — {@code WeaponBonus = PLAYER_UPGRADE DAMAGE 125%} inside a reference
+     *                        weapon — added to the game's table for this weapon alone: a Technical's machine gun gets
+     *                        the AP bullets its rocket launcher does not
+     * @param affects         whom its blast hurts ({@link Affects}); none named is its enemies alone
+     * @param secondaryDamage what its blast deals beyond {@code splashRadius} and within {@code secondaryRadius} —
+     *                        the reference's second ring: a cluster mine's 50 within 3 and 100 within 5
+     * @param secondaryRadius how far that second ring reaches; 0 for none
      */
     public Weapon {
         damageType = damageType == null ? DamageType.NORMAL : damageType;
+        affects = affects == null ? List.of() : List.copyOf(affects);
         deathType = deathType == null ? DeathType.NORMAL : deathType;
         bonuses = bonuses == null ? List.of() : bonuses.stream()
                 .sorted(java.util.Comparator.comparing(WeaponBonus::word).thenComparing(WeaponBonus::kind))
                 .toList();
+    }
+
+    /** A blast that hurts its enemies over one ring: every weapon from before a blast could say whom it hurts. */
+    public Weapon(String name, float damage, float attackRange, int reloadFrames, int reloadFramesMax,
+            DamageType damageType, float splashRadius, boolean attackOnTheMove, List<String> targets, int clipSize,
+            int clipReloadFrames, boolean autoReload, DeathType deathType, List<WeaponBonus> bonuses) {
+        this(name, damage, attackRange, reloadFrames, reloadFramesMax, damageType, splashRadius, attackOnTheMove,
+                targets, clipSize, clipReloadFrames, autoReload, deathType, bonuses, List.of(), 0f, 0f);
     }
 
     /** A weapon with no bonus lines of its own: every weapon from before a weapon could carry them. */
