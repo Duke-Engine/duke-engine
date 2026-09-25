@@ -440,6 +440,16 @@ public final class WeaponUpdate extends UpdateModule {
         return target;
     }
 
+    /**
+     * The slot of the set in use it would fire at {@code victim} now — the one it weighs best for its present order,
+     * or the locked one while a lock holds — so a game turns the turret that carries it, or the thing; -1 where none
+     * may be fired at it.
+     */
+    public int slotFor(GameObject victim) {
+        var chosen = victim == null ? null : choose(armed(), victim, source);
+        return chosen == null ? -1 : chosen.index();
+    }
+
     // ---- each frame ----
 
     @Override
@@ -512,7 +522,20 @@ public final class WeaponUpdate extends UpdateModule {
         if (chosen.clip().status() != WeaponStatus.READY) {
             return; // between shots, or refilling its clip
         }
+        if (!aimed(owner, chosen, victim)) {
+            return; // a turret, or the thing, still turning to it — see WeaponAim
+        }
         fire(world, owner, victim, chosen);
+    }
+
+    /** Whether every {@link WeaponAim} on the thing says {@code chosen} is aimed at {@code victim}, in module order. */
+    private static boolean aimed(GameObject owner, Armed chosen, GameObject victim) {
+        for (var module : owner.getModules()) {
+            if (module instanceof WeaponAim aim && !aim.aimed(chosen.index(), chosen.weapon(), victim)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void fire(uz.dukeengine.core.thing.World world, GameObject owner, GameObject victim, Armed chosen) {
