@@ -322,6 +322,11 @@ public final class WeaponUpdate extends UpdateModule {
         return target != null;
     }
 
+    /** Whether its target was given it by an order — an attack, an attack-move's, a guard's — not picked by itself. */
+    public boolean isTargetOrdered() {
+        return target != null && ordered;
+    }
+
     /**
      * Whether {@code victim} is close enough to fire on, surface to surface, as the weapon it would choose for it
      * measures it.

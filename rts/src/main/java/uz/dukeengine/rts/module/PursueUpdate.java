@@ -22,6 +22,11 @@ import uz.dukeengine.core.thing.World;
  * none of them should follow anything, so a template says whether it does by holding this module or not. What
  * it holds is a mechanism; how far it is willing to go is the game's answer, written in the block.
  *
+ * <p><b>Not on its way somewhere.</b> A unit walking a move it was given — a move order, a rally point — is neither
+ * stopped nor turned aside for a target its weapon picked itself: it fires on the move where its weapon can, and goes
+ * on, as the reference's move state looks for no target ({@code AIMoveToState}; only its idle and attack states ask
+ * {@code getNextMoodTarget}). An ordered target — an attack, an attack-move's, a guard's — it closes on as ever.
+ *
  * @param giveUpBeyond how far it will stray from where it took the target before letting go; 0 is as far as
  *     it takes, which is what a pursuing unit does in a game with no leash
  * @param repathFrames how often it plans again anyway, to keep up, staggered by the unit's id so a crowd does not
@@ -65,6 +70,14 @@ public final class PursueUpdate extends UpdateModule {
         if (victim == null || victim.isEffectivelyDead()) {
             tookItFrom = null;
             plannedFor = null;
+            return;
+        }
+        if (!weapon.isTargetOrdered() && plannedFor == null && legs.isMoving()) {
+            // On its way somewhere: what its weapon picked is fired on in passing, not stopped for, and let go once
+            // it is out of range — the reference's move state keeps no target to chase once it gets there.
+            if (!weapon.isInRange(victim)) {
+                weapon.holdFire();
+            }
             return;
         }
         if (tookItFrom == null) {
