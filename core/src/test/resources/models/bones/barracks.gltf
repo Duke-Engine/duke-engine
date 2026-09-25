@@ -1,0 +1,11 @@
+{
+  "asset": {"version": "2.0"},
+  "scene": 0,
+  "scenes": [{"nodes": [0]}],
+  "nodes": [
+    {"name": "Root", "translation": [1, 0, 0], "scale": [2, 2, 2], "children": [1, 2]},
+    {"name": "EXITSTART", "translation": [0, 5, 10]},
+    {"name": "Turret", "rotation": [0, 0.70710678, 0, 0.70710678], "children": [3]},
+    {"name": "FIRE01", "translation": [3, 0, 0]}
+  ]
+}
