@@ -869,6 +869,16 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return route(mover, to, java.util.Set.of());
     }
 
+    /** Straight past stone and past the still allies its routes go round, as its route was straightened. */
+    @Override
+    public boolean walksStraight(GameObject mover, Coord3D from, Coord3D to) {
+        if (pathGrid == null) {
+            return true;
+        }
+        var traffic = groundCells().keepsCells(mover) ? groundCells().trafficFor(mover, java.util.Set.of()) : null;
+        return Pathfinder.isClearLine(pathGrid, from, to, Solid.of(mover.getTemplate()).footprintRadius(), traffic);
+    }
+
     @Override
     public Path findPath(GameObject mover, Coord3D to, java.util.Set<ObjectId> round) {
         if (pathGrid == null) {

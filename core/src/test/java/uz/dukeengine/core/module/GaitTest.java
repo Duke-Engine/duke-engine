@@ -99,6 +99,66 @@ class GaitTest {
         assertEquals(100f / 900f, steps.get(1), 1e-4f);
     }
 
+    /** The reference's four-wheeled truck: Speed 40, TurnRate 90, MinTurnSpeed 15, Acceleration 240, Braking 50. */
+    private static MoveUpdate.Data truck() {
+        return new MoveUpdate.Data(40f, 90f, 240f, 50f, 0f, 0f, 0.1f, 0f, 15f, 1f, false, MoveUpdate.Gait.WHEELS);
+    }
+
+    /** Frames until it stops, or {@code most} have run. */
+    private static int drive(GameObject mover, int most) {
+        var legs = mover.findModule(MoveUpdate.class);
+        int frames = 0;
+        while (legs.isMoving() && frames < most) {
+            ((GameLogic) mover.getWorld()).update();
+            frames++;
+        }
+        return frames;
+    }
+
+    /**
+     * The truck beside the end of a wall, facing away from where it is sent: its route's first waypoint, round the
+     * wall's end, lies 13 to its side and 7 ahead, inside the 19 its turns draw. Steering along its route as the
+     * reference does ({@code Path::computePointOnPath}), it passes the waypoint and arrives; steering onto it, it
+     * drove round it for the 30 s the test gives it.
+     */
+    @Test
+    void wheelsWhoseFirstWaypointLiesBesideThemPassItAndArrive() {
+        var truck = mover(truck(), 112f, 108f, (float) Math.PI);
+        var world = (GameLogic) truck.getWorld();
+        var grid = new uz.dukeengine.core.pathfind.PathGrid(60, 60);
+        for (int cy = 0; cy <= 10; cy++) {
+            grid.setBlocked(11, cy, true);
+        }
+        world.setPathGrid(grid);
+        var legs = truck.findModule(MoveUpdate.class);
+        legs.moveTo(new Coord3D(350f, 105f, 0f));
+        var destination = legs.getDestination();
+
+        int frames = drive(truck, 900);
+
+        assertFalse(legs.stoppedShort(), "it did not give up");
+        assertTrue(truck.getPosition().distance(destination) < 1f, "it arrived: " + truck.getPosition() + " at "
+                + frames);
+    }
+
+    /**
+     * The truck sent to a point 30 to its side: within four cells of it for 2.5 s, it brakes and slides onto it (the
+     * reference's DONUT_DISTANCE and DONUT_TIME_DELAY_SECONDS) — there within 5 s.
+     */
+    @Test
+    void wheelsSentToAPointThirtyToTheirSideReachItWithinFiveSeconds() {
+        var truck = mover(truck(), 305f, 305f, 0f);
+        ((GameLogic) truck.getWorld()).setPathGrid(new uz.dukeengine.core.pathfind.PathGrid(60, 60));
+        var legs = truck.findModule(MoveUpdate.class);
+        legs.moveTo(new Coord3D(305f, 335f, 0f));
+        var destination = legs.getDestination();
+
+        int frames = drive(truck, 900);
+
+        assertTrue(frames <= 150, "within 5 s: " + frames);
+        assertTrue(truck.getPosition().distance(destination) < 1f, "on it: " + truck.getPosition());
+    }
+
     @Test
     void aWalkerGathersSpeedAtItsAccelerationAndEasesOntoItsGoalOverItsLastTwoPointOne() {
         var walker = mover(data(20f, 0f, 100f, 100f, MoveUpdate.Gait.LEGS), 0f, 0f, 0f);

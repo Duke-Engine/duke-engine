@@ -161,6 +161,15 @@ public interface World {
         return findPath(mover, to);
     }
 
+    /**
+     * Whether {@code mover} walks straight from {@code from} to {@code to} past nothing that stops it — the reference's
+     * {@code Pathfinder::isLinePassable}, which a mover steering along its route asks; anywhere, in a world with no
+     * grid.
+     */
+    default boolean walksStraight(GameObject mover, Coord3D from, Coord3D to) {
+        return true;
+    }
+
     // ---- ground movers on the cells ----
 
     /**

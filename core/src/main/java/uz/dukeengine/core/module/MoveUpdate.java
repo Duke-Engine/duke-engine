@@ -174,6 +174,10 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     /** How far off its way it was last frame, in radians, to tell a turn toward it from standing still. */
     private float lastOff = Float.MAX_VALUE;
     private List<Coord3D> waypoints = List.of();
+    /** Where it stood when it was given its waypoints: where the first leg of its route starts. */
+    private Coord3D routeFrom;
+    /** The frame wheels came, and have stayed, within four cells of the end of their way; -1 while they are not. */
+    private int nearEndSince = -1;
     /** The route the waypoints came from, for the floor each is on; null for a way given rather than planned. */
     private uz.dukeengine.core.pathfind.Path route;
     private int waypointIndex;
@@ -330,6 +334,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         this.asideUntil = -1;
         this.round = java.util.Set.of();
         this.roundLast = java.util.Set.of();
+        this.nearEndSince = -1;
         planRoute();
         nowhereNearer();
     }
@@ -352,6 +357,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         this.destination = way;
         this.then = destination;
         this.waypoints = List.of(way);
+        this.routeFrom = getOwner().getPosition();
+        this.nearEndSince = -1;
         this.route = null;
         this.goalReachable = true;
         this.lookedAgain = false;
@@ -425,6 +432,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             }
         }
         this.waypointIndex = 0;
+        this.routeFrom = getOwner().getPosition();
         heldFrames = 0;
         resetProgress();
     }
@@ -625,6 +633,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         }
 
         var position = owner.getPosition();
+        // On a gait it steers along its route, not onto each waypoint in turn: those behind it are passed.
+        var steer = data.gait() == Gait.OTHER ? null : steerAt(owner, position);
         var target = waypoints.get(waypointIndex);
         var delta = target.sub(position);
         // On the ground plane, because that is where walking happens: a step is
@@ -635,7 +645,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         // later. That is what the shivering on the top step was.
         float distance = (float) Math.sqrt(delta.x() * delta.x() + delta.y() * delta.y());
 
-        float desired = (float) StrictMath.atan2(delta.y(), delta.x());
+        var heading = steer == null || across(steer, position) < 1e-4f ? delta : steer.sub(position);
+        float desired = (float) StrictMath.atan2(heading.y(), heading.x());
         float rest = distance + legsAfter(waypointIndex);
         float allowed = giveWay(owner, world, desired, slowed ? topSpeed * 0.5f : topSpeed);
         if (!isMoving()) {
@@ -1232,6 +1243,96 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         return (float) Math.sqrt(dx * dx + dy * dy);
     }
 
+    /** How far off its route, in cells, a mover steers straight at it rather than along it: the reference's three. */
+    private static final float PATH_ERROR_CELLS = 3f;
+
+    /**
+     * Where a mover on a gait steers this frame, as the reference's {@code Path::computePointOnPath}: the segment of
+     * its route nearest it is found, from the one it is on — a waypoint it went past, or could not turn onto, is passed
+     * rather than circled — and it steers at that segment's end where it walks straight there, or, past half of it, at
+     * the middle of the next; off its route, at a point on it, the nearer the farther off it is.
+     */
+    private Coord3D steerAt(GameObject owner, Coord3D position) {
+        int last = waypoints.size() - 1;
+        int nearest = -1;
+        float nearestSq = Float.MAX_VALUE;
+        for (int end = waypointIndex; end <= last; end++) {
+            var from = legStart(end, position);
+            var to = waypoints.get(end);
+            float sx = to.x() - from.x();
+            float sy = to.y() - from.y();
+            float length = (float) Math.sqrt(sx * sx + sy * sy);
+            if (length <= 0f) {
+                continue;
+            }
+            float along = (sx * (position.x() - from.x()) + sy * (position.y() - from.y())) / length;
+            if (along > length && end != last) {
+                continue; // past this leg's end: the next has it, a sharp bend's start or a gentle one's middle
+            }
+            float t = Math.clamp(along, 0f, length) / length;
+            float dx = position.x() - (from.x() + sx * t);
+            float dy = position.y() - (from.y() + sy * t);
+            if (dx * dx + dy * dy < nearestSq) {
+                nearestSq = dx * dx + dy * dy;
+                nearest = end;
+            }
+        }
+        if (nearest < 0) {
+            return waypoints.get(waypointIndex);
+        }
+        if (nearest > waypointIndex) {
+            waypointIndex = nearest; // the waypoints before it passed
+            resetProgress();
+        }
+        var from = legStart(nearest, position);
+        var to = waypoints.get(nearest);
+        float length = across(to, from);
+        float nx = (to.x() - from.x()) / length;
+        float ny = (to.y() - from.y()) / length;
+        float tx = position.x() - from.x();
+        float ty = position.y() - from.y();
+        float along = Math.max(0f, nx * tx + ny * ty);
+        float offSq = tx * tx + ty * ty - along * along;
+        float off = offSq <= 0f ? 0f : (float) Math.sqrt(offSq);
+        float k = Math.min(1f, off / (PATH_ERROR_CELLS * cellSize(owner)));
+        var world = owner.getWorld();
+        if (world == null || world.walksStraight(owner, position, to)) {
+            boolean veryClose = length - along < 1f;
+            boolean ahead = veryClose || along > length * 0.5f && oneFloor(nearest);
+            if (ahead && nearest < last) {
+                var next = waypoints.get(nearest + 1);
+                var middle = new Coord3D((to.x() + next.x()) * 0.5f, (to.y() + next.y()) * 0.5f, to.z());
+                if (veryClose || world == null || world.walksStraight(owner, position, middle)) {
+                    return middle;
+                }
+            }
+            return to;
+        }
+        if (k > 0.5f) {
+            float halfway = along + 0.5f * (length - along);
+            var onIt = new Coord3D(from.x() + nx * halfway, from.y() + ny * halfway, to.z());
+            if (world.walksStraight(owner, position, onIt)) {
+                return onIt;
+            }
+        }
+        along += (1f - k) * (length - along);
+        var onIt = new Coord3D(from.x() + nx * along, from.y() + ny * along, to.z());
+        if (Math.abs(position.x() - onIt.x()) < 1f && Math.abs(position.y() - onIt.y()) < 1f && nearest < last) {
+            return waypoints.get(nearest + 1);
+        }
+        return onIt;
+    }
+
+    /** Where the leg of its route ending at waypoint {@code end} starts: the waypoint before, or where it set off. */
+    private Coord3D legStart(int end, Coord3D position) {
+        return end > 0 ? waypoints.get(end - 1) : routeFrom != null ? routeFrom : position;
+    }
+
+    /** Whether waypoint {@code index} and the next are on one floor: the reference steers ahead past no change. */
+    private boolean oneFloor(int index) {
+        return route == null || index + 1 >= waypoints.size() || route.floorOf(index) == route.floorOf(index + 1);
+    }
+
     // ---- by its gait ----
 
     /** A quarter of a half turn: the 45 degrees off its way at which legs and treads stand to turn. */
@@ -1333,7 +1434,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         }
         float braking = braking(owner);
         float slowDown = braking <= 0f ? 0f : speedNow / 1.5f * (speedNow / braking);
-        goal = brakeOnto(goal, slowDown, slowDown, rest, cell, braking);
+        goal = brakeOnto(goal, slowDown, slowDown, rest, cell, braking, false);
         speedNow = approach(speedNow, goal, acceleration(owner), braking);
         return speedNow;
     }
@@ -1371,7 +1472,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
                 : speedNow / 1.5f * (speedNow / braking + GameConstants.SECONDS_PER_LOGICFRAME)
                         + speedNow * GameConstants.SECONDS_PER_LOGICFRAME;
         float cell = cellSize(owner);
-        goal = brakeOnto(goal, slowDown, Math.max(slowDown, cell), rest, cell, braking);
+        goal = brakeOnto(goal, slowDown, Math.max(slowDown, cell), rest, cell, braking, true);
         // It turns only as it rolls, by its speed's share of its turning speed: none while it stands.
         float turn = turnPerFrame <= 0f ? HALF_TURN : Math.min(1f, speedNow / turnSpeed) * turnPerFrame;
         turn(owner, rotateToward(facing, aim, speedNow == 0f ? 0f : turn));
@@ -1379,12 +1480,19 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         return backing ? -speedNow : speedNow;
     }
 
+    /** Wheels within this many cells of the end of their way... */
+    private static final float DONUT_CELLS = 4f;
+    /** ...for this many frames brake onto it: the reference's {@code DONUT_DISTANCE} and 2.5 s. */
+    private static final int DONUT_FRAMES = (int) (2.5f * GameConstants.LOGICFRAMES_PER_SECOND);
+
     /**
      * The speed to aim at while braking onto the end of the way: the reference's {@code IS_BRAKING}, begun within
-     * {@code trigger} of the end, ended once the end is a cell and twice the stopping distance away; braking, a frame's
-     * braking off where it would not stop in time, half of it where it nearly would.
+     * {@code trigger} of the end, ended once the end is a cell and twice the stopping distance away — and, for wheels
+     * ({@code donut}), begun once they have been within four cells of it for 2.5 s rather than circle it; braking, a
+     * frame's braking off where it would not stop in time, half of it where it nearly would.
      */
-    private float brakeOnto(float goal, float slowDown, float trigger, float rest, float cell, float braking) {
+    private float brakeOnto(float goal, float slowDown, float trigger, float rest, float cell, float braking,
+            boolean donut) {
         if (braking <= 0f) {
             brakingOnto = false;
             return goal;
@@ -1394,6 +1502,17 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         }
         if (rest > cell && rest > 2f * slowDown) {
             brakingOnto = false;
+        }
+        if (donut) {
+            var world = getOwner().getWorld();
+            int frame = world == null ? 0 : world.getFrame();
+            if (rest > DONUT_CELLS * cell) {
+                nearEndSince = -1;
+            } else if (nearEndSince < 0) {
+                nearEndSince = frame;
+            } else if (frame - nearEndSince > DONUT_FRAMES) {
+                brakingOnto = true;
+            }
         }
         if (!brakingOnto) {
             return goal;

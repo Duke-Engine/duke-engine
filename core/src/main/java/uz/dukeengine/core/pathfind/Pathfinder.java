@@ -852,7 +852,8 @@ public final class Pathfinder {
 
     /**
      * Whether a body of {@code clearance} radius can travel the straight line
-     * between two points without touching stone.
+     * between two points without touching stone — nor, given {@code traffic}, a
+     * cell its routes go round: a mover it is stuck behind, or an ally standing still.
      *
      * <p>Sampled rather than traced exactly. At zero clearance a sample can slip
      * past the very corner of a cell — which is harmless, because something with
@@ -866,7 +867,7 @@ public final class Pathfinder {
      * crosses into a new cell, that crossing is asked the same question a step
      * would be asked.
      */
-    private static boolean isClearLine(PathGrid grid, Coord3D a, Coord3D b, float clearance, Traffic traffic) {
+    public static boolean isClearLine(PathGrid grid, Coord3D a, Coord3D b, float clearance, Traffic traffic) {
         float dx = b.x() - a.x();
         float dy = b.y() - a.y();
         float distance = (float) Math.sqrt(dx * dx + dy * dy);
