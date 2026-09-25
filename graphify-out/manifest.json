@@ -2910,9 +2910,9 @@
     "semantic_hash": ""
   },
   "skirmish/src/main/java/uz/dukeengine/skirmish/Main.java": {
-    "mtime": 1789983051.3523662,
-    "seen": 1789983069.8787265,
-    "ast_hash": "97bec445ef3e587dd5e95fff626f7f7e",
+    "mtime": 1790321597.0704052,
+    "seen": 1790321690.9709423,
+    "ast_hash": "ab392cebe1aaaedf4107cee3150b4bc8",
     "semantic_hash": ""
   },
   "skirmish/src/main/java/uz/dukeengine/skirmish/Skirmish.java": {
@@ -2940,9 +2940,9 @@
     "semantic_hash": ""
   },
   "skirmish/src/test/java/uz/dukeengine/skirmish/SkirmishTest.java": {
-    "mtime": 1790223750.6800916,
-    "seen": 1790223998.479236,
-    "ast_hash": "75dbdb389db6a501cfa54c5a855ebb7f",
+    "mtime": 1790321604.4538524,
+    "seen": 1790321690.9709604,
+    "ast_hash": "19e049cf4ad497daa363655be37890f2",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
