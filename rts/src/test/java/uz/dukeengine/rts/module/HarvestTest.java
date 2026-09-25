@@ -746,6 +746,90 @@ class HarvestTest {
         assertFalse(logic.isBeside(mover, building), "not once the thing it was sent beside has moved");
     }
 
+    // ---- one at a time ----
+
+    /** The frames each of {@code harvesters} was handed a unit on, over {@code frames} frames. */
+    private java.util.List<Integer> loadsOver(java.util.List<GameObject> harvesters, int frames) {
+        var loads = new java.util.ArrayList<Integer>();
+        var had = new int[harvesters.size()];
+        for (int frame = 0; frame < frames; frame++) {
+            logic.update();
+            for (int one = 0; one < harvesters.size(); one++) {
+                int carrying = harvesters.get(one).findModule(HarvestUpdate.class).getCarrying();
+                if (carrying > had[one]) {
+                    loads.add(frame);
+                }
+                had[one] = carrying;
+            }
+        }
+        return loads;
+    }
+
+    /**
+     * Eight harvesters, 33 frames before their acts, acts of 5 and one unit, on one pile that takes one at a time: a
+     * load leaves it every 43 frames — the 33, the act that hands over the unit and the one that finds it full, and
+     * the frame after — however many work it, where together they took eight at once. The reference counts 44, its
+     * waits a frame longer than this engine's, as at FramesBeforeActs.
+     */
+    @Test
+    void eightHarvestersOnAPileThatTakesOneAtATimeTakeALoadEvery43Frames() {
+        var pile = kind("Pile", new SupplyModule.Data(100_000, new Dock(0)));
+        var worker = kind("Worker", new ActiveBody.Data(100f),
+                new HarvestUpdate.Data(1, 1, 0f, 0, 5, 1, false, java.util.List.of(), 33, 33));
+        spawnAt(pile, 100f, 100f);
+        var workers = new java.util.ArrayList<GameObject>();
+        for (int one = 0; one < 8; one++) {
+            workers.add(spawnAt(worker, 100f, 100f)); // no legs: always by the pile, banking where it stands
+        }
+
+        var loads = loadsOver(workers, 700);
+
+        assertTrue(loads.size() >= 10, "loads: " + loads);
+        for (int one = 1; one < loads.size(); one++) {
+            assertEquals(43, loads.get(one) - loads.get(one - 1), "a load every 43 frames: " + loads);
+        }
+    }
+
+    /** A harvester waiting behind another is let in the frame after the other's last act: its unit 43 frames later. */
+    @Test
+    void aHarvesterWaitingBehindAnotherIsLetInTheFrameAfterItsLastAct() {
+        var pile = kind("Pile", new SupplyModule.Data(100_000, new Dock(0)));
+        var worker = kind("Worker", new ActiveBody.Data(100f),
+                new HarvestUpdate.Data(1, 1, 0f, 0, 5, 1, false, java.util.List.of(), 33, 33));
+        spawnAt(pile, 100f, 100f);
+        var first = spawnAt(worker, 100f, 100f);
+        var second = spawnAt(worker, 100f, 100f);
+
+        var loads = loadsOver(java.util.List.of(first, second), 120);
+
+        assertEquals(java.util.List.of(37, 80), loads,
+                "the first let in on 0, its unit on 37, its last act on 42; the second let in on 43, its unit on 80");
+    }
+
+    /**
+     * A pile with one place to wait by it, one harvester in and one waiting: a third finds no place, and takes the next
+     * pile as though that one were empty.
+     */
+    @Test
+    void aHarvesterThatFindsNoPlaceByAPileTakesTheNext() {
+        var near = kind("NearPile", new SupplyModule.Data(1000, new Dock(1)));
+        var far = kind("FarPile", new SupplyModule.Data(1000));
+        var worker = kind("Worker", new ActiveBody.Data(100f),
+                new HarvestUpdate.Data(1, 1, 0f, 0, 5, 1, false, java.util.List.of(), 33, 33));
+        var nearPile = spawnAt(near, 100f, 100f);
+        var farPile = spawnAt(far, 300f, 100f);
+        for (int one = 0; one < 3; one++) {
+            spawnAt(worker, 100f, 100f);
+        }
+
+        for (int frame = 0; frame < 60; frame++) {
+            logic.update();
+        }
+
+        assertEquals(999, nearPile.findModule(SupplyModule.class).getRemaining(), "one loaded at the near pile");
+        assertEquals(999, farPile.findModule(SupplyModule.class).getRemaining(), "and the third at the far one");
+    }
+
     // ---- needing a depot ----
 
     /**

@@ -48,6 +48,10 @@ import uz.dukeengine.rts.player.RtsPlayer;
  * 0.4. {@code framesAtDepot} and {@code framesPerUnit} are those two waits; left out, both are nothing, and
  * the harvester loads and banks exactly as it did before they existed.
  *
+ * <p><b>Docks.</b> A pile or a depot that names a {@link Dock} takes one harvester at a time: the others wait by it
+ * and are let in in the order of their places, one let in counting its {@code FramesBeforeActs} from then, and out the
+ * frame after its last act.
+ *
  * @param loadPerTrip   how much it carries in one go
  * @param framesPerTrip how long loading takes, once it is standing at the pile — unless it loads a unit at a
  *                      time, below
@@ -146,6 +150,12 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
     private GameObject waitingBy;
     private int elapsed;
     private int carrying;
+    /** The pile or depot whose dock it waits by or is in, and the frame it began to wait there. */
+    private GameObject docksAt;
+    private int waitingSince;
+
+    /** How long a harvester waits by a dock before it gives up and looks again: the reference's 30 seconds. */
+    private static final int GIVE_UP_FRAMES = 30 * GameConstants.LOGICFRAMES_PER_SECOND;
 
     public HarvestUpdate(GameObject owner, Data data) {
         super(owner);
@@ -184,6 +194,7 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
     private boolean doneActing(Doing next) {
         if (afterLeft < 0) {
             afterLeft = framesAfterActs;
+            outOfTheDock(); // the next let in the frame after its last act; its time after it stands outside
         }
         if (afterLeft > 0) {
             afterLeft--;
@@ -238,6 +249,7 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
         }
         this.place = place;
         paused = false;
+        leaveTheDock();
         atPile = null;
         elapsed = 0;
         retryIn = 0;
@@ -256,6 +268,71 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
     @Override
     public void onOrder(uz.dukeengine.rts.message.GameMessage order) {
         paused = true;
+        leaveTheDock();
+    }
+
+    /** The pile or depot whose dock it waits by or is in, or null. */
+    GameObject docksAt() {
+        return docksAt;
+    }
+
+    /** {@code there}'s dock's harvesters, or null for a pile or depot that takes any number at once. */
+    private static Docking dockOf(GameObject there) {
+        var pile = there.findModule(SupplyModule.class);
+        if (pile != null && pile.docking() != null) {
+            return pile.docking();
+        }
+        var depot = there.findModule(SupplyDepot.class);
+        return depot == null ? null : depot.docking();
+    }
+
+    /**
+     * Come to {@code there}: whether it may act there now — at once where it takes any number, else once it is let in.
+     * Waiting by it the reference's 30 seconds, it gives up and looks again.
+     */
+    private boolean letIn(GameObject owner, GameObject there, World world) {
+        var docking = dockOf(there);
+        if (docking == null) {
+            return true;
+        }
+        if (docksAt != there) {
+            leaveTheDock();
+            docksAt = there;
+            waitingSince = world.getFrame();
+        }
+        if (docking.letIn(owner, world.getFrame())) {
+            return true;
+        }
+        if (world.getFrame() - waitingSince > GIVE_UP_FRAMES) {
+            leaveTheDock(); // kept waiting too long: it looks again
+            reached = null;
+            sent = false;
+        }
+        return false;
+    }
+
+    /** Whether {@code there} has room for it: a place by its dock, or it takes any number at once. */
+    private boolean roomAt(GameObject there) {
+        var docking = dockOf(there);
+        return docking == null || docking.hasRoomFor(getOwner());
+    }
+
+    /** Its last act done where it was let in: out, and the next let in the frame after. */
+    private void outOfTheDock() {
+        var docking = docksAt == null ? null : dockOf(docksAt);
+        if (docking != null && getOwner().getWorld() != null) {
+            docking.out(getOwner(), getOwner().getWorld().getFrame());
+        }
+        docksAt = null;
+    }
+
+    /** Gone from the dock it waited by or was in, its place or the dock free at once. */
+    private void leaveTheDock() {
+        var docking = docksAt == null ? null : dockOf(docksAt);
+        if (docking != null) {
+            docking.leave(getOwner());
+        }
+        docksAt = null;
     }
 
     /** Whether it has stopped working for an order of its player's, until it is next told where to work. */
@@ -301,12 +378,12 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
      */
     private GameObject pileFor(GameObject owner, World world) {
         var told = toldPlace() == null ? null : place.findModule(SupplyModule.class);
-        if (told != null && told.getRemaining() > 0) {
+        if (told != null && told.getRemaining() > 0 && roomAt(place)) {
             return place;
         }
         return world.findClosest(owner.getPosition(), searchRange, candidate -> {
             var supply = candidate.findModule(SupplyModule.class);
-            return supply != null && supply.getRemaining() > 0
+            return supply != null && supply.getRemaining() > 0 && roomAt(candidate)
                     && (!(world instanceof uz.dukeengine.rts.RtsSimulation rts) || rts.mayChoosePile(owner, candidate));
         });
     }
@@ -314,10 +391,17 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
     /** The depot it delivers to: the one it was told, while it stands and is its side's; else the nearest. */
     private GameObject depotFor(GameObject owner, World world) {
         var told = toldPlace();
-        if (told != null && isDepotOf(owner, told)) {
+        if (told != null && isDepotOf(owner, told) && roomAt(told)) {
             return told;
         }
-        return world.findClosest(owner.getPosition(), Float.MAX_VALUE, candidate -> isDepotOf(owner, candidate));
+        var roomy = world.findClosest(owner.getPosition(), Float.MAX_VALUE,
+                candidate -> isDepotOf(owner, candidate) && roomAt(candidate));
+        if (roomy != null) {
+            return roomy;
+        }
+        // Every one full: the told one, else the nearest, whose place it waits for.
+        return told != null && isDepotOf(owner, told) ? told
+                : world.findClosest(owner.getPosition(), Float.MAX_VALUE, candidate -> isDepotOf(owner, candidate));
     }
 
     /** A depot of its side that stands: not one still going up, which the reference's truck does not dock at. */
@@ -364,6 +448,9 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
             return; // nothing left within reach — idle
         }
         if (walkTo(owner, pile)) {
+            if (!letIn(owner, pile, world)) {
+                return; // waiting its turn by it
+            }
             doing = Doing.LOADING;
             elapsed = 0;
             atPile = pile;
@@ -378,6 +465,7 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
             return;
         }
         if (owner.getLocomotor() != null && (atPile == null || !world.isBeside(owner, atPile))) {
+            leaveTheDock();
             atPile = null; // moved off it: nothing more is taken until it is beside a pile again
             elapsed = 0;
             retryIn = RETRY_FRAMES;
@@ -450,8 +538,8 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
             retryIn--;
             return; // its last trip ended short: a second before it sets off again
         }
-        if (depot != null && !walkTo(owner, depot)) {
-            elapsed = 0; // still on its way: the wait at the depot starts when it is there
+        if (depot != null && (!walkTo(owner, depot) || !letIn(owner, depot, world))) {
+            elapsed = 0; // on its way, or waiting its turn by it: the wait at the depot starts when it is let in
             beforeLeft = framesBeforeActs;
             afterLeft = -1;
             return;
@@ -462,6 +550,7 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
         }
         if (depot != null && owner.getLocomotor() != null && !world.isBeside(owner, depot)) {
             // Its trip ended somewhere else — sent away, or a way that ends short: it keeps what it carries.
+            leaveTheDock();
             reached = null;
             sent = false;
             elapsed = 0;

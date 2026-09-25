@@ -16,15 +16,27 @@ import uz.dukeengine.core.thing.GameObject;
 @ModuleGroup(RtsModuleGroups.ECONOMY)
 public final class SupplyModule extends Module {
 
-    /** INI config: {@code Amount} (starting resources). */
-    public record Data(int amount) implements ModuleData {
+    /** {@code Amount}, what it starts with; {@code Dock}, how it takes its harvesters — see {@link Dock} — or none. */
+    public record Data(int amount, Dock dock) implements ModuleData {
+
+        /** A pile any number of harvesters load at at once. */
+        public Data(int amount) {
+            this(amount, null);
+        }
     }
 
     private int remaining;
+    private final Docking docking;
 
     public SupplyModule(GameObject owner, Data data) {
         super(owner);
         this.remaining = data.amount();
+        this.docking = data.dock() == null ? null : new Docking(owner, data.dock());
+    }
+
+    /** Its dock's harvesters, or null where any number load at once. */
+    Docking docking() {
+        return docking;
     }
 
     public int getRemaining() {

@@ -16,10 +16,24 @@ import uz.dukeengine.core.thing.GameObject;
 @ModuleGroup(RtsModuleGroups.ECONOMY)
 public final class SupplyDepot extends Module {
 
-    public record Data() implements ModuleData {
+    /** {@code Dock}: how it takes its harvesters — see {@link Dock} — or none, any number banking at once. */
+    public record Data(Dock dock) implements ModuleData {
+
+        /** A depot any number of harvesters bank at at once. */
+        public Data() {
+            this(null);
+        }
     }
+
+    private final Docking docking;
 
     public SupplyDepot(GameObject owner, Data data) {
         super(owner);
+        this.docking = data.dock() == null ? null : new Docking(owner, data.dock());
+    }
+
+    /** Its dock's harvesters, or null where any number bank at once. */
+    Docking docking() {
+        return docking;
     }
 }
