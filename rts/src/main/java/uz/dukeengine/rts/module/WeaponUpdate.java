@@ -294,7 +294,7 @@ public final class WeaponUpdate extends UpdateModule {
         return canFireAt(victim, false);
     }
 
-    /** The same, or, {@code forced}, whether it may be made to: a thing passed off to its side is forced targets only. */
+    /** The same, or, {@code forced}, whether it may be made to: what passes itself off is a forced target only. */
     public boolean canFireAt(GameObject victim, boolean forced) {
         if (!forced && victim.isDisguisedFrom(getOwner().getPlayerIndex())) {
             return false;
