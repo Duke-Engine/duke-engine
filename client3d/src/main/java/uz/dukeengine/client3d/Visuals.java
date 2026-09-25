@@ -103,6 +103,8 @@ public final class Visuals {
         Wheels wheels;
         /** Its clips for particular deaths, by the death type's name; see {@link #die(String, String)}. */
         final java.util.Map<String, String> dieAnims = new java.util.LinkedHashMap<>();
+        /** Roles that name several clips, one drawn each time — {@code idle}, {@code die}, {@code die.<TYPE>}. */
+        final java.util.Map<String, java.util.List<Pick>> rolePicks = new java.util.LinkedHashMap<>();
         /** Clips it needs for something other than standing, walking and dying. */
         final java.util.List<String> otherAnims = new java.util.ArrayList<>();
         String fireSound;
@@ -382,6 +384,20 @@ public final class Visuals {
             chooseAgain();
             clipStates.add(new ClipState(new java.util.TreeSet<>(conditions), clip, mode, start, keepGroup, slowest,
                     fastest));
+            return this;
+        }
+
+        /**
+         * A clip state of several clips, one drawn by their weights each time it begins — the same on every machine for
+         * the same thing and frame, as a RANDOM start is — the reference's several animations of one state ({@code
+         * W3DModelDraw}'s {@code parseAnimation}, a clip written with a count standing for that many). With {@code
+         * idles}, each plays once and, as it ends, another of them, never the one just played, is drawn.
+         */
+        public UnitVisual clip(java.util.Set<String> conditions, java.util.List<Pick> picks, boolean idles,
+                ClipMode mode, ClipStart start, String keepGroup) {
+            chooseAgain();
+            clipStates.add(new ClipState(new java.util.TreeSet<>(conditions), null, mode, start, keepGroup, 1f, 1f,
+                    picks, idles));
             return this;
         }
 
@@ -1059,6 +1075,29 @@ public final class Visuals {
             return this;
         }
 
+        /**
+         * Several idles, one drawn by their weights each time it begins to stand — the same on every machine for the
+         * same thing and frame: the reference's IdleAnimation = [STA 0 35, IDA, IDB]: the stance 35 times in 37.
+         */
+        public UnitVisual idle(java.util.List<Pick> picks) {
+            rolePicks.put("idle", java.util.List.copyOf(picks));
+            this.idleAnim = picks.isEmpty() ? null : picks.getFirst().clip();
+            return this;
+        }
+
+        /** The idle it stands with, drawn for {@code thing} beginning to stand in the game's frame {@code frame}. */
+        String idleFor(int thing, int frame) {
+            var picks = rolePicks.get("idle");
+            return picks == null ? idleAnim : Pick.draw(picks, thing, frame, null);
+        }
+
+        /** Whether {@code clip} is one of its idles. */
+        boolean isIdle(String clip) {
+            var picks = rolePicks.get("idle");
+            return picks == null ? java.util.Objects.equals(clip, idleAnim)
+                    : picks.stream().anyMatch(pick -> pick.clip().equals(clip));
+        }
+
         public UnitVisual walk(String animName) {
             this.walkAnim = animName;
             return this;
@@ -1184,6 +1223,31 @@ public final class Visuals {
         }
 
         /**
+         * Several deaths, one drawn by their weights as it dies — a Ranger's AIRNGR_DTA or AIRNGR_DTB — for every death
+         * ({@code deathType} null) or one way of dying.
+         */
+        public UnitVisual die(String deathType, java.util.List<Pick> picks) {
+            var clip = picks.isEmpty() ? null : picks.getFirst().clip();
+            if (deathType == null) {
+                rolePicks.put("die", java.util.List.copyOf(picks));
+                this.dieAnim = clip;
+            } else {
+                rolePicks.put("die." + deathType.toUpperCase(java.util.Locale.ROOT), java.util.List.copyOf(picks));
+                die(deathType, clip);
+            }
+            return this;
+        }
+
+        /** The clip {@code thing} dies by this death, drawn in the game's frame {@code frame} it died. */
+        String dieAnimFor(uz.dukeengine.core.module.DeathType deathType, int thing, int frame) {
+            var picks = deathType == null ? null : rolePicks.get("die." + deathType.name());
+            if (picks == null && (deathType == null || !dieAnims.containsKey(deathType.name()))) {
+                picks = rolePicks.get("die");
+            }
+            return picks == null ? dieAnimFor(deathType) : Pick.draw(picks, thing, frame, null);
+        }
+
+        /**
          * One more clip this creature wants loaded, beyond the five it is drawn
          * standing, walking, striking, flinching and falling with.
          *
@@ -1297,18 +1361,70 @@ public final class Visuals {
      * @param keepGroup the group it keeps the frame across, or {@code null} for none
      */
     public record ClipState(java.util.SortedSet<String> words, String clip, ClipMode mode, ClipStart start,
-            String keepGroup, float slowest, float fastest) {
+            String keepGroup, float slowest, float fastest, java.util.List<Pick> picks, boolean idles) {
         public ClipState {
             words = java.util.Collections.unmodifiableSortedSet(new java.util.TreeSet<>(words));
             mode = mode == null ? ClipMode.LOOP : mode;
             slowest = slowest > 0f ? slowest : 1f;
             fastest = Math.max(slowest, fastest > 0f ? fastest : slowest);
+            picks = picks == null || picks.isEmpty() ? (clip == null ? java.util.List.of() : java.util.List.of(
+                    new Pick(clip, 1))) : java.util.List.copyOf(picks);
+            clip = clip != null ? clip : picks.isEmpty() ? null : picks.getFirst().clip();
+        }
+
+        /** One clip, or none. */
+        public ClipState(java.util.SortedSet<String> words, String clip, ClipMode mode, ClipStart start,
+                String keepGroup, float slowest, float fastest) {
+            this(words, clip, mode, start, keepGroup, slowest, fastest, java.util.List.of(), false);
         }
 
         /** A clip played at its own pace, as every one was before one could name a speed. */
         public ClipState(java.util.SortedSet<String> words, String clip, ClipMode mode, ClipStart start,
                 String keepGroup) {
             this(words, clip, mode, start, keepGroup, 1f, 1f);
+        }
+    }
+
+    /**
+     * One of several clips a state, an idle or a death may play: the clip, and how many times in the whole it stands
+     * for — the reference's {@code STA 0 35}, the stance 35 times for each once of the others.
+     */
+    public record Pick(String clip, int weight) {
+        public Pick {
+            weight = Math.max(1, weight);
+        }
+
+        /** A clip standing once. */
+        public Pick(String clip) {
+            this(clip, 1);
+        }
+
+        /**
+         * The clip of {@code picks} drawn for thing {@code thing} in the game's frame {@code frame} by their weights —
+         * the same on every machine — never {@code except} where another may be drawn; null for none.
+         */
+        static String draw(java.util.List<Pick> picks, int thing, int frame, String except) {
+            if (picks.isEmpty()) {
+                return null;
+            }
+            int total = 0;
+            for (var pick : picks) {
+                total += pick.clip().equals(except) ? 0 : pick.weight();
+            }
+            if (total == 0) {
+                return picks.getFirst().clip(); // only the one it had: that again
+            }
+            int roll = new java.util.SplittableRandom(((long) thing << 32) ^ frame ^ 0x3C6EF372L).nextInt(total);
+            for (var pick : picks) {
+                if (pick.clip().equals(except)) {
+                    continue;
+                }
+                roll -= pick.weight();
+                if (roll < 0) {
+                    return pick.clip();
+                }
+            }
+            return picks.getLast().clip();
         }
     }
 

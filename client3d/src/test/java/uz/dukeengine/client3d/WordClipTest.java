@@ -183,6 +183,83 @@ class WordClipTest {
         assertEquals(-1, look.clipStateFor(Set.of("DAMAGED")), "standing: none fits, and its idle plays");
     }
 
+    // ---- several clips ----
+
+    private static AnimComposer composerWith(java.util.Map<String, Float> clips) {
+        var part = new Node("Part");
+        var model = new Node("Model");
+        model.attachChild(part);
+        var composer = new AnimComposer();
+        model.addControl(composer);
+        clips.forEach((name, seconds) -> {
+            var clip = new AnimClip(name);
+            clip.setTracks(new AnimTrack<?>[] {new TransformTrack(part, new float[] {0f, seconds},
+                    new Vector3f[] {new Vector3f(), new Vector3f(1f, 0f, 0f)}, null, null)});
+            composer.addAnimClip(clip);
+        });
+        return composer;
+    }
+
+    /** The reference's stance, 35 times in 37, and two fidgets: over 3700 entries of the state, 3500 of the stance. */
+    @Test
+    void weightsThirtyFiveOneAndOneOver3700EntriesDrawTheFirst3500Times() {
+        var look = Visuals.create().unit("Ranger", l -> l.model("models/ranger.glb")
+                .clip(Set.of(), java.util.List.of(new Visuals.Pick("STA", 35), new Visuals.Pick("IDA"),
+                        new Visuals.Pick("IDB")), false, LOOP, null, null)).of("Ranger");
+        int stance = 0;
+        for (int entry = 0; entry < 3700; entry++) {
+            if ("STA".equals(new WordClip().pickFor(0, look.clipStates.getFirst(), 30 + entry, entry))) {
+                stance++;
+            }
+        }
+        assertEquals(3500, stance, 150);
+    }
+
+    /** Idles of A, a second long, and B, half of one: A ends and B plays, B ends and A plays, on the game's frames. */
+    @Test
+    void anIdleStateOfTwoClipsPlaysTheOtherAsEachEnds() {
+        var look = Visuals.create().unit("Ranger", l -> l.model("models/ranger.glb")
+                .clip(Set.of(), java.util.List.of(new Visuals.Pick("A"), new Visuals.Pick("B")), true, LOOP, null,
+                        null)).of("Ranger");
+        var composer = composerWith(java.util.Map.of("A", 1f, "B", 0.5f));
+        var clip = new WordClip();
+        var played = new java.util.ArrayList<String>();
+        for (int frame = 0; frame <= 150; frame++) {
+            played.add(WordClip.playOn(composer, clip, played.isEmpty() ? null : played.getLast(), look, Set.of(),
+                    frame, 7, missing -> { }));
+        }
+
+        int start = 0;
+        for (int frame = 1; frame <= 150; frame++) {
+            if (!played.get(frame).equals(played.get(frame - 1))) {
+                int lasted = frame - start;
+                assertEquals(played.get(frame - 1).equals("A") ? 30 : 15, lasted,
+                        played.get(frame - 1) + " played out, from frame " + start);
+                start = frame;
+            }
+        }
+        assertTrue(played.contains("A") && played.contains("B"), "both played: " + played);
+    }
+
+    /** Two machines draw the same clip, idle and death for the same thing entering the same state on the same frame. */
+    @Test
+    void twoClientsDrawTheSameClipForTheSameThingOnTheSameFrame() {
+        var picks = java.util.List.of(new Visuals.Pick("DTA"), new Visuals.Pick("DTB"), new Visuals.Pick("DTC"));
+        var look = Visuals.create().unit("Ranger", l -> l.model("models/ranger.glb").idle(picks).die(null, picks)
+                .clip(Set.of("MOVING"), picks, false, LOOP, null, null)).of("Ranger");
+        var clips = java.util.Map.of("DTA", 1f, "DTB", 1f, "DTC", 1f);
+
+        for (int thing = 1; thing <= 20; thing++) {
+            var here = WordClip.playOn(composerWith(clips), new WordClip(), null, look, Set.of("MOVING"), 90, thing,
+                    missing -> { });
+            var there = WordClip.playOn(composerWith(clips), new WordClip(), null, look, Set.of("MOVING"), 90, thing,
+                    missing -> { });
+            assertEquals(here, there, "thing " + thing);
+            assertEquals(look.idleFor(thing, 90), look.idleFor(thing, 90));
+            assertEquals(look.dieAnimFor(null, thing, 90), look.dieAnimFor(null, thing, 90));
+        }
+    }
+
     // ---- at a speed ----
 
     @Test

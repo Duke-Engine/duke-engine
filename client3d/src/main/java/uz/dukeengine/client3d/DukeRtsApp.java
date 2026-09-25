@@ -5800,7 +5800,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (node == null) {
             return;
         }
-        var clipName = visualFor(node.view.looksAs()).dieAnimFor(deathType);
+        var clipName = visualFor(node.view.looksAs()).dieAnimFor(deathType, unitId, frame);
         var clip = clipName == null || node.composer == null
                 ? null : node.composer.getAnimClip(clipName);
         node.diedOn = frame;
@@ -6425,6 +6425,13 @@ final class DukeRtsApp extends SimpleApplication {
                 wanted.add(name);
             }
         }
+        for (var picks : visual.rolePicks.values()) {
+            for (var pick : picks) {
+                if (!wanted.contains(pick.clip())) {
+                    wanted.add(pick.clip());
+                }
+            }
+        }
         // And whatever else the game said this one needs -- a gesture it casts
         // with, say. A clip nobody asked for by name is not copied, and then
         // nothing can play it: see Visuals.UnitVisual.alsoAnimation.
@@ -6696,8 +6703,11 @@ final class DukeRtsApp extends SimpleApplication {
         if (playByWords(node, visual, view)) {
             return;
         }
-        String wanted = view.moving() && visual.walkAnim != null
-                ? visual.walkAnim : visual.idleAnim;
+        boolean walking = view.moving() && visual.walkAnim != null;
+        if (!walking && visual.isIdle(node.currentAnim)) {
+            return; // standing with the idle it drew as it began to
+        }
+        String wanted = walking ? visual.walkAnim : visual.idleFor(view.id(), snapshot.frame());
         if (wanted == null || wanted.equals(node.currentAnim)) {
             return;
         }

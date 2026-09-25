@@ -20,6 +20,8 @@ final class WordClip {
 
     private int state = NONE;
     private Visuals.ClipState chosen;
+    /** The clip of its state it plays: the one drawn as the state began, or since, of idles, as the last ended. */
+    private String picked;
     /** The game's frame the chosen state began. */
     private int since;
     /** Where in its clip it began, in seconds. */
@@ -35,9 +37,15 @@ final class WordClip {
      * @return whether the state changed, and its clip is to be set on the model again
      */
     boolean choose(int index, List<Visuals.ClipState> states, double length, int frame, int thing) {
+        return choose(index, states, index < 0 ? null : states.get(index).clip(), length, frame, thing);
+    }
+
+    /** The same, playing {@code clip} of the state — the one drawn of its several. */
+    boolean choose(int index, List<Visuals.ClipState> states, String clip, double length, int frame, int thing) {
         if (index == state) {
             return false;
         }
+        picked = clip;
         var next = index < 0 ? null : states.get(index);
         double fraction = chosen != null && next != null && keepsFrame(chosen, next) && this.length > 0
                 ? timeAt(frame) / this.length : -1;
@@ -52,6 +60,34 @@ final class WordClip {
                             * (next.fastest() - next.slowest());
         }
         return true;
+    }
+
+    /** The clip of state {@code index} it plays: drawn from its several as the state begins, kept while it lasts. */
+    String pickFor(int index, Visuals.ClipState state, int frame, int thing) {
+        return index == this.state && picked != null ? picked : Visuals.Pick.draw(state.picks(), thing, frame, null);
+    }
+
+    /**
+     * Idles: each played once, and — at the game's frame it ended — another of them drawn, never the one just played,
+     * drawn by that frame so every machine draws the same whenever it draws its frames. The clip it plays now.
+     */
+    String idleOn(AnimComposer composer, int frame, int thing) {
+        while (chosen != null && chosen.idles() && length > 0) {
+            int ends = since + (int) Math.ceil(length / (GameConstants.SECONDS_PER_LOGICFRAME * speed) - 1e-9);
+            if (ends > frame) {
+                break;
+            }
+            var next = Visuals.Pick.draw(chosen.picks(), thing, ends, picked);
+            var anim = next == null ? null : composer.getAnimClip(next);
+            if (anim == null || anim.getLength() <= 0) {
+                break;
+            }
+            picked = next;
+            since = ends;
+            from = 0;
+            length = anim.getLength();
+        }
+        return picked;
     }
 
     /** How fast the clip chosen plays, times its own pace. */
@@ -109,16 +145,17 @@ final class WordClip {
             }
             return STILL;
         }
-        var anim = index < 0 ? null : composer.getAnimClip(look.clipStates.get(index).clip());
+        var drawn = index < 0 ? null : clip.pickFor(index, look.clipStates.get(index), frame, thing);
+        var anim = drawn == null ? null : composer.getAnimClip(drawn);
         if (anim == null) {
             if (index >= 0) {
-                missing.accept(look.clipStates.get(index).clip());
+                missing.accept(drawn);
             }
             clip.choose(-1, look.clipStates, 0, frame, thing);
             return null;
         }
-        String name = look.clipStates.get(index).clip();
-        clip.choose(index, look.clipStates, anim.getLength(), frame, thing);
+        clip.choose(index, look.clipStates, drawn, anim.getLength(), frame, thing);
+        String name = clip.idleOn(composer, frame, thing);
         var action = composer.getCurrentAction();
         if (action == null || !name.equals(playing)) {
             action = composer.setCurrentAction(name, AnimComposer.DEFAULT_LAYER, true);
@@ -158,7 +195,7 @@ final class WordClip {
             return 0;
         }
         double elapsed = Math.max(0, frame - since) * GameConstants.SECONDS_PER_LOGICFRAME * speed;
-        return switch (chosen.mode()) {
+        return switch (chosen.idles() ? Visuals.ClipMode.ONCE : chosen.mode()) {
             case HOLD -> from;
             case ONCE -> Math.min(from + elapsed, last());
             case ONCE_BACKWARDS -> Math.max(from - elapsed, 0);
