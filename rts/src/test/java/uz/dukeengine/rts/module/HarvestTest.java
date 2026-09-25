@@ -99,6 +99,52 @@ class HarvestTest {
         assertEquals(0, pile.findModule(SupplyModule.class).getRemaining());
     }
 
+    private GameObject pileAt(float x) {
+        var pile = spawn(supplyPile);
+        pile.setPosition(new Coord3D(x, 0f, 0f));
+        return pile;
+    }
+
+    private int takenFrom(GameObject pile) {
+        return 1000 - pile.findModule(SupplyModule.class).getRemaining();
+    }
+
+    /** One harvester's range set twice its template's: it takes a pile half as far again as the template reaches. */
+    @Test
+    void aHarvestersOwnSearchRangeReachesPastItsTemplates() {
+        thingFactory.addTemplate(ThingTemplate.named("NearSighted").module(new ActiveBody.Data(100f))
+                .module(new HarvestUpdate.Data(100, 10, 100f)).build());
+        var truck = spawn(thingFactory.findTemplate("NearSighted"));
+        var pile = pileAt(150f);
+
+        for (int i = 0; i < 20; i++) {
+            logic.update();
+        }
+        assertEquals(0, takenFrom(pile), "150 is past its template's 100");
+
+        truck.findModule(HarvestUpdate.class).setSearchRange(200f);
+        for (int i = 0; i < 20; i++) {
+            logic.update();
+        }
+        assertTrue(takenFrom(pile) > 0, "and within its own 200");
+    }
+
+    /** The game's rule refuses the nearest pile: the harvester takes the next. */
+    @Test
+    void aPileTheGameRefusesIsPassedForTheNext() {
+        spawn(harvester);
+        var nearest = pileAt(50f);
+        var next = pileAt(80f);
+        logic.setPileRule((truck, pile) -> pile != nearest); // never seen by its side
+
+        for (int i = 0; i < 20; i++) {
+            logic.update();
+        }
+
+        assertEquals(0, takenFrom(nearest));
+        assertTrue(takenFrom(next) > 0, "the next one taken");
+    }
+
     @Test
     void idleWithoutSupplies() {
         spawn(harvester); // no pile present

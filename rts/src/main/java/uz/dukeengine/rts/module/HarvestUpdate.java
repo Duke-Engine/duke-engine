@@ -102,7 +102,7 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
 
     private final int loadPerTrip;
     private final int framesPerTrip;
-    private final float searchRange;
+    private float searchRange;
     private final int framesAtDepot;
     private final int framesPerUnit;
     private final int unitOfLoad;
@@ -135,7 +135,7 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
         super(owner);
         this.loadPerTrip = data.loadPerTrip();
         this.framesPerTrip = Math.max(1, data.framesPerTrip());
-        this.searchRange = data.searchRange() <= 0f ? Float.MAX_VALUE : data.searchRange();
+        setSearchRange(data.searchRange());
         this.framesAtDepot = Math.max(0, data.framesAtDepot());
         this.framesPerUnit = Math.max(0, data.framesPerUnit());
         this.unitOfLoad = data.unitOfLoad() <= 0 ? 1 : data.unitOfLoad();
@@ -228,7 +228,23 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
         return place;
     }
 
-    /** The pile it fetches from: the one it was told, while it stands and has anything left; else the nearest. */
+    /**
+     * How far this harvester looks for a pile, whatever its template says — the reference's computer players' look
+     * twice as far ({@code SupplyTruckAIUpdate::getWarehouseScanDistance}); 0 or less is anywhere on the map.
+     */
+    public void setSearchRange(float range) {
+        this.searchRange = range <= 0f ? Float.MAX_VALUE : range;
+    }
+
+    /** How far it looks for a pile; {@code Float.MAX_VALUE} for anywhere. */
+    public float getSearchRange() {
+        return searchRange;
+    }
+
+    /**
+     * The pile it fetches from: the one it was told, while it stands and has anything left; else the nearest with
+     * anything left within its search range that the game lets it choose ({@code RtsSimulation.setPileRule}).
+     */
     private GameObject pileFor(GameObject owner, World world) {
         var told = toldPlace() == null ? null : place.findModule(SupplyModule.class);
         if (told != null && told.getRemaining() > 0) {
@@ -236,7 +252,8 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
         }
         return world.findClosest(owner.getPosition(), searchRange, candidate -> {
             var supply = candidate.findModule(SupplyModule.class);
-            return supply != null && supply.getRemaining() > 0;
+            return supply != null && supply.getRemaining() > 0
+                    && (!(world instanceof uz.dukeengine.rts.RtsSimulation rts) || rts.mayChoosePile(owner, candidate));
         });
     }
 

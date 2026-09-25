@@ -339,6 +339,28 @@ public abstract class RtsSimulation extends GameLogic {
         return getPlayerList().getPlayer(index) instanceof RtsPlayer player ? player : null;
     }
 
+    // ---- the piles a harvester chooses ----
+
+    private java.util.function.BiPredicate<uz.dukeengine.core.thing.GameObject, uz.dukeengine.core.thing.GameObject>
+            pileRule = (harvester, pile) -> true;
+
+    /**
+     * Which piles a harvester may choose for itself, asked of each it could, as {@code (harvester, pile)} — the
+     * reference never lets a person's harvester take a pile his side has never seen ({@code
+     * ActionManager::canTransferSuppliesAt}). A pile its player sent it to is its player's choice. Every pile, unless
+     * the game says otherwise.
+     */
+    public final void setPileRule(java.util.function.BiPredicate<uz.dukeengine.core.thing.GameObject,
+            uz.dukeengine.core.thing.GameObject> rule) {
+        this.pileRule = rule == null ? (harvester, pile) -> true : rule;
+    }
+
+    /** Whether the game lets {@code harvester} choose {@code pile} — see {@link #setPileRule}. */
+    public final boolean mayChoosePile(uz.dukeengine.core.thing.GameObject harvester,
+            uz.dukeengine.core.thing.GameObject pile) {
+        return pileRule.test(harvester, pile);
+    }
+
     // ---- a group's move ----
 
     private GroupLayout groupLayout = GroupMove.REFERENCE;
