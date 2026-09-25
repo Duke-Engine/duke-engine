@@ -106,7 +106,9 @@ public interface World {
         if (gap <= 0f) {
             return here;
         }
-        var there = what.getPosition();
+        // Toward the nearest point of its outline, not its middle: heading for the middle of a box from off a
+        // corner stops short of touching it — a saboteur stood 13.28 off a supply centre's corner, needing 10.
+        var there = Footprint.of(what).nearestTo(here);
         float across = there.x() - here.x();
         float along = there.y() - here.y();
         float span = (float) Math.sqrt(across * across + along * along);
