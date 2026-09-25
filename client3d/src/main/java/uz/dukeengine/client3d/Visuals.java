@@ -177,6 +177,19 @@ public final class Visuals {
             return layers.computeIfAbsent(name, named -> new UnitVisual());
         }
 
+        /** The bone of the thing's body, or of another of its layers, this layer is drawn at; null for its place. */
+        String hungOn;
+
+        /**
+         * A layer drawn at a bone of the thing's body, or of another of its layers, following it as that model turns and
+         * animates — the reference's {@code AttachToBoneInAnotherModule}: a pickup's gun on its turret bone, a car's roof
+         * light. A bone its models do not have leaves it at the thing's place.
+         */
+        public UnitVisual hungOn(String bone) {
+            this.hungOn = bone;
+            return this;
+        }
+
         /**
          * Drawn rising out of the ground as it is built — the reference's {@code ADJUST_HEIGHT_BY_CONSTRUCTION_PERCENT}:
          * sunk by what is left to build times its model's height, so at nothing built its top is at the ground, at

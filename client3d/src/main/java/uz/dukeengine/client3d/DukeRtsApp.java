@@ -6091,7 +6091,8 @@ final class DukeRtsApp extends SimpleApplication {
         for (var layer : node.layers) {
             layer.wear(node.root, view, visuals.getWorldConditions(), snapshot.frame(),
                     body -> paintHouseColour(body, view),
-                    clip -> warnOnce(view.templateName() + "/" + clip, "animation"));
+                    clip -> warnOnce(view.templateName() + "/" + clip, "animation"),
+                    bone -> boneOf(node, layer, bone));
         }
         runningGear.see(view.id(), view, snapshot.frame());
 
@@ -6100,6 +6101,20 @@ final class DukeRtsApp extends SimpleApplication {
 
         flinch(node, view);
         animate(node, view);
+    }
+
+    /** A bone of a thing's drawn models by name: its body's, else another of its layers' than {@code asking}. */
+    private static Spatial boneOf(UnitNode node, ModelLayer asking, String name) {
+        var bone = Bones.named(node.body, name);
+        for (var layer : node.layers) {
+            if (bone != null) {
+                break;
+            }
+            if (layer != asking) {
+                bone = Bones.named(layer.body(), name);
+            }
+        }
+        return bone;
     }
 
     /**

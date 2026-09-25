@@ -253,4 +253,46 @@ class ModelLayerTest {
         assertEquals(1, look.choicesMade);
         assertNull(look.modelFor(Set.of("READY")), "and other words choose afresh");
     }
+
+    @Test
+    void aLayerHungOnABoneStandsWhereTheClipMovesTheBone() {
+        var look = Visuals.create().unit("Technical", l -> {
+            l.model("models/technical.glb");
+            l.layer("gun").model("models/gun.glb").hungOn("TURRET");
+        }).of("Technical");
+        var thing = new Node("thing");
+        var body = new Node("technical");
+        var turret = new Node("Turret");
+        body.attachChild(turret);
+        thing.attachChild(body);
+        var swing = new AnimClip("Swing");
+        swing.setTracks(new AnimTrack<?>[] {new TransformTrack(turret, new float[] {0f, 1f},
+                new Vector3f[] {new Vector3f(), new Vector3f(10f, 0f, 0f)}, null, null)});
+        var composer = new AnimComposer();
+        body.addControl(composer);
+        composer.addAnimClip(swing);
+        var gun = new ModelLayer(look.layers.get("gun"), ModelLayerTest::tower);
+
+        gun.wear(thing, holding(), Set.of(), 0, drawn -> { }, clip -> { }, name -> Bones.named(body, name));
+        composer.setCurrentAction("Swing");
+        thing.updateLogicalState(0.5f); // halfway through the clip: the turret 5 to the side
+        thing.updateGeometricState();
+        assertEquals(5f, gun.body().getWorldTranslation().x, 1e-3f, "the gun with it");
+
+        turret.setLocalTranslation(10f, 0f, 0f); // where the clip ends
+        thing.updateGeometricState();
+        assertEquals(10f, gun.body().getWorldTranslation().x, 1e-3f, "10 to the side when the bone is");
+    }
+
+    @Test
+    void aBoneItsModelsDoNotHaveLeavesItAtTheThingsPlace() {
+        var look = Visuals.create().unit("Car", l -> l.layer("light").model("models/light.glb").hungOn("ROOF"))
+                .of("Car");
+        var thing = new Node("thing");
+        var light = new ModelLayer(look.layers.get("light"), ModelLayerTest::tower);
+
+        light.wear(thing, holding(), Set.of(), 0, drawn -> { }, clip -> { }, name -> null);
+
+        assertSame(thing, light.body().getParent());
+    }
 }

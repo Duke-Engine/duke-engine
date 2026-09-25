@@ -42,6 +42,15 @@ final class ModelLayer {
      */
     void wear(Node parent, UnitView view, Set<String> world, int frame, Consumer<Spatial> paint,
             Consumer<String> missing) {
+        wear(parent, view, world, frame, paint, missing, bone -> null);
+    }
+
+    /**
+     * The same, hung — where its look says so ({@link Visuals.UnitVisual#hungOn}) — at the bone {@code bones} finds by
+     * name in the thing's other models, and at the thing's place where it finds none.
+     */
+    void wear(Node parent, UnitView view, Set<String> world, int frame, Consumer<Spatial> paint,
+            Consumer<String> missing, Function<String, Spatial> bones) {
         var holding = look.holding(view.healthFraction(), world, view.conditions());
         var wanted = look.modelFor(holding);
         if (!Objects.equals(wanted, modelPath)) {
@@ -61,6 +70,10 @@ final class ModelLayer {
         }
         if (body == null) {
             return;
+        }
+        var host = look.hungOn == null ? parent : hostOf(bones.apply(look.hungOn), parent);
+        if (body.getParent() != host) {
+            host.attachChild(body); // hung from its bone once the model that has it is there, or anew after a swap
         }
         if (pieces.choose(look.pieceStateFor(holding), look.pieceStates)) {
             pieces.applyTo(body, Set.of());
@@ -90,6 +103,17 @@ final class ModelLayer {
             composer.setCurrentAction(idle, AnimComposer.DEFAULT_LAYER, true).setSpeed(1);
             playing = idle;
         }
+    }
+
+    /**
+     * The node it hangs from for a bone: the bone itself where it is a node or a joint's attachments, the node it
+     * belongs to where it is a mesh; the thing's own node where there is no such bone.
+     */
+    private static Node hostOf(Spatial bone, Node parent) {
+        if (bone instanceof Node node) {
+            return node;
+        }
+        return bone != null && bone.getParent() != null ? bone.getParent() : parent;
     }
 
     /** What it draws now, or null for nothing. */
