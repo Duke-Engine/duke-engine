@@ -46,7 +46,7 @@ public final class Selling {
         }
         var hold = building.findModule(ContainModule.class);
         if (hold != null) {
-            hold.unloadAll();
+            hold.sold(); // out of it — or, a shared hold's, left in the network where another still holds it
         }
         var weapon = building.findModule(WeaponUpdate.class);
         if (weapon != null) {

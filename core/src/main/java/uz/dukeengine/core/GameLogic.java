@@ -914,8 +914,8 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         // Announce and react only once the corpses are gone, so a die module that
         // spawns wreckage builds it in a world that no longer holds the body.
         for (var object : leaving) {
-            if (!object.hasDied()) {
-                die(object, leaving); // one kept dead was told when it died, and leaves without a word
+            if (!object.hasDied() && !object.hasVanished()) {
+                die(object, leaving); // one kept dead was told when it died, and one vanished leaves without a word
             }
         }
     }

@@ -25,7 +25,7 @@ class SharedHoldTest {
     private void world() {
         var things = new ThingFactory(RtsModules.withDefaults());
         var tunnel = RtsTemplate.named("TunnelNetwork").geometry(new Geometry.Cylinder(10f, 8f))
-                .module(new ActiveBody.Data(1000f)).module(new ContainModule.Data(10, "Tunnel")).build();
+                .kindOf(uz.dukeengine.rts.thing.RtsKinds.STRUCTURE).module(new ActiveBody.Data(1000f)).module(new ContainModule.Data(10, "Tunnel")).build();
         var rebel = RtsTemplate.named("Rebel").geometry(new Geometry.Cylinder(2f, 4f))
                 .module(new ActiveBody.Data(100f)).build();
         things.addTemplate(tunnel);
@@ -61,7 +61,8 @@ class SharedHoldTest {
 
         hold(tunnelB).unload(rebel);
         assertFalse(rebel.isContained());
-        assertTrue(rebel.getPosition().distance(tunnelB.getPosition()) < 10f, "out beside B, far from A");
+        assertTrue(uz.dukeengine.core.thing.Footprint.of(tunnelB).separation(uz.dukeengine.core.thing.Footprint.of(rebel))
+                >= 0f && rebel.getPosition().distance(tunnelB.getPosition()) < 20f, "out beside B, far from A");
         assertEquals(List.of(), hold(tunnelA).getPassengers());
     }
 
@@ -94,5 +95,54 @@ class SharedHoldTest {
         logic.update();
         assertTrue(rebels.subList(0, 5).stream().noneMatch(logic.getObjects()::contains), "and taken away");
         assertTrue(rebels.subList(5, 11).stream().noneMatch(GameObject::isEffectivelyDead), "those outside live");
+    }
+
+    @Test
+    void aSoldTunnelLeavesTheNetworkAndItsPassengersStayInTheOtherUntilTheLastIsSold() {
+        world();
+        hold(tunnelA).load(rebels.get(0));
+        hold(tunnelA).load(rebels.get(1));
+        var sell = new uz.dukeengine.rts.message.GameMessage.Sell(tunnelA.getPlayerIndex(), tunnelA.getId());
+
+        assertTrue(uz.dukeengine.rts.construction.Selling.order(logic, sell));
+        logic.update();
+        assertTrue(rebels.get(0).isContained() && rebels.get(1).isContained(), "still inside, in the network");
+        assertEquals(2, hold(tunnelB).getPassengerCount(), "held by the other tunnel");
+        assertFalse(hold(tunnelA).load(rebels.get(2)), "and the sold one takes no one in");
+
+        assertTrue(uz.dukeengine.rts.construction.Selling.order(logic,
+                new uz.dukeengine.rts.message.GameMessage.Sell(tunnelB.getPlayerIndex(), tunnelB.getId())));
+        assertFalse(rebels.get(0).isContained() || rebels.get(1).isContained(), "the last sold: out they come");
+        for (var rebel : rebels.subList(0, 2)) {
+            assertTrue(rebel.getPosition().distance(tunnelB.getPosition()) < 20f, "beside it: " + rebel.getPosition());
+        }
+    }
+
+    @Test
+    void aNetworkThatSaysSoLosesItsPassengersWithoutADeath() {
+        var things = new ThingFactory(RtsModules.withDefaults());
+        var quiet = RtsTemplate.named("QuietTunnel").geometry(new Geometry.Cylinder(10f, 8f))
+                .module(new ActiveBody.Data(1000f))
+                .module(new ContainModule.Data(10, "Tunnel", false, null, true, null)).build();
+        var rebel = RtsTemplate.named("Rebel").geometry(new Geometry.Cylinder(2f, 4f))
+                .module(new ActiveBody.Data(100f)).build();
+        things.addTemplate(quiet);
+        things.addTemplate(rebel);
+        logic = new ProductionTest.TestLogic(things);
+        logic.init();
+        int gla = logic.getPlayerList().addPlayer("GLA").getIndex();
+        var tunnel = placed(quiet, gla, 100f, 100f);
+        var inside = placed(rebel, gla, 120f, 100f);
+        hold(tunnel).load(inside);
+        logic.drainEvents();
+
+        tunnel.getBody().setHealth(0f);
+        logic.update();
+        logic.update();
+
+        assertFalse(logic.getObjects().contains(inside), "gone with the network");
+        var died = logic.drainEvents().stream().filter(uz.dukeengine.core.event.ObjectDied.class::isInstance)
+                .map(uz.dukeengine.core.event.ObjectDied.class::cast).map(e -> e.object()).toList();
+        assertEquals(List.of(tunnel.getId()), died, "the tunnel's death told, and none for the one inside");
     }
 }

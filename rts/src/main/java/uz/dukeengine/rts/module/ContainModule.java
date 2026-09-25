@@ -29,6 +29,11 @@ import uz.dukeengine.core.thing.ObjectId;
  * there, the reference's Humvee and Battle Bus. <b>Riders</b> ({@code RiderBone}): passengers standing on top of the
  * carrier at that bone of its model, turning with it and firing on their own, dying with it, and clicked as the carrier
  * — an Overlord's gattling cannon.
+ *
+ * <p><b>Out of a building</b>, a passenger stands on the nearest clear ground outside its footprint, or at the exit bone
+ * the holder names ({@code ExitBone}), not inside it. <b>A shared hold's building sold or removed</b> leaves the network
+ * that frame; its passengers come out only where it was the last. <b>A holder that loses its passengers</b> in its death
+ * may take them out of the world quietly ({@code PassengersVanish}): no death, no death effect, no kill for anyone.
  */
 @ModuleGroup(ModuleGroups.MOVEMENT)
 public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
@@ -37,9 +42,17 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     /**
      * INI config: {@code Slots} (passenger capacity); {@code SharedBy}: the network whose one hold, and one capacity,
      * every one of the side's things naming it shares — {@code null} for a hold of its own; {@code PassengersFire}:
-     * whether they fire from inside; {@code RiderBone}: the bone of its model they ride on top at, or null.
+     * whether they fire from inside; {@code RiderBone}: the bone of its model they ride on top at, or null; {@code
+     * PassengersVanish}: whether passengers it loses in its death leave the world quietly rather than dying; {@code
+     * ExitBone}: the bone of its model its passengers come out at, or null for the nearest clear ground outside it.
      */
-    public record Data(int slots, String sharedBy, boolean passengersFire, String riderBone) implements ModuleData {
+    public record Data(int slots, String sharedBy, boolean passengersFire, String riderBone, boolean passengersVanish,
+            String exitBone) implements ModuleData {
+
+        /** Passengers that die with it, and come out beside it. */
+        public Data(int slots, String sharedBy, boolean passengersFire, String riderBone) {
+            this(slots, sharedBy, passengersFire, riderBone, false, null);
+        }
 
         /** A hold of its own. */
         public Data(int slots) {
@@ -53,10 +66,16 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     }
 
     private static final Coord3D UNLOAD_OFFSET = new Coord3D(0f, -5f, 0f);
+    /** How far clear of its holder's outline a passenger comes out. */
+    private static final float CLEARANCE = 1f;
+    /** The ways round a holder its passengers' exits are tried in, from its front. */
+    private static final int WAYS = 16;
 
     private final int slots;
     private final String sharedBy;
     private final String riderBone;
+    private final boolean passengersVanish;
+    private final String exitBone;
     private boolean passengersFire;
     private final List<ObjectId> passengers = new ArrayList<>();
 
@@ -66,6 +85,8 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         this.sharedBy = data.sharedBy();
         this.riderBone = data.riderBone();
         this.passengersFire = data.passengersFire();
+        this.passengersVanish = data.passengersVanish();
+        this.exitBone = data.exitBone();
     }
 
     /** Let its passengers fire from inside, or hold them idle — the reference's PassengersFireUpgrade. */
@@ -157,9 +178,9 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         return List.copyOf(hold());
     }
 
-    /** Load {@code passenger}; returns false if full. The passenger goes idle. */
+    /** Load {@code passenger}; returns false if full, or if it is being sold. The passenger goes idle. */
     public boolean load(GameObject passenger) {
-        if (isFull() || passenger == getOwner()) {
+        if (isFull() || passenger == getOwner() || !standing(getOwner())) {
             return false;
         }
         hold().add(passenger.getId());
@@ -189,7 +210,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         }
         for (var carrier : world.getObjects()) {
             var hold = carrier.findModule(ContainModule.class);
-            if (hold != null && hold.contains(passenger.getId())) {
+            if (hold != null && standing(carrier) && hold.contains(passenger.getId())) {
                 hold.unload(passenger);
                 return true;
             }
@@ -197,31 +218,115 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         return false;
     }
 
-    /** One passenger out, beside the transport. */
+    /** Whether {@code holder} is still a holder: not dead, not gone, and not being sold. */
+    private static boolean standing(GameObject holder) {
+        return !holder.isEffectivelyDead() && !holder.isDestroyed()
+                && !holder.hasStatus(uz.dukeengine.core.thing.ObjectStatus.SOLD);
+    }
+
+    /** Whether another of its side's things still holds the network it shares. */
+    private boolean anotherHoldsTheNetwork() {
+        var world = getOwner().getWorld();
+        int side = getOwner().getPlayerIndex();
+        for (var other : world.getObjects()) {
+            var hold = other == getOwner() || other.getPlayerIndex() != side || !standing(other) ? null
+                    : other.findModule(ContainModule.class);
+            if (hold != null && sharedBy.equals(hold.sharedBy)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * It is being sold — the reference's sold tunnel leaving its network at once: a hold of its own puts everyone out
+     * beside it; a shared one lets them out only where it was the last of the network, and otherwise they stay in the
+     * network, to come out at another.
+     */
+    public void sold() {
+        if (sharedBy == null || getOwner().getWorld() == null || !anotherHoldsTheNetwork()) {
+            unloadAll();
+        }
+    }
+
+    /** One passenger out, beside it — see {@link #exitFor}. */
     public void unload(GameObject passenger) {
         if (!hold().remove(passenger.getId())) {
             return;
         }
+        passenger.setPosition(exitFor(passenger));
         passenger.setContained(false);
-        passenger.setPosition(getOwner().getPosition().add(UNLOAD_OFFSET));
     }
 
-    /** Eject every passenger back into the world beside the transport. */
+    /** Every passenger back into the world beside it, each on ground the one before left clear. */
     public void unloadAll() {
         var world = getOwner().getWorld();
         if (world == null) {
             return;
         }
-        var dropPoint = getOwner().getPosition().add(UNLOAD_OFFSET);
         var hold = hold();
-        for (var id : hold) {
+        for (var id : List.copyOf(hold)) {
             var passenger = world.findObject(id);
             if (passenger != null) {
+                passenger.setPosition(exitFor(passenger));
                 passenger.setContained(false);
-                passenger.setPosition(dropPoint);
             }
         }
         hold.clear();
+    }
+
+    /**
+     * Where {@code passenger} comes out: at its holder's exit bone, where it names one; else on the nearest clear
+     * ground outside the holder's footprint, tried round it a sixteenth of a turn at a time from its front — the
+     * nearest clear way wins, and of two as near the earlier. Where no way round is clear, the nearest outside it.
+     */
+    Coord3D exitFor(GameObject passenger) {
+        var owner = getOwner();
+        var world = owner.getWorld();
+        if (exitBone != null) {
+            var bone = uz.dukeengine.core.thing.Bones.inWorld(owner, exitBone);
+            if (bone != null) {
+                return bone;
+            }
+        }
+        var outline = uz.dukeengine.core.thing.Footprint.of(owner);
+        if (world == null || outline.shape().isPoint()) {
+            return owner.getPosition().add(UNLOAD_OFFSET);
+        }
+        Coord3D nearest = null;
+        Coord3D nearestClear = null;
+        float nearestAway = Float.MAX_VALUE;
+        float nearestClearAway = Float.MAX_VALUE;
+        for (int way = 0; way < WAYS; way++) {
+            float turn = owner.getOrientation() + way * (float) (2 * Math.PI / WAYS);
+            var at = outside(outline, passenger, (float) StrictMath.cos(turn), (float) StrictMath.sin(turn));
+            float away = at.distance(owner.getPosition());
+            if (away < nearestAway) {
+                nearest = at;
+                nearestAway = away;
+            }
+            if (away < nearestClearAway && world.findBlocker(passenger, at) == null && !world.isGroundBlocked(at)) {
+                nearestClear = at;
+                nearestClearAway = away;
+            }
+        }
+        return nearestClear != null ? nearestClear : nearest;
+    }
+
+    /** The first point along a way out from the holder's middle where the passenger stands clear of its outline. */
+    private static Coord3D outside(uz.dukeengine.core.thing.Footprint outline, GameObject passenger, float dx,
+            float dy) {
+        var middle = outline.center();
+        float away = 0f;
+        for (int step = 0; step < 4096; step++) {
+            var at = new Coord3D(middle.x() + dx * away, middle.y() + dy * away, middle.z());
+            float gap = uz.dukeengine.core.thing.Footprint.of(passenger, at).separation(outline);
+            if (gap >= CLEARANCE) {
+                return at;
+            }
+            away += Math.max(0.25f, CLEARANCE - gap); // out by what is missing: exact along a side, a few steps at a corner
+        }
+        return new Coord3D(middle.x() + dx * away, middle.y() + dy * away, middle.z());
     }
 
     /**
@@ -233,29 +338,32 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     public void onDie(uz.dukeengine.core.module.Death death) {
         var world = getOwner().getWorld();
         if (riderBone != null && world != null) {
-            killAll(world, passengers); // riders die with what they ride
+            lose(world, passengers); // riders die with what they ride
             return;
         }
-        if (sharedBy == null || !(world instanceof uz.dukeengine.rts.RtsSimulation rts)) {
-            return;
+        if (sharedBy == null || !(world instanceof uz.dukeengine.rts.RtsSimulation rts) || anotherHoldsTheNetwork()) {
+            return; // one still stands: they wait in it
         }
-        int side = getOwner().getPlayerIndex();
-        for (var other : world.getObjects()) {
-            var hold = other.isEffectivelyDead() || other.getPlayerIndex() != side ? null
-                    : other.findModule(ContainModule.class);
-            if (hold != null && sharedBy.equals(hold.sharedBy)) {
-                return; // one still stands: they wait in it
-            }
+        var hold = rts.sharedHold(getOwner().getPlayerIndex(), sharedBy);
+        if (getOwner().isEffectivelyDead()) {
+            lose(world, hold);
+        } else {
+            unloadAll(); // the last taken away, not killed: they come out where it stood
         }
-        killAll(world, rts.sharedHold(side, sharedBy));
     }
 
-    private static void killAll(uz.dukeengine.core.thing.World world, List<ObjectId> hold) {
+    /** Its passengers lost with it: dead, or — where it says so — gone from the world without a death. */
+    private void lose(uz.dukeengine.core.thing.World world, List<ObjectId> hold) {
         for (var id : hold) {
             var passenger = world.findObject(id);
-            if (passenger != null && passenger.getBody() != null) {
+            if (passenger == null) {
+                continue;
+            }
+            if (passengersVanish) {
+                passenger.vanish();
+            } else if (passenger.getBody() != null) {
                 passenger.getBody().setHealth(0f);
-            } else if (passenger != null) {
+            } else {
                 passenger.markDestroyed();
             }
         }

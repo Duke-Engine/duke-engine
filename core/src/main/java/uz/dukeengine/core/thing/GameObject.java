@@ -46,6 +46,8 @@ public final class GameObject {
     private boolean keepsOwnHeight;
     private int playerIndex = NEUTRAL_PLAYER;
     private boolean destroyed;
+    /** Taken out of the world without a death — see {@link #vanish}. */
+    private boolean vanished;
     /** Whether its modules have been told it is made — see {@link #announceCreated}. */
     private boolean announced;
     /** Whether its death has been told, and it is kept in the world dead — see {@link #hasDied}. */
@@ -499,5 +501,19 @@ public final class GameObject {
     /** Flag this object for removal. Prefer {@code GameLogic.destroyObject}. */
     public void markDestroyed() {
         this.destroyed = true;
+    }
+
+    /**
+     * Take it out of the world without a death, at the end of this frame: no {@code ObjectDied}, no die module run, no
+     * kill for anyone — what a collapsed tunnel network does with those inside it.
+     */
+    public void vanish() {
+        this.vanished = true;
+        this.destroyed = true;
+    }
+
+    /** Whether it was taken out of the world without a death: see {@link #vanish}. */
+    public boolean hasVanished() {
+        return vanished;
     }
 }
