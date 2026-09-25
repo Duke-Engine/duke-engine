@@ -146,17 +146,20 @@ public final class ProductionUpdate extends UpdateModule {
         final ThingTemplate unit;
         final Upgrade research;
         final int frames;
+        final int paid;
         int framesRemaining;
 
-        Job(ThingTemplate unit, Upgrade research, int frames) {
+        Job(ThingTemplate unit, Upgrade research, int frames, int paid) {
             this.unit = unit;
             this.research = research;
             this.frames = frames;
             this.framesRemaining = frames;
+            this.paid = paid;
         }
 
+        /** What was paid for it, and so what a cancel gives back. */
         int cost() {
-            return research != null ? research.cost() : Buildable.costOf(unit);
+            return paid;
         }
     }
 
@@ -222,10 +225,10 @@ public final class ProductionUpdate extends UpdateModule {
         var player = owner();
         if (player == null || getOwner().hasStatus(ObjectStatus.SOLD)
                 || getOwner().getWorld() instanceof RtsSimulation rts && !rts.canBuild(player.getIndex(), unit)
-                || !player.withdraw(Buildable.costOf(unit))) {
+                || !player.withdraw(player.priceOf(unit))) {
             return false;
         }
-        queue.add(new Job(unit, null, Math.max(1, Buildable.framesOf(unit))));
+        queue.add(new Job(unit, null, Math.max(1, Buildable.framesOf(unit)), player.priceOf(unit)));
         return true;
     }
 
@@ -247,7 +250,7 @@ public final class ProductionUpdate extends UpdateModule {
         if (taken || !player.withdraw(upgrade.cost())) {
             return false;
         }
-        queue.add(new Job(null, upgrade, Math.max(1, upgrade.frames())));
+        queue.add(new Job(null, upgrade, Math.max(1, upgrade.frames()), upgrade.cost()));
         return true;
     }
 

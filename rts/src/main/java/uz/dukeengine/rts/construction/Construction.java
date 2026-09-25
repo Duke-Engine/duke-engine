@@ -41,8 +41,8 @@ public final class Construction {
         if (fit != Placement.Fit.FITS) {
             return false;
         }
-        int cost = template instanceof Buildable buildable ? buildable.buildCost() : 0;
         var player = world.getRtsPlayer(order.playerIndex());
+        int cost = player == null ? 0 : player.priceOf(template);
         if (player == null || !player.withdraw(cost)) {
             return false;
         }

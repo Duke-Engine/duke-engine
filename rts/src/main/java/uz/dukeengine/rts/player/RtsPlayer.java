@@ -58,6 +58,61 @@ public final class RtsPlayer extends Player {
         return money;
     }
 
+    /** A change to what the side pays for things of a kind, and how many times it has been given. */
+    private record PriceChange(uz.dukeengine.core.thing.Kind kind, float percent, int count) {
+    }
+
+    /** What its prices are changed by, in the order given; read from any thread, changed on the simulation's. */
+    private final java.util.List<PriceChange> priceChanges = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * Change what the side pays for things of {@code kind} by {@code percent} — -0.1 is a tenth cheaper — the
+     * reference's CostModifierUpgrade (a captured oil refinery: vehicles 10% off). The same kind and percent given
+     * twice counts once, until it is taken away twice.
+     */
+    public void addPriceChange(uz.dukeengine.core.thing.Kind kind, float percent) {
+        for (int i = 0; i < priceChanges.size(); i++) {
+            var change = priceChanges.get(i);
+            if (change.kind().equals(kind) && change.percent() == percent) {
+                priceChanges.set(i, new PriceChange(kind, percent, change.count() + 1));
+                return;
+            }
+        }
+        priceChanges.add(new PriceChange(kind, percent, 1));
+    }
+
+    /** Take away a change {@link #addPriceChange} gave: it holds until taken away as many times as it was given. */
+    public void removePriceChange(uz.dukeengine.core.thing.Kind kind, float percent) {
+        for (int i = 0; i < priceChanges.size(); i++) {
+            var change = priceChanges.get(i);
+            if (change.kind().equals(kind) && change.percent() == percent) {
+                if (change.count() > 1) {
+                    priceChanges.set(i, new PriceChange(kind, percent, change.count() - 1));
+                } else {
+                    priceChanges.remove(i);
+                }
+                return;
+            }
+        }
+        java.util.logging.Logger.getLogger(RtsPlayer.class.getName()).warning(
+                "no price change of " + percent + " for " + kind + " to take away from " + getName());
+    }
+
+    /**
+     * What {@code template} costs this side: its price times one plus each change it is of the kind of, rounded
+     * down, as the reference's {@code calcCostToBuild} works it out — what a factory charges, a builder pays, a cancel
+     * gives back and a build menu shows.
+     */
+    public int priceOf(uz.dukeengine.core.thing.ThingTemplate template) {
+        float factor = 1f;
+        for (var change : priceChanges) {
+            if (uz.dukeengine.core.thing.Classified.of(template).contains(change.kind())) {
+                factor *= 1f + change.percent();
+            }
+        }
+        return (int) (uz.dukeengine.rts.Buildable.costOf(template) * factor);
+    }
+
     /** Money the side earned — a supply truck's load, a bounty, a hack: in the balance, and in what it earned. */
     public void deposit(int amount) {
         if (amount > 0) {

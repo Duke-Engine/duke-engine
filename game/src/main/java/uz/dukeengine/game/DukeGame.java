@@ -1264,9 +1264,10 @@ public final class DukeGame {
                 for (var name : data.builds()) {
                     var unit = logic.getThingFactory().findTemplate(name);
                     if (unit != null) {
+                        var local = logic.getRtsPlayer(getLocalPlayerIndex());
                         options.add(new BuildOption(name,
                                 Titled.of(unit),
-                                uz.dukeengine.rts.Buildable.costOf(unit)));
+                                local == null ? uz.dukeengine.rts.Buildable.costOf(unit) : local.priceOf(unit)));
                     }
                 }
                 return options;
