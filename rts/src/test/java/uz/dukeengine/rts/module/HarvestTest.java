@@ -572,4 +572,70 @@ class HarvestTest {
             assertEquals(stopped + 29, frame, "corner " + corner + ": paid its 30 frames after it first stopped");
         }
     }
+
+    // ---- needing a depot ----
+
+    /**
+     * A loaded harvester whose side has no depot, in a game that says it needs one: it banks nothing and waits by its
+     * command centre; a depot put down, it goes and delivers there — the reference's truck regrouping.
+     */
+    @Test
+    void aLoadedHarvesterWithNoDepotBanksNothingAndWaitsUntilOneIsPutDown() {
+        logic.setPathGrid(new PathGrid(60, 60));
+        var commandCentre = uz.dukeengine.core.thing.Kind.of("COMMANDCENTER");
+        var truck = spawnAt(kind("Truck", new ActiveBody.Data(100f), new MoveUpdate.Data(30f),
+                new HarvestUpdate.Data(100, 10, 0f, 0, 0, 0, true,
+                        java.util.List.of(commandCentre, uz.dukeengine.rts.thing.RtsKinds.STRUCTURE))), 280f, 100f);
+        spawnAt(kind("Warehouse", new SupplyModule.Data(1000)), 300f, 100f);
+        var barracks = RtsTemplate.named("Barracks").kindOf(uz.dukeengine.rts.thing.RtsKinds.STRUCTURE)
+                .geometry(new Geometry.Box(10f, 10f, 8f)).build();
+        var centre = RtsTemplate.named("CommandCentre").kindOf(commandCentre)
+                .kindOf(uz.dukeengine.rts.thing.RtsKinds.STRUCTURE).geometry(new Geometry.Box(15f, 15f, 10f)).build();
+        thingFactory.addTemplate(barracks);
+        thingFactory.addTemplate(centre);
+        spawnAt(barracks, 300f, 250f); // nearer, but not the kind it waits by first
+        var cc = spawnAt(centre, 100f, 400f);
+        var harvest = truck.findModule(HarvestUpdate.class);
+
+        for (int frame = 0; frame < 600; frame++) {
+            logic.update();
+        }
+        assertEquals(100, harvest.getCarrying(), "it keeps its load");
+        assertEquals(0, logic.getRtsPlayer(usa).getMoney(), "and banks nothing in 600 frames");
+        assertTrue(harvest.isWaiting());
+        assertTrue(logic.isBeside(truck, cc), "waiting by its command centre");
+
+        var depot = spawnAt(kind("Depot", new SupplyDepot.Data()), 450f, 450f);
+        boolean besideTheDepot = false;
+        for (int frame = 0; frame < 2000 && logic.getRtsPlayer(usa).getMoney() == 0; frame++) {
+            logic.update();
+            besideTheDepot = logic.isBeside(truck, depot);
+        }
+        assertEquals(100, logic.getRtsPlayer(usa).getMoney(), "a depot put down, it delivers there");
+        assertTrue(besideTheDepot, "beside it");
+        assertTrue(!harvest.isWaiting());
+    }
+
+    /** A depot still going up is none to deliver to: the reference's truck does not dock at a site. */
+    @Test
+    void aDepotStillGoingUpIsNoneToDeliverTo() {
+        logic.setPathGrid(new PathGrid(60, 60));
+        var truck = spawnAt(kind("Truck", new ActiveBody.Data(100f), new MoveUpdate.Data(30f),
+                new HarvestUpdate.Data(100, 10, 0f, 0, 0, 0, true, java.util.List.of())), 280f, 100f);
+        spawnAt(kind("Warehouse", new SupplyModule.Data(1000)), 300f, 100f);
+        var site = spawnAt(kind("Depot", new SupplyDepot.Data()), 100f, 100f);
+        site.setStatus(uz.dukeengine.core.thing.ObjectStatus.UNDER_CONSTRUCTION);
+
+        for (int frame = 0; frame < 600; frame++) {
+            logic.update();
+        }
+        assertEquals(0, logic.getRtsPlayer(usa).getMoney(), "nothing delivered to the site");
+        assertTrue(truck.findModule(HarvestUpdate.class).isWaiting());
+
+        site.clearStatus(uz.dukeengine.core.thing.ObjectStatus.UNDER_CONSTRUCTION);
+        for (int frame = 0; frame < 2000 && logic.getRtsPlayer(usa).getMoney() == 0; frame++) {
+            logic.update();
+        }
+        assertEquals(100, logic.getRtsPlayer(usa).getMoney(), "finished, it is delivered to");
+    }
 }

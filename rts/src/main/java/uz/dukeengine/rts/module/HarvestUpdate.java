@@ -1,11 +1,15 @@
 package uz.dukeengine.rts.module;
 
+import java.util.List;
 import uz.dukeengine.core.GameConstants;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleGroup;
 import uz.dukeengine.core.module.MoveUpdate;
 import uz.dukeengine.core.module.UpdateModule;
+import uz.dukeengine.core.thing.Classified;
 import uz.dukeengine.core.thing.GameObject;
+import uz.dukeengine.core.thing.Kind;
+import uz.dukeengine.core.thing.ObjectStatus;
 import uz.dukeengine.core.thing.World;
 import uz.dukeengine.rts.player.RtsPlayer;
 
@@ -18,7 +22,9 @@ import uz.dukeengine.rts.player.RtsPlayer;
  * carries. A harvester moves by whatever moves it — walking with a {@link MoveUpdate}, flying with a {@code
  * FlyUpdate}; one that cannot move does the same loop standing still, and a side with no depot at all banks where
  * it stands. Both of those are what the whole module used to do, so a game that had neither keeps working exactly
- * as it did.
+ * as it did. <b>Needing a depot</b> ({@code NeedsDepot}), it banks nothing while its side has none standing: it keeps
+ * its load and waits by a thing of its side — the nearest of the first of its {@code WaitBy} kinds that has one — and
+ * delivers once a depot stands, as the reference's supply truck regroups. A depot still going up is none to deliver to.
  *
  * <p><b>Told where to work</b> ({@link #workAt}) — the reference's preferred dock, a warehouse or a supply centre the
  * player clicked — it works there until told another place or it is gone, however far it is: one place, the last named.
@@ -54,6 +60,10 @@ import uz.dukeengine.rts.player.RtsPlayer;
  *                      what it has. {@code framesPerTrip} is then not read. 0 loads the whole trip at once
  * @param unitOfLoad    how much one of those acts hands over; 0 is one. A game whose piles hold money and
  *                      whose boxes are worth 75 of it says 75 here, and 300 as the load of four
+ * @param needsDepot    whether what it carries is banked only at a depot: with none of its side standing it
+ *                      keeps its load and waits
+ * @param waitBy        the kinds of thing of its side it waits by meanwhile, the first that has one — the
+ *                      reference's command centre, then any building; none waits where it stands
  */
 @ModuleGroup(RtsModuleGroups.ECONOMY)
 public final class HarvestUpdate extends UpdateModule implements OrderListener {
@@ -70,10 +80,19 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
 
     /**
      * {@code LoadPerTrip}, {@code FramesPerTrip}, {@code SearchRange}, {@code FramesAtDepot},
-     * {@code FramesPerUnit}, {@code UnitOfLoad}.
+     * {@code FramesPerUnit}, {@code UnitOfLoad}, {@code NeedsDepot}, {@code WaitBy = [COMMANDCENTER, STRUCTURE]}.
      */
     public record Data(int loadPerTrip, int framesPerTrip, float searchRange, int framesAtDepot, int framesPerUnit,
-            int unitOfLoad) implements ModuleData {
+            int unitOfLoad, boolean needsDepot, List<Kind> waitBy) implements ModuleData {
+        public Data {
+            waitBy = waitBy == null ? List.of() : List.copyOf(waitBy);
+        }
+
+        /** A harvester that banks where it stands where its side has no depot, as every one did before it could wait. */
+        public Data(int loadPerTrip, int framesPerTrip, float searchRange, int framesAtDepot, int framesPerUnit,
+                int unitOfLoad) {
+            this(loadPerTrip, framesPerTrip, searchRange, framesAtDepot, framesPerUnit, unitOfLoad, false, List.of());
+        }
 
         /** A harvester that loads a trip at once and banks the moment it arrives, as every one did before. */
         public Data(int loadPerTrip, int framesPerTrip, float searchRange) {
@@ -87,6 +106,8 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
     private final int framesAtDepot;
     private final int framesPerUnit;
     private final int unitOfLoad;
+    private final boolean needsDepot;
+    private final List<Kind> waitBy;
 
     /** The reference's retry after a trip that did not end beside its depot: a second, not every frame's search. */
     private static final int RETRY_FRAMES = GameConstants.LOGICFRAMES_PER_SECOND;
@@ -104,6 +125,9 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
     private boolean sent;
     /** What it has come as near to as it gets in this phase; it stays arrived there until the phase is over. */
     private GameObject reached;
+    /** Whether it is holding its load for want of a depot, and what it waits by meanwhile. */
+    private boolean waiting;
+    private GameObject waitingBy;
     private int elapsed;
     private int carrying;
 
@@ -115,6 +139,8 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
         this.framesAtDepot = Math.max(0, data.framesAtDepot());
         this.framesPerUnit = Math.max(0, data.framesPerUnit());
         this.unitOfLoad = data.unitOfLoad() <= 0 ? 1 : data.unitOfLoad();
+        this.needsDepot = data.needsDepot();
+        this.waitBy = data.waitBy();
     }
 
     @Override
@@ -183,10 +209,15 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
         return paused;
     }
 
-    /** At work on its loop, it is not asked to step aside, nor moved off the ground it loads on. */
+    /** At work on its loop, it is not asked to step aside, nor moved off the ground it loads on; waiting, it is. */
     @Override
     public boolean keepsBusy() {
-        return !paused;
+        return !paused && !waiting;
+    }
+
+    /** Whether it is holding its load for want of a depot of its side. */
+    public boolean isWaiting() {
+        return waiting;
     }
 
     /** The place it was told to work, while it stands; else null. */
@@ -212,13 +243,44 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
     /** The depot it delivers to: the one it was told, while it stands and is its side's; else the nearest. */
     private GameObject depotFor(GameObject owner, World world) {
         var told = toldPlace();
-        if (told != null && told.findModule(SupplyDepot.class) != null
-                && told.getPlayerIndex() == owner.getPlayerIndex()) {
+        if (told != null && isDepotOf(owner, told)) {
             return told;
         }
-        return world.findClosest(owner.getPosition(), Float.MAX_VALUE,
-                candidate -> candidate.findModule(SupplyDepot.class) != null
-                        && candidate.getPlayerIndex() == owner.getPlayerIndex());
+        return world.findClosest(owner.getPosition(), Float.MAX_VALUE, candidate -> isDepotOf(owner, candidate));
+    }
+
+    /** A depot of its side that stands: not one still going up, which the reference's truck does not dock at. */
+    private static boolean isDepotOf(GameObject owner, GameObject candidate) {
+        return candidate.findModule(SupplyDepot.class) != null && candidate.getPlayerIndex() == owner.getPlayerIndex()
+                && !candidate.hasStatus(ObjectStatus.UNDER_CONSTRUCTION);
+    }
+
+    /** What it waits by for want of a depot: the nearest thing of its side of the first of its kinds that has one. */
+    private GameObject waitByFor(GameObject owner, World world) {
+        for (var kind : waitBy) {
+            var by = world.findClosest(owner.getPosition(), Float.MAX_VALUE, candidate -> candidate != owner
+                    && candidate.getPlayerIndex() == owner.getPlayerIndex() && !candidate.isEffectivelyDead()
+                    && Classified.of(candidate.getTemplate()).contains(kind));
+            if (by != null) {
+                return by;
+            }
+        }
+        return null;
+    }
+
+    /** No depot of its side stands: it keeps its load, and stands by what it waits by, as near as it gets. */
+    private void waitForADepot(GameObject owner, World world) {
+        waiting = true;
+        elapsed = 0;
+        var by = waitByFor(owner, world);
+        if (by != waitingBy) {
+            waitingBy = by;
+            sent = false;
+            reached = null;
+        }
+        if (by != null) {
+            walkTo(owner, by);
+        }
     }
 
     private void fetch(GameObject owner, World world) {
@@ -288,6 +350,21 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
 
     private void carry(GameObject owner, World world) {
         var depot = depotFor(owner, world);
+        if (depot == null && needsDepot) {
+            waitForADepot(owner, world);
+            return;
+        }
+        if (waiting) {
+            // A depot stands again: off to it at once, not on to where it was going to wait.
+            waiting = false;
+            waitingBy = null;
+            sent = false;
+            reached = null;
+            var legs = owner.getLocomotor();
+            if (legs != null && legs.isMoving()) {
+                legs.stop();
+            }
+        }
         if (retryIn > 0) {
             retryIn--;
             return; // its last trip ended short: a second before it sets off again
