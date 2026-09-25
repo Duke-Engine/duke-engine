@@ -20,7 +20,30 @@ public record Weapon(String name, float damage, float attackRange, int reloadFra
         DamageType damageType, float splashRadius, boolean attackOnTheMove, List<String> targets, int clipSize,
         int clipReloadFrames, boolean autoReload, DeathType deathType, List<WeaponBonus> bonuses,
         List<Affects> affects, float secondaryDamage, float secondaryRadius, boolean shownWhenHidden,
-        float minTargetPitch, float maxTargetPitch, float minimumAttackRange) {
+        float minTargetPitch, float maxTargetPitch, float minimumAttackRange, int preAttackFrames,
+        PreAttack preAttackType, boolean leechRange) {
+
+    /** A weapon that fires the frame it may and keeps no reach, as every one did before one could wind up. */
+    public Weapon(String name, float damage, float attackRange, int reloadFrames, int reloadFramesMax,
+            DamageType damageType, float splashRadius, boolean attackOnTheMove, List<String> targets, int clipSize,
+            int clipReloadFrames, boolean autoReload, DeathType deathType, List<WeaponBonus> bonuses,
+            List<Affects> affects, float secondaryDamage, float secondaryRadius, boolean shownWhenHidden,
+            float minTargetPitch, float maxTargetPitch, float minimumAttackRange) {
+        this(name, damage, attackRange, reloadFrames, reloadFramesMax, damageType, splashRadius, attackOnTheMove,
+                targets, clipSize, clipReloadFrames, autoReload, deathType, bonuses, affects, secondaryDamage,
+                secondaryRadius, shownWhenHidden, minTargetPitch, maxTargetPitch, minimumAttackRange, 0,
+                PreAttack.PER_SHOT, false);
+    }
+
+    /** When a weapon's wind-up comes — the reference's {@code PreAttackType}. */
+    public enum PreAttack {
+        /** Before every shot: a SCUD launcher's 500 ms. */
+        PER_SHOT,
+        /** Before the first shot at a target other than the one it last fired at: a knife's 833 ms. */
+        PER_ATTACK,
+        /** Before the first shot of a full clip — every shot, with no clip: the Scud Storm's 3000 ms. */
+        PER_CLIP
+    }
 
     /** A weapon with no least range, as every one was before one could name it. */
     public Weapon(String name, float damage, float attackRange, int reloadFrames, int reloadFramesMax,
@@ -30,7 +53,7 @@ public record Weapon(String name, float damage, float attackRange, int reloadFra
             float minTargetPitch, float maxTargetPitch) {
         this(name, damage, attackRange, reloadFrames, reloadFramesMax, damageType, splashRadius, attackOnTheMove,
                 targets, clipSize, clipReloadFrames, autoReload, deathType, bonuses, affects, secondaryDamage,
-                secondaryRadius, shownWhenHidden, minTargetPitch, maxTargetPitch, 0f);
+                secondaryRadius, shownWhenHidden, minTargetPitch, maxTargetPitch, 0f, 0, PreAttack.PER_SHOT, false);
     }
 
     /** The least dz, up or down, at which a pitch range is weighed at all: the reference's {@code ACCCEPTABLE_DZ}. */
@@ -67,7 +90,7 @@ public record Weapon(String name, float damage, float attackRange, int reloadFra
 
     /** What a block leaves out: plain damage, no splash, a shot taken on the move, at anything, no clip. */
     static final Weapon DEFAULTS = new Weapon(null, 0f, 0f, 0, 0, DamageType.NORMAL, 0f, true, List.of(), 0, 0, true,
-            DeathType.NORMAL, List.of(), List.of(), 0f, 0f, false, -180f, 180f, 0f);
+            DeathType.NORMAL, List.of(), List.of(), 0f, 0f, false, -180f, 180f, 0f, 0, PreAttack.PER_SHOT, false);
 
     /**
      * How near it fires, as the reference measures it: its least range less a quarter of a cell, never below
@@ -142,9 +165,16 @@ public record Weapon(String name, float damage, float attackRange, int reloadFra
      *                        MinimumAttackRange}: a SCUD launcher's 200 of its 350. A unit that is nearer moves off
      *                        until it may fire; one that cannot move lets such a target go ({@link WeaponUpdate}).
      *                        0, the default, is none
+     * @param preAttackFrames  how long it winds up before a shot, in frames — the reference's {@code PreAttackDelay}:
+     *                        once it may fire, the shot comes that many frames later ({@link WeaponStatus#PRE_ATTACK}
+     *                        meanwhile). 0, the default, is none
+     * @param preAttackType    when it winds up ({@link PreAttack}); before every shot by default
+     * @param leechRange       whether it keeps its reach for the rest of an attack once it has wound up or fired — the
+     *                        reference's {@code LeechRangeWeapon}: a knife whose victim walks off is not missed
      */
     public Weapon {
         damageType = damageType == null ? DamageType.NORMAL : damageType;
+        preAttackType = preAttackType == null ? PreAttack.PER_SHOT : preAttackType;
         affects = affects == null ? List.of() : List.copyOf(affects);
         deathType = deathType == null ? DeathType.NORMAL : deathType;
         bonuses = bonuses == null ? List.of() : bonuses.stream()

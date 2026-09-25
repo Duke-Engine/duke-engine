@@ -14,13 +14,21 @@ import java.util.List;
  * @param betweenShots  for each slot, while it waits between shots
  * @param reloading     for each slot, while it refills its clip
  * @param turretTurning while its turret turns, as its game's {@code Turret} says: the frames its turn changed
+ * @param preAttack     for each slot, while it winds up to fire — the reference's PREATTACK_A, _B and _C
  */
 public record MomentWords(String moving, String attacking, List<String> firing, List<String> betweenShots,
-        List<String> reloading, String turretTurning) {
+        List<String> reloading, String turretTurning, List<String> preAttack) {
     public MomentWords {
         firing = firing == null ? List.of() : List.copyOf(firing);
         betweenShots = betweenShots == null ? List.of() : List.copyOf(betweenShots);
         reloading = reloading == null ? List.of() : List.copyOf(reloading);
+        preAttack = preAttack == null ? List.of() : List.copyOf(preAttack);
+    }
+
+    /** Words for no wind-up: every game's from before a weapon could wind up. */
+    public MomentWords(String moving, String attacking, List<String> firing, List<String> betweenShots,
+            List<String> reloading, String turretTurning) {
+        this(moving, attacking, firing, betweenShots, reloading, turretTurning, List.of());
     }
 
     /** The word of slot {@code slot} of {@code words}, or null for none. */

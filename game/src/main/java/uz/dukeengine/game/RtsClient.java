@@ -109,6 +109,8 @@ final class RtsClient extends GameClient {
                     addWord(all, uz.dukeengine.game.view.MomentWords.of(words.betweenShots(), slot.slot()));
                 } else if (slot.status() == uz.dukeengine.rts.module.WeaponStatus.RELOADING) {
                     addWord(all, uz.dukeengine.game.view.MomentWords.of(words.reloading(), slot.slot()));
+                } else if (slot.status() == uz.dukeengine.rts.module.WeaponStatus.PRE_ATTACK) {
+                    addWord(all, uz.dukeengine.game.view.MomentWords.of(words.preAttack(), slot.slot()));
                 }
             }
         }

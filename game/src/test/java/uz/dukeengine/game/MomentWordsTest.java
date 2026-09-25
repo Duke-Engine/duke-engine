@@ -115,4 +115,32 @@ class MomentWordsTest {
         assertTrue(sawBetween, "between its shots");
         assertTrue(sawReloading, "and refilling its clip");
     }
+
+    /** A slot winding up holds its wind-up word, the reference's PREATTACK_A, until its shot. */
+    @Test
+    void aSlotWindingUpHoldsItsWindUpWord() {
+        var words = new MomentWords(null, null, List.of(), List.of(), List.of(), null, List.of("PREATTACK_A"));
+        var knife = new uz.dukeengine.rts.module.Weapon("Knife", 1f, 40f, 30, 30,
+                uz.dukeengine.core.module.DamageType.NORMAL, 0f, true, List.of(), 0, 0, true,
+                uz.dukeengine.core.module.DeathType.NORMAL, List.of(), List.of(), 0f, 0f, false, -180f, 180f, 0f, 20,
+                uz.dukeengine.rts.module.Weapon.PreAttack.PER_SHOT, false);
+        var sets = List.of(new uz.dukeengine.rts.module.WeaponSet(List.of(),
+                List.of(new uz.dukeengine.rts.module.WeaponSlot("Knife"))));
+        var game = DukeGame.create("moments").loadUnits(DukeGame.STARTER_UNITS).momentWords(words).map(40, 40)
+                .addWeapons(List.of(knife))
+                .addUnits(List.of(uz.dukeengine.rts.RtsTemplate.named("Burton").visionRange(80f)
+                        .module(new uz.dukeengine.core.module.ActiveBody.Data(100f))
+                        .module(uz.dukeengine.rts.module.WeaponUpdate.Data.sets(sets)).build()));
+        var me = game.addPlayer("Me", Color.BLUE);
+        var them = game.addPlayer("Them", Color.RED);
+        game.enemies(me, them).localPlayer(me).spawn("Burton", me, 100f, 100f).spawn("Rifleman", them, 120f, 100f);
+        game.runHeadless(1);
+        int id = game.getLogic().getObjects().getFirst().getId().value();
+        int holding = 0;
+        for (int frame = 0; frame < 20; frame++) {
+            game.runHeadless(1);
+            holding += viewOf(game, id).conditions().contains("PREATTACK_A") ? 1 : 0;
+        }
+        assertTrue(holding >= 18, "winding up its 20 frames: " + holding);
+    }
 }

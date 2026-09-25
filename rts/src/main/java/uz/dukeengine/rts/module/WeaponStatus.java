@@ -1,9 +1,6 @@
 package uz.dukeengine.rts.module;
 
-/**
- * Where a weapon stands between one shot and the next — SAGE's {@code WeaponStatus}, without its pre-attack
- * wait, which nothing here has.
- */
+/** Where a weapon stands between one shot and the next — SAGE's {@code WeaponStatus}. */
 public enum WeaponStatus {
     /** It may fire now. */
     READY,
@@ -12,5 +9,7 @@ public enum WeaponStatus {
     /** It emptied its clip and is refilling it by itself. */
     RELOADING,
     /** It emptied its clip and does not refill it by itself: nothing until something refills it. */
-    OUT
+    OUT,
+    /** It is winding up to fire, and fires as that ends — see {@link Weapon#preAttackFrames}. */
+    PRE_ATTACK
 }

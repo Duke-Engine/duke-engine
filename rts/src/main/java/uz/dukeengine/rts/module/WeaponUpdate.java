@@ -206,6 +206,15 @@ public final class WeaponUpdate extends UpdateModule {
         PERMANENTLY
     }
 
+    /** The slot of the set in use winding up, or -1; the frame its shot comes; and at what. */
+    private int windingUp = -1;
+    private int windUpEnds;
+    private ObjectId windUpAt;
+    /** What it last fired at: a wind-up before the first shot at a target is not wound up at this one. */
+    private ObjectId lastFiredAt;
+    /** Whether its target is in range at any distance for the rest of this attack — see {@link Weapon#leechRange}. */
+    private boolean leeching;
+
     /** The slot of the set in use its weapon is locked to, or -1. */
     private int lockedSlot = -1;
     private Lock lock;
@@ -239,9 +248,14 @@ public final class WeaponUpdate extends UpdateModule {
     public List<SlotNow> slotsNow(int frame) {
         var slots = new ArrayList<SlotNow>();
         for (var one : armed()) {
-            slots.add(new SlotNow(one.index(), firedOn.getOrDefault(one.index(), -1) == frame, one.clip().status()));
+            slots.add(new SlotNow(one.index(), firedOn.getOrDefault(one.index(), -1) == frame, statusOf(one)));
         }
         return slots;
+    }
+
+    /** Where a slot stands: winding up, or as its clip has it. */
+    private WeaponStatus statusOf(Armed one) {
+        return one.index() == windingUp ? WeaponStatus.PRE_ATTACK : one.clip().status();
     }
 
     /** Whether its primary weapon may fire now, is waiting between shots, is refilling its clip, or is out. */
@@ -252,7 +266,7 @@ public final class WeaponUpdate extends UpdateModule {
     /** The same, of the weapon in {@code slot} of the set in use; READY for a slot it does not have. */
     public WeaponStatus getStatus(int slot) {
         var armed = armed();
-        return slot >= 0 && slot < armed.size() ? armed.get(slot).clip().status() : WeaponStatus.READY;
+        return slot >= 0 && slot < armed.size() ? statusOf(armed.get(slot)) : WeaponStatus.READY;
     }
 
     /** Rounds left in its primary weapon's clip; 0 for a weapon with no clip, which counts none. */
@@ -321,6 +335,9 @@ public final class WeaponUpdate extends UpdateModule {
         }
         if (victim != null && cannotBackAway(getOwner()) && tooNear(victim, by)) {
             return false; // it cannot move off to where it may fire
+        }
+        if (target == null || !target.equals(this.target)) {
+            leeching = false; // a new attack: a reach kept for the last is not kept for this one
         }
         this.target = target;
         this.source = by;
@@ -401,6 +418,8 @@ public final class WeaponUpdate extends UpdateModule {
     public void holdFire() {
         this.target = null;
         this.forced = false;
+        this.leeching = false;
+        this.windingUp = -1;
         unlock(Lock.TEMPORARILY);
     }
 
@@ -427,6 +446,9 @@ public final class WeaponUpdate extends UpdateModule {
         var chosen = choose(armed(), victim, source);
         if (chosen == null) {
             return false;
+        }
+        if (leeching && victim.getId().equals(target)) {
+            return true; // its reach kept for the rest of the attack
         }
         float gap = rangeTo(getOwner(), victim);
         return gap <= range(getOwner(), chosen.weapon()) && gap >= least(getOwner(), chosen.weapon());
@@ -530,6 +552,8 @@ public final class WeaponUpdate extends UpdateModule {
 
     @Override
     public void update() {
+        int wasWindingUp = windingUp;
+        windingUp = -1; // a frame that does not go on winding it up drops it, as the reference's attack state does
         noticeTheSetInUse();
         if (getOwner().isEffectivelyDead()
                 || getOwner().isContained() && !ContainModule.firesFromInside(getOwner())
@@ -590,10 +614,10 @@ public final class WeaponUpdate extends UpdateModule {
             return;
         }
         float gap = rangeTo(owner, victim);
-        if (gap > range(owner, chosen.weapon())) {
+        if (!leeching && gap > range(owner, chosen.weapon())) {
             return; // out of range — wait for movement to close in
         }
-        if (gap < least(owner, chosen.weapon())) {
+        if (!leeching && gap < least(owner, chosen.weapon())) {
             if (cannotBackAway(owner)) {
                 holdFire(); // too near, and nowhere it can go to fire from
             }
@@ -605,10 +629,41 @@ public final class WeaponUpdate extends UpdateModule {
         if (chosen.clip().status() != WeaponStatus.READY) {
             return; // between shots, or refilling its clip
         }
-        if (!aimed(owner, chosen, victim)) {
+        boolean windsOn = wasWindingUp == chosen.index() && victim.getId().equals(windUpAt);
+        if (!windsOn && !aimed(owner, chosen, victim)) {
             return; // a turret, or the thing, still turning to it — see WeaponAim
         }
+        if (windsOn ? world.getFrame() < windUpEnds : windUp(world, chosen, victim)) {
+            windingUp = chosen.index();
+            return; // winding up; the shot comes as it ends
+        }
         fire(world, owner, victim, chosen);
+    }
+
+    /**
+     * Start {@code chosen}'s wind-up at {@code victim}, if it winds up before this shot — the reference's {@code
+     * Weapon::preFireWeapon} and {@code getPreAttackDelay}: before every shot, before the first at a target it did not
+     * last fire at, or before the first of a full clip.
+     *
+     * @return whether it started one
+     */
+    private boolean windUp(uz.dukeengine.core.thing.World world, Armed chosen, GameObject victim) {
+        var weapon = chosen.weapon();
+        if (weapon.preAttackFrames() <= 0) {
+            return false;
+        }
+        boolean winds = switch (weapon.preAttackType()) {
+            case PER_SHOT -> true;
+            case PER_ATTACK -> !victim.getId().equals(lastFiredAt);
+            case PER_CLIP -> weapon.clipSize() <= 0 || chosen.clip().rounds() >= weapon.clipSize();
+        };
+        if (!winds) {
+            return false;
+        }
+        windUpAt = victim.getId();
+        windUpEnds = world.getFrame() + weapon.preAttackFrames();
+        leeching |= weapon.leechRange();
+        return true;
     }
 
     /** Whether every {@link WeaponAim} on the thing says {@code chosen} is aimed at {@code victim}, in module order. */
@@ -624,6 +679,8 @@ public final class WeaponUpdate extends UpdateModule {
     private void fire(uz.dukeengine.core.thing.World world, GameObject owner, GameObject victim, Armed chosen) {
         firedOn.put(chosen.index(), world.getFrame());
         var weapon = chosen.weapon();
+        lastFiredAt = victim.getId();
+        leeching |= weapon.leechRange();
         float wider = bonus(owner, weapon, WeaponBonus.Kind.RADIUS);
         var shot = new Shot(owner.getId(), owner.getPlayerIndex(), weapon, chosen.index(),
                 dealt(owner, weapon, weapon.damage()), weapon.splashRadius() * wider,
