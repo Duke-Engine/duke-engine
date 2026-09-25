@@ -477,6 +477,9 @@ public final class GameObject {
     }
 
     public void setPosition(Coord3D position) {
+        if (!mobile && !contained && world != null && !position.equals(this.position)) {
+            world.stillThingMoved(); // where it stands in the way moved with it
+        }
         this.position = position;
     }
 
@@ -485,6 +488,9 @@ public final class GameObject {
     }
 
     public void setOrientation(float orientation) {
+        if (!mobile && !contained && world != null && orientation != this.orientation) {
+            world.stillThingMoved(); // its footprint turned with it
+        }
         this.orientation = orientation;
     }
 

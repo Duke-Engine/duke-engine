@@ -79,6 +79,10 @@ public interface World {
         return Footprint.of(a).separation(Footprint.of(b));
     }
 
+    /** A still thing turned or moved: its footprint is laid on the ground again before the next route. */
+    default void stillThingMoved() {
+    }
+
     /** How wide a cell of the world's ground is: the width of the band "beside" a thing is measured in. */
     default float cellSize() {
         return uz.dukeengine.core.pathfind.PathGrid.DEFAULT_CELL_SIZE;

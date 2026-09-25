@@ -14,6 +14,7 @@ import uz.dukeengine.core.module.Death;
 import uz.dukeengine.core.module.DieModule;
 import uz.dukeengine.core.module.ModuleFactory;
 import uz.dukeengine.core.partition.PartitionManager;
+import uz.dukeengine.core.pathfind.ObstacleRules;
 import uz.dukeengine.core.pathfind.Path;
 import uz.dukeengine.core.pathfind.PathGrid;
 import uz.dukeengine.core.pathfind.Pathfinder;
@@ -629,6 +630,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      * cell of the cell's centre. Erring toward under-blocking is deliberate: a
      * cell wrongly left open is caught by {@code MoveUpdate}'s per-step collision
      * check, whereas a cell wrongly closed can seal a building's own doorway.
+     *
+     * <p>Only what the game's {@link ObstacleRules} put in the way is laid, and a fence along its line alone; a still
+     * thing turned or moved has its footprint laid again ({@link #stillThingMoved}).
      */
     private void refreshStaticObstacles() {
         if (!staticObstaclesDirty || pathGrid == null) {
@@ -640,8 +644,14 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         float halfCell = cellSize * 0.5f;
         for (var object : objects) {
             var shape = Solid.of(object.getTemplate());
-            if (object.isMobile() || shape.isPoint() || object.isEffectivelyDead()) {
+            if (object.isMobile() || shape.isPoint() || object.isEffectivelyDead() || object.isContained()
+                    || !inTheWay(object)) {
                 continue; // a building lying dead while its death plays out is in nobody's way
+            }
+            float fence = object.getTemplate() instanceof Solid solid ? solid.fenceWidth() : 0f;
+            if (fence > 0f) {
+                layFence(object, fence, ((Solid) object.getTemplate()).fenceOffset());
+                continue;
             }
             var footprint = Footprint.of(object);
             var position = object.getPosition();
@@ -659,6 +669,63 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             }
         }
         pathGrid.commitObstacles();
+    }
+
+    /** What of the still things is in the way of a route — see {@link ObstacleRules}. */
+    private ObstacleRules obstacleRules = ObstacleRules.EVERYTHING;
+
+    /** The game's answer to what is in the way on the ground; null for every still thing with a shape, as before. */
+    public final void setObstacleRules(ObstacleRules rules) {
+        this.obstacleRules = rules == null ? ObstacleRules.EVERYTHING : rules;
+        this.staticObstaclesDirty = true;
+    }
+
+    public final ObstacleRules getObstacleRules() {
+        return obstacleRules;
+    }
+
+    private boolean inTheWay(GameObject object) {
+        var rules = obstacleRules;
+        for (var kind : rules.outOfTheWay()) {
+            if (object.isKindOf(kind)) {
+                return false;
+            }
+        }
+        if (!rules.inTheWay().isEmpty() && rules.inTheWay().stream().noneMatch(object::isKindOf)) {
+            return false;
+        }
+        return rules.aboveGround() <= 0f
+                || object.getPosition().z() - groundHeight(object.getPosition()) <= rules.aboveGround();
+    }
+
+    /**
+     * A fence in the way along its line alone — the reference's {@code Pathfinder::classifyFence}: points half a cell
+     * apart along its facing, from its offset behind its position for its width, each closing the cell it falls in.
+     */
+    private void layFence(GameObject object, float width, float offset) {
+        float cell = pathGrid.getCellSize();
+        float step = cell * 0.5f;
+        float halfThick = cell / 10f;
+        double angle = object.getOrientation();
+        float c = (float) StrictMath.cos(angle);
+        float s = (float) StrictMath.sin(angle);
+        int along = (int) Math.ceil(width / step);
+        int across = (int) Math.ceil(2f * halfThick / step);
+        var at = object.getPosition();
+        float rowX = at.x() - offset * c - halfThick * s;
+        float rowY = at.y() + halfThick * c - offset * s;
+        for (int row = 0; row < across; row++, rowX += s * step, rowY -= c * step) {
+            float x = rowX;
+            float y = rowY;
+            for (int point = 0; point < along; point++, x += c * step, y += s * step) {
+                pathGrid.setObstacle(pathGrid.toCellX(new Coord3D(x, y, 0f)), pathGrid.toCellY(new Coord3D(x, y, 0f)));
+            }
+        }
+    }
+
+    @Override
+    public final void stillThingMoved() {
+        staticObstaclesDirty = true;
     }
 
     @Override

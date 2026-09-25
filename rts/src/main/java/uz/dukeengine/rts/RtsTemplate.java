@@ -26,7 +26,8 @@ import uz.dukeengine.core.thing.Titled;
  * in an RTS may come out of a factory, so the library gives the {@code Object} block
  * itself the two fields — {@code BuildCost} and {@code BuildTime} — see {@link #register}.
  * {@code FogRange}, how far it clears the fog, is its {@code VisionRange} where it writes none; {@code
- * SeenByAllWithin}, within how far every player sees round it once finished.
+ * SeenByAllWithin}, within how far every player sees round it once finished. {@code FenceWidth} and {@code
+ * FenceOffset} make it a fence, in a route's way along its line alone.
  */
 public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, float visionRange, Geometry geometry,
         List<ModuleData> modules, int buildCost, float buildTime,
@@ -36,13 +37,14 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
         @Link(Effect.class) String effect,
         Map<String, String> models, Map<String, Float> whenHurt,
         List<String> prerequisites, List<String> requiredWords, Buildability buildability, int maxSimultaneous,
-        String maxSimultaneousLinkKey, int refundValue, float fogRange, float seenByAllWithin)
+        String maxSimultaneousLinkKey, int refundValue, float fogRange, float seenByAllWithin, float fenceWidth,
+        float fenceOffset)
         implements Solid, Sighted, Classified, Titled, Buildable, Drawn, Prerequisites {
 
     /** What an {@code Object} block leaves out: nothing, and a fog range of its sight. */
     static final RtsTemplate DEFAULTS = new RtsTemplate(null, "", Set.of(), 0f, Geometry.POINT, List.of(), 0, 0f,
             null, 0f, 0, 0f, null, null, null, null, null, null, Map.of(), Map.of(), List.of(), List.of(),
-            Buildability.YES, 0, null, 0, -1f, 0f);
+            Buildability.YES, 0, null, 0, -1f, 0f, 0f, 0f);
 
     public RtsTemplate {
         displayName = displayName == null ? "" : displayName;
@@ -58,7 +60,7 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
         refundValue = Math.max(0, refundValue);
     }
 
-    /** A template that clears the fog by its sight and is seen by all nowhere — what one was before those. */
+    /** A template clearing the fog by its sight, seen by all nowhere and no fence: what one was before those. */
     public RtsTemplate(String name, String displayName, Set<Kind> kindOf, float visionRange, Geometry geometry,
             List<ModuleData> modules, int buildCost, float buildTime, String model, float modelScale, int tint,
             float facing, String animations, String idle, String walk, String attack, String death, String effect,
@@ -67,7 +69,7 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
             int refundValue) {
         this(name, displayName, kindOf, visionRange, geometry, modules, buildCost, buildTime, model, modelScale, tint,
                 facing, animations, idle, walk, attack, death, effect, models, whenHurt, prerequisites, requiredWords,
-                buildability, maxSimultaneous, maxSimultaneousLinkKey, refundValue, -1f, 0f);
+                buildability, maxSimultaneous, maxSimultaneousLinkKey, refundValue, -1f, 0f, 0f, 0f);
     }
 
     /** A template that needs nothing, has no cap and no refund of its own — what one was before those. */
@@ -108,6 +110,8 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
         private String model;
         private float fogRange = -1f;
         private float seenByAllWithin;
+        private float fenceWidth;
+        private float fenceOffset;
 
         private Builder(String name) {
             this.name = name;
@@ -137,6 +141,13 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
 
         public Builder seenByAllWithin(float range) {
             this.seenByAllWithin = range;
+            return this;
+        }
+
+        /** A fence {@code width} long along its facing, starting {@code offset} behind its position. */
+        public Builder fence(float width, float offset) {
+            this.fenceWidth = width;
+            this.fenceOffset = offset;
             return this;
         }
 
@@ -206,7 +217,7 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
             return new RtsTemplate(name, displayName, kinds, visionRange, geometry, modules, buildCost, buildTime,
                     model, 1f, 0xFFFFFF, 0f, null, null, null, null, null, null, Map.of(), Map.of(),
                     prerequisites, requiredWords, buildability, maxSimultaneous, linkKey, refundValue, fogRange,
-                    seenByAllWithin);
+                    seenByAllWithin, fenceWidth, fenceOffset);
         }
     }
 }
