@@ -31,9 +31,12 @@ import uz.dukeengine.core.thing.ObjectId;
  * — an Overlord's gattling cannon.
  *
  * <p><b>Out of a building</b>, a passenger stands on the nearest clear ground outside its footprint, or at the exit bone
- * the holder names ({@code ExitBone}), not inside it. <b>A shared hold's building sold or removed</b> leaves the network
- * that frame; its passengers come out only where it was the last. <b>A holder that loses its passengers</b> in its death
- * may take them out of the world quietly ({@code PassengersVanish}): no death, no death effect, no kill for anyone.
+ * the holder names ({@code ExitBone}), not inside it; or, where the holder names an exit path ({@code ExitStart} and
+ * {@code ExitEnd}), it is put at the start and walks to free ground of its own nearest the end, then on to the
+ * holder's rally point where it has one — the reference's {@code OpenContain::exitObjectViaDoor}. <b>A shared hold's
+ * building sold or removed</b> leaves the network that frame; its passengers come out only where it was the last.
+ * <b>A holder that loses its passengers</b> in its death may take them out of the world quietly ({@code
+ * PassengersVanish}): no death, no death effect, no kill for anyone.
  */
 @ModuleGroup(ModuleGroups.MOVEMENT)
 public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
@@ -44,10 +47,17 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
      * every one of the side's things naming it shares — {@code null} for a hold of its own; {@code PassengersFire}:
      * whether they fire from inside; {@code RiderBone}: the bone of its model they ride on top at, or null; {@code
      * PassengersVanish}: whether passengers it loses in its death leave the world quietly rather than dying; {@code
-     * ExitBone}: the bone of its model its passengers come out at, or null for the nearest clear ground outside it.
+     * ExitBone}: the bone of its model its passengers come out at, or null for the nearest clear ground outside it;
+     * {@code ExitStart} and {@code ExitEnd}: the bones of its exit path, which they walk out along instead.
      */
     public record Data(int slots, String sharedBy, boolean passengersFire, String riderBone, boolean passengersVanish,
-            String exitBone) implements ModuleData {
+            String exitBone, String exitStart, String exitEnd) implements ModuleData {
+
+        /** Passengers that come out at one bone, or beside it, as they did before a hold could name a path. */
+        public Data(int slots, String sharedBy, boolean passengersFire, String riderBone, boolean passengersVanish,
+                String exitBone) {
+            this(slots, sharedBy, passengersFire, riderBone, passengersVanish, exitBone, null, null);
+        }
 
         /** Passengers that die with it, and come out beside it. */
         public Data(int slots, String sharedBy, boolean passengersFire, String riderBone) {
@@ -76,6 +86,8 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     private final String riderBone;
     private final boolean passengersVanish;
     private final String exitBone;
+    private final String exitStart;
+    private final String exitEnd;
     private boolean passengersFire;
     private final List<ObjectId> passengers = new ArrayList<>();
 
@@ -87,6 +99,8 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         this.passengersFire = data.passengersFire();
         this.passengersVanish = data.passengersVanish();
         this.exitBone = data.exitBone();
+        this.exitStart = data.exitStart();
+        this.exitEnd = data.exitEnd();
     }
 
     /** Let its passengers fire from inside, or hold them idle — the reference's PassengersFireUpgrade. */
@@ -249,13 +263,45 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         }
     }
 
-    /** One passenger out, beside it — see {@link #exitFor}. */
+    /** One passenger out, beside it — see {@link #exitFor} — or along its exit path. */
     public void unload(GameObject passenger) {
         if (!hold().remove(passenger.getId())) {
             return;
         }
+        letOut(passenger);
+    }
+
+    private void letOut(GameObject passenger) {
+        if (outAlongThePath(passenger)) {
+            return;
+        }
         passenger.setPosition(exitFor(passenger));
         passenger.setContained(false);
+    }
+
+    /**
+     * Out along its exit path, where it names one and its model has both bones: put on the ground at the start, walking
+     * straight to the end — through its own walls, which no route leads out of — then to free ground of its own nearest
+     * the end, or on to its rally point where it has one. Whether it went so.
+     */
+    private boolean outAlongThePath(GameObject passenger) {
+        var owner = getOwner();
+        var world = owner.getWorld();
+        var start = exitStart == null || world == null ? null
+                : uz.dukeengine.core.thing.Bones.inWorld(owner, exitStart);
+        var end = exitEnd == null || start == null ? null : uz.dukeengine.core.thing.Bones.inWorld(owner, exitEnd);
+        if (end == null) {
+            return false;
+        }
+        passenger.setPosition(new Coord3D(start.x(), start.y(), world.groundHeight(start)));
+        passenger.setContained(false);
+        var legs = passenger.getLocomotor();
+        if (legs != null) {
+            var production = owner.findModule(ProductionUpdate.class);
+            var rally = production == null ? null : production.getRallyPoint();
+            legs.leave(end, rally != null ? rally : end);
+        }
+        return true;
     }
 
     /** Every passenger back into the world beside it, each on ground the one before left clear. */
@@ -268,8 +314,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         for (var id : List.copyOf(hold)) {
             var passenger = world.findObject(id);
             if (passenger != null) {
-                passenger.setPosition(exitFor(passenger));
-                passenger.setContained(false);
+                letOut(passenger);
             }
         }
         hold.clear();

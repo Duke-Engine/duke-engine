@@ -1,0 +1,10 @@
+{
+  "asset": {"version": "2.0"},
+  "scene": 0,
+  "scenes": [{"nodes": [0]}],
+  "nodes": [
+    {"name": "Root", "children": [1, 2]},
+    {"name": "EXITSTART", "translation": [10, 0, 0]},
+    {"name": "EXITEND", "translation": [34.5, 0, 0]}
+  ]
+}
