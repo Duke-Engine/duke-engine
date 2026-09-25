@@ -110,7 +110,17 @@ final class RtsClient extends GameClient {
             }
         }
         var units = new ArrayList<UnitView>();
-        for (var object : everything ? logic.getObjects() : logic.getVisibleObjects(viewerPlayer)) {
+        var shown = new ArrayList<>(everything ? logic.getObjects() : logic.getVisibleObjects(viewerPlayer));
+        if (!everything) {
+            // A thing drawn along a line lies where the ground under it is, and is fogged as the ground is: shown.
+            var seen = new java.util.HashSet<>(shown);
+            for (var object : logic.getObjects()) {
+                if (object.getSpan() != null && !seen.contains(object)) {
+                    shown.add(object);
+                }
+            }
+        }
+        for (var object : shown) {
             var carrier = object.isContained() ? uz.dukeengine.rts.module.ContainModule.holdOf(object) : null;
             boolean rider = carrier != null && carrier.riderBone() != null;
             if (object.isContained() && !rider || object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)) {
@@ -150,7 +160,8 @@ final class RtsClient extends GameClient {
                     built(object),
                     rider ? carrier.getOwner().getId().value() : -1,
                     everything || object.getPlayerIndex() == viewerPlayer || logic.getRelationship(viewerPlayer,
-                            object.getPlayerIndex()) == uz.dukeengine.core.player.Relationship.ALLIES));
+                            object.getPlayerIndex()) == uz.dukeengine.core.player.Relationship.ALLIES,
+                    object.getSpan()));
         }
         var beams = new ArrayList<uz.dukeengine.game.view.BeamView>();
         for (var beam : logic.getBeams()) {

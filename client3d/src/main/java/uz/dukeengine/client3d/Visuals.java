@@ -336,6 +336,31 @@ public final class Visuals {
             return uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
         }
 
+        /**
+         * How it is drawn along a line — see {@link #alongALine}.
+         *
+         * @param across its scale across the line
+         * @param up     its scale up from it
+         */
+        record LineLook(String first, String middle, String last, float across, float up) {
+        }
+
+        /** Drawn along its line rather than at its place, or null — see {@link #alongALine}. */
+        LineLook line;
+
+        /**
+         * Drawn along its line ({@code UnitView.span}) rather than at its place — the reference's bridges: its model's
+         * pieces {@code first}, {@code middle} repeated as often as fits best and {@code last}, end to end along the
+         * model's x from one end of the line to the other, stretched along it to end exactly at the far end, rising with
+         * it, and scaled {@code across} and {@code up} — the reference's 0.67 to 2. A model whose pieces are not there, or
+         * do not meet within 5% of its length, is drawn once, stretched. Its model is chosen by its words as any is — a
+         * bridge's damaged and ruined ones — its texture, named, is every piece's, and it is fogged as the ground is.
+         */
+        public UnitVisual alongALine(String first, String middle, String last, float across, float up) {
+            this.line = new LineLook(first, middle, last, across, up);
+            return this;
+        }
+
         /** How seen it is at its faintest, drawn see-through to its own side — see {@link #seeThrough(float)}. */
         float seeThroughFaintest = 0.5f;
         /** Whether it may be drawn as a glow — see {@link #neverGlows()}. */

@@ -406,6 +406,8 @@ final class DukeRtsApp extends SimpleApplication {
     private static final class UnitNode {
         Node root;
         Geometry ring;
+        /** The line its body was laid along, for a thing drawn along one; null for the rest. */
+        uz.dukeengine.core.thing.Span laidSpan;
         /**
          * How high its bar floats, measured off the body once.
          *
@@ -5383,6 +5385,9 @@ final class DukeRtsApp extends SimpleApplication {
                 ? visual.modelFor(visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()))
                 : visual.modelFor(view.healthFraction(), visuals.getWorldConditions());
         Spatial body = buildBody(visual, java.util.List.of(), node.modelPath);
+        if (body != null && visual.line != null && view.span() != null) {
+            body = layAlong(body, view, visual, node);
+        }
         if (body != null) {
             paintHouseColour(body, view);
             takeUpBody(node, body, visual);
@@ -5504,6 +5509,9 @@ final class DukeRtsApp extends SimpleApplication {
     private void swapBody(UnitNode node, UnitView view, Visuals.UnitVisual visual, String wanted) {
         stealthLook.forget(view.id()); // what it laid over the old body goes with it
         var body = buildBody(visual, java.util.List.of(), wanted);
+        if (body != null && visual.line != null && view.span() != null) {
+            body = layAlong(body, view, visual, node);
+        }
         if (body == null) {
             node.modelPath = wanted; // it will not load; do not try again every frame
             return;
@@ -5525,6 +5533,24 @@ final class DukeRtsApp extends SimpleApplication {
                 && node.composer.getAnimClip(playing) != null) {
             play(node, view.templateName(), playing, true);
         }
+    }
+
+    /**
+     * A model laid along its thing's line as its look says ({@link LinePieces}), in place of the model at its place,
+     * and fogged as the ground under it is, since it lies where the ground does.
+     */
+    private Spatial layAlong(Spatial model, UnitView view, Visuals.UnitVisual visual, UnitNode node) {
+        var laid = LinePieces.lay(model, visual.line, view.span().from(), view.span().to());
+        if (fogMap != null) {
+            laid.depthFirstTraversal(spatial -> {
+                if (spatial instanceof Geometry geometry) {
+                    geometry.setMaterial(fogged(visual.tint == null ? ColorRGBA.White : toColor(visual.tint),
+                            ambientColour.mult(PLAIN_AMBIENT), skinOf(geometry.getMaterial())));
+                }
+            });
+        }
+        node.laidSpan = view.span();
+        return laid;
     }
 
     /**
@@ -6029,12 +6055,22 @@ final class DukeRtsApp extends SimpleApplication {
                 : visual.modelFor(view.healthFraction(), visuals.getWorldConditions());
         if (node.body != null && wanted != null && !wanted.equals(node.modelPath)) {
             swapBody(node, view, visual, wanted);
+        } else if (visual.line != null && view.span() != null && !view.span().equals(node.laidSpan)) {
+            swapBody(node, view, visual, node.modelPath); // its line moved: laid again along the new one
         }
         if (holding != null) {
             wearTheWords(node, visual, holding);
         }
         node.root.setLocalTranslation(UnitPlacement.where(view, this::floorHeightAt));
         node.root.setLocalRotation(UnitPlacement.turn(view));
+        if (node.laidSpan != null && node.body != null) {
+            // The line is the world's: where it starts and which way it runs, taken into the thing's own frame.
+            var start = new Vector3f(node.laidSpan.from().x(), node.laidSpan.from().z(), node.laidSpan.from().y());
+            var end = new Vector3f(node.laidSpan.to().x(), node.laidSpan.to().z(), node.laidSpan.to().y());
+            var back = node.root.getLocalRotation().inverse();
+            node.body.setLocalTranslation(back.mult(start.subtract(node.root.getLocalTranslation())));
+            node.body.setLocalRotation(back.mult(LinePieces.along(end.subtract(start))));
+        }
         if (!visual.groundPictures.isEmpty()) {
             groundPictures.see(view.id(), visual,
                     visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()),

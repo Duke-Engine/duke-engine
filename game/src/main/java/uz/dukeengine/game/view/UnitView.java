@@ -18,6 +18,7 @@ package uz.dukeengine.game.view;
  * @param ridesOn    the id of what it rides on top of — drawn where it stands, clicked as that — or -1
  * @param allied     whether it is the viewer's own or an ally's — everything, for a machine watching — for a look that
  *                   shows its own side what it shows no one else
+ * @param span       the line it is drawn along — a bridge's two ends — or null for a thing drawn at its place
  */
 public record UnitView(
         int id,
@@ -42,10 +43,22 @@ public record UnitView(
         java.util.List<String> conditions,
         float built,
         int ridesOn,
-        boolean allied) {
+        boolean allied,
+        uz.dukeengine.core.thing.Span span) {
     public UnitView {
         passengers = passengers == null ? java.util.List.of() : java.util.List.copyOf(passengers);
         conditions = conditions == null ? java.util.List.of() : java.util.List.copyOf(conditions);
+    }
+
+    /** A view of a thing drawn at its place: every view from before one could be drawn along a line. */
+    public UnitView(int id, String templateName, int playerIndex, float x, float y, float orientation, float health,
+            float maxHealth, boolean structure, boolean selectable, boolean moving, boolean attacking,
+            int productionQueue, float z, float pitch, float roll, boolean ownHeight, int statuses,
+            java.util.List<Integer> passengers, java.util.List<String> conditions, float built, int ridesOn,
+            boolean allied) {
+        this(id, templateName, playerIndex, x, y, orientation, health, maxHealth, structure, selectable, moving,
+                attacking, productionQueue, z, pitch, roll, ownHeight, statuses, passengers, conditions, built, ridesOn,
+                allied, null);
     }
 
     /** A view that says nothing of whose side it is on: every view from before a look could ask. */

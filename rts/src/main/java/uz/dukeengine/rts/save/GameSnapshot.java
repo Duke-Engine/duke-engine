@@ -88,7 +88,8 @@ public final class GameSnapshot {
                     .append(most).append('|')
                     .append(o.getOwnVisionRange()).append('|')
                     .append(o.getTargetableFrom()).append('|')
-                    .append(o.getFloor()).append('\n');
+                    .append(o.getFloor()).append('|')
+                    .append(spanOf(o.getSpan())).append('\n');
         }
         return sb.toString();
     }
@@ -118,6 +119,22 @@ public final class GameSnapshot {
                 default -> throw new IllegalArgumentException("unknown snapshot line: " + key);
             }
         }
+    }
+
+    /** A thing's line as its two ends, six numbers; nothing for none. */
+    private static String spanOf(uz.dukeengine.core.thing.Span span) {
+        if (span == null) {
+            return "";
+        }
+        return java.util.stream.Stream.of(span.from().x(), span.from().y(), span.from().z(), span.to().x(),
+                span.to().y(), span.to().z()).map(value -> Float.toString(value)).collect(Collectors.joining(","));
+    }
+
+    private static uz.dukeengine.core.thing.Span spanFrom(String text) {
+        var at = text.split(",");
+        return new uz.dukeengine.core.thing.Span(
+                new Coord3D(Float.parseFloat(at[0]), Float.parseFloat(at[1]), Float.parseFloat(at[2])),
+                new Coord3D(Float.parseFloat(at[3]), Float.parseFloat(at[4]), Float.parseFloat(at[5])));
     }
 
     /** A deck the map or the game laid before the load is only opened or closed; one laid at run time is laid again. */
@@ -187,6 +204,7 @@ public final class GameSnapshot {
         float sight = parts.length > 11 && !parts[11].isEmpty() ? Float.parseFloat(parts[11]) : -1f;
         int targetableFrom = parts.length > 12 && !parts[12].isEmpty() ? Integer.parseInt(parts[12]) : 0;
         int floor = parts.length > 13 && !parts[13].isEmpty() ? Integer.parseInt(parts[13]) : 0;
+        var span = parts.length > 14 && !parts[14].isEmpty() ? spanFrom(parts[14]) : null;
 
         var template = logic.getThingFactory().findTemplate(templateName);
         if (template == null) {
@@ -199,6 +217,7 @@ public final class GameSnapshot {
         object.setVisionRange(sight);
         object.setTargetableFrom(targetableFrom);
         object.setFloor(floor);
+        object.setSpan(span);
         // The most first: health is held to it, and an upgraded Crusader's 680 would be cut to its template's 480.
         if (!most.isEmpty() && object.getBody() != null
                 && Float.parseFloat(most) != object.getBody().getMaxHealth()) {

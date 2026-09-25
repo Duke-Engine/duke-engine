@@ -166,6 +166,22 @@ class GameSnapshotTest {
         assertEquals(orig.checksum(), restored.checksum());
     }
 
+    /** The line a thing is drawn along comes back with it, and weighs nothing in the sums. */
+    @Test
+    void theLineAThingIsDrawnAlongIsSavedWithIt() {
+        var orig = newLogic();
+        var tank = orig.createObject(orig.getThingFactory().findTemplate("Tank"));
+        long before = orig.checksum();
+        var line = new uz.dukeengine.core.thing.Span(new Coord3D(1f, 2f, 3f), new Coord3D(301f, 2f, 23f));
+        tank.setSpan(line);
+        assertEquals(before, orig.checksum(), "drawing only");
+
+        var restored = newLogic();
+        GameSnapshot.load(GameSnapshot.save(orig), restored);
+
+        assertEquals(line, restored.findObject(tank.getId()).getSpan());
+    }
+
     @Test
     void savedTextIsStableForSameState() {
         var logic = newLogic();

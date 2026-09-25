@@ -56,6 +56,8 @@ public final class GameObject {
     private int targetableFrom;
     /** The floor it is on: 0 the ground, n the n-th deck laid over it — see {@link #getFloor}. */
     private int floor;
+    /** The line it is drawn along, or null — see {@link #setSpan}. */
+    private Span span;
     private boolean contained;
     private World world;
     private final EnumSet<ObjectStatus> statuses = EnumSet.noneOf(ObjectStatus.class);
@@ -260,6 +262,19 @@ public final class GameObject {
 
     public void setFloor(int floor) {
         this.floor = floor;
+    }
+
+    /**
+     * The line it is drawn along, from one end to the other, heights and all — a bridge laid bank to bank as its
+     * look's pieces, first, middle repeated and last, stretched to fit. Drawing only: out of the checksum; saved, and
+     * shown wherever the ground under it is, fogged as the ground is. Null for a thing drawn at its place.
+     */
+    public Span getSpan() {
+        return span;
+    }
+
+    public void setSpan(Span span) {
+        this.span = span;
     }
 
     /**
