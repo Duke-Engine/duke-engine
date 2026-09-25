@@ -18,7 +18,7 @@ public final class AttackMoveOrder extends UpdateModule implements Errand {
     private final Coord3D destination;
     private ObjectId target;
     private Coord3D tookItOnAt;
-    private Coord3D chasedTo;
+    private Engaging.Chase chased;
     private int engagedAt;
     private int nextLook;
     private boolean over;
@@ -68,9 +68,9 @@ public final class AttackMoveOrder extends UpdateModule implements Errand {
                     || world.getFrame() - engagedAt > rules.chaseFrames()) {
                 weapon.holdFire(); // dealt with, or got away: on to the point
                 target = null;
-                chasedTo = null;
+                chased = null;
             } else {
-                chasedTo = Engaging.close(unit, legs, weapon, victim, chasedTo);
+                chased = Engaging.close(unit, legs, weapon, victim, chased);
                 return;
             }
         }

@@ -47,6 +47,8 @@ public final class PursueUpdate extends UpdateModule {
     private Coord3D tookItFrom;
     /** Where the target stood when the route to it was planned, or null for no route to it yet. */
     private Coord3D plannedFor;
+    /** Whether it was sent to a place it fires from, which it goes on to though it may fire on the way. */
+    private boolean goingThere;
     /** How many routes it has planned, for a test to count. */
     private int plans;
 
@@ -84,6 +86,9 @@ public final class PursueUpdate extends UpdateModule {
             tookItFrom = owner.getPosition();
         }
         if (weapon.isInRange(victim)) {
+            if (goingThere && plannedFor != null && legs.isMoving()) {
+                return; // on its way to where it fires from, as the reference's attack path goes on there
+            }
             // Close enough: stand and shoot. A unit that kept walking would drift past what it is firing at,
             // and one that may not fire on the move (see WeaponUpdate) would never fire at all.
             if (legs.isMoving()) {
@@ -104,7 +109,7 @@ public final class PursueUpdate extends UpdateModule {
         }
         plannedFor = victim.getPosition();
         plans++;
-        Engaging.approach(owner, legs, weapon, victim);
+        goingThere = Engaging.approach(owner, legs, weapon, victim);
     }
 
     /**

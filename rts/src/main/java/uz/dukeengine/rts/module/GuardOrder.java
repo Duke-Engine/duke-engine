@@ -24,7 +24,7 @@ public final class GuardOrder extends UpdateModule implements Errand {
     private final GameMessage.Guard.Mode mode;
     private Coord3D lastPlace;
     private ObjectId target;
-    private Coord3D chasedTo;
+    private Engaging.Chase chased;
     private int engagedAt;
     private int nextLook;
     private boolean returning;
@@ -88,11 +88,11 @@ public final class GuardOrder extends UpdateModule implements Errand {
                     || !pursues && !weapon.isInRange(victim)) {
                 weapon.holdFire();
                 target = null;
-                chasedTo = null;
+                chased = null;
                 nextLook = world.getFrame() + rules.lookWhileReturning();
             } else {
                 if (pursues) {
-                    chasedTo = Engaging.close(unit, legs, weapon, victim, chasedTo);
+                    chased = Engaging.close(unit, legs, weapon, victim, chased);
                 }
                 return;
             }

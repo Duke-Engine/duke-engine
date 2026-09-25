@@ -40,16 +40,26 @@ final class Engaging {
     }
 
     /**
-     * Close on {@code victim} until the weapon reaches it, and stand there — left to {@link PursueUpdate} where the
+     * Where a unit closing on its victim was sent: where the victim stood when it was, and whether to a place it fires
+     * from, which it goes on to though it may fire on the way.
+     */
+    record Chase(Coord3D at, boolean goingThere) {
+    }
+
+    /**
+     * Close on {@code victim} until the weapon may fire at it, and stand there — left to {@link PursueUpdate} where the
      * unit has one. Planned again only when the victim has moved more than a cell from where it was planned to.
      *
      * @return where it is now closing to, for the next frame's comparison
      */
-    static Coord3D close(GameObject unit, Locomotor legs, WeaponUpdate weapon, GameObject victim, Coord3D chasedTo) {
+    static Chase close(GameObject unit, Locomotor legs, WeaponUpdate weapon, GameObject victim, Chase chased) {
         if (unit.findModule(PursueUpdate.class) != null) {
-            return chasedTo;
+            return chased;
         }
         if (weapon.isInRange(victim)) {
+            if (chased != null && chased.goingThere() && legs.isMoving()) {
+                return chased; // on its way to where it fires from: it goes on there
+            }
             if (legs.isMoving()) {
                 legs.stop();
             }
@@ -57,26 +67,37 @@ final class Engaging {
         }
         var at = victim.getPosition();
         float cell = unit.getWorld().cellSize();
-        if (chasedTo == null || at.distance(chasedTo) > cell || !legs.isMoving()) {
-            approach(unit, legs, weapon, victim);
-            return at;
+        if (chased == null || at.distance(chased.at()) > cell || !legs.isMoving()) {
+            return new Chase(at, approach(unit, legs, weapon, victim));
         }
-        return chasedTo;
+        return chased;
     }
 
     /**
-     * Send {@code unit} where its weapon fires at {@code victim} from: something in the air, and a weapon that must
-     * touch, straight at it; on the ground, by a route that ends at the nearest cell its weapon reaches from, a quarter
-     * cell inside its reach so the goal is not teetering on the edge of it — the reference's attack path ({@code
-     * Pathfinder::findAttackPath}, {@code Weapon::isGoalPosWithinAttackRange}).
+     * Send {@code unit} where its weapon fires at {@code victim} from: a weapon that must touch, straight at it;
+     * something in the air, straight at it, or, too near it, to the point it fires from beyond ({@link
+     * WeaponUpdate#awayInTheAir}); on the ground, by a route that ends at the nearest cell its weapon fires from —
+     * at least its whole least range off, and a quarter cell inside its reach so the goal is not teetering on the edge
+     * of it: the reference's attack path ({@code Pathfinder::findAttackPath}, {@code
+     * Weapon::isGoalPosWithinAttackRange}).
+     *
+     * @return whether it was sent to a place it fires from, which it goes on to rather than stopping the moment it
+     *     may fire — the reference's attack path ({@code m_stopIfInRange = !isAttackPath()}); straight at the
+     *     victim, it stops once it may
      */
-    static void approach(GameObject unit, Locomotor legs, WeaponUpdate weapon, GameObject victim) {
-        if (legs.flies() || weapon.closesToTouch(victim)) {
+    static boolean approach(GameObject unit, Locomotor legs, WeaponUpdate weapon, GameObject victim) {
+        if (weapon.closesToTouch(victim)) {
             legs.moveExactlyTo(victim.getPosition());
-            return;
+            return false;
+        }
+        if (legs.flies()) {
+            var away = weapon.awayInTheAir(victim);
+            legs.moveExactlyTo(away == null ? victim.getPosition() : away);
+            return away != null;
         }
         float cell = unit.getWorld().cellSize();
-        legs.moveWithin(victim, 0f, Math.max(0f, weapon.reachFor(victim) - cell / 4f));
+        legs.moveWithin(victim, weapon.leastFor(victim), Math.max(0f, weapon.reachFor(victim) - cell / 4f));
+        return true;
     }
 
     /** The game's guard numbers, or the reference's. */

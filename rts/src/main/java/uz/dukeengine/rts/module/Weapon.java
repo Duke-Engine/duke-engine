@@ -20,7 +20,18 @@ public record Weapon(String name, float damage, float attackRange, int reloadFra
         DamageType damageType, float splashRadius, boolean attackOnTheMove, List<String> targets, int clipSize,
         int clipReloadFrames, boolean autoReload, DeathType deathType, List<WeaponBonus> bonuses,
         List<Affects> affects, float secondaryDamage, float secondaryRadius, boolean shownWhenHidden,
-        float minTargetPitch, float maxTargetPitch) {
+        float minTargetPitch, float maxTargetPitch, float minimumAttackRange) {
+
+    /** A weapon with no least range, as every one was before one could name it. */
+    public Weapon(String name, float damage, float attackRange, int reloadFrames, int reloadFramesMax,
+            DamageType damageType, float splashRadius, boolean attackOnTheMove, List<String> targets, int clipSize,
+            int clipReloadFrames, boolean autoReload, DeathType deathType, List<WeaponBonus> bonuses,
+            List<Affects> affects, float secondaryDamage, float secondaryRadius, boolean shownWhenHidden,
+            float minTargetPitch, float maxTargetPitch) {
+        this(name, damage, attackRange, reloadFrames, reloadFramesMax, damageType, splashRadius, attackOnTheMove,
+                targets, clipSize, clipReloadFrames, autoReload, deathType, bonuses, affects, secondaryDamage,
+                secondaryRadius, shownWhenHidden, minTargetPitch, maxTargetPitch, 0f);
+    }
 
     /** The least dz, up or down, at which a pitch range is weighed at all: the reference's {@code ACCCEPTABLE_DZ}. */
     private static final float ACCEPTABLE_DZ = 10f;
@@ -32,7 +43,7 @@ public record Weapon(String name, float damage, float attackRange, int reloadFra
             List<Affects> affects, float secondaryDamage, float secondaryRadius, boolean shownWhenHidden) {
         this(name, damage, attackRange, reloadFrames, reloadFramesMax, damageType, splashRadius, attackOnTheMove,
                 targets, clipSize, clipReloadFrames, autoReload, deathType, bonuses, affects, secondaryDamage,
-                secondaryRadius, shownWhenHidden, -180f, 180f);
+                secondaryRadius, shownWhenHidden, -180f, 180f, 0f);
     }
 
     /** A weapon whose shots a hidden shooter keeps from those it is hidden from, as every one did before. */
@@ -56,7 +67,16 @@ public record Weapon(String name, float damage, float attackRange, int reloadFra
 
     /** What a block leaves out: plain damage, no splash, a shot taken on the move, at anything, no clip. */
     static final Weapon DEFAULTS = new Weapon(null, 0f, 0f, 0, 0, DamageType.NORMAL, 0f, true, List.of(), 0, 0, true,
-            DeathType.NORMAL, List.of(), List.of(), 0f, 0f, false, -180f, 180f);
+            DeathType.NORMAL, List.of(), List.of(), 0f, 0f, false, -180f, 180f, 0f);
+
+    /**
+     * How near it fires, as the reference measures it: its least range less a quarter of a cell, never below
+     * nothing ({@code WeaponTemplate::getMinimumAttackRange}, which undersizes it so a shooter is not teetering on the
+     * edge of it). 0 for a weapon with none.
+     */
+    public float leastRange(float cell) {
+        return minimumAttackRange <= 0f ? 0f : Math.max(0f, minimumAttackRange - cell / 4f);
+    }
 
     /**
      * Whether {@code victim} lies within the pitch it fires within, seen from {@code shooter}'s middle — the
@@ -118,6 +138,10 @@ public record Weapon(String name, float damage, float attackRange, int reloadFra
      *                        maxTargetPitch}, seen from the shooter's middle, is none of its targets ({@link
      *                        #withinPitch}). -180, the default, is no least
      * @param maxTargetPitch  the most, in degrees: a tank's gun 15, a thrown bottle 57. 180, the default, is no most
+     * @param minimumAttackRange how near, measured as its reach is, it may not fire — the reference's {@code
+     *                        MinimumAttackRange}: a SCUD launcher's 200 of its 350. A unit that is nearer moves off
+     *                        until it may fire; one that cannot move lets such a target go ({@link WeaponUpdate}).
+     *                        0, the default, is none
      */
     public Weapon {
         damageType = damageType == null ? DamageType.NORMAL : damageType;

@@ -319,6 +319,9 @@ public final class WeaponUpdate extends UpdateModule {
         if (victim != null && !canFireAt(victim, forced, by)) {
             return false;
         }
+        if (victim != null && cannotBackAway(getOwner()) && tooNear(victim, by)) {
+            return false; // it cannot move off to where it may fire
+        }
         this.target = target;
         this.source = by;
         this.forced = forced;
@@ -422,7 +425,74 @@ public final class WeaponUpdate extends UpdateModule {
             return false;
         }
         var chosen = choose(armed(), victim, source);
-        return chosen != null && rangeTo(getOwner(), victim) <= range(getOwner(), chosen.weapon());
+        if (chosen == null) {
+            return false;
+        }
+        float gap = rangeTo(getOwner(), victim);
+        return gap <= range(getOwner(), chosen.weapon()) && gap >= least(getOwner(), chosen.weapon());
+    }
+
+    /**
+     * Whether {@code victim} is nearer than the weapon it would fire at it may fire — within its least range
+     * ({@link Weapon#minimumAttackRange}), measured as its reach is.
+     */
+    public boolean isTooNear(GameObject victim) {
+        return victim != null && tooNear(victim, source);
+    }
+
+    private boolean tooNear(GameObject victim, OrderSource by) {
+        var chosen = choose(armed(), victim, by);
+        return chosen != null && rangeTo(getOwner(), victim) < least(getOwner(), chosen.weapon());
+    }
+
+    /**
+     * The least range of the weapon it would fire at {@code victim}, whole — where a route to fight from nearer ends
+     * ({@code Weapon::isGoalPosWithinAttackRange}, which adds back the quarter cell the range is undersized by); 0 for
+     * none.
+     */
+    public float leastFor(GameObject victim) {
+        var chosen = victim == null ? null : choose(armed(), victim, source);
+        return chosen == null ? 0f : Math.max(0f, chosen.weapon().minimumAttackRange());
+    }
+
+    /**
+     * Where something in the air too near {@code victim} for the weapon it would fire goes to fire — the reference's
+     * {@code Weapon::computeApproachTarget}: on the line from the victim through it, halfway between the weapon's
+     * least range and its reach and the two outlines' radii beyond; past the victim instead, where it is heading
+     * toward it, so it does not turn round. Null where it is not too near.
+     */
+    public Coord3D awayInTheAir(GameObject victim) {
+        var owner = getOwner();
+        var world = owner.getWorld();
+        var chosen = victim == null || world == null ? null : choose(armed(), victim, source);
+        if (chosen == null) {
+            return null;
+        }
+        float least = least(owner, chosen.weapon());
+        if (least <= world.cellSize() || rangeTo(owner, victim) >= least) {
+            return null;
+        }
+        var at = owner.getPosition();
+        var there = victim.getPosition();
+        float dx = at.x() - there.x();
+        float dy = at.y() - there.y();
+        float span = (float) Math.sqrt(dx * dx + dy * dy);
+        if (span < 1e-3f) {
+            dx = (float) StrictMath.cos(owner.getOrientation());
+            dy = (float) StrictMath.sin(owner.getOrientation());
+            span = 1f;
+        }
+        dx /= span;
+        dy /= span;
+        double heading = owner.getOrientation() - StrictMath.atan2(-dy, -dx);
+        heading = StrictMath.IEEEremainder(heading, 2 * Math.PI);
+        if (Math.abs(heading) < Math.PI / 2) {
+            dx = -dx; // heading toward it: on past it rather than back
+            dy = -dy;
+        }
+        float away = (range(owner, chosen.weapon()) + least) / 2f
+                + victim.getGeometry().footprintRadius() + owner.getGeometry().footprintRadius();
+        return new Coord3D(there.x() + dx * away, there.y() + dy * away, at.z());
     }
 
     /** How far the weapon it would fire at {@code victim} reaches in this unit's hands; 0 where none may fire at it. */
@@ -519,8 +589,15 @@ public final class WeaponUpdate extends UpdateModule {
             holdFire(); // it took off, or was never something this could hit
             return;
         }
-        if (rangeTo(owner, victim) > range(owner, chosen.weapon())) {
+        float gap = rangeTo(owner, victim);
+        if (gap > range(owner, chosen.weapon())) {
             return; // out of range — wait for movement to close in
+        }
+        if (gap < least(owner, chosen.weapon())) {
+            if (cannotBackAway(owner)) {
+                holdFire(); // too near, and nowhere it can go to fire from
+            }
+            return; // too near — wait for movement to back off
         }
         if (walking && !chosen.weapon().attackOnTheMove()) {
             return; // this one is stood still for
@@ -1076,8 +1153,9 @@ public final class WeaponUpdate extends UpdateModule {
     }
 
     /**
-     * Pick the nearest living enemy that one of the weapons it may pick by itself can reach and may be fired
-     * at, as the new target, if any.
+     * Pick the nearest living enemy that one of the weapons it may pick by itself may be fired at from where it
+     * stands — within its reach and not within its least range — as the new target, if any: the reference's
+     * {@code getNextMoodTarget} for a person's unit ({@code WITHIN_ATTACK_RANGE}, {@code Weapon::isWithinAttackRange}).
      */
     private void acquireTarget(uz.dukeengine.core.thing.World world, GameObject owner, List<Armed> armed) {
         float reach = 0f;
@@ -1104,13 +1182,27 @@ public final class WeaponUpdate extends UpdateModule {
         if (candidate.isDisguisedFrom(getOwner().getPlayerIndex())) {
             return false; // passed off to its side as none of its targets
         }
+        float gap = rangeTo(getOwner(), candidate);
         for (var one : armed) {
             if (mayLookWith(armed, one) && one.clip().status() != WeaponStatus.OUT
+                    && gap <= range(getOwner(), one.weapon()) && gap >= least(getOwner(), one.weapon())
                     && mayHit(one.weapon(), candidate)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** Whether it cannot move off from a target too near: nothing to move it, or held where it stands. */
+    private static boolean cannotBackAway(GameObject owner) {
+        return owner.getLocomotor() == null || owner.hasStatus(ObjectStatus.HELD);
+    }
+
+    /** How near a weapon fires in this unit's world: see {@link Weapon#leastRange}. */
+    private static float least(GameObject owner, Weapon weapon) {
+        var world = owner.getWorld();
+        return weapon.leastRange(world == null ? uz.dukeengine.core.pathfind.PathGrid.DEFAULT_CELL_SIZE
+                : world.cellSize());
     }
 
     /** Whether its own look may pick {@code one}: the locked slot alone while a lock holds. */
