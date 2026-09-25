@@ -14,7 +14,9 @@ import uz.dukeengine.core.thing.ObjectStatus;
  *
  * <p>Measured in the RTS this was taken from: 124 aircraft on 65 air locomotors — hovering ones, which may stop in
  * the air, turn where they are and settle 25 to 100 above the ground, and winged ones, which cannot stop: a least
- * speed, and with nothing to do they circle, as tight as their speed and turning allow ({@link Kind}).
+ * speed, and with nothing to do they circle, as tight as their speed and turning allow ({@link Kind}). A winged one
+ * sent to a place flies over it, as the reference's jets do — an attack run passes over its target — going wide
+ * first where the place lies inside the circle it would turn on, and circles it from there.
  *
  * <p>It keeps its thing {@link ObjectStatus#AIRBORNE}, so nothing on the ground is blocked by it, placed around
  * it, or runs it over, and a weapon that cannot hit the air leaves it be. It sets the thing's height, and its
@@ -29,7 +31,7 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
     public enum Kind {
         /** It may stop in the air, and turn where it hangs. */
         HOVERING,
-        /** Never slower than its least speed; with nothing to do, it circles its last goal. */
+        /** Never slower than its least speed; with nothing to do, it circles its last goal, or where it first had none. */
         WINGED
     }
 
@@ -60,6 +62,13 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
     private static final float MOST_BANK = 0.5f;
     /** What share of the way from its old pitch and roll to the new it goes each frame, so neither snaps. */
     private static final float EASE = 0.2f;
+    /**
+     * How far past its turning circle a place inside it must lie, in turning radii, before a winged thing going wide
+     * turns back onto it. At the circle's edge the turn itself is the whole way, and a frame's error leaves the place
+     * inside again — it circled round it for good; from half a radius out, the turn ends pointing at it and the last
+     * stretch is straight.
+     */
+    private static final float WIDE = 1.5f;
 
     private static final float DT = GameConstants.SECONDS_PER_LOGICFRAME;
     private static final float PI = (float) Math.PI;
@@ -71,6 +80,8 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
     private ObjectId following;
     private Coord3D circling;
     private boolean arrived = true;
+    /** A winged thing flying straight on, out wide of a place inside its turning circle, to come back over it. */
+    private boolean goingWide;
 
     public FlyUpdate(GameObject owner, Data data) {
         super(owner);
@@ -85,6 +96,7 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
         this.goal = destination;
         this.following = null;
         this.arrived = false;
+        this.goingWide = false;
     }
 
     /** Follow {@code target} wherever it goes, until told otherwise or it is gone. */
@@ -147,6 +159,13 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
             float distance = (float) Math.sqrt(dx * dx + dy * dy);
             wantedHeading = distance > 0f ? (float) StrictMath.atan2(dy, dx) : heading;
             wantedSpeed = data.speed();
+            if (data.kind() == Kind.WINGED && following == null) {
+                // Inside the circle it would turn on, no turn brings it over the place: out wide, then back over it.
+                goingWide = insideTurn(here, heading, wantedHeading, target, goingWide ? WIDE : 1f);
+                if (goingWide) {
+                    wantedHeading = heading;
+                }
+            }
             if (data.kind() == Kind.HOVERING) {
                 // Shed speed so as to stop on the goal: v^2 = 2 b d. And turn where it hangs before setting off
                 // somewhere behind it.
@@ -158,14 +177,18 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
                 }
             }
         } else if (data.kind() == Kind.WINGED) {
-            var centre = circling == null ? here : circling;
-            float dx = centre.x() - here.x();
-            float dy = centre.y() - here.y();
-            float distance = (float) Math.sqrt(dx * dx + dy * dy);
+            if (circling == null) {
+                circling = here; // never sent anywhere: it circles where it first had nothing to do
+            }
+            // The reference's maintainCurrentPositionWings: aim for the spot on the circle round the centre a little
+            // short of the side opposite, at its least speed; on the centre itself, as though it lay ahead.
+            float dx = circling.x() - here.x();
+            float dy = circling.y() - here.y();
+            float toward = Math.abs(dx) < 1e-3f && Math.abs(dy) < 1e-3f ? heading : (float) StrictMath.atan2(dy, dx);
+            float aim = toward + (PI - PI / 8f);
             float radius = circleRadius();
-            // Straight in from afar, along the circle at its radius, straight out from too near.
-            float toward = distance > 0f ? (float) StrictMath.atan2(dy, dx) : heading;
-            wantedHeading = toward + PI / 2f * Math.min(2f, radius / Math.max(distance, 1e-3f));
+            wantedHeading = (float) StrictMath.atan2(circling.y() + (float) StrictMath.sin(aim) * radius - here.y(),
+                    circling.x() + (float) StrictMath.cos(aim) * radius - here.x());
             wantedSpeed = data.minSpeed();
         }
         if (data.kind() == Kind.WINGED) {
@@ -196,7 +219,7 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
                 y = target.y();
                 velocity = 0f;
                 arrive(target);
-            } else if (data.kind() == Kind.WINGED && following == null && distance <= Math.max(step, circleRadius())) {
+            } else if (data.kind() == Kind.WINGED && following == null && distance <= step) {
                 arrive(target); // over it: from here it circles it
             }
         }
@@ -215,6 +238,18 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
         owner.setPosition(new Coord3D(x, y, here.z() + climb));
         owner.setOrientation(heading);
         look(owner, change, mostGain, mostLoss, turn);
+    }
+
+    /**
+     * Whether {@code target} lies within {@code radii} turning radii of the middle of the circle it would turn on to
+     * face it, turning its hardest toward {@code wanted} at the speed it goes.
+     */
+    private boolean insideTurn(Coord3D here, float heading, float wanted, Coord3D target, float radii) {
+        float radius = circleRadius();
+        float side = angleBetween(heading, wanted) >= 0f ? PI / 2f : -PI / 2f;
+        float dx = target.x() - (here.x() + (float) StrictMath.cos(heading + side) * radius);
+        float dy = target.y() - (here.y() + (float) StrictMath.sin(heading + side) * radius);
+        return dx * dx + dy * dy < radii * radii * radius * radius;
     }
 
     /** Where it is going this frame: its goal, the thing it follows, or nothing. */

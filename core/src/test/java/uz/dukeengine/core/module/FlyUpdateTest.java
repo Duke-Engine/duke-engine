@@ -137,6 +137,101 @@ class FlyUpdateTest {
         assertTrue(Math.abs(jet.getRoll()) > 0.05f, "banked, as it is always turning");
     }
 
+    /**
+     * A bomber over open sky and no map edge: 90 a second at 18 degrees a second, a turning circle of 286 — the
+     * reference's B-52 falls that far short of its goal when "arrived" is "inside the circle".
+     */
+    private static GameObject bomber(Sky[] sky) {
+        var factory = new ThingFactory(ModuleFactory.withDefaults());
+        factory.addTemplate(ObjectTemplate.named("Bomber").geometry(new Geometry.Cylinder(4f, 3f))
+                .module(new ActiveBody.Data(100f))
+                .module(new FlyUpdate.Data(FlyUpdate.Kind.WINGED, 90f, 90f, 0f, 0f, 18f, 120f, 60f)).build());
+        sky[0] = new Sky(factory);
+        sky[0].init();
+        return sky[0].spawn(factory.findTemplate("Bomber"), new Coord3D(1000f, 1000f, 0f), 1);
+    }
+
+    /** Flies the bomber to {@code goal}: how near it came, and on which frames it said it had arrived. */
+    private static float[] flyTo(Sky sky, GameObject bomber, Coord3D goal) {
+        var legs = bomber.getLocomotor();
+        legs.moveTo(goal);
+        float nearest = Float.MAX_VALUE;
+        float nearestWhenArrived = Float.NaN;
+        int arrivals = 0;
+        boolean moving = legs.isMoving();
+        for (int frame = 0; frame < 3000; frame++) {
+            var before = bomber.getPosition();
+            sky.update();
+            var after = bomber.getPosition();
+            nearest = Math.min(nearest, distanceToSegment(goal, before, after));
+            if (moving && !legs.isMoving()) {
+                arrivals++;
+                nearestWhenArrived = distanceToSegment(goal, before, after);
+            }
+            moving = legs.isMoving();
+        }
+        return new float[] {nearest, arrivals, nearestWhenArrived};
+    }
+
+    /** How near the path from {@code a} to {@code b} passes {@code p}, on the ground. */
+    private static float distanceToSegment(Coord3D p, Coord3D a, Coord3D b) {
+        float abx = b.x() - a.x();
+        float aby = b.y() - a.y();
+        float length = abx * abx + aby * aby;
+        float t = length == 0f ? 0f : Math.clamp(((p.x() - a.x()) * abx + (p.y() - a.y()) * aby) / length, 0f, 1f);
+        return (float) Math.hypot(p.x() - (a.x() + abx * t), p.y() - (a.y() + aby * t));
+    }
+
+    @Test
+    void aBomberSentToAPointAheadInsideItsTurningCircleFliesOverIt() {
+        var sky = new Sky[1];
+        var bomber = bomber(sky);
+        var flown = flyTo(sky[0], bomber, new Coord3D(1200f, 1000f, 0f));
+
+        assertTrue(flown[0] <= 1f, "it passes over the point, not a turning circle short of it: " + flown[0]);
+        assertEquals(1f, flown[1], "arrival is said once");
+        assertTrue(flown[2] <= 90f * GameConstants.SECONDS_PER_LOGICFRAME, "on the frame it passes: " + flown[2]);
+    }
+
+    @Test
+    void aBomberSentToAPointBesideItLoopsAndComesBackOverIt() {
+        var sky = new Sky[1];
+        var bomber = bomber(sky);
+        var flown = flyTo(sky[0], bomber, new Coord3D(1000f, 1150f, 0f));
+
+        assertTrue(flown[0] <= 90f * GameConstants.SECONDS_PER_LOGICFRAME, "it went wide and came back over it: "
+                + flown[0]);
+        assertEquals(1f, flown[1], "arrival is said once");
+    }
+
+    /**
+     * Its turning circle is the circle it keeps, so from the middle it cannot join it without swinging out once — as
+     * far as two radii, half a turn on — before it settles round it; it used to fly straight on to the map's edge.
+     */
+    @Test
+    void aWingedThingGivenNothingCirclesWhereItWasMade() {
+        var sky = new Sky[1];
+        var bomber = bomber(sky);
+        float radius = ((FlyUpdate) bomber.getLocomotor()).circleRadius();
+        float furthest = 0f;
+        float nearestLate = Float.MAX_VALUE;
+        float furthestLate = 0f;
+        for (int frame = 0; frame < 30 * GameConstants.LOGICFRAMES_PER_SECOND; frame++) {
+            sky[0].update();
+            var at = bomber.getPosition();
+            float away = (float) Math.hypot(at.x() - 1000f, at.y() - 1000f);
+            furthest = Math.max(furthest, away);
+            if (frame >= 20 * GameConstants.LOGICFRAMES_PER_SECOND) {
+                nearestLate = Math.min(nearestLate, away);
+                furthestLate = Math.max(furthestLate, away);
+            }
+        }
+
+        assertTrue(furthest <= 2.01f * radius, "never beyond its one swing out: " + furthest + " of " + radius);
+        assertTrue(nearestLate >= 0.8f * radius && furthestLate <= 1.2f * radius,
+                "then round where it was made, a turning radius out: " + nearestLate + ".." + furthestLate);
+    }
+
     @Test
     void aThingInTheAirIsInNoGroundUnitsWay() {
         var helicopter = spawn("Helicopter", 100f, 180f);
