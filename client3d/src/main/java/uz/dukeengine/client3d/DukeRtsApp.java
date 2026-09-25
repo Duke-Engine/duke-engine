@@ -721,7 +721,8 @@ final class DukeRtsApp extends SimpleApplication {
                     backdropEar == null ? percent -> { } : backdropEar);
         }
         if (canvasInput != null) {
-            inputManager.addRawInputListener(new CanvasInputs(canvasInput, () -> cam.getHeight()));
+            canvasInputs = new CanvasInputs(canvasInput, () -> cam.getHeight());
+            inputManager.addRawInputListener(canvasInputs);
         }
     }
 
@@ -737,6 +738,8 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** Which button selects and which commands — see {@link Duke3D#mouse}. */
     private Mouse mouse = Mouse.RIGHT_COMMANDS;
+    /** The game's first look at the input, where it asked for one — see {@link CanvasInputs}. */
+    private CanvasInputs canvasInputs;
 
     void mouse(Mouse chosen) {
         this.mouse = chosen == null ? Mouse.RIGHT_COMMANDS : chosen;
@@ -4660,8 +4663,8 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var over = whatThePointerIsOver();
-        if (aiming.isArmed() && aiming.pointer() != null && over.scrolling() == null) {
-            cursors.show(aiming.pointer()); // the pointer the game named for this aim
+        if (aiming.isArmed() && aiming.pointer() != null && over.scrolling() == null && !over.overPanel()) {
+            cursors.show(aiming.pointer()); // the pointer the game named for this aim, over the world
             return;
         }
         cursors.showFirst(Cursors.situationsFor(over));
@@ -4691,8 +4694,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var over = aiming ? null : pickUnit();
         var shove = edgeShove(1f);
-        return new Cursors.Over(true, armed, canReach,
-                heroPanel.contains(at.x, at.y) || overTheMinimap(at),
+        // Over a window of the game's own canvas, or off the world's part of the window, is over the panel: the
+        // arrow, as the reference shows it over any window of its interface.
+        boolean overPanel = heroPanel.contains(at.x, at.y) || overTheMinimap(at)
+                || canvasInputs != null && canvasInputs.pointerTaken() || !pointerOnTheWorld();
+        return new Cursors.Over(true, armed, canReach, overPanel,
                 over != null, over != null && over.view.playerIndex() == game.getLocalPlayerIndex(),
                 snapshot.attackable(), !selectedIds().isEmpty(), snapshot.contextOrder(), // a thing's, or the ground's
                 Cursors.scrollDirection(shove.x, shove.y));

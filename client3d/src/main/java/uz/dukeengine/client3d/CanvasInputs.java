@@ -35,6 +35,7 @@ final class CanvasInputs implements RawInputListener {
     private int lastDownX;
     private int lastDownY;
     private char highHalf;
+    private boolean pointerTaken;
 
     CanvasInputs(CanvasInput game, IntSupplier screenHeight) {
         this.game = game;
@@ -58,11 +59,17 @@ final class CanvasInputs implements RawInputListener {
             taken = game.take(new CanvasInput.Wheel(x, y, event.getDeltaWheel()));
         }
         if (event.getDX() != 0 || event.getDY() != 0) {
-            taken |= game.take(new CanvasInput.Pointer(x, y));
+            pointerTaken = game.take(new CanvasInput.Pointer(x, y));
+            taken |= pointerTaken;
         }
         if (taken) {
             event.setConsumed();
         }
+    }
+
+    /** Whether the game took the pointer where it last moved to: it is over a window of the game's own. */
+    boolean pointerTaken() {
+        return pointerTaken;
     }
 
     @Override

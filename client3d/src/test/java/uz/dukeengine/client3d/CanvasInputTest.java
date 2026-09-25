@@ -144,4 +144,17 @@ class CanvasInputTest {
         event.setTime(nanos);
         return event;
     }
+
+    /** A game whose bar takes the bottom 20% of the window: the pointer below 480 is its. */
+    @Test
+    void thePointerTheGamesBarTakesIsOverItsWindowAndOffItOverTheWorld() {
+        var inputs = new CanvasInputs(event -> event instanceof CanvasInput.Pointer pointer && pointer.y() >= 480,
+                () -> HEIGHT);
+
+        inputs.onMouseMotionEvent(new com.jme3.input.event.MouseMotionEvent(400, HEIGHT - 550, 3, -4, 0, 0));
+        assertTrue(inputs.pointerTaken(), "550 down: on the bar");
+
+        inputs.onMouseMotionEvent(new com.jme3.input.event.MouseMotionEvent(400, HEIGHT - 300, 0, 250, 0, 0));
+        assertFalse(inputs.pointerTaken(), "moved up onto the world");
+    }
 }

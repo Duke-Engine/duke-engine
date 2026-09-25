@@ -398,4 +398,16 @@ class CursorsTest {
         assertEquals(java.util.List.of("Scroll-E", Cursors.ATTACK), Cursors.situationsFor(atTheRightEdge),
                 "scrolling first, and what it is over where the game drew no scroll");
     }
+
+    /** The pointer over the game's own bar, or below the world's part of the window, is over the panel. */
+    @Test
+    void overTheGamesBarWithSomethingSelectedItIsTheArrowAndAboveItAMove() {
+        var onTheBar = new Cursors.Over(true, null, true, true, false, false, true, true, null, null);
+        var aboveIt = new Cursors.Over(true, null, true, false, false, false, true, true, null, null);
+
+        assertEquals(Cursors.POINT, Cursors.situationFor(onTheBar));
+        assertEquals(Cursors.MOVE, Cursors.situationFor(aboveIt), "open ground above the bar");
+        assertEquals("Scroll-S", Cursors.situationFor(new Cursors.Over(true, null, true, true, false, false, true,
+                true, null, "S")), "a view being scrolled shows it first, over the bar too");
+    }
 }
