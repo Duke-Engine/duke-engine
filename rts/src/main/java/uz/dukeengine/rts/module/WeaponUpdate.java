@@ -425,6 +425,12 @@ public final class WeaponUpdate extends UpdateModule {
         return chosen != null && rangeTo(getOwner(), victim) <= range(getOwner(), chosen.weapon());
     }
 
+    /** How far the weapon it would fire at {@code victim} reaches in this unit's hands; 0 where none may fire at it. */
+    public float reachFor(GameObject victim) {
+        var chosen = victim == null ? null : choose(armed(), victim, source);
+        return chosen == null ? 0f : range(getOwner(), chosen.weapon());
+    }
+
     /**
      * Whether the weapon it would fire at {@code victim} is a contact weapon ({@link Weapon#isContact}): a unit closing
      * with it goes on to the victim itself and fires once the two touch, as the reference lets it pathfind into its

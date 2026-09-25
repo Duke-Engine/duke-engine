@@ -58,11 +58,25 @@ final class Engaging {
         var at = victim.getPosition();
         float cell = unit.getWorld().cellSize();
         if (chasedTo == null || at.distance(chasedTo) > cell || !legs.isMoving()) {
-            legs.moveExactlyTo(legs.flies() || weapon.closesToTouch(victim) ? at
-                    : unit.getWorld().standingNextTo(unit, victim));
+            approach(unit, legs, weapon, victim);
             return at;
         }
         return chasedTo;
+    }
+
+    /**
+     * Send {@code unit} where its weapon fires at {@code victim} from: something in the air, and a weapon that must
+     * touch, straight at it; on the ground, by a route that ends at the nearest cell its weapon reaches from, a quarter
+     * cell inside its reach so the goal is not teetering on the edge of it — the reference's attack path ({@code
+     * Pathfinder::findAttackPath}, {@code Weapon::isGoalPosWithinAttackRange}).
+     */
+    static void approach(GameObject unit, Locomotor legs, WeaponUpdate weapon, GameObject victim) {
+        if (legs.flies() || weapon.closesToTouch(victim)) {
+            legs.moveExactlyTo(victim.getPosition());
+            return;
+        }
+        float cell = unit.getWorld().cellSize();
+        legs.moveWithin(victim, 0f, Math.max(0f, weapon.reachFor(victim) - cell / 4f));
     }
 
     /** The game's guard numbers, or the reference's. */

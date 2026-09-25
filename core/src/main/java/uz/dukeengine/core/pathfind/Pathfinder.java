@@ -64,6 +64,22 @@ public final class Pathfinder {
         }
     }
 
+    /**
+     * The places a route may end at short of the thing it heads for — within a band of distance of it, as a route to
+     * fight ends at the first place from which a weapon reaches ({@link #findPathWithin}).
+     */
+    @FunctionalInterface
+    public interface Within {
+        /** How far the place {@code at} lies outside the band: 0 within it. */
+        float outside(Coord3D at);
+    }
+
+    /**
+     * The most cells a route into a band examines before it gives up: the reference's {@code ATTACK_CELL_LIMIT}, "a
+     * rather expensive operation, so limit the search".
+     */
+    public static final int BAND_CELL_LIMIT = 2500;
+
     /** How finely a straight line is sampled when testing whether it is clear. */
     private static final float LINE_SAMPLE_FRACTION = 0.25f;
 
@@ -228,12 +244,19 @@ public final class Pathfinder {
             if (nearest == startY * width + startX) {
                 return Path.partial(List.of()); // nowhere nearer than where it stands
             }
+            if (clearance > 0f && !fits(grid, nearest % width, nearest / width, clearance)) {
+                int room = nearestWithRoom(grid, nearest % width, nearest / width, clearance, zones, zone);
+                nearest = room >= 0 ? room : nearest; // no room near it: it squeezes there, as before
+            }
             var there = grid.cellCenter(nearest % width, nearest / width);
             var way = search(grid, from, there, clearance, false, tally, traffic);
             if (way.isEmpty() && clearance > 0f) {
                 way = search(grid, from, there, 0f, false, tally, traffic);
             }
             return Path.partial(way.getWaypoints());
+        }
+        if (clearance > 0f && !fits(grid, goalX, goalY, clearance)) {
+            return intoTheTightSpot(grid, from, to, clearance, tally, traffic);
         }
         var path = search(grid, from, to, clearance, true, tally, traffic);
         if (path.reachesGoal() || clearance <= 0f) {
@@ -244,6 +267,189 @@ public final class Pathfinder {
             return squeezed;
         }
         return awayFrom(squeezed, from, to) < awayFrom(path, from, to) ? squeezed : path;
+    }
+
+    /**
+     * A goal the mover's width cannot stand on: searched for once at its width, the route ending at the first cell
+     * with room near the goal — as far as the body is wide and two cells more — from which a body with no width walks
+     * straight onto it, and then on onto the goal itself, squeezed; so it comes in the way its route came, as it would
+     * have squeezing the whole way. The reference moves such a goal to a cell the mover can stand on before its one
+     * search ({@code adjustDestination}, {@code checkDestination}); a search for the goal itself at the mover's width
+     * would walk every cell it can reach before it knew. With no such cell it can walk to with room, it squeezes the
+     * whole way, as it always could.
+     */
+    private static Path intoTheTightSpot(PathGrid grid, Coord3D from, Coord3D to, float clearance, Tally tally,
+            Traffic traffic) {
+        float near = clearance + 2f * grid.getCellSize();
+        if (across(from, to) <= near && isClearLine(grid, from, to, 0f)) {
+            return new Path(List.of(to));
+        }
+        Within room = at -> {
+            float off = across(at, to);
+            return off > near ? off - near : isClearLine(grid, at, to, 0f) ? 0f : grid.getCellSize();
+        };
+        var way = findPathWithin(grid, from, to, clearance, room, tally, traffic);
+        if (way.reachesGoal() && !way.isEmpty()) {
+            var points = new ArrayList<Coord3D>(way.getWaypoints());
+            points.add(to);
+            return new Path(points);
+        }
+        return search(grid, from, to, 0f, true, tally, traffic);
+    }
+
+    /**
+     * The cell nearest cell ({@code cx}, {@code cy}) that a body of {@code clearance} fits at — and, zones given, in
+     * zone {@code zone} — ring by ring outward as far as the body is wide and two cells more, the nearest to the
+     * cell's middle of a ring and then the lower index winning; -1 for none.
+     */
+    private static int nearestWithRoom(PathGrid grid, int cx, int cy, float clearance, Zones zones, int zone) {
+        int rings = (int) Math.ceil(clearance / grid.getCellSize()) + 2;
+        for (int ring = 1; ring <= rings; ring++) {
+            int best = -1;
+            long bestAway = Long.MAX_VALUE;
+            for (int dy = -ring; dy <= ring; dy++) {
+                for (int dx = -ring; dx <= ring; dx++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dy)) != ring) {
+                        continue;
+                    }
+                    int x = cx + dx;
+                    int y = cy + dy;
+                    if (!grid.inBounds(x, y) || !fits(grid, x, y, clearance)
+                            || zones != null && zone >= 0 && zones.zoneOf(x, y) != zone) {
+                        continue;
+                    }
+                    long away = (long) dx * dx + (long) dy * dy;
+                    int index = grid.index(x, y);
+                    if (away < bestAway || away == bestAway && index < best) {
+                        best = index;
+                        bestAway = away;
+                    }
+                }
+            }
+            if (best >= 0) {
+                return best;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * A route from {@code from} heading for {@code toward} that ends at the nearest cell within a band of it — the
+     * reference's {@code Pathfinder::findAttackPath}, a route to fight ending at the first cell from which the weapon
+     * reaches, not at a spot beside the target. The cell must have room for a body of {@code clearance} and is never
+     * the one the mover stands in; the search heads for the band itself, so it goes as readily away from a thing it
+     * stands too near as toward one it stands too far from.
+     *
+     * <p>Held to {@link #BAND_CELL_LIMIT} cells: where no cell of the band is found within them — the band lies
+     * beyond a wall, or all of it is too tight — {@link Path#EMPTY}, and the caller heads somewhere plainer.
+     */
+    public static Path findPathWithin(PathGrid grid, Coord3D from, Coord3D toward, float clearance, Within within,
+            Tally tally, Traffic traffic) {
+        int startX = grid.toCellX(from);
+        int startY = grid.toCellY(from);
+        if (grid.isBlocked(startX, startY)) {
+            return escape(grid, from);
+        }
+        int width = grid.getWidth();
+        int cellCount = width * grid.getHeight();
+        int[] gScore = new int[cellCount];
+        int[] fScore = new int[cellCount];
+        int[] cameFrom = new int[cellCount];
+        boolean[] closed = new boolean[cellCount];
+        Arrays.fill(gScore, Integer.MAX_VALUE);
+        Arrays.fill(cameFrom, -1);
+        int startIndex = grid.index(startX, startY);
+        gScore[startIndex] = 0;
+        fScore[startIndex] = bandEstimate(grid, within, toward, startX, startY);
+        var open = new PriorityQueue<Integer>((a, b) -> {
+            int byF = Integer.compare(fScore[a], fScore[b]);
+            return byF != 0 ? byF : Integer.compare(a, b);
+        });
+        open.add(startIndex);
+        float half = grid.getCellSize() / 2f;
+        int examined = 0;
+        while (!open.isEmpty()) {
+            int current = open.poll();
+            if (closed[current]) {
+                continue;
+            }
+            int cx = current % width;
+            int cy = current / width;
+            var centre = grid.cellCenter(cx, cy);
+            if (current != startIndex && within.outside(centre) <= 0f
+                    && across(centre, from) >= half) {
+                return reconstruct(grid, cameFrom, current, startIndex, from, centre, clearance, traffic);
+            }
+            if (tally != null) {
+                tally.cells++;
+            }
+            closed[current] = true;
+            if (++examined > BAND_CELL_LIMIT) {
+                continue; // no more expanding: what is open is looked at, and then it gives up
+            }
+            for (var step : NEIGHBOURS) {
+                int nx = cx + step[0];
+                int ny = cy + step[1];
+                if (!fits(grid, nx, ny, clearance) || !grid.canStep(cx, cy, nx, ny)) {
+                    continue;
+                }
+                boolean diagonal = step[0] != 0 && step[1] != 0;
+                if (diagonal && grid.isBlocked(cx + step[0], cy) && grid.isBlocked(cx, cy + step[1])) {
+                    continue;
+                }
+                int next = grid.index(nx, ny);
+                if (closed[next]) {
+                    continue;
+                }
+                int tentative = gScore[current] + (diagonal ? DIAGONAL_COST : ORTHOGONAL_COST)
+                        + turnCost(grid, cameFrom[current], cx, cy, step[0], step[1]);
+                if (traffic != null) {
+                    int extra = traffic.costOf(nx, ny);
+                    if (extra == Traffic.CLOSED) {
+                        continue;
+                    }
+                    tentative += extra;
+                }
+                if (tentative >= gScore[next]) {
+                    continue;
+                }
+                cameFrom[next] = current;
+                gScore[next] = tentative;
+                fScore[next] = tentative + bandEstimate(grid, within, toward, nx, ny);
+                open.add(next);
+            }
+        }
+        return Path.EMPTY;
+    }
+
+    /**
+     * What a walk from cell ({@code cx}, {@code cy}) into the band is estimated to cost: the search's own estimate to
+     * the goal ({@link #heuristic}) for the way from the cell to the band's nearest point, straight toward {@code
+     * toward} or straight away from it, as far as the cell lies outside the band.
+     */
+    private static int bandEstimate(PathGrid grid, Within within, Coord3D toward, int cx, int cy) {
+        var centre = grid.cellCenter(cx, cy);
+        float outside = within.outside(centre);
+        if (outside <= 0f) {
+            return 0;
+        }
+        float dx = toward.x() - centre.x();
+        float dy = toward.y() - centre.y();
+        float span = (float) Math.sqrt(dx * dx + dy * dy);
+        float cells = outside / grid.getCellSize();
+        if (span < 1e-3f) {
+            return (int) (cells * ORTHOGONAL_COST);
+        }
+        float across = Math.abs(dx) / span * cells;
+        float along = Math.abs(dy) / span * cells;
+        return (int) (ORTHOGONAL_COST * Math.max(across, along) + ORTHOGONAL_COST * Math.min(across, along) / 2f);
+    }
+
+    /** Across the ground from {@code a} to {@code b}. */
+    private static float across(Coord3D a, Coord3D b) {
+        float dx = a.x() - b.x();
+        float dy = a.y() - b.y();
+        return (float) Math.sqrt(dx * dx + dy * dy);
     }
 
     /**

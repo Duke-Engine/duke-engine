@@ -36,6 +36,15 @@ public interface Locomotor {
     }
 
     /**
+     * Go to the nearest place between {@code least} and {@code most} of {@code what}, outline to outline — where a
+     * weapon of that reach and least range fires from ({@code World.findPathWithin}), holding no place of its own
+     * there. A mover that plans no route heads for the thing itself, and is stopped once near enough.
+     */
+    default void moveWithin(uz.dukeengine.core.thing.GameObject what, float least, float most) {
+        moveExactlyTo(what.getPosition());
+    }
+
+    /**
      * Walk straight to {@code way}, out of whatever it was made inside, and then on to {@code destination}: how a
      * thing leaves its maker through the door. A mover with no such first leg goes straight to the destination.
      */

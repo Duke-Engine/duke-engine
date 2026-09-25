@@ -209,6 +209,12 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     private Coord3D sentTo;
     /** Whether it is going exactly to its point — {@link #moveExactlyTo} — and so onto it, not a close-enough short. */
     private boolean exactly;
+    /** The band round a thing its next route ends in — see {@link #moveWithin} — until that route is planned. */
+    private Band band;
+
+    /** Between {@code least} and {@code most} of {@code what}, outline to outline. */
+    private record Band(GameObject what, float least, float most) {
+    }
     /** Where it stood when this frame began, and how far it went the frame before. */
     private Coord3D lastPosition;
     private float lastStep;
@@ -299,6 +305,22 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     }
 
     /**
+     * To the nearest place between {@code least} and {@code most} of {@code what}, by a route that ends there — the
+     * reference's attack path ({@code Pathfinder::findAttackPath}) — holding no block of the ground's cells: once
+     * planned, the route's end is where it goes, as a move exactly there goes.
+     */
+    @Override
+    public void moveWithin(GameObject what, float least, float most) {
+        var world = getOwner().getWorld();
+        if (world != null) {
+            world.letPlaceGo(getOwner());
+        }
+        sentTo = what.getPosition();
+        head(what.getPosition(), false, new Band(what, least, most));
+        exactly = true;
+    }
+
+    /**
      * Through the points of {@code way} in turn, exactly — those within a cell of where it stands passed over — then to
      * the block round {@code place} it takes now and holds as its own on the way ({@code AIFollowPathState}).
      */
@@ -327,6 +349,11 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     }
 
     private void head(Coord3D destination, boolean place) {
+        head(destination, place, null);
+    }
+
+    private void head(Coord3D destination, boolean place, Band band) {
+        this.band = band;
         this.exactly = false;
         this.then = null;
         this.through = List.of();
@@ -415,13 +442,20 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             // Asked for this owner, so the route allows for its width and comes
             // back straightened rather than as a walk of cell centres — and, where
             // there is no way there, as a route to the nearest place there is one.
-            var path = round.isEmpty() ? world.findPath(getOwner(), destination)
+            var bandTo = band == null || band.what().isEffectivelyDead() || band.what().getWorld() != world
+                    ? null : band;
+            var path = bandTo != null ? world.findPathWithin(getOwner(), bandTo.what(), bandTo.least(), bandTo.most())
+                    : round.isEmpty() ? world.findPath(getOwner(), destination)
                     : world.findPath(getOwner(), destination, round);
             if (path == null) {
                 waiting = true; // the frame's searching is spent: the old route, or standing, until its turn
                 return;
             }
             waiting = false;
+            if (bandTo != null) {
+                band = null; // planned: its end is where it goes from now on
+                destination = path.getWaypoints().isEmpty() ? getOwner().getPosition() : path.getWaypoints().getLast();
+            }
             lastRouteFrame = world.getFrame();
             plans++;
             this.waypoints = path.getWaypoints();
@@ -519,6 +553,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     /** Cancel any current move: it holds the block it stands on from now. */
     public void stop() {
+        this.band = null;
         this.speedNow = 0f;
         this.brakingOnto = false;
         this.backing = false;

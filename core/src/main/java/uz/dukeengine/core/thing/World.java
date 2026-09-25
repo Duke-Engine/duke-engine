@@ -132,6 +132,36 @@ public interface World {
         return new Coord3D(here.x() + across / span * gap, here.y() + along / span * gap, here.z());
     }
 
+    /**
+     * Where on the straight line through {@code who} it stands between {@code least} and {@code most} of {@code what},
+     * measured as a reach is, outline to outline: nearer where it is further than {@code most}, further away where it
+     * is nearer than {@code least}, where it stands where it is within both. The straight-line answer to
+     * {@link #findPathWithin}, all a world with no ground to walk on can give.
+     */
+    default Coord3D withinOf(GameObject who, GameObject what, float least, float most) {
+        var here = who.getPosition();
+        float gap = reachBetween(who, what);
+        float by = gap > most ? gap - most : gap < least ? gap - least : 0f;
+        var there = what.getPosition();
+        float across = there.x() - here.x();
+        float along = there.y() - here.y();
+        float span = (float) Math.sqrt(across * across + along * along);
+        if (by == 0f || span <= 0.0001f) {
+            return here;
+        }
+        return new Coord3D(here.x() + across / span * by, here.y() + along / span * by, here.z());
+    }
+
+    /**
+     * A route for {@code mover} that ends at the nearest place between {@code least} and {@code most} of {@code what},
+     * outline to outline — a route to fight, ending where its weapon first reaches (the reference's {@code
+     * findAttackPath}) — or {@code null} where the frame's searching is spent, as {@link #findPath(GameObject,
+     * Coord3D)}. A world with no ground to walk on goes straight to {@link #withinOf}.
+     */
+    default Path findPathWithin(GameObject mover, GameObject what, float least, float most) {
+        return findPath(mover, withinOf(mover, what, least, most));
+    }
+
     /** Every object within {@code range} of {@code center} that satisfies {@code filter}. */
     java.util.List<GameObject> objectsInRange(Coord3D center, float range, Predicate<GameObject> filter);
 

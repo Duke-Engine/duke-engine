@@ -869,6 +869,37 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return route(mover, to, java.util.Set.of());
     }
 
+    /**
+     * A route into the band round {@code what} — see {@link Pathfinder#findPathWithin}, the cells it examines counted
+     * against the frame's searching as any route's are — or, where no cell of the band is found within its limit, a
+     * route to the straight-line answer ({@link #withinOf}), as near as there is one to.
+     */
+    @Override
+    public Path findPathWithin(GameObject mover, GameObject what, float least, float most) {
+        if (pathGrid == null) {
+            return new Path(List.of(withinOf(mover, what, least, most)));
+        }
+        refreshStaticObstacles();
+        if (cellsThisFrame >= pathfindBudget) {
+            return null;
+        }
+        if (pathGrid.hasDecks()) {
+            return route(mover, withinOf(mover, what, least, most), java.util.Set.of());
+        }
+        var tally = new Pathfinder.Tally();
+        float clearance = Solid.of(mover.getTemplate()).footprintRadius();
+        var traffic = groundCells().keepsCells(mover) ? groundCells().trafficFor(mover, java.util.Set.of()) : null;
+        var target = uz.dukeengine.core.thing.Footprint.of(what);
+        Pathfinder.Within within = at -> {
+            float gap = uz.dukeengine.core.thing.Footprint.of(mover, at).separation(target);
+            return gap > most ? gap - most : gap < least ? least - gap : 0f;
+        };
+        var path = Pathfinder.findPathWithin(pathGrid, mover.getPosition(), what.getPosition(), clearance, within,
+                tally, traffic);
+        cellsThisFrame += tally.cells();
+        return path.isEmpty() ? route(mover, withinOf(mover, what, least, most), java.util.Set.of()) : path;
+    }
+
     /** Straight past stone and past the still allies its routes go round, as its route was straightened. */
     @Override
     public boolean walksStraight(GameObject mover, Coord3D from, Coord3D to) {
