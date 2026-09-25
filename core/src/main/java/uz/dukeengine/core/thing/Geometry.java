@@ -43,6 +43,16 @@ public sealed interface Geometry {
         public float height() {
             return radius * 2f;
         }
+
+        @Override
+        public float boundingSphereRadius() {
+            return radius;
+        }
+
+        @Override
+        public float sphereCentreHeight() {
+            return 0f; // a ball stands centred on its position
+        }
     }
 
     /** An upright cylinder — the usual shape for a unit standing on the ground. */
@@ -55,6 +65,11 @@ public sealed interface Geometry {
         @Override
         public float footprintRadius() {
             return radius;
+        }
+
+        @Override
+        public float boundingSphereRadius() {
+            return Math.max(radius, height / 2f);
         }
     }
 
@@ -75,6 +90,12 @@ public sealed interface Geometry {
             // Math.sqrt is correctly rounded, so this is identical on every machine.
             return (float) Math.sqrt(majorRadius * majorRadius + minorRadius * minorRadius);
         }
+
+        @Override
+        public float boundingSphereRadius() {
+            float half = height / 2f;
+            return (float) Math.sqrt(majorRadius * majorRadius + minorRadius * minorRadius + half * half);
+        }
     }
 
     /**
@@ -85,6 +106,17 @@ public sealed interface Geometry {
 
     /** How tall the shape stands. */
     float height();
+
+    /**
+     * The radius of the sphere that encloses this shape, centred {@link #sphereCentreHeight} over its position — the
+     * reference's {@code GeometryInfo::calcBoundingStuff}: what a blast measures to.
+     */
+    float boundingSphereRadius();
+
+    /** How far over its position the centre of its bounding sphere stands: half its height, for a ball none. */
+    default float sphereCentreHeight() {
+        return height() / 2f;
+    }
 
     /** True when the shape has no extent and therefore never collides. */
     default boolean isPoint() {

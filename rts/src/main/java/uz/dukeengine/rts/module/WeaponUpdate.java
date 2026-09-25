@@ -775,20 +775,22 @@ public final class WeaponUpdate extends UpdateModule {
     /**
      * Area damage round where the shot struck, to whom its weapon's blast hurts ({@link Weapon.Affects}) — not the
      * victim, which took the direct hit: the reference's {@code Weapon::dealDamageInternal}, its damage within the
-     * first ring and its second damage beyond it, within the second. What the blast kills is the shooter's to be
-     * credited with, if it is there.
+     * first ring and its second damage beyond it, within the second. Each ring is measured to a thing's bounding
+     * sphere ({@code FROM_BOUNDINGSPHERE_3D}): caught where the gap is under the larger radius, the first damage where
+     * it is within the first. What the blast kills is the shooter's to be credited with, if it is there.
      */
     private static void splash(uz.dukeengine.core.thing.World world, Shot shot, GameObject shooter,
             GameObject victim, Coord3D where) {
-        var caught = world.objectsInRange(where, Math.max(shot.radius(), shot.secondaryRadius()), candidate ->
+        float reach = Math.max(shot.radius(), shot.secondaryRadius());
+        var caught = world.objectsInRange(where, Float.MAX_VALUE, candidate ->
                 candidate != victim
+                        && gapTo(candidate, where) < reach
                         && !candidate.isContained()
                         && candidate.getBody() != null
                         && !candidate.isEffectivelyDead()
                         && hurts(world, shot, shooter, candidate));
         for (var bystander : caught) {
-            float damage = where.distance(bystander.getPosition()) <= shot.radius() ? shot.damage()
-                    : shot.secondaryDamage();
+            float damage = gapTo(bystander, where) <= shot.radius() ? shot.damage() : shot.secondaryDamage();
             if (damage <= 0f) {
                 continue;
             }
@@ -798,6 +800,19 @@ public final class WeaponUpdate extends UpdateModule {
                 grantKillExperience(shooter, bystander);
             }
         }
+    }
+
+    /**
+     * How far {@code point} is from {@code thing}'s bounding sphere — from its centre, less its radius, never below
+     * nothing: the reference's {@code distCalcProc_BoundaryAndBoundary_3D} for a point and a thing.
+     */
+    static float gapTo(GameObject thing, Coord3D point) {
+        var shape = thing.getGeometry();
+        var at = thing.getPosition();
+        float dx = at.x() - point.x();
+        float dy = at.y() - point.y();
+        float dz = at.z() + shape.sphereCentreHeight() - point.z();
+        return Math.max(0f, (float) Math.sqrt(dx * dx + dy * dy + dz * dz) - shape.boundingSphereRadius());
     }
 
     /** Whether the shot's blast hurts {@code candidate}, by whom its weapon says it hurts; enemies where it says none. */

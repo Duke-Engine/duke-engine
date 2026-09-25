@@ -50,6 +50,14 @@ class BlastTest {
         var factory = new ThingFactory(RtsModules.withDefaults());
         factory.addTemplate(RtsTemplate.named("Soldier").module(new ActiveBody.Data(1000f)).build());
         factory.addTemplate(RtsTemplate.named("Tank").module(new ActiveBody.Data(1000f)).build());
+        factory.addTemplate(RtsTemplate.named("Crusader")
+                .geometry(new uz.dukeengine.core.thing.Geometry.Box(15f, 10f, 10f)).module(new ActiveBody.Data(1000f))
+                .build());
+        factory.addTemplate(RtsTemplate.named("WarFactory")
+                .geometry(new uz.dukeengine.core.thing.Geometry.Box(53f, 60f, 40f)).module(new ActiveBody.Data(1000f))
+                .build());
+        factory.addTemplate(RtsTemplate.named("Pad").geometry(new uz.dukeengine.core.thing.Geometry.Cylinder(10f, 0f))
+                .module(new ActiveBody.Data(1000f)).build());
         world = new World(factory);
         world.init();
         var players = world.getPlayerList();
@@ -162,5 +170,25 @@ class BlastTest {
         assertEquals(50f, took(near), "50 at 2, within 3");
         assertEquals(100f, took(far), "100 at 4, beyond 3 and within 5");
         assertEquals(0f, took(beyond), "nothing at 6");
+    }
+
+    /**
+     * A Scud's blast, 300 within 50 and 50 within 100, measured to each thing's bounding sphere as the reference
+     * measures it: a tank 60 from it (sphere 18.7, 5 up) is 41.5 off and takes 300; a war factory 100 from it (sphere
+     * 82.5, 20 up) is 19.5 off and takes 300; a point 60 off takes 50; a sphere 100.5 off, nothing.
+     */
+    @Test
+    void aBlastMeasuresToEachThingsBoundingSphere() {
+        var tank = put("Crusader", foe, 160f, 100f);
+        var factory = put("WarFactory", foe, 100f, 200f);
+        var point = put("Tank", foe, 40f, 100f);
+        var pad = put("Pad", foe, 210.5f, 100f);
+
+        blast(bomb(List.of(Weapon.Affects.ENEMIES), 300f, 50f, 50f, 100f));
+
+        assertEquals(300f, took(tank), "a tank 60 from it: its sphere 41.5 off");
+        assertEquals(300f, took(factory), "a factory 100 from it: its sphere 19.5 off");
+        assertEquals(50f, took(point), "a point 60 off: the second ring");
+        assertEquals(0f, took(pad), "a sphere 100.5 off: not caught");
     }
 }
