@@ -190,7 +190,7 @@ final class CameraFocus {
         aimAt(aimed + (in ? -zoomSpeed : zoomSpeed) * seconds);
     }
 
-    /** The turn keys held for {@code seconds}, {@code way} 1 leftward and -1 rightward: the frame's speed, else ours. */
+    /** The turn keys held for {@code seconds}, {@code way} 1 leftward and -1 rightward, at the frame's speed. */
     void heldTurn(int way, float seconds) {
         turnBy(way * (Float.isNaN(turnSpeed) ? TURN_SPEED : turnSpeed) * seconds);
     }
