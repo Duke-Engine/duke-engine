@@ -172,6 +172,31 @@ class ConstructionTest {
     }
 
     @Test
+    void aDozerHandedToAnotherSideHalfWayStopsAndTheSiteStaysAsItWasItsFirstOwners() {
+        var scene = scene();
+        int thief = scene.world().getPlayerList().addPlayer("Thief").getIndex();
+        build(scene, PLACE);
+        while (barracks(scene.world()) == null) {
+            scene.world().update();
+        }
+        var site = barracks(scene.world());
+        var progress = site.findModule(ConstructionSite.class);
+        for (int work = 0; work < BUILD_FRAMES / 2; work++) {
+            scene.world().update();
+        }
+        float half = progress.progress();
+
+        scene.dozer().setPlayerIndex(thief); // hijacked where it stood
+        for (int frame = 0; frame < BUILD_FRAMES; frame++) {
+            scene.world().update();
+        }
+
+        assertEquals(half, progress.progress(), 1e-6f, "not a frame's more work on it");
+        assertTrue(site.hasStatus(ObjectStatus.UNDER_CONSTRUCTION), "unfinished");
+        assertEquals(scene.player(), site.getPlayerIndex(), "and still its first owner's");
+    }
+
+    @Test
     void aPlaceOverAnotherBuildingIsRefusedAndCostsNothing() {
         var scene = scene();
         var inTheWay = scene.world().createObject(scene.world().findTemplate("Barracks"));

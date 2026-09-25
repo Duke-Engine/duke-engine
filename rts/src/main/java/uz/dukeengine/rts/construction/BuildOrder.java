@@ -44,6 +44,8 @@ public final class BuildOrder extends UpdateModule {
     private final float facing;
     private final int cost;
     private final PlacementRules rules;
+    /** The side the builder was given the order for: handed to another, it gives the order up. */
+    private final int side;
     /** Where this order last sent the builder, to tell its own errand from an order someone else gave. */
     private Coord3D goal;
     /** Where the builder stood, and how far from the outline, when this order last looked. */
@@ -61,6 +63,7 @@ public final class BuildOrder extends UpdateModule {
         this.cost = cost;
         this.rules = rules;
         this.goal = place;
+        this.side = builder.getPlayerIndex();
     }
 
     /**
@@ -104,13 +107,13 @@ public final class BuildOrder extends UpdateModule {
         return over;
     }
 
-    /** Give it up, the money back in full: nothing has been built. */
+    /** Give it up, the money back in full to the side that paid: nothing has been built. */
     void giveUp() {
         if (over) {
             return;
         }
         over = true;
-        var player = RtsPlayer.of(getOwner().getWorld(), getOwner().getPlayerIndex());
+        var player = RtsPlayer.of(getOwner().getWorld(), side);
         if (player != null) {
             player.refund(cost);
         }
@@ -122,6 +125,10 @@ public final class BuildOrder extends UpdateModule {
             return;
         }
         var builder = getOwner();
+        if (builder.getPlayerIndex() != side) {
+            giveUp(); // handed to another side: it builds nothing more for the old one, and nothing for the new
+            return;
+        }
         var here = builder.getPosition();
         float gap = gapAt(here);
         if (lastGap >= 0f && gap < 0f && lastPosition != null) {

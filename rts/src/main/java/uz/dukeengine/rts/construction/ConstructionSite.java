@@ -73,9 +73,10 @@ public final class ConstructionSite extends UpdateModule {
         var world = site.getWorld();
         var who = world.findObject(builder);
         var words = rules.words();
-        if (who == null || who.isEffectivelyDead() || !world.isBeside(who, site)) {
+        if (who == null || who.isEffectivelyDead() || who.getPlayerIndex() != site.getPlayerIndex()
+                || !world.isBeside(who, site)) {
             site.clearCondition(words.beingBuilt());
-            return; // nobody at work on it: it waits
+            return; // nobody at work on it — its builder gone, or handed to another side: it waits, as it is
         }
         site.clearCondition(words.awaiting());
         site.setCondition(words.partlyBuilt());
