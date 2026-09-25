@@ -785,6 +785,8 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     private void clearState() {
         objects.clear();
         revealedTo.clear();
+        beams.clear();
+        nextBeam = 1;
         staticObstaclesDirty = true;
         random.restore(randomSeed);
         frame = 0;
@@ -980,6 +982,34 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     // ---- snapshot restore hooks (used by save/load) ----
+
+    // ---- beams ----
+
+    /** The beams the simulation owns, by number; out of the checksum and the save, since nothing decided reads them. */
+    private final java.util.TreeMap<Integer, uz.dukeengine.core.thing.Beam> beams = new java.util.TreeMap<>();
+    private int nextBeam = 1;
+
+    @Override
+    public final int beam(String look, Coord3D from, Coord3D to, float width) {
+        int id = nextBeam++;
+        beams.put(id, new uz.dukeengine.core.thing.Beam(id, look, from, to, width));
+        return id;
+    }
+
+    @Override
+    public final void moveBeam(int beam, Coord3D from, Coord3D to, float width) {
+        beams.computeIfPresent(beam, (id, was) -> new uz.dukeengine.core.thing.Beam(id, was.look(), from, to, width));
+    }
+
+    @Override
+    public final void endBeam(int beam) {
+        beams.remove(beam);
+    }
+
+    /** Every beam the simulation owns now, in the order they were made. */
+    public final List<uz.dukeengine.core.thing.Beam> getBeams() {
+        return List.copyOf(beams.values());
+    }
 
     /** Remove every object — used when loading a saved game over this world. */
     public final void clearWorld() {

@@ -207,6 +207,8 @@ final class DukeRtsApp extends SimpleApplication {
     /** What those lists play besides particle systems: a sound, a light, the camera, a mark, a streak. */
     private ListShow listShow;
     private final Node listNode = new Node("effect-lists");
+    /** The beams the simulation owns, drawn as the game's lasers — see {@link Lasers}. */
+    private Lasers lasers;
     /** What a blow shows, by name — see {@link HurtMoments} and {@link Visuals#hurt}. */
     private HurtMoments hurtMoments;
     /** Every drawn thing's barrels: where its shots come out, its flashes and its kick — see {@link Barrels}. */
@@ -614,6 +616,7 @@ final class DukeRtsApp extends SimpleApplication {
         }, () -> new Vector3f(camera.targetX(), 0f, camera.targetZ()), this::floorHeightAt, this::debrisPiece);
         rootNode.attachChild(listNode);
         lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
+        lasers = new Lasers(assetManager, listNode, visuals::laserNamed, this::floorHeightAt);
         layered.drawsListsWith(lists);
         hurtMoments = new HurtMoments(visuals::hurtRule);
         hitFlash = new HitFlash(visuals.getHitFlash());
@@ -1206,6 +1209,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void syncOrderMarkers() {
         float now = timer.getTimeInSeconds();
+        lasers.show(snapshot.beams(), cam.getLocation(), now); // the simulation's beams, where it moved them
         var look = visuals.getOrderMark();
         orderMarkers.prune(now, look.seconds());
         modelMarks.update(now, look);
@@ -2911,6 +2915,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         chevrons.clear();
         attackFlash.clear();
+        lasers.clear();
         hitNumbers.clear();
         floatingTexts.clear();
         unitBars.clear();

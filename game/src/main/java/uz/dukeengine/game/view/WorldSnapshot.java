@@ -28,6 +28,7 @@ import uz.dukeengine.core.event.WorldEvent;
  * <p>{@link #contextOrder} is the game's word for the order a click on the thing under the pointer would give what
  * is selected — {@code Enter}, {@code Dock}, {@code Repair} — or {@code null} for none: the pointer shows that word's
  * picture, and the click sends it as a {@code GameOrder}. The engine never reads it.
+ * <p>{@link #beams} are the beams the simulation owns that the player sees an end of — see {@code World.beam}.
  */
 public record WorldSnapshot(
         int frame,
@@ -44,10 +45,20 @@ public record WorldSnapshot(
         boolean attackable,
         CameraView camera,
         boolean revealed,
-        String contextOrder) {
+        String contextOrder,
+        List<BeamView> beams) {
 
     public static final WorldSnapshot EMPTY = new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "",
-            List.of(), true, true, null, false, null);
+            List.of(), true, true, null, false, null, List.of());
+
+    /** A frame with no beam in it: every frame from before the simulation could own one. */
+    public WorldSnapshot(int frame, float gameTimeSeconds, boolean paused, int localPlayerMoney,
+            int localPlayerPowerSurplus, List<UnitView> units, List<WorldEvent> events, String banner,
+            String status, List<CommandButton> commands, boolean aimFits, boolean attackable, CameraView camera,
+            boolean revealed, String contextOrder) {
+        this(frame, gameTimeSeconds, paused, localPlayerMoney, localPlayerPowerSurplus, units, events, banner,
+                status, commands, aimFits, attackable, camera, revealed, contextOrder, List.of());
+    }
 
     /** A frame that says nothing of a click's order: every frame from before a click had any but its own. */
     public WorldSnapshot(int frame, float gameTimeSeconds, boolean paused, int localPlayerMoney,
@@ -98,5 +109,6 @@ public record WorldSnapshot(
         status = status == null ? "" : status;
         commands = commands == null ? List.of() : List.copyOf(commands);
         contextOrder = contextOrder == null || contextOrder.isBlank() ? null : contextOrder;
+        beams = beams == null ? List.of() : List.copyOf(beams);
     }
 }

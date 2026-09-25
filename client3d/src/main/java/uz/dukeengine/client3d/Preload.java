@@ -109,6 +109,9 @@ final class Preload {
         // And what particle systems are drawn with: small files, few of them, and wanted the instant a shot
         // is fired — every one, since which systems a match will light is not known before it starts.
         add(jobs, seen, Kind.TEXTURE, visuals.particleSystemTextures());
+        // And the beams' pictures and the pieces a list throws off, wanted as suddenly.
+        add(jobs, seen, Kind.TEXTURE, visuals.laserTextures());
+        add(jobs, seen, Kind.MODEL, visuals.debrisModels());
         return List.copyOf(jobs);
     }
 

@@ -1083,6 +1083,37 @@ public final class Visuals {
         return name == null ? null : effectLists.get(name);
     }
 
+    private final Map<String, uz.dukeengine.core.content.Laser> lasers = new java.util.LinkedHashMap<>();
+
+    /** The game's looks for the beams its simulation owns — see {@link uz.dukeengine.core.content.Laser}. */
+    public Visuals lasers(java.util.Collection<uz.dukeengine.core.content.Laser> looks) {
+        for (var look : looks) {
+            if (look != null && look.name() != null) {
+                lasers.put(look.name(), look);
+            }
+        }
+        return this;
+    }
+
+    /** The beam look under that name, or {@code null} when the game named none. */
+    public uz.dukeengine.core.content.Laser laserNamed(String name) {
+        return name == null ? null : lasers.get(name);
+    }
+
+    /** Every picture a beam is drawn with, for reading before the match starts. */
+    java.util.List<String> laserTextures() {
+        return lasers.values().stream().map(uz.dukeengine.core.content.Laser::texture)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+    }
+
+    /** Every model a list throws off, for reading before the match starts. */
+    java.util.List<String> debrisModels() {
+        return effectLists.values().stream().flatMap(list -> list.entries().stream())
+                .filter(uz.dukeengine.core.content.EffectList.Debris.class::isInstance)
+                .map(entry -> ((uz.dukeengine.core.content.EffectList.Debris) entry).model())
+                .filter(java.util.Objects::nonNull).distinct().toList();
+    }
+
     /** Every picture a list marks the ground with, for reading before the match starts. */
     java.util.List<String> scorchPictures() {
         return effectLists.values().stream().flatMap(list -> list.entries().stream())

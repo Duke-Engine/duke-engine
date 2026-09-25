@@ -150,6 +150,13 @@ final class RtsClient extends GameClient {
                     built(object),
                     rider ? carrier.getOwner().getId().value() : -1));
         }
+        var beams = new ArrayList<uz.dukeengine.game.view.BeamView>();
+        for (var beam : logic.getBeams()) {
+            if (everything || logic.canSee(viewerPlayer, beam.from()) || logic.canSee(viewerPlayer, beam.to())) {
+                beams.add(new uz.dukeengine.game.view.BeamView(beam.id(), beam.look(), beam.from(), beam.to(),
+                        beam.width()));
+            }
+        }
         var player = everything ? null : logic.getRtsPlayer(viewerPlayer);
         snapshot = new WorldSnapshot(
                 logic.getFrame(),
@@ -166,7 +173,8 @@ final class RtsClient extends GameClient {
                 attackable.getAsBoolean(),
                 camera.get(),
                 everything || logic.isMapRevealedTo(viewerPlayer),
-                contextOrder.get());
+                contextOrder.get(),
+                beams);
     }
 
     /** Whether {@code event} is a shot fired by something hidden from this viewer, whose shots it is not shown. */

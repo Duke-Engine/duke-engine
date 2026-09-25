@@ -169,6 +169,28 @@ public interface World {
         post(new uz.dukeengine.core.event.EffectPlayed(getFrame(), name, where, facing, null));
     }
 
+    /**
+     * Make a beam the simulation owns — a laser, the reference's orbital cannon — drawn between two points of the
+     * world as the game's look {@code look} says ({@code Laser}), at {@code width} of its full width, 0 to 1, by every
+     * client that sees either end, until {@link #endBeam}. Moved as often as the simulation likes with {@link
+     * #moveBeam}. Drawing only: out of the checksum, not saved, and nothing the simulation decides reads it.
+     *
+     * @return its number, for {@link #moveBeam} and {@link #endBeam}; -1 where this world draws none
+     */
+    default int beam(String look, uz.dukeengine.core.math.Coord3D from, uz.dukeengine.core.math.Coord3D to,
+            float width) {
+        return -1;
+    }
+
+    /** A beam moved, and its width set: drawn so from this frame. */
+    default void moveBeam(int beam, uz.dukeengine.core.math.Coord3D from, uz.dukeengine.core.math.Coord3D to,
+            float width) {
+    }
+
+    /** A beam ended: gone from every client from this frame. */
+    default void endBeam(int beam) {
+    }
+
     /** Play the effect of that name riding {@code thing}, from where it stands and turned the way it faces. */
     default void effect(String name, GameObject thing) {
         post(new uz.dukeengine.core.event.EffectPlayed(getFrame(), name, thing.getPosition(), thing.getOrientation(),
