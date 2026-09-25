@@ -74,7 +74,9 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
     private static final float PI = (float) Math.PI;
 
     private final Data data;
-    private final float turnPerFrame;
+    private float speed;
+    private float turnRate;
+    private float turnPerFrame;
     private float velocity;
     private Coord3D goal;
     private ObjectId following;
@@ -86,7 +88,7 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
     public FlyUpdate(GameObject owner, Data data) {
         super(owner);
         this.data = data;
-        this.turnPerFrame = (float) Math.toRadians(data.turnRate() * DT);
+        setSpeed(data.speed(), data.turnRate());
         // Nothing here takes off: a winged thing is made in the air, already at the least speed it may fly at.
         this.velocity = data.kind() == Kind.WINGED ? data.minSpeed() : 0f;
     }
@@ -121,6 +123,13 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
     }
 
     @Override
+    public void setSpeed(float speed, float turnRate) {
+        this.speed = speed;
+        this.turnRate = turnRate;
+        this.turnPerFrame = (float) Math.toRadians(turnRate * DT);
+    }
+
+    @Override
     public boolean flies() {
         return true;
     }
@@ -132,7 +141,7 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
 
     /** How tight it can circle at the speed it is going: its speed over its turning. */
     public float circleRadius() {
-        float turning = (float) Math.toRadians(data.turnRate());
+        float turning = (float) Math.toRadians(turnRate);
         return turning <= 0f ? 0f : Math.max(velocity, data.minSpeed()) / turning;
     }
 
@@ -158,7 +167,7 @@ public final class FlyUpdate extends UpdateModule implements Locomotor {
             float dy = target.y() - here.y();
             float distance = (float) Math.sqrt(dx * dx + dy * dy);
             wantedHeading = distance > 0f ? (float) StrictMath.atan2(dy, dx) : heading;
-            wantedSpeed = data.speed();
+            wantedSpeed = speed;
             if (data.kind() == Kind.WINGED && following == null) {
                 // Inside the circle it would turn on, no turn brings it over the place: out wide, then back over it.
                 goingWide = insideTurn(here, heading, wantedHeading, target, goingWide ? WIDE : 1f);

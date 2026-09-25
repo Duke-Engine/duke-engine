@@ -61,9 +61,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     /** Give up on a leg after this long without getting any closer to it. */
     private static final int STUCK_FRAME_LIMIT = 2 * GameConstants.LOGICFRAMES_PER_SECOND;
 
-    private final float stepPerFrame;
-    private final float turnPerFrame; // radians/frame; 0 = instant turning
-    private final float progressEpsilon;
+    private float stepPerFrame;
+    private float turnPerFrame; // radians/frame; 0 = instant turning
+    private float progressEpsilon;
     private List<Coord3D> waypoints = List.of();
     private int waypointIndex;
     private Coord3D destination;      // where it was told to go, as opposed to the next corner
@@ -86,10 +86,14 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
     public MoveUpdate(GameObject owner, Data data) {
         super(owner);
-        this.stepPerFrame = data.speed() * GameConstants.SECONDS_PER_LOGICFRAME;
-        this.turnPerFrame = (float) Math.toRadians(
-                data.turnRate() * GameConstants.SECONDS_PER_LOGICFRAME);
-        this.progressEpsilon = stepPerFrame * 0.25f;
+        setSpeed(data.speed(), data.turnRate());
+    }
+
+    @Override
+    public void setSpeed(float speed, float turnRate) {
+        stepPerFrame = speed * GameConstants.SECONDS_PER_LOGICFRAME;
+        turnPerFrame = (float) Math.toRadians(turnRate * GameConstants.SECONDS_PER_LOGICFRAME);
+        progressEpsilon = stepPerFrame * 0.25f;
     }
 
     /**

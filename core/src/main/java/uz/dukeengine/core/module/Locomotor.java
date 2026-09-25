@@ -53,4 +53,12 @@ public interface Locomotor {
     default boolean flies() {
         return false;
     }
+
+    /**
+     * Go at {@code speed} (world units a second) and turn at {@code turnRate} (degrees a second) from now on, keeping
+     * where it is going, the way it takes there and its first leg out of its maker — the reference's locomotor set
+     * changed by an upgrade. Callable from any module's update, its own thing's included.
+     */
+    default void setSpeed(float speed, float turnRate) {
+    }
 }

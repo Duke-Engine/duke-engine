@@ -101,6 +101,60 @@ class MoveUpdateTest {
         assertEquals(behind, mover.getGoal(), "and arrived rather than being given up on");
     }
 
+    /** Walks {@code frames} frames and says how far along its way it went, frame by frame. */
+    private float walk(GameObject unit, int frames) {
+        float walked = 0f;
+        for (int frame = 0; frame < frames; frame++) {
+            var was = unit.getPosition();
+            logic.update();
+            walked += (float) Math.hypot(unit.getPosition().x() - was.x(), unit.getPosition().y() - was.y());
+        }
+        return walked;
+    }
+
+    @Test
+    void aUnitSpedUpMidRouteGoesTheFasterWayItWasGoingWithoutPlanningAgain() {
+        var grid = new uz.dukeengine.core.pathfind.PathGrid(40, 40);
+        for (int cy = 0; cy < 30; cy++) {
+            grid.setBlocked(20, cy, true); // a wall with a way round at the top: a route of corners
+        }
+        logic.setPathGrid(grid);
+        var unit = logic.spawn(template, new Coord3D(50f, 50f, 0f), 1);
+        var legs = unit.findModule(MoveUpdate.class);
+        legs.setSpeed(25f, 0f);
+        legs.moveTo(new Coord3D(350f, 50f, 0f));
+        assertEquals(25f, walk(unit, 30), 0.01f, "a second at 25");
+
+        legs.setSpeed(35f, 0f);
+        float walked = 0f;
+        for (int frame = 0; frame < 30; frame++) {
+            walked += walk(unit, 1);
+            assertFalse(legs.isWaitingForRoute(), "it asked for no new route");
+        }
+
+        assertEquals(35f, walked, 0.01f, "the next second at 35, along the way it had");
+        for (int frame = 0; frame < 2000 && legs.isMoving(); frame++) {
+            logic.update();
+        }
+        assertEquals(350f, unit.getPosition().x(), 0.5f, "and it gets where it was going");
+    }
+
+    @Test
+    void aUnitSpedUpWhileLeavingItsMakerStillGoesOnToWhereItWasSent() {
+        var unit = logic.spawn(template, new Coord3D(50f, 50f, 0f), 1);
+        var legs = unit.findModule(MoveUpdate.class);
+        legs.leave(new Coord3D(80f, 50f, 0f), new Coord3D(80f, 150f, 0f));
+        walk(unit, 10); // on its first leg, through the door
+
+        legs.setSpeed(35f, 0f);
+        for (int frame = 0; frame < 600 && legs.isMoving(); frame++) {
+            logic.update();
+        }
+
+        assertEquals(80f, unit.getPosition().x(), 0.5f);
+        assertEquals(150f, unit.getPosition().y(), 0.5f, "on to the rally point, not stopped at the door");
+    }
+
     @Test
     void unitWalksToGoalAndStops() {
         GameObject unit = logic.createObject(template);
