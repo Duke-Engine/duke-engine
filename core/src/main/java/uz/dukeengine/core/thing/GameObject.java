@@ -54,6 +54,8 @@ public final class GameObject {
     private boolean died;
     /** How far it sees where set for it alone, see {@link #setVisionRange}; negative for its template's. */
     private float visionRange = -1f;
+    /** How far it clears the fog where set for it alone — see {@link #setFogRange}; negative for its template's. */
+    private float fogRange = -1f;
     /** The first frame an enemy may target it — see {@link #setTargetableFrom}. */
     private int targetableFrom;
     /** What made it — see {@link #getProducer}. */
@@ -239,6 +241,32 @@ public final class GameObject {
     /** The range set for it alone, or negative where it sees as its template does. */
     public float getOwnVisionRange() {
         return visionRange;
+    }
+
+    /**
+     * How far it clears the fog for its side: the range set for it, else its template's fog range, else its sight
+     * ({@link #getVisionRange}) — what the fog is cleared by, where its sight is what it looks for targets by.
+     */
+    public float getFogRange() {
+        if (fogRange >= 0f) {
+            return fogRange;
+        }
+        float template = Sighted.fogRangeOf(this.template);
+        return template >= 0f ? template : getVisionRange();
+    }
+
+    /**
+     * Clear the fog by {@code range} from now on, whatever its template says — a spy satellite's ping growing and
+     * shrinking, the reference's {@code DynamicShroudClearingRangeUpdate} — or as its template does again for a
+     * negative range. In the checksum and a save while set.
+     */
+    public void setFogRange(float range) {
+        this.fogRange = range;
+    }
+
+    /** The fog range set for it alone, or negative where it clears the fog as its template does. */
+    public float getOwnFogRange() {
+        return fogRange;
     }
 
     /**

@@ -90,7 +90,8 @@ public final class GameSnapshot {
                     .append(o.getTargetableFrom()).append('|')
                     .append(o.getFloor()).append('|')
                     .append(spanOf(o.getSpan())).append('|')
-                    .append(o.getProducer() == null ? "" : Integer.toString(o.getProducer().value())).append('\n');
+                    .append(o.getProducer() == null ? "" : Integer.toString(o.getProducer().value())).append('|')
+                    .append(o.getOwnFogRange()).append('\n');
         }
         return sb.toString();
     }
@@ -207,6 +208,7 @@ public final class GameSnapshot {
         int floor = parts.length > 13 && !parts[13].isEmpty() ? Integer.parseInt(parts[13]) : 0;
         var span = parts.length > 14 && !parts[14].isEmpty() ? spanFrom(parts[14]) : null;
         var producer = parts.length > 15 && !parts[15].isEmpty() ? new ObjectId(Integer.parseInt(parts[15])) : null;
+        float fog = parts.length > 16 && !parts[16].isEmpty() ? Float.parseFloat(parts[16]) : -1f;
 
         var template = logic.getThingFactory().findTemplate(templateName);
         if (template == null) {
@@ -221,6 +223,7 @@ public final class GameSnapshot {
         object.setFloor(floor);
         object.setSpan(span);
         object.setProducer(producer);
+        object.setFogRange(fog);
         // The most first: health is held to it, and an upgraded Crusader's 680 would be cut to its template's 480.
         if (!most.isEmpty() && object.getBody() != null
                 && Float.parseFloat(most) != object.getBody().getMaxHealth()) {

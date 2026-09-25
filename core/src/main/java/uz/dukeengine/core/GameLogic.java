@@ -195,20 +195,34 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      * Whether {@code viewerPlayer} has eyes on a point of the map — the question
      * to ask about a place rather than a thing, such as where something just
      * happened after the thing itself has gone.
+     *
+     * <p>A thing clears the fog by its fog range ({@link GameObject#getFogRange}), not its sight; one going up only
+     * over itself, its footprint's radius, as the reference's {@code Object::getShroudClearingRange} has a building
+     * under construction see itself alone; and one finished that everyone sees round ({@code seenByAllWithin}) clears
+     * that much for every player, unless it is hidden from them.
      */
     public final boolean canSee(int viewerPlayer, Coord3D position) {
         if (revealedTo.contains(viewerPlayer)) {
             return true; // the whole map, for good
         }
         for (var watcher : objects) {
-            float sight = watcher.getVisionRange();
-            if (watcher.isEffectivelyDead() || sight <= 0f || watcher.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)) {
+            if (watcher.isEffectivelyDead() || watcher.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)) {
                 continue; // a thing not there sees nothing either
+            }
+            boolean goingUp = watcher.hasStatus(uz.dukeengine.core.thing.ObjectStatus.UNDER_CONSTRUCTION);
+            float fog = goingUp ? watcher.getGeometry().footprintRadius() : watcher.getFogRange();
+            float byAll = goingUp ? 0f : uz.dukeengine.core.thing.Sighted.seenByAllOf(watcher.getTemplate());
+            if (fog <= 0f && byAll <= 0f) {
+                continue;
+            }
+            float away = watcher.getPosition().distance(position);
+            if (byAll > 0f && away <= byAll && !watcher.isHiddenFrom(viewerPlayer)) {
+                return true;
             }
             boolean eye = watcher.getPlayerIndex() == viewerPlayer
                     || getRelationship(viewerPlayer, watcher.getPlayerIndex()) == Relationship.ALLIES
                     || sharedSight != null && sharedSight.test(viewerPlayer, watcher);
-            if (eye && watcher.getPosition().distance(position) <= sight) {
+            if (eye && away <= fog) {
                 return true;
             }
         }
@@ -1206,6 +1220,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             }
             if (object.getOwnVisionRange() >= 0f) {
                 hash = mix(hash, Float.floatToIntBits(object.getOwnVisionRange()));
+            }
+            if (object.getOwnFogRange() >= 0f) {
+                hash = mix(hash, Float.floatToIntBits(object.getOwnFogRange())); // unset sums as it always did
             }
             if (object.getTargetableFrom() > 0) {
                 hash = mix(hash, object.getTargetableFrom());
