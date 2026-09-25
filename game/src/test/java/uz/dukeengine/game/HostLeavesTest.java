@@ -24,6 +24,8 @@ class HostLeavesTest {
 
     private static final int THREE_PORT = 17811;
     private static final int TWO_PORT = 17812;
+    private static final int CHOSEN_HOST_PORT = 17813;
+    private static final int CHOSEN_GUEST_PORT = 17823;
     private static final int HOST_GOES_AT = 60;
     private static final int PLAYED_AFTER = 1800;
 
@@ -98,6 +100,60 @@ class HostLeavesTest {
                 Thread.sleep(1); // held for a peer, or finding the new relay
             }
         }
+    }
+
+    /**
+     * The next in the seats joined listening on a port of the test's choosing, as a player opens one port in his
+     * firewall: it listens there, and after the host has gone the third player reaches it there and both play on.
+     */
+    @Test
+    @Timeout(60)
+    void aGuestListeningOnAChosenPortIsReachedThereAfterTheHostHasGone() throws Exception {
+        var hosted = new AtomicReference<MultiplayerSession>();
+        var second = new AtomicReference<MultiplayerSession>();
+        var third = new AtomicReference<MultiplayerSession>();
+        var failed = new AtomicReference<Exception>();
+        var hosting = new Thread(() -> {
+            try (var server = new ServerSocket(CHOSEN_HOST_PORT)) {
+                hosted.set(MultiplayerSession.host(server, 3, "", null));
+            } catch (Exception e) {
+                failed.set(e);
+            }
+        }, "test-host");
+        hosting.start();
+        Thread.sleep(200);
+        var first = new Thread(() -> {
+            try {
+                second.set(MultiplayerSession.join("127.0.0.1", CHOSEN_HOST_PORT, java.time.Duration.ofSeconds(10),
+                        CHOSEN_GUEST_PORT));
+            } catch (Exception e) {
+                failed.set(e);
+            }
+        }, "test-join-chosen");
+        first.start();
+        Thread.sleep(300); // in first: the next in the seats
+        third.set(MultiplayerSession.join("127.0.0.1", CHOSEN_HOST_PORT));
+        first.join(10_000);
+        hosting.join(10_000);
+        assertNotNull(second.get(), () -> "the chosen guest failed: " + failed.get());
+        assertEquals(2, second.get().getLocalPlayerIndex(), "the next in the seats");
+        org.junit.jupiter.api.Assertions.assertThrows(java.net.BindException.class,
+                () -> new ServerSocket(CHOSEN_GUEST_PORT).close(), "it listens on the port chosen");
+
+        var host = watched(3, hosted.get());
+        var two = watched(3, second.get());
+        var three = watched(3, third.get());
+        long giveUp = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(45);
+        stepUntil(List.of(host, two, three), HOST_GOES_AT, giveUp);
+        hosted.get().close();
+        int hostWasAt = host.frame();
+        stepUntil(List.of(two, three), hostWasAt + 300, giveUp);
+
+        assertTrue(two.frame() >= hostWasAt + 300 && three.frame() >= hostWasAt + 300,
+                () -> "the match stopped: " + two.frame() + ", " + three.frame());
+        assertFalse(second.get().isConnectionLost() || third.get().isConnectionLost(), "reached it there");
+        second.get().close();
+        third.get().close();
     }
 
     @Test

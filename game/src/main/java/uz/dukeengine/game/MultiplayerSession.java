@@ -266,8 +266,18 @@ public final class MultiplayerSession implements AutoCloseable {
      * waits long for its players gives a limit to match; {@code Duration.ZERO} is none.
      */
     public static MultiplayerSession join(String host, int port, java.time.Duration limit) throws IOException {
+        return join(host, port, limit, 0);
+    }
+
+    /**
+     * The same, listening on {@code listenPort} should it have to relay — 0 for any the machine gives it, a different
+     * one each game: a firewall that lets a game in by port, as a player opens one for a LAN game, can be told this
+     * one, as the reference uses one fixed port for all its traffic (8088).
+     */
+    public static MultiplayerSession join(String host, int port, java.time.Duration limit, int listenPort)
+            throws IOException {
         int millis = millis(limit);
-        var listening = new ServerSocket(0); // should it ever have to relay
+        var listening = new ServerSocket(listenPort); // should it ever have to relay
         var socket = new Socket();
         String welcome;
         String go;
