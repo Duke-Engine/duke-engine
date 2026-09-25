@@ -10,11 +10,64 @@ import uz.dukeengine.core.math.Coord3D;
  * Where a named bone of a thing's model stands, for the simulation — the reference fires from, docks at and lets
  * units out at named bones: a War Factory's DOCKACTION, a barracks' EXITSTART, an A-10's WeaponA01. Read from the model
  * file its {@link Drawn} template names ({@link ModelBones}), scaled and turned as the client draws it — its
- * {@code ModelScale}, its {@code Facing} — so the point is the one drawn, and the same on every machine.
+ * {@code ModelScale}, its {@code Facing} — so the point is the one drawn, and the same on every machine. Which way a
+ * bone points is read the same way ({@link #pointingInFrame}, {@link #pointingInWorld}).
  */
 public final class Bones {
 
     private Bones() {
+    }
+
+    /**
+     * Which way a bone's forward axis points: {@code turn} radians about the up axis, the way a thing turns — from its
+     * thing's forward in its thing's frame, from the world's x in the world's — and {@code tilt} radians above the
+     * ground.
+     */
+    public record Pointing(float turn, float tilt) {
+    }
+
+    /** Which way {@code bone} points in {@code thing}'s own frame, in its model's default pose; null as inFrame is. */
+    public static Pointing pointingInFrame(GameObject thing, String bone) {
+        if (!(thing.getTemplate() instanceof Drawn drawn) || !drawn.hasModel()) {
+            return null;
+        }
+        return pointingOf(drawn, ModelBones.forward(drawn.model(), bone, null, null, 0f));
+    }
+
+    /** Which way {@code bone} points in the world: turned with its thing; null as {@link #inFrame} is. */
+    public static Pointing pointingInWorld(GameObject thing, String bone) {
+        return worldOf(thing, pointingInFrame(thing, bone));
+    }
+
+    /**
+     * Which way {@code bone} of {@code model} points in the world, posed by {@code clip} and turned with the node
+     * {@code turret} by {@code turretTurn} radians, as {@link #inWorld(GameObject, String, String, String, String,
+     * float)} places it; null as that is.
+     */
+    public static Pointing pointingInWorld(GameObject thing, String model, String bone, String clip, String turret,
+            float turretTurn) {
+        if (!(thing.getTemplate() instanceof Drawn drawn)) {
+            return null;
+        }
+        return worldOf(thing, pointingOf(drawn, ModelBones.forward(model, bone, clip, turret, turretTurn)));
+    }
+
+    /** A direction of a model file drawn as {@code drawn} draws it, as its thing's own frame has it; null for none. */
+    private static Pointing pointingOf(Drawn drawn, Coord3D file) {
+        if (file == null) {
+            return null;
+        }
+        double facing = StrictMath.toRadians(drawn.facing());
+        double cos = StrictMath.cos(facing);
+        double sin = StrictMath.sin(facing);
+        double x = file.x() * cos + file.z() * sin;
+        double y = -file.x() * sin + file.z() * cos;
+        return new Pointing((float) StrictMath.atan2(y, x),
+                (float) StrictMath.atan2(file.y(), Math.sqrt(x * x + y * y)));
+    }
+
+    private static Pointing worldOf(GameObject thing, Pointing local) {
+        return local == null ? null : new Pointing(thing.getOrientation() + local.turn(), local.tilt());
     }
 
     /**

@@ -41,6 +41,35 @@ class BonesTest {
         assertEquals(expected.z(), actual.z(), 1e-3f);
     }
 
+    /**
+     * A bone turned a quarter round in its file points a quarter round from its thing's facing, the way a thing turns,
+     * and turns with its thing in the world; one tipped up in its file points up by as much, straight ahead.
+     */
+    @Test
+    void aBonePointsAsItsFileTurnsIt() {
+        var factory = new ThingFactory(ModuleFactory.withDefaults());
+        var template = new Building("Airfield", List.of(), "models/bones/pointing.gltf", 0f, Map.of());
+        factory.addTemplate(template);
+        var world = new GameLogic(factory) {
+            @Override
+            protected void simulate() {
+            }
+        };
+        world.init();
+        var thing = world.spawn(template, new Coord3D(100f, 100f, 0f), 1);
+
+        var quarter = Bones.pointingInFrame(thing, "Quarter");
+        assertEquals(Math.PI / 2, quarter.turn(), 1e-5, "a quarter round from its facing");
+        assertEquals(0.0, quarter.tilt(), 1e-5, "level");
+        thing.setOrientation(0.5f);
+        assertEquals(0.5 + Math.PI / 2, Bones.pointingInWorld(thing, "Quarter").turn(), 1e-5, "turned with it");
+
+        var tipped = Bones.pointingInFrame(thing, "Tipped");
+        assertEquals(Math.PI / 4, tipped.tilt(), 1e-5, "tipped up an eighth");
+        assertEquals(0.0, tipped.turn(), 1e-5, "straight ahead");
+        assertNull(Bones.pointingInFrame(thing, "Nowhere"), "a missing bone says so");
+    }
+
     @Test
     void aBoneStandsInItsThingsFrameAsItsModelIsDrawn() {
         assertNear(new Coord3D(1f, 20f, 10f), Bones.inFrame(barracks(0f, 0f), "EXITSTART"));

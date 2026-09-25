@@ -1,0 +1,50 @@
+{
+ "asset": {
+  "version": "2.0"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "nodes": [
+    0
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "name": "Body",
+   "children": [
+    1,
+    2
+   ]
+  },
+  {
+   "name": "Quarter",
+   "translation": [
+    5,
+    0,
+    0
+   ],
+   "rotation": [
+    0,
+    -0.70710678,
+    0,
+    0.70710678
+   ]
+  },
+  {
+   "name": "Tipped",
+   "translation": [
+    0,
+    3,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0.38268343,
+    0.92387953
+   ]
+  }
+ ]
+}

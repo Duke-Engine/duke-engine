@@ -22,7 +22,9 @@ import uz.dukeengine.core.math.Coord3D;
  *
  * <p>A bone is matched without case, as the client matches it: the reference's weapons name {@code LaserBoneName} and
  * {@code WeaponLaunchBone} in mixed case where its models write them in capitals. It may be read where a clip's last
- * frame puts it — an antenna the clip raises — and turned with a turret of the model it hangs under.
+ * frame puts it — an antenna the clip raises — and turned with a turret of the model it hangs under. Which way it
+ * points is read the same way ({@link #forward}): the reference parks a jet facing its hangar bone, and launches a
+ * missile along its silo's launch bone.
  */
 public final class ModelBones {
 
@@ -52,6 +54,27 @@ public final class ModelBones {
      * pose.
      */
     public static Coord3D of(String path, String bone, String clip, String turret, float turn) {
+        var world = matrixOf(path, bone, clip, turret, turn);
+        return world == null ? null : new Coord3D((float) world[12], (float) world[13], (float) world[14]);
+    }
+
+    /**
+     * Which way {@code bone}'s forward axis — its own x, the axis a model faces along — points in {@code path}'s own
+     * axes, as a unit vector, posed and turned as {@link #of(String, String, String, String, float)} places it; null
+     * where that is.
+     */
+    public static Coord3D forward(String path, String bone, String clip, String turret, float turn) {
+        var world = matrixOf(path, bone, clip, turret, turn);
+        if (world == null) {
+            return null;
+        }
+        double length = Math.sqrt(world[0] * world[0] + world[1] * world[1] + world[2] * world[2]);
+        return length == 0 ? null
+                : new Coord3D((float) (world[0] / length), (float) (world[1] / length), (float) (world[2] / length));
+    }
+
+    /** The whole of {@code bone}'s transform in {@code path}'s own axes, column-major; null for none. */
+    private static double[] matrixOf(String path, String bone, String clip, String turret, float turn) {
         if (path == null || bone == null) {
             return null;
         }
@@ -61,7 +84,7 @@ public final class ModelBones {
             return null;
         }
         var posed = clip == null ? Map.<Integer, double[][]>of() : lastFrame(model, clip);
-        var found = new LinkedHashMap<String, Coord3D>();
+        var found = new LinkedHashMap<String, double[]>();
         for (int root : roots(model.gltf(), nodes)) {
             walk(nodes, root, IDENTITY, posed, turret, turn, found);
         }
@@ -89,7 +112,7 @@ public final class ModelBones {
         if (nodes == null) {
             return found;
         }
-        var byCase = new LinkedHashMap<String, Coord3D>();
+        var byCase = new LinkedHashMap<String, double[]>();
         for (int root : roots(gltf, nodes)) {
             walk(nodes, root, IDENTITY, Map.of(), null, 0f, byCase);
         }
@@ -97,7 +120,7 @@ public final class ModelBones {
             if (((Map<?, ?>) node).get("name") instanceof String name && !found.containsKey(name)) {
                 var at = byCase.get(name.toUpperCase(java.util.Locale.ROOT));
                 if (at != null) {
-                    found.put(name, at);
+                    found.put(name, new Coord3D((float) at[12], (float) at[13], (float) at[14]));
                 }
             }
         }
@@ -243,9 +266,9 @@ public final class ModelBones {
         return roots;
     }
 
-    /** Every named node under {@code index}, in upper case, where it stands: posed by the clip, its turret turned. */
+    /** Every named node under {@code index}, in upper case, and its transform: posed by the clip, its turret turned. */
     private static void walk(List<?> nodes, int index, double[] parent, Map<Integer, double[][]> posed, String turret,
-            float turn, Map<String, Coord3D> found) {
+            float turn, Map<String, double[]> found) {
         var node = (Map<?, ?>) nodes.get(index);
         var local = local(node, posed.get(index));
         var name = node.get("name") instanceof String written ? written : null;
@@ -256,8 +279,7 @@ public final class ModelBones {
         }
         var world = multiply(parent, local);
         if (name != null) {
-            found.putIfAbsent(name.toUpperCase(java.util.Locale.ROOT),
-                    new Coord3D((float) world[12], (float) world[13], (float) world[14]));
+            found.putIfAbsent(name.toUpperCase(java.util.Locale.ROOT), world);
         }
         for (int child : integers(node.get("children"))) {
             walk(nodes, child, world, posed, turret, turn, found);
