@@ -26,11 +26,18 @@ final class ModelLayer {
     private AnimComposer composer;
     private String playing = "";
     private float top;
+    private final BoneSystems systems;
 
     /** A layer drawn as {@code look} says, its models built by {@code load}. */
     ModelLayer(Visuals.UnitVisual look, Function<String, Spatial> load) {
+        this(look, load, null);
+    }
+
+    /** The same, running the particle systems its look puts at its bones through {@code systems}. */
+    ModelLayer(Visuals.UnitVisual look, Function<String, Spatial> load, BoneSystems systems) {
         this.look = look;
         this.load = load;
+        this.systems = systems;
     }
 
     /**
@@ -69,6 +76,9 @@ final class ModelLayer {
             }
         }
         if (body == null) {
+            if (systems != null) {
+                systems.stop(); // a look that draws nothing runs nothing
+            }
             return;
         }
         var host = look.hungOn == null ? parent : hostOf(bones.apply(look.hungOn), parent);
@@ -77,6 +87,9 @@ final class ModelLayer {
         }
         if (pieces.choose(look.pieceStateFor(holding), look.pieceStates)) {
             pieces.applyTo(body, Set.of());
+        }
+        if (systems != null) {
+            systems.choose(look.particlesFor(holding), body);
         }
         if (look.risesAsBuilt) {
             body.setLocalTranslation(0f, look.yOffset - UnitPlacement.sunk(view.built(), top), 0f);

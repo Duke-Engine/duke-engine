@@ -406,6 +406,8 @@ final class DukeRtsApp extends SimpleApplication {
     private static final class UnitNode {
         Node root;
         Geometry ring;
+        /** The particle systems its look puts at its body's bones — see {@link BoneSystems}. */
+        BoneSystems boneSystems;
         /** The line its body was laid along, for a thing drawn along one; null for the rest. */
         uz.dukeengine.core.thing.Span laidSpan;
         /**
@@ -5412,8 +5414,10 @@ final class DukeRtsApp extends SimpleApplication {
         node.body = body;
         node.root.attachChild(body);
 
+        node.boneSystems = new BoneSystems(particles, rootNode);
         for (var look : visual.layers.values()) {
-            node.layers.add(new ModelLayer(look, path -> buildBody(look, java.util.List.of(), path)));
+            node.layers.add(new ModelLayer(look, path -> buildBody(look, java.util.List.of(), path),
+                    new BoneSystems(particles, rootNode)));
         }
         node.ring = buildSelectionRing(view);
         node.root.attachChild(node.ring);
@@ -6060,6 +6064,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
         if (holding != null) {
             wearTheWords(node, visual, holding);
+        }
+        if (!visual.boneParticles.isEmpty() && node.boneSystems != null) {
+            node.boneSystems.choose(visual.particlesFor(holding != null ? holding
+                    : visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions())),
+                    node.body);
         }
         node.root.setLocalTranslation(UnitPlacement.where(view, this::floorHeightAt));
         node.root.setLocalRotation(UnitPlacement.turn(view));

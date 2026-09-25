@@ -177,6 +177,43 @@ public final class Visuals {
             return layers.computeIfAbsent(name, named -> new UnitVisual());
         }
 
+        /** A particle system at a bone of its model while its words choose a look — see {@link #particles}. */
+        record BoneParticles(java.util.SortedSet<String> words, String bone, String system) {
+        }
+
+        final java.util.List<BoneParticles> boneParticles = new java.util.ArrayList<>();
+
+        /**
+         * A particle system from the game's list at a bone of its model — or of this layer's — while its words best fit
+         * {@code conditions}: the reference's {@code ParticleSysBone} per condition state, a scaffold's sparks while it
+         * is built, a factory's steam, a burning building's fires, each chosen with its look and gone when the look
+         * changes. Systems given the same words are one look's and run together; of the looks the words best fit, that
+         * one's run.
+         */
+        public UnitVisual particles(java.util.Set<String> conditions, String bone, String system) {
+            boneParticles.add(new BoneParticles(new java.util.TreeSet<>(conditions), bone, system));
+            return this;
+        }
+
+        /** The systems its words choose now: those of the best-fitting words its systems were given, or none. */
+        java.util.List<BoneParticles> particlesFor(java.util.Set<String> holding) {
+            if (boneParticles.isEmpty()) {
+                return java.util.List.of();
+            }
+            var looks = new java.util.ArrayList<java.util.SortedSet<String>>();
+            for (var one : boneParticles) {
+                if (!looks.contains(one.words())) {
+                    looks.add(one.words());
+                }
+            }
+            int best = uz.dukeengine.core.thing.Conditions.bestFit(looks, holding);
+            if (best < 0) {
+                return java.util.List.of();
+            }
+            var chosen = looks.get(best);
+            return boneParticles.stream().filter(one -> one.words().equals(chosen)).toList();
+        }
+
         /** The bone of the thing's body, or of another of its layers, this layer is drawn at; null for its place. */
         String hungOn;
 
