@@ -214,6 +214,29 @@ public interface World {
     }
 
     /**
+     * Whether {@code mover} may step between two points: along its own floor ({@link #canStep(Coord3D, Coord3D)} on
+     * the ground), or onto floor {@code toward} where the step is a deck's entry or end; -1 for no other floor.
+     */
+    default boolean canStep(GameObject mover, Coord3D from, Coord3D to, int toward) {
+        return canStep(from, to);
+    }
+
+    /** Whether the ground {@code mover} stands on is stone under a point: {@link #isGroundBlocked}, on its floor. */
+    default boolean isGroundBlocked(GameObject mover, Coord3D position) {
+        return isGroundBlocked(position);
+    }
+
+    /** How high the surface {@code mover} stands on is under a point: the ground's, or its deck's. */
+    default float groundHeight(GameObject mover, Coord3D position) {
+        return groundHeight(position);
+    }
+
+    /** The floor {@code mover} is on after a step: {@code toward} where the step enters it, its own otherwise. */
+    default int floorAfter(GameObject mover, Coord3D from, Coord3D to, int toward) {
+        return mover.getFloor();
+    }
+
+    /**
      * The damage the game names unresistable — the reference's {@code DAMAGE_UNRESISTABLE} — which a body's damage
      * scale does not change; null where it names none.
      */

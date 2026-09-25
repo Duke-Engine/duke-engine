@@ -65,6 +65,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     private float turnPerFrame; // radians/frame; 0 = instant turning
     private float progressEpsilon;
     private List<Coord3D> waypoints = List.of();
+    /** The route the waypoints came from, for the floor each is on; null for a way given rather than planned. */
+    private uz.dukeengine.core.pathfind.Path route;
     private int waypointIndex;
     private Coord3D destination;      // where it was told to go, as opposed to the next corner
     private int navigationVersion;    // the world's shape when this route was planned
@@ -126,6 +128,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         this.destination = way;
         this.then = destination;
         this.waypoints = List.of(way);
+        this.route = null;
         this.goalReachable = true;
         this.lookedAgain = false;
         var world = getOwner().getWorld();
@@ -154,6 +157,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         var world = getOwner().getWorld();
         if (world == null) {
             this.waypoints = List.of(destination);
+            this.route = null;
             this.goalReachable = true;
         } else {
             // Asked for this owner, so the route allows for its width and comes
@@ -166,6 +170,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             }
             waiting = false;
             this.waypoints = path.getWaypoints();
+            this.route = path;
             this.goalReachable = path.reachesGoal();
             this.navigationVersion = world.getNavigationVersion();
         }
@@ -217,6 +222,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         this.then = null;
         this.waiting = false;
         this.waypoints = List.of();
+        this.route = null;
         this.waypointIndex = 0;
         this.destination = null;
         this.stoppedShort = false;
@@ -314,11 +320,12 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
         // A unit that spawned on top of something is already overlapping; let it
         // walk free rather than lock it in place forever.
-        boolean escaping = isBlocked(owner, position);
+        int toward = route == null ? -1 : route.floorOf(waypointIndex); // the floor the next waypoint is on
+        boolean escaping = isBlocked(owner, position, toward);
 
         if (distance <= step || distance == 0f) {
-            if (escaping || isClear(owner, target)) {
-                owner.setPosition(onGround(owner, target));
+            if (escaping || isClear(owner, target, toward)) {
+                stepTo(owner, target, toward);
                 waypointIndex++; // advance to the next leg (or finish the path)
                 resetProgress();
                 if (!isMoving()) {
@@ -340,8 +347,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
 
         for (var swerve : SWERVE_ANGLES) {
             var next = position.add(headingVector(facing + swerve).scale(step));
-            if (escaping || isClear(owner, next)) {
-                owner.setPosition(onGround(owner, next));
+            if (escaping || isClear(owner, next, toward)) {
+                stepTo(owner, next, toward);
                 return;
             }
         }
@@ -397,8 +404,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         return blocker != null && Footprint.of(blocker).contains(destination);
     }
 
-    private static boolean isClear(GameObject mover, Coord3D position) {
-        return !isBlocked(mover, position);
+    private static boolean isClear(GameObject mover, Coord3D position, int toward) {
+        return !isBlocked(mover, position, toward);
     }
 
     /**
@@ -416,7 +423,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
      * <p>A mover already standing in stone is not held there. Refusing its steps
      * too would make the wall it should be escaping into a cage.
      */
-    private static boolean isBlocked(GameObject mover, Coord3D position) {
+    private static boolean isBlocked(GameObject mover, Coord3D position, int toward) {
         var world = mover.getWorld();
         if (world == null) {
             return false;
@@ -426,8 +433,17 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         }
         // Stone, or a floor this one is not joined to. A step onto a higher floor
         // is refused for the same reason a wall is: from here, it is not ground.
-        return !world.canStep(mover.getPosition(), position)
-                && !world.isGroundBlocked(mover.getPosition());
+        return !world.canStep(mover, mover.getPosition(), position, toward)
+                && !world.isGroundBlocked(mover, mover.getPosition());
+    }
+
+    /** A step to {@code position}: onto the floor the step leads to — a deck's, at its entry — and at its height. */
+    private static void stepTo(GameObject mover, Coord3D position, int toward) {
+        var world = mover.getWorld();
+        if (world != null) {
+            mover.setFloor(world.floorAfter(mover, mover.getPosition(), position, toward));
+        }
+        mover.setPosition(onGround(mover, position));
     }
 
     /**
@@ -445,7 +461,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         var world = mover.getWorld();
         return world == null
                 ? position
-                : new Coord3D(position.x(), position.y(), world.groundHeight(position));
+                : new Coord3D(position.x(), position.y(), world.groundHeight(mover, position));
     }
 
     private static Coord3D headingVector(float angle) {

@@ -54,6 +54,8 @@ public final class GameObject {
     private float visionRange = -1f;
     /** The first frame an enemy may target it — see {@link #setTargetableFrom}. */
     private int targetableFrom;
+    /** The floor it is on: 0 the ground, n the n-th deck laid over it — see {@link #getFloor}. */
+    private int floor;
     private boolean contained;
     private World world;
     private final EnumSet<ObjectStatus> statuses = EnumSet.noneOf(ObjectStatus.class);
@@ -245,6 +247,19 @@ public final class GameObject {
     /** The first frame an enemy may target it; 0 for from the start. */
     public int getTargetableFrom() {
         return targetableFrom;
+    }
+
+    /**
+     * The floor it is on: 0 the ground, n the n-th deck laid over it ({@code PathGrid.addDeck}) — set where it is
+     * placed, kept while it walks, changed only at a deck's entry. Things are in each other's way only on one floor.
+     * In the checksum and a save.
+     */
+    public int getFloor() {
+        return floor;
+    }
+
+    public void setFloor(int floor) {
+        this.floor = floor;
     }
 
     /**

@@ -45,6 +45,12 @@ import uz.dukeengine.core.math.Coord3D;
  * a ramp, {@link #getLevelHeight()} is zero, and every rule above collapses back
  * into the one that was there before it — which is the promise made to every
  * game that will never have a second floor.
+ *
+ * <p><b>Decks.</b> Over the ground a game may lay {@link Deck}s ({@link #addDeck}) — the reference's bridges, a floor
+ * of cells of its own at its own height, the ground kept under it: a thing is on the ground (floor 0) or on one deck,
+ * gets on and off only at the deck's entries ({@link #enters}), and stands at its floor's height ({@link #heightOn}).
+ * The ground under a deck standing lower than {@link #setDeckClearance} above it is closed to the ground's walkers;
+ * higher, it stays as it was, and things pass under while others drive over.
  */
 public final class PathGrid {
 
@@ -64,6 +70,12 @@ public final class PathGrid {
     private final boolean[] ramp;            // cells that link one level to the next
     private float levelHeight;               // world units per level; 0 = the world is flat
     private HeightMap relief;                // smooth ground over the levels; null = none
+    // Laid on the simulation thread, read by a client's pointer on its own: a list either can walk without the other.
+    private final java.util.List<Deck> decks = new java.util.concurrent.CopyOnWriteArrayList<>();
+    /** How high a deck must stand over the ground for the ground under it to stay open: the reference's 10. */
+    private float deckClearance = 10f;
+    /** For each ground cell, how many open decks stand too low over it for it to be walked; null with no deck. */
+    private int[] closedUnder;
 
     public PathGrid(int width, int height) {
         this(width, height, DEFAULT_CELL_SIZE);
@@ -108,7 +120,7 @@ public final class PathGrid {
             return true;
         }
         int index = cy * width + cx;
-        return blocked[index] || obstacle[index];
+        return blocked[index] || obstacle[index] || closedUnder != null && closedUnder[index] > 0;
     }
 
     /** Whether the <em>map</em> forbids this cell, ignoring anything standing on it. */
@@ -399,5 +411,132 @@ public final class PathGrid {
     /** Linear index of a cell, used as a deterministic tie-breaker in search. */
     int index(int cx, int cy) {
         return cy * width + cx;
+    }
+
+    // ---- decks ----
+
+    /**
+     * Lay a deck over the ground: four corners with their heights, round it, the first two one end and the last two
+     * the other; its floor comes back, 1 for the first. Classified as {@link Deck} says, and open.
+     */
+    public int addDeck(Coord3D first, Coord3D second, Coord3D third, Coord3D fourth) {
+        var deck = new Deck(decks.size() + 1, new Coord3D[] {first, second, third, fourth}, this);
+        decks.add(deck);
+        decksChanged();
+        return deck.floor();
+    }
+
+    /** Open or close a deck — a bridge destroyed shuts all its cells and cuts its entries; repaired, it opens again. */
+    public void setDeckOpen(int floor, boolean open) {
+        var deck = deck(floor);
+        if (deck != null && deck.isOpen() != open) {
+            deck.setOpen(open);
+            decksChanged();
+        }
+    }
+
+    /** How high a deck must stand over the ground for the ground under it to stay open to the ground's walkers. */
+    public void setDeckClearance(float clearance) {
+        this.deckClearance = clearance;
+        decksChanged();
+    }
+
+    /** The deck on {@code floor}, or null. */
+    public Deck deck(int floor) {
+        return floor >= 1 && floor <= decks.size() ? decks.get(floor - 1) : null;
+    }
+
+    /** Every deck laid, in the order laid: the n-th on floor n. */
+    public java.util.List<Deck> decks() {
+        return java.util.Collections.unmodifiableList(decks);
+    }
+
+    public boolean hasDecks() {
+        return !decks.isEmpty();
+    }
+
+    /** A deck laid, opened or closed: the ground under the open ones worked out again, and every route planned again. */
+    private void decksChanged() {
+        var closed = new int[width * height];
+        for (var deck : decks) {
+            if (!deck.isOpen()) {
+                continue;
+            }
+            for (int cy = deck.minY(); cy <= deck.maxY(); cy++) {
+                for (int cx = deck.minX(); cx <= deck.maxX(); cx++) {
+                    if (!deck.walkable(cx, cy)) {
+                        continue;
+                    }
+                    float over = deck.heightAt((cx + 0.5f) * cellSize, (cy + 0.5f) * cellSize) - groundHeight(cx, cy);
+                    if (over < deckClearance) {
+                        closed[cy * width + cx]++;
+                    }
+                }
+            }
+        }
+        closedUnder = closed;
+        shapeVersion++;
+        obstacleVersion++; // what a route is checked against: every mover plans its way again
+    }
+
+    /**
+     * Whether a thing on {@code floor} may step from one cell to a neighbour along it: on the ground, {@link #canStep};
+     * on a deck, between two of its walkable cells while it is open.
+     */
+    public boolean walks(int floor, int fromX, int fromY, int toX, int toY) {
+        if (floor == 0) {
+            return canStep(fromX, fromY, toX, toY);
+        }
+        var deck = deck(floor);
+        return deck != null && deck.isOpen() && deck.walkable(fromX, fromY) && deck.walkable(toX, toY);
+    }
+
+    /**
+     * Whether a step from one cell to a neighbour takes a thing from {@code floor} onto {@code onto}: from the ground
+     * onto an open deck at one of its entries, or off an open deck's end onto open ground — the only ways from one
+     * floor to another. A step that is both, a deck high over open ground at its end, is either, as the route says.
+     */
+    public boolean enters(int floor, int onto, int fromX, int fromY, int toX, int toY) {
+        if (floor == onto || floor != 0 && onto != 0 || !inBounds(fromX, fromY) || !inBounds(toX, toY)) {
+            return false;
+        }
+        var deck = deck(floor == 0 ? onto : floor);
+        if (deck == null || !deck.isOpen() || isBlocked(floor == 0 ? fromX : toX, floor == 0 ? fromY : toY)) {
+            return false;
+        }
+        int ground = floor == 0 ? index(fromX, fromY) : index(toX, toY);
+        int onDeck = floor == 0 ? index(toX, toY) : index(fromX, fromY);
+        for (var entry : deck.entries()) {
+            if (entry[0] == ground && entry[1] == onDeck) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** How high the surface a thing on {@code floor} stands on is under a point: the ground's, or its deck's. */
+    public float heightOn(int floor, Coord3D worldPos) {
+        var deck = deck(floor);
+        return deck == null ? groundHeight(worldPos) : deck.heightAt(worldPos.x(), worldPos.y());
+    }
+
+    /**
+     * The floor a thing at {@code at} is on: the ground, or the open deck over its point whose height is nearest its
+     * height — the reference's {@code getLayerForDestination}. Where a thing is placed, where a click lands.
+     */
+    public int floorAt(Coord3D at) {
+        int floor = 0;
+        float nearest = Math.abs(at.z() - groundHeight(at));
+        for (var deck : decks) {
+            if (!deck.isOpen() || !deck.walkable(toCellX(at), toCellY(at))) {
+                continue;
+            }
+            float away = Math.abs(at.z() - deck.heightAt(at.x(), at.y()));
+            if (away < nearest) {
+                nearest = away;
+                floor = deck.floor();
+            }
+        }
+        return floor;
     }
 }

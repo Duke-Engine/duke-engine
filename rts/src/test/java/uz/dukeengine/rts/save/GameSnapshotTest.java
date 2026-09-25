@@ -143,6 +143,29 @@ class GameSnapshotTest {
         assertEquals(next, restored.random().nextLong());
     }
 
+    /** Decks laid at run time, which are open, and the floor a thing stands on come back with a load. */
+    @Test
+    void theDecksAndTheFloorOfWhatStandsOnThemAreSavedWithTheWorld() {
+        var orig = newLogic();
+        orig.setPathGrid(new uz.dukeengine.core.pathfind.PathGrid(40, 40));
+        orig.addDeck(new Coord3D(130f, 180f, 20f), new Coord3D(130f, 220f, 20f),
+                new Coord3D(270f, 220f, 20f), new Coord3D(270f, 180f, 20f));
+        int second = orig.addDeck(new Coord3D(130f, 280f, 5f), new Coord3D(130f, 320f, 5f),
+                new Coord3D(270f, 320f, 5f), new Coord3D(270f, 280f, 5f));
+        var tank = orig.spawn(orig.getThingFactory().findTemplate("Tank"), new Coord3D(200f, 205f, 20f), 0);
+        orig.setDeckOpen(second, false);
+
+        var restored = newLogic();
+        restored.setPathGrid(new uz.dukeengine.core.pathfind.PathGrid(40, 40));
+        GameSnapshot.load(GameSnapshot.save(orig), restored);
+
+        assertEquals(2, restored.getPathGrid().decks().size(), "the decks laid at run time are laid again");
+        assertTrue(restored.getPathGrid().deck(1).isOpen());
+        assertFalse(restored.getPathGrid().deck(second).isOpen());
+        assertEquals(1, restored.findObject(tank.getId()).getFloor(), "the tank is on the first deck");
+        assertEquals(orig.checksum(), restored.checksum());
+    }
+
     @Test
     void savedTextIsStableForSameState() {
         var logic = newLogic();

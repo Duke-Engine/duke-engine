@@ -42,6 +42,18 @@ public final class GameSnapshot {
             sb.append("REVEALED ").append(logic.getRevealedTo().stream().map(String::valueOf)
                     .collect(Collectors.joining(","))).append('\n');
         }
+        if (logic.getPathGrid() != null) {
+            for (var deck : logic.getPathGrid().decks()) {
+                sb.append("DECK ").append(deck.floor());
+                for (int i = 0; i < 4; i++) {
+                    var corner = deck.corner(i);
+                    sb.append('|').append(Float.toString(corner.x())).append(',')
+                            .append(Float.toString(corner.y())).append(',')
+                            .append(Float.toString(corner.z()));
+                }
+                sb.append('|').append(deck.isOpen()).append('\n');
+            }
+        }
 
         var players = logic.getPlayerList();
         for (int i = 0; i < players.getPlayerCount(); i++) {
@@ -75,7 +87,8 @@ public final class GameSnapshot {
                     .append(String.join(",", o.getConditions())).append('|')
                     .append(most).append('|')
                     .append(o.getOwnVisionRange()).append('|')
-                    .append(o.getTargetableFrom()).append('\n');
+                    .append(o.getTargetableFrom()).append('|')
+                    .append(o.getFloor()).append('\n');
         }
         return sb.toString();
     }
@@ -100,10 +113,30 @@ public final class GameSnapshot {
                     }
                 }
                 case "PLAYER" -> loadPlayer(rest, logic);
+                case "DECK" -> loadDeck(rest, logic);
                 case "OBJECT" -> loadObject(rest, logic);
                 default -> throw new IllegalArgumentException("unknown snapshot line: " + key);
             }
         }
+    }
+
+    /** A deck the map or the game laid before the load is only opened or closed; one laid at run time is laid again. */
+    private static void loadDeck(String rest, RtsSimulation logic) {
+        var grid = logic.getPathGrid();
+        if (grid == null) {
+            return;
+        }
+        var parts = rest.trim().split("\\|");
+        int floor = Integer.parseInt(parts[0]);
+        if (grid.deck(floor) == null) {
+            var corners = new Coord3D[4];
+            for (int i = 0; i < 4; i++) {
+                var xyz = parts[i + 1].split(",");
+                corners[i] = new Coord3D(Float.parseFloat(xyz[0]), Float.parseFloat(xyz[1]), Float.parseFloat(xyz[2]));
+            }
+            grid.addDeck(corners[0], corners[1], corners[2], corners[3]);
+        }
+        grid.setDeckOpen(floor, Boolean.parseBoolean(parts[5]));
     }
 
     private static void loadPlayer(String rest, RtsSimulation logic) {
@@ -153,6 +186,7 @@ public final class GameSnapshot {
         // and one from before a thing's own sight and protection, its template's sight and none
         float sight = parts.length > 11 && !parts[11].isEmpty() ? Float.parseFloat(parts[11]) : -1f;
         int targetableFrom = parts.length > 12 && !parts[12].isEmpty() ? Integer.parseInt(parts[12]) : 0;
+        int floor = parts.length > 13 && !parts[13].isEmpty() ? Integer.parseInt(parts[13]) : 0;
 
         var template = logic.getThingFactory().findTemplate(templateName);
         if (template == null) {
@@ -164,6 +198,7 @@ public final class GameSnapshot {
         object.setOrientation(orientation);
         object.setVisionRange(sight);
         object.setTargetableFrom(targetableFrom);
+        object.setFloor(floor);
         // The most first: health is held to it, and an upgraded Crusader's 680 would be cut to its template's 480.
         if (!most.isEmpty() && object.getBody() != null
                 && Float.parseFloat(most) != object.getBody().getMaxHealth()) {

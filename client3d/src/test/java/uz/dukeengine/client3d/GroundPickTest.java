@@ -86,6 +86,29 @@ class GroundPickTest {
         assertEquals(4f, hit.y, 0.001f, "on the step it is actually standing on");
     }
 
+    /** A click on an open deck lands on the deck, at its height; closed, or beside it, on the ground. */
+    @Test
+    void aClickOnADeckLandsOnTheDeck() {
+        var grid = new uz.dukeengine.core.pathfind.PathGrid(40, 40);
+        int deck = grid.addDeck(new uz.dukeengine.core.math.Coord3D(130f, 180f, 20f),
+                new uz.dukeengine.core.math.Coord3D(130f, 220f, 20f),
+                new uz.dukeengine.core.math.Coord3D(270f, 220f, 20f),
+                new uz.dukeengine.core.math.Coord3D(270f, 180f, 20f));
+        var over = new Vector3f(200f, 100f, 275f); // the scene's z is the map's y
+        var ground = DukeRtsApp.groundHit(over, DOWNWARD, 0f, 0, (x, z) -> 0f);
+
+        var hit = DukeRtsApp.deckHit(over, DOWNWARD, ground, grid.decks());
+        assertEquals(20f, hit.y, 1e-3f, "on the deck, at its height");
+        assertEquals(215f, hit.z, 1e-3f, "where the ray meets it");
+
+        var beside = new Vector3f(200f, 100f, 350f);
+        var groundBeside = DukeRtsApp.groundHit(beside, DOWNWARD, 0f, 0, (x, z) -> 0f);
+        assertEquals(0f, DukeRtsApp.deckHit(beside, DOWNWARD, groundBeside, grid.decks()).y, 1e-3f, "beside it");
+
+        grid.setDeckOpen(deck, false);
+        assertEquals(0f, DukeRtsApp.deckHit(over, DOWNWARD, ground, grid.decks()).y, 1e-3f, "closed, the ground");
+    }
+
     /** A game with no height in it is answered exactly as it always was. */
     @Test
     void aFlatMapIsPickedAtZero() {

@@ -156,6 +156,228 @@ public final class Pathfinder {
         return awayFrom(squeezed, from, to) < awayFrom(path, from, to) ? squeezed : path;
     }
 
+    /**
+     * The same, over the ground and the grid's decks together: from {@code from} on {@code fromFloor} to {@code to} on
+     * {@code toFloor}, onto a deck only at an entry and off at another — see {@link PathGrid#enters}. A grid with no
+     * deck is searched as {@link #findPathOrNearest(PathGrid, Coord3D, Coord3D, float, Zones, Tally)} searches it.
+     */
+    public static Path findPathOrNearest(PathGrid grid, Coord3D from, int fromFloor, Coord3D to, int toFloor,
+            float clearance, Zones zones, Tally tally) {
+        if (!grid.hasDecks()) {
+            return findPathOrNearest(grid, from, to, clearance, zones, tally);
+        }
+        var path = layered(grid, from, fromFloor, to, toFloor, clearance, tally);
+        if (path.reachesGoal() || clearance <= 0f) {
+            return path;
+        }
+        var squeezed = layered(grid, from, fromFloor, to, toFloor, 0f, tally);
+        return squeezed.reachesGoal() || awayFrom(squeezed, from, to) < awayFrom(path, from, to) ? squeezed : path;
+    }
+
+    /**
+     * A* over (floor, cell): the ground's cells and each deck's, a step along a floor or onto another at an entry.
+     * The arrays of a floor are made the first time the search touches it, so a map of many decks costs what the decks
+     * a route goes near cost. Nearest the goal where it cannot be reached, as {@link #search} with {@code orNearest}.
+     */
+    private static Path layered(PathGrid grid, Coord3D from, int fromFloor, Coord3D to, int toFloor, float clearance,
+            Tally tally) {
+        int width = grid.getWidth();
+        int cells = width * grid.getHeight();
+        int startX = grid.toCellX(from);
+        int startY = grid.toCellY(from);
+        int goalX = grid.toCellX(to);
+        int goalY = grid.toCellY(to);
+        if (!grid.inBounds(startX, startY)) {
+            return Path.EMPTY;
+        }
+        if (fromFloor == 0 && grid.isBlocked(startX, startY)) {
+            return escape(grid, from);
+        }
+        int start = fromFloor * cells + grid.index(startX, startY);
+        int goal = grid.inBounds(goalX, goalY) ? toFloor * cells + grid.index(goalX, goalY) : -1;
+        if (start == goal) {
+            return new Path(List.of(to));
+        }
+        int floors = grid.decks().size() + 1;
+        var g = new int[floors][];
+        var f = new int[floors][];
+        var came = new int[floors][];
+        var closed = new boolean[floors][];
+        touch(g, f, came, closed, fromFloor, cells);
+        g[fromFloor][start % cells] = 0;
+        f[fromFloor][start % cells] = heuristic(startX, startY, goalX, goalY);
+        var open = new PriorityQueue<Integer>((a, b) -> {
+            int byF = Integer.compare(f[a / cells][a % cells], f[b / cells][b % cells]);
+            return byF != 0 ? byF : Integer.compare(a, b);
+        });
+        open.add(start);
+        int nearest = start;
+        long nearestAway = away(startX, startY, goalX, goalY);
+        while (!open.isEmpty()) {
+            int current = open.poll();
+            if (current == goal) {
+                return layeredPath(grid, came, cells, current, start, from, fromFloor, to, clearance, true);
+            }
+            int floor = current / cells;
+            int cell = current % cells;
+            if (closed[floor][cell]) {
+                continue;
+            }
+            if (tally != null) {
+                tally.cells++;
+            }
+            closed[floor][cell] = true;
+            int cx = cell % width;
+            int cy = cell / width;
+            long away = away(cx, cy, goalX, goalY);
+            if (away < nearestAway || away == nearestAway && current < nearest) {
+                nearest = current;
+                nearestAway = away;
+            }
+            for (var step : NEIGHBOURS) {
+                int nx = cx + step[0];
+                int ny = cy + step[1];
+                if (!grid.inBounds(nx, ny)) {
+                    continue;
+                }
+                boolean diagonal = step[0] != 0 && step[1] != 0;
+                int cost = g[floor][cell] + (diagonal ? DIAGONAL_COST : ORTHOGONAL_COST);
+                boolean along = floor == 0
+                        ? canTake(grid, cx, cy, step, clearance)
+                        : grid.walks(floor, cx, cy, nx, ny) && (!diagonal
+                                || grid.walks(floor, cx, cy, nx, cy) && grid.walks(floor, cx, cy, cx, ny));
+                if (along) {
+                    relax(g, f, came, closed, open, floor, nx, ny, cells, width, cost, current, goalX, goalY);
+                }
+                // Onto another floor: a deck from the ground at its entry, the ground from a deck's end.
+                if (floor != 0) {
+                    if (grid.enters(floor, 0, cx, cy, nx, ny) && fits(grid, nx, ny, clearance)) {
+                        relax(g, f, came, closed, open, 0, nx, ny, cells, width, cost, current, goalX, goalY);
+                    }
+                    continue;
+                }
+                for (var deck : grid.decks()) {
+                    if (grid.enters(0, deck.floor(), cx, cy, nx, ny)) {
+                        relax(g, f, came, closed, open, deck.floor(), nx, ny, cells, width, cost, current, goalX,
+                                goalY);
+                    }
+                }
+            }
+        }
+        if (nearest == start) {
+            return Path.partial(List.of());
+        }
+        int at = nearest % cells;
+        var there = grid.cellCenter(at % width, at / width);
+        var there3 = new Coord3D(there.x(), there.y(), grid.heightOn(nearest / cells, there));
+        return layeredPath(grid, came, cells, nearest, start, from, fromFloor, there3, clearance, false);
+    }
+
+    /** A step onto (floor, cell) at {@code cost}: kept where it is the cheapest way there yet. */
+    private static void relax(int[][] g, int[][] f, int[][] came, boolean[][] closed, PriorityQueue<Integer> open,
+            int onto, int nx, int ny, int cells, int width, int cost, int current, int goalX, int goalY) {
+        touch(g, f, came, closed, onto, cells);
+        int next = ny * width + nx;
+        if (closed[onto][next] || cost >= g[onto][next]) {
+            return;
+        }
+        came[onto][next] = current;
+        g[onto][next] = cost;
+        f[onto][next] = cost + heuristic(nx, ny, goalX, goalY);
+        open.add(onto * cells + next);
+    }
+
+    private static void touch(int[][] g, int[][] f, int[][] came, boolean[][] closed, int floor, int cells) {
+        if (g[floor] == null) {
+            g[floor] = new int[cells];
+            f[floor] = new int[cells];
+            came[floor] = new int[cells];
+            closed[floor] = new boolean[cells];
+            Arrays.fill(g[floor], Integer.MAX_VALUE);
+            Arrays.fill(came[floor], -1);
+        }
+    }
+
+    /**
+     * The route the search found, as waypoints at the height of each one's floor, straightened a floor at a time: a
+     * step onto another floor is kept, where it is, since the line past it crosses from one floor to another.
+     */
+    private static Path layeredPath(PathGrid grid, int[][] came, int cells, int goal, int start, Coord3D from,
+            int fromFloor, Coord3D to, float clearance, boolean reaches) {
+        int width = grid.getWidth();
+        var nodes = new ArrayList<Integer>();
+        for (int node = goal; node != -1 && node != start; node = came[node / cells][node % cells]) {
+            nodes.add(node);
+        }
+        Collections.reverse(nodes);
+        int count = nodes.size();
+        var points = new Coord3D[count];
+        var floors = new int[count];
+        for (int i = 0; i < count; i++) {
+            int node = nodes.get(i);
+            floors[i] = node / cells;
+            int cell = node % cells;
+            var centre = grid.cellCenter(cell % width, cell / width);
+            points[i] = i == count - 1 ? to
+                    : new Coord3D(centre.x(), centre.y(), grid.heightOn(floors[i], centre));
+        }
+        var straightened = new ArrayList<Coord3D>();
+        var onFloor = new ArrayList<Integer>();
+        var anchor = from;
+        int i = 0;
+        while (i < count) {
+            int runEnd = i;
+            while (runEnd + 1 < count && floors[runEnd + 1] == floors[i]) {
+                runEnd++;
+            }
+            int floor = floors[i];
+            int k = i;
+            if (i > 0 || floor != fromFloor) {
+                straightened.add(points[i]); // where it stepped onto this floor: kept
+                onFloor.add(floor);
+                anchor = points[i];
+                k = i + 1;
+            }
+            while (k <= runEnd) {
+                int furthest = k;
+                for (int j = runEnd; j > k; j--) {
+                    if (clearOn(grid, floor, anchor, points[j], clearance)) {
+                        furthest = j;
+                        break;
+                    }
+                }
+                anchor = points[furthest];
+                straightened.add(anchor);
+                onFloor.add(floor);
+                k = furthest + 1;
+            }
+            i = runEnd + 1;
+        }
+        return Path.onFloors(straightened, onFloor.stream().mapToInt(Integer::intValue).toArray(),
+                reaches && !straightened.isEmpty());
+    }
+
+    /** Whether the straight line between two points of one floor is walkable on it. */
+    private static boolean clearOn(PathGrid grid, int floor, Coord3D a, Coord3D b, float clearance) {
+        if (floor == 0) {
+            return isClearLine(grid, a, b, clearance);
+        }
+        var deck = grid.deck(floor);
+        float dx = b.x() - a.x();
+        float dy = b.y() - a.y();
+        float distance = (float) Math.sqrt(dx * dx + dy * dy);
+        int samples = Math.max(1, (int) Math.ceil(distance / (grid.getCellSize() * LINE_SAMPLE_FRACTION)));
+        for (int s = 0; s <= samples; s++) {
+            float t = (float) s / samples;
+            int cx = (int) Math.floor((a.x() + dx * t) / grid.getCellSize());
+            int cy = (int) Math.floor((a.y() + dy * t) / grid.getCellSize());
+            if (deck == null || !deck.walkable(cx, cy)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** How far from {@code to} a route leaves its mover, across the ground. */
     private static float awayFrom(Path path, Coord3D from, Coord3D to) {
         var end = path.isEmpty() ? from : path.getDestination();
@@ -260,6 +482,18 @@ public final class Pathfinder {
                 }
                 seen[grid.index(nx, ny)] = true;
                 queue[tail++] = grid.index(nx, ny);
+            }
+            // Across an open deck, end to end: its every entry is reached from any of them.
+            for (var deck : grid.decks()) {
+                if (!deck.isOpen() || deck.entries().stream().noneMatch(entry -> entry[0] == cell)) {
+                    continue;
+                }
+                for (var entry : deck.entries()) {
+                    if (!seen[entry[0]] && !grid.isBlocked(entry[0] % width, entry[0] / width)) {
+                        seen[entry[0]] = true;
+                        queue[tail++] = entry[0];
+                    }
+                }
             }
         }
         return new Flood(queue, tail);

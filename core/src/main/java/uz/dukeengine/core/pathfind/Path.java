@@ -20,6 +20,8 @@ public final class Path {
 
     private final List<Coord3D> waypoints;
     private final boolean reachesGoal;
+    /** The floor each waypoint stands on, over decks; null where every one is on the mover's own. */
+    private final int[] floors;
 
     /** A route that ends where it was asked to. */
     public Path(List<Coord3D> waypoints) {
@@ -27,8 +29,23 @@ public final class Path {
     }
 
     private Path(List<Coord3D> waypoints, boolean reachesGoal) {
+        this(waypoints, null, reachesGoal);
+    }
+
+    private Path(List<Coord3D> waypoints, int[] floors, boolean reachesGoal) {
         this.waypoints = List.copyOf(waypoints);
+        this.floors = floors == null ? null : floors.clone();
         this.reachesGoal = reachesGoal;
+    }
+
+    /** A route over decks: each waypoint with the floor it stands on — see {@link PathGrid#enters}. */
+    static Path onFloors(List<Coord3D> waypoints, int[] floors, boolean reachesGoal) {
+        return new Path(waypoints, floors, reachesGoal);
+    }
+
+    /** The floor waypoint {@code i} stands on, or -1 where the route does not say: the mover's own. */
+    public int floorOf(int i) {
+        return floors == null ? -1 : floors[i];
     }
 
     /** A route that ends as near as it can get, rather than where it was asked to — possibly where it starts. */

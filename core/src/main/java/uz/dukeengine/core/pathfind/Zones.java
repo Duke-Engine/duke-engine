@@ -69,7 +69,54 @@ public final class Zones {
             }
             next++;
         }
+        joinAcrossDecks(grid, zone, next);
         return new Zones(grid, grid.getShapeVersion(), zone, next);
+    }
+
+    /**
+     * The zones an open deck joins made one: whatever its entries stand in can reach whatever its other entries do,
+     * across it. The lowest zone joined names the whole, so the labels are the same on every machine.
+     */
+    private static void joinAcrossDecks(PathGrid grid, int[] zone, int count) {
+        if (!grid.hasDecks()) {
+            return;
+        }
+        var parent = new int[count];
+        for (int z = 0; z < count; z++) {
+            parent[z] = z;
+        }
+        for (var deck : grid.decks()) {
+            if (!deck.isOpen()) {
+                continue;
+            }
+            int joined = -1;
+            for (var entry : deck.entries()) {
+                int z = zone[entry[0]];
+                if (z < 0) {
+                    continue;
+                }
+                if (joined < 0) {
+                    joined = root(parent, z);
+                    continue;
+                }
+                int a = root(parent, joined);
+                int b = root(parent, z);
+                parent[Math.max(a, b)] = Math.min(a, b);
+                joined = Math.min(a, b);
+            }
+        }
+        for (int cell = 0; cell < zone.length; cell++) {
+            if (zone[cell] >= 0) {
+                zone[cell] = root(parent, zone[cell]);
+            }
+        }
+    }
+
+    private static int root(int[] parent, int z) {
+        while (parent[z] != z) {
+            z = parent[z];
+        }
+        return z;
     }
 
     /** Whether a step can end on this cell: open, and not a cliff of the relief. */

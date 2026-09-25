@@ -1442,8 +1442,39 @@ final class DukeRtsApp extends SimpleApplication {
         var dir = cam.getWorldCoordinates(new Vector2f(screenX, screenY), 1f)
                 .subtract(near).normalizeLocal();
         var terrain = game.getTerrain();
-        return groundHit(near, dir, terrain == null ? 0f : terrain.getLevelHeight(),
+        var ground = groundHit(near, dir, terrain == null ? 0f : terrain.getLevelHeight(),
                 mapStoreys, this::floorHeightAt);
+        return terrain == null || !terrain.hasDecks() ? ground : deckHit(near, dir, ground, terrain.decks());
+    }
+
+    /**
+     * The ray's meeting with an open deck, where it meets one before it meets the ground: a click on a bridge lands on
+     * the bridge, at its height, so the order sent is one the simulation reads as on it ({@code PathGrid.floorAt}).
+     */
+    static Vector3f deckHit(Vector3f near, Vector3f dir, Vector3f ground,
+                            java.util.List<uz.dukeengine.core.pathfind.Deck> decks) {
+        var best = ground;
+        float bestT = ground.subtract(near).dot(dir);
+        for (var deck : decks) {
+            if (!deck.isOpen()) {
+                continue;
+            }
+            // Its plane, y = a·x + b·z + c in the scene's axes: the map's y is the scene's z.
+            float c = deck.heightAt(0f, 0f);
+            float a = deck.heightAt(1f, 0f) - c;
+            float b = deck.heightAt(0f, 1f) - c;
+            float facing = dir.y - a * dir.x - b * dir.z;
+            if (Math.abs(facing) < 1e-6f) {
+                continue;
+            }
+            float t = (a * near.x + b * near.z + c - near.y) / facing;
+            var hit = near.add(dir.mult(t));
+            if (t > 0f && t < bestT && deck.covers(hit.x, hit.z)) {
+                best = hit;
+                bestT = t;
+            }
+        }
+        return best;
     }
 
     /**

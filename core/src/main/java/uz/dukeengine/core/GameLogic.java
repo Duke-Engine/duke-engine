@@ -154,6 +154,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         object.setPosition(position);
         object.setPlayerIndex(playerIndex);
         setup.accept(object);
+        if (pathGrid != null && pathGrid.hasDecks()) {
+            object.setFloor(pathGrid.floorAt(object.getPosition())); // on the deck it was put down on, if any
+        }
         onSpawned(object);
         return object;
     }
@@ -323,6 +326,88 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     @Override
+    public final boolean canStep(GameObject mover, Coord3D from, Coord3D to, int toward) {
+        if (pathGrid == null || !pathGrid.hasDecks()) {
+            return canStep(from, to);
+        }
+        int fromX = pathGrid.toCellX(from);
+        int fromY = pathGrid.toCellY(from);
+        int toX = pathGrid.toCellX(to);
+        int toY = pathGrid.toCellY(to);
+        int floor = mover.getFloor();
+        return pathGrid.walks(floor, fromX, fromY, toX, toY)
+                || toward >= 0 && pathGrid.enters(floor, toward, fromX, fromY, toX, toY);
+    }
+
+    @Override
+    public final boolean isGroundBlocked(GameObject mover, Coord3D position) {
+        if (pathGrid == null || mover.getFloor() == 0) {
+            return isGroundBlocked(position);
+        }
+        var deck = pathGrid.deck(mover.getFloor());
+        return deck == null || !deck.isOpen() || !deck.walkable(pathGrid.toCellX(position), pathGrid.toCellY(position));
+    }
+
+    @Override
+    public final float groundHeight(GameObject mover, Coord3D position) {
+        return pathGrid == null ? 0f : pathGrid.heightOn(mover.getFloor(), position);
+    }
+
+    @Override
+    public final int floorAfter(GameObject mover, Coord3D from, Coord3D to, int toward) {
+        if (pathGrid == null || toward < 0 || !pathGrid.enters(mover.getFloor(), toward,
+                pathGrid.toCellX(from), pathGrid.toCellY(from), pathGrid.toCellX(to), pathGrid.toCellY(to))) {
+            return mover.getFloor();
+        }
+        return toward;
+    }
+
+    /**
+     * Lay a deck over the map's ground — see {@link PathGrid#addDeck} — at run time: its floor comes back. The ground
+     * under it closes where it stands lower than the clearance ({@link #setDeckClearance}); things placed on it after
+     * are on it.
+     */
+    public final int addDeck(Coord3D first, Coord3D second, Coord3D third, Coord3D fourth) {
+        return pathGrid.addDeck(first, second, third, fourth);
+    }
+
+    /** How high a deck must stand over the ground for the ground under it to stay open; the reference's 10. */
+    public final void setDeckClearance(float clearance) {
+        pathGrid.setDeckClearance(clearance);
+    }
+
+    /**
+     * Open or close a deck. Closed — a bridge destroyed — every thing on it is handed back to the ground under it, and
+     * the game is told who, on the simulation thread ({@link #onDeckClosed}): the reference kills them with falling
+     * damage, and the game decides. Every route is planned again, round it or back over it.
+     */
+    public final void setDeckOpen(int floor, boolean open) {
+        pathGrid.setDeckOpen(floor, open);
+        if (open) {
+            return;
+        }
+        var fell = new ArrayList<GameObject>();
+        for (var object : objects) {
+            if (object.getFloor() == floor) {
+                fell.add(object);
+                object.setFloor(0);
+                var at = object.getPosition();
+                object.setPosition(new Coord3D(at.x(), at.y(), pathGrid.groundHeight(at)));
+            }
+        }
+        for (var listener : deckListeners) {
+            listener.accept(floor, List.copyOf(fell));
+        }
+    }
+
+    private final List<java.util.function.BiConsumer<Integer, List<GameObject>>> deckListeners = new ArrayList<>();
+
+    /** Told, when a deck is closed, which things were on it — see {@link #setDeckOpen}. */
+    public final void onDeckClosed(java.util.function.BiConsumer<Integer, List<GameObject>> listener) {
+        deckListeners.add(listener);
+    }
+
+    @Override
     public final float groundHeight(Coord3D position) {
         return pathGrid == null ? 0f : pathGrid.groundHeight(position);
     }
@@ -384,6 +469,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                         && !candidate.isEffectivelyDead()
                         && !candidate.isContained()
                         && !candidate.hasStatus(uz.dukeengine.core.thing.ObjectStatus.AIRBORNE)
+                        && candidate.getFloor() == mover.getFloor() // over a deck and under it, nobody's way
                         && levelAt(candidate.getPosition()) == level);
     }
 
@@ -536,8 +622,11 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         // the frame's total is under PATHFIND_CELLS_PER_FRAME): a frame goes over by one search at most, and no
         // search is thrown away half done to be started again.
         var tally = new Pathfinder.Tally();
-        var path = Pathfinder.findPathOrNearest(pathGrid, mover.getPosition(), to,
-                Solid.of(mover.getTemplate()).footprintRadius(), zones(), tally);
+        float clearance = Solid.of(mover.getTemplate()).footprintRadius();
+        var path = pathGrid.hasDecks()
+                ? Pathfinder.findPathOrNearest(pathGrid, mover.getPosition(), mover.getFloor(), to,
+                        pathGrid.floorAt(to), clearance, null, tally)
+                : Pathfinder.findPathOrNearest(pathGrid, mover.getPosition(), to, clearance, zones(), tally);
         cellsThisFrame += tally.cells();
         return path;
     }
@@ -967,6 +1056,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             if (object.getTargetableFrom() > 0) {
                 hash = mix(hash, object.getTargetableFrom());
             }
+            if (object.getFloor() != 0) {
+                hash = mix(hash, object.getFloor());
+            }
             int statuses = object.statusBits();
             if (statuses != 0) {
                 hash = mix(hash, statuses);
@@ -974,6 +1066,13 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
         for (int player : revealedTo) {
             hash = mix(hash, player); // nothing revealed sums as it always did
+        }
+        if (pathGrid != null) {
+            for (var deck : pathGrid.decks()) {
+                if (!deck.isOpen()) {
+                    hash = mix(hash, -deck.floor()); // a closed deck: every deck open sums as none did
+                }
+            }
         }
         return hash;
     }
