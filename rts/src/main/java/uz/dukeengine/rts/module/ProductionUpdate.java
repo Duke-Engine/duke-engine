@@ -121,7 +121,12 @@ public final class ProductionUpdate extends UpdateModule {
      * One thing waiting in the queue, as a reader sees it: a unit or research, and how far along it is — 0 for
      * all but the first, which counts from 0 to 1.
      */
-    public record Queued(ThingTemplate unit, Upgrade research, float progress) {
+    public record Queued(ThingTemplate unit, Upgrade research, float progress, int id) {
+
+        /** An entry that names no job, as every entry did before a job had an id. */
+        public Queued(ThingTemplate unit, Upgrade research, float progress) {
+            this(unit, research, progress, 0);
+        }
 
         /** The unit's template name or the upgrade's name. */
         public String name() {
@@ -147,14 +152,21 @@ public final class ProductionUpdate extends UpdateModule {
         final Upgrade research;
         final int frames;
         final int paid;
+        /** Which job it is, at this factory: a cancel of one of several alike names it by this. */
+        final int id;
+        /** What its factory's reservations gave it as it was queued, module by module. */
+        final java.util.Map<ProductionReservation, Object> tokens;
         int framesRemaining;
 
-        Job(ThingTemplate unit, Upgrade research, int frames, int paid) {
+        Job(ThingTemplate unit, Upgrade research, int frames, int paid, int id,
+                java.util.Map<ProductionReservation, Object> tokens) {
             this.unit = unit;
             this.research = research;
             this.frames = frames;
             this.framesRemaining = frames;
             this.paid = paid;
+            this.id = id;
+            this.tokens = tokens;
         }
 
         /** What was paid for it, and so what a cancel gives back. */
@@ -164,6 +176,8 @@ public final class ProductionUpdate extends UpdateModule {
     }
 
     private final List<Job> queue = new ArrayList<>();
+    /** The id the next job queued here is given. */
+    private int nextJob = 1;
     private final List<String> builds;
     private final List<String> researches;
     private final Exit exit;
@@ -224,12 +238,35 @@ public final class ProductionUpdate extends UpdateModule {
     public boolean queue(ThingTemplate unit) {
         var player = owner();
         if (player == null || getOwner().hasStatus(ObjectStatus.SOLD)
-                || getOwner().getWorld() instanceof RtsSimulation rts && !rts.canBuild(player.getIndex(), unit)
-                || !player.withdraw(player.priceOf(unit))) {
+                || getOwner().getWorld() instanceof RtsSimulation rts && !rts.canBuild(player.getIndex(), unit)) {
             return false;
         }
-        queue.add(new Job(unit, null, Math.max(1, Buildable.framesOf(unit)), player.priceOf(unit)));
+        var tokens = reserve(unit);
+        if (tokens == null) {
+            return false; // no room for it here: refused before anything is charged
+        }
+        if (!player.withdraw(player.priceOf(unit))) {
+            tokens.forEach(ProductionReservation::release);
+            return false;
+        }
+        queue.add(new Job(unit, null, Math.max(1, Buildable.framesOf(unit)), player.priceOf(unit), nextJob++, tokens));
         return true;
+    }
+
+    /** Every reservation of this factory's asked for {@code unit}: their tokens, or null where one refused. */
+    private java.util.Map<ProductionReservation, Object> reserve(ThingTemplate unit) {
+        var tokens = new java.util.LinkedHashMap<ProductionReservation, Object>();
+        for (var module : getOwner().getModules()) {
+            if (module instanceof ProductionReservation reservation) {
+                var token = reservation.reserve(unit);
+                if (token == null) {
+                    tokens.forEach(ProductionReservation::release);
+                    return null;
+                }
+                tokens.put(reservation, token);
+            }
+        }
+        return tokens;
     }
 
     /**
@@ -250,7 +287,8 @@ public final class ProductionUpdate extends UpdateModule {
         if (taken || !player.withdraw(upgrade.cost())) {
             return false;
         }
-        queue.add(new Job(null, upgrade, Math.max(1, upgrade.frames()), upgrade.cost()));
+        queue.add(new Job(null, upgrade, Math.max(1, upgrade.frames()), upgrade.cost(), nextJob++,
+                java.util.Map.of()));
         return true;
     }
 
@@ -274,6 +312,7 @@ public final class ProductionUpdate extends UpdateModule {
         if (player != null) {
             player.refund(job.cost());
         }
+        job.tokens.forEach(ProductionReservation::release);
         return true;
     }
 
@@ -319,7 +358,7 @@ public final class ProductionUpdate extends UpdateModule {
         for (int at = 0; at < queue.size(); at++) {
             var job = queue.get(at);
             float progress = at == 0 ? 1f - job.framesRemaining / (float) job.frames : 0f;
-            entries.add(new Queued(job.unit, job.research, progress));
+            entries.add(new Queued(job.unit, job.research, progress, job.id));
         }
         return entries;
     }
@@ -393,6 +432,7 @@ public final class ProductionUpdate extends UpdateModule {
         queue.removeFirst();
         if (world != null) {
             var produced = exit == null ? outOfTheSide(world, owner, head.unit) : outOfTheDoor(world, owner, head.unit);
+            head.tokens.forEach((reservation, token) -> reservation.place(produced, token));
             if (world instanceof RtsSimulation rts) {
                 rts.produced(owner, produced);
             }
