@@ -134,6 +134,23 @@ public class ExperienceModule extends Module implements DamageModifier {
     }
 
     /**
+     * Set its experience outright, to any amount — the reference's {@code ExperienceTracker::setExperienceAndLevel}:
+     * its rank follows it down as well as up, the rank's words and most health with it as a promotion changes them,
+     * but with no promotion's heal. A vehicle whose crew a sniper killed goes back to no rank; a bike takes its
+     * rider's.
+     */
+    public void setExperience(int amount) {
+        experience = Math.max(0, amount);
+        int earned = levelFor(experience);
+        if (earned != level) {
+            int was = level;
+            level = earned;
+            wearTheRank();
+            takeTheRanksHealth(was);
+        }
+    }
+
+    /**
      * The most health the new rung makes of it, against the rung it left — the reference's
      * {@code ActiveBody::onVeterancyLevelChanged}: scaled by the new bonus over the old, the share of it kept, so a
      * unit promoted at full health stays full.
