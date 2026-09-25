@@ -46,9 +46,10 @@ public final class ModelBones {
 
     /**
      * Where {@code bone} stands in {@code path}'s own axes at the last frame of its clip {@code clip} — its default
-     * pose for null — and, where it hangs under the node {@code turret}, turned with it by {@code turn} radians about the up
-     * axis, the way a thing turns ({@code GameObject.getOrientation}); bone, clip and turret matched without case. Null
-     * where the file has no such node, or is not there, or is no glTF; a clip it has not is its default pose.
+     * pose for null — and, where it hangs under the node {@code turret}, turned with it by {@code turn} radians about
+     * the up axis, the way a thing turns ({@code GameObject.getOrientation}); bone, clip and turret matched without
+     * case. Null where the file has no such node, or is not there, or is no glTF; a clip it has not is its default
+     * pose.
      */
     public static Coord3D of(String path, String bone, String clip, String turret, float turn) {
         if (path == null || bone == null) {
