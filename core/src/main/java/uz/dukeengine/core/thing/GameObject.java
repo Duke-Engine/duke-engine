@@ -245,6 +245,25 @@ public final class GameObject {
         return targetableFrom;
     }
 
+    /**
+     * Whether it is hidden from {@code player}: {@link ObjectStatus#HIDDEN} from everyone, or kept from that player
+     * by a {@link uz.dukeengine.core.module.Concealment} of its — never from its own side.
+     */
+    public boolean isHiddenFrom(int player) {
+        if (statuses.contains(ObjectStatus.HIDDEN)) {
+            return true;
+        }
+        if (player == playerIndex) {
+            return false;
+        }
+        for (var module : modules) {
+            if (module instanceof uz.dukeengine.core.module.Concealment concealed && concealed.hiddenFrom(player)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** True while this object is inside a transport/structure (hidden, idle). */
     public boolean isContained() {
         return contained;

@@ -178,9 +178,13 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     /**
      * Whether {@code viewerPlayer} can see {@code target} — fog of war. A player
      * always sees its own units; otherwise the target must lie within the vision
-     * range of one of the viewer's (or an ally's) living units.
+     * range of one of the viewer's (or an ally's) living units. A thing hidden from
+     * the viewer is not seen at all ({@link GameObject#isHiddenFrom}).
      */
     public final boolean canSee(int viewerPlayer, GameObject target) {
+        if (target.isHiddenFrom(viewerPlayer)) {
+            return false;
+        }
         return target.getPlayerIndex() == viewerPlayer || canSee(viewerPlayer, target.getPosition());
     }
 
@@ -195,8 +199,8 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
         for (var watcher : objects) {
             float sight = watcher.getVisionRange();
-            if (watcher.isEffectivelyDead() || sight <= 0f) {
-                continue;
+            if (watcher.isEffectivelyDead() || sight <= 0f || watcher.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)) {
+                continue; // a thing not there sees nothing either
             }
             boolean eye = watcher.getPlayerIndex() == viewerPlayer
                     || getRelationship(viewerPlayer, watcher.getPlayerIndex()) == Relationship.ALLIES

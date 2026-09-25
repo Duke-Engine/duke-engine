@@ -105,14 +105,14 @@ final class RtsClient extends GameClient {
         boolean everything = viewerPlayer == EVERYONE;
         for (var event : drained) {
             var where = event.where();
-            if (everything || where == null || logic.canSee(viewerPlayer, where)) {
+            if ((everything || where == null || logic.canSee(viewerPlayer, where)) && !firedUnseen(event, everything)) {
                 events.add(event);
             }
         }
         var units = new ArrayList<UnitView>();
         for (var object : everything ? logic.getObjects() : logic.getVisibleObjects(viewerPlayer)) {
-            if (object.isContained()) {
-                continue; // riding inside a transport — not on the map
+            if (object.isContained() || object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)) {
+                continue; // riding inside a transport, or not there to be seen — not on the map
             }
             var template = object.getTemplate();
             var position = object.getPosition();
@@ -163,6 +163,16 @@ final class RtsClient extends GameClient {
                 camera.get(),
                 everything || logic.isMapRevealedTo(viewerPlayer),
                 contextOrder.get());
+    }
+
+    /** Whether {@code event} is a shot fired by something hidden from this viewer, whose shots it is not shown. */
+    private boolean firedUnseen(uz.dukeengine.core.event.WorldEvent event, boolean everything) {
+        if (!(event instanceof uz.dukeengine.rts.event.WeaponFired fired)) {
+            return false;
+        }
+        var shooter = logic.findObject(fired.shooter());
+        return shooter != null && (everything ? shooter.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)
+                : shooter.isHiddenFrom(viewerPlayer));
     }
 
     /**

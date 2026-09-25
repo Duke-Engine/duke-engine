@@ -37,5 +37,12 @@ public enum ObjectStatus {
      * {@code FlyUpdate} sets it while its thing is aloft; a game that flies things some other way sets it when they
      * take off and clears it when they land, and whatever asks whether a thing is in the air asks this.
      */
-    AIRBORNE
+    AIRBORNE,
+    /**
+     * Running but not there to be seen: not drawn, not picked, not a target, not on anyone's radar or counted as seen
+     * by anyone — its own side and a watcher included — and giving no sight, while its modules run and it keeps its
+     * place. A parachute before it opens, a missile after it bursts while its death plays out, a delivery plane
+     * recovering off the map.
+     */
+    HIDDEN
 }

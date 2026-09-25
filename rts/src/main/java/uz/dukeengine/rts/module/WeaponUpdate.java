@@ -627,6 +627,9 @@ public final class WeaponUpdate extends UpdateModule {
         if (world != null && victim.getTargetableFrom() > world.getFrame()) {
             return false; // nobody's target yet
         }
+        if (victim.isHiddenFrom(getOwner().getPlayerIndex())) {
+            return false; // not there, or kept from this side: nothing may be fired at it, forced or not
+        }
         if (weapon.targets().isEmpty()) {
             return true;
         }
@@ -786,8 +789,8 @@ public final class WeaponUpdate extends UpdateModule {
         if (candidate.getId().equals(shot.shooter())) {
             return affects.contains(Weapon.Affects.SELF);
         }
-        if (candidate.getTargetableFrom() > world.getFrame()) {
-            return false; // nobody's target yet, a blast's no more than a gun's
+        if (candidate.getTargetableFrom() > world.getFrame() || candidate.hasStatus(ObjectStatus.HIDDEN)) {
+            return false; // nobody's target yet, a blast's no more than a gun's; or not there to be caught
         }
         var relationship = candidate.getPlayerIndex() == shot.side() ? Relationship.ALLIES
                 : world.getRelationship(shot.side(), candidate.getPlayerIndex());
