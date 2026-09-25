@@ -207,28 +207,90 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             return true; // the whole map, for good
         }
         for (var watcher : objects) {
-            if (watcher.isEffectivelyDead() || watcher.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)
-                    || watcher.isContained() && !watcher.seesOut()) {
-                continue; // a thing not there sees nothing either, nor one shut in a hold
-            }
-            boolean goingUp = watcher.hasStatus(uz.dukeengine.core.thing.ObjectStatus.UNDER_CONSTRUCTION);
-            float fog = goingUp ? watcher.getGeometry().footprintRadius() : watcher.getFogRange();
-            float byAll = goingUp ? 0f : uz.dukeengine.core.thing.Sighted.seenByAllOf(watcher.getTemplate());
-            if (fog <= 0f && byAll <= 0f) {
-                continue;
-            }
-            float away = watcher.getPosition().distance(position);
-            if (byAll > 0f && away <= byAll && !watcher.isHiddenFrom(viewerPlayer)) {
-                return true;
-            }
-            boolean eye = watcher.getPlayerIndex() == viewerPlayer
-                    || getRelationship(viewerPlayer, watcher.getPlayerIndex()) == Relationship.ALLIES
-                    || sharedSight != null && sharedSight.test(viewerPlayer, watcher);
-            if (eye && away <= fog) {
+            float reach = reachFor(viewerPlayer, watcher);
+            if (reach >= 0f && watcher.getPosition().distance(position) <= reach) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * How far {@code watcher} shows {@code viewerPlayer} round it: its fog range where it is one of that player's eyes,
+     * the range every player sees round it where it is not hidden from him, the more of the two; negative for none.
+     */
+    private float reachFor(int viewerPlayer, GameObject watcher) {
+        if (watcher.isEffectivelyDead() || watcher.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)
+                || watcher.isContained() && !watcher.seesOut()) {
+            return -1f; // a thing not there sees nothing either, nor one shut in a hold
+        }
+        boolean goingUp = watcher.hasStatus(uz.dukeengine.core.thing.ObjectStatus.UNDER_CONSTRUCTION);
+        float fog = goingUp ? watcher.getGeometry().footprintRadius() : watcher.getFogRange();
+        float byAll = goingUp ? 0f : uz.dukeengine.core.thing.Sighted.seenByAllOf(watcher.getTemplate());
+        if (fog <= 0f && byAll <= 0f) {
+            return -1f;
+        }
+        float reach = byAll > 0f && !watcher.isHiddenFrom(viewerPlayer) ? byAll : -1f;
+        boolean eye = watcher.getPlayerIndex() == viewerPlayer
+                || getRelationship(viewerPlayer, watcher.getPlayerIndex()) == Relationship.ALLIES
+                || sharedSight != null && sharedSight.test(viewerPlayer, watcher);
+        return eye ? Math.max(reach, fog) : reach;
+    }
+
+    /**
+     * The lookers that show one player anything, sorted into squares of the ground by the ground their reach covers:
+     * a point is asked of the few whose reach covers its square, not of every looker in the world. The same answers
+     * as {@link #canSee} gives point by point — the snapshot asked it of every thing, a fifth of a busy frame.
+     */
+    private final class Eyes {
+        /** The side of a square, world units. */
+        private static final float SQUARE = 128f;
+
+        private record Looker(Coord3D at, float reach) {
+        }
+
+        private final java.util.Map<Long, List<Looker>> squares = new java.util.HashMap<>();
+
+        Eyes(int viewerPlayer) {
+            for (var watcher : objects) {
+                float reach = reachFor(viewerPlayer, watcher);
+                if (reach < 0f) {
+                    continue;
+                }
+                var at = watcher.getPosition();
+                var looker = new Looker(at, reach);
+                int fromX = square(at.x() - reach);
+                int toX = square(at.x() + reach);
+                int fromY = square(at.y() - reach);
+                int toY = square(at.y() + reach);
+                for (int y = fromY; y <= toY; y++) {
+                    for (int x = fromX; x <= toX; x++) {
+                        squares.computeIfAbsent(key(x, y), k -> new ArrayList<>()).add(looker);
+                    }
+                }
+            }
+        }
+
+        boolean see(Coord3D position) {
+            var lookers = squares.get(key(square(position.x()), square(position.y())));
+            if (lookers == null) {
+                return false;
+            }
+            for (var looker : lookers) {
+                if (looker.at().distance(position) <= looker.reach()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static int square(float at) {
+            return (int) Math.floor(at / SQUARE);
+        }
+
+        private static long key(int x, int y) {
+            return ((long) x << 32) ^ (y & 0xFFFFFFFFL);
+        }
     }
 
     /** Whose things lend a player their sight beyond its own and its allies' — see {@link #setSharedSight}. */
@@ -267,11 +329,13 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return java.util.Collections.unmodifiableSortedSet(revealedTo);
     }
 
-    /** Every object {@code viewerPlayer} can currently see, in creation order. */
+    /** Every object {@code viewerPlayer} can currently see, in creation order — as {@link #canSee} says of each. */
     public final List<GameObject> getVisibleObjects(int viewerPlayer) {
+        var eyes = revealedTo.contains(viewerPlayer) ? null : new Eyes(viewerPlayer);
         var visible = new ArrayList<GameObject>();
         for (var object : objects) {
-            if (canSee(viewerPlayer, object)) {
+            if (!object.isHiddenFrom(viewerPlayer)
+                    && (object.getPlayerIndex() == viewerPlayer || eyes == null || eyes.see(object.getPosition()))) {
                 visible.add(object);
             }
         }
