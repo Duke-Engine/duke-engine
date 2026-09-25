@@ -82,6 +82,56 @@ final class RtsClient extends GameClient {
         this.logic = logic;
     }
 
+    /** The game's words for its things' moments, added to what each holds; null for none. */
+    private volatile uz.dukeengine.game.view.MomentWords momentWords;
+    /** Each thing's turret's turn at the last snapshot, to tell the frames it turns: the simulation's thread only. */
+    private java.util.Map<Integer, Float> turretTurns = new java.util.HashMap<>();
+
+    void setMomentWords(uz.dukeengine.game.view.MomentWords words) {
+        this.momentWords = words;
+    }
+
+    /** The words {@code object} holds, and the game's words for its moments now. */
+    private java.util.List<String> wordsOf(uz.dukeengine.core.thing.GameObject object, boolean moving,
+            uz.dukeengine.rts.module.WeaponUpdate weapon, java.util.Map<Integer, Float> turns) {
+        var words = momentWords;
+        if (words == null) {
+            return java.util.List.copyOf(object.getConditions());
+        }
+        var all = new java.util.TreeSet<>(object.getConditions());
+        addWord(all, moving ? words.moving() : null);
+        if (weapon != null) {
+            addWord(all, weapon.isAttacking() ? words.attacking() : null);
+            for (var slot : weapon.slotsNow(logic.getFrame() - 1)) { // the frame just run
+                if (slot.fired()) {
+                    addWord(all, uz.dukeengine.game.view.MomentWords.of(words.firing(), slot.slot()));
+                } else if (slot.status() == uz.dukeengine.rts.module.WeaponStatus.BETWEEN_SHOTS) {
+                    addWord(all, uz.dukeengine.game.view.MomentWords.of(words.betweenShots(), slot.slot()));
+                } else if (slot.status() == uz.dukeengine.rts.module.WeaponStatus.RELOADING) {
+                    addWord(all, uz.dukeengine.game.view.MomentWords.of(words.reloading(), slot.slot()));
+                }
+            }
+        }
+        if (words.turretTurning() != null) {
+            for (var module : object.getModules()) {
+                if (module instanceof uz.dukeengine.rts.module.Turret turret) {
+                    float turn = turret.turretTurn();
+                    var was = turretTurns.get(object.getId().value());
+                    turns.put(object.getId().value(), turn);
+                    addWord(all, was != null && was != turn ? words.turretTurning() : null);
+                    break;
+                }
+            }
+        }
+        return java.util.List.copyOf(all);
+    }
+
+    private static void addWord(java.util.Set<String> words, String word) {
+        if (word != null) {
+            words.add(word);
+        }
+    }
+
     void setViewerPlayer(int viewerPlayer) {
         this.viewerPlayer = viewerPlayer;
     }
@@ -119,6 +169,7 @@ final class RtsClient extends GameClient {
                 }
             }
         }
+        var turns = new java.util.HashMap<Integer, Float>();
         for (var object : shown) {
             var carrier = object.isContained() ? uz.dukeengine.rts.module.ContainModule.holdOf(object) : null;
             boolean rider = carrier != null && (carrier.rides(object) || carrier.showsPassengers());
@@ -159,7 +210,7 @@ final class RtsClient extends GameClient {
                     object.statusBits(),
                     hold == null ? java.util.List.of()
                             : hold.getPassengers().stream().map(uz.dukeengine.core.thing.ObjectId::value).toList(),
-                    java.util.List.copyOf(object.getConditions()),
+                    wordsOf(object, ai != null && ai.isMoving(), weapon, turns),
                     built(object),
                     rider ? carrier.getOwner().getId().value() : -1,
                     allied,
@@ -172,6 +223,7 @@ final class RtsClient extends GameClient {
                     object.getDrawnOpacity(),
                     regard == uz.dukeengine.core.player.Relationship.ENEMIES));
         }
+        turretTurns = turns;
         var rallies = new ArrayList<uz.dukeengine.game.view.RallyView>();
         for (var object : shown) {
             if (!everything && object.getPlayerIndex() != viewerPlayer) {

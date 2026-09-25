@@ -168,6 +168,21 @@ class WordClipTest {
                 "and A again, holding nothing");
     }
 
+    /**
+     * A moment's word chosen by as any other word it holds, the moving word named MOVING: moving, RUN; moving and
+     * damaged, LIMP; standing, no state fits and its idle plays — its roles only where none fits.
+     */
+    @Test
+    void theMovingWordChoosesItsRunMovingHurtItsLimpAndStandingItsIdle() {
+        var look = Visuals.create().unit("Ranger", l -> l.model("models/ranger.glb").idle("Idle")
+                .clip(Set.of("MOVING"), "RUN", LOOP, null, null)
+                .clip(Set.of("MOVING", "DAMAGED"), "LIMP", LOOP, null, null)).of("Ranger");
+
+        assertEquals("RUN", look.clipStates.get(look.clipStateFor(Set.of("MOVING"))).clip());
+        assertEquals("LIMP", look.clipStates.get(look.clipStateFor(Set.of("MOVING", "DAMAGED"))).clip());
+        assertEquals(-1, look.clipStateFor(Set.of("DAMAGED")), "standing: none fits, and its idle plays");
+    }
+
     // ---- at a speed ----
 
     @Test

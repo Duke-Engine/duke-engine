@@ -210,6 +210,22 @@ public final class WeaponUpdate extends UpdateModule {
 
     // ---- what a game asks of it ----
 
+    /** The frame each slot of a set, by its index, last fired: for what a client draws, nothing the game decides. */
+    private final java.util.Map<Integer, Integer> firedOn = new java.util.HashMap<>();
+
+    /** One weapon slot of the set in use as it stands: its index in the set, whether it fired, and its status. */
+    public record SlotNow(int slot, boolean fired, WeaponStatus status) {
+    }
+
+    /** Each weapon slot of the set in use: whether it fired in the game's frame {@code frame}, and where it stands. */
+    public List<SlotNow> slotsNow(int frame) {
+        var slots = new ArrayList<SlotNow>();
+        for (var one : armed()) {
+            slots.add(new SlotNow(one.index(), firedOn.getOrDefault(one.index(), -1) == frame, one.clip().status()));
+        }
+        return slots;
+    }
+
     /** Whether its primary weapon may fire now, is waiting between shots, is refilling its clip, or is out. */
     public WeaponStatus getStatus() {
         return getStatus(0);
@@ -432,6 +448,7 @@ public final class WeaponUpdate extends UpdateModule {
     }
 
     private void fire(uz.dukeengine.core.thing.World world, GameObject owner, GameObject victim, Armed chosen) {
+        firedOn.put(chosen.index(), world.getFrame());
         var weapon = chosen.weapon();
         float wider = bonus(owner, weapon, WeaponBonus.Kind.RADIUS);
         var shot = new Shot(owner.getId(), owner.getPlayerIndex(), weapon, chosen.index(),

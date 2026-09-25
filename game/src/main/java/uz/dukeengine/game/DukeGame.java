@@ -1106,6 +1106,7 @@ public final class DukeGame {
         orderCallbacks.forEach(logic::onOrder);
         diedCallbacks.forEach(logic::onDied);
         client = new RtsClient(logic);
+        client.setMomentWords(momentWords);
         client.setCommands(this::buttonsNow);
         client.setAimFits(this::aimFitsNow);
         client.setAttackable(this::attackableNow);
@@ -1238,6 +1239,21 @@ public final class DukeGame {
             }
         }
         setBanner("VICTORY");
+    }
+
+    private volatile uz.dukeengine.game.view.MomentWords momentWords;
+
+    /**
+     * Words for its things' moments — moving, attacking, each weapon slot firing, between shots and reloading, a turret
+     * turning — added to the words each holds while they last, so its looks choose their model, clip and pieces by them
+     * too; the reference's MOVING, FIRING_A and the rest. Null says none, as before.
+     */
+    public DukeGame momentWords(uz.dukeengine.game.view.MomentWords words) {
+        this.momentWords = words;
+        if (client != null) {
+            client.setMomentWords(words);
+        }
+        return this;
     }
 
     /** Show (or clear with "") a big centered message in the game window. */
