@@ -133,4 +133,31 @@ class WordClipTest {
         assertTrue(clip.choose(-1, door().clipStates, 0, 6, 7), "leaving a clip chosen by words is a change");
         assertEquals(0, clip.timeAt(6));
     }
+
+    // ---- at a speed ----
+
+    @Test
+    void aLoopingClipASecondLongAtSpeedTwoLapsInHalfASecondOfTheGamesFrames() {
+        var look = Visuals.create().unit("Chinook", l -> l.model("models/chinook.glb")
+                .clip(Set.of(), "Idle", LOOP, FIRST, null, 2f, 2f)).of("Chinook");
+        var clip = new WordClip();
+        clip.choose(look.clipStateFor(Set.of()), look.clipStates, SECOND, 0, 7);
+
+        assertEquals(2 * 7 / 30.0, clip.timeAt(7), 1e-6, "twice its pace");
+        assertEquals(0, clip.timeAt(15), 1e-6, "round once in half a second");
+    }
+
+    @Test
+    void withNineTenthsToElevenTenthsTwoThingsPlayAtTheirOwnSpeedEachBetweenTheTwo() {
+        var look = Visuals.create().unit("Ranger", l -> l.model("models/ranger.glb")
+                .clip(Set.of(), "Idle", LOOP, FIRST, null, 0.9f, 1.1f)).of("Ranger");
+        var one = new WordClip();
+        var two = new WordClip();
+        one.choose(look.clipStateFor(Set.of()), look.clipStates, SECOND, 0, 7);
+        two.choose(look.clipStateFor(Set.of()), look.clipStates, SECOND, 0, 8);
+
+        assertTrue(one.speed() >= 0.9 && one.speed() <= 1.1, "between the two: " + one.speed());
+        assertTrue(two.speed() >= 0.9 && two.speed() <= 1.1, "between the two: " + two.speed());
+        assertTrue(one.speed() != two.speed(), "each at its own pace");
+    }
 }

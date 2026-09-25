@@ -366,8 +366,19 @@ public final class Visuals {
          */
         public UnitVisual clip(java.util.Set<String> conditions, String clip, ClipMode mode, ClipStart start,
                 String keepGroup) {
+            return clip(conditions, clip, mode, start, keepGroup, 1f, 1f);
+        }
+
+        /**
+         * The same, played at a speed between {@code slowest} and {@code fastest} times its own pace, drawn afresh each
+         * time it starts — the reference's {@code AnimationSpeedFactorRange}: each soldier's idle at its own pace
+         * between 0.9 and 1.1, a Chinook's crates lifted at 2.75. By the client alone: nothing the simulation reads.
+         */
+        public UnitVisual clip(java.util.Set<String> conditions, String clip, ClipMode mode, ClipStart start,
+                String keepGroup, float slowest, float fastest) {
             chooseAgain();
-            clipStates.add(new ClipState(new java.util.TreeSet<>(conditions), clip, mode, start, keepGroup));
+            clipStates.add(new ClipState(new java.util.TreeSet<>(conditions), clip, mode, start, keepGroup, slowest,
+                    fastest));
             return this;
         }
 
@@ -1179,10 +1190,18 @@ public final class Visuals {
      * @param keepGroup the group it keeps the frame across, or {@code null} for none
      */
     public record ClipState(java.util.SortedSet<String> words, String clip, ClipMode mode, ClipStart start,
-            String keepGroup) {
+            String keepGroup, float slowest, float fastest) {
         public ClipState {
             words = java.util.Collections.unmodifiableSortedSet(new java.util.TreeSet<>(words));
             mode = mode == null ? ClipMode.LOOP : mode;
+            slowest = slowest > 0f ? slowest : 1f;
+            fastest = Math.max(slowest, fastest > 0f ? fastest : slowest);
+        }
+
+        /** A clip played at its own pace, as every one was before one could name a speed. */
+        public ClipState(java.util.SortedSet<String> words, String clip, ClipMode mode, ClipStart start,
+                String keepGroup) {
+            this(words, clip, mode, start, keepGroup, 1f, 1f);
         }
     }
 

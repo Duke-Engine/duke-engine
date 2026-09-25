@@ -23,6 +23,8 @@ final class WordClip {
     /** Where in its clip it began, in seconds. */
     private double from;
     private double length;
+    /** How fast it plays, times its own pace: drawn between its state's slowest and fastest as it starts. */
+    private double speed = 1;
 
     /**
      * The state its words now best fit — an index into the look's states, or -1 for none — seen in the game's frame
@@ -43,8 +45,16 @@ final class WordClip {
         this.length = Math.max(0, length);
         if (next != null) {
             from = startOf(next, fraction, thing, frame);
+            speed = next.slowest() == next.fastest() ? next.slowest()
+                    : next.slowest() + new SplittableRandom(((long) thing << 32) ^ frame ^ 0x5DEECE66DL).nextDouble()
+                            * (next.fastest() - next.slowest());
         }
         return true;
+    }
+
+    /** How fast the clip chosen plays, times its own pace. */
+    double speed() {
+        return speed;
     }
 
     /** Whether its words chose a clip, rather than leaving it to its roles. */
@@ -108,7 +118,7 @@ final class WordClip {
         if (chosen == null || length <= 0) {
             return 0;
         }
-        double elapsed = Math.max(0, frame - since) * GameConstants.SECONDS_PER_LOGICFRAME;
+        double elapsed = Math.max(0, frame - since) * GameConstants.SECONDS_PER_LOGICFRAME * speed;
         return switch (chosen.mode()) {
             case HOLD -> from;
             case ONCE -> Math.min(from + elapsed, last());
