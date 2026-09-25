@@ -194,13 +194,15 @@ final class GroundCells {
     /**
      * The nearest block round {@code place} that {@code mover} may have, can walk to and {@code also} takes, spiralling
      * out from the place's own as the reference does — 1 east, 1 north, 2 west, 2 south, 3 east… — over 400 cells;
-     * null for none.
+     * null for none. Where the place itself is out of its reach, a block the place is joined to will do as well, and it
+     * goes as near that as it can ({@code checkForAdjust}'s path from the destination).
      */
     Block nearest(GameObject mover, Coord3D place, Predicate<Block> also) {
         var start = blockAt(mover, place);
+        var reach = reachFor(mover, place);
         int i = start.x();
         int j = start.y();
-        if (fits(mover, start, also)) {
+        if (fits(mover, start, reach, also)) {
             return start;
         }
         int tried = 1;
@@ -208,26 +210,26 @@ final class GroundCells {
         while (tried < MOST_TRIED) {
             for (int n = 0; n < delta; n++, tried++) {
                 i++;
-                if (fits(mover, start.at(i, j), also)) {
+                if (fits(mover, start.at(i, j), reach, also)) {
                     return start.at(i, j);
                 }
             }
             for (int n = 0; n < delta; n++, tried++) {
                 j++;
-                if (fits(mover, start.at(i, j), also)) {
+                if (fits(mover, start.at(i, j), reach, also)) {
                     return start.at(i, j);
                 }
             }
             delta++;
             for (int n = 0; n < delta; n++, tried++) {
                 i--;
-                if (fits(mover, start.at(i, j), also)) {
+                if (fits(mover, start.at(i, j), reach, also)) {
                     return start.at(i, j);
                 }
             }
             for (int n = 0; n < delta; n++, tried++) {
                 j--;
-                if (fits(mover, start.at(i, j), also)) {
+                if (fits(mover, start.at(i, j), reach, also)) {
                     return start.at(i, j);
                 }
             }
@@ -236,8 +238,27 @@ final class GroundCells {
         return null;
     }
 
-    private boolean fits(GameObject mover, Block block, Predicate<Block> also) {
-        return mayHold(mover, block) && reachable(mover, block) && also.test(block);
+    private boolean fits(GameObject mover, Block block, Predicate<Block> reach, Predicate<Block> also) {
+        return mayHold(mover, block) && reach.test(block) && also.test(block);
+    }
+
+    /**
+     * The blocks {@code mover} sent to {@code place} may be given, as the grid's zones join them: those it can walk to,
+     * and — where the place itself is out of its reach — those the place is joined to, beyond whatever is in the way.
+     */
+    private Predicate<Block> reachFor(GameObject mover, Coord3D place) {
+        var zones = world.zones();
+        var grid = world.getPathGrid();
+        int fromX = grid.toCellX(mover.getPosition());
+        int fromY = grid.toCellY(mover.getPosition());
+        if (zones == null || zones.zoneOf(fromX, fromY) < 0) {
+            return any -> true;
+        }
+        int placeX = grid.toCellX(place);
+        int placeY = grid.toCellY(place);
+        boolean inReach = zones.connected(fromX, fromY, placeX, placeY);
+        return block -> zones.connected(fromX, fromY, block.x(), block.y())
+                || !inReach && zones.connected(placeX, placeY, block.x(), block.y());
     }
 
     /**
@@ -304,10 +325,21 @@ final class GroundCells {
         int startY = grid.toCellY(mover.getPosition());
         int id = mover.getId().value();
         boolean legs = MoveUpdate.walksOnLegs(mover);
+        var stuckBehind = new java.util.ArrayList<GameObject>();
+        for (int other : closedToo) {
+            var thing = world.findObject(new ObjectId(other));
+            if (thing != null) {
+                stuckBehind.add(thing);
+            }
+        }
+        float reach = Solid.of(mover.getTemplate()).footprintRadius();
         return new Pathfinder.Traffic() {
             @Override
             public int costOf(int cx, int cy) {
                 var there = shape.at(cx, cy);
+                if (!stuckBehind.isEmpty() && reachesAny(there)) {
+                    return Pathfinder.Traffic.CLOSED;
+                }
                 boolean allyStill = false;
                 boolean allyPassing = false;
                 for (int y = there.minY(); y <= there.maxY(); y++) {
@@ -342,6 +374,23 @@ final class GroundCells {
             @Override
             public boolean allyStill(int cx, int cy) {
                 return !stillAlliesAt(mover, shape.at(cx, cy)).isEmpty();
+            }
+
+            /**
+             * Whether the mover's body, standing at the block's point, would touch one it is stuck behind: their bodies,
+             * not only the block they stand on, since one that stopped where it was walking straddles its cells.
+             */
+            private boolean reachesAny(Block there) {
+                var at = pointOf(there);
+                for (var other : stuckBehind) {
+                    float room = reach + Solid.of(other.getTemplate()).footprintRadius();
+                    float dx = other.getPosition().x() - at.x();
+                    float dy = other.getPosition().y() - at.y();
+                    if (dx * dx + dy * dy < room * room) {
+                        return true;
+                    }
+                }
+                return false;
             }
         };
     }

@@ -116,7 +116,7 @@ class GroundCellsTest {
         var mover = spawn(world, MOVER, 100f, 300f);
 
         legsOf(mover).moveTo(ally.getPosition());
-        var goal = legsOf(mover).getGoal();
+        var goal = legsOf(mover).getDestination();
         runUntilStill(world, List.of(mover, ally), 1200);
 
         var allyBlock = Block.of(7f, 10f, 300.5f, 300.5f);
@@ -126,6 +126,35 @@ class GroundCellsTest {
                 "the nearest free one, beside it: " + given);
         assertFalse(legsOf(mover).stoppedShort());
         assertTrue(mover.getPosition().distance(goal) < 1f, "and it gets there: " + mover.getPosition());
+    }
+
+    @Test
+    void aMoverSentToAPlaceSaysItWasSentThereWhileItWalksToTheBlockRoundIt() {
+        var world = field();
+        var mover = spawn(world, MOVER, 100f, 300f);
+        var place = new Coord3D(355f, 355f, 0f);
+
+        legsOf(mover).moveTo(place);
+
+        assertEquals(place, legsOf(mover).getGoal(), "its goal is the place its order named, for an errand to know it by");
+        var block = Block.of(7f, 10f, 355f, 355f);
+        assertEquals(block.point(10f, 0f), legsOf(mover).getDestination(), "and it walks to the block round it");
+    }
+
+    @Test
+    void sentPastAWallItCannotGetRoundItGoesAsNearAsItCanAndSaysSo() {
+        var world = field();
+        for (int y = 0; y < 80; y++) {
+            world.getPathGrid().setBlocked(30, y, true); // no way round
+        }
+        var mover = spawn(world, MOVER, 100f, 300f);
+
+        legsOf(mover).moveTo(new Coord3D(500f, 300f, 0f));
+        runUntilStill(world, List.of(mover), 1200);
+
+        assertTrue(legsOf(mover).stoppedShort(), "it stopped short, and says so");
+        assertTrue(mover.getPosition().x() < 300f && mover.getPosition().x() > 280f,
+                "by the wall on its own side: " + mover.getPosition());
     }
 
     @Test
@@ -215,7 +244,7 @@ class GroundCellsTest {
         }
         var box = spawn(world, CRUSADER, 100f, 300f);
         legsOf(box).moveTo(new Coord3D(500f, 300f, 0f));
-        var goal = legsOf(box).getGoal();
+        var goal = legsOf(box).getDestination();
 
         float furthest = 0f;
         for (int frame = 0; frame < 1200 && legsOf(box).isMoving(); frame++) {
@@ -242,7 +271,7 @@ class GroundCellsTest {
         var box = spawn(world, CRUSADER, 100f, 300f);
 
         legsOf(box).moveTo(new Coord3D(500f, 300f, 0f));
-        var goal = legsOf(box).getGoal();
+        var goal = legsOf(box).getDestination();
         runUntilStill(world, List.of(box, soldier), 1200);
 
         // Two cells round it cost less than the 42 each cell through it costs: the route is not blocked by the ally.
@@ -259,8 +288,8 @@ class GroundCellsTest {
 
         legsOf(east).moveTo(new Coord3D(405f, 305f, 0f));
         legsOf(west).moveTo(new Coord3D(105f, 305f, 0f));
-        var eastGoal = legsOf(east).getGoal();
-        var westGoal = legsOf(west).getGoal();
+        var eastGoal = legsOf(east).getDestination();
+        var westGoal = legsOf(west).getDestination();
         runUntilStill(world, List.of(east, west), 3000);
 
         assertFalse(legsOf(east).stoppedShort() || legsOf(west).stoppedShort(), "neither gave up");

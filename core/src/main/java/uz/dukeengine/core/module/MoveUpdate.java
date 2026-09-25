@@ -225,6 +225,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     private boolean planning;
     /** How many frames running a box's turn has waited on another's footprint. */
     private int turnWaits;
+    /** The movers it last planned a route round, and where it stood then. */
+    private java.util.Set<uz.dukeengine.core.thing.ObjectId> roundLast = java.util.Set.of();
+    private Coord3D roundFrom;
 
     public MoveUpdate(GameObject owner, Data data) {
         super(owner);
@@ -308,6 +311,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         this.lookedAgain = false;
         this.asideUntil = -1;
         this.round = java.util.Set.of();
+        this.roundLast = java.util.Set.of();
         planRoute();
         nowhereNearer();
     }
@@ -367,6 +371,16 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             if (toPlace && sentTo != null && then == null && asideUntil < 0 && !world.holdsPlace(getOwner())) {
                 // An ally has claimed its block since: the nearest block it may have instead.
                 destination = world.takePlace(getOwner(), sentTo);
+            }
+            if (!round.isEmpty()) {
+                var here = getOwner().getPosition();
+                if (round.equals(roundLast) && roundFrom != null && across(here, roundFrom) < PROBE) {
+                    // Round the same ones again and not a step further for the last route round them: blocked and
+                    // stuck, it walks through them a while, as the reference lets such a unit path through units.
+                    passThroughUntil = world.getFrame() + STUCK_FRAMES;
+                }
+                roundLast = round;
+                roundFrom = here;
             }
             // Asked for this owner, so the route allows for its width and comes
             // back straightened rather than as a walk of cell centres — and, where
@@ -512,8 +526,23 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         return waiting;
     }
 
-    /** Where the unit was ordered to go, or {@code null} if it has no orders. */
+    /**
+     * Where the unit was ordered to go, or {@code null} if it has no orders: the place it was sent to, as its order
+     * named it — not the block round it that it stops on ({@link #getDestination}) — so an errand can tell its own
+     * order from another given since.
+     */
     public Coord3D getGoal() {
+        if (destination == null) {
+            return null;
+        }
+        return (toPlace || throughTo != null) && sentTo != null ? sentTo : destination;
+    }
+
+    /**
+     * Where it is walking to now, or {@code null}: for a move to a place, the block round it that it holds and stops on;
+     * a corner of the way it was given; the place it steps aside to; otherwise its goal itself.
+     */
+    public Coord3D getDestination() {
         return destination;
     }
 
