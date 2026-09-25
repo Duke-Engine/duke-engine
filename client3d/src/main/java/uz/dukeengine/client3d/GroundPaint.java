@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import uz.dukeengine.core.data.Fade;
+import uz.dukeengine.core.data.Flipped;
 import uz.dukeengine.core.data.Overlay;
 import uz.dukeengine.core.data.Paint;
 import uz.dukeengine.core.map.MapTemplate;
@@ -70,15 +71,19 @@ final class GroundPaint {
      */
     private final List<List<String>> overlays;
     private final List<List<String>> fades;
+    /** The rows marked {@link Flipped}: which cells are drawn cut along the other diagonal. None for most maps. */
+    private final List<String> flipped;
 
     private GroundPaint(String what, List<String> rows, Map<String, String> palette,
-            Map<String, Float> coverage, List<List<String>> overlays, List<List<String>> fades) {
+            Map<String, Float> coverage, List<List<String>> overlays, List<List<String>> fades,
+            List<String> flipped) {
         this.what = what;
         this.rows = rows;
         this.palette = palette;
         this.coverage = coverage;
         this.overlays = overlays;
         this.fades = fades;
+        this.flipped = flipped;
     }
 
     /**
@@ -106,7 +111,16 @@ final class GroundPaint {
                     new Object[] {named(map), overlays.size(), fades.size(), layers});
         }
         return new GroundPaint(named(map), rows, painted.palette(), coverage,
-                overlays.subList(0, layers), fades.subList(0, layers));
+                overlays.subList(0, layers), fades.subList(0, layers), MapTerrain.rows(map, Flipped.class, "flipped"));
+    }
+
+    /** Whether a cell is drawn cut along the other diagonal from its relief's — see {@link Flipped}. */
+    boolean flipped(int cx, int cy) {
+        if (cy < 0 || cy >= flipped.size()) {
+            return false;
+        }
+        var row = flipped.get(cy);
+        return cx >= 0 && cx < row.length() && row.charAt(cx) != '.' && row.charAt(cx) != '0';
     }
 
     /**

@@ -10,6 +10,7 @@ import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Quad;
 import uz.dukeengine.core.math.Coord3D;
+import uz.dukeengine.core.pathfind.HeightMap;
 import uz.dukeengine.core.pathfind.PathGrid;
 
 /**
@@ -237,12 +238,11 @@ final class TerrainScene {
             var normals = com.jme3.util.BufferUtils.createFloatBuffer(patch.cells().length * 12);
             var uvs = com.jme3.util.BufferUtils.createFloatBuffer(patch.cells().length * 8);
             var indices = com.jme3.util.BufferUtils.createIntBuffer(patch.cells().length * 6);
-            var split = cellTriangles(grid.getRelief() == null ? uz.dukeengine.core.pathfind.HeightMap.Diagonal.MAIN
-                    : grid.getRelief().diagonal());
             int vertex = 0;
             for (var at : patch.cells()) {
                 int cx = at % width;
                 int cy = at / width;
+                var split = cellTriangles(drawnDiagonal(grid, paint, cx, cy));
                 float x0 = cx * cell;
                 float x1 = x0 + cell;
                 float z0 = cy * cell;
@@ -264,7 +264,8 @@ final class TerrainScene {
                         .put(x1 / span).put(z1 / span).put(x0 / span).put(z1 / span);
                 // Cut along the diagonal HeightMap.fixedAt cuts along. It was once cut along the other: on a
                 // slope the two triangles then describe a different surface from the one the pathfinder walks,
-                // and a unit stood a little in the air or a little in the ground on every tilted cell.
+                // and a unit stood a little in the air or a little in the ground on every tilted cell. A cell the
+                // map turns is cut along the other, and a unit on it stands so, as in the reference.
                 for (int corner : split) {
                     indices.put(vertex + corner);
                 }
@@ -281,8 +282,20 @@ final class TerrainScene {
             root.attachChild(ground);
         }
         for (var overlay : paint.overlays(width, grid.getHeight())) {
-            layOver(grid, overlay);
+            layOver(grid, paint, overlay);
         }
+    }
+
+    /**
+     * The diagonal a cell of the painted ground is drawn cut along: its relief's, or the other where the map turns it
+     * ({@link uz.dukeengine.core.data.Flipped}). Drawing only: heights, slopes and clicks keep the relief's.
+     */
+    static HeightMap.Diagonal drawnDiagonal(PathGrid grid, GroundPaint paint, int cx, int cy) {
+        var relief = grid.getRelief() == null ? HeightMap.Diagonal.MAIN : grid.getRelief().diagonal();
+        if (paint == null || !paint.flipped(cx, cy)) {
+            return relief;
+        }
+        return relief == HeightMap.Diagonal.MAIN ? HeightMap.Diagonal.ANTI : HeightMap.Diagonal.MAIN;
     }
 
     /**
@@ -304,7 +317,7 @@ final class TerrainScene {
      * <p>Laid across the world at its own coverage, like the ground's pictures, so an overlay lines up with
      * the same picture drawn as ground next door rather than starting again in every cell.
      */
-    private void layOver(PathGrid grid, GroundPaint.OverlayPatch overlay) {
+    private void layOver(PathGrid grid, GroundPaint paint, GroundPaint.OverlayPatch overlay) {
         float cell = grid.getCellSize();
         int width = grid.getWidth();
         float span = overlay.coverage() * cell;
@@ -329,8 +342,11 @@ final class TerrainScene {
             float h01 = groundAt(grid, x0, z1);
             var normal = new Vector3f(x1 - x0, h10 - h00, 0f)
                     .cross(new Vector3f(0f, h01 - h00, z1 - z0)).negateLocal().normalizeLocal();
+            // The middle on the diagonal the ground under it is drawn cut along, so it lies on that ground.
+            float hm = drawnDiagonal(grid, paint, at % width, at / width) == HeightMap.Diagonal.MAIN
+                    ? (h00 + h11) / 2f : (h10 + h01) / 2f;
             positions.put(x0).put(h00).put(z0).put(x1).put(h10).put(z0).put(x1).put(h11).put(z1)
-                    .put(x0).put(h01).put(z1).put(xm).put(groundAt(grid, xm, zm)).put(zm);
+                    .put(x0).put(h01).put(z1).put(xm).put(hm).put(zm);
             uvs.put(x0 / span).put(z0 / span).put(x1 / span).put(z0 / span).put(x1 / span).put(z1 / span)
                     .put(x0 / span).put(z1 / span).put(xm / span).put(zm / span);
             // White, so the picture is what is seen; the fade is the alpha alone.

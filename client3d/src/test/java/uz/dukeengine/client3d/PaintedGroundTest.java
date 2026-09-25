@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import uz.dukeengine.core.data.Flipped;
 import uz.dukeengine.core.data.Grid;
 import uz.dukeengine.core.data.Paint;
 import uz.dukeengine.core.data.Relief;
@@ -529,5 +530,47 @@ class PaintedGroundTest {
             node.attachChild(tile);
             return node;
         }
+    }
+
+    /** One cell whose far corner stands a whole cell high, turned or not by its map. */
+    record Turned(String name, float cellSize,
+            @Grid List<String> cells,
+            @Relief List<String> relief,
+            @Paint List<String> paint,
+            @Flipped List<String> flipped,
+            Map<String, String> palette,
+            Map<String, Float> coverage)
+            implements MapTemplate, Scaled, Painted {
+    }
+
+    private static Turned turned(String flag) {
+        return new Turned("turned", 10f, List.of("."), List.of("0 16", "0 0"), List.of("g"), List.of(flag),
+                Map.of("g", "#3A5F2B"), Map.of());
+    }
+
+    private static int[] indicesOf(Object map) {
+        var indices = painted(drawn(map)).getFirst().getMesh().getIndexBuffer();
+        var read = new int[indices.size()];
+        for (int i = 0; i < read.length; i++) {
+            read[i] = indices.get(i);
+        }
+        return read;
+    }
+
+    /**
+     * A cell of corners 0, 16, 0, 0 its map turns draws its two triangles along the other diagonal, while the height
+     * at its middle still reads the relief's — as the reference draws some cells cut the other way and keeps its
+     * heights on one.
+     */
+    @Test
+    void aTurnedCellIsDrawnAlongTheOtherDiagonalAndItsHeightsKeepTheReliefs() {
+        assertEquals(List.of(0, 3, 1, 1, 3, 2), java.util.Arrays.stream(indicesOf(turned("1"))).boxed().toList(),
+                "drawn cut from the high corner to the far one");
+        assertEquals(List.of(0, 3, 2, 0, 2, 1), java.util.Arrays.stream(indicesOf(turned("."))).boxed().toList(),
+                "unturned, drawn exactly as before");
+
+        var grid = MapTerrain.of(turned("1"), 10f, 0f);
+        assertEquals(0f, grid.reliefHeight(new uz.dukeengine.core.math.Coord3D(5f, 5f, 0f)), 1e-6f,
+                "the middle's height on the relief's own diagonal, which the drawing does not change");
     }
 }
