@@ -206,8 +206,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             return true; // the whole map, for good
         }
         for (var watcher : objects) {
-            if (watcher.isEffectivelyDead() || watcher.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)) {
-                continue; // a thing not there sees nothing either
+            if (watcher.isEffectivelyDead() || watcher.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)
+                    || watcher.isContained() && !watcher.seesOut()) {
+                continue; // a thing not there sees nothing either, nor one shut in a hold
             }
             boolean goingUp = watcher.hasStatus(uz.dukeengine.core.thing.ObjectStatus.UNDER_CONSTRUCTION);
             float fog = goingUp ? watcher.getGeometry().footprintRadius() : watcher.getFogRange();

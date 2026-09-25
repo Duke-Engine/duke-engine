@@ -65,6 +65,8 @@ public final class GameObject {
     /** The line it is drawn along, or null — see {@link #setSpan}. */
     private Span span;
     private boolean contained;
+    /** Whether, inside another, it sees out of it. */
+    private boolean seesOut;
     private World world;
     private final EnumSet<ObjectStatus> statuses = EnumSet.noneOf(ObjectStatus.class);
     private final java.util.TreeSet<String> conditions = new java.util.TreeSet<>();
@@ -347,6 +349,20 @@ public final class GameObject {
 
     public void setContained(boolean contained) {
         this.contained = contained;
+    }
+
+    /** Whether, inside another, it sees out of it — see {@link #setSeesOut}. */
+    public boolean seesOut() {
+        return seesOut;
+    }
+
+    /**
+     * Inside another, whether it still sees out: a thing in a hold sees nothing, as the reference's passenger does not
+     * look, "or else you get a perma reveal where you entered the transport" — but in a garrison it looks from the
+     * building. Read only while it is contained.
+     */
+    public void setSeesOut(boolean seesOut) {
+        this.seesOut = seesOut;
     }
 
     public boolean hasStatus(ObjectStatus status) {

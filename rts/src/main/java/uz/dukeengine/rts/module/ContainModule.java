@@ -36,7 +36,8 @@ import uz.dukeengine.core.thing.ObjectId;
  * holder's rally point where it has one — the reference's {@code OpenContain::exitObjectViaDoor}. <b>A shared hold's
  * building sold or removed</b> leaves the network that frame; its passengers come out only where it was the last.
  * <b>A holder that loses its passengers</b> in its death may take them out of the world quietly ({@code
- * PassengersVanish}): no death, no death effect, no kill for anyone.
+ * PassengersVanish}): no death, no death effect, no kill for anyone. <b>Its passengers see nothing</b> but where it
+ * says they see out ({@code PassengersSeeOut}), a garrison's, and then from where it stands.
  */
 @ModuleGroup(ModuleGroups.MOVEMENT)
 public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
@@ -48,10 +49,17 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
      * whether they fire from inside; {@code RiderBone}: the bone of its model they ride on top at, or null; {@code
      * PassengersVanish}: whether passengers it loses in its death leave the world quietly rather than dying; {@code
      * ExitBone}: the bone of its model its passengers come out at, or null for the nearest clear ground outside it;
-     * {@code ExitStart} and {@code ExitEnd}: the bones of its exit path, which they walk out along instead.
+     * {@code ExitStart} and {@code ExitEnd}: the bones of its exit path, which they walk out along instead; {@code
+     * PassengersSeeOut}: whether they see out of it, from where it stands.
      */
     public record Data(int slots, String sharedBy, boolean passengersFire, String riderBone, boolean passengersVanish,
-            String exitBone, String exitStart, String exitEnd) implements ModuleData {
+            String exitBone, String exitStart, String exitEnd, boolean passengersSeeOut) implements ModuleData {
+
+        /** Passengers that see nothing from inside, as the reference's transport's do. */
+        public Data(int slots, String sharedBy, boolean passengersFire, String riderBone, boolean passengersVanish,
+                String exitBone, String exitStart, String exitEnd) {
+            this(slots, sharedBy, passengersFire, riderBone, passengersVanish, exitBone, exitStart, exitEnd, false);
+        }
 
         /** Passengers that come out at one bone, or beside it, as they did before a hold could name a path. */
         public Data(int slots, String sharedBy, boolean passengersFire, String riderBone, boolean passengersVanish,
@@ -88,6 +96,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     private final String exitBone;
     private final String exitStart;
     private final String exitEnd;
+    private final boolean passengersSeeOut;
     private boolean passengersFire;
     private final List<ObjectId> passengers = new ArrayList<>();
 
@@ -101,6 +110,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         this.exitBone = data.exitBone();
         this.exitStart = data.exitStart();
         this.exitEnd = data.exitEnd();
+        this.passengersSeeOut = data.passengersSeeOut();
     }
 
     /** Let its passengers fire from inside, or hold them idle — the reference's PassengersFireUpgrade. */
@@ -122,7 +132,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     public void update() {
         var owner = getOwner();
         var world = owner.getWorld();
-        if (sharedBy != null || world == null || !passengersFire && riderBone == null) {
+        if (sharedBy != null || world == null || !passengersFire && riderBone == null && !passengersSeeOut) {
             return;
         }
         var seat = riderBone == null ? null : uz.dukeengine.core.thing.Bones.inWorld(owner, riderBone);
@@ -199,6 +209,10 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         }
         hold().add(passenger.getId());
         passenger.setContained(true);
+        passenger.setSeesOut(passengersSeeOut && sharedBy == null);
+        if (passengersSeeOut && sharedBy == null) {
+            passenger.setPosition(getOwner().getPosition()); // it looks from where it is held, wherever it got in
+        }
         return true;
     }
 
@@ -272,6 +286,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     }
 
     private void letOut(GameObject passenger) {
+        passenger.setSeesOut(false);
         if (outAlongThePath(passenger)) {
             return;
         }
