@@ -112,7 +112,8 @@ when it does, this page says exactly what to change and how.
   (350.5, 350.5), and two sent to one point stop 20 apart instead of on one another. A move into something (entering
   it, docking at it, closing on it) goes exactly there with `Locomotor.moveExactlyTo`; the engine's own errands
   already do. A test that expects a mover exactly on the point it was sent to measures from its block's point
-  (`Block.of(radius, cellSize, x, y).point(cellSize, z)`).
+  (`Block.of(radius, cellSize, x, y).point(cellSize, z)`). `MoveUpdate.getGoal()` is still the place its order named,
+  and `getDestination()` is the block it walks to.
 - Ground movers no longer shove or swerve round one another. One is held by the one it drives into and slows to what
   that one allows. It plans a route round after two seconds, and the lower of two stuck on each other steps aside.
   Legs pass legs. Buildings and other things that do not move stay solid as before. A route costs its turns and takes
@@ -160,7 +161,9 @@ circle, centred on a cell or on a corner. A move to a place takes the nearest bl
 to, spiralling out over 400 cells as `adjustDestination` does. A block it may have has no stone, cliff or ally's goal
 on it, and no still enemy it cannot drive over. It holds that block until it moves again, and it has arrived once the
 rest of its route is shorter than its close-enough distance. Two still movers less than half a cell apart move apart
-onto blocks of their own. A route costs as the reference's does: 10 a step, 14 a diagonal, and 4, 8 or 16 more for a
+onto blocks of their own. A place out of its reach takes a block round the place on the place's own side, as the
+reference's `checkForAdjust` does, and the mover goes as near as it can and says it stopped short. A route costs as the
+reference's does: 10 a step, 14 a diagonal, and 4, 8 or 16 more for a
 turn of 45, 90 or 135 degrees. A cell an ally stands still on costs 42 more, as does one an ally is passing within 10
 cells of the start. A still enemy that cannot be crushed closes its cell.
 
@@ -172,7 +175,8 @@ As the reference's `AIUpdate` settles it (`blockedBy`, `calculateMaxBlockedSpeed
 - Held, it goes no faster than the other draws away. The limit falls 5% a frame while it is held and grows back 5%
   a frame after, from a fifth of its speed.
 - Held two seconds, or at once behind one standing still while it already faces its way, it plans again round
-  them.
+  them, keeping its body clear of theirs. Planning round the same ones a second time without a step gained, it
+  passes through them for two seconds, as the reference lets a blocked-and-stuck unit path through units.
 - Of two held by each other, the one of lower path priority steps aside. A mover on wheels or treads held by one on
   legs has the one on legs step aside. Stepping aside is to the nearest block clear of the other's route, for up to
   ten seconds, or through movers where there is none.
