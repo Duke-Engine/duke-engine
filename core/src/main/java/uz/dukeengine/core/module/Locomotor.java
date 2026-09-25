@@ -76,6 +76,14 @@ public interface Locomotor {
         return 0f;
     }
 
+    /**
+     * How fast it moved over the last frame, world units a second — what a client paces a walk's clip to, taken from
+     * the simulation so every machine agrees. None for a mover that says nothing.
+     */
+    default float speedMoved() {
+        return 0f;
+    }
+
     default boolean flies() {
         return false;
     }

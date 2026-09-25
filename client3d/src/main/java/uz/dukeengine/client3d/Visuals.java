@@ -77,6 +77,8 @@ public final class Visuals {
         float facingDegrees; // extra yaw if the model's authored "forward" isn't +X
         String idleAnim;
         String walkAnim;
+        /** How far one play of its walk carries it; 0 for a walk played at its own pace. */
+        float walkDistance;
         String attackAnim;
         String hurtAnim;
         String dieAnim;
@@ -375,6 +377,18 @@ public final class Visuals {
         }
 
         /**
+         * A clip for words, one play of which carries the thing {@code distance}: while it moves, played at the rate
+         * that covers that at its speed; standing, at its own pace — see {@link #walk(String, float)}.
+         */
+        public UnitVisual clip(java.util.Set<String> conditions, String clip, ClipMode mode, ClipStart start,
+                String keepGroup, float distance) {
+            chooseAgain();
+            clipStates.add(new ClipState(new java.util.TreeSet<>(conditions), clip, mode, start, keepGroup, 1f, 1f,
+                    java.util.List.of(), false, distance));
+            return this;
+        }
+
+        /**
          * The same, played at a speed between {@code slowest} and {@code fastest} times its own pace, drawn afresh each
          * time it starts — the reference's {@code AnimationSpeedFactorRange}: each soldier's idle at its own pace
          * between 0.9 and 1.1, a Chinook's crates lifted at 2.75. By the client alone: nothing the simulation reads.
@@ -397,7 +411,7 @@ public final class Visuals {
                 ClipMode mode, ClipStart start, String keepGroup) {
             chooseAgain();
             clipStates.add(new ClipState(new java.util.TreeSet<>(conditions), null, mode, start, keepGroup, 1f, 1f,
-                    picks, idles));
+                    picks, idles, 0f));
             return this;
         }
 
@@ -1104,6 +1118,18 @@ public final class Visuals {
         }
 
         /**
+         * A walk one play of which carries it {@code distance}: while it moves, the clip plays at the rate that covers
+         * that at its speed, the simulation's — the reference's {@code Animation = [AIRngr_RNA 30]}, 30 units a cycle
+         * ({@code W3DModelDraw::adjustAnimSpeedToMovementSpeed}) — so a soldier slowed on a slope steps slower
+         * instead of sliding.
+         */
+        public UnitVisual walk(String animName, float distance) {
+            this.walkAnim = animName;
+            this.walkDistance = Math.max(0f, distance);
+            return this;
+        }
+
+        /**
          * What it plays for one blow — <em>once</em> per blow, not on a loop.
          *
          * <p>A unit that has a target is "attacking" for the whole engagement,
@@ -1361,7 +1387,7 @@ public final class Visuals {
      * @param keepGroup the group it keeps the frame across, or {@code null} for none
      */
     public record ClipState(java.util.SortedSet<String> words, String clip, ClipMode mode, ClipStart start,
-            String keepGroup, float slowest, float fastest, java.util.List<Pick> picks, boolean idles) {
+            String keepGroup, float slowest, float fastest, java.util.List<Pick> picks, boolean idles, float distance) {
         public ClipState {
             words = java.util.Collections.unmodifiableSortedSet(new java.util.TreeSet<>(words));
             mode = mode == null ? ClipMode.LOOP : mode;
@@ -1370,6 +1396,13 @@ public final class Visuals {
             picks = picks == null || picks.isEmpty() ? (clip == null ? java.util.List.of() : java.util.List.of(
                     new Pick(clip, 1))) : java.util.List.copyOf(picks);
             clip = clip != null ? clip : picks.isEmpty() ? null : picks.getFirst().clip();
+            distance = Math.max(0f, distance);
+        }
+
+        /** Played at its own pace, whatever the thing's speed. */
+        public ClipState(java.util.SortedSet<String> words, String clip, ClipMode mode, ClipStart start,
+                String keepGroup, float slowest, float fastest, java.util.List<Pick> picks, boolean idles) {
+            this(words, clip, mode, start, keepGroup, slowest, fastest, picks, idles, 0f);
         }
 
         /** One clip, or none. */
@@ -1383,6 +1416,15 @@ public final class Visuals {
                 String keepGroup) {
             this(words, clip, mode, start, keepGroup, 1f, 1f);
         }
+    }
+
+    /**
+     * How fast a clip {@code seconds} long, one play of which carries a thing {@code distance}, plays at {@code speed}
+     * world units a second, times its own pace: the rate that covers the distance at the speed; its own {@code pace}
+     * standing still, or for a clip that names no distance.
+     */
+    static double paced(double seconds, float distance, float speed, double pace) {
+        return distance > 0f && speed > 0f && seconds > 0 ? seconds * speed / distance : pace;
     }
 
     /**

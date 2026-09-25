@@ -221,7 +221,8 @@ final class RtsClient extends GameClient {
                     // draws a disguised bomb truck to its enemies; its own to its side.
                     allied || object.getWearsColoursOf() < 0 ? object.getPlayerIndex() : object.getWearsColoursOf(),
                     object.getDrawnOpacity(),
-                    regard == uz.dukeengine.core.player.Relationship.ENEMIES));
+                    regard == uz.dukeengine.core.player.Relationship.ENEMIES,
+                    ai == null ? 0f : ai.speedMoved()));
         }
         turretTurns = turns;
         var rallies = new ArrayList<uz.dukeengine.game.view.RallyView>();

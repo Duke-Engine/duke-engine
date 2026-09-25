@@ -29,6 +29,8 @@ final class WordClip {
     private double length;
     /** How fast it plays, times its own pace: drawn between its state's slowest and fastest as it starts. */
     private double speed = 1;
+    /** Its own pace, drawn as it started: what a clip paced to the thing's speed plays at standing still. */
+    private double ownPace = 1;
 
     /**
      * The state its words now best fit — an index into the look's states, or -1 for none — seen in the game's frame
@@ -58,6 +60,7 @@ final class WordClip {
             speed = next.slowest() == next.fastest() ? next.slowest()
                     : next.slowest() + new SplittableRandom(((long) thing << 32) ^ frame ^ 0x5DEECE66DL).nextDouble()
                             * (next.fastest() - next.slowest());
+            ownPace = speed;
         }
         return true;
     }
@@ -88,6 +91,23 @@ final class WordClip {
             length = anim.getLength();
         }
         return picked;
+    }
+
+    /**
+     * A clip that names the distance one play of it covers, paced from the game's frame {@code frame} on to the thing
+     * moving {@code thingSpeed} world units a second — where it is in its clip kept, only its rate changed.
+     */
+    void pace(float thingSpeed, int frame) {
+        if (chosen == null || chosen.distance() <= 0f) {
+            return;
+        }
+        double rate = Visuals.paced(length, chosen.distance(), thingSpeed, ownPace);
+        if (rate == speed) {
+            return;
+        }
+        from = timeAt(frame);
+        since = frame;
+        speed = rate;
     }
 
     /** How fast the clip chosen plays, times its own pace. */
@@ -133,6 +153,12 @@ final class WordClip {
      */
     static String playOn(AnimComposer composer, WordClip clip, String playing, Visuals.UnitVisual look,
             Set<String> holding, int frame, int thing, Consumer<String> missing) {
+        return playOn(composer, clip, playing, look, holding, frame, thing, 0f, missing);
+    }
+
+    /** The same, a clip that names a distance paced to the thing moving {@code thingSpeed} world units a second. */
+    static String playOn(AnimComposer composer, WordClip clip, String playing, Visuals.UnitVisual look,
+            Set<String> holding, int frame, int thing, float thingSpeed, Consumer<String> missing) {
         int index = look.clipStateFor(holding);
         if (index >= 0 && look.clipStates.get(index).clip() == null) {
             if (clip.choose(index, look.clipStates, 0, frame, thing)) {
@@ -155,6 +181,7 @@ final class WordClip {
             return null;
         }
         clip.choose(index, look.clipStates, drawn, anim.getLength(), frame, thing);
+        clip.pace(thingSpeed, frame);
         String name = clip.idleOn(composer, frame, thing);
         var action = composer.getCurrentAction();
         if (action == null || !name.equals(playing)) {

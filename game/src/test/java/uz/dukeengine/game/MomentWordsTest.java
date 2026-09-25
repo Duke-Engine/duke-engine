@@ -63,8 +63,11 @@ class MomentWordsTest {
         game.getLogic().getObjects().getFirst().getLocomotor().moveTo(new Coord3D(300f, 100f, 0f));
         game.runHeadless(2);
         assertTrue(viewOf(game, id).conditions().contains("MOVING"), "moving");
+        org.junit.jupiter.api.Assertions.assertEquals(14f, viewOf(game, id).speed(), 1e-3f,
+                "at its speed, the simulation's, for a walk paced to it");
         game.runHeadless(900);
         assertFalse(viewOf(game, id).conditions().contains("MOVING"), "there, and standing again");
+        org.junit.jupiter.api.Assertions.assertEquals(0f, viewOf(game, id).speed(), "standing");
     }
 
     /**

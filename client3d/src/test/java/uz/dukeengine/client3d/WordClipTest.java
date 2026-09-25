@@ -260,6 +260,31 @@ class WordClipTest {
         }
     }
 
+    // ---- paced to its speed ----
+
+    /**
+     * A clip a second long one play of which carries the thing 30, the reference's {@code [AIRngr_RNA 30]}: at 60 a
+     * second it plays twice a second, at 15 half a time, and standing still at its own pace — where it is in its clip
+     * kept as its speed changes.
+     */
+    @Test
+    void aClipCoveringThirtyUnitsPlaysAtTheRateThatCoversThemAtTheThingsSpeed() {
+        var look = Visuals.create().unit("Ranger", l -> l.model("models/ranger.glb")
+                .clip(Set.of(), "RUN", LOOP, FIRST, null, 30f)).of("Ranger");
+        var clip = new WordClip();
+        clip.choose(0, look.clipStates, SECOND, 0, 7);
+
+        clip.pace(60f, 0);
+        assertEquals(0.2, clip.timeAt(3), 1e-6, "twice a second at 60");
+        clip.pace(15f, 3);
+        assertEquals(0.2 + 0.5, clip.timeAt(33), 1e-6, "half a time a second at 15, on from where it was");
+        clip.pace(0f, 33);
+        assertEquals(0.7 + 0.5, clip.timeAt(48) + SECOND, 1e-6, "standing still, at its own pace");
+
+        assertEquals(2.0, Visuals.paced(1.0, 30f, 60f, 1.0), 1e-9, "a walk's rate the same way");
+        assertEquals(1.0, Visuals.paced(1.0, 30f, 0f, 1.0), 1e-9);
+    }
+
     // ---- at a speed ----
 
     @Test

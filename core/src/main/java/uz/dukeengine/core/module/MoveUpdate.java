@@ -546,6 +546,11 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     }
 
     /** How fast it is going now, world units a second. */
+    @Override
+    public float speedMoved() {
+        return lastStep * GameConstants.LOGICFRAMES_PER_SECOND;
+    }
+
     public float getSpeedNow() {
         return speedNow;
     }

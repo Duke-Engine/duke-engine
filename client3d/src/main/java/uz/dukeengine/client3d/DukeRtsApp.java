@@ -6708,10 +6708,17 @@ final class DukeRtsApp extends SimpleApplication {
             return; // standing with the idle it drew as it began to
         }
         String wanted = walking ? visual.walkAnim : visual.idleFor(view.id(), snapshot.frame());
-        if (wanted == null || wanted.equals(node.currentAnim)) {
-            return;
+        if (wanted != null && !wanted.equals(node.currentAnim)) {
+            play(node, view.looksAs(), wanted, true);
         }
-        play(node, view.looksAs(), wanted, true);
+        if (walking && visual.walkDistance > 0f && node.composer != null) {
+            // Paced to its speed, the simulation's: a soldier slowed on a slope steps slower instead of sliding.
+            var action = node.composer.getCurrentAction();
+            var clip = node.composer.getAnimClip(visual.walkAnim);
+            if (action != null && clip != null) {
+                action.setSpeed(Visuals.paced(clip.getLength(), visual.walkDistance, view.speed(), 1.0));
+            }
+        }
     }
 
     /**
@@ -6727,7 +6734,7 @@ final class DukeRtsApp extends SimpleApplication {
         var holding = visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
         boolean had = node.wordClip.chosen();
         var chosen = WordClip.playOn(node.composer, node.wordClip, node.currentAnim, visual, holding, snapshot.frame(),
-                view.id(), clip -> warnOnce(view.templateName() + "/" + clip, "animation"));
+                view.id(), view.speed(), clip -> warnOnce(view.templateName() + "/" + clip, "animation"));
         if (chosen == null) {
             if (had) {
                 node.currentAnim = "";
