@@ -39,10 +39,10 @@ class MarksAndTintsTest {
 
     @Test
     void theMarkComesWithItsWordAndSubliminalTakesItsPlace() {
-        assertEquals(-1, RANGER.markFor(Set.of()), "no word, no mark");
-        assertEquals(CROSS, RANGER.marks.get(RANGER.markFor(Set.of("ENTHUSIASTIC"))).frames());
-        assertEquals(CROSS_B, RANGER.marks.get(RANGER.markFor(Set.of("ENTHUSIASTIC", "SUBLIMINAL"))).frames(),
-                "the Subliminal one with both held");
+        assertEquals(List.of(), RANGER.marksFor(Set.of()), "no word, no mark");
+        assertEquals(CROSS, RANGER.marks.get(RANGER.marksFor(Set.of("ENTHUSIASTIC")).getFirst()).frames());
+        assertEquals(List.of(1), RANGER.marksFor(Set.of("ENTHUSIASTIC", "SUBLIMINAL")),
+                "the Subliminal one alone with both held");
     }
 
     @Test

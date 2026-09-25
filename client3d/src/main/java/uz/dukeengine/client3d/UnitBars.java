@@ -71,26 +71,41 @@ final class UnitBars {
      *             different number of pixels at every distance from the camera
      * @param his  whether it fights for the watching player
      */
-    record Standing(UnitView view, float top, float foot, boolean his, Badge badge, float size, boolean picked) {
+    record Standing(UnitView view, float top, float foot, boolean his, List<Badge> badges, float size,
+            boolean picked) {
+
+        Standing {
+            badges = badges == null ? List.of() : List.copyOf(badges);
+        }
 
         /** One with no mark by its bar: every creature from before its words could put one there. */
         Standing(UnitView view, float top, float foot, boolean his) {
-            this(view, top, foot, his, null);
+            this(view, top, foot, his, (Badge) null);
         }
 
         /** One that says nothing of its size or of being picked out: every creature from before an RTS bar. */
         Standing(UnitView view, float top, float foot, boolean his, Badge badge) {
             this(view, top, foot, his, badge, 0f, true);
         }
+
+        /** One with a mark or none by its bar: every creature from before it could show several. */
+        Standing(UnitView view, float top, float foot, boolean his, Badge badge, float size, boolean picked) {
+            this(view, top, foot, his, badge == null ? List.of() : List.of(badge), size, picked);
+        }
     }
 
     /**
-     * A mark drawn just below a bar — {@code Visuals.UnitVisual.mark} — at the picture it is on now.
+     * A mark drawn by a bar — {@code Visuals.UnitVisual.mark} — at the picture it is on now.
      *
-     * @param along how far along the bar, a share of its width from its left end
      * @param scale times the picture's own size in pixels
+     * @param place where by the bar
      */
-    record Badge(String picture, float along, float scale) {
+    record Badge(String picture, float scale, Visuals.MarkPlace place) {
+
+        /** One with its middle {@code along} the bar and its top against the bar's bottom, as every mark was once. */
+        Badge(String picture, float along, float scale) {
+            this(picture, scale, Visuals.MarkPlace.under(along));
+        }
     }
 
     /** How many steps the experience ring is cut into. */
@@ -294,10 +309,8 @@ final class UnitBars {
         private Lettering level;
         private Lettering name;
         private Lettering bossName;
-        private Geometry badge;
-        private float badgeWide;
-        private float badgeTall;
-        private float badgeAlong;
+        private final List<Geometry> badges = new ArrayList<>();
+        private final List<Badge> placed = new ArrayList<>();
         private boolean up;
         /** Which of the two name pieces is the one showing. */
         private Lettering lettered;
@@ -450,25 +463,71 @@ final class UnitBars {
         if (bar.bossName != null) {
             bar.bossName.show(lettered == bar.bossName);
         }
-        badge(bar, one.badge());
+        dressMarks(bar.node, bar.badges, bar.placed, one.badges(), 8f);
     }
 
-    /** The mark its words put by its bar, at the picture the strip is on, or none. */
-    private void badge(Bar bar, Badge badge) {
-        var picture = badge == null ? null : picture(badge.picture());
-        var image = picture == null ? null : picture.getImage();
-        show(bar.badge, image != null);
-        if (image == null) {
-            return;
+    /**
+     * The marks its words put by its bar, each on a piece of its own at the picture its strip is on and at its own
+     * size, those that will not load left out; the pieces past them hidden. {@code placed} is told which is which.
+     */
+    private void dressMarks(Node node, List<Geometry> pieces, List<Badge> placed, List<Badge> badges, float depth) {
+        placed.clear();
+        for (var badge : badges) {
+            var picture = picture(badge.picture());
+            var image = picture == null ? null : picture.getImage();
+            if (image == null) {
+                continue;
+            }
+            var piece = markPiece(node, pieces, placed.size(), depth);
+            var shown = piece.getMaterial().getTextureParam("ColorMap");
+            if (shown == null || shown.getTextureValue() != picture) {
+                piece.getMaterial().setTexture("ColorMap", picture);
+            }
+            size(piece, image.getWidth() * badge.scale(), image.getHeight() * badge.scale());
+            show(piece, true);
+            placed.add(badge);
         }
-        if (bar.badge.getMaterial().getTextureParam("ColorMap") == null
-                || bar.badge.getMaterial().getTextureParam("ColorMap").getTextureValue() != picture) {
-            bar.badge.getMaterial().setTexture("ColorMap", picture);
+        for (int spare = placed.size(); spare < pieces.size(); spare++) {
+            show(pieces.get(spare), false);
         }
-        bar.badgeWide = image.getWidth() * badge.scale();
-        bar.badgeTall = image.getHeight() * badge.scale();
-        bar.badgeAlong = badge.along();
-        size(bar.badge, bar.badgeWide, bar.badgeTall);
+    }
+
+    /** The {@code index}-th mark's piece on a bar, made the first time it is wanted. */
+    private Geometry markPiece(Node node, List<Geometry> pieces, int index, float depth) {
+        while (pieces.size() <= index) {
+            var piece = piece(node, pieces.isEmpty() ? "badge" : "badge" + pieces.size(), ColorRGBA.White, depth);
+            piece.setMesh(PICTURED);
+            pieces.add(piece);
+        }
+        return pieces.get(index);
+    }
+
+    /** Each mark shown put where its place says, by a bar from {@code left}, its rows from {@code bottom} up to top. */
+    private static void placeMarks(List<Geometry> pieces, List<Badge> placed, float left, float width, float bottom,
+            float top) {
+        for (int index = 0; index < placed.size(); index++) {
+            var piece = pieces.get(index);
+            var corner = markCorner(placed.get(index).place(), piece.getLocalScale().x, piece.getLocalScale().y,
+                    left, width, bottom, top);
+            at(piece, corner[0], corner[1]);
+        }
+    }
+
+    /**
+     * Where a mark {@code wide} by {@code tall} has its lower left corner on the screen, y up, by a bar from {@code
+     * left}, {@code width} wide, its rows from {@code bottom} to {@code top} — as {@code Drawable::drawIconUI} places
+     * the reference's marks.
+     */
+    static float[] markCorner(Visuals.MarkPlace place, float wide, float tall, float left, float width, float bottom,
+            float top) {
+        float x = left + width * place.along() + place.pixels() - (place.centred() ? wide / 2f : 0f);
+        float gap = place.gapShare() * tall + place.gapPixels();
+        float y = switch (place.row()) {
+            case UNDER -> bottom - gap - tall;
+            case MIDDLE -> (bottom + top) / 2f - gap - tall;
+            case OVER -> top + gap;
+        };
+        return new float[] {x, y};
     }
 
     private com.jme3.texture.Texture picture(String path) {
@@ -532,8 +591,8 @@ final class UnitBars {
             bar.lettered.centre(x, footY - 4f
                     - look.nameSize(bar.lettered == bar.bossName) / 2f);
         }
-        // Just below the bar, its middle where along the bar the game said: the reference's quarter.
-        at(bar.badge, barLeft + width * bar.badgeAlong - bar.badgeWide / 2f, y - EDGE - bar.badgeTall);
+        // By the bar, its keyline counted as part of it: the reference's quarter along and just under it, for one.
+        placeMarks(bar.badges, bar.placed, barLeft, width, y - EDGE, y + look.height() + EDGE);
     }
 
     // ---- the plain bar ----
@@ -543,7 +602,8 @@ final class UnitBars {
         private final Node node = new Node("plain bar");
         private final Geometry[] outline = new Geometry[4];
         private Geometry fill;
-        private Geometry badge;
+        private final List<Geometry> badges = new ArrayList<>();
+        private final List<Badge> placed = new ArrayList<>();
     }
 
     private final List<PlainBar> plains = new ArrayList<>();
@@ -577,7 +637,8 @@ final class UnitBars {
             boolean shown = (!plain.onlyPicked() || one.picked()) && view.health() > 0f && view.maxHealth() > 0f;
             var coloured = shown ? colours.of(view) : null;
             dressPlain(bar, coloured, left, bottom, width, plain, Math.clamp(view.healthFraction(), 0f, 1f));
-            plainBadge(bar, one.badge(), left, bottom, width);
+            dressMarks(bar.node, bar.badges, bar.placed, one.badges(), 2f);
+            placeMarks(bar.badges, bar.placed, left, width, bottom, bottom + plain.height());
         }
         for (int spare = at; spare < plains.size(); spare++) {
             show(plains.get(spare).node, false);
@@ -612,29 +673,12 @@ final class UnitBars {
         at(bar.fill, left + edge, bottom + edge);
     }
 
-    /** Its mark just below where the bar is, shown or not, its middle where along the bar the game said. */
-    private void plainBadge(PlainBar bar, Badge badge, float left, float bottom, float width) {
-        var picture = badge == null ? null : picture(badge.picture());
-        var image = picture == null ? null : picture.getImage();
-        show(bar.badge, image != null);
-        if (image == null) {
-            return;
-        }
-        bar.badge.getMaterial().setTexture("ColorMap", picture);
-        float wide = image.getWidth() * badge.scale();
-        float tall = image.getHeight() * badge.scale();
-        size(bar.badge, wide, tall);
-        at(bar.badge, left + width * badge.along() - wide / 2f, bottom - tall);
-    }
-
     private PlainBar makePlain() {
         var bar = new PlainBar();
         for (int i = 0; i < 4; i++) {
             bar.outline[i] = piece(bar.node, "outline" + i, ColorRGBA.Black, 0f);
         }
         bar.fill = piece(bar.node, "fill", ColorRGBA.Green, 1f);
-        bar.badge = piece(bar.node, "badge", ColorRGBA.White, 2f);
-        bar.badge.setMesh(PICTURED);
         root.attachChild(bar.node);
         plains.add(bar);
         return bar;
@@ -692,9 +736,6 @@ final class UnitBars {
         // gets one name and the plain one, which is what it asked for.
         bar.bossName = display == null ? null
                 : lettering(bar, display, look.nameSize(true), look.rim(true));
-        bar.badge = piece(bar.node, "badge", ColorRGBA.White, 8f);
-        bar.badge.setMesh(PICTURED);
-        show(bar.badge, false);
         bar.count.show(true);
         bar.level.show(true);
         root.attachChild(bar.node);

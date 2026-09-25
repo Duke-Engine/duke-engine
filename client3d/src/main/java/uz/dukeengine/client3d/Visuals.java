@@ -502,11 +502,20 @@ public final class Visuals {
          * @param frames      the strip's pictures in order, whole paths from the resource root
          * @param frameMillis how long each is shown, in the window's milliseconds
          * @param pingPong    played back from the last to the first rather than round again
-         * @param along       where along the bar it is drawn, a share of the bar's width from its left end
          * @param scale       how big, times each picture's own size in pixels
+         * @param place       where by the bar it is drawn
+         * @param group       the marks it takes the place of by its words; those of another group are shown with it
+         * @param randomStart its strip started on a picture drawn at random each time its words come, rather than on
+         *                    its first
          */
         record Mark(java.util.SortedSet<String> words, java.util.List<String> frames, int frameMillis,
-                boolean pingPong, float along, float scale) {
+                boolean pingPong, float scale, MarkPlace place, String group, boolean randomStart) {
+
+            /** Where in its strip it starts as its words come, in seconds: its first picture, or one at random. */
+            float startSeconds(java.util.random.RandomGenerator random) {
+                return randomStart && frames.size() > 1
+                        ? random.nextInt(frames.size()) * Math.max(1, frameMillis) / 1000f : 0f;
+            }
 
             /** The picture shown {@code seconds} into the strip. */
             String frameAt(float seconds) {
@@ -530,18 +539,38 @@ public final class Visuals {
          */
         public UnitVisual mark(java.util.Set<String> conditions, java.util.List<String> frames, int frameMillis,
                 boolean pingPong, float along, float scale) {
+            return mark(conditions, frames, frameMillis, pingPong, scale, MarkPlace.under(along), "", false);
+        }
+
+        /**
+         * The same, drawn where {@code place} says, one of {@code group} — the marks of a group taking each other's
+         * place by their words, and those of different groups shown at once, as the reference draws a rank's chevron
+         * beside the enthusiastic mark ({@code Drawable::drawIconUI}) — its strip starting on a picture drawn at random
+         * each time its words come where {@code randomStart} says so.
+         */
+        public UnitVisual mark(java.util.Set<String> conditions, java.util.List<String> frames, int frameMillis,
+                boolean pingPong, float scale, MarkPlace place, String group, boolean randomStart) {
             marks.add(new Mark(new java.util.TreeSet<>(conditions), java.util.List.copyOf(frames), frameMillis,
-                    pingPong, along, scale));
+                    pingPong, scale, place == null ? MarkPlace.under(0.25f) : place, group == null ? "" : group,
+                    randomStart));
             return this;
         }
 
-        /** Which of its marks its words best fit, or -1 for none. */
-        int markFor(java.util.Set<String> holding) {
-            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
-            for (var mark : marks) {
-                words.add(mark.words());
+        /** Which of its marks its words show: of each group, the one they best fit, groups in the order first named. */
+        java.util.List<Integer> marksFor(java.util.Set<String> holding) {
+            var groups = new java.util.LinkedHashMap<String, java.util.List<Integer>>();
+            for (int index = 0; index < marks.size(); index++) {
+                groups.computeIfAbsent(marks.get(index).group(), group -> new java.util.ArrayList<>()).add(index);
             }
-            return uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
+            var shown = new java.util.ArrayList<Integer>();
+            for (var members : groups.values()) {
+                int best = uz.dukeengine.core.thing.Conditions.bestFit(
+                        members.stream().map(index -> marks.get(index).words()).toList(), holding);
+                if (best >= 0) {
+                    shown.add(members.get(best));
+                }
+            }
+            return shown;
         }
 
         /** A colour added to its own, chosen by its words — see {@link #tint(java.util.Set, float, float, float, int)}. */
@@ -2096,6 +2125,35 @@ public final class Visuals {
 
     public HitNumbers getHitNumbers() {
         return hitNumbers;
+    }
+
+    /** The row of a health bar a mark is placed from — see {@link MarkPlace}. */
+    public enum MarkRow {
+        /** Under the bar: the mark's top below its bottom. */
+        UNDER,
+        /** On the bar's middle row: the mark's top below it. */
+        MIDDLE,
+        /** Over the bar: the mark's bottom above its top. */
+        OVER
+    }
+
+    /**
+     * Where a mark stands by its thing's health bar: its left edge — or its middle, where {@code centred} — {@code
+     * along} of the bar's width from the bar's left end, plus {@code pixels}; and {@code gapShare} of its own height
+     * plus {@code gapPixels} from the bar's {@code row}. The reference's rank chevron is {@code (1.1, 1, false, MIDDLE,
+     * 0, 1)}, and its enthusiastic mark {@code (0.25, 0, true, UNDER, 0.25, 0)}: a quarter of its own height under
+     * the bar.
+     */
+    public record MarkPlace(float along, float pixels, boolean centred, MarkRow row, float gapShare, float gapPixels) {
+
+        public MarkPlace {
+            row = row == null ? MarkRow.UNDER : row;
+        }
+
+        /** Its middle {@code along} the bar and its top against the bar's bottom, as every mark stood before. */
+        public static MarkPlace under(float along) {
+            return new MarkPlace(along, 0f, true, MarkRow.UNDER, 0f, 0f);
+        }
     }
 
     /**

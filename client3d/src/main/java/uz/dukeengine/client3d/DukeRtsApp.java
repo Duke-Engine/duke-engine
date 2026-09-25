@@ -476,6 +476,8 @@ final class DukeRtsApp extends SimpleApplication {
          */
         float lastHealth = Float.NaN;
         UnitView view;
+        /** When each mark its words show by its bar began, in the window's seconds, as its strip is played from. */
+        final java.util.Map<Integer, Float> markSince = new java.util.HashMap<>();
         /** The clip it died with, and the game's frame it died on: what it lies in while the world keeps it dead. */
         String deathClip;
         int diedOn;
@@ -5019,7 +5021,7 @@ final class DukeRtsApp extends SimpleApplication {
             float top = plain == null ? node.barTop : foot + topOf(shape) + plain.lift();
             boolean picked = selected.contains(node.view.id()) || pointed != null && pointed.view.id() == node.view.id();
             standing.add(new UnitBars.Standing(node.view, top, foot, node.view.playerIndex() == mine,
-                    badgeOf(node.view), sizeOf(shape), picked));
+                    badgesOf(node), sizeOf(shape), picked));
         }
         barReading = UnitBarReading.read(snapshot.status());
         var eye = cam.getLocation();
@@ -5046,18 +5048,27 @@ final class DukeRtsApp extends SimpleApplication {
         };
     }
 
-    /** The mark a thing's words put by its bar, at the picture its strip is on now, or null. */
-    private UnitBars.Badge badgeOf(UnitView view) {
+    /**
+     * The marks a thing's words put by its bar, each at the picture its strip is on now: played from its first picture
+     * as its words come, or from one drawn at random where the mark says so.
+     */
+    private java.util.List<UnitBars.Badge> badgesOf(UnitNode node) {
+        var view = node.view;
         var look = visualFor(view.looksAs());
         if (look.marks.isEmpty()) {
-            return null;
+            return java.util.List.of();
         }
-        int chosen = look.markFor(look.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()));
-        if (chosen < 0) {
-            return null;
+        var shown = look.marksFor(look.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()));
+        node.markSince.keySet().retainAll(shown);
+        float now = timer.getTimeInSeconds();
+        var badges = new java.util.ArrayList<UnitBars.Badge>(shown.size());
+        for (int index : shown) {
+            var mark = look.marks.get(index);
+            float since = node.markSince.computeIfAbsent(index,
+                    key -> now - mark.startSeconds(java.util.concurrent.ThreadLocalRandom.current()));
+            badges.add(new UnitBars.Badge(mark.frameAt(now - since), mark.scale(), mark.place()));
         }
-        var mark = look.marks.get(chosen);
-        return new UnitBars.Badge(mark.frameAt(timer.getTimeInSeconds()), mark.along(), mark.scale());
+        return badges;
     }
 
     private void syncUnits() {
