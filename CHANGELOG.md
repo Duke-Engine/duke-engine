@@ -92,18 +92,75 @@ when it does, this page says exactly what to change and how.
 - A thing with a line (`GameObject.setSpan`) is in every player's snapshot, fog or not, as the ground under it is.
 - `GameLogic.checksum()` mixes in a thing's damage scale, own sight, protection and floor when they are set, and a
   closed deck: a world that sets none of them sums as it did.
+- A harvester its player gives any order but `workAt` stops working where it is, its load kept, until the next
+  `workAt`; it used to set off again by itself. It loads only while it stands beside its pile, and `workAt` keeps
+  one place, the last named, pile or depot: told its depot with any load, it delivers it at once.
+- Selling a building of a shared hold no longer lets its passengers out: it leaves the network that frame and they
+  stay in it, out beside it only where it was the last. A passenger let out comes out on clear ground outside its
+  holder's footprint, or at the holder's `ExitBone`, where it used to come out 5 from the holder's middle.
+- `EdgeScroll` measures from the window's own edges, the bottom one under a bar of the game's own included, where it
+  measured from the world region's, and scrolls nothing while the pointer is outside the window. The pan keys show
+  the scroll pointer too.
+- A new match starts with the player's camera unturned and at its start distance, where it kept what the last match
+  or the backdrop left. The eye stands exactly its distance back along the line of sight, where it stood 0.9986 of
+  it, so a `GameCamera` zoom is the eye's distance.
+- The pointer over what the game's canvas takes (`CanvasInput.take`), or off the world's part of the window, is
+  `Point`, and an armed aim's own pointer shows over the world only. The client's minimap outlines the world
+  region's corners, where it outlined the window's.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
   `HarvestUpdate.Data`, `WeaponFired`, `Weapon` (and its own `Bonuses`, its `Affects` and second ring),
   `WorldSnapshot` (and `revealed`, `contextOrder`, `beams`), `SoundBank.Cue`, `Sound`, `UnitView` (and `passengers`,
   `conditions`, `built`, `ridesOn`, `allied`, `span`), `CommandButton`, `Upgrade`, `ProductionUpdate.Data` (and its
   `Exit`, `Door` and `Words`), `ProductionUpdate.Queued`, `PlacementRules` (and its `SiteWords`), `ContainModule.Data`
-  (and `PassengersFire`, `RiderBone`), `OrderMark` (and `ContextColour`), `RtsTemplate`, `Shot`, `ActiveBody.Data`,
-  `ExperienceModule.Data` (and `LevelHealthBonus`) — and every new field left out means what the old record did.
+  (and `PassengersFire`, `RiderBone`, `PassengersVanish`, `ExitBone`), `OrderMark` (and `ContextColour`),
+  `RtsTemplate`, `Shot`, `ActiveBody.Data`, `ExperienceModule.Data` (and `LevelHealthBonus`), `TextFloated`,
+  `HitNumbers` — and every new field left out means what the old record did. `PlacementRules` keeps its
+  constructors too, `siteAtOrder` left out as before.
   A template that names no prerequisite, word or cap is buildable as before; a save from before granted words and
   computer sides loads.
   `Canvas.drawPicture(Picture, …)` is a default that refuses, so a game's own canvas compiles as it did.
   `ProjectileLauncher.launch(shooter, victim, damage, type)` and `DieModule.onDie()` are still called, through the
   forms that now say more. The static `Duke3D.launch` methods are shorthand for `Duke3D.of(game, visuals)...launch()`.
+
+### The player's camera, as the game frames it
+
+`Visuals.cameraFrame(CameraFrame)` sets the player's camera — the reference's `W3DView` and its camera lines: the pitch
+it keeps while the player holds it, its field of view across the whole window with the height following the world
+region's shape (as `Set_Aspect_Ratio` keeps the horizontal half-width), its nearest, furthest and starting distances
+along the line of sight, how far a wheel notch moves it, and the pan speed in world units a second whatever the zoom,
+times the player's own `Duke3D.scrollSpeed(share)`. A middle drag turns the view by the frame's angle a pixel and a
+middle click — under 5 pixels, within 5 of the reference's frames — puts it back as a reset does. A `GameCamera` pitch
+left NaN keeps the player's. `Visuals.rightDrag(RightDrag)`, under `Mouse.LEFT_COMMANDS`, scrolls the view while the
+right button is held — by the pointer's offset from where it went down, times the game's factors, the anchor dragged
+to within a share of the window, the reference's `SCROLL_RMB` — and lets go of the selection, or gives up an armed
+button, only for a click within the game's pixels, milliseconds and camera movement (`DragTolerance`,
+`DragToleranceMS`, `DragTolerance3D`). Whenever the view scrolls the pointer is the scroll picture pointing the way.
+Unframed, the camera is the client's own, as it was.
+
+### What the view covers, and the view moved by the game
+
+`DukeGame.viewRays()` is what the player's view covers as the client last drew it — the eye and the rays through the
+four corners of the world's part of the window, in world units with z up — set every frame, readable from any thread,
+for a radar of the game's own to outline as the reference's `W3DRadar::reconstructViewBox` does. `DukeGame.moveView(x,
+y)` puts the player's view over a point from any thread, the reference's `TheTacticalView->lookAt`: at the client's
+next frame, turned and as far back as it was, the camera staying the player's and his scrolling going on from there.
+
+### A site put down with its order
+
+`PlacementRules.siteAtOrder` puts a site down the moment its order is taken, as the reference's
+`DozerAIUpdate::construct` does: at the start share of its health, awaiting its builder, seen, shot at and in the way,
+while the builder drives to it. A builder that gives up leaves it standing with the money in it.
+
+### Looks that pass between words
+
+`UnitVisual.transition(fromWords, toWords, model, clip, mode, speed)` plays a clip once between two of a layer's looks —
+the reference's `TransitionState`, a fence rising as a site appears and folding back when it is done — and a layer
+drawing nothing in the new look is drawn until its way out has played. `particles(words, bone, system)` runs a
+particle system at a bone while the words choose that look (`ParticleSysBone` per condition state: a scaffold's
+sparks, a factory's steam). `layer(name).hungOn(bone)` draws a layer at a bone of the thing's body or of another
+layer, following it (`AttachToBoneInAnotherModule`). A look is chosen once for each set of words a thing holds, where
+it was weighed again every frame. `HitNumbers.NONE` throws no number off a thing hurt or healed, the flash and the
+alert going on as before.
 
 ### Decks laid over the ground
 
@@ -218,7 +275,8 @@ selection.
 works on it, the second from then until it is finished, the third on the frames a builder works on it. A building
 being sold holds the last two while it comes down. `UnitVisual.risesAsBuilt()` draws a thing rising out of the
 ground as it is built and sinking as it is sold — the reference's `ADJUST_HEIGHT_BY_CONSTRUCTION_PERCENT` — from
-`UnitView.built`, the simulation's own progress, so every machine shows the same height.
+`UnitView.built`, the simulation's own progress, so every machine shows the same height; `risesAsBuilt(height)`
+sinks by the height the game names, the thing's own, as `W3DModelDraw::adjustTransformMtx` does, whatever its model.
 
 ### A factory's working words, and a thing drawn by several models
 
@@ -242,22 +300,28 @@ having said it already, as the reference does.
 
 `DukeGame.floatText(text, x, y, z, argb)` floats a short text up from a point — money earned there, a bounty — as the
 reference's floating text does. It is an event (`TextFloated`, which the simulation's own code may post too), seen
-only by a player whose view of the point is clear. The client draws it rising and fading as
+only by a player whose view of the point is clear — or, where it says so, by the players it names (`shownTo`), or
+by the owner of the thing it is about and whoever may see that thing (`about`, `DukeGame.floatTextAbout`), so a
+hidden building's money is not floated to its enemies. The client draws it rising and fading as
 `Visuals.floatingText(rise, hold, fade)` says, the reference's 1, 10 and 0.1 where the game says nothing.
 
 ### Harvesters told where to work
 
 `HarvestUpdate.workAt(place)` sends a harvester to a pile to fetch from, or a depot of its side to deliver to — the
-reference's preferred dock — and it goes back there after every delivery, however far, until told another or the
-place is gone. A load is banked only beside the depot (see what to change); a trip cut short keeps its load, and the
-harvester sets off again a second later.
+reference's preferred dock, one place, the last named — and it goes back there after every delivery, however far,
+until told another or the place is gone. It loads only beside its pile and is paid only beside its depot (see what to
+change). Any other order its player gives it (`OrderListener`) stops its work, its load kept, until the next
+`workAt`, as the reference's truck goes idle.
 
 ### A hold shared by a side
 
 `ContainModule`'s `SharedBy` names a network: every thing of a side whose hold names it holds one list of passengers
 with one capacity — the reference's tunnel network. What gets in at any of them may get out at any of them; the
-passengers live through the loss of any but the last, and die with that one. `RtsSimulation.sharedHold` reads the
-list.
+passengers live through the loss of any but the last, and die with that one — or, with `PassengersVanish`, leave the
+world quietly (`GameObject.vanish`: no `ObjectDied`, no die module, no kill), as a collapsed network removes them. A
+building of it that is sold leaves the network at once (`ContainModule.sold`). `RtsSimulation.sharedHold` reads the
+list. A passenger comes out on the nearest clear ground outside its holder, tried round it from its front, or at the
+`ExitBone` its model names.
 
 ### A module told it is taken off
 
@@ -317,7 +381,7 @@ roles as before.
 - `Visuals.pointer(situation, strip, frames, hotX, hotY, jiffies)` animates a pointer: pictures side by side, each
   shown for its sixtieths of a second.
 - `Move` is open ground where the selection would walk.
-- `Scroll-N` to `Scroll-NW` show while the view is scrolled at the window's edge.
+- `Scroll-N` to `Scroll-NW` show whenever the view scrolls: the keys, the window's edges, the right button held.
 - `DukeGame.contextOrder(rule)` lets the game name the order a click on a thing would give what is selected: `Enter`,
   `Dock`, `Repair`. `WorldSnapshot.contextOrder` carries it, the pointer shows that word's picture, and the click
   sends it as a `GameOrder` for `onOrder`.
@@ -436,8 +500,9 @@ by the game.
 ### The world drawn in part of the window
 
 `Duke3D.worldView(left, top, width, height)` sets the part of the window the world is drawn in, the whole window
-by default. The camera keeps its vertical angle and takes the region's shape. Picking, the drag box, placing,
-edge scroll and the bars over units all work inside that part. Outside it the world takes no pointer and draws
+by default. The camera keeps its vertical angle and takes the region's shape — or, with a `CameraFrame`'s field of
+view, keeps its width across the window. Picking, the drag box, placing and the bars over units all work inside that
+part; edge scroll is the window's own edges. Outside it the world takes no pointer and draws
 only black, under the game's canvas. The change shows from the next frame, and the camera does not move.
 
 ### A button on the game's canvas aims as the bar's does
