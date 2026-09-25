@@ -207,6 +207,8 @@ final class DukeRtsApp extends SimpleApplication {
     private final Node listNode = new Node("effect-lists");
     /** The beams the simulation owns, drawn as the game's lasers — see {@link Lasers}. */
     private Lasers lasers;
+    /** The particle systems the simulation keeps going on its things until it ends them. */
+    private RidingEffects ridingEffects;
     private RallyMarks rallyMarks;
     /** The pictures laid on the ground under things by their words — see {@link GroundPictures}. */
     private GroundPictures groundPictures;
@@ -628,6 +630,7 @@ final class DukeRtsApp extends SimpleApplication {
         rootNode.attachChild(listNode);
         lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
         lasers = new Lasers(assetManager, listNode, visuals::laserNamed, this::floorHeightAt);
+        ridingEffects = new RidingEffects(particles, rootNode);
         rallyMarks = new RallyMarks(assetManager, listNode, this::loadMarkModel);
         groundPictures = new GroundPictures(assetManager, listNode);
         stealthLook = new StealthLook(assetManager);
@@ -1256,6 +1259,10 @@ final class DukeRtsApp extends SimpleApplication {
     private void syncOrderMarkers() {
         float now = timer.getTimeInSeconds();
         lasers.show(snapshot.beams(), cam.getLocation(), now); // the simulation's beams, where it moved them
+        ridingEffects.show(snapshot.effects(), id -> {
+            var node = unitNodes.get(id);
+            return node == null ? null : node.root;
+        });
         showRallies();
         var look = visuals.getOrderMark();
         orderMarkers.prune(now, look.seconds());
@@ -2975,6 +2982,7 @@ final class DukeRtsApp extends SimpleApplication {
         chevrons.clear();
         attackFlash.clear();
         lasers.clear();
+        ridingEffects.clear();
         rallyMarks.clear();
         groundPictures.clear();
         wordTints.clear();

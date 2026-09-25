@@ -289,6 +289,23 @@ public interface World {
     }
 
     /**
+     * Play the particle system of that name riding {@code thing} until {@link #endEffect} — at {@code bone} of its
+     * model, or, where it names none or the model has no such bone, at {@code offset} in the thing's own frame (x its
+     * forward, z up), or its place: the reference's damage smoke at a numbered SMOKE bone, stopped by a repair, a
+     * laser's flare, an orbital cannon's glow at its antenna. Drawn by every client that sees the thing; a thing gone
+     * ends its effects. Drawing only: out of the checksum, not saved, and nothing the simulation decides reads it.
+     *
+     * @return its number, for {@link #endEffect}; -1 where this world draws none
+     */
+    default int effect(String name, GameObject thing, String bone, uz.dukeengine.core.math.Coord3D offset) {
+        return -1;
+    }
+
+    /** An effect ended: it lets out nothing more from this frame, and what it let out is left to finish. */
+    default void endEffect(int effect) {
+    }
+
+    /**
      * The object that would be in the way if {@code mover} stood at
      * {@code position}, or {@code null} if the space is free — the question a
      * locomotor asks before every step.

@@ -182,6 +182,17 @@ final class RtsClient extends GameClient {
                         beam.width()));
             }
         }
+        var effects = new ArrayList<uz.dukeengine.game.view.EffectView>();
+        if (!logic.getRidingEffects().isEmpty()) {
+            var drawn = new java.util.HashSet<Integer>();
+            units.forEach(view -> drawn.add(view.id()));
+            for (var effect : logic.getRidingEffects()) {
+                if (drawn.contains(effect.thing().value())) { // seen where the thing it rides is
+                    effects.add(new uz.dukeengine.game.view.EffectView(effect.id(), effect.name(),
+                            effect.thing().value(), effect.bone(), effect.offset()));
+                }
+            }
+        }
         var player = everything ? null : logic.getRtsPlayer(viewerPlayer);
         snapshot = new WorldSnapshot(
                 logic.getFrame(),
@@ -200,7 +211,8 @@ final class RtsClient extends GameClient {
                 everything || logic.isMapRevealedTo(viewerPlayer),
                 contextOrder.get(),
                 beams,
-                rallies);
+                rallies,
+                effects);
     }
 
     /**

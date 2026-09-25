@@ -991,6 +991,8 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         objects.clear();
         revealedTo.clear();
         beams.clear();
+        ridingEffects.clear();
+        nextEffect = 1;
         nextBeam = 1;
         staticObstaclesDirty = true;
         random.restore(randomSeed);
@@ -1115,6 +1117,11 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
         objects.removeAll(leaving);
         staticObstaclesDirty = true; // a demolished building reopens its ground
+        if (!ridingEffects.isEmpty()) {
+            var gone = new java.util.HashSet<ObjectId>();
+            leaving.forEach(object -> gone.add(object.getId()));
+            ridingEffects.values().removeIf(effect -> gone.contains(effect.thing())); // a thing gone ends its effects
+        }
 
         // Announce and react only once the corpses are gone, so a die module that
         // spawns wreckage builds it in a world that no longer holds the body.
@@ -1210,6 +1217,27 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     @Override
     public final void endBeam(int beam) {
         beams.remove(beam);
+    }
+
+    private final java.util.TreeMap<Integer, uz.dukeengine.core.thing.RidingEffect> ridingEffects =
+            new java.util.TreeMap<>();
+    private int nextEffect = 1;
+
+    @Override
+    public final int effect(String name, GameObject thing, String bone, Coord3D offset) {
+        int id = nextEffect++;
+        ridingEffects.put(id, new uz.dukeengine.core.thing.RidingEffect(id, name, thing.getId(), bone, offset));
+        return id;
+    }
+
+    @Override
+    public final void endEffect(int effect) {
+        ridingEffects.remove(effect);
+    }
+
+    /** Every effect riding a thing now, in the order they were started. */
+    public final List<uz.dukeengine.core.thing.RidingEffect> getRidingEffects() {
+        return List.copyOf(ridingEffects.values());
     }
 
     /** Every beam the simulation owns now, in the order they were made. */
