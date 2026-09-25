@@ -148,7 +148,9 @@ final class RtsClient extends GameClient {
                             : hold.getPassengers().stream().map(uz.dukeengine.core.thing.ObjectId::value).toList(),
                     java.util.List.copyOf(object.getConditions()),
                     built(object),
-                    rider ? carrier.getOwner().getId().value() : -1));
+                    rider ? carrier.getOwner().getId().value() : -1,
+                    everything || object.getPlayerIndex() == viewerPlayer || logic.getRelationship(viewerPlayer,
+                            object.getPlayerIndex()) == uz.dukeengine.core.player.Relationship.ALLIES));
         }
         var beams = new ArrayList<uz.dukeengine.game.view.BeamView>();
         for (var beam : logic.getBeams()) {

@@ -213,6 +213,8 @@ final class DukeRtsApp extends SimpleApplication {
     private GroundPictures groundPictures;
     /** The colours added to things by their words — see {@link WordTints}. */
     private final WordTints wordTints = new WordTints();
+    /** How a thing kept from some players looks to the rest — see {@link StealthLook}. */
+    private StealthLook stealthLook;
     /** What a blow shows, by name — see {@link HurtMoments} and {@link Visuals#hurt}. */
     private HurtMoments hurtMoments;
     /** Every drawn thing's barrels: where its shots come out, its flashes and its kick — see {@link Barrels}. */
@@ -622,6 +624,7 @@ final class DukeRtsApp extends SimpleApplication {
         lists = new EffectLists(visuals::effectListNamed, particles, listShow, new java.util.Random().nextLong());
         lasers = new Lasers(assetManager, listNode, visuals::laserNamed, this::floorHeightAt);
         groundPictures = new GroundPictures(assetManager, listNode);
+        stealthLook = new StealthLook(assetManager);
         layered.drawsListsWith(lists);
         hurtMoments = new HurtMoments(visuals::hurtRule);
         hitFlash = new HitFlash(visuals.getHitFlash());
@@ -1548,6 +1551,19 @@ final class DukeRtsApp extends SimpleApplication {
         return near.add(dir.mult(t < 0 ? 10_000f : t));
     }
 
+    /** A see-through thing's blip on its own side's radar, blinking once a second; every other blip whole. */
+    private void blink(Geometry dot, UnitView view) {
+        var word = visuals.getSeeThroughWord();
+        boolean blinking = word != null && view.allied() && view.conditions().contains(word);
+        var colour = (ColorRGBA) dot.getMaterial().getParamValue("Color");
+        float alpha = blinking ? StealthLook.radarAlpha(snapshot.frame()) : 1f;
+        if (colour != null && colour.a != alpha) {
+            dot.getMaterial().setColor("Color", new ColorRGBA(colour.r, colour.g, colour.b, alpha));
+            dot.getMaterial().getAdditionalRenderState().setBlendMode(
+                    alpha < 1f ? com.jme3.material.RenderState.BlendMode.Alpha : com.jme3.material.RenderState.BlendMode.Off);
+        }
+    }
+
     /**
      * Live unit dots, coloured by player, sized up for structures.
      */
@@ -1564,6 +1580,7 @@ final class DukeRtsApp extends SimpleApplication {
             });
             var point = minimap.toMinimap(view.x(), view.y());
             dot.setLocalTranslation(point.x() - 2f, point.y() - 2f, 1);
+            blink(dot, view);
         }
         var gone = minimapDots.entrySet().iterator();
         while (gone.hasNext()) {
@@ -2923,6 +2940,7 @@ final class DukeRtsApp extends SimpleApplication {
         lasers.clear();
         groundPictures.clear();
         wordTints.clear();
+        stealthLook.clear();
         hitNumbers.clear();
         floatingTexts.clear();
         unitBars.clear();
@@ -4888,6 +4906,7 @@ final class DukeRtsApp extends SimpleApplication {
             runningGear.forget(entry.getKey());
             groundPictures.forget(entry.getKey());
             wordTints.forget(entry.getKey());
+            stealthLook.forget(entry.getKey());
             var node = entry.getValue();
             var at = node.root.getLocalTranslation();
             if (Landing.arrived(node.view, game.getLocalPlayerIndex(),
@@ -5483,6 +5502,7 @@ final class DukeRtsApp extends SimpleApplication {
      * none of one.
      */
     private void swapBody(UnitNode node, UnitView view, Visuals.UnitVisual visual, String wanted) {
+        stealthLook.forget(view.id()); // what it laid over the old body goes with it
         var body = buildBody(visual, java.util.List.of(), wanted);
         if (body == null) {
             node.modelPath = wanted; // it will not load; do not try again every frame
@@ -6020,6 +6040,9 @@ final class DukeRtsApp extends SimpleApplication {
                     visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()),
                     new Coord3D(view.x(), view.y(), 0f), view.orientation(),
                     timer.getTimePerFrame() / Particles.FRAME_SECONDS, this::floorHeightAt);
+        }
+        if (visuals.getSeeThroughWord() != null || visuals.getGlowWord() != null) {
+            stealthLook.see(view, node.body, visuals, visual, timer.getTimePerFrame() / Particles.FRAME_SECONDS);
         }
         if (!visual.wordTints.isEmpty()) {
             wordTints.see(view.id(), node.root, visual,

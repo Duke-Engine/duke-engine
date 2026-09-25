@@ -16,6 +16,8 @@ package uz.dukeengine.game.view;
  * @param built      how far it is built: 0 to 1 for a site going up, falling below 0 for a building being sold, as
  *                   the reference's construction percent does; 1 for anything else
  * @param ridesOn    the id of what it rides on top of — drawn where it stands, clicked as that — or -1
+ * @param allied     whether it is the viewer's own or an ally's — everything, for a machine watching — for a look that
+ *                   shows its own side what it shows no one else
  */
 public record UnitView(
         int id,
@@ -39,10 +41,21 @@ public record UnitView(
         java.util.List<Integer> passengers,
         java.util.List<String> conditions,
         float built,
-        int ridesOn) {
+        int ridesOn,
+        boolean allied) {
     public UnitView {
         passengers = passengers == null ? java.util.List.of() : java.util.List.copyOf(passengers);
         conditions = conditions == null ? java.util.List.of() : java.util.List.copyOf(conditions);
+    }
+
+    /** A view that says nothing of whose side it is on: every view from before a look could ask. */
+    public UnitView(int id, String templateName, int playerIndex, float x, float y, float orientation, float health,
+            float maxHealth, boolean structure, boolean selectable, boolean moving, boolean attacking,
+            int productionQueue, float z, float pitch, float roll, boolean ownHeight, int statuses,
+            java.util.List<Integer> passengers, java.util.List<String> conditions, float built, int ridesOn) {
+        this(id, templateName, playerIndex, x, y, orientation, health, maxHealth, structure, selectable, moving,
+                attacking, productionQueue, z, pitch, roll, ownHeight, statuses, passengers, conditions, built, ridesOn,
+                false);
     }
 
     /** A view of a thing that rides on nothing: every view from before a thing could ride on top of another. */

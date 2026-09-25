@@ -336,6 +336,27 @@ public final class Visuals {
             return uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
         }
 
+        /** How seen it is at its faintest, drawn see-through to its own side — see {@link #seeThrough(float)}. */
+        float seeThroughFaintest = 0.5f;
+        /** Whether it may be drawn as a glow — see {@link #neverGlows()}. */
+        boolean glows = true;
+
+        /**
+         * How seen it is at its faintest while it holds the game's see-through word ({@link Visuals#seeThrough}) — the
+         * reference's {@code FriendlyOpacityMin}: 0.5 where nothing is said, 0.3 for a sniper, 1 for a trap that should
+         * not flicker at all, 0 for a mine that vanishes between pulses.
+         */
+        public UnitVisual seeThrough(float faintest) {
+            this.seeThroughFaintest = Math.clamp(faintest, 0f, 1f);
+            return this;
+        }
+
+        /** Never drawn as a glow, whatever it holds — the reference's mines. */
+        public UnitVisual neverGlows() {
+            this.glows = false;
+            return this;
+        }
+
         /** Which of its ground pictures its words best fit, or -1 for none. */
         int groundPictureFor(java.util.Set<String> holding) {
             var words = new java.util.ArrayList<java.util.SortedSet<String>>();
@@ -1190,6 +1211,39 @@ public final class Visuals {
     /** The effect list under that name, or {@code null} when the game named none. */
     public uz.dukeengine.core.content.EffectList effectListNamed(String name) {
         return name == null ? null : effectLists.get(name);
+    }
+
+    private String seeThroughWord;
+    private String glowWord;
+
+    /**
+     * The word a thing holds while it is drawn see-through to its own side and allies — the reference's stealth look:
+     * its opacity pulsing from its template's faintest ({@link UnitVisual#seeThrough(float)}) to whole and back, a
+     * pulse about every 31 of the game's frames, and its blip blinking once a second on their radar. The look alone:
+     * who sees it at all is the simulation's ({@code Concealment}).
+     */
+    public Visuals seeThrough(String word) {
+        this.seeThroughWord = word;
+        return this;
+    }
+
+    /**
+     * The word a thing holds while it is drawn as a glow — the reference's heat vision on a thing detected: to
+     * everyone but its side and allies a glow instead of its model, to them a glow over its see-through look; whole
+     * while it holds the word and fading fast once it does not. A template may say it never glows ({@link
+     * UnitVisual#neverGlows()}).
+     */
+    public Visuals glow(String word) {
+        this.glowWord = word;
+        return this;
+    }
+
+    public String getSeeThroughWord() {
+        return seeThroughWord;
+    }
+
+    public String getGlowWord() {
+        return glowWord;
     }
 
     private final Map<String, uz.dukeengine.core.content.Laser> lasers = new java.util.LinkedHashMap<>();
