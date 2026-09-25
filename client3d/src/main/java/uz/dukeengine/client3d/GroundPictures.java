@@ -1,7 +1,13 @@
 package uz.dukeengine.client3d;
 
 import com.jme3.asset.AssetManager;
+import com.jme3.bounding.BoundingBox;
+import com.jme3.bounding.BoundingSphere;
+import com.jme3.bounding.BoundingVolume;
+import com.jme3.math.Transform;
+import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,16 +23,20 @@ import uz.dukeengine.core.math.Coord3D;
  */
 final class GroundPictures {
 
-    /** One picture laid under a thing, how much of it is seen, and whether it is on its way out. */
+    /** One picture laid under a thing, how large, how much of it is seen, and whether it is on its way out. */
     private static final class Laid {
         private final Visuals.UnitVisual.GroundPicture picture;
         private final GroundDecal decal;
+        private final float width;
+        private final float depth;
         private float opacity;
         private boolean leaving;
 
-        private Laid(Visuals.UnitVisual.GroundPicture picture, GroundDecal decal, float opacity) {
+        private Laid(Visuals.UnitVisual.GroundPicture picture, GroundDecal decal, float[] model, float opacity) {
             this.picture = picture;
             this.decal = decal;
+            this.width = picture.width() > 0f ? picture.width() : model[0];
+            this.depth = picture.depth() > 0f ? picture.depth() : model[1];
             this.opacity = opacity;
         }
     }
@@ -56,12 +66,15 @@ final class GroundPictures {
      */
     void see(int id, Visuals.UnitVisual look, Set<String> holding, Coord3D at, float facing, float frames,
             BiFunction<Float, Float, Float> floorAt) {
-        see(id, look, holding, false, at, facing, frames, floorAt);
+        see(id, look, holding, false, null, at, facing, frames, floorAt);
     }
 
-    /** The same, told whether the viewer takes its owner for an enemy, who is shown none of its hidden pictures. */
-    void see(int id, Visuals.UnitVisual look, Set<String> holding, boolean hostile, Coord3D at, float facing,
-            float frames, BiFunction<Float, Float, Float> floorAt) {
+    /**
+     * The same, told whether the viewer takes its owner for an enemy, who is shown none of its hidden pictures, and
+     * handed the thing's model — or null — which a picture of no width or depth is laid as long or as wide as.
+     */
+    void see(int id, Visuals.UnitVisual look, Set<String> holding, boolean hostile, Spatial model, Coord3D at,
+            float facing, float frames, BiFunction<Float, Float, Float> floorAt) {
         var pictures = laid.computeIfAbsent(id, key -> new ArrayList<>());
         int chosen = holding == null ? -1 : look.groundPictureFor(holding);
         var wanted = chosen < 0 ? null : shownTo(look.groundPictures.get(chosen), hostile);
@@ -78,7 +91,8 @@ final class GroundPictures {
         for (var picture : java.util.Arrays.asList(shadow, wanted)) {
             if (picture != null && there.add(picture)) {
                 float lift = picture == shadow ? GroundDecal.LIFT : GroundDecal.LIFT + OVER_THE_SHADOW;
-                pictures.add(new Laid(picture, new GroundDecal(assets, node, lift),
+                var size = picture.width() > 0f && picture.depth() > 0f || model == null ? NO_SIZE : across(model);
+                pictures.add(new Laid(picture, new GroundDecal(assets, node, lift), size,
                         picture.fadeFrames() == 0 ? 1f : 0f));
             }
         }
@@ -91,12 +105,41 @@ final class GroundPictures {
                 each.remove();
                 continue;
             }
-            one.decal.lay(at, one.picture.width(), one.picture.depth(), facing, one.picture.picture(), 0xFFFFFF,
-                    one.opacity, floorAt);
+            one.decal.lay(at, one.width, one.depth, facing, one.picture.picture(), 0xFFFFFF, one.opacity, floorAt);
         }
         if (pictures.isEmpty()) {
             laid.remove(id);
         }
+    }
+
+    private static final float[] NO_SIZE = {0f, 0f};
+
+    /**
+     * How long and wide a model is drawn in its thing's own frame — along the way it faces, and across — its bound's
+     * extents twice over, as the reference sizes a shadow its template gives no size ({@code
+     * Get_Obj_Space_Bounding_Box}, twice {@code Extent}).
+     */
+    static float[] across(Spatial model) {
+        BoundingVolume bound = null;
+        var geometries = new ArrayList<Geometry>();
+        model.depthFirstTraversal(spatial -> {
+            if (spatial instanceof Geometry geometry && geometry.getModelBound() != null) {
+                geometries.add(geometry);
+            }
+        });
+        for (var geometry : geometries) {
+            var toThing = new Transform();
+            for (Spatial at = geometry; at != null && at != model.getParent(); at = at.getParent()) {
+                toThing.combineWithParent(at.getLocalTransform());
+            }
+            var placed = geometry.getModelBound().transform(toThing, null);
+            bound = bound == null ? placed : bound.mergeLocal(placed);
+        }
+        return switch (bound) {
+            case BoundingBox box -> new float[] {2f * box.getXExtent(), 2f * box.getZExtent()};
+            case BoundingSphere sphere -> new float[] {2f * sphere.getRadius(), 2f * sphere.getRadius()};
+            case null, default -> NO_SIZE;
+        };
     }
 
     private static Visuals.UnitVisual.GroundPicture shownTo(Visuals.UnitVisual.GroundPicture picture,

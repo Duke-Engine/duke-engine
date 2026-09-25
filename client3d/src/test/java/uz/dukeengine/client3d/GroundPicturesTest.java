@@ -90,12 +90,30 @@ class GroundPicturesTest {
         var fake = Visuals.create().unit("FakeSupply", look -> look
                 .groundPicture(Set.of(), HORDE, 165f, 145f, 0, true)).of("FakeSupply");
 
-        pictures.see(4, fake, Set.of(), false, new Coord3D(0f, 0f, 0f), 0f, 1f, FLAT);
+        pictures.see(4, fake, Set.of(), false, null, new Coord3D(0f, 0f, 0f), 0f, 1f, FLAT);
         assertEquals(1, pictures.under(4).size(), "to its owner, or his ally");
 
         pictures.forget(4);
-        pictures.see(4, fake, Set.of(), true, new Coord3D(0f, 0f, 0f), 0f, 1f, FLAT);
+        pictures.see(4, fake, Set.of(), true, null, new Coord3D(0f, 0f, 0f), 0f, 1f, FLAT);
         assertTrue(pictures.under(4).isEmpty(), "not to his enemy");
+    }
+
+    /** A missile's shadow its template gives no size: as long and as wide as its model, 20 by 10. */
+    @Test
+    void aPictureOfNoSizeIsLaidAsLargeAsTheModel() {
+        var missile = Visuals.create().unit("Missile", look -> look.groundPicture(Set.of(), HORDE, 0f, 0f, 0))
+                .of("Missile");
+        var model = new Node("missile");
+        var hull = new com.jme3.scene.Geometry("hull", new com.jme3.scene.shape.Box(10f, 2f, 5f));
+        hull.setLocalTranslation(3f, 0f, 0f);
+        model.attachChild(hull);
+
+        pictures.see(5, missile, Set.of(), false, model, new Coord3D(0f, 0f, 0f), 0f, 1f, FLAT);
+
+        var laid = (com.jme3.scene.Geometry) pictures.under(5).getFirst().decal().node().getChild(0);
+        var size = (com.jme3.bounding.BoundingBox) laid.getModelBound();
+        assertEquals(20f, 2f * size.getXExtent(), 1e-4f, "as long as the model");
+        assertEquals(10f, 2f * size.getZExtent(), 1e-4f, "and as wide");
     }
 
     @Test

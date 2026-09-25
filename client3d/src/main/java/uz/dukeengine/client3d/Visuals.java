@@ -461,8 +461,8 @@ public final class Visuals {
         /**
          * A picture on the ground under it, chosen by its words — see {@link #groundPicture}.
          *
-         * @param width             along the way it faces
-         * @param depth             across it
+         * @param width             along the way it faces; 0, as long as its thing's model
+         * @param depth             across it; 0, as wide as its thing's model
          * @param hiddenFromEnemies drawn only to viewers allied or neutral to its owner
          */
         record GroundPicture(java.util.SortedSet<String> words, String picture, float width, float depth,
