@@ -46,6 +46,12 @@ public final class SoundBank {
     }
 
     /**
+     * Which of two sounds gives way when there is room for one: the reference's five ({@code AudioPriority}). A new
+     * sound with the budget full stops the lowest playing if that is lower than itself, and is not played otherwise.
+     */
+    public enum Priority { LOWEST, LOW, NORMAL, HIGH, CRITICAL }
+
+    /**
      * One moment, and what it can sound like.
      *
      * @param files  one or more. More than one is not decoration: the bow is
@@ -63,14 +69,27 @@ public final class SoundBank {
      * @param interrupts  whether a new one stops the last of this cue still playing: a voice that answers a
      *     second order cuts off its answer to the first rather than talking over itself. In the RTS this was
      *     measured in, 145 sounds do. No by default, and two overlap
+     * @param limit  how many of it play at once, those at a place and those flat counted apart: the next one past
+     *     it is not played — or, for a cue that interrupts, stops the oldest of itself playing, and plays. The
+     *     reference's {@code Limit}; 0 for as many as are asked
+     * @param priority  which gives way when the game's budget of sounds at once is full — see {@link Priority}
      */
     public record Cue(String name, Channel channel, boolean positional, float gain,
-            float gapSeconds, List<String> files, String label, Audience audience, boolean interrupts) {
+            float gapSeconds, List<String> files, String label, Audience audience, boolean interrupts, int limit,
+            Priority priority) {
 
         public Cue {
             files = List.copyOf(files);
             gain = gain <= 0f ? 1f : gain;
             audience = audience == null ? Audience.EVERYONE : audience;
+            limit = Math.max(0, limit);
+            priority = priority == null ? Priority.NORMAL : priority;
+        }
+
+        /** As many at once as are asked, of the middle priority — every cue before either could be said. */
+        public Cue(String name, Channel channel, boolean positional, float gain, float gapSeconds,
+                List<String> files, String label, Audience audience, boolean interrupts) {
+            this(name, channel, positional, gain, gapSeconds, files, label, audience, interrupts, 0, Priority.NORMAL);
         }
 
         /** Heard by everyone, and never cutting itself off — every cue before either could be said. */
@@ -98,13 +117,17 @@ public final class SoundBank {
 
     private final Map<String, Cue> cues;
     private final float voiceGapSeconds;
+    private final int placedBudget;
+    private final int flatBudget;
 
-    private SoundBank(Map<String, Cue> cues, float voiceGapSeconds) {
+    private SoundBank(Map<String, Cue> cues, float voiceGapSeconds, int placedBudget, int flatBudget) {
         // Linked and not Map.copyOf: the order a game declares its sounds in is
         // the order anything walking them sees — the order a loading bar reads
         // them in, and the order a player cycles through the music.
         this.cues = java.util.Collections.unmodifiableMap(new LinkedHashMap<>(cues));
         this.voiceGapSeconds = voiceGapSeconds;
+        this.placedBudget = placedBudget;
+        this.flatBudget = flatBudget;
     }
 
     public static Builder create() {
@@ -113,7 +136,7 @@ public final class SoundBank {
 
     /** A game that says nothing about sound, which is silence rather than a fault. */
     public static SoundBank silent() {
-        return new SoundBank(Map.of(), 0f);
+        return new SoundBank(Map.of(), 0f, 0, 0);
     }
 
     /**
@@ -124,6 +147,16 @@ public final class SoundBank {
      */
     public float voiceGapSeconds() {
         return voiceGapSeconds;
+    }
+
+    /** How many sounds at a place play at once — see {@link Builder#budget}; 0 for as many as are asked. */
+    public int placedBudget() {
+        return placedBudget;
+    }
+
+    /** How many flat sounds play at once; 0 for as many as are asked. */
+    public int flatBudget() {
+        return flatBudget;
     }
 
     /**
@@ -191,6 +224,8 @@ public final class SoundBank {
 
         private final Map<String, Cue> cues = new LinkedHashMap<>();
         private float voiceGapSeconds;
+        private int placedBudget;
+        private int flatBudget;
 
         private Builder() {
         }
@@ -198,6 +233,18 @@ public final class SoundBank {
         /** How long the game wants between two of its spoken lines. */
         public Builder voiceGap(float seconds) {
             this.voiceGapSeconds = Math.max(0f, seconds);
+            return this;
+        }
+
+        /**
+         * How many sounds at a place, and flat, play at once — the reference's {@code SampleCount3D} and {@code
+         * SampleCount2D}, 25 and 4. With those full a new sound stops the lowest-priority one of its kind playing if
+         * that is lower than itself, and is not played otherwise ({@link Cue#priority}). Left alone, as many as are
+         * asked, until the sound device runs out.
+         */
+        public Builder budget(int placed, int flat) {
+            this.placedBudget = Math.max(0, placed);
+            this.flatBudget = Math.max(0, flat);
             return this;
         }
 
@@ -213,16 +260,24 @@ public final class SoundBank {
 
         public Builder cue(String name, Channel channel, boolean positional, float gain,
                 float gapSeconds, List<String> files, String label, Audience audience, boolean interrupts) {
+            return cue(name, channel, positional, gain, gapSeconds, files, label, audience, interrupts, 0,
+                    Priority.NORMAL);
+        }
+
+        /** A cue with a limit to how many of it play at once, and a priority — see {@link Cue}. */
+        public Builder cue(String name, Channel channel, boolean positional, float gain,
+                float gapSeconds, List<String> files, String label, Audience audience, boolean interrupts, int limit,
+                Priority priority) {
             if (name == null || name.isBlank() || files.isEmpty()) {
                 return this; // a cue with no files is a cue nobody has recorded yet
             }
             cues.put(name, new Cue(name, channel, positional, gain, gapSeconds, files, label, audience,
-                    interrupts));
+                    interrupts, limit, priority));
             return this;
         }
 
         public SoundBank build() {
-            return new SoundBank(cues, voiceGapSeconds);
+            return new SoundBank(cues, voiceGapSeconds, placedBudget, flatBudget);
         }
     }
 }

@@ -32,6 +32,16 @@ final class Sounds {
     private final Map<String, Integer> lastFile = new HashMap<>();
     /** The last of each cue that cuts itself off, so the next one can. */
     private final Map<String, SoundSink.Playing> lastOf = new HashMap<>();
+
+    /** A sound playing, kept to count against its cue's limit and the budget, and to be stopped for one above it. */
+    private record Live(SoundBank.Cue cue, boolean placed, SoundSink.Playing sound) {
+    }
+
+    /** The sounds playing that are counted, oldest first — while a cue has a limit or the game a budget. */
+    private final java.util.List<Live> live = new java.util.ArrayList<>();
+    /** How many sounds at a place, and flat, play at once; 0 for as many as are asked. */
+    private int placedBudget;
+    private int flatBudget;
     /** When each cue last played, for the cues that insist on a gap. */
     private final Map<String, Float> lastPlayed = new HashMap<>();
     /** And when the voice last spoke, which is a gap across every line at once. */
@@ -93,6 +103,7 @@ final class Sounds {
             volumes.put(channel, 1f);
             gameVolumes.put(channel, 1f);
         }
+        budget(this.bank.placedBudget(), this.bank.flatBudget());
     }
 
     /**
@@ -137,6 +148,17 @@ final class Sounds {
         } else {
             cueVolumes.put(cueName, kept);
         }
+    }
+
+    /**
+     * How many sounds at a place and flat play at once — the reference's {@code SampleCount3D} and {@code
+     * SampleCount2D}, 25 and 4: with those full, a new sound stops the lowest-priority one playing of its kind if it is
+     * lower than itself, and is not played otherwise. 0 for as many as are asked, as always; music and loops are
+     * not counted.
+     */
+    void budget(int placed, int flat) {
+        this.placedBudget = Math.max(0, placed);
+        this.flatBudget = Math.max(0, flat);
     }
 
     void masterVolume(float zeroToOne) {
@@ -192,24 +214,84 @@ final class Sounds {
         if (cue.gapSeconds() > 0f && last != null && now - last < cue.gapSeconds()) {
             return null;
         }
+        var where = cue.positional() ? at : null;
+        boolean counted = cue.limit() > 0 || placedBudget > 0 || flatBudget > 0;
+        if (counted && !makeRoom(cue, where != null)) {
+            return null; // past its limit, or no room left for one of its priority
+        }
         lastPlayed.put(cue.name(), now);
         if (cue.channel() == SoundBank.Channel.VOICE) {
             lastVoiceAt = now;
         }
-        if (cue.interrupts()) {
+        if (cue.interrupts() && cue.limit() == 0) {
             var cutOff = lastOf.remove(cue.name());
             if (cutOff != null) {
                 cutOff.stop();
             }
-            var playing = sink.playStoppable(pick(cue), gainOf(cue), cue.positional() ? at : null);
+        }
+        if (!counted && !cue.interrupts() && !keep) {
+            sink.play(pick(cue), gainOf(cue), where);
+            return SoundSink.Playing.NONE;
+        }
+        var playing = sink.playStoppable(pick(cue), gainOf(cue), where);
+        if (counted) {
+            live.add(new Live(cue, where != null, playing));
+        }
+        if (cue.interrupts()) {
             lastOf.put(cue.name(), playing);
-            return playing;
         }
-        if (keep) {
-            return sink.playStoppable(pick(cue), gainOf(cue), cue.positional() ? at : null);
+        return cue.interrupts() || keep ? playing : SoundSink.Playing.NONE;
+    }
+
+    /**
+     * Whether there is room for one more of {@code cue}, made where the rules say — the reference's {@code
+     * doesViolateLimit} and {@code killLowestPrioritySoundImmediately}: past its limit, a cue that interrupts stops
+     * its oldest playing and any other is not played; with the budget full, the lowest-priority sound of its kind
+     * playing, the oldest of those, is stopped where it is lower than the new one, and otherwise the new one is not
+     * played.
+     */
+    private boolean makeRoom(SoundBank.Cue cue, boolean placed) {
+        live.removeIf(one -> one.sound().ended());
+        if (cue.limit() > 0) {
+            Live oldest = null;
+            int playing = 0;
+            for (var one : live) {
+                if (one.cue().name().equals(cue.name()) && one.placed() == placed) {
+                    playing++;
+                    oldest = oldest == null ? one : oldest;
+                }
+            }
+            if (playing >= cue.limit()) {
+                if (!cue.interrupts()) {
+                    return false;
+                }
+                oldest.sound().stop();
+                live.remove(oldest);
+            }
         }
-        sink.play(pick(cue), gainOf(cue), cue.positional() ? at : null);
-        return SoundSink.Playing.NONE;
+        int budget = placed ? placedBudget : flatBudget;
+        if (budget <= 0) {
+            return true;
+        }
+        Live lowest = null;
+        int playing = 0;
+        for (var one : live) {
+            if (one.placed() == placed) {
+                playing++;
+                if (lowest == null || one.cue().priority().compareTo(lowest.cue().priority()) < 0) {
+                    lowest = one;
+                }
+            }
+        }
+        if (playing < budget) {
+            return true;
+        }
+        if (lowest.cue().priority().compareTo(cue.priority()) >= 0) {
+            return false;
+        }
+        lowest.sound().stop();
+        live.remove(lowest);
+        return true;
     }
 
     /**

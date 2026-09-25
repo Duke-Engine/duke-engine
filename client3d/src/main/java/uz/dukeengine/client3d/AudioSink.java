@@ -59,42 +59,41 @@ final class AudioSink implements SoundSink {
     }
 
     /**
-     * One node a file for the cues that cut themselves off, kept apart from {@link #nodes}: an instance
-     * {@code playInstance} started cannot be stopped, so a sound that must be stoppable is played on a node
-     * of its own, and stopping the node stops it.
+     * The sounds that may be stopped, each on a node of its own: an instance {@code playInstance} started cannot be
+     * stopped, and two of one file may play at once where a cue's limit allows. A node that has played out is let go
+     * of as the next is started.
      */
-    private final Map<String, AudioNode> stoppable = new HashMap<>();
-    /** How many times each stoppable file has been started: a handle's turn is over once it is started again. */
-    private final Map<String, Integer> turns = new HashMap<>();
+    private final java.util.List<AudioNode> stoppable = new java.util.ArrayList<>();
 
     @Override
     public Playing playStoppable(String assetPath, float gain, Vector3f at) {
-        var node = stoppable.get(assetPath);
-        if (node == null) {
-            node = fresh(assetPath, at != null);
-            if (node == null) {
-                return Playing.NONE;
+        stoppable.removeIf(done -> {
+            if (done.getStatus() != com.jme3.audio.AudioSource.Status.Stopped) {
+                return false;
             }
-            stoppable.put(assetPath, node);
+            done.removeFromParent();
+            return true;
+        });
+        var node = fresh(assetPath, at != null);
+        if (node == null) {
+            return Playing.NONE;
         }
+        stoppable.add(node);
         node.setVolume(gain);
         if (at != null) {
             node.setLocalTranslation(at);
         }
         node.play();
-        var playing = node;
-        int turn = turns.merge(assetPath, 1, Integer::sum);
         return new Playing() {
             @Override
             public void stop() {
-                playing.stop();
+                node.stop();
             }
 
-            /** Played out, stopped, or started again for a later play of the same file: its turn is over. */
+            /** Played out, or stopped. */
             @Override
             public boolean ended() {
-                return playing.getStatus() == com.jme3.audio.AudioSource.Status.Stopped
-                        || turns.get(assetPath) != turn;
+                return node.getStatus() == com.jme3.audio.AudioSource.Status.Stopped;
             }
         };
     }
