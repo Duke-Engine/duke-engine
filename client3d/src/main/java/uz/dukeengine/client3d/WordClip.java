@@ -113,6 +113,30 @@ final class WordClip {
         return name;
     }
 
+    /**
+     * The clip a thing the world keeps dead plays: what the words it holds choose, as {@link #playOn} plays a living
+     * thing's, else its {@code death} — as far into it as the game's frames since it {@code diedOn}, and then its last
+     * frame, where it lies — on whatever model it wears now.
+     *
+     * @return the clip now on the composer, or {@code playing} where there is neither
+     */
+    static String playDead(AnimComposer composer, WordClip clip, String playing, Visuals.UnitVisual look,
+            Set<String> holding, int frame, int thing, String death, int diedOn, Consumer<String> missing) {
+        var chosen = playOn(composer, clip, playing, look, holding, frame, thing, missing);
+        var fell = chosen != null || death == null ? null : composer.getAnimClip(death);
+        if (fell == null) {
+            return chosen != null ? chosen : playing;
+        }
+        var action = composer.getCurrentAction();
+        if (action == null || !death.equals(playing)) {
+            action = composer.setCurrentAction(death, AnimComposer.DEFAULT_LAYER, true);
+        }
+        action.setSpeed(0);
+        double since = Math.max(0, frame - diedOn) * GameConstants.SECONDS_PER_LOGICFRAME;
+        composer.setTime(AnimComposer.DEFAULT_LAYER, Math.min(since, Math.nextDown(fell.getLength())));
+        return death;
+    }
+
     /** How far into its clip it is in the game's frame {@code frame}, in seconds. */
     double timeAt(int frame) {
         if (chosen == null || length <= 0) {

@@ -46,14 +46,15 @@ final class GroundPictures {
 
     /**
      * A thing seen this frame: the picture its words best fit laid where it stands and turned the way it faces, the one
-     * before fading out as it fades in.
+     * before fading out as it fades in. With no words — {@code holding} null — none fits: a dead thing's pictures fade
+     * out, as the reference's decal does when its thing dies ({@code Object::onDie}).
      *
      * @param frames how many of the game's frames have passed since the last time: what a fade moves on by
      */
     void see(int id, Visuals.UnitVisual look, Set<String> holding, Coord3D at, float facing, float frames,
             BiFunction<Float, Float, Float> floorAt) {
         var pictures = laid.computeIfAbsent(id, key -> new ArrayList<>());
-        int chosen = look.groundPictureFor(holding);
+        int chosen = holding == null ? -1 : look.groundPictureFor(holding);
         var wanted = chosen < 0 ? null : look.groundPictures.get(chosen);
         boolean there = false;
         for (var one : pictures) {

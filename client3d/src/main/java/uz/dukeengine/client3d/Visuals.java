@@ -699,6 +699,11 @@ public final class Visuals {
             return modelFor(holding(healthFraction, world, java.util.List.of()));
         }
 
+        /** The model its health and the world choose now, and its own words where any of its looks chooses by them. */
+        String modelFor(float healthFraction, java.util.Set<String> world, java.util.Collection<String> own) {
+            return choosesByWords() ? modelFor(holding(healthFraction, world, own)) : modelFor(healthFraction, world);
+        }
+
         /** The same, for the words it holds as {@link #holding} worked them out — its own among them. */
         String modelFor(java.util.Set<String> holding) {
             return conditionalModels.isEmpty() ? modelPath : chooseFor(holding).model();

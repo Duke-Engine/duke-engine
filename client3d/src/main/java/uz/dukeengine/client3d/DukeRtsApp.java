@@ -476,6 +476,9 @@ final class DukeRtsApp extends SimpleApplication {
          */
         float lastHealth = Float.NaN;
         UnitView view;
+        /** The clip it died with, and the game's frame it died on: what it lies in while the world keeps it dead. */
+        String deathClip;
+        int diedOn;
     }
 
     DukeRtsApp(DukeGame game, Visuals visuals, Shell shell, Hotkeys hotkeys, Painter painter,
@@ -5066,9 +5069,9 @@ final class DukeRtsApp extends SimpleApplication {
             }
             var corpse = corpseOf(view.id());
             if (corpse != null) {
-                // Dead, and kept in the world while its death plays out: the body that fell stays, where the world
-                // says it is — sinking, if it sinks — and nothing of it gets up again.
-                corpse.root().setLocalTranslation(UnitPlacement.where(view, this::floorHeightAt));
+                // Dead, and kept in the world while its death plays out: drawn where the world says it is — sinking,
+                // if it sinks — and as its words and health say, and nothing of it gets up again.
+                lookDead(corpse.node(), view);
                 lyingDead.add(view.id());
                 continue;
             }
@@ -5277,7 +5280,7 @@ final class DukeRtsApp extends SimpleApplication {
                 controls.died(died.object().value());
                 hurtMoments.forget(died.object().value());
                 var dying = unitNodes.get(died.object().value());
-                layOut(died.object().value(), died.deathType());
+                layOut(died.object().value(), died.deathType(), died.frame());
                 barrels.forget(died.object().value());
                 runningGear.forget(died.object().value());
                 moment(GameSounds.diedMoment(died),
@@ -5511,7 +5514,11 @@ final class DukeRtsApp extends SimpleApplication {
     /**
      * A body playing out its death, and when to take it away.
      */
-    private record Dying(int id, Node root, float until) {
+    private record Dying(int id, UnitNode node, float until) {
+
+        Node root() {
+            return node.root;
+        }
     }
 
     /** The bodies the world still keeps, dead, this frame: taken away only once it lets them go. */
@@ -5541,7 +5548,7 @@ final class DukeRtsApp extends SimpleApplication {
      * the game, cannot be selected, and must not be given a walk animation because
      * the simulation says it is moving. What is left is a clip and a timer.
      */
-    private void layOut(int unitId, uz.dukeengine.core.module.DeathType deathType) {
+    private void layOut(int unitId, uz.dukeengine.core.module.DeathType deathType, int frame) {
         var node = unitNodes.remove(unitId);
         selected.remove(unitId);
         if (node == null) {
@@ -5550,12 +5557,14 @@ final class DukeRtsApp extends SimpleApplication {
         var clipName = visualFor(node.view.looksAs()).dieAnimFor(deathType);
         var clip = clipName == null || node.composer == null
                 ? null : node.composer.getAnimClip(clipName);
+        node.diedOn = frame;
         if (clip == null) {
             // Nothing to play: it goes — once the world lets it go, if it keeps the thing a while dead.
             node.ring.removeFromParent();
-            dying.add(new Dying(unitId, node.root, timer.getTimeInSeconds()));
+            dying.add(new Dying(unitId, node, timer.getTimeInSeconds()));
             return;
         }
+        node.deathClip = clipName;
         // The trappings of something alive. The bar over its head goes without
         // being told: it is drawn from the snapshot, and a corpse is not in one.
         node.ring.removeFromParent();
@@ -5563,7 +5572,8 @@ final class DukeRtsApp extends SimpleApplication {
         // Once through, not looping: a corpse that gets up and dies again forever
         // is worse than one that never fell over.
         node.composer.setCurrentAction(clipName, AnimComposer.DEFAULT_LAYER, false);
-        dying.add(new Dying(unitId, node.root,
+        node.currentAnim = clipName;
+        dying.add(new Dying(unitId, node,
                 (float) (timer.getTimeInSeconds() + clip.getLength() + CORPSE_LINGER)));
     }
 
@@ -5579,8 +5589,54 @@ final class DukeRtsApp extends SimpleApplication {
                 return false; // still playing, or still kept in the world
             }
             body.root().removeFromParent();
+            groundPictures.forget(body.id());
+            wordTints.forget(body.id());
             return true;
         });
+    }
+
+    /**
+     * A thing the world keeps dead, drawn by the words it holds and its health as a living thing is — the reference
+     * goes on drawing a dead thing by its condition: a soldier flung by a blast flailing and then landing, a building
+     * that keeps its ruin drawn as its ruin from its death. Its model, its pieces, its layers and the clips between
+     * their looks, its tints as their words go; its clip what its words choose, else its death lain in; and what lay
+     * under it fading out, as the reference's decal does at a death.
+     */
+    private void lookDead(UnitNode node, UnitView view) {
+        node.view = view;
+        var visual = visualFor(view.looksAs());
+        var world = visuals.getWorldConditions();
+        var holding = visual.holding(view.healthFraction(), world, view.conditions());
+        var wanted = visual.modelFor(view.healthFraction(), world, view.conditions());
+        if (node.body != null && wanted != null && !wanted.equals(node.modelPath)) {
+            swapBody(node, view, visual, wanted);
+        }
+        if (visual.choosesByWords()) {
+            wearTheWords(node, visual, holding);
+        }
+        if (!visual.boneParticles.isEmpty() && node.boneSystems != null) {
+            node.boneSystems.choose(visual.particlesFor(holding), node.body);
+        }
+        node.root.setLocalTranslation(UnitPlacement.where(view, this::floorHeightAt));
+        node.root.setLocalRotation(UnitPlacement.turn(view));
+        float frames = timer.getTimePerFrame() / Particles.FRAME_SECONDS;
+        if (!visual.groundPictures.isEmpty()) {
+            groundPictures.see(view.id(), visual, null, new Coord3D(view.x(), view.y(), 0f), view.orientation(),
+                    frames, this::floorHeightAt);
+        }
+        if (!visual.wordTints.isEmpty()) {
+            wordTints.see(view.id(), node.root, visual, holding, frames);
+        }
+        for (var layer : node.layers) {
+            layer.wear(node.root, view, world, snapshot.frame(), body -> paintHouseColour(body, view),
+                    clip -> warnOnce(view.templateName() + "/" + clip, "animation"),
+                    bone -> boneOf(node, layer, bone));
+        }
+        if (node.composer != null) {
+            node.currentAnim = WordClip.playDead(node.composer, node.wordClip, node.currentAnim, visual, holding,
+                    snapshot.frame(), view.id(), node.deathClip, node.diedOn,
+                    clip -> warnOnce(view.templateName() + "/" + clip, "animation"));
+        }
     }
 
     private UnitNode createUnitNode(UnitView view) {
@@ -5593,9 +5649,7 @@ final class DukeRtsApp extends SimpleApplication {
         node.root.setUserData("unitId", view.id());
         node.root.setUserData("wears", view.wears()); // for what it throws once it is gone from the snapshot
 
-        node.modelPath = visual.choosesByWords()
-                ? visual.modelFor(visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()))
-                : visual.modelFor(view.healthFraction(), visuals.getWorldConditions());
+        node.modelPath = visual.modelFor(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
         Spatial body = visual.shapeless ? new Node("no-shape") : buildBody(visual, java.util.List.of(), node.modelPath);
         if (body != null && visual.line != null && view.span() != null) {
             body = layAlong(body, view, visual, node);
@@ -6269,8 +6323,7 @@ final class DukeRtsApp extends SimpleApplication {
         // Its own words too — an upgrade's weapon set, a rank — for a look that chooses anything by them.
         var holding = visual.choosesByWords()
                 ? visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()) : null;
-        var wanted = holding != null ? visual.modelFor(holding)
-                : visual.modelFor(view.healthFraction(), visuals.getWorldConditions());
+        var wanted = visual.modelFor(view.healthFraction(), visuals.getWorldConditions(), view.conditions());
         if (node.body != null && wanted != null && !wanted.equals(node.modelPath)) {
             swapBody(node, view, visual, wanted);
         } else if (visual.line != null && view.span() != null && !view.span().equals(node.laidSpan)) {
