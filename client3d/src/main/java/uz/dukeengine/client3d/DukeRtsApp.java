@@ -3906,7 +3906,7 @@ final class DukeRtsApp extends SimpleApplication {
             return; // the press was taken by the minimap or a menu
         }
         var cursor = inputManager.getCursorPosition();
-        if (!SelectionBox.isDrag(from.x, from.y, cursor.x, cursor.y)) {
+        if (!SelectionBox.isDrag(from.x, from.y, cursor.x, cursor.y, visuals.getDragDistance())) {
             var hit = pickUnit();
             // One of his own that a click would give an order on — a transport to board — is ordered, not chosen.
             boolean onOwn = hit != null && hit.view.selectable()
@@ -3918,12 +3918,14 @@ final class DukeRtsApp extends SimpleApplication {
             select(add);
             return;
         }
-        if (!add) {
-            selected.clear();
-        }
-        var boxed = SelectionBox.inside(from.x, from.y, cursor.x, cursor.y, onScreenUnits());
-        var first = boxed.stream().filter(id -> !selected.contains(id)).findFirst();
-        selected.addAll(boxed);
+        var before = List.copyOf(selected);
+        boolean hisUnits = snapshot.units().stream().filter(view -> selected.contains(view.id()))
+                .allMatch(view -> view.playerIndex() == game.getLocalPlayerIndex() && !view.structure());
+        var after = SelectionBox.after(SelectionBox.inside(from.x, from.y, cursor.x, cursor.y, onScreenUnits()),
+                before, hisUnits, add);
+        selected.clear();
+        selected.addAll(after);
+        var first = after.stream().filter(id -> !before.contains(id)).findFirst();
         // One answer for the box, as for a click: the first thing it took in.
         first.ifPresent(id -> noises.selected(viewOf(id), game.getLocalPlayerIndex(), timer.getTimeInSeconds()));
     }
@@ -3961,7 +3963,7 @@ final class DukeRtsApp extends SimpleApplication {
         for (var view : snapshot.units()) {
             var screen = cam.getScreenCoordinates(new Vector3f(view.x(), 0f, view.y()));
             candidates.add(new SelectionBox.Candidate(view.id(), screen.x, screen.y,
-                    view.playerIndex() == local, view.selectable()));
+                    view.playerIndex() == local, view.selectable(), view.structure()));
         }
         return candidates;
     }
@@ -3974,7 +3976,7 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var cursor = inputManager.getCursorPosition();
-        if (!SelectionBox.isDrag(dragFrom.x, dragFrom.y, cursor.x, cursor.y)) {
+        if (!SelectionBox.isDrag(dragFrom.x, dragFrom.y, cursor.x, cursor.y, visuals.getDragDistance())) {
             dragRectangle.setCullHint(Spatial.CullHint.Always);
             return;
         }

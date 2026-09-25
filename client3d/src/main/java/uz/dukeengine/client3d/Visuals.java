@@ -1832,6 +1832,21 @@ public final class Visuals {
         return orderMark;
     }
 
+    private float dragDistance = SelectionBox.DRAG_THRESHOLD_PIXELS;
+
+    /**
+     * How far, in pixels across or down, a press must move before its release is a box rather than a click — the
+     * reference's {@code DragTolerance}, 25 in its Mouse.ini; 5 unless named.
+     */
+    public Visuals dragDistance(float pixels) {
+        this.dragDistance = pixels > 0f ? pixels : SelectionBox.DRAG_THRESHOLD_PIXELS;
+        return this;
+    }
+
+    public float getDragDistance() {
+        return dragDistance;
+    }
+
     private RallyLook rally = RallyLook.DEFAULT;
 
     /** How a selected building's rally point is shown — see {@link RallyLook}; the reference's line unless named. */
