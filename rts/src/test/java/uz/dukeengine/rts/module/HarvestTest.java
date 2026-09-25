@@ -145,6 +145,64 @@ class HarvestTest {
         assertTrue(takenFrom(next) > 0, "the next one taken");
     }
 
+    /** The frames each thing happens on, a harvester that stands 33 before its acts and 33 after them. */
+    private record Stands(int unitTaken, int paid, int nextUnitTaken) {
+    }
+
+    private Stands stands(int units, int pileHolds) {
+        thingFactory.addTemplate(ThingTemplate.named("Worker").module(new ActiveBody.Data(100f))
+                .module(new HarvestUpdate.Data(units, 1, 0f, 5, 5, 1, false, java.util.List.of(), 33, 33)).build());
+        thingFactory.addTemplate(ThingTemplate.named("SmallPile").module(new SupplyModule.Data(pileHolds)).build());
+        thingFactory.addTemplate(ThingTemplate.named("Depot").module(new SupplyDepot.Data()).build());
+        spawn(thingFactory.findTemplate("Worker"));
+        var pile = spawn(thingFactory.findTemplate("SmallPile"));
+        spawn(thingFactory.findTemplate("Depot"));
+        int unitTaken = -1;
+        int paid = -1;
+        int nextUnitTaken = -1;
+        for (int frame = 0; frame < 300; frame++) {
+            int had = pile.findModule(SupplyModule.class).getRemaining();
+            int money = logic.getRtsPlayer(usa).getMoney();
+            logic.update();
+            if (pile.findModule(SupplyModule.class).getRemaining() < had) {
+                if (unitTaken < 0) {
+                    unitTaken = frame;
+                } else if (nextUnitTaken < 0) {
+                    nextUnitTaken = frame;
+                }
+            }
+            if (paid < 0 && logic.getRtsPlayer(usa).getMoney() > money) {
+                paid = frame;
+            }
+        }
+        return new Stands(unitTaken, paid, nextUnitTaken);
+    }
+
+    /**
+     * 33 frames before its acts, acts of 5, one unit, 5 at the depot and 33 after: arrived on frame 0, its unit is
+     * taken on 37 (the frame it arrives the first of its 33, as of an act's wait); its second act finds it full on
+     * 42, it leaves on 75; it banks 37 after it arrives at the depot, on 112, and leaves it 70 after, on 145, taking
+     * its next unit 37 later, on 182. The reference's sums are a frame more at each end — 76, 38 and 71 — its waits
+     * a frame longer than this engine's acts have always been.
+     */
+    @Test
+    void aHarvesterStandsBeforeItsFirstActAndAfterItsLast() {
+        var stood = stands(1, 1000);
+
+        assertEquals(37, stood.unitTaken(), "33 stood, then an act's 5");
+        assertEquals(112, stood.paid(), "left the pile on 75, banked 37 after");
+        assertEquals(182, stood.nextUnitTaken(), "left the depot on 145, 70 after it came, and 37 on");
+    }
+
+    /** Four units at a pile of one: its first act takes it, its second finds the pile empty, and it leaves as full. */
+    @Test
+    void anEmptiedPileEndsItsActsAsAFullLoadDoes() {
+        var stood = stands(4, 1);
+
+        assertEquals(37, stood.unitTaken());
+        assertEquals(112, stood.paid(), "left the pile 33 + 2 x 5 + 33 frames after it came, the first its own");
+    }
+
     @Test
     void idleWithoutSupplies() {
         spawn(harvester); // no pile present

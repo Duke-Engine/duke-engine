@@ -64,6 +64,12 @@ import uz.dukeengine.rts.player.RtsPlayer;
  *                      keeps its load and waits
  * @param waitBy        the kinds of thing of its side it waits by meanwhile, the first that has one — the
  *                      reference's command centre, then any building; none waits where it stands
+ * @param framesBeforeActs at a pile and at a depot alike, how long it stands, arrived, before its first act's wait
+ *                      begins — the reference's docking: let in, a path asked to the entry and asked again, 33 frames
+ *                      for a truck or a worker and 3 for a flier. The frame it arrives is the first of them, as it is
+ *                      the first of an act's wait
+ * @param framesAfterActs how long it stands after its last act — the one that finds it full or the pile empty, or its
+ *                      banking — before it sets off: the reference's truck 4, its worker 33, a flier 3
  */
 @ModuleGroup(RtsModuleGroups.ECONOMY)
 public final class HarvestUpdate extends UpdateModule implements OrderListener {
@@ -83,9 +89,17 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
      * {@code FramesPerUnit}, {@code UnitOfLoad}, {@code NeedsDepot}, {@code WaitBy = [COMMANDCENTER, STRUCTURE]}.
      */
     public record Data(int loadPerTrip, int framesPerTrip, float searchRange, int framesAtDepot, int framesPerUnit,
-            int unitOfLoad, boolean needsDepot, List<Kind> waitBy) implements ModuleData {
+            int unitOfLoad, boolean needsDepot, List<Kind> waitBy, int framesBeforeActs, int framesAfterActs)
+            implements ModuleData {
         public Data {
             waitBy = waitBy == null ? List.of() : List.copyOf(waitBy);
+        }
+
+        /** A harvester that acts the frame it arrives and sets off the frame its last act is done, as all did. */
+        public Data(int loadPerTrip, int framesPerTrip, float searchRange, int framesAtDepot, int framesPerUnit,
+                int unitOfLoad, boolean needsDepot, List<Kind> waitBy) {
+            this(loadPerTrip, framesPerTrip, searchRange, framesAtDepot, framesPerUnit, unitOfLoad, needsDepot, waitBy,
+                    0, 0);
         }
 
         /** A harvester that banks where it stands where its side has no depot, as all did before one could wait. */
@@ -108,6 +122,8 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
     private final int unitOfLoad;
     private final boolean needsDepot;
     private final List<Kind> waitBy;
+    private final int framesBeforeActs;
+    private final int framesAfterActs;
 
     /** The reference's retry after a trip that did not end beside its depot: a second, not every frame's search. */
     private static final int RETRY_FRAMES = GameConstants.LOGICFRAMES_PER_SECOND;
@@ -141,6 +157,42 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
         this.unitOfLoad = data.unitOfLoad() <= 0 ? 1 : data.unitOfLoad();
         this.needsDepot = data.needsDepot();
         this.waitBy = data.waitBy();
+        this.framesBeforeActs = Math.max(0, data.framesBeforeActs());
+        this.framesAfterActs = Math.max(0, data.framesAfterActs());
+    }
+
+    /** Frames it still stands, arrived, before its first act's wait begins — see {@code FramesBeforeActs}. */
+    private int beforeLeft;
+    /** Frames it still stands after its last act before it sets off, or -1 while its acts go on. */
+    private int afterLeft = -1;
+
+    /**
+     * Whether it is standing out its time before its first act, counting a frame of it; false once its acts may run.
+     */
+    private boolean standingBefore() {
+        if (beforeLeft <= 0) {
+            return false;
+        }
+        beforeLeft--;
+        return true;
+    }
+
+    /**
+     * Its last act is done and it goes on to {@code next}: at once, or once it has stood its {@code FramesAfterActs};
+     * false while it still stands.
+     */
+    private boolean doneActing(Doing next) {
+        if (afterLeft < 0) {
+            afterLeft = framesAfterActs;
+        }
+        if (afterLeft > 0) {
+            afterLeft--;
+            return false;
+        }
+        afterLeft = -1;
+        doing = next;
+        beforeLeft = framesBeforeActs; // for wherever it stands next, from the frame it is there
+        return true;
     }
 
     @Override
@@ -193,6 +245,8 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
         sent = false;
         doing = isPile ? (carrying < loadPerTrip ? Doing.FETCHING : Doing.RETURNING)
                 : (carrying > 0 ? Doing.RETURNING : Doing.FETCHING);
+        beforeLeft = framesBeforeActs;
+        afterLeft = -1;
     }
 
     /**
@@ -313,15 +367,24 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
             doing = Doing.LOADING;
             elapsed = 0;
             atPile = pile;
+            beforeLeft = framesBeforeActs;
+            afterLeft = -1;
         }
     }
 
     private void load(GameObject owner, World world) {
+        if (afterLeft >= 0) {
+            doneActing(carrying > 0 ? Doing.RETURNING : Doing.FETCHING); // standing out its time after its last act
+            return;
+        }
         if (owner.getLocomotor() != null && (atPile == null || !world.isBeside(owner, atPile))) {
             atPile = null; // moved off it: nothing more is taken until it is beside a pile again
             elapsed = 0;
             retryIn = RETRY_FRAMES;
             doing = Doing.FETCHING;
+            return;
+        }
+        if (standingBefore()) {
             return;
         }
         if (framesPerUnit > 0) {
@@ -340,7 +403,7 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
         }
         elapsed = 0;
         carrying += pile.findModule(SupplyModule.class).take(loadPerTrip - carrying);
-        doing = carrying > 0 ? Doing.RETURNING : Doing.FETCHING;
+        doneActing(carrying > 0 ? Doing.RETURNING : Doing.FETCHING);
     }
 
     /**
@@ -361,8 +424,9 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
             carrying += taken;
             return;
         }
-        atPile = null;
-        doing = carrying > 0 ? Doing.RETURNING : Doing.FETCHING;
+        if (doneActing(carrying > 0 ? Doing.RETURNING : Doing.FETCHING)) {
+            atPile = null;
+        }
     }
 
     private void carry(GameObject owner, World world) {
@@ -388,6 +452,12 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
         }
         if (depot != null && !walkTo(owner, depot)) {
             elapsed = 0; // still on its way: the wait at the depot starts when it is there
+            beforeLeft = framesBeforeActs;
+            afterLeft = -1;
+            return;
+        }
+        if (afterLeft >= 0) {
+            doneActing(Doing.FETCHING); // banked: standing out its time before it sets off again
             return;
         }
         if (depot != null && owner.getLocomotor() != null && !world.isBeside(owner, depot)) {
@@ -396,6 +466,9 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
             sent = false;
             elapsed = 0;
             retryIn = RETRY_FRAMES;
+            return;
+        }
+        if (depot != null && standingBefore()) {
             return;
         }
         if (depot != null && ++elapsed < framesAtDepot) {
@@ -407,7 +480,11 @@ public final class HarvestUpdate extends UpdateModule implements OrderListener {
             player.deposit(carrying);
         }
         carrying = 0;
-        doing = Doing.FETCHING;
+        if (depot == null) {
+            doing = Doing.FETCHING; // banked where it stands, with no depot to stand at
+        } else {
+            doneActing(Doing.FETCHING);
+        }
     }
 
     /**
