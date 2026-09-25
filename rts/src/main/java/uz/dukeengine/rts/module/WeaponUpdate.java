@@ -816,7 +816,10 @@ public final class WeaponUpdate extends UpdateModule {
         return false;
     }
 
-    /** Whether {@code weapon} may be fired at {@code victim}'s class — see {@link TargetRule}. */
+    /**
+     * Whether {@code weapon} may be fired at {@code victim}'s class — see {@link TargetRule} — and at its pitch
+     * ({@link Weapon#withinPitch}).
+     */
     private boolean mayHit(Weapon weapon, GameObject victim) {
         var world = getOwner().getWorld();
         if (world != null && victim.getTargetableFrom() > world.getFrame()) {
@@ -824,6 +827,9 @@ public final class WeaponUpdate extends UpdateModule {
         }
         if (victim.isHiddenFrom(getOwner().getPlayerIndex())) {
             return false; // not there, or kept from this side: nothing may be fired at it, forced or not
+        }
+        if (world != null && !weapon.withinPitch(getOwner(), victim, world.cellSize())) {
+            return false; // above or below what it can be pointed at
         }
         if (weapon.targets().isEmpty()) {
             return true;
