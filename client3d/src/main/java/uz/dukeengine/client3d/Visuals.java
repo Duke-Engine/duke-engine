@@ -1941,6 +1941,25 @@ public final class Visuals {
         return orderMark;
     }
 
+    /** The answers the game names to clicks that give its words — see {@link #orderAnswer}. */
+    private final Map<String, String> orderAnswers = new java.util.HashMap<>();
+
+    /**
+     * Which moment of the first selected thing answers a click that gives the game's word {@code word} — on a thing
+     * ({@code DukeGame.contextOrder}) or on the ground ({@code DukeGame.groundOrder}): {@code supply} plays {@code
+     * ordered.supply.<template>}, as the reference answers a dock with {@code VoiceSupply}; null plays nothing, as its
+     * power steered says nothing on the click. A word it names nothing for is answered as a move, as always.
+     */
+    public Visuals orderAnswer(String word, String moment) {
+        orderAnswers.put(word, moment == null || moment.isBlank() ? null : moment);
+        return this;
+    }
+
+    /** The moment that answers a click giving {@code word}: the game's, none (null), or a move's. */
+    String orderAnswerFor(String word) {
+        return word != null && orderAnswers.containsKey(word) ? orderAnswers.get(word) : "move";
+    }
+
     private float dragDistance = SelectionBox.DRAG_THRESHOLD_PIXELS;
 
     /**

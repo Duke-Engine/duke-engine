@@ -3970,6 +3970,14 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /** An order the player gave the selection: {@code ordered.<order>.<template>} for the first of it. */
+    /** A click that gave the game's word answered as the game names: its moment, none, or a move's. */
+    private void answerWord(String word, List<ObjectId> units) {
+        var answer = visuals.orderAnswerFor(word);
+        if (answer != null) {
+            answerOrder(answer, units);
+        }
+    }
+
     private void answerOrder(String order, List<ObjectId> units) {
         if (!units.isEmpty()) {
             noises.ordered(order, viewOf(units.getFirst().value()), game.getLocalPlayerIndex(),
@@ -4028,7 +4036,7 @@ final class DukeRtsApp extends SimpleApplication {
                     new Coord3D(enemy.view.x(), enemy.view.y(), 0f), new ObjectId(enemy.view.id()), 0));
             markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(),
                     visuals.getOrderMark().ringsContextOrders() ? OrderMarkers.Kind.CONTEXT : OrderMarkers.Kind.MOVE);
-            answerOrder("move", units);
+            answerWord(snapshot.contextOrder(), units);
             return;
         }
         // With the force-attack key held, a neutral thing is fired on too — not a friend: the simulation never
@@ -4038,7 +4046,7 @@ final class DukeRtsApp extends SimpleApplication {
             if (!snapshot.attackable()) {
                 return; // nothing selected may be fired at it: refused, as the pointer already said
             }
-            game.postCommand(new GameMessage.AttackObject(local, units, new ObjectId(enemy.view.id())));
+            game.postCommand(new GameMessage.AttackObject(local, units, new ObjectId(enemy.view.id()), forced));
             answerOrder("attack", units);
             markOrder(enemy.view.x(), enemy.view.y(), enemy.view.id(), OrderMarkers.Kind.ATTACK);
             // His own orders only. In a game with more than one player at it,
@@ -4059,7 +4067,7 @@ final class DukeRtsApp extends SimpleApplication {
             case GameMessage.GameOrder steer -> {
                 game.postCommand(steer); // the game's word for a click here — see DukeGame.groundOrder
                 markOrder(ground.x, ground.z, OrderMarkers.Kind.MOVE);
-                answerOrder("move", units);
+                answerWord(steer.word(), units);
             }
             case GameMessage.SetRallyPoint rally -> {
                 game.postCommand(rally);
