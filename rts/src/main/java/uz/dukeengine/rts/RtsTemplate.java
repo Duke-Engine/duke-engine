@@ -86,9 +86,16 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
         private int maxSimultaneous;
         private String linkKey;
         private int refundValue;
+        private String model;
 
         private Builder(String name) {
             this.name = name;
+        }
+
+        /** Its model, a whole path from the resource root. */
+        public Builder model(String path) {
+            this.model = path;
+            return this;
         }
 
         public Builder displayName(String displayName) {
@@ -165,7 +172,7 @@ public record RtsTemplate(String name, String displayName, Set<Kind> kindOf, flo
 
         public RtsTemplate build() {
             return new RtsTemplate(name, displayName, kinds, visionRange, geometry, modules, buildCost, buildTime,
-                    null, 1f, 0xFFFFFF, 0f, null, null, null, null, null, null, Map.of(), Map.of(),
+                    model, 1f, 0xFFFFFF, 0f, null, null, null, null, null, null, Map.of(), Map.of(),
                     prerequisites, requiredWords, buildability, maxSimultaneous, linkKey, refundValue);
         }
     }

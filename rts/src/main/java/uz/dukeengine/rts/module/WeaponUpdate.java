@@ -325,9 +325,10 @@ public final class WeaponUpdate extends UpdateModule {
 
     @Override
     public void update() {
-        if (getOwner().isEffectivelyDead() || getOwner().isContained()
+        if (getOwner().isEffectivelyDead()
+                || getOwner().isContained() && !ContainModule.firesFromInside(getOwner())
                 || getOwner().hasStatus(ObjectStatus.DISABLED) || getOwner().hasStatus(ObjectStatus.SOLD)) {
-            return; // dead, inside a transport, disabled or being sold — hold fire
+            return; // dead, inside a transport that keeps it idle, disabled or being sold — hold fire
         }
         tick();
 

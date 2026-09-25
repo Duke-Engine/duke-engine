@@ -3300,7 +3300,9 @@ final class DukeRtsApp extends SimpleApplication {
         UnitNode nearest = null;
         float closest = Float.MAX_VALUE;
         for (var node : unitNodes.values()) {
-            if (node.view == null || !node.view.selectable() || node.body == null) {
+            // A rider is clicked as what it rides on.
+            var picked = node.view == null ? null : node.view.ridesOn() >= 0 ? unitNodes.get(node.view.ridesOn()) : node;
+            if (picked == null || !picked.view.selectable() || node.body == null) {
                 continue;
             }
             var bound = node.body.getWorldBound();
@@ -3312,7 +3314,7 @@ final class DukeRtsApp extends SimpleApplication {
             float away = bound.getCenter().distance(near);
             if (away < closest) {
                 closest = away;
-                nearest = node;
+                nearest = picked;
             }
         }
         return nearest;

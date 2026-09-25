@@ -15,6 +15,7 @@ package uz.dukeengine.game.view;
  *                   a client chooses its model, its pieces and its barrels by
  * @param built      how far it is built: 0 to 1 for a site going up, falling below 0 for a building being sold, as
  *                   the reference's construction percent does; 1 for anything else
+ * @param ridesOn    the id of what it rides on top of — drawn where it stands, clicked as that — or -1
  */
 public record UnitView(
         int id,
@@ -37,10 +38,20 @@ public record UnitView(
         int statuses,
         java.util.List<Integer> passengers,
         java.util.List<String> conditions,
-        float built) {
+        float built,
+        int ridesOn) {
     public UnitView {
         passengers = passengers == null ? java.util.List.of() : java.util.List.copyOf(passengers);
         conditions = conditions == null ? java.util.List.of() : java.util.List.copyOf(conditions);
+    }
+
+    /** A view of a thing that rides on nothing: every view from before a thing could ride on top of another. */
+    public UnitView(int id, String templateName, int playerIndex, float x, float y, float orientation, float health,
+            float maxHealth, boolean structure, boolean selectable, boolean moving, boolean attacking,
+            int productionQueue, float z, float pitch, float roll, boolean ownHeight, int statuses,
+            java.util.List<Integer> passengers, java.util.List<String> conditions, float built) {
+        this(id, templateName, playerIndex, x, y, orientation, health, maxHealth, structure, selectable, moving,
+                attacking, productionQueue, z, pitch, roll, ownHeight, statuses, passengers, conditions, built, -1);
     }
 
     /** A view that says nothing of being built: every view from before a site was drawn rising. */

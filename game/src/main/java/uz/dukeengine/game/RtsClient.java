@@ -111,7 +111,9 @@ final class RtsClient extends GameClient {
         }
         var units = new ArrayList<UnitView>();
         for (var object : everything ? logic.getObjects() : logic.getVisibleObjects(viewerPlayer)) {
-            if (object.isContained() || object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)) {
+            var carrier = object.isContained() ? uz.dukeengine.rts.module.ContainModule.holdOf(object) : null;
+            boolean rider = carrier != null && carrier.riderBone() != null;
+            if (object.isContained() && !rider || object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)) {
                 continue; // riding inside a transport, or not there to be seen — not on the map
             }
             var template = object.getTemplate();
@@ -131,7 +133,7 @@ final class RtsClient extends GameClient {
                     body == null ? 0f : body.getHealth(),
                     body == null ? 0f : body.getMaxHealth(),
                     object.isKindOf(RtsKinds.STRUCTURE),
-                    object.isKindOf(RtsKinds.SELECTABLE)
+                    object.isKindOf(RtsKinds.SELECTABLE) && !rider
                             && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.SOLD)
                             && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.UNSELECTABLE),
                     ai != null && ai.isMoving(),
@@ -145,7 +147,8 @@ final class RtsClient extends GameClient {
                     hold == null ? java.util.List.of()
                             : hold.getPassengers().stream().map(uz.dukeengine.core.thing.ObjectId::value).toList(),
                     java.util.List.copyOf(object.getConditions()),
-                    built(object)));
+                    built(object),
+                    rider ? carrier.getOwner().getId().value() : -1));
         }
         var player = everything ? null : logic.getRtsPlayer(viewerPlayer);
         snapshot = new WorldSnapshot(
