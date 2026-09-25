@@ -134,6 +134,40 @@ class WordClipTest {
         assertEquals(0, clip.timeAt(6));
     }
 
+    /**
+     * A state that names no clip, as the reference's damaged power plant's: holding DAMAGED, its model plays nothing,
+     * nothing is said missing, and its idle does not stand in; holding nothing it plays A.
+     */
+    @Test
+    void aStateThatNamesNoClipLeavesTheModelStillAndItsRolesOut() {
+        var look = Visuals.create().unit("PowerPlant", l -> l.model("models/power.glb").idle("Idle")
+                .clip(Set.of(), "A", LOOP, null, null)
+                .clip(Set.of("DAMAGED"), null, LOOP, null, null)).of("PowerPlant");
+        var fan = new Node("Fan");
+        var plant = new Node("PowerPlant");
+        plant.attachChild(fan);
+        var composer = new AnimComposer();
+        plant.addControl(composer);
+        for (var name : java.util.List.of("A", "Idle")) {
+            var spin = new AnimClip(name);
+            spin.setTracks(new AnimTrack<?>[] {new TransformTrack(fan, new float[] {0f, 1f},
+                    new Vector3f[] {new Vector3f(), new Vector3f(10f, 0f, 0f)}, null, null)});
+            composer.addAnimClip(spin);
+        }
+        var clip = new WordClip();
+        var missing = new java.util.ArrayList<String>();
+
+        assertEquals("A", WordClip.playOn(composer, clip, null, look, Set.of(), 0, 7, missing::add), "it plays A");
+        var damaged = WordClip.playOn(composer, clip, "A", look, Set.of("DAMAGED"), 10, 7, missing::add);
+
+        org.junit.jupiter.api.Assertions.assertNull(composer.getCurrentAction(), "its model plays nothing");
+        org.junit.jupiter.api.Assertions.assertNotNull(damaged, "its words chose: its idle does not stand in");
+        assertTrue(clip.chosen());
+        assertTrue(missing.isEmpty(), "nothing said missing: " + missing);
+        assertEquals("A", WordClip.playOn(composer, clip, damaged, look, Set.of(), 20, 7, missing::add),
+                "and A again, holding nothing");
+    }
+
     // ---- at a speed ----
 
     @Test

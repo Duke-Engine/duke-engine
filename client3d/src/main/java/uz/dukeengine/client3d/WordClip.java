@@ -15,6 +15,8 @@ import uz.dukeengine.core.GameConstants;
 final class WordClip {
 
     private static final int NONE = -1;
+    /** What {@link #playOn} says of a state that names no clip: chosen, and nothing played. */
+    static final String STILL = "";
 
     private int state = NONE;
     private Visuals.ClipState chosen;
@@ -87,13 +89,26 @@ final class WordClip {
     /**
      * The clip {@code look}'s words choose for what holds {@code holding}, set on {@code composer} at the game's frame
      * {@code frame} and held there — its time the frame's, never the window's — or null where they choose none, or
-     * name a clip the model does not have ({@code missing} is told its name).
+     * name a clip the model does not have ({@code missing} is told its name). Where they choose a state that names no
+     * clip, the model plays nothing and stands in its own pose, its roles do not stand in, and nothing is missing:
+     * {@link #STILL} — as the reference sets a state's model and clip together ({@code W3DModelDraw::setModelState}).
      *
      * @param playing the clip the composer was last set to, so an unchanged one is not set again
      */
     static String playOn(AnimComposer composer, WordClip clip, String playing, Visuals.UnitVisual look,
             Set<String> holding, int frame, int thing, Consumer<String> missing) {
         int index = look.clipStateFor(holding);
+        if (index >= 0 && look.clipStates.get(index).clip() == null) {
+            if (clip.choose(index, look.clipStates, 0, frame, thing)) {
+                composer.removeCurrentAction(AnimComposer.DEFAULT_LAYER);
+                var skin = composer.getSpatial() == null ? null
+                        : AnimationLibrary.findControl(composer.getSpatial(), com.jme3.anim.SkinningControl.class);
+                if (skin != null) {
+                    skin.getArmature().applyInitialPose(); // its own pose, not wherever the last clip left it
+                }
+            }
+            return STILL;
+        }
         var anim = index < 0 ? null : composer.getAnimClip(look.clipStates.get(index).clip());
         if (anim == null) {
             if (index >= 0) {

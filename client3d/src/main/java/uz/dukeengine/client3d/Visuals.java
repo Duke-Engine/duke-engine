@@ -361,7 +361,9 @@ public final class Visuals {
          * this one name the same {@code keepGroup} and this one says nothing of where to start: then it carries on
          * from as far through as the other was ({@code MAINTAIN_FRAME_ACROSS_STATES}). Stepped by the game's frames,
          * so every machine shows the same frame, and held while the game is paused. Words given no clip play its roles
-         * as before. A door: {@code clip(Set.of("DOOR_1_OPENING"), "ABWarFact_A8", ONCE, FIRST, null)}, {@code
+         * as before; a state that names none, {@code clip} null, has the model play nothing and stand in its own pose,
+         * its roles not standing in — a damaged power plant's damaged model, left still. A door: {@code
+         * clip(Set.of("DOOR_1_OPENING"), "ABWarFact_A8", ONCE, FIRST, null)}, {@code
          * clip(Set.of("DOOR_1_WAITING_OPEN"), "ABWarFact_A8", HOLD, LAST, null)}, {@code
          * clip(Set.of("DOOR_1_CLOSING"), "ABWarFact_A8", ONCE_BACKWARDS, LAST, null)}.
          */
