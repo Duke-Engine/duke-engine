@@ -4736,6 +4736,10 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** The player's own hands on the camera: the pan keys and the screen's edges, turning, zooming. */
     private void steerTheCamera(float tpf) {
+        var moved = game.takeViewMove();
+        if (moved != null) {
+            camera.lookAt(moved.x(), moved.y()); // the game put his view here; he scrolls on from it
+        }
         float speed = camera.panSpeed() * tpf;
         var shove = edgeShove(speed);
         float across = (held(KeyMap.Control.PAN_RIGHT) ? speed : 0f) - (held(KeyMap.Control.PAN_LEFT) ? speed : 0f)

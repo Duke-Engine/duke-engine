@@ -312,4 +312,21 @@ class CameraFocusTest {
         assertEquals(509f, camera.distance(), 1e-3f, "at its start");
         assertEquals(300f, camera.targetX(), 0f, "looking where it looked");
     }
+
+    /** What the client does with a view the game moved: looks there, and the player's pan that frame goes on from it. */
+    @Test
+    void aViewTheGameMovedIsPannedFromInTheSameFrameTurnedAndAsFarBackAsItWas() {
+        var camera = framed();
+        camera.turnBy(0.4f);
+        camera.wheel(true);
+        float distance = camera.distance();
+
+        camera.lookAt(300f, 400f);
+        camera.panBy(12f, -5f);
+
+        assertEquals(312f, camera.targetX(), 1e-4f);
+        assertEquals(395f, camera.targetZ(), 1e-4f);
+        assertEquals(0.4f, camera.yaw(), 1e-6f, "turned as it was");
+        assertEquals(distance, camera.distance(), 0f, "as far back");
+    }
 }

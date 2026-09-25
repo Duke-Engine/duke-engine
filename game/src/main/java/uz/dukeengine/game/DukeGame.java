@@ -233,6 +233,25 @@ public final class DukeGame {
         camera.seen(new uz.dukeengine.game.view.CameraView(x, y, angle, Float.NaN, Float.NaN));
     }
 
+    private final java.util.concurrent.atomic.AtomicReference<uz.dukeengine.core.math.Coord2D> viewMove =
+            new java.util.concurrent.atomic.AtomicReference<>();
+
+    /**
+     * Put the player's view over {@code (x, y)} — the reference's {@code TheTacticalView->lookAt} from its interface: a
+     * press on the radar, the key that looks at the last event. From any thread: the client centres its own camera
+     * there at its next frame, turned, pitched and as far back as it was, and the camera stays the player's, his
+     * scrolling going on from there at once. Two before a frame land on the second; one while the game drives the
+     * camera waits until it is let go.
+     */
+    public void moveView(float x, float y) {
+        viewMove.set(new uz.dukeengine.core.math.Coord2D(x, y));
+    }
+
+    /** The view move asked for since the client last took one, or null: the client's, once a frame. */
+    public uz.dukeengine.core.math.Coord2D takeViewMove() {
+        return viewMove.getAndSet(null);
+    }
+
     private volatile uz.dukeengine.game.view.ViewRays viewRays;
 
     /**

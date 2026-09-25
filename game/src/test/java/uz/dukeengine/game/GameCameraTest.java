@@ -85,4 +85,20 @@ class GameCameraTest {
         game.runHeadless(1);
         assertNull(game.getSnapshot().camera(), "given back");
     }
+
+    @Test
+    void theViewMovedTwiceBeforeTheClientsFrameLandsOnTheSecondAndIsTakenOnce() throws Exception {
+        var game = watched();
+        var from = new Thread(() -> game.moveView(100f, 200f)); // from any thread
+        from.start();
+        from.join();
+        game.moveView(300f, 400f);
+
+        var moved = game.takeViewMove();
+
+        assertEquals(300f, moved.x(), 0f);
+        assertEquals(400f, moved.y(), 0f);
+        assertNull(game.takeViewMove(), "taken: nothing more to move to");
+        assertFalse(game.camera().isDriven(), "and the camera never the game's");
+    }
 }
