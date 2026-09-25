@@ -23,6 +23,8 @@ public final class PowerModule extends Module {
 
     private final int produced;
     private final int consumed;
+    /** What it produces over its block's figure now — see {@link #setBonus}. */
+    private int bonus;
 
     public PowerModule(GameObject owner, Data data) {
         super(owner);
@@ -30,8 +32,22 @@ public final class PowerModule extends Module {
         this.consumed = data.consumes();
     }
 
+    /** What it produces now: its block's figure and its bonus. */
     public int getProduced() {
-        return produced;
+        return produced + bonus;
+    }
+
+    /**
+     * Produce {@code bonus} more than its block says from now on — a reactor overcharged, 10 to 15; control rods, 5
+     * to 10: the reference's EnergyBonus — counted by its side's surplus at once; 0 takes it away. Settable from any
+     * module's update, its own thing's included, where swapping the module is not; it goes with the thing.
+     */
+    public void setBonus(int bonus) {
+        this.bonus = bonus;
+    }
+
+    public int getBonus() {
+        return bonus;
     }
 
     public int getConsumed() {

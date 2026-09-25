@@ -15,16 +15,20 @@ public final class PowerGrid {
     private PowerGrid() {
     }
 
-    /** Net power for a player: everything produced minus everything consumed. */
+    /**
+     * Net power for a player: everything produced minus everything consumed, every power module of every thing of its
+     * that stands — a thing lying dead while its death plays out gives and takes none.
+     */
     public static int surplus(World world, int playerIndex) {
         int surplus = 0;
         for (var object : world.getObjects()) {
-            if (object.getPlayerIndex() != playerIndex) {
+            if (object.getPlayerIndex() != playerIndex || object.isEffectivelyDead()) {
                 continue;
             }
-            var power = object.findModule(PowerModule.class);
-            if (power != null) {
-                surplus += power.getProduced() - power.getConsumed();
+            for (var module : object.getModules()) {
+                if (module instanceof PowerModule power) {
+                    surplus += power.getProduced() - power.getConsumed();
+                }
             }
         }
         return surplus;
