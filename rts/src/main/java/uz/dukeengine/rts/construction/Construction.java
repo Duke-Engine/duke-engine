@@ -54,7 +54,10 @@ public final class Construction {
                 builder.removeModule(earlier);
             }
         }
-        var errand = new BuildOrder(builder, template, order.place(), order.facing(), cost, rules);
+        // Put down now, where the rules say so, and the builder then goes to it; otherwise when it arrives.
+        var site = rules.siteAtOrder()
+                ? BuildOrder.putDown(builder, template, order.place(), order.facing(), cost, rules) : null;
+        var errand = new BuildOrder(builder, template, order.place(), order.facing(), cost, rules, site);
         builder.addModule(errand);
         errand.begin();
         return true;

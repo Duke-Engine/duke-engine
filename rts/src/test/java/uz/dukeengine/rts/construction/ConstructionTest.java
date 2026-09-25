@@ -364,4 +364,75 @@ class ConstructionTest {
         }
         assertNotNull(barracks(one.world()));
     }
+
+    // ---- a site put down when its order is taken ----
+
+    private static final PlacementRules.SiteWords WORDS =
+            new PlacementRules.SiteWords("AWAITING", "PARTLY", "BEING");
+
+    private static Scene atOrder() {
+        var scene = scene(new PathGrid(60, 60));
+        scene.world().setPlacementRules(new PlacementRules(10f, 30f, 0.5f, 0.1f, WORDS).siteAtOrder(true));
+        return scene;
+    }
+
+    @Test
+    void aSiteOrderedFarFromItsBuilderStandsTheNextFrameAwaitingIt() {
+        var scene = atOrder();
+        build(scene, new Coord3D(400f, 100f, 0f)); // 300 from the dozer
+
+        scene.world().update();
+
+        var site = barracks(scene.world());
+        assertNotNull(site, "it stands the frame the order is taken");
+        assertTrue(site.hasStatus(ObjectStatus.UNDER_CONSTRUCTION));
+        assertEquals(List.of("AWAITING"), List.copyOf(site.getConditions()), "awaiting, and not the others");
+        assertEquals(60f, site.getBody().getHealth(), 1e-3f, "at the start share of its health");
+        assertTrue(scene.dozer().getPosition().distance(site.getPosition()) > 250f, "its builder still far off");
+
+        int frames = 0;
+        while (!site.hasCondition("PARTLY") && frames++ < 2000) {
+            scene.world().update();
+        }
+        assertTrue(site.hasCondition("PARTLY") && !site.hasCondition("AWAITING"), "partly built once reached");
+        for (int frame = 0; frame < 2000 && site.hasStatus(ObjectStatus.UNDER_CONSTRUCTION); frame++) {
+            scene.world().update();
+        }
+        assertFalse(site.hasStatus(ObjectStatus.UNDER_CONSTRUCTION), "and finished as ever");
+        assertEquals(600f, site.getBody().getHealth(), 1e-2f);
+        assertEquals(1000 - COST, scene.world().getRtsPlayer(scene.player()).getMoney(), "paid once");
+    }
+
+    @Test
+    void aBuilderThatGivesUpLeavesTheSiteStandingWithTheMoneyInIt() {
+        var scene = atOrder();
+        build(scene, new Coord3D(400f, 100f, 0f));
+        scene.world().update();
+        scene.world().update();
+
+        scene.world().issueCommand(new GameMessage.MoveTo(scene.player(), List.of(scene.dozer().getId()),
+                new Coord3D(100f, 400f, 0f)));
+        for (int frame = 0; frame < 60; frame++) {
+            scene.world().update();
+        }
+
+        var site = barracks(scene.world());
+        assertNotNull(site, "the site stands");
+        assertTrue(site.hasCondition("AWAITING"), "still awaiting a builder");
+        assertEquals(1000 - COST, scene.world().getRtsPlayer(scene.player()).getMoney(), "nothing given back");
+        scene.world().issueCommand(new GameMessage.CancelConstruction(scene.player(), site.getId()));
+        scene.world().update();
+        assertEquals(1000 - COST / 2, scene.world().getRtsPlayer(scene.player()).getMoney(),
+                "called off, it gives back what a site called off gives");
+    }
+
+    @Test
+    void rulesThatSayNothingStillPutTheSiteDownWhenTheBuilderArrives() {
+        var scene = scene(new PathGrid(60, 60));
+        build(scene, new Coord3D(400f, 100f, 0f));
+
+        scene.world().update();
+
+        assertNull(barracks(scene.world()), "nothing stands yet: the builder is on his way");
+    }
 }

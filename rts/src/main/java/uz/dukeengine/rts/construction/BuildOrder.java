@@ -33,6 +33,10 @@ import uz.dukeengine.rts.player.RtsPlayer;
  * <p><b>Giving up</b> — sent somewhere else, told to stop on the way in, stopped short and unable to get
  * closer, or something that does not move put there meanwhile — gives the money back in full, because
  * nothing was built.
+ *
+ * <p><b>A site put down at the order</b> ({@link PlacementRules#siteAtOrder}) already stands: the builder only goes to
+ * it, and is done once beside it, the site's own module doing the work. Giving up then leaves the site standing, with
+ * the money in it; calling the site off gives back what calling a site off gives.
  */
 public final class BuildOrder extends UpdateModule {
 
@@ -53,9 +57,11 @@ public final class BuildOrder extends UpdateModule {
     private float lastGap = -1f;
     private int stepsOut;
     private boolean over;
+    /** The site its order put down at once, or null for one put down when the builder arrives. */
+    private final GameObject site;
 
     BuildOrder(GameObject builder, ThingTemplate template, Coord3D place, float facing, int cost,
-            PlacementRules rules) {
+            PlacementRules rules, GameObject site) {
         super(builder);
         this.template = template;
         this.place = place;
@@ -64,6 +70,26 @@ public final class BuildOrder extends UpdateModule {
         this.rules = rules;
         this.goal = place;
         this.side = builder.getPlayerIndex();
+        this.site = site;
+    }
+
+    /**
+     * Put a site down: the real template at {@code place}, under construction and at the rules' start share of its
+     * health, made that way so the side's upgrades and its own modules first hear of it as a site, with its builder's
+     * work to be done on it.
+     */
+    static GameObject putDown(GameObject builder, ThingTemplate template, Coord3D place, float facing, int cost,
+            PlacementRules rules) {
+        var site = builder.getWorld().spawn(template, place, builder.getPlayerIndex(), made -> {
+            made.setOrientation((float) StrictMath.toRadians(facing));
+            made.setStatus(ObjectStatus.UNDER_CONSTRUCTION);
+        });
+        var body = site.getBody();
+        if (body != null) {
+            body.setHealth(body.getMaxHealth() * rules.startShare());
+        }
+        site.addModule(new ConstructionSite(site, builder.getId(), cost, rules));
+        return site;
     }
 
     /**
@@ -75,6 +101,10 @@ public final class BuildOrder extends UpdateModule {
     void begin() {
         var builder = getOwner();
         var walking = builder.findModule(MoveUpdate.class);
+        if (site != null) {
+            goToTheSite(builder, walking);
+            return;
+        }
         float gap = gapAt(builder.getPosition());
         remember(builder.getPosition(), gap);
         if (inTheBand(gap)) {
@@ -107,12 +137,15 @@ public final class BuildOrder extends UpdateModule {
         return over;
     }
 
-    /** Give it up, the money back in full to the side that paid: nothing has been built. */
+    /** Give it up, the money back in full to the side that paid: nothing has been built — unless a site already stands. */
     void giveUp() {
         if (over) {
             return;
         }
         over = true;
+        if (site != null) {
+            return; // the site stands, the money in it: calling the site off is what gives some back
+        }
         var player = RtsPlayer.of(getOwner().getWorld(), side);
         if (player != null) {
             player.refund(cost);
@@ -127,6 +160,10 @@ public final class BuildOrder extends UpdateModule {
         var builder = getOwner();
         if (builder.getPlayerIndex() != side) {
             giveUp(); // handed to another side: it builds nothing more for the old one, and nothing for the new
+            return;
+        }
+        if (site != null) {
+            walkToTheSite(builder);
             return;
         }
         var here = builder.getPosition();
@@ -172,6 +209,53 @@ public final class BuildOrder extends UpdateModule {
             }
             goal = place; // stepped out past the band: back in toward the middle
             walking.moveTo(goal);
+        }
+    }
+
+    /** Off to the site its order put down: out of its footprint first where it stands in it. */
+    private void goToTheSite(GameObject builder, MoveUpdate walking) {
+        var world = builder.getWorld();
+        if (world.isBeside(builder, site)) {
+            if (walking != null) {
+                walking.stop(); // here already: the site's own module does the work
+            }
+            over = true;
+            return;
+        }
+        goal = gapAt(builder.getPosition()) < 0f ? stepOut(builder) : world.standingNextTo(builder, site);
+        if (walking != null) {
+            walking.moveTo(goal);
+        }
+    }
+
+    /**
+     * On its way to the site: done once beside it; given up — the site left standing — if it is sent elsewhere, the
+     * site is gone, or it stops short three times over.
+     */
+    private void walkToTheSite(GameObject builder) {
+        var world = builder.getWorld();
+        var walking = builder.findModule(MoveUpdate.class);
+        if (site.isDestroyed() || site.isEffectivelyDead() || walking == null) {
+            giveUp();
+            return;
+        }
+        if (world.isBeside(builder, site)) {
+            walking.stop();
+            over = true;
+            return;
+        }
+        var heading = walking.getGoal();
+        if (heading != null && !heading.equals(goal)) {
+            giveUp(); // sent somewhere else: the site waits for another builder
+            return;
+        }
+        if (heading == null || !walking.isMoving()) {
+            if (stepsOut >= STEPS_OUT) {
+                giveUp(); // it can get no nearer
+                return;
+            }
+            stepsOut++;
+            goToTheSite(builder, walking);
         }
     }
 
@@ -253,15 +337,6 @@ public final class BuildOrder extends UpdateModule {
             }
         }
         over = true;
-        // Made under construction, so the side's upgrades and its own modules first hear of it as a site.
-        var site = world.spawn(template, place, builder.getPlayerIndex(), made -> {
-            made.setOrientation((float) StrictMath.toRadians(facing));
-            made.setStatus(ObjectStatus.UNDER_CONSTRUCTION);
-        });
-        var body = site.getBody();
-        if (body != null) {
-            body.setHealth(body.getMaxHealth() * rules.startShare());
-        }
-        site.addModule(new ConstructionSite(site, builder.getId(), cost, rules));
+        putDown(builder, template, place, facing, cost, rules);
     }
 }

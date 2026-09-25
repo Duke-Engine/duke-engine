@@ -11,8 +11,13 @@ package uz.dukeengine.rts.construction;
  *                    there
  * @param startShare  what share of its health a site has the frame it rises, growing to whole as it is built
  * @param words       the words a site holds while it goes up, and a sold building while it comes down
+ * @param siteAtOrder whether a site is put down the moment its order is taken — the reference's {@code
+ *                    DozerAIUpdate::construct}: standing, seen, able to be shot and in the way from then, awaiting its
+ *                    builder, who then goes to it; a builder that gives up leaves it standing. Otherwise it is put
+ *                    down when its builder arrives, and a builder that gives up on the way has the money back
  */
-public record PlacementRules(float maxRise, float edgeMargin, float refundShare, float startShare, SiteWords words) {
+public record PlacementRules(float maxRise, float edgeMargin, float refundShare, float startShare, SiteWords words,
+        boolean siteAtOrder) {
 
     /**
      * The words a site holds while it goes up — the reference's {@code AWAITING_CONSTRUCTION}, {@code
@@ -46,5 +51,15 @@ public record PlacementRules(float maxRise, float edgeMargin, float refundShare,
     /** Rules whose sites hold no words, as every site did before they could. */
     public PlacementRules(float maxRise, float edgeMargin, float refundShare, float startShare) {
         this(maxRise, edgeMargin, refundShare, startShare, null);
+    }
+
+    /** Rules whose sites are put down when their builder arrives, as every site was before they could be earlier. */
+    public PlacementRules(float maxRise, float edgeMargin, float refundShare, float startShare, SiteWords words) {
+        this(maxRise, edgeMargin, refundShare, startShare, words, false);
+    }
+
+    /** The same rules, with sites put down the moment their order is taken, or not. */
+    public PlacementRules siteAtOrder(boolean atOrder) {
+        return new PlacementRules(maxRise, edgeMargin, refundShare, startShare, words, atOrder);
     }
 }
