@@ -31,4 +31,13 @@ public abstract class Module {
      */
     public void onRemoved() {
     }
+
+    /**
+     * Told once that its thing is made — after its owner, place and facing are set and before its first update — so
+     * it may act on them at once where it would otherwise act a frame late: the reference's create modules, a unit
+     * born a veteran or given an upgrade as it is made. On the simulation thread; not told again of a thing brought
+     * back from a save. Nothing by default.
+     */
+    public void onCreated() {
+    }
 }

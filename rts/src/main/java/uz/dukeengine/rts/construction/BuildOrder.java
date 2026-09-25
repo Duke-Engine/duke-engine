@@ -246,9 +246,11 @@ public final class BuildOrder extends UpdateModule {
             }
         }
         over = true;
-        var site = world.spawn(template, place, builder.getPlayerIndex());
-        site.setOrientation((float) StrictMath.toRadians(facing));
-        site.setStatus(ObjectStatus.UNDER_CONSTRUCTION);
+        // Made under construction, so the side's upgrades and its own modules first hear of it as a site.
+        var site = world.spawn(template, place, builder.getPlayerIndex(), made -> {
+            made.setOrientation((float) StrictMath.toRadians(facing));
+            made.setStatus(ObjectStatus.UNDER_CONSTRUCTION);
+        });
         var body = site.getBody();
         if (body != null) {
             body.setHealth(body.getMaxHealth() * rules.startShare());

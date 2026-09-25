@@ -594,15 +594,12 @@ public abstract class RtsSimulation extends GameLogic {
      * order — as the reference runs a new object's upgrade modules.
      */
     @Override
-    public uz.dukeengine.core.thing.GameObject spawn(uz.dukeengine.core.thing.ThingTemplate template,
-            uz.dukeengine.core.math.Coord3D position, int playerIndex) {
-        var thing = super.spawn(template, position, playerIndex);
-        var player = getRtsPlayer(playerIndex);
+    protected void onSpawned(uz.dukeengine.core.thing.GameObject thing) {
+        var player = getRtsPlayer(thing.getPlayerIndex());
         if (player != null) {
             for (var upgrade : player.getUpgrades()) {
                 reach(thing, upgrade);
             }
         }
-        return thing;
     }
 }

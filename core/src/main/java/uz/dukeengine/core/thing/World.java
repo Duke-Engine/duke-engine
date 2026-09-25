@@ -38,6 +38,17 @@ public interface World {
     GameObject spawn(ThingTemplate template, Coord3D position, int playerIndex);
 
     /**
+     * The same, with {@code setup} run on the thing before anything is told it is made — its facing, a status it is
+     * made with: a construction site is made under construction, so what reaches a new thing reaches it knowing so.
+     */
+    default GameObject spawn(ThingTemplate template, Coord3D position, int playerIndex,
+            java.util.function.Consumer<GameObject> setup) {
+        var thing = spawn(template, position, playerIndex);
+        setup.accept(thing);
+        return thing;
+    }
+
+    /**
      * Every live object, in creation order — the whole-world scan a module needs
      * when a range query will not do (tallying a player's assets, say). Prefer
      * {@link #findClosest} or {@link #objectsInRange} when they fit.

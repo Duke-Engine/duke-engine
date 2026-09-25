@@ -141,11 +141,24 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     @Override
-    public GameObject spawn(ThingTemplate template, Coord3D position, int playerIndex) {
+    public final GameObject spawn(ThingTemplate template, Coord3D position, int playerIndex) {
+        return spawn(template, position, playerIndex, thing -> {
+        });
+    }
+
+    @Override
+    public final GameObject spawn(ThingTemplate template, Coord3D position, int playerIndex,
+            java.util.function.Consumer<GameObject> setup) {
         var object = createObject(template);
         object.setPosition(position);
         object.setPlayerIndex(playerIndex);
+        setup.accept(object);
+        onSpawned(object);
         return object;
+    }
+
+    /** A thing just made and set up, for a simulation to give what every thing it makes gets. Nothing here. */
+    protected void onSpawned(GameObject thing) {
     }
 
     /**
@@ -668,6 +681,10 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         reapDestroyed();
         simulate();
         scriptEngine.evaluate(this);
+        // What was made this frame is told so by its end, so the frame's picture shows what making it set.
+        for (int i = 0; i < objects.size(); i++) {
+            objects.get(i).announceCreated();
+        }
         cellsLastFrame = cellsThisFrame;
         cellsThisFrame = 0;
         frame++;
@@ -833,6 +850,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     /** Re-create an object with a specific id (not the auto-allocated one). */
     public final GameObject restoreObject(ThingTemplate template, ObjectId id) {
         var object = thingFactory.newObject(template, id);
+        object.restored();
         object.setWorld(this);
         objects.add(object);
         return object;

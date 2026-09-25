@@ -46,6 +46,8 @@ public final class GameObject {
     private boolean keepsOwnHeight;
     private int playerIndex = NEUTRAL_PLAYER;
     private boolean destroyed;
+    /** Whether its modules have been told it is made — see {@link #announceCreated}. */
+    private boolean announced;
     private boolean contained;
     private World world;
     private final EnumSet<ObjectStatus> statuses = EnumSet.noneOf(ObjectStatus.class);
@@ -171,6 +173,7 @@ public final class GameObject {
      * would surface as a desync, far from its cause.
      */
     public void updateModules() {
+        announceCreated();
         int revision = moduleRevision;
         // One guard here rather than one in every module: a thing still being built does none of what it is
         // for, and every module a building might have would otherwise have to remember to ask.
@@ -376,6 +379,25 @@ public final class GameObject {
 
     public boolean isDestroyed() {
         return destroyed;
+    }
+
+    /**
+     * Tell its modules it is made ({@link uz.dukeengine.core.module.Module#onCreated}), once: before its first
+     * update, or at the end of the frame it was made in, whichever comes first — after whatever made it has set it.
+     */
+    public void announceCreated() {
+        if (announced) {
+            return;
+        }
+        announced = true;
+        for (var module : List.copyOf(modules)) {
+            module.onCreated();
+        }
+    }
+
+    /** A thing brought back from a save: it was made long ago, and its modules are not told again. */
+    public void restored() {
+        announced = true;
     }
 
     /** Flag this object for removal. Prefer {@code GameLogic.destroyObject}. */
