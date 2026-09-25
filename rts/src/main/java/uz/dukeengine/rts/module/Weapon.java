@@ -18,7 +18,17 @@ import uz.dukeengine.core.module.DeathType;
 public record Weapon(String name, float damage, float attackRange, int reloadFrames, int reloadFramesMax,
         DamageType damageType, float splashRadius, boolean attackOnTheMove, List<String> targets, int clipSize,
         int clipReloadFrames, boolean autoReload, DeathType deathType, List<WeaponBonus> bonuses,
-        List<Affects> affects, float secondaryDamage, float secondaryRadius) {
+        List<Affects> affects, float secondaryDamage, float secondaryRadius, boolean shownWhenHidden) {
+
+    /** A weapon whose shots a hidden shooter keeps from those it is hidden from, as every one did before. */
+    public Weapon(String name, float damage, float attackRange, int reloadFrames, int reloadFramesMax,
+            DamageType damageType, float splashRadius, boolean attackOnTheMove, List<String> targets, int clipSize,
+            int clipReloadFrames, boolean autoReload, DeathType deathType, List<WeaponBonus> bonuses,
+            List<Affects> affects, float secondaryDamage, float secondaryRadius) {
+        this(name, damage, attackRange, reloadFrames, reloadFramesMax, damageType, splashRadius, attackOnTheMove,
+                targets, clipSize, clipReloadFrames, autoReload, deathType, bonuses, affects, secondaryDamage,
+                secondaryRadius, false);
+    }
 
     /**
      * Whether it is a contact weapon: its range less a quarter of a cell under a cell — the reference's {@code
@@ -31,7 +41,7 @@ public record Weapon(String name, float damage, float attackRange, int reloadFra
 
     /** What a block leaves out: plain damage, no splash, a shot taken on the move, at anything, no clip. */
     static final Weapon DEFAULTS = new Weapon(null, 0f, 0f, 0, 0, DamageType.NORMAL, 0f, true, List.of(), 0, 0, true,
-            DeathType.NORMAL, List.of(), List.of(), 0f, 0f);
+            DeathType.NORMAL, List.of(), List.of(), 0f, 0f, false);
 
     /**
      * Whom a weapon's blast hurts — the reference's {@code RadiusDamageAffects}. A blast names every one it hurts;
@@ -60,6 +70,8 @@ public record Weapon(String name, float damage, float attackRange, int reloadFra
      * @param secondaryDamage what its blast deals beyond {@code splashRadius} and within {@code secondaryRadius} —
      *                        the reference's second ring: a cluster mine's 50 within 3 and 100 within 5
      * @param secondaryRadius how far that second ring reaches; 0 for none
+     * @param shownWhenHidden whether its shots are shown to whoever sees where they are fired though its shooter is
+     *                        hidden — the reference's {@code PlayFXWhenStealthed}, a demo trap's detonation
      */
     public Weapon {
         damageType = damageType == null ? DamageType.NORMAL : damageType;

@@ -224,14 +224,47 @@ final class RtsClient extends GameClient {
         return (everything || where == null || logic.canSee(viewerPlayer, where)) && !firedUnseen(event, everything);
     }
 
-    /** Whether {@code event} is a shot fired by something hidden from this viewer, whose shots it is not shown. */
+    /**
+     * Whether {@code event} is a shot fired by something hidden from this viewer, whose shots it is not shown — but a
+     * shot the game shows anyway, a mine's or a weapon's that says so; and, where the game keeps them to the owner,
+     * one fired by a thing hidden from anyone, shown to an ally no more than to an enemy.
+     */
     private boolean firedUnseen(uz.dukeengine.core.event.WorldEvent event, boolean everything) {
         if (!(event instanceof uz.dukeengine.rts.event.WeaponFired fired)) {
             return false;
         }
         var shooter = logic.findObject(fired.shooter());
-        return shooter != null && (everything ? shooter.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)
-                : shooter.isHiddenFrom(viewerPlayer));
+        if (shooter == null || shownAnyway(shooter, fired.weapon())) {
+            return false;
+        }
+        if (everything) {
+            return shooter.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN);
+        }
+        if (shooter.isHiddenFrom(viewerPlayer)) {
+            return true;
+        }
+        return logic.isHiddenShotsToOwnerOnly() && viewerPlayer != shooter.getPlayerIndex()
+                && hiddenFromAnyone(shooter);
+    }
+
+    /** Whether the game shows {@code shooter}'s shots with {@code weapon} though it is hidden. */
+    private boolean shownAnyway(uz.dukeengine.core.thing.GameObject shooter, String weapon) {
+        for (var kind : logic.getShownWhenHidden()) {
+            if (shooter.isKindOf(kind)) {
+                return true;
+            }
+        }
+        var fired = logic.findWeapon(weapon);
+        return fired != null && fired.shownWhenHidden();
+    }
+
+    private boolean hiddenFromAnyone(uz.dukeengine.core.thing.GameObject shooter) {
+        for (int player = 0; player < logic.getPlayerList().getPlayerCount(); player++) {
+            if (player != shooter.getPlayerIndex() && shooter.isHiddenFrom(player)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

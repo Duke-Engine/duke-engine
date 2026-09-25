@@ -235,6 +235,35 @@ public abstract class RtsSimulation extends GameLogic {
         return targetRules;
     }
 
+    private java.util.List<uz.dukeengine.core.thing.Kind> shownWhenHidden = java.util.List.of();
+    private boolean hiddenShotsToOwnerOnly;
+
+    /**
+     * The kinds of thing whose shots are shown though the thing is hidden, filtered by where they are fired alone as
+     * any other's — the reference's mines ({@code KINDOF_MINE}), which always show their blast. A weapon may say so of
+     * itself ({@link uz.dukeengine.rts.module.Weapon#shownWhenHidden}). None, the default.
+     */
+    public final void setShownWhenHidden(java.util.List<uz.dukeengine.core.thing.Kind> kinds) {
+        this.shownWhenHidden = kinds == null ? java.util.List.of() : java.util.List.copyOf(kinds);
+    }
+
+    public final java.util.List<uz.dukeengine.core.thing.Kind> getShownWhenHidden() {
+        return shownWhenHidden;
+    }
+
+    /**
+     * Whether a hidden thing's shots are kept from its allies too, shown to its own player alone — the reference's
+     * {@code Weapon::fireWeaponTemplate}, a stealthed shooter's firing seen by the player who controls it and nobody
+     * else. Off, the default: shown to whoever it is not hidden from.
+     */
+    public final void setHiddenShotsToOwnerOnly(boolean ownerOnly) {
+        this.hiddenShotsToOwnerOnly = ownerOnly;
+    }
+
+    public final boolean isHiddenShotsToOwnerOnly() {
+        return hiddenShotsToOwnerOnly;
+    }
+
     /**
      * Apply a {@code Construct} order; see {@link uz.dukeengine.rts.construction.Construction#order}. One taken is
      * told to the builder's {@link uz.dukeengine.rts.module.OrderListener}s after, as the other standard orders are:
