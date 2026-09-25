@@ -256,12 +256,54 @@ public final class Pathfinder {
         if (!grid.hasDecks()) {
             return findPathOrNearest(grid, from, to, clearance, zones, tally);
         }
+        int startX = grid.toCellX(from);
+        int startY = grid.toCellY(from);
+        int goalX = grid.toCellX(to);
+        int goalY = grid.toCellY(to);
+        int zone = zones == null ? -1 : zoneOn(grid, zones, fromFloor, startX, startY);
+        if (zone >= 0 && zone != zoneOn(grid, zones, toFloor, goalX, goalY)) {
+            // Out of reach, known at once as on the ground: straight for the ground of its zone nearest the goal.
+            int nearest = zones.nearestIn(zone, goalX, goalY, startX, startY);
+            int width = grid.getWidth();
+            if (nearest < 0 || fromFloor == 0 && nearest == startY * width + startX) {
+                return Path.partial(List.of());
+            }
+            var there = grid.cellCenter(nearest % width, nearest / width);
+            var way = layered(grid, from, fromFloor, there, 0, clearance, tally);
+            if (way.isEmpty() && clearance > 0f) {
+                way = layered(grid, from, fromFloor, there, 0, 0f, tally);
+            }
+            return Path.partial(way.getWaypoints());
+        }
         var path = layered(grid, from, fromFloor, to, toFloor, clearance, tally);
         if (path.reachesGoal() || clearance <= 0f) {
             return path;
         }
         var squeezed = layered(grid, from, fromFloor, to, toFloor, 0f, tally);
         return squeezed.reachesGoal() || awayFrom(squeezed, from, to) < awayFrom(path, from, to) ? squeezed : path;
+    }
+
+    /**
+     * The zone of a cell on a floor: the ground's own, or — on a deck — that of the ground at its entries, which its
+     * zones join; -1 for none.
+     */
+    private static int zoneOn(PathGrid grid, Zones zones, int floor, int cx, int cy) {
+        if (floor == 0) {
+            return zones.zoneOf(cx, cy);
+        }
+        int width = grid.getWidth();
+        for (var deck : grid.decks()) {
+            if (deck.floor() != floor) {
+                continue;
+            }
+            for (var entry : deck.entries()) {
+                int z = zones.zoneOf(entry[0] % width, entry[0] / width);
+                if (z >= 0) {
+                    return z;
+                }
+            }
+        }
+        return -1;
     }
 
     /**

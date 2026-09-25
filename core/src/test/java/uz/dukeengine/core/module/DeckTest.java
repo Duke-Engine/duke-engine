@@ -1,6 +1,7 @@
 package uz.dukeengine.core.module;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -76,6 +77,37 @@ class DeckTest {
             logic.update();
             each.accept(unit.getPosition());
         }
+    }
+
+    /**
+     * A goal out of reach on a grid with a deck — inside a walled pen across the river — known at once by the ground's
+     * zones, which the deck joins: the search examines no more cells than the way to the nearest cell of the mover's
+     * zone takes, where it walked every cell it could reach on both banks first.
+     */
+    @Test
+    void aGoalOutOfReachOnAGridWithADeckIsKnownAtOnce() {
+        river(40);
+        var grid = logic.getPathGrid();
+        for (int c = 30; c <= 36; c++) {
+            grid.setBlocked(c, 30, true);
+            grid.setBlocked(c, 36, true);
+            grid.setBlocked(30, c, true);
+            grid.setBlocked(36, c, true);
+        }
+        var zones = uz.dukeengine.core.pathfind.Zones.of(grid);
+        var from = new Coord3D(50f, 200f, 0f);
+
+        var tally = new uz.dukeengine.core.pathfind.Pathfinder.Tally();
+        var path = uz.dukeengine.core.pathfind.Pathfinder.findPathOrNearest(grid, from, 0,
+                new Coord3D(335f, 335f, 0f), 0, 4f, zones, tally);
+        int nearest = zones.nearestIn(zones.zoneOf(5, 20), 33, 33, 5, 20);
+        var there = grid.cellCenter(nearest % grid.getWidth(), nearest / grid.getWidth());
+        var toThere = new uz.dukeengine.core.pathfind.Pathfinder.Tally();
+        uz.dukeengine.core.pathfind.Pathfinder.findPathOrNearest(grid, from, 0, there, 0, 4f, zones, toThere);
+
+        assertFalse(path.reachesGoal(), "out of reach");
+        assertTrue(tally.cells() <= toThere.cells(),
+                tally.cells() + " cells examined, the way to the nearest cell of its zone " + toThere.cells());
     }
 
     @Test

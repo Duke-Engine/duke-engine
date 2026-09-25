@@ -904,7 +904,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
         var path = pathGrid.hasDecks()
                 ? Pathfinder.findPathOrNearest(pathGrid, mover.getPosition(), mover.getFloor(), to,
-                        pathGrid.floorAt(to), clearance, null, tally)
+                        pathGrid.floorAt(to), clearance, zones(), tally)
                 : Pathfinder.findPathOrNearest(pathGrid, mover.getPosition(), to, clearance, zones(), tally, traffic);
         cellsThisFrame += tally.cells();
         return path;

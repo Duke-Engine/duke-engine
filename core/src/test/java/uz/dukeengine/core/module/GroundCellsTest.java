@@ -299,6 +299,35 @@ class GroundCellsTest {
         assertTrue(boxed.getPosition().distance(goal) < 1f, "it arrived: " + boxed.getPosition() + " at " + frames);
     }
 
+    /**
+     * A tank driven at a soldier who walks slowly: held by him, it asks him aside, and he steps aside — asked no more
+     * by it while he does, and given one route for it, where he was asked every frame it was held and planned a route
+     * each time.
+     */
+    /**
+     * A tank held by a slow soldier asks him aside every frame it is held, 60 of them: he steps aside once, his route
+     * searched once, and is not asked again while his step aside lasts — he was, each frame, and planned a route each
+     * time, which in a crowd spent every frame's searching.
+     */
+    @Test
+    void aVehicleHeldByAnInfantrymanForSixtyFramesHasHisRouteSearchedOnce() {
+        var world = field();
+        var slow = ThingTemplate.named("Slowpoke").geometry(new Geometry.Cylinder(7f, 12f))
+                .module(new ActiveBody.Data(100f)).module(legs(2f, 0f, MoveUpdate.Gait.LEGS)).build();
+        world.getThingFactory().addTemplate(slow);
+        var soldier = spawn(world, slow, 320f, 300f);
+        var tank = spawn(world, CRUSADER, 290f, 300f);
+        var way = List.of(tank.getPosition(), new Coord3D(500f, 300f, 0f));
+
+        for (int frame = 0; frame < 60; frame++) {
+            legsOf(soldier).stepAsideFor(tank, way); // what the held tank asks of him, each frame
+            world.update();
+        }
+
+        assertEquals(1, legsOf(soldier).plans(), "his route searched once");
+        assertTrue(legsOf(soldier).isMoving(), "and on his way aside");
+    }
+
     @Test
     void twoBoxesDrivenAtEachOtherAlongOneLineBothArriveAndNeitherGivesUp() {
         var world = field();

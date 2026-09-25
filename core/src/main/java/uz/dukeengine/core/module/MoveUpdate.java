@@ -227,6 +227,10 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     private int passThroughUntil = -1;
     /** Until which frame its step aside may last before it gives it up where it stands. */
     private int asideUntil = -1;
+    /** Whom it is stepping aside for, while it is. */
+    private uz.dukeengine.core.thing.ObjectId asideFor;
+    /** How many routes it has been given, for a test to count. */
+    private int plans;
     /** Whether it is planning a route now: not asked aside by the allies its own route asks, round and round. */
     private boolean planning;
     /** How many frames running a box's turn has waited on another's footprint. */
@@ -419,6 +423,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             }
             waiting = false;
             lastRouteFrame = world.getFrame();
+            plans++;
             this.waypoints = path.getWaypoints();
             this.route = path;
             this.goalReachable = path.reachesGoal();
@@ -835,8 +840,9 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         var holders = new java.util.ArrayList<GameObject>();
         for (var other : world.objectsInRange(owner.getPosition(), reach,
                 candidate -> candidate != owner && isGroundMover(candidate))) {
-            if (!mine.overlaps(uz.dukeengine.core.thing.Footprint.of(other)) || !heldBy(owner, world, other)) {
-                continue;
+            if (!mine.overlaps(uz.dukeengine.core.thing.Footprint.of(other)) || !heldBy(owner, world, other)
+                    || waitsForItsRoute(other)) {
+                continue; // one waiting for its route holds nobody up, nor is asked aside: let it get its route
             }
             holders.add(other);
             limit = Math.min(limit, blockedSpeed(owner, other));
@@ -1057,6 +1063,14 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         if (world == null) {
             return;
         }
+        if (asideUntil >= world.getFrame() && from.getId().equals(asideFor)) {
+            // Out of its way already: not asked again, and no new route for it. Held itself meanwhile, it passes
+            // through movers for two seconds — the reference's privateMoveAwayFromUnit, setIgnoreCollisionTime.
+            if (heldFrames > 0) {
+                passThroughUntil = world.getFrame() + STUCK_FRAMES;
+            }
+            return;
+        }
         var aside = world.placeAside(owner, from, way);
         if (aside == null) {
             passThroughUntil = world.getFrame() + ASIDE_FRAMES;
@@ -1073,6 +1087,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         planRoute();
         this.then = goOnTo;
         this.asideUntil = world.getFrame() + ASIDE_FRAMES;
+        this.asideFor = from.getId();
     }
 
     /** The way a mover is going from where it stands: its position and the waypoints left to it. */
@@ -1086,6 +1101,17 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             }
         }
         return way;
+    }
+
+    /** Whether {@code other} is on its way and waiting its turn for a route: the reference's isWaitingForPath. */
+    private static boolean waitsForItsRoute(GameObject other) {
+        var theirs = other.findModule(MoveUpdate.class);
+        return theirs != null && theirs.isMoving() && theirs.waiting;
+    }
+
+    /** How many routes it has been given since it was made. */
+    int plans() {
+        return plans;
     }
 
     /** Whether {@code other} is moving away from {@code from}. */
