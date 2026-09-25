@@ -27,6 +27,14 @@ final class ModelLayer {
     private String playing = "";
     private float top;
     private final BoneSystems systems;
+    /** The look it wore last: the words of the model they chose, none for its plain one; null before its first frame. */
+    private java.util.SortedSet<String> lastLook;
+    /** The clip playing on the way between two looks, or null. */
+    private Visuals.UnitVisual.Transition passing;
+    private Spatial passingBody;
+    private AnimComposer passingComposer;
+    private int passingSince;
+    private float passingLength;
 
     /** A layer drawn as {@code look} says, its models built by {@code load}. */
     ModelLayer(Visuals.UnitVisual look, Function<String, Spatial> load) {
@@ -59,6 +67,9 @@ final class ModelLayer {
     void wear(Node parent, UnitView view, Set<String> world, int frame, Consumer<Spatial> paint,
             Consumer<String> missing, Function<String, Spatial> bones) {
         var holding = look.holding(view.healthFraction(), world, view.conditions());
+        if (!look.transitions.isEmpty() && pass(parent, holding, frame, paint)) {
+            return; // on its way between two looks
+        }
         var wanted = look.modelFor(holding);
         if (!Objects.equals(wanted, modelPath)) {
             if (body != null) {
@@ -119,6 +130,79 @@ final class ModelLayer {
     }
 
     /**
+     * The clip between its last look and the one its words choose now: started where a transition joins the two, stepped
+     * by the game's frames, and ended once played — the new look's own worn from then.
+     *
+     * @return whether it is still on its way, drawn as the transition's model
+     */
+    private boolean pass(Node parent, Set<String> holding, int frame, Consumer<Spatial> paint) {
+        var now = look.lookFor(holding);
+        if (lastLook == null) {
+            lastLook = look.lookFor(java.util.Set.of()); // appearing is coming from the look no words choose
+        }
+        if (!now.equals(lastLook)) {
+            var way = look.transitionFor(lastLook, now);
+            if (way != null) {
+                begin(way, parent, frame, paint);
+            }
+        }
+        lastLook = now;
+        return passing != null && step(frame);
+    }
+
+    /** The transition's clip set to where it stands in the game's frame {@code frame}; false, and ended, once played. */
+    private boolean step(int frame) {
+        float played = (frame - passingSince) * uz.dukeengine.core.GameConstants.SECONDS_PER_LOGICFRAME
+                * passing.speed();
+        if (played >= passingLength) {
+            end();
+            return false;
+        }
+        boolean backwards = passing.mode() == Visuals.ClipMode.ONCE_BACKWARDS;
+        // Never its end itself: to the model the end of a clip is its start again.
+        float last = Math.nextDown(passingLength);
+        passingComposer.setTime(AnimComposer.DEFAULT_LAYER,
+                backwards ? Math.clamp(passingLength - played, 0f, last) : Math.min(played, last));
+        return true;
+    }
+
+    /** Onto the transition's model and clip, off whatever it wore: the new look's own is worn once it has played. */
+    private void begin(Visuals.UnitVisual.Transition way, Node parent, int frame, Consumer<Spatial> paint) {
+        end();
+        if (body != null) {
+            body.removeFromParent();
+        }
+        body = null;
+        modelPath = null;
+        composer = null;
+        playing = "";
+        var model = way.model() == null ? null : load.apply(way.model());
+        var clips = model == null ? null : AnimationLibrary.findControl(model, AnimComposer.class);
+        var clip = clips == null ? null : clips.getAnimClip(way.clip());
+        if (model == null || clip == null) {
+            return; // nothing to play: straight on to the new look
+        }
+        paint.accept(model);
+        parent.attachChild(model);
+        clips.setCurrentAction(way.clip(), AnimComposer.DEFAULT_LAYER, false).setSpeed(0);
+        passing = way;
+        passingBody = model;
+        passingComposer = clips;
+        passingSince = frame;
+        passingLength = (float) clip.getLength();
+        step(frame); // its first frame set at once
+    }
+
+    private void end() {
+        if (passingBody != null) {
+            passingBody.removeFromParent();
+        }
+        passing = null;
+        passingBody = null;
+        passingComposer = null;
+    }
+
+    /**
      * The node it hangs from for a bone: the bone itself where it is a node or a joint's attachments, the node it
      * belongs to where it is a mesh; the thing's own node where there is no such bone.
      */
@@ -129,8 +213,8 @@ final class ModelLayer {
         return bone != null && bone.getParent() != null ? bone.getParent() : parent;
     }
 
-    /** What it draws now, or null for nothing. */
+    /** What it draws now — the transition's model while one plays — or null for nothing. */
     Spatial body() {
-        return body;
+        return passingBody != null ? passingBody : body;
     }
 }

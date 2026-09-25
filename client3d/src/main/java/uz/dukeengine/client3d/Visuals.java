@@ -177,6 +177,48 @@ public final class Visuals {
             return layers.computeIfAbsent(name, named -> new UnitVisual());
         }
 
+        /** A clip played on the way from one of its looks to another — see {@link #transition}. */
+        record Transition(java.util.SortedSet<String> from, java.util.SortedSet<String> to, String model, String clip,
+                ClipMode mode, float speed) {
+        }
+
+        final java.util.List<Transition> transitions = new java.util.ArrayList<>();
+
+        /**
+         * A clip played once on the way from the look {@code fromWords} choose to the one {@code toWords} choose — the
+         * reference's {@code TransitionState}: a construction fence rising out of the ground as a site appears, and
+         * folding back at twice the speed when it is finished; a crane finishing its swing before it rests. While it
+         * plays the layer wears {@code model}, played {@code ONCE} forward or {@code ONCE_BACKWARDS} from its end at
+         * {@code speed} times its own pace, by the game's frames; then the new look's own. A layer that draws nothing in
+         * the new look is drawn until its way out has played.
+         */
+        public UnitVisual transition(java.util.Set<String> fromWords, java.util.Set<String> toWords, String model,
+                String clip, ClipMode mode, float speed) {
+            transitions.add(new Transition(new java.util.TreeSet<>(fromWords), new java.util.TreeSet<>(toWords), model,
+                    clip, mode, speed <= 0f ? 1f : speed));
+            return this;
+        }
+
+        /** Which of its looks a set of words chooses: the words of the model they choose, none for its plain one. */
+        java.util.SortedSet<String> lookFor(java.util.Set<String> holding) {
+            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
+            for (var key : conditionalModels.keySet()) {
+                words.add(wordsOf(key));
+            }
+            int best = uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
+            return best < 0 ? new java.util.TreeSet<>() : words.get(best);
+        }
+
+        /** The clip played going from look {@code from} to look {@code to}, or null for none. */
+        Transition transitionFor(java.util.SortedSet<String> from, java.util.SortedSet<String> to) {
+            for (var one : transitions) {
+                if (lookFor(one.from()).equals(from) && lookFor(one.to()).equals(to)) {
+                    return one;
+                }
+            }
+            return null;
+        }
+
         /** A particle system at a bone of its model while its words choose a look — see {@link #particles}. */
         record BoneParticles(java.util.SortedSet<String> words, String bone, String system) {
         }

@@ -295,4 +295,74 @@ class ModelLayerTest {
 
         assertSame(thing, light.body().getParent());
     }
+
+    // ---- a clip played between two looks ----
+
+    /** A model with one clip a second long, "Rise", moving its "Panel" from 0 to 10 up. */
+    private static Spatial fence(String path) {
+        var model = new Node(path);
+        var panel = new Node("Panel");
+        panel.attachChild(new com.jme3.scene.Geometry("panel", new com.jme3.scene.shape.Box(5f, 2f, 0.5f)));
+        model.attachChild(panel);
+        var rise = new AnimClip("Rise");
+        rise.setTracks(new AnimTrack<?>[] {new TransformTrack(panel, new float[] {0f, 1f},
+                new Vector3f[] {new Vector3f(), new Vector3f(0f, 10f, 0f)}, null, null)});
+        var composer = new AnimComposer();
+        model.addControl(composer);
+        composer.addAnimClip(rise);
+        return model;
+    }
+
+    /** Where the panel stands once the frame's clips are applied, as the scene applies them before drawing. */
+    private static float panelHeight(ModelLayer layer) {
+        var body = (Node) layer.body();
+        body.updateLogicalState(0f);
+        return body.getChild("Panel").getLocalTranslation().y;
+    }
+
+    private static ModelLayer siteFence() {
+        var look = Visuals.create().unit("Site", l -> l.layer("fence")
+                .model(Set.of("AWAITING"), "models/fence.glb")
+                .transition(Set.of(), Set.of("AWAITING"), "models/fence_rise.glb", "Rise",
+                        Visuals.ClipMode.ONCE, 1f)
+                .transition(Set.of("AWAITING"), Set.of(), "models/fence_rise.glb", "Rise",
+                        Visuals.ClipMode.ONCE_BACKWARDS, 2f)).of("Site");
+        return new ModelLayer(look.layers.get("fence"), ModelLayerTest::fence);
+    }
+
+    @Test
+    void aTransitionIntoALookPlaysOnceFromItsFirstFrameThenTheLooksOwn() {
+        var layer = siteFence();
+        var root = new Node("root");
+
+        layer.wear(root, holding("AWAITING"), Set.of(), 100, drawn -> { }, clip -> { });
+        assertEquals("models/fence_rise.glb", layer.body().getName(), "the way in first");
+        assertEquals(0f, panelHeight(layer), 1e-3f, "from its first frame");
+
+        layer.wear(root, holding("AWAITING"), Set.of(), 115, drawn -> { }, clip -> { });
+        assertEquals(5f, panelHeight(layer), 1e-2f, "half a second in, halfway up");
+
+        layer.wear(root, holding("AWAITING"), Set.of(), 130, drawn -> { }, clip -> { });
+        assertEquals("models/fence.glb", layer.body().getName(), "played: the look's own from then");
+        assertEquals(1, root.getQuantity(), "and the way in taken away");
+    }
+
+    @Test
+    void theWordsLeavingPlayTheWayOutAtItsSpeedAndTheLayerIsGoneWhenItEnds() {
+        var layer = siteFence();
+        var root = new Node("root");
+        layer.wear(root, holding("AWAITING"), Set.of(), 0, drawn -> { }, clip -> { });
+        layer.wear(root, holding("AWAITING"), Set.of(), 40, drawn -> { }, clip -> { });
+
+        layer.wear(root, holding(), Set.of(), 50, drawn -> { }, clip -> { });
+        assertEquals("models/fence_rise.glb", layer.body().getName(), "the way out, though no look is left");
+        assertEquals(10f, panelHeight(layer), 1e-2f, "backwards, from its end");
+
+        layer.wear(root, holding(), Set.of(), 57, drawn -> { }, clip -> { });
+        assertEquals(10f - 10f * 7 * 2 / 30f, panelHeight(layer), 1e-2f, "at twice its pace");
+
+        layer.wear(root, holding(), Set.of(), 65, drawn -> { }, clip -> { });
+        assertNull(layer.body(), "played out: gone");
+        assertEquals(0, root.getQuantity());
+    }
 }
