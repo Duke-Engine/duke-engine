@@ -589,6 +589,10 @@ final class DukeRtsApp extends SimpleApplication {
     @Override
     public void simpleInitApp() {
         flyCam.setEnabled(false);
+        // The whole picture, the interface over it too, drawn through the game's gamma: last of all.
+        gammaPass = new GammaPass(assetManager);
+        gammaPass.setGamma(gamma);
+        guiViewPort.addProcessor(gammaPass);
         inputManager.setCursorVisible(true);
         // What the pointer looks like, and when -- see Cursors. A game that names
         // none keeps the system arrow.
@@ -781,6 +785,9 @@ final class DukeRtsApp extends SimpleApplication {
     private CanvasInputs canvasInputs;
     /** The player's own scroll speed, a share of the framed pan speed — see {@link Duke3D#scrollSpeed}. */
     private float scrollSpeed = 1f;
+    /** The gamma the whole picture is drawn through — see {@link Duke3D#gamma}. */
+    private float gamma = 1f;
+    private GammaPass gammaPass;
     /** Which way the player's view scrolled last frame — {@code N}, {@code NE} … — or null: what the pointer shows. */
     private String scrolling;
 
@@ -791,6 +798,13 @@ final class DukeRtsApp extends SimpleApplication {
     /** The player's own scroll speed — see {@link Duke3D#scrollSpeed}. */
     void scrollSpeed(float share) {
         this.scrollSpeed = Math.max(0f, share);
+    }
+
+    void gamma(float gamma) {
+        this.gamma = gamma;
+        if (gammaPass != null) {
+            gammaPass.setGamma(gamma);
+        }
     }
 
     /** The window's own handle, to ask it what jME does not keep; 0 where there is none. */

@@ -407,6 +407,16 @@ public final class Duke3D {
     }
 
     /**
+     * The gamma the whole picture is drawn through, world and interface — the reference's ({@code
+     * DX8Wrapper::Set_Gamma}): each channel's value shown as itself to the power one over the gamma, 2 showing 0.25
+     * as 0.5, between 0.6 and 6; 1 for none, the picture exactly as it always was. Kept until set again, and drawn
+     * through from the first frame. From any thread, before launch or while it runs.
+     */
+    public void gamma(float gamma) {
+        later(client -> client.gamma(gamma));
+    }
+
+    /**
      * The pictures laid over all the ground ({@code Visuals.groundShade}) shown or put away — the reference's clouds,
      * off at night and by the player's options. From any thread, before launch or while it runs.
      */

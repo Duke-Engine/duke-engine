@@ -1,0 +1,22 @@
+MaterialDef Gamma {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+
+        // The frame as drawn.
+        Texture2D Frame
+        // What each of a channel's 256 values shows as, 256 by 1: the reference's gamma ramp.
+        Texture2D Ramp
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/Gamma.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/Gamma.frag
+
+        RenderState {
+            DepthTest Off
+            DepthWrite Off
+            FaceCull Off
+        }
+    }
+}
