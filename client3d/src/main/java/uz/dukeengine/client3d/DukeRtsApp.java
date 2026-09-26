@@ -4623,12 +4623,9 @@ final class DukeRtsApp extends SimpleApplication {
     /** The picture on the ground an aim may ask for in place of the circle, made when first wanted. */
     private GroundDecal aimDecal;
     /** What the armed button will put down, drawn at the cursor, or null for a button with no ghost. */
-    private Node ghost;
-    private Material ghostMaterial;
+    private Ghost ghost;
 
     /** Green where the simulation says it may stand; red where it says no. Translucent either way. */
-    private static final ColorRGBA GHOST_FITS = new ColorRGBA(0.35f, 1f, 0.35f, 0.45f);
-    private static final ColorRGBA GHOST_REFUSED = new ColorRGBA(1f, 0.3f, 0.3f, 0.45f);
 
     /**
      * Arm a button that needs a place or a thing: the next click supplies it, and a right click or Escape
@@ -4690,7 +4687,7 @@ final class DukeRtsApp extends SimpleApplication {
     private void forgetTheAim() {
         game.setAim(null, null, 0f);
         if (ghost != null) {
-            ghost.removeFromParent();
+            ghost.remove();
             ghost = null;
         }
         if (aimRing != null) {
@@ -4764,22 +4761,11 @@ final class DukeRtsApp extends SimpleApplication {
                 return;
             }
         }
-        if (ghostMaterial == null) {
-            ghostMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-            ghostMaterial.getAdditionalRenderState().setBlendMode(
-                    com.jme3.material.RenderState.BlendMode.Alpha);
-            ghostMaterial.getAdditionalRenderState().setDepthWrite(false);
+        var ghostLook = visuals.getGhostLook();
+        if (ghostLook != null && visuals.getHouseColour() != null) {
+            paintOwner(body, visuals.getHouseColour(), toColor(game.getColor(game.getLocalPlayerIndex())));
         }
-        ghostMaterial.setColor("Color", GHOST_FITS);
-        body.depthFirstTraversal(spatial -> {
-            if (spatial instanceof Geometry geometry) {
-                geometry.setMaterial(ghostMaterial);
-            }
-        });
-        ghost = new Node("ghost");
-        ghost.attachChild(body);
-        ghost.setQueueBucket(com.jme3.renderer.queue.RenderQueue.Bucket.Transparent);
-        markerNode.attachChild(ghost);
+        ghost = new Ghost(assetManager, markerNode, body, ghostLook);
     }
 
     /**
@@ -4802,9 +4788,9 @@ final class DukeRtsApp extends SimpleApplication {
         game.setAim(aiming.button().id(), where, placement.facing());
         boolean fits = snapshot != null && snapshot.aimFits();
         if (ghost != null) {
-            ghost.setLocalTranslation(where.x(), floorHeightAt(where.x(), where.y()), where.y());
-            ghost.setLocalRotation(PlacementDrag.turnedTo(placement.facing()));
-            ghostMaterial.setColor("Color", fits ? GHOST_FITS : GHOST_REFUSED);
+            ghost.node().setLocalTranslation(where.x(), floorHeightAt(where.x(), where.y()), where.y());
+            ghost.node().setLocalRotation(PlacementDrag.turnedTo(placement.facing()));
+            ghost.answer(fits, snapshot == null ? java.util.List.of() : snapshot.aimMarks(), this::floorHeightAt);
         }
         if (aiming.radius() > 0f && aiming.decal() != null) {
             if (aimDecal == null) {

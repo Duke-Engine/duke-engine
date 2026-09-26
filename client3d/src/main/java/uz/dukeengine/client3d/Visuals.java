@@ -1448,6 +1448,19 @@ public final class Visuals {
     public record TurretLook(String turn, float artAngle, String pitch, float artPitch) {
     }
 
+    /**
+     * How an armed button's ghost is drawn — the reference's {@code InGameUI::handleBuildPlacements}: the thing as it
+     * is drawn, its own model and materials lit as things are, in the colours of the player placing it.
+     *
+     * @param opacity how opaque it is drawn — the reference's {@code placementOpacity}, 0.45
+     * @param refused the colour added to its light while the answer about its place is no — the reference's {@code
+     *                illegalBuildColor}, red — or null for none
+     * @param marks   the picture the answer's rectangles of ground are laid with — the reference's {@code TBRedBib} —
+     *                or null to lay none
+     */
+    public record GhostLook(float opacity, java.awt.Color refused, String marks) {
+    }
+
     public record PieceState(java.util.SortedSet<String> words, java.util.List<String> hide,
             java.util.List<String> show) {
         public PieceState {
@@ -2448,6 +2461,21 @@ public final class Visuals {
 
     public EdgeScroll getEdgeScroll() {
         return edgeScroll;
+    }
+
+    private GhostLook ghostLook;
+
+    /**
+     * How an armed button's ghost is drawn, and the ground its place's answer marks — see {@link GhostLook}; unsaid,
+     * one flat translucent colour, green or red, as it always was.
+     */
+    public Visuals ghost(GhostLook look) {
+        this.ghostLook = look;
+        return this;
+    }
+
+    public GhostLook getGhostLook() {
+        return ghostLook;
     }
 
     private CameraFrame cameraFrame = CameraFrame.NONE;

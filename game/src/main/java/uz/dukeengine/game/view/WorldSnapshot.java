@@ -32,6 +32,8 @@ import uz.dukeengine.core.event.WorldEvent;
  * <p>{@link #rallies} are the rally points of the viewer's own things, with the lines they are shown by while selected.
  * <p>{@link #effects} are the effects riding the things the viewer is shown until the simulation ends them — see
  * {@code World.effect}.
+ * <p>{@link #aimMarks} are the rectangles of ground the game's answer about an armed button's place marks — see
+ * {@code DukeGame.aimAnswer}.
  */
 public record WorldSnapshot(
         int frame,
@@ -52,10 +54,22 @@ public record WorldSnapshot(
         List<BeamView> beams,
         List<RallyView> rallies,
         List<EffectView> effects,
-        uz.dukeengine.core.SightCells.View sight) {
+        uz.dukeengine.core.SightCells.View sight,
+        List<AimMark> aimMarks) {
 
     public static final WorldSnapshot EMPTY = new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "",
-            List.of(), true, true, null, false, null, List.of(), List.of(), List.of(), null);
+            List.of(), true, true, null, false, null, List.of(), List.of(), List.of(), null, List.of());
+
+    /** A frame whose aim marks no ground: every frame from before an answer could mark any. */
+    public WorldSnapshot(int frame, float gameTimeSeconds, boolean paused, int localPlayerMoney,
+            int localPlayerPowerSurplus, List<UnitView> units, List<WorldEvent> events, String banner,
+            String status, List<CommandButton> commands, boolean aimFits, boolean attackable, CameraView camera,
+            boolean revealed, String contextOrder, List<BeamView> beams, List<RallyView> rallies,
+            List<EffectView> effects, uz.dukeengine.core.SightCells.View sight) {
+        this(frame, gameTimeSeconds, paused, localPlayerMoney, localPlayerPowerSurplus, units, events, banner, status,
+                commands, aimFits, attackable, camera, revealed, contextOrder, beams, rallies, effects, sight,
+                List.of());
+    }
 
     /**
      * A frame with no cells of what its viewer has seen: every frame of a game that keeps none, and every frame from
@@ -149,5 +163,6 @@ public record WorldSnapshot(
         beams = beams == null ? List.of() : List.copyOf(beams);
         rallies = rallies == null ? List.of() : List.copyOf(rallies);
         effects = effects == null ? List.of() : List.copyOf(effects);
+        aimMarks = aimMarks == null ? List.of() : List.copyOf(aimMarks);
     }
 }

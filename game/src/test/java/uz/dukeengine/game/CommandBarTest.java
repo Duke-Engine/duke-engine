@@ -106,6 +106,25 @@ class CommandBarTest {
                 "and a button that says nothing of facing faces along +x");
     }
 
+    @Test
+    void anAnswerThatSaysNoCarriesItsRectanglesOfGroundIntoTheFrame() {
+        var mark = new uz.dukeengine.game.view.AimMark(60f, 50f, 90f, 10f, 5f, 4f);
+        var game = headless().aimAnswer((button, place, facing) -> new uz.dukeengine.game.view.AimAnswer(
+                place.x() < 55f, place.x() < 55f ? List.of() : List.of(mark)));
+        game.addPlayer("Me", java.awt.Color.CYAN);
+        game.runHeadless(1);
+
+        game.setAim("build:Barracks", new uz.dukeengine.core.math.Coord3D(60f, 50f, 0f), 0f);
+        game.runHeadless(1);
+        assertFalse(game.getSnapshot().aimFits());
+        assertEquals(List.of(mark), game.getSnapshot().aimMarks(), "what refused it, to mark");
+
+        game.setAim("build:Barracks", new uz.dukeengine.core.math.Coord3D(50f, 50f, 0f), 0f);
+        game.runHeadless(1);
+        assertTrue(game.getSnapshot().aimFits());
+        assertTrue(game.getSnapshot().aimMarks().isEmpty(), "until the next answer");
+    }
+
     /**
      * Whether an armed button's place will do is asked with the facing the ghost has at that moment: for a
      * box, the footprint the player sees is the question.

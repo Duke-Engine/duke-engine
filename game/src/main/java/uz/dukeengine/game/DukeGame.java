@@ -1110,7 +1110,7 @@ public final class DukeGame {
         client.remember(remembers);
         client.keepOutOfSight(keepFrames, keepDeadFrames);
         client.setCommands(this::buttonsNow);
-        client.setAimFits(this::aimFitsNow);
+        client.setAimAnswer(this::aimAnswerNow);
         client.setAttackable(this::attackableNow);
         client.setContextOrder(this::contextOrderNow);
         engine = new RtsGameEngine(logic, client);
@@ -1607,7 +1607,13 @@ public final class DukeGame {
     }
 
     private volatile Aim aim;
-    private AimFits aimFits;
+    private AimAnswering aimAnswering;
+
+    /** The game's answer about an armed button's place, faced one way — see {@link #aimAnswer}. */
+    @FunctionalInterface
+    public interface AimAnswering {
+        uz.dukeengine.game.view.AimAnswer answer(String button, Coord3D place, float facing);
+    }
 
     /**
      * Whether an armed button's place would do, asked as the cursor moves — for a ghost to be drawn green or
@@ -1622,9 +1628,20 @@ public final class DukeGame {
      * that is sent, which is judged again when it is applied.
      */
     public DukeGame aimFits(AimFits fits) {
-        this.aimFits = fits;
+        return aimAnswer(fits == null ? null
+                : (button, place, facing) -> new uz.dukeengine.game.view.AimAnswer(fits.test(button, place, facing),
+                        List.of()));
+    }
+
+    /**
+     * The same, the answer carrying besides yes or no the rectangles of ground to mark — what stands in the way, as the
+     * reference lays a red bib under it ({@code BuildAssistant::isLocationLegalToBuild}) — each laid until the next
+     * answer ({@code WorldSnapshot.aimMarks}). Asked where {@link #aimFits} is.
+     */
+    public DukeGame aimAnswer(AimAnswering answering) {
+        this.aimAnswering = answering;
         if (client != null) {
-            client.setAimFits(this::aimFitsNow);
+            client.setAimAnswer(this::aimAnswerNow);
         }
         return this;
     }
@@ -1638,9 +1655,10 @@ public final class DukeGame {
         this.aim = buttonId == null || place == null ? null : new Aim(buttonId, place, facing);
     }
 
-    private boolean aimFitsNow() {
+    private uz.dukeengine.game.view.AimAnswer aimAnswerNow() {
         var now = aim;
-        return now == null || aimFits == null || aimFits.test(now.button(), now.place(), now.facing());
+        return now == null || aimAnswering == null ? uz.dukeengine.game.view.AimAnswer.YES
+                : aimAnswering.answer(now.button(), now.place(), now.facing());
     }
 
     // ---- what the pointer is on ----

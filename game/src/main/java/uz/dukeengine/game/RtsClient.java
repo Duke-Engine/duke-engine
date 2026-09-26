@@ -52,10 +52,11 @@ final class RtsClient extends GameClient {
     }
 
     /** Whether the place an armed button is aimed at would do, asked here for the same reason as the bar. */
-    private volatile java.util.function.BooleanSupplier aimFits = () -> true;
+    private volatile java.util.function.Supplier<uz.dukeengine.game.view.AimAnswer> aimAnswer =
+            () -> uz.dukeengine.game.view.AimAnswer.YES;
 
-    void setAimFits(java.util.function.BooleanSupplier aimFits) {
-        this.aimFits = aimFits == null ? () -> true : aimFits;
+    void setAimAnswer(java.util.function.Supplier<uz.dukeengine.game.view.AimAnswer> aimAnswer) {
+        this.aimAnswer = aimAnswer == null ? () -> uz.dukeengine.game.view.AimAnswer.YES : aimAnswer;
     }
 
     /** Whether an attack on what the pointer is on would be taken, asked here for the same reason as the bar. */
@@ -214,6 +215,7 @@ final class RtsClient extends GameClient {
             }
         }
         var player = everything ? null : logic.getRtsPlayer(viewerPlayer);
+        var aimed = aimAnswer.get();
         snapshot = new WorldSnapshot(
                 logic.getFrame(),
                 logic.getGameTimeSeconds(),
@@ -225,7 +227,7 @@ final class RtsClient extends GameClient {
                 banner,
                 status,
                 commands.get(),
-                aimFits.getAsBoolean(),
+                aimed.fits(),
                 attackable.getAsBoolean(),
                 camera.get(),
                 everything || logic.isMapRevealedTo(viewerPlayer),
@@ -233,7 +235,8 @@ final class RtsClient extends GameClient {
                 beams,
                 rallies,
                 effects,
-                everything || logic.getSightCells() == null ? null : logic.getSightCells().view(viewerPlayer));
+                everything || logic.getSightCells() == null ? null : logic.getSightCells().view(viewerPlayer),
+                aimed.marks());
     }
 
     /**
