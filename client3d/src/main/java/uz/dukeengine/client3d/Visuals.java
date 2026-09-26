@@ -2229,28 +2229,30 @@ public final class Visuals {
 
     /**
      * A light shining one way — see {@link #groundLight} and {@link #thingSuns}: {@code pitch} degrees above the
-     * horizon and {@code yaw} round, as a {@link Sunlight}'s, in {@code colour}, packed {@code 0xRRGGBB}.
+     * horizon, from -90 to 90 in fractions of a degree, and {@code yaw} round, as a {@link Sunlight}'s, in {@code
+     * colour}, packed {@code 0xRRGGBB}. One level with the horizon or below it lights flat ground not at all, and a
+     * face turned toward it by the cosine — the reference's lights by their own direction ({@code doTheLight}), 17 of
+     * them level or pointing up on its maps.
      */
     public record Sun(float pitch, float yaw, int colour) {
 
         public Sun {
-            pitch = Math.clamp(pitch, 0f, 90f);
+            pitch = Math.clamp(pitch, -90f, 90f);
         }
 
-        /** The way it travels, down from where it stands. */
+        /** The way it travels, down from where it stands — or up, from below the horizon. */
         public com.jme3.math.Vector3f direction() {
-            return new Sunlight(Math.max(5f, pitch), yaw, 1f, 0f, colour, 0).direction();
+            float up = com.jme3.math.FastMath.DEG_TO_RAD * pitch;
+            float round = com.jme3.math.FastMath.DEG_TO_RAD * yaw;
+            float flat = com.jme3.math.FastMath.cos(up);
+            return new com.jme3.math.Vector3f(flat * com.jme3.math.FastMath.sin(round),
+                    -com.jme3.math.FastMath.sin(up), flat * com.jme3.math.FastMath.cos(round)).normalizeLocal();
         }
 
         /** Its colour, as the scene takes one. */
         public com.jme3.math.ColorRGBA light() {
             return new com.jme3.math.ColorRGBA((colour >> 16 & 0xFF) / 255f, (colour >> 8 & 0xFF) / 255f,
                     (colour & 0xFF) / 255f, 1f);
-        }
-
-        private com.jme3.math.Vector3f exactDirection() {
-            // Straight down where it says 90: the Sunlight it borrows its sums from will not stand so high.
-            return pitch >= 90f ? new com.jme3.math.Vector3f(0f, -1f, 0f) : direction();
         }
     }
 
@@ -2275,7 +2277,7 @@ public final class Visuals {
             float green = (ambient >> 8 & 0xFF) / 255f;
             float blue = (ambient & 0xFF) / 255f;
             for (var sun : suns) {
-                float square = Math.max(0f, -normal.dot(sun.exactDirection()));
+                float square = Math.max(0f, -normal.dot(sun.direction()));
                 var light = sun.light();
                 red += light.r * square;
                 green += light.g * square;
