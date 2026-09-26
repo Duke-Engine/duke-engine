@@ -455,6 +455,18 @@ public final class DukeGame {
         return this;
     }
 
+    private final List<java.util.function.Consumer<uz.dukeengine.core.thing.GameObject>> placedCallbacks =
+            new ArrayList<>();
+
+    /**
+     * Runs on the simulation thread whenever a building is put down — a site, the frame it is placed — with it, for the
+     * game to clear what it stands over. See {@link uz.dukeengine.rts.RtsSimulation#onPlaced}.
+     */
+    public DukeGame onPlaced(java.util.function.Consumer<uz.dukeengine.core.thing.GameObject> callback) {
+        placedCallbacks.add(callback);
+        return this;
+    }
+
     /** Runs on the simulation thread whenever a building is finished, as {@code (builder, building)}. */
     public DukeGame onConstructed(BiConsumer<uz.dukeengine.core.thing.GameObject,
             uz.dukeengine.core.thing.GameObject> callback) {
@@ -1100,6 +1112,7 @@ public final class DukeGame {
         logic = new RtsLogic();
         producedCallbacks.forEach(logic::onProduced);
         constructedCallbacks.forEach(logic::onConstructed);
+        placedCallbacks.forEach(logic::onPlaced);
         researchedCallbacks.forEach(logic::onResearched);
         checksumParts.forEach(logic::checksumAlso);
         soldCallbacks.forEach(logic::onSold);

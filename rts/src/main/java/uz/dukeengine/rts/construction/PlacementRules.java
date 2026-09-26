@@ -17,7 +17,7 @@ package uz.dukeengine.rts.construction;
  *                    down when its builder arrives, and a builder that gives up on the way has the money back
  */
 public record PlacementRules(float maxRise, float edgeMargin, float refundShare, float startShare, SiteWords words,
-        boolean siteAtOrder) {
+        boolean siteAtOrder, java.util.Set<uz.dukeengine.core.thing.Kind> standsOver) {
 
     /**
      * The words a site holds while it goes up — the reference's {@code AWAITING_CONSTRUCTION}, {@code
@@ -46,6 +46,13 @@ public record PlacementRules(float maxRise, float edgeMargin, float refundShare,
                     + ", " + refundShare + ", " + startShare);
         }
         words = words == null ? SiteWords.NONE : words;
+        standsOver = standsOver == null ? java.util.Set.of() : java.util.Set.copyOf(standsOver);
+    }
+
+    /** Rules whose sites stand over nothing that does not move: every rule from before a site could. */
+    public PlacementRules(float maxRise, float edgeMargin, float refundShare, float startShare, SiteWords words,
+            boolean siteAtOrder) {
+        this(maxRise, edgeMargin, refundShare, startShare, words, siteAtOrder, java.util.Set.of());
     }
 
     /** Rules whose sites hold no words, as every site did before they could. */
@@ -60,6 +67,15 @@ public record PlacementRules(float maxRise, float edgeMargin, float refundShare,
 
     /** The same rules, with sites put down the moment their order is taken, or not. */
     public PlacementRules siteAtOrder(boolean atOrder) {
-        return new PlacementRules(maxRise, edgeMargin, refundShare, startShare, words, atOrder);
+        return new PlacementRules(maxRise, edgeMargin, refundShare, startShare, words, atOrder, standsOver);
+    }
+
+    /**
+     * The same rules, a site standing over the still things of {@code kinds} — the reference's shrubbery, things
+     * cleared by a build, mines and inert things ({@code BuildAssistant::isRemovableForConstruction}): not in its way.
+     * What a site stands over the game clears as it is put down ({@code RtsSimulation.onPlaced}).
+     */
+    public PlacementRules standsOver(java.util.Set<uz.dukeengine.core.thing.Kind> kinds) {
+        return new PlacementRules(maxRise, edgeMargin, refundShare, startShare, words, siteAtOrder, kinds);
     }
 }

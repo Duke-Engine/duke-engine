@@ -110,6 +110,26 @@ public abstract class RtsSimulation extends GameLogic {
         constructedWatchers.add(watcher);
     }
 
+    private final java.util.List<java.util.function.Consumer<uz.dukeengine.core.thing.GameObject>> placedWatchers =
+            new java.util.ArrayList<>();
+
+    /**
+     * Game code told whenever a building is put down — a site, the frame it is placed, or a building a game's own code
+     * puts down whole and says so ({@link #placed}) — with it: on the simulation's thread, in the order watchers were
+     * registered, for the game to clear what it stands over at once, as the reference clears what may be removed for
+     * construction ({@code BuildAssistant::clearRemovableForConstruction}).
+     */
+    public final void onPlaced(java.util.function.Consumer<uz.dukeengine.core.thing.GameObject> watcher) {
+        placedWatchers.add(watcher);
+    }
+
+    /** {@code building} has been put down: every watcher told — what the engine calls for each site it places. */
+    public final void placed(uz.dukeengine.core.thing.GameObject building) {
+        for (var watcher : placedWatchers) {
+            watcher.accept(building);
+        }
+    }
+
     private final java.util.List<java.util.function.BiConsumer<uz.dukeengine.core.thing.GameObject, Upgrade>>
             researchedWatchers = new java.util.ArrayList<>();
 

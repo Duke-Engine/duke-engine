@@ -97,6 +97,9 @@ public final class BuildOrder extends UpdateModule implements uz.dukeengine.rts.
             body.setHealth(body.getMaxHealth() * rules.startShare());
         }
         site.addModule(new ConstructionSite(site, builder.getId(), cost, rules));
+        if (builder.getWorld() instanceof uz.dukeengine.rts.RtsSimulation rts) {
+            rts.placed(site); // for the game to clear what it stands over, at once
+        }
         return site;
     }
 
@@ -399,8 +402,7 @@ public final class BuildOrder extends UpdateModule implements uz.dukeengine.rts.
         var world = builder.getWorld();
         var print = footprint();
         for (var other : world.getObjects()) {
-            if (!other.isMobile() && !other.isEffectivelyDead() && other.getGeometry() != null
-                    && other.getGeometry().footprintRadius() > 0f && Footprint.of(other).overlaps(print)) {
+            if (Placement.refuses(other, rules) && Footprint.of(other).overlaps(print)) {
                 giveUp(); // something was put here while he walked
                 return;
             }

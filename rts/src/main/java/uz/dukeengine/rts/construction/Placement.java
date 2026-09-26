@@ -80,15 +80,28 @@ public final class Placement {
         // In the order the world holds them, which is creation order: the answer never depends on it, but a
         // question asked the same way twice is a question that cannot be answered two ways.
         for (var other : world.getObjects()) {
-            if (other.isMobile() || other.isEffectivelyDead() || other.getGeometry() == null
-                    || other.getGeometry().footprintRadius() <= 0f) {
-                continue;
-            }
-            if (Footprint.of(other).overlaps(print)) {
+            if (refuses(other, rules) && Footprint.of(other).overlaps(print)) {
                 return Fit.IN_THE_WAY;
             }
         }
         return Fit.FITS;
+    }
+
+    /**
+     * Whether {@code other} refuses a site standing over it: a thing that does not move, standing and taking up room,
+     * and of no kind the rules let a site stand over ({@link PlacementRules#standsOver}).
+     */
+    static boolean refuses(uz.dukeengine.core.thing.GameObject other, PlacementRules rules) {
+        if (other.isMobile() || other.isEffectivelyDead() || other.getGeometry() == null
+                || other.getGeometry().footprintRadius() <= 0f) {
+            return false;
+        }
+        for (var kind : rules.standsOver()) {
+            if (other.isKindOf(kind)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
