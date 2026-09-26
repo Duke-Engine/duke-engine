@@ -18,6 +18,15 @@ import uz.dukeengine.game.view.UnitView;
 final class SelectionLink {
 
     private List<Integer> told = List.of();
+    private java.util.Map<Integer, List<Integer>> toldGroups = java.util.Map.of();
+
+    /** Tell the game which control group each of the player's things is in, whenever that has changed. */
+    void tellGroups(java.util.Map<Integer, List<Integer>> groups, DukeGame game) {
+        if (!groups.equals(toldGroups)) {
+            toldGroups = groups;
+            game.setControlGroups(groups);
+        }
+    }
 
     /** Tell the game what is selected, in the order it was selected, whenever that has changed since last told. */
     void tell(Collection<Integer> selected, DukeGame game) {

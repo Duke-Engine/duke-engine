@@ -244,6 +244,7 @@ final class UnitBars {
      */
     void update(Camera camera, List<Standing> standing, UnitBarReading reading, float eyeHeight,
             BarColours colours) {
+        placedBars.clear();
         if (look.plain() != null) {
             for (var bar : pool) {
                 put(bar);
@@ -263,7 +264,10 @@ final class UnitBars {
                         new Vector3f(one.view().x(), one.foot(), one.view().y()));
                 var bar = take(at++);
                 dress(bar, one, reading);
-                place(bar, onScreen.x, onScreen.y, underneath.y);
+                var placed = place(bar, onScreen.x, onScreen.y, underneath.y);
+                if (one.view().maxHealth() > 0f) {
+                    placedBars.put(one.view().id(), placed);
+                }
             }
         }
         for (int spare = at; spare < pool.size(); spare++) {
@@ -547,8 +551,19 @@ final class UnitBars {
         return pictures.get(path);
     }
 
-    /** Where on the screen the whole assembly sits, measured from the creature. */
-    private void place(Bar bar, float x, float y, float footY) {
+    /** Each bar placed this frame, shown or not, by its thing: left, bottom, width, height, in window pixels. */
+    private final java.util.Map<Integer, float[]> placedBars = new java.util.HashMap<>();
+
+    /**
+     * Where thing {@code id}'s bar was placed this frame, shown or not — its left, bottom, width and height in the
+     * window's pixels from the bottom left — or null for a thing with no bar, or one not placed.
+     */
+    float[] barOf(int id) {
+        return placedBars.get(id);
+    }
+
+    /** Where on the screen the whole assembly sits, measured from the creature: the bar's left, bottom and size. */
+    private float[] place(Bar bar, float x, float y, float footY) {
         float width = bar.wide;
         float medallion = look.ring();
         float whole = medallion + look.ringGap() + width;
@@ -593,6 +608,7 @@ final class UnitBars {
         }
         // By the bar, its keyline counted as part of it: the reference's quarter along and just under it, for one.
         placeMarks(bar.badges, bar.placed, barLeft, width, y - EDGE, y + look.height() + EDGE);
+        return new float[] {barLeft, y, width, look.height()};
     }
 
     // ---- the plain bar ----
@@ -634,6 +650,9 @@ final class UnitBars {
             float width = plainWidth(plain, one.size(), eyeHeight);
             float left = onScreen.x - width * plain.leftShare();
             float bottom = onScreen.y - plain.height() / 2f;
+            if (view.maxHealth() > 0f) {
+                placedBars.put(view.id(), new float[] {left, bottom, width, plain.height()});
+            }
             boolean shown = (!plain.onlyPicked() || one.picked()) && view.health() > 0f && view.maxHealth() > 0f;
             var coloured = shown ? colours.of(view) : null;
             dressPlain(bar, coloured, left, bottom, width, plain, Math.clamp(view.healthFraction(), 0f, 1f));

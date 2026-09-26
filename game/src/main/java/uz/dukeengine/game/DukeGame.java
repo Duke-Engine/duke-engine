@@ -1545,6 +1545,24 @@ public final class DukeGame {
         selectionWanted.set(new Selecting(List.copyOf(ids), answered));
     }
 
+    private volatile java.util.Map<Integer, List<Integer>> controlGroups = java.util.Map.of();
+
+    /**
+     * Thread-safe: the player's control groups as the client keeps them — each group that holds anyone by its number,
+     * the ids of its members — told whenever they change, for a game that draws a group's number by a thing as the
+     * reference does ({@code Drawable::drawUIText}).
+     */
+    public void setControlGroups(java.util.Map<Integer, List<Integer>> groups) {
+        var copy = new java.util.TreeMap<Integer, List<Integer>>();
+        groups.forEach((number, members) -> copy.put(number, List.copyOf(members)));
+        this.controlGroups = java.util.Collections.unmodifiableMap(copy);
+    }
+
+    /** The player's control groups, as the client last told them: by number, the ids of each one's members. */
+    public java.util.Map<Integer, List<Integer>> getControlGroups() {
+        return controlGroups;
+    }
+
     /** A selection the game asked for: what, and whether it is answered with a voice. */
     public record Selecting(List<uz.dukeengine.core.thing.ObjectId> ids, boolean answered) {
     }

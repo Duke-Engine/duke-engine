@@ -924,6 +924,19 @@ final class DukeRtsApp extends SimpleApplication {
         movieScreen.place(movie.movie(), cam.getWidth(), cam.getHeight());
     }
 
+    /** Where the world's points and things' bars are on the screen, for the game's drawing this frame. */
+    private final CanvasFrame.World canvasWorld = new CanvasFrame.World() {
+        @Override
+        public Canvas.Point screenOf(float x, float y, float height) {
+            return worldShown() ? CanvasFrame.onScreen(cam, x, y, height) : null;
+        }
+
+        @Override
+        public Canvas.Box barOf(int id) {
+            return worldShown() ? CanvasFrame.fromTheBottom(unitBars.barOf(id), cam.getHeight()) : null;
+        }
+    };
+
     /** The game's drawing for this frame, over whatever else is on the screen. */
     private void paintTheCanvas() {
         if (painter == null) {
@@ -935,7 +948,7 @@ final class DukeRtsApp extends SimpleApplication {
             paintedFor = width * 100_000 + height;
             painter.resized(width, height);
         }
-        var frame = new CanvasFrame(width, height, canvasText, canvasDrawing::sizeOf);
+        var frame = new CanvasFrame(width, height, canvasText, canvasDrawing::sizeOf, canvasWorld);
         try {
             painter.paint(frame);
         } catch (RuntimeException e) {
@@ -4523,6 +4536,7 @@ final class DukeRtsApp extends SimpleApplication {
             selectionLink.takeUp(selected, game, snapshot.units(), game.getLocalPlayerIndex(), this::answerSelection);
         }
         selectionLink.tell(selected, game);
+        selectionLink.tellGroups(controls.groups(), game);
     }
 
     /**

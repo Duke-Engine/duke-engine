@@ -271,6 +271,17 @@ final class Controls {
         return List.copyOf(groups.getOrDefault(number, List.of()));
     }
 
+    /** Every group that holds anyone, by its number, its members in the order they were grouped. */
+    Map<Integer, List<Integer>> groups() {
+        var all = new java.util.TreeMap<Integer, List<Integer>>();
+        groups.forEach((number, members) -> {
+            if (!members.isEmpty()) {
+                all.put(number, List.copyOf(members));
+            }
+        });
+        return java.util.Collections.unmodifiableMap(all);
+    }
+
     // ---- bookmarks ----
 
     private boolean bookmark(KeyMap.Key key, Scene scene) {

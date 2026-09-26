@@ -53,10 +53,65 @@ final class CanvasFrame implements Canvas {
     private float[] clip;
 
     CanvasFrame(int width, int height, CanvasText text, Function<String, int[]> pictureSize) {
+        this(width, height, text, pictureSize, World.NONE);
+    }
+
+    /** The same, asking {@code world} where things are on the screen this frame. */
+    CanvasFrame(int width, int height, CanvasText text, Function<String, int[]> pictureSize, World world) {
         this.width = width;
         this.height = height;
         this.text = text;
         this.pictureSize = pictureSize;
+        this.world = world;
+    }
+
+    /** Where the world's points and things' bars are on the screen this frame — see {@link Canvas#screenOf}. */
+    interface World {
+        World NONE = new World() {
+            @Override
+            public Canvas.Point screenOf(float x, float y, float height) {
+                return null;
+            }
+
+            @Override
+            public Canvas.Box barOf(int id) {
+                return null;
+            }
+        };
+
+        Canvas.Point screenOf(float x, float y, float height);
+
+        Canvas.Box barOf(int id);
+    }
+
+    private final World world;
+
+    @Override
+    public Canvas.Point screenOf(float x, float y, float height) {
+        return world.screenOf(x, y, height);
+    }
+
+    @Override
+    public Canvas.Box barOf(int id) {
+        return world.barOf(id);
+    }
+
+    /**
+     * A point of the world on the screen through {@code camera}, in the canvas's pixels from the top left — the map's y
+     * the scene's z, its height the scene's y — or null behind the eye.
+     */
+    static Canvas.Point onScreen(com.jme3.renderer.Camera camera, float x, float y, float height) {
+        var at = camera.getScreenCoordinates(new com.jme3.math.Vector3f(x, height, y));
+        if (at.z < 0f || at.z > 1f) {
+            return null;
+        }
+        return new Canvas.Point(at.x, camera.getHeight() - at.y);
+    }
+
+    /** A bar placed in the window's pixels from the bottom left — left, bottom, width, height — in the canvas's. */
+    static Canvas.Box fromTheBottom(float[] placed, int windowHeight) {
+        return placed == null ? null
+                : new Canvas.Box(placed[0], windowHeight - placed[1] - placed[3], placed[2], placed[3]);
     }
 
     /** Everything drawn, in the order it was drawn. */

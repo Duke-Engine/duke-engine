@@ -138,4 +138,30 @@ public interface Canvas {
 
     /** How wide a line of text is as {@link #drawText} lays it out — the sum of its advances — and how tall. */
     Measure measure(Font font, String text);
+
+    /** A point on the screen, in the canvas's pixels from the top left. */
+    record Point(float x, float y) {
+    }
+
+    /** A rectangle on the screen: its top left, its width and its height, in the canvas's pixels. */
+    record Box(float x, float y, float width, float height) {
+    }
+
+    /**
+     * Where a point of the world — {@code x, y} across the map, {@code height} up — is on the screen this frame, as
+     * the camera stands for it: for a game's own marks by a thing, the reference's built percent over a site going up
+     * ({@code Drawable::drawConstructPercent}). Null where it is behind the eye, or no world is drawn.
+     */
+    default Point screenOf(float x, float y, float height) {
+        return null;
+    }
+
+    /**
+     * Where thing {@code id}'s bar is this frame, as the client placed it, shown or not — for a game's own marks by it,
+     * the reference's group number and ammunition pips ({@code Drawable::drawUIText}, {@code drawAmmo}). Null for a
+     * thing with no bar, or none placed this frame.
+     */
+    default Box barOf(int id) {
+        return null;
+    }
 }
