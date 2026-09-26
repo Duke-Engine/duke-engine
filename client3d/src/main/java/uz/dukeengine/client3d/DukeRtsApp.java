@@ -239,6 +239,8 @@ final class DukeRtsApp extends SimpleApplication {
     /** Every drawn vehicle's treads and wheels, run as it moves — see {@link RunningGear}. */
     private final RunningGear runningGear = new RunningGear();
     private final TurretBones turretBones = new TurretBones();
+    /** The streams things ride, drawn as ribbons, once the game names a look for one — see {@link Visuals#stream}. */
+    private Ribbons ribbons;
     private final Map<String, Material> particleMaterials = new HashMap<>();
     /**
      * Whoever of theirs was just hit, going white -- see {@link HitFlash}.
@@ -1380,6 +1382,12 @@ final class DukeRtsApp extends SimpleApplication {
     private void syncOrderMarkers() {
         float now = timer.getTimeInSeconds();
         lasers.show(snapshot.beams(), cam.getLocation(), now); // the simulation's beams, where it moved them
+        if (ribbons == null && !visuals.getStreams().isEmpty()) {
+            ribbons = new Ribbons(assetManager, rootNode, visuals.getStreams());
+        }
+        if (ribbons != null) {
+            ribbons.show(snapshot.streams(), cam.getLocation());
+        }
         ridingEffects.show(snapshot.effects(), id -> {
             var node = unitNodes.get(id);
             return node == null ? null : node.root;

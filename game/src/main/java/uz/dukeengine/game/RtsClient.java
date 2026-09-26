@@ -225,6 +225,13 @@ final class RtsClient extends GameClient {
                         beam.width()));
             }
         }
+        var streams = new ArrayList<uz.dukeengine.game.view.StreamView>();
+        for (var stream : logic.getStreams()) {
+            var view = streamView(stream, everything);
+            if (view != null) {
+                streams.add(view);
+            }
+        }
         var effects = new ArrayList<uz.dukeengine.game.view.EffectView>();
         if (!logic.getRidingEffects().isEmpty()) {
             var drawn = new java.util.HashSet<Integer>();
@@ -260,7 +267,8 @@ final class RtsClient extends GameClient {
                 everything || logic.getSightCells() == null ? null : logic.getSightCells().view(viewerPlayer),
                 aimed.marks(),
                 unseen,
-                hidden);
+                hidden,
+                streams);
     }
 
     /**
@@ -326,6 +334,35 @@ final class RtsClient extends GameClient {
                 object.getLift(),
                 object.getYaw(),
                 object.getCorners());
+    }
+
+    /**
+     * A stream as this viewer sees it: the places of what rides it, in pieces broken at its gaps, what has ended left
+     * out — or null where he sees no point of it.
+     */
+    private uz.dukeengine.game.view.StreamView streamView(uz.dukeengine.core.thing.Stream stream, boolean everything) {
+        var pieces = new ArrayList<java.util.List<uz.dukeengine.core.math.Coord3D>>();
+        var piece = new ArrayList<uz.dukeengine.core.math.Coord3D>();
+        boolean seen = everything;
+        for (var id : stream.riders()) {
+            if (id.equals(uz.dukeengine.core.thing.Stream.GAP)) {
+                if (!piece.isEmpty()) {
+                    pieces.add(piece);
+                    piece = new ArrayList<>();
+                }
+                continue;
+            }
+            var thing = logic.findObject(id);
+            if (thing == null || thing.isDestroyed()) {
+                continue; // a shot landed: gone from the ribbon, its neighbours joined
+            }
+            piece.add(thing.getPosition());
+            seen = seen || logic.canSee(viewerPlayer, thing);
+        }
+        if (!piece.isEmpty()) {
+            pieces.add(piece);
+        }
+        return seen && !pieces.isEmpty() ? new uz.dukeengine.game.view.StreamView(stream.name(), pieces) : null;
     }
 
     /** How {@code object}'s turrets stand, as its game's {@code Turret} has them; none for a thing without one. */

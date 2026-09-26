@@ -34,6 +34,7 @@ import uz.dukeengine.core.event.WorldEvent;
  * {@code World.effect}.
  * <p>{@link #aimMarks} are the rectangles of ground the game's answer about an armed button's place marks — see
  * {@code DukeGame.aimAnswer}.
+ * <p>{@link #streams} are the streams things ride that the viewer sees a point of — see {@code World.rideStream}.
  * <p>{@link #unseenEvents} and {@link #hiddenUnits} are what happened where the viewer does not see, and the things
  * there — for a sound fog does not hide, heard and not shown; empty unless the client asks ({@code
  * DukeGame.hearThroughFog}).
@@ -60,11 +61,24 @@ public record WorldSnapshot(
         uz.dukeengine.core.SightCells.View sight,
         List<AimMark> aimMarks,
         List<WorldEvent> unseenEvents,
-        List<UnitView> hiddenUnits) {
+        List<UnitView> hiddenUnits,
+        List<StreamView> streams) {
 
     public static final WorldSnapshot EMPTY = new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "",
             List.of(), true, true, null, false, null, List.of(), List.of(), List.of(), null, List.of(), List.of(),
-            List.of());
+            List.of(), List.of());
+
+    /** A frame with no streams: every frame from before things could ride one. */
+    public WorldSnapshot(int frame, float gameTimeSeconds, boolean paused, int localPlayerMoney,
+            int localPlayerPowerSurplus, List<UnitView> units, List<WorldEvent> events, String banner,
+            String status, List<CommandButton> commands, boolean aimFits, boolean attackable, CameraView camera,
+            boolean revealed, String contextOrder, List<BeamView> beams, List<RallyView> rallies,
+            List<EffectView> effects, uz.dukeengine.core.SightCells.View sight, List<AimMark> aimMarks,
+            List<WorldEvent> unseenEvents, List<UnitView> hiddenUnits) {
+        this(frame, gameTimeSeconds, paused, localPlayerMoney, localPlayerPowerSurplus, units, events, banner, status,
+                commands, aimFits, attackable, camera, revealed, contextOrder, beams, rallies, effects, sight,
+                aimMarks, unseenEvents, hiddenUnits, List.of());
+    }
 
     /** A frame that hears nothing through fog: every frame from before a sound could be heard so. */
     public WorldSnapshot(int frame, float gameTimeSeconds, boolean paused, int localPlayerMoney,
@@ -183,5 +197,6 @@ public record WorldSnapshot(
         aimMarks = aimMarks == null ? List.of() : List.copyOf(aimMarks);
         unseenEvents = unseenEvents == null ? List.of() : List.copyOf(unseenEvents);
         hiddenUnits = hiddenUnits == null ? List.of() : List.copyOf(hiddenUnits);
+        streams = streams == null ? List.of() : List.copyOf(streams);
     }
 }

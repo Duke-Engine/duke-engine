@@ -1539,6 +1539,45 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return List.copyOf(ridingEffects.values());
     }
 
+    /** The streams things ride, by name: what rides each, {@code Stream.GAP} where it breaks. Out of the checksum. */
+    private final java.util.TreeMap<String, java.util.List<ObjectId>> streams = new java.util.TreeMap<>();
+
+    @Override
+    public final void rideStream(String stream, GameObject thing, int most) {
+        var riders = streams.computeIfAbsent(stream, name -> new java.util.ArrayList<>());
+        riders.removeIf(id -> id != uz.dukeengine.core.thing.Stream.GAP && ended(id)); // what ended, dropped
+        riders.add(thing.getId());
+        long riding = riders.stream().filter(id -> id != uz.dukeengine.core.thing.Stream.GAP).count();
+        while (riding > Math.max(1, most)) {
+            if (riders.removeFirst() != uz.dukeengine.core.thing.Stream.GAP) {
+                riding--;
+            }
+        }
+        while (riders.getFirst() == uz.dukeengine.core.thing.Stream.GAP) {
+            riders.removeFirst();
+        }
+    }
+
+    @Override
+    public final void breakStream(String stream) {
+        var riders = streams.get(stream);
+        if (riders != null && !riders.isEmpty() && riders.getLast() != uz.dukeengine.core.thing.Stream.GAP) {
+            riders.add(uz.dukeengine.core.thing.Stream.GAP);
+        }
+    }
+
+    private boolean ended(ObjectId id) {
+        var thing = findObject(id);
+        return thing == null || thing.isDestroyed();
+    }
+
+    /** Every stream things ride now, by name. */
+    public final List<uz.dukeengine.core.thing.Stream> getStreams() {
+        var all = new java.util.ArrayList<uz.dukeengine.core.thing.Stream>();
+        streams.forEach((name, riders) -> all.add(new uz.dukeengine.core.thing.Stream(name, riders)));
+        return all;
+    }
+
     /** Every beam the simulation owns now, in the order they were made. */
     public final List<uz.dukeengine.core.thing.Beam> getBeams() {
         return List.copyOf(beams.values());

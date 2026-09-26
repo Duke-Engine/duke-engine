@@ -2526,6 +2526,26 @@ public final class Visuals {
         return selectionRings;
     }
 
+    /** How a stream is drawn — see {@link #stream}: its ribbon's picture, by its whole path, and its width. */
+    public record StreamLook(String picture, float width) {
+    }
+
+    private final java.util.Map<String, StreamLook> streams = new java.util.LinkedHashMap<>();
+
+    /**
+     * The stream {@code name} drawn as one ribbon of {@code look}'s picture through the places of what rides it, in
+     * order, its width across — the reference's {@code W3DProjectileStreamDraw}, a flame tank's jet; broken where the
+     * stream breaks. A stream named nothing here is drawn as nothing.
+     */
+    public Visuals stream(String name, StreamLook look) {
+        streams.put(name, look);
+        return this;
+    }
+
+    public java.util.Map<String, StreamLook> getStreams() {
+        return java.util.Collections.unmodifiableMap(streams);
+    }
+
     private GhostLook ghostLook;
 
     /**

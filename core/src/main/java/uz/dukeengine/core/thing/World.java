@@ -331,6 +331,19 @@ public interface World {
     }
 
     /**
+     * Keep {@code thing} riding the stream {@code stream} — a flame tank's jet, the reference's {@code
+     * ProjectileStreamUpdate}: the places of up to {@code most} things riding it, in the order they started, each
+     * dropped as it ends, drawn by a client as one ribbon of the game's look through them in order ({@code
+     * W3DProjectileStreamDraw}). Drawing only: out of the checksum, not saved, and nothing decided reads it.
+     */
+    default void rideStream(String stream, GameObject thing, int most) {
+    }
+
+    /** A gap in {@code stream} from here — its aim changed: its ribbon is broken there, not drawn across. */
+    default void breakStream(String stream) {
+    }
+
+    /**
      * Play the game's picture strip of that name at a point, for {@code seconds}, rising {@code rise} over them and
      * fading as they end — see {@link uz.dukeengine.core.event.StripPlayed}: shown where its player sees the point. An
      * event, so out of the checksum.
