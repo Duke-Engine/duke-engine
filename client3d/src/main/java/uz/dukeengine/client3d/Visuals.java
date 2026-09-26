@@ -2492,6 +2492,40 @@ public final class Visuals {
         return edgeScroll;
     }
 
+    /**
+     * How the drag box is outlined: {@code width} pixels in {@code colour}, ARGB — the reference's 2 and {@code
+     * 0x9933FF33} ({@code W3DInGameUI::drawSelectionRegion}).
+     */
+    public record DragBoxLook(float width, int colour) {
+    }
+
+    private DragBoxLook dragBox;
+
+    /** The drag box outlined as {@code look} says; unsaid, the client's own single pixel of pale green. */
+    public Visuals dragBox(DragBoxLook look) {
+        this.dragBox = look;
+        return this;
+    }
+
+    public DragBoxLook getDragBox() {
+        return dragBox;
+    }
+
+    private boolean selectionRings = true;
+
+    /**
+     * Whether a flat disc lies under every selected thing, green for the player's own and red for another's: the
+     * client's own sign of what is selected; the reference draws none, its sign the health bar. On unless said.
+     */
+    public Visuals selectionRings(boolean drawn) {
+        this.selectionRings = drawn;
+        return this;
+    }
+
+    public boolean drawsSelectionRings() {
+        return selectionRings;
+    }
+
     private GhostLook ghostLook;
 
     /**

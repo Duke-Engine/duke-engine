@@ -93,6 +93,20 @@ class ControlsTest {
         public void move(Map<Integer, Coord3D> destinations) {
             moved.add(destinations);
         }
+
+        final List<Integer> voiced = new ArrayList<>();
+
+        @Override
+        public void answer(int unit) {
+            voiced.add(unit);
+        }
+
+        UnitView building(int id, int player) {
+            var building = new UnitView(id, "Barracks", player, 0f, 0f, 0f, 100f, 100f, true, true, false, false,
+                    -1);
+            units.add(building);
+            return building;
+        }
     }
 
     private static KeyMap.Key key(int code) {
@@ -302,5 +316,85 @@ class ControlsTest {
         assertFalse(KeyMap.standard().takesDigits());
         assertTrue(KeyMap.standard().groupsOnDigits().takesDigits());
         assertNull(new Controls(KeyMap.standard()).press(key(KeyInput.KEY_1), 0f, new World()).control());
+    }
+
+    // ---- answered as a click is ----
+
+    @Test
+    void aGroupSelectedByItsKeyIsAnsweredOnceItsSecondPressAndShiftAreSilentAndTheNextUnitAnswers() {
+        var controls = new Controls(KeyMap.empty().groupsOnDigits().bind(KeyMap.Control.NEXT_UNIT,
+                KeyMap.Key.ctrl(KeyInput.KEY_RIGHT)));
+        var world = new World();
+        world.unit(1, "Tank", ME, 10f, 10f, true);
+        world.unit(2, "Soldier", ME, 20f, 10f, true);
+        world.selection.addAll(List.of(1, 2));
+        controls.press(KeyMap.Key.ctrl(KeyInput.KEY_1), 0f, world);
+        world.selection.clear();
+
+        controls.press(key(KeyInput.KEY_1), 1f, world);
+        assertEquals(List.of(1), world.voiced, "one select voice");
+        controls.press(key(KeyInput.KEY_1), 1.2f, world);
+        assertEquals(List.of(1), world.voiced, "the camera goes to it, silently");
+        controls.press(KeyMap.Key.shift(KeyInput.KEY_1), 5f, world);
+        assertEquals(List.of(1), world.voiced, "adding it is silent");
+        controls.press(KeyMap.Key.ctrl(KeyInput.KEY_RIGHT), 9f, world);
+        assertEquals(2, world.voiced.size(), "the next unit answers");
+    }
+
+    @Test
+    void oneGroupAtATimeWhereTheGameSaysAndInEachAsBeforeWhereItDoesNot() {
+        for (boolean each : new boolean[] {true, false}) {
+            var controls = new Controls(KeyMap.empty().groupsOnDigits().oneGroupEach(each));
+            var world = new World();
+            world.unit(1, "Tank", ME, 10f, 10f, true);
+            world.selection.add(1);
+            controls.press(KeyMap.Key.ctrl(KeyInput.KEY_1), 0f, world);
+            controls.press(KeyMap.Key.ctrl(KeyInput.KEY_2), 1f, world);
+            assertEquals(each ? List.of() : List.of(1), controls.group(1), "group 1, one at a time: " + each);
+            assertEquals(List.of(1), controls.group(2));
+        }
+    }
+
+    @Test
+    void aGroupAddedToHisSelectedBuildingReplacesIt() {
+        var controls = new Controls(KeyMap.empty().groupsOnDigits());
+        var world = new World();
+        world.unit(1, "Tank", ME, 10f, 10f, true);
+        world.building(9, ME);
+        world.selection.add(1);
+        controls.press(KeyMap.Key.ctrl(KeyInput.KEY_3), 0f, world);
+        world.selection.clear();
+        world.selection.add(9);
+        controls.press(KeyMap.Key.shift(KeyInput.KEY_3), 5f, world);
+        assertEquals(Set.of(1), world.selection, "the group's units alone");
+    }
+
+    @Test
+    void aClickBetweenTwoPressesOfAGroupsKeyMakesTheSecondAFreshPress() {
+        var controls = new Controls(KeyMap.empty().groupsOnDigits());
+        var world = new World();
+        world.unit(1, "Tank", ME, 10f, 10f, true);
+        world.unit(2, "Tank", ME, 50f, 10f, true);
+        world.selection.add(1);
+        controls.press(KeyMap.Key.ctrl(KeyInput.KEY_1), 0f, world);
+        controls.press(key(KeyInput.KEY_1), 1f, world);
+        world.selection.clear();
+        world.selection.add(2); // a click on a unit
+        controls.forgetGroupPress();
+        controls.press(key(KeyInput.KEY_1), 1.2f, world);
+        assertEquals(Set.of(1), world.selection, "group 1 selected, not only looked at");
+    }
+
+    @Test
+    void everyUnitIsAnsweredAndEveryOneOfTheSelectedTypesIsNot() {
+        var controls = new Controls(KeyMap.empty().bind(KeyMap.Control.SELECT_ALL, key(KeyInput.KEY_Q))
+                .bind(KeyMap.Control.SELECT_SAME_TYPE, key(KeyInput.KEY_E)));
+        var world = new World();
+        world.unit(1, "Tank", ME, 10f, 10f, true);
+        world.unit(2, "Tank", ME, 20f, 10f, true);
+        controls.press(key(KeyInput.KEY_Q), 0f, world);
+        assertEquals(List.of(1), world.voiced, "every unit, with a voice");
+        controls.press(key(KeyInput.KEY_E), 5f, world);
+        assertEquals(List.of(1), world.voiced, "the matching units, silently");
     }
 }

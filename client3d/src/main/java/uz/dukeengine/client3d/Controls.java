@@ -52,6 +52,10 @@ final class Controls {
 
         /** Send each of these units to its own place. */
         void move(Map<Integer, Coord3D> destinations);
+
+        /** Answer a selection as a click's is: with the select voice of {@code unit}, a thing it took in. */
+        default void answer(int unit) {
+        }
     }
 
     private final KeyMap map;
@@ -190,7 +194,11 @@ final class Controls {
             int number = entry.getKey();
             var keys = entry.getValue();
             if (key.equals(keys.create())) {
-                groups.put(number, new ArrayList<>(own(scene)));
+                var members = own(scene);
+                if (map.oneGroupEach()) {
+                    groups.values().forEach(group -> group.removeAll(members));
+                }
+                groups.put(number, new ArrayList<>(members));
                 return true;
             }
             if (key.equals(keys.select()) || key.equals(keys.add())) {
@@ -199,17 +207,38 @@ final class Controls {
                 lastGroup = number;
                 lastGroupAt = now;
                 if (again) {
-                    centreOn(scene, number);
+                    centreOn(scene, number); // the camera alone, silently
                 } else {
-                    if (key.equals(keys.select())) {
-                        scene.selection().clear();
+                    boolean selects = key.equals(keys.select());
+                    if (selects || holdsHisBuilding(scene)) {
+                        scene.selection().clear(); // SelectionXlat: a group added to a building replaces it
                     }
-                    scene.selection().addAll(living(scene, number));
+                    var members = living(scene, number);
+                    scene.selection().addAll(members);
+                    if (selects && !members.isEmpty()) {
+                        scene.answer(members.getFirst()); // MSG_SELECT_TEAMn's voice; adding one is silent
+                    }
                 }
                 return true;
             }
             if (key.equals(keys.centre())) {
                 centreOn(scene, number);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A click or a box chose: the next press of a group's key is a fresh press, whatever the last was. */
+    void forgetGroupPress() {
+        lastGroup = -1;
+    }
+
+    /** Whether what is selected holds one of the player's own buildings. */
+    private static boolean holdsHisBuilding(Scene scene) {
+        for (var unit : scene.units()) {
+            if (unit.structure() && unit.playerIndex() == scene.localPlayer()
+                    && scene.selection().contains(unit.id())) {
                 return true;
             }
         }
@@ -283,6 +312,9 @@ final class Controls {
         }
         scene.selection().clear();
         scene.selection().addAll(picked);
+        if (!picked.isEmpty()) {
+            scene.answer(picked.getFirst()); // MSG_CREATE_SELECTED_GROUP, with its voice
+        }
     }
 
     /** Every one of his units of a type selected, on the screen — and, pressed again soon after, anywhere. */
@@ -329,6 +361,7 @@ final class Controls {
         cycled = unit.id();
         scene.selection().clear();
         scene.selection().add(unit.id());
+        scene.answer(unit.id());
         scene.camera().lookAt(unit.x(), unit.y());
     }
 

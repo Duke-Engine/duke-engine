@@ -375,7 +375,7 @@ final class DukeRtsApp extends SimpleApplication {
     /**
      * The box the player is dragging, drawn over the world while the button is down.
      */
-    private Geometry dragRectangle;
+    private DragBox dragRectangle;
 
     /**
      * Brief flashes acknowledging orders, and the node they are drawn in.
@@ -1321,16 +1321,8 @@ final class DukeRtsApp extends SimpleApplication {
      * The selection box: an outline, so it never hides what is being selected.
      */
     private void buildDragRectangle() {
-        var mesh = new com.jme3.scene.Mesh();
-        mesh.setMode(com.jme3.scene.Mesh.Mode.LineLoop);
-        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Position, 3, new float[4 * 3]);
-        mesh.setDynamic();
-        mesh.updateBound();
-
-        dragRectangle = new Geometry("drag-box", mesh);
-        dragRectangle.setMaterial(unshaded(new ColorRGBA(0.5f, 1f, 0.5f, 0.9f)));
-        dragRectangle.setCullHint(Spatial.CullHint.Always);
-        guiNode.attachChild(dragRectangle);
+        dragRectangle = new DragBox(visuals.getDragBox(), unshaded(ColorRGBA.White));
+        guiNode.attachChild(dragRectangle.geometry());
     }
 
     /**
@@ -3485,7 +3477,20 @@ final class DukeRtsApp extends SimpleApplication {
             destinations.forEach((unit, to) -> game.postCommand(new GameMessage.MoveTo(game.getLocalPlayerIndex(),
                     List.of(new ObjectId(unit)), to)));
         }
+
+        @Override
+        public void answer(int unit) {
+            answerSelection(unit);
+        }
     };
+
+    /** A selection answered as a click's is: with the select voice of {@code unit}, a thing it took in. */
+    private void answerSelection(int unit) {
+        var view = viewOf(unit);
+        if (view != null) {
+            noises.selected(view, game.getLocalPlayerIndex(), timer.getTimeInSeconds());
+        }
+    }
 
     /**
      * Bind a control, and remember that it is one the listener has to hear.
@@ -3580,17 +3585,17 @@ final class DukeRtsApp extends SimpleApplication {
     private void select(boolean add) {
         var hit = pickUnit();
         boolean mine = hit != null && hit.view.playerIndex() == game.getLocalPlayerIndex();
-        if (!add || !mine) {
-            selected.clear();
-        }
-        if (hit != null && hit.view.selectable()) {
-            boolean isNew = selected.add(hit.view.id());
-            if (isNew && mine) {
+        var clicked = SelectionBox.click(hit == null ? null
+                : new SelectionBox.Candidate(hit.view.id(), 0f, 0f, mine, hit.view.selectable()),
+                List.copyOf(selected), add);
+        selected.clear();
+        selected.addAll(clicked.selection());
+        controls.forgetGroupPress();
+        if (clicked.tookIn() >= 0) {
+            if (mine) {
                 noises.moment("vo.select", timer.getTimeInSeconds());
             }
-            if (isNew) {
-                noises.selected(hit.view, game.getLocalPlayerIndex(), timer.getTimeInSeconds());
-            }
+            noises.selected(hit.view, game.getLocalPlayerIndex(), timer.getTimeInSeconds());
         }
     }
 
@@ -4021,7 +4026,7 @@ final class DukeRtsApp extends SimpleApplication {
     private void endDrag(boolean add) {
         var from = dragFrom;
         dragFrom = null;
-        dragRectangle.setCullHint(Spatial.CullHint.Always);
+        dragRectangle.hide();
         if (from == null) {
             return; // the press was taken by the minimap or a menu
         }
@@ -4044,6 +4049,7 @@ final class DukeRtsApp extends SimpleApplication {
                 before, hisUnits, add);
         selected.clear();
         selected.addAll(after);
+        controls.forgetGroupPress();
         var first = after.stream().filter(id -> !before.contains(id)).findFirst();
         // One answer for the box, as for a click: the first thing it took in.
         first.ifPresent(id -> noises.selected(viewOf(id), game.getLocalPlayerIndex(), timer.getTimeInSeconds()));
@@ -4115,19 +4121,10 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var cursor = inputManager.getCursorPosition();
         if (!SelectionBox.isDrag(dragFrom.x, dragFrom.y, cursor.x, cursor.y, visuals.getDragDistance())) {
-            dragRectangle.setCullHint(Spatial.CullHint.Always);
+            dragRectangle.hide();
             return;
         }
-        float[] corners = {
-                dragFrom.x, dragFrom.y, 0f,
-                cursor.x, dragFrom.y, 0f,
-                cursor.x, cursor.y, 0f,
-                dragFrom.x, cursor.y, 0f,
-        };
-        var mesh = dragRectangle.getMesh();
-        mesh.setBuffer(com.jme3.scene.VertexBuffer.Type.Position, 3, corners);
-        mesh.updateBound();
-        dragRectangle.setCullHint(Spatial.CullHint.Never);
+        dragRectangle.lay(dragFrom.x, dragFrom.y, cursor.x, cursor.y);
     }
 
     private void order() {
@@ -4523,7 +4520,7 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         if (snapshot != null) {
-            selectionLink.takeUp(selected, game, snapshot.units(), game.getLocalPlayerIndex());
+            selectionLink.takeUp(selected, game, snapshot.units(), game.getLocalPlayerIndex(), this::answerSelection);
         }
         selectionLink.tell(selected, game);
     }
@@ -6703,7 +6700,7 @@ final class DukeRtsApp extends SimpleApplication {
             node.shadowBody = node.body;
         }
 
-        node.ring.setCullHint(selected.contains(view.id())
+        node.ring.setCullHint(visuals.drawsSelectionRings() && selected.contains(view.id())
                 ? Spatial.CullHint.Never : Spatial.CullHint.Always);
 
         flinch(node, view);

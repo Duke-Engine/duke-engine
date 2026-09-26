@@ -1523,7 +1523,7 @@ public final class DukeGame {
     }
 
     /** The selection the game last asked the client for — see {@link #select}. */
-    private final java.util.concurrent.atomic.AtomicReference<List<uz.dukeengine.core.thing.ObjectId>> selectionWanted =
+    private final java.util.concurrent.atomic.AtomicReference<Selecting> selectionWanted =
             new java.util.concurrent.atomic.AtomicReference<>();
 
     /**
@@ -1534,11 +1534,29 @@ public final class DukeGame {
      * ({@link #getSelection}).
      */
     public void select(List<uz.dukeengine.core.thing.ObjectId> ids) {
-        selectionWanted.set(List.copyOf(ids));
+        select(ids, false);
+    }
+
+    /**
+     * The same, {@code answered} asking the client to answer it as a click's is, with the select voice of a thing it
+     * took in — as the reference's own every-unit keys, which a game that selects on the screen first takes itself.
+     */
+    public void select(List<uz.dukeengine.core.thing.ObjectId> ids, boolean answered) {
+        selectionWanted.set(new Selecting(List.copyOf(ids), answered));
+    }
+
+    /** A selection the game asked for: what, and whether it is answered with a voice. */
+    public record Selecting(List<uz.dukeengine.core.thing.ObjectId> ids, boolean answered) {
     }
 
     /** The selection the game last asked for, taken once by the client that shows it; null when none waits. */
     public List<uz.dukeengine.core.thing.ObjectId> takeSelectionRequest() {
+        var taken = takeSelecting();
+        return taken == null ? null : taken.ids();
+    }
+
+    /** The same, with whether it is answered; null when none waits. */
+    public Selecting takeSelecting() {
         return selectionWanted.getAndSet(null);
     }
 

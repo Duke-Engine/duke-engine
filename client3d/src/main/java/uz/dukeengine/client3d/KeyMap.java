@@ -113,6 +113,7 @@ public final class KeyMap {
     private String kindToSelect;
     private final Set<String> leftOutOfSelectAll = new LinkedHashSet<>();
     private float doublePressSeconds = DOUBLE_PRESS_SECONDS;
+    private boolean oneGroupEach;
 
     private KeyMap() {
     }
@@ -204,6 +205,16 @@ public final class KeyMap {
         return this;
     }
 
+    /**
+     * A thing in one control group at a time: making a group takes its members out of every other, as the reference's
+     * {@code Player::processCreateTeamGameMessage} does ({@code removeObjectFromHotkeySquad}); unsaid, in each it was
+     * put in.
+     */
+    public KeyMap oneGroupEach(boolean each) {
+        this.oneGroupEach = each;
+        return this;
+    }
+
     /** How soon a second press counts as a double press: two thirds of a second, as the reference's groups. */
     public KeyMap doublePress(float seconds) {
         this.doublePressSeconds = Math.max(0f, seconds);
@@ -239,6 +250,10 @@ public final class KeyMap {
 
     float doublePressSeconds() {
         return doublePressSeconds;
+    }
+
+    boolean oneGroupEach() {
+        return oneGroupEach;
     }
 
     /** Every key code anything here is on, for the client to listen to. */

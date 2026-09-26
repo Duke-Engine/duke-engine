@@ -76,6 +76,30 @@ final class SelectionBox {
      * @param hisUnits whether all of that is units of his: no building, nothing of another side's
      * @param add      whether the add key is held
      */
+    /** What a click chose: the selection after it, and the thing it took in to answer for, or -1 for none. */
+    record Clicked(List<Integer> selection, int tookIn) {
+    }
+
+    /**
+     * What a click on {@code hit} selects, null for open ground: it alone; with the add key held, added to his own —
+     * or, one of his own already selected, taken out, silently, as the reference's shift-click on things all selected
+     * takes them out ({@code SelectionTranslator}: {@code MSG_REMOVE_FROM_SELECTED_GROUP}).
+     */
+    static Clicked click(Candidate hit, List<Integer> selected, boolean add) {
+        boolean mine = hit != null && hit.own();
+        if (add && mine && hit.selectable() && selected.contains(hit.id())) {
+            var left = new ArrayList<>(selected);
+            left.remove(Integer.valueOf(hit.id()));
+            return new Clicked(List.copyOf(left), -1);
+        }
+        var after = new java.util.LinkedHashSet<Integer>(add && mine ? selected : List.of());
+        if (hit == null || !hit.selectable()) {
+            return new Clicked(List.copyOf(after), -1);
+        }
+        boolean isNew = after.add(hit.id());
+        return new Clicked(List.copyOf(after), isNew ? hit.id() : -1);
+    }
+
     static List<Integer> after(List<Candidate> box, List<Integer> selected, boolean hisUnits, boolean add) {
         if (box.isEmpty()) {
             return selected;

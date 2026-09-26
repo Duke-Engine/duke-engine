@@ -35,12 +35,22 @@ final class SelectionLink {
      * @return whether the game had picked
      */
     boolean takeUp(Set<Integer> selected, DukeGame game, List<UnitView> units, int localPlayer) {
-        var wanted = game.takeSelectionRequest();
+        return takeUp(selected, game, units, localPlayer, unit -> { });
+    }
+
+    /** The same, {@code answer} told the first thing it took in where the game asked for its selection answered. */
+    boolean takeUp(Set<Integer> selected, DukeGame game, List<UnitView> units, int localPlayer,
+            java.util.function.IntConsumer answer) {
+        var wanted = game.takeSelecting();
         if (wanted == null) {
             return false;
         }
+        var admitted = admitted(wanted.ids(), units, localPlayer);
         selected.clear();
-        selected.addAll(admitted(wanted, units, localPlayer));
+        selected.addAll(admitted);
+        if (wanted.answered() && !admitted.isEmpty()) {
+            answer.accept(admitted.getFirst());
+        }
         return true;
     }
 

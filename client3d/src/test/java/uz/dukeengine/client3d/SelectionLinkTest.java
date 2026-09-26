@@ -66,4 +66,16 @@ class SelectionLinkTest {
                 "one of someone else's, alone, to look at");
         assertEquals(List.of(), SelectionLink.admitted(List.of(new ObjectId(9), new ObjectId(10)), UNITS, ME));
     }
+
+    @Test
+    void aPickTheGameAsksToBeAnsweredIsAnsweredOnceAndOneThatDoesNotIsSilent() {
+        var voiced = new java.util.ArrayList<Integer>();
+        game.select(List.of(new ObjectId(7), new ObjectId(8)), true);
+        assertTrue(link.takeUp(selected, game, UNITS, ME, voiced::add));
+        assertEquals(List.of(7), voiced, "its select voice, once");
+
+        game.select(List.of(new ObjectId(5)));
+        link.takeUp(selected, game, UNITS, ME, voiced::add);
+        assertEquals(List.of(7), voiced, "not asking: silent, as now");
+    }
 }

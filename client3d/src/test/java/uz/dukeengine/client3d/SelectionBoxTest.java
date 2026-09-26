@@ -107,4 +107,58 @@ class SelectionBoxTest {
         assertFalse(SelectionBox.isDrag(200f, 200f, 220f, 200f, 25f), "with the drag distance at 25, 20 is a click");
         assertTrue(SelectionBox.isDrag(200f, 200f, 225f, 200f, 25f), "and 25 a box");
     }
+
+    @Test
+    void withTheAddKeyAClickOnOneOfHisSelectedTakesItOutSilentlyAndOnAFourthAddsItWithItsVoice() {
+        var three = List.of(1, 2, 3);
+        var out = SelectionBox.click(new SelectionBox.Candidate(2, 0f, 0f, true, true), three, true);
+        assertEquals(List.of(1, 3), out.selection(), "two left");
+        assertEquals(-1, out.tookIn(), "with no voice");
+
+        var in = SelectionBox.click(new SelectionBox.Candidate(4, 0f, 0f, true, true), three, true);
+        assertEquals(List.of(1, 2, 3, 4), in.selection());
+        assertEquals(4, in.tookIn(), "with its voice");
+
+        var plain = SelectionBox.click(new SelectionBox.Candidate(2, 0f, 0f, true, true), three, false);
+        assertEquals(List.of(2), plain.selection(), "without the key, it alone, as ever");
+
+        var box = SelectionBox.after(List.of(new SelectionBox.Candidate(1, 0f, 0f, true, true),
+                new SelectionBox.Candidate(2, 0f, 0f, true, true), new SelectionBox.Candidate(3, 0f, 0f, true, true)),
+                three, true, true);
+        assertEquals(three, box, "a box with the key over the three adds, as now");
+    }
+
+    @Test
+    void theBoxNamedTwoPixelsIn9933FF33IsOutlinedSo() {
+        var corners = DragBox.outline(100f, 100f, 200f, 150f, 2f);
+        float left = Float.MAX_VALUE;
+        float right = -Float.MAX_VALUE;
+        float bottom = Float.MAX_VALUE;
+        float top = -Float.MAX_VALUE;
+        for (int at = 0; at < corners.length; at += 3) {
+            left = Math.min(left, corners[at]);
+            right = Math.max(right, corners[at]);
+            bottom = Math.min(bottom, corners[at + 1]);
+            top = Math.max(top, corners[at + 1]);
+        }
+        assertEquals(99f, left);
+        assertEquals(201f, right);
+        assertEquals(99f, bottom, "two pixels wide about its edges");
+        assertEquals(151f, top);
+
+        var material = new com.jme3.material.Material(new com.jme3.asset.DesktopAssetManager(true),
+                "Common/MatDefs/Misc/Unshaded.j3md");
+        new DragBox(new Visuals.DragBoxLook(2f, 0x9933FF33), material);
+        var colour = (com.jme3.math.ColorRGBA) material.getParamValue("Color");
+        assertEquals(0.2f, colour.r, 1e-6f);
+        assertEquals(1f, colour.g, 1e-6f);
+        assertEquals(0.2f, colour.b, 1e-6f);
+        assertEquals(0.6f, colour.a, 1e-6f, "at 0.6 alpha");
+    }
+
+    @Test
+    void theRingUnderSelectedThingsIsDrawnUnlessTheGameSwitchesItOff() {
+        assertTrue(Visuals.create().drawsSelectionRings(), "as now");
+        assertFalse(Visuals.create().selectionRings(false).drawsSelectionRings());
+    }
 }
