@@ -209,6 +209,14 @@ when it does, this page says exactly what to change and how.
   kind are answered with the select voice, where they were silent.
 - A sound about a thing is heard from the thing's own height, and one at a place from the place's, where both were
   at height 0.
+- A mover's step is held by the still things the `ObstacleRules` put in the way and by other movers, no longer by
+  every still thing with a shape: under rules that leave a kind out of the way, movers pass through it. Under the
+  default rules every still thing is in the way, as before.
+- A ground light's sun (`Visuals.Sun`) stands at any pitch from -90 to 90 and points exactly so, where its pitch was
+  held to 0..90 and its direction to 5 degrees up at least; a thing's light named below 5 degrees now points where it
+  says.
+- An `Evacuate` is told to its container's `OrderListener`s, and an `ExitContainer` to its passenger's, after the
+  engine has applied it, where neither was told.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
   `HarvestUpdate.Data` (and `NeedsDepot`, `WaitBy`, `FramesBeforeActs`, `FramesAfterActs`), `SupplyModule.Data` and
   `SupplyDepot.Data` (and `Dock`), `WeaponFired`, `Weapon` (and its own `Bonuses`, its
@@ -225,14 +233,35 @@ when it does, this page says exactly what to change and how.
   `LevelHealthBonus`), `TextFloated`, `HitNumbers`, `WeaponSlot` (and its sources), `MomentWords` (and
   `preAttack`), `WorldSnapshot` (and `sight`, `aimMarks`, `unseenEvents`, `hiddenUnits`, `streams`), `UnitView`
   (and `remembered`, `turrets`, `lift`, `yaw`, `corners`), `CameraFrame` (and `edgeShare`), `SoundBank.Cue` (and
-  its reach and voicing), `MoveUpdate.Data` (and its surfaces and class locomotors), `ObstacleRules` (and `laid`)
-  — and every new field left out means what the old record did.
+  its reach and voicing), `MoveUpdate.Data` (and its surfaces and class locomotors), `ObstacleRules` (and `laid`),
+  `PlacementRules` (and `standsOver`), `DukeGame.StripPiece` (and its `Mapping`) — and every new field left out
+  means what the old record did. `SocketTransport` and `HostTransport` run over lines of a `LineChannel`, a socket's
+  own wrapped as one, so a game that uses sockets sees no change.
   `PlacementRules` keeps its constructors too, `siteAtOrder` left out as before.
   A template that names no prerequisite, word or cap is buildable as before; a save from before granted words and
   computer sides loads.
   `Canvas.drawPicture(Picture, …)` is a default that refuses, so a game's own canvas compiles as it did.
   `ProjectileLauncher.launch(shooter, victim, damage, type)` and `DieModule.onDie()` are still called, through the
   forms that now say more. The static `Duke3D.launch` methods are shorthand for `Duke3D.of(game, visuals)...launch()`.
+
+### Weather for a match, steps, sites, roads and low suns
+
+`DukeGame.weather(FallingWeather)` sets a match's falling weather, or clears it — kept by a game with no window and
+nothing in the checksum — drawn as camera-facing squares of its size in world units, one every one-over-density. A
+mover's step is held only by what the `ObstacleRules` put in the way. `PlacementRules.standsOver` names the kinds a
+site may stand over, and `RtsSimulation.onPlaced` (`DukeGame.onPlaced`) tells the game the frame a site is put down,
+for it to clear what the site stands over. A strip piece may lay its picture by one straight mapping of the ground
+(`StripPiece.Mapping`), cut rather than stretched. A ground light's suns stand at any pitch, level or below lighting
+only the faces turned toward them.
+
+### Holds that hear their orders, channels a game opens, and a relay with no seat
+
+An `Evacuate` and an `ExitContainer` reach the `OrderListener`s of what they name. A network session may run over a
+duplex channel of text lines the game supplies — a WebSocket through an HTTPS gateway — for a guest
+(`MultiplayerSession.join(channel)`) and for a host, one channel a guest (`host(guests, …)`); `LineChannel.pair` is
+two ends in memory. `MultiplayerRelay` relays a game it does not play: every seat a guest's, the host's decisions made
+with no simulation of its own, every message heard in order for a replay and the checksums, and the end told once
+every seat has left.
 
 ### Weapons: a locked slot, aiming, a pitch and a least range, and a wind-up
 
