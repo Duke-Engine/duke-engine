@@ -1314,6 +1314,20 @@ public final class Visuals {
             return this;
         }
 
+        /** Its wheels' corners, by bone; see {@link #wheelCorner}. */
+        final java.util.Map<String, Corner> wheelCorners = new java.util.LinkedHashMap<>();
+
+        /**
+         * Its wheel {@code bone} stands at {@code corner}: raised along its model's up by that corner's height as the
+         * game sets it ({@code GameObject.setCorners}), as well as rolled and steered — the reference's suspension,
+         * each tyre bone moved by its corner's height, a middle one by its front or back pair's ({@code
+         * W3DTruckDraw::doDrawModule}). The client's alone.
+         */
+        public UnitVisual wheelCorner(String bone, Corner corner) {
+            wheelCorners.put(bone, corner);
+            return this;
+        }
+
         /** What it plays as it dies, before the body is taken away. */
         public UnitVisual die(String animName) {
             this.dieAnim = animName;
@@ -1585,6 +1599,21 @@ public final class Visuals {
 
     /** A vehicle's treads — see {@link UnitVisual#treads}. */
     record Treads(String left, String right, float rate, float driveFraction, float pivotFraction) {
+    }
+
+    /** Which corner of a vehicle a wheel stands at — see {@link UnitVisual#wheelCorner}. */
+    public enum Corner {
+        FRONT_LEFT, FRONT_RIGHT, BACK_LEFT, BACK_RIGHT;
+
+        /** How far the wheels of this corner stand raised, of {@code corners}. */
+        float of(uz.dukeengine.core.thing.Corners corners) {
+            return switch (this) {
+                case FRONT_LEFT -> corners.frontLeft();
+                case FRONT_RIGHT -> corners.frontRight();
+                case BACK_LEFT -> corners.backLeft();
+                case BACK_RIGHT -> corners.backRight();
+            };
+        }
     }
 
     /** A vehicle's wheels — see {@link UnitVisual#wheels}; how far the front ones steer, in radians. */

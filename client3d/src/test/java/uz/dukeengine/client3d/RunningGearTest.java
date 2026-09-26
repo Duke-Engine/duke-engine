@@ -155,4 +155,36 @@ class RunningGearTest {
         assertTrue(frontAxle.x < FastMath.sin(FastMath.DEG_TO_RAD * 30f) + 1e-4f, "no further than it steers");
         assertEquals(0f, rearAxle.x, 1e-4f, "a rear tyre only rolls");
     }
+
+    /** A truck whose four tyres stand at its corners, 3 up in its frame, and the game's corners as given. */
+    private static UnitView sprung(float x, float orientation, uz.dukeengine.core.thing.Corners corners) {
+        return new UnitView(1, "Vehicle", 0, x, 0f, orientation, 100f, 100f, false, true, true, false, 0, 0f, 0f, 0f,
+                false, 0, List.of(), List.of(), 1f, -1, true, null, true, null, 0, 1f, false, 0f, false,
+                uz.dukeengine.game.view.Turrets.NONE, 0f, 0f, corners);
+    }
+
+    @Test
+    void aFrontLeftCornerSetTo2BelowDrawsThatTyre2LowerStillRollingAndSteeringAndTheRestAsTheModelHasThem() {
+        var truck = truck();
+        for (var tyre : List.of("TIRE01", "TIRE02", "TIRE03", "TIRE04")) {
+            truck.getChild(tyre).setLocalTranslation(1f, 3f, 2f);
+        }
+        var look = Visuals.create().unit("Humvee", l -> l.model("models/avhummer.glb")
+                .wheels(List.of("Tire03", "Tire04"), 1f, List.of("Tire01", "Tire02"), 30f)
+                .wheelCorner("Tire01", Visuals.Corner.FRONT_LEFT).wheelCorner("Tire02", Visuals.Corner.FRONT_RIGHT)
+                .wheelCorner("Tire03", Visuals.Corner.BACK_LEFT).wheelCorner("Tire04", Visuals.Corner.BACK_RIGHT))
+                .of("Humvee");
+        var gear = new RunningGear();
+        gear.dress(1, truck, look);
+        var level = uz.dukeengine.core.thing.Corners.LEVEL;
+        gear.see(1, sprung(0f, 0f, level), 0);
+        gear.see(1, sprung(2f, 0.2f, new uz.dukeengine.core.thing.Corners(-2f, 0f, 0f, 0f)), 1);
+
+        var frontLeft = truck.getChild("TIRE01");
+        assertEquals(new Vector3f(1f, 1f, 2f), frontLeft.getLocalTranslation(), "2 lower in the model's frame");
+        assertTrue(!frontLeft.getLocalRotation().equals(new Quaternion()), "still rolling and steering");
+        for (var tyre : List.of("TIRE02", "TIRE03", "TIRE04")) {
+            assertEquals(new Vector3f(1f, 3f, 2f), truck.getChild(tyre).getLocalTranslation(), tyre + " as it stands");
+        }
+    }
 }

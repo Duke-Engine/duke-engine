@@ -20,7 +20,8 @@ final class UnitPlacement {
     /** Where it stands, in the client's frame. */
     static Vector3f where(UnitView view, WorldMoments.Floor floor) {
         float ground = floor.at(view.x(), view.y());
-        return new Vector3f(view.x(), view.ownHeight() ? view.z() : Math.max(ground, view.z()), view.y());
+        float height = view.ownHeight() ? view.z() : Math.max(ground, view.z());
+        return new Vector3f(view.x(), height + view.lift(), view.y());
     }
 
     /**
@@ -57,9 +58,9 @@ final class UnitPlacement {
         return look.riseHeight >= 0f ? look.riseHeight : topOf(body);
     }
 
-    /** How it is turned: its facing, then its pitch, then its roll. */
+    /** How it is turned: its facing and the turn the game gives it beside it, then its pitch, then its roll. */
     static Quaternion turn(UnitView view) {
-        var facing = new Quaternion().fromAngles(0f, -view.orientation(), 0f);
+        var facing = new Quaternion().fromAngles(0f, -(view.orientation() + view.yaw()), 0f);
         if (view.pitch() == 0f && view.roll() == 0f) {
             return facing; // level, as every unit was drawn before
         }

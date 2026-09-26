@@ -29,7 +29,8 @@ import uz.dukeengine.game.view.UnitView;
  * front ones turn toward a turn, a tenth of the way each frame ({@code WHEEL_SMOOTHNESS}, {@code
  * Drawable::calcPhysicsXformWheels}). A wheel rolls about the vehicle's own side and steers about its up, found in
  * each bone's own frame, so it rolls true however the model's bones were drawn — the reference's bone y is the
- * converted model's z.
+ * converted model's z. A wheel given a corner is raised along the model's up by that corner's height, as the game sets
+ * it — the reference's suspension ({@code W3DTruckDraw::doDrawModule}, {@code Adjust_Z_Translation}).
  */
 final class RunningGear {
 
@@ -45,7 +46,8 @@ final class RunningGear {
     private record Tread(Geometry piece, float[] uvs, int stride, Side side) {
     }
 
-    private record Wheel(Spatial bone, Quaternion rest, Vector3f axle, Vector3f up, boolean front) {
+    private record Wheel(Spatial bone, Quaternion rest, Vector3f axle, Vector3f up, boolean front, Vector3f at,
+            Vector3f raised, Visuals.Corner corner) {
     }
 
     private record Dressed(List<Tread> treads, List<Wheel> wheels, Visuals.Treads treadsLook,
@@ -64,6 +66,7 @@ final class RunningGear {
         float middle;
         float roll;
         float steer;
+        uz.dukeengine.core.thing.Corners corners = uz.dukeengine.core.thing.Corners.LEVEL;
 
         Motion(int frame, UnitView view) {
             this.frame = frame;
@@ -86,7 +89,8 @@ final class RunningGear {
             return;
         }
         var parts = new Dressed(visual.treads == null ? List.of() : treads(model, visual.treads),
-                visual.wheels == null ? List.of() : wheels(model, visual.wheels), visual.treads, visual.wheels);
+                visual.wheels == null ? List.of() : wheels(model, visual.wheels, visual.wheelCorners), visual.treads,
+                visual.wheels);
         dressed.put(thing, parts);
         var motion = motions.get(thing);
         if (motion != null) {
@@ -116,6 +120,7 @@ final class RunningGear {
         motion.x = view.x();
         motion.y = view.y();
         motion.orientation = view.orientation();
+        motion.corners = view.corners();
         float distance = (float) Math.sqrt(dx * dx + dy * dy);
         boolean backwards = dx * Math.cos(view.orientation()) + dy * Math.sin(view.orientation()) < 0;
         step(motion, parts.treadsLook(), parts.wheelsLook(), backwards ? -distance : distance, turn, frames);
@@ -183,6 +188,10 @@ final class RunningGear {
             }
             turned.multLocal(new Quaternion().fromAngleNormalAxis(motion.roll, wheel.axle()));
             wheel.bone().setLocalRotation(turned);
+            if (wheel.corner() != null) {
+                float height = wheel.corner().of(motion.corners);
+                wheel.bone().setLocalTranslation(wheel.at().add(wheel.raised().mult(height)));
+            }
         }
     }
 
@@ -227,8 +236,11 @@ final class RunningGear {
         return null;
     }
 
-    /** Its wheel bones, each with the vehicle's side and up in the bone's own frame. */
-    private static List<Wheel> wheels(Spatial model, Visuals.Wheels look) {
+    /**
+     * Its wheel bones, each with the vehicle's side and up in the bone's own frame, and — for one at a corner — where
+     * it stands and the model's up in the frame it stands in.
+     */
+    private static List<Wheel> wheels(Spatial model, Visuals.Wheels look, Map<String, Visuals.Corner> corners) {
         var front = new LinkedHashMap<String, Boolean>();
         look.bones().forEach(bone -> front.putIfAbsent(bone, false));
         look.front().forEach(bone -> front.put(bone, true));
@@ -239,10 +251,24 @@ final class RunningGear {
                 return;
             }
             var intoBone = turnInModel(bone, model).inverse();
+            var corner = cornerOf(corners, name);
+            var intoParent = bone == model || bone.getParent() == null ? new Quaternion()
+                    : turnInModel(bone.getParent(), model).inverse();
             found.add(new Wheel(bone, bone.getLocalRotation().clone(), intoBone.mult(LEFT).normalizeLocal(),
-                    intoBone.mult(Vector3f.UNIT_Y).normalizeLocal(), steers));
+                    intoBone.mult(Vector3f.UNIT_Y).normalizeLocal(), steers, bone.getLocalTranslation().clone(),
+                    intoParent.mult(Vector3f.UNIT_Y).normalizeLocal(), corner));
         });
         return found;
+    }
+
+    /** The corner a wheel bone stands at, its name matched ignoring case; null for none. */
+    private static Visuals.Corner cornerOf(Map<String, Visuals.Corner> corners, String bone) {
+        for (var entry : corners.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(bone)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     /** A bone's turn in the frame the model hangs in: every turn from the model down to it, the model's facing too. */

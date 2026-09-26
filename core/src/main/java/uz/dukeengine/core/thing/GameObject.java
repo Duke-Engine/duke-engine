@@ -45,6 +45,12 @@ public final class GameObject {
     private float pitch;
     /** Banked to its right, in radians: the same. */
     private float roll;
+    /** Drawn this much above where it would be drawn: the same. */
+    private float lift;
+    /** Turned about its up beside its facing, in radians: the same. */
+    private float yaw;
+    /** How far its wheels stand raised at each corner: the same. */
+    private Corners corners = Corners.LEVEL;
     /** Whether it is drawn at its own height even under the ground; see {@link #setKeepsOwnHeight}. */
     private boolean keepsOwnHeight;
     private int playerIndex = NEUTRAL_PLAYER;
@@ -593,6 +599,39 @@ public final class GameObject {
     /** Bank it to its right by {@code roll} radians — into a turn. How it is drawn only, as {@link #setPitch}. */
     public void setRoll(float roll) {
         this.roll = roll;
+    }
+
+    public float getLift() {
+        return lift;
+    }
+
+    /**
+     * Draw it {@code lift} above where it would be drawn — a tank riding up onto what it crushes, the reference's
+     * {@code Drawable::applyPhysicsXform} lift. How it is drawn only, as {@link #setPitch}.
+     */
+    public void setLift(float lift) {
+        this.lift = lift;
+    }
+
+    public float getYaw() {
+        return yaw;
+    }
+
+    /**
+     * Turn it {@code yaw} radians about its up beside its facing, the way a thing turns — a missile's wobble, a
+     * helicopter's nose swinging. How it is drawn only, as {@link #setPitch}: its facing is untouched.
+     */
+    public void setYaw(float yaw) {
+        this.yaw = yaw;
+    }
+
+    public Corners getCorners() {
+        return corners;
+    }
+
+    /** How far its wheels stand raised at each corner, on a suspension. How it is drawn only, as {@link #setPitch}. */
+    public void setCorners(Corners corners) {
+        this.corners = corners == null ? Corners.LEVEL : corners;
     }
 
     public boolean keepsOwnHeight() {

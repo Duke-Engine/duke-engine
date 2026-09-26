@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.game.view.UnitView;
 
@@ -52,5 +53,20 @@ class UnitPlacementTest {
                 "on the ground under it, as updateUnitNode put it");
         assertEquals(new Quaternion().fromAngles(0f, -0.7f, 0f), UnitPlacement.turn(before), "turned by its facing alone");
         assertEquals(UnitPlacement.turn(before), UnitPlacement.turn(old));
+    }
+
+    /** A view of a thing standing on flat ground at no height, lifted, turned about its up and sprung as given. */
+    private static UnitView lifted(float lift, float yaw) {
+        return new UnitView(1, "Tank", 1, 30f, 40f, 0.7f, 100f, 100f, false, true, false, false, -1, 0f, 0f, 0f,
+                false, 0, List.of(), List.of(), 1f, -1, true, null, true, null, 1, 1f, false, 0f, false,
+                uz.dukeengine.game.view.Turrets.NONE, lift, yaw, uz.dukeengine.core.thing.Corners.LEVEL);
+    }
+
+    @Test
+    void aLiftOf3DrawsItAt3AndAYawOfATenthTurnsItATenthFromItsFacing() {
+        assertEquals(3f, UnitPlacement.where(lifted(3f, 0f), (x, z) -> 0f).y, 1e-6f, "drawn at 3");
+        assertEquals(new Quaternion().fromAngles(0f, -0.8f, 0f), UnitPlacement.turn(lifted(0f, 0.1f)),
+                "drawn turned 0.1 from its facing of 0.7");
+        assertEquals(0.7f, lifted(0f, 0.1f).orientation(), "its facing unchanged");
     }
 }

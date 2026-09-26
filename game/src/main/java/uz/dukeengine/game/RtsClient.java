@@ -298,7 +298,10 @@ final class RtsClient extends GameClient {
                 regard == uz.dukeengine.core.player.Relationship.ENEMIES,
                 ai == null ? 0f : ai.speedMoved(),
                 false,
-                turretsOf(object));
+                turretsOf(object),
+                object.getLift(),
+                object.getYaw(),
+                object.getCorners());
     }
 
     /** How {@code object}'s turrets stand, as its game's {@code Turret} has them; none for a thing without one. */
