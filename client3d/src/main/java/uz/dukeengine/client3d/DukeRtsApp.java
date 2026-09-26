@@ -874,6 +874,7 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         worldRegion.applyTo(cam, cameraFrame.fieldOfView());
+        camera.viewShape(cam.getFrustumTop() / cam.getFrustumNear());
         laidRegion = worldRegion;
         laidRegionFor = size;
         surround.getCamera().resize(cam.getWidth(), cam.getHeight(), false);

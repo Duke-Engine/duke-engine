@@ -376,4 +376,56 @@ class CameraFocusTest {
         assertEquals(STEP * (1f - (float) Math.pow(0.7, 10)), 509f - camera.distance(), 1e-3f,
                 "97% of it, 16.0, after ten");
     }
+
+    // ---- kept back from the edges ----
+
+    /** The reference's camera: 37.5 down, 50 across a world region of 800 by 480, kept in by 0.95 of its height. */
+    private static CameraFocus heldInBy(float back, float zoomEase, float wheelStep) {
+        var camera = new CameraFocus();
+        camera.frame(new CameraFrame(37.5f, 50f, 100f, 600f, back, wheelStep, Float.NaN, Float.NaN, Float.NaN,
+                Float.NaN, Float.NaN, zoomEase, 0.95f));
+        camera.viewShape((float) Math.tan(Math.toRadians(25.0)) * 480f / 800f);
+        camera.keepInside(2390f, 2590f);
+        return camera;
+    }
+
+    @Test
+    void atItsHighestThePointLookedAtIsHeld158InFromEachEdge() {
+        var camera = heldInBy(509.2f, Float.NaN, Float.NaN);
+        camera.lookAt(0f, 0f);
+        assertEquals(158.6f, camera.targetX(), 0.05f);
+        assertEquals(158.6f, camera.targetZ(), 0.05f);
+        camera.lookAt(5000f, 5000f);
+        assertEquals(2231.4f, camera.targetX(), 0.05f);
+        assertEquals(2431.4f, camera.targetZ(), 0.05f);
+    }
+
+    @Test
+    void atItsLowestBy61AndTurnedTheSame() {
+        assertEquals(61.4f, heldInBy(197.1f, Float.NaN, Float.NaN).inset(), 0.05f);
+        var turned = heldInBy(509.2f, Float.NaN, Float.NaN);
+        turned.turnBy((float) Math.PI / 2f);
+        turned.lookAt(0f, 0f);
+        assertEquals(158.6f, turned.targetX(), 0.05f, "the same on every side, whichever way it is turned");
+        var free = new CameraFocus();
+        free.keepInside(2390f, 2590f);
+        free.lookAt(0f, 0f);
+        assertEquals(0f, free.targetX(), "unset: kept on the map, as ever");
+    }
+
+    @Test
+    void aNotchKeepsTheInsetWhileTheEyeEasesAndTheNextWorksItOutFromWhereTheEyeIs() {
+        var camera = heldInBy(509.2f, 0.3f, 100f);
+        camera.lookAt(0f, 0f);
+        camera.wheel(true);
+        for (int frame = 0; frame < 5; frame++) {
+            camera.approach(1f / 30f);
+            assertEquals(158.6f, camera.inset(), 0.05f, "as it eases in");
+        }
+        float eye = camera.distance();
+        camera.wheel(true);
+        assertEquals(CameraFocus.inset((float) Math.toRadians(37.5), eye,
+                (float) Math.tan(Math.toRadians(25.0)) * 0.6f, 0.95f), camera.inset(), 1e-3f, "from where it then is");
+        assertTrue(camera.inset() < 158f);
+    }
 }

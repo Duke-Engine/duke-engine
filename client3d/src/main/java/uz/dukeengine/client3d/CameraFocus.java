@@ -71,6 +71,12 @@ final class CameraFocus {
     private boolean wantsOwnUnit;
     private float groundWidth;
     private float groundHeight;
+    /** The share of the view's height down to the point the edges are kept in by; NaN keeps the point on the map. */
+    private float edgeShare = Float.NaN;
+    /** The tangent of half the view's height, as the camera is laid into its part of the window; 0 before it is. */
+    private float tanHalfHeight;
+    /** How far in from each edge the point looked at is kept, as last worked out. */
+    private float inset;
 
     /**
      * Framed as the game says — see {@link CameraFrame}: its pitch, how near and far it may come, where it starts, how
@@ -88,7 +94,42 @@ final class CameraFocus {
         turnSpeed = frame.turnSpeed();
         zoomSpeed = frame.zoomSpeed();
         zoomEase = frame.zoomEase();
+        edgeShare = frame.edgeShare();
         resetView();
+    }
+
+    /** The view's shape as the camera is now laid: the tangent of half its height, which the edges are worked by. */
+    void viewShape(float tanHalfHeight) {
+        this.tanHalfHeight = tanHalfHeight;
+        keepBackFromTheEdges();
+    }
+
+    /**
+     * How far in from each edge of the map the point looked at is kept — the reference's {@code
+     * W3DView::calcCameraConstraints}: the ground between the points under the view's middle and under a point {@code
+     * share} of its height down, both on the level plane of the point looked at, for an eye {@code distance} back along
+     * a line of sight {@code pitch} radians down.
+     */
+    static float inset(float pitch, float distance, float tanHalfHeight, float share) {
+        float below = FastMath.atan((2f * share - 1f) * tanHalfHeight);
+        float along = distance * FastMath.cos(pitch);
+        float lower = pitch + below;
+        if (lower >= FastMath.HALF_PI) {
+            return along; // the lower point is under the eye or behind it
+        }
+        return along - distance * FastMath.sin(pitch) / FastMath.tan(lower);
+    }
+
+    /** The eye's distance was set: how far in the edges keep the point worked out again, from the eye as it stands. */
+    private void keepBackFromTheEdges() {
+        inset = Float.isNaN(edgeShare) || tanHalfHeight <= 0f ? 0f
+                : Math.max(0f, inset(pitch, distance, tanHalfHeight, edgeShare));
+        keepOnTheGround();
+    }
+
+    /** How far in from each edge of the map the point looked at is kept now. */
+    float inset() {
+        return inset;
     }
 
     /** Look here — used before there is a world, and by the minimap. */
@@ -121,8 +162,13 @@ final class CameraFocus {
         if (groundWidth <= 0f || groundHeight <= 0f) {
             return;
         }
-        targetX = Math.clamp(targetX, 0f, groundWidth);
-        targetZ = Math.clamp(targetZ, 0f, groundHeight);
+        targetX = keptIn(targetX, groundWidth);
+        targetZ = keptIn(targetZ, groundHeight);
+    }
+
+    /** Along one side of the map: at least the inset from either edge, or its middle where the two insets meet. */
+    private float keptIn(float at, float side) {
+        return inset * 2f >= side ? side / 2f : Math.clamp(at, inset, side - inset);
     }
 
     /**
@@ -201,6 +247,7 @@ final class CameraFocus {
         if (!eases()) {
             distance = aimed;
         }
+        keepBackFromTheEdges();
     }
 
     private boolean eases() {
@@ -226,6 +273,7 @@ final class CameraFocus {
         yaw = 0f;
         distance = start;
         aimed = start;
+        keepBackFromTheEdges();
     }
 
     /** Where it looks, which way it is turned and how far back it stands: what a bookmark keeps. */
@@ -243,7 +291,7 @@ final class CameraFocus {
         yaw = view.yaw();
         distance = Math.clamp(view.distance(), nearest, furthest);
         aimed = distance;
-        keepOnTheGround();
+        keepBackFromTheEdges();
     }
 
     float yaw() {

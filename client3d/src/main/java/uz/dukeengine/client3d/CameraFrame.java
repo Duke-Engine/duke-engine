@@ -31,10 +31,22 @@ package uz.dukeengine.client3d;
  * @param zoomEase     the share of the way to where the wheel and the zoom keys set it that the eye closes each
  *                     thirtieth of a second — the reference's {@code CameraAdjustSpeed}, 0.3; the client's own lands
  *                     there at once
+ * @param edgeShare    how far in from each edge of the map the point looked at is kept: by the ground between the
+ *                     points under the view's middle and under a point this share of its height down, both on the
+ *                     level plane of the point looked at — the reference's 0.95 ({@code
+ *                     W3DView::calcCameraConstraints}) — worked out whenever the eye's distance is set; the client's
+ *                     own keeps the point on the map
  */
 public record CameraFrame(float pitch, float fieldOfView, float nearest, float furthest, float start,
         float wheelStep, float turnPerPixel, float panAcross, float panAlong, float turnSpeed, float zoomSpeed,
-        float zoomEase) {
+        float zoomEase, float edgeShare) {
+
+    /** A frame that keeps the point looked at on the map, as frames did before an edge could keep it further in. */
+    public CameraFrame(float pitch, float fieldOfView, float nearest, float furthest, float start, float wheelStep,
+            float turnPerPixel, float panAcross, float panAlong, float turnSpeed, float zoomSpeed, float zoomEase) {
+        this(pitch, fieldOfView, nearest, furthest, start, wheelStep, turnPerPixel, panAcross, panAlong, turnSpeed,
+                zoomSpeed, zoomEase, Float.NaN);
+    }
 
     /** Nothing framed: the client's own camera, as it always was. */
     public static final CameraFrame NONE = new CameraFrame(Float.NaN, Float.NaN, Float.NaN, Float.NaN, Float.NaN,
