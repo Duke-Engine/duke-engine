@@ -30,13 +30,17 @@ import uz.dukeengine.rts.player.RtsPlayer;
  */
 public final class ConstructionSite extends UpdateModule {
 
+    /** How near 1 its work may add up to and be whole: what adding a length's shares in doubles may fall short by. */
+    private static final double WHOLE = 1e-9;
+
     /** Whose work raises it: the builder that put it down, or the last to take it up. */
     private ObjectId builder;
     private final int cost;
     private final PlacementRules rules;
-    /** Whole frames of a builder's work it takes, from the template's build time. */
+    /** Whole frames of a builder's work it takes, from the template's build time, where no module says otherwise. */
     private final int frames;
-    private int worked;
+    /** How much of its work is done, 0 to 1: each frame worked adds one over the length of that frame. */
+    private double work;
 
     ConstructionSite(GameObject site, ObjectId builder, int cost, PlacementRules rules) {
         super(site);
@@ -55,7 +59,12 @@ public final class ConstructionSite extends UpdateModule {
 
     /** How far along, from 0 to 1. */
     public float progress() {
-        return worked / (float) frames;
+        return (float) Math.min(1.0, work);
+    }
+
+    /** How many frames of work it takes this frame: as a {@link uz.dukeengine.rts.module.BuildLength} of it says. */
+    private int length() {
+        return Math.max(1, uz.dukeengine.rts.module.BuildLength.of(getOwner(), getOwner().getTemplate(), frames));
     }
 
     public boolean isFinished() {
@@ -108,12 +117,13 @@ public final class ConstructionSite extends UpdateModule {
         site.clearCondition(words.awaiting());
         site.setCondition(words.partlyBuilt());
         site.setCondition(words.beingBuilt());
-        worked++;
+        int length = length(); // this frame's, as the reference's DozerActionDoActionState asks calcTimeToBuild
+        work += 1.0 / length;
         var body = site.getBody();
         if (body != null) {
-            body.heal(body.getMaxHealth() * (1f - rules.startShare()) / frames);
+            body.heal(body.getMaxHealth() * (1f - rules.startShare()) / length);
         }
-        if (worked >= frames) {
+        if (work >= 1.0 - WHOLE) {
             site.clearCondition(words.partlyBuilt());
             site.clearCondition(words.beingBuilt());
             site.clearStatus(ObjectStatus.UNDER_CONSTRUCTION);

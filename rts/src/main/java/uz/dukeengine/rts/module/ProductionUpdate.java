@@ -168,14 +168,16 @@ public final class ProductionUpdate extends UpdateModule {
         final java.util.Map<ProductionReservation, Object> tokens;
         /** The door it goes out by, the first 0. */
         final int door;
-        int framesRemaining;
+        /** The frames it has run: those its gates let the line move. */
+        int ran;
+        /** Whether it has run its length: finished, though it may yet wait for the way out. */
+        boolean done;
 
         Job(ThingTemplate unit, Upgrade research, int frames, int paid, int id,
                 java.util.Map<ProductionReservation, Object> tokens, int door) {
             this.unit = unit;
             this.research = research;
             this.frames = frames;
-            this.framesRemaining = frames;
             this.paid = paid;
             this.id = id;
             this.tokens = tokens;
@@ -492,10 +494,18 @@ public final class ProductionUpdate extends UpdateModule {
         var entries = new ArrayList<Queued>(queue.size());
         for (int at = 0; at < queue.size(); at++) {
             var job = queue.get(at);
-            float progress = at == 0 ? 1f - job.framesRemaining / (float) job.frames : 0f;
+            float progress = at != 0 ? 0f : job.done ? 1f : Math.min(1f, job.ran / (float) lengthOf(job));
             entries.add(new Queued(job.unit, job.research, progress, job.id));
         }
         return entries;
+    }
+
+    /**
+     * How many frames {@code job} takes now: a unit as the factory's {@link BuildLength} says this frame, research —
+     * and a unit none says anything of — its own.
+     */
+    private int lengthOf(Job job) {
+        return job.unit == null ? job.frames : Math.max(1, BuildLength.of(getOwner(), job.unit, job.frames));
     }
 
     /**
@@ -539,10 +549,11 @@ public final class ProductionUpdate extends UpdateModule {
         if (!gatesAllow()) {
             return; // something attached to this factory is holding the line
         }
-        if (head.framesRemaining > 0) {
-            head.framesRemaining--;
+        if (!head.done) {
+            head.ran++;
+            head.done = head.ran >= lengthOf(head); // the length of this frame, as the reference's ProductionUpdate
         }
-        if (head.framesRemaining > 0) {
+        if (!head.done) {
             return;
         }
 
