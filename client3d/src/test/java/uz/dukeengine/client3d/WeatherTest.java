@@ -81,4 +81,27 @@ class WeatherTest {
                 "MatDefs/duke/Flakes.j3md").getMaterialDef();
         assertTrue(flakes.getMaterialParam("Picture") != null && flakes.getMaterialParam("ViewHeight") != null);
     }
+
+    // ---- set for a match ----
+
+    private static final uz.dukeengine.game.view.FallingWeather SNOW = new uz.dukeengine.game.view.FallingWeather(
+            "weather/flake.png", 100f, 1f, 3f, 4f, 0.0533f, 0.0275f, 0.5f);
+
+    @Test
+    void aMatchsSnowFallsRoundTheCameraAsSquaresOfItsSizeAndClearedIsNone() {
+        var look = WeatherLook.of(SNOW);
+        assertEquals(1f, look.spacing(), "one every 1/density");
+        assertEquals(0.5f, look.square());
+        var weather = new Weather(look);
+        assertEquals(10000, weather.count(), "round the camera");
+        float first = weather.lay(0f, 50f, 0f)[1];
+        weather.step(30);
+        float fell = first - weather.lay(0f, 50f, 0f)[1];
+        assertEquals(3f * 30 * Weather.FRAME_SECONDS, fell < 0f ? fell + 100f : fell, 1e-3f, "speed times time");
+
+        float tanHalf = (float) Math.tan(Math.toRadians(22.5));
+        assertEquals(720f * 0.5f / (2f * 10f * tanHalf), Weather.scale(look, tanHalf) * 720f / 10f, 1e-3f,
+                "a square of 0.5 at 10 from the eye spans as many pixels as the view shows it");
+        assertEquals(null, WeatherLook.of(null), "cleared: none");
+    }
 }

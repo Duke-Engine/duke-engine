@@ -1292,6 +1292,23 @@ public final class DukeGame {
         return this;
     }
 
+    private volatile uz.dukeengine.game.view.FallingWeather weather;
+
+    /**
+     * The weather falling over the view in this match — see {@link uz.dukeengine.game.view.FallingWeather}; null
+     * clears it. Drawing only: nothing in the simulation or the checksum, and a game run without a window keeps it
+     * and draws nothing. From any thread.
+     */
+    public DukeGame weather(uz.dukeengine.game.view.FallingWeather weather) {
+        this.weather = weather;
+        return this;
+    }
+
+    /** The weather falling over the view in this match, or null for none. */
+    public uz.dukeengine.game.view.FallingWeather getWeather() {
+        return weather;
+    }
+
     /** Show (or clear with "") a big centered message in the game window. */
     public void setBanner(String banner) {
         if (client != null) {

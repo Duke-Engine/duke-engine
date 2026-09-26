@@ -89,8 +89,20 @@ final class Weather {
                 look.mostPixels());
     }
 
-    /** Drawn under {@code parent}, round an eye there, in a view {@code viewHeight} pixels high. */
-    void show(AssetManager assets, Node parent, float eyeX, float eyeHeight, float eyeZ, float viewHeight) {
+    /**
+     * The size a flake's pixels are reckoned from, {@code tanHalfHeight} the tangent of half the view's height: the
+     * look's own, or for a square of world units the pixels it spans per unit of view height over its distance.
+     */
+    static float scale(WeatherLook look, float tanHalfHeight) {
+        return look.square() > 0f ? look.square() / (2f * Math.max(tanHalfHeight, 1e-6f)) : look.size();
+    }
+
+    /**
+     * Drawn under {@code parent}, round an eye there, in a view {@code viewHeight} pixels high, {@code
+     * tanHalfHeight} the tangent of half its height.
+     */
+    void show(AssetManager assets, Node parent, float eyeX, float eyeHeight, float eyeZ, float viewHeight,
+            float tanHalfHeight) {
         if (flakes == null) {
             var mesh = new Mesh();
             mesh.setMode(Mesh.Mode.Points);
@@ -98,7 +110,7 @@ final class Weather {
             mesh.setDynamic();
             var material = new Material(assets, "MatDefs/duke/Flakes.j3md");
             material.setTexture("Picture", assets.loadTexture(look.picture()));
-            material.setFloat("Size", look.size());
+            material.setFloat("Size", scale(look, tanHalfHeight));
             material.setFloat("Least", look.leastPixels());
             material.setFloat("Most", look.mostPixels());
             material.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Alpha);
@@ -117,6 +129,7 @@ final class Weather {
         flakes.getMesh().getBuffer(VertexBuffer.Type.Position).updateData(buffer);
         flakes.getMesh().updateBound();
         flakes.getMaterial().setFloat("ViewHeight", viewHeight);
+        flakes.getMaterial().setFloat("Size", scale(look, tanHalfHeight));
     }
 
     /** Taken out of the scene. */

@@ -820,11 +820,23 @@ final class DukeRtsApp extends SimpleApplication {
         this.scrollSpeed = Math.max(0f, share);
     }
 
-    /** The weather falling round the camera, and the game's frame it last fell to — see {@link Duke3D#weather}. */
+    /**
+     * The weather falling round the camera, and the game's frame it last fell to: the match's where its game set one
+     * ({@link uz.dukeengine.game.DukeGame#weather}), else the client's ({@link Duke3D#weather}).
+     */
     private Weather weather;
     private int weatherFrame = -1;
+    private WeatherLook clientWeather;
+    private uz.dukeengine.game.view.FallingWeather matchWeather;
 
     void weather(WeatherLook look) {
+        clientWeather = look;
+        if (matchWeather == null) {
+            fall(look);
+        }
+    }
+
+    private void fall(WeatherLook look) {
         if (weather != null) {
             weather.remove();
         }
@@ -834,6 +846,11 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** The weather falls by the frames of the game gone by since the last — none while paused — round the eye. */
     private void letItFall() {
+        var set = game.getWeather();
+        if (set != matchWeather) {
+            matchWeather = set;
+            fall(set != null ? WeatherLook.of(set) : clientWeather);
+        }
         if (weather == null || snapshot == null) {
             return;
         }
@@ -843,7 +860,8 @@ final class DukeRtsApp extends SimpleApplication {
         weatherFrame = snapshot.frame();
         var eye = cam.getLocation();
         float viewHeight = cam.getHeight() * (cam.getViewPortTop() - cam.getViewPortBottom());
-        weather.show(assetManager, rootNode, eye.x, eye.y, eye.z, viewHeight);
+        weather.show(assetManager, rootNode, eye.x, eye.y, eye.z, viewHeight,
+                cam.getFrustumTop() / cam.getFrustumNear());
     }
 
     void shadows(boolean on) {
