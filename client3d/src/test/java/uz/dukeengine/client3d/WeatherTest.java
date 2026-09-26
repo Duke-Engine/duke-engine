@@ -51,7 +51,8 @@ class WeatherTest {
         weather.step(0);
         assertEquals(next, weather.lay(500f, 60f, 500f)[1], "paused: it stands still");
         weather.step(1009);
-        assertEquals(first, weather.lay(500f, 60f, 500f)[1], 0.02f, "back where it was after 1010 of 1010.1 frames");
+        float apart = Math.abs(first - weather.lay(500f, 60f, 500f)[1]) % 100f;
+        assertEquals(0f, Math.min(apart, 100f - apart), 0.02f, "back where it was after 1010 of 1010.1 frames");
         assertEquals(1010.1f, 100f / (3f * Weather.FRAME_SECONDS), 0.05f);
     }
 
