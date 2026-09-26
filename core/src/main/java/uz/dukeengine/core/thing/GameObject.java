@@ -452,14 +452,21 @@ public final class GameObject {
      * from the simulation, and alike on every machine.
      */
     public void setCondition(String word) {
-        if (word != null && !word.isBlank()) {
-            conditions.add(word);
+        if (word != null && !word.isBlank() && conditions.add(word)) {
+            wordsOfAStillThingChanged();
         }
     }
 
     public void clearCondition(String word) {
-        if (word != null) {
-            conditions.remove(word);
+        if (word != null && conditions.remove(word)) {
+            wordsOfAStillThingChanged();
+        }
+    }
+
+    /** A still thing's words changed: what it lays over its footprint, a ruin's rubble, is laid again. */
+    private void wordsOfAStillThingChanged() {
+        if (world != null && !isMobile()) {
+            world.stillThingsWordsChanged();
         }
     }
 

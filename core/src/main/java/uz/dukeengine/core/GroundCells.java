@@ -247,8 +247,8 @@ final class GroundCells {
      * and — where the place itself is out of its reach — those the place is joined to, beyond whatever is in the way.
      */
     private Predicate<Block> reachFor(GameObject mover, Coord3D place) {
-        var zones = world.zones();
-        var grid = world.getPathGrid();
+        var grid = world.gridFor(mover);
+        var zones = world.zonesOf(grid);
         int fromX = grid.toCellX(mover.getPosition());
         int fromY = grid.toCellY(mover.getPosition());
         if (zones == null || zones.zoneOf(fromX, fromY) < 0) {
@@ -266,7 +266,7 @@ final class GroundCells {
      * held as a goal by no ally, nor stood on still by an enemy it cannot run over ({@code Pathfinder::checkDestination}).
      */
     boolean mayHold(GameObject mover, Block block) {
-        var grid = world.getPathGrid();
+        var grid = world.gridFor(mover); // its classes of ground open to it
         int id = mover.getId().value();
         for (int cy = block.minY(); cy <= block.maxY(); cy++) {
             for (int cx = block.minX(); cx <= block.maxX(); cx++) {
@@ -294,8 +294,8 @@ final class GroundCells {
 
     /** Whether {@code mover} can walk to the block, as the grid's zones say; a mover standing in stone can go anywhere. */
     private boolean reachable(GameObject mover, Block block) {
-        var zones = world.zones();
-        var grid = world.getPathGrid();
+        var grid = world.gridFor(mover);
+        var zones = world.zonesOf(grid);
         var at = mover.getPosition();
         int fromX = grid.toCellX(at);
         int fromY = grid.toCellY(at);

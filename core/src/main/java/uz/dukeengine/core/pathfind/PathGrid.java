@@ -51,6 +51,14 @@ import uz.dukeengine.core.math.Coord3D;
  * gets on and off only at the deck's entries ({@link #enters}), and stands at its floor's height ({@link #heightOn}).
  * The ground under a deck standing lower than {@link #setDeckClearance} above it is closed to the ground's walkers;
  * higher, it stays as it was, and things pass under while others drive over.
+ *
+ * <p><b>Classes of ground.</b> A cell may hold a class the game names ({@link #setGroundClass}) — the reference's
+ * cell types, cliff, water, rubble ({@code PathfindCell::setType}) — and a still thing may lay one over its footprint
+ * instead of blocking it. A cell of a class is blocked as stone is to whatever may not enter that class, and open to
+ * what may: {@link #passage} is the grid as a mover that may enter some classes sees it, sharing every layer with it,
+ * for its routes, zones, steps and width to read; the grid itself is what one that may enter none sees. A relief's
+ * cliffs hold the class the game names for them ({@link #setCliffClass}), or none: stone to every mover, as they always
+ * were.
  */
 public final class PathGrid {
 
@@ -63,6 +71,17 @@ public final class PathGrid {
     private final boolean[] blocked;         // terrain: authored by the map, never changes
     private final boolean[] obstacle;        // objects: the committed layer everyone reads
     private final boolean[] obstacleScratch; // objects: the layer being rebuilt
+    private final byte[] groundClass;        // the class of ground the map laid on each cell; 0 for plain
+    private final byte[] laid;               // the class the still things laid over each cell; 0 for none
+    private final byte[] laidScratch;        // the same, being rebuilt with the obstacles
+    /** The classes' names, class c at c - 1. */
+    private final java.util.List<String> classNames;
+    /** The grid a passage looks at, or null for the grid itself. */
+    private final PathGrid root;
+    /** The classes a passage's mover may enter, class c as bit c; none for the grid itself. */
+    private final int surfaces;
+    /** The class a relief's cliffs hold; 0 for none, stone to every mover. */
+    private int cliffClass;
     private int obstacleVersion;
     /** Bumped whenever anything that decides where can be walked changes: see {@link #getShapeVersion}. */
     private int shapeVersion;
@@ -71,7 +90,7 @@ public final class PathGrid {
     private float levelHeight;               // world units per level; 0 = the world is flat
     private HeightMap relief;                // smooth ground over the levels; null = none
     // Laid on the simulation thread, read by a client's pointer on its own: a list either can walk without the other.
-    private final java.util.List<Deck> decks = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<Deck> decks;
     /** How high a deck must stand over the ground for the ground under it to stay open: the reference's 10. */
     private float deckClearance = 10f;
     /** For each ground cell, how many open decks stand too low over it for it to be walked; null with no deck. */
@@ -93,8 +112,138 @@ public final class PathGrid {
         this.blocked = new boolean[width * height];
         this.obstacle = new boolean[width * height];
         this.obstacleScratch = new boolean[width * height];
+        this.groundClass = new byte[width * height];
+        this.laid = new byte[width * height];
+        this.laidScratch = new byte[width * height];
+        this.classNames = new java.util.concurrent.CopyOnWriteArrayList<>();
+        this.root = null;
+        this.surfaces = 0;
         this.level = new int[width * height];
         this.ramp = new boolean[width * height];
+        this.decks = new java.util.concurrent.CopyOnWriteArrayList<>();
+    }
+
+    /** {@code grid} as a mover that may enter the classes {@code surfaces} sees it: every layer its. */
+    private PathGrid(PathGrid grid, int surfaces) {
+        this.width = grid.width;
+        this.height = grid.height;
+        this.cellSize = grid.cellSize;
+        this.blocked = grid.blocked;
+        this.obstacle = grid.obstacle;
+        this.obstacleScratch = grid.obstacleScratch;
+        this.groundClass = grid.groundClass;
+        this.laid = grid.laid;
+        this.laidScratch = grid.laidScratch;
+        this.classNames = grid.classNames;
+        this.root = grid;
+        this.surfaces = surfaces;
+        this.cliffClass = grid.cliffClass;
+        this.level = grid.level;
+        this.ramp = grid.ramp;
+        this.levelHeight = grid.levelHeight;
+        this.relief = grid.relief;
+        this.decks = grid.decks;
+        this.deckClearance = grid.deckClearance;
+        this.closedUnder = grid.closedUnder;
+    }
+
+    // ---- classes of ground ----
+
+    /**
+     * The grid as a mover that may enter the classes {@code surfaces} sees it ({@link #surfacesOf}): a cell of one of
+     * them open to it, one of any other blocked. The grid itself for none. A passage is read, never written: laid as
+     * the grid stands when it is asked for, for one search or one step.
+     */
+    public PathGrid passage(int surfaces) {
+        var grid = root == null ? this : root;
+        return surfaces == 0 ? grid : new PathGrid(grid, surfaces);
+    }
+
+    /** The grid a passage looks at, or this grid. */
+    public PathGrid root() {
+        return root == null ? this : root;
+    }
+
+    /** The classes this grid is seen as entering: none for the grid itself. */
+    public int surfaces() {
+        return surfaces;
+    }
+
+    /** The bits of the classes named — {@code [CLIFF, RUBBLE]} — each given a class of its own the first time. */
+    public int surfacesOf(java.util.Collection<String> names) {
+        int bits = 0;
+        for (var name : names) {
+            int c = classOf(name);
+            if (c > 0) {
+                bits |= 1 << c;
+            }
+        }
+        return bits;
+    }
+
+    /** The class of that name, 1 for the first named; 0 for none or for more than thirty. */
+    public int classOf(String name) {
+        if (name == null || name.isEmpty()) {
+            return 0;
+        }
+        var names = root().classNames;
+        synchronized (names) {
+            int at = names.indexOf(name);
+            if (at < 0) {
+                if (names.size() >= 30) {
+                    return 0;
+                }
+                names.add(name);
+                at = names.size() - 1;
+            }
+            return at + 1;
+        }
+    }
+
+    /** Lay the class of that name on a cell, as the map says; null for plain ground. */
+    public void setGroundClass(int cx, int cy, String name) {
+        if (!inBounds(cx, cy)) {
+            return;
+        }
+        byte c = (byte) classOf(name);
+        if (groundClass[cy * width + cx] != c) {
+            groundClass[cy * width + cx] = c;
+            root().shapeVersion++;
+        }
+    }
+
+    /** The class a relief's cliffs hold, by name; null for none — stone to every mover. */
+    public void setCliffClass(String name) {
+        root().cliffClass = classOf(name);
+        root().shapeVersion++;
+    }
+
+    /**
+     * The name of the class of ground on a cell: what a still thing laid over it, else what the map laid, else a
+     * cliff's where the relief makes one and the game names theirs; null for plain ground.
+     */
+    public String groundClassAt(int cx, int cy) {
+        if (!inBounds(cx, cy)) {
+            return null;
+        }
+        int index = cy * width + cx;
+        int c = laid[index] != 0 ? laid[index] : groundClass[index];
+        if (c == 0 && cliffClass != 0 && relief != null && relief.isCliff(cx, cy)) {
+            c = cliffClass;
+        }
+        return c == 0 ? null : root().classNames.get(c - 1);
+    }
+
+    /** Lay a class over a cell for the still thing standing on it, instead of blocking it. Between begin and commit. */
+    public void setLaid(int cx, int cy, String name) {
+        if (inBounds(cx, cy)) {
+            laidScratch[cy * width + cx] = (byte) classOf(name);
+        }
+    }
+
+    /** Whether this grid's mover may enter class {@code c}. */
+    private boolean mayEnter(int c) {
+        return c != 0 && (surfaces & (1 << c)) != 0;
     }
 
     public int getWidth() {
@@ -103,6 +252,9 @@ public final class PathGrid {
 
     /** The ground movers standing on its cells and going to them — see {@link MoverCells}. */
     public MoverCells movers() {
+        if (root != null) {
+            return root.movers();
+        }
         if (movers == null) {
             movers = new MoverCells(width, height);
         }
@@ -130,7 +282,11 @@ public final class PathGrid {
             return true;
         }
         int index = cy * width + cx;
-        return blocked[index] || obstacle[index] || closedUnder != null && closedUnder[index] > 0;
+        if (blocked[index] || obstacle[index] || closedUnder != null && closedUnder[index] > 0) {
+            return true;
+        }
+        int c = laid[index] != 0 ? laid[index] : groundClass[index];
+        return c != 0 && !mayEnter(c); // ground of a class it may not enter
     }
 
     /** Whether the <em>map</em> forbids this cell, ignoring anything standing on it. */
@@ -158,6 +314,7 @@ public final class PathGrid {
      */
     public void beginObstacles() {
         java.util.Arrays.fill(obstacleScratch, false);
+        java.util.Arrays.fill(laidScratch, (byte) 0);
     }
 
     /** Mark a cell as occupied. Only meaningful between begin and commit. */
@@ -177,10 +334,11 @@ public final class PathGrid {
      * rebuild keeps everything that watches for changes quiet.
      */
     public void commitObstacles() {
-        if (java.util.Arrays.equals(obstacle, obstacleScratch)) {
+        if (java.util.Arrays.equals(obstacle, obstacleScratch) && java.util.Arrays.equals(laid, laidScratch)) {
             return;
         }
         System.arraycopy(obstacleScratch, 0, obstacle, 0, obstacle.length);
+        System.arraycopy(laidScratch, 0, laid, 0, laid.length);
         obstacleVersion++;
         shapeVersion++;
     }
@@ -190,7 +348,7 @@ public final class PathGrid {
      * level or a ramp, the relief's cliffs. What {@link Zones} are recomputed by.
      */
     public int getShapeVersion() {
-        return shapeVersion;
+        return root == null ? shapeVersion : root.shapeVersion;
     }
 
     // ---- height ----
@@ -369,16 +527,19 @@ public final class PathGrid {
      * <p>On a flat grid the level test is {@code 0 == 0} for every pair, so this
      * is the passability check that was here before it.
      */
-    /** Whether the relief makes this cell a cliff, which nothing can step onto. */
+    /**
+     * Whether the relief makes this cell a cliff, which nothing can step onto — nothing but a mover that may enter the
+     * class the game names for cliffs.
+     */
     public boolean isCliff(int cx, int cy) {
-        return relief != null && relief.isCliff(cx, cy);
+        return relief != null && relief.isCliff(cx, cy) && !mayEnter(cliffClass);
     }
 
     public boolean canStep(int fromX, int fromY, int toX, int toY) {
         if (isBlocked(fromX, fromY) || isBlocked(toX, toY)) {
             return false;
         }
-        if (relief != null && relief.isCliff(toX, toY)) {
+        if (isCliff(toX, toY)) {
             return false;
         }
         int climb = level(toX, toY) - level(fromX, fromY);
@@ -397,7 +558,7 @@ public final class PathGrid {
      * planned may no longer be valid.
      */
     public int getObstacleVersion() {
-        return obstacleVersion;
+        return root == null ? obstacleVersion : root.obstacleVersion;
     }
 
     /** Block the cell containing the given world position. */

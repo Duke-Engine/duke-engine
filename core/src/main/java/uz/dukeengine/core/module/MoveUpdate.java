@@ -104,10 +104,17 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
      *                            dozers first, which a game marks with a higher number; of two alike, one on wheels or
      *                            treads before one on legs ({@code AIUpdateInterface::hasHigherPathPriority})
      * @param movePriority        where in a group's columns it goes — see {@link MovePriority}; the front unless set
+     * @param surfaces            the classes of ground it may enter besides plain ground — the reference's locomotor
+     *                            {@code Surfaces} — {@code [RUBBLE]} for infantry; none, plain ground only
+     * @param classLocomotors     its locomotor on a class of ground, by the class — a commando's cliff locomotor,
+     *                            climbing at 20 where he walks at 30 ({@code
+     *                            chooseGoodLocomotorFromCurrentSet}): moved by while the cell under it is of that
+     *                            class, and a class it may enter besides
      */
     public record Data(float speed, float turnRate, float acceleration, float braking, float accelerationDamaged,
             float brakingDamaged, float damagedBelow, float minSpeed, float minTurnSpeed, float closeEnough,
-            boolean canMoveBackwards, Gait gait, int pathPriority, MovePriority movePriority) implements ModuleData {
+            boolean canMoveBackwards, Gait gait, int pathPriority, MovePriority movePriority, List<String> surfaces,
+            java.util.Map<String, Data> classLocomotors) implements ModuleData {
 
         /** What a block leaves out: at once, arriving within 1, damaged under a tenth, moving as things always moved. */
         static final Data DEFAULTS = new Data(0f, 0f, 0f, 0f, 0f, 0f, 0.1f, 0f, 0f, 1f, false, Gait.OTHER, 0,
@@ -117,6 +124,18 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
             gait = gait == null ? Gait.OTHER : gait;
             closeEnough = closeEnough <= 0f ? 1f : closeEnough;
             movePriority = movePriority == null ? MovePriority.FRONT : movePriority;
+            surfaces = surfaces == null ? List.of() : List.copyOf(surfaces);
+            classLocomotors = classLocomotors == null ? java.util.Map.of()
+                    : java.util.Collections.unmodifiableMap(new java.util.TreeMap<>(classLocomotors));
+        }
+
+        /** Plain ground only: every locomotor from before ground could have classes. */
+        public Data(float speed, float turnRate, float acceleration, float braking, float accelerationDamaged,
+                float brakingDamaged, float damagedBelow, float minSpeed, float minTurnSpeed, float closeEnough,
+                boolean canMoveBackwards, Gait gait, int pathPriority, MovePriority movePriority) {
+            this(speed, turnRate, acceleration, braking, accelerationDamaged, brakingDamaged, damagedBelow, minSpeed,
+                    minTurnSpeed, closeEnough, canMoveBackwards, gait, pathPriority, movePriority, List.of(),
+                    java.util.Map.of());
         }
 
         public Data(float speed) {
@@ -248,7 +267,39 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     public MoveUpdate(GameObject owner, Data data) {
         super(owner);
         this.data = data;
+        this.given = data;
         setSpeed(data.speed(), data.turnRate());
+    }
+
+    /** Its locomotor as given, the template's or the game's since: what it moves by off the classes it has one for. */
+    private Data given;
+    /** The class of ground under it it last moved by, or null for plain ground. */
+    private String movingOn;
+
+    /**
+     * The classes of ground it may enter: its locomotor's surfaces and every class it has a locomotor for — the
+     * reference's locomotor set, whose surfaces are all its locomotors'.
+     */
+    public java.util.Set<String> surfaces() {
+        var names = new java.util.TreeSet<>(given.surfaces());
+        names.addAll(given.classLocomotors().keySet());
+        return names;
+    }
+
+    /** Moved by its locomotor for the class of ground under it, where it has one, and by its own off it. */
+    private void takeTheGroundsLocomotor(GameObject owner, World world) {
+        if (world == null || given.classLocomotors().isEmpty()) {
+            return;
+        }
+        var under = world.groundClassUnder(owner);
+        if (java.util.Objects.equals(under, movingOn)) {
+            return;
+        }
+        movingOn = under;
+        var onIt = under == null ? null : given.classLocomotors().get(under);
+        var by = onIt == null ? given : onIt;
+        this.data = by;
+        setSpeed(by.speed(), by.turnRate());
     }
 
     /**
@@ -260,6 +311,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
      */
     public void setLocomotor(Data data) {
         this.data = java.util.Objects.requireNonNull(data);
+        this.given = data;
+        this.movingOn = null;
         setSpeed(data.speed(), data.turnRate());
     }
 
@@ -629,6 +682,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     public void update() {
         var owner = getOwner();
         var world = owner.getWorld();
+        takeTheGroundsLocomotor(owner, world);
         var here = owner.getPosition();
         lastStep = lastPosition == null ? 0f : across(here, lastPosition);
         lastPosition = here;

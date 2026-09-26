@@ -79,6 +79,10 @@ public interface World {
         return Footprint.of(a).separation(Footprint.of(b));
     }
 
+    /** A still thing's words changed: what the game has it lay over its footprint by a word is laid again. */
+    default void stillThingsWordsChanged() {
+    }
+
     /** A still thing turned or moved: its footprint is laid on the ground again before the next route. */
     default void stillThingMoved() {
     }
@@ -160,6 +164,11 @@ public interface World {
      */
     default Path findPathWithin(GameObject mover, GameObject what, float least, float most) {
         return findPath(mover, withinOf(mover, what, least, most));
+    }
+
+    /** The name of the class of ground under {@code thing} — climbing, wading — or null for plain ground. */
+    default String groundClassUnder(GameObject thing) {
+        return null;
     }
 
     /** Every object within {@code range} of {@code center} that satisfies {@code filter}. */

@@ -467,16 +467,66 @@ public abstract class GameLogic extends SubsystemInterface implements World {
 
     @Override
     public final boolean canStep(GameObject mover, Coord3D from, Coord3D to, int toward) {
-        if (pathGrid == null || !pathGrid.hasDecks()) {
-            return canStep(from, to);
+        if (pathGrid == null) {
+            return true;
         }
-        int fromX = pathGrid.toCellX(from);
-        int fromY = pathGrid.toCellY(from);
-        int toX = pathGrid.toCellX(to);
-        int toY = pathGrid.toCellY(to);
+        var grid = gridFor(mover); // the ground as it walks it: its classes open to it
+        int fromX = grid.toCellX(from);
+        int fromY = grid.toCellY(from);
+        int toX = grid.toCellX(to);
+        int toY = grid.toCellY(to);
+        if (!grid.hasDecks()) {
+            return grid.canStep(fromX, fromY, toX, toY);
+        }
         int floor = mover.getFloor();
-        return pathGrid.walks(floor, fromX, fromY, toX, toY)
-                || toward >= 0 && pathGrid.enters(floor, toward, fromX, fromY, toX, toY);
+        return grid.walks(floor, fromX, fromY, toX, toY)
+                || toward >= 0 && grid.enters(floor, toward, fromX, fromY, toX, toY);
+    }
+
+    // ---- classes of ground ----
+
+    /** The classes of ground {@code mover} may enter, as the grid's bits: its locomotor's ({@code MoveUpdate}). */
+    final int surfacesOf(GameObject mover) {
+        return pathGrid == null || !(mover.getLocomotor() instanceof uz.dukeengine.core.module.MoveUpdate move)
+                ? 0 : pathGrid.surfacesOf(move.surfaces());
+    }
+
+    /** The ground as {@code mover} walks it: the grid, or its passage for the classes it may enter. Null for none. */
+    final PathGrid gridFor(GameObject mover) {
+        return pathGrid == null ? null : pathGrid.passage(surfacesOf(mover));
+    }
+
+    /** Each passage's zones, by the classes it enters — see {@link #zonesOf}. */
+    private final java.util.Map<Integer, uz.dukeengine.core.pathfind.Zones> passageZones = new java.util.HashMap<>();
+
+    /**
+     * The zones of the ground as {@code grid} sees it — the reference's zones joined per set of surfaces
+     * ({@code groundCliff}, {@code waterGround}, {@code groundRubble}): the grid's own for a mover of plain ground.
+     */
+    final uz.dukeengine.core.pathfind.Zones zonesOf(PathGrid grid) {
+        if (grid == null) {
+            return null;
+        }
+        if (grid.surfaces() == 0) {
+            return zones();
+        }
+        refreshStaticObstacles();
+        var cached = passageZones.get(grid.surfaces());
+        if (cached == null || !cached.isCurrent(grid)) {
+            cached = uz.dukeengine.core.pathfind.Zones.of(grid);
+            passageZones.put(grid.surfaces(), cached);
+        }
+        return cached;
+    }
+
+    /** The name of the class of ground under {@code thing} — climbing, wading — or null for plain ground. */
+    @Override
+    public final String groundClassUnder(GameObject thing) {
+        if (pathGrid == null) {
+            return null;
+        }
+        var at = thing.getPosition();
+        return pathGrid.groundClassAt(pathGrid.toCellX(at), pathGrid.toCellY(at));
     }
 
     @Override
@@ -778,6 +828,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                 layFence(object, fence, ((Solid) object.getTemplate()).fenceOffset());
                 continue;
             }
+            var ground = laidBy(object); // a class it lays over its footprint instead of blocking it, or none
             var footprint = Footprint.of(object);
             var position = object.getPosition();
             float reach = shape.footprintRadius() + halfCell;
@@ -787,7 +838,12 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             int maxY = (int) Math.floor((position.y() + reach) / cellSize);
             for (int cy = minY; cy <= maxY; cy++) {
                 for (int cx = minX; cx <= maxX; cx++) {
-                    if (footprint.distanceTo(pathGrid.cellCenter(cx, cy)) <= halfCell) {
+                    if (footprint.distanceTo(pathGrid.cellCenter(cx, cy)) > halfCell) {
+                        continue;
+                    }
+                    if (ground != null) {
+                        pathGrid.setLaid(cx, cy, ground);
+                    } else {
                         pathGrid.setObstacle(cx, cy);
                     }
                 }
@@ -807,6 +863,17 @@ public abstract class GameLogic extends SubsystemInterface implements World {
 
     public final ObstacleRules getObstacleRules() {
         return obstacleRules;
+    }
+
+    /** The class {@code object} lays over its footprint instead of blocking it, as the game's rules say; or null. */
+    private String laidBy(GameObject object) {
+        for (var rule : obstacleRules.laid()) {
+            if (rule.word() != null && object.getConditions().contains(rule.word())
+                    || rule.kind() != null && object.isKindOf(rule.kind())) {
+                return rule.ground();
+            }
+        }
+        return null;
     }
 
     private boolean inTheWay(GameObject object) {
@@ -845,6 +912,13 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             for (int point = 0; point < along; point++, x += c * step, y += s * step) {
                 pathGrid.setObstacle(pathGrid.toCellX(new Coord3D(x, y, 0f)), pathGrid.toCellY(new Coord3D(x, y, 0f)));
             }
+        }
+    }
+
+    @Override
+    public final void stillThingsWordsChanged() {
+        if (!obstacleRules.laid().isEmpty()) {
+            staticObstaclesDirty = true; // a ruin's word laying its rubble, as the reference lays it again as it falls
         }
     }
 
@@ -958,8 +1032,8 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             float gap = new uz.dukeengine.core.thing.Footprint(round, at, 0f).separation(target);
             return gap > most ? gap - most : gap < least ? least - gap : 0f;
         };
-        var path = Pathfinder.findPathWithin(pathGrid, mover.getPosition(), what.getPosition(), clearance, within,
-                tally, traffic);
+        var path = Pathfinder.findPathWithin(gridFor(mover), mover.getPosition(), what.getPosition(), clearance,
+                within, tally, traffic);
         cellsThisFrame += tally.cells();
         return path.isEmpty() ? route(mover, withinOf(mover, what, least, most), java.util.Set.of()) : path;
     }
@@ -971,7 +1045,8 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             return true;
         }
         var traffic = groundCells().keepsCells(mover) ? groundCells().trafficFor(mover, java.util.Set.of()) : null;
-        return Pathfinder.isClearLine(pathGrid, from, to, Solid.of(mover.getTemplate()).footprintRadius(), traffic);
+        return Pathfinder.isClearLine(gridFor(mover), from, to, Solid.of(mover.getTemplate()).footprintRadius(),
+                traffic);
     }
 
     @Override
@@ -987,6 +1062,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     private Path route(GameObject mover, Coord3D to, java.util.Set<ObjectId> round) {
+        var grid = gridFor(mover);
         var tally = new Pathfinder.Tally();
         float clearance = Solid.of(mover.getTemplate()).footprintRadius();
         Pathfinder.Traffic traffic = null;
@@ -997,10 +1073,10 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             }
             traffic = groundCells().trafficFor(mover, ids);
         }
-        var path = pathGrid.hasDecks()
-                ? Pathfinder.findPathOrNearest(pathGrid, mover.getPosition(), mover.getFloor(), to,
-                        pathGrid.floorAt(to), clearance, zones(), tally)
-                : Pathfinder.findPathOrNearest(pathGrid, mover.getPosition(), to, clearance, zones(), tally, traffic);
+        var path = grid.hasDecks()
+                ? Pathfinder.findPathOrNearest(grid, mover.getPosition(), mover.getFloor(), to,
+                        grid.floorAt(to), clearance, zonesOf(grid), tally)
+                : Pathfinder.findPathOrNearest(grid, mover.getPosition(), to, clearance, zonesOf(grid), tally, traffic);
         cellsThisFrame += tally.cells();
         return path;
     }
@@ -1109,31 +1185,32 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         if (pathGrid == null || World.super.isBeside(who, what)) {
             return straight;
         }
-        var zones = zones();
+        var grid = gridFor(who);
+        var zones = zonesOf(grid);
         var from = who.getPosition();
-        int fromX = pathGrid.toCellX(from);
-        int fromY = pathGrid.toCellY(from);
-        if (pathGrid.isBlocked(fromX, fromY)) {
+        int fromX = grid.toCellX(from);
+        int fromY = grid.toCellY(from);
+        if (grid.isBlocked(fromX, fromY)) {
             // Standing in stone, it steps out first: what it can reach is what that cell can.
-            var way = nearestOpenCentre(from);
+            var way = nearestOpenCentre(grid, from);
             if (way == null) {
                 return straight;
             }
-            fromX = pathGrid.toCellX(way);
-            fromY = pathGrid.toCellY(way);
+            fromX = grid.toCellX(way);
+            fromY = grid.toCellY(way);
         }
         int zone = zones.zoneOf(fromX, fromY);
         // The spot will do if it can be stood on and walked to — which its zone says at once, where it used to take a
         // search each time, and every frame for a unit closing on something.
-        if (zones.zoneOf(pathGrid.toCellX(straight), pathGrid.toCellY(straight)) == zone && zone >= 0) {
+        if (zones.zoneOf(grid.toCellX(straight), grid.toCellY(straight)) == zone && zone >= 0) {
             return straight;
         }
-        var beside = besideCellNearest(who, what, straight, zones, zone);
-        return beside != null ? beside : reachableNearest(straight, zones, zone, fromX, fromY);
+        var beside = besideCellNearest(grid, who, what, straight, zones, zone);
+        return beside != null ? beside : reachableNearest(grid, straight, zones, zone, fromX, fromY);
     }
 
     /** The centre of the open cell nearest a point in stone, in rings outward, or null for none near. */
-    private Coord3D nearestOpenCentre(Coord3D from) {
+    private static Coord3D nearestOpenCentre(PathGrid pathGrid, Coord3D from) {
         int cx = pathGrid.toCellX(from);
         int cy = pathGrid.toCellY(from);
         for (int ring = 1; ring <= 8; ring++) {
@@ -1149,7 +1226,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     /** Of the cells beside {@code what} in the zone {@code zone}, the one nearest {@code wanted}; null for none. */
-    private Coord3D besideCellNearest(GameObject who, GameObject what, Coord3D wanted,
+    private Coord3D besideCellNearest(PathGrid pathGrid, GameObject who, GameObject what, Coord3D wanted,
             uz.dukeengine.core.pathfind.Zones zones, int zone) {
         var target = Footprint.of(what);
         float reach = target.shape().footprintRadius() + Solid.of(who.getTemplate()).footprintRadius()
@@ -1182,8 +1259,8 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     /** The cell of the zone nearest {@code wanted}, or {@code wanted} where the zone is no zone at all. */
-    private Coord3D reachableNearest(Coord3D wanted, uz.dukeengine.core.pathfind.Zones zones, int zone, int fromX,
-            int fromY) {
+    private static Coord3D reachableNearest(PathGrid pathGrid, Coord3D wanted,
+            uz.dukeengine.core.pathfind.Zones zones, int zone, int fromX, int fromY) {
         int nearest = zone < 0 ? -1
                 : zones.nearestIn(zone, pathGrid.toCellX(wanted), pathGrid.toCellY(wanted), fromX, fromY);
         return nearest < 0 ? wanted : pathGrid.cellCenter(nearest % pathGrid.getWidth(), nearest / pathGrid.getWidth());

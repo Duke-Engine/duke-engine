@@ -126,7 +126,8 @@ public final class Zones {
 
     /** Whether these zones are {@code grid}'s as it stands now. */
     public boolean isCurrent(PathGrid grid) {
-        return this.grid == grid && version == grid.getShapeVersion();
+        return this.grid.root() == grid.root() && this.grid.surfaces() == grid.surfaces()
+                && version == grid.getShapeVersion();
     }
 
     /** The zone a cell lies in, or -1 for one in none. */
