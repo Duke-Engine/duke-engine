@@ -47,10 +47,16 @@ final class AudioSink implements SoundSink {
 
     @Override
     public void play(String assetPath, float gain, Vector3f at) {
+        play(assetPath, gain, at, Range.OWN);
+    }
+
+    @Override
+    public void play(String assetPath, float gain, Vector3f at, Range range) {
         var node = nodeFor(assetPath, false, at != null);
         if (node == null) {
             return;
         }
+        fallingAway(node, range);
         node.setVolume(gain);
         if (at != null) {
             node.setLocalTranslation(at);
@@ -67,6 +73,26 @@ final class AudioSink implements SoundSink {
 
     @Override
     public Playing playStoppable(String assetPath, float gain, Vector3f at) {
+        return playStoppable(assetPath, gain, at, Range.OWN);
+    }
+
+    /**
+     * A placed node's fall with distance: full within the range's near, near over distance beyond — OpenAL's inverse
+     * distance, which it keeps when none is set — clamped at its far; the client's own 40 and jME's where it names
+     * none.
+     */
+    private static void fallingAway(AudioNode node, Range range) {
+        if (!node.isPositional()) {
+            return;
+        }
+        node.setRefDistance(range.near() > 0f ? range.near() : REFERENCE_DISTANCE);
+        if (range.far() > 0f) {
+            node.setMaxDistance(range.far());
+        }
+    }
+
+    @Override
+    public Playing playStoppable(String assetPath, float gain, Vector3f at, Range range) {
         stoppable.removeIf(done -> {
             if (done.getStatus() != com.jme3.audio.AudioSource.Status.Stopped) {
                 return false;
@@ -79,6 +105,7 @@ final class AudioSink implements SoundSink {
             return Playing.NONE;
         }
         stoppable.add(node);
+        fallingAway(node, range);
         node.setVolume(gain);
         if (at != null) {
             node.setLocalTranslation(at);
@@ -104,10 +131,16 @@ final class AudioSink implements SoundSink {
      */
     @Override
     public Playing loop(String assetPath, float gain, Vector3f at) {
+        return loop(assetPath, gain, at, Range.OWN);
+    }
+
+    @Override
+    public Playing loop(String assetPath, float gain, Vector3f at, Range range) {
         var node = fresh(assetPath, at != null);
         if (node == null) {
             return Playing.NONE;
         }
+        fallingAway(node, range);
         node.setLooping(true);
         node.setVolume(gain);
         if (at != null) {

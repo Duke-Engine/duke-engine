@@ -133,6 +133,7 @@ final class GameSounds {
 
     void frame(WorldSnapshot snapshot, int localPlayer, float now) {
         var after = index(snapshot.units());
+        var hidden = index(snapshot.hiddenUnits());
         for (var event : snapshot.events()) {
             if (event instanceof ObjectDied died) {
                 sounds.play(diedMoment(died), at(died.position()), now,
@@ -165,7 +166,7 @@ final class GameSounds {
             }
             var deepest = hurtWordsNow(view, was != null, now, owned);
             if (anyLoops) {
-                keepLooping(view, deepest, owned);
+                keepLooping(view, deepest, owned, false);
             }
         }
         for (var was : before.values()) {
@@ -173,8 +174,25 @@ final class GameSounds {
                 continue;
             }
             sounds.play(ending(was) + was.templateName(), at(was), now, was.playerIndex() == localPlayer);
-            stopLoop(was.id());
+            if (!hidden.containsKey(was.id())) {
+                stopLoop(was.id());
+            }
             hurt.remove(was.id());
+        }
+        if (anyLoops) {
+            for (var view : snapshot.hiddenUnits()) {
+                keepLooping(view, null, view.playerIndex() == localPlayer, true); // a loop fog does not hide
+            }
+        }
+        for (var event : snapshot.unseenEvents()) {
+            if (event instanceof ObjectDied died) {
+                heardUnseen(diedMoment(died), at(died.position()), now, died.playerIndex() == localPlayer);
+                stopLoop(died.object().value());
+            } else if (event instanceof WeaponFired fired) {
+                var shooter = hidden.get(fired.shooter().value());
+                heardUnseen(fired.weapon() == null ? "fired" : "fired." + fired.weapon(), at(fired.from()), now,
+                        shooter != null && shooter.playerIndex() == localPlayer);
+            }
         }
         riding.removeIf(one -> {
             var view = after.get(one.thing());
@@ -196,6 +214,13 @@ final class GameSounds {
             return false;
         });
         before = after;
+    }
+
+    /** A moment where the viewer does not see: heard only where fog does not hide its cue, and shown nowhere. */
+    private void heardUnseen(String cue, Vector3f at, float now, boolean owned) {
+        if (sounds.throughFog(cue)) {
+            sounds.play(cue, at, now, owned);
+        }
     }
 
     /**
@@ -287,13 +312,24 @@ final class GameSounds {
         return deepest;
     }
 
-    /** Its loop, following it: started, swapped for another where the cue it wants has changed, or moved. */
-    private void keepLooping(UnitView view, String deepest, boolean owned) {
+    /**
+     * Its loop, following it: started, swapped for another where the cue it wants has changed, or moved — stopped once
+     * out of its reach, and started again once back ({@code Drawable::update}). A thing out of sight, {@code fogged},
+     * keeps only a loop fog does not hide.
+     */
+    private void keepLooping(UnitView view, String deepest, boolean owned, boolean fogged) {
         var name = "ambient." + view.templateName()
                 + (deepest == null ? "" : "." + deepest.toLowerCase(java.util.Locale.ROOT));
         var wanted = sounds.resolved(name);
+        if (fogged && !sounds.throughFog(wanted)) {
+            wanted = null;
+        }
         var going = loops.get(view.id());
         if (going != null && java.util.Objects.equals(going.cue(), wanted)) {
+            if (!sounds.inReach(wanted, at(view))) {
+                stopLoop(view.id()); // out of its reach: started again once it is back
+                return;
+            }
             going.playing().moveTo(at(view));
             return;
         }
@@ -445,11 +481,13 @@ final class GameSounds {
         return byId;
     }
 
+    /** Where a sound about a thing is heard from: the thing, at its own height. */
     private static Vector3f at(UnitView view) {
-        return new Vector3f(view.x(), 0f, view.y());
+        return new Vector3f(view.x(), view.z(), view.y());
     }
 
+    /** And one at a place: the place, at its height. */
     private static Vector3f at(Coord3D where) {
-        return new Vector3f(where.x(), 0f, where.y());
+        return new Vector3f(where.x(), where.z(), where.y());
     }
 }

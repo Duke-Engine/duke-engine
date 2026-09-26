@@ -1107,6 +1107,14 @@ final class DukeRtsApp extends SimpleApplication {
                         : grid.getCellSize(),
                 // A thing sounds hurt where it starts to look hurt: its look's own words and shares.
                 template -> visuals.of(template).whenHurt);
+        // What happens where he does not see, for the sounds fog does not hide.
+        game.hearThroughFog(visuals.getSounds().hearsThroughFog());
+        if (visuals.getSounds().hearing().placesTheListener()) {
+            var atTheEye = stateManager.getState(com.jme3.audio.AudioListenerState.class);
+            if (atTheEye != null) {
+                stateManager.detach(atTheEye); // the game places the listener: see placeTheListener
+            }
+        }
         applyVolume();
     }
 
@@ -4475,8 +4483,15 @@ final class DukeRtsApp extends SimpleApplication {
         layTheMapsStrips();
         // What this frame is worth hearing. Reads the same snapshot everything
         // else does and writes nothing back -- see GameSounds.
+        placeTheListener();
         noises.frame(snapshot, game.getLocalPlayerIndex(),
                 (float) timer.getTimeInSeconds());
+        for (var event : snapshot.unseenEvents()) {
+            if (event instanceof uz.dukeengine.core.event.SoundPlayed sound
+                    && noises.sounds().throughFog(sound.cue())) {
+                heard(sound); // where he does not see: heard, as fog does not hide it, and nothing shown
+            }
+        }
         keepHisOwnSelected();
         tellTheGameWhatHeIsLookingAt();
         syncUnits();
@@ -5340,6 +5355,27 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /**
+     * Where the sounds are heard from this frame: where the game places the listener — on the line from the ground
+     * point the view looks at to the eye, facing as the view faces, with no speed ({@code AudioManager::update}) —
+     * else at the eye, as jME keeps it; and how far the eye is from it.
+     */
+    private void placeTheListener() {
+        var hearing = visuals.getSounds().hearing();
+        var eye = cam.getLocation();
+        if (!hearing.placesTheListener()) {
+            noises.sounds().hear(eye.clone(), 0f);
+            return;
+        }
+        var ground = new Vector3f(camera.targetX(), floorHeightAt(camera.targetX(), camera.targetZ()),
+                camera.targetZ());
+        var at = Sounds.listenerAt(ground, eye, hearing.listenerHeight(), hearing.listenerShare());
+        listener.setLocation(at);
+        listener.setRotation(cam.getRotation());
+        listener.setVelocity(Vector3f.ZERO); // the view moving bends no sound's pitch
+        noises.sounds().hear(at, eye.distance(at));
+    }
+
     /** A sound cue the simulation played, heard where it is and following the thing it rides. */
     private void heard(uz.dukeengine.core.event.SoundPlayed sound) {
         if (noises == null) {
@@ -5347,7 +5383,7 @@ final class DukeRtsApp extends SimpleApplication {
         }
         var rider = sound.riding() == null ? null : unitNodes.get(sound.riding().value());
         boolean owned = rider == null || rider.view == null || rider.view.playerIndex() == game.getLocalPlayerIndex();
-        var at = new Vector3f(sound.where().x(), 0f, sound.where().y());
+        var at = new Vector3f(sound.where().x(), sound.where().z(), sound.where().y());
         noises.sound(sound, at, owned, timer.getTimeInSeconds());
     }
 

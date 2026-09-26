@@ -1111,6 +1111,7 @@ public final class DukeGame {
         client.keepOutOfSight(keepFrames, keepDeadFrames);
         client.setCommands(this::buttonsNow);
         client.setAimAnswer(this::aimAnswerNow);
+        client.hearThroughFog(hearsThroughFog);
         client.setAttackable(this::attackableNow);
         client.setContextOrder(this::contextOrderNow);
         engine = new RtsGameEngine(logic, client);
@@ -1544,6 +1545,21 @@ public final class DukeGame {
     public void select(List<uz.dukeengine.core.thing.ObjectId> ids, boolean answered) {
         selectionWanted.set(new Selecting(List.copyOf(ids), answered));
     }
+
+    /**
+     * Whether each frame carries what happens where the local player does not see, and the things there — for a sound
+     * fog does not hide, heard and not shown ({@code WorldSnapshot.unseenEvents}, {@code hiddenUnits}). Off unless the
+     * client asks, as its game's sounds say.
+     */
+    public DukeGame hearThroughFog(boolean hears) {
+        this.hearsThroughFog = hears;
+        if (client != null) {
+            client.hearThroughFog(hears);
+        }
+        return this;
+    }
+
+    private boolean hearsThroughFog;
 
     private volatile java.util.Map<Integer, List<Integer>> controlGroups = java.util.Map.of();
 

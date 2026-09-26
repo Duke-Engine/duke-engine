@@ -26,6 +26,31 @@ interface SoundSink {
     void play(String assetPath, float gain, Vector3f at);
 
     /**
+     * How a placed sound falls away: at full loudness within {@code near}, near over distance beyond it, to {@code
+     * far} — 0 for the sink's own of either.
+     */
+    record Range(float near, float far) {
+
+        /** The sink's own. */
+        static final Range OWN = new Range(0f, 0f);
+    }
+
+    /** Play it once, placed, falling away as {@code range} says. */
+    default void play(String assetPath, float gain, Vector3f at, Range range) {
+        play(assetPath, gain, at);
+    }
+
+    /** {@link #playStoppable}, placed, falling away as {@code range} says. */
+    default Playing playStoppable(String assetPath, float gain, Vector3f at, Range range) {
+        return playStoppable(assetPath, gain, at);
+    }
+
+    /** {@link #loop}, placed, falling away as {@code range} says. */
+    default Playing loop(String assetPath, float gain, Vector3f at, Range range) {
+        return loop(assetPath, gain, at);
+    }
+
+    /**
      * A sound that is still going and can be stopped, or moved to follow the thing it belongs to — what
      * {@link #playStoppable} and {@link #loop} hand back.
      */

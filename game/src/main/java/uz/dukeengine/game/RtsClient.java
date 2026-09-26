@@ -135,6 +135,13 @@ final class RtsClient extends GameClient {
         }
     }
 
+    /** Whether the snapshot carries what happens where the viewer does not see: {@code DukeGame.hearThroughFog}. */
+    private volatile boolean hearsThroughFog;
+
+    void hearThroughFog(boolean hears) {
+        this.hearsThroughFog = hears;
+    }
+
     void setViewerPlayer(int viewerPlayer) {
         this.viewerPlayer = viewerPlayer;
     }
@@ -155,10 +162,15 @@ final class RtsClient extends GameClient {
         // Fog applies to moments as much as to state: without this you would hear
         // an explosion in territory you have no eyes on.
         var events = new ArrayList<uz.dukeengine.core.event.WorldEvent>();
+        var unseen = new ArrayList<uz.dukeengine.core.event.WorldEvent>();
         boolean everything = viewerPlayer == EVERYONE;
+        boolean hears = hearsThroughFog && !everything;
         for (var event : drained) {
             if (shown(event, everything)) {
                 events.add(event);
+            } else if (hears && !firedUnseen(event, false)
+                    && !(event instanceof uz.dukeengine.core.event.TextFloated)) {
+                unseen.add(event); // fogged: for a sound fog does not hide, heard and not shown
             }
         }
         var units = new ArrayList<UnitView>();
@@ -184,6 +196,16 @@ final class RtsClient extends GameClient {
             addWhatItStillShows(units);
         }
         turretTurns = turns;
+        var hidden = new ArrayList<UnitView>();
+        if (hears) {
+            var seen = new java.util.HashSet<>(shown);
+            for (var object : logic.getObjects()) {
+                var view = seen.contains(object) ? null : viewOf(object, false, new java.util.HashMap<>());
+                if (view != null) {
+                    hidden.add(view);
+                }
+            }
+        }
         var rallies = new ArrayList<uz.dukeengine.game.view.RallyView>();
         for (var object : shown) {
             if (!everything && object.getPlayerIndex() != viewerPlayer) {
@@ -236,7 +258,9 @@ final class RtsClient extends GameClient {
                 rallies,
                 effects,
                 everything || logic.getSightCells() == null ? null : logic.getSightCells().view(viewerPlayer),
-                aimed.marks());
+                aimed.marks(),
+                unseen,
+                hidden);
     }
 
     /**

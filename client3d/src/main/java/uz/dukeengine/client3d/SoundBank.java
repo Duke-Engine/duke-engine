@@ -52,6 +52,53 @@ public final class SoundBank {
     public enum Priority { LOWEST, LOW, NORMAL, HIGH, CRITICAL }
 
     /**
+     * Where a placed cue is heard from and how far — the reference's {@code MinRange} and {@code MaxRange} — and
+     * whether fog hides it.
+     *
+     * @param near       at full loudness within it, and near over distance beyond: 0 for the game's own ({@link
+     *                   Hearing#nearRange})
+     * @param far        not started at or past it, and stopped there: 0 for the game's own
+     * @param throughFog heard from where the viewer does not see — the reference's sounds that are not {@code
+     *                   SHROUDED}, a map's ambience, a unit's line to its owner: an event there sounds it, showing
+     *                   nothing, and a thing there keeps such a loop going at its place
+     */
+    public record Reach(float near, float far, boolean throughFog) {
+
+        /** The game's own ranges, and hidden by fog. */
+        public static final Reach DEFAULT = new Reach(0f, 0f, false);
+    }
+
+    /**
+     * How the game hears — the reference's {@code AudioSettings}: where its listener stands, how far its sounds carry
+     * and how the eye's distance takes from them. Every number left 0 keeps the client's own: its listener at the eye,
+     * a sound carrying 40 at full loudness and never cut off.
+     *
+     * @param nearRange      a placed cue's near range where it names none — the reference's 175
+     * @param farRange       and its far range — the reference's 800
+     * @param floor          the loudness, its gain and distance reckoned, under which a placed sound is not started or
+     *                       is stopped — the reference's {@code MinSampleVolume}, 0.02
+     * @param listenerHeight how high above the ground point the view looks at the listener stands, on the line from it
+     *                       to the eye — {@code MicrophoneDesiredHeightAboveTerrain}, 50 — facing as the view faces,
+     *                       with no speed, so moving the view bends no sound's pitch
+     * @param listenerShare  but no further along that line than this share of it — {@code
+     *                       MicrophoneMaxPercentageBetweenGroundAndCamera}, 0.333
+     * @param zoomLoss       the share a placed sound loses while the eye is {@code zoomFar} or more from the listener,
+     *                       none within {@code zoomNear}, in proportion between — {@code
+     *                       ZoomSoundVolumePercentageAmount}, 0.2, between 130 and 425
+     */
+    public record Hearing(float nearRange, float farRange, float floor, float listenerHeight, float listenerShare,
+            float zoomLoss, float zoomNear, float zoomFar) {
+
+        /** The client's own. */
+        public static final Hearing AS_EVER = new Hearing(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f);
+
+        /** Whether the game places the listener, rather than leaving it at the eye. */
+        public boolean placesTheListener() {
+            return listenerHeight > 0f || listenerShare > 0f;
+        }
+    }
+
+    /**
      * One moment, and what it can sound like.
      *
      * @param files  one or more. More than one is not decoration: the bow is
@@ -73,10 +120,11 @@ public final class SoundBank {
      *     it is not played — or, for a cue that interrupts, stops the oldest of itself playing, and plays. The
      *     reference's {@code Limit}; 0 for as many as are asked
      * @param priority  which gives way when the game's budget of sounds at once is full — see {@link Priority}
+     * @param reach  where a placed one is heard from and how far, and whether fog hides it — see {@link Reach}
      */
     public record Cue(String name, Channel channel, boolean positional, float gain,
             float gapSeconds, List<String> files, String label, Audience audience, boolean interrupts, int limit,
-            Priority priority) {
+            Priority priority, Reach reach) {
 
         public Cue {
             files = List.copyOf(files);
@@ -84,6 +132,21 @@ public final class SoundBank {
             audience = audience == null ? Audience.EVERYONE : audience;
             limit = Math.max(0, limit);
             priority = priority == null ? Priority.NORMAL : priority;
+            reach = reach == null ? Reach.DEFAULT : reach;
+        }
+
+        /** Heard as far as the game's default carries, and hidden by fog — every cue before a reach could be said. */
+        public Cue(String name, Channel channel, boolean positional, float gain, float gapSeconds,
+                List<String> files, String label, Audience audience, boolean interrupts, int limit,
+                Priority priority) {
+            this(name, channel, positional, gain, gapSeconds, files, label, audience, interrupts, limit, priority,
+                    Reach.DEFAULT);
+        }
+
+        /** This cue heard as {@code reach} says. */
+        public Cue reaching(Reach reach) {
+            return new Cue(name, channel, positional, gain, gapSeconds, files, label, audience, interrupts, limit,
+                    priority, reach);
         }
 
         /** As many at once as are asked, of the middle priority — every cue before either could be said. */
@@ -119,8 +182,11 @@ public final class SoundBank {
     private final float voiceGapSeconds;
     private final int placedBudget;
     private final int flatBudget;
+    private final Hearing hearing;
 
-    private SoundBank(Map<String, Cue> cues, float voiceGapSeconds, int placedBudget, int flatBudget) {
+    private SoundBank(Map<String, Cue> cues, float voiceGapSeconds, int placedBudget, int flatBudget,
+            Hearing hearing) {
+        this.hearing = hearing == null ? Hearing.AS_EVER : hearing;
         // Linked and not Map.copyOf: the order a game declares its sounds in is
         // the order anything walking them sees — the order a loading bar reads
         // them in, and the order a player cycles through the music.
@@ -136,7 +202,7 @@ public final class SoundBank {
 
     /** A game that says nothing about sound, which is silence rather than a fault. */
     public static SoundBank silent() {
-        return new SoundBank(Map.of(), 0f, 0, 0);
+        return new SoundBank(Map.of(), 0f, 0, 0, Hearing.AS_EVER);
     }
 
     /**
@@ -157,6 +223,16 @@ public final class SoundBank {
     /** How many flat sounds play at once; 0 for as many as are asked. */
     public int flatBudget() {
         return flatBudget;
+    }
+
+    /** How the game hears — see {@link Hearing}. */
+    public Hearing hearing() {
+        return hearing;
+    }
+
+    /** Whether any cue is heard through fog, for a client to ask for what it does not see. */
+    public boolean hearsThroughFog() {
+        return cues.values().stream().anyMatch(cue -> cue.reach().throughFog());
     }
 
     /**
@@ -226,8 +302,23 @@ public final class SoundBank {
         private float voiceGapSeconds;
         private int placedBudget;
         private int flatBudget;
+        private Hearing hearing = Hearing.AS_EVER;
 
         private Builder() {
+        }
+
+        /** How the game hears: its listener, its ranges, its floor — see {@link Hearing}. */
+        public Builder hearing(Hearing hearing) {
+            this.hearing = hearing == null ? Hearing.AS_EVER : hearing;
+            return this;
+        }
+
+        /** A cue as it stands, every part of it the game's — its reach too ({@link Cue#reaching}). */
+        public Builder cue(Cue cue) {
+            if (cue != null && cue.name() != null && !cue.name().isBlank() && !cue.files().isEmpty()) {
+                cues.put(cue.name(), cue);
+            }
+            return this;
         }
 
         /** How long the game wants between two of its spoken lines. */
@@ -277,7 +368,7 @@ public final class SoundBank {
         }
 
         public SoundBank build() {
-            return new SoundBank(cues, voiceGapSeconds, placedBudget, flatBudget);
+            return new SoundBank(cues, voiceGapSeconds, placedBudget, flatBudget, hearing);
         }
     }
 }

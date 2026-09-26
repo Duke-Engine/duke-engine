@@ -42,6 +42,16 @@ final class Sounds {
     /** How many sounds at a place, and flat, play at once; 0 for as many as are asked. */
     private int placedBudget;
     private int flatBudget;
+    /** Where the listener stands, and how far the eye is from it: null until the window says. */
+    private Vector3f listener;
+    private float eyeDistance;
+
+    /** A placed sound playing that its reach may stop: its cue, where it is, and what stops it. */
+    private record Placed(SoundBank.Cue cue, Vector3f at, SoundSink.Playing sound) {
+    }
+
+    private final java.util.List<Placed> placed = new java.util.ArrayList<>();
+
     /** When each cue last played, for the cues that insist on a gap. */
     private final Map<String, Float> lastPlayed = new HashMap<>();
     /** And when the voice last spoke, which is a gap across every line at once. */
@@ -170,6 +180,98 @@ final class Sounds {
         return volumes.get(channel);
     }
 
+    // ---- where it is heard from ----
+
+    /**
+     * Where the listener stands this frame, and how far the eye is from it: a placed sound past its far range or under
+     * the game's floor stopped — the reference's {@code MilesAudioManager::processPlayingList}.
+     */
+    void hear(Vector3f listener, float eyeDistance) {
+        this.listener = listener;
+        this.eyeDistance = eyeDistance;
+        placed.removeIf(one -> {
+            if (one.sound().ended()) {
+                return true;
+            }
+            if (inReach(one.cue(), one.at())) {
+                return false;
+            }
+            one.sound().stop();
+            return true;
+        });
+    }
+
+    /**
+     * Where the listener stands: on the line from the ground point the view looks at to the eye, {@code height} above
+     * that ground but no further along than {@code share} of the line — the reference's {@code AudioManager::update},
+     * 50 up and at most a third of the way; either 0 for no limit of its own.
+     */
+    static Vector3f listenerAt(Vector3f ground, Vector3f eye, float height, float share) {
+        float along = share > 0f ? share : 1f;
+        float up = eye.y - ground.y;
+        if (height > 0f && up > 0f) {
+            along = Math.min(along, height / up);
+        }
+        return ground.add(eye.subtract(ground).multLocal(along));
+    }
+
+    /** How loud a sound {@code distance} away is, for its near range: whole within it, near over distance beyond. */
+    static float fallOff(float near, float distance) {
+        return near <= 0f || distance <= near ? 1f : near / distance;
+    }
+
+    /** Whether a placed sound of {@code cueName} at {@code at} is within its reach of the listener, and heard. */
+    boolean inReach(String cueName, Vector3f at) {
+        var cue = bank.find(cueName);
+        return cue == null || inReach(cue, cue.positional() ? at : null);
+    }
+
+    /** Whether the game says fog does not hide {@code cueName} — see {@link SoundBank.Reach#throughFog}. */
+    boolean throughFog(String cueName) {
+        var cue = cueName == null ? null : bank.find(cueName);
+        return cue != null && cue.reach().throughFog();
+    }
+
+    private boolean inReach(SoundBank.Cue cue, Vector3f at) {
+        if (listener == null || at == null) {
+            return true;
+        }
+        float distance = listener.distance(at);
+        float far = farOf(cue);
+        if (far > 0f && distance >= far) {
+            return false;
+        }
+        float floor = bank.hearing().floor();
+        return floor <= 0f || gainOf(cue) * fallOff(nearOf(cue), distance) >= floor;
+    }
+
+    private float nearOf(SoundBank.Cue cue) {
+        return cue.reach().near() > 0f ? cue.reach().near() : bank.hearing().nearRange();
+    }
+
+    private float farOf(SoundBank.Cue cue) {
+        return cue.reach().far() > 0f ? cue.reach().far() : bank.hearing().farRange();
+    }
+
+    private SoundSink.Range rangeOf(SoundBank.Cue cue) {
+        return new SoundSink.Range(nearOf(cue), farOf(cue));
+    }
+
+    /**
+     * What the eye's distance from the listener leaves of a placed sound — the reference's {@code
+     * ZoomSoundVolumePercentageAmount}: all of it within the near distance, less the game's share at the far one and
+     * past it, in proportion between.
+     */
+    private float zoom() {
+        var hearing = bank.hearing();
+        if (hearing.zoomLoss() <= 0f || hearing.zoomFar() <= hearing.zoomNear()) {
+            return 1f;
+        }
+        float through = Math.clamp((eyeDistance - hearing.zoomNear()) / (hearing.zoomFar() - hearing.zoomNear()),
+                0f, 1f);
+        return 1f - hearing.zoomLoss() * through;
+    }
+
     /**
      * Raise a moment. Somewhere, if it happened somewhere.
      *
@@ -223,6 +325,9 @@ final class Sounds {
             return null;
         }
         var where = cue.positional() ? at : null;
+        if (!inReach(cue, where)) {
+            return null; // past its far range, or too quiet there to be heard
+        }
         boolean counted = cue.limit() > 0 || placedBudget > 0 || flatBudget > 0;
         if (counted && !makeRoom(cue, where != null)) {
             return null; // past its limit, or no room left for one of its priority
@@ -237,13 +342,18 @@ final class Sounds {
                 cutOff.stop();
             }
         }
-        if (!counted && !cue.interrupts() && !keep) {
-            sink.play(pick(cue), gainOf(cue), where);
+        float gain = gainOf(cue) * (where != null ? zoom() : 1f);
+        boolean reached = where != null && (farOf(cue) > 0f || bank.hearing().floor() > 0f);
+        if (!counted && !cue.interrupts() && !keep && !reached) {
+            sink.play(pick(cue), gain, where, rangeOf(cue));
             return SoundSink.Playing.NONE;
         }
-        var playing = sink.playStoppable(pick(cue), gainOf(cue), where);
+        var playing = sink.playStoppable(pick(cue), gain, where, rangeOf(cue));
         if (counted) {
             live.add(new Live(cue, where != null, playing));
+        }
+        if (reached) {
+            placed.add(new Placed(cue, where, playing));
         }
         if (cue.interrupts()) {
             lastOf.put(cue.name(), playing);
@@ -354,7 +464,11 @@ final class Sounds {
         if (cue == null || cue.audience() == SoundBank.Audience.OWNER && !owned || gainOf(cue) <= 0f) {
             return null;
         }
-        return sink.loop(pick(cue), gainOf(cue), cue.positional() ? at : null);
+        var where = cue.positional() ? at : null;
+        if (!inReach(cue, where)) {
+            return null; // out of reach: started again once it is back
+        }
+        return sink.loop(pick(cue), gainOf(cue) * (where != null ? zoom() : 1f), where, rangeOf(cue));
     }
 
     /** The name of the cue {@code cueName} would play — itself, or what it falls back to — or null for none. */
