@@ -203,8 +203,15 @@ final class RtsLogic extends RtsSimulation {
                 uz.dukeengine.rts.module.GuardOrder.order(this, guard);
                 tellOrder(guard, guard.units(), guard.playerIndex());
             }
-            case GameMessage.Evacuate evacuate -> uz.dukeengine.rts.module.ContainModule.evacuate(this, evacuate);
-            case GameMessage.ExitContainer exit -> uz.dukeengine.rts.module.ContainModule.exit(this, exit);
+            case GameMessage.Evacuate evacuate -> {
+                uz.dukeengine.rts.module.ContainModule.evacuate(this, evacuate);
+                // Told after the engine's own hold is applied, its riders kept on, as the other orders are.
+                tellOrder(evacuate, List.of(evacuate.container()), evacuate.playerIndex());
+            }
+            case GameMessage.ExitContainer exit -> {
+                uz.dukeengine.rts.module.ContainModule.exit(this, exit);
+                tellOrder(exit, List.of(exit.passenger()), exit.playerIndex());
+            }
             case GameMessage.GameOrder order -> ordered(order);
         }
     }
