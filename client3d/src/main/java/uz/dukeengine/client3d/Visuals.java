@@ -164,6 +164,45 @@ public final class Visuals {
             return this;
         }
 
+        /** Its turrets' bones for sets of words, by the words that must all hold, then by turret: {@link #turret}. */
+        final java.util.Map<String, java.util.Map<Integer, TurretLook>> turrets = new java.util.LinkedHashMap<>();
+
+        /**
+         * While its words best fit {@code conditions}, its turret {@code slot} — 0, or 1 for its second — is drawn
+         * turned by the bone {@code turn} and pitched by the bone {@code pitch}, either null for none: the reference's
+         * condition state's {@code Turret}, {@code TurretArtAngle}, {@code TurretPitch} and {@code TurretArtPitch}, and
+         * {@code AltTurret} and the rest for the second ({@code W3DModelDraw::handleClientTurretPositioning}). Each
+         * frame the one is turned about the thing's up by the turret's turn plus {@code artAngle} degrees, and the
+         * other about its side by the turret's pitch plus {@code artPitch}, from the pose the file gives them. Chosen
+         * as its pieces are, the best fit; none where none fits. The client's alone.
+         */
+        public UnitVisual turret(java.util.Set<String> conditions, int slot, String turn, float artAngle, String pitch,
+                float artPitch) {
+            chooseAgain();
+            turrets.computeIfAbsent(String.join(" ", new java.util.TreeSet<>(conditions)),
+                    key -> new java.util.TreeMap<>()).put(slot, new TurretLook(turn, artAngle, pitch, artPitch));
+            return this;
+        }
+
+        /** Its turrets' bones for the words it holds, by turret: the best-fitting set's, or none. */
+        java.util.Map<Integer, TurretLook> turretsFor(java.util.Set<String> holding) {
+            return turrets.isEmpty() ? java.util.Map.of() : chooseFor(holding).turrets();
+        }
+
+        private java.util.Map<Integer, TurretLook> turretsForNow(java.util.Set<String> holding) {
+            if (turrets.isEmpty()) {
+                return java.util.Map.of();
+            }
+            var sets = new java.util.ArrayList<java.util.Map<Integer, TurretLook>>();
+            var words = new java.util.ArrayList<java.util.SortedSet<String>>();
+            for (var candidate : turrets.entrySet()) {
+                sets.add(candidate.getValue());
+                words.add(wordsOf(candidate.getKey()));
+            }
+            int best = uz.dukeengine.core.thing.Conditions.bestFit(words, holding);
+            return best < 0 ? java.util.Map.of() : sets.get(best);
+        }
+
         private java.util.Map<Integer, WeaponBones> bonesFor(java.util.Set<String> conditions) {
             return conditionalWeaponBones.computeIfAbsent(String.join(" ", new java.util.TreeSet<>(conditions)),
                     key -> new java.util.TreeMap<>());
@@ -444,7 +483,8 @@ public final class Visuals {
          * for each set of words it is asked about and kept: a factory drawn with six layers weighed 122 sets of words a
          * frame, every candidate's words split again and copied, for the same answer as the frame before.
          */
-        record Chosen(String model, int pieceState, int clipState, java.util.Map<Integer, WeaponBones> weaponBones) {
+        record Chosen(String model, int pieceState, int clipState, java.util.Map<Integer, WeaponBones> weaponBones,
+                java.util.Map<Integer, TurretLook> turrets) {
         }
 
         /** The choices made so far, by the words they were made for; cleared whenever what it chooses from changes. */
@@ -462,7 +502,7 @@ public final class Visuals {
             }
             choicesMade++;
             var made = new Chosen(modelForNow(holding), pieceStateForNow(holding), clipStateForNow(holding),
-                    weaponBonesForNow(holding));
+                    weaponBonesForNow(holding), turretsForNow(holding));
             if (chosen.size() >= MOST_CHOICES) {
                 chosen.clear(); // ponytail: a look asked about more sets of words than this chooses them again
             }
@@ -493,7 +533,8 @@ public final class Visuals {
 
         /** Whether anything of its look is chosen by words, so a client need not work out its words otherwise. */
         boolean choosesByWords() {
-            return !conditionalModels.isEmpty() || !pieceStates.isEmpty() || !conditionalWeaponBones.isEmpty();
+            return !conditionalModels.isEmpty() || !pieceStates.isEmpty() || !conditionalWeaponBones.isEmpty()
+                    || !turrets.isEmpty();
         }
 
         /**
@@ -1372,6 +1413,17 @@ public final class Visuals {
      * @param hide  the pieces it hides
      * @param show  the pieces it shows
      */
+    /**
+     * A turret's bones as a look names them — see {@link UnitVisual#turret}.
+     *
+     * @param turn     the bone turned by the turret's turn, or null
+     * @param artAngle degrees added to the turn
+     * @param pitch    the bone pitched by the turret's pitch, or null
+     * @param artPitch degrees added to the pitch
+     */
+    public record TurretLook(String turn, float artAngle, String pitch, float artPitch) {
+    }
+
     public record PieceState(java.util.SortedSet<String> words, java.util.List<String> hide,
             java.util.List<String> show) {
         public PieceState {

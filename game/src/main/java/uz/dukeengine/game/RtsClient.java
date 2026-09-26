@@ -293,7 +293,20 @@ final class RtsClient extends GameClient {
                 allied || object.getWearsColoursOf() < 0 ? object.getPlayerIndex() : object.getWearsColoursOf(),
                 object.getDrawnOpacity(),
                 regard == uz.dukeengine.core.player.Relationship.ENEMIES,
-                ai == null ? 0f : ai.speedMoved());
+                ai == null ? 0f : ai.speedMoved(),
+                false,
+                turretsOf(object));
+    }
+
+    /** How {@code object}'s turrets stand, as its game's {@code Turret} has them; none for a thing without one. */
+    private static uz.dukeengine.game.view.Turrets turretsOf(uz.dukeengine.core.thing.GameObject object) {
+        for (var module : object.getModules()) {
+            if (module instanceof uz.dukeengine.rts.module.Turret turret) {
+                return new uz.dukeengine.game.view.Turrets(turret.turretTurn(), turret.turretPitch(),
+                        turret.altTurretTurn(), turret.altTurretPitch());
+            }
+        }
+        return uz.dukeengine.game.view.Turrets.NONE;
     }
 
     /** Which things this viewer goes on seeing as he last saw them, their ground fogged — see {@link #remember}. */

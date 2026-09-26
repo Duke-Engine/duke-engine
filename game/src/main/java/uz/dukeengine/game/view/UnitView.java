@@ -29,6 +29,8 @@ package uz.dukeengine.game.view;
  *                   a look that hides from its enemies what it shows everyone else
  * @param speed      how fast it moved over the last frame, world units a second, as the simulation has it: what a
  *                   walk's clip is paced to
+ * @param remembered whether it is drawn as its viewer last saw it, its ground fogged
+ * @param turrets    how its turrets stand turned and pitched, as its game's {@code Turret} has them
  */
 public record UnitView(
         int id,
@@ -61,10 +63,24 @@ public record UnitView(
         float opacity,
         boolean hostile,
         float speed,
-        boolean remembered) {
+        boolean remembered,
+        Turrets turrets) {
     public UnitView {
         passengers = passengers == null ? java.util.List.of() : java.util.List.copyOf(passengers);
         conditions = conditions == null ? java.util.List.of() : java.util.List.copyOf(conditions);
+        turrets = turrets == null ? Turrets.NONE : turrets;
+    }
+
+    /** A view whose turrets stand straight ahead: every view from before a turret was drawn turned. */
+    public UnitView(int id, String templateName, int playerIndex, float x, float y, float orientation, float health,
+            float maxHealth, boolean structure, boolean selectable, boolean moving, boolean attacking,
+            int productionQueue, float z, float pitch, float roll, boolean ownHeight, int statuses,
+            java.util.List<Integer> passengers, java.util.List<String> conditions, float built, int ridesOn,
+            boolean allied, uz.dukeengine.core.thing.Span span, boolean mobile, String drawnAs, int wears,
+            float opacity, boolean hostile, float speed, boolean remembered) {
+        this(id, templateName, playerIndex, x, y, orientation, health, maxHealth, structure, selectable, moving,
+                attacking, productionQueue, z, pitch, roll, ownHeight, statuses, passengers, conditions, built, ridesOn,
+                allied, span, mobile, drawnAs, wears, opacity, hostile, speed, remembered, Turrets.NONE);
     }
 
     /** A view of a thing in sight: every view from before one could be remembered. */
@@ -86,7 +102,7 @@ public record UnitView(
     public UnitView asRemembered() {
         return new UnitView(id, templateName, playerIndex, x, y, orientation, health, maxHealth, structure, false,
                 false, false, productionQueue, z, pitch, roll, ownHeight, statuses, passengers, conditions, built,
-                ridesOn, allied, span, mobile, drawnAs, wears, opacity, hostile, 0f, true);
+                ridesOn, allied, span, mobile, drawnAs, wears, opacity, hostile, 0f, true, turrets);
     }
 
     /** A view that says nothing of its speed: every view from before a walk was paced to it. */

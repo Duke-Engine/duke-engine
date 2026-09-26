@@ -238,6 +238,7 @@ final class DukeRtsApp extends SimpleApplication {
     private final Barrels barrels = new Barrels();
     /** Every drawn vehicle's treads and wheels, run as it moves — see {@link RunningGear}. */
     private final RunningGear runningGear = new RunningGear();
+    private final TurretBones turretBones = new TurretBones();
     private final Map<String, Material> particleMaterials = new HashMap<>();
     /**
      * Whoever of theirs was just hit, going white -- see {@link HitFlash}.
@@ -459,6 +460,8 @@ final class DukeRtsApp extends SimpleApplication {
         final java.util.List<ModelLayer> layers = new java.util.ArrayList<>();
         /** The weapon slots' bones its barrels were found by, as its words chose them. */
         java.util.Map<Integer, Visuals.WeaponBones> barrelBones;
+        /** Its turrets' bones as its words chose them, or null to find them again. */
+        java.util.Map<Integer, Visuals.TurretLook> turretLooks;
         AnimComposer composer;
         AnimChannel legacyChannel;
         String currentAnim = "";
@@ -5203,6 +5206,7 @@ final class DukeRtsApp extends SimpleApplication {
             layered.grounded(entry.getKey());
             barrels.forget(entry.getKey());
             runningGear.forget(entry.getKey());
+            turretBones.forget(entry.getKey());
             groundPictures.forget(entry.getKey());
             wordTints.forget(entry.getKey());
             stealthLook.forget(entry.getKey());
@@ -5411,6 +5415,7 @@ final class DukeRtsApp extends SimpleApplication {
                 layOut(died.object().value(), died.deathType(), died.frame());
                 barrels.forget(died.object().value());
                 runningGear.forget(died.object().value());
+                turretBones.forget(died.object().value());
                 moment(GameSounds.diedMoment(died),
                         WorldMoments.died(died, dying == null ? null : dying.root, this::floorHeightAt),
                         died.object().value());
@@ -6015,6 +6020,7 @@ final class DukeRtsApp extends SimpleApplication {
             barrels.dress(id, body, node.barrelBones != null ? node.barrelBones : visual.weaponBones, visual.recoil);
             node.pieces.applyTo(body, barrels.flashes(id));
             runningGear.dress(id, body, visual);
+            node.turretLooks = null; // a new model: its turrets found on it again
         }
     }
 
@@ -6036,6 +6042,11 @@ final class DukeRtsApp extends SimpleApplication {
         }
         if (node.pieces.choose(visual.pieceStateFor(holding), visual.pieceStates) || redressed) {
             node.pieces.applyTo(node.body, barrels.flashes(id));
+        }
+        var turrets = visual.turretsFor(holding);
+        if (turrets != node.turretLooks) {
+            node.turretLooks = turrets;
+            turretBones.dress(id, node.body, turrets);
         }
     }
 
@@ -6666,6 +6677,7 @@ final class DukeRtsApp extends SimpleApplication {
                     bone -> boneOf(node, layer, bone));
         }
         runningGear.see(view.id(), view, snapshot.frame());
+        turretBones.turn(view.id(), view.turrets());
 
         node.ring.setCullHint(selected.contains(view.id())
                 ? Spatial.CullHint.Never : Spatial.CullHint.Always);
