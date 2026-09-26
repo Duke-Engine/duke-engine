@@ -890,8 +890,11 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         float clearance = Solid.of(mover.getTemplate()).footprintRadius();
         var traffic = groundCells().keepsCells(mover) ? groundCells().trafficFor(mover, java.util.Set.of()) : null;
         var target = uz.dukeengine.core.thing.Footprint.of(what);
+        // The mover as the circle round it: whichever way it faces as it arrives, it is then within both — a box
+        // reaches no further than its circle, and is no nearer.
+        var round = new uz.dukeengine.core.thing.Geometry.Cylinder(clearance, 1f);
         Pathfinder.Within within = at -> {
-            float gap = uz.dukeengine.core.thing.Footprint.of(mover, at).separation(target);
+            float gap = new uz.dukeengine.core.thing.Footprint(round, at, 0f).separation(target);
             return gap > most ? gap - most : gap < least ? least - gap : 0f;
         };
         var path = Pathfinder.findPathWithin(pathGrid, mover.getPosition(), what.getPosition(), clearance, within,
