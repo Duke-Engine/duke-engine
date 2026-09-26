@@ -73,7 +73,8 @@ class AimingTest {
         aiming.placement().cursor(400f, 300f, new Coord3D(12f, 34f, 0f));
         aiming.placement().press(400f, 300f, new Coord3D(12f, 34f, 0f));
 
-        var press = aiming.putDown(true);
+        var refused = new java.util.ArrayList<Aiming.Press>();
+        var press = aiming.putDown(true, refused::add);
 
         assertNotNull(press);
         assertEquals("build:barracks", press.button().id());
@@ -81,6 +82,7 @@ class AimingTest {
         assertEquals(90f, press.facing());
         assertEquals(List.of(AimOutcome.USED), heard);
         assertFalse(aiming.isArmed());
+        assertTrue(refused.isEmpty(), "taken, and told as ever: never refused");
     }
 
     @Test
@@ -88,9 +90,13 @@ class AimingTest {
         aiming.arm(BARRACKS, false, 0f, null, heard::add);
         aiming.placement().press(400f, 300f, new Coord3D(12f, 34f, 0f));
 
-        assertNull(aiming.putDown(false));
+        var refused = new java.util.ArrayList<Aiming.Press>();
+        assertNull(aiming.putDown(false, refused::add));
         assertTrue(aiming.isArmed(), "still waiting for somewhere it fits");
         assertTrue(heard.isEmpty());
+        assertEquals(1, refused.size(), "the refusal told");
+        assertEquals("build:barracks", refused.getFirst().button().id());
+        assertEquals(new Coord3D(12f, 34f, 0f), refused.getFirst().place(), "and where");
     }
 
     @Test

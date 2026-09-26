@@ -113,11 +113,16 @@ final class Aiming {
 
     /**
      * The press let go, for a button that aims at the ground: the press to send where the place fits — facing the way
-     * it was dragged, or the button's way — or null where it does not, the aim still armed for somewhere that does.
+     * it was dragged, or the button's way — or null where it does not, the aim still armed for somewhere that does
+     * and {@code refused} told the press that was not taken.
      */
-    Press putDown(boolean fits) {
+    Press putDown(boolean fits, Consumer<Press> refused) {
         var placed = placement.release();
-        if (placed == null || !fits) {
+        if (placed == null) {
+            return null;
+        }
+        if (!fits) {
+            refused.accept(new Press(armed, placed.place(), placed.facing(), -1));
             return null;
         }
         var button = armed;

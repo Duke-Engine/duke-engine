@@ -4698,7 +4698,8 @@ final class DukeRtsApp extends SimpleApplication {
      * either way: a place sent is judged again when its order is applied, and refused there costs nothing.
      */
     private void releaseArmedButton() {
-        var press = aiming.putDown(snapshot != null && snapshot.aimFits());
+        var press = aiming.putDown(snapshot != null && snapshot.aimFits(),
+                refused -> game.refusePress(refused.button().id(), refused.place(), refused.facing()));
         if (press == null) {
             return;
         }

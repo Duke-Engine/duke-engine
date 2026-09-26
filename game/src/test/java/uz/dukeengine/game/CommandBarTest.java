@@ -67,6 +67,23 @@ class CommandBarTest {
         assertEquals(-1, pressed.getFirst().target());
     }
 
+    @Test
+    void aRefusedPressIsToldApartFromEveryPressTaken() {
+        var pressed = new ArrayList<uz.dukeengine.game.view.CommandPress>();
+        var refused = new ArrayList<uz.dukeengine.game.view.CommandPress>();
+        var game = headless().onCommandPressed(pressed::add).onPressRefused(refused::add);
+        game.setSelection(List.of(4));
+
+        var place = new uz.dukeengine.core.math.Coord3D(120f, 80f, 0f);
+        game.refusePress("build:Barracks", place, 45f);
+
+        assertEquals(1, refused.size());
+        assertEquals("build:Barracks", refused.getFirst().id(), "the button's id");
+        assertEquals(place, refused.getFirst().place(), "and the place");
+        assertEquals(List.of(4), refused.getFirst().selection());
+        assertTrue(pressed.isEmpty(), "and no press taken");
+    }
+
     /**
      * A button that aims comes back with where it was aimed. A building's corner, a rally point and where
      * an airstrike lands arrive the same way; the engine does not know which.

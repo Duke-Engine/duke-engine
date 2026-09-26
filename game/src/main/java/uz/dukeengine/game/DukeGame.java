@@ -1572,6 +1572,28 @@ public final class DukeGame {
         }
     }
 
+    private Consumer<uz.dukeengine.game.view.CommandPress> pressRefused;
+
+    /**
+     * What to do when an armed button is pressed where the simulation will not take it — its ghost red ({@link
+     * #aimFits}): which button, what was selected, where and facing which way. Nothing is sent and the button stays
+     * armed; the game may say why in its own words and voice, as the reference's {@code
+     * InGameUI::displayCantBuildMessage} does. A press taken is heard by {@link #onCommandPressed} as ever, and not
+     * here.
+     */
+    public DukeGame onPressRefused(Consumer<uz.dukeengine.game.view.CommandPress> refused) {
+        this.pressRefused = refused;
+        return this;
+    }
+
+    /** Thread-safe: an armed button pressed at {@code place}, where the simulation would not take it. */
+    public void refusePress(String id, Coord3D place, float facing) {
+        var handler = pressRefused;
+        if (handler != null && id != null) {
+            handler.accept(new uz.dukeengine.game.view.CommandPress(id, selection, place, facing, -1));
+        }
+    }
+
     // ---- aiming ----
 
     /** Whether an armed button's place, faced one way, would do — see {@link #aimFits}. */
