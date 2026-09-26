@@ -336,7 +336,7 @@ public final class MultiplayerSession implements AutoCloseable {
     }
 
     /** The host's welcome to the guest in seat {@code index}: its seat, the players, and the settings encoded. */
-    private static String welcome(int index, int playerCount, String spec) {
+    static String welcome(int index, int playerCount, String spec) {
         return "DUKE-WELCOME " + index + " " + playerCount + " "
                 + (spec.isEmpty() ? "-" : "=" + java.net.URLEncoder.encode(spec, StandardCharsets.UTF_8));
     }

@@ -39,7 +39,8 @@ class LineChannelSessionTest {
         var sessions = joined(LineChannel.pair());
         var worlds = List.of(HostLeavesTest.watched(2, sessions.get(0)), HostLeavesTest.watched(2, sessions.get(1)));
         HostLeavesTest.stepUntil(worlds, 300, System.nanoTime() + 40_000_000_000L);
-        for (int frame = 1; frame <= 300; frame++) {
+        for (int frame = 0; frame < 300; frame++) {
+            assertNotNull(worlds.get(0).sums().get(frame), "frame " + frame + " summed");
             assertEquals(worlds.get(0).sums().get(frame), worlds.get(1).sums().get(frame), "frame " + frame);
         }
         sessions.forEach(MultiplayerSession::close);
