@@ -94,13 +94,24 @@ public final class SocketTransport implements Transport, AutoCloseable {
         write(message);
     }
 
+    /**
+     * A message on its way over the link. A send that finds the link gone — the peer's machine went before the reader
+     * saw it close — is the same news as a read that ends: reported at the next pump, after whatever arrived before
+     * it, to the lost-link listeners, and nothing is thrown out of the frame; as the reference leaves a failed send to
+     * its disconnect logic ({@code Transport::doSend}). Any other failure keeps its error.
+     */
     private void write(NetMessage message) {
+        if (linkEnded) {
+            return; // gone: said at the next pump
+        }
         try {
             synchronized (out) {
                 out.write(NetFraming.encode(message, codec));
                 out.write('\n');
                 out.flush();
             }
+        } catch (java.net.SocketException gone) {
+            linkEnded = true;
         } catch (IOException e) {
             throw new UncheckedIOException("failed to send " + message, e);
         }

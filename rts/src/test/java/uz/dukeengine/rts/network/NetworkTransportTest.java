@@ -189,4 +189,43 @@ class NetworkTransportTest {
         host.addGuest(index, accepted.get());
         return new Guest(guest);
     }
+
+    /**
+     * A peer's machine gone mid-match: the next send to it, before or after the reader has seen the link close, is a
+     * lost link and not an error out of the frame — told once to the lost-link listeners, as the reference leaves a
+     * failed send to its disconnect logic ({@code Transport::doSend}).
+     */
+    @Test
+    @Timeout(15)
+    void aSendToAPeerWhoseLinkHasJustClosedIsALostLinkNotAnError() throws Exception {
+        try (var server = new ServerSocket(0)) {
+            var accepted = new java.util.concurrent.atomic.AtomicReference<Socket>();
+            var acceptThread = new Thread(() -> {
+                try {
+                    accepted.set(server.accept());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            acceptThread.start();
+            try (var guest = SocketTransport.connect("localhost", server.getLocalPort(), CommandCodec.INSTANCE)) {
+                acceptThread.join(5000);
+                var host = accepted.get();
+                var lost = new AtomicInteger();
+                guest.onLinkLost(peer -> lost.incrementAndGet());
+                host.setSoLinger(true, 0);
+                host.close(); // gone at once, as a machine that went mid-match
+
+                for (int send = 0; send < 200; send++) {
+                    guest.send(new FrameChecksum(150 + send, 2, 42L)); // before its reader may have seen the close
+                }
+                pumpUntil(() -> lost.get() > 0, guest::pump);
+                for (int send = 0; send < 20; send++) {
+                    guest.send(new FrameChecksum(400 + send, 2, 42L)); // and after
+                    guest.pump();
+                }
+                assertEquals(1, lost.get(), "the peer heard lost once");
+            }
+        }
+    }
 }
