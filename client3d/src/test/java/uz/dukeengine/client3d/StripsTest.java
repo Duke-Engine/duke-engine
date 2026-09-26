@@ -98,4 +98,42 @@ class StripsTest {
         assertTrue(crossingLayer > dirtLayer, "the later kind over the earlier, whatever order they came in");
         assertTrue(dirtLayer >= Strips.ABOVE_OVERLAYS, "and both over the ground's overlays");
     }
+
+    // ---- a straight mapping of the ground ----
+
+    /** Every laid point's u and v, by where it lies across the map. */
+    private static void eachPoint(com.jme3.scene.Mesh mesh, java.util.function.BiConsumer<float[], float[]> told) {
+        var at = mesh.getFloatBuffer(com.jme3.scene.VertexBuffer.Type.Position);
+        var uv = mesh.getFloatBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord);
+        for (int point = 0; point < mesh.getVertexCount(); point++) {
+            told.accept(new float[] {at.get(point * 3), at.get(point * 3 + 2)},
+                    new float[] {uv.get(point * 2), uv.get(point * 2 + 1)});
+        }
+    }
+
+    @Test
+    void aTrapezoidWithAMappingDrawsEachLaidPointAtTheMappingsUAndV() {
+        var mapping = new DukeGame.StripPiece.Mapping(0.25f, 0.01f, 0.002f, 0.5f, -0.003f, 0.02f);
+        var trapezoid = new DukeGame.StripPiece("textures/roads/asphalt.png", 0f, 0f, 1f, 1f,
+                new Coord3D(100f, 100f, 0f), new Coord3D(200f, 100f, 0f), new Coord3D(180f, 130f, 0f),
+                new Coord3D(110f, 130f, 0f), 0, mapping);
+        eachPoint(Strips.mesh(ground((x, z) -> 0f), List.of(trapezoid)), (where, uv) -> {
+            assertEquals(mapping.u(where[0], where[1]), uv[0], 1e-4f);
+            assertEquals(mapping.v(where[0], where[1]), uv[1], 1e-4f);
+        });
+    }
+
+    @Test
+    void aRectangleGivenTheEquivalentMappingDrawsAsItsRectangleFormDoes() {
+        var rectangle = road(50f, 350f, 30f, 0); // u 0 to 1 along 300, v 0.1 to 0.2 across 30 from z 85
+        var mapped = new DukeGame.StripPiece(rectangle.picture(), 0f, 0f, 0f, 0f, rectangle.a(), rectangle.b(),
+                rectangle.c(), rectangle.d(), 0, new DukeGame.StripPiece.Mapping(-50f / 300f, 1f / 300f, 0f,
+                        0.1f - 85f * 0.1f / 30f, 0f, 0.1f / 30f));
+        var plain = Strips.mesh(SLOPE, List.of(rectangle)).getFloatBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord);
+        var laid = Strips.mesh(SLOPE, List.of(mapped)).getFloatBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord);
+        assertEquals(plain.limit(), laid.limit());
+        for (int at = 0; at < plain.limit(); at++) {
+            assertEquals(plain.get(at), laid.get(at), 1e-4f);
+        }
+    }
 }

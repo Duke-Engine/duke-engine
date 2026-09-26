@@ -2005,9 +2005,33 @@ public final class DukeGame {
      * A piece of a picture laid along the ground — a road's straight, its curve, its crossing — its corners going round
      * it, {@code a} to {@code b} along the picture from {@code u0} to {@code u1} and {@code a} to {@code d} across it
      * from {@code v0} to {@code v1}, a corner's height nothing; drawn in its {@code layer}, over an earlier one.
+     * Or, with a {@link Mapping}, its picture laid by one straight mapping of the ground, read at every point laid, the
+     * rectangle's numbers left unread — the reference's roads ({@code W3DRoadBuffer}), whose mitred ends, curves and
+     * crossings keep their picture's size and are cut, not stretched.
      */
     public record StripPiece(String picture, float u0, float v0, float u1, float v1, Coord3D a, Coord3D b, Coord3D c,
-            Coord3D d, int layer) {
+            Coord3D d, int layer, Mapping mapping) {
+
+        /** A piece whose picture is spread over its corners. */
+        public StripPiece(String picture, float u0, float v0, float u1, float v1, Coord3D a, Coord3D b, Coord3D c,
+                Coord3D d, int layer) {
+            this(picture, u0, v0, u1, v1, a, b, c, d, layer, null);
+        }
+
+        /**
+         * A straight mapping of the ground onto a picture: at the ground's {@code x} and {@code y}, {@code u = u0 + a*x
+         * + b*y} and {@code v = v0 + c*x + d*y}.
+         */
+        public record Mapping(float u0, float a, float b, float v0, float c, float d) {
+
+            public float u(float x, float y) {
+                return u0 + a * x + b * y;
+            }
+
+            public float v(float x, float y) {
+                return v0 + c * x + d * y;
+            }
+        }
     }
 
     private final List<StripPiece> stripPieces = new java.util.concurrent.CopyOnWriteArrayList<>();

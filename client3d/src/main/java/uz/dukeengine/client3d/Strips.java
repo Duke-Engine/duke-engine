@@ -167,9 +167,16 @@ final class Strips {
             positions.add(right);
             normals.add(normal);
             normals.add(normal);
-            float u = piece.u0() + (piece.u1() - piece.u0()) * column.along();
-            uvs.add(new float[] {u, piece.v0()});
-            uvs.add(new float[] {u, piece.v1()});
+            var mapping = piece.mapping();
+            if (mapping != null) {
+                // One straight mapping of the ground, read at each point laid: its picture cut, not stretched.
+                uvs.add(new float[] {mapping.u(near[0], near[1]), mapping.v(near[0], near[1])});
+                uvs.add(new float[] {mapping.u(far[0], far[1]), mapping.v(far[0], far[1])});
+            } else {
+                float u = piece.u0() + (piece.u1() - piece.u0()) * column.along();
+                uvs.add(new float[] {u, piece.v0()});
+                uvs.add(new float[] {u, piece.v1()});
+            }
             if (k > 0) {
                 int was = first + (k - 1) * 2;
                 int now = first + k * 2;
