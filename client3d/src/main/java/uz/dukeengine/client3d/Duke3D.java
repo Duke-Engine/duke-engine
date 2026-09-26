@@ -417,6 +417,24 @@ public final class Duke3D {
     }
 
     /**
+     * Every shadow the sun casts drawn, or none — a player's option, the reference's {@code UseShadowVolumes}; on
+     * until said otherwise. What casts one its look says ({@code Visuals.UnitVisual.castsShadow}). From any thread,
+     * before launch or while it runs.
+     */
+    public void shadows(boolean on) {
+        later(client -> client.shadows(on));
+    }
+
+    /**
+     * What a shadow multiplies what it falls on by, once however many overlap — a map's colour, the last number of
+     * its lighting in the reference ({@code setShadowColor}); null for the reference's own, A0A0A0. From any thread,
+     * before launch or while it runs.
+     */
+    public void shadowColour(java.awt.Color colour) {
+        later(client -> client.shadowColour(colour));
+    }
+
+    /**
      * The pictures laid over all the ground ({@code Visuals.groundShade}) shown or put away — the reference's clouds,
      * off at night and by the player's options. From any thread, before launch or while it runs.
      */

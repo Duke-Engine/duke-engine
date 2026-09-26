@@ -462,6 +462,9 @@ final class DukeRtsApp extends SimpleApplication {
         java.util.Map<Integer, Visuals.WeaponBones> barrelBones;
         /** Its turrets' bones as its words chose them, or null to find them again. */
         java.util.Map<Integer, Visuals.TurretLook> turretLooks;
+        /** The body its shadow was last laid on, and whether it casts one: laid again when either changes. */
+        Spatial shadowBody;
+        boolean casting;
         AnimComposer composer;
         AnimChannel legacyChannel;
         String currentAnim = "";
@@ -554,6 +557,9 @@ final class DukeRtsApp extends SimpleApplication {
             sun.setDirection(sunDirection);
             sun.setColor(sunColour);
         }
+        if (sunShadows != null) {
+            sunShadows.sun(sunDirection);
+        }
         if (ambient != null) {
             ambient.setColor(ambientColour);
         }
@@ -633,6 +639,11 @@ final class DukeRtsApp extends SimpleApplication {
 
         sun = new DirectionalLight(sunDirection, sunColour);
         ambient = new AmbientLight(ambientColour);
+        // Everything drawn takes the sun's shadows; what casts them its look says.
+        rootNode.setShadowMode(com.jme3.renderer.queue.RenderQueue.ShadowMode.Receive);
+        sunShadows = new SunShadows(assetManager, viewPort, sunDirection);
+        sunShadows.on(shadowsOn);
+        sunShadows.colour(shadowColour);
         rootNode.addLight(sun);
         rootNode.addLight(ambient);
         for (var more : visuals.getThingSuns()) {
@@ -791,6 +802,10 @@ final class DukeRtsApp extends SimpleApplication {
     /** The gamma the whole picture is drawn through — see {@link Duke3D#gamma}. */
     private float gamma = 1f;
     private GammaPass gammaPass;
+    /** The sun's shadows — see {@link Duke3D#shadows} — and whether they are drawn, and in what colour. */
+    private SunShadows sunShadows;
+    private boolean shadowsOn = true;
+    private ColorRGBA shadowColour = SunShadows.DEFAULT_COLOUR;
     /** Which way the player's view scrolled last frame — {@code N}, {@code NE} … — or null: what the pointer shows. */
     private String scrolling;
 
@@ -801,6 +816,21 @@ final class DukeRtsApp extends SimpleApplication {
     /** The player's own scroll speed — see {@link Duke3D#scrollSpeed}. */
     void scrollSpeed(float share) {
         this.scrollSpeed = Math.max(0f, share);
+    }
+
+    void shadows(boolean on) {
+        this.shadowsOn = on;
+        if (sunShadows != null) {
+            sunShadows.on(on);
+        }
+    }
+
+    void shadowColour(java.awt.Color colour) {
+        this.shadowColour = colour == null ? SunShadows.DEFAULT_COLOUR
+                : new ColorRGBA(colour.getRed() / 255f, colour.getGreen() / 255f, colour.getBlue() / 255f, 1f);
+        if (sunShadows != null) {
+            sunShadows.colour(shadowColour);
+        }
     }
 
     void gamma(float gamma) {
@@ -6678,6 +6708,13 @@ final class DukeRtsApp extends SimpleApplication {
         }
         runningGear.see(view.id(), view, snapshot.frame());
         turretBones.turn(view.id(), view.turrets());
+        // Its shadow, from its opaque pieces as drawn — none while it is drawn see-through or faded.
+        boolean casts = visual.castsShadow && !stealthLook.looking(view.id());
+        if (sunShadows != null && node.body != null && (casts != node.casting || node.body != node.shadowBody)) {
+            sunShadows.cast(node.body, casts, visual.leastSunHeight);
+            node.casting = casts;
+            node.shadowBody = node.body;
+        }
 
         node.ring.setCullHint(selected.contains(view.id())
                 ? Spatial.CullHint.Never : Spatial.CullHint.Always);

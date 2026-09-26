@@ -12,6 +12,14 @@ are: each keeps the terms given here.
 
 **Adding an asset means adding a row here.** See the rule in `CLAUDE.md`.
 
+## The client
+
+Code the client draws with that is not this project's own.
+
+| What | Who | Licence | Where |
+|---|---|---|---|
+| The sun's shadow filter — jME's post shadow filter, its directional technique alone, a shadow multiplying what it falls on by a colour | jMonkeyEngine | BSD-3-Clause, Copyright (c) 2009-2024 jMonkeyEngine; the notice is at the top of each file | `client3d/src/main/resources/MatDefs/duke/SunShadow.{j3md,frag}` |
+
 ## The kit
 
 The starter set every game may draw from — the effects, and the art they are drawn with. Everything

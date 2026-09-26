@@ -220,6 +220,30 @@ public final class Visuals {
             return layers.computeIfAbsent(name, named -> new UnitVisual());
         }
 
+        /** Whether it casts a shadow from the sun; see {@link #castsShadow}. */
+        boolean castsShadow;
+        /** The least height of sun, in degrees, its shadow is cast from. */
+        float leastSunHeight;
+
+        /**
+         * It casts a shadow from the scene's sun onto the ground and every drawn model, its own included, from its
+         * model's opaque pieces as they are drawn — a turned turret, a hidden piece — the reference's {@code Shadow =
+         * SHADOW_VOLUME}: none while it is not drawn, nor while it is drawn see-through. The client's alone.
+         */
+        public UnitVisual castsShadow() {
+            return castsShadow(0f);
+        }
+
+        /**
+         * The same, cast as from a sun {@code leastDegrees} high while the sun stands lower — the reference's {@code
+         * ShadowSizeX} on a volume: 45 for a tank, 89 for an aircraft, its shadow straight under it.
+         */
+        public UnitVisual castsShadow(float leastDegrees) {
+            this.castsShadow = true;
+            this.leastSunHeight = Math.clamp(leastDegrees, 0f, 90f);
+            return this;
+        }
+
         /** The words that stand its clips still; see {@link #stillWhile}. */
         final java.util.Set<String> stillWhile = new java.util.TreeSet<>();
 
