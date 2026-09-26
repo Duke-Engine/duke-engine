@@ -31,6 +31,18 @@ final class WordClip {
     private double speed = 1;
     /** Its own pace, drawn as it started: what a clip paced to the thing's speed plays at standing still. */
     private double ownPace = 1;
+    /** Whether its clip stands at the frame it reached, its thing holding a word its look stands still by. */
+    private boolean still;
+
+    /** Stood at the frame reached in the game's frame {@code frame} while {@code still}; on from there once not. */
+    void standStill(boolean still, int frame) {
+        if (still == this.still) {
+            return;
+        }
+        from = timeAt(frame);
+        since = frame;
+        this.still = still;
+    }
 
     /**
      * The state its words now best fit — an index into the look's states, or -1 for none — seen in the game's frame
@@ -75,8 +87,9 @@ final class WordClip {
      * drawn by that frame so every machine draws the same whenever it draws its frames. The clip it plays now.
      */
     String idleOn(AnimComposer composer, int frame, int thing) {
-        while (chosen != null && chosen.idles() && length > 0) {
-            int ends = since + (int) Math.ceil(length / (GameConstants.SECONDS_PER_LOGICFRAME * speed) - 1e-9);
+        while (!still && chosen != null && chosen.idles() && length > 0) {
+            int ends = since
+                    + (int) Math.ceil((length - from) / (GameConstants.SECONDS_PER_LOGICFRAME * speed) - 1e-9);
             if (ends > frame) {
                 break;
             }
@@ -159,6 +172,7 @@ final class WordClip {
     /** The same, a clip that names a distance paced to the thing moving {@code thingSpeed} world units a second. */
     static String playOn(AnimComposer composer, WordClip clip, String playing, Visuals.UnitVisual look,
             Set<String> holding, int frame, int thing, float thingSpeed, Consumer<String> missing) {
+        clip.standStill(look.standsStill(holding), frame);
         int index = look.clipStateFor(holding);
         if (index >= 0 && look.clipStates.get(index).clip() == null) {
             if (clip.choose(index, look.clipStates, 0, frame, thing)) {
@@ -221,7 +235,7 @@ final class WordClip {
         if (chosen == null || length <= 0) {
             return 0;
         }
-        double elapsed = Math.max(0, frame - since) * GameConstants.SECONDS_PER_LOGICFRAME * speed;
+        double elapsed = still ? 0 : Math.max(0, frame - since) * GameConstants.SECONDS_PER_LOGICFRAME * speed;
         return switch (chosen.idles() ? Visuals.ClipMode.ONCE : chosen.mode()) {
             case HOLD -> from;
             case ONCE -> Math.min(from + elapsed, last());

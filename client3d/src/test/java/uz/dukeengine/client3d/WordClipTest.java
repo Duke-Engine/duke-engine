@@ -311,4 +311,48 @@ class WordClipTest {
         assertTrue(two.speed() >= 0.9 && two.speed() <= 1.1, "between the two: " + two.speed());
         assertTrue(one.speed() != two.speed(), "each at its own pace");
     }
+
+    // ---- standing still ----
+
+    /** A power plant's fans, a layer of their own, standing still while their side is short of power. */
+    private static Visuals.UnitVisual fans(boolean namesTheWord) {
+        return Visuals.create().unit("PowerPlant", l -> {
+            var fans = l.model("models/power.glb").layer("Fans").model("models/fans.glb")
+                    .clip(Set.of(), "Spin", LOOP, FIRST, null);
+            if (namesTheWord) {
+                fans.stillWhile(Set.of("UNDERPOWERED"));
+            }
+        }).of("PowerPlant").layers.get("Fans");
+    }
+
+    @Test
+    void aLoopingClipStandsAtTheFrameItReachedWhileItsThingHoldsTheWordAndGoesOnFromThere() {
+        var look = fans(true);
+        var composer = composerWith(java.util.Map.of("Spin", 1f));
+        var clip = new WordClip();
+        var none = Set.<String>of();
+        var short_ = Set.of("UNDERPOWERED");
+
+        WordClip.playOn(composer, clip, null, look, none, 0, 7, name -> { });
+        WordClip.playOn(composer, clip, "Spin", look, none, 12, 7, name -> { });
+        assertEquals(0.4, composer.getTime(AnimComposer.DEFAULT_LAYER), 1e-6);
+        WordClip.playOn(composer, clip, "Spin", look, short_, 12, 7, name -> { });
+        WordClip.playOn(composer, clip, "Spin", look, short_, 100, 7, name -> { });
+        assertEquals(0.4, composer.getTime(AnimComposer.DEFAULT_LAYER), 1e-6, "stood where it was");
+
+        WordClip.playOn(composer, clip, "Spin", look, none, 200, 7, name -> { });
+        assertEquals(0.4, composer.getTime(AnimComposer.DEFAULT_LAYER), 1e-6, "the word off, from that frame");
+        WordClip.playOn(composer, clip, "Spin", look, none, 209, 7, name -> { });
+        assertEquals(0.7, composer.getTime(AnimComposer.DEFAULT_LAYER), 1e-6, "and on");
+    }
+
+    @Test
+    void aLayerNamingNoWordPlaysOn() {
+        var look = fans(false);
+        var composer = composerWith(java.util.Map.of("Spin", 1f));
+        var clip = new WordClip();
+        WordClip.playOn(composer, clip, null, look, Set.of("UNDERPOWERED"), 0, 7, name -> { });
+        WordClip.playOn(composer, clip, "Spin", look, Set.of("UNDERPOWERED"), 12, 7, name -> { });
+        assertEquals(0.4, composer.getTime(AnimComposer.DEFAULT_LAYER), 1e-6);
+    }
 }

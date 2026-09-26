@@ -181,6 +181,30 @@ public final class Visuals {
             return layers.computeIfAbsent(name, named -> new UnitVisual());
         }
 
+        /** The words that stand its clips still; see {@link #stillWhile}. */
+        final java.util.Set<String> stillWhile = new java.util.TreeSet<>();
+
+        /**
+         * Its clips stand at the frame they reached while its thing holds any of {@code words}, and go on from that
+         * frame once it holds none — the reference's paused animation ({@code W3DModelDraw::setPauseAnimation} by
+         * {@code Drawable::getShouldAnimate}): a power plant's fans while its side is short of power, a gattling tank's
+         * barrels once its crew is dead. Named again, the words are added. The client's alone.
+         */
+        public UnitVisual stillWhile(java.util.Set<String> words) {
+            stillWhile.addAll(words);
+            return this;
+        }
+
+        /** Whether its clips stand still for what holds {@code holding}. */
+        boolean standsStill(java.util.Set<String> holding) {
+            for (var word : stillWhile) {
+                if (holding.contains(word)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /**
          * A clip played on the way from one of its looks to another — see {@link #transition}.
          *
