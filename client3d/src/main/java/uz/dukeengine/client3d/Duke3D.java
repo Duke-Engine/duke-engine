@@ -426,6 +426,15 @@ public final class Duke3D {
     }
 
     /**
+     * A weather of flakes falling round the player's camera — snow, rain — as {@link WeatherLook} says; null for none,
+     * as there is unless set. Drawn by each machine for itself, nothing of it in the simulation. From any thread,
+     * before launch or while it runs.
+     */
+    public void weather(WeatherLook look) {
+        later(client -> client.weather(look));
+    }
+
+    /**
      * What a shadow multiplies what it falls on by, once however many overlap — a map's colour, the last number of
      * its lighting in the reference ({@code setShadowColor}); null for the reference's own, A0A0A0. From any thread,
      * before launch or while it runs.

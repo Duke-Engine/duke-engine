@@ -1,0 +1,25 @@
+MaterialDef Flakes {
+
+    MaterialParameters {
+        Int BoundDrawBuffer
+
+        // The flake's picture.
+        Texture2D Picture
+        // Its size, times the view's height in pixels over its distance from the eye: pixels across.
+        Float Size
+        Float ViewHeight
+        // The fewest and the most pixels it is drawn across.
+        Float Least
+        Float Most
+    }
+
+    Technique {
+        VertexShader   GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/Flakes.vert
+        FragmentShader GLSL310 GLSL300 GLSL150 GLSL100 : MatDefs/duke/Flakes.frag
+
+        WorldParameters {
+            WorldViewProjectionMatrix
+            CameraPosition
+        }
+    }
+}

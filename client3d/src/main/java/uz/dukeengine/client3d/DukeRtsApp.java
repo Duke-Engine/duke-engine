@@ -818,6 +818,32 @@ final class DukeRtsApp extends SimpleApplication {
         this.scrollSpeed = Math.max(0f, share);
     }
 
+    /** The weather falling round the camera, and the game's frame it last fell to — see {@link Duke3D#weather}. */
+    private Weather weather;
+    private int weatherFrame = -1;
+
+    void weather(WeatherLook look) {
+        if (weather != null) {
+            weather.remove();
+        }
+        weather = look == null ? null : new Weather(look);
+        weatherFrame = -1;
+    }
+
+    /** The weather falls by the frames of the game gone by since the last — none while paused — round the eye. */
+    private void letItFall() {
+        if (weather == null || snapshot == null) {
+            return;
+        }
+        if (weatherFrame >= 0) {
+            weather.step(snapshot.frame() - weatherFrame);
+        }
+        weatherFrame = snapshot.frame();
+        var eye = cam.getLocation();
+        float viewHeight = cam.getHeight() * (cam.getViewPortTop() - cam.getViewPortBottom());
+        weather.show(assetManager, rootNode, eye.x, eye.y, eye.z, viewHeight);
+    }
+
     void shadows(boolean on) {
         this.shadowsOn = on;
         if (sunShadows != null) {
@@ -4484,6 +4510,7 @@ final class DukeRtsApp extends SimpleApplication {
         // What this frame is worth hearing. Reads the same snapshot everything
         // else does and writes nothing back -- see GameSounds.
         placeTheListener();
+        letItFall();
         noises.frame(snapshot, game.getLocalPlayerIndex(),
                 (float) timer.getTimeInSeconds());
         for (var event : snapshot.unseenEvents()) {
