@@ -1445,13 +1445,6 @@ public final class Visuals {
     }
 
     /**
-     * One state of a model's pieces — see {@link UnitVisual#pieces}.
-     *
-     * @param words the condition words it is for, all of which must hold
-     * @param hide  the pieces it hides
-     * @param show  the pieces it shows
-     */
-    /**
      * A turret's bones as a look names them — see {@link UnitVisual#turret}.
      *
      * @param turn     the bone turned by the turret's turn, or null
@@ -1475,6 +1468,13 @@ public final class Visuals {
     public record GhostLook(float opacity, java.awt.Color refused, String marks) {
     }
 
+    /**
+     * One state of a model's pieces — see {@link UnitVisual#pieces}.
+     *
+     * @param words the condition words it is for, all of which must hold
+     * @param hide  the pieces it hides
+     * @param show  the pieces it shows
+     */
     public record PieceState(java.util.SortedSet<String> words, java.util.List<String> hide,
             java.util.List<String> show) {
         public PieceState {

@@ -4757,8 +4757,6 @@ final class DukeRtsApp extends SimpleApplication {
     /** What the armed button will put down, drawn at the cursor, or null for a button with no ghost. */
     private Ghost ghost;
 
-    /** Green where the simulation says it may stand; red where it says no. Translucent either way. */
-
     /**
      * Arm a button that needs a place or a thing: the next click supplies it, and a right click or Escape
      * thinks better of it — the same two-step a hotkey that aims has always had.

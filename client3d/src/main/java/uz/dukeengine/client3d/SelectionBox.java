@@ -64,18 +64,6 @@ final class SelectionBox {
         return found;
     }
 
-    /**
-     * The selection a box leaves ({@code SelectionTranslator}, {@code SelectionInfo}): of what may be selected in it,
-     * the player's own units, his buildings left out — his one building where it is all of his there is, and none of
-     * them where there are more, the selection let go; of nothing of his, the one thing of another side alone in it,
-     * and more than one change nothing; and an empty box keeps the selection. With the add key held, the units it takes
-     * are added to a selection of his units, and replace any other.
-     *
-     * @param box      what may be selected inside the box — see {@link #inside}
-     * @param selected what is selected now, in the order it was chosen
-     * @param hisUnits whether all of that is units of his: no building, nothing of another side's
-     * @param add      whether the add key is held
-     */
     /** What a click chose: the selection after it, and the thing it took in to answer for, or -1 for none. */
     record Clicked(List<Integer> selection, int tookIn) {
     }
@@ -100,6 +88,18 @@ final class SelectionBox {
         return new Clicked(List.copyOf(after), isNew ? hit.id() : -1);
     }
 
+    /**
+     * The selection a box leaves ({@code SelectionTranslator}, {@code SelectionInfo}): of what may be selected in it,
+     * the player's own units, his buildings left out — his one building where it is all of his there is, and none of
+     * them where there are more, the selection let go; of nothing of his, the one thing of another side alone in it,
+     * and more than one change nothing; and an empty box keeps the selection. With the add key held, the units it takes
+     * are added to a selection of his units, and replace any other.
+     *
+     * @param box      what may be selected inside the box — see {@link #inside}
+     * @param selected what is selected now, in the order it was chosen
+     * @param hisUnits whether all of that is units of his: no building, nothing of another side's
+     * @param add      whether the add key is held
+     */
     static List<Integer> after(List<Candidate> box, List<Integer> selected, boolean hisUnits, boolean add) {
         if (box.isEmpty()) {
             return selected;
