@@ -330,6 +330,22 @@ public interface World {
         post(new uz.dukeengine.core.event.StripPlayed(getFrame(), name, where, seconds, rise));
     }
 
+    /**
+     * Play the sound cue of that name at {@code thing}, following it — see {@link
+     * uz.dukeengine.core.event.SoundPlayed}: heard by every machine's client from this frame where its player sees the
+     * thing; asked again within {@code hold} frames it goes on, not asked it stops; 0 plays it once. An event, so out
+     * of the checksum.
+     */
+    default void sound(String cue, GameObject thing, int hold) {
+        post(new uz.dukeengine.core.event.SoundPlayed(getFrame(), cue, thing.getPosition(), thing.getId(),
+                Math.max(0, hold)));
+    }
+
+    /** The same at a point of the world. */
+    default void sound(String cue, uz.dukeengine.core.math.Coord3D where, int hold) {
+        post(new uz.dukeengine.core.event.SoundPlayed(getFrame(), cue, where, null, Math.max(0, hold)));
+    }
+
     /** Play the effect of that name riding {@code thing}, from where it stands and turned the way it faces. */
     default void effect(String name, GameObject thing) {
         post(new uz.dukeengine.core.event.EffectPlayed(getFrame(), name, thing.getPosition(), thing.getOrientation(),

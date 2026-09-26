@@ -79,6 +79,22 @@ final class GameSounds {
 
     private final java.util.List<Riding> riding = new java.util.ArrayList<>();
 
+    /** A cue the simulation holds going, where, riding what (-1 none), until when — see {@link #sound}. */
+    private static final class Held {
+        final int thing;
+        final SoundSink.Playing playing;
+        int until;
+
+        Held(int thing, SoundSink.Playing playing, int until) {
+            this.thing = thing;
+            this.playing = playing;
+            this.until = until;
+        }
+    }
+
+    /** The cues held going, by the cue and what it rides or where it is. */
+    private final java.util.Map<String, Held> held = new java.util.LinkedHashMap<>();
+
     private Map<Integer, UnitView> before = Map.of();
     private String lastDepth = "";
     private String lastNote = "";
@@ -168,6 +184,17 @@ final class GameSounds {
             one.playing().moveTo(at(view));
             return false;
         });
+        held.values().removeIf(one -> {
+            var view = one.thing < 0 ? null : after.get(one.thing);
+            if (snapshot.frame() > one.until || one.thing >= 0 && view == null) {
+                one.playing.stop(); // not asked again within its hold, or its thing gone
+                return true;
+            }
+            if (view != null) {
+                one.playing.moveTo(at(view));
+            }
+            return false;
+        });
         before = after;
     }
 
@@ -186,6 +213,30 @@ final class GameSounds {
             riding.add(new Riding(thing, playing));
         }
         return playing != null;
+    }
+
+    /**
+     * A cue the simulation played ({@link uz.dukeengine.core.event.SoundPlayed}): once, where it holds none; else kept
+     * going, following the thing it rides, until a frame comes {@code hold} frames after it was last asked for — asked
+     * again before then, the one sound plays on rather than another starting over it.
+     */
+    void sound(uz.dukeengine.core.event.SoundPlayed sound, Vector3f at, boolean owned, float now) {
+        int thing = sound.riding() == null ? -1 : sound.riding().value();
+        if (sound.hold() <= 0) {
+            played(sound.cue(), at, thing, owned, now);
+            return;
+        }
+        var key = sound.cue() + (thing >= 0 ? "@" + thing
+                : "@" + Math.round(sound.where().x()) + "," + Math.round(sound.where().y()));
+        var going = held.get(key);
+        if (going != null) {
+            going.until = sound.frame() + sound.hold();
+            return;
+        }
+        var playing = sounds.loop(sound.cue(), at, owned);
+        if (playing != null && playing != SoundSink.Playing.NONE) {
+            held.put(key, new Held(thing, playing, sound.frame() + sound.hold()));
+        }
     }
 
     /**

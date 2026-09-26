@@ -5285,6 +5285,17 @@ final class DukeRtsApp extends SimpleApplication {
         }
     }
 
+    /** A sound cue the simulation played, heard where it is and following the thing it rides. */
+    private void heard(uz.dukeengine.core.event.SoundPlayed sound) {
+        if (noises == null) {
+            return;
+        }
+        var rider = sound.riding() == null ? null : unitNodes.get(sound.riding().value());
+        boolean owned = rider == null || rider.view == null || rider.view.playerIndex() == game.getLocalPlayerIndex();
+        var at = new Vector3f(sound.where().x(), 0f, sound.where().y());
+        noises.sound(sound, at, owned, timer.getTimeInSeconds());
+    }
+
     /**
      * A moment of the world's that the game gave a look to by name — {@code died.<template>.<type>},
      * {@code fired.<weapon>}, {@code landed.<weapon>} — played where {@link WorldMoments} says it happened: an
@@ -5411,6 +5422,8 @@ final class DukeRtsApp extends SimpleApplication {
                 floatingTexts.add(text, text.frame());
             } else if (event instanceof uz.dukeengine.core.event.StripPlayed strip) {
                 pictureStrips.add(strip, strip.frame());
+            } else if (event instanceof uz.dukeengine.core.event.SoundPlayed sound) {
+                heard(sound);
             } else if (event instanceof uz.dukeengine.core.event.EffectPlayed played) {
                 played(played);
             } else if (event instanceof ShotLanded landed && landed.weapon() != null) {

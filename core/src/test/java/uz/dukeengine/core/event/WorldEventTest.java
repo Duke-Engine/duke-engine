@@ -135,4 +135,24 @@ class WorldEventTest {
         assertEquals(4999, events.get(events.size() - 1).frame(),
                 "the newest are kept; it is the oldest that are dropped");
     }
+
+    /** A sound the simulation plays at a thing, following it, and one at a place — told once, out of the checksum. */
+    @Test
+    void aSoundPlayedAtAThingOrAPlaceIsTold() {
+        var logic = newLogic();
+        var soldier = logic.createObject(SOLDIER);
+        soldier.setPosition(new Coord3D(40f, 50f, 0f));
+        long before = logic.checksum();
+        logic.sound("VoiceRapidFire", soldier, 0);
+        logic.sound("GattlingLoop", new Coord3D(10f, 20f, 0f), 5);
+        assertEquals(before, logic.checksum(), "nothing the simulation decides");
+
+        var told = logic.drainEvents().stream().filter(event -> event instanceof SoundPlayed)
+                .map(event -> (SoundPlayed) event).toList();
+        assertEquals(2, told.size());
+        assertEquals(soldier.getId(), told.get(0).riding());
+        assertEquals(new Coord3D(40f, 50f, 0f), told.get(0).where());
+        assertNull(told.get(1).riding());
+        assertEquals(5, told.get(1).hold());
+    }
 }
