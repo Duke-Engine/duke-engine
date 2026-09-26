@@ -194,6 +194,21 @@ when it does, this page says exactly what to change and how.
   asked aside by nobody; a search over decks uses the ground's zones.
 - `Transport` has `drop`, a default; a guest told the host took it out of the game stops, disconnected, where it
   went looking for another relay.
+- `GameMessage` has `ResumeConstruction`, with its `RESUME` line in `CommandCodec`, and `WeaponStatus` has
+  `PRE_ATTACK`: a `switch` over either with no `default` needs the case.
+- A unit closing on a target plans its route to the band its weapon reaches from (`Locomotor.moveWithin`, a search
+  of at most 2500 cells round the target), where it planned to the target's own point; a goal too tight for its
+  mover is reached through the nearest cell with room first. A ground mover held behind one standing still plans a
+  route round it once.
+- A builder that has put a site down keeps to it until it is whole, any order but another build ending its work,
+  and a builder on its way to put one down counts against the thing's cap (`MaxSimultaneous`).
+- A send to a peer whose link has just closed is a lost link, told as any lost link is, where it threw out of the
+  frame.
+- With the add-to-selection key held, a click on one of the player's own things already selected takes it out,
+  where it kept it; a control group selected by its key, the next or previous unit, every unit and every one of a
+  kind are answered with the select voice, where they were silent.
+- A sound about a thing is heard from the thing's own height, and one at a place from the place's, where both were
+  at height 0.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
   `HarvestUpdate.Data` (and `NeedsDepot`, `WaitBy`, `FramesBeforeActs`, `FramesAfterActs`), `SupplyModule.Data` and
   `SupplyDepot.Data` (and `Dock`), `WeaponFired`, `Weapon` (and its own `Bonuses`, its
@@ -207,13 +222,88 @@ when it does, this page says exactly what to change and how.
   `PassengersSeeOut`, `RiderKinds`, `ShowsPassengers`, `RiderTurret`),
   `OrderMark` (and `ContextColour`), `RtsTemplate` (and `FogRange`, `SeenByAllWithin`, its fence), `Shot`,
   `EffectList.Debris`, `GameMessage.AttackObject`, `ActiveBody.Data`, `ExperienceModule.Data` (and
-  `LevelHealthBonus`), `TextFloated`, `HitNumbers` — and every new field left out means what the old record did.
+  `LevelHealthBonus`), `TextFloated`, `HitNumbers`, `WeaponSlot` (and its sources), `MomentWords` (and
+  `preAttack`), `WorldSnapshot` (and `sight`, `aimMarks`, `unseenEvents`, `hiddenUnits`, `streams`), `UnitView`
+  (and `remembered`, `turrets`, `lift`, `yaw`, `corners`), `CameraFrame` (and `edgeShare`), `SoundBank.Cue` (and
+  its reach and voicing), `MoveUpdate.Data` (and its surfaces and class locomotors), `ObstacleRules` (and `laid`)
+  — and every new field left out means what the old record did.
   `PlacementRules` keeps its constructors too, `siteAtOrder` left out as before.
   A template that names no prerequisite, word or cap is buildable as before; a save from before granted words and
   computer sides loads.
   `Canvas.drawPicture(Picture, …)` is a default that refuses, so a game's own canvas compiles as it did.
   `ProjectileLauncher.launch(shooter, victim, damage, type)` and `DieModule.onDie()` are still called, through the
   forms that now say more. The static `Duke3D.launch` methods are shorthand for `Duke3D.of(game, visuals)...launch()`.
+
+### Weapons: a locked slot, aiming, a pitch and a least range, and a wind-up
+
+An order may lock a unit's weapon to one slot of its set in use, until the attack is over or the slot's clip is empty,
+or until another lock (`WeaponUpdate.lock`, `GameMessage.AttackObject`'s `slot`); a slot names the sources that may
+pick it by themselves (`WeaponSlot.autoChooseSources`: a player's order, the game's, none), and an order says its
+source (`OrderSource`) — the reference's `setWeaponLock` and `AutoChooseSources`. A weapon fires once every
+`WeaponAim` module of its thing says it is aimed. A `Weapon`'s `MinTargetPitch` and `MaxTargetPitch` keep it off what
+stands too high or low; its `MinimumAttackRange` fires at nothing nearer, a unit too near backing away to it and one
+that cannot letting it go. `PreAttackFrames` winds up before a shot, a clip or an attack (`PreAttackType`), the thing
+holding its moment word meanwhile (`MomentWords.preAttack`), and `LeechRange` keeps an attack's reach once begun.
+`ExperienceModule.setExperience` sets a rank down as well as up.
+
+### Routes to a fight, builders, sites and how long they take
+
+A mover closing on a target walks to the band its weapon reaches from, searching a band of cells round the target
+rather than the whole map (`Locomotor.moveWithin`, `World.findPathWithin`). A builder keeps to its site until it
+is whole; another builder of the side takes up a half-built one (`GameMessage.ResumeConstruction`). How long a
+site and a factory's job take is asked every frame of a `BuildLength` module, work done kept as it changes.
+
+### What a player has seen, and still things remembered
+
+`GameLogic.setSightCells` keeps what each player has seen of the map, by cells, lingering a while after, and what
+he sees and may target follows it; the snapshot carries it (`WorldSnapshot.sight`) and the client draws the fog by
+it (`Visuals.fogBySight`). Still things seen once are drawn as last seen while their ground is fogged
+(`DukeGame.remember`, the reference's ghosts), and things out of sight are kept in view a while
+(`keepOutOfSight`: 60 frames, 150 dead).
+
+### Ground of classes
+
+A cell may hold a class of ground the game names (`PathGrid.setGroundClass`), and a still thing may lay one over
+its footprint by a word or a kind (`ObstacleRules.laid`) — water, a cliff, rubble. A mover enters the classes its
+locomotor names (`MoveUpdate.Data.surfaces`) and moves by a locomotor of its own on each (`classLocomotors`): its
+routes, zones and steps read the ground as it may walk it.
+
+### Things drawn: clips stood still, turrets turned, lift, yaw and wheels
+
+A look's clips stand still while its thing holds words it names (`UnitVisual.stillWhile`). A game's `Turret` says
+how each of two turrets stands turned and pitched, the view carries it, and a look turns the bones its words name
+(`UnitVisual.turret`). A thing may be drawn lifted and turned beside its facing (`GameObject.setLift`, `setYaw`), and
+its wheels raised at their corners (`setCorners`, `UnitVisual.wheelCorner`) — all of it drawn only.
+
+### The picture: gamma, shadows, weather and streams
+
+`Duke3D.gamma` draws the whole picture through the reference's gamma ramp. A look that casts
+(`UnitVisual.castsShadow`) throws the sun's shadow onto the ground and every model, multiplied by the game's colour
+once however many overlap (`Duke3D.shadowColour`), cast from no lower a sun than its least height; `Duke3D.shadows`
+turns them off and on. `Duke3D.weather` lets flakes fall round the camera as the reference's snow falls. Things may
+ride a named stream (`World.rideStream`, `breakStream`), drawn as one ribbon through them, broken at its gaps
+(`Visuals.stream`).
+
+### Sounds: from the simulation, where they are heard, and how each play varies
+
+`World.sound` plays a cue at a thing or a place, held going while asked again (`SoundPlayed`). A game's
+`SoundBank.Hearing` places the listener between the point looked at and the eye, takes a share off placed sounds
+while the eye is far, and names the ranges and the floor a placed sound is heard within; a cue names its own
+(`Cue.reaching`) and may be heard through fog (`DukeGame.hearThroughFog`). A cue's `Voicing` varies each play's
+rate and loudness, plays attack, sound and decay after a pause — a loop pass after pass — and keeps a thing to one
+voice at a time.
+
+### The player's hand: presses, ghosts, selection, the screen and the window
+
+A press the simulation refuses is told to the game (`DukeGame.onPressRefused`). A ghost may be drawn as its
+building, lit and in its placer's colours, tinted while refused, and the answer about its place may mark rectangles
+of ground (`Visuals.ghost`, `DukeGame.aimAnswer`, `AimMark`). Selection follows the reference: a shift-click
+takes a selected thing out, the client's own selecting keys answer with a voice, a thing may be in one control group
+at a time (`KeyMap.oneGroupEach`), and the drag box and the ring under selected things are the game's to set
+(`Visuals.dragBox`, `selectionRings`). A game's painter may ask where a point of the world and a thing's bar are on
+the screen (`Canvas.screenOf`, `barOf`), and hears the control groups (`DukeGame.getControlGroups`). The camera may
+be kept back from the map's edges by what its view shows (`CameraFrame.edgeShare`), and a game may set the window's
+size and fullscreen while it runs (`Duke3D.display`).
 
 ### Holds: riders by kind and on a turret, passengers shown, and a hold taken away
 
