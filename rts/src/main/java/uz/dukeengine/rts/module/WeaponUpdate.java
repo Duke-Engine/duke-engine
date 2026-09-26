@@ -451,7 +451,7 @@ public final class WeaponUpdate extends UpdateModule {
             return true; // its reach kept for the rest of the attack
         }
         float gap = rangeTo(getOwner(), victim);
-        return gap <= range(getOwner(), chosen.weapon()) && gap >= least(getOwner(), chosen.weapon());
+        return gap <= range(getOwner(), chosen.weapon()) && !insideLeast(getOwner(), chosen.weapon(), gap);
     }
 
     /**
@@ -464,7 +464,7 @@ public final class WeaponUpdate extends UpdateModule {
 
     private boolean tooNear(GameObject victim, OrderSource by) {
         var chosen = choose(armed(), victim, by);
-        return chosen != null && rangeTo(getOwner(), victim) < least(getOwner(), chosen.weapon());
+        return chosen != null && insideLeast(getOwner(), chosen.weapon(), rangeTo(getOwner(), victim));
     }
 
     /**
@@ -617,7 +617,7 @@ public final class WeaponUpdate extends UpdateModule {
         if (!leeching && gap > range(owner, chosen.weapon())) {
             return; // out of range — wait for movement to close in
         }
-        if (!leeching && gap < least(owner, chosen.weapon())) {
+        if (!leeching && insideLeast(owner, chosen.weapon(), gap)) {
             if (cannotBackAway(owner)) {
                 holdFire(); // too near, and nowhere it can go to fire from
             }
@@ -1242,7 +1242,7 @@ public final class WeaponUpdate extends UpdateModule {
         float gap = rangeTo(getOwner(), candidate);
         for (var one : armed) {
             if (mayLookWith(armed, one) && one.clip().status() != WeaponStatus.OUT
-                    && gap <= range(getOwner(), one.weapon()) && gap >= least(getOwner(), one.weapon())
+                    && gap <= range(getOwner(), one.weapon()) && !insideLeast(getOwner(), one.weapon(), gap)
                     && mayHit(one.weapon(), candidate)) {
                 return true;
             }
@@ -1260,6 +1260,15 @@ public final class WeaponUpdate extends UpdateModule {
         var world = owner.getWorld();
         return weapon.leastRange(world == null ? uz.dukeengine.core.pathfind.PathGrid.DEFAULT_CELL_SIZE
                 : world.cellSize());
+    }
+
+    /**
+     * Whether a target {@code gap} off, outline to outline, is inside a weapon's least range. Outlines that overlap
+     * are no distance apart, never less, as the reference's are ({@code distCalcProc_BoundaryAndBoundary_2D}: "sorry,
+     * distances can't be negative"): inside any least range, and inside none where the weapon has none.
+     */
+    private static boolean insideLeast(GameObject owner, Weapon weapon, float gap) {
+        return Math.max(0f, gap) < least(owner, weapon);
     }
 
     /** Whether its own look may pick {@code one}: the locked slot alone while a lock holds. */

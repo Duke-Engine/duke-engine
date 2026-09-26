@@ -70,7 +70,7 @@ class LeastRangeTest {
         logic.init();
         logic.setPathGrid(new PathGrid(120, 120));
         logic.addWeapons(List.of(weapon("Scud", 350f, 200f), weapon("Rockets", 320f, 100f),
-                weapon("Cannon", 300f, 100f)));
+                weapon("Cannon", 300f, 100f), weapon("Fists", 10f, 0f)));
         var us = logic.getPlayerList().addPlayer("Us");
         var them = logic.getPlayerList().addPlayer("Them");
         us.setRelationshipTo(them, Relationship.ENEMIES);
@@ -108,6 +108,23 @@ class LeastRangeTest {
         field.logic().update();
         field.logic().update();
         assertEquals(far.getId(), scud.findModule(WeaponUpdate.class).getTarget(), "the one 250 off, not 100");
+    }
+
+    /** Outlines that overlap are no distance apart, never less: in reach of fists, and too near for a launcher. */
+    @Test
+    void aTargetItsOutlineOverlapsIsInReachOfAWeaponWithNoLeastRangeAndTooNearForOneWithAny() {
+        var fists = field(armed("Fists"));
+        var brawler = fists.put("Shooter", fists.us(), 600f, 605f);
+        var tank = fists.put("Tank", fists.them(), 606f, 605f); // outlines 4 into each other
+        assertTrue(fists.untilItFires(30) >= 0, "it takes what it overlaps by itself, and fires");
+        var weapon = brawler.findModule(WeaponUpdate.class);
+        assertEquals(tank.getId(), weapon.getTarget());
+        assertTrue(weapon.isInRange(tank));
+
+        var scud = field(armed("Scud"));
+        var launcher = scud.put("Shooter", scud.us(), 600f, 605f);
+        var near = scud.put("Tank", scud.them(), 606f, 605f);
+        assertTrue(launcher.findModule(WeaponUpdate.class).isTooNear(near));
     }
 
     @Test
