@@ -69,6 +69,45 @@ public final class SoundBank {
     }
 
     /**
+     * How each play of a cue varies, the parts it is played in, and whether it is a voice — the reference's {@code
+     * PitchShift}, {@code VolumeShift}, {@code Attack}, {@code Decay}, {@code Delay} and {@code VOICE}.
+     *
+     * @param slowest    the least playback rate a play draws — 0.9 for {@code PitchShift = -10 10} — and
+     * @param fastest    the most; each play draws its own between them evenly, from the client's own random, kept to
+     *                   what the sound device plays
+     * @param quietest   the least share of its loudness a play draws, up to all of it — 0.8 for {@code VolumeShift =
+     *                   -20}
+     * @param attack     files one of which plays before it — a tank engine starting — or none
+     * @param decay      files one of which plays after it — the engine winding down — or none
+     * @param leastPause the least pause, in seconds, before it starts, and for a loop before each pass — {@code Delay}
+     * @param mostPause  the most; each pause drawn anew. A loop plays its attack, then pass after pass, each a new pick
+     *                   of its files, and when stopped ends the pass it is in and plays its decay
+     * @param voice      a voice: one about a thing is not played while one about that thing is playing — the
+     *                   reference's {@code isObjectPlayingVoice}
+     */
+    public record Voicing(float slowest, float fastest, float quietest, List<String> attack, List<String> decay,
+            float leastPause, float mostPause, boolean voice) {
+
+        /** As recorded, whole, at once. */
+        public static final Voicing PLAIN = new Voicing(1f, 1f, 1f, List.of(), List.of(), 0f, 0f, false);
+
+        public Voicing {
+            slowest = slowest <= 0f ? 1f : slowest;
+            fastest = Math.max(slowest, fastest <= 0f ? 1f : fastest);
+            quietest = Math.clamp(quietest, 0f, 1f);
+            attack = attack == null ? List.of() : List.copyOf(attack);
+            decay = decay == null ? List.of() : List.copyOf(decay);
+            leastPause = Math.max(0f, leastPause);
+            mostPause = Math.max(leastPause, mostPause);
+        }
+
+        /** Whether it is played in parts over time — an attack, a decay or a pause — rather than a file at once. */
+        public boolean inParts() {
+            return !attack.isEmpty() || !decay.isEmpty() || mostPause > 0f;
+        }
+    }
+
+    /**
      * How the game hears — the reference's {@code AudioSettings}: where its listener stands, how far its sounds carry
      * and how the eye's distance takes from them. Every number left 0 keeps the client's own: its listener at the eye,
      * a sound carrying 40 at full loudness and never cut off.
@@ -121,18 +160,28 @@ public final class SoundBank {
      *     reference's {@code Limit}; 0 for as many as are asked
      * @param priority  which gives way when the game's budget of sounds at once is full — see {@link Priority}
      * @param reach  where a placed one is heard from and how far, and whether fog hides it — see {@link Reach}
+     * @param voicing  how each play of it varies, its parts, and whether it is a voice — see {@link Voicing}
      */
     public record Cue(String name, Channel channel, boolean positional, float gain,
             float gapSeconds, List<String> files, String label, Audience audience, boolean interrupts, int limit,
-            Priority priority, Reach reach) {
+            Priority priority, Reach reach, Voicing voicing) {
 
         public Cue {
+            voicing = voicing == null ? Voicing.PLAIN : voicing;
             files = List.copyOf(files);
             gain = gain <= 0f ? 1f : gain;
             audience = audience == null ? Audience.EVERYONE : audience;
             limit = Math.max(0, limit);
             priority = priority == null ? Priority.NORMAL : priority;
             reach = reach == null ? Reach.DEFAULT : reach;
+        }
+
+        /** Played as it is recorded, whole, once — every cue before a play of one could vary. */
+        public Cue(String name, Channel channel, boolean positional, float gain, float gapSeconds,
+                List<String> files, String label, Audience audience, boolean interrupts, int limit,
+                Priority priority, Reach reach) {
+            this(name, channel, positional, gain, gapSeconds, files, label, audience, interrupts, limit, priority,
+                    reach, Voicing.PLAIN);
         }
 
         /** Heard as far as the game's default carries, and hidden by fog — every cue before a reach could be said. */
@@ -146,7 +195,13 @@ public final class SoundBank {
         /** This cue heard as {@code reach} says. */
         public Cue reaching(Reach reach) {
             return new Cue(name, channel, positional, gain, gapSeconds, files, label, audience, interrupts, limit,
-                    priority, reach);
+                    priority, reach, voicing);
+        }
+
+        /** This cue played as {@code voicing} says. */
+        public Cue voiced(Voicing voicing) {
+            return new Cue(name, channel, positional, gain, gapSeconds, files, label, audience, interrupts, limit,
+                    priority, reach, voicing);
         }
 
         /** As many at once as are asked, of the middle priority — every cue before either could be said. */

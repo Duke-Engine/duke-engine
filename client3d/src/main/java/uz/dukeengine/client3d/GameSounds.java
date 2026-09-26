@@ -152,12 +152,12 @@ final class GameSounds {
             boolean owned = view.playerIndex() == localPlayer;
             var was = before.get(view.id());
             if (was == null) {
-                sounds.play("spawned." + view.templateName(), at(view), now, owned);
+                sounds.play("spawned." + view.templateName(), at(view), now, owned, view.id());
             } else if (view.health() < was.health()) {
-                sounds.play("hurt." + view.templateName(), at(view), now, owned);
+                sounds.play("hurt." + view.templateName(), at(view), now, owned, view.id());
             }
             if (view.moving() && was != null && !was.moving()) {
-                sounds.play("moving." + view.templateName(), at(view), now, owned);
+                sounds.play("moving." + view.templateName(), at(view), now, owned, view.id());
             }
             if (view.moving()) {
                 // Every frame he is walking, which is what walking looks like from
@@ -357,7 +357,8 @@ final class GameSounds {
      */
     void selected(UnitView first, int localPlayer, float now) {
         if (first != null) {
-            sounds.play("selected." + first.templateName(), at(first), now, first.playerIndex() == localPlayer);
+            sounds.play("selected." + first.templateName(), at(first), now, first.playerIndex() == localPlayer,
+                    first.id());
         }
     }
 
@@ -368,7 +369,7 @@ final class GameSounds {
     void ordered(String order, UnitView first, int localPlayer, float now) {
         if (first != null && order != null) {
             sounds.play("ordered." + order + "." + first.templateName(), at(first), now,
-                    first.playerIndex() == localPlayer);
+                    first.playerIndex() == localPlayer, first.id());
         }
     }
 

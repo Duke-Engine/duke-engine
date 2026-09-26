@@ -50,6 +50,21 @@ interface SoundSink {
         return loop(assetPath, gain, at);
     }
 
+    /** Play it once at {@code pitch} times its own rate. */
+    default void play(String assetPath, float gain, float pitch, Vector3f at, Range range) {
+        play(assetPath, gain, at, range);
+    }
+
+    /** {@link #playStoppable} at {@code pitch} times its own rate. */
+    default Playing playStoppable(String assetPath, float gain, float pitch, Vector3f at, Range range) {
+        return playStoppable(assetPath, gain, at, range);
+    }
+
+    /** {@link #loop} at {@code pitch} times its own rate. */
+    default Playing loop(String assetPath, float gain, float pitch, Vector3f at, Range range) {
+        return loop(assetPath, gain, at, range);
+    }
+
     /**
      * A sound that is still going and can be stopped, or moved to follow the thing it belongs to — what
      * {@link #playStoppable} and {@link #loop} hand back.

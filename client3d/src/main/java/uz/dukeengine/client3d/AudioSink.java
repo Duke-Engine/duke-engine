@@ -52,11 +52,17 @@ final class AudioSink implements SoundSink {
 
     @Override
     public void play(String assetPath, float gain, Vector3f at, Range range) {
+        play(assetPath, gain, 1f, at, range);
+    }
+
+    @Override
+    public void play(String assetPath, float gain, float pitch, Vector3f at, Range range) {
         var node = nodeFor(assetPath, false, at != null);
         if (node == null) {
             return;
         }
         fallingAway(node, range);
+        node.setPitch(pitch);
         node.setVolume(gain);
         if (at != null) {
             node.setLocalTranslation(at);
@@ -93,6 +99,11 @@ final class AudioSink implements SoundSink {
 
     @Override
     public Playing playStoppable(String assetPath, float gain, Vector3f at, Range range) {
+        return playStoppable(assetPath, gain, 1f, at, range);
+    }
+
+    @Override
+    public Playing playStoppable(String assetPath, float gain, float pitch, Vector3f at, Range range) {
         stoppable.removeIf(done -> {
             if (done.getStatus() != com.jme3.audio.AudioSource.Status.Stopped) {
                 return false;
@@ -106,6 +117,7 @@ final class AudioSink implements SoundSink {
         }
         stoppable.add(node);
         fallingAway(node, range);
+        node.setPitch(pitch);
         node.setVolume(gain);
         if (at != null) {
             node.setLocalTranslation(at);
@@ -136,11 +148,17 @@ final class AudioSink implements SoundSink {
 
     @Override
     public Playing loop(String assetPath, float gain, Vector3f at, Range range) {
+        return loop(assetPath, gain, 1f, at, range);
+    }
+
+    @Override
+    public Playing loop(String assetPath, float gain, float pitch, Vector3f at, Range range) {
         var node = fresh(assetPath, at != null);
         if (node == null) {
             return Playing.NONE;
         }
         fallingAway(node, range);
+        node.setPitch(pitch);
         node.setLooping(true);
         node.setVolume(gain);
         if (at != null) {

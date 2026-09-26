@@ -52,6 +52,16 @@ final class Sounds {
 
     private final java.util.List<Placed> placed = new java.util.ArrayList<>();
 
+    /** The playback rates the sound device plays: jME's {@code AudioNode.setPitch}, 0.5 to 2. */
+    static final float LEAST_PITCH = 0.5f;
+    static final float MOST_PITCH = 2f;
+    /** The window's seconds, as {@link #update} has counted them: what a cue's parts are timed by. */
+    private float clock;
+    /** The cues playing in parts, stepped on as their parts end and their pauses pass. */
+    private final java.util.List<Parts> sequences = new java.util.ArrayList<>();
+    /** The voice last started about each thing, by the thing's id — see {@link SoundBank.Voicing#voice}. */
+    private final Map<Integer, SoundSink.Playing> voices = new HashMap<>();
+
     /** When each cue last played, for the cues that insist on a gap. */
     private final Map<String, Float> lastPlayed = new HashMap<>();
     /** And when the voice last spoke, which is a gap across every line at once. */
@@ -290,7 +300,15 @@ final class Sounds {
      * @param owned whether the thing it is about is the listening player's
      */
     boolean play(String cueName, Vector3f at, float now, boolean owned) {
-        return start(cueName, at, now, owned, false) != null;
+        return start(cueName, at, now, owned, false, -1) != null;
+    }
+
+    /**
+     * The same, about the thing {@code about}: a voice about it is not played while one about it is playing — see
+     * {@link SoundBank.Voicing#voice}.
+     */
+    boolean play(String cueName, Vector3f at, float now, boolean owned, int about) {
+        return start(cueName, at, now, owned, false, about) != null;
     }
 
     /**
@@ -298,14 +316,14 @@ final class Sounds {
      * {@link SoundSink.Playing#NONE} where the sink cannot keep hold of a sound.
      */
     SoundSink.Playing held(String cueName, Vector3f at, float now, boolean owned) {
-        return start(cueName, at, now, owned, true);
+        return start(cueName, at, now, owned, true, -1);
     }
 
     /**
      * Raise a moment, the cue's every rule kept: null where nothing played, else what plays — held on to where
      * {@code keep} asks or the cue cuts off the last of itself, {@link SoundSink.Playing#NONE} otherwise.
      */
-    private SoundSink.Playing start(String cueName, Vector3f at, float now, boolean owned, boolean keep) {
+    private SoundSink.Playing start(String cueName, Vector3f at, float now, boolean owned, boolean keep, int about) {
         var cue = bank.find(cueName);
         if (cue == null || cue.files().isEmpty()) {
             return null;
@@ -315,6 +333,10 @@ final class Sounds {
         }
         if (gainOf(cue) <= 0f) {
             return null; // turned off; not worth choosing a file for
+        }
+        boolean voiced = cue.voicing().voice() && about >= 0;
+        if (voiced && voices.containsKey(about) && !ended(voices.get(about))) {
+            return null; // it is still saying the last
         }
         if (cue.channel() == SoundBank.Channel.VOICE
                 && now - lastVoiceAt < voiceGapSeconds) {
@@ -342,13 +364,24 @@ final class Sounds {
                 cutOff.stop();
             }
         }
-        float gain = gainOf(cue) * (where != null ? zoom() : 1f);
+        float gain = gainOf(cue) * (where != null ? zoom() : 1f) * loudness(cue.voicing());
+        float pitch = pitch(cue.voicing());
         boolean reached = where != null && (farOf(cue) > 0f || bank.hearing().floor() > 0f);
-        if (!counted && !cue.interrupts() && !keep && !reached) {
-            sink.play(pick(cue), gain, where, rangeOf(cue));
+        SoundSink.Playing playing;
+        if (cue.voicing().inParts()) {
+            var parts = new Parts(cue, false, where, gain, pitch);
+            sequences.add(parts);
+            parts.advance();
+            playing = parts;
+        } else if (!counted && !cue.interrupts() && !keep && !reached && !voiced) {
+            sink.play(pick(cue), gain, pitch, where, rangeOf(cue));
             return SoundSink.Playing.NONE;
+        } else {
+            playing = sink.playStoppable(pick(cue), gain, pitch, where, rangeOf(cue));
         }
-        var playing = sink.playStoppable(pick(cue), gain, where, rangeOf(cue));
+        if (voiced) {
+            voices.put(about, playing);
+        }
         if (counted) {
             live.add(new Live(cue, where != null, playing));
         }
@@ -446,7 +479,7 @@ final class Sounds {
             ended.run();
             return false;
         }
-        var sound = start(cueName, null, now, true, true);
+        var sound = start(cueName, null, now, true, true, -1);
         if (sound == null || sound == SoundSink.Playing.NONE) {
             ended.run();
             return sound != null;
@@ -468,7 +501,14 @@ final class Sounds {
         if (!inReach(cue, where)) {
             return null; // out of reach: started again once it is back
         }
-        return sink.loop(pick(cue), gainOf(cue) * (where != null ? zoom() : 1f), where, rangeOf(cue));
+        float gain = gainOf(cue) * (where != null ? zoom() : 1f) * loudness(cue.voicing());
+        if (cue.voicing().inParts()) {
+            var parts = new Parts(cue, true, where, gain, pitch(cue.voicing()));
+            sequences.add(parts);
+            parts.advance();
+            return parts;
+        }
+        return sink.loop(pick(cue), gain, pitch(cue.voicing()), where, rangeOf(cue));
     }
 
     /** The name of the cue {@code cueName} would play — itself, or what it falls back to — or null for none. */
@@ -506,6 +546,158 @@ final class Sounds {
         }
         lastFile.put(cue.name(), index);
         return files.get(index);
+    }
+
+    /** A play's rate, drawn between the cue's slowest and fastest, kept to what the device plays. */
+    private float pitch(SoundBank.Voicing voicing) {
+        float rate = voicing.slowest() == voicing.fastest() ? voicing.slowest()
+                : voicing.slowest() + random.nextFloat() * (voicing.fastest() - voicing.slowest());
+        return Math.clamp(rate, LEAST_PITCH, MOST_PITCH);
+    }
+
+    /** A play's share of its loudness, drawn between the cue's quietest and all of it. */
+    private float loudness(SoundBank.Voicing voicing) {
+        return voicing.quietest() >= 1f ? 1f : voicing.quietest() + random.nextFloat() * (1f - voicing.quietest());
+    }
+
+    /** A pause drawn between a cue's least and most, in seconds. */
+    private float pause(SoundBank.Voicing voicing) {
+        return voicing.leastPause() + (voicing.mostPause() > voicing.leastPause()
+                ? random.nextFloat() * (voicing.mostPause() - voicing.leastPause()) : 0f);
+    }
+
+    /** Whether a sound has played out — one the sink cannot keep hold of, at once. */
+    private static boolean ended(SoundSink.Playing sound) {
+        return sound == SoundSink.Playing.NONE || sound.ended();
+    }
+
+    /**
+     * A cue played in its parts over time — the reference's {@code AudioEventRTS}: a pause drawn from its delay, then
+     * its attack, its sound and its decay one after another; a loop, pass after pass, each a new pick of its files
+     * after a pause drawn anew, and stopped, however, ending the pass it is in and playing its decay ({@code
+     * MilesAudioManager::startNextLoop}, {@code notifyOfAudioCompletion}).
+     */
+    private final class Parts implements SoundSink.Playing {
+
+        private enum Step { PAUSE, ATTACK, PASS, REST, DECAY, DONE }
+
+        private final SoundBank.Cue cue;
+        private final boolean looping;
+        private final float gain;
+        private final float pitch;
+        private Vector3f at;
+        private Step step = Step.PAUSE;
+        private float until;
+        private boolean stopping;
+        private SoundSink.Playing part = SoundSink.Playing.NONE;
+
+        Parts(SoundBank.Cue cue, boolean looping, Vector3f at, float gain, float pitch) {
+            this.cue = cue;
+            this.looping = looping;
+            this.at = at;
+            this.gain = gain;
+            this.pitch = pitch;
+            this.until = clock + pause(cue.voicing());
+        }
+
+        /** On as far as the clock and the parts playing let it — a few steps at most, however quick its parts. */
+        void advance() {
+            for (int steps = 0; steps < 8; steps++) {
+                switch (step) {
+                    case PAUSE -> {
+                        if (clock < until) {
+                            return;
+                        }
+                        if (stopping) {
+                            step = Step.DONE; // stopped before it began: nothing played
+                        } else if (!begin(Step.ATTACK, cue.voicing().attack(), false)) {
+                            begin(Step.PASS, cue.files(), true);
+                        }
+                    }
+                    case ATTACK -> {
+                        if (!Sounds.ended(part)) {
+                            return;
+                        }
+                        if (stopping) {
+                            end();
+                        } else {
+                            begin(Step.PASS, cue.files(), true);
+                        }
+                    }
+                    case PASS -> {
+                        if (!Sounds.ended(part)) {
+                            return;
+                        }
+                        if (looping && !stopping) {
+                            step = Step.REST;
+                            until = clock + pause(cue.voicing());
+                        } else {
+                            end();
+                        }
+                    }
+                    case REST -> {
+                        if (stopping) {
+                            end();
+                        } else if (clock < until) {
+                            return;
+                        } else {
+                            begin(Step.PASS, cue.files(), true);
+                        }
+                    }
+                    case DECAY -> {
+                        if (!Sounds.ended(part)) {
+                            return;
+                        }
+                        step = Step.DONE;
+                    }
+                    case DONE -> {
+                        return;
+                    }
+                }
+            }
+        }
+
+        /** Its decay, or done where it has none. */
+        private void end() {
+            if (!begin(Step.DECAY, cue.voicing().decay(), false)) {
+                step = Step.DONE;
+            }
+        }
+
+        /** A part begun from {@code files} — its own files picked as ever — and whether there was one to begin. */
+        private boolean begin(Step next, java.util.List<String> files, boolean own) {
+            if (files.isEmpty()) {
+                return false;
+            }
+            var file = own ? pick(cue) : files.get(files.size() == 1 ? 0 : random.nextInt(files.size()));
+            part = sink.playStoppable(file, gain, pitch, at, rangeOf(cue));
+            step = next;
+            return true;
+        }
+
+        @Override
+        public void stop() {
+            if (!looping) {
+                part.stop();
+                step = Step.DONE;
+                return;
+            }
+            stopping = true;
+            advance();
+        }
+
+        @Override
+        public void moveTo(Vector3f where) {
+            if (where != null) {
+                at = where;
+                part.moveTo(where);
+            }
+        }
+
+        @Override
+        public boolean ended() {
+            return step == Step.DONE;
+        }
     }
 
     /** The player's knobs and the game's for one channel, multiplied. */
@@ -606,8 +798,14 @@ final class Sounds {
         return sink.once(assetPath, channelGain(SoundBank.Channel.VOICE) * 0.8f);
     }
 
-    /** Time passing, for whatever is fading. */
+    /** Time passing, for whatever is fading, and for the cues playing in parts. */
     void update(float seconds) {
+        clock += seconds;
+        sequences.removeIf(parts -> {
+            parts.advance();
+            return parts.ended();
+        });
+        voices.values().removeIf(Sounds::ended);
         tellWhatEnded();
         for (var going = fades.iterator(); going.hasNext(); ) {
             var fade = going.next();
