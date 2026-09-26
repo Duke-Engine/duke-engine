@@ -51,6 +51,10 @@ import uz.dukeengine.core.thing.ObjectId;
  * of them itself. <b>Riders on its turret</b> ({@code RiderTurret}): their bone turned about the turret's as the
  * carrier's {@link Turret} has it turned, each facing the turret's way — the reference's heavy tank, its battle bunker
  * 15 behind the turret's pivot ({@code PassengersInTurret}, {@code Object::getSingleLogicalBonePositionOnTurret}).
+ *
+ * <p><b>A hold of its own that dies</b> lets out those inside beside it, the frame it dies — each first dealt the
+ * share of its most health the hold names ({@code DamageToPassengers}) — and its riders die with it: the reference's
+ * {@code OpenContain::onDie}.
  */
 @ModuleGroup(ModuleGroups.MOVEMENT)
 public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
@@ -66,14 +70,24 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
      * PassengersSeeOut}: whether they see out of it, from where it stands; {@code RiderKinds}: the kinds of passenger
      * that ride at its RiderBone, the others sitting inside — none named, every passenger rides; {@code
      * ShowsPassengers}: whether they are drawn where the game stands them; {@code RiderTurret}: the node of its model
-     * its RiderBone turns with as its turret turns, or null for riders on its body.
+     * its RiderBone turns with as its turret turns, or null for riders on its body; {@code DamageToPassengers}: the
+     * share of each passenger's most health dealt it as a hold of its own dies — the reference's {@code
+     * DamagePercentToUnits}; 0 for none, 1 kills them.
      */
     public record Data(int slots, String sharedBy, boolean passengersFire, String riderBone, boolean passengersVanish,
             String exitBone, String exitStart, String exitEnd, boolean passengersSeeOut, List<Kind> riderKinds,
-            boolean showsPassengers, String riderTurret) implements ModuleData {
+            boolean showsPassengers, String riderTurret, float damageToPassengers) implements ModuleData {
 
         public Data {
             riderKinds = riderKinds == null ? List.of() : List.copyOf(riderKinds);
+        }
+
+        /** Passengers that come out of its death unhurt. */
+        public Data(int slots, String sharedBy, boolean passengersFire, String riderBone, boolean passengersVanish,
+                String exitBone, String exitStart, String exitEnd, boolean passengersSeeOut, List<Kind> riderKinds,
+                boolean showsPassengers, String riderTurret) {
+            this(slots, sharedBy, passengersFire, riderBone, passengersVanish, exitBone, exitStart, exitEnd,
+                    passengersSeeOut, riderKinds, showsPassengers, riderTurret, 0f);
         }
 
         /** Riders on its body. */
@@ -143,6 +157,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     private final List<Kind> riderKinds;
     private final boolean showsPassengers;
     private final String riderTurret;
+    private final float damageToPassengers;
     private boolean passengersFire;
     private final List<ObjectId> passengers = new ArrayList<>();
 
@@ -160,6 +175,7 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
         this.riderKinds = data.riderKinds();
         this.showsPassengers = data.showsPassengers();
         this.riderTurret = data.riderTurret();
+        this.damageToPassengers = data.damageToPassengers();
     }
 
     /** Let its passengers fire from inside, or hold them idle — the reference's PassengersFireUpgrade. */
@@ -493,6 +509,9 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     }
 
     /**
+     * Dead, a hold of its own does as the reference's {@code OpenContain::onDie} does: deals each passenger its share
+     * ({@code processDamageToContained}), kills its riders — none of them free to get off ({@code
+     * TransportContain::killRidersWhoAreNotFreeToExit}) — and lets the rest out beside it ({@code removeAllContained}).
      * The last of its side's network gone, its passengers go with it — the reference's tunnel network, whose
      * passengers die when no tunnel is left to come out of; any other it shares its hold with still standing, they
      * live on in that one. Taken out of the world rather than killed, it takes its passengers away with it.
@@ -504,7 +523,10 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
             takeAway(world, passengers);
             return;
         }
-        if (riderBone != null && world != null) {
+        if (sharedBy == null && world != null) {
+            if (damageToPassengers > 0f) {
+                hurtPassengers(world);
+            }
             var riders = new ArrayList<ObjectId>();
             for (var id : passengers) {
                 var passenger = world.findObject(id);
@@ -514,9 +536,10 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
             }
             passengers.removeAll(riders);
             lose(world, riders); // riders die with what they ride
+            unloadAll();
             return;
         }
-        if (sharedBy == null || !(world instanceof uz.dukeengine.rts.RtsSimulation rts) || anotherHoldsTheNetwork()) {
+        if (!(world instanceof uz.dukeengine.rts.RtsSimulation rts) || anotherHoldsTheNetwork()) {
             return; // one still stands: they wait in it
         }
         var hold = rts.sharedHold(getOwner().getPlayerIndex(), sharedBy);
@@ -524,6 +547,29 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
             lose(world, hold);
         } else {
             takeAway(world, hold); // the last taken away, not killed: the tunnels cave in on them
+        }
+    }
+
+    /**
+     * Each passenger dealt its share of its most health, the holder's blow, of the damage the game names unresistable —
+     * the reference's {@code DAMAGE_UNRESISTABLE} — or plain damage where it names none. A whole share kills what it
+     * left standing, as the reference kills its "flame proof troops".
+     */
+    private void hurtPassengers(uz.dukeengine.core.thing.World world) {
+        var type = world.unresistableDamage() != null ? world.unresistableDamage()
+                : uz.dukeengine.core.module.DamageType.NORMAL;
+        var blow = new uz.dukeengine.core.module.Death(uz.dukeengine.core.module.DeathType.NORMAL, getOwner().getId(),
+                getOwner().getPlayerIndex());
+        for (var id : List.copyOf(passengers)) {
+            var passenger = world.findObject(id);
+            var body = passenger == null ? null : passenger.getBody();
+            if (body == null) {
+                continue;
+            }
+            body.damage(body.getMaxHealth() * damageToPassengers, type, blow);
+            if (damageToPassengers >= 1f) {
+                body.setHealth(0f);
+            }
         }
     }
 

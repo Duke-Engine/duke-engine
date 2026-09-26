@@ -72,6 +72,44 @@ class ContainTest {
                 "and nobody died");
     }
 
+    /** A transport holding two soldiers killed lets them out beside it, alive, the frame it dies: OpenContain::onDie. */
+    @Test
+    void aHolderThatDiesLetsItsPassengersOutBesideIt() {
+        var apc = logic.createObject(transport);
+        apc.setPosition(new Coord3D(20f, 20f, 0f));
+        var a = logic.createObject(infantry);
+        var b = logic.createObject(infantry);
+        apc.findModule(ContainModule.class).load(a);
+        apc.findModule(ContainModule.class).load(b);
+        logic.update();
+
+        apc.getBody().setHealth(0f);
+        logic.update();
+
+        assertFalse(logic.getObjects().contains(apc), "it died this frame");
+        for (var soldier : java.util.List.of(a, b)) {
+            assertTrue(logic.getObjects().contains(soldier) && !soldier.isContained(), "out, the same frame");
+            assertEquals(50f, soldier.getBody().getHealth(), "alive and unhurt");
+            assertTrue(soldier.getPosition().distance(apc.getPosition()) < 10f, "beside it");
+        }
+    }
+
+    /** A hold naming a share deals it to each passenger as it dies, and lets them out: DamagePercentToUnits. */
+    @Test
+    void aHolderThatDiesDealsItsPassengersItsShare() {
+        var bunker = logic.createObject(ThingTemplate.named("Bunker").module(new ActiveBody.Data(200f))
+                .module(new ContainModule.Data(2, null, false, null, false, null, null, null, false, null, false, null,
+                        0.5f)).build());
+        var a = logic.createObject(infantry);
+        bunker.findModule(ContainModule.class).load(a);
+
+        bunker.getBody().setHealth(0f);
+        logic.update();
+
+        assertEquals(25f, a.getBody().getHealth(), "half its most health");
+        assertFalse(a.isContained(), "and out");
+    }
+
     @Test
     void loadsUpToCapacityThenRejects() {
         var apc = logic.createObject(transport);
