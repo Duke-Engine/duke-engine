@@ -276,7 +276,8 @@ final class RtsClient extends GameClient {
                 contextOrder.get(),
                 beams,
                 rallies,
-                effects);
+                effects,
+                everything || logic.getSightCells() == null ? null : logic.getSightCells().view(viewerPlayer));
     }
 
     /**

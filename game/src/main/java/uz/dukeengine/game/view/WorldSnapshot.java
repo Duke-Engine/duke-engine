@@ -51,10 +51,24 @@ public record WorldSnapshot(
         String contextOrder,
         List<BeamView> beams,
         List<RallyView> rallies,
-        List<EffectView> effects) {
+        List<EffectView> effects,
+        uz.dukeengine.core.SightCells.View sight) {
 
     public static final WorldSnapshot EMPTY = new WorldSnapshot(0, 0f, false, 0, 0, List.of(), List.of(), "", "",
-            List.of(), true, true, null, false, null, List.of(), List.of(), List.of());
+            List.of(), true, true, null, false, null, List.of(), List.of(), List.of(), null);
+
+    /**
+     * A frame with no cells of what its viewer has seen: every frame of a game that keeps none, and every frame from
+     * before one could ({@code GameLogic.setSightCells}).
+     */
+    public WorldSnapshot(int frame, float gameTimeSeconds, boolean paused, int localPlayerMoney,
+            int localPlayerPowerSurplus, List<UnitView> units, List<WorldEvent> events, String banner,
+            String status, List<CommandButton> commands, boolean aimFits, boolean attackable, CameraView camera,
+            boolean revealed, String contextOrder, List<BeamView> beams, List<RallyView> rallies,
+            List<EffectView> effects) {
+        this(frame, gameTimeSeconds, paused, localPlayerMoney, localPlayerPowerSurplus, units, events, banner,
+                status, commands, aimFits, attackable, camera, revealed, contextOrder, beams, rallies, effects, null);
+    }
 
     /** A frame with no effect riding a thing: every frame from before the simulation could keep one going. */
     public WorldSnapshot(int frame, float gameTimeSeconds, boolean paused, int localPlayerMoney,

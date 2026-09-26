@@ -2016,6 +2016,29 @@ public final class Visuals {
         return discoveryTemplate;
     }
 
+    private boolean fogBySight;
+
+    /**
+     * Draw the ground by the cells the simulation keeps of what the local player has seen ({@code
+     * GameLogic.setSightCells}), in place of a template's discovery — an RTS's fog: never seen at the fog's unseen
+     * light, seen at its remembered light, in sight whole ({@link #fog}; the reference's 0, 0.498 and 1), smoothed
+     * between cell middles as a discovery's dark is, and past the map's edges as far as the view reaches as never seen.
+     */
+    public Visuals fogBySight() {
+        this.fogBySight = true;
+        return this;
+    }
+
+    /** Whether the ground is drawn by the simulation's cells of what the local player has seen. */
+    public boolean isFogBySight() {
+        return fogBySight;
+    }
+
+    /** Whether the client draws a fog at all: a template's discovery, or the simulation's cells. */
+    public boolean drawsFog() {
+        return discoveryTemplate != null || fogBySight;
+    }
+
     private Fog fog = Fog.DEFAULT;
 
     /**

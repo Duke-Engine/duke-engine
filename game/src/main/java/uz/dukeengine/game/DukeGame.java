@@ -1755,7 +1755,12 @@ public final class DukeGame {
         if (now.unit() < 0) {
             var rule = groundOrder;
             var selected = rule == null || now.ground() == null ? List.<GameObject>of() : selectedOwn(world, null);
-            return selected.isEmpty() ? null : rule.orderAt(selected, now.ground(), now.seen());
+            if (selected.isEmpty()) {
+                return null;
+            }
+            var cells = world.getSightCells(); // the simulation's cells, where it keeps them, over the client's word
+            boolean seen = cells == null ? now.seen() : cells.everSeen(getLocalPlayerIndex(), now.ground());
+            return rule.orderAt(selected, now.ground(), seen);
         }
         var rule = contextOrder;
         var target = world.findObject(new uz.dukeengine.core.thing.ObjectId(now.unit()));

@@ -206,6 +206,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         if (revealedTo.contains(viewerPlayer)) {
             return true; // the whole map, for good
         }
+        if (sightCells != null) {
+            return sightCells.inSight(viewerPlayer, position); // by its cells, the while after counted
+        }
         for (var watcher : objects) {
             float reach = reachFor(viewerPlayer, watcher);
             if (reach >= 0f && watcher.getPosition().distance(position) <= reach) {
@@ -331,15 +334,72 @@ public abstract class GameLogic extends SubsystemInterface implements World {
 
     /** Every object {@code viewerPlayer} can currently see, in creation order — as {@link #canSee} says of each. */
     public final List<GameObject> getVisibleObjects(int viewerPlayer) {
-        var eyes = revealedTo.contains(viewerPlayer) ? null : new Eyes(viewerPlayer);
+        boolean all = revealedTo.contains(viewerPlayer);
+        var eyes = all || sightCells != null ? null : new Eyes(viewerPlayer);
         var visible = new ArrayList<GameObject>();
         for (var object : objects) {
-            if (!object.isHiddenFrom(viewerPlayer)
-                    && (object.getPlayerIndex() == viewerPlayer || eyes == null || eyes.see(object.getPosition()))) {
+            if (object.isHiddenFrom(viewerPlayer)) {
+                continue;
+            }
+            if (object.getPlayerIndex() == viewerPlayer || all
+                    || (eyes != null ? eyes.see(object.getPosition())
+                            : sightCells.inSight(viewerPlayer, object.getPosition()))) {
                 visible.add(object);
             }
         }
         return visible;
+    }
+
+    // ---- what each player has seen, by cells ----
+
+    private SightCells sightCells;
+    private float sightCellSize;
+    private int sightLinger;
+
+    /**
+     * Keep each player's view of the map by cells of {@code cellSize} — never seen, seen, in sight — a cell no looker
+     * covers any more staying in sight {@code linger} frames: the reference's partition cells of 40 and its 150
+     * ({@code PartitionCellSize}, {@code UnlookPersistDuration}). From then {@link #canSee} and what a viewer is shown
+     * count by the cells, the while after included — see {@link SightCells}. Looked at as each frame ends, the same on
+     * every machine. Needs the ground's grid, whose size is the map's; a new grid starts every player's cells afresh.
+     * A cell size of 0 or less, as before: sight worked out afresh at each question, by the lookers' reach alone.
+     */
+    public final void setSightCells(float cellSize, int linger) {
+        this.sightCellSize = cellSize;
+        this.sightLinger = linger;
+        this.sightCells = null;
+        layTheSightCells();
+    }
+
+    /** Each player's cells, or null where the game keeps none. On the simulation thread. */
+    public final SightCells getSightCells() {
+        return sightCells;
+    }
+
+    private void layTheSightCells() {
+        if (sightCellSize <= 0f || pathGrid == null) {
+            sightCells = null;
+            return;
+        }
+        sightCells = new SightCells(sightCellSize, sightLinger, pathGrid.getWidth() * pathGrid.getCellSize(),
+                pathGrid.getHeight() * pathGrid.getCellSize());
+    }
+
+    /** As the frame ends: every player's lookers cover their discs, as {@link #canSee} has them look. */
+    private void lookAtTheMap() {
+        if (sightCells == null) {
+            return;
+        }
+        sightCells.begin(frame);
+        int players = getPlayerList().getPlayerCount();
+        for (int player = 0; player < players; player++) {
+            for (var watcher : objects) {
+                float reach = reachFor(player, watcher);
+                if (reach >= 0f) {
+                    sightCells.look(player, watcher.getPosition(), reach);
+                }
+            }
+        }
     }
 
     public final PartitionManager getPartition() {
@@ -667,6 +727,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             pathGrid.setLevelHeight(layered.levelHeight());
         }
         this.staticObstaclesDirty = true;
+        layTheSightCells();
     }
 
     /** What the game's World block says of its world, as far as the engine reads it. */
@@ -1138,6 +1199,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         objects.clear();
         objectsCopy = null;
         revealedTo.clear();
+        layTheSightCells(); // a new match is a map nobody has seen
         beams.clear();
         ridingEffects.clear();
         nextEffect = 1;
@@ -1165,6 +1227,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
         cellsLastFrame = cellsThisFrame;
         cellsThisFrame = 0;
+        lookAtTheMap();
         frame++;
     }
 

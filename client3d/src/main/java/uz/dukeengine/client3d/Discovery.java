@@ -148,6 +148,37 @@ final class Discovery {
         explored.or(visible);
     }
 
+    /** Whether past the map's edges is never seen, not the outermost cell repeated — see {@link #fromSight}. */
+    private boolean darkPastTheEdge;
+
+    /**
+     * Take what is open from the simulation's own cells of what the local player has seen, in place of any looking of
+     * its own: each of its cells as the sight cell its middle stands in says — in sight, seen, or never seen — and past
+     * the map's edges never seen.
+     */
+    void fromSight(uz.dukeengine.core.SightCells.View sight) {
+        darkPastTheEdge = true;
+        visible.clear();
+        explored.clear();
+        if (sight == null) {
+            return;
+        }
+        for (int cy = 0; cy < height; cy++) {
+            float y = (cy + 0.5f) * cellSize;
+            for (int cx = 0; cx < width; cx++) {
+                switch (sight.at((cx + 0.5f) * cellSize, y)) {
+                    case IN_SIGHT -> {
+                        visible.set(cy * width + cx);
+                        explored.set(cy * width + cx);
+                    }
+                    case SEEN -> explored.set(cy * width + cx);
+                    case NEVER_SEEN -> {
+                    }
+                }
+            }
+        }
+    }
+
     /** The whole map open and in sight: for a player it was revealed to, and for a watcher. */
     void openEverything() {
         visible.set(0, width * height);
@@ -394,8 +425,14 @@ final class Discovery {
         return from + (to - from) * along;
     }
 
-    /** The map's edge is a wall, not a cliff: past it, the outermost cell repeats. */
+    /**
+     * The map's edge is a wall, not a cliff: past it, the outermost cell repeats — or, drawn by the simulation's cells,
+     * it is never seen.
+     */
     private float clampedLight(int cellX, int cellY) {
+        if (darkPastTheEdge && (cellX < 0 || cellY < 0 || cellX >= width || cellY >= height)) {
+            return fog.unseenLight();
+        }
         return light[Math.clamp(cellY, 0, height - 1) * width + Math.clamp(cellX, 0, width - 1)];
     }
 

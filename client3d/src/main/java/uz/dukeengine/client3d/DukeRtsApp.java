@@ -603,7 +603,7 @@ final class DukeRtsApp extends SimpleApplication {
         // player has never been in. The fog's own colour exactly, not a shade of
         // it: unwalked ground inside the map is the sheet at full strength, and
         // the two meeting at the map's edge would otherwise draw its outline.
-        viewPort.setBackgroundColor(visuals.getDiscoveryTemplate() == null
+        viewPort.setBackgroundColor(!visuals.drawsFog()
                 ? new ColorRGBA(0.05f, 0.07f, 0.10f, 1f)
                 : visuals.getFog().tintColour());
         // The ground's overlays in their layers' order, under every other see-through thing.
@@ -616,13 +616,13 @@ final class DukeRtsApp extends SimpleApplication {
         }
 
         // Before the terrain, which builds materials that read it.
-        if (visuals.getDiscoveryTemplate() != null) {
+        if (visuals.drawsFog()) {
             fogMap = new FogMap(visuals.getFog());
         }
         // Needs the locators above, so it cannot be built with the app itself.
         terrain = new TerrainScene(terrainNode,
                 groundSurfaces,
-                visuals.getDiscoveryTemplate() != null, visuals.getTiles(), new KitTiles());
+                visuals.drawsFog(), visuals.getTiles(), new KitTiles());
 
         sun = new DirectionalLight(sunDirection, sunColour);
         ambient = new AmbientLight(ambientColour);
@@ -1106,7 +1106,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (grid != null) {
             var rock = unshaded(new ColorRGBA(0.35f, 0.32f, 0.26f, 1f));
             float cellPx = grid.getCellSize() * minimap.scale();
-            boolean discovered = visuals.getDiscoveryTemplate() != null;
+            boolean discovered = visuals.drawsFog();
             if (discovered) {
                 minimapCells = new Geometry[grid.getWidth() * grid.getHeight()];
             }
@@ -2921,7 +2921,7 @@ final class DukeRtsApp extends SimpleApplication {
             water.rebuild(game.getMapRecord() instanceof uz.dukeengine.core.map.Zoned zoned ? zoned.areas()
                     : java.util.List.of(), drawnGround(), visuals.getWater());
         }
-        if (visuals.getDiscoveryTemplate() == null) {
+        if (!visuals.drawsFog()) {
             return;
         }
         fogMap.resize(builtFrom);
@@ -2973,6 +2973,14 @@ final class DukeRtsApp extends SimpleApplication {
         }
         if (snapshot.revealed()) {
             discovery.openEverything(); // the map revealed to this player, or a watcher's seat
+            discovery.soften(tpf);
+            fogMap.update(discovery);
+            terrain.applyDiscovery(discovery);
+            applyMinimapDiscovery(builtFrom);
+            return;
+        }
+        if (visuals.isFogBySight()) {
+            discovery.fromSight(snapshot.sight()); // the simulation's cells of what this player has seen
             discovery.soften(tpf);
             fogMap.update(discovery);
             terrain.applyDiscovery(discovery);
