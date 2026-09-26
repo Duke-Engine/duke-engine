@@ -1107,6 +1107,8 @@ public final class DukeGame {
         diedCallbacks.forEach(logic::onDied);
         client = new RtsClient(logic);
         client.setMomentWords(momentWords);
+        client.remember(remembers);
+        client.keepOutOfSight(keepFrames, keepDeadFrames);
         client.setCommands(this::buttonsNow);
         client.setAimFits(this::aimFitsNow);
         client.setAttackable(this::attackableNow);
@@ -1252,6 +1254,39 @@ public final class DukeGame {
         this.momentWords = words;
         if (client != null) {
             client.setMomentWords(words);
+        }
+        return this;
+    }
+
+    private volatile java.util.function.Predicate<GameObject> remembers;
+    private volatile int keepFrames;
+    private volatile int keepDeadFrames;
+
+    /**
+     * Which things a viewer goes on seeing once seen: the view he last had of each while it was in sight, marked
+     * remembered, for as long as the ground under it is seen but not in sight — drawn through the fog as it was, not
+     * picked and with no bar; dropped once that ground is in sight again, and never shown on ground never seen. The
+     * reference's ghosts of still things ({@code W3DGhostObject}): a tree, a house, an enemy's base that no longer
+     * blink out as its looker leaves. Asked on the simulation thread; null, the default, for none.
+     */
+    public DukeGame remember(java.util.function.Predicate<GameObject> which) {
+        this.remembers = which;
+        if (client != null) {
+            client.remember(which);
+        }
+        return this;
+    }
+
+    /**
+     * How many frames a thing that goes out of a viewer's sight stays in his view as it is, after it was last in sight,
+     * and a dead one — the reference's 60 and 150 ({@code GameClient::update}: "planes that pop out of the shroud,
+     * fire, then head back"). 0, the default, for not at all.
+     */
+    public DukeGame keepOutOfSight(int frames, int deadFrames) {
+        this.keepFrames = frames;
+        this.keepDeadFrames = deadFrames;
+        if (client != null) {
+            client.keepOutOfSight(frames, deadFrames);
         }
         return this;
     }

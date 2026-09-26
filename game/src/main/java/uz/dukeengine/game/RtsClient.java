@@ -173,58 +173,14 @@ final class RtsClient extends GameClient {
         }
         var turns = new java.util.HashMap<Integer, Float>();
         for (var object : shown) {
-            var carrier = object.isContained() ? uz.dukeengine.rts.module.ContainModule.holdOf(object) : null;
-            boolean rider = carrier != null && (carrier.rides(object) || carrier.showsPassengers());
-            if (object.isContained() && !rider || object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)) {
-                continue; // riding inside a transport, or not there to be seen — not on the map
+            var view = viewOf(object, everything, turns);
+            if (view != null) {
+                units.add(view);
+                noteInSight(object, view);
             }
-            var template = object.getTemplate();
-            var position = object.getPosition();
-            var body = object.getBody();
-            var ai = object.getLocomotor();
-            var weapon = object.findModule(uz.dukeengine.rts.module.WeaponUpdate.class);
-            var production = object.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
-            var hold = object.findModule(uz.dukeengine.rts.module.ContainModule.class);
-            var regard = everything || object.getPlayerIndex() == viewerPlayer
-                    ? uz.dukeengine.core.player.Relationship.ALLIES
-                    : logic.getRelationship(viewerPlayer, object.getPlayerIndex());
-            boolean allied = regard == uz.dukeengine.core.player.Relationship.ALLIES;
-            units.add(new UnitView(
-                    object.getId().value(),
-                    template.name(),
-                    object.getPlayerIndex(),
-                    position.x(),
-                    position.y(),
-                    object.getOrientation(),
-                    body == null ? 0f : body.getHealth(),
-                    body == null ? 0f : body.getMaxHealth(),
-                    object.isKindOf(RtsKinds.STRUCTURE),
-                    object.isKindOf(RtsKinds.SELECTABLE) && !rider
-                            && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.SOLD)
-                            && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.UNSELECTABLE),
-                    ai != null && ai.isMoving(),
-                    weapon != null && weapon.isAttacking(),
-                    production == null ? -1 : production.getQueueSize(),
-                    position.z(),
-                    object.getPitch(),
-                    object.getRoll(),
-                    object.keepsOwnHeight(),
-                    object.statusBits(),
-                    hold == null ? java.util.List.of()
-                            : hold.getPassengers().stream().map(uz.dukeengine.core.thing.ObjectId::value).toList(),
-                    wordsOf(object, ai != null && ai.isMoving(), weapon, turns),
-                    built(object),
-                    rider ? carrier.getOwner().getId().value() : -1,
-                    allied,
-                    object.getSpan(),
-                    ai != null,
-                    object.getDrawnAs(),
-                    // In the colours of the player it is disguised as to a viewer not on its side, as the reference
-                    // draws a disguised bomb truck to its enemies; its own to its side.
-                    allied || object.getWearsColoursOf() < 0 ? object.getPlayerIndex() : object.getWearsColoursOf(),
-                    object.getDrawnOpacity(),
-                    regard == uz.dukeengine.core.player.Relationship.ENEMIES,
-                    ai == null ? 0f : ai.speedMoved()));
+        }
+        if (!everything) {
+            addWhatItStillShows(units);
         }
         turretTurns = turns;
         var rallies = new ArrayList<uz.dukeengine.game.view.RallyView>();
@@ -278,6 +234,159 @@ final class RtsClient extends GameClient {
                 rallies,
                 effects,
                 everything || logic.getSightCells() == null ? null : logic.getSightCells().view(viewerPlayer));
+    }
+
+    /**
+     * What this viewer is shown of {@code object}, or null for nothing — carried inside a hold that shows none of its
+     * passengers, or not there to be seen.
+     */
+    private UnitView viewOf(uz.dukeengine.core.thing.GameObject object, boolean everything,
+            java.util.Map<Integer, Float> turns) {
+        var carrier = object.isContained() ? uz.dukeengine.rts.module.ContainModule.holdOf(object) : null;
+        boolean rider = carrier != null && (carrier.rides(object) || carrier.showsPassengers());
+        if (object.isContained() && !rider || object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.HIDDEN)) {
+            return null; // riding inside a transport, or not there to be seen — not on the map
+        }
+        var template = object.getTemplate();
+        var position = object.getPosition();
+        var body = object.getBody();
+        var ai = object.getLocomotor();
+        var weapon = object.findModule(uz.dukeengine.rts.module.WeaponUpdate.class);
+        var production = object.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
+        var hold = object.findModule(uz.dukeengine.rts.module.ContainModule.class);
+        var regard = everything || object.getPlayerIndex() == viewerPlayer
+                ? uz.dukeengine.core.player.Relationship.ALLIES
+                : logic.getRelationship(viewerPlayer, object.getPlayerIndex());
+        boolean allied = regard == uz.dukeengine.core.player.Relationship.ALLIES;
+        return new UnitView(
+                object.getId().value(),
+                template.name(),
+                object.getPlayerIndex(),
+                position.x(),
+                position.y(),
+                object.getOrientation(),
+                body == null ? 0f : body.getHealth(),
+                body == null ? 0f : body.getMaxHealth(),
+                object.isKindOf(RtsKinds.STRUCTURE),
+                object.isKindOf(RtsKinds.SELECTABLE) && !rider
+                        && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.SOLD)
+                        && !object.hasStatus(uz.dukeengine.core.thing.ObjectStatus.UNSELECTABLE),
+                ai != null && ai.isMoving(),
+                weapon != null && weapon.isAttacking(),
+                production == null ? -1 : production.getQueueSize(),
+                position.z(),
+                object.getPitch(),
+                object.getRoll(),
+                object.keepsOwnHeight(),
+                object.statusBits(),
+                hold == null ? java.util.List.of()
+                        : hold.getPassengers().stream().map(uz.dukeengine.core.thing.ObjectId::value).toList(),
+                wordsOf(object, ai != null && ai.isMoving(), weapon, turns),
+                built(object),
+                rider ? carrier.getOwner().getId().value() : -1,
+                allied,
+                object.getSpan(),
+                ai != null,
+                object.getDrawnAs(),
+                // In the colours of the player it is disguised as to a viewer not on its side, as the reference
+                // draws a disguised bomb truck to its enemies; its own to its side.
+                allied || object.getWearsColoursOf() < 0 ? object.getPlayerIndex() : object.getWearsColoursOf(),
+                object.getDrawnOpacity(),
+                regard == uz.dukeengine.core.player.Relationship.ENEMIES,
+                ai == null ? 0f : ai.speedMoved());
+    }
+
+    /** Which things this viewer goes on seeing as he last saw them, their ground fogged — see {@link #remember}. */
+    private volatile java.util.function.Predicate<uz.dukeengine.core.thing.GameObject> remembers;
+    /** How many frames a thing out of this viewer's sight stays in his view, and a dead one. */
+    private volatile int keepFrames;
+    private volatile int keepDeadFrames;
+    /** The last view this viewer had of each thing the game remembers, while it was in sight. */
+    private final java.util.Map<Integer, UnitView> remembered = new java.util.LinkedHashMap<>();
+    /** The last frame this viewer had each thing in sight. */
+    private final java.util.Map<Integer, Integer> lastInSight = new java.util.LinkedHashMap<>();
+    /** The viewer the memories above are his. */
+    private int memoriesOf = Integer.MIN_VALUE;
+
+    /**
+     * Which things a viewer goes on seeing once seen, drawn as he last saw each while it was in sight for as long as
+     * the ground under it is seen but not in sight — the reference's ghosts of still things ({@code W3DGhostObject}):
+     * dropped once that ground is in sight again. Asked on the simulation thread; null for none.
+     */
+    void remember(java.util.function.Predicate<uz.dukeengine.core.thing.GameObject> which) {
+        this.remembers = which;
+    }
+
+    /**
+     * How many frames a thing out of a viewer's sight stays in his view as it is — the reference's 60, a plane that
+     * pops out of the shroud, fires and heads back — and a dead one, its 150 ({@code GameClient::update}).
+     */
+    void keepOutOfSight(int frames, int deadFrames) {
+        this.keepFrames = Math.max(0, frames);
+        this.keepDeadFrames = Math.max(0, deadFrames);
+    }
+
+    private void noteInSight(uz.dukeengine.core.thing.GameObject object, UnitView view) {
+        if (memoriesOf != viewerPlayer) {
+            remembered.clear();
+            lastInSight.clear();
+            memoriesOf = viewerPlayer;
+        }
+        int id = view.id();
+        lastInSight.put(id, logic.getFrame());
+        var which = remembers;
+        if (which != null && which.test(object)) {
+            remembered.put(id, view);
+        }
+    }
+
+    /**
+     * What this viewer still sees of things out of his sight: each thing still in the world a while after he last had
+     * it in sight, as it is — a thing gone from the world is gone from his view too; and each thing he remembers as he
+     * last saw it, while its ground is seen and not in sight — dropped once its ground is in sight again, where it is
+     * drawn as it is now, or not at all.
+     */
+    private void addWhatItStillShows(java.util.List<UnitView> units) {
+        var drawn = new java.util.HashSet<Integer>();
+        units.forEach(view -> drawn.add(view.id()));
+        int frame = logic.getFrame();
+        int longest = Math.max(keepFrames, keepDeadFrames);
+        for (var it = lastInSight.entrySet().iterator(); it.hasNext();) {
+            var seen = it.next();
+            int id = seen.getKey();
+            if (drawn.contains(id) || remembered.containsKey(id)) {
+                continue; // in sight; or remembered, which its ghost stands for once its ground is fogged
+            }
+            var object = logic.findObject(new uz.dukeengine.core.thing.ObjectId(id));
+            int since = frame - seen.getValue();
+            if (object == null || since > longest) {
+                it.remove();
+                continue;
+            }
+            if (since > (object.isEffectivelyDead() ? keepDeadFrames : keepFrames)) {
+                continue;
+            }
+            var view = viewOf(object, false, new java.util.HashMap<>());
+            if (view != null) {
+                units.add(view);
+                drawn.add(id);
+            }
+        }
+        var cells = logic.getSightCells();
+        for (var it = remembered.entrySet().iterator(); it.hasNext();) {
+            var memory = it.next();
+            if (drawn.contains(memory.getKey())) {
+                continue;
+            }
+            var view = memory.getValue();
+            var ground = new uz.dukeengine.core.math.Coord3D(view.x(), view.y(), view.z());
+            boolean inSight = cells != null ? cells.inSight(viewerPlayer, ground) : logic.canSee(viewerPlayer, ground);
+            if (inSight) {
+                it.remove(); // its ground in sight again: what is there now is drawn, if anything is
+            } else if (cells == null || cells.everSeen(viewerPlayer, ground)) {
+                units.add(view.asRemembered());
+            }
+        }
     }
 
     /**

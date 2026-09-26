@@ -5093,8 +5093,8 @@ final class DukeRtsApp extends SimpleApplication {
         var plain = visuals.getUnitBars().plain();
         var pointed = plain == null ? null : pickUnit();
         for (var node : unitNodes.values()) {
-            if (node.view == null || node.view.maxHealth() <= 0f) {
-                continue; // a prop or an arrow: nothing with a life to show
+            if (node.view == null || node.view.maxHealth() <= 0f || node.view.remembered()) {
+                continue; // a prop or an arrow: nothing with a life to show; or a thing remembered through the fog
             }
             var template = game.getLogic().getThingFactory().findTemplate(node.view.templateName());
             var shape = template == null ? null : uz.dukeengine.core.thing.Solid.of(template);
