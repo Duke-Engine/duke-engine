@@ -435,6 +435,18 @@ public final class Duke3D {
     }
 
     /**
+     * The window made {@code width} by {@code height}, filling the screen or not, while it runs — a game's own options
+     * screen applying a resolution, as the reference's {@code TheDisplay->setDisplayMode}: from the next frame the
+     * window has it, the world's part of it, the canvas and the client's own drawing laid out at it, and it is kept as
+     * the player's choice. A size the monitor does not show — filling the screen, one not among its modes; in a window,
+     * one larger than it stands — leaves the window as it was. {@code told}, on the window's thread, whether it was
+     * taken. From any thread.
+     */
+    public void display(int width, int height, boolean fullscreen, java.util.function.Consumer<Boolean> told) {
+        later(client -> client.display(width, height, fullscreen, told));
+    }
+
+    /**
      * What a shadow multiplies what it falls on by, once however many overlap — a map's colour, the last number of
      * its lighting in the reference ({@code setShadowColor}); null for the reference's own, A0A0A0. From any thread,
      * before launch or while it runs.

@@ -2641,6 +2641,59 @@ final class DukeRtsApp extends SimpleApplication {
         return true;
     }
 
+    /** The window made so, where the monitor shows it, and kept as the player's choice — see {@link Duke3D#display}. */
+    void display(int width, int height, boolean fullscreen, java.util.function.Consumer<Boolean> told) {
+        boolean taken = resizeTheWindow(width, height, fullscreen);
+        if (taken) {
+            preferences.set("width", width);
+            preferences.set("height", height);
+            preferences.set("fullscreen", fullscreen);
+            preferences.save();
+            settings.setResolution(width, height);
+            settings.setFullscreen(fullscreen);
+        }
+        if (told != null) {
+            told.accept(taken);
+        }
+    }
+
+    /** The window at a new size, filling the screen or not — or left as it was where the monitor does not show it. */
+    private boolean resizeTheWindow(int width, int height, boolean fullscreen) {
+        if (!(getContext() instanceof com.jme3.system.lwjgl.LwjglWindow display) || display.getWindowHandle() == 0L) {
+            return false;
+        }
+        long window = display.getWindowHandle();
+        long monitor = org.lwjgl.glfw.GLFW.glfwGetPrimaryMonitor();
+        if (monitor == 0L) {
+            return false;
+        }
+        var modes = new java.util.ArrayList<int[]>();
+        var shown = org.lwjgl.glfw.GLFW.glfwGetVideoModes(monitor);
+        if (shown != null) {
+            for (int at = 0; at < shown.limit(); at++) {
+                modes.add(new int[] {shown.get(at).width(), shown.get(at).height()});
+            }
+        }
+        var now = org.lwjgl.glfw.GLFW.glfwGetVideoMode(monitor);
+        int[] desktop = now == null ? null : new int[] {now.width(), now.height()};
+        if (!DisplayModes.shows(width, height, fullscreen, modes, desktop)) {
+            return false;
+        }
+        boolean filling = org.lwjgl.glfw.GLFW.glfwGetWindowMonitor(window) != 0L;
+        if (fullscreen) {
+            if (!filling) {
+                windowedBounds = boundsOf(window);
+            }
+            org.lwjgl.glfw.GLFW.glfwSetWindowMonitor(window, monitor, 0, 0, width, height,
+                    org.lwjgl.glfw.GLFW.GLFW_DONT_CARE);
+        } else {
+            var at = filling && windowedBounds != null ? windowedBounds : boundsOf(window);
+            org.lwjgl.glfw.GLFW.glfwSetWindowMonitor(window, 0L, at[0], at[1], width, height,
+                    org.lwjgl.glfw.GLFW.GLFW_DONT_CARE);
+        }
+        return true;
+    }
+
     private static int[] boundsOf(long window) {
         var x = new int[1];
         var y = new int[1];
