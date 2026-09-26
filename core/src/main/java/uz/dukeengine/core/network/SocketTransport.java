@@ -1,23 +1,18 @@
 package uz.dukeengine.core.network;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.UncheckedIOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
 /**
- * A {@link Transport} over a single TCP connection — the guest's end of a
+ * A {@link Transport} over a single connection — the guest's end of a
  * hosted game, where the one connection is the host and the host passes
- * everything on to everyone else.
+ * everything on to everyone else: a TCP socket, or a channel of lines the game
+ * opened itself ({@link LineChannel}).
  *
  * <p>Threading is the crux: the simulation is single-threaded, so incoming
  * messages must not be handed to listeners from the socket reader thread. The
@@ -33,10 +28,8 @@ public final class SocketTransport implements Transport, AutoCloseable {
     /** The index reported when this link drops; a guest's only link is the host. */
     private final int peerIndex;
 
-    private final Socket socket;
+    private final LineChannel channel;
     private final PacketCodec codec;
-    private final BufferedWriter out;
-    private final BufferedReader in;
     private final CopyOnWriteArrayList<Consumer<NetMessage>> listeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<IntConsumer> lostListeners = new CopyOnWriteArrayList<>();
 
@@ -46,13 +39,10 @@ public final class SocketTransport implements Transport, AutoCloseable {
     private volatile boolean linkEndReported;
     private volatile boolean running = true;
 
-    private SocketTransport(Socket socket, PacketCodec codec, int peerIndex) throws IOException {
-        this.socket = socket;
+    private SocketTransport(LineChannel channel, PacketCodec codec, int peerIndex) {
+        this.channel = channel;
         this.codec = codec;
         this.peerIndex = peerIndex;
-        this.socket.setTcpNoDelay(true);
-        this.out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
-        this.in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
         var reader = new Thread(this::readLoop, "lockstep-reader");
         reader.setDaemon(true);
         reader.start();
@@ -60,12 +50,12 @@ public final class SocketTransport implements Transport, AutoCloseable {
 
     /** Open a connection to a listening peer. */
     public static SocketTransport connect(String host, int port, PacketCodec codec) throws IOException {
-        return new SocketTransport(new Socket(host, port), codec, 0);
+        return new SocketTransport(LineChannel.over(new Socket(host, port)), codec, 0);
     }
 
     /** Accept one incoming connection on an already-bound server socket. */
     public static SocketTransport accept(ServerSocket server, PacketCodec codec) throws IOException {
-        return new SocketTransport(server.accept(), codec, 0);
+        return new SocketTransport(LineChannel.over(server.accept()), codec, 0);
     }
 
     /**
@@ -75,7 +65,17 @@ public final class SocketTransport implements Transport, AutoCloseable {
      * @param peerIndex the player on the other end, reported if the link drops
      */
     public static SocketTransport wrap(Socket socket, PacketCodec codec, int peerIndex) throws IOException {
-        return new SocketTransport(socket, codec, peerIndex);
+        return new SocketTransport(LineChannel.over(socket), codec, peerIndex);
+    }
+
+    /**
+     * Over a channel of lines the game opened itself — a WebSocket through a gateway — its handshake already run on
+     * it: the same lock-step, a closed channel the same lost link as a closed socket.
+     *
+     * @param peerIndex the player on the other end, reported if the link drops
+     */
+    public static SocketTransport over(LineChannel channel, PacketCodec codec, int peerIndex) {
+        return new SocketTransport(channel, codec, peerIndex);
     }
 
     @Override
@@ -104,16 +104,8 @@ public final class SocketTransport implements Transport, AutoCloseable {
         if (linkEnded) {
             return; // gone: said at the next pump
         }
-        try {
-            synchronized (out) {
-                out.write(NetFraming.encode(message, codec));
-                out.write('\n');
-                out.flush();
-            }
-        } catch (java.net.SocketException gone) {
+        if (!channel.send(NetFraming.encode(message, codec))) {
             linkEnded = true;
-        } catch (IOException e) {
-            throw new UncheckedIOException("failed to send " + message, e);
         }
     }
 
@@ -138,24 +130,16 @@ public final class SocketTransport implements Transport, AutoCloseable {
     }
 
     private void readLoop() {
-        try {
-            String line;
-            while (running && (line = in.readLine()) != null) {
-                inbox.add(NetFraming.decode(line, codec));
-            }
-        } catch (IOException e) {
-            // socket closed or errored; fall through and report the end of the link
+        String line;
+        while (running && (line = channel.receive()) != null) {
+            inbox.add(NetFraming.decode(line, codec));
         }
-        linkEnded = true;
+        linkEnded = true; // closed or errored: the end of the link, reported after its last message
     }
 
     @Override
     public void close() {
         running = false;
-        try {
-            socket.close();
-        } catch (IOException ignored) {
-            // closing best-effort
-        }
+        channel.close();
     }
 }

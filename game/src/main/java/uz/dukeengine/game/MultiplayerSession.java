@@ -223,8 +223,7 @@ public final class MultiplayerSession implements AutoCloseable {
                     listening.put(index, new InetSocketAddress(socket.getInetAddress(),
                             Integer.parseInt(said[1])));
                 }
-                write(socket, "DUKE-WELCOME " + index + " " + playerCount + " "
-                        + (spec.isEmpty() ? "-" : "=" + java.net.URLEncoder.encode(spec, StandardCharsets.UTF_8)));
+                write(socket, welcome(index, playerCount, spec));
                 guests.put(index, socket);
                 if (onGuestJoined != null) {
                     onGuestJoined.accept(guests.size());
@@ -252,6 +251,100 @@ public final class MultiplayerSession implements AutoCloseable {
         var session = new MultiplayerSession(transport, HOST_PLAYER_INDEX, playerCount, true, listening, null);
         session.scenarioSpec = spec;
         return session;
+    }
+
+    /**
+     * Where a host takes its guests from over channels of lines the game opens itself — a WebSocket through an HTTPS
+     * gateway, one per guest as each connects: the next one, waiting for it.
+     */
+    @FunctionalInterface
+    public interface Guests {
+        uz.dukeengine.core.network.LineChannel next() throws IOException;
+    }
+
+    /**
+     * Host a game over channels of lines the game supplies, one per guest, and wait for {@code playerCount - 1} of
+     * them: the handshake and everything after it as over sockets, line for line. A guest reached this way listens on
+     * no port, so should the host leave, nobody can take over relaying for it.
+     */
+    public static MultiplayerSession host(Guests guests, int playerCount, String scenarioSpec,
+            IntConsumer onGuestJoined) throws IOException {
+        if (playerCount < 2) {
+            throw new IllegalArgumentException("a network game needs at least two players");
+        }
+        var spec = scenarioSpec == null ? "" : scenarioSpec;
+        Map<Integer, uz.dukeengine.core.network.LineChannel> joined = new LinkedHashMap<>();
+        try {
+            for (int index = HOST_PLAYER_INDEX + 1; index <= playerCount; index++) {
+                var channel = guests.next();
+                var hello = channel.receive();
+                if (hello == null || !hello.startsWith("DUKE-JOIN")) {
+                    channel.close();
+                    throw new IOException("unexpected handshake from guest: " + hello);
+                }
+                channel.send(welcome(index, playerCount, spec));
+                joined.put(index, channel);
+                if (onGuestJoined != null) {
+                    onGuestJoined.accept(joined.size());
+                }
+            }
+            for (var channel : joined.values()) {
+                channel.send("DUKE-PEERS"); // no guest of a channel listens anywhere
+                channel.send("DUKE-START");
+            }
+        } catch (IOException | RuntimeException e) {
+            joined.values().forEach(uz.dukeengine.core.network.LineChannel::close);
+            throw e;
+        }
+        var transport = new HostTransport(CommandCodec.INSTANCE);
+        joined.forEach(transport::addGuest);
+        var session = new MultiplayerSession(transport, HOST_PLAYER_INDEX, playerCount, true, Map.of(), null);
+        session.scenarioSpec = spec;
+        return session;
+    }
+
+    /**
+     * Join a hosted game over a channel of lines the game opened itself — a WebSocket through the host's gateway — and
+     * wait until the host starts it: the handshake and everything after it as over a socket, line for line.
+     */
+    public static MultiplayerSession join(uz.dukeengine.core.network.LineChannel channel) throws IOException {
+        String welcome;
+        try {
+            if (!channel.send("DUKE-JOIN")) {
+                throw new IOException("the channel to the host is closed");
+            }
+            welcome = channel.receive();
+            if (welcome == null || !welcome.startsWith("DUKE-WELCOME")) {
+                throw new IOException("host refused: " + welcome);
+            }
+            var go = channel.receive(); // until every other guest has arrived
+            if (go != null && go.startsWith("DUKE-PEERS")) {
+                go = channel.receive();
+            }
+            if (go == null || !go.startsWith("DUKE-START")) {
+                throw new IOException("host closed the lobby: " + go);
+            }
+        } catch (IOException | RuntimeException e) {
+            channel.close();
+            throw e;
+        }
+        var parts = welcome.trim().split("\\s+");
+        var session = new MultiplayerSession(SocketTransport.over(channel, CommandCodec.INSTANCE, HOST_PLAYER_INDEX),
+                Integer.parseInt(parts[1]), Integer.parseInt(parts[2]), false, Map.of(), null);
+        session.scenarioSpec = specOf(parts);
+        return session;
+    }
+
+    /** The host's welcome to the guest in seat {@code index}: its seat, the players, and the settings encoded. */
+    private static String welcome(int index, int playerCount, String spec) {
+        return "DUKE-WELCOME " + index + " " + playerCount + " "
+                + (spec.isEmpty() ? "-" : "=" + java.net.URLEncoder.encode(spec, StandardCharsets.UTF_8));
+    }
+
+    /** The settings a welcome carries, decoded: sent encoded, so a spec with spaces in it is one word of the line. */
+    private static String specOf(String[] welcome) {
+        return welcome.length > 3 && welcome[3].startsWith("=")
+                ? java.net.URLDecoder.decode(welcome[3].substring(1), StandardCharsets.UTF_8) : "";
     }
 
     /** Join a hosted game at {@code host:port}. Blocks until the host starts it. */
@@ -319,9 +412,7 @@ public final class MultiplayerSession implements AutoCloseable {
         var session = new MultiplayerSession(
                 SocketTransport.wrap(socket, CommandCodec.INSTANCE, HOST_PLAYER_INDEX),
                 assigned, playerCount, false, peers, listening);
-        // Sent encoded, so a spec with spaces in it is still one word of the line; "=" is never an encoding's.
-        session.scenarioSpec = parts.length > 3 && parts[3].startsWith("=")
-                ? java.net.URLDecoder.decode(parts[3].substring(1), StandardCharsets.UTF_8) : "";
+        session.scenarioSpec = specOf(parts); // "=" is never an encoding's
         return session;
     }
 

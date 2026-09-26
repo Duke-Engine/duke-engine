@@ -1,11 +1,8 @@
 package uz.dukeengine.core.network;
 
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.io.UncheckedIOException;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -30,19 +27,15 @@ import java.util.function.IntConsumer;
  */
 public final class HostTransport implements Transport, AutoCloseable {
 
-    /** One guest's connection. */
+    /** One guest's connection: a socket's lines, or a channel of lines the game opened itself. */
     private static final class Link {
         final int playerIndex;
-        final Socket socket;
-        final BufferedWriter out;
+        final LineChannel channel;
         volatile boolean open = true;
 
-        Link(int playerIndex, Socket socket) throws IOException {
+        Link(int playerIndex, LineChannel channel) {
             this.playerIndex = playerIndex;
-            this.socket = socket;
-            socket.setTcpNoDelay(true);
-            this.out = new BufferedWriter(
-                    new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+            this.channel = channel;
         }
     }
 
@@ -68,7 +61,12 @@ public final class HostTransport implements Transport, AutoCloseable {
      * told which player it is.
      */
     public void addGuest(int playerIndex, Socket socket) throws IOException {
-        var link = new Link(playerIndex, socket);
+        addGuest(playerIndex, LineChannel.over(socket));
+    }
+
+    /** The same, over a channel of lines the game opened itself — see {@link LineChannel}. */
+    public void addGuest(int playerIndex, LineChannel channel) {
+        var link = new Link(playerIndex, channel);
         links.put(playerIndex, link);
         var reader = new Thread(() -> readLoop(link), "lockstep-reader-" + playerIndex);
         reader.setDaemon(true);
@@ -133,7 +131,7 @@ public final class HostTransport implements Transport, AutoCloseable {
             return; // already gone
         }
         link.open = false;
-        closeQuietly(link.socket);
+        link.channel.close();
         for (var listener : lostListeners) {
             listener.accept(playerIndex);
         }
@@ -143,13 +141,13 @@ public final class HostTransport implements Transport, AutoCloseable {
         if (!link.open) {
             return;
         }
+        boolean sent;
         try {
-            synchronized (link.out) {
-                link.out.write(NetFraming.encode(message, codec));
-                link.out.write('\n');
-                link.out.flush();
-            }
-        } catch (IOException e) {
+            sent = link.channel.send(NetFraming.encode(message, codec));
+        } catch (UncheckedIOException e) {
+            sent = false;
+        }
+        if (!sent) {
             // A write failure is the same news as a read failure; queue it so it
             // is reported in order rather than in the middle of a send.
             link.open = false;
@@ -164,16 +162,11 @@ public final class HostTransport implements Transport, AutoCloseable {
     }
 
     private void readLoop(Link link) {
-        try (var in = new java.io.BufferedReader(
-                new InputStreamReader(link.socket.getInputStream(), StandardCharsets.UTF_8))) {
-            String line;
-            while (running && link.open && (line = in.readLine()) != null) {
-                inbox.add(new Arrival(link.playerIndex, NetFraming.decode(line, codec)));
-            }
-        } catch (IOException e) {
-            // fall through: the end of the link is the news, and it is queued below
+        String line;
+        while (running && link.open && (line = link.channel.receive()) != null) {
+            inbox.add(new Arrival(link.playerIndex, NetFraming.decode(line, codec)));
         }
-        inbox.add(new Arrival(link.playerIndex, null));
+        inbox.add(new Arrival(link.playerIndex, null)); // the end of the link is the news
     }
 
     @Override
@@ -181,16 +174,8 @@ public final class HostTransport implements Transport, AutoCloseable {
         running = false;
         for (var link : links.values()) {
             link.open = false;
-            closeQuietly(link.socket);
+            link.channel.close();
         }
         links.clear();
-    }
-
-    private static void closeQuietly(Socket socket) {
-        try {
-            socket.close();
-        } catch (IOException ignored) {
-            // closing best-effort
-        }
     }
 }
