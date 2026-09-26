@@ -666,7 +666,18 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                         && !candidate.hasStatus(uz.dukeengine.core.thing.ObjectStatus.AIRBORNE)
                         && candidate.getFloor() == mover.getFloor() // over a deck and under it, nobody's way
                         && levelAt(candidate.getPosition()) == level
+                        && holdsAStep(candidate)
                         && !passing.test(candidate));
+    }
+
+    /**
+     * Whether {@code thing} holds a mover's step: another mover, or a still thing the game's {@link ObstacleRules}
+     * put in the way — the reference's movers pass every other still thing ({@code
+     * Pathfinder::classifyObjectFootprint}, {@code AIUpdateInterface::processCollision}) — and not one laying a class
+     * of ground instead, which the ground's classes answer for.
+     */
+    private boolean holdsAStep(GameObject thing) {
+        return thing.isMobile() || inTheWay(thing) && laidBy(thing) == null;
     }
 
     // ---- ground movers on the cells ----
