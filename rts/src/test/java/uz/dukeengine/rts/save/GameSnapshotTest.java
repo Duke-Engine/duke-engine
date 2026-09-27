@@ -2,6 +2,7 @@ package uz.dukeengine.rts.save;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -142,6 +143,23 @@ class GameSnapshotTest {
         assertTrue(restored.isMapRevealedTo(2));
         assertFalse(restored.isMapRevealedTo(1));
         assertEquals(orig.checksum(), restored.checksum());
+    }
+
+    /** A map marked seen stays marked through a save, and the save and the sum tell it from a map revealed. */
+    @Test
+    void aMapMarkedSeenIsSavedWithTheWorldAndToldApartFromOneRevealed() {
+        var seen = newLogic();
+        seen.markMapSeen(2);
+        var revealed = newLogic();
+        revealed.revealMapTo(2);
+        assertNotEquals(seen.checksum(), revealed.checksum(), "the sum tells the two apart");
+        assertNotEquals(newLogic().checksum(), seen.checksum(), "and either from neither");
+
+        var restored = newLogic();
+        GameSnapshot.load(GameSnapshot.save(seen), restored);
+        assertTrue(restored.isMapMarkedSeen(2));
+        assertFalse(restored.isMapRevealedTo(2), "marked seen, not revealed");
+        assertEquals(seen.checksum(), restored.checksum());
     }
 
     /** Where the simulation's random numbers stand is saved too, so a loaded game draws what the saved one would. */

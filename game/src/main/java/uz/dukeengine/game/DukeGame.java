@@ -1402,6 +1402,22 @@ public final class DukeGame {
     }
 
     /**
+     * Mark the whole map seen by {@code player}, none of it in sight — the reference's {@code revealMapForPlayer},
+     * what a skirmish or network match whose own option leaves the shroud out gives each player at its start; see
+     * {@code GameLogic.markMapSeen}. The game reads its own option and decides, as it decides whether to {@link
+     * #revealMapTo}. Before {@link #start()} it is done at boot, before the first frame; after, from the simulation
+     * thread, at once. His ground is drawn seen from then, and what stands on it is shown only once his own see it.
+     */
+    public DukeGame markMapSeen(GamePlayer player) {
+        if (started) {
+            logic.markMapSeen(player.getIndex());
+        } else {
+            scenario.add(() -> logic.markMapSeen(player.getIndex()));
+        }
+        return this;
+    }
+
+    /**
      * Make this machine a watcher from now on, mid-match: no player of its own, so nothing selected and no order sent
      * — the whole map seen, through nobody's fog. The machine goes on taking part in the match's lock-step, so the
      * others play on. For the machine whose player was beaten ({@code getLocalPlayerIndex()} before the call); what

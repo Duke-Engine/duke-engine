@@ -42,6 +42,10 @@ public final class GameSnapshot {
             sb.append("REVEALED ").append(logic.getRevealedTo().stream().map(String::valueOf)
                     .collect(Collectors.joining(","))).append('\n');
         }
+        if (!logic.getMarkedSeen().isEmpty()) {
+            sb.append("SEEN ").append(logic.getMarkedSeen().stream().map(String::valueOf)
+                    .collect(Collectors.joining(","))).append('\n');
+        }
         if (logic.getPathGrid() != null) {
             for (var deck : logic.getPathGrid().decks()) {
                 sb.append("DECK ").append(deck.floor());
@@ -113,6 +117,11 @@ public final class GameSnapshot {
                 case "REVEALED" -> {
                     for (var player : rest.trim().split(",")) {
                         logic.revealMapTo(Integer.parseInt(player));
+                    }
+                }
+                case "SEEN" -> {
+                    for (var player : rest.trim().split(",")) {
+                        logic.markMapSeen(Integer.parseInt(player));
                     }
                 }
                 case "PLAYER" -> loadPlayer(rest, logic);

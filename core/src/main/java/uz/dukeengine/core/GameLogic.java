@@ -315,11 +315,15 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     /**
      * Reveal the whole map to {@code player} for the rest of the match: no fog, no shroud, in what that player is
      * shown — the reference's {@code MAP_REVEAL_ALL_PERM}, and what a player beaten while the others fight on is given
-     * to watch the end by. From code on the simulation thread, where every machine does it on the same frame: it is
-     * part of the checksum. Nothing the simulation decides reads it.
+     * to watch the end by. Where the game keeps cells ({@link #setSightCells}) every one of his reads in sight, whatever
+     * else was done to them. From code on the simulation thread, where every machine does it on the same frame: it is
+     * part of the checksum.
      */
     public final void revealMapTo(int player) {
         revealedTo.add(player);
+        if (sightCells != null) {
+            sightCells.reveal(player);
+        }
     }
 
     /** Whether the whole map has been revealed to {@code player}. */
@@ -330,6 +334,37 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     /** The players the whole map has been revealed to, in order — for a save. */
     public final java.util.SortedSet<Integer> getRevealedTo() {
         return java.util.Collections.unmodifiableSortedSet(revealedTo);
+    }
+
+    /** The players whose whole map was marked seen — see {@link #markMapSeen}. Sorted. */
+    private final java.util.TreeSet<Integer> markedSeen = new java.util.TreeSet<>();
+
+    /**
+     * Mark the whole map seen by {@code player}, none of it in sight — the reference's {@code
+     * PartitionManager::revealMapForPlayer}, which {@code GameLogic::startNewGame} runs for each player of a skirmish
+     * or network match whose own option leaves the shroud out ({@code UseShroud = No}): every cell of his cells ({@link
+     * #setSightCells}) he has never seen reads seen from then, as though a looker had covered the whole map and left
+     * long enough ago for its while after to have run out. A thing standing there is not shown for it, and his lookers
+     * open cells to in sight the ordinary way. Not {@link #revealMapTo}, which puts the whole map in sight for good,
+     * and which a player marked seen may be given as well. Called once, before the frame a game wants it from, and on
+     * the simulation thread after the start, so every machine does it alike: it is part of the checksum and a save.
+     * Where the game keeps no cells it marks nothing until it does.
+     */
+    public final void markMapSeen(int player) {
+        markedSeen.add(player);
+        if (sightCells != null) {
+            sightCells.markSeen(player);
+        }
+    }
+
+    /** Whether the whole map was marked seen by {@code player}. */
+    public final boolean isMapMarkedSeen(int player) {
+        return markedSeen.contains(player);
+    }
+
+    /** The players whose whole map was marked seen, in order — for a save. */
+    public final java.util.SortedSet<Integer> getMarkedSeen() {
+        return java.util.Collections.unmodifiableSortedSet(markedSeen);
     }
 
     /** Every object {@code viewerPlayer} can currently see, in creation order — as {@link #canSee} says of each. */
@@ -383,6 +418,12 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
         sightCells = new SightCells(sightCellSize, sightLinger, pathGrid.getWidth() * pathGrid.getCellSize(),
                 pathGrid.getHeight() * pathGrid.getCellSize());
+        for (int player : markedSeen) {
+            sightCells.markSeen(player); // what was marked is marked on the new grid's cells too
+        }
+        for (int player : revealedTo) {
+            sightCells.reveal(player);
+        }
     }
 
     /** As the frame ends: every player's lookers cover their discs, as {@link #canSee} has them look. */
@@ -1287,6 +1328,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         objects.clear();
         objectsCopy = null;
         revealedTo.clear();
+        markedSeen.clear();
         layTheSightCells(); // a new match is a map nobody has seen
         beams.clear();
         ridingEffects.clear();
@@ -1699,6 +1741,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
         for (int player : revealedTo) {
             hash = mix(hash, player); // nothing revealed sums as it always did
+        }
+        for (int player : markedSeen) {
+            hash = mix(hash, ~player); // told apart from the same player revealed; nothing marked sums as ever
         }
         if (pathGrid != null) {
             for (var deck : pathGrid.decks()) {
