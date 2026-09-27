@@ -353,17 +353,29 @@ public abstract class RtsSimulation extends GameLogic {
     }
 
     /**
-     * Whether {@code template} may stand at {@code place}, as an order to build it there would be judged —
-     * for a client to show, never to decide.
+     * Whether {@code template} may stand at {@code place} for no side in particular: as an order to build it there
+     * would be judged, but for what the side has seen, which only {@link #fits(int, String,
+     * uz.dukeengine.core.math.Coord3D, float) a side's} asks — for a client to show, never to decide.
      */
     public final uz.dukeengine.rts.construction.Placement.Fit fits(String template,
+            uz.dukeengine.core.math.Coord3D place, float facing) {
+        return fits(-1, template, place, facing);
+    }
+
+    /**
+     * Whether {@code template} may stand at {@code place} as a site of {@code player}'s, exactly as his order to build
+     * it there would be judged — what his side has seen as well, where the rules ask it ({@link
+     * uz.dukeengine.rts.construction.PlacementRules#seenGround}). For his ghost to show, and a computer's own search
+     * to ask, never to decide.
+     */
+    public final uz.dukeengine.rts.construction.Placement.Fit fits(int player, String template,
             uz.dukeengine.core.math.Coord3D place, float facing) {
         var thing = findTemplate(template);
         if (thing == null || getPathGrid() == null) {
             return uz.dukeengine.rts.construction.Placement.Fit.OFF_THE_MAP;
         }
         return uz.dukeengine.rts.construction.Placement.check(this, getPathGrid(), thing, place, facing,
-                placementRules);
+                placementRules, player);
     }
 
     /** The RTS player at {@code index}, or {@code null} if there is none. */

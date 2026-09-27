@@ -21,8 +21,8 @@ public final class Construction {
      * Accept a {@code Construct} order, or refuse it at no cost.
      *
      * <p>Refused if the builder is not the player's, cannot walk, or is gone; if nothing of that name exists;
-     * if the side may not make it yet ({@link RtsSimulation#canBuild}); if the place does not fit
-     * ({@link Placement}); or if the player cannot pay. Accepted, the money goes
+     * if the side may not make it yet ({@link RtsSimulation#canBuild}); if the place does not fit as a site of the
+     * player's ({@link Placement}), which may ask what his side has seen; or if the player cannot pay. Accepted, the money goes
      * now, any errand the builder was already on is given up with its money back, and it sets off.
      *
      * @return whether it was accepted
@@ -37,7 +37,8 @@ public final class Construction {
         if (template == null || world.getPathGrid() == null || !world.canBuild(order.playerIndex(), template)) {
             return false;
         }
-        var fit = Placement.check(world, world.getPathGrid(), template, order.place(), order.facing(), rules);
+        var fit = Placement.check(world, world.getPathGrid(), template, order.place(), order.facing(), rules,
+                order.playerIndex());
         if (fit != Placement.Fit.FITS) {
             return false;
         }
