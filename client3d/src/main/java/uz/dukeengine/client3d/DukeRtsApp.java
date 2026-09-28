@@ -3568,8 +3568,9 @@ final class DukeRtsApp extends SimpleApplication {
 
         @Override
         public boolean onScreen(uz.dukeengine.game.view.UnitView unit) {
+            // The world's part of the window, as the reference's AcrossScreen passes read its tactical view.
             var at = cam.getScreenCoordinates(new Vector3f(unit.x(), floorHeightAt(unit.x(), unit.y()), unit.y()));
-            return at.z < 1f && at.x >= 0f && at.x <= cam.getWidth() && at.y >= 0f && at.y <= cam.getHeight();
+            return at.z < 1f && worldRegion.contains(at.x, at.y, cam.getWidth(), cam.getHeight());
         }
 
         @Override

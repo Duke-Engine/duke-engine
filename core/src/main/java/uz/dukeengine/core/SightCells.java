@@ -12,6 +12,9 @@ import uz.dukeengine.core.math.Coord3D;
  * doShroudReveal}, {@code DiscreteCircle}): cells whose middles lie within that many cells of its own cell's middle.
  * Who looks for whom is the world's ({@code GameLogic.canSee}'s lookers). Looked at once a frame, as the frame ends, in
  * the order the world keeps its things: the same on every machine.
+ *
+ * <p>Two things besides the lookers, each the reference's: a player's whole map marked seen once ({@link #markSeen}),
+ * and the whole map in sight to a player for good ({@link #reveal}).
  */
 public final class SightCells {
 
@@ -26,13 +29,17 @@ public final class SightCells {
     }
 
     private static final int NEVER = Integer.MIN_VALUE;
+    /** Covered so long ago that its while after is out whatever the frame: seen, and never in sight by it. */
+    private static final int LONG_AGO = NEVER + 1;
 
     private final float cellSize;
     private final int linger;
     private final int width;
     private final int height;
-    /** Per player, the last frame each cell was covered, or {@link #NEVER}. */
+    /** Per player, the last frame each cell was covered, {@link #LONG_AGO}, or {@link #NEVER}. */
     private final java.util.Map<Integer, int[]> covered = new java.util.TreeMap<>();
+    /** The players every cell is in sight to for good. */
+    private final java.util.Set<Integer> revealed = new java.util.TreeSet<>();
     /** The last frame looked at. */
     private int lookedAt = NEVER;
 
@@ -92,17 +99,46 @@ public final class SightCells {
         return sight(player, (int) Math.floor(at.x() / cellSize), (int) Math.floor(at.y() / cellSize));
     }
 
+    /**
+     * Every cell {@code player} has never seen marked seen, as though a looker had covered the whole map and left long
+     * enough ago for its while after to have run out — the reference's {@code PartitionManager::revealMapForPlayer},
+     * an {@code addLooker} and at once its {@code removeLooker} over every cell, which leaves each one fogged: nothing
+     * put in sight by it, a cell in sight now left as it is, and his lookers opening cells to in sight as ever.
+     */
+    void markSeen(int player) {
+        var cells = covered.computeIfAbsent(player, p -> fresh());
+        for (int cell = 0; cell < cells.length; cell++) {
+            if (cells[cell] == NEVER) {
+                cells[cell] = LONG_AGO;
+            }
+        }
+    }
+
+    /**
+     * Every cell in sight to {@code player} for good — the reference's {@code revealMapForPlayerPermanently}, a looker
+     * over every cell that is never removed. Whatever else was done to his cells, this is more.
+     */
+    void reveal(int player) {
+        revealed.add(player);
+    }
+
     /** What {@code player} has of cell ({@code cx}, {@code cy}); past the map's edges, never seen. */
     public Sight sight(int player, int cx, int cy) {
+        if (cx < 0 || cy < 0 || cx >= width || cy >= height) {
+            return Sight.NEVER_SEEN;
+        }
+        if (revealed.contains(player)) {
+            return Sight.IN_SIGHT;
+        }
         var cells = covered.get(player);
-        if (cells == null || cx < 0 || cy < 0 || cx >= width || cy >= height) {
+        if (cells == null) {
             return Sight.NEVER_SEEN;
         }
         int last = cells[cy * width + cx];
         if (last == NEVER) {
             return Sight.NEVER_SEEN;
         }
-        return lookedAt - last < linger ? Sight.IN_SIGHT : Sight.SEEN;
+        return last != LONG_AGO && lookedAt - last < linger ? Sight.IN_SIGHT : Sight.SEEN;
     }
 
     /** Whether {@code player} has the cell under {@code at} in sight. */

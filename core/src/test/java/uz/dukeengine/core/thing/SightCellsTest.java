@@ -29,6 +29,7 @@ class SightCellsTest {
     void setUp() {
         var factory = new ThingFactory(ModuleFactory.withDefaults());
         factory.addTemplate(ObjectTemplate.named("Scout").visionRange(100f).module(new ActiveBody.Data(100f)).build());
+        factory.addTemplate(ObjectTemplate.named("Lamp").visionRange(30f).module(new ActiveBody.Data(10f)).build());
         world = new GameLogic(factory) {
             @Override
             protected void simulate() {
@@ -82,6 +83,60 @@ class SightCellsTest {
         assertEquals(Sight.IN_SIGHT, world.getSightCells().sight(viewer, new Coord3D(210f, 200f, 0f)));
         assertEquals(Sight.NEVER_SEEN, world.getSightCells().sight(viewer, new Coord3D(710f, 700f, 0f)));
         assertEquals(1, world.getVisibleObjects(viewer).size(), "the ally's scout, not the enemy's");
+    }
+
+    /** Every cell of {@code player}'s view, counted by what he has of it. */
+    private java.util.Map<Sight, Integer> counted(int player) {
+        var counts = new java.util.EnumMap<Sight, Integer>(Sight.class);
+        for (var state : world.getSightCells().view(player).states()) {
+            counts.merge(Sight.values()[state], 1, Integer::sum);
+        }
+        return counts;
+    }
+
+    /**
+     * The reference's reveal at the start of a match whose option leaves the shroud out: every one of the 25 by 25
+     * cells seen and none in sight; a looker of his opens what it covers — its own cell and the four a cell off — and
+     * the rest stays seen.
+     */
+    @Test
+    void aPlayerMarkedSeenHasEveryCellSeenAndHisLookerPutsInSightOnlyWhatItCovers() {
+        world.markMapSeen(viewer);
+        run(1);
+        assertEquals(java.util.Map.of(Sight.SEEN, 625), counted(viewer), "every cell seen, none unseen or in sight");
+        assertFalse(world.canSee(viewer, new Coord3D(700f, 700f, 0f)), "seen is not in sight");
+        assertEquals(java.util.Map.of(Sight.NEVER_SEEN, 625), counted(enemy), "and it is his alone");
+
+        world.spawn(world.findTemplate("Lamp"), new Coord3D(500f, 500f, 0f), viewer); // cell (12, 12)
+        run(1);
+        assertEquals(Sight.IN_SIGHT, world.getSightCells().sight(viewer, 12, 12));
+        assertEquals(Sight.IN_SIGHT, world.getSightCells().sight(viewer, 13, 12));
+        assertEquals(java.util.Map.of(Sight.IN_SIGHT, 5, Sight.SEEN, 620), counted(viewer),
+                "what the lamp covers in sight, the rest still seen");
+    }
+
+    /** Marked seen and then revealed: the reveal is the more, every cell in sight for good, whatever leaves. */
+    @Test
+    void aPlayerMarkedSeenAndThenRevealedHasEveryCellInSightForGood() {
+        world.markMapSeen(viewer);
+        world.revealMapTo(viewer);
+        var lamp = world.spawn(world.findTemplate("Lamp"), new Coord3D(500f, 500f, 0f), viewer);
+        run(1);
+        assertEquals(java.util.Map.of(Sight.IN_SIGHT, 625), counted(viewer));
+
+        lamp.markDestroyed();
+        run(200);
+        assertEquals(java.util.Map.of(Sight.IN_SIGHT, 625), counted(viewer), "a looker leaving fogs none of it");
+        assertTrue(world.canSee(viewer, new Coord3D(900f, 900f, 0f)));
+        assertTrue(world.isMapMarkedSeen(viewer) && world.isMapRevealedTo(viewer), "each kept as it was said");
+    }
+
+    /** A mark is the player's, not the grid's: cells laid after it, on a new grid, are marked too. */
+    @Test
+    void aMarkIsOnTheCellsOfAGridLaidAfterIt() {
+        world.markMapSeen(viewer);
+        world.setPathGrid(new PathGrid(50, 50));
+        assertEquals(java.util.Map.of(Sight.SEEN, 169), counted(viewer), "13 by 13 cells of 40 over 500");
     }
 
     @Test

@@ -15,9 +15,29 @@ package uz.dukeengine.rts.construction;
  *                    DozerAIUpdate::construct}: standing, seen, able to be shot and in the way from then, awaiting its
  *                    builder, who then goes to it; a builder that gives up leaves it standing. Otherwise it is put
  *                    down when its builder arrives, and a builder that gives up on the way has the money back
+ * @param seenGround  whose sites must stand on ground their side has seen — see {@link SeenGround}. Nobody's, unless
+ *                    the game says otherwise
  */
 public record PlacementRules(float maxRise, float edgeMargin, float refundShare, float startShare, SiteWords words,
-        boolean siteAtOrder, java.util.Set<uz.dukeengine.core.thing.Kind> standsOver) {
+        boolean siteAtOrder, java.util.Set<uz.dukeengine.core.thing.Kind> standsOver, SeenGround seenGround) {
+
+    /**
+     * Whose sites must stand on ground their side has seen — the reference's {@code SHROUD_REVEALED}, which {@code
+     * BuildAssistant::isLocationLegalToBuild} answers {@code LBC_SHROUD} to where the cell under the site is not clear
+     * for the placing side. Seen and in sight both build; only ground the side has never seen is refused ({@link
+     * Placement.Fit#ON_UNSEEN_GROUND}), read off the world's cells of what each side has seen ({@code
+     * GameLogic.setSightCells}) — a game that keeps none refuses nothing by it. The reference passes it from every path
+     * a person's click reaches (its own placement, and a builder's move and build) and from none of a computer's own
+     * site search, which builds on ground it has never seen.
+     */
+    public enum SeenGround {
+        /** Nobody's: a site stands wherever else lets it, as every site did before one could be refused so. */
+        NOBODY,
+        /** A person's side; a side the game marks a computer's ({@code RtsPlayer.setComputer}) builds anywhere. */
+        PEOPLE,
+        /** Every side's, a computer's too. */
+        EVERY_SIDE
+    }
 
     /**
      * The words a site holds while it goes up — the reference's {@code AWAITING_CONSTRUCTION}, {@code
@@ -47,6 +67,13 @@ public record PlacementRules(float maxRise, float edgeMargin, float refundShare,
         }
         words = words == null ? SiteWords.NONE : words;
         standsOver = standsOver == null ? java.util.Set.of() : java.util.Set.copyOf(standsOver);
+        seenGround = seenGround == null ? SeenGround.NOBODY : seenGround;
+    }
+
+    /** Rules whose sites stand on ground never seen: every rule from before a site could be refused there. */
+    public PlacementRules(float maxRise, float edgeMargin, float refundShare, float startShare, SiteWords words,
+            boolean siteAtOrder, java.util.Set<uz.dukeengine.core.thing.Kind> standsOver) {
+        this(maxRise, edgeMargin, refundShare, startShare, words, siteAtOrder, standsOver, SeenGround.NOBODY);
     }
 
     /** Rules whose sites stand over nothing that does not move: every rule from before a site could. */
@@ -67,7 +94,8 @@ public record PlacementRules(float maxRise, float edgeMargin, float refundShare,
 
     /** The same rules, with sites put down the moment their order is taken, or not. */
     public PlacementRules siteAtOrder(boolean atOrder) {
-        return new PlacementRules(maxRise, edgeMargin, refundShare, startShare, words, atOrder, standsOver);
+        return new PlacementRules(maxRise, edgeMargin, refundShare, startShare, words, atOrder, standsOver,
+                seenGround);
     }
 
     /**
@@ -76,6 +104,13 @@ public record PlacementRules(float maxRise, float edgeMargin, float refundShare,
      * What a site stands over the game clears as it is put down ({@code RtsSimulation.onPlaced}).
      */
     public PlacementRules standsOver(java.util.Set<uz.dukeengine.core.thing.Kind> kinds) {
-        return new PlacementRules(maxRise, edgeMargin, refundShare, startShare, words, siteAtOrder, kinds);
+        return new PlacementRules(maxRise, edgeMargin, refundShare, startShare, words, siteAtOrder, kinds,
+                seenGround);
+    }
+
+    /** The same rules, the sites of {@code whose} sides standing only on ground their side has seen. */
+    public PlacementRules seenGround(SeenGround whose) {
+        return new PlacementRules(maxRise, edgeMargin, refundShare, startShare, words, siteAtOrder, standsOver,
+                whose);
     }
 }

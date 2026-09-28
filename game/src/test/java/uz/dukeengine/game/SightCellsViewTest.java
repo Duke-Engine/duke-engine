@@ -41,4 +41,23 @@ class SightCellsViewTest {
         game.runHeadless(2);
         assertEquals(false, told.getLast(), "the simulation's own cells say never seen");
     }
+
+    /** A player marked seen at the start: his ground carried seen, and an enemy standing on it not shown for it. */
+    @Test
+    void aPlayerMarkedSeenHasHisGroundSeenAndWhatStandsThereUnshown() {
+        var game = DukeGame.create("seen").loadUnits(DukeGame.STARTER_UNITS).map(60, 60);
+        var me = game.addPlayer("Me", Color.BLUE);
+        var them = game.addPlayer("Them", Color.RED);
+        game.enemies(me, them).localPlayer(me).markMapSeen(me);
+        game.spawn("Rifleman", me, 100f, 100f);
+        game.spawn("Rifleman", them, 500f, 500f);
+        game.runHeadless(1);
+        game.getLogic().setSightCells(40f, 150);
+        game.runHeadless(2);
+
+        var sight = game.getSnapshot().sight();
+        assertEquals(Sight.SEEN, sight.at(500f, 500f), "seen, though nothing of his has been there");
+        assertEquals(Sight.IN_SIGHT, sight.at(110f, 100f), "in sight round his rifleman");
+        assertEquals(1, game.getSnapshot().units().size(), "the enemy standing on seen ground is not shown for it");
+    }
 }

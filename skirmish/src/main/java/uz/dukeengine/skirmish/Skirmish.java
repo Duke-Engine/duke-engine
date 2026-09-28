@@ -116,10 +116,11 @@ public final class Skirmish {
             }
             return buttons;
         });
-        // Whether the ghost is green: the simulation's own answer, asked of the world as it stands.
+        // Whether the ghost is green: the simulation's own answer for this player's site, asked of the world as it
+        // stands — the answer his order will be given.
         game.aimFits((button, place, facing) -> !button.startsWith("build:")
-                || game.getLogic().fits(button.substring("build:".length()), place, facing)
-                        == uz.dukeengine.rts.construction.Placement.Fit.FITS);
+                || game.getLogic().fits(game.getLocalPlayerIndex(), button.substring("build:".length()), place,
+                        facing) == uz.dukeengine.rts.construction.Placement.Fit.FITS);
         game.onCommandPressed(press -> {
             if (press.selection().size() != 1) {
                 return;
