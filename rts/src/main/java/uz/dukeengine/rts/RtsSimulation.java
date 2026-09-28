@@ -279,11 +279,14 @@ public abstract class RtsSimulation extends GameLogic {
     }
 
     private int targetScanFrames = 1;
+    private int idleTargetScanFrames;
 
     /**
-     * How often a weapon with no target looks for one, in frames — the reference's {@code MoodAttackCheckRate}, 250
-     * ms, looking a quarter second apart rather than every frame; each thing on its own frame of the round, staggered
-     * by its id, so a crowd does not look all at once. 1, the default, is every frame, as always.
+     * How often a weapon with no target looks for one, in frames, where its template does not say ({@code
+     * WeaponUpdate.Data.targetScanFrames}) — the reference's {@code MoodAttackCheckRate}, 2 seconds where a template
+     * leaves it out. Each thing on its own clock: a look moves its next on by the rate, its first by up to half the
+     * rate more, drawn from the world's random numbers, so a crowd does not look all at once; and a thing that falls
+     * idle looks soon after ({@link #setIdleTargetScanFrames}). 1, the default, is every frame, as always.
      */
     public final void setTargetScanFrames(int frames) {
         this.targetScanFrames = Math.max(1, frames);
@@ -291,6 +294,20 @@ public abstract class RtsSimulation extends GameLogic {
 
     public final int getTargetScanFrames() {
         return targetScanFrames;
+    }
+
+    /**
+     * How soon a thing that falls idle looks for a target, in frames — its order done or stopped, or what it fought
+     * gone: its next look set to then, whatever its clock said — the reference's {@code resetNextMoodCheckTime}, now
+     * and its {@code AIData}'s {@code ForceIdleFramesCount}, which its idle state and an idle turret run. 0, the
+     * default, at once.
+     */
+    public final void setIdleTargetScanFrames(int frames) {
+        this.idleTargetScanFrames = Math.max(0, frames);
+    }
+
+    public final int getIdleTargetScanFrames() {
+        return idleTargetScanFrames;
     }
 
     private java.util.List<uz.dukeengine.core.thing.Kind> shownWhenHidden = java.util.List.of();

@@ -113,21 +113,34 @@ public final class WeaponUpdate extends UpdateModule {
      *     weapon written in place, as before
      * @param deathType  the death its killing blow deals — {@code DeathType = EXPLODED} — which the victim's
      *     die modules are told and its client sounds and draws by. {@code NORMAL} by default
+     * @param targetScanFrames  how often a thing of it with no target looks for one, in frames — the reference's
+     *     {@code MoodAttackCheckRate}, written per template (2 seconds there where a template leaves it out). 0, the
+     *     default, looks as often as the world says ({@code RtsSimulation.setTargetScanFrames})
      */
     public record Data(float damage, float attackRange, int reloadFrames,
             DamageType damageType, float splashRadius,
             boolean attackOnTheMove, List<String> targets,
             int reloadFramesMax, int clipSize, int clipReloadFrames, boolean autoReload,
-            String name, List<WeaponSet> weaponSets, DeathType deathType) implements ModuleData {
+            String name, List<WeaponSet> weaponSets, DeathType deathType, int targetScanFrames) implements ModuleData {
         /** What a block leaves out: plain damage, no splash, a shot taken on the move, at anything, no clip. */
         static final Data DEFAULTS = new Data(0f, 0f, 0, DamageType.NORMAL, 0f, true, List.of(),
-                0, 0, 0, true, null, List.of(), DeathType.NORMAL);
+                0, 0, 0, true, null, List.of(), DeathType.NORMAL, 0);
 
         public Data {
             damageType = damageType == null ? DamageType.NORMAL : damageType;
             deathType = deathType == null ? DeathType.NORMAL : deathType;
             targets = targets == null ? List.of() : List.copyOf(targets);
             weaponSets = weaponSets == null ? List.of() : List.copyOf(weaponSets);
+            targetScanFrames = Math.max(0, targetScanFrames);
+        }
+
+        /** A weapon that looks for a target as often as the world says, as every one did before one could say. */
+        public Data(float damage, float attackRange, int reloadFrames, DamageType damageType, float splashRadius,
+                boolean attackOnTheMove, List<String> targets, int reloadFramesMax, int clipSize,
+                int clipReloadFrames, boolean autoReload, String name, List<WeaponSet> weaponSets,
+                DeathType deathType) {
+            this(damage, attackRange, reloadFrames, damageType, splashRadius, attackOnTheMove, targets,
+                    reloadFramesMax, clipSize, clipReloadFrames, autoReload, name, weaponSets, deathType, 0);
         }
 
         public Data(float damage, float attackRange, int reloadFrames) {
@@ -172,7 +185,13 @@ public final class WeaponUpdate extends UpdateModule {
         /** A unit whose weapons are these sets, with nothing written in place. */
         public static Data sets(List<WeaponSet> weaponSets) {
             return new Data(0f, 0f, 0, DamageType.NORMAL, 0f, true, List.of(), 0, 0, 0, true, null, weaponSets,
-                    DeathType.NORMAL);
+                    DeathType.NORMAL, 0);
+        }
+
+        /** The same, a thing of it looking for a target every {@code frames} frames — see {@link #targetScanFrames}. */
+        public Data targetScanFrames(int frames) {
+            return new Data(damage, attackRange, reloadFrames, damageType, splashRadius, attackOnTheMove, targets,
+                    reloadFramesMax, clipSize, clipReloadFrames, autoReload, name, weaponSets, deathType, frames);
         }
     }
 
@@ -227,9 +246,19 @@ public final class WeaponUpdate extends UpdateModule {
     /** The set in use when it last looked, by its index: a change lets the lock go, as the reference's does. */
     private int setInUse = -1;
 
+    /** How often it looks for a target, frames, as its template says; 0 for as often as the world says. */
+    private final int scanFrames;
+    /** The frame it looks for a target next — see {@link #looksNow}. */
+    private int nextLook;
+    /** Whether a look has moved its next look on yet: the first move is the one offset. */
+    private boolean lookedBefore;
+    /** Whether it held a target or walked as it last looked, to tell the frame it falls idle. A new thing did. */
+    private boolean busy = true;
+
     public WeaponUpdate(GameObject owner, Data data) {
         super(owner);
         this.sets = data.weaponSets();
+        this.scanFrames = data.targetScanFrames();
         var written = Weapon.of(data);
         this.inPlace = sets.isEmpty()
                 ? List.of(new Armed(0, IN_PLACE, written, clipOf(written)))
@@ -577,6 +606,7 @@ public final class WeaponUpdate extends UpdateModule {
         int wasWindingUp = windingUp;
         windingUp = -1; // a frame that does not go on winding it up drops it, as the reference's attack state does
         noticeTheSetInUse();
+        noticeFallingIdle();
         if (getOwner().isEffectivelyDead()
                 || getOwner().isContained() && !ContainModule.firesFromInside(getOwner())
                 || getOwner().hasStatus(ObjectStatus.DISABLED) || getOwner().hasStatus(ObjectStatus.SOLD)) {
@@ -606,7 +636,7 @@ public final class WeaponUpdate extends UpdateModule {
         }
 
         if (target == null) {
-            if (!scansNow(world, owner)) {
+            if (!looksNow(world)) {
                 return; // between its looks for a target
             }
             acquireTarget(world, owner, armed);
@@ -1230,10 +1260,40 @@ public final class WeaponUpdate extends UpdateModule {
         return uz.dukeengine.core.thing.World.reachBetween(owner, victim);
     }
 
-    /** Whether this is one of its frames to look for a target — see {@code RtsSimulation.setTargetScanFrames}. */
-    private static boolean scansNow(uz.dukeengine.core.thing.World world, GameObject owner) {
-        int every = world instanceof uz.dukeengine.rts.RtsSimulation rts ? rts.getTargetScanFrames() : 1;
-        return every <= 1 || Math.floorMod(world.getFrame() + owner.getId().value(), every) == 0;
+    /**
+     * Whether it looks for a target now — the reference's mood check ({@code AIUpdateInterface::getNextMoodTarget}):
+     * once the frame reaches its next look, which the look then moves on by its rate, its template's or else the
+     * world's ({@code MoodAttackCheckRate}); the first move by up to half the rate more as well, drawn once from the
+     * world's random numbers ({@code m_randomlyOffsetMoodCheck}), so things made together do not look together. A rate
+     * of 1 looks every frame and draws nothing, as every thing did before its look had a clock.
+     */
+    private boolean looksNow(uz.dukeengine.core.thing.World world) {
+        int now = world.getFrame();
+        if (now < nextLook) {
+            return false;
+        }
+        int rate = scanFrames > 0 ? scanFrames
+                : world instanceof uz.dukeengine.rts.RtsSimulation rts ? rts.getTargetScanFrames() : 1;
+        int offset = lookedBefore ? 0 : world.random().nextInt(0, rate / 2);
+        lookedBefore = true;
+        nextLook = now + rate + offset;
+        return true;
+    }
+
+    /**
+     * Its next look brought to now and the world's idle frames, the frame it falls idle — neither holding a target nor
+     * walking, its order done or stopped or what it fought gone, or new: the reference's {@code resetNextMoodCheckTime},
+     * which its idle state and an idle turret run, so a thing looks almost at once.
+     */
+    private void noticeFallingIdle() {
+        var owner = getOwner();
+        boolean busyNow = target != null || isWalking(owner);
+        var world = owner.getWorld();
+        if (busy && !busyNow && world != null) {
+            nextLook = world.getFrame()
+                    + (world instanceof uz.dukeengine.rts.RtsSimulation rts ? rts.getIdleTargetScanFrames() : 0);
+        }
+        busy = busyNow;
     }
 
     /**
