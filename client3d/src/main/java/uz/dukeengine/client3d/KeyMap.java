@@ -221,6 +221,35 @@ public final class KeyMap {
         return this;
     }
 
+    /** Where a selecting key found what it took — see {@link #screenFirst}. */
+    public enum Found {
+        /** Things of his on the screen he did not hold: the reference's "selected across screen". */
+        ON_SCREEN,
+        /** None such on the screen, and some on the map: "selected across map". */
+        ON_THE_MAP,
+        /** None he did not hold, on the screen or the map: the selection as it was. */
+        NOTHING_NEW
+    }
+
+    private java.util.function.Consumer<Found> screenFirst;
+
+    /**
+     * The selecting keys — {@link Control#SELECT_ALL}, {@link Control#SELECT_ALL_OF_KIND} and {@link
+     * Control#SELECT_SAME_TYPE} — try the screen before the map, as the reference's do ({@code
+     * InGameUI::selectAllUnitsByType} and {@code selectUnitsMatchingCurrentSelection}, each an {@code AcrossScreen}
+     * pass and then, only where that selects nothing, an {@code AcrossMap} one): what a key selects of his on the
+     * screen — the world's part of the window — where any of it is not held yet, else what it selects on the whole map
+     * where any of that is not; added to what he holds of it, the rest of his selection let go. A press that finds
+     * nothing he does not hold changes nothing. {@code told} hears where each press found what it took, for the
+     * reference's own line. Unsaid, as the client always did: the whole map at once, and the same type on the screen
+     * and, pressed again soon after, everywhere.
+     */
+    public KeyMap screenFirst(java.util.function.Consumer<Found> told) {
+        this.screenFirst = told == null ? found -> {
+        } : told;
+        return this;
+    }
+
     // ---- reading it ----
 
     /** The keys a control is on, or none. */
@@ -254,6 +283,11 @@ public final class KeyMap {
 
     boolean oneGroupEach() {
         return oneGroupEach;
+    }
+
+    /** Who hears where a selecting key found what it took, or null where the keys go to the map at once. */
+    java.util.function.Consumer<Found> screenFirst() {
+        return screenFirst;
     }
 
     /** Every key code anything here is on, for the client to listen to. */

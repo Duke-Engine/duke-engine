@@ -283,6 +283,90 @@ class ControlsTest {
         assertEquals(Set.of(3), world.selection);
     }
 
+    /**
+     * The reference's select-all, the screen first: three tanks of his on it and twelve elsewhere, none held — the
+     * three; pressed again, nothing new on the screen, the twelve as well; once more, nothing new anywhere, nothing.
+     */
+    @Test
+    void selectAllTakesTheScreenFirstAndTheMapOnlyWhenTheScreenHasNothingNew() {
+        var found = new ArrayList<KeyMap.Found>();
+        var controls = new Controls(KeyMap.empty().bind(KeyMap.Control.SELECT_ALL, key(KeyInput.KEY_Q))
+                .screenFirst(found::add));
+        var world = new World();
+        for (int id = 1; id <= 3; id++) {
+            world.unit(id, "Tank", ME, 10f * id, 10f, true);
+        }
+        for (int id = 4; id <= 15; id++) {
+            world.unit(id, "Tank", ME, 900f, 10f * id, false);
+        }
+
+        controls.press(key(KeyInput.KEY_Q), 0f, world);
+        assertEquals(Set.of(1, 2, 3), world.selection, "the three on the screen");
+        assertEquals(List.of(1), world.voiced, "answered with its voice");
+
+        controls.press(key(KeyInput.KEY_Q), 5f, world);
+        assertEquals(15, world.selection.size(), "nothing new on the screen: the twelve elsewhere as well");
+
+        controls.press(key(KeyInput.KEY_Q), 10f, world);
+        assertEquals(15, world.selection.size());
+        assertEquals(List.of(KeyMap.Found.ON_SCREEN, KeyMap.Found.ON_THE_MAP, KeyMap.Found.NOTHING_NEW), found);
+        assertEquals(List.of(1, 4), world.voiced, "a press that takes nothing is not answered");
+    }
+
+    /** Every aircraft of his on the screen and held, and none elsewhere: a press takes nothing, screen or map. */
+    @Test
+    void aPressThatFindsOnlyWhatIsHeldChangesNothing() {
+        var found = new ArrayList<KeyMap.Found>();
+        var controls = new Controls(KeyMap.empty().bind(KeyMap.Control.SELECT_ALL_OF_KIND, key(KeyInput.KEY_W))
+                .kindToSelect("AIRCRAFT").screenFirst(found::add));
+        var world = new World();
+        world.unit(1, "Comanche", ME, 10f, 10f, true, "AIRCRAFT");
+        world.unit(2, "Comanche", ME, 20f, 10f, true, "AIRCRAFT");
+        world.unit(3, "Tank", ME, 900f, 900f, false);
+        world.selection.addAll(List.of(1, 2));
+
+        controls.press(key(KeyInput.KEY_W), 0f, world);
+        assertEquals(Set.of(1, 2), world.selection);
+        assertEquals(List.of(KeyMap.Found.NOTHING_NEW), found, "not the map's: there was nothing more to take");
+    }
+
+    /** The same type, the screen first: his Rangers on the screen, then, nothing new there, the map's. */
+    @Test
+    void theSameTypeTakesTheScreenFirstAndTheMapOnlyWhenTheScreenHasNothingNew() {
+        var found = new ArrayList<KeyMap.Found>();
+        var controls = new Controls(KeyMap.empty().bind(KeyMap.Control.SELECT_SAME_TYPE, key(KeyInput.KEY_E))
+                .screenFirst(found::add));
+        var world = new World();
+        world.unit(1, "Ranger", ME, 10f, 10f, true);
+        world.unit(2, "Ranger", ME, 20f, 10f, true);
+        world.unit(3, "Ranger", ME, 900f, 900f, false);
+        world.unit(4, "Tank", ME, 15f, 10f, true);
+        world.selection.add(1);
+
+        controls.press(key(KeyInput.KEY_E), 0f, world);
+        assertEquals(Set.of(1, 2), world.selection, "every Ranger of his on the screen");
+        controls.press(key(KeyInput.KEY_E), 10f, world);
+        assertEquals(Set.of(1, 2, 3), world.selection, "and the map's, long after: no double press asked");
+        assertEquals(List.of(KeyMap.Found.ON_SCREEN, KeyMap.Found.ON_THE_MAP), found);
+    }
+
+    /** What the screen gives joins what he holds of it, off the screen too; a building he held is let go. */
+    @Test
+    void whatTheScreenGivesJoinsWhatIsHeldOfItAndTheRestIsLetGo() {
+        var controls = new Controls(KeyMap.empty().bind(KeyMap.Control.SELECT_ALL, key(KeyInput.KEY_Q))
+                .screenFirst(found -> {
+                }));
+        var world = new World();
+        world.unit(1, "Tank", ME, 10f, 10f, true);
+        world.unit(2, "Tank", ME, 20f, 10f, true);
+        world.unit(3, "Tank", ME, 900f, 900f, false);
+        world.building(9, ME);
+        world.selection.addAll(List.of(3, 9));
+
+        controls.press(key(KeyInput.KEY_Q), 0f, world);
+        assertEquals(Set.of(1, 2, 3), world.selection);
+    }
+
     @Test
     void heldControlsLastAsLongAsTheirKeys() {
         var controls = new Controls(KeyMap.standard());

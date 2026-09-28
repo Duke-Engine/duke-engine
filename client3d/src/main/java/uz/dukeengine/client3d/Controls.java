@@ -8,6 +8,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.game.view.UnitView;
 
@@ -36,7 +37,7 @@ final class Controls {
         /** What is selected, changed in place. */
         Set<Integer> selection();
 
-        /** Whether a unit is on the screen now. */
+        /** Whether a unit is on the screen now: in the part of the window the world is drawn in. */
         boolean onScreen(UnitView unit);
 
         /** Whether a unit's template has this kind. */
@@ -305,21 +306,24 @@ final class Controls {
 
     /**
      * {@code MSG_META_SELECT_ALL}: every one of his units — not a building, and not a kind the game leaves out;
-     * with a kind, only those of it.
+     * with a kind, only those of it. On the screen first, where the game says so ({@link KeyMap#screenFirst}).
      */
     private void selectAll(Scene scene, String kind) {
+        Predicate<UnitView> selects = unit -> unit.playerIndex() == scene.localPlayer() && !unit.structure()
+                && unit.selectable() && (kind == null || scene.hasKind(unit, kind))
+                && map.leftOutOfSelectAll().stream().noneMatch(out -> scene.hasKind(unit, out));
+        if (map.screenFirst() != null) {
+            var taken = screenFirst(scene, selects);
+            if (!taken.isEmpty()) {
+                scene.answer(taken.getFirst()); // MSG_CREATE_SELECTED_GROUP, with its voice
+            }
+            return;
+        }
         var picked = new ArrayList<Integer>();
         for (var unit : scene.units()) {
-            if (unit.playerIndex() != scene.localPlayer() || unit.structure() || !unit.selectable()) {
-                continue;
+            if (selects.test(unit)) {
+                picked.add(unit.id());
             }
-            if (kind != null && !scene.hasKind(unit, kind)) {
-                continue;
-            }
-            if (map.leftOutOfSelectAll().stream().anyMatch(out -> scene.hasKind(unit, out))) {
-                continue;
-            }
-            picked.add(unit.id());
         }
         scene.selection().clear();
         scene.selection().addAll(picked);
@@ -328,7 +332,10 @@ final class Controls {
         }
     }
 
-    /** Every one of his units of a type selected, on the screen — and, pressed again soon after, anywhere. */
+    /**
+     * Every one of his units of a type selected, on the screen — and, pressed again soon after, anywhere; or, where
+     * the game says the keys try the screen first ({@link KeyMap#screenFirst}), on the screen and else on the map.
+     */
     private void sameType(Scene scene, float now) {
         boolean everywhere = now - lastSameTypeAt < map.doublePressSeconds();
         lastSameTypeAt = now;
@@ -339,17 +346,70 @@ final class Controls {
             }
         }
         if (types.isEmpty()) {
+            if (map.screenFirst() != null) {
+                map.screenFirst().accept(KeyMap.Found.NOTHING_NEW);
+            }
+            return;
+        }
+        Predicate<UnitView> matches = unit -> unit.playerIndex() == scene.localPlayer()
+                && types.contains(unit.templateName());
+        if (map.screenFirst() != null) {
+            screenFirst(scene, matches);
             return;
         }
         var picked = new ArrayList<Integer>();
         for (var unit : scene.units()) {
-            if (unit.playerIndex() == scene.localPlayer() && types.contains(unit.templateName())
-                    && (everywhere || scene.onScreen(unit))) {
+            if (matches.test(unit) && (everywhere || scene.onScreen(unit))) {
                 picked.add(unit.id());
             }
         }
         scene.selection().clear();
         scene.selection().addAll(picked);
+    }
+
+    /**
+     * The reference's two passes, {@code AcrossScreen} and then {@code AcrossMap}: what {@code selects} picks on the
+     * screen, where any of it is not held yet; else what it picks on the whole map, where any of that is not; else
+     * nothing. What is taken is added to what is held of what it picks, the rest let go; the game hears where it was
+     * found.
+     *
+     * @return what was taken that was not held, in the order the units are drawn
+     */
+    private List<Integer> screenFirst(Scene scene, Predicate<UnitView> selects) {
+        var picked = new LinkedHashSet<Integer>();
+        var onScreen = new ArrayList<Integer>();
+        var newOnScreen = new ArrayList<Integer>();
+        var newOnMap = new ArrayList<Integer>();
+        for (var unit : scene.units()) {
+            if (!selects.test(unit)) {
+                continue;
+            }
+            picked.add(unit.id());
+            boolean held = scene.selection().contains(unit.id());
+            if (!held) {
+                newOnMap.add(unit.id());
+            }
+            if (scene.onScreen(unit)) {
+                onScreen.add(unit.id());
+                if (!held) {
+                    newOnScreen.add(unit.id());
+                }
+            }
+        }
+        var found = !newOnScreen.isEmpty() ? KeyMap.Found.ON_SCREEN
+                : !newOnMap.isEmpty() ? KeyMap.Found.ON_THE_MAP : KeyMap.Found.NOTHING_NEW;
+        if (found != KeyMap.Found.NOTHING_NEW) {
+            var kept = scene.selection().stream().filter(picked::contains).toList();
+            scene.selection().clear();
+            scene.selection().addAll(kept);
+            scene.selection().addAll(found == KeyMap.Found.ON_SCREEN ? onScreen : picked);
+        }
+        map.screenFirst().accept(found);
+        return switch (found) {
+            case ON_SCREEN -> newOnScreen;
+            case ON_THE_MAP -> newOnMap;
+            case NOTHING_NEW -> List.of();
+        };
     }
 
     /** The next of his units, or the one before, selected and looked at. */
