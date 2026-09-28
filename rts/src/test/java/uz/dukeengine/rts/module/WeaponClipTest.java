@@ -160,6 +160,46 @@ class WeaponClipTest {
         assertEquals(1, weapon.getRounds(), "reloaded, and the first round of the new clip fired at once");
     }
 
+    /** Its clip read from outside, as {@code slotsNow} tells its slots: a clip of six fired twice reads four of six. */
+    @Test
+    void aSlotsClipIsReadFromOutside() {
+        var six = shooting(clip(6, 3, 0, 30, true));
+        six.run(4); // shots on the first frame and the fourth
+        var slot = six.weapon().slotsNow(0).getFirst();
+        assertEquals(0, slot.slot());
+        assertEquals(6, slot.clipSize());
+        assertEquals(4, slot.rounds(), "four of six");
+
+        var none = shooting(clip(0, 3, 0, 60, true));
+        none.run(4);
+        var plain = none.weapon().slotsNow(0).getFirst();
+        assertEquals(0, plain.clipSize(), "no clip: none held full");
+        assertEquals(0, plain.rounds(), "and none counted");
+    }
+
+    /**
+     * An emptied clip read as the reference holds it: one that reloads itself full again from the shot that emptied
+     * it, its status saying the reload is under way, as the reference's pips read ({@code Weapon::reloadWithBonus}
+     * fills the clip as the reload begins); one that does not reload empty, and unchanged until something refills it.
+     */
+    @Test
+    void anEmptiedClipReadsAsTheReferenceHoldsIt() {
+        var reloading = shooting(clip(2, 3, 0, 30, true));
+        reloading.run(4); // both rounds
+        var slot = reloading.weapon().slotsNow(0).getFirst();
+        assertEquals(WeaponStatus.RELOADING, slot.status());
+        assertEquals(2, slot.rounds(), "full from the shot that emptied it, the reload still to wait out");
+
+        var out = shooting(clip(2, 3, 0, 30, false));
+        out.run(4);
+        assertEquals(WeaponStatus.OUT, out.weapon().slotsNow(0).getFirst().status());
+        assertEquals(0, out.weapon().slotsNow(0).getFirst().rounds(), "empty");
+        out.run(100);
+        assertEquals(0, out.weapon().slotsNow(0).getFirst().rounds(), "unchanged until something refills it");
+        out.weapon().refill();
+        assertEquals(2, out.weapon().slotsNow(0).getFirst().rounds(), "and full once it does");
+    }
+
     /**
      * A delay between 3 and 9 frames, drawn from the simulation's own numbers: the same seed, the same delays —
      * and the delays do differ, or this would prove nothing.

@@ -65,6 +65,11 @@ final class Clip {
         return rounds;
     }
 
+    /** Rounds it holds full; 0 for no clip. */
+    int size() {
+        return size;
+    }
+
     /**
      * A shot has been taken: count it, and start whichever wait follows it.
      *

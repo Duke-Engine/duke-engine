@@ -246,15 +246,31 @@ public final class WeaponUpdate extends UpdateModule {
     /** The frame each slot of a set, by its index, last fired: for what a client draws, nothing the game decides. */
     private final java.util.Map<Integer, Integer> firedOn = new java.util.HashMap<>();
 
-    /** One weapon slot of the set in use as it stands: its index in the set, whether it fired, and its status. */
-    public record SlotNow(int slot, boolean fired, WeaponStatus status) {
+    /**
+     * One weapon slot of the set in use as it stands: its index in the set, whether it fired, its status, and its clip
+     * — what the reference's ammo pips are laid from ({@code WeaponSet::getAmmoPipShowingInfo}): the rounds it holds
+     * full, its clip size, 0 for a weapon with no clip, and the rounds it holds now. A clip that reloads itself is
+     * full again from the shot that emptied it, as the reference's is from the moment its reload begins ({@code
+     * Weapon::reloadWithBonus}): {@link WeaponStatus#RELOADING} is what says the reload is still under way. The
+     * weapon it carries is named, for a game to say which of its weapons show their rounds ({@code ShowsAmmoPips}).
+     */
+    public record SlotNow(int slot, boolean fired, WeaponStatus status, String weapon, int clipSize, int rounds) {
+
+        /** A slot as it was told before its clip could be read: its weapon unnamed, and no clip. */
+        public SlotNow(int slot, boolean fired, WeaponStatus status) {
+            this(slot, fired, status, null, 0, 0);
+        }
     }
 
-    /** Each weapon slot of the set in use: whether it fired in the game's frame {@code frame}, and where it stands. */
+    /**
+     * Each weapon slot of the set in use: whether it fired in the game's frame {@code frame}, where it stands, and its
+     * clip — the same on any frame asked but for {@code fired}.
+     */
     public List<SlotNow> slotsNow(int frame) {
         var slots = new ArrayList<SlotNow>();
         for (var one : armed()) {
-            slots.add(new SlotNow(one.index(), firedOn.getOrDefault(one.index(), -1) == frame, statusOf(one)));
+            slots.add(new SlotNow(one.index(), firedOn.getOrDefault(one.index(), -1) == frame, statusOf(one),
+                    one.weapon().name(), one.clip().size(), one.clip().rounds()));
         }
         return slots;
     }

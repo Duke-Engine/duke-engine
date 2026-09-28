@@ -203,6 +203,25 @@ class WeaponSetsTest {
         assertEquals(1, weapons.getRounds());
     }
 
+    /** Each slot of the set in use told with its weapon and its clip, by its index in the set. */
+    @Test
+    void eachSlotIsToldWithItsWeaponAndItsClip() {
+        var gun = new Weapon("Gun", 10f, 60f, 5, 0, DamageType.NORMAL, 0f, true, List.of("GROUND"), 4, 90, true,
+                null);
+        var scene = scene(oneSet(new WeaponSlot("Gun"), new WeaponSlot("Missile")), gun, MISSILE);
+        var weapons = scene.shooter().findModule(WeaponUpdate.class);
+        var slots = weapons.slotsNow(0);
+        assertEquals(List.of("Gun", "Missile"), slots.stream().map(WeaponUpdate.SlotNow::weapon).toList());
+        assertEquals(List.of(0, 1), slots.stream().map(WeaponUpdate.SlotNow::slot).toList());
+        assertEquals(List.of(4, 0), slots.stream().map(WeaponUpdate.SlotNow::clipSize).toList());
+        assertEquals(List.of(4, 0), slots.stream().map(WeaponUpdate.SlotNow::rounds).toList());
+
+        scene.enemy("Tank", 20f);
+        scene.run(1);
+        assertEquals(List.of(3, 0), weapons.slotsNow(0).stream().map(WeaponUpdate.SlotNow::rounds).toList(),
+                "the gun fired at the tank, the missile never");
+    }
+
     /** The most words that hold win: a set naming two beats one naming one of them. */
     @Test
     void theSetWithTheMostWordsThatHoldWins() {
