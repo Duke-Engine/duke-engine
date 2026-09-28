@@ -282,6 +282,7 @@ class WeaponSetsTest {
                               Weapon = HumveeGunUpgraded
                             End
                           ]
+                          WeaponLockSharedAcrossSets = Yes
                         End
                       ]
                     End
@@ -298,5 +299,7 @@ class WeaponSetsTest {
         assertEquals(false, missile.autoChoosable());
         assertTrue(data.weaponSets().getFirst().slots().getFirst().autoChoosable(), "yes unless it says no");
         assertEquals(List.of("PLAYER_UPGRADE"), data.weaponSets().get(1).conditions());
+        assertTrue(data.weaponSets().get(1).weaponLockSharedAcrossSets());
+        assertEquals(false, data.weaponSets().getFirst().weaponLockSharedAcrossSets(), "no unless it says yes");
     }
 }

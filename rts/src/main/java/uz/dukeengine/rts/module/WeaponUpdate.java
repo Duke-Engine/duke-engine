@@ -200,9 +200,15 @@ public final class WeaponUpdate extends UpdateModule {
      * is weighed and fired, whatever the slot's sources.
      */
     public enum Lock {
-        /** Until the attack it was given for is over, its slot's clip is emptied, or another lock. */
+        /**
+         * Until the attack it was given for is over, its slot's clip is emptied, another lock, or a change of the set
+         * in use to one that does not share it.
+         */
         TEMPORARILY,
-        /** Until it is let go, another lock, or a change of the set in use. */
+        /**
+         * Until it is let go, another lock, or a change of the set in use to one that does not share it ({@link
+         * WeaponSet#weaponLockSharedAcrossSets}).
+         */
         PERMANENTLY
     }
 
@@ -218,7 +224,7 @@ public final class WeaponUpdate extends UpdateModule {
     /** The slot of the set in use its weapon is locked to, or -1. */
     private int lockedSlot = -1;
     private Lock lock;
-    /** The set in use when it last looked, by its index: a change lets every lock go, as the reference's does. */
+    /** The set in use when it last looked, by its index: a change lets the lock go, as the reference's does. */
     private int setInUse = -1;
 
     public WeaponUpdate(GameObject owner, Data data) {
@@ -931,7 +937,11 @@ public final class WeaponUpdate extends UpdateModule {
         return null;
     }
 
-    /** The set in use changed since it last looked: every lock is let go, as the reference's set swap lets them. */
+    /**
+     * The set in use changed since it last looked: the lock is let go, as the reference's set swap lets it go — unless
+     * the set it changed to shares the lock across sets, which keeps the lock and its slot as they were ({@code
+     * WeaponSet::updateWeaponSet}, reading {@code WeaponLockSharedAcrossSets} on the set arrived at).
+     */
     private void noticeTheSetInUse() {
         if (sets.isEmpty()) {
             return;
@@ -941,7 +951,8 @@ public final class WeaponUpdate extends UpdateModule {
             said.add(set.conditions());
         }
         int fits = Conditions.bestFit(said, getOwner().getConditions());
-        if (fits != setInUse && setInUse >= 0) {
+        boolean shares = fits >= 0 && sets.get(fits).weaponLockSharedAcrossSets();
+        if (fits != setInUse && setInUse >= 0 && !shares) {
             unlock(Lock.PERMANENTLY);
         }
         setInUse = fits;
