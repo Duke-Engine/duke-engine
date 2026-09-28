@@ -217,6 +217,25 @@ when it does, this page says exactly what to change and how.
   says.
 - An `Evacuate` is told to its container's `OrderListener`s, and an `ExitContainer` to its passenger's, after the
   engine has applied it, where neither was told.
+- A target a weapon's outline overlaps is no distance off, never less: inside any least range, and inside none where
+  the weapon has none. A weapon with no least range used to find what it overlapped too near, and never fired at it.
+- A hold of its own that dies lets its passengers out beside it the frame it dies, its riders dying with it, where
+  they stayed in the world held by nothing; each passenger is dealt `DamageToPassengers` of its most health first,
+  none by default.
+- `Placement.Fit` has `ON_UNSEEN_GROUND`: a `switch` over it with no `default` needs the case. `Placement.check` has
+  a form that takes the placing player, which `Construction.order` now uses; the old form, like
+  `RtsSimulation.fits(template, place, facing)`, judges a site for no side and asks nothing of what a side has seen.
+- `GameLogic.revealMapTo` puts every one of the player's `SightCells` in sight, where his cells had only what his
+  lookers covered: `SightCells.sight` and a revealed viewer's `WorldSnapshot.sight` read `IN_SIGHT` everywhere, as
+  `canSee` already did. The client drew a revealed player's map open before, and still does.
+- A weapon with no target looks on its own clock (`RtsSimulation.setTargetScanFrames`), where it looked on the frames
+  its id fell on in the world's round. At the default rate of 1 nothing changes. A game that set a rate above 1 now
+  has each thing look first as it falls idle — new, its order done or stopped, its target gone — and then every rate
+  frames, its first wait up to half the rate longer, drawn from the world's random numbers: a recording made with a
+  rate above 1 plays back differently, and one weapon may be taken sooner or later than it was.
+- The client's on-the-screen test for its selecting keys is the world's part of the window (`Duke3D.worldView`),
+  where it was the whole window: a unit under a bar of the game's own is off the screen.
+- A save carries the players whose map was marked seen on a `SEEN` line that an older engine does not read.
 - Nothing else breaks. Every record that grew keeps its old constructors — `WeaponUpdate.Data`,
   `HarvestUpdate.Data` (and `NeedsDepot`, `WaitBy`, `FramesBeforeActs`, `FramesAfterActs`), `SupplyModule.Data` and
   `SupplyDepot.Data` (and `Dock`), `WeaponFired`, `Weapon` (and its own `Bonuses`, its
@@ -234,8 +253,10 @@ when it does, this page says exactly what to change and how.
   `preAttack`), `WorldSnapshot` (and `sight`, `aimMarks`, `unseenEvents`, `hiddenUnits`, `streams`), `UnitView`
   (and `remembered`, `turrets`, `lift`, `yaw`, `corners`), `CameraFrame` (and `edgeShare`), `SoundBank.Cue` (and
   its reach and voicing), `MoveUpdate.Data` (and its surfaces and class locomotors), `ObstacleRules` (and `laid`),
-  `PlacementRules` (and `standsOver`), `DukeGame.StripPiece` (and its `Mapping`) — and every new field left out
-  means what the old record did. `SocketTransport` and `HostTransport` run over lines of a `LineChannel`, a socket's
+  `PlacementRules` (and `standsOver`, `seenGround`), `DukeGame.StripPiece` (and its `Mapping`), `ContainModule.Data`
+  (and `DamageToPassengers`), `WeaponSet` (and `WeaponLockSharedAcrossSets`), `WeaponUpdate.SlotNow` (and its weapon
+  and clip), `WeaponUpdate.Data` (and `TargetScanFrames`) — and every new field left out means what the old record
+  did. `SocketTransport` and `HostTransport` run over lines of a `LineChannel`, a socket's
   own wrapped as one, so a game that uses sockets sees no change.
   `PlacementRules` keeps its constructors too, `siteAtOrder` left out as before.
   A template that names no prerequisite, word or cap is buildable as before; a save from before granted words and
@@ -243,6 +264,19 @@ when it does, this page says exactly what to change and how.
   `Canvas.drawPicture(Picture, …)` is a default that refuses, so a game's own canvas compiles as it did.
   `ProjectileLauncher.launch(shooter, victim, damage, type)` and `DieModule.onDie()` are still called, through the
   forms that now say more. The static `Duke3D.launch` methods are shorthand for `Duke3D.of(game, visuals)...launch()`.
+
+### A map seen at the start, sites on seen ground, locks across sets, clips, looks and the screen first
+
+`GameLogic.markMapSeen` (`DukeGame.markMapSeen`) marks every cell of a player's `SightCells` seen and none in sight,
+the reference's `revealMapForPlayer` for a match whose own option leaves the shroud out; his lookers open cells to in
+sight as ever, and a save and the checksum tell it from `revealMapTo`. `PlacementRules.seenGround` refuses a site
+whose middle stands on ground its side has never seen (`Fit.ON_UNSEEN_GROUND`, the reference's `LBC_SHROUD`) — a
+person's side's, or every side's — and `RtsSimulation.fits(player, …)` answers as his order would be. A `WeaponSet`
+that says `WeaponLockSharedAcrossSets` keeps the lock and its slot when the set in use changes to it.
+`WeaponUpdate.SlotNow` tells each slot's clip — its size and the rounds in it — and its weapon's name, for a game's
+row of rounds. A thing looks for a target on its own clock, at its template's rate (`TargetScanFrames`) or the
+world's, and at once as it falls idle (`RtsSimulation.setIdleTargetScanFrames`). The client's selecting keys try the
+screen before the map where the game asks (`KeyMap.screenFirst`), and say which gave what they took.
 
 ### Weather for a match, steps, sites, roads and low suns
 
