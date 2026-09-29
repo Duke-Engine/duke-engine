@@ -90,10 +90,11 @@ final class Preload {
         }
         add(jobs, seen, Kind.TEXTURE, looks.stream().map(look -> look.texturePath).toList());
         for (var kit : visuals.allKits()) {
-            // Arrays.asList, not List.of: a kit with no corner post is ordinary,
-            // and List.of will not hold the null that says so.
-            add(jobs, seen, Kind.TILE,
-                    java.util.Arrays.asList(kit.getFloor(), kit.getWall(), kit.getCorner()));
+            var pieces = new java.util.ArrayList<String>();
+            pieces.add(kit.getFloor());
+            pieces.addAll(kit.getWalls());
+            pieces.addAll(kit.getCorners());
+            add(jobs, seen, Kind.TILE, pieces);
         }
         add(jobs, seen, Kind.SOUND, looks.stream().map(look -> look.fireSound).toList());
         add(jobs, seen, Kind.SOUND, looks.stream().map(look -> look.dieSound).toList());

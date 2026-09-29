@@ -19,8 +19,8 @@ package uz.dukeengine.client3d;
 public final class Tileset {
 
     private String floor;
-    private String wall;
-    private String corner;
+    private java.util.List<String> walls = java.util.List.of();
+    private java.util.List<String> corners = java.util.List.of();
     private String stairs;
     private String rockFace;
     private float tileSize = 4f;
@@ -285,16 +285,28 @@ public final class Tileset {
      *
      * <p>An edge piece, not a block: it is placed on the line between open ground
      * and solid, which is where the pathfinder stops the player.
+     *
+     * <p>Several, where one shape repeated reads as a pattern — seventeen rocks alike
+     * in a row. Each placement, and each member of a clump, takes one of them by where
+     * it stands, so the same map draws the same ones in the same places every time.
+     * They share the wall's numbers — its tile size, height, lift and shift — so they
+     * are modelled alike. One is the wall there always was.
      */
-    public Tileset wall(String assetPath) {
-        this.wall = assetPath;
+    public Tileset wall(String... assetPaths) {
+        this.walls = named(assetPaths);
         return this;
     }
 
-    /** The post that fills the notch where two walls meet at a right angle. */
-    public Tileset corner(String assetPath) {
-        this.corner = assetPath;
+    /** The post that fills the notch where two walls meet at a right angle; several are chosen among as walls are. */
+    public Tileset corner(String... assetPaths) {
+        this.corners = named(assetPaths);
         return this;
+    }
+
+    /** The paths given that name something, in their order; none for none. */
+    private static java.util.List<String> named(String... assetPaths) {
+        return assetPaths == null ? java.util.List.of()
+                : java.util.Arrays.stream(assetPaths).filter(java.util.Objects::nonNull).toList();
     }
 
     /**
@@ -372,12 +384,24 @@ public final class Tileset {
         return floor;
     }
 
+    /** The first wall piece, or null for a kit with none. */
     public String getWall() {
-        return wall;
+        return walls.isEmpty() ? null : walls.getFirst();
     }
 
+    /** Every wall piece, in the order named. */
+    public java.util.List<String> getWalls() {
+        return walls;
+    }
+
+    /** The first corner post, or null for a kit with none. */
     public String getCorner() {
-        return corner;
+        return corners.isEmpty() ? null : corners.getFirst();
+    }
+
+    /** Every corner post, in the order named. */
+    public java.util.List<String> getCorners() {
+        return corners;
     }
 
     public String getStairs() {

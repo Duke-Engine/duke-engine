@@ -495,7 +495,7 @@ final class TerrainScene {
             }
             int clump = standing.upright() ? tileset.getWallClump() : 1;
             for (int copy = 0; copy < clump; copy++) {
-                addKitPiece(asset, standing, copy, clump,
+                addKitPiece(assetFor(standing, copy), standing, copy, clump,
                         standing.upright() ? wallScale : floorScale, wallScale, cell,
                         tintFor(standing.piece(), standing.ground(), storey, tallest));
             }
@@ -1092,6 +1092,23 @@ final class TerrainScene {
                         ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
             }
         }
+    }
+
+    /**
+     * The model one piece is drawn with: the kit's one, or, where it names several of a kind, the one this piece takes
+     * by where it stands — the settled number that sizes and turns a clump, for a purpose of its own, so a wall of
+     * rocks is the same rocks in the same places on every build and each member of a clump takes its own.
+     */
+    private String assetFor(Standing standing, int copy) {
+        var choices = switch (standing.piece()) {
+            case WALL, LEDGE -> tileset.getWalls();
+            case CORNER -> tileset.getCorners();
+            default -> java.util.List.<String>of();
+        };
+        if (choices.size() < 2) {
+            return assetFor(standing.piece());
+        }
+        return choices.get((int) (steady(standing.x(), standing.z(), copy, 4) * choices.size()));
     }
 
     private String assetFor(TileLayout.Piece piece) {

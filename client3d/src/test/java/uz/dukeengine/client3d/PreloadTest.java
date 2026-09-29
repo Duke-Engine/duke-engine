@@ -121,6 +121,16 @@ class PreloadTest {
         assertEquals(List.of("floor.obj", "wall.obj"), pathsOf(visuals, Preload.Kind.TILE));
     }
 
+    /** Every rock of a wall of several is read ahead, and every post of a corner of several. */
+    @Test
+    void everyModelOfAWallOfSeveralIsReadAhead() {
+        var visuals = Visuals.create()
+                .tiles(Tileset.create().floor("floor.obj").wall("rock_a.glb", "rock_b.glb").corner("post.glb"));
+
+        assertEquals(List.of("floor.obj", "rock_a.glb", "rock_b.glb", "post.glb"),
+                pathsOf(visuals, Preload.Kind.TILE));
+    }
+
     /**
      * Two themes on one kit read it once.
      *

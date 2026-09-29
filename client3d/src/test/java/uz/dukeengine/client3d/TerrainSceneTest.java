@@ -1,6 +1,7 @@
 package uz.dukeengine.client3d;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -704,6 +705,46 @@ class TerrainSceneTest {
 
         assertEquals(placed(wallsOf(kit, grid)), placed(wallsOf(kit, grid)),
                 "two builds of one map should stand the same trees in the same places");
+    }
+
+    /**
+     * A kit given several rocks for its wall shows every one of them, each piece of a clump taking its own by where it
+     * stands — the same rocks in the same places on every build — and no piece drawn as a model the kit never named.
+     */
+    @Test
+    void aKitGivenSeveralWallModelsShowsThemAllTheSameOnesInTheSamePlacesOnEveryBuild() {
+        var grid = MapLoader.fromText(ROOM);
+        var kit = kit().wall("rock_a", "rock_b", "rock_c").wallFillsRock(true).wallClump(3).wallSpread(0.3f);
+        var first = new Node("terrain");
+        new TerrainScene(first, (colour, texture) -> null, true, kit, new StubTiles()).rebuild(grid);
+        var second = new Node("terrain");
+        new TerrainScene(second, (colour, texture) -> null, true, kit, new StubTiles()).rebuild(grid);
+
+        for (var rock : java.util.List.of("rock_a", "rock_b", "rock_c")) {
+            assertFalse(pieces(first, rock).isEmpty(), rock + " should stand somewhere");
+        }
+        assertTrue(pieces(first, "wall").isEmpty(), "no piece drawn as a model the kit never named");
+        assertEquals(namedAndPlaced(first), namedAndPlaced(second), "the same rock in the same place on every build");
+    }
+
+    /** One wall named, or the same one named through the list, is the wall there always was. */
+    @Test
+    void oneWallModelIsDrawnExactlyAsBefore() {
+        var grid = MapLoader.fromText(ROOM);
+        var kit = kit().wallClump(3).wallSpread(0.3f).wallVariety(0.5f);
+        var root = new Node("terrain");
+        new TerrainScene(root, (colour, texture) -> null, true, kit, new StubTiles()).rebuild(grid);
+        var listed = new Node("terrain");
+        new TerrainScene(listed, (colour, texture) -> null, true, kit.wall("wall"), new StubTiles()).rebuild(grid);
+
+        assertEquals(namedAndPlaced(root), namedAndPlaced(listed));
+        assertEquals(java.util.List.of("wall"), kit.getWalls());
+    }
+
+    private static java.util.List<String> namedAndPlaced(Node root) {
+        return everyPiece(root)
+                .map(piece -> piece.getName() + " " + piece.getLocalTranslation() + " x" + piece.getLocalScale())
+                .sorted().toList();
     }
 
     private static java.util.List<String> placed(java.util.List<com.jme3.scene.Spatial> pieces) {

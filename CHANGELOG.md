@@ -12,6 +12,15 @@ Unreleased.
 - A game that names no window size (`Duke3D.window`) opens a new player's window at the monitor's own mode, filling
   the screen, where it opened a 1280 × 720 window; the choice is written into his settings as if he had made it. A
   game that names a size, and a player who chose one, open as before.
+- `Tileset.wall` and `corner` take several paths (`String...`): a call with one reads as it did, but a game built
+  against 0.6.0 is built again.
+
+### A kit's walls of several models
+
+`Tileset.wall(String...)` names several models for a kit's wall — rocks, trees, bushes — and each placement, and each
+member of a clump, takes one by the settled number of where it stands, so the same map draws the same ones in the same
+places every time; `corner(String...)` the same for its posts. They share the wall's numbers, so they are modelled
+alike. One is the wall there always was.
 
 ### The window's size, at once
 
