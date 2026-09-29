@@ -1458,7 +1458,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (hitFlash == null || node == null || node.view == null) {
             return;
         }
-        var tint = visualFor(node.view.looksAs()).tint;
+        var tint = visualFor(node.view).tint;
         var own = (tint == null ? ColorRGBA.White : toColor(tint)).mult(CREATURE_AMBIENT);
         hitFlash.struck(unitId, node.root, own);
     }
@@ -2926,18 +2926,32 @@ final class DukeRtsApp extends SimpleApplication {
         return end < 0 ? field : field.substring(0, end);
     }
 
-    /**
-     * How a creature is drawn: what the current theme says, or what the game said
-     * about it outside any theme.
-     * The kit in force: the theme's, or the one the game started with.
-     */
+    /** The kit in force: the theme's, or the one the game started with. */
     private Tileset activeKit() {
         return currentKit != null ? currentKit : visuals.getTiles();
     }
 
+    /** How a creature is drawn: what the current theme says, or what the game said about it outside any theme. */
     private Visuals.UnitVisual visualFor(String templateName) {
         var themed = currentTheme == null ? null : currentTheme.of(templateName);
         return themed != null ? themed : visuals.of(templateName);
+    }
+
+    /** How a thing is drawn, by the look of the cell it stands on where it is still — see {@link #lookOf}. */
+    private Visuals.UnitVisual visualFor(UnitView view) {
+        return lookOf(visuals, currentTheme, lookUnder(view.x(), view.y()), view);
+    }
+
+    /**
+     * How a thing is drawn, of the looks in force: a still thing on a cell that wears a look of its own ({@code
+     * Looked}) as that look draws it, or as the game drew it outside any look; anything else as the floor's look draws
+     * it, or as the game did. A pillar in the wood is the wood's though the floor's look is the cave's, and a creature
+     * walking from one into the other stays what it was.
+     */
+    static Visuals.UnitVisual lookOf(Visuals visuals, Visuals.Theme floor, Visuals.Theme cell, UnitView view) {
+        var theme = view.mobile() || cell == null ? floor : cell;
+        var themed = theme == null ? null : theme.of(view.looksAs());
+        return themed != null ? themed : visuals.of(view.looksAs());
     }
 
     /**
@@ -3094,10 +3108,7 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var view = camera.view();
-        float cell = builtFrom.getCellSize();
-        int cx = Math.clamp((int) Math.floor(view.x() / cell), 0, builtFrom.getWidth() - 1);
-        int cy = Math.clamp((int) Math.floor(view.z() / cell), 0, builtFrom.getHeight() - 1);
-        var wanted = fogTintOf(cellLooks[cy * builtFrom.getWidth() + cx]);
+        var wanted = fogTintOf(lookUnder(view.x(), view.z()));
         var eased = fogTintNow == null ? wanted
                 : fogTintNow.clone().interpolateLocal(wanted, 1f - (float) Math.exp(-tpf * FOG_TINT_TURN));
         if (fogTintNow == null || packedRgb(eased) != packedRgb(fogTintNow)) {
@@ -3105,6 +3116,17 @@ final class DukeRtsApp extends SimpleApplication {
             viewPort.setBackgroundColor(eased);
         }
         fogTintNow = eased;
+    }
+
+    /** The look of the cell under a point of the world, where the world's map names one there; null for none. */
+    private Visuals.Theme lookUnder(float x, float y) {
+        if (cellLooks == null || builtFrom == null) {
+            return null;
+        }
+        float cell = builtFrom.getCellSize();
+        int cx = Math.clamp((int) Math.floor(x / cell), 0, builtFrom.getWidth() - 1);
+        int cy = Math.clamp((int) Math.floor(y / cell), 0, builtFrom.getHeight() - 1);
+        return cellLooks[cy * builtFrom.getWidth() + cx];
     }
 
     /** The dark a look wears: its own, or the map's look's, or the game's fog's. */
@@ -5323,7 +5345,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private java.util.List<UnitBars.Badge> badgesOf(UnitNode node) {
         var view = node.view;
-        var look = visualFor(view.looksAs());
+        var look = visualFor(view);
         if (look.marks.isEmpty()) {
             return java.util.List.of();
         }
@@ -5359,7 +5381,7 @@ final class DukeRtsApp extends SimpleApplication {
             boolean isNew = !unitNodes.containsKey(view.id());
             var node = unitNodes.computeIfAbsent(view.id(), id -> createUnitNode(view));
             updateUnitNode(node, view);
-            var look = visualFor(view.looksAs());
+            var look = visualFor(view);
             if (isNew) {
                 layered.flying(view.id(), look.effect, node.root,
                         new Vector3f(look.effectForward, look.yOffset, 0f), cam);
@@ -5391,7 +5413,7 @@ final class DukeRtsApp extends SimpleApplication {
                 // ended; whether it ended in a strike is only known once this
                 // frame's blows are read -- see burstWhatStruck.
                 endedShots.add(new Landing.Gone(entry.getKey(),
-                        visualFor(node.view.looksAs()).effect,
+                        visualFor(node.view).effect,
                         node.view.playerIndex() == game.getLocalPlayerIndex(),
                         node.bornX, node.bornZ, node.bornAt, at.x, at.z,
                         timer.getTimeInSeconds()));
@@ -5587,7 +5609,9 @@ final class DukeRtsApp extends SimpleApplication {
                 // would be nothing left to play a death on.
                 portrait.died(died.object().value());
                 var where = new Vector3f(died.position().x(), 0f, died.position().y());
-                playSound(visualFor(died.templateName()).dieSound, where);
+                var dying = unitNodes.get(died.object().value());
+                var look = dying != null ? visualFor(dying.view) : visualFor(died.templateName()); // as it was drawn
+                playSound(look.dieSound, where);
                 // "Destroyed" is what this event means, so it is the arrow landing
                 // as much as the monster falling. What it draws where it struck is
                 // its layers' -- see Landing; what is left here is the knock, if the
@@ -5595,14 +5619,12 @@ final class DukeRtsApp extends SimpleApplication {
                 // meteor arriving, so the biggest thump in the game belongs to the
                 // thing that ARRIVED rather than to the man who called for it a
                 // second and a half ago and may well be dead.
-                var look = visualFor(died.templateName());
                 skillEffects.cast(look.effect,
                         new uz.dukeengine.core.math.Coord3D(died.position().x(),
                                 died.position().y(), 0f),
                         cam.getLocation());
                 controls.died(died.object().value());
                 hurtMoments.forget(died.object().value());
-                var dying = unitNodes.get(died.object().value());
                 layOut(died.object().value(), died.deathType(), died.frame());
                 barrels.forget(died.object().value());
                 runningGear.forget(died.object().value());
@@ -5620,11 +5642,11 @@ final class DukeRtsApp extends SimpleApplication {
                             fired.shooter().value());
                 }
                 if (node != null) {
-                    playSound(visualFor(node.view.looksAs()).fireSound,
+                    playSound(visualFor(node.view).fireSound,
                             node.root.getLocalTranslation());
                     // The swing, on the frame the weapon let go. Nothing else in
                     // the snapshot says when that was.
-                    playOnce(node, visualFor(node.view.looksAs()).attackAnim);
+                    playOnce(node, visualFor(node.view).attackAnim);
                 }
             } else if (event instanceof uz.dukeengine.core.event.ObjectHurt hurt) {
                 var name = hurtMoments.nameFor(hurt);
@@ -6032,7 +6054,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (node == null) {
             return;
         }
-        var clipName = visualFor(node.view.looksAs()).dieAnimFor(deathType, unitId, frame);
+        var clipName = visualFor(node.view).dieAnimFor(deathType, unitId, frame);
         var clip = clipName == null || node.composer == null
                 ? null : node.composer.getAnimClip(clipName);
         node.diedOn = frame;
@@ -6082,7 +6104,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void lookDead(UnitNode node, UnitView view) {
         node.view = view;
-        var visual = visualFor(view.looksAs());
+        var visual = visualFor(view);
         var world = visuals.getWorldConditions();
         var holding = visual.holding(view.healthFraction(), world, view.conditions());
         var wanted = visual.modelFor(view.healthFraction(), world, view.conditions());
@@ -6118,7 +6140,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     private UnitNode createUnitNode(UnitView view) {
-        var visual = visualFor(view.looksAs());
+        var visual = visualFor(view);
         var node = new UnitNode();
         node.root = new Node("unit-" + view.id());
         node.bornX = view.x();
@@ -6716,7 +6738,7 @@ final class DukeRtsApp extends SimpleApplication {
      * and with no models yet there is nothing else to say it with.
      */
     private ColorRGBA colourOf(UnitView view) {
-        var own = visualFor(view.looksAs()).colour;
+        var own = visualFor(view).colour;
         return toColor(own != null ? own : game.getColor(view.wears()));
     }
 
@@ -6810,7 +6832,7 @@ final class DukeRtsApp extends SimpleApplication {
         // What it looks like can change while it stands there: a building past a health threshold is a
         // wrecked building, and the wreck is a different file. Asked every frame because the answer is a
         // lookup against a map that is empty for every template that named no second model.
-        var visual = visualFor(view.looksAs());
+        var visual = visualFor(view);
         // Its own words too — an upgrade's weapon set, a rank — for a look that chooses anything by them.
         var holding = visual.choosesByWords()
                 ? visual.holding(view.healthFraction(), visuals.getWorldConditions(), view.conditions()) : null;
@@ -6917,7 +6939,7 @@ final class DukeRtsApp extends SimpleApplication {
         // Nothing on the first sight of a unit, and nothing on the blow that
         // killed it: that one has a death to play and this would talk over it.
         if (!Float.isNaN(before) && view.health() < before && view.health() > 0f) {
-            playOnce(node, visualFor(view.looksAs()).hurtAnim);
+            playOnce(node, visualFor(view).hurtAnim);
         }
     }
 
@@ -6945,7 +6967,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (timer.getTimeInSeconds() < node.actionUntil) {
             return; // a blow or a flinch has the model; it will hand it back
         }
-        var visual = visualFor(view.looksAs());
+        var visual = visualFor(view);
         if (playByWords(node, visual, view)) {
             return;
         }
@@ -7077,7 +7099,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (skin == null) {
             return;
         }
-        var visual = visualFor(node.view.looksAs());
+        var visual = visualFor(node.view);
         for (var one : visual.carried) {
             if (one.bone == null || skin.getArmature().getJoint(one.bone) == null) {
                 continue;
