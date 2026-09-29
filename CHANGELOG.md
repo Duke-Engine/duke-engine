@@ -51,10 +51,23 @@ laid as it always was.
 A map whose record is `Dressed` lists scenery (`MapScenery`): a model, where it stands in cells, its facing, scale and
 tint, and a footprint. Each piece is laid with the ground under it — gathered into its chunk, on its floor and the
 relief, left out by the fog with its ground — in the materials its model came with, and it is no thing of the
-simulation's: nothing a frame, on no minimap, in no snapshot. A piece with a footprint stands in the way: the simulation
-closes the cells of the ground it covers, as a still thing's outline does, and a ground mover's step goes no deeper into
-it than it already stands (`GameLogic.setSceneryFootprints`, which `DukeGame.applyMapTerrain` feeds from the map, and
-`World.sceneryInTheWay`).
+simulation's: nothing a frame, on no minimap, in no snapshot. A piece with a footprint stands in the way: a route keeps
+a body clear of it by its true distance, in the cells it walks and the line it is pulled straight along
+(`PathGrid.clearOfScenery`), and a ground mover's step goes no deeper into it than it already stands
+(`GameLogic.setSceneryFootprints`, which `DukeGame.applyMapTerrain` feeds from the map, and
+`World.sceneryInTheWay`). It closes no cell, so a body goes between two trunks wherever it fits between them.
+
+### Maps walked finer than drawn
+
+A map whose record is `Subdivided` is walked on `navigationCellsPerCell()` cells a side for each of its own: at 2, a
+map of 10-unit cells is searched, blocked and stood on in cells of 5, so a knight goes between two trees whose trunks
+leave it room, while the map is drawn a tile to a cell as before. Every rule counted in cells — beside, near enough, a
+group's shared route — is still counted in the map's (`World.cellSize`), and so are the search budget, the searches
+for a band, a way out of stone and a place to stand, and the most a mover's cells reach: a frame searches as much
+ground as it did. How high the ground stands, the relief and its cliffs are answered at the map's own cells
+(`PathGrid.subdivided`), so slopes and stairs stand where they stood. `GameLogic.setPathGrid(grid, k)` is the same
+from code; the logic's `getPathGrid()` is the grid walked, `DukeGame.getTerrain()` the one drawn. A map that is not
+`Subdivided` is walked on its own cells, to the bit as before.
 
 ### A kit's walls of several models
 

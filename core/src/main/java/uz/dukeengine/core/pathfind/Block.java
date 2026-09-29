@@ -20,6 +20,14 @@ public record Block(int x, int y, int half, boolean centred) {
 
     /** The block a mover of {@code boundingRadius} covers standing at {@code (px, py)}, on cells of {@code cellSize}. */
     public static Block of(float boundingRadius, float cellSize, float px, float py) {
+        return of(boundingRadius, cellSize, 1, px, py);
+    }
+
+    /**
+     * The same on a grid walked {@code perMapCell} cells a side for each of the map's: the most it reaches is the
+     * reference's five of the map's cells, that many more of its own.
+     */
+    public static Block of(float boundingRadius, float cellSize, int perMapCell, float px, float py) {
         float diameter = 2f * boundingRadius;
         if (diameter > cellSize && diameter < 2f * cellSize) {
             diameter = 2f * cellSize;
@@ -30,8 +38,9 @@ public record Block(int x, int y, int half, boolean centred) {
         }
         boolean centred = (cells & 1) == 1;
         int half = cells / 2;
-        if (half > MOST_HALF) {
-            half = MOST_HALF;
+        int mostHalf = MOST_HALF * Math.max(1, perMapCell);
+        if (half > mostHalf) {
+            half = mostHalf;
             centred = true;
         }
         return centred

@@ -644,9 +644,15 @@ public final class DukeGame {
         this.terrain = grid;
         this.mapRecord = map;
         if (logic != null) {
-            logic.setPathGrid(grid);
+            logic.setPathGrid(grid, navigationCellsPerCell());
             logic.setSceneryFootprints(sceneryFootprints());
         }
+    }
+
+    /** How many cells a side the current map is walked at for each of its own: what a {@code Subdivided} one asks. */
+    private int navigationCellsPerCell() {
+        return mapRecord instanceof uz.dukeengine.core.map.Subdivided subdivided
+                ? Math.max(1, subdivided.navigationCellsPerCell()) : 1;
     }
 
     /**
@@ -1197,7 +1203,7 @@ public final class DukeGame {
         progress.accept(15);
         logic.setWorld(world);
         if (terrain != null) {
-            logic.setPathGrid(terrain);
+            logic.setPathGrid(terrain, navigationCellsPerCell());
             logic.setSceneryFootprints(sceneryFootprints());
         }
         progress.accept(20);

@@ -46,8 +46,8 @@ final class GroundCells {
 
     /** The block {@code mover} covers standing at {@code at}. */
     Block blockAt(GameObject mover, Coord3D at) {
-        return Block.of(Solid.of(mover.getTemplate()).footprintRadius(), world.getPathGrid().getCellSize(), at.x(),
-                at.y());
+        return Block.of(Solid.of(mover.getTemplate()).footprintRadius(), world.getPathGrid().getCellSize(),
+                world.getPathGrid().cellsPerMapCell(), at.x(), at.y());
     }
 
     private MoverCells cells() {
@@ -92,7 +92,8 @@ final class GroundCells {
             var at = pointOf(pulled);
             int dx = (int) Math.abs(near.x() - at.x());
             int dy = (int) Math.abs(near.y() - at.y());
-            if (Pathfinder.walkCost(world.getPathGrid(), near, at, MOST_COSTED) > 1.4f * (dx + dy)) {
+            int finer = world.getPathGrid().cellsPerMapCell();
+            if (Pathfinder.walkCost(world.getPathGrid(), near, at, MOST_COSTED * finer * finer) > 1.4f * (dx + dy)) {
                 return false;
             }
             chosen[0] = pulled;
@@ -207,7 +208,8 @@ final class GroundCells {
         }
         int tried = 1;
         int delta = 1;
-        while (tried < MOST_TRIED) {
+        int finer = world.getPathGrid().cellsPerMapCell();
+        while (tried < MOST_TRIED * finer * finer) {
             for (int n = 0; n < delta; n++, tried++) {
                 i++;
                 if (fits(mover, start.at(i, j), reach, also)) {
@@ -289,7 +291,9 @@ final class GroundCells {
                 }
             }
         }
-        return true;
+        // Scenery closes no cell, so a block is kept clear of it by where the mover would stand.
+        var standing = block.point(grid.getCellSize(), 0f);
+        return grid.clearOfScenery(standing.x(), standing.y(), Solid.of(mover.getTemplate()).footprintRadius());
     }
 
     /** Whether {@code mover} can walk to the block, as the grid's zones say; a mover standing in stone can go anywhere. */
@@ -333,6 +337,7 @@ final class GroundCells {
             }
         }
         float reach = Solid.of(mover.getTemplate()).footprintRadius();
+        int nearStart = NEAR_START * grid.cellsPerMapCell();
         return new Pathfinder.Traffic() {
             @Override
             public int costOf(int cx, int cy) {
@@ -362,8 +367,8 @@ final class GroundCells {
                             } else if (!world.runsOver(mover, other)) {
                                 return Pathfinder.Traffic.CLOSED;
                             }
-                        } else if (allied(mover, other) && Math.abs(cx - startX) < NEAR_START
-                                && Math.abs(cy - startY) < NEAR_START) {
+                        } else if (allied(mover, other) && Math.abs(cx - startX) < nearStart
+                                && Math.abs(cy - startY) < nearStart) {
                             allyPassing = true;
                         }
                     }

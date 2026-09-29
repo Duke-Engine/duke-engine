@@ -437,6 +437,8 @@ public final class Pathfinder {
             open.add(startIndex);
             float half = grid.getCellSize() / 2f;
             int examined = 0;
+            // The reference's limit is in its own cells; a grid walked finer has that many to the same ground.
+            int mostExamined = BAND_CELL_LIMIT * grid.cellsPerMapCell() * grid.cellsPerMapCell();
             while (!open.isEmpty()) {
                 int current = open.poll();
                 if (scratch.closed(current)) {
@@ -454,7 +456,7 @@ public final class Pathfinder {
                     tally.cells++;
                 }
                 scratch.close(current);
-                if (++examined > BAND_CELL_LIMIT) {
+                if (++examined > mostExamined) {
                     continue; // no more expanding: what is open is looked at, and then it gives up
                 }
                 for (var step : NEIGHBOURS) {
@@ -923,7 +925,7 @@ public final class Pathfinder {
     private static Coord3D nearestOpenCell(PathGrid grid, Coord3D from) {
         int cx = grid.toCellX(from);
         int cy = grid.toCellY(from);
-        for (int ring = 1; ring <= ESCAPE_RINGS; ring++) {
+        for (int ring = 1; ring <= ESCAPE_RINGS * grid.cellsPerMapCell(); ring++) {
             for (int dy = -ring; dy <= ring; dy++) {
                 for (int dx = -ring; dx <= ring; dx++) {
                     if (Math.max(Math.abs(dx), Math.abs(dy)) != ring) {
@@ -1187,19 +1189,20 @@ public final class Pathfinder {
         return true;
     }
 
-    /** Whether a cell can hold a body of {@code clearance} radius at its centre. */
+    /**
+     * Whether a cell can hold a body of {@code clearance} radius at its centre: open, with room from stone, and clear
+     * of the scenery by its true distance — a body with no width only kept out of it.
+     */
     private static boolean fits(PathGrid grid, int cx, int cy, float clearance) {
         if (grid.isBlocked(cx, cy)) {
             return false;
         }
-        if (clearance <= 0f) {
-            return true;
-        }
-        var center = grid.cellCenter(cx, cy);
-        return isClearAround(grid, center.x(), center.y(), clearance);
+        float x = (cx + 0.5f) * grid.getCellSize();
+        float y = (cy + 0.5f) * grid.getCellSize();
+        return clearance <= 0f ? grid.clearOfScenery(x, y, 0f) : isClearAround(grid, x, y, clearance);
     }
 
-    /** Whether every cell a body of {@code clearance} radius would touch is free. */
+    /** Whether every cell a body of {@code clearance} radius would touch is free, and the scenery clear of it. */
     private static boolean isClearAround(PathGrid grid, float x, float y, float clearance) {
         float cell = grid.getCellSize();
         int minX = (int) Math.floor((x - clearance) / cell);
@@ -1213,6 +1216,6 @@ public final class Pathfinder {
                 }
             }
         }
-        return true;
+        return grid.clearOfScenery(x, y, clearance);
     }
 }

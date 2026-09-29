@@ -173,7 +173,7 @@ public record GroupMove(float gatherFactor, float distanceRequiresGroup, float m
         if (!together) {
             return null;
         }
-        var path = Pathfinder.findPath(grid, middle.getPosition(), point, ROUTE_CELLS * grid.getCellSize() / 2f);
+        var path = Pathfinder.findPath(grid, middle.getPosition(), point, ROUTE_CELLS * world.cellSize() / 2f);
         if (path.isEmpty()) {
             return null;
         }

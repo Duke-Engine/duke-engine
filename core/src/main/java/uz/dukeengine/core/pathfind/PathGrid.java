@@ -97,6 +97,19 @@ public final class PathGrid {
     private int[] closedUnder;
     /** The ground movers on its cells — see {@link MoverCells}; made the first time it is asked for. */
     private MoverCells movers;
+    /**
+     * The grid of the map's own cells this one walks finer — which answers how high the ground stands, the relief, the
+     * climb of a ramp and the cliffs, at its own cells — or null for a grid of the map's own cells. See {@link
+     * #subdivided}.
+     */
+    private PathGrid coarse;
+    /** How many of its cells a side stand in one of the map's: 1 for a grid of the map's own cells. */
+    private int perMapCell = 1;
+    /** The scenery standing in the way, cell by cell of where its middle is — see {@link #setSceneryFootprints}. */
+    private SceneryFootprint[] sceneryPieces = new SceneryFootprint[0];
+    /** Where each cell's pieces start in {@link #sceneryPieces}, and one past the last cell's end; null for none. */
+    private int[] sceneryStart;
+    private float widestScenery;
 
     public PathGrid(int width, int height) {
         this(width, height, DEFAULT_CELL_SIZE);
@@ -145,6 +158,156 @@ public final class PathGrid {
         this.decks = grid.decks;
         this.deckClearance = grid.deckClearance;
         this.closedUnder = grid.closedUnder;
+        this.coarse = grid.coarse;
+        this.perMapCell = grid.perMapCell;
+    }
+
+    // ---- walked finer than drawn ----
+
+    /**
+     * This grid walked at {@code k} cells a side for each of its own: a map drawn a tile to a cell, and walked on a
+     * grid fine enough that a body goes between two trees where their trunks leave it room. Each of its cells is
+     * blocked, on its level, a ramp and of its class of ground as the cell of this grid it stands in; how high the
+     * ground stands — the storeys, the relief, the climb of a ramp — and where the cliffs are is still answered by this
+     * grid at its own cells, so a slope and a stair stand exactly where they stood. Decks already laid are laid again.
+     * {@code k} of 1 or less is this grid.
+     */
+    public PathGrid subdivided(int k) {
+        if (k <= 1) {
+            return this;
+        }
+        var fine = new PathGrid(width * k, height * k, cellSize / k);
+        fine.coarse = this;
+        fine.perMapCell = k;
+        fine.levelHeight = levelHeight;
+        fine.deckClearance = deckClearance;
+        fine.classNames.addAll(classNames);
+        fine.cliffClass = cliffClass;
+        for (int cy = 0; cy < height; cy++) {
+            for (int cx = 0; cx < width; cx++) {
+                int from = cy * width + cx;
+                for (int sy = 0; sy < k; sy++) {
+                    for (int sx = 0; sx < k; sx++) {
+                        int to = (cy * k + sy) * fine.width + cx * k + sx;
+                        fine.blocked[to] = blocked[from];
+                        fine.level[to] = level[from];
+                        fine.ramp[to] = ramp[from];
+                        fine.groundClass[to] = groundClass[from];
+                    }
+                }
+            }
+        }
+        for (var deck : decks) {
+            int floor = fine.addDeck(deck.corner(0), deck.corner(1), deck.corner(2), deck.corner(3));
+            fine.setDeckOpen(floor, deck.isOpen());
+        }
+        return fine;
+    }
+
+    /** How many of its cells a side stand in one of the map's: 1 for a grid of the map's own cells. */
+    public int cellsPerMapCell() {
+        return perMapCell;
+    }
+
+    /**
+     * How wide a cell of the map this grid walks is, in world units: its own cells', or the map's where it walks the
+     * map finer — the size every rule counted in cells is counted in, as the reference counts in its {@code
+     * PATHFIND_CELL_SIZE}.
+     */
+    public float mapCellSize() {
+        return cellSize * perMapCell;
+    }
+
+    // ---- scenery ----
+
+    /**
+     * The scenery standing in the way: circles on the ground, in world units, that are no things of anyone's — see
+     * {@code GameLogic.setSceneryFootprints}. They close no cell: a body is kept clear of each by its true distance, in
+     * a route's cells and in the line it is pulled straight along ({@link #clearOfScenery}), so a body goes between two
+     * trunks the moment it fits between them.
+     */
+    public void setSceneryFootprints(java.util.List<SceneryFootprint> footprints) {
+        var grid = root();
+        var pieces = footprints == null ? java.util.List.<SceneryFootprint>of() : footprints;
+        int cells = width * height;
+        int[] start = new int[cells + 1];
+        int[] cellOf = new int[pieces.size()];
+        float widest = 0f;
+        for (int i = 0; i < pieces.size(); i++) {
+            var piece = pieces.get(i);
+            // One just off the map is kept at its edge, where what it reaches of the map is looked for.
+            int cx = Math.clamp((long) Math.floor(piece.x() / cellSize), 0, width - 1);
+            int cy = Math.clamp((long) Math.floor(piece.y() / cellSize), 0, height - 1);
+            cellOf[i] = cy * width + cx;
+            start[cellOf[i] + 1]++;
+            widest = Math.max(widest, piece.radius());
+        }
+        for (int c = 0; c < cells; c++) {
+            start[c + 1] += start[c];
+        }
+        var byCell = new SceneryFootprint[pieces.size()];
+        int[] next = java.util.Arrays.copyOf(start, cells);
+        for (int i = 0; i < pieces.size(); i++) {
+            byCell[next[cellOf[i]]++] = pieces.get(i);
+        }
+        grid.sceneryPieces = byCell;
+        grid.sceneryStart = pieces.isEmpty() ? null : start;
+        grid.widestScenery = widest;
+    }
+
+    /** Whether a body of {@code clearance} radius standing at ({@code x}, {@code y}) is clear of all the scenery. */
+    public boolean clearOfScenery(float x, float y, float clearance) {
+        var grid = root();
+        int[] start = grid.sceneryStart;
+        if (start == null) {
+            return true;
+        }
+        float far = clearance + grid.widestScenery;
+        int minX = Math.max(0, (int) Math.floor((x - far) / cellSize));
+        int maxX = Math.min(width - 1, (int) Math.floor((x + far) / cellSize));
+        int minY = Math.max(0, (int) Math.floor((y - far) / cellSize));
+        int maxY = Math.min(height - 1, (int) Math.floor((y + far) / cellSize));
+        for (int cy = minY; cy <= maxY; cy++) {
+            for (int cell = cy * width + minX, last = cy * width + maxX; cell <= last; cell++) {
+                for (int i = start[cell]; i < start[cell + 1]; i++) {
+                    var piece = grid.sceneryPieces[i];
+                    float dx = x - piece.x();
+                    float dy = y - piece.y();
+                    float room = piece.radius() + clearance;
+                    if (dx * dx + dy * dy < room * room) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Whether any piece of scenery whose middle stands within {@code reach} plus the widest footprint of ({@code x},
+     * {@code y}) is one {@code test} takes.
+     */
+    public boolean anySceneryNear(float x, float y, float reach, java.util.function.Predicate<SceneryFootprint> test) {
+        var grid = root();
+        int[] start = grid.sceneryStart;
+        if (start == null) {
+            return false;
+        }
+        float far = reach + grid.widestScenery;
+        int minX = Math.max(0, (int) Math.floor((x - far) / cellSize));
+        int maxX = Math.min(width - 1, (int) Math.floor((x + far) / cellSize));
+        int minY = Math.max(0, (int) Math.floor((y - far) / cellSize));
+        int maxY = Math.min(height - 1, (int) Math.floor((y + far) / cellSize));
+        for (int cy = minY; cy <= maxY; cy++) {
+            for (int cell = cy * width + minX, last = cy * width + maxX; cell <= last; cell++) {
+                for (int i = start[cell]; i < start[cell + 1]; i++) {
+                    if (test.test(grid.sceneryPieces[i])) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     // ---- classes of ground ----
@@ -228,7 +391,7 @@ public final class PathGrid {
         }
         int index = cy * width + cx;
         int c = laid[index] != 0 ? laid[index] : groundClass[index];
-        if (c == 0 && cliffClass != 0 && relief != null && relief.isCliff(cx, cy)) {
+        if (c == 0 && cliffClass != 0 && reliefCliff(cx, cy)) {
             c = cliffClass;
         }
         return c == 0 ? null : root().classNames.get(c - 1);
@@ -395,6 +558,9 @@ public final class PathGrid {
 
     public void setLevelHeight(float levelHeight) {
         this.levelHeight = levelHeight;
+        if (coarse != null) {
+            coarse.setLevelHeight(levelHeight); // which answers how high the ground stands
+        }
     }
 
     /**
@@ -424,6 +590,9 @@ public final class PathGrid {
 
     /** How high the floor of a cell stands, at its centre. Zero on a flat grid, always. */
     public float groundHeight(int cx, int cy) {
+        if (coarse != null) {
+            return coarse.groundHeight(new Coord3D((cx + 0.5f) * cellSize, (cy + 0.5f) * cellSize, 0f));
+        }
         if (relief == null) {
             return level(cx, cy) * levelHeight;
         }
@@ -445,6 +614,9 @@ public final class PathGrid {
      * question only something standing there asks.
      */
     public float groundHeight(Coord3D worldPos) {
+        if (coarse != null) {
+            return coarse.groundHeight(worldPos);
+        }
         int cx = toCellX(worldPos);
         int cy = toCellY(worldPos);
         // Nothing is added where there is no relief, not even a zero: -0f + 0f is 0f, and a checksum tells them apart.
@@ -470,6 +642,9 @@ public final class PathGrid {
 
     /** The relief's height under a world position, in world units; zero where there is none. */
     public float reliefHeight(Coord3D worldPos) {
+        if (coarse != null) {
+            return coarse.reliefHeight(worldPos);
+        }
         return relief == null ? 0f : reliefUnder(worldPos, toCellX(worldPos), toCellY(worldPos));
     }
 
@@ -532,7 +707,16 @@ public final class PathGrid {
      * class the game names for cliffs.
      */
     public boolean isCliff(int cx, int cy) {
-        return relief != null && relief.isCliff(cx, cy) && !mayEnter(cliffClass);
+        return reliefCliff(cx, cy) && !mayEnter(cliffClass);
+    }
+
+    /** Whether the relief makes the map's cell under this cell a cliff. */
+    private boolean reliefCliff(int cx, int cy) {
+        if (coarse != null) {
+            return coarse.relief != null
+                    && coarse.relief.isCliff(Math.floorDiv(cx, perMapCell), Math.floorDiv(cy, perMapCell));
+        }
+        return relief != null && relief.isCliff(cx, cy);
     }
 
     public boolean canStep(int fromX, int fromY, int toX, int toY) {

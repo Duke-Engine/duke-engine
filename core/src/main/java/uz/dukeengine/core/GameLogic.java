@@ -817,10 +817,22 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     /** Install a navigation grid so movement routes around terrain obstacles. */
     @Override
     public final float cellSize() {
-        return pathGrid == null ? World.super.cellSize() : pathGrid.getCellSize();
+        return pathGrid == null ? World.super.cellSize() : pathGrid.mapCellSize();
     }
 
     public final void setPathGrid(PathGrid pathGrid) {
+        setPathGrid(pathGrid, 1);
+    }
+
+    /**
+     * The same, walked at {@code cellsPerCell} cells a side for each of the map's ({@link PathGrid#subdivided}):
+     * routes, what stands in the way and the movers' own cells on the finer grid, so a body goes between two trees
+     * where their trunks leave it room, while every rule counted in cells — beside, near enough, a cell a second — is
+     * still counted in the map's ({@link #cellSize}) and a frame's searching is held to as much ground as before. 1 is
+     * the map's own grid, as it always was.
+     */
+    public final void setPathGrid(PathGrid pathGrid, int cellsPerCell) {
+        pathGrid = pathGrid == null ? null : pathGrid.subdivided(cellsPerCell);
         this.pathGrid = pathGrid;
         // A world built in storeys says how tall one is, and every map laid in it is laid at
         // that height: a floor swapped in mid-game included. A map that says its own keeps it —
@@ -829,40 +841,26 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             pathGrid.setLevelHeight(layered.levelHeight());
         }
         this.staticObstaclesDirty = true;
-        bucketTheScenery();
+        if (pathGrid != null) {
+            pathGrid.setSceneryFootprints(scenery);
+        }
         layTheSightCells();
     }
 
     /** The scenery standing in the way on the ground — see {@link #setSceneryFootprints}. */
     private List<uz.dukeengine.core.pathfind.SceneryFootprint> scenery = List.of();
-    /** The same, by the cell of the navigation grid each one's middle stands in: what a step asks about. */
-    private final java.util.Map<Integer, List<uz.dukeengine.core.pathfind.SceneryFootprint>> sceneryByCell =
-            new java.util.HashMap<>();
-    private float widestScenery;
 
     /**
      * The scenery that stands in the way on the ground: pieces a map placed for their look — trees, boulders — that are
-     * no things of the simulation's, each a circle in world units. Each closes the cells of the navigation grid its
-     * outline comes within half a cell of, as a still thing's does, and a ground mover's step goes no deeper into one
-     * than it already stands, more than a touch. Set with the map it belongs to, which every machine lays alike.
+     * no things of the simulation's, each a circle in world units. None closes a cell: a route keeps a body clear of
+     * each by its true distance ({@link PathGrid#clearOfScenery}), and a ground mover's step goes no deeper into one
+     * than it already stands, more than a touch — so a body goes between two trunks where it fits between them. Set
+     * with the map it belongs to, which every machine lays alike.
      */
     public final void setSceneryFootprints(List<uz.dukeengine.core.pathfind.SceneryFootprint> footprints) {
         this.scenery = footprints == null ? List.of() : List.copyOf(footprints);
-        this.staticObstaclesDirty = true;
-        bucketTheScenery();
-    }
-
-    private void bucketTheScenery() {
-        sceneryByCell.clear();
-        widestScenery = 0f;
-        if (pathGrid == null) {
-            return;
-        }
-        for (var piece : scenery) {
-            var middle = new Coord3D(piece.x(), piece.y(), 0f);
-            int cell = pathGrid.toCellY(middle) * pathGrid.getWidth() + pathGrid.toCellX(middle);
-            sceneryByCell.computeIfAbsent(cell, key -> new ArrayList<>()).add(piece);
-            widestScenery = Math.max(widestScenery, piece.radius());
+        if (pathGrid != null) {
+            pathGrid.setSceneryFootprints(scenery);
         }
     }
 
@@ -871,7 +869,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
 
     @Override
     public final boolean sceneryInTheWay(GameObject mover, Coord3D from, Coord3D to) {
-        if (sceneryByCell.isEmpty() || mover.getFloor() != 0
+        if (pathGrid == null || scenery.isEmpty() || mover.getFloor() != 0
                 || mover.hasStatus(uz.dukeengine.core.thing.ObjectStatus.AIRBORNE)) {
             return false;
         }
@@ -881,27 +879,11 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
         var here = Footprint.of(mover, from);
         var there = Footprint.of(mover, to);
-        float cell = pathGrid.getCellSize();
-        float reach = shape.footprintRadius() + widestScenery;
-        int minX = (int) Math.floor((to.x() - reach) / cell);
-        int maxX = (int) Math.floor((to.x() + reach) / cell);
-        int minY = (int) Math.floor((to.y() - reach) / cell);
-        int maxY = (int) Math.floor((to.y() + reach) / cell);
-        for (int cy = minY; cy <= maxY; cy++) {
-            for (int cx = minX; cx <= maxX; cx++) {
-                if (!pathGrid.inBounds(cx, cy)) {
-                    continue;
-                }
-                for (var piece : sceneryByCell.getOrDefault(cy * pathGrid.getWidth() + cx, List.of())) {
-                    var middle = new Coord3D(piece.x(), piece.y(), 0f);
-                    float into = piece.radius() - there.distanceTo(middle);
-                    if (into > Math.max(SCENERY_TOUCH, piece.radius() - here.distanceTo(middle)) + 1e-4f) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
+        return pathGrid.anySceneryNear(to.x(), to.y(), shape.footprintRadius(), piece -> {
+            var middle = new Coord3D(piece.x(), piece.y(), 0f);
+            float into = piece.radius() - there.distanceTo(middle);
+            return into > Math.max(SCENERY_TOUCH, piece.radius() - here.distanceTo(middle)) + 1e-4f;
+        });
     }
 
     /** What the game's World block says of its world, as far as the engine reads it. */
@@ -968,23 +950,6 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                     if (ground != null) {
                         pathGrid.setLaid(cx, cy, ground);
                     } else {
-                        pathGrid.setObstacle(cx, cy);
-                    }
-                }
-            }
-        }
-        for (var piece : scenery) {
-            float reach = piece.radius() + halfCell;
-            int minX = (int) Math.floor((piece.x() - reach) / cellSize);
-            int maxX = (int) Math.floor((piece.x() + reach) / cellSize);
-            int minY = (int) Math.floor((piece.y() - reach) / cellSize);
-            int maxY = (int) Math.floor((piece.y() + reach) / cellSize);
-            for (int cy = minY; cy <= maxY; cy++) {
-                for (int cx = minX; cx <= maxX; cx++) {
-                    var centre = pathGrid.cellCenter(cx, cy);
-                    float dx = centre.x() - piece.x();
-                    float dy = centre.y() - piece.y();
-                    if ((float) Math.sqrt(dx * dx + dy * dy) - piece.radius() <= halfCell) {
                         pathGrid.setObstacle(cx, cy);
                     }
                 }
@@ -1136,7 +1101,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             return new Path(List.of(to));
         }
         refreshStaticObstacles();
-        if (cellsThisFrame >= pathfindBudget) {
+        if (cellsThisFrame >= budgetThisGrid()) {
             return null; // the frame's searching is spent: it waits for the next
         }
         // A search once started runs to its end, as the reference's do (processPathfindQueue starts one only while
@@ -1156,7 +1121,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             return new Path(List.of(withinOf(mover, what, least, most)));
         }
         refreshStaticObstacles();
-        if (cellsThisFrame >= pathfindBudget) {
+        if (cellsThisFrame >= budgetThisGrid()) {
             return null;
         }
         if (pathGrid.hasDecks()) {
@@ -1196,7 +1161,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             return new Path(List.of(to));
         }
         refreshStaticObstacles();
-        if (cellsThisFrame >= pathfindBudget) {
+        if (cellsThisFrame >= budgetThisGrid()) {
             return null;
         }
         return route(mover, to, round);
@@ -1235,10 +1200,17 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     /**
      * How many cells a frame's path searches may examine before the rest wait for the next frame — a mover
      * waiting keeps the route it had, or stands. A search is started only while the frame is under it, and runs to
-     * its end once started. The same on every machine; 5000 unless the game says otherwise.
+     * its end once started. The same on every machine; 5000 unless the game says otherwise, counted in the map's
+     * cells where it is walked finer.
      */
     public final void setPathfindBudget(int cells) {
         this.pathfindBudget = Math.max(1, cells);
+    }
+
+    /** The budget in this grid's cells: that many more where the map is walked finer — the same ground a frame. */
+    private int budgetThisGrid() {
+        int finer = pathGrid == null ? 1 : pathGrid.cellsPerMapCell();
+        return pathfindBudget * finer * finer;
     }
 
     public final int getPathfindBudget() {
@@ -1354,7 +1326,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     private static Coord3D nearestOpenCentre(PathGrid pathGrid, Coord3D from) {
         int cx = pathGrid.toCellX(from);
         int cy = pathGrid.toCellY(from);
-        for (int ring = 1; ring <= 8; ring++) {
+        for (int ring = 1; ring <= 8 * pathGrid.cellsPerMapCell(); ring++) {
             for (int dy = -ring; dy <= ring; dy++) {
                 for (int dx = -ring; dx <= ring; dx++) {
                     if (Math.max(Math.abs(dx), Math.abs(dy)) == ring && !pathGrid.isBlocked(cx + dx, cy + dy)) {
@@ -1371,7 +1343,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             uz.dukeengine.core.pathfind.Zones zones, int zone) {
         var target = Footprint.of(what);
         float reach = target.shape().footprintRadius() + Solid.of(who.getTemplate()).footprintRadius()
-                + 2f * pathGrid.getCellSize();
+                + 2f * cellSize();
         var middle = what.getPosition();
         int fromX = pathGrid.toCellX(new Coord3D(middle.x() - reach, middle.y() - reach, 0f));
         int toX = pathGrid.toCellX(new Coord3D(middle.x() + reach, middle.y() + reach, 0f));
