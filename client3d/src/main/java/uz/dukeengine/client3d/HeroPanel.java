@@ -161,6 +161,14 @@ final class HeroPanel {
 
     /** What the game says the bar is made of and painted in; every colour above is read off it. */
     private final PanelLook look;
+    /** The faces the game named for the bar's lines and for its names and headings; null for the bitmap fonts. */
+    private final Lettering lettering;
+    private final Lettering titleLettering;
+    /**
+     * The scale a named face is baked for: the bar's own wherever a narrow window does not squeeze it, and known
+     * before any line is made, where the bar's own is measured from the lines once they are.
+     */
+    private final float letteringScale;
 
     // ---- the layout, in the pixels the design was drawn at ----
 
@@ -528,6 +536,8 @@ final class HeroPanel {
     }
     private Geometry experienceFill;
     private BitmapText depthNumber;
+    /** The same, in the smaller lettering a long number is carved in. */
+    private BitmapText depthNumberSmall;
     private BitmapText depthWord;
     /** A line above the bar for something that just happened and will stop mattering. */
     private BitmapText note;
@@ -605,6 +615,9 @@ final class HeroPanel {
         this.sel = rgb(aim.allowColour());
         this.selHi = rgb(aim.areaColour());
         this.look = look == null ? PanelLook.DEFAULTS : look;
+        this.lettering = Lettering.of(assets, this.look.lettering());
+        this.titleLettering = Lettering.of(assets, this.look.titleLettering());
+        this.letteringScale = legibleScale();
         slabTopColour = rgb(this.look.slabTopColour());
         slabHighColour = rgb(this.look.slabHighColour());
         slabMidColour = rgb(this.look.slabMidColour());
@@ -737,15 +750,12 @@ final class HeroPanel {
         say(experienceCount, reading.needed <= 0f ? ""
                 : Math.round(reading.experience) + " / " + Math.round(reading.needed));
         slantTo(fraction(reading.experience, reading.needed));
-        depthNumber.setText(reading.depth);
         // A floor out of four is three times the lettering of a floor, and the
-        // stone it is carved into did not get any wider. Sized to what it has to
-        // say — and only when that changes, because setting a size marks the text
-        // for re-layout whether or not it moved.
-        float wanted = reading.depth.length() > 4 ? DEPTH_SMALL : DEPTH_LARGE;
-        if (depthNumber.getSize() != wanted) {
-            depthNumber.setSize(wanted);
-        }
+        // stone it is carved into did not get any wider: a long one in the smaller
+        // line. Two lines rather than one resized, so each is drawn at its own pixels.
+        boolean longNumber = reading.depth.length() > 4;
+        depthNumber.setText(longNumber ? "" : reading.depth);
+        depthNumberSmall.setText(longNumber ? reading.depth : "");
         depthWord.setText(reading.depthWord);
         skillsWord.setText(reading.skillsWord);
         // Only while he has one. A counter reading nought is a thing to read and
@@ -2024,10 +2034,11 @@ final class HeroPanel {
 
     /** How wide a string comes out in the panel's lettering at this size. */
     private float widthOf(String words, float size) {
-        var line = new BitmapText(font);
-        line.setSize(size);
+        var letters = of(lettering, font, size);
+        var line = new BitmapText(letters.font());
+        line.setSize(letters.size());
         line.setText(words == null ? "" : words);
-        return line.getLineWidth();
+        return line.getLineWidth() / letters.perDesign();
     }
 
     /**
@@ -2114,8 +2125,12 @@ final class HeroPanel {
         depthWord = text(11f, labelColour, 0f, BAND / 2f - 20f, DEPTH_WIDTH, BitmapFont.Align.Center);
         depthNumber = text(DEPTH_LARGE, torchColour, 0f, BAND / 2f - 12f, DEPTH_WIDTH,
                 BitmapFont.Align.Center);
+        // Its box's top where the large one's is.
+        depthNumberSmall = text(DEPTH_SMALL, torchColour, 0f, BAND / 2f - 12f + DEPTH_LARGE - DEPTH_SMALL,
+                DEPTH_WIDTH, BitmapFont.Align.Center);
         depth.attachChild(depthWord);
         depth.attachChild(depthNumber);
+        depth.attachChild(depthNumberSmall);
     }
 
     // ---- the skill row ----
@@ -2872,8 +2887,7 @@ final class HeroPanel {
         slab.setCullHint(blocks.isEmpty() ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
         // Centred on the window rather than on the design, so it sits over the
         // middle of the bar however wide the window is.
-        note.setBox(new Rectangle(0f, SLAB_HEIGHT + 6f + NOTE_SIZE,
-                screenWidth / scale, NOTE_SIZE * 1.4f));
+        box(note, 0f, SLAB_HEIGHT + 6f + NOTE_SIZE, screenWidth / scale, NOTE_SIZE * 1.4f);
 
         // The bar spans the window; its contents are centred on it, so a wide
         // screen puts empty stone at both ends rather than all of it at one.
@@ -3027,9 +3041,13 @@ final class HeroPanel {
      * impossible rather than unlikely.
      */
     private float scaleFor(float total) {
-        float legible = Math.clamp(screenWidth / look.designWidth(), look.minScale(), look.maxScale());
         float fits = (screenWidth - PAD * 2f) / Math.max(1f, total);
-        return Math.min(legible, fits);
+        return Math.min(legibleScale(), fits);
+    }
+
+    /** As large as the window says, between the game's least and most: the bar's scale where nothing squeezes it. */
+    private float legibleScale() {
+        return Math.clamp(screenWidth / look.designWidth(), look.minScale(), look.maxScale());
     }
 
     /** As wide as the sockets come to, and never narrower than the design's four. */
@@ -3464,12 +3482,7 @@ final class HeroPanel {
     /** The same, in the face a game named for its own lettering. */
     private BitmapText carved(float size, ColorRGBA colour, float x, float y, float width,
             BitmapFont.Align align) {
-        var line = new BitmapText(display);
-        line.setSize(size);
-        line.setColor(linear(colour));
-        line.setBox(new Rectangle(x, y + size, width, size * 1.4f));
-        line.setAlignment(align);
-        return line;
+        return lettered(of(titleLettering, display, size), size, colour, x, y, width, align);
     }
 
     /**
@@ -3545,12 +3558,44 @@ final class HeroPanel {
      */
     private BitmapText text(float size, ColorRGBA colour, float x, float y, float width,
             BitmapFont.Align align) {
-        var line = new BitmapText(font);
-        line.setSize(size);
+        return lettered(of(lettering, font, size), size, colour, x, y, width, align);
+    }
+
+    private BitmapText lettered(Letters letters, float size, ColorRGBA colour, float x, float y, float width,
+            BitmapFont.Align align) {
+        var line = new BitmapText(letters.font());
+        line.setLocalScale(1f / letters.perDesign());
+        line.setSize(letters.size());
         line.setColor(linear(colour));
-        line.setBox(new Rectangle(x, y + size, width, size * 1.4f));
+        box(line, x, y + size, width, size * 1.4f);
         line.setAlignment(align);
         return line;
+    }
+
+    /**
+     * What a line of a design size is drawn from: a named face baked at the pixel size the line lands at, drawn at
+     * its own size and scaled back against the bar's, one pixel of it to one of the screen; or the bitmap font, at the
+     * design's size, scaled with the bar.
+     *
+     * @param perDesign how many of the line's own pixels make one of the design's
+     */
+    record Letters(BitmapFont font, float size, float perDesign) {
+    }
+
+    private Letters of(Lettering face, BitmapFont bitmap, float size) {
+        return letters(face, bitmap, size, letteringScale);
+    }
+
+    static Letters letters(Lettering face, BitmapFont bitmap, float size, float scale) {
+        var baked = face == null ? null : face.at(Math.round(size * scale));
+        return baked == null ? new Letters(bitmap, size, 1f)
+                : new Letters(baked, baked.getCharSet().getRenderedSize(), scale);
+    }
+
+    /** A line's box, in the design's pixels whatever pixels the line is drawn in. */
+    private static void box(BitmapText line, float x, float y, float width, float height) {
+        float perDesign = 1f / line.getLocalScale().x;
+        line.setBox(new Rectangle(x * perDesign, y * perDesign, width * perDesign, height * perDesign));
     }
 
     private static void attach(Node parent, Spatial child, float x, float y, float z) {

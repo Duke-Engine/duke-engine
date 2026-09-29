@@ -30,9 +30,10 @@ import java.util.List;
  * java -cp … uz.dukeengine.client3d.BitmapFontBaker Cinzel-Bold.ttf 32 out/ cinzel-32
  * }</pre>
  *
- * <p>It is a build-time tool rather than part of the client, and it is here
- * rather than in a game because the next game will want one too. Nothing in the
- * client calls it; the two files it writes are what get shipped.
+ * <p>A build-time tool, and it is here rather than in a game because the next
+ * game will want one too; the two files it writes are what get shipped. The
+ * client calls it itself only for the hero bar's lettering, baked at the size
+ * each line is drawn at ({@link Lettering}).
  *
  * <p>Glyphs come out white on transparency, which is not a look but a
  * requirement: jME tints bitmap text by vertex colour, and a glyph baked in a
@@ -80,6 +81,11 @@ public final class BitmapFontBaker {
      *     name the PNG is saved under — the loader reads the one to find the other
      */
     public static Baked bake(Font font, String name, String characters) throws IOException {
+        return bake(font, name, characters, Kerning.of(font, characters));
+    }
+
+    /** The same, with the kerning already measured — at this size or another, which it is scaled from. */
+    static Baked bake(Font font, String name, String characters, Kerning kerning) throws IOException {
         var scratch = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
         var measure = scratch.createGraphics();
         applyQuality(measure);
@@ -112,8 +118,8 @@ public final class BitmapFontBaker {
 
         var png = new java.io.ByteArrayOutputStream();
         javax.imageio.ImageIO.write(atlas, "png", png);
-        return new Baked(describe(font, name, metrics, glyphs, width, atlas.getHeight(),
-                characters, context), png.toByteArray());
+        return new Baked(describe(font, name, metrics, glyphs, width, atlas.getHeight(), kerning),
+                png.toByteArray());
     }
 
     /**
@@ -141,6 +147,15 @@ public final class BitmapFontBaker {
         glyph.left = ink.x - 1;
         glyph.top = ink.y - 1;
         return glyph;
+    }
+
+    /** How tall a line of {@code font} is, ascent and descent: the size {@link #bake} says it was drawn at. */
+    static int renderedSize(Font font) {
+        var measure = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics();
+        applyQuality(measure);
+        var metrics = measure.getFontMetrics(font);
+        measure.dispose();
+        return metrics.getAscent() + metrics.getDescent();
     }
 
     private static void applyQuality(java.awt.Graphics2D g) {
@@ -200,8 +215,7 @@ public final class BitmapFontBaker {
      * that skips it.
      */
     private static String describe(Font font, String name, java.awt.FontMetrics metrics,
-            List<Glyph> glyphs, int width, int height, String characters,
-            FontRenderContext context) {
+            List<Glyph> glyphs, int width, int height, Kerning kerning) {
         var out = new StringBuilder();
         out.append("info face=\"").append(font.getFamily())
                 .append("\" size=").append(metrics.getAscent() + metrics.getDescent())
@@ -223,47 +237,71 @@ public final class BitmapFontBaker {
                     .append(" xadvance=").append(glyph.advance)
                     .append(" page=0 chnl=0\n");
         }
-        appendKerning(out, font, characters, context);
+        appendKerning(out, kerning, font.getSize2D());
         return out.toString();
     }
 
-    /**
-     * What each pair of letters owes the pair before it.
-     *
-     * <p>AWT will not hand over a font's kerning table, so it is measured: the
-     * width of two letters together against the two apart. Slow in principle and
-     * instant in practice, and worth it on a display face — an unkerned "AV" at
-     * title size is the thing that makes lettering look pasted together.
-     */
-    private static void appendKerning(StringBuilder out, Font font, String characters,
-            FontRenderContext context) {
-        var kerned = font.deriveFont(java.util.Map.of(TextAttribute.KERNING,
-                TextAttribute.KERNING_ON));
+    /** The pairs at {@code size}, in whole pixels, those that come to nothing left out. */
+    private static void appendKerning(StringBuilder out, Kerning kerning, float size) {
+        float scale = size / kerning.measuredAt();
         var pairs = new StringBuilder();
         int count = 0;
-        for (int i = 0; i < characters.length(); i++) {
-            char first = characters.charAt(i);
-            if (!font.canDisplay(first)) {
-                continue;
-            }
-            double alone = width(kerned, context, String.valueOf(first));
-            for (int j = 0; j < characters.length(); j++) {
-                char second = characters.charAt(j);
-                if (!font.canDisplay(second)) {
-                    continue;
-                }
-                double together = width(kerned, context, "" + first + second);
-                double apart = alone + width(kerned, context, String.valueOf(second));
-                int amount = (int) Math.round(together - apart);
-                if (amount != 0) {
-                    pairs.append("kerning first=").append((int) first)
-                            .append(" second=").append((int) second)
-                            .append(" amount=").append(amount).append('\n');
-                    count++;
-                }
+        for (var pair : kerning.pairs()) {
+            int amount = (int) Math.round(pair.amount() * scale);
+            if (amount != 0) {
+                pairs.append("kerning first=").append((int) pair.first())
+                        .append(" second=").append((int) pair.second())
+                        .append(" amount=").append(amount).append('\n');
+                count++;
             }
         }
         out.append("kernings count=").append(count).append('\n').append(pairs);
+    }
+
+    /**
+     * What each pair of letters owes the pair before it, at the size it was measured at.
+     *
+     * <p>AWT will not hand over a font's kerning table, so it is measured: the
+     * width of two letters together against the two apart. Worth it on a display
+     * face — an unkerned "AV" at title size is the thing that makes lettering look
+     * pasted together — and it is nearly all a bake costs, so a face baked at many
+     * sizes is measured once: its kerning is in its own units and grows with the size.
+     */
+    record Kerning(float measuredAt, List<Pair> pairs) {
+
+        record Pair(char first, char second, double amount) {
+        }
+
+        static Kerning of(Font font, String characters) {
+            var measure = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics();
+            applyQuality(measure);
+            var context = measure.getFontRenderContext();
+            measure.dispose();
+            var kerned = font.deriveFont(java.util.Map.of(TextAttribute.KERNING,
+                    TextAttribute.KERNING_ON));
+            var alone = new double[characters.length()];
+            for (int i = 0; i < characters.length(); i++) {
+                alone[i] = width(kerned, context, String.valueOf(characters.charAt(i)));
+            }
+            var pairs = new ArrayList<Pair>();
+            for (int i = 0; i < characters.length(); i++) {
+                char first = characters.charAt(i);
+                if (!font.canDisplay(first)) {
+                    continue;
+                }
+                for (int j = 0; j < characters.length(); j++) {
+                    char second = characters.charAt(j);
+                    if (!font.canDisplay(second)) {
+                        continue;
+                    }
+                    double amount = width(kerned, context, "" + first + second) - (alone[i] + alone[j]);
+                    if (amount != 0.0) {
+                        pairs.add(new Pair(first, second, amount));
+                    }
+                }
+            }
+            return new Kerning(font.getSize2D(), List.copyOf(pairs));
+        }
     }
 
     private static double width(Font font, FontRenderContext context, String text) {

@@ -82,6 +82,15 @@ member of a clump, takes one by the settled number of where it stands, so the sa
 places every time; `corner(String...)` the same for its posts. They share the wall's numbers, so they are modelled
 alike. One is the wall there always was.
 
+### The hero bar's lettering, sharp at any scale
+
+The hero bar's words may be drawn in a face the game names: `Lettering` and `TitleLettering` in its `PanelLook`, each a
+font file (TrueType) by its whole path. Each line is baked from it at the pixel size it lands at on this window — its
+design size times the bar's scale — and drawn one pixel of it to one of the screen, where a bitmap font drawn through
+the bar's scale is resampled and soft. A face is loaded once, its kerning measured once and scaled to every size it is
+baked at, so a size costs a few milliseconds and a bar rebuilt at a resize bakes nothing it already has. A bar naming
+none draws in the bitmap fonts as before, and `BitmapFontBaker`'s files are the same to the byte.
+
 ### Clicks and bars on a hill
 
 A click on the ground — an order, an aimed skill, what the pointer is over — lands where the pointer is on a relief of

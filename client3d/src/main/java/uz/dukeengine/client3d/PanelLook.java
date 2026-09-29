@@ -38,6 +38,10 @@ import uz.dukeengine.core.data.Group;
  * @param cardQuietColour  what it says in passing: what a thing costs, what it is called
  * @param cardBodyColour   what it says at length
  * @param cardValueColour  the numbers in it, which are what is being read
+ * @param lettering        the face the bar's words and numbers are drawn in: a font file (TrueType), its whole path
+ *                         from the resource root, baked at the pixel size each line is drawn at, so it is sharp at
+ *                         any scale the bar is drawn; none keeps the client's bitmap font, drawn through the scale
+ * @param titleLettering   the same for its names and headings; none keeps the menus' title font
  */
 public record PanelLook(
         @Group("Arrangement") List<PanelBlock> blocks, List<PanelPlace> places, float designWidth, float minScale,
@@ -55,7 +59,8 @@ public record PanelLook(
         int labelColour, int lockLabelColour, int itemNumberColour, int badgeColour, int fleshColour,
         List<Integer> itemColours,
         @Group("Card") int cardTopColour, int cardFootColour, int cardRuleColour, int cardQuietColour,
-        int cardBodyColour, int cardValueColour) {
+        int cardBodyColour, int cardValueColour,
+        @Group("Lettering") String lettering, String titleLettering) {
 
     /** The bar as the design drew it. */
     public static final PanelLook DEFAULTS = new PanelLook(
@@ -70,7 +75,8 @@ public record PanelLook(
             0x9EC7FF, 0x4A443B, 0x6A6154, 0x2A241D, 0x16302E, 0x2E4A46, 0x8B8171, 0x6E6555, 0x7A7062,
             0x4A3A18, 0x6B5B45,
             List.of(0xC4564A, 0x5F8C7B, 0xC9A24B, 0xE8A33D, 0x8FA8C4, 0xB08CC4),
-            0x2E2820, 0x191510, 0x3A322A, 0x8A7F6C, 0xA69B87, 0xDCD2BC);
+            0x2E2820, 0x191510, 0x3A322A, 0x8A7F6C, 0xA69B87, 0xDCD2BC,
+            null, null);
 
     public PanelLook {
         blocks = List.copyOf(blocks);
