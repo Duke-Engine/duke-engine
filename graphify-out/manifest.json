@@ -114,9 +114,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790697165.2717955,
-    "seen": 1790697268.4399068,
-    "ast_hash": "9014da7cef5bae857938130ffbe7fb77",
+    "mtime": 1790698242.2389088,
+    "seen": 1790698285.9826326,
+    "ast_hash": "8e917ea697af6d52dc1ec5842113df7f",
     "semantic_hash": ""
   },
   "CREDITS.md": {
@@ -828,9 +828,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/BitmapFontBaker.java": {
-    "mtime": 1789983050.7419195,
-    "seen": 1790687045.0958815,
-    "ast_hash": "3b6bf8ce3cb23a039434825c34cb6d90",
+    "mtime": 1790698119.1452296,
+    "seen": 1790698285.9815798,
+    "ast_hash": "deac4f3dc7ecf4debada352a18a3a7cd",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/Camera.java": {
@@ -954,9 +954,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/HeroPanel.java": {
-    "mtime": 1790696615.1372643,
-    "seen": 1790696697.0273395,
-    "ast_hash": "693b4f559774a7e108d9f75a2e27909d",
+    "mtime": 1790697893.6349707,
+    "seen": 1790698285.981654,
+    "ast_hash": "b0438846e78abb779e410f0762c96d09",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/HeroPortrait.java": {
@@ -1068,9 +1068,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/PanelLook.java": {
-    "mtime": 1789983050.7723134,
-    "seen": 1790687045.0959868,
-    "ast_hash": "d3c43f24eb599e8e34457ce7c4ad654a",
+    "mtime": 1790697893.6318948,
+    "seen": 1790698285.9817097,
+    "ast_hash": "30d8b7bd9049e3309dc8be179d9e6e4b",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/PanelPlace.java": {
@@ -2952,9 +2952,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1790697165.2707913,
-    "seen": 1790697268.439906,
-    "ast_hash": "d7aff78e866a44bb19db173853ab1a2d",
+    "mtime": 1790698242.2379086,
+    "seen": 1790698285.9826314,
+    "ast_hash": "4bc572d3cc167ad75a9a3959cfed6842",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/data/Paint.java": {
@@ -5397,6 +5397,18 @@
     "mtime": 1790697043.8886428,
     "seen": 1790697268.4395442,
     "ast_hash": "1c55f93cd8ec0537750a34abbaff8e65",
+    "semantic_hash": ""
+  },
+  "client3d/src/main/java/uz/dukeengine/client3d/Lettering.java": {
+    "mtime": 1790698119.1464908,
+    "seen": 1790698285.9816709,
+    "ast_hash": "57c577dce94832920fd6647adb942465",
+    "semantic_hash": ""
+  },
+  "client3d/src/test/java/uz/dukeengine/client3d/LetteringTest.java": {
+    "mtime": 1790697964.6984422,
+    "seen": 1790698285.981866,
+    "ast_hash": "8c0ce208bcd846a7bdbafcea2839e367",
     "semantic_hash": ""
   }
 }
