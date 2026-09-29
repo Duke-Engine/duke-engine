@@ -29,11 +29,13 @@ import uz.dukeengine.core.math.Coord3D;
  * something will cover, a <b>lane</b> is where something will fly, and
  * <b>red</b> anywhere means the click will be refused.
  *
- * <p><b>Nothing is built while the game runs.</b> Only one skill can be armed at
- * a time, so there is exactly one set of geometry here; it is made once and shown
- * or hidden. The circles themselves are {@link GroundRing}, which is also what
- * marks the creature an attack was ordered on -- one drawing, so the two cannot
- * drift into looking like different games.
+ * <p><b>Almost nothing is built while the game runs.</b> Only one skill can be
+ * armed at a time, so there is exactly one set of geometry here, shown or hidden,
+ * its buffers made again only when a longer shot needs more of them. Every point
+ * of it is laid on the ground under it, so a lane up a slope lies on the slope.
+ * The circles themselves are {@link GroundRing}, which is also what marks the
+ * creature an attack was ordered on -- one drawing, so the two cannot drift into
+ * looking like different games.
  */
 final class RangeRings {
 
@@ -173,8 +175,6 @@ final class RangeRings {
      */
     private static final class Lane {
 
-        private static final int VERTICES = 5;
-
         /**
          * How much of the lane is the point.
          *
@@ -186,11 +186,12 @@ final class RangeRings {
 
         private final Node node = new Node("lane");
         private final Geometry band;
-        private final FloatBuffer corners = BufferUtils.createFloatBuffer(VERTICES * 3);
+        private FloatBuffer corners = BufferUtils.createFloatBuffer(0);
+        private int laidSections = -1;
+        private int laidAcross = -1;
 
         Lane(AssetManager assets, Node parent) {
-            band = Glow.inTheGlow(new Geometry("lane-band", laneMesh(corners)),
-                    Glow.material(assets));
+            band = Glow.inTheGlow(new Geometry("lane-band", new Mesh()), Glow.material(assets));
             node.attachChild(band);
             parent.attachChild(node);
         }
@@ -211,53 +212,69 @@ final class RangeRings {
                 return;
             }
             node.setCullHint(Spatial.CullHint.Inherit);
-            node.setLocalTranslation(from.x(), floorAt.apply(from.x(), from.y()) + height,
-                    from.y());
+            float base = floorAt.apply(from.x(), from.y());
+            node.setLocalTranslation(from.x(), base + height, from.y());
             float heading = toward == null ? 0f
                     : (float) Math.atan2(toward.y() - from.y(), toward.x() - from.x());
             node.setLocalRotation(new Quaternion().fromAngleAxis(-heading, Vector3f.UNIT_Y));
-            write(length, width);
+            write(from, heading, length, width, base, floorAt);
             band.getMaterial().setColor("Color", colour);
         }
 
-        private void write(float length, float width) {
+        /**
+         * Its sections, {@link GroundRing#STEP} apart at most along it and across it, each point on the ground
+         * under it — the lane turned as its node is turned, so each point's ground is read where it lies.
+         */
+        private void write(Coord3D from, float heading, float length, float width, float base,
+                BiFunction<Float, Float, Float> floorAt) {
             float half = width * 0.5f;
             // Where the taper starts. A share of the LENGTH rather than a number
             // of its own, so a long shot and a short one are the same drawing at
             // two sizes -- a tip measured in world units is a spike on one and
             // the whole of the other.
             float shaft = length * (1f - TIP_SHARE);
+            int toShaft = Math.max(1, (int) Math.ceil(shaft / GroundRing.STEP));
+            int toTip = Math.max(1, (int) Math.ceil((length - shaft) / GroundRing.STEP));
+            int sections = toShaft + toTip + 1;
+            int across = Math.max(1, (int) Math.ceil(width / GroundRing.STEP));
+            float cos = FastMath.cos(heading);
+            float sin = FastMath.sin(heading);
+            if (corners.capacity() < sections * (across + 1) * 3) {
+                corners = BufferUtils.createFloatBuffer(sections * (across + 1) * 3);
+            }
             corners.clear();
-            put(0f, -half);
-            put(0f, half);
-            put(shaft, half);
-            put(shaft, -half);
-            put(length, 0f);
+            for (int section = 0; section < sections; section++) {
+                float along = section <= toShaft ? shaft * section / toShaft
+                        : shaft + (length - shaft) * (section - toShaft) / toTip;
+                float wide = along <= shaft ? half : half * (length - along) / (length - shaft);
+                for (int point = 0; point <= across; point++) {
+                    float side = -wide + 2f * wide * point / across;
+                    // Turned as the node is: the map's y is the scene's z.
+                    float x = from.x() + along * cos - side * sin;
+                    float y = from.y() + along * sin + side * cos;
+                    corners.put(along).put(floorAt.apply(x, y) - base).put(side);
+                }
+            }
             corners.flip();
-            band.getMesh().getBuffer(VertexBuffer.Type.Position).updateData(corners);
-            band.getMesh().updateBound();
-        }
-
-        private void put(float along, float across) {
-            corners.put(along).put(0f).put(across);
+            var mesh = band.getMesh();
+            mesh.setBuffer(VertexBuffer.Type.Position, 3, corners);
+            if (sections != laidSections || across != laidAcross) {
+                laidSections = sections;
+                laidAcross = across;
+                var order = BufferUtils.createShortBuffer((sections - 1) * across * 6);
+                for (int section = 0; section + 1 < sections; section++) {
+                    for (int point = 0; point < across; point++) {
+                        short near = (short) (section * (across + 1) + point);
+                        short far = (short) (near + across + 1);
+                        order.put(near).put((short) (near + 1)).put((short) (far + 1));
+                        order.put(near).put((short) (far + 1)).put(far);
+                    }
+                }
+                mesh.setBuffer(VertexBuffer.Type.Index, 3, order.flip());
+            }
+            mesh.updateCounts();
+            band.updateModelBound();
         }
     }
 
-    // ---- the meshes, built once ----
-
-    private static Mesh laneMesh(FloatBuffer corners) {
-        var mesh = new Mesh();
-        var order = BufferUtils.createShortBuffer(9);
-        // The body, as two triangles...
-        order.put((short) 0).put((short) 1).put((short) 2);
-        order.put((short) 0).put((short) 2).put((short) 3);
-        // ...and the point, which is the shaft's far edge brought together.
-        order.put((short) 3).put((short) 2).put((short) 4);
-        order.flip();
-        corners.limit(corners.capacity());
-        mesh.setBuffer(VertexBuffer.Type.Position, 3, corners);
-        mesh.setBuffer(VertexBuffer.Type.Index, 3, order);
-        mesh.updateBound();
-        return mesh;
-    }
 }

@@ -141,9 +141,10 @@ class RangeRingsTest {
                 at(0f, 0f), null, true);
 
         var band = (Geometry) find(scene.root(), "band");
-        assertEquals(LOOK.segments() * 2, band.getMesh().getVertexCount(),
-                "two corners per segment and no gaps between them");
-        assertEquals(LOOK.segments() * 2, band.getMesh().getTriangleCount(),
+        int corners = band.getMesh().getVertexCount();
+        assertEquals(0, corners % (LOOK.segments() * 2),
+                "two corners at every point, each of its sides cut alike to follow the ground");
+        assertEquals(corners, band.getMesh().getTriangleCount(),
                 "a closed strip, so every segment joins the next");
     }
 

@@ -1,7 +1,6 @@
 package uz.dukeengine.client3d;
 
 import com.jme3.asset.AssetManager;
-import com.jme3.math.FastMath;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Mesh;
 import com.jme3.scene.Node;
@@ -13,7 +12,7 @@ import java.util.function.BiFunction;
 import uz.dukeengine.core.math.Coord3D;
 
 /**
- * A circle drawn flat on the floor: an unbroken line, and a faint wash inside it.
+ * A circle drawn on the floor: an unbroken line, and a faint wash inside it.
  *
  * <p>The client draws circles on the ground for two quite different reasons — how
  * far a skill reaches, and which creature an order was given to — and they want
@@ -21,38 +20,46 @@ import uz.dukeengine.core.math.Coord3D;
  * "this, inside here", and both readable in a dark room. Written once so the two
  * cannot drift apart, and so that the next reason to draw one costs nothing.
  *
- * <p><b>The line is rewritten, not scaled.</b> That is the whole reason this keeps
- * a buffer of its own. Scaling a band scales its thickness with it, so a ring at
- * sixty and a ring at nine would be drawn in two different weights of line — and a
- * ruler whose markings get fatter the further out they are is not a ruler. So the
- * corners are written into the buffer it already owns, a few hundred floats a
- * frame, and nothing is allocated while the game runs.
+ * <p><b>The line is rewritten, not scaled.</b> Scaling a band scales its thickness
+ * with it, so a ring at sixty and a ring at nine would be drawn in two different
+ * weights of line — and a ruler whose markings get fatter the further out they are
+ * is not a ruler. So the corners are written into buffers it keeps, and a buffer
+ * is made again only when a larger ring needs more of them.
  *
- * <p>The wash is a plain disc of radius one and <em>is</em> simply scaled, because
- * a disc has no thickness for scaling to distort.
+ * <p><b>Laid over the ground, not flat.</b> Every point of the line and of the wash
+ * stands on the ground under it ({@link GroundDisc#STEP} apart at most, so it
+ * follows a hill between them), where one height at its middle put the half of a
+ * ring on a slope that climbs under the hill.
  */
 final class GroundRing {
 
+    /** How far apart its points stand at most — see {@link GroundDisc#STEP}. */
+    static final float STEP = GroundDisc.STEP;
+
     private final float bandWidth;
-    private final int segments;
     private final float brightness;
     private final Node node = new Node("ring");
     private final Geometry band;
     private final Geometry fill;
-    private final FloatBuffer corners;
+    private final GroundDisc wash;
+    private FloatBuffer bandCorners = BufferUtils.createFloatBuffer(0);
+    private int bandPoints = -1;
+    /**
+     * Where and how large it was last laid, and on what ground — under its middle and at four points of its edge, so
+     * a new floor under a ring that stood still is noticed: laid again only when one of them moves.
+     */
+    private float laidX = Float.NaN;
+    private float laidY;
+    private float laidRadius;
+    private final float[] laidGround = new float[5];
 
     GroundRing(AssetManager assets, Node parent, float bandWidth, int segments,
             float brightness) {
         this.bandWidth = Math.max(0.05f, bandWidth);
-        this.segments = Math.clamp(segments, 12, 512);
         this.brightness = Math.max(0f, brightness);
-
-        corners = BufferUtils.createFloatBuffer(this.segments * 2 * 3);
-        band = Glow.inTheGlow(new Geometry("band", ring(this.segments, corners)),
-                Glow.material(assets));
-        fill = Glow.inTheGlow(new Geometry("wash", disc(this.segments)),
-                Glow.material(assets));
-
+        this.wash = new GroundDisc(Math.clamp(segments, 12, GroundDisc.MOST_POINTS));
+        band = Glow.inTheGlow(new Geometry("band", new Mesh()), Glow.material(assets));
+        fill = Glow.inTheGlow(new Geometry("wash", new Mesh()), Glow.material(assets));
         node.attachChild(fill);
         node.attachChild(band);
         parent.attachChild(node);
@@ -86,69 +93,57 @@ final class GroundRing {
             return;
         }
         node.setCullHint(Spatial.CullHint.Inherit);
-        node.setLocalTranslation(at.x(), floorAt.apply(at.x(), at.y()) + height, at.y());
-        writeBand(radius);
-        fill.setLocalScale(radius, 1f, radius);
+        float base = floorAt.apply(at.x(), at.y());
+        node.setLocalTranslation(at.x(), base + height, at.y());
+        if (at.x() != laidX || at.y() != laidY || radius != laidRadius || !sameGround(at, radius, base, floorAt)) {
+            laidX = at.x();
+            laidY = at.y();
+            laidRadius = radius;
+            layBand(at, radius, base, floorAt);
+            this.wash.lay(fill.getMesh(), at, radius, base, floorAt);
+            band.updateModelBound();
+            fill.updateModelBound();
+        }
         band.getMaterial().setColor("Color", Glow.colour(colour, brightness, Math.min(1f, edge)));
         fill.getMaterial().setColor("Color", Glow.colour(colour, brightness, Math.min(1f, wash)));
     }
 
-    /** Move the band's corners onto the circle this ring now is. */
-    private void writeBand(float radius) {
+    /** Whether the ground under it is as it was when it was last laid, keeping what it is now. */
+    private boolean sameGround(Coord3D at, float radius, float base, BiFunction<Float, Float, Float> floorAt) {
+        var now = new float[] {base, floorAt.apply(at.x() + radius, at.y()), floorAt.apply(at.x() - radius, at.y()),
+            floorAt.apply(at.x(), at.y() + radius), floorAt.apply(at.x(), at.y() - radius)};
+        boolean same = java.util.Arrays.equals(now, laidGround);
+        System.arraycopy(now, 0, laidGround, 0, now.length);
+        return same;
+    }
+
+    /** The band's corners onto the circle this ring now is, each on the ground under it. */
+    private void layBand(Coord3D at, float radius, float base, BiFunction<Float, Float, Float> floorAt) {
+        int around = wash.pointsAround(radius);
         float inner = Math.max(0f, radius - bandWidth * 0.5f);
         float outer = radius + bandWidth * 0.5f;
-        float step = FastMath.TWO_PI / segments;
-        corners.clear();
-        for (int segment = 0; segment < segments; segment++) {
-            float angle = segment * step;
-            put(inner, angle);
-            put(outer, angle);
+        if (bandCorners.capacity() < around * 2 * 3) {
+            bandCorners = BufferUtils.createFloatBuffer(around * 2 * 3);
         }
-        corners.flip();
-        band.getMesh().getBuffer(VertexBuffer.Type.Position).updateData(corners);
-        band.getMesh().updateBound();
-    }
-
-    private void put(float radius, float angle) {
-        corners.put(FastMath.cos(angle) * radius).put(0f).put(FastMath.sin(angle) * radius);
-    }
-
-    /** Two points per segment, inner and outer, stitched into a closed strip. */
-    private static Mesh ring(int segments, FloatBuffer corners) {
-        var mesh = new Mesh();
-        var order = BufferUtils.createShortBuffer(segments * 6);
-        for (int segment = 0; segment < segments; segment++) {
-            short here = (short) (segment * 2);
-            short next = (short) (((segment + 1) % segments) * 2);
-            order.put(here).put((short) (here + 1)).put((short) (next + 1));
-            order.put(here).put((short) (next + 1)).put(next);
+        bandCorners.clear();
+        var u = wash.unitsFor(around);
+        for (int point = 0; point < around; point++) {
+            GroundDisc.put(bandCorners, at, u[point * 2] * inner, u[point * 2 + 1] * inner, base, floorAt);
+            GroundDisc.put(bandCorners, at, u[point * 2] * outer, u[point * 2 + 1] * outer, base, floorAt);
         }
-        order.flip();
-        corners.limit(corners.capacity());
-        mesh.setBuffer(VertexBuffer.Type.Position, 3, corners);
-        mesh.setBuffer(VertexBuffer.Type.Index, 3, order);
-        mesh.updateBound();
-        return mesh;
-    }
-
-    /** A flat disc of radius 1, as a fan of triangles round its middle. */
-    private static Mesh disc(int segments) {
-        var mesh = new Mesh();
-        var points = BufferUtils.createFloatBuffer((segments + 1) * 3);
-        points.put(0f).put(0f).put(0f);
-        for (int step = 0; step < segments; step++) {
-            float angle = FastMath.TWO_PI * step / segments;
-            points.put(FastMath.cos(angle)).put(0f).put(FastMath.sin(angle));
+        var mesh = band.getMesh();
+        mesh.setBuffer(VertexBuffer.Type.Position, 3, bandCorners.flip());
+        if (around != bandPoints) {
+            bandPoints = around;
+            var order = BufferUtils.createShortBuffer(around * 6);
+            for (int point = 0; point < around; point++) {
+                short here = (short) (point * 2);
+                short next = (short) (((point + 1) % around) * 2);
+                order.put(here).put((short) (here + 1)).put((short) (next + 1));
+                order.put(here).put((short) (next + 1)).put(next);
+            }
+            mesh.setBuffer(VertexBuffer.Type.Index, 3, order.flip());
         }
-        points.flip();
-        var order = BufferUtils.createShortBuffer(segments * 3);
-        for (int step = 0; step < segments; step++) {
-            order.put((short) 0).put((short) (1 + step)).put((short) (1 + (step + 1) % segments));
-        }
-        order.flip();
-        mesh.setBuffer(VertexBuffer.Type.Position, 3, points);
-        mesh.setBuffer(VertexBuffer.Type.Index, 3, order);
-        mesh.updateBound();
-        return mesh;
+        mesh.updateCounts();
     }
 }

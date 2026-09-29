@@ -106,8 +106,8 @@ final class Chevrons {
     private void place(Mark mark, OrderMarkers.Marker marker, OrderMark.Step step,
             BiFunction<Float, Float, Float> floorAt) {
         mark.node().setCullHint(Spatial.CullHint.Inherit);
-        mark.node().setLocalTranslation(marker.x(),
-                floorAt.apply(marker.x(), marker.y()) + look.height(), marker.y());
+        float base = floorAt.apply(marker.x(), marker.y());
+        mark.node().setLocalTranslation(marker.x(), base + look.height(), marker.y());
         mark.material().setColor("Color", Glow.colour(
                 marker.kind() == OrderMarkers.Kind.ATTACK_MOVE
                         ? look.attackColour() : look.moveColour(),
@@ -115,8 +115,10 @@ final class Chevrons {
         for (int point = 0; point < POINTS; point++) {
             float around = step.spinRadians() + point * FastMath.TWO_PI / POINTS;
             var head = mark.heads().get(point);
-            head.setLocalTranslation(FastMath.cos(around) * step.radius(), 0f,
-                    FastMath.sin(around) * step.radius());
+            // Each on the ground under it, so the heads up a slope are not under it.
+            float x = FastMath.cos(around) * step.radius();
+            float z = FastMath.sin(around) * step.radius();
+            head.setLocalTranslation(x, floorAt.apply(marker.x() + x, marker.y() + z) - base, z);
             // Turning by -around points the mesh's own +X outward, which puts its
             // point -- sitting at the origin -- nearest the middle. Inward-facing
             // is the whole reading of the shape: three things aiming at one spot.

@@ -18,21 +18,25 @@ import uz.dukeengine.core.math.Coord3D;
 
 /**
  * An {@link AimDecal} drawn: its picture on the ground round a spot, blended over it as a scorch mark is, and laid
- * over the ground's rise and fall on a small grid rather than flat at the height under its middle — a reticle two
- * hundred across on a hillside would otherwise stand in the air on one side and under the hill on the other.
+ * over the ground's rise and fall on a grid rather than flat at the height under its middle — a reticle two hundred
+ * across on a hillside would otherwise stand in the air on one side and under the hill on the other. The grid's cells
+ * are {@link GroundRing#STEP} across however large the picture, up to {@link #MOST_CELLS} a side: a grid of a few
+ * cells laid over a long cone let a hill rise through it between them.
  */
 final class GroundDecal {
 
     private static final Logger LOG = Logger.getLogger(GroundDecal.class.getName());
-    /** Cells a side of the grid it is laid on. */
-    private static final int CELLS = 8;
+    /** Cells a side of the grid it is laid on, at the least and at the most. */
+    private static final int LEAST_CELLS = 8;
+    private static final int MOST_CELLS = 64;
     /** Just clear of the ground, as a scorch mark is. */
     static final float LIFT = 0.05f;
 
     private final AssetManager assets;
     private final Node node = new Node("aim decal");
     private final Geometry picture;
-    private final FloatBuffer corners = BufferUtils.createFloatBuffer((CELLS + 1) * (CELLS + 1) * 3);
+    private FloatBuffer corners = BufferUtils.createFloatBuffer(0);
+    private int cells = -1;
     private final java.util.Map<String, Material> materials = new java.util.HashMap<>();
     private final float lift;
     private float across;
@@ -45,7 +49,7 @@ final class GroundDecal {
     GroundDecal(AssetManager assets, Node parent, float lift) {
         this.assets = assets;
         this.lift = lift;
-        picture = new Geometry("aim decal", grid());
+        picture = new Geometry("aim decal", new Mesh());
         picture.setQueueBucket(RenderQueue.Bucket.Transparent);
         node.attachChild(picture);
         parent.attachChild(node);
@@ -78,23 +82,24 @@ final class GroundDecal {
         }
         float base = floorAt.apply(at.x(), at.y());
         node.setLocalTranslation(at.x(), base, at.y());
+        grid(Math.clamp((int) Math.ceil(Math.max(width, depth) / GroundRing.STEP), LEAST_CELLS, MOST_CELLS));
         float cos = (float) Math.cos(facing);
         float sin = (float) Math.sin(facing);
-        for (int row = 0; row <= CELLS; row++) {
-            for (int column = 0; column <= CELLS; column++) {
-                float along = ((float) column / CELLS - 0.5f) * width;
-                float across = ((float) row / CELLS - 0.5f) * depth;
+        for (int row = 0; row <= cells; row++) {
+            for (int column = 0; column <= cells; column++) {
+                float along = ((float) column / cells - 0.5f) * width;
+                float across = ((float) row / cells - 0.5f) * depth;
                 // Turned as a thing is drawn turned: the map's y is the scene's z.
                 float x = along * cos - across * sin;
                 float z = along * sin + across * cos;
-                int corner = (row * (CELLS + 1) + column) * 3;
+                int corner = (row * (cells + 1) + column) * 3;
                 corners.put(corner, x).put(corner + 1, floorAt.apply(at.x() + x, at.y() + z) - base + lift)
                         .put(corner + 2, z);
             }
         }
         var mesh = picture.getMesh();
         mesh.getBuffer(VertexBuffer.Type.Position).updateData(corners);
-        mesh.updateBound();
+        picture.updateModelBound();
         material.setColor("Color", new ColorRGBA(((colour >> 16) & 0xFF) / 255f, ((colour >> 8) & 0xFF) / 255f,
                 (colour & 0xFF) / 255f, opacity));
         picture.setMaterial(material);
@@ -155,19 +160,27 @@ final class GroundDecal {
         return material;
     }
 
-    /** The grid, its picture's top to the far side of the ground as the camera looks at it. */
-    private Mesh grid() {
-        var uvs = BufferUtils.createFloatBuffer((CELLS + 1) * (CELLS + 1) * 2);
-        for (int row = 0; row <= CELLS; row++) {
-            for (int column = 0; column <= CELLS; column++) {
-                uvs.put((float) column / CELLS).put(1f - (float) row / CELLS);
+    /**
+     * The grid at {@code wanted} cells a side, its picture's top to the far side of the ground as the camera looks at
+     * it; made again only when the count changes.
+     */
+    private void grid(int wanted) {
+        if (wanted == cells) {
+            return;
+        }
+        cells = wanted;
+        corners = BufferUtils.createFloatBuffer((cells + 1) * (cells + 1) * 3);
+        var uvs = BufferUtils.createFloatBuffer((cells + 1) * (cells + 1) * 2);
+        for (int row = 0; row <= cells; row++) {
+            for (int column = 0; column <= cells; column++) {
+                uvs.put((float) column / cells).put(1f - (float) row / cells);
             }
         }
-        var indices = BufferUtils.createShortBuffer(CELLS * CELLS * 6);
-        for (int row = 0; row < CELLS; row++) {
-            for (int column = 0; column < CELLS; column++) {
-                short near = (short) (row * (CELLS + 1) + column);
-                short far = (short) (near + CELLS + 1);
+        var indices = BufferUtils.createShortBuffer(cells * cells * 6);
+        for (int row = 0; row < cells; row++) {
+            for (int column = 0; column < cells; column++) {
+                short near = (short) (row * (cells + 1) + column);
+                short far = (short) (near + cells + 1);
                 indices.put(near).put(far).put((short) (near + 1)).put((short) (near + 1)).put(far)
                         .put((short) (far + 1));
             }
@@ -176,7 +189,6 @@ final class GroundDecal {
         mesh.setBuffer(VertexBuffer.Type.Position, 3, corners);
         mesh.setBuffer(VertexBuffer.Type.TexCoord, 2, uvs.flip());
         mesh.setBuffer(VertexBuffer.Type.Index, 3, indices.flip());
-        mesh.updateBound();
-        return mesh;
+        picture.setMesh(mesh);
     }
 }

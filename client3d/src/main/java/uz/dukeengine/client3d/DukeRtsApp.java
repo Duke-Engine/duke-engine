@@ -415,6 +415,8 @@ final class DukeRtsApp extends SimpleApplication {
     private static final class UnitNode {
         Node root;
         Geometry ring;
+        /** The disc the ring is laid as, over the ground under it — see {@link #layRing}. */
+        final GroundDisc ringDisc = new GroundDisc(24);
         /** The particle systems its look puts at its body's bones — see {@link BoneSystems}. */
         BoneSystems boneSystems;
         /** The line its body was laid along, for a thing drawn along one; null for the rest. */
@@ -6803,14 +6805,27 @@ final class DukeRtsApp extends SimpleApplication {
      * next right-click is not going to give.
      */
     private Geometry buildSelectionRing(UnitView view) {
-        float radius = view.structure() ? 4.2f : 2.2f;
-        var ring = new Geometry("ring", new Cylinder(2, 24, radius, 0.06f, true));
+        var ring = new Geometry("ring", new com.jme3.scene.Mesh());
         ring.setMaterial(unshaded(view.playerIndex() == game.getLocalPlayerIndex()
                 ? new ColorRGBA(0.4f, 1f, 0.4f, 1f) : new ColorRGBA(1f, 0.36f, 0.3f, 1f)));
-        ring.rotate(FastMath.HALF_PI, 0, 0);
-        ring.setLocalTranslation(0, 0.06f, 0);
         ring.setCullHint(Spatial.CullHint.Always);
         return ring;
+    }
+
+    /** How far over the ground the ring under a selected thing lies. */
+    private static final float RING_LIFT = 0.06f;
+
+    /**
+     * The ring under a selected thing laid over the ground under it, where a flat disc under its feet put the half on
+     * a slope that climbs under the hill: turned back against its thing's own turn, pitch and sway, so it lies as the
+     * ground does however the thing stands, and on the ground under a thing in the air.
+     */
+    private void layRing(UnitNode node, UnitView view) {
+        var root = node.root.getLocalTranslation();
+        node.ring.setLocalRotation(node.root.getLocalRotation().inverse());
+        node.ringDisc.lay(node.ring.getMesh(), new Coord3D(root.x, root.z, 0f), view.structure() ? 4.2f : 2.2f,
+                root.y - RING_LIFT, this::floorHeightAt);
+        node.ring.updateModelBound();
     }
 
     /**
@@ -6926,8 +6941,11 @@ final class DukeRtsApp extends SimpleApplication {
             node.shadowBody = node.body;
         }
 
-        node.ring.setCullHint(visuals.drawsSelectionRings() && selected.contains(view.id())
-                ? Spatial.CullHint.Never : Spatial.CullHint.Always);
+        boolean ringed = visuals.drawsSelectionRings() && selected.contains(view.id());
+        node.ring.setCullHint(ringed ? Spatial.CullHint.Never : Spatial.CullHint.Always);
+        if (ringed) {
+            layRing(node, view);
+        }
 
         flinch(node, view);
         animate(node, view);

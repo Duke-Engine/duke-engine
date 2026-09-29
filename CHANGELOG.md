@@ -100,6 +100,13 @@ first ground it meets, and halved down onto it. It was met with a level plane an
 which on hills landed past the cursor: the plane at zero lies behind a rise the ray has already struck, and on a steep
 face the settling never settled.
 
+Every drawing on the ground lies over its rise and fall: the rings — a skill's reach and blast, the ring round what an
+order was given on, the flash of an attack — and their washes, a shot's lane, an aim's picture and a ground picture,
+an order's arrowheads and the disc under a selected thing. Each point of one stands on the ground under it, no more
+than two units from the next, where they were laid flat at the height under their middle — or, for a picture, on eight
+cells however large it was — and a slope climbed through the half of them uphill. A disc under a thing in the air lies
+on the ground under it.
+
 A thing's bar floats over its head wherever its feet stand, up a hill or down one. The bars drawn in the game's own
 look floated at their model's height over zero, sinking under a hero walking uphill; the plain bar always stood on the
 feet.
