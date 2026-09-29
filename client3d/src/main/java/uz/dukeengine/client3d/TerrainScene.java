@@ -83,6 +83,21 @@ final class TerrainScene {
      */
     private Geometry[] rocks = new Geometry[0];
     private int cellsWide;
+
+    /** The side of a chunk of a kit's floor, in cells: gathered into one geometry a material, and culled as one. */
+    static final int CHUNK_CELLS = 16;
+
+    /**
+     * Whether a kit's laid pieces are gathered into chunks, rather than left a node a cell and a spatial a piece for a
+     * test to read where each one went.
+     */
+    private final boolean chunked;
+    /** The gathered floor, a node a chunk (null where nothing stands), indexed {@code chunkY * chunksWide + chunkX}. */
+    private Node[] chunks = new Node[0];
+    private int chunksWide;
+    /** Every chunk to be asked whether the fog hides it at the next discovery, as for a new map. */
+    private boolean everyChunk;
+    private final java.util.BitSet dirtyChunks = new java.util.BitSet();
     /** The ground's own lights, worked into the painted ground's corners; null where the things' light it. */
     private Visuals.GroundLight light;
 
@@ -96,6 +111,16 @@ final class TerrainScene {
 
     TerrainScene(Node root, Surfaces material, boolean discovery,
             Tileset tileset, TileSource tiles) {
+        this(root, material, discovery, tileset, tiles, false);
+    }
+
+    /**
+     * The same, a kit's floor gathered into chunks where {@code chunked} — see {@link #gatherIntoChunks} — which is
+     * how the client draws it; laid a node a cell otherwise, which is how a test reads it.
+     */
+    TerrainScene(Node root, Surfaces material, boolean discovery,
+            Tileset tileset, TileSource tiles, boolean chunked) {
+        this.chunked = chunked;
         this.root = root;
         this.material = material;
         this.discovery = discovery;
@@ -148,6 +173,7 @@ final class TerrainScene {
         this.tileset = kit != null && kit.isUsable() && tiles != null ? kit : defaultTileset;
         root.detachAllChildren();
         cellNodes = new Node[0];
+        chunks = new Node[0];
         if (tiled()) {
             rebuildFromTiles(grid);
             return;
@@ -500,7 +526,76 @@ final class TerrainScene {
                         tintFor(standing.piece(), standing.ground(), storey, tallest));
             }
         }
+        if (chunked) {
+            gatherIntoChunks(grid);
+        }
         drape(grid);
+    }
+
+    /**
+     * Every laid piece gathered into the chunk its cell is in: one geometry for each material in each chunk of {@link
+     * #CHUNK_CELLS} cells a side, its vertices where the pieces stood — the reference's static terrain drawn as a few
+     * hundred things rather than a geometry a piece, tens of thousands on a large floor, each walked by the scene every
+     * frame. What is gathered keeps its material, its bucket and its shadows, and pieces of different vertex layouts
+     * are gathered apart so none borrows another's.
+     */
+    private void gatherIntoChunks(PathGrid grid) {
+        chunksWide = Math.ceilDiv(grid.getWidth(), CHUNK_CELLS);
+        int chunksDeep = Math.ceilDiv(grid.getHeight(), CHUNK_CELLS);
+        root.updateGeometricState();
+        var gathered = new java.util.ArrayList<java.util.Map<Gather, java.util.List<Geometry>>>();
+        for (int chunk = 0; chunk < chunksWide * chunksDeep; chunk++) {
+            gathered.add(new java.util.LinkedHashMap<>());
+        }
+        for (int index = 0; index < cellNodes.length; index++) {
+            if (cellNodes[index] == null) {
+                continue;
+            }
+            int chunk = index / cellsWide / CHUNK_CELLS * chunksWide + index % cellsWide / CHUNK_CELLS;
+            for (var geometry : cellNodes[index].descendantMatches(Geometry.class)) {
+                gathered.get(chunk).computeIfAbsent(Gather.of(geometry), key -> new java.util.ArrayList<>())
+                        .add(geometry);
+            }
+        }
+        root.detachAllChildren();
+        cellNodes = new Node[0];
+        chunks = new Node[gathered.size()];
+        for (int chunk = 0; chunk < chunks.length; chunk++) {
+            if (gathered.get(chunk).isEmpty()) {
+                continue;
+            }
+            var node = new Node("chunk");
+            gathered.get(chunk).forEach((key, geometries) -> {
+                var mesh = new com.jme3.scene.Mesh();
+                jme3tools.optimize.GeometryBatchFactory.mergeGeometries(geometries, mesh);
+                mesh.updateCounts();
+                mesh.updateBound();
+                var one = new Geometry("chunk", mesh);
+                one.setMaterial(key.material());
+                one.setQueueBucket(key.bucket());
+                one.setShadowMode(key.shadows());
+                node.attachChild(one);
+            });
+            root.attachChild(node);
+            chunks[chunk] = node;
+        }
+        everyChunk = true;
+    }
+
+    /** What pieces must share to be gathered into one geometry: a material, a bucket, shadows, a vertex layout. */
+    private record Gather(Material material, com.jme3.renderer.queue.RenderQueue.Bucket bucket,
+            com.jme3.renderer.queue.RenderQueue.ShadowMode shadows, String layout) {
+
+        static Gather of(Geometry geometry) {
+            var layout = new StringBuilder();
+            for (var buffer : geometry.getMesh().getBufferList()) {
+                if (buffer.getBufferType() != com.jme3.scene.VertexBuffer.Type.Index) {
+                    layout.append(buffer.getBufferType()).append(buffer.getNumComponents()).append(' ');
+                }
+            }
+            return new Gather(geometry.getMaterial(), geometry.getQueueBucket(), geometry.getShadowMode(),
+                    layout.toString());
+        }
     }
 
     /**
@@ -509,7 +604,7 @@ final class TerrainScene {
      * is the storeys', and this the one place the relief enters the picture.
      *
      * <p>Only where a map has relief. A mesh is shared by every piece cut from one model, so a bent piece bends a
-     * copy of its own.
+     * copy of its own; a chunk's gathered mesh is its own already, and is bent where it is.
      */
     private void drape(PathGrid grid) {
         if (grid.getRelief() == null) {
@@ -522,7 +617,7 @@ final class TerrainScene {
             if (!(spatial instanceof Geometry geometry)) {
                 return;
             }
-            var mesh = geometry.getMesh().deepClone();
+            var mesh = chunks.length > 0 ? geometry.getMesh() : geometry.getMesh().deepClone();
             var positions = mesh.getFloatBuffer(com.jme3.scene.VertexBuffer.Type.Position);
             var transform = geometry.getWorldTransform();
             for (int i = 0; i + 2 < positions.limit(); i += 3) {
@@ -1111,6 +1206,51 @@ final class TerrainScene {
         return choices.get((int) (steady(standing.x(), standing.z(), copy, 4) * choices.size()));
     }
 
+    /**
+     * A chunk is left out of the picture only when all of it, and a cell round it, is behind the dark: a wall on the
+     * chunk's edge faces the cell beside it, as a piece was asked about where it stood with a cell round it. Asked of
+     * the chunks near a cell whose light moved, and of every chunk the first time after a new map.
+     */
+    private void applyDiscoveryToChunks(Discovery seen) {
+        if (everyChunk) {
+            dirtyChunks.set(0, chunks.length);
+            everyChunk = false;
+        } else {
+            var moved = seen.movedCells();
+            int chunksDeep = chunks.length / chunksWide;
+            for (int at = moved.nextSetBit(0); at >= 0; at = moved.nextSetBit(at + 1)) {
+                int cx = at % cellsWide;
+                int cy = at / cellsWide;
+                int fromX = Math.max(0, Math.floorDiv(cx - 1, CHUNK_CELLS));
+                int toX = Math.min(chunksWide - 1, (cx + 1) / CHUNK_CELLS);
+                for (int y = Math.max(0, Math.floorDiv(cy - 1, CHUNK_CELLS));
+                        y <= Math.min(chunksDeep - 1, (cy + 1) / CHUNK_CELLS); y++) {
+                    dirtyChunks.set(y * chunksWide + fromX, y * chunksWide + toX + 1);
+                }
+            }
+        }
+        for (int chunk = dirtyChunks.nextSetBit(0); chunk >= 0; chunk = dirtyChunks.nextSetBit(chunk + 1)) {
+            if (chunks[chunk] != null) {
+                chunks[chunk].setCullHint(chunkHidden(seen, chunk)
+                        ? Spatial.CullHint.Always : Spatial.CullHint.Inherit);
+            }
+        }
+        dirtyChunks.clear();
+    }
+
+    private boolean chunkHidden(Discovery seen, int chunk) {
+        int x0 = chunk % chunksWide * CHUNK_CELLS;
+        int y0 = chunk / chunksWide * CHUNK_CELLS;
+        for (int cy = y0 - 1; cy <= y0 + CHUNK_CELLS; cy++) {
+            for (int cx = x0 - 1; cx <= x0 + CHUNK_CELLS; cx++) {
+                if (seen.lightAt(cx, cy) > Discovery.DARK) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     private String assetFor(TileLayout.Piece piece) {
         return switch (piece) {
             case FLOOR -> tileset.getFloor();
@@ -1151,6 +1291,10 @@ final class TerrainScene {
      */
     void applyDiscovery(Discovery seen) {
         if (!discovery || seen == null) {
+            return;
+        }
+        if (chunks.length > 0) {
+            applyDiscoveryToChunks(seen);
             return;
         }
         if (tiled()) {

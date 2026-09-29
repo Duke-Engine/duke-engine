@@ -31,6 +31,12 @@ The minimap's ground is one picture, a texel a cell, on one quad, repainted only
 where it was a square a cell — nineteen thousand things drawn one at a time on a 160 × 120 floor, each given its
 material again every frame. The colours are the squares' own.
 
+A kit's floor is gathered into chunks of 16 by 16 cells, one geometry for each material in each, its vertices where
+the pieces stood, where it was a geometry a piece under a node a cell: a 160 × 120 floor drawn as 240 things rather than
+41,000, and a scene of 320 spatials rather than 102,000 for the frame to walk. The relief bends the gathered meshes in
+place, where it copied every piece's mesh to bend it. The fog leaves a chunk out when all of it and a cell round it is
+dark, asked of the chunks near where the light moved.
+
 ### A kit's walls of several models
 
 `Tileset.wall(String...)` names several models for a kit's wall — rocks, trees, bushes — and each placement, and each

@@ -1053,4 +1053,161 @@ class TerrainSceneTest {
     void andAKitThatNamesNoRockFaceDrawsNone() {
         assertEquals(java.util.List.of(), facesOf(forestLike()));
     }
+
+    // ---- gathered into chunks ----
+
+    /** A room of 40 by 20 cells, walled round: three chunks across, two deep. */
+    private static uz.dukeengine.core.pathfind.PathGrid wideRoom() {
+        var text = new StringBuilder();
+        for (int cy = 0; cy < 20; cy++) {
+            for (int cx = 0; cx < 40; cx++) {
+                text.append(cx == 0 || cy == 0 || cx == 39 || cy == 19 ? '#' : '.');
+            }
+            text.append('\n');
+        }
+        return MapLoader.fromText(text.toString());
+    }
+
+    private static Node built(uz.dukeengine.core.pathfind.PathGrid grid, TileSource tiles, boolean chunked) {
+        var root = new Node("terrain");
+        new TerrainScene(root, (colour, texture) -> null, true, kit(), tiles, chunked).rebuild(grid);
+        return root;
+    }
+
+    /** Every corner of every drawn surface, in the world, rounded to a hundredth and sorted. */
+    private static java.util.List<String> corners(Node root) {
+        root.updateGeometricState();
+        var found = new java.util.ArrayList<String>();
+        var corner = new com.jme3.math.Vector3f();
+        var world = new com.jme3.math.Vector3f();
+        for (var geometry : root.descendantMatches(com.jme3.scene.Geometry.class)) {
+            var positions = geometry.getMesh().getFloatBuffer(com.jme3.scene.VertexBuffer.Type.Position);
+            for (int i = 0; i + 2 < positions.limit(); i += 3) {
+                corner.set(positions.get(i), positions.get(i + 1), positions.get(i + 2));
+                geometry.getWorldTransform().transformVector(corner, world);
+                found.add(Math.round(world.x * 100) + "," + Math.round(world.y * 100) + ","
+                        + Math.round(world.z * 100));
+            }
+        }
+        java.util.Collections.sort(found);
+        return found;
+    }
+
+    @Test
+    void aChunkedFloorIsAGeometryAChunkWithEveryCornerOfEveryPieceWhereItStood() {
+        var grid = wideRoom();
+        var pieces = built(grid, new SquareTiles(), false);
+        var chunked = built(grid, new SquareTiles(), true);
+
+        assertEquals(6, chunked.descendantMatches(com.jme3.scene.Geometry.class).size(),
+                "three chunks across, two deep, and one material in each");
+        assertTrue(pieces.descendantMatches(com.jme3.scene.Geometry.class).size() > 600,
+                "where it was a geometry a piece");
+        assertEquals(corners(pieces), corners(chunked));
+    }
+
+    /** Pieces of two materials in one chunk are two geometries there, each drawn with its own. */
+    @Test
+    void aChunkKeepsItsPiecesMaterialsApart() {
+        var stone = new com.jme3.material.Material();
+        var moss = new com.jme3.material.Material();
+        TileSource tiles = assetPath -> {
+            var node = new Node(assetPath);
+            var tile = new com.jme3.scene.Geometry("tile", new com.jme3.scene.shape.Quad(4f, 4f));
+            tile.setMaterial(assetPath.equals("floor") ? moss : stone);
+            node.attachChild(tile);
+            return node;
+        };
+        var root = built(wideRoom(), tiles, true);
+
+        var drawn = root.descendantMatches(com.jme3.scene.Geometry.class);
+        assertEquals(12, drawn.size(), "a floor and a stone geometry in each of the six chunks");
+        assertEquals(java.util.Set.of(stone, moss),
+                drawn.stream().map(com.jme3.scene.Geometry::getMaterial).collect(java.util.stream.Collectors.toSet()));
+    }
+
+    /** The relief bends a chunk's gathered mesh as it bent each piece. */
+    @Test
+    void theReliefBendsAChunkedFloorAsItBentThePieces() {
+        var grid = wideRoom();
+        var steps = new int[41 * 21];
+        for (int at = 0; at < steps.length; at++) {
+            steps[at] = at % 7;
+        }
+        grid.setRelief(new uz.dukeengine.core.pathfind.HeightMap(41, 21, steps));
+
+        var bent = heightsByPlace(built(grid, new SquareTiles(), false));
+        var chunkBent = heightsByPlace(built(grid, new SquareTiles(), true));
+        assertEquals(bent.keySet(), chunkBent.keySet());
+        bent.forEach((place, heights) -> {
+            for (int i = 0; i < heights.size(); i++) {
+                assertEquals(heights.get(i), chunkBent.get(place).get(i), 0.02f, "at " + place);
+            }
+        });
+    }
+
+    /**
+     * Every corner's height, by where it stands across the ground: a piece bent one at a time goes out to the world and
+     * back, and lands a few millionths from the same corner bent in the world where it stands.
+     */
+    private static java.util.Map<String, java.util.List<Float>> heightsByPlace(Node root) {
+        root.updateGeometricState();
+        var found = new java.util.TreeMap<String, java.util.List<Float>>();
+        var corner = new com.jme3.math.Vector3f();
+        var world = new com.jme3.math.Vector3f();
+        for (var geometry : root.descendantMatches(com.jme3.scene.Geometry.class)) {
+            var positions = geometry.getMesh().getFloatBuffer(com.jme3.scene.VertexBuffer.Type.Position);
+            for (int i = 0; i + 2 < positions.limit(); i += 3) {
+                corner.set(positions.get(i), positions.get(i + 1), positions.get(i + 2));
+                geometry.getWorldTransform().transformVector(corner, world);
+                found.computeIfAbsent(Math.round(world.x * 10) + "," + Math.round(world.z * 10),
+                        place -> new java.util.ArrayList<>()).add(world.y);
+            }
+        }
+        found.values().forEach(java.util.Collections::sort);
+        return found;
+    }
+
+    private static com.jme3.scene.Spatial chunkOver(Node root, int cellX, int cellY) {
+        float cell = uz.dukeengine.core.pathfind.PathGrid.DEFAULT_CELL_SIZE;
+        root.updateGeometricState();
+        return root.getChildren().stream()
+                .filter(chunk -> {
+                    var middle = chunk.getWorldBound().getCenter();
+                    return (int) (middle.x / (TerrainScene.CHUNK_CELLS * cell)) == cellX / TerrainScene.CHUNK_CELLS
+                            && (int) (middle.z / (TerrainScene.CHUNK_CELLS * cell)) == cellY / TerrainScene.CHUNK_CELLS;
+                })
+                .findFirst().orElseThrow();
+    }
+
+    /**
+     * The fog leaves a chunk out only when all of it, and a cell round it, is dark — and asks again as the light moves,
+     * the chunk a hero walks toward coming back before he crosses into it.
+     */
+    @Test
+    void theFogLeavesOutAChunkOnlyWhenAllOfItAndACellRoundItIsDark() {
+        var grid = wideRoom();
+        var root = new Node("terrain");
+        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new SquareTiles(), true);
+        terrain.rebuild(grid);
+        var seen = new Discovery(grid);
+        seen.reveal(java.util.List.of(unit(35f, 55f)), 0, 30f, null);
+        for (int frame = 0; frame < 120; frame++) {
+            seen.soften(1f / 30f);
+            terrain.applyDiscovery(seen);
+        }
+        var hidden = com.jme3.scene.Spatial.CullHint.Always;
+        assertNotEquals(hidden, chunkOver(root, 3, 5).getCullHint(), "where he stands");
+        assertEquals(hidden, chunkOver(root, 20, 5).getCullHint(), "the next chunk, all dark");
+        assertEquals(hidden, chunkOver(root, 36, 5).getCullHint(), "and the far one");
+
+        seen.reveal(java.util.List.of(unit(135f, 55f)), 0, 30f, null);
+        for (int frame = 0; frame < 120; frame++) {
+            seen.soften(1f / 30f);
+            terrain.applyDiscovery(seen);
+        }
+        assertNotEquals(hidden, chunkOver(root, 20, 5).getCullHint(),
+                "lit within a cell of its edge, the next chunk is drawn before he crosses into it");
+        assertEquals(hidden, chunkOver(root, 36, 5).getCullHint());
+    }
 }

@@ -627,7 +627,7 @@ final class DukeRtsApp extends SimpleApplication {
         // Needs the locators above, so it cannot be built with the app itself.
         terrain = new TerrainScene(terrainNode,
                 groundSurfaces,
-                visuals.drawsFog(), visuals.getTiles(), new KitTiles());
+                visuals.drawsFog(), visuals.getTiles(), new KitTiles(), true);
 
         sun = new DirectionalLight(sunDirection, sunColour);
         ambient = new AmbientLight(ambientColour);
