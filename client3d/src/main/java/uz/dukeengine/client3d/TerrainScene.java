@@ -72,6 +72,10 @@ final class TerrainScene {
      * with none, or with a kit that cannot build a floor, wearing the map's.
      */
     private Tileset[] cellKits;
+    /** The map's scenery, laid with its ground — see {@link #layScenery}. */
+    private java.util.List<? extends uz.dukeengine.core.map.MapScenery> scenery = java.util.List.of();
+    /** How scenery is dressed: in the materials its models came with, each kept and made to read the fog. */
+    private static final Tileset SCENERY = Tileset.create().ownMaterials(true);
     private final Tileset defaultTileset;
     private final TileSource tiles;
 
@@ -174,7 +178,7 @@ final class TerrainScene {
 
     /** The same, the painted ground lit by its own lights, per corner — see {@link Visuals.GroundLight}. */
     void rebuild(PathGrid grid, Tileset kit, GroundPaint paint, Visuals.GroundLight groundLight) {
-        rebuild(grid, kit, paint, groundLight, null);
+        rebuild(grid, kit, paint, groundLight, null, java.util.List.of());
     }
 
     /**
@@ -185,6 +189,17 @@ final class TerrainScene {
      */
     void rebuild(PathGrid grid, Tileset kit, GroundPaint paint, Visuals.GroundLight groundLight,
             Tileset[] cellKits) {
+        rebuild(grid, kit, paint, groundLight, cellKits, java.util.List.of());
+    }
+
+    /**
+     * The same, the map's scenery laid with its ground ({@link uz.dukeengine.core.map.MapScenery}): each piece where it
+     * stands, turned, sized and tinted as it says, gathered into the chunks with the ground under it and hidden by the
+     * fog as that is.
+     */
+    void rebuild(PathGrid grid, Tileset kit, GroundPaint paint, Visuals.GroundLight groundLight,
+            Tileset[] cellKits, java.util.List<? extends uz.dukeengine.core.map.MapScenery> scenery) {
+        this.scenery = scenery == null ? java.util.List.of() : scenery;
         this.cellKits = cellKits;
         this.light = groundLight;
         this.tileset = kit != null && kit.isUsable() && tiles != null ? kit : defaultTileset;
@@ -247,6 +262,10 @@ final class TerrainScene {
                     rocks[cy * cellsWide + cx] = rock;
                 }
             }
+        }
+        layScenery(grid);
+        if (chunked) {
+            gatherIntoChunks(grid);
         }
     }
 
@@ -544,10 +563,41 @@ final class TerrainScene {
                         tintFor(kit, standing.piece(), standing.ground(), storey, tallest));
             }
         }
+        layScenery(grid);
         if (chunked) {
             gatherIntoChunks(grid);
         }
         drape(grid);
+    }
+
+    /**
+     * The map's scenery, each piece in the cell it stands in: at the cell's floor on a kit's map, where the relief is
+     * then laid over it as over the floor; on the relief itself on a painted one, upright.
+     */
+    private void layScenery(PathGrid grid) {
+        if (scenery.isEmpty() || tiles == null) {
+            return;
+        }
+        if (cellNodes.length == 0) {
+            cellNodes = new Node[grid.getWidth() * grid.getHeight()];
+            cellsWide = grid.getWidth();
+        }
+        float cell = grid.getCellSize();
+        for (var piece : scenery) {
+            var model = tiles.piece(SCENERY, piece.model(), piece.tint());
+            if (model == null) {
+                continue;
+            }
+            int cx = Math.clamp((int) Math.floor(piece.x()), 0, grid.getWidth() - 1);
+            int cy = Math.clamp((int) Math.floor(piece.y()), 0, grid.getHeight() - 1);
+            float x = piece.x() * cell;
+            float z = piece.y() * cell;
+            model.setLocalScale(piece.scale());
+            model.setLocalRotation(new com.jme3.math.Quaternion()
+                    .fromAngleAxis(FastMath.DEG_TO_RAD * piece.facing(), Vector3f.UNIT_Y));
+            model.setLocalTranslation(x, tiled() ? grid.storeyHeight(cx, cy) : groundAt(grid, x, z), z);
+            cellNode(cy * cellsWide + cx).attachChild(model);
+        }
     }
 
     /**
@@ -575,7 +625,11 @@ final class TerrainScene {
                         .add(geometry);
             }
         }
-        root.detachAllChildren();
+        for (var node : cellNodes) {
+            if (node != null) {
+                node.removeFromParent(); // a painted map's ground stays where it is
+            }
+        }
         cellNodes = new Node[0];
         chunks = new Node[gathered.size()];
         for (int chunk = 0; chunk < chunks.length; chunk++) {
@@ -1354,10 +1408,10 @@ final class TerrainScene {
         }
         if (chunks.length > 0) {
             applyDiscoveryToChunks(seen);
-            return;
+        } else if (tiled()) {
+            applyDiscoveryToTiles(seen);
         }
         if (tiled()) {
-            applyDiscoveryToTiles(seen);
             return;
         }
         for (int index = 0; index < rocks.length; index++) {

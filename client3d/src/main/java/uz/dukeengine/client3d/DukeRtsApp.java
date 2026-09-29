@@ -3014,7 +3014,9 @@ final class DukeRtsApp extends SimpleApplication {
         if (strips != null) {
             strips.clear(); // a new world lays its own
         }
-        terrain.rebuild(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom));
+        terrain.rebuild(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom),
+                game.getMapRecord() instanceof uz.dukeengine.core.map.Dressed dressed ? dressed.scenery()
+                        : java.util.List.of());
         fogTintNow = null; // a new world's dark starts in the colour of whatever the camera looks at
         if (water != null) {
             water.rebuild(game.getMapRecord() instanceof uz.dukeengine.core.map.Zoned zoned ? zoned.areas()

@@ -7,8 +7,9 @@ package uz.dukeengine.core.map;
  *
  * <p>Everything else a map may have is a capability of its own, the way a thing's is — {@link Described},
  * {@link Peopled}, {@link Scaled}, {@link Painted}, {@link Looked}, {@link Zoned}, {@link Sided}, {@link Furnished},
- * and the world's own {@code Layered} — and the engine reads only the ones it has a use for. A game's map is a record
- * that implements what its maps have; the cells it is drawn on are a component marked {@code @Grid}, how they
+ * {@link Dressed}, and the world's own {@code Layered} — and the engine reads only the ones it has a use for. A
+ * game's map is a record that implements what its maps have; the cells it is drawn on are a component marked
+ * {@code @Grid}, how they
  * rise and fall is one marked {@code @Relief}, what they are painted with one marked {@code @Paint}, and what
  * stands on them are components of its own with an {@code x} and a {@code y}. Nothing here knows what a
  * monster is.

@@ -1334,7 +1334,8 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
     /** Whether something solid — anything but a ground mover — or the ground itself refuses a step there. */
     private static boolean solidInTheWay(GameObject owner, Coord3D to, int toward) {
         var world = owner.getWorld();
-        if (world.findBlocker(owner, to, MoveUpdate::isGroundMover) != null) {
+        if (world.findBlocker(owner, to, MoveUpdate::isGroundMover) != null
+                || world.sceneryInTheWay(owner, owner.getPosition(), to)) {
             return true;
         }
         return !world.canStep(owner, owner.getPosition(), to, toward)
@@ -1788,7 +1789,7 @@ public final class MoveUpdate extends UpdateModule implements Locomotor {
         if (world == null) {
             return false;
         }
-        if (world.findBlocker(mover, position) != null) {
+        if (world.findBlocker(mover, position) != null || world.sceneryInTheWay(mover, mover.getPosition(), position)) {
             return true;
         }
         // Stone, or a floor this one is not joined to. A step onto a higher floor

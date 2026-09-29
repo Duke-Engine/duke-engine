@@ -459,6 +459,14 @@ public interface World {
         return canStep(from, to);
     }
 
+    /**
+     * Whether scenery standing in the way refuses {@code mover} a step from {@code from} to {@code to}: one that
+     * takes it deeper into a piece's footprint than it already stands, more than a touch. None, in a world with none.
+     */
+    default boolean sceneryInTheWay(GameObject mover, Coord3D from, Coord3D to) {
+        return false;
+    }
+
     /** Whether the ground {@code mover} stands on is stone under a point: {@link #isGroundBlocked}, on its floor. */
     default boolean isGroundBlocked(GameObject mover, Coord3D position) {
         return isGroundBlocked(position);

@@ -829,7 +829,79 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             pathGrid.setLevelHeight(layered.levelHeight());
         }
         this.staticObstaclesDirty = true;
+        bucketTheScenery();
         layTheSightCells();
+    }
+
+    /** The scenery standing in the way on the ground — see {@link #setSceneryFootprints}. */
+    private List<uz.dukeengine.core.pathfind.SceneryFootprint> scenery = List.of();
+    /** The same, by the cell of the navigation grid each one's middle stands in: what a step asks about. */
+    private final java.util.Map<Integer, List<uz.dukeengine.core.pathfind.SceneryFootprint>> sceneryByCell =
+            new java.util.HashMap<>();
+    private float widestScenery;
+
+    /**
+     * The scenery that stands in the way on the ground: pieces a map placed for their look — trees, boulders — that are
+     * no things of the simulation's, each a circle in world units. Each closes the cells of the navigation grid its
+     * outline comes within half a cell of, as a still thing's does, and a ground mover's step goes no deeper into one
+     * than it already stands, more than a touch. Set with the map it belongs to, which every machine lays alike.
+     */
+    public final void setSceneryFootprints(List<uz.dukeengine.core.pathfind.SceneryFootprint> footprints) {
+        this.scenery = footprints == null ? List.of() : List.copyOf(footprints);
+        this.staticObstaclesDirty = true;
+        bucketTheScenery();
+    }
+
+    private void bucketTheScenery() {
+        sceneryByCell.clear();
+        widestScenery = 0f;
+        if (pathGrid == null) {
+            return;
+        }
+        for (var piece : scenery) {
+            var middle = new Coord3D(piece.x(), piece.y(), 0f);
+            int cell = pathGrid.toCellY(middle) * pathGrid.getWidth() + pathGrid.toCellX(middle);
+            sceneryByCell.computeIfAbsent(cell, key -> new ArrayList<>()).add(piece);
+            widestScenery = Math.max(widestScenery, piece.radius());
+        }
+    }
+
+    /** How far a mover may come into a piece of scenery's footprint: a touch, as into a mover ahead of it. */
+    private static final float SCENERY_TOUCH = 1f;
+
+    @Override
+    public final boolean sceneryInTheWay(GameObject mover, Coord3D from, Coord3D to) {
+        if (sceneryByCell.isEmpty() || mover.getFloor() != 0
+                || mover.hasStatus(uz.dukeengine.core.thing.ObjectStatus.AIRBORNE)) {
+            return false;
+        }
+        var shape = Solid.of(mover.getTemplate());
+        if (shape.isPoint()) {
+            return false;
+        }
+        var here = Footprint.of(mover, from);
+        var there = Footprint.of(mover, to);
+        float cell = pathGrid.getCellSize();
+        float reach = shape.footprintRadius() + widestScenery;
+        int minX = (int) Math.floor((to.x() - reach) / cell);
+        int maxX = (int) Math.floor((to.x() + reach) / cell);
+        int minY = (int) Math.floor((to.y() - reach) / cell);
+        int maxY = (int) Math.floor((to.y() + reach) / cell);
+        for (int cy = minY; cy <= maxY; cy++) {
+            for (int cx = minX; cx <= maxX; cx++) {
+                if (!pathGrid.inBounds(cx, cy)) {
+                    continue;
+                }
+                for (var piece : sceneryByCell.getOrDefault(cy * pathGrid.getWidth() + cx, List.of())) {
+                    var middle = new Coord3D(piece.x(), piece.y(), 0f);
+                    float into = piece.radius() - there.distanceTo(middle);
+                    if (into > Math.max(SCENERY_TOUCH, piece.radius() - here.distanceTo(middle)) + 1e-4f) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /** What the game's World block says of its world, as far as the engine reads it. */
@@ -896,6 +968,23 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                     if (ground != null) {
                         pathGrid.setLaid(cx, cy, ground);
                     } else {
+                        pathGrid.setObstacle(cx, cy);
+                    }
+                }
+            }
+        }
+        for (var piece : scenery) {
+            float reach = piece.radius() + halfCell;
+            int minX = (int) Math.floor((piece.x() - reach) / cellSize);
+            int maxX = (int) Math.floor((piece.x() + reach) / cellSize);
+            int minY = (int) Math.floor((piece.y() - reach) / cellSize);
+            int maxY = (int) Math.floor((piece.y() + reach) / cellSize);
+            for (int cy = minY; cy <= maxY; cy++) {
+                for (int cx = minX; cx <= maxX; cx++) {
+                    var centre = pathGrid.cellCenter(cx, cy);
+                    float dx = centre.x() - piece.x();
+                    float dy = centre.y() - piece.y();
+                    if ((float) Math.sqrt(dx * dx + dy * dy) - piece.radius() <= halfCell) {
                         pathGrid.setObstacle(cx, cy);
                     }
                 }

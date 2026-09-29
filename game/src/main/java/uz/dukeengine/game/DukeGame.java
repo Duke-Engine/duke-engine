@@ -645,7 +645,27 @@ public final class DukeGame {
         this.mapRecord = map;
         if (logic != null) {
             logic.setPathGrid(grid);
+            logic.setSceneryFootprints(sceneryFootprints());
         }
+    }
+
+    /**
+     * The scenery of the current map that stands in the way ({@code Dressed}, each piece with a footprint), in world
+     * units: the one part of scenery the simulation reads, and every machine reads it from the same map.
+     */
+    private List<uz.dukeengine.core.pathfind.SceneryFootprint> sceneryFootprints() {
+        if (terrain == null || !(mapRecord instanceof uz.dukeengine.core.map.Dressed dressed)) {
+            return List.of();
+        }
+        float cell = terrain.getCellSize();
+        var footprints = new ArrayList<uz.dukeengine.core.pathfind.SceneryFootprint>();
+        for (var piece : dressed.scenery()) {
+            if (piece.footprint() > 0f) {
+                footprints.add(new uz.dukeengine.core.pathfind.SceneryFootprint(piece.x() * cell, piece.y() * cell,
+                        piece.footprint() * cell));
+            }
+        }
+        return footprints;
     }
 
     /** The record the current terrain was laid from, or null where the game never handed one over. */
@@ -1178,6 +1198,7 @@ public final class DukeGame {
         logic.setWorld(world);
         if (terrain != null) {
             logic.setPathGrid(terrain);
+            logic.setSceneryFootprints(sceneryFootprints());
         }
         progress.accept(20);
 

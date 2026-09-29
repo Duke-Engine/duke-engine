@@ -1135,6 +1135,76 @@ class TerrainSceneTest {
         assertEquals(namedAndPlaced(plain), namedAndPlaced(unnamed));
     }
 
+    // ---- scenery ----
+
+    private record Scenery(String model, float x, float y, float facing, float scale, int tint, float footprint)
+            implements uz.dukeengine.core.map.MapScenery {
+    }
+
+    @Test
+    void aPieceOfSceneryStandsWhereTheMapSaysTurnedAndSizedAsItSays() {
+        var grid = twoStoreys();
+        var root = new Node("terrain");
+        new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles())
+                .rebuild(grid, kit(), null, null, null, java.util.List.of(
+                        new Scenery("bush", 2.5f, 1.5f, 90f, 2f, 0xFFFFFF, 0f),
+                        new Scenery("banner", 7.5f, 2.5f, 0f, 1f, 0xFFFFFF, 0f)));
+
+        var bush = pieces(root, "bush").getFirst();
+        assertEquals(25f, bush.getLocalTranslation().x, 0.001f);
+        assertEquals(15f, bush.getLocalTranslation().z, 0.001f);
+        assertEquals(2f, bush.getLocalScale().x, 0.001f);
+        assertEquals(com.jme3.math.FastMath.HALF_PI, bush.getLocalRotation().toAngleAxis(new com.jme3.math.Vector3f()),
+                0.001f);
+        var banner = pieces(root, "banner").getFirst();
+        assertEquals(grid.storeyHeight(7, 2), banner.getLocalTranslation().y, 0.001f, "on the floor of its cell");
+    }
+
+    /** A floor's scenery is gathered with its ground: grass of its own material, another geometry in each chunk. */
+    @Test
+    void sceneryIsGatheredIntoTheChunksWithTheGroundItStandsOn() {
+        var grass = new com.jme3.material.Material();
+        TileSource tiles = assetPath -> {
+            var node = new Node(assetPath);
+            var tile = new com.jme3.scene.Geometry("tile", new com.jme3.scene.shape.Quad(4f, 4f));
+            tile.setMaterial(assetPath.equals("grass") ? grass : null);
+            node.attachChild(tile);
+            return node;
+        };
+        var lawn = new java.util.ArrayList<Scenery>();
+        for (int cy = 1; cy < 19; cy += 2) {
+            for (int cx = 1; cx < 39; cx += 2) {
+                lawn.add(new Scenery("grass", cx + 0.5f, cy + 0.5f, 0f, 1f, 0xFFFFFF, 0f));
+            }
+        }
+        var root = new Node("terrain");
+        new TerrainScene(root, (colour, texture) -> null, true, kit(), tiles, true)
+                .rebuild(wideRoom(), kit(), null, null, null, lawn);
+
+        var drawn = root.descendantMatches(com.jme3.scene.Geometry.class);
+        assertEquals(12, drawn.size(), "the ground and the grass in each of six chunks, " + lawn.size() + " tufts");
+        assertEquals(6, drawn.stream().filter(one -> one.getMaterial() == grass).count());
+    }
+
+    /** Scenery is hidden by the fog with the ground it stands on, a chunk at a time. */
+    @Test
+    void sceneryIsHiddenByTheFogAsItsGroundIs() {
+        var grid = wideRoom();
+        var root = new Node("terrain");
+        var terrain = new TerrainScene(root, (colour, texture) -> null, true, kit(), new SquareTiles(), true);
+        terrain.rebuild(grid, kit(), null, null, null,
+                java.util.List.of(new Scenery("rock", 36.5f, 5.5f, 0f, 1f, 0xFFFFFF, 0f)));
+        var seen = new Discovery(grid);
+        seen.reveal(java.util.List.of(unit(35f, 55f)), 0, 30f, null);
+        for (int frame = 0; frame < 120; frame++) {
+            seen.soften(1f / 30f);
+            terrain.applyDiscovery(seen);
+        }
+
+        assertEquals(com.jme3.scene.Spatial.CullHint.Always, chunkOver(root, 36, 5).getCullHint(),
+                "the rock far off in the dark is left out with its ground");
+    }
+
     // ---- gathered into chunks ----
 
     /** A room of 40 by 20 cells, walled round: three chunks across, two deep. */

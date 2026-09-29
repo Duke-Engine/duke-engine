@@ -46,6 +46,16 @@ between two cells is drawn by the one it belongs to: a wall against rock, and th
 fog's colour turns to the look under the point the camera looks at, over about a second. A map that names no looks is
 laid as it always was.
 
+### Scenery
+
+A map whose record is `Dressed` lists scenery (`MapScenery`): a model, where it stands in cells, its facing, scale and
+tint, and a footprint. Each piece is laid with the ground under it — gathered into its chunk, on its floor and the
+relief, left out by the fog with its ground — in the materials its model came with, and it is no thing of the
+simulation's: nothing a frame, on no minimap, in no snapshot. A piece with a footprint stands in the way: the simulation
+closes the cells of the ground it covers, as a still thing's outline does, and a ground mover's step goes no deeper into
+it than it already stands (`GameLogic.setSceneryFootprints`, which `DukeGame.applyMapTerrain` feeds from the map, and
+`World.sceneryInTheWay`).
+
 ### A kit's walls of several models
 
 `Tileset.wall(String...)` names several models for a kit's wall — rocks, trees, bushes — and each placement, and each
