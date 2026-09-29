@@ -15,6 +15,12 @@ Unreleased.
 - `Tileset.wall` and `corner` take several paths (`String...`): a call with one reads as it did, but a game built
   against 0.6.0 is built again.
 
+### Large maps
+
+A route search keeps its arrays on its thread from one search to the next, made fresh for each by a stamp, where it
+made five the size of the map every time — 380 KB a search on a 160 × 120 floor, many searches a frame. Routes are the
+same to the bit.
+
 ### A kit's walls of several models
 
 `Tileset.wall(String...)` names several models for a kit's wall — rocks, trees, bushes — and each placement, and each

@@ -92,6 +92,84 @@ public final class Pathfinder {
     private Pathfinder() {
     }
 
+    private static final ThreadLocal<Scratch> SCRATCH = ThreadLocal.withInitial(Scratch::new);
+
+    /**
+     * A search's arrays, kept on its thread from one search to the next rather than made for each — five arrays the
+     * size of the map a search, and many searches a frame — and made fresh for each search by a stamp rather than by
+     * clearing them: a cell whose stamp is not this search's has no score and no way there, and is not closed.
+     */
+    private static final class Scratch {
+        private int[] g = new int[0];
+        private int[] f = new int[0];
+        private int[] came = new int[0];
+        private int[] written = new int[0];
+        private int[] shut = new int[0];
+        private int stamp;
+        private boolean busy;
+        final PriorityQueue<Integer> open = new PriorityQueue<>((a, b) -> {
+            int byF = Integer.compare(f[a], f[b]);
+            return byF != 0 ? byF : Integer.compare(a, b); // deterministic tie-break
+        });
+
+        /** This thread's scratch, fresh and room for {@code cells}; arrays of its own for a search inside another's. */
+        static Scratch take(int cells) {
+            var scratch = SCRATCH.get();
+            if (scratch.busy) {
+                scratch = new Scratch();
+            }
+            scratch.busy = true;
+            scratch.open.clear();
+            if (scratch.g.length < cells) {
+                scratch.g = new int[cells];
+                scratch.f = new int[cells];
+                scratch.came = new int[cells];
+                scratch.written = new int[cells];
+                scratch.shut = new int[cells];
+                scratch.stamp = 0;
+            }
+            if (scratch.stamp == Integer.MAX_VALUE) {
+                Arrays.fill(scratch.written, 0);
+                Arrays.fill(scratch.shut, 0);
+                scratch.stamp = 0;
+            }
+            scratch.stamp++;
+            return scratch;
+        }
+
+        void release() {
+            busy = false;
+        }
+
+        int g(int cell) {
+            return written[cell] == stamp ? g[cell] : Integer.MAX_VALUE;
+        }
+
+        int came(int cell) {
+            return written[cell] == stamp ? came[cell] : -1;
+        }
+
+        void set(int cell, int cost, int estimate, int from) {
+            written[cell] = stamp;
+            g[cell] = cost;
+            f[cell] = estimate;
+            came[cell] = from;
+        }
+
+        boolean closed(int cell) {
+            return shut[cell] == stamp;
+        }
+
+        void close(int cell) {
+            shut[cell] = stamp;
+        }
+
+        /** The way back from each cell, read along a route this search found: every cell on it was written by it. */
+        int[] cameFrom() {
+            return came;
+        }
+    }
+
     /**
      * The cells searches examined, added up — what a world holds a frame's searching to, as the reference holds
      * it to {@code PATHFIND_CELLS_PER_FRAME}.
@@ -351,75 +429,68 @@ public final class Pathfinder {
             return escape(grid, from);
         }
         int width = grid.getWidth();
-        int cellCount = width * grid.getHeight();
-        int[] gScore = new int[cellCount];
-        int[] fScore = new int[cellCount];
-        int[] cameFrom = new int[cellCount];
-        boolean[] closed = new boolean[cellCount];
-        Arrays.fill(gScore, Integer.MAX_VALUE);
-        Arrays.fill(cameFrom, -1);
-        int startIndex = grid.index(startX, startY);
-        gScore[startIndex] = 0;
-        fScore[startIndex] = bandEstimate(grid, within, toward, startX, startY);
-        var open = new PriorityQueue<Integer>((a, b) -> {
-            int byF = Integer.compare(fScore[a], fScore[b]);
-            return byF != 0 ? byF : Integer.compare(a, b);
-        });
-        open.add(startIndex);
-        float half = grid.getCellSize() / 2f;
-        int examined = 0;
-        while (!open.isEmpty()) {
-            int current = open.poll();
-            if (closed[current]) {
-                continue;
-            }
-            int cx = current % width;
-            int cy = current / width;
-            var centre = grid.cellCenter(cx, cy);
-            if (current != startIndex && within.outside(centre) <= 0f
-                    && across(centre, from) >= half) {
-                return reconstruct(grid, cameFrom, current, startIndex, from, centre, clearance, traffic);
-            }
-            if (tally != null) {
-                tally.cells++;
-            }
-            closed[current] = true;
-            if (++examined > BAND_CELL_LIMIT) {
-                continue; // no more expanding: what is open is looked at, and then it gives up
-            }
-            for (var step : NEIGHBOURS) {
-                int nx = cx + step[0];
-                int ny = cy + step[1];
-                if (!fits(grid, nx, ny, clearance) || !grid.canStep(cx, cy, nx, ny)) {
+        var scratch = Scratch.take(width * grid.getHeight());
+        try {
+            int startIndex = grid.index(startX, startY);
+            scratch.set(startIndex, 0, bandEstimate(grid, within, toward, startX, startY), -1);
+            var open = scratch.open;
+            open.add(startIndex);
+            float half = grid.getCellSize() / 2f;
+            int examined = 0;
+            while (!open.isEmpty()) {
+                int current = open.poll();
+                if (scratch.closed(current)) {
                     continue;
                 }
-                boolean diagonal = step[0] != 0 && step[1] != 0;
-                if (diagonal && grid.isBlocked(cx + step[0], cy) && grid.isBlocked(cx, cy + step[1])) {
-                    continue;
+                int cx = current % width;
+                int cy = current / width;
+                var centre = grid.cellCenter(cx, cy);
+                if (current != startIndex && within.outside(centre) <= 0f
+                        && across(centre, from) >= half) {
+                    return reconstruct(grid, scratch.cameFrom(), current, startIndex, from, centre, clearance,
+                            traffic);
                 }
-                int next = grid.index(nx, ny);
-                if (closed[next]) {
-                    continue;
+                if (tally != null) {
+                    tally.cells++;
                 }
-                int tentative = gScore[current] + (diagonal ? DIAGONAL_COST : ORTHOGONAL_COST)
-                        + turnCost(grid, cameFrom[current], cx, cy, step[0], step[1]);
-                if (traffic != null) {
-                    int extra = traffic.costOf(nx, ny);
-                    if (extra == Traffic.CLOSED) {
+                scratch.close(current);
+                if (++examined > BAND_CELL_LIMIT) {
+                    continue; // no more expanding: what is open is looked at, and then it gives up
+                }
+                for (var step : NEIGHBOURS) {
+                    int nx = cx + step[0];
+                    int ny = cy + step[1];
+                    if (!fits(grid, nx, ny, clearance) || !grid.canStep(cx, cy, nx, ny)) {
                         continue;
                     }
-                    tentative += extra;
+                    boolean diagonal = step[0] != 0 && step[1] != 0;
+                    if (diagonal && grid.isBlocked(cx + step[0], cy) && grid.isBlocked(cx, cy + step[1])) {
+                        continue;
+                    }
+                    int next = grid.index(nx, ny);
+                    if (scratch.closed(next)) {
+                        continue;
+                    }
+                    int tentative = scratch.g(current) + (diagonal ? DIAGONAL_COST : ORTHOGONAL_COST)
+                            + turnCost(grid, scratch.came(current), cx, cy, step[0], step[1]);
+                    if (traffic != null) {
+                        int extra = traffic.costOf(nx, ny);
+                        if (extra == Traffic.CLOSED) {
+                            continue;
+                        }
+                        tentative += extra;
+                    }
+                    if (tentative >= scratch.g(next)) {
+                        continue;
+                    }
+                    scratch.set(next, tentative, tentative + bandEstimate(grid, within, toward, nx, ny), current);
+                    open.add(next);
                 }
-                if (tentative >= gScore[next]) {
-                    continue;
-                }
-                cameFrom[next] = current;
-                gScore[next] = tentative;
-                fScore[next] = tentative + bandEstimate(grid, within, toward, nx, ny);
-                open.add(next);
             }
+            return Path.EMPTY;
+        } finally {
+            scratch.release();
         }
-        return Path.EMPTY;
     }
 
     /**
@@ -537,114 +608,97 @@ public final class Pathfinder {
             return new Path(List.of(to));
         }
         int floors = grid.decks().size() + 1;
-        var g = new int[floors][];
-        var f = new int[floors][];
-        var came = new int[floors][];
-        var closed = new boolean[floors][];
-        touch(g, f, came, closed, fromFloor, cells);
-        g[fromFloor][start % cells] = 0;
-        f[fromFloor][start % cells] = heuristic(startX, startY, goalX, goalY);
-        var open = new PriorityQueue<Integer>((a, b) -> {
-            int byF = Integer.compare(f[a / cells][a % cells], f[b / cells][b % cells]);
-            return byF != 0 ? byF : Integer.compare(a, b);
-        });
-        open.add(start);
-        int nearest = start;
-        long nearestAway = away(startX, startY, goalX, goalY);
-        while (!open.isEmpty()) {
-            int current = open.poll();
-            if (current == goal) {
-                return layeredPath(grid, came, cells, current, start, from, fromFloor, to, clearance, true);
-            }
-            int floor = current / cells;
-            int cell = current % cells;
-            if (closed[floor][cell]) {
-                continue;
-            }
-            if (tally != null) {
-                tally.cells++;
-            }
-            closed[floor][cell] = true;
-            int cx = cell % width;
-            int cy = cell / width;
-            long away = away(cx, cy, goalX, goalY);
-            if (away < nearestAway || away == nearestAway && current < nearest) {
-                nearest = current;
-                nearestAway = away;
-            }
-            for (var step : NEIGHBOURS) {
-                int nx = cx + step[0];
-                int ny = cy + step[1];
-                if (!grid.inBounds(nx, ny)) {
+        var scratch = Scratch.take(floors * cells);
+        try {
+            scratch.set(start, 0, heuristic(startX, startY, goalX, goalY), -1);
+            var open = scratch.open;
+            open.add(start);
+            int nearest = start;
+            long nearestAway = away(startX, startY, goalX, goalY);
+            while (!open.isEmpty()) {
+                int current = open.poll();
+                if (current == goal) {
+                    return layeredPath(grid, scratch.cameFrom(), cells, current, start, from, fromFloor, to,
+                            clearance, true);
+                }
+                int floor = current / cells;
+                int cell = current % cells;
+                if (scratch.closed(current)) {
                     continue;
                 }
-                boolean diagonal = step[0] != 0 && step[1] != 0;
-                int cost = g[floor][cell] + (diagonal ? DIAGONAL_COST : ORTHOGONAL_COST);
-                boolean along = floor == 0
-                        ? canTake(grid, cx, cy, step, clearance)
-                        : grid.walks(floor, cx, cy, nx, ny) && (!diagonal
-                                || grid.walks(floor, cx, cy, nx, cy) || grid.walks(floor, cx, cy, cx, ny));
-                if (along) {
-                    relax(g, f, came, closed, open, floor, nx, ny, cells, width, cost, current, goalX, goalY);
+                if (tally != null) {
+                    tally.cells++;
                 }
-                // Onto another floor: a deck from the ground at its entry, the ground from a deck's end.
-                if (floor != 0) {
-                    if (grid.enters(floor, 0, cx, cy, nx, ny) && fits(grid, nx, ny, clearance)) {
-                        relax(g, f, came, closed, open, 0, nx, ny, cells, width, cost, current, goalX, goalY);
+                scratch.close(current);
+                int cx = cell % width;
+                int cy = cell / width;
+                long away = away(cx, cy, goalX, goalY);
+                if (away < nearestAway || away == nearestAway && current < nearest) {
+                    nearest = current;
+                    nearestAway = away;
+                }
+                for (var step : NEIGHBOURS) {
+                    int nx = cx + step[0];
+                    int ny = cy + step[1];
+                    if (!grid.inBounds(nx, ny)) {
+                        continue;
                     }
-                    continue;
-                }
-                for (var deck : grid.decks()) {
-                    if (grid.enters(0, deck.floor(), cx, cy, nx, ny)) {
-                        relax(g, f, came, closed, open, deck.floor(), nx, ny, cells, width, cost, current, goalX,
-                                goalY);
+                    boolean diagonal = step[0] != 0 && step[1] != 0;
+                    int cost = scratch.g(current) + (diagonal ? DIAGONAL_COST : ORTHOGONAL_COST);
+                    boolean along = floor == 0
+                            ? canTake(grid, cx, cy, step, clearance)
+                            : grid.walks(floor, cx, cy, nx, ny) && (!diagonal
+                                    || grid.walks(floor, cx, cy, nx, cy) || grid.walks(floor, cx, cy, cx, ny));
+                    if (along) {
+                        relax(scratch, floor, nx, ny, cells, width, cost, current, goalX, goalY);
+                    }
+                    // Onto another floor: a deck from the ground at its entry, the ground from a deck's end.
+                    if (floor != 0) {
+                        if (grid.enters(floor, 0, cx, cy, nx, ny) && fits(grid, nx, ny, clearance)) {
+                            relax(scratch, 0, nx, ny, cells, width, cost, current, goalX, goalY);
+                        }
+                        continue;
+                    }
+                    for (var deck : grid.decks()) {
+                        if (grid.enters(0, deck.floor(), cx, cy, nx, ny)) {
+                            relax(scratch, deck.floor(), nx, ny, cells, width, cost, current, goalX, goalY);
+                        }
                     }
                 }
             }
+            if (nearest == start) {
+                return Path.partial(List.of());
+            }
+            int at = nearest % cells;
+            var there = grid.cellCenter(at % width, at / width);
+            var there3 = new Coord3D(there.x(), there.y(), grid.heightOn(nearest / cells, there));
+            return layeredPath(grid, scratch.cameFrom(), cells, nearest, start, from, fromFloor, there3, clearance,
+                    false);
+        } finally {
+            scratch.release();
         }
-        if (nearest == start) {
-            return Path.partial(List.of());
-        }
-        int at = nearest % cells;
-        var there = grid.cellCenter(at % width, at / width);
-        var there3 = new Coord3D(there.x(), there.y(), grid.heightOn(nearest / cells, there));
-        return layeredPath(grid, came, cells, nearest, start, from, fromFloor, there3, clearance, false);
     }
 
     /** A step onto (floor, cell) at {@code cost}: kept where it is the cheapest way there yet. */
-    private static void relax(int[][] g, int[][] f, int[][] came, boolean[][] closed, PriorityQueue<Integer> open,
-            int onto, int nx, int ny, int cells, int width, int cost, int current, int goalX, int goalY) {
-        touch(g, f, came, closed, onto, cells);
-        int next = ny * width + nx;
-        if (closed[onto][next] || cost >= g[onto][next]) {
+    private static void relax(Scratch scratch, int onto, int nx, int ny, int cells, int width, int cost, int current,
+            int goalX, int goalY) {
+        int next = onto * cells + ny * width + nx;
+        if (scratch.closed(next) || cost >= scratch.g(next)) {
             return;
         }
-        came[onto][next] = current;
-        g[onto][next] = cost;
-        f[onto][next] = cost + heuristic(nx, ny, goalX, goalY);
-        open.add(onto * cells + next);
-    }
-
-    private static void touch(int[][] g, int[][] f, int[][] came, boolean[][] closed, int floor, int cells) {
-        if (g[floor] == null) {
-            g[floor] = new int[cells];
-            f[floor] = new int[cells];
-            came[floor] = new int[cells];
-            closed[floor] = new boolean[cells];
-            Arrays.fill(g[floor], Integer.MAX_VALUE);
-            Arrays.fill(came[floor], -1);
-        }
+        scratch.set(next, cost, cost + heuristic(nx, ny, goalX, goalY), current);
+        scratch.open.add(next);
     }
 
     /**
      * The route the search found, as waypoints at the height of each one's floor, straightened a floor at a time: a
      * step onto another floor is kept, where it is, since the line past it crosses from one floor to another.
      */
-    private static Path layeredPath(PathGrid grid, int[][] came, int cells, int goal, int start, Coord3D from,
+    private static Path layeredPath(PathGrid grid, int[] came, int cells, int goal, int start, Coord3D from,
             int fromFloor, Coord3D to, float clearance, boolean reaches) {
         int width = grid.getWidth();
         var nodes = new ArrayList<Integer>();
-        for (int node = goal; node != -1 && node != start; node = came[node / cells][node % cells]) {
+        for (int node = goal; node != -1 && node != start; node = came[node]) {
             nodes.add(node);
         }
         Collections.reverse(nodes);
@@ -915,71 +969,61 @@ public final class Pathfinder {
         }
 
         int width = grid.getWidth();
-        int cellCount = width * grid.getHeight();
-        int[] gScore = new int[cellCount];
-        int[] fScore = new int[cellCount];
-        int[] cameFrom = new int[cellCount];
-        boolean[] closed = new boolean[cellCount];
-        Arrays.fill(gScore, Integer.MAX_VALUE);
-        Arrays.fill(cameFrom, -1);
+        var scratch = Scratch.take(width * grid.getHeight());
+        try {
+            int startIndex = grid.index(startX, startY);
+            int goalIndex = grid.index(goalX, goalY);
+            scratch.set(startIndex, 0, heuristic(startX, startY, goalX, goalY), -1);
+            var open = scratch.open;
+            open.add(startIndex);
 
-        int startIndex = grid.index(startX, startY);
-        int goalIndex = grid.index(goalX, goalY);
-        gScore[startIndex] = 0;
-        fScore[startIndex] = heuristic(startX, startY, goalX, goalY);
-
-        var open = new PriorityQueue<Integer>((a, b) -> {
-            int byF = Integer.compare(fScore[a], fScore[b]);
-            return byF != 0 ? byF : Integer.compare(a, b); // deterministic tie-break
-        });
-        open.add(startIndex);
-
-        int nearest = startIndex;
-        long nearestAway = away(startX, startY, goalX, goalY);
-        while (!open.isEmpty()) {
-            int current = open.poll();
-            if (current == goalIndex) {
-                if (cellsChosen != null) {
-                    for (int cell = current; cell != -1 && cell != startIndex; cell = cameFrom[cell]) {
-                        cellsChosen.addFirst(cell);
+            int nearest = startIndex;
+            long nearestAway = away(startX, startY, goalX, goalY);
+            while (!open.isEmpty()) {
+                int current = open.poll();
+                if (current == goalIndex) {
+                    if (cellsChosen != null) {
+                        for (int cell = current; cell != -1 && cell != startIndex; cell = scratch.came(cell)) {
+                            cellsChosen.addFirst(cell);
+                        }
                     }
+                    return reconstruct(grid, scratch.cameFrom(), current, startIndex, from, to, clearance, traffic);
                 }
-                return reconstruct(grid, cameFrom, current, startIndex, from, to, clearance, traffic);
-            }
-            if (closed[current]) {
-                continue; // stale entry from a superseded g-score
-            }
-            if (tally != null) {
-                tally.cells++;
-            }
-            closed[current] = true;
+                if (scratch.closed(current)) {
+                    continue; // stale entry from a superseded g-score
+                }
+                if (tally != null) {
+                    tally.cells++;
+                }
+                scratch.close(current);
 
-            int cx = current % width;
-            int cy = current / width;
-            long away = away(cx, cy, goalX, goalY);
-            if (away < nearestAway || away == nearestAway && (gScore[current] < gScore[nearest]
-                    || gScore[current] == gScore[nearest] && current < nearest)) {
-                nearest = current;
-                nearestAway = away;
+                int cx = current % width;
+                int cy = current / width;
+                long away = away(cx, cy, goalX, goalY);
+                if (away < nearestAway || away == nearestAway && (scratch.g(current) < scratch.g(nearest)
+                        || scratch.g(current) == scratch.g(nearest) && current < nearest)) {
+                    nearest = current;
+                    nearestAway = away;
+                }
+                for (var step : NEIGHBOURS) {
+                    expand(grid, scratch, cx, cy, step[0], step[1], goalX, goalY, clearance, traffic);
+                }
             }
-            for (var step : NEIGHBOURS) {
-                expand(grid, gScore, fScore, cameFrom, closed, open,
-                        cx, cy, step[0], step[1], goalX, goalY, clearance, traffic);
+            if (!orNearest) {
+                return Path.EMPTY;
             }
+            if (nearest == startIndex) {
+                return Path.partial(List.of()); // nowhere nearer than where it stands
+            }
+            var there = grid.cellCenter(nearest % width, nearest / width);
+            return Path.partial(reconstruct(grid, scratch.cameFrom(), nearest, startIndex, from, there, clearance,
+                    traffic).getWaypoints());
+        } finally {
+            scratch.release();
         }
-        if (!orNearest) {
-            return Path.EMPTY;
-        }
-        if (nearest == startIndex) {
-            return Path.partial(List.of()); // nowhere nearer than where it stands
-        }
-        var there = grid.cellCenter(nearest % width, nearest / width);
-        return Path.partial(reconstruct(grid, cameFrom, nearest, startIndex, from, there, clearance, traffic)
-                .getWaypoints());
     }
 
-    private static void expand(PathGrid grid, int[] gScore, int[] fScore, int[] cameFrom,
-            boolean[] closed, PriorityQueue<Integer> open,
+    private static void expand(PathGrid grid, Scratch scratch,
             int cx, int cy, int dx, int dy, int goalX, int goalY, float clearance, Traffic traffic) {
         int nx = cx + dx;
         int ny = cy + dy;
@@ -992,12 +1036,12 @@ public final class Pathfinder {
         }
 
         int neighbour = grid.index(nx, ny);
-        if (closed[neighbour]) {
+        if (scratch.closed(neighbour)) {
             return;
         }
         int here = grid.index(cx, cy);
-        int tentative = gScore[here] + (diagonal ? DIAGONAL_COST : ORTHOGONAL_COST) + turnCost(grid, cameFrom[here],
-                cx, cy, dx, dy);
+        int tentative = scratch.g(here) + (diagonal ? DIAGONAL_COST : ORTHOGONAL_COST)
+                + turnCost(grid, scratch.came(here), cx, cy, dx, dy);
         if (traffic != null) {
             int extra = traffic.costOf(nx, ny);
             if (extra == Traffic.CLOSED) {
@@ -1005,13 +1049,11 @@ public final class Pathfinder {
             }
             tentative += extra;
         }
-        if (tentative >= gScore[neighbour]) {
+        if (tentative >= scratch.g(neighbour)) {
             return;
         }
-        cameFrom[neighbour] = grid.index(cx, cy);
-        gScore[neighbour] = tentative;
-        fScore[neighbour] = tentative + heuristic(nx, ny, goalX, goalY);
-        open.add(neighbour);
+        scratch.set(neighbour, tentative, tentative + heuristic(nx, ny, goalX, goalY), here);
+        scratch.open.add(neighbour);
     }
 
     /**
