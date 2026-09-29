@@ -3,7 +3,8 @@ package uz.dukeengine.core.map;
 /**
  * A map walked on a finer grid than it is drawn: {@link #navigationCellsPerCell} cells a side for each of its own, so a
  * body goes between two trees where their trunks leave it room, while it is still drawn a tile to a cell and every rule
- * counted in cells is counted in its own — see {@code GameLogic.setPathGrid(grid, cellsPerCell)}.
+ * counted in cells is counted in its own — see {@code GameLogic.setPathGrid(grid, cellsPerCell)}. Its round still
+ * things are kept off by their true distance, as its scenery is, and close no cell.
  *
  * <p>Read by the simulation, and every machine reads it from the same map.
  */

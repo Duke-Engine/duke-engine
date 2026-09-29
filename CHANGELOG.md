@@ -56,7 +56,7 @@ tint, and a footprint. Each piece is laid with the ground under it — gathered 
 relief, left out by the fog with its ground — in the materials its model came with, and it is no thing of the
 simulation's: nothing a frame, on no minimap, in no snapshot. A piece with a footprint stands in the way: a route keeps
 a body clear of it by its true distance, in the cells it walks and the line it is pulled straight along
-(`PathGrid.clearOfScenery`), and a ground mover's step goes no deeper into it than it already stands
+(`PathGrid.clearOfCircles`), and a ground mover's step goes no deeper into it than it already stands
 (`GameLogic.setSceneryFootprints`, which `DukeGame.applyMapTerrain` feeds from the map, and
 `World.sceneryInTheWay`). It closes no cell, so a body goes between two trunks wherever it fits between them.
 
@@ -68,7 +68,10 @@ leave it room, while the map is drawn a tile to a cell as before. Every rule cou
 group's shared route — is still counted in the map's (`World.cellSize`), and so are the search budget, the searches
 for a band, a way out of stone and a place to stand, and the most a mover's cells reach: a frame searches as much
 ground as it did. How high the ground stands, the relief and its cliffs are answered at the map's own cells
-(`PathGrid.subdivided`), so slopes and stairs stand where they stood. `GameLogic.setPathGrid(grid, k)` is the same
+(`PathGrid.subdivided`), so slopes and stairs stand where they stood. Its round still things — a cylinder's or a
+sphere's footprint, the fountain and the pillar — are kept off by their true distance as its scenery is and close no
+cell (`PathGrid.setObstacleCircle`), so a hero goes between two where he fits and comes up to one as near as his own
+outline; a box still closes the cells it covers, and a step into any of them is refused by its shape as before. `GameLogic.setPathGrid(grid, k)` is the same
 from code; the logic's `getPathGrid()` is the grid walked, `DukeGame.getTerrain()` the one drawn. A map that is not
 `Subdivided` is walked on its own cells, to the bit as before.
 

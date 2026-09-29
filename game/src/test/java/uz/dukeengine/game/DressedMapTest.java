@@ -55,8 +55,8 @@ class DressedMapTest {
         assertTrue(path.getWaypoints().stream().anyMatch(way -> Math.abs(way.y() - 105f) > 15f),
                 "round the boulder standing 1.2 cells about the middle of cell 10, 10");
         assertFalse(logic.getPathGrid().isBlocked(10, 10), "closing no cell: kept clear by its true distance");
-        assertFalse(logic.getPathGrid().clearOfScenery(105f, 105f, 0f), "12 units round its middle");
-        assertTrue(logic.getPathGrid().clearOfScenery(35f, 35f, 4f), "the grass stands in nobody's way");
+        assertFalse(logic.getPathGrid().clearOfCircles(105f, 105f, 0f), "12 units round its middle");
+        assertTrue(logic.getPathGrid().clearOfCircles(35f, 35f, 4f), "the grass stands in nobody's way");
     }
 
     @Test
@@ -71,7 +71,7 @@ class DressedMapTest {
         assertEquals(40, logic.getPathGrid().getWidth(), "walked on cells of 5");
         assertEquals(10f, logic.cellSize(), "and every rule counted in the map's cells of 10");
         assertSame(drawn, game.getTerrain(), "drawn a tile to a cell");
-        assertFalse(logic.getPathGrid().clearOfScenery(106f, 105f, 0f), "the trunk 1.5 round its middle");
-        assertTrue(logic.getPathGrid().clearOfScenery(105f, 112f, 5f), "a knight beside it");
+        assertFalse(logic.getPathGrid().clearOfCircles(106f, 105f, 0f), "the trunk 1.5 round its middle");
+        assertTrue(logic.getPathGrid().clearOfCircles(105f, 112f, 5f), "a knight beside it");
     }
 }

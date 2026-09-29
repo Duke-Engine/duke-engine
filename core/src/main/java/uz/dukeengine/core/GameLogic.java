@@ -853,7 +853,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     /**
      * The scenery that stands in the way on the ground: pieces a map placed for their look — trees, boulders — that are
      * no things of the simulation's, each a circle in world units. None closes a cell: a route keeps a body clear of
-     * each by its true distance ({@link PathGrid#clearOfScenery}), and a ground mover's step goes no deeper into one
+     * each by its true distance ({@link PathGrid#clearOfCircles}), and a ground mover's step goes no deeper into one
      * than it already stands, more than a touch — so a body goes between two trunks where it fits between them. Set
      * with the map it belongs to, which every machine lays alike.
      */
@@ -923,6 +923,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         pathGrid.beginObstacles();
         float cellSize = pathGrid.getCellSize();
         float halfCell = cellSize * 0.5f;
+        boolean finer = pathGrid.cellsPerMapCell() > 1;
         for (var object : objects) {
             var shape = Solid.of(object.getTemplate());
             if (object.isMobile() || shape.isPoint() || object.isEffectivelyDead() || object.isContained()
@@ -935,6 +936,13 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                 continue;
             }
             var ground = laidBy(object); // a class it lays over its footprint instead of blocking it, or none
+            if (ground == null && finer && round(shape)) {
+                // Walked finer, a round thing is kept off by its true distance, as scenery is, and closes no cell: a
+                // body goes between two where it fits, and comes up to one as near as its own outline.
+                var at = object.getPosition();
+                pathGrid.setObstacleCircle(at.x(), at.y(), shape.footprintRadius());
+                continue;
+            }
             var footprint = Footprint.of(object);
             var position = object.getPosition();
             float reach = shape.footprintRadius() + halfCell;
@@ -956,6 +964,13 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             }
         }
         pathGrid.commitObstacles();
+    }
+
+    private static boolean round(Geometry shape) {
+        return switch (shape) {
+            case Geometry.Cylinder _, Geometry.Sphere _ -> true;
+            case Geometry.Box _ -> false;
+        };
     }
 
     /** What of the still things is in the way of a route — see {@link ObstacleRules}. */

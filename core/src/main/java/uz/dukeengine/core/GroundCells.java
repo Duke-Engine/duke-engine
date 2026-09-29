@@ -291,9 +291,9 @@ final class GroundCells {
                 }
             }
         }
-        // Scenery closes no cell, so a block is kept clear of it by where the mover would stand.
+        // Scenery and round still things close no cell: a block is kept clear of them by where the mover would stand.
         var standing = block.point(grid.getCellSize(), 0f);
-        return grid.clearOfScenery(standing.x(), standing.y(), Solid.of(mover.getTemplate()).footprintRadius());
+        return grid.clearOfCircles(standing.x(), standing.y(), Solid.of(mover.getTemplate()).footprintRadius());
     }
 
     /** Whether {@code mover} can walk to the block, as the grid's zones say; a mover standing in stone can go anywhere. */

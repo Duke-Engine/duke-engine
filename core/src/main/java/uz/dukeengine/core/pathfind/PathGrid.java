@@ -105,11 +105,11 @@ public final class PathGrid {
     private PathGrid coarse;
     /** How many of its cells a side stand in one of the map's: 1 for a grid of the map's own cells. */
     private int perMapCell = 1;
-    /** The scenery standing in the way, cell by cell of where its middle is — see {@link #setSceneryFootprints}. */
-    private SceneryFootprint[] sceneryPieces = new SceneryFootprint[0];
-    /** Where each cell's pieces start in {@link #sceneryPieces}, and one past the last cell's end; null for none. */
-    private int[] sceneryStart;
-    private float widestScenery;
+    /** The scenery standing in the way — see {@link #setSceneryFootprints}. */
+    private Circles scenery = Circles.NONE;
+    /** The round still things standing in the way, where they close no cell — see {@link #setObstacleCircle}. */
+    private Circles stillCircles = Circles.NONE;
+    private final java.util.List<SceneryFootprint> circlesScratch = new java.util.ArrayList<>();
 
     public PathGrid(int width, int height) {
         this(width, height, DEFAULT_CELL_SIZE);
@@ -223,64 +223,20 @@ public final class PathGrid {
     /**
      * The scenery standing in the way: circles on the ground, in world units, that are no things of anyone's — see
      * {@code GameLogic.setSceneryFootprints}. They close no cell: a body is kept clear of each by its true distance, in
-     * a route's cells and in the line it is pulled straight along ({@link #clearOfScenery}), so a body goes between two
+     * a route's cells and in the line it is pulled straight along ({@link #clearOfCircles}), so a body goes between two
      * trunks the moment it fits between them.
      */
     public void setSceneryFootprints(java.util.List<SceneryFootprint> footprints) {
-        var grid = root();
-        var pieces = footprints == null ? java.util.List.<SceneryFootprint>of() : footprints;
-        int cells = width * height;
-        int[] start = new int[cells + 1];
-        int[] cellOf = new int[pieces.size()];
-        float widest = 0f;
-        for (int i = 0; i < pieces.size(); i++) {
-            var piece = pieces.get(i);
-            // One just off the map is kept at its edge, where what it reaches of the map is looked for.
-            int cx = Math.clamp((long) Math.floor(piece.x() / cellSize), 0, width - 1);
-            int cy = Math.clamp((long) Math.floor(piece.y() / cellSize), 0, height - 1);
-            cellOf[i] = cy * width + cx;
-            start[cellOf[i] + 1]++;
-            widest = Math.max(widest, piece.radius());
-        }
-        for (int c = 0; c < cells; c++) {
-            start[c + 1] += start[c];
-        }
-        var byCell = new SceneryFootprint[pieces.size()];
-        int[] next = java.util.Arrays.copyOf(start, cells);
-        for (int i = 0; i < pieces.size(); i++) {
-            byCell[next[cellOf[i]]++] = pieces.get(i);
-        }
-        grid.sceneryPieces = byCell;
-        grid.sceneryStart = pieces.isEmpty() ? null : start;
-        grid.widestScenery = widest;
+        root().scenery = Circles.of(footprints == null ? java.util.List.of() : footprints, width, height, cellSize);
     }
 
-    /** Whether a body of {@code clearance} radius standing at ({@code x}, {@code y}) is clear of all the scenery. */
-    public boolean clearOfScenery(float x, float y, float clearance) {
+    /**
+     * Whether a body of {@code clearance} radius standing at ({@code x}, {@code y}) is clear of every circle standing
+     * in the way: the scenery, and the round still things that close no cell ({@link #setObstacleCircle}).
+     */
+    public boolean clearOfCircles(float x, float y, float clearance) {
         var grid = root();
-        int[] start = grid.sceneryStart;
-        if (start == null) {
-            return true;
-        }
-        float far = clearance + grid.widestScenery;
-        int minX = Math.max(0, (int) Math.floor((x - far) / cellSize));
-        int maxX = Math.min(width - 1, (int) Math.floor((x + far) / cellSize));
-        int minY = Math.max(0, (int) Math.floor((y - far) / cellSize));
-        int maxY = Math.min(height - 1, (int) Math.floor((y + far) / cellSize));
-        for (int cy = minY; cy <= maxY; cy++) {
-            for (int cell = cy * width + minX, last = cy * width + maxX; cell <= last; cell++) {
-                for (int i = start[cell]; i < start[cell + 1]; i++) {
-                    var piece = grid.sceneryPieces[i];
-                    float dx = x - piece.x();
-                    float dy = y - piece.y();
-                    float room = piece.radius() + clearance;
-                    if (dx * dx + dy * dy < room * room) {
-                        return false;
-                    }
-                }
-            }
-        }
-        return true;
+        return grid.scenery.clear(x, y, clearance) && grid.stillCircles.clear(x, y, clearance);
     }
 
     /**
@@ -288,26 +244,109 @@ public final class PathGrid {
      * {@code y}) is one {@code test} takes.
      */
     public boolean anySceneryNear(float x, float y, float reach, java.util.function.Predicate<SceneryFootprint> test) {
-        var grid = root();
-        int[] start = grid.sceneryStart;
-        if (start == null) {
-            return false;
+        return root().scenery.any(x, y, reach, test);
+    }
+
+    /** Circles on the ground in world units, by the cell of a grid each one's middle stands in. */
+    private static final class Circles {
+
+        static final Circles NONE = new Circles(java.util.List.of(), new SceneryFootprint[0], null, 0f, 1, 1, 1f);
+
+        final java.util.List<SceneryFootprint> list;
+        /** The circles cell by cell, and where each cell's start, one past the last cell's end; null for none. */
+        private final SceneryFootprint[] byCell;
+        private final int[] start;
+        private final float widest;
+        private final int width;
+        private final int height;
+        private final float cellSize;
+
+        private Circles(java.util.List<SceneryFootprint> list, SceneryFootprint[] byCell, int[] start, float widest,
+                        int width, int height, float cellSize) {
+            this.list = list;
+            this.byCell = byCell;
+            this.start = start;
+            this.widest = widest;
+            this.width = width;
+            this.height = height;
+            this.cellSize = cellSize;
         }
-        float far = reach + grid.widestScenery;
-        int minX = Math.max(0, (int) Math.floor((x - far) / cellSize));
-        int maxX = Math.min(width - 1, (int) Math.floor((x + far) / cellSize));
-        int minY = Math.max(0, (int) Math.floor((y - far) / cellSize));
-        int maxY = Math.min(height - 1, (int) Math.floor((y + far) / cellSize));
-        for (int cy = minY; cy <= maxY; cy++) {
-            for (int cell = cy * width + minX, last = cy * width + maxX; cell <= last; cell++) {
-                for (int i = start[cell]; i < start[cell + 1]; i++) {
-                    if (test.test(grid.sceneryPieces[i])) {
-                        return true;
+
+        static Circles of(java.util.List<SceneryFootprint> circles, int width, int height, float cellSize) {
+            if (circles.isEmpty()) {
+                return NONE;
+            }
+            int cells = width * height;
+            int[] start = new int[cells + 1];
+            int[] cellOf = new int[circles.size()];
+            float widest = 0f;
+            for (int i = 0; i < circles.size(); i++) {
+                var circle = circles.get(i);
+                // One just off the map is kept at its edge, where what it reaches of the map is looked for.
+                int cx = Math.clamp((long) Math.floor(circle.x() / cellSize), 0, width - 1);
+                int cy = Math.clamp((long) Math.floor(circle.y() / cellSize), 0, height - 1);
+                cellOf[i] = cy * width + cx;
+                start[cellOf[i] + 1]++;
+                widest = Math.max(widest, circle.radius());
+            }
+            for (int c = 0; c < cells; c++) {
+                start[c + 1] += start[c];
+            }
+            var byCell = new SceneryFootprint[circles.size()];
+            int[] next = java.util.Arrays.copyOf(start, cells);
+            for (int i = 0; i < circles.size(); i++) {
+                byCell[next[cellOf[i]]++] = circles.get(i);
+            }
+            return new Circles(java.util.List.copyOf(circles), byCell, start, widest, width, height, cellSize);
+        }
+
+        /** Whether a body of {@code clearance} radius standing at ({@code x}, {@code y}) is clear of all of them. */
+        boolean clear(float x, float y, float clearance) {
+            if (start == null) {
+                return true;
+            }
+            float far = clearance + widest;
+            int minX = Math.max(0, (int) Math.floor((x - far) / cellSize));
+            int maxX = Math.min(width - 1, (int) Math.floor((x + far) / cellSize));
+            int minY = Math.max(0, (int) Math.floor((y - far) / cellSize));
+            int maxY = Math.min(height - 1, (int) Math.floor((y + far) / cellSize));
+            for (int cy = minY; cy <= maxY; cy++) {
+                for (int cell = cy * width + minX, last = cy * width + maxX; cell <= last; cell++) {
+                    for (int i = start[cell]; i < start[cell + 1]; i++) {
+                        var circle = byCell[i];
+                        float dx = x - circle.x();
+                        float dy = y - circle.y();
+                        float room = circle.radius() + clearance;
+                        if (dx * dx + dy * dy < room * room) {
+                            return false;
+                        }
                     }
                 }
             }
+            return true;
         }
-        return false;
+
+        /** Whether any whose middle stands within {@code reach} plus the widest of them is one {@code test} takes. */
+        boolean any(float x, float y, float reach, java.util.function.Predicate<SceneryFootprint> test) {
+            if (start == null) {
+                return false;
+            }
+            float far = reach + widest;
+            int minX = Math.max(0, (int) Math.floor((x - far) / cellSize));
+            int maxX = Math.min(width - 1, (int) Math.floor((x + far) / cellSize));
+            int minY = Math.max(0, (int) Math.floor((y - far) / cellSize));
+            int maxY = Math.min(height - 1, (int) Math.floor((y + far) / cellSize));
+            for (int cy = minY; cy <= maxY; cy++) {
+                for (int cell = cy * width + minX, last = cy * width + maxX; cell <= last; cell++) {
+                    for (int i = start[cell]; i < start[cell + 1]; i++) {
+                        if (test.test(byCell[i])) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
     }
 
     // ---- classes of ground ----
@@ -478,6 +517,7 @@ public final class PathGrid {
     public void beginObstacles() {
         java.util.Arrays.fill(obstacleScratch, false);
         java.util.Arrays.fill(laidScratch, (byte) 0);
+        circlesScratch.clear();
     }
 
     /** Mark a cell as occupied. Only meaningful between begin and commit. */
@@ -485,6 +525,14 @@ public final class PathGrid {
         if (inBounds(cx, cy)) {
             obstacleScratch[cy * width + cx] = true;
         }
+    }
+
+    /**
+     * A round still thing in the way that closes no cell, kept off by its true distance as scenery is ({@link
+     * #clearOfCircles}). Only meaningful between begin and commit.
+     */
+    public void setObstacleCircle(float x, float y, float radius) {
+        circlesScratch.add(new SceneryFootprint(x, y, radius));
     }
 
     /**
@@ -497,13 +545,21 @@ public final class PathGrid {
      * rebuild keeps everything that watches for changes quiet.
      */
     public void commitObstacles() {
-        if (java.util.Arrays.equals(obstacle, obstacleScratch) && java.util.Arrays.equals(laid, laidScratch)) {
+        boolean sameCells = java.util.Arrays.equals(obstacle, obstacleScratch)
+                && java.util.Arrays.equals(laid, laidScratch);
+        boolean sameCircles = circlesScratch.equals(stillCircles.list);
+        if (sameCells && sameCircles) {
             return;
         }
-        System.arraycopy(obstacleScratch, 0, obstacle, 0, obstacle.length);
-        System.arraycopy(laidScratch, 0, laid, 0, laid.length);
+        if (!sameCells) {
+            System.arraycopy(obstacleScratch, 0, obstacle, 0, obstacle.length);
+            System.arraycopy(laidScratch, 0, laid, 0, laid.length);
+            shapeVersion++; // what the zones are made of; a circle is none of it
+        }
+        if (!sameCircles) {
+            stillCircles = Circles.of(circlesScratch, width, height, cellSize);
+        }
         obstacleVersion++;
-        shapeVersion++;
     }
 
     /**
