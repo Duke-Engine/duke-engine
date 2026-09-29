@@ -2428,6 +2428,9 @@ final class DukeRtsApp extends SimpleApplication {
 
     // ---- settings ----
 
+    /** The anti-aliasing a player may choose: none, or that many samples a pixel. */
+    private static final int[] SAMPLES = {0, 2, 4};
+
     private void showSettingsMenu(Screen returnTo) {
         settingsReturn = returnTo;
         screen = Screen.SETTINGS;
@@ -2450,6 +2453,10 @@ final class DukeRtsApp extends SimpleApplication {
                     preferences.set("height", sizes.get(to).height());
                     applyDisplaySettings();
                 }));
+        // Taken by the window only as it is made, so it is kept for the next launch and said so below.
+        rows.add(new StoneMenu.Choice("Anti-aliasing", java.util.List.of("OFF", "2×", "4×"),
+                () -> indexOf(SAMPLES, preferences.number("samples", 0)),
+                to -> preferences.set("samples", SAMPLES[to])));
         rows.add(volumeRow("Volume", "volume", 100));
         // Only offered by a game that has any: this client draws three others and
         // a knob for a channel with nothing on it is a dead button.
@@ -2477,7 +2484,8 @@ final class DukeRtsApp extends SimpleApplication {
             preferences.save();
             menu.refresh();
         }, "Cancel", this::undoSettings,
-                preferences.dirty() ? "unsaved changes" : ""));
+                preferences.number("samples", 0) != settings.getSamples() ? "anti-aliasing from the next launch"
+                        : preferences.dirty() ? "unsaved changes" : ""));
         menu.show("SETTINGS", "", rows,
                 "UP DOWN choose    LEFT RIGHT change    ESC back", "",
                 settingsReturn == Screen.PAUSED);
@@ -2739,19 +2747,21 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * Remember the chosen resolution for the next launch.
+     * The chosen resolution, applied to the window as it is chosen and kept for the next launch.
      *
-     * <p>It is not applied to the window that is open, and that is the honest
-     * thing rather than a shortcut: a window that changes size takes the HUD with
-     * it — see {@link #fillTheScreen} — so a resolution applied live would leave
-     * the player looking at a game with no bar and no minimap. A new window is
-     * built at the right size and everything is laid out once, which is what a
-     * launch does.
+     * <p>It was once kept for the next launch alone, because a window that changed size took the HUD with it —
+     * see {@link #fillTheScreen} — and a player whose saved size was far smaller than his monitor saw a blurred
+     * picture until he restarted. Now the window takes it at once, by the same move {@link Duke3D#display} makes, and
+     * everything sized to the window is laid out again when the new size arrives ({@link #followTheWindowSize}). A size
+     * the monitor does not show leaves the window as it is.
      */
     private void applyDisplaySettings() {
-        settings.setResolution(preferences.number("width", 1280),
-                preferences.number("height", 720));
-        settings.setFullscreen(preferences.flag("fullscreen", false));
+        int width = preferences.number("width", settings.getWidth());
+        int height = preferences.number("height", settings.getHeight());
+        boolean fullscreen = preferences.flag("fullscreen", settings.isFullscreen());
+        settings.setResolution(width, height);
+        settings.setFullscreen(fullscreen);
+        resizeTheWindow(width, height, fullscreen);
         menu.refresh(); // the row says what it now is
     }
 

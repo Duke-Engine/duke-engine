@@ -7,6 +7,19 @@ when it does, this page says exactly what to change and how.
 
 Unreleased.
 
+### What to change
+
+- A game that names no window size (`Duke3D.window`) opens a new player's window at the monitor's own mode, filling
+  the screen, where it opened a 1280 × 720 window; the choice is written into his settings as if he had made it. A
+  game that names a size, and a player who chose one, open as before.
+
+### The window's size, at once
+
+The settings screen's Size is taken by the window as it is chosen — the move `Duke3D.display` makes — and put back by
+Cancel, where it waited for the next launch: a player whose saved size was far smaller than his monitor no longer
+plays a blurred picture until he restarts. An Anti-aliasing row (off, 2 or 4 samples a pixel) is kept for the next
+launch, when the window is made with it; under the sun's shadows the world is drawn through a pass that takes none.
+
 ## 0.6.0
 
 ### What to change

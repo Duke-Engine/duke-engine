@@ -33,8 +33,9 @@ public final class Duke3D {
     private final Visuals visuals;
     private Shell shell = Shell.standard();
     private Hotkeys hotkeys = Hotkeys.none();
-    private int width = 1280;
-    private int height = 720;
+    /** The game's own window size, 0 where it names none: see {@link #window}. */
+    private int width;
+    private int height;
     private Painter painter;
     private CanvasInput input;
     private java.util.function.IntConsumer loading;
@@ -70,7 +71,10 @@ public final class Duke3D {
         return this;
     }
 
-    /** The window's size for somebody who has never chosen one; what the player last chose wins. */
+    /**
+     * The window's size for somebody who has never chosen one; what the player last chose wins. A game that names
+     * none opens a new player's window at the monitor's own mode, filling the screen.
+     */
     public Duke3D window(int width, int height) {
         this.width = width;
         this.height = height;
@@ -164,6 +168,13 @@ public final class Duke3D {
 
     /** Open the window and run the game in it; blocks until the window is closed. */
     public void launch() {
+        // What the player last chose, from the file beside him — read, and a new player's window written into it,
+        // before the client reads the same file. The caller's numbers are only the answer for somebody who has never
+        // chosen.
+        var chosen = new GameSettings();
+        chosen.inheritFrom(DukeRtsApp.PREFS, "volume", "fullscreen", "volEffects",
+                "volVoice", "volMusic", "musicTrack");
+        DisplayModes.firstWindow(chosen, width, height, DisplayModes.desktop());
         // the simulation starts when the player presses Play — or at once, if the
         // game asked for no menu at all
         var client = new DukeRtsApp(game, visuals, shell, hotkeys, painter, input, loading, backdrop,
@@ -177,14 +188,10 @@ public final class Duke3D {
         }
         var settings = new AppSettings(true);
         settings.setTitle(game.getTitle());
-        // saved display settings win over the caller's defaults
-        // What the player last chose, from the file beside him. The caller's
-        // numbers are only the answer for somebody who has never chosen.
-        var chosen = new uz.dukeengine.client3d.GameSettings();
-        chosen.inheritFrom(DukeRtsApp.PREFS, "volume", "fullscreen", "volEffects",
-                "volVoice", "volMusic", "musicTrack");
-        settings.setResolution(chosen.number("width", width), chosen.number("height", height));
+        settings.setResolution(chosen.number("width", width > 0 ? width : 1280),
+                chosen.number("height", height > 0 ? height : 720));
         settings.setFullscreen(chosen.flag("fullscreen", false));
+        settings.setSamples(chosen.number("samples", 0));
         settings.setVSync(true);
         client.setSettings(settings);
         client.setShowSettings(false);
