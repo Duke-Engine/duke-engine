@@ -95,6 +95,28 @@ final class FogMap {
     }
 
     /**
+     * The dark in a new colour at once: every texel's tint rewritten, the darkness kept, and the picture sent again —
+     * the fog turning from one look's colour to the next as the camera crosses between them.
+     */
+    void recolour(com.jme3.math.ColorRGBA colour) {
+        tint(colour);
+        byte red = channel(tint.r);
+        byte green = channel(tint.g);
+        byte blue = channel(tint.b);
+        for (int texel = 0; texel < width * height; texel++) {
+            int at = texel * BYTES_PER_TEXEL;
+            texels.put(at, red).put(at + 1, green).put(at + 2, blue);
+        }
+        image.setUpdateNeeded();
+    }
+
+    /** What colour the texel's dark is, packed {@code 0xRRGGBB}. */
+    int tintAt(int texelX, int texelY) {
+        int at = (texelY * width + texelX) * BYTES_PER_TEXEL;
+        return (texels.get(at) & 0xFF) << 16 | (texels.get(at + 1) & 0xFF) << 8 | texels.get(at + 2) & 0xFF;
+    }
+
+    /**
      * Take the shape of a new map and forget the last one's dark.
      *
      * <p>The texture is built once and kept, so a material holds on to it across a run. At a fixed size it is

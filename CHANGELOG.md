@@ -37,6 +37,15 @@ the pieces stood, where it was a geometry a piece under a node a cell: a 160 × 
 place, where it copied every piece's mesh to bend it. The fog leaves a chunk out when all of it and a cell round it is
 dark, asked of the chunks near where the light moved.
 
+### Cells of different looks
+
+A map whose record is `Looked` names a look for each cell — a theme the game registered, `lookAt(cx, cy)`, null for
+the map's own — and each cell of a kit's floor is drawn from its own look's kit: its floor, its lid, what stands on its
+rock and the faces of it, each by that kit's own numbers, so looks modelled at different sizes lie side by side. A piece
+between two cells is drawn by the one it belongs to: a wall against rock, and the post in a notch, by the rock. The
+fog's colour turns to the look under the point the camera looks at, over about a second. A map that names no looks is
+laid as it always was.
+
 ### A kit's walls of several models
 
 `Tileset.wall(String...)` names several models for a kit's wall — rocks, trees, bushes — and each placement, and each

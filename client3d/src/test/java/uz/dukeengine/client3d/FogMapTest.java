@@ -139,6 +139,21 @@ class FogMapTest {
         }
     }
 
+    /** A new colour for the dark rewrites every texel's tint at once and keeps how dark each is. */
+    @Test
+    void recolouringTheDarkKeepsHowDarkEachTexelIs() {
+        var grid = MapLoader.fromText(CORRIDOR);
+        var map = fogMap(64, grid);
+        map.update(seenFrom(grid, 2.5f * CELL, 2.5f * CELL, 25f));
+        float before = map.darknessAt(3, 40);
+
+        map.recolour(new com.jme3.math.ColorRGBA(1f, 0.5f, 0f, 1f));
+
+        assertEquals(0xFF8000, map.tintAt(3, 40));
+        assertEquals(0xFF8000, map.tintAt(63, 0));
+        assertEquals(before, map.darknessAt(3, 40), 0.001f);
+    }
+
     /**
      * How wide the map is, is what a world position divides by — and it follows
      * the map rather than being fixed.

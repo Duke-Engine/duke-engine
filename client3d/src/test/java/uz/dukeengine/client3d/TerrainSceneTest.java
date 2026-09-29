@@ -1054,6 +1054,87 @@ class TerrainSceneTest {
         assertEquals(java.util.List.of(), facesOf(forestLike()));
     }
 
+    // ---- cells of different looks ----
+
+    /** A room of 20 by 10 cells, walled round, with a wall of rock down its middle at x = 10 and a gap in it. */
+    private static final String TWO_HALVES = """
+            ####################
+            #........#.........#
+            #........#.........#
+            #........#.........#
+            #..................#
+            #........#.........#
+            #........#.........#
+            #........#.........#
+            #........#.........#
+            ####################
+            """;
+
+    private static Tileset wood() {
+        return Tileset.create().floor("moss").wall("tree").tileSize(4f).wallFillsRock(true).wallHeight(0f);
+    }
+
+    private static Tileset cave() {
+        return Tileset.create().floor("stone").wall("cliff").corner("pillar").tileSize(2f);
+    }
+
+    /** Every cell west of x = 9 wears the wood, and every cell from 9 east the cave. */
+    private static Tileset[] halves(uz.dukeengine.core.pathfind.PathGrid grid) {
+        var kits = new Tileset[grid.getWidth() * grid.getHeight()];
+        for (int cell = 0; cell < kits.length; cell++) {
+            kits[cell] = cell % grid.getWidth() < 9 ? wood() : cave();
+        }
+        return kits;
+    }
+
+    private static float cellOf(com.jme3.scene.Spatial piece) {
+        return piece.getLocalTranslation().x / uz.dukeengine.core.pathfind.PathGrid.DEFAULT_CELL_SIZE;
+    }
+
+    @Test
+    void aMapWhoseCellsNameTwoLooksDrawsEachCellFromItsOwnKit() {
+        var grid = MapLoader.fromText(TWO_HALVES);
+        var root = new Node("terrain");
+        new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles())
+                .rebuild(grid, kit(), null, null, halves(grid));
+
+        assertFalse(laidOnTheGround(root, "moss").isEmpty(), "the wood's floor");
+        assertTrue(laidOnTheGround(root, "moss").stream().allMatch(piece -> cellOf(piece) < 9f));
+        assertTrue(laidOnTheGround(root, "stone").stream().allMatch(piece -> cellOf(piece) >= 9f));
+        assertTrue(pieces(root, "floor").isEmpty(), "no cell fell back to the map's own kit");
+        assertTrue(pieces(root, "tree").stream().allMatch(piece -> cellOf(piece) < 9f),
+                "the wood's trees grow on the wood's rock");
+        assertTrue(pieces(root, "cliff").stream().anyMatch(piece -> Math.abs(cellOf(piece) - 9f) < 0.01f),
+                "the wood's floor meets the cave's rock at x = 9 and the rock draws the face: a cliff");
+    }
+
+    /** Each look's pieces are laid by its own numbers: the cave's floor, modelled at 2, drawn twice the wood's. */
+    @Test
+    void eachLooksPiecesAreLaidByThatLooksOwnNumbers() {
+        var grid = MapLoader.fromText(TWO_HALVES);
+        var root = new Node("terrain");
+        new TerrainScene(root, (colour, texture) -> null, true, kit(), new StubTiles())
+                .rebuild(grid, kit(), null, null, halves(grid));
+
+        assertEquals(2.5f, laidOnTheGround(root, "moss").getFirst().getLocalScale().x, 0.001f);
+        assertEquals(5f, laidOnTheGround(root, "stone").getFirst().getLocalScale().x, 0.001f);
+    }
+
+    /** A map naming no looks, or naming none a cell, is laid as it always was; a kit that cannot build a floor too. */
+    @Test
+    void aMapNamingNoLooksIsLaidAsItAlwaysWas() {
+        var grid = MapLoader.fromText(TWO_HALVES);
+        var plain = new Node("terrain");
+        new TerrainScene(plain, (colour, texture) -> null, true, kit(), new StubTiles()).rebuild(grid);
+        var unnamed = new Node("terrain");
+        var cells = new Tileset[grid.getWidth() * grid.getHeight()];
+        cells[25] = Tileset.create().wall("tree"); // no floor: not a kit that can build one
+        new TerrainScene(unnamed, (colour, texture) -> null, true, kit(), new StubTiles())
+                .rebuild(grid, kit(), null, null, cells);
+
+        assertEquals(namedAndPlaced(plain), namedAndPlaced(unnamed));
+    }
+
     // ---- gathered into chunks ----
 
     /** A room of 40 by 20 cells, walled round: three chunks across, two deep. */

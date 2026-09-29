@@ -67,6 +67,11 @@ final class TerrainScene {
      * rebuild does is replace, and the kit is part of what it replaces.
      */
     private Tileset tileset;
+    /**
+     * The kit each cell wears where the map names looks of its own ({@code cy * width + cx}), null for none — a cell
+     * with none, or with a kit that cannot build a floor, wearing the map's.
+     */
+    private Tileset[] cellKits;
     private final Tileset defaultTileset;
     private final TileSource tiles;
 
@@ -169,6 +174,18 @@ final class TerrainScene {
 
     /** The same, the painted ground lit by its own lights, per corner — see {@link Visuals.GroundLight}. */
     void rebuild(PathGrid grid, Tileset kit, GroundPaint paint, Visuals.GroundLight groundLight) {
+        rebuild(grid, kit, paint, groundLight, null);
+    }
+
+    /**
+     * The same, each cell of a kit's floor drawn from the kit its look names ({@code cellKits}, null for none): its
+     * floor, its lid, its standing things and the faces of its rock. A piece standing between two cells is drawn by the
+     * one it belongs to — the rock's side and what grows on it by the rock, a floor and its steps by the floor — and by
+     * that kit's own numbers, so looks modelled at different sizes lie side by side.
+     */
+    void rebuild(PathGrid grid, Tileset kit, GroundPaint paint, Visuals.GroundLight groundLight,
+            Tileset[] cellKits) {
+        this.cellKits = cellKits;
         this.light = groundLight;
         this.tileset = kit != null && kit.isUsable() && tiles != null ? kit : defaultTileset;
         root.detachAllChildren();
@@ -491,10 +508,6 @@ final class TerrainScene {
         cellsWide = grid.getWidth();
         cellNodes = new Node[grid.getWidth() * grid.getHeight()];
         float cell = grid.getCellSize();
-        float floorScale = cell / tileset.getTileSize();
-        // Walls may have been modelled on a different module from the floors, and
-        // then they have their own scale — see Tileset.wallTileSize.
-        float wallScale = cell / tileset.getWallTileSize();
 
         float storey = grid.getLevelHeight();
         var plan = plan(TileLayout.of(grid), grid);
@@ -507,11 +520,12 @@ final class TerrainScene {
             }
         }
         for (var standing : plan) {
+            var kit = standing.kit();
             if (standing.piece() == TileLayout.Piece.STAIR) {
                 addStair(grid, standing, cell);
                 continue;
             }
-            String asset = assetFor(standing.piece());
+            String asset = assetFor(kit, standing.piece());
             if (asset == null) {
                 continue; // a kit without corner posts is a kit with square notches
             }
@@ -519,11 +533,15 @@ final class TerrainScene {
                 addRockFace(asset, standing, storey);
                 continue;
             }
-            int clump = standing.upright() ? tileset.getWallClump() : 1;
+            float floorScale = cell / kit.getTileSize();
+            // Walls may have been modelled on a different module from the floors, and
+            // then they have their own scale — see Tileset.wallTileSize.
+            float wallScale = cell / kit.getWallTileSize();
+            int clump = standing.upright() ? kit.getWallClump() : 1;
             for (int copy = 0; copy < clump; copy++) {
                 addKitPiece(assetFor(standing, copy), standing, copy, clump,
                         standing.upright() ? wallScale : floorScale, wallScale, cell,
-                        tintFor(standing.piece(), standing.ground(), storey, tallest));
+                        tintFor(kit, standing.piece(), standing.ground(), storey, tallest));
             }
         }
         if (chunked) {
@@ -654,12 +672,12 @@ final class TerrainScene {
      * alone and everything under it is stepped down, which is the picture "each
      * storey up is lighter" was asking for.
      */
-    private int tintFor(TileLayout.Piece piece, float ground, float storey, int tallest) {
+    private static int tintFor(Tileset kit, TileLayout.Piece piece, float ground, float storey, int tallest) {
         float shade = storey <= 0f ? 1f
-                : (float) Math.pow(tileset.getStoreyShade(),
+                : (float) Math.pow(kit.getStoreyShade(),
                         Math.round(ground / storey) - tallest);
         return switch (piece) {
-            case CAP -> shaded(tileset.getCapTint(), shade);
+            case CAP -> shaded(kit.getCapTint(), shade);
             case FLOOR -> shaded(0xFFFFFF, shade);
             default -> shaded(0xFFFFFF, 1f);
         };
@@ -692,7 +710,7 @@ final class TerrainScene {
      * that one's does.
      */
     private void addRockFace(String asset, Standing placement, float storey) {
-        var piece = tiles.piece(asset);
+        var piece = tiles.piece(placement.kit(), asset, 0xFFFFFF);
         if (piece == null || storey <= 0f) {
             return;
         }
@@ -725,13 +743,14 @@ final class TerrainScene {
      *     against it — then it is already where it belongs, needs no nudging back
      *     off a boundary, and scatters evenly about its own point instead of
      *     behind a line
+     * @param kit the kit it is drawn from: the map's, or the one its cell's look names
      */
     private record Standing(TileLayout.Piece piece, int cellX, int cellY, float x, float z,
-            float yaw, float ground, int storeys, boolean inRock) {
+            float yaw, float ground, int storeys, boolean inRock, Tileset kit) {
 
-        static Standing facing(TileLayout.Placement of, int storeys) {
+        static Standing facing(TileLayout.Placement of, int storeys, Tileset kit) {
             return new Standing(of.piece(), of.cellX(), of.cellY(), of.x(), of.z(), of.yaw(),
-                    of.ground(), storeys, false);
+                    of.ground(), storeys, false, kit);
         }
 
         /** Whether this is a piece that stands up rather than one that lies flat. */
@@ -780,20 +799,18 @@ final class TerrainScene {
     private java.util.List<Standing> plan(java.util.List<TileLayout.Placement> layout,
             PathGrid grid) {
         var plan = new java.util.ArrayList<Standing>();
-        if (!tileset.wallFillsRock()) {
-            for (var placement : layout) {
-                plan.add(Standing.facing(placement, 1));
-            }
-            return plan;
-        }
         float cell = grid.getCellSize();
-        float proud = tileset.getWallHeight() * (cell / tileset.getWallTileSize());
         // Per piece of rock: the turn and cell of whichever face was met first — a
         // body has no facing of its own, but the cell it is filed under decides
         // when the fog hides it. Where it stands is the rock's, not the faces'.
         var bodies = new java.util.LinkedHashMap<Integer, float[]>();
         for (var placement : layout) {
-            var standing = Standing.facing(placement, 1);
+            var kit = kitOf(drawnBy(placement, grid, cell));
+            var standing = Standing.facing(placement, 1, kit);
+            if (!kit.wallFillsRock()) {
+                plan.add(standing); // masonry: the layout's faces are what it draws
+                continue;
+            }
             if (!standing.upright() || placement.piece() == TileLayout.Piece.CORNER) {
                 // A corner post plugs the notch between two walls. There is no
                 // notch in a wood, and a wall slab dropped into one would lie
@@ -808,10 +825,11 @@ final class TerrainScene {
                 // would be faced, storey by storey, for nothing.
                 continue;
             }
+            float proud = kit.getWallHeight() * (cell / kit.getWallTileSize());
             if (topOfTheRockAt(placement, grid, cell) + proud > placement.ground() + 0.001f) {
                 plan.add(new Standing(TileLayout.Piece.ROCK_FACE, placement.cellX(),
                         placement.cellY(), placement.x(), placement.z(), placement.yaw(),
-                        placement.ground(), 1, false));
+                        placement.ground(), 1, false, kit));
             }
             int rock = rockFacedBy(placement, grid, cell);
             if (rock >= 0) {
@@ -829,9 +847,49 @@ final class TerrainScene {
             int rockY = rock / grid.getWidth();
             plan.add(new Standing(TileLayout.Piece.WALL, (int) found[1], (int) found[2],
                     (rockX + 0.5f) * cell, (rockY + 0.5f) * cell,
-                    found[0], highestFloorAround(grid, rockX, rockY), 1, true));
+                    found[0], highestFloorAround(grid, rockX, rockY), 1, true, kitOf(rock)));
         }
         return plan;
+    }
+
+    /**
+     * The cell whose look draws a piece, {@code cy * width + cx}: a wall against rock by the rock — the rock decides
+     * whether it is a cliff or a wood — a corner post by the rock in its notch, and everything else by the cell it
+     * was laid for: a floor and its steps by the floor, a lid and a ledge by their own rock.
+     */
+    private static int drawnBy(TileLayout.Placement placement, PathGrid grid, float cell) {
+        int filed = placement.cellY() * grid.getWidth() + placement.cellX();
+        return switch (placement.piece()) {
+            case WALL -> {
+                int rock = rockFacedBy(placement, grid, cell);
+                yield rock >= 0 ? rock : filed;
+            }
+            case CORNER -> notchOf(placement, grid, cell, filed);
+            default -> filed;
+        };
+    }
+
+    /** The rock in a corner post's notch: the cell across the corner, or one of the two beside it, where stone. */
+    private static int notchOf(TileLayout.Placement placement, PathGrid grid, float cell, int filed) {
+        int dx = placement.x() / cell > placement.cellX() + 0.5f ? 1 : -1;
+        int dy = placement.z() / cell > placement.cellY() + 0.5f ? 1 : -1;
+        for (var step : new int[][] {{dx, dy}, {dx, 0}, {0, dy}}) {
+            int nx = placement.cellX() + step[0];
+            int ny = placement.cellY() + step[1];
+            if (grid.inBounds(nx, ny) && grid.isTerrainBlocked(nx, ny)) {
+                return ny * grid.getWidth() + nx;
+            }
+        }
+        return filed;
+    }
+
+    /** The kit a cell wears: its look's, where the map names one that can build a floor, or the map's own. */
+    private Tileset kitOf(int cell) {
+        if (cellKits != null && cell >= 0 && cell < cellKits.length && cellKits[cell] != null
+                && cellKits[cell].isUsable()) {
+            return cellKits[cell];
+        }
+        return tileset;
     }
 
     /**
@@ -888,7 +946,8 @@ final class TerrainScene {
      */
     private void addKitPiece(String asset, Standing placement, int copy, int clump,
             float pieceScale, float wallScale, float cell, int tint) {
-        var piece = tiles.piece(asset, tint);
+        var kit = placement.kit();
+        var piece = tiles.piece(kit, asset, tint);
         if (piece == null) {
             return;
         }
@@ -900,7 +959,7 @@ final class TerrainScene {
         if (clump > 1) {
             float turn = FastMath.TWO_PI
                     * (copy + steady(placement.x(), placement.z(), copy, 0)) / clump;
-            float radius = tileset.getWallSpread() * cell
+            float radius = kit.getWallSpread() * cell
                     * (0.55f + 0.45f * steady(placement.x(), placement.z(), copy, 1));
             side = radius * FastMath.sin(turn);
             // A body scatters about its own middle and stays in its cell. A face
@@ -910,8 +969,8 @@ final class TerrainScene {
                     : -(1f + FastMath.cos(turn)));
             facing = FastMath.TWO_PI * steady(placement.x(), placement.z(), copy, 2);
         }
-        if (tileset.getWallVariety() > 0f && placement.upright()) {
-            scale *= 1f + tileset.getWallVariety()
+        if (kit.getWallVariety() > 0f && placement.upright()) {
+            scale *= 1f + kit.getWallVariety()
                     * (steady(placement.x(), placement.z(), copy, 3) - 0.5f);
         }
         boolean standing = placement.upright();
@@ -929,9 +988,9 @@ final class TerrainScene {
         // A ledge stands on the roof rather than on the floor: it is the face
         // of the step between two lids, and a lid sits a wall's height up.
         float y = placement.ground() + switch (placement.piece()) {
-            case CAP -> tileset.getWallHeight() * wallScale;
-            case LEDGE -> (tileset.getWallHeight() + tileset.getWallLift()) * wallScale;
-            case WALL, CORNER -> tileset.getWallLift() * wallScale;
+            case CAP -> kit.getWallHeight() * wallScale;
+            case LEDGE -> (kit.getWallHeight() + kit.getWallLift()) * wallScale;
+            case WALL, CORNER -> kit.getWallLift() * wallScale;
             default -> -surface;
         };
         // A wall's face belongs on the boundary, and where its own kit put its
@@ -941,7 +1000,7 @@ final class TerrainScene {
         // A body standing in the rock is not on a boundary and takes none of it:
         // the shift exists to move a face off a line, and there is no line.
         float back = (standing && !placement.inRock()
-                ? tileset.getWallShift() * wallScale : 0f) + ring;
+                ? kit.getWallShift() * wallScale : 0f) + ring;
         piece.setLocalTranslation(
                 placement.x() + back * FastMath.sin(yaw) + side * FastMath.cos(yaw),
                 y,
@@ -983,8 +1042,8 @@ final class TerrainScene {
      * with its foot in the room behind.
      */
     private void addStair(PathGrid grid, Standing placement, float cell) {
-        var asset = tileset == null ? null : tileset.getStairs();
-        var piece = asset == null ? null : tiles.piece(asset);
+        var asset = placement.kit().getStairs();
+        var piece = asset == null ? null : tiles.piece(placement.kit(), asset, 0xFFFFFF);
         if (piece == null) {
             addBuiltSteps(placement, cell, grid.getLevelHeight());
             return;
@@ -1194,14 +1253,14 @@ final class TerrainScene {
      * by where it stands — the settled number that sizes and turns a clump, for a purpose of its own, so a wall of
      * rocks is the same rocks in the same places on every build and each member of a clump takes its own.
      */
-    private String assetFor(Standing standing, int copy) {
+    private static String assetFor(Standing standing, int copy) {
         var choices = switch (standing.piece()) {
-            case WALL, LEDGE -> tileset.getWalls();
-            case CORNER -> tileset.getCorners();
+            case WALL, LEDGE -> standing.kit().getWalls();
+            case CORNER -> standing.kit().getCorners();
             default -> java.util.List.<String>of();
         };
         if (choices.size() < 2) {
-            return assetFor(standing.piece());
+            return assetFor(standing.kit(), standing.piece());
         }
         return choices.get((int) (steady(standing.x(), standing.z(), copy, 4) * choices.size()));
     }
@@ -1251,20 +1310,20 @@ final class TerrainScene {
         return true;
     }
 
-    private String assetFor(TileLayout.Piece piece) {
+    private static String assetFor(Tileset kit, TileLayout.Piece piece) {
         return switch (piece) {
-            case FLOOR -> tileset.getFloor();
-            case WALL -> tileset.getWall();
-            case CORNER -> tileset.getCorner();
+            case FLOOR -> kit.getFloor();
+            case WALL -> kit.getWall();
+            case CORNER -> kit.getCorner();
             // A floor tile, laid on top of the rock rather than under the room --
             // and only where there are walls to roof. A kit with no walls has
             // nothing to see over, and its lids would float above bare ground.
-            case CAP -> tileset.getWall() == null ? null : tileset.getFloor();
-            case LEDGE -> tileset.getWall();
-            case STAIR -> tileset.getStairs();
+            case CAP -> kit.getWall() == null ? null : kit.getFloor();
+            case LEDGE -> kit.getWall();
+            case STAIR -> kit.getStairs();
             // Only a kit whose wall is a thing rather than a surface names one.
             // Masonry fills a raised block of rock with its own courses.
-            case ROCK_FACE -> tileset.getRockFace();
+            case ROCK_FACE -> kit.getRockFace();
         };
     }
 

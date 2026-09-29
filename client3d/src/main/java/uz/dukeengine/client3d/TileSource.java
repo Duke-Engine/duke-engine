@@ -37,4 +37,13 @@ interface TileSource {
     default Spatial piece(String assetPath, int packedRgb) {
         return piece(assetPath);
     }
+
+    /**
+     * The same piece dressed as {@code kit} dresses its pieces — its own tint over the colour, its own materials or
+     * one skin — for a map whose cells wear different looks, each piece drawn by its own. A source that has never heard
+     * of kits dresses it as it dresses every piece.
+     */
+    default Spatial piece(Tileset kit, String assetPath, int packedRgb) {
+        return piece(assetPath, packedRgb);
+    }
 }

@@ -3014,7 +3014,8 @@ final class DukeRtsApp extends SimpleApplication {
         if (strips != null) {
             strips.clear(); // a new world lays its own
         }
-        terrain.rebuild(builtFrom, currentKit, builtPaint, visuals.getGroundLight());
+        terrain.rebuild(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom));
+        fogTintNow = null; // a new world's dark starts in the colour of whatever the camera looks at
         if (water != null) {
             water.rebuild(game.getMapRecord() instanceof uz.dukeengine.core.map.Zoned zoned ? zoned.areas()
                     : java.util.List.of(), drawnGround(), visuals.getWater());
@@ -3034,6 +3035,92 @@ final class DukeRtsApp extends SimpleApplication {
         } else {
             discovery.reset(builtFrom);
         }
+    }
+
+    /** The look each cell of the world wears, where its map names looks of its own; null for none. */
+    private Visuals.Theme[] cellLooks;
+
+    /**
+     * The kit each cell wears where the world's map names looks of its own ({@link uz.dukeengine.core.map.Looked}),
+     * each a theme the game registered; null where it names none, so a map of one look is laid as it always was. A name
+     * the game never registered is said once and the cell wears the map's own.
+     */
+    private Tileset[] kitsOfTheCells(uz.dukeengine.core.pathfind.PathGrid grid) {
+        cellLooks = null;
+        if (grid == null || !visuals.hasThemes()
+                || !(game.getMapRecord() instanceof uz.dukeengine.core.map.Looked looked)) {
+            return null;
+        }
+        int width = grid.getWidth();
+        var looks = new Visuals.Theme[width * grid.getHeight()];
+        var kits = new Tileset[looks.length];
+        boolean any = false;
+        for (int cell = 0; cell < looks.length; cell++) {
+            var name = looked.lookAt(cell % width, cell / width);
+            if (name == null) {
+                continue;
+            }
+            var theme = visuals.getTheme(name);
+            if (theme == null) {
+                warnOnce(name, "look");
+                continue;
+            }
+            looks[cell] = theme;
+            kits[cell] = theme.getTiles();
+            any = true;
+        }
+        if (!any) {
+            return null;
+        }
+        cellLooks = looks;
+        return kits;
+    }
+
+    /** The fog's colour as drawn now, eased toward the colour of the look the camera looks at; null to start afresh. */
+    private ColorRGBA fogTintNow;
+
+    /** How fast the fog's colour turns to a new look's: most of the way in a second. */
+    private static final float FOG_TINT_TURN = 4f;
+
+    /**
+     * On a map whose cells wear looks of their own, the dark turns to the colour of the look under the point the camera
+     * looks at, over about a second — walking from a wood into a cave, the wood's dark gives way to the cave's. The
+     * picture is sent again only as the colour moves by a step it can hold.
+     */
+    private void followTheLookUnderTheCamera(float tpf) {
+        if (cellLooks == null || fogMap == null || builtFrom == null) {
+            return;
+        }
+        var view = camera.view();
+        float cell = builtFrom.getCellSize();
+        int cx = Math.clamp((int) Math.floor(view.x() / cell), 0, builtFrom.getWidth() - 1);
+        int cy = Math.clamp((int) Math.floor(view.z() / cell), 0, builtFrom.getHeight() - 1);
+        var wanted = fogTintOf(cellLooks[cy * builtFrom.getWidth() + cx]);
+        var eased = fogTintNow == null ? wanted
+                : fogTintNow.clone().interpolateLocal(wanted, 1f - (float) Math.exp(-tpf * FOG_TINT_TURN));
+        if (fogTintNow == null || packedRgb(eased) != packedRgb(fogTintNow)) {
+            fogMap.recolour(eased);
+            viewPort.setBackgroundColor(eased);
+        }
+        fogTintNow = eased;
+    }
+
+    /** The dark a look wears: its own, or the map's look's, or the game's fog's. */
+    private ColorRGBA fogTintOf(Visuals.Theme look) {
+        for (var theme : new Visuals.Theme[] {look, currentTheme}) {
+            if (theme != null && theme.getFogTint() != null) {
+                int tint = theme.getFogTint();
+                return new ColorRGBA(((tint >> 16) & 0xFF) / 255f, ((tint >> 8) & 0xFF) / 255f,
+                        (tint & 0xFF) / 255f, 1f);
+            }
+        }
+        return visuals.getFog().tintColour();
+    }
+
+    private static int packedRgb(ColorRGBA colour) {
+        return Math.round(Math.clamp(colour.r, 0f, 1f) * 255f) << 16
+                | Math.round(Math.clamp(colour.g, 0f, 1f) * 255f) << 8
+                | Math.round(Math.clamp(colour.b, 0f, 1f) * 255f);
     }
 
     /** A new world is a world with nothing burning in it yet. */
@@ -4510,6 +4597,7 @@ final class DukeRtsApp extends SimpleApplication {
         adoptTheLookTheGameNames();
         refreshWorldIfChanged(); // a new run lays out a new world; redraw it
         syncDiscovery(tpf);
+        followTheLookUnderTheCamera(tpf);
         camera.focusOnOwnUnit(snapshot.units(), game.getLocalPlayerIndex());
         updateCamera(tpf);
         game.setViewRays(worldRegion.raysThrough(cam));
@@ -7203,10 +7291,19 @@ final class DukeRtsApp extends SimpleApplication {
          */
         @Override
         public Spatial piece(String assetPath, int packedRgb) {
-            var kit = activeKit();
+            return piece(activeKit(), assetPath, packedRgb);
+        }
+
+        /**
+         * The same, dressed as {@code kit} dresses its pieces rather than as the kit in force — for a map whose cells
+         * wear looks of their own. Kept per kit's own tint and way of dressing, so two looks sharing a model share it
+         * only where they dress it alike.
+         */
+        @Override
+        public Spatial piece(Tileset kit, String assetPath, int packedRgb) {
             boolean own = kit != null && kit.keepsOwnMaterials();
             int tint = blend(kit == null ? 0xFFFFFF : kit.getTint(), packedRgb);
-            String key = assetPath + "#" + Integer.toHexString(tint);
+            String key = assetPath + "#" + Integer.toHexString(tint) + (own ? "#own" : "");
             var master = masters.get(key);
             if (master == null) {
                 try {
