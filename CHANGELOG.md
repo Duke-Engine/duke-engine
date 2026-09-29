@@ -89,7 +89,8 @@ font file (TrueType) by its whole path. Each line is baked from it at the pixel 
 design size times the bar's scale — and drawn one pixel of it to one of the screen, where a bitmap font drawn through
 the bar's scale is resampled and soft. A face is loaded once, its kerning measured once and scaled to every size it is
 baked at, so a size costs a few milliseconds and a bar rebuilt at a resize bakes nothing it already has. A bar naming
-none draws in the bitmap fonts as before, and `BitmapFontBaker`'s files are the same to the byte.
+none draws in the bitmap fonts as before, and `BitmapFontBaker`'s files are the same to the byte. The card that opens over a slot is lettered the same
+way, its name in `TitleLettering` and the rest in `Lettering`.
 
 ### Clicks and bars on a hill
 

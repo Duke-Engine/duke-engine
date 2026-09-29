@@ -76,6 +76,37 @@ class LetteringTest {
         assertNotNull(panel.minimapRect());
     }
 
+    /**
+     * The skill card over a slot is lettered as the bar is: each line drawn from the face at its own baked size and
+     * scaled back against the bar's 1.3, and the card as tall as the same card drawn at 1, its sentence measured in
+     * the design's pixels however many of its own each is.
+     */
+    @Test
+    void theSkillCardIsLetteredAsTheBarIs() {
+        var font = assets.loadFont("Interface/Fonts/Default.fnt");
+        var card = HeroPanel.Reading.parse("name=Erika|hp=5/5|skill=Q,,lock|tipName=Q,Og'ir o'q|tipAt=Q,Q"
+                + "|tipText=Q,Kamonni to'liq tortib otadi. O'q xonani kesib o'tadi, nishon qochib ulgurishi mumkin."
+                + "|tipRow=Q,Zarar,,45|tipFoot=Q,Ctrl+Q").tips().get('Q');
+        var gui = new com.jme3.scene.Node("gui");
+        var lettered = new SkillTip(assets, font, gui, PanelLook.DEFAULTS, sans, sans, 1.3f);
+        lettered.show(card, 10f, 10f, 1.3f, 2560f);
+        var plain = new SkillTip(assets, font, new com.jme3.scene.Node("gui"), PanelLook.DEFAULTS, sans, sans, 1f);
+        plain.show(card, 10f, 10f, 1f, 2560f);
+
+        int lines = 0;
+        for (var child : ((com.jme3.scene.Node) gui.getChild("tip")).getChildren()) {
+            if (child instanceof BitmapText line) {
+                lines++;
+                assertEquals(1f / 1.3f, line.getLocalScale().x, 1e-4f, "scaled back against the bar");
+                assertEquals(line.getFont().getCharSet().getRenderedSize(), line.getSize(), 1e-4f,
+                        "drawn at the size it was baked at");
+            }
+        }
+        assertTrue(lines > 10, "its name, where, sentence, foot and rows: " + lines);
+        assertEquals(plain.heightDrawn(), lettered.heightDrawn(), plain.heightDrawn() * 0.1f,
+                "its sentence measured in design pixels");
+    }
+
     /** The look with its lettering named and every other component as it was. */
     private static PanelLook lettered(PanelLook look, String lettering, String titleLettering)
             throws ReflectiveOperationException {

@@ -673,7 +673,7 @@ final class HeroPanel {
         // Beside the bar rather than inside it, and attached after, so it is drawn
         // over everything the bar is drawn under -- a card parented into the row
         // it describes would be clipped by the row.
-        tip = new SkillTip(assets, font, guiNode, this.look);
+        tip = new SkillTip(assets, font, guiNode, this.look, lettering, titleLettering, letteringScale);
         root.attachChild(slab);
         root.attachChild(contents);
         for (var block : PanelBlock.values()) {
@@ -3593,7 +3593,7 @@ final class HeroPanel {
     }
 
     /** A line's box, in the design's pixels whatever pixels the line is drawn in. */
-    private static void box(BitmapText line, float x, float y, float width, float height) {
+    static void box(BitmapText line, float x, float y, float width, float height) {
         float perDesign = 1f / line.getLocalScale().x;
         line.setBox(new Rectangle(x * perDesign, y * perDesign, width * perDesign, height * perDesign));
     }

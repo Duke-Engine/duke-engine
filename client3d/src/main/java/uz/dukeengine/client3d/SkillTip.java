@@ -77,8 +77,13 @@ final class SkillTip {
     private final BitmapText foot;
     private final List<BitmapText> labels = new ArrayList<>();
     private final List<BitmapText> values = new ArrayList<>();
+    /** The bar's lettering and the scale it is baked for — see {@link HeroPanel#letters}. */
+    private final BitmapFont font;
+    private final float letteringScale;
 
-    SkillTip(AssetManager assets, BitmapFont font, Node parent, PanelLook look) {
+    /** Its name in the bar's title lettering, the rest in its lettering; the bitmap font where the game named none. */
+    SkillTip(AssetManager assets, BitmapFont font, Node parent, PanelLook look, Lettering lettering,
+            Lettering titleLettering, float letteringScale) {
         var palette = look == null ? PanelLook.DEFAULTS : look;
         edgeColour = HeroPanel.rgb(palette.dropColour());
         faceTop = HeroPanel.rgb(palette.cardTopColour());
@@ -92,19 +97,21 @@ final class SkillTip {
         footColour = HeroPanel.rgb(palette.goldColour());
         footDeadColour = HeroPanel.rgb(palette.lockLabelColour());
         this.assets = assets;
+        this.font = font;
+        this.letteringScale = letteringScale;
         edge = plate(edgeColour);
         face = plate(faceTop);
         rule = plate(ruleColour);
         node.attachChild(edge);
         node.attachChild(face);
         node.attachChild(rule);
-        name = line(font, NAME_SIZE, nameColour, BitmapFont.Align.Left);
-        at = line(font, AT_SIZE, quietColour, BitmapFont.Align.Left);
-        blurb = line(font, BLURB_SIZE, bodyColour, BitmapFont.Align.Left);
-        foot = line(font, FOOT_SIZE, footColour, BitmapFont.Align.Left);
+        name = line(titleLettering, NAME_SIZE, nameColour, BitmapFont.Align.Left);
+        at = line(lettering, AT_SIZE, quietColour, BitmapFont.Align.Left);
+        blurb = line(lettering, BLURB_SIZE, bodyColour, BitmapFont.Align.Left);
+        foot = line(lettering, FOOT_SIZE, footColour, BitmapFont.Align.Left);
         for (int i = 0; i < MOST_ROWS; i++) {
-            labels.add(line(font, ROW_SIZE, quietColour, BitmapFont.Align.Left));
-            values.add(line(font, ROW_SIZE, valueColour, BitmapFont.Align.Right));
+            labels.add(line(lettering, ROW_SIZE, quietColour, BitmapFont.Align.Left));
+            values.add(line(lettering, ROW_SIZE, valueColour, BitmapFont.Align.Right));
         }
         this.parent = parent;
     }
@@ -181,9 +188,10 @@ final class SkillTip {
         // it, which is what an empty tooltip looks like.
         //
         // Lines times line height is the real answer and is what jME lays out.
-        blurb.setBox(new Rectangle(0f, 0f, WIDTH - PAD * 2f, 0f));
+        float perDesign = 1f / blurb.getLocalScale().x; // its own pixels to the design's: see HeroPanel.letters
+        blurb.setBox(new Rectangle(0f, 0f, (WIDTH - PAD * 2f) * perDesign, 0f));
         blurb.setText(tip.blurb());
-        float wrapped = blurb.getLineCount() * blurb.getLineHeight();
+        float wrapped = blurb.getLineCount() * blurb.getLineHeight() / perDesign;
         float blurbHeight = tip.blurb().isEmpty() ? 0f : wrapped + GAP;
 
         int rows = Math.min(tip.rows().size(), MOST_ROWS);
@@ -206,15 +214,15 @@ final class SkillTip {
         face.setLocalTranslation(0f, 0f, 1f);
 
         float top = height - PAD;
-        place(name, PAD, top - NAME_SIZE, WIDTH - PAD * 2f);
+        place(name, NAME_SIZE, PAD, top - NAME_SIZE, WIDTH - PAD * 2f);
         name.setText(tip.name());
         top -= NAME_SIZE + 1f;
-        place(at, PAD, top - AT_SIZE, WIDTH - PAD * 2f);
+        place(at, AT_SIZE, PAD, top - AT_SIZE, WIDTH - PAD * 2f);
         at.setText(tip.at());
         top -= AT_SIZE + GAP;
 
         if (blurbHeight > 0f) {
-            blurb.setBox(new Rectangle(PAD, top, WIDTH - PAD * 2f, wrapped));
+            HeroPanel.box(blurb, PAD, top, WIDTH - PAD * 2f, wrapped);
             blurb.setLocalTranslation(0f, 0f, 2f);
             blurb.setCullHint(Spatial.CullHint.Inherit);
             top -= blurbHeight;
@@ -233,9 +241,9 @@ final class SkillTip {
             var row = tip.rows().get(i);
             label.setCullHint(Spatial.CullHint.Inherit);
             value.setCullHint(Spatial.CullHint.Inherit);
-            place(label, PAD, top - ROW_SIZE, WIDTH - PAD * 2f);
+            place(label, ROW_SIZE, PAD, top - ROW_SIZE, WIDTH - PAD * 2f);
             label.setText(row.label());
-            place(value, PAD, top - ROW_SIZE, WIDTH - PAD * 2f);
+            place(value, ROW_SIZE, PAD, top - ROW_SIZE, WIDTH - PAD * 2f);
             // The two halves in one line, because jME's right alignment puts the
             // whole string against the edge and the green half has to be the
             // rightmost part of it. One colour per line is the price; the arrow
@@ -250,7 +258,7 @@ final class SkillTip {
             rule.setCullHint(Spatial.CullHint.Inherit);
             rule.setLocalScale(WIDTH - PAD * 2f, 1f, 1f);
             rule.setLocalTranslation(PAD, top - GAP / 2f, 2f);
-            place(foot, PAD, top - GAP - FOOT_SIZE, WIDTH - PAD * 2f);
+            place(foot, FOOT_SIZE, PAD, top - GAP - FOOT_SIZE, WIDTH - PAD * 2f);
             foot.setText(tip.foot());
             foot.setColor(Shade.linear(tip.canRaise() ? footColour : footDeadColour));
             foot.setCullHint(Spatial.CullHint.Inherit);
@@ -260,20 +268,22 @@ final class SkillTip {
         }
     }
 
-    private void place(BitmapText text, float x, float y, float width) {
-        text.setBox(new Rectangle(x, y + text.getSize(), width, text.getSize() * 1.4f));
+    /** A line of the design's {@code size} in its box, in the design's pixels. */
+    private void place(BitmapText text, float size, float x, float y, float width) {
+        HeroPanel.box(text, x, y + size, width, size * 1.4f);
         text.setLocalTranslation(0f, 0f, 2f);
     }
 
-    private BitmapText line(BitmapFont font, float size, ColorRGBA colour,
-            BitmapFont.Align align) {
-        var text = new BitmapText(font);
-        text.setSize(size);
+    private BitmapText line(Lettering face, float size, ColorRGBA colour, BitmapFont.Align align) {
+        var letters = HeroPanel.letters(face, font, size, letteringScale);
+        var text = new BitmapText(letters.font());
+        text.setLocalScale(1f / letters.perDesign());
+        text.setSize(letters.size());
         text.setColor(Shade.linear(colour));
         // A box before the alignment, and both before it is attached. An empty
         // BitmapText with no box has no bound at all, and attaching one to a node
         // is enough to make jME throw the next time anything measures the node.
-        text.setBox(new Rectangle(0f, size, WIDTH, size * 1.4f));
+        HeroPanel.box(text, 0f, size, WIDTH, size * 1.4f);
         text.setAlignment(align);
         node.attachChild(text);
         return text;
