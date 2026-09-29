@@ -279,10 +279,8 @@ final class DukeRtsApp extends SimpleApplication {
     private String discoveryEyes;
     /** The minimap's ground: one picture, a texel a cell, repainted where the player's knowledge changed. */
     private final MinimapPicture minimapPicture = new MinimapPicture();
-    /**
-     * The highest storey anywhere on this map — how many planes a click has to try.
-     */
-    private int mapStoreys;
+    /** How low and how high this map's ground stands: what the ray under the cursor is walked between. */
+    private GroundSpan groundSpan = new GroundSpan(0f, 0f);
     private final Map<Integer, UnitNode> unitNodes = new HashMap<>();
     /** What is selected, in the order it was selected: the order the game is told it in. */
     private final Set<Integer> selected = new java.util.LinkedHashSet<>();
@@ -1196,7 +1194,7 @@ final class DukeRtsApp extends SimpleApplication {
         float worldW = grid == null ? 700f : grid.getWidth() * grid.getCellSize();
         float worldH = grid == null ? 450f : grid.getHeight() * grid.getCellSize();
         minimap = new MinimapProjection(worldW, worldH, MINIMAP_SIZE);
-        mapStoreys = grid == null ? 0 : highestStorey(grid);
+        groundSpan = grid == null ? new GroundSpan(0f, 0f) : GroundSpan.of(grid);
         // The camera may look at exactly what the minimap draws, and no further.
         // Until there is a map there is nothing to fence it into: the sizes above
         // are only something to draw an empty minimap at.
@@ -1257,17 +1255,38 @@ final class DukeRtsApp extends SimpleApplication {
         minimapPicture.paint(discovery);
     }
 
-    /**
-     * The highest storey anywhere on this map, so the minimap has a tone for each.
-     */
-    private static int highestStorey(uz.dukeengine.core.pathfind.PathGrid grid) {
-        int highest = 0;
-        for (int cy = 0; cy < grid.getHeight(); cy++) {
-            for (int cx = 0; cx < grid.getWidth(); cx++) {
-                highest = Math.max(highest, grid.level(cx, cy));
+    /** How low and how high a map's ground stands anywhere, in world units. */
+    record GroundSpan(float lowest, float highest) {
+
+        /** Its storeys, a stair up from the highest of them, and its relief's lowest and highest corners. */
+        static GroundSpan of(uz.dukeengine.core.pathfind.PathGrid grid) {
+            int lowestLevel = 0;
+            int highestLevel = 0;
+            for (int cy = 0; cy < grid.getHeight(); cy++) {
+                for (int cx = 0; cx < grid.getWidth(); cx++) {
+                    lowestLevel = Math.min(lowestLevel, grid.level(cx, cy));
+                    highestLevel = Math.max(highestLevel, grid.level(cx, cy));
+                }
             }
+            float lowest = lowestLevel * grid.getLevelHeight();
+            float highest = (highestLevel + 1) * grid.getLevelHeight();
+            var relief = grid.getRelief();
+            if (relief == null) {
+                return new GroundSpan(lowest, highest);
+            }
+            int least = Integer.MAX_VALUE;
+            int most = Integer.MIN_VALUE;
+            for (int row = 0; row < relief.rows(); row++) {
+                for (int column = 0; column < relief.columns(); column++) {
+                    least = Math.min(least, relief.at(column, row));
+                    most = Math.max(most, relief.at(column, row));
+                }
+            }
+            var fixed = uz.dukeengine.core.pathfind.HeightMap.SUBCELL;
+            return new GroundSpan(
+                    lowest + uz.dukeengine.core.pathfind.HeightMap.lengthOf(least * fixed, grid.getCellSize()),
+                    highest + uz.dukeengine.core.pathfind.HeightMap.lengthOf(most * fixed, grid.getCellSize()));
         }
-        return highest;
     }
 
     /**
@@ -1570,8 +1589,8 @@ final class DukeRtsApp extends SimpleApplication {
         var dir = cam.getWorldCoordinates(new Vector2f(screenX, screenY), 1f)
                 .subtract(near).normalizeLocal();
         var terrain = game.getTerrain();
-        var ground = groundHit(near, dir, terrain == null ? 0f : terrain.getLevelHeight(),
-                mapStoreys, this::floorHeightAt);
+        var ground = groundHit(near, dir, groundSpan, terrain == null ? 5f : terrain.getCellSize() / 2f,
+                this::floorHeightAt);
         return terrain == null || !terrain.hasDecks() ? ground : deckHit(near, dir, ground, terrain.decks());
     }
 
@@ -1606,54 +1625,54 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /**
-     * Where the ray under the cursor first meets the ground, whichever storey that
-     * turns out to be.
+     * Where the ray under the cursor first meets the ground: the surface the player sees, a hill's near face and not
+     * the ground behind it.
      *
-     * <p>Every storey is a level plane, so each one is tried in turn from the top
-     * down — the camera looks down at the map, so a higher plane is met earlier
-     * along the ray, and the first plane whose meeting point is really standing on
-     * that storey is the surface the player is pointing at.
+     * <p>The ray is walked from where it comes down to the highest ground, {@code step} across the map at a time, to
+     * the first point at or under the ground, and the meeting is halved down between that point and the one before.
+     * A plane met first and the hit settled onto the ground from there — what was here before — lands behind a hill:
+     * the plane at zero lies past a rise the ray has already struck, and on a steep face the settling never settles.
+     * Storeys and stairs are ground like any other, so a raised room is met on its floor and not behind it.
      *
-     * <p>Starting at the ground floor and working up does not do it, which is what
-     * was here before and what put the marker a pace beyond the cursor. A click on
-     * a raised room, read against the plane at zero, carries on past the room and
-     * lands behind it; the floor there is at zero as well, so the answer looks
-     * settled and is wrong by however far the ray travelled underneath.
-     *
-     * @param floorAt how high the floor is at a point on the map, which for a
-     *                stair is somewhere between two storeys — so the plane is met once more
-     *                at that exact height rather than at the storey's
+     * @param step    how far across the map the ray is walked at a time: half a cell, so no rise is stepped over
+     * @param floorAt how high the floor is at a point on the map, a stair's between its two storeys
      */
-    static Vector3f groundHit(Vector3f near, Vector3f dir, float storeyHeight, int storeys,
+    static Vector3f groundHit(Vector3f near, Vector3f dir, GroundSpan span, float step,
                               java.util.function.BiFunction<Float, Float, Float> floorAt) {
-        for (int storey = Math.max(storeys, 0); storey >= 0; storey--) {
-            float height = storey * storeyHeight;
-            var hit = meetsAt(near, dir, height);
-            float floor = floorAt.apply(hit.x, hit.z);
-            // The storey's own ground, or ground a hill raises above it but not up to the next storey.
-            boolean thisStorey = Math.abs(floor - height) <= storeyHeight * 0.5f
-                    || (floor >= height && floor < height + storeyHeight);
-            if (storeyHeight <= 0f || thisStorey) {
-                return floor == height ? hit : settled(near, dir, meetsAt(near, dir, floor), floorAt);
-            }
+        if (dir.y > -1e-6f) {
+            return meetsAt(near, dir, 0f); // it never comes down
         }
-        return meetsAt(near, dir, 0f);
+        float from = Math.max(0f, (span.highest() - near.y) / dir.y);
+        float to = Math.max(from, (span.lowest() - near.y) / dir.y);
+        float across = (float) Math.sqrt(dir.x * dir.x + dir.z * dir.z);
+        float stride = across < 1e-6f ? to - from : step / across;
+        float above = from;
+        for (float t = from; ; t = Math.min(t + stride, to)) {
+            var at = near.add(dir.mult(t));
+            if (at.y <= floorAt.apply(at.x, at.z)) {
+                return onTheGround(near, dir, above, t, floorAt);
+            }
+            if (t >= to) {
+                return new Vector3f(at.x, floorAt.apply(at.x, at.z), at.z); // off the map, under all of it
+            }
+            above = t;
+        }
     }
 
-    /**
-     * A hit moved along the ray until it stands on the ground under it: on a slope the ground under the first guess is
-     * a little higher or lower than it, and a few steps settle it. Where the ground is level the first step is exact.
-     */
-    private static Vector3f settled(Vector3f near, Vector3f dir, Vector3f hit,
-                                    java.util.function.BiFunction<Float, Float, Float> floorAt) {
-        for (int step = 0; step < 4; step++) {
-            float floor = floorAt.apply(hit.x, hit.z);
-            if (Math.abs(floor - hit.y) < 0.01f) {
-                break;
+    /** The meeting between a point of the ray over the ground and a later one at or under it, halved down onto it. */
+    private static Vector3f onTheGround(Vector3f near, Vector3f dir, float above, float under,
+                                        java.util.function.BiFunction<Float, Float, Float> floorAt) {
+        for (int halving = 0; halving < 12; halving++) {
+            float middle = (above + under) / 2f;
+            var at = near.add(dir.mult(middle));
+            if (at.y <= floorAt.apply(at.x, at.z)) {
+                under = middle;
+            } else {
+                above = middle;
             }
-            hit = meetsAt(near, dir, floor);
         }
-        return hit;
+        var at = near.add(dir.mult(under));
+        return new Vector3f(at.x, floorAt.apply(at.x, at.z), at.z);
     }
 
     /**

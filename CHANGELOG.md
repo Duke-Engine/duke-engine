@@ -79,6 +79,14 @@ member of a clump, takes one by the settled number of where it stands, so the sa
 places every time; `corner(String...)` the same for its posts. They share the wall's numbers, so they are modelled
 alike. One is the wall there always was.
 
+### A click on a hill
+
+A click on the ground — an order, an aimed skill, what the pointer is over — lands where the pointer is on a relief of
+hills. The ray under it is walked from where it comes down to the map's highest ground, half a cell at a time, to the
+first ground it meets, and halved down onto it. It was met with a level plane and settled onto the ground from there,
+which on hills landed past the cursor: the plane at zero lies behind a rise the ray has already struck, and on a steep
+face the settling never settled.
+
 ### The window's size, at once
 
 The settings screen's Size is taken by the window as it is chosen — the move `Duke3D.display` makes — and put back by
