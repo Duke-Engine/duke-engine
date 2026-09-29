@@ -3,6 +3,10 @@
 Versions are `major.minor.patch`. While the major is 0, a minor may break what came before — and
 when it does, this page says exactly what to change and how.
 
+## 0.7.0
+
+Unreleased.
+
 ## 0.6.0
 
 ### What to change
