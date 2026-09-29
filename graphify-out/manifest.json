@@ -114,9 +114,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790692452.1143165,
-    "seen": 1790692498.3693767,
-    "ast_hash": "4414f33712a0ad6ff986d39ac1312400",
+    "mtime": 1790697165.2717955,
+    "seen": 1790697268.4399068,
+    "ast_hash": "9014da7cef5bae857938130ffbe7fb77",
     "semantic_hash": ""
   },
   "CREDITS.md": {
@@ -876,9 +876,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/DukeRtsApp.java": {
-    "mtime": 1790692387.5228944,
-    "seen": 1790692498.3684473,
-    "ast_hash": "7f1d9674c75e38fd2ac6b3d23cea24ba",
+    "mtime": 1790696752.6478245,
+    "seen": 1790696827.8931863,
+    "ast_hash": "d954655f8cae569bcc94cbf77b98bcdf",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/EdgeScroll.java": {
@@ -954,9 +954,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/HeroPanel.java": {
-    "mtime": 1789983050.759067,
-    "seen": 1790687045.0959425,
-    "ast_hash": "a8bf317b873db4389892303b6fe1620d",
+    "mtime": 1790696615.1372643,
+    "seen": 1790696697.0273395,
+    "ast_hash": "693b4f559774a7e108d9f75a2e27909d",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/HeroPortrait.java": {
@@ -1338,9 +1338,9 @@
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/GroundPickTest.java": {
-    "mtime": 1790301347.7715497,
-    "seen": 1790687045.0961037,
-    "ast_hash": "2585f4ff965dbed39db353dbb5d1c746",
+    "mtime": 1790696347.756318,
+    "seen": 1790696459.615922,
+    "ast_hash": "c4fa1871b57fa14b6e3be2eb6bfa0f6f",
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/HealthWatchTest.java": {
@@ -1350,9 +1350,9 @@
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/HeroPanelTest.java": {
-    "mtime": 1789983050.8076181,
-    "seen": 1790687045.096107,
-    "ast_hash": "6075d9aa2dac433dd45dc43429217b1b",
+    "mtime": 1790696615.1408122,
+    "seen": 1790696697.0276892,
+    "ast_hash": "324e18d06c8e454c6f377167b8d60b69",
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/HeroPortraitTest.java": {
@@ -1596,9 +1596,9 @@
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/GameLogic.java": {
-    "mtime": 1790691576.5826776,
-    "seen": 1790692147.260394,
-    "ast_hash": "413e00f63be43927ae58fbddec17982a",
+    "mtime": 1790697139.8018043,
+    "seen": 1790697268.4392827,
+    "ast_hash": "130a1e16e0d234a9b468b920a40acbb0",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/NameKeyGenerator.java": {
@@ -2028,15 +2028,15 @@
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/pathfind/PathGrid.java": {
-    "mtime": 1790691667.5592034,
-    "seen": 1790692147.2605443,
-    "ast_hash": "83439ddc6ae939a31116c773ee4e7591",
+    "mtime": 1790697139.7992918,
+    "seen": 1790697268.4394317,
+    "ast_hash": "e39a9c180d3d39739c55a9a589239c7e",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/pathfind/Pathfinder.java": {
-    "mtime": 1790691234.3021004,
-    "seen": 1790692147.2605455,
-    "ast_hash": "bfaed964701c0f783c8ea04cff4d3590",
+    "mtime": 1790697139.800294,
+    "seen": 1790697268.4394326,
+    "ast_hash": "6d54a0b960c67f10596cbb2865c2e756",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/player/Player.java": {
@@ -2952,9 +2952,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1790692452.1158419,
-    "seen": 1790692498.3693755,
-    "ast_hash": "14b8d16ac77996cae8cb0c088b5658a5",
+    "mtime": 1790697165.2707913,
+    "seen": 1790697268.439906,
+    "ast_hash": "d7aff78e866a44bb19db173853ab1a2d",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/data/Paint.java": {
@@ -4494,9 +4494,9 @@
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/GroundCells.java": {
-    "mtime": 1790691454.7073123,
-    "seen": 1790692147.260396,
-    "ast_hash": "bf5b89e57c478284a69e6bb9cd8dfb26",
+    "mtime": 1790697139.8012948,
+    "seen": 1790697268.439285,
+    "ast_hash": "6813a367a5653a4f7813df8cd77580a9",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/pathfind/Block.java": {
@@ -4590,9 +4590,9 @@
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/PlainBarTest.java": {
-    "mtime": 1790328504.3587332,
-    "seen": 1790687045.096153,
-    "ast_hash": "d9bfc4ab3dac41908af9cd99569a58c6",
+    "mtime": 1790696752.6488266,
+    "seen": 1790696827.8937042,
+    "ast_hash": "9e22b8602fd6fe1745e9560f0b6cc798",
     "semantic_hash": ""
   },
   "game/src/test/java/uz/dukeengine/game/PointedAtTest.java": {
@@ -5370,15 +5370,15 @@
     "semantic_hash": ""
   },
   "game/src/test/java/uz/dukeengine/game/DressedMapTest.java": {
-    "mtime": 1790691908.4534218,
-    "seen": 1790692147.260726,
-    "ast_hash": "f46864cce51c171d2c6a5436406e719d",
+    "mtime": 1790697139.802809,
+    "seen": 1790697268.4396229,
+    "ast_hash": "3251954afa9731e6748f54246119de6e",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/map/Subdivided.java": {
-    "mtime": 1790691035.2392383,
-    "seen": 1790692147.2604678,
-    "ast_hash": "7fecb6c45b9d722ab27343dd38ff76fd",
+    "mtime": 1790697139.802809,
+    "seen": 1790697268.4393575,
+    "ast_hash": "aae672ef6041756e0435ff758c26349c",
     "semantic_hash": ""
   },
   "core/src/test/java/uz/dukeengine/core/pathfind/SubdividedGridTest.java": {
@@ -5391,6 +5391,12 @@
     "mtime": 1790692429.6187613,
     "seen": 1790692498.3687508,
     "ast_hash": "efca07f0c407375abaf8ba0f305e1dcc",
+    "semantic_hash": ""
+  },
+  "core/src/test/java/uz/dukeengine/core/pathfind/RoundStillThingTest.java": {
+    "mtime": 1790697043.8886428,
+    "seen": 1790697268.4395442,
+    "ast_hash": "1c55f93cd8ec0537750a34abbaff8e65",
     "semantic_hash": ""
   }
 }
