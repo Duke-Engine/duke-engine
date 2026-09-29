@@ -114,9 +114,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790698242.2389088,
-    "seen": 1790698285.9826326,
-    "ast_hash": "8e917ea697af6d52dc1ec5842113df7f",
+    "mtime": 1790700149.525275,
+    "seen": 1790700192.6870413,
+    "ast_hash": "6c70bde5c16c901fc1f57c774d19592c",
     "semantic_hash": ""
   },
   "CREDITS.md": {
@@ -846,9 +846,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/Chevrons.java": {
-    "mtime": 1790302691.3603666,
-    "seen": 1790687045.095899,
-    "ast_hash": "01d1a20b1187526ec136df2d4fe542a3",
+    "mtime": 1790699773.3771899,
+    "seen": 1790700192.6860547,
+    "ast_hash": "8e9e9c7e6fa6d853ab85582391887272",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/Cursor.java": {
@@ -876,9 +876,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/DukeRtsApp.java": {
-    "mtime": 1790696752.6478245,
-    "seen": 1790696827.8931863,
-    "ast_hash": "d954655f8cae569bcc94cbf77b98bcdf",
+    "mtime": 1790699891.1291187,
+    "seen": 1790700192.6860726,
+    "ast_hash": "133a5327a288d8b50835ec45a4221a50",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/EdgeScroll.java": {
@@ -936,9 +936,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/GroundRing.java": {
-    "mtime": 1789983050.7562249,
-    "seen": 1790687045.0959392,
-    "ast_hash": "ee25938e079f3a077fea717987ee7886",
+    "mtime": 1790700071.1486683,
+    "seen": 1790700192.6861038,
+    "ast_hash": "524a1ccfa075b1723602c50607617c34",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/HealthWatch.java": {
@@ -1122,9 +1122,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/RangeRings.java": {
-    "mtime": 1789983050.7787948,
-    "seen": 1790687045.0960124,
-    "ast_hash": "5a49c17de17e15d19193b53319902450",
+    "mtime": 1790700096.6817088,
+    "seen": 1790700192.6861918,
+    "ast_hash": "5e35c7259a72baf24179fda8ab84ced1",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/RunMoments.java": {
@@ -1464,9 +1464,9 @@
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/RangeRingsTest.java": {
-    "mtime": 1789983050.8217473,
-    "seen": 1790687045.0961604,
-    "ast_hash": "b36ad392bfd5831140ec6c765ded2ba1",
+    "mtime": 1790700035.3291705,
+    "seen": 1790700192.6863668,
+    "ast_hash": "8670c9b8dc4f4d8b52690ad388d63295",
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/RunMomentsTest.java": {
@@ -2952,9 +2952,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1790698862.8703182,
-    "seen": 1790698902.3948565,
-    "ast_hash": "bdc6305dcd500b144ca5990e1c8d0eac",
+    "mtime": 1790700149.524275,
+    "seen": 1790700192.6870403,
+    "ast_hash": "f73492fa370f74c9e6942c63877c9bf8",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/data/Paint.java": {
@@ -3978,9 +3978,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/GroundDecal.java": {
-    "mtime": 1790347157.2603636,
-    "seen": 1790687045.0959342,
-    "ast_hash": "4307d8321eb91a88ee945280fb672948",
+    "mtime": 1790699753.3833456,
+    "seen": 1790700192.686096,
+    "ast_hash": "75c7b7f3044cd040ea53b0f7bfa21dd0",
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/GroundDecalTest.java": {
@@ -5409,6 +5409,18 @@
     "mtime": 1790698845.643206,
     "seen": 1790698902.3941343,
     "ast_hash": "d4b8eec69dac3e2440ab0372cc8f923d",
+    "semantic_hash": ""
+  },
+  "client3d/src/main/java/uz/dukeengine/client3d/GroundDisc.java": {
+    "mtime": 1790699816.3959818,
+    "seen": 1790700192.6860979,
+    "ast_hash": "671f127f02130c7270f2f8ab7b6c452f",
+    "semantic_hash": ""
+  },
+  "client3d/src/test/java/uz/dukeengine/client3d/DrapedOverlaysTest.java": {
+    "mtime": 1790700035.3281708,
+    "seen": 1790700192.6862817,
+    "ast_hash": "1483f7cbfa4d8a162df0f1b0809b0146",
     "semantic_hash": ""
   }
 }
