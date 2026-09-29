@@ -94,6 +94,10 @@ Cancel, where it waited for the next launch: a player whose saved size was far s
 plays a blurred picture until he restarts. An Anti-aliasing row (off, 2 or 4 samples a pixel) is kept for the next
 launch, when the window is made with it; under the sun's shadows the world is drawn through a pass that takes none.
 
+The minimap shows in the hero bar's socket on a wide window. Past about 1440 pixels the design's bar is drawn larger
+than 1.1, and the minimap, laid at a depth of its own, was drawn under the hole cut for it: the bar's depths grow with
+its scale. It is laid at the depth the bar hands out beside the socket's place (`HeroPanel.minimapRect`).
+
 ## 0.6.0
 
 ### What to change

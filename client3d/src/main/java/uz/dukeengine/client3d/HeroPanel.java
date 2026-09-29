@@ -1107,8 +1107,9 @@ final class HeroPanel {
     }
 
     /**
-     * Where the minimap goes, in window pixels: {@code x, y, size} — or null for a bar the game built without its
-     * socket, which leaves the minimap to stand on its own.
+     * Where the minimap goes, in window pixels: {@code x, y, size} and the depth it is laid at, over the socket's hole
+     * and under its frame at whatever scale the bar is drawn — or null for a bar the game built without its socket,
+     * which leaves the minimap to stand on its own.
      *
      * <p>Handed out rather than drawn here so the two stay in step through a
      * resize without the minimap having to know the bar's arithmetic.
@@ -1124,6 +1125,7 @@ final class HeroPanel {
             (contents.getLocalTranslation().x + holder.x + at.x) * scale,
             (contents.getLocalTranslation().y + holder.y + at.y) * scale,
             MINIMAP * scale,
+            (contents.getLocalTranslation().z + holder.z + at.z + 2.5f) * scale, // its hole is at 2, its frame at 3
         };
     }
 

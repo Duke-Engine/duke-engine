@@ -603,4 +603,24 @@ class HeroPanelTest {
         assertEquals("", HeroPanel.spacedOut(null));
         assertEquals("M", HeroPanel.spacedOut("M"), "one letter has nothing to space from");
     }
+
+    /**
+     * The minimap is laid over its socket's hole at any scale the bar is drawn at. Past about 1440 pixels wide the
+     * design's bar is drawn larger than 1.1, its socket then bigger than the 190 pixels the minimap is drawn at, and
+     * the minimap was laid at depth 0 under a hole at twice the bar's scale: a minimap that did not show.
+     */
+    @Test
+    void theMinimapIsLaidOverItsSocketsHoleAtAnyScale() {
+        var assets = new com.jme3.asset.DesktopAssetManager(true);
+        var font = assets.loadFont("Interface/Fonts/Default.fnt");
+        for (float width : new float[] {800f, 1920f, 2560f}) {
+            var gui = new com.jme3.scene.Node("gui");
+            var panel = new HeroPanel(assets, font, gui, width, 1600f, PanelSkin.NONE, RangeLook.DEFAULT);
+            gui.updateGeometricState();
+            var hole = ((com.jme3.scene.Node) gui.getChild("minimap-socket")).getChild("hole");
+
+            assertTrue(panel.minimapRect()[3] > hole.getWorldTranslation().z,
+                    width + " wide: over the hole at " + hole.getWorldTranslation().z);
+        }
+    }
 }

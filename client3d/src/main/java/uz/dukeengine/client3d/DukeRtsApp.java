@@ -1236,10 +1236,10 @@ final class DukeRtsApp extends SimpleApplication {
             minimapY = 34f + (heroPanel == null ? 0f : heroPanel.heightPixels());
         }
         minimapNode.setLocalScale(minimapScale);
-        // Above the socket it sits in. The GUI bucket is drawn in order of depth,
-        // and the socket's own floor is at 3 -- without this the map is behind the
-        // hole cut for it, which looks exactly like a minimap that stopped working.
-        minimapNode.setLocalTranslation(minimapX, minimapY, minimapScale < 1f ? 4f : 0f);
+        // Over the hole cut for it, at the depth the bar says: the GUI bucket is drawn in order of depth, and a map
+        // behind the hole looks exactly like a minimap that stopped working. The bar's depths grow with its scale, so
+        // a depth of the map's own was under the hole once the bar was drawn larger than the design.
+        minimapNode.setLocalTranslation(minimapX, minimapY, socket != null ? socket[3] : 0f);
     }
 
     /**
