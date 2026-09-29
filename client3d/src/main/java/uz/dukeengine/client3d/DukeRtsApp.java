@@ -420,7 +420,7 @@ final class DukeRtsApp extends SimpleApplication {
         /** The line its body was laid along, for a thing drawn along one; null for the rest. */
         uz.dukeengine.core.thing.Span laidSpan;
         /**
-         * How high its bar floats, measured off the body once.
+         * How high over its feet its bar floats, measured off the body once.
          *
          * <p>Measured rather than assumed, because a creature kit's hero stands
          * three times taller than its rat — the old constant suited a capsule and
@@ -5328,7 +5328,7 @@ final class DukeRtsApp extends SimpleApplication {
             var template = game.getLogic().getThingFactory().findTemplate(node.view.templateName());
             var shape = template == null ? null : uz.dukeengine.core.thing.Solid.of(template);
             float foot = node.root.getWorldTranslation().y;
-            float top = plain == null ? node.barTop : foot + topOf(shape) + plain.lift();
+            float top = barTop(foot, node.barTop, shape, plain);
             boolean picked = selected.contains(node.view.id()) || pointed != null && pointed.view.id() == node.view.id();
             standing.add(new UnitBars.Standing(node.view, top, foot, node.view.playerIndex() == mine,
                     badgesOf(node), sizeOf(shape), picked));
@@ -5336,6 +5336,14 @@ final class DukeRtsApp extends SimpleApplication {
         barReading = UnitBarReading.read(snapshot.status());
         var eye = cam.getLocation();
         unitBars.update(cam, standing, barReading, eye.y - floorHeightAt(eye.x, eye.z), visuals.getBarColours());
+    }
+
+    /**
+     * The world height a thing's bar floats at: over its feet where they stand this frame — up a hill, in a jump — by
+     * its model's height, or by its shape's and the plain bar's lift.
+     */
+    static float barTop(float foot, float overFoot, uz.dukeengine.core.thing.Geometry shape, UnitBarLook.Plain plain) {
+        return foot + (plain == null ? overFoot : topOf(shape) + plain.lift());
     }
 
     /** How far over its position a thing's geometry reaches: a box's or cylinder's height, a sphere's radius. */

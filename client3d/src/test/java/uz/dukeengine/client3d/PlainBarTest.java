@@ -116,4 +116,14 @@ class PlainBarTest {
         assertEquals(new BarColours.Colours(0x007FFF, 0x004080), BarColours.REFERENCE.of(thing(1, 0f, 200f, goingUp)),
                 "blue to cyan while it is built");
     }
+
+    /**
+     * A bar floats over the feet where they stand: up a hill 30 high, a model 12 tall carries its bar at 42. It was
+     * read as the world height itself, so going up a hill the bar sank under the hero and going down it floated high.
+     */
+    @Test
+    void aBarFloatsOverTheFeetWhereverTheyStand() {
+        assertEquals(42f, DukeRtsApp.barTop(30f, 12f, null, null), 1e-4f);
+        assertEquals(12f, DukeRtsApp.barTop(0f, 12f, null, null), 1e-4f, "on the flat, as it always was");
+    }
 }
