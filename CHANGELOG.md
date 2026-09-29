@@ -27,6 +27,10 @@ walked or stood became 0.07 ms walking and 0.01 standing. `Fog.texelsPerCell` dr
 cell, made anew to the size of each map, so a large floor is as sharp as a small one; 0, the default, keeps the fixed
 `textureSize`.
 
+The minimap's ground is one picture, a texel a cell, on one quad, repainted only where the player's knowledge changed,
+where it was a square a cell — nineteen thousand things drawn one at a time on a 160 × 120 floor, each given its
+material again every frame. The colours are the squares' own.
+
 ### A kit's walls of several models
 
 `Tileset.wall(String...)` names several models for a kit's wall — rocks, trees, bushes — and each placement, and each

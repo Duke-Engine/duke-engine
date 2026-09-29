@@ -355,15 +355,16 @@ final class Discovery {
             everyTarget = true;
         }
         moved.clear();
+        changed.clear();
         if (cells == 0) {
             return;
         }
         dirty.clear();
         if (everyTarget) {
             dirty.set(0, cells);
+            changed.set(0, cells);
             everyTarget = false;
         } else {
-            changed.clear();
             changed.or(visible);
             changed.xor(lastVisible);
             changedSeen.clear();
@@ -409,6 +410,14 @@ final class Discovery {
     /** The cells whose light moved in the last {@link #soften}, indexed {@code cy * width + cx}. Read, not kept. */
     BitSet movedCells() {
         return moved;
+    }
+
+    /**
+     * The cells whose state — unseen, remembered, in sight — the last {@link #soften} found changed, every cell the
+     * first time after a new map; indexed {@code cy * width + cx}. Read, not kept.
+     */
+    BitSet changedCells() {
+        return changed;
     }
 
     /** How wide a cell of the map this was laid out for is, in world units. */

@@ -277,18 +277,8 @@ final class DukeRtsApp extends SimpleApplication {
      * Whose sight the radius above was read from — see syncDiscovery.
      */
     private String discoveryEyes;
-    /**
-     * Minimap cells, one per grid cell, recoloured by what the player knows.
-     */
-    private Geometry[] minimapCells = new Geometry[0];
-    /**
-     * Minimap colours per state, made once: black, remembered, and in sight.
-     */
-    private Material[] minimapPalette;
-    /**
-     * Floor tones by state and storey: [remembered|in sight][storey].
-     */
-    private Material[][] minimapFloors;
+    /** The minimap's ground: one picture, a texel a cell, repainted where the player's knowledge changed. */
+    private final MinimapPicture minimapPicture = new MinimapPicture();
     /**
      * The highest storey anywhere on this map — how many planes a click has to try.
      */
@@ -1213,40 +1203,15 @@ final class DukeRtsApp extends SimpleApplication {
         camera.keepInside(grid == null ? 0f : worldW, grid == null ? 0f : worldH);
         minimapX = cam.getWidth() - minimap.widthPixels() - 12f;
 
-        var backdrop = new Geometry("mm-bg", new Quad(minimap.widthPixels(), minimap.heightPixels()));
-        backdrop.setMaterial(unshaded(new ColorRGBA(0.10f, 0.14f, 0.08f, 1f)));
-        minimapTerrainNode.attachChild(backdrop);
-
-        minimapCells = new Geometry[0];
-        if (grid != null) {
-            var rock = unshaded(new ColorRGBA(0.35f, 0.32f, 0.26f, 1f));
-            float cellPx = grid.getCellSize() * minimap.scale();
-            boolean discovered = visuals.drawsFog();
-            if (discovered) {
-                minimapCells = new Geometry[grid.getWidth() * grid.getHeight()];
-            }
-            for (int cy = 0; cy < grid.getHeight(); cy++) {
-                for (int cx = 0; cx < grid.getWidth(); cx++) {
-                    // With discovery every cell gets a square, floor included: an
-                    // undiscovered floor has to be as black as undiscovered stone,
-                    // and the backdrop showing through would draw it as open ground.
-                    if (!discovered && !grid.isTerrainBlocked(cx, cy)) {
-                        continue;
-                    }
-                    var cell = new Geometry("mm-rock", new Quad(cellPx, cellPx));
-                    cell.setMaterial(rock);
-                    // minimap y grows up the screen, world y grows down the map
-                    cell.setLocalTranslation(cx * cellPx, (grid.getHeight() - 1 - cy) * cellPx, 0);
-                    minimapTerrainNode.attachChild(cell);
-                    if (discovered) {
-                        minimapCells[cy * grid.getWidth() + cx] = cell;
-                    }
-                }
-            }
-        }
+        // The ground and its stone as one picture on one quad, the cells unwalked where there is discovery: an
+        // undiscovered floor is as black as undiscovered stone.
+        minimapPicture.rebuild(grid, visuals.drawsFog(), visuals.getFog().tintColour());
+        var ground = new Geometry("mm-ground", new Quad(minimap.widthPixels(), minimap.heightPixels()));
+        var look = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        look.setTexture("ColorMap", minimapPicture.texture());
+        ground.setMaterial(look);
+        minimapTerrainNode.attachChild(ground);
         placeMinimap();
-        minimapPalette = null; // rebuilt lazily against the new grid
-        minimapFloors = null;
     }
 
     /**
@@ -1281,58 +1246,15 @@ final class DukeRtsApp extends SimpleApplication {
 
     /**
      * Paint the minimap with what the player knows: black where they have not
-     * been, dim where they have, bright where they are looking.
+     * been, dim where they have, bright where they are looking — the cells whose state changed, on its one picture.
      *
      * <p>The unit dots need no help — the snapshot only ever carries what the
      * engine's own fog lets through, so a monster in a room the player walked out
      * of is already gone from it. That is the whole "where did it go?" of the
      * thing, and it comes free.
      */
-    private void applyMinimapDiscovery(uz.dukeengine.core.pathfind.PathGrid grid) {
-        if (discovery == null || grid == null || minimapCells.length == 0) {
-            return;
-        }
-        if (minimapPalette == null) {
-            // The two dark ends follow the fog, so the little map and the world
-            // it stands for are the same colour of nothing.
-            var dark = visuals.getFog().tintColour();
-            var rememberedFloor = dark.mult(0.9f).add(new ColorRGBA(0.04f, 0.06f, 0.03f, 0f));
-            var litFloor = new ColorRGBA(0.16f, 0.22f, 0.13f, 1f);
-            // A floor per storey, each one paler than the one below it. The map is
-            // a plan view and a plan view cannot show height at all — two rooms one
-            // above the other are the same square of paper — so the only thing left
-            // is to say it in tone, the way a contour map does.
-            int storeys = mapStoreys;
-            var remembered = new Material[storeys + 1];
-            var lit = new Material[storeys + 1];
-            for (int storey = 0; storey <= storeys; storey++) {
-                float lift = 1f + 0.45f * storey;
-                remembered[storey] = unshaded(rememberedFloor.mult(lift));
-                lit[storey] = unshaded(litFloor.mult(lift));
-            }
-            minimapFloors = new Material[][]{remembered, lit};
-            minimapPalette = new Material[]{
-                    unshaded(dark.mult(0.45f)),                          // never been there
-                    unshaded(dark.mult(0.9f).add(                        // remembered stone
-                            new ColorRGBA(0.09f, 0.08f, 0.07f, 0f))),
-                    unshaded(new ColorRGBA(0.35f, 0.32f, 0.26f, 1f)),   // stone in sight
-            };
-        }
-        for (int index = 0; index < minimapCells.length; index++) {
-            var cell = minimapCells[index];
-            if (cell == null) {
-                continue;
-            }
-            int cx = index % grid.getWidth();
-            int cy = index / grid.getWidth();
-            boolean stone = grid.isTerrainBlocked(cx, cy);
-            int storey = Math.clamp(grid.level(cx, cy), 0, minimapFloors[0].length - 1);
-            cell.setMaterial(switch (discovery.stateAt(cx, cy)) {
-                case UNSEEN -> minimapPalette[0];
-                case REMEMBERED -> stone ? minimapPalette[1] : minimapFloors[0][storey];
-                case VISIBLE -> stone ? minimapPalette[2] : minimapFloors[1][storey];
-            });
-        }
+    private void applyMinimapDiscovery() {
+        minimapPicture.paint(discovery);
     }
 
     /**
@@ -3152,7 +3074,7 @@ final class DukeRtsApp extends SimpleApplication {
             discovery.soften(tpf);
             fogMap.update(discovery);
             terrain.applyDiscovery(discovery);
-            applyMinimapDiscovery(builtFrom);
+            applyMinimapDiscovery();
             return;
         }
         if (visuals.isFogBySight()) {
@@ -3160,7 +3082,7 @@ final class DukeRtsApp extends SimpleApplication {
             discovery.soften(tpf);
             fogMap.update(discovery);
             terrain.applyDiscovery(discovery);
-            applyMinimapDiscovery(builtFrom);
+            applyMinimapDiscovery();
             return;
         }
         // Re-read when the eyes change, not only the first time. A game may say
@@ -3186,7 +3108,7 @@ final class DukeRtsApp extends SimpleApplication {
         // only told what is so far behind it that drawing it is waste.
         fogMap.update(discovery);
         terrain.applyDiscovery(discovery);
-        applyMinimapDiscovery(builtFrom);
+        applyMinimapDiscovery();
     }
 
     /**
