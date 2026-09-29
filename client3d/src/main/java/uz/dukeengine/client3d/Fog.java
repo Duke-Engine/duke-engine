@@ -28,9 +28,12 @@ import com.jme3.math.ColorRGBA;
  *                        the map's own size — see {@link FogMap}
  * @param tint            what unlit ground fades toward — the fog's own colour,
  *                        which is not black in any game worth looking at
+ * @param texelsPerCell   how many texels a cell of the map is drawn at, the picture made anew to the size of each map:
+ *                        a large map as sharp as a small one. 0, the default, is the fixed {@code textureSize} whatever
+ *                        the map, as every game had
  */
 public record Fog(boolean lineOfSight, float unseenLight, float rememberedLight,
-        float visibleLight, int softenCells, float openPerSecond, int textureSize, int tint) {
+        float visibleLight, int softenCells, float openPerSecond, int textureSize, int tint, int texelsPerCell) {
 
     /** What the client did before any game asked: no line of sight, a black dark. */
     public static final Fog DEFAULT = new Fog(false, 0f, 0.34f, 1f, 1, 7f, 256, 0x000000);
@@ -42,6 +45,13 @@ public record Fog(boolean lineOfSight, float unseenLight, float rememberedLight,
         softenCells = Math.max(0, softenCells);
         openPerSecond = Math.max(0.01f, openPerSecond);
         textureSize = Math.clamp(textureSize, 8, 2048);
+        texelsPerCell = Math.clamp(texelsPerCell, 0, 16);
+    }
+
+    /** A fog drawn at a fixed number of texels across, whatever the map, as every fog was. */
+    public Fog(boolean lineOfSight, float unseenLight, float rememberedLight, float visibleLight, int softenCells,
+            float openPerSecond, int textureSize, int tint) {
+        this(lineOfSight, unseenLight, rememberedLight, visibleLight, softenCells, openPerSecond, textureSize, tint, 0);
     }
 
     /** The tint as the renderer wants it. */

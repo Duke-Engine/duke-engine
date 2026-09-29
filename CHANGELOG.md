@@ -21,6 +21,12 @@ A route search keeps its arrays on its thread from one search to the next, made 
 made five the size of the map every time — 380 KB a search on a 160 × 120 floor, many searches a frame. Routes are the
 same to the bit.
 
+The fog's light is worked out again only where what is open changed, a cell eases only until it has arrived, and the
+fog's picture redraws only the texels near cells whose light moved: on a 160 × 120 floor, 2 ms a frame whether the hero
+walked or stood became 0.07 ms walking and 0.01 standing. `Fog.texelsPerCell` draws the picture at that many texels a
+cell, made anew to the size of each map, so a large floor is as sharp as a small one; 0, the default, keeps the fixed
+`textureSize`.
+
 ### A kit's walls of several models
 
 `Tileset.wall(String...)` names several models for a kit's wall — rocks, trees, bushes — and each placement, and each

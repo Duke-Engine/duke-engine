@@ -1,6 +1,7 @@
 package uz.dukeengine.client3d;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -89,6 +90,53 @@ class FogMapTest {
 
         assertEquals(256, fogMap(256, MapLoader.fromText(CORRIDOR)).size(),
                 "and the number in the file is the one that decides");
+    }
+
+    /**
+     * Sized to its map, the picture is the map's cells at the texels a cell the game named — a large floor as sharp as
+     * a small one — and the texture the materials hold is the same one, given each map's picture.
+     */
+    @Test
+    void aPictureSizedToItsMapIsItsCellsAtTheTexelsACellTheGameNamed() {
+        var map = new FogMap(new Fog(false, 0f, 0.3f, 1f, 2, 7f, 256, 0x121821, 4));
+        var texture = map.texture();
+        map.resize(new PathGrid(160, 120));
+        assertEquals(640, map.width());
+        assertEquals(480, map.height());
+
+        map.resize(MapLoader.fromText(CORRIDOR));
+        assertEquals(14 * 4, map.width());
+        assertEquals(5 * 4, map.height());
+        assertSame(texture, map.texture(), "one texture, held by the materials, across maps");
+        assertEquals(56, map.texture().getImage().getWidth());
+    }
+
+    /**
+     * Redrawing only the texels near cells whose light moved draws exactly what redrawing every texel draws: a hero
+     * walking the corridor, the picture kept up as he goes, against one drawn whole from where he ends — at a picture
+     * sized to the map and at a fixed one whose texels fall across cells unevenly.
+     */
+    @Test
+    void redrawingOnlyWhatMovedDrawsWhatRedrawingEverythingDraws() {
+        var grid = MapLoader.fromText(CORRIDOR);
+        for (var fog : List.of(new Fog(false, 0f, 0.3f, 1f, 2, 7f, 256, 0x121821, 3), fog(64))) {
+            var seen = new Discovery(grid, fog);
+            var kept = new FogMap(fog);
+            kept.resize(grid);
+            for (int step = 0; step < 40; step++) {
+                seen.reveal(List.of(unit((1.5f + step * 0.25f) * CELL, 2.5f * CELL)), 0, 25f, null);
+                seen.soften(1f / 30f);
+                kept.update(seen);
+            }
+            var whole = new FogMap(fog);
+            whole.resize(grid);
+            whole.update(seen);
+            for (int ty = 0; ty < whole.height(); ty++) {
+                for (int tx = 0; tx < whole.width(); tx++) {
+                    assertEquals(whole.darknessAt(tx, ty), kept.darknessAt(tx, ty), "texel " + tx + "," + ty);
+                }
+            }
+        }
     }
 
     /**

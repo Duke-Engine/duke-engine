@@ -106,6 +106,12 @@ final class Discovery {
             }
         }
         light = new float[width * height];
+        target = new float[width * height];
+        lastVisible.clear();
+        lastExplored.clear();
+        easing.clear();
+        moved.clear();
+        everyTarget = true;
     }
 
     int getWidth() {
@@ -290,6 +296,31 @@ final class Discovery {
     private float[] light = new float[0];
 
     /**
+     * How bright each cell ought to be — its own state blurred with its neighbours' — worked out again only where
+     * what is open around it changed, rather than for the whole map every frame: a floor of twenty thousand cells
+     * and a kernel of twenty-five is half a million samples a frame spent mostly on ground nobody's sight touched.
+     */
+    private float[] target = new float[0];
+    /** What was in sight, and seen, the last time the light moved: what changed since is where targets move. */
+    private final BitSet lastVisible = new BitSet();
+    private final BitSet lastExplored = new BitSet();
+    /** The cells still easing toward their target; a cell that has arrived costs nothing until it is dirtied. */
+    private final BitSet easing = new BitSet();
+    /** The cells whose light moved in the last soften, for whatever redraws only what moved. */
+    private final BitSet moved = new BitSet();
+    /** Every target to be worked out at the next soften, as for a new map. */
+    private boolean everyTarget = true;
+    private final BitSet changed = new BitSet();
+    private final BitSet changedSeen = new BitSet();
+    private final BitSet dirty = new BitSet();
+
+    /**
+     * Closer than this to its target, a cell is at it: well under the 256th of the light a texel of the fog holds, so
+     * the step to it is never seen, and a cell that has arrived is left alone.
+     */
+    private static final float SETTLED = 1f / 1024f;
+
+    /**
      * Move every cell a little closer to how bright it ought to be.
      *
      * <p>Three states drawn as three shades give a floor of hard-edged squares:
@@ -311,22 +342,78 @@ final class Discovery {
      * <p>What none of this changes is <em>what</em> is revealed: the softening
      * reads {@code visible} and {@code explored} and never writes them, so a cell
      * that is dim is a cell that was already open.
+     *
+     * <p>Only where something moved: a cell's target is worked out again where what is open within the kernel's reach
+     * of it changed since the last time, and a cell eases only until it has arrived. A hero standing still costs
+     * nothing once the light has settled, and one walking costs the ground his sight crosses.
      */
     void soften(float seconds) {
         int cells = width * height;
         if (light.length != cells) {
             light = new float[cells];
+            target = new float[cells];
+            everyTarget = true;
         }
+        moved.clear();
         if (cells == 0) {
             return;
         }
-        float step = Math.min(1f, fog.openPerSecond() * Math.max(0f, seconds));
-        for (int cy = 0; cy < height; cy++) {
-            for (int cx = 0; cx < width; cx++) {
-                int index = cy * width + cx;
-                light[index] += (softenedAt(cx, cy) - light[index]) * step;
+        dirty.clear();
+        if (everyTarget) {
+            dirty.set(0, cells);
+            everyTarget = false;
+        } else {
+            changed.clear();
+            changed.or(visible);
+            changed.xor(lastVisible);
+            changedSeen.clear();
+            changedSeen.or(explored);
+            changedSeen.xor(lastExplored);
+            changed.or(changedSeen);
+            int reach = fog.softenCells();
+            for (int at = changed.nextSetBit(0); at >= 0; at = changed.nextSetBit(at + 1)) {
+                int cx = at % width;
+                int cy = at / width;
+                int fromX = Math.max(0, cx - reach);
+                int toX = Math.min(width - 1, cx + reach);
+                for (int y = Math.max(0, cy - reach); y <= Math.min(height - 1, cy + reach); y++) {
+                    dirty.set(y * width + fromX, y * width + toX + 1);
+                }
             }
         }
+        lastVisible.clear();
+        lastVisible.or(visible);
+        lastExplored.clear();
+        lastExplored.or(explored);
+        for (int at = dirty.nextSetBit(0); at >= 0; at = dirty.nextSetBit(at + 1)) {
+            target[at] = softenedAt(at % width, at / width);
+        }
+        easing.or(dirty);
+        float step = Math.min(1f, fog.openPerSecond() * Math.max(0f, seconds));
+        for (int at = easing.nextSetBit(0); at >= 0; at = easing.nextSetBit(at + 1)) {
+            float before = light[at];
+            float after = before + (target[at] - before) * step;
+            if (Math.abs(target[at] - after) < SETTLED) {
+                after = target[at];
+            }
+            if (after != before) {
+                light[at] = after;
+                moved.set(at);
+            }
+            if (after == target[at]) {
+                easing.clear(at);
+            }
+        }
+    }
+
+    /** The cells whose light moved in the last {@link #soften}, indexed {@code cy * width + cx}. Read, not kept. */
+    BitSet movedCells() {
+        return moved;
+    }
+
+    /** How wide a cell of the map this was laid out for is, in world units. */
+    float getCellSize() {
+        return cellSize;
     }
 
     /** A cell's own brightness blurred together with its neighbours'. */

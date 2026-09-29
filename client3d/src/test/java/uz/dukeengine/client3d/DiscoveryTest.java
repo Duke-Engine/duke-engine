@@ -259,6 +259,63 @@ class DiscoveryTest {
         assertEquals(inSight, seen.visibleCells(), "and gave him eyes he has not got");
     }
 
+    /**
+     * Working targets out only where what is open changed settles where working all of them out does: a hero walked
+     * along a walled floor, settled, against a discovery handed the same open cells at once and drawn to every target
+     * in one step.
+     */
+    @Test
+    void softeningOnlyWhatChangedSettlesWhereSofteningEverythingDoes() {
+        var grid = new PathGrid(40, 30);
+        for (int cy = 5; cy < 25; cy++) {
+            grid.setBlocked(18, cy, true);
+        }
+        var fog = new Fog(true, 0.05f, 0.3f, 1f, 2, 7f, 256, 0x000000);
+        var walked = new Discovery(grid, fog);
+        for (int step = 0; step < 60; step++) {
+            walked.reveal(List.of(at(LOCAL, 30f + step * 5f, 150f + (step % 7) * 6f)), LOCAL, 45f, "Rogue");
+            walked.soften(1f / 30f);
+        }
+        settle(walked);
+
+        var states = new byte[40 * 30];
+        for (int cell = 0; cell < states.length; cell++) {
+            states[cell] = (byte) switch (walked.stateAt(cell % 40, cell / 40)) {
+                case UNSEEN -> 0;
+                case REMEMBERED -> 1;
+                case VISIBLE -> 2;
+            };
+        }
+        var whole = new Discovery(grid, fog);
+        whole.fromSight(new uz.dukeengine.core.SightCells.View(grid.getCellSize(), 40, 30, states));
+        whole.soften(10f);
+        for (int cell = 0; cell < states.length; cell++) {
+            assertEquals(whole.lightAt(cell % 40, cell / 40), walked.lightAt(cell % 40, cell / 40), 0.002f,
+                    "cell " + cell % 40 + "," + cell / 40);
+        }
+    }
+
+    /** Once the light has settled, a hero standing still moves no cell of it, and the fog's picture is left alone. */
+    @Test
+    void aSettledLightMovesNothingWhileNothingChanges() {
+        var seen = discovery();
+        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f, "Rogue");
+        settle(seen);
+
+        seen.reveal(List.of(at(LOCAL, 200f, 150f)), LOCAL, 40f, "Rogue");
+        seen.soften(1f / 30f);
+        assertTrue(seen.movedCells().isEmpty(), "standing still costs nothing");
+
+        seen.reveal(List.of(at(LOCAL, 230f, 150f)), LOCAL, 40f, "Rogue");
+        seen.soften(1f / 30f);
+        assertTrue(!seen.movedCells().isEmpty(), "a step moves the light");
+        for (int at = seen.movedCells().nextSetBit(0); at >= 0; at = seen.movedCells().nextSetBit(at + 1)) {
+            float x = (at % GRID.getWidth() + 0.5f) * GRID.getCellSize();
+            float y = (at / GRID.getWidth() + 0.5f) * GRID.getCellSize();
+            assertTrue(Math.hypot(x - 215f, y - 150f) < 80f, "only near where he was and is: " + x + "," + y);
+        }
+    }
+
     /** Ground in sight is drawn full, and ground never walked stays black. */
     @Test
     void sightIsFullAndTheUnwalkedStaysBlack() {
