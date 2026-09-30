@@ -83,6 +83,8 @@ public final class GameObject {
     /** Whether, inside another, it sees out of it. */
     private boolean seesOut;
     private World world;
+    /** Its place among the things its world has taken in — see {@link #getEntered}. */
+    private long entered = -1;
     private final EnumSet<ObjectStatus> statuses = EnumSet.noneOf(ObjectStatus.class);
     private final java.util.TreeSet<String> conditions = new java.util.TreeSet<>();
 
@@ -96,12 +98,31 @@ public final class GameObject {
         return world;
     }
 
+    /**
+     * Where it came into its world among every thing that has, the first lowest — the order its world keeps its things
+     * in and answers every question about them in; -1 before it came in.
+     */
+    public long getEntered() {
+        return entered;
+    }
+
+    /** Taken into its world {@code order}-th: by the world, as it takes the thing in. */
+    public void entered(long order) {
+        this.entered = order;
+    }
+
     public void setWorld(World world) {
         this.world = world;
     }
 
     /** Attach a module. Called during construction; order is preserved. */
     public void addModule(Module module) {
+        boolean wasMobile = mobile;
+        addModuleOnly(module);
+        mobilityMayHaveChanged(wasMobile);
+    }
+
+    private void addModuleOnly(Module module) {
         moduleRevision++;
         modules.add(module);
         if (module instanceof UpdateModule u) {
@@ -136,6 +157,13 @@ public final class GameObject {
      * @return whether the module was attached in the first place
      */
     public boolean removeModule(Module module) {
+        boolean wasMobile = mobile;
+        boolean removed = removeModuleOnly(module);
+        mobilityMayHaveChanged(wasMobile);
+        return removed;
+    }
+
+    private boolean removeModuleOnly(Module module) {
         if (!modules.remove(module)) {
             return false;
         }
@@ -168,7 +196,8 @@ public final class GameObject {
         if (at < 0) {
             throw new IllegalArgumentException("module is not attached to this object");
         }
-        removeModule(oldModule);
+        boolean wasMobile = mobile;
+        removeModuleOnly(oldModule);
         modules.add(at, newModule);
         if (newModule instanceof UpdateModule u) {
             // Sit in the same relative place among the update modules, too.
@@ -192,6 +221,14 @@ public final class GameObject {
                         "object '" + template.name() + "' has more than one body module");
             }
             body = b;
+        }
+        mobilityMayHaveChanged(wasMobile);
+    }
+
+    /** Its world told where it became still or began to move: what a route is laid round follows its still things. */
+    private void mobilityMayHaveChanged(boolean wasMobile) {
+        if (world != null && wasMobile != mobile) {
+            world.mobilityChanged(this);
         }
     }
 
@@ -386,6 +423,9 @@ public final class GameObject {
 
     public void setSpan(Span span) {
         this.span = span;
+        if (world != null) {
+            world.spanChanged(this);
+        }
     }
 
     /**
@@ -655,7 +695,11 @@ public final class GameObject {
     }
 
     public void setPlayerIndex(int playerIndex) {
+        int was = this.playerIndex;
         this.playerIndex = playerIndex;
+        if (world != null && was != playerIndex) {
+            world.ownerChanged(this, was);
+        }
     }
 
     public boolean isDestroyed() {
@@ -696,7 +740,17 @@ public final class GameObject {
 
     /** Flag this object for removal. Prefer {@code GameLogic.destroyObject}. */
     public void markDestroyed() {
-        this.destroyed = true;
+        destroyedNow();
+    }
+
+    private void destroyedNow() {
+        if (destroyed) {
+            return;
+        }
+        destroyed = true;
+        if (world != null) {
+            world.destroyMarked(this);
+        }
     }
 
     /**
@@ -705,7 +759,7 @@ public final class GameObject {
      */
     public void vanish() {
         this.vanished = true;
-        this.destroyed = true;
+        destroyedNow();
     }
 
     /** Whether it was taken out of the world without a death: see {@link #vanish}. */

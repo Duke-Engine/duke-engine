@@ -180,8 +180,8 @@ final class MatchClient extends GameClient {
         if (!everything) {
             // A thing drawn along a line lies where the ground under it is, and is fogged as the ground is: shown.
             var seen = new java.util.HashSet<>(shown);
-            for (var object : logic.getObjects()) {
-                if (object.getSpan() != null && !seen.contains(object)) {
+            for (var object : logic.getSpanned()) {
+                if (!seen.contains(object)) {
                     shown.add(object);
                 }
             }

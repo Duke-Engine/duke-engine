@@ -87,6 +87,26 @@ public interface World {
     default void thingMoved(GameObject thing) {
     }
 
+    /** {@code thing} is another player's now, {@code was}'s before — for the world to know whose its things are. */
+    default void ownerChanged(GameObject thing, int was) {
+    }
+
+    /** {@code thing} is drawn along another line now, or none — for the world to know which of its things are. */
+    default void spanChanged(GameObject thing) {
+    }
+
+    /** {@code thing} began to move, or became still — for the world to know which of its things stand still. */
+    default void mobilityChanged(GameObject thing) {
+    }
+
+    /** {@code thing} was marked destroyed — for the world to reap it without looking at every thing. */
+    default void destroyMarked(GameObject thing) {
+    }
+
+    /** A blow landed on {@code thing}: one asleep wakes for it ({@code GameLogic.setSleep}). */
+    default void blowLanded(GameObject thing) {
+    }
+
     /** A still thing turned or moved: its footprint is laid on the ground again before the next route. */
     default void stillThingMoved() {
     }
@@ -177,6 +197,20 @@ public interface World {
 
     /** Every object within {@code range} of {@code center} that satisfies {@code filter}. */
     java.util.List<GameObject> objectsInRange(Coord3D center, float range, Predicate<GameObject> filter);
+
+    /**
+     * Every thing whose middle may stand within {@code reach} of {@code center} along the ground — each that does, and a
+     * few beside — in the order things came into the world: the things to ask a question of that no other query asks,
+     * rather than every thing.
+     */
+    default java.util.List<GameObject> thingsNear(Coord3D center, float reach) {
+        return getObjects();
+    }
+
+    /** The live things {@code player} owns, in the order they came into the world. */
+    default java.util.List<GameObject> getObjectsOf(int player) {
+        return getObjects().stream().filter(thing -> thing.getPlayerIndex() == player).toList();
+    }
 
     /**
      * A navigable path from {@code from} to {@code to} around terrain obstacles,

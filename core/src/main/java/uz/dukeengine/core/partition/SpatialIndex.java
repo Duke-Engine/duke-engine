@@ -13,21 +13,20 @@ import uz.dukeengine.core.thing.Solid;
  * SAGE's partition cells — so a question about a place looks only at the things near it, whatever the world's size.
  *
  * <p>Only ever a way to find candidates: the {@link PartitionManager} asks each candidate the question the whole world
- * was asked before, and answers in the order things came into the world, so an answer is the same thing for thing as a
- * look at every thing gave. Buckets are kept in a hash map, but nothing is ever answered in its order.
+ * was asked before, and answers in the order things came into the world ({@link GameObject#getEntered}), so an answer
+ * is the same thing for thing as a look at every thing gave. Buckets are kept in a hash map, but nothing is ever
+ * answered in its order.
  */
 final class SpatialIndex {
 
     /** How wide a bucket is, in world units: a few cells, a little wider than most questions reach. */
     static final float BUCKET = 64f;
 
-    /** A thing's place in the index: the order it came into the world, and the bucket it stands in. */
-    private record Entry(long order, long bucket) {
-    }
+    private static final Comparator<GameObject> ENTERED = Comparator.comparingLong(GameObject::getEntered);
 
     private final HashMap<Long, List<GameObject>> buckets = new HashMap<>();
-    private final IdentityHashMap<GameObject, Entry> entries = new IdentityHashMap<>();
-    private long nextOrder;
+    /** The bucket each thing indexed stands in. */
+    private final IdentityHashMap<GameObject, Long> entries = new IdentityHashMap<>();
     /** The widest footprint any thing indexed has had, from its middle: how far past a box a thing may reach into it. */
     private float widest;
 
@@ -36,35 +35,39 @@ final class SpatialIndex {
             return;
         }
         long bucket = bucketOf(thing.getPosition().x(), thing.getPosition().y());
-        entries.put(thing, new Entry(nextOrder++, bucket));
+        entries.put(thing, bucket);
         buckets.computeIfAbsent(bucket, key -> new ArrayList<>()).add(thing);
         widest = Math.max(widest, Solid.of(thing.getTemplate()).footprintRadius());
     }
 
     void moved(GameObject thing) {
-        var entry = entries.get(thing);
-        if (entry == null) {
+        var was = entries.get(thing);
+        if (was == null) {
             return;
         }
         long bucket = bucketOf(thing.getPosition().x(), thing.getPosition().y());
-        if (bucket == entry.bucket()) {
+        if (bucket == was) {
             return;
         }
-        leave(thing, entry.bucket());
+        leave(thing, was);
         buckets.computeIfAbsent(bucket, key -> new ArrayList<>()).add(thing);
-        entries.put(thing, new Entry(entry.order(), bucket));
+        entries.put(thing, bucket);
     }
 
     void remove(GameObject thing) {
-        var entry = entries.remove(thing);
-        if (entry != null) {
-            leave(thing, entry.bucket());
+        var was = entries.remove(thing);
+        if (was != null) {
+            leave(thing, was);
         }
     }
 
     void clear() {
         buckets.clear();
         entries.clear();
+    }
+
+    int size() {
+        return entries.size();
     }
 
     /** The widest footprint of any thing indexed, from its middle. */
@@ -99,7 +102,23 @@ final class SpatialIndex {
                 }
             }
         }
-        found.sort(Comparator.comparingLong(thing -> entries.get(thing).order()));
+        found.sort(ENTERED);
+        return found;
+    }
+
+    /**
+     * Every thing standing in one of the buckets {@code keys} names — each once, since a thing stands in one bucket —
+     * in the order they came into the world.
+     */
+    List<GameObject> inBuckets(Iterable<Long> keys) {
+        var found = new ArrayList<GameObject>();
+        for (long key : keys) {
+            var bucket = buckets.get(key);
+            if (bucket != null) {
+                found.addAll(bucket);
+            }
+        }
+        found.sort(ENTERED);
         return found;
     }
 
@@ -114,7 +133,8 @@ final class SpatialIndex {
         }
     }
 
-    private static long cell(float coordinate) {
+    /** The bucket a coordinate falls in, along one axis. */
+    static long cell(float coordinate) {
         return (long) Math.floor(coordinate / BUCKET);
     }
 
@@ -122,7 +142,15 @@ final class SpatialIndex {
         return key(cell(x), cell(y));
     }
 
-    private static long key(long x, long y) {
-        return (x << 32) ^ (y & 0xFFFFFFFFL);
+    /**
+     * One number for the bucket at {@code (x, y)}, a different one for each: its two halves stirred so that buckets
+     * side by side hash apart — packed plainly, the buckets along a diagonal all hashed alike.
+     */
+    static long key(long x, long y) {
+        long z = (x << 32) ^ (y & 0xFFFFFFFFL);
+        // SplitMix64's finaliser: every step undoes, so two buckets never share a key.
+        z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
+        z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
+        return z ^ (z >>> 31);
     }
 }

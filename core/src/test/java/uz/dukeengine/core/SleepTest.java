@@ -2,12 +2,14 @@ package uz.dukeengine.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
+import uz.dukeengine.core.module.ActiveBody;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleFactory;
 import uz.dukeengine.core.module.UpdateModule;
@@ -38,10 +40,31 @@ class SleepTest {
         }
     }
 
+    /** Strikes its mark once, on a frame the test names: an awake thing's blow landing on a sleeper mid-update. */
+    static final class Striker extends UpdateModule {
+        record Data() implements ModuleData {
+        }
+
+        GameObject mark;
+        int onFrame = -1;
+
+        Striker(GameObject owner) {
+            super(owner);
+        }
+
+        @Override
+        public void update() {
+            if (mark != null && getOwner().getWorld().getFrame() == onFrame) {
+                mark.getBody().damage(1f);
+            }
+        }
+    }
+
     private static final class World extends GameLogic {
         World() {
-            super(new ThingFactory(ModuleFactory.withDefaults().register(Counter.Data.class,
-                    (owner, data) -> new Counter(owner))));
+            super(new ThingFactory(ModuleFactory.withDefaults()
+                    .register(Counter.Data.class, (owner, data) -> new Counter(owner))
+                    .register(Striker.Data.class, (owner, data) -> new Striker(owner))));
         }
 
         @Override
@@ -52,8 +75,10 @@ class SleepTest {
     private static World world() {
         var world = new World();
         world.init();
-        world.getThingFactory().addTemplate(ThingTemplate.named("Hero").module(new Counter.Data()).build());
-        world.getThingFactory().addTemplate(ThingTemplate.named("Monster").module(new Counter.Data()).build());
+        world.getThingFactory().addTemplate(ThingTemplate.named("Hero").module(new Counter.Data())
+                .module(new Striker.Data()).build());
+        world.getThingFactory().addTemplate(ThingTemplate.named("Monster").module(new Counter.Data())
+                .module(new ActiveBody.Data(10f)).build());
         world.setSleep(new Sleep(thing -> thing.getTemplate().name().equals("Hero"), 5, 10));
         return world;
     }
@@ -162,6 +187,57 @@ class SleepTest {
         assertEquals(60, frames(hero));
         assertTrue(near.stream().allMatch(thing -> frames(thing) == 60));
         assertTrue(far.stream().allMatch(thing -> frames(thing) == 0), "not one frame run of five thousand");
+    }
+
+    @Test
+    void aSleeperDestroyedOrStruckDownLeavesAtOnceAndOneStruckWakesUntilTheRuleDecidesAgain() {
+        var world = world();
+        put(world, "Hero", 0, 0);
+        var destroyed = put(world, "Monster", 30, 0);
+        var struck = put(world, "Monster", 40, 0);
+        var killed = put(world, "Monster", 50, 0);
+        run(world, 12); // frames 0 to 11, decided at 0 and 10
+        assertTrue(world.isAsleep(struck));
+
+        world.destroyObject(destroyed);
+        struck.getBody().damage(1f);
+        killed.getBody().damage(1000f);
+        assertFalse(world.isAsleep(struck), "struck, it wakes");
+        run(world, 1); // frame 12
+        assertNull(world.findObject(destroyed.getId()), "destroyed asleep, gone the next frame");
+        assertNull(world.findObject(killed.getId()), "a blow that kills wakes it to die");
+        assertEquals(1, frames(struck), "awake from the frame after the blow");
+        run(world, 8); // frames 13 to 20: 20 decides, and it is still far from every waker
+        assertEquals(8, frames(struck));
+        assertTrue(world.isAsleep(struck));
+    }
+
+    @Test
+    void aBlowLandingOnASleeperWhileThingsUpdateWakesItFromTheNextFrame() {
+        var world = world();
+        var hero = put(world, "Hero", 0, 0);
+        var far = put(world, "Monster", 30, 0);
+        var striker = hero.findModule(Striker.class);
+        striker.mark = far;
+        striker.onFrame = 14;
+        run(world, 15); // frames 0 to 14: struck on 14, while the things awake were being updated
+        assertEquals(0, frames(far), "not updated the frame it was struck");
+        assertFalse(world.isAsleep(far));
+        run(world, 3); // frames 15 to 17
+        assertEquals(3, frames(far));
+    }
+
+    @Test
+    void aSleeperThatDiesOfNoBlowLeavesOnTheRulesNextFrame() {
+        var world = world();
+        put(world, "Hero", 0, 0);
+        var far = put(world, "Monster", 30, 0);
+        run(world, 12);
+        far.getBody().setHealth(0f); // no blow: nothing wakes it
+        run(world, 8); // frames 12 to 19
+        assertEquals(far, world.findObject(far.getId()), "asleep, its death is not looked for yet");
+        run(world, 1); // frame 20 decides who sleeps, and looks at every thing
+        assertNull(world.findObject(far.getId()));
     }
 
     @Test

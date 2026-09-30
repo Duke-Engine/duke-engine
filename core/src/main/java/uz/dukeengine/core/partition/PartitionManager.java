@@ -85,6 +85,26 @@ public final class PartitionManager extends SubsystemInterface {
         return near == null ? objectSource.get() : near;
     }
 
+    /**
+     * The things standing where {@code lookers}' reach falls — every thing a looker sees, and a few beside — in the order
+     * they came into the world; or null where the manager keeps no index, or a look at every thing is the cheaper
+     * answer: the lookers' squares hold more buckets than there are things, or a looker reaches too far to sort.
+     */
+    public List<GameObject> standingWhereSeen(Lookers lookers) {
+        if (index == null || lookers.anyWide() || 4L * lookers.squareCount() > index.size()) {
+            return null;
+        }
+        return index.inBuckets(lookers.buckets());
+    }
+
+    /**
+     * The things whose middle may stand within {@code reach} of {@code center} along the ground — each that does, and a
+     * few beside — in creation order: every thing where the manager keeps no index.
+     */
+    public List<GameObject> near(Coord3D center, float reach) {
+        return candidates(center, reach);
+    }
+
     /** The things whose middle may stand within {@code range} of {@code center}, measured along the ground. */
     private List<GameObject> candidates(Coord3D center, float range) {
         return candidates(center.x(), center.y(), center.x(), center.y(), range);
