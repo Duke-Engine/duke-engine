@@ -93,7 +93,24 @@ class FogWindowTest {
             material.setVector4("FogWindow", new com.jme3.math.Vector4f(10f, 20f, 30f, 40f));
             var technique = material.getMaterialDef().getTechniqueDefs("Default").get(0);
             assertEquals("FOG_WINDOW", technique.getShaderParamDefine("FogWindow"), definition);
+            assertTrue(material.getParam("Haze") == null, definition + ": no haze unless told one");
+            material.setVector4("Haze", new com.jme3.math.Vector4f(100f, 200f, 300f, 450f));
+            assertEquals("HAZE", technique.getShaderParamDefine("Haze"), definition);
         }
+    }
+
+    @Test
+    void aHazeRunsFromNoFurtherThanItEndsAndNoneIsNone() {
+        var visuals = Visuals.create();
+        assertTrue(!visuals.hazes(), "none unless the game keeps one");
+        visuals.haze(40f, 60f);
+        assertTrue(visuals.hazes());
+        assertEquals(40f, visuals.getHazeFrom());
+        assertEquals(60f, visuals.getHazeTo());
+        visuals.haze(80f, 60f);
+        assertEquals(60f, visuals.getHazeFrom(), "it cannot start past where it ends");
+        visuals.haze(10f, 0f);
+        assertTrue(!visuals.hazes());
     }
 
     @Test

@@ -8,6 +8,9 @@ uniform sampler2D m_FogMap;
 #ifdef FOG_WINDOW
 uniform vec4 m_FogWindow;
 #endif
+#ifdef HAZE
+uniform vec4 m_Haze;
+#endif
 
 varying vec2 fogCoord;
 varying vec3 worldNormal;
@@ -104,6 +107,10 @@ void main() {
             || worldPos.z > m_FogWindow.w) {
         dark.a = 1.0;
     }
+    #endif
+    #ifdef HAZE
+    // Far from where the camera looks the ground fades into nothing, the edge of what is built round it never seen.
+    dark.a = max(dark.a, smoothstep(m_Haze.z, m_Haze.w, length(worldPos.xz - m_Haze.xy)));
     #endif
     gl_FragColor = vec4(mix(lit, dark.rgb, dark.a), albedo.a);
 }

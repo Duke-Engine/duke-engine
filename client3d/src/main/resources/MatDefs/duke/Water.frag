@@ -5,6 +5,9 @@ uniform sampler2D m_FogMap;
 #ifdef FOG_WINDOW
 uniform vec4 m_FogWindow;
 #endif
+#ifdef HAZE
+uniform vec4 m_Haze;
+#endif
 
 varying vec2 fogCoord;
 varying vec2 place;
@@ -52,6 +55,10 @@ void main() {
     if (place.x < m_FogWindow.x || place.y < m_FogWindow.y || place.x > m_FogWindow.z || place.y > m_FogWindow.w) {
         dark.a = 1.0;
     }
+    #endif
+    #ifdef HAZE
+    // As the ground's: far from where the camera looks, into nothing.
+    dark.a = max(dark.a, smoothstep(m_Haze.z, m_Haze.w, length(place - m_Haze.xy)));
     #endif
     gl_FragColor = vec4(mix(water.rgb, dark.rgb, dark.a), water.a);
 }

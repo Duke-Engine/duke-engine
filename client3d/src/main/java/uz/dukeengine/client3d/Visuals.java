@@ -2708,6 +2708,35 @@ public final class Visuals {
         return streamGround;
     }
 
+    private float hazeFrom;
+    private float hazeTo;
+
+    /**
+     * Fade the ground into nothing — the fog's own colour, which is the window's background — from {@code fromCells}
+     * round where the camera looks to {@code toCells}, where it has gone: the edge of a world built round the camera
+     * ({@link #streamGround}) never seen, however far the view reaches. Round where the camera looks, not the eye, so
+     * zooming out fades nothing near the hero. Drawn by the ground's fogged shader, so for a game that keeps a fog;
+     * none, as ever, where {@code toCells} is 0.
+     */
+    public Visuals haze(float fromCells, float toCells) {
+        this.hazeTo = Math.max(0f, toCells);
+        this.hazeFrom = Math.clamp(fromCells, 0f, this.hazeTo);
+        return this;
+    }
+
+    /** Whether the ground fades into nothing far from where the camera looks. */
+    public boolean hazes() {
+        return hazeTo > 0f;
+    }
+
+    public float getHazeFrom() {
+        return hazeFrom;
+    }
+
+    public float getHazeTo() {
+        return hazeTo;
+    }
+
     private int minimapSpan;
 
     /**

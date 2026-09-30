@@ -28,6 +28,9 @@ MaterialDef Fogged Terrain {
         // Where the picture is of a window: the ground it holds now, x and z from, then x and z to. Past it the
         // picture holds another place's dark, so past it is drawn never seen.
         Vector4 FogWindow
+        // A haze: x and z of where the camera looks, then from how far and to how far the ground fades into the fog's
+        // own colour -- the window's background -- so the edge of the ground built round the camera is never seen.
+        Vector4 Haze
 
         // What is burning nearby -- eight slots, always all eight, an unused one
         // carrying a black colour. See the note in the fragment shader for why
@@ -62,6 +65,7 @@ MaterialDef Fogged Terrain {
             HAS_SHADEMAP : ShadeMap
             HAS_SHADEMAP2 : ShadeMap2
             FOG_WINDOW : FogWindow
+            HAZE : Haze
         }
     }
 }

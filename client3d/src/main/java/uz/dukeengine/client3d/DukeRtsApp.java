@@ -3173,22 +3173,28 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** Every material that reads the fog told where its picture holds now: the ground's, the scorches' and the water's. */
     private void tellEveryFogReaderWhereTheFogHolds() {
+        forEveryFogReader(this::tellWhereTheFogHolds);
+    }
+
+    /** Each material that reads the fog: the ground's, the scorches' and the water's. */
+    private void forEveryFogReader(java.util.function.Consumer<Material> told) {
         for (var material : fogged) {
-            tellWhereTheFogHolds(material);
+            told.accept(material);
         }
         for (var material : scorchLooks.values()) {
             if (material != null) {
-                tellWhereTheFogHolds(material);
+                told.accept(material);
             }
         }
         for (var material : waterLooks) {
-            tellWhereTheFogHolds(material);
+            told.accept(material);
         }
     }
 
     /**
      * Where the fog's picture holds, told to one material that reads it where the picture is of a window round the
-     * camera — past it, the shader draws never seen — and nothing where it is of the whole map, as it always was.
+     * camera — past it, the shader draws never seen — and nothing where it is of the whole map, as it always was; and
+     * the haze, where the game keeps one.
      */
     private void tellWhereTheFogHolds(Material material) {
         if (fogMap != null && fogMap.isWindowed()) {
@@ -3196,6 +3202,34 @@ final class DukeRtsApp extends SimpleApplication {
         } else if (material.getParam("FogWindow") != null) {
             material.clearParam("FogWindow");
         }
+        tellTheHaze(material);
+    }
+
+    /** Where the camera looks, as the haze round it was last told to the ground. */
+    private float hazeToldX = Float.NaN;
+    private float hazeToldZ = Float.NaN;
+
+    /** The haze round where the camera looks told to one material that reads the fog, where the game keeps a haze. */
+    private void tellTheHaze(Material material) {
+        if (!visuals.hazes() || builtFrom == null) {
+            return;
+        }
+        float cell = builtFrom.getCellSize();
+        material.setVector4("Haze", new com.jme3.math.Vector4f(camera.targetX(), camera.targetZ(),
+                visuals.getHazeFrom() * cell, visuals.getHazeTo() * cell));
+    }
+
+    /** The haze kept round where the camera looks, told to the ground each time the camera moves. */
+    private void hazeRoundTheCamera() {
+        if (!visuals.hazes() || fogMap == null || builtFrom == null) {
+            return;
+        }
+        if (camera.targetX() == hazeToldX && camera.targetZ() == hazeToldZ) {
+            return;
+        }
+        hazeToldX = camera.targetX();
+        hazeToldZ = camera.targetZ();
+        forEveryFogReader(this::tellTheHaze);
     }
 
     /** The look each cell of the world wears, where its map names looks of its own; null for none. */
@@ -4820,6 +4854,7 @@ final class DukeRtsApp extends SimpleApplication {
         barrels.update(tpf);
         particleDrawing.draw(cam);
         carryTheLightsToTheStone();
+        hazeRoundTheCamera();
         slideTheShades();
         if (water != null && snapshot != null) {
             water.update(snapshot.gameTimeSeconds());
