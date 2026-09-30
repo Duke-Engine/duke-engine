@@ -876,9 +876,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/DukeRtsApp.java": {
-    "mtime": 1790798950.7810826,
-    "seen": 1790799089.0239754,
-    "ast_hash": "aa26e480037d478a82e3ada6a47fb91d",
+    "mtime": 1790799429.647265,
+    "seen": 1790799678.0846376,
+    "ast_hash": "daff0e9d11941c2229a6634056a28c9d",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/EdgeScroll.java": {
@@ -1230,15 +1230,15 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/TerrainScene.java": {
-    "mtime": 1790788258.302575,
-    "seen": 1790791529.8223853,
-    "ast_hash": "a2ae4d1454c1262a732bddc1043234c9",
+    "mtime": 1790799406.3542907,
+    "seen": 1790799678.084799,
+    "ast_hash": "feafdd7aec0e00aa5dd45f2ef7ce73c3",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/TileLayout.java": {
-    "mtime": 1790526907.7239575,
-    "seen": 1790791529.822388,
-    "ast_hash": "5ed0556193af4fb5acd6009118c8a699",
+    "mtime": 1790799314.9047973,
+    "seen": 1790799678.084804,
+    "ast_hash": "3550e69734f174d972e6f65cfe5ba07d",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/TileSource.java": {
@@ -1272,9 +1272,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/Visuals.java": {
-    "mtime": 1790526907.7239575,
-    "seen": 1790791529.8223968,
-    "ast_hash": "2b34e10415f43e5badd5ecca16cf36a6",
+    "mtime": 1790799429.6486006,
+    "seen": 1790799678.084814,
+    "ast_hash": "10829f4ad7a670cfbbbbec313fcc01f2",
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/AttackFlashTest.java": {
@@ -2028,9 +2028,9 @@
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/pathfind/PathGrid.java": {
-    "mtime": 1790797351.8041284,
-    "seen": 1790798357.457916,
-    "ast_hash": "c5108c99d075c1e133a192b93e345ce9",
+    "mtime": 1790799117.4017713,
+    "seen": 1790799678.085354,
+    "ast_hash": "8f0491b1865165019d1734eead38a9ff",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/pathfind/Pathfinder.java": {
@@ -2304,9 +2304,9 @@
     "semantic_hash": ""
   },
   "core/src/test/java/uz/dukeengine/core/module/MoveUpdateTest.java": {
-    "mtime": 1790526907.7550406,
-    "seen": 1790791529.822797,
-    "ast_hash": "8e7506c6987bd2023520f6fe80a6a000",
+    "mtime": 1790799587.6132169,
+    "seen": 1790799678.0854714,
+    "ast_hash": "6f787e45f2cce1c3526714ab67071205",
     "semantic_hash": ""
   },
   "core/src/test/java/uz/dukeengine/core/module/PathFollowingTest.java": {
@@ -5661,6 +5661,12 @@
     "mtime": 1790798722.8383358,
     "seen": 1790799089.0247588,
     "ast_hash": "9fcb677cd75bc52c292b44b616788c43",
+    "semantic_hash": ""
+  },
+  "client3d/src/test/java/uz/dukeengine/client3d/StreamedGroundTest.java": {
+    "mtime": 1790799491.3286448,
+    "seen": 1790799678.084985,
+    "ast_hash": "bc18d01b0094c6ed4493538febf45843",
     "semantic_hash": ""
   }
 }

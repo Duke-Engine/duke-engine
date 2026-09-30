@@ -2690,6 +2690,22 @@ public final class Visuals {
         return word == null ? WordMark.MARK : wordMarks.getOrDefault(word, WordMark.MARK);
     }
 
+    private int streamGround;
+
+    /**
+     * Build a kit's floor a chunk at a time within {@code cells} of where the camera looks, and let go of what is well
+     * beyond — a world a thousand cells a side drawn as far as it is seen, where built whole at once it was more pieces
+     * than a card holds. 0, as ever, builds each map whole when it is laid.
+     */
+    public Visuals streamGround(int cells) {
+        this.streamGround = Math.max(0, cells);
+        return this;
+    }
+
+    public int getStreamGround() {
+        return streamGround;
+    }
+
     private float dragDistance = SelectionBox.DRAG_THRESHOLD_PIXELS;
 
     /**

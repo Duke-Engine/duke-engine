@@ -3050,6 +3050,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (strips != null) {
             strips.clear(); // a new world lays its own
         }
+        terrain.streamWithin(visuals.getStreamGround());
         terrain.rebuild(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom),
                 game.getMapRecord() instanceof uz.dukeengine.core.map.Dressed dressed ? dressed.scenery()
                         : java.util.List.of());
@@ -4648,6 +4649,7 @@ final class DukeRtsApp extends SimpleApplication {
         // floor's kit would be a floor of the wrong stone until the next one.
         adoptTheLookTheGameNames();
         refreshWorldIfChanged(); // a new run lays out a new world; redraw it
+        terrain.stream(camera.targetX(), camera.targetZ()); // the ground as far as the camera sees, on a wide world
         syncDiscovery(tpf);
         followTheLookUnderTheCamera(tpf);
         camera.focusOnOwnUnit(snapshot.units(), game.getLocalPlayerIndex());

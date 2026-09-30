@@ -196,4 +196,29 @@ class MoveUpdateTest {
         var data = new uz.dukeengine.core.data.Binder().bind(block, MoveUpdate.Data.class);
         assertEquals(45f, data.speed(), 1e-6f);
     }
+    /**
+     * Out at the far corner of a world four thousand cells a side — some forty-one thousand units from its origin — a
+     * unit walks as it walks beside the origin: frame for frame the same way along, to within a hundredth of a unit,
+     * and it stops where the one beside the origin stops.
+     */
+    @Test
+    void aUnitFortyThousandUnitsOutWalksAsOneBesideTheOrigin() {
+        var near = logic.spawn(template, new Coord3D(100f, 100f, 0f), 1);
+        var far = logic.spawn(template, new Coord3D(40_900f, 40_880f, 0f), 1);
+        near.findModule(MoveUpdate.class).setSpeed(7f, 0f); // a slow walk: a quarter of a unit a frame, less
+        far.findModule(MoveUpdate.class).setSpeed(7f, 0f);
+        near.findModule(MoveUpdate.class).moveTo(new Coord3D(100f + 30f, 100f + 17f, 0f));
+        far.findModule(MoveUpdate.class).moveTo(new Coord3D(40_900f + 30f, 40_880f + 17f, 0f));
+        for (int frame = 0; frame < 200; frame++) {
+            var nearWas = near.getPosition();
+            var farWas = far.getPosition();
+            logic.update();
+            float nearStep = nearWas.distance(near.getPosition());
+            float farStep = farWas.distance(far.getPosition());
+            assertEquals(nearStep, farStep, 0.01f, "frame " + frame + ": the same step out there");
+        }
+        // A float out there is a 256th of a unit: a walk of a hundred and fifty steps ends within a twentieth of one.
+        assertEquals(near.getPosition().x() - 100f, far.getPosition().x() - 40_900f, 0.05f, "and ends where it ends");
+        assertEquals(near.getPosition().y() - 100f, far.getPosition().y() - 40_880f, 0.05f);
+    }
 }

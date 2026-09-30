@@ -109,6 +109,22 @@ final class TerrainScene {
     private final java.util.BitSet dirtyChunks = new java.util.BitSet();
     /** The ground's own lights, worked into the painted ground's corners; null where the things' light it. */
     private Visuals.GroundLight light;
+    /** How many cells round the camera a kit's floor is built, a chunk at a time — see {@link #streamWithin}. */
+    private int streamCells;
+    /** The map whose chunks are built as the camera comes near them; null where the whole map was built at once. */
+    private PathGrid streamed;
+    /** The chunks built, whether anything stands in them or not. */
+    private final java.util.BitSet built = new java.util.BitSet();
+    /** The scenery standing in each chunk of a map built a chunk at a time. */
+    private java.util.Map<Integer, java.util.List<uz.dukeengine.core.map.MapScenery>> sceneryByChunk =
+            java.util.Map.of();
+    /** How many storeys the map stands, which the shade of a flat piece hangs off — see {@link #tintFor}. */
+    private int tallest;
+    /** A chunk's cells while the chunk is built, each a node, in order; null when none is. */
+    private java.util.TreeMap<Integer, Node> building;
+    private Node buildingRoot;
+    /** The most chunks built in a frame, so walking into new ground never spends a frame building it. */
+    private static final int CHUNKS_A_FRAME = 2;
 
     TerrainScene(Node root, Surfaces material) {
         this(root, material, false);
@@ -145,6 +161,15 @@ final class TerrainScene {
 
     Node node() {
         return root;
+    }
+
+    /**
+     * Build a kit's floor a chunk at a time within {@code cells} of where the camera looks ({@link #stream}), and let
+     * go of chunks well beyond: a world a thousand cells a side drawn as far as it is seen, where built whole it was
+     * gigabytes of pieces. 0, as before, builds the whole map at once. From the next map laid.
+     */
+    void streamWithin(int cells) {
+        this.streamCells = Math.max(0, cells);
     }
 
     /** Lay out {@code grid} with the kit the game started with. */
@@ -206,6 +231,8 @@ final class TerrainScene {
         root.detachAllChildren();
         cellNodes = new Node[0];
         chunks = new Node[0];
+        streamed = null;
+        built.clear();
         if (tiled()) {
             rebuildFromTiles(grid);
             return;
@@ -525,49 +552,185 @@ final class TerrainScene {
             return;
         }
         cellsWide = grid.getWidth();
-        cellNodes = new Node[grid.getWidth() * grid.getHeight()];
         float cell = grid.getCellSize();
-
         float storey = grid.getLevelHeight();
+        if (streamCells > 0 && chunked) {
+            streamOver(grid);
+            return;
+        }
+        cellNodes = new Node[grid.getWidth() * grid.getHeight()];
         var plan = plan(TileLayout.of(grid), grid);
         // How many storeys this map actually has, so the shading can hang off the
         // top of it — see storeyShade.
-        int tallest = 0;
+        tallest = 0;
         if (storey > 0f) {
             for (var standing : plan) {
                 tallest = Math.max(tallest, Math.round(standing.ground() / storey));
             }
         }
         for (var standing : plan) {
-            var kit = standing.kit();
-            if (standing.piece() == TileLayout.Piece.STAIR) {
-                addStair(grid, standing, cell);
-                continue;
-            }
-            String asset = assetFor(kit, standing.piece());
-            if (asset == null) {
-                continue; // a kit without corner posts is a kit with square notches
-            }
-            if (standing.piece() == TileLayout.Piece.ROCK_FACE) {
-                addRockFace(asset, standing, storey);
-                continue;
-            }
-            float floorScale = cell / kit.getTileSize();
-            // Walls may have been modelled on a different module from the floors, and
-            // then they have their own scale — see Tileset.wallTileSize.
-            float wallScale = cell / kit.getWallTileSize();
-            int clump = standing.upright() ? kit.getWallClump() : 1;
-            for (int copy = 0; copy < clump; copy++) {
-                addKitPiece(assetFor(standing, copy), standing, copy, clump,
-                        standing.upright() ? wallScale : floorScale, wallScale, cell,
-                        tintFor(kit, standing.piece(), standing.ground(), storey, tallest));
-            }
+            layPiece(grid, standing, cell, storey);
         }
         layScenery(grid);
         if (chunked) {
             gatherIntoChunks(grid);
         }
         drape(grid);
+    }
+
+    /** One piece of the plan laid in its cell: a flight of steps, a rock's face, or the kit's pieces for it. */
+    private void layPiece(PathGrid grid, Standing standing, float cell, float storey) {
+        var kit = standing.kit();
+        if (standing.piece() == TileLayout.Piece.STAIR) {
+            addStair(grid, standing, cell);
+            return;
+        }
+        String asset = assetFor(kit, standing.piece());
+        if (asset == null) {
+            return; // a kit without corner posts is a kit with square notches
+        }
+        if (standing.piece() == TileLayout.Piece.ROCK_FACE) {
+            addRockFace(asset, standing, storey);
+            return;
+        }
+        float floorScale = cell / kit.getTileSize();
+        // Walls may have been modelled on a different module from the floors, and
+        // then they have their own scale — see Tileset.wallTileSize.
+        float wallScale = cell / kit.getWallTileSize();
+        int clump = standing.upright() ? kit.getWallClump() : 1;
+        for (int copy = 0; copy < clump; copy++) {
+            addKitPiece(assetFor(standing, copy), standing, copy, clump,
+                    standing.upright() ? wallScale : floorScale, wallScale, cell,
+                    tintFor(kit, standing.piece(), standing.ground(), storey, tallest));
+        }
+    }
+
+    /**
+     * Get ready to build {@code grid} a chunk at a time: its chunks counted, none built, its scenery sorted by the
+     * chunk it stands in, and its storeys counted as a whole build counts them — the highest floor's level, every
+     * piece's ground being a floor's or no higher than the floors round it.
+     */
+    private void streamOver(PathGrid grid) {
+        streamed = grid;
+        chunksWide = Math.ceilDiv(grid.getWidth(), CHUNK_CELLS);
+        chunks = new Node[chunksWide * Math.ceilDiv(grid.getHeight(), CHUNK_CELLS)];
+        built.clear();
+        everyChunk = true;
+        tallest = 0;
+        if (grid.getLevelHeight() > 0f) {
+            for (int cy = 0; cy < grid.getHeight(); cy++) {
+                for (int cx = 0; cx < grid.getWidth(); cx++) {
+                    if (!grid.isTerrainBlocked(cx, cy)) {
+                        tallest = Math.max(tallest, grid.level(cx, cy));
+                    }
+                }
+            }
+        }
+        var byChunk = new java.util.HashMap<Integer, java.util.List<uz.dukeengine.core.map.MapScenery>>();
+        for (var piece : scenery) {
+            int cx = Math.clamp((int) Math.floor(piece.x()), 0, grid.getWidth() - 1);
+            int cy = Math.clamp((int) Math.floor(piece.y()), 0, grid.getHeight() - 1);
+            byChunk.computeIfAbsent(cy / CHUNK_CELLS * chunksWide + cx / CHUNK_CELLS,
+                    chunk -> new java.util.ArrayList<>()).add(piece);
+        }
+        sceneryByChunk = byChunk;
+    }
+
+    /**
+     * Build the chunks of a kit's floor within {@link #streamWithin} of the point ({@code x}, {@code z}) on the ground
+     * — the nearest first, {@link #CHUNKS_A_FRAME} a frame — and let go of those more than a chunk beyond: the ground
+     * as far as the camera sees, whatever the size of the world. Nothing where the whole map was built at once.
+     */
+    void stream(float x, float z) {
+        if (streamed == null) {
+            return;
+        }
+        float cell = streamed.getCellSize();
+        int chunksDeep = chunks.length / chunksWide;
+        int centreX = Math.floorDiv((int) Math.floor(x / cell), CHUNK_CELLS);
+        int centreY = Math.floorDiv((int) Math.floor(z / cell), CHUNK_CELLS);
+        int reach = Math.ceilDiv(streamCells, CHUNK_CELLS);
+        for (int chunk = built.nextSetBit(0); chunk >= 0; chunk = built.nextSetBit(chunk + 1)) {
+            if (Math.max(Math.abs(chunk % chunksWide - centreX), Math.abs(chunk / chunksWide - centreY)) > reach + 1) {
+                if (chunks[chunk] != null) {
+                    chunks[chunk].removeFromParent();
+                    chunks[chunk] = null;
+                }
+                built.clear(chunk);
+            }
+        }
+        int buildNow = CHUNKS_A_FRAME;
+        for (int ring = 0; ring <= reach && buildNow > 0; ring++) {
+            for (int cy = centreY - ring; cy <= centreY + ring && buildNow > 0; cy++) {
+                for (int cx = centreX - ring; cx <= centreX + ring && buildNow > 0; cx++) {
+                    if (Math.max(Math.abs(cx - centreX), Math.abs(cy - centreY)) != ring || cx < 0 || cy < 0
+                            || cx >= chunksWide || cy >= chunksDeep || built.get(cy * chunksWide + cx)) {
+                        continue;
+                    }
+                    buildChunk(cy * chunksWide + cx);
+                    buildNow--;
+                }
+            }
+        }
+    }
+
+    /** Whether chunk ({@code chunkX}, {@code chunkY}) of a map built a chunk at a time is built. */
+    boolean isBuilt(int chunkX, int chunkY) {
+        return streamed != null && built.get(chunkY * chunksWide + chunkX);
+    }
+
+    /**
+     * One chunk of a kit's floor, built as the whole map would build it: every piece of the plan filed under a cell of
+     * it — planned with two cells round it, since a rock's body is turned by the first of its faces the map lays and
+     * its faces come from the cells round it — its scenery, gathered into a geometry a material, laid over the relief,
+     * and kept about its own corner, so a world far from its origin is drawn as finely as one at it.
+     */
+    private void buildChunk(int chunk) {
+        var grid = streamed;
+        float cell = grid.getCellSize();
+        float storey = grid.getLevelHeight();
+        int x0 = chunk % chunksWide * CHUNK_CELLS;
+        int y0 = chunk / chunksWide * CHUNK_CELLS;
+        int x1 = Math.min(x0 + CHUNK_CELLS, grid.getWidth()) - 1;
+        int y1 = Math.min(y0 + CHUNK_CELLS, grid.getHeight()) - 1;
+        building = new java.util.TreeMap<>();
+        buildingRoot = new Node("building");
+        try {
+            for (var standing : plan(TileLayout.of(grid, x0 - 2, y0 - 2, x1 + 2, y1 + 2), grid)) {
+                if (standing.cellX() >= x0 && standing.cellX() <= x1 && standing.cellY() >= y0
+                        && standing.cellY() <= y1) {
+                    layPiece(grid, standing, cell, storey);
+                }
+            }
+            for (var piece : sceneryByChunk.getOrDefault(chunk, java.util.List.of())) {
+                layScenery(grid, piece);
+            }
+            buildingRoot.updateGeometricState();
+            var node = gathered(building.values());
+            built.set(chunk);
+            dirtyChunks.set(chunk);
+            if (node.getQuantity() == 0) {
+                return;
+            }
+            if (grid.getRelief() != null) {
+                drape(grid, node, true);
+            }
+            var corner = new Vector3f(x0 * cell, 0f, y0 * cell);
+            for (var geometry : node.descendantMatches(Geometry.class)) {
+                var positions = geometry.getMesh().getFloatBuffer(com.jme3.scene.VertexBuffer.Type.Position);
+                for (int i = 0; i + 2 < positions.limit(); i += 3) {
+                    positions.put(i, positions.get(i) - corner.x).put(i + 2, positions.get(i + 2) - corner.z);
+                }
+                geometry.getMesh().getBuffer(com.jme3.scene.VertexBuffer.Type.Position).setUpdateNeeded();
+                geometry.getMesh().updateBound();
+            }
+            node.setLocalTranslation(corner);
+            root.attachChild(node);
+            chunks[chunk] = node;
+        } finally {
+            building = null;
+            buildingRoot = null;
+        }
     }
 
     /**
@@ -582,22 +745,27 @@ final class TerrainScene {
             cellNodes = new Node[grid.getWidth() * grid.getHeight()];
             cellsWide = grid.getWidth();
         }
-        float cell = grid.getCellSize();
         for (var piece : scenery) {
-            var model = tiles.piece(SCENERY, piece.model(), piece.tint());
-            if (model == null) {
-                continue;
-            }
-            int cx = Math.clamp((int) Math.floor(piece.x()), 0, grid.getWidth() - 1);
-            int cy = Math.clamp((int) Math.floor(piece.y()), 0, grid.getHeight() - 1);
-            float x = piece.x() * cell;
-            float z = piece.y() * cell;
-            model.setLocalScale(piece.scale());
-            model.setLocalRotation(new com.jme3.math.Quaternion()
-                    .fromAngleAxis(FastMath.DEG_TO_RAD * piece.facing(), Vector3f.UNIT_Y));
-            model.setLocalTranslation(x, tiled() ? grid.storeyHeight(cx, cy) : groundAt(grid, x, z), z);
-            cellNode(cy * cellsWide + cx).attachChild(model);
+            layScenery(grid, piece);
         }
+    }
+
+    /** One piece of scenery in the cell it stands in. */
+    private void layScenery(PathGrid grid, uz.dukeengine.core.map.MapScenery piece) {
+        float cell = grid.getCellSize();
+        var model = tiles.piece(SCENERY, piece.model(), piece.tint());
+        if (model == null) {
+            return;
+        }
+        int cx = Math.clamp((int) Math.floor(piece.x()), 0, grid.getWidth() - 1);
+        int cy = Math.clamp((int) Math.floor(piece.y()), 0, grid.getHeight() - 1);
+        float x = piece.x() * cell;
+        float z = piece.y() * cell;
+        model.setLocalScale(piece.scale());
+        model.setLocalRotation(new com.jme3.math.Quaternion()
+                .fromAngleAxis(FastMath.DEG_TO_RAD * piece.facing(), Vector3f.UNIT_Y));
+        model.setLocalTranslation(x, tiled() ? grid.storeyHeight(cx, cy) : groundAt(grid, x, z), z);
+        cellNode(cy * cellsWide + cx).attachChild(model);
     }
 
     /**
@@ -636,22 +804,38 @@ final class TerrainScene {
             if (gathered.get(chunk).isEmpty()) {
                 continue;
             }
-            var node = new Node("chunk");
-            gathered.get(chunk).forEach((key, geometries) -> {
-                var mesh = new com.jme3.scene.Mesh();
-                jme3tools.optimize.GeometryBatchFactory.mergeGeometries(geometries, mesh);
-                mesh.updateCounts();
-                mesh.updateBound();
-                var one = new Geometry("chunk", mesh);
-                one.setMaterial(key.material());
-                one.setQueueBucket(key.bucket());
-                one.setShadowMode(key.shadows());
-                node.attachChild(one);
-            });
+            var node = merged(gathered.get(chunk));
             root.attachChild(node);
             chunks[chunk] = node;
         }
         everyChunk = true;
+    }
+
+    /** The pieces under {@code cells} gathered into a chunk: a geometry for each material, in the order met. */
+    private static Node gathered(java.util.Collection<Node> cells) {
+        var byLook = new java.util.LinkedHashMap<Gather, java.util.List<Geometry>>();
+        for (var cell : cells) {
+            for (var geometry : cell.descendantMatches(Geometry.class)) {
+                byLook.computeIfAbsent(Gather.of(geometry), key -> new java.util.ArrayList<>()).add(geometry);
+            }
+        }
+        return merged(byLook);
+    }
+
+    private static Node merged(java.util.Map<Gather, java.util.List<Geometry>> byLook) {
+        var node = new Node("chunk");
+        byLook.forEach((key, geometries) -> {
+            var mesh = new com.jme3.scene.Mesh();
+            jme3tools.optimize.GeometryBatchFactory.mergeGeometries(geometries, mesh);
+            mesh.updateCounts();
+            mesh.updateBound();
+            var one = new Geometry("chunk", mesh);
+            one.setMaterial(key.material());
+            one.setQueueBucket(key.bucket());
+            one.setShadowMode(key.shadows());
+            node.attachChild(one);
+        });
+        return node;
     }
 
     /** What pieces must share to be gathered into one geometry: a material, a bucket, shadows, a vertex layout. */
@@ -682,14 +866,19 @@ final class TerrainScene {
         if (grid.getRelief() == null) {
             return;
         }
-        root.updateGeometricState();
+        drape(grid, root, chunks.length > 0);
+    }
+
+    /** Every geometry under {@code under} bent over the relief; its own mesh where {@code ownMeshes}, else a copy. */
+    private static void drape(PathGrid grid, Spatial under, boolean ownMeshes) {
+        under.updateGeometricState();
         var local = new Vector3f();
         var world = new Vector3f();
-        root.depthFirstTraversal(spatial -> {
+        under.depthFirstTraversal(spatial -> {
             if (!(spatial instanceof Geometry geometry)) {
                 return;
             }
-            var mesh = chunks.length > 0 ? geometry.getMesh() : geometry.getMesh().deepClone();
+            var mesh = ownMeshes ? geometry.getMesh() : geometry.getMesh().deepClone();
             var positions = mesh.getFloatBuffer(com.jme3.scene.VertexBuffer.Type.Position);
             var transform = geometry.getWorldTransform();
             for (int i = 0; i + 2 < positions.limit(); i += 3) {
@@ -1382,6 +1571,13 @@ final class TerrainScene {
     }
 
     private Node cellNode(int index) {
+        if (building != null) {
+            return building.computeIfAbsent(index, cell -> {
+                var node = new Node("cell");
+                buildingRoot.attachChild(node);
+                return node;
+            });
+        }
         if (cellNodes[index] == null) {
             cellNodes[index] = new Node("cell");
             root.attachChild(cellNodes[index]);
