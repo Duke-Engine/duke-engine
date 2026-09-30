@@ -6628,13 +6628,37 @@ final class DukeRtsApp extends SimpleApplication {
                 var loaded = geometry.getMaterial();
                 var blend = loaded == null || loaded.getName() == null ? null : marked.get(loaded.getName());
                 var colours = named != null ? named : skinOf(loaded);
+                var coloured = ownColour(loaded, colours, modelPath).mult(tint);
                 // A marked light or shadow stays as unlit as the file made it; the rest is lit as it always was.
                 var dressed = blend != null && ModelBlends.unlit(loaded)
-                        ? unlitMaterial(colours, tint) : creatureMaterial(colours, tint);
+                        ? unlitMaterial(colours, coloured) : creatureMaterial(colours, coloured);
                 ModelBlends.carryOver(loaded, dressed, geometry, blend);
                 geometry.setMaterial(dressed);
             }
         });
+    }
+
+    /**
+     * The colour a dressed piece of a model is drawn in before the look's tint. Where the piece has a picture — the
+     * look's, or the one it came with — the picture carries its colours and this is white, the tint laid over it alone.
+     * A glTF model's piece with none is drawn in the colour its file gives its surface, {@code baseColorFactor}, which
+     * jME's loader holds as {@code BaseColor} — {@code Color} on an unlit surface: kept as a picture is kept, so a silver
+     * key with no texture is drawn silver, not white. White for any other file, as every piece was.
+     */
+    static ColorRGBA ownColour(Material loaded, com.jme3.texture.Texture colours, String modelPath) {
+        if (colours != null || loaded == null || !isGltf(modelPath)) {
+            return ColorRGBA.White.clone();
+        }
+        for (var name : new String[] {"BaseColor", "Color"}) {
+            if (loaded.getParamValue(name) instanceof ColorRGBA base) {
+                return base.clone();
+            }
+        }
+        return ColorRGBA.White.clone();
+    }
+
+    private static boolean isGltf(String modelPath) {
+        return modelPath != null && (modelPath.endsWith(".glb") || modelPath.endsWith(".gltf"));
     }
 
     /** The materials of a model file the game marked with a blend of its own — see {@link ModelBlends}. Read once. */
@@ -6659,9 +6683,9 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /** An unlit material over a colour map, tinted: for a marked light or shadow the file drew without lighting. */
-    private Material unlitMaterial(com.jme3.texture.Texture colours, ColorRGBA tint) {
+    private Material unlitMaterial(com.jme3.texture.Texture colours, ColorRGBA colour) {
         var material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        material.setColor("Color", tint);
+        material.setColor("Color", colour);
         if (colours != null) {
             material.setTexture("ColorMap", colours);
         }
@@ -6679,9 +6703,7 @@ final class DukeRtsApp extends SimpleApplication {
      * was.
      */
     static com.jme3.asset.TextureKey skinKey(String texturePath, String modelPath) {
-        boolean gltf = modelPath != null
-                && (modelPath.endsWith(".glb") || modelPath.endsWith(".gltf"));
-        var key = new com.jme3.asset.TextureKey(texturePath, !gltf);
+        var key = new com.jme3.asset.TextureKey(texturePath, !isGltf(modelPath));
         key.setGenerateMips(true);
         return key;
     }
@@ -6732,10 +6754,12 @@ final class DukeRtsApp extends SimpleApplication {
             warnOnce(one.path, "model");
             return;
         }
+        var tint = visual.tint == null ? ColorRGBA.White : toColor(visual.tint);
         held.depthFirstTraversal(spatial -> {
             if (spatial instanceof Geometry geometry) {
-                geometry.setMaterial(creatureMaterial(skinOf(geometry.getMaterial()),
-                        visual.tint == null ? ColorRGBA.White : toColor(visual.tint)));
+                var loaded = geometry.getMaterial();
+                var colours = skinOf(loaded);
+                geometry.setMaterial(creatureMaterial(colours, ownColour(loaded, colours, one.path).mult(tint)));
             }
         });
         held.setLocalScale(one.scale);
@@ -6757,7 +6781,7 @@ final class DukeRtsApp extends SimpleApplication {
      * tree came out plain white: the right shape, lit correctly, wearing the
      * tint over nothing at all.
      */
-    private com.jme3.texture.Texture skinOf(Material material) {
+    static com.jme3.texture.Texture skinOf(Material material) {
         if (material == null) {
             return null;
         }
@@ -6844,11 +6868,11 @@ final class DukeRtsApp extends SimpleApplication {
         return false;
     }
 
-    private Material creatureMaterial(com.jme3.texture.Texture skin, ColorRGBA tint) {
+    private Material creatureMaterial(com.jme3.texture.Texture skin, ColorRGBA colour) {
         var material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
         material.setBoolean("UseMaterialColors", true);
-        material.setColor("Diffuse", tint);
-        material.setColor("Ambient", tint.mult(CREATURE_AMBIENT));
+        material.setColor("Diffuse", colour);
+        material.setColor("Ambient", colour.mult(CREATURE_AMBIENT));
         material.setColor("Specular", ColorRGBA.Black); // kit art has no highlights
         material.setFloat("Shininess", 1f);
         if (skin != null) {

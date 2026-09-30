@@ -242,6 +242,10 @@ Never published: what it lists ships in 0.8.0.
   game that names a size, and a player who chose one, open as before.
 - `Tileset.wall` and `corner` take several paths (`String...`): a call with one reads as it did, but a game built
   against 0.6.0 is built again.
+- A glTF model with no texture is drawn in its own base colour under its look's `Tint`, where it was drawn in the tint
+  alone — white where the look named none. A look that named a `Tint` to stand in for the model's colour drops it, or
+  the colour is laid over twice. A model with a texture, its own or the look's, and a model of any other kind of file,
+  are drawn as before.
 
 ### Large maps
 
@@ -264,6 +268,15 @@ the pieces stood, where it was a geometry a piece under a node a cell: a 160 × 
 41,000, and a scene of 320 spatials rather than 102,000 for the frame to walk. The relief bends the gathered meshes in
 place, where it copied every piece's mesh to bend it. The fog leaves a chunk out when all of it and a cell round it is
 dark, asked of the chunks near where the light moved.
+
+### A model's own colour
+
+The client dresses every thing's model in a material it can light, the look's `Tint` over its colour map — the look's
+texture, or the one the model came with. A glTF model with neither was drawn in the tint alone, so a key made of one
+silver material, `baseColorFactor` about 0.24 grey and no texture, lay near-white. Each piece of it with no picture
+now keeps the colour its file gives its surface — glTF's `baseColorFactor`, which jME's loader holds as `BaseColor`, or
+`Color` on an unlit surface — as a textured piece keeps its picture, and the tint multiplies that; a thing carried in
+a hand the same. Its alpha comes with it, so a blended or cut-out surface is as clear as its file says.
 
 ### Cells of different looks
 
