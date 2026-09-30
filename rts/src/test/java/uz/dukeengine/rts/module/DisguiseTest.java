@@ -20,6 +20,7 @@ import uz.dukeengine.rts.RtsTemplate;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.rts.network.CommandCodec;
 import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * A thing passing itself off as none of an enemy's targets — the reference's bomb truck disguised as one of his
@@ -90,8 +91,8 @@ class DisguiseTest {
 
     @Test
     void aForcedAttackTravelsTheWire() {
-        var forced = new GameMessage.AttackObject(1, List.of(new ObjectId(4)), new ObjectId(7), true);
-        var plain = new GameMessage.AttackObject(1, List.of(new ObjectId(4)), new ObjectId(7));
+        var forced = new CombatOrder.AttackObject(1, List.of(new ObjectId(4)), new ObjectId(7), true);
+        var plain = new CombatOrder.AttackObject(1, List.of(new ObjectId(4)), new ObjectId(7));
         var packet = new uz.dukeengine.core.network.CommandPacket(3, 1, List.of(forced, plain));
 
         assertEquals(packet, CommandCodec.INSTANCE.decode(CommandCodec.INSTANCE.encode(packet)));

@@ -1,6 +1,6 @@
 package uz.dukeengine.rts.module;
 
-import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.core.message.Command;
 
 /**
  * A module told the standard orders its unit is given — a move, an attack, a stop, an attack-move, a guard, a build
@@ -11,6 +11,9 @@ import uz.dukeengine.rts.message.GameMessage;
  */
 public interface OrderListener {
 
-    /** Its unit was given {@code order}. */
-    void onOrder(GameMessage order);
+    /**
+     * Its unit was given {@code order}: one every side gives ({@code CombatOrder} — a move, an attack, a stop) or an
+     * RTS's own ({@code GameMessage}).
+     */
+    void onOrder(Command order);
 }

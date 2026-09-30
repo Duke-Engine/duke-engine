@@ -18,6 +18,7 @@ import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.combat.module.ExperienceModule;
 import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.combat.message.CombatOrder;
 
 class CombatTest {
 
@@ -29,7 +30,11 @@ class CombatTest {
 
         @Override
         protected void onRtsCommand(GameMessage command) {
-            if (command instanceof GameMessage.AttackObject attack) {
+        }
+
+        @Override
+        protected void onCombatOrder(CombatOrder command) {
+            if (command instanceof CombatOrder.AttackObject attack) {
                 for (var id : attack.units()) {
                     var unit = findObject(id);
                     if (unit != null && unit.findModule(WeaponUpdate.class) != null) {
@@ -82,7 +87,7 @@ class CombatTest {
         var attacker = spawn(usa, Coord3D.ZERO);
         var victim = spawn(china, new Coord3D(5f, 0f, 0f));
 
-        logic.issueCommand(new GameMessage.AttackObject(usa, List.of(attacker.getId()), victim.getId()));
+        logic.issueCommand(new CombatOrder.AttackObject(usa, List.of(attacker.getId()), victim.getId()));
 
         logic.update(); // first shot fires immediately
         assertEquals(75f, victim.getBody().getHealth(), 1e-4f);
@@ -98,7 +103,7 @@ class CombatTest {
     void sustainedFireKillsTheTarget() {
         var attacker = spawn(usa, Coord3D.ZERO);
         var victim = spawn(china, new Coord3D(5f, 0f, 0f));
-        logic.issueCommand(new GameMessage.AttackObject(usa, List.of(attacker.getId()), victim.getId()));
+        logic.issueCommand(new CombatOrder.AttackObject(usa, List.of(attacker.getId()), victim.getId()));
 
         for (int i = 0; i < 20; i++) {
             logic.update();
@@ -111,7 +116,7 @@ class CombatTest {
     void targetOutOfRangeTakesNoDamage() {
         var attacker = spawn(usa, Coord3D.ZERO);
         var victim = spawn(china, new Coord3D(100f, 0f, 0f)); // beyond range 10
-        logic.issueCommand(new GameMessage.AttackObject(usa, List.of(attacker.getId()), victim.getId()));
+        logic.issueCommand(new CombatOrder.AttackObject(usa, List.of(attacker.getId()), victim.getId()));
 
         for (int i = 0; i < 5; i++) {
             logic.update();
@@ -124,7 +129,7 @@ class CombatTest {
     void killingAnEnemyGrantsExperienceAndRanksUp() {
         var attacker = spawn(usa, Coord3D.ZERO);
         var victim = spawn(china, new Coord3D(5f, 0f, 0f));
-        logic.issueCommand(new GameMessage.AttackObject(usa, List.of(attacker.getId()), victim.getId()));
+        logic.issueCommand(new CombatOrder.AttackObject(usa, List.of(attacker.getId()), victim.getId()));
 
         for (int i = 0; i < 20; i++) {
             logic.update();
@@ -153,7 +158,7 @@ class CombatTest {
         logic.purchaseUpgrade(usa, uz.dukeengine.rts.player.Upgrade.weaponDamage("Training", 0, 1.5f));
         var attacker = spawn(usa, Coord3D.ZERO);
         var victim = spawn(china, new Coord3D(5f, 0f, 0f));
-        logic.issueCommand(new GameMessage.AttackObject(usa, List.of(attacker.getId()), victim.getId()));
+        logic.issueCommand(new CombatOrder.AttackObject(usa, List.of(attacker.getId()), victim.getId()));
 
         logic.update(); // first shot: 25 base * 1.5 upgrade = 37.5
         assertEquals(62.5f, victim.getBody().getHealth(), 1e-4f);
@@ -163,7 +168,7 @@ class CombatTest {
     void alliesAreNeverFiredUpon() {
         var attacker = spawn(usa, Coord3D.ZERO);
         var friend = spawn(usa, new Coord3D(5f, 0f, 0f)); // same player => allied
-        logic.issueCommand(new GameMessage.AttackObject(usa, List.of(attacker.getId()), friend.getId()));
+        logic.issueCommand(new CombatOrder.AttackObject(usa, List.of(attacker.getId()), friend.getId()));
 
         logic.update();
         assertEquals(100f, friend.getBody().getHealth(), 1e-4f);

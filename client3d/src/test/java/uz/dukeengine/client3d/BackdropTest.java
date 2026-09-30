@@ -16,6 +16,7 @@ import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * The match behind a front end: nobody plays it, it takes no orders, and made again it plays the same way; held back
@@ -73,7 +74,7 @@ class BackdropTest {
             var stood = loner.getPosition();
 
             // An order as the client would send one for whoever is at the keys: nobody is.
-            running.postCommand(new GameMessage.MoveTo(running.getLocalPlayerIndex(), List.of(new ObjectId(1)),
+            running.postCommand(new CombatOrder.MoveTo(running.getLocalPlayerIndex(), List.of(new ObjectId(1)),
                     new Coord3D(100f, 350f, 0f)));
             waitFor(() -> running.getSnapshot().frame() > 30, "thirty frames");
 

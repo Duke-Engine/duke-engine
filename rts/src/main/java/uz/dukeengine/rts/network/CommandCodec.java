@@ -9,10 +9,12 @@ import uz.dukeengine.core.network.CommandPacket;
 import uz.dukeengine.core.network.PacketCodec;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rts.message.GameMessage;
-import uz.dukeengine.combat.message.OrderSource;
+import uz.dukeengine.combat.message.CombatOrder;
+import uz.dukeengine.combat.network.CombatOrderCodec;
 
 /**
- * The RTS wire format: encodes a {@link CommandPacket} of {@link GameMessage}s
+ * The RTS wire format: encodes a {@link CommandPacket} of {@link GameMessage}s,
+ * and the orders every side gives ({@link CombatOrder}, whose lines are combat's),
  * to a single line and back.
  *
  * <p>Lock-step ships only commands, so this is the entire serialization surface
@@ -44,21 +46,15 @@ public final class CommandCodec implements PacketCodec {
     }
 
     private static String encodeCommand(Command command) {
-        if (!(command instanceof GameMessage message)) {
-            throw new IllegalArgumentException(
-                    "not an RTS command: " + command.getClass().getName());
-        }
+        return switch (command) {
+            case CombatOrder order -> CombatOrderCodec.encode(order);
+            case GameMessage message -> encodeRts(message);
+            default -> throw new IllegalArgumentException("not an RTS command: " + command.getClass().getName());
+        };
+    }
+
+    private static String encodeRts(GameMessage message) {
         return switch (message) {
-            case GameMessage.MoveTo m -> "MOVE," + m.playerIndex() + "," + ids(m.units())
-                    + "," + Float.toString(m.destination().x())
-                    + "," + Float.toString(m.destination().y())
-                    + "," + Float.toString(m.destination().z())
-                    + (m.click() ? ",click" : "");
-            case GameMessage.AttackObject a -> "ATTACK," + a.playerIndex() + "," + ids(a.units())
-                    + "," + a.target().value()
-                    + (a.source() == OrderSource.PLAYER && a.slot() < 0 ? (a.forced() ? ",forced" : "")
-                            : "," + (a.forced() ? "forced" : "") + "," + a.source().name() + "," + a.slot());
-            case GameMessage.StopMoving s -> "STOP," + s.playerIndex() + "," + ids(s.units());
             case GameMessage.QueueProduction q -> "QUEUE," + q.playerIndex() + ","
                     + q.factory().value() + "," + q.unitTemplate();
             case GameMessage.SetRallyPoint r -> "RALLY," + r.playerIndex() + ","
@@ -78,11 +74,11 @@ public final class CommandCodec implements PacketCodec {
             case GameMessage.CancelProduction c -> "UNQUEUE," + c.playerIndex() + "," + c.factory().value()
                     + "," + c.index();
             case GameMessage.Sell s -> "SELL," + s.playerIndex() + "," + s.building().value();
-            case GameMessage.AttackMove a -> "AMOVE," + a.playerIndex() + "," + ids(a.units())
+            case GameMessage.AttackMove a -> "AMOVE," + a.playerIndex() + "," + CombatOrderCodec.ids(a.units())
                     + "," + Float.toString(a.destination().x())
                     + "," + Float.toString(a.destination().y())
                     + "," + Float.toString(a.destination().z());
-            case GameMessage.Guard g -> "GUARD," + g.playerIndex() + "," + ids(g.units())
+            case GameMessage.Guard g -> "GUARD," + g.playerIndex() + "," + CombatOrderCodec.ids(g.units())
                     + "," + (g.place() == null ? "" : Float.toString(g.place().x()))
                     + "," + (g.place() == null ? "" : Float.toString(g.place().y()))
                     + "," + (g.place() == null ? "" : Float.toString(g.place().z()))
@@ -94,7 +90,7 @@ public final class CommandCodec implements PacketCodec {
                     + r.site().value();
             case GameMessage.GameOrder o -> "ORDER," + o.playerIndex() + ","
                     + java.net.URLEncoder.encode(o.word(), java.nio.charset.StandardCharsets.UTF_8)
-                    + "," + ids(o.units())
+                    + "," + CombatOrderCodec.ids(o.units())
                     + "," + (o.place() == null ? "" : Float.toString(o.place().x()))
                     + "," + (o.place() == null ? "" : Float.toString(o.place().y()))
                     + "," + (o.place() == null ? "" : Float.toString(o.place().z()))
@@ -117,19 +113,15 @@ public final class CommandCodec implements PacketCodec {
         return new CommandPacket(frame, playerIndex, commands);
     }
 
-    private static GameMessage decodeCommand(String encoded) {
+    private static Command decodeCommand(String encoded) {
+        var order = CombatOrderCodec.decode(encoded);
+        if (order != null) {
+            return order;
+        }
         var parts = encoded.split(",", -1);
         var kind = parts[0];
         int player = Integer.parseInt(parts[1]);
         return switch (kind) {
-            case "MOVE" -> new GameMessage.MoveTo(player, parseIds(parts[2]),
-                    new Coord3D(Float.parseFloat(parts[3]), Float.parseFloat(parts[4]), Float.parseFloat(parts[5])),
-                    parts.length > 6 && "click".equals(parts[6]));
-            case "ATTACK" -> new GameMessage.AttackObject(player, parseIds(parts[2]),
-                    new ObjectId(Integer.parseInt(parts[3])), parts.length > 4 && "forced".equals(parts[4]),
-                    parts.length > 5 ? OrderSource.valueOf(parts[5]) : OrderSource.PLAYER,
-                    parts.length > 6 ? Integer.parseInt(parts[6]) : -1);
-            case "STOP" -> new GameMessage.StopMoving(player, parseIds(parts[2]));
             case "QUEUE" -> new GameMessage.QueueProduction(player,
                     new ObjectId(Integer.parseInt(parts[2])), parts[3]);
             case "RALLY" -> new GameMessage.SetRallyPoint(player,
@@ -145,9 +137,9 @@ public final class CommandCodec implements PacketCodec {
             case "UNQUEUE" -> new GameMessage.CancelProduction(player, new ObjectId(Integer.parseInt(parts[2])),
                     Integer.parseInt(parts[3]));
             case "SELL" -> new GameMessage.Sell(player, new ObjectId(Integer.parseInt(parts[2])));
-            case "AMOVE" -> new GameMessage.AttackMove(player, parseIds(parts[2]),
+            case "AMOVE" -> new GameMessage.AttackMove(player, CombatOrderCodec.parseIds(parts[2]),
                     new Coord3D(Float.parseFloat(parts[3]), Float.parseFloat(parts[4]), Float.parseFloat(parts[5])));
-            case "GUARD" -> new GameMessage.Guard(player, parseIds(parts[2]),
+            case "GUARD" -> new GameMessage.Guard(player, CombatOrderCodec.parseIds(parts[2]),
                     parts[3].isEmpty() ? null : new Coord3D(Float.parseFloat(parts[3]), Float.parseFloat(parts[4]),
                             Float.parseFloat(parts[5])),
                     parts[6].isEmpty() ? null : new ObjectId(Integer.parseInt(parts[6])),
@@ -158,27 +150,12 @@ public final class CommandCodec implements PacketCodec {
                     new ObjectId(Integer.parseInt(parts[3])));
             case "ORDER" -> new GameMessage.GameOrder(player,
                     java.net.URLDecoder.decode(parts[2], java.nio.charset.StandardCharsets.UTF_8),
-                    parseIds(parts[3]),
+                    CombatOrderCodec.parseIds(parts[3]),
                     parts[4].isEmpty() ? null : new Coord3D(Float.parseFloat(parts[4]), Float.parseFloat(parts[5]),
                             Float.parseFloat(parts[6])),
                     parts[7].isEmpty() ? null : new ObjectId(Integer.parseInt(parts[7])),
                     Long.parseLong(parts[8]));
             default -> throw new IllegalArgumentException("unknown command kind: " + kind);
         };
-    }
-
-    private static String ids(List<ObjectId> units) {
-        return units.stream().map(id -> Integer.toString(id.value())).collect(Collectors.joining(":"));
-    }
-
-    private static List<ObjectId> parseIds(String encoded) {
-        if (encoded.isEmpty()) {
-            return List.of();
-        }
-        var ids = new ArrayList<ObjectId>();
-        for (var token : encoded.split(":")) {
-            ids.add(new ObjectId(Integer.parseInt(token)));
-        }
-        return ids;
     }
 }

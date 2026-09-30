@@ -166,7 +166,7 @@ public final class BuildOrder extends UpdateModule implements uz.dukeengine.rts.
 
     /** At work, any order but a build order ends its work — a stop as well as a move: the player's last word goes. */
     @Override
-    public void onOrder(uz.dukeengine.rts.message.GameMessage order) {
+    public void onOrder(uz.dukeengine.core.message.Command order) {
         if (atWork && !(order instanceof uz.dukeengine.rts.message.GameMessage.Construct)) {
             over = true;
         }

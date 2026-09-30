@@ -16,6 +16,7 @@ import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.combat.module.WeaponHold;
 import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * A unit busy with something else does not shoot.
@@ -81,7 +82,7 @@ class WeaponHoldTest {
     }
 
     private void order(GameObject attacker, GameObject victim) {
-        logic.issueCommand(new GameMessage.AttackObject(attacker.getPlayerIndex(),
+        logic.issueCommand(new CombatOrder.AttackObject(attacker.getPlayerIndex(),
                 List.of(attacker.getId()), victim.getId()));
     }
 

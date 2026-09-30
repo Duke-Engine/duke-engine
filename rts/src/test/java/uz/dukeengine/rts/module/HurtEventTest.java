@@ -19,6 +19,7 @@ import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.rts.RtsTemplate;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /** Every blow that takes health says so: what was struck, how hard after armour, by whom, and where on it. */
 class HurtEventTest {
@@ -56,7 +57,7 @@ class HurtEventTest {
     }
 
     private void attack(GameObject attacker, GameObject victim) {
-        logic.issueCommand(new GameMessage.AttackObject(us, List.of(attacker.getId()), victim.getId()));
+        logic.issueCommand(new CombatOrder.AttackObject(us, List.of(attacker.getId()), victim.getId()));
         logic.update();
         logic.drainEvents().stream().filter(ObjectHurt.class::isInstance).map(ObjectHurt.class::cast)
                 .forEach(hurt::add);

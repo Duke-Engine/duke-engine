@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.skirmish.content.Content;
 import uz.dukeengine.skirmish.content.Unit;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * A second game on the engine, written from nothing rather than copied from the dungeon.
@@ -63,7 +64,7 @@ class SkirmishTest {
         float whole = theirs.getBody().getHealth();
         float untouched = farOff.getBody().getHealth();
 
-        game.postCommand(new GameMessage.AttackObject(match.left().getIndex(), List.of(mine.getId()),
+        game.postCommand(new CombatOrder.AttackObject(match.left().getIndex(), List.of(mine.getId()),
                 theirs.getId()));
         game.runHeadless(120);
 
@@ -89,7 +90,7 @@ class SkirmishTest {
         var theirs = game.getLogic().getObjects().get(1);
         float apart = mine.getPosition().distance(theirs.getPosition());
 
-        game.postCommand(new GameMessage.AttackObject(match.left().getIndex(), List.of(mine.getId()),
+        game.postCommand(new CombatOrder.AttackObject(match.left().getIndex(), List.of(mine.getId()),
                 theirs.getId()));
         game.runHeadless(30 * 20);
 

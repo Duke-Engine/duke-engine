@@ -528,8 +528,8 @@ public final class MultiplayerSession implements AutoCloseable {
         return gate.getDesync();
     }
 
-    /** Buffer a local command; it ships with the next frame submission. */
-    void issueLocal(GameMessage command) {
+    /** Buffer a local command — an RTS's or one every side gives — it ships with the next frame submission. */
+    void issueLocal(uz.dukeengine.core.message.Command command) {
         gate.issueLocal(command);
     }
 

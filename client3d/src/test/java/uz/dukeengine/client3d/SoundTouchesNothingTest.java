@@ -11,6 +11,7 @@ import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * A game with the sound on runs exactly the game a game with the sound off runs.
@@ -57,7 +58,7 @@ class SoundTouchesNothingTest {
     private static List<Long> run(GameSounds listening) {
         var game = newGame();
         game.runHeadless(1);
-        game.postCommand(new GameMessage.AttackObject(1, List.of(new ObjectId(1)),
+        game.postCommand(new CombatOrder.AttackObject(1, List.of(new ObjectId(1)),
                 new ObjectId(2)));
         var checksums = new ArrayList<Long>();
         for (int frame = 0; frame < 400; frame++) {

@@ -20,7 +20,7 @@ class HoldOrdersToldTest {
 
     /** A game's module that hears its unit's orders, and what its hold held as it heard each. */
     static final class Ear extends Module implements OrderListener {
-        final List<GameMessage> heard = new ArrayList<>();
+        final List<uz.dukeengine.core.message.Command> heard = new ArrayList<>();
         final List<Integer> holding = new ArrayList<>();
         final List<Integer> frames = new ArrayList<>();
 
@@ -29,7 +29,7 @@ class HoldOrdersToldTest {
         }
 
         @Override
-        public void onOrder(GameMessage order) {
+        public void onOrder(uz.dukeengine.core.message.Command order) {
             heard.add(order);
             var hold = getOwner().findModule(ContainModule.class);
             holding.add(hold == null ? -1 : hold.getPassengers().size());

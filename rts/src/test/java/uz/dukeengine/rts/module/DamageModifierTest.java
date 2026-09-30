@@ -15,6 +15,7 @@ import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.combat.module.DamageModifier;
 import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * Damage a <em>unit</em> earns, rather than damage its whole side is given.
@@ -81,7 +82,7 @@ class DamageModifierTest {
      */
     private float damageDealtBy(GameObject attacker, GameObject victim) {
         float before = victim.getBody().getHealth();
-        logic.issueCommand(new GameMessage.AttackObject(attacker.getPlayerIndex(),
+        logic.issueCommand(new CombatOrder.AttackObject(attacker.getPlayerIndex(),
                 java.util.List.of(attacker.getId()), victim.getId()));
         logic.update();
         return before - victim.getBody().getHealth();

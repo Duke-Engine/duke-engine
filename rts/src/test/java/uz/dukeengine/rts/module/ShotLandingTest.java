@@ -30,6 +30,7 @@ import uz.dukeengine.combat.module.Weapon;
 import uz.dukeengine.combat.module.WeaponSet;
 import uz.dukeengine.combat.module.WeaponSlot;
 import uz.dukeengine.combat.module.WeaponUpdate;
+import uz.dukeengine.combat.message.CombatOrder;
 
 /**
  * A shot a launcher carried lands the way one that hit at once does: the direct hit, the blast, the kill
@@ -103,7 +104,7 @@ class ShotLandingTest {
     }
 
     private void attack(GameObject attacker, GameObject victim, int frames) {
-        logic.issueCommand(new GameMessage.AttackObject(us, List.of(attacker.getId()), victim.getId()));
+        logic.issueCommand(new CombatOrder.AttackObject(us, List.of(attacker.getId()), victim.getId()));
         for (int frame = 0; frame < frames; frame++) {
             logic.update();
             events.addAll(logic.drainEvents());

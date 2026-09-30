@@ -49,15 +49,26 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
 
     @Override
     protected final void onCommand(Command command) {
-        if (command instanceof GameMessage message) {
-            onRtsCommand(message);
-            return;
+        switch (command) {
+            case uz.dukeengine.combat.message.CombatOrder order -> onCombatOrder(order);
+            case GameMessage message -> onRtsCommand(message);
+            default -> onOtherCommand(command);
         }
-        onOtherCommand(command);
     }
 
     /** Apply one RTS command. Implementations switch over the sealed hierarchy. */
     protected abstract void onRtsCommand(GameMessage command);
+
+    /**
+     * Apply one of the orders every side gives — a move, an attack, a stop ({@link
+     * uz.dukeengine.combat.message.CombatOrder}), switched over as {@link #onRtsCommand} switches over the RTS's own.
+     * An RTS game's simulation applies them to its groups; one that gives none of them leaves this be, and an order
+     * that reaches it anyway is said as not applied.
+     */
+    protected void onCombatOrder(uz.dukeengine.combat.message.CombatOrder order) {
+        LOG.warning(() -> "an order every side gives reached a simulation that applies none: "
+                + order.getClass().getSimpleName());
+    }
 
     /**
      * A crusher runs over a thing whose crushable level is below its crusher level, never an ally's, and is not held up
@@ -712,7 +723,7 @@ public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.c
      * Tell the {@link uz.dukeengine.rts.module.OrderListener}s of each of {@code player}'s units named that it was
      * given {@code order} — after the engine's own handling of it, in the order named.
      */
-    protected final void tellOrder(GameMessage order, java.util.List<uz.dukeengine.core.thing.ObjectId> units,
+    protected final void tellOrder(Command order, java.util.List<uz.dukeengine.core.thing.ObjectId> units,
             int player) {
         for (var id : units) {
             var unit = findObject(id);
