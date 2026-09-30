@@ -227,7 +227,7 @@ class SkirmishTest {
         game.runHeadless(2);
         var offered = game.getSnapshot().commands();
         assertFalse(offered.isEmpty(), "a barracks trains something");
-        assertTrue(offered.stream().allMatch(uz.dukeengine.game.view.CommandButton::available),
+        assertTrue(offered.stream().allMatch(uz.dukeengine.core.view.CommandButton::available),
                 "and with 5000 in the purse he can afford all of it");
 
         var line = barracks.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
@@ -310,7 +310,7 @@ class SkirmishTest {
         game.runHeadless(2);
         var build = game.getSnapshot().commands().stream()
                 .filter(button -> button.id().equals("build:Barracks")).findFirst().orElseThrow();
-        assertEquals(uz.dukeengine.game.view.CommandButton.Aim.GROUND, build.aim(), "it needs a place");
+        assertEquals(uz.dukeengine.core.view.CommandButton.Aim.GROUND, build.aim(), "it needs a place");
         assertEquals("Barracks", build.ghost(), "and shows what it will put there");
 
         var place = new uz.dukeengine.core.math.Coord3D(200f, 150f, 0f);
@@ -342,7 +342,7 @@ class SkirmishTest {
 
         var offered = game.getSnapshot().commands();
         assertFalse(offered.isEmpty(), "still offered");
-        assertTrue(offered.stream().noneMatch(uz.dukeengine.game.view.CommandButton::available),
+        assertTrue(offered.stream().noneMatch(uz.dukeengine.core.view.CommandButton::available),
                 "with an empty purse, none of it may be pressed");
     }
 }

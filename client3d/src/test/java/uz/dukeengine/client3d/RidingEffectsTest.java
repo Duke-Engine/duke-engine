@@ -12,7 +12,7 @@ import uz.dukeengine.core.content.ParticleSystem;
 import uz.dukeengine.core.data.Binder;
 import uz.dukeengine.core.data.DukeText;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.EffectView;
+import uz.dukeengine.core.view.EffectView;
 
 /**
  * An effect riding a thing until the simulation ends it: a damaged building's smoke column at its SMOKE bone, running

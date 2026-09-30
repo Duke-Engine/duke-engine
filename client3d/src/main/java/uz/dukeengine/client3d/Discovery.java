@@ -3,7 +3,7 @@ package uz.dukeengine.client3d;
 import java.util.BitSet;
 import java.util.List;
 import uz.dukeengine.core.pathfind.PathGrid;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * What the player has seen of the map, and what they can see right now.

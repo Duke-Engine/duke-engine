@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * Several marks by a health bar, each placed as the reference places its own ({@code Drawable::drawIconUI}): a rank's

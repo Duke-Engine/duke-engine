@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * Two snapshots say what happened to somebody's health, and it is subtraction.

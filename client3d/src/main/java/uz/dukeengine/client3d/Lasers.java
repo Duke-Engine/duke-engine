@@ -22,7 +22,7 @@ import java.util.function.Function;
 import java.util.logging.Logger;
 import uz.dukeengine.core.content.Laser;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.BeamView;
+import uz.dukeengine.core.view.BeamView;
 
 /**
  * The beams the simulation owns, drawn as the game's {@link Laser} looks say — the reference's {@code W3DLaserDraw}:

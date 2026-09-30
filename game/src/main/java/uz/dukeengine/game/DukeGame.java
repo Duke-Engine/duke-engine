@@ -25,7 +25,7 @@ import uz.dukeengine.core.thing.ThingTemplateLoader;
 import uz.dukeengine.core.thing.Titled;
 import uz.dukeengine.core.thing.WorldTemplate;
 import uz.dukeengine.game.swing.GameWindow;
-import uz.dukeengine.game.view.WorldSnapshot;
+import uz.dukeengine.core.view.WorldSnapshot;
 
 /**
  * The Unity-style entry point of duke-engine: build a playable RTS in a few
@@ -230,7 +230,7 @@ public final class DukeGame {
      * game is not driving it.
      */
     public void setCameraSeen(float x, float y, float angle) {
-        camera.seen(new uz.dukeengine.game.view.CameraView(x, y, angle, Float.NaN, Float.NaN));
+        camera.seen(new uz.dukeengine.core.view.CameraView(x, y, angle, Float.NaN, Float.NaN));
     }
 
     private final java.util.concurrent.atomic.AtomicReference<uz.dukeengine.core.math.Coord2D> viewMove =
@@ -276,19 +276,19 @@ public final class DukeGame {
         return latestAlert;
     }
 
-    private volatile uz.dukeengine.game.view.ViewRays viewRays;
+    private volatile uz.dukeengine.core.view.ViewRays viewRays;
 
     /**
      * What the player's view covers, as the client last drew it — the eye and the rays through the corners of the
-     * world's part of the window, see {@link uz.dukeengine.game.view.ViewRays} — for a radar of the game's own to
+     * world's part of the window, see {@link uz.dukeengine.core.view.ViewRays} — for a radar of the game's own to
      * outline; null before the client has drawn a frame. From any thread.
      */
-    public uz.dukeengine.game.view.ViewRays viewRays() {
+    public uz.dukeengine.core.view.ViewRays viewRays() {
         return viewRays;
     }
 
     /** What the player's view covers, told by the client from its own thread each frame it draws the world. */
-    public void setViewRays(uz.dukeengine.game.view.ViewRays rays) {
+    public void setViewRays(uz.dukeengine.core.view.ViewRays rays) {
         viewRays = rays;
     }
 
@@ -1284,14 +1284,14 @@ public final class DukeGame {
         setBanner("VICTORY");
     }
 
-    private volatile uz.dukeengine.game.view.MomentWords momentWords;
+    private volatile uz.dukeengine.core.view.MomentWords momentWords;
 
     /**
      * Words for its things' moments — moving, attacking, each weapon slot firing, between shots and reloading, a turret
      * turning — added to the words each holds while they last, so its looks choose their model, clip and pieces by them
      * too; the reference's MOVING, FIRING_A and the rest. Null says none, as before.
      */
-    public DukeGame momentWords(uz.dukeengine.game.view.MomentWords words) {
+    public DukeGame momentWords(uz.dukeengine.core.view.MomentWords words) {
         this.momentWords = words;
         if (client != null) {
             client.setMomentWords(words);
@@ -1332,20 +1332,20 @@ public final class DukeGame {
         return this;
     }
 
-    private volatile uz.dukeengine.game.view.FallingWeather weather;
+    private volatile uz.dukeengine.core.view.FallingWeather weather;
 
     /**
-     * The weather falling over the view in this match — see {@link uz.dukeengine.game.view.FallingWeather}; null
+     * The weather falling over the view in this match — see {@link uz.dukeengine.core.view.FallingWeather}; null
      * clears it. Drawing only: nothing in the simulation or the checksum, and a game run without a window keeps it
      * and draws nothing. From any thread.
      */
-    public DukeGame weather(uz.dukeengine.game.view.FallingWeather weather) {
+    public DukeGame weather(uz.dukeengine.core.view.FallingWeather weather) {
         this.weather = weather;
         return this;
     }
 
     /** The weather falling over the view in this match, or null for none. */
-    public uz.dukeengine.game.view.FallingWeather getWeather() {
+    public uz.dukeengine.core.view.FallingWeather getWeather() {
         return weather;
     }
 
@@ -1555,8 +1555,8 @@ public final class DukeGame {
 
     private volatile List<Integer> selection = List.of();
     private java.util.function.Function<List<Integer>,
-            List<uz.dukeengine.game.view.CommandButton>> commandBar;
-    private Consumer<uz.dukeengine.game.view.CommandPress> commandPressed;
+            List<uz.dukeengine.core.view.CommandButton>> commandBar;
+    private Consumer<uz.dukeengine.core.view.CommandPress> commandPressed;
 
     /**
      * What the player may do with whatever he has selected, asked once a frame as the snapshot is built.
@@ -1570,7 +1570,7 @@ public final class DukeGame {
      * order the window holds it. The engine knows what none of the buttons mean.
      */
     public DukeGame commandBar(java.util.function.Function<List<Integer>,
-            List<uz.dukeengine.game.view.CommandButton>> buttons) {
+            List<uz.dukeengine.core.view.CommandButton>> buttons) {
         this.commandBar = buttons;
         if (client != null) {
             client.setCommands(this::buttonsNow);
@@ -1578,7 +1578,7 @@ public final class DukeGame {
         return this;
     }
 
-    private List<uz.dukeengine.game.view.CommandButton> buttonsNow() {
+    private List<uz.dukeengine.core.view.CommandButton> buttonsNow() {
         return commandBar == null ? List.of() : commandBar.apply(selection);
     }
 
@@ -1670,14 +1670,14 @@ public final class DukeGame {
 
     /**
      * What to do when one of the bar's buttons is pressed: which, what was selected, and where or at what
-     * for one that aims — see {@link uz.dukeengine.game.view.CommandPress}.
+     * for one that aims — see {@link uz.dukeengine.core.view.CommandPress}.
      *
      * <p>The handler's job is to turn that into one of the game's own {@link Command}s and
      * {@link #postCommand} it, which is the road every order already travels — queued from the input
      * thread, applied at the start of a frame, written to the replay log. Doing anything to the world
      * here instead would be doing it off the simulation thread and out of the log.
      */
-    public DukeGame onCommandPressed(Consumer<uz.dukeengine.game.view.CommandPress> pressed) {
+    public DukeGame onCommandPressed(Consumer<uz.dukeengine.core.view.CommandPress> pressed) {
         this.commandPressed = pressed;
         return this;
     }
@@ -1694,11 +1694,11 @@ public final class DukeGame {
     public void pressCommand(String id, Coord3D place, float facing, int target) {
         var handler = commandPressed;
         if (handler != null && id != null) {
-            handler.accept(new uz.dukeengine.game.view.CommandPress(id, selection, place, facing, target));
+            handler.accept(new uz.dukeengine.core.view.CommandPress(id, selection, place, facing, target));
         }
     }
 
-    private Consumer<uz.dukeengine.game.view.CommandPress> pressRefused;
+    private Consumer<uz.dukeengine.core.view.CommandPress> pressRefused;
 
     /**
      * What to do when an armed button is pressed where the simulation will not take it — its ghost red ({@link
@@ -1707,7 +1707,7 @@ public final class DukeGame {
      * InGameUI::displayCantBuildMessage} does. A press taken is heard by {@link #onCommandPressed} as ever, and not
      * here.
      */
-    public DukeGame onPressRefused(Consumer<uz.dukeengine.game.view.CommandPress> refused) {
+    public DukeGame onPressRefused(Consumer<uz.dukeengine.core.view.CommandPress> refused) {
         this.pressRefused = refused;
         return this;
     }
@@ -1716,7 +1716,7 @@ public final class DukeGame {
     public void refusePress(String id, Coord3D place, float facing) {
         var handler = pressRefused;
         if (handler != null && id != null) {
-            handler.accept(new uz.dukeengine.game.view.CommandPress(id, selection, place, facing, -1));
+            handler.accept(new uz.dukeengine.core.view.CommandPress(id, selection, place, facing, -1));
         }
     }
 
@@ -1738,7 +1738,7 @@ public final class DukeGame {
     /** The game's answer about an armed button's place, faced one way — see {@link #aimAnswer}. */
     @FunctionalInterface
     public interface AimAnswering {
-        uz.dukeengine.game.view.AimAnswer answer(String button, Coord3D place, float facing);
+        uz.dukeengine.core.view.AimAnswer answer(String button, Coord3D place, float facing);
     }
 
     /**
@@ -1755,7 +1755,7 @@ public final class DukeGame {
      */
     public DukeGame aimFits(AimFits fits) {
         return aimAnswer(fits == null ? null
-                : (button, place, facing) -> new uz.dukeengine.game.view.AimAnswer(fits.test(button, place, facing),
+                : (button, place, facing) -> new uz.dukeengine.core.view.AimAnswer(fits.test(button, place, facing),
                         List.of()));
     }
 
@@ -1781,9 +1781,9 @@ public final class DukeGame {
         this.aim = buttonId == null || place == null ? null : new Aim(buttonId, place, facing);
     }
 
-    private uz.dukeengine.game.view.AimAnswer aimAnswerNow() {
+    private uz.dukeengine.core.view.AimAnswer aimAnswerNow() {
         var now = aim;
-        return now == null || aimAnswering == null ? uz.dukeengine.game.view.AimAnswer.YES
+        return now == null || aimAnswering == null ? uz.dukeengine.core.view.AimAnswer.YES
                 : aimAnswering.answer(now.button(), now.place(), now.facing());
     }
 
@@ -1800,7 +1800,7 @@ public final class DukeGame {
 
     /**
      * Thread-safe: the thing under the window's pointer, or -1 for none — so the next snapshot can say whether
-     * an attack on it by what is selected would be taken ({@link uz.dukeengine.game.view.WorldSnapshot#attackable}).
+     * an attack on it by what is selected would be taken ({@link uz.dukeengine.core.view.WorldSnapshot#attackable}).
      * One-way, like the selection: the window writes, the simulation reads.
      */
     public void setPointedAt(int unitId) {

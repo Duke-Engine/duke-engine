@@ -8,8 +8,8 @@ import com.jme3.math.Vector3f;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.UnitView;
-import uz.dukeengine.game.view.WorldSnapshot;
+import uz.dukeengine.core.view.UnitView;
+import uz.dukeengine.core.view.WorldSnapshot;
 
 /**
  * A sound cue the simulation played by name, as the reference plays a saboteur's feedback at the building he got into:

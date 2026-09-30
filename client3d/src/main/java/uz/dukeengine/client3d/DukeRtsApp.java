@@ -47,8 +47,8 @@ import uz.dukeengine.core.event.ObjectDied;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.DukeGame;
-import uz.dukeengine.game.view.UnitView;
-import uz.dukeengine.game.view.WorldSnapshot;
+import uz.dukeengine.core.view.UnitView;
+import uz.dukeengine.core.view.WorldSnapshot;
 import uz.dukeengine.combat.event.ShotLanded;
 import uz.dukeengine.combat.event.WeaponFired;
 import uz.dukeengine.rts.message.GameMessage;
@@ -818,7 +818,7 @@ final class DukeRtsApp extends SimpleApplication {
     private Weather weather;
     private int weatherFrame = -1;
     private WeatherLook clientWeather;
-    private uz.dukeengine.game.view.FallingWeather matchWeather;
+    private uz.dukeengine.core.view.FallingWeather matchWeather;
 
     void weather(WeatherLook look) {
         clientWeather = look;
@@ -3617,7 +3617,7 @@ final class DukeRtsApp extends SimpleApplication {
     /** What the client's controls are handed: the world as this client draws it. */
     private final Controls.Scene controlScene = new Controls.Scene() {
         @Override
-        public List<uz.dukeengine.game.view.UnitView> units() {
+        public List<uz.dukeengine.core.view.UnitView> units() {
             return snapshot == null ? List.of() : snapshot.units();
         }
 
@@ -3632,21 +3632,21 @@ final class DukeRtsApp extends SimpleApplication {
         }
 
         @Override
-        public boolean onScreen(uz.dukeengine.game.view.UnitView unit) {
+        public boolean onScreen(uz.dukeengine.core.view.UnitView unit) {
             // The world's part of the window, as the reference's AcrossScreen passes read its tactical view.
             var at = cam.getScreenCoordinates(new Vector3f(unit.x(), floorHeightAt(unit.x(), unit.y()), unit.y()));
             return at.z < 1f && worldRegion.contains(at.x, at.y, cam.getWidth(), cam.getHeight());
         }
 
         @Override
-        public boolean hasKind(uz.dukeengine.game.view.UnitView unit, String kind) {
+        public boolean hasKind(uz.dukeengine.core.view.UnitView unit, String kind) {
             var template = game.getLogic().getThingFactory().findTemplate(unit.templateName());
             return template != null && uz.dukeengine.core.thing.Classified.of(template)
                     .contains(uz.dukeengine.core.thing.Kind.of(kind));
         }
 
         @Override
-        public float sizeOf(uz.dukeengine.game.view.UnitView unit) {
+        public float sizeOf(uz.dukeengine.core.view.UnitView unit) {
             var template = game.getLogic().getThingFactory().findTemplate(unit.templateName());
             return template == null ? 0f : uz.dukeengine.core.thing.Solid.of(template).footprintRadius();
         }
@@ -4265,7 +4265,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /** What the last snapshot says of one thing, or null where it said nothing. */
-    private uz.dukeengine.game.view.UnitView viewOf(int id) {
+    private uz.dukeengine.core.view.UnitView viewOf(int id) {
         for (var view : snapshot.units()) {
             if (view.id() == id) {
                 return view;
@@ -4411,14 +4411,14 @@ final class DukeRtsApp extends SimpleApplication {
      * move of none of them — answered as a move, sent to nobody — as the reference issues its move whatever the
      * selection ({@code CommandTranslator::evaluateContextCommand}).
      */
-    static uz.dukeengine.core.message.Command groundClick(int local, List<uz.dukeengine.game.view.UnitView> own,
+    static uz.dukeengine.core.message.Command groundClick(int local, List<uz.dukeengine.core.view.UnitView> own,
             String word, boolean gameDecides, Vector3f ground) {
         var steer = groundOrder(local, own.stream().map(unit -> new ObjectId(unit.id())).toList(), word, ground);
         if (steer != null) {
             return steer;
         }
         var place = new Coord3D(ground.x, ground.z, 0f);
-        var movers = own.stream().filter(uz.dukeengine.game.view.UnitView::mobile)
+        var movers = own.stream().filter(uz.dukeengine.core.view.UnitView::mobile)
                 .map(unit -> new ObjectId(unit.id())).toList();
         if (!movers.isEmpty()) {
             return new CombatOrder.MoveTo(local, movers, place, true);
@@ -4434,17 +4434,17 @@ final class DukeRtsApp extends SimpleApplication {
      * is refused only to one structure of his selected alone that takes it as no rally point, as the reference's
      * {@code InGameUI::createMouseoverHint} shows {@code GENERIC_INVALID} for a lone structure alone.
      */
-    static boolean groundTakes(List<uz.dukeengine.game.view.UnitView> own, boolean gameDecides) {
-        return own.stream().anyMatch(uz.dukeengine.game.view.UnitView::mobile) || rallies(own, gameDecides)
+    static boolean groundTakes(List<uz.dukeengine.core.view.UnitView> own, boolean gameDecides) {
+        return own.stream().anyMatch(uz.dukeengine.core.view.UnitView::mobile) || rallies(own, gameDecides)
                 || !loneStructure(own);
     }
 
-    private static boolean loneStructure(List<uz.dukeengine.game.view.UnitView> own) {
+    private static boolean loneStructure(List<uz.dukeengine.core.view.UnitView> own) {
         return own.size() == 1 && own.getFirst().structure();
     }
 
     /** Whether the client's own rule takes a click on open ground as the rally point of a lone building of his. */
-    private static boolean rallies(List<uz.dukeengine.game.view.UnitView> own, boolean gameDecides) {
+    private static boolean rallies(List<uz.dukeengine.core.view.UnitView> own, boolean gameDecides) {
         return !gameDecides && own.size() == 1 && own.getFirst().producer() && !own.getFirst().mobile();
     }
 
@@ -4482,7 +4482,7 @@ final class DukeRtsApp extends SimpleApplication {
 
     /** The rally points of the selected things of his that have one, and the flag of the only one — see RallyMarks. */
     private void showRallies() {
-        var own = selectedOwn().stream().map(uz.dukeengine.game.view.UnitView::id).collect(java.util.stream.Collectors
+        var own = selectedOwn().stream().map(uz.dukeengine.core.view.UnitView::id).collect(java.util.stream.Collectors
                 .toSet());
         var shown = snapshot.rallies().stream().filter(rally -> own.contains(rally.id())).toList();
         rallyMarks.show(visuals.getRally(), shown, RallyMarks.flagOf(shown, selected.size()),
@@ -4582,7 +4582,7 @@ final class DukeRtsApp extends SimpleApplication {
     }
 
     /** What the snapshot says of the selected things that are his. */
-    private List<uz.dukeengine.game.view.UnitView> selectedOwn() {
+    private List<uz.dukeengine.core.view.UnitView> selectedOwn() {
         return snapshot.units().stream()
                 .filter(u -> selected.contains(u.id()) && u.playerIndex() == game.getLocalPlayerIndex())
                 .toList();
@@ -4740,7 +4740,7 @@ final class DukeRtsApp extends SimpleApplication {
             }
             return;
         }
-        var buttons = snapshot == null ? java.util.List.<uz.dukeengine.game.view.CommandButton>of()
+        var buttons = snapshot == null ? java.util.List.<uz.dukeengine.core.view.CommandButton>of()
                 : snapshot.commands();
         if (commandBar == null) {
             if (buttons.isEmpty()) {
@@ -4802,8 +4802,8 @@ final class DukeRtsApp extends SimpleApplication {
         return false;
     }
 
-    private void pressButton(uz.dukeengine.game.view.CommandButton button) {
-        if (button.aim() != uz.dukeengine.game.view.CommandButton.Aim.NOW) {
+    private void pressButton(uz.dukeengine.core.view.CommandButton button) {
+        if (button.aim() != uz.dukeengine.core.view.CommandButton.Aim.NOW) {
             armButton(button); // it needs a place or a thing first; the next click supplies it
             return;
         }
@@ -4828,7 +4828,7 @@ final class DukeRtsApp extends SimpleApplication {
      * Arm a button that needs a place or a thing: the next click supplies it, and a right click or Escape
      * thinks better of it — the same two-step a hotkey that aims has always had.
      */
-    private void armButton(uz.dukeengine.game.view.CommandButton button) {
+    private void armButton(uz.dukeengine.core.view.CommandButton button) {
         arm(button, true, 0f, null, null, null);
     }
 
@@ -4836,20 +4836,20 @@ final class DukeRtsApp extends SimpleApplication {
      * Arm a button of the game's own canvas exactly as the bar arms its own — see {@link Duke3D#aim}. The game is
      * told how it ended.
      */
-    void armFromGame(uz.dukeengine.game.view.CommandButton button, float radius, String pointer, AimDecal decal,
+    void armFromGame(uz.dukeengine.core.view.CommandButton button, float radius, String pointer, AimDecal decal,
             java.util.function.Consumer<AimOutcome> told) {
         arm(button, false, radius, pointer, decal, told);
     }
 
-    private void arm(uz.dukeengine.game.view.CommandButton button, boolean fromTheBar, float radius, String pointer,
+    private void arm(uz.dukeengine.core.view.CommandButton button, boolean fromTheBar, float radius, String pointer,
             AimDecal decal, java.util.function.Consumer<AimOutcome> told) {
         disarm(); // a hotkey armed first is given up: one thing waits for the next click, never two
         disarmButton();
-        if (button.aim() == uz.dukeengine.game.view.CommandButton.Aim.NOW) {
+        if (button.aim() == uz.dukeengine.core.view.CommandButton.Aim.NOW) {
             return; // nothing to wait for: a button that needs no place is pressed, not armed
         }
         aiming.arm(button, fromTheBar, radius, pointer, decal, told);
-        if (button.aim() == uz.dukeengine.game.view.CommandButton.Aim.GROUND) {
+        if (button.aim() == uz.dukeengine.core.view.CommandButton.Aim.GROUND) {
             showGhost(button.ghost());
         }
     }
@@ -4901,7 +4901,7 @@ final class DukeRtsApp extends SimpleApplication {
      */
     private void aimArmedButton() {
         var button = aiming.button();
-        if (button.aim() == uz.dukeengine.game.view.CommandButton.Aim.UNIT) {
+        if (button.aim() == uz.dukeengine.core.view.CommandButton.Aim.UNIT) {
             var unit = pickUnit();
             if (unit == null) {
                 return; // it had to be a thing, and the click found none

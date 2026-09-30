@@ -2,7 +2,7 @@ package uz.dukeengine.client3d;
 
 import java.util.function.Consumer;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.CommandButton;
+import uz.dukeengine.core.view.CommandButton;
 
 /**
  * A command button waiting for its place or its thing — armed from the client's own bar, or by the game's code for a

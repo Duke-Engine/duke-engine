@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * The client's own controls on the keys a game gave them: the reference's layout, written by a test as a game

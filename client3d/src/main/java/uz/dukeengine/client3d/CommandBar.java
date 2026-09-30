@@ -7,7 +7,7 @@ import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import java.util.ArrayList;
 import java.util.List;
-import uz.dukeengine.game.view.CommandButton;
+import uz.dukeengine.core.view.CommandButton;
 
 /**
  * What the player may do with whatever he has selected, drawn as a grid of buttons in the corner.

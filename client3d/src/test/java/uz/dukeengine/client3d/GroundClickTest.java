@@ -9,7 +9,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.ObjectId;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.combat.message.CombatOrder;
 

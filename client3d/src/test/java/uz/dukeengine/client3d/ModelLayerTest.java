@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /** A thing drawn by more than one model: each chosen, shown and moved by its words on its own. */
 class ModelLayerTest {

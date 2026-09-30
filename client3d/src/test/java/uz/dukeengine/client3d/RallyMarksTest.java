@@ -15,7 +15,7 @@ import com.jme3.scene.shape.Box;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.RallyView;
+import uz.dukeengine.core.view.RallyView;
 
 /** A rally point shown while its building is selected: the flag on it, and the line to it with its nodes. */
 class RallyMarksTest {

@@ -7,7 +7,7 @@ import java.awt.Color;
 import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 import uz.dukeengine.rts.message.GameMessage;
 
 /** How far a building is built reaches the client from the simulation's own progress, going up and coming down. */

@@ -13,7 +13,7 @@ import com.jme3.scene.shape.Box;
 import java.awt.Color;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.AimMark;
+import uz.dukeengine.core.view.AimMark;
 
 /** A ghost drawn as the building it places, and the ground marked where it is refused ({@code InGameUI}). */
 class GhostTest {

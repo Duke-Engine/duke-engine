@@ -23,7 +23,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.logging.Logger;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.RallyView;
+import uz.dukeengine.core.view.RallyView;
 
 /**
  * The rally points of what is selected, shown as the reference shows them ({@code W3DWaypointBuffer::drawWaypoints},

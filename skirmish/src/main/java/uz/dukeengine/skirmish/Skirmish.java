@@ -95,12 +95,12 @@ public final class Skirmish {
                 return java.util.List.of(); // not his
             }
             int purse = logic.getRtsPlayer(chosen.getPlayerIndex()).getMoney();
-            var buttons = new java.util.ArrayList<uz.dukeengine.game.view.CommandButton>();
+            var buttons = new java.util.ArrayList<uz.dukeengine.core.view.CommandButton>();
             var line = chosen.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
             if (line != null) {
                 for (var name : line.getBuilds()) {
                     int cost = costOf(logic, name);
-                    buttons.add(new uz.dukeengine.game.view.CommandButton(
+                    buttons.add(new uz.dukeengine.core.view.CommandButton(
                             "train:" + name, null, name + " " + cost, null, cost <= purse));
                 }
             }
@@ -109,9 +109,9 @@ public final class Skirmish {
                 // building follows it, and the click is the place.
                 for (var name : A_WORKER_BUILDS) {
                     int cost = costOf(logic, name);
-                    buttons.add(new uz.dukeengine.game.view.CommandButton("build:" + name, null,
+                    buttons.add(new uz.dukeengine.core.view.CommandButton("build:" + name, null,
                             name + " " + cost, null, cost <= purse,
-                            uz.dukeengine.game.view.CommandButton.Aim.GROUND, name));
+                            uz.dukeengine.core.view.CommandButton.Aim.GROUND, name));
                 }
             }
             return buttons;

@@ -1,4 +1,4 @@
-package uz.dukeengine.game.view;
+package uz.dukeengine.core.view;
 
 import java.util.List;
 import uz.dukeengine.core.math.Coord3D;

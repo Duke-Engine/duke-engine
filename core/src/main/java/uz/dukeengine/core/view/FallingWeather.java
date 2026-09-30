@@ -1,4 +1,4 @@
-package uz.dukeengine.game.view;
+package uz.dukeengine.core.view;
 
 /**
  * A weather falling over the view that a game sets for a match — the reference's snow and rain ({@code

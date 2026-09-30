@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.module.ActiveBody;
 import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.thing.GameObject;
-import uz.dukeengine.game.view.Turrets;
+import uz.dukeengine.core.view.Turrets;
 import uz.dukeengine.rts.RtsTemplate;
 import uz.dukeengine.rts.module.Turret;
 

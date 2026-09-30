@@ -6,7 +6,7 @@ import java.awt.Color;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.thing.GameObject;
-import uz.dukeengine.game.view.StreamView;
+import uz.dukeengine.core.view.StreamView;
 
 /** Things riding a stream, as the reference's {@code ProjectileStreamUpdate} keeps its shots, and the view of it. */
 class StreamsTest {

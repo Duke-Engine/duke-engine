@@ -8,7 +8,7 @@ import com.jme3.math.ColorRGBA;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.pathfind.PathGrid;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /** The minimap's ground as one picture, a texel a cell, repainted only where the player's knowledge changed. */
 class MinimapPictureTest {

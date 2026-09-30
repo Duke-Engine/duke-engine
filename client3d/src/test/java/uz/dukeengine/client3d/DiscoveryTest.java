@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.pathfind.PathGrid;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * Discovery: the map is black until somebody walks it, and stays open afterwards.

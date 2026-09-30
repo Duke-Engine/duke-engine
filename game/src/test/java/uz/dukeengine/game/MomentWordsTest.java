@@ -8,8 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.MomentWords;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.MomentWords;
+import uz.dukeengine.core.view.UnitView;
 import uz.dukeengine.combat.event.WeaponFired;
 
 /** The game's words for a thing's moments, held by its view while they last, for its looks to choose by. */

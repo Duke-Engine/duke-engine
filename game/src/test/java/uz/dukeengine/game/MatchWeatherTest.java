@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.awt.Color;
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.FallingWeather;
+import uz.dukeengine.core.view.FallingWeather;
 
 /** A weather set for a match: kept by a game with no window, and nothing in the simulation. */
 class MatchWeatherTest {

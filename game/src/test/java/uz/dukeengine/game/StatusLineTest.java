@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.WorldSnapshot;
+import uz.dukeengine.core.view.WorldSnapshot;
 
 /**
  * A line on the HUD that belongs to the game rather than to the engine.

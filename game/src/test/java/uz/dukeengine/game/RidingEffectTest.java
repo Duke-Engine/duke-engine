@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.thing.GameObject;
-import uz.dukeengine.game.view.EffectView;
+import uz.dukeengine.core.view.EffectView;
 
 /** An effect riding a thing until the simulation ends it: numbered, shown where the thing is, ended, gone with it. */
 class RidingEffectTest {

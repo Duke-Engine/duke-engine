@@ -9,7 +9,7 @@ import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.ViewRays;
+import uz.dukeengine.core.view.ViewRays;
 
 /** The world drawn in part of the window: the top 80%, with the bar under it, as the reference draws it. */
 class WorldRegionTest {

@@ -7,7 +7,7 @@ import java.awt.Color;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.BeamView;
+import uz.dukeengine.core.view.BeamView;
 
 /** Beams the simulation owns: made, moved and ended by it, shown to whoever sees either end, and outside the sums. */
 class BeamTest {

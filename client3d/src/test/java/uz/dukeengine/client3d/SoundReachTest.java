@@ -14,8 +14,8 @@ import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.event.SoundPlayed;
 import uz.dukeengine.core.event.WorldEvent;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.UnitView;
-import uz.dukeengine.game.view.WorldSnapshot;
+import uz.dukeengine.core.view.UnitView;
+import uz.dukeengine.core.view.WorldSnapshot;
 
 /**
  * Where a sound is heard from, how far it carries, and which sounds fog does not hide — the reference's {@code

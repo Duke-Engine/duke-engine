@@ -7,7 +7,7 @@ import java.awt.Color;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.Span;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /** A thing drawn along a line: its line in the snapshot, and the thing shown wherever the ground under it is. */
 class SpanTest {

@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.awt.Color;
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * A thing drawn as another: the other template's look to every viewer, in the colours of the player it is disguised as

@@ -13,7 +13,7 @@ import com.jme3.scene.Spatial;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /** A mark by a thing's health bar and a colour added to it, each while it holds its words. */
 class MarksAndTintsTest {

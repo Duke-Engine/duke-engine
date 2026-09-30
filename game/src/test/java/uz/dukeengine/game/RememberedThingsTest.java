@@ -14,7 +14,7 @@ import uz.dukeengine.core.module.KeepsDead;
 import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.module.MoveUpdate;
 import uz.dukeengine.core.thing.GameObject;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 import uz.dukeengine.rts.RtsTemplate;
 
 /**

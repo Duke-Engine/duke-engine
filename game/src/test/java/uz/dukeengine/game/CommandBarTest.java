@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.CommandButton;
+import uz.dukeengine.core.view.CommandButton;
 
 /**
  * What the player may do with what he has selected: the conversation, without a window.
@@ -54,7 +54,7 @@ class CommandBarTest {
 
     @Test
     void aPressComesBackAsTheButtonsOwnWordAndWhatWasSelected() {
-        var pressed = new ArrayList<uz.dukeengine.game.view.CommandPress>();
+        var pressed = new ArrayList<uz.dukeengine.core.view.CommandPress>();
         var game = headless().onCommandPressed(pressed::add);
 
         game.setSelection(List.of(4));
@@ -69,8 +69,8 @@ class CommandBarTest {
 
     @Test
     void aRefusedPressIsToldApartFromEveryPressTaken() {
-        var pressed = new ArrayList<uz.dukeengine.game.view.CommandPress>();
-        var refused = new ArrayList<uz.dukeengine.game.view.CommandPress>();
+        var pressed = new ArrayList<uz.dukeengine.core.view.CommandPress>();
+        var refused = new ArrayList<uz.dukeengine.core.view.CommandPress>();
         var game = headless().onCommandPressed(pressed::add).onPressRefused(refused::add);
         game.setSelection(List.of(4));
 
@@ -90,7 +90,7 @@ class CommandBarTest {
      */
     @Test
     void anAimedPressComesBackWithItsPlaceOrItsTarget() {
-        var pressed = new ArrayList<uz.dukeengine.game.view.CommandPress>();
+        var pressed = new ArrayList<uz.dukeengine.core.view.CommandPress>();
         var game = headless().onCommandPressed(pressed::add);
         game.setSelection(List.of(4));
 
@@ -108,8 +108,8 @@ class CommandBarTest {
 
     @Test
     void anAnswerThatSaysNoCarriesItsRectanglesOfGroundIntoTheFrame() {
-        var mark = new uz.dukeengine.game.view.AimMark(60f, 50f, 90f, 10f, 5f, 4f);
-        var game = headless().aimAnswer((button, place, facing) -> new uz.dukeengine.game.view.AimAnswer(
+        var mark = new uz.dukeengine.core.view.AimMark(60f, 50f, 90f, 10f, 5f, 4f);
+        var game = headless().aimAnswer((button, place, facing) -> new uz.dukeengine.core.view.AimAnswer(
                 place.x() < 55f, place.x() < 55f ? List.of() : List.of(mark)));
         game.addPlayer("Me", java.awt.Color.CYAN);
         game.runHeadless(1);

@@ -1,4 +1,4 @@
-package uz.dukeengine.game.view;
+package uz.dukeengine.core.view;
 
 /**
  * One drawable unit as the renderer sees it — an immutable copy of the fields

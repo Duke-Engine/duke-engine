@@ -13,7 +13,7 @@ import com.jme3.scene.Spatial;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import uz.dukeengine.core.thing.ObjectStatus;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /** The health bar as an RTS draws it: an outline and a fill, sized by the thing and shown over the picked ones. */
 class PlainBarTest {

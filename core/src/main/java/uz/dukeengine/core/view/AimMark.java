@@ -1,4 +1,4 @@
-package uz.dukeengine.game.view;
+package uz.dukeengine.core.view;
 
 /**
  * A rectangle of ground an aim's answer marks — the reference's bib laid under what refuses a building's place ({@code

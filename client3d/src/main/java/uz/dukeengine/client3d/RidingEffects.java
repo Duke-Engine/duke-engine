@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
-import uz.dukeengine.game.view.EffectView;
+import uz.dukeengine.core.view.EffectView;
 
 /**
  * The particle systems the simulation keeps going on its things until it ends them — {@code World.effect} with a

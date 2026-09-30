@@ -22,8 +22,8 @@ import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.core.pathfind.PathGrid;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.DukeGame;
-import uz.dukeengine.game.view.UnitView;
-import uz.dukeengine.game.view.WorldSnapshot;
+import uz.dukeengine.core.view.UnitView;
+import uz.dukeengine.core.view.WorldSnapshot;
 import uz.dukeengine.combat.message.CombatOrder;
 
 /**

@@ -7,7 +7,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /**
  * One of a thing's other models — see {@link Visuals.UnitVisual#layer}: drawn at its place and facing, and chosen,

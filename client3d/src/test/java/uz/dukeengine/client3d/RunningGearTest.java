@@ -12,7 +12,7 @@ import com.jme3.scene.VertexBuffer;
 import com.jme3.scene.shape.Quad;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import uz.dukeengine.game.view.UnitView;
+import uz.dukeengine.core.view.UnitView;
 
 /** Treads that run and wheels that roll and steer as a vehicle moves, worked out from where it stands each frame. */
 class RunningGearTest {
@@ -160,7 +160,7 @@ class RunningGearTest {
     private static UnitView sprung(float x, float orientation, uz.dukeengine.core.thing.Corners corners) {
         return new UnitView(1, "Vehicle", 0, x, 0f, orientation, 100f, 100f, false, true, true, false, 0, 0f, 0f, 0f,
                 false, 0, List.of(), List.of(), 1f, -1, true, null, true, null, 0, 1f, false, 0f, false,
-                uz.dukeengine.game.view.Turrets.NONE, 0f, 0f, corners);
+                uz.dukeengine.core.view.Turrets.NONE, 0f, 0f, corners);
     }
 
     @Test

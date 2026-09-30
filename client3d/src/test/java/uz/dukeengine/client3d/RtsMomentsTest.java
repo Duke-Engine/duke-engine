@@ -13,8 +13,8 @@ import uz.dukeengine.core.event.WorldEvent;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.DeathType;
 import uz.dukeengine.core.thing.ObjectId;
-import uz.dukeengine.game.view.UnitView;
-import uz.dukeengine.game.view.WorldSnapshot;
+import uz.dukeengine.core.view.UnitView;
+import uz.dukeengine.core.view.WorldSnapshot;
 import uz.dukeengine.combat.event.WeaponFired;
 
 /**

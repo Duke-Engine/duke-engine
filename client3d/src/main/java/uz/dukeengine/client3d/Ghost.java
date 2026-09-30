@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.AimMark;
+import uz.dukeengine.core.view.AimMark;
 
 /**
  * What an armed button puts down, drawn where it would stand, and the ground the answer about its place marks. As the

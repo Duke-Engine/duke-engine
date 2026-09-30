@@ -3,9 +3,9 @@ package uz.dukeengine.game;
 import java.util.ArrayList;
 import uz.dukeengine.core.GameClient;
 import uz.dukeengine.rts.thing.RtsKinds;
-import uz.dukeengine.game.view.CommandButton;
-import uz.dukeengine.game.view.UnitView;
-import uz.dukeengine.game.view.WorldSnapshot;
+import uz.dukeengine.core.view.CommandButton;
+import uz.dukeengine.core.view.UnitView;
+import uz.dukeengine.core.view.WorldSnapshot;
 import uz.dukeengine.rts.module.PowerGrid;
 
 /**
@@ -52,11 +52,11 @@ final class RtsClient extends GameClient {
     }
 
     /** Whether the place an armed button is aimed at would do, asked here for the same reason as the bar. */
-    private volatile java.util.function.Supplier<uz.dukeengine.game.view.AimAnswer> aimAnswer =
-            () -> uz.dukeengine.game.view.AimAnswer.YES;
+    private volatile java.util.function.Supplier<uz.dukeengine.core.view.AimAnswer> aimAnswer =
+            () -> uz.dukeengine.core.view.AimAnswer.YES;
 
-    void setAimAnswer(java.util.function.Supplier<uz.dukeengine.game.view.AimAnswer> aimAnswer) {
-        this.aimAnswer = aimAnswer == null ? () -> uz.dukeengine.game.view.AimAnswer.YES : aimAnswer;
+    void setAimAnswer(java.util.function.Supplier<uz.dukeengine.core.view.AimAnswer> aimAnswer) {
+        this.aimAnswer = aimAnswer == null ? () -> uz.dukeengine.core.view.AimAnswer.YES : aimAnswer;
     }
 
     /** Whether an attack on what the pointer is on would be taken, asked here for the same reason as the bar. */
@@ -73,9 +73,9 @@ final class RtsClient extends GameClient {
     }
 
     /** Where the game has put the camera, asked on the simulation thread as the snapshot is built; null for none. */
-    private volatile java.util.function.Supplier<uz.dukeengine.game.view.CameraView> camera = () -> null;
+    private volatile java.util.function.Supplier<uz.dukeengine.core.view.CameraView> camera = () -> null;
 
-    void setCamera(java.util.function.Supplier<uz.dukeengine.game.view.CameraView> camera) {
+    void setCamera(java.util.function.Supplier<uz.dukeengine.core.view.CameraView> camera) {
         this.camera = camera == null ? () -> null : camera;
     }
 
@@ -84,11 +84,11 @@ final class RtsClient extends GameClient {
     }
 
     /** The game's words for its things' moments, added to what each holds; null for none. */
-    private volatile uz.dukeengine.game.view.MomentWords momentWords;
+    private volatile uz.dukeengine.core.view.MomentWords momentWords;
     /** Each thing's turret's turn at the last snapshot, to tell the frames it turns: the simulation's thread only. */
     private java.util.Map<Integer, Float> turretTurns = new java.util.HashMap<>();
 
-    void setMomentWords(uz.dukeengine.game.view.MomentWords words) {
+    void setMomentWords(uz.dukeengine.core.view.MomentWords words) {
         this.momentWords = words;
     }
 
@@ -105,13 +105,13 @@ final class RtsClient extends GameClient {
             addWord(all, weapon.isAttacking() ? words.attacking() : null);
             for (var slot : weapon.slotsNow(logic.getFrame() - 1)) { // the frame just run
                 if (slot.fired()) {
-                    addWord(all, uz.dukeengine.game.view.MomentWords.of(words.firing(), slot.slot()));
+                    addWord(all, uz.dukeengine.core.view.MomentWords.of(words.firing(), slot.slot()));
                 } else if (slot.status() == uz.dukeengine.combat.module.WeaponStatus.BETWEEN_SHOTS) {
-                    addWord(all, uz.dukeengine.game.view.MomentWords.of(words.betweenShots(), slot.slot()));
+                    addWord(all, uz.dukeengine.core.view.MomentWords.of(words.betweenShots(), slot.slot()));
                 } else if (slot.status() == uz.dukeengine.combat.module.WeaponStatus.RELOADING) {
-                    addWord(all, uz.dukeengine.game.view.MomentWords.of(words.reloading(), slot.slot()));
+                    addWord(all, uz.dukeengine.core.view.MomentWords.of(words.reloading(), slot.slot()));
                 } else if (slot.status() == uz.dukeengine.combat.module.WeaponStatus.PRE_ATTACK) {
-                    addWord(all, uz.dukeengine.game.view.MomentWords.of(words.preAttack(), slot.slot()));
+                    addWord(all, uz.dukeengine.core.view.MomentWords.of(words.preAttack(), slot.slot()));
                 }
             }
         }
@@ -206,7 +206,7 @@ final class RtsClient extends GameClient {
                 }
             }
         }
-        var rallies = new ArrayList<uz.dukeengine.game.view.RallyView>();
+        var rallies = new ArrayList<uz.dukeengine.core.view.RallyView>();
         for (var object : shown) {
             if (!everything && object.getPlayerIndex() != viewerPlayer) {
                 continue; // a rally point is shown to its own side
@@ -214,31 +214,31 @@ final class RtsClient extends GameClient {
             var production = object.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
             var line = production == null ? null : production.rallyLine();
             if (line != null) {
-                rallies.add(new uz.dukeengine.game.view.RallyView(object.getId().value(), line.rallyPoint(),
+                rallies.add(new uz.dukeengine.core.view.RallyView(object.getId().value(), line.rallyPoint(),
                         line.points(), line.nodes()));
             }
         }
-        var beams = new ArrayList<uz.dukeengine.game.view.BeamView>();
+        var beams = new ArrayList<uz.dukeengine.core.view.BeamView>();
         for (var beam : logic.getBeams()) {
             if (everything || logic.canSee(viewerPlayer, beam.from()) || logic.canSee(viewerPlayer, beam.to())) {
-                beams.add(new uz.dukeengine.game.view.BeamView(beam.id(), beam.look(), beam.from(), beam.to(),
+                beams.add(new uz.dukeengine.core.view.BeamView(beam.id(), beam.look(), beam.from(), beam.to(),
                         beam.width()));
             }
         }
-        var streams = new ArrayList<uz.dukeengine.game.view.StreamView>();
+        var streams = new ArrayList<uz.dukeengine.core.view.StreamView>();
         for (var stream : logic.getStreams()) {
             var view = streamView(stream, everything);
             if (view != null) {
                 streams.add(view);
             }
         }
-        var effects = new ArrayList<uz.dukeengine.game.view.EffectView>();
+        var effects = new ArrayList<uz.dukeengine.core.view.EffectView>();
         if (!logic.getRidingEffects().isEmpty()) {
             var drawn = new java.util.HashSet<Integer>();
             units.forEach(view -> drawn.add(view.id()));
             for (var effect : logic.getRidingEffects()) {
                 if (drawn.contains(effect.thing().value())) { // seen where the thing it rides is
-                    effects.add(new uz.dukeengine.game.view.EffectView(effect.id(), effect.name(),
+                    effects.add(new uz.dukeengine.core.view.EffectView(effect.id(), effect.name(),
                             effect.thing().value(), effect.bone(), effect.offset()));
                 }
             }
@@ -340,7 +340,7 @@ final class RtsClient extends GameClient {
      * A stream as this viewer sees it: the places of what rides it, in pieces broken at its gaps, what has ended left
      * out — or null where he sees no point of it.
      */
-    private uz.dukeengine.game.view.StreamView streamView(uz.dukeengine.core.thing.Stream stream, boolean everything) {
+    private uz.dukeengine.core.view.StreamView streamView(uz.dukeengine.core.thing.Stream stream, boolean everything) {
         var pieces = new ArrayList<java.util.List<uz.dukeengine.core.math.Coord3D>>();
         var piece = new ArrayList<uz.dukeengine.core.math.Coord3D>();
         boolean seen = everything;
@@ -362,18 +362,18 @@ final class RtsClient extends GameClient {
         if (!piece.isEmpty()) {
             pieces.add(piece);
         }
-        return seen && !pieces.isEmpty() ? new uz.dukeengine.game.view.StreamView(stream.name(), pieces) : null;
+        return seen && !pieces.isEmpty() ? new uz.dukeengine.core.view.StreamView(stream.name(), pieces) : null;
     }
 
     /** How {@code object}'s turrets stand, as its game's {@code Turret} has them; none for a thing without one. */
-    private static uz.dukeengine.game.view.Turrets turretsOf(uz.dukeengine.core.thing.GameObject object) {
+    private static uz.dukeengine.core.view.Turrets turretsOf(uz.dukeengine.core.thing.GameObject object) {
         for (var module : object.getModules()) {
             if (module instanceof uz.dukeengine.rts.module.Turret turret) {
-                return new uz.dukeengine.game.view.Turrets(turret.turretTurn(), turret.turretPitch(),
+                return new uz.dukeengine.core.view.Turrets(turret.turretTurn(), turret.turretPitch(),
                         turret.altTurretTurn(), turret.altTurretPitch());
             }
         }
-        return uz.dukeengine.game.view.Turrets.NONE;
+        return uz.dukeengine.core.view.Turrets.NONE;
     }
 
     /** Which things this viewer goes on seeing as he last saw them, their ground fogged — see {@link #remember}. */

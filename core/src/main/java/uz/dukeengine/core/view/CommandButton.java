@@ -1,4 +1,4 @@
-package uz.dukeengine.game.view;
+package uz.dukeengine.core.view;
 
 /**
  * One button of the command bar: what the player may do with whatever is selected.

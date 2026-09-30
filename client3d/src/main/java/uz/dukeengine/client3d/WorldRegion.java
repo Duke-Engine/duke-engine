@@ -5,7 +5,7 @@ import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.game.view.ViewRays;
+import uz.dukeengine.core.view.ViewRays;
 
 /**
  * The part of the window the world is drawn in, in shares of the window from its top left — the whole of it, or the
