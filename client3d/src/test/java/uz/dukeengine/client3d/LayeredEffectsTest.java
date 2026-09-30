@@ -322,6 +322,52 @@ class LayeredEffectsTest {
         assertEquals(1, rig.effects().playingCount(), "one whirlwind, however many blows it lands");
     }
 
+    /**
+     * A status given again renews the picture it wears: a hero stunned twice half a second apart wears the stars until
+     * the second stun ends, and none is made after it. Short lives, so the first stun's end would show.
+     */
+    @Test
+    void aStatusGivenAgainWearsItsPictureToTheSecondEndAndNoFurther() {
+        var rig = rig(1000, 2);
+        rig.place().creatures.put(7, new Vector3f());
+        rig.visuals().effectSeconds("Stunned", 1.5f);
+        rig.visuals().effect("Stunned", recipe -> recipe.layer(EffectLayer.builder()
+                .type(EffectLayer.AURA).count(40).rate(30f).lifeMin(0.1f).lifeMax(0.2f).renews(true).build()));
+        var moment = new LayeredEffects.Moment(new Vector3f(), null, null, 0f, 1f, 0f, 7, 7);
+
+        rig.effects().cast("Stunned", moment, rig.camera());
+        run(rig, 0.5f);
+        rig.effects().cast("Stunned", moment, rig.camera());
+        run(rig, 1.35f);
+        int pastTheFirstEnd = rig.effects().bornSoFar();
+        run(rig, 0.1f);
+        assertTrue(rig.effects().bornSoFar() > pastTheFirstEnd, "still made inside the second stun");
+        run(rig, 0.2f);
+        int pastTheSecondEnd = rig.effects().bornSoFar();
+        run(rig, 1f);
+        assertEquals(pastTheSecondEnd, rig.effects().bornSoFar(), "none made after the second stun is over");
+        assertEquals(0, rig.effects().playingCount(), "and gone once its last have lived out their lives");
+    }
+
+    /** An aura on somebody stops being made at its span, as one on a spot does; its last live out their lives. */
+    @Test
+    void anAuraOnSomebodyStopsBeingMadeAtItsSpan() {
+        var rig = rig(1000, 2);
+        rig.place().creatures.put(7, new Vector3f());
+        rig.visuals().effectSeconds("Caught", 1f);
+        rig.visuals().effect("Caught", recipe -> recipe.layer(EffectLayer.builder()
+                .type(EffectLayer.AURA).count(40).rate(30f).lifeMin(0.5f).lifeMax(0.6f).build()));
+
+        rig.effects().cast("Caught", new LayeredEffects.Moment(new Vector3f(), null, null, 0f, 1f, 0f, 7, 7),
+                rig.camera());
+        run(rig, 1.1f);
+        int atItsEnd = rig.effects().bornSoFar();
+        run(rig, 0.4f);
+
+        assertEquals(atItsEnd, rig.effects().bornSoFar(), "none made after its second is up");
+        assertEquals(1, rig.effects().playingCount(), "its last still living out their lives");
+    }
+
     @Test
     void anAuraGoesWhenTheManItIsOnDoes() {
         var rig = rig(1000, 2);

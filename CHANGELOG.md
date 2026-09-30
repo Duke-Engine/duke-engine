@@ -92,6 +92,13 @@ baked at, so a size costs a few milliseconds and a bar rebuilt at a resize bakes
 none draws in the bitmap fonts as before, and `BitmapFontBaker`'s files are the same to the byte. The card that opens over a slot is lettered the same
 way, its name in `TitleLettering` and the rest in `Lettering`.
 
+### An aura follows its status
+
+An aura layer that `renews` (`EffectLayer.Builder.renews`) is carried to a new cast's end when it is cast again on somebody
+it still burns on — a stun given again wears its stars to the second stun's end — where one that does not is dropped,
+as a skill's look cast on every blow it lands is. A continuous layer on somebody stops being made at its span, as one
+on a spot does, where it went on for another of its lives.
+
 ### A creature's own level
 
 A creature may carry a level of its own on its bar: the game names the start of a word in its `UnitBarLook`

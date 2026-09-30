@@ -112,6 +112,8 @@ final class LayeredEffects {
     private final Set<String> unmeasured = new HashSet<>();
     private Texture dot;
     private int particlesInUse;
+    /** How many particles have been made, for a test. */
+    private int bornSoFar;
     private int layersMade;
 
     /** One layer burning. */
@@ -416,7 +418,11 @@ final class LayeredEffects {
             // The whirlwind is drawn again on every blow it lands, and every one of
             // those arrives as a cast. The aura it wears is the whole run's, from
             // the first -- a second one stacked on it would be twice as bright and
-            // would outlast the skill by however long the blows went on.
+            // would outlast the skill by however long the blows went on. One that
+            // renews is a status given again, and wears on to the new cast's end.
+            if (layer.renews()) {
+                renew(key, spanOf(recipeName, layer), lasting);
+            }
             return;
         }
 
@@ -441,9 +447,7 @@ final class LayeredEffects {
         var going = new Playing(layer, drawn, light, key);
         going.projectile = projectile;
         going.unit = unit;
-        going.span = layer.seconds() > 0f ? layer.seconds()
-                : visuals.getEffectSeconds(recipeName) > 0f
-                        ? visuals.getEffectSeconds(recipeName) : layer.lifeMax();
+        going.span = spanOf(recipeName, layer);
         going.facingX = moment.facingX();
         going.facingZ = moment.facingZ();
         normaliseFacing(going);
@@ -489,6 +493,26 @@ final class LayeredEffects {
                     + " how far it reaches -- drawn in units");
         }
         return 1f;
+    }
+
+    /** How long a layer of a recipe goes on for: its own seconds, the recipe's, or one life of it. */
+    private float spanOf(String recipeName, EffectLayer layer) {
+        return layer.seconds() > 0f ? layer.seconds()
+                : visuals.getEffectSeconds(recipeName) > 0f ? visuals.getEffectSeconds(recipeName) : layer.lifeMax();
+    }
+
+    /**
+     * A burning aura cast again where it renews — a status given again — carried on to {@code span} from now, and
+     * fed again if it had stopped.
+     */
+    private void renew(String key, float span, boolean lasting) {
+        for (var one : playing) {
+            if (key.equals(one.key) && one.clock - one.layer.delay() < one.until) {
+                one.span = Math.max(0f, one.clock - one.layer.delay()) + span;
+                one.emitting = one.layer.continuous();
+                one.until = untilFor(one, lasting);
+            }
+        }
     }
 
     /** How long after starting it is over, as far as can be known now. */
@@ -671,6 +695,7 @@ final class LayeredEffects {
     /** One particle: where in the disc, which way, how fast, how long, how big, which way up. */
     private void birthOne(Playing going, int index, Vector3f centre, float birth, float life,
             Moment moment) {
+        bornSoFar++;
         var layer = going.layer;
         double angle = dice.nextDouble() * Math.PI * 2.0;
         float distance = layer.radius() * going.unit * (float) Math.sqrt(dice.nextDouble());
@@ -820,7 +845,8 @@ final class LayeredEffects {
         if (!one.emitting || one.drawn == null) {
             return;
         }
-        if (one.rides == null && one.follows == NOBODY && local >= one.span) {
+        // At its span, on somebody or on a spot alike: its last live out their lives, and none is made after.
+        if (one.rides == null && local >= one.span) {
             stopFeeding(one);
             return;
         }
@@ -1033,6 +1059,10 @@ final class LayeredEffects {
 
     int particlesInUse() {
         return particlesInUse;
+    }
+
+    int bornSoFar() {
+        return bornSoFar;
     }
 
     int layersMade() {

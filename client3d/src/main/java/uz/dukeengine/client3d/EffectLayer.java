@@ -92,6 +92,10 @@ import java.util.Set;
  *                    which is how light arrives
  * @param follows     whether, happening on somebody, it goes where he goes for as
  *                    long as it lasts. An {@link #AURA} always does
+ * @param renews      an {@link #AURA}'s: whether a cast of it on somebody it still burns on
+ *                    carries it to the new cast's end — a status given again — where one
+ *                    that does not is dropped, as a skill's look cast again on every blow
+ *                    it lands is
  */
 public record EffectLayer(
         String type,
@@ -137,7 +141,8 @@ public record EffectLayer(
         float cover,
         float rise,
         float riseEase,
-        boolean follows) {
+        boolean follows,
+        boolean renews) {
 
     // ---- the types: a new one is code, the rest is the settings file ----
 
@@ -324,6 +329,7 @@ public record EffectLayer(
         private float rise = 0.2f;
         private float riseEase = 3f;
         private boolean follows = false;
+        private boolean renews = false;
 
         private Builder() {
         }
@@ -548,8 +554,17 @@ public record EffectLayer(
             return this;
         }
 
+        public Builder renews(boolean value) {
+            this.renews = value;
+            return this;
+        }
+
         public EffectLayer build() {
-            return new EffectLayer(type, texture, additive, count, rate, delay, seconds, lifeMin, lifeMax, sizeStart, sizeEnd, sizeEase, sizeJitter, colourStart, colourEnd, alphaStart, alphaEnd, colourEase, fadeIn, fadeOut, speedMin, speedMax, direction, spread, radius, height, gravity, drag, stretch, spin, turn, turnJitter, pulseRate, pulseDepth, at, lightColour, lightPower, lightRadius, fall, measure, cover, rise, riseEase, follows);
+            return new EffectLayer(type, texture, additive, count, rate, delay, seconds, lifeMin, lifeMax,
+                    sizeStart, sizeEnd, sizeEase, sizeJitter, colourStart, colourEnd, alphaStart, alphaEnd,
+                    colourEase, fadeIn, fadeOut, speedMin, speedMax, direction, spread, radius, height, gravity,
+                    drag, stretch, spin, turn, turnJitter, pulseRate, pulseDepth, at, lightColour, lightPower,
+                    lightRadius, fall, measure, cover, rise, riseEase, follows, renews);
         }
     }
 }
