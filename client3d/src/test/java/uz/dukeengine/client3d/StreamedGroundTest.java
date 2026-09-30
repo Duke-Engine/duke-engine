@@ -95,6 +95,18 @@ class StreamedGroundTest {
         return null;
     }
 
+    /** Whether every chunk of the 6 by 5 map within two of chunk ({@code x}, {@code y}) is built. */
+    private static boolean builtWithin(TerrainScene scene, int x, int y) {
+        for (int cy = Math.max(0, y - 2); cy <= Math.min(4, y + 2); cy++) {
+            for (int cx = Math.max(0, x - 2); cx <= Math.min(5, x + 2); cx++) {
+                if (!scene.isBuilt(cx, cy)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     private static void assertSameFloor(Tileset kit) {
         var grid = rooms();
         float cell = grid.getCellSize();
@@ -108,11 +120,18 @@ class StreamedGroundTest {
 
         var looked = new float[][] {{150f, 120f}, {600f, 400f}, {880f, 680f}};
         for (var at : looked) {
-            for (int frame = 0; frame < 40; frame++) {
-                streamed.stream(at[0], at[1]);
-            }
             int centreX = (int) (at[0] / cell) / TerrainScene.CHUNK_CELLS;
             int centreY = (int) (at[1] / cell) / TerrainScene.CHUNK_CELLS;
+            streamed.stream(at[0], at[1]);
+            for (int y = Math.max(0, centreY - 1); y <= Math.min(4, centreY + 1); y++) {
+                for (int x = Math.max(0, centreX - 1); x <= Math.min(5, centreX + 1); x++) {
+                    assertTrue(streamed.isBuilt(x, y), "under the camera from its first frame: " + x + "," + y);
+                }
+            }
+            // The rest a step at a time, as a frame's time allows.
+            for (int frame = 0; frame < 10_000 && !builtWithin(streamed, centreX, centreY); frame++) {
+                streamed.stream(at[0], at[1]);
+            }
             for (int y = Math.max(0, centreY - 2); y <= Math.min(4, centreY + 2); y++) {
                 for (int x = Math.max(0, centreX - 2); x <= Math.min(5, centreX + 2); x++) {
                     assertTrue(streamed.isBuilt(x, y), "chunk " + x + "," + y + " within reach is built");
