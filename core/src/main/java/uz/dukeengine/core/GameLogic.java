@@ -57,6 +57,14 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     private final List<GameObject> objects = new ArrayList<>();
     /** The live objects by id — what {@link #findObject} answers from, where it looked at every object. */
     private final java.util.HashMap<Integer, GameObject> byId = new java.util.HashMap<>();
+    /** Which things sleep, or null where none does — see {@link #setSleep}. */
+    private Sleep sleep;
+    /** The things awake, in creation order, since who sleeps was last decided; null where it is yet to be decided. */
+    private List<GameObject> awake;
+    private final java.util.Set<GameObject> awakeSet =
+            java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+    /** The things made this frame, in creation order, to be told they were made by its end. */
+    private final List<GameObject> unannounced = new ArrayList<>();
     private PathGrid pathGrid; // null = open terrain (direct paths)
     private WorldTemplate world; // null = a game with no World block
     private boolean staticObstaclesDirty = true;
@@ -435,8 +443,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
         sightCells.begin(frame);
         int players = getPlayerList().getPlayerCount();
+        var watchers = awake == null ? objects : awake; // a sleeping thing looks at nothing
         for (int player = 0; player < players; player++) {
-            for (var watcher : objects) {
+            for (var watcher : watchers) {
                 float reach = reachFor(player, watcher);
                 if (reach >= 0f) {
                     sightCells.look(player, watcher.getPosition(), reach);
@@ -1406,6 +1415,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         objects.clear();
         byId.clear();
         partition.cleared();
+        awake = null;
+        awakeSet.clear();
+        unannounced.clear();
         objectsCopy = null;
         revealedTo.clear();
         markedSeen.clear();
@@ -1432,10 +1444,12 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         eachFrame.run();
         simulate();
         scriptEngine.evaluate(this);
-        // What was made this frame is told so by its end, so the frame's picture shows what making it set.
-        for (int i = 0; i < objects.size(); i++) {
-            objects.get(i).announceCreated();
+        // What was made this frame is told so by its end, so the frame's picture shows what making it set: what that
+        // makes in turn with it.
+        for (int i = 0; i < unannounced.size(); i++) {
+            unannounced.get(i).announceCreated();
         }
+        unannounced.clear();
         cellsLastFrame = cellsThisFrame;
         cellsThisFrame = 0;
         lookAtTheMap();
@@ -1543,10 +1557,71 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      * object set is well-defined.
      */
     private void updateObjects() {
-        int count = objects.size();
-        for (int i = 0; i < count; i++) {
-            objects.get(i).updateModules();
+        if (sleep != null && (awake == null || frame % sleep.everyFrames() == 0)) {
+            decideWhoSleeps();
         }
+        var updating = awake == null ? objects : awake;
+        int count = updating.size();
+        for (int i = 0; i < count; i++) {
+            updating.get(i).updateModules();
+        }
+    }
+
+    /**
+     * Put every thing farther than the rule's reach from every waker to sleep, and wake the rest — a thing's cell and
+     * each waker's by where they stand, counted the longer way across, in creation order.
+     */
+    private void decideWhoSleeps() {
+        float cell = cellSize();
+        var waking = new boolean[objects.size()];
+        var wakerCells = new ArrayList<long[]>();
+        for (int i = 0; i < objects.size(); i++) {
+            var thing = objects.get(i);
+            if (sleep.wakers().test(thing)) {
+                waking[i] = true;
+                wakerCells.add(new long[] {cellOf(thing.getPosition().x(), cell), cellOf(thing.getPosition().y(), cell)});
+            }
+        }
+        var now = new ArrayList<GameObject>();
+        awakeSet.clear();
+        for (int i = 0; i < objects.size(); i++) {
+            var thing = objects.get(i);
+            if (waking[i] || nearAWaker(thing, wakerCells, cell)) {
+                now.add(thing);
+                awakeSet.add(thing);
+            }
+        }
+        awake = now;
+    }
+
+    private boolean nearAWaker(GameObject thing, List<long[]> wakerCells, float cell) {
+        long x = cellOf(thing.getPosition().x(), cell);
+        long y = cellOf(thing.getPosition().y(), cell);
+        for (var waker : wakerCells) {
+            if (Math.max(Math.abs(x - waker[0]), Math.abs(y - waker[1])) <= sleep.cells()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static long cellOf(float coordinate, float cell) {
+        return (long) Math.floor(coordinate / cell);
+    }
+
+    /**
+     * Let things far from every waker sleep, by {@code rule} — see {@link Sleep}; null wakes every thing for good, as a
+     * world with no rule has it. Who sleeps is decided on the next frame, and then as the rule says.
+     */
+    public final void setSleep(Sleep rule) {
+        this.sleep = rule;
+        this.awake = null;
+        this.awakeSet.clear();
+    }
+
+    /** Whether {@code thing} sleeps now: the world has a rule, and it put the thing to sleep at its last look. */
+    public final boolean isAsleep(GameObject thing) {
+        return awake != null && !awakeSet.contains(thing);
     }
 
     private void reapDestroyed() {
@@ -1586,6 +1661,13 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         for (var object : leaving) {
             byId.remove(object.getId().value(), object);
             partition.removed(object);
+        }
+        var left = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<GameObject, Boolean>());
+        left.addAll(leaving);
+        unannounced.removeIf(left::contains);
+        if (awake != null) {
+            awake.removeIf(left::contains);
+            awakeSet.removeAll(left);
         }
         objectsCopy = null;
         staticObstaclesDirty = true; // a demolished building reopens its ground
@@ -1762,6 +1844,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         objects.clear();
         byId.clear();
         partition.cleared();
+        awake = null;
+        awakeSet.clear();
+        unannounced.clear();
         objectsCopy = null;
     }
 
@@ -1787,6 +1872,11 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         objects.add(object);
         byId.putIfAbsent(object.getId().value(), object);
         partition.added(object);
+        if (awake != null) {
+            awake.add(object); // awake until who sleeps is next decided
+            awakeSet.add(object);
+        }
+        unannounced.add(object);
         objectsCopy = null;
     }
 
