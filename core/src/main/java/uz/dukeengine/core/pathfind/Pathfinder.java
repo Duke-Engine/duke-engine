@@ -74,6 +74,19 @@ public final class Pathfinder {
         float outside(Coord3D at);
     }
 
+    /** The cells a search may step onto, where it is kept to some of them — see {@link #corridorOf}. */
+    @FunctionalInterface
+    interface Allowed {
+        boolean allows(int cx, int cy);
+    }
+
+    /** A search from one point to another: over the whole grid, or kept to the sectors a way goes through. */
+    @FunctionalInterface
+    private interface Searcher {
+        Path search(PathGrid grid, Coord3D from, Coord3D to, float clearance, boolean orNearest, Tally tally,
+                Traffic traffic);
+    }
+
     /**
      * The most cells a route into a band examines before it gives up: the reference's {@code ATTACK_CELL_LIMIT}, "a
      * rather expensive operation, so limit the search".
@@ -97,9 +110,14 @@ public final class Pathfinder {
     /**
      * A search's arrays, kept on its thread from one search to the next rather than made for each — five arrays the
      * size of the map a search, and many searches a frame — and made fresh for each search by a stamp rather than by
-     * clearing them: a cell whose stamp is not this search's has no score and no way there, and is not closed.
+     * clearing them: a cell whose stamp is not this search's has no score and no way there, and is not closed. On a map
+     * larger than {@link #denseCells} they hold only the cells the search has touched, found by the cell: the same
+     * answers to every question, and as much memory as the search needed rather than five times the world's cells.
      */
     private static final class Scratch {
+        /** The most cells a search's arrays are made the size of the map for — {@link #denseUpTo} for a test. */
+        private static int denseCells = 1 << 21;
+
         private int[] g = new int[0];
         private int[] f = new int[0];
         private int[] came = new int[0];
@@ -107,8 +125,12 @@ public final class Pathfinder {
         private int[] shut = new int[0];
         private int stamp;
         private boolean busy;
+        /** On a large map: each touched cell's place in the arrays, by an open table; null for arrays by the cell. */
+        private int[] table;
+        private int[] cellOf = new int[0];
+        private int used;
         final PriorityQueue<Integer> open = new PriorityQueue<>((a, b) -> {
-            int byF = Integer.compare(f[a], f[b]);
+            int byF = Integer.compare(fOf(a), fOf(b));
             return byF != 0 ? byF : Integer.compare(a, b); // deterministic tie-break
         });
 
@@ -120,6 +142,17 @@ public final class Pathfinder {
             }
             scratch.busy = true;
             scratch.open.clear();
+            if (cells > denseCells) {
+                scratch.sparse();
+                return scratch;
+            }
+            if (scratch.table != null) {
+                // The arrays held a large map's cells by their place in the table: nothing in them is a cell's.
+                scratch.table = null;
+                Arrays.fill(scratch.written, 0);
+                Arrays.fill(scratch.shut, 0);
+                scratch.stamp = 0;
+            }
             if (scratch.g.length < cells) {
                 scratch.g = new int[cells];
                 scratch.f = new int[cells];
@@ -137,37 +170,114 @@ public final class Pathfinder {
             return scratch;
         }
 
+        /** Arrays for the cells this search touches alone: emptied, and kept as large as the last search's. */
+        private void sparse() {
+            if (table == null || table.length < 1024) {
+                table = new int[1024];
+            } else {
+                Arrays.fill(table, 0);
+            }
+            used = 0;
+            stamp = 1;
+        }
+
         void release() {
             busy = false;
         }
 
+        /** Where the cell's scores are kept: the cell itself, or its place in the table — -1 for none and not made. */
+        private int at(int cell, boolean make) {
+            if (table == null) {
+                return cell;
+            }
+            int mask = table.length - 1;
+            int bucket = (cell * 0x9E3779B1) >>> 7 & mask;
+            while (true) {
+                int slot = table[bucket] - 1;
+                if (slot < 0) {
+                    return make ? place(cell, bucket) : -1;
+                }
+                if (cellOf[slot] == cell) {
+                    return slot;
+                }
+                bucket = (bucket + 1) & mask;
+            }
+        }
+
+        private int place(int cell, int bucket) {
+            int slot = used++;
+            if (slot == cellOf.length) {
+                int grown = Math.max(1024, slot * 2);
+                cellOf = Arrays.copyOf(cellOf, grown);
+                g = Arrays.copyOf(g, grown);
+                f = Arrays.copyOf(f, grown);
+                came = Arrays.copyOf(came, grown);
+                written = Arrays.copyOf(written, grown);
+                shut = Arrays.copyOf(shut, grown);
+            }
+            cellOf[slot] = cell;
+            written[slot] = 0;
+            shut[slot] = 0;
+            table[bucket] = slot + 1;
+            if (used * 2 > table.length) {
+                var old = table;
+                table = new int[old.length * 2];
+                int mask = table.length - 1;
+                for (int entry : old) {
+                    if (entry == 0) {
+                        continue;
+                    }
+                    int b = (cellOf[entry - 1] * 0x9E3779B1) >>> 7 & mask;
+                    while (table[b] != 0) {
+                        b = (b + 1) & mask;
+                    }
+                    table[b] = entry;
+                }
+            }
+            return slot;
+        }
+
+        private int fOf(int cell) {
+            int at = at(cell, false);
+            return at < 0 ? Integer.MAX_VALUE : f[at];
+        }
+
         int g(int cell) {
-            return written[cell] == stamp ? g[cell] : Integer.MAX_VALUE;
+            int at = at(cell, false);
+            return at >= 0 && written[at] == stamp ? g[at] : Integer.MAX_VALUE;
         }
 
         int came(int cell) {
-            return written[cell] == stamp ? came[cell] : -1;
+            int at = at(cell, false);
+            return at >= 0 && written[at] == stamp ? came[at] : -1;
         }
 
         void set(int cell, int cost, int estimate, int from) {
-            written[cell] = stamp;
-            g[cell] = cost;
-            f[cell] = estimate;
-            came[cell] = from;
+            int at = at(cell, true);
+            written[at] = stamp;
+            g[at] = cost;
+            f[at] = estimate;
+            came[at] = from;
         }
 
         boolean closed(int cell) {
-            return shut[cell] == stamp;
+            int at = at(cell, false);
+            return at >= 0 && shut[at] == stamp;
         }
 
         void close(int cell) {
-            shut[cell] = stamp;
+            shut[at(cell, true)] = stamp;
         }
+    }
 
-        /** The way back from each cell, read along a route this search found: every cell on it was written by it. */
-        int[] cameFrom() {
-            return came;
-        }
+    /**
+     * Hold a search's arrays by the cell up to {@code cells} cells, and past them only for the cells it touches: for a
+     * test to hold the two alike on a small grid. Returns what it was.
+     */
+    static int denseUpTo(int cells) {
+        int was = Scratch.denseCells;
+        Scratch.denseCells = cells;
+        return was;
     }
 
     /**
@@ -189,7 +299,7 @@ public final class Pathfinder {
      */
     static List<Integer> cellsOf(PathGrid grid, Coord3D from, Coord3D to) {
         var cells = new ArrayList<Integer>();
-        search(grid, from, to, 0f, false, null, null, cells);
+        search(grid, from, to, 0f, false, null, null, cells, null);
         return cells;
     }
 
@@ -308,6 +418,352 @@ public final class Pathfinder {
     /** The same, each step costed also by the movers on the ground, as {@code traffic} says; null for none. */
     public static Path findPathOrNearest(PathGrid grid, Coord3D from, Coord3D to, float clearance, Zones zones,
             Tally tally, Traffic traffic) {
+        return findPathOrNearest(grid, from, to, clearance, zones, tally, traffic, Pathfinder::search);
+    }
+
+    /**
+     * The same across a wide world, by its {@link Sectors}: each search first finds the sectors a way goes through,
+     * piece by piece, and then looks cell by cell only in them and the ring of sectors round each — a route across the
+     * world examines the ground along its way, not every cell it could reach. The route is the best within those
+     * sectors, not always the best of the world; a world that is not {@code Sectored} is searched whole, as before.
+     */
+    public static Path findPathOrNearest(PathGrid grid, Coord3D from, Coord3D to, float clearance, Zones zones,
+            Tally tally, Traffic traffic, Sectors sectors) {
+        Searcher through = (g, a, b, room, orNearest, t, cost) ->
+                stretchByStretch(g, sectors, a, b, room, orNearest, t, cost);
+        return findPathOrNearest(grid, from, to, clearance, zones, tally, traffic, through);
+    }
+
+    /** How many sectors of the way a stretch of a route across a wide world crosses. */
+    private static final int SECTORS_A_STRETCH = 2;
+    /** How many cells ahead a route across a wide world is pulled straight from each of its corners. */
+    private static final int STRAIGHTENED_AHEAD = 48;
+
+    /**
+     * A route along the way the sectors give ({@link Sectors#way}), a stretch at a time: from where it stands to the
+     * first cell of the way's piece {@link #SECTORS_A_STRETCH} sectors on, then on from there, the last stretch to the
+     * goal itself — each looked for only in its own sectors and the ring round them, by the search's own steps and
+     * costs, then the whole pulled straight as any route is. A stretch examines the ground near it, so a route across
+     * the world costs what its length does. A short way, one with no stretch that finds its end — no room for the
+     * mover's width, a mover in the way — and ends no way joins, are looked for in one search kept to the way's sectors.
+     */
+    private static Path stretchByStretch(PathGrid grid, Sectors sectors, Coord3D from, Coord3D to, float clearance,
+            boolean orNearest, Tally tally, Traffic traffic) {
+        int startX = grid.toCellX(from);
+        int startY = grid.toCellY(from);
+        int goalX = grid.toCellX(to);
+        int goalY = grid.toCellY(to);
+        if (grid.isBlocked(startX, startY) || grid.isBlocked(goalX, goalY) && !orNearest) {
+            return Path.EMPTY;
+        }
+        if (startX == goalX && startY == goalY) {
+            return new Path(List.of(to));
+        }
+        int width = grid.getWidth();
+        var way = grid.inBounds(goalX, goalY) ? sectors.way(startY * width + startX, goalY * width + goalX) : null;
+        if (way == null || way.length <= SECTORS_A_STRETCH + 1) {
+            return search(grid, from, to, clearance, orNearest, tally, traffic, null, corridorOf(sectors, grid, from, to));
+        }
+        var cells = new ArrayList<Integer>();
+        int at = startY * width + startX;
+        int stretchFrom = 0;
+        while (stretchFrom + SECTORS_A_STRETCH < way.length - 1) {
+            int stretchTo = stretchFrom + SECTORS_A_STRETCH;
+            int target = way[stretchTo];
+            var box = sectorBox(sectors, sectors.sectorOfPiece(target));
+            var stretch = stretch(grid, sectors, at, cell -> sectors.pieceAt(cell % width, cell / width) == target,
+                    (cx, cy) -> toBox(cx, cy, box), clearance, tally, traffic,
+                    keptTo(sectors, way, stretchFrom, stretchTo), -1, -1);
+            if (stretch == null) {
+                return search(grid, from, to, clearance, orNearest, tally, traffic, null,
+                        corridorOf(sectors, grid, from, to));
+            }
+            cells.addAll(stretch);
+            at = cells.getLast();
+            stretchFrom = stretchTo;
+        }
+        int goal = goalY * width + goalX;
+        var last = stretch(grid, sectors, at, cell -> cell == goal, (cx, cy) -> heuristic(cx, cy, goalX, goalY),
+                clearance, tally, traffic, keptTo(sectors, way, stretchFrom, way.length - 1), goalX, goalY);
+        if (last == null) {
+            return search(grid, from, to, clearance, orNearest, tally, traffic, null, corridorOf(sectors, grid, from, to));
+        }
+        cells.addAll(last);
+        boolean reaches = !cells.isEmpty() && cells.getLast() == goal;
+        if (!reaches && !orNearest) {
+            return Path.EMPTY;
+        }
+        var waypoints = new ArrayList<Coord3D>(cells.size());
+        for (int i = 0; i < cells.size(); i++) {
+            int cell = cells.get(i);
+            waypoints.add(reaches && i == cells.size() - 1 ? to : grid.cellCenter(cell % width, cell / width));
+        }
+        var straightened = straighten(grid, from, waypoints, clearance, traffic, STRAIGHTENED_AHEAD);
+        return reaches ? new Path(straightened) : Path.partial(straightened);
+    }
+
+    /** The sectors a stretch of the way from its {@code from}-th piece to its {@code to}-th crosses, and the ring round. */
+    private static int[] keptTo(Sectors sectors, int[] way, int from, int to) {
+        int across = sectors.across();
+        int down = sectors.down();
+        var kept = new java.util.BitSet(across * down);
+        for (int i = from; i <= to; i++) {
+            int sector = sectors.sectorOfPiece(way[i]);
+            int sx = sector % across;
+            int sy = sector / across;
+            for (int y = Math.max(0, sy - 1); y <= Math.min(down - 1, sy + 1); y++) {
+                for (int x = Math.max(0, sx - 1); x <= Math.min(across - 1, sx + 1); x++) {
+                    kept.set(y * across + x);
+                }
+            }
+        }
+        return kept.stream().toArray();
+    }
+
+    /** A sector's cells, {x0, y0, x1, y1}. */
+    private static int[] sectorBox(Sectors sectors, int sector) {
+        int size = sectors.size();
+        int x0 = (sector % sectors.across()) * size;
+        int y0 = (sector / sectors.across()) * size;
+        var grid = sectors.grid();
+        return new int[] {x0, y0, Math.min(x0 + size, grid.getWidth()) - 1, Math.min(y0 + size, grid.getHeight()) - 1};
+    }
+
+    /** The search's estimate from a cell to the nearest cell of a box. */
+    private static int toBox(int cx, int cy, int[] box) {
+        int dx = cx < box[0] ? box[0] - cx : cx > box[2] ? cx - box[2] : 0;
+        int dy = cy < box[1] ? box[1] - cy : cy > box[3] ? cy - box[3] : 0;
+        return ORTHOGONAL_COST * Math.max(dx, dy) + ORTHOGONAL_COST * Math.min(dx, dy) / 2;
+    }
+
+    private static final ThreadLocal<Window> WINDOW = ThreadLocal.withInitial(Window::new);
+
+    /**
+     * A stretch's arrays: as many cells as its sectors hold, each sector given its place for the stretch — whatever the
+     * world's size — and made fresh for each stretch by a stamp.
+     */
+    private static final class Window {
+        private int[] slotOf = new int[0];
+        private int[] slotStamp = new int[0];
+        private int[] g = new int[0];
+        private int[] came = new int[0];
+        private int[] written = new int[0];
+        private int[] shut = new int[0];
+        private int stamp;
+        private int size;
+        private int across;
+        private boolean busy;
+        final Sectors.LongHeap open = new Sectors.LongHeap();
+
+        /** This thread's window over the sectors {@code kept}, fresh; one of its own for a stretch inside another's. */
+        static Window over(Sectors sectors, int[] kept) {
+            var window = WINDOW.get();
+            if (window.busy) {
+                window = new Window();
+            }
+            window.busy = true;
+            window.open.clear();
+            int count = sectors.across() * sectors.down();
+            int area = sectors.size() * sectors.size();
+            if (window.slotOf.length < count) {
+                window.slotOf = new int[count];
+                window.slotStamp = new int[count];
+            }
+            if (window.g.length < kept.length * area) {
+                int cells = kept.length * area;
+                window.g = new int[cells];
+                window.came = new int[cells];
+                window.written = new int[cells];
+                window.shut = new int[cells];
+                Arrays.fill(window.slotStamp, 0);
+                window.stamp = 0;
+            }
+            if (window.stamp == Integer.MAX_VALUE) {
+                Arrays.fill(window.written, 0);
+                Arrays.fill(window.shut, 0);
+                Arrays.fill(window.slotStamp, 0);
+                window.stamp = 0;
+            }
+            window.stamp++;
+            window.size = sectors.size();
+            window.across = sectors.across();
+            for (int slot = 0; slot < kept.length; slot++) {
+                window.slotOf[kept[slot]] = slot;
+                window.slotStamp[kept[slot]] = window.stamp;
+            }
+            return window;
+        }
+
+        void release() {
+            busy = false;
+        }
+
+        /** The cell's place in the arrays, or -1 where its sector is not the stretch's. */
+        int at(int cx, int cy) {
+            int sector = (cy / size) * across + cx / size;
+            if (slotStamp[sector] != stamp) {
+                return -1;
+            }
+            return slotOf[sector] * size * size + (cy % size) * size + cx % size;
+        }
+
+        int g(int at) {
+            return written[at] == stamp ? g[at] : Integer.MAX_VALUE;
+        }
+
+        int came(int at) {
+            return written[at] == stamp ? came[at] : -1;
+        }
+
+        void set(int at, int cost, int from) {
+            written[at] = stamp;
+            g[at] = cost;
+            came[at] = from;
+        }
+
+        boolean closed(int at) {
+            return shut[at] == stamp;
+        }
+
+        void close(int at) {
+            shut[at] = stamp;
+        }
+    }
+
+    /**
+     * A* from cell {@code from} to the first cell {@code reached} takes, by the search's own steps, costs and turns,
+     * {@code estimate} its guess of the rest, kept to the sectors {@code kept}: the cells after {@code from} to it, or —
+     * given a goal cell ({@code goalX}, {@code goalY}) it cannot reach — to the cell nearest it the search came to, as
+     * {@link #search} with {@code orNearest}; null where it reaches nothing it was sent for. Its open cells are taken
+     * the cheapest guess first, a tie to the lower cell.
+     */
+    private static List<Integer> stretch(PathGrid grid, Sectors sectors, int from,
+            java.util.function.IntPredicate reached, java.util.function.IntBinaryOperator estimate, float clearance,
+            Tally tally, Traffic traffic, int[] kept, int goalX, int goalY) {
+        int width = grid.getWidth();
+        var window = Window.over(sectors, kept);
+        try {
+            int fromX = from % width;
+            int fromY = from / width;
+            window.set(window.at(fromX, fromY), 0, -1);
+            var open = window.open;
+            open.push(estimate.applyAsInt(fromX, fromY), from);
+            boolean toACell = goalX >= 0;
+            int nearest = from;
+            long nearestAway = toACell ? away(fromX, fromY, goalX, goalY) : Long.MAX_VALUE;
+            int end = -1;
+            while (!open.isEmpty()) {
+                int current = open.popValue();
+                int cx = current % width;
+                int cy = current / width;
+                int here = window.at(cx, cy);
+                if (current != from && reached.test(current)) {
+                    end = current;
+                    break;
+                }
+                if (window.closed(here)) {
+                    continue;
+                }
+                if (tally != null) {
+                    tally.cells++;
+                }
+                window.close(here);
+                int cost = window.g(here);
+                if (toACell) {
+                    long away = away(cx, cy, goalX, goalY);
+                    int nearestCost = window.g(window.at(nearest % width, nearest / width));
+                    if (away < nearestAway || away == nearestAway
+                            && (cost < nearestCost || cost == nearestCost && current < nearest)) {
+                        nearest = current;
+                        nearestAway = away;
+                    }
+                }
+                int cameFrom = window.came(here);
+                for (var step : NEIGHBOURS) {
+                    int nx = cx + step[0];
+                    int ny = cy + step[1];
+                    if (!grid.inBounds(nx, ny)) {
+                        continue;
+                    }
+                    int there = window.at(nx, ny);
+                    if (there < 0 || window.closed(there) || !fits(grid, nx, ny, clearance)
+                            || !grid.canStep(cx, cy, nx, ny)) {
+                        continue;
+                    }
+                    boolean diagonal = step[0] != 0 && step[1] != 0;
+                    if (diagonal && grid.isBlocked(cx + step[0], cy) && grid.isBlocked(cx, cy + step[1])) {
+                        continue;
+                    }
+                    int tentative = cost + (diagonal ? DIAGONAL_COST : ORTHOGONAL_COST)
+                            + turnCost(grid, cameFrom, cx, cy, step[0], step[1]);
+                    if (traffic != null) {
+                        int extra = traffic.costOf(nx, ny);
+                        if (extra == Traffic.CLOSED) {
+                            continue;
+                        }
+                        tentative += extra;
+                    }
+                    if (tentative >= window.g(there)) {
+                        continue;
+                    }
+                    window.set(there, tentative, current);
+                    open.push(tentative + estimate.applyAsInt(nx, ny), ny * width + nx);
+                }
+            }
+            if (end < 0) {
+                if (!toACell || nearest == from) {
+                    return toACell ? List.of() : null;
+                }
+                end = nearest;
+            }
+            var cells = new ArrayList<Integer>();
+            for (int cell = end; cell != -1 && cell != from; cell = window.came(window.at(cell % width, cell / width))) {
+                cells.add(cell);
+            }
+            Collections.reverse(cells);
+            return cells;
+        } finally {
+            window.release();
+        }
+    }
+
+    /**
+     * The sectors a way from {@code from} to {@code to} goes through ({@link Sectors#way}) and the ring of sectors
+     * round each; where no way through the sectors joins them — an end in no piece — the sectors round the two ends.
+     */
+    static Allowed corridorOf(Sectors sectors, PathGrid grid, Coord3D from, Coord3D to) {
+        int width = grid.getWidth();
+        int startX = Math.clamp(grid.toCellX(from), 0, width - 1);
+        int startY = Math.clamp(grid.toCellY(from), 0, grid.getHeight() - 1);
+        int goalX = Math.clamp(grid.toCellX(to), 0, width - 1);
+        int goalY = Math.clamp(grid.toCellY(to), 0, grid.getHeight() - 1);
+        var way = sectors.way(startY * width + startX, goalY * width + goalX);
+        int[] crossed;
+        if (way == null) {
+            crossed = new int[] {sectors.sectorOf(startX, startY), sectors.sectorOf(goalX, goalY)};
+        } else {
+            crossed = new int[way.length];
+            for (int i = 0; i < way.length; i++) {
+                crossed[i] = sectors.sectorOfPiece(way[i]);
+            }
+        }
+        int across = sectors.across();
+        int down = sectors.down();
+        var kept = new java.util.BitSet(across * down);
+        for (int sector : crossed) {
+            int sx = sector % across;
+            int sy = sector / across;
+            for (int y = Math.max(0, sy - 1); y <= Math.min(down - 1, sy + 1); y++) {
+                for (int x = Math.max(0, sx - 1); x <= Math.min(across - 1, sx + 1); x++) {
+                    kept.set(y * across + x);
+                }
+            }
+        }
+        return (cx, cy) -> grid.inBounds(cx, cy) && kept.get(sectors.sectorOf(cx, cy));
+    }
+
+    private static Path findPathOrNearest(PathGrid grid, Coord3D from, Coord3D to, float clearance, Zones zones,
+            Tally tally, Traffic traffic, Searcher searcher) {
         int startX = grid.toCellX(from);
         int startY = grid.toCellY(from);
         if (grid.isBlocked(startX, startY)) {
@@ -327,20 +783,20 @@ public final class Pathfinder {
                 nearest = room >= 0 ? room : nearest; // no room near it: it squeezes there, as before
             }
             var there = grid.cellCenter(nearest % width, nearest / width);
-            var way = search(grid, from, there, clearance, false, tally, traffic);
+            var way = searcher.search(grid, from, there, clearance, false, tally, traffic);
             if (way.isEmpty() && clearance > 0f) {
-                way = search(grid, from, there, 0f, false, tally, traffic);
+                way = searcher.search(grid, from, there, 0f, false, tally, traffic);
             }
             return Path.partial(way.getWaypoints());
         }
         if (clearance > 0f && !fits(grid, goalX, goalY, clearance)) {
-            return intoTheTightSpot(grid, from, to, clearance, tally, traffic);
+            return intoTheTightSpot(grid, from, to, clearance, tally, traffic, searcher);
         }
-        var path = search(grid, from, to, clearance, true, tally, traffic);
+        var path = searcher.search(grid, from, to, clearance, true, tally, traffic);
         if (path.reachesGoal() || clearance <= 0f) {
             return path;
         }
-        var squeezed = search(grid, from, to, 0f, true, tally, traffic);
+        var squeezed = searcher.search(grid, from, to, 0f, true, tally, traffic);
         if (squeezed.reachesGoal()) {
             return squeezed;
         }
@@ -357,7 +813,7 @@ public final class Pathfinder {
      * whole way, as it always could.
      */
     private static Path intoTheTightSpot(PathGrid grid, Coord3D from, Coord3D to, float clearance, Tally tally,
-            Traffic traffic) {
+            Traffic traffic, Searcher searcher) {
         float near = clearance + 2f * grid.getCellSize();
         if (across(from, to) <= near && isClearLine(grid, from, to, 0f)) {
             return new Path(List.of(to));
@@ -372,7 +828,7 @@ public final class Pathfinder {
             points.add(to);
             return new Path(points);
         }
-        return search(grid, from, to, 0f, true, tally, traffic);
+        return searcher.search(grid, from, to, 0f, true, tally, traffic);
     }
 
     /**
@@ -449,8 +905,7 @@ public final class Pathfinder {
                 var centre = grid.cellCenter(cx, cy);
                 if (current != startIndex && within.outside(centre) <= 0f
                         && across(centre, from) >= half) {
-                    return reconstruct(grid, scratch.cameFrom(), current, startIndex, from, centre, clearance,
-                            traffic);
+                    return reconstruct(grid, scratch, current, startIndex, from, centre, clearance, traffic);
                 }
                 if (tally != null) {
                     tally.cells++;
@@ -620,8 +1075,7 @@ public final class Pathfinder {
             while (!open.isEmpty()) {
                 int current = open.poll();
                 if (current == goal) {
-                    return layeredPath(grid, scratch.cameFrom(), cells, current, start, from, fromFloor, to,
-                            clearance, true);
+                    return layeredPath(grid, scratch, cells, current, start, from, fromFloor, to, clearance, true);
                 }
                 int floor = current / cells;
                 int cell = current % cells;
@@ -674,8 +1128,7 @@ public final class Pathfinder {
             int at = nearest % cells;
             var there = grid.cellCenter(at % width, at / width);
             var there3 = new Coord3D(there.x(), there.y(), grid.heightOn(nearest / cells, there));
-            return layeredPath(grid, scratch.cameFrom(), cells, nearest, start, from, fromFloor, there3, clearance,
-                    false);
+            return layeredPath(grid, scratch, cells, nearest, start, from, fromFloor, there3, clearance, false);
         } finally {
             scratch.release();
         }
@@ -696,11 +1149,11 @@ public final class Pathfinder {
      * The route the search found, as waypoints at the height of each one's floor, straightened a floor at a time: a
      * step onto another floor is kept, where it is, since the line past it crosses from one floor to another.
      */
-    private static Path layeredPath(PathGrid grid, int[] came, int cells, int goal, int start, Coord3D from,
+    private static Path layeredPath(PathGrid grid, Scratch scratch, int cells, int goal, int start, Coord3D from,
             int fromFloor, Coord3D to, float clearance, boolean reaches) {
         int width = grid.getWidth();
         var nodes = new ArrayList<Integer>();
-        for (int node = goal; node != -1 && node != start; node = came[node]) {
+        for (int node = goal; node != -1 && node != start; node = scratch.came(node)) {
             nodes.add(node);
         }
         Collections.reverse(nodes);
@@ -953,11 +1406,12 @@ public final class Pathfinder {
      */
     private static Path search(PathGrid grid, Coord3D from, Coord3D to, float clearance, boolean orNearest,
             Tally tally, Traffic traffic) {
-        return search(grid, from, to, clearance, orNearest, tally, traffic, null);
+        return search(grid, from, to, clearance, orNearest, tally, traffic, null, null);
     }
 
+    /** The same, the cells it chose added to {@code cellsChosen} where given, and kept to the {@code allowed} cells. */
     private static Path search(PathGrid grid, Coord3D from, Coord3D to, float clearance, boolean orNearest,
-            Tally tally, Traffic traffic, List<Integer> cellsChosen) {
+            Tally tally, Traffic traffic, List<Integer> cellsChosen, Allowed allowed) {
         int startX = grid.toCellX(from);
         int startY = grid.toCellY(from);
         int goalX = grid.toCellX(to);
@@ -989,7 +1443,8 @@ public final class Pathfinder {
                             cellsChosen.addFirst(cell);
                         }
                     }
-                    return reconstruct(grid, scratch.cameFrom(), current, startIndex, from, to, clearance, traffic);
+                    return reconstruct(grid, scratch, current, startIndex, from, to, clearance, traffic,
+                            allowed == null ? Integer.MAX_VALUE : STRAIGHTENED_AHEAD);
                 }
                 if (scratch.closed(current)) {
                     continue; // stale entry from a superseded g-score
@@ -1008,7 +1463,7 @@ public final class Pathfinder {
                     nearestAway = away;
                 }
                 for (var step : NEIGHBOURS) {
-                    expand(grid, scratch, cx, cy, step[0], step[1], goalX, goalY, clearance, traffic);
+                    expand(grid, scratch, cx, cy, step[0], step[1], goalX, goalY, clearance, traffic, allowed);
                 }
             }
             if (!orNearest) {
@@ -1018,18 +1473,19 @@ public final class Pathfinder {
                 return Path.partial(List.of()); // nowhere nearer than where it stands
             }
             var there = grid.cellCenter(nearest % width, nearest / width);
-            return Path.partial(reconstruct(grid, scratch.cameFrom(), nearest, startIndex, from, there, clearance,
-                    traffic).getWaypoints());
+            return Path.partial(reconstruct(grid, scratch, nearest, startIndex, from, there, clearance, traffic,
+                    allowed == null ? Integer.MAX_VALUE : STRAIGHTENED_AHEAD).getWaypoints());
         } finally {
             scratch.release();
         }
     }
 
-    private static void expand(PathGrid grid, Scratch scratch,
-            int cx, int cy, int dx, int dy, int goalX, int goalY, float clearance, Traffic traffic) {
+    private static void expand(PathGrid grid, Scratch scratch, int cx, int cy, int dx, int dy, int goalX, int goalY,
+            float clearance, Traffic traffic, Allowed allowed) {
         int nx = cx + dx;
         int ny = cy + dy;
-        if (!fits(grid, nx, ny, clearance) || !grid.canStep(cx, cy, nx, ny)) {
+        if (allowed != null && !allowed.allows(nx, ny) || !fits(grid, nx, ny, clearance)
+                || !grid.canStep(cx, cy, nx, ny)) {
             return;
         }
         boolean diagonal = dx != 0 && dy != 0;
@@ -1083,11 +1539,16 @@ public final class Pathfinder {
         return ORTHOGONAL_COST * Math.max(dx, dy) + ORTHOGONAL_COST * Math.min(dx, dy) / 2;
     }
 
-    private static Path reconstruct(PathGrid grid, int[] cameFrom, int goal, int start,
+    private static Path reconstruct(PathGrid grid, Scratch scratch, int goal, int start,
             Coord3D exactFrom, Coord3D exactTo, float clearance, Traffic traffic) {
+        return reconstruct(grid, scratch, goal, start, exactFrom, exactTo, clearance, traffic, Integer.MAX_VALUE);
+    }
+
+    private static Path reconstruct(PathGrid grid, Scratch scratch, int goal, int start,
+            Coord3D exactFrom, Coord3D exactTo, float clearance, Traffic traffic, int ahead) {
         int width = grid.getWidth();
         var cells = new ArrayList<Integer>();
-        for (int cell = goal; cell != -1 && cell != start; cell = cameFrom[cell]) {
+        for (int cell = goal; cell != -1 && cell != start; cell = scratch.came(cell)) {
             cells.add(cell);
         }
         Collections.reverse(cells);
@@ -1102,7 +1563,7 @@ public final class Pathfinder {
                 waypoints.add(grid.cellCenter(cell % width, cell / width));
             }
         }
-        return new Path(straighten(grid, exactFrom, waypoints, clearance, traffic));
+        return new Path(straighten(grid, exactFrom, waypoints, clearance, traffic, ahead));
     }
 
     /**
@@ -1116,6 +1577,15 @@ public final class Pathfinder {
      */
     private static List<Coord3D> straighten(PathGrid grid, Coord3D from,
             List<Coord3D> waypoints, float clearance, Traffic traffic) {
+        return straighten(grid, from, waypoints, clearance, traffic, Integer.MAX_VALUE);
+    }
+
+    /**
+     * The same, the line from each waypoint kept tried no further than {@code ahead} waypoints on: a route across a wide
+     * world is thousands of cells, and a line tried to the end of it from every corner was most of what it cost.
+     */
+    private static List<Coord3D> straighten(PathGrid grid, Coord3D from,
+            List<Coord3D> waypoints, float clearance, Traffic traffic, int ahead) {
         if (waypoints.size() < 2) {
             return waypoints;
         }
@@ -1124,7 +1594,7 @@ public final class Pathfinder {
         int i = 0;
         while (i < waypoints.size()) {
             int furthest = i;
-            for (int j = waypoints.size() - 1; j > i; j--) {
+            for (int j = (int) Math.min(waypoints.size() - 1L, (long) i + ahead); j > i; j--) {
                 if (isClearLine(grid, anchor, waypoints.get(j), clearance, traffic)) {
                     furthest = j;
                     break;
