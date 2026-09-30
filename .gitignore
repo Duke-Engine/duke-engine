@@ -13,5 +13,7 @@ out/
 # OS
 .DS_Store
 Thumbs.db
-graphify-out/cost.json        # lokal — har mashinada boshqacha
-graphify-out/cache/*
+
+# graphify: not used; its output and its skill are never committed
+graphify-out/
+.claude/skills/graphify/
