@@ -2714,7 +2714,8 @@ public final class Visuals {
     /**
      * Fade the ground into nothing — the fog's own colour, which is the window's background — from {@code fromCells}
      * round where the camera looks to {@code toCells}, where it has gone: the edge of a world built round the camera
-     * ({@link #streamGround}) never seen, however far the view reaches. Round where the camera looks, not the eye, so
+     * ({@link #streamGround}) never seen, however far the view reaches — so no further than the cells it builds, which
+     * reach at least that far on every side. Round where the camera looks, not the eye, so
      * zooming out fades nothing near the hero. Drawn by the ground's fogged shader, so for a game that keeps a fog;
      * none, as ever, where {@code toCells} is 0.
      */
