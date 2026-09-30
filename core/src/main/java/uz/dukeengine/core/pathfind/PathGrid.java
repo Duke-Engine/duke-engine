@@ -85,7 +85,7 @@ public final class PathGrid {
     private int obstacleVersion;
     /** Bumped whenever anything that decides where can be walked changes: see {@link #getShapeVersion}. */
     private int shapeVersion;
-    private final int[] level;               // which floor this cell stands on; 0 everywhere
+    private final short[] level;             // which floor this cell stands on; 0 everywhere
     private final boolean[] ramp;            // cells that link one level to the next
     private float levelHeight;               // world units per level; 0 = the world is flat
     private HeightMap relief;                // smooth ground over the levels; null = none
@@ -137,7 +137,7 @@ public final class PathGrid {
         this.classNames = new java.util.concurrent.CopyOnWriteArrayList<>();
         this.root = null;
         this.surfaces = 0;
-        this.level = new int[width * height];
+        this.level = new short[width * height];
         this.ramp = new boolean[width * height];
         this.decks = new java.util.concurrent.CopyOnWriteArrayList<>();
     }
@@ -593,8 +593,12 @@ public final class PathGrid {
     }
 
     public void setLevel(int cx, int cy, int value) {
+        if (value < Short.MIN_VALUE || value > Short.MAX_VALUE) {
+            throw new IllegalArgumentException("a cell stands on a storey of " + Short.MIN_VALUE + " to "
+                    + Short.MAX_VALUE + ", not " + value);
+        }
         if (inBounds(cx, cy) && level[cy * width + cx] != value) {
-            level[cy * width + cx] = value;
+            level[cy * width + cx] = (short) value;
             shapeVersion++;
             changedAround(cx, cy);
         }
