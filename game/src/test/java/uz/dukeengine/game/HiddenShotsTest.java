@@ -56,7 +56,7 @@ class HiddenShotsTest {
 
     /** Whether a hidden {@code template} of the first side, firing at the enemy's rifleman beside it, is heard. */
     private static boolean heard(String template, int viewer, boolean ownerOnly) {
-        var game = DukeGame.create("hidden").loadUnits(DukeGame.STARTER_UNITS).map(40, 40)
+        var game = DukeGame.create("hidden").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40)
                 .addWeapons(List.of(weapon("MineBlast", true), weapon("TrapGun", false)))
                 .addUnits(List.of(shooter("Demo", "MineBlast"), shooter("Trap", "TrapGun"),
                         shooter("Mine", "TrapGun", MINE)));
@@ -72,8 +72,8 @@ class HiddenShotsTest {
         game.spawn(template, usa, 100f, 100f);
         game.spawn("Rifleman", china, 120f, 100f);
         game.runHeadless(1);
-        game.getLogic().setShownWhenHidden(List.of(MINE));
-        game.getLogic().setHiddenShotsToOwnerOnly(ownerOnly);
+        uz.dukeengine.combat.Armoury.of(game.getLogic()).setShownWhenHidden(List.of(MINE));
+        uz.dukeengine.combat.Armoury.of(game.getLogic()).setHiddenShotsToOwnerOnly(ownerOnly);
         var hider = game.getLogic().getObjects().stream().filter(o -> o.getTemplate().name().equals(template))
                 .findFirst().orElseThrow();
         hider.addModule(new Stealth(hider));

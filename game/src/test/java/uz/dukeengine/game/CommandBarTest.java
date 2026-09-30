@@ -20,7 +20,7 @@ class CommandBarTest {
 
     private static DukeGame headless() {
         return DukeGame.create("Bar")
-                .loadUnits(DukeGame.STARTER_UNITS)
+                .loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)
                 .map(20, 20);
     }
 

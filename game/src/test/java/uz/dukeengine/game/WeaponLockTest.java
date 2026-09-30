@@ -63,7 +63,7 @@ class WeaponLockTest {
     private static Field field(List<OrderSource> secondSources) {
         var sets = List.of(new WeaponSet(List.of(), List.of(new WeaponSlot("Rifle"),
                 new WeaponSlot("CrewShot", List.of(), true, secondSources))));
-        var game = DukeGame.create("locks").loadUnits(DukeGame.STARTER_UNITS).map(40, 40)
+        var game = DukeGame.create("locks").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40)
                 .addWeapons(List.of(weapon("Rifle", 10f, 1), weapon("CrewShot", 50f, 1)))
                 .addUnits(List.of(RtsTemplate.named("Sniper").visionRange(80f).module(new ActiveBody.Data(100f))
                         .module(WeaponUpdate.Data.sets(sets)).build(),

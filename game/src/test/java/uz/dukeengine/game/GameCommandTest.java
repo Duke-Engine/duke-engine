@@ -31,7 +31,7 @@ class GameCommandTest {
 
     private static DukeGame game() {
         var game = DukeGame.create("game-command-test")
-                .loadUnits(DukeGame.STARTER_UNITS)
+                .loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)
                 .map(40, 30);
         var you = game.addPlayer("You", Color.BLUE);
         game.localPlayer(you);
@@ -145,7 +145,7 @@ class GameCommandTest {
     /** Spawn a rifleman per shout, so the command has a visible effect on the world. */
     private static long playedOut(boolean shout) {
         var game = DukeGame.create("game-command-test")
-                .loadUnits(DukeGame.STARTER_UNITS)
+                .loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)
                 .map(40, 30);
         var you = game.addPlayer("You", Color.BLUE);
         game.localPlayer(you);

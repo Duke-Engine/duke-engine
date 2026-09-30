@@ -11,7 +11,7 @@ import uz.dukeengine.rts.module.ContainModule;
 /** What a transport holds reaches the client, in the order it was taken in. */
 class PassengersInViewTest {
 
-    private static final String UNITS = DukeGame.STARTER_UNITS + """
+    private static final String UNITS = uz.dukeengine.rts.RtsFlavour.STARTER_UNITS + """
             Object
               Name = Humvee
               KindOf = [VEHICLE, SELECTABLE]

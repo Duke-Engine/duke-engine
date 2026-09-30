@@ -13,7 +13,7 @@ class StripPlayedTest {
 
     @Test
     void aStripInSightIsShownOneInFogIsNotAndAHeadlessGameBreaksNothing() {
-        var game = DukeGame.create("Strips").loadUnits(DukeGame.STARTER_UNITS).map(80, 80);
+        var game = DukeGame.create("Strips").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(80, 80);
         var me = game.addPlayer("Me", Color.CYAN);
         game.localPlayer(me).spawn("Rifleman", me, 100f, 100f);
         game.runHeadless(1);

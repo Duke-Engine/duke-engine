@@ -58,7 +58,7 @@ class SiteRisesTest {
         var game = DukeGame.create("Rising").loadUnits(UNITS).map(40, 40);
         var me = game.addPlayer("Me", Color.CYAN);
         game.localPlayer(me).spawn("Dozer", me, 100f, 100f);
-        game.money(me, 1000);
+        game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(me::getIndex, 1000);
         game.runHeadless(1);
         var dozer = game.getSnapshot().units().getFirst();
         game.postCommand(new GameMessage.Construct(me.getIndex(), new uz.dukeengine.core.thing.ObjectId(dozer.id()),

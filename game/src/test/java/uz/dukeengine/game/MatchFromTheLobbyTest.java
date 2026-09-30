@@ -22,7 +22,7 @@ class MatchFromTheLobbyTest {
 
     /** The match a game builds from the settings its lobby agreed on. */
     private static DukeGame match() {
-        var game = DukeGame.create("lobby-test").loadUnits(DukeGame.STARTER_UNITS);
+        var game = DukeGame.create("lobby-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
         var first = game.addPlayer("One", Color.BLUE);
         var second = game.addPlayer("Two", Color.RED);
         game.enemies(first, second);
@@ -61,7 +61,7 @@ class MatchFromTheLobbyTest {
 
     @Test
     void aMachineThatWatchesSeesEveryoneThroughNobodysFog() {
-        var game = DukeGame.create("observer-test").loadUnits(DukeGame.STARTER_UNITS);
+        var game = DukeGame.create("observer-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
         var first = game.addPlayer("One", Color.BLUE);
         var second = game.addPlayer("Two", Color.RED);
         game.enemies(first, second).observe();

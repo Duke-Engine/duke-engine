@@ -81,7 +81,7 @@ class AttackableTest {
                 .spawn("Worker", me, 120f, 100f)
                 .spawn("Helicopter", them, 300f, 300f);
         game.runHeadless(1);
-        game.getLogic().setTargetRules(List.of(
+        uz.dukeengine.combat.Armoury.of(game.getLogic()).setTargetRules(List.of(
                 new TargetRule(List.of(Kind.of("VEHICLE")), true, List.of("AIRBORNE_VEHICLE")),
                 new TargetRule(List.of(), false, List.of("GROUND"))));
         return new Scene(game, named(game, "Tank"), named(game, "Worker"), named(game, "Helicopter"));

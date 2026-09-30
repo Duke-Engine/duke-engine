@@ -21,8 +21,6 @@ import uz.dukeengine.core.network.LockstepScheduler;
 import uz.dukeengine.core.network.RelayFallback;
 import uz.dukeengine.core.network.SocketTransport;
 import uz.dukeengine.core.network.Transport;
-import uz.dukeengine.rts.message.GameMessage;
-import uz.dukeengine.rts.network.CommandCodec;
 
 /**
  * A LAN game of two or more players over TCP: one machine hosts, the rest join.
@@ -115,7 +113,7 @@ public final class MultiplayerSession implements AutoCloseable {
                     closeQuietly(socket);
                     continue;
                 }
-                var way = SocketTransport.wrap(socket, CommandCodec.INSTANCE, next);
+                var way = SocketTransport.wrap(socket, wire(), next);
                 later.add(way);
                 return new RelayFallback.Relay(way, false, Set.of());
             } catch (IOException e) {
@@ -127,7 +125,7 @@ public final class MultiplayerSession implements AutoCloseable {
 
     /** This machine the relay now: every other player still in, taken on as it reconnects, for a while. */
     private RelayFallback.Relay relayFor(SortedSet<Integer> stillIn) {
-        var relay = new HostTransport(CommandCodec.INSTANCE);
+        var relay = new HostTransport(wire());
         later.add(relay);
         var reached = new TreeSet<Integer>();
         long until = System.currentTimeMillis() + REJOIN_MILLIS;
@@ -244,7 +242,7 @@ public final class MultiplayerSession implements AutoCloseable {
             throw e;
         }
 
-        var transport = new HostTransport(CommandCodec.INSTANCE);
+        var transport = new HostTransport(wire());
         for (var guest : guests.entrySet()) {
             transport.addGuest(guest.getKey(), guest.getValue());
         }
@@ -296,7 +294,7 @@ public final class MultiplayerSession implements AutoCloseable {
             joined.values().forEach(uz.dukeengine.core.network.LineChannel::close);
             throw e;
         }
-        var transport = new HostTransport(CommandCodec.INSTANCE);
+        var transport = new HostTransport(wire());
         joined.forEach(transport::addGuest);
         var session = new MultiplayerSession(transport, HOST_PLAYER_INDEX, playerCount, true, Map.of(), null);
         session.scenarioSpec = spec;
@@ -329,7 +327,7 @@ public final class MultiplayerSession implements AutoCloseable {
             throw e;
         }
         var parts = welcome.trim().split("\\s+");
-        var session = new MultiplayerSession(SocketTransport.over(channel, CommandCodec.INSTANCE, HOST_PLAYER_INDEX),
+        var session = new MultiplayerSession(SocketTransport.over(channel, wire(), HOST_PLAYER_INDEX),
                 Integer.parseInt(parts[1]), Integer.parseInt(parts[2]), false, Map.of(), null);
         session.scenarioSpec = specOf(parts);
         return session;
@@ -410,7 +408,7 @@ public final class MultiplayerSession implements AutoCloseable {
         int playerCount = Integer.parseInt(parts[2]);
 
         var session = new MultiplayerSession(
-                SocketTransport.wrap(socket, CommandCodec.INSTANCE, HOST_PLAYER_INDEX),
+                SocketTransport.wrap(socket, wire(), HOST_PLAYER_INDEX),
                 assigned, playerCount, false, peers, listening);
         session.scenarioSpec = specOf(parts); // "=" is never an encoding's
         return session;
@@ -528,9 +526,17 @@ public final class MultiplayerSession implements AutoCloseable {
         return gate.getDesync();
     }
 
-    /** Buffer a local command — an RTS's or one every side gives — it ships with the next frame submission. */
+    /** Buffer a local command, one the kind of game's wire carries: it ships with the next frame submission. */
     void issueLocal(uz.dukeengine.core.message.Command command) {
         gate.issueLocal(command);
+    }
+
+    /**
+     * The wire the players' commands travel on: that of the kind of game on the classpath ({@code Flavour.found}),
+     * which the match it carries runs on too.
+     */
+    private static uz.dukeengine.core.network.PacketCodec wire() {
+        return uz.dukeengine.core.Flavour.found().codec();
     }
 
     /**
@@ -538,7 +544,7 @@ public final class MultiplayerSession implements AutoCloseable {
      *
      * @return true if the frame may step; false to stall (waiting on a peer)
      */
-    boolean beforeStep(RtsLogic logic) {
+    boolean beforeStep(uz.dukeengine.core.GameLogic logic) {
         return gate.beforeStep(logic);
     }
 

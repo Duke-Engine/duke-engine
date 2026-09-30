@@ -11,7 +11,7 @@ import uz.dukeengine.game.DukeGame;
  * play" for a full 3D RTS:
  *
  * <pre>{@code
- * var game = DukeGame.create("My RTS").loadUnits(DukeGame.STARTER_UNITS)...;
+ * var game = DukeGame.create("My RTS").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)...;
  * var visuals = Visuals.create().unit("Tank", u -> u.model("Models/tank.gltf"));
  * Duke3D.launch(game, visuals);   // opens the 3D window, blocks until closed
  * }</pre>

@@ -20,7 +20,6 @@ import uz.dukeengine.core.network.LockstepGate;
 import uz.dukeengine.core.network.NetMessage;
 import uz.dukeengine.core.network.PeerLeft;
 import uz.dukeengine.core.network.SessionHalted;
-import uz.dukeengine.rts.network.CommandCodec;
 
 /**
  * A relay that holds no seat — a server beside the players' lobby that relays a game it does not play, where the
@@ -42,7 +41,7 @@ public final class MultiplayerRelay implements AutoCloseable {
 
     private final int playerCount;
     private final String scenarioSpec;
-    private final HostTransport transport = new HostTransport(CommandCodec.INSTANCE);
+    private final HostTransport transport = new HostTransport(uz.dukeengine.core.Flavour.found().codec());
     private final Map<Integer, LineChannel> waiting = new TreeMap<>();
     private final List<Consumer<NetMessage>> heard = new CopyOnWriteArrayList<>();
     private final List<Consumer<Desync>> desyncListeners = new CopyOnWriteArrayList<>();

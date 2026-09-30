@@ -14,7 +14,7 @@ class GroundMarksTest {
 
     @Test
     void aMarkLaidAtLoadWhereNoPlayerSeesIsKeptForTheGround() {
-        var game = DukeGame.create("Scorched").loadUnits(DukeGame.STARTER_UNITS).map(60, 60);
+        var game = DukeGame.create("Scorched").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 60);
         var player = game.addPlayer("USA", Color.BLUE);
         game.localPlayer(player).markGround("textures/scorch_2.png", 500f, 520f, 60f);
         game.runHeadless(3);

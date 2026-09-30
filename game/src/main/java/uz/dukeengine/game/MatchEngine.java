@@ -7,18 +7,19 @@ import uz.dukeengine.core.GameLogic;
 /**
  * The concrete engine build behind {@link DukeGame} — the role SAGE's
  * device-specific {@code CreateGameEngine()} plays. It simply hands the
- * pre-constructed RTS logic and client to the engine framework.
+ * pre-constructed logic, whatever kind of game made it, and client to the engine
+ * framework.
  */
-final class RtsGameEngine extends GameEngine {
+final class MatchEngine extends GameEngine {
 
-    private final RtsLogic rtsLogic;
-    private final RtsClient rtsClient;
+    private final GameLogic logic;
+    private final GameClient client;
     private MultiplayerSession session;
     private uz.dukeengine.core.replay.Replay replay;
 
-    RtsGameEngine(RtsLogic rtsLogic, RtsClient rtsClient) {
-        this.rtsLogic = rtsLogic;
-        this.rtsClient = rtsClient;
+    MatchEngine(GameLogic logic, GameClient client) {
+        this.logic = logic;
+        this.client = client;
     }
 
     void setSession(MultiplayerSession session) {
@@ -52,18 +53,18 @@ final class RtsGameEngine extends GameEngine {
     @Override
     protected boolean isLogicFrameReady() {
         if (replay != null) {
-            return replay.beforeStep(rtsLogic);
+            return replay.beforeStep(logic);
         }
-        return session == null || session.beforeStep(rtsLogic);
+        return session == null || session.beforeStep(logic);
     }
 
     @Override
     protected GameLogic createGameLogic() {
-        return rtsLogic;
+        return logic;
     }
 
     @Override
     protected GameClient createGameClient() {
-        return rtsClient;
+        return client;
     }
 }

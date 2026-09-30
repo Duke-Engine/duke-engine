@@ -14,7 +14,7 @@ class MatchWeatherTest {
             0.1f);
 
     private static DukeGame game() {
-        var game = DukeGame.create("weather").loadUnits(DukeGame.STARTER_UNITS).map(20, 20);
+        var game = DukeGame.create("weather").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(20, 20);
         var me = game.addPlayer("Me", Color.BLUE);
         game.localPlayer(me).spawn("Rifleman", me, 100f, 100f);
         return game;

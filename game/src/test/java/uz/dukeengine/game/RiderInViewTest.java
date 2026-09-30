@@ -15,7 +15,7 @@ class RiderInViewTest {
 
     @Test
     void aRiderIsInTheViewRidingOnItsCarrierAndCannotBeSelectedItself() {
-        var game = DukeGame.create("overlord").loadUnits(DukeGame.STARTER_UNITS).map(40, 40);
+        var game = DukeGame.create("overlord").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40);
         var china = game.addPlayer("China", Color.RED);
         game.localPlayer(china);
         game.spawn("Barracks", china, 100f, 100f);
@@ -37,7 +37,7 @@ class RiderInViewTest {
     /** A hold riding vehicles: the tank on it is in the view, riding; the two riflemen inside it are not. */
     @Test
     void aHoldRidingOneKindShowsItsRiderAndNotThoseInside() {
-        var game = DukeGame.create("helix").loadUnits(DukeGame.STARTER_UNITS).map(40, 40);
+        var game = DukeGame.create("helix").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40);
         var china = game.addPlayer("China", Color.RED);
         game.localPlayer(china);
         game.spawn("Barracks", china, 100f, 100f);
@@ -67,7 +67,7 @@ class RiderInViewTest {
      */
     @Test
     void aShowingHoldsPassengersAreDrawnWhereTheGameStandsThem() {
-        var game = DukeGame.create("firebase").loadUnits(DukeGame.STARTER_UNITS).map(40, 40);
+        var game = DukeGame.create("firebase").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40);
         var china = game.addPlayer("China", Color.RED);
         game.localPlayer(china);
         game.spawn("Barracks", china, 100f, 100f);

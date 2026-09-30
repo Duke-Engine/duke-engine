@@ -13,7 +13,7 @@ import uz.dukeengine.core.view.UnitView;
 class DrawnAsTest {
 
     private static UnitView truckSeenBy(int viewer) {
-        var game = DukeGame.create("Disguise").loadUnits(DukeGame.STARTER_UNITS).map(60, 60);
+        var game = DukeGame.create("Disguise").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 60);
         var gla = game.addPlayer("GLA", Color.GREEN);
         var usa = game.addPlayer("USA", Color.BLUE);
         game.enemies(gla, usa).localPlayer(viewer == 1 ? gla : usa);

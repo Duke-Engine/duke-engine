@@ -53,7 +53,7 @@ class RefusedOrderTest {
         var game = DukeGame.create("refused-order").loadUnits(UNITS);
         var one = game.addPlayer("One", Color.BLUE);
         game.addPlayer("Two", Color.RED);
-        game.money(one, 2000);
+        game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(one::getIndex, 2000);
         game.spawn("Barracks", one, 100, 100);
         if (headquarters) {
             game.spawn("Headquarters", one, 300, 100);
@@ -74,8 +74,8 @@ class RefusedOrderTest {
         first.runHeadless(60);
         second.runHeadless(60);
 
-        assertEquals(2000, first.getLogic().getRtsPlayer(1).getMoney(), "nothing charged: no headquarters stands");
-        assertEquals(2000, second.getLogic().getRtsPlayer(1).getMoney());
+        assertEquals(2000, uz.dukeengine.rts.player.RtsPlayer.of(first.getLogic(), 1).getMoney(), "nothing charged: no headquarters stands");
+        assertEquals(2000, uz.dukeengine.rts.player.RtsPlayer.of(second.getLogic(), 1).getMoney());
         assertEquals(1, first.getLogic().getObjects().size(), "and nothing made");
         assertEquals(first.getLogic().checksum(), second.getLogic().checksum());
     }
@@ -88,6 +88,6 @@ class RefusedOrderTest {
         game.postCommand(new GameMessage.QueueProduction(1, new ObjectId(1), "Commando"));
         game.runHeadless(60);
 
-        assertEquals(1000, game.getLogic().getRtsPlayer(1).getMoney(), "charged, and made");
+        assertEquals(1000, uz.dukeengine.rts.player.RtsPlayer.of(game.getLogic(), 1).getMoney(), "charged, and made");
     }
 }

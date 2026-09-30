@@ -28,7 +28,7 @@ class ConcealedInViewTest {
 
     /** A hidden American rifleman firing at a Chinese one beside him, shown to whoever {@code local} is. */
     private static DukeGame match(int local, boolean watch) {
-        var game = DukeGame.create("stealth").loadUnits(DukeGame.STARTER_UNITS).map(70, 45);
+        var game = DukeGame.create("stealth").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(70, 45);
         var usa = game.addPlayer("USA", Color.BLUE);
         var china = game.addPlayer("China", Color.RED);
         game.enemies(usa, china).localPlayer(local == 1 ? usa : china);

@@ -12,7 +12,7 @@ class UnselectableTest {
 
     @Test
     void markedItCannotBePickedAndUnmarkedItCanAgain() {
-        var game = DukeGame.create("drones").loadUnits(DukeGame.STARTER_UNITS).map(40, 40);
+        var game = DukeGame.create("drones").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40);
         var you = game.addPlayer("You", Color.BLUE);
         game.localPlayer(you);
         game.spawn("Rifleman", you, 50f, 50f);

@@ -32,7 +32,7 @@ class MatchLoadTest {
     }
 
     private static DukeGame match() {
-        var game = DukeGame.create("load-test").loadUnits(DukeGame.STARTER_UNITS).map(40, 30);
+        var game = DukeGame.create("load-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 30);
         var one = game.addPlayer("One", Color.BLUE);
         var two = game.addPlayer("Two", Color.RED);
         game.enemies(one, two);

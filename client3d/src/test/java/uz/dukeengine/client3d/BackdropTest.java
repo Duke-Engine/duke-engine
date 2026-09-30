@@ -39,7 +39,7 @@ class BackdropTest {
 
     /** The game's recipe: two sides in a fight, and one soldier standing well away from it. */
     private static DukeGame recipe() {
-        var game = DukeGame.create("backdrop-test").loadUnits(DukeGame.STARTER_UNITS).map(80, 40).randomSeed(7);
+        var game = DukeGame.create("backdrop-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(80, 40).randomSeed(7);
         var west = game.addPlayer("West", Color.BLUE);
         var east = game.addPlayer("East", Color.RED);
         game.enemies(west, east);

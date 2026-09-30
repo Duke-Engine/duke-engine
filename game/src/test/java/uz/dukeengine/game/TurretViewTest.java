@@ -43,7 +43,7 @@ class TurretViewTest {
 
     @Test
     void theViewCarriesEachTurretsTurnAndPitch() {
-        var game = DukeGame.create("turrets").loadUnits(DukeGame.STARTER_UNITS).map(20, 20)
+        var game = DukeGame.create("turrets").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(20, 20)
                 .addUnits(List.of(RtsTemplate.named("Ship").module(new ActiveBody.Data(100f)).build()));
         var me = game.addPlayer("Me", Color.BLUE);
         game.localPlayer(me).spawn("Ship", me, 100f, 100f).spawn("Rifleman", me, 150f, 100f);

@@ -22,11 +22,12 @@ class DukeGameTest {
     @Test
     void starterGameBootsSpawnsAndSnapshots() {
         var game = DukeGame.create("test")
-                .loadUnits(DukeGame.STARTER_UNITS)
+                .loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)
                 .map(30, 20);
         var you = game.addPlayer("You", Color.BLUE);
         var foe = game.addPlayer("Foe", Color.RED);
-        game.enemies(you, foe).money(you, 1000);
+        game.enemies(you, foe);
+        game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(you::getIndex, 1000);
         game.spawn("Barracks", you, 50, 50)
                 .spawn("Rifleman", you, 70, 50)
                 .spawn("Tank", foe, 200, 150);
@@ -34,7 +35,7 @@ class DukeGameTest {
         game.runHeadless(10);
 
         assertEquals(3, game.getLogic().getObjectCount());
-        assertEquals(1000, game.getLogic().getRtsPlayer(you.getIndex()).getMoney());
+        assertEquals(1000, uz.dukeengine.rts.player.RtsPlayer.of(game.getLogic(), you.getIndex()).getMoney());
 
         var snapshot = game.getSnapshot();
         assertEquals(10, snapshot.frame());
@@ -45,7 +46,7 @@ class DukeGameTest {
 
     @Test
     void builtInCommandRoutingMovesUnits() {
-        var game = DukeGame.create("test").loadUnits(DukeGame.STARTER_UNITS);
+        var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
         var you = game.addPlayer("You", Color.BLUE);
         game.spawn("Rifleman", you, 0, 0);
 
@@ -60,7 +61,7 @@ class DukeGameTest {
 
     @Test
     void unitsOfOtherPlayersCannotBeCommanded() {
-        var game = DukeGame.create("test").loadUnits(DukeGame.STARTER_UNITS);
+        var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
         var you = game.addPlayer("You", Color.BLUE);
         var foe = game.addPlayer("Foe", Color.RED);
         game.enemies(you, foe);
@@ -76,7 +77,7 @@ class DukeGameTest {
 
     @Test
     void everySecondsAndDefeatCallbacksFire() {
-        var game = DukeGame.create("test").loadUnits(DukeGame.STARTER_UNITS);
+        var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
         var you = game.addPlayer("You", Color.BLUE);
         var foe = game.addPlayer("Foe", Color.RED);
         game.enemies(you, foe);
@@ -96,7 +97,7 @@ class DukeGameTest {
 
     @Test
     void unknownTemplateFailsWithHelpfulError() {
-        var game = DukeGame.create("test").loadUnits(DukeGame.STARTER_UNITS);
+        var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
         game.addPlayer("You", Color.BLUE);
         game.spawn("Battlecruiser", null, 0, 0);
         var error = assertThrows(IllegalArgumentException.class, () -> game.runHeadless(1));
@@ -106,7 +107,7 @@ class DukeGameTest {
 
     @Test
     void configurationAfterStartIsRejected() {
-        var game = DukeGame.create("test").loadUnits(DukeGame.STARTER_UNITS);
+        var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
         game.addPlayer("You", Color.BLUE);
         game.runHeadless(1);
         assertThrows(IllegalStateException.class, () -> game.map(10, 10));
@@ -115,7 +116,7 @@ class DukeGameTest {
 
     @Test
     void moveOrderOverridesCurrentTarget() {
-        var game = DukeGame.create("test").loadUnits(DukeGame.STARTER_UNITS);
+        var game = DukeGame.create("test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
         var you = game.addPlayer("You", Color.BLUE);
         var foe = game.addPlayer("Foe", Color.RED);
         game.enemies(you, foe);

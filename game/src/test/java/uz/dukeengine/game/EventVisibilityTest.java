@@ -20,7 +20,7 @@ class EventVisibilityTest {
 
     private static DukeGame twoRiflemen(float enemyX, float enemyY) {
         var game = DukeGame.create("fog")
-                .loadUnits(DukeGame.STARTER_UNITS)
+                .loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)
                 .map(70, 45);
         var you = game.addPlayer("You", Color.BLUE);
         var foe = game.addPlayer("Foe", Color.RED);

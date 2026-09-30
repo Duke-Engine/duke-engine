@@ -50,7 +50,7 @@ class RememberedThingsTest {
     }
 
     private static Field field(boolean cells) {
-        var game = DukeGame.create("ghosts").loadUnits(DukeGame.STARTER_UNITS).map(60, 60)
+        var game = DukeGame.create("ghosts").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 60)
                 .addUnits(List.of(
                         RtsTemplate.named("Bunker").visionRange(10f).module(new ActiveBody.Data(100f)).build(),
                         RtsTemplate.named("Tank").visionRange(10f).module(new ActiveBody.Data(100f))

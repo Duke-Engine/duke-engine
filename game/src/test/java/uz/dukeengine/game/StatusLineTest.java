@@ -22,7 +22,7 @@ class StatusLineTest {
 
     private static DukeGame game() {
         return DukeGame.create("Test")
-                .loadUnits(DukeGame.STARTER_UNITS)
+                .loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS)
                 .map(20, 20);
     }
 

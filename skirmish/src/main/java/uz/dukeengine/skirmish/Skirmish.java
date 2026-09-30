@@ -44,7 +44,7 @@ public final class Skirmish {
      */
     public static Match on(String map, int purse) {
         var field = Content.map(map);
-        var game = DukeGame.create("Duke Skirmish")
+        var game = DukeGame.create("Duke Skirmish", new uz.dukeengine.rts.RtsFlavour())
                 .templates(loader -> loader.type(Unit.class))
                 .loadUnits(Content.units())
                 .world(world())
@@ -61,7 +61,8 @@ public final class Skirmish {
     private static Match set(DukeGame game, int purse, Battlefield field) {
         var left = game.addPlayer("Left", Color.CYAN);
         var right = game.addPlayer("Right", Color.ORANGE);
-        game.enemies(left, right).money(left, purse).money(right, purse).localPlayer(left);
+        game.enemies(left, right).localPlayer(left);
+        game.flavour(uz.dukeengine.rts.RtsFlavour.class).money(left::getIndex, purse).money(right::getIndex, purse);
         commandBar(game);
         return new Match(game, left, right, field);
     }
@@ -86,10 +87,10 @@ public final class Skirmish {
      */
     private static void commandBar(DukeGame game) {
         game.commandBar(selection -> {
-            var logic = game.getLogic();
-            if (logic == null || selection.size() != 1) {
+            if (game.getLogic() == null || selection.size() != 1) {
                 return java.util.List.of(); // one at a time; a crowd has no one line to build
             }
+            var logic = game.flavour(uz.dukeengine.rts.RtsFlavour.class).logic();
             var chosen = logic.findObject(new uz.dukeengine.core.thing.ObjectId(selection.getFirst()));
             if (chosen == null || chosen.getPlayerIndex() != game.getLocalPlayerIndex()) {
                 return java.util.List.of(); // not his
@@ -119,8 +120,9 @@ public final class Skirmish {
         // Whether the ghost is green: the simulation's own answer for this player's site, asked of the world as it
         // stands — the answer his order will be given.
         game.aimFits((button, place, facing) -> !button.startsWith("build:")
-                || game.getLogic().fits(game.getLocalPlayerIndex(), button.substring("build:".length()), place,
-                        facing) == uz.dukeengine.rts.construction.Placement.Fit.FITS);
+                || game.flavour(uz.dukeengine.rts.RtsFlavour.class).logic().fits(game.getLocalPlayerIndex(),
+                        button.substring("build:".length()), place, facing)
+                        == uz.dukeengine.rts.construction.Placement.Fit.FITS);
         game.onCommandPressed(press -> {
             if (press.selection().size() != 1) {
                 return;

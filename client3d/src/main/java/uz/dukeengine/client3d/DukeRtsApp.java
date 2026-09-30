@@ -4553,6 +4553,12 @@ final class DukeRtsApp extends SimpleApplication {
         return null;
     }
 
+    /** A factory's build menu as the RTS prices it for this player; none in a game of another kind. */
+    private List<uz.dukeengine.rts.RtsFlavour.BuildOption> buildOptions(String factory) {
+        return game.flavour() instanceof uz.dukeengine.rts.RtsFlavour rts
+                ? rts.getBuildOptions(factory, game.getLocalPlayerIndex()) : List.of();
+    }
+
     /**
      * Queue the {@code index}-th entry of the selected factory's build menu.
      */
@@ -4561,7 +4567,7 @@ final class DukeRtsApp extends SimpleApplication {
         if (producer == null) {
             return;
         }
-        var options = game.getBuildOptions(producer.templateName());
+        var options = buildOptions(producer.templateName());
         if (index >= 0 && index < options.size()) {
             game.postCommand(new GameMessage.QueueProduction(game.getLocalPlayerIndex(),
                     new ObjectId(producer.id()), options.get(index).templateName()));
@@ -7214,7 +7220,7 @@ final class DukeRtsApp extends SimpleApplication {
             return;
         }
         var text = new StringBuilder("BUILD (press number; right-click sets rally):\n");
-        var options = game.getBuildOptions(producer.templateName());
+        var options = buildOptions(producer.templateName());
         for (int i = 0; i < options.size() && i < 9; i++) {
             var option = options.get(i);
             text.append("  [").append(i + 1).append("] ").append(option.displayName())

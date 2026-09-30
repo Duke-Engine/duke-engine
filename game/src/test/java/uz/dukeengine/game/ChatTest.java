@@ -18,7 +18,7 @@ class ChatTest {
     private static final int PORT = 17797;
 
     private static DukeGame match() {
-        var game = DukeGame.create("chat-test").loadUnits(DukeGame.STARTER_UNITS);
+        var game = DukeGame.create("chat-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
         var one = game.addPlayer("One", Color.BLUE);
         var two = game.addPlayer("Two", Color.RED);
         game.enemies(one, two);

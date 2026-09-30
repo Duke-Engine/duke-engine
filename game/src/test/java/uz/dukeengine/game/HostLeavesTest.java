@@ -38,7 +38,7 @@ class HostLeavesTest {
     }
 
     static Watched watched(int players, MultiplayerSession session) {
-        var game = DukeGame.create("host-leaves").loadUnits(DukeGame.STARTER_UNITS);
+        var game = DukeGame.create("host-leaves").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
         for (int i = 1; i <= players; i++) {
             game.spawn("Rifleman", game.addPlayer("P" + i, Color.BLUE), 200f * i, 0f); // unit i is player i's
         }

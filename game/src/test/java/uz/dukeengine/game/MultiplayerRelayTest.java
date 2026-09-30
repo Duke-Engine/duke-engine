@@ -97,7 +97,7 @@ class MultiplayerRelayTest {
             assertEquals(sum, worlds.get(2).sums().get(frame), "frame " + frame);
         }
 
-        var replay = DukeGame.create("host-leaves").loadUnits(DukeGame.STARTER_UNITS);
+        var replay = DukeGame.create("host-leaves").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS);
         var replayed = new TreeMap<Integer, Long>();
         replay.onTick(g -> replayed.put(g.getLogic().getFrame(), g.getLogic().checksum()));
         for (int i = 1; i <= 3; i++) {

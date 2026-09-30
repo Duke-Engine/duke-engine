@@ -14,7 +14,7 @@ class BroughtArtTest {
     @Test
     void whatATemplateBringsIsPlannedAChainIsFollowedAndAnUnknownNameIgnored() {
         var leaves = Map.of("Rifleman", List.of("PowerPlant", "RiflemanCorpse"), "PowerPlant", List.of("Barracks"));
-        var game = DukeGame.create("wrecks").loadUnits(DukeGame.STARTER_UNITS).map(40, 40)
+        var game = DukeGame.create("wrecks").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40)
                 .brings(name -> leaves.getOrDefault(name, List.of())).placesEverythingAtSetup();
         var you = game.addPlayer("You", Color.BLUE);
         game.localPlayer(you);

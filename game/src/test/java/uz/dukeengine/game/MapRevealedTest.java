@@ -22,7 +22,7 @@ class MapRevealedTest {
 
     /** Two sides in far corners, the first revealed the whole map at frame 20; the world's sum kept at 40. */
     private static DukeGame match(AtomicLong sumAt40, boolean reveal, boolean oneIsLocal) {
-        var game = DukeGame.create("reveal-test").loadUnits(DukeGame.STARTER_UNITS).map(80, 50);
+        var game = DukeGame.create("reveal-test").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(80, 50);
         var one = game.addPlayer("One", Color.BLUE);
         var two = game.addPlayer("Two", Color.RED);
         game.enemies(one, two);

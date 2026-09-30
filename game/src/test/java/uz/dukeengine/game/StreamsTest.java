@@ -20,7 +20,7 @@ class StreamsTest {
     }
 
     private static Field field(int shots) {
-        var game = DukeGame.create("streams").loadUnits(DukeGame.STARTER_UNITS).map(40, 40);
+        var game = DukeGame.create("streams").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(40, 40);
         var me = game.addPlayer("Me", Color.BLUE);
         game.localPlayer(me);
         for (int shot = 0; shot < shots; shot++) {

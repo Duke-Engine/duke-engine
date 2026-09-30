@@ -18,7 +18,6 @@ import java.util.Set;
 import javax.swing.JPanel;
 import javax.swing.Timer;
 import uz.dukeengine.core.math.Coord3D;
-import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.core.pathfind.PathGrid;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.DukeGame;

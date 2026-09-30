@@ -19,7 +19,7 @@ class SightCellsViewTest {
     @Test
     void theViewersCellsRideTheSnapshotAndTellTheGroundRule() {
         var told = new ArrayList<Boolean>();
-        var game = DukeGame.create("sight").loadUnits(DukeGame.STARTER_UNITS).map(60, 60)
+        var game = DukeGame.create("sight").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 60)
                 .groundOrder((DukeGame.SeenGroundOrder) (selection, place, seen) -> {
                     told.add(seen);
                     return null;
@@ -45,7 +45,7 @@ class SightCellsViewTest {
     /** A player marked seen at the start: his ground carried seen, and an enemy standing on it not shown for it. */
     @Test
     void aPlayerMarkedSeenHasHisGroundSeenAndWhatStandsThereUnshown() {
-        var game = DukeGame.create("seen").loadUnits(DukeGame.STARTER_UNITS).map(60, 60);
+        var game = DukeGame.create("seen").loadUnits(uz.dukeengine.rts.RtsFlavour.STARTER_UNITS).map(60, 60);
         var me = game.addPlayer("Me", Color.BLUE);
         var them = game.addPlayer("Them", Color.RED);
         game.enemies(me, them).localPlayer(me).markMapSeen(me);
