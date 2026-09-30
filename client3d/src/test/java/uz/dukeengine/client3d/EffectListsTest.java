@@ -23,8 +23,8 @@ import uz.dukeengine.core.event.ObjectDied;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.module.DeathType;
 import uz.dukeengine.core.thing.ObjectId;
-import uz.dukeengine.rts.event.ShotLanded;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.ShotLanded;
+import uz.dukeengine.combat.event.WeaponFired;
 
 /**
  * Effect lists, and where the world's moments play them: every entry at once, at the thing's place turned the

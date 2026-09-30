@@ -13,6 +13,7 @@ plugins {
 dependencies {
     constraints {
         api(project(":core"))
+        api(project(":combat"))
         api(project(":rts"))
         api(project(":game"))
         api(project(":client3d"))

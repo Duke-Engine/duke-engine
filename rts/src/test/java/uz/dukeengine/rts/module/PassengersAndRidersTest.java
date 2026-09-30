@@ -21,6 +21,7 @@ import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.rts.RtsTemplate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /** Passengers that fire from inside where their carrier stands, and a rider on top that fires and dies with it. */
 class PassengersAndRidersTest {

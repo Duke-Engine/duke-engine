@@ -21,7 +21,12 @@ import uz.dukeengine.core.thing.Geometry;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.World;
 import uz.dukeengine.rts.RtsTemplate;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.WeaponFired;
+import uz.dukeengine.combat.module.PursueUpdate;
+import uz.dukeengine.combat.module.Weapon;
+import uz.dukeengine.combat.module.WeaponSet;
+import uz.dukeengine.combat.module.WeaponSlot;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * A weapon's least range — the reference's {@code MinimumAttackRange}: a SCUD launcher, 200 of its 350, fires at

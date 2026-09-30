@@ -13,6 +13,8 @@ import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
+import uz.dukeengine.combat.module.AimOffset;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /** A target that throws its attackers' aim off: a direct-fire gun misses it, a blast wide enough still hurts it. */
 class AimOffsetTest {

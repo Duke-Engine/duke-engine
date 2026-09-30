@@ -23,6 +23,7 @@ public class Player {
     private final int index;
     private final String name;
     private final Map<Integer, Relationship> relationships = new HashMap<>();
+    private boolean computer;
 
     public Player(int index, String name) {
         this.index = index;
@@ -44,6 +45,18 @@ public class Player {
 
     public final String getName() {
         return name;
+    }
+
+    /**
+     * Whether a computer plays this side rather than a person — any game's sides are one or the other: what only a
+     * computer may make, what a computer's units do on their own, a site sought where a person's may not stand.
+     */
+    public final boolean isComputer() {
+        return computer;
+    }
+
+    public final void setComputer(boolean computer) {
+        this.computer = computer;
     }
 
     /** This player's stance toward {@code other}. */

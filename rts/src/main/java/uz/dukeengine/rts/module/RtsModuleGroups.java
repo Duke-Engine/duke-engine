@@ -9,8 +9,8 @@ public final class RtsModuleGroups {
     /** Resources and what they buy: gathering, supply, power, production, loot. */
     public static final String ECONOMY = "Economy";
 
-    /** Growing stronger over a unit's life: experience, levels, ranks. */
-    public static final String PROGRESSION = "Progression";
+    /** Growing stronger over a unit's life: experience, levels, ranks — every side's, so combat's. */
+    public static final String PROGRESSION = uz.dukeengine.combat.CombatModuleGroups.PROGRESSION;
 
     private RtsModuleGroups() {
     }

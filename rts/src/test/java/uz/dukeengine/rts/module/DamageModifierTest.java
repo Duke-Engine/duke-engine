@@ -13,6 +13,8 @@ import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.module.DamageModifier;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * Damage a <em>unit</em> earns, rather than damage its whole side is given.

@@ -94,7 +94,7 @@ final class RtsClient extends GameClient {
 
     /** The words {@code object} holds, and the game's words for its moments now. */
     private java.util.List<String> wordsOf(uz.dukeengine.core.thing.GameObject object, boolean moving,
-            uz.dukeengine.rts.module.WeaponUpdate weapon, java.util.Map<Integer, Float> turns) {
+            uz.dukeengine.combat.module.WeaponUpdate weapon, java.util.Map<Integer, Float> turns) {
         var words = momentWords;
         if (words == null) {
             return java.util.List.copyOf(object.getConditions());
@@ -106,11 +106,11 @@ final class RtsClient extends GameClient {
             for (var slot : weapon.slotsNow(logic.getFrame() - 1)) { // the frame just run
                 if (slot.fired()) {
                     addWord(all, uz.dukeengine.game.view.MomentWords.of(words.firing(), slot.slot()));
-                } else if (slot.status() == uz.dukeengine.rts.module.WeaponStatus.BETWEEN_SHOTS) {
+                } else if (slot.status() == uz.dukeengine.combat.module.WeaponStatus.BETWEEN_SHOTS) {
                     addWord(all, uz.dukeengine.game.view.MomentWords.of(words.betweenShots(), slot.slot()));
-                } else if (slot.status() == uz.dukeengine.rts.module.WeaponStatus.RELOADING) {
+                } else if (slot.status() == uz.dukeengine.combat.module.WeaponStatus.RELOADING) {
                     addWord(all, uz.dukeengine.game.view.MomentWords.of(words.reloading(), slot.slot()));
-                } else if (slot.status() == uz.dukeengine.rts.module.WeaponStatus.PRE_ATTACK) {
+                } else if (slot.status() == uz.dukeengine.combat.module.WeaponStatus.PRE_ATTACK) {
                     addWord(all, uz.dukeengine.game.view.MomentWords.of(words.preAttack(), slot.slot()));
                 }
             }
@@ -286,7 +286,7 @@ final class RtsClient extends GameClient {
         var position = object.getPosition();
         var body = object.getBody();
         var ai = object.getLocomotor();
-        var weapon = object.findModule(uz.dukeengine.rts.module.WeaponUpdate.class);
+        var weapon = object.findModule(uz.dukeengine.combat.module.WeaponUpdate.class);
         var production = object.findModule(uz.dukeengine.rts.module.ProductionUpdate.class);
         var hold = object.findModule(uz.dukeengine.rts.module.ContainModule.class);
         var regard = everything || object.getPlayerIndex() == viewerPlayer
@@ -496,7 +496,7 @@ final class RtsClient extends GameClient {
      * one fired by a thing hidden from anyone, shown to an ally no more than to an enemy.
      */
     private boolean firedUnseen(uz.dukeengine.core.event.WorldEvent event, boolean everything) {
-        if (!(event instanceof uz.dukeengine.rts.event.WeaponFired fired)) {
+        if (!(event instanceof uz.dukeengine.combat.event.WeaponFired fired)) {
             return false;
         }
         var shooter = logic.findObject(fired.shooter());

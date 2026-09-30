@@ -25,6 +25,7 @@ import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplateLoader;
 import uz.dukeengine.rts.RtsTemplate;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /** A death knows how it came: the weapon's death type, or being run over, and whose it was. */
 class HowItDiedTest {

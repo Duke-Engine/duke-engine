@@ -17,6 +17,9 @@ import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
+import uz.dukeengine.combat.module.Shot;
+import uz.dukeengine.combat.module.Weapon;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /** A hulk kept in the world while its death plays out is no target and takes no blast. */
 class KeptDeadTargetTest {

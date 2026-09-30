@@ -14,6 +14,8 @@ import uz.dukeengine.core.thing.Geometry;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.World;
 import uz.dukeengine.rts.RtsTemplate;
+import uz.dukeengine.combat.module.PursueUpdate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * A weapon shorter than a cell closes until it touches, as the reference's contact weapons do: a Terrorist's charge of

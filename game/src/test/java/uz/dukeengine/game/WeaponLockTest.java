@@ -12,13 +12,13 @@ import uz.dukeengine.core.module.DamageType;
 import uz.dukeengine.core.module.DeathType;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.rts.RtsTemplate;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.WeaponFired;
 import uz.dukeengine.rts.message.GameMessage;
-import uz.dukeengine.rts.message.OrderSource;
-import uz.dukeengine.rts.module.Weapon;
-import uz.dukeengine.rts.module.WeaponSet;
-import uz.dukeengine.rts.module.WeaponSlot;
-import uz.dukeengine.rts.module.WeaponUpdate;
+import uz.dukeengine.combat.message.OrderSource;
+import uz.dukeengine.combat.module.Weapon;
+import uz.dukeengine.combat.module.WeaponSet;
+import uz.dukeengine.combat.module.WeaponSlot;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * A weapon locked to one slot by an order, and slots only a lock picks — the reference's weapon lock

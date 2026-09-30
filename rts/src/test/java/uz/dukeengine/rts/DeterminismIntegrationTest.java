@@ -17,7 +17,7 @@ import uz.dukeengine.core.thing.ThingTemplateLoader;
 import uz.dukeengine.rts.RtsTemplate;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.rts.module.RtsModules;
-import uz.dukeengine.rts.module.WeaponUpdate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * The engine's core promise: a simulation is fully determined by its initial

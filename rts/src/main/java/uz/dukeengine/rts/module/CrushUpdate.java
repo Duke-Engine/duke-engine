@@ -12,6 +12,7 @@ import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.Footprint;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectStatus;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * Runs over what it drives into: SAGE's {@code CrusherLevel}, with {@code SquishCollide}'s rule for when.

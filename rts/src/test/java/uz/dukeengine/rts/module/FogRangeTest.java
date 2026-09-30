@@ -20,6 +20,7 @@ import uz.dukeengine.rts.RtsSimulation;
 import uz.dukeengine.rts.RtsTemplate;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.rts.thing.RtsKinds;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * A thing's fog range apart from its sight, as the reference keeps its ShroudClearingRange apart from its VisionRange:

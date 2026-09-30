@@ -10,6 +10,7 @@ import uz.dukeengine.core.module.UpdateModule;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.rts.RtsTemplate;
+import uz.dukeengine.combat.module.Errand;
 
 /** An errand that put a word on its unit for its show takes it off again, however it ends. */
 class GivenUpTest {

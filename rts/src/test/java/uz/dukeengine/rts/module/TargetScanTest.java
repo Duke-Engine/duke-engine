@@ -15,6 +15,7 @@ import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.rts.RtsTemplate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * How often a weapon with no target looks for one — the reference's mood check: each thing on its own clock, moved on

@@ -9,7 +9,7 @@ import uz.dukeengine.core.network.CommandPacket;
 import uz.dukeengine.core.network.PacketCodec;
 import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.rts.message.GameMessage;
-import uz.dukeengine.rts.message.OrderSource;
+import uz.dukeengine.combat.message.OrderSource;
 
 /**
  * The RTS wire format: encodes a {@link CommandPacket} of {@link GameMessage}s

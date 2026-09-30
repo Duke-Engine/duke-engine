@@ -18,6 +18,7 @@ import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 class ArmorTest {
 

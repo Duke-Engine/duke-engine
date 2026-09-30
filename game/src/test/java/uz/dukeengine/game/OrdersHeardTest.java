@@ -12,7 +12,7 @@ import uz.dukeengine.core.module.Module;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.rts.module.OrderListener;
-import uz.dukeengine.rts.module.WeaponUpdate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /** A unit's modules told the standard orders it is given — a weaponless one too, which passes them to its spawn. */
 class OrdersHeardTest {

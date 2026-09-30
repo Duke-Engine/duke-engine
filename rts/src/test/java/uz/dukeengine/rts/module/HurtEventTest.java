@@ -18,6 +18,7 @@ import uz.dukeengine.core.thing.Geometry;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.rts.RtsTemplate;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /** Every blow that takes health says so: what was struck, how hard after armour, by whom, and where on it. */
 class HurtEventTest {

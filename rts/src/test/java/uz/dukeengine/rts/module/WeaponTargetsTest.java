@@ -20,6 +20,8 @@ import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.rts.RtsSimulation;
 import uz.dukeengine.rts.RtsTemplate;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.module.TargetRule;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * What a weapon may be fired at: the classes it names, and the game's rules for which classes a thing has.

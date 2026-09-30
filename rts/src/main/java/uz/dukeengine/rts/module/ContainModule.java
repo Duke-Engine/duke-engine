@@ -58,7 +58,7 @@ import uz.dukeengine.core.thing.ObjectId;
  */
 @ModuleGroup(ModuleGroups.MOVEMENT)
 public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
-        implements uz.dukeengine.core.module.DieModule {
+        implements uz.dukeengine.core.module.DieModule, uz.dukeengine.combat.module.Hold {
 
     /**
      * INI config: {@code Slots} (passenger capacity); {@code SharedBy}: the network whose one hold, and one capacity,
@@ -256,6 +256,12 @@ public final class ContainModule extends uz.dukeengine.core.module.UpdateModule
     public static boolean firesFromInside(GameObject passenger) {
         var hold = holdOf(passenger);
         return hold != null && (hold.passengersFire || hold.rides(passenger));
+    }
+
+    /** Whether {@code passenger} is in this hold of its own and fires from it — what a weapon asks, see above. */
+    @Override
+    public boolean passengerFires(GameObject passenger) {
+        return sharedBy == null && passengers.contains(passenger.getId()) && (passengersFire || rides(passenger));
     }
 
     /** The hold of its own that {@code passenger} is in — a side's shared one left out — or null. */

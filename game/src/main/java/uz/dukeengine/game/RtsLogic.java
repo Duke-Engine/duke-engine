@@ -11,7 +11,7 @@ import uz.dukeengine.core.message.Command;
 import uz.dukeengine.rts.RtsSimulation;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.core.module.MoveUpdate;
-import uz.dukeengine.rts.module.WeaponUpdate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * The batteries-included RTS simulation behind {@link DukeGame}.
@@ -119,7 +119,7 @@ final class RtsLogic extends RtsSimulation {
                     if (unit == null || unit.getPlayerIndex() != move.playerIndex()) {
                         continue; // gone, or not the issuer's unit to command
                     }
-                    uz.dukeengine.rts.module.Errand.giveUpAll(unit);
+                    uz.dukeengine.combat.module.Errand.giveUpAll(unit);
                     var weapon = unit.findModule(WeaponUpdate.class);
                     if (weapon != null) {
                         weapon.holdFire(); // an explicit move overrides the current target
@@ -137,7 +137,7 @@ final class RtsLogic extends RtsSimulation {
                     if (unit == null || unit.getPlayerIndex() != attack.playerIndex()) {
                         continue;
                     }
-                    uz.dukeengine.rts.module.Errand.giveUpAll(unit);
+                    uz.dukeengine.combat.module.Errand.giveUpAll(unit);
                     var weapon = unit.findModule(WeaponUpdate.class);
                     if (weapon != null) {
                         attack(weapon, attack);
@@ -151,7 +151,7 @@ final class RtsLogic extends RtsSimulation {
                     if (unit == null || unit.getPlayerIndex() != stop.playerIndex()) {
                         continue;
                     }
-                    uz.dukeengine.rts.module.Errand.giveUpAll(unit);
+                    uz.dukeengine.combat.module.Errand.giveUpAll(unit);
                     var ai = unit.getLocomotor();
                     if (ai != null) {
                         ai.stop();

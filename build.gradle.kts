@@ -68,7 +68,9 @@ val published = mapOf(
         + "a client from one release with a core from another.",
     "core" to "The genre-neutral engine: subsystems, the fixed-rate deterministic loop, objects and modules, "
         + "the .duke data layer, pathfinding, fog of war and lock-step networking.",
-    "rts" to "The RTS library on top of core: commands, combat, production, economy, veterancy and the RTS "
+    "combat" to "What every side that fights shares, on top of core: weapons and their bonuses, shots, statuses, "
+        + "experience, auras, pursuit and the move, attack and stop orders — for an RTS and an RPG alike.",
+    "rts" to "The RTS library on top of combat: commands, production, economy, construction and the RTS "
         + "vocabulary — the parts every RTS shares, with the rules left to the game.",
     "game" to "The Unity-style API: the DukeGame facade, players, orders, a 2D Swing client and lock-step "
         + "multiplayer over TCP.",

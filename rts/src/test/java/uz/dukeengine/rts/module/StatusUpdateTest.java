@@ -16,6 +16,8 @@ import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectStatus;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
+import uz.dukeengine.combat.module.StatusUpdate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 class StatusUpdateTest {
 

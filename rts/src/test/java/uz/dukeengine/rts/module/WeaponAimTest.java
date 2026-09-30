@@ -15,7 +15,12 @@ import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.Geometry;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.rts.RtsTemplate;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.WeaponFired;
+import uz.dukeengine.combat.module.Weapon;
+import uz.dukeengine.combat.module.WeaponAim;
+import uz.dukeengine.combat.module.WeaponSet;
+import uz.dukeengine.combat.module.WeaponSlot;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * A weapon fires once its thing is aimed — the reference's attack waiting on a turret's turn or the body's

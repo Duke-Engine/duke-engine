@@ -16,6 +16,9 @@ import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.rts.RtsSimulation;
 import uz.dukeengine.rts.RtsTemplate;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.module.Shot;
+import uz.dukeengine.combat.module.Weapon;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * Whom a blast hurts, and its second ring — the reference's {@code RadiusDamageAffects} and secondary damage, as

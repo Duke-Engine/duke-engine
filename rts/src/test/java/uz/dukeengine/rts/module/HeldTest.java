@@ -14,6 +14,8 @@ import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ObjectStatus;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
+import uz.dukeengine.combat.module.PursueUpdate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /** Held: a thing kept where it is that still fights — SAGE's {@code DISABLED_HELD}. */
 class HeldTest {

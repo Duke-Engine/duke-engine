@@ -8,7 +8,7 @@ import uz.dukeengine.core.event.ObjectDied;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.game.view.UnitView;
 import uz.dukeengine.game.view.WorldSnapshot;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.WeaponFired;
 
 /**
  * Turns a frame of the world into moments, by name.

@@ -21,7 +21,12 @@ import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.core.thing.ThingTemplateLoader;
 import uz.dukeengine.rts.RtsTemplate;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.WeaponFired;
+import uz.dukeengine.combat.module.TargetRule;
+import uz.dukeengine.combat.module.Weapon;
+import uz.dukeengine.combat.module.WeaponSet;
+import uz.dukeengine.combat.module.WeaponSlot;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * More than one weapon, and sets of them: which slot fires at what, and which set is in use.

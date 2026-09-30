@@ -11,6 +11,7 @@ import uz.dukeengine.core.module.ActiveBody;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.rts.RtsTemplate;
+import uz.dukeengine.combat.module.ExperienceModule;
 
 /**
  * A thing's rank set down as well as up — the reference's {@code ExperienceTracker::setExperienceAndLevel}: a veteran

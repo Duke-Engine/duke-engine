@@ -16,8 +16,11 @@ import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.WeaponFired;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.module.DamageModifier;
+import uz.dukeengine.combat.module.ProjectileLauncher;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * A shot that leaves the weapon and arrives later.

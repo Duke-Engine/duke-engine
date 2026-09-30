@@ -16,6 +16,8 @@ import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
 import uz.dukeengine.rts.message.GameMessage;
+import uz.dukeengine.combat.module.ExperienceModule;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 class CombatTest {
 

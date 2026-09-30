@@ -3,6 +3,11 @@ package uz.dukeengine.rts.module;
 import java.util.List;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleFactory;
+import uz.dukeengine.combat.module.AutoHealUpdate;
+import uz.dukeengine.combat.module.ExperienceModule;
+import uz.dukeengine.combat.module.PursueUpdate;
+import uz.dukeengine.combat.module.StatusUpdate;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * The RTS module set: everything an RTS adds on top of the engine's
@@ -34,14 +39,10 @@ public final class RtsModules {
         return factory;
     }
 
-    /** Add the RTS modules to an existing factory. */
+    /** Add the RTS modules to an existing factory: the combat ones every side shares, then the RTS's own. */
     public static void register(ModuleFactory factory) {
-        factory.register(WeaponUpdate.Data.class, WeaponUpdate::new)
-                .register(PursueUpdate.Data.class, PursueUpdate::new)
-                .register(ProductionUpdate.Data.class, ProductionUpdate::new)
-                .register(ExperienceModule.Data.class, ExperienceModule::new)
-                .register(AutoHealUpdate.Data.class, AutoHealUpdate::new)
-                .register(StatusUpdate.Data.class, StatusUpdate::new)
+        uz.dukeengine.combat.CombatModules.register(factory);
+        factory.register(ProductionUpdate.Data.class, ProductionUpdate::new)
                 .register(PowerModule.Data.class, PowerModule::new)
                 .register(CapacityGate.Data.class, CapacityGate::new)
                 .register(SpecialPowerModule.Data.class, SpecialPowerModule::new)

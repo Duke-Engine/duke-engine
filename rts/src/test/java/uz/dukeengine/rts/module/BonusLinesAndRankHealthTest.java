@@ -16,8 +16,15 @@ import uz.dukeengine.core.thing.Kind;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplateLoader;
 import uz.dukeengine.rts.RtsTemplate;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.WeaponFired;
 import uz.dukeengine.rts.save.GameSnapshot;
+import uz.dukeengine.combat.module.ExperienceModule;
+import uz.dukeengine.combat.module.TargetRule;
+import uz.dukeengine.combat.module.Weapon;
+import uz.dukeengine.combat.module.WeaponBonus;
+import uz.dukeengine.combat.module.WeaponSet;
+import uz.dukeengine.combat.module.WeaponSlot;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /** Weapon bonuses summed as the reference sums them, a weapon's own lines, a rank's health, most health saved. */
 class BonusLinesAndRankHealthTest {

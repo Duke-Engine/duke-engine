@@ -35,7 +35,7 @@ import uz.dukeengine.rts.player.Upgrade;
  * {@code WeaponUpdate}, {@code ProductionUpdate} and friends without extra
  * wiring.
  */
-public abstract class RtsSimulation extends GameLogic {
+public abstract class RtsSimulation extends GameLogic implements uz.dukeengine.combat.ArmedWorld {
 
     private static final Logger LOG = Logger.getLogger(RtsSimulation.class.getName());
 
@@ -242,101 +242,71 @@ public abstract class RtsSimulation extends GameLogic {
         return placementRules;
     }
 
-    private final java.util.Map<String, uz.dukeengine.rts.module.Weapon> weapons = new java.util.LinkedHashMap<>();
+    private final uz.dukeengine.combat.Armoury armoury = new uz.dukeengine.combat.Armoury();
 
     /**
-     * The weapons this game's {@link uz.dukeengine.rts.module.WeaponSlot}s link by name — one block a weapon,
-     * however many units carry it. A later weapon of a name replaces an earlier. Data, like the templates: a
-     * new game in the same world keeps them.
+     * The world's arms — its weapons, target rules, weapon bonus table, how often a weapon looks, whose shots are shown
+     * though hidden, and how a guard guards — the one object every weapon of it reads. The methods below are its, kept
+     * here so an RTS game's calls stay as they were.
      */
-    public final void addWeapons(java.util.Collection<uz.dukeengine.rts.module.Weapon> more) {
-        for (var weapon : more) {
-            if (weapon != null && weapon.name() != null) {
-                weapons.put(weapon.name(), weapon);
-            }
-        }
+    @Override
+    public final uz.dukeengine.combat.Armoury armoury() {
+        return armoury;
+    }
+
+    /** See {@link uz.dukeengine.combat.Armoury#addWeapons}. */
+    public final void addWeapons(java.util.Collection<uz.dukeengine.combat.module.Weapon> more) {
+        armoury.addWeapons(more);
     }
 
     /** The weapon of this name, or {@code null} where the game gave none. */
-    public final uz.dukeengine.rts.module.Weapon findWeapon(String name) {
-        return name == null ? null : weapons.get(name);
+    public final uz.dukeengine.combat.module.Weapon findWeapon(String name) {
+        return armoury.findWeapon(name);
     }
 
-    private java.util.List<uz.dukeengine.rts.module.TargetRule> targetRules = java.util.List.of();
-
-    /**
-     * What each thing is, to a weapon: the game's lines, in order, the first that matches a thing deciding its
-     * classes — see {@link uz.dukeengine.rts.module.TargetRule}. None, the default, gives no thing a class,
-     * which matters only to a weapon that names classes: a weapon that names none fires at anything, as every
-     * weapon did before this existed.
-     */
-    public final void setTargetRules(java.util.List<uz.dukeengine.rts.module.TargetRule> rules) {
-        this.targetRules = rules == null ? java.util.List.of() : java.util.List.copyOf(rules);
+    /** See {@link uz.dukeengine.combat.Armoury#setTargetRules}. */
+    public final void setTargetRules(java.util.List<uz.dukeengine.combat.module.TargetRule> rules) {
+        armoury.setTargetRules(rules);
     }
 
-    public final java.util.List<uz.dukeengine.rts.module.TargetRule> getTargetRules() {
-        return targetRules;
+    public final java.util.List<uz.dukeengine.combat.module.TargetRule> getTargetRules() {
+        return armoury.getTargetRules();
     }
 
-    private int targetScanFrames = 1;
-    private int idleTargetScanFrames;
-
-    /**
-     * How often a weapon with no target looks for one, in frames, where its template does not say ({@code
-     * WeaponUpdate.Data.targetScanFrames}) — the reference's {@code MoodAttackCheckRate}, 2 seconds where a template
-     * leaves it out. Each thing on its own clock: a look moves its next on by the rate, its first by up to half the
-     * rate more, drawn from the world's random numbers, so a crowd does not look all at once; and a thing that falls
-     * idle looks soon after ({@link #setIdleTargetScanFrames}). 1, the default, is every frame, as always.
-     */
+    /** See {@link uz.dukeengine.combat.Armoury#setTargetScanFrames}. */
     public final void setTargetScanFrames(int frames) {
-        this.targetScanFrames = Math.max(1, frames);
+        armoury.setTargetScanFrames(frames);
     }
 
     public final int getTargetScanFrames() {
-        return targetScanFrames;
+        return armoury.getTargetScanFrames();
     }
 
-    /**
-     * How soon a thing that falls idle looks for a target, in frames — its order done or stopped, or what it fought
-     * gone: its next look set to then, whatever its clock said — the reference's {@code resetNextMoodCheckTime}, now
-     * and its {@code AIData}'s {@code ForceIdleFramesCount}, which its idle state and an idle turret run. 0, the
-     * default, at once.
-     */
+    /** See {@link uz.dukeengine.combat.Armoury#setIdleTargetScanFrames}. */
     public final void setIdleTargetScanFrames(int frames) {
-        this.idleTargetScanFrames = Math.max(0, frames);
+        armoury.setIdleTargetScanFrames(frames);
     }
 
     public final int getIdleTargetScanFrames() {
-        return idleTargetScanFrames;
+        return armoury.getIdleTargetScanFrames();
     }
 
-    private java.util.List<uz.dukeengine.core.thing.Kind> shownWhenHidden = java.util.List.of();
-    private boolean hiddenShotsToOwnerOnly;
-
-    /**
-     * The kinds of thing whose shots are shown though the thing is hidden, filtered by where they are fired alone as
-     * any other's — the reference's mines ({@code KINDOF_MINE}), which always show their blast. A weapon may say so of
-     * itself ({@link uz.dukeengine.rts.module.Weapon#shownWhenHidden}). None, the default.
-     */
+    /** See {@link uz.dukeengine.combat.Armoury#setShownWhenHidden}. */
     public final void setShownWhenHidden(java.util.List<uz.dukeengine.core.thing.Kind> kinds) {
-        this.shownWhenHidden = kinds == null ? java.util.List.of() : java.util.List.copyOf(kinds);
+        armoury.setShownWhenHidden(kinds);
     }
 
     public final java.util.List<uz.dukeengine.core.thing.Kind> getShownWhenHidden() {
-        return shownWhenHidden;
+        return armoury.getShownWhenHidden();
     }
 
-    /**
-     * Whether a hidden thing's shots are kept from its allies too, shown to its own player alone — the reference's
-     * {@code Weapon::fireWeaponTemplate}, a stealthed shooter's firing seen by the player who controls it and nobody
-     * else. Off, the default: shown to whoever it is not hidden from.
-     */
+    /** See {@link uz.dukeengine.combat.Armoury#setHiddenShotsToOwnerOnly}. */
     public final void setHiddenShotsToOwnerOnly(boolean ownerOnly) {
-        this.hiddenShotsToOwnerOnly = ownerOnly;
+        armoury.setHiddenShotsToOwnerOnly(ownerOnly);
     }
 
     public final boolean isHiddenShotsToOwnerOnly() {
-        return hiddenShotsToOwnerOnly;
+        return armoury.isHiddenShotsToOwnerOnly();
     }
 
     /**
@@ -438,7 +408,6 @@ public abstract class RtsSimulation extends GameLogic {
     // ---- selling, guarding ----
 
     private uz.dukeengine.rts.construction.SellRules sellRules = uz.dukeengine.rts.construction.SellRules.DEFAULT;
-    private uz.dukeengine.rts.module.GuardRules guardRules = uz.dukeengine.rts.module.GuardRules.DEFAULT;
     private final java.util.List<java.util.function.Consumer<uz.dukeengine.core.thing.GameObject>> soldWatchers =
             new java.util.ArrayList<>();
 
@@ -451,13 +420,13 @@ public abstract class RtsSimulation extends GameLogic {
         return sellRules;
     }
 
-    /** How a guard guards and an attack-move chases — see {@code GuardOrder}. */
-    public final void setGuardRules(uz.dukeengine.rts.module.GuardRules rules) {
-        this.guardRules = rules == null ? uz.dukeengine.rts.module.GuardRules.DEFAULT : rules;
+    /** How a guard guards and an attack-move chases — see {@code GuardOrder}; kept in the world's arms. */
+    public final void setGuardRules(uz.dukeengine.combat.module.GuardRules rules) {
+        armoury.setGuardRules(rules);
     }
 
-    public final uz.dukeengine.rts.module.GuardRules getGuardRules() {
-        return guardRules;
+    public final uz.dukeengine.combat.module.GuardRules getGuardRules() {
+        return armoury.getGuardRules();
     }
 
     /**
@@ -500,47 +469,22 @@ public abstract class RtsSimulation extends GameLogic {
 
     // ---- weapon bonuses ----
 
-    private java.util.List<uz.dukeengine.rts.module.WeaponBonus> weaponBonuses = java.util.List.of();
-
-    /**
-     * The game's weapon bonus table: every line whose word a thing holds multiplies its weapons' damage, range, rate
-     * of fire or blast — see {@link uz.dukeengine.rts.module.WeaponBonus}. Kept in the order of their words, sorted,
-     * so the product is the same on every machine.
-     */
-    public final void setWeaponBonuses(java.util.Collection<uz.dukeengine.rts.module.WeaponBonus> lines) {
-        this.weaponBonuses = lines.stream()
-                .sorted(java.util.Comparator.comparing(uz.dukeengine.rts.module.WeaponBonus::word)
-                        .thenComparing(uz.dukeengine.rts.module.WeaponBonus::kind))
-                .toList();
+    /** The game's weapon bonus table — see {@link uz.dukeengine.combat.Armoury#setWeaponBonuses}. */
+    public final void setWeaponBonuses(java.util.Collection<uz.dukeengine.combat.module.WeaponBonus> lines) {
+        armoury.setWeaponBonuses(lines);
     }
 
-    /** What the table makes {@code kind} for {@code thing}, as its words stand now — see the overload below. */
+    /** What the table makes {@code kind} for {@code thing}, as its words stand now. */
     public final float weaponBonus(uz.dukeengine.core.thing.GameObject thing,
-            uz.dukeengine.rts.module.WeaponBonus.Kind kind) {
-        return weaponBonus(thing, kind, java.util.List.of());
+            uz.dukeengine.combat.module.WeaponBonus.Kind kind) {
+        return armoury.weaponBonus(thing, kind);
     }
 
-    /**
-     * What the table and a weapon's own lines make {@code kind} for {@code thing}, as its words stand now: 1, and for
-     * every line whose word it holds, what that line adds over 1 — {@code 1 + Σ(multiplier − 1)}, as the reference's
-     * {@code WeaponBonus::appendBonuses} sums the game's set and then the weapon's extra one. Added in a fixed order,
-     * the table's lines by their words and then the weapon's, so it comes to the same bits on every machine.
-     */
+    /** What the table and a weapon's own lines make {@code kind} for {@code thing} — see {@code Armoury}'s. */
     public final float weaponBonus(uz.dukeengine.core.thing.GameObject thing,
-            uz.dukeengine.rts.module.WeaponBonus.Kind kind,
-            java.util.List<uz.dukeengine.rts.module.WeaponBonus> own) {
-        float sum = 1f;
-        for (var line : weaponBonuses) {
-            if (line.kind() == kind && thing.hasCondition(line.word())) {
-                sum += line.multiplier() - 1f;
-            }
-        }
-        for (var line : own) {
-            if (line.kind() == kind && thing.hasCondition(line.word())) {
-                sum += line.multiplier() - 1f;
-            }
-        }
-        return sum;
+            uz.dukeengine.combat.module.WeaponBonus.Kind kind,
+            java.util.List<uz.dukeengine.combat.module.WeaponBonus> own) {
+        return armoury.weaponBonus(thing, kind, own);
     }
 
     // ---- what a side may make ----

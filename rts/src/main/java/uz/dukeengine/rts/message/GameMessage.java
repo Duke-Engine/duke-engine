@@ -4,6 +4,7 @@ import java.util.List;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.message.Command;
 import uz.dukeengine.core.thing.ObjectId;
+import uz.dukeengine.combat.message.OrderSource;
 
 /**
  * The RTS command set, ported from SAGE's {@code GameMessage} (the

@@ -16,7 +16,10 @@ import uz.dukeengine.core.player.Relationship;
 import uz.dukeengine.core.thing.GameObject;
 import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.core.thing.ThingTemplate;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.WeaponFired;
+import uz.dukeengine.combat.module.ExperienceModule;
+import uz.dukeengine.combat.module.WeaponBonus;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /** What a thing is worth in a fight, chosen by the words it holds: its armour, its weapons' bonuses, its rank. */
 class WordsInAFightTest {

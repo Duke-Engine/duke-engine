@@ -27,7 +27,7 @@ import uz.dukeengine.core.thing.World;
  * which is a promise made once and relied on forever. Sorting at the source
  * makes the guarantee the type's, not the caller's.
  */
-public final class RtsPlayer extends Player {
+public final class RtsPlayer extends Player implements uz.dukeengine.combat.ArmedSide {
 
     /** The bonus a weapon consults. Named so a game can add its own beside it. */
     public static final String WEAPON_DAMAGE = "WeaponDamage";
@@ -35,7 +35,6 @@ public final class RtsPlayer extends Player {
     private final Set<String> upgrades = new TreeSet<>();
     /** Words granted to the side — a science it chose — beside the upgrades it researched. */
     private final Set<String> granted = new TreeSet<>();
-    private boolean computer;
     private final Map<String, Float> bonuses = new TreeMap<>();
     private int money;
     /** What the side took in, and what it paid out and kept paid — see {@link #getEarned}, {@link #getSpent}. */
@@ -232,15 +231,6 @@ public final class RtsPlayer extends Player {
         return java.util.Collections.unmodifiableSortedSet(new TreeSet<>(granted));
     }
 
-    /** Whether a computer plays this side: what it may make only a computer may ({@code ONLY_BY_COMPUTER}). */
-    public boolean isComputer() {
-        return computer;
-    }
-
-    public void setComputer(boolean computer) {
-        this.computer = computer;
-    }
-
     // ---- player-wide bonuses ----
 
     /**
@@ -275,6 +265,7 @@ public final class RtsPlayer extends Player {
     }
 
     /** Player-wide multiplier applied to all owned units' weapon damage. */
+    @Override
     public float getWeaponDamageBonus() {
         return getBonus(WEAPON_DAMAGE);
     }

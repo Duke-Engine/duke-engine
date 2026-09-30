@@ -49,8 +49,8 @@ import uz.dukeengine.core.thing.ObjectId;
 import uz.dukeengine.game.DukeGame;
 import uz.dukeengine.game.view.UnitView;
 import uz.dukeengine.game.view.WorldSnapshot;
-import uz.dukeengine.rts.event.ShotLanded;
-import uz.dukeengine.rts.event.WeaponFired;
+import uz.dukeengine.combat.event.ShotLanded;
+import uz.dukeengine.combat.event.WeaponFired;
 import uz.dukeengine.rts.message.GameMessage;
 
 /**

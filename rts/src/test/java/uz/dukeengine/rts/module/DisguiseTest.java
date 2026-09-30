@@ -19,6 +19,7 @@ import uz.dukeengine.core.thing.ThingFactory;
 import uz.dukeengine.rts.RtsTemplate;
 import uz.dukeengine.rts.message.GameMessage;
 import uz.dukeengine.rts.network.CommandCodec;
+import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * A thing passing itself off as none of an enemy's targets — the reference's bomb truck disguised as one of his
