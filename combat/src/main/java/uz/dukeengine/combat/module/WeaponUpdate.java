@@ -738,14 +738,16 @@ public final class WeaponUpdate extends UpdateModule {
         var shot = new Shot(owner.getId(), owner.getPlayerIndex(), weapon, chosen.index(),
                 dealt(owner, weapon, weapon.damage()), weapon.splashRadius() * wider,
                 dealt(owner, weapon, weapon.secondaryDamage()), weapon.secondaryRadius() * wider);
+        for (var listener : shotListeners(owner)) {
+            listener.onFired(shot, victim);
+        }
 
         // A shot was fired either way — the reload runs and the moment is
         // announced — but whether it lands now is the launcher's to decide.
         boolean inFlight = handOver(owner, victim, shot);
         boolean thrownOff = offsetOf(victim) != null;
         if (!inFlight && !thrownOff) {
-            victim.getBody().damage(shot.damage(), weapon.damageType(), blow(shot), middleOf(victim),
-                    owner.getPosition()); // scaled by its armour
+            deal(owner, shot, victim, shot.damage(), middleOf(victim), owner.getPosition()); // scaled by its armour
         }
         if (chosen.clip().fired(world.random(), rateOfFire(owner, weapon)) && chosen.index() == lockedSlot) {
             unlock(Lock.TEMPORARILY); // its clip is empty: a lock until then is over
@@ -787,10 +789,40 @@ public final class WeaponUpdate extends UpdateModule {
         var hit = victim == null || victim.isEffectivelyDead() || victim.getBody() == null || offsetOf(victim) != null
                 ? null : victim;
         if (hit != null) {
-            hit.getBody().damage(shot.damage(), shot.weapon().damageType(), blow(shot), middleOf(hit),
-                    from == null ? where : from);
+            deal(shooter, shot, hit, shot.damage(), middleOf(hit), from == null ? where : from);
         }
         struck(world, shot, shooter, hit, where, where, from == null ? where : from);
+    }
+
+    /**
+     * A blow of {@code shot}'s on {@code victim}: {@code damage} dealt as its weapon deals, and what it took — the
+     * amount its {@code ObjectHurt} says — told to the shooter's {@link ShotListener}s, the shooter being there to hear.
+     */
+    private static void deal(GameObject shooter, Shot shot, GameObject victim, float damage, Coord3D at,
+            Coord3D from) {
+        var body = victim.getBody();
+        float worth = body.worthOf(damage, shot.weapon().damageType());
+        body.damage(damage, shot.weapon().damageType(), blow(shot), at, from);
+        if (worth <= 0f || shooter == null) {
+            return;
+        }
+        for (var listener : shotListeners(shooter)) {
+            listener.onDealt(shot, victim, worth);
+        }
+    }
+
+    /** {@code shooter}'s {@link ShotListener}s, in module order; none, and nothing made, for a thing that has none. */
+    private static List<ShotListener> shotListeners(GameObject shooter) {
+        List<ShotListener> found = List.of();
+        for (var module : shooter.getModules()) {
+            if (module instanceof ShotListener listener) {
+                if (found.isEmpty()) {
+                    found = new ArrayList<>(2);
+                }
+                found.add(listener);
+            }
+        }
+        return found;
     }
 
     /**
@@ -1194,8 +1226,7 @@ public final class WeaponUpdate extends UpdateModule {
             if (damage <= 0f) {
                 continue;
             }
-            bystander.getBody().damage(damage, shot.weapon().damageType(), blow(shot),
-                    nearestOf(bystander, where), where);
+            deal(shooter, shot, bystander, damage, nearestOf(bystander, where), where);
             if (bystander.isEffectivelyDead() && shooter != null) {
                 grantKillExperience(shooter, bystander);
             }

@@ -64,7 +64,7 @@ public abstract class BodyModule extends Module {
      */
     public void damage(float amount, DamageType type, Death blow, Coord3D at, Coord3D from) {
         boolean wasAlive = !isDead();
-        float worth = wasAlive ? scaled(estimateDamage(amount, type), type) : 0f;
+        float worth = worthOf(amount, type);
         damage(amount, type);
         if (!wasAlive) {
             return;
@@ -80,6 +80,15 @@ public abstract class BodyModule extends Module {
                 }
             }
         }
+    }
+
+    /**
+     * What a blow of {@code amount} of {@code type} takes from this body as it stands: after its armour and its damage
+     * scale — the amount the blow's {@link ObjectHurt} says and its {@link DamageListener}s hear — and nothing once it
+     * is dead.
+     */
+    public final float worthOf(float amount, DamageType type) {
+        return isDead() ? 0f : scaled(estimateDamage(amount, type), type);
     }
 
     /**
