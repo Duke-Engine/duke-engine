@@ -894,9 +894,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/EffectLayer.java": {
-    "mtime": 1789983050.7513597,
-    "seen": 1790687045.0959172,
-    "ast_hash": "a1e194d797d54c9d62ab9e902a799267",
+    "mtime": 1790781986.3093145,
+    "seen": 1790782161.9266732,
+    "ast_hash": "e89f2f574edaee465b56a4cea0e7bf7d",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/FloatingNumbers.java": {
@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/LayeredEffects.java": {
-    "mtime": 1790302142.287518,
-    "seen": 1790687045.0959547,
-    "ast_hash": "28f10ce7063bcbcb761e28c1f5258835",
+    "mtime": 1790782088.8854966,
+    "seen": 1790782161.9267504,
+    "ast_hash": "94f1c391044c37bc0d6e1d18a2c0050f",
     "semantic_hash": ""
   },
   "client3d/src/main/java/uz/dukeengine/client3d/LightPool.java": {
@@ -1380,9 +1380,9 @@
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/LayeredEffectsTest.java": {
-    "mtime": 1790188429.354236,
-    "seen": 1790687045.096115,
-    "ast_hash": "d4df566694b5122c8bbe28ae93bed545",
+    "mtime": 1790782047.0793443,
+    "seen": 1790782161.9270792,
+    "ast_hash": "89abfd4625aa03edac70e65aa42e2d60",
     "semantic_hash": ""
   },
   "client3d/src/test/java/uz/dukeengine/client3d/MinimapProjectionTest.java": {
@@ -2952,9 +2952,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1790773620.274392,
-    "seen": 1790773675.0752826,
-    "ast_hash": "a036d392b2563eb5b539efb139004149",
+    "mtime": 1790782103.3020349,
+    "seen": 1790782161.9286876,
+    "ast_hash": "ff85a775627bc350ac1f6fd8fd7da1f6",
     "semantic_hash": ""
   },
   "core/src/main/java/uz/dukeengine/core/data/Paint.java": {
