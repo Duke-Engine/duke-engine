@@ -19,12 +19,24 @@ final class MinimapProjection {
     record Point(float x, float y) {
     }
 
+    private final float originX;
+    private final float originY;
     private final float worldWidth;
     private final float worldHeight;
     private final float scale;
 
     /** Fits a world of this size into a square {@code size} pixels on its longest side. */
     MinimapProjection(float worldWidth, float worldHeight, float size) {
+        this(0f, 0f, worldWidth, worldHeight, size);
+    }
+
+    /**
+     * Fits the part of the world {@code worldWidth} by {@code worldHeight} from the point ({@code originX}, {@code
+     * originY}) into a square {@code size} pixels on its longest side: a minimap of the ground round the camera.
+     */
+    MinimapProjection(float originX, float originY, float worldWidth, float worldHeight, float size) {
+        this.originX = originX;
+        this.originY = originY;
         this.worldWidth = worldWidth;
         this.worldHeight = worldHeight;
         this.scale = size / Math.max(worldWidth, worldHeight);
@@ -44,16 +56,16 @@ final class MinimapProjection {
 
     /** World position to a point on the minimap. */
     Point toMinimap(float worldX, float worldY) {
-        return new Point(worldX * scale, (worldHeight - worldY) * scale);
+        return new Point((worldX - originX) * scale, (originY + worldHeight - worldY) * scale);
     }
 
     /** A point on the minimap back to the world position it stands for. */
     float toWorldX(float minimapX) {
-        return minimapX / scale;
+        return originX + minimapX / scale;
     }
 
     float toWorldY(float minimapY) {
-        return worldHeight - minimapY / scale;
+        return originY + worldHeight - minimapY / scale;
     }
 
     boolean contains(float minimapX, float minimapY) {

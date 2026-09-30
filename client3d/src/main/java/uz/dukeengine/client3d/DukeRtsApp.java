@@ -1196,7 +1196,11 @@ final class DukeRtsApp extends SimpleApplication {
         var grid = game.getTerrain();
         float worldW = grid == null ? 700f : grid.getWidth() * grid.getCellSize();
         float worldH = grid == null ? 450f : grid.getHeight() * grid.getCellSize();
-        minimap = new MinimapProjection(worldW, worldH, MINIMAP_SIZE);
+        // The ground and its stone as one picture on one quad, the cells unwalked where there is discovery: an
+        // undiscovered floor is as black as undiscovered stone. Of the ground round the camera, on a wide world.
+        minimapPicture.rebuild(grid, visuals.drawsFog(), visuals.getFog().tintColour(), visuals.getMinimapSpan());
+        minimap = minimapPicture.isWindowed() ? minimapRoundTheCamera(grid)
+                : new MinimapProjection(worldW, worldH, MINIMAP_SIZE);
         groundSpan = grid == null ? new GroundSpan(0f, 0f) : GroundSpan.of(grid);
         // The camera may look at exactly what the minimap draws, and no further.
         // Until there is a map there is nothing to fence it into: the sizes above
@@ -1204,15 +1208,71 @@ final class DukeRtsApp extends SimpleApplication {
         camera.keepInside(grid == null ? 0f : worldW, grid == null ? 0f : worldH);
         minimapX = cam.getWidth() - minimap.widthPixels() - 12f;
 
-        // The ground and its stone as one picture on one quad, the cells unwalked where there is discovery: an
-        // undiscovered floor is as black as undiscovered stone.
-        minimapPicture.rebuild(grid, visuals.drawsFog(), visuals.getFog().tintColour());
         var ground = new Geometry("mm-ground", new Quad(minimap.widthPixels(), minimap.heightPixels()));
         var look = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         look.setTexture("ColorMap", minimapPicture.texture());
         ground.setMaterial(look);
         minimapTerrainNode.attachChild(ground);
+        minimapGround = ground;
+        followWithTheMinimap();
         placeMinimap();
+        makeTheWorldPicture(grid);
+    }
+
+    /** The quad the minimap's ground is drawn on, whose picture slides under it on a wide world. */
+    private Geometry minimapGround;
+
+    /** The minimap's projection of the {@link Visuals#minimapSpan} of ground round where the camera looks now. */
+    private MinimapProjection minimapRoundTheCamera(uz.dukeengine.core.pathfind.PathGrid grid) {
+        float cell = grid.getCellSize();
+        float span = minimapPicture.span() * cell;
+        return new MinimapProjection(camera.targetX() - span / 2f, camera.targetZ() - span / 2f, span, span,
+                MINIMAP_SIZE);
+    }
+
+    /**
+     * On a wide world, the minimap kept on the ground round where the camera looks: the cells coming into its window
+     * painted, its picture slid under its quad by a fraction of a cell as the camera moves, and its projection — the
+     * things on it, the view's outline, a click on it — moved with it. Nothing where it shows the whole map.
+     */
+    private void followWithTheMinimap() {
+        var grid = game.getTerrain();
+        if (!minimapPicture.isWindowed() || grid == null || minimapGround == null) {
+            return;
+        }
+        float cell = grid.getCellSize();
+        minimapPicture.follow(camera.targetX(), camera.targetZ(), discovery, renderer);
+        minimap = minimapRoundTheCamera(grid);
+        float span = minimapPicture.span();
+        var corners = minimapPicture.corners(camera.targetX() / cell - span / 2f, camera.targetZ() / cell - span / 2f);
+        var mesh = minimapGround.getMesh();
+        var coordinates = mesh.getFloatBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord);
+        coordinates.clear();
+        coordinates.put(corners).flip();
+        mesh.getBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord).setUpdateNeeded();
+    }
+
+    /** The whole world's picture the game asked for, at most how many texels a side, and whom it is handed to. */
+    private int worldPictureMost;
+    private java.util.function.Consumer<Picture> worldPictureHanded;
+    private WorldPicture worldPicture;
+
+    /** See {@link Duke3D#worldPicture}. */
+    void worldPicture(int mostTexels, java.util.function.Consumer<Picture> handed) {
+        this.worldPictureMost = Math.max(1, mostTexels);
+        this.worldPictureHanded = handed;
+        makeTheWorldPicture(game.getTerrain());
+    }
+
+    /** The whole world's picture for the world laid now, where the game asked for one, painted and handed over. */
+    private void makeTheWorldPicture(uz.dukeengine.core.pathfind.PathGrid grid) {
+        if (worldPictureHanded == null || grid == null) {
+            worldPicture = null;
+            return;
+        }
+        worldPicture = new WorldPicture(grid, worldPictureMost, visuals.drawsFog(), visuals.getFog().tintColour());
+        worldPicture.paint(discovery);
+        worldPictureHanded.accept(worldPicture.picture());
     }
 
     /**
@@ -1726,6 +1786,11 @@ final class DukeRtsApp extends SimpleApplication {
             }
             var point = minimap.toMinimap(view.x(), view.y());
             dot.setLocalTranslation(point.x() - 2f, point.y() - 2f, 1);
+            if (minimapPicture.isWindowed()) {
+                // The ground round the camera: a thing past it has no place on the minimap.
+                dot.setCullHint(minimap.contains(point.x(), point.y()) ? Spatial.CullHint.Inherit
+                        : Spatial.CullHint.Always);
+            }
             blink(dot, view);
         }
         var gone = minimapDots.entrySet().iterator();
@@ -3305,6 +3370,10 @@ final class DukeRtsApp extends SimpleApplication {
         }
         terrain.applyDiscovery(discovery);
         applyMinimapDiscovery();
+        if (worldPicture != null) {
+            worldPicture.heard(discovery);
+            worldPicture.paint(discovery);
+        }
     }
 
     /**
@@ -4756,6 +4825,7 @@ final class DukeRtsApp extends SimpleApplication {
             water.update(snapshot.gameTimeSeconds());
         }
         reapTheDead();
+        followWithTheMinimap();
         syncMinimap();
         syncViewportOutline();
         syncDragRectangle();

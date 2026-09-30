@@ -2708,6 +2708,24 @@ public final class Visuals {
         return streamGround;
     }
 
+    private int minimapSpan;
+
+    /**
+     * Show on the minimap the {@code cells} a side round where the camera looks, not the whole map — the part of a wide
+     * world round the hero, where the whole of it is too many cells to a pixel to find him on — its picture sliding
+     * under the minimap as the camera moves, and the things and the view's outline on it where they stand. A map no
+     * wider nor deeper than that, and 0, as ever, the whole map. The whole world is a picture of its own the game shows
+     * where it likes ({@link Duke3D#worldPicture}).
+     */
+    public Visuals minimapSpan(int cells) {
+        this.minimapSpan = Math.max(0, cells);
+        return this;
+    }
+
+    public int getMinimapSpan() {
+        return minimapSpan;
+    }
+
     private float dragDistance = SelectionBox.DRAG_THRESHOLD_PIXELS;
 
     /**

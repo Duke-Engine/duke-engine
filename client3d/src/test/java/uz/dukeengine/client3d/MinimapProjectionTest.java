@@ -116,4 +116,18 @@ class MinimapProjectionTest {
         assertEquals(0f, outline[0].x(), 0.001f, "off the west edge flattens against it");
         assertEquals(minimap.widthPixels(), outline[1].x(), 0.001f);
     }
+
+    @Test
+    void aProjectionOfTheGroundRoundTheCameraPutsItsCornerAtTheMinimapsTopLeftAndBack() {
+        var round = new MinimapProjection(4000f, 2500f, 400f, 400f, 200f);
+        var corner = round.toMinimap(4000f, 2500f);
+        assertEquals(0f, corner.x(), 1e-4f);
+        assertEquals(200f, corner.y(), 1e-4f);
+        var middle = round.toMinimap(4200f, 2700f);
+        assertEquals(100f, middle.x(), 1e-4f);
+        assertEquals(100f, middle.y(), 1e-4f);
+        assertEquals(4300f, round.toWorldX(150f), 1e-3f);
+        assertEquals(2550f, round.toWorldY(175f), 1e-3f);
+        assertEquals(false, round.contains(round.toMinimap(3990f, 2600f).x(), 100f), "past its left edge");
+    }
 }
