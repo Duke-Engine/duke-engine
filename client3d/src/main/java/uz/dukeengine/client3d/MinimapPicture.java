@@ -100,15 +100,15 @@ final class MinimapPicture {
         }
         int width = grid.getWidth();
         boolean painted = false;
-        if (everyCell) {
+        if (everyCell || seen.everythingChanged()) {
             for (int cell = 0; cell < width * grid.getHeight(); cell++) {
                 painted |= paintCell(seen, cell % width, cell / width);
             }
             everyCell = false;
         } else {
-            var changed = seen.changedCells();
-            for (int at = changed.nextSetBit(0); at >= 0; at = changed.nextSetBit(at + 1)) {
-                painted |= paintCell(seen, at % width, at / width);
+            var changed = seen.changed();
+            for (int i = 0; i < changed.size(); i++) {
+                painted |= paintCell(seen, changed.get(i) % width, changed.get(i) / width);
             }
         }
         if (painted) {

@@ -5,6 +5,9 @@ uniform vec4 m_Ambient;
 uniform vec4 m_Sun;
 uniform vec3 m_SunDirection;
 uniform sampler2D m_FogMap;
+#ifdef FOG_WINDOW
+uniform vec4 m_FogWindow;
+#endif
 
 varying vec2 fogCoord;
 varying vec3 worldNormal;
@@ -95,5 +98,12 @@ void main() {
     // wall gets its own value, so the light runs out along the wall rather than
     // the wall being switched off, and the top and the foot of it agree.
     vec4 dark = texture2D(m_FogMap, fogCoord);
+    #ifdef FOG_WINDOW
+    // A picture of the window round the camera repeats past it, another place's dark: past the window, never seen.
+    if (worldPos.x < m_FogWindow.x || worldPos.z < m_FogWindow.y || worldPos.x > m_FogWindow.z
+            || worldPos.z > m_FogWindow.w) {
+        dark.a = 1.0;
+    }
+    #endif
     gl_FragColor = vec4(mix(lit, dark.rgb, dark.a), albedo.a);
 }

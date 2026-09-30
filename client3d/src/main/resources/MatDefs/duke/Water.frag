@@ -2,6 +2,9 @@
 
 uniform vec4 m_Color;
 uniform sampler2D m_FogMap;
+#ifdef FOG_WINDOW
+uniform vec4 m_FogWindow;
+#endif
 
 varying vec2 fogCoord;
 varying vec2 place;
@@ -44,5 +47,11 @@ void main() {
     water.a *= shore;
 
     vec4 dark = texture2D(m_FogMap, fogCoord);
+    #ifdef FOG_WINDOW
+    // As the ground's: past the window round the camera, never seen.
+    if (place.x < m_FogWindow.x || place.y < m_FogWindow.y || place.x > m_FogWindow.z || place.y > m_FogWindow.w) {
+        dark.a = 1.0;
+    }
+    #endif
     gl_FragColor = vec4(mix(water.rgb, dark.rgb, dark.a), water.a);
 }

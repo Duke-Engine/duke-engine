@@ -2695,7 +2695,9 @@ public final class Visuals {
     /**
      * Build a kit's floor a chunk at a time within {@code cells} of where the camera looks, and let go of what is well
      * beyond — a world a thousand cells a side drawn as far as it is seen, where built whole at once it was more pieces
-     * than a card holds. 0, as ever, builds each map whole when it is laid.
+     * than a card holds. The dark over the ground is kept for as far round the camera, its picture a window that moves
+     * with it, as sharp as {@link Fog#texelsPerCell} asks whatever the size of the world; past it the ground is drawn
+     * never seen. 0, as ever, builds each map whole when it is laid, and darkens it whole.
      */
     public Visuals streamGround(int cells) {
         this.streamGround = Math.max(0, cells);

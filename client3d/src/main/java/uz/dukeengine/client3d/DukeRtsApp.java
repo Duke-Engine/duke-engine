@@ -3056,16 +3056,12 @@ final class DukeRtsApp extends SimpleApplication {
                         : java.util.List.of());
         fogTintNow = null; // a new world's dark starts in the colour of whatever the camera looks at
         if (water != null) {
+            waterLooks.clear(); // the new world's water makes its own
             water.rebuild(game.getMapRecord() instanceof uz.dukeengine.core.map.Zoned zoned ? zoned.areas()
                     : java.util.List.of(), drawnGround(), visuals.getWater());
         }
         if (!visuals.drawsFog()) {
             return;
-        }
-        fogMap.resize(builtFrom);
-        // The one thing in a fogged material that a new world changes.
-        for (var material : fogged) {
-            material.setVector2("FogSize", fogMap.worldSize());
         }
         // A new floor is a floor nobody has walked: memory belongs to one world,
         // and carrying it over would open rooms in a dungeon nobody has entered.
@@ -3073,6 +3069,67 @@ final class DukeRtsApp extends SimpleApplication {
             discovery = new Discovery(builtFrom, visuals.getFog());
         } else {
             discovery.reset(builtFrom);
+        }
+        // On a world whose ground is built round the camera, its dark is kept round the camera too.
+        discovery.window(fogWindowCells());
+        discovery.follow(camera.targetX(), camera.targetZ());
+        fogMap.resize(builtFrom, discovery);
+        // The one thing in a fogged material that a new world changes: how much ground its picture holds, and where.
+        // The water's too, made above before the picture took this world's size.
+        for (var material : fogged) {
+            material.setVector2("FogSize", fogMap.worldSize());
+        }
+        for (var material : waterLooks) {
+            material.setVector2("FogSize", fogMap.worldSize());
+        }
+        fogWindowTold = fogMap.windowVersion();
+        tellEveryFogReaderWhereTheFogHolds();
+    }
+
+    /**
+     * How many cells a side the dark is kept for round the camera: as far as the ground is built from where the camera
+     * looks — the chunks within {@link Visuals#streamGround}, and the ring kept a while past them — each way, and a cell
+     * over, since a texel reads the cells round it; 0, the whole map, where the ground is built whole.
+     */
+    private int fogWindowCells() {
+        int stream = visuals.getStreamGround();
+        if (stream <= 0) {
+            return 0;
+        }
+        int reach = Math.ceilDiv(stream, TerrainScene.CHUNK_CELLS) + 2;
+        return 2 * reach * TerrainScene.CHUNK_CELLS + 2;
+    }
+
+    /** The fog's window as last told to the materials that read it. */
+    private int fogWindowTold;
+
+    /** The water's materials for the world drawn now, which read the fog as the ground's do. */
+    private final List<Material> waterLooks = new ArrayList<>();
+
+    /** Every material that reads the fog told where its picture holds now: the ground's, the scorches' and the water's. */
+    private void tellEveryFogReaderWhereTheFogHolds() {
+        for (var material : fogged) {
+            tellWhereTheFogHolds(material);
+        }
+        for (var material : scorchLooks.values()) {
+            if (material != null) {
+                tellWhereTheFogHolds(material);
+            }
+        }
+        for (var material : waterLooks) {
+            tellWhereTheFogHolds(material);
+        }
+    }
+
+    /**
+     * Where the fog's picture holds, told to one material that reads it where the picture is of a window round the
+     * camera — past it, the shader draws never seen — and nothing where it is of the whole map, as it always was.
+     */
+    private void tellWhereTheFogHolds(Material material) {
+        if (fogMap != null && fogMap.isWindowed()) {
+            material.setVector4("FogWindow", fogMap.window());
+        } else if (material.getParam("FogWindow") != null) {
+            material.clearParam("FogWindow");
         }
     }
 
@@ -3205,18 +3262,12 @@ final class DukeRtsApp extends SimpleApplication {
         }
         if (snapshot.revealed()) {
             discovery.openEverything(); // the map revealed to this player, or a watcher's seat
-            discovery.soften(tpf);
-            fogMap.update(discovery, renderer);
-            terrain.applyDiscovery(discovery);
-            applyMinimapDiscovery();
+            drawWhatIsOpen(tpf);
             return;
         }
         if (visuals.isFogBySight()) {
             discovery.fromSight(snapshot.sight()); // the simulation's cells of what this player has seen
-            discovery.soften(tpf);
-            fogMap.update(discovery, renderer);
-            terrain.applyDiscovery(discovery);
-            applyMinimapDiscovery();
+            drawWhatIsOpen(tpf);
             return;
         }
         // Re-read when the eyes change, not only the first time. A game may say
@@ -3235,12 +3286,23 @@ final class DukeRtsApp extends SimpleApplication {
         }
         discovery.reveal(snapshot.units(), game.getLocalPlayerIndex(), discoveryRadius,
                 visuals.getDiscoveryTemplate());
-        // What is open is decided above; how it is drawn eases toward that, so the
+        drawWhatIsOpen(tpf);
+    }
+
+    /** What is open, decided: drawn. */
+    private void drawWhatIsOpen(float tpf) {
+        // How it is drawn eases toward what is open, so the
         // edge sweeps rather than switching. Seconds, not frames.
         discovery.soften(tpf);
+        // On a wide world the dark is kept round where the camera looks, and the ground coming into it drawn.
+        discovery.follow(camera.targetX(), camera.targetZ());
         // The picture is what the player actually sees the dark as; the terrain is
         // only told what is so far behind it that drawing it is waste.
         fogMap.update(discovery, renderer);
+        if (fogMap.windowVersion() != fogWindowTold) {
+            fogWindowTold = fogMap.windowVersion();
+            tellEveryFogReaderWhereTheFogHolds();
+        }
         terrain.applyDiscovery(discovery);
         applyMinimapDiscovery();
     }
@@ -5980,6 +6042,7 @@ final class DukeRtsApp extends SimpleApplication {
                 look.setVector3("SunDirection", sunDirection);
                 look.setTexture("FogMap", fogMap.texture());
                 look.setVector2("FogSize", fogMap.worldSize());
+                tellWhereTheFogHolds(look);
                 look.setTexture("ColorMap", picture);
                 // Set, and dark: nothing burning lights a scorch, and an array never written differs by driver.
                 look.setParam("PointLightColours", com.jme3.shader.VarType.Vector4Array, darkness());
@@ -7668,6 +7731,7 @@ final class DukeRtsApp extends SimpleApplication {
         material.setVector3("SunDirection", sunDirection);
         material.setTexture("FogMap", fogMap != null ? fogMap.texture() : noFog());
         material.setVector2("FogSize", fogMap != null ? fogMap.worldSize() : new com.jme3.math.Vector2f(1f, 1f));
+        tellWhereTheFogHolds(material);
         if (atlas != null) {
             material.setTexture("ColorMap", atlas);
         }
@@ -7727,6 +7791,8 @@ final class DukeRtsApp extends SimpleApplication {
                 (tint >>> 24) / 255f));
         material.setTexture("FogMap", fogMap != null ? fogMap.texture() : noFog());
         material.setVector2("FogSize", fogMap != null ? fogMap.worldSize() : new com.jme3.math.Vector2f(1f, 1f));
+        tellWhereTheFogHolds(material);
+        waterLooks.add(material);
         return material;
     }
 

@@ -21,6 +21,7 @@ MaterialDef Water {
         // The dark, as the ground's own shader takes it.
         Texture2D FogMap
         Vector2 FogSize
+        Vector4 FogWindow
     }
 
     Technique {
@@ -44,6 +45,7 @@ MaterialDef Water {
             HAS_OVERLAYMAP : OverlayMap
             HAS_EDGEMAP : EdgeMap
             ALONG : Along
+            FOG_WINDOW : FogWindow
         }
     }
 }
