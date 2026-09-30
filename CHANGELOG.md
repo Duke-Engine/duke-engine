@@ -64,6 +64,57 @@ fight with, under `rts` and, in a later step, `rpg`. The split lands in steps, a
   `UnitScript` keeps what any unit does: its `money()`, `productionQueue()`, `trainUnit()` and `setRallyPoint()` are
   gone, and a script on a factory asks its `ProductionUpdate` and its side's `RtsPlayer` itself. The sessions and the
   relay speak the classpath kind's wire, and their factories read as before.
+- **A view of a side's sight cells shares their chunks**: `SightCells.View`'s components are `chunks` — each chunk of
+  `SightCells.CHUNK` cells a side, null for one nothing has seen — and `everywhere`, where they were `states`. `at(x,
+  y)` reads as before, `new View(cellSize, width, height, states)` still builds one from cells given row by row, and
+  `states()` gives them back, a copy the size of the map.
+- `PathGrid.setLevel` refuses a storey below -32768 or above 32767: a cell's storey is kept in two bytes.
+
+### One seamless world
+
+A world a thousand cells a side and more: what a frame costs follows what is awake and near, not the size of the
+world; a route across it costs what its length does; what each side has seen is kept as small as what it walked, by the
+simulation, and saved with it; and its ground is built as far as the camera sees. Each part is the game's to take; a
+game that takes none plays, routes and draws every frame as before, which every test in the repository holds it to.
+
+- **Things far from every waker sleep** (`Sleep`, `GameLogic.setSleep`, `DukeGame.sleep`): every so many frames, from
+  where things stand and in the order they came in, the things farther than the rule's reach from every waker — the
+  game's heroes — are put to sleep. A sleeper's modules do not run and it looks at nothing, and all of it stays as it
+  was; a blow landing on it wakes it until the rule next decides, a thing marked destroyed leaves the same frame, and one
+  that dies of no blow on the rule's next frame. The same frames on every machine.
+- **A frame costs what is awake**: the partition's buckets hash apart (a diagonal of them hashed alike, and a busy frame
+  went on collisions) and answer in the order things came in, which each thing now carries (`GameObject.getEntered`);
+  the world keeps each player's things (`getObjectsOf`, `getOwners`) and what a player is shown is asked of his own and
+  his allies' things and of what stands where their reach falls; a side's defeat, its power and an aura look at its own
+  or at what is near (`World.thingsNear`); a thing marked destroyed is reaped from the list of those marked; and the
+  ground under the still things is laid again only when one of them changed what it lays, cell for cell as a ground
+  laid whole. Five thousand monsters asleep on a 900-cell world cost 0.06 ms a frame where awake they cost 5.
+- **Routes by sectors** (`Sectored`, `GameLogic.setRouteSectors`): a map that says so is kept in sectors of so many of
+  its cells a side, each sector's open cells in the pieces a step joins inside it (`Sectors`), joined to their
+  neighbours'. What reaches what is answered by them — the same cells together as the zones worked out whole
+  (`Zones.over`), kept sector by sector as the ground changes, the grid now recording where it changed
+  (`PathGrid.changesSince`). A route is found through the pieces its way crosses and then cell by cell a stretch of two
+  sectors at a time, by the search's own steps, costs and turns: corner to corner of a 1024-cell world examines some
+  nine thousand cells in about 15 ms, where the whole grid's search examined nearly half a million in 800; of a
+  4096-cell one, about a hundred thousand in 90 ms. A search's arrays on a map past two million cells hold only the
+  cells it touched, with the same answers.
+- **What each side has seen, kept small and by the simulation**: sight cells in chunks made as a side's lookers first
+  cover them, the cells in sight kept with the frame each was last covered — every answer the one the cells kept whole
+  gave. A view a client is shown shares the chunks, so the client's discovery takes again only the chunks that changed.
+  Where the game says so (`GameLogic.setSightHiddenByStone`) stone stops a line of sight and a floor above a looker's is
+  seen with nothing on it in sight — a crawler's dark kept by the simulation, the same on every machine. What a side
+  has seen is remembered and recalled (`getSightMemory`, `setSightMemory`) and saved with a game (`GameSnapshot`'s
+  `SIGHT` lines).
+- **The fog's and the minimap's pictures** send only the tiles of 64 texels that changed to the card
+  (`Renderer.modifyTexture`), the whole picture where most of it did.
+- **The ground streamed** (`Visuals.streamGround`): a kit's floor built a chunk of 16 cells at a time within so many
+  cells of where the camera looks, the nearest first and two a frame, and chunks further off let go — each chunk corner
+  for corner what the whole build makes, its geometry kept about its own corner. A painted map is built whole, as
+  before.
+- A unit some forty-one thousand units from the origin walks as one beside it, step for step: a float there is a 256th
+  of a unit.
+
+Not measured here: frames a second on a graphics card, which this repository's machine has none of.
 
 ### A runtime of no kind
 
