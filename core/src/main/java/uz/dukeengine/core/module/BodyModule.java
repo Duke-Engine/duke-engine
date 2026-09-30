@@ -3,6 +3,7 @@ package uz.dukeengine.core.module;
 import uz.dukeengine.core.event.ObjectHurt;
 import uz.dukeengine.core.math.Coord3D;
 import uz.dukeengine.core.thing.GameObject;
+import uz.dukeengine.core.thing.ObjectId;
 
 /**
  * Holds an object's health, ported from SAGE's {@code BodyModule}.
@@ -18,6 +19,9 @@ public abstract class BodyModule extends Module {
     private Death death;
     /** What every blow is multiplied by after armour — see {@link #setDamageScale}. */
     private float damageScale = 1f;
+    /** The one healer it takes a heal from, and the last frame that holds — see {@link #healFromOne}. */
+    private ObjectId soleHealer;
+    private int soleHealerUntil;
 
     protected BodyModule(GameObject owner) {
         super(owner);
@@ -165,6 +169,24 @@ public abstract class BodyModule extends Module {
 
     /** Restore {@code amount} of health, clamped to the maximum. */
     public abstract void heal(float amount);
+
+    /**
+     * Restore {@code amount} from {@code healer} alone: taken from the healer that healed it this way last, or from any
+     * once none has for more than {@code frames} — so two towers in reach of one soldier do not heal him twice. SAGE's
+     * {@code Object::attemptHealingFromSoleBenefactor}, which its propaganda towers and area heals use; unlike it, a
+     * body nobody has healed yet takes the first healer's on frame 0 as well. Whether it was taken.
+     */
+    public final boolean healFromOne(float amount, ObjectId healer, int frames) {
+        var world = getOwner().getWorld();
+        int now = world == null ? 0 : world.getFrame();
+        if (soleHealer != null && !soleHealer.equals(healer) && now <= soleHealerUntil) {
+            return false;
+        }
+        soleHealer = healer;
+        soleHealerUntil = now + Math.max(0, frames);
+        heal(amount);
+        return true;
+    }
 
     /** What a change of a body's most health does to what it has now: SAGE's {@code MaxHealthChangeType}. */
     public enum MaxHealthChange {

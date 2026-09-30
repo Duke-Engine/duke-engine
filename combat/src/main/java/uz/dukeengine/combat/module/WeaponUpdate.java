@@ -1111,7 +1111,7 @@ public final class WeaponUpdate extends UpdateModule {
      * Whether a thing that is contained fires from its hold: asked of every {@link Hold} in the world, in the order the
      * world keeps its things — a transport's firing ports, a garrison, riders on top.
      */
-    private static boolean firesFromInside(GameObject passenger) {
+    static boolean firesFromInside(GameObject passenger) {
         var world = passenger.getWorld();
         if (world == null) {
             return false;

@@ -3,6 +3,7 @@ package uz.dukeengine.combat;
 import java.util.List;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleFactory;
+import uz.dukeengine.combat.module.AuraUpdate;
 import uz.dukeengine.combat.module.AutoHealUpdate;
 import uz.dukeengine.combat.module.ExperienceModule;
 import uz.dukeengine.combat.module.PursueUpdate;
@@ -10,8 +11,8 @@ import uz.dukeengine.combat.module.StatusUpdate;
 import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
- * The modules of what fights, whatever the genre — weapons, closing on a target, experience, healing over time and
- * timed statuses — each written in a file as a block named after its class. An RTS's module set includes them, and so
+ * The modules of what fights, whatever the genre — weapons, closing on a target, experience, healing over time, timed
+ * statuses and auras — each written in a file as a block named after its class. An RTS's module set includes them, and so
  * may any game's that arms its things.
  */
 public final class CombatModules {
@@ -19,7 +20,7 @@ public final class CombatModules {
     /** Every combat module, by its data: the words a game's files may add to the engine's. */
     public static final List<Class<? extends ModuleData>> MODULES = List.of(
             WeaponUpdate.Data.class, PursueUpdate.Data.class, ExperienceModule.Data.class, AutoHealUpdate.Data.class,
-            StatusUpdate.Data.class);
+            StatusUpdate.Data.class, AuraUpdate.Data.class);
 
     private CombatModules() {
     }
@@ -37,6 +38,7 @@ public final class CombatModules {
                 .register(PursueUpdate.Data.class, PursueUpdate::new)
                 .register(ExperienceModule.Data.class, ExperienceModule::new)
                 .register(AutoHealUpdate.Data.class, AutoHealUpdate::new)
-                .register(StatusUpdate.Data.class, StatusUpdate::new);
+                .register(StatusUpdate.Data.class, StatusUpdate::new)
+                .register(AuraUpdate.Data.class, AuraUpdate::new);
     }
 }

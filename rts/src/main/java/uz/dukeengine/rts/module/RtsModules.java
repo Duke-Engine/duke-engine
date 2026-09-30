@@ -1,13 +1,10 @@
 package uz.dukeengine.rts.module;
 
 import java.util.List;
+import java.util.stream.Stream;
+import uz.dukeengine.combat.CombatModules;
 import uz.dukeengine.core.module.ModuleData;
 import uz.dukeengine.core.module.ModuleFactory;
-import uz.dukeengine.combat.module.AutoHealUpdate;
-import uz.dukeengine.combat.module.ExperienceModule;
-import uz.dukeengine.combat.module.PursueUpdate;
-import uz.dukeengine.combat.module.StatusUpdate;
-import uz.dukeengine.combat.module.WeaponUpdate;
 
 /**
  * The RTS module set: everything an RTS adds on top of the engine's
@@ -21,13 +18,13 @@ import uz.dukeengine.combat.module.WeaponUpdate;
  */
 public final class RtsModules {
 
-    /** Every RTS module, by its data: the words an RTS's files may add to the engine's. */
-    public static final List<Class<? extends ModuleData>> MODULES = List.of(
-            WeaponUpdate.Data.class, PursueUpdate.Data.class, ProductionUpdate.Data.class, ExperienceModule.Data.class,
-            AutoHealUpdate.Data.class, StatusUpdate.Data.class, PowerModule.Data.class,
-            CapacityGate.Data.class, SpecialPowerModule.Data.class, ContainModule.Data.class,
-            SupplyModule.Data.class, SupplyDepot.Data.class, HarvestUpdate.Data.class, CrushUpdate.Data.class,
-            Crushable.Data.class, ToppleUpdate.Data.class);
+    /** Every RTS module, by its data — combat's, then the RTS library's own: the words an RTS's files may add. */
+    public static final List<Class<? extends ModuleData>> MODULES = Stream.concat(
+            CombatModules.MODULES.stream(), Stream.of(
+                    ProductionUpdate.Data.class, PowerModule.Data.class, CapacityGate.Data.class,
+                    SpecialPowerModule.Data.class, ContainModule.Data.class, SupplyModule.Data.class,
+                    SupplyDepot.Data.class, HarvestUpdate.Data.class, CrushUpdate.Data.class, Crushable.Data.class,
+                    ToppleUpdate.Data.class)).toList();
 
     private RtsModules() {
     }
@@ -41,7 +38,7 @@ public final class RtsModules {
 
     /** Add the RTS modules to an existing factory: the combat ones every side shares, then the RTS's own. */
     public static void register(ModuleFactory factory) {
-        uz.dukeengine.combat.CombatModules.register(factory);
+        CombatModules.register(factory);
         factory.register(ProductionUpdate.Data.class, ProductionUpdate::new)
                 .register(PowerModule.Data.class, PowerModule::new)
                 .register(CapacityGate.Data.class, CapacityGate::new)
