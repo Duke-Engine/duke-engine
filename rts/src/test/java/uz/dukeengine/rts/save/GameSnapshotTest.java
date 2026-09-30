@@ -223,4 +223,35 @@ class GameSnapshotTest {
 
         assertEquals(GameSnapshot.save(logic), GameSnapshot.save(logic)); // deterministic output
     }
+    @Test
+    void whatEachSideHasSeenIsSavedAndLoadedCellForCell() {
+        var orig = newLogic();
+        orig.setPathGrid(new uz.dukeengine.core.pathfind.PathGrid(60, 60));
+        orig.setSightCells(20f, 30);
+        var usa = orig.getPlayerList().addPlayer("USA");
+        var tank = orig.getThingFactory().findTemplate("Tank");
+        var scout = orig.createObject(tank);
+        scout.setPlayerIndex(usa.getIndex());
+        scout.setVisionRange(90f);
+        for (int frame = 0; frame < 40; frame++) {
+            scout.setPosition(new Coord3D(30f + frame * 12f, 100f + frame * 7f, 0f));
+            orig.update();
+        }
+        var saved = GameSnapshot.save(orig);
+        assertTrue(saved.contains("SIGHT " + usa.getIndex()), "his cells are in the save");
+
+        var loaded = newLogic();
+        loaded.setPathGrid(new uz.dukeengine.core.pathfind.PathGrid(60, 60));
+        loaded.setSightCells(20f, 30);
+        GameSnapshot.load(saved, loaded);
+        var before = orig.getSightCells();
+        var after = loaded.getSightCells();
+        for (int cy = 0; cy < before.height(); cy++) {
+            for (int cx = 0; cx < before.width(); cx++) {
+                assertEquals(before.sight(usa.getIndex(), cx, cy), after.sight(usa.getIndex(), cx, cy),
+                        "cell " + cx + "," + cy);
+            }
+        }
+        assertEquals(saved, GameSnapshot.save(loaded), "and saved again, the same text");
+    }
 }

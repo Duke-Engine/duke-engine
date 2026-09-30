@@ -72,6 +72,14 @@ public final class GameSnapshot {
                     .append(p.getEarned()).append('|')
                     .append(p.getSpent()).append('\n');
         }
+        for (int i = 0; i < players.getPlayerCount(); i++) {
+            var memory = logic.getSightMemory(i);
+            if (memory != null && (memory.seen().length > 0 || memory.inSight().length > 0)) {
+                sb.append("SIGHT ").append(i).append('|').append(memory.width()).append('|').append(memory.height())
+                        .append('|').append(bitsOf(memory.seen())).append('|').append(Arrays.stream(memory.inSight())
+                                .mapToObj(String::valueOf).collect(Collectors.joining(","))).append('\n');
+            }
+        }
 
         for (var o : logic.getObjects()) {
             var statuses = Arrays.stream(ObjectStatus.values())
@@ -125,11 +133,41 @@ public final class GameSnapshot {
                     }
                 }
                 case "PLAYER" -> loadPlayer(rest, logic);
+                case "SIGHT" -> loadSight(rest, logic);
                 case "DECK" -> loadDeck(rest, logic);
                 case "OBJECT" -> loadObject(rest, logic);
                 default -> throw new IllegalArgumentException("unknown snapshot line: " + key);
             }
         }
+    }
+
+    /** A player's cells as he had seen them: kept only where the world keeps cells of the same size. */
+    private static void loadSight(String rest, RtsSimulation logic) {
+        var parts = rest.split("\\|", -1);
+        var cells = logic.getSightCells();
+        int width = Integer.parseInt(parts[1]);
+        int height = Integer.parseInt(parts[2]);
+        if (cells == null || cells.width() != width || cells.height() != height) {
+            return;
+        }
+        var inSight = parts[4].isEmpty() ? new int[0]
+                : Arrays.stream(parts[4].split(",")).mapToInt(Integer::parseInt).toArray();
+        logic.setSightMemory(Integer.parseInt(parts[0]),
+                new uz.dukeengine.core.SightCells.Memory(width, height, bitsFrom(parts[3]), inSight));
+    }
+
+    /** A cell's bits, eight bytes a word, as text. */
+    private static String bitsOf(long[] words) {
+        var bytes = java.nio.ByteBuffer.allocate(words.length * Long.BYTES);
+        bytes.asLongBuffer().put(words);
+        return java.util.Base64.getEncoder().encodeToString(bytes.array());
+    }
+
+    private static long[] bitsFrom(String text) {
+        var bytes = java.nio.ByteBuffer.wrap(java.util.Base64.getDecoder().decode(text));
+        var words = new long[bytes.remaining() / Long.BYTES];
+        bytes.asLongBuffer().get(words);
+        return words;
     }
 
     /** A thing's line as its two ends, six numbers; nothing for none. */

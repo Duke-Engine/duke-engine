@@ -21,8 +21,8 @@ public final class PowerGrid {
      */
     public static int surplus(World world, int playerIndex) {
         int surplus = 0;
-        for (var object : world.getObjects()) {
-            if (object.getPlayerIndex() != playerIndex || object.isEffectivelyDead()) {
+        for (var object : world.getObjectsOf(playerIndex)) {
+            if (object.isEffectivelyDead()) {
                 continue;
             }
             for (var module : object.getModules()) {

@@ -136,7 +136,7 @@ public final class AuraUpdate extends UpdateModule implements DieModule {
         var world = owner.getWorld();
         var found = new LinkedHashSet<ObjectId>();
         var things = new ArrayList<GameObject>();
-        for (var candidate : world.getObjects()) {
+        for (var candidate : world.thingsNear(owner.getPosition(), Math.abs(data.radius()))) {
             if (reaches(owner, candidate)) {
                 found.add(candidate.getId());
                 things.add(candidate);

@@ -470,6 +470,17 @@ public final class Duke3D {
         later(client -> client.groundShades(shown));
     }
 
+    /**
+     * The whole world as the player knows it — a picture at most {@code mostTexels} a side, a texel for as many cells a
+     * side as that takes, in the minimap's colours — for the game to draw where it likes ({@link Canvas#drawPicture}):
+     * a map screen, a scroll. Handed to {@code handed} on the window's thread, and a new one each time a new world is
+     * laid; kept as the player's knowledge changes, and said {@link Picture#changed} each time it does. Its first
+     * painting reads every cell of the world. From any thread, before launch or while it runs.
+     */
+    public void worldPicture(int mostTexels, Consumer<Picture> handed) {
+        later(client -> client.worldPicture(mostTexels, handed));
+    }
+
     /** Stop the movie playing, and its sound, at once — for a key the game says skips it. */
     public void stopMovie() {
         later(DukeRtsApp::stopMovie);

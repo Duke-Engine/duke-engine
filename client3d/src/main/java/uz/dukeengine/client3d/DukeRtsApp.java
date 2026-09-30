@@ -1196,7 +1196,11 @@ final class DukeRtsApp extends SimpleApplication {
         var grid = game.getTerrain();
         float worldW = grid == null ? 700f : grid.getWidth() * grid.getCellSize();
         float worldH = grid == null ? 450f : grid.getHeight() * grid.getCellSize();
-        minimap = new MinimapProjection(worldW, worldH, MINIMAP_SIZE);
+        // The ground and its stone as one picture on one quad, the cells unwalked where there is discovery: an
+        // undiscovered floor is as black as undiscovered stone. Of the ground round the camera, on a wide world.
+        minimapPicture.rebuild(grid, visuals.drawsFog(), visuals.getFog().tintColour(), visuals.getMinimapSpan());
+        minimap = minimapPicture.isWindowed() ? minimapRoundTheCamera(grid)
+                : new MinimapProjection(worldW, worldH, MINIMAP_SIZE);
         groundSpan = grid == null ? new GroundSpan(0f, 0f) : GroundSpan.of(grid);
         // The camera may look at exactly what the minimap draws, and no further.
         // Until there is a map there is nothing to fence it into: the sizes above
@@ -1204,15 +1208,71 @@ final class DukeRtsApp extends SimpleApplication {
         camera.keepInside(grid == null ? 0f : worldW, grid == null ? 0f : worldH);
         minimapX = cam.getWidth() - minimap.widthPixels() - 12f;
 
-        // The ground and its stone as one picture on one quad, the cells unwalked where there is discovery: an
-        // undiscovered floor is as black as undiscovered stone.
-        minimapPicture.rebuild(grid, visuals.drawsFog(), visuals.getFog().tintColour());
         var ground = new Geometry("mm-ground", new Quad(minimap.widthPixels(), minimap.heightPixels()));
         var look = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         look.setTexture("ColorMap", minimapPicture.texture());
         ground.setMaterial(look);
         minimapTerrainNode.attachChild(ground);
+        minimapGround = ground;
+        followWithTheMinimap();
         placeMinimap();
+        makeTheWorldPicture(grid);
+    }
+
+    /** The quad the minimap's ground is drawn on, whose picture slides under it on a wide world. */
+    private Geometry minimapGround;
+
+    /** The minimap's projection of the {@link Visuals#minimapSpan} of ground round where the camera looks now. */
+    private MinimapProjection minimapRoundTheCamera(uz.dukeengine.core.pathfind.PathGrid grid) {
+        float cell = grid.getCellSize();
+        float span = minimapPicture.span() * cell;
+        return new MinimapProjection(camera.targetX() - span / 2f, camera.targetZ() - span / 2f, span, span,
+                MINIMAP_SIZE);
+    }
+
+    /**
+     * On a wide world, the minimap kept on the ground round where the camera looks: the cells coming into its window
+     * painted, its picture slid under its quad by a fraction of a cell as the camera moves, and its projection — the
+     * things on it, the view's outline, a click on it — moved with it. Nothing where it shows the whole map.
+     */
+    private void followWithTheMinimap() {
+        var grid = game.getTerrain();
+        if (!minimapPicture.isWindowed() || grid == null || minimapGround == null) {
+            return;
+        }
+        float cell = grid.getCellSize();
+        minimapPicture.follow(camera.targetX(), camera.targetZ(), discovery, renderer);
+        minimap = minimapRoundTheCamera(grid);
+        float span = minimapPicture.span();
+        var corners = minimapPicture.corners(camera.targetX() / cell - span / 2f, camera.targetZ() / cell - span / 2f);
+        var mesh = minimapGround.getMesh();
+        var coordinates = mesh.getFloatBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord);
+        coordinates.clear();
+        coordinates.put(corners).flip();
+        mesh.getBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord).setUpdateNeeded();
+    }
+
+    /** The whole world's picture the game asked for, at most how many texels a side, and whom it is handed to. */
+    private int worldPictureMost;
+    private java.util.function.Consumer<Picture> worldPictureHanded;
+    private WorldPicture worldPicture;
+
+    /** See {@link Duke3D#worldPicture}. */
+    void worldPicture(int mostTexels, java.util.function.Consumer<Picture> handed) {
+        this.worldPictureMost = Math.max(1, mostTexels);
+        this.worldPictureHanded = handed;
+        makeTheWorldPicture(game.getTerrain());
+    }
+
+    /** The whole world's picture for the world laid now, where the game asked for one, painted and handed over. */
+    private void makeTheWorldPicture(uz.dukeengine.core.pathfind.PathGrid grid) {
+        if (worldPictureHanded == null || grid == null) {
+            worldPicture = null;
+            return;
+        }
+        worldPicture = new WorldPicture(grid, worldPictureMost, visuals.drawsFog(), visuals.getFog().tintColour());
+        worldPicture.paint(discovery);
+        worldPictureHanded.accept(worldPicture.picture());
     }
 
     /**
@@ -1255,7 +1315,7 @@ final class DukeRtsApp extends SimpleApplication {
      * thing, and it comes free.
      */
     private void applyMinimapDiscovery() {
-        minimapPicture.paint(discovery);
+        minimapPicture.paint(discovery, renderer);
     }
 
     /** How low and how high a map's ground stands anywhere, in world units. */
@@ -1726,6 +1786,11 @@ final class DukeRtsApp extends SimpleApplication {
             }
             var point = minimap.toMinimap(view.x(), view.y());
             dot.setLocalTranslation(point.x() - 2f, point.y() - 2f, 1);
+            if (minimapPicture.isWindowed()) {
+                // The ground round the camera: a thing past it has no place on the minimap.
+                dot.setCullHint(minimap.contains(point.x(), point.y()) ? Spatial.CullHint.Inherit
+                        : Spatial.CullHint.Always);
+            }
             blink(dot, view);
         }
         var gone = minimapDots.entrySet().iterator();
@@ -3050,21 +3115,18 @@ final class DukeRtsApp extends SimpleApplication {
         if (strips != null) {
             strips.clear(); // a new world lays its own
         }
-        terrain.rebuild(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom),
+        terrain.streamWithin(visuals.getStreamGround());
+        terrain.rebuildLooked(builtFrom, currentKit, builtPaint, visuals.getGroundLight(), kitsOfTheCells(builtFrom),
                 game.getMapRecord() instanceof uz.dukeengine.core.map.Dressed dressed ? dressed.scenery()
                         : java.util.List.of());
         fogTintNow = null; // a new world's dark starts in the colour of whatever the camera looks at
         if (water != null) {
+            waterLooks.clear(); // the new world's water makes its own
             water.rebuild(game.getMapRecord() instanceof uz.dukeengine.core.map.Zoned zoned ? zoned.areas()
                     : java.util.List.of(), drawnGround(), visuals.getWater());
         }
         if (!visuals.drawsFog()) {
             return;
-        }
-        fogMap.resize(builtFrom);
-        // The one thing in a fogged material that a new world changes.
-        for (var material : fogged) {
-            material.setVector2("FogSize", fogMap.worldSize());
         }
         // A new floor is a floor nobody has walked: memory belongs to one world,
         // and carrying it over would open rooms in a dungeon nobody has entered.
@@ -3073,23 +3135,129 @@ final class DukeRtsApp extends SimpleApplication {
         } else {
             discovery.reset(builtFrom);
         }
+        // On a world whose ground is built round the camera, its dark is kept round the camera too.
+        discovery.window(fogWindowCells());
+        discovery.follow(camera.targetX(), camera.targetZ());
+        fogMap.resize(builtFrom, discovery);
+        // The one thing in a fogged material that a new world changes: how much ground its picture holds, and where.
+        // The water's too, made above before the picture took this world's size.
+        for (var material : fogged) {
+            material.setVector2("FogSize", fogMap.worldSize());
+        }
+        for (var material : waterLooks) {
+            material.setVector2("FogSize", fogMap.worldSize());
+        }
+        fogWindowTold = fogMap.windowVersion();
+        tellEveryFogReaderWhereTheFogHolds();
     }
 
-    /** The look each cell of the world wears, where its map names looks of its own; null for none. */
-    private Visuals.Theme[] cellLooks;
+    /**
+     * How many cells a side the dark is kept for round the camera: as far as the ground is built from where the camera
+     * looks — the chunks within {@link Visuals#streamGround}, and the ring kept a while past them — each way, and a cell
+     * over, since a texel reads the cells round it; 0, the whole map, where the ground is built whole.
+     */
+    private int fogWindowCells() {
+        int stream = visuals.getStreamGround();
+        if (stream <= 0) {
+            return 0;
+        }
+        int reach = Math.ceilDiv(stream, TerrainScene.CHUNK_CELLS) + 2;
+        return 2 * reach * TerrainScene.CHUNK_CELLS + 2;
+    }
+
+    /** The fog's window as last told to the materials that read it. */
+    private int fogWindowTold;
+
+    /** The water's materials for the world drawn now, which read the fog as the ground's do. */
+    private final List<Material> waterLooks = new ArrayList<>();
+
+    /** Every material that reads the fog told where its picture holds now: the ground's, the scorches' and the water's. */
+    private void tellEveryFogReaderWhereTheFogHolds() {
+        forEveryFogReader(this::tellWhereTheFogHolds);
+    }
+
+    /** Each material that reads the fog: the ground's, the scorches' and the water's. */
+    private void forEveryFogReader(java.util.function.Consumer<Material> told) {
+        for (var material : fogged) {
+            told.accept(material);
+        }
+        for (var material : scorchLooks.values()) {
+            if (material != null) {
+                told.accept(material);
+            }
+        }
+        for (var material : waterLooks) {
+            told.accept(material);
+        }
+    }
+
+    /**
+     * Where the fog's picture holds, told to one material that reads it where the picture is of a window round the
+     * camera — past it, the shader draws never seen — and nothing where it is of the whole map, as it always was; and
+     * the haze, where the game keeps one.
+     */
+    private void tellWhereTheFogHolds(Material material) {
+        if (fogMap != null && fogMap.isWindowed()) {
+            material.setVector4("FogWindow", fogMap.window());
+        } else if (material.getParam("FogWindow") != null) {
+            material.clearParam("FogWindow");
+        }
+        tellTheHaze(material);
+    }
+
+    /** Where the camera looks, as the haze round it was last told to the ground. */
+    private float hazeToldX = Float.NaN;
+    private float hazeToldZ = Float.NaN;
+
+    /** The haze round where the camera looks told to one material that reads the fog, where the game keeps a haze. */
+    private void tellTheHaze(Material material) {
+        if (!visuals.hazes() || builtFrom == null) {
+            return;
+        }
+        float cell = builtFrom.getCellSize();
+        material.setVector4("Haze", new com.jme3.math.Vector4f(camera.targetX(), camera.targetZ(),
+                visuals.getHazeFrom() * cell, visuals.getHazeTo() * cell));
+    }
+
+    /** The haze kept round where the camera looks, told to the ground each time the camera moves. */
+    private void hazeRoundTheCamera() {
+        if (!visuals.hazes() || fogMap == null || builtFrom == null) {
+            return;
+        }
+        if (camera.targetX() == hazeToldX && camera.targetZ() == hazeToldZ) {
+            return;
+        }
+        hazeToldX = camera.targetX();
+        hazeToldZ = camera.targetZ();
+        forEveryFogReader(this::tellTheHaze);
+    }
+
+    /** The look each cell of the world wears, by the cell's index, where its map names looks of its own; null for none. */
+    private java.util.function.IntFunction<Visuals.Theme> cellLooks;
 
     /**
      * The kit each cell wears where the world's map names looks of its own ({@link uz.dukeengine.core.map.Looked}),
      * each a theme the game registered; null where it names none, so a map of one look is laid as it always was. A name
-     * the game never registered is said once and the cell wears the map's own.
+     * the game never registered is said once and the cell wears the map's own. On a world built round the camera
+     * ({@link Visuals#streamGround}) each cell's look is asked of the map as its ground is built, and as the camera
+     * stands over it, never the whole world's at once.
      */
-    private Tileset[] kitsOfTheCells(uz.dukeengine.core.pathfind.PathGrid grid) {
+    private java.util.function.IntFunction<Tileset> kitsOfTheCells(uz.dukeengine.core.pathfind.PathGrid grid) {
         cellLooks = null;
         if (grid == null || !visuals.hasThemes()
                 || !(game.getMapRecord() instanceof uz.dukeengine.core.map.Looked looked)) {
             return null;
         }
         int width = grid.getWidth();
+        if (visuals.getStreamGround() > 0) {
+            java.util.function.IntFunction<Visuals.Theme> look = cell -> themeNamed(looked.lookAt(cell % width,
+                    cell / width));
+            cellLooks = look;
+            return cell -> {
+                var theme = look.apply(cell);
+                return theme == null ? null : theme.getTiles();
+            };
+        }
         var looks = new Visuals.Theme[width * grid.getHeight()];
         var kits = new Tileset[looks.length];
         boolean any = false;
@@ -3110,8 +3278,20 @@ final class DukeRtsApp extends SimpleApplication {
         if (!any) {
             return null;
         }
-        cellLooks = looks;
-        return kits;
+        cellLooks = cell -> looks[cell];
+        return cell -> kits[cell];
+    }
+
+    /** The theme a map's look names; null for none, and for one the game never registered, said once. */
+    private Visuals.Theme themeNamed(String name) {
+        if (name == null) {
+            return null;
+        }
+        var theme = visuals.getTheme(name);
+        if (theme == null) {
+            warnOnce(name, "look");
+        }
+        return theme;
     }
 
     /** The fog's colour as drawn now, eased toward the colour of the look the camera looks at; null to start afresh. */
@@ -3148,7 +3328,7 @@ final class DukeRtsApp extends SimpleApplication {
         float cell = builtFrom.getCellSize();
         int cx = Math.clamp((int) Math.floor(x / cell), 0, builtFrom.getWidth() - 1);
         int cy = Math.clamp((int) Math.floor(y / cell), 0, builtFrom.getHeight() - 1);
-        return cellLooks[cy * builtFrom.getWidth() + cx];
+        return cellLooks.apply(cy * builtFrom.getWidth() + cx);
     }
 
     /** The dark a look wears: its own, or the map's look's, or the game's fog's. */
@@ -3204,18 +3384,12 @@ final class DukeRtsApp extends SimpleApplication {
         }
         if (snapshot.revealed()) {
             discovery.openEverything(); // the map revealed to this player, or a watcher's seat
-            discovery.soften(tpf);
-            fogMap.update(discovery);
-            terrain.applyDiscovery(discovery);
-            applyMinimapDiscovery();
+            drawWhatIsOpen(tpf);
             return;
         }
         if (visuals.isFogBySight()) {
             discovery.fromSight(snapshot.sight()); // the simulation's cells of what this player has seen
-            discovery.soften(tpf);
-            fogMap.update(discovery);
-            terrain.applyDiscovery(discovery);
-            applyMinimapDiscovery();
+            drawWhatIsOpen(tpf);
             return;
         }
         // Re-read when the eyes change, not only the first time. A game may say
@@ -3234,14 +3408,29 @@ final class DukeRtsApp extends SimpleApplication {
         }
         discovery.reveal(snapshot.units(), game.getLocalPlayerIndex(), discoveryRadius,
                 visuals.getDiscoveryTemplate());
-        // What is open is decided above; how it is drawn eases toward that, so the
+        drawWhatIsOpen(tpf);
+    }
+
+    /** What is open, decided: drawn. */
+    private void drawWhatIsOpen(float tpf) {
+        // How it is drawn eases toward what is open, so the
         // edge sweeps rather than switching. Seconds, not frames.
         discovery.soften(tpf);
+        // On a wide world the dark is kept round where the camera looks, and the ground coming into it drawn.
+        discovery.follow(camera.targetX(), camera.targetZ());
         // The picture is what the player actually sees the dark as; the terrain is
         // only told what is so far behind it that drawing it is waste.
-        fogMap.update(discovery);
+        fogMap.update(discovery, renderer);
+        if (fogMap.windowVersion() != fogWindowTold) {
+            fogWindowTold = fogMap.windowVersion();
+            tellEveryFogReaderWhereTheFogHolds();
+        }
         terrain.applyDiscovery(discovery);
         applyMinimapDiscovery();
+        if (worldPicture != null) {
+            worldPicture.heard(discovery);
+            worldPicture.paint(discovery);
+        }
     }
 
     /**
@@ -4648,6 +4837,7 @@ final class DukeRtsApp extends SimpleApplication {
         // floor's kit would be a floor of the wrong stone until the next one.
         adoptTheLookTheGameNames();
         refreshWorldIfChanged(); // a new run lays out a new world; redraw it
+        terrain.stream(camera.targetX(), camera.targetZ()); // the ground as far as the camera sees, on a wide world
         syncDiscovery(tpf);
         followTheLookUnderTheCamera(tpf);
         camera.focusOnOwnUnit(snapshot.units(), game.getLocalPlayerIndex());
@@ -4687,11 +4877,13 @@ final class DukeRtsApp extends SimpleApplication {
         barrels.update(tpf);
         particleDrawing.draw(cam);
         carryTheLightsToTheStone();
+        hazeRoundTheCamera();
         slideTheShades();
         if (water != null && snapshot != null) {
             water.update(snapshot.gameTimeSeconds());
         }
         reapTheDead();
+        followWithTheMinimap();
         syncMinimap();
         syncViewportOutline();
         syncDragRectangle();
@@ -5978,6 +6170,7 @@ final class DukeRtsApp extends SimpleApplication {
                 look.setVector3("SunDirection", sunDirection);
                 look.setTexture("FogMap", fogMap.texture());
                 look.setVector2("FogSize", fogMap.worldSize());
+                tellWhereTheFogHolds(look);
                 look.setTexture("ColorMap", picture);
                 // Set, and dark: nothing burning lights a scorch, and an array never written differs by driver.
                 look.setParam("PointLightColours", com.jme3.shader.VarType.Vector4Array, darkness());
@@ -7690,6 +7883,7 @@ final class DukeRtsApp extends SimpleApplication {
         material.setVector3("SunDirection", sunDirection);
         material.setTexture("FogMap", fogMap != null ? fogMap.texture() : noFog());
         material.setVector2("FogSize", fogMap != null ? fogMap.worldSize() : new com.jme3.math.Vector2f(1f, 1f));
+        tellWhereTheFogHolds(material);
         if (atlas != null) {
             material.setTexture("ColorMap", atlas);
         }
@@ -7749,6 +7943,8 @@ final class DukeRtsApp extends SimpleApplication {
                 (tint >>> 24) / 255f));
         material.setTexture("FogMap", fogMap != null ? fogMap.texture() : noFog());
         material.setVector2("FogSize", fogMap != null ? fogMap.worldSize() : new com.jme3.math.Vector2f(1f, 1f));
+        tellWhereTheFogHolds(material);
+        waterLooks.add(material);
         return material;
     }
 

@@ -11,7 +11,8 @@ package uz.dukeengine.core.pathfind;
  * standing on it, a cliff of the relief — is in no zone.
  *
  * <p>Computed whole, in cell order, from the grid as it stands; {@link #isCurrent} says whether the grid has
- * changed shape since. Deterministic: a flood in the search's own neighbour order.
+ * changed shape since. Deterministic: a flood in the search's own neighbour order. Or answered by a grid's {@link
+ * Sectors} ({@link #over}), which keep up with the grid sector by sector: the same cells together, named otherwise.
  */
 public final class Zones {
 
@@ -24,12 +25,20 @@ public final class Zones {
     private final int version;
     private final int[] zone;
     private final int count;
+    /** The sectors that answer for these zones, or null for zones worked out whole. */
+    private final Sectors sectors;
 
-    private Zones(PathGrid grid, int version, int[] zone, int count) {
+    private Zones(PathGrid grid, int version, int[] zone, int count, Sectors sectors) {
         this.grid = grid;
         this.version = version;
         this.zone = zone;
         this.count = count;
+        this.sectors = sectors;
+    }
+
+    /** The zones {@code sectors} answer: as they stand whenever asked, kept up with the grid by whoever keeps them. */
+    public static Zones over(Sectors sectors) {
+        return new Zones(sectors.grid(), 0, null, 0, sectors);
     }
 
     /** The zones of {@code grid} as it stands now. */
@@ -70,7 +79,7 @@ public final class Zones {
             next++;
         }
         joinAcrossDecks(grid, zone, next);
-        return new Zones(grid, grid.getShapeVersion(), zone, next);
+        return new Zones(grid, grid.getShapeVersion(), zone, next, null);
     }
 
     /**
@@ -127,11 +136,14 @@ public final class Zones {
     /** Whether these zones are {@code grid}'s as it stands now. */
     public boolean isCurrent(PathGrid grid) {
         return this.grid.root() == grid.root() && this.grid.surfaces() == grid.surfaces()
-                && version == grid.getShapeVersion();
+                && (sectors != null || version == grid.getShapeVersion());
     }
 
     /** The zone a cell lies in, or -1 for one in none. */
     public int zoneOf(int cx, int cy) {
+        if (sectors != null) {
+            return sectors.zoneOf(cx, cy);
+        }
         return grid.inBounds(cx, cy) ? zone[cy * grid.getWidth() + cx] : -1;
     }
 
@@ -143,7 +155,7 @@ public final class Zones {
 
     /** How many zones there are. */
     public int count() {
-        return count;
+        return sectors != null ? sectors.zoneCount() : count;
     }
 
     /**
@@ -152,6 +164,9 @@ public final class Zones {
      * ground between is open; then the lower cell index — or -1 where the zone has no cells. A scan, nothing walked.
      */
     public int nearestIn(int z, int goalX, int goalY, int fromX, int fromY) {
+        if (sectors != null) {
+            return sectors.nearestIn(z, goalX, goalY, fromX, fromY);
+        }
         int width = grid.getWidth();
         int best = -1;
         long nearest = Long.MAX_VALUE;

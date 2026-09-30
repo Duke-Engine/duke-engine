@@ -22,8 +22,15 @@ MaterialDef Fogged Terrain {
 
         // The dark: rgb is its colour, a is how much of it there is.
         Texture2D FogMap
-        // How wide and deep the map is, so a vertex can say where on it it stands.
+        // How wide and deep the map is, so a vertex can say where on it it stands -- or, where the picture is of a
+        // window round the camera laid over and over, how much ground one copy of it holds.
         Vector2 FogSize
+        // Where the picture is of a window: the ground it holds now, x and z from, then x and z to. Past it the
+        // picture holds another place's dark, so past it is drawn never seen.
+        Vector4 FogWindow
+        // A haze: x and z of where the camera looks, then from how far and to how far the ground fades into the fog's
+        // own colour -- the window's background -- so the edge of the ground built round the camera is never seen.
+        Vector4 Haze
 
         // What is burning nearby -- eight slots, always all eight, an unused one
         // carrying a black colour. See the note in the fragment shader for why
@@ -57,6 +64,8 @@ MaterialDef Fogged Terrain {
             VERTEX_LIGHT : VertexLight
             HAS_SHADEMAP : ShadeMap
             HAS_SHADEMAP2 : ShadeMap2
+            FOG_WINDOW : FogWindow
+            HAZE : Haze
         }
     }
 }

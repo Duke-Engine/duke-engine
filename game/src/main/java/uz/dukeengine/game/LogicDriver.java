@@ -115,9 +115,7 @@ final class LogicDriver implements Runnable {
 
     /** Annihilation rule: a player who had objects and now has none is defeated. */
     private void checkDefeats() {
-        for (var object : logic.getObjects()) {
-            everOwnedObjects.add(object.getPlayerIndex());
-        }
+        everOwnedObjects.addAll(logic.getOwners());
         if (defeatListener == null) {
             return;
         }
@@ -126,8 +124,8 @@ final class LogicDriver implements Runnable {
                 continue;
             }
             boolean anyAlive = false;
-            for (var object : logic.getObjects()) {
-                if (object.getPlayerIndex() == playerIndex && !object.isEffectivelyDead()) {
+            for (var object : logic.getObjectsOf(playerIndex)) {
+                if (!object.isEffectivelyDead()) {
                     anyAlive = true;
                     break;
                 }

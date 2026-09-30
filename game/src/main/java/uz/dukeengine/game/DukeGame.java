@@ -226,6 +226,7 @@ public final class DukeGame {
 
     private final GameCamera camera = new GameCamera();
     private Long randomSeed;
+    private uz.dukeengine.core.Sleep sleep;
 
     /**
      * The camera as the game drives it, from its own code on the simulation thread — see {@link GameCamera}. Stepped
@@ -310,6 +311,17 @@ public final class DukeGame {
     public DukeGame randomSeed(long seed) {
         requireNotStarted();
         this.randomSeed = seed;
+        return this;
+    }
+
+    /**
+     * Let this match's things far from every waker sleep from its first frame — see {@link uz.dukeengine.core.Sleep}:
+     * a world larger than any view costs what is near its heroes. Mid-match the game's own code changes it on the
+     * simulation thread, with {@code getLogic().setSleep}.
+     */
+    public DukeGame sleep(uz.dukeengine.core.Sleep rule) {
+        requireNotStarted();
+        this.sleep = rule;
         return this;
     }
 
@@ -597,8 +609,14 @@ public final class DukeGame {
         this.mapRecord = map;
         if (logic != null) {
             logic.setPathGrid(grid, navigationCellsPerCell());
+            logic.setRouteSectors(routeSectors());
             logic.setSceneryFootprints(sceneryFootprints());
         }
+    }
+
+    /** How many of its cells a side the current map's route sectors are: what a {@code Sectored} one asks; 0 for none. */
+    private int routeSectors() {
+        return mapRecord instanceof uz.dukeengine.core.map.Sectored sectored ? Math.max(0, sectored.routeSectors()) : 0;
     }
 
     /** How many cells a side the current map is walked at for each of its own: what a {@code Subdivided} one asks. */
@@ -1128,6 +1146,7 @@ public final class DukeGame {
         if (randomSeed != null) {
             logic.setRandomSeed(randomSeed);
         }
+        logic.setSleep(sleep);
         client.setCamera(camera::shown);
         progress.accept(5);
 
@@ -1156,6 +1175,7 @@ public final class DukeGame {
         logic.setWorld(world);
         if (terrain != null) {
             logic.setPathGrid(terrain, navigationCellsPerCell());
+            logic.setRouteSectors(routeSectors());
             logic.setSceneryFootprints(sceneryFootprints());
         }
         progress.accept(20);

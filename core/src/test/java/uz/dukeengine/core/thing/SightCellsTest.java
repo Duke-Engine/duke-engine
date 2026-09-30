@@ -148,4 +148,24 @@ class SightCellsTest {
         assertEquals(Sight.NEVER_SEEN, view.at(-10f, 30f), "past the map's edge");
         assertEquals(Sight.NEVER_SEEN, view.at(900f, 900f));
     }
+    @Test
+    void withStoneHidingSightAWallKeepsWhatIsBehindItNeverSeen() {
+        var grid = new PathGrid(100, 100);
+        for (int y = 0; y < 100; y++) {
+            grid.setBlocked(30, y, true); // a wall of stone at x 300..310
+        }
+        world.setPathGrid(grid);
+        world.setSightCells(10f, 150);
+        world.setSightHiddenByStone(true);
+        world.spawn(world.findTemplate("Scout"), new Coord3D(255f, 505f, 0f), viewer);
+        run(1);
+        assertEquals(Sight.IN_SIGHT, world.getSightCells().sight(viewer, new Coord3D(295f, 505f, 0f)), "this side");
+        assertEquals(Sight.IN_SIGHT, world.getSightCells().sight(viewer, new Coord3D(305f, 505f, 0f)), "the wall");
+        assertEquals(Sight.NEVER_SEEN, world.getSightCells().sight(viewer, new Coord3D(325f, 505f, 0f)), "beyond");
+
+        world.setSightHiddenByStone(false);
+        run(1);
+        assertEquals(Sight.IN_SIGHT, world.getSightCells().sight(viewer, new Coord3D(325f, 505f, 0f)),
+                "a disc, as the reference's, once stone hides nothing");
+    }
 }

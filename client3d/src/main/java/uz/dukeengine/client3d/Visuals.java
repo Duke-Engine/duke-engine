@@ -2690,6 +2690,72 @@ public final class Visuals {
         return word == null ? WordMark.MARK : wordMarks.getOrDefault(word, WordMark.MARK);
     }
 
+    private int streamGround;
+
+    /**
+     * Build a kit's floor a chunk at a time within {@code cells} of where the camera looks, and let go of what is well
+     * beyond — a world a thousand cells a side drawn as far as it is seen, where built whole at once it was more pieces
+     * than a card holds. The dark over the ground is kept for as far round the camera, its picture a window that moves
+     * with it, as sharp as {@link Fog#texelsPerCell} asks whatever the size of the world; past it the ground is drawn
+     * never seen. 0, as ever, builds each map whole when it is laid, and darkens it whole.
+     */
+    public Visuals streamGround(int cells) {
+        this.streamGround = Math.max(0, cells);
+        return this;
+    }
+
+    public int getStreamGround() {
+        return streamGround;
+    }
+
+    private float hazeFrom;
+    private float hazeTo;
+
+    /**
+     * Fade the ground into nothing — the fog's own colour, which is the window's background — from {@code fromCells}
+     * round where the camera looks to {@code toCells}, where it has gone: the edge of a world built round the camera
+     * ({@link #streamGround}) never seen, however far the view reaches — so no further than the cells it builds, which
+     * reach at least that far on every side. Round where the camera looks, not the eye, so
+     * zooming out fades nothing near the hero. Drawn by the ground's fogged shader, so for a game that keeps a fog;
+     * none, as ever, where {@code toCells} is 0.
+     */
+    public Visuals haze(float fromCells, float toCells) {
+        this.hazeTo = Math.max(0f, toCells);
+        this.hazeFrom = Math.clamp(fromCells, 0f, this.hazeTo);
+        return this;
+    }
+
+    /** Whether the ground fades into nothing far from where the camera looks. */
+    public boolean hazes() {
+        return hazeTo > 0f;
+    }
+
+    public float getHazeFrom() {
+        return hazeFrom;
+    }
+
+    public float getHazeTo() {
+        return hazeTo;
+    }
+
+    private int minimapSpan;
+
+    /**
+     * Show on the minimap the {@code cells} a side round where the camera looks, not the whole map — the part of a wide
+     * world round the hero, where the whole of it is too many cells to a pixel to find him on — its picture sliding
+     * under the minimap as the camera moves, and the things and the view's outline on it where they stand. A map no
+     * wider nor deeper than that, and 0, as ever, the whole map. The whole world is a picture of its own the game shows
+     * where it likes ({@link Duke3D#worldPicture}).
+     */
+    public Visuals minimapSpan(int cells) {
+        this.minimapSpan = Math.max(0, cells);
+        return this;
+    }
+
+    public int getMinimapSpan() {
+        return minimapSpan;
+    }
+
     private float dragDistance = SelectionBox.DRAG_THRESHOLD_PIXELS;
 
     /**

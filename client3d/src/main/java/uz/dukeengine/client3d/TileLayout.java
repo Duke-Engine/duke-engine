@@ -141,13 +141,18 @@ final class TileLayout {
      * the same map build the same scene in the same order.
      */
     static List<Placement> of(PathGrid grid) {
+        return grid == null ? new ArrayList<>() : of(grid, 0, 0, grid.getWidth() - 1, grid.getHeight() - 1);
+    }
+
+    /**
+     * Every piece of the cells {@code fromX..toX} by {@code fromY..toY}, as {@link #of(PathGrid)} lays them: a cell's
+     * pieces are its own and its neighbours' business alone, so a part of the map is laid as the whole map lays it.
+     */
+    static List<Placement> of(PathGrid grid, int fromX, int fromY, int toX, int toY) {
         var placements = new ArrayList<Placement>();
-        if (grid == null) {
-            return placements;
-        }
         float cell = grid.getCellSize();
-        for (int cy = 0; cy < grid.getHeight(); cy++) {
-            for (int cx = 0; cx < grid.getWidth(); cx++) {
+        for (int cy = Math.max(0, fromY); cy <= Math.min(grid.getHeight() - 1, toY); cy++) {
+            for (int cx = Math.max(0, fromX); cx <= Math.min(grid.getWidth() - 1, toX); cx++) {
                 if (solid(grid, cx, cy)) {
                     // Roofed, and roofed under itself. Stone has as good a place on
                     // the map as anything else does, and the fog is read at the

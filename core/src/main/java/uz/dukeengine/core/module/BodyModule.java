@@ -67,6 +67,10 @@ public abstract class BodyModule extends Module {
      * @param from where it came from, or {@code null} for wherever its dealer stands
      */
     public void damage(float amount, DamageType type, Death blow, Coord3D at, Coord3D from) {
+        var world = getOwner().getWorld();
+        if (world != null) {
+            world.blowLanded(getOwner());
+        }
         boolean wasAlive = !isDead();
         float worth = worthOf(amount, type);
         damage(amount, type);

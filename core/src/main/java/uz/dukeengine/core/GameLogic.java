@@ -52,9 +52,38 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     private final ThingFactory thingFactory;
     private final PlayerList playerList;
     private final MessageStream messageStream = new MessageStream();
-    private final PartitionManager partition = new PartitionManager(this::getObjects);
+    private final PartitionManager partition = PartitionManager.indexed(this::getObjects);
     private final uz.dukeengine.core.script.ScriptEngine scriptEngine = new uz.dukeengine.core.script.ScriptEngine();
     private final List<GameObject> objects = new ArrayList<>();
+    /** The live objects by id — what {@link #findObject} answers from, where it looked at every object. */
+    private final java.util.HashMap<Integer, GameObject> byId = new java.util.HashMap<>();
+    /** Which things sleep, or null where none does — see {@link #setSleep}. */
+    private Sleep sleep;
+    /** Whether who sleeps was decided this frame, when the reap looks at every thing. */
+    private boolean decidedThisFrame;
+    /** The things awake, in creation order, since who sleeps was last decided; null where it is yet to be decided. */
+    private List<GameObject> awake;
+    private final java.util.Set<GameObject> awakeSet =
+            java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+    /** The things made this frame, in creation order, to be told they were made by its end. */
+    private final List<GameObject> unannounced = new ArrayList<>();
+    /** Sleepers a blow landed on while the things awake were being updated, woken once the update is done. */
+    private final List<GameObject> hurtWhileUpdating = new ArrayList<>();
+    private boolean updating;
+    /** Each player's live things, in the order they came into the world — see {@link #getObjectsOf}. */
+    private final java.util.HashMap<Integer, List<GameObject>> byPlayer = new java.util.HashMap<>();
+    /** The live things every player sees round, in the order they came in: lookers whatever their side. */
+    private final List<GameObject> seenByAll = new ArrayList<>();
+    /** The live things drawn along a line, in the order they came in — see {@link #getSpanned}. */
+    private final List<GameObject> spanned = new ArrayList<>();
+    /** The live things that stand still and have a shape, in the order they came in: what a route is laid round. */
+    private final List<GameObject> stillThings = new ArrayList<>();
+    /** What each still thing laid on the ground when it was last laid, or null for a ground to be laid afresh. */
+    private List<Laying> lastLaid;
+    /** The things marked destroyed since the last reap, to be reaped by the next. */
+    private List<GameObject> marked = new ArrayList<>();
+    /** How many things have come into this world: the next one's {@link GameObject#getEntered}. */
+    private long nextEntered;
     private PathGrid pathGrid; // null = open terrain (direct paths)
     private WorldTemplate world; // null = a game with no World block
     private boolean staticObstaclesDirty = true;
@@ -209,13 +238,50 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         if (sightCells != null) {
             return sightCells.inSight(viewerPlayer, position); // by its cells, the while after counted
         }
-        for (var watcher : objects) {
-            float reach = reachFor(viewerPlayer, watcher);
-            if (reach >= 0f && watcher.getPosition().distance(position) <= reach) {
-                return true;
+        for (var watchers : mayShow(viewerPlayer)) {
+            for (var watcher : watchers) {
+                float reach = reachFor(viewerPlayer, watcher);
+                if (reach >= 0f && watcher.getPosition().distance(position) <= reach) {
+                    return true;
+                }
             }
         }
         return false;
+    }
+
+    /**
+     * The things that may show {@code viewerPlayer} anything, a list for each kind: his own, each ally's, those every
+     * player sees round, and — where the game lends sight ({@link #setSharedSight}) — every thing, since any may lend
+     * its. Every thing {@link #reachFor} gives a reach is among them; one may be twice, which a question of any of them
+     * answers alike.
+     */
+    private List<List<GameObject>> mayShow(int viewerPlayer) {
+        if (sharedSight != null) {
+            return List.of(objects);
+        }
+        var lists = new ArrayList<List<GameObject>>();
+        for (var owner : byPlayer.entrySet()) {
+            int player = owner.getKey();
+            if (player == viewerPlayer || getRelationship(viewerPlayer, player) == Relationship.ALLIES) {
+                lists.add(owner.getValue());
+            }
+        }
+        lists.add(seenByAll);
+        return lists;
+    }
+
+    /** The lookers that show {@code viewerPlayer} anything, by the ground their reach covers. */
+    private uz.dukeengine.core.partition.Lookers lookersFor(int viewerPlayer) {
+        var lookers = new uz.dukeengine.core.partition.Lookers();
+        for (var watchers : mayShow(viewerPlayer)) {
+            for (var watcher : watchers) {
+                float reach = reachFor(viewerPlayer, watcher);
+                if (reach >= 0f) {
+                    lookers.add(watcher.getPosition(), reach);
+                }
+            }
+        }
+        return lookers;
     }
 
     /**
@@ -238,62 +304,6 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                 || getRelationship(viewerPlayer, watcher.getPlayerIndex()) == Relationship.ALLIES
                 || sharedSight != null && sharedSight.test(viewerPlayer, watcher);
         return eye ? Math.max(reach, fog) : reach;
-    }
-
-    /**
-     * The lookers that show one player anything, sorted into squares of the ground by the ground their reach covers:
-     * a point is asked of the few whose reach covers its square, not of every looker in the world. The same answers
-     * as {@link #canSee} gives point by point — the snapshot asked it of every thing, a fifth of a busy frame.
-     */
-    private final class Eyes {
-        /** The side of a square, world units. */
-        private static final float SQUARE = 128f;
-
-        private record Looker(Coord3D at, float reach) {
-        }
-
-        private final java.util.Map<Long, List<Looker>> squares = new java.util.HashMap<>();
-
-        Eyes(int viewerPlayer) {
-            for (var watcher : objects) {
-                float reach = reachFor(viewerPlayer, watcher);
-                if (reach < 0f) {
-                    continue;
-                }
-                var at = watcher.getPosition();
-                var looker = new Looker(at, reach);
-                int fromX = square(at.x() - reach);
-                int toX = square(at.x() + reach);
-                int fromY = square(at.y() - reach);
-                int toY = square(at.y() + reach);
-                for (int y = fromY; y <= toY; y++) {
-                    for (int x = fromX; x <= toX; x++) {
-                        squares.computeIfAbsent(key(x, y), k -> new ArrayList<>()).add(looker);
-                    }
-                }
-            }
-        }
-
-        boolean see(Coord3D position) {
-            var lookers = squares.get(key(square(position.x()), square(position.y())));
-            if (lookers == null) {
-                return false;
-            }
-            for (var looker : lookers) {
-                if (looker.at().distance(position) <= looker.reach()) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        private static int square(float at) {
-            return (int) Math.floor(at / SQUARE);
-        }
-
-        private static long key(int x, int y) {
-            return ((long) x << 32) ^ (y & 0xFFFFFFFFL);
-        }
     }
 
     /** Whose things lend a player their sight beyond its own and its allies' — see {@link #setSharedSight}. */
@@ -370,19 +380,41 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     /** Every object {@code viewerPlayer} can currently see, in creation order — as {@link #canSee} says of each. */
     public final List<GameObject> getVisibleObjects(int viewerPlayer) {
         boolean all = revealedTo.contains(viewerPlayer);
-        var eyes = all || sightCells != null ? null : new Eyes(viewerPlayer);
+        var lookers = all || sightCells != null ? null : lookersFor(viewerPlayer);
+        // His own things, and the things standing where his lookers' reach falls: a look at those alone, where the
+        // partition finds them for less than a look at every thing.
+        var near = lookers == null ? null : partition.standingWhereSeen(lookers);
+        var candidates = near == null ? objects : inOrder(byPlayer.getOrDefault(viewerPlayer, List.of()), near);
         var visible = new ArrayList<GameObject>();
-        for (var object : objects) {
+        for (var object : candidates) {
             if (object.isHiddenFrom(viewerPlayer)) {
                 continue;
             }
             if (object.getPlayerIndex() == viewerPlayer || all
-                    || (eyes != null ? eyes.see(object.getPosition())
+                    || (lookers != null ? lookers.see(object.getPosition())
                             : sightCells.inSight(viewerPlayer, object.getPosition()))) {
                 visible.add(object);
             }
         }
         return visible;
+    }
+
+    /** Two lists each in the order things came into the world, as one in that order, a thing in both once. */
+    private static List<GameObject> inOrder(List<GameObject> one, List<GameObject> two) {
+        var both = new ArrayList<GameObject>(one.size() + two.size());
+        int i = 0;
+        int j = 0;
+        while (i < one.size() || j < two.size()) {
+            if (j == two.size() || i < one.size() && one.get(i).getEntered() < two.get(j).getEntered()) {
+                both.add(one.get(i++));
+            } else if (i == one.size() || two.get(j).getEntered() < one.get(i).getEntered()) {
+                both.add(two.get(j++));
+            } else {
+                both.add(one.get(i++));
+                j++;
+            }
+        }
+        return both;
     }
 
     // ---- what each player has seen, by cells ----
@@ -411,6 +443,58 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return sightCells;
     }
 
+    /** Whether stone and the floors above a looker hide the ground from it — see {@link #setSightHiddenByStone}. */
+    private boolean sightHiddenByStone;
+
+    /**
+     * Let stone and the floors above a looker hide the ground from it in each player's cells — see {@link
+     * SightCells.Ground}: a line of sight stops at the map's stone, the stone itself seen, and a floor standing above
+     * the looker's is seen and nothing on it in sight — a crawler's dark, kept by the simulation, saved with it and the
+     * same on every machine. Off, as the reference's is: a looker covers its disc.
+     */
+    public final void setSightHiddenByStone(boolean hidden) {
+        this.sightHiddenByStone = hidden;
+        if (sightCells != null) {
+            sightCells.setGround(hidden ? groundUnderTheCells(sightCells, pathGrid) : null);
+        }
+    }
+
+    /** The map's stone and storeys, each sight cell asked of the ground under its middle. */
+    private static SightCells.Ground groundUnderTheCells(SightCells cells, PathGrid grid) {
+        float size = cells.cellSize();
+        float ground = grid.getCellSize();
+        return new SightCells.Ground() {
+            @Override
+            public boolean stone(int cx, int cy) {
+                return grid.isTerrainBlocked(under(cx), under(cy));
+            }
+
+            @Override
+            public int storey(int cx, int cy) {
+                return grid.level(under(cx), under(cy));
+            }
+
+            private int under(int cell) {
+                return (int) Math.floor((cell + 0.5f) * size / ground);
+            }
+        };
+    }
+
+    /**
+     * What {@code player} has seen, to keep with a saved game — see {@link SightCells#remember}; null where the game
+     * keeps no cells.
+     */
+    public final SightCells.Memory getSightMemory(int player) {
+        return sightCells == null ? null : sightCells.remember(player);
+    }
+
+    /** {@code player}'s cells as a saved game kept them — see {@link SightCells#recall}; nothing where none are kept. */
+    public final void setSightMemory(int player, SightCells.Memory memory) {
+        if (sightCells != null && memory != null) {
+            sightCells.recall(player, memory);
+        }
+    }
+
     private void layTheSightCells() {
         if (sightCellSize <= 0f || pathGrid == null) {
             sightCells = null;
@@ -418,6 +502,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
         sightCells = new SightCells(sightCellSize, sightLinger, pathGrid.getWidth() * pathGrid.getCellSize(),
                 pathGrid.getHeight() * pathGrid.getCellSize());
+        if (sightHiddenByStone) {
+            sightCells.setGround(groundUnderTheCells(sightCells, pathGrid));
+        }
         for (int player : markedSeen) {
             sightCells.markSeen(player); // what was marked is marked on the new grid's cells too
         }
@@ -433,8 +520,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         }
         sightCells.begin(frame);
         int players = getPlayerList().getPlayerCount();
+        var watchers = awake == null ? objects : awake; // a sleeping thing looks at nothing
         for (int player = 0; player < players; player++) {
-            for (var watcher : objects) {
+            for (var watcher : watchers) {
                 float reach = reachFor(player, watcher);
                 if (reach >= 0f) {
                     sightCells.look(player, watcher.getPosition(), reach);
@@ -455,6 +543,11 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     @Override
     public List<GameObject> objectsInRange(Coord3D center, float range, Predicate<GameObject> filter) {
         return partition.objectsInRange(center, range, filter::test);
+    }
+
+    @Override
+    public final List<GameObject> thingsNear(Coord3D center, float reach) {
+        return partition.near(center, reach);
     }
 
     @Override
@@ -537,6 +630,52 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         return pathGrid == null ? null : pathGrid.passage(surfacesOf(mover));
     }
 
+    /** How many of the map's cells a side a sector is, where routes are looked for by sectors; 0 where they are not. */
+    private int routeSectors;
+    /** Each passage's sectors, by the classes it enters — see {@link #sectorsOf}. */
+    private final java.util.Map<Integer, uz.dukeengine.core.pathfind.Sectors> sectorsBySurfaces =
+            new java.util.HashMap<>();
+    private final java.util.Map<uz.dukeengine.core.pathfind.Sectors, uz.dukeengine.core.pathfind.Zones> sectorZones =
+            new java.util.IdentityHashMap<>();
+
+    /**
+     * Look for routes by sectors of {@code mapCells} of the map's cells a side — see {@link
+     * uz.dukeengine.core.pathfind.Sectors}: a route across a wide world is found through the sectors its way crosses,
+     * examining the ground along it rather than every cell it could reach, and what reaches what is kept sector by
+     * sector as the ground changes rather than worked out over every cell. The route is the best within those sectors,
+     * not always the best in the world. 0 looks at the whole grid for each route, as a world always did; a grid with
+     * decks is searched whole whatever this says.
+     */
+    public final void setRouteSectors(int mapCells) {
+        this.routeSectors = Math.max(0, mapCells);
+        sectorsBySurfaces.clear();
+        sectorZones.clear();
+    }
+
+    public final int getRouteSectors() {
+        return routeSectors;
+    }
+
+    /**
+     * The sectors of the ground as {@code grid} sees it, caught up with it; null where routes are not looked for by
+     * sectors, or the grid has decks.
+     */
+    final uz.dukeengine.core.pathfind.Sectors sectorsOf(PathGrid grid) {
+        if (routeSectors <= 0 || grid == null || grid.hasDecks()) {
+            return null;
+        }
+        refreshStaticObstacles();
+        var sectors = sectorsBySurfaces.get(grid.surfaces());
+        if (sectors == null) {
+            int size = Math.min(256, routeSectors * grid.cellsPerMapCell());
+            sectors = uz.dukeengine.core.pathfind.Sectors.of(grid, Math.max(2, size));
+            sectorsBySurfaces.put(grid.surfaces(), sectors);
+        } else {
+            sectors.catchUp(grid);
+        }
+        return sectors;
+    }
+
     /** Each passage's zones, by the classes it enters — see {@link #zonesOf}. */
     private final java.util.Map<Integer, uz.dukeengine.core.pathfind.Zones> passageZones = new java.util.HashMap<>();
 
@@ -552,6 +691,10 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             return zones();
         }
         refreshStaticObstacles();
+        var sectors = sectorsOf(grid);
+        if (sectors != null) {
+            return sectorZones.computeIfAbsent(sectors, uz.dukeengine.core.pathfind.Zones::over);
+        }
         var cached = passageZones.get(grid.surfaces());
         if (cached == null || !cached.isCurrent(grid)) {
             cached = uz.dukeengine.core.pathfind.Zones.of(grid);
@@ -841,6 +984,9 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             pathGrid.setLevelHeight(layered.levelHeight());
         }
         this.staticObstaclesDirty = true;
+        this.lastLaid = null; // a new grid holds nothing laid
+        sectorsBySurfaces.clear();
+        sectorZones.clear();
         if (pathGrid != null) {
             pathGrid.setSceneryFootprints(scenery);
         }
@@ -920,22 +1066,30 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             return;
         }
         staticObstaclesDirty = false;
+        var laid = new ArrayList<Laying>(stillThings.size());
+        for (var object : stillThings) {
+            laid.add(laidNow(object));
+        }
+        if (laid.equals(lastLaid)) {
+            return; // what lays anything lays what it laid last: laid again, the ground would come out the same
+        }
+        lastLaid = laid;
         pathGrid.beginObstacles();
         float cellSize = pathGrid.getCellSize();
         float halfCell = cellSize * 0.5f;
         boolean finer = pathGrid.cellsPerMapCell() > 1;
-        for (var object : objects) {
-            var shape = Solid.of(object.getTemplate());
-            if (object.isMobile() || shape.isPoint() || object.isEffectivelyDead() || object.isContained()
-                    || !inTheWay(object)) {
+        for (var still : laid) {
+            if (!still.laying()) {
                 continue; // a building lying dead while its death plays out is in nobody's way
             }
+            var object = still.thing();
+            var shape = Solid.of(object.getTemplate());
             float fence = object.getTemplate() instanceof Solid solid ? solid.fenceWidth() : 0f;
             if (fence > 0f) {
                 layFence(object, fence, ((Solid) object.getTemplate()).fenceOffset());
                 continue;
             }
-            var ground = laidBy(object); // a class it lays over its footprint instead of blocking it, or none
+            var ground = still.ground(); // a class it lays over its footprint instead of blocking it, or none
             if (ground == null && finer && round(shape)) {
                 // Walked finer, a round thing is kept off by its true distance, as scenery is, and closes no cell: a
                 // body goes between two where it fits, and comes up to one as near as its own outline.
@@ -966,6 +1120,29 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         pathGrid.commitObstacles();
     }
 
+    /**
+     * What a still thing lays on the ground, as far as its own state decides it: whether it lays anything — alive, out in
+     * the open, in the way by the game's rules — the class it lays, where it stands and which way it faces. The ground is
+     * laid again only where one of these changed, or the still things did, for nothing else goes into it.
+     */
+    private record Laying(GameObject thing, boolean laying, String ground, float x, float y, float orientation, float cos,
+            float sin) {
+    }
+
+    private Laying laidNow(GameObject object) {
+        if (object.isEffectivelyDead() || object.isContained() || !inTheWay(object)) {
+            return new Laying(object, false, null, 0f, 0f, 0f, 0f, 0f);
+        }
+        var at = object.getPosition();
+        return new Laying(object, true, laidBy(object), at.x(), at.y(), object.getOrientation(), object.getFacingCos(),
+                object.getFacingSin());
+    }
+
+    /** Lay the ground whole at its next laying, as though nothing had been laid: for a test to hold the two alike. */
+    final void forgetWhatWasLaid() {
+        lastLaid = null;
+    }
+
     private static boolean round(Geometry shape) {
         return switch (shape) {
             case Geometry.Cylinder _, Geometry.Sphere _ -> true;
@@ -980,6 +1157,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     public final void setObstacleRules(ObstacleRules rules) {
         this.obstacleRules = rules == null ? ObstacleRules.EVERYTHING : rules;
         this.staticObstaclesDirty = true;
+        this.lastLaid = null;
     }
 
     public final ObstacleRules getObstacleRules() {
@@ -1194,10 +1372,15 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             }
             traffic = groundCells().trafficFor(mover, ids);
         }
+        var sectors = sectorsOf(grid);
         var path = grid.hasDecks()
                 ? Pathfinder.findPathOrNearest(grid, mover.getPosition(), mover.getFloor(), to,
                         grid.floorAt(to), clearance, zonesOf(grid), tally)
-                : Pathfinder.findPathOrNearest(grid, mover.getPosition(), to, clearance, zonesOf(grid), tally, traffic);
+                : sectors != null
+                        ? Pathfinder.findPathOrNearest(grid, mover.getPosition(), to, clearance, zonesOf(grid), tally,
+                                traffic, sectors)
+                        : Pathfinder.findPathOrNearest(grid, mover.getPosition(), to, clearance, zonesOf(grid), tally,
+                                traffic);
         cellsThisFrame += tally.cells();
         return path;
     }
@@ -1246,6 +1429,10 @@ public abstract class GameLogic extends SubsystemInterface implements World {
             return null;
         }
         refreshStaticObstacles();
+        var sectors = sectorsOf(pathGrid);
+        if (sectors != null) {
+            return sectorZones.computeIfAbsent(sectors, uz.dukeengine.core.pathfind.Zones::over);
+        }
         if (zones == null || !zones.isCurrent(pathGrid)) {
             zones = uz.dukeengine.core.pathfind.Zones.of(pathGrid);
         }
@@ -1401,8 +1588,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     }
 
     private void clearState() {
-        objects.clear();
-        objectsCopy = null;
+        forgetEveryThing();
         revealedTo.clear();
         markedSeen.clear();
         layTheSightCells(); // a new match is a map nobody has seen
@@ -1428,10 +1614,12 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         eachFrame.run();
         simulate();
         scriptEngine.evaluate(this);
-        // What was made this frame is told so by its end, so the frame's picture shows what making it set.
-        for (int i = 0; i < objects.size(); i++) {
-            objects.get(i).announceCreated();
+        // What was made this frame is told so by its end, so the frame's picture shows what making it set: what that
+        // makes in turn with it.
+        for (int i = 0; i < unannounced.size(); i++) {
+            unannounced.get(i).announceCreated();
         }
+        unannounced.clear();
         cellsLastFrame = cellsThisFrame;
         cellsThisFrame = 0;
         lookAtTheMap();
@@ -1539,24 +1727,103 @@ public abstract class GameLogic extends SubsystemInterface implements World {
      * object set is well-defined.
      */
     private void updateObjects() {
-        int count = objects.size();
-        for (int i = 0; i < count; i++) {
-            objects.get(i).updateModules();
+        decidedThisFrame = sleep != null && (awake == null || frame % sleep.everyFrames() == 0);
+        if (decidedThisFrame) {
+            decideWhoSleeps();
         }
+        var things = awake == null ? objects : awake;
+        int count = things.size();
+        updating = true;
+        try {
+            for (int i = 0; i < count; i++) {
+                things.get(i).updateModules();
+            }
+        } finally {
+            updating = false;
+        }
+        for (var thing : hurtWhileUpdating) {
+            if (!awakeSet.contains(thing) && isHere(thing)) {
+                wake(thing);
+            }
+        }
+        hurtWhileUpdating.clear();
+    }
+
+    /**
+     * Put every thing farther than the rule's reach from every waker to sleep, and wake the rest — a thing's cell and
+     * each waker's by where they stand, counted the longer way across, in creation order.
+     */
+    private void decideWhoSleeps() {
+        float cell = cellSize();
+        var waking = new boolean[objects.size()];
+        var wakerCells = new ArrayList<long[]>();
+        for (int i = 0; i < objects.size(); i++) {
+            var thing = objects.get(i);
+            if (sleep.wakers().test(thing)) {
+                waking[i] = true;
+                wakerCells.add(new long[] {cellOf(thing.getPosition().x(), cell), cellOf(thing.getPosition().y(), cell)});
+            }
+        }
+        var now = new ArrayList<GameObject>();
+        awakeSet.clear();
+        for (int i = 0; i < objects.size(); i++) {
+            var thing = objects.get(i);
+            if (waking[i] || nearAWaker(thing, wakerCells, cell)) {
+                now.add(thing);
+                awakeSet.add(thing);
+            }
+        }
+        awake = now;
+    }
+
+    private boolean nearAWaker(GameObject thing, List<long[]> wakerCells, float cell) {
+        long x = cellOf(thing.getPosition().x(), cell);
+        long y = cellOf(thing.getPosition().y(), cell);
+        for (var waker : wakerCells) {
+            if (Math.max(Math.abs(x - waker[0]), Math.abs(y - waker[1])) <= sleep.cells()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static long cellOf(float coordinate, float cell) {
+        return (long) Math.floor(coordinate / cell);
+    }
+
+    /**
+     * Let things far from every waker sleep, by {@code rule} — see {@link Sleep}; null wakes every thing for good, as a
+     * world with no rule has it. Who sleeps is decided on the next frame, and then as the rule says.
+     */
+    public final void setSleep(Sleep rule) {
+        this.sleep = rule;
+        this.awake = null;
+        this.awakeSet.clear();
+    }
+
+    /** Whether {@code thing} sleeps now: the world has a rule, and it put the thing to sleep at its last look. */
+    public final boolean isAsleep(GameObject thing) {
+        return awake != null && !awakeSet.contains(thing);
     }
 
     private void reapDestroyed() {
         reap(true);
-        while (objects.stream().anyMatch(GameObject::isDestroyed)) {
+        while (marked.stream().anyMatch(this::isHere)) {
             reap(false); // what went took things with it — a hold its passengers — and they go the same frame
         }
     }
 
-    /** Take out what is destroyed, and — with {@code deaths} — what has died since the last frame. */
+    /**
+     * Take out what is destroyed, and — with {@code deaths} — what has died since the last frame: looked for among every
+     * thing, or, where things sleep and who sleeps was not decided this frame, among the things awake and those marked
+     * destroyed — a sleeper that died of no blow is found on the rule's next frame.
+     */
     private void reap(boolean deaths) {
+        var suspects = marked;
+        marked = new ArrayList<>();
         List<GameObject> leaving = new ArrayList<>();
         List<GameObject> lying = new ArrayList<>();
-        for (var object : objects) {
+        for (var object : lookedAtByTheReap(suspects)) {
             if (deaths && object.isEffectivelyDead() && !object.hasDied() && !object.isDestroyed()) {
                 if (keptDead(object)) {
                     lying.add(object); // dies now, and stays while its death plays out
@@ -1578,7 +1845,24 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         if (leaving.isEmpty()) {
             return;
         }
-        objects.removeAll(leaving);
+        for (var object : leaving) {
+            if (!takeOut(objects, object)) {
+                continue;
+            }
+            byId.remove(object.getId().value(), object);
+            partition.removed(object);
+            takeOut(unannounced, object);
+            var owned = byPlayer.get(object.getPlayerIndex());
+            if (owned != null) {
+                takeOut(owned, object);
+            }
+            takeOut(seenByAll, object);
+            takeOut(spanned, object);
+            takeOut(stillThings, object);
+            if (awake != null && awakeSet.remove(object)) {
+                takeOut(awake, object);
+            }
+        }
         objectsCopy = null;
         staticObstaclesDirty = true; // a demolished building reopens its ground
         if (!ridingEffects.isEmpty()) {
@@ -1596,6 +1880,34 @@ public abstract class GameLogic extends SubsystemInterface implements World {
                 die(object, leaving); // one kept dead was told when it died, and one vanished leaves without a word
             }
         }
+    }
+
+    /**
+     * The things a reap looks at, in the order they came in: every thing, where none sleeps or who sleeps was decided
+     * this frame; else those awake and, of {@code suspects}, those still here.
+     */
+    private List<GameObject> lookedAtByTheReap(List<GameObject> suspects) {
+        if (awake == null || decidedThisFrame) {
+            return objects;
+        }
+        var asleep = new ArrayList<GameObject>();
+        for (var thing : suspects) {
+            if (!awakeSet.contains(thing) && isHere(thing)) {
+                asleep.add(thing);
+            }
+        }
+        asleep.sort(java.util.Comparator.comparingLong(GameObject::getEntered));
+        asleep.removeIf(new java.util.function.Predicate<>() { // one marked twice is looked at once
+            private GameObject last;
+
+            @Override
+            public boolean test(GameObject thing) {
+                boolean again = thing == last;
+                last = thing;
+                return again;
+            }
+        });
+        return inOrder(awake, asleep);
     }
 
     /** Whether a module of {@code object} keeps it in the world, dead — see {@link uz.dukeengine.core.module.KeepsDead}. */
@@ -1649,8 +1961,7 @@ public abstract class GameLogic extends SubsystemInterface implements World {
     public final GameObject createObject(ThingTemplate template) {
         var object = thingFactory.newObject(template, new ObjectId(nextObjectId++));
         object.setWorld(this);
-        objects.add(object);
-        objectsCopy = null;
+        enter(object);
         staticObstaclesDirty = true;
         return object;
     }
@@ -1752,7 +2063,22 @@ public abstract class GameLogic extends SubsystemInterface implements World {
 
     /** Remove every object — used when loading a saved game over this world. */
     public final void clearWorld() {
+        forgetEveryThing();
+    }
+
+    private void forgetEveryThing() {
         objects.clear();
+        byId.clear();
+        partition.cleared();
+        awake = null;
+        awakeSet.clear();
+        unannounced.clear();
+        hurtWhileUpdating.clear();
+        byPlayer.clear();
+        seenByAll.clear();
+        spanned.clear();
+        stillThings.clear();
+        marked = new ArrayList<>();
         objectsCopy = null;
     }
 
@@ -1769,19 +2095,183 @@ public abstract class GameLogic extends SubsystemInterface implements World {
         var object = thingFactory.newObject(template, id);
         object.restored();
         object.setWorld(this);
-        objects.add(object);
-        objectsCopy = null;
+        enter(object);
         return object;
+    }
+
+    /** {@code object} comes into the world: last in its order, found by its id and where it stands. */
+    private void enter(GameObject object) {
+        object.entered(nextEntered++);
+        objects.add(object);
+        byId.putIfAbsent(object.getId().value(), object);
+        partition.added(object);
+        if (awake != null) {
+            awake.add(object); // awake until who sleeps is next decided
+            awakeSet.add(object);
+        }
+        unannounced.add(object);
+        byPlayer.computeIfAbsent(object.getPlayerIndex(), player -> new ArrayList<>()).add(object);
+        if (uz.dukeengine.core.thing.Sighted.seenByAllOf(object.getTemplate()) > 0f) {
+            seenByAll.add(object);
+        }
+        if (object.getSpan() != null) {
+            spanned.add(object);
+        }
+        if (standsStill(object)) {
+            stillThings.add(object);
+        }
+        if (object.isDestroyed()) {
+            marked.add(object); // destroyed before it came in, and gone by the next reap
+        }
+        objectsCopy = null;
+    }
+
+    @Override
+    public final void thingMoved(GameObject thing) {
+        partition.moved(thing);
+    }
+
+    @Override
+    public final void ownerChanged(GameObject thing, int was) {
+        var before = byPlayer.get(was);
+        if (before == null || !takeOut(before, thing)) {
+            return; // not one of this world's live things
+        }
+        putIn(byPlayer.computeIfAbsent(thing.getPlayerIndex(), player -> new ArrayList<>()), thing);
+    }
+
+    @Override
+    public final void spanChanged(GameObject thing) {
+        if (!isHere(thing)) {
+            return;
+        }
+        takeOut(spanned, thing);
+        if (thing.getSpan() != null) {
+            putIn(spanned, thing);
+        }
+    }
+
+    @Override
+    public final void mobilityChanged(GameObject thing) {
+        if (!isHere(thing)) {
+            return;
+        }
+        boolean listed = indexOf(stillThings, thing) >= 0;
+        if (standsStill(thing) && !listed) {
+            putIn(stillThings, thing);
+        } else if (!standsStill(thing) && listed) {
+            takeOut(stillThings, thing);
+        }
+    }
+
+    /** Whether {@code thing} may lay anything on the ground: it cannot move, and it has a shape. */
+    private static boolean standsStill(GameObject thing) {
+        return !thing.isMobile() && !Solid.of(thing.getTemplate()).isPoint();
+    }
+
+    @Override
+    public final void destroyMarked(GameObject thing) {
+        marked.add(thing);
+    }
+
+    @Override
+    public final void blowLanded(GameObject thing) {
+        if (awake == null || awakeSet.contains(thing) || !isHere(thing)) {
+            return;
+        }
+        if (updating) {
+            hurtWhileUpdating.add(thing); // the list being walked is not changed under it
+            return;
+        }
+        wake(thing);
+    }
+
+    /** A sleeper wakes, until who sleeps is next decided. */
+    private void wake(GameObject thing) {
+        if (awakeSet.add(thing)) {
+            putIn(awake, thing);
+        }
+    }
+
+    /** Whether {@code thing} is one of this world's live things. */
+    private boolean isHere(GameObject thing) {
+        return indexOf(objects, thing) >= 0;
+    }
+
+    /** Where {@code thing} is in {@code things}, a list in the order things came in: found by halves; -1 for nowhere. */
+    private static int indexOf(List<GameObject> things, GameObject thing) {
+        long entered = thing.getEntered();
+        int low = 0;
+        int high = things.size() - 1;
+        while (low <= high) {
+            int middle = (low + high) >>> 1;
+            long at = things.get(middle).getEntered();
+            if (at < entered) {
+                low = middle + 1;
+            } else if (at > entered) {
+                high = middle - 1;
+            } else {
+                return things.get(middle) == thing ? middle : -1;
+            }
+        }
+        return -1;
+    }
+
+    /** Take {@code thing} out of {@code things}, a list in the order things came in; whether it was there. */
+    private static boolean takeOut(List<GameObject> things, GameObject thing) {
+        int at = indexOf(things, thing);
+        if (at < 0) {
+            return false;
+        }
+        things.remove(at);
+        return true;
+    }
+
+    /** Put {@code thing} into {@code things}, a list in the order things came in, where its turn puts it. */
+    private static void putIn(List<GameObject> things, GameObject thing) {
+        long entered = thing.getEntered();
+        int low = 0;
+        int high = things.size();
+        while (low < high) {
+            int middle = (low + high) >>> 1;
+            if (things.get(middle).getEntered() < entered) {
+                low = middle + 1;
+            } else {
+                high = middle;
+            }
+        }
+        things.add(low, thing);
+    }
+
+    /**
+     * The live things {@code player} owns, in the order they came into the world: the world's own list, to be walked
+     * without changing the world while it is.
+     */
+    @Override
+    public final List<GameObject> getObjectsOf(int player) {
+        var things = byPlayer.get(player);
+        return things == null ? List.of() : java.util.Collections.unmodifiableList(things);
+    }
+
+    /** The players that own a live thing now, lowest first. */
+    public final java.util.SortedSet<Integer> getOwners() {
+        var owners = new java.util.TreeSet<Integer>();
+        byPlayer.forEach((player, things) -> {
+            if (!things.isEmpty()) {
+                owners.add(player);
+            }
+        });
+        return owners;
+    }
+
+    /** The live things drawn along a line ({@link GameObject#setSpan}), in the order they came into the world. */
+    public final List<GameObject> getSpanned() {
+        return java.util.Collections.unmodifiableList(spanned);
     }
 
     /** The live object with this id, or {@code null} if none (or it was reaped). */
     public final GameObject findObject(ObjectId id) {
-        for (var object : objects) {
-            if (object.getId().equals(id)) {
-                return object;
-            }
-        }
-        return null;
+        return id == null ? null : byId.get(id.value());
     }
 
     /**

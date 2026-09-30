@@ -85,7 +85,7 @@ public final class PathGrid {
     private int obstacleVersion;
     /** Bumped whenever anything that decides where can be walked changes: see {@link #getShapeVersion}. */
     private int shapeVersion;
-    private final int[] level;               // which floor this cell stands on; 0 everywhere
+    private final short[] level;             // which floor this cell stands on; 0 everywhere
     private final boolean[] ramp;            // cells that link one level to the next
     private float levelHeight;               // world units per level; 0 = the world is flat
     private HeightMap relief;                // smooth ground over the levels; null = none
@@ -110,6 +110,12 @@ public final class PathGrid {
     /** The round still things standing in the way, where they close no cell — see {@link #setObstacleCircle}. */
     private Circles stillCircles = Circles.NONE;
     private final java.util.List<SceneryFootprint> circlesScratch = new java.util.ArrayList<>();
+    /** How many changes to where can be walked the grid has seen — see {@link #changesSince}. */
+    private int changeSerial;
+    /** The latest of them, each {serial, minX, minY, maxX, maxY} in cells, oldest first. */
+    private final java.util.ArrayDeque<int[]> changes = new java.util.ArrayDeque<>();
+    /** The last serial no longer kept: a reader behind it works out everything again. */
+    private int forgottenUpTo;
 
     public PathGrid(int width, int height) {
         this(width, height, DEFAULT_CELL_SIZE);
@@ -131,7 +137,7 @@ public final class PathGrid {
         this.classNames = new java.util.concurrent.CopyOnWriteArrayList<>();
         this.root = null;
         this.surfaces = 0;
-        this.level = new int[width * height];
+        this.level = new short[width * height];
         this.ramp = new boolean[width * height];
         this.decks = new java.util.concurrent.CopyOnWriteArrayList<>();
     }
@@ -228,6 +234,7 @@ public final class PathGrid {
      */
     public void setSceneryFootprints(java.util.List<SceneryFootprint> footprints) {
         root().scenery = Circles.of(footprints == null ? java.util.List.of() : footprints, width, height, cellSize);
+        changedEverywhere();
     }
 
     /**
@@ -411,6 +418,7 @@ public final class PathGrid {
         if (groundClass[cy * width + cx] != c) {
             groundClass[cy * width + cx] = c;
             root().shapeVersion++;
+            changedAround(cx, cy);
         }
     }
 
@@ -418,6 +426,7 @@ public final class PathGrid {
     public void setCliffClass(String name) {
         root().cliffClass = classOf(name);
         root().shapeVersion++;
+        changedEverywhere();
     }
 
     /**
@@ -503,6 +512,7 @@ public final class PathGrid {
         if (inBounds(cx, cy) && blocked[cy * width + cx] != value) {
             blocked[cy * width + cx] = value;
             shapeVersion++;
+            changedAround(cx, cy);
         }
     }
 
@@ -552,11 +562,13 @@ public final class PathGrid {
             return;
         }
         if (!sameCells) {
+            noteChangedCells();
             System.arraycopy(obstacleScratch, 0, obstacle, 0, obstacle.length);
             System.arraycopy(laidScratch, 0, laid, 0, laid.length);
             shapeVersion++; // what the zones are made of; a circle is none of it
         }
         if (!sameCircles) {
+            noteChangedCircles(stillCircles.list, circlesScratch);
             stillCircles = Circles.of(circlesScratch, width, height, cellSize);
         }
         obstacleVersion++;
@@ -581,9 +593,14 @@ public final class PathGrid {
     }
 
     public void setLevel(int cx, int cy, int value) {
+        if (value < Short.MIN_VALUE || value > Short.MAX_VALUE) {
+            throw new IllegalArgumentException("a cell stands on a storey of " + Short.MIN_VALUE + " to "
+                    + Short.MAX_VALUE + ", not " + value);
+        }
         if (inBounds(cx, cy) && level[cy * width + cx] != value) {
-            level[cy * width + cx] = value;
+            level[cy * width + cx] = (short) value;
             shapeVersion++;
+            changedAround(cx, cy);
         }
     }
 
@@ -599,6 +616,7 @@ public final class PathGrid {
         if (inBounds(cx, cy)) {
             ramp[cy * width + cx] = value;
             shapeVersion++;
+            changedAround(cx, cy);
         }
     }
 
@@ -629,6 +647,7 @@ public final class PathGrid {
 
     public void setRelief(HeightMap relief) {
         shapeVersion++;
+        changedEverywhere();
         if (relief != null && (relief.columns() != width + 1 || relief.rows() != height + 1)) {
             throw new IllegalArgumentException("a relief over " + width + "x" + height + " cells is "
                     + (width + 1) + "x" + (height + 1) + " corners, not " + relief.columns() + "x" + relief.rows());
@@ -824,6 +843,101 @@ public final class PathGrid {
         return cy * width + cx;
     }
 
+    // ---- where it changed ----
+
+    /** How many changes are kept for a reader to catch up with; one further behind works out everything again. */
+    private static final int MOST_CHANGES_KEPT = 4096;
+    /** Cells changed in one laying past this many squares of the ground are told as one change everywhere. */
+    private static final int MOST_SQUARES_TOLD = 256;
+    /** The side of a square of the ground the cells a laying changed are told by. */
+    private static final int SQUARE = 16;
+
+    /**
+     * The serial of the last change to where can be walked — a cell blocked or opened, laid, raised, made a ramp or a
+     * class, a circle standing in the way or gone — for {@link #changesSince}.
+     */
+    public int changeSerial() {
+        return root().changeSerial;
+    }
+
+    /**
+     * Where can be walked changed since change {@code since}: each change's cells, {minX, minY, maxX, maxY}, oldest
+     * first — a step between two cells is decided within that box — or null where some of them are no longer kept,
+     * and whatever was worked out from the grid is to be worked out again.
+     */
+    public java.util.List<int[]> changesSince(int since) {
+        var grid = root();
+        if (since < grid.forgottenUpTo) {
+            return null;
+        }
+        var after = new java.util.ArrayList<int[]>();
+        for (var change : grid.changes) {
+            if (change[0] > since) {
+                after.add(new int[] {change[1], change[2], change[3], change[4]});
+            }
+        }
+        return after;
+    }
+
+    private void changed(int minX, int minY, int maxX, int maxY) {
+        var grid = root();
+        grid.changeSerial++;
+        grid.changes.addLast(new int[] {grid.changeSerial, minX, minY, maxX, maxY});
+        if (grid.changes.size() > MOST_CHANGES_KEPT) {
+            while (grid.changes.size() > MOST_CHANGES_KEPT / 2) {
+                grid.forgottenUpTo = grid.changes.removeFirst()[0];
+            }
+        }
+    }
+
+    /** A cell changed: the steps into it, out of it and past its corner along with it. */
+    private void changedAround(int cx, int cy) {
+        changed(cx - 1, cy - 1, cx + 1, cy + 1);
+    }
+
+    private void changedEverywhere() {
+        changed(-1, -1, width, height);
+    }
+
+    /** The cells the obstacles being committed change, told by the squares of the ground they fall in. */
+    private void noteChangedCells() {
+        int squaresAcross = (width + SQUARE - 1) / SQUARE;
+        var squares = new java.util.BitSet();
+        for (int i = 0; i < obstacle.length; i++) {
+            if (obstacle[i] != obstacleScratch[i] || laid[i] != laidScratch[i]) {
+                squares.set(((i / width) / SQUARE) * squaresAcross + (i % width) / SQUARE);
+            }
+        }
+        if (squares.cardinality() > MOST_SQUARES_TOLD) {
+            changedEverywhere();
+            return;
+        }
+        for (int square = squares.nextSetBit(0); square >= 0; square = squares.nextSetBit(square + 1)) {
+            int x = (square % squaresAcross) * SQUARE;
+            int y = (square / squaresAcross) * SQUARE;
+            changed(x - 1, y - 1, x + SQUARE, y + SQUARE);
+        }
+    }
+
+    /** The circles that came or went, each told by the cells its middle's reach covers. */
+    private void noteChangedCircles(java.util.List<SceneryFootprint> was, java.util.List<SceneryFootprint> now) {
+        var before = new java.util.HashSet<>(was);
+        var after = new java.util.HashSet<>(now);
+        var moved = new java.util.ArrayList<SceneryFootprint>();
+        was.stream().filter(circle -> !after.contains(circle)).forEach(moved::add);
+        now.stream().filter(circle -> !before.contains(circle)).forEach(moved::add);
+        if (moved.size() > MOST_SQUARES_TOLD) {
+            changedEverywhere();
+            return;
+        }
+        for (var circle : moved) {
+            changed((int) Math.floor((circle.x() - circle.radius()) / cellSize) - 1,
+                    (int) Math.floor((circle.y() - circle.radius()) / cellSize) - 1,
+                    (int) Math.floor((circle.x() + circle.radius()) / cellSize) + 1,
+                    (int) Math.floor((circle.y() + circle.radius()) / cellSize) + 1);
+        }
+    }
+
     // ---- decks ----
 
     /**
@@ -887,6 +1001,7 @@ public final class PathGrid {
         }
         closedUnder = closed;
         shapeVersion++;
+        changedEverywhere();
         obstacleVersion++; // what a route is checked against: every mover plans its way again
     }
 
